@@ -37,136 +37,7 @@ if TYPE_CHECKING:
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class _Serialize:
-    """
-    Methods mixin for serializing and solving :class:`Curve` or :class:`LineCurve` s.
-    """
-
-    def to_json(self) -> str:
-        """
-        Convert the parameters of the curve to JSON format.
-
-        Returns
-        -------
-        str
-        """
-        if self.t is NoInput.blank:
-            t = None
-        else:
-            t = [t.strftime("%Y-%m-%d") for t in self.t]
-
-        container = {
-            "nodes": {dt.strftime("%Y-%m-%d"): v.real for dt, v in self.nodes.items()},
-            "interpolation": self.interpolation if isinstance(self.interpolation, str) else None,
-            "t": t,
-            "c": self.spline.c if self.c_init else None,
-            "id": self.id,
-            "convention": self.convention,
-            "endpoints": self.spline_endpoints,
-            "modifier": self.modifier,
-            "calendar_type": self.calendar_type,
-            "ad": self.ad,
-        }
-        if type(self) is IndexCurve:
-            container.update({"index_base": self.index_base, "index_lag": self.index_lag})
-
-        if self.calendar_type == "null":
-            container.update({"calendar": None})
-        elif "named: " in self.calendar_type:
-            container.update({"calendar": self.calendar_type[7:]})
-        elif self.calendar_type == "object":
-            container.update({"calendar": self.calendar.name})
-        else:  # calendar type is custom
-            container.update(
-                {
-                    "calendar": {
-                        "weekmask": list(self.calendar.week_mask),
-                        "holidays": [d.strftime("%Y-%m-%d") for d in self.calendar.holidays],
-                    },
-                },
-            )
-
-        return json.dumps(container, default=str)
-
-    @classmethod
-    def from_json(cls, curve: str, **kwargs) -> Curve | LineCurve:  # type: ignore[no-untyped-def]
-        """
-        Reconstitute a curve from JSON.
-
-        Parameters
-        ----------
-        curve : str
-            The JSON string representation of the curve.
-
-        Returns
-        -------
-        Curve or LineCurve
-        """
-        serial = json.loads(curve)
-
-        serial["nodes"] = {
-            datetime.strptime(dt, "%Y-%m-%d"): v for dt, v in serial["nodes"].items()
-        }
-
-        if serial["calendar_type"] == "custom":
-            # must load and construct a custom holiday calendar from serial dates
-            dates = [datetime.strptime(d, "%Y-%m-%d") for d in serial["calendar"]["holidays"]]
-            serial["calendar"] = create_calendar(
-                rules=dates,
-                week_mask=serial["calendar"]["weekmask"],
-            )
-
-        if serial["t"] is not None:
-            serial["t"] = [datetime.strptime(t, "%Y-%m-%d") for t in serial["t"]]
-
-        serial = {k: v for k, v in serial.items() if v is not None}
-        return cls(**{**serial, **kwargs})
-
-    def copy(self):
-        """
-        Create an identical copy of the curve object.
-
-        Returns
-        -------
-        Curve or LineCurve
-        """
-        return self.from_json(self.to_json())
-
-    def __eq__(self, other):
-        """Test two curves are identical"""
-        if type(self) is not type(other):
-            return False
-        attrs = [attr for attr in dir(self) if attr[:1] != "_"]
-        for attr in attrs:
-            if callable(getattr(self, attr, None)):
-                continue
-            elif getattr(self, attr, None) != getattr(other, attr, None):
-                return False
-        return True
-
-    def _set_ad_order(self, order: int) -> None:
-        """
-        Change the node values to float, Dual or Dual2 based on input parameter.
-        """
-        if order == getattr(self, "ad", None):
-            return None
-        elif order not in [0, 1, 2]:
-            raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
-
-        self.clear_cache()
-        self.ad = order
-        self.nodes = {
-            k: set_order_convert(v, order, [f"{self.id}{i}"])
-            for i, (k, v) in enumerate(self.nodes.items())
-        }
-        self.csolve()
-        return None
-
-    def __repr__(self):
-        return f"<rl.{type(self).__name__}:{self.id} at {hex(id(self))}>"
-
-
-class Curve(_Serialize):
+class Curve:
     """
     Curve based on DF parametrisation at given node dates with interpolation.
 
@@ -288,7 +159,7 @@ class Curve(_Serialize):
 
     def __init__(
         self,
-        nodes: dict,
+        nodes: dict[datetime, Number],
         *,
         interpolation: str | Callable | NoInput = NoInput(0),
         t: list[datetime] | NoInput = NoInput(0),
@@ -323,14 +194,12 @@ class Curve(_Serialize):
             self.interpolation = self.interpolation.lower()
 
         # Parameters for the rate derivation
-        self.convention = defaults.convention if convention is NoInput.blank else convention
-        self.modifier = defaults.modifier if modifier is NoInput.blank else modifier.upper()
+        self.convention = _drb(defaults.convention, convention)
+        self.modifier = _drb(defaults.modifier, modifier).upper()
         self.calendar, self.calendar_type = _get_calendar_with_kind(calendar)
-        if self.calendar_type == "named":
-            self.calendar_type = f"named: {calendar.lower()}"
 
         # Parameters for PPSpline
-        if endpoints is NoInput.blank:
+        if isinstance(endpoints, NoInput):
             self.spline_endpoints = [defaults.endpoints, defaults.endpoints]
         elif isinstance(endpoints, str):
             self.spline_endpoints = [endpoints.lower(), endpoints.lower()]
@@ -338,8 +207,8 @@ class Curve(_Serialize):
             self.spline_endpoints = [_.lower() for _ in endpoints]
 
         self.t = t
-        self.c_init = c is not NoInput.blank
-        if t is not NoInput.blank:
+        self.c_init = not isinstance(c, NoInput)
+        if not isinstance(t, NoInput):
             self.t_posix = [_.replace(tzinfo=UTC).timestamp() for _ in t]
             self.spline = PPSplineF64(4, self.t_posix, None if c is NoInput.blank else c)
             if len(self.t) < 10 and "not_a_knot" in self.spline_endpoints:
@@ -351,6 +220,129 @@ class Curve(_Serialize):
             self.spline = None
 
         self._set_ad_order(order=ad)
+
+    def __eq__(self, other):
+        """Test two curves are identical"""
+        if type(self) is not type(other):
+            return False
+        attrs = [attr for attr in dir(self) if attr[:1] != "_"]
+        for attr in attrs:
+            if callable(getattr(self, attr, None)):
+                continue
+            elif getattr(self, attr, None) != getattr(other, attr, None):
+                return False
+        return True
+
+    def _set_ad_order(self, order: int) -> None:
+        """
+        Change the node values to float, Dual or Dual2 based on input parameter.
+        """
+        if order == getattr(self, "ad", None):
+            return None
+        elif order not in [0, 1, 2]:
+            raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
+
+        self.clear_cache()
+        self.ad = order
+        self.nodes = {
+            k: set_order_convert(v, order, [f"{self.id}{i}"])
+            for i, (k, v) in enumerate(self.nodes.items())
+        }
+        self.csolve()
+        return None
+
+    def __repr__(self):
+        return f"<rl.{type(self).__name__}:{self.id} at {hex(id(self))}>"
+
+    def copy(self) -> Curve:
+        """
+        Create an identical copy of the curve object.
+
+        Returns
+        -------
+        Curve or LineCurve
+        """
+        return self.from_json(self.to_json())
+
+    def to_json(self) -> str:
+        """
+        Convert the parameters of the curve to JSON format.
+
+        Returns
+        -------
+        str
+        """
+        if self.t is NoInput.blank:
+            t = None
+        else:
+            t = [t.strftime("%Y-%m-%d") for t in self.t]
+
+        container = {
+            "nodes": {dt.strftime("%Y-%m-%d"): v.real for dt, v in self.nodes.items()},
+            "interpolation": self.interpolation if isinstance(self.interpolation, str) else None,
+            "t": t,
+            "c": self.spline.c if self.c_init else None,
+            "id": self.id,
+            "convention": self.convention,
+            "endpoints": self.spline_endpoints,
+            "modifier": self.modifier,
+            "calendar_type": self.calendar_type,
+            "ad": self.ad,
+        }
+        if type(self) is IndexCurve:
+            container.update({"index_base": self.index_base, "index_lag": self.index_lag})
+
+        if self.calendar_type == "null":
+            container.update({"calendar": None})
+        elif "named: " in self.calendar_type:
+            container.update({"calendar": self.calendar_type[7:]})
+        elif self.calendar_type == "object":
+            container.update({"calendar": self.calendar.name})
+        else:  # calendar type is custom
+            container.update(
+                {
+                    "calendar": {
+                        "weekmask": list(self.calendar.week_mask),
+                        "holidays": [d.strftime("%Y-%m-%d") for d in self.calendar.holidays],
+                    },
+                },
+            )
+
+        return json.dumps(container, default=str)
+
+    @classmethod
+    def from_json(cls, curve: str, **kwargs) -> Curve:  # type: ignore[no-untyped-def]
+        """
+        Reconstitute a curve from JSON.
+
+        Parameters
+        ----------
+        curve : str
+            The JSON string representation of the curve.
+
+        Returns
+        -------
+        Curve or LineCurve
+        """
+        serial = json.loads(curve)
+
+        serial["nodes"] = {
+            datetime.strptime(dt, "%Y-%m-%d"): v for dt, v in serial["nodes"].items()
+        }
+
+        if serial["calendar_type"] == "custom":
+            # must load and construct a custom holiday calendar from serial dates
+            dates = [datetime.strptime(d, "%Y-%m-%d") for d in serial["calendar"]["holidays"]]
+            serial["calendar"] = create_calendar(
+                rules=dates,
+                week_mask=serial["calendar"]["weekmask"],
+            )
+
+        if serial["t"] is not None:
+            serial["t"] = [datetime.strptime(t, "%Y-%m-%d") for t in serial["t"]]
+
+        serial = {k: v for k, v in serial.items() if v is not None}
+        return cls(**{**serial, **kwargs})
 
     def __getitem__(self, date: datetime) -> Number:
         if defaults.curve_caching and date in self._cache:
@@ -2502,8 +2494,8 @@ class MultiCsaCurve(CompositeCurve):
         self,
         curves: list | tuple,
         id: str | NoInput = NoInput(0),
-        multi_csa_min_step: int | NoInput = 1,
-        multi_csa_max_step: int | NoInput = 1825,
+        multi_csa_min_step: int = 1,
+        multi_csa_max_step: int = 1825,
     ) -> None:
         self.multi_csa_min_step = max(1, multi_csa_min_step)
         self.multi_csa_max_step = min(1825, multi_csa_max_step)
@@ -2551,7 +2543,7 @@ class MultiCsaCurve(CompositeCurve):
         _ = (df_num / df_den - 1) * 100 / (d * n)
         return _
 
-    def __getitem__(self, date: datetime):
+    def __getitem__(self, date: datetime) -> Number:
         # will return a composited discount factor
         if date == self.curves[0].node_dates[0]:
             return 1.0  # TODO (low:?) this is not variable but maybe should be tagged as "id0"?
@@ -2560,10 +2552,10 @@ class MultiCsaCurve(CompositeCurve):
 
         # method uses the step and picks the highest (cheapest rate)
         # in each period
-        _ = 1.0
+        _: Number = 1.0
         d1 = self.curves[0].node_dates[0]
 
-        def _get_step(step):
+        def _get_step(step: int) -> int:
             return min(max(step, self.multi_csa_min_step), self.multi_csa_max_step)
 
         d2 = d1 + timedelta(days=_get_step(defaults.multi_csa_steps[0]))
@@ -2652,7 +2644,7 @@ class MultiCsaCurve(CompositeCurve):
 
     def shift(
         self,
-        spread: float,
+        spread: DualTypes,
         id: str | NoInput = NoInput(0),
         composite: bool | NoInput = True,
         collateral: str | NoInput = NoInput(0),
@@ -2691,14 +2683,14 @@ class MultiCsaCurve(CompositeCurve):
             )
 
         curves = tuple(_.shift(spread=spread, composite=composite) for _ in self.curves)
-        _ = MultiCsaCurve(
+        ret = MultiCsaCurve(
             curves=curves,
             id=id,
             multi_csa_max_step=self.multi_csa_max_step,
             multi_csa_min_step=self.multi_csa_min_step,
         )
-        _.collateral = collateral
-        return _
+        ret.collateral = _drb(None, collateral)
+        return ret
 
 
 # class HazardCurve(Curve):
@@ -2771,8 +2763,8 @@ class ProxyCurve(Curve):
         collateral: str,
         fx_forwards: FXForwards,
         convention: str | NoInput = NoInput(0),
-        modifier: str | bool | NoInput = False,
-        calendar: CalInput | bool | NoInput = False,
+        modifier: str | NoInput = NoInput(1),  # inherits from existing curve objects
+        calendar: CalInput = NoInput(1),  # inherits from existing curve objects
         id: str | NoInput = NoInput(0),
     ):
         self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
@@ -2805,12 +2797,12 @@ class ProxyCurve(Curve):
             ),
             modifier=(
                 self.fx_forwards.fx_curves[self.cash_pair].modifier
-                if modifier is False
+                if modifier is NoInput.inherit
                 else modifier
             ),
             calendar=(
                 self.fx_forwards.fx_curves[self.cash_pair].calendar
-                if calendar is False
+                if calendar is NoInput.inherit
                 else calendar
             ),
         )
@@ -2820,36 +2812,38 @@ class ProxyCurve(Curve):
         self.node_dates = [self.fx_forwards.immediate, self.terminal]
 
     def __getitem__(self, date: datetime) -> Number:
-        return (
-            self.fx_forwards._rate_with_path(self.pair, date, path=self.path)[0]
-            / self.fx_forwards.fx_rates_immediate.fx_array[self.cash_idx, self.coll_idx]
-            * self.fx_forwards.fx_curves[self.coll_pair][date]
-        )
+        _1: Number = self.fx_forwards._rate_with_path(self.pair, date, path=self.path)[0]
+        _2: Number = self.fx_forwards.fx_rates_immediate._fx_array_el(self.cash_idx, self.coll_idx)
+        _3: Number = self.fx_forwards.fx_curves[self.coll_pair][date]
+        return _1 / _2 * _3
 
-    def to_json(self):  # pragma: no cover
+    def to_json(self) -> str:  # pragma: no cover  # type: ignore
         """
         Not implemented for :class:`~rateslib.fx.ProxyCurve` s.
         :return:
         """
-        return NotImplementedError("`to_json` not available on proxy curve.")
+        raise NotImplementedError("`to_json` not available on proxy curve.")
 
-    def from_json(self):  # pragma: no cover
+    @classmethod
+    def from_json(cls, curve: str, **kwargs: Any) -> Curve:  # pragma: no cover  # type: ignore
         """
         Not implemented for :class:`~rateslib.fx.ProxyCurve` s.
         """
-        return NotImplementedError("`from_json` not available on proxy curve.")
+        raise NotImplementedError("`from_json` not available on proxy curve.")
 
-    def _set_ad_order(self) -> None:  # pragma: no cover
+    def _set_ad_order(self, order: int) -> None:  # pragma: no cover
         """
         Not implemented for :class:`~rateslib.fx.ProxyCurve` s.
         """
         raise NotImplementedError("`set_ad_order` not available on proxy curve.")
 
-    def _get_node_vector(self):
-        return NotImplementedError("Instances of ProxyCurve do not have solvable variables.")
+    def _get_node_vector(self) -> None:  # pragma: no cover
+        raise NotImplementedError("Instances of ProxyCurve do not have solvable variables.")
 
 
-def average_rate(effective, termination, convention, rate):
+def average_rate(
+    effective: datetime, termination: datetime, convention: str, rate: DualTypes
+) -> tuple[DualTypes, float, int]:
     """
     Return the geometric, 1 calendar day, average rate for the rate in a period.
 
@@ -2870,13 +2864,21 @@ def average_rate(effective, termination, convention, rate):
     -------
     tuple : The rate, the 1-day DCF, and the number of calendar days
     """
-    d = _DCF1d[convention.upper()]
-    n = (termination - effective).days
-    _ = ((1 + n * d * rate / 100) ** (1 / n) - 1) / d
+    d: float = _DCF1d[convention.upper()]
+    n: int = (termination - effective).days
+    _: DualTypes = ((1 + n * d * rate / 100) ** (1 / n) - 1) / d
     return _ * 100, d, n
 
 
-def interpolate(x, x_1, y_1, x_2, y_2, interpolation, start=None):
+def interpolate(
+    x: DualTypes,
+    x_1: DualTypes,
+    y_1: DualTypes,
+    x_2: DualTypes,
+    y_2: DualTypes,
+    interpolation: str,
+    start: DualTypes | None = None,
+) -> DualTypes:
     """
     Perform local interpolation between two data points.
 
@@ -2917,27 +2919,28 @@ def interpolate(x, x_1, y_1, x_2, y_2, interpolation, start=None):
     """
     if interpolation == "linear":
 
-        def op(z):
+        def op(z: DualTypes) -> DualTypes:
             return z
 
     elif interpolation == "linear_index":
 
-        def op(z):
+        def op(z: DualTypes) -> DualTypes:
             return 1 / z
 
         y_1, y_2 = 1 / y_1, 1 / y_2
     elif interpolation == "log_linear":
-        op, y_1, y_2 = dual_exp, dual_log(y_1), dual_log(y_2)
+        op, y_1, y_2 = dual_exp, dual_log(y_1), dual_log(y_2)  # type: ignore[assignment]
     elif interpolation == "linear_zero_rate":
         # convention not used here since we just determine linear rate interpolation
         # 86400. scalar relates to using posix timestamp conversion
+        assert start is not None  # noqa: S101
         y_2 = dual_log(y_2) / ((start - x_2) / (365.0 * 86400.0))
         if start == x_1:
             y_1 = y_2
         else:
             y_1 = dual_log(y_1) / ((start - x_1) / (365.0 * 86400.0))
 
-        def op(z):
+        def op(z: DualTypes) -> DualTypes:
             return dual_exp((start - x) / (365.0 * 86400.0) * z)
 
     elif interpolation == "flat_forward":
@@ -2962,8 +2965,8 @@ def index_left(
     list_input: list[Any],
     list_length: int,
     value: Any,
-    left_count: int | None = 0,
-):
+    left_count: int = 0,
+) -> int:
     """
     Return the interval index of a value from an ordered input list on the left side.
 
@@ -3028,7 +3031,7 @@ def index_left(
     if list_length == 2:
         return left_count
 
-    split = floor((list_length - 1) / 2)
+    split: int = floor((list_length - 1) / 2)
     if list_length == 3 and value == list_input[split]:
         return left_count
 

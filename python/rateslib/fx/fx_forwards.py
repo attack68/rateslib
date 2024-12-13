@@ -895,9 +895,9 @@ class FXForwards:
         self,
         cashflow: str,
         collateral: str,
-        convention: str | NoInput = NoInput(0),
-        modifier: str | bool = False,
-        calendar: CalInput | bool = False,
+        convention: str | NoInput = NoInput(1),  # will inherit from available curve
+        modifier: str | NoInput = NoInput(1),  # will inherit from available curve
+        calendar: CalInput = NoInput(1),  # will inherit from available curve
         id: str | NoInput = NoInput(0),
     ) -> Curve:
         """
