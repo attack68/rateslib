@@ -1876,7 +1876,7 @@ class IndexCurve(Curve):
             raise ValueError("`index_base` must be given for IndexCurve.")
         super().__init__(*args, **{"interpolation": "linear_index", **kwargs})
 
-    def index_value(self, date: datetime, interpolation: str = "daily"):
+    def index_value(self, date: datetime, interpolation: str = "daily") -> Number:
         """
         Calculate the accrued value of the index from the ``index_base``.
 
@@ -2264,7 +2264,7 @@ class CompositeCurve(IndexCurve):
         self,
         effective: datetime,
         termination: datetime | str | NoInput = NoInput(0),
-        modifier: str | bool | NoInput = False,
+        modifier: str | NoInput = NoInput(1),
         approximate: bool = True,
     ):
         """
@@ -2295,14 +2295,17 @@ class CompositeCurve(IndexCurve):
             return None
 
         if self._base_type == "values":
-            _ = 0.0
+            _: Number = 0.0
             for i in range(len(self.curves)):
                 _ += self.curves[i].rate(effective, termination, modifier)
             return _
         elif self._base_type == "dfs":
-            modifier = self.modifier if modifier is False else modifier
-            if isinstance(termination, str):
-                termination = add_tenor(effective, termination, modifier, self.calendar)
+            modifier_ = _drb(self.modifier, modifier)
+
+            if isinstance(termination, NoInput):
+                raise ValueError("`termination` must be give for rate of DF based Curve.")
+            elif isinstance(termination, str):
+                termination = add_tenor(effective, termination, modifier_, self.calendar)
 
             d = _DCF1d[self.convention.upper()]
 
@@ -2319,8 +2322,9 @@ class CompositeCurve(IndexCurve):
                 _, dcf_ = 1.0, 0.0
                 date_ = effective
                 while date_ < termination:
-                    term_ = add_tenor(date_, "1B", None, self.calendar)
-                    __, d_ = 0.0, (term_ - date_).days * d
+                    term_ = self.calendar.lag(date_, 1, False)  # add 1 bus day
+                    __: Number = 0.0
+                    d_ = (term_ - date_).days * d
                     dcf_ += d_
                     for curve in self.curves:
                         __ += curve.rate(date_, term_)
@@ -2348,7 +2352,7 @@ class CompositeCurve(IndexCurve):
             for curve in self.curves:
                 avg_rate = ((1.0 / curve[date]) ** (1.0 / days) - 1) / d
                 total_rate += avg_rate
-            _ = 1.0 / (1 + total_rate * d) ** days
+            _: Number = 1.0 / (1 + total_rate * d) ** days
             return _
 
         elif self._base_type == "values":
@@ -2365,9 +2369,9 @@ class CompositeCurve(IndexCurve):
 
     def shift(
         self,
-        spread: float,
+        spread: DualTypes,
         id: str | NoInput = NoInput(0),
-        composite: bool | NoInput = True,
+        composite: bool = True,
         collateral: str | NoInput = NoInput(0),
     ) -> CompositeCurve:
         """
@@ -2403,10 +2407,10 @@ class CompositeCurve(IndexCurve):
                 "Set `composite` to False.",
             )
 
-        curves = (self.curves[0].shift(spread=spread, composite=composite),)
+        curves: tuple[Curve, ...] = (self.curves[0].shift(spread=spread, composite=composite),)
         curves += self.curves[1:]
-        _ = CompositeCurve(curves=curves, id=id)
-        _.collateral = collateral
+        _: CompositeCurve = CompositeCurve(curves=curves, id=id)
+        _.collateral = _drb(None, collateral)
         return _
 
     def translate(self, start: datetime, t: bool = False) -> CompositeCurve:
@@ -2511,7 +2515,7 @@ class MultiCsaCurve(CompositeCurve):
         self.multi_csa_max_step = min(1825, multi_csa_max_step)
         super().__init__(curves, id)
 
-    def rate(
+    def rate(  # type: ignore[override]
         self,
         effective: datetime,
         termination: datetime | str,
@@ -2540,7 +2544,7 @@ class MultiCsaCurve(CompositeCurve):
         if effective < self.curves[0].node_dates[0]:  # Alternative solution to PR 172.
             return None
 
-        modifier_ = self.modifier if modifier is NoInput.inherit else modifier
+        modifier_ = self.modifier if isinstance(modifier, NoInput) else modifier
         if isinstance(termination, str):
             termination = add_tenor(effective, termination, modifier_, self.calendar)
 
