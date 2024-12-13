@@ -147,7 +147,8 @@ files = [
     "python/rateslib/splines.py",
     "python/rateslib/__init__.py",
     "python/rateslib/_spec_loader.py",
-    "python/rateslib/default.py"
+    "python/rateslib/default.py",
+    "python/rateslib/json.py"
 ]
 strict = true
 
