@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import os
+from typing import Any
 
 import pandas as pd
-from pandas import DataFrame
 from packaging import version
-from typing import Any
+from pandas import DataFrame
 
 DEVELOPMENT = True
 if DEVELOPMENT:
