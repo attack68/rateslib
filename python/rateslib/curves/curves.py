@@ -183,29 +183,29 @@ class Curve:
         **kwargs,
     ) -> None:
         self.clear_cache()
-        self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
-        self.nodes = nodes  # nodes.copy()
-        self.node_keys = list(self.nodes.keys())
-        self.node_dates = self.node_keys
-        self.node_dates_posix = [_.replace(tzinfo=UTC).timestamp() for _ in self.node_dates]
-        self.n = len(self.node_dates)
+        self.id: str = _drb(uuid4().hex[:5], id)  # 1 in a million clash
+        self.nodes: dict[datetime, Number] = nodes  # nodes.copy()
+        self.node_keys: list[datetime] = list(self.nodes.keys())
+        self.node_dates: list[datetime] = self.node_keys
+        self.node_dates_posix: list[float] = [
+            _.replace(tzinfo=UTC).timestamp() for _ in self.node_dates
+        ]
+        self.n: int = len(self.node_dates)
         for idx in range(1, self.n):
             if self.node_dates[idx - 1] >= self.node_dates[idx]:
                 raise ValueError(
                     "Curve node dates are not sorted or contain duplicates. To sort directly "
                     "use: `dict(sorted(nodes.items()))`",
                 )
-        self.interpolation = (
-            defaults.interpolation[type(self).__name__]
-            if interpolation is NoInput.blank
-            else interpolation
+        self.interpolation: str | Callable = _drb(
+            defaults.interpolation[type(self).__name__], interpolation
         )
         if isinstance(self.interpolation, str):
             self.interpolation = self.interpolation.lower()
 
         # Parameters for the rate derivation
-        self.convention = _drb(defaults.convention, convention)
-        self.modifier = _drb(defaults.modifier, modifier).upper()
+        self.convention: str = _drb(defaults.convention, convention)
+        self.modifier: str = _drb(defaults.modifier, modifier).upper()
         self.calendar, self.calendar_type = _get_calendar_with_kind(calendar)
 
         # Parameters for PPSpline
@@ -219,7 +219,7 @@ class Curve:
         self.t = t
         self.c_init = not isinstance(c, NoInput)
         if not isinstance(t, NoInput):
-            self.t_posix = [_.replace(tzinfo=UTC).timestamp() for _ in t]
+            self.t_posix: list[float] = [_.replace(tzinfo=UTC).timestamp() for _ in t]
             self.spline = PPSplineF64(4, self.t_posix, None if c is NoInput.blank else c)
             if len(self.t) < 10 and "not_a_knot" in self.spline_endpoints:
                 raise ValueError(
@@ -1876,7 +1876,7 @@ class IndexCurve(Curve):
             raise ValueError("`index_base` must be given for IndexCurve.")
         super().__init__(*args, **{"interpolation": "linear_index", **kwargs})
 
-    def index_value(self, date: datetime, interpolation: str = "daily"):
+    def index_value(self, date: datetime, interpolation: str = "daily") -> Number:
         """
         Calculate the accrued value of the index from the ``index_base``.
 
@@ -2264,7 +2264,7 @@ class CompositeCurve(IndexCurve):
         self,
         effective: datetime,
         termination: datetime | str | NoInput = NoInput(0),
-        modifier: str | bool | NoInput = False,
+        modifier: str | NoInput = NoInput(1),
         approximate: bool = True,
     ):
         """
@@ -2295,14 +2295,17 @@ class CompositeCurve(IndexCurve):
             return None
 
         if self._base_type == "values":
-            _ = 0.0
+            _: Number = 0.0
             for i in range(len(self.curves)):
                 _ += self.curves[i].rate(effective, termination, modifier)
             return _
         elif self._base_type == "dfs":
-            modifier = self.modifier if modifier is False else modifier
-            if isinstance(termination, str):
-                termination = add_tenor(effective, termination, modifier, self.calendar)
+            modifier_ = _drb(self.modifier, modifier)
+
+            if isinstance(termination, NoInput):
+                raise ValueError("`termination` must be give for rate of DF based Curve.")
+            elif isinstance(termination, str):
+                termination = add_tenor(effective, termination, modifier_, self.calendar)
 
             d = _DCF1d[self.convention.upper()]
 
@@ -2319,8 +2322,9 @@ class CompositeCurve(IndexCurve):
                 _, dcf_ = 1.0, 0.0
                 date_ = effective
                 while date_ < termination:
-                    term_ = add_tenor(date_, "1B", None, self.calendar)
-                    __, d_ = 0.0, (term_ - date_).days * d
+                    term_ = self.calendar.lag(date_, 1, False)  # add 1 bus day
+                    __: Number = 0.0
+                    d_ = (term_ - date_).days * d
                     dcf_ += d_
                     for curve in self.curves:
                         __ += curve.rate(date_, term_)
@@ -2348,7 +2352,7 @@ class CompositeCurve(IndexCurve):
             for curve in self.curves:
                 avg_rate = ((1.0 / curve[date]) ** (1.0 / days) - 1) / d
                 total_rate += avg_rate
-            _ = 1.0 / (1 + total_rate * d) ** days
+            _: Number = 1.0 / (1 + total_rate * d) ** days
             return _
 
         elif self._base_type == "values":
@@ -2365,9 +2369,9 @@ class CompositeCurve(IndexCurve):
 
     def shift(
         self,
-        spread: float,
+        spread: DualTypes,
         id: str | NoInput = NoInput(0),
-        composite: bool | NoInput = True,
+        composite: bool = True,
         collateral: str | NoInput = NoInput(0),
     ) -> CompositeCurve:
         """
@@ -2403,10 +2407,10 @@ class CompositeCurve(IndexCurve):
                 "Set `composite` to False.",
             )
 
-        curves = (self.curves[0].shift(spread=spread, composite=composite),)
+        curves: tuple[Curve, ...] = (self.curves[0].shift(spread=spread, composite=composite),)
         curves += self.curves[1:]
-        _ = CompositeCurve(curves=curves, id=id)
-        _.collateral = collateral
+        _: CompositeCurve = CompositeCurve(curves=curves, id=id)
+        _.collateral = _drb(None, collateral)
         return _
 
     def translate(self, start: datetime, t: bool = False) -> CompositeCurve:
@@ -2467,8 +2471,8 @@ class CompositeCurve(IndexCurve):
             raise TypeError("`index_value` not available on non `IndexCurve` types.")
         return super().index_value(date, interpolation)
 
-    def _get_node_vector(self):
-        return NotImplementedError("Instances of CompositeCurve do not have solvable variables.")
+    def _get_node_vector(self) -> Arr1dObj | Arr1dF64:
+        raise NotImplementedError("Instances of CompositeCurve do not have solvable variables.")
 
 
 class MultiCsaCurve(CompositeCurve):
@@ -2511,12 +2515,12 @@ class MultiCsaCurve(CompositeCurve):
         self.multi_csa_max_step = min(1825, multi_csa_max_step)
         super().__init__(curves, id)
 
-    def rate(
+    def rate(  # type: ignore[override]
         self,
         effective: datetime,
-        termination: datetime | str | NoInput = NoInput(0),
-        modifier: str | bool | NoInput = False,
-    ):
+        termination: datetime | str,
+        modifier: str | NoInput = NoInput(1),
+    ) -> Number | None:
         """
         Calculate the cheapest-to-deliver (CTD) rate on the curve.
 
@@ -2540,9 +2544,9 @@ class MultiCsaCurve(CompositeCurve):
         if effective < self.curves[0].node_dates[0]:  # Alternative solution to PR 172.
             return None
 
-        modifier = self.modifier if modifier is False else modifier
+        modifier_ = self.modifier if isinstance(modifier, NoInput) else modifier
         if isinstance(termination, str):
-            termination = add_tenor(effective, termination, modifier, self.calendar)
+            termination = add_tenor(effective, termination, modifier_, self.calendar)
 
         d = _DCF1d[self.convention.upper()]
         n = (termination - effective).days
@@ -2550,7 +2554,7 @@ class MultiCsaCurve(CompositeCurve):
         # the lookup could be vectorised to return two values at once.
         df_num = self[effective]
         df_den = self[termination]
-        _ = (df_num / df_den - 1) * 100 / (d * n)
+        _: Number = (df_num / df_den - 1) * 100 / (d * n)
         return _
 
     def __getitem__(self, date: datetime) -> Number:
@@ -2570,9 +2574,10 @@ class MultiCsaCurve(CompositeCurve):
 
         d2 = d1 + timedelta(days=_get_step(defaults.multi_csa_steps[0]))
         # cache stores looked up DF values to next loop, avoiding double calc
-        cache, k = {i: 1.0 for i in range(len(self.curves))}, 1
+        cache: dict[int, Number] = {i: 1.0 for i in range(len(self.curves))}
+        k: int = 1
         while d2 < date:
-            min_ratio = 1e5
+            min_ratio: Number = 1e5
             for i, curve in enumerate(self.curves):
                 d2_df = curve[d2]
                 ratio_ = d2_df / cache[i]
@@ -2847,7 +2852,7 @@ class ProxyCurve(Curve):
         """
         raise NotImplementedError("`set_ad_order` not available on proxy curve.")
 
-    def _get_node_vector(self) -> None:  # pragma: no cover
+    def _get_node_vector(self) -> Arr1dF64 | Arr1dObj:  # pragma: no cover
         raise NotImplementedError("Instances of ProxyCurve do not have solvable variables.")
 
 

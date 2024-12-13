@@ -141,6 +141,7 @@ ignore = [
 [tool.mypy]
 files = [
     "python/rateslib/calendars/**/*.py",
+    "python/rateslib/curves/**/*.py",
     "python/rateslib/dual/**/*.py",
     "python/rateslib/fx/**/*.py",
     "python/rateslib/__init__.py",
