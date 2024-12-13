@@ -89,7 +89,7 @@ class _Serialize:
         return json.dumps(container, default=str)
 
     @classmethod
-    def from_json(cls, curve: str, **kwargs) -> Curve | LineCurve:  # type: ignore[no-untyped-def]
+    def from_json(cls, curve: str, **kwargs) -> _Serialize:  # type: ignore[no-untyped-def]
         """
         Reconstitute a curve from JSON.
 
@@ -2652,7 +2652,7 @@ class MultiCsaCurve(CompositeCurve):
 
     def shift(
         self,
-        spread: float,
+        spread: DualTypes,
         id: str | NoInput = NoInput(0),
         composite: bool | NoInput = True,
         collateral: str | NoInput = NoInput(0),
@@ -2691,14 +2691,14 @@ class MultiCsaCurve(CompositeCurve):
             )
 
         curves = tuple(_.shift(spread=spread, composite=composite) for _ in self.curves)
-        _ = MultiCsaCurve(
+        ret = MultiCsaCurve(
             curves=curves,
             id=id,
             multi_csa_max_step=self.multi_csa_max_step,
             multi_csa_min_step=self.multi_csa_min_step,
         )
-        _.collateral = collateral
-        return _
+        ret.collateral = _drb(None, collateral)
+        return ret
 
 
 # class HazardCurve(Curve):
@@ -2771,8 +2771,8 @@ class ProxyCurve(Curve):
         collateral: str,
         fx_forwards: FXForwards,
         convention: str | NoInput = NoInput(0),
-        modifier: str | bool | NoInput = False,
-        calendar: CalInput | bool | NoInput = False,
+        modifier: str | NoInput = NoInput(1),  # inherits from existing curve objects
+        calendar: CalInput = NoInput(1),  # inherits from existing curve objects
         id: str | NoInput = NoInput(0),
     ):
         self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
@@ -2805,12 +2805,12 @@ class ProxyCurve(Curve):
             ),
             modifier=(
                 self.fx_forwards.fx_curves[self.cash_pair].modifier
-                if modifier is False
+                if modifier is NoInput.inherit
                 else modifier
             ),
             calendar=(
                 self.fx_forwards.fx_curves[self.cash_pair].calendar
-                if calendar is False
+                if calendar is NoInput.inherit
                 else calendar
             ),
         )
@@ -2820,36 +2820,36 @@ class ProxyCurve(Curve):
         self.node_dates = [self.fx_forwards.immediate, self.terminal]
 
     def __getitem__(self, date: datetime) -> Number:
-        return (
-            self.fx_forwards._rate_with_path(self.pair, date, path=self.path)[0]
-            / self.fx_forwards.fx_rates_immediate.fx_array[self.cash_idx, self.coll_idx]
-            * self.fx_forwards.fx_curves[self.coll_pair][date]
-        )
+        _1: Number = self.fx_forwards._rate_with_path(self.pair, date, path=self.path)[0]
+        _2: Number = self.fx_forwards.fx_rates_immediate._fx_array_el(self.cash_idx, self.coll_idx)
+        _3: Number = self.fx_forwards.fx_curves[self.coll_pair][date]
+        return _1 / _2 * _3
 
-    def to_json(self):  # pragma: no cover
+    def to_json(self) -> str:  # pragma: no cover  # type: ignore
         """
         Not implemented for :class:`~rateslib.fx.ProxyCurve` s.
         :return:
         """
-        return NotImplementedError("`to_json` not available on proxy curve.")
+        raise NotImplementedError("`to_json` not available on proxy curve.")
 
-    def from_json(self):  # pragma: no cover
+    @classmethod
+    def from_json(cls, curve: str, **kwargs: Any) -> _Serialize:  # pragma: no cover  # type: ignore
         """
         Not implemented for :class:`~rateslib.fx.ProxyCurve` s.
         """
-        return NotImplementedError("`from_json` not available on proxy curve.")
+        raise NotImplementedError("`from_json` not available on proxy curve.")
 
-    def _set_ad_order(self) -> None:  # pragma: no cover
+    def _set_ad_order(self, order: int) -> None:  # pragma: no cover
         """
         Not implemented for :class:`~rateslib.fx.ProxyCurve` s.
         """
         raise NotImplementedError("`set_ad_order` not available on proxy curve.")
 
-    def _get_node_vector(self):
-        return NotImplementedError("Instances of ProxyCurve do not have solvable variables.")
+    def _get_node_vector(self) -> None:  # pragma: no cover
+        raise NotImplementedError("Instances of ProxyCurve do not have solvable variables.")
 
 
-def average_rate(effective, termination, convention, rate):
+def average_rate(effective: datetime, termination: datetime, convention: str, rate: DualTypes) -> tuple[DualTypes, float, int]:
     """
     Return the geometric, 1 calendar day, average rate for the rate in a period.
 
@@ -2870,13 +2870,21 @@ def average_rate(effective, termination, convention, rate):
     -------
     tuple : The rate, the 1-day DCF, and the number of calendar days
     """
-    d = _DCF1d[convention.upper()]
-    n = (termination - effective).days
-    _ = ((1 + n * d * rate / 100) ** (1 / n) - 1) / d
+    d: float = _DCF1d[convention.upper()]
+    n: int = (termination - effective).days
+    _: DualTypes = ((1 + n * d * rate / 100) ** (1 / n) - 1) / d
     return _ * 100, d, n
 
 
-def interpolate(x: DualTypes, x_1: DualTypes, y_1: DualTypes, x_2: DualTypes, y_2: DualTypes, interpolation: str, start: DualTypes | None = None):
+def interpolate(
+        x: DualTypes,
+        x_1: DualTypes,
+        y_1: DualTypes,
+        x_2: DualTypes,
+        y_2: DualTypes,
+        interpolation: str,
+        start: DualTypes | None = None
+) -> DualTypes:
     """
     Perform local interpolation between two data points.
 
