@@ -183,29 +183,27 @@ class Curve:
         **kwargs,
     ) -> None:
         self.clear_cache()
-        self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
-        self.nodes = nodes  # nodes.copy()
-        self.node_keys = list(self.nodes.keys())
-        self.node_dates = self.node_keys
-        self.node_dates_posix = [_.replace(tzinfo=UTC).timestamp() for _ in self.node_dates]
-        self.n = len(self.node_dates)
+        self.id: str = _drb(uuid4().hex[:5], id)  # 1 in a million clash
+        self.nodes: dict[datetime, Number] = nodes  # nodes.copy()
+        self.node_keys: list[datetime] = list(self.nodes.keys())
+        self.node_dates: list[datetime] = self.node_keys
+        self.node_dates_posix: list[float] = [_.replace(tzinfo=UTC).timestamp() for _ in self.node_dates]
+        self.n: int = len(self.node_dates)
         for idx in range(1, self.n):
             if self.node_dates[idx - 1] >= self.node_dates[idx]:
                 raise ValueError(
                     "Curve node dates are not sorted or contain duplicates. To sort directly "
                     "use: `dict(sorted(nodes.items()))`",
                 )
-        self.interpolation = (
-            defaults.interpolation[type(self).__name__]
-            if interpolation is NoInput.blank
-            else interpolation
+        self.interpolation: str | Callable = _drb(
+            defaults.interpolation[type(self).__name__], interpolation
         )
         if isinstance(self.interpolation, str):
             self.interpolation = self.interpolation.lower()
 
         # Parameters for the rate derivation
-        self.convention = _drb(defaults.convention, convention)
-        self.modifier = _drb(defaults.modifier, modifier).upper()
+        self.convention: str = _drb(defaults.convention, convention)
+        self.modifier: str = _drb(defaults.modifier, modifier).upper()
         self.calendar, self.calendar_type = _get_calendar_with_kind(calendar)
 
         # Parameters for PPSpline
@@ -219,7 +217,7 @@ class Curve:
         self.t = t
         self.c_init = not isinstance(c, NoInput)
         if not isinstance(t, NoInput):
-            self.t_posix = [_.replace(tzinfo=UTC).timestamp() for _ in t]
+            self.t_posix: list[float] = [_.replace(tzinfo=UTC).timestamp() for _ in t]
             self.spline = PPSplineF64(4, self.t_posix, None if c is NoInput.blank else c)
             if len(self.t) < 10 and "not_a_knot" in self.spline_endpoints:
                 raise ValueError(
@@ -2467,8 +2465,8 @@ class CompositeCurve(IndexCurve):
             raise TypeError("`index_value` not available on non `IndexCurve` types.")
         return super().index_value(date, interpolation)
 
-    def _get_node_vector(self):
-        return NotImplementedError("Instances of CompositeCurve do not have solvable variables.")
+    def _get_node_vector(self) -> Arr1dObj | Arr1dF64:
+        raise NotImplementedError("Instances of CompositeCurve do not have solvable variables.")
 
 
 class MultiCsaCurve(CompositeCurve):
@@ -2516,7 +2514,7 @@ class MultiCsaCurve(CompositeCurve):
         effective: datetime,
         termination: datetime | str | NoInput = NoInput(0),
         modifier: str | bool | NoInput = False,
-    ):
+    ) -> Number:
         """
         Calculate the cheapest-to-deliver (CTD) rate on the curve.
 
@@ -2570,9 +2568,10 @@ class MultiCsaCurve(CompositeCurve):
 
         d2 = d1 + timedelta(days=_get_step(defaults.multi_csa_steps[0]))
         # cache stores looked up DF values to next loop, avoiding double calc
-        cache, k = {i: 1.0 for i in range(len(self.curves))}, 1
+        cache: dict[int, Number] = {i: 1.0 for i in range(len(self.curves))}
+        k: int = 1
         while d2 < date:
-            min_ratio = 1e5
+            min_ratio: Number = 1e5
             for i, curve in enumerate(self.curves):
                 d2_df = curve[d2]
                 ratio_ = d2_df / cache[i]
@@ -2847,7 +2846,7 @@ class ProxyCurve(Curve):
         """
         raise NotImplementedError("`set_ad_order` not available on proxy curve.")
 
-    def _get_node_vector(self) -> None:  # pragma: no cover
+    def _get_node_vector(self) -> Arr1dF64 | Arr1dObj:  # pragma: no cover
         raise NotImplementedError("Instances of ProxyCurve do not have solvable variables.")
 
 
