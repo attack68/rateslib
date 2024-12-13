@@ -194,14 +194,12 @@ class Curve:
             self.interpolation = self.interpolation.lower()
 
         # Parameters for the rate derivation
-        self.convention = defaults.convention if convention is NoInput.blank else convention
-        self.modifier = defaults.modifier if modifier is NoInput.blank else modifier.upper()
+        self.convention = _drb(defaults.convention, convention)
+        self.modifier = _drb(defaults.modifier, modifier).upper()
         self.calendar, self.calendar_type = _get_calendar_with_kind(calendar)
-        if self.calendar_type == "named":
-            self.calendar_type = f"named: {calendar.lower()}"
 
         # Parameters for PPSpline
-        if endpoints is NoInput.blank:
+        if isinstance(endpoints, NoInput):
             self.spline_endpoints = [defaults.endpoints, defaults.endpoints]
         elif isinstance(endpoints, str):
             self.spline_endpoints = [endpoints.lower(), endpoints.lower()]
@@ -209,8 +207,8 @@ class Curve:
             self.spline_endpoints = [_.lower() for _ in endpoints]
 
         self.t = t
-        self.c_init = c is not NoInput.blank
-        if t is not NoInput.blank:
+        self.c_init = not isinstance(c, NoInput)
+        if not isinstance(t, NoInput):
             self.t_posix = [_.replace(tzinfo=UTC).timestamp() for _ in t]
             self.spline = PPSplineF64(4, self.t_posix, None if c is NoInput.blank else c)
             if len(self.t) < 10 and "not_a_knot" in self.spline_endpoints:
@@ -2827,7 +2825,7 @@ class ProxyCurve(Curve):
         raise NotImplementedError("`to_json` not available on proxy curve.")
 
     @classmethod
-    def from_json(cls, curve: str, **kwargs: Any) -> _Serialize:  # pragma: no cover  # type: ignore
+    def from_json(cls, curve: str, **kwargs: Any) -> Curve:  # pragma: no cover  # type: ignore
         """
         Not implemented for :class:`~rateslib.fx.ProxyCurve` s.
         """
