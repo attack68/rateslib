@@ -13,7 +13,7 @@ import warnings
 from collections.abc import Callable
 from datetime import datetime, timedelta
 from math import comb, floor
-from typing import TYPE_CHECKING, Any, Type
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import numpy as np
@@ -751,19 +751,19 @@ class Curve:
                     modifier=self.modifier,
                     interpolation="linear",
                 )
-            else:  # type is IndexCurve
+            else:  # type(self) is IndexCurve:  # type is IndexCurve
                 shifted = IndexCurve(
                     nodes={start: 1.0, end: 1.0 / (1 + d * spread / 10000) ** days},
                     convention=self.convention,
                     calendar=self.calendar,
                     modifier=self.modifier,
                     interpolation="log_linear",
-                    index_base=self.index_base,
-                    index_lag=self.index_lag,
+                    index_base=self.index_base,  # type: ignore[attr-defined]
+                    index_lag=self.index_lag,  # type: ignore[attr-defined]
                 )
 
-            _ = CompositeCurve(curves=[self, shifted], id=id)
-            _.collateral = collateral
+            _: CompositeCurve = CompositeCurve(curves=[self, shifted], id=id)
+            _.collateral = _drb(None, collateral)
             return _
 
         else:  # use non-composite method, which is faster but does not preserve a dynamic spread.
@@ -792,7 +792,7 @@ class Curve:
             kwargs = {}
             if type(self) is IndexCurve:
                 kwargs = {"index_base": self.index_base, "index_lag": self.index_lag}
-            _ = type(self)(
+            __: Curve = type(self)(
                 nodes=nodes,
                 interpolation=self.interpolation,
                 t=self.t,
@@ -805,9 +805,9 @@ class Curve:
                 ad=self.ad,
                 **kwargs,
             )
-            _.collateral = collateral
+            __.collateral = collateral
             self._set_ad_order(_ad)
-            return _
+            return __
 
     def _translate_nodes(self, start: datetime) -> dict[datetime, Number]:
         scalar = 1 / self[start]
@@ -960,7 +960,7 @@ class Curve:
         new_nodes = self._translate_nodes(start)
 
         # re-organise the t-knot sequence
-        if self.t is NoInput.blank:
+        if isinstance(self.t, NoInput):
             new_t: list[datetime] | NoInput = NoInput(0)
         else:
             new_t = self.t.copy()
@@ -1114,7 +1114,7 @@ class Curve:
 
         days = (tenor - self.node_dates[0]).days
         new_nodes = self._roll_nodes(tenor, days)
-        if self.t is not NoInput.blank:
+        if not isinstance(self.t, NoInput):
             new_t = [_ + timedelta(days=days) for _ in self.t]
         else:
             new_t = NoInput(0)
@@ -1197,12 +1197,12 @@ class Curve:
         one might expect. See `Issue 246 <https://github.com/attack68/rateslib/issues/246>`_.
 
         """
-        comparators = _drb([], comparators)
+        comparators_: list[Curve] = _drb([], comparators)
         labels = _drb([], labels)
         upper_tenor = tenor.upper()
         x, y = self._plot_rates(upper_tenor, left, right)
         y_ = [y] if not difference else []
-        for _, comparator in enumerate(comparators):
+        for _, comparator in enumerate(comparators_):
             if difference:
                 y_.append(
                     [
@@ -1216,13 +1216,15 @@ class Curve:
 
         return plot(x, y_, labels)
 
-    def _plot_diff(self, date: datetime, tenor: str, rate: Number | None, comparator: Curve) -> Number | None:
+    def _plot_diff(
+        self, date: datetime, tenor: str, rate: Number | None, comparator: Curve
+    ) -> Number | None:
         if rate is None:
             return None
         rate2 = comparator._plot_rate(date, tenor, comparator._plot_modifier(tenor))
         if rate2 is None:
             return None
-        return (rate2 - rate)
+        return rate2 - rate
 
     def _plot_modifier(self, upper_tenor: str) -> str:
         """If tenor is in days do not allow modified for plot purposes"""
@@ -1315,7 +1317,7 @@ class Curve:
         """Used to update curve values during a Solver iteration. ``ad`` in {1, 2}."""
         self.clear_cache()
 
-        DualType: Type[Dual | Dual2] = Dual if ad == 1 else Dual2
+        DualType: type[Dual | Dual2] = Dual if ad == 1 else Dual2
         DualArgs: tuple[list[float]] | tuple[list[float], list[float]] = (
             ([],) if ad == 1 else ([], [])
         )

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import datetime
-from typing import TypeAlias, Any
+from typing import Any, TypeAlias
 from uuid import uuid4
 
 from rateslib import defaults
