@@ -23,8 +23,18 @@ from rateslib import defaults
 from rateslib.calendars import CalInput, add_tenor, create_calendar, dcf
 from rateslib.calendars.dcfs import _DCF1d
 from rateslib.calendars.rs import Modifier, _get_calendar_with_kind
-from rateslib.default import NoInput, _drb, plot
-from rateslib.dual import Dual, Dual2, DualTypes, Number, dual_exp, dual_log, set_order_convert
+from rateslib.default import NoInput, PlotOutput, _drb, plot
+from rateslib.dual import (
+    Arr1dF64,
+    Arr1dObj,
+    Dual,
+    Dual2,
+    DualTypes,
+    Number,
+    dual_exp,
+    dual_log,
+    set_order_convert,
+)
 from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
@@ -171,7 +181,7 @@ class Curve:
         calendar: CalInput = NoInput(0),
         ad: int = 0,
         **kwargs,
-    ):
+    ) -> None:
         self.clear_cache()
         self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
         self.nodes = nodes  # nodes.copy()
@@ -221,7 +231,7 @@ class Curve:
 
         self._set_ad_order(order=ad)
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         """Test two curves are identical"""
         if type(self) is not type(other):
             return False
@@ -251,7 +261,7 @@ class Curve:
         self.csolve()
         return None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<rl.{type(self).__name__}:{self.id} at {hex(id(self))}>"
 
     def copy(self) -> Curve:
@@ -372,7 +382,7 @@ class Curve:
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    def _local_interp_(self, date_posix: float):
+    def _local_interp_(self, date_posix: float) -> Number:
         if date_posix < self.node_dates_posix[0]:
             return 0  # then date is in the past and DF is zero
         l_index = index_left_f64(self.node_dates_posix, date_posix, None)
@@ -403,7 +413,7 @@ class Curve:
         # convention: Optional[str] = None,
         float_spread: float | NoInput = NoInput(0),
         spread_compound_method: str | NoInput = NoInput(0),
-    ):
+    ) -> Number:
         """
         Calculate the rate on the `Curve` using DFs.
 
@@ -538,7 +548,7 @@ class Curve:
 
         return _
 
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """
         Clear the cache of values on a *Curve* type.
 
@@ -556,7 +566,7 @@ class Curve:
         """
         self._cache = dict()
 
-    def _maybe_add_to_cache(self, date, val):
+    def _maybe_add_to_cache(self, date, val) -> None:
         if defaults.curve_caching:
             self._cache[date] = val
 
@@ -627,7 +637,7 @@ class Curve:
         id: str | NoInput = NoInput(0),
         composite: bool = True,
         collateral: str | NoInput = NoInput(0),
-    ):
+    ) -> Curve:
         """
         Create a new curve by vertically adjusting the curve by a set number of basis
         points.
@@ -792,7 +802,7 @@ class Curve:
             self._set_ad_order(_ad)
             return _
 
-    def _translate_nodes(self, start: datetime):
+    def _translate_nodes(self, start: datetime) -> dict[str, Number]:
         scalar = 1 / self[start]
         new_nodes = {k: scalar * v for k, v in self.nodes.items()}
 
@@ -806,7 +816,7 @@ class Curve:
         new_nodes = {start: 1.0, **new_nodes}
         return new_nodes
 
-    def translate(self, start: datetime, t: bool = False):
+    def translate(self, start: datetime, t: bool = False) -> Curve:
         """
         Create a new curve with an initial node date moved forward keeping all else
         constant.
@@ -980,7 +990,7 @@ class Curve:
         )
         return new_curve
 
-    def _roll_nodes(self, tenor: datetime, days: int):
+    def _roll_nodes(self, tenor: datetime, days: int) -> dict[datetime, Number]:
         """
         Roll nodes by adding days to each one and scaling DF values.
 
@@ -1007,7 +1017,7 @@ class Curve:
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    def roll(self, tenor: datetime | str):
+    def roll(self, tenor: datetime | str) -> Curve:
         """
         Create a new curve with its shape translated in time but an identical initial
         node date.
@@ -1133,7 +1143,7 @@ class Curve:
         comparators: list[Curve] | NoInput = NoInput(0),
         difference: bool = False,
         labels: list[str] | NoInput = NoInput(0),
-    ):
+    ) -> PlotOutput:
         """
         Plot given forward tenor rates from the curve. See notes.
 
@@ -1314,7 +1324,7 @@ class Curve:
             )
         self.csolve()
 
-    def _get_node_vector(self):
+    def _get_node_vector(self) -> Arr1dF64 | Arr1dObj:
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""
         return np.array(list(self.nodes.values())[self._ini_solve :])
 
@@ -1600,7 +1610,7 @@ class LineCurve(Curve):
         self._set_ad_order(_ad)
         return _
 
-    def _translate_nodes(self, start: datetime):
+    def _translate_nodes(self, start: datetime) -> dict[datetime, Number]:
         new_nodes = self.nodes.copy()
 
         # re-organise the nodes on the new curve
@@ -1617,7 +1627,7 @@ class LineCurve(Curve):
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    def translate(self, start: datetime, t: bool = False):
+    def translate(self, start: datetime, t: bool = False) -> LineCurve:
         """
         Create a new curve with an initial node date moved forward keeping all else
         constant.
@@ -1744,13 +1754,13 @@ class LineCurve(Curve):
         """  # noqa: E501
         return super().translate(start, t)
 
-    def _roll_nodes(self, tenor: datetime, days: int):
+    def _roll_nodes(self, tenor: datetime, days: int) -> dict[datetime, Number]:
         new_nodes = {k + timedelta(days=days): v for k, v in self.nodes.items()}
         if tenor > self.node_dates[0]:
             new_nodes = {self.node_dates[0]: self[self.node_dates[0]], **new_nodes}
         return new_nodes
 
-    def roll(self, tenor: datetime | str):
+    def roll(self, tenor: datetime | str) -> LineCurve:
         """
         Create a new curve with its shape translated in time
 
@@ -1922,7 +1932,7 @@ class IndexCurve(Curve):
         self,
         right: datetime | str | NoInput = NoInput(0),
         left: datetime | str | NoInput = NoInput(0),
-        comparators: list[Curve] | NoInput = NoInput(0),
+        comparators: list[IndexCurve] | NoInput = NoInput(0),
         difference: bool = False,
         labels: list[str] | NoInput = NoInput(0),
     ):
@@ -2185,7 +2195,7 @@ class CompositeCurve(IndexCurve):
 
     def __init__(
         self,
-        curves: list | tuple,
+        curves: list[Curve] | tuple[Curve, ...],
         id: str | NoInput = NoInput(0),
     ) -> None:
         self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
@@ -2324,7 +2334,7 @@ class CompositeCurve(IndexCurve):
 
         return _
 
-    def __getitem__(self, date: datetime):
+    def __getitem__(self, date: datetime) -> Number:
         if self._base_type == "dfs":
             # will return a composited discount factor
             if date == self.curves[0].node_dates[0]:
@@ -2334,7 +2344,7 @@ class CompositeCurve(IndexCurve):
             days = (date - self.curves[0].node_dates[0]).days
             d = _DCF1d[self.convention.upper()]
 
-            total_rate = 0.0
+            total_rate: Number = 0.0
             for curve in self.curves:
                 avg_rate = ((1.0 / curve[date]) ** (1.0 / days) - 1) / d
                 total_rate += avg_rate
@@ -2447,7 +2457,7 @@ class CompositeCurve(IndexCurve):
         """
         return CompositeCurve(curves=[curve.roll(tenor) for curve in self.curves])
 
-    def index_value(self, date: datetime, interpolation: str = "daily"):
+    def index_value(self, date: datetime, interpolation: str = "daily") -> Number:
         """
         Calculate the accrued value of the index from the ``index_base``.
 
@@ -2492,7 +2502,7 @@ class MultiCsaCurve(CompositeCurve):
 
     def __init__(
         self,
-        curves: list | tuple,
+        curves: list[Curve] | tuple[Curve, ...],
         id: str | NoInput = NoInput(0),
         multi_csa_min_step: int = 1,
         multi_csa_max_step: int = 1825,
