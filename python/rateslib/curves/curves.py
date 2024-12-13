@@ -122,7 +122,7 @@ class _Serialize:
         serial = {k: v for k, v in serial.items() if v is not None}
         return cls(**{**serial, **kwargs})
 
-    def copy(self):
+    def copy(self) -> _Serialize:
         """
         Create an identical copy of the curve object.
 
@@ -288,7 +288,7 @@ class Curve(_Serialize):
 
     def __init__(
         self,
-        nodes: dict,
+        nodes: dict[datetime, Number],
         *,
         interpolation: str | Callable | NoInput = NoInput(0),
         t: list[datetime] | NoInput = NoInput(0),
@@ -2876,7 +2876,7 @@ def average_rate(effective, termination, convention, rate):
     return _ * 100, d, n
 
 
-def interpolate(x, x_1, y_1, x_2, y_2, interpolation, start=None):
+def interpolate(x: DualTypes, x_1: DualTypes, y_1: DualTypes, x_2: DualTypes, y_2: DualTypes, interpolation: str, start: DualTypes | None = None):
     """
     Perform local interpolation between two data points.
 
@@ -2917,27 +2917,28 @@ def interpolate(x, x_1, y_1, x_2, y_2, interpolation, start=None):
     """
     if interpolation == "linear":
 
-        def op(z):
+        def op(z: DualTypes) -> DualTypes:
             return z
 
     elif interpolation == "linear_index":
 
-        def op(z):
+        def op(z: DualTypes) -> DualTypes:
             return 1 / z
 
         y_1, y_2 = 1 / y_1, 1 / y_2
     elif interpolation == "log_linear":
-        op, y_1, y_2 = dual_exp, dual_log(y_1), dual_log(y_2)
+        op, y_1, y_2 = dual_exp, dual_log(y_1), dual_log(y_2)  # type: ignore[assignment]
     elif interpolation == "linear_zero_rate":
         # convention not used here since we just determine linear rate interpolation
         # 86400. scalar relates to using posix timestamp conversion
+        assert start is not None
         y_2 = dual_log(y_2) / ((start - x_2) / (365.0 * 86400.0))
         if start == x_1:
             y_1 = y_2
         else:
             y_1 = dual_log(y_1) / ((start - x_1) / (365.0 * 86400.0))
 
-        def op(z):
+        def op(z: DualTypes) -> DualTypes:
             return dual_exp((start - x) / (365.0 * 86400.0) * z)
 
     elif interpolation == "flat_forward":
@@ -2962,8 +2963,8 @@ def index_left(
     list_input: list[Any],
     list_length: int,
     value: Any,
-    left_count: int | None = 0,
-):
+    left_count: int = 0,
+) -> int:
     """
     Return the interval index of a value from an ordered input list on the left side.
 
@@ -3028,7 +3029,7 @@ def index_left(
     if list_length == 2:
         return left_count
 
-    split = floor((list_length - 1) / 2)
+    split: int = floor((list_length - 1) / 2)
     if list_length == 3 and value == list_input[split]:
         return left_count
 
