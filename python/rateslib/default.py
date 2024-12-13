@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 from enum import Enum
-from typing import Any, LiteralString
+from typing import Any
 
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
@@ -52,7 +52,7 @@ class Fixings:
     """
 
     @staticmethod
-    def _load_csv(dir: LiteralString, path: LiteralString) -> Series[float]:
+    def _load_csv(dir: str, path: str) -> Series[float]:
         target = os.path.join(dir, path)
         if version.parse(pandas.__version__) < version.parse("2.0"):  # pragma: no cover
             # this is tested by the minimum version gitflow actions.
