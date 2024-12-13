@@ -134,7 +134,7 @@ def gradient(
         elif isinstance(dual, Dual):  # and keep_manifold:
             raise TypeError("Dual type cannot perform `keep_manifold`.")
         _ = dual.grad1_manifold(dual.vars if vars is None else vars)
-        return np.asarray(_)
+        return np.asarray(_)  # type: ignore[return-value]
 
     elif order == 2:
         if isinstance(dual, Variable):
@@ -143,7 +143,7 @@ def gradient(
             raise TypeError("Dual type cannot derive second order automatic derivatives.")
 
         if vars is None:
-            return 2.0 * dual.dual2
+            return 2.0 * dual.dual2  #  type: ignore[return-value]
         else:
             return dual.grad2(vars)
     else:
@@ -282,9 +282,9 @@ def dual_solve(
     if types == (float, float):
         # Use basic Numpy LinAlg
         if allow_lsq:
-            return np.linalg.lstsq(A, b, rcond=None)[0]  # type: ignore[arg-type]
+            return np.linalg.lstsq(A, b, rcond=None)[0]  # type: ignore[arg-type,return-value]
         else:
-            return np.linalg.solve(A, b)  # type: ignore[arg-type]
+            return np.linalg.solve(A, b)  # type: ignore[arg-type,return-value]
 
     # Move to Rust implementation
     if types in [(Dual, float), (Dual2, float)]:
@@ -301,13 +301,13 @@ def dual_solve(
     b_ = b_[:, 0].tolist()
 
     if types == (Dual, Dual):
-        return np.array(_dsolve1(a_, b_, allow_lsq))[:, None]
+        return np.array(_dsolve1(a_, b_, allow_lsq))[:, None]  # type: ignore[return-value]
     elif types == (Dual2, Dual2):
-        return np.array(_dsolve2(a_, b_, allow_lsq))[:, None]
+        return np.array(_dsolve2(a_, b_, allow_lsq))[:, None]  # type: ignore[return-value]
     elif types == (float, Dual):
-        return np.array(_fdsolve1(A_, b_, allow_lsq))[:, None]
+        return np.array(_fdsolve1(A_, b_, allow_lsq))[:, None]  # type: ignore[return-value]
     elif types == (float, Dual2):
-        return np.array(_fdsolve2(A_, b_, allow_lsq))[:, None]
+        return np.array(_fdsolve2(A_, b_, allow_lsq))[:, None]  # type: ignore[return-value]
     else:
         raise TypeError(
             "Provided `types` argument are not permitted. Must be a 2-tuple with "
