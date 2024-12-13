@@ -187,7 +187,9 @@ class Curve:
         self.nodes: dict[datetime, Number] = nodes  # nodes.copy()
         self.node_keys: list[datetime] = list(self.nodes.keys())
         self.node_dates: list[datetime] = self.node_keys
-        self.node_dates_posix: list[float] = [_.replace(tzinfo=UTC).timestamp() for _ in self.node_dates]
+        self.node_dates_posix: list[float] = [
+            _.replace(tzinfo=UTC).timestamp() for _ in self.node_dates
+        ]
         self.n: int = len(self.node_dates)
         for idx in range(1, self.n):
             if self.node_dates[idx - 1] >= self.node_dates[idx]:
@@ -2512,9 +2514,9 @@ class MultiCsaCurve(CompositeCurve):
     def rate(
         self,
         effective: datetime,
-        termination: datetime | str | NoInput = NoInput(0),
-        modifier: str | bool | NoInput = False,
-    ) -> Number:
+        termination: datetime | str,
+        modifier: str | NoInput = NoInput(1),
+    ) -> Number | None:
         """
         Calculate the cheapest-to-deliver (CTD) rate on the curve.
 
@@ -2538,9 +2540,9 @@ class MultiCsaCurve(CompositeCurve):
         if effective < self.curves[0].node_dates[0]:  # Alternative solution to PR 172.
             return None
 
-        modifier = self.modifier if modifier is False else modifier
+        modifier_ = self.modifier if modifier is NoInput.inherit else modifier
         if isinstance(termination, str):
-            termination = add_tenor(effective, termination, modifier, self.calendar)
+            termination = add_tenor(effective, termination, modifier_, self.calendar)
 
         d = _DCF1d[self.convention.upper()]
         n = (termination - effective).days
@@ -2548,7 +2550,7 @@ class MultiCsaCurve(CompositeCurve):
         # the lookup could be vectorised to return two values at once.
         df_num = self[effective]
         df_den = self[termination]
-        _ = (df_num / df_den - 1) * 100 / (d * n)
+        _: Number = (df_num / df_den - 1) * 100 / (d * n)
         return _
 
     def __getitem__(self, date: datetime) -> Number:
