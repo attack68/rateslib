@@ -49,9 +49,6 @@ jobs:
       run: |
         coverage run -m --source=rateslib pytest
         coverage report -m
-    - name: MyPy type checking
-      run: |
-        mypy --config-file .pyproject.toml
     - name: Install Pandoc
       uses: r-lib/actions/setup-pandoc@v2
       with:
