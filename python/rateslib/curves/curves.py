@@ -71,10 +71,9 @@ class Curve:
         The B-spline coefficients used to define the log-cubic spline. If not given,
         which is the expected case, uses :meth:`csolve` to calculate these
         automatically.
-    endpoints : str or list, optional
-        The left and right endpoint constraint for the spline solution. Valid values are
-        in {"natural", "not_a_knot"}. If a list, supply the left endpoint then the
-        right endpoint.
+    endpoints : 2-tuple of str, optional
+        The left and then right endpoint constraint for the spline solution. Valid values are
+        in {"natural", "not_a_knot"}.
     id : str, optional, set by Default
         The unique identifier to distinguish between curves in a multicurve framework.
     convention : str, optional, set by Default
@@ -178,7 +177,7 @@ class Curve:
         interpolation: str | Callable | NoInput = NoInput(0),
         t: list[datetime] | NoInput = NoInput(0),
         c: list[float] | NoInput = NoInput(0),
-        endpoints: str | NoInput = NoInput(0),
+        endpoints: str | tuple[str, str] | NoInput = NoInput(0),
         id: str | NoInput = NoInput(0),
         convention: str | NoInput = NoInput(0),
         modifier: str | NoInput = NoInput(0),
@@ -214,11 +213,11 @@ class Curve:
 
         # Parameters for PPSpline
         if isinstance(endpoints, NoInput):
-            self.spline_endpoints = [defaults.endpoints, defaults.endpoints]
+            self.spline_endpoints: tuple[str, str] = (defaults.endpoints, defaults.endpoints)
         elif isinstance(endpoints, str):
-            self.spline_endpoints = [endpoints.lower(), endpoints.lower()]
+            self.spline_endpoints = (endpoints.lower(), endpoints.lower())
         else:
-            self.spline_endpoints = [_.lower() for _ in endpoints]
+            self.spline_endpoints = (_.lower() for _ in endpoints)
 
         self.t = t
         self.c_init = not isinstance(c, NoInput)
@@ -786,7 +785,7 @@ class Curve:
                 v_new[i] = v_new[i - 1] / (v1v2[i - 1] + d * spread / 10000) ** n[i - 1]
 
             nodes = self.nodes.copy()
-            for i, (k, _) in enumerate(nodes.items()):
+            for i, (k, ___) in enumerate(nodes.items()):
                 nodes[k] = v_new[i]
 
             kwargs = {}
@@ -805,7 +804,7 @@ class Curve:
                 ad=self.ad,
                 **kwargs,
             )
-            __.collateral = collateral
+            __.collateral = _drb(None, collateral)
             self._set_ad_order(_ad)
             return __
 
@@ -1115,7 +1114,7 @@ class Curve:
         days = (tenor - self.node_dates[0]).days
         new_nodes = self._roll_nodes(tenor, days)
         if not isinstance(self.t, NoInput):
-            new_t = [_ + timedelta(days=days) for _ in self.t]
+            new_t: list[datetime] | NoInput = [_ + timedelta(days=days) for _ in self.t]
         else:
             new_t = NoInput(0)
         if type(self) is IndexCurve:
