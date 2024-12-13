@@ -1,15 +1,17 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime
+from typing import TypeAlias
 from uuid import uuid4
 
 from rateslib import defaults
-from rateslib.calendars import CalInput, _get_modifier, get_calendar
+from rateslib.calendars import CalInput, _get_modifier, get_calendar  # type: ignore[attr-defined]
 from rateslib.calendars.dcfs import _get_convention
 from rateslib.default import NoInput, _drb
-from rateslib.dual import ADOrder, _get_adorder
-from rateslib.rs import Curve as CurveObj  # noqa: F401
+from rateslib.dual import Number, _get_adorder
 from rateslib.rs import (
+    ADOrder,
     FlatBackwardInterpolator,
     FlatForwardInterpolator,
     LinearInterpolator,
@@ -19,14 +21,24 @@ from rateslib.rs import (
     _get_convention_str,
     _get_modifier_str,
 )
+from rateslib.rs import Curve as CurveObj  # noqa: F401
+
+CurveInterpolator: TypeAlias = (
+    FlatBackwardInterpolator
+    | FlatForwardInterpolator
+    | LinearInterpolator
+    | LogLinearInterpolator
+    | LinearZeroRateInterpolator
+    | NullInterpolator
+)
 
 
 class CurveRs:
     def __init__(
         self,
-        nodes: dict,
+        nodes: dict[datetime, Number],
         *,
-        interpolation: str | callable | NoInput = NoInput(0),
+        interpolation: str | Callable | NoInput = NoInput(0),
         id: str | NoInput = NoInput(0),
         convention: str | NoInput = NoInput(0),
         modifier: str | NoInput = NoInput(0),
@@ -48,23 +60,23 @@ class CurveRs:
         )
 
     @property
-    def id(self):
+    def id(self) -> str:
         return self.obj.id
 
     @property
-    def convention(self):
+    def convention(self) -> str:
         return _get_convention_str(self.obj.convention)
 
     @property
-    def modifier(self):
+    def modifier(self) -> str:
         return _get_modifier_str(self.obj.modifier)
 
     @property
-    def interpolation(self):
+    def interpolation(self) -> str:
         return self.obj.interpolation
 
     @property
-    def nodes(self):
+    def nodes(self) -> dict[datetime, Number]:
         return self.obj.nodes
 
     @property
@@ -76,9 +88,8 @@ class CurveRs:
             return 2
         return 0
 
-    def _set_ad_order(self, ad: int):
+    def _set_ad_order(self, ad: int) -> None:
         self.obj.set_ad_order(_get_adorder(ad))
-        return None
 
     @staticmethod
     def _validate_interpolator(interpolation: str | callable | NoInput):
