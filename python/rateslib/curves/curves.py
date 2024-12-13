@@ -37,136 +37,7 @@ if TYPE_CHECKING:
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class _Serialize:
-    """
-    Methods mixin for serializing and solving :class:`Curve` or :class:`LineCurve` s.
-    """
-
-    def to_json(self) -> str:
-        """
-        Convert the parameters of the curve to JSON format.
-
-        Returns
-        -------
-        str
-        """
-        if self.t is NoInput.blank:
-            t = None
-        else:
-            t = [t.strftime("%Y-%m-%d") for t in self.t]
-
-        container = {
-            "nodes": {dt.strftime("%Y-%m-%d"): v.real for dt, v in self.nodes.items()},
-            "interpolation": self.interpolation if isinstance(self.interpolation, str) else None,
-            "t": t,
-            "c": self.spline.c if self.c_init else None,
-            "id": self.id,
-            "convention": self.convention,
-            "endpoints": self.spline_endpoints,
-            "modifier": self.modifier,
-            "calendar_type": self.calendar_type,
-            "ad": self.ad,
-        }
-        if type(self) is IndexCurve:
-            container.update({"index_base": self.index_base, "index_lag": self.index_lag})
-
-        if self.calendar_type == "null":
-            container.update({"calendar": None})
-        elif "named: " in self.calendar_type:
-            container.update({"calendar": self.calendar_type[7:]})
-        elif self.calendar_type == "object":
-            container.update({"calendar": self.calendar.name})
-        else:  # calendar type is custom
-            container.update(
-                {
-                    "calendar": {
-                        "weekmask": list(self.calendar.week_mask),
-                        "holidays": [d.strftime("%Y-%m-%d") for d in self.calendar.holidays],
-                    },
-                },
-            )
-
-        return json.dumps(container, default=str)
-
-    @classmethod
-    def from_json(cls, curve: str, **kwargs) -> _Serialize:  # type: ignore[no-untyped-def]
-        """
-        Reconstitute a curve from JSON.
-
-        Parameters
-        ----------
-        curve : str
-            The JSON string representation of the curve.
-
-        Returns
-        -------
-        Curve or LineCurve
-        """
-        serial = json.loads(curve)
-
-        serial["nodes"] = {
-            datetime.strptime(dt, "%Y-%m-%d"): v for dt, v in serial["nodes"].items()
-        }
-
-        if serial["calendar_type"] == "custom":
-            # must load and construct a custom holiday calendar from serial dates
-            dates = [datetime.strptime(d, "%Y-%m-%d") for d in serial["calendar"]["holidays"]]
-            serial["calendar"] = create_calendar(
-                rules=dates,
-                week_mask=serial["calendar"]["weekmask"],
-            )
-
-        if serial["t"] is not None:
-            serial["t"] = [datetime.strptime(t, "%Y-%m-%d") for t in serial["t"]]
-
-        serial = {k: v for k, v in serial.items() if v is not None}
-        return cls(**{**serial, **kwargs})
-
-    def copy(self) -> _Serialize:
-        """
-        Create an identical copy of the curve object.
-
-        Returns
-        -------
-        Curve or LineCurve
-        """
-        return self.from_json(self.to_json())
-
-    def __eq__(self, other):
-        """Test two curves are identical"""
-        if type(self) is not type(other):
-            return False
-        attrs = [attr for attr in dir(self) if attr[:1] != "_"]
-        for attr in attrs:
-            if callable(getattr(self, attr, None)):
-                continue
-            elif getattr(self, attr, None) != getattr(other, attr, None):
-                return False
-        return True
-
-    def _set_ad_order(self, order: int) -> None:
-        """
-        Change the node values to float, Dual or Dual2 based on input parameter.
-        """
-        if order == getattr(self, "ad", None):
-            return None
-        elif order not in [0, 1, 2]:
-            raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
-
-        self.clear_cache()
-        self.ad = order
-        self.nodes = {
-            k: set_order_convert(v, order, [f"{self.id}{i}"])
-            for i, (k, v) in enumerate(self.nodes.items())
-        }
-        self.csolve()
-        return None
-
-    def __repr__(self):
-        return f"<rl.{type(self).__name__}:{self.id} at {hex(id(self))}>"
-
-
-class Curve(_Serialize):
+class Curve:
     """
     Curve based on DF parametrisation at given node dates with interpolation.
 
@@ -351,6 +222,129 @@ class Curve(_Serialize):
             self.spline = None
 
         self._set_ad_order(order=ad)
+
+    def __eq__(self, other):
+        """Test two curves are identical"""
+        if type(self) is not type(other):
+            return False
+        attrs = [attr for attr in dir(self) if attr[:1] != "_"]
+        for attr in attrs:
+            if callable(getattr(self, attr, None)):
+                continue
+            elif getattr(self, attr, None) != getattr(other, attr, None):
+                return False
+        return True
+
+    def _set_ad_order(self, order: int) -> None:
+        """
+        Change the node values to float, Dual or Dual2 based on input parameter.
+        """
+        if order == getattr(self, "ad", None):
+            return None
+        elif order not in [0, 1, 2]:
+            raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
+
+        self.clear_cache()
+        self.ad = order
+        self.nodes = {
+            k: set_order_convert(v, order, [f"{self.id}{i}"])
+            for i, (k, v) in enumerate(self.nodes.items())
+        }
+        self.csolve()
+        return None
+
+    def __repr__(self):
+        return f"<rl.{type(self).__name__}:{self.id} at {hex(id(self))}>"
+
+    def copy(self) -> Curve:
+        """
+        Create an identical copy of the curve object.
+
+        Returns
+        -------
+        Curve or LineCurve
+        """
+        return self.from_json(self.to_json())
+
+    def to_json(self) -> str:
+        """
+        Convert the parameters of the curve to JSON format.
+
+        Returns
+        -------
+        str
+        """
+        if self.t is NoInput.blank:
+            t = None
+        else:
+            t = [t.strftime("%Y-%m-%d") for t in self.t]
+
+        container = {
+            "nodes": {dt.strftime("%Y-%m-%d"): v.real for dt, v in self.nodes.items()},
+            "interpolation": self.interpolation if isinstance(self.interpolation, str) else None,
+            "t": t,
+            "c": self.spline.c if self.c_init else None,
+            "id": self.id,
+            "convention": self.convention,
+            "endpoints": self.spline_endpoints,
+            "modifier": self.modifier,
+            "calendar_type": self.calendar_type,
+            "ad": self.ad,
+        }
+        if type(self) is IndexCurve:
+            container.update({"index_base": self.index_base, "index_lag": self.index_lag})
+
+        if self.calendar_type == "null":
+            container.update({"calendar": None})
+        elif "named: " in self.calendar_type:
+            container.update({"calendar": self.calendar_type[7:]})
+        elif self.calendar_type == "object":
+            container.update({"calendar": self.calendar.name})
+        else:  # calendar type is custom
+            container.update(
+                {
+                    "calendar": {
+                        "weekmask": list(self.calendar.week_mask),
+                        "holidays": [d.strftime("%Y-%m-%d") for d in self.calendar.holidays],
+                    },
+                },
+            )
+
+        return json.dumps(container, default=str)
+
+    @classmethod
+    def from_json(cls, curve: str, **kwargs) -> _Serialize:  # type: ignore[no-untyped-def]
+        """
+        Reconstitute a curve from JSON.
+
+        Parameters
+        ----------
+        curve : str
+            The JSON string representation of the curve.
+
+        Returns
+        -------
+        Curve or LineCurve
+        """
+        serial = json.loads(curve)
+
+        serial["nodes"] = {
+            datetime.strptime(dt, "%Y-%m-%d"): v for dt, v in serial["nodes"].items()
+        }
+
+        if serial["calendar_type"] == "custom":
+            # must load and construct a custom holiday calendar from serial dates
+            dates = [datetime.strptime(d, "%Y-%m-%d") for d in serial["calendar"]["holidays"]]
+            serial["calendar"] = create_calendar(
+                rules=dates,
+                week_mask=serial["calendar"]["weekmask"],
+            )
+
+        if serial["t"] is not None:
+            serial["t"] = [datetime.strptime(t, "%Y-%m-%d") for t in serial["t"]]
+
+        serial = {k: v for k, v in serial.items() if v is not None}
+        return cls(**{**serial, **kwargs})
 
     def __getitem__(self, date: datetime) -> Number:
         if defaults.curve_caching and date in self._cache:
@@ -2502,8 +2496,8 @@ class MultiCsaCurve(CompositeCurve):
         self,
         curves: list | tuple,
         id: str | NoInput = NoInput(0),
-        multi_csa_min_step: int | NoInput = 1,
-        multi_csa_max_step: int | NoInput = 1825,
+        multi_csa_min_step: int = 1,
+        multi_csa_max_step: int = 1825,
     ) -> None:
         self.multi_csa_min_step = max(1, multi_csa_min_step)
         self.multi_csa_max_step = min(1825, multi_csa_max_step)
@@ -2551,7 +2545,7 @@ class MultiCsaCurve(CompositeCurve):
         _ = (df_num / df_den - 1) * 100 / (d * n)
         return _
 
-    def __getitem__(self, date: datetime):
+    def __getitem__(self, date: datetime) -> Number:
         # will return a composited discount factor
         if date == self.curves[0].node_dates[0]:
             return 1.0  # TODO (low:?) this is not variable but maybe should be tagged as "id0"?
@@ -2560,10 +2554,10 @@ class MultiCsaCurve(CompositeCurve):
 
         # method uses the step and picks the highest (cheapest rate)
         # in each period
-        _ = 1.0
+        _: Number = 1.0
         d1 = self.curves[0].node_dates[0]
 
-        def _get_step(step):
+        def _get_step(step: int) -> int:
             return min(max(step, self.multi_csa_min_step), self.multi_csa_max_step)
 
         d2 = d1 + timedelta(days=_get_step(defaults.multi_csa_steps[0]))
