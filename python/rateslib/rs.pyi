@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
+
 from typing_extensions import Self
 
 from rateslib.calendars import CalTypes
