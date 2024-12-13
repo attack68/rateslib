@@ -141,10 +141,12 @@ ignore = [
 [tool.mypy]
 files = [
     "python/rateslib/calendars/**/*.py",
-    "python/rateslib/fx/**/*.py",
     "python/rateslib/dual/**/*.py",
+    "python/rateslib/fx/**/*.py",
     "python/rateslib/scheduling.py",
     "python/rateslib/splines.py",
+    "python/rateslib/__init__.py",
+    "python/rateslib/_spec_loader.py",
     "python/rateslib/default.py"
 ]
 strict = true
