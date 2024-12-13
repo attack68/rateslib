@@ -15,7 +15,7 @@ from pandas import Series, read_csv
 from rateslib._spec_loader import INSTRUMENT_SPECS
 from rateslib.rs import Cal, NamedCal, UnionCal, get_named_calendar
 
-PlotOutput = tuple[plt.Figure, plt.Axes, list[plt.Line2D]]
+PlotOutput = tuple[plt.Figure, plt.Axes, list[plt.Line2D]]  # type: ignore[name-defined]
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -291,7 +291,7 @@ class Defaults:
         def _t_n(v: str) -> str:  # teb-newline
             return f"\t{v}\n"
 
-        _ = f"""\
+        _: str = f"""\
 Scheduling:\n
 {''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
     'stub', 
@@ -356,9 +356,9 @@ def plot(x: list[Any], y: list[list[Any]], labels: list[str] | NoInput = NoInput
     ax.grid(True)
 
     if isinstance(x[0], datetime):
-        years = mdates.YearLocator()  # every year
-        months = mdates.MonthLocator()  # every month
-        yearsFmt = mdates.DateFormatter("%Y")
+        years = mdates.YearLocator()  # type: ignore[no-untyped-call]
+        months = mdates.MonthLocator()  # type: ignore[no-untyped-call]
+        yearsFmt = mdates.DateFormatter("%Y")  # type: ignore[no-untyped-call]
         ax.xaxis.set_major_locator(years)
         ax.xaxis.set_major_formatter(yearsFmt)
         ax.xaxis.set_minor_locator(months)
@@ -368,7 +368,7 @@ def plot(x: list[Any], y: list[list[Any]], labels: list[str] | NoInput = NoInput
 
 def plot3d(
     x: list[Any], y: list[Any], z: np.ndarray[tuple[int, int], np.dtype[np.float64]]
-) -> tuple[plt.Figure, plt.Axes, None]:
+) -> tuple[plt.Figure, plt.Axes, None]:  # type: ignore[name-defined]
     import matplotlib.pyplot as plt
     from matplotlib import cm
 
@@ -378,7 +378,7 @@ def plot3d(
 
     X, Y = np.meshgrid(x, y)
     # Plot the surface.
-    ax.plot_surface(X, Y, z, cmap=cm.coolwarm, linewidth=0, antialiased=False)
+    ax.plot_surface(X, Y, z, cmap=cm.coolwarm, linewidth=0, antialiased=False)  # type: ignore[attr-defined]
     return fig, ax, None
 
 
