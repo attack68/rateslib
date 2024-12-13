@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import datetime
-from typing import TypeAlias
+from typing import TypeAlias, Any
 from uuid import uuid4
 
 from rateslib import defaults
@@ -92,7 +92,7 @@ class CurveRs:
         self.obj.set_ad_order(_get_adorder(ad))
 
     @staticmethod
-    def _validate_interpolator(interpolation: str | callable | NoInput):
+    def _validate_interpolator(interpolation: str | Callable | NoInput) -> CurveInterpolator:
         if interpolation is NoInput.blank:
             return _get_interpolator(defaults.interpolation["Curve"])
         elif isinstance(interpolation, str):
@@ -100,11 +100,11 @@ class CurveRs:
         else:
             return NullInterpolator()
 
-    def to_json(self):
+    def to_json(self) -> str:
         return '{"Py":' + self.obj.to_json() + "}"
 
     @classmethod
-    def __init_from_obj__(cls, obj):
+    def __init_from_obj__(cls, obj: CurveObj) -> CurveRs:
         new = cls(
             nodes={datetime(2000, 1, 1): 1.0},
             interpolation="linear",
@@ -115,16 +115,16 @@ class CurveRs:
         new.obj = obj
         return new
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         if not isinstance(other, CurveRs):
             return False
         return self.obj.__eq__(other.obj)
 
-    def __getitem__(self, value: datetime):
+    def __getitem__(self, value: datetime) -> Number:
         return self.obj[value]
 
 
-def _get_interpolator(name: str):
+def _get_interpolator(name: str) -> CurveInterpolator:
     name_ = name.lower()
     if name_ == "log_linear":
         return LogLinearInterpolator()
