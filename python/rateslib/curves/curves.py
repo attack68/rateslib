@@ -22,9 +22,9 @@ from pytz import UTC
 from rateslib import defaults
 from rateslib.calendars import CalInput, add_tenor, dcf
 from rateslib.calendars.dcfs import _DCF1d
-from rateslib.calendars.rs import CalTypes, Modifier, get_calendar
+from rateslib.calendars.rs import CalTypes, get_calendar
 from rateslib.default import NoInput, PlotOutput, _drb, plot
-from rateslib.dual import (
+from rateslib.dual import (  # type: ignore[attr-defined]
     Arr1dF64,
     Arr1dObj,
     Dual,
@@ -35,8 +35,8 @@ from rateslib.dual import (
     dual_log,
     set_order_convert,
 )
+from rateslib.rs import Modifier, index_left_f64
 from rateslib.rs import from_json as from_json_rs
-from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
@@ -171,7 +171,7 @@ class Curve:
     _base_type: str = "dfs"
     collateral: str | None = None
 
-    def __init__(
+    def __init__(  # type: ignore[no-untyped-def]
         self,
         nodes: dict[datetime, DualTypes],
         *,
@@ -225,7 +225,7 @@ class Curve:
         self.t = t
         self._c_input: bool = not isinstance(c, NoInput)
         if not isinstance(self.t, NoInput):
-            self.t_posix: list[float] = [_.replace(tzinfo=UTC).timestamp() for _ in self.t]
+            self.t_posix: list[float] | None = [_.replace(tzinfo=UTC).timestamp() for _ in self.t]
             if not isinstance(c, NoInput):
                 self.spline: PPSplineF64 | PPSplineDual | PPSplineDual2 | None = PPSplineF64(
                     4, self.t_posix, c
@@ -239,6 +239,9 @@ class Curve:
         else:
             self.t_posix = None
             self.spline = None
+
+        self.index_base: DualTypes | NoInput = NoInput(0)
+        self.index_lag: int | NoInput = NoInput(0)
 
         self._set_ad_order(order=ad)
 
@@ -298,12 +301,12 @@ class Curve:
         else:
             t = [t.strftime("%Y-%m-%d") for t in self.t]
 
-        if self._c_input and not isinstance(self.spline, None):
+        if self._c_input and self.spline is not None:
             c_ = self.spline.c
         else:
             c_ = None
 
-        container = {
+        container: dict[str, Any] = {
             "nodes": {dt.strftime("%Y-%m-%d"): v.real for dt, v in self.nodes.items()},
             "interpolation": self.interpolation if isinstance(self.interpolation, str) else None,
             "t": t,
@@ -586,13 +589,14 @@ class Curve:
         if isinstance(self.t, NoInput) or self._c_input:
             return None
 
-        t_posix = self.t_posix.copy()
+        # attributes relating to splines will then exist
+        t_posix = self.t_posix.copy()  # type: ignore[union-attr]
         tau_posix = [k.replace(tzinfo=UTC).timestamp() for k in self.nodes if k >= self.t[0]]
         y = [self._op_log(v) for k, v in self.nodes.items() if k >= self.t[0]]
 
         # Left side constraint
         if self.spline_endpoints[0].lower() == "natural":
-            tau_posix.insert(0, self.t_posix[0])
+            tau_posix.insert(0, self.t_posix[0])  # type: ignore[index]
             y.insert(0, set_order_convert(0.0, self.ad, None))
             left_n = 2
         elif self.spline_endpoints[0].lower() == "not_a_knot":
@@ -605,7 +609,7 @@ class Curve:
 
         # Right side constraint
         if self.spline_endpoints[1].lower() == "natural":
-            tau_posix.append(self.t_posix[-1])
+            tau_posix.append(self.t_posix[-1])  # type: ignore[index]
             y.append(set_order_convert(0, self.ad, None))
             right_n = 2
         elif self.spline_endpoints[1].lower() == "not_a_knot":
@@ -746,8 +750,8 @@ class Curve:
                     calendar=self.calendar,
                     modifier=self.modifier,
                     interpolation="log_linear",
-                    index_base=self.index_base,  # type: ignore[attr-defined]
-                    index_lag=self.index_lag,  # type: ignore[attr-defined]
+                    index_base=self.index_base,
+                    index_lag=self.index_lag,
                 )
 
             _: CompositeCurve = CompositeCurve(curves=[self, shifted], id=id)
@@ -1882,12 +1886,11 @@ class IndexCurve(Curve):
         index_lag: int | NoInput = NoInput(0),
         **kwargs,
     ) -> None:
+        super().__init__(*args, **{"interpolation": "linear_index", **kwargs})
         self.index_lag = _drb(defaults.index_lag, index_lag)
         if isinstance(index_base, NoInput):
             raise ValueError("`index_base` must be given for IndexCurve.")
         self.index_base: DualTypes = index_base
-
-        super().__init__(*args, **{"interpolation": "linear_index", **kwargs})
 
     def index_value(self, date: datetime, interpolation: str = "daily") -> DualTypes:
         """

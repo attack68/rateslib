@@ -9,7 +9,7 @@ from rateslib import defaults
 from rateslib.calendars import CalInput, _get_modifier, get_calendar  # type: ignore[attr-defined]
 from rateslib.calendars.dcfs import _get_convention
 from rateslib.default import NoInput, _drb
-from rateslib.dual import Number, _get_adorder
+from rateslib.dual import DualTypes, Number, _get_adorder
 from rateslib.rs import (
     ADOrder,
     FlatBackwardInterpolator,
@@ -38,7 +38,9 @@ class CurveRs:
         self,
         nodes: dict[datetime, Number],
         *,
-        interpolation: str | Callable | NoInput = NoInput(0),
+        interpolation: str
+        | Callable[[datetime, dict[datetime, DualTypes]], DualTypes]
+        | NoInput = NoInput(0),
         id: str | NoInput = NoInput(0),
         convention: str | NoInput = NoInput(0),
         modifier: str | NoInput = NoInput(0),
@@ -46,7 +48,9 @@ class CurveRs:
         ad: int = 0,
         index_base: float | NoInput = NoInput(0),
     ):
-        self._py_interpolator = interpolation if callable(interpolation) else None
+        self._py_interpolator: Callable[[datetime, dict[datetime, DualTypes]], DualTypes] | None = (
+            interpolation if callable(interpolation) else None
+        )
 
         self.obj = CurveObj(
             nodes=nodes,
@@ -92,7 +96,9 @@ class CurveRs:
         self.obj.set_ad_order(_get_adorder(ad))
 
     @staticmethod
-    def _validate_interpolator(interpolation: str | Callable | NoInput) -> CurveInterpolator:
+    def _validate_interpolator(
+        interpolation: str | Callable[[datetime, dict[datetime, DualTypes]], DualTypes] | NoInput,
+    ) -> CurveInterpolator:
         if interpolation is NoInput.blank:
             return _get_interpolator(defaults.interpolation["Curve"])
         elif isinstance(interpolation, str):
