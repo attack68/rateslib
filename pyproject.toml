@@ -146,7 +146,7 @@ exclude = [
     "python/rateslib/instruments",
     "python/rateslib/fx_volatility.py",
     "python/rateslib/legs.py",
-    "python/rateslib/periods.py",
+#    "python/rateslib/periods.py",
     "python/rateslib/solver.py",
 #    "python/rateslib/rs.pyi",
 ]
