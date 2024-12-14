@@ -220,7 +220,7 @@ class Curve:
             self.spline_endpoints = (endpoints[0].lower(), endpoints[1].lower())
 
         self.t = t
-        self.c_init = not isinstance(c, NoInput)
+        self._c_input: bool = not isinstance(c, NoInput)
         if not isinstance(t, NoInput):
             self.t_posix: list[float] = [_.replace(tzinfo=UTC).timestamp() for _ in t]
             self.spline = PPSplineF64(4, self.t_posix, None if c is NoInput.blank else c)
@@ -294,7 +294,7 @@ class Curve:
             "nodes": {dt.strftime("%Y-%m-%d"): v.real for dt, v in self.nodes.items()},
             "interpolation": self.interpolation if isinstance(self.interpolation, str) else None,
             "t": t,
-            "c": self.spline.c if self.c_init else None,
+            "c": self.spline.c if self._c_input else None,
             "id": self.id,
             "convention": self.convention,
             "endpoints": self.spline_endpoints,
@@ -592,10 +592,10 @@ class Curve:
         Uses the ``spline_endpoints`` attribute on the class to determine the solving
         method.
         """
-        if self.spline is None or self.c_init:
+        if isinstance(self.t, NoInput) or self._c_input:
             return None
 
-        # Get the Spline classs by data types
+        # Get the Spline class by data types
         if self.ad == 0:
             Spline = PPSplineF64
         elif self.ad == 1:
@@ -773,10 +773,10 @@ class Curve:
             elif isinstance(spread, Dual2):
                 self._set_ad_order(2)
 
-            v1v2 = [1.0] * (self.n - 1)
+            v1v2: list[Number] = [1.0] * (self.n - 1)
             n = [0] * (self.n - 1)
             d = 1 / 365 if self.convention.upper() != "ACT360" else 1 / 360
-            v_new = [1.0] * (self.n)
+            v_new: list[Number] = [1.0] * (self.n)
             for i, (k, v) in enumerate(self.nodes.items()):
                 if i == 0:
                     continue
