@@ -139,18 +139,29 @@ ignore = [
 "python/tests/*" = ["F401", "B", "N", "S", "ANN"]
 
 [tool.mypy]
-files = [
-    "python/rateslib/calendars/**/*.py",
-    "python/rateslib/curves/**/*.py",
-    "python/rateslib/dual/**/*.py",
-    "python/rateslib/fx/**/*.py",
-    "python/rateslib/__init__.py",
-    "python/rateslib/_spec_loader.py",
-    "python/rateslib/default.py",
-    "python/rateslib/json.py",
-    "python/rateslib/scheduling.py",
-    "python/rateslib/splines.py",
+packages = [
+    "rateslib"
 ]
+exclude = [
+    "python/rateslib/instruments",
+    "python/rateslib/fx_volatility.py",
+    "python/rateslib/legs.py",
+    "python/rateslib/periods.py",
+    "python/rateslib/solver.py",
+    "python/rateslib/rs.pyi",
+]
+#files = [
+#    "python/rateslib/calendars/**/*.py",
+#    "python/rateslib/curves/**/*.py",
+#    "python/rateslib/dual/**/*.py",
+#    "python/rateslib/fx/**/*.py",
+#    "python/rateslib/__init__.py",
+#    "python/rateslib/_spec_loader.py",
+#    "python/rateslib/default.py",
+#    "python/rateslib/json.py",
+#    "python/rateslib/scheduling.py",
+#    "python/rateslib/splines.py",
+#]
 strict = true
 
 [tool.isort]
