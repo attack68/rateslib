@@ -483,8 +483,9 @@ class FixedPeriod(BasePeriod):
         Return the NPV of the *FixedPeriod*.
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
-        disc_curve_: Curve = _disc_from_curve(curve, disc_curve)
-        if not isinstance(disc_curve, Curve) and curve is NoInput.blank:
+        disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
+        # TODO (high) this is not the right test. Trying to capure DF based curves
+        if not isinstance(disc_curve_, Curve) and isinstance(curve, NoInput):
             raise TypeError("`curves` have not been supplied correctly.")
         value = self.cashflow * disc_curve_[self.payment]
         return _maybe_local(value, local, self.currency, fx, base)
