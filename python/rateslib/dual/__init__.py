@@ -21,7 +21,7 @@ Number: TypeAlias = "float | Dual | Dual2"
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-def set_order(val: Number, order: int) -> Number:
+def set_order(val: DualTypes, order: int) -> DualTypes:
     """
     Changes the order of a :class:`Dual` or :class:`Dual2` leaving floats and ints
     unchanged.
@@ -42,6 +42,8 @@ def set_order(val: Number, order: int) -> Number:
     elif order == 1 and isinstance(val, Dual2):
         return val.to_dual()
     elif order == 0:
+        if isinstance(val, Variable):  # TODO (low): remove branch when float(Variable) is fixed
+            return val.real
         return float(val)
     # otherwise:
     #  - val is a Float or an Int
@@ -50,8 +52,8 @@ def set_order(val: Number, order: int) -> Number:
 
 
 def set_order_convert(
-    val: Number, order: int, tag: list[str] | None, vars_from: Dual | Dual2 | None = None
-) -> Number:
+    val: DualTypes, order: int, tag: list[str] | None, vars_from: Dual | Dual2 | None = None
+) -> DualTypes:
     """
     Convert a float, :class:`Dual` or :class:`Dual2` type to a specified alternate type.
 

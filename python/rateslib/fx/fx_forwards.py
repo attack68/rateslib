@@ -463,7 +463,7 @@ class FXForwards:
         self,
         pair: str,
         settlement: datetime | NoInput = NoInput(0),
-    ) -> Number:
+    ) -> DualTypes:
         """
         Return the fx forward rate for a currency pair.
 
@@ -505,7 +505,7 @@ class FXForwards:
         pair: str,
         settlement: datetime | NoInput = NoInput(0),
         path: list[dict[str, int]] | NoInput = NoInput(0),
-    ) -> tuple[Number, list[dict[str, int]]]:
+    ) -> tuple[DualTypes, list[dict[str, int]]]:
         """
         Return the fx forward rate for a currency pair, including the path taken to traverse ccys.
 
@@ -543,7 +543,7 @@ class FXForwards:
             raise ValueError("`settlement` cannot be before immediate FX rate date.")
 
         if settlement_ == self.fx_rates_immediate.settlement:
-            rate_ = self.fx_rates_immediate.rate(pair)
+            rate_: DualTypes = self.fx_rates_immediate.rate(pair)
             _, _, path = _get_d_f_idx_and_path(pair, path)
             return rate_, path
 
@@ -554,14 +554,15 @@ class FXForwards:
 
         # otherwise must rely on curves and path search which is slower
         d_idx, f_idx, path = _get_d_f_idx_and_path(pair, path)
-        rate_, current_idx = 1.0, f_idx
+        rate_ = 1.0
+        current_idx = f_idx
         for route in path:
             if "col" in route:
                 coll_ccy = self.currencies_list[current_idx]
                 cash_ccy = self.currencies_list[route["col"]]
                 w_i = self.fx_curves[f"{cash_ccy}{coll_ccy}"][settlement_]
                 v_i = self.fx_curves[f"{coll_ccy}{coll_ccy}"][settlement_]
-                rate_ *= self.fx_rates_immediate.fx_array[route["col"], current_idx]
+                rate_ *= self.fx_rates_immediate._fx_array_el(route["col"], current_idx)
                 rate_ *= w_i / v_i
                 current_idx = route["col"]
             elif "row" in route:
@@ -569,7 +570,7 @@ class FXForwards:
                 cash_ccy = self.currencies_list[current_idx]
                 w_i = self.fx_curves[f"{cash_ccy}{coll_ccy}"][settlement_]
                 v_i = self.fx_curves[f"{coll_ccy}{coll_ccy}"][settlement_]
-                rate_ *= self.fx_rates_immediate.fx_array[route["row"], current_idx]
+                rate_ *= self.fx_rates_immediate._fx_array_el(route["row"], current_idx)
                 rate_ *= v_i / w_i
                 current_idx = route["row"]
 
@@ -733,7 +734,7 @@ class FXForwards:
         settlement_: datetime = self.immediate if isinstance(settlement, NoInput) else settlement
         value_date_: datetime = settlement_ if isinstance(value_date, NoInput) else value_date
 
-        fx_rate: Number = self.rate(domestic + foreign, settlement_)
+        fx_rate: DualTypes = self.rate(domestic + foreign, settlement_)
         if value_date_ == settlement_:
             return fx_rate * value
         else:
@@ -822,7 +823,7 @@ class FXForwards:
         pair: str,
         settlements: list[datetime],
         path: list[dict[str, int]] | NoInput = NoInput(0),
-    ) -> Number:
+    ) -> DualTypes:
         """
         Return the FXSwap mid-market rate for the given currency pair.
 
@@ -1018,9 +1019,9 @@ class FXForwards:
         points: int = (right_ - left_).days
         x = [left_ + timedelta(days=i) for i in range(points)]
         _, path = self._rate_with_path(pair, x[0])
-        rates: list[Number] = [self._rate_with_path(pair, _, path=path)[0] for _ in x]
+        rates: list[DualTypes] = [self._rate_with_path(pair, _, path=path)[0] for _ in x]
         if not fx_swap:
-            y: list[list[Number]] = [rates]
+            y: list[list[DualTypes]] = [rates]
         else:
             y = [[(rate - rates[0]) * 10000 for rate in rates]]
         return plot(x, y)
