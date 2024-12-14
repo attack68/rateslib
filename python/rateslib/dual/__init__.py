@@ -42,7 +42,7 @@ def set_order(val: DualTypes, order: int) -> DualTypes:
     elif order == 1 and isinstance(val, Dual2):
         return val.to_dual()
     elif order == 0:
-        if isinstance(val, Variable):
+        if isinstance(val, Variable):  # TODO (low): remove branch when float(Variable) is fixed
             return val.real
         return float(val)
     # otherwise:
