@@ -130,7 +130,7 @@ def get_calendar(
             except ValueError:
                 # try parsing with Python only
                 pass
-    # parse the string in Python and return Rust Cal/UnionCal objects directly
+        # parse the string in Python and return Rust Cal/UnionCal objects directly
         return _parse_str_calendar(calendar)
     elif isinstance(calendar, NoInput):
         return defaults.calendars["all"]

@@ -20,9 +20,9 @@ import numpy as np
 from pytz import UTC
 
 from rateslib import defaults
-from rateslib.calendars import CalInput, add_tenor, create_calendar, dcf
+from rateslib.calendars import CalInput, add_tenor, dcf
 from rateslib.calendars.dcfs import _DCF1d
-from rateslib.calendars.rs import Modifier, get_calendar, CalTypes
+from rateslib.calendars.rs import CalTypes, Modifier, get_calendar
 from rateslib.default import NoInput, PlotOutput, _drb, plot
 from rateslib.dual import (
     Arr1dF64,
@@ -35,9 +35,9 @@ from rateslib.dual import (
     dual_log,
     set_order_convert,
 )
+from rateslib.rs import from_json as from_json_rs
 from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
-from rateslib.rs import from_json as from_json_rs
 
 if TYPE_CHECKING:
     from rateslib.fx import FXForwards  # pragma: no cover
@@ -175,7 +175,9 @@ class Curve:
         self,
         nodes: dict[datetime, DualTypes],
         *,
-        interpolation: str | Callable[[datetime, dict[datetime, DualTypes]], DualTypes] | NoInput = NoInput(0),
+        interpolation: str
+        | Callable[[datetime, dict[datetime, DualTypes]], DualTypes]
+        | NoInput = NoInput(0),
         t: list[datetime] | NoInput = NoInput(0),
         c: list[float] | NoInput = NoInput(0),
         endpoints: str | tuple[str, str] | NoInput = NoInput(0),
@@ -225,7 +227,9 @@ class Curve:
         if not isinstance(self.t, NoInput):
             self.t_posix: list[float] = [_.replace(tzinfo=UTC).timestamp() for _ in t]
             if not isinstance(c, NoInput):
-                self.spline: PPSplineF64 | PPSplineDual | PPSplineDual2 | None = PPSplineF64(4, self.t_posix, c)
+                self.spline: PPSplineF64 | PPSplineDual | PPSplineDual2 | None = PPSplineF64(
+                    4, self.t_posix, c
+                )
             else:
                 self.spline = None  # will be set in csolve if self.t is present
             if len(self.t) < 10 and "not_a_knot" in self.spline_endpoints:
@@ -357,8 +361,8 @@ class Curve:
                     f"{self.t[-1].strftime('%Y-%m-%d')}",
                     UserWarning,
                 )
-            assert self.spline is not None
-            val = self._op_exp(self.spline.ppev_single(date_posix))
+            # self.spline cannot be None becuase self.t is given and it has been calibrated
+            val = self._op_exp(self.spline.ppev_single(date_posix))  # type: ignore[operator]
 
         self._maybe_add_to_cache(date, val)
         return val
@@ -976,7 +980,7 @@ class Curve:
         )
         return new_curve
 
-    def _roll_nodes(self, tenor: datetime, days: int) -> dict[datetime, Number]:
+    def _roll_nodes(self, tenor: datetime, days: int) -> dict[datetime, DualTypes]:
         """
         Roll nodes by adding days to each one and scaling DF values.
 
@@ -1613,7 +1617,7 @@ class LineCurve(Curve):
         self._set_ad_order(_ad)
         return _
 
-    def _translate_nodes(self, start: datetime) -> dict[datetime, Number]:
+    def _translate_nodes(self, start: datetime) -> dict[datetime, DualTypes]:
         new_nodes = self.nodes.copy()
 
         # re-organise the nodes on the new curve
@@ -2304,7 +2308,7 @@ class CompositeCurve(IndexCurve):
             _: DualTypes = 0.0
             for i in range(len(self.curves)):
                 # let regular TypeErrors be raised if curve.rate returns None
-                _ += self.curves[i].rate(effective, termination, modifier) # type: ignore[operator]
+                _ += self.curves[i].rate(effective, termination, modifier)  # type: ignore[operator]
             return _
         elif self._base_type == "dfs":
             modifier_ = _drb(self.modifier, modifier)
@@ -2838,7 +2842,9 @@ class ProxyCurve(Curve):
 
     def __getitem__(self, date: datetime) -> DualTypes:
         _1: DualTypes = self.fx_forwards._rate_with_path(self.pair, date, path=self.path)[0]
-        _2: DualTypes = self.fx_forwards.fx_rates_immediate._fx_array_el(self.cash_idx, self.coll_idx)
+        _2: DualTypes = self.fx_forwards.fx_rates_immediate._fx_array_el(
+            self.cash_idx, self.coll_idx
+        )
         _3: DualTypes = self.fx_forwards.fx_curves[self.coll_pair][date]
         return _1 / _2 * _3
 
