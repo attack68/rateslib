@@ -20,9 +20,9 @@ import numpy as np
 from pytz import UTC
 
 from rateslib import defaults
-from rateslib.calendars import CalInput, add_tenor, create_calendar, dcf
+from rateslib.calendars import CalInput, add_tenor, dcf
 from rateslib.calendars.dcfs import _DCF1d
-from rateslib.calendars.rs import Modifier, _get_calendar_with_kind
+from rateslib.calendars.rs import CalTypes, Modifier, get_calendar
 from rateslib.default import NoInput, PlotOutput, _drb, plot
 from rateslib.dual import (
     Arr1dF64,
@@ -35,6 +35,7 @@ from rateslib.dual import (
     dual_log,
     set_order_convert,
 )
+from rateslib.rs import from_json as from_json_rs
 from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
@@ -172,9 +173,11 @@ class Curve:
 
     def __init__(
         self,
-        nodes: dict[datetime, Number],
+        nodes: dict[datetime, DualTypes],
         *,
-        interpolation: str | Callable | NoInput = NoInput(0),
+        interpolation: str
+        | Callable[[datetime, dict[datetime, DualTypes]], DualTypes]
+        | NoInput = NoInput(0),
         t: list[datetime] | NoInput = NoInput(0),
         c: list[float] | NoInput = NoInput(0),
         endpoints: str | tuple[str, str] | NoInput = NoInput(0),
@@ -183,11 +186,11 @@ class Curve:
         modifier: str | NoInput = NoInput(0),
         calendar: CalInput = NoInput(0),
         ad: int = 0,
-        **kwargs,
+        **kwargs,  # type: ignore[no-utyped-def]
     ) -> None:
         self.clear_cache()
         self.id: str = _drb(uuid4().hex[:5], id)  # 1 in a million clash
-        self.nodes: dict[datetime, Number] = nodes  # nodes.copy()
+        self.nodes: dict[datetime, DualTypes] = nodes  # nodes.copy()
         self.node_keys: list[datetime] = list(self.nodes.keys())
         self.node_dates: list[datetime] = self.node_keys
         self.node_dates_posix: list[float] = [
@@ -200,7 +203,7 @@ class Curve:
                     "Curve node dates are not sorted or contain duplicates. To sort directly "
                     "use: `dict(sorted(nodes.items()))`",
                 )
-        self.interpolation: str | Callable = _drb(
+        self.interpolation: str | Callable[[datetime, dict[datetime, DualTypes]], Number] = _drb(
             defaults.interpolation[type(self).__name__], interpolation
         )
         if isinstance(self.interpolation, str):
@@ -209,7 +212,7 @@ class Curve:
         # Parameters for the rate derivation
         self.convention: str = _drb(defaults.convention, convention)
         self.modifier: str = _drb(defaults.modifier, modifier).upper()
-        self.calendar, self.calendar_type = _get_calendar_with_kind(calendar)
+        self.calendar: CalTypes = get_calendar(calendar)
 
         # Parameters for PPSpline
         if isinstance(endpoints, NoInput):
@@ -221,9 +224,14 @@ class Curve:
 
         self.t = t
         self._c_input: bool = not isinstance(c, NoInput)
-        if not isinstance(t, NoInput):
+        if not isinstance(self.t, NoInput):
             self.t_posix: list[float] = [_.replace(tzinfo=UTC).timestamp() for _ in t]
-            self.spline = PPSplineF64(4, self.t_posix, None if c is NoInput.blank else c)
+            if not isinstance(c, NoInput):
+                self.spline: PPSplineF64 | PPSplineDual | PPSplineDual2 | None = PPSplineF64(
+                    4, self.t_posix, c
+                )
+            else:
+                self.spline = None  # will be set in csolve if self.t is present
             if len(self.t) < 10 and "not_a_knot" in self.spline_endpoints:
                 raise ValueError(
                     "`endpoints` cannot be 'not_a_knot' with only 1 interior breakpoint",
@@ -285,7 +293,7 @@ class Curve:
         -------
         str
         """
-        if self.t is NoInput.blank:
+        if isinstance(self.t, NoInput):
             t = None
         else:
             t = [t.strftime("%Y-%m-%d") for t in self.t]
@@ -299,27 +307,11 @@ class Curve:
             "convention": self.convention,
             "endpoints": self.spline_endpoints,
             "modifier": self.modifier,
-            "calendar_type": self.calendar_type,
+            "calendar": self.calendar.to_json(),
             "ad": self.ad,
         }
         if type(self) is IndexCurve:
             container.update({"index_base": self.index_base, "index_lag": self.index_lag})
-
-        if self.calendar_type == "null":
-            container.update({"calendar": None})
-        elif "named: " in self.calendar_type:
-            container.update({"calendar": self.calendar_type[7:]})
-        elif self.calendar_type == "object":
-            container.update({"calendar": self.calendar.name})
-        else:  # calendar type is custom
-            container.update(
-                {
-                    "calendar": {
-                        "weekmask": list(self.calendar.week_mask),
-                        "holidays": [d.strftime("%Y-%m-%d") for d in self.calendar.holidays],
-                    },
-                },
-            )
 
         return json.dumps(container, default=str)
 
@@ -342,14 +334,7 @@ class Curve:
         serial["nodes"] = {
             datetime.strptime(dt, "%Y-%m-%d"): v for dt, v in serial["nodes"].items()
         }
-
-        if serial["calendar_type"] == "custom":
-            # must load and construct a custom holiday calendar from serial dates
-            dates = [datetime.strptime(d, "%Y-%m-%d") for d in serial["calendar"]["holidays"]]
-            serial["calendar"] = create_calendar(
-                rules=dates,
-                week_mask=serial["calendar"]["weekmask"],
-            )
+        serial["calendar"] = from_json_rs(serial["calendar"])
 
         if serial["t"] is not None:
             serial["t"] = [datetime.strptime(t, "%Y-%m-%d") for t in serial["t"]]
@@ -357,14 +342,14 @@ class Curve:
         serial = {k: v for k, v in serial.items() if v is not None}
         return cls(**{**serial, **kwargs})
 
-    def __getitem__(self, date: datetime) -> Number:
+    def __getitem__(self, date: datetime) -> DualTypes:
         if defaults.curve_caching and date in self._cache:
             return self._cache[date]
 
         date_posix = date.replace(tzinfo=UTC).timestamp()
-        if self.spline is None or date <= self.t[0]:
-            if isinstance(self.interpolation, Callable):
-                val = self.interpolation(date, self.nodes.copy())
+        if isinstance(self.t, NoInput) or date <= self.t[0]:
+            if callable(self.interpolation):
+                val: DualTypes = self.interpolation(date, self.nodes.copy())
             else:
                 val = self._local_interp_(date_posix)
         else:
@@ -376,7 +361,8 @@ class Curve:
                     f"{self.t[-1].strftime('%Y-%m-%d')}",
                     UserWarning,
                 )
-            val = self._op_exp(self.spline.ppev_single(date_posix))
+            # self.spline cannot be None becuase self.t is given and it has been calibrated
+            val = self._op_exp(self.spline.ppev_single(date_posix))  # type: ignore[operator]
 
         self._maybe_add_to_cache(date, val)
         return val
@@ -385,7 +371,7 @@ class Curve:
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    def _local_interp_(self, date_posix: float) -> Number:
+    def _local_interp_(self, date_posix: float) -> DualTypes:
         if date_posix < self.node_dates_posix[0]:
             return 0  # then date is in the past and DF is zero
         l_index = index_left_f64(self.node_dates_posix, date_posix, None)
@@ -400,7 +386,7 @@ class Curve:
             self.nodes[node_left],
             node_right_posix,
             self.nodes[node_right],
-            self.interpolation,
+            self.interpolation,  # type: ignore[arg-type]
             self.node_dates_posix[0],
         )
 
@@ -411,12 +397,12 @@ class Curve:
         self,
         effective: datetime,
         termination: datetime | str | NoInput,
-        modifier: str | bool | NoInput = NoInput(0),
+        modifier: str | NoInput = NoInput(1),
         # calendar: CalInput = NoInput(0),
         # convention: Optional[str] = None,
         float_spread: float | NoInput = NoInput(0),
         spread_compound_method: str | NoInput = NoInput(0),
-    ) -> Number:
+    ) -> DualTypes | None:
         """
         Calculate the rate on the `Curve` using DFs.
 
@@ -500,7 +486,7 @@ class Curve:
             )
             curve_act360.rate(dt(2022, 2, 1), dt(2022, 3, 1))
         """
-        modifier = self.modifier if modifier is NoInput.blank else modifier
+        modifier_ = _drb(self.modifier, modifier)
         # calendar = self.calendar if calendar is False else calendar
         # convention = self.convention if convention is None else convention
 
@@ -513,7 +499,7 @@ class Curve:
             #     "See Documentation > Cookbook > Working with Fixings."
             # )
         if isinstance(termination, str):
-            termination = add_tenor(effective, termination, modifier, self.calendar)
+            termination = add_tenor(effective, termination, modifier_, self.calendar)
         elif isinstance(termination, NoInput):
             raise ValueError("`termination` must be supplied for rate of DF based Curve.")
 
@@ -526,9 +512,9 @@ class Curve:
         if termination == effective:
             raise ZeroDivisionError(f"effective: {effective}, termination: {termination}")
         n_, d_ = (df_ratio - 1), dcf(effective, termination, self.convention)
-        _ = n_ / d_ * 100
+        _: DualTypes = n_ / d_ * 100
 
-        if float_spread is not NoInput(0) and abs(float_spread) > 1e-9:
+        if not isinstance(float_spread, NoInput) and abs(float_spread) > 1e-9:
             if spread_compound_method == "none_simple":
                 return _ + float_spread / 100
             elif spread_compound_method == "isda_compounding":
@@ -570,9 +556,9 @@ class Curve:
 
         Alternatively the curve caching as a feature can be set to *False* in ``defaults``.
         """
-        self._cache = dict()
+        self._cache: dict[datetime, Number] = dict()
 
-    def _maybe_add_to_cache(self, date, val) -> None:
+    def _maybe_add_to_cache(self, date: datetime, val: Number) -> None:
         if defaults.curve_caching:
             self._cache[date] = val
 
@@ -594,14 +580,6 @@ class Curve:
         """
         if isinstance(self.t, NoInput) or self._c_input:
             return None
-
-        # Get the Spline class by data types
-        if self.ad == 0:
-            Spline = PPSplineF64
-        elif self.ad == 1:
-            Spline = PPSplineDual
-        else:
-            Spline = PPSplineDual2
 
         t_posix = self.t_posix.copy()
         tau_posix = [k.replace(tzinfo=UTC).timestamp() for k in self.nodes if k >= self.t[0]]
@@ -633,9 +611,15 @@ class Curve:
                 f"Endpoint method '{self.spline_endpoints[0]}' not implemented.",
             )
 
-        self.spline = Spline(4, t_posix, None)
-        self.spline.csolve(tau_posix, y, left_n, right_n, False)
-        return None
+        # Get the Spline class by data types
+        if self.ad == 0:
+            self.spline = PPSplineF64(4, t_posix, None)
+        elif self.ad == 1:
+            self.spline = PPSplineDual(4, t_posix, None)
+        else:
+            self.spline = PPSplineDual2(4, t_posix, None)
+
+        self.spline.csolve(tau_posix, y, left_n, right_n, False)  # type: ignore[attr-defined]
 
     def shift(
         self,
@@ -996,7 +980,7 @@ class Curve:
         )
         return new_curve
 
-    def _roll_nodes(self, tenor: datetime, days: int) -> dict[datetime, Number]:
+    def _roll_nodes(self, tenor: datetime, days: int) -> dict[datetime, DualTypes]:
         """
         Roll nodes by adding days to each one and scaling DF values.
 
@@ -1011,9 +995,10 @@ class Curve:
         -------
         dict
         """
+        # let regular TypeErrors raise if curve.rate is None
         on_rate = self.rate(self.node_dates[0], "1d", "NONE")
         d = 1 / 365 if self.convention.upper() != "ACT360" else 1 / 360
-        scalar = 1 / ((1 + on_rate * d / 100) ** days)
+        scalar = 1 / ((1 + on_rate * d / 100) ** days)  # type: ignore[operator]
         new_nodes = {k + timedelta(days=days): v * scalar for k, v in self.nodes.items()}
         if tenor > self.node_dates[0]:
             new_nodes = {self.node_dates[0]: 1.0, **new_nodes}
@@ -1216,8 +1201,8 @@ class Curve:
         return plot(x, y_, labels)
 
     def _plot_diff(
-        self, date: datetime, tenor: str, rate: Number | None, comparator: Curve
-    ) -> Number | None:
+        self, date: datetime, tenor: str, rate: DualTypes | None, comparator: Curve
+    ) -> DualTypes | None:
         if rate is None:
             return None
         rate2 = comparator._plot_rate(date, tenor, comparator._plot_modifier(tenor))
@@ -1239,7 +1224,7 @@ class Curve:
         upper_tenor: str,
         left: datetime | str | NoInput,
         right: datetime | str | NoInput,
-    ) -> tuple[list[datetime], list[Number | None]]:
+    ) -> tuple[list[datetime], list[DualTypes | None]]:
         if isinstance(left, NoInput):
             left_: datetime = self.node_dates[0]
         elif isinstance(left, str):
@@ -1273,7 +1258,7 @@ class Curve:
         effective: datetime,
         termination: str,
         modifier: str,
-    ) -> Number | None:
+    ) -> DualTypes | None:
         try:
             rate = self.rate(effective, termination, modifier)
         except ValueError:
@@ -1632,7 +1617,7 @@ class LineCurve(Curve):
         self._set_ad_order(_ad)
         return _
 
-    def _translate_nodes(self, start: datetime) -> dict[datetime, Number]:
+    def _translate_nodes(self, start: datetime) -> dict[datetime, DualTypes]:
         new_nodes = self.nodes.copy()
 
         # re-organise the nodes on the new curve
@@ -1776,7 +1761,7 @@ class LineCurve(Curve):
         """  # noqa: E501
         return super().translate(start, t)
 
-    def _roll_nodes(self, tenor: datetime, days: int) -> dict[datetime, Number]:
+    def _roll_nodes(self, tenor: datetime, days: int) -> dict[datetime, DualTypes]:
         new_nodes = {k + timedelta(days=days): v for k, v in self.nodes.items()}
         if tenor > self.node_dates[0]:
             new_nodes = {self.node_dates[0]: self[self.node_dates[0]], **new_nodes}
@@ -2291,7 +2276,7 @@ class CompositeCurve(IndexCurve):
         termination: datetime | str | NoInput = NoInput(0),
         modifier: str | NoInput = NoInput(1),
         approximate: bool = True,
-    ) -> Number | None:
+    ) -> DualTypes | None:
         """
         Calculate the composited rate on the curve.
 
@@ -2320,9 +2305,10 @@ class CompositeCurve(IndexCurve):
             return None
 
         if self._base_type == "values":
-            _: Number = 0.0
+            _: DualTypes = 0.0
             for i in range(len(self.curves)):
-                _ += self.curves[i].rate(effective, termination, modifier)
+                # let regular TypeErrors be raised if curve.rate returns None
+                _ += self.curves[i].rate(effective, termination, modifier)  # type: ignore[operator]
             return _
         elif self._base_type == "dfs":
             modifier_ = _drb(self.modifier, modifier)
@@ -2338,8 +2324,9 @@ class CompositeCurve(IndexCurve):
                 # calculates the geometric mean overnight rates in periods and adds
                 _, n = 0.0, (termination - effective).days
                 for curve_ in self.curves:
+                    # if curve.rate returns None allow this to raise dynamic TypeError
                     r = curve_.rate(effective, termination)
-                    _ += ((1 + r * n * d / 100) ** (1 / n) - 1) / d
+                    _ += ((1 + r * n * d / 100) ** (1 / n) - 1) / d  # type: ignore[operator]
 
                 _ = ((1 + d * _) ** n - 1) * 100 / (d * n)
 
@@ -2348,11 +2335,13 @@ class CompositeCurve(IndexCurve):
                 date_ = effective
                 while date_ < termination:
                     term_ = self.calendar.lag(date_, 1, False)  # add 1 bus day
-                    __: Number = 0.0
+                    __: DualTypes = 0.0
                     d_ = (term_ - date_).days * d
                     dcf_ += d_
                     for curve in self.curves:
-                        __ += curve.rate(date_, term_)
+                        # if curve.rate returns None allow to raise dynamic error
+                        __ += curve.rate(date_, term_)  # type: ignore[operator]
+
                     _ *= 1 + d_ * __ / 100
                     date_ = term_
                 _ = 100 * (_ - 1) / dcf_
@@ -2363,7 +2352,7 @@ class CompositeCurve(IndexCurve):
 
         return _
 
-    def __getitem__(self, date: datetime) -> Number:
+    def __getitem__(self, date: datetime) -> DualTypes:
         if self._base_type == "dfs":
             # will return a composited discount factor
             if date == self.curves[0].node_dates[0]:
@@ -2377,7 +2366,7 @@ class CompositeCurve(IndexCurve):
             for curve in self.curves:
                 avg_rate = ((1.0 / curve[date]) ** (1.0 / days) - 1) / d
                 total_rate += avg_rate
-            _: Number = 1.0 / (1 + total_rate * d) ** days
+            _: DualTypes = 1.0 / (1 + total_rate * d) ** days
             return _
 
         elif self._base_type == "values":
@@ -2545,7 +2534,7 @@ class MultiCsaCurve(CompositeCurve):
         effective: datetime,
         termination: datetime | str,
         modifier: str | NoInput = NoInput(1),
-    ) -> Number | None:
+    ) -> DualTypes | None:
         """
         Calculate the cheapest-to-deliver (CTD) rate on the curve.
 
@@ -2579,10 +2568,10 @@ class MultiCsaCurve(CompositeCurve):
         # the lookup could be vectorised to return two values at once.
         df_num = self[effective]
         df_den = self[termination]
-        _: Number = (df_num / df_den - 1) * 100 / (d * n)
+        _: DualTypes = (df_num / df_den - 1) * 100 / (d * n)
         return _
 
-    def __getitem__(self, date: datetime) -> Number:
+    def __getitem__(self, date: datetime) -> DualTypes:
         # will return a composited discount factor
         if date == self.curves[0].node_dates[0]:
             return 1.0  # TODO (low:?) this is not variable but maybe should be tagged as "id0"?
@@ -2591,7 +2580,7 @@ class MultiCsaCurve(CompositeCurve):
 
         # method uses the step and picks the highest (cheapest rate)
         # in each period
-        _: Number = 1.0
+        _: DualTypes = 1.0
         d1 = self.curves[0].node_dates[0]
 
         def _get_step(step: int) -> int:
@@ -2599,10 +2588,10 @@ class MultiCsaCurve(CompositeCurve):
 
         d2 = d1 + timedelta(days=_get_step(defaults.multi_csa_steps[0]))
         # cache stores looked up DF values to next loop, avoiding double calc
-        cache: dict[int, Number] = {i: 1.0 for i in range(len(self.curves))}
+        cache: dict[int, DualTypes] = {i: 1.0 for i in range(len(self.curves))}
         k: int = 1
         while d2 < date:
-            min_ratio: Number = 1e5
+            min_ratio: DualTypes = 1e5
             for i, curve in enumerate(self.curves):
                 d2_df = curve[d2]
                 ratio_ = d2_df / cache[i]
@@ -2851,10 +2840,12 @@ class ProxyCurve(Curve):
         self.calendar = default_curve.calendar
         self.node_dates = [self.fx_forwards.immediate, self.terminal]
 
-    def __getitem__(self, date: datetime) -> Number:
-        _1: Number = self.fx_forwards._rate_with_path(self.pair, date, path=self.path)[0]
-        _2: Number = self.fx_forwards.fx_rates_immediate._fx_array_el(self.cash_idx, self.coll_idx)
-        _3: Number = self.fx_forwards.fx_curves[self.coll_pair][date]
+    def __getitem__(self, date: datetime) -> DualTypes:
+        _1: DualTypes = self.fx_forwards._rate_with_path(self.pair, date, path=self.path)[0]
+        _2: DualTypes = self.fx_forwards.fx_rates_immediate._fx_array_el(
+            self.cash_idx, self.coll_idx
+        )
+        _3: DualTypes = self.fx_forwards.fx_curves[self.coll_pair][date]
         return _1 / _2 * _3
 
     def to_json(self) -> str:  # pragma: no cover  # type: ignore
