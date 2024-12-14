@@ -217,7 +217,7 @@ class Curve:
         elif isinstance(endpoints, str):
             self.spline_endpoints = (endpoints.lower(), endpoints.lower())
         else:
-            self.spline_endpoints = (_.lower() for _ in endpoints)
+            self.spline_endpoints = (endpoints[0].lower(), endpoints[1].lower())
 
         self.t = t
         self.c_init = not isinstance(c, NoInput)
