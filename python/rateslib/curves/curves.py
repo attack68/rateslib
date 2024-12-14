@@ -22,7 +22,7 @@ from pytz import UTC
 from rateslib import defaults
 from rateslib.calendars import CalInput, add_tenor, create_calendar, dcf
 from rateslib.calendars.dcfs import _DCF1d
-from rateslib.calendars.rs import Modifier, _get_calendar_with_kind
+from rateslib.calendars.rs import Modifier, get_calendar, CalTypes
 from rateslib.default import NoInput, PlotOutput, _drb, plot
 from rateslib.dual import (
     Arr1dF64,
@@ -37,6 +37,7 @@ from rateslib.dual import (
 )
 from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
+from rateslib.rs import from_json as from_json_rs
 
 if TYPE_CHECKING:
     from rateslib.fx import FXForwards  # pragma: no cover
@@ -209,7 +210,7 @@ class Curve:
         # Parameters for the rate derivation
         self.convention: str = _drb(defaults.convention, convention)
         self.modifier: str = _drb(defaults.modifier, modifier).upper()
-        self.calendar, self.calendar_type = _get_calendar_with_kind(calendar)
+        self.calendar: CalTypes = get_calendar(calendar)
 
         # Parameters for PPSpline
         if isinstance(endpoints, NoInput):
@@ -302,27 +303,11 @@ class Curve:
             "convention": self.convention,
             "endpoints": self.spline_endpoints,
             "modifier": self.modifier,
-            "calendar_type": self.calendar_type,
+            "calendar": self.calendar.to_json(),
             "ad": self.ad,
         }
         if type(self) is IndexCurve:
             container.update({"index_base": self.index_base, "index_lag": self.index_lag})
-
-        if self.calendar_type == "null":
-            container.update({"calendar": None})
-        elif "named: " in self.calendar_type:
-            container.update({"calendar": self.calendar_type[7:]})
-        elif self.calendar_type == "object":
-            container.update({"calendar": self.calendar.name})
-        else:  # calendar type is custom
-            container.update(
-                {
-                    "calendar": {
-                        "weekmask": list(self.calendar.week_mask),
-                        "holidays": [d.strftime("%Y-%m-%d") for d in self.calendar.holidays],
-                    },
-                },
-            )
 
         return json.dumps(container, default=str)
 
@@ -345,14 +330,7 @@ class Curve:
         serial["nodes"] = {
             datetime.strptime(dt, "%Y-%m-%d"): v for dt, v in serial["nodes"].items()
         }
-
-        if serial["calendar_type"] == "custom":
-            # must load and construct a custom holiday calendar from serial dates
-            dates = [datetime.strptime(d, "%Y-%m-%d") for d in serial["calendar"]["holidays"]]
-            serial["calendar"] = create_calendar(
-                rules=dates,
-                week_mask=serial["calendar"]["weekmask"],
-            )
+        serial["calendar"] = from_json_rs(serial["calendar"])
 
         if serial["t"] is not None:
             serial["t"] = [datetime.strptime(t, "%Y-%m-%d") for t in serial["t"]]

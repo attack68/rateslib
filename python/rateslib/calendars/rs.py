@@ -123,47 +123,19 @@ def get_calendar(
        tgt_and_nyc_cal.holidays[300:312]
 
     """
-    _: CalTypes = _get_calendar_with_kind(calendar=calendar, named=named)[0]
-    return _
-
-
-def _get_calendar_with_kind(
-    calendar: CalInput,
-    named: bool = True,
-) -> tuple[CalTypes, str]:
-    """
-    Returns a calendar object either from an available set or a user defined input.
-
-    Parameters
-    ----------
-    calendar : str, Cal, UnionCal, NamedCal
-        If `str`, then the calendar is returned from pre-calculated values.
-        If a specific user defined calendar this is returned without modification.
-    named : bool
-        If `True` will return a :class:`~rateslib.calendars.NamedCal` object, which is more
-        compactly serialized, otherwise will parse an input string and return a
-        :class:`~rateslib.calendars.Cal` or :class:`~rateslib.calendars.UnionCal` directly.
-
-    Returns
-    -------
-    tuple[NamedCal | Cal | UnionCal, str]
-
-    """
-    # TODO: rename calendars or make a more generalist statement about their names.
-    # these object categorisations do not seem to make sense.
     if isinstance(calendar, str):
         if named:
             try:
-                return NamedCal(calendar), "object"
+                return NamedCal(calendar)
             except ValueError:
                 # try parsing with Python only
                 pass
-        # parse the string in Python and return Rust Cal/UnionCal objects directly
-        return _parse_str_calendar(calendar), "named"
+    # parse the string in Python and return Rust Cal/UnionCal objects directly
+        return _parse_str_calendar(calendar)
     elif isinstance(calendar, NoInput):
-        return defaults.calendars["all"], "null"
+        return defaults.calendars["all"]
     else:  # calendar is a Calendar object type
-        return calendar, "custom"
+        return calendar
 
 
 def _parse_str_calendar(calendar: str) -> CalTypes:
