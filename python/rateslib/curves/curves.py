@@ -71,10 +71,9 @@ class Curve:
         The B-spline coefficients used to define the log-cubic spline. If not given,
         which is the expected case, uses :meth:`csolve` to calculate these
         automatically.
-    endpoints : str or list, optional
-        The left and right endpoint constraint for the spline solution. Valid values are
-        in {"natural", "not_a_knot"}. If a list, supply the left endpoint then the
-        right endpoint.
+    endpoints : 2-tuple of str, optional
+        The left and then right endpoint constraint for the spline solution. Valid values are
+        in {"natural", "not_a_knot"}.
     id : str, optional, set by Default
         The unique identifier to distinguish between curves in a multicurve framework.
     convention : str, optional, set by Default
@@ -161,8 +160,12 @@ class Curve:
        plt.show()
     """
 
-    _op_exp = staticmethod(dual_exp)  # Curve is DF based: log-cubic spline is exp'ed
-    _op_log = staticmethod(dual_log)  # Curve is DF based: spline is applied over log
+    _op_exp: Callable[[DualTypes], DualTypes] = staticmethod(
+        dual_exp
+    )  # Curve is DF based: log-cubic spline is exp'ed
+    _op_log: Callable[[DualTypes], DualTypes] = staticmethod(
+        dual_log
+    )  # Curve is DF based: spline is applied over log
     _ini_solve: int = 1  # Curve is assumed to have initial DF node at 1.0 as constraint
     _base_type: str = "dfs"
     collateral: str | None = None
@@ -174,7 +177,7 @@ class Curve:
         interpolation: str | Callable | NoInput = NoInput(0),
         t: list[datetime] | NoInput = NoInput(0),
         c: list[float] | NoInput = NoInput(0),
-        endpoints: str | NoInput = NoInput(0),
+        endpoints: str | tuple[str, str] | NoInput = NoInput(0),
         id: str | NoInput = NoInput(0),
         convention: str | NoInput = NoInput(0),
         modifier: str | NoInput = NoInput(0),
@@ -210,14 +213,14 @@ class Curve:
 
         # Parameters for PPSpline
         if isinstance(endpoints, NoInput):
-            self.spline_endpoints = [defaults.endpoints, defaults.endpoints]
+            self.spline_endpoints: tuple[str, str] = (defaults.endpoints, defaults.endpoints)
         elif isinstance(endpoints, str):
-            self.spline_endpoints = [endpoints.lower(), endpoints.lower()]
+            self.spline_endpoints = (endpoints.lower(), endpoints.lower())
         else:
-            self.spline_endpoints = [_.lower() for _ in endpoints]
+            self.spline_endpoints = (endpoints[0].lower(), endpoints[1].lower())
 
         self.t = t
-        self.c_init = not isinstance(c, NoInput)
+        self._c_input: bool = not isinstance(c, NoInput)
         if not isinstance(t, NoInput):
             self.t_posix: list[float] = [_.replace(tzinfo=UTC).timestamp() for _ in t]
             self.spline = PPSplineF64(4, self.t_posix, None if c is NoInput.blank else c)
@@ -291,7 +294,7 @@ class Curve:
             "nodes": {dt.strftime("%Y-%m-%d"): v.real for dt, v in self.nodes.items()},
             "interpolation": self.interpolation if isinstance(self.interpolation, str) else None,
             "t": t,
-            "c": self.spline.c if self.c_init else None,
+            "c": self.spline.c if self._c_input else None,
             "id": self.id,
             "convention": self.convention,
             "endpoints": self.spline_endpoints,
@@ -407,7 +410,7 @@ class Curve:
     def rate(
         self,
         effective: datetime,
-        termination: datetime | str,
+        termination: datetime | str | NoInput,
         modifier: str | bool | NoInput = NoInput(0),
         # calendar: CalInput = NoInput(0),
         # convention: Optional[str] = None,
@@ -511,6 +514,9 @@ class Curve:
             # )
         if isinstance(termination, str):
             termination = add_tenor(effective, termination, modifier, self.calendar)
+        elif isinstance(termination, NoInput):
+            raise ValueError("`termination` must be supplied for rate of DF based Curve.")
+
         try:
             n_, d_ = self[effective], self[termination]
             df_ratio = n_ / d_
@@ -586,10 +592,10 @@ class Curve:
         Uses the ``spline_endpoints`` attribute on the class to determine the solving
         method.
         """
-        if self.spline is None or self.c_init:
+        if isinstance(self.t, NoInput) or self._c_input:
             return None
 
-        # Get the Spline classs by data types
+        # Get the Spline class by data types
         if self.ad == 0:
             Spline = PPSplineF64
         elif self.ad == 1:
@@ -744,19 +750,19 @@ class Curve:
                     modifier=self.modifier,
                     interpolation="linear",
                 )
-            else:  # type is IndexCurve
+            else:  # type(self) is IndexCurve:  # type is IndexCurve
                 shifted = IndexCurve(
                     nodes={start: 1.0, end: 1.0 / (1 + d * spread / 10000) ** days},
                     convention=self.convention,
                     calendar=self.calendar,
                     modifier=self.modifier,
                     interpolation="log_linear",
-                    index_base=self.index_base,
-                    index_lag=self.index_lag,
+                    index_base=self.index_base,  # type: ignore[attr-defined]
+                    index_lag=self.index_lag,  # type: ignore[attr-defined]
                 )
 
-            _ = CompositeCurve(curves=[self, shifted], id=id)
-            _.collateral = collateral
+            _: CompositeCurve = CompositeCurve(curves=[self, shifted], id=id)
+            _.collateral = _drb(None, collateral)
             return _
 
         else:  # use non-composite method, which is faster but does not preserve a dynamic spread.
@@ -767,10 +773,10 @@ class Curve:
             elif isinstance(spread, Dual2):
                 self._set_ad_order(2)
 
-            v1v2 = [1.0] * (self.n - 1)
+            v1v2: list[Number] = [1.0] * (self.n - 1)
             n = [0] * (self.n - 1)
             d = 1 / 365 if self.convention.upper() != "ACT360" else 1 / 360
-            v_new = [1.0] * (self.n)
+            v_new: list[Number] = [1.0] * (self.n)
             for i, (k, v) in enumerate(self.nodes.items()):
                 if i == 0:
                     continue
@@ -779,13 +785,13 @@ class Curve:
                 v_new[i] = v_new[i - 1] / (v1v2[i - 1] + d * spread / 10000) ** n[i - 1]
 
             nodes = self.nodes.copy()
-            for i, (k, _) in enumerate(nodes.items()):
+            for i, (k, ___) in enumerate(nodes.items()):
                 nodes[k] = v_new[i]
 
             kwargs = {}
             if type(self) is IndexCurve:
                 kwargs = {"index_base": self.index_base, "index_lag": self.index_lag}
-            _ = type(self)(
+            __: Curve = type(self)(
                 nodes=nodes,
                 interpolation=self.interpolation,
                 t=self.t,
@@ -798,11 +804,11 @@ class Curve:
                 ad=self.ad,
                 **kwargs,
             )
-            _.collateral = collateral
+            __.collateral = _drb(None, collateral)
             self._set_ad_order(_ad)
-            return _
+            return __
 
-    def _translate_nodes(self, start: datetime) -> dict[str, Number]:
+    def _translate_nodes(self, start: datetime) -> dict[datetime, Number]:
         scalar = 1 / self[start]
         new_nodes = {k: scalar * v for k, v in self.nodes.items()}
 
@@ -953,7 +959,7 @@ class Curve:
         new_nodes = self._translate_nodes(start)
 
         # re-organise the t-knot sequence
-        if self.t is NoInput.blank:
+        if isinstance(self.t, NoInput):
             new_t: list[datetime] | NoInput = NoInput(0)
         else:
             new_t = self.t.copy()
@@ -1107,8 +1113,8 @@ class Curve:
 
         days = (tenor - self.node_dates[0]).days
         new_nodes = self._roll_nodes(tenor, days)
-        if self.t is not NoInput.blank:
-            new_t = [_ + timedelta(days=days) for _ in self.t]
+        if not isinstance(self.t, NoInput):
+            new_t: list[datetime] | NoInput = [_ + timedelta(days=days) for _ in self.t]
         else:
             new_t = NoInput(0)
         if type(self) is IndexCurve:
@@ -1190,12 +1196,12 @@ class Curve:
         one might expect. See `Issue 246 <https://github.com/attack68/rateslib/issues/246>`_.
 
         """
-        comparators = _drb([], comparators)
+        comparators_: list[Curve] = _drb([], comparators)
         labels = _drb([], labels)
         upper_tenor = tenor.upper()
         x, y = self._plot_rates(upper_tenor, left, right)
         y_ = [y] if not difference else []
-        for _, comparator in enumerate(comparators):
+        for _, comparator in enumerate(comparators_):
             if difference:
                 y_.append(
                     [
@@ -1209,11 +1215,17 @@ class Curve:
 
         return plot(x, y_, labels)
 
-    def _plot_diff(self, date, tenor, rate, comparator):
+    def _plot_diff(
+        self, date: datetime, tenor: str, rate: Number | None, comparator: Curve
+    ) -> Number | None:
+        if rate is None:
+            return None
         rate2 = comparator._plot_rate(date, tenor, comparator._plot_modifier(tenor))
-        return (rate2 - rate) if rate2 is not None else None
+        if rate2 is None:
+            return None
+        return rate2 - rate
 
-    def _plot_modifier(self, upper_tenor):
+    def _plot_modifier(self, upper_tenor: str) -> str:
         """If tenor is in days do not allow modified for plot purposes"""
         if "B" in upper_tenor or "D" in upper_tenor or "W" in upper_tenor:
             if "F" in self.modifier:
@@ -1225,10 +1237,10 @@ class Curve:
     def _plot_rates(
         self,
         upper_tenor: str,
-        left: datetime | str | NoInput = NoInput(0),
-        right: datetime | str | NoInput = NoInput(0),
-    ):
-        if left is NoInput.blank:
+        left: datetime | str | NoInput,
+        right: datetime | str | NoInput,
+    ) -> tuple[list[datetime], list[Number | None]]:
+        if isinstance(left, NoInput):
             left_: datetime = self.node_dates[0]
         elif isinstance(left, str):
             left_ = add_tenor(self.node_dates[0], left, "F", self.calendar)
@@ -1237,7 +1249,7 @@ class Curve:
         else:
             raise ValueError("`left` must be supplied as datetime or tenor string.")
 
-        if right is NoInput.blank:
+        if isinstance(right, NoInput):
             # pre-adjust the end date to enforce business date.
             right_: datetime = add_tenor(
                 self.calendar.roll(self.node_dates[-1], Modifier.P, False),
@@ -1258,10 +1270,10 @@ class Curve:
 
     def _plot_rate(
         self,
-        effective,
-        termination,
-        modifier=NoInput(0),
-    ):
+        effective: datetime,
+        termination: str,
+        modifier: str,
+    ) -> Number | None:
         try:
             rate = self.rate(effective, termination, modifier)
         except ValueError:
@@ -1273,17 +1285,23 @@ class Curve:
         curve_foreign: Curve,
         fx_rate: float | Dual,
         fx_settlement: datetime | NoInput = NoInput(0),
-        left: datetime = None,
-        right: datetime = None,
-        points: int = None,
-    ):  # pragma: no cover
+        # left: datetime = None,
+        # right: datetime = None,
+        # points: int = None,
+    ) -> PlotOutput:  # pragma: no cover
         """
         Debugging method?
         """
 
-        def forward_fx(date, curve_domestic, curve_foreign, fx_rate, fx_settlement):
-            _ = self[date] / curve_foreign[date]
-            if fx_settlement is not NoInput.blank:
+        def forward_fx(
+            date: datetime,
+            curve_domestic: Curve,
+            curve_foreign: Curve,
+            fx_rate: DualTypes,
+            fx_settlement: datetime | NoInput,
+        ) -> DualTypes:
+            _: DualTypes = self[date] / curve_foreign[date]
+            if not isinstance(fx_settlement, NoInput):
                 _ *= curve_foreign[fx_settlement] / curve_domestic[fx_settlement]
             _ *= fx_rate
             return _
@@ -1294,41 +1312,43 @@ class Curve:
         rates = [forward_fx(_, self, curve_foreign, fx_rate, fx_settlement) for _ in x]
         return plot(x, [rates])
 
-    def _set_node_vector(self, vector: list[DualTypes], ad):
+    def _set_node_vector(self, vector: list[DualTypes], ad: int) -> None:
         """Used to update curve values during a Solver iteration. ``ad`` in {1, 2}."""
         self.clear_cache()
 
-        DualType = Dual if ad == 1 else Dual2
-        DualArgs = ([],) if ad == 1 else ([], [])
+        DualType: type[Dual | Dual2] = Dual if ad == 1 else Dual2
+        DualArgs: tuple[list[float]] | tuple[list[float], list[float]] = (
+            ([],) if ad == 1 else ([], [])
+        )
         base_obj = DualType(0.0, [f"{self.id}{i}" for i in range(self.n)], *DualArgs)
-        ident = np.eye(self.n)
+        ident: np.ndarray[tuple[int, ...], np.dtype[np.float64]] = np.eye(self.n, dtype=np.float64)
 
         if self._ini_solve == 1:
             # then the first node on the Curve is not updated but
             # set it as a dual type with consistent vars.
             self.nodes[self.node_keys[0]] = DualType.vars_from(
-                base_obj,
+                base_obj,  # type: ignore[arg-type]
                 self.nodes[self.node_keys[0]].real,
                 base_obj.vars,
-                ident[0, :].tolist(),
+                ident[0, :].tolist(),  # type: ignore[arg-type]
                 *DualArgs[1:],
             )
 
         for i, k in enumerate(self.node_keys[self._ini_solve :]):
             self.nodes[k] = DualType.vars_from(
-                base_obj,
+                base_obj,  # type: ignore[arg-type]
                 vector[i].real,
                 base_obj.vars,
-                ident[i + self._ini_solve, :].tolist(),
+                ident[i + self._ini_solve, :].tolist(),  # type: ignore[arg-type]
                 *DualArgs[1:],
             )
         self.csolve()
 
-    def _get_node_vector(self) -> Arr1dF64 | Arr1dObj:
+    def _get_node_vector(self) -> np.ndarray[tuple[int, ...], np.dtype[Any]]:
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""
         return np.array(list(self.nodes.values())[self._ini_solve :])
 
-    def _get_node_vars(self):
+    def _get_node_vars(self) -> tuple[str, ...]:
         """Get the variable names of elements updated by a Solver"""
         return tuple(f"{self.id}{i}" for i in range(self._ini_solve, self.n))
 
@@ -1458,21 +1478,23 @@ class LineCurve(Curve):
     """
 
     _op_exp = staticmethod(lambda x: x)  # LineCurve spline is not log based so no exponent needed
-    _op_log = staticmethod(lambda x: x)  # LineCurve spline is not log based so no log needed
+    _op_log: Callable[[DualTypes], DualTypes] = staticmethod(
+        lambda x: x
+    )  # LineCurve spline is not log based so no log needed
     _ini_solve = 0  # No constraint placed on initial node in Solver
     _base_type = "values"
 
-    def __init__(
+    def __init__(  # type: ignore[no-untyped-def]
         self,
         *args,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(*args, **kwargs)
 
     # def plot(self, *args, **kwargs):
     #     return super().plot(*args, **kwargs)
 
-    def rate(
+    def rate(  # type: ignore[no-untyped-def]
         self,
         effective: datetime,
         *args,
@@ -1499,11 +1521,11 @@ class LineCurve(Curve):
 
     def shift(
         self,
-        spread: float,
+        spread: DualTypes,
         id: str | NoInput = NoInput(0),
         composite: bool = True,
         collateral: str | NoInput = NoInput(0),
-    ):
+    ) -> Curve:
         """
         Raise or lower the curve in parallel by a set number of basis points.
 
@@ -1594,7 +1616,7 @@ class LineCurve(Curve):
         elif isinstance(spread, Dual2):
             self._set_ad_order(2)
 
-        _ = LineCurve(
+        _: LineCurve = LineCurve(
             nodes={k: v + spread / 100 for k, v in self.nodes.items()},
             interpolation=self.interpolation,
             t=self.t,
@@ -1606,7 +1628,7 @@ class LineCurve(Curve):
             calendar=self.calendar,
             ad=self.ad,
         )
-        _.collateral = collateral
+        _.collateral = _drb(None, collateral)
         self._set_ad_order(_ad)
         return _
 
@@ -1627,7 +1649,7 @@ class LineCurve(Curve):
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    def translate(self, start: datetime, t: bool = False) -> LineCurve:
+    def translate(self, start: datetime, t: bool = False) -> Curve:
         """
         Create a new curve with an initial node date moved forward keeping all else
         constant.
@@ -1760,7 +1782,7 @@ class LineCurve(Curve):
             new_nodes = {self.node_dates[0]: self[self.node_dates[0]], **new_nodes}
         return new_nodes
 
-    def roll(self, tenor: datetime | str) -> LineCurve:
+    def roll(self, tenor: datetime | str) -> Curve:
         """
         Create a new curve with its shape translated in time
 
@@ -1863,20 +1885,21 @@ class IndexCurve(Curve):
         Keyword arguments required by :class:`Curve`.
     """
 
-    def __init__(
+    def __init__(  # type: ignore[no-untyped-def]
         self,
         *args,
-        index_base: float | NoInput = NoInput(0),
+        index_base: DualTypes | NoInput = NoInput(0),
         index_lag: int | NoInput = NoInput(0),
         **kwargs,
-    ):
-        self.index_lag = defaults.index_lag if index_lag is NoInput.blank else index_lag
-        self.index_base = index_base
-        if self.index_base is NoInput.blank:
+    ) -> None:
+        self.index_lag = _drb(defaults.index_lag, index_lag)
+        if isinstance(index_base, NoInput):
             raise ValueError("`index_base` must be given for IndexCurve.")
+        self.index_base: DualTypes = index_base
+
         super().__init__(*args, **{"interpolation": "linear_index", **kwargs})
 
-    def index_value(self, date: datetime, interpolation: str = "daily") -> Number:
+    def index_value(self, date: datetime, interpolation: str = "daily") -> DualTypes:
         """
         Calculate the accrued value of the index from the ``index_base``.
 
@@ -1926,7 +1949,7 @@ class IndexCurve(Curve):
         elif date_ == self.node_dates[0]:
             return self.index_base
         else:
-            return self.index_base * 1 / self[date_]
+            return self.index_base * 1.0 / self[date_]
 
     def plot_index(
         self,
@@ -1935,7 +1958,7 @@ class IndexCurve(Curve):
         comparators: list[IndexCurve] | NoInput = NoInput(0),
         difference: bool = False,
         labels: list[str] | NoInput = NoInput(0),
-    ):
+    ) -> PlotOutput:
         """
         Plot given forward tenor rates from the curve.
 
@@ -1989,10 +2012,12 @@ class IndexCurve(Curve):
         rates = [self.index_value(_) for _ in x]
         if not difference:
             y = [rates]
-            if comparators is not None:
+            if not isinstance(comparators, NoInput) and len(comparators) > 0:
                 for comparator in comparators:
                     y.append([comparator.index_value(_) for _ in x])
-        elif difference and len(comparators) > 0:
+        elif difference and (isinstance(comparators, NoInput) or len(comparators) == 0):
+            raise ValueError("If `difference` is True must supply at least one `comparators`.")
+        else:
             y = []
             for comparator in comparators:
                 diff = [comparator.index_value(_) - rates[i] for i, _ in enumerate(x)]
@@ -2215,7 +2240,7 @@ class CompositeCurve(IndexCurve):
         # validate
         self._validate_curve_collection()
 
-    def _validate_curve_collection(self):
+    def _validate_curve_collection(self) -> None:
         """Perform checks to ensure CompositeCurve can exist"""
         if type(self) is MultiCsaCurve and isinstance(self.curves[0], LineCurve | IndexCurve):
             raise TypeError("Multi-CSA curves must be of type `Curve`.")
@@ -2252,7 +2277,7 @@ class CompositeCurve(IndexCurve):
             self._check_init_attribute("index_base")
             self._check_init_attribute("index_lag")
 
-    def _check_init_attribute(self, attr):
+    def _check_init_attribute(self, attr: str) -> None:
         """Ensure attributes are the same across curve collection"""
         attrs = [getattr(_, attr, None) for _ in self.curves]
         if not all(_ == attrs[0] for _ in attrs[1:]):
@@ -2260,13 +2285,13 @@ class CompositeCurve(IndexCurve):
                 f"Cannot composite curves with different attributes, got for '{attr}': {attrs},",
             )
 
-    def rate(
+    def rate(  # type: ignore[override]
         self,
         effective: datetime,
         termination: datetime | str | NoInput = NoInput(0),
         modifier: str | NoInput = NoInput(1),
         approximate: bool = True,
-    ):
+    ) -> Number | None:
         """
         Calculate the composited rate on the curve.
 
@@ -2461,7 +2486,7 @@ class CompositeCurve(IndexCurve):
         """
         return CompositeCurve(curves=[curve.roll(tenor) for curve in self.curves])
 
-    def index_value(self, date: datetime, interpolation: str = "daily") -> Number:
+    def index_value(self, date: datetime, interpolation: str = "daily") -> DualTypes:
         """
         Calculate the accrued value of the index from the ``index_base``.
 
