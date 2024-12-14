@@ -186,7 +186,7 @@ class Curve:
         modifier: str | NoInput = NoInput(0),
         calendar: CalInput = NoInput(0),
         ad: int = 0,
-        **kwargs,  # type: ignore[no-utyped-def]
+        **kwargs,
     ) -> None:
         self.clear_cache()
         self.id: str = _drb(uuid4().hex[:5], id)  # 1 in a million clash
@@ -225,7 +225,7 @@ class Curve:
         self.t = t
         self._c_input: bool = not isinstance(c, NoInput)
         if not isinstance(self.t, NoInput):
-            self.t_posix: list[float] = [_.replace(tzinfo=UTC).timestamp() for _ in t]
+            self.t_posix: list[float] = [_.replace(tzinfo=UTC).timestamp() for _ in self.t]
             if not isinstance(c, NoInput):
                 self.spline: PPSplineF64 | PPSplineDual | PPSplineDual2 | None = PPSplineF64(
                     4, self.t_posix, c
@@ -298,11 +298,16 @@ class Curve:
         else:
             t = [t.strftime("%Y-%m-%d") for t in self.t]
 
+        if self._c_input and not isinstance(self.spline, None):
+            c_ = self.spline.c
+        else:
+            c_ = None
+
         container = {
             "nodes": {dt.strftime("%Y-%m-%d"): v.real for dt, v in self.nodes.items()},
             "interpolation": self.interpolation if isinstance(self.interpolation, str) else None,
             "t": t,
-            "c": self.spline.c if self._c_input else None,
+            "c": c_,
             "id": self.id,
             "convention": self.convention,
             "endpoints": self.spline_endpoints,
@@ -362,7 +367,7 @@ class Curve:
                     UserWarning,
                 )
             # self.spline cannot be None becuase self.t is given and it has been calibrated
-            val = self._op_exp(self.spline.ppev_single(date_posix))  # type: ignore[operator]
+            val = self._op_exp(self.spline.ppev_single(date_posix))  # type: ignore[union-attr]
 
         self._maybe_add_to_cache(date, val)
         return val
@@ -556,9 +561,9 @@ class Curve:
 
         Alternatively the curve caching as a feature can be set to *False* in ``defaults``.
         """
-        self._cache: dict[datetime, Number] = dict()
+        self._cache: dict[datetime, DualTypes] = dict()
 
-    def _maybe_add_to_cache(self, date: datetime, val: Number) -> None:
+    def _maybe_add_to_cache(self, date: datetime, val: DualTypes) -> None:
         if defaults.curve_caching:
             self._cache[date] = val
 
@@ -792,7 +797,7 @@ class Curve:
             self._set_ad_order(_ad)
             return __
 
-    def _translate_nodes(self, start: datetime) -> dict[datetime, Number]:
+    def _translate_nodes(self, start: datetime) -> dict[datetime, DualTypes]:
         scalar = 1 / self[start]
         new_nodes = {k: scalar * v for k, v in self.nodes.items()}
 
@@ -940,7 +945,7 @@ class Curve:
         if start <= self.node_dates[0]:
             raise ValueError("Cannot translate into the past. Review the docs.")
 
-        new_nodes = self._translate_nodes(start)
+        new_nodes: dict[datetime, DualTypes] = self._translate_nodes(start)
 
         # re-organise the t-knot sequence
         if isinstance(self.t, NoInput):
