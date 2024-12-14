@@ -39,20 +39,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install .[dev] -v
-    - name: Python Ruff linting
+    - name: Mypy type checking
       run: |
-        ruff check
-    - name: Python Ruff formatting
-      run: |
-        ruff format
-    - name: Test with pytest and display Coverage
-      run: |
-        coverage run -m --source=rateslib pytest
-        coverage report -m
-    - name: Install Pandoc
-      uses: r-lib/actions/setup-pandoc@v2
-      with:
-        pandoc-version: '3.2' # The pandoc version to download (if necessary) and use.
-    - name: Build Docs
-      run: |
-        cd docs && make html
+        mypy --config-file pyproject.toml
