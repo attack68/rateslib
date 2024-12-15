@@ -2,7 +2,7 @@ __docformat__ = "restructuredtext"
 
 # Let users know if they're missing any of our hard dependencies
 _hard_dependencies = ("pandas", "matplotlib", "numpy")
-_missing_dependencies = []
+_missing_dependencies: list[str] = []
 
 for _dependency in _hard_dependencies:
     try:
@@ -31,7 +31,7 @@ class default_context(ContextDecorator):
     ...     pass
     """
 
-    def __init__(self, *args) -> None:
+    def __init__(self, *args) -> None:  # type: ignore[no-untyped-def]
         if len(args) % 2 != 0 or len(args) < 2:
             raise ValueError("Need to invoke as option_context(pat, val, [(pat, val), ...]).")
 
@@ -43,7 +43,7 @@ class default_context(ContextDecorator):
         for pat, val in self.ops:
             setattr(defaults, pat, val)
 
-    def __exit__(self, *args) -> None:
+    def __exit__(self, *args) -> None:  # type: ignore[no-untyped-def]
         if self.undo:
             for pat, val in self.undo:
                 setattr(defaults, pat, val)
