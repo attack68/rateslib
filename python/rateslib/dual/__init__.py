@@ -21,6 +21,16 @@ Number: TypeAlias = "float | Dual | Dual2"
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
+def _dual_float(val: DualTypes) -> float:
+    """Overload for the float() builtin to handle Pyo3 issues with Variabe"""
+    try:
+        return float(val)
+    except TypeError:  # val is not Dual or Dual2
+        #  This does not work well with rust.
+        #  See: https://github.com/PyO3/pyo3/issues/3672
+        #  and https://github.com/PyO3/pyo3/discussions/3911
+        return val.real
+
 def set_order(val: DualTypes, order: int) -> DualTypes:
     """
     Changes the order of a :class:`Dual` or :class:`Dual2` leaving floats and ints

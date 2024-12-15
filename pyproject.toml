@@ -148,7 +148,6 @@ exclude = [
     "legs.py",
     "periods.py",
     "solver.py",
-#    "python/rateslib/rs.pyi",
 ]
 strict = true
 

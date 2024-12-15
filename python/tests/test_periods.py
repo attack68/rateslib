@@ -1891,6 +1891,19 @@ class TestFixedPeriod:
         ):
             fixed_period.npv()
 
+    def test_npv_no_fixed_rate(self, curve):
+        period = FixedPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            currency="usd",
+        )
+        with pytest.raises(TypeError, match="`fixed_rate` must be set on the Period"):
+            period.npv(curve)
 
 class TestCreditPremiumPeriod:
     @pytest.mark.parametrize(
