@@ -1118,7 +1118,9 @@ class FloatPeriod(BasePeriod):
                 "Must supply a valid `curve` for forecasting rates for the FloatPeriod."
             )
         elif not isinstance(curve, dict):
-            return method[curve._base_type](curve)
+            # TODO (low); this doesnt type well because of floating _base_type attribute.
+            # consider wrapping to some NamedTuple record
+            return method[curve._base_type](curve)  # type: ignore[arg-type]
         else:
             if not self.stub:
                 curve = _get_ibor_curve_from_dict(self.freq_months, curve)
@@ -1137,18 +1139,18 @@ class FloatPeriod(BasePeriod):
         fixing_date = curve.calendar.lag(self.start, -self.method_param, False)
         return curve[fixing_date] + self.float_spread / 100
 
-    def _rate_ibor_interpolated_ibor_from_dict(self, curve: dict[str, Curve]) -> DualTypes:
+    def _rate_ibor_interpolated_ibor_from_dict(self, curve: dict[str, Curve]) -> DualTypes | None:
         """
         Get the rate on all available curves in dict and then determine the ones to interpolate.
         """
         calendar = next(iter(curve.values())).calendar  # note: ASSUMES all curve calendars are same
         fixing_date = add_tenor(self.start, f"-{self.method_param}B", "NONE", calendar)
 
-        def _rate(c: Curve, tenor):
+        def _rate(c: Curve, tenor: str) -> DualTypes | None:
             if c._base_type == "dfs":
                 return c.rate(self.start, tenor)
             else:  # values
-                return c.rate(fixing_date)
+                return c.rate(fixing_date, tenor)  # tenor is not used on LineCurve
 
         values = {add_tenor(self.start, k, "MF", calendar): _rate(v, k) for k, v in curve.items()}
         values = dict(sorted(values.items()))
@@ -1169,12 +1171,12 @@ class FloatPeriod(BasePeriod):
             return rates[0]
         else:
             i = index_left(dates, len(dates), self.end)
-            _ = rates[i] + (rates[i + 1] - rates[i]) * (
+            _: DualTypes = rates[i] + (rates[i + 1] - rates[i]) * (
                 (self.end - dates[i]) / (dates[i + 1] - dates[i])
             )
             return _
 
-    def _rate_rfr(self, curve: Curve | dict | NoInput) -> Number:
+    def _rate_rfr(self, curve: Curve | dict[str, Curve] | NoInput) -> DualTypes | None:
         if isinstance(self.fixings, float | Dual | Dual2):
             # if fixings is a single value then return that value (curve unused can be NoInput)
             if (
@@ -1209,7 +1211,7 @@ class FloatPeriod(BasePeriod):
                 "Do not supply a dict of curves for RFR based methods.",
             )
 
-    def _rate_rfr_from_df_curve(self, curve: Curve):
+    def _rate_rfr_from_df_curve(self, curve: Curve) -> DualTypes:
         if isinstance(curve, NoInput):
             # then attempt to get rate from fixings
             return self._rfr_rate_from_individual_fixings(curve)
@@ -1299,7 +1301,7 @@ class FloatPeriod(BasePeriod):
                 "'isda_compounding', 'isda_flat_compounding'}.",
             )
 
-    def _rfr_rate_from_individual_fixings(self, curve):
+    def _rfr_rate_from_individual_fixings(self, curve: Curve) -> DualTypes:
         cal_, conv_ = self._maybe_get_cal_and_conv_from_curve(curve)
 
         data = self._rfr_get_individual_fixings_data(cal_, conv_, curve)
@@ -1427,11 +1429,11 @@ class FloatPeriod(BasePeriod):
 
     def fixings_table(
         self,
-        curve: Curve | dict,
+        curve: Curve | dict[str, Curve],
         approximate: bool = False,
-        disc_curve: Curve = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
         right: datetime | NoInput = NoInput(0),
-    ):
+    ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures.
 
@@ -1741,7 +1743,7 @@ class FloatPeriod(BasePeriod):
         elif "ibor" in self.fixing_method:
             return self._ibor_fixings_table(curve, disc_curve, right=right)
 
-    def _ibor_fixings_table(self, curve, disc_curve, right, risk=None):
+    def _ibor_fixings_table(self, curve, disc_curve, right, risk: DualTypes | NoInput = NoInput(0)) -> DataFrame:
         """
         Calculate a fixings_table under an IBOR based methodology.
 
@@ -1767,7 +1769,14 @@ class FloatPeriod(BasePeriod):
             curve, disc_curve, f"{self.freq_months}m", right, risk
         )
 
-    def _ibor_single_tenor_fixings_table(self, curve, disc_curve, tenor, right, risk=None):
+    def _ibor_single_tenor_fixings_table(
+        self,
+        curve,
+        disc_curve,
+        tenor,
+        right: datetime | NoInput,
+        risk: DualTypes | NoInput = NoInput(0)
+    ) -> DataFrame:
         calendar = curve.calendar
         fixing_dt = calendar.lag(self.start, -self.method_param, False)
         if not isinstance(right, NoInput) and fixing_dt > right:
@@ -1785,7 +1794,7 @@ class FloatPeriod(BasePeriod):
             reg_end_dt = add_tenor(self.start, tenor, curve.modifier, calendar)
             reg_dcf = dcf(self.start, reg_end_dt, curve.convention, reg_end_dt)
 
-            if self.fixings is not NoInput.blank or fixing_dt < curve.node_dates[0]:
+            if not isinstance(self.fixings, NoInput) or fixing_dt < curve.node_dates[0]:
                 # then fixing is set so return zero exposure.
                 _rate = NA if self.fixings is NoInput.blank else float(self.rate(curve))
                 df = DataFrame(
@@ -1799,7 +1808,7 @@ class FloatPeriod(BasePeriod):
                 ).set_index("obs_dates")
             else:
                 risk = (
-                    -self.notional * self.dcf * disc_curve[self.payment] if risk is None else risk
+                    -self.notional * self.dcf * disc_curve[self.payment] if isinstance(risk, NoInput) else risk
                 )
                 df = DataFrame(
                     {
@@ -1817,7 +1826,7 @@ class FloatPeriod(BasePeriod):
         return df
 
     def _ibor_stub_fixings_table(
-        self, curve: dict, disc_curve: Curve, right: datetime | NoInput, risk=None
+        self, curve: dict, disc_curve: Curve, right: datetime | NoInput, risk: DualTypes | NoInput = NoInput(0)
     ):
         calendar = next(iter(curve.values())).calendar  # note: ASSUMES all curve calendars are same
         values = {add_tenor(self.start, k, "MF", calendar): k for k, v in curve.items()}
@@ -1845,7 +1854,7 @@ class FloatPeriod(BasePeriod):
             a2 = (self.end - reg_end_dts[i]) / (reg_end_dts[i + 1] - reg_end_dts[i])
             a1 = 1.0 - a2
 
-        risk = -self.notional * self.dcf * disc_curve[self.payment] if risk is None else risk
+        risk = -self.notional * self.dcf * disc_curve[self.payment] if isinstance(risk, NoInput) else risk
         tenor1, tenor2 = list(values.values())[i], list(values.values())[i + 1]
         df1 = self._ibor_single_tenor_fixings_table(
             curve[tenor1], disc_curve, tenor1, right, risk * a1

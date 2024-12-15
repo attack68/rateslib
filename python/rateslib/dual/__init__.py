@@ -24,8 +24,8 @@ Number: TypeAlias = "float | Dual | Dual2"
 def _dual_float(val: DualTypes) -> float:
     """Overload for the float() builtin to handle Pyo3 issues with Variabe"""
     try:
-        return float(val)
-    except TypeError:  # val is not Dual or Dual2
+        return float(val)  # type: ignore[arg-type]
+    except TypeError:  # val is not Number but a Variable
         #  This does not work well with rust.
         #  See: https://github.com/PyO3/pyo3/issues/3672
         #  and https://github.com/PyO3/pyo3/discussions/3911
