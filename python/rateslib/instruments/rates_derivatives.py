@@ -33,7 +33,7 @@ from rateslib.legs import (
     ZeroIndexLeg,
 )
 from rateslib.periods import (
-    _disc_from_curve,
+    _disc_required_maybe_from_curve,
     _get_fx_and_base,
     _maybe_local,
     _trim_df_by_index,
@@ -2423,7 +2423,7 @@ class FRA(BaseDerivative):
 
         For arguments see :meth:`~rateslib.periods.BasePeriod.analytic_delta`.
         """
-        disc_curve_: Curve = _disc_from_curve(curve, disc_curve)
+        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.leg1.currency, fx, base)
         rate = self.rate([curve])
         _ = self.leg1.notional * self.leg1.periods[0].dcf * disc_curve_[self._payment_date] / 10000

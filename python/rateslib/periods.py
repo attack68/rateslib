@@ -169,6 +169,18 @@ def _disc_maybe_from_curve(
     return _
 
 
+def _disc_required_maybe_from_curve(
+    curve: Curve | NoInput | dict[str, Curve],
+    disc_curve: Curve | NoInput,
+) -> Curve:
+    """Return a discount curve, pointed as the `curve` if not provided and if suitable Type."""
+    _: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
+    if isinstance(_, NoInput):
+        raise TypeError(
+            "`curves` have not been supplied correctly. A `disc_curve` is required to perform function.")
+    return _
+
+
 class BasePeriod(metaclass=ABCMeta):
     """
     Abstract base class with common parameters for all ``Period`` subclasses.
@@ -225,9 +237,9 @@ class BasePeriod(metaclass=ABCMeta):
             raise ValueError("`end` cannot be before `start`.")
         self.start, self.end, self.payment = start, end, payment
         self.frequency = frequency.upper()
-        self.notional = defaults.notional if notional is NoInput.blank else notional
-        self.currency = defaults.base_currency if currency is NoInput.blank else currency.lower()
-        self.convention = defaults.convention if convention is NoInput.blank else convention
+        self.notional = _drb(defaults.notional, notional)
+        self.currency = _drb(defaults.base_currency, currency).lower()
+        self.convention = _drb(defaults.convention, convention)
         self.termination = termination
         self.freq_months = defaults.frequency_months[self.frequency]
         self.stub = stub
@@ -314,9 +326,9 @@ class BasePeriod(metaclass=ABCMeta):
            period.analytic_delta(curve, curve, fxr, "gbp")
         """  # noqa: E501
         disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
-        fx, base = _get_fx_and_base(self.currency, fx, base)
-        _ = fx * self.notional * self.dcf * disc_curve_[self.payment] / 10000
-        return _
+        fx_, _ = _get_fx_and_base(self.currency, fx, base)
+        ret = fx_ * self.notional * self.dcf * disc_curve_[self.payment] / 10000
+        return ret
 
     @abstractmethod
     def cashflows(
@@ -2845,7 +2857,7 @@ class IndexMixin(metaclass=ABCMeta):
         Return the cashflows of the *IndexPeriod*.
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
-        disc_curve_: Curve = _disc_from_curve(curve, disc_curve)
+        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
         if not isinstance(disc_curve, Curve) and curve is NoInput.blank:
             raise TypeError("`curves` have not been supplied correctly.")
         value = self.cashflow(curve) * disc_curve_[self.payment]
@@ -4321,12 +4333,7 @@ def _float_or_none(val):
         return float(val)
 
 
-def _disc_from_curve(curve: Curve, disc_curve: Curve | NoInput) -> Curve:
-    if disc_curve is NoInput.blank:
-        _: Curve = curve
-    else:
-        _ = disc_curve
-    return _
+
 
 
 def _get_ibor_curve_from_dict(months, d):
