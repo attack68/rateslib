@@ -967,7 +967,7 @@ class FloatPeriod(BasePeriod):
             else:
                 rate = 100 * cashflow / (-self.notional * self.dcf)
 
-        if isinstance(disc_curve_, NoInput):
+        if not isinstance(disc_curve_, NoInput):
             npv = self.npv(curve, disc_curve_)
             npv_fx = npv * _dual_float(fx_)
         else:
