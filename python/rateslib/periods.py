@@ -39,13 +39,13 @@ from rateslib.dual import (
     DualTypes,
     Number,
     Variable,
+    _dual_float,
     dual_exp,
     dual_inv_norm_cdf,
     dual_log,
     dual_norm_cdf,
     dual_norm_pdf,
     gradient,
-    _dual_float,
 )
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import (
@@ -529,13 +529,14 @@ class FixedPeriod(BasePeriod):
         except TypeError as e:
             # either fixed rate is None or curve is None hence mypy error
             if isinstance(disc_curve_, NoInput):
-                raise TypeError("`curves` have not been supplied correctly. `disc_curve` not found.")
+                raise TypeError(
+                    "`curves` have not been supplied correctly. `disc_curve` not found."
+                )
             elif isinstance(self.fixed_rate, NoInput):
                 raise TypeError("`fixed_rate` must be set on the Period for an `npv`.")
             else:
                 raise e
         return _maybe_local(value, local, self.currency, fx, base)
-
 
     def cashflows(
         self,
@@ -4306,12 +4307,6 @@ def _disc_from_curve(curve: Curve, disc_curve: Curve | NoInput) -> Curve:
     else:
         _ = disc_curve
     return _
-
-
-
-
-
-
 
 
 def _get_ibor_curve_from_dict(months, d):

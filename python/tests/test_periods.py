@@ -1905,6 +1905,7 @@ class TestFixedPeriod:
         with pytest.raises(TypeError, match="`fixed_rate` must be set on the Period"):
             period.npv(curve)
 
+
 class TestCreditPremiumPeriod:
     @pytest.mark.parametrize(
         ("accrued", "exp"), [(True, -9892843.47762896), (False, -9887893.477628957)]
