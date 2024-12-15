@@ -494,31 +494,46 @@ class Curve:
             )
             curve_act360.rate(dt(2022, 2, 1), dt(2022, 3, 1))
         """
+        try:
+            _: DualTypes = self._rate_with_raise(
+                effective, termination, modifier, float_spread, spread_compound_method
+            )
+        except ZeroDivisionError as e:
+            if "effective:" not in str(e):
+                return None
+            raise e
+        except ValueError as e:
+            if "`effective` date for rate period is before" in str(e):
+                return None
+            raise e
+        return _
+
+    def _rate_with_raise(
+        self,
+        effective: datetime,
+        termination: datetime | str | NoInput,
+        modifier: str | NoInput = NoInput(1),
+        float_spread: float | NoInput = NoInput(0),
+        spread_compound_method: str | NoInput = NoInput(0),
+    ) -> DualTypes:
         modifier_ = _drb(self.modifier, modifier)
-        # calendar = self.calendar if calendar is False else calendar
-        # convention = self.convention if convention is None else convention
 
         if effective < self.node_dates[0]:  # Alternative solution to PR 172.
-            return None
-            # raise ValueError(
-            #     "`effective` date for rate period is before the initial node date of the Curve.\n"
-            #     "If you are trying to calculate a rate for an historical FloatPeriod have you "
-            #     "neglected to supply appropriate `fixings`?\n"
-            #     "See Documentation > Cookbook > Working with Fixings."
-            # )
+            raise ValueError(
+                "`effective` date for rate period is before the initial node date of the Curve.\n"
+                "If you are trying to calculate a rate for an historical FloatPeriod have you "
+                "neglected to supply appropriate `fixings`?\n"
+                "See Documentation > Cookbook > Working with Fixings."
+            )
         if isinstance(termination, str):
             termination = add_tenor(effective, termination, modifier_, self.calendar)
         elif isinstance(termination, NoInput):
             raise ValueError("`termination` must be supplied for rate of DF based Curve.")
 
-        try:
-            n_, d_ = self[effective], self[termination]
-            df_ratio = n_ / d_
-        except ZeroDivisionError:
-            return None
-
         if termination == effective:
             raise ZeroDivisionError(f"effective: {effective}, termination: {termination}")
+
+        df_ratio = self[effective] / self[termination]
         n_, d_ = (df_ratio - 1), dcf(effective, termination, self.convention)
         _: DualTypes = n_ / d_ * 100
 
@@ -1478,21 +1493,22 @@ class LineCurve(Curve):
     _ini_solve = 0  # No constraint placed on initial node in Solver
     _base_type = "values"
 
-    def __init__(  # type: ignore[no-untyped-def]
+    def __init__(
         self,
-        *args,
-        **kwargs,
+        *args: Any,
+        **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
 
     # def plot(self, *args, **kwargs):
     #     return super().plot(*args, **kwargs)
 
-    def rate(  # type: ignore[no-untyped-def]
+    def rate(
         self,
         effective: datetime,
-        *args,
-    ):
+        *args: Any,
+        **kwargs: Any,
+    ) -> DualTypes | None:
         """
         Return the curve value for a given date.
 
@@ -1509,8 +1525,22 @@ class LineCurve(Curve):
         -------
         float, Dual, or Dual2
         """
+        try:
+            _: DualTypes = self._rate_with_raise(effective, *args, **kwargs)
+        except ValueError as e:
+            if "`effective` before initial LineCurve date" in str(e):
+                return None
+            raise e
+        return _
+
+    def _rate_with_raise(
+        self,
+        effective: datetime,
+        *args: Any,
+        **kwargs: Any,
+    ) -> DualTypes:
         if effective < self.node_dates[0]:  # Alternative solution to PR 172.
-            return None
+            raise ValueError("`effective` before initial LineCurve date.")
         return self[effective]
 
     def shift(
