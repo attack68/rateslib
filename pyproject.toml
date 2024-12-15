@@ -143,11 +143,11 @@ packages = [
     "rateslib"
 ]
 exclude = [
-    "python/rateslib/instruments",
-    "python/rateslib/fx_volatility.py",
-    "python/rateslib/legs.py",
-    "python/rateslib/periods.py",
-    "python/rateslib/solver.py",
+    "/instruments",
+    "fx_volatility.py",
+    "legs.py",
+    "periods.py",
+    "solver.py",
 #    "python/rateslib/rs.pyi",
 ]
 strict = true

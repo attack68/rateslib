@@ -24,6 +24,7 @@ import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
 from math import comb, log
+from typing import Any
 
 import numpy as np
 from pandas import NA, DataFrame, Index, MultiIndex, Series, concat, isna, notna
@@ -67,7 +68,7 @@ def _get_fx_and_base(
     currency: str,
     fx: float | FXRates | FXForwards | NoInput = NoInput(0),
     base: str | NoInput = NoInput(0),
-):
+) -> tuple[DualTypes | FXRates | FXForwards, str | NoInput]:
     # TODO these can be removed when no traces of None remain.
     if fx is None:
         raise NotImplementedError("TraceBack for NoInput")  # pragma: no cover
@@ -75,13 +76,14 @@ def _get_fx_and_base(
         raise NotImplementedError("TraceBack for NoInput")  # pragma: no cover
 
     if isinstance(fx, FXRates | FXForwards):
-        base = fx.base if base is NoInput.blank else base.lower()
-        if base == currency:
-            fx = 1.0
+        base_: str | NoInput = fx.base if isinstance(base, NoInput) else base.lower()
+        if base_ == currency:
+            fx_: DualTypes | FXRates | FXForwards = 1.0
         else:
-            fx = fx.rate(pair=f"{currency}{base}")
-    elif base is not NoInput.blank:  # and fx is then a float or None
-        if fx is NoInput.blank:
+            fx_ = fx.rate(pair=f"{currency}{base_}")
+    elif not isinstance(base, NoInput):  # and fx is then a float or None
+        base_ = base
+        if isinstance(fx, NoInput):
             if base.lower() != currency.lower():
                 raise ValueError(
                     f"`base` ({base}) cannot be requested without supplying `fx` as a "
@@ -90,7 +92,7 @@ def _get_fx_and_base(
                     "If you are using a `Solver` with multi-currency instruments have you "
                     "forgotten to attach the FXForwards in the solver's `fx` argument?",
                 )
-            fx = 1.0
+            fx_ = 1.0
         else:
             if abs(fx - 1.0) < 1e-10:
                 pass  # no warning when fx == 1.0
@@ -104,10 +106,11 @@ def _get_fx_and_base(
                     f"[fx=FXRates({{'{currency}{base}': {fx}}}), base='{base}'].",
                     UserWarning,
                 )
-            fx = fx
+            fx_ = fx
     else:  # base is None and fx is float or None.
-        if fx is NoInput.blank:
-            fx = 1.0
+        base_ = NoInput(0)
+        if isinstance(fx, NoInput):
+            fx_ = 1.0
         else:
             if abs(fx - 1.0) < 1e-12:
                 pass  # no warning when fx == 1.0
@@ -122,9 +125,9 @@ def _get_fx_and_base(
                     f"[fx=FXRates({{'{currency}bas': {fx}}}), base='bas'].",
                     UserWarning,
                 )
-            fx = fx
+            fx_ = fx
 
-    return fx, base
+    return fx_, base_
 
 
 class BasePeriod(metaclass=ABCMeta):
@@ -192,17 +195,17 @@ class BasePeriod(metaclass=ABCMeta):
         self.roll = roll
         self.calendar = calendar
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"<{type(self).__name__}: {self.start.strftime('%Y-%m-%d')}->"
             f"{self.end.strftime('%Y-%m-%d')},{self.notional},{self.convention}>"
         )
 
     @property
-    def dcf(self):
+    def dcf(self) -> float:
         """
         float : Calculated with appropriate ``convention`` over the period.
         """
@@ -283,7 +286,7 @@ class BasePeriod(metaclass=ABCMeta):
         disc_curve: Curve | NoInput = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Return the properties of the period used in calculating cashflows.
 
@@ -316,11 +319,13 @@ class BasePeriod(metaclass=ABCMeta):
 
            period.cashflows(curve, curve, fxr)
         """
-        disc_curve: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
-        if disc_curve is NoInput.blank:
-            df, collateral = None, None
+        disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
+        if isinstance(disc_curve_, NoInput):
+            df: float | None = None
+            collateral: str | None = None
         else:
-            df, collateral = float(disc_curve[self.payment]), disc_curve.collateral
+            df = float(disc_curve_[self.payment])
+            collateral = disc_curve_.collateral
 
         return {
             defaults.headers["type"]: type(self).__name__,
@@ -440,11 +445,11 @@ class FixedPeriod(BasePeriod):
 
     """
 
-    def __init__(self, *args, fixed_rate: float | NoInput = NoInput(0), **kwargs):
+    def __init__(self, *args: Any, fixed_rate: float | NoInput = NoInput(0), **kwargs: Any) -> None:
         self.fixed_rate = fixed_rate
         super().__init__(*args, **kwargs)
 
-    def analytic_delta(self, *args, **kwargs) -> DualTypes:
+    def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
         """
         Return the analytic delta of the *FixedPeriod*.
         See
@@ -457,7 +462,7 @@ class FixedPeriod(BasePeriod):
         """
         float, Dual or Dual2 : The calculated value from rate, dcf and notional.
         """
-        if self.fixed_rate is NoInput.blank:
+        if isinstance(self.fixed_rate, NoInput):
             return None
         else:
             return -self.notional * self.dcf * self.fixed_rate / 100
@@ -478,8 +483,9 @@ class FixedPeriod(BasePeriod):
         Return the NPV of the *FixedPeriod*.
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
-        disc_curve_: Curve = _disc_from_curve(curve, disc_curve)
-        if not isinstance(disc_curve, Curve) and curve is NoInput.blank:
+        disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
+        # TODO (high) this is not the right test. Trying to capure DF based curves
+        if not isinstance(disc_curve_, Curve) and isinstance(curve, NoInput):
             raise TypeError("`curves` have not been supplied correctly.")
         value = self.cashflow * disc_curve_[self.payment]
         return _maybe_local(value, local, self.currency, fx, base)
