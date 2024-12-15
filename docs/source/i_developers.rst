@@ -21,7 +21,7 @@ Clone the repository and navigate to the directory.
 
 **2) Setup Python and Rust**
 
-It is recommended to **install Python 3.12 and Rust 1.80**.
+It is recommended to **install Python 3.13 and Rust 1.80**.
 
 Create and activate a virtual Python environment, as below
 (or the equivalent for Windows).
@@ -52,7 +52,7 @@ After installing everything test that everything is successful.
 **5) Making changes**
 
 You can now edit and make code changes and submit them for addition to
-the package. The continuous integration (CI) checks on github perform 7 tasks:
+the package. The continuous integration (CI) checks on github perform 8 tasks:
 
 - **Rust Checks**
 
@@ -106,6 +106,14 @@ the package. The continuous integration (CI) checks on github perform 7 tasks:
     .. code-block::
 
        (venv) rateslib/>$ ruff format
+
+  - ``mypy``: type checking the Python code to ensure type consistency. You should locally
+    run the following and fix any issues before committing (note ensure you are using the
+    latest supported Python and mypy versions, inline with the github server):
+
+    .. code-block::
+
+       (venv) rateslib/>$ mypy
 
   - ``coverage run -m pytest``: this runs all the pytests and measures the coverage
     report of the codebase which should remain > 96%. You can this locally also
