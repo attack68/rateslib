@@ -37,7 +37,6 @@ from rateslib.dual import (
     Dual,
     Dual2,
     DualTypes,
-    Number,
     Variable,
     _dual_float,
     dual_exp,
@@ -1743,7 +1742,9 @@ class FloatPeriod(BasePeriod):
         elif "ibor" in self.fixing_method:
             return self._ibor_fixings_table(curve, disc_curve, right=right)
 
-    def _ibor_fixings_table(self, curve, disc_curve, right, risk: DualTypes | NoInput = NoInput(0)) -> DataFrame:
+    def _ibor_fixings_table(
+        self, curve, disc_curve, right, risk: DualTypes | NoInput = NoInput(0)
+    ) -> DataFrame:
         """
         Calculate a fixings_table under an IBOR based methodology.
 
@@ -1775,7 +1776,7 @@ class FloatPeriod(BasePeriod):
         disc_curve,
         tenor,
         right: datetime | NoInput,
-        risk: DualTypes | NoInput = NoInput(0)
+        risk: DualTypes | NoInput = NoInput(0),
     ) -> DataFrame:
         calendar = curve.calendar
         fixing_dt = calendar.lag(self.start, -self.method_param, False)
@@ -1808,7 +1809,9 @@ class FloatPeriod(BasePeriod):
                 ).set_index("obs_dates")
             else:
                 risk = (
-                    -self.notional * self.dcf * disc_curve[self.payment] if isinstance(risk, NoInput) else risk
+                    -self.notional * self.dcf * disc_curve[self.payment]
+                    if isinstance(risk, NoInput)
+                    else risk
                 )
                 df = DataFrame(
                     {
@@ -1826,7 +1829,11 @@ class FloatPeriod(BasePeriod):
         return df
 
     def _ibor_stub_fixings_table(
-        self, curve: dict, disc_curve: Curve, right: datetime | NoInput, risk: DualTypes | NoInput = NoInput(0)
+        self,
+        curve: dict,
+        disc_curve: Curve,
+        right: datetime | NoInput,
+        risk: DualTypes | NoInput = NoInput(0),
     ):
         calendar = next(iter(curve.values())).calendar  # note: ASSUMES all curve calendars are same
         values = {add_tenor(self.start, k, "MF", calendar): k for k, v in curve.items()}
@@ -1854,7 +1861,11 @@ class FloatPeriod(BasePeriod):
             a2 = (self.end - reg_end_dts[i]) / (reg_end_dts[i + 1] - reg_end_dts[i])
             a1 = 1.0 - a2
 
-        risk = -self.notional * self.dcf * disc_curve[self.payment] if isinstance(risk, NoInput) else risk
+        risk = (
+            -self.notional * self.dcf * disc_curve[self.payment]
+            if isinstance(risk, NoInput)
+            else risk
+        )
         tenor1, tenor2 = list(values.values())[i], list(values.values())[i + 1]
         df1 = self._ibor_single_tenor_fixings_table(
             curve[tenor1], disc_curve, tenor1, right, risk * a1

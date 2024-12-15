@@ -499,7 +499,7 @@ class Curve:
                 effective, termination, modifier, float_spread, spread_compound_method
             )
         except ZeroDivisionError as e:
-            if not "effective:" in str(e):
+            if "effective:" not in str(e):
                 return None
             raise e
         except ValueError as e:
@@ -550,9 +550,9 @@ class Curve:
                 r_bar, d, n = average_rate(effective, termination, self.convention, _)
                 rd = r_bar / 100 * d
                 _ = (
-                        (r_bar + float_spread / 100)
-                        / n
-                        * (comb(n, 1) + comb(n, 2) * rd + comb(n, 3) * rd**2)
+                    (r_bar + float_spread / 100)
+                    / n
+                    * (comb(n, 1) + comb(n, 2) * rd + comb(n, 3) * rd**2)
                 )
                 return _
             else:
@@ -562,7 +562,6 @@ class Curve:
                 )
 
         return _
-
 
     def clear_cache(self) -> None:
         """
