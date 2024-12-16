@@ -1216,7 +1216,7 @@ class FloatPeriod(BasePeriod):
             "values": self._rate_rfr_from_line_curve,
         }
         try:
-            return method[curve._base_type](curve)
+            return method[curve._base_type](curve)  # type: ignore[union-attr, arg-type]
         except AttributeError:
             raise ValueError(
                 "Must supply a valid `curve` for forecasting rates for the FloatPeriod.\n"
@@ -1235,11 +1235,11 @@ class FloatPeriod(BasePeriod):
             # This is bad construct
             return self._rfr_rate_from_individual_fixings(curve)
         elif self.fixing_method == "rfr_payment_delay" and not self._is_inefficient:
-            return curve.rate(self.start, self.end) + self.float_spread / 100
+            return curve._rate_with_raise(self.start, self.end) + self.float_spread / 100
         elif self.fixing_method == "rfr_observation_shift" and not self._is_inefficient:
             start = curve.calendar.lag(self.start, -self.method_param, settlement=False)
             end = curve.calendar.lag(self.end, -self.method_param, settlement=False)
-            return curve.rate(start, end) + self.float_spread / 100
+            return curve._rate_with_raise(start, end) + self.float_spread / 100
             # TODO: (low:perf) semi-efficient method for lockout under certain conditions
         else:
             # return inefficient calculation
@@ -1249,7 +1249,9 @@ class FloatPeriod(BasePeriod):
     def _rate_rfr_from_line_curve(self, curve: LineCurve) -> DualTypes:
         return self._rfr_rate_from_individual_fixings(curve)
 
-    def _rate_rfr_avg_with_spread(self, rates, dcf_vals):
+    def _rate_rfr_avg_with_spread(
+        self, rates: Series[DualTypes], dcf_vals: Series[float]  # type: ignore[type-var]
+    ) -> DualTypes:
         """
         Calculate all in rate with float spread under averaging.
 
@@ -1270,9 +1272,12 @@ class FloatPeriod(BasePeriod):
                 "`spread_compound` method must be 'none_simple' in an RFR averaging " "period.",
             )
         else:
-            return (dcf_vals * rates).sum() / dcf_vals.sum() + self.float_spread / 100
+            _: DualTypes = (dcf_vals * rates).sum() / dcf_vals.sum() + self.float_spread / 100
+            return _
 
-    def _rate_rfr_isda_compounded_with_spread(self, rates, dcf_vals):
+    def _rate_rfr_isda_compounded_with_spread(
+        self, rates: Series[DualTypes], dcf_vals: Series[float]  # type: ignore[type-var]
+    ) -> DualTypes:
         """
         Calculate all in rates with float spread under different compounding methods.
 
@@ -1288,24 +1293,23 @@ class FloatPeriod(BasePeriod):
         float, Dual, Dual2
         """
         dcf_vals = dcf_vals.set_axis(rates.index)
-        if self.float_spread == 0 or self.spread_compound_method == "none_simple":
-            return (
-                (1 + dcf_vals * rates / 100).prod() - 1
-            ) * 100 / dcf_vals.sum() + self.float_spread / 100
+        if self.float_spread == 0.0 or self.spread_compound_method == "none_simple":
+            _1: DualTypes = (1 + dcf_vals * rates / 100).prod() - 1  # type: ignore[operator, assignment]
+            _2: float = 100.0 / dcf_vals.sum()
+            return _1 * _2 + self.float_spread / 100.0
         elif self.spread_compound_method == "isda_compounding":
-            return (
-                ((1 + dcf_vals * (rates / 100 + self.float_spread / 10000)).prod() - 1)
-                * 100
-                / dcf_vals.sum()
-            )
+            _1 = ((1 + dcf_vals * (rates / 100 + self.float_spread / 10000)).prod() - 1) # type: ignore[operator, assignment]
+            _2 = 100.0 / dcf_vals.sum()
+            return _1 * _2
         elif self.spread_compound_method == "isda_flat_compounding":
-            sub_cashflows = (rates / 100 + self.float_spread / 10000) * dcf_vals
-            C_i = 0.0
+            sub_cashflows: Series[DualTypes] = (rates / 100 + self.float_spread / 10000) * dcf_vals  # type: ignore[type-var]
+            C_i: DualTypes = 0.0
             for i in range(1, len(sub_cashflows)):
                 C_i += sub_cashflows.iloc[i - 1]
                 sub_cashflows.iloc[i] += C_i * rates.iloc[i] / 100 * dcf_vals.iloc[i]
-            total_cashflow = sub_cashflows.sum()
-            return total_cashflow * 100 / dcf_vals.sum()
+            total_cashflow: DualTypes = sub_cashflows.sum()
+            _2 = 100.0 / dcf_vals.sum()
+            return total_cashflow * _2
         else:
             # this path not generally hit due to validation at initialisation
             raise ValueError(
@@ -1323,7 +1327,7 @@ class FloatPeriod(BasePeriod):
             rate = self._rate_rfr_isda_compounded_with_spread(data["rates"], data["dcf_vals"])
         return rate
 
-    def _rfr_get_series_with_populated_fixings(self, obs_dates):
+    def _rfr_get_series_with_populated_fixings(self, obs_dates:Series[datetime]):
         """
         Gets relevant DCF values and populates all the individual RFR fixings either known or
         from a curve, for latter calculations, either to derive a period rate or perform
@@ -1344,7 +1348,7 @@ class FloatPeriod(BasePeriod):
                         "datetimeindex.",
                     )
                 # [-2] is used because the last rfr fixing is 1 day before the end
-                fixing_rates = self.fixings.loc[obs_dates.iloc[0] : obs_dates.iloc[-2]]  # type: ignore[misc]
+                fixing_rates = self.fixings.loc[obs_dates.iloc[0] : obs_dates.iloc[-2]]
 
                 try:
                     rates.loc[fixing_rates.index] = fixing_rates
@@ -1381,8 +1385,8 @@ class FloatPeriod(BasePeriod):
         return rates
 
     def _rfr_get_individual_fixings_data(
-        self, calendar: CalTypes, convention: str, curve: Curve | NoInput, allow_na=False
-    ):
+        self, calendar: CalTypes, convention: str, curve: Curve | NoInput, allow_na: bool =False
+    ) -> dict[str, Any]:
         """
         Gets relevant DCF values and populates all the individual RFR fixings either known or
         from a curve, for latter calculations, either to derive a period rate or perform
@@ -1390,6 +1394,7 @@ class FloatPeriod(BasePeriod):
 
         `allow_na` controls error handling. By default if any value is missing this will raise.
         """
+        # TODO (low) return type of dict is not very good. Use NamedTuple.
         obs_dates, dcf_dates, dcf_vals, obs_vals = self._get_method_dcf_markers(
             calendar, convention, True
         )
