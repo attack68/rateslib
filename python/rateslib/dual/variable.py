@@ -59,7 +59,7 @@ class Variable:
         if isinstance(dual, NoInput) or len(dual) == 0:
             self.dual: Arr1dF64 = np.ones(n, dtype=np.float64)
         else:
-            self.dual = np.asarray(dual.copy())
+            self.dual = np.asarray(dual.copy())  # type: ignore[assignment]
 
     def _to_dual_type(self, order: int) -> Dual | Dual2:
         if order == 1:
@@ -107,6 +107,9 @@ class Variable:
     #  and https://github.com/PyO3/pyo3/discussions/3911
     #     return self.real
 
+    def __abs__(self) -> float:
+        return abs(self.real)
+
     def __neg__(self) -> Variable:
         return Variable(-self.real, vars=self.vars, dual=-self.dual)
 
@@ -139,7 +142,7 @@ class Variable:
             _2 = other._to_dual_type(defaults._global_ad_order)
             return _1.__mul__(_2)
         elif isinstance(other, FLOATS | INTS):
-            return Variable(self.real * float(other), vars=self.vars, dual=self.dual * float(other))
+            return Variable(self.real * float(other), vars=self.vars, dual=self.dual * float(other))  # type: ignore[arg-type]
         elif isinstance(other, Dual):
             return Dual(self.real, vars=self.vars, dual=self.dual).__mul__(other)
         elif isinstance(other, Dual2):
@@ -156,7 +159,7 @@ class Variable:
             _2 = other._to_dual_type(defaults._global_ad_order)
             return _1.__truediv__(_2)
         elif isinstance(other, FLOATS | INTS):
-            return Variable(self.real / float(other), vars=self.vars, dual=self.dual / float(other))
+            return Variable(self.real / float(other), vars=self.vars, dual=self.dual / float(other))  # type: ignore[arg-type]
         elif isinstance(other, Dual):
             return Dual(self.real, vars=self.vars, dual=self.dual).__truediv__(other)
         elif isinstance(other, Dual2):

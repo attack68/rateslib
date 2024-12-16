@@ -53,6 +53,17 @@ email contact, see `rateslib <https://rateslib.com>`_.
        Replicable functionality is achieved by importing and using the internal method
        :meth:`rateslib.fx.FXForwards._rate_with_path`.
        (`537 <https://github.com/attack68/rateslib/pull/537>`_)
+   * - Refactor
+     - :red:`Minor Breaking Change!` :meth:`FXForwards.update <rateslib.fx.FXForwards.update>`
+       has dropped the ``fx_curves`` argument and amended the ``fx_rates`` argument to
+       provide a safer architecture for mutability of objects after market data changes.
+       (`544 <https://github.com/attack68/rateslib/pull/544>`_)
+   * - Refactor
+     - :red:`Minor Breaking Change!` :meth:`Curve.to_json <rateslib.curves.Curve.to_json>`
+       has refactored its JSON format to include the Rust calendar serialization implementations
+       introduced in v1.3.0. This should not be noticeable on round trips, i.e. using
+       ``from_json`` on the output from ``to_json``.
+       (`552 <https://github.com/attack68/rateslib/pull/552>`_)
 
 1.6.0 (30th November 2024)
 ****************************

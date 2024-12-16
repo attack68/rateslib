@@ -40,6 +40,8 @@ dev = [
     "coverage>=7.6.1,<8.0",
     # style/linting
     "ruff>=0.6.3,<1.0",
+    "mypy>=1.13,<2.0",
+    "pandas-stubs>2.0,<3.0",
     # doc building
     "sphinx>=8.0,<9.0",
     "sphinx-automodapi>=0.16.0,<1.0",
@@ -137,11 +139,15 @@ ignore = [
 "python/tests/*" = ["F401", "B", "N", "S", "ANN"]
 
 [tool.mypy]
-files = [
-    "python/rateslib/calendars/**/*.py",
-    "python/rateslib/fx/**/*.py",
-    "python/rateslib/dual/**/*.py",
-    "python/rateslib/scheduling.py"
+packages = [
+    "rateslib"
+]
+exclude = [
+    "/instruments",
+    "fx_volatility.py",
+    "legs.py",
+    "periods.py",
+    "solver.py",
 ]
 strict = true
 

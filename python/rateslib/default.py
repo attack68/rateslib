@@ -10,12 +10,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas
 from packaging import version
-from pandas import read_csv
+from pandas import Series, read_csv
 
 from rateslib._spec_loader import INSTRUMENT_SPECS
 from rateslib.rs import Cal, NamedCal, UnionCal, get_named_calendar
 
-PlotOutput = tuple[plt.Figure, plt.Axes, list[plt.Line2D]]
+PlotOutput = tuple[plt.Figure, plt.Axes, list[plt.Line2D]]  # type: ignore[name-defined]
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -52,7 +52,7 @@ class Fixings:
     """
 
     @staticmethod
-    def _load_csv(dir, path):
+    def _load_csv(dir: str, path: str) -> Series[float]:
         target = os.path.join(dir, path)
         if version.parse(pandas.__version__) < version.parse("2.0"):  # pragma: no cover
             # this is tested by the minimum version gitflow actions.
@@ -66,7 +66,7 @@ class Fixings:
             df = read_csv(target, index_col=0, parse_dates=[0], date_format="%d-%m-%Y")
         return df["rate"].sort_index(ascending=True)
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: str) -> Series[float]:
         if item in self.loaded:
             return self.loaded[item]
 
@@ -85,9 +85,9 @@ class Fixings:
         self.loaded[item] = s
         return s
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.directory = os.path.dirname(os.path.abspath(__file__)) + "/data"
-        self.loaded = {}
+        self.loaded: dict[str, Series[float]] = {}
 
 
 class Defaults:
@@ -101,7 +101,7 @@ class Defaults:
 
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Scheduling
         self.stub = "SHORTFRONT"
         self.stub_length = "SHORT"
@@ -283,15 +283,15 @@ class Defaults:
         for attr in [_ for _ in dir(self) if _[:2] != "__"]:
             setattr(self, attr, getattr(base, attr))
 
-    def print(self):
+    def print(self) -> str:
         """
         Return a string representation of the current values in the defaults object.
         """
 
-        def _t_n(v):
+        def _t_n(v: str) -> str:  # teb-newline
             return f"\t{v}\n"
 
-        _ = f"""\
+        _: str = f"""\
 Scheduling:\n
 {''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
     'stub', 
@@ -343,22 +343,22 @@ Miscellaneous:\n
         return _
 
 
-def plot(x: list[Any], y: list[Any], labels=NoInput(0)) -> PlotOutput:
+def plot(x: list[Any], y: list[list[Any]], labels: list[str] | NoInput = NoInput(0)) -> PlotOutput:
     labels = _drb([], labels)
     fig, ax = plt.subplots(1, 1)
     lines = []
     for _y in y:
         (line,) = ax.plot(x, _y)
         lines.append(line)
-    if labels and len(labels) == len(lines):
+    if not isinstance(labels, NoInput) and len(labels) == len(lines):
         ax.legend(lines, labels)
 
     ax.grid(True)
 
     if isinstance(x[0], datetime):
-        years = mdates.YearLocator()  # every year
-        months = mdates.MonthLocator()  # every month
-        yearsFmt = mdates.DateFormatter("%Y")
+        years = mdates.YearLocator()  # type: ignore[no-untyped-call]
+        months = mdates.MonthLocator()  # type: ignore[no-untyped-call]
+        yearsFmt = mdates.DateFormatter("%Y")  # type: ignore[no-untyped-call]
         ax.xaxis.set_major_locator(years)
         ax.xaxis.set_major_formatter(yearsFmt)
         ax.xaxis.set_minor_locator(months)
@@ -366,9 +366,11 @@ def plot(x: list[Any], y: list[Any], labels=NoInput(0)) -> PlotOutput:
     return fig, ax, lines
 
 
-def plot3d(x, y, z, labels=None):
-    import matplotlib.pyplot as plt  # type: ignore[import]
-    from matplotlib import cm  # type: ignore[import]
+def plot3d(
+    x: list[Any], y: list[Any], z: np.ndarray[tuple[int, int], np.dtype[np.float64]]
+) -> tuple[plt.Figure, plt.Axes, None]:  # type: ignore[name-defined]
+    import matplotlib.pyplot as plt
+    from matplotlib import cm
 
     # import matplotlib.dates as mdates  # type: ignore[import]
 
@@ -376,7 +378,7 @@ def plot3d(x, y, z, labels=None):
 
     X, Y = np.meshgrid(x, y)
     # Plot the surface.
-    ax.plot_surface(X, Y, z, cmap=cm.coolwarm, linewidth=0, antialiased=False)
+    ax.plot_surface(X, Y, z, cmap=cm.coolwarm, linewidth=0, antialiased=False)  # type: ignore[attr-defined]
     return fig, ax, None
 
 

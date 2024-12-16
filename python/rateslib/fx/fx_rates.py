@@ -158,9 +158,9 @@ class FXRates:
     @cached_property
     def fx_array(self) -> Arr2dObj:
         # caching this prevents repetitive data transformations between Rust/Python
-        return np.array(self.obj.fx_array)
+        return np.array(self.obj.fx_array)  # type: ignore[return-value]
 
-    def fx_array_el(self, i: int, j: int) -> Number:
+    def _fx_array_el(self, i: int, j: int) -> Number:
         # this is for typing since this numpy object array can only hold float | Dual | Dual2
         return self.fx_array[i, j]  # type: ignore
 
@@ -190,7 +190,7 @@ class FXRates:
 
     @property
     def fx_vector(self) -> Arr1dObj:
-        return self.fx_array[0, :]
+        return self.fx_array[0, :]  # type: ignore[return-value]
 
     @property
     def pairs_settlement(self) -> dict[str, datetime]:
@@ -226,7 +226,7 @@ class FXRates:
            fxr.rate("eurgbp")
         """
         domi, fori = self.currencies[pair[:3].lower()], self.currencies[pair[3:].lower()]
-        return self.fx_array_el(domi, fori)
+        return self._fx_array_el(domi, fori)
 
     def restate(self, pairs: list[str], keep_ad: bool = False) -> FXRates:
         """
@@ -292,7 +292,8 @@ class FXRates:
         fx_rates : dict, optional
             Dict whose keys are 6-character domestic-foreign currency pairs and
             which are present in FXRates.pairs, and whose
-            values are the relevant rates to update.
+            values are the relevant rates to update. An empty dict will be ignored and
+            perform no update.
 
         Returns
         -------
@@ -348,7 +349,7 @@ class FXRates:
            fxr.update({"usdeur": 1.0})
            fxr.rate("usdnok")
         """
-        if isinstance(fx_rates, NoInput):
+        if isinstance(fx_rates, NoInput) or len(fx_rates) == 0:
             return None
         fx_rates_ = [FXRate(k[0:3], k[3:6], v, self.settlement) for k, v in fx_rates.items()]
         self.obj.update(fx_rates_)
@@ -407,7 +408,7 @@ class FXRates:
                     raise ValueError(f"'{ccy}' not in FXRates.currencies.")
 
         i, j = self.currencies[domestic.lower()], self.currencies[foreign.lower()]
-        return value * self.fx_array_el(i, j)
+        return value * self._fx_array_el(i, j)
 
     def convert_positions(
         self,
@@ -442,7 +443,7 @@ class FXRates:
         base = self.base if isinstance(base, NoInput) else base.lower()
         array_ = np.asarray(array)
         j = self.currencies[base]
-        return np.sum(array_ * self.fx_array[:, j])
+        return np.sum(array_ * self.fx_array[:, j])  # type: ignore[no-any-return]
 
     def positions(
         self,
@@ -476,7 +477,7 @@ class FXRates:
         if isinstance(value, float | int):
             value = Dual(value, [], [])
         base_: str = self.base if isinstance(base, NoInput) else base.lower()
-        _ = np.array([0 if ccy != base_ else float(value) for ccy in self.currencies_list])
+        _ = np.array([0 if ccy != base_ else value.real for ccy in self.currencies_list])
         for pair in value.vars:
             if pair[:3] == "fx_":
                 delta = gradient(value, [pair])[0]
@@ -496,9 +497,9 @@ class FXRates:
         # _[f_idx] = f_val
         # _[d_idx] = -f_val / float(self.fx_array[d_idx, f_idx])
         # return _
-        f_val = delta * float(self.fx_array_el(b_idx, f_idx))
+        f_val = delta * float(self._fx_array_el(b_idx, f_idx))
         _[d_idx] = f_val
-        _[f_idx] = -f_val / float(self.fx_array_el(f_idx, d_idx))
+        _[f_idx] = -f_val / float(self._fx_array_el(f_idx, d_idx))
         return _  # calculation is more efficient from a domestic pov than foreign
 
     def rates_table(self) -> DataFrame:
