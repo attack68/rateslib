@@ -46,8 +46,8 @@ from rateslib.periods import (
     IndexCashflow,
     IndexFixedPeriod,
     IndexMixin,
-    _disc_from_curve,
     _disc_maybe_from_curve,
+    _disc_required_maybe_from_curve,
     _get_fx_and_base,
     _validate_float_args,
 )
@@ -1274,14 +1274,14 @@ class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
-    ):
+    ) -> dict[str, DualTypes] | DualTypes:
         """
         Return the NPV of the *ZeroFloatLeg* via summing all periods.
 
         For arguments see
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
         """
-        disc_curve_: Curve = _disc_from_curve(curve, disc_curve)
+        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.currency, fx, base)
         value = (
             self.rate(curve)

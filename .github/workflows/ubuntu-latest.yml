@@ -45,6 +45,9 @@ jobs:
     - name: Python Ruff formatting
       run: |
         ruff format
+    - name: Python typing with Mypy
+      run: |
+        mypy --config-file pyproject.toml
     - name: Test with pytest and display Coverage
       run: |
         coverage run -m --source=rateslib pytest

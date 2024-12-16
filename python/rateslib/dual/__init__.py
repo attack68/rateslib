@@ -21,7 +21,18 @@ Number: TypeAlias = "float | Dual | Dual2"
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-def set_order(val: Number, order: int) -> Number:
+def _dual_float(val: DualTypes) -> float:
+    """Overload for the float() builtin to handle Pyo3 issues with Variabe"""
+    try:
+        return float(val)  # type: ignore[arg-type]
+    except TypeError:  # val is not Number but a Variable
+        #  This does not work well with rust.
+        #  See: https://github.com/PyO3/pyo3/issues/3672
+        #  and https://github.com/PyO3/pyo3/discussions/3911
+        return val.real
+
+
+def set_order(val: DualTypes, order: int) -> DualTypes:
     """
     Changes the order of a :class:`Dual` or :class:`Dual2` leaving floats and ints
     unchanged.
@@ -42,6 +53,8 @@ def set_order(val: Number, order: int) -> Number:
     elif order == 1 and isinstance(val, Dual2):
         return val.to_dual()
     elif order == 0:
+        if isinstance(val, Variable):  # TODO (low): remove branch when float(Variable) is fixed
+            return val.real
         return float(val)
     # otherwise:
     #  - val is a Float or an Int
@@ -50,8 +63,8 @@ def set_order(val: Number, order: int) -> Number:
 
 
 def set_order_convert(
-    val: Number, order: int, tag: list[str] | None, vars_from: Dual | Dual2 | None = None
-) -> Number:
+    val: DualTypes, order: int, tag: list[str] | None, vars_from: Dual | Dual2 | None = None
+) -> DualTypes:
     """
     Convert a float, :class:`Dual` or :class:`Dual2` type to a specified alternate type.
 
@@ -131,10 +144,10 @@ def gradient(
             return dual.dual
         elif vars is not None and not keep_manifold:
             return dual.grad1(vars)
-        elif isinstance(dual, Dual): # and keep_manifold:
+        elif isinstance(dual, Dual):  # and keep_manifold:
             raise TypeError("Dual type cannot perform `keep_manifold`.")
         _ = dual.grad1_manifold(dual.vars if vars is None else vars)
-        return np.asarray(_)
+        return np.asarray(_)  # type: ignore[return-value]
 
     elif order == 2:
         if isinstance(dual, Variable):
@@ -143,7 +156,7 @@ def gradient(
             raise TypeError("Dual type cannot derive second order automatic derivatives.")
 
         if vars is None:
-            return 2.0 * dual.dual2
+            return 2.0 * dual.dual2  #  type: ignore[return-value]
         else:
             return dual.grad2(vars)
     else:
@@ -282,9 +295,9 @@ def dual_solve(
     if types == (float, float):
         # Use basic Numpy LinAlg
         if allow_lsq:
-            return np.linalg.lstsq(A, b, rcond=None)[0]  # type: ignore[arg-type]
+            return np.linalg.lstsq(A, b, rcond=None)[0]  # type: ignore[arg-type,return-value]
         else:
-            return np.linalg.solve(A, b)  # type: ignore[arg-type]
+            return np.linalg.solve(A, b)  # type: ignore[arg-type,return-value]
 
     # Move to Rust implementation
     if types in [(Dual, float), (Dual2, float)]:
@@ -301,13 +314,13 @@ def dual_solve(
     b_ = b_[:, 0].tolist()
 
     if types == (Dual, Dual):
-        return np.array(_dsolve1(a_, b_, allow_lsq))[:, None]
+        return np.array(_dsolve1(a_, b_, allow_lsq))[:, None]  # type: ignore[return-value]
     elif types == (Dual2, Dual2):
-        return np.array(_dsolve2(a_, b_, allow_lsq))[:, None]
+        return np.array(_dsolve2(a_, b_, allow_lsq))[:, None]  # type: ignore[return-value]
     elif types == (float, Dual):
-        return np.array(_fdsolve1(A_, b_, allow_lsq))[:, None]
+        return np.array(_fdsolve1(A_, b_, allow_lsq))[:, None]  # type: ignore[return-value]
     elif types == (float, Dual2):
-        return np.array(_fdsolve2(A_, b_, allow_lsq))[:, None]
+        return np.array(_fdsolve2(A_, b_, allow_lsq))[:, None]  # type: ignore[return-value]
     else:
         raise TypeError(
             "Provided `types` argument are not permitted. Must be a 2-tuple with "
