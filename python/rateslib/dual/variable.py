@@ -63,13 +63,19 @@ class Variable:
 
     def _to_dual_type(self, order: int) -> Dual | Dual2:
         if order == 1:
-            return Dual(self.real, vars=self.vars, dual=self.dual)
+            return self.to_dual()
         elif order == 2:
-            return Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[])
+            return self.to_dual2()
         else:
             raise TypeError(
                 f"`Variable` can only be converted with `order` in [1, 2], got order: {order}."
             )
+
+    def to_dual(self):
+        return Dual(self.real, vars=self.vars, dual=self.dual)
+
+    def to_dual2(self):
+        return Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[])
 
     def __eq__(self, argument: Any) -> bool:
         """
