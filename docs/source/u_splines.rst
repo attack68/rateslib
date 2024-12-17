@@ -544,7 +544,7 @@ since this method will automatically choose the appropriate method above to call
 value with the correct AD sensitivity. The *evaluate* method will also automatically handle the
 case of user injected :class:`~rateslib.dual.Variable` values as x-axis datapoints (note that
 *Variables* cannot currently be used to construct the spline coefficients - these must be
-well defined types for AD To operate correctly).
+well defined types for AD to operate correctly).
 
 
 .. list-table::
