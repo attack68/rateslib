@@ -541,7 +541,10 @@ Three functions exist for extracting spline values for each case:
 
 *Rateslib* **recommends** the use of the :meth:`~rateslib.splines.evaluate` method, however,
 since this method will automatically choose the appropriate method above to call and return the
-value with the correct AD sensitivity.
+value with the correct AD sensitivity. The *evaluate* method will also automatically handle the
+case of user injected :class:`~rateslib.dual.Variable` values as x-axis datapoints (note that
+*Variables* cannot currently be used to construct the spline coefficients - these must be
+well defined types for AD To operate correctly).
 
 
 .. list-table::
@@ -575,15 +578,23 @@ value with the correct AD sensitivity.
      - *TypeError*
      - | *PPSplineDual2*, and
        | *ppev_single_dual2()*
+   * - **Variable**
+     - | *PPSplineF64*, and converted
+       | to *Dual* or *Dual2* based
+       | on *global_ad_order*
+     - | *PPSplineDual*, and
+       | *ppev_single_dual()*
+     - | *PPSplineDual2*, and
+       | *ppev_single_dual2()*
 
-Simultaneous sensitivities to extraneous variables
+Simultaneous sensitivities to exogenous variables
 ---------------------------------------------------
 
 The following example is more general and demonstrates the power of having spline interpolator
 functions whose derivatives are fully integrated into the toolset. This is one of the
 advantages of adopting forward mode derivatives with dual numbers.
 
-Suppose now that everything is sensitive to an extraneous variable, say *z*. The sensitivies of
+Suppose now that everything is sensitive to an exogenous variable, say *z*. The sensitivities of
 each element to *z* are constructed as below:
 
 .. ipython:: python
