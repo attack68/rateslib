@@ -30,6 +30,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
      - The *Spline* :meth:`~rateslib.splines.evaluate` method is enhanced to allow an x-axis
        evaluation if a :class:`~rateslib.dual.Variable` is passed, through dynamic *Dual* or *Dual2*
        conversion.
+       (`558 <https://github.com/attack68/rateslib/pull/558>`_)
    * - Bug
      - :class:`~rateslib.instruments.STIRFuture` now correctly handles the ``fx`` and ``base``
        arguments when using the :meth:`~rateslib.instruments.STIRFuture.npv` or
