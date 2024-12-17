@@ -26,6 +26,11 @@ email contact, see `rateslib <https://rateslib.com>`_.
        :class:`~rateslib.instruments.FloatRateNote` to allow the calculation of
        yield-to-maturity for that *Instrument* based on ``calc_mode`` similar to
        *FixedRateBonds*. (`529 <https://github.com/attack68/rateslib/pull/529>`_)
+   * - Splines
+     - The *Spline* :meth:`~rateslib.splines.evaluate` method is enhanced to allow an x-axis
+       evaluation if a :class:`~rateslib.dual.Variable` is passed, through dynamic *Dual* or *Dual2*
+       conversion.
+       (`558 <https://github.com/attack68/rateslib/pull/558>`_)
    * - Bug
      - :class:`~rateslib.instruments.STIRFuture` now correctly handles the ``fx`` and ``base``
        arguments when using the :meth:`~rateslib.instruments.STIRFuture.npv` or
