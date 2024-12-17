@@ -2,9 +2,9 @@ import copy
 
 import numpy as np
 import pytest
-from rateslib.dual import Dual, Dual2, gradient, set_order_convert
+from rateslib.dual import Dual, Dual2, Variable, gradient, set_order_convert
 from rateslib.json import from_json
-from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
+from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
 
 
 @pytest.fixture
@@ -311,3 +311,31 @@ def test_should_raise_bad_solve() -> None:
     pps = PPSplineF64(k=4, t=[1, 1, 1, 1, 4, 4, 4, 4], c=None)
     with pytest.raises(ValueError):
         pps.csolve(np.array([0, 1, 3, 4]), np.array([0, 0, 2, 2]), 0, 0, False)
+
+
+@pytest.mark.parametrize(
+    ("obj", "val", "exp"),
+    [
+        (PPSplineF64, [0, 0, 2, 2], Dual),
+        (PPSplineDual, [Dual(0, [], []), Dual(0, [], []), Dual(2, [], []), Dual(2, [], [])], Dual),
+        (
+            PPSplineDual2,
+            [
+                Dual2(0, [], [], []),
+                Dual2(0, [], [], []),
+                Dual2(2, [], [], []),
+                Dual2(2, [], [], []),
+            ],
+            Dual2,
+        ),
+    ],
+)
+def test_evaluate_with_Variable_x(obj, val, exp):
+    t = [0, 0, 0, 0, 4, 4, 4, 4]
+    tau = np.array([0, 1, 3, 4])
+    bs = obj(k=4, t=t, c=None)
+    bs.csolve(tau, val, 0, 0, False)  # values solve spline
+    x = Variable(1.5, ["x"])
+    result = evaluate(bs, x, 0)
+    assert abs(result - 0.437499999999999) < 1e-12
+    assert isinstance(result, exp)
