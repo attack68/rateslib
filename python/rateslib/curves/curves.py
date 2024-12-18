@@ -777,7 +777,7 @@ class Curve:
                     modifier=self.modifier,
                     interpolation="log_linear",
                     index_base=self.index_base,
-                    index_lag=NoInput(0),
+                    index_lag=self.index_lag,
                 )
 
             _: CompositeCurve = CompositeCurve(curves=[self, shifted], id=id)
