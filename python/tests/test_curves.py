@@ -172,7 +172,8 @@ def test_serialization(curve) -> None:
         '{"nodes": {"2022-03-01": 1.0, "2022-03-31": 0.99}, '
         '"interpolation": "linear", "t": null, "c": null, "id": "v", '
         '"convention": "Act360", "endpoints": ["natural", "natural"], "modifier": "MF", '
-        '"calendar": "{\\"Cal\\":{\\"holidays\\":[],\\"week_mask\\":[]}}", "ad": 1}'
+        '"calendar": "{\\"Cal\\":{\\"holidays\\":[],\\"week_mask\\":[]}}", "ad": 1, '
+        '"index_base": null, "index_lag": 3}'
     )
     result = curve.to_json()
     assert result == expected

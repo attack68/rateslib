@@ -751,7 +751,7 @@ class Curve:
             start, end = self.node_dates[0], self.node_dates[-1]
             days = (end - start).days
             d = _DCF1d[self.convention.upper()]
-            if type(self) is Curve or type(self) is ProxyCurve or type(self) is IndexCurve:
+            if type(self) is Curve or type(self) is ProxyCurve:
                 shifted = Curve(
                     nodes={start: 1.0, end: 1.0 / (1 + d * spread / 10000) ** days},
                     convention=self.convention,
@@ -761,7 +761,7 @@ class Curve:
                     index_base=NoInput(0),
                     index_lag=NoInput(0),
                 )
-            else: # type(self) is LineCurve:
+            elif type(self) is LineCurve:
                 shifted = LineCurve(
                     nodes={start: spread / 100.0, end: spread / 100.0},
                     convention=self.convention,
@@ -769,6 +769,17 @@ class Curve:
                     modifier=self.modifier,
                     interpolation="linear",
                 )
+            else: # or type(self) is IndexCurve
+                shifted = IndexCurve(
+                    nodes={start: 1.0, end: 1.0 / (1 + d * spread / 10000) ** days},
+                    convention=self.convention,
+                    calendar=self.calendar,
+                    modifier=self.modifier,
+                    interpolation="log_linear",
+                    index_base=NoInput(0),
+                    index_lag=NoInput(0),
+                )
+
 
             _: CompositeCurve = CompositeCurve(curves=[self, shifted], id=id)
             _.collateral = _drb(None, collateral)
