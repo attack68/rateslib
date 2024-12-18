@@ -1262,12 +1262,11 @@ class TestLineCurve:
 
 
 class TestIndexCurve:
-
     def test_curve_index_linear_daily_interp(self) -> None:
         curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 1, 5): 0.9999},
             index_base=200.0,
-            interpolation="linear_index"
+            interpolation="linear_index",
         )
         result = curve.index_value(dt(2022, 1, 5))
         expected = 200.020002002

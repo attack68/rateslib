@@ -327,7 +327,7 @@ class Curve:
             "calendar": self.calendar.to_json(),
             "ad": self.ad,
             "index_base": _drb(None, self.index_base),
-            "index_lag": self.index_lag
+            "index_lag": self.index_lag,
         }
 
         return json.dumps(container, default=str)
@@ -769,7 +769,7 @@ class Curve:
                     modifier=self.modifier,
                     interpolation="linear",
                 )
-            else: # or type(self) is IndexCurve
+            else:  # or type(self) is IndexCurve
                 shifted = IndexCurve(
                     nodes={start: 1.0, end: 1.0 / (1 + d * spread / 10000) ** days},
                     convention=self.convention,
@@ -1003,7 +1003,9 @@ class Curve:
             convention=self.convention,
             id=NoInput(0),
             ad=self.ad,
-            index_base=NoInput(0) if isinstance(self.index_base, NoInput) else self.index_value(start),
+            index_base=NoInput(0)
+            if isinstance(self.index_base, NoInput)
+            else self.index_value(start),
             index_lag=self.index_lag,
         )
         return new_curve
@@ -1401,7 +1403,9 @@ class Curve:
            index_curve.index_value(dt(2021, 9, 7))
         """
         if isinstance(self.index_base, NoInput):
-            raise ValueError("Curve must be initialised with an `index_base` value to derive `index_value`.")
+            raise ValueError(
+                "Curve must be initialised with an `index_base` value to derive `index_value`."
+            )
 
         if interpolation.lower() == "daily":
             date_ = date
@@ -1419,12 +1423,12 @@ class Curve:
             return self.index_base * 1.0 / self[date_]
 
     def plot_index(
-            self,
-            right: datetime | str | NoInput = NoInput(0),
-            left: datetime | str | NoInput = NoInput(0),
-            comparators: list[Curve] | NoInput = NoInput(0),
-            difference: bool = False,
-            labels: list[str] | NoInput = NoInput(0),
+        self,
+        right: datetime | str | NoInput = NoInput(0),
+        left: datetime | str | NoInput = NoInput(0),
+        comparators: list[Curve] | NoInput = NoInput(0),
+        difference: bool = False,
+        labels: list[str] | NoInput = NoInput(0),
     ) -> PlotOutput:
         """
         Plot given forward tenor rates from the curve.
@@ -2021,7 +2025,9 @@ class LineCurve(Curve):
         return super().roll(tenor)
 
 
-@warnings.deprecated("`IndexCurve` is deprecated: simple use a `Curve` instead and the same arguments.")
+@warnings.deprecated(
+    "`IndexCurve` is deprecated: simple use a `Curve` instead and the same arguments."
+)
 class IndexCurve(Curve):
     """
     Deprecated. Use :class:`~rateslib.curves.Curve` with a valid ``index_base``.
@@ -2048,7 +2054,7 @@ class CompositeCurve(Curve):
 
     Parameters
     ----------
-    curves : sequence of :class:`Curve` or sequence of :class:`LineCurve` 
+    curves : sequence of :class:`Curve` or sequence of :class:`LineCurve`
         The curves to be composited.
     id : str, optional, set by Default
         The unique identifier to distinguish between curves in a multi-curve framework.
