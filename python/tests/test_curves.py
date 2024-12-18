@@ -1512,21 +1512,22 @@ class TestCompositeCurve:
             CompositeCurve([c1, c2])
 
     @pytest.mark.parametrize(
-        ("lag", "base"), [([2, 3], [100.0, 100.0]), ([3, 3], [100.0, 100.001])]
+        ("lag", "base"), [([2, 3], [100.0, 99.0]), ([4, NoInput(0)], [100.0, NoInput(0)])]
     )
-    def test_index_curves_raises(self, lag, base) -> None:
-        ic1 = IndexCurve(
+    def test_index_curves_take_first_value(self, lag, base) -> None:
+        ic1 = Curve(
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_lag=lag[0],
             index_base=base[0],
         )
-        ic2 = IndexCurve(
+        ic2 = Curve(
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_lag=lag[1],
             index_base=base[1],
         )
-        with pytest.raises(ValueError, match="Cannot composite curves with different"):
-            CompositeCurve([ic1, ic2])
+        cc = CompositeCurve([ic1, ic2])
+        assert cc.index_base == base[0]
+        assert cc.index_lag == lag[0]
 
     def test_index_curves_attributes(self) -> None:
         ic1 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
@@ -1582,7 +1583,7 @@ class TestCompositeCurve:
 
     def test_composite_curve_no_index_value_raises(self, curve) -> None:
         cc = CompositeCurve([curve])
-        with pytest.raises(TypeError, match="`index_value` not available"):
+        with pytest.raises(ValueError, match="Curve must be initialised with an `index_base`"):
             cc.index_value(dt(2022, 1, 1))
 
     def test_historic_rate_is_none(self) -> None:

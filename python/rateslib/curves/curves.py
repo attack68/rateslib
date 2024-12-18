@@ -1400,6 +1400,9 @@ class Curve:
            index_curve.rate(dt(2021, 9, 6), "1d")
            index_curve.index_value(dt(2021, 9, 7))
         """
+        if isinstance(self.index_base, NoInput):
+            raise ValueError("Curve must be initialised with an `index_base` value to derive `index_value`.")
+
         if interpolation.lower() == "daily":
             date_ = date
         elif interpolation.lower() == "monthly":
@@ -2818,6 +2821,8 @@ class ProxyCurve(Curve):
         calendar: CalInput = NoInput(1),  # inherits from existing curve objects
         id: str | NoInput = NoInput(0),
     ):
+        self.index_base = NoInput(0)
+        self.index_lag = 0  # not relevant for proxy curve
         self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
         self.collateral = coll_ccy
