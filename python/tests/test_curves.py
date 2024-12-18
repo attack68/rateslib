@@ -749,7 +749,7 @@ def test_linecurve_shift_dual_input() -> None:
 @pytest.mark.parametrize("ad_order", [0, 1, 2])
 @pytest.mark.parametrize("composite", [True, False])
 def test_indexcurve_shift(ad_order, composite) -> None:
-    curve = IndexCurve(
+    curve = Curve(
         nodes={
             dt(2022, 1, 1): 1.0,
             dt(2023, 1, 1): 0.988,
@@ -1176,6 +1176,34 @@ class TestCurve:
         )
         assert isinstance(curve, Curve)
 
+    def test_curve_translate_knots_raises(self) -> None:
+        curve = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.988,
+                dt(2024, 1, 1): 0.975,
+                dt(2025, 1, 1): 0.965,
+                dt(2026, 1, 1): 0.955,
+                dt(2027, 1, 1): 0.9475,
+            },
+            t=[
+                dt(2022, 1, 1),
+                dt(2022, 1, 1),
+                dt(2022, 1, 1),
+                dt(2022, 1, 1),
+                dt(2022, 12, 1),
+                dt(2024, 1, 1),
+                dt(2025, 1, 1),
+                dt(2026, 1, 1),
+                dt(2027, 1, 1),
+                dt(2027, 1, 1),
+                dt(2027, 1, 1),
+                dt(2027, 1, 1),
+            ],
+        )
+        with pytest.raises(ValueError, match="Cannot translate spline knots for given"):
+            curve.translate(dt(2022, 12, 15))
+
 
 class TestLineCurve:
     def test_repr(self):
@@ -1205,36 +1233,9 @@ class TestLineCurve:
 
 
 class TestIndexCurve:
-    def test_curve_translate_knots_raises(self, curve) -> None:
-        curve = Curve(
-            nodes={
-                dt(2022, 1, 1): 1.0,
-                dt(2023, 1, 1): 0.988,
-                dt(2024, 1, 1): 0.975,
-                dt(2025, 1, 1): 0.965,
-                dt(2026, 1, 1): 0.955,
-                dt(2027, 1, 1): 0.9475,
-            },
-            t=[
-                dt(2022, 1, 1),
-                dt(2022, 1, 1),
-                dt(2022, 1, 1),
-                dt(2022, 1, 1),
-                dt(2022, 12, 1),
-                dt(2024, 1, 1),
-                dt(2025, 1, 1),
-                dt(2026, 1, 1),
-                dt(2027, 1, 1),
-                dt(2027, 1, 1),
-                dt(2027, 1, 1),
-                dt(2027, 1, 1),
-            ],
-        )
-        with pytest.raises(ValueError, match="Cannot translate spline knots for given"):
-            curve.translate(dt(2022, 12, 15))
 
     def test_curve_index_linear_daily_interp(self) -> None:
-        curve = IndexCurve(
+        curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 1, 5): 0.9999},
             index_base=200.0,
         )
