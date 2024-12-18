@@ -758,7 +758,7 @@ class Curve:
                     calendar=self.calendar,
                     modifier=self.modifier,
                     interpolation="log_linear",
-                    index_base=NoInput(0),
+                    index_base=self.index_base,
                     index_lag=NoInput(0),
                 )
             elif type(self) is LineCurve:
@@ -776,10 +776,9 @@ class Curve:
                     calendar=self.calendar,
                     modifier=self.modifier,
                     interpolation="log_linear",
-                    index_base=NoInput(0),
+                    index_base=self.index_base,
                     index_lag=NoInput(0),
                 )
-
 
             _: CompositeCurve = CompositeCurve(curves=[self, shifted], id=id)
             _.collateral = _drb(None, collateral)
@@ -2267,6 +2266,7 @@ class CompositeCurve(Curve):
         if not (
             all(_ is Curve or _ is ProxyCurve for _ in types)
             or all(_ is LineCurve for _ in types)
+            or all(_ is IndexCurve for _ in types)
         ):
             raise TypeError(f"`curves` must be a list of similar type curves, got {types}.")
 
