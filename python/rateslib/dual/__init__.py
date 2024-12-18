@@ -34,8 +34,8 @@ def _dual_float(val: DualTypes) -> float:
 
 def set_order(val: DualTypes, order: int) -> DualTypes:
     """
-    Changes the order of a :class:`Dual` or :class:`Dual2` leaving floats and ints
-    unchanged.
+    Changes the order of a :class:`Dual` or :class:`Dual2` and a sets a :class:`Variable`
+    leaving floats and ints unchanged.
 
     Parameters
     ----------
@@ -48,14 +48,13 @@ def set_order(val: DualTypes, order: int) -> DualTypes:
     -------
     float, int, Dual or Dual2
     """
-    if order == 2 and isinstance(val, Dual):
+    if order == 2 and isinstance(val, Dual | Variable):
         return val.to_dual2()
-    elif order == 1 and isinstance(val, Dual2):
+    elif order == 1 and isinstance(val, Dual2 | Variable):
         return val.to_dual()
     elif order == 0:
-        if isinstance(val, Variable):  # TODO (low): remove branch when float(Variable) is fixed
-            return val.real
-        return float(val)
+        return _dual_float(val)
+
     # otherwise:
     #  - val is a Float or an Int
     #  - val is a Dual and order == 1 OR val is Dual2 and order == 2
