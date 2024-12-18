@@ -1003,7 +1003,7 @@ class Curve:
             convention=self.convention,
             id=NoInput(0),
             ad=self.ad,
-            index_base=self.index_base,
+            index_base=NoInput(0) if isinstance(self.index_base, NoInput) else self.index_value(start),
             index_lag=self.index_lag,
         )
         return new_curve
@@ -2250,7 +2250,7 @@ class CompositeCurve(Curve):
 
     def _validate_curve_collection(self) -> None:
         """Perform checks to ensure CompositeCurve can exist"""
-        if type(self) is MultiCsaCurve and isinstance(self.curves[0], LineCurve):
+        if type(self) is MultiCsaCurve and isinstance(self.curves[0], LineCurve | IndexCurve):
             raise TypeError("Multi-CSA curves must be of type `Curve`.")
 
         if type(self) is MultiCsaCurve and self.multi_csa_min_step > self.multi_csa_max_step:

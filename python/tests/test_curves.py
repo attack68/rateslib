@@ -899,6 +899,34 @@ def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, sp
             1e-8,
         ),
         (
+            Curve(
+                nodes={
+                    dt(2022, 1, 1): 1.0,
+                    dt(2023, 1, 1): 0.988,
+                    dt(2024, 1, 1): 0.975,
+                    dt(2025, 1, 1): 0.965,
+                    dt(2026, 1, 1): 0.955,
+                    dt(2027, 1, 1): 0.9475,
+                },
+                t=[
+                    dt(2024, 1, 1),
+                    dt(2024, 1, 1),
+                    dt(2024, 1, 1),
+                    dt(2024, 1, 1),
+                    dt(2025, 1, 1),
+                    dt(2026, 1, 1),
+                    dt(2027, 1, 1),
+                    dt(2027, 1, 1),
+                    dt(2027, 1, 1),
+                    dt(2027, 1, 1),
+                ],
+                index_base=110.0,
+                interpolation="linear_index",
+            ),
+            False,
+            1e-8,
+        ),
+        (
             LineCurve(
                 nodes={
                     dt(2022, 1, 1): 1.7,
@@ -963,7 +991,7 @@ def test_curve_translate(crv, t, tol) -> None:
         ],
     )
     assert np.all(np.abs(diff) < tol)
-    if type(crv) is IndexCurve:
+    if not isinstance(result_curve.index_base, NoInput):
         assert result_curve.index_base == crv.index_value(dt(2023, 1, 1))
 
 
@@ -1239,6 +1267,7 @@ class TestIndexCurve:
         curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 1, 5): 0.9999},
             index_base=200.0,
+            interpolation="linear_index"
         )
         result = curve.index_value(dt(2022, 1, 5))
         expected = 200.020002002
@@ -1253,13 +1282,13 @@ class TestIndexCurve:
             IndexCurve({dt(2022, 1, 1): 1.0})
 
     def test_index_value_raises(self) -> None:
-        curve = IndexCurve({dt(2022, 1, 1): 1.0}, index_base=100.0)
+        curve = Curve({dt(2022, 1, 1): 1.0}, index_base=100.0)
         with pytest.raises(ValueError, match="`interpolation` for `index_value`"):
             curve.index_value(dt(2022, 1, 1), interpolation="BAD")
 
     @pytest.mark.parametrize("ad", [0, 1, 2])
     def test_roll_preserves_ad(self, ad) -> None:
-        curve = IndexCurve(
+        curve = Curve(
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_base=100.0,
             index_lag=3,
@@ -1270,7 +1299,7 @@ class TestIndexCurve:
         assert new_curve.ad == curve.ad
 
     def test_historic_rate_is_none(self) -> None:
-        curve = IndexCurve(
+        curve = Curve(
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_base=100.0,
             index_lag=3,
