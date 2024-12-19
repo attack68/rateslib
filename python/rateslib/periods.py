@@ -927,13 +927,15 @@ class FloatPeriod(BasePeriod):
         """
         if self.spread_compound_method == "none_simple" or self.float_spread == 0:
             # then analytic_delta is not impacted by float_spread compounding
-            dr_dz = 1.0
+            dr_dz: float = 1.0
         elif isinstance(curve, Curve):
             _ = self.float_spread
-            DualType = Dual if curve.ad in [0, 1] else Dual2
-            DualArgs = ([],) if curve.ad in [0, 1] else ([], [])
+            DualType: type[Dual] | type[Dual2] = Dual if curve.ad in [0, 1] else Dual2
+            DualArgs: tuple[list[Any]] | tuple[list[Any], list[Any]] = (
+                ([],) if curve.ad in [0, 1] else ([], [])
+            )
             self.float_spread = DualType(_dual_float(_), ["z_float_spread"], *DualArgs)
-            rate = self.rate(curve)
+            rate: Dual | Dual2 = self.rate(curve)  # type: ignore[assignment]
             dr_dz = gradient(rate, ["z_float_spread"])[0] * 100
             self.float_spread = _
         else:
@@ -968,19 +970,19 @@ class FloatPeriod(BasePeriod):
                 rate = 100 * cashflow / (-self.notional * self.dcf)
 
         if not isinstance(disc_curve_, NoInput):
-            npv = self.npv(curve, disc_curve_)
-            npv_fx = npv * _dual_float(fx_)
+            npv_: DualTypes | None = self.npv(curve, disc_curve_)  # type: ignore[assignment]
+            npv_fx_: DualTypes | None = npv_ * _dual_float(fx_)  # type: ignore[operator]
         else:
-            npv, npv_fx = None, None
+            npv_, npv_fx_ = None, None
 
         return {
             **super().cashflows(curve, disc_curve_, fx_, base_),
             defaults.headers["rate"]: _float_or_none(rate),
             defaults.headers["spread"]: _dual_float(self.float_spread),
             defaults.headers["cashflow"]: _float_or_none(cashflow),
-            defaults.headers["npv"]: _float_or_none(npv),
+            defaults.headers["npv"]: _float_or_none(npv_),
             defaults.headers["fx"]: _dual_float(fx_),
-            defaults.headers["npv_fx"]: npv_fx,
+            defaults.headers["npv_fx"]: _float_or_none(npv_fx_),
         }
 
     def npv(
