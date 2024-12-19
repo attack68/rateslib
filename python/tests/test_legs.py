@@ -875,9 +875,11 @@ class TestZeroFixedLeg:
             termination="5y",
             payment_lag=0,
             notional=-1e8,
+            calendar="tgt",
+            modifier="mf",
             convention="ActAct",
             frequency="A",
-            rate=2.0,
+            fixed_rate=2.0,
         )
         result = zfl.cashflows(curve)
         expected = DataFrame(
