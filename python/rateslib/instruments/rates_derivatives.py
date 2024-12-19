@@ -1876,7 +1876,7 @@ class ZCIS(BaseDerivative):
             base,
             self.leg1.currency,
         )
-        if self.leg2_index_base is NoInput.blank:
+        if isinstance(self.leg2_index_base, NoInput):
             # must forecast for the leg
             forecast_value = curves[2].index_value(
                 self.leg2.schedule.effective,

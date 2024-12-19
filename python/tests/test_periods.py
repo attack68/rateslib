@@ -2668,7 +2668,7 @@ class TestIndexFixedPeriod:
             index_base=100.0,
         )
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99})
-        with pytest.raises(TypeError, match="`index_value` must be forecast from"):
+        with pytest.raises(ValueError, match="Curve must be initialised with an `index_base`"):
             i_period.index_ratio(curve)
 
     # TEST REDUNDANT: function was changed to fallback to forecast from curve
@@ -2739,7 +2739,7 @@ class TestIndexFixedPeriod:
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
         )
         composite_curve = CompositeCurve([curve])
-        with pytest.raises(TypeError, match="`index_value` must be forecast from"):
+        with pytest.raises(ValueError, match="Curve must be initialised with an `index_base`"):
             _, result, _ = index_period.index_ratio(composite_curve)
 
 

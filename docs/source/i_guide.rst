@@ -34,7 +34,7 @@ Let's start with some fundamental *Curve* and *Instrument* constructors.
 Trivial derivatives examples
 ----------------------------
 
-*Rateslib* has three fundamental :ref:`Curve types<c-curves-doc>`. All can be constructed
+*Rateslib* has two fundamental :ref:`Curve types<c-curves-doc>`. Both can be constructed
 independently by providing basic inputs.
 
 .. tabs::
@@ -77,21 +77,23 @@ independently by providing basic inputs.
              id="us_ibor_3m",
          )
 
-   .. tab:: IndexCurve
+   .. tab:: *(IndexCurve)*
 
-      An :class:`~rateslib.curves.IndexCurve` extends a *Curve* class by allowing
-      an ``index_base`` argument and the calculation of index values. It is DF based.
-      It is required for the pricing of index-linked *Instruments*.
+      An *Index Curve* is required by certain products, e.g.
+      inflation linked bonds (:class:`~rateslib.instruments.IndexFixedRateBond`) or
+      zero coupon inflation swaps (:class:`~rateslib.instruments.ZCIS`). Adding ``index_base``
+      and ``index_lag`` argument inputs extends a DF based *Curve* to work in these cases.
 
       .. ipython:: python
 
-         usd_cpi = IndexCurve(
+         usd_cpi = Curve(
              nodes={
                  dt(2022, 1, 1): 1.00,
                  dt(2022, 7, 1): 0.97,
                  dt(2023, 1, 1): 0.955,
              },
              index_base=308.95,
+             index_lag=3,
              id="us_cpi",
          )
 
@@ -532,9 +534,8 @@ Calibrating curves with a solver
 =================================
 
 The guide for :ref:`Constructing Curves<curves-doc>` introduces the main
-curve classes,
-:class:`~rateslib.curves.Curve`, :class:`~rateslib.curves.LineCurve`, and
-:class:`~rateslib.curves.IndexCurve`. It also touches on some of the more
+curve classes, :class:`~rateslib.curves.Curve` and :class:`~rateslib.curves.LineCurve`.
+It also touches on some of the more
 advanced curves :class:`~rateslib.curves.CompositeCurve`,
 :class:`~rateslib.curves.ProxyCurve`, and :class:`~rateslib.curves.MultiCsaCurve`.
 
