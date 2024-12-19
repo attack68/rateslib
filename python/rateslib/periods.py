@@ -2258,7 +2258,7 @@ class CreditPremiumPeriod(BasePeriod):
         -------
         float
         """
-        if instance(self.fixed_rate, NoInput):
+        if isinstance(self.fixed_rate, NoInput):
             return None
         else:
             if settlement <= self.start or settlement >= self.end:
@@ -2471,9 +2471,9 @@ class CreditProtectionPeriod(BasePeriod):
         Return the NPV of the *CreditProtectionPeriod*.
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
-        if not isinstance(disc_curve, Curve) and disc_curve is NoInput.blank:
+        if not isinstance(disc_curve, Curve) and isinstance(disc_curve, NoInput):
             raise TypeError("`curves` have not been supplied correctly.")
-        if not isinstance(curve, Curve) and curve is NoInput.blank:
+        if not isinstance(curve, Curve) and isinstance(curve, NoInput):
             raise TypeError("`curves` have not been supplied correctly.")
 
         if self.start < curve.node_dates[0]:
@@ -2522,7 +2522,7 @@ class CreditProtectionPeriod(BasePeriod):
         """
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
-        if curve is not NoInput.blank and disc_curve is not NoInput.blank:
+        if not isinstance(curve, NoInput) and not isinstance(disc_curve, NoInput):
             npv = _dual_float(self.npv(curve, disc_curve))
             npv_fx = npv * _dual_float(fx)
             survival = _dual_float(curve[self.end])
