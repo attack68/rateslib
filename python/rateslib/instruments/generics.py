@@ -7,7 +7,7 @@ from pandas import DataFrame, DatetimeIndex, concat
 
 from rateslib import defaults
 from rateslib.calendars import dcf
-from rateslib.curves import Curve, IndexCurve
+from rateslib.curves import Curve
 from rateslib.default import NoInput
 from rateslib.dual import DualTypes, dual_log
 from rateslib.fx import FXForwards, FXRates
@@ -123,8 +123,6 @@ class Value(BaseMixin):
             _ = (dual_log(curves[0][self.effective]) / -dcf_) * 100
             return _
         elif metric == "index_value":
-            if not isinstance(curves[0], IndexCurve):
-                raise TypeError("`curve` used with `metric`='index_value' must be type IndexCurve.")
             _ = curves[0].index_value(self.effective)
             return _
         raise ValueError("`metric`must be in {'curve_value', 'cc_zero_rate', 'index_value'}.")

@@ -13,17 +13,16 @@
 Curves
 ***********
 
-The ``rateslib.curves`` module allows the fundamental :class:`~rateslib.curves.Curve`,
-:class:`~rateslib.curves.LineCurve`, or :class:`~rateslib.curves.IndexCurve` class
-to be defined with parameters (for the purpose of the user guide an *IndexCurve*
-can be considered a *Curve* with minor enhancements).
+The ``rateslib.curves`` module allows the fundamental :class:`~rateslib.curves.Curve` or
+:class:`~rateslib.curves.LineCurve` class
+to be defined with parameters.
 These curve objects are slightly different in what they
 represent and how they operate.
 
 This module relies on the ultility modules :ref:`splines<splines-doc>`
 and :ref:`dual<dual-doc>`.
 
-.. inheritance-diagram:: rateslib.curves.Curve rateslib.curves.LineCurve rateslib.curves.IndexCurve rateslib.curves.CompositeCurve rateslib.curves.MultiCsaCurve rateslib.curves.ProxyCurve
+.. inheritance-diagram:: rateslib.curves.Curve rateslib.curves.LineCurve rateslib.curves.CompositeCurve rateslib.curves.MultiCsaCurve rateslib.curves.ProxyCurve
    :private-bases:
    :top-classes: rateslib.curves.Curve
    :parts: 1
@@ -31,7 +30,6 @@ and :ref:`dual<dual-doc>`.
 .. autosummary::
    rateslib.curves.Curve
    rateslib.curves.LineCurve
-   rateslib.curves.IndexCurve
    rateslib.curves.CompositeCurve
    rateslib.curves.ProxyCurve
    rateslib.curves.MultiCsaCurve
@@ -39,8 +37,8 @@ and :ref:`dual<dual-doc>`.
    rateslib.curves.index_left
 
 Each fundamental curve type has ``rate()``, ``plot()``, ``shift()``, ``roll()`` and
-``translate()`` methods. :class:`~rateslib.curves.IndexCurve` can also calculate
-future ``index_value()``.
+``translate()`` methods. A :class:`~rateslib.curves.Curve` with included ``index_base`` and
+``index_lag`` can also calculate future ``index_value()`` and ``plot_index()``.
 
 .. autosummary::
    rateslib.curves.Curve.rate
@@ -53,23 +51,23 @@ future ``index_value()``.
    rateslib.curves.LineCurve.shift
    rateslib.curves.LineCurve.roll
    rateslib.curves.LineCurve.translate
-   rateslib.curves.IndexCurve.index_value
+   rateslib.curves.Curve.index_value
+   rateslib.curves.Curve.plot_index
 
 The main parameter that must be supplied to either type of curve is its ``nodes``. This
 provides the curve with its degrees of freedom and represents a dict indexed by
 datetimes, each with a given value. In the case of a :class:`~rateslib.curves.Curve`
-these
-values are discount factors (DFs), and in the case of
-a :class:`~rateslib.curves.LineCurve`
+these values are discount factors (DFs) or, for credit purposes, survival probabilities,
+and in the case of a :class:`~rateslib.curves.LineCurve`
 these are specific values, usually rates associated with that curve.
 
 Curve
 *******
 
-A :class:`~rateslib.curves.Curve` can only be used for **interest rates**.
-It is a more specialised
-object because of the way it is **defined by discount factors (DFs)**. These DFs
-maintain an inherent interpolation technique, which is often log-linear or log-cubic
+A :class:`~rateslib.curves.Curve` can only be used for **interest rates** (or credit
+**hazard rates**). It is a more specialised
+object because of the way it is **defined by discount factors (DFs)** (or survival probabilities).
+These DFs maintain an inherent interpolation technique, which is often log-linear or log-cubic
 spline. These are generally the most efficient
 type of curve, and most easily parametrised, when working with compounded RFR rates.
 The initial node on a :class:`~rateslib.curves.Curve` should always have value 1.0,
@@ -103,7 +101,7 @@ required.
    from rateslib import dt
    curve = Curve(
        nodes={
-           dt(2022,1,1): 1.0,  # <- initial DF should always be 1.0
+           dt(2022,1,1): 1.0,  # <- initial DF (/survival probability) should always be 1.0
            dt(2023,1,1): 0.99,
            dt(2024,1,1): 0.979,
            dt(2025,1,1): 0.967,
@@ -135,8 +133,8 @@ Initial Node Date
 -----------------
 
 The initial node date for either curve type is important because it is implied
-to be the date of the
-construction of the curve (i.e. today's date). Any net present
+to be the date of the construction of the curve (i.e. today's date).
+When a :class:`~rateslib.curves.Curve` acts as a discount curve any net present
 values (NPVs) may assume other features
 from this initial node, e.g. the regular settlement date of securities or the value of
 cashflows on derivatives. This is the reason the initial discount factor should also
