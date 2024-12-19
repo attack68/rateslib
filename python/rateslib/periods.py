@@ -930,9 +930,11 @@ class FloatPeriod(BasePeriod):
             dr_dz = 1.0
         elif isinstance(curve, Curve):
             _ = self.float_spread
-            DualType = Dual if curve.ad in [0, 1] else Dual2
-            DualArgs = ([],) if curve.ad in [0, 1] else ([], [])
-            self.float_spread = DualType(float(_), ["z_float_spread"], *DualArgs)
+            DualType: type[Dual] | type[Dual2] = Dual if curve.ad in [0, 1] else Dual2
+            DualArgs: tuple[list[Any]] | tuple[list[Any], list[Any]] = (
+                ([],) if curve.ad in [0, 1] else ([], [])
+            )
+            self.float_spread = DualType(_dual_float(_), ["z_float_spread"], *DualArgs)
             rate: Dual | Dual2 = self.rate(curve)  # type: ignore[assignment]
             dr_dz = gradient(rate, ["z_float_spread"])[0] * 100
             self.float_spread = _
@@ -1250,7 +1252,9 @@ class FloatPeriod(BasePeriod):
         return self._rfr_rate_from_individual_fixings(curve)
 
     def _rate_rfr_avg_with_spread(
-        self, rates: Series[DualTypes], dcf_vals: Series[float]  # type: ignore[type-var]
+        self,
+        rates: Series[DualTypes],  # type: ignore[type-var]
+        dcf_vals: Series[float],
     ) -> DualTypes:
         """
         Calculate all in rate with float spread under averaging.
@@ -1276,7 +1280,9 @@ class FloatPeriod(BasePeriod):
             return _
 
     def _rate_rfr_isda_compounded_with_spread(
-        self, rates: Series[DualTypes], dcf_vals: Series[float]  # type: ignore[type-var]
+        self,
+        rates: Series[DualTypes],  # type: ignore[type-var]
+        dcf_vals: Series[float],
     ) -> DualTypes:
         """
         Calculate all in rates with float spread under different compounding methods.
@@ -1298,7 +1304,7 @@ class FloatPeriod(BasePeriod):
             _2: float = 100.0 / dcf_vals.sum()
             return _1 * _2 + self.float_spread / 100.0
         elif self.spread_compound_method == "isda_compounding":
-            _1 = ((1 + dcf_vals * (rates / 100 + self.float_spread / 10000)).prod() - 1) # type: ignore[operator, assignment]
+            _1 = (1 + dcf_vals * (rates / 100 + self.float_spread / 10000)).prod() - 1  # type: ignore[operator, assignment]
             _2 = 100.0 / dcf_vals.sum()
             return _1 * _2
         elif self.spread_compound_method == "isda_flat_compounding":
@@ -1327,7 +1333,9 @@ class FloatPeriod(BasePeriod):
             rate = self._rate_rfr_isda_compounded_with_spread(data["rates"], data["dcf_vals"])
         return rate
 
-    def _rfr_get_series_with_populated_fixings(self, obs_dates:Series[datetime]):
+    def _rfr_get_series_with_populated_fixings(
+        self, obs_dates: Series[datetime]
+    ) -> Series[DualTypes]:  # type: ignore[type-var]
         """
         Gets relevant DCF values and populates all the individual RFR fixings either known or
         from a curve, for latter calculations, either to derive a period rate or perform
@@ -1348,7 +1356,7 @@ class FloatPeriod(BasePeriod):
                         "datetimeindex.",
                     )
                 # [-2] is used because the last rfr fixing is 1 day before the end
-                fixing_rates = self.fixings.loc[obs_dates.iloc[0] : obs_dates.iloc[-2]]
+                fixing_rates = self.fixings.loc[obs_dates.iloc[0] : obs_dates.iloc[-2]]  # type: ignore[misc]
 
                 try:
                     rates.loc[fixing_rates.index] = fixing_rates
@@ -1385,7 +1393,7 @@ class FloatPeriod(BasePeriod):
         return rates
 
     def _rfr_get_individual_fixings_data(
-        self, calendar: CalTypes, convention: str, curve: Curve | NoInput, allow_na: bool =False
+        self, calendar: CalTypes, convention: str, curve: Curve | NoInput, allow_na: bool = False
     ) -> dict[str, Any]:
         """
         Gets relevant DCF values and populates all the individual RFR fixings either known or
@@ -1398,7 +1406,7 @@ class FloatPeriod(BasePeriod):
         obs_dates, dcf_dates, dcf_vals, obs_vals = self._get_method_dcf_markers(
             calendar, convention, True
         )
-        rates = self._rfr_get_series_with_populated_fixings(obs_dates)
+        rates: Series[DualTypes | None] = self._rfr_get_series_with_populated_fixings(obs_dates)  # type: ignore[type-var, assignment]
         # TODO (low) the next few lines could probably be vectorised and made more efficient.
         fixed = (~isna(rates)).to_numpy()
         if not np.all(fixed):
@@ -1409,8 +1417,8 @@ class FloatPeriod(BasePeriod):
                     "Missing data is shown below for this period:\n"
                     f"{rates}"
                 )
-            rates = Series(
-                {k: v if notna(v) else curve.rate(k, "1b", "F") for k, v in rates.items()}
+            rates = Series(  # type: ignore[assignment]
+                {k: v if notna(v) else curve.rate(k, "1b", "F") for k, v in rates.items()}  # type: ignore
             )
             # Alternative solution to PR 172.
             # rates = Series({
@@ -1582,16 +1590,10 @@ class FloatPeriod(BasePeriod):
            )
            period.fixings_table({"1m": ibor_1m, "3m": ibor_3m}, disc_curve=ibor_1m)
         """
-        if disc_curve is NoInput.blank and isinstance(curve, dict):
-            raise ValueError("Cannot infer `disc_curve` from a dict of curves.")
-        elif disc_curve is NoInput.blank:
-            if curve._base_type == "dfs":
-                disc_curve = curve
-            else:
-                raise ValueError("Must supply a discount factor based `disc_curve`.")
+        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
 
         if approximate:
-            if self.fixings is not NoInput.blank:
+            if isinstance(self.fixings, NoInput):
                 warnings.warn(
                     "Cannot approximate a fixings table when some published fixings "
                     f"are given within the period {self.start.strftime('%d-%b-%Y')}->"
@@ -1601,22 +1603,23 @@ class FloatPeriod(BasePeriod):
                 )
             else:
                 try:
-                    return self._fixings_table_fast(curve, disc_curve, right=right)
+                    return self._fixings_table_fast(curve, disc_curve_, right=right)
                 except ValueError:
                     # then probably a math domain error related to dates before the curve start
                     warnings.warn(
                         "Errored approximating a fixings table.\n Possibly this is due "
                         f"to period dates: {self.start.strftime('%d-%b-%Y')}->"
-                        f"{self.end.strftime('%d-%b-%Y')},\n and the curve initial date: "
-                        f"{curve.node_dates[0].strftime('%d-%b-%Y')}. Switching to exact mode "
-                        f"for this period.",
+                        f"{self.end.strftime('%d-%b-%Y')},\n and the curve initial date. "
+                        f"Switching to exact mode for this period.",
                         UserWarning,
                     )
                     return self.fixings_table(
-                        curve, approximate=False, disc_curve=disc_curve, right=right
+                        curve, approximate=False, disc_curve=disc_curve_, right=right
                     )
 
         if "rfr" in self.fixing_method:
+            assert not isinstance(curve, dict)  # noqa: S101
+
             cal_, conv_ = self._maybe_get_cal_and_conv_from_curve(curve)
             _d = self._rfr_get_individual_fixings_data(cal_, conv_, curve, allow_na=True)
 
@@ -1651,7 +1654,7 @@ class FloatPeriod(BasePeriod):
                     },
                 ).set_index("obs_dates")
             else:
-                rate, table = self._rfr_fixings_array(_d, disc_curve)
+                rate, table = self._rfr_fixings_array(_d, disc_curve_)
                 table = table.iloc[:-1]
                 df = table[["obs_dates", "notional", "risk", "dcf", "rates"]].set_index("obs_dates")
 
@@ -1659,18 +1662,20 @@ class FloatPeriod(BasePeriod):
                 [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"), (curve.id, "rates")]
             )
             return _trim_df_by_index(df, NoInput(0), right)
-        elif "ibor" in self.fixing_method:
-            return self._ibor_fixings_table(curve, disc_curve, right)
+        else:  #  "ibor" in self.fixing_method:
+            return self._ibor_fixings_table(curve, disc_curve_, right)
 
     def _fixings_table_fast(
-        self, curve: Curve | LineCurve, disc_curve: Curve, right: NoInput | datetime
-    ):
+        self, curve: Curve | dict[str, Curve], disc_curve: Curve, right: NoInput | datetime
+    ) -> DataFrame:
         """
         Return a DataFrame of **approximate** fixing exposures.
 
         For arguments see :meth:`~rateslib.periods.FloatPeriod.fixings_table`.
         """
         if "rfr" in self.fixing_method:
+            assert not isinstance(curve, dict)  # noqa: S101
+
             # Depending upon method get the observation dates and dcf dates
             obs_dates, dcf_dates, dcf_vals, obs_vals = self._get_method_dcf_markers(
                 curve.calendar, curve.convention, True
@@ -1693,8 +1698,8 @@ class FloatPeriod(BasePeriod):
                 return df
             # approximate DFs
             v_vals = Series(np.nan, index=obs_dates.iloc[1:])
-            v_vals.iloc[0] = log(float(disc_curve[obs_dates.iloc[1]]))
-            v_vals.iloc[-1] = log(float(disc_curve[obs_dates.iloc[-1]]))
+            v_vals.iloc[0] = log(_dual_float(disc_curve[obs_dates.iloc[1]]))
+            v_vals.iloc[-1] = log(_dual_float(disc_curve[obs_dates.iloc[-1]]))
             v_vals = v_vals.interpolate(method="time")
             v_vals = Series(np.exp(v_vals.to_numpy()), index=obs_vals.index)
 
@@ -1706,7 +1711,7 @@ class FloatPeriod(BasePeriod):
                     / obs_vals.iloc[-(self.method_param + 1)]
                 )
             # perform an efficient rate approximation
-            rate = curve.rate(
+            rate: DualTypes = curve._rate_with_raise(
                 effective=obs_dates.iloc[0],
                 termination=obs_dates.iloc[-1],
             )
@@ -1719,7 +1724,7 @@ class FloatPeriod(BasePeriod):
             # approximate sensitivity to each fixing
             z = self.float_spread / 10000
             if "avg" in self.fixing_method:
-                drdri = 1 / n
+                drdri: DualTypes = 1 / n
             elif self.spread_compound_method == "none_simple":
                 drdri = (1 / n) * (1 + (r_bar / 100) * d) ** (n - 1)
             elif self.spread_compound_method == "isda_compounding":
@@ -1731,9 +1736,9 @@ class FloatPeriod(BasePeriod):
                     + ((r_bar / 100 + z) / n) * (comb(n, 2) * d + 2 * comb(n, 3) * dr * d)
                 )
 
-            v = float(disc_curve[self.payment])
+            v = _dual_float(disc_curve[self.payment])
             notional_exposure = Series(
-                (-self.notional * self.dcf * float(drdri) * v / d * scalar) / v_vals,
+                (-self.notional * self.dcf * _dual_float(drdri) * v / d * scalar) / v_vals,
                 index=obs_vals.index,
             )
 
@@ -1757,11 +1762,15 @@ class FloatPeriod(BasePeriod):
                 [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"), (curve.id, "rates")]
             )
             return _trim_df_by_index(df, NoInput(0), right)
-        elif "ibor" in self.fixing_method:
+        else:  # "ibor" in self.fixing_method:
             return self._ibor_fixings_table(curve, disc_curve, right=right)
 
     def _ibor_fixings_table(
-        self, curve, disc_curve, right, risk: DualTypes | NoInput = NoInput(0)
+        self,
+        curve: Curve | dict[str, Curve],
+        disc_curve: Curve,
+        right: datetime | NoInput,
+        risk: DualTypes | NoInput = NoInput(0),
     ) -> DataFrame:
         """
         Calculate a fixings_table under an IBOR based methodology.
@@ -1778,21 +1787,24 @@ class FloatPeriod(BasePeriod):
         -------
         DataFrame
         """
-        if isinstance(curve, dict) and self.stub:
-            # then must perform an interpolated calculation
-            return self._ibor_stub_fixings_table(curve, disc_curve, right, risk)
-        elif isinstance(curve, dict) and not self.stub:
-            # then extract the one relevant curve from dict
-            curve = _get_ibor_curve_from_dict(self.freq_months, curve)
+        if isinstance(curve, dict):
+            if self.stub:
+                # then must perform an interpolated calculation
+                return self._ibor_stub_fixings_table(curve, disc_curve, right, risk)
+            else:
+                # then extract the one relevant curve from dict
+                curve_: Curve = _get_ibor_curve_from_dict(self.freq_months, curve)
+        else:
+            curve_ = curve
         return self._ibor_single_tenor_fixings_table(
-            curve, disc_curve, f"{self.freq_months}m", right, risk
+            curve_, disc_curve, f"{self.freq_months}m", right, risk
         )
 
     def _ibor_single_tenor_fixings_table(
         self,
-        curve,
-        disc_curve,
-        tenor,
+        curve: Curve,
+        disc_curve: Curve,
+        tenor: str | NoInput,
         right: datetime | NoInput,
         risk: DualTypes | NoInput = NoInput(0),
     ) -> DataFrame:
@@ -1815,7 +1827,7 @@ class FloatPeriod(BasePeriod):
 
             if not isinstance(self.fixings, NoInput) or fixing_dt < curve.node_dates[0]:
                 # then fixing is set so return zero exposure.
-                _rate = NA if self.fixings is NoInput.blank else float(self.rate(curve))
+                _rate = NA if isinstance(self.fixings, NoInput) else _dual_float(self.rate(curve))
                 df = DataFrame(
                     {
                         "obs_dates": [fixing_dt],
@@ -1834,8 +1846,8 @@ class FloatPeriod(BasePeriod):
                 df = DataFrame(
                     {
                         "obs_dates": [fixing_dt],
-                        "notional": float(risk / (reg_dcf * disc_curve[reg_end_dt])),
-                        "risk": float(risk) * 0.0001,  # scale to bp
+                        "notional": _dual_float(risk / (reg_dcf * disc_curve[reg_end_dt])),
+                        "risk": _dual_float(risk) * 0.0001,  # scale to bp
                         "dcf": [reg_dcf],
                         "rates": [self.rate(curve)],
                     },
@@ -1848,11 +1860,11 @@ class FloatPeriod(BasePeriod):
 
     def _ibor_stub_fixings_table(
         self,
-        curve: dict,
+        curve: dict[str, Curve],
         disc_curve: Curve,
         right: datetime | NoInput,
         risk: DualTypes | NoInput = NoInput(0),
-    ):
+    ) -> DataFrame:
         calendar = next(iter(curve.values())).calendar  # note: ASSUMES all curve calendars are same
         values = {add_tenor(self.start, k, "MF", calendar): k for k, v in curve.items()}
         values = dict(sorted(values.items()))
@@ -1902,7 +1914,7 @@ class FloatPeriod(BasePeriod):
         self,
         d: dict,
         disc_curve: Curve,
-    ):
+    ) -> tuple[DualTypes, DataFrame]:
         """
         Calculate the rate of a period via extraction and combination of every fixing.
 
@@ -1941,7 +1953,10 @@ class FloatPeriod(BasePeriod):
         )
         # these are zero-lag discount factors associated with each published fixing
         rates_dual = Series(
-            [Dual(float(r), [f"fixing_{i}"], []) for i, (k, r) in enumerate(d["rates"].items())],
+            [
+                Dual(_dual_float(r), [f"fixing_{i}"], [])
+                for i, (k, r) in enumerate(d["rates"].items())
+            ],
             index=d["rates"].index,
         )
         if self.fixing_method in ["rfr_lockout", "rfr_lockout_avg"]:
@@ -1956,7 +1971,7 @@ class FloatPeriod(BasePeriod):
         ).astype(float)
         v = disc_curve[self.payment]
 
-        risk = -float(self.notional) * self.dcf * float(v) * dr_drj
+        risk = -_dual_float(self.notional) * self.dcf * _dual_float(v) * dr_drj
         risk[d["fixed"]] = 0.0
 
         notional_exposure = Series(0.0, index=range(len(dr_drj.index)))
@@ -1985,7 +2000,7 @@ class FloatPeriod(BasePeriod):
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     @property
-    def _is_inefficient(self):
+    def _is_inefficient(self) -> bool:
         """
         An inefficient float period is one which is RFR based and for which each individual
         RFR fixing is required is order to calculate correctly. This occurs in the
@@ -2002,7 +2017,7 @@ class FloatPeriod(BasePeriod):
         4) ``fixings`` are given which need to be incorporated into the calculation
         """
         if self.fixing_method in ["rfr_payment_delay", "rfr_observation_shift"]:
-            if self.fixings is not NoInput.blank:
+            if isinstance(self.fixings, NoInput):
                 return True
             else:
                 return not (self.float_spread == 0 or self.spread_compound_method == "none_simple")
@@ -2011,7 +2026,7 @@ class FloatPeriod(BasePeriod):
         # else fixing method in ["rfr_lookback", "rfr_lockout"]
         return True
 
-    def _get_method_dcf_endpoints(self, calendar: CalTypes):
+    def _get_method_dcf_endpoints(self, calendar: CalTypes) -> tuple[datetime, datetime, datetime, datetime]:
         """
         For RFR periods return the relevant DCF markers for different aspects of calculation.
 
@@ -2053,7 +2068,7 @@ class FloatPeriod(BasePeriod):
 
         return start_obs, end_obs, start_dcf, end_dcf
 
-    def _get_method_dcf_markers(self, calendar: CalTypes, convention: str, exposure=False):
+    def _get_method_dcf_markers(self, calendar: CalTypes, convention: str, exposure: bool =False):
         """
         Use conventions from the given `curve` and the data attached to self to derive
         relevant DCF calculations for the Period.
@@ -2121,12 +2136,16 @@ class FloatPeriod(BasePeriod):
 
         return obs_dates, dcf_dates, dcf_vals, obs_vals
 
-    def _get_analytic_delta_quadratic_coeffs(self, fore_curve, disc_curve):
+    def _get_analytic_delta_quadratic_coeffs(
+        self,
+        fore_curve: Curve,
+        disc_curve: Curve
+    ) -> tuple[DualTypes, DualTypes]:
         """
         For use in the Leg._spread calculation get the 'a' and 'b' coefficients
         """
         os, oe, _, _ = self._get_method_dcf_endpoints(fore_curve)
-        rate = fore_curve.rate(
+        rate: DualTypes = fore_curve._rate_with_raise(
             effective=os,
             termination=oe,
             float_spread=0.0,
@@ -2221,7 +2240,7 @@ class CreditPremiumPeriod(BasePeriod):
         """
         float, Dual or Dual2 : The calculated value from rate, dcf and notional.
         """
-        if self.fixed_rate is NoInput.blank:
+        if isinstance(self.fixed_rate, NoInput):
             return None
         else:
             return -self.notional * self.dcf * self.fixed_rate * 0.01
@@ -2239,7 +2258,7 @@ class CreditPremiumPeriod(BasePeriod):
         -------
         float
         """
-        if self.fixed_rate is NoInput.blank:
+        if instance(self.fixed_rate, NoInput):
             return None
         else:
             if settlement <= self.start or settlement >= self.end:
@@ -2258,22 +2277,26 @@ class CreditPremiumPeriod(BasePeriod):
         Return the NPV of the *CreditPremiumPeriod*.
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
-        if not isinstance(disc_curve, Curve) and disc_curve is NoInput.blank:
+        if not isinstance(disc_curve, Curve) and isinstance(disc_curve, NoInput):
             raise TypeError("`curves` have not been supplied correctly.")
-        if not isinstance(curve, Curve) and curve is NoInput.blank:
+        if not isinstance(curve, Curve) and isinstance(curve, NoInput):
             raise TypeError("`curves` have not been supplied correctly.")
-        if self.fixed_rate is NoInput.blank:
+        if isinstance(self.fixed_rate, NoInput):
             raise ValueError("`fixed_rate` must be set as a value to return a valid NPV.")
         v_payment = disc_curve[self.payment]
         q_end = curve[self.end]
         _ = 0.0
         if self.premium_accrued:
             v_end = disc_curve[self.end]
-            n = float((self.end - self.start).days)
+            n = _dual_float((self.end - self.start).days)
 
             if self.start < curve.node_dates[0]:
                 # then mid-period valuation
-                r, q_start, _v_start = float((curve.node_dates[0] - self.start).days), 1.0, 1.0
+                r, q_start, _v_start = (
+                    _dual_float((curve.node_dates[0] - self.start).days),
+                    1.0,
+                    1.0,
+                )
             else:
                 r, q_start, _v_start = 0.0, curve[self.start], disc_curve[self.start]
 
@@ -2304,9 +2327,9 @@ class CreditPremiumPeriod(BasePeriod):
         See
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
         """
-        if not isinstance(disc_curve, Curve) and disc_curve is NoInput.blank:
+        if not isinstance(disc_curve, Curve) and isinstance(disc_curve, NoInput):
             raise TypeError("`curves` have not been supplied correctly.")
-        if not isinstance(curve, Curve) and curve is NoInput.blank:
+        if not isinstance(curve, Curve) and isinstance(curve, NoInput):
             raise TypeError("`curves` have not been supplied correctly.")
 
         v_payment = disc_curve[self.payment]
@@ -2314,11 +2337,15 @@ class CreditPremiumPeriod(BasePeriod):
         _ = 0.0
         if self.premium_accrued:
             v_end = disc_curve[self.end]
-            n = float((self.end - self.start).days)
+            n = _dual_float((self.end - self.start).days)
 
             if self.start < curve.node_dates[0]:
                 # then mid-period valuation
-                r, q_start, _v_start = float((curve.node_dates[0] - self.start).days), 1.0, 1.0
+                r, q_start, _v_start = (
+                    _dual_float((curve.node_dates[0] - self.start).days),
+                    1.0,
+                    1.0,
+                )
             else:
                 r, q_start, _v_start = 0.0, curve[self.start], disc_curve[self.start]
 
@@ -2349,20 +2376,20 @@ class CreditPremiumPeriod(BasePeriod):
         """
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
-        if curve is not NoInput.blank and disc_curve is not NoInput.blank:
-            npv = float(self.npv(curve, disc_curve))
-            npv_fx = npv * float(fx)
-            survival = float(curve[self.end])
+        if not isinstance(curve, NoInput) and not isinstance(disc_curve, NoInput):
+            npv = _dual_float(self.npv(curve, disc_curve))
+            npv_fx = npv * _dual_float(fx)
+            survival = _dual_float(curve[self.end])
         else:
             npv, npv_fx, survival = None, None, None
 
         return {
             **super().cashflows(curve, disc_curve, fx, base),
-            defaults.headers["rate"]: float(self.fixed_rate),
+            defaults.headers["rate"]: _dual_float(self.fixed_rate),
             defaults.headers["survival"]: survival,
-            defaults.headers["cashflow"]: float(self.cashflow),
+            defaults.headers["cashflow"]: _dual_float(self.cashflow),
             defaults.headers["npv"]: npv,
-            defaults.headers["fx"]: float(fx),
+            defaults.headers["fx"]: _dual_float(fx),
             defaults.headers["npv_fx"]: npv_fx,
         }
 
@@ -2496,19 +2523,19 @@ class CreditProtectionPeriod(BasePeriod):
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
         if curve is not NoInput.blank and disc_curve is not NoInput.blank:
-            npv = float(self.npv(curve, disc_curve))
-            npv_fx = npv * float(fx)
-            survival = float(curve[self.end])
+            npv = _dual_float(self.npv(curve, disc_curve))
+            npv_fx = npv * _dual_float(fx)
+            survival = _dual_float(curve[self.end])
         else:
             npv, npv_fx, survival = None, None, None
 
         return {
             **super().cashflows(curve, disc_curve, fx, base),
-            defaults.headers["recovery"]: float(self.recovery_rate),
+            defaults.headers["recovery"]: _dual_float(self.recovery_rate),
             defaults.headers["survival"]: survival,
-            defaults.headers["cashflow"]: float(self.cashflow),
+            defaults.headers["cashflow"]: _dual_float(self.cashflow),
             defaults.headers["npv"]: npv,
-            defaults.headers["fx"]: float(fx),
+            defaults.headers["fx"]: _dual_float(fx),
             defaults.headers["npv_fx"]: npv_fx,
         }
 
@@ -2533,10 +2560,10 @@ class CreditProtectionPeriod(BasePeriod):
         if isinstance(rr, Dual | Dual2 | Variable):
             self.recovery_rate = Variable(rr.real, ["__recovery_rate__"])
         else:
-            self.recovery_rate = Variable(float(rr), ["__recovery_rate__"])
+            self.recovery_rate = Variable(_dual_float(rr), ["__recovery_rate__"])
         pv = self.npv(curve, disc_curve, fx, base, False)
         self.recovery_rate = rr
-        _ = float(gradient(pv, ["__recovery_rate__"], order=1)[0])
+        _ = _dual_float(gradient(pv, ["__recovery_rate__"], order=1)[0])
         return _ * 0.01
 
 
@@ -2610,7 +2637,7 @@ class Cashflow:
         self.notional, self.payment = notional, payment
         self.currency = defaults.base_currency if currency is NoInput.blank else currency.lower()
         self.stub_type = stub_type
-        self._rate = rate if rate is NoInput.blank else float(rate)
+        self._rate = rate if rate is NoInput.blank else _dual_float(rate)
 
     def __repr__(self):
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
@@ -2658,12 +2685,12 @@ class Cashflow:
         if disc_curve_ is NoInput.blank:
             npv, npv_fx, df, collateral = None, None, None, None
         else:
-            npv = float(self.npv(curve, disc_curve_))
-            npv_fx = npv * float(fx)
-            df, collateral = float(disc_curve_[self.payment]), disc_curve_.collateral
+            npv = _dual_float(self.npv(curve, disc_curve_))
+            npv_fx = npv * _dual_float(fx)
+            df, collateral = _dual_float(disc_curve_[self.payment]), disc_curve_.collateral
 
         try:
-            cashflow_ = float(self.cashflow)
+            cashflow_ = _dual_float(self.cashflow)
         except TypeError:  # cashflow in superclass not a property
             cashflow_ = None
 
@@ -2678,13 +2705,13 @@ class Cashflow:
             defaults.headers["payment"]: self.payment,
             # defaults.headers["convention"]: None,
             # defaults.headers["dcf"]: None,
-            defaults.headers["notional"]: float(self.notional),
+            defaults.headers["notional"]: _dual_float(self.notional),
             defaults.headers["df"]: df,
             defaults.headers["rate"]: rate,
             # defaults.headers["spread"]: None,
             defaults.headers["cashflow"]: cashflow_,
             defaults.headers["npv"]: npv,
-            defaults.headers["fx"]: float(fx),
+            defaults.headers["fx"]: _dual_float(fx),
             defaults.headers["npv_fx"]: npv_fx,
             defaults.headers["collateral"]: collateral,
         }
@@ -3021,8 +3048,8 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
             npv = None
             npv_fx = None
         else:
-            npv = float(self.npv(curve, disc_curve_))
-            npv_fx = npv * float(fx)
+            npv = _dual_float(self.npv(curve, disc_curve_))
+            npv_fx = npv * _dual_float(fx)
 
         index_ratio_, index_val_, index_base_ = self.index_ratio(curve)
 
@@ -3036,7 +3063,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
             defaults.headers["index_ratio"]: _float_or_none(index_ratio_),
             defaults.headers["cashflow"]: _float_or_none(self.cashflow(curve)),
             defaults.headers["npv"]: npv,
-            defaults.headers["fx"]: float(fx),
+            defaults.headers["fx"]: _dual_float(fx),
             defaults.headers["npv_fx"]: npv_fx,
         }
 
@@ -3286,8 +3313,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
         dict
         """
         fx_, base = _get_fx_and_base(self.currency, fx, base)
-        df, collateral = float(disc_curve_ccy2[self.payment]), disc_curve_ccy2.collateral
-        npv = float(
+        df, collateral = _dual_float(disc_curve_ccy2[self.payment]), disc_curve_ccy2.collateral
+        npv = _dual_float(
             self.npv(disc_curve, disc_curve_ccy2, fx, base, local=True, vol=vol)[self.currency],
         )
 
@@ -3298,21 +3325,21 @@ class FXOptionPeriod(metaclass=ABCMeta):
             defaults.headers["type"]: type(self).__name__,
             defaults.headers["stub_type"]: "Optionality",
             defaults.headers["pair"]: self.pair,
-            defaults.headers["notional"]: float(self.notional),
+            defaults.headers["notional"]: _dual_float(self.notional),
             defaults.headers["expiry"]: self.expiry,
-            defaults.headers["t_e"]: float(self._t_to_expiry(disc_curve_ccy2.node_dates[0])),
+            defaults.headers["t_e"]: _dual_float(self._t_to_expiry(disc_curve_ccy2.node_dates[0])),
             defaults.headers["delivery"]: self.delivery,
-            defaults.headers["rate"]: float(fx.rate(self.pair, self.delivery)),
+            defaults.headers["rate"]: _dual_float(fx.rate(self.pair, self.delivery)),
             defaults.headers["strike"]: self.strike,
-            defaults.headers["vol"]: float(self._get_vol_maybe_from_obj(vol, fx, disc_curve)),
+            defaults.headers["vol"]: _dual_float(self._get_vol_maybe_from_obj(vol, fx, disc_curve)),
             defaults.headers["model"]: "Black76",
             defaults.headers["payment"]: self.payment,
             defaults.headers["currency"]: self.currency.upper(),
             defaults.headers["cashflow"]: npv / df,
             defaults.headers["df"]: df,
             defaults.headers["npv"]: npv,
-            defaults.headers["fx"]: float(fx_),
-            defaults.headers["npv_fx"]: npv * float(fx_),
+            defaults.headers["fx"]: _dual_float(fx_),
+            defaults.headers["npv_fx"]: npv * _dual_float(fx_),
             defaults.headers["collateral"]: collateral,
         }
 
@@ -3918,8 +3945,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
             else:
                 vol_ = vol / 100.0
                 dvol_ddeltaidx = 0.0
-            vol_ = float(vol_) if ad == 0 else vol_
-            dvol_ddeltaidx = float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
+            vol_ = _dual_float(vol_) if ad == 0 else vol_
+            dvol_ddeltaidx = _dual_float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
             vol_sqrt_t = vol_ * sqrt_t_e
 
             # Calculate function values
@@ -3941,7 +3968,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             return f0, f1
 
         if isinstance(vol, FXDeltaVolSmile):
-            avg_vol = float(list(vol.nodes.values())[int(vol.n / 2)])
+            avg_vol = _dual_float(list(vol.nodes.values())[int(vol.n / 2)])
         else:
             avg_vol = vol
         g01 = self.phi * 0.5 * (z_w if "spot" in delta_type else 1.0)
@@ -3982,8 +4009,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
             else:
                 vol_ = vol / 100.0
                 dvol_ddeltaidx = 0.0
-            vol_ = float(vol_) if ad == 0 else vol_
-            dvol_ddeltaidx = float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
+            vol_ = _dual_float(vol_) if ad == 0 else vol_
+            dvol_ddeltaidx = _dual_float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
             vol_sqrt_t = vol_ * sqrt_t_e
 
             # Calculate function values
@@ -4005,7 +4032,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             return f0, f1
 
         if isinstance(vol, FXDeltaVolSmile):
-            avg_vol = float(list(vol.nodes.values())[int(vol.n / 2)])
+            avg_vol = _dual_float(list(vol.nodes.values())[int(vol.n / 2)])
         else:
             avg_vol = vol
         g01 = delta if self.phi > 0 else max(delta, -0.75)
@@ -4052,7 +4079,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             dz_u_1_du = 0.5 - eta_1
 
             vol_ = vol[delta_idx] / 100.0
-            vol_ = float(vol_) if ad == 0 else vol_
+            vol_ = _dual_float(vol_) if ad == 0 else vol_
             vol_sqrt_t = vol_ * sqrt_t_e
 
             # Calculate function values
@@ -4066,7 +4093,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
             # Calculate Jacobian values
             dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
-            dvol_ddeltaidx = float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
+            dvol_ddeltaidx = _dual_float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
 
             dd_du = -1 / (u * vol_sqrt_t)
             nd0 = dual_norm_pdf(phi * d0)
@@ -4082,12 +4109,12 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
             return [f0_0, f0_1], [[f1_00, f1_01], [f1_10, f1_11]]
 
-        avg_vol = float(list(vol.nodes.values())[int(vol.n / 2)])
+        avg_vol = _dual_float(list(vol.nodes.values())[int(vol.n / 2)])
         g01 = delta if self.phi > 0 else max(delta, -0.75)
         g00 = self._moneyness_from_delta_closed_form(g01, avg_vol, t_e, 1.0)
 
         msg = (
-            f"If the delta, {float(delta):.1f}, is premium adjusted for a "
+            f"If the delta, {_dual_float(delta):.1f}, is premium adjusted for a "
             "call option is it infeasible?"
             if self.phi > 0
             else ""
@@ -4127,7 +4154,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             dz_u_1_du = 0.5 - eta_1
 
             vol_ = vol[delta_idx] / 100.0
-            vol_ = float(vol_) if ad == 0 else vol_
+            vol_ = _dual_float(vol_) if ad == 0 else vol_
             vol_sqrt_t = vol_ * sqrt_t_e
 
             # Calculate function values
@@ -4141,7 +4168,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
             # Calculate Jacobian values
             dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
-            dvol_ddeltaidx = float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
+            dvol_ddeltaidx = _dual_float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
 
             dd_du = -1 / (u * vol_sqrt_t)
             nd0 = dual_norm_pdf(phi * d0)
@@ -4157,7 +4184,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
             return [f0_0, f0_1], [[f1_00, f1_01], [f1_10, f1_11]]
 
-        avg_vol = float(list(vol.nodes.values())[int(vol.n / 2)])
+        avg_vol = _dual_float(list(vol.nodes.values())[int(vol.n / 2)])
         g01 = self.phi * 0.5 * (z_w if "spot" in delta_type else 1.0)
         g00 = self._moneyness_from_delta_closed_form(g01, avg_vol, t_e, 1.0)
 
@@ -4198,7 +4225,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             else:
                 vol_ = vol / 100.0
                 dvol_ddeltaidx = 0.0
-            vol_ = float(vol_) if ad == 0 else vol_
+            vol_ = _dual_float(vol_) if ad == 0 else vol_
             vol_sqrt_t = vol_ * sqrt_t_e
 
             # Calculate function values
@@ -4213,7 +4240,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             f0_2 = delta - phi * z_u_0 * z_w_0 / 2.0
 
             # Calculate Jacobian values
-            dvol_ddeltaidx = float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
+            dvol_ddeltaidx = _dual_float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
 
             dd_du = -1 / (u * vol_sqrt_t)
             nd0 = dual_norm_pdf(phi * d0)
@@ -4239,7 +4266,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             ]
 
         if isinstance(vol, FXDeltaVolSmile):
-            avg_vol = float(list(vol.nodes.values())[int(vol.n / 2)])
+            avg_vol = _dual_float(list(vol.nodes.values())[int(vol.n / 2)])
             vol_delta_type = vol.delta_type
         else:
             avg_vol = vol

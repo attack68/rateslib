@@ -2390,7 +2390,7 @@ class CompositeCurve(IndexCurve):
 
         return _
 
-    def _rate_with_raise(
+    def _rate_with_raise(  # type: ignore[override]
         self,
         effective: datetime,
         termination: datetime | str | NoInput,
