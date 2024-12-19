@@ -171,10 +171,10 @@ Can ``Curves`` be constructed and plotted in *rateslib*?
 ===========================================================
 
 **Of course**. Building curves is a necessity for pricing fixed income instruments.
-*Rateslib* has three primitive curve structures; :class:`~rateslib.curves.Curve` (which
-is **discount factor based**), :class:`~rateslib.curves.LineCurve` (which is **purely value
-based**), and :class:`~rateslib.curves.IndexCurve` (which is based on a *Curve* but also
-calculates index values which is useful for inflation, for example). All *Curve* types offer
+*Rateslib* has two primitive curve structures; :class:`~rateslib.curves.Curve`, which
+is **discount factor, or survival probability based** and which can also calculate index values
+for use with inflation products, for example, and :class:`~rateslib.curves.LineCurve`
+(which is **purely value based**). All *Curve* types offer
 various interpolation methods, such as log-linear or log-cubic spline and can even splice certain
 interpolation types together.
 
