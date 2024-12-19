@@ -335,7 +335,7 @@ class BasePeriod(metaclass=ABCMeta):
     @abstractmethod
     def cashflows(
         self,
-        curve: Curve | NoInput = NoInput(0),
+        curve: Curve | dict[str, Curve] | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -527,7 +527,7 @@ class FixedPeriod(BasePeriod):
 
     def npv(
         self,
-        curve: Curve | NoInput = NoInput(0),
+        curve: Curve | dict[str, Curve] | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -550,7 +550,7 @@ class FixedPeriod(BasePeriod):
 
     def cashflows(
         self,
-        curve: Curve | NoInput = NoInput(0),
+        curve: Curve | dict[str, Curve] | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -930,10 +930,12 @@ class FloatPeriod(BasePeriod):
             dr_dz = 1.0
         elif isinstance(curve, Curve):
             _ = self.float_spread
-            DualType = Dual if curve.ad in [0, 1] else Dual2
-            DualArgs = ([],) if curve.ad in [0, 1] else ([], [])
+            DualType: type[Dual] | type[Dual2] = Dual if curve.ad in [0, 1] else Dual2
+            DualArgs: tuple[list[Any]] | tuple[list[Any], list[Any]] = (
+                ([],) if curve.ad in [0, 1] else ([], [])
+            )
             self.float_spread = DualType(_dual_float(_), ["z_float_spread"], *DualArgs)
-            rate = self.rate(curve)
+            rate: Dual | Dual2 = self.rate(curve)  # type: ignore[assignment]
             dr_dz = gradient(rate, ["z_float_spread"])[0] * 100
             self.float_spread = _
         else:
@@ -957,10 +959,11 @@ class FloatPeriod(BasePeriod):
         disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
 
         try:
-            cashflow = self.cashflow(curve)
+            cashflow: DualTypes | None = self.cashflow(curve)
         except ValueError:
-            # curve may not have been provided or other fixings errors have occured
-            cashflow, rate = None, None
+            # curve may not have been provided or other fixings errors have occurred
+            cashflow = None
+            rate: DualTypes | None = None
         else:
             if cashflow is None:
                 rate = None
@@ -968,8 +971,10 @@ class FloatPeriod(BasePeriod):
                 rate = 100 * cashflow / (-self.notional * self.dcf)
 
         if not isinstance(disc_curve_, NoInput):
-            npv = self.npv(curve, disc_curve_)
-            npv_fx = npv * _dual_float(fx_)
+            npv_: DualTypes = self.npv(curve, disc_curve_, local=False)  # type: ignore[assignment]
+            npv_fx_: DualTypes = npv_ * _dual_float(fx_)
+            npv: DualTypes | None = npv_
+            npv_fx: DualTypes | None = npv_fx_
         else:
             npv, npv_fx = None, None
 
@@ -1023,7 +1028,7 @@ class FloatPeriod(BasePeriod):
 
         """
         try:
-            _ = -self.notional * self.dcf * self.rate(curve) / 100
+            _: DualTypes = -self.notional * self.dcf * self.rate(curve) / 100
             return _
         except ValueError as e:
             if isinstance(curve, Curve | dict):
@@ -1086,7 +1091,12 @@ class FloatPeriod(BasePeriod):
         if "ibor" in self.fixing_method:
             return self._rate_ibor(curve)
         elif "rfr" in self.fixing_method:
-            return self._rate_rfr(curve)
+            if isinstance(curve, dict):
+                raise ValueError(
+                    "Cannot supply dict of tenor curves to `curve` for an RFR based Period."
+                )
+            else:
+                return self._rate_rfr(curve)
         else:
             raise ValueError(  # pragma: no cover
                 f"`fixing_method`: '{self.fixing_method}' not valid for a FloatPeriod."
@@ -1128,33 +1138,33 @@ class FloatPeriod(BasePeriod):
         else:
             if not self.stub:
                 curve = _get_ibor_curve_from_dict(self.freq_months, curve)
-                return method[curve._base_type](curve)
+                return method[curve._base_type](curve)  # type: ignore[arg-type]
             else:
                 return self._rate_ibor_interpolated_ibor_from_dict(curve)
 
     def _rate_ibor_from_df_curve(self, curve: Curve) -> DualTypes:
         if self.stub:
-            r = curve.rate(self.start, self.end) + self.float_spread / 100
+            r: DualTypes = curve._rate_with_raise(self.start, self.end) + self.float_spread / 100
         else:
-            r = curve.rate(self.start, f"{self.freq_months}m") + self.float_spread / 100
+            r = curve._rate_with_raise(self.start, f"{self.freq_months}m") + self.float_spread / 100
         return r
 
     def _rate_ibor_from_line_curve(self, curve: LineCurve) -> DualTypes:
         fixing_date = curve.calendar.lag(self.start, -self.method_param, False)
         return curve[fixing_date] + self.float_spread / 100
 
-    def _rate_ibor_interpolated_ibor_from_dict(self, curve: dict[str, Curve]) -> DualTypes | None:
+    def _rate_ibor_interpolated_ibor_from_dict(self, curve: dict[str, Curve]) -> DualTypes:
         """
         Get the rate on all available curves in dict and then determine the ones to interpolate.
         """
         calendar = next(iter(curve.values())).calendar  # note: ASSUMES all curve calendars are same
         fixing_date = add_tenor(self.start, f"-{self.method_param}B", "NONE", calendar)
 
-        def _rate(c: Curve, tenor: str) -> DualTypes | None:
+        def _rate(c: Curve, tenor: str) -> DualTypes:
             if c._base_type == "dfs":
-                return c.rate(self.start, tenor)
+                return c._rate_with_raise(self.start, tenor)
             else:  # values
-                return c.rate(fixing_date, tenor)  # tenor is not used on LineCurve
+                return c._rate_with_raise(fixing_date, tenor)  # tenor is not used on LineCurve
 
         values = {add_tenor(self.start, k, "MF", calendar): _rate(v, k) for k, v in curve.items()}
         values = dict(sorted(values.items()))
@@ -1180,7 +1190,7 @@ class FloatPeriod(BasePeriod):
             )
             return _
 
-    def _rate_rfr(self, curve: Curve | dict[str, Curve] | NoInput) -> DualTypes | None:
+    def _rate_rfr(self, curve: Curve | NoInput) -> DualTypes:
         if isinstance(self.fixings, float | Dual | Dual2):
             # if fixings is a single value then return that value (curve unused can be NoInput)
             if (
@@ -1208,7 +1218,7 @@ class FloatPeriod(BasePeriod):
             "values": self._rate_rfr_from_line_curve,
         }
         try:
-            return method[curve._base_type](curve)
+            return method[curve._base_type](curve)  # type: ignore[union-attr, arg-type]
         except AttributeError:
             raise ValueError(
                 "Must supply a valid `curve` for forecasting rates for the FloatPeriod.\n"
@@ -1227,21 +1237,25 @@ class FloatPeriod(BasePeriod):
             # This is bad construct
             return self._rfr_rate_from_individual_fixings(curve)
         elif self.fixing_method == "rfr_payment_delay" and not self._is_inefficient:
-            return curve.rate(self.start, self.end) + self.float_spread / 100
+            return curve._rate_with_raise(self.start, self.end) + self.float_spread / 100
         elif self.fixing_method == "rfr_observation_shift" and not self._is_inefficient:
             start = curve.calendar.lag(self.start, -self.method_param, settlement=False)
             end = curve.calendar.lag(self.end, -self.method_param, settlement=False)
-            return curve.rate(start, end) + self.float_spread / 100
+            return curve._rate_with_raise(start, end) + self.float_spread / 100
             # TODO: (low:perf) semi-efficient method for lockout under certain conditions
         else:
             # return inefficient calculation
             # this is also the path for all averaging methods
             return self._rfr_rate_from_individual_fixings(curve)
 
-    def _rate_rfr_from_line_curve(self, curve: LineCurve):
+    def _rate_rfr_from_line_curve(self, curve: LineCurve) -> DualTypes:
         return self._rfr_rate_from_individual_fixings(curve)
 
-    def _rate_rfr_avg_with_spread(self, rates, dcf_vals):
+    def _rate_rfr_avg_with_spread(
+        self,
+        rates: Series[DualTypes],  # type: ignore[type-var]
+        dcf_vals: Series[float],
+    ) -> DualTypes:
         """
         Calculate all in rate with float spread under averaging.
 
@@ -1262,9 +1276,14 @@ class FloatPeriod(BasePeriod):
                 "`spread_compound` method must be 'none_simple' in an RFR averaging " "period.",
             )
         else:
-            return (dcf_vals * rates).sum() / dcf_vals.sum() + self.float_spread / 100
+            _: DualTypes = (dcf_vals * rates).sum() / dcf_vals.sum() + self.float_spread / 100
+            return _
 
-    def _rate_rfr_isda_compounded_with_spread(self, rates, dcf_vals):
+    def _rate_rfr_isda_compounded_with_spread(
+        self,
+        rates: Series[DualTypes],  # type: ignore[type-var]
+        dcf_vals: Series[float],
+    ) -> DualTypes:
         """
         Calculate all in rates with float spread under different compounding methods.
 
@@ -1280,24 +1299,23 @@ class FloatPeriod(BasePeriod):
         float, Dual, Dual2
         """
         dcf_vals = dcf_vals.set_axis(rates.index)
-        if self.float_spread == 0 or self.spread_compound_method == "none_simple":
-            return (
-                (1 + dcf_vals * rates / 100).prod() - 1
-            ) * 100 / dcf_vals.sum() + self.float_spread / 100
+        if self.float_spread == 0.0 or self.spread_compound_method == "none_simple":
+            _1: DualTypes = (1 + dcf_vals * rates / 100).prod() - 1  # type: ignore[operator, assignment]
+            _2: float = 100.0 / dcf_vals.sum()
+            return _1 * _2 + self.float_spread / 100.0
         elif self.spread_compound_method == "isda_compounding":
-            return (
-                ((1 + dcf_vals * (rates / 100 + self.float_spread / 10000)).prod() - 1)
-                * 100
-                / dcf_vals.sum()
-            )
+            _1 = (1 + dcf_vals * (rates / 100 + self.float_spread / 10000)).prod() - 1  # type: ignore[operator, assignment]
+            _2 = 100.0 / dcf_vals.sum()
+            return _1 * _2
         elif self.spread_compound_method == "isda_flat_compounding":
-            sub_cashflows = (rates / 100 + self.float_spread / 10000) * dcf_vals
-            C_i = 0.0
+            sub_cashflows: Series[DualTypes] = (rates / 100 + self.float_spread / 10000) * dcf_vals  # type: ignore[type-var]
+            C_i: DualTypes = 0.0
             for i in range(1, len(sub_cashflows)):
                 C_i += sub_cashflows.iloc[i - 1]
                 sub_cashflows.iloc[i] += C_i * rates.iloc[i] / 100 * dcf_vals.iloc[i]
-            total_cashflow = sub_cashflows.sum()
-            return total_cashflow * 100 / dcf_vals.sum()
+            total_cashflow: DualTypes = sub_cashflows.sum()
+            _2 = 100.0 / dcf_vals.sum()
+            return total_cashflow * _2
         else:
             # this path not generally hit due to validation at initialisation
             raise ValueError(
@@ -1305,7 +1323,7 @@ class FloatPeriod(BasePeriod):
                 "'isda_compounding', 'isda_flat_compounding'}.",
             )
 
-    def _rfr_rate_from_individual_fixings(self, curve: Curve) -> DualTypes:
+    def _rfr_rate_from_individual_fixings(self, curve: Curve | NoInput) -> DualTypes:
         cal_, conv_ = self._maybe_get_cal_and_conv_from_curve(curve)
 
         data = self._rfr_get_individual_fixings_data(cal_, conv_, curve)
@@ -1315,7 +1333,9 @@ class FloatPeriod(BasePeriod):
             rate = self._rate_rfr_isda_compounded_with_spread(data["rates"], data["dcf_vals"])
         return rate
 
-    def _rfr_get_series_with_populated_fixings(self, obs_dates):
+    def _rfr_get_series_with_populated_fixings(
+        self, obs_dates: Series[datetime]
+    ) -> Series[DualTypes]:  # type: ignore[type-var]
         """
         Gets relevant DCF values and populates all the individual RFR fixings either known or
         from a curve, for latter calculations, either to derive a period rate or perform
@@ -1373,8 +1393,8 @@ class FloatPeriod(BasePeriod):
         return rates
 
     def _rfr_get_individual_fixings_data(
-        self, calendar: CalTypes, convention: str, curve: Curve | NoInput, allow_na=False
-    ):
+        self, calendar: CalTypes, convention: str, curve: Curve | NoInput, allow_na: bool = False
+    ) -> dict[str, Any]:
         """
         Gets relevant DCF values and populates all the individual RFR fixings either known or
         from a curve, for latter calculations, either to derive a period rate or perform
@@ -1382,10 +1402,11 @@ class FloatPeriod(BasePeriod):
 
         `allow_na` controls error handling. By default if any value is missing this will raise.
         """
+        # TODO (low) return type of dict is not very good. Use NamedTuple.
         obs_dates, dcf_dates, dcf_vals, obs_vals = self._get_method_dcf_markers(
             calendar, convention, True
         )
-        rates = self._rfr_get_series_with_populated_fixings(obs_dates)
+        rates: Series[DualTypes | None] = self._rfr_get_series_with_populated_fixings(obs_dates)  # type: ignore[type-var, assignment]
         # TODO (low) the next few lines could probably be vectorised and made more efficient.
         fixed = (~isna(rates)).to_numpy()
         if not np.all(fixed):
@@ -1396,8 +1417,8 @@ class FloatPeriod(BasePeriod):
                     "Missing data is shown below for this period:\n"
                     f"{rates}"
                 )
-            rates = Series(
-                {k: v if notna(v) else curve.rate(k, "1b", "F") for k, v in rates.items()}
+            rates = Series(  # type: ignore[assignment]
+                {k: v if notna(v) else curve.rate(k, "1b", "F") for k, v in rates.items()}  # type: ignore
             )
             # Alternative solution to PR 172.
             # rates = Series({
@@ -1569,16 +1590,10 @@ class FloatPeriod(BasePeriod):
            )
            period.fixings_table({"1m": ibor_1m, "3m": ibor_3m}, disc_curve=ibor_1m)
         """
-        if disc_curve is NoInput.blank and isinstance(curve, dict):
-            raise ValueError("Cannot infer `disc_curve` from a dict of curves.")
-        elif disc_curve is NoInput.blank:
-            if curve._base_type == "dfs":
-                disc_curve = curve
-            else:
-                raise ValueError("Must supply a discount factor based `disc_curve`.")
+        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
 
         if approximate:
-            if self.fixings is not NoInput.blank:
+            if isinstance(self.fixings, NoInput):
                 warnings.warn(
                     "Cannot approximate a fixings table when some published fixings "
                     f"are given within the period {self.start.strftime('%d-%b-%Y')}->"
@@ -1588,22 +1603,23 @@ class FloatPeriod(BasePeriod):
                 )
             else:
                 try:
-                    return self._fixings_table_fast(curve, disc_curve, right=right)
+                    return self._fixings_table_fast(curve, disc_curve_, right=right)
                 except ValueError:
                     # then probably a math domain error related to dates before the curve start
                     warnings.warn(
                         "Errored approximating a fixings table.\n Possibly this is due "
                         f"to period dates: {self.start.strftime('%d-%b-%Y')}->"
-                        f"{self.end.strftime('%d-%b-%Y')},\n and the curve initial date: "
-                        f"{curve.node_dates[0].strftime('%d-%b-%Y')}. Switching to exact mode "
-                        f"for this period.",
+                        f"{self.end.strftime('%d-%b-%Y')},\n and the curve initial date. "
+                        f"Switching to exact mode for this period.",
                         UserWarning,
                     )
                     return self.fixings_table(
-                        curve, approximate=False, disc_curve=disc_curve, right=right
+                        curve, approximate=False, disc_curve=disc_curve_, right=right
                     )
 
         if "rfr" in self.fixing_method:
+            assert not isinstance(curve, dict)  # noqa: S101
+
             cal_, conv_ = self._maybe_get_cal_and_conv_from_curve(curve)
             _d = self._rfr_get_individual_fixings_data(cal_, conv_, curve, allow_na=True)
 
@@ -1638,7 +1654,7 @@ class FloatPeriod(BasePeriod):
                     },
                 ).set_index("obs_dates")
             else:
-                rate, table = self._rfr_fixings_array(_d, disc_curve)
+                rate, table = self._rfr_fixings_array(_d, disc_curve_)
                 table = table.iloc[:-1]
                 df = table[["obs_dates", "notional", "risk", "dcf", "rates"]].set_index("obs_dates")
 
@@ -1646,18 +1662,20 @@ class FloatPeriod(BasePeriod):
                 [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"), (curve.id, "rates")]
             )
             return _trim_df_by_index(df, NoInput(0), right)
-        elif "ibor" in self.fixing_method:
-            return self._ibor_fixings_table(curve, disc_curve, right)
+        else:  #  "ibor" in self.fixing_method:
+            return self._ibor_fixings_table(curve, disc_curve_, right)
 
     def _fixings_table_fast(
-        self, curve: Curve | LineCurve, disc_curve: Curve, right: NoInput | datetime
-    ):
+        self, curve: Curve | dict[str, Curve], disc_curve: Curve, right: NoInput | datetime
+    ) -> DataFrame:
         """
         Return a DataFrame of **approximate** fixing exposures.
 
         For arguments see :meth:`~rateslib.periods.FloatPeriod.fixings_table`.
         """
         if "rfr" in self.fixing_method:
+            assert not isinstance(curve, dict)  # noqa: S101
+
             # Depending upon method get the observation dates and dcf dates
             obs_dates, dcf_dates, dcf_vals, obs_vals = self._get_method_dcf_markers(
                 curve.calendar, curve.convention, True
@@ -1693,7 +1711,7 @@ class FloatPeriod(BasePeriod):
                     / obs_vals.iloc[-(self.method_param + 1)]
                 )
             # perform an efficient rate approximation
-            rate = curve.rate(
+            rate: DualTypes = curve._rate_with_raise(
                 effective=obs_dates.iloc[0],
                 termination=obs_dates.iloc[-1],
             )
@@ -1706,7 +1724,7 @@ class FloatPeriod(BasePeriod):
             # approximate sensitivity to each fixing
             z = self.float_spread / 10000
             if "avg" in self.fixing_method:
-                drdri = 1 / n
+                drdri: DualTypes = 1 / n
             elif self.spread_compound_method == "none_simple":
                 drdri = (1 / n) * (1 + (r_bar / 100) * d) ** (n - 1)
             elif self.spread_compound_method == "isda_compounding":
@@ -1744,11 +1762,15 @@ class FloatPeriod(BasePeriod):
                 [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"), (curve.id, "rates")]
             )
             return _trim_df_by_index(df, NoInput(0), right)
-        elif "ibor" in self.fixing_method:
+        else:  # "ibor" in self.fixing_method:
             return self._ibor_fixings_table(curve, disc_curve, right=right)
 
     def _ibor_fixings_table(
-        self, curve, disc_curve, right, risk: DualTypes | NoInput = NoInput(0)
+        self,
+        curve: Curve | dict[str, Curve],
+        disc_curve: Curve,
+        right: datetime | NoInput,
+        risk: DualTypes | NoInput = NoInput(0),
     ) -> DataFrame:
         """
         Calculate a fixings_table under an IBOR based methodology.
@@ -1765,21 +1787,24 @@ class FloatPeriod(BasePeriod):
         -------
         DataFrame
         """
-        if isinstance(curve, dict) and self.stub:
-            # then must perform an interpolated calculation
-            return self._ibor_stub_fixings_table(curve, disc_curve, right, risk)
-        elif isinstance(curve, dict) and not self.stub:
-            # then extract the one relevant curve from dict
-            curve = _get_ibor_curve_from_dict(self.freq_months, curve)
+        if isinstance(curve, dict):
+            if self.stub:
+                # then must perform an interpolated calculation
+                return self._ibor_stub_fixings_table(curve, disc_curve, right, risk)
+            else:
+                # then extract the one relevant curve from dict
+                curve_: Curve = _get_ibor_curve_from_dict(self.freq_months, curve)
+        else:
+            curve_ = curve
         return self._ibor_single_tenor_fixings_table(
-            curve, disc_curve, f"{self.freq_months}m", right, risk
+            curve_, disc_curve, f"{self.freq_months}m", right, risk
         )
 
     def _ibor_single_tenor_fixings_table(
         self,
-        curve,
-        disc_curve,
-        tenor,
+        curve: Curve,
+        disc_curve: Curve,
+        tenor: str | NoInput,
         right: datetime | NoInput,
         risk: DualTypes | NoInput = NoInput(0),
     ) -> DataFrame:
@@ -1802,7 +1827,7 @@ class FloatPeriod(BasePeriod):
 
             if not isinstance(self.fixings, NoInput) or fixing_dt < curve.node_dates[0]:
                 # then fixing is set so return zero exposure.
-                _rate = NA if self.fixings is NoInput.blank else _dual_float(self.rate(curve))
+                _rate = NA if isinstance(self.fixings, NoInput) else _dual_float(self.rate(curve))
                 df = DataFrame(
                     {
                         "obs_dates": [fixing_dt],
@@ -1835,11 +1860,11 @@ class FloatPeriod(BasePeriod):
 
     def _ibor_stub_fixings_table(
         self,
-        curve: dict,
+        curve: dict[str, Curve],
         disc_curve: Curve,
         right: datetime | NoInput,
         risk: DualTypes | NoInput = NoInput(0),
-    ):
+    ) -> DataFrame:
         calendar = next(iter(curve.values())).calendar  # note: ASSUMES all curve calendars are same
         values = {add_tenor(self.start, k, "MF", calendar): k for k, v in curve.items()}
         values = dict(sorted(values.items()))
@@ -1889,7 +1914,7 @@ class FloatPeriod(BasePeriod):
         self,
         d: dict,
         disc_curve: Curve,
-    ):
+    ) -> tuple[DualTypes, DataFrame]:
         """
         Calculate the rate of a period via extraction and combination of every fixing.
 
@@ -1975,7 +2000,7 @@ class FloatPeriod(BasePeriod):
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     @property
-    def _is_inefficient(self):
+    def _is_inefficient(self) -> bool:
         """
         An inefficient float period is one which is RFR based and for which each individual
         RFR fixing is required is order to calculate correctly. This occurs in the
@@ -1992,7 +2017,7 @@ class FloatPeriod(BasePeriod):
         4) ``fixings`` are given which need to be incorporated into the calculation
         """
         if self.fixing_method in ["rfr_payment_delay", "rfr_observation_shift"]:
-            if self.fixings is not NoInput.blank:
+            if isinstance(self.fixings, NoInput):
                 return True
             else:
                 return not (self.float_spread == 0 or self.spread_compound_method == "none_simple")
@@ -2001,7 +2026,7 @@ class FloatPeriod(BasePeriod):
         # else fixing method in ["rfr_lookback", "rfr_lockout"]
         return True
 
-    def _get_method_dcf_endpoints(self, calendar: CalTypes):
+    def _get_method_dcf_endpoints(self, calendar: CalTypes) -> tuple[datetime, datetime, datetime, datetime]:
         """
         For RFR periods return the relevant DCF markers for different aspects of calculation.
 
@@ -2043,7 +2068,7 @@ class FloatPeriod(BasePeriod):
 
         return start_obs, end_obs, start_dcf, end_dcf
 
-    def _get_method_dcf_markers(self, calendar: CalTypes, convention: str, exposure=False):
+    def _get_method_dcf_markers(self, calendar: CalTypes, convention: str, exposure: bool =False):
         """
         Use conventions from the given `curve` and the data attached to self to derive
         relevant DCF calculations for the Period.
@@ -2111,12 +2136,16 @@ class FloatPeriod(BasePeriod):
 
         return obs_dates, dcf_dates, dcf_vals, obs_vals
 
-    def _get_analytic_delta_quadratic_coeffs(self, fore_curve, disc_curve):
+    def _get_analytic_delta_quadratic_coeffs(
+        self,
+        fore_curve: Curve,
+        disc_curve: Curve
+    ) -> tuple[DualTypes, DualTypes]:
         """
         For use in the Leg._spread calculation get the 'a' and 'b' coefficients
         """
         os, oe, _, _ = self._get_method_dcf_endpoints(fore_curve)
-        rate = fore_curve.rate(
+        rate: DualTypes = fore_curve._rate_with_raise(
             effective=os,
             termination=oe,
             float_spread=0.0,
@@ -2211,7 +2240,7 @@ class CreditPremiumPeriod(BasePeriod):
         """
         float, Dual or Dual2 : The calculated value from rate, dcf and notional.
         """
-        if self.fixed_rate is NoInput.blank:
+        if isinstance(self.fixed_rate, NoInput):
             return None
         else:
             return -self.notional * self.dcf * self.fixed_rate * 0.01
@@ -2229,7 +2258,7 @@ class CreditPremiumPeriod(BasePeriod):
         -------
         float
         """
-        if self.fixed_rate is NoInput.blank:
+        if isinstance(self.fixed_rate, NoInput):
             return None
         else:
             if settlement <= self.start or settlement >= self.end:
@@ -2248,11 +2277,11 @@ class CreditPremiumPeriod(BasePeriod):
         Return the NPV of the *CreditPremiumPeriod*.
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
-        if not isinstance(disc_curve, Curve) and disc_curve is NoInput.blank:
+        if not isinstance(disc_curve, Curve) and isinstance(disc_curve, NoInput):
             raise TypeError("`curves` have not been supplied correctly.")
-        if not isinstance(curve, Curve) and curve is NoInput.blank:
+        if not isinstance(curve, Curve) and isinstance(curve, NoInput):
             raise TypeError("`curves` have not been supplied correctly.")
-        if self.fixed_rate is NoInput.blank:
+        if isinstance(self.fixed_rate, NoInput):
             raise ValueError("`fixed_rate` must be set as a value to return a valid NPV.")
         v_payment = disc_curve[self.payment]
         q_end = curve[self.end]
@@ -2298,9 +2327,9 @@ class CreditPremiumPeriod(BasePeriod):
         See
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
         """
-        if not isinstance(disc_curve, Curve) and disc_curve is NoInput.blank:
+        if not isinstance(disc_curve, Curve) and isinstance(disc_curve, NoInput):
             raise TypeError("`curves` have not been supplied correctly.")
-        if not isinstance(curve, Curve) and curve is NoInput.blank:
+        if not isinstance(curve, Curve) and isinstance(curve, NoInput):
             raise TypeError("`curves` have not been supplied correctly.")
 
         v_payment = disc_curve[self.payment]
@@ -2347,7 +2376,7 @@ class CreditPremiumPeriod(BasePeriod):
         """
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
-        if curve is not NoInput.blank and disc_curve is not NoInput.blank:
+        if not isinstance(curve, NoInput) and not isinstance(disc_curve, NoInput):
             npv = _dual_float(self.npv(curve, disc_curve))
             npv_fx = npv * _dual_float(fx)
             survival = _dual_float(curve[self.end])
@@ -2442,9 +2471,9 @@ class CreditProtectionPeriod(BasePeriod):
         Return the NPV of the *CreditProtectionPeriod*.
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
-        if not isinstance(disc_curve, Curve) and disc_curve is NoInput.blank:
+        if not isinstance(disc_curve, Curve) and isinstance(disc_curve, NoInput):
             raise TypeError("`curves` have not been supplied correctly.")
-        if not isinstance(curve, Curve) and curve is NoInput.blank:
+        if not isinstance(curve, Curve) and isinstance(curve, NoInput):
             raise TypeError("`curves` have not been supplied correctly.")
 
         if self.start < curve.node_dates[0]:
@@ -2493,7 +2522,7 @@ class CreditProtectionPeriod(BasePeriod):
         """
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
-        if curve is not NoInput.blank and disc_curve is not NoInput.blank:
+        if not isinstance(curve, NoInput) and not isinstance(disc_curve, NoInput):
             npv = _dual_float(self.npv(curve, disc_curve))
             npv_fx = npv * _dual_float(fx)
             survival = _dual_float(curve[self.end])
@@ -4337,7 +4366,7 @@ def _float_or_none(val: DualTypes | None) -> float | None:
         return _dual_float(val)
 
 
-def _get_ibor_curve_from_dict(months, d):
+def _get_ibor_curve_from_dict(months: int, d: dict[str, Curve]) -> Curve:
     try:
         return d[f"{months}m"]
     except KeyError:

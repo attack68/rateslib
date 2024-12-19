@@ -146,7 +146,7 @@ exclude = [
     "/instruments",
     "fx_volatility.py",
     "legs.py",
-    "periods.py",
+    # "periods.py",
     "solver.py",
 ]
 strict = true

@@ -740,10 +740,10 @@ class TestFloatPeriod:
             convention="act365f",
             notional=-1000000,
         )
-        with pytest.raises(ValueError, match="Must supply a discount factor based `disc_curve`."):
+        with pytest.raises(ValueError, match="`disc_curve` cannot be inferred from a non-DF based"):
             period.fixings_table(curve=line_curve)
 
-        with pytest.raises(ValueError, match="Cannot infer `disc_curve` from a dict of curves."):
+        with pytest.raises(ValueError, match="`disc_curve` cannot be inferred from a dictionary"):
             period.fixings_table(curve={"1m": line_curve, "2m": line_curve})
 
     @pytest.mark.parametrize(
@@ -1638,7 +1638,7 @@ class TestFloatPeriod:
             float_spread=0.0,
             stub=True,
         )
-        with pytest.raises(ValueError, match="Must supply a valid `curve` for forecasting"):
+        with pytest.raises(ValueError, match="Cannot supply dict of tenor curves to `curve`"):
             period.rate({"rfr": curve})
 
     def test_ibor_stub_fixings_table(self) -> None:

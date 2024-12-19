@@ -2385,6 +2385,19 @@ class CompositeCurve(Curve):
 
         return _
 
+    def _rate_with_raise(  # type: ignore[override]
+        self,
+        effective: datetime,
+        termination: datetime | str | NoInput,
+        modifier: str | NoInput = NoInput(1),
+        approximate: bool = True,
+    ) -> DualTypes:
+        rate_: DualTypes | None = self.rate(effective, termination, modifier, approximate)
+        if rate_ is None:
+            raise ValueError("CompositeCurve returned None for `rate`.")
+        else:
+            return rate_
+
     def __getitem__(self, date: datetime) -> DualTypes:
         if self._base_type == "dfs":
             # will return a composited discount factor
