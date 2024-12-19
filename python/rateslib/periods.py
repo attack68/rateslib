@@ -1928,7 +1928,10 @@ class FloatPeriod(BasePeriod):
         )
         # these are zero-lag discount factors associated with each published fixing
         rates_dual = Series(
-            [Dual(_dual_float(r), [f"fixing_{i}"], []) for i, (k, r) in enumerate(d["rates"].items())],
+            [
+                Dual(_dual_float(r), [f"fixing_{i}"], [])
+                for i, (k, r) in enumerate(d["rates"].items())
+            ],
             index=d["rates"].index,
         )
         if self.fixing_method in ["rfr_lockout", "rfr_lockout_avg"]:
@@ -2260,7 +2263,11 @@ class CreditPremiumPeriod(BasePeriod):
 
             if self.start < curve.node_dates[0]:
                 # then mid-period valuation
-                r, q_start, _v_start = _dual_float((curve.node_dates[0] - self.start).days), 1.0, 1.0
+                r, q_start, _v_start = (
+                    _dual_float((curve.node_dates[0] - self.start).days),
+                    1.0,
+                    1.0,
+                )
             else:
                 r, q_start, _v_start = 0.0, curve[self.start], disc_curve[self.start]
 
@@ -2305,7 +2312,11 @@ class CreditPremiumPeriod(BasePeriod):
 
             if self.start < curve.node_dates[0]:
                 # then mid-period valuation
-                r, q_start, _v_start = _dual_float((curve.node_dates[0] - self.start).days), 1.0, 1.0
+                r, q_start, _v_start = (
+                    _dual_float((curve.node_dates[0] - self.start).days),
+                    1.0,
+                    1.0,
+                )
             else:
                 r, q_start, _v_start = 0.0, curve[self.start], disc_curve[self.start]
 
