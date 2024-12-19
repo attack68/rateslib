@@ -13,17 +13,16 @@
 Constructing Curves
 ********************
 
-*Rateslib* has six different interest rate *Curve* classes. Three of these are fundamental base
+*Rateslib* has five different interest rate *Curve* classes. Two of these are fundamental base
 *Curves* of different types and for different purposes. Three are objects which are
 constructed via references to other curves to allow certain combinations. *Rateslib* also
 has one type of *Smile* for *FX volatility*.
 
-The three fundamental curve classes are:
+The two fundamental curve classes are:
 
 .. autosummary::
    rateslib.curves.Curve
    rateslib.curves.LineCurve
-   rateslib.curves.IndexCurve
 
 The remaining, more complex, combination classes are:
 

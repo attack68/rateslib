@@ -867,6 +867,36 @@ class TestZeroFixedLeg:
             rtol=1e-3,
         )
 
+    def test_zero_fixed_leg_cashflows_cal(self, curve) -> None:
+        # assert stated cashflows accrual dates are adjusted according to calendar
+        # GH561/562
+        zfl = ZeroFixedLeg(
+            effective=dt(2024, 12, 15),
+            termination="5y",
+            payment_lag=0,
+            notional=-1e8,
+            calendar="tgt",
+            modifier="mf",
+            convention="ActAct",
+            frequency="A",
+            fixed_rate=2.0,
+        )
+        result = zfl.cashflows(curve)
+        expected = DataFrame(
+            {
+                "Type": ["ZeroFixedLeg"],
+                "Acc Start": [dt(2024, 12, 16)],
+                "Acc End": [dt(2029, 12, 17)],
+                "DCF": [5.0],
+                "Rate": [2.0],
+            },
+        )
+        assert_frame_equal(
+            result[["Type", "Acc Start", "Acc End", "DCF", "Rate"]],
+            expected,
+            rtol=1e-3,
+        )
+
     def test_zero_fixed_leg_npv(self, curve) -> None:
         zfl = ZeroFixedLeg(
             effective=dt(2022, 1, 1),

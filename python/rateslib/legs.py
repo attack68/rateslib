@@ -33,7 +33,7 @@ from pandas.tseries.offsets import CustomBusinessDay
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor
-from rateslib.curves import Curve, IndexCurve, index_left
+from rateslib.curves import Curve, index_left
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, DualTypes, gradient, set_order
 from rateslib.fx import FXForwards, FXRates
@@ -1587,8 +1587,8 @@ class ZeroFixedLeg(BaseLeg, _FixedLegMixin):
                 defaults.headers["type"]: type(self).__name__,
                 defaults.headers["stub_type"]: None,
                 defaults.headers["currency"]: self.currency.upper(),
-                defaults.headers["a_acc_start"]: self.schedule.effective,
-                defaults.headers["a_acc_end"]: self.schedule.termination,
+                defaults.headers["a_acc_start"]: self.schedule.aschedule[0],
+                defaults.headers["a_acc_end"]: self.schedule.aschedule[-1],
                 defaults.headers["payment"]: self.schedule.pschedule[-1],
                 defaults.headers["convention"]: self.convention,
                 defaults.headers["dcf"]: self.dcf,
@@ -1709,7 +1709,7 @@ class ZeroIndexLeg(BaseLeg, _IndexLegMixin):
     --------
     .. ipython:: python
 
-       index_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2027, 1, 1): 0.95}, index_base=100.0)
+       index_curve = Curve({dt(2022, 1, 1): 1.0, dt(2027, 1, 1): 0.95}, index_base=100.0)
        zil = ZeroIndexLeg(
            effective=dt(2022, 1, 15),
            termination="3Y",
@@ -1767,9 +1767,9 @@ class ZeroIndexLeg(BaseLeg, _IndexLegMixin):
             ),
         ]
 
-    def cashflow(self, curve: IndexCurve | None = None):
-        """Aggregate the cashflows on the *IndexFixedPeriod* and *Cashflow* period using an
-        *IndexCurve*."""
+    def cashflow(self, curve: Curve | None = None):
+        """Aggregate the cashflows on the *IndexFixedPeriod* and *Cashflow* period using a
+        *Curve*."""
         _ = self.periods[0].cashflow(curve) + self.periods[1].cashflow
         return _
 
@@ -2159,7 +2159,7 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):
     .. ipython:: python
 
        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
-       index_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_base=100.0)
+       index_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_base=100.0)
        index_leg_exch = IndexFixedLeg(
            dt(2022, 1, 1), "9M", "Q",
            notional=1000000,

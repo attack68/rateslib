@@ -120,7 +120,7 @@ will also be indexed by the index.
 
 .. ipython:: python
 
-   icurve = IndexCurve({dt(2000, 1, 1): 1.0, dt(2010, 1, 1): 0.75}, index_base=100.0)
+   icurve = Curve({dt(2000, 1, 1): 1.0, dt(2010, 1, 1): 0.75}, index_base=100.0)
    il = IndexFixedLeg(
        effective=dt(2000, 1, 1),
        termination="1y",

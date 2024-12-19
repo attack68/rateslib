@@ -45,6 +45,10 @@ Defaults
    :skip: Enum
    :skip: read_csv
    :skip: get_named_calendar
+   :skip: Cal
+   :skip: NamedCal
+   :skip: Series
+   :skip: UnionCal
 
 Calendars
 ==========
@@ -59,8 +63,6 @@ Scheduling
 .. automodapi:: rateslib.scheduling
    :no-heading:
    :no-inheritance-diagram:
-   :skip: Any
-   :skip: CustomBusinessDay
    :skip: DataFrame
    :skip: Iterator
    :skip: datetime
@@ -174,7 +176,6 @@ FX Volatility
    :skip: NoInput
    :skip: newton_1dim
    :skip: uuid4
-   :skip: Union
    :skip: datetime
    :skip: dt
    :skip: timedelta
