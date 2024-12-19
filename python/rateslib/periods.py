@@ -24,7 +24,7 @@ import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
 from math import comb, log
-from typing import Any, Type
+from typing import Any
 
 import numpy as np
 from pandas import NA, DataFrame, Index, MultiIndex, Series, concat, isna, notna
@@ -930,8 +930,10 @@ class FloatPeriod(BasePeriod):
             dr_dz: float = 1.0
         elif isinstance(curve, Curve):
             _ = self.float_spread
-            DualType: Type[Dual] | Type[Dual2] = Dual if curve.ad in [0, 1] else Dual2
-            DualArgs: tuple[list[Any]] | tuple[list[Any], list[Any]] = ([],) if curve.ad in [0, 1] else ([], [])
+            DualType: type[Dual] | type[Dual2] = Dual if curve.ad in [0, 1] else Dual2
+            DualArgs: tuple[list[Any]] | tuple[list[Any], list[Any]] = (
+                ([],) if curve.ad in [0, 1] else ([], [])
+            )
             self.float_spread = DualType(_dual_float(_), ["z_float_spread"], *DualArgs)
             rate: Dual | Dual2 = self.rate(curve)  # type: ignore[assignment]
             dr_dz = gradient(rate, ["z_float_spread"])[0] * 100
