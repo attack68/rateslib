@@ -135,10 +135,15 @@ Initial Node Date
 The initial node date for either curve type is important because it is implied
 to be the date of the construction of the curve (i.e. today's date).
 When a :class:`~rateslib.curves.Curve` acts as a discount curve any net present
-values (NPVs) may assume other features
-from this initial node, e.g. the regular settlement date of securities or the value of
-cashflows on derivatives. This is the reason the initial discount factor should also
+values (NPVs) might assume other features
+from this initial node, e.g. the regular settlement date of securities.
+This is the also the reason the initial discount factor should also
 be exactly 1.0 on a :class:`~rateslib.curves.Curve`.
+
+The only exception to this is when building a *Curve* used to forecast index vales, such
+as inflation forecasts, it may be practical to start the curve using the most recent
+inflation print which is usually assigned to the start of the month,
+thus this may be before *today*.
 
 Get Item
 --------
