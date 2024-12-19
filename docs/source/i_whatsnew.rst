@@ -53,7 +53,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
    * - Dependencies
      - Drop support for Python 3.9, only versions 3.10 - 3.13 now supported.
    * - Refactor
-       :class:`~rateslib.curves.CompositeCurve` no longer requires all curves to have the same ``index_base``
+     - :class:`~rateslib.curves.CompositeCurve` no longer requires all curves to have the same ``index_base``
        or ``index_lag``. Those values will be sampled from the first provided composited *Curve*.
    * - Refactor
      - :red:`Minor Breaking Change!` :meth:`~rateslib.calendars.get_calendar` has dropped the
