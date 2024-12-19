@@ -31,7 +31,7 @@ from pandas import NA, DataFrame, Index, MultiIndex, Series, concat, isna, notna
 
 from rateslib import defaults
 from rateslib.calendars import CalInput, CalTypes, _get_eom, add_tenor, dcf, get_calendar
-from rateslib.curves import CompositeCurve, Curve, IndexCurve, LineCurve, average_rate, index_left
+from rateslib.curves import Curve, LineCurve, average_rate, index_left
 from rateslib.default import NoInput, _drb
 from rateslib.dual import (
     Dual,
@@ -1061,7 +1061,7 @@ class FloatPeriod(BasePeriod):
 
         Parameters
         ----------
-        curve : Curve, LineCurve, IndexCurve, dict of curves, optional
+        curve : Curve, LineCurve, dict of curves, optional
             The forecasting curve object. If ``fixings`` are available on the Period may be able
             to return a value without, otherwise will raise.
 
@@ -1443,7 +1443,7 @@ class FloatPeriod(BasePeriod):
 
         Parameters
         ----------
-        curve : Curve, LineCurve, IndexCurve dict of such
+        curve : Curve, LineCurve, dict of such
             The forecast needed to calculate rates which affect compounding and
             dependent notional exposure.
         approximate : bool, optional
@@ -2712,7 +2712,7 @@ class IndexMixin(metaclass=ABCMeta):
     payment: datetime = datetime(1990, 1, 1)
     currency: str = ""
 
-    def cashflow(self, curve: IndexCurve | NoInput = NoInput(0)) -> DualTypes | None:
+    def cashflow(self, curve: Curve | NoInput = NoInput(0)) -> DualTypes | None:
         """
         float, Dual or Dual2 : The calculated value from rate, dcf and notional,
         adjusted for the index.
@@ -2730,7 +2730,7 @@ class IndexMixin(metaclass=ABCMeta):
             _ = self.real_cashflow * (index_ratio + _)
         return _
 
-    def index_ratio(self, curve: IndexCurve | NoInput = NoInput(0)) -> tuple:
+    def index_ratio(self, curve: Curve | NoInput = NoInput(0)) -> tuple:
         """
         Calculate the index ratio for the end date of the *IndexPeriod*.
 
@@ -2740,8 +2740,8 @@ class IndexMixin(metaclass=ABCMeta):
 
         Parameters
         ----------
-        curve : IndexCurve
-            The index curve from which index values are forecast.
+        curve : Curve
+            The curve from which index values are forecast.
 
         Returns
         -------
@@ -2769,17 +2769,17 @@ class IndexMixin(metaclass=ABCMeta):
     @staticmethod
     def _index_value_from_curve(
         i_date: datetime,
-        i_curve: IndexCurve | NoInput,
+        i_curve: Curve | NoInput,
         i_lag: int,
         i_method: str,
     ) -> DualTypes | None:
-        if i_curve is NoInput.blank:
+        if isinstance(i_curve, NoInput):
             return None
-        elif (not isinstance(i_curve, IndexCurve) and not isinstance(i_curve, CompositeCurve)) or (
-            isinstance(i_curve, CompositeCurve) and not isinstance(i_curve.curves[0], IndexCurve)
-        ):
-            raise TypeError("`index_value` must be forecast from an `IndexCurve`.")
         elif i_lag != i_curve.index_lag:
+            warnings.warn(
+                f"The `index_lag` of the Period ({i_lag}) does not match "
+                f"the `index_lag` of the Curve ({i_curve.index_lag}): returning None."
+            )
             return None  # TODO decide if RolledCurve to correct index lag be attempted
         else:
             return i_curve.index_value(i_date, i_method)
@@ -2788,7 +2788,7 @@ class IndexMixin(metaclass=ABCMeta):
     def _index_value(
         i_fixings: float | Series | NoInput,
         i_date: datetime,
-        i_curve: IndexCurve | NoInput,
+        i_curve: Curve | NoInput,
         i_lag: int,
         i_method: str,
     ) -> DualTypes | NoInput:
@@ -2800,7 +2800,7 @@ class IndexMixin(metaclass=ABCMeta):
 
         Parameters
         ----------
-        curve : IndexCurve
+        curve : Curve
 
         Returns
         -------
@@ -2840,7 +2840,7 @@ class IndexMixin(metaclass=ABCMeta):
 
     def npv(
         self,
-        curve: IndexCurve | NoInput = NoInput(0),
+        curve: Curve | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -2933,7 +2933,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
            index_base=100.25,
        )
        ifp.cashflows(
-           curve=IndexCurve({dt(2022, 1, 1):1.0, dt(2022, 12, 31): 0.99}, index_base=100.0, index_lag=2),
+           curve=Curve({dt(2022, 1, 1):1.0, dt(2022, 12, 31): 0.99}, index_base=100.0, index_lag=2),
            disc_curve=Curve({dt(2022, 1, 1):1.0, dt(2022, 12, 31): 0.98})
        )
     """  # noqa: E501
@@ -2992,7 +2992,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
 
     def cashflows(
         self,
-        curve: IndexCurve | NoInput = NoInput(0),
+        curve: Curve | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -3107,7 +3107,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
            index_base=100.25
        )
        icf.cashflows(
-           curve=IndexCurve({dt(2022, 1, 1): 1.0, dt(2022, 12, 31): 0.99}, index_base=100.0),
+           curve=Curve({dt(2022, 1, 1): 1.0, dt(2022, 12, 31): 0.99}, index_base=100.0),
            disc_curve=Curve({dt(2022, 1, 1): 1.0, dt(2022, 12, 31): 0.98}),
        )
     """
