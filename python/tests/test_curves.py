@@ -172,7 +172,8 @@ def test_serialization(curve) -> None:
         '{"nodes": {"2022-03-01": 1.0, "2022-03-31": 0.99}, '
         '"interpolation": "linear", "t": null, "c": null, "id": "v", '
         '"convention": "Act360", "endpoints": ["natural", "natural"], "modifier": "MF", '
-        '"calendar": "{\\"Cal\\":{\\"holidays\\":[],\\"week_mask\\":[]}}", "ad": 1}'
+        '"calendar": "{\\"Cal\\":{\\"holidays\\":[],\\"week_mask\\":[]}}", "ad": 1, '
+        '"index_base": null, "index_lag": 3}'
     )
     result = curve.to_json()
     assert result == expected
@@ -749,7 +750,7 @@ def test_linecurve_shift_dual_input() -> None:
 @pytest.mark.parametrize("ad_order", [0, 1, 2])
 @pytest.mark.parametrize("composite", [True, False])
 def test_indexcurve_shift(ad_order, composite) -> None:
-    curve = IndexCurve(
+    curve = Curve(
         nodes={
             dt(2022, 1, 1): 1.0,
             dt(2023, 1, 1): 0.988,
@@ -898,6 +899,34 @@ def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, sp
             1e-8,
         ),
         (
+            Curve(
+                nodes={
+                    dt(2022, 1, 1): 1.0,
+                    dt(2023, 1, 1): 0.988,
+                    dt(2024, 1, 1): 0.975,
+                    dt(2025, 1, 1): 0.965,
+                    dt(2026, 1, 1): 0.955,
+                    dt(2027, 1, 1): 0.9475,
+                },
+                t=[
+                    dt(2024, 1, 1),
+                    dt(2024, 1, 1),
+                    dt(2024, 1, 1),
+                    dt(2024, 1, 1),
+                    dt(2025, 1, 1),
+                    dt(2026, 1, 1),
+                    dt(2027, 1, 1),
+                    dt(2027, 1, 1),
+                    dt(2027, 1, 1),
+                    dt(2027, 1, 1),
+                ],
+                index_base=110.0,
+                interpolation="linear_index",
+            ),
+            False,
+            1e-8,
+        ),
+        (
             LineCurve(
                 nodes={
                     dt(2022, 1, 1): 1.7,
@@ -962,7 +991,7 @@ def test_curve_translate(crv, t, tol) -> None:
         ],
     )
     assert np.all(np.abs(diff) < tol)
-    if type(crv) is IndexCurve:
+    if not isinstance(result_curve.index_base, NoInput):
         assert result_curve.index_base == crv.index_value(dt(2023, 1, 1))
 
 
@@ -1176,6 +1205,34 @@ class TestCurve:
         )
         assert isinstance(curve, Curve)
 
+    def test_curve_translate_knots_raises(self) -> None:
+        curve = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.988,
+                dt(2024, 1, 1): 0.975,
+                dt(2025, 1, 1): 0.965,
+                dt(2026, 1, 1): 0.955,
+                dt(2027, 1, 1): 0.9475,
+            },
+            t=[
+                dt(2022, 1, 1),
+                dt(2022, 1, 1),
+                dt(2022, 1, 1),
+                dt(2022, 1, 1),
+                dt(2022, 12, 1),
+                dt(2024, 1, 1),
+                dt(2025, 1, 1),
+                dt(2026, 1, 1),
+                dt(2027, 1, 1),
+                dt(2027, 1, 1),
+                dt(2027, 1, 1),
+                dt(2027, 1, 1),
+            ],
+        )
+        with pytest.raises(ValueError, match="Cannot translate spline knots for given"):
+            curve.translate(dt(2022, 12, 15))
+
 
 class TestLineCurve:
     def test_repr(self):
@@ -1205,38 +1262,11 @@ class TestLineCurve:
 
 
 class TestIndexCurve:
-    def test_curve_translate_knots_raises(self, curve) -> None:
-        curve = Curve(
-            nodes={
-                dt(2022, 1, 1): 1.0,
-                dt(2023, 1, 1): 0.988,
-                dt(2024, 1, 1): 0.975,
-                dt(2025, 1, 1): 0.965,
-                dt(2026, 1, 1): 0.955,
-                dt(2027, 1, 1): 0.9475,
-            },
-            t=[
-                dt(2022, 1, 1),
-                dt(2022, 1, 1),
-                dt(2022, 1, 1),
-                dt(2022, 1, 1),
-                dt(2022, 12, 1),
-                dt(2024, 1, 1),
-                dt(2025, 1, 1),
-                dt(2026, 1, 1),
-                dt(2027, 1, 1),
-                dt(2027, 1, 1),
-                dt(2027, 1, 1),
-                dt(2027, 1, 1),
-            ],
-        )
-        with pytest.raises(ValueError, match="Cannot translate spline knots for given"):
-            curve.translate(dt(2022, 12, 15))
-
     def test_curve_index_linear_daily_interp(self) -> None:
-        curve = IndexCurve(
+        curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 1, 5): 0.9999},
             index_base=200.0,
+            interpolation="linear_index",
         )
         result = curve.index_value(dt(2022, 1, 5))
         expected = 200.020002002
@@ -1251,13 +1281,13 @@ class TestIndexCurve:
             IndexCurve({dt(2022, 1, 1): 1.0})
 
     def test_index_value_raises(self) -> None:
-        curve = IndexCurve({dt(2022, 1, 1): 1.0}, index_base=100.0)
+        curve = Curve({dt(2022, 1, 1): 1.0}, index_base=100.0)
         with pytest.raises(ValueError, match="`interpolation` for `index_value`"):
             curve.index_value(dt(2022, 1, 1), interpolation="BAD")
 
     @pytest.mark.parametrize("ad", [0, 1, 2])
     def test_roll_preserves_ad(self, ad) -> None:
-        curve = IndexCurve(
+        curve = Curve(
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_base=100.0,
             index_lag=3,
@@ -1268,7 +1298,7 @@ class TestIndexCurve:
         assert new_curve.ad == curve.ad
 
     def test_historic_rate_is_none(self) -> None:
-        curve = IndexCurve(
+        curve = Curve(
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_base=100.0,
             index_lag=3,
@@ -1481,21 +1511,22 @@ class TestCompositeCurve:
             CompositeCurve([c1, c2])
 
     @pytest.mark.parametrize(
-        ("lag", "base"), [([2, 3], [100.0, 100.0]), ([3, 3], [100.0, 100.001])]
+        ("lag", "base"), [([2, 3], [100.0, 99.0]), ([4, NoInput(0)], [100.0, NoInput(0)])]
     )
-    def test_index_curves_raises(self, lag, base) -> None:
-        ic1 = IndexCurve(
+    def test_index_curves_take_first_value(self, lag, base) -> None:
+        ic1 = Curve(
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_lag=lag[0],
             index_base=base[0],
         )
-        ic2 = IndexCurve(
+        ic2 = Curve(
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_lag=lag[1],
             index_base=base[1],
         )
-        with pytest.raises(ValueError, match="Cannot composite curves with different"):
-            CompositeCurve([ic1, ic2])
+        cc = CompositeCurve([ic1, ic2])
+        assert cc.index_base == base[0]
+        assert cc.index_lag == lag[0]
 
     def test_index_curves_attributes(self) -> None:
         ic1 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
@@ -1551,7 +1582,7 @@ class TestCompositeCurve:
 
     def test_composite_curve_no_index_value_raises(self, curve) -> None:
         cc = CompositeCurve([curve])
-        with pytest.raises(TypeError, match="`index_value` not available"):
+        with pytest.raises(ValueError, match="Curve must be initialised with an `index_base`"):
             cc.index_value(dt(2022, 1, 1))
 
     def test_historic_rate_is_none(self) -> None:

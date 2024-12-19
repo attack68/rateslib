@@ -688,6 +688,14 @@ def test_dual_set_order(x_1, y_1) -> None:
     assert set_order(x_1, 0) == 1.0
 
 
+def test_variable_set_order() -> None:
+    x = Variable(2.0, ["x"])
+    x_dual = set_order(x, order=1)
+    assert isinstance(x_dual, Dual)
+    x_dual2 = set_order(x, order=2)
+    assert isinstance(x_dual2, Dual2)
+
+
 # Linalg dual_solve tests
 
 
