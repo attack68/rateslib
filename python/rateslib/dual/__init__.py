@@ -25,11 +25,13 @@ def _dual_float(val: DualTypes) -> float:
     """Overload for the float() builtin to handle Pyo3 issues with Variabe"""
     try:
         return float(val)  # type: ignore[arg-type]
-    except TypeError:  # val is not Number but a Variable
-        #  This does not work well with rust.
-        #  See: https://github.com/PyO3/pyo3/issues/3672
-        #  and https://github.com/PyO3/pyo3/discussions/3911
-        return val.real
+    except TypeError as e:  # val is not Number but a Variable
+        if isinstance(val, Variable):
+            #  This does not work well with rust.
+            #  See: https://github.com/PyO3/pyo3/issues/3672
+            #  and https://github.com/PyO3/pyo3/discussions/3911
+            return val.real
+        raise e
 
 
 def set_order(val: DualTypes, order: int) -> DualTypes:

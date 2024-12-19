@@ -932,7 +932,7 @@ class FloatPeriod(BasePeriod):
             _ = self.float_spread
             DualType = Dual if curve.ad in [0, 1] else Dual2
             DualArgs = ([],) if curve.ad in [0, 1] else ([], [])
-            self.float_spread = DualType(float(_), ["z_float_spread"], *DualArgs)
+            self.float_spread = DualType(_dual_float(_), ["z_float_spread"], *DualArgs)
             rate = self.rate(curve)
             dr_dz = gradient(rate, ["z_float_spread"])[0] * 100
             self.float_spread = _
@@ -1680,8 +1680,8 @@ class FloatPeriod(BasePeriod):
                 return df
             # approximate DFs
             v_vals = Series(np.nan, index=obs_dates.iloc[1:])
-            v_vals.iloc[0] = log(float(disc_curve[obs_dates.iloc[1]]))
-            v_vals.iloc[-1] = log(float(disc_curve[obs_dates.iloc[-1]]))
+            v_vals.iloc[0] = log(_dual_float(disc_curve[obs_dates.iloc[1]]))
+            v_vals.iloc[-1] = log(_dual_float(disc_curve[obs_dates.iloc[-1]]))
             v_vals = v_vals.interpolate(method="time")
             v_vals = Series(np.exp(v_vals.to_numpy()), index=obs_vals.index)
 
@@ -1718,9 +1718,9 @@ class FloatPeriod(BasePeriod):
                     + ((r_bar / 100 + z) / n) * (comb(n, 2) * d + 2 * comb(n, 3) * dr * d)
                 )
 
-            v = float(disc_curve[self.payment])
+            v = _dual_float(disc_curve[self.payment])
             notional_exposure = Series(
-                (-self.notional * self.dcf * float(drdri) * v / d * scalar) / v_vals,
+                (-self.notional * self.dcf * _dual_float(drdri) * v / d * scalar) / v_vals,
                 index=obs_vals.index,
             )
 
@@ -1802,7 +1802,7 @@ class FloatPeriod(BasePeriod):
 
             if not isinstance(self.fixings, NoInput) or fixing_dt < curve.node_dates[0]:
                 # then fixing is set so return zero exposure.
-                _rate = NA if self.fixings is NoInput.blank else float(self.rate(curve))
+                _rate = NA if self.fixings is NoInput.blank else _dual_float(self.rate(curve))
                 df = DataFrame(
                     {
                         "obs_dates": [fixing_dt],
@@ -1821,8 +1821,8 @@ class FloatPeriod(BasePeriod):
                 df = DataFrame(
                     {
                         "obs_dates": [fixing_dt],
-                        "notional": float(risk / (reg_dcf * disc_curve[reg_end_dt])),
-                        "risk": float(risk) * 0.0001,  # scale to bp
+                        "notional": _dual_float(risk / (reg_dcf * disc_curve[reg_end_dt])),
+                        "risk": _dual_float(risk) * 0.0001,  # scale to bp
                         "dcf": [reg_dcf],
                         "rates": [self.rate(curve)],
                     },
@@ -1928,7 +1928,7 @@ class FloatPeriod(BasePeriod):
         )
         # these are zero-lag discount factors associated with each published fixing
         rates_dual = Series(
-            [Dual(float(r), [f"fixing_{i}"], []) for i, (k, r) in enumerate(d["rates"].items())],
+            [Dual(_dual_float(r), [f"fixing_{i}"], []) for i, (k, r) in enumerate(d["rates"].items())],
             index=d["rates"].index,
         )
         if self.fixing_method in ["rfr_lockout", "rfr_lockout_avg"]:
@@ -1943,7 +1943,7 @@ class FloatPeriod(BasePeriod):
         ).astype(float)
         v = disc_curve[self.payment]
 
-        risk = -float(self.notional) * self.dcf * float(v) * dr_drj
+        risk = -_dual_float(self.notional) * self.dcf * _dual_float(v) * dr_drj
         risk[d["fixed"]] = 0.0
 
         notional_exposure = Series(0.0, index=range(len(dr_drj.index)))
@@ -2256,11 +2256,11 @@ class CreditPremiumPeriod(BasePeriod):
         _ = 0.0
         if self.premium_accrued:
             v_end = disc_curve[self.end]
-            n = float((self.end - self.start).days)
+            n = _dual_float((self.end - self.start).days)
 
             if self.start < curve.node_dates[0]:
                 # then mid-period valuation
-                r, q_start, _v_start = float((curve.node_dates[0] - self.start).days), 1.0, 1.0
+                r, q_start, _v_start = _dual_float((curve.node_dates[0] - self.start).days), 1.0, 1.0
             else:
                 r, q_start, _v_start = 0.0, curve[self.start], disc_curve[self.start]
 
@@ -2301,11 +2301,11 @@ class CreditPremiumPeriod(BasePeriod):
         _ = 0.0
         if self.premium_accrued:
             v_end = disc_curve[self.end]
-            n = float((self.end - self.start).days)
+            n = _dual_float((self.end - self.start).days)
 
             if self.start < curve.node_dates[0]:
                 # then mid-period valuation
-                r, q_start, _v_start = float((curve.node_dates[0] - self.start).days), 1.0, 1.0
+                r, q_start, _v_start = _dual_float((curve.node_dates[0] - self.start).days), 1.0, 1.0
             else:
                 r, q_start, _v_start = 0.0, curve[self.start], disc_curve[self.start]
 
@@ -2337,19 +2337,19 @@ class CreditPremiumPeriod(BasePeriod):
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
         if curve is not NoInput.blank and disc_curve is not NoInput.blank:
-            npv = float(self.npv(curve, disc_curve))
-            npv_fx = npv * float(fx)
-            survival = float(curve[self.end])
+            npv = _dual_float(self.npv(curve, disc_curve))
+            npv_fx = npv * _dual_float(fx)
+            survival = _dual_float(curve[self.end])
         else:
             npv, npv_fx, survival = None, None, None
 
         return {
             **super().cashflows(curve, disc_curve, fx, base),
-            defaults.headers["rate"]: float(self.fixed_rate),
+            defaults.headers["rate"]: _dual_float(self.fixed_rate),
             defaults.headers["survival"]: survival,
-            defaults.headers["cashflow"]: float(self.cashflow),
+            defaults.headers["cashflow"]: _dual_float(self.cashflow),
             defaults.headers["npv"]: npv,
-            defaults.headers["fx"]: float(fx),
+            defaults.headers["fx"]: _dual_float(fx),
             defaults.headers["npv_fx"]: npv_fx,
         }
 
@@ -2483,19 +2483,19 @@ class CreditProtectionPeriod(BasePeriod):
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
         if curve is not NoInput.blank and disc_curve is not NoInput.blank:
-            npv = float(self.npv(curve, disc_curve))
-            npv_fx = npv * float(fx)
-            survival = float(curve[self.end])
+            npv = _dual_float(self.npv(curve, disc_curve))
+            npv_fx = npv * _dual_float(fx)
+            survival = _dual_float(curve[self.end])
         else:
             npv, npv_fx, survival = None, None, None
 
         return {
             **super().cashflows(curve, disc_curve, fx, base),
-            defaults.headers["recovery"]: float(self.recovery_rate),
+            defaults.headers["recovery"]: _dual_float(self.recovery_rate),
             defaults.headers["survival"]: survival,
-            defaults.headers["cashflow"]: float(self.cashflow),
+            defaults.headers["cashflow"]: _dual_float(self.cashflow),
             defaults.headers["npv"]: npv,
-            defaults.headers["fx"]: float(fx),
+            defaults.headers["fx"]: _dual_float(fx),
             defaults.headers["npv_fx"]: npv_fx,
         }
 
@@ -2520,10 +2520,10 @@ class CreditProtectionPeriod(BasePeriod):
         if isinstance(rr, Dual | Dual2 | Variable):
             self.recovery_rate = Variable(rr.real, ["__recovery_rate__"])
         else:
-            self.recovery_rate = Variable(float(rr), ["__recovery_rate__"])
+            self.recovery_rate = Variable(_dual_float(rr), ["__recovery_rate__"])
         pv = self.npv(curve, disc_curve, fx, base, False)
         self.recovery_rate = rr
-        _ = float(gradient(pv, ["__recovery_rate__"], order=1)[0])
+        _ = _dual_float(gradient(pv, ["__recovery_rate__"], order=1)[0])
         return _ * 0.01
 
 
@@ -2597,7 +2597,7 @@ class Cashflow:
         self.notional, self.payment = notional, payment
         self.currency = defaults.base_currency if currency is NoInput.blank else currency.lower()
         self.stub_type = stub_type
-        self._rate = rate if rate is NoInput.blank else float(rate)
+        self._rate = rate if rate is NoInput.blank else _dual_float(rate)
 
     def __repr__(self):
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
@@ -2645,12 +2645,12 @@ class Cashflow:
         if disc_curve_ is NoInput.blank:
             npv, npv_fx, df, collateral = None, None, None, None
         else:
-            npv = float(self.npv(curve, disc_curve_))
-            npv_fx = npv * float(fx)
-            df, collateral = float(disc_curve_[self.payment]), disc_curve_.collateral
+            npv = _dual_float(self.npv(curve, disc_curve_))
+            npv_fx = npv * _dual_float(fx)
+            df, collateral = _dual_float(disc_curve_[self.payment]), disc_curve_.collateral
 
         try:
-            cashflow_ = float(self.cashflow)
+            cashflow_ = _dual_float(self.cashflow)
         except TypeError:  # cashflow in superclass not a property
             cashflow_ = None
 
@@ -2665,13 +2665,13 @@ class Cashflow:
             defaults.headers["payment"]: self.payment,
             # defaults.headers["convention"]: None,
             # defaults.headers["dcf"]: None,
-            defaults.headers["notional"]: float(self.notional),
+            defaults.headers["notional"]: _dual_float(self.notional),
             defaults.headers["df"]: df,
             defaults.headers["rate"]: rate,
             # defaults.headers["spread"]: None,
             defaults.headers["cashflow"]: cashflow_,
             defaults.headers["npv"]: npv,
-            defaults.headers["fx"]: float(fx),
+            defaults.headers["fx"]: _dual_float(fx),
             defaults.headers["npv_fx"]: npv_fx,
             defaults.headers["collateral"]: collateral,
         }
@@ -3008,8 +3008,8 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
             npv = None
             npv_fx = None
         else:
-            npv = float(self.npv(curve, disc_curve_))
-            npv_fx = npv * float(fx)
+            npv = _dual_float(self.npv(curve, disc_curve_))
+            npv_fx = npv * _dual_float(fx)
 
         index_ratio_, index_val_, index_base_ = self.index_ratio(curve)
 
@@ -3023,7 +3023,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
             defaults.headers["index_ratio"]: _float_or_none(index_ratio_),
             defaults.headers["cashflow"]: _float_or_none(self.cashflow(curve)),
             defaults.headers["npv"]: npv,
-            defaults.headers["fx"]: float(fx),
+            defaults.headers["fx"]: _dual_float(fx),
             defaults.headers["npv_fx"]: npv_fx,
         }
 
@@ -3273,8 +3273,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
         dict
         """
         fx_, base = _get_fx_and_base(self.currency, fx, base)
-        df, collateral = float(disc_curve_ccy2[self.payment]), disc_curve_ccy2.collateral
-        npv = float(
+        df, collateral = _dual_float(disc_curve_ccy2[self.payment]), disc_curve_ccy2.collateral
+        npv = _dual_float(
             self.npv(disc_curve, disc_curve_ccy2, fx, base, local=True, vol=vol)[self.currency],
         )
 
@@ -3285,21 +3285,21 @@ class FXOptionPeriod(metaclass=ABCMeta):
             defaults.headers["type"]: type(self).__name__,
             defaults.headers["stub_type"]: "Optionality",
             defaults.headers["pair"]: self.pair,
-            defaults.headers["notional"]: float(self.notional),
+            defaults.headers["notional"]: _dual_float(self.notional),
             defaults.headers["expiry"]: self.expiry,
-            defaults.headers["t_e"]: float(self._t_to_expiry(disc_curve_ccy2.node_dates[0])),
+            defaults.headers["t_e"]: _dual_float(self._t_to_expiry(disc_curve_ccy2.node_dates[0])),
             defaults.headers["delivery"]: self.delivery,
-            defaults.headers["rate"]: float(fx.rate(self.pair, self.delivery)),
+            defaults.headers["rate"]: _dual_float(fx.rate(self.pair, self.delivery)),
             defaults.headers["strike"]: self.strike,
-            defaults.headers["vol"]: float(self._get_vol_maybe_from_obj(vol, fx, disc_curve)),
+            defaults.headers["vol"]: _dual_float(self._get_vol_maybe_from_obj(vol, fx, disc_curve)),
             defaults.headers["model"]: "Black76",
             defaults.headers["payment"]: self.payment,
             defaults.headers["currency"]: self.currency.upper(),
             defaults.headers["cashflow"]: npv / df,
             defaults.headers["df"]: df,
             defaults.headers["npv"]: npv,
-            defaults.headers["fx"]: float(fx_),
-            defaults.headers["npv_fx"]: npv * float(fx_),
+            defaults.headers["fx"]: _dual_float(fx_),
+            defaults.headers["npv_fx"]: npv * _dual_float(fx_),
             defaults.headers["collateral"]: collateral,
         }
 
@@ -3905,8 +3905,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
             else:
                 vol_ = vol / 100.0
                 dvol_ddeltaidx = 0.0
-            vol_ = float(vol_) if ad == 0 else vol_
-            dvol_ddeltaidx = float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
+            vol_ = _dual_float(vol_) if ad == 0 else vol_
+            dvol_ddeltaidx = _dual_float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
             vol_sqrt_t = vol_ * sqrt_t_e
 
             # Calculate function values
@@ -3928,7 +3928,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             return f0, f1
 
         if isinstance(vol, FXDeltaVolSmile):
-            avg_vol = float(list(vol.nodes.values())[int(vol.n / 2)])
+            avg_vol = _dual_float(list(vol.nodes.values())[int(vol.n / 2)])
         else:
             avg_vol = vol
         g01 = self.phi * 0.5 * (z_w if "spot" in delta_type else 1.0)
@@ -3969,8 +3969,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
             else:
                 vol_ = vol / 100.0
                 dvol_ddeltaidx = 0.0
-            vol_ = float(vol_) if ad == 0 else vol_
-            dvol_ddeltaidx = float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
+            vol_ = _dual_float(vol_) if ad == 0 else vol_
+            dvol_ddeltaidx = _dual_float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
             vol_sqrt_t = vol_ * sqrt_t_e
 
             # Calculate function values
@@ -3992,7 +3992,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             return f0, f1
 
         if isinstance(vol, FXDeltaVolSmile):
-            avg_vol = float(list(vol.nodes.values())[int(vol.n / 2)])
+            avg_vol = _dual_float(list(vol.nodes.values())[int(vol.n / 2)])
         else:
             avg_vol = vol
         g01 = delta if self.phi > 0 else max(delta, -0.75)
@@ -4039,7 +4039,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             dz_u_1_du = 0.5 - eta_1
 
             vol_ = vol[delta_idx] / 100.0
-            vol_ = float(vol_) if ad == 0 else vol_
+            vol_ = _dual_float(vol_) if ad == 0 else vol_
             vol_sqrt_t = vol_ * sqrt_t_e
 
             # Calculate function values
@@ -4053,7 +4053,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
             # Calculate Jacobian values
             dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
-            dvol_ddeltaidx = float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
+            dvol_ddeltaidx = _dual_float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
 
             dd_du = -1 / (u * vol_sqrt_t)
             nd0 = dual_norm_pdf(phi * d0)
@@ -4069,12 +4069,12 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
             return [f0_0, f0_1], [[f1_00, f1_01], [f1_10, f1_11]]
 
-        avg_vol = float(list(vol.nodes.values())[int(vol.n / 2)])
+        avg_vol = _dual_float(list(vol.nodes.values())[int(vol.n / 2)])
         g01 = delta if self.phi > 0 else max(delta, -0.75)
         g00 = self._moneyness_from_delta_closed_form(g01, avg_vol, t_e, 1.0)
 
         msg = (
-            f"If the delta, {float(delta):.1f}, is premium adjusted for a "
+            f"If the delta, {_dual_float(delta):.1f}, is premium adjusted for a "
             "call option is it infeasible?"
             if self.phi > 0
             else ""
@@ -4114,7 +4114,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             dz_u_1_du = 0.5 - eta_1
 
             vol_ = vol[delta_idx] / 100.0
-            vol_ = float(vol_) if ad == 0 else vol_
+            vol_ = _dual_float(vol_) if ad == 0 else vol_
             vol_sqrt_t = vol_ * sqrt_t_e
 
             # Calculate function values
@@ -4128,7 +4128,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
             # Calculate Jacobian values
             dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
-            dvol_ddeltaidx = float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
+            dvol_ddeltaidx = _dual_float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
 
             dd_du = -1 / (u * vol_sqrt_t)
             nd0 = dual_norm_pdf(phi * d0)
@@ -4144,7 +4144,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
             return [f0_0, f0_1], [[f1_00, f1_01], [f1_10, f1_11]]
 
-        avg_vol = float(list(vol.nodes.values())[int(vol.n / 2)])
+        avg_vol = _dual_float(list(vol.nodes.values())[int(vol.n / 2)])
         g01 = self.phi * 0.5 * (z_w if "spot" in delta_type else 1.0)
         g00 = self._moneyness_from_delta_closed_form(g01, avg_vol, t_e, 1.0)
 
@@ -4185,7 +4185,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             else:
                 vol_ = vol / 100.0
                 dvol_ddeltaidx = 0.0
-            vol_ = float(vol_) if ad == 0 else vol_
+            vol_ = _dual_float(vol_) if ad == 0 else vol_
             vol_sqrt_t = vol_ * sqrt_t_e
 
             # Calculate function values
@@ -4200,7 +4200,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             f0_2 = delta - phi * z_u_0 * z_w_0 / 2.0
 
             # Calculate Jacobian values
-            dvol_ddeltaidx = float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
+            dvol_ddeltaidx = _dual_float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
 
             dd_du = -1 / (u * vol_sqrt_t)
             nd0 = dual_norm_pdf(phi * d0)
@@ -4226,7 +4226,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             ]
 
         if isinstance(vol, FXDeltaVolSmile):
-            avg_vol = float(list(vol.nodes.values())[int(vol.n / 2)])
+            avg_vol = _dual_float(list(vol.nodes.values())[int(vol.n / 2)])
             vol_delta_type = vol.delta_type
         else:
             avg_vol = vol
