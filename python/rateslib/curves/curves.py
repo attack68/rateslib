@@ -2025,9 +2025,6 @@ class LineCurve(Curve):
         return super().roll(tenor)
 
 
-@warnings.deprecated(
-    "`IndexCurve` is deprecated: simple use a `Curve` instead and the same arguments."
-)
 class IndexCurve(Curve):
     """
     Deprecated. Use :class:`~rateslib.curves.Curve` with a valid ``index_base``.
@@ -2038,6 +2035,10 @@ class IndexCurve(Curve):
         *args,
         **kwargs,
     ) -> None:
+        warnings.warn(
+            "`IndexCurve` is deprecated: use a `Curve` instead and the same arguments.",
+            DeprecationWarning
+        )
         super().__init__(*args, **{"interpolation": "linear_index", **kwargs})
         if isinstance(self.index_base, NoInput):
             raise ValueError("`index_base` must be given for IndexCurve.")
