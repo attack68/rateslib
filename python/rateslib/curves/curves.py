@@ -2037,7 +2037,7 @@ class IndexCurve(Curve):
     ) -> None:
         warnings.warn(
             "`IndexCurve` is deprecated: use a `Curve` instead and the same arguments.",
-            DeprecationWarning
+            DeprecationWarning,
         )
         super().__init__(*args, **{"interpolation": "linear_index", **kwargs})
         if isinstance(self.index_base, NoInput):

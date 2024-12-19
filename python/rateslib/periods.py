@@ -31,7 +31,7 @@ from pandas import NA, DataFrame, Index, MultiIndex, Series, concat, isna, notna
 
 from rateslib import defaults
 from rateslib.calendars import CalInput, CalTypes, _get_eom, add_tenor, dcf, get_calendar
-from rateslib.curves import CompositeCurve, Curve, LineCurve, average_rate, index_left
+from rateslib.curves import Curve, LineCurve, average_rate, index_left
 from rateslib.default import NoInput, _drb
 from rateslib.dual import (
     Dual,

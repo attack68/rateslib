@@ -1528,11 +1528,6 @@ class TestZCIS:
         with pytest.raises(ValueError, match="Forecasting the `index_base`"):
             zcis.rate()
 
-    def test_schedule(self):
-        inst = ZCIS(dt(2024, 12, 15), "5y", spec="eur_zcis")
-        cfs = inst.cashflows()
-        assert False
-
 
 class TestValue:
     def test_npv_adelta_cashflows_raises(self) -> None:
