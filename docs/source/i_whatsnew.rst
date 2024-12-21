@@ -56,6 +56,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
      - :class:`~rateslib.curves.CompositeCurve` no longer requires all curves to have the same ``index_base``
        or ``index_lag``. Those values will be sampled from the first provided composited *Curve*.
    * - Refactor
+     - The builtin ``abs`` method operating on dual type objects now returns dual type objects with properly
+       adjusted dual manifold gradients. The previous functionality returning only floats can be replicated
+       using the internal method :meth:`rateslib.dual._abs_float`.
+   * - Refactor
      - :red:`Minor Breaking Change!` :meth:`~rateslib.calendars.get_calendar` has dropped the
        ``kind`` argument being only useful internally.
        (`524 <https://github.com/attack68/rateslib/pull/524>`_)
