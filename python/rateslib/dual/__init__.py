@@ -34,6 +34,14 @@ def _dual_float(val: DualTypes) -> float:
         raise e
 
 
+def _abs_float(val: DualTypes) -> float:
+    """Overload the abs() builtin to return the abs of the real component only"""
+    if isinstance(val, Dual | Dual2 | Variable):
+        return abs(val.real)
+    else:
+        return abs(val)
+
+
 def set_order(val: DualTypes, order: int) -> DualTypes:
     """
     Changes the order of a :class:`Dual` or :class:`Dual2` and a sets a :class:`Variable`
