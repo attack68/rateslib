@@ -61,9 +61,9 @@ def get_calendar(
     named : bool
         If the calendar is more complex than a pre-existing single name calendar, then
         this argument determines if a :class:`~rateslib.calendars.NamedCal` object, which is more
-        compactly serialized but slower to create, or a :class:`~rateslib.calendars.UnionCal` object, which
-        is faster to create but with more verbose serialization is returned. The default prioritises
-        serialization.
+        compactly serialized but slower to create, or a :class:`~rateslib.calendars.UnionCal`
+        object, which is faster to create but with more verbose serialization is returned.
+        The default prioritises serialization.
 
     Returns
     -------
@@ -152,8 +152,22 @@ def _parse_str_calendar(calendar: str, named: bool) -> CalTypes:
         else:
             calendars = vectors[0].lower().split(",")
             cals = [defaults.calendars[_] for _ in calendars]
+            cals_: list[Cal] = []
+            for cal in cals:
+                if isinstance(cal, Cal):
+                    cals_.append(cal)
+                else:  # isinstance(cal, NamedCal):
+                    cals_.extend(cal.union_cal.calendars)
+
             settlement_calendars = vectors[1].lower().split(",")
             sets = [defaults.calendars[_] for _ in settlement_calendars]
-            return UnionCal(cals, sets)
+            sets_: list[Cal] = []
+            for cal in sets:
+                if isinstance(cal, Cal):
+                    sets_.append(cal)
+                else:  # isinstance(cal, NamedCal):
+                    sets_.extend(cal.union_cal.calendars)
+
+            return UnionCal(cals_, sets_)
     else:
         raise ValueError("Cannot use more than one pipe ('|') operator in `calendar`.")
