@@ -124,14 +124,8 @@ def get_calendar(
 
     """
     if isinstance(calendar, str):
-        if named:
-            try:
-                return NamedCal(calendar)
-            except ValueError:
-                # try parsing with Python only
-                pass
         # parse the string in Python and return Rust Cal/UnionCal objects directly
-        return _parse_str_calendar(calendar)
+        return _parse_str_calendar(calendar, named)
     elif isinstance(calendar, NoInput):
         return defaults.calendars["all"]
     else:  # calendar is a Calendar object type
@@ -144,8 +138,9 @@ def _parse_str_calendar(calendar: str, named: bool) -> CalTypes:
     if len(vectors) == 1:
         calendars = vectors[0].lower().split(",")
         if len(calendars) == 1:  # only one named calendar is found
-            return defaults.calendars[calendars[0]]
+            return defaults.calendars[calendars[0]]  # lookup Hashmap
         else:
+            # combined calendars are not yet predefined so this does not beenfit from hashmap speed
             if named:
                 return NamedCal(calendar)
             else:
