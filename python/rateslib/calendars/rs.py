@@ -58,13 +58,12 @@ def get_calendar(
     calendar : str, Cal, UnionCal, NamedCal
         If `str`, then the calendar is returned from pre-calculated values.
         If a specific user defined calendar this is returned without modification.
-    kind : bool
-        If `True` will also return the kind of calculation from `"null", "named",
-        "custom"`.
     named : bool
-        If `True` will return a :class:`~rateslib.calendars.NamedCal` object, which is more
-        compactly serialized, otherwise will parse an input string and return a
-        :class:`~rateslib.calendars.Cal` or :class:`~rateslib.calendars.UnionCal` directly.
+        If the calendar is more complex than a pre-existing single name calendar, then
+        this argument determines if a :class:`~rateslib.calendars.NamedCal` object, which is more
+        compactly serialized but slower to create, or a :class:`~rateslib.calendars.UnionCal` object, which
+        is faster to create but with more verbose serialization is returned. The default prioritises
+        serialization.
 
     Returns
     -------
@@ -110,7 +109,7 @@ def get_calendar(
 
     .. ipython:: python
 
-       tgt_cal = get_calendar("tgt", named=False)
+       tgt_cal = get_calendar("tgt")
        tgt_cal.holidays[300:312]
        tgt_cal.add_bus_days(dt(2023, 1, 3), 5, True)
        type(tgt_cal)
@@ -119,8 +118,9 @@ def get_calendar(
 
     .. ipython:: python
 
-       tgt_and_nyc_cal = get_calendar("tgt,nyc")
+       tgt_and_nyc_cal = get_calendar("tgt,nyc", named=False)
        tgt_and_nyc_cal.holidays[300:312]
+       type(tgt_and_nyc_cal)
 
     """
     if isinstance(calendar, str):
