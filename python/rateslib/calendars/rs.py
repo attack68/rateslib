@@ -138,7 +138,7 @@ def get_calendar(
         return calendar
 
 
-def _parse_str_calendar(calendar: str) -> CalTypes:
+def _parse_str_calendar(calendar: str, named: bool) -> CalTypes:
     """Parse the calendar string using Python and construct calendar objects."""
     vectors = calendar.split("|")
     if len(vectors) == 1:
@@ -146,13 +146,19 @@ def _parse_str_calendar(calendar: str) -> CalTypes:
         if len(calendars) == 1:  # only one named calendar is found
             return defaults.calendars[calendars[0]]
         else:
-            cals = [defaults.calendars[_] for _ in calendars]
-            return UnionCal(cals, None)
+            if named:
+                return NamedCal(calendar)
+            else:
+                cals = [defaults.calendars[_] for _ in calendars]
+                return UnionCal(cals, None)
     elif len(vectors) == 2:
-        calendars = vectors[0].lower().split(",")
-        cals = [defaults.calendars[_] for _ in calendars]
-        settlement_calendars = vectors[1].lower().split(",")
-        sets = [defaults.calendars[_] for _ in settlement_calendars]
-        return UnionCal(cals, sets)
+        if named:
+            return NamedCal(calendar)
+        else:
+            calendars = vectors[0].lower().split(",")
+            cals = [defaults.calendars[_] for _ in calendars]
+            settlement_calendars = vectors[1].lower().split(",")
+            sets = [defaults.calendars[_] for _ in settlement_calendars]
+            return UnionCal(cals, sets)
     else:
         raise ValueError("Cannot use more than one pipe ('|') operator in `calendar`.")
