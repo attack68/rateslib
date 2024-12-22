@@ -13,7 +13,7 @@ from packaging import version
 from pandas import Series, read_csv
 
 from rateslib._spec_loader import INSTRUMENT_SPECS
-from rateslib.rs import Cal, NamedCal, UnionCal, get_named_calendar
+from rateslib.rs import Cal, NamedCal, UnionCal
 
 PlotOutput = tuple[plt.Figure, plt.Axes, list[plt.Line2D]]  # type: ignore[name-defined]
 
@@ -108,19 +108,19 @@ class Defaults:
         self.eval_mode = "swaps_align"
         self.modifier = "MF"
         self.calendars: dict[str, NamedCal | UnionCal | Cal] = {
-            "all": get_named_calendar("all"),
-            "bus": get_named_calendar("bus"),
-            "tgt": get_named_calendar("tgt"),
-            "ldn": get_named_calendar("ldn"),
-            "nyc": get_named_calendar("nyc"),
-            "fed": get_named_calendar("fed"),
-            "stk": get_named_calendar("stk"),
-            "osl": get_named_calendar("osl"),
-            "zur": get_named_calendar("zur"),
-            "tro": get_named_calendar("tro"),
-            "tyo": get_named_calendar("tyo"),
-            "syd": get_named_calendar("syd"),
-            "wlg": get_named_calendar("wlg"),
+            "all": NamedCal("all"),
+            "bus": NamedCal("bus"),
+            "tgt": NamedCal("tgt"),
+            "ldn": NamedCal("ldn"),
+            "nyc": NamedCal("nyc"),
+            "fed": NamedCal("fed"),
+            "stk": NamedCal("stk"),
+            "osl": NamedCal("osl"),
+            "zur": NamedCal("zur"),
+            "tro": NamedCal("tro"),
+            "tyo": NamedCal("tyo"),
+            "syd": NamedCal("syd"),
+            "wlg": NamedCal("wlg"),
         }
         self.frequency_months = {
             "M": 1,
