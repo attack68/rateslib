@@ -145,19 +145,29 @@ def _parse_str_calendar(calendar: str, named: bool) -> CalTypes:
                 return NamedCal(calendar)
             else:
                 cals = [defaults.calendars[_] for _ in calendars]
-                return UnionCal(cals, None)
+                cals_: list[Cal] = []
+                for cal in cals:
+                    if isinstance(cal, Cal):
+                        cals_.append(cal)
+                    elif isinstance(cal, NamedCal):
+                        cals_.extend(cal.union_cal.calendars)
+                    else:
+                        cals_.extend(cal.calendars)
+                return UnionCal(cals_, None)
     elif len(vectors) == 2:
         if named:
             return NamedCal(calendar)
         else:
             calendars = vectors[0].lower().split(",")
             cals = [defaults.calendars[_] for _ in calendars]
-            cals_: list[Cal] = []
+            cals_ = []
             for cal in cals:
                 if isinstance(cal, Cal):
                     cals_.append(cal)
-                else:  # isinstance(cal, NamedCal):
+                elif isinstance(cal, NamedCal):
                     cals_.extend(cal.union_cal.calendars)
+                else:
+                    cals_.extend(cal.calendars)
 
             settlement_calendars = vectors[1].lower().split(",")
             sets = [defaults.calendars[_] for _ in settlement_calendars]
@@ -165,8 +175,10 @@ def _parse_str_calendar(calendar: str, named: bool) -> CalTypes:
             for cal in sets:
                 if isinstance(cal, Cal):
                     sets_.append(cal)
-                else:  # isinstance(cal, NamedCal):
+                elif isinstance(cal, NamedCal):
                     sets_.extend(cal.union_cal.calendars)
+                else:
+                    sets_.extend(cal.calendars)
 
             return UnionCal(cals_, sets_)
     else:
