@@ -1233,6 +1233,19 @@ class TestCurve:
         with pytest.raises(ValueError, match="Cannot translate spline knots for given"):
             curve.translate(dt(2022, 12, 15))
 
+    def test_cache_id_update(self):
+        curve = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.98,
+            },
+            id="sofr",
+        )
+        original = curve._cache_id
+        curve.clear_cache()
+        new = curve._cache_id
+        assert new != original
+
 
 class TestLineCurve:
     def test_repr(self):
@@ -1259,6 +1272,19 @@ class TestLineCurve:
             id="libor1m",
         )
         assert isinstance(curve, Curve)
+
+    def test_cache_id_update(self):
+        curve = LineCurve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.98,
+            },
+            id="sofr",
+        )
+        original = curve._cache_id
+        curve.clear_cache()
+        new = curve._cache_id
+        assert new != original
 
 
 class TestIndexCurve:
@@ -1318,6 +1344,20 @@ class TestIndexCurve:
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 1, 5): 0.9999}, index_base=200.0, id="us_cpi"
         )
         assert isinstance(curve, Curve)
+
+    def test_cache_id_update(self):
+        curve = IndexCurve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.98,
+            },
+            id="sofr",
+            index_base=200.0,
+        )
+        original = curve._cache_id
+        curve.clear_cache()
+        new = curve._cache_id
+        assert new != original
 
 
 class TestCompositeCurve:

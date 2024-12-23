@@ -589,6 +589,7 @@ class Curve:
         Alternatively the curve caching as a feature can be set to *False* in ``defaults``.
         """
         self._cache: dict[datetime, DualTypes] = dict()
+        self._cache_id = uuid4()
 
     def _maybe_add_to_cache(self, date: datetime, val: DualTypes) -> None:
         if defaults.curve_caching:
