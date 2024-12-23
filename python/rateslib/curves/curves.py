@@ -12,6 +12,7 @@ import json
 import warnings
 from collections.abc import Callable
 from datetime import datetime, timedelta
+from functools import cached_property
 from math import comb, floor
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
@@ -381,8 +382,7 @@ class Curve:
             # self.spline cannot be None becuase self.t is given and it has been calibrated
             val = self._op_exp(self.spline.ppev_single(date_posix))  # type: ignore[union-attr]
 
-        self._maybe_add_to_cache(date, val)
-        return val
+        return self._cached_value(date, val)
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -589,11 +589,12 @@ class Curve:
         Alternatively the curve caching as a feature can be set to *False* in ``defaults``.
         """
         self._cache: dict[datetime, DualTypes] = dict()
-        self._cache_id = uuid4()
+        self._cache_id = hash(uuid4())
 
-    def _maybe_add_to_cache(self, date: datetime, val: DualTypes) -> None:
+    def _cached_value(self, date: datetime, val: DualTypes) -> DualTypes:
         if defaults.curve_caching:
             self._cache[date] = val
+        return val
 
     def csolve(self) -> None:
         """
@@ -2045,6 +2046,14 @@ class IndexCurve(Curve):
             raise ValueError("`index_base` must be given for IndexCurve.")
 
 
+def _precheck_cache(func):
+    """Add a decorator"""
+    def wrapper(self, *args, **kwargs):
+        self._check_and_maybe_clear_cache()
+        return func(self, *args, **kwargs)
+    return wrapper
+
+
 class CompositeCurve(Curve):
     """
     A dynamic composition of a sequence of other curves.
@@ -2258,6 +2267,7 @@ class CompositeCurve(Curve):
 
         # validate
         self._validate_curve_collection()
+        self._clear_cache()
 
     def _validate_curve_collection(self) -> None:
         """Perform checks to ensure CompositeCurve can exist"""
@@ -2304,6 +2314,7 @@ class CompositeCurve(Curve):
                 f"Cannot composite curves with different attributes, got for '{attr}': {attrs},",
             )
 
+    @_precheck_cache
     def rate(  # type: ignore[override]
         self,
         effective: datetime,
@@ -2386,7 +2397,10 @@ class CompositeCurve(Curve):
 
         return _
 
+    @_precheck_cache
     def __getitem__(self, date: datetime) -> DualTypes:
+        if defaults.curve_caching and date in self._cache:
+            return self._cache[date]
         if self._base_type == "dfs":
             # will return a composited discount factor
             if date == self.curves[0].node_dates[0]:
@@ -2401,20 +2415,21 @@ class CompositeCurve(Curve):
                 avg_rate = ((1.0 / curve[date]) ** (1.0 / days) - 1) / d
                 total_rate += avg_rate
             _: DualTypes = 1.0 / (1 + total_rate * d) ** days
-            return _
+            return self._cached_value(date, _)
 
         elif self._base_type == "values":
             # will return a composited rate
             _ = 0.0
             for curve in self.curves:
                 _ += curve[date]
-            return _
+            return self._cached_value(date, _)
 
         else:
             raise TypeError(
                 f"Base curve type is unrecognised: {self._base_type}",
             )  # pragma: no cover
 
+    @_precheck_cache
     def shift(
         self,
         spread: DualTypes,
@@ -2461,6 +2476,7 @@ class CompositeCurve(Curve):
         _.collateral = _drb(None, collateral)
         return _
 
+    @_precheck_cache
     def translate(self, start: datetime, t: bool = False) -> CompositeCurve:
         """
         Create a new curve with an initial node date moved forward keeping all else
@@ -2485,6 +2501,7 @@ class CompositeCurve(Curve):
         """
         return CompositeCurve(curves=[curve.translate(start, t) for curve in self.curves])
 
+    @_precheck_cache
     def roll(self, tenor: datetime | str) -> CompositeCurve:
         """
         Create a new curve with its shape translated in time
@@ -2509,6 +2526,7 @@ class CompositeCurve(Curve):
         """
         return CompositeCurve(curves=[curve.roll(tenor) for curve in self.curves])
 
+    @_precheck_cache
     def index_value(self, date: datetime, interpolation: str = "daily") -> DualTypes:
         """
         Calculate the accrued value of the index from the ``index_base``, which is taken
@@ -2520,6 +2538,33 @@ class CompositeCurve(Curve):
 
     def _get_node_vector(self) -> Arr1dObj | Arr1dF64:
         raise NotImplementedError("Instances of CompositeCurve do not have solvable variables.")
+
+    @property
+    def _cache_id_associate(self):
+        return hash(sum(curve._cache_id for curve in self.curves))
+
+    def _clear_cache(self) -> None:
+        """
+        Clear the cache of values on a *CompositeCurve* type.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        This method is called automatically when any of the composited curves
+        are detected to have been mutated, via their ``_cache_id``, which therefore
+        invalidates the cache on a composite curve.
+        """
+        self._cache: dict[datetime, DualTypes] = dict()
+        self._cache_id = self._cache_id_associate
+
+    def _check_and_maybe_clear_cache(self) -> None:
+        if self._cache_id != self._cache_id_associate:
+            # If any of the associated curves have been mutated then the cache is invalidated
+            self._clear_cache()
+
 
 
 class MultiCsaCurve(CompositeCurve):
@@ -2562,6 +2607,7 @@ class MultiCsaCurve(CompositeCurve):
         self.multi_csa_max_step = min(1825, multi_csa_max_step)
         super().__init__(curves, id)
 
+    @_precheck_cache
     def rate(  # type: ignore[override]
         self,
         effective: datetime,
@@ -2604,6 +2650,7 @@ class MultiCsaCurve(CompositeCurve):
         _: DualTypes = (df_num / df_den - 1) * 100 / (d * n)
         return _
 
+    @_precheck_cache
     def __getitem__(self, date: datetime) -> DualTypes:
         # will return a composited discount factor
         if date == self.curves[0].node_dates[0]:
@@ -2648,6 +2695,7 @@ class MultiCsaCurve(CompositeCurve):
             _ *= min_ratio
             return _
 
+    @_precheck_cache
     def translate(self, start: datetime, t: bool = False) -> MultiCsaCurve:
         """
         Create a new curve with an initial node date moved forward keeping all else
@@ -2676,6 +2724,7 @@ class MultiCsaCurve(CompositeCurve):
             multi_csa_min_step=self.multi_csa_min_step,
         )
 
+    @_precheck_cache
     def roll(self, tenor: datetime | str) -> MultiCsaCurve:
         """
         Create a new curve with its shape translated in time
@@ -2704,6 +2753,7 @@ class MultiCsaCurve(CompositeCurve):
             multi_csa_min_step=self.multi_csa_min_step,
         )
 
+    @_precheck_cache
     def shift(
         self,
         spread: DualTypes,

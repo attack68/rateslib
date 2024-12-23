@@ -133,7 +133,7 @@ class FXRates:
 
     def __clear_cached_properties__(self) -> None:
         self.__dict__.pop("fx_array", None)
-        self._cache_id = uuid4()
+        self._cache_id = hash(uuid4())
 
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, FXRates):

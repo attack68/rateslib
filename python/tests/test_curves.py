@@ -1729,6 +1729,8 @@ class TestCompositeCurve:
         curve = CompositeCurve([curve1, curve2])
         assert isinstance(curve, Curve)
 
+    def test_cache(self):
+
 
 class TestMultiCsaCurve:
     def test_historic_rate_is_none(self) -> None:
