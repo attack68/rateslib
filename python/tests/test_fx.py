@@ -16,6 +16,17 @@ from rateslib.fx import (
 from rateslib.json import from_json
 
 
+class TestFxRates:
+
+    def test_cache_id_chg_update(self):
+        fxr = FXRates({"eurusd": 1.0, "usdgbp": 1.0})
+        original = fxr._cache_id
+
+        fxr.update({"eurusd": 2.0})
+        new = fxr._cache_id
+        assert new != original
+
+
 @pytest.mark.parametrize(
     "fx_rates",
     [
