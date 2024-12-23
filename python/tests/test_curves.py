@@ -1462,6 +1462,39 @@ class TestCompositeCurve:
         )
         assert np.all(np.abs(diff) < 1e-5)
 
+    def test_composite_curve_translate_cache(self) -> None:
+        curve1 = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.98,
+                dt(2024, 1, 1): 0.965,
+                dt(2025, 1, 1): 0.955,
+            },
+        )
+        curve2 = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 6, 30): 1.0,
+                dt(2022, 7, 1): 0.999992,
+                dt(2022, 12, 31): 0.999992,
+                dt(2023, 1, 1): 0.999984,
+                dt(2023, 6, 30): 0.999984,
+                dt(2023, 7, 1): 0.999976,
+                dt(2023, 12, 31): 0.999976,
+                dt(2024, 1, 1): 0.999968,
+                dt(2024, 6, 30): 0.999968,
+                dt(2024, 7, 1): 0.999960,
+                dt(2025, 1, 1): 0.999960,
+            },
+        )
+        crv = CompositeCurve([curve1, curve2])
+        original_curve = crv.translate(dt(2022, 3, 1))
+
+        curve1._set_node_vector([0.99, 0.80, 0.70], 0)
+        new_curve = crv.translate(dt(2022, 3, 1))
+        assert original_curve[dt(2022, 4, 1)] != new_curve[dt(2022, 4, 1)]
+
+
     def test_composite_curve_roll(self) -> None:
         curve1 = Curve(
             nodes={
@@ -1512,6 +1545,29 @@ class TestCompositeCurve:
         )
 
         assert np.all(np.abs(result - expected) < 1e-7)
+
+    def test_composite_curve_roll_cache(self) -> None:
+        curve1 = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.98,
+            },
+        )
+        curve2 = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 6, 30): 1.0,
+                dt(2022, 7, 1): 0.999992,
+                dt(2022, 12, 31): 0.999992,
+                dt(2023, 1, 1): 0.999984,
+            },
+        )
+        crv = CompositeCurve([curve1, curve2])
+
+        original_curve = crv.roll("10d")
+        curve1._set_node_vector([0.99], 0)
+        new_curve = crv.roll("10d")
+        assert original_curve[dt(2022, 4, 1)] != new_curve[dt(2022, 4, 1)]
 
     def test_isinstance_raises(self) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99})
@@ -1730,6 +1786,30 @@ class TestCompositeCurve:
         assert isinstance(curve, Curve)
 
     def test_cache(self):
+        curve1 = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.98,
+            },
+        )
+        curve2 = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 6, 30): 1.0,
+                dt(2022, 7, 1): 0.999992,
+                dt(2022, 12, 31): 0.999992,
+                dt(2023, 1, 1): 0.999984,
+            },
+        )
+        curve = CompositeCurve([curve1, curve2])
+        curve[dt(2022, 3, 1)]
+        assert curve._cache == {dt(2022, 3, 1): 0.9967396833121631}
+
+        # update a curve
+        curve2.nodes[dt(2022, 6, 30)] = 0.95
+        curve2.clear_cache()
+        curve[dt(2022, 3, 1)]
+        assert curve._cache == {dt(2022, 3, 1): 0.9801226964242061}
 
 
 class TestMultiCsaCurve:

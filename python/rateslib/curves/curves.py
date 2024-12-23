@@ -2499,6 +2499,7 @@ class CompositeCurve(Curve):
         -------
         CompositeCurve
         """
+        # cache check unnecessary since translate is constructed from up-to-date objects directly
         return CompositeCurve(curves=[curve.translate(start, t) for curve in self.curves])
 
     @_precheck_cache
@@ -2524,6 +2525,7 @@ class CompositeCurve(Curve):
         -------
         CompositeCurve
         """
+        # cache check unnecessary since roll is constructed from up-to-date objects directly
         return CompositeCurve(curves=[curve.roll(tenor) for curve in self.curves])
 
     @_precheck_cache
