@@ -580,7 +580,7 @@ class FXForwards:
 
         return rate_, path
 
-    @_validate_caches
+    @_validate_caches  # type: ignore[arg-type]
     def positions(
         self, value: Number, base: str | NoInput = NoInput(0), aggregate: bool = False
     ) -> Series[float] | DataFrame:
@@ -659,7 +659,7 @@ class FXForwards:
             _d: DataFrame = df.sort_index(axis=1)
             return _d
 
-    @_validate_caches
+    @_validate_caches  # type: ignore[arg-type]
     def convert(
         self,
         value: DualTypes,
@@ -747,7 +747,8 @@ class FXForwards:
             crv = self.curve(foreign, collateral)
             return fx_rate * value * crv[settlement_] / crv[value_date_]
 
-    @_validate_caches  # this is technically unnecessary since calls pre-cached method: convert
+    @_validate_caches   # type: ignore[arg-type]
+    # this is technically unnecessary since calls pre-cached method: convert
     def convert_positions(
         self,
         array: np.ndarray[tuple[int], np.dtype[np.float64]]
@@ -825,7 +826,7 @@ class FXForwards:
                 sum += 0.0 if value_ is None else value_
         return sum
 
-    @_validate_caches
+    @_validate_caches  # type: ignore[arg-type]
     def swap(
         self,
         pair: str,
@@ -977,7 +978,7 @@ class FXForwards:
             id=id,
         )
 
-    @_validate_caches
+    @_validate_caches  # type: ignore[arg-type]
     def plot(
         self,
         pair: str,
@@ -1051,7 +1052,7 @@ class FXForwards:
         self.fx_rates_immediate._set_ad_order(order)
         self._cache_id = self._cache_id_associate  # update the cache id after changing values
 
-    @_validate_caches
+    @_validate_caches  # type: ignore[arg-type]
     def to_json(self) -> str:
         if isinstance(self.fx_rates, list):
             fx_rates: list[str] | str = [_.to_json() for _ in self.fx_rates]

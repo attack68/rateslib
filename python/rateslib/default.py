@@ -404,4 +404,4 @@ def _validate_caches(func: Callable[[*tuple[Any, ...]], Any]) -> Callable[[*tupl
         self._validate_cache()
         return func(self, *args, **kwargs)
 
-    return wrapper
+    return wrapper  # type: ignore[return-value]
