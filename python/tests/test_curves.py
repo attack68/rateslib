@@ -1979,6 +1979,28 @@ class TestMultiCsaCurve:
         curve = MultiCsaCurve([c1, c2, c3])
         assert isinstance(curve, Curve)
 
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("rate", (dt(2022, 1, 1), "1d")),
+            ("roll", ("10d",)),
+            ("translate", (dt(2022, 1, 10),)),
+            ("shift", (10.0, "id", False)),
+            ("__getitem__", (dt(2022, 1, 10),)),
+        ],
+    )
+    def test_multi_csa_curve_precheck_cache(self, method, args) -> None:
+        # test precache_check on shift
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999})
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.998})
+        cc = MultiCsaCurve([c1, c2])
+        cc._cache[dt(1980, 1, 1)] = 100.0
+
+        # mutate a curve to trigger cache id clear
+        c1._set_node_vector([0.99], 0)
+        getattr(cc, method)(*args)
+        assert dt(1980, 1, 1) not in cc._cache
+
 
 class TestProxyCurve:
     def test_repr(self) -> None:
