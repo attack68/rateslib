@@ -1519,10 +1519,10 @@ class TestCompositeCurve:
             ("rate", (dt(2022, 1, 1), "1d")),
             ("roll", ("10d",)),
             ("translate", (dt(2022, 1, 10),)),
-            ("shift", (10.0,"id", False)),
+            ("shift", (10.0, "id", False)),
             ("__getitem__", (dt(2022, 1, 10),)),
             ("index_value", (dt(2022, 1, 10),)),
-        ]
+        ],
     )
     def test_composite_curve_precheck_cache(self, method, args) -> None:
         # test precache_check on shift
