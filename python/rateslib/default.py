@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Callable, Tuple
 
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
@@ -392,14 +392,14 @@ def _make_py_json(json: str, class_name: str) -> str:
     return '{"Py":' + json + "}"
 
 
-def _validate_caches(func):
+def _validate_caches(func: Callable[[*Tuple[Any, ...]], Any]) -> Callable[[*Tuple[Any, ...]], Any]:
     """
     Add a decorator to a class instance method to first validate the cache before performing
     additional operations. If a change is detected the implemented `validate_cache` function
     is responsible for resetting the cache and updating any `cache_id`s.
     """
 
-    def wrapper(self, *args, **kwargs):
+    def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
         self._validate_cache()
         return func(self, *args, **kwargs)
 

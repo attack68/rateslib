@@ -177,14 +177,14 @@ class FXForwards:
         pass
 
     @property
-    def _cache_id_associate(self):
+    def _cache_id_associate(self) -> int:
         self_fx_rates = self.fx_rates if isinstance(self.fx_rates, list) else [self.fx_rates]
         return hash(
             sum(curve._cache_id for curve in self.fx_curves.values())
             + sum(fxr._cache_id for fxr in self_fx_rates)
         )
 
-    def _validate_cache(self):
+    def _validate_cache(self) -> None:
         if self._cache_id != self._cache_id_associate:
             self.update()
 
@@ -455,7 +455,7 @@ class FXForwards:
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    @_validate_caches
+    @_validate_caches  # type: ignore[arg-type]
     def rate(
         self,
         pair: str,
@@ -816,12 +816,12 @@ class FXForwards:
             d_sum: DualTypes = 0.0
             for ccy in array_.index:
                 # typing d is a datetime by default.
-                value_: DualTypes | None = self.convert(array_.loc[ccy, d], ccy, base, d)  # type: ignore[arg-type]
+                value_: DualTypes | None = self.convert(array_.loc[ccy, d], ccy, base, d)
                 d_sum += 0.0 if value_ is None else value_
             if abs(d_sum) < 1e-2:
                 sum += d_sum
             else:  # only discount if there is a real value
-                value_ = self.convert(d_sum, base, base, d, self.immediate)  # type: ignore[arg-type]
+                value_ = self.convert(d_sum, base, base, d, self.immediate)
                 sum += 0.0 if value_ is None else value_
         return sum
 

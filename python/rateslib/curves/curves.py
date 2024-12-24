@@ -588,7 +588,7 @@ class Curve:
         Alternatively the curve caching as a feature can be set to *False* in ``defaults``.
         """
         self._cache: dict[datetime, DualTypes] = dict()
-        self._cache_id = hash(uuid4())
+        self._cache_id: int = hash(uuid4())
 
     def _cached_value(self, date: datetime, val: DualTypes) -> DualTypes:
         if defaults.curve_caching:
@@ -2306,7 +2306,7 @@ class CompositeCurve(Curve):
             )
 
     @_validate_caches
-    def rate(  # type: ignore[override]
+    def rate(
         self,
         effective: datetime,
         termination: datetime | str | NoInput = NoInput(0),
@@ -2533,7 +2533,7 @@ class CompositeCurve(Curve):
         raise NotImplementedError("Instances of CompositeCurve do not have solvable variables.")
 
     @property
-    def _cache_id_associate(self):
+    def _cache_id_associate(self) -> int:
         return hash(sum(curve._cache_id for curve in self.curves))
 
     def _clear_cache(self) -> None:
@@ -2600,7 +2600,7 @@ class MultiCsaCurve(CompositeCurve):
         super().__init__(curves, id)
 
     @_validate_caches
-    def rate(  # type: ignore[override]
+    def rate(
         self,
         effective: datetime,
         termination: datetime | str,
@@ -2687,7 +2687,7 @@ class MultiCsaCurve(CompositeCurve):
             _ *= min_ratio
             return _
 
-    @_validate_caches
+    # @_validate_caches unneccessary because objects are referred to directly
     def translate(self, start: datetime, t: bool = False) -> MultiCsaCurve:
         """
         Create a new curve with an initial node date moved forward keeping all else
@@ -2716,7 +2716,7 @@ class MultiCsaCurve(CompositeCurve):
             multi_csa_min_step=self.multi_csa_min_step,
         )
 
-    @_validate_caches
+    # @_validate_caches unnecessary becuase objects referred to directly
     def roll(self, tenor: datetime | str) -> MultiCsaCurve:
         """
         Create a new curve with its shape translated in time
@@ -2926,7 +2926,7 @@ class ProxyCurve(Curve):
         return _1 / _2 * _3
 
     @property
-    def _cache_id(self):
+    def _cache_id(self) -> int:
         # the state of the cache for a ProxyCurve is fully dependent on the state of the
         # cache of its contained FXForwards object, which is what derives its calculations.
         return self.fx_forwards._cache_id
