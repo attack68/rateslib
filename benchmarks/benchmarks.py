@@ -4,7 +4,7 @@
 from time import perf_counter
 
 from pandas import DataFrame
-from rateslib import IRS, CompositeCurve, Curve, Solver, add_tenor, dt, default_context
+from rateslib import IRS, CompositeCurve, Curve, Solver, add_tenor, default_context, dt
 
 
 class TimeSuite:
@@ -63,16 +63,19 @@ class TimeSuite:
         self.data["Termination"] = [
             add_tenor(dt(2023, 8, 21), _, "F", "nyc") for _ in self.data["Term"]
         ]
-        dates = [dt(2023, 8, 17)] + [_ for _ in self.data["Termination"]]
-        self.curve = Curve({
+        dates = [dt(2023, 8, 17)] + list(self.data["Termination"])
+        self.curve = Curve(
+            {
                 dt(2023, 8, 17): 1.0,  # <- this is today's DF,
                 **{_: 0.99 for _ in dates[1:]},
-            })
-        self.curve2 = Curve({
-            dt(2023, 8, 17): 1.0,  # <- this is today's DF,
-            **{_: 1.0 for _ in self.data["Termination"]},
-        },
-            t = [dates[0], dates[0], dates[0]] + dates + [dates[-1], dates[-1], dates[-1]]
+            }
+        )
+        self.curve2 = Curve(
+            {
+                dt(2023, 8, 17): 1.0,  # <- this is today's DF,
+                **{_: 1.0 for _ in self.data["Termination"]},
+            },
+            t=[dates[0], dates[0], dates[0]] + dates + [dates[-1], dates[-1], dates[-1]],
         )
         self.compcurve = CompositeCurve([self.curve, self.curve2])
 
@@ -187,16 +190,17 @@ class TimeSuite:
         self.curve2.clear_cache()
 
     def time_curve_value_getting_no_cache(self):
-        with default_context("curve_caching", False) as context:
+        with default_context("curve_caching", False):
             self.time_curve_value_getting()
 
     def time_spline_curve_value_getting_no_cache(self):
-        with default_context("curve_caching", False) as context:
+        with default_context("curve_caching", False):
             self.time_spline_curve_value_getting()
 
     def time_composite_curve_value_getting_no_cache(self):
-        with default_context("curve_caching", False) as context:
+        with default_context("curve_caching", False):
             self.time_composite_curve_value_getting()
+
 
 if __name__ == "__main__":
     a = TimeSuite()
