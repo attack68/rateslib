@@ -116,46 +116,12 @@ class FXForwards:
         -----
         An *FXForwards* object contains associations to external objects, those being
         :class:`~rateslib.fx.FXRates` and :class:`~rateslib.curves.Curve`, and its purpose is
-        to be able to combine those object to yield FX forward rates.
+        to be able to combine those objects to yield FX forward rates.
 
-        When those external objects have themselves been updated it is necessary to *also*
-        update the container object. If the *FXRates* object
-        is updated without also updating the *FXForwards* spurious results may be seen, as below.
-
-        .. ipython:: python
-
-           fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3), base="usd")
-           fx_curves = {
-               "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.965}),
-               "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}),
-               "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}),
-           }
-           fxf = FXForwards(fxr, fx_curves)
-           fxf.rate("eurusd", dt(2022, 8, 15))
-
-        .. ipython:: python
-
-           fxr.update({"eurusd": 2.0})
-           fxf.rate("eurusd", dt(2022, 8, 15))  # <-- rate is unchanged
-           fxf.rate("eurusd", dt(2022, 1, 3))  # <-- rate is taken directly from updated fxr
-
-        However, after the *FXForwards* is updated and the immediate FX rates are re-calculated,
-        all is now synchronised.
-
-        .. ipython:: python
-
-           fxf.update()
-           fxf.rate("eurusd", dt(2022, 8, 15))
-
-        The :class:`~rateslib.solver.Solver` automatically updates when it mutates and solves
-        the *Curves*.
-
-        The ``fx_rates`` argument allows the *FXRates* classes to be updated directly from
-        this call instead of individually, avoiding the potential of a broken update chain.
-
-        Examples
-        --------
-        This example replicates the above but with direct update.
+        When those external objects have themselves been updated the *FXForwards* class
+        will detect this via *rateslib's* cache management and will automatically update
+        the *FXForwards* object. Manually calling this update on the *FXForwards* class
+        also allows those associated *FXRates* classes to be updated with new market data.
 
         .. ipython:: python
 
@@ -166,9 +132,23 @@ class FXForwards:
                "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}),
            }
            fxf = FXForwards(fxr, fx_curves)
-           fxf.update([{"eurusd": 2.0}])
            fxf.rate("eurusd", dt(2022, 8, 15))
 
+        .. ipython:: python
+
+           fxr.update({"eurusd": 2.0})  # <-- update the associated FXRates object.
+           fxf.rate("eurusd", dt(2022, 8, 15))  # <-- rate has changed, fxf has auto-updated.
+
+        It is possible to update an *FXRates* object directly from the *FXForwards* object, via
+        the ``fx_rates`` argument.
+
+        .. ipython:: python
+
+           fxf.update([{"eurusd": 1.50}])
+           fxf.rate("eurusd", dt(2022, 8, 15))
+
+        The :class:`~rateslib.solver.Solver` also automatically updates *FXForwards* objects
+        when it mutates and solves the *Curves*.
         """
         # does not require cache validation because resets the cache_id at end of method.
         if not isinstance(fx_rates, NoInput):
@@ -544,6 +524,11 @@ class FXForwards:
         Returns
         -------
         tuple
+
+        Notes
+        -----
+        This function does not have automatic cache management. If a *Curve* or an *FXRates*
+        object has been updated, one *must* call `FXForwards.update` before calling this methob.
         """
 
         def _get_d_f_idx_and_path(

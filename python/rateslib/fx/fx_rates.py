@@ -325,8 +325,9 @@ class FXRates:
 
         This object may be linked to others, probably an :class:`~rateslib.fx.FXForwards` class.
         It can be updated with some new market data. This will preserve its memory id and
-        association with other objects (however, any linked objects should also be updated to
-        cascade new calculations).
+        association with other objects. Any :class:`~rateslib.fx.FXForwards` objects referencing
+        this will detect this change and will also lazily update via *rateslib's* cache
+        management.
 
         .. ipython:: python
 
@@ -334,16 +335,6 @@ class FXRates:
            fxr.update({"eurusd": 1.06})
            id(fxr)  # <- SAME as above
            linked_obj.rate("eurusd")
-
-        Do **not** do the following because overwriting a variable name will not eliminate the
-        previous object from memory. Linked objects will still refer to the previous *FXRates*
-        class still in memory.
-
-        .. ipython:: python
-
-           fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3), base="usd")
-           id(fxr)  # <- NEW memory id, linked objects still associated with old fxr in memory
-           linked_obj.rate("eurusd")  # will NOT return rate from the new `fxr` object
 
         Examples
         --------
