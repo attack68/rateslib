@@ -1233,7 +1233,11 @@ class TestCurve:
         with pytest.raises(ValueError, match="Cannot translate spline knots for given"):
             curve.translate(dt(2022, 12, 15))
 
-    def test_cache_id_update(self):
+    @pytest.mark.parametrize(("method", "args"),[
+        ("clear_cache", tuple()),
+        ("_set_node_vector", ([0.99],1))
+    ])
+    def test_cache_id_update(self, method, args):
         curve = Curve(
             nodes={
                 dt(2022, 1, 1): 1.0,
@@ -1242,7 +1246,7 @@ class TestCurve:
             id="sofr",
         )
         original = curve._cache_id
-        curve.clear_cache()
+        getattr(curve, method)(*args)
         new = curve._cache_id
         assert new != original
 
@@ -1273,7 +1277,11 @@ class TestLineCurve:
         )
         assert isinstance(curve, Curve)
 
-    def test_cache_id_update(self):
+    @pytest.mark.parametrize(("method", "args"),[
+        ("clear_cache", tuple()),
+        ("_set_node_vector", ([2.0, 0.99],1))
+    ])
+    def test_cache_id_update(self, method, args):
         curve = LineCurve(
             nodes={
                 dt(2022, 1, 1): 1.0,
@@ -1282,7 +1290,7 @@ class TestLineCurve:
             id="sofr",
         )
         original = curve._cache_id
-        curve.clear_cache()
+        getattr(curve, method)(*args)
         new = curve._cache_id
         assert new != original
 
@@ -1345,7 +1353,11 @@ class TestIndexCurve:
         )
         assert isinstance(curve, Curve)
 
-    def test_cache_id_update(self):
+    @pytest.mark.parametrize(("method", "args"),[
+        ("clear_cache", tuple()),
+        ("_set_node_vector", ([0.99],1))
+    ])
+    def test_cache_id_update(self, method, args):
         curve = IndexCurve(
             nodes={
                 dt(2022, 1, 1): 1.0,
@@ -1355,7 +1367,7 @@ class TestIndexCurve:
             index_base=200.0,
         )
         original = curve._cache_id
-        curve.clear_cache()
+        getattr(curve, method)(*args)
         new = curve._cache_id
         assert new != original
 
