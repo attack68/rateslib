@@ -392,8 +392,10 @@ def _make_py_json(json: str, class_name: str) -> str:
     """Modifies the output JSON output for Rust structs wrapped by Python classes."""
     return '{"Py":' + json + "}"
 
+
 P = ParamSpec("P")
 R = TypeVar("R")
+
 
 def _validate_caches(func: Callable[P, R]) -> Callable[P, R]:
     """

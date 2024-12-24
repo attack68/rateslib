@@ -822,7 +822,7 @@ class FXForwards:
             if abs(d_sum) < 1e-2:
                 sum += d_sum
             else:  # only discount if there is a real value
-                value_ = self.convert(d_sum, base, base, d, self.immediate)   # type: ignore[arg-type]
+                value_ = self.convert(d_sum, base, base, d, self.immediate)  # type: ignore[arg-type]
                 sum += 0.0 if value_ is None else value_
         return sum
 
