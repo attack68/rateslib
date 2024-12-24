@@ -170,6 +170,7 @@ class FXForwards:
            fxf.rate("eurusd", dt(2022, 8, 15))
 
         """
+        # does not require cache validation because resets the cache_id at end of method.
         if not isinstance(fx_rates, NoInput):
             self_fx_rates = self.fx_rates if isinstance(self.fx_rates, list) else [self.fx_rates]
             if not isinstance(fx_rates, list) or len(self_fx_rates) != len(fx_rates):
@@ -517,7 +518,7 @@ class FXForwards:
         return self._rate_with_path(pair, settlement)[0]
 
     # @_validate_cache: unused because this is circular. Any method that calls _rate_with_path
-    # should be pre cache validated
+    # should be pre cache validated. This is also used in initialisation.
     def _rate_with_path(
         self,
         pair: str,
@@ -839,7 +840,7 @@ class FXForwards:
                 sum += 0.0 if value_ is None else value_
         return sum
 
-    # @_validate_cache TODO
+    @_validate_caches
     def swap(
         self,
         pair: str,
@@ -991,7 +992,7 @@ class FXForwards:
             id=id,
         )
 
-    # @_validate_cache TODO
+    @_validate_caches
     def plot(
         self,
         pair: str,
@@ -1051,8 +1052,8 @@ class FXForwards:
             y = [[(rate - rates[0]) * 10000 for rate in rates]]
         return plot(x, y)
 
-    # @_validate_cache TODO
     def _set_ad_order(self, order: int) -> None:
+        # does not require cache validation because updates the cache_id at end of method
         self._ad = order
         for curve in self.fx_curves.values():
             curve._set_ad_order(order)
@@ -1063,8 +1064,9 @@ class FXForwards:
         else:
             self.fx_rates._set_ad_order(order)
         self.fx_rates_immediate._set_ad_order(order)
+        self._cache_id = self._cache_id_associate  # update the cache id after changing values
 
-    # @_validate_cache TODO
+    @_validate_caches
     def to_json(self) -> str:
         if isinstance(self.fx_rates, list):
             fx_rates: list[str] | str = [_.to_json() for _ in self.fx_rates]
@@ -1147,7 +1149,7 @@ class FXForwards:
     def __ne__(self, other: Any) -> bool:
         return not self.__eq__(other)
 
-    # @_validate_cache: unused because is redirected to a cache_validate method
+    # @_validate_cache: unused because it is redirected to a cache_validated method (to_json)
     def copy(self) -> FXForwards:
         """
         An FXForwards copy creates a new object with copied references.
