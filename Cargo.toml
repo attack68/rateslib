@@ -2,7 +2,15 @@
 name = "rateslib"
 version = "1.7.0"
 edition = "2021"
-exclude = [".github/*", "benches/*", "notebooks/*", ".readthedocs.yaml", "docs/*", "PACKAGING.md"]
+exclude = [
+    ".github/*",
+    "benches/*",
+    "benchmarks/*",
+    "notebooks/*",
+    ".readthedocs.yaml",
+    "docs/*", 
+    "PACKAGING.md"
+]
 
 [lib]
 name = "rateslib"
