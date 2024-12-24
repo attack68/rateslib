@@ -8,7 +8,7 @@ exclude = [
     "benchmarks/*",
     "notebooks/*",
     ".readthedocs.yaml",
-    "docs/*", 
+    "docs/*",
     "PACKAGING.md"
 ]
 
