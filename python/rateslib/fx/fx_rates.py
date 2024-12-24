@@ -132,6 +132,10 @@ class FXRates:
         self.__clear_cached_properties__()
 
     def __clear_cached_properties__(self) -> None:
+        """
+        Clear the cache ID so the fx_array can be fetched and cached from Rust object.
+        Create a new cache_id to signal object has mutated.
+        """
         self.__dict__.pop("fx_array", None)
         self._cache_id = hash(uuid4())
 

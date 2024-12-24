@@ -390,3 +390,17 @@ def _drb(default: Any, possible_ni: Any | NoInput) -> Any:
 def _make_py_json(json: str, class_name: str) -> str:
     """Modifies the output JSON output for Rust structs wrapped by Python classes."""
     return '{"Py":' + json + "}"
+
+
+def _validate_caches(func):
+    """
+    Add a decorator to a class instance method to first validate the cache before performing
+    additional operations. If a change is detected the implemented `validate_cache` function
+    is responsible for resetting the cache and updating any `cache_id`s.
+    """
+
+    def wrapper(self, *args, **kwargs):
+        self._validate_cache()
+        return func(self, *args, **kwargs)
+
+    return wrapper
