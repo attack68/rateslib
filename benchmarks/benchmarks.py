@@ -4,7 +4,7 @@
 from time import perf_counter
 
 from pandas import DataFrame
-from rateslib import IRS, CompositeCurve, Curve, Solver, add_tenor, dt
+from rateslib import IRS, CompositeCurve, Curve, Solver, add_tenor, default_context, dt
 
 
 class TimeSuite:
@@ -63,6 +63,21 @@ class TimeSuite:
         self.data["Termination"] = [
             add_tenor(dt(2023, 8, 21), _, "F", "nyc") for _ in self.data["Term"]
         ]
+        dates = [dt(2023, 8, 17)] + list(self.data["Termination"])
+        self.curve = Curve(
+            {
+                dt(2023, 8, 17): 1.0,  # <- this is today's DF,
+                **{_: 0.99 for _ in dates[1:]},
+            }
+        )
+        self.curve2 = Curve(
+            {
+                dt(2023, 8, 17): 1.0,  # <- this is today's DF,
+                **{_: 1.0 for _ in self.data["Termination"]},
+            },
+            t=[dates[0], dates[0], dates[0]] + dates + [dates[-1], dates[-1], dates[-1]],
+        )
+        self.compcurve = CompositeCurve([self.curve, self.curve2])
 
     def time_curve_solver(self):
         sofr = Curve(
@@ -119,14 +134,91 @@ class TimeSuite:
             id="us_rates",
         )
 
+    def time_curve_value_getting(self):
+        dates = [
+            dt(2024, 1, 6),
+            dt(2024, 2, 6),
+            dt(2024, 3, 5),
+            dt(2024, 4, 6),
+            dt(2024, 5, 6),
+            dt(2024, 6, 6),
+            dt(2024, 7, 6),
+            dt(2024, 8, 6),
+            dt(2024, 9, 6),
+            dt(2024, 10, 6),
+            dt(2024, 11, 6),
+        ] * 100
+        for _ in dates:
+            self.curve[_]
+
+    def time_spline_curve_value_getting(self):
+        dates = [
+            dt(2024, 1, 6),
+            dt(2024, 2, 6),
+            dt(2024, 3, 5),
+            dt(2024, 4, 6),
+            dt(2024, 5, 6),
+            dt(2024, 6, 6),
+            dt(2024, 7, 6),
+            dt(2024, 8, 6),
+            dt(2024, 9, 6),
+            dt(2024, 10, 6),
+            dt(2024, 11, 6),
+        ] * 100
+        for _ in dates:
+            self.curve2[_]
+
+    def time_composite_curve_value_getting(self):
+        dates = [
+            dt(2024, 1, 6),
+            dt(2024, 2, 6),
+            dt(2024, 3, 5),
+            dt(2024, 4, 6),
+            dt(2024, 5, 6),
+            dt(2024, 6, 6),
+            dt(2024, 7, 6),
+            dt(2024, 8, 6),
+            dt(2024, 9, 6),
+            dt(2024, 10, 6),
+            dt(2024, 11, 6),
+        ] * 100
+        for _ in dates:
+            self.compcurve[_]
+
+    def clear_caches(self):
+        self.curve.clear_cache()
+        self.curve2.clear_cache()
+
+    def time_curve_value_getting_no_cache(self):
+        with default_context("curve_caching", False):
+            self.time_curve_value_getting()
+
+    def time_spline_curve_value_getting_no_cache(self):
+        with default_context("curve_caching", False):
+            self.time_spline_curve_value_getting()
+
+    def time_composite_curve_value_getting_no_cache(self):
+        with default_context("curve_caching", False):
+            self.time_composite_curve_value_getting()
+
 
 if __name__ == "__main__":
     a = TimeSuite()
     a.setup()
     results = {}
     for bench in [
+        # Solvers
         "time_curve_solver",
         "time_composite_curve_solver_and_values",
+        # Curve Lookups
+        "time_curve_value_getting",
+        "time_spline_curve_value_getting",
+        "time_composite_curve_value_getting",
+        # Curve Lookups No Cache
+        "clear_caches",
+        "time_curve_value_getting_no_cache",
+        "time_spline_curve_value_getting_no_cache",
+        "time_composite_curve_value_getting_no_cache",
     ]:
         s_ = perf_counter()
         getattr(a, bench)()
@@ -139,4 +231,6 @@ if __name__ == "__main__":
 
         results[bench] = (e_ - s_) / multiple
 
-    print(results)
+    print("BENCHMARKING RESULTS.......")
+    for k, v in results.items():
+        print(f"{k}: {v}")
