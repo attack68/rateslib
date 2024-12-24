@@ -1236,15 +1236,17 @@ def test_forward_fx_spot_equivalent() -> None:
 
 
 class TestFXForwards:
-
-    @pytest.mark.parametrize(("method", "args"), [
-        ("rate", ("cadeur", dt(2022, 1, 12))),
-        ("convert", (100, "cad")),
-        ("positions", (100, "cad")),
-        ("convert_positions", ([100, -100, 100, -100],)),
-        ("swap", ("cadeur", [dt(2022, 1, 10), dt(2022, 1, 16)])),
-        ("to_json", tuple())
-    ])
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("rate", ("cadeur", dt(2022, 1, 12))),
+            ("convert", (100, "cad")),
+            ("positions", (100, "cad")),
+            ("convert_positions", ([100, -100, 100, -100],)),
+            ("swap", ("cadeur", [dt(2022, 1, 10), dt(2022, 1, 16)])),
+            ("to_json", tuple()),
+        ],
+    )
     def test_cache_id_update_on_fxr_update(self, method, args):
         # test validate cache works correctly on various methods after FXRates update
         fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
@@ -1273,14 +1275,17 @@ class TestFXForwards:
         # cache update should have occurred
         assert original_id != fxf._cache_id
 
-    @pytest.mark.parametrize(("method", "args"), [
-        ("rate", ("cadeur", dt(2022, 1, 12))),
-        ("convert", (100, "cad")),
-        ("positions", (100, "cad")),
-        ("convert_positions", ([100, -100, 100, -100],)),
-        ("swap", ("cadeur", [dt(2022, 1, 10), dt(2022, 1, 16)])),
-        ("to_json", tuple())
-    ])
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("rate", ("cadeur", dt(2022, 1, 12))),
+            ("convert", (100, "cad")),
+            ("positions", (100, "cad")),
+            ("convert_positions", ([100, -100, 100, -100],)),
+            ("swap", ("cadeur", [dt(2022, 1, 10), dt(2022, 1, 16)])),
+            ("to_json", tuple()),
+        ],
+    )
     def test_cache_id_update_on_curve_update(self, method, args):
         # test validate cache works correctly on various methods after Curve update
         fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
@@ -1308,4 +1313,3 @@ class TestFXForwards:
         getattr(fxf, method)(*args)
         # cache update should have occurred
         assert original_id != fxf._cache_id
-

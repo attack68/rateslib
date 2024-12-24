@@ -11,7 +11,7 @@ from pandas import DataFrame, Series
 
 from rateslib.calendars import CalInput, add_tenor
 from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
-from rateslib.default import NoInput, PlotOutput, plot, _validate_caches
+from rateslib.default import NoInput, PlotOutput, _validate_caches, plot
 from rateslib.dual import Dual, DualTypes, Number, gradient
 from rateslib.fx.fx_rates import FXRates
 
@@ -180,8 +180,8 @@ class FXForwards:
     def _cache_id_associate(self):
         self_fx_rates = self.fx_rates if isinstance(self.fx_rates, list) else [self.fx_rates]
         return hash(
-            sum(curve._cache_id for curve in self.fx_curves.values()) +
-            sum(fxr._cache_id for fxr in self_fx_rates)
+            sum(curve._cache_id for curve in self.fx_curves.values())
+            + sum(fxr._cache_id for fxr in self_fx_rates)
         )
 
     def _validate_cache(self):

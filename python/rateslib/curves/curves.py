@@ -23,7 +23,7 @@ from rateslib import defaults
 from rateslib.calendars import CalInput, add_tenor, dcf
 from rateslib.calendars.dcfs import _DCF1d
 from rateslib.calendars.rs import CalTypes, get_calendar
-from rateslib.default import NoInput, PlotOutput, _drb, plot, _validate_caches
+from rateslib.default import NoInput, PlotOutput, _drb, _validate_caches, plot
 from rateslib.dual import (  # type: ignore[attr-defined]
     Arr1dF64,
     Arr1dObj,
