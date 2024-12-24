@@ -1306,9 +1306,10 @@ class Solver(Gradients):
             raise NotImplementedError(f"`algorithm`: {algorithm} (spelled correctly?)")
         return v_1
 
-    def _update_fx(self):
-        if self.fx is not NoInput.blank:
-            self.fx.update()  # note: with no variables this does nothing.
+    # remove by FX caching in PR 570
+    # def _update_fx(self):
+    #     if self.fx is not NoInput.blank:
+    #         self.fx.update()  # note: with no variables this does nothing.
 
     def iterate(self):
         r"""
@@ -1333,7 +1334,7 @@ class Solver(Gradients):
         # Initialise data and clear and caches
         self.g_list, self.lambd = [1e10], self.ini_lambda[0]
         self._reset_properties_()
-        self._update_fx()
+        # self._update_fx()
         t0 = time()
 
         # Begin iteration
@@ -1372,7 +1373,7 @@ class Solver(Gradients):
             var_counter += vars
 
         self._reset_properties_()
-        self._update_fx()
+        # self._update_fx()
 
     def _set_ad_order(self, order):
         """Defines the node DF in terms of float, Dual or Dual2 for AD order calcs."""
