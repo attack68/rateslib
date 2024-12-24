@@ -1462,38 +1462,6 @@ class TestCompositeCurve:
         )
         assert np.all(np.abs(diff) < 1e-5)
 
-    def test_composite_curve_translate_cache(self) -> None:
-        curve1 = Curve(
-            nodes={
-                dt(2022, 1, 1): 1.0,
-                dt(2023, 1, 1): 0.98,
-                dt(2024, 1, 1): 0.965,
-                dt(2025, 1, 1): 0.955,
-            },
-        )
-        curve2 = Curve(
-            nodes={
-                dt(2022, 1, 1): 1.0,
-                dt(2022, 6, 30): 1.0,
-                dt(2022, 7, 1): 0.999992,
-                dt(2022, 12, 31): 0.999992,
-                dt(2023, 1, 1): 0.999984,
-                dt(2023, 6, 30): 0.999984,
-                dt(2023, 7, 1): 0.999976,
-                dt(2023, 12, 31): 0.999976,
-                dt(2024, 1, 1): 0.999968,
-                dt(2024, 6, 30): 0.999968,
-                dt(2024, 7, 1): 0.999960,
-                dt(2025, 1, 1): 0.999960,
-            },
-        )
-        crv = CompositeCurve([curve1, curve2])
-        original_curve = crv.translate(dt(2022, 3, 1))
-
-        curve1._set_node_vector([0.99, 0.80, 0.70], 0)
-        new_curve = crv.translate(dt(2022, 3, 1))
-        assert original_curve[dt(2022, 4, 1)] != new_curve[dt(2022, 4, 1)]
-
     def test_composite_curve_roll(self) -> None:
         curve1 = Curve(
             nodes={
@@ -1545,28 +1513,28 @@ class TestCompositeCurve:
 
         assert np.all(np.abs(result - expected) < 1e-7)
 
-    def test_composite_curve_roll_cache(self) -> None:
-        curve1 = Curve(
-            nodes={
-                dt(2022, 1, 1): 1.0,
-                dt(2023, 1, 1): 0.98,
-            },
-        )
-        curve2 = Curve(
-            nodes={
-                dt(2022, 1, 1): 1.0,
-                dt(2022, 6, 30): 1.0,
-                dt(2022, 7, 1): 0.999992,
-                dt(2022, 12, 31): 0.999992,
-                dt(2023, 1, 1): 0.999984,
-            },
-        )
-        crv = CompositeCurve([curve1, curve2])
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("rate", (dt(2022, 1, 1), "1d")),
+            ("roll", ("10d",)),
+            ("translate", (dt(2022, 1, 10),)),
+            ("shift", (10.0,"id", False)),
+            ("__getitem__", (dt(2022, 1, 10),)),
+            ("index_value", (dt(2022, 1, 10),)),
+        ]
+    )
+    def test_composite_curve_precheck_cache(self, method, args) -> None:
+        # test precache_check on shift
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}, index_base=100.0)
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.998})
+        cc = CompositeCurve([c1, c2])
+        cc._cache[dt(1980, 1, 1)] = 100.0
 
-        original_curve = crv.roll("10d")
-        curve1._set_node_vector([0.99], 0)
-        new_curve = crv.roll("10d")
-        assert original_curve[dt(2022, 4, 1)] != new_curve[dt(2022, 4, 1)]
+        # mutate a curve to trigger cache id clear
+        c1._set_node_vector([0.99], 0)
+        getattr(cc, method)(*args)
+        assert dt(1980, 1, 1) not in cc._cache
 
     def test_isinstance_raises(self) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99})
