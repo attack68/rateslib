@@ -1494,7 +1494,6 @@ class TestCompositeCurve:
         new_curve = crv.translate(dt(2022, 3, 1))
         assert original_curve[dt(2022, 4, 1)] != new_curve[dt(2022, 4, 1)]
 
-
     def test_composite_curve_roll(self) -> None:
         curve1 = Curve(
             nodes={

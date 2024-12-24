@@ -12,7 +12,6 @@ import json
 import warnings
 from collections.abc import Callable
 from datetime import datetime, timedelta
-from functools import cached_property
 from math import comb, floor
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
@@ -2048,9 +2047,11 @@ class IndexCurve(Curve):
 
 def _precheck_cache(func):
     """Add a decorator"""
+
     def wrapper(self, *args, **kwargs):
         self._check_and_maybe_clear_cache()
         return func(self, *args, **kwargs)
+
     return wrapper
 
 
@@ -2566,7 +2567,6 @@ class CompositeCurve(Curve):
         if self._cache_id != self._cache_id_associate:
             # If any of the associated curves have been mutated then the cache is invalidated
             self._clear_cache()
-
 
 
 class MultiCsaCurve(CompositeCurve):
