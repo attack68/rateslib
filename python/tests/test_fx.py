@@ -1237,7 +1237,15 @@ def test_forward_fx_spot_equivalent() -> None:
 
 class TestFXForwards:
 
-    def test_cache_id_update_on_fxr_update(self):
+    @pytest.mark.parametrize(("method", "args"), [
+        ("rate", ("cadeur", dt(2022, 1, 12))),
+        ("convert", (100, "cad")),
+        ("positions", (100, "cad")),
+        ("convert_positions", ([100, -100, 100, -100],)),
+        ("swap", ("cadeur", [dt(2022, 1, 10), dt(2022, 1, 16)])),
+        ("to_json", tuple())
+    ])
+    def test_cache_id_update_on_fxr_update(self, method, args):
         fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
         fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2))
         fxr3 = FXRates({"gbpusd": 1.2}, settlement=dt(2022, 1, 3))
@@ -1254,6 +1262,13 @@ class TestFXForwards:
             },
         )
 
-        original = fxf._cache_id
-        fxf.rate("cadeur", settlement=dt(2022, 1, 12))
+        original_id = fxf._cache_id
+        getattr(fxf, method)(*args)
+        # no cache update is necessary
+        assert original_id == fxf._cache_id
+
+        fxr1.update({"eurusd": 2.0})
+        getattr(fxf, method)(*args)
+        # cache update should have occurred
+        assert original_id != fxf._cache_id
 
