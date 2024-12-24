@@ -747,7 +747,7 @@ class FXForwards:
             crv = self.curve(foreign, collateral)
             return fx_rate * value * crv[settlement_] / crv[value_date_]
 
-    @_validate_caches   # type: ignore[arg-type]
+    @_validate_caches  # type: ignore[arg-type]
     # this is technically unnecessary since calls pre-cached method: convert
     def convert_positions(
         self,

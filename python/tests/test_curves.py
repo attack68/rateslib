@@ -1233,10 +1233,9 @@ class TestCurve:
         with pytest.raises(ValueError, match="Cannot translate spline knots for given"):
             curve.translate(dt(2022, 12, 15))
 
-    @pytest.mark.parametrize(("method", "args"),[
-        ("clear_cache", tuple()),
-        ("_set_node_vector", ([0.99],1))
-    ])
+    @pytest.mark.parametrize(
+        ("method", "args"), [("clear_cache", tuple()), ("_set_node_vector", ([0.99], 1))]
+    )
     def test_cache_id_update(self, method, args):
         curve = Curve(
             nodes={
@@ -1277,10 +1276,9 @@ class TestLineCurve:
         )
         assert isinstance(curve, Curve)
 
-    @pytest.mark.parametrize(("method", "args"),[
-        ("clear_cache", tuple()),
-        ("_set_node_vector", ([2.0, 0.99],1))
-    ])
+    @pytest.mark.parametrize(
+        ("method", "args"), [("clear_cache", tuple()), ("_set_node_vector", ([2.0, 0.99], 1))]
+    )
     def test_cache_id_update(self, method, args):
         curve = LineCurve(
             nodes={
@@ -1353,10 +1351,9 @@ class TestIndexCurve:
         )
         assert isinstance(curve, Curve)
 
-    @pytest.mark.parametrize(("method", "args"),[
-        ("clear_cache", tuple()),
-        ("_set_node_vector", ([0.99],1))
-    ])
+    @pytest.mark.parametrize(
+        ("method", "args"), [("clear_cache", tuple()), ("_set_node_vector", ([0.99], 1))]
+    )
     def test_cache_id_update(self, method, args):
         curve = IndexCurve(
             nodes={
