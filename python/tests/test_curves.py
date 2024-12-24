@@ -2046,6 +2046,27 @@ class TestProxyCurve:
         curve = fxf.curve("cad", "eur")
         assert isinstance(curve, Curve)
 
+    def test_cache_is_validated_on_getitem(self):
+        fxr1 = FXRates({"usdeur": 0.95}, dt(2022, 1, 3))
+        fxr2 = FXRates({"usdcad": 1.1}, dt(2022, 1, 2))
+        fxf = FXForwards(
+            [fxr1, fxr2],
+            {
+                "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 10, 1): 0.95}),
+                "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 10, 1): 1.0}),
+                "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 10, 1): 0.99}),
+                "cadusd": Curve({dt(2022, 1, 1): 1.00, dt(2022, 10, 1): 0.97}),
+                "cadcad": Curve({dt(2022, 1, 1): 1.00, dt(2022, 10, 1): 0.969}),
+            },
+        )
+        curve = fxf.curve("cad", "eur")
+        fxr1.update({"usdeur": 100000000.0})
+        fxf.curve("eur", "eur")._set_node_vector([0.5], 1)
+        prior_id = fxf._cache_id
+        curve[dt(2022, 1, 9)]
+        new_id = fxf._cache_id
+        assert prior_id != new_id
+
 
 class TestPlotCurve:
     def test_plot_curve(self, curve) -> None:
