@@ -4,7 +4,7 @@ import os
 from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, ParamSpec, TypeVar
 
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
@@ -392,16 +392,19 @@ def _make_py_json(json: str, class_name: str) -> str:
     """Modifies the output JSON output for Rust structs wrapped by Python classes."""
     return '{"Py":' + json + "}"
 
+P = ParamSpec("P")
+R = TypeVar("R")
 
-def _validate_caches(func: Callable[[*tuple[Any, ...]], Any]) -> Callable[[*tuple[Any, ...]], Any]:
+def _validate_caches(func: Callable[P, R]) -> Callable[P, R]:
     """
     Add a decorator to a class instance method to first validate the cache before performing
     additional operations. If a change is detected the implemented `validate_cache` function
     is responsible for resetting the cache and updating any `cache_id`s.
     """
 
-    def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
-        self._validate_cache()
-        return func(self, *args, **kwargs)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        self = args[0]
+        self._validate_cache()  # type: ignore[attr-defined]
+        return func(*args, **kwargs)
 
-    return wrapper  # type: ignore[return-value]
+    return wrapper

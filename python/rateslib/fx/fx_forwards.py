@@ -455,7 +455,7 @@ class FXForwards:
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    @_validate_caches  # type: ignore[arg-type]
+    @_validate_caches
     def rate(
         self,
         pair: str,
@@ -580,7 +580,7 @@ class FXForwards:
 
         return rate_, path
 
-    @_validate_caches  # type: ignore[arg-type]
+    @_validate_caches
     def positions(
         self, value: Number, base: str | NoInput = NoInput(0), aggregate: bool = False
     ) -> Series[float] | DataFrame:
@@ -659,7 +659,7 @@ class FXForwards:
             _d: DataFrame = df.sort_index(axis=1)
             return _d
 
-    @_validate_caches  # type: ignore[arg-type]
+    @_validate_caches
     def convert(
         self,
         value: DualTypes,
@@ -747,7 +747,7 @@ class FXForwards:
             crv = self.curve(foreign, collateral)
             return fx_rate * value * crv[settlement_] / crv[value_date_]
 
-    @_validate_caches  # type: ignore[arg-type]
+    @_validate_caches
     # this is technically unnecessary since calls pre-cached method: convert
     def convert_positions(
         self,
@@ -817,16 +817,16 @@ class FXForwards:
             d_sum: DualTypes = 0.0
             for ccy in array_.index:
                 # typing d is a datetime by default.
-                value_: DualTypes | None = self.convert(array_.loc[ccy, d], ccy, base, d)
+                value_: DualTypes | None = self.convert(array_.loc[ccy, d], ccy, base, d)  # type: ignore[arg-type]
                 d_sum += 0.0 if value_ is None else value_
             if abs(d_sum) < 1e-2:
                 sum += d_sum
             else:  # only discount if there is a real value
-                value_ = self.convert(d_sum, base, base, d, self.immediate)
+                value_ = self.convert(d_sum, base, base, d, self.immediate)   # type: ignore[arg-type]
                 sum += 0.0 if value_ is None else value_
         return sum
 
-    @_validate_caches  # type: ignore[arg-type]
+    @_validate_caches
     def swap(
         self,
         pair: str,
@@ -978,7 +978,7 @@ class FXForwards:
             id=id,
         )
 
-    @_validate_caches  # type: ignore[arg-type]
+    @_validate_caches
     def plot(
         self,
         pair: str,
@@ -1052,7 +1052,7 @@ class FXForwards:
         self.fx_rates_immediate._set_ad_order(order)
         self._cache_id = self._cache_id_associate  # update the cache id after changing values
 
-    @_validate_caches  # type: ignore[arg-type]
+    @_validate_caches
     def to_json(self) -> str:
         if isinstance(self.fx_rates, list):
             fx_rates: list[str] | str = [_.to_json() for _ in self.fx_rates]
