@@ -80,6 +80,11 @@ email contact, see `rateslib <https://rateslib.com>`_.
        introduced in v1.3.0. This should not be noticeable on round trips, i.e. using
        ``from_json`` on the output from ``to_json``.
        (`552 <https://github.com/attack68/rateslib/pull/552>`_)
+   * - Refactor
+     - Internal ``_cache_id`` management is introduced to mutable objects such as *Curves*,
+       *FXRates* and *FXForwards* to allow auto-mutate detection of associated objects and ensure
+       consistent method results.
+       (`570 <https://github.com/attack68/rateslib/pull/570>`_)
 
 1.6.0 (30th November 2024)
 ****************************
