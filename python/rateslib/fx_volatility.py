@@ -3,6 +3,7 @@ from __future__ import annotations  # type hinting
 from datetime import datetime, timedelta
 from datetime import datetime as dt
 from uuid import uuid4
+from os import urandom
 
 import numpy as np
 from pandas import Series
@@ -117,6 +118,28 @@ class FXDeltaVolSmile:
             self.t = [0.0] * 4 + self.node_keys[1:-1] + [float(upper_bound)] * 4
 
         self._set_ad_order(ad)  # includes csolve
+
+    def clear_cache(self) -> None:
+        """
+        Clear the cache of values on a *Smile* type.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        This should be used if any modification has been made to the *Smile*.
+        Users are advised against making direct modification to *Curve* classes once
+        constructed to avoid the issue of un-cleared caches returning erroneous values.
+
+        Alternatively the curve caching as a feature can be set to *False* in ``defaults``.
+        """
+        self._cache: dict[float, DualTypes] = dict()
+        self._state_id: int = hash(urandom(8))  # 64-bit entropy
+
+    def __hash__(self) -> int:
+        return self._state_id
 
     def __iter__(self):
         raise TypeError("`FXDeltaVolSmile` is not iterable.")
@@ -436,9 +459,7 @@ class FXDeltaVolSmile:
 
         self.spline = Spline(4, self.t, None)
         self.spline.csolve(tau, y, left_n, right_n, False)
-
-        # self._create_approx_spline_conversions(Spline)
-        return None
+        self.clear_cache()
 
     # def _build_datatable(self):
     #     """
@@ -524,7 +545,7 @@ class FXDeltaVolSmile:
     #     self.spline_u_delta_approx.csolve(u, delta.tolist()[::-1], 0, 0, False)
     #     return None
 
-    def _set_ad_order(self, order: int):
+    def _set_ad_order(self, order: int) -> None:
         if order == getattr(self, "ad", None):
             return None
         elif order not in [0, 1, 2]:
@@ -535,8 +556,7 @@ class FXDeltaVolSmile:
             k: set_order_convert(v, order, [f"{self.id}{i}"])
             for i, (k, v) in enumerate(self.nodes.items())
         }
-        self.csolve()
-        return None
+        self.csolve()  # also clears cache
 
     def plot(
         self,
@@ -625,6 +645,7 @@ class FXDeltaVolSmile:
                 *DualArgs[1:],
             )
         self.csolve()
+        self.clear_cache()
 
     def _get_node_vector(self):
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""

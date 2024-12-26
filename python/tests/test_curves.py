@@ -1249,6 +1249,19 @@ class TestCurve:
         new = hash(curve)
         assert new != original
 
+    def test_csolve_clear_cache(self):
+        c = Curve(
+            nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99},
+            t=[
+                dt(2000, 1, 1),dt(2000, 1, 1),dt(2000, 1, 1),dt(2000, 1, 1),
+                dt(2002, 1, 1),dt(2002, 1, 1),dt(2002, 1, 1),dt(2002, 1, 1)
+            ])
+        before = hash(c)
+        c.csolve()
+        after = hash(c)
+        assert before != after
+
+
 
 class TestLineCurve:
     def test_repr(self):

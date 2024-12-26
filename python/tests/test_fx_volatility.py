@@ -341,6 +341,35 @@ class TestFXDeltaVolSmile:
         with pytest.raises(TypeError, match="`FXDeltaVolSmile` is not iterable."):
             fxvs.__iter__()
 
+    def test_hash(self):
+        fxvs = FXDeltaVolSmile(
+            nodes={0.25: 10.0, 0.5: 10.0, 0.75: 11.0},
+            delta_type="forward",
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            id="vol",
+        )
+        assert hash(fxvs) == fxvs._state_id
+
+    @pytest.mark.parametrize(("method", "args"), [
+        ("csolve", tuple()),
+        ("_set_ad_order", (1,)),
+        ("_set_node_vector", ([9.9, 9.8, 9.9],1))
+    ])
+    def test_clear_cache(self, method, args):
+        fxvs = FXDeltaVolSmile(
+            nodes={0.25: 10.0, 0.5: 10.0, 0.75: 11.0},
+            delta_type="forward",
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            id="vol",
+        )
+        before = hash(fxvs)
+        getattr(fxvs, method)(*args)
+        after = hash(fxvs)
+        assert before != after
+
+
 
 class TestFXDeltaVolSurface:
     def test_expiry_before_eval(self) -> None:
