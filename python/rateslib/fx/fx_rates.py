@@ -3,9 +3,8 @@ from __future__ import annotations
 import warnings
 from datetime import datetime
 from functools import cached_property
-from typing import Any
-from uuid import uuid4
 from os import urandom
+from typing import Any
 
 import numpy as np
 from pandas import DataFrame, Series
