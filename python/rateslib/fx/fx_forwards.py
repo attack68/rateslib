@@ -180,7 +180,7 @@ class FXForwards:
     def _cache_id_associate(self) -> int:
         self_fx_rates = self.fx_rates if isinstance(self.fx_rates, list) else [self.fx_rates]
         return hash(
-            sum(curve._cache_id for curve in self.fx_curves.values())
+            sum(hash(curve) for curve in self.fx_curves.values())
             + sum(fxr._state_id for fxr in self_fx_rates)
         )
 

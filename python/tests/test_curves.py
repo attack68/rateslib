@@ -1244,9 +1244,9 @@ class TestCurve:
             },
             id="sofr",
         )
-        original = curve._cache_id
+        original = hash(curve)
         getattr(curve, method)(*args)
-        new = curve._cache_id
+        new = hash(curve)
         assert new != original
 
 
@@ -1287,9 +1287,9 @@ class TestLineCurve:
             },
             id="sofr",
         )
-        original = curve._cache_id
+        original = hash(curve)
         getattr(curve, method)(*args)
-        new = curve._cache_id
+        new = hash(curve)
         assert new != original
 
 
@@ -1354,7 +1354,7 @@ class TestIndexCurve:
     @pytest.mark.parametrize(
         ("method", "args"), [("clear_cache", tuple()), ("_set_node_vector", ([0.99], 1))]
     )
-    def test_cache_id_update(self, method, args):
+    def test_state_id_update(self, method, args):
         curve = IndexCurve(
             nodes={
                 dt(2022, 1, 1): 1.0,
@@ -1363,9 +1363,9 @@ class TestIndexCurve:
             id="sofr",
             index_base=200.0,
         )
-        original = curve._cache_id
+        original = hash(curve)
         getattr(curve, method)(*args)
-        new = curve._cache_id
+        new = hash(curve)
         assert new != original
 
 
