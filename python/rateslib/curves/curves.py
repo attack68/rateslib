@@ -2537,8 +2537,7 @@ class CompositeCurve(Curve):
     def _get_node_vector(self) -> Arr1dObj | Arr1dF64:
         raise NotImplementedError("Instances of CompositeCurve do not have solvable variables.")
 
-    @property
-    def _state_id_composited(self) -> int:
+    def _composited_hashes(self) -> int:
         return hash(sum(hash(curve) for curve in self.curves))
 
     def _clear_cache(self) -> None:
@@ -2556,10 +2555,10 @@ class CompositeCurve(Curve):
         invalidates the cache on a composite curve.
         """
         self._cache: dict[datetime, DualTypes] = dict()
-        self._state_id = self._state_id_composited
+        self._state_id = self._composited_hashes()
 
     def _validate_cache(self) -> None:
-        if self._state_id != self._state_id_composited:
+        if hash(self) != self._composited_hashes():
             # If any of the associated curves have been mutated then the cache is invalidated
             self._clear_cache()
 
