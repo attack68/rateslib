@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 from math import comb, floor
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
+from os import urandom
 
 import numpy as np
 from pytz import UTC
@@ -254,9 +255,8 @@ class Curve:
 
         self._set_ad_order(order=ad)
 
-    @property
-    def _cache_id(self) -> int:
-        return self._cache_id_store
+    def __hash__(self) -> int:
+        return self._state_id
 
     def __eq__(self, other: Any) -> bool:
         """Test two curves are identical"""
@@ -592,7 +592,7 @@ class Curve:
         Alternatively the curve caching as a feature can be set to *False* in ``defaults``.
         """
         self._cache: dict[datetime, DualTypes] = dict()
-        self._cache_id_store: int = hash(uuid4())
+        self._state_id: int = hash(urandom(8))  # 64-bit entropy
 
     def _cached_value(self, date: datetime, val: DualTypes) -> DualTypes:
         if defaults.curve_caching:
@@ -2537,12 +2537,12 @@ class CompositeCurve(Curve):
         raise NotImplementedError("Instances of CompositeCurve do not have solvable variables.")
 
     @property
-    def _cache_id_associate(self) -> int:
-        return hash(sum(curve._cache_id for curve in self.curves))
+    def _state_id_composited(self) -> int:
+        return hash(sum(hash(curve) for curve in self.curves))
 
     def _clear_cache(self) -> None:
         """
-        Clear the cache of values on a *CompositeCurve* type.
+        Clear the cache of values on a *CompositeCurve* type, and update the state id.
 
         Returns
         -------
@@ -2551,14 +2551,14 @@ class CompositeCurve(Curve):
         Notes
         -----
         This method is called automatically when any of the composited curves
-        are detected to have been mutated, via their ``_cache_id``, which therefore
+        are detected to have been mutated, via their ``_state_id``, which therefore
         invalidates the cache on a composite curve.
         """
         self._cache: dict[datetime, DualTypes] = dict()
-        self._cache_id_store = self._cache_id_associate
+        self._state_id = self._state_id_composited
 
     def _validate_cache(self) -> None:
-        if self._cache_id != self._cache_id_associate:
+        if self._state_id != self._state_id_composited:
             # If any of the associated curves have been mutated then the cache is invalidated
             self._clear_cache()
 
@@ -2923,6 +2923,11 @@ class ProxyCurve(Curve):
         self.calendar = default_curve.calendar
         self.node_dates = [self.fx_forwards.immediate, self.terminal]
 
+    def __hash__(self):
+        # ProxyCurve is directly associated with its FXForwards object
+        self.fx_forwards._validate_cache()
+        return self.fx_forwards._cache_id
+
     def __getitem__(self, date: datetime) -> DualTypes:
         self.fx_forwards._validate_cache()  # manually handle cache check
 
@@ -2932,12 +2937,6 @@ class ProxyCurve(Curve):
         )
         _3: DualTypes = self.fx_forwards.fx_curves[self.coll_pair][date]
         return _1 / _2 * _3
-
-    @property
-    def _cache_id(self) -> int:
-        # the state of the cache for a ProxyCurve is fully dependent on the state of the
-        # cache of its contained FXForwards object, which is what derives its calculations.
-        return self.fx_forwards._cache_id
 
     def to_json(self) -> str:  # pragma: no cover  # type: ignore
         """
