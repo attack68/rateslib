@@ -2,8 +2,8 @@ from __future__ import annotations  # type hinting
 
 from datetime import datetime, timedelta
 from datetime import datetime as dt
-from uuid import uuid4
 from os import urandom
+from uuid import uuid4
 
 import numpy as np
 from pandas import Series
