@@ -11,7 +11,7 @@ from pandas import DataFrame, Series
 
 from rateslib.calendars import CalInput, add_tenor
 from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
-from rateslib.default import NoInput, PlotOutput, plot
+from rateslib.default import NoInput, PlotOutput, _validate_caches, plot
 from rateslib.dual import Dual, DualTypes, Number, gradient
 from rateslib.fx.fx_rates import FXRates
 
@@ -116,46 +116,12 @@ class FXForwards:
         -----
         An *FXForwards* object contains associations to external objects, those being
         :class:`~rateslib.fx.FXRates` and :class:`~rateslib.curves.Curve`, and its purpose is
-        to be able to combine those object to yield FX forward rates.
+        to be able to combine those objects to yield FX forward rates.
 
-        When those external objects have themselves been updated it is necessary to *also*
-        update the container object. If the *FXRates* object
-        is updated without also updating the *FXForwards* spurious results may be seen, as below.
-
-        .. ipython:: python
-
-           fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3), base="usd")
-           fx_curves = {
-               "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.965}),
-               "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}),
-               "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}),
-           }
-           fxf = FXForwards(fxr, fx_curves)
-           fxf.rate("eurusd", dt(2022, 8, 15))
-
-        .. ipython:: python
-
-           fxr.update({"eurusd": 2.0})
-           fxf.rate("eurusd", dt(2022, 8, 15))  # <-- rate is unchanged
-           fxf.rate("eurusd", dt(2022, 1, 3))  # <-- rate is taken directly from updated fxr
-
-        However, after the *FXForwards* is updated and the immediate FX rates are re-calculated,
-        all is now synchronised.
-
-        .. ipython:: python
-
-           fxf.update()
-           fxf.rate("eurusd", dt(2022, 8, 15))
-
-        The :class:`~rateslib.solver.Solver` automatically updates when it mutates and solves
-        the *Curves*.
-
-        The ``fx_rates`` argument allows the *FXRates* classes to be updated directly from
-        this call instead of individually, avoiding the potential of a broken update chain.
-
-        Examples
-        --------
-        This example replicates the above but with direct update.
+        When those external objects have themselves been updated the *FXForwards* class
+        will detect this via *rateslib's* cache management and will automatically update
+        the *FXForwards* object. Manually calling this update on the *FXForwards* class
+        also allows those associated *FXRates* classes to be updated with new market data.
 
         .. ipython:: python
 
@@ -166,10 +132,25 @@ class FXForwards:
                "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}),
            }
            fxf = FXForwards(fxr, fx_curves)
-           fxf.update([{"eurusd": 2.0}])
            fxf.rate("eurusd", dt(2022, 8, 15))
 
+        .. ipython:: python
+
+           fxr.update({"eurusd": 2.0})  # <-- update the associated FXRates object.
+           fxf.rate("eurusd", dt(2022, 8, 15))  # <-- rate has changed, fxf has auto-updated.
+
+        It is possible to update an *FXRates* object directly from the *FXForwards* object, via
+        the ``fx_rates`` argument.
+
+        .. ipython:: python
+
+           fxf.update([{"eurusd": 1.50}])
+           fxf.rate("eurusd", dt(2022, 8, 15))
+
+        The :class:`~rateslib.solver.Solver` also automatically updates *FXForwards* objects
+        when it mutates and solves the *Curves*.
         """
+        # does not require cache validation because resets the cache_id at end of method.
         if not isinstance(fx_rates, NoInput):
             self_fx_rates = self.fx_rates if isinstance(self.fx_rates, list) else [self.fx_rates]
             if not isinstance(fx_rates, list) or len(self_fx_rates) != len(fx_rates):
@@ -180,6 +161,7 @@ class FXForwards:
             for fxr_obj, fxr_up in zip(self_fx_rates, fx_rates, strict=True):
                 fxr_obj.update(fxr_up)
         self._calculate_immediate_rates(base=self.base, init=False)
+        self._cache_id = self._cache_id_associate
 
     def __init__(
         self,
@@ -191,6 +173,20 @@ class FXForwards:
         self._validate_fx_curves(fx_curves)
         self.fx_rates: FXRates | list[FXRates] = fx_rates
         self._calculate_immediate_rates(base, init=True)
+        self._cache_id = self._cache_id_associate
+        pass
+
+    @property
+    def _cache_id_associate(self) -> int:
+        self_fx_rates = self.fx_rates if isinstance(self.fx_rates, list) else [self.fx_rates]
+        return hash(
+            sum(curve._cache_id for curve in self.fx_curves.values())
+            + sum(fxr._state_id for fxr in self_fx_rates)
+        )
+
+    def _validate_cache(self) -> None:
+        if self._cache_id != self._cache_id_associate:
+            self.update()
 
     def _validate_fx_curves(self, fx_curves: dict[str, Curve]) -> None:
         self.fx_curves: dict[str, Curve] = {k.lower(): v for k, v in fx_curves.items()}
@@ -258,10 +254,10 @@ class FXForwards:
                     if ccy not in fx_rates_obj.currencies_list
                 ]
                 pre_rates = {
-                    f"{overlapping_currencies[0]}{ccy}": acyclic_fxf.rate(
+                    f"{overlapping_currencies[0]}{ccy}": acyclic_fxf._rate_with_path(
                         f"{overlapping_currencies[0]}{ccy}",
                         fx_rates_obj.settlement,
-                    )
+                    )[0]
                     for ccy in pre_currencies
                 }
                 combined_fx_rates = FXRates(
@@ -459,6 +455,7 @@ class FXForwards:
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
+    @_validate_caches
     def rate(
         self,
         pair: str,
@@ -500,6 +497,8 @@ class FXForwards:
         """  # noqa: E501
         return self._rate_with_path(pair, settlement)[0]
 
+    # @_validate_cache: unused because this is circular. Any method that calls _rate_with_path
+    # should be pre cache validated. This is also used in initialisation.
     def _rate_with_path(
         self,
         pair: str,
@@ -525,6 +524,11 @@ class FXForwards:
         Returns
         -------
         tuple
+
+        Notes
+        -----
+        This function does not have automatic cache management. If a *Curve* or an *FXRates*
+        object has been updated, one *must* call `FXForwards.update` before calling this methob.
         """
 
         def _get_d_f_idx_and_path(
@@ -576,6 +580,7 @@ class FXForwards:
 
         return rate_, path
 
+    @_validate_caches
     def positions(
         self, value: Number, base: str | NoInput = NoInput(0), aggregate: bool = False
     ) -> Series[float] | DataFrame:
@@ -654,6 +659,7 @@ class FXForwards:
             _d: DataFrame = df.sort_index(axis=1)
             return _d
 
+    @_validate_caches
     def convert(
         self,
         value: DualTypes,
@@ -734,13 +740,15 @@ class FXForwards:
         settlement_: datetime = self.immediate if isinstance(settlement, NoInput) else settlement
         value_date_: datetime = settlement_ if isinstance(value_date, NoInput) else value_date
 
-        fx_rate: DualTypes = self.rate(domestic + foreign, settlement_)
+        fx_rate: DualTypes = self._rate_with_path(domestic + foreign, settlement_)[0]
         if value_date_ == settlement_:
             return fx_rate * value
         else:
             crv = self.curve(foreign, collateral)
             return fx_rate * value * crv[settlement_] / crv[value_date_]
 
+    @_validate_caches
+    # this is technically unnecessary since calls pre-cached method: convert
     def convert_positions(
         self,
         array: np.ndarray[tuple[int], np.dtype[np.float64]]
@@ -818,6 +826,7 @@ class FXForwards:
                 sum += 0.0 if value_ is None else value_
         return sum
 
+    @_validate_caches
     def swap(
         self,
         pair: str,
@@ -847,6 +856,7 @@ class FXForwards:
         fx1, _ = self._rate_with_path(pair, settlements[1], path_)
         return (fx1 - fx0) * 10000
 
+    # @_validate_cache TODO
     def _full_curve(self, cashflow: str, collateral: str) -> Curve:
         """
         Calculate a cash collateral curve.
@@ -892,6 +902,7 @@ class FXForwards:
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
+    # @_validate_cache: does not determine values, just links to contained objects.
     def curve(
         self,
         cashflow: str,
@@ -967,6 +978,7 @@ class FXForwards:
             id=id,
         )
 
+    @_validate_caches
     def plot(
         self,
         pair: str,
@@ -1027,6 +1039,7 @@ class FXForwards:
         return plot(x, y)
 
     def _set_ad_order(self, order: int) -> None:
+        # does not require cache validation because updates the cache_id at end of method
         self._ad = order
         for curve in self.fx_curves.values():
             curve._set_ad_order(order)
@@ -1037,7 +1050,9 @@ class FXForwards:
         else:
             self.fx_rates._set_ad_order(order)
         self.fx_rates_immediate._set_ad_order(order)
+        self._cache_id = self._cache_id_associate  # update the cache id after changing values
 
+    @_validate_caches
     def to_json(self) -> str:
         if isinstance(self.fx_rates, list):
             fx_rates: list[str] | str = [_.to_json() for _ in self.fx_rates]
@@ -1120,6 +1135,7 @@ class FXForwards:
     def __ne__(self, other: Any) -> bool:
         return not self.__eq__(other)
 
+    # @_validate_cache: unused because it is redirected to a cache_validated method (to_json)
     def copy(self) -> FXForwards:
         """
         An FXForwards copy creates a new object with copied references.
