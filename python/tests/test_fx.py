@@ -16,6 +16,21 @@ from rateslib.fx import (
 from rateslib.json import from_json
 
 
+class TestFxRates:
+    def test_state_id_chg_update(self):
+        fxr = FXRates({"eurusd": 1.0, "usdgbp": 1.0})
+        original = fxr._state_id
+
+        fxr.update({"eurusd": 2.0})
+        new = fxr._state_id
+        assert new != original
+
+    def test_hash(self):
+        fxr = FXRates({"eurusd": 1.0, "usdgbp": 1.0})
+        expected = fxr._state_id
+        assert hash(fxr) == expected
+
+
 @pytest.mark.parametrize(
     "fx_rates",
     [
@@ -1223,3 +1238,83 @@ def test_forward_fx_spot_equivalent() -> None:
     f_curve = Curve(nodes={dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.95})
     result = forward_fx(dt(2022, 7, 1), d_curve, f_curve, 10.102214, dt(2022, 4, 1))
     assert abs(result - 10.206626) < 1e-6
+
+
+class TestFXForwards:
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("rate", ("cadeur", dt(2022, 1, 12))),
+            ("convert", (100, "cad")),
+            ("positions", (100, "cad")),
+            ("convert_positions", ([100, -100, 100, -100],)),
+            ("swap", ("cadeur", [dt(2022, 1, 10), dt(2022, 1, 16)])),
+            ("to_json", tuple()),
+        ],
+    )
+    def test_cache_id_update_on_fxr_update(self, method, args):
+        # test validate cache works correctly on various methods after FXRates update
+        fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
+        fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2))
+        fxr3 = FXRates({"gbpusd": 1.2}, settlement=dt(2022, 1, 3))
+        fxf = FXForwards(
+            fx_rates=[fxr1, fxr2, fxr3],  # FXRates as list
+            fx_curves={
+                "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "cadcad": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "usdeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "cadeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "gbpcad": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "gbpgbp": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            },
+        )
+
+        original_id = fxf._cache_id
+        getattr(fxf, method)(*args)
+        # no cache update is necessary
+        assert original_id == fxf._cache_id
+
+        fxr1.update({"eurusd": 2.0})
+        getattr(fxf, method)(*args)
+        # cache update should have occurred
+        assert original_id != fxf._cache_id
+
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("rate", ("cadeur", dt(2022, 1, 12))),
+            ("convert", (100, "cad")),
+            ("positions", (100, "cad")),
+            ("convert_positions", ([100, -100, 100, -100],)),
+            ("swap", ("cadeur", [dt(2022, 1, 10), dt(2022, 1, 16)])),
+            ("to_json", tuple()),
+        ],
+    )
+    def test_cache_id_update_on_curve_update(self, method, args):
+        # test validate cache works correctly on various methods after Curve update
+        fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
+        fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2))
+        fxr3 = FXRates({"gbpusd": 1.2}, settlement=dt(2022, 1, 3))
+        fxf = FXForwards(
+            fx_rates=[fxr1, fxr2, fxr3],  # FXRates as list
+            fx_curves={
+                "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "cadcad": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "usdeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "cadeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "gbpcad": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "gbpgbp": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            },
+        )
+
+        original_id = fxf._cache_id
+        getattr(fxf, method)(*args)
+        # no cache update is necessary
+        assert original_id == fxf._cache_id
+
+        fxf.curve("eur", "eur")._set_node_vector([0.998], 1)
+        getattr(fxf, method)(*args)
+        # cache update should have occurred
+        assert original_id != fxf._cache_id

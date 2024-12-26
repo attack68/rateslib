@@ -3,6 +3,7 @@ from __future__ import annotations
 import warnings
 from datetime import datetime
 from functools import cached_property
+from os import urandom
 from typing import Any
 
 import numpy as np
@@ -104,6 +105,10 @@ class FXRates:
         settlement: datetime | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
+        # Temporary declaration - will be overwritten
+        self._state_id: int = 0
+        self.currencies: dict[str, int] = {}
+
         settlement_: datetime | None = _drb(None, settlement)
         fx_rates_ = [FXRate(k[0:3], k[3:6], v, settlement_) for k, v in fx_rates.items()]
         if isinstance(base, NoInput):
@@ -131,7 +136,12 @@ class FXRates:
         self.__clear_cached_properties__()
 
     def __clear_cached_properties__(self) -> None:
+        """
+        Clear the cache ID so the fx_array can be fetched and cached from Rust object.
+        Create a new cache_id to signal object has mutated.
+        """
         self.__dict__.pop("fx_array", None)
+        self._state_id = hash(urandom(8))  # 64-bit entropy
 
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, FXRates):
@@ -154,6 +164,9 @@ class FXRates:
             )
         else:
             return f"<rl.FXRates:[{','.join(self.currencies_list)}] at {hex(id(self))}>"
+
+    def __hash__(self) -> int:
+        return self._state_id
 
     @cached_property
     def fx_array(self) -> Arr2dObj:
@@ -319,8 +332,9 @@ class FXRates:
 
         This object may be linked to others, probably an :class:`~rateslib.fx.FXForwards` class.
         It can be updated with some new market data. This will preserve its memory id and
-        association with other objects (however, any linked objects should also be updated to
-        cascade new calculations).
+        association with other objects. Any :class:`~rateslib.fx.FXForwards` objects referencing
+        this will detect this change and will also lazily update via *rateslib's* cache
+        management.
 
         .. ipython:: python
 
@@ -328,16 +342,6 @@ class FXRates:
            fxr.update({"eurusd": 1.06})
            id(fxr)  # <- SAME as above
            linked_obj.rate("eurusd")
-
-        Do **not** do the following because overwriting a variable name will not eliminate the
-        previous object from memory. Linked objects will still refer to the previous *FXRates*
-        class still in memory.
-
-        .. ipython:: python
-
-           fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3), base="usd")
-           id(fxr)  # <- NEW memory id, linked objects still associated with old fxr in memory
-           linked_obj.rate("eurusd")  # will NOT return rate from the new `fxr` object
 
         Examples
         --------
