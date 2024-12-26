@@ -658,6 +658,7 @@ class Curve:
             self.spline = PPSplineDual2(4, t_posix, None)
 
         self.spline.csolve(tau_posix, y, left_n, right_n, False)  # type: ignore[attr-defined]
+        self.clear_cache()
 
     def shift(
         self,
