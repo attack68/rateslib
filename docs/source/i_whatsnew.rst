@@ -56,6 +56,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
      - :class:`~rateslib.curves.CompositeCurve` no longer requires all curves to have the same ``index_base``
        or ``index_lag``. Those values will be sampled from the first provided composited *Curve*.
    * - Refactor
+     - The builtin ``abs`` method operating on dual type objects now returns dual type objects with properly
+       adjusted dual manifold gradients. The previous functionality returning only floats can be replicated
+       using the internal method :meth:`rateslib.dual._abs_float`.
+   * - Refactor
      - :red:`Minor Breaking Change!` :meth:`~rateslib.calendars.get_calendar` has dropped the
        ``kind`` argument being only useful internally.
        (`524 <https://github.com/attack68/rateslib/pull/524>`_)
@@ -76,6 +80,11 @@ email contact, see `rateslib <https://rateslib.com>`_.
        introduced in v1.3.0. This should not be noticeable on round trips, i.e. using
        ``from_json`` on the output from ``to_json``.
        (`552 <https://github.com/attack68/rateslib/pull/552>`_)
+   * - Refactor
+     - Internal ``_cache_id`` management is introduced to mutable objects such as *Curves*,
+       *FXRates* and *FXForwards* to allow auto-mutate detection of associated objects and ensure
+       consistent method results.
+       (`570 <https://github.com/attack68/rateslib/pull/570>`_)
 
 1.6.0 (30th November 2024)
 ****************************

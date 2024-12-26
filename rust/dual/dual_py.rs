@@ -353,8 +353,8 @@ impl Dual {
         self.exp()
     }
 
-    fn __abs__(&self) -> f64 {
-        self.abs().real()
+    fn __abs__(&self) -> Self {
+        self.abs()
     }
 
     fn __log__(&self) -> Self {
@@ -688,8 +688,8 @@ impl Dual2 {
         self.exp()
     }
 
-    fn __abs__(&self) -> f64 {
-        self.abs().real
+    fn __abs__(&self) -> Self {
+        self.abs()
     }
 
     fn __log__(&self) -> Self {
