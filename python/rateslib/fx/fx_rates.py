@@ -165,6 +165,9 @@ class FXRates:
         else:
             return f"<rl.FXRates:[{','.join(self.currencies_list)}] at {hex(id(self))}>"
 
+    def __hash__(self) -> int:
+        return self._state_id
+
     @cached_property
     def fx_array(self) -> Arr2dObj:
         # caching this prevents repetitive data transformations between Rust/Python

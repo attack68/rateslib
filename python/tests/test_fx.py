@@ -25,6 +25,11 @@ class TestFxRates:
         new = fxr._state_id
         assert new != original
 
+    def test_hash(self):
+        fxr = FXRates({"eurusd": 1.0, "usdgbp": 1.0})
+        expected = fxr._state_id
+        assert hash(fxr) == expected
+
 
 @pytest.mark.parametrize(
     "fx_rates",
