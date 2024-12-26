@@ -181,7 +181,7 @@ class FXForwards:
         self_fx_rates = self.fx_rates if isinstance(self.fx_rates, list) else [self.fx_rates]
         return hash(
             sum(curve._cache_id for curve in self.fx_curves.values())
-            + sum(fxr._cache_id for fxr in self_fx_rates)
+            + sum(fxr._state_id for fxr in self_fx_rates)
         )
 
     def _validate_cache(self) -> None:

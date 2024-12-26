@@ -5,6 +5,7 @@ from datetime import datetime
 from functools import cached_property
 from typing import Any
 from uuid import uuid4
+from os import urandom
 
 import numpy as np
 from pandas import DataFrame, Series
@@ -105,6 +106,9 @@ class FXRates:
         settlement: datetime | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
+        self._state_id: int = ...
+        self.currencies: dict[str, DualTypes] = ...
+
         settlement_: datetime | None = _drb(None, settlement)
         fx_rates_ = [FXRate(k[0:3], k[3:6], v, settlement_) for k, v in fx_rates.items()]
         if isinstance(base, NoInput):
@@ -137,7 +141,7 @@ class FXRates:
         Create a new cache_id to signal object has mutated.
         """
         self.__dict__.pop("fx_array", None)
-        self._cache_id = hash(uuid4())
+        self._state_id = hash(urandom(8))  # 64-bit entropy
 
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, FXRates):
