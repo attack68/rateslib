@@ -13,9 +13,9 @@ import warnings
 from collections.abc import Callable
 from datetime import datetime, timedelta
 from math import comb, floor
+from os import urandom
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
-from os import urandom
 
 import numpy as np
 from pytz import UTC
@@ -2923,7 +2923,7 @@ class ProxyCurve(Curve):
         self.calendar = default_curve.calendar
         self.node_dates = [self.fx_forwards.immediate, self.terminal]
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         # ProxyCurve is directly associated with its FXForwards object
         self.fx_forwards._validate_cache()
         return self.fx_forwards._cache_id
