@@ -105,8 +105,9 @@ class FXRates:
         settlement: datetime | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
-        self._state_id: int = ...
-        self.currencies: dict[str, DualTypes] = ...
+        # Temporary declaration - will be overwritten
+        self._state_id: int = 0
+        self.currencies: dict[str, int] = {}
 
         settlement_: datetime | None = _drb(None, settlement)
         fx_rates_ = [FXRate(k[0:3], k[3:6], v, settlement_) for k, v in fx_rates.items()]
