@@ -1245,10 +1245,29 @@ class TestCurve:
             },
             id="sofr",
         )
-        original = curve._cache_id
+        original = hash(curve)
         getattr(curve, method)(*args)
-        new = curve._cache_id
+        new = hash(curve)
         assert new != original
+
+    def test_csolve_clear_cache(self):
+        c = Curve(
+            nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99},
+            t=[
+                dt(2000, 1, 1),
+                dt(2000, 1, 1),
+                dt(2000, 1, 1),
+                dt(2000, 1, 1),
+                dt(2002, 1, 1),
+                dt(2002, 1, 1),
+                dt(2002, 1, 1),
+                dt(2002, 1, 1),
+            ],
+        )
+        before = hash(c)
+        c.csolve()
+        after = hash(c)
+        assert before != after
 
 
 class TestLineCurve:
@@ -1288,9 +1307,9 @@ class TestLineCurve:
             },
             id="sofr",
         )
-        original = curve._cache_id
+        original = hash(curve)
         getattr(curve, method)(*args)
-        new = curve._cache_id
+        new = hash(curve)
         assert new != original
 
 
@@ -1355,7 +1374,7 @@ class TestIndexCurve:
     @pytest.mark.parametrize(
         ("method", "args"), [("clear_cache", tuple()), ("_set_node_vector", ([0.99], 1))]
     )
-    def test_cache_id_update(self, method, args):
+    def test_state_id_update(self, method, args):
         curve = IndexCurve(
             nodes={
                 dt(2022, 1, 1): 1.0,
@@ -1364,9 +1383,9 @@ class TestIndexCurve:
             id="sofr",
             index_base=200.0,
         )
-        original = curve._cache_id
+        original = hash(curve)
         getattr(curve, method)(*args)
-        new = curve._cache_id
+        new = hash(curve)
         assert new != original
 
 
@@ -2063,10 +2082,10 @@ class TestProxyCurve:
         curve = fxf.curve("cad", "eur")
         fxr1.update({"usdeur": 100000000.0})
         fxf.curve("eur", "eur")._set_node_vector([0.5], 1)
-        prior_id = fxf._cache_id
+        before = hash(fxf)
         curve[dt(2022, 1, 9)]
-        new_id = fxf._cache_id
-        assert prior_id != new_id
+        after = hash(fxf)
+        assert before != after
 
 
 class TestPlotCurve:
