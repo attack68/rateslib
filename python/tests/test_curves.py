@@ -2081,10 +2081,10 @@ class TestProxyCurve:
         curve = fxf.curve("cad", "eur")
         fxr1.update({"usdeur": 100000000.0})
         fxf.curve("eur", "eur")._set_node_vector([0.5], 1)
-        prior_id = fxf._cache_id
+        before = hash(fxf)
         curve[dt(2022, 1, 9)]
-        new_id = fxf._cache_id
-        assert prior_id != new_id
+        after = hash(fxf)
+        assert before != after
 
 
 class TestPlotCurve:

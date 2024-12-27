@@ -161,7 +161,7 @@ class FXForwards:
             for fxr_obj, fxr_up in zip(self_fx_rates, fx_rates, strict=True):
                 fxr_obj.update(fxr_up)
         self._calculate_immediate_rates(base=self.base, init=False)
-        self._cache_id = self._cache_id_associate
+        self._state_id = self._composited_hashes()
 
     def __init__(
         self,
@@ -173,19 +173,20 @@ class FXForwards:
         self._validate_fx_curves(fx_curves)
         self.fx_rates: FXRates | list[FXRates] = fx_rates
         self._calculate_immediate_rates(base, init=True)
-        self._cache_id = self._cache_id_associate
-        pass
+        self._state_id = self._composited_hashes()
 
-    @property
-    def _cache_id_associate(self) -> int:
-        self_fx_rates = self.fx_rates if isinstance(self.fx_rates, list) else [self.fx_rates]
-        return hash(
-            sum(hash(curve) for curve in self.fx_curves.values())
-            + sum(fxr._state_id for fxr in self_fx_rates)
+    def __hash__(self) -> int:
+        return self._state_id
+
+    def _composited_hashes(self) -> int:
+        self_fx_rates = [self.fx_rates] if not isinstance(self.fx_rates, list) else self.fx_rates
+        total = sum(hash(curve) for curve in self.fx_curves.values()) + sum(
+            hash(fxr) for fxr in self_fx_rates
         )
+        return hash(total)
 
     def _validate_cache(self) -> None:
-        if self._cache_id != self._cache_id_associate:
+        if hash(self) != self._composited_hashes():
             self.update()
 
     def _validate_fx_curves(self, fx_curves: dict[str, Curve]) -> None:
@@ -1050,7 +1051,7 @@ class FXForwards:
         else:
             self.fx_rates._set_ad_order(order)
         self.fx_rates_immediate._set_ad_order(order)
-        self._cache_id = self._cache_id_associate  # update the cache id after changing values
+        self._state_id = self._composited_hashes()  # update the cache id after changing values
 
     @_validate_caches
     def to_json(self) -> str:

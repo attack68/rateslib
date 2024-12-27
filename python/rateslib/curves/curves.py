@@ -2926,7 +2926,7 @@ class ProxyCurve(Curve):
     def __hash__(self) -> int:
         # ProxyCurve is directly associated with its FXForwards object
         self.fx_forwards._validate_cache()
-        return self.fx_forwards._cache_id
+        return hash(self.fx_forwards)
 
     def __getitem__(self, date: datetime) -> DualTypes:
         self.fx_forwards._validate_cache()  # manually handle cache check

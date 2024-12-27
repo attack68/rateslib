@@ -1252,7 +1252,7 @@ class TestFXForwards:
             ("to_json", tuple()),
         ],
     )
-    def test_cache_id_update_on_fxr_update(self, method, args):
+    def test_hash_update_on_fxr_update(self, method, args):
         # test validate cache works correctly on various methods after FXRates update
         fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
         fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2))
@@ -1270,15 +1270,15 @@ class TestFXForwards:
             },
         )
 
-        original_id = fxf._cache_id
+        before = hash(fxf)
         getattr(fxf, method)(*args)
         # no cache update is necessary
-        assert original_id == fxf._cache_id
+        assert before == hash(fxf)
 
         fxr1.update({"eurusd": 2.0})
         getattr(fxf, method)(*args)
         # cache update should have occurred
-        assert original_id != fxf._cache_id
+        assert before != hash(fxf)
 
     @pytest.mark.parametrize(
         ("method", "args"),
@@ -1291,7 +1291,7 @@ class TestFXForwards:
             ("to_json", tuple()),
         ],
     )
-    def test_cache_id_update_on_curve_update(self, method, args):
+    def test_hash_update_on_curve_update(self, method, args):
         # test validate cache works correctly on various methods after Curve update
         fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
         fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2))
@@ -1309,12 +1309,12 @@ class TestFXForwards:
             },
         )
 
-        original_id = fxf._cache_id
+        before = hash(fxf)
         getattr(fxf, method)(*args)
         # no cache update is necessary
-        assert original_id == fxf._cache_id
+        assert before == hash(fxf)
 
         fxf.curve("eur", "eur")._set_node_vector([0.998], 1)
         getattr(fxf, method)(*args)
         # cache update should have occurred
-        assert original_id != fxf._cache_id
+        assert before != hash(fxf)
