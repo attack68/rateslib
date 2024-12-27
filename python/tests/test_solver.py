@@ -2035,3 +2035,54 @@ def test_solver_with_surface() -> None:
     fxc.analytic_greeks(solver=surf_solver)
     fxc.delta(solver=surf_solver)
     fxc.gamma(solver=surf_solver)
+
+
+@pytest.mark.parametrize("attr", ["_hash_fx", "_hash_curves", "_hash_pre_solvers"])
+def test_solver_hash_storage(attr):
+    # test the solver stores hashes of its objects: FXForwards, Curves and presolvers
+    uu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="uu")
+    ee = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="ee")
+    eu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="eu")
+
+    fxf1 = FXForwards(
+        fx_rates=FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
+        fx_curves={
+            "usdusd": uu,
+            "eureur": ee,
+            "eurusd": eu,
+        },
+    )
+
+    s1 = Solver(
+        curves=[uu, ee],
+        instruments=[
+            IRS(dt(2022, 1, 1), "1y", "A", curves="uu"),
+            IRS(dt(2022, 1, 1), "1y", "A", curves="ee"),
+        ],
+        s=[1.5, 1.5],
+        id="local",
+    )
+    s2 = Solver(
+        curves=[eu],
+        instruments=[
+            XCS(
+                dt(2022, 1, 1),
+                "1Y",
+                "Q",
+                currency="eur",
+                leg2_currency="usd",
+                curves=["ee", "eu", "uu", "uu"],
+            ),
+        ],
+        s=[10.0],
+        id="x1",
+        fx=fxf1,
+        pre_solvers=[s1],
+    )
+    hashes = {
+        "_hash_fx": hash(s2.fx),
+        "_hash_curves": hash(sum(hash(curve) for curve in s2.curves)),
+        "_hash_pre_solvers": hash(sum(hash(solver) for solver in s2.pre_solvers)),
+    }
+    result = getattr(s2, attr)()
+    assert result == hashes[attr]

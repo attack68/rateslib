@@ -1048,6 +1048,12 @@ class Solver(Gradients):
     def __repr__(self):
         return f"<rl.Solver:{self.id} at {hex(id(self))}>"
 
+    def _hash_fx(self):
+        return hash(self.fx)
+
+    def _hash_curves(self):
+        return hash(sum(hash(curve) for curve in self.curves))
+
     def _parse_instrument(self, value):
         """
         Parses different input formats for an instrument given to the ``Solver``.
