@@ -1331,7 +1331,7 @@ class Solver(Gradients):
         self._state_fx_id = self._hash_fx()
         self._state_curves_id = self._hash_curves()
         self._state_pre_solvers_id = self._hash_pre_solvers()
-        self._state_id = hash(self)
+        self._state_id = hash(self._state_fx_id + self._state_curves_id + self._state_pre_solvers_id)
 
     def iterate(self):
         r"""
@@ -1380,9 +1380,9 @@ class Solver(Gradients):
 
         return self._solver_result(-1, self.max_iter, time() - t0)
 
-    def _solver_result(self, state: int, i: int, time: float):
+    def _solver_result(self, state: int, i: int, time: float) -> None:
         self._result = _solver_result(state, i, self.g.real, time, True, self.algorithm)
-        return None
+        self._clear_cache()
 
     def _update_curves_with_parameters(self, v_new):
         """Populate the variable curves with the new values"""
