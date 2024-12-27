@@ -1054,6 +1054,12 @@ class Solver(Gradients):
     def _hash_curves(self):
         return hash(sum(hash(curve) for curve in self.curves))
 
+    def _hash_pre_solvers(self):
+        return hash(sum(hash(solver) for solver in self.pre_solvers))
+    
+    def __hash__(self):
+        return hash(self._hash_fx() + self._hash_curves() + self._hash_pre_solvers())
+
     def _parse_instrument(self, value):
         """
         Parses different input formats for an instrument given to the ``Solver``.
