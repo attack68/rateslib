@@ -1056,9 +1056,12 @@ class Solver(Gradients):
 
     def _hash_pre_solvers(self):
         return hash(sum(hash(solver) for solver in self.pre_solvers))
-    
-    def __hash__(self):
+
+    def _composited_hashes(self):
         return hash(self._hash_fx() + self._hash_curves() + self._hash_pre_solvers())
+
+    def __hash__(self):
+        return self._state_id
 
     def _parse_instrument(self, value):
         """
@@ -1322,6 +1325,13 @@ class Solver(Gradients):
     # def _update_fx(self):
     #     if self.fx is not NoInput.blank:
     #         self.fx.update()  # note: with no variables this does nothing.
+
+    def _clear_cache(self):
+        """Set the hash states for the solver objects"""
+        self._state_fx_id = self._hash_fx()
+        self._state_curves_id = self._hash_curves()
+        self._state_pre_solvers_id = self._hash_pre_solvers()
+        self._state_id = hash(self)
 
     def iterate(self):
         r"""
@@ -2012,6 +2022,31 @@ class Solver(Gradients):
         sorted_cols = df.columns.sort_values()
         return df.loc[:, sorted_cols].astype("float64")
 
+    def _validate_cache(self):
+        if hash(self) != self._composited_hashes():
+            # then something has been mutated
+            if self._hash_fx() != self._state_fx_id:
+                warnings.warn(
+                    "The `fx` object associated with `solver` has been updated without the"
+                    "`solver` performing additional iterations. Calculations can still be "
+                    "performed but dependent upon those updates errors may be negligible "
+                    "or significant.",
+                    UserWarning
+                )
+            if self._hash_pre_solvers() != self._state_pre_solvers_id:
+                raise ValueError(
+                    "The `pre_solvers` associated with `solver` have been updated without the "
+                    "`solver` performing additional iterations. Calculations are prevented in this"
+                    "state because they will likely be erroneous or a consequence of a bad design"
+                    "pattern."
+                )
+            if self._hash_curves() != self._state_curves_id:
+                raise ValueError(
+                    "The `curves` associated with `solver` have been updated without the "
+                    "`solver` performing additional iterations. Calculations are prevented in this"
+                    "state because they will likely be erroneous or a consequence of a bad design"
+                    "pattern."
+                )
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
