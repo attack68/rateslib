@@ -1318,3 +1318,23 @@ class TestFXForwards:
         getattr(fxf, method)(*args)
         # cache update should have occurred
         assert before != hash(fxf)
+
+    def test_update_does_nothing_with_same_hashes(self):
+        fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
+        fxf = FXForwards(
+            fx_rates=[fxr1],  # FXRates as list
+            fx_curves={
+                "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "usdeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            },
+        )
+        before = hash(fxf)
+        fxf.update()
+        after = hash(fxf)
+        assert before == after
+
+        before = hash(fxf)
+        fxf.update([{"eurusd": 2.0}])
+        after = hash(fxf)
+        assert before != after
