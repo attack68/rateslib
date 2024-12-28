@@ -418,9 +418,9 @@ class _WithState:
 
     Attributes
     ----------
-    _state: int: This is the most recent saved stated of this object.
+    _state: int: This is the most recent recorded state reference of this object.
     _mutable_by_association: bool: This is a rateslib definition of whether this object is
-        directly mutable and therefore regenerates its own state, or whether its state is
+        directly mutable and therefore generates its own state id, or whether its state is
         derived from the most recently evaluated state of its associated objects.
     """
 
@@ -429,7 +429,8 @@ class _WithState:
 
     def _set_new_state(self) -> None:
         """Set the state_id of a superclass. Some objects which are 'mutable by association'
-        will overload this method to derive a state from their associated items."""
+        will overload the `get_compoisted_state` method to derive a state from their
+        associated items."""
         if self._mutable_by_association:
             self._state = self._get_composited_state()
         else:
@@ -438,9 +439,9 @@ class _WithState:
     def _validate_cache(self) -> None:
         """Used by 'mutable by association' objects to evaluate if their own record of
         associated objects hashes matches the current state of those objects."""
-        ...
+        raise NotImplementedError("Must be implemented for 'mutable by association' types")
 
     def _get_composited_state(self) -> int:
         """Used by 'mutable by association' objects to record the state of their associated
         objects and set this as the object's own state."""
-        ...
+        raise NotImplementedError("Must be implemented for 'mutable by association' types")
