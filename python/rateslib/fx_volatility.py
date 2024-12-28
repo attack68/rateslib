@@ -10,7 +10,7 @@ from pytz import UTC
 
 from rateslib import defaults
 from rateslib.calendars import get_calendar
-from rateslib.default import NoInput, _drb, _WithState, plot, plot3d, _validate_states
+from rateslib.default import NoInput, _drb, _WithState, plot, plot3d
 from rateslib.dual import (
     Dual,
     Dual2,
