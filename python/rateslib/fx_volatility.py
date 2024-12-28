@@ -11,7 +11,7 @@ from pytz import UTC
 
 from rateslib import defaults
 from rateslib.calendars import get_calendar
-from rateslib.default import NoInput, _drb, plot, plot3d
+from rateslib.default import NoInput, _drb, plot, plot3d, _WithState
 from rateslib.dual import (
     Dual,
     Dual2,
@@ -30,7 +30,7 @@ from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
 TERMINAL_DATE = dt(2100, 1, 1)
 
 
-class FXDeltaVolSmile:
+class FXDeltaVolSmile(_WithState):
     r"""
     Create an *FX Volatility Smile* at a given expiry indexed by delta percent.
 
@@ -136,10 +136,7 @@ class FXDeltaVolSmile:
         Alternatively the curve caching as a feature can be set to *False* in ``defaults``.
         """
         self._cache: dict[float, DualTypes] = dict()
-        self._state_id: int = hash(urandom(8))  # 64-bit entropy
-
-    def __hash__(self) -> int:
-        return self._state_id
+        self._set_new_state()
 
     def __iter__(self):
         raise TypeError("`FXDeltaVolSmile` is not iterable.")
