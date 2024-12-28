@@ -2537,7 +2537,7 @@ class CompositeCurve(Curve):
     def _get_composited_state(self) -> int:
         return hash(sum(curve._state for curve in self.curves))
 
-    def _validate_cache(self) -> None:
+    def _validate_state(self) -> None:
         if self._state != self._get_composited_state():
             # If any of the associated curves have been mutated then the cache is invalidated
             self.clear_cache()
@@ -2905,11 +2905,11 @@ class ProxyCurve(Curve):
 
     def __hash__(self) -> int:
         # ProxyCurve is directly associated with its FXForwards object
-        self.fx_forwards._validate_cache()
+        self.fx_forwards._validate_state()
         return hash(self.fx_forwards)
 
     def __getitem__(self, date: datetime) -> DualTypes:
-        self.fx_forwards._validate_cache()  # manually handle cache check
+        self.fx_forwards._validate_state()  # manually handle cache check
 
         _1: DualTypes = self.fx_forwards._rate_with_path(self.pair, date, path=self.path)[0]
         _2: DualTypes = self.fx_forwards.fx_rates_immediate._fx_array_el(

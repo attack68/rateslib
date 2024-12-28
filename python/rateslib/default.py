@@ -406,7 +406,7 @@ def _validate_states(func: Callable[P, R]) -> Callable[P, R]:
 
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         self = args[0]
-        self._validate_cache()  # type: ignore[attr-defined]
+        self._validate_state()  # type: ignore[attr-defined]
         return func(*args, **kwargs)
 
     return wrapper
@@ -436,9 +436,9 @@ class _WithState:
         else:
             self._state = hash(os.urandom(8))  # 64-bit entropy
 
-    def _validate_cache(self) -> None:
+    def _validate_state(self) -> None:
         """Used by 'mutable by association' objects to evaluate if their own record of
-        associated objects hashes matches the current state of those objects."""
+        associated objects states matches the current state of those objects."""
         raise NotImplementedError("Must be implemented for 'mutable by association' types")
 
     def _get_composited_state(self) -> int:

@@ -187,7 +187,7 @@ class FXForwards:
         )
         return hash(total)
 
-    def _validate_cache(self) -> None:
+    def _validate_state(self) -> None:
         if hash(self) != self._composited_hashes():
             self.update()
 
@@ -500,7 +500,7 @@ class FXForwards:
         """  # noqa: E501
         return self._rate_with_path(pair, settlement)[0]
 
-    # @_validate_cache: unused because this is circular. Any method that calls _rate_with_path
+    # @_validate_state: unused because this is circular. Any method that calls _rate_with_path
     # should be pre cache validated. This is also used in initialisation.
     def _rate_with_path(
         self,
@@ -859,7 +859,7 @@ class FXForwards:
         fx1, _ = self._rate_with_path(pair, settlements[1], path_)
         return (fx1 - fx0) * 10000
 
-    # @_validate_cache TODO
+    # @_validate_state TODO
     def _full_curve(self, cashflow: str, collateral: str) -> Curve:
         """
         Calculate a cash collateral curve.
@@ -905,7 +905,7 @@ class FXForwards:
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    # @_validate_cache: does not determine values, just links to contained objects.
+    # @_validate_state: does not determine values, just links to contained objects.
     def curve(
         self,
         cashflow: str,
@@ -1138,7 +1138,7 @@ class FXForwards:
     def __ne__(self, other: Any) -> bool:
         return not self.__eq__(other)
 
-    # @_validate_cache: unused because it is redirected to a cache_validated method (to_json)
+    # @_validate_state: unused because it is redirected to a cache_validated method (to_json)
     def copy(self) -> FXForwards:
         """
         An FXForwards copy creates a new object with copied references.
