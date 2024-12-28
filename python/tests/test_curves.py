@@ -1244,9 +1244,9 @@ class TestCurve:
             },
             id="sofr",
         )
-        original = hash(curve)
+        original = curve._state
         getattr(curve, method)(*args)
-        new = hash(curve)
+        new = curve._state
         assert new != original
 
     def test_csolve_clear_cache(self):
@@ -1263,9 +1263,9 @@ class TestCurve:
                 dt(2002, 1, 1),
             ],
         )
-        before = hash(c)
+        before = c._state
         c.csolve()
-        after = hash(c)
+        after = c._state
         assert before != after
 
 
@@ -1306,9 +1306,9 @@ class TestLineCurve:
             },
             id="sofr",
         )
-        original = hash(curve)
+        original = curve._state
         getattr(curve, method)(*args)
-        new = hash(curve)
+        new = curve._state
         assert new != original
 
 
@@ -1382,9 +1382,9 @@ class TestIndexCurve:
             id="sofr",
             index_base=200.0,
         )
-        original = hash(curve)
+        original = curve._state
         getattr(curve, method)(*args)
-        new = hash(curve)
+        new = curve._state
         assert new != original
 
 
@@ -2081,9 +2081,9 @@ class TestProxyCurve:
         curve = fxf.curve("cad", "eur")
         fxr1.update({"usdeur": 100000000.0})
         fxf.curve("eur", "eur")._set_node_vector([0.5], 1)
-        before = hash(fxf)
+        before = fxf._state
         curve[dt(2022, 1, 9)]
-        after = hash(fxf)
+        after = fxf._state
         assert before != after
 
 

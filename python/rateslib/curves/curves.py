@@ -13,7 +13,6 @@ import warnings
 from collections.abc import Callable
 from datetime import datetime, timedelta
 from math import comb, floor
-from os import urandom
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
@@ -25,7 +24,7 @@ from rateslib.calendars import CalInput, add_tenor, dcf
 from rateslib.calendars.dcfs import _DCF1d
 from rateslib.calendars.rs import CalTypes, get_calendar
 from rateslib.curves.rs import CurveObj, LogLinearInterpolator, _get_interpolator
-from rateslib.default import NoInput, PlotOutput, _drb, _validate_caches, plot
+from rateslib.default import NoInput, PlotOutput, _drb, _validate_states, _WithState, plot
 from rateslib.dual import (  # type: ignore[attr-defined]
     ADOrder,
     Arr1dF64,
@@ -52,7 +51,7 @@ if TYPE_CHECKING:
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class Curve:
+class Curve(_WithState):
     """
     Curve based on DF parametrisation at given node dates with interpolation.
 
@@ -252,9 +251,6 @@ class Curve:
         self.index_lag: int = _drb(defaults.index_lag, index_lag)
 
         self._set_ad_order(order=ad)
-
-    def __hash__(self) -> int:
-        return self._state_id
 
     def __eq__(self, other: Any) -> bool:
         """Test two curves are identical"""
@@ -636,7 +632,7 @@ class Curve:
         Alternatively the curve caching as a feature can be set to *False* in ``defaults``.
         """
         self._cache: dict[datetime, DualTypes] = dict()
-        self._state_id: int = hash(urandom(8))  # 64-bit entropy
+        self._set_new_state()
 
     def _cached_value(self, date: datetime, val: DualTypes) -> DualTypes:
         if defaults.curve_caching:
@@ -2286,6 +2282,7 @@ class CompositeCurve(Curve):
     """  # noqa: E501
 
     collateral = None
+    _mutable_by_association = True
 
     def __init__(
         self,
@@ -2307,7 +2304,7 @@ class CompositeCurve(Curve):
 
         # validate
         self._validate_curve_collection()
-        self._clear_cache()
+        self.clear_cache()
 
     @property
     def id(self):
@@ -2358,7 +2355,7 @@ class CompositeCurve(Curve):
                 f"Cannot composite curves with different attributes, got for '{attr}': {attrs},",
             )
 
-    @_validate_caches
+    @_validate_states
     def rate(  # type: ignore[override]
         self,
         effective: datetime,
@@ -2441,7 +2438,7 @@ class CompositeCurve(Curve):
 
         return _
 
-    @_validate_caches
+    @_validate_states
     def __getitem__(self, date: datetime) -> DualTypes:
         if defaults.curve_caching and date in self._cache:
             return self._cache[date]
@@ -2473,7 +2470,7 @@ class CompositeCurve(Curve):
                 f"Base curve type is unrecognised: {self._base_type}",
             )  # pragma: no cover
 
-    @_validate_caches
+    @_validate_states
     def shift(
         self,
         spread: DualTypes,
@@ -2520,7 +2517,7 @@ class CompositeCurve(Curve):
         _.collateral = _drb(None, collateral)
         return _
 
-    @_validate_caches
+    @_validate_states
     def translate(self, start: datetime, t: bool = False) -> CompositeCurve:
         """
         Create a new curve with an initial node date moved forward keeping all else
@@ -2546,7 +2543,7 @@ class CompositeCurve(Curve):
         # cache check unnecessary since translate is constructed from up-to-date objects directly
         return CompositeCurve(curves=[curve.translate(start, t) for curve in self.curves])
 
-    @_validate_caches
+    @_validate_states
     def roll(self, tenor: datetime | str) -> CompositeCurve:
         """
         Create a new curve with its shape translated in time
@@ -2572,7 +2569,7 @@ class CompositeCurve(Curve):
         # cache check unnecessary since roll is constructed from up-to-date objects directly
         return CompositeCurve(curves=[curve.roll(tenor) for curve in self.curves])
 
-    @_validate_caches
+    @_validate_states
     def index_value(self, date: datetime, interpolation: str = "daily") -> DualTypes:
         """
         Calculate the accrued value of the index from the ``index_base``, which is taken
@@ -2585,30 +2582,13 @@ class CompositeCurve(Curve):
     def _get_node_vector(self) -> Arr1dObj | Arr1dF64:
         raise NotImplementedError("Instances of CompositeCurve do not have solvable variables.")
 
-    def _composited_hashes(self) -> int:
-        return hash(sum(hash(curve) for curve in self.curves))
+    def _get_composited_state(self) -> int:
+        return hash(sum(curve._state for curve in self.curves))
 
-    def _clear_cache(self) -> None:
-        """
-        Clear the cache of values on a *CompositeCurve* type, and update the state id.
-
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-        This method is called automatically when any of the composited curves
-        are detected to have been mutated, via their ``_state_id``, which therefore
-        invalidates the cache on a composite curve.
-        """
-        self._cache: dict[datetime, DualTypes] = dict()
-        self._state_id = self._composited_hashes()
-
-    def _validate_cache(self) -> None:
-        if hash(self) != self._composited_hashes():
+    def _validate_state(self) -> None:
+        if self._state != self._get_composited_state():
             # If any of the associated curves have been mutated then the cache is invalidated
-            self._clear_cache()
+            self.clear_cache()
 
 
 class MultiCsaCurve(CompositeCurve):
@@ -2651,7 +2631,7 @@ class MultiCsaCurve(CompositeCurve):
         self.multi_csa_max_step = min(1825, multi_csa_max_step)
         super().__init__(curves, id)
 
-    @_validate_caches
+    @_validate_states
     def rate(  # type: ignore[override]
         self,
         effective: datetime,
@@ -2694,7 +2674,7 @@ class MultiCsaCurve(CompositeCurve):
         _: DualTypes = (df_num / df_den - 1) * 100 / (d * n)
         return _
 
-    @_validate_caches
+    @_validate_states
     def __getitem__(self, date: datetime) -> DualTypes:
         # will return a composited discount factor
         if date == self.curves[0].node_dates[0]:
@@ -2739,7 +2719,7 @@ class MultiCsaCurve(CompositeCurve):
             _ *= min_ratio
             return _
 
-    @_validate_caches
+    @_validate_states
     # unnecessary because up-to-date objects are referred to directly
     def translate(self, start: datetime, t: bool = False) -> MultiCsaCurve:
         """
@@ -2769,7 +2749,7 @@ class MultiCsaCurve(CompositeCurve):
             multi_csa_min_step=self.multi_csa_min_step,
         )
 
-    @_validate_caches
+    @_validate_states
     # unnecessary because up-to-date objects are referred to directly
     def roll(self, tenor: datetime | str) -> MultiCsaCurve:
         """
@@ -2799,7 +2779,7 @@ class MultiCsaCurve(CompositeCurve):
             multi_csa_min_step=self.multi_csa_min_step,
         )
 
-    @_validate_caches
+    @_validate_states
     def shift(
         self,
         spread: DualTypes,
@@ -2977,11 +2957,11 @@ class ProxyCurve(Curve):
 
     def __hash__(self) -> int:
         # ProxyCurve is directly associated with its FXForwards object
-        self.fx_forwards._validate_cache()
+        self.fx_forwards._validate_state()
         return hash(self.fx_forwards)
 
     def __getitem__(self, date: datetime) -> DualTypes:
-        self.fx_forwards._validate_cache()  # manually handle cache check
+        self.fx_forwards._validate_state()  # manually handle cache check
 
         _1: DualTypes = self.fx_forwards._rate_with_path(self.pair, date, path=self.path)[0]
         _2: DualTypes = self.fx_forwards.fx_rates_immediate._fx_array_el(

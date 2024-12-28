@@ -3,14 +3,13 @@ from __future__ import annotations
 import warnings
 from datetime import datetime
 from functools import cached_property
-from os import urandom
 from typing import Any
 
 import numpy as np
 from pandas import DataFrame, Series
 
 from rateslib import defaults
-from rateslib.default import NoInput, _drb, _make_py_json
+from rateslib.default import NoInput, _drb, _make_py_json, _WithState
 from rateslib.dual import Dual, DualTypes, Number, _get_adorder, gradient
 from rateslib.dual.variable import Arr1dF64, Arr1dObj, Arr2dObj
 from rateslib.rs import Ccy, FXRate
@@ -31,7 +30,7 @@ from rateslib.rs import FXRates as FXRatesObj
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class FXRates:
+class FXRates(_WithState):
     """
     Object to store and calculate FX rates for a consistent settlement date.
 
@@ -106,7 +105,6 @@ class FXRates:
         base: str | NoInput = NoInput(0),
     ):
         # Temporary declaration - will be overwritten
-        self._state_id: int = 0
         self.currencies: dict[str, int] = {}
 
         settlement_: datetime | None = _drb(None, settlement)
@@ -141,7 +139,7 @@ class FXRates:
         Create a new cache_id to signal object has mutated.
         """
         self.__dict__.pop("fx_array", None)
-        self._state_id = hash(urandom(8))  # 64-bit entropy
+        self._set_new_state()
 
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, FXRates):
@@ -164,9 +162,6 @@ class FXRates:
             )
         else:
             return f"<rl.FXRates:[{','.join(self.currencies_list)}] at {hex(id(self))}>"
-
-    def __hash__(self) -> int:
-        return self._state_id
 
     @cached_property
     def fx_array(self) -> Arr2dObj:
