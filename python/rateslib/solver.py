@@ -13,7 +13,7 @@ from pandas.errors import PerformanceWarning
 
 from rateslib import defaults
 from rateslib.curves import CompositeCurve, MultiCsaCurve, ProxyCurve
-from rateslib.default import NoInput
+from rateslib.default import NoInput, _validate_caches
 from rateslib.dual import Dual, Dual2, dual_log, dual_solve, gradient
 from rateslib.fx import FXForwards, FXRates
 
@@ -1151,6 +1151,7 @@ class Solver(Gradients):
         self._grad_s_s_vT_pre = None  # final_iter: depends on pre versions of above
         # finite_diff: TODO update comment
 
+        self._clear_cache()
         # self._grad_v_v_f = None
         # self._Jkm = None  # keep manifold originally used for exploring J2 calc method
 
@@ -1321,10 +1322,9 @@ class Solver(Gradients):
             raise NotImplementedError(f"`algorithm`: {algorithm} (spelled correctly?)")
         return v_1
 
-    # remove by FX caching in PR 570
-    # def _update_fx(self):
-    #     if self.fx is not NoInput.blank:
-    #         self.fx.update()  # note: with no variables this does nothing.
+    def _update_fx(self):
+        if self.fx is not NoInput.blank:
+            self.fx.update()  # note: with no variables this does nothing.
 
     def _clear_cache(self):
         """Set the hash states for the solver objects"""
@@ -1394,8 +1394,9 @@ class Solver(Gradients):
             curve._set_node_vector(v_new[var_counter : var_counter + vars], self._ad)
             var_counter += vars
 
+        self._update_fx()
         self._reset_properties_()
-        # self._update_fx()
+
 
     def _set_ad_order(self, order):
         """Defines the node DF in terms of float, Dual or Dual2 for AD order calcs."""
@@ -1412,6 +1413,7 @@ class Solver(Gradients):
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
+    @_validate_caches
     def delta(self, npv, base: str | NoInput = NoInput(0), fx=NoInput(0)) -> DataFrame:
         """
         Calculate the delta risk sensitivity of an instrument's NPV to the
@@ -1548,6 +1550,7 @@ class Solver(Gradients):
             base = base.lower()
         return base, fx
 
+    @_validate_caches
     def gamma(self, npv, base=NoInput(0), fx=NoInput(0)):
         """
         Calculate the cross-gamma risk sensitivity of an instrument's NPV to the
@@ -1808,6 +1811,7 @@ class Solver(Gradients):
         """
         raise NotImplementedError()
 
+    @_validate_caches
     def market_movements(self, solver: Solver):
         """
         Determine market movements between the *Solver's* instrument rates and those rates priced
@@ -1845,6 +1849,7 @@ class Solver(Gradients):
             index=self.pre_instrument_labels,
         )
 
+    @_validate_caches
     def jacobian(self, solver: Solver):
         """
         Calculate the Jacobian with respect to another *Solver's* instruments.
@@ -1941,6 +1946,7 @@ class Solver(Gradients):
             index=solver.pre_instrument_labels,
         )
 
+    @_validate_caches
     def exo_delta(
         self,
         npv,
@@ -2029,16 +2035,9 @@ class Solver(Gradients):
                 warnings.warn(
                     "The `fx` object associated with `solver` has been updated without the"
                     "`solver` performing additional iterations. Calculations can still be "
-                    "performed but dependent upon those updates errors may be negligible "
+                    "performed but, dependent upon those updates, errors may be negligible "
                     "or significant.",
                     UserWarning,
-                )
-            if self._hash_pre_solvers() != self._state_pre_solvers_id:
-                raise ValueError(
-                    "The `pre_solvers` associated with `solver` have been updated without the "
-                    "`solver` performing additional iterations. Calculations are prevented in this"
-                    "state because they will likely be erroneous or a consequence of a bad design"
-                    "pattern."
                 )
             if self._hash_curves() != self._state_curves_id:
                 raise ValueError(
@@ -2047,6 +2046,14 @@ class Solver(Gradients):
                     "state because they will likely be erroneous or a consequence of a bad design"
                     "pattern."
                 )
+            if self._hash_curves() != self._state_pre_curves_id:
+                raise ValueError(
+                    "The `curves` associated with the `pre_solvers` have been updated without the "
+                    "`solver` performing additional iterations. Calculations are prevented in this"
+                    "state because they will likely be erroneous or a consequence of a bad design"
+                    "pattern."
+                )
+
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
