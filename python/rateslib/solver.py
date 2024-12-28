@@ -1331,9 +1331,7 @@ class Solver(Gradients):
         self._state_fx_id = self._hash_fx()
         self._state_curves_id = self._hash_curves()
         self._state_pre_curves_id = self._hash_pre_curves()
-        self._state_id = hash(
-            self._state_fx_id + self._state_curves_id + self._state_pre_curves_id
-        )
+        self._state_id = hash(self._state_fx_id + self._state_curves_id + self._state_pre_curves_id)
 
     def iterate(self):
         r"""

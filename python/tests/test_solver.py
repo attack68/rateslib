@@ -2082,7 +2082,9 @@ def test_solver_hash_storage(attr):
     hashes = {
         "_hash_fx": hash(s2.fx),
         "_hash_curves": hash(sum(hash(curve) for curve in s2.curves)),
-        "_hash_pre_curves": hash(sum(hash(curve) for solver in s2.pre_solvers for curve in solver.curves)),
+        "_hash_pre_curves": hash(
+            sum(hash(curve) for solver in s2.pre_solvers for curve in solver.curves)
+        ),
     }
     result = getattr(s2, attr)()
     assert result == hashes[attr]
