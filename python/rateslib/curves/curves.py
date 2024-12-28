@@ -13,7 +13,6 @@ import warnings
 from collections.abc import Callable
 from datetime import datetime, timedelta
 from math import comb, floor
-from os import urandom
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
@@ -24,7 +23,7 @@ from rateslib import defaults
 from rateslib.calendars import CalInput, add_tenor, dcf
 from rateslib.calendars.dcfs import _DCF1d
 from rateslib.calendars.rs import CalTypes, get_calendar
-from rateslib.default import NoInput, PlotOutput, _drb, _validate_caches, plot
+from rateslib.default import NoInput, PlotOutput, _drb, _validate_caches, _WithState, plot
 from rateslib.dual import (  # type: ignore[attr-defined]
     Arr1dF64,
     Arr1dObj,
@@ -49,7 +48,7 @@ if TYPE_CHECKING:
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class Curve:
+class Curve(_WithState):
     """
     Curve based on DF parametrisation at given node dates with interpolation.
 
@@ -254,9 +253,6 @@ class Curve:
         self.index_lag: int = _drb(defaults.index_lag, index_lag)
 
         self._set_ad_order(order=ad)
-
-    def __hash__(self) -> int:
-        return self._state_id
 
     def __eq__(self, other: Any) -> bool:
         """Test two curves are identical"""
@@ -592,7 +588,7 @@ class Curve:
         Alternatively the curve caching as a feature can be set to *False* in ``defaults``.
         """
         self._cache: dict[datetime, DualTypes] = dict()
-        self._state_id: int = hash(urandom(8))  # 64-bit entropy
+        self._set_new_state()
 
     def _cached_value(self, date: datetime, val: DualTypes) -> DualTypes:
         if defaults.curve_caching:
@@ -2242,6 +2238,7 @@ class CompositeCurve(Curve):
     """  # noqa: E501
 
     collateral = None
+    _mutable_by_association = True
 
     def __init__(
         self,
@@ -2263,7 +2260,7 @@ class CompositeCurve(Curve):
 
         # validate
         self._validate_curve_collection()
-        self._clear_cache()
+        self.clear_cache()
 
     def _validate_curve_collection(self) -> None:
         """Perform checks to ensure CompositeCurve can exist"""
@@ -2537,30 +2534,13 @@ class CompositeCurve(Curve):
     def _get_node_vector(self) -> Arr1dObj | Arr1dF64:
         raise NotImplementedError("Instances of CompositeCurve do not have solvable variables.")
 
-    def _composited_hashes(self) -> int:
-        return hash(sum(hash(curve) for curve in self.curves))
-
-    def _clear_cache(self) -> None:
-        """
-        Clear the cache of values on a *CompositeCurve* type, and update the state id.
-
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-        This method is called automatically when any of the composited curves
-        are detected to have been mutated, via their ``_state_id``, which therefore
-        invalidates the cache on a composite curve.
-        """
-        self._cache: dict[datetime, DualTypes] = dict()
-        self._state_id = self._composited_hashes()
+    def _get_composited_state(self) -> int:
+        return hash(sum(curve._state for curve in self.curves))
 
     def _validate_cache(self) -> None:
-        if hash(self) != self._composited_hashes():
+        if self._state != self._get_composited_state():
             # If any of the associated curves have been mutated then the cache is invalidated
-            self._clear_cache()
+            self.clear_cache()
 
 
 class MultiCsaCurve(CompositeCurve):
