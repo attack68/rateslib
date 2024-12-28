@@ -13,7 +13,6 @@ import warnings
 from collections.abc import Callable
 from datetime import datetime, timedelta
 from math import comb, floor
-from os import urandom
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
@@ -24,7 +23,7 @@ from rateslib import defaults
 from rateslib.calendars import CalInput, add_tenor, dcf
 from rateslib.calendars.dcfs import _DCF1d
 from rateslib.calendars.rs import CalTypes, get_calendar
-from rateslib.default import NoInput, PlotOutput, _drb, _validate_caches, plot, _WithState
+from rateslib.default import NoInput, PlotOutput, _drb, _validate_caches, _WithState, plot
 from rateslib.dual import (  # type: ignore[attr-defined]
     Arr1dF64,
     Arr1dObj,

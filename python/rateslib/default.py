@@ -411,6 +411,7 @@ def _validate_caches(func: Callable[P, R]) -> Callable[P, R]:
 
     return wrapper
 
+
 class _WithState:
     """
     Record and manage the `state_id` of mutable classes.
@@ -422,6 +423,7 @@ class _WithState:
         directly mutable and therefore regenerates its own state, or whether its state is
         derived from the most recently evaluated state of its associated objects.
     """
+
     _state: int = 0
     _mutable_by_association = False
 
@@ -431,7 +433,7 @@ class _WithState:
         if self._mutable_by_association:
             self._state = self._get_composited_state()
         else:
-            self._state = hash(os.urandom(8)) # 64-bit entropy
+            self._state = hash(os.urandom(8))  # 64-bit entropy
 
     def _validate_cache(self) -> None:
         """Used by 'mutable by association' objects to evaluate if their own record of
@@ -442,4 +444,3 @@ class _WithState:
         """Used by 'mutable by association' objects to record the state of their associated
         objects and set this as the object's own state."""
         ...
-
