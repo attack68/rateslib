@@ -518,42 +518,42 @@ class TestNullPricing:
     @pytest.mark.parametrize(
         "inst",
         [
-            # CDS(
-            #     dt(2022, 7, 1), "3M", "Q", curves=["eureur", "usdusd"], notional=1e6 * 25 / 14.91357
-            # ),
-            # IRS(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
-            # STIRFuture(
-            #     dt(2022, 3, 16),
-            #     dt(2022, 6, 15),
-            #     "Q",
-            #     curves="eureur",
-            #     bp_value=25.0,
-            #     contracts=-1,
-            # ),
-            # FRA(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
-            # SBS(
-            #     dt(2022, 7, 1),
-            #     "3M",
-            #     "A",
-            #     curves=["eureur", "eureur", "eurusd", "eureur"],
-            #     notional=-1e6,
-            # ),
-            # ZCS(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
-            # IIRS(
-            #     dt(2022, 7, 1),
-            #     "3M",
-            #     "A",
-            #     curves=["eu_cpi", "eureur", "eureur", "eureur"],
-            #     notional=1e6,
-            # ),
-            # IIRS(
-            #     dt(2022, 7, 1),
-            #     "3M",
-            #     "A",
-            #     curves=["eu_cpi", "eureur", "eureur", "eureur"],
-            #     notional=1e6,
-            #     notional_exchange=True,
-            # ),
+            CDS(
+                dt(2022, 7, 1), "3M", "Q", curves=["eureur", "usdusd"], notional=1e6 * 25 / 14.91357
+            ),
+            IRS(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
+            STIRFuture(
+                dt(2022, 3, 16),
+                dt(2022, 6, 15),
+                "Q",
+                curves="eureur",
+                bp_value=25.0,
+                contracts=-1,
+            ),
+            FRA(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
+            SBS(
+                dt(2022, 7, 1),
+                "3M",
+                "A",
+                curves=["eureur", "eureur", "eurusd", "eureur"],
+                notional=-1e6,
+            ),
+            ZCS(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
+            IIRS(
+                dt(2022, 7, 1),
+                "3M",
+                "A",
+                curves=["eu_cpi", "eureur", "eureur", "eureur"],
+                notional=1e6,
+            ),
+            IIRS(
+                dt(2022, 7, 1),
+                "3M",
+                "A",
+                curves=["eu_cpi", "eureur", "eureur", "eureur"],
+                notional=1e6,
+                notional_exchange=True,
+            ),
             # TODO add a null price test for ZCIS
             XCS(  # XCS - FloatFloat
                 dt(2022, 7, 1),

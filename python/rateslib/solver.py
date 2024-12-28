@@ -1397,7 +1397,6 @@ class Solver(Gradients):
         self._update_fx()
         self._reset_properties_()
 
-
     def _set_ad_order(self, order):
         """Defines the node DF in terms of float, Dual or Dual2 for AD order calcs."""
         for pre_solver in self.pre_solvers:
@@ -2053,7 +2052,6 @@ class Solver(Gradients):
                     "state because they will likely be erroneous or a consequence of a bad design"
                     "pattern."
                 )
-
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
