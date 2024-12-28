@@ -397,7 +397,7 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
-def _validate_caches(func: Callable[P, R]) -> Callable[P, R]:
+def _validate_states(func: Callable[P, R]) -> Callable[P, R]:
     """
     Add a decorator to a class instance method to first validate the cache before performing
     additional operations. If a change is detected the implemented `validate_cache` function

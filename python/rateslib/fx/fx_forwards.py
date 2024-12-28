@@ -11,7 +11,7 @@ from pandas import DataFrame, Series
 
 from rateslib.calendars import CalInput, add_tenor
 from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
-from rateslib.default import NoInput, PlotOutput, _validate_caches, plot
+from rateslib.default import NoInput, PlotOutput, _validate_states, plot
 from rateslib.dual import Dual, DualTypes, Number, gradient
 from rateslib.fx.fx_rates import FXRates
 
@@ -458,7 +458,7 @@ class FXForwards:
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    @_validate_caches
+    @_validate_states
     def rate(
         self,
         pair: str,
@@ -583,7 +583,7 @@ class FXForwards:
 
         return rate_, path
 
-    @_validate_caches
+    @_validate_states
     def positions(
         self, value: Number, base: str | NoInput = NoInput(0), aggregate: bool = False
     ) -> Series[float] | DataFrame:
@@ -662,7 +662,7 @@ class FXForwards:
             _d: DataFrame = df.sort_index(axis=1)
             return _d
 
-    @_validate_caches
+    @_validate_states
     def convert(
         self,
         value: DualTypes,
@@ -750,7 +750,7 @@ class FXForwards:
             crv = self.curve(foreign, collateral)
             return fx_rate * value * crv[settlement_] / crv[value_date_]
 
-    @_validate_caches
+    @_validate_states
     # this is technically unnecessary since calls pre-cached method: convert
     def convert_positions(
         self,
@@ -829,7 +829,7 @@ class FXForwards:
                 sum += 0.0 if value_ is None else value_
         return sum
 
-    @_validate_caches
+    @_validate_states
     def swap(
         self,
         pair: str,
@@ -981,7 +981,7 @@ class FXForwards:
             id=id,
         )
 
-    @_validate_caches
+    @_validate_states
     def plot(
         self,
         pair: str,
@@ -1055,7 +1055,7 @@ class FXForwards:
         self.fx_rates_immediate._set_ad_order(order)
         self._state_id = self._composited_hashes()  # update the cache id after changing values
 
-    @_validate_caches
+    @_validate_states
     def to_json(self) -> str:
         if isinstance(self.fx_rates, list):
             fx_rates: list[str] | str = [_.to_json() for _ in self.fx_rates]
