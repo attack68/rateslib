@@ -13,7 +13,7 @@ from pandas.errors import PerformanceWarning
 
 from rateslib import defaults
 from rateslib.curves import CompositeCurve, MultiCsaCurve, ProxyCurve
-from rateslib.default import NoInput, _validate_caches
+from rateslib.default import NoInput, _validate_states, _WithState
 from rateslib.dual import Dual, Dual2, dual_log, dual_solve, gradient
 from rateslib.fx import FXForwards, FXRates
 
@@ -832,7 +832,7 @@ class Gradients:
         return grad_s_sT_Pbas
 
 
-class Solver(Gradients):
+class Solver(Gradients, _WithState):
     """
     A numerical solver to determine node values on multiple curves simultaneously.
 
@@ -1048,20 +1048,24 @@ class Solver(Gradients):
     def __repr__(self):
         return f"<rl.Solver:{self.id} at {hex(id(self))}>"
 
-    def _hash_fx(self):
-        return hash(self.fx)
+    def _get_composited_fx_state(self) -> int:
+        if isinstance(self.fx, NoInput):
+            return 0
+        else:
+            return self.fx._state
 
-    def _hash_curves(self):
-        return hash(sum(hash(curve) for curve in self.curves))
+    def _get_composited_curves_state(self):
+        return hash(sum(curve._state for curve in self.curves.values()))
 
-    def _hash_pre_curves(self):
-        return hash(sum(hash(curve) for solver in self.pre_solvers for curve in solver.curves))
+    def _get_composited_pre_curves_state(self):
+        return hash(sum(curve._state for solver in self.pre_solvers for curve in solver.curves.values()))
 
-    def _composited_hashes(self):
-        return hash(self._hash_fx() + self._hash_curves() + self._hash_pre_curves())
-
-    def __hash__(self):
-        return self._state_id
+    def _get_composited_state(self):
+        fx_state = self._get_composited_fx_state()
+        curves_state = self._get_composited_curves_state()
+        pre_curves_state = self._get_composited_pre_curves_state()
+        _ = hash(fx_state + curves_state + pre_curves_state)
+        return _
 
     def _parse_instrument(self, value):
         """
@@ -1151,7 +1155,7 @@ class Solver(Gradients):
         self._grad_s_s_vT_pre = None  # final_iter: depends on pre versions of above
         # finite_diff: TODO update comment
 
-        self._clear_cache()
+        self._set_new_state()
         # self._grad_v_v_f = None
         # self._Jkm = None  # keep manifold originally used for exploring J2 calc method
 
@@ -1326,12 +1330,12 @@ class Solver(Gradients):
         if self.fx is not NoInput.blank:
             self.fx.update()  # note: with no variables this does nothing.
 
-    def _clear_cache(self):
-        """Set the hash states for the solver objects"""
-        self._state_fx_id = self._hash_fx()
-        self._state_curves_id = self._hash_curves()
-        self._state_pre_curves_id = self._hash_pre_curves()
-        self._state_id = hash(self._state_fx_id + self._state_curves_id + self._state_pre_curves_id)
+    def _set_new_state(self):
+        self._state_fx = 0 if isinstance(self.fx, NoInput) else self.fx._state
+        self._state_curves = self._get_composited_curves_state()
+        self._state_pre_curves = self._get_composited_pre_curves_state()
+        _ = hash(self._state_fx + self._state_curves + self._state_pre_curves)
+        self._state = _
 
     def iterate(self):
         r"""
@@ -1382,7 +1386,7 @@ class Solver(Gradients):
 
     def _solver_result(self, state: int, i: int, time: float) -> None:
         self._result = _solver_result(state, i, self.g.real, time, True, self.algorithm)
-        self._clear_cache()
+        self._set_new_state()
 
     def _update_curves_with_parameters(self, v_new):
         """Populate the variable curves with the new values"""
@@ -1402,17 +1406,17 @@ class Solver(Gradients):
         for pre_solver in self.pre_solvers:
             pre_solver._set_ad_order(order=order)
         self._ad = order
-        self._reset_properties_()
         for _, curve in self.curves.items():
             curve._set_ad_order(order)
         if self.fx is not NoInput.blank:
             self.fx._set_ad_order(order)
+        self._reset_properties_()
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    @_validate_caches
+    @_validate_states
     def delta(self, npv, base: str | NoInput = NoInput(0), fx=NoInput(0)) -> DataFrame:
         """
         Calculate the delta risk sensitivity of an instrument's NPV to the
@@ -1549,7 +1553,7 @@ class Solver(Gradients):
             base = base.lower()
         return base, fx
 
-    @_validate_caches
+    @_validate_states
     def gamma(self, npv, base=NoInput(0), fx=NoInput(0)):
         """
         Calculate the cross-gamma risk sensitivity of an instrument's NPV to the
@@ -1810,7 +1814,7 @@ class Solver(Gradients):
         """
         raise NotImplementedError()
 
-    @_validate_caches
+    @_validate_states
     def market_movements(self, solver: Solver):
         """
         Determine market movements between the *Solver's* instrument rates and those rates priced
@@ -1848,7 +1852,7 @@ class Solver(Gradients):
             index=self.pre_instrument_labels,
         )
 
-    @_validate_caches
+    @_validate_states
     def jacobian(self, solver: Solver):
         """
         Calculate the Jacobian with respect to another *Solver's* instruments.
@@ -1945,7 +1949,7 @@ class Solver(Gradients):
             index=solver.pre_instrument_labels,
         )
 
-    @_validate_caches
+    @_validate_states
     def exo_delta(
         self,
         npv,
@@ -2027,10 +2031,10 @@ class Solver(Gradients):
         sorted_cols = df.columns.sort_values()
         return df.loc[:, sorted_cols].astype("float64")
 
-    def _validate_cache(self):
-        if hash(self) != self._composited_hashes():
+    def _validate_state(self):
+        if self._state != self._get_composited_state():
             # then something has been mutated
-            if self._hash_fx() != self._state_fx_id:
+            if not isinstance(self.fx, NoInput) and self._state_fx != self.fx._state:
                 warnings.warn(
                     "The `fx` object associated with `solver` has been updated without the"
                     "`solver` performing additional iterations. Calculations can still be "
@@ -2038,14 +2042,14 @@ class Solver(Gradients):
                     "or significant.",
                     UserWarning,
                 )
-            if self._hash_curves() != self._state_curves_id:
+            if self._state_curves != self._get_composited_curves_state():
                 raise ValueError(
                     "The `curves` associated with `solver` have been updated without the "
                     "`solver` performing additional iterations. Calculations are prevented in this"
                     "state because they will likely be erroneous or a consequence of a bad design"
                     "pattern."
                 )
-            if self._hash_curves() != self._state_pre_curves_id:
+            if self._state_pre_curves != self._get_composited_pre_curves_state():
                 raise ValueError(
                     "The `curves` associated with the `pre_solvers` have been updated without the "
                     "`solver` performing additional iterations. Calculations are prevented in this"
