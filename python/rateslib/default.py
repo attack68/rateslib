@@ -410,3 +410,36 @@ def _validate_caches(func: Callable[P, R]) -> Callable[P, R]:
         return func(*args, **kwargs)
 
     return wrapper
+
+class _WithState:
+    """
+    Record and manage the `state_id` of mutable classes.
+
+    Attributes
+    ----------
+    _state: int: This is the most recent saved stated of this object.
+    _mutable_by_association: bool: This is a rateslib definition of whether this object is
+        directly mutable and therefore regenerates its own state, or whether its state is
+        derived from the most recently evaluated state of its associated objects.
+    """
+    _state: int = 0
+    _mutable_by_association = False
+
+    def _set_new_state(self) -> None:
+        """Set the state_id of a superclass. Some objects which are 'mutable by association'
+        will overload this method to derive a state from their associated items."""
+        if self._mutable_by_association:
+            self._state = self._get_composited_state()
+        else:
+            self._state = hash(os.urandom(8)) # 64-bit entropy
+
+    def _validate_cache(self) -> None:
+        """Used by 'mutable by association' objects to evaluate if their own record of
+        associated objects hashes matches the current state of those objects."""
+        ...
+
+    def _get_composited_state(self) -> int:
+        """Used by 'mutable by association' objects to record the state of their associated
+        objects and set this as the object's own state."""
+        ...
+
