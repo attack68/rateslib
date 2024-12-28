@@ -652,7 +652,7 @@ class FXDeltaVolSmile(_WithState):
         return tuple(f"{self.id}{i}" for i in range(self.n))
 
 
-class FXDeltaVolSurface:
+class FXDeltaVolSurface(_WithState):
     r"""
     Create an *FX Volatility Surface* parametrised by cross-sectional *Smiles* at different
     expiries.
@@ -704,6 +704,7 @@ class FXDeltaVolSurface:
     """
 
     _ini_solve = 0
+    _mutable_by_association = True
 
     def __init__(
         self,
@@ -716,7 +717,6 @@ class FXDeltaVolSurface:
         id: str | NoInput = NoInput(0),
         ad: int = 0,
     ):
-        self.clear_cache()
         node_values = np.asarray(node_values)
         self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
         self.eval_date = eval_date
@@ -763,23 +763,27 @@ class FXDeltaVolSurface:
         caching in general.
         """
         self._cache = dict()
+        self._set_new_state()
+
+    def _get_composited_state(self):
+        return hash(smile._state for smile in self.smiles)
 
     def _maybe_add_to_cache(self, date, val):
         if defaults.curve_caching:
             self._cache[date] = val
 
     def _set_ad_order(self, order: int):
-        self.clear_cache()
         self.ad = order
         for smile in self.smiles:
             smile._set_ad_order(order)
+        self.clear_cache()
 
     def _set_node_vector(self, vector: np.array, ad: int):
-        self.clear_cache()
         m = len(self.delta_indexes)
         for i in range(int(len(vector) / m)):
             # smiles are indexed by expiry, shortest first
             self.smiles[i]._set_node_vector(vector[i * m : i * m + m], ad)
+        self.clear_cache()
 
     def _get_node_vector(self):
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""

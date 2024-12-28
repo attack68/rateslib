@@ -2081,9 +2081,9 @@ class TestProxyCurve:
         curve = fxf.curve("cad", "eur")
         fxr1.update({"usdeur": 100000000.0})
         fxf.curve("eur", "eur")._set_node_vector([0.5], 1)
-        before = hash(fxf)
+        before = fxf._state
         curve[dt(2022, 1, 9)]
-        after = hash(fxf)
+        after = fxf._state
         assert before != after
 
 
