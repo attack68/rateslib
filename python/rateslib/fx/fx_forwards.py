@@ -11,7 +11,7 @@ from pandas import DataFrame, Series
 
 from rateslib.calendars import CalInput, add_tenor
 from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
-from rateslib.default import NoInput, PlotOutput, _validate_states, plot
+from rateslib.default import NoInput, PlotOutput, _validate_states, _WithState, plot
 from rateslib.dual import Dual, DualTypes, Number, gradient
 from rateslib.fx.fx_rates import FXRates
 
@@ -29,7 +29,7 @@ from rateslib.fx.fx_rates import FXRates
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class FXForwards:
+class FXForwards(_WithState):
     """
     Class for storing and calculating FX forward rates.
 
@@ -94,6 +94,8 @@ class FXForwards:
     base : str
     fx_rates_immediate : FXRates
     """
+
+    _mutable_by_association = True
 
     def update(self, fx_rates: list[dict[str, float]] | NoInput = NoInput(0)) -> None:
         """
@@ -161,9 +163,9 @@ class FXForwards:
             for fxr_obj, fxr_up in zip(self_fx_rates, fx_rates, strict=True):
                 fxr_obj.update(fxr_up)
 
-        if hash(self) != self._composited_hashes():
+        if self._state != self._get_composited_state():
             self._calculate_immediate_rates(base=self.base, init=False)
-            self._state_id = self._composited_hashes()
+            self._set_new_state()
 
     def __init__(
         self,
@@ -175,12 +177,9 @@ class FXForwards:
         self._validate_fx_curves(fx_curves)
         self.fx_rates: FXRates | list[FXRates] = fx_rates
         self._calculate_immediate_rates(base, init=True)
-        self._state_id = self._composited_hashes()
+        self._set_new_state()
 
-    def __hash__(self) -> int:
-        return self._state_id
-
-    def _composited_hashes(self) -> int:
+    def _get_composited_state(self) -> int:
         self_fx_rates = [self.fx_rates] if not isinstance(self.fx_rates, list) else self.fx_rates
         total = sum(curve._state for curve in self.fx_curves.values()) + sum(
             fxr._state for fxr in self_fx_rates
@@ -188,7 +187,7 @@ class FXForwards:
         return hash(total)
 
     def _validate_state(self) -> None:
-        if hash(self) != self._composited_hashes():
+        if self._state != self._get_composited_state():
             self.update()
 
     def _validate_fx_curves(self, fx_curves: dict[str, Curve]) -> None:
@@ -905,7 +904,7 @@ class FXForwards:
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    # @_validate_state: does not determine values, just links to contained objects.
+    # @_validate_states: function does not determine values, just links to contained objects.
     def curve(
         self,
         cashflow: str,
@@ -1053,7 +1052,7 @@ class FXForwards:
         else:
             self.fx_rates._set_ad_order(order)
         self.fx_rates_immediate._set_ad_order(order)
-        self._state_id = self._composited_hashes()  # update the cache id after changing values
+        self._set_new_state()
 
     @_validate_states
     def to_json(self) -> str:

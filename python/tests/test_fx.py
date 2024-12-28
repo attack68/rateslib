@@ -1265,15 +1265,15 @@ class TestFXForwards:
             },
         )
 
-        before = hash(fxf)
+        before = fxf._state
         getattr(fxf, method)(*args)
         # no cache update is necessary
-        assert before == hash(fxf)
+        assert before == fxf._state
 
         fxr1.update({"eurusd": 2.0})
         getattr(fxf, method)(*args)
         # cache update should have occurred
-        assert before != hash(fxf)
+        assert before != fxf._state
 
     @pytest.mark.parametrize(
         ("method", "args"),
@@ -1304,15 +1304,15 @@ class TestFXForwards:
             },
         )
 
-        before = hash(fxf)
+        before = fxf._state
         getattr(fxf, method)(*args)
         # no cache update is necessary
-        assert before == hash(fxf)
+        assert before == fxf._state
 
         fxf.curve("eur", "eur")._set_node_vector([0.998], 1)
         getattr(fxf, method)(*args)
         # cache update should have occurred
-        assert before != hash(fxf)
+        assert before != fxf._state
 
     def test_update_does_nothing_with_same_hashes(self):
         fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
@@ -1324,12 +1324,12 @@ class TestFXForwards:
                 "usdeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
             },
         )
-        before = hash(fxf)
+        before = fxf._state
         fxf.update()
-        after = hash(fxf)
+        after = fxf._state
         assert before == after
 
-        before = hash(fxf)
+        before = fxf._state
         fxf.update([{"eurusd": 2.0}])
-        after = hash(fxf)
+        after = fxf._state
         assert before != after
