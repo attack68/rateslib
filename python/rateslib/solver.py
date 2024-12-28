@@ -1048,6 +1048,13 @@ class Solver(Gradients, _WithState):
     def __repr__(self):
         return f"<rl.Solver:{self.id} at {hex(id(self))}>"
 
+    def _set_new_state(self):
+        self._state_fx = self._get_composited_fx_state()
+        self._state_curves = self._get_composited_curves_state()
+        self._state_pre_curves = self._get_composited_pre_curves_state()
+        _ = hash(self._state_fx + self._state_curves + self._state_pre_curves)
+        self._state = _
+
     def _get_composited_fx_state(self) -> int:
         if isinstance(self.fx, NoInput):
             return 0
@@ -1058,7 +1065,9 @@ class Solver(Gradients, _WithState):
         return hash(sum(curve._state for curve in self.curves.values()))
 
     def _get_composited_pre_curves_state(self):
-        return hash(sum(curve._state for solver in self.pre_solvers for curve in solver.curves.values()))
+        return hash(
+            sum(curve._state for solver in self.pre_solvers for curve in solver.curves.values())
+        )
 
     def _get_composited_state(self):
         fx_state = self._get_composited_fx_state()
@@ -1329,13 +1338,6 @@ class Solver(Gradients, _WithState):
     def _update_fx(self):
         if self.fx is not NoInput.blank:
             self.fx.update()  # note: with no variables this does nothing.
-
-    def _set_new_state(self):
-        self._state_fx = 0 if isinstance(self.fx, NoInput) else self.fx._state
-        self._state_curves = self._get_composited_curves_state()
-        self._state_pre_curves = self._get_composited_pre_curves_state()
-        _ = hash(self._state_fx + self._state_curves + self._state_pre_curves)
-        self._state = _
 
     def iterate(self):
         r"""

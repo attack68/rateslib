@@ -2037,7 +2037,14 @@ def test_solver_with_surface() -> None:
     fxc.gamma(solver=surf_solver)
 
 
-@pytest.mark.parametrize("attr", ["_get_composited_fx_state", "_get_composited_curves_state", "_get_composited_pre_curves_state"])
+@pytest.mark.parametrize(
+    "attr",
+    [
+        "_get_composited_fx_state",
+        "_get_composited_curves_state",
+        "_get_composited_pre_curves_state",
+    ],
+)
 def test_solver_state_storage(attr):
     # test the solver stores hashes of its objects: FXForwards, Curves and presolvers
     uu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="uu")
