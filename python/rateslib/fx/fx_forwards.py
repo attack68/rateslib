@@ -160,8 +160,10 @@ class FXForwards:
                 )
             for fxr_obj, fxr_up in zip(self_fx_rates, fx_rates, strict=True):
                 fxr_obj.update(fxr_up)
-        self._calculate_immediate_rates(base=self.base, init=False)
-        self._state_id = self._composited_hashes()
+
+        if hash(self) != self._composited_hashes():
+            self._calculate_immediate_rates(base=self.base, init=False)
+            self._state_id = self._composited_hashes()
 
     def __init__(
         self,
