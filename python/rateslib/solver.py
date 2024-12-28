@@ -1054,11 +1054,11 @@ class Solver(Gradients):
     def _hash_curves(self):
         return hash(sum(hash(curve) for curve in self.curves))
 
-    def _hash_pre_solvers(self):
-        return hash(sum(hash(solver) for solver in self.pre_solvers))
+    def _hash_pre_curves(self):
+        return hash(sum(hash(curve) for solver in self.pre_solvers for curve in solver.curves))
 
     def _composited_hashes(self):
-        return hash(self._hash_fx() + self._hash_curves() + self._hash_pre_solvers())
+        return hash(self._hash_fx() + self._hash_curves() + self._hash_pre_curves())
 
     def __hash__(self):
         return self._state_id
@@ -1330,8 +1330,10 @@ class Solver(Gradients):
         """Set the hash states for the solver objects"""
         self._state_fx_id = self._hash_fx()
         self._state_curves_id = self._hash_curves()
-        self._state_pre_solvers_id = self._hash_pre_solvers()
-        self._state_id = hash(self._state_fx_id + self._state_curves_id + self._state_pre_solvers_id)
+        self._state_pre_curves_id = self._hash_pre_curves()
+        self._state_id = hash(
+            self._state_fx_id + self._state_curves_id + self._state_pre_curves_id
+        )
 
     def iterate(self):
         r"""
@@ -2031,7 +2033,7 @@ class Solver(Gradients):
                     "`solver` performing additional iterations. Calculations can still be "
                     "performed but dependent upon those updates errors may be negligible "
                     "or significant.",
-                    UserWarning
+                    UserWarning,
                 )
             if self._hash_pre_solvers() != self._state_pre_solvers_id:
                 raise ValueError(
@@ -2047,6 +2049,7 @@ class Solver(Gradients):
                     "state because they will likely be erroneous or a consequence of a bad design"
                     "pattern."
                 )
+
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
