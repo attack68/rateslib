@@ -183,7 +183,7 @@ class FXForwards:
     def _composited_hashes(self) -> int:
         self_fx_rates = [self.fx_rates] if not isinstance(self.fx_rates, list) else self.fx_rates
         total = sum(curve._state for curve in self.fx_curves.values()) + sum(
-            hash(fxr) for fxr in self_fx_rates
+            fxr._state for fxr in self_fx_rates
         )
         return hash(total)
 
