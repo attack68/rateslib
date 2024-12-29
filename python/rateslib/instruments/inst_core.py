@@ -25,6 +25,7 @@ def _get_curve_from_solver(curve, solver):
         # instruments
         return curve
     elif isinstance(curve, str):
+        solver._validate_state()
         return solver.pre_curves[curve]
     elif curve is NoInput.blank or curve is None:
         # pass through a None curve. This will either raise errors later or not be needed
@@ -33,6 +34,7 @@ def _get_curve_from_solver(curve, solver):
         try:
             # it is a safeguard to load curves from solvers when a solver is
             # provided and multiple curves might have the same id
+            solver._validate_state()
             _ = solver.pre_curves[curve.id]
             if id(_) != id(curve):  # Python id() is a memory id, not a string label id.
                 raise ValueError(
@@ -94,6 +96,7 @@ def _get_fx_maybe_from_solver(
                 fx_ = NoInput(0)
                 # fx_ = 1.0
             else:
+                solver._validate_state()
                 fx_ = solver.fx
     else:
         fx_ = fx

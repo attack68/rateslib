@@ -1,5 +1,4 @@
 from datetime import datetime as dt
-from math import exp, log
 
 import numpy as np
 import pytest
@@ -2037,61 +2036,222 @@ def test_solver_with_surface() -> None:
     fxc.gamma(solver=surf_solver)
 
 
-@pytest.mark.parametrize(
-    "attr",
-    [
-        "_get_composited_fx_state",
-        "_get_composited_curves_state",
-        "_get_composited_pre_curves_state",
-    ],
-)
-def test_solver_state_storage(attr):
-    # test the solver stores hashes of its objects: FXForwards, Curves and presolvers
-    uu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="uu")
-    ee = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="ee")
-    eu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="eu")
+class TestStateManagement:
 
-    fxf1 = FXForwards(
-        fx_rates=FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
-        fx_curves={
-            "usdusd": uu,
-            "eureur": ee,
-            "eurusd": eu,
-        },
-    )
-
-    s1 = Solver(
-        curves=[uu, ee],
-        instruments=[
-            IRS(dt(2022, 1, 1), "1y", "A", curves="uu"),
-            IRS(dt(2022, 1, 1), "1y", "A", curves="ee"),
+    @pytest.mark.parametrize(
+        "attr",
+        [
+            "_get_composited_fx_state",
+            "_get_composited_curves_state",
+            "_get_composited_pre_curves_state",
         ],
-        s=[1.5, 1.5],
-        id="local",
     )
-    s2 = Solver(
-        curves=[eu],
-        instruments=[
-            XCS(
-                dt(2022, 1, 1),
-                "1Y",
-                "Q",
-                currency="eur",
-                leg2_currency="usd",
-                curves=["ee", "eu", "uu", "uu"],
+    def test_solver_state_storage(self, attr):
+        # test the solver stores hashes of its objects: FXForwards, Curves and presolvers
+        uu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="uu")
+        ee = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="ee")
+        eu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="eu")
+
+        fxf1 = FXForwards(
+            fx_rates=FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
+            fx_curves={
+                "usdusd": uu,
+                "eureur": ee,
+                "eurusd": eu,
+            },
+        )
+
+        s1 = Solver(
+            curves=[uu, ee],
+            instruments=[
+                IRS(dt(2022, 1, 1), "1y", "A", curves="uu"),
+                IRS(dt(2022, 1, 1), "1y", "A", curves="ee"),
+            ],
+            s=[1.5, 1.5],
+            id="local",
+        )
+        s2 = Solver(
+            curves=[eu],
+            instruments=[
+                XCS(
+                    dt(2022, 1, 1),
+                    "1Y",
+                    "Q",
+                    currency="eur",
+                    leg2_currency="usd",
+                    curves=["ee", "eu", "uu", "uu"],
+                ),
+            ],
+            s=[10.0],
+            id="x1",
+            fx=fxf1,
+            pre_solvers=[s1],
+        )
+        hashes = {
+            "_get_composited_fx_state": s2.fx._state,
+            "_get_composited_curves_state": hash(sum(curve._state for curve in s2.curves.values())),
+            "_get_composited_pre_curves_state": hash(
+                sum(curve._state for solver in s2.pre_solvers for curve in solver.curves.values())
             ),
-        ],
-        s=[10.0],
-        id="x1",
-        fx=fxf1,
-        pre_solvers=[s1],
-    )
-    hashes = {
-        "_get_composited_fx_state": s2.fx._state,
-        "_get_composited_curves_state": hash(sum(curve._state for curve in s2.curves.values())),
-        "_get_composited_pre_curves_state": hash(
-            sum(curve._state for solver in s2.pre_solvers for curve in solver.curves.values())
-        ),
-    }
-    result = getattr(s2, attr)()
-    assert result == hashes[attr]
+        }
+        result = getattr(s2, attr)()
+        assert result == hashes[attr]
+
+    @pytest.mark.parametrize("method", [
+        "delta",
+        "gamma",
+        "npv",
+        "rate",
+    ])
+    def test_warning_on_fx_mutation(self, method):
+        # test the solver stores hashes of its objects: FXForwards, Curves and presolvers
+        uu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="uu")
+        ee = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="ee")
+        eu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="eu")
+
+        fxf1 = FXForwards(
+            fx_rates=FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
+            fx_curves={
+                "usdusd": uu,
+                "eureur": ee,
+                "eurusd": eu,
+            },
+        )
+
+        s1 = Solver(
+            curves=[uu, ee],
+            instruments=[
+                IRS(dt(2022, 1, 1), "1y", "A", curves="uu"),
+                IRS(dt(2022, 1, 1), "1y", "A", curves="ee"),
+            ],
+            s=[1.5, 1.5],
+            id="local",
+        )
+        s2 = Solver(
+            curves=[eu],
+            instruments=[
+                XCS(
+                    dt(2022, 1, 1),
+                    "1Y",
+                    "Q",
+                    currency="eur",
+                    leg2_currency="usd",
+                    curves=["ee", "eu", "uu", "uu"],
+                ),
+            ],
+            s=[10.0],
+            id="x1",
+            fx=fxf1,
+            pre_solvers=[s1],
+        )
+
+        fxf1.update([{"eurusd": 1.10}])
+        irs = IRS(dt(2022, 1, 1), "3y", "A", curves="uu")
+        with pytest.warns(UserWarning, match="The `fx` object associated with `solver`"):
+            getattr(irs, method)(solver=s2)
+
+    @pytest.mark.parametrize("method", [
+        "delta",
+        "gamma",
+        "npv",
+        "rate",
+    ])
+    def test_raise_on_pre_curve_mutation(self, method):
+        # test the solver stores hashes of its objects: FXForwards, Curves and presolvers
+        uu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="uu")
+        ee = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="ee")
+        eu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="eu")
+
+        fxf1 = FXForwards(
+            fx_rates=FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
+            fx_curves={
+                "usdusd": uu,
+                "eureur": ee,
+                "eurusd": eu,
+            },
+        )
+
+        s1 = Solver(
+            curves=[uu, ee],
+            instruments=[
+                IRS(dt(2022, 1, 1), "1y", "A", curves="uu"),
+                IRS(dt(2022, 1, 1), "1y", "A", curves="ee"),
+            ],
+            s=[1.5, 1.5],
+            id="local",
+        )
+        s2 = Solver(
+            curves=[eu],
+            instruments=[
+                XCS(
+                    dt(2022, 1, 1),
+                    "1Y",
+                    "Q",
+                    currency="eur",
+                    leg2_currency="usd",
+                    curves=["ee", "eu", "uu", "uu"],
+                ),
+            ],
+            s=[10.0],
+            id="x1",
+            fx=fxf1,
+            pre_solvers=[s1],
+        )
+
+        uu._set_node_vector([0.995], 1)
+        irs = IRS(dt(2022, 1, 1), "3y", "A", curves="uu")
+        with pytest.raises(ValueError, match="The `curves` associated with the `pre_solvers` have"):
+            getattr(irs, method)(solver=s2)
+
+    @pytest.mark.parametrize("method", [
+        "delta",
+        "gamma",
+        "npv",
+        "rate",
+    ])
+    def test_raise_on_curve_mutation(self, method):
+        # test the solver stores hashes of its objects: FXForwards, Curves and presolvers
+        uu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="uu")
+        ee = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="ee")
+        eu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="eu")
+
+        fxf1 = FXForwards(
+            fx_rates=FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
+            fx_curves={
+                "usdusd": uu,
+                "eureur": ee,
+                "eurusd": eu,
+            },
+        )
+
+        s1 = Solver(
+            curves=[uu, ee],
+            instruments=[
+                IRS(dt(2022, 1, 1), "1y", "A", curves="uu"),
+                IRS(dt(2022, 1, 1), "1y", "A", curves="ee"),
+            ],
+            s=[1.5, 1.5],
+            id="local",
+        )
+        s2 = Solver(
+            curves=[eu],
+            instruments=[
+                XCS(
+                    dt(2022, 1, 1),
+                    "1Y",
+                    "Q",
+                    currency="eur",
+                    leg2_currency="usd",
+                    curves=["ee", "eu", "uu", "uu"],
+                ),
+            ],
+            s=[10.0],
+            id="x1",
+            fx=fxf1,
+            pre_solvers=[s1],
+        )
+
+        eu._set_node_vector([0.995], 1)
+        irs = IRS(dt(2022, 1, 1), "3y", "A", curves="uu")
+        with pytest.raises(ValueError, match="The `curves` associated with `solver` have been up"):
+            getattr(irs, method)(solver=s2)
