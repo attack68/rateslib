@@ -2037,7 +2037,6 @@ def test_solver_with_surface() -> None:
 
 
 class TestStateManagement:
-
     @pytest.mark.parametrize(
         "attr",
         [
@@ -2097,12 +2096,15 @@ class TestStateManagement:
         result = getattr(s2, attr)()
         assert result == hashes[attr]
 
-    @pytest.mark.parametrize("method", [
-        "delta",
-        "gamma",
-        "npv",
-        "rate",
-    ])
+    @pytest.mark.parametrize(
+        "method",
+        [
+            "delta",
+            "gamma",
+            "npv",
+            "rate",
+        ],
+    )
     def test_warning_on_fx_mutation(self, method):
         # test the solver stores hashes of its objects: FXForwards, Curves and presolvers
         uu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="uu")
@@ -2150,12 +2152,15 @@ class TestStateManagement:
         with pytest.warns(UserWarning, match="The `fx` object associated with `solver`"):
             getattr(irs, method)(solver=s2)
 
-    @pytest.mark.parametrize("method", [
-        "delta",
-        "gamma",
-        "npv",
-        "rate",
-    ])
+    @pytest.mark.parametrize(
+        "method",
+        [
+            "delta",
+            "gamma",
+            "npv",
+            "rate",
+        ],
+    )
     def test_raise_on_pre_curve_mutation(self, method):
         # test the solver stores hashes of its objects: FXForwards, Curves and presolvers
         uu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="uu")
@@ -2203,12 +2208,15 @@ class TestStateManagement:
         with pytest.raises(ValueError, match="The `curves` associated with the `pre_solvers` have"):
             getattr(irs, method)(solver=s2)
 
-    @pytest.mark.parametrize("method", [
-        "delta",
-        "gamma",
-        "npv",
-        "rate",
-    ])
+    @pytest.mark.parametrize(
+        "method",
+        [
+            "delta",
+            "gamma",
+            "npv",
+            "rate",
+        ],
+    )
     def test_raise_on_curve_mutation(self, method):
         # test the solver stores hashes of its objects: FXForwards, Curves and presolvers
         uu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="uu")
