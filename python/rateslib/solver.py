@@ -1029,6 +1029,7 @@ class Solver(Gradients, _WithState):
         # Final elements
         self._ad = 1
         self.fx = fx
+        self.fx._set_ad_order(1)
         self.instruments = tuple(self._parse_instrument(inst) for inst in instruments)
         self.pre_instruments += self.instruments
         self.rate_scalars = tuple(inst[0]._rate_scalar for inst in self.instruments)
@@ -2034,7 +2035,8 @@ class Solver(Gradients, _WithState):
         return df.loc[:, sorted_cols].astype("float64")
 
     def _validate_state(self):
-        if self._state != self._get_composited_state():
+        _objects_state = self._get_composited_state()
+        if self._state != _objects_state:
             # then something has been mutated
             if not isinstance(self.fx, NoInput) and self._state_fx != self.fx._state:
                 warnings.warn(
