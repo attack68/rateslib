@@ -2038,8 +2038,8 @@ class Solver(Gradients, _WithState):
             # then something has been mutated
             if not isinstance(self.fx, NoInput) and self._state_fx != self.fx._state:
                 warnings.warn(
-                    "The `fx` object associated with `solver` has been updated without the"
-                    "`solver` performing additional iterations. Calculations can still be "
+                    "The `fx` object associated with `solver` has been updated without "
+                    "the `solver` performing additional iterations.\nCalculations can still be "
                     "performed but, dependent upon those updates, errors may be negligible "
                     "or significant.",
                     UserWarning,
@@ -2047,16 +2047,16 @@ class Solver(Gradients, _WithState):
             if self._state_curves != self._get_composited_curves_state():
                 raise ValueError(
                     "The `curves` associated with `solver` have been updated without the "
-                    "`solver` performing additional iterations. Calculations are prevented in this"
-                    "state because they will likely be erroneous or a consequence of a bad design"
-                    "pattern."
+                    "`solver` performing additional iterations.\nCalculations are prevented in "
+                    "this state because they will likely be erroneous or a consequence of a bad "
+                    "design pattern."
                 )
             if self._state_pre_curves != self._get_composited_pre_curves_state():
                 raise ValueError(
                     "The `curves` associated with the `pre_solvers` have been updated without the "
-                    "`solver` performing additional iterations. Calculations are prevented in this"
-                    "state because they will likely be erroneous or a consequence of a bad design"
-                    "pattern."
+                    "`solver` performing additional iterations.\nCalculations are prevented in "
+                    "this state because they will likely be erroneous or a consequence of a "
+                    "bad design pattern."
                 )
 
 
