@@ -1029,7 +1029,8 @@ class Solver(Gradients, _WithState):
         # Final elements
         self._ad = 1
         self.fx = fx
-        self.fx._set_ad_order(1)
+        if not isinstance(self.fx, NoInput):
+            self.fx._set_ad_order(1)
         self.instruments = tuple(self._parse_instrument(inst) for inst in instruments)
         self.pre_instruments += self.instruments
         self.rate_scalars = tuple(inst[0]._rate_scalar for inst in self.instruments)
