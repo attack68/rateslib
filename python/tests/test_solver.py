@@ -2280,7 +2280,7 @@ class TestStateManagement:
                 eval_date=dt(2024, 5, 7),
                 expiry=dt(2024, 5, 28),
                 delta_type="spot",
-                id="eurusd_3w_smile"
+                id="eurusd_3w_smile",
             )
             # Define the interest rate curves for EUR, USD and X-Ccy basis
             eureur = Curve({dt(2024, 5, 7): 1.0, dt(2024, 5, 30): 1.0}, calendar="tgt", id="eureur")
@@ -2293,16 +2293,21 @@ class TestStateManagement:
             )
             # Setup the Solver instrument calibration for rates Curves and vol Smiles
             option_args = dict(
-                pair="eurusd", expiry=dt(2024, 5, 28), calendar="tgt", delta_type="spot",
-                curves=[None, "eurusd", None, "usdusd"], vol="eurusd_3w_smile"
+                pair="eurusd",
+                expiry=dt(2024, 5, 28),
+                calendar="tgt",
+                delta_type="spot",
+                curves=[None, "eurusd", None, "usdusd"],
+                vol="eurusd_3w_smile",
             )
             Solver(
                 curves=[eureur, eurusd, usdusd, smile],
                 instruments=[
                     IRS(dt(2024, 5, 9), "3W", spec="eur_irs", curves="eureur"),
                     IRS(dt(2024, 5, 9), "3W", spec="usd_irs", curves="usdusd"),
-                    FXSwap(dt(2024, 5, 9), "3W", pair="eurusd",
-                           curves=[None, "eurusd", None, "usdusd"]),
+                    FXSwap(
+                        dt(2024, 5, 9), "3W", pair="eurusd", curves=[None, "eurusd", None, "usdusd"]
+                    ),
                     FXStraddle(strike="atm_delta", **option_args),
                     FXRiskReversal(strike=["-25d", "25d"], **option_args),
                     FXRiskReversal(strike=["-10d", "10d"], **option_args),
