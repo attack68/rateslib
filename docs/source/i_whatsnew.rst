@@ -35,6 +35,11 @@ email contact, see `rateslib <https://rateslib.com>`_.
        evaluation if a :class:`~rateslib.dual.Variable` is passed, through dynamic *Dual* or *Dual2*
        conversion.
        (`558 <https://github.com/attack68/rateslib/pull/558>`_)
+   * - Curves
+     - Add methods :meth:`~rateslib.curves.Curve.update` and
+       :meth:`~rateslib.curves.Curve.update_node` to allow mutating *Curve* types directly
+       with appropriate cache and state management.
+       (`584 <https://github.com/attack68/rateslib/pull/584>`_)
    * - Bug
      - :class:`~rateslib.instruments.STIRFuture` now correctly handles the ``fx`` and ``base``
        arguments when using the :meth:`~rateslib.instruments.STIRFuture.npv` or
