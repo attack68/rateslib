@@ -94,6 +94,7 @@ independently by providing basic inputs.
              },
              index_base=308.95,
              index_lag=3,
+             interpolation="linear_index",
              id="us_cpi",
          )
 
