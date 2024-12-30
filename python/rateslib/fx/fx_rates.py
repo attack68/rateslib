@@ -119,6 +119,8 @@ class FXRates(_WithState):
             base_ = Ccy(base)
         self.obj = FXRatesObj(fx_rates_, base_)
         self.__init_post_obj__()
+        self.__clear_cached_properties__()
+        self._set_new_state()
 
     @classmethod
     def __init_from_obj__(cls, obj: FXRatesObj) -> FXRates:
@@ -131,15 +133,6 @@ class FXRates(_WithState):
 
     def __init_post_obj__(self) -> None:
         self.currencies = {ccy.name: i for (i, ccy) in enumerate(self.obj.currencies)}
-        self.__clear_cached_properties__()
-
-    def __clear_cached_properties__(self) -> None:
-        """
-        Clear the cache ID so the fx_array can be fetched and cached from Rust object.
-        Create a new cache_id to signal object has mutated.
-        """
-        self.__dict__.pop("fx_array", None)
-        self._set_new_state()
 
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, FXRates):
@@ -290,69 +283,6 @@ class FXRates(_WithState):
             base=self.base,
         )
         return restated_fx_rates
-
-    def update(self, fx_rates: dict[str, float] | NoInput = NoInput(0)) -> None:
-        """
-        Update all or some of the FX rates of the instance with new market data.
-
-        Parameters
-        ----------
-        fx_rates : dict, optional
-            Dict whose keys are 6-character domestic-foreign currency pairs and
-            which are present in FXRates.pairs, and whose
-            values are the relevant rates to update. An empty dict will be ignored and
-            perform no update.
-
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-
-        .. warning::
-
-           *Rateslib* is an object-oriented library that uses complex associations. It
-           is **best practice** to create objects and any associations and then use the
-           ``update`` methods to push new market data to them. Recreating objects with
-           new data will break object-oriented associations and possibly lead to
-           undetected market data based pricing errors.
-
-        Suppose an *FXRates* class has been instantiated and resides in memory.
-
-        .. ipython:: python
-
-           fxr = FXRates({"eurusd": 1.05, "gbpusd": 1.25}, settlement=dt(2022, 1, 3), base="usd")
-           id(fxr)
-
-        This object may be linked to others, probably an :class:`~rateslib.fx.FXForwards` class.
-        It can be updated with some new market data. This will preserve its memory id and
-        association with other objects. Any :class:`~rateslib.fx.FXForwards` objects referencing
-        this will detect this change and will also lazily update via *rateslib's* cache
-        management.
-
-        .. ipython:: python
-
-           linked_obj = fxr
-           fxr.update({"eurusd": 1.06})
-           id(fxr)  # <- SAME as above
-           linked_obj.rate("eurusd")
-
-        Examples
-        --------
-
-        .. ipython:: python
-
-           fxr = FXRates({"usdeur": 0.9, "eurnok": 8.5})
-           fxr.rate("usdnok")
-           fxr.update({"usdeur": 1.0})
-           fxr.rate("usdnok")
-        """
-        if isinstance(fx_rates, NoInput) or len(fx_rates) == 0:
-            return None
-        fx_rates_ = [FXRate(k[0:3], k[3:6], v, self.settlement) for k, v in fx_rates.items()]
-        self.obj.update(fx_rates_)
-        self.__init_post_obj__()
 
     def convert(
         self,
@@ -515,13 +445,89 @@ class FXRates(_WithState):
             columns=self.currencies_list,
         )
 
+    # Cache management
+
+    def __clear_cached_properties__(self) -> None:
+        """
+        Clear the cache ID so the fx_array can be fetched and cached from Rust object.
+        """
+        self.__dict__.pop("fx_array", None)
+
+    # Mutation
+
+    def update(self, fx_rates: dict[str, float] | NoInput = NoInput(0)) -> None:
+        """
+        Update all or some of the FX rates of the instance with new market data.
+
+        Parameters
+        ----------
+        fx_rates : dict, optional
+            Dict whose keys are 6-character domestic-foreign currency pairs and
+            which are present in FXRates.pairs, and whose
+            values are the relevant rates to update. An empty dict will be ignored and
+            perform no update.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+
+        .. warning::
+
+           *Rateslib* is an object-oriented library that uses complex associations. Although
+           Python may not object to directly mutating attributes of an *FXRates* instance, this
+           should be avoided in *rateslib*. Only use official ``update`` methods to mutate the
+           values of an existing *FXRates* instance.
+           This class is labelled as a **mutable on update** object.
+
+        Suppose an *FXRates* class has been instantiated and resides in memory.
+
+        .. ipython:: python
+
+           fxr = FXRates({"eurusd": 1.05, "gbpusd": 1.25}, settlement=dt(2022, 1, 3), base="usd")
+           id(fxr)
+
+        This object may be linked to others, probably an :class:`~rateslib.fx.FXForwards` class.
+        It can be updated with some new market data. This will preserve its memory id and
+        association with other objects. Any :class:`~rateslib.fx.FXForwards` objects referencing
+        this will detect this change and will also lazily update via *rateslib's* cache
+        management.
+
+        .. ipython:: python
+
+           linked_obj = fxr
+           fxr.update({"eurusd": 1.06})
+           id(fxr)  # <- SAME as above
+           linked_obj.rate("eurusd")
+
+        Examples
+        --------
+
+        .. ipython:: python
+
+           fxr = FXRates({"usdeur": 0.9, "eurnok": 8.5})
+           fxr.rate("usdnok")
+           fxr.update({"usdeur": 1.0})
+           fxr.rate("usdnok")
+        """
+        if isinstance(fx_rates, NoInput) or len(fx_rates) == 0:
+            return None
+        fx_rates_ = [FXRate(k[0:3], k[3:6], v, self.settlement) for k, v in fx_rates.items()]
+        self.obj.update(fx_rates_)
+        self.__clear_cached_properties__()
+        self._set_new_state()
+
     def _set_ad_order(self, order: int) -> None:
         """
         Change the node values to float, Dual or Dual2 based on input parameter.
         """
 
         self.obj.set_ad_order(_get_adorder(order))
-        self.__init_post_obj__()
+        self.__clear_cached_properties__()
+
+    # Serialization
 
     def to_json(self) -> str:
         return _make_py_json(self.obj.to_json(), "FXRates")

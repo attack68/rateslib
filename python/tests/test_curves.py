@@ -1183,7 +1183,7 @@ class TestCurve:
         curve.nodes[dt(2002, 1, 1)] = 0.98
         # cache not cleared
         assert curve[dt(2001, 1, 1)] == v1
-        curve.clear_cache()
+        curve._clear_cache()
         # cache cleared so value will need to be re-calced
         v2 = curve[dt(2001, 1, 1)]
         assert v2 != v1
@@ -1234,7 +1234,7 @@ class TestCurve:
             curve.translate(dt(2022, 12, 15))
 
     @pytest.mark.parametrize(
-        ("method", "args"), [("clear_cache", tuple()), ("_set_node_vector", ([0.99], 1))]
+        ("method", "args"), [("_clear_cache", tuple()), ("_set_node_vector", ([0.99], 1))]
     )
     def test_cache_id_update(self, method, args):
         curve = Curve(
@@ -1296,7 +1296,7 @@ class TestLineCurve:
         assert isinstance(curve, Curve)
 
     @pytest.mark.parametrize(
-        ("method", "args"), [("clear_cache", tuple()), ("_set_node_vector", ([2.0, 0.99], 1))]
+        ("method", "args"), [("_clear_cache", tuple()), ("_set_node_vector", ([2.0, 0.99], 1))]
     )
     def test_cache_id_update(self, method, args):
         curve = LineCurve(
@@ -1371,7 +1371,11 @@ class TestIndexCurve:
         assert isinstance(curve, Curve)
 
     @pytest.mark.parametrize(
-        ("method", "args"), [("clear_cache", tuple()), ("_set_node_vector", ([0.99], 1))]
+        ("method", "args"), [
+            ("_set_node_vector", ([0.99], 1)),
+            ("update_node", (dt(2023, 1, 1), 0.99)),
+            ("update", ({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},))
+        ]
     )
     def test_state_id_update(self, method, args):
         curve = IndexCurve(
@@ -1801,8 +1805,7 @@ class TestCompositeCurve:
         assert curve._cache == {dt(2022, 3, 1): 0.9967396833121631}
 
         # update a curve
-        curve2.nodes[dt(2022, 6, 30)] = 0.95
-        curve2.clear_cache()
+        curve2.update_node(dt(2022, 6, 30), 0.95)
         curve[dt(2022, 3, 1)]
         assert curve._cache == {dt(2022, 3, 1): 0.9801226964242061}
 
