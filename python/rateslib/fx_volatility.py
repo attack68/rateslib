@@ -118,25 +118,6 @@ class FXDeltaVolSmile(_WithState):
 
         self._set_ad_order(ad)  # includes csolve
 
-    def clear_cache(self) -> None:
-        """
-        Clear the cache of values on a *Smile* type.
-
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-        This should be used if any modification has been made to the *Smile*.
-        Users are advised against making direct modification to *Curve* classes once
-        constructed to avoid the issue of un-cleared caches returning erroneous values.
-
-        Alternatively the curve caching as a feature can be set to *False* in ``defaults``.
-        """
-        self._cache: dict[float, DualTypes] = dict()
-        self._set_new_state()
-
     def __iter__(self):
         raise TypeError("`FXDeltaVolSmile` is not iterable.")
 
@@ -394,69 +375,6 @@ class FXDeltaVolSmile(_WithState):
             put_delta = delta
         return -1.0 * put_delta
 
-    def _csolve_n1(self):
-        # create a straight line by converting from one to two nodes with the first at tau=0.
-        tau = list(self.nodes.keys())
-        tau.insert(0, self.t[0])
-        y = list(self.nodes.values()) * 2
-
-        # Left side constraint
-        tau.insert(0, self.t[0])
-        y.insert(0, set_order_convert(0.0, self.ad, None))
-        left_n = 2
-
-        tau.append(self.t[-1])
-        y.append(set_order_convert(0.0, self.ad, None))
-        right_n = self._right_n
-        return tau, y, left_n, right_n
-
-    def _csolve_n_other(self):
-        tau = list(self.nodes.keys())
-        y = list(self.nodes.values())
-
-        # Left side constraint
-        tau.insert(0, self.t[0])
-        y.insert(0, set_order_convert(0.0, self.ad, None))
-        left_n = 2
-
-        tau.append(self.t[-1])
-        y.append(set_order_convert(0.0, self.ad, None))
-        right_n = self._right_n
-        return tau, y, left_n, right_n
-
-    def csolve(self) -> None:
-        """
-        Solves **and sets** the coefficients, ``c``, of the :class:`PPSpline`.
-
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-        Only impacts curves which have a knot sequence, ``t``, and a ``PPSpline``.
-        Only solves if ``c`` not given at curve initialisation.
-
-        Uses the ``spline_endpoints`` attribute on the class to determine the solving
-        method.
-        """
-        # Get the Spline classs by data types
-        if self.ad == 0:
-            Spline = PPSplineF64
-        elif self.ad == 1:
-            Spline = PPSplineDual
-        else:
-            Spline = PPSplineDual2
-
-        if self.n == 1:
-            tau, y, left_n, right_n = self._csolve_n1()
-        else:
-            tau, y, left_n, right_n = self._csolve_n_other()
-
-        self.spline = Spline(4, self.t, None)
-        self.spline.csolve(tau, y, left_n, right_n, False)
-        self.clear_cache()
-
     # def _build_datatable(self):
     #     """
     #     With the given (Delta, Vol)
@@ -541,18 +459,15 @@ class FXDeltaVolSmile(_WithState):
     #     self.spline_u_delta_approx.csolve(u, delta.tolist()[::-1], 0, 0, False)
     #     return None
 
-    def _set_ad_order(self, order: int) -> None:
-        if order == getattr(self, "ad", None):
-            return None
-        elif order not in [0, 1, 2]:
-            raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
+    def _get_node_vector(self):
+        """Get a 1d array of variables associated with nodes of this object updated by Solver"""
+        return np.array(list(self.nodes.values()))
 
-        self.ad = order
-        self.nodes = {
-            k: set_order_convert(v, order, [f"{self.id}{i}"])
-            for i, (k, v) in enumerate(self.nodes.items())
-        }
-        self.csolve()  # also clears cache
+    def _get_node_vars(self):
+        """Get the variable names of elements updated by a Solver"""
+        return tuple(f"{self.id}{i}" for i in range(self.n))
+
+    # Plotting
 
     def plot(
         self,
@@ -625,6 +540,95 @@ class FXDeltaVolSmile(_WithState):
             return plot(x_as_u, y, labels)
         return plot(x, y, labels)
 
+    # Cache management
+
+    def _clear_cache(self) -> None:
+        """
+        Clear the cache of values on a *Smile* type.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        This should be used if any modification has been made to the *Smile*.
+        Users are advised against making direct modification to *Curve* classes once
+        constructed to avoid the issue of un-cleared caches returning erroneous values.
+
+        Alternatively the curve caching as a feature can be set to *False* in ``defaults``.
+        """
+        self._cache: dict[float, DualTypes] = dict()
+
+    # Mutation
+
+    def _csolve_n1(self):
+        # create a straight line by converting from one to two nodes with the first at tau=0.
+        tau = list(self.nodes.keys())
+        tau.insert(0, self.t[0])
+        y = list(self.nodes.values()) * 2
+
+        # Left side constraint
+        tau.insert(0, self.t[0])
+        y.insert(0, set_order_convert(0.0, self.ad, None))
+        left_n = 2
+
+        tau.append(self.t[-1])
+        y.append(set_order_convert(0.0, self.ad, None))
+        right_n = self._right_n
+        return tau, y, left_n, right_n
+
+    def _csolve_n_other(self):
+        tau = list(self.nodes.keys())
+        y = list(self.nodes.values())
+
+        # Left side constraint
+        tau.insert(0, self.t[0])
+        y.insert(0, set_order_convert(0.0, self.ad, None))
+        left_n = 2
+
+        tau.append(self.t[-1])
+        y.append(set_order_convert(0.0, self.ad, None))
+        right_n = self._right_n
+        return tau, y, left_n, right_n
+
+    def _csolve(self) -> None:
+        # Get the Spline classs by data types
+        if self.ad == 0:
+            Spline = PPSplineF64
+        elif self.ad == 1:
+            Spline = PPSplineDual
+        else:
+            Spline = PPSplineDual2
+
+        if self.n == 1:
+            tau, y, left_n, right_n = self._csolve_n1()
+        else:
+            tau, y, left_n, right_n = self._csolve_n_other()
+
+        self.spline = Spline(4, self.t, None)
+        self.spline.csolve(tau, y, left_n, right_n, False)
+
+    def csolve(self):
+        """
+        Solves **and sets** the coefficients, ``c``, of the :class:`PPSpline`.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        Only impacts curves which have a knot sequence, ``t``, and a ``PPSpline``.
+        Only solves if ``c`` not given at curve initialisation.
+
+        Uses the ``spline_endpoints`` attribute on the class to determine the solving
+        method.
+        """
+        self._csolve()
+        self._clear_cache()
+        self._set_new_state()
+
     def _set_node_vector(self, vector, ad):
         """Update the node values in a Solver. ``ad`` in {1, 2}."""
         DualType = Dual if ad == 1 else Dual2
@@ -640,16 +644,25 @@ class FXDeltaVolSmile(_WithState):
                 ident[i, :].tolist(),
                 *DualArgs[1:],
             )
-        self.csolve()
-        self.clear_cache()
+        self._csolve()
+        self._clear_cache()
+        self._set_new_state()
 
-    def _get_node_vector(self):
-        """Get a 1d array of variables associated with nodes of this object updated by Solver"""
-        return np.array(list(self.nodes.values()))
+    def _set_ad_order(self, order: int) -> None:
+        if order == getattr(self, "ad", None):
+            return None
+        elif order not in [0, 1, 2]:
+            raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
 
-    def _get_node_vars(self):
-        """Get the variable names of elements updated by a Solver"""
-        return tuple(f"{self.id}{i}" for i in range(self.n))
+        self.ad = order
+        self.nodes = {
+            k: set_order_convert(v, order, [f"{self.id}{i}"])
+            for i, (k, v) in enumerate(self.nodes.items())
+        }
+        self._csolve()
+        self._clear_cache()
+
+    # Serialization
 
 
 class FXDeltaVolSurface(_WithState):
