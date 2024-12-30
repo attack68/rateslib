@@ -21,6 +21,7 @@ from rateslib.dual import (
     dual_norm_cdf,
     dual_norm_pdf,
     set_order_convert,
+    Variable
 )
 from rateslib.rs import index_left_f64
 from rateslib.solver import newton_1dim
@@ -87,16 +88,20 @@ class FXDeltaVolSmile(_WithState):
         ad: int = 0,
     ):
         self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
-        self.nodes = nodes
-        self.node_keys = list(self.nodes.keys())
-        self.n = len(self.node_keys)
         self.eval_date = eval_date
         self.expiry = expiry
         self.t_expiry = (expiry - eval_date).days / 365.0
         self.t_expiry_sqrt = self.t_expiry**0.5
-
         self.delta_type = _validate_delta_type(delta_type)
 
+        self.__set_nodes__(nodes, ad)
+
+    def __set_nodes__(self, nodes: dict[float, DualTypes], ad: int) -> None:
+        self.ad = None
+
+        self.nodes = nodes
+        self.node_keys = list(self.nodes.keys())
+        self.n = len(self.node_keys)
         if "_pa" in self.delta_type:
             vol = list(self.nodes.values())[-1] / 100.0
             upper_bound = dual_exp(
@@ -116,7 +121,7 @@ class FXDeltaVolSmile(_WithState):
         else:
             self.t = [0.0] * 4 + self.node_keys[1:-1] + [float(upper_bound)] * 4
 
-        self._set_ad_order(ad)  # includes csolve
+        self._set_ad_order(ad)  # includes _csolve()
 
     def __iter__(self):
         raise TypeError("`FXDeltaVolSmile` is not iterable.")
@@ -661,6 +666,80 @@ class FXDeltaVolSmile(_WithState):
         }
         self._csolve()
         self._clear_cache()
+
+    def update(
+        self,
+        nodes: dict[float, DualTypes],
+    ) -> None:
+        """
+        Update a *Smile* with new, manually passed nodes.
+
+        For arguments see :class:`~rateslib.fx_volatility.FXDeltaVolSmile`
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+
+        .. warning::
+
+           *Rateslib* is an object-oriented library that uses complex associations. Although
+           Python may not object to directly mutating attributes of a *Smile* instance, this
+           should be avoided in *rateslib*. Only use official ``update`` methods to mutate the
+           values of an existing *Smile* instance.
+           This class is labelled as a **mutable on update** object.
+
+        """
+        if any([isinstance(_, Dual2) for _ in nodes.values()]):
+            ad_: int = 2
+        elif any([isinstance(_, Dual) for _ in nodes.values()]):
+            ad_ = 1
+        elif any([isinstance(_, Variable) for _ in nodes.values()]):
+            ad_ = defaults._global_ad_order
+        else:
+            ad_ = 0
+        self.__set_nodes__(nodes, ad_)
+
+        # self._csolve() is performed in set_nodes
+        # self._clear_cache() is performed in set_nodes
+        self._set_new_state()
+
+    def update_node(self, key: datetime, value: DualTypes) -> None:
+        """
+        Update a single node value on the *Curve*.
+
+        Parameters
+        ----------
+        key: datetime
+            The node date to update. Must exist in ``nodes``.
+        value: float, Dual, Dual2, Variable
+            Value to update on the *Curve*.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+
+        .. warning::
+
+           *Rateslib* is an object-oriented library that uses complex associations. Although
+           Python may not object to directly mutating attributes of a *Curve* instance, this
+           should be avoided in *rateslib*. Only use official ``update`` methods to mutate the
+           values of an existing *Curve* instance.
+           This class is labelled as a **mutable on update** object.
+
+        """
+        if key not in self.nodes:
+            raise KeyError("`key` is not in *Curve* ``nodes``.")
+        self.nodes[key] = value
+
+        self._csolve()
+        self._clear_cache()
+        self._set_new_state()
 
     # Serialization
 

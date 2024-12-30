@@ -341,23 +341,6 @@ class TestFXDeltaVolSmile:
         with pytest.raises(TypeError, match="`FXDeltaVolSmile` is not iterable."):
             fxvs.__iter__()
 
-    @pytest.mark.parametrize(
-        ("method", "args"),
-        [("csolve", tuple()), ("_set_ad_order", (1,)), ("_set_node_vector", ([9.9, 9.8, 9.9], 1))],
-    )
-    def test_clear_cache(self, method, args):
-        fxvs = FXDeltaVolSmile(
-            nodes={0.25: 10.0, 0.5: 10.0, 0.75: 11.0},
-            delta_type="forward",
-            eval_date=dt(2023, 3, 16),
-            expiry=dt(2023, 6, 16),
-            id="vol",
-        )
-        before = fxvs._state
-        getattr(fxvs, method)(*args)
-        after = fxvs._state
-        assert before != after
-
 
 class TestFXDeltaVolSurface:
     def test_expiry_before_eval(self) -> None:
@@ -629,6 +612,55 @@ class TestFXDeltaVolSurface:
             # no clear cache required, but value will re-calc anyway
             assert dt(2024, 7, 1) not in fxvs._cache
 
+
+class TestStateAndCache:
+
+    @pytest.mark.parametrize("curve", [
+        FXDeltaVolSmile(
+            nodes={0.25: 10.0, 0.5: 10.0, 0.75: 11.0},
+            delta_type="forward",
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            id="vol",
+        ),
+    ])
+    @pytest.mark.parametrize(("method", "args"), [
+        ("_set_ad_order", (1,))
+    ])
+    def test_method_does_not_change_state(self, curve, method, args):
+        before = curve._state
+        getattr(curve, method)(*args)
+        after = curve._state
+        assert before == after
+
+    @pytest.mark.parametrize("curve", [
+        FXDeltaVolSmile(
+            nodes={0.25: 10.0, 0.5: 10.0, 0.75: 11.0},
+            delta_type="forward",
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            id="vol",
+        ),
+    ])
+    @pytest.mark.parametrize(("method", "args"), [
+        ("_set_node_vector", ([0.99, 0.98, 0.99], 1)),
+        ("update_node", (0.25, 0.98)),
+        ("update", ({0.25: 10.0,  0.5: 10.0, 0.75: 10.1},)),
+        ("csolve", tuple()),
+    ])
+    def test_method_changes_state(self, curve, method, args):
+        before = curve._state
+        getattr(curve, method)(*args)
+        after = curve._state
+        assert before != after
+
+    def test_populate_cache(self):
+        # objects have yet to implement cache handling
+        pass
+
+    def test_method_clears_cache(self):
+        # objects have yet to implement cache handling
+        pass
 
 def test_validate_delta_type() -> None:
     with pytest.raises(ValueError, match="`delta_type` must be in"):
