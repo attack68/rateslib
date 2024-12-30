@@ -1234,11 +1234,12 @@ class TestCurve:
             curve.translate(dt(2022, 12, 15))
 
     @pytest.mark.parametrize(
-        ("method", "args"), [
+        ("method", "args"),
+        [
             ("_set_node_vector", ([0.99], 1)),
             ("update_node", (dt(2023, 1, 1), 0.99)),
-            ("update", ({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},))
-        ]
+            ("update", ({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},)),
+        ],
     )
     def test_cache_id_update(self, method, args):
         curve = Curve(
@@ -1300,11 +1301,12 @@ class TestLineCurve:
         assert isinstance(curve, Curve)
 
     @pytest.mark.parametrize(
-        ("method", "args"), [
+        ("method", "args"),
+        [
             ("_set_node_vector", ([0.99, 1.1], 1)),
             ("update_node", (dt(2023, 1, 1), 0.99)),
-            ("update", ({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},))
-        ]
+            ("update", ({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},)),
+        ],
     )
     def test_cache_id_update(self, method, args):
         curve = LineCurve(
@@ -1379,11 +1381,12 @@ class TestIndexCurve:
         assert isinstance(curve, Curve)
 
     @pytest.mark.parametrize(
-        ("method", "args"), [
+        ("method", "args"),
+        [
             ("_set_node_vector", ([0.99], 1)),
             ("update_node", (dt(2023, 1, 1), 0.99)),
-            ("update", ({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},))
-        ]
+            ("update", ({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},)),
+        ],
     )
     def test_state_id_update(self, method, args):
         curve = IndexCurve(

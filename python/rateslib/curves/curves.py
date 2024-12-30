@@ -243,13 +243,15 @@ class Curve(_WithState):
     def __set_interpolation__(
         self,
         interpolation: str | Callable[[datetime, dict[datetime, DualTypes]], DualTypes],
-    ):
+    ) -> None:
         if isinstance(interpolation, str):
-            self.interpolation: str | Callable[[datetime, dict[datetime, DualTypes]], DualTypes] = interpolation.lower()
+            self.interpolation: str | Callable[[datetime, dict[datetime, DualTypes]], DualTypes] = (
+                interpolation.lower()
+            )
         else:
             self.interpolation = interpolation
 
-    def __set_nodes__(self, nodes: dict[datetime, DualTypes]):
+    def __set_nodes__(self, nodes: dict[datetime, DualTypes]) -> None:
         self.nodes: dict[datetime, DualTypes] = nodes  # nodes.copy()
         self.node_keys: list[datetime] = list(self.nodes.keys())
         self.node_dates: list[datetime] = self.node_keys
@@ -264,7 +266,7 @@ class Curve(_WithState):
                     "use: `dict(sorted(nodes.items()))`",
                 )
 
-    def __set_endpoints__(self, endpoints: str | tuple[str, str]):
+    def __set_endpoints__(self, endpoints: str | tuple[str, str]) -> None:
         if isinstance(endpoints, str):
             self.spline_endpoints = (endpoints.lower(), endpoints.lower())
         else:
@@ -1342,7 +1344,7 @@ class Curve(_WithState):
         self._clear_cache()
         self._set_new_state()
 
-    def _csolve(self):
+    def _csolve(self) -> None:
         if isinstance(self.t, NoInput) or self._c_input:
             return None
 
@@ -1440,9 +1442,9 @@ class Curve(_WithState):
         self,
         nodes: dict[datetime, DualTypes] | NoInput = NoInput(0),
         interpolation: str
-                       | Callable[[datetime, dict[datetime, DualTypes]], DualTypes]
-                       | NoInput = NoInput(0),
-        endpoints: str | tuple[str, str] | NoInput = NoInput(0)
+        | Callable[[datetime, dict[datetime, DualTypes]], DualTypes]
+        | NoInput = NoInput(0),
+        endpoints: str | tuple[str, str] | NoInput = NoInput(0),
     ) -> None:
         """
         Update a curve with new, manually input values.
@@ -1479,7 +1481,7 @@ class Curve(_WithState):
         self._clear_cache()
         self._set_new_state()
 
-    def update_node(self, key:datetime, value: DualTypes) -> None:
+    def update_node(self, key: datetime, value: DualTypes) -> None:
         """
         Update a single node value on the *Curve*.
 
@@ -1600,9 +1602,6 @@ class Curve(_WithState):
         Curve or LineCurve
         """
         return self.from_json(self.to_json())
-
-
-
 
 
 class LineCurve(Curve):
@@ -2655,8 +2654,6 @@ class CompositeCurve(Curve):
         return hash(sum(curve._state for curve in self.curves))
 
     # Serialization
-
-
 
 
 class MultiCsaCurve(CompositeCurve):
