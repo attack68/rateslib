@@ -1571,16 +1571,16 @@ class FloatPeriod(BasePeriod):
            )
            period.fixings_table({"1m": ibor_1m, "3m": ibor_3m}, disc_curve=ibor_1m)
         """
-        if disc_curve is NoInput.blank and isinstance(curve, dict):
+        if isinstance(disc_curve, NoInput) and isinstance(curve, dict):
             raise ValueError("Cannot infer `disc_curve` from a dict of curves.")
-        elif disc_curve is NoInput.blank:
+        elif isinstance(disc_curve, NoInput):
             if curve._base_type == "dfs":
                 disc_curve = curve
             else:
                 raise ValueError("Must supply a discount factor based `disc_curve`.")
 
         if approximate:
-            if self.fixings is not NoInput.blank:
+            if not isinstance(self.fixings, NoInput):
                 warnings.warn(
                     "Cannot approximate a fixings table when some published fixings "
                     f"are given within the period {self.start.strftime('%d-%b-%Y')}->"
@@ -1804,7 +1804,7 @@ class FloatPeriod(BasePeriod):
 
             if not isinstance(self.fixings, NoInput) or fixing_dt < curve.node_dates[0]:
                 # then fixing is set so return zero exposure.
-                _rate = NA if self.fixings is NoInput.blank else _dual_float(self.rate(curve))
+                _rate = NA if isinstance(self.fixings, NoInput) else _dual_float(self.rate(curve))
                 df = DataFrame(
                     {
                         "obs_dates": [fixing_dt],
@@ -1994,7 +1994,7 @@ class FloatPeriod(BasePeriod):
         4) ``fixings`` are given which need to be incorporated into the calculation
         """
         if self.fixing_method in ["rfr_payment_delay", "rfr_observation_shift"]:
-            if self.fixings is not NoInput.blank:
+            if not isinstance(self.fixings, NoInput):
                 return True
             else:
                 return not (self.float_spread == 0 or self.spread_compound_method == "none_simple")
