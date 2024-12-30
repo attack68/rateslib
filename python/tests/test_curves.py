@@ -1234,7 +1234,11 @@ class TestCurve:
             curve.translate(dt(2022, 12, 15))
 
     @pytest.mark.parametrize(
-        ("method", "args"), [("_clear_cache", tuple()), ("_set_node_vector", ([0.99], 1))]
+        ("method", "args"), [
+            ("_set_node_vector", ([0.99], 1)),
+            ("update_node", (dt(2023, 1, 1), 0.99)),
+            ("update", ({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},))
+        ]
     )
     def test_cache_id_update(self, method, args):
         curve = Curve(
@@ -1296,7 +1300,11 @@ class TestLineCurve:
         assert isinstance(curve, Curve)
 
     @pytest.mark.parametrize(
-        ("method", "args"), [("_clear_cache", tuple()), ("_set_node_vector", ([2.0, 0.99], 1))]
+        ("method", "args"), [
+            ("_set_node_vector", ([0.99, 1.1], 1)),
+            ("update_node", (dt(2023, 1, 1), 0.99)),
+            ("update", ({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},))
+        ]
     )
     def test_cache_id_update(self, method, args):
         curve = LineCurve(
