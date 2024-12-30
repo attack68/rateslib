@@ -71,12 +71,12 @@ def _get_base_maybe_from_fx(
     base: str | NoInput,
     local_ccy: str | NoInput,
 ) -> str | NoInput:
-    if fx is NoInput.blank and base is NoInput.blank:
+    if isinstance(fx, NoInput | float) and isinstance(base, NoInput):
         # base will not be inherited from a 2nd level inherited object, i.e.
         # from solver.fx, to preserve single currency instruments being defaulted
         # to their local currency.
         base_ = local_ccy
-    elif isinstance(fx, FXRates | FXForwards) and base is NoInput.blank:
+    elif isinstance(fx, FXRates | FXForwards) and isinstance(base, NoInput):
         base_ = fx.base
     else:
         base_ = base
@@ -87,12 +87,12 @@ def _get_fx_maybe_from_solver(
     solver: Solver | NoInput,
     fx: float | FXRates | FXForwards | NoInput,
 ) -> float | FXRates | FXForwards | NoInput:
-    if fx is NoInput.blank:
-        if solver is NoInput.blank:
+    if isinstance(fx, NoInput):
+        if isinstance(solver, NoInput):
             fx_ = NoInput(0)
             # fx_ = 1.0
-        elif solver is not NoInput.blank:
-            if solver.fx is NoInput.blank:
+        else: # solver is not NoInput:
+            if isinstance(solver.fx, NoInput):
                 fx_ = NoInput(0)
                 # fx_ = 1.0
             else:
