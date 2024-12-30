@@ -860,6 +860,11 @@ class FXDeltaVolSurface(_WithState):
     def _get_composited_state(self):
         return hash(smile._state for smile in self.smiles)
 
+    def _validate_state(self) -> None:
+        if self._state != self._get_composited_state():
+            # If any of the associated curves have been mutated then the cache is invalidated
+            self.clear_cache()
+
     def _maybe_add_to_cache(self, date, val):
         if defaults.curve_caching:
             self._cache[date] = val
