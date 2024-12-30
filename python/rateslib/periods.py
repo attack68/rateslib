@@ -2213,7 +2213,7 @@ class CreditPremiumPeriod(BasePeriod):
         """
         float, Dual or Dual2 : The calculated value from rate, dcf and notional.
         """
-        if self.fixed_rate is NoInput.blank:
+        if isinstance(self.fixed_rate, NoInput):
             return None
         else:
             return -self.notional * self.dcf * self.fixed_rate * 0.01
@@ -2231,7 +2231,7 @@ class CreditPremiumPeriod(BasePeriod):
         -------
         float
         """
-        if self.fixed_rate is NoInput.blank:
+        if isinstance(self.fixed_rate,  NoInput):
             return None
         else:
             if settlement <= self.start or settlement >= self.end:
@@ -2250,11 +2250,11 @@ class CreditPremiumPeriod(BasePeriod):
         Return the NPV of the *CreditPremiumPeriod*.
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
-        if not isinstance(disc_curve, Curve) and disc_curve is NoInput.blank:
+        if not isinstance(disc_curve, Curve) and isinstance(disc_curve, NoInput):
             raise TypeError("`curves` have not been supplied correctly.")
-        if not isinstance(curve, Curve) and curve is NoInput.blank:
+        if not isinstance(curve, Curve) and isinstance(curve, NoInput):
             raise TypeError("`curves` have not been supplied correctly.")
-        if self.fixed_rate is NoInput.blank:
+        if isinstance(self.fixed_rate, NoInput):
             raise ValueError("`fixed_rate` must be set as a value to return a valid NPV.")
         v_payment = disc_curve[self.payment]
         q_end = curve[self.end]
@@ -2300,9 +2300,9 @@ class CreditPremiumPeriod(BasePeriod):
         See
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
         """
-        if not isinstance(disc_curve, Curve) and disc_curve is NoInput.blank:
+        if not isinstance(disc_curve, Curve) and isinstance(disc_curve, NoInput):
             raise TypeError("`curves` have not been supplied correctly.")
-        if not isinstance(curve, Curve) and curve is NoInput.blank:
+        if not isinstance(curve, Curve) and isinstance(curve, NoInput):
             raise TypeError("`curves` have not been supplied correctly.")
 
         v_payment = disc_curve[self.payment]
@@ -2349,7 +2349,7 @@ class CreditPremiumPeriod(BasePeriod):
         """
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
-        if curve is not NoInput.blank and disc_curve is not NoInput.blank:
+        if not isinstance(curve, NoInput) and not isinstance(disc_curve, NoInput):
             npv = _dual_float(self.npv(curve, disc_curve))
             npv_fx = npv * _dual_float(fx)
             survival = _dual_float(curve[self.end])
@@ -2444,9 +2444,9 @@ class CreditProtectionPeriod(BasePeriod):
         Return the NPV of the *CreditProtectionPeriod*.
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
-        if not isinstance(disc_curve, Curve) and disc_curve is NoInput.blank:
+        if not isinstance(disc_curve, Curve) and isinstance(disc_curve, NoInput):
             raise TypeError("`curves` have not been supplied correctly.")
-        if not isinstance(curve, Curve) and curve is NoInput.blank:
+        if not isinstance(curve, Curve) and isinstance(curve, NoInput):
             raise TypeError("`curves` have not been supplied correctly.")
 
         if self.start < curve.node_dates[0]:
@@ -2495,7 +2495,7 @@ class CreditProtectionPeriod(BasePeriod):
         """
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
-        if curve is not NoInput.blank and disc_curve is not NoInput.blank:
+        if not isinstance(curve, NoInput) and not isinstance(disc_curve, NoInput):
             npv = _dual_float(self.npv(curve, disc_curve))
             npv_fx = npv * _dual_float(fx)
             survival = _dual_float(curve[self.end])
@@ -2608,9 +2608,9 @@ class Cashflow:
         rate: float | NoInput = NoInput(0),
     ):
         self.notional, self.payment = notional, payment
-        self.currency = defaults.base_currency if currency is NoInput.blank else currency.lower()
+        self.currency = _drb(defaults.base_currency, currency).lower()
         self.stub_type = stub_type
-        self._rate = rate if rate is NoInput.blank else _dual_float(rate)
+        self._rate = rate if isinstance(rate, NoInput) else _dual_float(rate)
 
     def __repr__(self):
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
@@ -2635,7 +2635,7 @@ class Cashflow:
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
         disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
-        if not isinstance(disc_curve, Curve) and curve is NoInput.blank:
+        if not isinstance(disc_curve, Curve) and isinstance(curve, NoInput):
             raise TypeError("`curves` have not been supplied correctly.")
         value = self.cashflow * disc_curve_[self.payment]
         return _maybe_local(value, local, self.currency, fx, base)
@@ -2655,7 +2655,7 @@ class Cashflow:
         disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
-        if disc_curve_ is NoInput.blank:
+        if isinstance(disc_curve_, NoInput):
             npv, npv_fx, df, collateral = None, None, None, None
         else:
             npv = _dual_float(self.npv(curve, disc_curve_))
@@ -2667,8 +2667,8 @@ class Cashflow:
         except TypeError:  # cashflow in superclass not a property
             cashflow_ = None
 
-        rate = None if self.rate() is NoInput.blank else self.rate()
-        stub_type = None if self.stub_type is NoInput.blank else self.stub_type
+        rate = None if isinstance(self.rate(), NoInput) else self.rate()
+        stub_type = None if isinstance(self.stub_type, NoInput) else self.stub_type
         return {
             defaults.headers["type"]: type(self).__name__,
             defaults.headers["stub_type"]: stub_type,
@@ -2819,7 +2819,7 @@ class IndexMixin(metaclass=ABCMeta):
         -------
         float, Dual, Dual2
         """
-        if i_fixings is NoInput.blank:
+        if isinstance(i_fixings, NoInput):
             return IndexMixin._index_value_from_curve(i_date, i_curve, i_lag, i_method)
         else:
             if isinstance(i_fixings, Series):
