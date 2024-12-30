@@ -2323,32 +2323,37 @@ class TestStateManagement:
             warnings.simplefilter(action="error", category=UserWarning)
             # tests the doc page j_gamma.rst
             sofr = Curve(
-                nodes={dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0},
-                id="sofr"
+                nodes={dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0}, id="sofr"
             )
             estr = Curve(
-                nodes={dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0},
-                id="estr"
+                nodes={dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0}, id="estr"
             )
             eurusd = Curve(
-                nodes={dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0},
-                id="eurusd"
+                nodes={dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0}, id="eurusd"
             )
             fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
-            fxf = FXForwards(fxr, {
-                "eureur": estr,
-                "eurusd": eurusd,
-                "usdusd": sofr
-            })
+            fxf = FXForwards(fxr, {"eureur": estr, "eurusd": eurusd, "usdusd": sofr})
             instruments = [
                 IRS(dt(2022, 1, 1), "10y", "A", currency="usd", curves="sofr"),
                 IRS(dt(2032, 1, 1), "10y", "A", currency="usd", curves="sofr"),
                 IRS(dt(2022, 1, 1), "10y", "A", currency="eur", curves="estr"),
                 IRS(dt(2032, 1, 1), "10y", "A", currency="eur", curves="estr"),
-                XCS(dt(2022, 1, 1), "10y", "A", currency="usd", leg2_currency="usd",
-                    curves=["estr", "eurusd", "sofr", "sofr"]),
-                XCS(dt(2032, 1, 1), "10y", "A", currency="usd", leg2_currency="eur",
-                    curves=["estr", "eurusd", "sofr", "sofr"]),
+                XCS(
+                    dt(2022, 1, 1),
+                    "10y",
+                    "A",
+                    currency="usd",
+                    leg2_currency="usd",
+                    curves=["estr", "eurusd", "sofr", "sofr"],
+                ),
+                XCS(
+                    dt(2032, 1, 1),
+                    "10y",
+                    "A",
+                    currency="usd",
+                    leg2_currency="eur",
+                    curves=["estr", "eurusd", "sofr", "sofr"],
+                ),
             ]
             sofr_solver = Solver(
                 curves=[sofr],
@@ -2356,7 +2361,7 @@ class TestStateManagement:
                 s=[3.45, 2.85],
                 instrument_labels=["10y", "10y10y"],
                 id="sofr",
-                fx=fxf
+                fx=fxf,
             )
             estr_solver = Solver(
                 curves=[estr],
@@ -2364,7 +2369,7 @@ class TestStateManagement:
                 s=[2.25, 0.90],
                 instrument_labels=["10y", "10y10y"],
                 id="estr",
-                fx=fxf
+                fx=fxf,
             )
             solver = Solver(
                 curves=[eurusd],
@@ -2375,9 +2380,26 @@ class TestStateManagement:
                 fx=fxf,
                 pre_solvers=[sofr_solver, estr_solver],
             )
-            pf = Portfolio([
-                IRS(dt(2022, 1, 1), "20Y", "A", currency="eur", fixed_rate=2.0, notional=1e8, curves="estr"),
-                IRS(dt(2022, 1, 1), "20Y", "A", currency="usd", fixed_rate=1.5, notional=-1.1e8, curves="sofr")
-            ])
+            pf = Portfolio(
+                [
+                    IRS(
+                        dt(2022, 1, 1),
+                        "20Y",
+                        "A",
+                        currency="eur",
+                        fixed_rate=2.0,
+                        notional=1e8,
+                        curves="estr",
+                    ),
+                    IRS(
+                        dt(2022, 1, 1),
+                        "20Y",
+                        "A",
+                        currency="usd",
+                        fixed_rate=1.5,
+                        notional=-1.1e8,
+                        curves="sofr",
+                    ),
+                ]
+            )
             pf.gamma(solver=solver, base="eur")
-

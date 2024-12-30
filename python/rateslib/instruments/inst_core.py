@@ -91,7 +91,7 @@ def _get_fx_maybe_from_solver(
         if isinstance(solver, NoInput):
             fx_ = NoInput(0)
             # fx_ = 1.0
-        else: # solver is not NoInput:
+        else:  # solver is not NoInput:
             if isinstance(solver.fx, NoInput):
                 fx_ = NoInput(0)
                 # fx_ = 1.0
@@ -479,7 +479,8 @@ class Sensitivities:
             base_ = NoInput(0)
 
         # store original order
-        if not isinstance(fx_, NoInput) and (not isinstance(solver.fx, NoInput) and id(solver.fx) != id(fx_)):
+        if id(solver.fx) != id(fx_) and not isinstance(fx_, NoInput):
+            # then the fx_ object is available on solver but that is not being used.
             _ad2 = fx_._ad
             fx_._set_ad_order(2)
 
@@ -490,7 +491,7 @@ class Sensitivities:
         grad_s_sT_P = solver.gamma(npv, base_, fx_)
 
         # reset original order
-        if not isinstance(fx_, NoInput) and (not isinstance(solver.fx, NoInput) and id(solver.fx) != id(fx_)):
+        if id(solver.fx) != id(fx_) and not isinstance(fx_, NoInput):
             fx_._set_ad_order(_ad2)
         solver._set_ad_order(_ad1)
 
