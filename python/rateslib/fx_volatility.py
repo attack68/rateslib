@@ -15,13 +15,13 @@ from rateslib.dual import (
     Dual,
     Dual2,
     DualTypes,
+    Variable,
     dual_exp,
     dual_inv_norm_cdf,
     dual_log,
     dual_norm_cdf,
     dual_norm_pdf,
     set_order_convert,
-    Variable
 )
 from rateslib.rs import index_left_f64
 from rateslib.solver import newton_1dim
@@ -692,11 +692,11 @@ class FXDeltaVolSmile(_WithState):
            This class is labelled as a **mutable on update** object.
 
         """
-        if any([isinstance(_, Dual2) for _ in nodes.values()]):
+        if any(isinstance(_, Dual2) for _ in nodes.values()):
             ad_: int = 2
-        elif any([isinstance(_, Dual) for _ in nodes.values()]):
+        elif any(isinstance(_, Dual) for _ in nodes.values()):
             ad_ = 1
-        elif any([isinstance(_, Variable) for _ in nodes.values()]):
+        elif any(isinstance(_, Variable) for _ in nodes.values()):
             ad_ = defaults._global_ad_order
         else:
             ad_ = 0
