@@ -2,7 +2,6 @@ from __future__ import annotations  # type hinting
 
 from datetime import datetime, timedelta
 from datetime import datetime as dt
-from os import urandom
 from uuid import uuid4
 
 import numpy as np
@@ -11,11 +10,12 @@ from pytz import UTC
 
 from rateslib import defaults
 from rateslib.calendars import get_calendar
-from rateslib.default import NoInput, _drb, plot, plot3d
+from rateslib.default import NoInput, _drb, _WithState, plot, plot3d
 from rateslib.dual import (
     Dual,
     Dual2,
     DualTypes,
+    Variable,
     dual_exp,
     dual_inv_norm_cdf,
     dual_log,
@@ -30,7 +30,7 @@ from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
 TERMINAL_DATE = dt(2100, 1, 1)
 
 
-class FXDeltaVolSmile:
+class FXDeltaVolSmile(_WithState):
     r"""
     Create an *FX Volatility Smile* at a given expiry indexed by delta percent.
 
@@ -88,16 +88,20 @@ class FXDeltaVolSmile:
         ad: int = 0,
     ):
         self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
-        self.nodes = nodes
-        self.node_keys = list(self.nodes.keys())
-        self.n = len(self.node_keys)
         self.eval_date = eval_date
         self.expiry = expiry
         self.t_expiry = (expiry - eval_date).days / 365.0
         self.t_expiry_sqrt = self.t_expiry**0.5
-
         self.delta_type = _validate_delta_type(delta_type)
 
+        self.__set_nodes__(nodes, ad)
+
+    def __set_nodes__(self, nodes: dict[float, DualTypes], ad: int) -> None:
+        self.ad = None
+
+        self.nodes = nodes
+        self.node_keys = list(self.nodes.keys())
+        self.n = len(self.node_keys)
         if "_pa" in self.delta_type:
             vol = list(self.nodes.values())[-1] / 100.0
             upper_bound = dual_exp(
@@ -117,29 +121,7 @@ class FXDeltaVolSmile:
         else:
             self.t = [0.0] * 4 + self.node_keys[1:-1] + [float(upper_bound)] * 4
 
-        self._set_ad_order(ad)  # includes csolve
-
-    def clear_cache(self) -> None:
-        """
-        Clear the cache of values on a *Smile* type.
-
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-        This should be used if any modification has been made to the *Smile*.
-        Users are advised against making direct modification to *Curve* classes once
-        constructed to avoid the issue of un-cleared caches returning erroneous values.
-
-        Alternatively the curve caching as a feature can be set to *False* in ``defaults``.
-        """
-        self._cache: dict[float, DualTypes] = dict()
-        self._state_id: int = hash(urandom(8))  # 64-bit entropy
-
-    def __hash__(self) -> int:
-        return self._state_id
+        self._set_ad_order(ad)  # includes _csolve()
 
     def __iter__(self):
         raise TypeError("`FXDeltaVolSmile` is not iterable.")
@@ -398,69 +380,6 @@ class FXDeltaVolSmile:
             put_delta = delta
         return -1.0 * put_delta
 
-    def _csolve_n1(self):
-        # create a straight line by converting from one to two nodes with the first at tau=0.
-        tau = list(self.nodes.keys())
-        tau.insert(0, self.t[0])
-        y = list(self.nodes.values()) * 2
-
-        # Left side constraint
-        tau.insert(0, self.t[0])
-        y.insert(0, set_order_convert(0.0, self.ad, None))
-        left_n = 2
-
-        tau.append(self.t[-1])
-        y.append(set_order_convert(0.0, self.ad, None))
-        right_n = self._right_n
-        return tau, y, left_n, right_n
-
-    def _csolve_n_other(self):
-        tau = list(self.nodes.keys())
-        y = list(self.nodes.values())
-
-        # Left side constraint
-        tau.insert(0, self.t[0])
-        y.insert(0, set_order_convert(0.0, self.ad, None))
-        left_n = 2
-
-        tau.append(self.t[-1])
-        y.append(set_order_convert(0.0, self.ad, None))
-        right_n = self._right_n
-        return tau, y, left_n, right_n
-
-    def csolve(self) -> None:
-        """
-        Solves **and sets** the coefficients, ``c``, of the :class:`PPSpline`.
-
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-        Only impacts curves which have a knot sequence, ``t``, and a ``PPSpline``.
-        Only solves if ``c`` not given at curve initialisation.
-
-        Uses the ``spline_endpoints`` attribute on the class to determine the solving
-        method.
-        """
-        # Get the Spline classs by data types
-        if self.ad == 0:
-            Spline = PPSplineF64
-        elif self.ad == 1:
-            Spline = PPSplineDual
-        else:
-            Spline = PPSplineDual2
-
-        if self.n == 1:
-            tau, y, left_n, right_n = self._csolve_n1()
-        else:
-            tau, y, left_n, right_n = self._csolve_n_other()
-
-        self.spline = Spline(4, self.t, None)
-        self.spline.csolve(tau, y, left_n, right_n, False)
-        self.clear_cache()
-
     # def _build_datatable(self):
     #     """
     #     With the given (Delta, Vol)
@@ -545,18 +464,15 @@ class FXDeltaVolSmile:
     #     self.spline_u_delta_approx.csolve(u, delta.tolist()[::-1], 0, 0, False)
     #     return None
 
-    def _set_ad_order(self, order: int) -> None:
-        if order == getattr(self, "ad", None):
-            return None
-        elif order not in [0, 1, 2]:
-            raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
+    def _get_node_vector(self):
+        """Get a 1d array of variables associated with nodes of this object updated by Solver"""
+        return np.array(list(self.nodes.values()))
 
-        self.ad = order
-        self.nodes = {
-            k: set_order_convert(v, order, [f"{self.id}{i}"])
-            for i, (k, v) in enumerate(self.nodes.items())
-        }
-        self.csolve()  # also clears cache
+    def _get_node_vars(self):
+        """Get the variable names of elements updated by a Solver"""
+        return tuple(f"{self.id}{i}" for i in range(self.n))
+
+    # Plotting
 
     def plot(
         self,
@@ -629,6 +545,95 @@ class FXDeltaVolSmile:
             return plot(x_as_u, y, labels)
         return plot(x, y, labels)
 
+    # Cache management
+
+    def _clear_cache(self) -> None:
+        """
+        Clear the cache of values on a *Smile* type.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        This should be used if any modification has been made to the *Smile*.
+        Users are advised against making direct modification to *Curve* classes once
+        constructed to avoid the issue of un-cleared caches returning erroneous values.
+
+        Alternatively the curve caching as a feature can be set to *False* in ``defaults``.
+        """
+        self._cache: dict[float, DualTypes] = dict()
+
+    # Mutation
+
+    def _csolve_n1(self):
+        # create a straight line by converting from one to two nodes with the first at tau=0.
+        tau = list(self.nodes.keys())
+        tau.insert(0, self.t[0])
+        y = list(self.nodes.values()) * 2
+
+        # Left side constraint
+        tau.insert(0, self.t[0])
+        y.insert(0, set_order_convert(0.0, self.ad, None))
+        left_n = 2
+
+        tau.append(self.t[-1])
+        y.append(set_order_convert(0.0, self.ad, None))
+        right_n = self._right_n
+        return tau, y, left_n, right_n
+
+    def _csolve_n_other(self):
+        tau = list(self.nodes.keys())
+        y = list(self.nodes.values())
+
+        # Left side constraint
+        tau.insert(0, self.t[0])
+        y.insert(0, set_order_convert(0.0, self.ad, None))
+        left_n = 2
+
+        tau.append(self.t[-1])
+        y.append(set_order_convert(0.0, self.ad, None))
+        right_n = self._right_n
+        return tau, y, left_n, right_n
+
+    def _csolve(self) -> None:
+        # Get the Spline classs by data types
+        if self.ad == 0:
+            Spline = PPSplineF64
+        elif self.ad == 1:
+            Spline = PPSplineDual
+        else:
+            Spline = PPSplineDual2
+
+        if self.n == 1:
+            tau, y, left_n, right_n = self._csolve_n1()
+        else:
+            tau, y, left_n, right_n = self._csolve_n_other()
+
+        self.spline = Spline(4, self.t, None)
+        self.spline.csolve(tau, y, left_n, right_n, False)
+
+    def csolve(self):
+        """
+        Solves **and sets** the coefficients, ``c``, of the :class:`PPSpline`.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        Only impacts curves which have a knot sequence, ``t``, and a ``PPSpline``.
+        Only solves if ``c`` not given at curve initialisation.
+
+        Uses the ``spline_endpoints`` attribute on the class to determine the solving
+        method.
+        """
+        self._csolve()
+        self._clear_cache()
+        self._set_new_state()
+
     def _set_node_vector(self, vector, ad):
         """Update the node values in a Solver. ``ad`` in {1, 2}."""
         DualType = Dual if ad == 1 else Dual2
@@ -644,19 +649,102 @@ class FXDeltaVolSmile:
                 ident[i, :].tolist(),
                 *DualArgs[1:],
             )
-        self.csolve()
-        self.clear_cache()
+        self._csolve()
+        self._clear_cache()
+        self._set_new_state()
 
-    def _get_node_vector(self):
-        """Get a 1d array of variables associated with nodes of this object updated by Solver"""
-        return np.array(list(self.nodes.values()))
+    def _set_ad_order(self, order: int) -> None:
+        if order == getattr(self, "ad", None):
+            return None
+        elif order not in [0, 1, 2]:
+            raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
 
-    def _get_node_vars(self):
-        """Get the variable names of elements updated by a Solver"""
-        return tuple(f"{self.id}{i}" for i in range(self.n))
+        self.ad = order
+        self.nodes = {
+            k: set_order_convert(v, order, [f"{self.id}{i}"])
+            for i, (k, v) in enumerate(self.nodes.items())
+        }
+        self._csolve()
+        self._clear_cache()
+
+    def update(
+        self,
+        nodes: dict[float, DualTypes],
+    ) -> None:
+        """
+        Update a *Smile* with new, manually passed nodes.
+
+        For arguments see :class:`~rateslib.fx_volatility.FXDeltaVolSmile`
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+
+        .. warning::
+
+           *Rateslib* is an object-oriented library that uses complex associations. Although
+           Python may not object to directly mutating attributes of a *Smile* instance, this
+           should be avoided in *rateslib*. Only use official ``update`` methods to mutate the
+           values of an existing *Smile* instance.
+           This class is labelled as a **mutable on update** object.
+
+        """
+        if any(isinstance(_, Dual2) for _ in nodes.values()):
+            ad_: int = 2
+        elif any(isinstance(_, Dual) for _ in nodes.values()):
+            ad_ = 1
+        elif any(isinstance(_, Variable) for _ in nodes.values()):
+            ad_ = defaults._global_ad_order
+        else:
+            ad_ = 0
+        self.__set_nodes__(nodes, ad_)
+
+        # self._csolve() is performed in set_nodes
+        # self._clear_cache() is performed in set_nodes
+        self._set_new_state()
+
+    def update_node(self, key: datetime, value: DualTypes) -> None:
+        """
+        Update a single node value on the *Curve*.
+
+        Parameters
+        ----------
+        key: datetime
+            The node date to update. Must exist in ``nodes``.
+        value: float, Dual, Dual2, Variable
+            Value to update on the *Curve*.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+
+        .. warning::
+
+           *Rateslib* is an object-oriented library that uses complex associations. Although
+           Python may not object to directly mutating attributes of a *Curve* instance, this
+           should be avoided in *rateslib*. Only use official ``update`` methods to mutate the
+           values of an existing *Curve* instance.
+           This class is labelled as a **mutable on update** object.
+
+        """
+        if key not in self.nodes:
+            raise KeyError("`key` is not in *Curve* ``nodes``.")
+        self.nodes[key] = value
+
+        self._csolve()
+        self._clear_cache()
+        self._set_new_state()
+
+    # Serialization
 
 
-class FXDeltaVolSurface:
+class FXDeltaVolSurface(_WithState):
     r"""
     Create an *FX Volatility Surface* parametrised by cross-sectional *Smiles* at different
     expiries.
@@ -708,6 +796,7 @@ class FXDeltaVolSurface:
     """
 
     _ini_solve = 0
+    _mutable_by_association = True
 
     def __init__(
         self,
@@ -720,7 +809,6 @@ class FXDeltaVolSurface:
         id: str | NoInput = NoInput(0),
         ad: int = 0,
     ):
-        self.clear_cache()
         node_values = np.asarray(node_values)
         self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
         self.eval_date = eval_date
@@ -767,23 +855,32 @@ class FXDeltaVolSurface:
         caching in general.
         """
         self._cache = dict()
+        self._set_new_state()
+
+    def _get_composited_state(self):
+        return hash(smile._state for smile in self.smiles)
+
+    def _validate_state(self) -> None:
+        if self._state != self._get_composited_state():
+            # If any of the associated curves have been mutated then the cache is invalidated
+            self.clear_cache()
 
     def _maybe_add_to_cache(self, date, val):
         if defaults.curve_caching:
             self._cache[date] = val
 
     def _set_ad_order(self, order: int):
-        self.clear_cache()
         self.ad = order
         for smile in self.smiles:
             smile._set_ad_order(order)
+        self.clear_cache()
 
     def _set_node_vector(self, vector: np.array, ad: int):
-        self.clear_cache()
         m = len(self.delta_indexes)
         for i in range(int(len(vector) / m)):
             # smiles are indexed by expiry, shortest first
             self.smiles[i]._set_node_vector(vector[i * m : i * m + m], ad)
+        self.clear_cache()
 
     def _get_node_vector(self):
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""

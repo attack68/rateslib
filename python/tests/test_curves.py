@@ -1183,7 +1183,7 @@ class TestCurve:
         curve.nodes[dt(2002, 1, 1)] = 0.98
         # cache not cleared
         assert curve[dt(2001, 1, 1)] == v1
-        curve.clear_cache()
+        curve._clear_cache()
         # cache cleared so value will need to be re-calced
         v2 = curve[dt(2001, 1, 1)]
         assert v2 != v1
@@ -1233,41 +1233,6 @@ class TestCurve:
         with pytest.raises(ValueError, match="Cannot translate spline knots for given"):
             curve.translate(dt(2022, 12, 15))
 
-    @pytest.mark.parametrize(
-        ("method", "args"), [("clear_cache", tuple()), ("_set_node_vector", ([0.99], 1))]
-    )
-    def test_cache_id_update(self, method, args):
-        curve = Curve(
-            nodes={
-                dt(2022, 1, 1): 1.0,
-                dt(2023, 1, 1): 0.98,
-            },
-            id="sofr",
-        )
-        original = hash(curve)
-        getattr(curve, method)(*args)
-        new = hash(curve)
-        assert new != original
-
-    def test_csolve_clear_cache(self):
-        c = Curve(
-            nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99},
-            t=[
-                dt(2000, 1, 1),
-                dt(2000, 1, 1),
-                dt(2000, 1, 1),
-                dt(2000, 1, 1),
-                dt(2002, 1, 1),
-                dt(2002, 1, 1),
-                dt(2002, 1, 1),
-                dt(2002, 1, 1),
-            ],
-        )
-        before = hash(c)
-        c.csolve()
-        after = hash(c)
-        assert before != after
-
 
 class TestLineCurve:
     def test_repr(self):
@@ -1294,22 +1259,6 @@ class TestLineCurve:
             id="libor1m",
         )
         assert isinstance(curve, Curve)
-
-    @pytest.mark.parametrize(
-        ("method", "args"), [("clear_cache", tuple()), ("_set_node_vector", ([2.0, 0.99], 1))]
-    )
-    def test_cache_id_update(self, method, args):
-        curve = LineCurve(
-            nodes={
-                dt(2022, 1, 1): 1.0,
-                dt(2023, 1, 1): 0.98,
-            },
-            id="sofr",
-        )
-        original = hash(curve)
-        getattr(curve, method)(*args)
-        new = hash(curve)
-        assert new != original
 
 
 class TestIndexCurve:
@@ -1369,23 +1318,6 @@ class TestIndexCurve:
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 1, 5): 0.9999}, index_base=200.0, id="us_cpi"
         )
         assert isinstance(curve, Curve)
-
-    @pytest.mark.parametrize(
-        ("method", "args"), [("clear_cache", tuple()), ("_set_node_vector", ([0.99], 1))]
-    )
-    def test_state_id_update(self, method, args):
-        curve = IndexCurve(
-            nodes={
-                dt(2022, 1, 1): 1.0,
-                dt(2023, 1, 1): 0.98,
-            },
-            id="sofr",
-            index_base=200.0,
-        )
-        original = hash(curve)
-        getattr(curve, method)(*args)
-        new = hash(curve)
-        assert new != original
 
 
 class TestCompositeCurve:
@@ -1801,8 +1733,7 @@ class TestCompositeCurve:
         assert curve._cache == {dt(2022, 3, 1): 0.9967396833121631}
 
         # update a curve
-        curve2.nodes[dt(2022, 6, 30)] = 0.95
-        curve2.clear_cache()
+        curve2.update_node(dt(2022, 6, 30), 0.95)
         curve[dt(2022, 3, 1)]
         assert curve._cache == {dt(2022, 3, 1): 0.9801226964242061}
 
@@ -2065,7 +1996,7 @@ class TestProxyCurve:
         curve = fxf.curve("cad", "eur")
         assert isinstance(curve, Curve)
 
-    def test_cache_is_validated_on_getitem(self):
+    def test_cache_is_validated_on_getitem_and_lookup(self):
         fxr1 = FXRates({"usdeur": 0.95}, dt(2022, 1, 3))
         fxr2 = FXRates({"usdcad": 1.1}, dt(2022, 1, 2))
         fxf = FXForwards(
@@ -2079,12 +2010,22 @@ class TestProxyCurve:
             },
         )
         curve = fxf.curve("cad", "eur")
+        assert curve._state == fxf._state
+
         fxr1.update({"usdeur": 100000000.0})
         fxf.curve("eur", "eur")._set_node_vector([0.5], 1)
-        before = hash(fxf)
+
+        state1 = fxf._state
+        # performing an action on the proxy curve will validate and update states
+        # even calling _state on the ProxyCurve will validate and update states
         curve[dt(2022, 1, 9)]
-        after = hash(fxf)
-        assert before != after
+        state2 = fxf._state
+        assert state1 != state2
+
+        fxr1.update({"usdeur": 10.0})
+        fxf.curve("eur", "eur")._set_node_vector([0.6], 1)
+        state3 = curve._state
+        assert state3 != state2  # becuase calling _state has validated and updated
 
 
 class TestPlotCurve:
@@ -2237,3 +2178,104 @@ class TestPlotCurve:
             id="us_rates",
         )
         usd_curve.plot("1b", labels=["SOFR o/n"])
+
+
+class TestStateAndCache:
+    @pytest.mark.parametrize(
+        "curve",
+        [
+            Curve(nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99}),
+            LineCurve(nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99}),
+            IndexCurve(
+                nodes={
+                    dt(2022, 1, 1): 1.0,
+                    dt(2023, 1, 1): 0.98,
+                },
+                index_base=200.0,
+            ),
+        ],
+    )
+    @pytest.mark.parametrize(("method", "args"), [("_set_ad_order", (1,))])
+    def test_method_does_not_change_state(self, curve, method, args):
+        before = curve._state
+        getattr(curve, method)(*args)
+        after = curve._state
+        assert before == after
+
+    @pytest.mark.parametrize(
+        "curve",
+        [
+            Curve(nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99, dt(2003, 1, 1): 0.98}),
+            LineCurve(nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99}),
+            IndexCurve(
+                nodes={
+                    dt(2000, 1, 1): 1.0,
+                    dt(2002, 1, 1): 0.98,
+                },
+                index_base=200.0,
+            ),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("_set_node_vector", ([0.99, 0.98], 1)),
+            ("update_node", (dt(2002, 1, 1), 0.98)),
+            ("update", ({dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99},)),
+            ("csolve", tuple()),
+        ],
+    )
+    def test_method_changes_state(self, curve, method, args):
+        before = curve._state
+        getattr(curve, method)(*args)
+        after = curve._state
+        assert before != after
+
+    @pytest.mark.parametrize(
+        "curve",
+        [
+            Curve(nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99}),
+            LineCurve(nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99}),
+            IndexCurve(
+                nodes={
+                    dt(2022, 1, 1): 1.0,
+                    dt(2023, 1, 1): 0.98,
+                },
+                index_base=200.0,
+            ),
+        ],
+    )
+    def test_populate_cache(self, curve):
+        assert curve._cache == {}
+        curve[dt(2000, 5, 1)]
+        assert dt(2000, 5, 1) in curve._cache
+
+    @pytest.mark.parametrize(
+        "curve",
+        [
+            Curve(nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99, dt(2003, 1, 1): 0.98}),
+            LineCurve(nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99}),
+            IndexCurve(
+                nodes={
+                    dt(2000, 1, 1): 1.0,
+                    dt(2002, 1, 1): 0.98,
+                },
+                index_base=200.0,
+            ),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("_set_node_vector", ([0.99, 0.98], 1)),
+            ("update_node", (dt(2002, 1, 1), 0.98)),
+            ("update", ({dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99},)),
+            ("csolve", tuple()),
+            ("_set_ad_order", (1,)),
+        ],
+    )
+    def test_method_clears_cache(self, curve, method, args):
+        curve[dt(2000, 5, 1)]
+        assert dt(2000, 5, 1) in curve._cache
+        getattr(curve, method)(*args)
+        assert curve._cache == {}

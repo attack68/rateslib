@@ -25,6 +25,7 @@ def _get_curve_from_solver(curve, solver):
         # instruments
         return curve
     elif isinstance(curve, str):
+        solver._validate_state()
         return solver.pre_curves[curve]
     elif curve is NoInput.blank or curve is None:
         # pass through a None curve. This will either raise errors later or not be needed
@@ -33,6 +34,7 @@ def _get_curve_from_solver(curve, solver):
         try:
             # it is a safeguard to load curves from solvers when a solver is
             # provided and multiple curves might have the same id
+            solver._validate_state()
             _ = solver.pre_curves[curve.id]
             if id(_) != id(curve):  # Python id() is a memory id, not a string label id.
                 raise ValueError(
@@ -69,12 +71,12 @@ def _get_base_maybe_from_fx(
     base: str | NoInput,
     local_ccy: str | NoInput,
 ) -> str | NoInput:
-    if fx is NoInput.blank and base is NoInput.blank:
+    if isinstance(fx, NoInput | float) and isinstance(base, NoInput):
         # base will not be inherited from a 2nd level inherited object, i.e.
         # from solver.fx, to preserve single currency instruments being defaulted
         # to their local currency.
         base_ = local_ccy
-    elif isinstance(fx, FXRates | FXForwards) and base is NoInput.blank:
+    elif isinstance(fx, FXRates | FXForwards) and isinstance(base, NoInput):
         base_ = fx.base
     else:
         base_ = base
@@ -85,21 +87,22 @@ def _get_fx_maybe_from_solver(
     solver: Solver | NoInput,
     fx: float | FXRates | FXForwards | NoInput,
 ) -> float | FXRates | FXForwards | NoInput:
-    if fx is NoInput.blank:
-        if solver is NoInput.blank:
+    if isinstance(fx, NoInput):
+        if isinstance(solver, NoInput):
             fx_ = NoInput(0)
             # fx_ = 1.0
-        elif solver is not NoInput.blank:
-            if solver.fx is NoInput.blank:
+        else:  # solver is not NoInput:
+            if isinstance(solver.fx, NoInput):
                 fx_ = NoInput(0)
                 # fx_ = 1.0
             else:
+                solver._validate_state()
                 fx_ = solver.fx
     else:
         fx_ = fx
         if (
-            solver is not NoInput.blank
-            and solver.fx is not NoInput.blank
+            not isinstance(solver, NoInput)
+            and not isinstance(solver.fx, NoInput)
             and id(fx) != id(solver.fx)
         ):
             warnings.warn(
@@ -462,7 +465,7 @@ class Sensitivities:
         -------
         DataFrame
         """
-        if solver is NoInput.blank:
+        if isinstance(solver, NoInput):
             raise ValueError("`solver` is required for delta/gamma methods.")
         _, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             NoInput(0),
@@ -476,7 +479,8 @@ class Sensitivities:
             base_ = NoInput(0)
 
         # store original order
-        if fx_ is not NoInput.blank:
+        if id(solver.fx) != id(fx_) and not isinstance(fx_, NoInput):
+            # then the fx_ object is available on solver but that is not being used.
             _ad2 = fx_._ad
             fx_._set_ad_order(2)
 
@@ -487,7 +491,7 @@ class Sensitivities:
         grad_s_sT_P = solver.gamma(npv, base_, fx_)
 
         # reset original order
-        if fx_ is not NoInput.blank:
+        if id(solver.fx) != id(fx_) and not isinstance(fx_, NoInput):
             fx_._set_ad_order(_ad2)
         solver._set_ad_order(_ad1)
 
