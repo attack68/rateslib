@@ -17,7 +17,6 @@ from rateslib.json import from_json
 
 
 class TestStateAndCache:
-
     def test_method_state_chg(self):
         fxr = FXRates({"eurusd": 1.0, "usdgbp": 1.0})
         original = fxr._state
@@ -33,6 +32,7 @@ class TestStateAndCache:
         fxr._set_ad_order(2)
         new = fxr._state
         assert new == original
+
 
 @pytest.mark.parametrize(
     "fx_rates",
