@@ -101,8 +101,8 @@ def _get_fx_maybe_from_solver(
     else:
         fx_ = fx
         if (
-            solver is not NoInput.blank
-            and solver.fx is not NoInput.blank
+            not isinstance(solver, NoInput)
+            and not isinstance(solver.fx, NoInput)
             and id(fx) != id(solver.fx)
         ):
             warnings.warn(
@@ -465,7 +465,7 @@ class Sensitivities:
         -------
         DataFrame
         """
-        if solver is NoInput.blank:
+        if isinstance(solver, NoInput):
             raise ValueError("`solver` is required for delta/gamma methods.")
         _, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             NoInput(0),
@@ -479,7 +479,7 @@ class Sensitivities:
             base_ = NoInput(0)
 
         # store original order
-        if fx_ is not NoInput.blank:
+        if not isinstance(fx_, NoInput) and (not isinstance(solver.fx, NoInput) and id(solver.fx) != id(fx_)):
             _ad2 = fx_._ad
             fx_._set_ad_order(2)
 
@@ -490,7 +490,7 @@ class Sensitivities:
         grad_s_sT_P = solver.gamma(npv, base_, fx_)
 
         # reset original order
-        if fx_ is not NoInput.blank:
+        if not isinstance(fx_, NoInput) and (not isinstance(solver.fx, NoInput) and id(solver.fx) != id(fx_)):
             fx_._set_ad_order(_ad2)
         solver._set_ad_order(_ad1)
 

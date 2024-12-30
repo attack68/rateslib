@@ -1412,7 +1412,7 @@ class Solver(Gradients, _WithState):
         self._ad = order
         for _, curve in self.curves.items():
             curve._set_ad_order(order)
-        if self.fx is not NoInput.blank:
+        if not isinstance(self.fx, NoInput):
             self.fx._set_ad_order(order)
         self._reset_properties_()
 
