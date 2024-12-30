@@ -13,7 +13,7 @@ from pandas.errors import PerformanceWarning
 
 from rateslib import defaults
 from rateslib.curves import CompositeCurve, MultiCsaCurve, ProxyCurve
-from rateslib.default import NoInput
+from rateslib.default import NoInput, _validate_states, _WithState
 from rateslib.dual import Dual, Dual2, dual_log, dual_solve, gradient
 from rateslib.fx import FXForwards, FXRates
 
@@ -832,7 +832,7 @@ class Gradients:
         return grad_s_sT_Pbas
 
 
-class Solver(Gradients):
+class Solver(Gradients, _WithState):
     """
     A numerical solver to determine node values on multiple curves simultaneously.
 
@@ -1029,6 +1029,8 @@ class Solver(Gradients):
         # Final elements
         self._ad = 1
         self.fx = fx
+        if not isinstance(self.fx, NoInput):
+            self.fx._set_ad_order(1)
         self.instruments = tuple(self._parse_instrument(inst) for inst in instruments)
         self.pre_instruments += self.instruments
         self.rate_scalars = tuple(inst[0]._rate_scalar for inst in self.instruments)
@@ -1047,6 +1049,34 @@ class Solver(Gradients):
 
     def __repr__(self):
         return f"<rl.Solver:{self.id} at {hex(id(self))}>"
+
+    def _set_new_state(self):
+        self._state_fx = self._get_composited_fx_state()
+        self._state_curves = self._get_composited_curves_state()
+        self._state_pre_curves = self._get_composited_pre_curves_state()
+        _ = hash(self._state_fx + self._state_curves + self._state_pre_curves)
+        self._state = _
+
+    def _get_composited_fx_state(self) -> int:
+        if isinstance(self.fx, NoInput):
+            return 0
+        else:
+            return self.fx._state
+
+    def _get_composited_curves_state(self):
+        return hash(sum(curve._state for curve in self.curves.values()))
+
+    def _get_composited_pre_curves_state(self):
+        return hash(
+            sum(curve._state for solver in self.pre_solvers for curve in solver.curves.values())
+        )
+
+    def _get_composited_state(self):
+        fx_state = self._get_composited_fx_state()
+        curves_state = self._get_composited_curves_state()
+        pre_curves_state = self._get_composited_pre_curves_state()
+        _ = hash(fx_state + curves_state + pre_curves_state)
+        return _
 
     def _parse_instrument(self, value):
         """
@@ -1136,6 +1166,7 @@ class Solver(Gradients):
         self._grad_s_s_vT_pre = None  # final_iter: depends on pre versions of above
         # finite_diff: TODO update comment
 
+        self._set_new_state()
         # self._grad_v_v_f = None
         # self._Jkm = None  # keep manifold originally used for exploring J2 calc method
 
@@ -1306,10 +1337,9 @@ class Solver(Gradients):
             raise NotImplementedError(f"`algorithm`: {algorithm} (spelled correctly?)")
         return v_1
 
-    # remove by FX caching in PR 570
-    # def _update_fx(self):
-    #     if self.fx is not NoInput.blank:
-    #         self.fx.update()  # note: with no variables this does nothing.
+    def _update_fx(self):
+        if self.fx is not NoInput.blank:
+            self.fx.update()  # note: with no variables this does nothing.
 
     def iterate(self):
         r"""
@@ -1358,9 +1388,9 @@ class Solver(Gradients):
 
         return self._solver_result(-1, self.max_iter, time() - t0)
 
-    def _solver_result(self, state: int, i: int, time: float):
+    def _solver_result(self, state: int, i: int, time: float) -> None:
         self._result = _solver_result(state, i, self.g.real, time, True, self.algorithm)
-        return None
+        self._set_new_state()
 
     def _update_curves_with_parameters(self, v_new):
         """Populate the variable curves with the new values"""
@@ -1372,24 +1402,25 @@ class Solver(Gradients):
             curve._set_node_vector(v_new[var_counter : var_counter + vars], self._ad)
             var_counter += vars
 
+        self._update_fx()
         self._reset_properties_()
-        # self._update_fx()
 
     def _set_ad_order(self, order):
         """Defines the node DF in terms of float, Dual or Dual2 for AD order calcs."""
         for pre_solver in self.pre_solvers:
             pre_solver._set_ad_order(order=order)
         self._ad = order
-        self._reset_properties_()
         for _, curve in self.curves.items():
             curve._set_ad_order(order)
-        if self.fx is not NoInput.blank:
+        if not isinstance(self.fx, NoInput):
             self.fx._set_ad_order(order)
+        self._reset_properties_()
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
+    @_validate_states
     def delta(self, npv, base: str | NoInput = NoInput(0), fx=NoInput(0)) -> DataFrame:
         """
         Calculate the delta risk sensitivity of an instrument's NPV to the
@@ -1526,6 +1557,7 @@ class Solver(Gradients):
             base = base.lower()
         return base, fx
 
+    @_validate_states
     def gamma(self, npv, base=NoInput(0), fx=NoInput(0)):
         """
         Calculate the cross-gamma risk sensitivity of an instrument's NPV to the
@@ -1786,6 +1818,7 @@ class Solver(Gradients):
         """
         raise NotImplementedError()
 
+    @_validate_states
     def market_movements(self, solver: Solver):
         """
         Determine market movements between the *Solver's* instrument rates and those rates priced
@@ -1823,6 +1856,7 @@ class Solver(Gradients):
             index=self.pre_instrument_labels,
         )
 
+    @_validate_states
     def jacobian(self, solver: Solver):
         """
         Calculate the Jacobian with respect to another *Solver's* instruments.
@@ -1919,6 +1953,7 @@ class Solver(Gradients):
             index=solver.pre_instrument_labels,
         )
 
+    @_validate_states
     def exo_delta(
         self,
         npv,
@@ -1999,6 +2034,33 @@ class Solver(Gradients):
 
         sorted_cols = df.columns.sort_values()
         return df.loc[:, sorted_cols].astype("float64")
+
+    def _validate_state(self):
+        _objects_state = self._get_composited_state()
+        if self._state != _objects_state:
+            # then something has been mutated
+            if not isinstance(self.fx, NoInput) and self._state_fx != self.fx._state:
+                warnings.warn(
+                    "The `fx` object associated with `solver` has been updated without "
+                    "the `solver` performing additional iterations.\nCalculations can still be "
+                    "performed but, dependent upon those updates, errors may be negligible "
+                    "or significant.",
+                    UserWarning,
+                )
+            if self._state_curves != self._get_composited_curves_state():
+                raise ValueError(
+                    "The `curves` associated with `solver` have been updated without the "
+                    "`solver` performing additional iterations.\nCalculations are prevented in "
+                    "this state because they will likely be erroneous or a consequence of a bad "
+                    "design pattern."
+                )
+            if self._state_pre_curves != self._get_composited_pre_curves_state():
+                raise ValueError(
+                    "The `curves` associated with the `pre_solvers` have been updated without the "
+                    "`solver` performing additional iterations.\nCalculations are prevented in "
+                    "this state because they will likely be erroneous or a consequence of a "
+                    "bad design pattern."
+                )
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

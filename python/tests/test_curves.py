@@ -1996,7 +1996,7 @@ class TestProxyCurve:
         curve = fxf.curve("cad", "eur")
         assert isinstance(curve, Curve)
 
-    def test_cache_is_validated_on_getitem(self):
+    def test_cache_is_validated_on_getitem_and_lookup(self):
         fxr1 = FXRates({"usdeur": 0.95}, dt(2022, 1, 3))
         fxr2 = FXRates({"usdcad": 1.1}, dt(2022, 1, 2))
         fxf = FXForwards(
@@ -2010,12 +2010,22 @@ class TestProxyCurve:
             },
         )
         curve = fxf.curve("cad", "eur")
+        assert curve._state == fxf._state
+
         fxr1.update({"usdeur": 100000000.0})
         fxf.curve("eur", "eur")._set_node_vector([0.5], 1)
-        before = fxf._state
+
+        state1 = fxf._state
+        # performing an action on the proxy curve will validate and update states
+        # even calling _state on the ProxyCurve will validate and update states
         curve[dt(2022, 1, 9)]
-        after = fxf._state
-        assert before != after
+        state2 = fxf._state
+        assert state1 != state2
+
+        fxr1.update({"usdeur": 10.0})
+        fxf.curve("eur", "eur")._set_node_vector([0.6], 1)
+        state3 = curve._state
+        assert state3 != state2  # becuase calling _state has validated and updated
 
 
 class TestPlotCurve:

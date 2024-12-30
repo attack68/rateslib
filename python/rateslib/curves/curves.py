@@ -3016,10 +3016,11 @@ class ProxyCurve(Curve):
         self.calendar = default_curve.calendar
         self.node_dates = [self.fx_forwards.immediate, self.terminal]
 
-    def __hash__(self) -> int:
+    @property
+    def _state(self) -> int:  # type: ignore[override]
         # ProxyCurve is directly associated with its FXForwards object
         self.fx_forwards._validate_state()
-        return hash(self.fx_forwards)
+        return self.fx_forwards._state
 
     def __getitem__(self, date: datetime) -> DualTypes:
         self.fx_forwards._validate_state()  # manually handle cache check
