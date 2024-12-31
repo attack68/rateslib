@@ -1088,7 +1088,11 @@ class FloatPeriod(BasePeriod):
         if "ibor" in self.fixing_method:
             return self._rate_ibor(curve)
         elif "rfr" in self.fixing_method:
-            return self._rate_rfr(curve)
+            if isinstance(curve, dict):
+                curve_: Curve | NoInput = _get_rfr_curve_from_dict(curve)
+            else:
+                curve_ = curve
+            return self._rate_rfr(curve_)
         else:
             raise ValueError(  # pragma: no cover
                 f"`fixing_method`: '{self.fixing_method}' not valid for a FloatPeriod."
@@ -1182,7 +1186,7 @@ class FloatPeriod(BasePeriod):
             )
             return _
 
-    def _rate_rfr(self, curve: Curve | dict[str, Curve] | NoInput) -> DualTypes:
+    def _rate_rfr(self, curve: Curve | NoInput) -> DualTypes:
         if isinstance(self.fixings, float | Dual | Dual2):
             # if fixings is a single value then return that value (curve unused can be NoInput)
             if (
@@ -1201,7 +1205,7 @@ class FloatPeriod(BasePeriod):
             return self.fixings + self.float_spread / 100
 
             # else next calculations made based on fixings in (None, list, Series)
-        elif isinstance(self.fixings, Series | list):
+        elif isinstance(self.fixings, Series | list) or isinstance(curve, NoInput):
             # try to calculate rate purely from the fixings
             return self._rfr_rate_from_individual_fixings(curve)
 
@@ -1229,21 +1233,21 @@ class FloatPeriod(BasePeriod):
             # This is bad construct
             return self._rfr_rate_from_individual_fixings(curve)
         elif self.fixing_method == "rfr_payment_delay" and not self._is_inefficient:
-            return curve.rate(self.start, self.end) + self.float_spread / 100
+            return curve._rate_with_raise(self.start, self.end) + self.float_spread / 100
         elif self.fixing_method == "rfr_observation_shift" and not self._is_inefficient:
             start = curve.calendar.lag(self.start, -self.method_param, settlement=False)
             end = curve.calendar.lag(self.end, -self.method_param, settlement=False)
-            return curve.rate(start, end) + self.float_spread / 100
+            return curve._rate_with_raise(start, end) + self.float_spread / 100
             # TODO: (low:perf) semi-efficient method for lockout under certain conditions
         else:
             # return inefficient calculation
             # this is also the path for all averaging methods
             return self._rfr_rate_from_individual_fixings(curve)
 
-    def _rate_rfr_from_line_curve(self, curve: LineCurve):
+    def _rate_rfr_from_line_curve(self, curve: Curve) -> DualTypes:
         return self._rfr_rate_from_individual_fixings(curve)
 
-    def _rate_rfr_avg_with_spread(self, rates, dcf_vals):
+    def _rate_rfr_avg_with_spread(self, rates, dcf_vals) -> DualTypes:
         """
         Calculate all in rate with float spread under averaging.
 
@@ -1266,7 +1270,7 @@ class FloatPeriod(BasePeriod):
         else:
             return (dcf_vals * rates).sum() / dcf_vals.sum() + self.float_spread / 100
 
-    def _rate_rfr_isda_compounded_with_spread(self, rates, dcf_vals):
+    def _rate_rfr_isda_compounded_with_spread(self, rates, dcf_vals) -> DualTypes:
         """
         Calculate all in rates with float spread under different compounding methods.
 
@@ -1307,7 +1311,7 @@ class FloatPeriod(BasePeriod):
                 "'isda_compounding', 'isda_flat_compounding'}.",
             )
 
-    def _rfr_rate_from_individual_fixings(self, curve: Curve) -> DualTypes:
+    def _rfr_rate_from_individual_fixings(self, curve: Curve | NoInput) -> DualTypes:
         cal_, conv_ = self._maybe_get_cal_and_conv_from_curve(curve)
 
         data = self._rfr_get_individual_fixings_data(cal_, conv_, curve)
@@ -4349,6 +4353,17 @@ def _get_ibor_curve_from_dict(months: int, d: dict[str, Curve]) -> Curve:
                 f"the frequency of the given Period. The missing mapping is '{months}m'."
             )
 
+def _get_rfr_curve_from_dict(d: dict[str, Curve]) -> Curve:
+    for s in ["rfr", "RFR", "Rfr"]:
+        try:
+            ret: Curve = d[s]
+        except KeyError:
+            continue
+        else:
+            return ret
+    raise ValueError(
+        "A `curve` supplied as dict to an RFR based period must contain a key entry 'rfr'."
+    )
 
 def _trim_df_by_index(
     df: DataFrame, left: datetime | NoInput, right: datetime | NoInput
