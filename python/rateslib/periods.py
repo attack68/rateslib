@@ -335,7 +335,7 @@ class BasePeriod(metaclass=ABCMeta):
     @abstractmethod
     def cashflows(
         self,
-        curve: Curve | NoInput = NoInput(0),
+        curve: Curve | dict[str, Curve] | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -527,7 +527,7 @@ class FixedPeriod(BasePeriod):
 
     def npv(
         self,
-        curve: Curve | NoInput = NoInput(0),
+        curve: Curve | dict[str, Curve] | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -550,7 +550,7 @@ class FixedPeriod(BasePeriod):
 
     def cashflows(
         self,
-        curve: Curve | NoInput = NoInput(0),
+        curve: Curve | dict[str, Curve] | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -1025,7 +1025,7 @@ class FloatPeriod(BasePeriod):
 
         """
         try:
-            _ = -self.notional * self.dcf * self.rate(curve) / 100
+            _: DualTypes = -self.notional * self.dcf * self.rate(curve) / 100
             return _
         except ValueError as e:
             if isinstance(curve, Curve | dict):
@@ -1126,7 +1126,7 @@ class FloatPeriod(BasePeriod):
         elif not isinstance(curve, dict):
             # TODO (low); this doesnt type well because of floating _base_type attribute.
             # consider wrapping to some NamedTuple record
-            return method[curve._base_type](curve)  # type: ignore[arg-type]
+            return method[curve._base_type](curve)
         else:
             if not self.stub:
                 curve = _get_ibor_curve_from_dict(self.freq_months, curve)
@@ -1141,11 +1141,11 @@ class FloatPeriod(BasePeriod):
             r = curve.rate(self.start, f"{self.freq_months}m") + self.float_spread / 100
         return r
 
-    def _rate_ibor_from_line_curve(self, curve: LineCurve) -> DualTypes:
+    def _rate_ibor_from_line_curve(self, curve: Curve) -> DualTypes:
         fixing_date = curve.calendar.lag(self.start, -self.method_param, False)
         return curve[fixing_date] + self.float_spread / 100
 
-    def _rate_ibor_interpolated_ibor_from_dict(self, curve: dict[str, Curve]) -> DualTypes | None:
+    def _rate_ibor_interpolated_ibor_from_dict(self, curve: dict[str, Curve]) -> DualTypes:
         """
         Get the rate on all available curves in dict and then determine the ones to interpolate.
         """
@@ -1182,7 +1182,7 @@ class FloatPeriod(BasePeriod):
             )
             return _
 
-    def _rate_rfr(self, curve: Curve | dict[str, Curve] | NoInput) -> DualTypes | None:
+    def _rate_rfr(self, curve: Curve | dict[str, Curve] | NoInput) -> DualTypes:
         if isinstance(self.fixings, float | Dual | Dual2):
             # if fixings is a single value then return that value (curve unused can be NoInput)
             if (
@@ -2832,7 +2832,7 @@ class IndexMixin(metaclass=ABCMeta):
                     unavailable_date = _get_eom(_.month, _.year)
 
                 if i_date > unavailable_date:
-                    if i_curve is NoInput.blank:
+                    if isinstance(i_curve, NoInput):
                         return NoInput(0)
                     else:
                         return IndexMixin._index_value_from_curve(i_date, i_curve, i_lag, i_method)
@@ -2864,7 +2864,7 @@ class IndexMixin(metaclass=ABCMeta):
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
         disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
-        if not isinstance(disc_curve, Curve) and curve is NoInput.blank:
+        if not isinstance(disc_curve, Curve) and isinstance(curve, NoInput):
             raise TypeError("`curves` have not been supplied correctly.")
         value = self.cashflow(curve) * disc_curve_[self.payment]
         return _maybe_local(value, local, self.currency, fx, base)
@@ -2966,9 +2966,9 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
         self.index_fixings = index_fixings
         self.index_only = False
         self.index_method = (
-            defaults.index_method if index_method is NoInput.blank else index_method.lower()
+            defaults.index_method if isinstance(index_method, NoInput) else index_method.lower()
         )
-        self.index_lag = defaults.index_lag if index_lag is NoInput.blank else index_lag
+        self.index_lag = defaults.index_lag if isinstance(index_lag, NoInput) else index_lag
         if self.index_method not in ["daily", "monthly"]:
             raise ValueError("`index_method` must be in {'daily', 'monthly'}.")
         super(IndexMixin, self).__init__(*args, **kwargs)
@@ -2994,7 +2994,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
         """
         float, Dual or Dual2 : The calculated real value from rate, dcf and notional.
         """
-        if self.fixed_rate is NoInput.blank:
+        if isinstance(self.fixed_rate, NoInput):
             return None
         else:
             return -self.notional * self.dcf * self.fixed_rate / 100
@@ -3017,7 +3017,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
         disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
-        if disc_curve_ is NoInput.blank or self.fixed_rate is NoInput.blank:
+        if isinstance(disc_curve_, NoInput) or isinstance(self.fixed_rate, NoInput):
             npv = None
             npv_fx = None
         else:
@@ -3139,12 +3139,12 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         self.index_base = index_base
         self.index_fixings = index_fixings
         self.index_method = (
-            defaults.index_method if index_method is NoInput.blank else index_method.lower()
+            defaults.index_method if isinstance(index_method, NoInput) else index_method.lower()
         )
-        self.index_lag = defaults.index_lag if index_lag is NoInput.blank else index_lag
+        self.index_lag = defaults.index_lag if isinstance(index_lag, NoInput) else index_lag
         self.index_only = index_only
         super(IndexMixin, self).__init__(*args, **kwargs)
-        self.end = self.payment if end is NoInput.blank else end
+        self.end = self.payment if isinstance(end, NoInput) else end
 
     @property
     def real_cashflow(self):
@@ -3220,9 +3220,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
     """
 
     # https://www.researchgate.net/publication/275905055_A_Guide_to_FX_Options_Quoting_Conventions/
-    style = "european"
-    kind = None
-    phi = 0.0
+    style: str = "european"
+    kind: str = ...
+    phi: float = 0.0
 
     @abstractmethod
     def __init__(
@@ -3236,22 +3236,20 @@ class FXOptionPeriod(metaclass=ABCMeta):
         option_fixing: float | NoInput = NoInput(0),
         delta_type: str | NoInput = NoInput(0),
         metric: str | NoInput = NoInput(0),
-    ):
-        self.pair = pair.lower()
-        self.currency = self.pair[3:]
-        self.domestic = self.pair[:3]
-        self.notional = defaults.notional if notional is NoInput.blank else notional
-        self.strike = strike
-        self.payment = payment
-        self.delivery = delivery
-        self.expiry = expiry
-        self.option_fixing = option_fixing
-        self.delta_type = (
-            defaults.fx_delta_type if delta_type is NoInput.blank else delta_type.lower()
-        )
-        self.metric = metric
+    ) -> None:
+        self.pair: str = pair.lower()
+        self.currency: str = self.pair[3:]
+        self.domestic: str = self.pair[:3]
+        self.notional: float = defaults.notional if isinstance(notional, NoInput) else notional
+        self.strike: DualTypes | NoInput = strike
+        self.payment: datetime = payment
+        self.delivery: datetime = delivery
+        self.expiry: datetime = expiry
+        self.option_fixing: float | NoInput = option_fixing
+        self.delta_type: str = _drb(defaults.fx_delta_type, delta_type).lower()
+        self.metric: str | NoInput = metric
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
     def cashflows(
@@ -3262,7 +3260,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         base: str | NoInput = NoInput(0),
         local: bool = False,
         vol: DualTypes | FXVols | NoInput = NoInput(0),
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Return the properties of the period used in calculating cashflows.
 
@@ -3324,7 +3322,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         base: str | NoInput = NoInput(0),
         local: bool = False,
         vol: DualTypes | FXVols | NoInput = NoInput(0),
-    ):
+    ) -> DualTypes | dict[str, DualTypes]:
         """
         Return the NPV of the *FXOption*.
 
@@ -3351,7 +3349,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             # payment date is in the past avoid issues with fixings or rates
             return _maybe_local(0.0, local, self.currency, NoInput(0), NoInput(0))
 
-        if self.option_fixing is not NoInput.blank:
+        if not isinstance(self.option_fixing, NoInput):
             if self.kind == "call" and self.strike < self.option_fixing:
                 value = (self.option_fixing - self.strike) * self.notional
             elif self.kind == "put" and self.strike > self.option_fixing:
@@ -3386,7 +3384,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         local: bool = False,
         vol: float | NoInput = NoInput(0),
         metric: str | NoInput = NoInput(0),
-    ):
+    ) -> DualTypes:
         """
         Return the pricing metric of the *FXOption*.
 
@@ -3421,9 +3419,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
             vol,
         )
 
-        if metric is not NoInput.blank:
+        if not isinstance(metric, NoInput):
             metric_ = metric.lower()
-        elif self.metric is not NoInput.blank:
+        elif not isinstance(self.metric, NoInput):
             metric_ = self.metric.lower()
         else:
             metric_ = defaults.fx_option_metric
@@ -3691,7 +3689,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
     @staticmethod
     def _analytic_delta(premium, adjusted, z_u, z_w, d_eta, phi, d_plus, w_payment, w_spot, N_dom):
-        if not adjusted or premium is NoInput.blank:
+        if not adjusted or isinstance(premium, NoInput):
             # returns unadjusted delta or mid-market premium adjusted delta
             return z_u * z_w * phi * dual_norm_cdf(phi * d_eta)
         else:
@@ -4287,11 +4285,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
         return (self.expiry - now).days / 365.0
 
     def _payoff_at_expiry(self, range: list[float] | NoInput = NoInput(0)):
-        if self.strike is NoInput.blank:
+        if isinstance(self.strike, NoInput):
             raise ValueError(
                 "Cannot return payoff for option without a specified `strike`.",
             )  # pragma: no cover
-        if range is NoInput.blank:
+        if isinstance(range, NoInput):
             x = np.linspace(0, 20, 1001)
         else:
             x = np.linspace(range[0], range[1], 1001)
@@ -4314,7 +4312,7 @@ class FXCallPeriod(FXOptionPeriod):
     kind = "call"
     phi = 1.0
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 
 
@@ -4328,7 +4326,7 @@ class FXPutPeriod(FXOptionPeriod):
     kind = "put"
     phi = -1.0
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 
 
@@ -4339,7 +4337,7 @@ def _float_or_none(val: DualTypes | None) -> float | None:
         return _dual_float(val)
 
 
-def _get_ibor_curve_from_dict(months, d):
+def _get_ibor_curve_from_dict(months: int, d: dict[str, Curve]) -> Curve:
     try:
         return d[f"{months}m"]
     except KeyError:
@@ -4358,14 +4356,14 @@ def _trim_df_by_index(
     """
     Used by fixings_tables to constrict the view to a left and right bound
     """
-    if len(df.index) == 0 or isinstance(left, NoInput) and isinstance(right, NoInput):
+    if len(df.index) == 0 or (isinstance(left, NoInput) and isinstance(right, NoInput)):
         return df
     elif isinstance(left, NoInput):
-        return df[:right]
+        return df[:right]  # type: ignore[misc]
     elif isinstance(right, NoInput):
-        return df[left:]
+        return df[left:]  # type: ignore[misc]
     else:
-        return df[left:right]
+        return df[left:right]  # type: ignore[misc]
 
 
 # def _validate_broad_delta_bounds(phi, delta, delta_type):
