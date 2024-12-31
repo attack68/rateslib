@@ -1024,7 +1024,7 @@ class FloatPeriod(BasePeriod):
         float, Dual, Dual2, None
 
         """
-        curve = NoInput(0) if curve is None else curve # backwards compat
+        curve = NoInput(0) if curve is None else curve  # backwards compat
         try:
             _: DualTypes = -self.notional * self.dcf * self.rate(curve) / 100
             return _
@@ -1322,9 +1322,13 @@ class FloatPeriod(BasePeriod):
 
         data = self._rfr_get_individual_fixings_data(cal_, conv_, curve)
         if "avg" in self.fixing_method:
-            rate = self._rate_rfr_avg_with_spread(data["rates"].to_numpy(), data["dcf_vals"].to_numpy())
+            rate = self._rate_rfr_avg_with_spread(
+                data["rates"].to_numpy(), data["dcf_vals"].to_numpy()
+            )
         else:
-            rate = self._rate_rfr_isda_compounded_with_spread(data["rates"].to_numpy(), data["dcf_vals"].to_numpy())
+            rate = self._rate_rfr_isda_compounded_with_spread(
+                data["rates"].to_numpy(), data["dcf_vals"].to_numpy()
+            )
         return rate
 
     def _rfr_get_series_with_populated_fixings(self, obs_dates):
@@ -1951,7 +1955,9 @@ class FloatPeriod(BasePeriod):
         if "avg" in self.fixing_method:
             rate = self._rate_rfr_avg_with_spread(rates_dual.to_numpy(), d["dcf_vals"].to_numpy())
         else:
-            rate = self._rate_rfr_isda_compounded_with_spread(rates_dual.to_numpy(), d["dcf_vals"].to_numpy())
+            rate = self._rate_rfr_isda_compounded_with_spread(
+                rates_dual.to_numpy(), d["dcf_vals"].to_numpy()
+            )
 
         dr_drj = Series(
             [gradient(rate, [f"fixing_{i}"])[0] for i in range(len(d["dcf_dates"].index) - 1)],
@@ -2241,7 +2247,7 @@ class CreditPremiumPeriod(BasePeriod):
         -------
         float
         """
-        if isinstance(self.fixed_rate,  NoInput):
+        if isinstance(self.fixed_rate, NoInput):
             return None
         else:
             if settlement <= self.start or settlement >= self.end:
@@ -4359,6 +4365,7 @@ def _get_ibor_curve_from_dict(months: int, d: dict[str, Curve]) -> Curve:
                 f"the frequency of the given Period. The missing mapping is '{months}m'."
             )
 
+
 def _get_rfr_curve_from_dict(d: dict[str, Curve]) -> Curve:
     for s in ["rfr", "RFR", "Rfr"]:
         try:
@@ -4370,6 +4377,7 @@ def _get_rfr_curve_from_dict(d: dict[str, Curve]) -> Curve:
     raise ValueError(
         "A `curve` supplied as dict to an RFR based period must contain a key entry 'rfr'."
     )
+
 
 def _trim_df_by_index(
     df: DataFrame, left: datetime | NoInput, right: datetime | NoInput
