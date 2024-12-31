@@ -1308,8 +1308,8 @@ class FloatPeriod(BasePeriod):
             for i in range(1, len(sub_cashflows)):
                 C_i += sub_cashflows[i - 1]
                 sub_cashflows[i] += C_i * rates[i] / 100 * dcf_vals[i]
-            total_cashflow = sub_cashflows.sum()
-            return total_cashflow * 100 / dcf_vals.sum()
+            _ = sub_cashflows.sum() * 100 / dcf_vals.sum()
+            return _
         else:
             # this path not generally hit due to validation at initialisation
             raise ValueError(
