@@ -1244,8 +1244,8 @@ class FloatPeriod(BasePeriod):
 
     def _rate_rfr_avg_with_spread(
         self,
-        rates: Series[DualTypes],  # type: ignore[type-var]
-        dcf_vals: Series[float],
+        rates: np.ndarray[tuple[int], np.dtype[np.object_]],
+        dcf_vals: np.ndarray[tuple[int], np.dtype[np.float64]],
     ) -> DualTypes:
         """
         Calculate all in rate with float spread under averaging.
@@ -1261,19 +1261,19 @@ class FloatPeriod(BasePeriod):
         -------
         float, Dual, Dual2
         """
-        dcf_vals = dcf_vals.set_axis(rates.index)
+        # dcf_vals = dcf_vals.set_axis(rates.index)
         if self.spread_compound_method != "none_simple":
             raise ValueError(
                 "`spread_compound` method must be 'none_simple' in an RFR averaging " "period.",
             )
         else:
-            # _: DualTypes = (dcf_vals * rates).sum() / dcf_vals.sum() + self.float_spread / 100
-            return (dcf_vals * rates).sum() / dcf_vals.sum() + self.float_spread / 100
+            _: DualTypes = (dcf_vals * rates).sum() / dcf_vals.sum() + self.float_spread / 100
+            return _
 
     def _rate_rfr_isda_compounded_with_spread(
         self,
-        rates: Series[DualTypes], # type: ignore[type-var]
-        dcf_vals: Series[float],
+        rates: np.ndarray[tuple[int], np.dtype[np.object_]],
+        dcf_vals: np.ndarray[tuple[int], np.dtype[np.float64]],
     ) -> DualTypes:
         """
         Calculate all in rates with float spread under different compounding methods.
@@ -1289,23 +1289,25 @@ class FloatPeriod(BasePeriod):
         -------
         float, Dual, Dual2
         """
-        dcf_vals = dcf_vals.set_axis(rates.index)
+        # dcf_vals = dcf_vals.set_axis(rates.index)
         if self.float_spread == 0 or self.spread_compound_method == "none_simple":
-            return (
+            _: DualTypes = (
                 (1 + dcf_vals * rates / 100).prod() - 1
             ) * 100 / dcf_vals.sum() + self.float_spread / 100
+            return _
         elif self.spread_compound_method == "isda_compounding":
-            return (
+            _ = (
                 ((1 + dcf_vals * (rates / 100 + self.float_spread / 10000)).prod() - 1)
                 * 100
                 / dcf_vals.sum()
             )
+            return _
         elif self.spread_compound_method == "isda_flat_compounding":
             sub_cashflows = (rates / 100 + self.float_spread / 10000) * dcf_vals
             C_i = 0.0
             for i in range(1, len(sub_cashflows)):
-                C_i += sub_cashflows.iloc[i - 1]
-                sub_cashflows.iloc[i] += C_i * rates.iloc[i] / 100 * dcf_vals.iloc[i]
+                C_i += sub_cashflows[i - 1]
+                sub_cashflows[i] += C_i * rates[i] / 100 * dcf_vals[i]
             total_cashflow = sub_cashflows.sum()
             return total_cashflow * 100 / dcf_vals.sum()
         else:
@@ -1320,9 +1322,9 @@ class FloatPeriod(BasePeriod):
 
         data = self._rfr_get_individual_fixings_data(cal_, conv_, curve)
         if "avg" in self.fixing_method:
-            rate = self._rate_rfr_avg_with_spread(data["rates"], data["dcf_vals"])
+            rate = self._rate_rfr_avg_with_spread(data["rates"].to_numpy(), data["dcf_vals"].to_numpy())
         else:
-            rate = self._rate_rfr_isda_compounded_with_spread(data["rates"], data["dcf_vals"])
+            rate = self._rate_rfr_isda_compounded_with_spread(data["rates"].to_numpy(), data["dcf_vals"].to_numpy())
         return rate
 
     def _rfr_get_series_with_populated_fixings(self, obs_dates):
@@ -1947,9 +1949,9 @@ class FloatPeriod(BasePeriod):
         if self.fixing_method in ["rfr_lockout", "rfr_lockout_avg"]:
             rates_dual.iloc[-self.method_param :] = rates_dual.iloc[-self.method_param - 1]
         if "avg" in self.fixing_method:
-            rate = self._rate_rfr_avg_with_spread(rates_dual, d["dcf_vals"])
+            rate = self._rate_rfr_avg_with_spread(rates_dual.to_numpy(), d["dcf_vals"].to_numpy())
         else:
-            rate = self._rate_rfr_isda_compounded_with_spread(rates_dual, d["dcf_vals"])
+            rate = self._rate_rfr_isda_compounded_with_spread(rates_dual.to_numpy(), d["dcf_vals"].to_numpy())
 
         dr_drj = Series(
             [gradient(rate, [f"fixing_{i}"])[0] for i in range(len(d["dcf_dates"].index) - 1)],
