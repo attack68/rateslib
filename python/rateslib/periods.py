@@ -1136,9 +1136,9 @@ class FloatPeriod(BasePeriod):
 
     def _rate_ibor_from_df_curve(self, curve: Curve) -> DualTypes:
         if self.stub:
-            r = curve.rate(self.start, self.end) + self.float_spread / 100
+            r = curve._rate_with_raise(self.start, self.end) + self.float_spread / 100
         else:
-            r = curve.rate(self.start, f"{self.freq_months}m") + self.float_spread / 100
+            r = curve._rate_with_raise(self.start, f"{self.freq_months}m") + self.float_spread / 100
         return r
 
     def _rate_ibor_from_line_curve(self, curve: Curve) -> DualTypes:
@@ -1152,11 +1152,11 @@ class FloatPeriod(BasePeriod):
         calendar = next(iter(curve.values())).calendar  # note: ASSUMES all curve calendars are same
         fixing_date = add_tenor(self.start, f"-{self.method_param}B", "NONE", calendar)
 
-        def _rate(c: Curve, tenor: str) -> DualTypes | None:
+        def _rate(c: Curve, tenor: str) -> DualTypes:
             if c._base_type == "dfs":
-                return c.rate(self.start, tenor)
+                return c._rate_with_raise(self.start, tenor)
             else:  # values
-                return c.rate(fixing_date, tenor)  # tenor is not used on LineCurve
+                return c._rate_with_raise(fixing_date, tenor)  # tenor is not used on LineCurve
 
         values = {add_tenor(self.start, k, "MF", calendar): _rate(v, k) for k, v in curve.items()}
         values = dict(sorted(values.items()))
