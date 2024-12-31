@@ -3220,9 +3220,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
     """
 
     # https://www.researchgate.net/publication/275905055_A_Guide_to_FX_Options_Quoting_Conventions/
-    style = "european"
-    kind = None
-    phi = 0.0
+    style: str = "european"
+    kind: str = ...
+    phi: float = 0.0
 
     @abstractmethod
     def __init__(
@@ -3236,22 +3236,20 @@ class FXOptionPeriod(metaclass=ABCMeta):
         option_fixing: float | NoInput = NoInput(0),
         delta_type: str | NoInput = NoInput(0),
         metric: str | NoInput = NoInput(0),
-    ):
-        self.pair = pair.lower()
-        self.currency = self.pair[3:]
-        self.domestic = self.pair[:3]
-        self.notional = defaults.notional if isinstance(notional, NoInput) else notional
-        self.strike = strike
-        self.payment = payment
-        self.delivery = delivery
-        self.expiry = expiry
-        self.option_fixing = option_fixing
-        self.delta_type = (
-            defaults.fx_delta_type if isinstance(delta_type, NoInput) else delta_type.lower()
-        )
-        self.metric = metric
+    ) -> None:
+        self.pair: str = pair.lower()
+        self.currency: str = self.pair[3:]
+        self.domestic: str = self.pair[:3]
+        self.notional: float = defaults.notional if isinstance(notional, NoInput) else notional
+        self.strike: DualTypes | NoInput = strike
+        self.payment: datetime = payment
+        self.delivery: datetime = delivery
+        self.expiry: datetime = expiry
+        self.option_fixing: float | NoInput = option_fixing
+        self.delta_type: str = _drb(defaults.fx_delta_type, delta_type).lower()
+        self.metric: str | NoInput = metric
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
     def cashflows(
@@ -4314,7 +4312,7 @@ class FXCallPeriod(FXOptionPeriod):
     kind = "call"
     phi = 1.0
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 
 
@@ -4328,7 +4326,7 @@ class FXPutPeriod(FXOptionPeriod):
     kind = "put"
     phi = -1.0
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 
 
@@ -4339,7 +4337,7 @@ def _float_or_none(val: DualTypes | None) -> float | None:
         return _dual_float(val)
 
 
-def _get_ibor_curve_from_dict(months, d):
+def _get_ibor_curve_from_dict(months: str, d: dict[str, Curve]) -> Curve:
     try:
         return d[f"{months}m"]
     except KeyError:
@@ -4358,14 +4356,14 @@ def _trim_df_by_index(
     """
     Used by fixings_tables to constrict the view to a left and right bound
     """
-    if len(df.index) == 0 or isinstance(left, NoInput) and isinstance(right, NoInput):
+    if len(df.index) == 0 or (isinstance(left, NoInput) and isinstance(right, NoInput)):
         return df
     elif isinstance(left, NoInput):
-        return df[:right]
+        return df[:right]  # type: ignore[misc]
     elif isinstance(right, NoInput):
-        return df[left:]
+        return df[left:]  # type: ignore[misc]
     else:
-        return df[left:right]
+        return df[left:right]  # type: ignore[misc]
 
 
 # def _validate_broad_delta_bounds(phi, delta, delta_type):
