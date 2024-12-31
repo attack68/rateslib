@@ -1331,7 +1331,9 @@ class FloatPeriod(BasePeriod):
             )
         return rate
 
-    def _rfr_get_series_with_populated_fixings(self, obs_dates):
+    def _rfr_get_series_with_populated_fixings(
+        self, obs_dates: Series[datetime]
+    ) -> Series[DualTypes | None]:  # type: ignore[type-var]
         """
         Gets relevant DCF values and populates all the individual RFR fixings either known or
         from a curve, for latter calculations, either to derive a period rate or perform
@@ -1389,8 +1391,8 @@ class FloatPeriod(BasePeriod):
         return rates
 
     def _rfr_get_individual_fixings_data(
-        self, calendar: CalTypes, convention: str, curve: Curve | NoInput, allow_na=False
-    ):
+        self, calendar: CalTypes, convention: str, curve: Curve | NoInput, allow_na: bool = False
+    ) -> dict[str, Any]:
         """
         Gets relevant DCF values and populates all the individual RFR fixings either known or
         from a curve, for latter calculations, either to derive a period rate or perform
@@ -1993,7 +1995,7 @@ class FloatPeriod(BasePeriod):
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     @property
-    def _is_inefficient(self):
+    def _is_inefficient(self) -> bool:
         """
         An inefficient float period is one which is RFR based and for which each individual
         RFR fixing is required is order to calculate correctly. This occurs in the
@@ -2019,7 +2021,9 @@ class FloatPeriod(BasePeriod):
         # else fixing method in ["rfr_lookback", "rfr_lockout"]
         return True
 
-    def _get_method_dcf_endpoints(self, calendar: CalTypes):
+    def _get_method_dcf_endpoints(
+        self, calendar: CalTypes
+    ) -> tuple[datetime, datetime, datetime, datetime]:
         """
         For RFR periods return the relevant DCF markers for different aspects of calculation.
 
@@ -2061,7 +2065,14 @@ class FloatPeriod(BasePeriod):
 
         return start_obs, end_obs, start_dcf, end_dcf
 
-    def _get_method_dcf_markers(self, calendar: CalTypes, convention: str, exposure=False):
+    def _get_method_dcf_markers(
+        self, calendar: CalTypes, convention: str, exposure=False
+    ) -> tuple[
+        Series[datetime],
+        Series[datetime],
+        Series[float],
+        Series[float],
+    ]:
         """
         Use conventions from the given `curve` and the data attached to self to derive
         relevant DCF calculations for the Period.
