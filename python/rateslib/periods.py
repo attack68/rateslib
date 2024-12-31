@@ -1267,8 +1267,8 @@ class FloatPeriod(BasePeriod):
                 "`spread_compound` method must be 'none_simple' in an RFR averaging " "period.",
             )
         else:
-            _: DualTypes = (dcf_vals * rates).sum() / dcf_vals.sum() + self.float_spread / 100
-            return _
+            # _: DualTypes = (dcf_vals * rates).sum() / dcf_vals.sum() + self.float_spread / 100
+            return (dcf_vals * rates).sum() / dcf_vals.sum() + self.float_spread / 100
 
     def _rate_rfr_isda_compounded_with_spread(
         self,
