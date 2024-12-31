@@ -1024,6 +1024,7 @@ class FloatPeriod(BasePeriod):
         float, Dual, Dual2, None
 
         """
+        curve = NoInput(0) if curve is None else curve # backwards compat
         try:
             _: DualTypes = -self.notional * self.dcf * self.rate(curve) / 100
             return _
@@ -1125,7 +1126,7 @@ class FloatPeriod(BasePeriod):
         }
         if isinstance(curve, NoInput):
             raise ValueError(
-                "Must supply a valid `curve` for forecasting rates for the FloatPeriod."
+                "Must supply a `curve` to FloatPeriod.rate() for forecasting IBOR rates."
             )
         elif not isinstance(curve, dict):
             # TODO (low); this doesnt type well because of floating _base_type attribute.
@@ -1208,18 +1209,12 @@ class FloatPeriod(BasePeriod):
         elif isinstance(self.fixings, Series | list) or isinstance(curve, NoInput):
             # try to calculate rate purely from the fixings
             return self._rfr_rate_from_individual_fixings(curve)
-
-        method = {
-            "dfs": self._rate_rfr_from_df_curve,
-            "values": self._rate_rfr_from_line_curve,
-        }
-        try:
+        else:
+            method = {
+                "dfs": self._rate_rfr_from_df_curve,
+                "values": self._rate_rfr_from_line_curve,
+            }
             return method[curve._base_type](curve)
-        except AttributeError:
-            raise ValueError(
-                "Must supply a valid `curve` for forecasting rates for the FloatPeriod.\n"
-                "Do not supply a dict of curves for RFR based methods.",
-            )
 
     def _rate_rfr_from_df_curve(self, curve: Curve) -> DualTypes:
         if isinstance(curve, NoInput):
@@ -1247,7 +1242,11 @@ class FloatPeriod(BasePeriod):
     def _rate_rfr_from_line_curve(self, curve: Curve) -> DualTypes:
         return self._rfr_rate_from_individual_fixings(curve)
 
-    def _rate_rfr_avg_with_spread(self, rates, dcf_vals) -> DualTypes:
+    def _rate_rfr_avg_with_spread(
+        self,
+        rates: Series[DualTypes],  # type: ignore[type-var]
+        dcf_vals: Series[float],
+    ) -> DualTypes:
         """
         Calculate all in rate with float spread under averaging.
 
@@ -1268,9 +1267,14 @@ class FloatPeriod(BasePeriod):
                 "`spread_compound` method must be 'none_simple' in an RFR averaging " "period.",
             )
         else:
-            return (dcf_vals * rates).sum() / dcf_vals.sum() + self.float_spread / 100
+            _: DualTypes = (dcf_vals * rates).sum() / dcf_vals.sum() + self.float_spread / 100
+            return _
 
-    def _rate_rfr_isda_compounded_with_spread(self, rates, dcf_vals) -> DualTypes:
+    def _rate_rfr_isda_compounded_with_spread(
+        self,
+        rates: Series[DualTypes], # type: ignore[type-var]
+        dcf_vals: Series[float],
+    ) -> DualTypes:
         """
         Calculate all in rates with float spread under different compounding methods.
 

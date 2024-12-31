@@ -1638,8 +1638,22 @@ class TestFloatPeriod:
             float_spread=0.0,
             stub=True,
         )
-        with pytest.raises(ValueError, match="Must supply a valid `curve` for forecasting"):
-            period.rate({"rfr": curve})
+        with pytest.raises(ValueError, match="A `curve` supplied as dict to an RFR based period m"):
+            period.rate({"bad_index": curve})
+
+    def test_rfr_period_curve_dict_allowed(self, curve) -> None:
+        period = FloatPeriod(
+            start=dt(2023, 2, 1),
+            end=dt(2023, 4, 1),
+            payment=dt(2023, 4, 1),
+            frequency="A",
+            fixing_method="rfr_payment_delay",
+            float_spread=0.0,
+            stub=True,
+        )
+        expected = 4.02664128485892
+        result = period.rate({"rfr": curve})
+        assert result == expected
 
     def test_ibor_stub_fixings_table(self) -> None:
         period = FloatPeriod(
@@ -1725,7 +1739,8 @@ class TestFloatPeriod:
         )
         if isinstance(curve, NoInput) and isinstance(fixings, NoInput):
             # then no data to price
-            with pytest.raises(ValueError, match="Must supply a valid `curve` for forec"):
+            msg = "Must supply a `curve` to FloatPeriod.rate()"
+            with pytest.raises(ValueError, match=msg):
                 period.rate(curve)
         elif isinstance(fixings, NoInput):
             result = period.rate(curve)
