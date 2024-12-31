@@ -1414,8 +1414,8 @@ class FloatPeriod(BasePeriod):
                     "Missing data is shown below for this period:\n"
                     f"{rates}"
                 )
-            rates = Series(
-                {k: v if notna(v) else curve.rate(k, "1b", "F") for k, v in rates.items()}
+            rates = Series(  # type: ignore[assignment]
+                {k: v if notna(v) else curve.rate(k, "1b", "F") for k, v in rates.items()}  # type: ignore[misc]
             )
             # Alternative solution to PR 172.
             # rates = Series({
