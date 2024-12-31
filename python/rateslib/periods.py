@@ -335,7 +335,7 @@ class BasePeriod(metaclass=ABCMeta):
     @abstractmethod
     def cashflows(
         self,
-        curve: Curve | NoInput = NoInput(0),
+        curve: Curve | dict[str, Curve] | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -527,7 +527,7 @@ class FixedPeriod(BasePeriod):
 
     def npv(
         self,
-        curve: Curve | NoInput = NoInput(0),
+        curve: Curve | dict[str, Curve] | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -550,7 +550,7 @@ class FixedPeriod(BasePeriod):
 
     def cashflows(
         self,
-        curve: Curve | NoInput = NoInput(0),
+        curve: Curve | dict[str, Curve] | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -1025,7 +1025,7 @@ class FloatPeriod(BasePeriod):
 
         """
         try:
-            _ = -self.notional * self.dcf * self.rate(curve) / 100
+            _: DualTypes = -self.notional * self.dcf * self.rate(curve) / 100
             return _
         except ValueError as e:
             if isinstance(curve, Curve | dict):
@@ -1126,7 +1126,7 @@ class FloatPeriod(BasePeriod):
         elif not isinstance(curve, dict):
             # TODO (low); this doesnt type well because of floating _base_type attribute.
             # consider wrapping to some NamedTuple record
-            return method[curve._base_type](curve)  # type: ignore[arg-type]
+            return method[curve._base_type](curve)
         else:
             if not self.stub:
                 curve = _get_ibor_curve_from_dict(self.freq_months, curve)
@@ -1141,11 +1141,11 @@ class FloatPeriod(BasePeriod):
             r = curve.rate(self.start, f"{self.freq_months}m") + self.float_spread / 100
         return r
 
-    def _rate_ibor_from_line_curve(self, curve: LineCurve) -> DualTypes:
+    def _rate_ibor_from_line_curve(self, curve: Curve) -> DualTypes:
         fixing_date = curve.calendar.lag(self.start, -self.method_param, False)
         return curve[fixing_date] + self.float_spread / 100
 
-    def _rate_ibor_interpolated_ibor_from_dict(self, curve: dict[str, Curve]) -> DualTypes | None:
+    def _rate_ibor_interpolated_ibor_from_dict(self, curve: dict[str, Curve]) -> DualTypes:
         """
         Get the rate on all available curves in dict and then determine the ones to interpolate.
         """
@@ -1182,7 +1182,7 @@ class FloatPeriod(BasePeriod):
             )
             return _
 
-    def _rate_rfr(self, curve: Curve | dict[str, Curve] | NoInput) -> DualTypes | None:
+    def _rate_rfr(self, curve: Curve | dict[str, Curve] | NoInput) -> DualTypes:
         if isinstance(self.fixings, float | Dual | Dual2):
             # if fixings is a single value then return that value (curve unused can be NoInput)
             if (
@@ -3260,7 +3260,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         base: str | NoInput = NoInput(0),
         local: bool = False,
         vol: DualTypes | FXVols | NoInput = NoInput(0),
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Return the properties of the period used in calculating cashflows.
 
@@ -3322,7 +3322,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         base: str | NoInput = NoInput(0),
         local: bool = False,
         vol: DualTypes | FXVols | NoInput = NoInput(0),
-    ):
+    ) -> DualTypes | dict[str, DualTypes]:
         """
         Return the NPV of the *FXOption*.
 
@@ -3384,7 +3384,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         local: bool = False,
         vol: float | NoInput = NoInput(0),
         metric: str | NoInput = NoInput(0),
-    ):
+    ) -> DualTypes:
         """
         Return the pricing metric of the *FXOption*.
 
@@ -4337,7 +4337,7 @@ def _float_or_none(val: DualTypes | None) -> float | None:
         return _dual_float(val)
 
 
-def _get_ibor_curve_from_dict(months: str, d: dict[str, Curve]) -> Curve:
+def _get_ibor_curve_from_dict(months: int, d: dict[str, Curve]) -> Curve:
     try:
         return d[f"{months}m"]
     except KeyError:
