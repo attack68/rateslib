@@ -31,7 +31,7 @@ from pandas import NA, DataFrame, Index, MultiIndex, Series, concat, isna, notna
 
 from rateslib import defaults
 from rateslib.calendars import CalInput, CalTypes, _get_eom, add_tenor, dcf, get_calendar
-from rateslib.curves import Curve, LineCurve, average_rate, index_left
+from rateslib.curves import Curve, average_rate, index_left
 from rateslib.default import NoInput, _drb
 from rateslib.dual import (
     Dual,
@@ -1590,7 +1590,7 @@ class FloatPeriod(BasePeriod):
         if isinstance(disc_curve, NoInput):
             if isinstance(curve, dict):
                 raise ValueError("Cannot infer `disc_curve` from a dict of curves.")
-            else: # not isinstance(curve, dict):
+            else:  # not isinstance(curve, dict):
                 if curve._base_type == "dfs":
                     disc_curve_: Curve = curve
                 else:
@@ -1640,11 +1640,14 @@ class FloatPeriod(BasePeriod):
                     },
                 ).set_index("obs_dates")
             elif _d["rates"].isna().any():
-                if isinstance(curve_, NoInput) or not _d["obs_dates"].iloc[-1] <= curve_.node_dates[0]:
+                if (
+                    isinstance(curve_, NoInput)
+                    or not _d["obs_dates"].iloc[-1] <= curve_.node_dates[0]
+                ):
                     raise ValueError(
-                        "RFRs could not be calculated, have you missed providing `fixings` or `curve`, "
-                        "or does the `curve` begin after the start of a `FloatPeriod` including "
-                        "the `method_param` adjustment?\n"
+                        "RFRs could not be calculated, have you missed providing `fixings` or "
+                        "`curve`, or does the `curve` begin after the start of a `FloatPeriod` "
+                        "including the `method_param` adjustment?\n"
                         "For further info see: Documentation > Cookbook > Working with fixings.",
                     )
                 else:
@@ -1672,7 +1675,7 @@ class FloatPeriod(BasePeriod):
                 [(id_, "notional"), (id_, "risk"), (id_, "dcf"), (id_, "rates")]
             )
             return _trim_df_by_index(df, NoInput(0), right)
-        else: # "ibor" in self.fixing_method:
+        else:  # "ibor" in self.fixing_method:
             return self._ibor_fixings_table(curve, disc_curve_, right)
 
     def _fixings_table_fast(
@@ -1768,10 +1771,15 @@ class FloatPeriod(BasePeriod):
             table = table.iloc[:-1]
             df = table[["obs_dates", "notional", "risk", "dcf", "rates"]].set_index("obs_dates")
             df.columns = MultiIndex.from_tuples(
-                [(curve_.id, "notional"), (curve_.id, "risk"), (curve_.id, "dcf"), (curve_.id, "rates")]
+                [
+                    (curve_.id, "notional"),
+                    (curve_.id, "risk"),
+                    (curve_.id, "dcf"),
+                    (curve_.id, "rates"),
+                ]
             )
             return _trim_df_by_index(df, NoInput(0), right)
-        else: # "ibor" in self.fixing_method:
+        else:  # "ibor" in self.fixing_method:
             return self._ibor_fixings_table(curve, disc_curve, right=right)
 
     def _ibor_fixings_table(
@@ -1779,7 +1787,7 @@ class FloatPeriod(BasePeriod):
         curve: Curve | dict[str, Curve],
         disc_curve: Curve,
         right: datetime | NoInput,
-        risk: DualTypes | NoInput = NoInput(0)
+        risk: DualTypes | NoInput = NoInput(0),
     ) -> DataFrame:
         """
         Calculate a fixings_table under an IBOR based methodology.
