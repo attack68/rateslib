@@ -1415,7 +1415,7 @@ class FloatPeriod(BasePeriod):
                     f"{rates}"
                 )
             rates = Series(  # type: ignore[assignment]
-                {k: v if notna(v) else curve.rate(k, "1b", "F") for k, v in rates.items()}  # type: ignore[misc]
+                {k: v if notna(v) else curve.rate(k, "1b", "F") for k, v in rates.items()}  # type: ignore
             )
             # Alternative solution to PR 172.
             # rates = Series({
@@ -1587,13 +1587,16 @@ class FloatPeriod(BasePeriod):
            )
            period.fixings_table({"1m": ibor_1m, "3m": ibor_3m}, disc_curve=ibor_1m)
         """
-        if isinstance(disc_curve, NoInput) and isinstance(curve, dict):
-            raise ValueError("Cannot infer `disc_curve` from a dict of curves.")
-        elif isinstance(disc_curve, NoInput):
-            if curve._base_type == "dfs":
-                disc_curve = curve
-            else:
-                raise ValueError("Must supply a discount factor based `disc_curve`.")
+        if isinstance(disc_curve, NoInput):
+            if isinstance(curve, dict):
+                raise ValueError("Cannot infer `disc_curve` from a dict of curves.")
+            else: # not isinstance(curve, dict):
+                if curve._base_type == "dfs":
+                    disc_curve_: Curve = curve
+                else:
+                    raise ValueError("Must supply a discount factor based `disc_curve`.")
+        else:
+            disc_curve_ = disc_curve
 
         if approximate:
             if not isinstance(self.fixings, NoInput):
@@ -1606,24 +1609,24 @@ class FloatPeriod(BasePeriod):
                 )
             else:
                 try:
-                    return self._fixings_table_fast(curve, disc_curve, right=right)
+                    return self._fixings_table_fast(curve, disc_curve_, right=right)
                 except ValueError:
                     # then probably a math domain error related to dates before the curve start
                     warnings.warn(
                         "Errored approximating a fixings table.\n Possibly this is due "
                         f"to period dates: {self.start.strftime('%d-%b-%Y')}->"
-                        f"{self.end.strftime('%d-%b-%Y')},\n and the curve initial date: "
-                        f"{curve.node_dates[0].strftime('%d-%b-%Y')}. Switching to exact mode "
-                        f"for this period.",
+                        f"{self.end.strftime('%d-%b-%Y')},\n and the curve initial date."
+                        f"Switching to exact mode for this period.",
                         UserWarning,
                     )
                     return self.fixings_table(
-                        curve, approximate=False, disc_curve=disc_curve, right=right
+                        curve, approximate=False, disc_curve=disc_curve_, right=right
                     )
 
         if "rfr" in self.fixing_method:
-            cal_, conv_ = self._maybe_get_cal_and_conv_from_curve(curve)
-            _d = self._rfr_get_individual_fixings_data(cal_, conv_, curve, allow_na=True)
+            curve_: Curve | NoInput = _maybe_get_rfr_curve_from_dict(curve)
+            cal_, conv_ = self._maybe_get_cal_and_conv_from_curve(curve_)
+            _d = self._rfr_get_individual_fixings_data(cal_, conv_, curve_, allow_na=True)
 
             if not isinstance(right, NoInput) and _d["obs_dates"][0] > right:
                 # then all fixings are out of scope, so perform no calculations
@@ -1636,49 +1639,55 @@ class FloatPeriod(BasePeriod):
                         "rates": [],
                     },
                 ).set_index("obs_dates")
-            elif _d["rates"].isna().any() and not _d["obs_dates"].iloc[-1] <= curve.node_dates[0]:
-                raise ValueError(
-                    "RFRs could not be calculated, have you missed providing `fixings` or "
-                    "does the `Curve` begin after the start of a `FloatPeriod` including "
-                    "the `method_param` adjustment?\n"
-                    "For further info see: Documentation > Cookbook > Working with fixings.",
-                )
             elif _d["rates"].isna().any():
-                # period exists before the curve and fixings are not supplied.
-                # Exposures are overwritten to zero.
-                df = DataFrame(
-                    {
-                        "obs_dates": _d["obs_dates"].iloc[:-1],
-                        "notional": [0.0] * len(_d["rates"]),
-                        "risk": [0.0] * len(_d["rates"]),
-                        "dcf": _d["dcf_vals"],
-                        "rates": _d["rates"].astype(float).reset_index(drop=True),
-                    },
-                ).set_index("obs_dates")
+                if isinstance(curve_, NoInput) or not _d["obs_dates"].iloc[-1] <= curve_.node_dates[0]:
+                    raise ValueError(
+                        "RFRs could not be calculated, have you missed providing `fixings` or `curve`, "
+                        "or does the `curve` begin after the start of a `FloatPeriod` including "
+                        "the `method_param` adjustment?\n"
+                        "For further info see: Documentation > Cookbook > Working with fixings.",
+                    )
+                else:
+                    # period exists before the curve and fixings are not supplied.
+                    # Exposures are overwritten to zero.
+                    df = DataFrame(
+                        {
+                            "obs_dates": _d["obs_dates"].iloc[:-1],
+                            "notional": [0.0] * len(_d["rates"]),
+                            "risk": [0.0] * len(_d["rates"]),
+                            "dcf": _d["dcf_vals"],
+                            "rates": _d["rates"].astype(float).reset_index(drop=True),
+                        },
+                    ).set_index("obs_dates")
             else:
-                rate, table = self._rfr_fixings_array(_d, disc_curve)
+                rate, table = self._rfr_fixings_array(_d, disc_curve_)
                 table = table.iloc[:-1]
                 df = table[["obs_dates", "notional", "risk", "dcf", "rates"]].set_index("obs_dates")
 
+            if not isinstance(curve_, NoInput):
+                id_: str = curve_.id
+            else:
+                id_ = "fixed"
             df.columns = MultiIndex.from_tuples(
-                [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"), (curve.id, "rates")]
+                [(id_, "notional"), (id_, "risk"), (id_, "dcf"), (id_, "rates")]
             )
             return _trim_df_by_index(df, NoInput(0), right)
-        elif "ibor" in self.fixing_method:
-            return self._ibor_fixings_table(curve, disc_curve, right)
+        else: # "ibor" in self.fixing_method:
+            return self._ibor_fixings_table(curve, disc_curve_, right)
 
     def _fixings_table_fast(
-        self, curve: Curve | LineCurve, disc_curve: Curve, right: NoInput | datetime
-    ):
+        self, curve: Curve | dict[str, Curve], disc_curve: Curve, right: NoInput | datetime
+    ) -> DataFrame:
         """
         Return a DataFrame of **approximate** fixing exposures.
 
         For arguments see :meth:`~rateslib.periods.FloatPeriod.fixings_table`.
         """
         if "rfr" in self.fixing_method:
+            curve_: Curve = _maybe_get_rfr_curve_from_dict(curve)  # type: ignore[assignment]
             # Depending upon method get the observation dates and dcf dates
             obs_dates, dcf_dates, dcf_vals, obs_vals = self._get_method_dcf_markers(
-                curve.calendar, curve.convention, True
+                curve_.calendar, curve_.convention, True
             )
 
             if not isinstance(right, NoInput) and obs_dates[0] > right:
@@ -1687,10 +1696,10 @@ class FloatPeriod(BasePeriod):
                     [],
                     columns=MultiIndex.from_tuples(
                         [
-                            (curve.id, "notional"),
-                            (curve.id, "risk"),
-                            (curve.id, "dcf"),
-                            (curve.id, "rates"),
+                            (curve_.id, "notional"),
+                            (curve_.id, "risk"),
+                            (curve_.id, "dcf"),
+                            (curve_.id, "rates"),
                         ]
                     ),
                     index=Index([], name="obs_dates", dtype=float),
@@ -1711,14 +1720,14 @@ class FloatPeriod(BasePeriod):
                     / obs_vals.iloc[-(self.method_param + 1)]
                 )
             # perform an efficient rate approximation
-            rate = curve.rate(
+            rate = curve_.rate(
                 effective=obs_dates.iloc[0],
                 termination=obs_dates.iloc[-1],
             )
             r_bar, d, n = average_rate(
                 obs_dates.iloc[0],
                 obs_dates.iloc[-1],
-                curve.convention,
+                curve_.convention,
                 rate,
             )
             # approximate sensitivity to each fixing
@@ -1759,14 +1768,18 @@ class FloatPeriod(BasePeriod):
             table = table.iloc[:-1]
             df = table[["obs_dates", "notional", "risk", "dcf", "rates"]].set_index("obs_dates")
             df.columns = MultiIndex.from_tuples(
-                [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"), (curve.id, "rates")]
+                [(curve_.id, "notional"), (curve_.id, "risk"), (curve_.id, "dcf"), (curve_.id, "rates")]
             )
             return _trim_df_by_index(df, NoInput(0), right)
-        elif "ibor" in self.fixing_method:
+        else: # "ibor" in self.fixing_method:
             return self._ibor_fixings_table(curve, disc_curve, right=right)
 
     def _ibor_fixings_table(
-        self, curve, disc_curve, right, risk: DualTypes | NoInput = NoInput(0)
+        self,
+        curve: Curve | dict[str, Curve],
+        disc_curve: Curve,
+        right: datetime | NoInput,
+        risk: DualTypes | NoInput = NoInput(0)
     ) -> DataFrame:
         """
         Calculate a fixings_table under an IBOR based methodology.
@@ -2639,10 +2652,10 @@ class Cashflow:
         self.stub_type = stub_type
         self._rate = rate if isinstance(rate, NoInput) else _dual_float(rate)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
-    def rate(self):
+    def rate(self) -> DualTypes | None:
         """
         Return the associated rate initialised with the *Cashflow*. Not used for calculations.
         """
@@ -2655,7 +2668,7 @@ class Cashflow:
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
-    ):
+    ) -> DualTypes:
         """
         Return the NPV of the *Cashflow*.
         See
@@ -4375,6 +4388,13 @@ def _get_ibor_curve_from_dict(months: int, d: dict[str, Curve]) -> Curve:
                 "If supplying `curve` as dict must provide a tenor mapping key and curve for"
                 f"the frequency of the given Period. The missing mapping is '{months}m'."
             )
+
+
+def _maybe_get_rfr_curve_from_dict(curve: Curve | dict[str, Curve] | NoInput) -> Curve | NoInput:
+    if isinstance(curve, dict):
+        return _get_rfr_curve_from_dict(curve)
+    else:
+        return curve
 
 
 def _get_rfr_curve_from_dict(d: dict[str, Curve]) -> Curve:
