@@ -248,15 +248,15 @@ class BasePeriod(metaclass=ABCMeta):
         if end < start:
             raise ValueError("`end` cannot be before `start`.")
         self.start, self.end, self.payment = start, end, payment
-        self.frequency = frequency.upper()
-        self.notional = _drb(defaults.notional, notional)
-        self.currency = _drb(defaults.base_currency, currency).lower()
-        self.convention = _drb(defaults.convention, convention)
+        self.frequency: str = frequency.upper()
+        self.notional: float = _drb(defaults.notional, notional)
+        self.currency: str = _drb(defaults.base_currency, currency).lower()
+        self.convention: str = _drb(defaults.convention, convention)
         self.termination = termination
         self.freq_months = defaults.frequency_months[self.frequency]
-        self.stub = stub
-        self.roll = roll
-        self.calendar = calendar
+        self.stub: bool = stub
+        self.roll: int | str | NoInput = roll
+        self.calendar: CalInput = calendar
 
     def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
@@ -2179,7 +2179,7 @@ class FloatPeriod(BasePeriod):
         self,
         fore_curve: Curve,
         disc_curve: Curve
-    ) -> tuple[Number, Number]:
+    ) -> tuple[DualTypes, DualTypes]:
         """
         For use in the Leg._spread calculation get the 'a' and 'b' coefficients
         """
@@ -2197,7 +2197,8 @@ class FloatPeriod(BasePeriod):
             d2rdz2: Number = d * (n - 1) * (1 + (r / 100 + z / 10000) * d) ** (n - 2) / 1e8
             drdz: Number = (1 + (r / 100 + z / 10000) * d) ** (n - 1) / 1e4
             Nvd = -self.notional * disc_curve[self.payment] * self.dcf
-            a, b = 0.5 * Nvd * d2rdz2, Nvd * drdz
+            a: DualTypes = 0.5 * Nvd * d2rdz2
+            b: DualTypes = Nvd * drdz
         elif self.spread_compound_method == "isda_flat_compounding":
             # d2rdz2 = 0.0
             drdz = (1 + comb(n, 2) / n * r / 100 * d + comb(n, 3) / n * (r / 100 * d) ** 2) / 1e4
@@ -2401,7 +2402,7 @@ class CreditPremiumPeriod(BasePeriod):
 
     def cashflows(
         self,
-        curve: Curve | dict[str, Curve] | NoInput = NoInput(0),
+        curve: Curve | NoInput = NoInput(0),  # type: ignore[override]
         disc_curve: Curve | NoInput = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -2414,7 +2415,8 @@ class CreditPremiumPeriod(BasePeriod):
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
         if not isinstance(curve, NoInput) and not isinstance(disc_curve, NoInput):
-            npv = _dual_float(self.npv(curve, disc_curve))
+            npv_: DualTypes = self.npv(curve, disc_curve)  # type: ignore[assignment]
+            npv = _dual_float(npv_)
             npv_fx = npv * _dual_float(fx)
             survival = _dual_float(curve[self.end])
         else:
@@ -2422,9 +2424,9 @@ class CreditPremiumPeriod(BasePeriod):
 
         return {
             **super().cashflows(curve, disc_curve, fx, base),
-            defaults.headers["rate"]: _dual_float(self.fixed_rate),
+            defaults.headers["rate"]: None if isinstance(self.fixed_rate, NoInput) else _dual_float(self.fixed_rate),
             defaults.headers["survival"]: survival,
-            defaults.headers["cashflow"]: _dual_float(self.cashflow),
+            defaults.headers["cashflow"]: None if self.cashflow is None else _dual_float(self.cashflow),
             defaults.headers["npv"]: npv,
             defaults.headers["fx"]: _dual_float(fx),
             defaults.headers["npv_fx"]: npv_fx,
@@ -2477,15 +2479,15 @@ class CreditProtectionPeriod(BasePeriod):
 
     def __init__(
         self,
-        *args,
+        *args: Any,
         recovery_rate: DualTypes | NoInput = NoInput(0),
         discretization: int | NoInput = NoInput(0),
-        **kwargs,
-    ):
-        self.recovery_rate = _drb(defaults.cds_recovery_rate, recovery_rate)
+        **kwargs: Any,
+    ) -> None:
+        self.recovery_rate: DualTypes = _drb(defaults.cds_recovery_rate, recovery_rate)
         if self.recovery_rate < 0.0 and self.recovery_rate > 1.0:
             raise ValueError("`recovery_rate` value must be in [0.0, 1.0]")
-        self.discretization = _drb(defaults.cds_protection_discretization, discretization)
+        self.discretization: int = _drb(defaults.cds_protection_discretization, discretization)
         super().__init__(*args, **kwargs)
 
     @property
@@ -2518,7 +2520,9 @@ class CreditProtectionPeriod(BasePeriod):
         else:
             s2 = self.start
 
-        value, q2, v2 = 0.0, curve[s2], disc_curve[s2]
+        value: DualTypes = 0.0
+        q2: DualTypes = curve[s2]
+        v2: DualTypes = disc_curve[s2]
         while s2 < self.end:
             q1, v1 = q2, v2
             s2 = s2 + timedelta(days=self.discretization)
@@ -2547,11 +2551,11 @@ class CreditProtectionPeriod(BasePeriod):
 
     def cashflows(
         self,
-        curve: Curve | dict | NoInput = NoInput(0),
+        curve: Curve | NoInput = NoInput(0),  # type: ignore[override]
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
-    ):
+    ) -> dict[str, Any]:
         """
         Return the cashflows of the *CreditProtectionPeriod*.
         See
@@ -2560,7 +2564,8 @@ class CreditProtectionPeriod(BasePeriod):
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
         if not isinstance(curve, NoInput) and not isinstance(disc_curve, NoInput):
-            npv = _dual_float(self.npv(curve, disc_curve))
+            npv_: DualTypes = self.npv(curve, disc_curve)  # type: ignore[assignment]
+            npv = _dual_float(npv_)
             npv_fx = npv * _dual_float(fx)
             survival = _dual_float(curve[self.end])
         else:
@@ -2598,9 +2603,9 @@ class CreditProtectionPeriod(BasePeriod):
             self.recovery_rate = Variable(rr.real, ["__recovery_rate__"])
         else:
             self.recovery_rate = Variable(_dual_float(rr), ["__recovery_rate__"])
-        pv = self.npv(curve, disc_curve, fx, base, False)
+        pv: Dual | Dual2 | Variable = self.npv(curve, disc_curve, fx, base, False)  # type: ignore[assignment]
         self.recovery_rate = rr
-        _ = _dual_float(gradient(pv, ["__recovery_rate__"], order=1)[0])
+        _: float = _dual_float(gradient(pv, ["__recovery_rate__"], order=1)[0])
         return _ * 0.01
 
 
@@ -2674,16 +2679,16 @@ class Cashflow:
         self.notional, self.payment = notional, payment
         self.currency = _drb(defaults.base_currency, currency).lower()
         self.stub_type = stub_type
-        self._rate = rate if isinstance(rate, NoInput) else _dual_float(rate)
+        self._rate: float | NoInput = rate if isinstance(rate, NoInput) else _dual_float(rate)
 
     def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
-    def rate(self) -> DualTypes | None:
+    def rate(self) -> float | None:
         """
         Return the associated rate initialised with the *Cashflow*. Not used for calculations.
         """
-        return self._rate
+        return None if isinstance(self._rate, NoInput) else self._rate
 
     def npv(
         self,
@@ -2692,16 +2697,14 @@ class Cashflow:
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
-    ) -> DualTypes:
+    ) -> DualTypes | dict[str, DualTypes]:
         """
         Return the NPV of the *Cashflow*.
         See
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
-        disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
-        if not isinstance(disc_curve, Curve) and isinstance(curve, NoInput):
-            raise TypeError("`curves` have not been supplied correctly.")
-        value = self.cashflow * disc_curve_[self.payment]
+        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
+        value: DualTypes = self.cashflow * disc_curve_[self.payment]
         return _maybe_local(value, local, self.currency, fx, base)
 
     def cashflows(
@@ -2710,20 +2713,21 @@ class Cashflow:
         disc_curve: Curve | NoInput = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Return the cashflows of the *Cashflow*.
         See
         :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
         """
         disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
-        fx, base = _get_fx_and_base(self.currency, fx, base)
+        fx_, _ = _get_fx_and_base(self.currency, fx, base)
 
         if isinstance(disc_curve_, NoInput):
             npv, npv_fx, df, collateral = None, None, None, None
         else:
-            npv = _dual_float(self.npv(curve, disc_curve_))
-            npv_fx = npv * _dual_float(fx)
+            npv_: DualTypes = self.npv(curve, disc_curve_)  # type: ignore[assignment]
+            npv = _dual_float(npv_)
+            npv_fx = npv * _dual_float(fx_)
             df, collateral = _dual_float(disc_curve_[self.payment]), disc_curve_.collateral
 
         try:
@@ -2748,13 +2752,13 @@ class Cashflow:
             # defaults.headers["spread"]: None,
             defaults.headers["cashflow"]: cashflow_,
             defaults.headers["npv"]: npv,
-            defaults.headers["fx"]: _dual_float(fx),
+            defaults.headers["fx"]: _dual_float(fx_),
             defaults.headers["npv_fx"]: npv_fx,
             defaults.headers["collateral"]: collateral,
         }
 
     @property
-    def cashflow(self):
+    def cashflow(self) -> float:
         return -self.notional
 
     def analytic_delta(
@@ -2782,12 +2786,18 @@ class IndexMixin(metaclass=ABCMeta):
     Abstract base class to include methods and properties related to indexed *Periods*.
     """
 
-    index_base: float | Series | NoInput = NoInput(0)
+    index_base: DualTypes | NoInput = NoInput(0)
     index_method: str = ""
-    index_fixings: float | Series | NoInput = NoInput(0)
+    index_fixings: float | Series[float] | NoInput = NoInput(0)
     index_lag: int | NoInput = NoInput(0)
+    index_only: bool = False
     payment: datetime = datetime(1990, 1, 1)
     currency: str = ""
+
+    @property
+    @abstractmethod
+    def real_cashflow(self) -> DualTypes | None:
+        pass  # pragma: no cover
 
     def cashflow(self, curve: Curve | NoInput = NoInput(0)) -> DualTypes | None:
         """
@@ -2796,16 +2806,17 @@ class IndexMixin(metaclass=ABCMeta):
         """
         if self.real_cashflow is None:
             return None
-        index_ratio, _, _ = self.index_ratio(curve)
-        if index_ratio is None:
-            return None
         else:
-            if self.index_only:
-                _ = -1.0
+            index_ratio, _, _ = self.index_ratio(curve)
+            if index_ratio is None:
+                return None
             else:
-                _ = 0.0
-            _ = self.real_cashflow * (index_ratio + _)
-        return _
+                if self.index_only:
+                    notional_ = -1.0
+                else:
+                    notional_ = 0.0
+                ret: DualTypes = self.real_cashflow * (index_ratio + notional_)
+            return ret
 
     def index_ratio(self, curve: Curve | NoInput = NoInput(0)) -> tuple:
         """
@@ -2933,11 +2944,6 @@ class IndexMixin(metaclass=ABCMeta):
         value = self.cashflow(curve) * disc_curve_[self.payment]
         return _maybe_local(value, local, self.currency, fx, base)
 
-    @property
-    @abstractmethod
-    def real_cashflow(self):
-        pass  # pragma: no cover
-
 
 class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
     """
@@ -3028,7 +3034,6 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
         #     raise ValueError("`index_base` cannot be None.")
         self.index_base = index_base
         self.index_fixings = index_fixings
-        self.index_only = False
         self.index_method = (
             defaults.index_method if isinstance(index_method, NoInput) else index_method.lower()
         )
@@ -3193,7 +3198,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         self,
         *args,
         index_base: float,
-        index_fixings: float | Series | NoInput = NoInput(0),
+        index_fixings: float | Series[float] | NoInput = NoInput(0),
         index_method: str | NoInput = NoInput(0),
         index_lag: int | NoInput = NoInput(0),
         index_only: bool = False,

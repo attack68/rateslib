@@ -3081,7 +3081,7 @@ def average_rate(
     """
     d: float = _DCF1d[convention.upper()]
     n: int = (termination - effective).days
-    _: DualTypes = ((1 + n * d * rate / 100) ** (1 / n) - 1) / d
+    _: Number = ((1 + n * d * rate / 100) ** (1 / n) - 1) / d
     return _ * 100, d, n
 
 
