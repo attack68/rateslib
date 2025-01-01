@@ -1818,7 +1818,7 @@ class FloatPeriod(BasePeriod):
             if self.stub:
                 # then must perform an interpolated calculation
                 return self._ibor_stub_fixings_table(curve, disc_curve, right, risk)
-            else: # not self.stub:
+            else:  # not self.stub:
                 # then extract the one relevant curve from dict
                 curve_: Curve = _get_ibor_curve_from_dict(self.freq_months, curve)
         else:
@@ -1990,7 +1990,9 @@ class FloatPeriod(BasePeriod):
         if self.fixing_method in ["rfr_lockout", "rfr_lockout_avg"]:
             rates_dual.iloc[-self.method_param :] = rates_dual.iloc[-self.method_param - 1]
         if "avg" in self.fixing_method:
-            rate: Dual = self._rate_rfr_avg_with_spread(rates_dual.to_numpy(), d["dcf_vals"].to_numpy())  # type: ignore[assignment]
+            rate: Dual = self._rate_rfr_avg_with_spread(
+                rates_dual.to_numpy(), d["dcf_vals"].to_numpy()
+            )  # type: ignore[assignment]
         else:
             rate = self._rate_rfr_isda_compounded_with_spread(  # type: ignore[assignment]
                 rates_dual.to_numpy(), d["dcf_vals"].to_numpy()
@@ -2101,7 +2103,7 @@ class FloatPeriod(BasePeriod):
         return start_obs, end_obs, start_dcf, end_dcf
 
     def _get_method_dcf_markers(
-        self, calendar: CalTypes, convention: str, exposure: bool =False
+        self, calendar: CalTypes, convention: str, exposure: bool = False
     ) -> tuple[
         Series[datetime],
         Series[datetime],
@@ -2176,9 +2178,7 @@ class FloatPeriod(BasePeriod):
         return obs_dates, dcf_dates, dcf_vals, obs_vals  # type: ignore[return-value]
 
     def _get_analytic_delta_quadratic_coeffs(
-        self,
-        fore_curve: Curve,
-        disc_curve: Curve
+        self, fore_curve: Curve, disc_curve: Curve
     ) -> tuple[DualTypes, DualTypes]:
         """
         For use in the Leg._spread calculation get the 'a' and 'b' coefficients
@@ -2424,9 +2424,13 @@ class CreditPremiumPeriod(BasePeriod):
 
         return {
             **super().cashflows(curve, disc_curve, fx, base),
-            defaults.headers["rate"]: None if isinstance(self.fixed_rate, NoInput) else _dual_float(self.fixed_rate),
+            defaults.headers["rate"]: None
+            if isinstance(self.fixed_rate, NoInput)
+            else _dual_float(self.fixed_rate),
             defaults.headers["survival"]: survival,
-            defaults.headers["cashflow"]: None if self.cashflow is None else _dual_float(self.cashflow),
+            defaults.headers["cashflow"]: None
+            if self.cashflow is None
+            else _dual_float(self.cashflow),
             defaults.headers["npv"]: npv,
             defaults.headers["fx"]: _dual_float(fx),
             defaults.headers["npv_fx"]: npv_fx,
