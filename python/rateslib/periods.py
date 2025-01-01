@@ -329,7 +329,7 @@ class BasePeriod(metaclass=ABCMeta):
         """  # noqa: E501
         disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
         fx_, _ = _get_fx_and_base(self.currency, fx, base)
-        ret: DualTypes = fx_ * self.notional * self.dcf * disc_curve_[self.payment] / 10000
+        ret: DualTypes = fx_ * self.notional * self.dcf * disc_curve_[self.payment] * 0.0001
         return ret
 
     @abstractmethod
@@ -518,7 +518,7 @@ class FixedPeriod(BasePeriod):
         if isinstance(self.fixed_rate, NoInput):
             return None
         else:
-            _: DualTypes = -self.notional * self.dcf * self.fixed_rate / 100
+            _: DualTypes = -self.notional * self.dcf * self.fixed_rate * 0.01
             return _
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -1006,7 +1006,7 @@ class FloatPeriod(BasePeriod):
                 return {self.currency: 0.0}
             else:
                 return 0.0  # payment date is in the past avoid issues with fixings or rates
-        value = self.rate(curve) / 100 * self.dcf * disc_curve_[self.payment] * -self.notional
+        value = self.rate(curve) * 0.01 * self.dcf * disc_curve_[self.payment] * -self.notional
 
         return _maybe_local(value, local, self.currency, fx, base)
 
@@ -1026,7 +1026,7 @@ class FloatPeriod(BasePeriod):
         """
         curve = NoInput(0) if curve is None else curve  # backwards compat
         try:
-            _: DualTypes = -self.notional * self.dcf * self.rate(curve) / 100
+            _: DualTypes = -self.notional * self.dcf * self.rate(curve) * 0.01
             return _
         except ValueError as e:
             if isinstance(curve, Curve | dict):
@@ -1102,13 +1102,13 @@ class FloatPeriod(BasePeriod):
     def _rate_ibor(self, curve: Curve | dict[str, Curve] | NoInput) -> DualTypes:
         # function will try to forecast a rate without a `curve` when fixings are available.
         if isinstance(self.fixings, float | Dual | Dual2 | Variable):
-            return self.fixings + self.float_spread / 100
+            return self.fixings + self.float_spread * 0.01
         elif isinstance(self.fixings, Series):
             # check if we return published IBOR rate
             cal_, _ = self._maybe_get_cal_and_conv_from_curve(curve)
             fixing_date = cal_.lag(self.start, -self.method_param, False)
             try:
-                return self.fixings[fixing_date] + self.float_spread / 100
+                return self.fixings[fixing_date] + self.float_spread * 0.01
             except KeyError:
                 warnings.warn(
                     "A FloatPeriod `fixing date` was not found in the given `fixings` Series.\n"
@@ -1141,14 +1141,14 @@ class FloatPeriod(BasePeriod):
 
     def _rate_ibor_from_df_curve(self, curve: Curve) -> DualTypes:
         if self.stub:
-            r = curve._rate_with_raise(self.start, self.end) + self.float_spread / 100
+            r = curve._rate_with_raise(self.start, self.end) + self.float_spread * 0.01
         else:
-            r = curve._rate_with_raise(self.start, f"{self.freq_months}m") + self.float_spread / 100
+            r = curve._rate_with_raise(self.start, f"{self.freq_months}m") + self.float_spread * 0.01
         return r
 
     def _rate_ibor_from_line_curve(self, curve: Curve) -> DualTypes:
         fixing_date = curve.calendar.lag(self.start, -self.method_param, False)
-        return curve[fixing_date] + self.float_spread / 100
+        return curve[fixing_date] + self.float_spread * 0.01
 
     def _rate_ibor_interpolated_ibor_from_dict(self, curve: dict[str, Curve]) -> DualTypes:
         """
@@ -1203,7 +1203,7 @@ class FloatPeriod(BasePeriod):
                 )
 
             # this ignores spread_compound_type
-            return self.fixings + self.float_spread / 100
+            return self.fixings + self.float_spread * 0.01
 
             # else next calculations made based on fixings in (None, list, Series)
         elif isinstance(self.fixings, Series | list) or isinstance(curve, NoInput):
@@ -1228,11 +1228,11 @@ class FloatPeriod(BasePeriod):
             # This is bad construct
             return self._rfr_rate_from_individual_fixings(curve)
         elif self.fixing_method == "rfr_payment_delay" and not self._is_inefficient:
-            return curve._rate_with_raise(self.start, self.end) + self.float_spread / 100
+            return curve._rate_with_raise(self.start, self.end) + self.float_spread * 0.01
         elif self.fixing_method == "rfr_observation_shift" and not self._is_inefficient:
             start = curve.calendar.lag(self.start, -self.method_param, settlement=False)
             end = curve.calendar.lag(self.end, -self.method_param, settlement=False)
-            return curve._rate_with_raise(start, end) + self.float_spread / 100
+            return curve._rate_with_raise(start, end) + self.float_spread * 0.01
             # TODO: (low:perf) semi-efficient method for lockout under certain conditions
         else:
             # return inefficient calculation
@@ -1267,7 +1267,7 @@ class FloatPeriod(BasePeriod):
                 "`spread_compound` method must be 'none_simple' in an RFR averaging " "period.",
             )
         else:
-            _: DualTypes = (dcf_vals * rates).sum() / dcf_vals.sum() + self.float_spread / 100
+            _: DualTypes = (dcf_vals * rates).sum() / dcf_vals.sum() + self.float_spread * 0.01
             return _
 
     def _rate_rfr_isda_compounded_with_spread(
@@ -1292,23 +1292,23 @@ class FloatPeriod(BasePeriod):
         # dcf_vals = dcf_vals.set_axis(rates.index)
         if self.float_spread == 0 or self.spread_compound_method == "none_simple":
             _: DualTypes = (
-                (1 + dcf_vals * rates / 100).prod() - 1
-            ) * 100 / dcf_vals.sum() + self.float_spread / 100
+                (1 + dcf_vals * rates * 0.01).prod() - 1
+            ) * 100 / dcf_vals.sum() + self.float_spread * 0.01
             return _
         elif self.spread_compound_method == "isda_compounding":
             _ = (
-                ((1 + dcf_vals * (rates / 100 + self.float_spread / 10000)).prod() - 1)
+                ((1 + dcf_vals * (rates * 0.01 + self.float_spread * 0.0001)).prod() - 1)
                 * 100
                 / dcf_vals.sum()
             )
             return _
         elif self.spread_compound_method == "isda_flat_compounding":
-            sub_cashflows = (rates / 100 + self.float_spread / 10000) * dcf_vals
+            sub_cashflows = (rates * 0.01 + self.float_spread * 0.0001) * dcf_vals
             C_i = 0.0
             for i in range(1, len(sub_cashflows)):
                 C_i += sub_cashflows[i - 1]
-                sub_cashflows[i] += C_i * rates[i] / 100 * dcf_vals[i]
-            _ = sub_cashflows.sum() * 100 / dcf_vals.sum()
+                sub_cashflows[i] += C_i * rates[i] * 0.01 * dcf_vals[i]
+            _ = sub_cashflows.sum() * 100.0 / dcf_vals.sum()
             return _
         else:
             # this path not generally hit due to validation at initialisation
@@ -1734,18 +1734,18 @@ class FloatPeriod(BasePeriod):
                 rate,
             )
             # approximate sensitivity to each fixing
-            z = self.float_spread / 10000
+            z = self.float_spread * 0.0001
             if "avg" in self.fixing_method:
                 drdri = 1 / n
             elif self.spread_compound_method == "none_simple":
-                drdri = (1 / n) * (1 + (r_bar / 100) * d) ** (n - 1)
+                drdri = (1 / n) * (1 + (r_bar * 0.01) * d) ** (n - 1)
             elif self.spread_compound_method == "isda_compounding":
-                drdri = (1 / n) * (1 + (r_bar / 100 + z) * d) ** (n - 1)
+                drdri = (1 / n) * (1 + (r_bar * 0.01 + z) * d) ** (n - 1)
             elif self.spread_compound_method == "isda_flat_compounding":
-                dr = d * r_bar / 100
+                dr = d * r_bar * 0.01
                 drdri = (1 / n) * (
                     ((1 / n) * (comb(n, 1) + comb(n, 2) * dr + comb(n, 3) * dr**2))
-                    + ((r_bar / 100 + z) / n) * (comb(n, 2) * d + 2 * comb(n, 3) * dr * d)
+                    + ((r_bar * 0.01 + z) / n) * (comb(n, 2) * d + 2 * comb(n, 3) * dr * d)
                 )
 
             v = _dual_float(disc_curve[self.payment])
@@ -2176,13 +2176,13 @@ class FloatPeriod(BasePeriod):
         # approximate sensitivity to each fixing
         z = 0.0 if self.float_spread is None else self.float_spread
         if self.spread_compound_method == "isda_compounding":
-            d2rdz2 = d * (n - 1) * (1 + (r / 100 + z / 10000) * d) ** (n - 2) / 1e8
-            drdz = (1 + (r / 100 + z / 10000) * d) ** (n - 1) / 1e4
+            d2rdz2 = d * (n - 1) * (1 + (r * 0.01 + z * 0.0001) * d) ** (n - 2) / 1e8
+            drdz = (1 + (r * 0.01 + z * 0.0001) * d) ** (n - 1) / 1e4
             Nvd = -self.notional * disc_curve[self.payment] * self.dcf
             a, b = 0.5 * Nvd * d2rdz2, Nvd * drdz
         elif self.spread_compound_method == "isda_flat_compounding":
             # d2rdz2 = 0.0
-            drdz = (1 + comb(n, 2) / n * r / 100 * d + comb(n, 3) / n * (r / 100 * d) ** 2) / 1e4
+            drdz = (1 + comb(n, 2) / n * r * 0.01 * d + comb(n, 3) / n * (r * 0.01 * d) ** 2) / 1e4
             Nvd = -self.notional * disc_curve[self.payment] * self.dcf
             a, b = 0.0, Nvd * drdz
 
@@ -3045,7 +3045,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
         if isinstance(self.fixed_rate, NoInput):
             return None
         else:
-            return -self.notional * self.dcf * self.fixed_rate / 100
+            return -self.notional * self.dcf * self.fixed_rate * 0.01
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -3416,7 +3416,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 t_e=self._t_to_expiry(disc_curve_ccy2.node_dates[0]),
                 v1=None,  # not required: disc_curve[self.expiry],
                 v2=disc_curve_ccy2[self.delivery],
-                vol=vol_ / 100.0,
+                vol=vol_ * 0.01,
                 phi=self.phi,  # controls calls or put price
             )
             value *= self.notional
@@ -3905,7 +3905,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         -------
         float, Dual or Dual2
         """
-        _ = dual_exp((vol / 100.0) ** 2 * t_e / 2.0)
+        _ = dual_exp((vol * 0.01) ** 2 * t_e / 2.0)
         return _
 
     def _moneyness_from_delta_closed_form(
@@ -3937,7 +3937,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         -------
         float, Dual or Dual2
         """
-        vol_sqrt_t = vol * t_e**0.5 / 100.0
+        vol_sqrt_t = vol * t_e**0.5 * 0.01
         _ = dual_inv_norm_cdf(self.phi * delta / z_w_0)
         _ = dual_exp(vol_sqrt_t * (0.5 * vol_sqrt_t - self.phi * _))
         return _
@@ -3959,10 +3959,10 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
             delta_idx = z_w_1 * z_u_0 / 2.0
             if isinstance(vol, FXDeltaVolSmile):
-                vol_ = vol[delta_idx] / 100.0
-                dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
+                vol_ = vol[delta_idx] * 0.01
+                dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) * 0.01
             else:
-                vol_ = vol / 100.0
+                vol_ = vol * 0.01
                 dvol_ddeltaidx = 0.0
             vol_ = _dual_float(vol_) if ad == 0 else vol_
             dvol_ddeltaidx = _dual_float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
@@ -4023,10 +4023,10 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
             delta_idx = (-z_w_1 / z_w_0) * (delta - z_w_0 * z_u_0 * (phi + 1.0) * 0.5)
             if isinstance(vol, FXDeltaVolSmile):
-                vol_ = vol[delta_idx] / 100.0
-                dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
+                vol_ = vol[delta_idx] * 0.01
+                dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) * 0.01
             else:
-                vol_ = vol / 100.0
+                vol_ = vol * 0.01
                 dvol_ddeltaidx = 0.0
             vol_ = _dual_float(vol_) if ad == 0 else vol_
             dvol_ddeltaidx = _dual_float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
@@ -4097,7 +4097,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             dz_u_0_du = 0.5 - eta_0
             dz_u_1_du = 0.5 - eta_1
 
-            vol_ = vol[delta_idx] / 100.0
+            vol_ = vol[delta_idx] * 0.01
             vol_ = _dual_float(vol_) if ad == 0 else vol_
             vol_sqrt_t = vol_ * sqrt_t_e
 
@@ -4111,7 +4111,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             f0_1 = delta_idx - z_w_1 * z_u_1 * _phi1
 
             # Calculate Jacobian values
-            dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
+            dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) * 0.01
             dvol_ddeltaidx = _dual_float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
 
             dd_du = -1 / (u * vol_sqrt_t)
@@ -4172,7 +4172,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             dz_u_0_du = 0.5 - eta_0
             dz_u_1_du = 0.5 - eta_1
 
-            vol_ = vol[delta_idx] / 100.0
+            vol_ = vol[delta_idx] * 0.01
             vol_ = _dual_float(vol_) if ad == 0 else vol_
             vol_sqrt_t = vol_ * sqrt_t_e
 
@@ -4186,7 +4186,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             f0_1 = delta_idx - z_w_1 * z_u_1 * _phi1
 
             # Calculate Jacobian values
-            dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
+            dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) * 0.01
             dvol_ddeltaidx = _dual_float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
 
             dd_du = -1 / (u * vol_sqrt_t)
@@ -4239,10 +4239,10 @@ class FXOptionPeriod(metaclass=ABCMeta):
             dz_u_1_du = 0.5 - eta_1
 
             if isinstance(vol, FXDeltaVolSmile):
-                vol_ = vol[delta_idx] / 100.0
-                dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
+                vol_ = vol[delta_idx] * 0.01
+                dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) * 0.01
             else:
-                vol_ = vol / 100.0
+                vol_ = vol * 0.01
                 dvol_ddeltaidx = 0.0
             vol_ = _dual_float(vol_) if ad == 0 else vol_
             vol_sqrt_t = vol_ * sqrt_t_e
