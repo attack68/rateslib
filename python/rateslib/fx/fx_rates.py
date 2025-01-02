@@ -205,7 +205,7 @@ class FXRates(_WithState):
     def _ad(self) -> int:
         return self.obj.ad
 
-    def rate(self, pair: str) -> Number:
+    def rate(self, pair: str, *args: Any, **kwargs: Any) -> Number:
         """
         Return a specified FX rate for a given currency pair.
 
@@ -213,6 +213,9 @@ class FXRates(_WithState):
         ----------
         pair : str
             The FX pair in usual domestic:foreign convention (6 digit code).
+        args
+            No used. Only implemented to match signature of
+            :class:`FXForwards.rate() <rateslib.fx.FXForwards.rate>`
 
         Returns
         -------

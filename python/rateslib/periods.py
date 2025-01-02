@@ -3391,6 +3391,16 @@ class FXOptionPeriod(metaclass=ABCMeta):
         # TODO: (low-perf) get_vol is called twice for same value, once in npv and once for output
         # This method should not be called to get values used in later calculations becuase it
         # is not efficient. Prefer other ways to get values, i.e. by direct calculation calls.
+        if isinstance(fx, FXRates | FXForwards):
+            fx_forward: float | None = _dual_float(fx.rate(self.pair, self.delivery))
+        else:
+            fx_forward = None
+
+        if isinstance(vol, NoInput) or not isinstance(fx, FXForwards):
+            vol_: float | None = None
+        else:
+            vol_ = _dual_float(self._get_vol_maybe_from_obj(vol, fx, disc_curve))
+
         return {
             defaults.headers["type"]: type(self).__name__,
             defaults.headers["stub_type"]: "Optionality",
@@ -3399,9 +3409,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
             defaults.headers["expiry"]: self.expiry,
             defaults.headers["t_e"]: _dual_float(self._t_to_expiry(disc_curve_ccy2.node_dates[0])),
             defaults.headers["delivery"]: self.delivery,
-            defaults.headers["rate"]: _dual_float(fx.rate(self.pair, self.delivery)),
+            defaults.headers["rate"]: fx_forward,
             defaults.headers["strike"]: self.strike,
-            defaults.headers["vol"]: _dual_float(self._get_vol_maybe_from_obj(vol, fx, disc_curve)),
+            defaults.headers["vol"]: vol_,
             defaults.headers["model"]: "Black76",
             defaults.headers["payment"]: self.payment,
             defaults.headers["currency"]: self.currency.upper(),
@@ -3459,6 +3469,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         else:
             # value is expressed in currency (i.e. pair[3:])
+            if not isinstance(fx, FXForwards):
+                raise ValueError("`fx` must be an FXForwards class for FXOption valuation.")
             vol_ = self._get_vol_maybe_from_obj(vol, fx, disc_curve)
 
             value = _black76(
