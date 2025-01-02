@@ -2823,9 +2823,9 @@ class IndexMixin(metaclass=ABCMeta):
                 ret: DualTypes = self.real_cashflow * (index_ratio + notional_)
             return ret
 
-    def index_ratio(self, curve: Curve | NoInput = NoInput(0)) -> (
-            tuple[DualTypes | None, DualTypes | None, DualTypes | None]
-    ):
+    def index_ratio(
+        self, curve: Curve | NoInput = NoInput(0)
+    ) -> tuple[DualTypes | None, DualTypes | None, DualTypes | None]:
         """
         Calculate the index ratio for the end date of the *IndexPeriod*.
 
@@ -2901,16 +2901,17 @@ class IndexMixin(metaclass=ABCMeta):
 
         Returns
         -------
-        float, Dual, Dual2
+        float, Dual, Dual2, Variable or None
         """
         if isinstance(i_date, NoInput):
-            if not isinstance(i_fixings, (Series, NoInput)):
+            if not isinstance(i_fixings, Series | NoInput):
                 # i_fixings is a given value, probably aligned with an ``index_base``
                 return i_fixings
             else:
                 # internal method so this line should never be hit
                 raise ValueError(
-                    "Must supply an `i_date` from which to forecast.")  # pragma: no cover
+                    "Must supply an `i_date` from which to forecast."
+                )  # pragma: no cover
         else:
             if isinstance(i_fixings, NoInput):
                 return IndexMixin._index_value_from_curve(i_date, i_curve, i_lag, i_method)
@@ -2925,7 +2926,7 @@ class IndexMixin(metaclass=ABCMeta):
 
                 if i_date > unavailable_date:
                     if isinstance(i_curve, NoInput):
-                        return None
+                        return None  # NoInput(0)
                     else:
                         return IndexMixin._index_value_from_curve(i_date, i_curve, i_lag, i_method)
                     # raise ValueError(
@@ -2962,7 +2963,8 @@ class IndexMixin(metaclass=ABCMeta):
         if cf_ is None:
             raise ValueError(
                 "`cashflow` could not be determined. Is `curve` or `index_fixings` "
-                "supplied correctly?")
+                "supplied correctly?"
+            )
         value = cf_ * disc_curve_[self.payment]
         return _maybe_local(value, local, self.currency, fx, base)
 
@@ -3046,8 +3048,8 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
     def __init__(
         self,
         *args: Any,
-        index_base: DualTypes | Series[DualTypes] | NoInput = NoInput(0),
-        index_fixings: DualTypes | Series[DualTypes] | NoInput = NoInput(0),
+        index_base: DualTypes | NoInput = NoInput(0),
+        index_fixings: DualTypes | Series[DualTypes] | NoInput = NoInput(0),  # type: ignore[type-var]
         index_method: str | NoInput = NoInput(0),
         index_lag: int | NoInput = NoInput(0),
         **kwargs: Any,
@@ -3070,18 +3072,22 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
         disc_curve: Curve | NoInput = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
-    ):
+    ) -> DualTypes:
         """
         Return the analytic delta of the *IndexFixedPeriod*.
         See :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
         """
         real_a_delta = super().analytic_delta(curve, disc_curve, fx, base)
         index_ratio, _, _ = self.index_ratio(curve)
-        _ = None if index_ratio is None else real_a_delta * index_ratio
-        return _
+        if index_ratio is None:
+            raise ValueError(
+                "`index_ratio` is None. Must supply a `curve` or `index_fixings` to "
+                "forecast index values."
+            )
+        return real_a_delta * index_ratio
 
     @property
-    def real_cashflow(self):
+    def real_cashflow(self) -> DualTypes | None:
         """
         float, Dual or Dual2 : The calculated real value from rate, dcf and notional.
         """
@@ -3100,7 +3106,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
         disc_curve: Curve | NoInput = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
-    ):
+    ) -> dict[str, Any]:
         """
         Return the cashflows of the *IndexFixedPeriod*.
         See :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
@@ -3131,7 +3137,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
             defaults.headers["npv_fx"]: npv_fx,
         }
 
-    def npv(self, *args, **kwargs):
+    def npv(self, *args, **kwargs) -> DualTypes | dict[str, DualTypes]:
         """
         Return the cashflows of the *IndexFixedPeriod*.
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
@@ -3218,15 +3224,15 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
 
     def __init__(
         self,
-        *args,
+        *args: Any,
         index_base: float,
         index_fixings: float | Series[float] | NoInput = NoInput(0),
         index_method: str | NoInput = NoInput(0),
         index_lag: int | NoInput = NoInput(0),
         index_only: bool = False,
         end: datetime | NoInput = NoInput(0),
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         self.index_base = index_base
         self.index_fixings = index_fixings
         self.index_method = (
@@ -3238,7 +3244,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         self.end = self.payment if isinstance(end, NoInput) else end
 
     @property
-    def real_cashflow(self):
+    def real_cashflow(self) -> DualTypes:
         return -self.notional
 
     def cashflows(
@@ -3247,7 +3253,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         disc_curve: Curve | NoInput = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Return the cashflows of the *IndexCashflow*.
         See :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
