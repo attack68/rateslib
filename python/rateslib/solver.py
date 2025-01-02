@@ -4,7 +4,7 @@ import warnings
 from collections.abc import Callable
 from itertools import combinations
 from time import time
-from typing import Any
+from typing import Any, Sequence, ParamSpec
 from uuid import uuid4
 
 import numpy as np
@@ -14,12 +14,14 @@ from pandas.errors import PerformanceWarning
 from rateslib import defaults
 from rateslib.curves import CompositeCurve, MultiCsaCurve, ProxyCurve
 from rateslib.default import NoInput, _validate_states, _WithState
-from rateslib.dual import Dual, Dual2, dual_log, dual_solve, gradient
+from rateslib.dual import Dual, Dual2, dual_log, dual_solve, gradient, DualTypes
 from rateslib.fx import FXForwards, FXRates
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+P = ParamSpec("P")
 
 
 class Gradients:
@@ -2075,16 +2077,16 @@ def _float_if_not_string(x):
 
 
 def newton_1dim(
-    f,
-    g0,
-    max_iter=50,
-    func_tol=1e-14,
-    conv_tol=1e-9,
-    args=(),
-    pre_args=(),
-    final_args=(),
-    raise_on_fail=True,
-):
+    f: Callable[P, tuple[Any, Any]],
+    g0: DualTypes,
+    max_iter: int =50,
+    func_tol: float =1e-14,
+    conv_tol: float =1e-9,
+    args: tuple[Any, ...] =(),
+    pre_args: tuple[Any, ...] =(),
+    final_args: tuple[Any, ...] =(),
+    raise_on_fail: bool =True,
+) -> dict[str, Any]:
     """
     Use the Newton-Raphson algorithm to determine the root of a function searching **one** variable.
 
@@ -2218,16 +2220,16 @@ def newton_1dim(
 
 
 def newton_ndim(
-    f,
-    g0,
-    max_iter=50,
-    func_tol=1e-14,
-    conv_tol=1e-9,
-    args=(),
-    pre_args=(),
-    final_args=(),
-    raise_on_fail=True,
-) -> dict:
+    f: Callable[P, tuple[Any, Any]],
+    g0: Sequence[DualTypes],
+    max_iter: int =50,
+    func_tol: float = 1e-14,
+    conv_tol: float = 1e-9,
+    args: tuple[Any, ...] = (),
+    pre_args: tuple[Any, ...] = (),
+    final_args: tuple[Any, ...] = (),
+    raise_on_fail: bool = True,
+) -> dict[str, Any]:
     r"""
     Use the Newton-Raphson algorithm to determine a function root searching **many** variables.
 
@@ -2349,7 +2351,7 @@ STATE_MAP = {
 }
 
 
-def _solver_result(state: int, i: int, func_val: float, time: float, log: bool, algo: str):
+def _solver_result(state: int, i: int, func_val: float, time: float, log: bool, algo: str) -> dict[str, Any]:
     if log:
         print(
             f"{STATE_MAP[state][0]}: {STATE_MAP[state][1]} after {i} iterations "

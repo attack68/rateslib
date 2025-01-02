@@ -3391,7 +3391,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         # TODO: (low-perf) get_vol is called twice for same value, once in npv and once for output
         # This method should not be called to get values used in later calculations becuase it
         # is not efficient. Prefer other ways to get values, i.e. by direct calculation calls.
-        if isinstance(fx, FXRates | FXForwards):
+        if isinstance(fx, FXForwards):
             fx_forward: float | None = _dual_float(fx.rate(self.pair, self.delivery))
         else:
             fx_forward = None
@@ -3458,6 +3458,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
             # payment date is in the past avoid issues with fixings or rates
             return _maybe_local(0.0, local, self.currency, NoInput(0), NoInput(0))
 
+        if isinstance(self.strike, NoInput):
+            raise ValueError("FXOption must set a `strike` for valuation.")
+
         if not isinstance(self.option_fixing, NoInput):
             if self.kind == "call" and self.strike < self.option_fixing:
                 value = (self.option_fixing - self.strike) * self.notional
@@ -3477,7 +3480,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 F=fx.rate(self.pair, self.delivery),
                 K=self.strike,
                 t_e=self._t_to_expiry(disc_curve_ccy2.node_dates[0]),
-                v1=None,  # not required: disc_curve[self.expiry],
+                v1=NoInput(0),  # not required: disc_curve[self.expiry],
                 v2=disc_curve_ccy2[self.delivery],
                 vol=vol_ / 100.0,
                 phi=self.phi,  # controls calls or put price
@@ -3521,7 +3524,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         -------
         float, Dual, Dual2 or dict of such.
         """
-        npv = self.npv(
+        npv: DualTypes = self.npv(  # type: ignore[assignment]
             disc_curve,
             disc_curve_ccy2,
             fx,
@@ -3541,6 +3544,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
             points_premium = (npv / disc_curve_ccy2[self.payment]) / self.notional
             return points_premium * 10000.0
         elif metric_ == "percent":
+            if not isinstance(fx, FXForwards):
+                raise ValueError("`fx` must be an FXForwards class for FXOption valuation.")
             currency_premium = (npv / disc_curve_ccy2[self.payment]) / fx.rate(
                 self.pair,
                 self.payment,
@@ -3553,12 +3558,10 @@ class FXOptionPeriod(metaclass=ABCMeta):
         self,
         disc_curve: Curve,
         disc_curve_ccy2: Curve,
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
-        local: bool = False,
-        premium: DualTypes | NoInput = NoInput(0),
+        fx: FXForwards,
+        premium: DualTypes,
         metric: str | NoInput = NoInput(0),
-    ):
+    ) -> Number:
         """
         Calculate the implied volatility of the FX option.
 
@@ -3568,12 +3571,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
             Not used by `implied_vol`.
         disc_curve_ccy2: Curve
             The discount *Curve* for the RHS currency.
-        fx: float, FXRates, FXForwards, optional
+        fx: FXForwards
             The object to project the currency pair FX rate at delivery.
-        base: str, optional
-            Not used by `implied_vol`.
-        local: bool,
-            Not used by `implied_vol`.
         premium: float, Dual, Dual2
             The premium value of the option paid at the appropriate payment date. Expressed
             either in *'pips'* or *'percent'* of notional. Must align with ``metric``.
@@ -3597,26 +3596,34 @@ class FXOptionPeriod(metaclass=ABCMeta):
         v2 = disc_curve_ccy2[self.delivery]
         f_d = fx.rate(self.pair, self.delivery)
 
-        def root(vol, f_d, k, t_e, v2, phi):
-            f0 = _black76(f_d, k, t_e, None, v2, vol, phi) * 10000.0 - imm_premium
+        def root(
+            vol: DualTypes,
+            f_d: DualTypes,
+            k: DualTypes,
+            t_e: float,
+            v2: DualTypes,
+            phi: float
+        ) -> tuple[DualTypes, DualTypes]:
+            f0 = _black76(f_d, k, t_e, NoInput(0), v2, vol, phi) * 10000.0 - imm_premium
             sqrt_t = t_e**0.5
             d_plus = _d_plus_min_u(k / f_d, vol * sqrt_t, 0.5)
             f1 = v2 * dual_norm_pdf(phi * d_plus) * f_d * sqrt_t * 10000.0
             return f0, f1
 
         result = newton_1dim(root, 0.10, args=(f_d, self.strike, t_e, v2, self.phi))
-        return result["g"] * 100.0
+        _: Number = result["g"] * 100.0
+        return _
 
     def analytic_greeks(
         self,
         disc_curve: Curve,
         disc_curve_ccy2: Curve,
-        fx: FXForwards | NoInput = NoInput(0),
+        fx: FXForwards,
         base: str | NoInput = NoInput(0),
         local: bool = False,
         vol: float | NoInput = NoInput(0),
         premium: DualTypes | NoInput = NoInput(0),  # expressed in the payment currency
-    ):
+    ) -> dict[str, Any]:
         r"""
         Return the different greeks for the *FX Option*.
 
@@ -3723,7 +3730,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         d_min = _d_plus_min_u(u, vol_sqrt_t, -0.5)
         _is_spot = "spot" in self.delta_type
 
-        _ = dict()
+        _: dict[str, Any] = dict()
         _["delta"] = self._analytic_delta(
             premium,
             "_pa" in self.delta_type,
@@ -4371,7 +4378,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
     def _get_vol_maybe_from_obj(
         self,
-        vol: FXVols | DualTypes,
+        vol: FXVols | DualTypes | NoInput,
         fx: FXForwards,
         disc_curve: Curve,
     ) -> DualTypes:
@@ -4385,6 +4392,10 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 disc_curve[self.delivery],
                 disc_curve[spot],
                 self.expiry,
+            )
+        elif isinstance(vol, NoInput):
+            raise ValueError(
+                "`vol` cannot be NoInput when provided to pricing function."
             )
         else:
             vol_ = vol

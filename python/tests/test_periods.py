@@ -94,10 +94,10 @@ def line_curve():
         ),
         FloatPeriod(dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 2, 1), frequency="m"),
         FXCallPeriod(
-            pair="eurusd", expiry=dt(2000, 1, 1), delivery=dt(2000, 1, 1), payment=dt(2000, 1, 1)
+            pair="eurusd", expiry=dt(2000, 1, 1), delivery=dt(2000, 1, 1), payment=dt(2000, 1, 1),
         ),
         FXPutPeriod(
-            pair="eurusd", expiry=dt(2000, 1, 1), delivery=dt(2000, 1, 1), payment=dt(2000, 1, 1)
+            pair="eurusd", expiry=dt(2000, 1, 1), delivery=dt(2000, 1, 1), payment=dt(2000, 1, 1),
         ),
     ],
 )
