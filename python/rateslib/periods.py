@@ -2771,13 +2771,13 @@ class Cashflow:
         disc_curve: Curve | None = None,
         fx: float | FXRates | FXForwards | None = None,
         base: str | None = None,
-    ) -> int:
+    ) -> DualTypes:
         """
         Return the analytic delta of the *Cashflow*.
         See
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
         """
-        return 0
+        return 0.0
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -3102,9 +3102,9 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
 
     def cashflows(
         self,
-        curve: Curve | NoInput = NoInput(0),
+        curve: Curve | NoInput = NoInput(0),  # type: ignore[override]
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> dict[str, Any]:
         """
@@ -3118,7 +3118,8 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
             npv = None
             npv_fx = None
         else:
-            npv = _dual_float(self.npv(curve, disc_curve_))
+            npv_: DualTypes = self.npv(curve, disc_curve_)  # type: ignore[assignment]
+            npv = _dual_float(npv_)
             npv_fx = npv * _dual_float(fx)
 
         index_ratio_, index_val_, index_base_ = self.index_ratio(curve)
@@ -3137,7 +3138,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
             defaults.headers["npv_fx"]: npv_fx,
         }
 
-    def npv(self, *args, **kwargs) -> DualTypes | dict[str, DualTypes]:
+    def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]:
         """
         Return the cashflows of the *IndexFixedPeriod*.
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
@@ -3226,7 +3227,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         self,
         *args: Any,
         index_base: float,
-        index_fixings: float | Series[float] | NoInput = NoInput(0),
+        index_fixings: DualTypes | Series[DualTypes] | NoInput = NoInput(0),  # type: ignore[type-var]
         index_method: str | NoInput = NoInput(0),
         index_lag: int | NoInput = NoInput(0),
         index_only: bool = False,
@@ -3269,14 +3270,14 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
             defaults.headers["cashflow"]: _float_or_none(self.cashflow(curve)),
         }
 
-    def npv(self, *args, **kwargs):
+    def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]:
         """
         Return the NPV of the *IndexCashflow*.
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
         return super().npv(*args, **kwargs)
 
-    def analytic_delta(self, *args, **kwargs) -> float:
+    def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
         """
         Return the analytic delta of the *IndexCashflow*.
         See
@@ -3318,8 +3319,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
     # https://www.researchgate.net/publication/275905055_A_Guide_to_FX_Options_Quoting_Conventions/
     style: str = "european"
-    kind: str = ...
-    phi: float = 0.0
+    kind: str
+    phi: float
 
     @abstractmethod
     def __init__(
@@ -3382,9 +3383,10 @@ class FXOptionPeriod(metaclass=ABCMeta):
         """
         fx_, base = _get_fx_and_base(self.currency, fx, base)
         df, collateral = _dual_float(disc_curve_ccy2[self.payment]), disc_curve_ccy2.collateral
-        npv = _dual_float(
-            self.npv(disc_curve, disc_curve_ccy2, fx, base, local=True, vol=vol)[self.currency],
-        )
+        npv_: dict[str, DualTypes] = self.npv(
+            disc_curve, disc_curve_ccy2, fx, base, local=True, vol=vol
+        )  # type: ignore[assignment]
+        npv: float = _dual_float(npv_[self.currency])
 
         # TODO: (low-perf) get_vol is called twice for same value, once in npv and once for output
         # This method should not be called to get values used in later calculations becuase it
