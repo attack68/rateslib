@@ -3597,12 +3597,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         f_d = fx.rate(self.pair, self.delivery)
 
         def root(
-            vol: DualTypes,
-            f_d: DualTypes,
-            k: DualTypes,
-            t_e: float,
-            v2: DualTypes,
-            phi: float
+            vol: DualTypes, f_d: DualTypes, k: DualTypes, t_e: float, v2: DualTypes, phi: float
         ) -> tuple[DualTypes, DualTypes]:
             f0 = _black76(f_d, k, t_e, NoInput(0), v2, vol, phi) * 10000.0 - imm_premium
             sqrt_t = t_e**0.5
@@ -4394,9 +4389,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 self.expiry,
             )
         elif isinstance(vol, NoInput):
-            raise ValueError(
-                "`vol` cannot be NoInput when provided to pricing function."
-            )
+            raise ValueError("`vol` cannot be NoInput when provided to pricing function.")
         else:
             vol_ = vol
 

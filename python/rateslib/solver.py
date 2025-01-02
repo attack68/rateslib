@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from itertools import combinations
 from time import time
-from typing import Any, Sequence, ParamSpec
+from typing import Any, ParamSpec
 from uuid import uuid4
 
 import numpy as np
@@ -14,7 +14,7 @@ from pandas.errors import PerformanceWarning
 from rateslib import defaults
 from rateslib.curves import CompositeCurve, MultiCsaCurve, ProxyCurve
 from rateslib.default import NoInput, _validate_states, _WithState
-from rateslib.dual import Dual, Dual2, dual_log, dual_solve, gradient, DualTypes
+from rateslib.dual import Dual, Dual2, DualTypes, dual_log, dual_solve, gradient
 from rateslib.fx import FXForwards, FXRates
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -2079,13 +2079,13 @@ def _float_if_not_string(x):
 def newton_1dim(
     f: Callable[P, tuple[Any, Any]],
     g0: DualTypes,
-    max_iter: int =50,
-    func_tol: float =1e-14,
-    conv_tol: float =1e-9,
-    args: tuple[Any, ...] =(),
-    pre_args: tuple[Any, ...] =(),
-    final_args: tuple[Any, ...] =(),
-    raise_on_fail: bool =True,
+    max_iter: int = 50,
+    func_tol: float = 1e-14,
+    conv_tol: float = 1e-9,
+    args: tuple[Any, ...] = (),
+    pre_args: tuple[Any, ...] = (),
+    final_args: tuple[Any, ...] = (),
+    raise_on_fail: bool = True,
 ) -> dict[str, Any]:
     """
     Use the Newton-Raphson algorithm to determine the root of a function searching **one** variable.
@@ -2222,7 +2222,7 @@ def newton_1dim(
 def newton_ndim(
     f: Callable[P, tuple[Any, Any]],
     g0: Sequence[DualTypes],
-    max_iter: int =50,
+    max_iter: int = 50,
     func_tol: float = 1e-14,
     conv_tol: float = 1e-9,
     args: tuple[Any, ...] = (),
@@ -2351,7 +2351,9 @@ STATE_MAP = {
 }
 
 
-def _solver_result(state: int, i: int, func_val: float, time: float, log: bool, algo: str) -> dict[str, Any]:
+def _solver_result(
+    state: int, i: int, func_val: float, time: float, log: bool, algo: str
+) -> dict[str, Any]:
     if log:
         print(
             f"{STATE_MAP[state][0]}: {STATE_MAP[state][1]} after {i} iterations "
