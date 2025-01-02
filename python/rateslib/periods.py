@@ -2790,13 +2790,14 @@ class IndexMixin(metaclass=ABCMeta):
     Abstract base class to include methods and properties related to indexed *Periods*.
     """
 
-    index_base: DualTypes | NoInput = NoInput(0)
-    index_method: str = ""
-    index_fixings: float | Series[float] | NoInput = NoInput(0)
-    index_lag: int | NoInput = NoInput(0)
+    index_base: DualTypes | NoInput
+    index_method: str
+    index_fixings: DualTypes | Series[DualTypes] | NoInput  # type: ignore[type-var]
+    index_lag: int
     index_only: bool = False
-    payment: datetime = datetime(1990, 1, 1)
-    currency: str = ""
+    payment: datetime
+    end: datetime
+    currency: str
 
     @property
     @abstractmethod
@@ -2822,7 +2823,9 @@ class IndexMixin(metaclass=ABCMeta):
                 ret: DualTypes = self.real_cashflow * (index_ratio + notional_)
             return ret
 
-    def index_ratio(self, curve: Curve | NoInput = NoInput(0)) -> tuple:
+    def index_ratio(self, curve: Curve | NoInput = NoInput(0)) -> (
+            tuple[DualTypes | None, DualTypes | None, DualTypes | None]
+    ):
         """
         Calculate the index ratio for the end date of the *IndexPeriod*.
 
@@ -2839,9 +2842,11 @@ class IndexMixin(metaclass=ABCMeta):
         -------
         float, Dual, Dual2
         """
+        # IndexCashflow has no start
+        i_date_base: datetime | NoInput = getattr(self, "start", NoInput(0))
         denominator = self._index_value(
             i_fixings=self.index_base,
-            i_date=getattr(self, "start", None),  # IndexCashflow has no start
+            i_date=i_date_base,
             i_curve=curve,
             i_lag=self.index_lag,
             i_method=self.index_method,
@@ -2878,12 +2883,12 @@ class IndexMixin(metaclass=ABCMeta):
 
     @staticmethod
     def _index_value(
-        i_fixings: float | Series | NoInput,
-        i_date: datetime,
+        i_fixings: DualTypes | Series[DualTypes] | NoInput,  # type: ignore[type-var]
+        i_date: datetime | NoInput,
         i_curve: Curve | NoInput,
         i_lag: int,
         i_method: str,
-    ) -> DualTypes | NoInput:
+    ) -> DualTypes | None:
         """
         Project an index rate, or lookup from provided fixings, for a given date.
 
@@ -2898,21 +2903,29 @@ class IndexMixin(metaclass=ABCMeta):
         -------
         float, Dual, Dual2
         """
-        if isinstance(i_fixings, NoInput):
-            return IndexMixin._index_value_from_curve(i_date, i_curve, i_lag, i_method)
+        if isinstance(i_date, NoInput):
+            if not isinstance(i_fixings, (Series, NoInput)):
+                # i_fixings is a given value, probably aligned with an ``index_base``
+                return i_fixings
+            else:
+                # internal method so this line should never be hit
+                raise ValueError(
+                    "Must supply an `i_date` from which to forecast.")  # pragma: no cover
         else:
-            if isinstance(i_fixings, Series):
+            if isinstance(i_fixings, NoInput):
+                return IndexMixin._index_value_from_curve(i_date, i_curve, i_lag, i_method)
+            elif isinstance(i_fixings, Series):
                 if i_method == "daily":
                     adj_date = i_date
-                    unavailable_date = i_fixings.index[-1]
+                    unavailable_date: datetime = i_fixings.index[-1]  # type: ignore[attr-defined]
                 else:
                     adj_date = datetime(i_date.year, i_date.month, 1)
-                    _ = i_fixings.index[-1]
+                    _: datetime = i_fixings.index[-1]  # type: ignore[attr-defined]
                     unavailable_date = _get_eom(_.month, _.year)
 
                 if i_date > unavailable_date:
                     if isinstance(i_curve, NoInput):
-                        return NoInput(0)
+                        return None
                     else:
                         return IndexMixin._index_value_from_curve(i_date, i_curve, i_lag, i_method)
                     # raise ValueError(
@@ -2921,13 +2934,15 @@ class IndexMixin(metaclass=ABCMeta):
                     # )
                 else:
                     try:
-                        return i_fixings[adj_date]
+                        ret: DualTypes | None = i_fixings[adj_date]  # type: ignore[index]
+                        return ret
                     except KeyError:
-                        s = i_fixings.copy()
-                        s.loc[adj_date] = np.nan  # type: ignore[call-overload]
-                        _ = s.sort_index().interpolate("time")[adj_date]
-                        return _
+                        s = i_fixings.copy()  # type: ignore[attr-defined]
+                        s.loc[adj_date] = np.nan
+                        ret = s.sort_index().interpolate("time")[adj_date]
+                        return ret
             else:
+                # i_fixings is a given value
                 return i_fixings
 
     def npv(
@@ -2937,19 +2952,22 @@ class IndexMixin(metaclass=ABCMeta):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
-    ):
+    ) -> DualTypes | dict[str, DualTypes]:
         """
         Return the cashflows of the *IndexPeriod*.
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
         disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
-        if not isinstance(disc_curve, Curve) and isinstance(curve, NoInput):
-            raise TypeError("`curves` have not been supplied correctly.")
-        value = self.cashflow(curve) * disc_curve_[self.payment]
+        cf_: DualTypes | None = self.cashflow(curve)
+        if cf_ is None:
+            raise ValueError(
+                "`cashflow` could not be determined. Is `curve` or `index_fixings` "
+                "supplied correctly?")
+        value = cf_ * disc_curve_[self.payment]
         return _maybe_local(value, local, self.currency, fx, base)
 
 
-class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
+class IndexFixedPeriod(IndexMixin, FixedPeriod):
     """
     Create a period defined with a real rate adjusted by an index.
 
@@ -3027,13 +3045,13 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
 
     def __init__(
         self,
-        *args,
-        index_base: float | Series | NoInput = NoInput(0),
-        index_fixings: float | Series | NoInput = NoInput(0),
+        *args: Any,
+        index_base: DualTypes | Series[DualTypes] | NoInput = NoInput(0),
+        index_fixings: DualTypes | Series[DualTypes] | NoInput = NoInput(0),
         index_method: str | NoInput = NoInput(0),
         index_lag: int | NoInput = NoInput(0),
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         # if index_base is None:
         #     raise ValueError("`index_base` cannot be None.")
         self.index_base = index_base
