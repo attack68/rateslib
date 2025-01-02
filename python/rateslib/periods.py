@@ -3383,7 +3383,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
         """
         fx_, base = _get_fx_and_base(self.currency, fx, base)
         df, collateral = _dual_float(disc_curve_ccy2[self.payment]), disc_curve_ccy2.collateral
-        npv_: dict[str, DualTypes] = self.npv(disc_curve, disc_curve_ccy2, fx, base, local=True, vol=vol)  # type: ignore[assignment]
+        npv_: dict[str, DualTypes] = self.npv(
+            disc_curve, disc_curve_ccy2, fx, base, local=True, vol=vol
+        )  # type: ignore[assignment]
         npv: float = _dual_float(npv_[self.currency])
 
         # TODO: (low-perf) get_vol is called twice for same value, once in npv and once for output
