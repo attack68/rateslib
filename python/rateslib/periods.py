@@ -3903,14 +3903,16 @@ class FXOptionPeriod(metaclass=ABCMeta):
         t_e: float,
     ) -> tuple[DualTypes, DualTypes | None]:
         if not isinstance(vol, FXVols):
-            vol_delta_type = delta_type  # set delta types as being equal if the vol is a constant.
+            vol_delta_type: str = delta_type  # set delta types as being equal if the vol is a constant.
+            vol_: DualTypes | FXDeltaVolSmile = vol
         else:
             if isinstance(vol, FXDeltaVolSurface):
                 # convert a Surface to Smile for simplified calculations below.
-                vol_: FXDeltaVolSmile = vol.get_smile(self.expiry)
+                vol__: FXDeltaVolSmile = vol.get_smile(self.expiry)
             else:
-                vol_ = vol
-            vol_delta_type = vol_.delta_type
+                vol__ = vol
+            vol_delta_type = vol__.delta_type
+            vol_ = vol__
 
         z_w = w_deli / w_spot
         eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, 0.0)  # u: unused
@@ -3921,7 +3923,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         if eta_0 == 0.5:  # then delta type is unadjusted
             if eta_1 == 0.5:  # then smile delta type matches: closed form eqn available
-                if isinstance(vol, FXDeltaVolSmile):
+                if isinstance(vol_, FXDeltaVolSmile):
                     delta_idx = z_w_1 / 2.0
                     vol = vol[delta_idx]
                 else:
