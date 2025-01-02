@@ -3699,6 +3699,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
         ------
         ValueError: if the ``strike`` is not set on the *Option*.
         """  # noqa: E501
+        if isinstance(self.strike, NoInput):
+            raise ValueError("`strike` must be set to value FXOption.")
+
         spot = fx.pairs_settlement[self.pair]
         w_spot = disc_curve[spot]
         w_deli = disc_curve[self.delivery]
@@ -3714,7 +3717,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         sqrt_t = self._t_to_expiry(disc_curve.node_dates[0]) ** 0.5
 
         if isinstance(vol, FXVolObj):
-            delta_idx, vol_, _ = vol.get_from_strike(self.strike, f_d, w_deli, w_spot, self.expiry)
+            delta_idx, vol_, __ = vol.get_from_strike(self.strike, f_d, w_deli, w_spot, self.expiry)
         else:
             delta_idx, vol_ = None, vol
         vol_ /= 100.0
@@ -3786,22 +3789,49 @@ class FXOptionPeriod(metaclass=ABCMeta):
         return _
 
     @staticmethod
-    def _analytic_vega(v_deli, f_d, sqrt_t, phi, d_plus):
+    def _analytic_vega(
+        v_deli: DualTypes, f_d: DualTypes, sqrt_t: DualTypes, phi: float, d_plus: DualTypes
+    ) -> DualTypes:
         return v_deli * f_d * sqrt_t * dual_norm_pdf(phi * d_plus)
 
     @staticmethod
-    def _analytic_vomma(vega, d_plus, d_min, vol):
+    def _analytic_vomma(
+        vega: DualTypes,
+        d_plus: DualTypes,
+        d_min: DualTypes,
+        vol: DualTypes,
+    ) -> DualTypes:
         return vega * d_plus * d_min / vol
 
     @staticmethod
-    def _analytic_gamma(spot, v_deli, v_spot, z_w, phi, d_plus, f_d, vol_sqrt_t):
-        _ = z_w * dual_norm_pdf(phi * d_plus) / (f_d * vol_sqrt_t)
+    def _analytic_gamma(
+        spot: DualTypes,
+        v_deli: DualTypes,
+        v_spot: DualTypes,
+        z_w: DualTypes,
+        phi: float,
+        d_plus: DualTypes,
+        f_d: DualTypes,
+        vol_sqrt_t: DualTypes,
+    ) -> DualTypes:
+        ret = z_w * dual_norm_pdf(phi * d_plus) / (f_d * vol_sqrt_t)
         if spot:
-            return _ * z_w * v_spot / v_deli
-        return _
+            return ret * z_w * v_spot / v_deli
+        return ret
 
     @staticmethod
-    def _analytic_delta(premium, adjusted, z_u, z_w, d_eta, phi, d_plus, w_payment, w_spot, N_dom):
+    def _analytic_delta(
+        premium: DualTypes | NoInput,
+        adjusted: bool,
+        z_u: DualTypes,
+        z_w: DualTypes,
+        d_eta: DualTypes,
+        phi: float,
+        d_plus: DualTypes,
+        w_payment: DualTypes,
+        w_spot: DualTypes,
+        N_dom: DualTypes,
+    ) -> DualTypes:
         if not adjusted or isinstance(premium, NoInput):
             # returns unadjusted delta or mid-market premium adjusted delta
             return z_u * z_w * phi * dual_norm_cdf(phi * d_eta)
@@ -3811,7 +3841,13 @@ class FXOptionPeriod(metaclass=ABCMeta):
             return z_w * phi * dual_norm_cdf(phi * d_plus) - w_payment / w_spot * premium / N_dom
 
     @staticmethod
-    def _analytic_vanna(z_w, phi, d_plus, d_min, vol):
+    def _analytic_vanna(
+        z_w: DualTypes,
+        phi: float,
+        d_plus: DualTypes,
+        d_min: DualTypes,
+        vol: DualTypes,
+    ) -> DualTypes:
         return -z_w * dual_norm_pdf(phi * d_plus) * d_min / vol
 
     # @staticmethod
@@ -3822,44 +3858,63 @@ class FXOptionPeriod(metaclass=ABCMeta):
     #         return vega / f_d * (1 - d_plus / vol_sqrt_t)
 
     @staticmethod
-    def _analytic_kega(z_u, z_w, eta, vol, sqrt_t, f_d, phi, k, d_eta):
+    def _analytic_kega(
+        z_u: DualTypes,
+        z_w: DualTypes,
+        eta: float,
+        vol: DualTypes,
+        sqrt_t: float,
+        f_d: DualTypes,
+        phi: float,
+        k: DualTypes,
+        d_eta: DualTypes,
+    ) -> DualTypes:
         if eta < 0:
             # dz_u_du = 1.0
             x = vol * phi * dual_norm_cdf(phi * d_eta) / (f_d * z_u * dual_norm_pdf(phi * d_eta))
         else:
             x = 0.0
 
-        _ = (d_eta - 2.0 * eta * sqrt_t * vol) / (-1 / (k * sqrt_t) + x)
-        return _
+        ret = (d_eta - 2.0 * eta * sqrt_t * vol) / (-1 / (k * sqrt_t) + x)
+        return ret
 
     @staticmethod
-    def _analytic_kappa(v_deli, phi, d_min):
+    def _analytic_kappa(v_deli: DualTypes, phi: float, d_min: DualTypes) -> DualTypes:
         return -v_deli * phi * dual_norm_cdf(phi * d_min)
 
     @staticmethod
-    def _analytic_bs76(phi, v_deli, f_d, d_plus, k, d_min):
+    def _analytic_bs76(
+        phi: float,
+        v_deli: DualTypes,
+        f_d: DualTypes,
+        d_plus: DualTypes,
+        k: DualTypes,
+        d_min: DualTypes,
+    ) -> DualTypes:
         return phi * v_deli * (f_d * dual_norm_cdf(phi * d_plus) - k * dual_norm_cdf(phi * d_min))
 
     def _strike_and_index_from_atm(
         self,
         delta_type: str,
         vol: DualTypes | FXVols,
-        w_deli,
-        w_spot,
-        f,
-        t_e,
-    ):
-        if not isinstance(vol, FXVolObj):
+        w_deli: DualTypes,
+        w_spot: DualTypes,
+        f: DualTypes,
+        t_e: float,
+    ) -> tuple[DualTypes, DualTypes | None]:
+        if not isinstance(vol, FXVols):
             vol_delta_type = delta_type  # set delta types as being equal if the vol is a constant.
         else:
             if isinstance(vol, FXDeltaVolSurface):
                 # convert a Surface to Smile for simplified calculations below.
-                vol = vol.get_smile(self.expiry)
-            vol_delta_type = vol.delta_type
+                vol_: FXDeltaVolSmile = vol.get_smile(self.expiry)
+            else:
+                vol_ = vol
+            vol_delta_type = vol_.delta_type
 
         z_w = w_deli / w_spot
-        eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, None)
-        eta_1, z_w_1, _ = _delta_type_constants(vol_delta_type, z_w, None)
+        eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, 0.0)  # u: unused
+        eta_1, z_w_1, _ = _delta_type_constants(vol_delta_type, z_w, 0.0)  #  u: unused
 
         # u, delta_idx, delta =
         # self._moneyness_from_delta_three_dimensional(delta_type, vol, t_e, z_w)

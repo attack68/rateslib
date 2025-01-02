@@ -1352,7 +1352,9 @@ def _d_plus(K: DualTypes, f: DualTypes, vol_sqrt_t: DualTypes) -> DualTypes:
     return _d_plus_min(K, f, vol_sqrt_t, +0.5)
 
 
-def _delta_type_constants(delta_type, w, u):
+def _delta_type_constants(
+    delta_type: str, w: DualTypes, u: DualTypes
+) -> tuple[float, DualTypes, DualTypes]:
     """
     Get the values: (eta, z_w, z_u) for the type of expressed delta
 
