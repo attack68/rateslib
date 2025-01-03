@@ -22,7 +22,7 @@ Number: TypeAlias = "float | Dual | Dual2"
 
 
 def _dual_float(val: DualTypes) -> float:
-    """Overload for the float() builtin to handle Pyo3 issues with Variabe"""
+    """Overload for the float() builtin to handle Pyo3 issues with Variable"""
     try:
         return float(val)  # type: ignore[arg-type]
     except TypeError as e:  # val is not Number but a Variable

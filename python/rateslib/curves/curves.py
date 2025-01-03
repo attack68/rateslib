@@ -3058,7 +3058,7 @@ class ProxyCurve(Curve):
 
 def average_rate(
     effective: datetime, termination: datetime, convention: str, rate: DualTypes
-) -> tuple[DualTypes, float, int]:
+) -> tuple[Number, float, int]:
     """
     Return the geometric, 1 calendar day, average rate for the rate in a period.
 
@@ -3081,7 +3081,7 @@ def average_rate(
     """
     d: float = _DCF1d[convention.upper()]
     n: int = (termination - effective).days
-    _: DualTypes = ((1 + n * d * rate / 100) ** (1 / n) - 1) / d
+    _: Number = ((1 + n * d * rate / 100) ** (1 / n) - 1) / d
     return _ * 100, d, n
 
 

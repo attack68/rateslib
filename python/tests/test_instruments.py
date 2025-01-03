@@ -417,15 +417,16 @@ class TestSolverFXandBase:
 
         with pytest.warns(UserWarning):
             # warn about numeric
-            result = self.irs.npv(fx=1 / 1.1, base="eur")
+            self.irs.npv(fx=1 / 1.1, base="eur")
 
         # raises because no FX data to calculate a conversion
         with pytest.raises(KeyError, match="'usd'"):
-            result = self.irs.npv(fx=FXRates({"eurgbp": 1.1}), base="eur")
+            self.irs.npv(fx=FXRates({"eurgbp": 1.1}), base="eur")
 
     def test_base_and_solverfx(self) -> None:
         # should take fx from solver and calculated
         self.solver.fx = FXRates({"eurusd": 1.1})
+        self.solver._set_new_state()
         result = self.irs.npv(solver=self.solver, base="eur")
         expected = 330.4051154763001 / 1.1
         assert abs(result - expected) < 1e-4
@@ -435,6 +436,7 @@ class TestSolverFXandBase:
         # should take fx and ignore solver.fx
         fxr = FXRates({"eurusd": 1.2})
         self.solver.fx = fxr
+        self.solver._set_new_state()
 
         # no warning becuase objects are the same
         result = self.irs.npv(solver=self.solver, base="eur", fx=fxr)
@@ -486,6 +488,7 @@ class TestSolverFXandBase:
     def test_fx_solverfx(self) -> None:
         fxr = FXRates({"eurusd": 1.2}, base="eur")
         self.solver.fx = fxr
+        self.solver._set_new_state()
 
         # no warning becuase objects are the same
         result = self.irs.npv(solver=self.solver, fx=fxr)
@@ -503,6 +506,7 @@ class TestSolverFXandBase:
     def test_solverfx(self) -> None:
         fxr = FXRates({"eurusd": 1.2}, base="eur")
         self.solver.fx = fxr
+        self.solver._set_new_state()
 
         # no warning becuase objects are the same
         result = self.irs.npv(solver=self.solver)
