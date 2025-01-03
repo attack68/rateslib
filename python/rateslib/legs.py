@@ -57,6 +57,17 @@ from rateslib.scheduling import Schedule
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
+Period = (
+    FixedPeriod
+    | FloatPeriod
+    | Cashflow
+    | IndexFixedPeriod
+    | IndexCashflow
+    | CreditPremiumPeriod
+    | CreditProtectionPeriod
+)
+
+
 class BaseLeg(metaclass=ABCMeta):
     """
     Abstract base class with common parameters for all ``Leg`` subclasses.
@@ -288,7 +299,7 @@ class BaseLeg(metaclass=ABCMeta):
             )
 
     @abstractmethod
-    def _regular_period(self, *args: Any, **kwargs: Any) -> Any:
+    def _regular_period(self, *args: Any, **kwargs: Any) -> Period:
         # implemented by individual legs to satify generic `set_periods` methods
         pass  # pragma: no cover
 
@@ -705,7 +716,7 @@ class _FloatLegMixin:
         return _
 
     @property
-    def float_spread(self):
+    def float_spread(self) -> DualTypes:
         """
         float or NoInput : If set will also set the ``float_spread`` of contained
             :class:`~rateslib.periods.FloatPeriod` s.
@@ -713,7 +724,7 @@ class _FloatLegMixin:
         return self._float_spread
 
     @float_spread.setter
-    def float_spread(self, value):
+    def float_spread(self, value: DualTypes) -> None:
         self._float_spread = value
         if value is NoInput(0):
             _ = 0.0
@@ -749,7 +760,7 @@ class _FloatLegMixin:
     #         df = pd.concat([df, self.periods[i].fixings_table(curve)])
     #     return df
 
-    def _fixings_table(self, *args, **kwargs):
+    def _fixings_table(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on a :class:`~rateslib.legs.FloatLeg`.
 
@@ -777,7 +788,7 @@ class _FloatLegMixin:
         notional: float,
         stub: bool,
         iterator: int,
-    ):
+    ) -> FloatPeriod:
         return FloatPeriod(
             float_spread=self.float_spread,
             start=start,
@@ -2867,16 +2878,16 @@ class CustomLeg(BaseLeg):
     """  # noqa: E501
 
     def __init__(self, periods):
-        if not all(isinstance(p, FixedPeriod | FloatPeriod | Cashflow) for p in periods):
+        if not all(isinstance(p, Period) for p in periods):
             raise ValueError(
                 "Each object in `periods` must be of type {FixedPeriod, FloatPeriod, " "Cashflow}.",
             )
         self._set_periods(periods)
 
-    def _set_periods(self, periods):
-        self.periods = periods
+    def _set_periods(self, periods: list[Any]) -> None:
+        self.periods: list[Any] = periods
 
-    def npv(self, *args, **kwargs):
+    def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]:
         """
         Return the NPV of the *CustomLeg* via summing all periods.
 
@@ -2885,7 +2896,7 @@ class CustomLeg(BaseLeg):
         """
         return super().npv(*args, **kwargs)
 
-    def cashflows(self, *args, **kwargs):
+    def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
         Return the properties of the *CustomLeg* used in calculating cashflows.
 
@@ -2894,7 +2905,7 @@ class CustomLeg(BaseLeg):
         """
         return super().cashflows(*args, **kwargs)
 
-    def analytic_delta(self, *args, **kwargs):
+    def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
         """
         Return the analytic delta of the *CustomLeg* via summing all periods.
 

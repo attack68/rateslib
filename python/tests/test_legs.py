@@ -9,17 +9,23 @@ from rateslib.curves import Curve, IndexCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual
 from rateslib.fx import FXForwards, FXRates
-from rateslib.legs import (
+from rateslib.periods import (
+    CreditProtectionPeriod,
+    CreditPremiumPeriod,
+    FixedPeriod,
+    IndexFixedPeriod,
+    FloatPeriod,
+    IndexCashflow,
     Cashflow,
+)
+from rateslib.legs import (
     CreditPremiumLeg,
     CreditProtectionLeg,
     CustomLeg,
     FixedLeg,
     FixedLegMtm,
-    FixedPeriod,
     FloatLeg,
     FloatLegMtm,
-    FloatPeriod,
     IndexFixedLeg,
     ZeroFixedLeg,
     ZeroFloatLeg,
@@ -1914,6 +1920,70 @@ class TestFloatLegExchangeMtm:
 
 
 class TestCustomLeg:
+    @pytest.mark.parametrize(
+        "period",
+        [
+            FixedPeriod(
+                start=dt(2022, 1, 1),
+                end=dt(2023, 1, 1),
+                payment=dt(2023, 1, 9),
+                frequency="A",
+                fixed_rate=1.0,
+            ),
+            FloatPeriod(
+                start=dt(2022, 1, 1),
+                end=dt(2022, 4, 1),
+                payment=dt(2022, 4, 3),
+                notional=1e9,
+                convention="Act360",
+                termination=dt(2022, 4, 1),
+                frequency="Q",
+                float_spread=10.0,
+            ),
+            CreditPremiumPeriod(
+                start=dt(2022, 1, 1),
+                end=dt(2022, 4, 1),
+                payment=dt(2022, 4, 3),
+                notional=1e9,
+                convention="Act360",
+                termination=dt(2022, 4, 1),
+                frequency="Q",
+                fixed_rate=4.0,
+                currency="usd",
+            ),
+            CreditProtectionPeriod(
+                start=dt(2022, 1, 1),
+                end=dt(2022, 4, 1),
+                payment=dt(2022, 4, 3),
+                notional=1e9,
+                convention="Act360",
+                termination=dt(2022, 4, 1),
+                frequency="Q",
+                currency="usd",
+            ),
+            Cashflow(notional=1e9, payment=dt(2022, 4, 3)),
+            IndexFixedPeriod(
+                start=dt(2022, 1, 3),
+                end=dt(2022, 4, 3),
+                payment=dt(2022, 4, 3),
+                notional=1e9,
+                convention="Act360",
+                termination=dt(2022, 4, 3),
+                frequency="Q",
+                fixed_rate=4.00,
+                currency="usd",
+                index_base=100.0,
+            ),
+            IndexCashflow(
+                notional=200.0,
+                payment=dt(2022, 2, 1),
+                index_base=100.0,
+            )
+        ],
+    )
+    def test_init(self, curve, period) -> None:
+        CustomLeg(periods=[period, period])
+
     def test_npv(self, curve) -> None:
         cl = CustomLeg(
             periods=[
