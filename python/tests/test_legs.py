@@ -9,15 +9,6 @@ from rateslib.curves import Curve, IndexCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual
 from rateslib.fx import FXForwards, FXRates
-from rateslib.periods import (
-    CreditProtectionPeriod,
-    CreditPremiumPeriod,
-    FixedPeriod,
-    IndexFixedPeriod,
-    FloatPeriod,
-    IndexCashflow,
-    Cashflow,
-)
 from rateslib.legs import (
     CreditPremiumLeg,
     CreditProtectionLeg,
@@ -30,6 +21,15 @@ from rateslib.legs import (
     ZeroFixedLeg,
     ZeroFloatLeg,
     ZeroIndexLeg,
+)
+from rateslib.periods import (
+    Cashflow,
+    CreditPremiumPeriod,
+    CreditProtectionPeriod,
+    FixedPeriod,
+    FloatPeriod,
+    IndexCashflow,
+    IndexFixedPeriod,
 )
 
 
@@ -1978,7 +1978,7 @@ class TestCustomLeg:
                 notional=200.0,
                 payment=dt(2022, 2, 1),
                 index_base=100.0,
-            )
+            ),
         ],
     )
     def test_init(self, curve, period) -> None:
