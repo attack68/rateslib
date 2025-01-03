@@ -554,7 +554,9 @@ class _FloatLegMixin:
     fixing_method: str
     method_param: int
 
-    def _get_fixings_from_series(self, ser: Series[DualTypes], ini_period: int = 0) -> list[Series[DualTypes] | NoInput]:  # type: ignore[type-var]
+    def _get_fixings_from_series(
+        self, ser: Series[DualTypes], ini_period: int = 0
+    ) -> list[Series[DualTypes] | NoInput]:  # type: ignore[type-var]
         """
         Determine which fixings can be set for Periods with the given Series.
         """
@@ -2903,6 +2905,7 @@ class CustomLeg(BaseLeg):
 
     def _regular_period(self, *args: Any, **kwargs: Any) -> Any:
         pass
+
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
