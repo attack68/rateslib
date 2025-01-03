@@ -3913,11 +3913,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         if eta_0 == 0.5:  # then delta type is unadjusted
             if eta_1 == 0.5:  # then smile delta type matches: closed form eqn available
-                if isinstance(vol_smile_or_value, FXDeltaVolSmile):
+                if isinstance(vol, FXVols):
                     delta_idx = z_w_1 / 2.0
-                    vol_value: DualTypes = vol_smile_or_value[delta_idx]
+                    vol_value: DualTypes = _get_vol_smile(vol, self.expiry)[delta_idx]
                 else:
-                    vol_value = vol_smile_or_value
+                    vol_value = vol
                     delta_idx = None
                 u = self._moneyness_from_atm_delta_closed_form(vol_value, t_e)
             else:  # then smile delta type unmatched: 2-d solver required
@@ -3925,7 +3925,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 u, delta_idx = self._moneyness_from_delta_two_dimensional(
                     delta,
                     delta_type,
-                    vol,
+                    _get_vol_smile(vol, self.expiry),
                     t_e,
                     z_w,
                 )
@@ -3934,7 +3934,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 u = self._moneyness_from_atm_delta_one_dimensional(
                     delta_type,
                     vol_delta_type,
-                    vol,
+                    _get_vol_smile(vol, self.expiry),
                     t_e,
                     z_w,
                 )
@@ -3942,7 +3942,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             else:  # smile delta type unmatched: 2-d solver required
                 u, delta_idx = self._moneyness_from_atm_delta_two_dimensional(
                     delta_type,
-                    vol,
+                    _get_vol_smile(vol, self.expiry),
                     t_e,
                     z_w,
                 )
