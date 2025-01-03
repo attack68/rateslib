@@ -249,7 +249,7 @@ class BaseLeg(metaclass=ABCMeta):
                 notional=self.notional - self.amortization * i,
                 iterator=i,
             )
-            for i, period in self.schedule.table.to_dict(orient="index").items()
+            for i, period in enumerate(self.schedule.table.to_dict(orient="index").values())
         ]
         if self.final_exchange and self.amortization != 0:
             amortization = [
@@ -288,18 +288,18 @@ class BaseLeg(metaclass=ABCMeta):
                 ),
             )
 
-    # @abstractmethod
-    # def _regular_period(self):
-    #     pass  # pragma: no cover
+    def _regular_period(self, *args: Any, **kwargs: Any) -> Any:
+        # implemented by individual legs to satify generic `set_periods` methods
+        pass  # pragma: no cover
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    def _regular_period(self, *args: Any, **kwargs: Any) -> Any:
-        pass
+    #def _regular_period(self, *args: Any, **kwargs: Any) -> Any:
+    #    pass
 
-    def analytic_delta(self, *args, **kwargs) -> DualTypes:
+    def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
         """
         Return the analytic delta of the *Leg* via summing all periods.
 
@@ -309,7 +309,7 @@ class BaseLeg(metaclass=ABCMeta):
         _ = (period.analytic_delta(*args, **kwargs) for period in self.periods)
         return sum(_)
 
-    def cashflows(self, *args, **kwargs) -> DataFrame:
+    def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
         Return the properties of the *Leg* used in calculating cashflows.
 
@@ -319,23 +319,23 @@ class BaseLeg(metaclass=ABCMeta):
         seq = [period.cashflows(*args, **kwargs) for period in self.periods]
         return DataFrame.from_records(seq)
 
-    def npv(self, *args, **kwargs) -> DualTypes | dict[str, DualTypes]:
+    def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]:
         """
         Return the NPV of the *Leg* via summing all periods.
 
         For arguments see
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
         """
-        _is_local = (len(args) == 5 and args[4]) or kwargs.get("local", False)
+        _is_local = (len(args) >= 5 and args[4]) or kwargs.get("local", False)
         if _is_local:
-            _ = (period.npv(*args, **kwargs)[self.currency] for period in self.periods)
+            _ = (period.npv(*args, **kwargs)[self.currency] for period in self.periods)  # type: ignore[index]
             return {self.currency: sum(_)}
         else:
             _ = (period.npv(*args, **kwargs) for period in self.periods)
             return sum(_)
 
     @property
-    def _is_linear(self):
+    def _is_linear(self) -> bool:
         """
         Tests if analytic delta spread is a linear function affecting NPV.
 
@@ -348,109 +348,7 @@ class BaseLeg(metaclass=ABCMeta):
         bool
         """
         # ruff: noqa: SIM103
-        if (
-            "Float" in type(self).__name__
-            and "rfr" in self.fixing_method
-            and self.spread_compound_method != "none_simple"
-        ):
-            return False
         return True
-
-    def _spread_isda_approximated_rate(self, target_npv, fore_curve, disc_curve):
-        """
-        Use approximated derivatives through geometric averaged 1day rates to derive the
-        spread
-        """
-        a, b = 0.0, 0.0
-        for period in self.periods:
-            try:
-                a_, b_ = period._get_analytic_delta_quadratic_coeffs(fore_curve, disc_curve)
-                a += a_
-                b += b_
-            except AttributeError:  # the period might be of wrong kind: TODO: better filter
-                pass
-        c = -target_npv
-
-        # perform the quadratic solution
-        _1 = -c / b
-        if abs(a) > 1e-14:
-            _2a = (-b - (b**2 - 4 * a * c) ** 0.5) / (2 * a)
-            _2b = (-b + (b**2 - 4 * a * c) ** 0.5) / (2 * a)  # alt quadratic soln
-            if abs(_1 - _2a) < abs(_1 - _2b):
-                _ = _2a
-            else:
-                _ = _2b  # select quadratic soln
-        else:
-            # this is to avoid divide by zero errors and return an approximation
-            # also isda_flat_compounding has a=0
-            _ = _1
-
-        return _
-
-    def _spread_isda_dual2(
-        self,
-        target_npv,
-        fore_curve,
-        disc_curve,
-        fx=NoInput(0),
-    ):  # pragma: no cover
-        # This method is unused and untested, superseded by _spread_isda_approx_rate
-
-        # This method creates a dual2 variable for float spread + obtains derivatives automatically
-        _fs = self.float_spread
-        self.float_spread = Dual2(0.0 if _fs is None else float(_fs), "spread_z")
-
-        # This method uses ad-hoc AD to solve a specific problem for which
-        # there is no closed form solution. Calculating NPV is very inefficient
-        # so, we only do this once as opposed to using a root solver algo
-        # which would otherwise converge to the exact solution but is
-        # practically not workable.
-
-        # This method is more accurate than the 'spread through approximated
-        # derivatives' method, but it is a more costly and less robust method
-        # due to its need to work in second order mode.
-
-        fore_ad = fore_curve.ad
-        fore_curve._set_ad_order(2)
-
-        disc_ad = disc_curve.ad
-        disc_curve._set_ad_order(2)
-
-        if isinstance(fx, FXRates | FXForwards):
-            _fx = None if fx is None else fx._ad
-            fx._set_ad_order(2)
-
-        npv = self.npv(fore_curve, disc_curve, fx, self.currency)
-        b = gradient(npv, "spread_z", order=1)[0]
-        a = 0.5 * gradient(npv, "spread_z", order=2)[0][0]
-        c = -target_npv
-
-        # Perform quadratic solution
-        _1 = -c / b
-        if abs(a) > 1e-14:
-            _2a = (-b - (b**2 - 4 * a * c) ** 0.5) / (2 * a)
-            _2b = (-b + (b**2 - 4 * a * c) ** 0.5) / (2 * a)  # alt quadratic soln
-            if abs(_1 - _2a) < abs(_1 - _2b):
-                _ = _2a
-            else:
-                _ = _2b  # select quadratic soln
-        else:  # pragma: no cover
-            # this is to avoid divide by zero errors and return an approximation
-            _ = _1
-            warnings.warn(
-                "Divide by zero encountered and the spread is approximated to " "first order.",
-                UserWarning,
-            )
-
-        # This is required by the Dual2 AD approach to revert to original order.
-        self.float_spread = _fs
-        fore_curve._set_ad_order(fore_ad)
-        disc_curve._set_ad_order(disc_ad)
-        if isinstance(fx, FXRates | FXForwards):
-            fx._set_ad_order(_fx)
-        _ = set_order(_, disc_ad)  # use disc_ad: credit spread from disc curve
-
-        return _
 
     def _spread(self, target_npv, fore_curve, disc_curve, fx=NoInput(0)):
         """
@@ -547,7 +445,7 @@ class _FixedLegMixin:
         )
 
 
-class FixedLeg(BaseLeg, _FixedLegMixin):
+class FixedLeg(_FixedLegMixin, BaseLeg):
     """
     Create a fixed leg composed of :class:`~rateslib.periods.FixedPeriod` s.
 
@@ -688,6 +586,107 @@ class _FloatLegMixin:
 
         self.fixings = fixings_ + [NoInput(0)] * (self.schedule.n_periods - len(fixings_))
 
+    # def _spread_isda_dual2(
+    #     self,
+    #     target_npv,
+    #     fore_curve,
+    #     disc_curve,
+    #     fx=NoInput(0),
+    # ):  # pragma: no cover
+    #     # This method is unused and untested, superseded by _spread_isda_approx_rate
+    #
+    #     # This method creates a dual2 variable for float spread + obtains derivatives automatically
+    #     _fs = self.float_spread
+    #     self.float_spread = Dual2(0.0 if _fs is None else float(_fs), "spread_z")
+    #
+    #     # This method uses ad-hoc AD to solve a specific problem for which
+    #     # there is no closed form solution. Calculating NPV is very inefficient
+    #     # so, we only do this once as opposed to using a root solver algo
+    #     # which would otherwise converge to the exact solution but is
+    #     # practically not workable.
+    #
+    #     # This method is more accurate than the 'spread through approximated
+    #     # derivatives' method, but it is a more costly and less robust method
+    #     # due to its need to work in second order mode.
+    #
+    #     fore_ad = fore_curve.ad
+    #     fore_curve._set_ad_order(2)
+    #
+    #     disc_ad = disc_curve.ad
+    #     disc_curve._set_ad_order(2)
+    #
+    #     if isinstance(fx, FXRates | FXForwards):
+    #         _fx = None if fx is None else fx._ad
+    #         fx._set_ad_order(2)
+    #
+    #     npv = self.npv(fore_curve, disc_curve, fx, self.currency)
+    #     b = gradient(npv, "spread_z", order=1)[0]
+    #     a = 0.5 * gradient(npv, "spread_z", order=2)[0][0]
+    #     c = -target_npv
+    #
+    #     # Perform quadratic solution
+    #     _1 = -c / b
+    #     if abs(a) > 1e-14:
+    #         _2a = (-b - (b**2 - 4 * a * c) ** 0.5) / (2 * a)
+    #         _2b = (-b + (b**2 - 4 * a * c) ** 0.5) / (2 * a)  # alt quadratic soln
+    #         if abs(_1 - _2a) < abs(_1 - _2b):
+    #             _ = _2a
+    #         else:
+    #             _ = _2b  # select quadratic soln
+    #     else:  # pragma: no cover
+    #         # this is to avoid divide by zero errors and return an approximation
+    #         _ = _1
+    #         warnings.warn(
+    #             "Divide by zero encountered and the spread is approximated to " "first order.",
+    #             UserWarning,
+    #         )
+    #
+    #     # This is required by the Dual2 AD approach to revert to original order.
+    #     self.float_spread = _fs
+    #     fore_curve._set_ad_order(fore_ad)
+    #     disc_curve._set_ad_order(disc_ad)
+    #     if isinstance(fx, FXRates | FXForwards):
+    #         fx._set_ad_order(_fx)
+    #     _ = set_order(_, disc_ad)  # use disc_ad: credit spread from disc curve
+    #
+    #     return _
+
+    def _spread_isda_approximated_rate(
+        self,
+        target_npv: DualTypes,
+        fore_curve: Curve,
+        disc_curve: Curve,
+    ) -> DualTypes:
+        """
+        Use approximated derivatives through geometric averaged 1day rates to derive the
+        spread
+        """
+        a, b = 0.0, 0.0
+        for period in self.periods:
+            try:
+                a_, b_ = period._get_analytic_delta_quadratic_coeffs(fore_curve, disc_curve)
+                a += a_
+                b += b_
+            except AttributeError:  # the period might be of wrong kind: TODO: better filter
+                pass
+        c = -target_npv
+
+        # perform the quadratic solution
+        _1 = -c / b
+        if abs(a) > 1e-14:
+            _2a = (-b - (b**2 - 4 * a * c) ** 0.5) / (2 * a)
+            _2b = (-b + (b**2 - 4 * a * c) ** 0.5) / (2 * a)  # alt quadratic soln
+            if abs(_1 - _2a) < abs(_1 - _2b):
+                _: DualTypes = _2a
+            else:
+                _ = _2b  # select quadratic soln
+        else:
+            # this is to avoid divide by zero errors and return an approximation
+            # also isda_flat_compounding has a=0
+            _ = _1
+
+        return _
+
     @property
     def float_spread(self):
         """
@@ -781,8 +780,29 @@ class _FloatLegMixin:
             spread_compound_method=self.spread_compound_method,
         )
 
+    @property
+    def _is_linear(self) -> bool:
+        """
+        Tests if analytic delta spread is a linear function affecting NPV.
 
-class FloatLeg(BaseLeg, _FloatLegMixin):
+        This is non-linear if the spread is itself compounded, which only occurs
+        on RFR trades with *"isda_compounding"* or *"isda_flat_compounding"*, which
+        should typically be avoided anyway.
+
+        Returns
+        -------
+        bool
+        """
+        # ruff: noqa: SIM103
+        if (
+            "rfr" in self.fixing_method
+            and self.spread_compound_method != "none_simple"
+        ):
+            return False
+        return True
+
+
+class FloatLeg(_FloatLegMixin, BaseLeg):
     """
     Create a floating leg composed of :class:`~rateslib.periods.FloatPeriod` s.
 
@@ -1129,7 +1149,7 @@ class _IndexLegMixin:
                 period.index_base = self._index_base
 
 
-class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
+class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
     """
     Create a zero coupon floating leg composed of
     :class:`~rateslib.periods.FloatPeriod` s.
@@ -1447,7 +1467,7 @@ class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
         return DataFrame.from_records(seq)
 
 
-class ZeroFixedLeg(BaseLeg, _FixedLegMixin):
+class ZeroFixedLeg(_FixedLegMixin, BaseLeg):
     """
     Create a zero coupon fixed leg composed of a single
     :class:`~rateslib.periods.FixedPeriod` .
@@ -1662,7 +1682,7 @@ class ZeroFixedLeg(BaseLeg, _FixedLegMixin):
         return super().npv(*args, **kwargs)
 
 
-class ZeroIndexLeg(BaseLeg, _IndexLegMixin):
+class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
     """
     Create a zero coupon index leg composed of a single
     :class:`~rateslib.periods.IndexFixedPeriod` and
@@ -1814,7 +1834,7 @@ class ZeroIndexLeg(BaseLeg, _IndexLegMixin):
         return super().npv(*args, **kwargs)
 
 
-class CreditPremiumLeg(BaseLeg, _FixedLegMixin):
+class CreditPremiumLeg(_FixedLegMixin, BaseLeg):
     """
     Create a credit premium leg composed of :class:`~rateslib.periods.CreditPremiumPeriod` s.
 
@@ -2585,7 +2605,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         return ret
 
 
-class FixedLegMtm(BaseLegMtm, _FixedLegMixin):
+class FixedLegMtm(_FixedLegMixin, BaseLegMtm):
     """
     Create a leg of :class:`~rateslib.periods.FixedPeriod` s and initial, mtm and
     final :class:`~rateslib.periods.Cashflow` s.
@@ -2647,7 +2667,7 @@ class FixedLegMtm(BaseLegMtm, _FixedLegMixin):
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class FloatLegMtm(BaseLegMtm, _FloatLegMixin):
+class FloatLegMtm(_FloatLegMixin, BaseLegMtm):
     """
     Create a leg of :class:`~rateslib.periods.FloatPeriod` s and initial, mtm and
     final :class:`~rateslib.periods.Cashflow` s.
