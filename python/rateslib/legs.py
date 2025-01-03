@@ -334,23 +334,29 @@ class BaseLeg(metaclass=ABCMeta):
             _ = (period.npv(*args, **kwargs) for period in self.periods)
             return sum(_)
 
-    @property
-    def _is_linear(self) -> bool:
-        """
-        Tests if analytic delta spread is a linear function affecting NPV.
+    # @property
+    # def _is_linear(self) -> bool:
+    #     """
+    #     Tests if analytic delta spread is a linear function affecting NPV.
+    #
+    #     This is non-linear if the spread is itself compounded, which only occurs
+    #     on RFR trades with *"isda_compounding"* or *"isda_flat_compounding"*, which
+    #     should typically be avoided anyway.
+    #
+    #     Returns
+    #     -------
+    #     bool
+    #     """
+    #     # ruff: noqa: SIM103
+    #     return True
 
-        This is non-linear if the spread is itself compounded, which only occurs
-        on RFR trades with *"isda_compounding"* or *"isda_flat_compounding"*, which
-        should typically be avoided anyway.
-
-        Returns
-        -------
-        bool
-        """
-        # ruff: noqa: SIM103
-        return True
-
-    def _spread(self, target_npv, fore_curve, disc_curve, fx=NoInput(0)):
+    def _spread(
+        self,
+        target_npv: DualTypes,
+        fore_curve: Curve,
+        disc_curve: Curve,
+        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
+    ):
         """
         Calculates an adjustment to the ``fixed_rate`` or ``float_spread`` to match
         a specific target NPV.
@@ -387,13 +393,8 @@ class BaseLeg(metaclass=ABCMeta):
         Examples
         --------
         """
-        if self._is_linear:
-            a_delta = self.analytic_delta(fore_curve, disc_curve, fx, self.currency)
-            return -target_npv / a_delta
-        else:
-            _ = self._spread_isda_approximated_rate(target_npv, fore_curve, disc_curve)
-            # _ = self._spread_isda_dual2(target_npv, fore_curve, disc_curve, fx)
-            return _
+        a_delta = self.analytic_delta(fore_curve, disc_curve, fx, self.currency)
+        return -target_npv / a_delta
 
     def __repr__(self):
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
@@ -800,6 +801,51 @@ class _FloatLegMixin:
         ):
             return False
         return True
+
+    def _spread(self, target_npv, fore_curve, disc_curve, fx=NoInput(0)):
+        """
+        Calculates an adjustment to the ``fixed_rate`` or ``float_spread`` to match
+        a specific target NPV.
+
+        Parameters
+        ----------
+        target_npv : float, Dual or Dual2
+            The target NPV that an adjustment to the parameter will achieve. **Must
+            be in local currency of the leg.**
+        fore_curve : Curve or LineCurve
+            The forecast curve passed to analytic delta calculation.
+        disc_curve : Curve
+            The discounting curve passed to analytic delta calculation.
+        fx : FXForwards, optional
+            Required for multi-currency legs which are MTM exchanged.
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        Notes
+        -----
+        ``FixedLeg`` and ``FloatLeg`` with a *"none_simple"* spread compound method have
+        linear sensitivity to the spread. This can be calculated directly and
+        exactly using an analytic delta calculation.
+
+        *"isda_compounding"* and *"isda_flat_compounding"* spread compound methods
+        have non-linear sensitivity to the spread. This requires a root finding,
+        iterative algorithm, which, coupled with very poor performance of calculating
+        period rates under this method is exceptionally slow. We approximate this
+        using first and second order AD and extrapolate a solution as a Taylor
+        expansion. This results in approximation error.
+
+        Examples
+        --------
+        """
+        if self._is_linear:
+            a_delta = self.analytic_delta(fore_curve, disc_curve, fx, self.currency)
+            return -target_npv / a_delta
+        else:
+            _ = self._spread_isda_approximated_rate(target_npv, fore_curve, disc_curve)
+            # _ = self._spread_isda_dual2(target_npv, fore_curve, disc_curve, fx)
+            return _
 
 
 class FloatLeg(_FloatLegMixin, BaseLeg):
