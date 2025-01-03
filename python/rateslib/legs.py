@@ -1084,13 +1084,17 @@ class _IndexLegMixin:
         for i, period in enumerate(self.periods):
             if isinstance(period, IndexFixedPeriod | IndexCashflow):
                 if isinstance(value, Series):
-                    _ = IndexMixin._index_value(
+                    val: DualTypes | None = IndexMixin._index_value(
                         i_fixings=value,
                         i_method=self.index_method,
                         i_lag=self.index_lag,
                         i_date=period.end,
                         i_curve=NoInput(0),  # ! NoInput returned for periods beyond Series end.
                     )
+                    if val is None:
+                        _: DualTypes | NoInput = NoInput(0)
+                    else:
+                        _ = val
                 elif isinstance(value, list):
                     if i >= len(value):
                         _ = NoInput(0)  # some fixings are unknown, list size is limited
@@ -1106,20 +1110,26 @@ class _IndexLegMixin:
         return self._index_base
 
     @index_base.setter
-    def index_base(self, value):
+    def index_base(self, value: DualTypes | Series[DualTypes] | NoInput) -> None:
         if isinstance(value, Series):
-            value = IndexMixin._index_value(
+            _: DualTypes | None = IndexMixin._index_value(
                 i_fixings=value,
                 i_method=self.index_method,
                 i_lag=self.index_lag,
                 i_date=self.schedule.effective,
                 i_curve=NoInput(0),  # not required because i_fixings is Series
             )
-        self._index_base = value
+            if _ is None:
+                ret: DualTypes | NoInput = NoInput(0)
+            else:
+                ret = _
+        else:
+            ret = value
+        self._index_base = ret
         # if value is not None:
         for period in self.periods:
             if isinstance(period, IndexFixedPeriod | IndexCashflow):
-                period.index_base = value
+                period.index_base = self._index_base
 
 
 class ZeroFloatLeg(BaseLeg, _FloatLegMixin):
