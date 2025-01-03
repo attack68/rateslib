@@ -196,7 +196,7 @@ class FXDeltaVolSmile(_WithState):
         w_deli: DualTypes | NoInput = NoInput(0),
         w_spot: DualTypes | NoInput = NoInput(0),
         expiry: datetime | NoInput(0) = NoInput(0),
-    ) -> tuple:
+    ) -> tuple[DualTypes, DualTypes, DualTypes]:
         """
         Given an option strike return associated delta and vol values.
 

@@ -3902,6 +3902,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
         f: DualTypes,
         t_e: float,
     ) -> tuple[DualTypes, DualTypes | None]:
+        # TODO this method branches depending upon eta0 and eta1, but depending upon the
+        # type of vol these maybe automatcially set equal to each other. Refactorin this would
+        # make eliminate repeated type checking for the vol argument.
         vol_delta_type = _get_vol_delta_type(vol, delta_type)
 
         z_w = w_deli / w_spot
@@ -3915,7 +3918,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             if eta_1 == 0.5:  # then smile delta type matches: closed form eqn available
                 if isinstance(vol, FXVols):
                     delta_idx = z_w_1 / 2.0
-                    vol_value: DualTypes = _get_vol_smile(vol, self.expiry)[delta_idx]
+                    vol_value: DualTypes = _get_vol_smile_or_raise(vol, self.expiry)[delta_idx]
                 else:
                     vol_value = vol
                     delta_idx = None
@@ -3925,7 +3928,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 u, delta_idx = self._moneyness_from_delta_two_dimensional(
                     delta,
                     delta_type,
-                    _get_vol_smile(vol, self.expiry),
+                    _get_vol_smile_or_raise(vol, self.expiry),
                     t_e,
                     z_w,
                 )
@@ -3934,7 +3937,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 u = self._moneyness_from_atm_delta_one_dimensional(
                     delta_type,
                     vol_delta_type,
-                    _get_vol_smile(vol, self.expiry),
+                    _get_vol_smile_or_value(vol, self.expiry),
                     t_e,
                     z_w,
                 )
@@ -3942,7 +3945,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             else:  # smile delta type unmatched: 2-d solver required
                 u, delta_idx = self._moneyness_from_atm_delta_two_dimensional(
                     delta_type,
-                    _get_vol_smile(vol, self.expiry),
+                    _get_vol_smile_or_raise(vol, self.expiry),
                     t_e,
                     z_w,
                 )
@@ -3958,13 +3961,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
         w_spot: DualTypes,
         f: DualTypes,
         t_e: float,
-    ) -> tuple[DualTypes, DualTypes]:
-        if not isinstance(vol, FXVolObj):
-            vol_delta_type = delta_type  # set delta types as being equal if the vol is a constant.
-        else:
-            if isinstance(vol, FXDeltaVolSurface):
-                vol = vol.get_smile(self.expiry)
-            vol_delta_type = vol.delta_type
+    ) -> tuple[DualTypes, DualTypes | None]:
+        vol_delta_type = _get_vol_delta_type(vol, delta_type)
 
         z_w = w_deli / w_spot
         eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, 0.0)  # u: unused
@@ -3972,12 +3970,13 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         # then delta types are both unadjusted, used closed form.
         if eta_0 == eta_1 and eta_0 == 0.5:
-            if isinstance(vol, FXDeltaVolSmile):
+            if isinstance(vol, FXVols):
                 delta_idx = (-z_w_1 / z_w_0) * (delta - 0.5 * z_w_0 * (self.phi + 1.0))
-                vol = vol[delta_idx]
+                vol_value: DualTypes = _get_vol_smile_or_raise(vol, self.expiry)[delta_idx]
             else:
+                vol_value = vol
                 delta_idx = None
-            u = self._moneyness_from_delta_closed_form(delta, vol, t_e, z_w_0)
+            u: DualTypes = self._moneyness_from_delta_closed_form(delta, vol_value, t_e, z_w_0)
 
         # then delta types are both adjusted, use 1-d solver.
         elif eta_0 == eta_1 and eta_0 == -0.5:
@@ -3985,7 +3984,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 delta,
                 delta_type,
                 vol_delta_type,
-                vol,
+                _get_vol_smile_or_value(vol, self.expiry),
                 t_e,
                 z_w,
             )
@@ -3994,12 +3993,14 @@ class FXOptionPeriod(metaclass=ABCMeta):
             u, delta_idx = self._moneyness_from_delta_two_dimensional(
                 delta,
                 delta_type,
-                vol,
+                _get_vol_smile_or_raise(vol, self.expiry),
                 t_e,
                 z_w,
             )
 
-        return u * f, delta_idx
+        _1: DualTypes = u * f
+        _2: DualTypes | None = delta_idx
+        return _1, _2
 
     def _moneyness_from_atm_delta_closed_form(self, vol: DualTypes, t_e: float) -> DualTypes:
         """
@@ -4018,16 +4019,15 @@ class FXOptionPeriod(metaclass=ABCMeta):
         -------
         float, Dual or Dual2
         """
-        _ = dual_exp((vol / 100.0) ** 2 * t_e / 2.0)
-        return _
+        return dual_exp((vol / 100.0) ** 2 * t_e / 2.0)
 
     def _moneyness_from_delta_closed_form(
         self,
-        delta: float,
+        delta: DualTypes,
         vol: DualTypes,
         t_e: DualTypes,
         z_w_0: DualTypes,
-    ):
+    ) -> DualTypes:
         """
         Return `u` given premium unadjusted `delta`, of either 'spot' or 'forward' type.
 
@@ -4051,7 +4051,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         float, Dual or Dual2
         """
         vol_sqrt_t = vol * t_e**0.5 / 100.0
-        _ = dual_inv_norm_cdf(self.phi * delta / z_w_0)
+        _: DualTypes = dual_inv_norm_cdf(self.phi * delta / z_w_0)
         _ = dual_exp(vol_sqrt_t * (0.5 * vol_sqrt_t - self.phi * _))
         return _
 
@@ -4059,11 +4059,19 @@ class FXOptionPeriod(metaclass=ABCMeta):
         self,
         delta_type: str,
         vol_delta_type: str,
-        vol: FXDeltaVolSmile,
+        vol: DualTypes | FXDeltaVolSmile,
         t_e: DualTypes,
         z_w: DualTypes,
-    ):
-        def root1d(g, delta_type, vol_delta_type, phi, sqrt_t_e, z_w, ad):
+    ) -> DualTypes:
+        def root1d(
+            g: DualTypes,
+            delta_type: str,
+            vol_delta_type: str,
+            phi: float,
+            sqrt_t_e: float,
+            z_w: DualTypes,
+            ad: int,
+        ) -> tuple[DualTypes, DualTypes]:
             u = g
 
             eta_0, z_w_0, z_u_0 = _delta_type_constants(delta_type, z_w, u)
@@ -4072,7 +4080,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
             delta_idx = z_w_1 * z_u_0 / 2.0
             if isinstance(vol, FXDeltaVolSmile):
-                vol_ = vol[delta_idx] / 100.0
+                vol_: DualTypes = vol[delta_idx] / 100.0
                 dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
             else:
                 vol_ = vol / 100.0
@@ -4115,19 +4123,28 @@ class FXOptionPeriod(metaclass=ABCMeta):
             raise_on_fail=True,
         )
 
-        u = root_solver["g"]
+        u: DualTypes = root_solver["g"]
         return u
 
     def _moneyness_from_delta_one_dimensional(
         self,
-        delta,
+        delta: DualTypes,
         delta_type: str,
         vol_delta_type: str,
-        vol: FXDeltaVolSmile,
+        vol: FXDeltaVolSmile | DualTypes,
         t_e: DualTypes,
         z_w: DualTypes,
-    ):
-        def root1d(g, delta, delta_type, vol_delta_type, phi, sqrt_t_e, z_w, ad):
+    ) -> DualTypes:
+        def root1d(
+            g: DualTypes,
+            delta: DualTypes,
+            delta_type: str,
+            vol_delta_type: str,
+            phi: float,
+            sqrt_t_e: DualTypes,
+            z_w: DualTypes,
+            ad: int
+        ) -> tuple[DualTypes, DualTypes]:
             u = g
 
             eta_0, z_w_0, z_u_0 = _delta_type_constants(delta_type, z_w, u)
@@ -4136,7 +4153,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
             delta_idx = (-z_w_1 / z_w_0) * (delta - z_w_0 * z_u_0 * (phi + 1.0) * 0.5)
             if isinstance(vol, FXDeltaVolSmile):
-                vol_ = vol[delta_idx] / 100.0
+                vol_: DualTypes = vol[delta_idx] / 100.0
                 dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
             else:
                 vol_ = vol / 100.0
@@ -4191,7 +4208,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 f"Newton root solver failed, after {root_solver['iterations']} iterations.\n{msg}",
             )
 
-        u = root_solver["g"]
+        u: DualTypes = root_solver["g"]
         return u
 
     def _moneyness_from_delta_two_dimensional(
@@ -4211,7 +4228,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             sqrt_t_e: float,
             z_w: DualTypes,
             ad: int
-        ) -> tuple[Sequence[DualTypes], Sequence[DualTypes]]:
+        ) -> tuple[list[DualTypes], list[list[DualTypes]]]:
             u, delta_idx = g[0], g[1]
 
             eta_0, z_w_0, z_u_0 = _delta_type_constants(delta_type, z_w, u)
@@ -4226,11 +4243,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
             # Calculate function values
             d0 = _d_plus_min_u(u, vol_sqrt_t, eta_0)
             _phi0 = dual_norm_cdf(phi * d0)
-            f0_0 = delta - z_w_0 * z_u_0 * phi * _phi0
+            f0_0: DualTypes = delta - z_w_0 * z_u_0 * phi * _phi0
 
             d1 = _d_plus_min_u(u, vol_sqrt_t, eta_1)
             _phi1 = dual_norm_cdf(-d1)
-            f0_1 = delta_idx - z_w_1 * z_u_1 * _phi1
+            f0_1: DualTypes = delta_idx - z_w_1 * z_u_1 * _phi1
 
             # Calculate Jacobian values
             dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
@@ -4243,10 +4260,10 @@ class FXOptionPeriod(metaclass=ABCMeta):
             dd0_ddeltaidx = (lnu + eta_0 * sqrt_t_e) * dvol_ddeltaidx
             dd1_ddeltaidx = (lnu + eta_1 * sqrt_t_e) * dvol_ddeltaidx
 
-            f1_00 = -z_w_0 * dz_u_0_du * phi * _phi0 - z_w_0 * z_u_0 * nd0 * dd_du
-            f1_10 = -z_w_1 * dz_u_1_du * _phi1 + z_w_1 * z_u_1 * nd1 * dd_du
-            f1_01 = -z_w_0 * z_u_0 * nd0 * dd0_ddeltaidx
-            f1_11 = 1.0 + z_w_1 * z_u_1 * nd1 * dd1_ddeltaidx
+            f1_00: DualTypes = -z_w_0 * dz_u_0_du * phi * _phi0 - z_w_0 * z_u_0 * nd0 * dd_du
+            f1_10: DualTypes = -z_w_1 * dz_u_1_du * _phi1 + z_w_1 * z_u_1 * nd1 * dd_du
+            f1_01: DualTypes = -z_w_0 * z_u_0 * nd0 * dd0_ddeltaidx
+            f1_11: DualTypes = 1.0 + z_w_1 * z_u_1 * nd1 * dd1_ddeltaidx
 
             return [f0_0, f0_1], [[f1_00, f1_01], [f1_10, f1_11]]
 
@@ -4286,7 +4303,15 @@ class FXOptionPeriod(metaclass=ABCMeta):
         t_e: float,
         z_w: DualTypes,
     ) -> tuple[DualTypes, DualTypes]:
-        def root2d(g, delta_type, vol_delta_type, phi, sqrt_t_e, z_w, ad):
+        def root2d(
+            g: list[DualTypes],
+            delta_type: str,
+            vol_delta_type: str,
+            phi: float,
+            sqrt_t_e: DualTypes,
+            z_w: DualTypes,
+            ad: int
+        ) -> tuple[list[DualTypes], list[list[DualTypes]]]:
             u, delta_idx = g[0], g[1]
 
             eta_0, z_w_0, z_u_0 = _delta_type_constants(delta_type, z_w, u)
@@ -4344,7 +4369,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
     def _moneyness_from_delta_three_dimensional(
         self,
         delta_type: str,
-        vol: float | FXDeltaVolSmile,
+        vol: DualTypes | FXDeltaVolSmile,
         t_e: DualTypes,
         z_w: DualTypes,
     ) -> tuple[DualTypes, DualTypes, DualTypes]:
@@ -4352,7 +4377,15 @@ class FXOptionPeriod(metaclass=ABCMeta):
         Solve the ATM delta problem where delta is not explicit.
         """
 
-        def root3d(g, delta_type, vol_delta_type, phi, sqrt_t_e, z_w, ad):
+        def root3d(
+            g: list[DualTypes],
+            delta_type: str,
+            vol_delta_type: str,
+            phi: float,
+            sqrt_t_e: DualTypes,
+            z_w: DualTypes,
+            ad: int
+        ) -> tuple[list[DualTypes], list[list[DualTypes]]]:
             u, delta_idx, delta = g[0], g[1], g[2]
 
             eta_0, z_w_0, z_u_0 = _delta_type_constants(delta_type, z_w, u)
@@ -4361,7 +4394,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             dz_u_1_du = 0.5 - eta_1
 
             if isinstance(vol, FXDeltaVolSmile):
-                vol_ = vol[delta_idx] / 100.0
+                vol_:DualTypes = vol[delta_idx] / 100.0
                 dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
             else:
                 vol_ = vol / 100.0
@@ -4435,16 +4468,21 @@ class FXOptionPeriod(metaclass=ABCMeta):
         disc_curve: Curve,
     ) -> DualTypes:
         """Return a volatility for the option from a given Smile."""
+        # FXOption can have a `strike` that is NoInput, however this internal function should
+        # only be performed after a `strike` has been set, temporarily or otherwise.
+        assert not isinstance(self.strike, NoInput)
+
         if isinstance(vol, FXVolObj):
             spot = fx.pairs_settlement[self.pair]
             f = fx.rate(self.pair, self.delivery)
-            _, vol_, _ = vol.get_from_strike(
+            _: tuple[Any, DualTypes, Any] = vol.get_from_strike(
                 self.strike,
                 f,
                 disc_curve[self.delivery],
                 disc_curve[spot],
                 self.expiry,
             )
+            vol_: DualTypes = _[1]
         elif isinstance(vol, NoInput):
             raise ValueError("`vol` cannot be NoInput when provided to pricing function.")
         else:
@@ -4558,13 +4596,20 @@ def _trim_df_by_index(
         return df[left:right]  # type: ignore[misc]
 
 
-def _get_vol_smile(vol: DualTypes | FXVols, expiry: datetime) -> FXDeltaVolSmile:
+def _get_vol_smile_or_value(vol: DualTypes | FXVols, expiry: datetime) -> FXDeltaVolSmile | DualTypes:
+    if isinstance(vol, FXDeltaVolSurface):
+        return vol.get_smile(expiry)
+    else:
+        return vol
+
+
+def _get_vol_smile_or_raise(vol: DualTypes | FXVols, expiry: datetime) -> FXDeltaVolSmile:
     if isinstance(vol, FXDeltaVolSurface):
         return vol.get_smile(expiry)
     elif isinstance(vol, FXDeltaVolSmile):
         return vol
     else:
-        raise ValueError("Cannot determine FXDeltaVolSmile from `vol` as a number.")
+        raise ValueError("Must supply FXDeltaVolSmile/Surface as `vol` not numeric value.")
 
 
 def _get_vol_delta_type(vol: DualTypes | FXVols, delta_type: str) -> str:
