@@ -412,7 +412,7 @@ class _FixedLegMixin:
     _fixed_rate: DualTypes | NoInput
 
     @property
-    def fixed_rate(self) -> DualTypes:
+    def fixed_rate(self) -> DualTypes | NoInput:
         """
         float or NoInput : If set will also set the ``fixed_rate`` of
             contained :class:`FixedPeriod` s.
@@ -554,7 +554,7 @@ class _FloatLegMixin:
     fixing_method: str
     method_param: int
 
-    def _get_fixings_from_series(self, ser: Series[DualTypes], ini_period: int = 0) -> list:  # type: ignore[type-var]
+    def _get_fixings_from_series(self, ser: Series[DualTypes], ini_period: int = 0) -> list[Series[DualTypes] | NoInput]:  # type: ignore[type-var]
         """
         Determine which fixings can be set for Periods with the given Series.
         """
@@ -572,7 +572,7 @@ class _FloatLegMixin:
             add_tenor(
                 self.schedule.aschedule[i],
                 f"-{adj_days}B",
-                None,
+                "NONE",
                 self.schedule.calendar,
             )
             for i in range(ini_period, self.schedule.n_periods)
@@ -2901,6 +2901,8 @@ class CustomLeg(BaseLeg):
         """
         return super().analytic_delta(*args, **kwargs)
 
+    def _regular_period(self, *args: Any, **kwargs: Any) -> Any:
+        pass
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
