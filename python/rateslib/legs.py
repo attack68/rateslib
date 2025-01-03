@@ -162,7 +162,8 @@ class BaseLeg(metaclass=ABCMeta):
     CustomLeg : Create a leg composed of user specified periods.
     """
 
-    _is_mtm = False
+    _is_mtm: bool = False
+    periods: list[Period]
 
     @abc.abstractmethod
     def __init__(
@@ -563,10 +564,14 @@ class _FloatLegMixin:
     currency: str
     _float_spread: DualTypes
     fixing_method: str
+    spread_compound_method: str
     method_param: int
+    periods: list[Period]
 
     def _get_fixings_from_series(
-        self, ser: Series[DualTypes], ini_period: int = 0
+        self,
+        ser: Series[DualTypes],  # type: ignore[type-var]
+        ini_period: int = 0,
     ) -> list[Series[DualTypes] | NoInput]:  # type: ignore[type-var]
         """
         Determine which fixings can be set for Periods with the given Series.
@@ -594,16 +599,21 @@ class _FloatLegMixin:
 
     def _set_fixings(
         self,
-        fixings,
-    ):
+        fixings: Series[DualTypes]  # type: ignore[type-var]
+        | list[DualTypes]
+        | tuple[DualTypes, Series[DualTypes]]
+        | DualTypes
+        | NoInput,
+    ) -> None:
         """
         Re-organises the fixings input to list structure for each period.
         Requires a ``schedule`` object and ``float_args``.
         """
-        if fixings is NoInput.blank:
+        if isinstance(fixings, NoInput):
             fixings_ = []
         elif isinstance(fixings, Series):
-            fixings_ = fixings.sort_index()  # oldest fixing at index 0: latest -1
+            # oldest fixing at index 0: latest -1
+            fixings_ = fixings.sort_index()  # type: ignore[attr-defined]
             fixings_ = self._get_fixings_from_series(fixings_)
         elif isinstance(fixings, tuple):
             fixings_ = [fixings[0]] + self._get_fixings_from_series(fixings[1], 1)
@@ -826,7 +836,13 @@ class _FloatLegMixin:
             return False
         return True
 
-    def _spread(self, target_npv, fore_curve, disc_curve, fx=NoInput(0)):
+    def _spread(
+        self,
+        target_npv: DualTypes,
+        fore_curve: Curve,
+        disc_curve: Curve,
+        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
+    ) -> DualTypes:
         """
         Calculates an adjustment to the ``fixed_rate`` or ``float_spread`` to match
         a specific target NPV.
