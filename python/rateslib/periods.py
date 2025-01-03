@@ -509,8 +509,10 @@ class FixedPeriod(BasePeriod):
 
     """
 
-    def __init__(self, *args: Any, fixed_rate: float | NoInput = NoInput(0), **kwargs: Any) -> None:
-        self.fixed_rate = fixed_rate
+    def __init__(
+        self, *args: Any, fixed_rate: DualTypes | NoInput = NoInput(0), **kwargs: Any
+    ) -> None:
+        self.fixed_rate: DualTypes | NoInput = fixed_rate
         super().__init__(*args, **kwargs)
 
     def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
@@ -2268,26 +2270,26 @@ class CreditPremiumPeriod(BasePeriod):
     def __init__(
         self,
         *args: Any,
-        fixed_rate: float | NoInput = NoInput(0),
+        fixed_rate: DualTypes | NoInput = NoInput(0),
         premium_accrued: bool | NoInput = NoInput(0),
         **kwargs: Any,
     ) -> None:
-        self.premium_accrued = _drb(defaults.cds_premium_accrued, premium_accrued)
-        self.fixed_rate = fixed_rate
+        self.premium_accrued: bool = _drb(defaults.cds_premium_accrued, premium_accrued)
+        self.fixed_rate: DualTypes | NoInput = fixed_rate
         super().__init__(*args, **kwargs)
 
     @property
-    def cashflow(self) -> float | None:
+    def cashflow(self) -> DualTypes | None:
         """
         float, Dual or Dual2 : The calculated value from rate, dcf and notional.
         """
         if isinstance(self.fixed_rate, NoInput):
             return None
         else:
-            _: float = -self.notional * self.dcf * self.fixed_rate * 0.01
+            _: DualTypes = -self.notional * self.dcf * self.fixed_rate * 0.01
             return _
 
-    def accrued(self, settlement: datetime) -> float | None:
+    def accrued(self, settlement: datetime) -> DualTypes | None:
         """
         Calculate the amount of premium accrued until a specific date within the *Period*.
 
