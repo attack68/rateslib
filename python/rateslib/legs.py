@@ -25,16 +25,16 @@ import abc
 import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
-from typing import NoReturn, Any
+from typing import Any, NoReturn
 
 import pandas as pd
 from pandas import DataFrame, Series
 
 from rateslib import defaults
-from rateslib.calendars import add_tenor, CalInput
+from rateslib.calendars import CalInput, add_tenor
 from rateslib.curves import Curve, index_left
 from rateslib.default import NoInput, _drb
-from rateslib.dual import Dual, Dual2, DualTypes, gradient, set_order
+from rateslib.dual import Dual, Dual2, DualTypes
 from rateslib.fx import FXForwards, FXRates
 from rateslib.periods import (
     Cashflow,
@@ -152,7 +152,6 @@ class BaseLeg(metaclass=ABCMeta):
     """
 
     _is_mtm = False
-
 
     @abc.abstractmethod
     def __init__(
@@ -288,6 +287,7 @@ class BaseLeg(metaclass=ABCMeta):
                 ),
             )
 
+    @abstractmethod
     def _regular_period(self, *args: Any, **kwargs: Any) -> Any:
         # implemented by individual legs to satify generic `set_periods` methods
         pass  # pragma: no cover
@@ -296,7 +296,7 @@ class BaseLeg(metaclass=ABCMeta):
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    #def _regular_period(self, *args: Any, **kwargs: Any) -> Any:
+    # def _regular_period(self, *args: Any, **kwargs: Any) -> Any:
     #    pass
 
     def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
@@ -356,7 +356,7 @@ class BaseLeg(metaclass=ABCMeta):
         fore_curve: Curve,
         disc_curve: Curve,
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
-    ):
+    ) -> DualTypes:
         """
         Calculates an adjustment to the ``fixed_rate`` or ``float_spread`` to match
         a specific target NPV.
@@ -396,7 +396,7 @@ class BaseLeg(metaclass=ABCMeta):
         a_delta = self.analytic_delta(fore_curve, disc_curve, fx, self.currency)
         return -target_npv / a_delta
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
 
@@ -406,8 +406,13 @@ class _FixedLegMixin:
     :class:`~rateslib.periods.FixedPeriod` s.
     """
 
+    convention: str
+    schedule: Schedule
+    currency: str
+    _fixed_rate: DualTypes | NoInput
+
     @property
-    def fixed_rate(self):
+    def fixed_rate(self) -> DualTypes:
         """
         float or NoInput : If set will also set the ``fixed_rate`` of
             contained :class:`FixedPeriod` s.
@@ -415,7 +420,7 @@ class _FixedLegMixin:
         return self._fixed_rate
 
     @fixed_rate.setter
-    def fixed_rate(self, value):
+    def fixed_rate(self, value: DualTypes) -> None:
         self._fixed_rate = value
         for period in getattr(self, "periods", []):
             if isinstance(period, FixedPeriod | CreditPremiumPeriod):
@@ -429,7 +434,7 @@ class _FixedLegMixin:
         notional: float,
         stub: bool,
         iterator: int,
-    ):
+    ) -> FixedPeriod:
         return FixedPeriod(
             fixed_rate=self.fixed_rate,
             start=start,
@@ -492,12 +497,14 @@ class FixedLeg(_FixedLegMixin, BaseLeg):
        fixed_leg_exch.npv(curve)
     """  # noqa: E501
 
-    def __init__(self, *args, fixed_rate: float | NoInput = NoInput(0), **kwargs):
+    def __init__(
+        self, *args: Any, fixed_rate: DualTypes | NoInput = NoInput(0), **kwargs: Any
+    ) -> None:
         self._fixed_rate = fixed_rate
         super().__init__(*args, **kwargs)
         self._set_periods()
 
-    def analytic_delta(self, *args, **kwargs):
+    def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
         """
         Return the analytic delta of the *FixedLeg* via summing all periods.
 
@@ -506,7 +513,7 @@ class FixedLeg(_FixedLegMixin, BaseLeg):
         """
         return super().analytic_delta(*args, **kwargs)
 
-    def cashflows(self, *args, **kwargs) -> DataFrame:
+    def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
         Return the properties of the *FixedLeg* used in calculating cashflows.
 
@@ -515,7 +522,7 @@ class FixedLeg(_FixedLegMixin, BaseLeg):
         """
         return super().cashflows(*args, **kwargs)
 
-    def npv(self, *args, **kwargs):
+    def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]:
         """
         Return the NPV of the *FixedLeg* via summing all periods.
 
@@ -540,7 +547,14 @@ class _FloatLegMixin:
     :meth:`~rateslib.periods.FloatPeriod.fixings_table`.
     """
 
-    def _get_fixings_from_series(self, ser: Series, ini_period: int = 0) -> list:
+    convention: str
+    schedule: Schedule
+    currency: str
+    _float_spread: DualTypes
+    fixing_method: str
+    method_param: int
+
+    def _get_fixings_from_series(self, ser: Series[DualTypes], ini_period: int = 0) -> list:  # type: ignore[type-var]
         """
         Determine which fixings can be set for Periods with the given Series.
         """
@@ -596,7 +610,7 @@ class _FloatLegMixin:
     # ):  # pragma: no cover
     #     # This method is unused and untested, superseded by _spread_isda_approx_rate
     #
-    #     # This method creates a dual2 variable for float spread + obtains derivatives automatically
+    #     # This method creates a dual2 variable for float spread + obtains derivativs automatically
     #     _fs = self.float_spread
     #     self.float_spread = Dual2(0.0 if _fs is None else float(_fs), "spread_z")
     #
@@ -795,10 +809,7 @@ class _FloatLegMixin:
         bool
         """
         # ruff: noqa: SIM103
-        if (
-            "rfr" in self.fixing_method
-            and self.spread_compound_method != "none_simple"
-        ):
+        if "rfr" in self.fixing_method and self.spread_compound_method != "none_simple":
             return False
         return True
 
@@ -1193,6 +1204,9 @@ class _IndexLegMixin:
         for period in self.periods:
             if isinstance(period, IndexFixedPeriod | IndexCashflow):
                 period.index_base = self._index_base
+
+    def _regular_period(self) -> None:
+        pass
 
 
 class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
