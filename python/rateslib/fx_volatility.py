@@ -92,7 +92,7 @@ class FXDeltaVolSmile(_WithState):
         self.expiry = expiry
         self.t_expiry = (expiry - eval_date).days / 365.0
         self.t_expiry_sqrt = self.t_expiry**0.5
-        self.delta_type = _validate_delta_type(delta_type)
+        self.delta_type: str = _validate_delta_type(delta_type)
 
         self.__set_nodes__(nodes, ad)
 
@@ -196,7 +196,7 @@ class FXDeltaVolSmile(_WithState):
         w_deli: DualTypes | NoInput = NoInput(0),
         w_spot: DualTypes | NoInput = NoInput(0),
         expiry: datetime | NoInput(0) = NoInput(0),
-    ) -> tuple:
+    ) -> tuple[DualTypes, DualTypes, DualTypes]:
         """
         Given an option strike return associated delta and vol values.
 
@@ -820,7 +820,7 @@ class FXDeltaVolSurface(_WithState):
                 raise ValueError("Surface `expiries` are not sorted or contain duplicates.\n")
 
         self.delta_indexes = delta_indexes
-        self.delta_type = _validate_delta_type(delta_type)
+        self.delta_type: str = _validate_delta_type(delta_type)
         self.smiles = [
             FXDeltaVolSmile(
                 nodes=dict(zip(self.delta_indexes, node_values[i, :], strict=False)),
@@ -893,7 +893,7 @@ class FXDeltaVolSurface(_WithState):
             vars += tuple(f"{smile.id}{i}" for i in range(smile.n))
         return vars
 
-    def get_smile(self, expiry: datetime):
+    def get_smile(self, expiry: datetime) -> FXDeltaVolSmile:
         """
         Construct a *DeltaVolSmile* with linear total variance interpolation over delta indexes.
 
@@ -1352,7 +1352,9 @@ def _d_plus(K: DualTypes, f: DualTypes, vol_sqrt_t: DualTypes) -> DualTypes:
     return _d_plus_min(K, f, vol_sqrt_t, +0.5)
 
 
-def _delta_type_constants(delta_type, w, u):
+def _delta_type_constants(
+    delta_type: str, w: DualTypes, u: DualTypes
+) -> tuple[float, DualTypes, DualTypes]:
     """
     Get the values: (eta, z_w, z_u) for the type of expressed delta
 

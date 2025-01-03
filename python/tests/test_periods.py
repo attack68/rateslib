@@ -94,10 +94,16 @@ def line_curve():
         ),
         FloatPeriod(dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 2, 1), frequency="m"),
         FXCallPeriod(
-            pair="eurusd", expiry=dt(2000, 1, 1), delivery=dt(2000, 1, 1), payment=dt(2000, 1, 1)
+            pair="eurusd",
+            expiry=dt(2000, 1, 1),
+            delivery=dt(2000, 1, 1),
+            payment=dt(2000, 1, 1),
         ),
         FXPutPeriod(
-            pair="eurusd", expiry=dt(2000, 1, 1), delivery=dt(2000, 1, 1), payment=dt(2000, 1, 1)
+            pair="eurusd",
+            expiry=dt(2000, 1, 1),
+            delivery=dt(2000, 1, 1),
+            payment=dt(2000, 1, 1),
         ),
     ],
 )
@@ -3289,7 +3295,7 @@ class TestFXOption:
             strike=1.101,
             notional=20e6,
         )
-        result = fxo._payoff_at_expiry(range=[1.07, 1.13])
+        result = fxo._payoff_at_expiry(rng=[1.07, 1.13])
         assert result[0][0] == 1.07
         assert result[0][-1] == 1.13
         assert result[1][0] == 0.0
@@ -3304,7 +3310,7 @@ class TestFXOption:
             strike=1.101,
             notional=20e6,
         )
-        result = fxo._payoff_at_expiry(range=[1.07, 1.13])
+        result = fxo._payoff_at_expiry(rng=[1.07, 1.13])
         assert result[0][0] == 1.07
         assert result[0][-1] == 1.13
         assert result[1][0] == (1.101 - 1.07) * 20e6
