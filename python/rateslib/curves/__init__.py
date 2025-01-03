@@ -1,5 +1,6 @@
 from rateslib.curves.curves import (
     CompositeCurve,
+    CreditImpliedCurve,
     Curve,
     IndexCurve,
     LineCurve,
@@ -20,4 +21,5 @@ __all__ = (
     "average_rate",
     "index_left",
     "interpolate",
+    "CreditImpliedCurve",
 )

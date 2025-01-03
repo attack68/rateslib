@@ -15,6 +15,7 @@ from rateslib.curves import (
     index_left,
     interpolate,
 )
+from rateslib.curves.curves import _ImpliedCreditCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, gradient
 from rateslib.fx import FXForwards, FXRates
@@ -2279,3 +2280,12 @@ class TestStateAndCache:
         assert dt(2000, 5, 1) in curve._cache
         getattr(curve, method)(*args)
         assert curve._cache == {}
+
+
+class TestImpliedCreditCurve:
+    def test_implied_df(self):
+        haz_curve = Curve(nodes={dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.95})
+        rf_curve = Curve(nodes={dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98})
+        obj = _ImpliedCreditCurve(rf_curve, haz_curve, 0.4)
+        result = obj[dt(2000, 12, 1)]
+        assert abs(result - 0.9124165638526769) < 1e-5
