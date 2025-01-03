@@ -22,9 +22,10 @@ from __future__ import annotations
 
 import warnings
 from abc import ABCMeta, abstractmethod
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from math import comb, log
-from typing import Any, Sequence
+from typing import Any
 
 import numpy as np
 from pandas import NA, DataFrame, Index, MultiIndex, Series, concat, isna, notna
@@ -4108,7 +4109,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             return f0, f1
 
         if isinstance(vol, FXDeltaVolSmile):
-            avg_vol = _dual_float(list(vol.nodes.values())[int(vol.n / 2)])
+            avg_vol: DualTypes = _dual_float(list(vol.nodes.values())[int(vol.n / 2)])
         else:
             avg_vol = vol
         g01 = self.phi * 0.5 * (z_w if "spot" in delta_type else 1.0)
@@ -4143,7 +4144,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             phi: float,
             sqrt_t_e: DualTypes,
             z_w: DualTypes,
-            ad: int
+            ad: int,
         ) -> tuple[DualTypes, DualTypes]:
             u = g
 
@@ -4181,7 +4182,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             return f0, f1
 
         if isinstance(vol, FXDeltaVolSmile):
-            avg_vol = _dual_float(list(vol.nodes.values())[int(vol.n / 2)])
+            avg_vol: DualTypes = _dual_float(list(vol.nodes.values())[int(vol.n / 2)])
         else:
             avg_vol = vol
         g01 = delta if self.phi > 0 else max(delta, -0.75)
@@ -4227,7 +4228,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             phi: float,
             sqrt_t_e: float,
             z_w: DualTypes,
-            ad: int
+            ad: int,
         ) -> tuple[list[DualTypes], list[list[DualTypes]]]:
             u, delta_idx = g[0], g[1]
 
@@ -4310,7 +4311,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             phi: float,
             sqrt_t_e: DualTypes,
             z_w: DualTypes,
-            ad: int
+            ad: int,
         ) -> tuple[list[DualTypes], list[list[DualTypes]]]:
             u, delta_idx = g[0], g[1]
 
@@ -4384,7 +4385,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             phi: float,
             sqrt_t_e: DualTypes,
             z_w: DualTypes,
-            ad: int
+            ad: int,
         ) -> tuple[list[DualTypes], list[list[DualTypes]]]:
             u, delta_idx, delta = g[0], g[1], g[2]
 
@@ -4394,7 +4395,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             dz_u_1_du = 0.5 - eta_1
 
             if isinstance(vol, FXDeltaVolSmile):
-                vol_:DualTypes = vol[delta_idx] / 100.0
+                vol_: DualTypes = vol[delta_idx] / 100.0
                 dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
             else:
                 vol_ = vol / 100.0
@@ -4440,7 +4441,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             ]
 
         if isinstance(vol, FXDeltaVolSmile):
-            avg_vol = _dual_float(list(vol.nodes.values())[int(vol.n / 2)])
+            avg_vol: DualTypes = _dual_float(list(vol.nodes.values())[int(vol.n / 2)])
             vol_delta_type = vol.delta_type
         else:
             avg_vol = vol
@@ -4470,7 +4471,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         """Return a volatility for the option from a given Smile."""
         # FXOption can have a `strike` that is NoInput, however this internal function should
         # only be performed after a `strike` has been set, temporarily or otherwise.
-        assert not isinstance(self.strike, NoInput)
+        assert not isinstance(self.strike, NoInput)  # noqa: S101
 
         if isinstance(vol, FXVolObj):
             spot = fx.pairs_settlement[self.pair]
@@ -4494,22 +4495,28 @@ class FXOptionPeriod(metaclass=ABCMeta):
         # TODO make this a dual, associated with theta
         return (self.expiry - now).days / 365.0
 
-    def _payoff_at_expiry(self, range: list[float] | NoInput = NoInput(0)):
+    def _payoff_at_expiry(
+        self, rng: list[float] | NoInput = NoInput(0)
+    ) -> tuple[
+        np.ndarray[tuple[int], np.dtype[np.float64]], np.ndarray[tuple[int], np.dtype[np.float64]]
+    ]:
+        # used by plotting methods
         if isinstance(self.strike, NoInput):
             raise ValueError(
                 "Cannot return payoff for option without a specified `strike`.",
             )  # pragma: no cover
-        if isinstance(range, NoInput):
+        if isinstance(rng, NoInput):
             x = np.linspace(0, 20, 1001)
         else:
-            x = np.linspace(range[0], range[1], 1001)
-        _ = (x - self.strike) * self.phi
+            x = np.linspace(rng[0], rng[1], 1001)
+        k: float = _dual_float(self.strike)
+        _ = (x - k) * self.phi
         __ = np.zeros(1001)
         if self.phi > 0:  # call
-            y = np.where(x < self.strike, __, _) * self.notional
+            y = np.where(x < k, __, _) * self.notional
         else:  # put
-            y = np.where(x > self.strike, __, _) * self.notional
-        return x, y
+            y = np.where(x > k, __, _) * self.notional
+        return x, y  # type: ignore[return-value]
 
 
 class FXCallPeriod(FXOptionPeriod):
@@ -4596,7 +4603,9 @@ def _trim_df_by_index(
         return df[left:right]  # type: ignore[misc]
 
 
-def _get_vol_smile_or_value(vol: DualTypes | FXVols, expiry: datetime) -> FXDeltaVolSmile | DualTypes:
+def _get_vol_smile_or_value(
+    vol: DualTypes | FXVols, expiry: datetime
+) -> FXDeltaVolSmile | DualTypes:
     if isinstance(vol, FXDeltaVolSurface):
         return vol.get_smile(expiry)
     else:
@@ -4617,6 +4626,7 @@ def _get_vol_delta_type(vol: DualTypes | FXVols, delta_type: str) -> str:
         return delta_type
     else:
         return vol.delta_type
+
 
 # def _validate_broad_delta_bounds(phi, delta, delta_type):
 #     if phi < 0 and "_pa" in delta_type:

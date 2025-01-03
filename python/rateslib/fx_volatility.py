@@ -92,7 +92,7 @@ class FXDeltaVolSmile(_WithState):
         self.expiry = expiry
         self.t_expiry = (expiry - eval_date).days / 365.0
         self.t_expiry_sqrt = self.t_expiry**0.5
-        self.delta_type = _validate_delta_type(delta_type)
+        self.delta_type: str = _validate_delta_type(delta_type)
 
         self.__set_nodes__(nodes, ad)
 
@@ -820,7 +820,7 @@ class FXDeltaVolSurface(_WithState):
                 raise ValueError("Surface `expiries` are not sorted or contain duplicates.\n")
 
         self.delta_indexes = delta_indexes
-        self.delta_type = _validate_delta_type(delta_type)
+        self.delta_type: str = _validate_delta_type(delta_type)
         self.smiles = [
             FXDeltaVolSmile(
                 nodes=dict(zip(self.delta_indexes, node_values[i, :], strict=False)),
