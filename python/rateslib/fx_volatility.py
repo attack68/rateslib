@@ -893,7 +893,7 @@ class FXDeltaVolSurface(_WithState):
             vars += tuple(f"{smile.id}{i}" for i in range(smile.n))
         return vars
 
-    def get_smile(self, expiry: datetime):
+    def get_smile(self, expiry: datetime) -> FXDeltaVolSmile:
         """
         Construct a *DeltaVolSmile* with linear total variance interpolation over delta indexes.
 
