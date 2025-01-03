@@ -25,14 +25,13 @@ import abc
 import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
-from typing import NoReturn
+from typing import NoReturn, Any
 
 import pandas as pd
 from pandas import DataFrame, Series
-from pandas.tseries.offsets import CustomBusinessDay
 
 from rateslib import defaults
-from rateslib.calendars import add_tenor
+from rateslib.calendars import add_tenor, CalInput
 from rateslib.curves import Curve, index_left
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, DualTypes, gradient, set_order
@@ -154,6 +153,7 @@ class BaseLeg(metaclass=ABCMeta):
 
     _is_mtm = False
 
+
     @abc.abstractmethod
     def __init__(
         self,
@@ -167,7 +167,7 @@ class BaseLeg(metaclass=ABCMeta):
         roll: str | int | NoInput = NoInput(0),
         eom: bool | NoInput = NoInput(0),
         modifier: str | NoInput = NoInput(0),
-        calendar: CustomBusinessDay | str | NoInput = NoInput(0),
+        calendar: CalInput = NoInput(0),
         payment_lag: int | NoInput = NoInput(0),
         notional: float | NoInput = NoInput(0),
         currency: str | NoInput = NoInput(0),
@@ -190,39 +190,33 @@ class BaseLeg(metaclass=ABCMeta):
             calendar,
             payment_lag,
         )
-        self.convention = defaults.convention if convention is NoInput.blank else convention
-        self.currency = defaults.base_currency if currency is NoInput.blank else currency.lower()
-
-        self.payment_lag_exchange = (
-            defaults.payment_lag_exchange
-            if payment_lag_exchange is NoInput.blank
-            else payment_lag_exchange
-        )
-        self.initial_exchange = initial_exchange
-        self.final_exchange = final_exchange
-
-        self._notional = defaults.notional if notional is NoInput.blank else notional
-        self._amortization = 0 if amortization is NoInput.blank else amortization
+        self.convention: str = _drb(defaults.convention, convention)
+        self.currency: str = _drb(defaults.base_currency, currency).lower()
+        self.payment_lag_exchange: int = _drb(defaults.payment_lag_exchange, payment_lag_exchange)
+        self.initial_exchange: bool = initial_exchange
+        self.final_exchange: bool = final_exchange
+        self._notional: float = _drb(defaults.notional, notional)
+        self._amortization: float = _drb(0.0, amortization)
         if getattr(self, "_delay_set_periods", False):
             pass
         else:
             self._set_periods()
 
     @property
-    def notional(self):
+    def notional(self) -> float:
         return self._notional
 
     @notional.setter
-    def notional(self, value):
+    def notional(self, value: float) -> None:
         self._notional = value
         self._set_periods()
 
     @property
-    def amortization(self):
+    def amortization(self) -> float:
         return self._amortization
 
     @amortization.setter
-    def amortization(self, value):
+    def amortization(self, value: float) -> None:
         self._amortization = value
         self._set_periods()
 
@@ -302,7 +296,10 @@ class BaseLeg(metaclass=ABCMeta):
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    def analytic_delta(self, *args, **kwargs):
+    def _regular_period(self, *args: Any, **kwargs: Any) -> Any:
+        pass
+
+    def analytic_delta(self, *args, **kwargs) -> DualTypes:
         """
         Return the analytic delta of the *Leg* via summing all periods.
 
@@ -322,7 +319,7 @@ class BaseLeg(metaclass=ABCMeta):
         seq = [period.cashflows(*args, **kwargs) for period in self.periods]
         return DataFrame.from_records(seq)
 
-    def npv(self, *args, **kwargs):
+    def npv(self, *args, **kwargs) -> DualTypes | dict[str, DualTypes]:
         """
         Return the NPV of the *Leg* via summing all periods.
 
