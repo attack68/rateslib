@@ -155,7 +155,7 @@ def _maybe_local(
 def _maybe_fx_converted(
     value: DualTypes,
     currency: str,
-    fx: float | FXRates | FXForwards | NoInput,
+    fx: DualTypes | FXRates | FXForwards | NoInput,
     base: str | NoInput,
 ) -> DualTypes:
     fx_, _ = _get_fx_and_base(currency, fx, base)
@@ -289,7 +289,7 @@ class BasePeriod(metaclass=ABCMeta):
         self,
         curve: Curve | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -930,7 +930,7 @@ class FloatPeriod(BasePeriod):
         self,
         curve: Curve | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -2362,7 +2362,7 @@ class CreditPremiumPeriod(BasePeriod):
         self,
         curve: Curve | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -2547,7 +2547,7 @@ class CreditProtectionPeriod(BasePeriod):
         self,
         curve: Curve | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -3074,7 +3074,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
         self,
         curve: Curve | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
