@@ -1859,23 +1859,23 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
        zil.cashflows(index_curve, curve)
 
     """
+    periods: list[IndexFixedPeriod | Cashflow]  # type: ignore[assignment]
 
     def __init__(
         self,
         *args: Any,
-        index_base: DualTypes | Series[DualTypes] | NoInput = NoInput(0),
-        index_fixings: float | Series | NoInput = NoInput(0),
+        index_base: DualTypes | Series[DualTypes] | NoInput = NoInput(0),  # type: ignore[type-var]
+        index_fixings: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput = NoInput(0),   # type: ignore[type-var]
         index_method: str | NoInput = NoInput(0),
         index_lag: int | NoInput = NoInput(0),
         **kwargs: Any,
     ) -> None:
-        self.index_method = (
-            defaults.index_method if index_method is NoInput.blank else index_method.lower()
-        )
-        self.index_lag = defaults.index_lag if index_lag is NoInput.blank else index_lag
+        self.index_method = _drb(defaults.index_method, index_method).lower()
+        self.index_lag = _drb(defaults.index_lag, index_lag)
         super().__init__(*args, **kwargs)
         self.index_fixings = index_fixings  # set index fixings after periods init
-        self.index_base = index_base  # set after periods initialised
+        # set after periods initialised
+        self.index_base = index_base  # type: ignore[assignment]
 
     def _set_periods(self) -> None:
         self.periods = [
@@ -1893,7 +1893,7 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
                 roll=self.schedule.roll,
                 calendar=self.schedule.calendar,
                 index_base=self.index_base,
-                index_fixings=self.index_fixings,
+                index_fixings=NoInput(0),  # set during init
                 index_lag=self.index_lag,
                 index_method=self.index_method,
             ),
@@ -1909,7 +1909,7 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
     def cashflow(self, curve: Curve | NoInput = NoInput(0)) -> DualTypes:
         """Aggregate the cashflows on the *IndexFixedPeriod* and *Cashflow* period using a
         *Curve*."""
-        _: DualTypes = self.periods[0].cashflow(curve) + self.periods[1].cashflow
+        _: DualTypes = self.periods[0].cashflow(curve) + self.periods[1].cashflow  # type: ignore[operator]
         return _
 
     def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame:
@@ -1920,7 +1920,7 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
         :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`.
         """
         cfs = super().cashflows(*args, **kwargs)
-        _ = cfs.iloc[[0]].copy()
+        _: DataFrame = cfs.iloc[[0]].copy()
         for attr in ["Cashflow", "NPV", "NPV Ccy"]:
             _[attr] += cfs.iloc[1][attr]
         _["Type"] = "ZeroIndexLeg"
@@ -2002,17 +2002,17 @@ class CreditPremiumLeg(_FixedLegMixin, BaseLeg):
 
     def __init__(
         self,
-        *args,
-        fixed_rate: float | NoInput = NoInput(0),
+        *args: Any,
+        fixed_rate: DualTypes | NoInput = NoInput(0),
         premium_accrued: bool | NoInput = NoInput(0),
-        **kwargs,
+        **kwargs: Any,
     ):
         self._fixed_rate = fixed_rate
         self.premium_accrued = _drb(defaults.cds_premium_accrued, premium_accrued)
         super().__init__(*args, **kwargs)
         self._set_periods()
 
-    def analytic_delta(self, *args, **kwargs):
+    def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
         """
         Return the analytic delta of the *CreditPremiumLeg* via summing all periods.
 
@@ -2021,7 +2021,7 @@ class CreditPremiumLeg(_FixedLegMixin, BaseLeg):
         """
         return super().analytic_delta(*args, **kwargs)
 
-    def cashflows(self, *args, **kwargs) -> DataFrame:
+    def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
         Return the properties of the *CreditPremiumLeg* used in calculating cashflows.
 
@@ -2030,7 +2030,7 @@ class CreditPremiumLeg(_FixedLegMixin, BaseLeg):
         """
         return super().cashflows(*args, **kwargs)
 
-    def npv(self, *args, **kwargs):
+    def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]:
         """
         Return the NPV of the *CreditPremiumLeg* via summing all periods.
 
@@ -2039,7 +2039,7 @@ class CreditPremiumLeg(_FixedLegMixin, BaseLeg):
         """
         return super().npv(*args, **kwargs)
 
-    def accrued(self, settlement):
+    def accrued(self, settlement: datetime) -> DualTypes:
         """
         Calculate the amount of premium accrued until a specific date within the relevant *Period*.
 
@@ -2068,7 +2068,7 @@ class CreditPremiumLeg(_FixedLegMixin, BaseLeg):
         start: datetime,
         end: datetime,
         payment: datetime,
-        notional: float,
+        notional: DualTypes,
         stub: bool,
         iterator: int,
     ):
