@@ -900,7 +900,7 @@ class FloatPeriod(BasePeriod):
         self,
         *args: Any,
         float_spread: DualTypes | NoInput = NoInput(0),
-        fixings: float | list[float] | Series[float] | NoInput = NoInput(0),
+        fixings: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput = NoInput(0),  # type: ignore[type-var]
         fixing_method: str | NoInput = NoInput(0),
         method_param: int | NoInput = NoInput(0),
         spread_compound_method: str | NoInput = NoInput(0),
@@ -1121,7 +1121,8 @@ class FloatPeriod(BasePeriod):
             cal_, _ = self._maybe_get_cal_and_conv_from_curve(curve)
             fixing_date = cal_.lag(self.start, -self.method_param, False)
             try:
-                return self.fixings[fixing_date] + self.float_spread / 100
+                fixing: DualTypes = self.fixings[fixing_date] + self.float_spread / 100  # type: ignore[index]
+                return fixing
             except KeyError:
                 warnings.warn(
                     "A FloatPeriod `fixing date` was not found in the given `fixings` Series.\n"
@@ -1361,13 +1362,13 @@ class FloatPeriod(BasePeriod):
             if isinstance(self.fixings, list):
                 rates.iloc[: len(self.fixings)] = self.fixings
             elif isinstance(self.fixings, Series):
-                if not self.fixings.index.is_monotonic_increasing:
+                if not self.fixings.index.is_monotonic_increasing:  # type: ignore[attr-defined]
                     raise ValueError(
                         "`fixings` as a Series must have a monotonically increasing "
                         "datetimeindex.",
                     )
                 # [-2] is used because the last rfr fixing is 1 day before the end
-                fixing_rates = self.fixings.loc[obs_dates.iloc[0] : obs_dates.iloc[-2]]  # type: ignore[misc]
+                fixing_rates = self.fixings.loc[obs_dates.iloc[0] : obs_dates.iloc[-2]]  # type: ignore[attr-defined, misc]
 
                 try:
                     rates.loc[fixing_rates.index] = fixing_rates

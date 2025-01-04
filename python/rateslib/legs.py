@@ -567,6 +567,7 @@ class _FloatLegMixin:
     spread_compound_method: str
     method_param: int
     periods: list[Period]
+    fixings: list[DualTypes | Series[DualTypes] | NoInput]  # type: ignore[type-var]
 
     def _get_fixings_from_series(
         self,
@@ -600,7 +601,7 @@ class _FloatLegMixin:
     def _set_fixings(
         self,
         fixings: Series[DualTypes]  # type: ignore[type-var]
-        | list[DualTypes]
+        | list[DualTypes | Series[DualTypes] | NoInput]
         | tuple[DualTypes, Series[DualTypes]]
         | DualTypes
         | NoInput,
@@ -610,13 +611,14 @@ class _FloatLegMixin:
         Requires a ``schedule`` object and ``float_args``.
         """
         if isinstance(fixings, NoInput):
-            fixings_ = []
+            fixings_: list[DualTypes | Series[DualTypes] | NoInput] = []  # type: ignore[type-var]
         elif isinstance(fixings, Series):
             # oldest fixing at index 0: latest -1
-            fixings_ = fixings.sort_index()  # type: ignore[attr-defined]
-            fixings_ = self._get_fixings_from_series(fixings_)
+            sorted_fixings: Series[DualTypes] = fixings.sort_index()  # type: ignore[attr-defined, type-var]
+            fixings_ = self._get_fixings_from_series(sorted_fixings)  # type: ignore[assignment]
         elif isinstance(fixings, tuple):
-            fixings_ = [fixings[0]] + self._get_fixings_from_series(fixings[1], 1)
+            fixings_ = [fixings[0]]
+            fixings_.extend(self._get_fixings_from_series(fixings[1], 1))
         elif not isinstance(fixings, list):
             fixings_ = [fixings]
         else:  # fixings as a list should be remaining
@@ -699,14 +701,13 @@ class _FloatLegMixin:
         Use approximated derivatives through geometric averaged 1day rates to derive the
         spread
         """
-        a, b = 0.0, 0.0
-        for period in self.periods:
-            try:
-                a_, b_ = period._get_analytic_delta_quadratic_coeffs(fore_curve, disc_curve)
-                a += a_
-                b += b_
-            except AttributeError:  # the period might be of wrong kind: TODO: better filter
-                pass
+        a: DualTypes = 0.0
+        b: DualTypes = 0.0
+        for period in [_ for _ in self.periods if isinstance(_, FloatPeriod)]:
+            a_, b_ = period._get_analytic_delta_quadratic_coeffs(fore_curve, disc_curve)
+            a += a_
+            b += b_
+
         c = -target_npv
 
         # perform the quadratic solution
