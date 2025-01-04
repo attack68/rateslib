@@ -301,7 +301,7 @@ class BaseLeg(metaclass=ABCMeta):
 
     @abstractmethod
     def _regular_period(self, *args: Any, **kwargs: Any) -> Period:
-        # implemented by individual legs to satify generic `set_periods` methods
+        # implemented by individual legs to satisfy generic `set_periods` methods
         pass  # pragma: no cover
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -1242,8 +1242,8 @@ class _IndexLegMixin:
             if isinstance(period, IndexFixedPeriod | IndexCashflow):
                 period.index_base = self._index_base
 
-    def _regular_period(self) -> None:
-        pass
+    def _regular_period(self, *args: Any, **kwargs: Any) -> Period:  # type: ignore[empty-body]
+        pass  # pragma: no cover
 
 
 class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
@@ -1754,10 +1754,10 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):
         disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.currency, fx, base)
         if isinstance(self.fixed_rate, NoInput):
-            return None
+            raise ValueError("Must have `fixed_rate` on ZeroFixedLeg for analytic delta.")
 
         f = 12 / defaults.frequency_months[self.schedule.frequency]
-        _ = self.notional * self.dcf * disc_curve_[self.periods[0].payment]
+        _: DualTypes = self.notional * self.dcf * disc_curve_[self.periods[0].payment]
         _ *= (1 + self.fixed_rate / (100 * f)) ** (self.dcf * f - 1)
         return _ / 10000 * fx
 
@@ -1781,7 +1781,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):
         a_delta = self._analytic_delta(fore_curve, disc_curve, fx, self.currency)
         period_rate = -target_npv / (a_delta * 100)
         f = 12 / defaults.frequency_months[self.schedule.frequency]
-        _ = f * ((1 + period_rate * self.dcf / 100) ** (1 / (self.dcf * f)) - 1)
+        _: DualTypes = f * ((1 + period_rate * self.dcf / 100) ** (1 / (self.dcf * f)) - 1)
         return _ * 10000
 
     def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]:
@@ -1862,13 +1862,13 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
 
     def __init__(
         self,
-        *args,
+        *args: Any,
         index_base: DualTypes | Series[DualTypes] | NoInput = NoInput(0),
         index_fixings: float | Series | NoInput = NoInput(0),
         index_method: str | NoInput = NoInput(0),
         index_lag: int | NoInput = NoInput(0),
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         self.index_method = (
             defaults.index_method if index_method is NoInput.blank else index_method.lower()
         )
@@ -1877,7 +1877,7 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
         self.index_fixings = index_fixings  # set index fixings after periods init
         self.index_base = index_base  # set after periods initialised
 
-    def _set_periods(self):
+    def _set_periods(self) -> None:
         self.periods = [
             IndexFixedPeriod(
                 fixed_rate=100.0,
@@ -1906,13 +1906,13 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
             ),
         ]
 
-    def cashflow(self, curve: Curve | None = None):
+    def cashflow(self, curve: Curve | NoInput = NoInput(0)) -> DualTypes:
         """Aggregate the cashflows on the *IndexFixedPeriod* and *Cashflow* period using a
         *Curve*."""
-        _ = self.periods[0].cashflow(curve) + self.periods[1].cashflow
+        _: DualTypes = self.periods[0].cashflow(curve) + self.periods[1].cashflow
         return _
 
-    def cashflows(self, *args, **kwargs):
+    def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
         Return the properties of the *ZeroIndexLeg* used in calculating cashflows.
 
@@ -1927,7 +1927,7 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
         _["Period"] = None
         return _
 
-    def analytic_delta(self, *args, **kwargs) -> float:
+    def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
         """
         Return the analytic delta of the *ZeroIndexLeg* via summing all periods.
 
@@ -1936,7 +1936,7 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
         """
         return 0.0
 
-    def npv(self, *args, **kwargs):
+    def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]:
         """
         Return the NPV of the *ZeroIndexLeg* via summing all periods.
 
