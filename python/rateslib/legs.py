@@ -180,9 +180,9 @@ class BaseLeg(metaclass=ABCMeta):
         modifier: str | NoInput = NoInput(0),
         calendar: CalInput = NoInput(0),
         payment_lag: int | NoInput = NoInput(0),
-        notional: float | NoInput = NoInput(0),
+        notional: DualTypes | NoInput = NoInput(0),
         currency: str | NoInput = NoInput(0),
-        amortization: float | NoInput = NoInput(0),
+        amortization: DualTypes | NoInput = NoInput(0),
         convention: str | NoInput = NoInput(0),
         payment_lag_exchange: int | NoInput = NoInput(0),
         initial_exchange: bool = False,
@@ -2002,7 +2002,7 @@ class CreditPremiumLeg(_FixedLegMixin, BaseLeg):
        premium_leg.cashflows(hazard_curve, disc_curve)
        premium_leg.npv(hazard_curve, disc_curve)
     """  # noqa: E501
-    periods: list[CreditPremiumPeriod]
+    periods: list[CreditPremiumPeriod]  # type: ignore[assignment]
 
     def __init__(
         self,
@@ -2047,7 +2047,7 @@ class CreditPremiumLeg(_FixedLegMixin, BaseLeg):
         """
         return super().npv(*args, **kwargs)
 
-    def accrued(self, settlement: datetime) -> DualTypes:
+    def accrued(self, settlement: datetime) -> DualTypes | None:
         """
         Calculate the amount of premium accrued until a specific date within the relevant *Period*.
 
@@ -2071,7 +2071,7 @@ class CreditPremiumLeg(_FixedLegMixin, BaseLeg):
     def _set_periods(self) -> None:
         return super()._set_periods()
 
-    def _regular_period(
+    def _regular_period(  # type: ignore[override]
         self,
         start: datetime,
         end: datetime,
@@ -2149,20 +2149,25 @@ class CreditProtectionLeg(BaseLeg):
        protection_leg.cashflows(hazard_curve, disc_curve)
        protection_leg.npv(hazard_curve, disc_curve)
     """  # noqa: E501
+    periods: list[CreditProtectionPeriod]  # type: ignore[assignment]
 
     def __init__(
         self,
-        *args,
+        *args: Any,
         recovery_rate: DualTypes | NoInput = NoInput(0),
         discretization: int | NoInput = NoInput(0),
-        **kwargs,
-    ):
-        self._recovery_rate = _drb(defaults.cds_recovery_rate, recovery_rate)
-        self.discretization = _drb(defaults.cds_protection_discretization, discretization)
+        **kwargs: Any,
+    ) -> None:
+        self._recovery_rate: DualTypes = _drb(defaults.cds_recovery_rate, recovery_rate)
+        self.discretization: int = _drb(defaults.cds_protection_discretization, discretization)
         super().__init__(*args, **kwargs)
+        if self.initial_exchange or self.final_exchange:
+            raise ValueError(
+                "`initial_exchange` and `final_exchange` cannot be True on CreditProtectionLeg."
+            )
         self._set_periods()
 
-    def analytic_delta(self, *args, **kwargs):
+    def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
         """
         Return the analytic delta of the *CreditProtectionLeg* via summing all periods.
 
@@ -2171,7 +2176,7 @@ class CreditProtectionLeg(BaseLeg):
         """
         return super().analytic_delta(*args, **kwargs)
 
-    def analytic_rec_risk(self, *args, **kwargs):
+    def analytic_rec_risk(self, *args: Any, **kwargs: Any) -> DualTypes:
         """
         Return the analytic recovery risk of the *CreditProtectionLeg* via summing all periods.
 
@@ -2181,7 +2186,7 @@ class CreditProtectionLeg(BaseLeg):
         _ = (period.analytic_rec_risk(*args, **kwargs) for period in self.periods)
         return sum(_)
 
-    def cashflows(self, *args, **kwargs) -> DataFrame:
+    def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
         Return the properties of the *CreditProtectionLeg* used in calculating cashflows.
 
@@ -2190,7 +2195,7 @@ class CreditProtectionLeg(BaseLeg):
         """
         return super().cashflows(*args, **kwargs)
 
-    def npv(self, *args, **kwargs):
+    def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]:
         """
         Return the NPV of the *CreditProtectionLeg* via summing all periods.
 
@@ -2210,7 +2215,7 @@ class CreditProtectionLeg(BaseLeg):
         notional: float,
         stub: bool,
         iterator: int,
-    ):
+    ) -> CreditProtectionPeriod:
         return CreditProtectionPeriod(
             recovery_rate=self.recovery_rate,
             discretization=self.discretization,
@@ -2228,11 +2233,11 @@ class CreditProtectionLeg(BaseLeg):
         )
 
     @property
-    def recovery_rate(self):
+    def recovery_rate(self) -> DualTypes:
         return self._recovery_rate
 
     @recovery_rate.setter
-    def recovery_rate(self, value):
+    def recovery_rate(self, value: DualTypes) -> None:
         self._recovery_rate = value
         for _ in self.periods:
             if isinstance(_, CreditProtectionPeriod):
@@ -2324,19 +2329,17 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):
     # TODO: spread calculations to determine the fixed rate on this leg do not work.
     def __init__(
         self,
-        *args,
-        index_base: float,
-        index_fixings: float | Series | NoInput = NoInput(0),
+        *args: Any,
+        index_base: DualTypes,
+        index_fixings: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput = NoInput(0),  # type: ignore[type-var]
         index_method: str | NoInput = NoInput(0),
         index_lag: int | NoInput = NoInput(0),
-        fixed_rate: float | NoInput = NoInput(0),
-        **kwargs,
+        fixed_rate: DualTypes | NoInput = NoInput(0),
+        **kwargs: Any,
     ) -> None:
         self._fixed_rate = fixed_rate
-        self.index_lag = defaults.index_lag if index_lag is NoInput.blank else index_lag
-        self.index_method = (
-            defaults.index_method if index_method is NoInput.blank else index_method.lower()
-        )
+        self.index_lag: int = _drb(defaults.index_lag, index_lag)
+        self.index_method = _drb(defaults.index_method, index_method).lower()
         if self.index_method not in ["daily", "monthly"]:
             raise ValueError("`index_method` must be in {'daily', 'monthly'}.")
         super().__init__(*args, **kwargs)
@@ -2390,7 +2393,7 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):
                 index_method=self.index_method,
                 index_fixings=self.index_fixings,
             )
-            for i, period in self.schedule.table.to_dict(orient="index").items()
+            for i, period in enumerate(self.schedule.table.to_dict(orient="index").values())
         ]
         if self.final_exchange and self.amortization != 0:
             amortization = [
@@ -2433,13 +2436,13 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):
                 ),
             )
 
-    def npv(self, *args, **kwargs):
+    def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]:
         return super().npv(*args, **kwargs)
 
-    def cashflows(self, *args, **kwargs):
+    def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame:
         return super().cashflows(*args, **kwargs)
 
-    def analytic_delta(self, *args, **kwargs):
+    def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
         return super().analytic_delta(*args, **kwargs)
 
 
@@ -2478,12 +2481,12 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
     def __init__(
         self,
         *args: Any,
-        fx_fixings: list | float | Dual | Dual2 | NoInput = NoInput(0),
+        fx_fixings: list[DualTypes] | DualTypes | NoInput = NoInput(0),
         alt_currency: str | NoInput = NoInput(0),
-        alt_notional: float | NoInput = NoInput(0),
+        alt_notional: DualTypes | NoInput = NoInput(0),
         **kwargs: Any,
     ) -> None:
-        if alt_currency is NoInput.blank:
+        if isinstance(alt_currency, NoInput):
             raise ValueError("`alt_currency` and `currency` must be supplied for MtmLeg.")
         self.alt_currency = alt_currency.lower()
         self.alt_notional = defaults.notional if alt_notional is NoInput.blank else alt_notional
@@ -2501,7 +2504,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         return self._notional
 
     @notional.setter
-    def notional(self, value: DualTypes):
+    def notional(self, value: DualTypes) -> None:
         self._notional = value
 
     @property
@@ -2535,12 +2538,12 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         return fixings_list
 
     @fx_fixings.setter
-    def fx_fixings(self, value):
-        if value is NoInput.blank:
+    def fx_fixings(self, value) -> None:
+        if isinstance(value, NoInput):
             self._fx_fixings = []
         elif isinstance(value, list):
             self._fx_fixings = value
-        elif isinstance(value, float | Dual | Dual2):
+        elif isinstance(value, DualTypes):
             self._fx_fixings = [value]
         elif isinstance(value, Series):
             self._fx_fixings = self._get_fx_fixings_from_series(value)
@@ -2557,7 +2560,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    def _get_fx_fixings(self, fx):
+    def _get_fx_fixings(self, fx: FXForwards | NoInput):
         """
         Return the calculated FX fixings.
 
@@ -2614,7 +2617,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
                 fx_fixings.extend([fx_fixings[-1]] * (n_req - n_given))
         return fx_fixings
 
-    def _set_periods(self, fx):
+    def _set_periods(self, fx: FXForwards | NoInput) -> None:  # type: ignore[override]
         fx_fixings = self._get_fx_fixings(fx)
         self.notional = fx_fixings[0] * self.alt_notional
         notionals = [self.alt_notional * fx_fixings[i] for i in range(len(fx_fixings))]

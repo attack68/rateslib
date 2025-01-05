@@ -2678,21 +2678,21 @@ class Cashflow:
 
     def __init__(
         self,
-        notional: float,
+        notional: DualTypes,
         payment: datetime,
         currency: str | NoInput = NoInput(0),
         stub_type: str | NoInput = NoInput(0),
-        rate: float | NoInput = NoInput(0),
+        rate: DualTypes | NoInput = NoInput(0),
     ):
         self.notional, self.payment = notional, payment
         self.currency = _drb(defaults.base_currency, currency).lower()
         self.stub_type = stub_type
-        self._rate: float | NoInput = rate if isinstance(rate, NoInput) else _dual_float(rate)
+        self._rate: DualTypes | NoInput = rate if isinstance(rate, NoInput) else _dual_float(rate)
 
     def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
-    def rate(self) -> float | None:
+    def rate(self) -> DualTypes | None:
         """
         Return the associated rate initialised with the *Cashflow*. Not used for calculations.
         """
@@ -2766,7 +2766,7 @@ class Cashflow:
         }
 
     @property
-    def cashflow(self) -> float:
+    def cashflow(self) -> DualTypes:
         return -self.notional
 
     def analytic_delta(
@@ -3230,7 +3230,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
     def __init__(
         self,
         *args: Any,
-        index_base: float,
+        index_base: DualTypes,
         index_fixings: DualTypes | Series[DualTypes] | NoInput = NoInput(0),  # type: ignore[type-var]
         index_method: str | NoInput = NoInput(0),
         index_lag: int | NoInput = NoInput(0),
