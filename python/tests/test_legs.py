@@ -1346,6 +1346,21 @@ class TestCreditPremiumLeg:
         result = leg.accrued(date)
         assert abs(result - exp) < 1e-6
 
+    @pytest.mark.parametrize("final", [True, False])
+    def test_exchanges_raises(self, final):
+        with pytest.raises(ValueError, match="`initial_exchange` and `final_exchange` cannot be"):
+            CreditPremiumLeg(
+                effective=dt(2022, 1, 1),
+                termination=dt(2022, 6, 1),
+                payment_lag=2,
+                notional=-1e9,
+                convention="ActActICMA",
+                frequency="Q",
+                fixed_rate=2.0,
+                initial_exchange=final,
+                final_exchange=not final,
+            )
+
 
 class TestCreditProtectionLeg:
     def test_leg_analytic_delta(self, hazard_curve, curve) -> None:

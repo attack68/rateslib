@@ -2002,6 +2002,7 @@ class CreditPremiumLeg(_FixedLegMixin, BaseLeg):
        premium_leg.cashflows(hazard_curve, disc_curve)
        premium_leg.npv(hazard_curve, disc_curve)
     """  # noqa: E501
+    periods: list[CreditPremiumPeriod]
 
     def __init__(
         self,
@@ -2013,6 +2014,10 @@ class CreditPremiumLeg(_FixedLegMixin, BaseLeg):
         self._fixed_rate = fixed_rate
         self.premium_accrued = _drb(defaults.cds_premium_accrued, premium_accrued)
         super().__init__(*args, **kwargs)
+        if self.initial_exchange or self.final_exchange:
+            raise ValueError(
+                "`initial_exchange` and `final_exchange` cannot be True on CreditPremiumLeg."
+            )
         self._set_periods()
 
     def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
@@ -2074,7 +2079,7 @@ class CreditPremiumLeg(_FixedLegMixin, BaseLeg):
         notional: DualTypes,
         stub: bool,
         iterator: int,
-    ):
+    ) -> CreditPremiumPeriod:
         return CreditPremiumPeriod(
             fixed_rate=self.fixed_rate,
             premium_accrued=self.premium_accrued,
