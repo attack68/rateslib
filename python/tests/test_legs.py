@@ -982,8 +982,8 @@ class TestZeroFixedLeg:
             frequency="A",
             fixed_rate=NoInput(0),
         )
-        result = zfl.analytic_delta(curve)
-        assert result is None
+        with pytest.raises(ValueError, match="Must have `fixed_rate` on ZeroFixedLeg for analy"):
+            zfl.analytic_delta(curve)
 
 
 class TestZeroIndexLeg:
