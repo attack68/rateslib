@@ -34,7 +34,7 @@ from rateslib import defaults
 from rateslib.calendars import CalInput, add_tenor
 from rateslib.curves import Curve, index_left
 from rateslib.default import NoInput, _drb
-from rateslib.dual import Dual, Dual2, DualTypes, _dual_float
+from rateslib.dual import Dual, Dual2, DualTypes, _dual_float, Variable
 from rateslib.fx import FXForwards, FXRates
 from rateslib.periods import (
     Cashflow,
@@ -2543,7 +2543,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
             self._fx_fixings = []
         elif isinstance(value, list):
             self._fx_fixings = value
-        elif isinstance(value, DualTypes):
+        elif isinstance(value, float | Dual | Dual2 | Variable):
             self._fx_fixings = [value]
         elif isinstance(value, Series):
             self._fx_fixings = self._get_fx_fixings_from_series(value)
