@@ -1189,7 +1189,8 @@ class _IndexLegMixin:
 
     @index_fixings.setter
     def index_fixings(
-        self, value: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput  # type: ignore[type-var]
+        self,
+        value: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput,  # type: ignore[type-var]
     ) -> None:
         self._index_fixings = value
         for i, period in enumerate(self.periods):
@@ -1622,6 +1623,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):
        zfl.cashflows(curve)
 
     """
+
     periods: list[FixedPeriod]  # type: ignore[assignment]
 
     def __init__(
@@ -1773,7 +1775,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):
         target_npv: DualTypes,
         fore_curve: Curve,
         disc_curve: Curve,
-        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0)
+        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
     ) -> DualTypes:
         """
         Overload the _spread calc to use analytic delta based on period rate
@@ -1859,13 +1861,14 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
        zil.cashflows(index_curve, curve)
 
     """
+
     periods: list[IndexFixedPeriod | Cashflow]  # type: ignore[assignment]
 
     def __init__(
         self,
         *args: Any,
         index_base: DualTypes | Series[DualTypes] | NoInput = NoInput(0),  # type: ignore[type-var]
-        index_fixings: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput = NoInput(0),   # type: ignore[type-var]
+        index_fixings: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput = NoInput(0),  # type: ignore[type-var]
         index_method: str | NoInput = NoInput(0),
         index_lag: int | NoInput = NoInput(0),
         **kwargs: Any,
