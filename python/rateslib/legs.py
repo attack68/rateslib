@@ -1204,9 +1204,6 @@ class _IndexLegMixin:
     ) -> None:
         self._index_fixings: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput = value  # type: ignore[type-var]
 
-        ifps = [period for period in self.periods if isinstance(period, IndexFixedPeriod)]
-        ics = [period for period in self.periods if isinstance(period, IndexCashflow)]
-
         def _apply_fixing_to_period(
             period: IndexFixedPeriod | IndexCashflow,
             value: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput,  # type: ignore[type-var]
@@ -1234,10 +1231,30 @@ class _IndexLegMixin:
                 _ = value if iterator_index == 0 else NoInput(0)
             period.index_fixings = _
 
+        
+
+        ifps = [period for period in self.periods if isinstance(period, IndexFixedPeriod)]
         for i, ifp in enumerate(ifps):
             _apply_fixing_to_period(ifp, value, i)
-        for i, ic in enumerate(ics):
-            _apply_fixing_to_period(ic, value, i)
+
+        ics = [period for period in self.periods if isinstance(period, IndexCashflow)]
+        if len(ics) == 1 and len(ifps) != 1:
+            # then `final_exchange` but no amortisation must allocate fixing directly
+            if isinstance(value, list):
+                if len(value) == len(ifps):
+                    _apply_fixing_to_period(ics[0], value, len(ifps)-1)
+                else:
+                    # a fixing is not provided for this period
+                    _apply_fixing_to_period(ics[0], NoInput(0), 0)
+            elif isinstance(value, Series):
+                _apply_fixing_to_period(ics[0], value, 0)
+            else:
+                # scalar fixing does not align with this period
+                _apply_fixing_to_period(ics[0], NoInput(0), 0)
+        else:
+            # ics will have same number of periods as ifps, can loop as normal
+            for i, ic in enumerate(ics):
+                _apply_fixing_to_period(ic, value, i)
 
     @property
     def index_base(self) -> DualTypes | NoInput:
