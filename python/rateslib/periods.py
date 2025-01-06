@@ -3165,8 +3165,8 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
     ----------
     args : dict
         Required positional args to :class:`Cashflow`.
-    index_base : float or None, optional
-        The base index to determine the cashflow.
+    index_base : float, optional
+        The base index to determine the cashflow. Required but may be set after initialisation.
     index_fixings : float, or Series, optional
         If a float scalar, will be applied as the index fixing for the whole
         period. If a datetime indexed ``Series`` will use the
@@ -3234,7 +3234,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
     def __init__(
         self,
         *args: Any,
-        index_base: DualTypes,
+        index_base: DualTypes | NoInput,
         index_fixings: DualTypes | Series[DualTypes] | NoInput = NoInput(0),  # type: ignore[type-var]
         index_method: str | NoInput = NoInput(0),
         index_lag: int | NoInput = NoInput(0),

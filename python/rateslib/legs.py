@@ -1202,15 +1202,15 @@ class _IndexLegMixin:
         self,
         value: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput,  # type: ignore[type-var]
     ) -> None:
-        self._index_fixings: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput = value   # type: ignore[type-var]
+        self._index_fixings: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput = value  # type: ignore[type-var]
 
         ifps = [period for period in self.periods if isinstance(period, IndexFixedPeriod)]
         ics = [period for period in self.periods if isinstance(period, IndexCashflow)]
 
         def _apply_fixing_to_period(
             period: IndexFixedPeriod | IndexCashflow,
-            value: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput, # type: ignore[type-var]
-            iterator_index
+            value: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput,  # type: ignore[type-var]
+            iterator_index: int,
         ) -> None:
             if isinstance(value, Series):
                 val: DualTypes | None = IndexMixin._index_value(
@@ -1225,20 +1225,19 @@ class _IndexLegMixin:
                 else:
                     _ = val
             elif isinstance(value, list):
-                if i >= len(value):
+                if iterator_index >= len(value):
                     _ = NoInput(0)  # some fixings are unknown, list size is limited
                 else:
-                    _ = value[i]
+                    _ = value[iterator_index]
             else:
                 # value is float or NoInput
-                _ = value if i == 0 else NoInput(0)
+                _ = value if iterator_index == 0 else NoInput(0)
             period.index_fixings = _
 
-        for i, period in enumerate(ifps):
-            _apply_fixing_to_period(period, value, i)
-        for i, period in enumerate(ics):
-            _apply_fixing_to_period(period, value, i)
-
+        for i, ifp in enumerate(ifps):
+            _apply_fixing_to_period(ifp, value, i)
+        for i, ic in enumerate(ics):
+            _apply_fixing_to_period(ic, value, i)
 
     @property
     def index_base(self) -> DualTypes | NoInput:
@@ -2129,7 +2128,9 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
                 calendar=self.schedule.calendar,
                 index_base=self.index_base,
                 index_method=self.index_method,
-                index_fixings=self.index_fixings[i] if isinstance(self.index_fixings, list) else self.index_fixings
+                index_fixings=self.index_fixings[i]
+                if isinstance(self.index_fixings, list)
+                else self.index_fixings,
             )
             for i, period in enumerate(self.schedule.table.to_dict(orient="index").values())
         ]
@@ -2142,7 +2143,9 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
                     stub_type="Amortization",
                     rate=NoInput(0),
                     index_base=self.index_base,
-                    index_fixings=self.index_fixings[i] if isinstance(self.index_fixings, list) else self.index_fixings,
+                    index_fixings=self.index_fixings[i]
+                    if isinstance(self.index_fixings, list)
+                    else self.index_fixings,
                     index_method=self.index_method,
                 )
                 for i in range(self.schedule.n_periods - 1)
@@ -2169,7 +2172,9 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
                     stub_type="Exchange",
                     rate=NoInput(0),
                     index_base=self.index_base,
-                    index_fixings=self.index_fixings[-1] if isinstance(self.index_fixings, list) else self.index_fixings,
+                    index_fixings=self.index_fixings[-1]
+                    if isinstance(self.index_fixings, list)
+                    else self.index_fixings,
                     index_method=self.index_method,
                 ),
             )
