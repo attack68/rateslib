@@ -55,6 +55,11 @@ email contact, see `rateslib <https://rateslib.com>`_.
        (`532 <https://github.com/attack68/rateslib/pull/532>`_)
        (`535 <https://github.com/attack68/rateslib/pull/535>`_)
        (`536 <https://github.com/attack68/rateslib/pull/536>`_)
+   * - Bug
+     - :meth:`~rateslib.legs.CustomLeg` now allows construction from recently constructed
+       *Period* types including *CreditProtectionPeriod*, *CreditPremiumPeriod*,
+       *IndexCashflow* and *IndexFixedPeriod*.
+       (`596 <https://github.com/attack68/rateslib/pull/596>`_)
    * - Dependencies
      - Drop support for Python 3.9, only versions 3.10 - 3.13 now supported.
    * - Refactor
