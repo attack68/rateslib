@@ -206,7 +206,7 @@ class BaseLeg(metaclass=ABCMeta):
         self.payment_lag_exchange: int = _drb(defaults.payment_lag_exchange, payment_lag_exchange)
         self.initial_exchange: bool = initial_exchange
         self.final_exchange: bool = final_exchange
-        self._notional: float = _drb(defaults.notional, notional)
+        self._notional: DualTypes = _drb(defaults.notional, notional)
         self._amortization: float = _drb(0.0, amortization)
         if getattr(self, "_delay_set_periods", False):
             pass
@@ -214,11 +214,11 @@ class BaseLeg(metaclass=ABCMeta):
             self._set_periods()
 
     @property
-    def notional(self) -> float:
+    def notional(self) -> DualTypes:
         return self._notional
 
     @notional.setter
-    def notional(self, value: float) -> None:
+    def notional(self, value: DualTypes) -> None:
         self._notional = value
         self._set_periods()
 
@@ -1243,8 +1243,8 @@ class _IndexLegMixin:
             if isinstance(period, IndexFixedPeriod | IndexCashflow):
                 period.index_base = self._index_base
 
-    def _regular_period(self, *args: Any, **kwargs: Any) -> Period:  # type: ignore[empty-body]
-        pass  # pragma: no cover
+    # def _regular_period(self, *args: Any, **kwargs: Any) -> Period:  # type: ignore[empty-body]
+    #     pass  # pragma: no cover
 
 
 class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
@@ -2514,15 +2514,12 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         """
         return self._fx_fixings
 
-    def _get_fx_fixings_from_series(self, ser: Series, ini_period: int = 0):
+    def _get_fx_fixings_from_series(self, ser: Series[DualTypes], ini_period: int = 0):  # type: ignore[type-var]
         last_fixing_date = ser.index[-1]
         fixings_list = []
         for i in range(ini_period, self.schedule.n_periods):
-            required_date = add_tenor(
-                self.schedule.aschedule[i],
-                f"{self.payment_lag_exchange}B",
-                NoInput(0),
-                self.schedule.calendar,
+            required_date = self.schedule.calendar.lag(
+                self.schedule.aschedule[i], self.payment_lag_exchange, True
             )
             if required_date > last_fixing_date:
                 break
@@ -2927,14 +2924,14 @@ class CustomLeg(BaseLeg):
 
     """  # noqa: E501
 
-    def __init__(self, periods):
+    def __init__(self, periods: list[Period]) -> None:
         if not all(isinstance(p, Period) for p in periods):
             raise ValueError(
                 "Each object in `periods` must be of type {FixedPeriod, FloatPeriod, " "Cashflow}.",
             )
         self._set_periods(periods)
 
-    def _set_periods(self, periods: list[Period]) -> None:
+    def _set_periods(self, periods: list[Period]) -> None:  # type: ignore[override]
         self.periods: list[Any] = periods
 
     def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]:
