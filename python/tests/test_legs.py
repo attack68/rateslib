@@ -1727,6 +1727,41 @@ class TestIndexFixedLeg:
                 initial_exchange=True,
             )
 
+    def test_index_fixings_as_list(self) -> None:
+        leg = IndexFixedLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 10, 1),
+            payment_lag=2,
+            convention="Act360",
+            frequency="Q",
+            notional=1e6,
+            amortization=250e3,
+            index_base=NoInput(0),
+            index_fixings=[100.0, 200.0]
+        )
+        assert leg.periods[0].index_fixings == 100.0
+        assert leg.periods[1].index_fixings == 200.0
+        assert leg.periods[2].index_fixings == NoInput(0)
+
+    def test_index_fixings_as_list_final_exchange(self) -> None:
+        leg = IndexFixedLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 10, 1),
+            payment_lag=2,
+            convention="Act360",
+            frequency="Q",
+            notional=1e6,
+            amortization=250e3,
+            index_base=NoInput(0),
+            index_fixings=[100.0, 200.0],
+            final_exchange=True
+        )
+        assert leg.periods[0].index_fixings == 100.0
+        assert leg.periods[1].index_fixings == 100.0
+        assert leg.periods[2].index_fixings == 200.0
+        assert leg.periods[3].index_fixings == 200.0
+        assert leg.periods[4].index_fixings == NoInput(0)
+        assert leg.periods[5].index_fixings == NoInput(0)
 
 class TestFloatLegExchangeMtm:
     @pytest.mark.parametrize(
