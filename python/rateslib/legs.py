@@ -1161,7 +1161,7 @@ class _IndexLegMixin:
     index_method: str
     _index_fixings: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput = NoInput(0)  # type: ignore[type-var]
     _index_base: DualTypes | NoInput = NoInput(0)
-    periods: list[Period]
+    periods: list[IndexFixedPeriod | IndexCashflow | Cashflow]
     index_lag: int
 
     # def _set_index_fixings_on_periods(self):
@@ -1204,57 +1204,37 @@ class _IndexLegMixin:
     ) -> None:
         self._index_fixings: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput = value  # type: ignore[type-var]
 
-        def _apply_fixing_to_period(
-            period: IndexFixedPeriod | IndexCashflow,
-            value: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput,  # type: ignore[type-var]
-            iterator_index: int,
-        ) -> None:
-            if isinstance(value, Series):
-                val: DualTypes | None = IndexMixin._index_value(
-                    i_fixings=value,
-                    i_method=self.index_method,
-                    i_lag=self.index_lag,
-                    i_date=period.end,
-                    i_curve=NoInput(0),  # ! NoInput returned for periods beyond Series end.
-                )
-                if val is None:
-                    _: DualTypes | NoInput = NoInput(0)
-                else:
-                    _ = val
-            elif isinstance(value, list):
-                if iterator_index >= len(value):
-                    _ = NoInput(0)  # some fixings are unknown, list size is limited
-                else:
-                    _ = value[iterator_index]
+        def _index_from_series(ser:Series[DualTypes], end:datetime) -> DualTypes | NoInput:  # type: ignore[type-var]
+            val: DualTypes | None = IndexMixin._index_value(
+                i_fixings=ser,
+                i_method=self.index_method,
+                i_lag=self.index_lag,
+                i_date=end,
+                i_curve=NoInput(0),  # ! NoInput returned for periods beyond Series end.
+            )
+            if val is None:
+                _: DualTypes | NoInput = NoInput(0)
             else:
-                # value is float or NoInput
-                _ = value if iterator_index == 0 else NoInput(0)
-            period.index_fixings = _
+                _ = val
+            return _
 
-        
+        def _index_from_list(ls: list[DualTypes], i: int) -> DualTypes | NoInput:
+            return NoInput(0) if i >= len(ls) else ls[i]
 
-        ifps = [period for period in self.periods if isinstance(period, IndexFixedPeriod)]
-        for i, ifp in enumerate(ifps):
-            _apply_fixing_to_period(ifp, value, i)
-
-        ics = [period for period in self.periods if isinstance(period, IndexCashflow)]
-        if len(ics) == 1 and len(ifps) != 1:
-            # then `final_exchange` but no amortisation must allocate fixing directly
-            if isinstance(value, list):
-                if len(value) == len(ifps):
-                    _apply_fixing_to_period(ics[0], value, len(ifps)-1)
-                else:
-                    # a fixing is not provided for this period
-                    _apply_fixing_to_period(ics[0], NoInput(0), 0)
-            elif isinstance(value, Series):
-                _apply_fixing_to_period(ics[0], value, 0)
-            else:
-                # scalar fixing does not align with this period
-                _apply_fixing_to_period(ics[0], NoInput(0), 0)
+        if isinstance(value, NoInput):
+            for p in [_ for _ in self.periods if type(_) is not Cashflow]:
+                p.index_fixings = NoInput(0)
+        elif isinstance(value, Series):
+            for p in [_ for _ in self.periods if type(_) is not Cashflow]:
+                date_: datetime = p.end if type(p) is IndexFixedPeriod else p.payment
+                p.index_fixings = _index_from_series(value, date_)
+        elif isinstance(value, list):
+            for i, p in enumerate([_ for _ in self.periods if type(_) is not Cashflow]):
+                p.index_fixings = _index_from_list(value, i)
         else:
-            # ics will have same number of periods as ifps, can loop as normal
-            for i, ic in enumerate(ics):
-                _apply_fixing_to_period(ic, value, i)
+            self.periods[0].index_fixings = value  # type: ignore[union-attr]
+            for p in [_ for _ in self.periods[1:] if type(_) is not Cashflow]:
+                p.index_fixings = NoInput(0)
 
     @property
     def index_base(self) -> DualTypes | NoInput:
@@ -2079,6 +2059,8 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
        index_leg_exch.npv(index_curve, curve)
 
     """  # noqa: E501
+
+    periods: list[IndexCashflow | IndexFixedPeriod]  # type: ignore[assignment]
 
     # TODO: spread calculations to determine the fixed rate on this leg do not work.
     def __init__(
