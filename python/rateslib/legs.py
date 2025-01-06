@@ -300,7 +300,15 @@ class BaseLeg(metaclass=ABCMeta):
             )
 
     @abstractmethod
-    def _regular_period(self, *args: Any, **kwargs: Any) -> Period:
+    def _regular_period(
+        self,
+        start:datetime,
+        end:datetime,
+        payment: datetime,
+        stub: bool,
+        notional: DualTypes,
+        iterator:int,
+    ) -> Period:
         # implemented by individual legs to satisfy generic `set_periods` methods
         pass  # pragma: no cover
 
@@ -1111,7 +1119,7 @@ class FloatLeg(_FloatLegMixin, BaseLeg):
         )
 
     def _set_periods(self) -> None:
-        return super()._set_periods()
+        return super(_FloatLegMixin, self)._set_periods()
 
     # @property
     # def _is_complex(self):
@@ -1347,31 +1355,31 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
             )
         if abs(_dual_float(self.amortization)) > 1e-8:
             raise ValueError("`ZeroFloatLeg` cannot be defined with `amortization`.")
+        if self.initial_exchange or self.final_exchange:
+            raise ValueError("`initial_exchange` or `final_exchange` not allowed on ZeroFloatLeg.")
         self._set_fixings(fixings)
         self._set_periods()
 
+    def _regular_period(
+        self,
+        start: datetime,
+        end: datetime,
+        payment: datetime,
+        notional: DualTypes,
+        stub: bool,
+        iterator: int,
+    ) -> FloatPeriod:
+        return super()._regular_period(
+            start=start,
+            end=end,
+            payment=self.schedule.pschedule[-1],
+            notional=notional,
+            stub=stub,
+            iterator=iterator,
+        )
+
     def _set_periods(self) -> None:
-        self.periods: list[FloatPeriod] = [  # type: ignore[assignment]
-            FloatPeriod(
-                float_spread=self.float_spread,
-                start=period[defaults.headers["a_acc_start"]],
-                end=period[defaults.headers["a_acc_end"]],
-                payment=self.schedule.pschedule[-1],  # set payment to Leg payment
-                notional=self.notional,
-                currency=self.currency,
-                convention=self.convention,
-                termination=self.schedule.termination,
-                frequency=self.schedule.frequency,
-                stub=period[defaults.headers["stub_type"]] == "Stub",
-                roll=self.schedule.roll,
-                calendar=self.schedule.calendar,
-                fixing_method=self.fixing_method,
-                fixings=self.fixings[i],
-                method_param=self.method_param,
-                spread_compound_method=self.spread_compound_method,
-            )
-            for i, period in enumerate(self.schedule.table.to_dict(orient="index").values())
-        ]
+        return super(_FloatLegMixin, self)._set_periods()
 
     @property
     def dcf(self) -> float:
@@ -1879,6 +1887,17 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
         self.index_fixings = index_fixings  # set index fixings after periods init
         # set after periods initialised
         self.index_base = index_base  # type: ignore[assignment]
+
+    def _regular_period(self,
+        start:datetime,
+        end:datetime,
+        payment: datetime,
+        stub: bool,
+        notional: DualTypes,
+        iterator:int
+    ) -> IndexFixedPeriod:
+        # set_periods has override
+        pass
 
     def _set_periods(self) -> None:
         self.periods = [
