@@ -3504,7 +3504,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
-        vol: DualTypes | NoInput = NoInput(0),
+        vol: DualTypes | FXVols |  NoInput = NoInput(0),
         metric: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
