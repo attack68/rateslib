@@ -604,7 +604,7 @@ class TestFXDeltaVolSurface:
         fxvs.get_smile(dt(2024, 7, 1))
         assert dt(2024, 7, 1) in fxvs._cache
 
-        fxvs.clear_cache()
+        fxvs._clear_cache()
         assert dt(2024, 7, 1) not in fxvs._cache
 
         with default_context("curve_caching", False):

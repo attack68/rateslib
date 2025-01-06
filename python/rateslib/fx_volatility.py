@@ -2,6 +2,7 @@ from __future__ import annotations  # type hinting
 
 from datetime import datetime, timedelta
 from datetime import datetime as dt
+from typing import Any
 from uuid import uuid4
 
 import numpy as np
@@ -10,12 +11,13 @@ from pytz import UTC
 
 from rateslib import defaults
 from rateslib.calendars import get_calendar
-from rateslib.default import NoInput, _drb, _WithState, plot, plot3d
+from rateslib.default import NoInput, PlotOutput, _drb, _WithState, plot, plot3d
 from rateslib.dual import (
     Dual,
     Dual2,
     DualTypes,
     Variable,
+    _dual_float,
     dual_exp,
     dual_inv_norm_cdf,
     dual_log,
@@ -80,24 +82,26 @@ class FXDeltaVolSmile(_WithState):
 
     def __init__(
         self,
-        nodes: dict,
+        nodes: dict[float, DualTypes],
         eval_date: datetime,
         expiry: datetime,
         delta_type: str,
         id: str | NoInput = NoInput(0),
         ad: int = 0,
     ):
-        self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
-        self.eval_date = eval_date
-        self.expiry = expiry
-        self.t_expiry = (expiry - eval_date).days / 365.0
-        self.t_expiry_sqrt = self.t_expiry**0.5
+        self.id: str = (
+            uuid4().hex[:5] + "_" if isinstance(id, NoInput) else id
+        )  # 1 in a million clash
+        self.eval_date: datetime = eval_date
+        self.expiry: datetime = expiry
+        self.t_expiry: float = (expiry - eval_date).days / 365.0
+        self.t_expiry_sqrt: float = self.t_expiry**0.5
         self.delta_type: str = _validate_delta_type(delta_type)
 
         self.__set_nodes__(nodes, ad)
 
     def __set_nodes__(self, nodes: dict[float, DualTypes], ad: int) -> None:
-        self.ad = None
+        # self.ad = None
 
         self.nodes = nodes
         self.node_keys = list(self.nodes.keys())
@@ -117,16 +121,16 @@ class FXDeltaVolSmile(_WithState):
             self._right_n = 2  # right hand spline endpoint will be constrained by derivative
 
         if self.n in [1, 2]:
-            self.t = [0.0] * 4 + [float(upper_bound)] * 4
+            self.t = [0.0] * 4 + [_dual_float(upper_bound)] * 4
         else:
-            self.t = [0.0] * 4 + self.node_keys[1:-1] + [float(upper_bound)] * 4
+            self.t = [0.0] * 4 + self.node_keys[1:-1] + [_dual_float(upper_bound)] * 4
 
         self._set_ad_order(ad)  # includes _csolve()
 
-    def __iter__(self):
+    def __iter__(self) -> Any:
         raise TypeError("`FXDeltaVolSmile` is not iterable.")
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: DualTypes) -> DualTypes:
         """
         Get a value from the DeltaVolSmile given an item which is a delta_index.
         """
@@ -145,7 +149,9 @@ class FXDeltaVolSmile(_WithState):
         else:
             return evaluate(self.spline, item, 0)
 
-    def _get_index(self, delta_index: float, expiry: NoInput(0)):
+    def _get_index(
+        self, delta_index: DualTypes, expiry: datetime | NoInput = NoInput(0)
+    ) -> DualTypes:
         """
         Return a volatility from a given delta index
         Used internally alongside Surface, where a surface also requires an expiry.
@@ -154,13 +160,13 @@ class FXDeltaVolSmile(_WithState):
 
     def get(
         self,
-        delta: float,
+        delta: DualTypes,
         delta_type: str,
         phi: float,
         w_deli: DualTypes | NoInput = NoInput(0),
         w_spot: DualTypes | NoInput = NoInput(0),
         u: DualTypes | NoInput = NoInput(0),
-    ):
+    ) -> DualTypes:
         """
         Return a volatility for a provided real option delta.
 
@@ -193,9 +199,9 @@ class FXDeltaVolSmile(_WithState):
         self,
         k: DualTypes,
         f: DualTypes,
-        w_deli: DualTypes | NoInput = NoInput(0),
-        w_spot: DualTypes | NoInput = NoInput(0),
-        expiry: datetime | NoInput(0) = NoInput(0),
+        w_deli: DualTypes,
+        w_spot: DualTypes,
+        expiry: datetime | NoInput = NoInput(0),
     ) -> tuple[DualTypes, DualTypes, DualTypes]:
         """
         Given an option strike return associated delta and vol values.
@@ -237,28 +243,35 @@ class FXDeltaVolSmile(_WithState):
         # Variables are passed to these functions so that iteration can take place using float
         # which is faster and then a final iteration at the fixed point can be included with Dual
         # variables to capture fixed point sensitivity.
-        def root(delta, u, sqrt_t, z_u, z_w, ad):
+        def root(
+            delta: DualTypes,
+            u: DualTypes,
+            sqrt_t: DualTypes,
+            z_u: DualTypes,
+            z_w: DualTypes,
+            ad: int,
+        ) -> tuple[DualTypes, DualTypes]:
             # Function value
             delta_index = -delta
             vol_ = self[delta_index] / 100.0
-            vol_ = float(vol_) if ad == 0 else vol_
+            vol_ = _dual_float(vol_) if ad == 0 else vol_
             vol_sqrt_t = sqrt_t * vol_
             d_plus_min = -dual_log(u) / vol_sqrt_t + eta * vol_sqrt_t
             f0 = delta + z_w * z_u * dual_norm_cdf(-d_plus_min)
             # Derivative
             dvol_ddelta = -1.0 * evaluate(self.spline, delta_index, 1) / 100.0
-            dvol_ddelta = float(dvol_ddelta) if ad == 0 else dvol_ddelta
+            dvol_ddelta = _dual_float(dvol_ddelta) if ad == 0 else dvol_ddelta
             dd_ddelta = dvol_ddelta * (dual_log(u) * sqrt_t / vol_sqrt_t**2 + eta * sqrt_t)
             f1 = 1 - z_w * z_u * dual_norm_pdf(-d_plus_min) * dd_ddelta
             return f0, f1
 
         # Initial approximation is obtained through the closed form solution of the delta given
         # an approximated delta at close to the base of the smile.
-        avg_vol = float(list(self.nodes.values())[int(self.n / 2)]) / 100.0
-        d_plus_min = -dual_log(float(u)) / (
-            avg_vol * float(self.t_expiry_sqrt)
-        ) + eta * avg_vol * float(self.t_expiry_sqrt)
-        delta_0 = -float(z_u) * float(z_w) * dual_norm_cdf(-d_plus_min)
+        avg_vol = _dual_float(list(self.nodes.values())[int(self.n / 2)]) / 100.0
+        d_plus_min = -dual_log(_dual_float(u)) / (
+            avg_vol * _dual_float(self.t_expiry_sqrt)
+        ) + eta * avg_vol * _dual_float(self.t_expiry_sqrt)
+        delta_0 = -_dual_float(z_u) * _dual_float(z_w) * dual_norm_cdf(-d_plus_min)
 
         solver_result = newton_1dim(
             root,
@@ -274,13 +287,13 @@ class FXDeltaVolSmile(_WithState):
 
     def _convert_delta(
         self,
-        delta,
-        delta_type,
-        phi,
-        w_deli,
-        w_spot,
-        u,
-    ):
+        delta: DualTypes,
+        delta_type: str,
+        phi: float,
+        w_deli: DualTypes | NoInput,
+        w_spot: DualTypes | NoInput,
+        u: DualTypes | NoInput,
+    ) -> DualTypes:
         """
         Convert the given option delta into a delta index associated with the *Smile*.
 
@@ -303,7 +316,11 @@ class FXDeltaVolSmile(_WithState):
         -------
         DualTypes
         """
-        z_w = NoInput(0) if (w_deli is NoInput(0) or w_spot is NoInput(0)) else w_deli / w_spot
+        z_w = (
+            NoInput(0)
+            if (isinstance(w_deli, NoInput) or isinstance(w_spot, NoInput))
+            else w_deli / w_spot
+        )
         eta_0, z_w_0, z_u_0 = _delta_type_constants(delta_type, z_w, u)
         eta_1, z_w_1, z_u_1 = _delta_type_constants(self.delta_type, z_w, u)
 
@@ -318,26 +335,35 @@ class FXDeltaVolSmile(_WithState):
         else:  # root solver
             phi_inv = dual_inv_norm_cdf(-delta / (z_w_0 * z_u_0))
 
-            def root(delta_idx, z_1, eta_0, eta_1, sqrt_t, ad):
+            def root(
+                delta_idx: DualTypes,
+                z_1: DualTypes,
+                eta_0: float,
+                eta_1: float,
+                sqrt_t: DualTypes,
+                ad: int,
+            ) -> tuple[DualTypes, DualTypes]:
                 # Function value
                 vol_ = self[delta_idx] / 100.0
-                vol_ = float(vol_) if ad == 0 else vol_
+                vol_ = _dual_float(vol_) if ad == 0 else vol_
                 _ = phi_inv - (eta_1 - eta_0) * vol_ * sqrt_t
                 f0 = delta_idx - z_1 * dual_norm_cdf(_)
                 # Derivative
                 dvol_ddelta_idx = evaluate(self.spline, delta_idx, 1) / 100.0
-                dvol_ddelta_idx = float(dvol_ddelta_idx) if ad == 0 else dvol_ddelta_idx
+                dvol_ddelta_idx = _dual_float(dvol_ddelta_idx) if ad == 0 else dvol_ddelta_idx
                 f1 = 1 - z_1 * dual_norm_pdf(_) * (eta_1 - eta_0) * sqrt_t * dvol_ddelta_idx
                 return f0, f1
 
+            g0: DualTypes = min(-delta, _dual_float(w_deli / w_spot))  # type: ignore[operator, assignment]
             solver_result = newton_1dim(
                 f=root,
-                g0=min(-delta, float(w_deli / w_spot)),
+                g0=g0,
                 args=(z_u_1 * z_w_1, eta_0, eta_1, self.t_expiry_sqrt),
                 pre_args=(0,),
                 final_args=(1,),
             )
-            return solver_result["g"]
+            ret: DualTypes = solver_result["g"]
+            return ret
 
     def _delta_index_from_call_or_put_delta(
         self,
@@ -345,7 +371,7 @@ class FXDeltaVolSmile(_WithState):
         phi: float,
         z_w: DualTypes | NoInput = NoInput(0),
         u: DualTypes | NoInput = NoInput(0),
-    ):
+    ) -> DualTypes:
         """
         Get the *Smile* index delta given an option delta of the same type as the *Smile*.
 
@@ -371,11 +397,11 @@ class FXDeltaVolSmile(_WithState):
             if self.delta_type == "forward":
                 put_delta = delta - 1.0
             elif self.delta_type == "spot":
-                put_delta = delta - z_w
+                put_delta = delta - z_w  # type: ignore[operator]
             elif self.delta_type == "forward_pa":
-                put_delta = delta - u
+                put_delta = delta - u  # type: ignore[operator]
             else:  # self.delta_type == "spot_pa":
-                put_delta = delta - z_w * u
+                put_delta = delta - z_w * u  # type: ignore[operator]
         else:
             put_delta = delta
         return -1.0 * put_delta
@@ -464,11 +490,11 @@ class FXDeltaVolSmile(_WithState):
     #     self.spline_u_delta_approx.csolve(u, delta.tolist()[::-1], 0, 0, False)
     #     return None
 
-    def _get_node_vector(self):
+    def _get_node_vector(self) -> np.ndarray[tuple[int, ...], np.dtype[np.object_]]:
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""
         return np.array(list(self.nodes.values()))
 
-    def _get_node_vars(self):
+    def _get_node_vars(self) -> tuple[str, ...]:
         """Get the variable names of elements updated by a Solver"""
         return tuple(f"{self.id}{i}" for i in range(self.n))
 
@@ -480,7 +506,7 @@ class FXDeltaVolSmile(_WithState):
         difference: bool = False,
         labels: list[str] | NoInput = NoInput(0),
         x_axis: str = "delta",
-    ):
+    ) -> PlotOutput:
         """
         Plot given forward tenor rates from the curve.
 
@@ -515,7 +541,7 @@ class FXDeltaVolSmile(_WithState):
         # reversed for intuitive strike direction
         comparators = _drb([], comparators)
         labels = _drb([], labels)
-        x = np.linspace(self.plot_upper_bound, self.t[0], 301)
+        x: list[float] = np.linspace(_dual_float(self.plot_upper_bound), self.t[0], 301)  # type: ignore[assignment]
         vols = self.spline.ppev(x)
         if x_axis == "moneyness":
             x, vols = x[40:-40], vols[40:-40]
@@ -526,15 +552,15 @@ class FXDeltaVolSmile(_WithState):
                     / 100.0
                     * (dual_inv_norm_cdf(_1) * _2 * self.t_expiry_sqrt * _2 / 100.0),
                 )
-                for (_1, _2) in zip(x, vols, strict=False)
+                for (_1, _2) in zip(x, vols, strict=True)
             ]
 
         if not difference:
             y = [vols]
-            if comparators is not None:
+            if not isinstance(comparators, NoInput):
                 for comparator in comparators:
                     y.append(comparator.spline.ppev(x))
-        elif difference and len(comparators) > 0:
+        elif difference and not isinstance(comparators, NoInput):
             y = []
             for comparator in comparators:
                 diff = [comparator.spline.ppev(x) - vols]
@@ -567,7 +593,7 @@ class FXDeltaVolSmile(_WithState):
 
     # Mutation
 
-    def _csolve_n1(self):
+    def _csolve_n1(self) -> tuple[list[float], list[DualTypes], int, int]:
         # create a straight line by converting from one to two nodes with the first at tau=0.
         tau = list(self.nodes.keys())
         tau.insert(0, self.t[0])
@@ -583,7 +609,7 @@ class FXDeltaVolSmile(_WithState):
         right_n = self._right_n
         return tau, y, left_n, right_n
 
-    def _csolve_n_other(self):
+    def _csolve_n_other(self) -> tuple[list[float], list[DualTypes], int, int]:
         tau = list(self.nodes.keys())
         y = list(self.nodes.values())
 
@@ -611,10 +637,10 @@ class FXDeltaVolSmile(_WithState):
         else:
             tau, y, left_n, right_n = self._csolve_n_other()
 
-        self.spline = Spline(4, self.t, None)
+        self.spline: PPSplineF64 | PPSplineDual | PPSplineDual2 = Spline(4, self.t, None)
         self.spline.csolve(tau, y, left_n, right_n, False)
 
-    def csolve(self):
+    def csolve(self) -> None:
         """
         Solves **and sets** the coefficients, ``c``, of the :class:`PPSpline`.
 
@@ -634,7 +660,7 @@ class FXDeltaVolSmile(_WithState):
         self._clear_cache()
         self._set_new_state()
 
-    def _set_node_vector(self, vector, ad):
+    def _set_node_vector(self, vector, ad) -> None:
         """Update the node values in a Solver. ``ad`` in {1, 2}."""
         DualType = Dual if ad == 1 else Dual2
         DualArgs = ([],) if ad == 1 else ([], [])
@@ -838,7 +864,7 @@ class FXDeltaVolSurface(_WithState):
 
         self._set_ad_order(ad)  # includes csolve on each smile
 
-    def clear_cache(self):
+    def _clear_cache(self):
         """
         Clear the cache of cross-sectional *Smiles* on a *Surface* type.
 
@@ -863,9 +889,9 @@ class FXDeltaVolSurface(_WithState):
     def _validate_state(self) -> None:
         if self._state != self._get_composited_state():
             # If any of the associated curves have been mutated then the cache is invalidated
-            self.clear_cache()
+            self._clear_cache()
 
-    def _maybe_add_to_cache(self, date, val):
+    def _maybe_add_to_cache(self, date: datetime, val: FXDeltaVolSmile) -> None:
         if defaults.curve_caching:
             self._cache[date] = val
 
@@ -873,14 +899,14 @@ class FXDeltaVolSurface(_WithState):
         self.ad = order
         for smile in self.smiles:
             smile._set_ad_order(order)
-        self.clear_cache()
+        self._clear_cache()
 
     def _set_node_vector(self, vector: np.array, ad: int):
         m = len(self.delta_indexes)
         for i in range(int(len(vector) / m)):
             # smiles are indexed by expiry, shortest first
             self.smiles[i]._set_node_vector(vector[i * m : i * m + m], ad)
-        self.clear_cache()
+        self._clear_cache()
 
     def _get_node_vector(self):
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""
@@ -1064,7 +1090,7 @@ class FXDeltaVolSurface(_WithState):
         w_deli: DualTypes | NoInput = NoInput(0),
         w_spot: DualTypes | NoInput = NoInput(0),
         expiry: datetime | NoInput(0) = NoInput(0),
-    ) -> tuple:
+    ) -> tuple[DualTypes, DualTypes, DualTypes]:
         """
         Given an option strike and expiry return associated delta and vol values.
 
@@ -1103,7 +1129,7 @@ class FXDeltaVolSurface(_WithState):
         """
         return self.get_smile(expiry)[delta_index]
 
-    def plot(self):
+    def plot(self) -> PlotOutput:
         plot_upper_bound = max([_.plot_upper_bound for _ in self.smiles])
         deltas = np.linspace(0.0, plot_upper_bound, 20)
         vols = np.array([[_._get_index(d, NoInput(0)) for d in deltas] for _ in self.smiles])
@@ -1353,7 +1379,7 @@ def _d_plus(K: DualTypes, f: DualTypes, vol_sqrt_t: DualTypes) -> DualTypes:
 
 
 def _delta_type_constants(
-    delta_type: str, w: DualTypes, u: DualTypes
+    delta_type: str, w: DualTypes | NoInput, u: DualTypes | NoInput
 ) -> tuple[float, DualTypes, DualTypes]:
     """
     Get the values: (eta, z_w, z_u) for the type of expressed delta
@@ -1362,13 +1388,13 @@ def _delta_type_constants(
     u: should be input as K / f_d
     """
     if delta_type == "forward":
-        return (0.5, 1.0, 1.0)
+        return 0.5, 1.0, 1.0
     elif delta_type == "spot":
-        return (0.5, w, 1.0)
+        return 0.5, w, 1.0
     elif delta_type == "forward_pa":
-        return (-0.5, 1.0, u)
+        return -0.5, 1.0, u
     else:  # "spot_pa"
-        return (-0.5, w, u)
+        return -0.5, w, u
 
 
 FXVols = FXDeltaVolSmile | FXDeltaVolSurface

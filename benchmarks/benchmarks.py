@@ -186,8 +186,8 @@ class TimeSuite:
             self.compcurve[_]
 
     def clear_caches(self):
-        self.curve.clear_cache()
-        self.curve2.clear_cache()
+        self.curve._clear_cache()
+        self.curve2._clear_cache()
 
     def time_curve_value_getting_no_cache(self):
         with default_context("curve_caching", False):
