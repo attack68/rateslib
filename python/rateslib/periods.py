@@ -3504,7 +3504,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
-        vol: DualTypes | FXVols |  NoInput = NoInput(0),
+        vol: DualTypes | FXVols | NoInput = NoInput(0),
         metric: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -3624,7 +3624,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         fx: FXForwards,
         base: str | NoInput = NoInput(0),
         local: bool = False,
-        vol: DualTypes | FXVols | NoInput  = NoInput(0),
+        vol: DualTypes | FXVols | NoInput = NoInput(0),
         premium: DualTypes | NoInput = NoInput(0),  # expressed in the payment currency
     ) -> dict[str, Any]:
         r"""
@@ -3727,7 +3727,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
         if isinstance(vol, NoInput):
             raise ValueError("`vol` must be a number quantity or FXDeltaVolSmile or Surface.")
         elif isinstance(vol, FXVolObj):
-            res: tuple[DualTypes, DualTypes, DualTypes] = vol.get_from_strike(self.strike, f_d, w_deli, w_spot, self.expiry)
+            res: tuple[DualTypes, DualTypes, DualTypes] = vol.get_from_strike(
+                self.strike, f_d, w_deli, w_spot, self.expiry
+            )
             delta_idx: DualTypes | None = res[0]
             vol_: DualTypes = res[1]
         else:
