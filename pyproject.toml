@@ -144,7 +144,6 @@ packages = [
 exclude = [
     "/instruments",
     "fx_volatility.py",
-    "legs.py",
     "solver.py",
 ]
 strict = true

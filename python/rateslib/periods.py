@@ -155,7 +155,7 @@ def _maybe_local(
 def _maybe_fx_converted(
     value: DualTypes,
     currency: str,
-    fx: float | FXRates | FXForwards | NoInput,
+    fx: DualTypes | FXRates | FXForwards | NoInput,
     base: str | NoInput,
 ) -> DualTypes:
     fx_, _ = _get_fx_and_base(currency, fx, base)
@@ -289,7 +289,7 @@ class BasePeriod(metaclass=ABCMeta):
         self,
         curve: Curve | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -509,8 +509,10 @@ class FixedPeriod(BasePeriod):
 
     """
 
-    def __init__(self, *args: Any, fixed_rate: float | NoInput = NoInput(0), **kwargs: Any) -> None:
-        self.fixed_rate = fixed_rate
+    def __init__(
+        self, *args: Any, fixed_rate: DualTypes | NoInput = NoInput(0), **kwargs: Any
+    ) -> None:
+        self.fixed_rate: DualTypes | NoInput = fixed_rate
         super().__init__(*args, **kwargs)
 
     def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
@@ -898,7 +900,7 @@ class FloatPeriod(BasePeriod):
         self,
         *args: Any,
         float_spread: DualTypes | NoInput = NoInput(0),
-        fixings: float | list[float] | Series[float] | NoInput = NoInput(0),
+        fixings: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput = NoInput(0),  # type: ignore[type-var]
         fixing_method: str | NoInput = NoInput(0),
         method_param: int | NoInput = NoInput(0),
         spread_compound_method: str | NoInput = NoInput(0),
@@ -928,7 +930,7 @@ class FloatPeriod(BasePeriod):
         self,
         curve: Curve | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -1119,7 +1121,8 @@ class FloatPeriod(BasePeriod):
             cal_, _ = self._maybe_get_cal_and_conv_from_curve(curve)
             fixing_date = cal_.lag(self.start, -self.method_param, False)
             try:
-                return self.fixings[fixing_date] + self.float_spread / 100
+                fixing: DualTypes = self.fixings[fixing_date] + self.float_spread / 100  # type: ignore[index]
+                return fixing
             except KeyError:
                 warnings.warn(
                     "A FloatPeriod `fixing date` was not found in the given `fixings` Series.\n"
@@ -1359,13 +1362,13 @@ class FloatPeriod(BasePeriod):
             if isinstance(self.fixings, list):
                 rates.iloc[: len(self.fixings)] = self.fixings
             elif isinstance(self.fixings, Series):
-                if not self.fixings.index.is_monotonic_increasing:
+                if not self.fixings.index.is_monotonic_increasing:  # type: ignore[attr-defined]
                     raise ValueError(
                         "`fixings` as a Series must have a monotonically increasing "
                         "datetimeindex.",
                     )
                 # [-2] is used because the last rfr fixing is 1 day before the end
-                fixing_rates = self.fixings.loc[obs_dates.iloc[0] : obs_dates.iloc[-2]]  # type: ignore[misc]
+                fixing_rates = self.fixings.loc[obs_dates.iloc[0] : obs_dates.iloc[-2]]  # type: ignore[attr-defined, misc]
 
                 try:
                     rates.loc[fixing_rates.index] = fixing_rates
@@ -2268,26 +2271,26 @@ class CreditPremiumPeriod(BasePeriod):
     def __init__(
         self,
         *args: Any,
-        fixed_rate: float | NoInput = NoInput(0),
+        fixed_rate: DualTypes | NoInput = NoInput(0),
         premium_accrued: bool | NoInput = NoInput(0),
         **kwargs: Any,
     ) -> None:
-        self.premium_accrued = _drb(defaults.cds_premium_accrued, premium_accrued)
-        self.fixed_rate = fixed_rate
+        self.premium_accrued: bool = _drb(defaults.cds_premium_accrued, premium_accrued)
+        self.fixed_rate: DualTypes | NoInput = fixed_rate
         super().__init__(*args, **kwargs)
 
     @property
-    def cashflow(self) -> float | None:
+    def cashflow(self) -> DualTypes | None:
         """
         float, Dual or Dual2 : The calculated value from rate, dcf and notional.
         """
         if isinstance(self.fixed_rate, NoInput):
             return None
         else:
-            _: float = -self.notional * self.dcf * self.fixed_rate * 0.01
+            _: DualTypes = -self.notional * self.dcf * self.fixed_rate * 0.01
             return _
 
-    def accrued(self, settlement: datetime) -> float | None:
+    def accrued(self, settlement: datetime) -> DualTypes | None:
         """
         Calculate the amount of premium accrued until a specific date within the *Period*.
 
@@ -2359,7 +2362,7 @@ class CreditPremiumPeriod(BasePeriod):
         self,
         curve: Curve | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -2544,7 +2547,7 @@ class CreditProtectionPeriod(BasePeriod):
         self,
         curve: Curve | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -2675,21 +2678,21 @@ class Cashflow:
 
     def __init__(
         self,
-        notional: float,
+        notional: DualTypes,
         payment: datetime,
         currency: str | NoInput = NoInput(0),
         stub_type: str | NoInput = NoInput(0),
-        rate: float | NoInput = NoInput(0),
+        rate: DualTypes | NoInput = NoInput(0),
     ):
         self.notional, self.payment = notional, payment
         self.currency = _drb(defaults.base_currency, currency).lower()
         self.stub_type = stub_type
-        self._rate: float | NoInput = rate if isinstance(rate, NoInput) else _dual_float(rate)
+        self._rate: DualTypes | NoInput = rate if isinstance(rate, NoInput) else _dual_float(rate)
 
     def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
-    def rate(self) -> float | None:
+    def rate(self) -> DualTypes | None:
         """
         Return the associated rate initialised with the *Cashflow*. Not used for calculations.
         """
@@ -2763,15 +2766,19 @@ class Cashflow:
         }
 
     @property
-    def cashflow(self) -> float:
+    def cashflow(self) -> DualTypes:
         return -self.notional
+
+    # @property
+    # def dcf(self) -> float:
+    #     return 0.0
 
     def analytic_delta(
         self,
-        curve: Curve | None = None,
-        disc_curve: Curve | None = None,
-        fx: float | FXRates | FXForwards | None = None,
-        base: str | None = None,
+        curve: Curve | NoInput = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
         Return the analytic delta of the *Cashflow*.
@@ -3071,7 +3078,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
         self,
         curve: Curve | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -3158,8 +3165,8 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
     ----------
     args : dict
         Required positional args to :class:`Cashflow`.
-    index_base : float or None, optional
-        The base index to determine the cashflow.
+    index_base : float, optional
+        The base index to determine the cashflow. Required but may be set after initialisation.
     index_fixings : float, or Series, optional
         If a float scalar, will be applied as the index fixing for the whole
         period. If a datetime indexed ``Series`` will use the
@@ -3227,7 +3234,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
     def __init__(
         self,
         *args: Any,
-        index_base: float,
+        index_base: DualTypes | NoInput,
         index_fixings: DualTypes | Series[DualTypes] | NoInput = NoInput(0),  # type: ignore[type-var]
         index_method: str | NoInput = NoInput(0),
         index_lag: int | NoInput = NoInput(0),
