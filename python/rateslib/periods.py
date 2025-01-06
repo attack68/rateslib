@@ -2769,12 +2769,16 @@ class Cashflow:
     def cashflow(self) -> DualTypes:
         return -self.notional
 
+    # @property
+    # def dcf(self) -> float:
+    #     return 0.0
+
     def analytic_delta(
         self,
-        curve: Curve | None = None,
-        disc_curve: Curve | None = None,
-        fx: float | FXRates | FXForwards | None = None,
-        base: str | None = None,
+        curve: Curve | NoInput = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
         Return the analytic delta of the *Cashflow*.
