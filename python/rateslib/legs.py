@@ -1204,7 +1204,7 @@ class _IndexLegMixin:
     ) -> None:
         self._index_fixings: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput = value  # type: ignore[type-var]
 
-        def _index_from_series(ser:Series[DualTypes], end:datetime) -> DualTypes | NoInput:  # type: ignore[type-var]
+        def _index_from_series(ser: Series[DualTypes], end: datetime) -> DualTypes | NoInput:  # type: ignore[type-var]
             val: DualTypes | None = IndexMixin._index_value(
                 i_fixings=ser,
                 i_method=self.index_method,
