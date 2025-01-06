@@ -3504,7 +3504,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
-        vol: float | NoInput = NoInput(0),
+        vol: DualTypes | NoInput = NoInput(0),
         metric: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -3624,7 +3624,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         fx: FXForwards,
         base: str | NoInput = NoInput(0),
         local: bool = False,
-        vol: float | NoInput = NoInput(0),
+        vol: DualTypes | FXVols | NoInput  = NoInput(0),
         premium: DualTypes | NoInput = NoInput(0),  # expressed in the payment currency
     ) -> dict[str, Any]:
         r"""
@@ -3724,10 +3724,15 @@ class FXOptionPeriod(metaclass=ABCMeta):
         u = self.strike / f_d
         sqrt_t = self._t_to_expiry(disc_curve.node_dates[0]) ** 0.5
 
-        if isinstance(vol, FXVolObj):
-            delta_idx, vol_, __ = vol.get_from_strike(self.strike, f_d, w_deli, w_spot, self.expiry)
+        if isinstance(vol, NoInput):
+            raise ValueError("`vol` must be a number quantity or FXDeltaVolSmile or Surface.")
+        elif isinstance(vol, FXVolObj):
+            res: tuple[DualTypes, DualTypes, DualTypes] = vol.get_from_strike(self.strike, f_d, w_deli, w_spot, self.expiry)
+            delta_idx: DualTypes | None = res[0]
+            vol_: DualTypes = res[1]
         else:
-            delta_idx, vol_ = None, vol
+            delta_idx = None
+            vol_ = vol
         vol_ /= 100.0
         vol_sqrt_t = vol_ * sqrt_t
         eta, z_w, z_u = _delta_type_constants(self.delta_type, w_deli / w_spot, u)
