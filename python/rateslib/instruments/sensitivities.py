@@ -5,7 +5,7 @@ from pandas import DataFrame
 
 from rateslib import defaults
 from rateslib.default import NoInput
-from rateslib.instruments.inst_core import (
+from rateslib.instruments.utils import (
     FX,
     NPV,
     Curves,

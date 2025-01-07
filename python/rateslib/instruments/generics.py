@@ -12,7 +12,7 @@ from rateslib.default import NoInput
 from rateslib.dual import DualTypes, dual_log
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXVols
-from rateslib.instruments.inst_core import (
+from rateslib.instruments.utils import (
     FX,
     BaseMixin,
     Curves,

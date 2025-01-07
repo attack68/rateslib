@@ -22,7 +22,7 @@ from rateslib.instruments.bonds.conventions import (
 )
 
 # from scipy.optimize import brentq
-from rateslib.instruments.inst_core import (
+from rateslib.instruments.utils import (
     BaseMixin,
     _get,
     _get_curves_fx_and_base_maybe_from_solver,
