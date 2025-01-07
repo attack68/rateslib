@@ -2,7 +2,7 @@ from __future__ import annotations  # type hinting
 
 from datetime import datetime, timedelta
 from datetime import datetime as dt
-from typing import Any
+from typing import Any, Sequence
 from uuid import uuid4
 
 import numpy as np
@@ -16,6 +16,7 @@ from rateslib.dual import (
     Dual,
     Dual2,
     DualTypes,
+    Number,
     Variable,
     _dual_float,
     dual_exp,
@@ -542,29 +543,29 @@ class FXDeltaVolSmile(_WithState):
         comparators = _drb([], comparators)
         labels = _drb([], labels)
         x: list[float] = np.linspace(_dual_float(self.plot_upper_bound), self.t[0], 301)  # type: ignore[assignment]
-        vols = self.spline.ppev(x)
+        vols: list[float] | list[Dual] | list[Dual2] = self.spline.ppev(x)
         if x_axis == "moneyness":
             x, vols = x[40:-40], vols[40:-40]
-            x_as_u = [
+            x_as_u: list[float] | list[Dual] | list[Dual2] = [  # type: ignore[assignment]
                 dual_exp(
-                    _2
+                    _2  # type: ignore[operator]
                     * self.t_expiry_sqrt
                     / 100.0
-                    * (dual_inv_norm_cdf(_1) * _2 * self.t_expiry_sqrt * _2 / 100.0),
+                    * (dual_inv_norm_cdf(_1) * _2 * self.t_expiry_sqrt * _2 / 100.0),  # type: ignore[operator]
                 )
                 for (_1, _2) in zip(x, vols, strict=True)
             ]
 
-        if not difference:
+        if difference and not isinstance(comparators, NoInput):
+            y: list[list[float] | list[Dual] | list[Dual2]] = []
+            for comparator in comparators:
+                diff = [(y_ - v_) for y_, v_ in zip(comparator.spline.ppev(x), vols, strict=True)]  # type: ignore[operator]
+                y.append(diff)
+        else: # not difference:
             y = [vols]
             if not isinstance(comparators, NoInput):
                 for comparator in comparators:
                     y.append(comparator.spline.ppev(x))
-        elif difference and not isinstance(comparators, NoInput):
-            y = []
-            for comparator in comparators:
-                diff = [comparator.spline.ppev(x) - vols]
-                y.append(diff)
 
         # reverse for intuitive strike direction
         if x_axis == "moneyness":
@@ -626,7 +627,7 @@ class FXDeltaVolSmile(_WithState):
     def _csolve(self) -> None:
         # Get the Spline classs by data types
         if self.ad == 0:
-            Spline = PPSplineF64
+            Spline: type[PPSplineF64] | type[PPSplineDual] | type[PPSplineDual2] = PPSplineF64
         elif self.ad == 1:
             Spline = PPSplineDual
         else:
@@ -638,7 +639,7 @@ class FXDeltaVolSmile(_WithState):
             tau, y, left_n, right_n = self._csolve_n_other()
 
         self.spline: PPSplineF64 | PPSplineDual | PPSplineDual2 = Spline(4, self.t, None)
-        self.spline.csolve(tau, y, left_n, right_n, False)
+        self.spline.csolve(tau, y, left_n, right_n, False)  # type: ignore[arg-type]
 
     def csolve(self) -> None:
         """
@@ -660,10 +661,13 @@ class FXDeltaVolSmile(_WithState):
         self._clear_cache()
         self._set_new_state()
 
-    def _set_node_vector(self, vector, ad) -> None:
-        """Update the node values in a Solver. ``ad`` in {1, 2}."""
-        DualType = Dual if ad == 1 else Dual2
-        DualArgs = ([],) if ad == 1 else ([], [])
+    def _set_node_vector(self, vector: Sequence[DualTypes], ad: int) -> None:
+        """
+        Update the node values in a Solver. ``ad`` in {1, 2}.
+        Only the real values in vector are used, dual components are dropped and restructured.
+        """
+        DualType: type[Dual] | type[Dual2] = Dual if ad == 1 else Dual2
+        DualArgs: tuple[list[float]] | tuple[list[float], list[float]] = ([],) if ad == 1 else ([], [])
         base_obj = DualType(0.0, [f"{self.id}{i}" for i in range(self.n)], *DualArgs)
         ident = np.eye(self.n)
 
