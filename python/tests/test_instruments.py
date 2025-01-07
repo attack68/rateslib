@@ -340,7 +340,6 @@ class TestCurvesandSolver:
         assert result == (curve, curve, curve, curve)
 
     def test_get_proxy_curve_from_solver(self, usdusd, usdeur, eureur) -> None:
-        # TODO: check whether curves in fxf but not is solver should be allowed???
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
         inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
         fxf = FXForwards(
@@ -366,6 +365,21 @@ class TestCurvesandSolver:
         irs = IRS(dt(2022, 1, 1), "1y", "A", fixed_rate=2.0)
         with pytest.raises(ValueError, match="A curve has been supplied, as part of ``curves``,"):
             irs.npv(curves=curve, solver=solver)
+
+    def test_get_multicsa_curve_from_solver(self, usdusd, usdeur, eureur) -> None:
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
+        inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3)),
+            {"usdusd": usdusd, "usdeur": usdeur, "eureur": eureur},
+        )
+        solver = Solver([curve], [], inst, [0.975], fx=fxf)
+        curve = fxf.curve("eur", ("usd","eur"))
+        irs = IRS(dt(2022, 1, 1), "3m", "Q")
+
+        # test the curve will return even though it is not included within the solver
+        # because it is a proxy curve.
+        irs.npv(curves=curve, solver=solver)
 
 
 class TestSolverFXandBase:

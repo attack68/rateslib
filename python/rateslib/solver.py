@@ -12,7 +12,7 @@ from pandas import DataFrame, MultiIndex, Series, concat
 from pandas.errors import PerformanceWarning
 
 from rateslib import defaults
-from rateslib.curves import CompositeCurve, MultiCsaCurve, ProxyCurve
+from rateslib.curves import CompositeCurve, MultiCsaCurve, ProxyCurve, Curve
 from rateslib.default import NoInput, _validate_states, _WithState
 from rateslib.dual import Dual, Dual2, DualTypes, dual_log, dual_solve, gradient
 from rateslib.fx import FXForwards, FXRates
@@ -992,7 +992,7 @@ class Solver(Gradients, _WithState):
         self.n = len(self.variables)
 
         # aggregate and organise variables and labels including pre_solvers
-        self.pre_curves = {}
+        self.pre_curves: dict[str, Curve] = {}
         self.pre_variables = ()
         self.pre_instrument_labels = ()
         self.pre_instruments = ()
@@ -2037,7 +2037,7 @@ class Solver(Gradients, _WithState):
         sorted_cols = df.columns.sort_values()
         return df.loc[:, sorted_cols].astype("float64")
 
-    def _validate_state(self):
+    def _validate_state(self) -> None:
         _objects_state = self._get_composited_state()
         if self._state != _objects_state:
             # then something has been mutated

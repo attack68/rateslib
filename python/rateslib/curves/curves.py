@@ -2975,7 +2975,6 @@ class ProxyCurve(Curve):
         self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
         self.collateral = coll_ccy
-        self._is_proxy = True
         self.fx_forwards = fx_forwards
         self.cash_currency = cash_ccy
         self.cash_pair = f"{cash_ccy}{cash_ccy}"

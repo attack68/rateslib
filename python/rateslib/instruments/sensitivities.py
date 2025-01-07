@@ -12,6 +12,7 @@ from rateslib.instruments.utils import (
     _get_curves_fx_and_base_maybe_from_solver,
 )
 from rateslib.solver import Solver
+from rateslib.fx import FXRates, FXForwards
 
 P = ParamSpec("P")
 
@@ -138,7 +139,6 @@ class Sensitivities:
         -------
         DataFrame
         """
-
         if isinstance(solver, NoInput):
             raise ValueError("`solver` is required for delta/gamma methods.")
         npv = self.npv(curves, solver, fx, base, local=True, **kwargs)
@@ -213,7 +213,7 @@ class Sensitivities:
             base_ = NoInput(0)
 
         # store original order
-        if id(solver.fx) != id(fx_) and not isinstance(fx_, NoInput):
+        if id(solver.fx) != id(fx_) and isinstance(fx_, FXRates | FXForwards):
             # then the fx_ object is available on solver but that is not being used.
             _ad2 = fx_._ad
             fx_._set_ad_order(2)
@@ -225,7 +225,7 @@ class Sensitivities:
         grad_s_sT_P: DataFrame = solver.gamma(npv, base_, fx_)
 
         # reset original order
-        if id(solver.fx) != id(fx_) and not isinstance(fx_, NoInput):
+        if id(solver.fx) != id(fx_) and isinstance(fx_, FXRates | FXForwards):
             fx_._set_ad_order(_ad2)
         solver._set_ad_order(_ad1)
 
