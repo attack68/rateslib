@@ -199,8 +199,8 @@ class FXDeltaVolSmile(_WithState):
         self,
         k: DualTypes,
         f: DualTypes,
-        w_deli: DualTypes,
-        w_spot: DualTypes,
+        w_deli: DualTypes | NoInput,
+        w_spot: DualTypes | NoInput,
         expiry: datetime | NoInput = NoInput(0),
     ) -> tuple[DualTypes, DualTypes, DualTypes]:
         """
@@ -237,8 +237,13 @@ class FXDeltaVolSmile(_WithState):
                 "due to potential pricing errors.",
             )
 
-        u = k / f  # moneyness
-        eta, z_w, z_u = _delta_type_constants(self.delta_type, w_deli / w_spot, u)
+        u: DualTypes = k / f  # moneyness
+        w: DualTypes | NoInput = (
+            NoInput(0)
+            if isinstance(w_deli, NoInput) or isinstance(w_spot, NoInput)
+            else w_deli / w_spot
+        )
+        eta, z_w, z_u = _delta_type_constants(self.delta_type, w, u)
 
         # Variables are passed to these functions so that iteration can take place using float
         # which is faster and then a final iteration at the fixed point can be included with Dual
@@ -542,29 +547,29 @@ class FXDeltaVolSmile(_WithState):
         comparators = _drb([], comparators)
         labels = _drb([], labels)
         x: list[float] = np.linspace(_dual_float(self.plot_upper_bound), self.t[0], 301)  # type: ignore[assignment]
-        vols = self.spline.ppev(x)
+        vols: list[float] | list[Dual] | list[Dual2] = self.spline.ppev(x)
         if x_axis == "moneyness":
             x, vols = x[40:-40], vols[40:-40]
-            x_as_u = [
+            x_as_u: list[float] | list[Dual] | list[Dual2] = [  # type: ignore[assignment]
                 dual_exp(
-                    _2
+                    _2  # type: ignore[operator]
                     * self.t_expiry_sqrt
                     / 100.0
-                    * (dual_inv_norm_cdf(_1) * _2 * self.t_expiry_sqrt * _2 / 100.0),
+                    * (dual_inv_norm_cdf(_1) * _2 * self.t_expiry_sqrt * _2 / 100.0),  # type: ignore[operator]
                 )
                 for (_1, _2) in zip(x, vols, strict=True)
             ]
 
-        if not difference:
+        if difference and not isinstance(comparators, NoInput):
+            y: list[list[float] | list[Dual] | list[Dual2]] = []
+            for comparator in comparators:
+                diff = [(y_ - v_) for y_, v_ in zip(comparator.spline.ppev(x), vols, strict=True)]  # type: ignore[operator]
+                y.append(diff)
+        else:  # not difference:
             y = [vols]
             if not isinstance(comparators, NoInput):
                 for comparator in comparators:
                     y.append(comparator.spline.ppev(x))
-        elif difference and not isinstance(comparators, NoInput):
-            y = []
-            for comparator in comparators:
-                diff = [comparator.spline.ppev(x) - vols]
-                y.append(diff)
 
         # reverse for intuitive strike direction
         if x_axis == "moneyness":
@@ -626,7 +631,7 @@ class FXDeltaVolSmile(_WithState):
     def _csolve(self) -> None:
         # Get the Spline classs by data types
         if self.ad == 0:
-            Spline = PPSplineF64
+            Spline: type[PPSplineF64] | type[PPSplineDual] | type[PPSplineDual2] = PPSplineF64
         elif self.ad == 1:
             Spline = PPSplineDual
         else:
@@ -638,7 +643,7 @@ class FXDeltaVolSmile(_WithState):
             tau, y, left_n, right_n = self._csolve_n_other()
 
         self.spline: PPSplineF64 | PPSplineDual | PPSplineDual2 = Spline(4, self.t, None)
-        self.spline.csolve(tau, y, left_n, right_n, False)
+        self.spline.csolve(tau, y, left_n, right_n, False)  # type: ignore[arg-type]
 
     def csolve(self) -> None:
         """
@@ -660,19 +665,26 @@ class FXDeltaVolSmile(_WithState):
         self._clear_cache()
         self._set_new_state()
 
-    def _set_node_vector(self, vector, ad) -> None:
-        """Update the node values in a Solver. ``ad`` in {1, 2}."""
-        DualType = Dual if ad == 1 else Dual2
-        DualArgs = ([],) if ad == 1 else ([], [])
+    def _set_node_vector(
+        self, vector: np.ndarray[tuple[int, ...], np.dtype[np.object_]], ad: int
+    ) -> None:
+        """
+        Update the node values in a Solver. ``ad`` in {1, 2}.
+        Only the real values in vector are used, dual components are dropped and restructured.
+        """
+        DualType: type[Dual] | type[Dual2] = Dual if ad == 1 else Dual2
+        DualArgs: tuple[list[float]] | tuple[list[float], list[float]] = (
+            ([],) if ad == 1 else ([], [])
+        )
         base_obj = DualType(0.0, [f"{self.id}{i}" for i in range(self.n)], *DualArgs)
         ident = np.eye(self.n)
 
         for i, k in enumerate(self.node_keys):
             self.nodes[k] = DualType.vars_from(
-                base_obj,
+                base_obj,  # type: ignore[arg-type]
                 vector[i].real,
                 base_obj.vars,
-                ident[i, :].tolist(),
+                ident[i, :].tolist(),  # type: ignore[arg-type]
                 *DualArgs[1:],
             )
         self._csolve()
@@ -732,13 +744,13 @@ class FXDeltaVolSmile(_WithState):
         # self._clear_cache() is performed in set_nodes
         self._set_new_state()
 
-    def update_node(self, key: datetime, value: DualTypes) -> None:
+    def update_node(self, key: float, value: DualTypes) -> None:
         """
         Update a single node value on the *Curve*.
 
         Parameters
         ----------
-        key: datetime
+        key: float
             The node date to update. Must exist in ``nodes``.
         value: float, Dual, Dual2, Variable
             Value to update on the *Curve*.
@@ -760,7 +772,7 @@ class FXDeltaVolSmile(_WithState):
 
         """
         if key not in self.nodes:
-            raise KeyError("`key` is not in *Curve* ``nodes``.")
+            raise KeyError("`key` is not in Curve ``nodes``.")
         self.nodes[key] = value
 
         self._csolve()
@@ -826,30 +838,36 @@ class FXDeltaVolSurface(_WithState):
 
     def __init__(
         self,
-        delta_indexes: list | NoInput,
-        expiries: list | NoInput,
-        node_values: list | NoInput,
-        eval_date: datetime | NoInput,
-        delta_type: str | NoInput,
-        weights: Series | NoInput = NoInput(0),
+        delta_indexes: list[float],
+        expiries: list[datetime],
+        node_values: list[DualTypes],
+        eval_date: datetime,
+        delta_type: str,
+        weights: Series[float] | NoInput = NoInput(0),
         id: str | NoInput = NoInput(0),
         ad: int = 0,
     ):
-        node_values = np.asarray(node_values)
-        self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
-        self.eval_date = eval_date
-        self.eval_posix = self.eval_date.replace(tzinfo=UTC).timestamp()
-        self.expiries = expiries
-        self.expiries_posix = [_.replace(tzinfo=UTC).timestamp() for _ in self.expiries]
+        self.id: str = (
+            uuid4().hex[:5] + "_" if isinstance(id, NoInput) else id
+        )  # 1 in a million clash
+        self.delta_indexes: list[float] = delta_indexes
+        self.delta_type: str = _validate_delta_type(delta_type)
+
+        self.expiries: list[datetime] = expiries
+        self.expiries_posix: list[float] = [
+            _.replace(tzinfo=UTC).timestamp() for _ in self.expiries
+        ]
         for idx in range(1, len(self.expiries)):
             if self.expiries[idx - 1] >= self.expiries[idx]:
                 raise ValueError("Surface `expiries` are not sorted or contain duplicates.\n")
 
-        self.delta_indexes = delta_indexes
-        self.delta_type: str = _validate_delta_type(delta_type)
+        self.eval_date: datetime = eval_date
+        self.eval_posix: float = self.eval_date.replace(tzinfo=UTC).timestamp()
+
+        node_values_: np.ndarray[tuple[int, ...], np.dtype[np.object_]] = np.asarray(node_values)
         self.smiles = [
             FXDeltaVolSmile(
-                nodes=dict(zip(self.delta_indexes, node_values[i, :], strict=False)),
+                nodes=dict(zip(self.delta_indexes, node_values_[i, :], strict=False)),
                 expiry=expiry,
                 eval_date=self.eval_date,
                 delta_type=self.delta_type,
@@ -857,14 +875,16 @@ class FXDeltaVolSurface(_WithState):
             )
             for i, expiry in enumerate(self.expiries)
         ]
-        self.n = len(self.expiries) * len(self.delta_indexes)
+        self.n: int = len(self.expiries) * len(self.delta_indexes)
 
         self.weights = self._validate_weights(weights)
-        self.weights_cum = NoInput(0) if self.weights is NoInput.blank else self.weights.cumsum()
+        self.weights_cum = (
+            NoInput(0) if isinstance(self.weights, NoInput) else self.weights.cumsum()
+        )
 
         self._set_ad_order(ad)  # includes csolve on each smile
 
-    def _clear_cache(self):
+    def _clear_cache(self) -> None:
         """
         Clear the cache of cross-sectional *Smiles* on a *Surface* type.
 
@@ -880,10 +900,10 @@ class FXDeltaVolSurface(_WithState):
         Alternatively set ``defaults.curve_caching`` to *False* to turn off global
         caching in general.
         """
-        self._cache = dict()
+        self._cache: dict[datetime, FXDeltaVolSmile] = dict()
         self._set_new_state()
 
-    def _get_composited_state(self):
+    def _get_composited_state(self) -> int:
         return hash(smile._state for smile in self.smiles)
 
     def _validate_state(self) -> None:
@@ -895,26 +915,28 @@ class FXDeltaVolSurface(_WithState):
         if defaults.curve_caching:
             self._cache[date] = val
 
-    def _set_ad_order(self, order: int):
+    def _set_ad_order(self, order: int) -> None:
         self.ad = order
         for smile in self.smiles:
             smile._set_ad_order(order)
         self._clear_cache()
 
-    def _set_node_vector(self, vector: np.array, ad: int):
+    def _set_node_vector(
+        self, vector: np.ndarray[tuple[int, ...], np.dtype[np.object_]], ad: int
+    ) -> None:
         m = len(self.delta_indexes)
         for i in range(int(len(vector) / m)):
             # smiles are indexed by expiry, shortest first
             self.smiles[i]._set_node_vector(vector[i * m : i * m + m], ad)
         self._clear_cache()
 
-    def _get_node_vector(self):
+    def _get_node_vector(self) -> np.ndarray[tuple[int, ...], np.dtype[np.object_]]:
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""
         return np.array([list(_.nodes.values()) for _ in self.smiles]).ravel()
 
-    def _get_node_vars(self):
+    def _get_node_vars(self) -> tuple[str, ...]:
         """Get the variable names of elements updated by a Solver"""
-        vars = ()
+        vars: tuple[str, ...] = ()
         for smile in self.smiles:
             vars += tuple(f"{smile.id}{i}" for i in range(smile.n))
         return vars
@@ -1017,7 +1039,15 @@ class FXDeltaVolSurface(_WithState):
         self._maybe_add_to_cache(expiry, smile)
         return smile
 
-    def _t_var_interp(self, expiry_index, expiry, expiry_posix, vol1, vol2, bounds_flag):
+    def _t_var_interp(
+        self,
+        expiry_index: int,
+        expiry: datetime,
+        expiry_posix: float,
+        vol1: DualTypes,
+        vol2: DualTypes,
+        bounds_flag: int,
+    ) -> DualTypes:
         """
         Return the volatility of an intermediate timestamp via total linear variance interpolation.
         Possibly scaled by time weights if weights is available.
@@ -1044,7 +1074,7 @@ class FXDeltaVolSurface(_WithState):
         """
         # 86400 posix seconds per day
         # 31536000 posix seconds per 365 day year
-        if self.weights is NoInput.blank:
+        if isinstance(self.weights_cum, NoInput):  # weights must also be NoInput
             if bounds_flag == 0:
                 ep1 = self.expiries_posix[expiry_index]
                 ep2 = self.expiries_posix[expiry_index + 1]
@@ -1059,7 +1089,7 @@ class FXDeltaVolSurface(_WithState):
 
             t_var_1 = (ep1 - self.eval_posix) * vol1**2
             t_var_2 = (ep2 - self.eval_posix) * vol2**2
-            _ = t_var_1 + (t_var_2 - t_var_1) * (expiry_posix - ep1) / (ep2 - ep1)
+            _: DualTypes = t_var_1 + (t_var_2 - t_var_1) * (expiry_posix - ep1) / (ep2 - ep1)
             _ /= expiry_posix - self.eval_posix
         else:
             if bounds_flag == 0:
@@ -1089,7 +1119,7 @@ class FXDeltaVolSurface(_WithState):
         f: DualTypes,
         w_deli: DualTypes | NoInput = NoInput(0),
         w_spot: DualTypes | NoInput = NoInput(0),
-        expiry: datetime | NoInput(0) = NoInput(0),
+        expiry: datetime | NoInput = NoInput(0),
     ) -> tuple[DualTypes, DualTypes, DualTypes]:
         """
         Given an option strike and expiry return associated delta and vol values.
@@ -1117,12 +1147,12 @@ class FXDeltaVolSurface(_WithState):
         volatility attributed to the delta at that point. Recall that the delta index is the
         negated put option delta for the given strike ``k``.
         """
-        if expiry is NoInput.blank:
+        if isinstance(expiry, NoInput):
             raise ValueError("`expiry` required to get cross-section of FXDeltaVolSurface.")
         smile = self.get_smile(expiry)
         return smile.get_from_strike(k, f, w_deli, w_spot, expiry)
 
-    def _get_index(self, delta_index: float, expiry: datetime):
+    def _get_index(self, delta_index: DualTypes, expiry: datetime) -> DualTypes:
         """
         Return a volatility from a given delta index.
         Used internally alongside Surface, where a surface also requires an expiry.
@@ -1134,29 +1164,32 @@ class FXDeltaVolSurface(_WithState):
         deltas = np.linspace(0.0, plot_upper_bound, 20)
         vols = np.array([[_._get_index(d, NoInput(0)) for d in deltas] for _ in self.smiles])
         expiries = [(_ - self.eval_posix) / (365 * 24 * 60 * 60.0) for _ in self.expiries_posix]
-        return plot3d(deltas, expiries, vols)
+        return plot3d(deltas, expiries, vols)  # type: ignore[arg-type, return-value]
 
-    def _validate_weights(self, weights):
-        if weights is NoInput.blank:
+    def _validate_weights(self, weights: Series[float] | NoInput) -> Series[float] | NoInput:
+        if isinstance(weights, NoInput):
             return weights
-        else:
-            w = Series(1.0, index=get_calendar("all").cal_date_range(self.eval_date, TERMINAL_DATE))
-            w.update(weights)
 
-        w = w.sort_index()  # restrict to sorted
-        w = w[self.eval_date :]  # restrict any outlier values
-        node_points = [self.eval_date] + self.expiries + [TERMINAL_DATE]
+        w: Series[float] = Series(
+            1.0, index=get_calendar("all").cal_date_range(self.eval_date, TERMINAL_DATE)
+        )
+        w.update(weights)
+        # restrict to sorted and filtered for outliers
+        w = w.sort_index()
+        w = w[self.eval_date :]  # type: ignore[misc]
+
+        node_points: list[datetime] = [self.eval_date] + self.expiries + [TERMINAL_DATE]
         for i in range(len(self.expiries) + 1):
             s, e = node_points[i] + timedelta(days=1), node_points[i + 1]
             days = (e - s).days + 1
-            w[s:e] = (
-                w[s:e] * days / w[s:e].sum()
+            w[s:e] = (  # type: ignore[misc]
+                w[s:e] * days / w[s:e].sum()  # type: ignore[misc]
             )  # scale the weights to allocate the correct time between nodes.
         w[self.eval_date] = 0.0
         return w
 
 
-def _validate_delta_type(delta_type: str):
+def _validate_delta_type(delta_type: str) -> str:
     if delta_type.lower() not in ["spot", "spot_pa", "forward", "forward_pa"]:
         raise ValueError("`delta_type` must be in {'spot', 'spot_pa', 'forward', 'forward_pa'}.")
     return delta_type.lower()
@@ -1319,7 +1352,7 @@ def _black76(
     v2: DualTypes,
     vol: DualTypes,
     phi: float,
-):
+) -> DualTypes:
     """
     Option price in points terms for immediate premium settlement.
 
@@ -1348,7 +1381,7 @@ def _black76(
     d1 = _d_plus(K, F, vs)
     d2 = d1 - vs
     Nd1, Nd2 = dual_norm_cdf(phi * d1), dual_norm_cdf(phi * d2)
-    _ = phi * (F * Nd1 - K * Nd2)
+    _: DualTypes = phi * (F * Nd1 - K * Nd2)
     # Spot formulation instead of F (Garman Kohlhagen formulation)
     # https://quant.stackexchange.com/a/63661/29443
     # r1, r2 = dual_log(df1) / -t, dual_log(df2) / -t
@@ -1390,11 +1423,11 @@ def _delta_type_constants(
     if delta_type == "forward":
         return 0.5, 1.0, 1.0
     elif delta_type == "spot":
-        return 0.5, w, 1.0
+        return 0.5, w, 1.0  # type: ignore[return-value]
     elif delta_type == "forward_pa":
-        return -0.5, 1.0, u
+        return -0.5, 1.0, u  # type: ignore[return-value]
     else:  # "spot_pa"
-        return -0.5, w, u
+        return -0.5, w, u  # type: ignore[return-value]
 
 
 FXVols = FXDeltaVolSmile | FXDeltaVolSurface

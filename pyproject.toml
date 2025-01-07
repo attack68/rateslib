@@ -143,7 +143,6 @@ packages = [
 ]
 exclude = [
     "/instruments",
-    "fx_volatility.py",
     "solver.py",
 ]
 strict = true

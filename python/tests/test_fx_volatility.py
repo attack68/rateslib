@@ -341,6 +341,19 @@ class TestFXDeltaVolSmile:
         with pytest.raises(TypeError, match="`FXDeltaVolSmile` is not iterable."):
             fxvs.__iter__()
 
+    def test_update_node(self):
+        fxvs = FXDeltaVolSmile(
+            nodes={0.5: 1.0},
+            delta_type="forward",
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+        )
+        with pytest.raises(KeyError, match=r"`key` is not in Curve ``nodes``"):
+            fxvs.update_node(0.4, 10.0)
+
+        fxvs.update_node(0.5, 12.0)
+        assert fxvs[0.5] == 12.0
+
 
 class TestFXDeltaVolSurface:
     def test_expiry_before_eval(self) -> None:
