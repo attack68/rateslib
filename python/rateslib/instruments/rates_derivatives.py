@@ -13,7 +13,6 @@ from rateslib.dual import DualTypes
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments.inst_core import (
     BaseMixin,
-    Sensitivities,
     _composit_fixings_table,
     _get,
     _get_curves_fx_and_base_maybe_from_solver,
@@ -22,6 +21,7 @@ from rateslib.instruments.inst_core import (
     _update_not_noinput,
     _update_with_defaults,
 )
+from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.legs import (
     CreditPremiumLeg,
     CreditProtectionLeg,

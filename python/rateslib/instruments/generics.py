@@ -15,11 +15,13 @@ from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXVols
 from rateslib.instruments.inst_core import (
     BaseMixin,
-    Sensitivities,
     _composit_fixings_table,
     _get_curves_fx_and_base_maybe_from_solver,
     _get_vol_maybe_from_solver,
+    Curves,
+    FX
 )
+from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.solver import Solver
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -27,8 +29,6 @@ from rateslib.solver import Solver
 # This code cannot be installed or executed on a corporate computer without a paid licence extension
 # Contact info at rateslib.com if this code is observed outside its intended sphere of use.
 
-Curves: TypeAlias = 'list[str | Curve | dict[str, Curve | str]] | Curve | str | dict[str, Curve | str] | NoInput'
-FX: TypeAlias = 'DualTypes | FXRates | FXForwards | NoInput'
 
 class Value(BaseMixin):
     """
