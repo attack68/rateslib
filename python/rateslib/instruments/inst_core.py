@@ -14,12 +14,16 @@ from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXVols
 from rateslib.solver import Solver
 
+Curves: TypeAlias = (
+    "list[str | Curve | dict[str, Curve | str]] | Curve | str | dict[str, Curve | str] | NoInput"
+)
+FX: TypeAlias = "DualTypes | FXRates | FXForwards | NoInput"
+NPV: TypeAlias = "DualTypes | dict[str, DualTypes]"
 
-Curves: TypeAlias = 'list[str | Curve | dict[str, Curve | str]] | Curve | str | dict[str, Curve | str] | NoInput'
-FX: TypeAlias = 'DualTypes | FXRates | FXForwards | NoInput'
 
-
-def _get_curve_from_solver(curve: Curve | NoInput | str | dict[str, Curve] | dict[str, str], solver: Solver) -> Curve | dict[str, Curve] | NoInput:
+def _get_curve_from_solver(
+    curve: Curve | NoInput | str | dict[str, Curve] | dict[str, str], solver: Solver
+) -> Curve | dict[str, Curve] | NoInput:
     if isinstance(curve, dict):
         # When supplying a curve as a dictionary of curves (for IBOR stubs) use recursion
         return {k: _get_curve_from_solver(v, solver) for k, v in curve.items()}
@@ -685,7 +689,9 @@ def _update_not_noinput(base_kwargs: dict[str, Any], new_kwargs: dict[str, Any])
     return {**base_kwargs, **updaters}
 
 
-def _update_with_defaults(base_kwargs: dict[str, Any], default_kwargs: dict[str, Any]) -> dict[str, Any]:
+def _update_with_defaults(
+    base_kwargs: dict[str, Any], default_kwargs: dict[str, Any]
+) -> dict[str, Any]:
     """
     Update the `base_kwargs` with `default_kwargs` if the values are NoInput.blank.
     """
@@ -697,7 +703,7 @@ def _update_with_defaults(base_kwargs: dict[str, Any], default_kwargs: dict[str,
     return {**base_kwargs, **updaters}
 
 
-def _inherit_or_negate(kwargs: dict[str, Any], ignore_blank: bool=False) -> dict[str, Any]:
+def _inherit_or_negate(kwargs: dict[str, Any], ignore_blank: bool = False) -> dict[str, Any]:
     """Amend the values of leg2 kwargs if they are defaulted to inherit or negate from leg1."""
 
     def _replace(k: str, v: Any) -> Any:

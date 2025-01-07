@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import warnings
 from datetime import datetime
-from typing import TypeAlias
 
 from pandas import DataFrame, DatetimeIndex, concat
 
@@ -14,12 +13,12 @@ from rateslib.dual import DualTypes, dual_log
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXVols
 from rateslib.instruments.inst_core import (
+    FX,
     BaseMixin,
+    Curves,
     _composit_fixings_table,
     _get_curves_fx_and_base_maybe_from_solver,
     _get_vol_maybe_from_solver,
-    Curves,
-    FX
 )
 from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.solver import Solver

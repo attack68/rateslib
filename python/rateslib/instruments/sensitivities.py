@@ -1,20 +1,28 @@
+from collections.abc import Callable
+from typing import Any, ParamSpec
+
 from pandas import DataFrame
-from typing import Any, Callable, ParamSpec
 
 from rateslib import defaults
-from rateslib.dual import DualTypes
 from rateslib.default import NoInput
-from rateslib.instruments.inst_core import FX, Curves, _get_curves_fx_and_base_maybe_from_solver
+from rateslib.instruments.inst_core import (
+    FX,
+    NPV,
+    Curves,
+    _get_curves_fx_and_base_maybe_from_solver,
+)
 from rateslib.solver import Solver
 
 P = ParamSpec("P")
+
 
 class Sensitivities:
     """
     Base class to add risk sensitivity calculations to an object with an ``npv()``
     method.
     """
-    npv: Callable[P, DualTypes | dict[str, DualTypes]]
+
+    npv: Callable[P, NPV]
     cashflows: Callable[P, DataFrame]
 
     def delta(

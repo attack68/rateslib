@@ -17,8 +17,8 @@ from rateslib.instruments.inst_core import (
     _get_curves_fx_and_base_maybe_from_solver,
     _update_not_noinput,
 )
-from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.instruments.rates_derivatives import BaseDerivative
+from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.legs import (
     FixedLeg,
     FixedLegMtm,
