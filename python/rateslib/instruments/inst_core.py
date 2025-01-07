@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 import warnings
+from typing import Any, TypeAlias
 
 from pandas import DataFrame, concat, isna
 
@@ -13,8 +14,16 @@ from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXVols
 from rateslib.solver import Solver
 
+Curves: TypeAlias = (
+    "list[str | Curve | dict[str, Curve | str]] | Curve | str | dict[str, Curve | str] | NoInput"
+)
+FX: TypeAlias = "DualTypes | FXRates | FXForwards | NoInput"
+NPV: TypeAlias = "DualTypes | dict[str, DualTypes]"
 
-def _get_curve_from_solver(curve, solver):
+
+def _get_curve_from_solver(
+    curve: Curve | NoInput | str | dict[str, Curve] | dict[str, str], solver: Solver
+) -> Curve | dict[str, Curve] | NoInput:
     if isinstance(curve, dict):
         # When supplying a curve as a dictionary of curves (for IBOR stubs) use recursion
         return {k: _get_curve_from_solver(v, solver) for k, v in curve.items()}
@@ -27,7 +36,7 @@ def _get_curve_from_solver(curve, solver):
     elif isinstance(curve, str):
         solver._validate_state()
         return solver.pre_curves[curve]
-    elif curve is NoInput.blank or curve is None:
+    elif isinstance(curve, NoInput) or curve is None:
         # pass through a None curve. This will either raise errors later or not be needed
         return NoInput(0)
     else:
@@ -67,7 +76,7 @@ def _get_curve_from_solver(curve, solver):
 
 
 def _get_base_maybe_from_fx(
-    fx: float | FXRates | FXForwards | NoInput,
+    fx: FX,
     base: str | NoInput,
     local_ccy: str | NoInput,
 ) -> str | NoInput:
@@ -85,8 +94,8 @@ def _get_base_maybe_from_fx(
 
 def _get_fx_maybe_from_solver(
     solver: Solver | NoInput,
-    fx: float | FXRates | FXForwards | NoInput,
-) -> float | FXRates | FXForwards | NoInput:
+    fx: FX,
+) -> FX:
     if isinstance(fx, NoInput):
         if isinstance(solver, NoInput):
             fx_ = NoInput(0)
@@ -116,18 +125,18 @@ def _get_fx_maybe_from_solver(
 
 
 def _get_curves_maybe_from_solver(
-    curves_attr: Curve | str | list | NoInput,
+    curves_attr: Curves,
     solver: Solver | NoInput,
-    curves: Curve | str | list | NoInput,
-) -> tuple:
+    curves: Curves,
+) -> tuple[Curve | NoInput, Curve | NoInput, Curve | NoInput, Curve | NoInput]:
     """
     Attempt to resolve curves as a variety of input types to a 4-tuple consisting of:
     (leg1 forecasting, leg1 discounting, leg2 forecasting, leg2 discounting)
     """
-    if curves is NoInput.blank and curves_attr is NoInput.blank:
+    if isinstance(curves, NoInput) and isinstance(curves_attr, NoInput):
         # no data is available so consistently return a 4-tuple of no data
         return (NoInput(0), NoInput(0), NoInput(0), NoInput(0))
-    elif curves is NoInput.blank:
+    elif isinstance(curves, NoInput):
         # set the `curves` input as that which is set as attribute at instrument init.
         curves = curves_attr
 
@@ -135,7 +144,7 @@ def _get_curves_maybe_from_solver(
         # convert isolated value input to list
         curves = [curves]
 
-    if solver is NoInput.blank:
+    if isinstance(solver, NoInput):
 
         def check_curve(curve):
             if isinstance(curve, str):
@@ -171,12 +180,12 @@ def _get_curves_maybe_from_solver(
 
 
 def _get_curves_fx_and_base_maybe_from_solver(
-    curves_attr: Curve | str | list | None,
-    solver: Solver | None,
-    curves: Curve | str | list | None,
-    fx: float | FXRates | FXForwards | None,
-    base: str | None,
-    local_ccy: str | None,
+    curves_attr: Curves,
+    solver: Solver | NoInput,
+    curves: Curves,
+    fx: FX,
+    base: str | NoInput,
+    local_ccy: str | NoInput,
 ) -> tuple:
     """
     Parses the ``solver``, ``curves``, ``fx`` and ``base`` arguments in combination.
@@ -283,271 +292,6 @@ def _get_vol_maybe_from_solver(
                 return vol
             else:
                 raise ValueError("`vol` must be in `solver`.")
-
-
-class Sensitivities:
-    """
-    Base class to add risk sensitivity calculations to an object with an ``npv()``
-    method.
-    """
-
-    def delta(
-        self,
-        curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: FXRates | FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
-        local: bool = False,
-        **kwargs,
-    ) -> DataFrame:
-        """
-        Calculate delta risk of an *Instrument* against the calibrating instruments in a
-        :class:`~rateslib.curves.Solver`.
-
-        Parameters
-        ----------
-        curves : Curve, str or list of such, optional
-            A single :class:`~rateslib.curves.Curve` or id or a list of such.
-            A list defines the following curves in the order:
-
-            - Forecasting :class:`~rateslib.curves.Curve` for ``leg1``.
-            - Discounting :class:`~rateslib.curves.Curve` for ``leg1``.
-            - Forecasting :class:`~rateslib.curves.Curve` for ``leg2``.
-            - Discounting :class:`~rateslib.curves.Curve` for ``leg2``.
-        solver : Solver, optional
-            The :class:`~rateslib.solver.Solver` that calibrates
-            *Curves* from given *Instruments*.
-        fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            :class:`~rateslib.fx.FXRates` or :class:`~rateslib.fx.FXForwards` object,
-            converts from local currency into ``base``.
-        base : str, optional
-            The base currency to convert cashflows into (3-digit code), set by default.
-            Only used if ``fx_rate`` is an :class:`~rateslib.fx.FXRates` or
-            :class:`~rateslib.fx.FXForwards` object.
-        local : bool, optional
-            If `True` will ignore ``base`` - this is equivalent to setting ``base`` to *None*.
-            Included only for argument signature consistent with *npv*.
-
-        Returns
-        -------
-        DataFrame
-        """
-        if solver is NoInput.blank:
-            raise ValueError("`solver` is required for delta/gamma methods.")
-        npv = self.npv(curves, solver, fx, base, local=True, **kwargs)
-        _, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
-            NoInput(0),
-            solver,
-            NoInput(0),
-            fx,
-            base,
-            NoInput(0),
-        )
-        if local:
-            base_ = NoInput(0)
-        return solver.delta(npv, base_, fx_)
-
-    def exo_delta(
-        self,
-        vars: list[str],
-        curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: FXRates | FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
-        local: bool = False,
-        vars_scalar: list[float] | NoInput = NoInput(0),
-        vars_labels: list[str] | NoInput = NoInput(0),
-        **kwargs,
-    ) -> DataFrame:
-        """
-        Calculate delta risk of an *Instrument* against some exogenous user created *Variables*.
-
-        See :ref:`What are exogenous variables? <cook-exogenous-doc>` in the cookbook.
-
-        Parameters
-        ----------
-        vars : list[str]
-            The variable tags which to determine sensitivities for.
-        curves : Curve, str or list of such, optional
-            A single :class:`~rateslib.curves.Curve` or id or a list of such.
-            A list defines the following curves in the order:
-
-            - Forecasting :class:`~rateslib.curves.Curve` for ``leg1``.
-            - Discounting :class:`~rateslib.curves.Curve` for ``leg1``.
-            - Forecasting :class:`~rateslib.curves.Curve` for ``leg2``.
-            - Discounting :class:`~rateslib.curves.Curve` for ``leg2``.
-
-        solver : Solver, optional
-            The :class:`~rateslib.solver.Solver` that calibrates
-            *Curves* from given *Instruments*.
-        fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            :class:`~rateslib.fx.FXRates` or :class:`~rateslib.fx.FXForwards` object,
-            converts from local currency into ``base``.
-        base : str, optional
-            The base currency to convert cashflows into (3-digit code), set by default.
-            Only used if ``fx_rate`` is an :class:`~rateslib.fx.FXRates` or
-            :class:`~rateslib.fx.FXForwards` object.
-        local : bool, optional
-            If `True` will ignore ``base`` - this is equivalent to setting ``base`` to *None*.
-            Included only for argument signature consistent with *npv*.
-        vars_scalar : list[float], optional
-            Scaling factors for each variable, for example converting rates to basis point etc.
-            Defaults to ones.
-        vars_labels : list[str], optional
-            Alternative names to relabel variables in DataFrames.
-
-        Returns
-        -------
-        DataFrame
-        """
-
-        if solver is NoInput.blank:
-            raise ValueError("`solver` is required for delta/gamma methods.")
-        npv = self.npv(curves, solver, fx, base, local=True, **kwargs)
-        _, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
-            NoInput(0),
-            solver,
-            NoInput(0),
-            fx,
-            base,
-            NoInput(0),
-        )
-        if local:
-            base_ = NoInput(0)
-        return solver.exo_delta(
-            npv=npv, vars=vars, base=base_, fx=fx_, vars_scalar=vars_scalar, vars_labels=vars_labels
-        )
-
-    def gamma(
-        self,
-        curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: FXRates | FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
-        local: bool = False,
-        **kwargs,
-    ):
-        """
-        Calculate cross-gamma risk of an *Instrument* against the calibrating instruments of a
-        :class:`~rateslib.curves.Solver`.
-
-        Parameters
-        ----------
-        curves : Curve, str or list of such, optional
-            A single :class:`~rateslib.curves.Curve` or id or a list of such.
-            A list defines the following curves in the order:
-
-            - Forecasting :class:`~rateslib.curves.Curve` for ``leg1``.
-            - Discounting :class:`~rateslib.curves.Curve` for ``leg1``.
-            - Forecasting :class:`~rateslib.curves.Curve` for ``leg2``.
-            - Discounting :class:`~rateslib.curves.Curve` for ``leg2``.
-        solver : Solver, optional
-            The :class:`~rateslib.solver.Solver` that calibrates
-            *Curves* from given *Instruments*.
-        fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            :class:`~rateslib.fx.FXRates` or :class:`~rateslib.fx.FXForwards` object,
-            converts from local currency into ``base``.
-        base : str, optional
-            The base currency to convert cashflows into (3-digit code), set by default.
-            Only used if ``fx_rate`` is an :class:`~rateslib.fx.FXRates` or
-            :class:`~rateslib.fx.FXForwards` object.
-        local : bool, optional
-            If `True` will ignore ``base``. This is equivalent to setting ``base`` to *None*.
-            Included only for argument signature consistent with *npv*.
-
-        Returns
-        -------
-        DataFrame
-        """
-        if isinstance(solver, NoInput):
-            raise ValueError("`solver` is required for delta/gamma methods.")
-        _, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
-            NoInput(0),
-            solver,
-            NoInput(0),
-            fx,
-            base,
-            NoInput(0),
-        )
-        if local:
-            base_ = NoInput(0)
-
-        # store original order
-        if id(solver.fx) != id(fx_) and not isinstance(fx_, NoInput):
-            # then the fx_ object is available on solver but that is not being used.
-            _ad2 = fx_._ad
-            fx_._set_ad_order(2)
-
-        _ad1 = solver._ad
-        solver._set_ad_order(2)
-
-        npv = self.npv(curves, solver, fx_, base_, local=True, **kwargs)
-        grad_s_sT_P = solver.gamma(npv, base_, fx_)
-
-        # reset original order
-        if id(solver.fx) != id(fx_) and not isinstance(fx_, NoInput):
-            fx_._set_ad_order(_ad2)
-        solver._set_ad_order(_ad1)
-
-        return grad_s_sT_P
-
-    def cashflows_table(
-        self,
-        curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
-        **kwargs,
-    ):
-        """
-        Aggregate the values derived from a :meth:`~rateslib.instruments.BaseMixin.cashflows`
-        method on an *Instrument*.
-
-        Parameters
-        ----------
-        curves : CurveType, str or list of such, optional
-            Argument input to the underlying ``cashflows`` method of the *Instrument*.
-        solver : Solver, optional
-            Argument input to the underlying ``cashflows`` method of the *Instrument*.
-        fx : float, FXRates, FXForwards, optional
-            Argument input to the underlying ``cashflows`` method of the *Instrument*.
-        base : str, optional
-            Argument input to the underlying ``cashflows`` method of the *Instrument*.
-        kwargs : dict
-            Additional arguments input the underlying ``cashflows`` method of the *Instrument*.
-
-        Returns
-        -------
-        DataFrame
-        """
-        cashflows = self.cashflows(curves, solver, fx, base, **kwargs)
-        cashflows = cashflows[
-            [
-                defaults.headers["currency"],
-                defaults.headers["collateral"],
-                defaults.headers["payment"],
-                defaults.headers["cashflow"],
-            ]
-        ]
-        _ = cashflows.groupby(
-            [
-                defaults.headers["currency"],
-                defaults.headers["collateral"],
-                defaults.headers["payment"],
-            ],
-            dropna=False,
-        )
-        _ = _.sum().unstack([0, 1]).droplevel(0, axis=1)
-        _.columns.names = ["local_ccy", "collateral_ccy"]
-        _.index.names = ["payment"]
-        _ = _.sort_index(ascending=True, axis=0).fillna(0.0)
-        return _
 
 
 class BaseMixin:
@@ -918,12 +662,12 @@ def _get(kwargs: dict, leg: int = 1, filter=()):
     return _
 
 
-def _push(spec: str | None, kwargs: dict):
+def _push(spec: str | NoInput, kwargs: dict[str, Any]) -> dict[str, Any]:
     """
     Push user specified kwargs to a default specification.
     Values from the `spec` dict will not overwrite specific user values already in `kwargs`.
     """
-    if spec is NoInput.blank:
+    if isinstance(spec, NoInput):
         return kwargs
     else:
         try:
@@ -935,7 +679,7 @@ def _push(spec: str | None, kwargs: dict):
         return {**kwargs, **spec_kwargs, **user}
 
 
-def _update_not_noinput(base_kwargs, new_kwargs):
+def _update_not_noinput(base_kwargs: dict[str, Any], new_kwargs: dict[str, Any]) -> dict[str, Any]:
     """
     Update the `base_kwargs` with `new_kwargs` (user values) unless those new values are NoInput.
     """
@@ -945,7 +689,9 @@ def _update_not_noinput(base_kwargs, new_kwargs):
     return {**base_kwargs, **updaters}
 
 
-def _update_with_defaults(base_kwargs, default_kwargs):
+def _update_with_defaults(
+    base_kwargs: dict[str, Any], default_kwargs: dict[str, Any]
+) -> dict[str, Any]:
     """
     Update the `base_kwargs` with `default_kwargs` if the values are NoInput.blank.
     """
@@ -957,10 +703,10 @@ def _update_with_defaults(base_kwargs, default_kwargs):
     return {**base_kwargs, **updaters}
 
 
-def _inherit_or_negate(kwargs: dict, ignore_blank=False):
+def _inherit_or_negate(kwargs: dict[str, Any], ignore_blank: bool = False) -> dict[str, Any]:
     """Amend the values of leg2 kwargs if they are defaulted to inherit or negate from leg1."""
 
-    def _replace(k, v):
+    def _replace(k: str, v: Any) -> Any:
         # either inherit or negate the value in leg2 from that in leg1
         if "leg2_" in k:
             if not isinstance(v, NoInput):
@@ -986,19 +732,19 @@ def _inherit_or_negate(kwargs: dict, ignore_blank=False):
     return {k: _replace(k, v) for k, v in kwargs.items()}
 
 
-def _lower(val: str | NoInput):
+def _lower(val: str | NoInput) -> str | NoInput:
     if isinstance(val, str):
         return val.lower()
     return val
 
 
-def _upper(val: str | NoInput):
+def _upper(val: str | NoInput) -> str | NoInput:
     if isinstance(val, str):
         return val.upper()
     return val
 
 
-def _composit_fixings_table(df_result, df):
+def _composit_fixings_table(df_result: DataFrame, df: DataFrame) -> DataFrame:
     """
     Add a DataFrame to an existing fixings table by extending or adding to relevant columns.
 

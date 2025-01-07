@@ -13,12 +13,14 @@ from rateslib.dual import DualTypes, dual_log
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXVols
 from rateslib.instruments.inst_core import (
+    FX,
     BaseMixin,
-    Sensitivities,
+    Curves,
     _composit_fixings_table,
     _get_curves_fx_and_base_maybe_from_solver,
     _get_vol_maybe_from_solver,
 )
+from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.solver import Solver
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -66,8 +68,8 @@ class Value(BaseMixin):
         effective: datetime,
         convention: str | NoInput = NoInput(0),
         metric: str = "curve_value",
-        curves: list | str | Curve | None = None,
-    ):
+        curves: list[str | Curve] | str | Curve | NoInput = NoInput(0),
+    ) -> None:
         self.effective = effective
         self.curves = curves
         self.convention = defaults.convention if convention is NoInput.blank else convention
@@ -75,12 +77,12 @@ class Value(BaseMixin):
 
     def rate(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         metric: str | NoInput = NoInput(0),
-    ):
+    ) -> DualTypes:
         """
         Return a value derived from a *Curve*.
 

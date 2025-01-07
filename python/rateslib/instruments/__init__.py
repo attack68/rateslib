@@ -30,10 +30,7 @@ from rateslib.instruments.fx_volatility import (
     FXStrangle,
 )
 from rateslib.instruments.generics import Fly, Portfolio, Spread, Value, VolValue
-from rateslib.instruments.inst_core import (
-    BaseMixin,
-    Sensitivities,
-)
+from rateslib.instruments.inst_core import BaseMixin
 from rateslib.instruments.rates_derivatives import (
     CDS,
     FRA,
@@ -50,6 +47,7 @@ from rateslib.instruments.rates_multi_ccy import (
     FXExchange,
     FXSwap,
 )
+from rateslib.instruments.sensitivities import Sensitivities
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

@@ -12,13 +12,13 @@ from rateslib.dual import Dual, Dual2, DualTypes
 from rateslib.fx import FXForwards, FXRates, forward_fx
 from rateslib.instruments.inst_core import (
     BaseMixin,
-    Sensitivities,
     _composit_fixings_table,
     _get,
     _get_curves_fx_and_base_maybe_from_solver,
     _update_not_noinput,
 )
 from rateslib.instruments.rates_derivatives import BaseDerivative
+from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.legs import (
     FixedLeg,
     FixedLegMtm,

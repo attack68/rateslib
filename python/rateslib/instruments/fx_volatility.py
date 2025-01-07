@@ -13,12 +13,12 @@ from rateslib.dual import DualTypes, dual_log
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXVolObj, FXVols
 from rateslib.instruments.inst_core import (
-    Sensitivities,
     _get_curves_fx_and_base_maybe_from_solver,
     _get_vol_maybe_from_solver,
     _push,
     _update_with_defaults,
 )
+from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.periods import Cashflow, FXCallPeriod, FXPutPeriod
 from rateslib.solver import Solver
 from rateslib.splines import evaluate

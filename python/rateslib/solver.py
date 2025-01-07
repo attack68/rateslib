@@ -1407,7 +1407,7 @@ class Solver(Gradients, _WithState):
         self._update_fx()
         self._reset_properties_()
 
-    def _set_ad_order(self, order):
+    def _set_ad_order(self, order: int) -> None:
         """Defines the node DF in terms of float, Dual or Dual2 for AD order calcs."""
         for pre_solver in self.pre_solvers:
             pre_solver._set_ad_order(order=order)
