@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 import warnings
+from typing import Any
 
 from pandas import DataFrame, concat, isna
 
@@ -14,7 +15,7 @@ from rateslib.fx_volatility import FXVols
 from rateslib.solver import Solver
 
 
-def _get_curve_from_solver(curve, solver):
+def _get_curve_from_solver(curve: Curve | NoInput | str | dict[str, Curve] | dict[str, str], solver: Solver) -> Curve | dict[str, Curve] | NoInput:
     if isinstance(curve, dict):
         # When supplying a curve as a dictionary of curves (for IBOR stubs) use recursion
         return {k: _get_curve_from_solver(v, solver) for k, v in curve.items()}
@@ -27,7 +28,7 @@ def _get_curve_from_solver(curve, solver):
     elif isinstance(curve, str):
         solver._validate_state()
         return solver.pre_curves[curve]
-    elif curve is NoInput.blank or curve is None:
+    elif isinstance(curve, NoInput) or curve is None:
         # pass through a None curve. This will either raise errors later or not be needed
         return NoInput(0)
     else:
@@ -124,10 +125,10 @@ def _get_curves_maybe_from_solver(
     Attempt to resolve curves as a variety of input types to a 4-tuple consisting of:
     (leg1 forecasting, leg1 discounting, leg2 forecasting, leg2 discounting)
     """
-    if curves is NoInput.blank and curves_attr is NoInput.blank:
+    if isinstance(curves, NoInput) and isinstance(curves_attr, NoInput):
         # no data is available so consistently return a 4-tuple of no data
         return (NoInput(0), NoInput(0), NoInput(0), NoInput(0))
-    elif curves is NoInput.blank:
+    elif isinstance(curves, NoInput):
         # set the `curves` input as that which is set as attribute at instrument init.
         curves = curves_attr
 
@@ -135,7 +136,7 @@ def _get_curves_maybe_from_solver(
         # convert isolated value input to list
         curves = [curves]
 
-    if solver is NoInput.blank:
+    if isinstance(solver, NoInput):
 
         def check_curve(curve):
             if isinstance(curve, str):
@@ -918,12 +919,12 @@ def _get(kwargs: dict, leg: int = 1, filter=()):
     return _
 
 
-def _push(spec: str | None, kwargs: dict):
+def _push(spec: str | NoInput, kwargs: dict[str, Any]) -> dict[str, Any]:
     """
     Push user specified kwargs to a default specification.
     Values from the `spec` dict will not overwrite specific user values already in `kwargs`.
     """
-    if spec is NoInput.blank:
+    if isinstance(spec, NoInput):
         return kwargs
     else:
         try:
@@ -935,7 +936,7 @@ def _push(spec: str | None, kwargs: dict):
         return {**kwargs, **spec_kwargs, **user}
 
 
-def _update_not_noinput(base_kwargs, new_kwargs):
+def _update_not_noinput(base_kwargs: dict[str, Any], new_kwargs: dict[str, Any]) -> dict[str, Any]:
     """
     Update the `base_kwargs` with `new_kwargs` (user values) unless those new values are NoInput.
     """
@@ -945,7 +946,7 @@ def _update_not_noinput(base_kwargs, new_kwargs):
     return {**base_kwargs, **updaters}
 
 
-def _update_with_defaults(base_kwargs, default_kwargs):
+def _update_with_defaults(base_kwargs: dict[str, Any], default_kwargs: dict[str, Any]) -> dict[str, Any]:
     """
     Update the `base_kwargs` with `default_kwargs` if the values are NoInput.blank.
     """
@@ -957,10 +958,10 @@ def _update_with_defaults(base_kwargs, default_kwargs):
     return {**base_kwargs, **updaters}
 
 
-def _inherit_or_negate(kwargs: dict, ignore_blank=False):
+def _inherit_or_negate(kwargs: dict[str, Any], ignore_blank: bool=False) -> dict[str, Any]:
     """Amend the values of leg2 kwargs if they are defaulted to inherit or negate from leg1."""
 
-    def _replace(k, v):
+    def _replace(k: str, v: Any) -> Any:
         # either inherit or negate the value in leg2 from that in leg1
         if "leg2_" in k:
             if not isinstance(v, NoInput):
@@ -986,19 +987,19 @@ def _inherit_or_negate(kwargs: dict, ignore_blank=False):
     return {k: _replace(k, v) for k, v in kwargs.items()}
 
 
-def _lower(val: str | NoInput):
+def _lower(val: str | NoInput) -> str | NoInput:
     if isinstance(val, str):
         return val.lower()
     return val
 
 
-def _upper(val: str | NoInput):
+def _upper(val: str | NoInput) -> str | NoInput:
     if isinstance(val, str):
         return val.upper()
     return val
 
 
-def _composit_fixings_table(df_result, df):
+def _composit_fixings_table(df_result: DataFrame, df: DataFrame) -> DataFrame:
     """
     Add a DataFrame to an existing fixings table by extending or adding to relevant columns.
 

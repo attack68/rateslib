@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import warnings
 from datetime import datetime
+from typing import TypeAlias
 
 from pandas import DataFrame, DatetimeIndex, concat
 
@@ -26,6 +27,8 @@ from rateslib.solver import Solver
 # This code cannot be installed or executed on a corporate computer without a paid licence extension
 # Contact info at rateslib.com if this code is observed outside its intended sphere of use.
 
+Curves: TypeAlias = 'list[str | Curve | dict[str, Curve | str]] | Curve | str | dict[str, Curve | str] | NoInput'
+FX: TypeAlias = 'DualTypes | FXRates | FXForwards | NoInput'
 
 class Value(BaseMixin):
     """
@@ -66,8 +69,8 @@ class Value(BaseMixin):
         effective: datetime,
         convention: str | NoInput = NoInput(0),
         metric: str = "curve_value",
-        curves: list | str | Curve | None = None,
-    ):
+        curves: list[str | Curve] | str | Curve | NoInput = NoInput(0),
+    ) -> None:
         self.effective = effective
         self.curves = curves
         self.convention = defaults.convention if convention is NoInput.blank else convention
@@ -75,12 +78,12 @@ class Value(BaseMixin):
 
     def rate(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         metric: str | NoInput = NoInput(0),
-    ):
+    ) -> DualTypes:
         """
         Return a value derived from a *Curve*.
 
