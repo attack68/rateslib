@@ -115,7 +115,7 @@ def newton_1dim(
 
     .. ipython:: python
 
-       from rateslib.solver import newton_1dim
+       from rateslib.dual import newton_1dim
 
        def f(g, s):
            f0 = g**2 - s   # Function value
@@ -247,7 +247,7 @@ def newton_ndim(
 
     .. ipython:: python
 
-       from rateslib.solver import newton_ndim
+       from rateslib.dual import newton_ndim
 
        def f(g, s):
            # Function value
