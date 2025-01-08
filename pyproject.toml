@@ -147,7 +147,7 @@ exclude = [
     # "/instruments/sensitivities.py",
     "/instruments/fx_volatility.py",
     "/instruments/generics.py",
-    "/instruments/utils.py",
+    # "/instruments/utils.py",
     "/instruments/base.py",
     "/instruments/rates_derivatives.py",
     "/instruments/rates_multi_ccy.py",

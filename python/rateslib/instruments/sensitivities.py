@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Any, ParamSpec
 from pandas import DataFrame
 
 from rateslib import defaults
-from rateslib.curves import Curves
 from rateslib.default import NoInput
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments.utils import (
@@ -15,7 +14,7 @@ from rateslib.instruments.utils import (
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, NPV
+    from rateslib.typing import FX, NPV, Curves
 P = ParamSpec("P")
 
 

@@ -5,13 +5,9 @@ from typing import TYPE_CHECKING, Any
 
 from pandas import DataFrame
 
-from rateslib import defaults
+from rateslib import FXDeltaVolSmile, FXDeltaVolSurface, defaults
 from rateslib.curves import (
     Curve,
-    CurveInput,
-    CurveOption,
-    Curves,
-    CurvesList,
     MultiCsaCurve,
     ProxyCurve,
 )
@@ -21,7 +17,16 @@ from rateslib.fx import FXForwards, FXRates
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, Vol, VolOption
+    from rateslib.typing import (
+        FX,
+        CurveInput,
+        CurveOption,
+        Curves,
+        CurvesList,
+        Vol,
+        Vol_,
+        VolOption,
+    )
 
 
 def _get_curve_from_solver(curve: CurveInput, solver: Solver) -> CurveOption:
@@ -148,7 +153,7 @@ def _get_curves_maybe_from_solver(
             elif curve is None or isinstance(curve, NoInput):
                 return NoInput(0)
             elif isinstance(curve, dict):
-                return {k: check_curve(v) for k, v in curve.items()}
+                return {k: check_curve(v) for k, v in curve.items()}  # type: ignore[misc]
             return curve
 
         curves_parsed: tuple[CurveOption, ...] = tuple(
@@ -183,11 +188,7 @@ def _get_curves_fx_and_base_maybe_from_solver(
     fx: FX,
     base: str | NoInput,
     local_ccy: str | NoInput,
-) -> tuple[
-    tuple[Curve | NoInput, Curve | NoInput, Curve | NoInput, Curve | NoInput],
-    FX,
-    str | NoInput,
-]:
+) -> tuple[CurvesList, FX, str | NoInput]:
     """
     Parses the ``solver``, ``curves``, ``fx`` and ``base`` arguments in combination.
 
@@ -252,25 +253,26 @@ def _get_vol_maybe_from_solver(vol_attr: Vol, vol: Vol, solver: Solver | NoInput
     elif isinstance(vol, NoInput):
         vol = vol_attr
 
+    vol_: Vol_ = vol  # type: ignore[assignment]
     if isinstance(solver, NoInput):
-        if isinstance(vol, str):
+        if isinstance(vol_, str):
             raise ValueError(
                 "String `vol` ids require a `solver` to be mapped. No `solver` provided.",
             )
-        return vol
-    elif isinstance(vol, float | Dual | Dual2 | Variable):
-        return vol
-    elif isinstance(vol, str):
-        return solver._get_pre_fxvol(vol)
+        return vol_
+    elif isinstance(vol_, float | Dual | Dual2 | Variable):
+        return vol_
+    elif isinstance(vol_, str):
+        return solver._get_pre_fxvol(vol_)
     else:  # vol is a Smile or Surface - check that it is in the Solver
         try:
             # it is a safeguard to load curves from solvers when a solver is
             # provided and multiple curves might have the same id
-            _ = solver._get_pre_fxvol(vol.id)
-            if id(_) != id(vol):  # Python id() is a memory id, not a string label id.
-                raise ValueError(
+            _: FXDeltaVolSmile | FXDeltaVolSurface = solver._get_pre_fxvol(vol_.id)
+            if id(_) != id(vol_):
+                raise ValueError(  # ignore: type[union-attr]
                     "A ``vol`` object has been supplied which has the same "
-                    f"`id` ('{vol.id}'),\nas one of those available as part of the "
+                    f"`id` ('{vol_.id}'),\nas one of those available as part of the "
                     "Solver's collection but is not the same object.\n"
                     "This is ambiguous and may lead to erroneous prices.\n",
                 )
@@ -278,15 +280,15 @@ def _get_vol_maybe_from_solver(vol_attr: Vol, vol: Vol, solver: Solver | NoInput
         except AttributeError:
             raise AttributeError(
                 "`vol` has no attribute `id`, likely it not a valid object, got: "
-                f"{vol}.\nSince a solver is provided have you missed labelling the `vol` "
+                f"{vol_}.\nSince a solver is provided have you missed labelling the `vol` "
                 f"of the instrument or supplying `vol` directly?",
             )
         except KeyError:
             if defaults.curve_not_in_solver == "ignore":
-                return vol
+                return vol_
             elif defaults.curve_not_in_solver == "warn":
                 warnings.warn("`vol` not found in `solver`.", UserWarning)
-                return vol
+                return vol_
             else:
                 raise ValueError("`vol` must be in `solver`.")
 

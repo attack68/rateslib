@@ -6,13 +6,12 @@ from typing import TYPE_CHECKING, Any
 
 from pandas import DataFrame, concat, isna
 
-from rateslib.curves import Curves
 from rateslib.default import NoInput
 from rateslib.instruments.utils import _get_curves_fx_and_base_maybe_from_solver
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, NPV, DualTypes
+    from rateslib.typing import FX, NPV, Curves, DualTypes
 
 
 class BaseMixin:
