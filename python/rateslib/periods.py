@@ -3591,6 +3591,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
         -------
         float, Dual or Dual2
         """
+        if isinstance(self.strike, NoInput):
+            raise ValueError("FXOption must set a `strike` for valuation.")
+
         # This function uses newton_1d and is AD safe.
 
         # convert the premium to a standardised immediate pips value.

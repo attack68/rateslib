@@ -3,21 +3,21 @@ from typing import Any, TypeAlias
 
 from pandas import DataFrame
 
-from rateslib import FXDeltaVolSmile, FXDeltaVolSurface, ProxyCurve, defaults
-from rateslib.curves import Curve, MultiCsaCurve
+from rateslib import defaults
+from rateslib.curves import (
+    Curve,
+    CurveInput,
+    CurveOption,
+    Curves,
+    CurvesList,
+    MultiCsaCurve,
+    ProxyCurve,
+)
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, DualTypes, Variable
 from rateslib.fx import FXForwards, FXRates
+from rateslib.fx_volatility import Vol, VolOption
 from rateslib.solver import Solver
-
-Curves: TypeAlias = "list[str | Curve | dict[str, Curve | str] | NoInput] | Curve | str | dict[str, Curve | str] | NoInput"  # noqa: E501
-CurveInput: TypeAlias = "Curve | NoInput | str | dict[str, Curve | str]"
-
-CurveOption: TypeAlias = "Curve | dict[str, Curve] | NoInput"
-CurvesList: TypeAlias = "tuple[CurveOption, CurveOption, CurveOption, CurveOption]"
-
-Vol: TypeAlias = "DualTypes | FXDeltaVolSmile | FXDeltaVolSurface | str | NoInput"
-VolOption: TypeAlias = "FXDeltaVolSmile | DualTypes | FXDeltaVolSurface | NoInput"
 
 FX: TypeAlias = "DualTypes | FXRates | FXForwards | NoInput"
 NPV: TypeAlias = "DualTypes | dict[str, DualTypes]"

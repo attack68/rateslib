@@ -4,12 +4,12 @@ from typing import Any, ParamSpec
 from pandas import DataFrame
 
 from rateslib import defaults
+from rateslib.curves import Curves
 from rateslib.default import NoInput
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments.utils import (
     FX,
     NPV,
-    Curves,
     _get_curves_fx_and_base_maybe_from_solver,
 )
 from rateslib.solver import Solver
