@@ -20,16 +20,16 @@ from rateslib.instruments.bonds.conventions import (
     BondCalcMode,
     _get_calc_mode_for_class,
 )
+from rateslib.instruments.sensitivities import Sensitivities
 
 # from scipy.optimize import brentq
-from rateslib.instruments.inst_core import (
+from rateslib.instruments.utils import (
     BaseMixin,
     _get,
     _get_curves_fx_and_base_maybe_from_solver,
     _push,
     _update_with_defaults,
 )
-from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.legs import FixedLeg, FloatLeg, IndexFixedLeg, IndexMixin
 from rateslib.periods import (
     Cashflow,

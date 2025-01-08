@@ -11,7 +11,8 @@ from rateslib.curves import Curve, LineCurve
 from rateslib.default import NoInput
 from rateslib.dual import DualTypes
 from rateslib.fx import FXForwards, FXRates
-from rateslib.instruments.inst_core import (
+from rateslib.instruments.sensitivities import Sensitivities
+from rateslib.instruments.utils import (
     BaseMixin,
     _composit_fixings_table,
     _get,
@@ -21,7 +22,6 @@ from rateslib.instruments.inst_core import (
     _update_not_noinput,
     _update_with_defaults,
 )
-from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.legs import (
     CreditPremiumLeg,
     CreditProtectionLeg,
@@ -396,7 +396,7 @@ class IRS(BaseDerivative):
         solver: Solver | NoInput = NoInput(0),
     ):
         # the test for an unpriced IRS is that its fixed rate is not set.
-        if self.fixed_rate is NoInput.blank:
+        if isinstance(self.fixed_rate, NoInput):
             # set a fixed rate for the purpose of generic methods NPV will be zero.
             mid_market_rate = self.rate(curves, solver)
             self.leg1.fixed_rate = float(mid_market_rate)
