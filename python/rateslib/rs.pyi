@@ -6,7 +6,7 @@ from typing_extensions import Self
 
 from rateslib.calendars import CalTypes
 from rateslib.curves.rs import CurveInterpolator
-from rateslib.dual import DualTypes, Number
+from rateslib.dual.utils import DualTypes, Number
 from rateslib.dual.variable import Arr1dF64, Arr2dF64
 
 class ADOrder:
