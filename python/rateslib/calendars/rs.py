@@ -1,10 +1,13 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from rateslib import defaults
 from rateslib.default import NoInput
 from rateslib.rs import Cal, Modifier, NamedCal, RollDay, UnionCal
 
-CalTypes = Cal | UnionCal | NamedCal
-CalInput = CalTypes | str | NoInput
-
+if TYPE_CHECKING:
+    from rateslib.typing import CalInput, CalTypes
 
 def _get_rollday(roll: str | int | NoInput) -> RollDay:
     if isinstance(roll, str):

@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from datetime import datetime
 from functools import cached_property
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from pandas import DataFrame, Series
@@ -11,10 +11,12 @@ from pandas import DataFrame, Series
 from rateslib import defaults
 from rateslib.default import NoInput, _drb, _make_py_json, _WithState
 from rateslib.dual import Dual, gradient
-from rateslib.dual.utils import DualTypes, Number, _get_adorder
-from rateslib.dual.variable import Arr1dF64, Arr1dObj, Arr2dObj
+from rateslib.dual.utils import _get_adorder
 from rateslib.rs import Ccy, FXRate
 from rateslib.rs import FXRates as FXRatesObj
+
+if TYPE_CHECKING:
+    from rateslib.typing import Arr1dF64, Arr1dObj, Arr2dObj, DualTypes, Number
 
 """
 .. ipython:: python

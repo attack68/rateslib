@@ -4,10 +4,14 @@ import calendar as calendar_mod
 import warnings
 from collections.abc import Callable
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from rateslib.calendars.rs import CalInput, _get_modifier, _get_rollday, get_calendar
+from rateslib.calendars.rs import _get_modifier, _get_rollday, get_calendar
 from rateslib.default import NoInput
 from rateslib.rs import Convention
+
+if TYPE_CHECKING:
+    from rateslib.typing import CalInput
 
 CONVENTIONS_MAP: dict[str, Convention] = {
     "ACT365F": Convention.Act365F,

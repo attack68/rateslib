@@ -4,14 +4,12 @@ import calendar as calendar_mod
 from collections.abc import Callable, Iterator
 from datetime import datetime, timedelta
 from itertools import product
-from typing import NamedTuple
+from typing import NamedTuple, TYPE_CHECKING
 
 from pandas import DataFrame
 
 from rateslib import defaults
 from rateslib.calendars import (  # type: ignore[attr-defined]
-    CalInput,
-    CalTypes,
     _adjust_date,
     _get_modifier,
     _get_roll,
@@ -25,6 +23,9 @@ from rateslib.calendars import (  # type: ignore[attr-defined]
     get_calendar,
 )
 from rateslib.default import NoInput, _drb
+
+if TYPE_CHECKING:
+    from rateslib.typing import CalInput, CalTypes
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

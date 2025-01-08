@@ -2,14 +2,13 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from pandas import DataFrame, Series
 
 from rateslib import defaults
-from rateslib.calendars import CalInput
 from rateslib.curves import Curve, LineCurve
 from rateslib.default import NoInput
-from rateslib.dual.utils import DualTypes
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments.base import BaseMixin
 from rateslib.instruments.sensitivities import Sensitivities
@@ -39,6 +38,9 @@ from rateslib.periods import (
     _trim_df_by_index,
 )
 from rateslib.solver import Solver
+
+if TYPE_CHECKING:
+    from rateslib.typing import DualTypes, CalInput
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

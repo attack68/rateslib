@@ -3,18 +3,18 @@ from __future__ import annotations
 import math
 from functools import partial
 from statistics import NormalDist
-from typing import TypeAlias
+from typing import TYPE_CHECKING
 
 import numpy as np
 
-from rateslib.dual.variable import FLOATS, INTS, Arr1dF64, Arr1dObj, Arr2dF64, Arr2dObj, Variable
+from rateslib.dual.variable import FLOATS, INTS, Variable
 from rateslib.rs import ADOrder, Dual, Dual2, _dsolve1, _dsolve2, _fdsolve1, _fdsolve2
+
+if TYPE_CHECKING:
+    from rateslib.typing import Arr1dF64, Arr1dObj, Arr2dF64, Arr2dObj, DualTypes, Number
 
 Dual.__doc__ = "Dual number data type to perform first derivative automatic differentiation."
 Dual2.__doc__ = "Dual number data type to perform second derivative automatic differentiation."
-
-DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"
-Number: TypeAlias = "float | Dual | Dual2"
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

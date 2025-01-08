@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import datetime
-from typing import Any, TypeAlias
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from rateslib import defaults
-from rateslib.calendars import CalInput, _get_modifier, get_calendar  # type: ignore[attr-defined]
+from rateslib.calendars import _get_modifier, get_calendar  # type: ignore[attr-defined]
 from rateslib.calendars.dcfs import _get_convention
 from rateslib.default import NoInput, _drb
-from rateslib.dual.utils import DualTypes, Number, _get_adorder
+from rateslib.dual.utils import _get_adorder
 from rateslib.rs import (
     ADOrder,
     FlatBackwardInterpolator,
@@ -23,14 +23,8 @@ from rateslib.rs import (
 )
 from rateslib.rs import Curve as CurveObj  # noqa: F401
 
-CurveInterpolator: TypeAlias = (
-    FlatBackwardInterpolator
-    | FlatForwardInterpolator
-    | LinearInterpolator
-    | LogLinearInterpolator
-    | LinearZeroRateInterpolator
-    | NullInterpolator
-)
+if TYPE_CHECKING:
+    from rateslib.typing import CurveInterpolator, DualTypes, Number, CalInput
 
 
 class CurveRs:

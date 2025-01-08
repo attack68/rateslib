@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import warnings
-from typing import Any, TypeAlias
+from typing import TYPE_CHECKING, Any
 
 from pandas import DataFrame
 
@@ -15,13 +17,11 @@ from rateslib.curves import (
 )
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable
-from rateslib.dual.utils import DualTypes
 from rateslib.fx import FXForwards, FXRates
-from rateslib.fx_volatility import Vol, VolOption
 from rateslib.solver import Solver
 
-FX: TypeAlias = "DualTypes | FXRates | FXForwards | NoInput"
-NPV: TypeAlias = "DualTypes | dict[str, DualTypes]"
+if TYPE_CHECKING:
+    from rateslib.typing import FX, Vol, VolOption
 
 
 def _get_curve_from_solver(curve: CurveInput, solver: Solver) -> CurveOption:

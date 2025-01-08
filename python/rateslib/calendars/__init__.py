@@ -5,8 +5,6 @@ from datetime import datetime
 
 from rateslib.calendars.dcfs import _DCF
 from rateslib.calendars.rs import (
-    CalInput,
-    CalTypes,
     _get_modifier,
     _get_rollday,
     get_calendar,
@@ -587,8 +585,6 @@ def _get_fx_expiry_and_delivery(
 __all__ = (
     "add_tenor",
     "Cal",
-    "CalInput",
-    "CalTypes",
     "create_calendar",
     "dcf",
     "Modifier",

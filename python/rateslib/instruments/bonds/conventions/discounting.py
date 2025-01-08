@@ -1,7 +1,12 @@
+from __future__ import annotations
+
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from rateslib.calendars import dcf
-from rateslib.dual.utils import DualTypes
+
+if TYPE_CHECKING:
+    from rateslib.typing import DualTypes
 
 """
 The calculations for v2 (the interim, regular period discount value) are more standardised

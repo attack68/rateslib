@@ -1,14 +1,16 @@
-from __future__ import annotations  # type hinting
+from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from time import time
-from typing import Any, ParamSpec
+from typing import TYPE_CHECKING, Any, ParamSpec
 
 import numpy as np
 
-from rateslib.dual.utils import DualTypes, _dual_float, dual_solve
+from rateslib.dual.utils import _dual_float, dual_solve
 from rateslib.rs import Dual, Dual2
 
+if TYPE_CHECKING:
+    from rateslib.typing import DualTypes
 P = ParamSpec("P")
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
