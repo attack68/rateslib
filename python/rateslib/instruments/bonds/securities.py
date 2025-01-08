@@ -13,6 +13,7 @@ from rateslib.curves import Curve, IndexCurve, LineCurve, average_rate, index_le
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, DualTypes, Number, gradient
 from rateslib.fx import FXForwards, FXRates
+from rateslib.instruments.base import BaseMixin
 from rateslib.instruments.bonds.conventions import (
     BILL_MODE_MAP,
     BOND_MODE_MAP,
@@ -24,7 +25,6 @@ from rateslib.instruments.sensitivities import Sensitivities
 
 # from scipy.optimize import brentq
 from rateslib.instruments.utils import (
-    BaseMixin,
     _get,
     _get_curves_fx_and_base_maybe_from_solver,
     _push,

@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+from rateslib.instruments.base import BaseMixin
 from rateslib.instruments.bonds import (
     Bill,
     BillCalcMode,
@@ -47,7 +48,6 @@ from rateslib.instruments.rates_multi_ccy import (
     FXSwap,
 )
 from rateslib.instruments.sensitivities import Sensitivities
-from rateslib.instruments.utils import BaseMixin
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

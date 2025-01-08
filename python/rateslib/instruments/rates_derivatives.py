@@ -11,9 +11,9 @@ from rateslib.curves import Curve, LineCurve
 from rateslib.default import NoInput
 from rateslib.dual import DualTypes
 from rateslib.fx import FXForwards, FXRates
+from rateslib.instruments.base import BaseMixin
 from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.instruments.utils import (
-    BaseMixin,
     _composit_fixings_table,
     _get,
     _get_curves_fx_and_base_maybe_from_solver,
