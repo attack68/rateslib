@@ -2,14 +2,15 @@ from __future__ import annotations
 
 from abc import ABCMeta
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from pandas import DataFrame
 
 from rateslib import defaults
-from rateslib.calendars import CalInput, _get_fx_expiry_and_delivery, get_calendar
+from rateslib.calendars import _get_fx_expiry_and_delivery, get_calendar
 from rateslib.curves import Curve
 from rateslib.default import NoInput, _drb, plot
-from rateslib.dual import DualTypes, dual_log
+from rateslib.dual import dual_log
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXVolObj, FXVols
 from rateslib.instruments.sensitivities import Sensitivities
@@ -22,6 +23,9 @@ from rateslib.instruments.utils import (
 from rateslib.periods import Cashflow, FXCallPeriod, FXPutPeriod
 from rateslib.solver import Solver
 from rateslib.splines import evaluate
+
+if TYPE_CHECKING:
+    from rateslib.typing import CalInput, DualTypes
 
 
 class FXOption(Sensitivities, metaclass=ABCMeta):

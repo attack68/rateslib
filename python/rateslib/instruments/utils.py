@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import warnings
-from typing import Any, TypeAlias
+from typing import TYPE_CHECKING, Any
 
 from pandas import DataFrame
 
@@ -14,13 +16,12 @@ from rateslib.curves import (
     ProxyCurve,
 )
 from rateslib.default import NoInput
-from rateslib.dual import Dual, Dual2, DualTypes, Variable
+from rateslib.dual import Dual, Dual2, Variable
 from rateslib.fx import FXForwards, FXRates
-from rateslib.fx_volatility import Vol, VolOption
 from rateslib.solver import Solver
 
-FX: TypeAlias = "DualTypes | FXRates | FXForwards | NoInput"
-NPV: TypeAlias = "DualTypes | dict[str, DualTypes]"
+if TYPE_CHECKING:
+    from rateslib.typing import FX, Vol, VolOption
 
 
 def _get_curve_from_solver(curve: CurveInput, solver: Solver) -> CurveOption:
@@ -35,8 +36,7 @@ def _get_curve_from_solver(curve: CurveInput, solver: Solver) -> CurveOption:
         # dependent curves and AD variables.
         return curve
     elif isinstance(curve, str):
-        solver._validate_state()
-        return solver.pre_curves[curve]
+        return solver._get_pre_curve(curve)
     elif isinstance(curve, NoInput) or curve is None:
         # pass through a None curve. This will either raise errors later or not be needed
         return NoInput(0)
@@ -44,8 +44,7 @@ def _get_curve_from_solver(curve: CurveInput, solver: Solver) -> CurveOption:
         try:
             # it is a safeguard to load curves from solvers when a solver is
             # provided and multiple curves might have the same id
-            solver._validate_state()
-            __: Curve = solver.pre_curves[curve.id]
+            __: Curve = solver._get_pre_curve(curve.id)
             if id(__) != id(curve):  # Python id() is a memory id, not a string label id.
                 raise ValueError(
                     "A curve has been supplied, as part of ``curves``, which has the same "
@@ -99,8 +98,7 @@ def _get_fx_maybe_from_solver(solver: Solver | NoInput, fx: FX) -> FX:
                 fx_ = NoInput(0)
                 # fx_ = 1.0
             else:
-                solver._validate_state()
-                fx_ = solver.fx
+                fx_ = solver._get_fx()
     else:
         fx_ = fx
         if (
@@ -263,12 +261,12 @@ def _get_vol_maybe_from_solver(vol_attr: Vol, vol: Vol, solver: Solver | NoInput
     elif isinstance(vol, float | Dual | Dual2 | Variable):
         return vol
     elif isinstance(vol, str):
-        return solver.pre_curves[vol]
+        return solver._get_pre_fxvol(vol)
     else:  # vol is a Smile or Surface - check that it is in the Solver
         try:
             # it is a safeguard to load curves from solvers when a solver is
             # provided and multiple curves might have the same id
-            _ = solver.pre_curves[vol.id]
+            _ = solver._get_pre_fxvol(vol.id)
             if id(_) != id(vol):  # Python id() is a memory id, not a string label id.
                 raise ValueError(
                     "A ``vol`` object has been supplied which has the same "

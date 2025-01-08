@@ -26,16 +26,17 @@ import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
 from math import prod
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 from pandas import DataFrame, Series
 
 from rateslib import defaults
-from rateslib.calendars import CalInput, add_tenor
+from rateslib.calendars import add_tenor
 from rateslib.curves import Curve, index_left
 from rateslib.default import NoInput, _drb
-from rateslib.dual import Dual, Dual2, DualTypes, Variable, _dual_float
+from rateslib.dual import Dual, Dual2, Variable
+from rateslib.dual.utils import _dual_float
 from rateslib.fx import FXForwards, FXRates
 from rateslib.periods import (
     Cashflow,
@@ -52,6 +53,9 @@ from rateslib.periods import (
     _validate_float_args,
 )
 from rateslib.scheduling import Schedule
+
+if TYPE_CHECKING:
+    from rateslib.typing import CalInput, DualTypes
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

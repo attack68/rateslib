@@ -20,17 +20,13 @@ import numpy as np
 from pytz import UTC
 
 from rateslib import defaults
-from rateslib.calendars import CalInput, add_tenor, dcf
+from rateslib.calendars import add_tenor, dcf
 from rateslib.calendars.dcfs import _DCF1d
-from rateslib.calendars.rs import CalTypes, get_calendar
+from rateslib.calendars.rs import get_calendar
 from rateslib.default import NoInput, PlotOutput, _drb, _validate_states, _WithState, plot
-from rateslib.dual import (  # type: ignore[attr-defined]
-    Arr1dF64,
-    Arr1dObj,
+from rateslib.dual import (
     Dual,
     Dual2,
-    DualTypes,
-    Number,
     dual_exp,
     dual_log,
     set_order_convert,
@@ -41,6 +37,7 @@ from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
     from rateslib.fx import FXForwards  # pragma: no cover
+    from rateslib.typing import Arr1dF64, Arr1dObj, CalInput, CalTypes, DualTypes, Number
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

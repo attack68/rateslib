@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import warnings
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from pandas import DataFrame, DatetimeIndex, concat
 
@@ -9,19 +10,21 @@ from rateslib import defaults
 from rateslib.calendars import dcf
 from rateslib.curves import Curve
 from rateslib.default import NoInput
-from rateslib.dual import DualTypes, dual_log
+from rateslib.dual import dual_log
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXVols
 from rateslib.instruments.base import BaseMixin
 from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.instruments.utils import (
-    FX,
     Curves,
     _composit_fixings_table,
     _get_curves_fx_and_base_maybe_from_solver,
     _get_vol_maybe_from_solver,
 )
 from rateslib.solver import Solver
+
+if TYPE_CHECKING:
+    from rateslib.typing import FX, DualTypes
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

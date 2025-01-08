@@ -1,7 +1,11 @@
-from typing import Any
+from __future__ import annotations
 
-from rateslib.dual import DualTypes
-from rateslib.solver.utils import _solver_result
+from typing import TYPE_CHECKING, Any
+
+from rateslib.dual.newton import _solver_result
+
+if TYPE_CHECKING:
+    from rateslib.typing import DualTypes
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -40,7 +44,7 @@ def quadratic_eqn(
     --------
     .. ipython:: python
 
-       from rateslib.solver import quadratic_eqn
+       from rateslib.dual import quadratic_eqn
 
        quadratic_eqn(a=1.0, b=1.0, c=Dual(-6.0, ["c"], []), x0=-2.9)
 

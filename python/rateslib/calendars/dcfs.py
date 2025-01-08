@@ -4,10 +4,14 @@ import calendar as calendar_mod
 import warnings
 from collections.abc import Callable
 from datetime import datetime
+from typing import TYPE_CHECKING, Any
 
-from rateslib.calendars.rs import CalInput, _get_modifier, _get_rollday, get_calendar
+from rateslib.calendars.rs import _get_modifier, _get_rollday, get_calendar
 from rateslib.default import NoInput
 from rateslib.rs import Convention
+
+if TYPE_CHECKING:
+    from rateslib.typing import CalInput
 
 CONVENTIONS_MAP: dict[str, Convention] = {
     "ACT365F": Convention.Act365F,
@@ -38,11 +42,11 @@ def _get_convention(convention: str) -> Convention:
         raise ValueError(f"`convention`: {convention}, is not valid.")
 
 
-def _dcf_act365f(start: datetime, end: datetime, *args) -> float:  # type: ignore[no-untyped-def]
+def _dcf_act365f(start: datetime, end: datetime, *args: Any) -> float:
     return (end - start).days / 365.0
 
 
-def _dcf_act365fplus(start: datetime, end: datetime, *args) -> float:  # type: ignore[no-untyped-def]
+def _dcf_act365fplus(start: datetime, end: datetime, *args: Any) -> float:
     """count the number of the years and then add a fractional ACT365F period."""
     if end <= datetime(start.year + 1, start.month, start.day):
         return _dcf_act365f(start, end)
@@ -53,28 +57,28 @@ def _dcf_act365fplus(start: datetime, end: datetime, *args) -> float:  # type: i
         return years + _dcf_act365f(datetime(end.year - 1, start.month, start.day), end)
 
 
-def _dcf_act360(start: datetime, end: datetime, *args) -> float:  # type: ignore[no-untyped-def]
+def _dcf_act360(start: datetime, end: datetime, *args: Any) -> float:
     return (end - start).days / 360.0
 
 
-def _dcf_30360(start: datetime, end: datetime, *args) -> float:  # type: ignore[no-untyped-def]
+def _dcf_30360(start: datetime, end: datetime, *args: Any) -> float:
     ds = min(30, start.day)
     de = min(ds, end.day) if ds == 30 else end.day
     y, m = end.year - start.year, (end.month - start.month) / 12.0
     return y + m + (de - ds) / 360.0
 
 
-def _dcf_30e360(start: datetime, end: datetime, *args) -> float:  # type: ignore[no-untyped-def]
+def _dcf_30e360(start: datetime, end: datetime, *args: Any) -> float:
     ds, de = min(30, start.day), min(30, end.day)
     y, m = end.year - start.year, (end.month - start.month) / 12.0
     return y + m + (de - ds) / 360.0
 
 
-def _dcf_30e360isda(  # type: ignore[no-untyped-def]
+def _dcf_30e360isda(
     start: datetime,
     end: datetime,
     termination: datetime | NoInput,
-    *args,
+    *args: Any,
 ) -> float:
     if isinstance(termination, NoInput):
         raise ValueError("`termination` must be supplied with specified `convention`.")
@@ -91,7 +95,7 @@ def _dcf_30e360isda(  # type: ignore[no-untyped-def]
     return y + m + (de - ds) / 360.0
 
 
-def _dcf_actactisda(start: datetime, end: datetime, *args) -> float:  # type: ignore[no-untyped-def]
+def _dcf_actactisda(start: datetime, end: datetime, *args: Any) -> float:
     if start == end:
         return 0.0
 
@@ -240,11 +244,11 @@ def _dcf_actacticma_stub365f(
         return d_
 
 
-def _dcf_1(*args) -> float:  # type: ignore[no-untyped-def]
+def _dcf_1(*args: Any) -> float:
     return 1.0
 
 
-def _dcf_1plus(start: datetime, end: datetime, *args) -> float:  # type: ignore[no-untyped-def]
+def _dcf_1plus(start: datetime, end: datetime, *args: Any) -> float:
     return end.year - start.year + (end.month - start.month) / 12.0
 
 

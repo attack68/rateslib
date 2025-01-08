@@ -2,7 +2,7 @@ from __future__ import annotations  # type hinting
 
 from datetime import datetime, timedelta
 from datetime import datetime as dt
-from typing import Any, TypeAlias
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import numpy as np
@@ -15,24 +15,23 @@ from rateslib.default import NoInput, PlotOutput, _drb, _WithState, plot, plot3d
 from rateslib.dual import (
     Dual,
     Dual2,
-    DualTypes,
     Variable,
-    _dual_float,
     dual_exp,
     dual_inv_norm_cdf,
     dual_log,
     dual_norm_cdf,
     dual_norm_pdf,
+    newton_1dim,
     set_order_convert,
 )
+from rateslib.dual.utils import _dual_float
 from rateslib.rs import index_left_f64
-from rateslib.solver.newton import newton_1dim
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
 
+if TYPE_CHECKING:
+    from rateslib.typing import DualTypes
+
 TERMINAL_DATE = dt(2100, 1, 1)
-Vol: TypeAlias = "DualTypes | FXDeltaVolSmile | FXDeltaVolSurface | str | NoInput"
-VolInput: TypeAlias = "str | FXDeltaVolSmile | FXDeltaVolSurface | NoInput"
-VolOption: TypeAlias = "FXDeltaVolSmile | DualTypes | FXDeltaVolSurface | NoInput"
 
 
 class FXDeltaVolSmile(_WithState):

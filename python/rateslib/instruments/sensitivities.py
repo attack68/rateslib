@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from collections.abc import Callable
-from typing import Any, ParamSpec
+from typing import TYPE_CHECKING, Any, ParamSpec
 
 from pandas import DataFrame
 
@@ -8,12 +10,12 @@ from rateslib.curves import Curves
 from rateslib.default import NoInput
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments.utils import (
-    FX,
-    NPV,
     _get_curves_fx_and_base_maybe_from_solver,
 )
 from rateslib.solver import Solver
 
+if TYPE_CHECKING:
+    from rateslib.typing import FX, NPV
 P = ParamSpec("P")
 
 

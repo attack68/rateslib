@@ -25,29 +25,29 @@ from abc import ABCMeta, abstractmethod
 from collections.abc import Sequence
 from datetime import datetime, timedelta
 from math import comb, log
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from pandas import NA, DataFrame, Index, MultiIndex, Series, concat, isna, notna
 
 from rateslib import defaults
-from rateslib.calendars import CalInput, CalTypes, _get_eom, add_tenor, dcf, get_calendar
+from rateslib.calendars import _get_eom, add_tenor, dcf, get_calendar
 from rateslib.curves import Curve, average_rate, index_left
 from rateslib.default import NoInput, _drb
 from rateslib.dual import (
     Dual,
     Dual2,
-    DualTypes,
-    Number,
     Variable,
-    _dual_float,
     dual_exp,
     dual_inv_norm_cdf,
     dual_log,
     dual_norm_cdf,
     dual_norm_pdf,
     gradient,
+    newton_1dim,
+    newton_ndim,
 )
+from rateslib.dual.utils import _dual_float
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import (
     FXDeltaVolSmile,
@@ -58,8 +58,10 @@ from rateslib.fx_volatility import (
     _d_plus_min_u,
     _delta_type_constants,
 )
-from rateslib.solver import newton_1dim, newton_ndim
 from rateslib.splines import evaluate
+
+if TYPE_CHECKING:
+    from rateslib.typing import FX, CalInput, CalTypes, DualTypes, Number
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -68,7 +70,7 @@ from rateslib.splines import evaluate
 
 def _get_fx_and_base(
     currency: str,
-    fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
+    fx: FX = NoInput(0),
     base: str | NoInput = NoInput(0),
 ) -> tuple[DualTypes, str | NoInput]:
     """
@@ -155,7 +157,7 @@ def _maybe_local(
 def _maybe_fx_converted(
     value: DualTypes,
     currency: str,
-    fx: DualTypes | FXRates | FXForwards | NoInput,
+    fx: FX,
     base: str | NoInput,
 ) -> DualTypes:
     fx_, _ = _get_fx_and_base(currency, fx, base)

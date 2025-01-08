@@ -3,15 +3,16 @@ from __future__ import annotations
 import abc
 import warnings
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 
 import numpy as np
 from pandas import DataFrame, Series
 
 from rateslib import defaults
-from rateslib.calendars import CalInput, add_tenor, dcf
+from rateslib.calendars import add_tenor, dcf
 from rateslib.curves import Curve, IndexCurve, LineCurve, average_rate, index_left
 from rateslib.default import NoInput, _drb
-from rateslib.dual import Dual, Dual2, DualTypes, Number, gradient
+from rateslib.dual import Dual, Dual2, gradient, quadratic_eqn
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments.base import BaseMixin
 from rateslib.instruments.bonds.conventions import (
@@ -40,7 +41,10 @@ from rateslib.periods import (
     _disc_maybe_from_curve,
     _maybe_local,
 )
-from rateslib.solver import Solver, quadratic_eqn
+from rateslib.solver import Solver
+
+if TYPE_CHECKING:
+    from rateslib.typing import CalInput, DualTypes, Number
 
 
 class BondMixin:
