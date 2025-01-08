@@ -37,7 +37,7 @@ from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
     from rateslib.fx import FXForwards  # pragma: no cover
-    from rateslib.typing import Arr1dF64, Arr1dObj, DualTypes, Number, CalInput, CalTypes
+    from rateslib.typing import Arr1dF64, Arr1dObj, CalInput, CalTypes, DualTypes, Number
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

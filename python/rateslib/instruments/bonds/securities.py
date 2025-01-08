@@ -44,7 +44,7 @@ from rateslib.periods import (
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import DualTypes, Number, CalInput
+    from rateslib.typing import CalInput, DualTypes, Number
 
 
 class BondMixin:

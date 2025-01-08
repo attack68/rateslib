@@ -40,7 +40,7 @@ from rateslib.periods import (
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import DualTypes, CalInput
+    from rateslib.typing import CalInput, DualTypes
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

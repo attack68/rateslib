@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import calendar as calendar_mod
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from rateslib.calendars.dcfs import _DCF
 from rateslib.calendars.rs import (
@@ -11,6 +12,9 @@ from rateslib.calendars.rs import (
 )
 from rateslib.default import NoInput, _drb
 from rateslib.rs import Cal, Modifier, NamedCal, RollDay, UnionCal
+
+if TYPE_CHECKING:
+    from rateslib.typing import CalInput
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

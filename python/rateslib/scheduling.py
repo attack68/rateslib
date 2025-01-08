@@ -4,7 +4,7 @@ import calendar as calendar_mod
 from collections.abc import Callable, Iterator
 from datetime import datetime, timedelta
 from itertools import product
-from typing import NamedTuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 from pandas import DataFrame
 

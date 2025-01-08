@@ -25,7 +25,7 @@ from rateslib.solver import Solver
 from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
-    from rateslib.typing import DualTypes, CalInput
+    from rateslib.typing import CalInput, DualTypes
 
 
 class FXOption(Sensitivities, metaclass=ABCMeta):

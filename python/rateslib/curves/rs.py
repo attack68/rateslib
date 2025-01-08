@@ -24,7 +24,7 @@ from rateslib.rs import (
 from rateslib.rs import Curve as CurveObj  # noqa: F401
 
 if TYPE_CHECKING:
-    from rateslib.typing import CurveInterpolator, DualTypes, Number, CalInput
+    from rateslib.typing import CalInput, CurveInterpolator, DualTypes, Number
 
 
 class CurveRs:

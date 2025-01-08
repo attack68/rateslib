@@ -8,8 +8,6 @@ from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
 from rateslib.rs import (
     Cal,
-    NamedCal,
-    UnionCal,
     Dual,
     Dual2,
     FlatBackwardInterpolator,
@@ -17,7 +15,9 @@ from rateslib.rs import (
     LinearInterpolator,
     LinearZeroRateInterpolator,
     LogLinearInterpolator,
+    NamedCal,
     NullInterpolator,
+    UnionCal,
 )
 
 CalTypes: TypeAlias = "Cal | UnionCal | NamedCal"

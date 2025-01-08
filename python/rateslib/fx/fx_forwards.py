@@ -16,7 +16,7 @@ from rateslib.dual import Dual, gradient
 from rateslib.fx.fx_rates import FXRates
 
 if TYPE_CHECKING:
-    from rateslib.typing import DualTypes, Number, CalInput
+    from rateslib.typing import CalInput, DualTypes, Number
 
 """
 .. ipython:: python
