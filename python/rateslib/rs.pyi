@@ -4,10 +4,8 @@ from typing import TYPE_CHECKING, Any
 
 from typing_extensions import Self
 
-from rateslib.calendars import CalTypes
-
 if TYPE_CHECKING:
-    from rateslib.typing import Arr1dF64, Arr2dF64, CurveInterpolator, DualTypes, Number
+    from rateslib.typing import Arr1dF64, Arr2dF64, CalTypes, CurveInterpolator, DualTypes, Number
 
 class ADOrder:
     Zero: ADOrder

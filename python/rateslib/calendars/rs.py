@@ -9,6 +9,7 @@ from rateslib.rs import Cal, Modifier, NamedCal, RollDay, UnionCal
 if TYPE_CHECKING:
     from rateslib.typing import CalInput, CalTypes
 
+
 def _get_rollday(roll: str | int | NoInput) -> RollDay:
     if isinstance(roll, str):
         return {
