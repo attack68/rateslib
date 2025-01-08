@@ -9,7 +9,8 @@ from rateslib import defaults
 from rateslib.calendars import CalInput, _get_fx_expiry_and_delivery, get_calendar
 from rateslib.curves import Curve
 from rateslib.default import NoInput, _drb, plot
-from rateslib.dual import DualTypes, dual_log
+from rateslib.dual import dual_log
+from rateslib.dual.utils import DualTypes
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXVolObj, FXVols
 from rateslib.instruments.sensitivities import Sensitivities

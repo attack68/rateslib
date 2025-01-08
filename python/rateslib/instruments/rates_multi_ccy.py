@@ -8,7 +8,8 @@ from pandas import DataFrame, DatetimeIndex, MultiIndex, Series
 from rateslib import defaults
 from rateslib.curves import Curve
 from rateslib.default import NoInput
-from rateslib.dual import Dual, Dual2, DualTypes
+from rateslib.dual import Dual, Dual2
+from rateslib.dual.utils import DualTypes
 from rateslib.fx import FXForwards, FXRates, forward_fx
 from rateslib.instruments.base import BaseMixin
 from rateslib.instruments.rates_derivatives import BaseDerivative

@@ -37,8 +37,6 @@ from rateslib.default import NoInput, _drb
 from rateslib.dual import (
     Dual,
     Dual2,
-    DualTypes,
-    Number,
     Variable,
     dual_exp,
     dual_inv_norm_cdf,
@@ -46,8 +44,10 @@ from rateslib.dual import (
     dual_norm_cdf,
     dual_norm_pdf,
     gradient,
+    newton_1dim,
+    newton_ndim,
 )
-from rateslib.dual.utils import _dual_float
+from rateslib.dual.utils import DualTypes, Number, _dual_float
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import (
     FXDeltaVolSmile,
@@ -58,7 +58,6 @@ from rateslib.fx_volatility import (
     _d_plus_min_u,
     _delta_type_constants,
 )
-from rateslib.dual import newton_1dim, newton_ndim
 from rateslib.splines import evaluate
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

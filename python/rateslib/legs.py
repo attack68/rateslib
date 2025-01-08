@@ -35,8 +35,8 @@ from rateslib import defaults
 from rateslib.calendars import CalInput, add_tenor
 from rateslib.curves import Curve, index_left
 from rateslib.default import NoInput, _drb
-from rateslib.dual import Dual, Dual2, DualTypes, Variable
-from rateslib.dual.utils import _dual_float
+from rateslib.dual import Dual, Dual2, Variable
+from rateslib.dual.utils import DualTypes, _dual_float
 from rateslib.fx import FXForwards, FXRates
 from rateslib.periods import (
     Cashflow,

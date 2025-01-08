@@ -9,7 +9,7 @@ from rateslib import defaults
 from rateslib.calendars import CalInput
 from rateslib.curves import Curve, LineCurve
 from rateslib.default import NoInput
-from rateslib.dual import DualTypes
+from rateslib.dual.utils import DualTypes
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments.base import BaseMixin
 from rateslib.instruments.sensitivities import Sensitivities

@@ -14,7 +14,8 @@ from rateslib.curves import (
     ProxyCurve,
 )
 from rateslib.default import NoInput
-from rateslib.dual import Dual, Dual2, DualTypes, Variable
+from rateslib.dual import Dual, Dual2, Variable
+from rateslib.dual.utils import DualTypes
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import Vol, VolOption
 from rateslib.solver import Solver
@@ -97,8 +98,7 @@ def _get_fx_maybe_from_solver(solver: Solver | NoInput, fx: FX) -> FX:
                 fx_ = NoInput(0)
                 # fx_ = 1.0
             else:
-                solver._validate_state()
-                fx_ = solver.fx
+                fx_ = solver._get_fx()
     else:
         fx_ = fx
         if (

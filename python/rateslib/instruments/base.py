@@ -6,9 +6,10 @@ from typing import Any
 
 from pandas import DataFrame, concat, isna
 
+from rateslib.curves import Curves
 from rateslib.default import NoInput
-from rateslib.dual import DualTypes
-from rateslib.instruments.utils import FX, NPV, Curves, _get_curves_fx_and_base_maybe_from_solver
+from rateslib.dual.utils import DualTypes
+from rateslib.instruments.utils import FX, NPV, _get_curves_fx_and_base_maybe_from_solver
 from rateslib.solver import Solver
 
 

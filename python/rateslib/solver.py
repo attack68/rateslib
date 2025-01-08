@@ -4,7 +4,7 @@ import warnings
 from collections.abc import Callable
 from itertools import combinations
 from time import time
-from typing import TYPE_CHECKING, Any, ParamSpec
+from typing import Any, ParamSpec
 from uuid import uuid4
 
 import numpy as np
@@ -21,8 +21,8 @@ from rateslib.fx import FXForwards, FXRates
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
 from rateslib.fx_volatility import FXVols
+
 P = ParamSpec("P")
 
 
@@ -1222,6 +1222,10 @@ class Solver(Gradients, _WithState):
                 f"A type of `FXVol` object was sought with id:'{obj}' from Solver but another "
                 f"type object was returned:'{type(_)}'."
             )
+
+    @_validate_states
+    def _get_fx(self) -> FXRates | FXForwards | NoInput:
+        return self.fx
 
     @property
     def result(self):

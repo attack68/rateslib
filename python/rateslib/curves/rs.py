@@ -9,8 +9,7 @@ from rateslib import defaults
 from rateslib.calendars import CalInput, _get_modifier, get_calendar  # type: ignore[attr-defined]
 from rateslib.calendars.dcfs import _get_convention
 from rateslib.default import NoInput, _drb
-from rateslib.dual import DualTypes, Number
-from rateslib.dual.utils import _get_adorder
+from rateslib.dual.utils import DualTypes, Number, _get_adorder
 from rateslib.rs import (
     ADOrder,
     FlatBackwardInterpolator,

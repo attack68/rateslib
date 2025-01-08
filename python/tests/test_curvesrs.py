@@ -15,8 +15,8 @@ from rateslib.curves.rs import (
     _get_convention_str,
     _get_interpolator,
 )
-from rateslib.dual import ADOrder, Dual2
-from rateslib.dual.utils import _get_adorder
+from rateslib.dual import Dual2
+from rateslib.dual.utils import ADOrder, _get_adorder
 from rateslib.json import from_json
 from rateslib.rs import Convention
 

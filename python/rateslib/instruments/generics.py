@@ -9,7 +9,8 @@ from rateslib import defaults
 from rateslib.calendars import dcf
 from rateslib.curves import Curve
 from rateslib.default import NoInput
-from rateslib.dual import DualTypes, dual_log
+from rateslib.dual import dual_log
+from rateslib.dual.utils import DualTypes
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXVols
 from rateslib.instruments.base import BaseMixin

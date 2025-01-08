@@ -12,7 +12,8 @@ from pandas import DataFrame, Series
 from rateslib.calendars import CalInput, add_tenor
 from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
 from rateslib.default import NoInput, PlotOutput, _validate_states, _WithState, plot
-from rateslib.dual import Dual, DualTypes, Number, gradient
+from rateslib.dual import Dual, gradient
+from rateslib.dual.utils import DualTypes, Number
 from rateslib.fx.fx_rates import FXRates
 
 """

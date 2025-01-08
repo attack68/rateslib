@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from rateslib import defaults
-from rateslib.dual import Dual, Dual2, DualTypes, Variable
+from rateslib.dual import Dual, Dual2, Variable
+from rateslib.dual.utils import DualTypes
 from rateslib.rs import PPSplineDual, PPSplineDual2, PPSplineF64, bspldnev_single, bsplev_single
 from rateslib.rs import PPSplineF64 as PPSpline
 

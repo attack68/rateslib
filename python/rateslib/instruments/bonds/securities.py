@@ -11,7 +11,8 @@ from rateslib import defaults
 from rateslib.calendars import CalInput, add_tenor, dcf
 from rateslib.curves import Curve, IndexCurve, LineCurve, average_rate, index_left
 from rateslib.default import NoInput, _drb
-from rateslib.dual import Dual, Dual2, DualTypes, Number, gradient
+from rateslib.dual import Dual, Dual2, gradient, quadratic_eqn
+from rateslib.dual.utils import DualTypes, Number
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments.base import BaseMixin
 from rateslib.instruments.bonds.conventions import (
@@ -40,7 +41,6 @@ from rateslib.periods import (
     _disc_maybe_from_curve,
     _maybe_local,
 )
-from rateslib.dual import quadratic_eqn
 from rateslib.solver import Solver
 
 

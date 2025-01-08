@@ -3,13 +3,6 @@ from __future__ import annotations
 from rateslib.dual.newton import newton_1dim, newton_ndim
 from rateslib.dual.quadratic import quadratic_eqn
 from rateslib.dual.utils import (
-    ADOrder,
-    Arr1dF64,
-    Arr1dObj,
-    Arr2dF64,
-    Arr2dObj,
-    DualTypes,
-    Number,
     dual_exp,
     dual_inv_norm_cdf,
     dual_log,

@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from rateslib.calendars import dcf
-from rateslib.dual import DualTypes
+from rateslib.dual.utils import DualTypes
 
 """
 The calculations for v2 (the interim, regular period discount value) are more standardised

@@ -15,7 +15,6 @@ from rateslib.default import NoInput, PlotOutput, _drb, _WithState, plot, plot3d
 from rateslib.dual import (
     Dual,
     Dual2,
-    DualTypes,
     Variable,
     dual_exp,
     dual_inv_norm_cdf,
@@ -25,7 +24,7 @@ from rateslib.dual import (
     newton_1dim,
     set_order_convert,
 )
-from rateslib.dual.utils import _dual_float
+from rateslib.dual.utils import DualTypes, _dual_float
 from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
 
