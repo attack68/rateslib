@@ -12,6 +12,7 @@ from rateslib.default import NoInput
 from rateslib.dual import DualTypes, dual_log
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXVols
+from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.instruments.utils import (
     FX,
     BaseMixin,
@@ -20,7 +21,6 @@ from rateslib.instruments.utils import (
     _get_curves_fx_and_base_maybe_from_solver,
     _get_vol_maybe_from_solver,
 )
-from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.solver import Solver
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

@@ -5,6 +5,7 @@ from pandas import DataFrame
 
 from rateslib import defaults
 from rateslib.default import NoInput
+from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments.utils import (
     FX,
     NPV,
@@ -12,7 +13,6 @@ from rateslib.instruments.utils import (
     _get_curves_fx_and_base_maybe_from_solver,
 )
 from rateslib.solver import Solver
-from rateslib.fx import FXRates, FXForwards
 
 P = ParamSpec("P")
 

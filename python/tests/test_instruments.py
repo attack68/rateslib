@@ -374,7 +374,7 @@ class TestCurvesandSolver:
             {"usdusd": usdusd, "usdeur": usdeur, "eureur": eureur},
         )
         solver = Solver([curve], [], inst, [0.975], fx=fxf)
-        curve = fxf.curve("eur", ("usd","eur"))
+        curve = fxf.curve("eur", ("usd", "eur"))
         irs = IRS(dt(2022, 1, 1), "3m", "Q")
 
         # test the curve will return even though it is not included within the solver

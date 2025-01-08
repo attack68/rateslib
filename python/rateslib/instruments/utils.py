@@ -6,18 +6,14 @@ from typing import Any, TypeAlias
 
 from pandas import DataFrame, concat, isna
 
-from rateslib import FXDeltaVolSmile
-from rateslib import FXDeltaVolSurface
-from rateslib import defaults, ProxyCurve
+from rateslib import FXDeltaVolSmile, FXDeltaVolSurface, ProxyCurve, defaults
 from rateslib.curves import Curve, MultiCsaCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, DualTypes, Variable
 from rateslib.fx import FXForwards, FXRates
 from rateslib.solver import Solver
 
-Curves: TypeAlias = (
-    "list[str | Curve | dict[str, Curve | str] | NoInput] | Curve | str | dict[str, Curve | str] | NoInput"
-)
+Curves: TypeAlias = "list[str | Curve | dict[str, Curve | str] | NoInput] | Curve | str | dict[str, Curve | str] | NoInput"  # noqa: E501
 CurveInput: TypeAlias = "Curve | NoInput | str | dict[str, Curve | str]"
 
 CurveOption: TypeAlias = "Curve | dict[str, Curve] | NoInput"
@@ -141,13 +137,17 @@ def _get_curves_maybe_from_solver(
         # set the `curves` input as that which is set as attribute at instrument init.
         curves = curves_attr
 
+    # refactor curves into a list
     if not isinstance(curves, list | tuple):
         # convert isolated value input to list
-        curves = [curves]
+        curves_as_list: list[Curve | dict[str, str | Curve] | NoInput | str] = [curves]
+    else:
+        curves_as_list = curves
 
+    # parse curves_as_list
     if isinstance(solver, NoInput):
 
-        def check_curve(curve: str | Curve | dict[str, Curve | str]) -> Curve | NoInput | dict[str, Curve]:
+        def check_curve(curve: str | Curve | dict[str, Curve | str] | NoInput) -> CurveOption:
             if isinstance(curve, str):
                 raise ValueError("`curves` must contain Curve, not str, if `solver` not given.")
             elif curve is None or isinstance(curve, NoInput):
@@ -156,10 +156,12 @@ def _get_curves_maybe_from_solver(
                 return {k: check_curve(v) for k, v in curve.items()}
             return curve
 
-        curves_ = tuple(check_curve(curve) for curve in curves)
+        curves_parsed: tuple[CurveOption, ...] = tuple(
+            check_curve(curve) for curve in curves_as_list
+        )
     else:
         try:
-            curves_ = tuple(_get_curve_from_solver(curve, solver) for curve in curves)
+            curves_parsed = tuple(_get_curve_from_solver(curve, solver) for curve in curves_as_list)
         except KeyError as e:
             raise ValueError(
                 "`curves` must contain str curve `id` s existing in `solver` "
@@ -168,16 +170,15 @@ def _get_curves_maybe_from_solver(
                 f"The available ids are {list(solver.pre_curves.keys())}.",
             )
 
-    if len(curves_) == 1:
-        curves_ *= 4
-    elif len(curves_) == 2:
-        curves_ *= 2
-    elif len(curves_) == 3:
-        curves_ += (curves_[1],)
-    elif len(curves_) > 4:
+    if len(curves_parsed) == 1:
+        curves_parsed *= 4
+    elif len(curves_parsed) == 2:
+        curves_parsed *= 2
+    elif len(curves_parsed) == 3:
+        curves_parsed += (curves_parsed[1],)
+    elif len(curves_parsed) > 4:
         raise ValueError("Can only supply a maximum of 4 `curves`.")
-
-    return curves_
+    return curves_parsed  # type: ignore[return-value]
 
 
 def _get_curves_fx_and_base_maybe_from_solver(
@@ -251,12 +252,12 @@ def _get_vol_maybe_from_solver(vol_attr: Vol, vol: Vol, solver: Solver | NoInput
     if vol is None:  # capture blank user input and reset
         vol = NoInput(0)
 
-    if vol is NoInput.blank and vol_attr is NoInput.blank:
+    if isinstance(vol, NoInput) and isinstance(vol_attr, NoInput):
         return NoInput(0)
-    elif vol is NoInput.blank:
+    elif isinstance(vol, NoInput):
         vol = vol_attr
 
-    if solver is NoInput.blank:
+    if isinstance(solver, NoInput):
         if isinstance(vol, str):
             raise ValueError(
                 "String `vol` ids require a `solver` to be mapped. No `solver` provided.",
@@ -305,7 +306,7 @@ class BaseMixin:
     _rate_scalar = 1.0
 
     @property
-    def fixed_rate(self):
+    def fixed_rate(self) -> DualTypes | NoInput:
         """
         float or None : If set will also set the ``fixed_rate`` of the contained
         leg1.
@@ -320,14 +321,14 @@ class BaseMixin:
         return self._fixed_rate
 
     @fixed_rate.setter
-    def fixed_rate(self, value):
+    def fixed_rate(self, value: DualTypes | NoInput) -> None:
         if not self._fixed_rate_mixin:
             raise AttributeError("Cannot set `fixed_rate` for this Instrument.")
         self._fixed_rate = value
         self.leg1.fixed_rate = value
 
     @property
-    def leg2_fixed_rate(self):
+    def leg2_fixed_rate(self) -> DualTypes | NoInput:
         """
         float or None : If set will also set the ``fixed_rate`` of the contained
         leg2.
@@ -335,14 +336,14 @@ class BaseMixin:
         return self._leg2_fixed_rate
 
     @leg2_fixed_rate.setter
-    def leg2_fixed_rate(self, value):
+    def leg2_fixed_rate(self, value: DualTypes | NoInput) -> None:
         if not self._leg2_fixed_rate_mixin:
             raise AttributeError("Cannot set `leg2_fixed_rate` for this Instrument.")
         self._leg2_fixed_rate = value
         self.leg2.fixed_rate = value
 
     @property
-    def float_spread(self):
+    def float_spread(self) -> DualTypes | NoInput:
         """
         float or None : If set will also set the ``float_spread`` of contained
         leg1.
@@ -350,7 +351,7 @@ class BaseMixin:
         return self._float_spread
 
     @float_spread.setter
-    def float_spread(self, value):
+    def float_spread(self, value: DualTypes | NoInput) -> None:
         if not self._float_spread_mixin:
             raise AttributeError("Cannot set `float_spread` for this Instrument.")
         self._float_spread = value
@@ -363,7 +364,7 @@ class BaseMixin:
         #     getattr(self, f"leg{leg}").float_spread = value
 
     @property
-    def leg2_float_spread(self):
+    def leg2_float_spread(self) -> DualTypes | NoInput:
         """
         float or None : If set will also set the ``float_spread`` of contained
         leg2.
@@ -371,14 +372,14 @@ class BaseMixin:
         return self._leg2_float_spread
 
     @leg2_float_spread.setter
-    def leg2_float_spread(self, value):
+    def leg2_float_spread(self, value: DualTypes | NoInput) -> None:
         if not self._leg2_float_spread_mixin:
             raise AttributeError("Cannot set `leg2_float_spread` for this Instrument.")
         self._leg2_float_spread = value
         self.leg2.float_spread = value
 
     @property
-    def index_base(self):
+    def index_base(self) -> DualTypes | NoInput:
         """
         float or None : If set will also set the ``index_base`` of the contained
         leg1.
@@ -392,14 +393,14 @@ class BaseMixin:
         return self._index_base
 
     @index_base.setter
-    def index_base(self, value):
+    def index_base(self, value: DualTypes | NoInput) -> None:
         if not self._index_base_mixin:
             raise AttributeError("Cannot set `index_base` for this Instrument.")
         self._index_base = value
         self.leg1.index_base = value
 
     @property
-    def leg2_index_base(self):
+    def leg2_index_base(self) -> DualTypes | NoInput:
         """
         float or None : If set will also set the ``index_base`` of the contained
         leg1.
@@ -413,14 +414,14 @@ class BaseMixin:
         return self._leg2_index_base
 
     @leg2_index_base.setter
-    def leg2_index_base(self, value):
+    def leg2_index_base(self, value: DualTypes | NoInput) -> None:
         if not self._leg2_index_base_mixin:
             raise AttributeError("Cannot set `leg2_index_base` for this Instrument.")
         self._leg2_index_base = value
         self.leg2.index_base = value
 
     @abc.abstractmethod
-    def analytic_delta(self, *args, leg=1, **kwargs):
+    def analytic_delta(self, *args: Any, leg=1, **kwargs: Any) -> DualTypes:
         """
         Return the analytic delta of a leg of the derivative object.
 
@@ -470,11 +471,11 @@ class BaseMixin:
     @abc.abstractmethod
     def cashflows(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
-    ):
+    ) -> DataFrame:
         """
         Return the properties of all legs used in calculating cashflows.
 
@@ -624,7 +625,8 @@ class BaseMixin:
         leg2_npv: NPV = self.leg2.npv(curves[2], curves[3], fx_, base_, local)
         if local:
             return {
-                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0) for k in set(leg1_npv) | set(leg2_npv)  # type: ignore[union-attr]
+                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0)
+                for k in set(leg1_npv) | set(leg2_npv)  # type: ignore[union-attr]
             }
         else:
             return leg1_npv + leg2_npv  # type: ignore[operator]

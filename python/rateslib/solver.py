@@ -12,7 +12,7 @@ from pandas import DataFrame, MultiIndex, Series, concat
 from pandas.errors import PerformanceWarning
 
 from rateslib import defaults
-from rateslib.curves import CompositeCurve, MultiCsaCurve, ProxyCurve, Curve
+from rateslib.curves import CompositeCurve, Curve, MultiCsaCurve, ProxyCurve
 from rateslib.default import NoInput, _validate_states, _WithState
 from rateslib.dual import Dual, Dual2, DualTypes, dual_log, dual_solve, gradient
 from rateslib.fx import FXForwards, FXRates
