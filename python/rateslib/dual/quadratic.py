@@ -44,7 +44,7 @@ def quadratic_eqn(
     --------
     .. ipython:: python
 
-       from rateslib.solver import quadratic_eqn
+       from rateslib.dual import quadratic_eqn
 
        quadratic_eqn(a=1.0, b=1.0, c=Dual(-6.0, ["c"], []), x0=-2.9)
 
