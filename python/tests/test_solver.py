@@ -25,7 +25,8 @@ from rateslib.instruments import (
     Portfolio,
     Value,
 )
-from rateslib.solver import Gradients, Solver, newton_1dim, newton_ndim
+from rateslib.dual import newton_1dim, newton_ndim
+from rateslib.solver import Gradients, Solver
 
 
 class TestGradients:

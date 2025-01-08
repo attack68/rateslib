@@ -6,14 +6,39 @@ from typing import Any, ParamSpec
 
 import numpy as np
 
-from rateslib.dual import Dual, Dual2, DualTypes, _dual_float, dual_solve
-from rateslib.solver.utils import _solver_result
+from rateslib.dual.utils import DualTypes, _dual_float, dual_solve
+from rateslib.rs import Dual, Dual2
 
 P = ParamSpec("P")
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+STATE_MAP = {
+    1: ["SUCCESS", "`conv_tol` reached"],
+    2: ["SUCCESS", "`func_tol` reached"],
+    3: ["SUCCESS", "closed form valid"],
+    -1: ["FAILURE", "`max_iter` breached"],
+}
+
+
+def _solver_result(
+    state: int, i: int, func_val: DualTypes, time: float, log: bool, algo: str
+) -> dict[str, Any]:
+    if log:
+        print(
+            f"{STATE_MAP[state][0]}: {STATE_MAP[state][1]} after {i} iterations "
+            f"({algo}), `f_val`: {func_val}, "
+            f"`time`: {time:.4f}s",
+        )
+    return {
+        "status": STATE_MAP[state][0],
+        "state": state,
+        "g": func_val,
+        "iterations": i,
+        "time": time,
+    }
 
 
 def _float_if_not_string(x: str | DualTypes) -> str | float:

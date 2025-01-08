@@ -15,15 +15,14 @@ from rateslib import defaults
 from rateslib.curves import CompositeCurve, Curve, MultiCsaCurve, ProxyCurve
 from rateslib.default import NoInput, _validate_states, _WithState
 from rateslib.dual import Dual, Dual2, dual_log, dual_solve, gradient
+from rateslib.dual.newton import _solver_result
 from rateslib.fx import FXForwards, FXRates
-from rateslib.solver.utils import _solver_result
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-if TYPE_CHECKING:
-    from rateslib.fx_volatility import FXVols
+from rateslib.fx_volatility import FXVols
 P = ParamSpec("P")
 
 
@@ -1202,6 +1201,7 @@ class Solver(Gradients, _WithState):
         # self._grad_v_v_f = None
         # self._Jkm = None  # keep manifold originally used for exploring J2 calc method
 
+    @_validate_states
     def _get_pre_curve(self, obj: str) -> Curve:
         _: Curve | FXVols = self.pre_curves[obj]
         if isinstance(_, Curve):
@@ -1212,6 +1212,7 @@ class Solver(Gradients, _WithState):
                 f"type object was returned:'{type(_)}'."
             )
 
+    @_validate_states
     def _get_pre_fxvol(self, obj: str) -> FXVols:
         _: Curve | FXVols = self.pre_curves[obj]
         if isinstance(_, FXVols):

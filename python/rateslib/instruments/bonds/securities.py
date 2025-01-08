@@ -40,7 +40,8 @@ from rateslib.periods import (
     _disc_maybe_from_curve,
     _maybe_local,
 )
-from rateslib.solver import Solver, quadratic_eqn
+from rateslib.dual import quadratic_eqn
+from rateslib.solver import Solver
 
 
 class BondMixin:

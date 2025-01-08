@@ -17,16 +17,16 @@ from rateslib.dual import (
     Dual2,
     DualTypes,
     Variable,
-    _dual_float,
     dual_exp,
     dual_inv_norm_cdf,
     dual_log,
     dual_norm_cdf,
     dual_norm_pdf,
+    newton_1dim,
     set_order_convert,
 )
+from rateslib.dual.utils import _dual_float
 from rateslib.rs import index_left_f64
-from rateslib.solver.newton import newton_1dim
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
 
 TERMINAL_DATE = dt(2100, 1, 1)

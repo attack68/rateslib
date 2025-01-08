@@ -9,7 +9,6 @@ from rateslib.dual import (
     Dual,
     Dual2,
     Variable,
-    _abs_float,
     dual_exp,
     dual_inv_norm_cdf,
     dual_log,
@@ -19,6 +18,7 @@ from rateslib.dual import (
     gradient,
     set_order,
 )
+from rateslib.dual.utils import _abs_float
 
 DUAL_CORE_PY = False
 
