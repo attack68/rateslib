@@ -2,6 +2,7 @@ from typing import TypeAlias
 
 import numpy as np
 
+from rateslib.curves import Curve
 from rateslib.default import NoInput
 from rateslib.dual.variable import Variable
 from rateslib.fx import FXForwards, FXRates
@@ -32,11 +33,31 @@ Arr2dF64: TypeAlias = "np.ndarray[tuple[int, int], np.dtype[np.float64]]"
 Arr1dObj: TypeAlias = "np.ndarray[tuple[int], np.dtype[np.object_]]"
 Arr2dObj: TypeAlias = "np.ndarray[tuple[int, int], np.dtype[np.object_]]"
 
-Vol: TypeAlias = "DualTypes | FXDeltaVolSmile | FXDeltaVolSurface | str | NoInput"
-VolInput: TypeAlias = "str | FXDeltaVolSmile | FXDeltaVolSurface | NoInput"
-VolOption: TypeAlias = "FXDeltaVolSmile | DualTypes | FXDeltaVolSurface | NoInput"
+Curves_: TypeAlias = (
+    "list[str | Curve | dict[str, Curve | str] | NoInput] | Curve | str | dict[str, Curve | str]"  # noqa: E501
+)
+Curves: TypeAlias = "Curves_ | NoInput"
 
-FX: TypeAlias = "DualTypes | FXRates | FXForwards | NoInput"
+CurveInput_: TypeAlias = "str | Curve | dict[str, str | Curve]"
+CurveInput: TypeAlias = "CurveInput_ | NoInput"
+
+CurveOption_: TypeAlias = "Curve | dict[str, Curve]"
+CurveOption: TypeAlias = "CurveOption_ | NoInput"
+
+CurvesList: TypeAlias = "tuple[CurveOption, CurveOption, CurveOption, CurveOption]"
+
+Vol_: TypeAlias = "DualTypes | FXDeltaVolSmile | FXDeltaVolSurface | str"
+Vol: TypeAlias = "Vol_ | NoInput"
+
+VolInput_: TypeAlias = "str | FXDeltaVolSmile | FXDeltaVolSurface"
+VolInput: TypeAlias = "VolInput_ | NoInput"
+
+VolOption_: TypeAlias = "FXDeltaVolSmile | DualTypes | FXDeltaVolSurface"
+VolOption: TypeAlias = "VolOption_ | NoInput"
+
+FX_: TypeAlias = "DualTypes | FXRates | FXForwards"
+FX: TypeAlias = "FX_ | NoInput"
+
 NPV: TypeAlias = "DualTypes | dict[str, DualTypes]"
 
 CurveInterpolator: TypeAlias = (

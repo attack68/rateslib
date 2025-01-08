@@ -16,7 +16,6 @@ from rateslib.fx_volatility import FXVols
 from rateslib.instruments.base import BaseMixin
 from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.instruments.utils import (
-    Curves,
     _composit_fixings_table,
     _get_curves_fx_and_base_maybe_from_solver,
     _get_vol_maybe_from_solver,
@@ -24,7 +23,7 @@ from rateslib.instruments.utils import (
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, DualTypes
+    from rateslib.typing import FX, Curves, DualTypes
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
