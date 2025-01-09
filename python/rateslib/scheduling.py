@@ -521,11 +521,11 @@ class Schedule:
         return f"<rl.Schedule at {hex(id(self))}>"
 
     def __str__(self) -> str:
-        str = (
+        str_ = (
             f"freq: {self.frequency},  stub: {self.stub},  roll: {self.roll}"
             f",  pay lag: {self.payment_lag},  modifier: {self.modifier}\n"
         )
-        return str + self.table.__repr__()
+        return str_ + self.table.__repr__()
 
     @property
     def table(self) -> DataFrame:

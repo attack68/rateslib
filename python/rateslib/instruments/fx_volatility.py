@@ -1709,7 +1709,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
 
     def _plot_payoff(
         self,
-        range: list[float] | NoInput = NoInput(0),
+        range: list[float] | NoInput = NoInput(0),  # noqa: A002
         curves: Curve | str | list | NoInput = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
         fx: FXForwards | NoInput = NoInput(0),

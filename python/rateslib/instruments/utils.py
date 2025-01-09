@@ -293,7 +293,7 @@ def _get_vol_maybe_from_solver(vol_attr: Vol, vol: Vol, solver: Solver | NoInput
                 raise ValueError("`vol` must be in `solver`.")
 
 
-def _get(kwargs: dict[str, Any], leg: int = 1, filter: tuple[str, ...] = ()) -> dict[str, Any]:
+def _get(kwargs: dict[str, Any], leg: int = 1, filter: tuple[str, ...] = ()) -> dict[str, Any]:  # noqa: A002
     """
     A parser to return kwarg dicts for relevant legs.
     Internal structuring only.

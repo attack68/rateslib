@@ -134,17 +134,17 @@ class _DualOps:
     def to_json(self) -> str: ...
     def ptr_eq(self, other: Self) -> bool: ...
     def __repr__(self) -> str: ...
-    def grad1(self, vars: list[str]) -> Arr1dF64: ...
-    def grad2(self, vars: list[str]) -> Arr2dF64: ...
+    def grad1(self, vars: list[str]) -> Arr1dF64: ...  # noqa: A002
+    def grad2(self, vars: list[str]) -> Arr2dF64: ...  # noqa: A002
 
 class Dual(_DualOps):
-    def __init__(self, real: float, vars: Sequence[str], dual: Sequence[float] | Arr1dF64): ...
+    def __init__(self, real: float, vars: Sequence[str], dual: Sequence[float] | Arr1dF64): ...  # noqa: A002
     real: float = ...
     vars: list[str] = ...
     dual: Arr1dF64 = ...
     @classmethod
     def vars_from(
-        cls, other: Dual, real: float, vars: Sequence[str], dual: Sequence[float] | Arr1dF64
+        cls, other: Dual, real: float, vars: Sequence[str], dual: Sequence[float] | Arr1dF64  # noqa: A002
     ) -> Dual: ...
     def to_dual2(self) -> Dual2: ...
 
@@ -152,7 +152,7 @@ class Dual2(_DualOps):
     def __init__(
         self,
         real: float,
-        vars: Sequence[str],
+        vars: Sequence[str],  # noqa: A002
         dual: Sequence[float] | Arr1dF64,
         dual2: Sequence[float],
     ): ...
@@ -165,11 +165,11 @@ class Dual2(_DualOps):
         cls,
         other: Dual2,
         real: float,
-        vars: list[str],
+        vars: list[str],  # noqa: A002
         dual: list[float] | Arr1dF64,
         dual2: list[float] | Arr1dF64,
     ) -> Dual2: ...
-    def grad1_manifold(self, vars: Sequence[str]) -> list[Dual2]: ...
+    def grad1_manifold(self, vars: Sequence[str]) -> list[Dual2]: ...  # noqa: A002
     def to_dual(self) -> Dual: ...
 
 def _dsolve1(a: list[Any], b: list[Any], allow_lsq: bool) -> list[Dual]: ...
@@ -285,7 +285,7 @@ class Curve:
         nodes: dict[datetime, Number],
         interpolator: CurveInterpolator,
         ad: ADOrder,
-        id: str,
+        id: str,  # noqa: A002
         convention: Convention,
         modifier: Modifier,
         calendar: CalTypes,

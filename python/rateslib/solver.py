@@ -923,7 +923,7 @@ class Solver(Gradients, _WithState):
         algorithm: str | NoInput = NoInput(0),
         fx: FXForwards | FXRates | NoInput = NoInput(0),
         instrument_labels: tuple[str] | list[str] | NoInput = NoInput(0),
-        id: str | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),  # noqa: A002
         pre_solvers: tuple[Solver] | list[Solver] = (),
         max_iter: int = 100,
         func_tol: float = 1e-11,
@@ -1455,9 +1455,9 @@ class Solver(Gradients, _WithState):
         for curve in self.curves.values():
             # this was amended in PR126 as performance improvement to keep consistent `vars`
             # and was restructured in PR## to decouple methods to accomodate vol surfaces
-            vars = curve.n - curve._ini_solve
-            curve._set_node_vector(v_new[var_counter : var_counter + vars], self._ad)
-            var_counter += vars
+            n_vars = curve.n - curve._ini_solve
+            curve._set_node_vector(v_new[var_counter : var_counter + n_vars], self._ad)
+            var_counter += n_vars
 
         self._update_fx()
         self._reset_properties_()
@@ -2014,7 +2014,7 @@ class Solver(Gradients, _WithState):
     def exo_delta(
         self,
         npv,
-        vars: list[str],
+        vars: list[str],  # noqa: A002
         vars_scalar: list[float] | NoInput = NoInput(0),
         vars_labels: list[str] | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),

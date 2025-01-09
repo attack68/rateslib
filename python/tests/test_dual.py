@@ -128,29 +128,29 @@ def test_dual_str(x_1, y_2) -> None:
 
 
 @pytest.mark.parametrize(
-    ("vars", "expected"),
+    ("vars_", "expected"),
     [
         (["v0"], 1.00),
         (["v1", "v0"], np.array([2.0, 1.0])),
     ],
 )
-def test_gradient_method(vars, expected, x_1, y_2) -> None:
-    result = gradient(x_1, vars)
+def test_gradient_method(vars_, expected, x_1, y_2) -> None:
+    result = gradient(x_1, vars_)
     assert np.all(result == expected)
 
-    result = gradient(y_2, vars)
+    result = gradient(y_2, vars_)
     assert np.all(result == expected)
 
 
 @pytest.mark.parametrize(
-    ("vars", "expected"),
+    ("vars_", "expected"),
     [
         (["v0"], 2.00),
         (["v1", "v0"], np.array([[2.0, 2.0], [2.0, 2.0]])),
     ],
 )
-def test_gradient_method2(vars, expected, y_2) -> None:
-    result = gradient(y_2, vars, 2)
+def test_gradient_method2(vars_, expected, y_2) -> None:
+    result = gradient(y_2, vars_, 2)
     assert np.all(result == expected)
 
 

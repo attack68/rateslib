@@ -84,7 +84,7 @@ def line_curve():
 
 
 @pytest.mark.parametrize(
-    "object",
+    "obj",
     [
         FixedPeriod(dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 2, 1), frequency="m", fixed_rate=2.0),
         Cashflow(notional=1e6, payment=dt(2022, 1, 1), currency="usd"),
@@ -107,9 +107,9 @@ def line_curve():
         ),
     ],
 )
-def test_repr(object):
-    result = object.__repr__()
-    expected = f"<rl.{type(object).__name__} at {hex(id(object))}>"
+def test_repr(obj):
+    result = obj.__repr__()
+    expected = f"<rl.{type(obj).__name__} at {hex(id(obj))}>"
     assert result == expected
 
 
