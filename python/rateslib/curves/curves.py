@@ -1,9 +1,10 @@
-""".. ipython:: python
-:suppress:
-
-from rateslib.curves import *
-from datetime import datetime as dt
 """
+.. ipython:: python
+   :suppress:
+
+   from rateslib.curves import *
+   from datetime import datetime as dt
+"""  # noqa: D
 
 from __future__ import annotations
 
