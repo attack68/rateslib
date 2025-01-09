@@ -12,8 +12,7 @@ NAMES_RsPy = {  # this is a mapping of native Rust obj names to Py obj names
 
 
 def from_json(json: str) -> Any:
-    """
-    Create an object from JSON string.
+    """Create an object from JSON string.
 
     Parameters
     ----------
@@ -23,6 +22,7 @@ def from_json(json: str) -> Any:
     Returns
     -------
     Object
+
     """
     if json[:8] == '{"Py":{"':
         class_name, parsed_json = json[8 : json[8:].find('"') + 8], json[6:-1]

@@ -49,8 +49,7 @@ if TYPE_CHECKING:
 
 
 class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
-    """
-    Abstract base class with common parameters for many *Derivative* subclasses.
+    """Abstract base class with common parameters for many *Derivative* subclasses.
 
     Parameters
     ----------
@@ -140,6 +139,7 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
     leg2_notional : float
     leg2_amortization : float
     leg2_convention : str
+
     """
 
     @abstractmethod
@@ -229,16 +229,14 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
         pass
 
     def delta(self, *args, **kwargs):
-        """
-        Calculate the delta of the *Instrument*.
+        """Calculate the delta of the *Instrument*.
 
         For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
         """
         return super().delta(*args, **kwargs)
 
     def gamma(self, *args, **kwargs):
-        """
-        Calculate the gamma of the *Instrument*.
+        """Calculate the gamma of the *Instrument*.
 
         For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
         """
@@ -246,8 +244,7 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
 
 
 class IRS(BaseDerivative):
-    """
-    Create an interest rate swap composing a :class:`~rateslib.legs.FixedLeg`
+    """Create an interest rate swap composing a :class:`~rateslib.legs.FixedLeg`
     and a :class:`~rateslib.legs.FloatLeg`.
 
     Parameters
@@ -279,7 +276,7 @@ class IRS(BaseDerivative):
         Required keyword arguments to :class:`BaseDerivative`.
 
     Notes
-    ------
+    -----
     The various different ``leg2_fixing_methods``, which describe how an
     individual *FloatPeriod* calculates its *rate*, are
     fully documented in the notes for the :class:`~rateslib.periods.FloatPeriod`.
@@ -360,6 +357,7 @@ class IRS(BaseDerivative):
        )
        irs.delta(solver=solver)
        irs.gamma(solver=solver)
+
     """
 
     _fixed_rate_mixin = True
@@ -404,8 +402,7 @@ class IRS(BaseDerivative):
             self.leg1.fixed_rate = float(mid_market_rate)
 
     def analytic_delta(self, *args, **kwargs):
-        """
-        Return the analytic delta of a leg of the derivative object.
+        """Return the analytic delta of a leg of the derivative object.
 
         See :meth:`BaseDerivative.analytic_delta`.
         """
@@ -419,8 +416,7 @@ class IRS(BaseDerivative):
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ):
-        """
-        Return the NPV of the derivative by summing legs.
+        """Return the NPV of the derivative by summing legs.
 
         See :meth:`BaseDerivative.npv`.
         """
@@ -434,8 +430,7 @@ class IRS(BaseDerivative):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
-        """
-        Return the mid-market rate of the IRS.
+        """Return the mid-market rate of the IRS.
 
         Parameters
         ----------
@@ -462,6 +457,7 @@ class IRS(BaseDerivative):
         -----
         The arguments ``fx`` and ``base`` are unused by single currency derivatives
         rates calculations.
+
         """
         curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -483,8 +479,7 @@ class IRS(BaseDerivative):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
-        """
-        Return the properties of all legs used in calculating cashflows.
+        """Return the properties of all legs used in calculating cashflows.
 
         See :meth:`BaseDerivative.cashflows`.
         """
@@ -502,8 +497,7 @@ class IRS(BaseDerivative):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
-        """
-        Return the mid-market float spread (bps) required to equate to the fixed rate.
+        """Return the mid-market float spread (bps) required to equate to the fixed rate.
 
         Parameters
         ----------
@@ -572,6 +566,7 @@ class IRS(BaseDerivative):
         approximation is much more accurate. This is shown above where the second call
         to ``irs.spread`` is different to the previous call, albeit the difference
         is 1/10000th of a basis point.
+
         """
         irs_npv = self.npv(curves, solver)
         specified_spd = 0 if self.leg2.float_spread is NoInput(0) else self.leg2.float_spread
@@ -596,8 +591,7 @@ class IRS(BaseDerivative):
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
     ) -> DataFrame:
-        """
-        Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.
+        """Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.
 
         Parameters
         ----------
@@ -626,6 +620,7 @@ class IRS(BaseDerivative):
         Returns
         -------
         DataFrame
+
         """
         curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -641,8 +636,7 @@ class IRS(BaseDerivative):
 
 
 class STIRFuture(IRS):
-    """
-    Create a short term interest rate (STIR) future.
+    """Create a short term interest rate (STIR) future.
 
     Parameters
     ----------
@@ -766,8 +760,7 @@ class STIRFuture(IRS):
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ):
-        """
-        Return the NPV of the derivative by summing legs.
+        """Return the NPV of the derivative by summing legs.
 
         See :meth:`BaseDerivative.npv`.
         """
@@ -789,8 +782,7 @@ class STIRFuture(IRS):
         base: str | NoInput = NoInput(0),
         metric: str = "rate",
     ):
-        """
-        Return the mid-market rate of the IRS.
+        """Return the mid-market rate of the IRS.
 
         Parameters
         ----------
@@ -819,6 +811,7 @@ class STIRFuture(IRS):
         -----
         The arguments ``fx`` and ``base`` are unused by single currency derivatives
         rates calculations.
+
         """
         curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -845,8 +838,7 @@ class STIRFuture(IRS):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
-        """
-        Return the analytic delta of the *STIRFuture*.
+        """Return the analytic delta of the *STIRFuture*.
 
         See :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
         For *STIRFuture* this method requires no arguments.
@@ -883,8 +875,7 @@ class STIRFuture(IRS):
         )
 
     def spread(self):
-        """
-        Not implemented for *STIRFuture*.
+        """Not implemented for *STIRFuture*.
         """
         return NotImplementedError()
 
@@ -897,8 +888,7 @@ class STIRFuture(IRS):
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
     ) -> DataFrame:
-        """
-        Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.
+        """Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.
 
         Parameters
         ----------
@@ -927,6 +917,7 @@ class STIRFuture(IRS):
         Returns
         -------
         DataFrame
+
         """
         curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -951,8 +942,7 @@ class STIRFuture(IRS):
 
 
 class IIRS(BaseDerivative):
-    """
-    Create an indexed interest rate swap (IIRS) composing an
+    """Create an indexed interest rate swap (IIRS) composing an
     :class:`~rateslib.legs.IndexFixedLeg` and a :class:`~rateslib.legs.FloatLeg`.
 
     Parameters
@@ -1075,6 +1065,7 @@ class IIRS(BaseDerivative):
       )
       iirs.delta(solver=solver)
       iirs.gamma(solver=solver)
+
     """
 
     _fixed_rate_mixin = True
@@ -1195,8 +1186,7 @@ class IIRS(BaseDerivative):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
-        """
-        Return the mid-market rate of the IRS.
+        """Return the mid-market rate of the IRS.
 
         Parameters
         ----------
@@ -1223,6 +1213,7 @@ class IIRS(BaseDerivative):
         -----
         The arguments ``fx`` and ``base`` are unused by single currency derivatives
         rates calculations.
+
         """
         curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -1255,8 +1246,7 @@ class IIRS(BaseDerivative):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
-        """
-        Return the mid-market float spread (bps) required to equate to the fixed rate.
+        """Return the mid-market float spread (bps) required to equate to the fixed rate.
 
         Parameters
         ----------
@@ -1325,6 +1315,7 @@ class IIRS(BaseDerivative):
         approximation is much more accurate. This is shown above where the second call
         to ``irs.spread`` is different to the previous call, albeit the difference
         is 1/10000th of a basis point.
+
         """
         irs_npv = self.npv(curves, solver)
         specified_spd = 0 if self.leg2.float_spread is NoInput.blank else self.leg2.float_spread
@@ -1347,8 +1338,7 @@ class IIRS(BaseDerivative):
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
     ) -> DataFrame:
-        """
-        Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.
+        """Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.
 
         Parameters
         ----------
@@ -1375,6 +1365,7 @@ class IIRS(BaseDerivative):
         Returns
         -------
         DataFrame
+
         """
         curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -1391,8 +1382,7 @@ class IIRS(BaseDerivative):
 
 
 class ZCS(BaseDerivative):
-    """
-    Create a zero coupon swap (ZCS) composing a :class:`~rateslib.legs.ZeroFixedLeg`
+    """Create a zero coupon swap (ZCS) composing a :class:`~rateslib.legs.ZeroFixedLeg`
     and a :class:`~rateslib.legs.ZeroFloatLeg`.
 
     Parameters
@@ -1491,6 +1481,7 @@ class ZCS(BaseDerivative):
        )
        zcs.delta(solver=solver)
        zcs.gamma(solver=solver)
+
     """
 
     _fixed_rate_mixin = True
@@ -1523,8 +1514,7 @@ class ZCS(BaseDerivative):
         self.leg2 = ZeroFloatLeg(**_get(self.kwargs, leg=2))
 
     def analytic_delta(self, *args, **kwargs):
-        """
-        Return the analytic delta of a leg of the derivative object.
+        """Return the analytic delta of a leg of the derivative object.
 
         See
         :meth:`BaseDerivative.analytic_delta<rateslib.instruments.BaseDerivative.analytic_delta>`.
@@ -1545,8 +1535,7 @@ class ZCS(BaseDerivative):
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ):
-        """
-        Return the NPV of the derivative by summing legs.
+        """Return the NPV of the derivative by summing legs.
 
         See :meth:`BaseDerivative.npv`.
         """
@@ -1560,8 +1549,7 @@ class ZCS(BaseDerivative):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
-        """
-        Return the mid-market rate of the ZCS.
+        """Return the mid-market rate of the ZCS.
 
         Parameters
         ----------
@@ -1596,6 +1584,7 @@ class ZCS(BaseDerivative):
            -notional * ((1 + irr / f)^{f \\times dcf} - 1)
 
         where :math:`f` is associated with the compounding frequency.
+
         """
         curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -1616,8 +1605,7 @@ class ZCS(BaseDerivative):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
-        """
-        Return the properties of all legs used in calculating cashflows.
+        """Return the properties of all legs used in calculating cashflows.
 
         See :meth:`BaseDerivative.cashflows`.
         """
@@ -1633,8 +1621,7 @@ class ZCS(BaseDerivative):
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
     ) -> DataFrame:
-        """
-        Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.ZeroFloatLeg`.
+        """Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.ZeroFloatLeg`.
 
         Parameters
         ----------
@@ -1663,6 +1650,7 @@ class ZCS(BaseDerivative):
         Returns
         -------
         DataFrame
+
         """
         curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -1678,8 +1666,7 @@ class ZCS(BaseDerivative):
 
 
 class ZCIS(BaseDerivative):
-    """
-    Create a zero coupon index swap (ZCIS) composing an
+    """Create a zero coupon index swap (ZCIS) composing an
     :class:`~rateslib.legs.ZeroFixedLeg`
     and a :class:`~rateslib.legs.ZeroIndexLeg`.
 
@@ -1778,6 +1765,7 @@ class ZCIS(BaseDerivative):
        )
        zcis.delta(solver=solver)
        zcis.gamma(solver=solver)
+
     """
 
     _fixed_rate_mixin = True
@@ -1841,8 +1829,7 @@ class ZCIS(BaseDerivative):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
-        """
-        Return the mid-market IRR rate of the ZCIS.
+        """Return the mid-market IRR rate of the ZCIS.
 
         Parameters
         ----------
@@ -1869,6 +1856,7 @@ class ZCIS(BaseDerivative):
         -----
         The arguments ``fx`` and ``base`` are unused by single currency derivatives
         rates calculations.
+
         """
         curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -1905,8 +1893,7 @@ class ZCIS(BaseDerivative):
 
 
 class SBS(BaseDerivative):
-    """
-    Create a single currency basis swap composing two
+    """Create a single currency basis swap composing two
     :class:`~rateslib.legs.FloatLeg` s.
 
     Parameters
@@ -2102,8 +2089,7 @@ class SBS(BaseDerivative):
             self.leg1.float_spread = float(rate)
 
     def analytic_delta(self, *args, **kwargs):
-        """
-        Return the analytic delta of a leg of the derivative object.
+        """Return the analytic delta of a leg of the derivative object.
 
         See :meth:`BaseDerivative.analytic_delta`.
         """
@@ -2116,8 +2102,7 @@ class SBS(BaseDerivative):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
-        """
-        Return the properties of all legs used in calculating cashflows.
+        """Return the properties of all legs used in calculating cashflows.
 
         See :meth:`BaseDerivative.cashflows`.
         """
@@ -2132,8 +2117,7 @@ class SBS(BaseDerivative):
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ):
-        """
-        Return the NPV of the derivative object by summing legs.
+        """Return the NPV of the derivative object by summing legs.
 
         See :meth:`BaseDerivative.npv`.
         """
@@ -2148,8 +2132,7 @@ class SBS(BaseDerivative):
         base: str | NoInput = NoInput(0),
         leg: int = 1,
     ):
-        """
-        Return the mid-market float spread on the specified leg of the SBS.
+        """Return the mid-market float spread on the specified leg of the SBS.
 
         Parameters
         ----------
@@ -2169,6 +2152,7 @@ class SBS(BaseDerivative):
         Returns
         -------
         float, Dual or Dual2
+
         """
         core_npv = super().npv(curves, solver)
         curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
@@ -2200,8 +2184,7 @@ class SBS(BaseDerivative):
         # return _
 
     def spread(self, *args, **kwargs):
-        """
-        Return the mid-market float spread on the specified leg of the SBS.
+        """Return the mid-market float spread on the specified leg of the SBS.
 
         Alias for :meth:`~rateslib.instruments.SBS.rate`.
         """
@@ -2216,8 +2199,7 @@ class SBS(BaseDerivative):
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
     ) -> DataFrame:
-        """
-        Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.
+        """Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.
 
         Parameters
         ----------
@@ -2246,6 +2228,7 @@ class SBS(BaseDerivative):
         Returns
         -------
         DataFrame
+
         """
         curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -2265,8 +2248,7 @@ class SBS(BaseDerivative):
 
 
 class FRA(BaseDerivative):
-    """
-    Create a forward rate agreement composing single period :class:`~rateslib.legs.FixedLeg`
+    """Create a forward rate agreement composing single period :class:`~rateslib.legs.FixedLeg`
     and :class:`~rateslib.legs.FloatLeg` valued in a customised manner.
 
     Parameters
@@ -2420,8 +2402,7 @@ class FRA(BaseDerivative):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
-        """
-        Return the analytic delta of the FRA.
+        """Return the analytic delta of the FRA.
 
         For arguments see :meth:`~rateslib.periods.BasePeriod.analytic_delta`.
         """
@@ -2439,12 +2420,10 @@ class FRA(BaseDerivative):
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> DualTypes:
-        """
-        Return the NPV of the derivative.
+        """Return the NPV of the derivative.
 
         See :meth:`BaseDerivative.npv`.
         """
-
         self._set_pricing_mid(curves, solver)
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -2468,8 +2447,7 @@ class FRA(BaseDerivative):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
-        """
-        Return the mid-market rate of the FRA.
+        """Return the mid-market rate of the FRA.
 
         Only the forecasting curve is required to price an FRA.
 
@@ -2490,6 +2468,7 @@ class FRA(BaseDerivative):
         Returns
         -------
         float, Dual or Dual2
+
         """
         curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -2502,8 +2481,7 @@ class FRA(BaseDerivative):
         return self.leg2.periods[0].rate(curves[0])
 
     def cashflow(self, curve: Curve | LineCurve):
-        """
-        Calculate the local currency cashflow on the FRA from current floating rate
+        """Calculate the local currency cashflow on the FRA from current floating rate
         and fixed rate.
 
         Parameters
@@ -2514,6 +2492,7 @@ class FRA(BaseDerivative):
         Returns
         -------
         float, Dual or Dual2
+
         """
         cf1 = self.leg1.periods[0].cashflow
         rate = self.leg2.periods[0].rate(curve)
@@ -2535,8 +2514,7 @@ class FRA(BaseDerivative):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:
-        """
-        Return the properties of the leg used in calculating cashflows.
+        """Return the properties of the leg used in calculating cashflows.
 
         Parameters
         ----------
@@ -2548,6 +2526,7 @@ class FRA(BaseDerivative):
         Returns
         -------
         DataFrame
+
         """
         self._set_pricing_mid(curves, solver)
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
@@ -2587,8 +2566,7 @@ class FRA(BaseDerivative):
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
     ) -> DataFrame:
-        """
-        Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.
+        """Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.
 
         Parameters
         ----------
@@ -2617,6 +2595,7 @@ class FRA(BaseDerivative):
         Returns
         -------
         DataFrame
+
         """
         curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -2635,16 +2614,14 @@ class FRA(BaseDerivative):
         return _trim_df_by_index(df, NoInput(0), right)
 
     def delta(self, *args, **kwargs):
-        """
-        Calculate the delta of the *Instrument*.
+        """Calculate the delta of the *Instrument*.
 
         For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
         """
         return super().delta(*args, **kwargs)
 
     def gamma(self, *args, **kwargs):
-        """
-        Calculate the gamma of the *Instrument*.
+        """Calculate the gamma of the *Instrument*.
 
         For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
         """
@@ -2652,8 +2629,7 @@ class FRA(BaseDerivative):
 
     @property
     def _payment_date(self):
-        """
-        Get the adjusted payment date for the FRA under regular FRA specifications.
+        """Get the adjusted payment date for the FRA under regular FRA specifications.
 
         This date is calculated as a lagged amount of business days after the Accrual Start
         Date, under the calendar applicable to the Instrument.
@@ -2662,8 +2638,7 @@ class FRA(BaseDerivative):
 
 
 class CDS(BaseDerivative):
-    """
-    Create a credit default swap composing a :class:`~rateslib.legs.CreditPremiumLeg` and
+    """Create a credit default swap composing a :class:`~rateslib.legs.CreditPremiumLeg` and
     a :class:`~rateslib.legs.CreditProtectionLeg`.
 
     Parameters
@@ -2684,6 +2659,7 @@ class CDS(BaseDerivative):
         for the protection leg. Set by ``defaults``.
     kwargs : dict
         Required keyword arguments to :class:`BaseDerivative`.
+
     """
 
     _rate_scalar = 1.0
@@ -2736,16 +2712,14 @@ class CDS(BaseDerivative):
             self.leg1.fixed_rate = float(mid_market_rate)
 
     def analytic_delta(self, *args, **kwargs):
-        """
-        Return the analytic delta of a leg of the derivative object.
+        """Return the analytic delta of a leg of the derivative object.
 
         See :meth:`BaseDerivative.analytic_delta`.
         """
         return super().analytic_delta(*args, **kwargs)
 
     def analytic_rec_risk(self, *args, **kwargs):
-        """
-        Return the analytic recovery risk of the derivative object.
+        """Return the analytic recovery risk of the derivative object.
 
         See :meth:`BaseDerivative.analytic_delta`.
         """
@@ -2759,8 +2733,7 @@ class CDS(BaseDerivative):
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ):
-        """
-        Return the NPV of the derivative by summing legs.
+        """Return the NPV of the derivative by summing legs.
 
         See :meth:`BaseDerivative.npv`.
         """
@@ -2774,8 +2747,7 @@ class CDS(BaseDerivative):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
-        """
-        Return the mid-market credit spread of the CDS.
+        """Return the mid-market credit spread of the CDS.
 
         Parameters
         ----------
@@ -2802,6 +2774,7 @@ class CDS(BaseDerivative):
         -----
         The arguments ``fx`` and ``base`` are unused by single currency derivatives
         rates calculations.
+
         """
         curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -2821,8 +2794,7 @@ class CDS(BaseDerivative):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
-        """
-        Return the properties of all legs used in calculating cashflows.
+        """Return the properties of all legs used in calculating cashflows.
 
         See :meth:`BaseDerivative.cashflows`.
         """
@@ -2834,8 +2806,7 @@ class CDS(BaseDerivative):
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     def accrued(self, settlement: datetime):
-        """
-        Calculate the amount of premium accrued until a specific date within the relevant *Period*.
+        """Calculate the amount of premium accrued until a specific date within the relevant *Period*.
 
         Parameters
         ----------
@@ -2847,8 +2818,9 @@ class CDS(BaseDerivative):
         float or None
 
         Notes
-        ------
+        -----
         If the *CDS* is unpriced, i.e. there is no specified ``fixed_rate`` then None will be
         returned.
+
         """
         return self.leg1.accrued(settlement)

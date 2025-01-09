@@ -8,8 +8,7 @@ from rateslib import IRS, CompositeCurve, Curve, Solver, add_tenor, default_cont
 
 
 class TimeSuite:
-    """
-    An example benchmark that times the performance of various kinds
+    """An example benchmark that times the performance of various kinds
     of iterating over dictionaries in Python.
     """
 

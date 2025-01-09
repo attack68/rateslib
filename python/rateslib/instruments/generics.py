@@ -32,8 +32,7 @@ if TYPE_CHECKING:
 
 
 class Value(BaseMixin):
-    """
-    A null *Instrument* which can be used within a :class:`~rateslib.solver.Solver`
+    """A null *Instrument* which can be used within a :class:`~rateslib.solver.Solver`
     to directly parametrise a *Curve* node, via some calculated value.
 
     Parameters
@@ -63,6 +62,7 @@ class Value(BaseMixin):
        curve[dt(2022, 1, 1)]
        curve[dt(2022, 11, 1)]
        curve[dt(2023, 1, 1)]
+
     """
 
     def __init__(
@@ -85,8 +85,7 @@ class Value(BaseMixin):
         base: str | NoInput = NoInput(0),
         metric: str | NoInput = NoInput(0),
     ) -> DualTypes:
-        """
-        Return a value derived from a *Curve*.
+        """Return a value derived from a *Curve*.
 
         Parameters
         ----------
@@ -142,8 +141,7 @@ class Value(BaseMixin):
 
 
 class VolValue(BaseMixin):
-    """
-    A null *Instrument* which can be used within a :class:`~rateslib.solver.Solver`
+    """A null *Instrument* which can be used within a :class:`~rateslib.solver.Solver`
     to directly parametrise a *Vol* node, via some calculated metric.
 
     Parameters
@@ -185,6 +183,7 @@ class VolValue(BaseMixin):
        smile[0.25]
        smile[0.5]
        smile[0.75]
+
     """
 
     def __init__(
@@ -211,8 +210,7 @@ class VolValue(BaseMixin):
         vol: DualTypes | FXVols = NoInput(0),
         metric: str = "vol",
     ):
-        """
-        Return a value derived from a *Curve*.
+        """Return a value derived from a *Curve*.
 
         Parameters
         ----------
@@ -260,8 +258,7 @@ class VolValue(BaseMixin):
 
 
 class Spread(Sensitivities):
-    """
-    A spread instrument defined as the difference in rate between two *Instruments*.
+    """A spread instrument defined as the difference in rate between two *Instruments*.
 
     Parameters
     ----------
@@ -304,6 +301,7 @@ class Spread(Sensitivities):
        spread.npv()
        spread.rate()
        spread.cashflows()
+
     """
 
     _rate_scalar = 100.0
@@ -316,8 +314,7 @@ class Spread(Sensitivities):
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
     def npv(self, *args, **kwargs):
-        """
-        Return the NPV of the composited object by summing instrument NPVs.
+        """Return the NPV of the composited object by summing instrument NPVs.
 
         Parameters
         ----------
@@ -334,10 +331,10 @@ class Spread(Sensitivities):
 
         Notes
         -----
-
         If the argument ``local`` is added to return a dict of currencies, ensure
         that this is added as a **keyword** argument and not a positional argument.
         I.e. use `local=True`.
+
         """
         leg1_npv = self.instrument1.npv(*args, **kwargs)
         leg2_npv = self.instrument2.npv(*args, **kwargs)
@@ -358,8 +355,7 @@ class Spread(Sensitivities):
     #     return self.instrument1.npv(*args1) + self.instrument2.npv(*args2)
 
     def rate(self, *args, **kwargs):
-        """
-        Return the mid-market rate of the composited via the difference of instrument
+        """Return the mid-market rate of the composited via the difference of instrument
         rates.
 
         Parameters
@@ -374,6 +370,7 @@ class Spread(Sensitivities):
         Returns
         -------
         float, Dual or Dual2
+
         """
         leg1_rate = self.instrument1.rate(*args, **kwargs)
         leg2_rate = self.instrument2.rate(*args, **kwargs)
@@ -398,16 +395,14 @@ class Spread(Sensitivities):
         )
 
     def delta(self, *args, **kwargs):
-        """
-        Calculate the delta of the *Instrument*.
+        """Calculate the delta of the *Instrument*.
 
         For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
         """
         return super().delta(*args, **kwargs)
 
     def gamma(self, *args, **kwargs):
-        """
-        Calculate the gamma of the *Instrument*.
+        """Calculate the gamma of the *Instrument*.
 
         For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
         """
@@ -422,8 +417,7 @@ class Spread(Sensitivities):
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
     ):
-        """
-        Return a DataFrame of fixing exposures on the *Instruments*.
+        """Return a DataFrame of fixing exposures on the *Instruments*.
 
         For arguments see :meth:`XCS.fixings_table()<rateslib.instruments.XCS.fixings_table>`,
         and/or :meth:`IRS.fixings_table()<rateslib.instruments.IRS.fixings_table>`
@@ -431,6 +425,7 @@ class Spread(Sensitivities):
         Returns
         -------
         DataFrame
+
         """
         pf = Portfolio(
             [
@@ -442,8 +437,7 @@ class Spread(Sensitivities):
 
 
 class Fly(Sensitivities):
-    """
-    A butterfly instrument which is, mechanically, the spread of two spread instruments.
+    """A butterfly instrument which is, mechanically, the spread of two spread instruments.
 
     Parameters
     ----------
@@ -463,6 +457,7 @@ class Fly(Sensitivities):
     Examples
     --------
     See examples for :class:`Spread` for similar functionality.
+
     """
 
     _rate_scalar = 100.0
@@ -476,8 +471,7 @@ class Fly(Sensitivities):
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
     def npv(self, *args, **kwargs):
-        """
-        Return the NPV of the composited object by summing instrument NPVs.
+        """Return the NPV of the composited object by summing instrument NPVs.
 
         Parameters
         ----------
@@ -491,6 +485,7 @@ class Fly(Sensitivities):
         Returns
         -------
         float, Dual or Dual2
+
         """
         leg1_npv = self.instrument1.npv(*args, **kwargs)
         leg2_npv = self.instrument2.npv(*args, **kwargs)
@@ -504,8 +499,7 @@ class Fly(Sensitivities):
             return leg1_npv + leg2_npv + leg3_npv
 
     def rate(self, *args, **kwargs):
-        """
-        Return the mid-market rate of the composited via the difference of instrument
+        """Return the mid-market rate of the composited via the difference of instrument
         rates.
 
         Parameters
@@ -520,6 +514,7 @@ class Fly(Sensitivities):
         Returns
         -------
         float, Dual or Dual2
+
         """
         leg1_rate = self.instrument1.rate(*args, **kwargs)
         leg2_rate = self.instrument2.rate(*args, **kwargs)
@@ -537,16 +532,14 @@ class Fly(Sensitivities):
         )
 
     def delta(self, *args, **kwargs):
-        """
-        Calculate the delta of the *Instrument*.
+        """Calculate the delta of the *Instrument*.
 
         For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
         """
         return super().delta(*args, **kwargs)
 
     def gamma(self, *args, **kwargs):
-        """
-        Calculate the gamma of the *Instrument*.
+        """Calculate the gamma of the *Instrument*.
 
         For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
         """
@@ -561,8 +554,7 @@ class Fly(Sensitivities):
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
     ):
-        """
-        Return a DataFrame of fixing exposures on the *Instruments*.
+        """Return a DataFrame of fixing exposures on the *Instruments*.
 
         For arguments see :meth:`XCS.fixings_table()<rateslib.instruments.XCS.fixings_table>`,
         and/or :meth:`IRS.fixings_table()<rateslib.instruments.IRS.fixings_table>`
@@ -570,6 +562,7 @@ class Fly(Sensitivities):
         Returns
         -------
         DataFrame
+
         """
         pf = Portfolio(
             [
@@ -594,8 +587,7 @@ def _instrument_npv(instrument, *args, **kwargs):  # pragma: no cover
 
 
 class Portfolio(Sensitivities):
-    """
-    Create a collection of *Instruments* to group metrics
+    """Create a collection of *Instruments* to group metrics
 
     Parameters
     ----------
@@ -611,6 +603,7 @@ class Portfolio(Sensitivities):
     Examples
     --------
     See examples for :class:`Spread` for similar functionality.
+
     """
 
     def __init__(self, instruments):
@@ -630,8 +623,7 @@ class Portfolio(Sensitivities):
         local: bool = False,
         **kwargs,
     ):
-        """
-        Return the NPV of the *Portfolio* by summing instrument NPVs.
+        """Return the NPV of the *Portfolio* by summing instrument NPVs.
 
         For arguments see :meth:`BaseDerivative.npv()<rateslib.instruments.BaseDerivative.npv>`.
         """
@@ -715,16 +707,14 @@ class Portfolio(Sensitivities):
         )
 
     def delta(self, *args, **kwargs):
-        """
-        Calculate the delta of the *Instrument*.
+        """Calculate the delta of the *Instrument*.
 
         For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
         """
         return super().delta(*args, **kwargs)
 
     def gamma(self, *args, **kwargs):
-        """
-        Calculate the gamma of the *Instrument*.
+        """Calculate the gamma of the *Instrument*.
 
         For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
         """
@@ -739,8 +729,7 @@ class Portfolio(Sensitivities):
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
     ):
-        """
-        Return a DataFrame of fixing exposures on the *Instruments*.
+        """Return a DataFrame of fixing exposures on the *Instruments*.
 
         For arguments see :meth:`XCS.fixings_table()<rateslib.instruments.XCS.fixings_table>`,
         and/or :meth:`IRS.fixings_table()<rateslib.instruments.IRS.fixings_table>`
@@ -748,6 +737,7 @@ class Portfolio(Sensitivities):
         Returns
         -------
         DataFrame
+
         """
         df_result = DataFrame(
             index=DatetimeIndex([], name="obs_dates", freq=None),

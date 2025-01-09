@@ -15,7 +15,7 @@ if DEVELOPMENT:
     # section.
 
     def _append_kwargs_name(df: DataFrame) -> DataFrame:
-        """combine the columns leg and kwargs to produce library consistent kwargs for dicts"""
+        """Combine the columns leg and kwargs to produce library consistent kwargs for dicts"""
         prefix = df["leg"]
         prefix = prefix.where(prefix == "leg2", "")
         prefix = prefix.replace("leg2", "leg2_")
@@ -23,7 +23,7 @@ if DEVELOPMENT:
         return df.set_index("kwargs_name")
 
     def _parse_bool(df: DataFrame) -> DataFrame:
-        """parse data input as bools to return True and False dtypes."""
+        """Parse data input as bools to return True and False dtypes."""
 
         def _map_true_false(v: str) -> bool | None:
             try:

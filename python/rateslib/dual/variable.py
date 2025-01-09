@@ -19,8 +19,7 @@ INTS = int | np.int8 | np.int16 | np.int32 | np.int32 | np.int64
 
 
 class Variable:
-    """
-    A user defined, exogenous variable that automatically converts to a
+    """A user defined, exogenous variable that automatically converts to a
     :class:`~rateslib.dual.Dual` or
     :class:`~rateslib.dual.Dual2` type dependent upon the overall AD calculation order.
 
@@ -42,6 +41,7 @@ class Variable:
     real : float
     vars : str, tuple of str
     dual : 1d ndarray
+
     """
 
     def __init__(
@@ -77,8 +77,7 @@ class Variable:
         return Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[])
 
     def __eq__(self, argument: Any) -> bool:
-        """
-        Compare an argument with a Variable for equality.
+        """Compare an argument with a Variable for equality.
         This does not account for variable ordering.
         """
         if not isinstance(argument, type(self)):

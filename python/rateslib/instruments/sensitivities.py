@@ -19,8 +19,7 @@ P = ParamSpec("P")
 
 
 class Sensitivities:
-    """
-    Base class to add risk sensitivity calculations to an object with an ``npv()``
+    """Base class to add risk sensitivity calculations to an object with an ``npv()``
     method.
     """
 
@@ -36,8 +35,7 @@ class Sensitivities:
         local: bool = False,
         **kwargs: Any,
     ) -> DataFrame:
-        """
-        Calculate delta risk of an *Instrument* against the calibrating instruments in a
+        """Calculate delta risk of an *Instrument* against the calibrating instruments in a
         :class:`~rateslib.curves.Solver`.
 
         Parameters
@@ -69,6 +67,7 @@ class Sensitivities:
         Returns
         -------
         DataFrame
+
         """
         if isinstance(solver, NoInput):
             raise ValueError("`solver` is required for delta/gamma methods.")
@@ -97,8 +96,7 @@ class Sensitivities:
         vars_labels: list[str] | NoInput = NoInput(0),
         **kwargs: Any,
     ) -> DataFrame:
-        """
-        Calculate delta risk of an *Instrument* against some exogenous user created *Variables*.
+        """Calculate delta risk of an *Instrument* against some exogenous user created *Variables*.
 
         See :ref:`What are exogenous variables? <cook-exogenous-doc>` in the cookbook.
 
@@ -139,6 +137,7 @@ class Sensitivities:
         Returns
         -------
         DataFrame
+
         """
         if isinstance(solver, NoInput):
             raise ValueError("`solver` is required for delta/gamma methods.")
@@ -166,8 +165,7 @@ class Sensitivities:
         local: bool = False,
         **kwargs: Any,
     ) -> DataFrame:
-        """
-        Calculate cross-gamma risk of an *Instrument* against the calibrating instruments of a
+        """Calculate cross-gamma risk of an *Instrument* against the calibrating instruments of a
         :class:`~rateslib.curves.Solver`.
 
         Parameters
@@ -199,6 +197,7 @@ class Sensitivities:
         Returns
         -------
         DataFrame
+
         """
         if isinstance(solver, NoInput):
             raise ValueError("`solver` is required for delta/gamma methods.")
@@ -240,8 +239,7 @@ class Sensitivities:
         base: str | NoInput = NoInput(0),
         **kwargs: Any,
     ) -> DataFrame:
-        """
-        Aggregate the values derived from a :meth:`~rateslib.instruments.BaseMixin.cashflows`
+        """Aggregate the values derived from a :meth:`~rateslib.instruments.BaseMixin.cashflows`
         method on an *Instrument*.
 
         Parameters
@@ -260,6 +258,7 @@ class Sensitivities:
         Returns
         -------
         DataFrame
+
         """
         cashflows = self.cashflows(curves, solver, fx, base, **kwargs)
         cashflows = cashflows[

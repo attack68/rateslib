@@ -27,15 +27,13 @@ P = ParamSpec("P")
 
 
 class Gradients:
-    """
-    A catalogue of all the gradients used in optimisation routines and risk
+    """A catalogue of all the gradients used in optimisation routines and risk
     sensitivties.
     """
 
     @property
     def J(self):
-        """
-        2d Jacobian array of calibrating instrument rates with respect to curve
+        """2d Jacobian array of calibrating instrument rates with respect to curve
         variables, of size (n, m);
 
         .. math::
@@ -50,15 +48,13 @@ class Gradients:
 
     @property
     def grad_v_rT(self):
-        """
-        Alias of ``J``.
+        """Alias of ``J``.
         """
         return self.J
 
     @property
     def J2(self):
-        """
-        3d array of second derivatives of calibrating instrument rates with
+        """3d array of second derivatives of calibrating instrument rates with
         respect to curve variables, of size (n, n, m);
 
         .. math::
@@ -81,15 +77,13 @@ class Gradients:
 
     @property
     def grad_v_v_rT(self):
-        """
-        Alias of ``J2``.
+        """Alias of ``J2``.
         """
         return self.J2  # pragma: no cover
 
     @property
     def grad_s_vT(self):
-        """
-        2d Jacobian array of curve variables with respect to calibrating instruments,
+        """2d Jacobian array of curve variables with respect to calibrating instruments,
         of size (m, n);
 
         .. math::
@@ -101,8 +95,7 @@ class Gradients:
         return self._grad_s_vT
 
     def _grad_s_vT_final_iteration_dual(self, algorithm: str | None = None):
-        """
-        This is not the ideal method since it requires reset_properties to reassess.
+        """This is not the ideal method since it requires reset_properties to reassess.
         """
         algorithm = algorithm or self._grad_s_vT_final_iteration_algo
         _s = self.s
@@ -120,8 +113,7 @@ class Gradients:
         return grad_s_vT
 
     def _grad_s_vT_fixed_point_iteration(self):
-        """
-        This is not the ideal method because it requires second order and reset props.
+        """This is not the ideal method because it requires second order and reset props.
         """
         self._set_ad_order(2)
         self._reset_properties_()
@@ -148,8 +140,7 @@ class Gradients:
 
     @property
     def grad_s_s_vT(self):
-        """
-        3d array of second derivatives of curve variables with respect to
+        """3d array of second derivatives of curve variables with respect to
         calibrating instruments, of size (m, m, n);
 
         .. math::
@@ -179,8 +170,7 @@ class Gradients:
         return grad_s_s_vT
 
     def _grad_s_s_vT_final_iteration_analytical(self, use_pre=False):
-        """
-        Use an analytical formula and second order AD to calculate.
+        """Use an analytical formula and second order AD to calculate.
 
         Not: must have 2nd order AD set to function, and valid properties set to
         function
@@ -202,8 +192,7 @@ class Gradients:
     # _pre versions incorporate all variables of solver and pre_solvers
 
     def grad_f_rT_pre(self, fx_vars):
-        """
-        2d Jacobian array of calibrating instrument rates with respect to FX rate
+        """2d Jacobian array of calibrating instrument rates with respect to FX rate
         variables, of size (len(fx_vars), pre_m);
 
         .. math::
@@ -214,14 +203,14 @@ class Gradients:
         ----------
         fx_vars : list or tuple of str
             The variable name tags for the FX rate sensitivities.
+
         """
         grad_f_rT = np.array([gradient(rate, fx_vars) for rate in self.r_pre]).T
         return grad_f_rT
 
     @property
     def J2_pre(self):
-        """
-        3d array of second derivatives of calibrating instrument rates with
+        """3d array of second derivatives of calibrating instrument rates with
         respect to curve variables for all ``Solvers`` including ``pre_solvers``,
         of size (pre_n, pre_n, pre_m);
 
@@ -258,8 +247,7 @@ class Gradients:
         return self._J2_pre
 
     def grad_f_v_rT_pre(self, fx_vars):
-        """
-        3d array of second derivatives of calibrating instrument rates with respect to
+        """3d array of second derivatives of calibrating instrument rates with respect to
         FX rates and curve variables, of size (len(fx_vars), pre_n, pre_m);
 
         .. math::
@@ -270,6 +258,7 @@ class Gradients:
         ----------
         fx_vars : list or tuple of str
             The variable name tags for the FX rate sensitivities.
+
         """  # noqa: E501
         # FX sensitivity requires reverting through all pre-solvers rates.
         all_gradients = np.array(
@@ -280,8 +269,7 @@ class Gradients:
         return grad_f_v_rT
 
     def grad_f_f_rT_pre(self, fx_vars):
-        """
-        3d array of second derivatives of calibrating instrument rates with respect to
+        """3d array of second derivatives of calibrating instrument rates with respect to
         FX rates, of size (len(fx_vars), len(fx_vars), pre_m);
 
         .. math::
@@ -292,6 +280,7 @@ class Gradients:
         ----------
         fx_vars : list or tuple of str
             The variable name tags for the FX rate sensitivities.
+
         """  # noqa: E501
         # FX sensitivity requires reverting through all pre-solvers rates.
         grad_f_f_rT = np.array([gradient(rate, fx_vars, order=2) for rate in self.r_pre]).swapaxes(
@@ -302,8 +291,7 @@ class Gradients:
 
     @property
     def grad_s_s_vT_pre(self):
-        """
-        3d array of second derivatives of curve variables with respect to
+        """3d array of second derivatives of curve variables with respect to
         calibrating instruments, of size (pre_m, pre_m, pre_n);
 
         .. math::
@@ -319,14 +307,12 @@ class Gradients:
 
     @property
     def grad_v_v_rT_pre(self):
-        """
-        Alias of ``J2_pre``.
+        """Alias of ``J2_pre``.
         """
         return self.J2_pre  # pragma: no cover
 
     def grad_f_s_vT_pre(self, fx_vars):
-        """
-        3d array of second derivatives of curve variables with respect to
+        """3d array of second derivatives of curve variables with respect to
         FX rates and calibrating instrument rates, of size (len(fx_vars), pre_m, pre_n);
 
         .. math::
@@ -337,6 +323,7 @@ class Gradients:
         ----------
         fx_vars : list or tuple of str
             The variable name tags for the FX rate sensitivities.
+
         """  # noqa: E501
         # FX sensitivity requires reverting through all pre-solvers rates.
         _ = -np.tensordot(self.grad_f_v_rT_pre(fx_vars), self.grad_s_vT_pre, (1, 1)).swapaxes(1, 2)
@@ -345,8 +332,7 @@ class Gradients:
         return grad_f_s_vT
 
     def grad_f_f_vT_pre(self, fx_vars):
-        """
-        3d array of second derivatives of curve variables with respect to
+        """3d array of second derivatives of curve variables with respect to
         FX rates, of size (len(fx_vars), len(fx_vars), pre_n);
 
         .. math::
@@ -357,6 +343,7 @@ class Gradients:
         ----------
         fx_vars : list or tuple of str
             The variable name tags for the FX rate sensitivities.
+
         """  # noqa: E501
         # FX sensitivity requires reverting through all pre-solvers rates.
         _ = -np.tensordot(self.grad_f_f_rT_pre(fx_vars), self.grad_s_vT_pre, (2, 0))
@@ -365,8 +352,7 @@ class Gradients:
         return grad_f_f_vT
 
     def grad_f_vT_pre(self, fx_vars):
-        """
-        2d array of the derivatives of curve variables with respect to FX rates, of
+        """2d array of the derivatives of curve variables with respect to FX rates, of
         size (len(fx_vars), pre_n).
 
         .. math::
@@ -377,14 +363,14 @@ class Gradients:
         ----------
         fx_vars : list or tuple of str
             The variable name tags for the FX rate sensitivities
+
         """  # noqa: E501
         # FX sensitivity requires reverting through all pre-solvers rates.
         grad_f_rT = np.array([gradient(rate, fx_vars) for rate in self.r_pre]).T
         return -np.matmul(grad_f_rT, self.grad_s_vT_pre)
 
     def grad_f_f(self, f, fx_vars):
-        """
-        1d array of total derivatives of FX conversion rate with respect to
+        """1d array of total derivatives of FX conversion rate with respect to
         FX rate variables, of size (len(fx_vars));
 
         .. math::
@@ -397,6 +383,7 @@ class Gradients:
             The value of the local to base FX conversion rate.
         fx_vars : list or tuple of str
             The variable name tags for the FX rate sensitivities
+
         """
         grad_f_f = gradient(f, fx_vars)
         grad_f_f += np.matmul(self.grad_f_vT_pre(fx_vars), gradient(f, self.pre_variables))
@@ -404,8 +391,7 @@ class Gradients:
 
     @property
     def grad_s_vT_pre(self):
-        """
-        2d Jacobian array of curve variables with respect to calibrating instruments
+        """2d Jacobian array of curve variables with respect to calibrating instruments
         including all pre solvers attached to the Solver, of size (pre_m, pre_n).
 
         .. math::
@@ -438,8 +424,7 @@ class Gradients:
         return self._grad_s_vT_pre
 
     def grad_s_f_pre(self, f):
-        """
-        1d array of FX conversion rate with respect to calibrating instruments,
+        """1d array of FX conversion rate with respect to calibrating instruments,
         of size (pre_m);
 
         .. math::
@@ -450,14 +435,14 @@ class Gradients:
         ----------
         f : Dual or Dual2
             The value of the local to base FX conversion rate.
+
         """
         _ = np.tensordot(self.grad_s_vT_pre, gradient(f, self.pre_variables), (1, 0))
         grad_s_f = _
         return grad_s_f
 
     def grad_s_sT_f_pre(self, f):
-        """
-        2d array of derivatives of FX conversion rate with respect to
+        """2d array of derivatives of FX conversion rate with respect to
         calibrating instruments, of size (pre_m, pre_m);
 
         .. math::
@@ -468,6 +453,7 @@ class Gradients:
         ----------
         f : Dual or Dual2
             The value of the local to base FX conversion rate.
+
         """  # noqa: E501
         grad_s_vT = self.grad_s_vT_pre
         grad_v_vT_f = gradient(f, self.pre_variables, order=2)
@@ -479,8 +465,7 @@ class Gradients:
         return grad_s_sT_f
 
     def grad_f_sT_f_pre(self, f, fx_vars):
-        """
-        2d array of derivatives of FX conversion rate with respect to
+        """2d array of derivatives of FX conversion rate with respect to
         calibrating instruments, of size (pre_m, pre_m);
 
         .. math::
@@ -493,6 +478,7 @@ class Gradients:
             The value of the local to base FX conversion rate.
         fx_vars : list or tuple of str
             The variable name tags for the FX rate sensitivities
+
         """  # noqa: E501
         grad_s_vT = self.grad_s_vT_pre
         grad_v_f = gradient(f, self.pre_variables)
@@ -513,8 +499,7 @@ class Gradients:
         return grad_f_sT_f
 
     def grad_f_fT_f_pre(self, f, fx_vars):
-        """
-        2d array of derivatives of FX conversion rate with respect to
+        """2d array of derivatives of FX conversion rate with respect to
         calibrating instruments, of size (pre_m, pre_m);
 
         .. math::
@@ -527,6 +512,7 @@ class Gradients:
             The value of the local to base FX conversion rate.
         fx_vars : list or tuple of str
             The variable name tags for the FX rate sensitivities
+
         """  # noqa: E501
         # grad_s_vT = self.grad_s_vT_pre
         grad_v_f = gradient(f, self.pre_variables)
@@ -553,71 +539,74 @@ class Gradients:
     # delta and gamma calculations require all solver and pre_solver variables
 
     def grad_s_Ploc(self, npv):
-        """
-        1d array of derivatives of local currency PV with respect to calibrating
+        """1d array of derivatives of local currency PV with respect to calibrating
         instruments, of size (pre_m).
 
         .. math::
 
            \\nabla_\\mathbf{s} P^{loc} = \\frac{\\partial P^{loc}}{\\partial s_i}
 
-        Parameters:
+        Parameters
+        ----------
             npv : Dual or Dual2
                 A local currency NPV of a period of a leg.
+
         """
         grad_s_P = np.matmul(self.grad_s_vT_pre, gradient(npv, self.pre_variables))
         return grad_s_P
 
     def grad_f_Ploc(self, npv, fx_vars):
-        r"""
-        1d array of derivatives of local currency PV with respect to FX rate variable,
+        r"""1d array of derivatives of local currency PV with respect to FX rate variable,
         of size (len(fx_vars)).
 
         .. math::
 
            \\nabla_\\mathbf{f} P^{loc}(\\mathbf{v(s, f), f}) = \\frac{\\partial P^{loc}}{\\partial f_i}+  \\frac{\partial v_z}{\\partial f_i} \\frac{\\partial P^{loc}}{\\partial v_z}
 
-        Parameters:
+        Parameters
+        ----------
             npv : Dual or Dual2
                 A local currency NPV of a period of a leg.
             fx_vars : list or tuple of str
                 The variable tags for automatic differentiation of FX rate sensitivity
+
         """  # noqa: E501
         grad_f_P = gradient(npv, fx_vars)
         grad_f_P += np.matmul(self.grad_f_vT_pre(fx_vars), gradient(npv, self.pre_variables))
         return grad_f_P
 
     def grad_s_Pbase(self, npv, grad_s_P, f):
-        """
-        1d array of derivatives of base currency PV with respect to calibrating
+        """1d array of derivatives of base currency PV with respect to calibrating
         instruments, of size (pre_m).
 
         .. math::
 
            \\nabla_\\mathbf{s} P^{bas}(\\mathbf{v(s, f)}) = \\nabla_\\mathbf{s} P^{loc}(\\mathbf{v(s, f)})  f_{loc:bas} + P^{loc} \\nabla_\\mathbf{s} f_{loc:bas}
 
-        Parameters:
+        Parameters
+        ----------
             npv : Dual or Dual2
                 A local currency NPV of a period of a leg.
             grad_s_P : ndarray
                 The local currency delta risks w.r.t. calibrating instruments.
             f : Dual or Dual2
                 The local:base FX rate.
+
         """  # noqa: E501
         grad_s_Pbas = float(npv) * np.matmul(self.grad_s_vT_pre, gradient(f, self.pre_variables))
         grad_s_Pbas += grad_s_P * float(f)  # <- use float to cast float array not Dual
         return grad_s_Pbas
 
     def grad_f_Pbase(self, npv, grad_f_P, f, fx_vars):
-        """
-        1d array of derivatives of base currency PV with respect to FX rate variables,
+        """1d array of derivatives of base currency PV with respect to FX rate variables,
         of size (len(fx_vars)).
 
         .. math::
 
            \\nabla_\\mathbf{s} P^{bas}(\\mathbf{v(s, f)}) = \\nabla_\\mathbf{s} P^{loc}(\\mathbf{v(s, f)})  f_{loc:bas} + P^{loc} \\nabla_\\mathbf{s} f_{loc:bas}
 
-        Parameters:
+        Parameters
+        ----------
             npv : Dual or Dual2
                 A local currency NPV of a period of a leg.
             grad_f_P : ndarray
@@ -626,23 +615,25 @@ class Gradients:
                 The local:base FX rate.
             fx_vars : list or tuple of str
                 The variable tags for automatic differentiation of FX rate sensitivity
+
         """  # noqa: E501
         ret = grad_f_P * float(f)  # <- use float here to cast float array not Dual
         ret += float(npv) * self.grad_f_f(f, fx_vars)
         return ret
 
     def grad_s_sT_Ploc(self, npv):
-        """
-        2d array of derivatives of local currency PV with respect to calibrating
+        """2d array of derivatives of local currency PV with respect to calibrating
         instruments, of size (pre_m, pre_m).
 
         .. math::
 
            \\nabla_\\mathbf{s} \\nabla_\\mathbf{s}^\\mathbf{T} P^{loc}(\\mathbf{v, f}) = \\frac{ \\partial^2 P^{loc}(\\mathbf{v(s, f)}) }{\\partial s_i \\partial s_j}
 
-        Parameters:
+        Parameters
+        ----------
             npv : Dual2
                 A local currency NPV of a period of a leg.
+
         """  # noqa: E501
         # instrument-instrument cross gamma:
         _ = np.tensordot(gradient(npv, self.pre_variables, order=2), self.grad_s_vT_pre, (1, 1))
@@ -662,38 +653,40 @@ class Gradients:
         # )[:, :, 0]
 
     def gradp_f_vT_Ploc(self, npv, fx_vars):
-        """
-        2d array of (partial) derivatives of local currency PV with respect to
+        """2d array of (partial) derivatives of local currency PV with respect to
         FX rate variables and curve variables, of size (len(fx_vars), pre_n).
 
         .. math::
 
            \\nabla_\\mathbf{f} \\nabla_\\mathbf{v}^\\mathbf{T} P^{loc}(\\mathbf{v, f}) = \\frac{ \\partial ^2 P^{loc}(\\mathbf{v, f)}) }{\\partial f_i \\partial v_j}
 
-        Parameters:
+        Parameters
+        ----------
             npv : Dual2
                 A local currency NPV of a period of a leg.
             fx_vars : list or tuple of str
                 The variable tags for automatic differentiation of FX rate sensitivity
+
         """  # noqa: E501
         grad_x_xT_Ploc = gradient(npv, self.pre_variables + tuple(fx_vars), order=2)
         grad_f_vT_Ploc = grad_x_xT_Ploc[self.pre_n :, : self.pre_n]
         return grad_f_vT_Ploc
 
     def grad_f_sT_Ploc(self, npv, fx_vars):
-        """
-        2d array of derivatives of local currency PV with respect to calibrating
+        """2d array of derivatives of local currency PV with respect to calibrating
         instruments, of size (pre_m, pre_m).
 
         .. math::
 
            \\nabla_\\mathbf{f} \\nabla_\\mathbf{s}^\\mathbf{T} P^{loc}(\\mathbf{v(s, f), f}) = \\frac{ d^2 P^{loc}(\\mathbf{v(s, f), f)}) }{d f_i \\partial s_j}
 
-        Parameters:
+        Parameters
+        ----------
             npv : Dual2
                 A local currency NPV of a period of a leg.
             fx_vars : list or tuple of str
                 The variable tags for automatic differentiation of FX rate sensitivity
+
         """  # noqa: E501
         # fx_rate-instrument cross gamma:
         _ = np.tensordot(
@@ -708,19 +701,20 @@ class Gradients:
         return grad_f_sT_Ploc
 
     def grad_f_fT_Ploc(self, npv, fx_vars):
-        """
-        2d array of derivatives of local currency PV with respect to FX rate variables,
+        """2d array of derivatives of local currency PV with respect to FX rate variables,
         of size (len(fx_vars), len(fx_vars)).
 
         .. math::
 
            \\nabla_\\mathbf{f} \\nabla_\\mathbf{s}^\\mathbf{T} P^{loc}(\\mathbf{v(s, f), f}) = \\frac{ d^2 P^{loc}(\\mathbf{v(s, f), f)}) }{d f_i d f_j}
 
-        Parameters:
+        Parameters
+        ----------
             npv : Dual2
                 A local currency NPV of a period of a leg.
             fx_vars : list or tuple of str
                 The variable tags for automatic differentiation of FX rate sensitivity
+
         """  # noqa: E501
         # fx_rate-instrument cross gamma:
         gradp_f_vT_Ploc = self.gradp_f_vT_Ploc(npv, fx_vars)
@@ -740,21 +734,22 @@ class Gradients:
         return grad_f_f_Ploc
 
     def grad_s_sT_Pbase(self, npv, grad_s_sT_P, f):
-        """
-        2d array of derivatives of base currency PV with respect to calibrating
+        """2d array of derivatives of base currency PV with respect to calibrating
         instrument rate variables, of size (pre_m, pre_m).
 
         .. math::
 
            \\nabla_\\mathbf{s} \\nabla_\\mathbf{s}^\\mathbf{T} P^{bas}(\\mathbf{v(s, f), f})
 
-        Parameters:
+        Parameters
+        ----------
             npv : Dual or Dual2
                 A local currency NPV of a period of a leg.
             grad_s_sT_P : ndarray
                 The local currency gamma risks w.r.t. calibrating instrument variables.
             f : Dual or Dual2
                 The local:base FX rate.
+
         """
         grad_s_f = self.grad_s_f_pre(f)
         grad_s_sT_f = self.grad_s_sT_f_pre(f)
@@ -769,15 +764,15 @@ class Gradients:
         return grad_s_sT_Pbas
 
     def grad_f_sT_Pbase(self, npv, grad_f_sT_P, f, fx_vars):
-        """
-        2d array of derivatives of base currency PV with respect to FX variables and
+        """2d array of derivatives of base currency PV with respect to FX variables and
         calibrating instrument rate variables, of size (len(fx_vars), pre_m).
 
         .. math::
 
            \\nabla_\\mathbf{f} \\nabla_\\mathbf{s}^\\mathbf{T} P^{bas}(\\mathbf{v(s, f), f})
 
-        Parameters:
+        Parameters
+        ----------
             npv : Dual or Dual2
                 A local currency NPV of a period of a leg.
             grad_f_sT_P : ndarray
@@ -787,6 +782,7 @@ class Gradients:
                 The local:base FX rate.
             fx_vars : list or tuple of str
                 The variable tags for automatic differentiation of FX rate sensitivity
+
         """
         grad_s_f = self.grad_s_f_pre(f)
         grad_f_f = self.grad_f_f(f, fx_vars)
@@ -803,15 +799,15 @@ class Gradients:
         return grad_s_sT_Pbas
 
     def grad_f_fT_Pbase(self, npv, grad_f_fT_P, f, fx_vars):
-        """
-        2d array of derivatives of base currency PV with respect to calibrating
+        """2d array of derivatives of base currency PV with respect to calibrating
         instrument rate variables, of size (pre_m, pre_m).
 
         .. math::
 
            \\nabla_\\mathbf{s} \\nabla_\\mathbf{s}^\\mathbf{T} P^{bas}(\\mathbf{v(s, f), f})
 
-        Parameters:
+        Parameters
+        ----------
             npv : Dual or Dual2
                 A local currency NPV of a period of a leg.
             grad_f_fT_P : ndarray
@@ -820,6 +816,7 @@ class Gradients:
                 The local:base FX rate.
             fx_vars : list or tuple of str
                 The variable tags for automatic differentiation of FX rate sensitivity
+
         """
         # grad_s_f = self.grad_s_f_pre(f)
         grad_f_f = self.grad_f_f(f, fx_vars)
@@ -837,8 +834,7 @@ class Gradients:
 
 
 class Solver(Gradients, _WithState):
-    """
-    A numerical solver to determine node values on multiple curves simultaneously.
+    """A numerical solver to determine node values on multiple curves simultaneously.
 
     Parameters
     ----------
@@ -905,7 +901,6 @@ class Solver(Gradients, _WithState):
 
     Examples
     --------
-
     See the documentation user guide :ref:`here <c-solver-doc>`.
 
     """
@@ -1110,8 +1105,7 @@ class Solver(Gradients, _WithState):
         return _
 
     def _parse_instrument(self, value):
-        """
-        Parses different input formats for an instrument given to the ``Solver``.
+        """Parses different input formats for an instrument given to the ``Solver``.
 
         Parameters
         ----------
@@ -1138,6 +1132,7 @@ class Solver(Gradients, _WithState):
         ``value=(Instrument(), (curve, None, fx), None)``
 
         ``value=(Instrument(), (curve,), {})``
+
         """
         if not isinstance(value, tuple):
             # is a direct Instrument so convert to tuple with pricing params
@@ -1158,8 +1153,7 @@ class Solver(Gradients, _WithState):
             return (ret0, ret1, ret2)
 
     def _reset_properties_(self, dual2_only=False):
-        """
-        Set all calculated attributes to `None` requiring re-evaluation.
+        """Set all calculated attributes to `None` requiring re-evaluation.
 
         Parameters
         ----------
@@ -1177,6 +1171,7 @@ class Solver(Gradients, _WithState):
         Returns
         -------
         None
+
         """
         if not dual2_only:
             self._v = None  # depends on self.curves
@@ -1229,8 +1224,7 @@ class Solver(Gradients, _WithState):
 
     @property
     def result(self):
-        """
-        Show statistics relevant to the last *Solver* iteration.
+        """Show statistics relevant to the last *Solver* iteration.
 
         Valid *Solver* states are:
 
@@ -1242,8 +1236,7 @@ class Solver(Gradients, _WithState):
 
     @property
     def v(self):
-        """
-        1d array of curve node variables for each ordered curve, size (n,).
+        """1d array of curve node variables for each ordered curve, size (n,).
 
         Depends on ``self.curves``.
         """
@@ -1253,8 +1246,7 @@ class Solver(Gradients, _WithState):
 
     @property
     def r(self):
-        """
-        1d array of mid-market rates of each calibrating instrument with given curves,
+        """1d array of mid-market rates of each calibrating instrument with given curves,
         size (m,).
 
         Depends on ``self.pre_curves`` and ``self.instruments``.
@@ -1285,8 +1277,7 @@ class Solver(Gradients, _WithState):
 
     @property
     def x(self):
-        """
-        1d array of error in each calibrating instrument rate, of size (m,).
+        """1d array of error in each calibrating instrument rate, of size (m,).
 
         .. math::
 
@@ -1300,13 +1291,13 @@ class Solver(Gradients, _WithState):
 
     @property
     def error(self):
-        """
-        Return the error in calibrating instruments, including ``pre_solvers``, scaled
+        """Return the error in calibrating instruments, including ``pre_solvers``, scaled
         to the risk representation factor.
 
         Returns
         -------
         Series
+
         """
         s = None
         for pre_solver in self.pre_solvers:
@@ -1327,8 +1318,7 @@ class Solver(Gradients, _WithState):
 
     @property
     def g(self):
-        """
-        Objective function scalar value of the solver;
+        """Objective function scalar value of the solver;
 
         .. math::
 
@@ -1399,8 +1389,7 @@ class Solver(Gradients, _WithState):
             self.fx.update()  # note: with no variables this does nothing.
 
     def iterate(self):
-        r"""
-        Solve the DF node values and update all the ``curves``.
+        r"""Solve the DF node values and update all the ``curves``.
 
         This method uses a gradient based optimisation routine, to solve for all
         the curve variables, :math:`\mathbf{v}`, as follows,
@@ -1416,8 +1405,8 @@ class Solver(Gradients, _WithState):
         Returns
         -------
         None
-        """  # noqa: E501
 
+        """  # noqa: E501
         # Initialise data and clear and caches
         self.g_list, self.lambd = [1e10], self.ini_lambda[0]
         self._reset_properties_()
@@ -1479,8 +1468,7 @@ class Solver(Gradients, _WithState):
 
     @_validate_states
     def delta(self, npv, base: str | NoInput = NoInput(0), fx=NoInput(0)) -> DataFrame:
-        """
-        Calculate the delta risk sensitivity of an instrument's NPV to the
+        """Calculate the delta risk sensitivity of an instrument's NPV to the
         calibrating instruments of the :class:`~rateslib.solver.Solver`, and to
         FX rates.
 
@@ -1505,7 +1493,6 @@ class Solver(Gradients, _WithState):
 
         Notes
         -----
-
         **Output Structure**
 
         .. note::
@@ -1545,6 +1532,7 @@ class Solver(Gradients, _WithState):
         it is more consistent to re-use those FX associations. If such an
         association exists and a direct ``fx`` object is supplied a warning may be
         emitted if they are not the same object.
+
         """
         base, fx = self._get_base_and_fx(base, fx)
         fx_vars = tuple() if fx is NoInput.blank else fx.variables
@@ -1616,8 +1604,7 @@ class Solver(Gradients, _WithState):
 
     @_validate_states
     def gamma(self, npv, base=NoInput(0), fx=NoInput(0)):
-        """
-        Calculate the cross-gamma risk sensitivity of an instrument's NPV to the
+        """Calculate the cross-gamma risk sensitivity of an instrument's NPV to the
         calibrating instruments of the :class:`~rateslib.solver.Solver`.
 
         Parameters
@@ -1741,6 +1728,7 @@ class Solver(Gradients, _WithState):
            irs = IRS(dt(2022, 1, 1), "5Y", "A", notional=-8.3e8, curves=["z", "s"], leg2_fixing_method="ibor", fixed_rate=25.0)
            irs.delta(solver=solver)
            irs.gamma(solver=solver)
+
         """  # noqa: E501
         if self._ad != 2:
             raise ValueError("`Solver` must be in ad order 2 to use `gamma` method.")
@@ -1845,8 +1833,7 @@ class Solver(Gradients, _WithState):
         return df.astype("float64")
 
     def _pnl_explain(self, npv, ds, dfx=None, base=NoInput.blank, fx=NoInput.blank, order=1):
-        """
-        Calculate PnL from market movements over delta and, optionally, gamma.
+        """Calculate PnL from market movements over delta and, optionally, gamma.
 
         Parameters
         ----------
@@ -1872,13 +1859,13 @@ class Solver(Gradients, _WithState):
         Returns
         -------
         DataFrame
+
         """
         raise NotImplementedError()
 
     @_validate_states
     def market_movements(self, solver: Solver):
-        """
-        Determine market movements between the *Solver's* instrument rates and those rates priced
+        """Determine market movements between the *Solver's* instrument rates and those rates priced
         from a second *Solver*.
 
         Parameters
@@ -1900,6 +1887,7 @@ class Solver(Gradients, _WithState):
            *Solvers* to contain their own *Curves* (which may or may not be equivalent models),
            and for the instrument rates of one *Solver* to be evaluated by the *Curves* present
            in another *Solver*.
+
         """
         r_0 = self.r_pre
         r_1 = np.array(
@@ -1915,8 +1903,7 @@ class Solver(Gradients, _WithState):
 
     @_validate_states
     def jacobian(self, solver: Solver):
-        """
-        Calculate the Jacobian with respect to another *Solver's* instruments.
+        """Calculate the Jacobian with respect to another *Solver's* instruments.
 
         Parameters
         ----------
@@ -2020,14 +2007,13 @@ class Solver(Gradients, _WithState):
         base: str | NoInput = NoInput(0),
         fx=NoInput(0),
     ) -> DataFrame:
-        """
-        Calculate risk sensitivity to user defined, exogenous variables in the
+        """Calculate risk sensitivity to user defined, exogenous variables in the
         *Solver Instruments* and the ``npv``.
 
         See :ref:`What are exogenous variables? <cook-exogenous-doc>` in the cookbook.
 
         Parameters
-        -----------
+        ----------
         npv : dict,
             The NPV (Dual) of the instrument or portfolio of instruments to risk.
             Must be indexed by 3-digit currency
@@ -2051,8 +2037,8 @@ class Solver(Gradients, _WithState):
         Returns
         -------
         DataFrame
-        """
 
+        """
         base, fx = self._get_base_and_fx(base, fx)
         if vars_scalar is NoInput.blank:
             vars_scalar = [1.0] * len(vars)

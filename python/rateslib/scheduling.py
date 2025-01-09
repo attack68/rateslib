@@ -32,8 +32,7 @@ if TYPE_CHECKING:
 
 
 class Schedule:
-    """
-    Generate a schedule of dates according to a regular pattern and calendar inference.
+    """Generate a schedule of dates according to a regular pattern and calendar inference.
 
     Parameters
     ----------
@@ -528,8 +527,7 @@ class Schedule:
 
     @property
     def table(self) -> DataFrame:
-        """
-        DataFrame : Rows of schedule dates and information.
+        """DataFrame : Rows of schedule dates and information.
         """
         df = DataFrame(
             {
@@ -545,8 +543,7 @@ class Schedule:
 
     @property
     def n_periods(self) -> int:
-        """
-        int : Number of periods contained in the schedule.
+        """Int : Number of periods contained in the schedule.
         """
         return len(self.aschedule[1:])
 
@@ -557,8 +554,7 @@ class Schedule:
 
 
 def _is_divisible_months(date1: datetime, date2: datetime, frequency_months: int) -> bool:
-    """
-    Test whether two dates' months define a period divisible by frequency months.
+    """Test whether two dates' months define a period divisible by frequency months.
 
     Parameters
     ----------
@@ -577,6 +573,7 @@ def _is_divisible_months(date1: datetime, date2: datetime, frequency_months: int
     -----
     All default frequencies divide into one year so the number of years between dates
     is not relevant to this calculation
+
     """
     months = date2.month - date1.month
     # months += (date2.year - date1.year) * 12
@@ -584,8 +581,7 @@ def _is_divisible_months(date1: datetime, date2: datetime, frequency_months: int
 
 
 def _get_unadjusted_roll(ueffective: datetime, utermination: datetime, eom: bool) -> str | int:
-    """
-    Infer a roll day from given effective and termination dates of a regular swap.
+    """Infer a roll day from given effective and termination dates of a regular swap.
 
     Parameters
     ----------
@@ -612,6 +608,7 @@ def _get_unadjusted_roll(ueffective: datetime, utermination: datetime, eom: bool
     An ``eom`` preference would classify 30 March to 30 September as *"eom"* roll day
     and not 30. This has relevance for a periods where the number of days in the month
     is 31.
+
     """
     if ueffective.day < 28 or utermination.day < 28:
         if ueffective.day == utermination.day:
@@ -654,8 +651,7 @@ def _get_unadjusted_roll(ueffective: datetime, utermination: datetime, eom: bool
 
 
 def _get_date_category(date: datetime) -> int:
-    """
-    Assign a date to a specific category for roll parsing.
+    """Assign a date to a specific category for roll parsing.
 
     Parameters
     ----------
@@ -680,6 +676,7 @@ def _get_date_category(date: datetime) -> int:
      - 7: Month is not February, day is 28, roll -> {28}
 
     Raises if cannot categorise, i.e. if day < 28.
+
     """
     if date.month == 2:
         if calendar_mod.monthrange(date.year, 2)[1] == 28 and date.day == 28:
@@ -723,8 +720,7 @@ def _check_unadjusted_regular_swap(
     eom: bool,
     roll: str | int | NoInput,
 ) -> _ValidSchedule | _InvalidSchedule:
-    """
-    Test whether given parameters define a regular leg without stubs.
+    """Test whether given parameters define a regular leg without stubs.
 
     Parameters
     ----------
@@ -749,6 +745,7 @@ def _check_unadjusted_regular_swap(
     This calculation is performed all relative to the roll. If the effective and
     terminations do not align with it under any combination then a regular swap
     cannot be created.
+
     """
     frequency_months = defaults.frequency_months[frequency.upper()]
     freq_check = _is_divisible_months(ueffective, utermination, frequency_months)
@@ -796,8 +793,7 @@ def _check_regular_swap(
     roll: str | int | NoInput,
     calendar: CalTypes,
 ) -> _ValidSchedule | _InvalidSchedule:
-    """
-    Tests whether the given the parameters define a regular leg schedule without stubs.
+    """Tests whether the given the parameters define a regular leg schedule without stubs.
 
     Parameters
     ----------
@@ -847,6 +843,7 @@ def _check_regular_swap(
     markets such as EUR adopt the second approach, and the second also provides a more
     consistent framework with which to hedge using par tenors so we adopt the second
     in this method.
+
     """
     _ueffectives = _get_unadjusted_date_alternatives(effective, modifier, calendar)
     _uterminations = _get_unadjusted_date_alternatives(termination, modifier, calendar)
@@ -872,8 +869,7 @@ def _is_invalid_very_short_stub(
     modifier: str,
     calendar: CalTypes,
 ) -> bool:
-    """
-    This tests that a very short, i.e. 1 to a few days, stub has not been erroneously
+    """This tests that a very short, i.e. 1 to a few days, stub has not been erroneously
     generated. Short stubs are invalid if there is one genuine business day in the
     window.
     """
@@ -896,8 +892,7 @@ def _infer_stub_date(
     roll: str | int | NoInput,
     calendar: CalTypes,
 ) -> _ValidSchedule | _InvalidSchedule:
-    """
-    Attempts to infer either a front or back stub in an unspecified schedule.
+    """Attempts to infer either a front or back stub in an unspecified schedule.
 
     Parameters
     ----------
@@ -1166,8 +1161,7 @@ def _get_unadjusted_stub_date(
     eom: bool,
     roll: int | str | NoInput,
 ) -> datetime:
-    """
-    Return an unadjusted stub date inferred from the dates and frequency.
+    """Return an unadjusted stub date inferred from the dates and frequency.
 
     Parameters
     ----------
@@ -1187,6 +1181,7 @@ def _get_unadjusted_stub_date(
     Returns
     -------
     datetime
+
     """
     # frequency_months = defaults.frequency_months[frequency]
     stub_side = "FRONT" if "FRONT" in stub else "BACK"
@@ -1227,8 +1222,7 @@ def _get_unadjusted_short_stub_date(
     eom: bool,
     roll: int | str | NoInput,
 ) -> datetime:
-    """
-    Return an unadjusted short stub date inferred from the dates and frequency.
+    """Return an unadjusted short stub date inferred from the dates and frequency.
 
     Parameters
     ----------
@@ -1248,6 +1242,7 @@ def _get_unadjusted_short_stub_date(
     Returns
     -------
     datetime
+
     """
     if stub_side == "FRONT":
         stub_side_dt, reg_side_dt, direction = ueffective, utermination, 1
@@ -1321,8 +1316,7 @@ def _generate_irregular_schedule_unadjusted(
     ufront_stub: datetime | NoInput,
     uback_stub: datetime | NoInput,
 ) -> Iterator[datetime]:
-    """
-    Generate unadjusted dates defining an irregular swap schedule.
+    """Generate unadjusted dates defining an irregular swap schedule.
 
     Parameters
     ----------
@@ -1342,6 +1336,7 @@ def _generate_irregular_schedule_unadjusted(
     Yields
     ------
     datetime
+
     """
     if isinstance(ufront_stub, NoInput):
         yield from _generate_regular_schedule_unadjusted(
@@ -1368,8 +1363,7 @@ def _generate_regular_schedule_unadjusted(
     frequency: str,
     roll: int | str,
 ) -> Iterator[datetime]:
-    """
-    Generates unadjusted dates defining a regular swap schedule.
+    """Generates unadjusted dates defining a regular swap schedule.
 
     Parameters
     ----------
@@ -1394,6 +1388,7 @@ def _generate_regular_schedule_unadjusted(
 
     Errors are not raised if ``utermination`` does not define a regular swap
     associated with ``ueffective``.
+
     """
     n_periods = _get_n_periods_in_regular(ueffective, utermination, frequency)
     _ = ueffective
@@ -1417,8 +1412,7 @@ def _generate_regular_schedule_unadjusted(
 def _get_unadjusted_date_alternatives(
     date: datetime, modifier: str, cal: CalTypes
 ) -> list[datetime]:
-    """
-    Return all possible unadjusted dates that result in given date under modifier/cal.
+    """Return all possible unadjusted dates that result in given date under modifier/cal.
 
     Parameters
     ----------
@@ -1432,6 +1426,7 @@ def _get_unadjusted_date_alternatives(
     Returns
     -------
     list : of valid unadjusted dates
+
     """
     unadj_dates = [date]
     if cal.is_non_bus_day(date):
@@ -1456,8 +1451,7 @@ def _get_n_periods_in_regular(
     termination: datetime,
     frequency: str,
 ) -> int:
-    """
-    Determine the number of regular periods between effective and termination.
+    """Determine the number of regular periods between effective and termination.
 
     .. warning::
        This method should only be used for dates known to define a regular schedule.
@@ -1475,6 +1469,7 @@ def _get_n_periods_in_regular(
     Returns
     -------
     int
+
     """
     if frequency == "Z":
         return 1
@@ -1518,8 +1513,7 @@ def _validate_effective(
     calendar: CalTypes,
     roll: int | str | NoInput,
 ) -> datetime:
-    """
-    Determine the effective date of a schedule if it is given in string form from
+    """Determine the effective date of a schedule if it is given in string form from
     other parameters such as the eval date and the eval mode.
     """
     if isinstance(effective, str):
@@ -1556,8 +1550,7 @@ def _validate_termination(
     roll: int | str | NoInput,
     eom: bool,
 ) -> datetime:
-    """
-    Determine the termination date of a schedule if it is given in string form from
+    """Determine the termination date of a schedule if it is given in string form from
     """
     if isinstance(termination, str):
         if _is_day_type_tenor(termination):
@@ -1595,8 +1588,7 @@ def _validate_termination(
 def _validate_stub(
     stub: str | NoInput, front_stub: datetime | NoInput, back_stub: datetime | NoInput
 ) -> str:
-    """
-    Sets a default type stub depending upon the `front_stub` and `back_stub` values.
+    """Sets a default type stub depending upon the `front_stub` and `back_stub` values.
     """
     if isinstance(stub, NoInput):
         # if specific stub dates are given we cannot know if these are long or short

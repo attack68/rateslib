@@ -47,7 +47,7 @@ def _dcf_act365f(start: datetime, end: datetime, *args: Any) -> float:
 
 
 def _dcf_act365fplus(start: datetime, end: datetime, *args: Any) -> float:
-    """count the number of the years and then add a fractional ACT365F period."""
+    """Count the number of the years and then add a fractional ACT365F period."""
     if end <= datetime(start.year + 1, start.month, start.day):
         return _dcf_act365f(start, end)
     elif end <= datetime(end.year, start.month, start.day):
@@ -188,8 +188,7 @@ def _dcf_actacticma_stub365f(
     roll: str | int | NoInput,
     calendar: CalInput,
 ) -> float:
-    """
-    Applies regular actacticma unless a stub period where Act365F is used.
+    """Applies regular actacticma unless a stub period where Act365F is used.
     [designed for Canadian Government Bonds with stubs]
     """
     if isinstance(termination, NoInput):
@@ -261,8 +260,7 @@ def _dcf_bus252(
     roll: str | int | NoInput,
     calendar: CalInput,
 ) -> float:
-    """
-    Counts the number of business days in a range and divides by 252
+    """Counts the number of business days in a range and divides by 252
     [designed for Brazilian interest rate swaps]
 
     Start will be included if it is a business day

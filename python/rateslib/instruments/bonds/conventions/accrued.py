@@ -21,8 +21,7 @@ This fraction is used to assess the total accrued calculation at a subsequent st
 def _acc_linear_proportion_by_days(
     obj: Security, settlement: datetime, acc_idx: int, *args: Any
 ) -> float:
-    """
-    Return the fraction of an accrual period between start and settlement.
+    """Return the fraction of an accrual period between start and settlement.
 
     Method: a linear proportion of actual days between start, settlement and end.
     Measures between unadjusted coupon dates.
@@ -41,8 +40,7 @@ def _acc_linear_proportion_by_days_long_stub_split(
     acc_idx: int,
     *args: Any,
 ) -> float:
-    """
-    For long stub periods this splits the accrued interest into two components.
+    """For long stub periods this splits the accrued interest into two components.
     Otherwise, returns the regular linear proportion.
     [Designed primarily for US Treasuries]
     """
@@ -87,8 +85,7 @@ def _acc_linear_proportion_by_days_long_stub_split(
 
 
 def _acc_30e360(obj: Security, settlement: datetime, acc_idx: int, *args: Any) -> float:
-    """
-    Ignoring the convention on the leg uses "30E360" to determine the accrual fraction.
+    """Ignoring the convention on the leg uses "30E360" to determine the accrual fraction.
     Measures between unadjusted date and settlement.
     [Designed primarily for Swedish Government Bonds]
 
@@ -105,8 +102,7 @@ def _acc_30e360(obj: Security, settlement: datetime, acc_idx: int, *args: Any) -
 def _acc_act365_with_1y_and_stub_adjustment(
     obj: Security, settlement: datetime, acc_idx: int, *args: Any
 ) -> float:
-    """
-    Ignoring the convention on the leg uses "Act365f" to determine the accrual fraction.
+    """Ignoring the convention on the leg uses "Act365f" to determine the accrual fraction.
     Measures between unadjusted date and settlement.
     Special adjustment if number of days is greater than 365.
     If the period is a stub reverts to a straight line interpolation

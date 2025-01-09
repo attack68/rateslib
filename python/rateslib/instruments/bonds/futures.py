@@ -19,8 +19,7 @@ from rateslib.solver import Solver
 
 
 class BondFuture(Sensitivities):
-    """
-    Create a bond future derivative.
+    """Create a bond future derivative.
 
     Parameters
     ----------
@@ -215,19 +214,18 @@ class BondFuture(Sensitivities):
 
     @property
     def notional(self):
-        """
-        Return the notional as number of contracts multiplied by contract nominal.
+        """Return the notional as number of contracts multiplied by contract nominal.
 
         Returns
         -------
         float
+
         """
         return self.nominal * self.contracts * -1  # long positions is negative notn
 
     @property
     def cfs(self):
-        """
-        Return the conversion factors for each bond in the ordered ``basket``.
+        """Return the conversion factors for each bond in the ordered ``basket``.
 
         Returns
         -------
@@ -341,8 +339,7 @@ class BondFuture(Sensitivities):
         convention: str | NoInput = NoInput(0),
         dirty: bool = False,
     ):
-        """
-        Return an aggregated DataFrame of metrics similar to the Bloomberg DLV function.
+        """Return an aggregated DataFrame of metrics similar to the Bloomberg DLV function.
 
         Parameters
         ----------
@@ -365,6 +362,7 @@ class BondFuture(Sensitivities):
         Returns
         -------
         DataFrame
+
         """
         if not isinstance(repo_rate, tuple | list):
             r_ = (repo_rate,) * len(self.basket)
@@ -422,8 +420,7 @@ class BondFuture(Sensitivities):
         delivery: datetime | NoInput = NoInput(0),
         dirty: bool = False,
     ):
-        """
-        Perform CTD multi-security analysis.
+        """Perform CTD multi-security analysis.
 
         Parameters
         ----------
@@ -446,6 +443,7 @@ class BondFuture(Sensitivities):
         Notes
         -----
         This method only operates when the CTD basket has multiple securities
+
         """
         if len(self.basket) == 1:
             raise ValueError("Multi-security analysis cannot be performed with one security.")
@@ -513,8 +511,7 @@ class BondFuture(Sensitivities):
         settlement: datetime | NoInput = NoInput(0),
         dirty: bool = False,
     ):
-        """
-        Calculate the gross basis of each bond in the basket.
+        """Calculate the gross basis of each bond in the basket.
 
         Parameters
         ----------
@@ -530,6 +527,7 @@ class BondFuture(Sensitivities):
         Returns
         -------
         tuple
+
         """
         if dirty:
             prices_ = tuple(
@@ -549,8 +547,7 @@ class BondFuture(Sensitivities):
         convention: str | NoInput = NoInput(0),
         dirty: bool = False,
     ):
-        """
-        Calculate the net basis of each bond in the basket via the proceeds
+        """Calculate the net basis of each bond in the basket via the proceeds
         method of repo.
 
         Parameters
@@ -574,6 +571,7 @@ class BondFuture(Sensitivities):
         Returns
         -------
         tuple
+
         """
         if delivery is NoInput.blank:
             f_settlement = self.delivery[1]
@@ -623,8 +621,7 @@ class BondFuture(Sensitivities):
         convention: str | NoInput = NoInput(0),
         dirty: bool = False,
     ):
-        """
-        Calculate the implied repo of each bond in the basket using the proceeds
+        """Calculate the implied repo of each bond in the basket using the proceeds
         method.
 
         Parameters
@@ -646,6 +643,7 @@ class BondFuture(Sensitivities):
         Returns
         -------
         tuple
+
         """
         if delivery is NoInput.blank:
             f_settlement = self.delivery[1]
@@ -672,8 +670,7 @@ class BondFuture(Sensitivities):
         future_price: float | Dual | Dual2,
         delivery: datetime | NoInput = NoInput(0),
     ):
-        """
-        Calculate the yield-to-maturity of the bond future.
+        """Calculate the yield-to-maturity of the bond future.
 
         Parameters
         ----------
@@ -686,6 +683,7 @@ class BondFuture(Sensitivities):
         Returns
         -------
         tuple
+
         """
         if delivery is NoInput.blank:
             settlement = self.delivery[1]
@@ -703,8 +701,7 @@ class BondFuture(Sensitivities):
         metric: str = "risk",
         delivery: datetime | NoInput = NoInput(0),
     ):
-        """
-        Return the (negated) derivative of ``price`` w.r.t. ``ytm`` .
+        """Return the (negated) derivative of ``price`` w.r.t. ``ytm`` .
 
         Parameters
         ----------
@@ -737,6 +734,7 @@ class BondFuture(Sensitivities):
 
            future.ytm(112.98)
            future.ytm(112.98 + risk[0] / 100)
+
         """
         if delivery is NoInput.blank:
             f_settlement = self.delivery[1]
@@ -758,8 +756,7 @@ class BondFuture(Sensitivities):
         future_price: float,
         delivery: datetime | NoInput = NoInput(0),
     ):
-        """
-        Return the second derivative of ``price`` w.r.t. ``ytm`` .
+        """Return the second derivative of ``price`` w.r.t. ``ytm`` .
 
         Parameters
         ----------
@@ -791,6 +788,7 @@ class BondFuture(Sensitivities):
 
            future.duration(112.98)
            future.duration(112.98 + risk[0] / 100)
+
         """
         if delivery is NoInput.blank:
             f_settlement = self.delivery[1]
@@ -813,8 +811,7 @@ class BondFuture(Sensitivities):
         dirty: bool = False,
         ordered: bool = False,
     ):
-        """
-        Determine the index of the CTD in the basket from implied repo rate.
+        """Determine the index of the CTD in the basket from implied repo rate.
 
         Parameters
         ----------
@@ -836,6 +833,7 @@ class BondFuture(Sensitivities):
         Returns
         -------
         int
+
         """
         implied_repo = self.implied_repo(
             future_price,
@@ -864,8 +862,7 @@ class BondFuture(Sensitivities):
         metric: str = "future_price",
         delivery: datetime | NoInput = NoInput(0),
     ):
-        """
-        Return various pricing metrics of the security calculated from
+        """Return various pricing metrics of the security calculated from
         :class:`~rateslib.curves.Curve` s.
 
         Parameters
@@ -901,6 +898,7 @@ class BondFuture(Sensitivities):
         -----
         This method determines the *'futures_price'* and *'ytm'*  by assuming a net
         basis of zero and pricing from the cheapest to delivery (CTD).
+
         """
         metric = metric.lower()
         if metric not in ["future_price", "ytm"]:
@@ -930,8 +928,7 @@ class BondFuture(Sensitivities):
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ):
-        """
-        Determine the monetary value of the bond future position.
+        """Determine the monetary value of the bond future position.
 
         This method is mainly included to calculate risk sensitivities. The
         monetary value of bond futures is not usually a metric worth considering.
@@ -949,16 +946,14 @@ class BondFuture(Sensitivities):
             return npv_ * fx
 
     def delta(self, *args, **kwargs):
-        """
-        Calculate the delta of the *Instrument*.
+        """Calculate the delta of the *Instrument*.
 
         For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
         """
         return super().delta(*args, **kwargs)
 
     def gamma(self, *args, **kwargs):
-        """
-        Calculate the gamma of the *Instrument*.
+        """Calculate the gamma of the *Instrument*.
 
         For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
         """

@@ -54,8 +54,7 @@ def get_calendar(
     calendar: CalInput,
     named: bool = True,
 ) -> CalTypes:
-    """
-    Returns a calendar object either from an available set or a user defined input.
+    """Returns a calendar object either from an available set or a user defined input.
 
     Parameters
     ----------
@@ -75,7 +74,6 @@ def get_calendar(
 
     Notes
     -----
-
     The following named calendars are available and have been back tested against the
     publication of RFR indexes in the relevant geography.
 

@@ -25,8 +25,7 @@ def evaluate(
     x: DualTypes,
     m: int = 0,
 ) -> Number:
-    """
-    Evaluate a single x-axis data point, or a derivative value, on a *Spline*.
+    """Evaluate a single x-axis data point, or a derivative value, on a *Spline*.
 
     This method automatically calls :meth:`~rateslib.splines.PPSplineF64.ppdnev_single`,
     :meth:`~rateslib.splines.PPSplineF64.ppdnev_single_dual` or
@@ -46,6 +45,7 @@ def evaluate(
     Returns
     -------
     float, Dual, Dual2
+
     """
     if isinstance(x, Variable):
         if isinstance(spline, PPSplineDual):

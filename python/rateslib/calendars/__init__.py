@@ -35,8 +35,7 @@ def dcf(
     roll: str | int | NoInput = NoInput(0),  # required also for ActACtICMA = ...
     calendar: CalInput = NoInput(0),  # required for ActACtICMA = ActActISMA = ActActBond
 ) -> float:
-    """
-    Calculate the day count fraction of a period.
+    """Calculate the day count fraction of a period.
 
     Parameters
     ----------
@@ -70,7 +69,7 @@ def dcf(
         Currently unused.
 
     Returns
-    --------
+    -------
     float
 
     Notes
@@ -140,8 +139,7 @@ def dcf(
 
 # TODO (deprecate): this function on 2.0.0
 def create_calendar(rules: list[datetime], week_mask: list[int] | NoInput = NoInput(0)) -> Cal:
-    """
-    Create a calendar with specific business and holiday days defined.
+    """Create a calendar with specific business and holiday days defined.
 
     .. warning::
 
@@ -155,8 +153,9 @@ def create_calendar(rules: list[datetime], week_mask: list[int] | NoInput = NoIn
         Set of days excluded from the working week. [5,6] is Saturday and Sunday.
 
     Returns
-    --------
+    -------
     Cal
+
     """
     weekmask = _drb([5, 6], week_mask)
     return Cal(rules, weekmask)
@@ -171,8 +170,7 @@ def add_tenor(
     settlement: bool = False,
     mod_days: bool = False,
 ) -> datetime:
-    """
-    Add a tenor to a given date under specific modification rules and holiday calendar.
+    """Add a tenor to a given date under specific modification rules and holiday calendar.
 
     .. warning::
 
@@ -207,7 +205,7 @@ def add_tenor(
     datetime
 
     Notes
-    ------
+    -----
 
     .. ipython:: python
        :suppress:
@@ -261,6 +259,7 @@ def add_tenor(
        add_tenor(dt(2022, 2, 28), "3M", "NONE")
        add_tenor(dt(2022, 12, 28), "4b", "F", get_calendar("ldn"))
        add_tenor(dt(2022, 12, 28), "4d", "F", get_calendar("ldn"))
+
     """  # noqa: E501
     tenor = tenor.upper()
     cal_ = get_calendar(calendar)
@@ -317,8 +316,7 @@ def get_imm(
     year: int | NoInput = NoInput(0),
     code: str | NoInput = NoInput(0),
 ) -> datetime:
-    """
-    Return an IMM date for a specified month.
+    """Return an IMM date for a specified month.
 
     .. note::
 
@@ -338,6 +336,7 @@ def get_imm(
     Returns
     -------
     datetime
+
     """
     if isinstance(code, str):
         year = int(code[1:]) + 2000
@@ -353,8 +352,7 @@ def _adjust_date(
     calendar: CalInput,
     settlement: bool = True,
 ) -> datetime:
-    """
-    Modify a date under specific rule.
+    """Modify a date under specific rule.
 
     Parameters
     ----------
@@ -371,6 +369,7 @@ def _adjust_date(
     Returns
     -------
     datetime
+
     """
     cal_ = get_calendar(calendar)
     modifier = modifier.upper()
@@ -399,8 +398,7 @@ def _get_roll(month: int, year: int, roll: str | int) -> datetime:
 
 
 def _get_years_and_months(d1: datetime, d2: datetime) -> tuple[int, int]:
-    """
-    Get the whole number of years and months between two dates
+    """Get the whole number of years and months between two dates
     """
     years: int = d2.year - d1.year
     if (d2.month == d1.month and d2.day < d1.day) or (d2.month < d1.month):
@@ -421,8 +419,7 @@ def _is_day_type_tenor(tenor: str) -> bool:
 
 
 def _is_imm(date: datetime, hmuz: bool = False) -> bool:
-    """
-    Test whether a given date is an IMM date, defined as third wednesday in month.
+    """Test whether a given date is an IMM date, defined as third wednesday in month.
 
     Parameters
     ----------
@@ -434,6 +431,7 @@ def _is_imm(date: datetime, hmuz: bool = False) -> bool:
     Returns
     -------
     bool
+
     """
     if hmuz and date.month not in [3, 6, 9, 12]:
         return False
@@ -441,8 +439,7 @@ def _is_imm(date: datetime, hmuz: bool = False) -> bool:
 
 
 def _get_imm(month: int, year: int) -> datetime:
-    """
-    Get the day in the month corresponding to IMM (3rd Wednesday).
+    """Get the day in the month corresponding to IMM (3rd Wednesday).
 
     Parameters
     ----------
@@ -454,14 +451,14 @@ def _get_imm(month: int, year: int) -> datetime:
     Returns
     -------
     int : Day
+
     """
     imm_map = {0: 17, 1: 16, 2: 15, 3: 21, 4: 20, 5: 19, 6: 18}
     return datetime(year, month, imm_map[datetime(year, month, 1).weekday()])
 
 
 def _is_eom(date: datetime) -> bool:
-    """
-    Test whether a given date is end of month.
+    """Test whether a given date is end of month.
 
     Parameters
     ----------
@@ -471,6 +468,7 @@ def _is_eom(date: datetime) -> bool:
     Returns
     -------
     bool
+
     """
     return date.day == calendar_mod.monthrange(date.year, date.month)[1]
 
@@ -484,8 +482,7 @@ def _is_eom_cal(date: datetime, cal: CalInput) -> bool:
 
 
 def _get_eom(month: int, year: int) -> datetime:
-    """
-    Get the day in the month corresponding to last day.
+    """Get the day in the month corresponding to last day.
 
     Parameters
     ----------
@@ -497,6 +494,7 @@ def _get_eom(month: int, year: int) -> datetime:
     Returns
     -------
     int : Day
+
     """
     return datetime(year, month, calendar_mod.monthrange(year, month)[1])
 
@@ -507,8 +505,7 @@ def _get_eom(month: int, year: int) -> datetime:
 
 
 def _is_som(date: datetime) -> bool:
-    """
-    Test whether a given date is start of month.
+    """Test whether a given date is start of month.
 
     Parameters
     ----------
@@ -518,6 +515,7 @@ def _is_som(date: datetime) -> bool:
     Returns
     -------
     bool
+
     """
     return date.day == 1
 
@@ -530,8 +528,7 @@ def _get_fx_expiry_and_delivery(
     modifier: str,
     eom: bool,
 ) -> tuple[datetime, datetime]:
-    """
-    Determines the expiry and delivery date of an FX option using the following rules:
+    """Determines the expiry and delivery date of an FX option using the following rules:
 
     See Foreign Exchange Option Pricing by Iain Clark
 
@@ -554,6 +551,7 @@ def _get_fx_expiry_and_delivery(
     Returns
     -------
     tuple of datetime
+
     """
     if isinstance(expiry, str):
         if isinstance(eval_date, NoInput):

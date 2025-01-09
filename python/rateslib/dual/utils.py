@@ -43,8 +43,7 @@ def _abs_float(val: DualTypes) -> float:
 
 
 def set_order(val: DualTypes, order: int) -> DualTypes:
-    """
-    Changes the order of a :class:`Dual` or :class:`Dual2` and a sets a :class:`Variable`
+    """Changes the order of a :class:`Dual` or :class:`Dual2` and a sets a :class:`Variable`
     leaving floats and ints unchanged.
 
     Parameters
@@ -57,6 +56,7 @@ def set_order(val: DualTypes, order: int) -> DualTypes:
     Returns
     -------
     float, int, Dual or Dual2
+
     """
     if order == 2 and isinstance(val, Dual | Variable):
         return val.to_dual2()
@@ -74,8 +74,7 @@ def set_order(val: DualTypes, order: int) -> DualTypes:
 def set_order_convert(
     val: DualTypes, order: int, tag: list[str] | None, vars_from: Dual | Dual2 | None = None
 ) -> DualTypes:
-    """
-    Convert a float, :class:`Dual` or :class:`Dual2` type to a specified alternate type.
+    """Convert a float, :class:`Dual` or :class:`Dual2` type to a specified alternate type.
 
     Parameters
     ----------
@@ -92,6 +91,7 @@ def set_order_convert(
     Returns
     -------
     float, Dual, Dual2
+
     """
     if isinstance(val, FLOATS | INTS):
         _ = [] if tag is None else tag
@@ -121,8 +121,7 @@ def gradient(
     order: int = 1,
     keep_manifold: bool = False,
 ) -> Arr1dF64 | Arr2dF64:
-    """
-    Return derivatives of a dual number.
+    """Return derivatives of a dual number.
 
     Parameters
     ----------
@@ -143,6 +142,7 @@ def gradient(
     Returns
     -------
     float, ndarray, Dual2
+
     """
     if not isinstance(dual, Dual | Dual2 | Variable):
         raise TypeError("Can call `gradient` only on dual-type variables.")
@@ -173,8 +173,7 @@ def gradient(
 
 
 def dual_exp(x: DualTypes) -> Number:
-    """
-    Calculate the exponential value of a regular int or float or a dual number.
+    """Calculate the exponential value of a regular int or float or a dual number.
 
     Parameters
     ----------
@@ -184,6 +183,7 @@ def dual_exp(x: DualTypes) -> Number:
     Returns
     -------
     float, Dual, Dual2
+
     """
     if isinstance(x, Dual | Dual2 | Variable):
         return x.__exp__()
@@ -191,8 +191,7 @@ def dual_exp(x: DualTypes) -> Number:
 
 
 def dual_log(x: DualTypes, base: int | None = None) -> Number:
-    """
-    Calculate the logarithm of a regular int or float or a dual number.
+    """Calculate the logarithm of a regular int or float or a dual number.
 
     Parameters
     ----------
@@ -204,6 +203,7 @@ def dual_log(x: DualTypes, base: int | None = None) -> Number:
     Returns
     -------
     float, Dual, Dual2
+
     """
     if isinstance(x, Dual | Dual2 | Variable):
         val = x.__log__()
@@ -218,8 +218,7 @@ def dual_log(x: DualTypes, base: int | None = None) -> Number:
 
 
 def dual_norm_pdf(x: DualTypes) -> Number:
-    """
-    Return the standard normal probability density function.
+    """Return the standard normal probability density function.
 
     Parameters
     ----------
@@ -228,13 +227,13 @@ def dual_norm_pdf(x: DualTypes) -> Number:
     Returns
     -------
     float, Dual, Dual2
+
     """
     return dual_exp(-0.5 * x**2) / math.sqrt(2.0 * math.pi)
 
 
 def dual_norm_cdf(x: DualTypes) -> Number:
-    """
-    Return the cumulative standard normal distribution for given value.
+    """Return the cumulative standard normal distribution for given value.
 
     Parameters
     ----------
@@ -243,6 +242,7 @@ def dual_norm_cdf(x: DualTypes) -> Number:
     Returns
     -------
     float, Dual, Dual2
+
     """
     if isinstance(x, Dual | Dual2 | Variable):
         return x.__norm_cdf__()
@@ -251,8 +251,7 @@ def dual_norm_cdf(x: DualTypes) -> Number:
 
 
 def dual_inv_norm_cdf(x: DualTypes) -> Number:
-    """
-    Return the inverse cumulative standard normal distribution for given value.
+    """Return the inverse cumulative standard normal distribution for given value.
 
     Parameters
     ----------
@@ -261,6 +260,7 @@ def dual_inv_norm_cdf(x: DualTypes) -> Number:
     Returns
     -------
     float, Dual, Dual2
+
     """
     if isinstance(x, Dual | Dual2 | Variable):
         return x.__norm_inv_cdf__()
@@ -277,8 +277,7 @@ def dual_solve(
         Dual,
     ),
 ) -> Arr1dObj | Arr1dF64:
-    """
-    Solve a linear system of equations involving dual number data types.
+    """Solve a linear system of equations involving dual number data types.
 
     The `x` value is found for the equation :math:`Ax=b`.
 
@@ -300,6 +299,7 @@ def dual_solve(
     Returns
     -------
     1-d array
+
     """
     if types == (float, float):
         # Use basic Numpy LinAlg

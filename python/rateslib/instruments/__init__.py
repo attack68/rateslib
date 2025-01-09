@@ -5,7 +5,7 @@
    :suppress:
 
    from rateslib import *
-"""
+"""  # noqa: D
 
 from __future__ import annotations
 
