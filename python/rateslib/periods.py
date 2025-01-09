@@ -637,7 +637,7 @@ def _validate_float_args(
         )
     elif fixing_method_ == "rfr_lockout" and method_param_ < 1:
         raise ValueError(
-            f'`method_param` must be >0 for "rfr_lockout" `fixing_method`, ' f"got {method_param_}",
+            f'`method_param` must be >0 for "rfr_lockout" `fixing_method`, got {method_param_}',
         )
 
     spread_compound_method_: str = _drb(
@@ -1280,7 +1280,7 @@ class FloatPeriod(BasePeriod):
         # dcf_vals = dcf_vals.set_axis(rates.index)
         if self.spread_compound_method != "none_simple":
             raise ValueError(
-                "`spread_compound` method must be 'none_simple' in an RFR averaging " "period.",
+                "`spread_compound` method must be 'none_simple' in an RFR averaging period.",
             )
         else:
             _: DualTypes = (dcf_vals * rates).sum() / dcf_vals.sum() + self.float_spread / 100
@@ -1366,8 +1366,7 @@ class FloatPeriod(BasePeriod):
             elif isinstance(self.fixings, Series):
                 if not self.fixings.index.is_monotonic_increasing:  # type: ignore[attr-defined]
                     raise ValueError(
-                        "`fixings` as a Series must have a monotonically increasing "
-                        "datetimeindex.",
+                        "`fixings` as a Series must have a monotonically increasing datetimeindex.",
                     )
                 # [-2] is used because the last rfr fixing is 1 day before the end
                 fixing_rates = self.fixings.loc[obs_dates.iloc[0] : obs_dates.iloc[-2]]  # type: ignore[attr-defined, misc]

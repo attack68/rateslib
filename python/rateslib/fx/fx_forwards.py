@@ -333,7 +333,7 @@ class FXForwards(_WithState):
         if len(self.currencies_list) > 5:
             return (
                 f"<rl.FXForwards:[{','.join(self.currencies_list[:2])},"
-                f"+{len(self.currencies_list)-2} others] at {hex(id(self))}>"
+                f"+{len(self.currencies_list) - 2} others] at {hex(id(self))}>"
             )
         else:
             return f"<rl.FXForwards:[{','.join(self.currencies_list)}] at {hex(id(self))}>"
@@ -374,7 +374,7 @@ class FXForwards(_WithState):
             )
         elif T.sum() < (2 * q) - 1:
             raise ValueError(
-                f"`fx_curves` is underspecified. {2 * q -1} curves are expected "
+                f"`fx_curves` is underspecified. {2 * q - 1} curves are expected "
                 f"but {len(fx_curves.keys())} provided.",
             )
         elif np.linalg.matrix_rank(T) != q:

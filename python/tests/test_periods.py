@@ -324,7 +324,7 @@ class TestFloatPeriod:
             fixing_method="rfr_payment_delay_avg",
             spread_compound_method="isda_compounding",
         )
-        msg = "`spread_compound` method must be 'none_simple' in an RFR averaging " "period."
+        msg = "`spread_compound` method must be 'none_simple' in an RFR averaging period."
         with pytest.raises(ValueError, match=msg):
             period.rate(curve)
 

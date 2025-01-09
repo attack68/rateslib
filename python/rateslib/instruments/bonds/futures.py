@@ -409,7 +409,7 @@ class BondFuture(Sensitivities):
             dirty=dirty,
         )
         df["Bond"] = [
-            f"{bond.fixed_rate:,.3f}% " f"{bond.leg1.schedule.termination.strftime('%d-%m-%Y')}"
+            f"{bond.fixed_rate:,.3f}% {bond.leg1.schedule.termination.strftime('%d-%m-%Y')}"
             for bond in self.basket
         ]
         return df
@@ -483,7 +483,7 @@ class BondFuture(Sensitivities):
 
         data = {
             "Bond": [
-                f"{bond.fixed_rate:,.3f}% " f"{bond.leg1.schedule.termination.strftime('%d-%m-%Y')}"
+                f"{bond.fixed_rate:,.3f}% {bond.leg1.schedule.termination.strftime('%d-%m-%Y')}"
                 for bond in self.basket
             ],
         }
