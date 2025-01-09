@@ -7,6 +7,7 @@ from rateslib.default import NoInput
 from rateslib.dual.variable import Variable
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
+from rateslib.instruments import Bill, FixedRateBond, FloatRateNote, IndexFixedRateBond
 from rateslib.legs import (
     CreditPremiumLeg,
     CreditProtectionLeg,
@@ -82,3 +83,5 @@ NPV: TypeAlias = "DualTypes | dict[str, DualTypes]"
 CurveInterpolator: TypeAlias = "FlatBackwardInterpolator | FlatForwardInterpolator | LinearInterpolator | LogLinearInterpolator | LinearZeroRateInterpolator | NullInterpolator"  # noqa: E501
 Leg: TypeAlias = "FixedLeg | FloatLeg | IndexFixedLeg | ZeroFloatLeg | ZeroFixedLeg | ZeroIndexLeg | CreditPremiumLeg | CreditProtectionLeg"  # noqa: E501
 Period: TypeAlias = "FixedPeriod | FloatPeriod | Cashflow | IndexFixedPeriod | IndexCashflow | CreditPremiumPeriod | CreditProtectionPeriod"  # noqa: E501
+
+Security: TypeAlias = "FixedRateBond | FloatRateNote | Bill | IndexFixedRateBond"

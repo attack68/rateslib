@@ -142,10 +142,14 @@ packages = [
     "rateslib"
 ]
 exclude = [
-    "/instruments/bonds/",
+    "/instruments/bonds/conventions/__init__.py",
+    "/instruments/bonds/conventions/accrued.py",
+    "/instruments/bonds/conventions/discounting.py",
+    "/instruments/bonds/__init__.py",
+    "/instruments/bonds/futures.py",
+    "/instruments/bonds/securities.py",
     "/instruments/fx_volatility.py",
     "/instruments/generics.py",
-    # "/instruments/base.py",
     "/instruments/rates_derivatives.py",
     "/instruments/rates_multi_ccy.py",
     "solver.py",
