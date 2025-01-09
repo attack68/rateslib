@@ -88,7 +88,7 @@ class FXDeltaVolSmile(_WithState):
         eval_date: datetime,
         expiry: datetime,
         delta_type: str,
-        id: str | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),  # noqa: A002
         ad: int = 0,
     ):
         self.id: str = (
@@ -846,7 +846,7 @@ class FXDeltaVolSurface(_WithState):
         eval_date: datetime,
         delta_type: str,
         weights: Series[float] | NoInput = NoInput(0),
-        id: str | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),  # noqa: A002
         ad: int = 0,
     ):
         self.id: str = (

@@ -185,7 +185,7 @@ class Curve(_WithState):
         t: list[datetime] | NoInput = NoInput(0),
         c: list[float] | NoInput = NoInput(0),
         endpoints: str | tuple[str, str] | NoInput = NoInput(0),
-        id: str | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),  # noqa: A002
         convention: str | NoInput = NoInput(0),
         modifier: str | NoInput = NoInput(0),
         calendar: CalInput = NoInput(0),
@@ -496,7 +496,7 @@ class Curve(_WithState):
     def shift(
         self,
         spread: DualTypes,
-        id: str | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),  # noqa: A002
         composite: bool = True,
         collateral: str | NoInput = NoInput(0),
     ) -> Curve:
@@ -1785,7 +1785,7 @@ class LineCurve(Curve):
     def shift(
         self,
         spread: DualTypes,
-        id: str | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),  # noqa: A002
         composite: bool = True,
         collateral: str | NoInput = NoInput(0),
     ) -> Curve:
@@ -2346,7 +2346,7 @@ class CompositeCurve(Curve):
     def __init__(
         self,
         curves: list[Curve] | tuple[Curve, ...],
-        id: str | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),  # noqa: A002
     ) -> None:
         self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
 
@@ -2530,7 +2530,7 @@ class CompositeCurve(Curve):
     def shift(
         self,
         spread: DualTypes,
-        id: str | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),  # noqa: A002
         composite: bool = True,
         collateral: str | NoInput = NoInput(0),
     ) -> CompositeCurve:
@@ -2685,7 +2685,7 @@ class MultiCsaCurve(CompositeCurve):
     def __init__(
         self,
         curves: list[Curve] | tuple[Curve, ...],
-        id: str | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),  # noqa: A002
         multi_csa_min_step: int = 1,
         multi_csa_max_step: int = 1825,
     ) -> None:
@@ -2845,7 +2845,7 @@ class MultiCsaCurve(CompositeCurve):
     def shift(
         self,
         spread: DualTypes,
-        id: str | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),  # noqa: A002
         composite: bool | NoInput = True,
         collateral: str | NoInput = NoInput(0),
     ) -> MultiCsaCurve:
@@ -2965,7 +2965,7 @@ class ProxyCurve(Curve):
         convention: str | NoInput = NoInput(0),
         modifier: str | NoInput = NoInput(1),  # inherits from existing curve objects
         calendar: CalInput = NoInput(1),  # inherits from existing curve objects
-        id: str | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),  # noqa: A002
     ):
         self.index_base = NoInput(0)
         self.index_lag = 0  # not relevant for proxy curve

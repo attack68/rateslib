@@ -117,7 +117,7 @@ def set_order_convert(
 
 def gradient(
     dual: Dual | Dual2 | Variable,
-    vars: list[str] | None = None,
+    vars: list[str] | None = None,  # noqa: A002
     order: int = 1,
     keep_manifold: bool = False,
 ) -> Arr1dF64 | Arr2dF64:
@@ -315,9 +315,9 @@ def dual_solve(
             "efficient to preconvert `b` to dual types and then solve.",
         )
 
-    map = {float: 0, Dual: 1, Dual2: 2}
-    A_ = np.vectorize(partial(set_order_convert, tag=[], order=map[types[0]], vars_from=None))(A)
-    b_ = np.vectorize(partial(set_order_convert, tag=[], order=map[types[1]], vars_from=None))(b)
+    map_ = {float: 0, Dual: 1, Dual2: 2}
+    A_ = np.vectorize(partial(set_order_convert, tag=[], order=map_[types[0]], vars_from=None))(A)
+    b_ = np.vectorize(partial(set_order_convert, tag=[], order=map_[types[1]], vars_from=None))(b)
 
     a_ = [item for sublist in A_.tolist() for item in sublist]  # 1D array of A_
     b_ = b_[:, 0].tolist()

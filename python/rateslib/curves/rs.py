@@ -35,7 +35,7 @@ class CurveRs:
         interpolation: str
         | Callable[[datetime, dict[datetime, DualTypes]], DualTypes]
         | NoInput = NoInput(0),
-        id: str | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),  # noqa: A002
         convention: str | NoInput = NoInput(0),
         modifier: str | NoInput = NoInput(0),
         calendar: CalInput = NoInput(0),

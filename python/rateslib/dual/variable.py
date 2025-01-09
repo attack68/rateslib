@@ -47,7 +47,7 @@ class Variable:
     def __init__(
         self,
         real: float,
-        vars: Sequence[str] = (),
+        vars: Sequence[str] = (),  # noqa: A002
         dual: list[float] | Arr1dF64 | NoInput = NoInput(0),
     ):
         self.real: float = float(real)
