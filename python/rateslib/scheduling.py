@@ -773,7 +773,7 @@ def _check_unadjusted_regular_swap(
     return _ValidSchedule(ueffective, utermination, NoInput(0), NoInput(0), frequency, roll, eom)
 
 
-def _validate_date_and_roll(roll: int | str | NoInput, date: datetime) -> _InvalidSchedule | None:
+def _validate_date_and_roll(roll: int | str, date: datetime) -> _InvalidSchedule | None:
     roll = "eom" if roll == 31 else roll
     if isinstance(roll, str) and not _IS_ROLL[roll.lower()](date):
         return _InvalidSchedule(f"Non-{roll} effective date with {roll} rolls.")
