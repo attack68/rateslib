@@ -119,6 +119,7 @@ select = [
     "I",  # isort
     "N",  # pep8 naming
     # "RUF",  # -- Requires work
+    # "D", Pydocs -- requires work
 ]
 ignore = [
     "A005",  # json and typing module name shadowing is allowed
@@ -136,7 +137,8 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["E402", "N801"]
-"python/tests/*" = ["F401", "B", "N", "S", "ANN"]
+"python/tests/*" = ["F401", "B", "N", "S", "ANN", "D"]
+"rust/*" = ["D"]
 
 [tool.ruff.lint.mccabe]
 # Flag errors (`C901`) whenever the complexity level exceeds 5.
