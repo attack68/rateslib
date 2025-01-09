@@ -101,6 +101,8 @@ docstring-code-format = false
 
 [tool.ruff.lint]
 select = [
+    # "ANN",  # flake8-annotations  -- Superceded by the use of mypy
+    # "COM",  # flake8-commas  -- conflicts with ruff format
     "E",  # pycodestyle
     "W",
     "F",  # Pyflakes
@@ -110,12 +112,10 @@ select = [
     "C4",  # flake8-comprehensions
     "S",  # flake8-bandit
     "PIE",  # flake8-pie
-    # "ANN",  # flake8-annotations  -- Superceded by the use of mypy
-    "A",  # flake8-builtins  -- Requires work
-    # "COM",  # flake8-commas  -- conflicts with ruff format
+    "A",  # flake8-builtins
     "Q",  # flake8-quotes
     "PT",  # flake8-pytest-style
-    # "C90",  # mccabe complexity  -- Requires work
+    "C90",  # mccabe complexity  -- Requires work
     "I",  # isort
     "N",  # pep8 naming
     # "RUF",  # -- Requires work
@@ -136,6 +136,10 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["E402", "N801"]
 "python/tests/*" = ["F401", "B", "N", "S", "ANN"]
+
+[tool.ruff.lint.mccabe]
+# Flag errors (`C901`) whenever the complexity level exceeds 5.
+max-complexity = 13
 
 [tool.mypy]
 packages = [

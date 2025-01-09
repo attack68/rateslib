@@ -22,7 +22,7 @@ if TYPE_CHECKING:
         CurveInput,
         CurveOption,
         Curves,
-        CurvesList,
+        CurvesTuple,
         Vol,
         Vol_,
         VolOption,
@@ -125,7 +125,7 @@ def _get_curves_maybe_from_solver(
     curves_attr: Curves,
     solver: Solver | NoInput,
     curves: Curves,
-) -> CurvesList:
+) -> CurvesTuple:
     """
     Attempt to resolve curves as a variety of input types to a 4-tuple consisting of:
     (leg1 forecasting, leg1 discounting, leg2 forecasting, leg2 discounting)
@@ -181,6 +181,9 @@ def _get_curves_maybe_from_solver(
     return curves_parsed  # type: ignore[return-value]
 
 
+def _make_4_tuple_of_curve(curves: tuple[Curve, ...]) -> CurvesTuple:
+
+
 def _get_curves_fx_and_base_maybe_from_solver(
     curves_attr: Curves,
     solver: Solver | NoInput,
@@ -188,7 +191,7 @@ def _get_curves_fx_and_base_maybe_from_solver(
     fx: FX,
     base: str | NoInput,
     local_ccy: str | NoInput,
-) -> tuple[CurvesList, FX, str | NoInput]:
+) -> tuple[CurvesTuple, FX, str | NoInput]:
     """
     Parses the ``solver``, ``curves``, ``fx`` and ``base`` arguments in combination.
 

@@ -144,7 +144,11 @@ class Dual(_DualOps):
     dual: Arr1dF64 = ...
     @classmethod
     def vars_from(
-        cls, other: Dual, real: float, vars: Sequence[str], dual: Sequence[float] | Arr1dF64  # noqa: A002
+        cls,
+        other: Dual,
+        real: float,
+        vars: Sequence[str],  # noqa: A002
+        dual: Sequence[float] | Arr1dF64,
     ) -> Dual: ...
     def to_dual2(self) -> Dual2: ...
 
