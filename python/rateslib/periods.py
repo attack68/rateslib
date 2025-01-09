@@ -1,21 +1,20 @@
 # This module is a dependent of legs.py
 
-"""
-.. ipython:: python
-   :suppress:
+""".. ipython:: python
+:suppress:
 
-   from rateslib.periods import *
-   from rateslib.curves import Curve
-   from datetime import datetime as dt
-   curve = Curve(
-       nodes={
-           dt(2022,1,1): 1.0,
-           dt(2023,1,1): 0.99,
-           dt(2024,1,1): 0.965,
-           dt(2025,1,1): 0.93,
-       },
-       interpolation="log_linear",
-   )
+from rateslib.periods import *
+from rateslib.curves import Curve
+from datetime import datetime as dt
+curve = Curve(
+nodes={
+dt(2022,1,1): 1.0,
+dt(2023,1,1): 0.99,
+dt(2024,1,1): 0.965,
+dt(2025,1,1): 0.93,
+},
+interpolation="log_linear",
+)
 """
 
 from __future__ import annotations
@@ -73,8 +72,7 @@ def _get_fx_and_base(
     fx: FX = NoInput(0),
     base: str | NoInput = NoInput(0),
 ) -> tuple[DualTypes, str | NoInput]:
-    """
-    From a local currency and potentially FX Objects determine the conversion rate between
+    """From a local currency and potentially FX Objects determine the conversion rate between
     `currency` and `base`. If `base` is not given it is inferred from the FX Objects.
     """
     # TODO these can be removed when no traces of None remain.
@@ -145,8 +143,7 @@ def _maybe_local(
     fx: float | FXRates | FXForwards | NoInput,
     base: str | NoInput,
 ) -> dict[str, DualTypes] | DualTypes:
-    """
-    Return NPVs in scalar form or dict form.
+    """Return NPVs in scalar form or dict form.
     """
     if local:
         return {currency: value}
@@ -197,8 +194,7 @@ def _disc_required_maybe_from_curve(
 
 
 class BasePeriod(metaclass=ABCMeta):
-    """
-    Abstract base class with common parameters for all ``Period`` subclasses.
+    """Abstract base class with common parameters for all ``Period`` subclasses.
 
     See also: :ref:`User guide for Periods <periods-doc>`.
 
@@ -272,8 +268,7 @@ class BasePeriod(metaclass=ABCMeta):
 
     @property
     def dcf(self) -> float:
-        """
-        float : Calculated with appropriate ``convention`` over the period.
+        """Float : Calculated with appropriate ``convention`` over the period.
         """
         return dcf(
             self.start,
@@ -294,8 +289,7 @@ class BasePeriod(metaclass=ABCMeta):
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
-        """
-        Return the analytic delta of the period object.
+        """Return the analytic delta of the period object.
 
         Parameters
         ----------
@@ -339,6 +333,7 @@ class BasePeriod(metaclass=ABCMeta):
            period.analytic_delta(curve, curve)
            period.analytic_delta(curve, curve, fxr)
            period.analytic_delta(curve, curve, fxr, "gbp")
+
         """  # noqa: E501
         disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
         fx_, _ = _get_fx_and_base(self.currency, fx, base)
@@ -353,8 +348,7 @@ class BasePeriod(metaclass=ABCMeta):
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> dict[str, Any]:
-        """
-        Return the properties of the period used in calculating cashflows.
+        """Return the properties of the period used in calculating cashflows.
 
         Parameters
         ----------
@@ -384,6 +378,7 @@ class BasePeriod(metaclass=ABCMeta):
         .. ipython:: python
 
            period.cashflows(curve, curve, fxr)
+
         """
         disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
         if isinstance(disc_curve_, NoInput):
@@ -416,8 +411,7 @@ class BasePeriod(metaclass=ABCMeta):
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> DualTypes | dict[str, DualTypes]:
-        """
-        Return the NPV of the period object.
+        """Return the NPV of the period object.
 
         Calculates the cashflow for the period and multiplies it by the DF associated
         with the payment date.
@@ -455,13 +449,13 @@ class BasePeriod(metaclass=ABCMeta):
            period.npv(curve, curve, fxr)
            period.npv(curve, curve, fxr, "gbp")
            period.npv(curve, curve, fxr, local=True)
+
         """
         pass  # pragma: no cover
 
 
 class FixedPeriod(BasePeriod):
-    """
-    Create a period defined with a fixed rate.
+    """Create a period defined with a fixed rate.
 
     Parameters
     ----------
@@ -518,8 +512,7 @@ class FixedPeriod(BasePeriod):
         super().__init__(*args, **kwargs)
 
     def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
-        """
-        Return the analytic delta of the *FixedPeriod*.
+        """Return the analytic delta of the *FixedPeriod*.
         See
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
         """
@@ -527,8 +520,7 @@ class FixedPeriod(BasePeriod):
 
     @property
     def cashflow(self) -> DualTypes | None:
-        """
-        float, Dual or Dual2 : The calculated value from rate, dcf and notional.
+        """float, Dual or Dual2 : The calculated value from rate, dcf and notional.
         """
         if isinstance(self.fixed_rate, NoInput):
             return None
@@ -548,8 +540,7 @@ class FixedPeriod(BasePeriod):
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> dict[str, DualTypes] | DualTypes:
-        """
-        Return the NPV of the *FixedPeriod*.
+        """Return the NPV of the *FixedPeriod*.
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
         disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
@@ -570,8 +561,7 @@ class FixedPeriod(BasePeriod):
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> dict[str, Any]:
-        """
-        Return the cashflows of the *FixedPeriod*.
+        """Return the cashflows of the *FixedPeriod*.
         See :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
         """
         disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
@@ -602,12 +592,12 @@ def _validate_float_args(
     method_param: int | NoInput,
     spread_compound_method: str | NoInput,
 ) -> tuple[str, int, str]:
-    """
-    Validate the argument input to float periods.
+    """Validate the argument input to float periods.
 
     Returns
     -------
     tuple
+
     """
     fixing_method_: str = _drb(defaults.fixing_method, fixing_method).lower()
     if fixing_method_ not in [
@@ -657,8 +647,7 @@ def _validate_float_args(
 
 
 class FloatPeriod(BasePeriod):
-    """
-    Create a period defined with a floating rate index.
+    """Create a period defined with a floating rate index.
 
     Parameters
     ----------
@@ -896,6 +885,7 @@ class FloatPeriod(BasePeriod):
        )
        period.rate(curve)
        curve.rate(dt(2022, 1, 3), "2M")
+
     """
 
     def __init__(
@@ -935,8 +925,7 @@ class FloatPeriod(BasePeriod):
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
-        """
-        Return the analytic delta of the *FloatPeriod*.
+        """Return the analytic delta of the *FloatPeriod*.
         See
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
         """
@@ -965,8 +954,7 @@ class FloatPeriod(BasePeriod):
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> dict[str, Any]:
-        """
-        Return the cashflows of the *FloatPeriod*.
+        """Return the cashflows of the *FloatPeriod*.
         See
         :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
         """
@@ -1008,8 +996,7 @@ class FloatPeriod(BasePeriod):
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> dict[str, DualTypes] | DualTypes:
-        """
-        Return the NPV of the *FloatPeriod*.
+        """Return the NPV of the *FloatPeriod*.
         See
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
@@ -1026,8 +1013,7 @@ class FloatPeriod(BasePeriod):
         return _maybe_local(value, local, self.currency, fx, base)
 
     def cashflow(self, curve: Curve | dict[str, Curve] | NoInput = NoInput(0)) -> DualTypes | None:
-        """
-        Forecast the *Period* cashflow based on a *Curve* providing index rates.
+        """Forecast the *Period* cashflow based on a *Curve* providing index rates.
 
         Parameters
         ----------
@@ -1074,8 +1060,7 @@ class FloatPeriod(BasePeriod):
         return cal_, conv_
 
     def rate(self, curve: Curve | dict[str, Curve] | NoInput = NoInput(0)) -> DualTypes:
-        """
-        Calculating the floating rate for the period.
+        """Calculating the floating rate for the period.
 
         Parameters
         ----------
@@ -1100,6 +1085,7 @@ class FloatPeriod(BasePeriod):
         .. ipython:: python
 
            period.rate({"1m": curve, "3m": curve, "6m": curve, "12m": curve})
+
         """
         if "ibor" in self.fixing_method:
             return self._rate_ibor(curve)
@@ -1167,8 +1153,7 @@ class FloatPeriod(BasePeriod):
         return curve[fixing_date] + self.float_spread / 100
 
     def _rate_ibor_interpolated_ibor_from_dict(self, curve: dict[str, Curve]) -> DualTypes:
-        """
-        Get the rate on all available curves in dict and then determine the ones to interpolate.
+        """Get the rate on all available curves in dict and then determine the ones to interpolate.
         """
         calendar = next(iter(curve.values())).calendar  # note: ASSUMES all curve calendars are same
         fixing_date = add_tenor(self.start, f"-{self.method_param}B", "NONE", calendar)
@@ -1263,8 +1248,7 @@ class FloatPeriod(BasePeriod):
         rates: np.ndarray[tuple[int], np.dtype[np.object_]],
         dcf_vals: np.ndarray[tuple[int], np.dtype[np.float64]],
     ) -> DualTypes:
-        """
-        Calculate all in rate with float spread under averaging.
+        """Calculate all in rate with float spread under averaging.
 
         Parameters
         ----------
@@ -1276,6 +1260,7 @@ class FloatPeriod(BasePeriod):
         Returns
         -------
         float, Dual, Dual2
+
         """
         # dcf_vals = dcf_vals.set_axis(rates.index)
         if self.spread_compound_method != "none_simple":
@@ -1291,8 +1276,7 @@ class FloatPeriod(BasePeriod):
         rates: np.ndarray[tuple[int], np.dtype[np.object_]],
         dcf_vals: np.ndarray[tuple[int], np.dtype[np.float64]],
     ) -> DualTypes:
-        """
-        Calculate all in rates with float spread under different compounding methods.
+        """Calculate all in rates with float spread under different compounding methods.
 
         Parameters
         ----------
@@ -1304,6 +1288,7 @@ class FloatPeriod(BasePeriod):
         Returns
         -------
         float, Dual, Dual2
+
         """
         # dcf_vals = dcf_vals.set_axis(rates.index)
         if self.float_spread == 0 or self.spread_compound_method == "none_simple":
@@ -1350,8 +1335,7 @@ class FloatPeriod(BasePeriod):
     def _rfr_get_series_with_populated_fixings(
         self, obs_dates: Series[datetime]
     ) -> Series[DualTypes | None]:  # type: ignore[type-var]
-        """
-        Gets relevant DCF values and populates all the individual RFR fixings either known or
+        """Gets relevant DCF values and populates all the individual RFR fixings either known or
         from a curve, for latter calculations, either to derive a period rate or perform
         fixings table analysis.
 
@@ -1409,8 +1393,7 @@ class FloatPeriod(BasePeriod):
     def _rfr_get_individual_fixings_data(
         self, calendar: CalTypes, convention: str, curve: Curve | NoInput, allow_na: bool = False
     ) -> dict[str, Any]:
-        """
-        Gets relevant DCF values and populates all the individual RFR fixings either known or
+        """Gets relevant DCF values and populates all the individual RFR fixings either known or
         from a curve, for latter calculations, either to derive a period rate or perform
         fixings table analysis.
 
@@ -1472,8 +1455,7 @@ class FloatPeriod(BasePeriod):
         disc_curve: Curve | NoInput = NoInput(0),
         right: datetime | NoInput = NoInput(0),
     ) -> DataFrame:
-        """
-        Return a DataFrame of fixing exposures.
+        """Return a DataFrame of fixing exposures.
 
         Parameters
         ----------
@@ -1602,6 +1584,7 @@ class FloatPeriod(BasePeriod):
                method_param=2
            )
            period.fixings_table({"1m": ibor_1m, "3m": ibor_3m}, disc_curve=ibor_1m)
+
         """
         if isinstance(disc_curve, NoInput):
             if isinstance(curve, dict):
@@ -1697,8 +1680,7 @@ class FloatPeriod(BasePeriod):
     def _fixings_table_fast(
         self, curve: Curve | dict[str, Curve], disc_curve: Curve, right: NoInput | datetime
     ) -> DataFrame:
-        """
-        Return a DataFrame of **approximate** fixing exposures.
+        """Return a DataFrame of **approximate** fixing exposures.
 
         For arguments see :meth:`~rateslib.periods.FloatPeriod.fixings_table`.
         """
@@ -1805,8 +1787,7 @@ class FloatPeriod(BasePeriod):
         right: datetime | NoInput,
         risk: DualTypes | NoInput = NoInput(0),
     ) -> DataFrame:
-        """
-        Calculate a fixings_table under an IBOR based methodology.
+        """Calculate a fixings_table under an IBOR based methodology.
 
         Parameters
         ----------
@@ -1819,6 +1800,7 @@ class FloatPeriod(BasePeriod):
         Returns
         -------
         DataFrame
+
         """
         if isinstance(curve, dict):
             if self.stub:
@@ -1949,8 +1931,7 @@ class FloatPeriod(BasePeriod):
         d: dict[str, Any],
         disc_curve: Curve,
     ) -> tuple[DualTypes, DataFrame]:
-        """
-        Calculate the rate of a period via extraction and combination of every fixing.
+        """Calculate the rate of a period via extraction and combination of every fixing.
 
         This method of calculation is inefficient and used when either:
 
@@ -1979,6 +1960,7 @@ class FloatPeriod(BasePeriod):
 
         The ``fixing_exposure_approx`` is available only for ``spread_compound_method``
         that is either *"none_simple"* or *"isda_compounding"*.
+
         """
         # then perform additional calculations to return fixings table
         dcf_of_r = d["obs_vals"]  # these are the 1-d DCFs associated with each published fixing
@@ -2039,8 +2021,7 @@ class FloatPeriod(BasePeriod):
 
     @property
     def _is_inefficient(self) -> bool:
-        """
-        An inefficient float period is one which is RFR based and for which each individual
+        """An inefficient float period is one which is RFR based and for which each individual
         RFR fixing is required is order to calculate correctly. This occurs in the
         following cases:
 
@@ -2067,8 +2048,7 @@ class FloatPeriod(BasePeriod):
     def _get_method_dcf_endpoints(
         self, calendar: CalTypes
     ) -> tuple[datetime, datetime, datetime, datetime]:
-        """
-        For RFR periods return the relevant DCF markers for different aspects of calculation.
+        """For RFR periods return the relevant DCF markers for different aspects of calculation.
 
         `start_obs` and `end_obs` are the dates between which RFR fixings are observed.
 
@@ -2116,8 +2096,7 @@ class FloatPeriod(BasePeriod):
         Series[float],
         Series[float],
     ]:
-        """
-        Use conventions from the given `curve` and the data attached to self to derive
+        """Use conventions from the given `curve` and the data attached to self to derive
         relevant DCF calculations for the Period.
 
         calendar: calendar derived from the rate index Curve.
@@ -2186,8 +2165,7 @@ class FloatPeriod(BasePeriod):
     def _get_analytic_delta_quadratic_coeffs(
         self, fore_curve: Curve, disc_curve: Curve
     ) -> tuple[DualTypes, DualTypes]:
-        """
-        For use in the Leg._spread calculation get the 'a' and 'b' coefficients
+        """For use in the Leg._spread calculation get the 'a' and 'b' coefficients
         """
         os, oe, _, _ = self._get_method_dcf_endpoints(fore_curve.calendar)
         rate = fore_curve._rate_with_raise(
@@ -2215,8 +2193,7 @@ class FloatPeriod(BasePeriod):
 
 
 class CreditPremiumPeriod(BasePeriod):
-    """
-    Create a credit premium period defined by a credit spread.
+    """Create a credit premium period defined by a credit spread.
 
     Parameters
     ----------
@@ -2268,6 +2245,7 @@ class CreditPremiumPeriod(BasePeriod):
     .. math::
 
        A = - \\frac{\\partial P}{\\partial S} = Ndv(m) \\left ( Q(m_{end}) + I_{pa} (Q(m_{start}) - Q(m_{end}) \\frac{(n+r)}{2n}  \\right )
+
     """  # noqa: E501
 
     def __init__(
@@ -2283,8 +2261,7 @@ class CreditPremiumPeriod(BasePeriod):
 
     @property
     def cashflow(self) -> DualTypes | None:
-        """
-        float, Dual or Dual2 : The calculated value from rate, dcf and notional.
+        """float, Dual or Dual2 : The calculated value from rate, dcf and notional.
         """
         if isinstance(self.fixed_rate, NoInput):
             return None
@@ -2293,8 +2270,7 @@ class CreditPremiumPeriod(BasePeriod):
             return _
 
     def accrued(self, settlement: datetime) -> DualTypes | None:
-        """
-        Calculate the amount of premium accrued until a specific date within the *Period*.
+        """Calculate the amount of premium accrued until a specific date within the *Period*.
 
         Parameters
         ----------
@@ -2304,6 +2280,7 @@ class CreditPremiumPeriod(BasePeriod):
         Returns
         -------
         float
+
         """
         if self.cashflow is None:  # self.fixed_rate is NoInput
             return None
@@ -2320,8 +2297,7 @@ class CreditPremiumPeriod(BasePeriod):
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> DualTypes | dict[str, DualTypes]:
-        """
-        Return the NPV of the *CreditPremiumPeriod*.
+        """Return the NPV of the *CreditPremiumPeriod*.
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
         curve_, disc_curve_ = _validate_credit_curves(curve, disc_curve)
@@ -2365,8 +2341,7 @@ class CreditPremiumPeriod(BasePeriod):
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
-        """
-        Return the analytic delta of the *CreditPremiumPeriod*.
+        """Return the analytic delta of the *CreditPremiumPeriod*.
         See
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
         """
@@ -2408,8 +2383,7 @@ class CreditPremiumPeriod(BasePeriod):
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> dict[str, Any]:
-        """
-        Return the cashflows of the *CreditPremiumPeriod*.
+        """Return the cashflows of the *CreditPremiumPeriod*.
         See
         :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
         """
@@ -2439,8 +2413,7 @@ class CreditPremiumPeriod(BasePeriod):
 
 
 class CreditProtectionPeriod(BasePeriod):
-    """
-    Create a credit protection period defined by a recovery rate.
+    """Create a credit protection period defined by a recovery rate.
 
     Parameters
     ----------
@@ -2480,6 +2453,7 @@ class CreditProtectionPeriod(BasePeriod):
     .. math::
 
        A = 0
+
     """  # noqa: E501
 
     def __init__(
@@ -2497,8 +2471,7 @@ class CreditProtectionPeriod(BasePeriod):
 
     @property
     def cashflow(self) -> DualTypes:
-        """
-        float, Dual or Dual2 : The calculated protection amount determined from notional
+        """float, Dual or Dual2 : The calculated protection amount determined from notional
         and recovery rate.
         """
         return -self.notional * (1 - self.recovery_rate)
@@ -2511,8 +2484,7 @@ class CreditProtectionPeriod(BasePeriod):
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> DualTypes | dict[str, DualTypes]:
-        """
-        Return the NPV of the *CreditProtectionPeriod*.
+        """Return the NPV of the *CreditProtectionPeriod*.
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
         curve_, disc_curve_ = _validate_credit_curves(curve, disc_curve)
@@ -2544,8 +2516,7 @@ class CreditProtectionPeriod(BasePeriod):
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
-        """
-        Return the analytic delta of the *CreditProtectionPeriod*.
+        """Return the analytic delta of the *CreditProtectionPeriod*.
         See
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
         """
@@ -2558,8 +2529,7 @@ class CreditProtectionPeriod(BasePeriod):
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> dict[str, Any]:
-        """
-        Return the cashflows of the *CreditProtectionPeriod*.
+        """Return the cashflows of the *CreditProtectionPeriod*.
         See
         :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
         """
@@ -2590,8 +2560,7 @@ class CreditProtectionPeriod(BasePeriod):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> float:
-        """
-        Calculate the exposure of the NPV to a change in recovery rate.
+        """Calculate the exposure of the NPV to a change in recovery rate.
 
         For parameters see
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
@@ -2599,6 +2568,7 @@ class CreditProtectionPeriod(BasePeriod):
         Returns
         -------
         float
+
         """
         rr = self.recovery_rate
         if isinstance(rr, Dual | Dual2 | Variable):
@@ -2612,8 +2582,7 @@ class CreditProtectionPeriod(BasePeriod):
 
 
 class Cashflow:
-    """
-    Create a single cashflow amount on a payment date (effectively a CustomPeriod).
+    """Create a single cashflow amount on a payment date (effectively a CustomPeriod).
 
     Parameters
     ----------
@@ -2668,6 +2637,7 @@ class Cashflow:
            stub_type="Loan Payment",
        )
        cf.cashflows(curve=Curve({dt(2022, 1, 1): 1.0, dt(2022, 12, 31): 0.98}))
+
     """
 
     def __init__(
@@ -2687,8 +2657,7 @@ class Cashflow:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
     def rate(self) -> DualTypes | None:
-        """
-        Return the associated rate initialised with the *Cashflow*. Not used for calculations.
+        """Return the associated rate initialised with the *Cashflow*. Not used for calculations.
         """
         return None if isinstance(self._rate, NoInput) else self._rate
 
@@ -2700,8 +2669,7 @@ class Cashflow:
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> DualTypes | dict[str, DualTypes]:
-        """
-        Return the NPV of the *Cashflow*.
+        """Return the NPV of the *Cashflow*.
         See
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
@@ -2716,8 +2684,7 @@ class Cashflow:
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> dict[str, Any]:
-        """
-        Return the cashflows of the *Cashflow*.
+        """Return the cashflows of the *Cashflow*.
         See
         :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
         """
@@ -2774,8 +2741,7 @@ class Cashflow:
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
-        """
-        Return the analytic delta of the *Cashflow*.
+        """Return the analytic delta of the *Cashflow*.
         See
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
         """
@@ -2788,8 +2754,7 @@ class Cashflow:
 
 
 class IndexMixin(metaclass=ABCMeta):
-    """
-    Abstract base class to include methods and properties related to indexed *Periods*.
+    """Abstract base class to include methods and properties related to indexed *Periods*.
     """
 
     index_base: DualTypes | NoInput
@@ -2807,8 +2772,7 @@ class IndexMixin(metaclass=ABCMeta):
         pass  # pragma: no cover
 
     def cashflow(self, curve: Curve | NoInput = NoInput(0)) -> DualTypes | None:
-        """
-        float, Dual or Dual2 : The calculated value from rate, dcf and notional,
+        """float, Dual or Dual2 : The calculated value from rate, dcf and notional,
         adjusted for the index.
         """
         if self.real_cashflow is None:
@@ -2828,8 +2792,7 @@ class IndexMixin(metaclass=ABCMeta):
     def index_ratio(
         self, curve: Curve | NoInput = NoInput(0)
     ) -> tuple[DualTypes | None, DualTypes | None, DualTypes | None]:
-        """
-        Calculate the index ratio for the end date of the *IndexPeriod*.
+        """Calculate the index ratio for the end date of the *IndexPeriod*.
 
         .. math::
 
@@ -2843,6 +2806,7 @@ class IndexMixin(metaclass=ABCMeta):
         Returns
         -------
         float, Dual, Dual2
+
         """
         # IndexCashflow has no start
         i_date_base: datetime | NoInput = getattr(self, "start", NoInput(0))
@@ -2891,8 +2855,7 @@ class IndexMixin(metaclass=ABCMeta):
         i_lag: int,
         i_method: str,
     ) -> DualTypes | None:
-        """
-        Project an index rate, or lookup from provided fixings, for a given date.
+        """Project an index rate, or lookup from provided fixings, for a given date.
 
         If ``index_fixings`` are set on the period this will be used instead of
         the ``curve``.
@@ -2904,6 +2867,7 @@ class IndexMixin(metaclass=ABCMeta):
         Returns
         -------
         float, Dual, Dual2, Variable or None
+
         """
         if isinstance(i_date, NoInput):
             if not isinstance(i_fixings, Series | NoInput):
@@ -2956,8 +2920,7 @@ class IndexMixin(metaclass=ABCMeta):
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> DualTypes | dict[str, DualTypes]:
-        """
-        Return the cashflows of the *IndexPeriod*.
+        """Return the cashflows of the *IndexPeriod*.
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
         disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
@@ -2972,8 +2935,7 @@ class IndexMixin(metaclass=ABCMeta):
 
 
 class IndexFixedPeriod(IndexMixin, FixedPeriod):
-    """
-    Create a period defined with a real rate adjusted by an index.
+    """Create a period defined with a real rate adjusted by an index.
 
     When used with an inflation index this defines a real coupon period with a
     cashflow adjusted upwards by the inflation index.
@@ -3045,6 +3007,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
            curve=Curve({dt(2022, 1, 1):1.0, dt(2022, 12, 31): 0.99}, index_base=100.0, index_lag=2),
            disc_curve=Curve({dt(2022, 1, 1):1.0, dt(2022, 12, 31): 0.98})
        )
+
     """  # noqa: E501
 
     def __init__(
@@ -3075,8 +3038,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
-        """
-        Return the analytic delta of the *IndexFixedPeriod*.
+        """Return the analytic delta of the *IndexFixedPeriod*.
         See :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
         """
         real_a_delta = super().analytic_delta(curve, disc_curve, fx, base)
@@ -3090,8 +3052,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
 
     @property
     def real_cashflow(self) -> DualTypes | None:
-        """
-        float, Dual or Dual2 : The calculated real value from rate, dcf and notional.
+        """float, Dual or Dual2 : The calculated real value from rate, dcf and notional.
         """
         if isinstance(self.fixed_rate, NoInput):
             return None
@@ -3109,8 +3070,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> dict[str, Any]:
-        """
-        Return the cashflows of the *IndexFixedPeriod*.
+        """Return the cashflows of the *IndexFixedPeriod*.
         See :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
         """
         disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
@@ -3141,16 +3101,14 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
         }
 
     def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]:
-        """
-        Return the cashflows of the *IndexFixedPeriod*.
+        """Return the cashflows of the *IndexFixedPeriod*.
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
         return super().npv(*args, **kwargs)
 
 
 class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
-    """
-    Create a cashflow defined with a real rate adjusted by an index.
+    """Create a cashflow defined with a real rate adjusted by an index.
 
     When used with an inflation index this defines a real redemption with a
     cashflow adjusted upwards by the inflation index.
@@ -3223,6 +3181,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
            curve=Curve({dt(2022, 1, 1): 1.0, dt(2022, 12, 31): 0.99}, index_base=100.0),
            disc_curve=Curve({dt(2022, 1, 1): 1.0, dt(2022, 12, 31): 0.98}),
        )
+
     """
 
     def __init__(
@@ -3257,8 +3216,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> dict[str, Any]:
-        """
-        Return the cashflows of the *IndexCashflow*.
+        """Return the cashflows of the *IndexCashflow*.
         See :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
         """
         index_ratio_, index_val_, index_base_ = self.index_ratio(curve)
@@ -3273,15 +3231,13 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         }
 
     def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]:
-        """
-        Return the NPV of the *IndexCashflow*.
+        """Return the NPV of the *IndexCashflow*.
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
         return super().npv(*args, **kwargs)
 
     def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
-        """
-        Return the analytic delta of the *IndexCashflow*.
+        """Return the analytic delta of the *IndexCashflow*.
         See
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
         """
@@ -3289,13 +3245,12 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
 
 
 class FXOptionPeriod(metaclass=ABCMeta):
-    """
-    Abstract base class for constructing volatility components of FXOptions.
+    """Abstract base class for constructing volatility components of FXOptions.
 
     Pricing model uses Black 76 log-normal volatility calculations.
 
     Parameters
-    -----------
+    ----------
     pair: str
         The currency pair for the FX rate which the option is settled. 3-digit code, e.g. "eurusd".
     expiry: datetime
@@ -3317,6 +3272,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         to either a spot rate or a forward rate, possibly also premium adjusted.
     metric: str in {"pips", "percent"}, optional
         The pricing metric for the rate of the options.
+
     """
 
     # https://www.researchgate.net/publication/275905055_A_Guide_to_FX_Options_Quoting_Conventions/
@@ -3361,8 +3317,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         local: bool = False,
         vol: DualTypes | FXVols | NoInput = NoInput(0),
     ) -> dict[str, Any]:
-        """
-        Return the properties of the period used in calculating cashflows.
+        """Return the properties of the period used in calculating cashflows.
 
         Parameters
         ----------
@@ -3382,6 +3337,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         Returns
         -------
         dict
+
         """
         fx_, base = _get_fx_and_base(self.currency, fx, base)
         df, collateral = _dual_float(disc_curve_ccy2[self.payment]), disc_curve_ccy2.collateral
@@ -3434,8 +3390,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         local: bool = False,
         vol: DualTypes | FXVols | NoInput = NoInput(0),
     ) -> DualTypes | dict[str, DualTypes]:
-        """
-        Return the NPV of the *FXOption*.
+        """Return the NPV of the *FXOption*.
 
         Parameters
         ----------
@@ -3455,6 +3410,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         Returns
         -------
         float, Dual, Dual2 or dict of such.
+
         """
         if self.payment < disc_curve_ccy2.node_dates[0]:
             # payment date is in the past avoid issues with fixings or rates
@@ -3501,8 +3457,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         vol: DualTypes | FXVols | NoInput = NoInput(0),
         metric: str | NoInput = NoInput(0),
     ) -> DualTypes:
-        """
-        Return the pricing metric of the *FXOption*.
+        """Return the pricing metric of the *FXOption*.
 
         Parameters
         ----------
@@ -3525,6 +3480,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         Returns
         -------
         float, Dual, Dual2 or dict of such.
+
         """
         npv: DualTypes = self.npv(  # type: ignore[assignment]
             disc_curve,
@@ -3564,8 +3520,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         premium: DualTypes,
         metric: str | NoInput = NoInput(0),
     ) -> Number:
-        """
-        Calculate the implied volatility of the FX option.
+        """Calculate the implied volatility of the FX option.
 
         Parameters
         ----------
@@ -3584,6 +3539,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         Returns
         -------
         float, Dual or Dual2
+
         """
         if isinstance(self.strike, NoInput):
             raise ValueError("FXOption must set a `strike` for valuation.")
@@ -3624,8 +3580,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         vol: DualTypes | FXVols | NoInput = NoInput(0),
         premium: DualTypes | NoInput = NoInput(0),  # expressed in the payment currency
     ) -> dict[str, Any]:
-        r"""
-        Return the different greeks for the *FX Option*.
+        r"""Return the different greeks for the *FX Option*.
 
         Parameters
         ----------
@@ -3703,6 +3658,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         Raises
         ------
         ValueError: if the ``strike`` is not set on the *Option*.
+
         """  # noqa: E501
         if isinstance(self.strike, NoInput):
             raise ValueError("`strike` must be set to value FXOption.")
@@ -4015,13 +3971,12 @@ class FXOptionPeriod(metaclass=ABCMeta):
         return _1, _2
 
     def _moneyness_from_atm_delta_closed_form(self, vol: DualTypes, t_e: float) -> DualTypes:
-        """
-        Return `u` given premium unadjusted `delta`, of either 'spot' or 'forward' type.
+        """Return `u` given premium unadjusted `delta`, of either 'spot' or 'forward' type.
 
         This function preserves AD.
 
         Parameters
-        -----------
+        ----------
         vol: float, Dual, Dual2
             The volatility (in %, e.g. 10.0) to use in calculations.
         t_e: float,
@@ -4030,6 +3985,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         Returns
         -------
         float, Dual or Dual2
+
         """
         return dual_exp((vol / 100.0) ** 2 * t_e / 2.0)
 
@@ -4040,13 +3996,12 @@ class FXOptionPeriod(metaclass=ABCMeta):
         t_e: DualTypes,
         z_w_0: DualTypes,
     ) -> DualTypes:
-        """
-        Return `u` given premium unadjusted `delta`, of either 'spot' or 'forward' type.
+        """Return `u` given premium unadjusted `delta`, of either 'spot' or 'forward' type.
 
         This function preserves AD.
 
         Parameters
-        -----------
+        ----------
         delta: float
             The input unadjusted delta for which to determine the moneyness for.
         vol: float, Dual, Dual2
@@ -4061,6 +4016,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         Returns
         -------
         float, Dual or Dual2
+
         """
         vol_sqrt_t = vol * t_e**0.5 / 100.0
         _: DualTypes = dual_inv_norm_cdf(self.phi * delta / z_w_0)
@@ -4385,8 +4341,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         t_e: DualTypes,
         z_w: DualTypes,
     ) -> tuple[DualTypes, DualTypes, DualTypes]:
-        """
-        Solve the ATM delta problem where delta is not explicit.
+        """Solve the ATM delta problem where delta is not explicit.
         """
 
         def root3d(
@@ -4531,8 +4486,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
 
 class FXCallPeriod(FXOptionPeriod):
-    """
-    Create an FXCallPeriod.
+    """Create an FXCallPeriod.
 
     For parameters see :class:`~rateslib.periods.FXOptionPeriod`.
     """
@@ -4545,8 +4499,7 @@ class FXCallPeriod(FXOptionPeriod):
 
 
 class FXPutPeriod(FXOptionPeriod):
-    """
-    Create an FXPutPeriod.
+    """Create an FXPutPeriod.
 
     For parameters see :class:`~rateslib.periods.FXOptionPeriod`.
     """
@@ -4601,8 +4554,7 @@ def _get_rfr_curve_from_dict(d: dict[str, Curve]) -> Curve:
 def _trim_df_by_index(
     df: DataFrame, left: datetime | NoInput, right: datetime | NoInput
 ) -> DataFrame:
-    """
-    Used by fixings_tables to constrict the view to a left and right bound
+    """Used by fixings_tables to constrict the view to a left and right bound
     """
     if len(df.index) == 0 or (isinstance(left, NoInput) and isinstance(right, NoInput)):
         return df

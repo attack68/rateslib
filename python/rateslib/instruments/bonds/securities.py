@@ -49,8 +49,7 @@ if TYPE_CHECKING:
 
 class BondMixin:
     def _period_index(self, settlement: datetime):
-        """
-        Get the coupon period index for that which the settlement date fall within.
+        """Get the coupon period index for that which the settlement date fall within.
         Uses unadjusted dates.
         """
         _ = index_left(
@@ -90,8 +89,7 @@ class BondMixin:
             )
 
     def ex_div(self, settlement: datetime):
-        """
-        Return a boolean whether the security is ex-div at the given settlement.
+        """Return a boolean whether the security is ex-div at the given settlement.
 
         Parameters
         ----------
@@ -118,6 +116,7 @@ class BondMixin:
         With an ``ex_div`` of 0, a ``settlement`` that occurs on the coupon payment date will
         **not** be classified as ex-dividend and will receive that coupon (in the default
         calculation mode).
+
         """
         prev_a_idx = index_left(
             self.leg1.schedule.uschedule,
@@ -135,7 +134,7 @@ class BondMixin:
             return settlement > ex_div_date
 
     def _accrued(self, settlement: datetime, func: callable):
-        """func is the specific accrued function associated with the bond ``calc_mode``"""
+        """Func is the specific accrued function associated with the bond ``calc_mode``"""
         acc_idx = self._period_index(settlement)
         frac = func(self, settlement, acc_idx)
         if self.ex_div(settlement):
@@ -150,8 +149,7 @@ class BondMixin:
         curve: Curve | LineCurve | NoInput,
         dirty: bool,
     ) -> Number:
-        """
-        Calculate the yield-to-maturity of the security given its price.
+        """Calculate the yield-to-maturity of the security given its price.
 
         Parameters
         ----------
@@ -225,8 +223,7 @@ class BondMixin:
         dirty: bool,
         curve: Curve | LineCurve | NoInput,
     ):
-        """
-        Loop through all future cashflows and discount them with ``ytm`` to achieve
+        """Loop through all future cashflows and discount them with ``ytm`` to achieve
         correct price.
         """
         calc_mode_ = _drb(self.calc_mode, calc_mode)
@@ -257,8 +254,7 @@ class BondMixin:
         accrual: callable,
         curve: Curve | LineCurve | NoInput,
     ):
-        """
-        Refer to supplementary material.
+        """Refer to supplementary material.
 
         Note: `curve` is only needed for FloatRate Periods on `_period_cashflow`
         """
@@ -310,8 +306,7 @@ class BondMixin:
         dirty: bool = False,
         method: str = "proceeds",
     ):
-        """
-        Return a forward price implied by a given repo rate.
+        """Return a forward price implied by a given repo rate.
 
         Parameters
         ----------
@@ -339,6 +334,7 @@ class BondMixin:
         -----
         Any intermediate (non ex-dividend) cashflows between ``settlement`` and
         ``forward_settlement`` will also be assumed to accrue at ``repo_rate``.
+
         """
         convention = defaults.convention if convention is NoInput.blank else convention
         dcf_ = dcf(settlement, forward_settlement, convention)
@@ -398,8 +394,7 @@ class BondMixin:
         convention: str | NoInput = NoInput(0),
         dirty: bool = False,
     ):
-        """
-        Return an implied repo rate from a forward price.
+        """Return an implied repo rate from a forward price.
 
         Parameters
         ----------
@@ -425,6 +420,7 @@ class BondMixin:
         -----
         Any intermediate (non ex-dividend) cashflows between ``settlement`` and
         ``forward_settlement`` will also be assumed to accrue at ``repo_rate``.
+
         """
         convention = defaults.convention if convention is NoInput.blank else convention
         # forward price from repo is linear in repo_rate so reverse calculate with AD
@@ -470,8 +466,7 @@ class BondMixin:
         settlement: datetime,
         projection: datetime,
     ):
-        """
-        Return the NPV (local) of the security by summing cashflow valuations.
+        """Return the NPV (local) of the security by summing cashflow valuations.
 
         Parameters
         ----------
@@ -506,6 +501,7 @@ class BondMixin:
 
         The date for which the PV is returned is by ``projection``, and not the
         initial node date of the ``disc_curve``.
+
         """
         self._set_base_index_if_none(curve)
         npv = self.leg1.npv(curve, disc_curve, NoInput(0), NoInput(0))
@@ -544,8 +540,7 @@ class BondMixin:
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ):
-        """
-        Return the NPV of the security by summing cashflow valuations.
+        """Return the NPV of the security by summing cashflow valuations.
 
         Parameters
         ----------
@@ -585,6 +580,7 @@ class BondMixin:
         If **two curves** are given the forecasting curve is used as the forecasting
         curve on both legs and the discounting curve is used as the discounting
         curve for both legs.
+
         """
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -609,8 +605,7 @@ class BondMixin:
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
-        """
-        Return the analytic delta of the security via summing all periods.
+        """Return the analytic delta of the security via summing all periods.
 
         For arguments see :meth:`~rateslib.periods.BasePeriod.analytic_delta`.
         """
@@ -644,8 +639,7 @@ class BondMixin:
         base: str | NoInput = NoInput(0),
         settlement: datetime | NoInput = NoInput(0),
     ):
-        """
-        Return the properties of the security used in calculating cashflows.
+        """Return the properties of the security used in calculating cashflows.
 
         Parameters
         ----------
@@ -673,6 +667,7 @@ class BondMixin:
         Returns
         -------
         DataFrame
+
         """
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -713,8 +708,7 @@ class BondMixin:
         price: DualTypes = NoInput(0),
         dirty: bool = False,
     ):
-        """
-        The option adjusted spread added to the discounting *Curve* to value the security
+        """The option adjusted spread added to the discounting *Curve* to value the security
         at ``price``.
 
         Parameters
@@ -744,6 +738,7 @@ class BondMixin:
         Returns
         -------
         float, Dual, Dual2
+
         """
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -801,8 +796,7 @@ class BondMixin:
 
 class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     # TODO (mid) ensure calculations work for amortizing bonds.
-    """
-    Create a fixed rate bond security.
+    """Create a fixed rate bond security.
 
     Parameters
     ----------
@@ -877,7 +871,6 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
     Notes
     -----
-
     **Calculation Modes**
 
     The ``calc_mode`` parameter allows the calculation for **yield-to-maturity** and **accrued interest**
@@ -1226,8 +1219,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     def accrued(self, settlement: datetime):
-        """
-        Calculate the accrued amount per nominal par value of 100.
+        """Calculate the accrued amount per nominal par value of 100.
 
         Parameters
         ----------
@@ -1254,8 +1246,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         metric: str = "clean_price",
         forward_settlement: datetime | NoInput = NoInput(0),
     ):
-        """
-        Return various pricing metrics of the security calculated from
+        """Return various pricing metrics of the security calculated from
         :class:`~rateslib.curves.Curve` s.
 
         Parameters
@@ -1283,6 +1274,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         Returns
         -------
         float, Dual, Dual2
+
         """
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -1342,8 +1334,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     #     return (self.notional - self.npv(*args, **kwargs)) / self.analytic_delta(*args, **kwargs)
 
     def ytm(self, price: Number, settlement: datetime, dirty: bool = False) -> Number:
-        """
-        Calculate the yield-to-maturity of the security given its price.
+        """Calculate the yield-to-maturity of the security given its price.
 
         Parameters
         ----------
@@ -1391,8 +1382,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         return self._ytm(price=price, settlement=settlement, dirty=dirty, curve=NoInput(0))
 
     def duration(self, ytm: float, settlement: datetime, metric: str = "risk"):
-        """
-        Return the (negated) derivative of ``price`` w.r.t. ``ytm``.
+        """Return the (negated) derivative of ``price`` w.r.t. ``ytm``.
 
         Parameters
         ----------
@@ -1454,6 +1444,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
            gilt.price(4.445, dt(1999, 5, 27))
            gilt.price(4.455, dt(1999, 5, 27))
+
         """
         if metric == "risk":
             _ = -gradient(self.price(Dual(float(ytm), ["y"], []), settlement), ["y"])[0]
@@ -1468,8 +1459,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         return _
 
     def convexity(self, ytm: float, settlement: datetime):
-        """
-        Return the second derivative of ``price`` w.r.t. ``ytm``.
+        """Return the second derivative of ``price`` w.r.t. ``ytm``.
 
         Parameters
         ----------
@@ -1505,13 +1495,13 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
            gilt.duration(4.445, dt(1999, 5, 27))
            gilt.duration(4.455, dt(1999, 5, 27))
+
         """
         _ = self.price(Dual2(float(ytm), ["y"], [], []), settlement)
         return gradient(_, ["y"], 2)[0][0]
 
     def price(self, ytm: float, settlement: datetime, dirty: bool = False):
-        """
-        Calculate the price of the security per nominal value of 100, given
+        """Calculate the price of the security per nominal value of 100, given
         yield-to-maturity.
 
         Parameters
@@ -1582,16 +1572,14 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         )
 
     def delta(self, *args, **kwargs):
-        """
-        Calculate the delta of the *Instrument*.
+        """Calculate the delta of the *Instrument*.
 
         For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
         """
         return super().delta(*args, **kwargs)
 
     def gamma(self, *args, **kwargs):
-        """
-        Calculate the gamma of the *Instrument*.
+        """Calculate the gamma of the *Instrument*.
 
         For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
         """
@@ -1600,8 +1588,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
 class IndexFixedRateBond(FixedRateBond):
     # TODO (mid) ensure calculations work for amortizing bonds.
-    """
-    Create an indexed fixed rate bond security.
+    """Create an indexed fixed rate bond security.
 
     Parameters
     ----------
@@ -1628,6 +1615,7 @@ class IndexFixedRateBond(FixedRateBond):
     Examples
     --------
     See :class:`~rateslib.instruments.FixedRateBond` for similar.
+
     """
 
     _fixed_rate_mixin = True
@@ -1767,8 +1755,7 @@ class IndexFixedRateBond(FixedRateBond):
         metric: str = "clean_price",
         forward_settlement: datetime | NoInput = NoInput(0),
     ):
-        """
-        Return various pricing metrics of the security calculated from
+        """Return various pricing metrics of the security calculated from
         :class:`~rateslib.curves.Curve` s.
 
         Parameters
@@ -1800,8 +1787,8 @@ class IndexFixedRateBond(FixedRateBond):
         Returns
         -------
         float, Dual, Dual2
-        """
 
+        """
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,
@@ -1851,8 +1838,7 @@ class IndexFixedRateBond(FixedRateBond):
 
 
 class Bill(FixedRateBond):
-    """
-    Create a discount security.
+    """Create a discount security.
 
     Parameters
     ----------
@@ -2055,8 +2041,7 @@ class Bill(FixedRateBond):
         base: str | NoInput = NoInput(0),
         metric="price",
     ):
-        """
-        Return various pricing metrics of the security calculated from
+        """Return various pricing metrics of the security calculated from
         :class:`~rateslib.curves.Curve` s.
 
         Parameters
@@ -2084,6 +2069,7 @@ class Bill(FixedRateBond):
         Returns
         -------
         float, Dual, Dual2
+
         """
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -2115,8 +2101,7 @@ class Bill(FixedRateBond):
         raise ValueError("`metric` must be in {'price', 'discount_rate', 'ytm', 'simple_rate'}")
 
     def simple_rate(self, price: DualTypes, settlement: datetime) -> DualTypes:
-        """
-        Return the simple rate of the security from its ``price``.
+        """Return the simple rate of the security from its ``price``.
 
         Parameters
         ----------
@@ -2128,14 +2113,14 @@ class Bill(FixedRateBond):
         Returns
         -------
         float, Dual, or Dual2
+
         """
         acc_frac = self.calc_mode._settle_acc_frac_func(self, settlement, 0)
         dcf = (1 - acc_frac) * self.dcf
         return ((100 / price - 1) / dcf) * 100
 
     def discount_rate(self, price: DualTypes, settlement: datetime) -> DualTypes:
-        """
-        Return the discount rate of the security from its ``price``.
+        """Return the discount rate of the security from its ``price``.
 
         Parameters
         ----------
@@ -2147,6 +2132,7 @@ class Bill(FixedRateBond):
         Returns
         -------
         float, Dual, or Dual2
+
         """
         acc_frac = self.calc_mode._settle_acc_frac_func(self, settlement, 0)
         dcf = (1 - acc_frac) * self.dcf
@@ -2160,8 +2146,7 @@ class Bill(FixedRateBond):
         dirty: bool = False,
         calc_mode: str | NoInput = NoInput(0),
     ) -> DualTypes:
-        """
-        Return the price of the bill given the ``discount_rate``.
+        """Return the price of the bill given the ``discount_rate``.
 
         Parameters
         ----------
@@ -2180,6 +2165,7 @@ class Bill(FixedRateBond):
         Returns
         -------
         float, Dual, Dual2
+
         """
         if not isinstance(calc_mode, str):
             calc_mode = self.calc_mode
@@ -2202,8 +2188,7 @@ class Bill(FixedRateBond):
         settlement: datetime,
         calc_mode: str | BillCalcMode | NoInput = NoInput(0),
     ):
-        """
-        Calculate the yield-to-maturity on an equivalent bond with a coupon of 0%.
+        """Calculate the yield-to-maturity on an equivalent bond with a coupon of 0%.
 
         Parameters
         ----------
@@ -2226,8 +2211,8 @@ class Bill(FixedRateBond):
 
         This method calculates by constructing a :class:`~rateslib.instruments.FixedRateBond`
         with a regular 0% coupon measured from the termination date of the bill.
-        """
 
+        """
         if calc_mode is NoInput.blank:
             calc_mode = self.calc_mode
             # kwargs["frequency"] is populated as the ytm_clone frequency at __init__
@@ -2260,11 +2245,10 @@ class Bill(FixedRateBond):
         return equiv_bond.ytm(price, settlement)
 
     def duration(self, *args, **kwargs):
-        """
-        Return the duration of the *Bill*. See :class:`~rateslib.instruments.FixedRateBond.duration` for arguments.
+        """Return the duration of the *Bill*. See :class:`~rateslib.instruments.FixedRateBond.duration` for arguments.
 
         Notes
-        ------
+        -----
 
         .. warning::
 
@@ -2291,8 +2275,7 @@ class Bill(FixedRateBond):
 
 
 class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
-    """
-    Create a floating rate note (FRN) security.
+    """Create a floating rate note (FRN) security.
 
     Parameters
     ----------
@@ -2385,6 +2368,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
     ----------
     ex_div_days : int
     leg1 : FloatLeg
+
     """
 
     _float_spread_mixin = True
@@ -2504,8 +2488,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
             raise NotImplementedError("`amortization` for FloatRateNote must be zero.")
 
     def _accrual_rate(self, pseudo_period, curve, method_param):
-        """
-        Take a period and try to forecast the rate which determines the accrual,
+        """Take a period and try to forecast the rate which determines the accrual,
         either from known fixings, a curve or forward filling historical fixings.
 
         This method is required to handle the case where a curve is not provided and
@@ -2579,8 +2562,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         settlement: datetime,
         curve: Curve | NoInput = NoInput(0),
     ):
-        """
-        Calculate the accrued amount per nominal par value of 100.
+        """Calculate the accrued amount per nominal par value of 100.
 
         Parameters
         ----------
@@ -2662,6 +2644,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
            )
            frn.accrued(dt(2000, 3, 27))
            frn.accrued(dt(2000, 6, 4))
+
         """  # noqa: E501
         if self.leg1.fixing_method == "ibor":
             acc_idx = self._period_index(settlement)
@@ -2731,8 +2714,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         metric="clean_price",
         forward_settlement: datetime | NoInput = NoInput(0),
     ):
-        """
-        Return various pricing metrics of the security calculated from
+        """Return various pricing metrics of the security calculated from
         :class:`~rateslib.curves.Curve` s.
 
         Parameters
@@ -2805,16 +2787,14 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         raise ValueError("`metric` must be in {'dirty_price', 'clean_price', 'spread', 'ytm'}.")
 
     def delta(self, *args, **kwargs):
-        """
-        Calculate the delta of the *Instrument*.
+        """Calculate the delta of the *Instrument*.
 
         For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
         """
         return super().delta(*args, **kwargs)
 
     def gamma(self, *args, **kwargs):
-        """
-        Calculate the gamma of the *Instrument*.
+        """Calculate the gamma of the *Instrument*.
 
         For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
         """
@@ -2829,8 +2809,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
     ) -> DataFrame:
-        """
-        Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.
+        """Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.
 
         Parameters
         ----------
@@ -2859,6 +2838,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         Returns
         -------
         DataFrame
+
         """
         curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -2880,8 +2860,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         curve: Curve | LineCurve | NoInput = NoInput(0),
         dirty: bool = False,
     ) -> Number:
-        """
-        Calculate the yield-to-maturity of the security given its price.
+        """Calculate the yield-to-maturity of the security given its price.
 
         Parameters
         ----------
@@ -2910,8 +2889,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
 
 
 def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9):
-    """
-    Convert a price from yield function `f` into a quadratic approximation and
+    """Convert a price from yield function `f` into a quadratic approximation and
     determine the root, yield, which matches the target price.
     """
     # allow function values to be passed recursively to avoid re-calculation

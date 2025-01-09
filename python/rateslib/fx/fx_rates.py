@@ -34,8 +34,7 @@ if TYPE_CHECKING:
 
 
 class FXRates(_WithState):
-    """
-    Object to store and calculate FX rates for a consistent settlement date.
+    """Object to store and calculate FX rates for a consistent settlement date.
 
     Parameters
     ----------
@@ -209,8 +208,7 @@ class FXRates(_WithState):
         return self.obj.ad
 
     def rate(self, pair: str) -> Number:
-        """
-        Return a specified FX rate for a given currency pair.
+        """Return a specified FX rate for a given currency pair.
 
         Parameters
         ----------
@@ -228,13 +226,13 @@ class FXRates(_WithState):
 
            fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5})
            fxr.rate("eurgbp")
+
         """
         domi, fori = self.currencies[pair[:3].lower()], self.currencies[pair[3:].lower()]
         return self._fx_array_el(domi, fori)
 
     def restate(self, pairs: list[str], keep_ad: bool = False) -> FXRates:
-        """
-        Create a new :class:`FXRates` class using other (or fewer) currency pairs as majors.
+        """Create a new :class:`FXRates` class using other (or fewer) currency pairs as majors.
 
         Parameters
         ----------
@@ -246,7 +244,7 @@ class FXRates(_WithState):
             internally.
 
         Returns
-        --------
+        -------
         FXRates
 
         Notes
@@ -276,6 +274,7 @@ class FXRates(_WithState):
            fxr = FXRates({"eurgbp": 0.9, "gbpjpy": 125, "usdjpy": 100, "audusd": 0.85})
            fxr2 = fxr.restate({"eurusd", "gbpusd"})
            fxr2.rates_table()
+
         """
         if set(pairs) == set(self.pairs) and keep_ad:
             return self.__copy__()  # no restate needed but return new instance
@@ -294,8 +293,7 @@ class FXRates(_WithState):
         foreign: str | NoInput = NoInput(0),
         on_error: str = "ignore",
     ) -> DualTypes | None:
-        """
-        Convert an amount of a domestic currency into a foreign currency.
+        """Convert an amount of a domestic currency into a foreign currency.
 
         Parameters
         ----------
@@ -347,8 +345,7 @@ class FXRates(_WithState):
         array: Arr1dF64 | list[float],
         base: str | NoInput = NoInput(0),
     ) -> Number:
-        """
-        Convert an array of currency cash positions into a single base currency.
+        """Convert an array of currency cash positions into a single base currency.
 
         Parameters
         ----------
@@ -371,6 +368,7 @@ class FXRates(_WithState):
            fxr = FXRates({"usdnok": 8.0})
            fxr.currencies
            fxr.convert_positions([0, 1000000], "usd")
+
         """
         base = self.base if isinstance(base, NoInput) else base.lower()
         array_ = np.asarray(array)
@@ -382,8 +380,7 @@ class FXRates(_WithState):
         value: DualTypes,
         base: str | NoInput = NoInput(0),
     ) -> Series[float]:
-        """
-        Convert a base value with FX rate sensitivities into an array of cash positions.
+        """Convert a base value with FX rate sensitivities into an array of cash positions.
 
         Parameters
         ----------
@@ -435,12 +432,12 @@ class FXRates(_WithState):
         return _  # calculation is more efficient from a domestic pov than foreign
 
     def rates_table(self) -> DataFrame:
-        """
-        Return a DataFrame of all FX rates in the object.
+        """Return a DataFrame of all FX rates in the object.
 
         Returns
         -------
         DataFrame
+
         """
         return DataFrame(
             np.vectorize(float)(self.fx_array),
@@ -451,16 +448,14 @@ class FXRates(_WithState):
     # Cache management
 
     def __clear_cached_properties__(self) -> None:
-        """
-        Clear the cache ID so the fx_array can be fetched and cached from Rust object.
+        """Clear the cache ID so the fx_array can be fetched and cached from Rust object.
         """
         self.__dict__.pop("fx_array", None)
 
     # Mutation
 
     def update(self, fx_rates: dict[str, float] | NoInput = NoInput(0)) -> None:
-        """
-        Update all or some of the FX rates of the instance with new market data.
+        """Update all or some of the FX rates of the instance with new market data.
 
         Parameters
         ----------
@@ -514,6 +509,7 @@ class FXRates(_WithState):
            fxr.rate("usdnok")
            fxr.update({"usdeur": 1.0})
            fxr.rate("usdnok")
+
         """
         if isinstance(fx_rates, NoInput) or len(fx_rates) == 0:
             return None
@@ -523,10 +519,8 @@ class FXRates(_WithState):
         self._set_new_state()
 
     def _set_ad_order(self, order: int) -> None:
+        """Change the node values to float, Dual or Dual2 based on input parameter.
         """
-        Change the node values to float, Dual or Dual2 based on input parameter.
-        """
-
         self.obj.set_ad_order(_get_adorder(order))
         self.__clear_cached_properties__()
 

@@ -126,8 +126,7 @@ def _get_curves_maybe_from_solver(
     solver: Solver | NoInput,
     curves: Curves,
 ) -> CurvesTuple:
-    """
-    Attempt to resolve curves as a variety of input types to a 4-tuple consisting of:
+    """Attempt to resolve curves as a variety of input types to a 4-tuple consisting of:
     (leg1 forecasting, leg1 discounting, leg2 forecasting, leg2 discounting)
     """
     if isinstance(curves, NoInput) and isinstance(curves_attr, NoInput):
@@ -164,8 +163,7 @@ def _get_curves_maybe_from_solver(
 
 
 def _validate_curve_not_str(curve: CurveInput) -> CurveOption:
-    """
-    Check a curve as a CurveInput type and convert to a more specific CurveOption
+    """Check a curve as a CurveInput type and convert to a more specific CurveOption
     """
     if isinstance(curve, str):
         raise ValueError("`curves` must contain Curve, not str, if `solver` not given.")
@@ -197,8 +195,7 @@ def _get_curves_fx_and_base_maybe_from_solver(
     base: str | NoInput,
     local_ccy: str | NoInput,
 ) -> tuple[CurvesTuple, FX, str | NoInput]:
-    """
-    Parses the ``solver``, ``curves``, ``fx`` and ``base`` arguments in combination.
+    """Parses the ``solver``, ``curves``, ``fx`` and ``base`` arguments in combination.
 
     Parameters
     ----------
@@ -225,6 +222,7 @@ def _get_curves_fx_and_base_maybe_from_solver(
 
     If three curves are given the single discounting curve is used as the
     discounting curve for both legs.
+
     """
     # First process `base`.
     base_ = _get_base_maybe_from_fx(fx, base, local_ccy)
@@ -236,8 +234,7 @@ def _get_curves_fx_and_base_maybe_from_solver(
 
 
 def _get_vol_maybe_from_solver(vol_attr: Vol, vol: Vol, solver: Solver | NoInput) -> VolOption:
-    """
-    Try to retrieve a general vol input from a solver or the default vol object associated with
+    """Try to retrieve a general vol input from a solver or the default vol object associated with
     instrument.
 
     Parameters
@@ -252,6 +249,7 @@ def _get_vol_maybe_from_solver(vol_attr: Vol, vol: Vol, solver: Solver | NoInput
     Returns
     -------
     DualTypes, FXDeltaVolSmile or NoInput.blank
+
     """
     if vol is None:  # capture blank user input and reset
         vol = NoInput(0)
@@ -302,8 +300,7 @@ def _get_vol_maybe_from_solver(vol_attr: Vol, vol: Vol, solver: Solver | NoInput
 
 
 def _get(kwargs: dict[str, Any], leg: int = 1, filter: tuple[str, ...] = ()) -> dict[str, Any]:  # noqa: A002
-    """
-    A parser to return kwarg dicts for relevant legs.
+    """A parser to return kwarg dicts for relevant legs.
     Internal structuring only.
     Will return kwargs relevant to leg1 OR leg2.
     Does not return keys that are specified in the filter.
@@ -316,8 +313,7 @@ def _get(kwargs: dict[str, Any], leg: int = 1, filter: tuple[str, ...] = ()) -> 
 
 
 def _push(spec: str | NoInput, kwargs: dict[str, Any]) -> dict[str, Any]:
-    """
-    Push user specified kwargs to a default specification.
+    """Push user specified kwargs to a default specification.
     Values from the `spec` dict will not overwrite specific user values already in `kwargs`.
     """
     if isinstance(spec, NoInput):
@@ -333,8 +329,7 @@ def _push(spec: str | NoInput, kwargs: dict[str, Any]) -> dict[str, Any]:
 
 
 def _update_not_noinput(base_kwargs: dict[str, Any], new_kwargs: dict[str, Any]) -> dict[str, Any]:
-    """
-    Update the `base_kwargs` with `new_kwargs` (user values) unless those new values are NoInput.
+    """Update the `base_kwargs` with `new_kwargs` (user values) unless those new values are NoInput.
     """
     updaters = {
         k: v for k, v in new_kwargs.items() if k not in base_kwargs or not isinstance(v, NoInput)
@@ -345,8 +340,7 @@ def _update_not_noinput(base_kwargs: dict[str, Any], new_kwargs: dict[str, Any])
 def _update_with_defaults(
     base_kwargs: dict[str, Any], default_kwargs: dict[str, Any]
 ) -> dict[str, Any]:
-    """
-    Update the `base_kwargs` with `default_kwargs` if the values are NoInput.blank.
+    """Update the `base_kwargs` with `default_kwargs` if the values are NoInput.blank.
     """
     updaters = {
         k: v
@@ -398,8 +392,7 @@ def _upper(val: str | NoInput) -> str | NoInput:
 
 
 def _composit_fixings_table(df_result: DataFrame, df: DataFrame) -> DataFrame:
-    """
-    Add a DataFrame to an existing fixings table by extending or adding to relevant columns.
+    """Add a DataFrame to an existing fixings table by extending or adding to relevant columns.
 
     Parameters
     ----------
@@ -409,6 +402,7 @@ def _composit_fixings_table(df_result: DataFrame, df: DataFrame) -> DataFrame:
     Returns
     -------
     DataFrame
+
     """
     # reindex the result DataFrame
     if df_result.empty:

@@ -1,22 +1,21 @@
 # This is a dependent of instruments.py
 
-"""
-.. ipython:: python
-   :suppress:
+""".. ipython:: python
+:suppress:
 
-   from rateslib.legs import *
-   from rateslib.legs import CreditPremiumLeg
-   from rateslib.curves import Curve
-   from datetime import datetime as dt
-   curve = Curve(
-       nodes={
-           dt(2022,1,1): 1.0,
-           dt(2023,1,1): 0.99,
-           dt(2024,1,1): 0.965,
-           dt(2025,1,1): 0.93,
-       },
-       interpolation="log_linear",
-   )
+from rateslib.legs import *
+from rateslib.legs import CreditPremiumLeg
+from rateslib.curves import Curve
+from datetime import datetime as dt
+curve = Curve(
+nodes={
+dt(2022,1,1): 1.0,
+dt(2023,1,1): 0.99,
+dt(2024,1,1): 0.965,
+dt(2025,1,1): 0.93,
+},
+interpolation="log_linear",
+)
 """
 
 from __future__ import annotations
@@ -63,8 +62,7 @@ if TYPE_CHECKING:
 
 
 class BaseLeg(metaclass=ABCMeta):
-    """
-    Abstract base class with common parameters for all ``Leg`` subclasses.
+    """Abstract base class with common parameters for all ``Leg`` subclasses.
 
     Parameters
     ----------
@@ -154,6 +152,7 @@ class BaseLeg(metaclass=ABCMeta):
     ZeroFloatLeg : Create a zero coupon leg composed of a :class:`~rateslib.periods.FloatPeriod` s.
     ZeroIndexLeg : Create a zero coupon leg composed of :class:`~rateslib.periods.IndexFixedPeriod`.
     CustomLeg : Create a leg composed of user specified periods.
+
     """
 
     _is_mtm: bool = False
@@ -314,8 +313,7 @@ class BaseLeg(metaclass=ABCMeta):
     #    pass
 
     def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
-        """
-        Return the analytic delta of the *Leg* via summing all periods.
+        """Return the analytic delta of the *Leg* via summing all periods.
 
         For arguments see
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
@@ -324,8 +322,7 @@ class BaseLeg(metaclass=ABCMeta):
         return sum(_)
 
     def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame:
-        """
-        Return the properties of the *Leg* used in calculating cashflows.
+        """Return the properties of the *Leg* used in calculating cashflows.
 
         For arguments see
         :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`.
@@ -334,8 +331,7 @@ class BaseLeg(metaclass=ABCMeta):
         return DataFrame.from_records(seq)
 
     def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]:
-        """
-        Return the NPV of the *Leg* via summing all periods.
+        """Return the NPV of the *Leg* via summing all periods.
 
         For arguments see
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
@@ -371,8 +367,7 @@ class BaseLeg(metaclass=ABCMeta):
         disc_curve: Curve,
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
     ) -> DualTypes:
-        """
-        Calculates an adjustment to the ``fixed_rate`` or ``float_spread`` to match
+        """Calculates an adjustment to the ``fixed_rate`` or ``float_spread`` to match
         a specific target NPV.
 
         Parameters
@@ -406,6 +401,7 @@ class BaseLeg(metaclass=ABCMeta):
 
         Examples
         --------
+
         """
         a_delta = self.analytic_delta(fore_curve, disc_curve, fx, self.currency)
         return -target_npv / a_delta
@@ -415,8 +411,7 @@ class BaseLeg(metaclass=ABCMeta):
 
 
 class _FixedLegMixin:
-    """
-    Add the functionality to add and retrieve ``fixed_rate`` on
+    """Add the functionality to add and retrieve ``fixed_rate`` on
     :class:`~rateslib.periods.FixedPeriod` s.
     """
 
@@ -427,9 +422,8 @@ class _FixedLegMixin:
 
     @property
     def fixed_rate(self) -> DualTypes | NoInput:
-        """
-        float or NoInput : If set will also set the ``fixed_rate`` of
-            contained :class:`FixedPeriod` s.
+        """Float or NoInput : If set will also set the ``fixed_rate`` of
+        contained :class:`FixedPeriod` s.
         """
         return self._fixed_rate
 
@@ -466,8 +460,7 @@ class _FixedLegMixin:
 
 
 class FixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
-    """
-    Create a fixed leg composed of :class:`~rateslib.periods.FixedPeriod` s.
+    """Create a fixed leg composed of :class:`~rateslib.periods.FixedPeriod` s.
 
     Parameters
     ----------
@@ -509,6 +502,7 @@ class FixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
        )
        fixed_leg_exch.cashflows(curve)
        fixed_leg_exch.npv(curve)
+
     """  # noqa: E501
 
     def __init__(
@@ -519,8 +513,7 @@ class FixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
         self._set_periods()
 
     def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
-        """
-        Return the analytic delta of the *FixedLeg* via summing all periods.
+        """Return the analytic delta of the *FixedLeg* via summing all periods.
 
         For arguments see
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
@@ -528,8 +521,7 @@ class FixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
         return super().analytic_delta(*args, **kwargs)
 
     def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame:
-        """
-        Return the properties of the *FixedLeg* used in calculating cashflows.
+        """Return the properties of the *FixedLeg* used in calculating cashflows.
 
         For arguments see
         :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`.
@@ -537,8 +529,7 @@ class FixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
         return super().cashflows(*args, **kwargs)
 
     def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]:
-        """
-        Return the NPV of the *FixedLeg* via summing all periods.
+        """Return the NPV of the *FixedLeg* via summing all periods.
 
         For arguments see
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
@@ -555,8 +546,7 @@ class FixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
 
 
 class _FloatLegMixin:
-    """
-    Add the functionality to add and retrieve ``float_spread`` on
+    """Add the functionality to add and retrieve ``float_spread`` on
     :class:`~rateslib.periods.FloatPeriod` s and a
     :meth:`~rateslib.periods.FloatPeriod.fixings_table`.
     """
@@ -576,8 +566,7 @@ class _FloatLegMixin:
         ser: Series[DualTypes],  # type: ignore[type-var]
         ini_period: int = 0,
     ) -> list[Series[DualTypes] | NoInput]:  # type: ignore[type-var]
-        """
-        Determine which fixings can be set for Periods with the given Series.
+        """Determine which fixings can be set for Periods with the given Series.
         """
         last_fixing_dt = ser.index[-1]
         if self.fixing_method in [
@@ -608,8 +597,7 @@ class _FloatLegMixin:
         | DualTypes
         | NoInput,
     ) -> None:
-        """
-        Re-organises the fixings input to list structure for each period.
+        """Re-organises the fixings input to list structure for each period.
         Requires a ``schedule`` object and ``float_args``.
         """
         if isinstance(fixings, NoInput):
@@ -699,8 +687,7 @@ class _FloatLegMixin:
         fore_curve: Curve,
         disc_curve: Curve,
     ) -> DualTypes:
-        """
-        Use approximated derivatives through geometric averaged 1day rates to derive the
+        """Use approximated derivatives through geometric averaged 1day rates to derive the
         spread
         """
         a: DualTypes = 0.0
@@ -730,9 +717,8 @@ class _FloatLegMixin:
 
     @property
     def float_spread(self) -> DualTypes | NoInput:
-        """
-        float or NoInput : If set will also set the ``float_spread`` of contained
-            :class:`~rateslib.periods.FloatPeriod` s.
+        """Float or NoInput : If set will also set the ``float_spread`` of contained
+        :class:`~rateslib.periods.FloatPeriod` s.
         """
         return self._float_spread
 
@@ -774,14 +760,14 @@ class _FloatLegMixin:
     #     return df
 
     def _fixings_table(self, *args: Any, **kwargs: Any) -> DataFrame:
-        """
-        Return a DataFrame of fixing exposures on a :class:`~rateslib.legs.FloatLeg`.
+        """Return a DataFrame of fixing exposures on a :class:`~rateslib.legs.FloatLeg`.
 
         See :meth:`~rateslib.periods.FloatPeriod.fixings_table` for arguments.
 
         Returns
         -------
         DataFrame
+
         """
         dfs = []
         for period in self.periods:
@@ -823,8 +809,7 @@ class _FloatLegMixin:
 
     @property
     def _is_linear(self) -> bool:
-        """
-        Tests if analytic delta spread is a linear function affecting NPV.
+        """Tests if analytic delta spread is a linear function affecting NPV.
 
         This is non-linear if the spread is itself compounded, which only occurs
         on RFR trades with *"isda_compounding"* or *"isda_flat_compounding"*, which
@@ -833,6 +818,7 @@ class _FloatLegMixin:
         Returns
         -------
         bool
+
         """
         # ruff: noqa: SIM103
         if "rfr" in self.fixing_method and self.spread_compound_method != "none_simple":
@@ -846,8 +832,7 @@ class _FloatLegMixin:
         disc_curve: Curve,
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
     ) -> DualTypes:
-        """
-        Calculates an adjustment to the ``fixed_rate`` or ``float_spread`` to match
+        """Calculates an adjustment to the ``fixed_rate`` or ``float_spread`` to match
         a specific target NPV.
 
         Parameters
@@ -881,6 +866,7 @@ class _FloatLegMixin:
 
         Examples
         --------
+
         """
         if self._is_linear:
             a_delta: DualTypes = self.analytic_delta(fore_curve, disc_curve, fx, self.currency)  # type: ignore[attr-defined]
@@ -891,8 +877,7 @@ class _FloatLegMixin:
 
 
 class FloatLeg(_FloatLegMixin, BaseLeg):
-    """
-    Create a floating leg composed of :class:`~rateslib.periods.FloatPeriod` s.
+    """Create a floating leg composed of :class:`~rateslib.periods.FloatPeriod` s.
 
     Parameters
     ----------
@@ -1021,6 +1006,7 @@ class FloatLeg(_FloatLegMixin, BaseLeg):
        )
        float_leg.cashflows(swestr_curve)
        float_leg.fixings_table(swestr_curve)[dt(2022,12,28):dt(2023,1,4)]
+
     """  # noqa: E501
 
     _delay_set_periods: bool = True  # do this to set fixings first
@@ -1051,8 +1037,7 @@ class FloatLeg(_FloatLegMixin, BaseLeg):
         self._set_periods()
 
     def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
-        """
-        Return the analytic delta of the *FloatLeg* via summing all periods.
+        """Return the analytic delta of the *FloatLeg* via summing all periods.
 
         For arguments see
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
@@ -1060,8 +1045,7 @@ class FloatLeg(_FloatLegMixin, BaseLeg):
         return super().analytic_delta(*args, **kwargs)
 
     def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame:
-        """
-        Return the properties of the *FloatLeg* used in calculating cashflows.
+        """Return the properties of the *FloatLeg* used in calculating cashflows.
 
         For arguments see
         :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`.
@@ -1069,8 +1053,7 @@ class FloatLeg(_FloatLegMixin, BaseLeg):
         return super().cashflows(*args, **kwargs)
 
     def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]:
-        """
-        Return the NPV of the *FloatLeg* via summing all periods.
+        """Return the NPV of the *FloatLeg* via summing all periods.
 
         For arguments see
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
@@ -1086,8 +1069,7 @@ class FloatLeg(_FloatLegMixin, BaseLeg):
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
     ) -> DataFrame:
-        """
-        Return a DataFrame of fixing exposures on a :class:`~rateslib.legs.FloatLeg`.
+        """Return a DataFrame of fixing exposures on a :class:`~rateslib.legs.FloatLeg`.
 
         Parameters
         ----------
@@ -1108,6 +1090,7 @@ class FloatLeg(_FloatLegMixin, BaseLeg):
         Returns
         -------
         DataFrame
+
         """
         return super()._fixings_table(
             curve=curve, disc_curve=disc_curve, approximate=approximate, right=right
@@ -1260,8 +1243,7 @@ class _IndexLegMixin:
 
 
 class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
-    """
-    Create a zero coupon floating leg composed of
+    """Create a zero coupon floating leg composed of
     :class:`~rateslib.periods.FloatPeriod` s.
 
     Parameters
@@ -1326,6 +1308,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
            float_spread=100.0
        )
        zfl.cashflows(curve)
+
     """  # noqa: E501
 
     _delay_set_periods: bool = True
@@ -1392,8 +1375,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         return sum(_)
 
     def rate(self, curve: CurveOption) -> DualTypes:
-        """
-        Calculate a simple period type floating rate for the zero coupon leg.
+        """Calculate a simple period type floating rate for the zero coupon leg.
 
         Parameters
         ----------
@@ -1403,6 +1385,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         Returns
         -------
         float, Dual, Dual2
+
         """
         rates = (
             (1.0 + p.dcf * p.rate(curve) / 100) for p in self.periods if isinstance(p, FloatPeriod)
@@ -1418,8 +1401,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> dict[str, DualTypes] | DualTypes:
-        """
-        Return the NPV of the *ZeroFloatLeg* via summing all periods.
+        """Return the NPV of the *ZeroFloatLeg* via summing all periods.
 
         For arguments see
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
@@ -1447,8 +1429,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
     ) -> DataFrame:
-        """
-        Return a DataFrame of fixing exposures on a :class:`~rateslib.legs.ZeroFloatLeg`.
+        """Return a DataFrame of fixing exposures on a :class:`~rateslib.legs.ZeroFloatLeg`.
 
         Parameters
         ----------
@@ -1469,6 +1450,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         Returns
         -------
         DataFrame
+
         """
         if isinstance(disc_curve, NoInput) and isinstance(curve, dict):
             raise ValueError("Cannot infer `disc_curve` from a dict of curves.")
@@ -1510,8 +1492,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
-        """
-        Return the analytic delta of the *ZeroFloatLeg* from all periods.
+        """Return the analytic delta of the *ZeroFloatLeg* from all periods.
 
         For arguments see
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
@@ -1538,8 +1519,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:
-        """
-        Return the properties of the *ZeroFloatLeg* used in calculating cashflows.
+        """Return the properties of the *ZeroFloatLeg* used in calculating cashflows.
 
         For arguments see
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
@@ -1587,8 +1567,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
 
 
 class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
-    """
-    Create a zero coupon fixed leg composed of a single
+    """Create a zero coupon fixed leg composed of a single
     :class:`~rateslib.periods.FixedPeriod` .
 
     Parameters
@@ -1675,9 +1654,8 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
 
     @property
     def fixed_rate(self) -> DualTypes | NoInput:
-        """
-        float or None : If set will also set the ``fixed_rate`` of
-            contained :class:`FixedPeriod` s.
+        """Float or None : If set will also set the ``fixed_rate`` of
+        contained :class:`FixedPeriod` s.
         """
         return self._fixed_rate
 
@@ -1699,8 +1677,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
 
     @property
     def dcf(self) -> float:
-        """
-        The DCF of a *ZeroFixedLeg* is defined as DCF of the single *FixedPeriod*
+        """The DCF of a *ZeroFixedLeg* is defined as DCF of the single *FixedPeriod*
         spanning the *Leg*.
         """
         _ = [period.dcf for period in self.periods]
@@ -1713,8 +1690,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:
-        """
-        Return the cashflows of the *ZeroFixedLeg* from all periods.
+        """Return the cashflows of the *ZeroFixedLeg* from all periods.
 
         For arguments see
         :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`.
@@ -1762,8 +1738,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
-        """
-        Return the analytic delta of the *ZeroFixedLeg* from all periods.
+        """Return the analytic delta of the *ZeroFixedLeg* from all periods.
 
         For arguments see
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
@@ -1779,8 +1754,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
         return _ / 10000 * fx
 
     def _analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
-        """
-        Analytic delta based on period rate and not IRR.
+        """Analytic delta based on period rate and not IRR.
         """
         _ = [period.analytic_delta(*args, **kwargs) for period in self.periods]
         return sum(_)
@@ -1792,8 +1766,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
         disc_curve: Curve,
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
     ) -> DualTypes:
-        """
-        Overload the _spread calc to use analytic delta based on period rate
+        """Overload the _spread calc to use analytic delta based on period rate
         """
         a_delta = self._analytic_delta(fore_curve, disc_curve, fx, self.currency)
         period_rate = -target_npv / (a_delta * 100)
@@ -1802,8 +1775,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
         return _ * 10000
 
     def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]:
-        """
-        Return the NPV of the *ZeroFixedLeg* via summing all periods.
+        """Return the NPV of the *ZeroFixedLeg* via summing all periods.
 
         For arguments see
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
@@ -1812,8 +1784,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
 
 
 class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
-    """
-    Create a zero coupon index leg composed of a single
+    """Create a zero coupon index leg composed of a single
     :class:`~rateslib.periods.IndexFixedPeriod` and
     a :class:`~rateslib.periods.Cashflow`.
 
@@ -1938,13 +1909,13 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
 
     def cashflow(self, curve: Curve | NoInput = NoInput(0)) -> DualTypes:
         """Aggregate the cashflows on the *IndexFixedPeriod* and *Cashflow* period using a
-        *Curve*."""
+        *Curve*.
+        """
         _: DualTypes = self.periods[0].cashflow(curve) + self.periods[1].cashflow  # type: ignore[operator]
         return _
 
     def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame:
-        """
-        Return the properties of the *ZeroIndexLeg* used in calculating cashflows.
+        """Return the properties of the *ZeroIndexLeg* used in calculating cashflows.
 
         For arguments see
         :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`.
@@ -1958,8 +1929,7 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
         return _
 
     def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
-        """
-        Return the analytic delta of the *ZeroIndexLeg* via summing all periods.
+        """Return the analytic delta of the *ZeroIndexLeg* via summing all periods.
 
         For arguments see
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
@@ -1967,8 +1937,7 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
         return 0.0
 
     def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]:
-        """
-        Return the NPV of the *ZeroIndexLeg* via summing all periods.
+        """Return the NPV of the *ZeroIndexLeg* via summing all periods.
 
         For arguments see
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
@@ -1977,8 +1946,7 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
 
 
 class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[misc]
-    """
-    Create a leg of :class:`~rateslib.periods.IndexFixedPeriod` s and initial and
+    """Create a leg of :class:`~rateslib.periods.IndexFixedPeriod` s and initial and
     final :class:`~rateslib.periods.IndexCashflow` s.
 
     Parameters
@@ -2182,8 +2150,7 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
 
 
 class CreditPremiumLeg(_FixedLegMixin, BaseLeg):
-    """
-    Create a credit premium leg composed of :class:`~rateslib.periods.CreditPremiumPeriod` s.
+    """Create a credit premium leg composed of :class:`~rateslib.periods.CreditPremiumPeriod` s.
 
     Parameters
     ----------
@@ -2233,6 +2200,7 @@ class CreditPremiumLeg(_FixedLegMixin, BaseLeg):
        )
        premium_leg.cashflows(hazard_curve, disc_curve)
        premium_leg.npv(hazard_curve, disc_curve)
+
     """  # noqa: E501
 
     periods: list[CreditPremiumPeriod]  # type: ignore[assignment]
@@ -2254,8 +2222,7 @@ class CreditPremiumLeg(_FixedLegMixin, BaseLeg):
         self._set_periods()
 
     def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
-        """
-        Return the analytic delta of the *CreditPremiumLeg* via summing all periods.
+        """Return the analytic delta of the *CreditPremiumLeg* via summing all periods.
 
         For arguments see
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
@@ -2263,8 +2230,7 @@ class CreditPremiumLeg(_FixedLegMixin, BaseLeg):
         return super().analytic_delta(*args, **kwargs)
 
     def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame:
-        """
-        Return the properties of the *CreditPremiumLeg* used in calculating cashflows.
+        """Return the properties of the *CreditPremiumLeg* used in calculating cashflows.
 
         For arguments see
         :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`.
@@ -2272,8 +2238,7 @@ class CreditPremiumLeg(_FixedLegMixin, BaseLeg):
         return super().cashflows(*args, **kwargs)
 
     def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]:
-        """
-        Return the NPV of the *CreditPremiumLeg* via summing all periods.
+        """Return the NPV of the *CreditPremiumLeg* via summing all periods.
 
         For arguments see
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
@@ -2281,8 +2246,7 @@ class CreditPremiumLeg(_FixedLegMixin, BaseLeg):
         return super().npv(*args, **kwargs)
 
     def accrued(self, settlement: datetime) -> DualTypes | None:
-        """
-        Calculate the amount of premium accrued until a specific date within the relevant *Period*.
+        """Calculate the amount of premium accrued until a specific date within the relevant *Period*.
 
         Parameters
         ----------
@@ -2292,6 +2256,7 @@ class CreditPremiumLeg(_FixedLegMixin, BaseLeg):
         Returns
         -------
         float
+
         """
         _ = index_left(
             self.schedule.uschedule,
@@ -2331,8 +2296,7 @@ class CreditPremiumLeg(_FixedLegMixin, BaseLeg):
 
 
 class CreditProtectionLeg(BaseLeg):
-    """
-    Create a credit protection leg composed of :class:`~rateslib.periods.CreditProtectionPeriod` s.
+    """Create a credit protection leg composed of :class:`~rateslib.periods.CreditProtectionPeriod` s.
 
     Parameters
     ----------
@@ -2381,6 +2345,7 @@ class CreditProtectionLeg(BaseLeg):
        )
        protection_leg.cashflows(hazard_curve, disc_curve)
        protection_leg.npv(hazard_curve, disc_curve)
+
     """  # noqa: E501
 
     periods: list[CreditProtectionPeriod]  # type: ignore[assignment]
@@ -2402,8 +2367,7 @@ class CreditProtectionLeg(BaseLeg):
         self._set_periods()
 
     def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
-        """
-        Return the analytic delta of the *CreditProtectionLeg* via summing all periods.
+        """Return the analytic delta of the *CreditProtectionLeg* via summing all periods.
 
         For arguments see
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
@@ -2411,8 +2375,7 @@ class CreditProtectionLeg(BaseLeg):
         return super().analytic_delta(*args, **kwargs)
 
     def analytic_rec_risk(self, *args: Any, **kwargs: Any) -> DualTypes:
-        """
-        Return the analytic recovery risk of the *CreditProtectionLeg* via summing all periods.
+        """Return the analytic recovery risk of the *CreditProtectionLeg* via summing all periods.
 
         For arguments see
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
@@ -2421,8 +2384,7 @@ class CreditProtectionLeg(BaseLeg):
         return sum(_)
 
     def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame:
-        """
-        Return the properties of the *CreditProtectionLeg* used in calculating cashflows.
+        """Return the properties of the *CreditProtectionLeg* used in calculating cashflows.
 
         For arguments see
         :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`.
@@ -2430,8 +2392,7 @@ class CreditProtectionLeg(BaseLeg):
         return super().cashflows(*args, **kwargs)
 
     def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]:
-        """
-        Return the NPV of the *CreditProtectionLeg* via summing all periods.
+        """Return the NPV of the *CreditProtectionLeg* via summing all periods.
 
         For arguments see
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
@@ -2484,8 +2445,7 @@ class CreditProtectionLeg(BaseLeg):
 
 
 class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
-    """
-    Abstract base class with common parameters for all ``LegMtm`` subclasses.
+    """Abstract base class with common parameters for all ``LegMtm`` subclasses.
 
     Parameters
     ----------
@@ -2510,6 +2470,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
     --------
     FixedLegExchangeMtm: Create a fixed leg with notional and Mtm exchanges.
     FloatLegExchangeMtm : Create a floating leg with notional and Mtm exchanges.
+
     """
 
     _do_not_repeat_set_periods: bool = False
@@ -2576,8 +2537,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
 
     @property
     def fx_fixings(self) -> list[DualTypes]:
-        """
-        list : FX fixing values used for consecutive periods.
+        """List : FX fixing values used for consecutive periods.
         """
         return self._fx_fixings
 
@@ -2612,8 +2572,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     def _get_fx_fixings(self, fx: DualTypes | FXRates | FXForwards | NoInput) -> list[DualTypes]:
-        """
-        Return the calculated FX fixings.
+        """Return the calculated FX fixings.
 
         Initialise with the fx fixings already provided statically.
         Use an FXForwards object to determine the additionally required fixings.
@@ -2625,6 +2584,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         fx : FXForwards, optional
             The object to derive FX fixings that are not otherwise given in
             ``fx_fixings``.
+
         """
         n_given, n_req = len(self.fx_fixings), self.schedule.n_periods
         fx_fixings_: list[DualTypes] = self.fx_fixings.copy()
@@ -2781,8 +2741,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
 
 
 class FixedLegMtm(_FixedLegMixin, BaseLegMtm):  # type: ignore[misc]
-    """
-    Create a leg of :class:`~rateslib.periods.FixedPeriod` s and initial, mtm and
+    """Create a leg of :class:`~rateslib.periods.FixedPeriod` s and initial, mtm and
     final :class:`~rateslib.periods.Cashflow` s.
 
     Parameters
@@ -2823,6 +2782,7 @@ class FixedLegMtm(_FixedLegMixin, BaseLegMtm):  # type: ignore[misc]
     Examples
     --------
     For an example see :ref:`Mtm Legs<mtm-legs>`.
+
     """
 
     def __init__(
@@ -2843,8 +2803,7 @@ class FixedLegMtm(_FixedLegMixin, BaseLegMtm):  # type: ignore[misc]
 
 
 class FloatLegMtm(_FloatLegMixin, BaseLegMtm):
-    """
-    Create a leg of :class:`~rateslib.periods.FloatPeriod` s and initial, mtm and
+    """Create a leg of :class:`~rateslib.periods.FloatPeriod` s and initial, mtm and
     final :class:`~rateslib.periods.Cashflow` s.
 
     Parameters
@@ -2897,6 +2856,7 @@ class FloatLegMtm(_FloatLegMixin, BaseLegMtm):
     Examples
     --------
     For an example see :ref:`Mtm Legs<mtm-legs>`.
+
     """
 
     def __init__(
@@ -2937,8 +2897,7 @@ class FloatLegMtm(_FloatLegMixin, BaseLegMtm):
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
     ) -> DataFrame:
-        """
-        Return a DataFrame of fixing exposures on a :class:`~rateslib.legs.FloatLegMtm`.
+        """Return a DataFrame of fixing exposures on a :class:`~rateslib.legs.FloatLegMtm`.
 
         For arguments see
         :meth:`FloatLeg.fixings_table()<rateslib.legs.FloatLeg.fixings_table>`.
@@ -2951,8 +2910,7 @@ class FloatLegMtm(_FloatLegMixin, BaseLegMtm):
 
 
 class CustomLeg(BaseLeg):
-    """
-    Create a leg contained of user specified ``Periods``.
+    """Create a leg contained of user specified ``Periods``.
 
     Useful for crafting amortising swaps with custom notional and date schedules.
 
@@ -3006,8 +2964,7 @@ class CustomLeg(BaseLeg):
         self.periods: list[Any] = periods
 
     def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]:
-        """
-        Return the NPV of the *CustomLeg* via summing all periods.
+        """Return the NPV of the *CustomLeg* via summing all periods.
 
         For arguments see
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
@@ -3015,8 +2972,7 @@ class CustomLeg(BaseLeg):
         return super().npv(*args, **kwargs)
 
     def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame:
-        """
-        Return the properties of the *CustomLeg* used in calculating cashflows.
+        """Return the properties of the *CustomLeg* used in calculating cashflows.
 
         For arguments see
         :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`.
@@ -3024,8 +2980,7 @@ class CustomLeg(BaseLeg):
         return super().cashflows(*args, **kwargs)
 
     def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
-        """
-        Return the analytic delta of the *CustomLeg* via summing all periods.
+        """Return the analytic delta of the *CustomLeg* via summing all periods.
 
         For arguments see
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.

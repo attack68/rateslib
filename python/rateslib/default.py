@@ -24,8 +24,7 @@ PlotOutput = tuple[plt.Figure, plt.Axes, list[plt.Line2D]]  # type: ignore[name-
 
 
 class NoInput(Enum):
-    """
-    Enumerable type to handle setting default values.
+    """Enumerable type to handle setting default values.
 
     See :ref:`default values <defaults-doc>`.
     """
@@ -36,8 +35,7 @@ class NoInput(Enum):
 
 
 class Fixings:
-    """
-    Class to lazy load fixing data from CSV files.
+    """Class to lazy load fixing data from CSV files.
 
     .. warning::
 
@@ -92,8 +90,7 @@ class Fixings:
 
 
 class Defaults:
-    """
-    The *defaults* object used by initialising objects. Values are printed below:
+    """The *defaults* object used by initialising objects. Values are printed below:
 
     .. ipython:: python
 
@@ -270,8 +267,7 @@ class Defaults:
         self.spec = INSTRUMENT_SPECS
 
     def reset_defaults(self) -> None:
-        """
-        Revert defaults back to their initialisation status.
+        """Revert defaults back to their initialisation status.
 
         Examples
         --------
@@ -279,14 +275,14 @@ class Defaults:
 
            from rateslib import defaults
            defaults.reset_defaults()
+
         """
         base = Defaults()
         for attr in [_ for _ in dir(self) if _[:2] != "__"]:
             setattr(self, attr, getattr(base, attr))
 
     def print(self) -> str:
-        """
-        Return a string representation of the current values in the defaults object.
+        """Return a string representation of the current values in the defaults object.
         """
 
         def _t_n(v: str) -> str:  # teb-newline
@@ -398,8 +394,7 @@ R = TypeVar("R")
 
 
 def _validate_states(func: Callable[P, R]) -> Callable[P, R]:
-    """
-    Add a decorator to a class instance method to first validate the cache before performing
+    """Add a decorator to a class instance method to first validate the cache before performing
     additional operations. If a change is detected the implemented `validate_cache` function
     is responsible for resetting the cache and updating any `cache_id`s.
     """
@@ -413,8 +408,7 @@ def _validate_states(func: Callable[P, R]) -> Callable[P, R]:
 
 
 class _WithState:
-    """
-    Record and manage the `state_id` of mutable classes.
+    """Record and manage the `state_id` of mutable classes.
 
     Attributes
     ----------
@@ -422,6 +416,7 @@ class _WithState:
     _mutable_by_association: bool: This is a rateslib definition of whether this object is
         directly mutable and therefore generates its own state id, or whether its state is
         derived from the most recently evaluated state of its associated objects.
+
     """
 
     _state: int = 0
@@ -430,7 +425,8 @@ class _WithState:
     def _set_new_state(self) -> None:
         """Set the state_id of a superclass. Some objects which are 'mutable by association'
         will overload the `get_compoisted_state` method to derive a state from their
-        associated items."""
+        associated items.
+        """
         if self._mutable_by_association:
             self._state = self._get_composited_state()
         else:
@@ -438,10 +434,12 @@ class _WithState:
 
     def _validate_state(self) -> None:
         """Used by 'mutable by association' objects to evaluate if their own record of
-        associated objects states matches the current state of those objects."""
+        associated objects states matches the current state of those objects.
+        """
         raise NotImplementedError("Must be implemented for 'mutable by association' types")
 
     def _get_composited_state(self) -> int:
         """Used by 'mutable by association' objects to record the state of their associated
-        objects and set this as the object's own state."""
+        objects and set this as the object's own state.
+        """
         raise NotImplementedError("Must be implemented for 'mutable by association' types")

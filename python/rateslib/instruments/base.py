@@ -29,8 +29,7 @@ class BaseMixin:
 
     @property
     def fixed_rate(self) -> DualTypes | NoInput:
-        """
-        float or None : If set will also set the ``fixed_rate`` of the contained
+        """Float or None : If set will also set the ``fixed_rate`` of the contained
         leg1.
 
         .. note::
@@ -51,8 +50,7 @@ class BaseMixin:
 
     @property
     def leg2_fixed_rate(self) -> DualTypes | NoInput:
-        """
-        float or None : If set will also set the ``fixed_rate`` of the contained
+        """Float or None : If set will also set the ``fixed_rate`` of the contained
         leg2.
         """
         return self._leg2_fixed_rate
@@ -66,8 +64,7 @@ class BaseMixin:
 
     @property
     def float_spread(self) -> DualTypes | NoInput:
-        """
-        float or None : If set will also set the ``float_spread`` of contained
+        """Float or None : If set will also set the ``float_spread`` of contained
         leg1.
         """
         return self._float_spread
@@ -87,8 +84,7 @@ class BaseMixin:
 
     @property
     def leg2_float_spread(self) -> DualTypes | NoInput:
-        """
-        float or None : If set will also set the ``float_spread`` of contained
+        """Float or None : If set will also set the ``float_spread`` of contained
         leg2.
         """
         return self._leg2_float_spread
@@ -102,8 +98,7 @@ class BaseMixin:
 
     @property
     def index_base(self) -> DualTypes | NoInput:
-        """
-        float or None : If set will also set the ``index_base`` of the contained
+        """Float or None : If set will also set the ``index_base`` of the contained
         leg1.
 
         .. note::
@@ -123,8 +118,7 @@ class BaseMixin:
 
     @property
     def leg2_index_base(self) -> DualTypes | NoInput:
-        """
-        float or None : If set will also set the ``index_base`` of the contained
+        """Float or None : If set will also set the ``index_base`` of the contained
         leg1.
 
         .. note::
@@ -144,8 +138,7 @@ class BaseMixin:
 
     @abc.abstractmethod
     def analytic_delta(self, *args: Any, leg: int = 1, **kwargs: Any) -> DualTypes:
-        """
-        Return the analytic delta of a leg of the derivative object.
+        """Return the analytic delta of a leg of the derivative object.
 
         Parameters
         ----------
@@ -187,6 +180,7 @@ class BaseMixin:
            irs.analytic_delta(curve, curve)
            irs.analytic_delta(curve, curve, fxr)
            irs.analytic_delta(curve, curve, fxr, "gbp")
+
         """
         _: DualTypes = getattr(self, f"leg{leg}").analytic_delta(*args, **kwargs)
         return _
@@ -199,8 +193,7 @@ class BaseMixin:
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:
-        """
-        Return the properties of all legs used in calculating cashflows.
+        """Return the properties of all legs used in calculating cashflows.
 
         Parameters
         ----------
@@ -249,6 +242,7 @@ class BaseMixin:
         .. ipython:: python
 
            irs.cashflows([curve], fx=fxr)
+
         """
         curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -279,8 +273,7 @@ class BaseMixin:
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> NPV:
-        """
-        Return the NPV of the derivative object by summing legs.
+        """Return the NPV of the derivative object by summing legs.
 
         Parameters
         ----------
@@ -335,6 +328,7 @@ class BaseMixin:
            irs.npv(curve)
            irs.npv([curve], fx=fxr)
            irs.npv([curve], fx=fxr, base="gbp")
+
         """
         curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -356,8 +350,7 @@ class BaseMixin:
 
     @abc.abstractmethod
     def rate(self, *args: Any, **kwargs: Any) -> DualTypes:
-        """
-        Return the `rate` or typical `price` for a derivative instrument.
+        """Return the `rate` or typical `price` for a derivative instrument.
 
         Returns
         -------
@@ -367,6 +360,7 @@ class BaseMixin:
         -----
         This method must be implemented for instruments to function effectively in
         :class:`Solver` iterations.
+
         """
         pass  # pragma: no cover
 

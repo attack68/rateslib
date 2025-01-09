@@ -60,8 +60,7 @@ def newton_1dim(
     final_args: tuple[str | DualTypes, ...] = (),
     raise_on_fail: bool = True,
 ) -> dict[str, Any]:
-    """
-    Use the Newton-Raphson algorithm to determine the root of a function searching **one** variable.
+    """Use the Newton-Raphson algorithm to determine the root of a function searching **one** variable.
 
     Parameters
     ----------
@@ -94,7 +93,7 @@ def newton_1dim(
     dict
 
     Notes
-    ------
+    -----
     Solves the root equation :math:`f(g; s_i)=0` for *g*. This method is AD-safe, meaning the
     iteratively determined solution will preserve AD sensitivities, if the functions are suitable.
     Functions which are not AD suitable, such as discontinuous functions or functions with
@@ -124,6 +123,7 @@ def newton_1dim(
 
        s = Dual(2.0, ["s"], [])
        newton_1dim(f, g0=1.0, args=(s,))
+
     """
     t0 = time()
     i = 0
@@ -203,8 +203,7 @@ def newton_ndim(
     final_args: tuple[str | DualTypes, ...] = (),
     raise_on_fail: bool = True,
 ) -> dict[str, Any]:
-    r"""
-    Use the Newton-Raphson algorithm to determine a function root searching **many** variables.
+    r"""Use the Newton-Raphson algorithm to determine a function root searching **many** variables.
 
     Solves the *n* root equations :math:`f_i(g_1, \hdots, g_n; s_k)=0` for each :math:`g_j`.
 
@@ -262,6 +261,7 @@ def newton_ndim(
 
        s = Dual(-2.0, ["s"], [])
        newton_ndim(f, g0=[1.0, 1.0], args=(s,))
+
     """
     t0 = time()
     i = 0

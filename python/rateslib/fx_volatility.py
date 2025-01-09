@@ -35,8 +35,7 @@ TERMINAL_DATE = dt(2100, 1, 1)
 
 
 class FXDeltaVolSmile(_WithState):
-    r"""
-    Create an *FX Volatility Smile* at a given expiry indexed by delta percent.
+    r"""Create an *FX Volatility Smile* at a given expiry indexed by delta percent.
 
     See also the :ref:`FX Vol Surfaces section in the user guide <c-fx-smile-doc>`.
 
@@ -133,8 +132,7 @@ class FXDeltaVolSmile(_WithState):
         raise TypeError("`FXDeltaVolSmile` is not iterable.")
 
     def __getitem__(self, item: DualTypes) -> DualTypes:
-        """
-        Get a value from the DeltaVolSmile given an item which is a delta_index.
+        """Get a value from the DeltaVolSmile given an item which is a delta_index.
         """
         if item > self.t[-1]:
             # raise ValueError(
@@ -154,8 +152,7 @@ class FXDeltaVolSmile(_WithState):
     def _get_index(
         self, delta_index: DualTypes, expiry: datetime | NoInput = NoInput(0)
     ) -> DualTypes:
-        """
-        Return a volatility from a given delta index
+        """Return a volatility from a given delta index
         Used internally alongside Surface, where a surface also requires an expiry.
         """
         return self[delta_index]
@@ -169,8 +166,7 @@ class FXDeltaVolSmile(_WithState):
         w_spot: DualTypes | NoInput = NoInput(0),
         u: DualTypes | NoInput = NoInput(0),
     ) -> DualTypes:
-        """
-        Return a volatility for a provided real option delta.
+        """Return a volatility for a provided real option delta.
 
         This function is more explicit than the `__getitem__` method of the *Smile* because it
         permits certain forward/spot delta conversions and put/call option delta conversions,
@@ -194,6 +190,7 @@ class FXDeltaVolSmile(_WithState):
         Returns
         -------
         DualTypes
+
         """
         return self[self._convert_delta(delta, delta_type, phi, w_deli, w_spot, u)]
 
@@ -205,11 +202,10 @@ class FXDeltaVolSmile(_WithState):
         w_spot: DualTypes | NoInput,
         expiry: datetime | NoInput = NoInput(0),
     ) -> tuple[DualTypes, DualTypes, DualTypes]:
-        """
-        Given an option strike return associated delta and vol values.
+        """Given an option strike return associated delta and vol values.
 
         Parameters
-        -----------
+        ----------
         k: float, Dual, Dual2
             The strike of the option.
         f: float, Dual, Dual2
@@ -231,6 +227,7 @@ class FXDeltaVolSmile(_WithState):
         This function will return a delta index associated with the *FXDeltaVolSmile* and the
         volatility attributed to the delta at that point. Recall that the delta index is the
         negated put option delta for the given strike ``k``.
+
         """
         expiry = _drb(self.expiry, expiry)
         if self.expiry != expiry:
@@ -301,8 +298,7 @@ class FXDeltaVolSmile(_WithState):
         w_spot: DualTypes | NoInput,
         u: DualTypes | NoInput,
     ) -> DualTypes:
-        """
-        Convert the given option delta into a delta index associated with the *Smile*.
+        """Convert the given option delta into a delta index associated with the *Smile*.
 
         Parameters
         ----------
@@ -322,6 +318,7 @@ class FXDeltaVolSmile(_WithState):
         Returns
         -------
         DualTypes
+
         """
         z_w = (
             NoInput(0)
@@ -379,8 +376,7 @@ class FXDeltaVolSmile(_WithState):
         z_w: DualTypes | NoInput = NoInput(0),
         u: DualTypes | NoInput = NoInput(0),
     ) -> DualTypes:
-        """
-        Get the *Smile* index delta given an option delta of the same type as the *Smile*.
+        """Get the *Smile* index delta given an option delta of the same type as the *Smile*.
 
         Note: This is required because the delta_index of the *Smile* uses negated put deltas.
 
@@ -398,6 +394,7 @@ class FXDeltaVolSmile(_WithState):
         Returns
         -------
         float, Dual, Dual2
+
         """
         # if call then must convert to put delta using delta parity equations
         if phi > 0:
@@ -514,8 +511,7 @@ class FXDeltaVolSmile(_WithState):
         labels: list[str] | NoInput = NoInput(0),
         x_axis: str = "delta",
     ) -> PlotOutput:
-        """
-        Plot given forward tenor rates from the curve.
+        """Plot given forward tenor rates from the curve.
 
         Parameters
         ----------
@@ -544,6 +540,7 @@ class FXDeltaVolSmile(_WithState):
         Returns
         -------
         (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
+
         """
         # reversed for intuitive strike direction
         comparators = _drb([], comparators)
@@ -581,8 +578,7 @@ class FXDeltaVolSmile(_WithState):
     # Cache management
 
     def _clear_cache(self) -> None:
-        """
-        Clear the cache of values on a *Smile* type.
+        """Clear the cache of values on a *Smile* type.
 
         Returns
         -------
@@ -595,6 +591,7 @@ class FXDeltaVolSmile(_WithState):
         constructed to avoid the issue of un-cleared caches returning erroneous values.
 
         Alternatively the curve caching as a feature can be set to *False* in ``defaults``.
+
         """
         self._cache: dict[float, DualTypes] = dict()
 
@@ -648,8 +645,7 @@ class FXDeltaVolSmile(_WithState):
         self.spline.csolve(tau, y, left_n, right_n, False)  # type: ignore[arg-type]
 
     def csolve(self) -> None:
-        """
-        Solves **and sets** the coefficients, ``c``, of the :class:`PPSpline`.
+        """Solves **and sets** the coefficients, ``c``, of the :class:`PPSpline`.
 
         Returns
         -------
@@ -662,6 +658,7 @@ class FXDeltaVolSmile(_WithState):
 
         Uses the ``spline_endpoints`` attribute on the class to determine the solving
         method.
+
         """
         self._csolve()
         self._clear_cache()
@@ -670,8 +667,7 @@ class FXDeltaVolSmile(_WithState):
     def _set_node_vector(
         self, vector: np.ndarray[tuple[int, ...], np.dtype[np.object_]], ad: int
     ) -> None:
-        """
-        Update the node values in a Solver. ``ad`` in {1, 2}.
+        """Update the node values in a Solver. ``ad`` in {1, 2}.
         Only the real values in vector are used, dual components are dropped and restructured.
         """
         DualType: type[Dual] | type[Dual2] = Dual if ad == 1 else Dual2
@@ -711,8 +707,7 @@ class FXDeltaVolSmile(_WithState):
         self,
         nodes: dict[float, DualTypes],
     ) -> None:
-        """
-        Update a *Smile* with new, manually passed nodes.
+        """Update a *Smile* with new, manually passed nodes.
 
         For arguments see :class:`~rateslib.fx_volatility.FXDeltaVolSmile`
 
@@ -747,8 +742,7 @@ class FXDeltaVolSmile(_WithState):
         self._set_new_state()
 
     def update_node(self, key: float, value: DualTypes) -> None:
-        """
-        Update a single node value on the *Curve*.
+        """Update a single node value on the *Curve*.
 
         Parameters
         ----------
@@ -785,8 +779,7 @@ class FXDeltaVolSmile(_WithState):
 
 
 class FXDeltaVolSurface(_WithState):
-    r"""
-    Create an *FX Volatility Surface* parametrised by cross-sectional *Smiles* at different
+    r"""Create an *FX Volatility Surface* parametrised by cross-sectional *Smiles* at different
     expiries.
 
     See also the :ref:`FX Vol Surfaces section in the user guide <c-fx-smile-doc>`.
@@ -887,8 +880,7 @@ class FXDeltaVolSurface(_WithState):
         self._set_ad_order(ad)  # includes csolve on each smile
 
     def _clear_cache(self) -> None:
-        """
-        Clear the cache of cross-sectional *Smiles* on a *Surface* type.
+        """Clear the cache of cross-sectional *Smiles* on a *Surface* type.
 
         Returns
         -------
@@ -901,6 +893,7 @@ class FXDeltaVolSurface(_WithState):
         constructed to avoid the issue of un-cleared caches returning erroneous values.
         Alternatively set ``defaults.curve_caching`` to *False* to turn off global
         caching in general.
+
         """
         self._cache: dict[datetime, FXDeltaVolSmile] = dict()
         self._set_new_state()
@@ -944,8 +937,7 @@ class FXDeltaVolSurface(_WithState):
         return vars_
 
     def get_smile(self, expiry: datetime) -> FXDeltaVolSmile:
-        """
-        Construct a *DeltaVolSmile* with linear total variance interpolation over delta indexes.
+        """Construct a *DeltaVolSmile* with linear total variance interpolation over delta indexes.
 
         Parameters
         ----------
@@ -955,6 +947,7 @@ class FXDeltaVolSurface(_WithState):
         Returns
         -------
         FXDeltaVolSmile
+
         """
         if defaults.curve_caching and expiry in self._cache:
             return self._cache[expiry]
@@ -1050,8 +1043,7 @@ class FXDeltaVolSurface(_WithState):
         vol2: DualTypes,
         bounds_flag: int,
     ) -> DualTypes:
-        """
-        Return the volatility of an intermediate timestamp via total linear variance interpolation.
+        """Return the volatility of an intermediate timestamp via total linear variance interpolation.
         Possibly scaled by time weights if weights is available.
 
         Parameters
@@ -1073,6 +1065,7 @@ class FXDeltaVolSurface(_WithState):
         -----
         This function performs different interpolation if weights are given or not. ``bounds_flag``
         is used to parse the inputs when *Smiles* to the left and/or right are not available.
+
         """
         # 86400 posix seconds per day
         # 31536000 posix seconds per 365 day year
@@ -1123,11 +1116,10 @@ class FXDeltaVolSurface(_WithState):
         w_spot: DualTypes | NoInput = NoInput(0),
         expiry: datetime | NoInput = NoInput(0),
     ) -> tuple[DualTypes, DualTypes, DualTypes]:
-        """
-        Given an option strike and expiry return associated delta and vol values.
+        """Given an option strike and expiry return associated delta and vol values.
 
         Parameters
-        -----------
+        ----------
         k: float, Dual, Dual2
             The strike of the option.
         f: float, Dual, Dual2
@@ -1148,6 +1140,7 @@ class FXDeltaVolSurface(_WithState):
         This function will return a delta index associated with the *FXDeltaVolSmile* and the
         volatility attributed to the delta at that point. Recall that the delta index is the
         negated put option delta for the given strike ``k``.
+
         """
         if isinstance(expiry, NoInput):
             raise ValueError("`expiry` required to get cross-section of FXDeltaVolSurface.")
@@ -1155,8 +1148,7 @@ class FXDeltaVolSurface(_WithState):
         return smile.get_from_strike(k, f, w_deli, w_spot, expiry)
 
     def _get_index(self, delta_index: DualTypes, expiry: datetime) -> DualTypes:
-        """
-        Return a volatility from a given delta index.
+        """Return a volatility from a given delta index.
         Used internally alongside Surface, where a surface also requires an expiry.
         """
         return self.get_smile(expiry)[delta_index]
@@ -1355,11 +1347,10 @@ def _black76(
     vol: DualTypes,
     phi: float,
 ) -> DualTypes:
-    """
-    Option price in points terms for immediate premium settlement.
+    """Option price in points terms for immediate premium settlement.
 
     Parameters
-    -----------
+    ----------
     F: float, Dual, Dual2
         The forward price for settlement at the delivery date.
     K: float, Dual, Dual2
@@ -1376,8 +1367,9 @@ def _black76(
         Whether to calculate for call (1.0) or put (-1.0).
 
     Returns
-    --------
+    -------
     float, Dual, Dual2
+
     """
     vs = vol * t_e**0.5
     d1 = _d_plus(K, F, vs)
@@ -1416,8 +1408,7 @@ def _d_plus(K: DualTypes, f: DualTypes, vol_sqrt_t: DualTypes) -> DualTypes:
 def _delta_type_constants(
     delta_type: str, w: DualTypes | NoInput, u: DualTypes | NoInput
 ) -> tuple[float, DualTypes, DualTypes]:
-    """
-    Get the values: (eta, z_w, z_u) for the type of expressed delta
+    """Get the values: (eta, z_w, z_u) for the type of expressed delta
 
     w: should be input as w_deli / w_spot
     u: should be input as K / f_d

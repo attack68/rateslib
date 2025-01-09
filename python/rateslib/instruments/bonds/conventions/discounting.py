@@ -19,16 +19,14 @@ than the other calculations because they exclude the scenarios for stub handling
 
 
 def _v2_(obj: Security, ytm: DualTypes, f: int, *args: Any) -> DualTypes:
-    """
-    Default method for a single regular period discounted in the regular portion of bond.
+    """Default method for a single regular period discounted in the regular portion of bond.
     Implies compounding at the same frequency as the coupons.
     """
     return 1 / (1 + ytm / (100 * f))
 
 
 def _v2_annual(obj: Security, ytm: DualTypes, f: int, *args: Any) -> DualTypes:
-    """
-    ytm is expressed annually but coupon payments are on another frequency
+    """Ytm is expressed annually but coupon payments are on another frequency
     """
     return (1 / (1 + ytm / 100)) ** (1 / f)
 
@@ -48,8 +46,7 @@ def _v1_compounded_by_remaining_accrual_fraction(
     accrual: Callable[[Security, datetime, int], float],
     *args: Any,
 ) -> DualTypes:
-    """
-    Determine the discount factor for the first cashflow after settlement.
+    """Determine the discount factor for the first cashflow after settlement.
 
     The parameter "v2" is a generic discount function which is normally :math:`1/(1+y/f)`
 
@@ -76,8 +73,7 @@ def _v1_compounded_by_remaining_accrual_frac_except_simple_final_period(
     accrual: Callable[[Security, datetime, int], float],
     *args: Any,
 ) -> DualTypes:
-    """
-    Uses regular fractional compounding except if it is last period, when simple money-mkt
+    """Uses regular fractional compounding except if it is last period, when simple money-mkt
     yield is used instead.
     Introduced for German Bunds.
     """
@@ -136,8 +132,7 @@ def _v1_simple(
     accrual: Callable[[Security, datetime, int], float],
     *args: Any,
 ) -> DualTypes:
-    """
-    Use simple rates with a yield which matches the frequency of the coupon.
+    """Use simple rates with a yield which matches the frequency of the coupon.
     """
     acc_frac = accrual(obj, settlement, acc_idx)
     if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
@@ -160,8 +155,7 @@ def _v1_simple_1y_adjustment(
     accrual: Callable[[Security, datetime, int], float],
     *args: Any,
 ) -> DualTypes:
-    """
-    Use simple rates with a yield which matches the frequency of the coupon.
+    """Use simple rates with a yield which matches the frequency of the coupon.
 
     If the stub period is long, then discount the regular part of the stub with the regular
     discount param ``v``.
@@ -189,8 +183,7 @@ def _v3_compounded(
     v2: DualTypes,
     *args: Any,
 ) -> DualTypes:
-    """
-    Final period uses a compounding approach where the power is determined by the DCF of that
+    """Final period uses a compounding approach where the power is determined by the DCF of that
     period under the bond's specified convention.
     """
     if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
@@ -210,8 +203,7 @@ def _v3_30e360_u_simple(
     acc_idx: int,
     *args: Any,
 ) -> DualTypes:
-    """
-    The final period is discounted by a simple interest method under a 30E360 convention.
+    """The final period is discounted by a simple interest method under a 30E360 convention.
 
     The YTM is assumed to have the same frequency as the coupons.
     """

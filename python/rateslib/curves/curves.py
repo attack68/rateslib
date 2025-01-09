@@ -1,9 +1,8 @@
-"""
-.. ipython:: python
-   :suppress:
+""".. ipython:: python
+:suppress:
 
-   from rateslib.curves import *
-   from datetime import datetime as dt
+from rateslib.curves import *
+from datetime import datetime as dt
 """
 
 from __future__ import annotations
@@ -46,8 +45,7 @@ if TYPE_CHECKING:
 
 
 class Curve(_WithState):
-    """
-    Curve based on DF parametrisation at given node dates with interpolation.
+    """Curve based on DF parametrisation at given node dates with interpolation.
 
     Parameters
     ----------
@@ -94,9 +92,9 @@ class Curve(_WithState):
         Number of months of by which the index lags the date. For example if the initial
         curve node date is 1st Sep 2021 based on the inflation index published
         17th June 2023 then the lag is 3 months.
+
     Notes
     -----
-
     This curve type is **discount factor (DF)** based and is parametrised by a set of
     (date, DF) pairs set as ``nodes``. The initial node date of the curve is defined
     to be today and should **always** have a DF of precisely 1.0. The initial DF
@@ -163,6 +161,7 @@ class Curve(_WithState):
        )
        fig, ax, line = curve.plot("1D")
        plt.show()
+
     """
 
     _op_exp: Callable[[DualTypes], DualTypes] = staticmethod(
@@ -341,8 +340,7 @@ class Curve(_WithState):
         float_spread: float | NoInput = NoInput(0),
         spread_compound_method: str | NoInput = NoInput(0),
     ) -> DualTypes | None:
-        """
-        Calculate the rate on the `Curve` using DFs.
+        """Calculate the rate on the `Curve` using DFs.
 
         If rates are sought for dates prior to the initial node of the curve `None`
         will be returned.
@@ -423,6 +421,7 @@ class Curve(_WithState):
                 convention='Act360'
             )
             curve_act360.rate(dt(2022, 2, 1), dt(2022, 3, 1))
+
         """
         try:
             _: DualTypes = self._rate_with_raise(
@@ -500,8 +499,7 @@ class Curve(_WithState):
         composite: bool = True,
         collateral: str | NoInput = NoInput(0),
     ) -> Curve:
-        """
-        Create a new curve by vertically adjusting the curve by a set number of basis
+        """Create a new curve by vertically adjusting the curve by a set number of basis
         points.
 
         This curve adjustment preserves the shape of the curve but moves it up or
@@ -679,8 +677,7 @@ class Curve(_WithState):
         return new_nodes
 
     def translate(self, start: datetime, t: bool = False) -> Curve:
-        """
-        Create a new curve with an initial node date moved forward keeping all else
+        """Create a new curve with an initial node date moved forward keeping all else
         constant.
 
         This curve adjustment preserves forward curve expectations as time evolves.
@@ -701,7 +698,7 @@ class Curve(_WithState):
         Curve
 
         Examples
-        ---------
+        --------
         The basic use of this function translates a curve forward in time and the
         plot demonstrates its rates are exactly the same as initially forecast.
 
@@ -850,8 +847,7 @@ class Curve(_WithState):
         return new_curve
 
     def _roll_nodes(self, tenor: datetime, days: int) -> dict[datetime, DualTypes]:
-        """
-        Roll nodes by adding days to each one and scaling DF values.
+        """Roll nodes by adding days to each one and scaling DF values.
 
         Parameters
         ----------
@@ -863,6 +859,7 @@ class Curve(_WithState):
         Returns
         -------
         dict
+
         """
         # let regular TypeErrors raise if curve.rate is None
         on_rate = self.rate(self.node_dates[0], "1d", "NONE")
@@ -878,8 +875,7 @@ class Curve(_WithState):
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     def roll(self, tenor: datetime | str) -> Curve:
-        """
-        Create a new curve with its shape translated in time but an identical initial
+        """Create a new curve with its shape translated in time but an identical initial
         node date.
 
         This curve adjustment is a simulation of a future state of the market where
@@ -901,7 +897,7 @@ class Curve(_WithState):
         Curve
 
         Examples
-        ---------
+        --------
         The basic use of this function translates a curve forward in time and the
         plot demonstrates its rates are exactly the same as initially forecast.
 
@@ -992,8 +988,7 @@ class Curve(_WithState):
             return new_curve.translate(self.node_dates[0])
 
     def index_value(self, date: datetime, interpolation: str = "daily") -> DualTypes:
-        """
-        Calculate the accrued value of the index from the ``index_base``.
+        """Calculate the accrued value of the index from the ``index_base``.
 
         Parameters
         ----------
@@ -1027,6 +1022,7 @@ class Curve(_WithState):
            )
            index_curve.rate(dt(2021, 9, 6), "1d")
            index_curve.index_value(dt(2021, 9, 7))
+
         """
         if isinstance(self.index_base, NoInput):
             raise ValueError(
@@ -1058,8 +1054,7 @@ class Curve(_WithState):
         difference: bool = False,
         labels: list[str] | NoInput = NoInput(0),
     ) -> PlotOutput:
-        """
-        Plot given forward tenor rates from the curve.
+        """Plot given forward tenor rates from the curve.
 
         Parameters
         ----------
@@ -1085,6 +1080,7 @@ class Curve(_WithState):
         Returns
         -------
         (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
+
         """
         comparators = _drb([], comparators)
         labels = _drb([], labels)
@@ -1132,8 +1128,7 @@ class Curve(_WithState):
         difference: bool = False,
         labels: list[str] | NoInput = NoInput(0),
     ) -> PlotOutput:
-        """
-        Plot given forward tenor rates from the curve. See notes.
+        """Plot given forward tenor rates from the curve. See notes.
 
         Parameters
         ----------
@@ -1161,7 +1156,7 @@ class Curve(_WithState):
         (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
 
         Notes
-        ------
+        -----
         This function plots single-period, **simple interest** curve rates, which are defined as:
 
         .. math::
@@ -1271,8 +1266,7 @@ class Curve(_WithState):
         # right: datetime = None,
         # points: int = None,
     ) -> PlotOutput:  # pragma: no cover
-        """
-        Debugging method?
+        """Debugging method?
         """
 
         def forward_fx(
@@ -1297,8 +1291,7 @@ class Curve(_WithState):
     # Cache management
 
     def _clear_cache(self) -> None:
-        """
-        Clear the cache of values on a *Curve* type.
+        """Clear the cache of values on a *Curve* type.
 
         Returns
         -------
@@ -1311,6 +1304,7 @@ class Curve(_WithState):
         constructed to avoid the issue of un-cleared caches returning erroneous values.
 
         Alternatively the curve caching as a feature can be set to *False* in ``defaults``.
+
         """
         self._cache: dict[datetime, DualTypes] = dict()
 
@@ -1322,8 +1316,7 @@ class Curve(_WithState):
     # Mutation
 
     def csolve(self) -> None:
-        """
-        Solves **and sets** the coefficients, ``c``, of the :class:`PPSpline`.
+        """Solves **and sets** the coefficients, ``c``, of the :class:`PPSpline`.
 
         Returns
         -------
@@ -1336,6 +1329,7 @@ class Curve(_WithState):
 
         Uses the ``spline_endpoints`` attribute on the class to determine the solving
         method.
+
         """
         self._csolve()
         self._clear_cache()
@@ -1419,8 +1413,7 @@ class Curve(_WithState):
         self._set_new_state()
 
     def _set_ad_order(self, order: int) -> None:
-        """
-        Change the node values to float, Dual or Dual2 based on input parameter.
+        """Change the node values to float, Dual or Dual2 based on input parameter.
         """
         if order == getattr(self, "ad", None):
             return None
@@ -1443,8 +1436,7 @@ class Curve(_WithState):
         | NoInput = NoInput(0),
         endpoints: str | tuple[str, str] | NoInput = NoInput(0),
     ) -> None:
-        """
-        Update a curve with new, manually input values.
+        """Update a curve with new, manually input values.
 
         For arguments see :class:`~rateslib.curves.curves.Curve`. Any value not given will not
         change the underlying *Curve*.
@@ -1479,8 +1471,7 @@ class Curve(_WithState):
         self._set_new_state()
 
     def update_node(self, key: datetime, value: DualTypes) -> None:
-        """
-        Update a single node value on the *Curve*.
+        """Update a single node value on the *Curve*.
 
         Parameters
         ----------
@@ -1527,8 +1518,7 @@ class Curve(_WithState):
 
     @classmethod
     def from_json(cls, curve: str, **kwargs) -> Curve:  # type: ignore[no-untyped-def]
-        """
-        Reconstitute a curve from JSON.
+        """Reconstitute a curve from JSON.
 
         Parameters
         ----------
@@ -1538,6 +1528,7 @@ class Curve(_WithState):
         Returns
         -------
         Curve or LineCurve
+
         """
         serial = json.loads(curve)
 
@@ -1553,12 +1544,12 @@ class Curve(_WithState):
         return cls(**{**serial, **kwargs})
 
     def to_json(self) -> str:
-        """
-        Convert the parameters of the curve to JSON format.
+        """Convert the parameters of the curve to JSON format.
 
         Returns
         -------
         str
+
         """
         if isinstance(self.t, NoInput):
             t = None
@@ -1591,19 +1582,18 @@ class Curve(_WithState):
         return f"<rl.{type(self).__name__}:{self.id} at {hex(id(self))}>"
 
     def copy(self) -> Curve:
-        """
-        Create an identical copy of the curve object.
+        """Create an identical copy of the curve object.
 
         Returns
         -------
         Curve or LineCurve
+
         """
         return self.from_json(self.to_json())
 
 
 class LineCurve(Curve):
-    """
-    Curve based on value parametrisation at given node dates with interpolation.
+    """Curve based on value parametrisation at given node dates with interpolation.
 
     Parameters
     ----------
@@ -1647,7 +1637,6 @@ class LineCurve(Curve):
 
     Notes
     -----
-
     This curve type is **value** based and it is parametrised by a set of
     (date, value) pairs set as ``nodes``. The initial node date of the curve is defined
     to be today, and can take a general value. The initial value
@@ -1748,8 +1737,7 @@ class LineCurve(Curve):
         *args: Any,
         **kwargs: Any,
     ) -> DualTypes | None:
-        """
-        Return the curve value for a given date.
+        """Return the curve value for a given date.
 
         Note `LineCurve` s do not determine interest rates via DFs therefore do not
         have the concept of tenors or termination dates - the rate is simply the value
@@ -1763,6 +1751,7 @@ class LineCurve(Curve):
         Returns
         -------
         float, Dual, or Dual2
+
         """
         try:
             _: DualTypes = self._rate_with_raise(effective, *args, **kwargs)
@@ -1789,8 +1778,7 @@ class LineCurve(Curve):
         composite: bool = True,
         collateral: str | NoInput = NoInput(0),
     ) -> Curve:
-        """
-        Raise or lower the curve in parallel by a set number of basis points.
+        """Raise or lower the curve in parallel by a set number of basis points.
 
         Parameters
         ----------
@@ -1913,8 +1901,7 @@ class LineCurve(Curve):
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     def translate(self, start: datetime, t: bool = False) -> Curve:
-        """
-        Create a new curve with an initial node date moved forward keeping all else
+        """Create a new curve with an initial node date moved forward keeping all else
         constant.
 
         This curve adjustment preserves forward curve expectations as time evolves.
@@ -1935,7 +1922,7 @@ class LineCurve(Curve):
         Curve
 
         Examples
-        ---------
+        --------
         The basic use of this function translates a curve forward in time and the
         plot demonstrates its rates are exactly the same as initially forecast.
 
@@ -2046,8 +2033,7 @@ class LineCurve(Curve):
         return new_nodes
 
     def roll(self, tenor: datetime | str) -> Curve:
-        """
-        Create a new curve with its shape translated in time
+        """Create a new curve with its shape translated in time
 
         This curve adjustment is a simulation of a future state of the market where
         forward rates are assumed to have moved so that the present day's curve shape
@@ -2068,7 +2054,7 @@ class LineCurve(Curve):
         Curve
 
         Examples
-        ---------
+        --------
         The basic use of this function translates a curve forward in time and the
         plot demonstrates its rates are exactly the same as initially forecast.
 
@@ -2131,8 +2117,7 @@ class LineCurve(Curve):
 
 
 class IndexCurve(Curve):
-    """
-    Deprecated. Use :class:`~rateslib.curves.Curve` with a valid ``index_base``.
+    """Deprecated. Use :class:`~rateslib.curves.Curve` with a valid ``index_base``.
     """
 
     def __init__(  # type: ignore[no-untyped-def]
@@ -2150,8 +2135,7 @@ class IndexCurve(Curve):
 
 
 class CompositeCurve(Curve):
-    """
-    A dynamic composition of a sequence of other curves.
+    """A dynamic composition of a sequence of other curves.
 
     .. note::
        Can only composite curves of the same type: :class:`Curve`
@@ -2419,8 +2403,7 @@ class CompositeCurve(Curve):
         modifier: str | NoInput = NoInput(1),
         approximate: bool = True,
     ) -> DualTypes | None:
-        """
-        Calculate the composited rate on the curve.
+        """Calculate the composited rate on the curve.
 
         If rates are sought for dates prior to the initial node of the curve `None`
         will be returned.
@@ -2442,6 +2425,7 @@ class CompositeCurve(Curve):
         Returns
         -------
         Dual, Dual2 or float
+
         """
         if effective < self.curves[0].node_dates[0]:  # Alternative solution to PR 172.
             return None
@@ -2534,8 +2518,7 @@ class CompositeCurve(Curve):
         composite: bool = True,
         collateral: str | NoInput = NoInput(0),
     ) -> CompositeCurve:
-        """
-        Create a new curve by vertically adjusting the curve by a set number of basis
+        """Create a new curve by vertically adjusting the curve by a set number of basis
         points.
 
         This curve adjustment preserves the shape of the curve but moves it up or
@@ -2559,6 +2542,7 @@ class CompositeCurve(Curve):
         Returns
         -------
         CompositeCurve
+
         """
         if composite:
             # TODO (med) allow composite composite curves
@@ -2575,8 +2559,7 @@ class CompositeCurve(Curve):
 
     @_validate_states
     def translate(self, start: datetime, t: bool = False) -> CompositeCurve:
-        """
-        Create a new curve with an initial node date moved forward keeping all else
+        """Create a new curve with an initial node date moved forward keeping all else
         constant.
 
         This curve adjustment preserves forward curve expectations as time evolves.
@@ -2595,14 +2578,14 @@ class CompositeCurve(Curve):
         Returns
         -------
         CompositeCurve
+
         """
         # cache check unnecessary since translate is constructed from up-to-date objects directly
         return CompositeCurve(curves=[curve.translate(start, t) for curve in self.curves])
 
     @_validate_states
     def roll(self, tenor: datetime | str) -> CompositeCurve:
-        """
-        Create a new curve with its shape translated in time
+        """Create a new curve with its shape translated in time
 
         This curve adjustment is a simulation of a future state of the market where
         forward rates are assumed to have moved so that the present day's curve shape
@@ -2621,14 +2604,14 @@ class CompositeCurve(Curve):
         Returns
         -------
         CompositeCurve
+
         """
         # cache check unnecessary since roll is constructed from up-to-date objects directly
         return CompositeCurve(curves=[curve.roll(tenor) for curve in self.curves])
 
     @_validate_states
     def index_value(self, date: datetime, interpolation: str = "daily") -> DualTypes:
-        """
-        Calculate the accrued value of the index from the ``index_base``, which is taken
+        """Calculate the accrued value of the index from the ``index_base``, which is taken
         as ``index_base`` of the *first* composited curve given.
 
         See :meth:`Curve.index_value()<rateslib.curves.Curve.index_value>`
@@ -2654,8 +2637,7 @@ class CompositeCurve(Curve):
 
 
 class MultiCsaCurve(CompositeCurve):
-    """
-    A dynamic composition of a sequence of other curves.
+    """A dynamic composition of a sequence of other curves.
 
     .. note::
        Can only combine curves of the type: :class:`Curve`. Other curve parameters such as
@@ -2680,6 +2662,7 @@ class MultiCsaCurve(CompositeCurve):
     -----
     A *MultiCsaCurve* uses a different calculation methodology than a *CompositeCurve* for
     determining the *rate* by selecting the curve within the collection with the highest rate.
+
     """
 
     def __init__(
@@ -2700,8 +2683,7 @@ class MultiCsaCurve(CompositeCurve):
         termination: datetime | str,
         modifier: str | NoInput = NoInput(1),
     ) -> DualTypes | None:
-        """
-        Calculate the cheapest-to-deliver (CTD) rate on the curve.
+        """Calculate the cheapest-to-deliver (CTD) rate on the curve.
 
         If rates are sought for dates prior to the initial node of the curve `None`
         will be returned.
@@ -2719,6 +2701,7 @@ class MultiCsaCurve(CompositeCurve):
         Returns
         -------
         Dual, Dual2 or float
+
         """
         if effective < self.curves[0].node_dates[0]:  # Alternative solution to PR 172.
             return None
@@ -2784,8 +2767,7 @@ class MultiCsaCurve(CompositeCurve):
     @_validate_states
     # unnecessary because up-to-date objects are referred to directly
     def translate(self, start: datetime, t: bool = False) -> MultiCsaCurve:
-        """
-        Create a new curve with an initial node date moved forward keeping all else
+        """Create a new curve with an initial node date moved forward keeping all else
         constant.
 
         This curve adjustment preserves forward curve expectations as time evolves.
@@ -2804,6 +2786,7 @@ class MultiCsaCurve(CompositeCurve):
         Returns
         -------
         MultiCsaCurve
+
         """
         return MultiCsaCurve(
             curves=[curve.translate(start, t) for curve in self.curves],
@@ -2814,8 +2797,7 @@ class MultiCsaCurve(CompositeCurve):
     @_validate_states
     # unnecessary because up-to-date objects are referred to directly
     def roll(self, tenor: datetime | str) -> MultiCsaCurve:
-        """
-        Create a new curve with its shape translated in time
+        """Create a new curve with its shape translated in time
 
         This curve adjustment is a simulation of a future state of the market where
         forward rates are assumed to have moved so that the present day's curve shape
@@ -2834,6 +2816,7 @@ class MultiCsaCurve(CompositeCurve):
         Returns
         -------
         MultiCsaCurve
+
         """
         return MultiCsaCurve(
             curves=[curve.roll(tenor) for curve in self.curves],
@@ -2849,8 +2832,7 @@ class MultiCsaCurve(CompositeCurve):
         composite: bool | NoInput = True,
         collateral: str | NoInput = NoInput(0),
     ) -> MultiCsaCurve:
-        """
-        Create a new curve by vertically adjusting the curve by a set number of basis
+        """Create a new curve by vertically adjusting the curve by a set number of basis
         points.
 
         This curve adjustment preserves the shape of the curve but moves it up or
@@ -2874,6 +2856,7 @@ class MultiCsaCurve(CompositeCurve):
         Returns
         -------
         CompositeCurve
+
         """
         if composite:
             # TODO (med) allow composite composite curves
@@ -2914,8 +2897,7 @@ class MultiCsaCurve(CompositeCurve):
 
 
 class ProxyCurve(Curve):
-    """
-    A subclass of :class:`~rateslib.curves.Curve` which returns dynamic DFs based on
+    """A subclass of :class:`~rateslib.curves.Curve` which returns dynamic DFs based on
     other curves related via :class:`~rateslib.fx.FXForwards` parity.
 
     Parameters
@@ -2953,6 +2935,7 @@ class ProxyCurve(Curve):
     The returned curve contains contrived methods to calculate this dynamically and
     efficiently from the combination of curves and FX rates that are available within
     the given :class:`FXForwards` instance.
+
     """
 
     _base_type = "dfs"
@@ -3029,22 +3012,19 @@ class ProxyCurve(Curve):
         return _1 / _2 * _3
 
     def to_json(self) -> str:  # pragma: no cover  # type: ignore
-        """
-        Not implemented for :class:`~rateslib.fx.ProxyCurve` s.
+        """Not implemented for :class:`~rateslib.fx.ProxyCurve` s.
         :return:
         """
         raise NotImplementedError("`to_json` not available on proxy curve.")
 
     @classmethod
     def from_json(cls, curve: str, **kwargs: Any) -> Curve:  # pragma: no cover  # type: ignore
-        """
-        Not implemented for :class:`~rateslib.fx.ProxyCurve` s.
+        """Not implemented for :class:`~rateslib.fx.ProxyCurve` s.
         """
         raise NotImplementedError("`from_json` not available on proxy curve.")
 
     def _set_ad_order(self, order: int) -> None:  # pragma: no cover
-        """
-        Not implemented for :class:`~rateslib.fx.ProxyCurve` s.
+        """Not implemented for :class:`~rateslib.fx.ProxyCurve` s.
         """
         raise NotImplementedError("`set_ad_order` not available on proxy curve.")
 
@@ -3055,8 +3035,7 @@ class ProxyCurve(Curve):
 def average_rate(
     effective: datetime, termination: datetime, convention: str, rate: DualTypes
 ) -> tuple[Number, float, int]:
-    """
-    Return the geometric, 1 calendar day, average rate for the rate in a period.
+    """Return the geometric, 1 calendar day, average rate for the rate in a period.
 
     This is used for approximations usually in combination with floating periods.
 
@@ -3074,6 +3053,7 @@ def average_rate(
     Returns
     -------
     tuple : The rate, the 1-day DCF, and the number of calendar days
+
     """
     d: float = _DCF1d[convention.upper()]
     n: int = (termination - effective).days
@@ -3090,8 +3070,7 @@ def interpolate(
     interpolation: str,
     start: DualTypes | None = None,
 ) -> DualTypes:
-    """
-    Perform local interpolation between two data points.
+    """Perform local interpolation between two data points.
 
     Parameters
     ----------
@@ -3127,6 +3106,7 @@ def interpolate(
 
        interpolate(50, 0, 10, 100, 50, "linear")
        interpolate(dt(2000, 1, 6), dt(2000, 1, 1), 10, dt(2000, 1, 11), 50, "linear")
+
     """
     if interpolation == "linear":
 
@@ -3178,8 +3158,7 @@ def index_left(
     value: Any,
     left_count: int = 0,
 ) -> int:
-    """
-    Return the interval index of a value from an ordered input list on the left side.
+    """Return the interval index of a value from an ordered input list on the left side.
 
     Parameters
     ----------

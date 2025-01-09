@@ -15,8 +15,7 @@ if TYPE_CHECKING:
 def quadratic_eqn(
     a: DualTypes, b: DualTypes, c: DualTypes, x0: DualTypes, raise_on_fail: bool = True
 ) -> dict[str, Any]:
-    """
-    Solve the quadratic equation, :math:`ax^2 + bx +c = 0`, with error reporting.
+    """Solve the quadratic equation, :math:`ax^2 + bx +c = 0`, with error reporting.
 
     Parameters
     ----------

@@ -11,8 +11,7 @@ if TYPE_CHECKING:
 
 
 class BondCalcMode:
-    """
-    Define calculation conventions for :class:`~rateslib.instruments.FixedRateBond`,
+    """Define calculation conventions for :class:`~rateslib.instruments.FixedRateBond`,
     :class:`~rateslib.instruments.IndexFixedRateBond` and
     :class:`~rateslib.instruments.FloatRateNote` types.
 
@@ -31,8 +30,7 @@ class BondCalcMode:
         The calculation function that defines discounting of the last period of the YTM formula.
 
     Notes
-    -------
-
+    -----
     **Accrual Functions**
 
     These functions return the **fraction** of a bond cashflow that is attributed to the settlement
@@ -158,8 +156,7 @@ class BondCalcMode:
 
 
 class BillCalcMode:
-    """
-    Define calculation conventions for :class:`~rateslib.instruments.Bill` type.
+    """Define calculation conventions for :class:`~rateslib.instruments.Bill` type.
 
     Parameters
     ----------
@@ -170,8 +167,7 @@ class BillCalcMode:
         a replicable zero coupon bond is constructed and its YTM calculated as comparison.
 
     Notes
-    ------
-
+    -----
     - *"simple"*: uses simple interest formula:
 
       .. math::
@@ -183,6 +179,7 @@ class BillCalcMode:
       .. math::
 
          P = 100 ( 1 - r_{discount} d )
+
     """
 
     def __init__(

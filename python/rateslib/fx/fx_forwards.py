@@ -33,8 +33,7 @@ if TYPE_CHECKING:
 
 
 class FXForwards(_WithState):
-    """
-    Class for storing and calculating FX forward rates.
+    """Class for storing and calculating FX forward rates.
 
     Parameters
     ----------
@@ -96,13 +95,13 @@ class FXForwards(_WithState):
     transform : ndarray
     base : str
     fx_rates_immediate : FXRates
+
     """
 
     _mutable_by_association = True
 
     def update(self, fx_rates: list[dict[str, float]] | NoInput = NoInput(0)) -> None:
-        """
-        Update the FXForward object with the latest FX rates and FX curves values.
+        """Update the FXForward object with the latest FX rates and FX curves values.
 
         The update method is primarily used to allow synchronous updating within a
         ``Solver``.
@@ -154,6 +153,7 @@ class FXForwards(_WithState):
 
         The :class:`~rateslib.solver.Solver` also automatically updates *FXForwards* objects
         when it mutates and solves the *Curves*.
+
         """
         # does not require cache validation because resets the cache_id at end of method.
         if not isinstance(fx_rates, NoInput):
@@ -294,14 +294,14 @@ class FXForwards(_WithState):
             self.pairs_settlement = settlement_pairs
 
     def _calculate_immediate_rates_same_settlement_frame(self) -> FXRates:
-        """
-        Calculate the immediate FX rates values given current Curves and input FXRates obj.
+        """Calculate the immediate FX rates values given current Curves and input FXRates obj.
 
         Notes
         -----
         Searches the non-diagonal elements of transformation matrix, once it has
         found a pair uses the relevant curves and the FX rate to determine the
         immediate FX rate for that pair.
+
         """
         # this method can only be performed on an FXForwards object that is associated to a
         # single FXRates obj (hence the use of the acyclic_fxf)
@@ -342,7 +342,7 @@ class FXForwards(_WithState):
     def _get_curves_for_currencies(
         fx_curves: dict[str, Curve], currencies: list[str]
     ) -> dict[str, Curve]:
-        """produces a complete subset of fx curves given a list of currencies"""
+        """Produces a complete subset of fx curves given a list of currencies"""
         ps = product(currencies, currencies)
         ret = {p[0] + p[1]: fx_curves[p[0] + p[1]] for p in ps if p[0] + p[1] in fx_curves}
         return ret
@@ -351,8 +351,7 @@ class FXForwards(_WithState):
     def _get_forwards_transformation_matrix(
         q: int, currencies: dict[str, int], fx_curves: dict[str, Curve]
     ) -> np.ndarray[tuple[int, int], np.dtype[np.int_]]:
-        """
-        Performs checks to ensure FX forwards can be generated from provided DF curves.
+        """Performs checks to ensure FX forwards can be generated from provided DF curves.
 
         The transformation matrix has cash currencies by row and collateral currencies
         by column.
@@ -389,8 +388,7 @@ class FXForwards(_WithState):
         traced_paths: list[int],
         recursive_path: list[dict[str, int]],
     ) -> tuple[bool, list[dict[str, int]]]:
-        """
-        Recursively calculate map from a cash currency to another via collateral curves.
+        """Recursively calculate map from a cash currency to another via collateral curves.
 
         Parameters
         ----------
@@ -466,8 +464,7 @@ class FXForwards(_WithState):
         pair: str,
         settlement: datetime | NoInput = NoInput(0),
     ) -> DualTypes:
-        """
-        Return the fx forward rate for a currency pair.
+        """Return the fx forward rate for a currency pair.
 
         Parameters
         ----------
@@ -510,8 +507,7 @@ class FXForwards(_WithState):
         settlement: datetime | NoInput = NoInput(0),
         path: list[dict[str, int]] | NoInput = NoInput(0),
     ) -> tuple[DualTypes, list[dict[str, int]]]:
-        """
-        Return the fx forward rate for a currency pair, including the path taken to traverse ccys.
+        """Return the fx forward rate for a currency pair, including the path taken to traverse ccys.
 
         Parameters
         ----------
@@ -534,6 +530,7 @@ class FXForwards(_WithState):
         -----
         This function does not have automatic cache management. If a *Curve* or an *FXRates*
         object has been updated, one *must* call `FXForwards.update` before calling this methob.
+
         """
 
         def _get_d_f_idx_and_path(
@@ -589,8 +586,7 @@ class FXForwards(_WithState):
     def positions(
         self, value: Number, base: str | NoInput = NoInput(0), aggregate: bool = False
     ) -> Series[float] | DataFrame:
-        """
-        Convert a base value with FX rate sensitivities into an array of cash positions
+        """Convert a base value with FX rate sensitivities into an array of cash positions
         by settlement date.
 
         Parameters
@@ -675,8 +671,7 @@ class FXForwards(_WithState):
         collateral: str | NoInput = NoInput(0),
         on_error: str = "ignore",
     ) -> DualTypes | None:
-        """
-        Convert an amount of a domestic currency, as of a settlement date
+        """Convert an amount of a domestic currency, as of a settlement date
         into a foreign currency, valued on another date.
 
         Parameters
@@ -762,8 +757,7 @@ class FXForwards(_WithState):
         | Series[float],
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
-        """
-        Convert an input of currency cash positions into a single base currency value.
+        """Convert an input of currency cash positions into a single base currency value.
 
         Parameters
         ----------
@@ -805,6 +799,7 @@ class FXForwards(_WithState):
                dt(2022, 9, 7): [0, -1000000],
            })
            fxf.convert_positions(positions, "usd")
+
         """
         base = self.base if isinstance(base, NoInput) else base.lower()
 
@@ -838,8 +833,7 @@ class FXForwards(_WithState):
         settlements: list[datetime],
         path: list[dict[str, int]] | NoInput = NoInput(0),
     ) -> DualTypes:
-        """
-        Return the FXSwap mid-market rate for the given currency pair.
+        """Return the FXSwap mid-market rate for the given currency pair.
 
         Parameters
         ----------
@@ -856,6 +850,7 @@ class FXForwards(_WithState):
         Returns
         -------
         Dual
+
         """
         fx0, path_ = self._rate_with_path(pair, settlements[0], path)
         fx1, _ = self._rate_with_path(pair, settlements[1], path_)
@@ -863,8 +858,7 @@ class FXForwards(_WithState):
 
     # @_validate_state TODO
     def _full_curve(self, cashflow: str, collateral: str) -> Curve:
-        """
-        Calculate a cash collateral curve.
+        """Calculate a cash collateral curve.
 
         Parameters
         ----------
@@ -887,6 +881,7 @@ class FXForwards(_WithState):
            w_{DOM:FOR,i} = \\frac{f_{DOMFOR,i}}{F_{DOMFOR,0}} v_{FOR:FOR,i}
 
         The returned curve has each DF uniquely specified on each date.
+
         """
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
         cash_idx, coll_idx = self.currencies[cash_ccy], self.currencies[coll_ccy]
@@ -917,8 +912,7 @@ class FXForwards(_WithState):
         calendar: CalInput = NoInput(1),  # will inherit from available curve
         id: str | NoInput = NoInput(0),  # noqa: A002
     ) -> Curve:
-        """
-        Return a cash collateral curve.
+        """Return a cash collateral curve.
 
         Parameters
         ----------
@@ -959,6 +953,7 @@ class FXForwards(_WithState):
         The returned curve contains contrived methods to calculate rates and DFs
         from the combination of curves and FX rates that are available within
         the given :class:`FXForwards` instance.
+
         """
         if isinstance(collateral, list | tuple):
             curves = []
@@ -991,8 +986,7 @@ class FXForwards(_WithState):
         left: datetime | str | NoInput = NoInput(0),
         fx_swap: bool = False,
     ) -> PlotOutput:
-        """
-        Plot given forward FX rates.
+        """Plot given forward FX rates.
 
         Parameters
         ----------
@@ -1014,6 +1008,7 @@ class FXForwards(_WithState):
         Returns
         -------
         (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
+
         """
         if isinstance(left, NoInput):
             left_: datetime = self.immediate
@@ -1072,8 +1067,7 @@ class FXForwards(_WithState):
 
     @classmethod
     def from_json(cls, fx_forwards: str, **kwargs) -> FXForwards:  # type: ignore[no-untyped-def]
-        """
-        Loads an FXForwards object from JSON.
+        """Loads an FXForwards object from JSON.
 
         Parameters
         ----------
@@ -1090,6 +1084,7 @@ class FXForwards(_WithState):
         This method also creates new ``FXRates`` and ``Curve`` objects from JSON.
         These new objects can be accessed from the attributes of the ``FXForwards``
         instance.
+
         """
         from rateslib.json import from_json
 
@@ -1142,8 +1137,7 @@ class FXForwards(_WithState):
 
     # @_validate_state: unused because it is redirected to a cache_validated method (to_json)
     def copy(self) -> FXForwards:
-        """
-        An FXForwards copy creates a new object with copied references.
+        """An FXForwards copy creates a new object with copied references.
         """
         return self.from_json(self.to_json())
 
@@ -1160,8 +1154,7 @@ def forward_fx(
     fx_rate: DualTypes,
     fx_settlement: datetime | NoInput = NoInput(0),
 ) -> DualTypes:
-    """
-    Return a forward FX rate based on interest rate parity.
+    """Return a forward FX rate based on interest rate parity.
 
     Parameters
     ----------
@@ -1233,6 +1226,7 @@ def forward_fx(
            "gbpusd": foreign_curve,
        })
        fxf.rate("usdgbp", dt(2022, 7, 1))
+
     """  # noqa: E501
     if date == fx_settlement:  # noqa: SIM114
         return fx_rate  # noqa: SIM114

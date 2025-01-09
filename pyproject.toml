@@ -119,7 +119,7 @@ select = [
     "I",  # isort
     "N",  # pep8 naming
     # "RUF",  # -- Requires work
-    # "D", Pydocs -- requires work
+    "D", # Pydocs -- requires work
 ]
 ignore = [
     "A005",  # json and typing module name shadowing is allowed

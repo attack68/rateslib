@@ -41,8 +41,7 @@ if TYPE_CHECKING:
 
 
 class FXExchange(Sensitivities, BaseMixin):
-    """
-    Create a simple exchange of two currencies.
+    """Create a simple exchange of two currencies.
 
     Parameters
     ----------
@@ -58,6 +57,7 @@ class FXExchange(Sensitivities, BaseMixin):
         For *FXExchange* only discounting curves are required in each currency and not rate
         forecasting curves.
         The signature should be: `[None, eur_curve, None, usd_curve]` for a "eurusd" pair.
+
     """
 
     def __init__(
@@ -116,8 +116,7 @@ class FXExchange(Sensitivities, BaseMixin):
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ):
-        """
-        Return the NPV of the *FXExchange* by summing legs.
+        """Return the NPV of the *FXExchange* by summing legs.
 
         For arguments see :meth:`BaseMixin.npv<rateslib.instruments.BaseMixin.npv>`
         """
@@ -170,8 +169,7 @@ class FXExchange(Sensitivities, BaseMixin):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
-        """
-        Return the cashflows of the *FXExchange* by aggregating legs.
+        """Return the cashflows of the *FXExchange* by aggregating legs.
 
         For arguments see :meth:`BaseMixin.npv<rateslib.instruments.BaseMixin.cashflows>`
         """
@@ -199,8 +197,7 @@ class FXExchange(Sensitivities, BaseMixin):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
-        """
-        Return the mid-market rate of the instrument.
+        """Return the mid-market rate of the instrument.
 
         For arguments see :meth:`BaseMixin.rate<rateslib.instruments.BaseMixin.rate>`
         """
@@ -226,16 +223,14 @@ class FXExchange(Sensitivities, BaseMixin):
         return _
 
     def delta(self, *args, **kwargs):
-        """
-        Calculate the delta of the *Instrument*.
+        """Calculate the delta of the *Instrument*.
 
         For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
         """
         return super().delta(*args, **kwargs)
 
     def gamma(self, *args, **kwargs):
-        """
-        Calculate the gamma of the *Instrument*.
+        """Calculate the gamma of the *Instrument*.
 
         For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
         """
@@ -246,8 +241,7 @@ class FXExchange(Sensitivities, BaseMixin):
 
 
 class XCS(BaseDerivative):
-    """
-    Create a cross-currency swap (XCS) composing relevant fixed or floating *Legs*.
+    """Create a cross-currency swap (XCS) composing relevant fixed or floating *Legs*.
 
     MTM-XCSs will introduce a MTM *Leg* as *Leg2*.
 
@@ -324,6 +318,7 @@ class XCS(BaseDerivative):
         :class:`~rateslib.fx.FXForwards` object.
     kwargs : dict
         Required keyword arguments for :class:`~rateslib.instruments.BaseDerivative`.
+
     """
 
     def __init__(
@@ -443,8 +438,7 @@ class XCS(BaseDerivative):
         self._set_leg2_notional(value)
 
     def _initialise_fx_fixings(self, fx_fixings):
-        """
-        Sets the `fx_fixing` for non-mtm XCS instruments, which require only a single
+        """Sets the `fx_fixing` for non-mtm XCS instruments, which require only a single
         value.
         """
         if not self._is_mtm:
@@ -464,8 +458,7 @@ class XCS(BaseDerivative):
             self._fx_fixings = fx_fixings
 
     def _set_fx_fixings(self, fx):
-        """
-        Checks the `fx_fixings` and sets them according to given object if null.
+        """Checks the `fx_fixings` and sets them according to given object if null.
 
         Used by ``rate`` and ``npv`` methods when ``fx_fixings`` are not
         initialised but required for pricing and can be inferred from an FX object.
@@ -503,8 +496,7 @@ class XCS(BaseDerivative):
             self._set_leg2_notional(fx)
 
     def _set_leg2_notional(self, fx_arg: float | FXForwards):
-        """
-        Update the notional on leg2 (foreign leg) if the initial fx rate is unfixed.
+        """Update the notional on leg2 (foreign leg) if the initial fx rate is unfixed.
 
         ----------
         fx_arg : float or FXForwards
@@ -585,8 +577,7 @@ class XCS(BaseDerivative):
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ):
-        """
-        Return the NPV of the derivative by summing legs.
+        """Return the NPV of the derivative by summing legs.
 
         .. warning::
 
@@ -623,8 +614,7 @@ class XCS(BaseDerivative):
         fx: FXForwards | NoInput = NoInput(0),
         leg: int = 1,
     ):
-        """
-        Return the mid-market pricing parameter of the XCS.
+        """Return the mid-market pricing parameter of the XCS.
 
         Parameters
         ----------
@@ -662,6 +652,7 @@ class XCS(BaseDerivative):
 
         Examples
         --------
+
         """
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -733,8 +724,7 @@ class XCS(BaseDerivative):
         return _ if _is_float_tgt_leg else _ * 0.01
 
     def spread(self, *args, **kwargs):
-        """
-        Alias for :meth:`~rateslib.instruments.BaseXCS.rate`
+        """Alias for :meth:`~rateslib.instruments.BaseXCS.rate`
         """
         return self.rate(*args, **kwargs)
 
@@ -775,8 +765,7 @@ class XCS(BaseDerivative):
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
     ):
-        """
-        Return a DataFrame of fixing exposures on any :class:`~rateslib.legs.FloatLeg` or
+        """Return a DataFrame of fixing exposures on any :class:`~rateslib.legs.FloatLeg` or
         :class:`~rateslib.legs.FloatLegMtm` associated with the *XCS*.
 
         Parameters
@@ -807,6 +796,7 @@ class XCS(BaseDerivative):
         Returns
         -------
         DataFrame
+
         """
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -855,8 +845,7 @@ class XCS(BaseDerivative):
 
 
 class FXSwap(XCS):
-    """
-    Create an FX swap simulated via a *Fixed-Fixed* :class:`XCS`.
+    """Create an FX swap simulated via a *Fixed-Fixed* :class:`XCS`.
 
     Parameters
     ----------
@@ -1018,8 +1007,7 @@ class FXSwap(XCS):
     _unpriced = True
 
     def _parse_split_flag(self, fx_fixings, points, split_notional):
-        """
-        Determine the rules for a priced, unpriced or partially priced derivative and whether
+        """Determine the rules for a priced, unpriced or partially priced derivative and whether
         it is inferred as split notional or not.
         """
         is_none = [_ is NoInput.blank for _ in [fx_fixings, points, split_notional]]
@@ -1048,8 +1036,7 @@ class FXSwap(XCS):
                 )
 
     def _set_split_notional(self, curve: Curve | NoInput = NoInput(0), at_init: bool = False):
-        """
-        Will set the fixed rate, if not zero, for leg1, given provided split not or forecast splnot.
+        """Will set the fixed rate, if not zero, for leg1, given provided split not or forecast splnot.
 
         self._split_notional is used as a temporary storage when mid market price is determined.
         """
@@ -1160,8 +1147,7 @@ class FXSwap(XCS):
         fx: FXForwards | NoInput = NoInput(0),
         fixed_rate: bool = False,
     ):
-        """
-        Return the mid-market pricing parameter of the FXSwapS.
+        """Return the mid-market pricing parameter of the FXSwapS.
 
         Parameters
         ----------
@@ -1185,6 +1171,7 @@ class FXSwap(XCS):
         Returns
         -------
         float, Dual or Dual2
+
         """
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,

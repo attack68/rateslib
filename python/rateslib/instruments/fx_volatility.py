@@ -29,8 +29,7 @@ if TYPE_CHECKING:
 
 
 class FXOption(Sensitivities, metaclass=ABCMeta):
-    """
-    Create an *FX Option*.
+    """Create an *FX Option*.
 
     Parameters
     ----------
@@ -87,8 +86,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         :ref:`here<defaults-doc>` for more info and available values.
 
     Notes
-    ------
-
+    -----
     Date calculations for *FXOption* products are very specific. See *'Expiry and Delivery Rules'*
     in *FX Option Pricing* by I. Clark. *Rateslib* uses calendars with associated settlement
     calendars and the recognised market convention rules to derive dates.
@@ -339,8 +337,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             self.periods[1].notional = float(premium)
 
     def _get_vol_curves_fx_and_base_maybe_from_solver(self, solver, curves, fx, base, vol):
-        """
-        Parses the inputs including the instrument's attributes and also validates them
+        """Parses the inputs including the instrument's attributes and also validates them
         """
         curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -367,8 +364,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         vol: float | FXVols | NoInput = NoInput(0),
         metric: str | NoInput = NoInput(0),
     ):
-        """
-        Return various pricing metrics of the *FX Option*.
+        """Return various pricing metrics of the *FX Option*.
 
         Parameters
         ----------
@@ -412,6 +408,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         *FXStrangle* and *FXBrokerFly* have the additional ``metric`` *'single_vol'* which is a
         more complex and
         integrated calculation.
+
         """
         curves, fx, _base, vol = self._get_vol_curves_fx_and_base_maybe_from_solver(
             solver,
@@ -444,8 +441,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         local: bool = False,
         vol: float = NoInput(0),
     ):
-        """
-        Return the NPV of the *Option*.
+        """Return the NPV of the *Option*.
 
         Parameters
         ----------
@@ -468,6 +464,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         Returns
         -------
         float, Dual, Dual2 or dict of such.
+
         """
         curves, fx, base, vol = self._get_vol_curves_fx_and_base_maybe_from_solver(
             solver,
@@ -498,8 +495,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         base: str | NoInput = NoInput(0),
         vol: float = NoInput(0),
     ):
-        """
-        Return the properties of all periods used in calculating cashflows.
+        """Return the properties of all periods used in calculating cashflows.
 
         Parameters
         ----------
@@ -547,8 +543,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         local: bool = False,
         vol: float = NoInput(0),
     ):
-        """
-        Return various pricing metrics of the *FX Option*.
+        """Return various pricing metrics of the *FX Option*.
 
         Parameters
         ----------
@@ -571,6 +566,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         Returns
         -------
         float, Dual, Dual2
+
         """
         curves, fx, base, vol = self._get_vol_curves_fx_and_base_maybe_from_solver(
             solver,
@@ -602,8 +598,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         local: bool = False,
         vol: float = NoInput(0),
     ):
-        """
-        Mechanics to determine (x,y) coordinates for payoff at expiry plot.
+        """Mechanics to determine (x,y) coordinates for payoff at expiry plot.
         """
         curves, fx, base, vol = self._get_vol_curves_fx_and_base_maybe_from_solver(
             solver,
@@ -633,8 +628,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
 
 class FXCall(FXOption):
-    """
-    Create an *FX Call* option.
+    """Create an *FX Call* option.
 
     For parameters see :class:`~rateslib.instruments.FXOption`.
     """
@@ -667,8 +661,7 @@ class FXCall(FXOption):
 
 
 class FXPut(FXOption):
-    """
-    Create an *FX Put* option.
+    """Create an *FX Put* option.
 
     For parameters see :class:`~rateslib.instruments.FXOption`.
     """
@@ -701,8 +694,7 @@ class FXPut(FXOption):
 
 
 class FXOptionStrat:
-    """
-    Create a custom option strategy composed of a list of :class:`~rateslib.instruments.FXOption`.
+    """Create a custom option strategy composed of a list of :class:`~rateslib.instruments.FXOption`.
 
     Parameters
     ----------
@@ -712,6 +704,7 @@ class FXOptionStrat:
         The multiplier for the *'pips_or_%'* metric that sums the options to a final *rate*.
     rate_weight_vol: list
         The multiplier for the *'vol'* metric that sums the options to a final *rate*.
+
     """
 
     _pricing = {}
@@ -750,8 +743,7 @@ class FXOptionStrat:
         vol: list[float] | float = NoInput(0),
         metric: str | NoInput = NoInput(0),  # "pips_or_%",
     ):
-        """
-        Return the mid-market rate of an option strategy.
+        """Return the mid-market rate of an option strategy.
 
         See :meth:`~rateslib.instruments.FXOption.rate`.
         """
@@ -828,8 +820,7 @@ class FXOptionStrat:
         return x, y
 
     def _set_notionals(self, notional):
-        """
-        Set the notionals on each option period. Mainly used by Brokerfly for vega neutral
+        """Set the notionals on each option period. Mainly used by Brokerfly for vega neutral
         strangle and straddle.
         """
         for option in self.periods:
@@ -844,8 +835,7 @@ class FXOptionStrat:
         local: bool = False,
         vol: float = NoInput(0),
     ):
-        """
-        Return various pricing metrics of the *FX Option*.
+        """Return various pricing metrics of the *FX Option*.
 
         Parameters
         ----------
@@ -871,10 +861,9 @@ class FXOptionStrat:
         float, Dual, Dual2
 
         Notes
-        ------
+        -----
 
         """
-
         # implicitly call set_pricing_mid for unpriced parameters
         # this is important for Strategies whose options are
         # dependent upon each other, e.g. Strangle. (RR and Straddle do not have
@@ -931,8 +920,7 @@ class FXOptionStrat:
 
 
 class FXRiskReversal(FXOptionStrat, FXOption):
-    """
-    Create an *FX Risk Reversal* option strategy.
+    """Create an *FX Risk Reversal* option strategy.
 
     For additional arguments see :class:`~rateslib.instruments.FXOption`.
 
@@ -961,6 +949,7 @@ class FXRiskReversal(FXOptionStrat, FXOption):
     This class is essentially an alias constructor for an
     :class:`~rateslib.instruments.FXOptionStrat` where the number
     of options and their definitions and nominals have been specifically set.
+
     """
 
     rate_weight = [-1.0, 1.0]
@@ -1018,7 +1007,7 @@ class FXRiskReversal(FXOptionStrat, FXOption):
         ]
 
     def _validate_strike_and_premiums(self):
-        """called as part of init, specific validation rules for straddle"""
+        """Called as part of init, specific validation rules for straddle"""
         if any(_ is NoInput.blank for _ in self.kwargs["strike"]):
             raise ValueError(
                 "`strike` for FXRiskReversal must be set to list of 2 numeric or string values.",
@@ -1033,8 +1022,7 @@ class FXRiskReversal(FXOptionStrat, FXOption):
 
 
 class FXStraddle(FXOptionStrat, FXOption):
-    """
-    Create an *FX Straddle* option strategy.
+    """Create an *FX Straddle* option strategy.
 
     For additional arguments see :class:`~rateslib.instruments.FXOption`.
 
@@ -1060,6 +1048,7 @@ class FXStraddle(FXOptionStrat, FXOption):
     This class is essentially an alias constructor for an
     :class:`~rateslib.instruments.FXOptionStrat` where the number
     of options and their definitions and nominals have been specifically set.
+
     """
 
     rate_weight = [1.0, 1.0]
@@ -1105,7 +1094,7 @@ class FXStraddle(FXOptionStrat, FXOption):
         ]
 
     def _validate_strike_and_premiums(self):
-        """called as part of init, specific validation rules for straddle"""
+        """Called as part of init, specific validation rules for straddle"""
         if self.kwargs["strike"] is NoInput.blank:
             raise ValueError("`strike` for FXStraddle must be set to numeric or string value.")
         if isinstance(self.kwargs["strike"], str) and self.kwargs["premium"] != [
@@ -1120,8 +1109,7 @@ class FXStraddle(FXOptionStrat, FXOption):
 
 
 class FXStrangle(FXOptionStrat, FXOption):
-    """
-    Create an *FX Strangle* option strategy.
+    """Create an *FX Strangle* option strategy.
 
     For additional arguments see :class:`~rateslib.instruments.FXOption`.
 
@@ -1221,7 +1209,7 @@ class FXStrangle(FXOptionStrat, FXOption):
         ]
 
     def _validate_strike_and_premiums(self):
-        """called as part of init, specific validation rules for strangle"""
+        """Called as part of init, specific validation rules for strangle"""
         if any(_ is NoInput.blank for _ in self.kwargs["strike"]):
             raise ValueError(
                 "`strike` for FXStrangle must be set to list of 2 numeric or string values.",
@@ -1243,11 +1231,10 @@ class FXStrangle(FXOptionStrat, FXOption):
         vol: list[float] | float = NoInput(0),
         metric: str | NoInput = NoInput(0),  # "pips_or_%",
     ):
-        """
-        Returns the rate of the *FXStraddle* according to a pricing metric.
+        """Returns the rate of the *FXStraddle* according to a pricing metric.
 
         Notes
-        ------
+        -----
 
         .. warning::
 
@@ -1262,6 +1249,7 @@ class FXStrangle(FXOptionStrat, FXOption):
         The ``metric`` *'vol'* is not sensible to use with an *FXStraddle*, although it will
         return the arithmetic
         average volatility across both options, *'single_vol'* is the more standardised choice.
+
         """
         return self._rate(curves, solver, fx, base, vol, metric)
 
@@ -1281,8 +1269,7 @@ class FXStrangle(FXOptionStrat, FXOption):
                 return super().rate(curves, solver, fx, base, vol=single_vol, metric=metric)
 
     def _rate_single_vol(self, curves, solver, fx, base, vol, record_greeks):
-        """
-        Solve the single vol rate metric for a strangle using iterative market convergence routine.
+        """Solve the single vol rate metric for a strangle using iterative market convergence routine.
         """
         # Get curves and vol
         curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
@@ -1321,8 +1308,7 @@ class FXStrangle(FXOptionStrat, FXOption):
         ]
 
         def d_wrt_sigma1(period_index, greeks, smile_greeks, vol, eta1):
-            """
-            Obtain derivatives with respect to tgt vol.
+            """Obtain derivatives with respect to tgt vol.
 
             This function was tested by adding AD to the tgt_vol as a variable e.g.:
             tgt_vol = Dual(float(tgt_vol), ["tgt_vol"], [100.0]) # note scaled to 100
@@ -1453,8 +1439,7 @@ class FXStrangle(FXOptionStrat, FXOption):
 
 
 class FXBrokerFly(FXOptionStrat, FXOption):
-    """
-    Create an *FX BrokerFly* option strategy.
+    """Create an *FX BrokerFly* option strategy.
 
     For additional arguments see :class:`~rateslib.instruments.FXOption`.
 
@@ -1594,8 +1579,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         vol: list[float] | float = NoInput(0),
         metric: str | NoInput = NoInput(0),
     ):
-        """
-        Return the mid-market rate of an option strategy.
+        """Return the mid-market rate of an option strategy.
 
         Parameters
         ----------
@@ -1612,7 +1596,6 @@ class FXBrokerFly(FXOptionStrat, FXOption):
 
         Notes
         -----
-
         The different types of ``metric`` return different quotation conventions.
 
         - *'single_vol'*: the default type for a :class:`~rateslib.instruments.FXStrangle`
@@ -1629,6 +1612,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
           ``rate_weight`` parameter. For example for a :class:`~rateslib.instruments.FXStraddle`
           the total premium
           is the sum of two premiums and the ``rate_weight`` parameters are [1.0, 1.0].
+
         """
         if not isinstance(vol, list):
             vol = [[vol, vol], vol]

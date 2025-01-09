@@ -1,10 +1,9 @@
 # Sphinx substitutions
 
-"""
-.. ipython:: python
-   :suppress:
+""".. ipython:: python
+:suppress:
 
-   from rateslib import *
+from rateslib import *
 """
 
 from __future__ import annotations

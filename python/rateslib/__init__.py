@@ -20,8 +20,7 @@ from contextlib import ContextDecorator
 
 
 class default_context(ContextDecorator):
-    """
-    Context manager to temporarily set options in the `with` statement context.
+    """Context manager to temporarily set options in the `with` statement context.
 
     You need to invoke as ``option_context(pat, val, [(pat, val), ...])``.
 
@@ -29,6 +28,7 @@ class default_context(ContextDecorator):
     --------
     >>> with option_context('convention', "act360", 'frequency', "S"):
     ...     pass
+
     """
 
     def __init__(self, *args) -> None:  # type: ignore[no-untyped-def]
