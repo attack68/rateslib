@@ -64,7 +64,7 @@ CurveInput: TypeAlias = "CurveInput_ | NoInput"
 CurveOption_: TypeAlias = "Curve | dict[str, Curve]"
 CurveOption: TypeAlias = "CurveOption_ | NoInput"
 
-CurvesList: TypeAlias = "tuple[CurveOption, CurveOption, CurveOption, CurveOption]"
+CurvesTuple: TypeAlias = "tuple[CurveOption, CurveOption, CurveOption, CurveOption]"
 
 Vol_: TypeAlias = "DualTypes | FXDeltaVolSmile | FXDeltaVolSurface | str"
 Vol: TypeAlias = "Vol_ | NoInput"
