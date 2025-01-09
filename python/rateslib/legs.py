@@ -1,24 +1,3 @@
-# This is a dependent of instruments.py
-
-"""
-.. ipython:: python
-   :suppress:
-
-   from rateslib.legs import *
-   from rateslib.legs import CreditPremiumLeg
-   from rateslib.curves import Curve
-   from datetime import datetime as dt
-   curve = Curve(
-       nodes={
-           dt(2022,1,1): 1.0,
-           dt(2023,1,1): 0.99,
-           dt(2024,1,1): 0.965,
-           dt(2025,1,1): 0.93,
-       },
-       interpolation="log_linear",
-   )
-"""
-
 from __future__ import annotations
 
 import abc

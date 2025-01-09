@@ -1,12 +1,3 @@
-# Sphinx substitutions
-
-"""
-.. ipython:: python
-   :suppress:
-
-   from rateslib import *
-"""
-
 from __future__ import annotations
 
 from rateslib.instruments.base import BaseMixin
