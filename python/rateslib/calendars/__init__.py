@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import calendar as calendar_mod
+from collections.abc import Callable
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -585,6 +586,12 @@ def _get_fx_expiry_and_delivery(
 
     return expiry_, delivery_
 
+
+_IS_ROLL: dict[str, Callable[..., bool]] = {
+    "eom": _is_eom,
+    "som": _is_som,
+    "imm": _is_imm,
+}
 
 __all__ = (
     "add_tenor",

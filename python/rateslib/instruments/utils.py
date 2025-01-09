@@ -175,6 +175,7 @@ def _validate_curve_not_str(curve: CurveInput) -> CurveOption:
         return {k: _validate_curve_not_str(v) for k, v in curve.items()}  # type: ignore[misc]
     return curve
 
+
 def _make_4_tuple_of_curve(curves: tuple[CurveOption, ...]) -> CurvesTuple:
     n = len(curves)
     if n == 1:
@@ -186,6 +187,7 @@ def _make_4_tuple_of_curve(curves: tuple[CurveOption, ...]) -> CurvesTuple:
     elif n > 4:
         raise ValueError("Can only supply a maximum of 4 `curves`.")
     return curves  # type: ignore[return-value]
+
 
 def _get_curves_fx_and_base_maybe_from_solver(
     curves_attr: Curves,
