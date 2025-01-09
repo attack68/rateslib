@@ -1,11 +1,3 @@
-"""
-.. ipython:: python
-   :suppress:
-
-   from rateslib.curves import *
-   from datetime import datetime as dt
-"""
-
 from __future__ import annotations
 
 import json
