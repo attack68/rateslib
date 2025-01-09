@@ -44,11 +44,13 @@ Defaults
    :skip: datetime
    :skip: Enum
    :skip: read_csv
-   :skip: get_named_calendar
    :skip: Cal
    :skip: NamedCal
    :skip: Series
    :skip: UnionCal
+   :skip: Callable
+   :skip: ParamSpec
+   :skip: TypeVar
 
 Calendars
 ==========
@@ -159,10 +161,11 @@ FX Volatility
 .. automodapi:: rateslib.fx_volatility
    :no-heading:
    :no-inheritance-diagram:
+   :skip: Any
+   :skip: Variable
    :skip: set_order_convert
    :skip: dual_exp
    :skip: dual_inv_norm_cdf
-   :skip: DualTypes
    :skip: Dual
    :skip: Dual2
    :skip: dual_norm_cdf
@@ -188,10 +191,11 @@ Link to the :ref:`Periods<periods-doc>` section in the user guide.
 
 .. automodapi:: rateslib.periods
    :no-heading:
+   :skip: Any
+   :skip: Sequence
    :skip: Index
    :skip: NoInput
    :skip: ABCMeta
-   :skip: IndexCurve
    :skip: Variable
    :skip: MultiIndex
    :skip: Curve
@@ -200,8 +204,6 @@ Link to the :ref:`Periods<periods-doc>` section in the user guide.
    :skip: Dual2
    :skip: FXRates
    :skip: FXForwards
-   :skip: LineCurve
-   :skip: CompositeCurve
    :skip: Series
    :skip: datetime
    :skip: comb
@@ -236,6 +238,9 @@ Solver
 
 .. automodapi:: rateslib.solver
    :no-heading:
+   :skip: Callable
+   :skip: Curve
+   :skip: ParamSpec
    :skip: MultiCsaCurve
    :skip: NoInput
    :skip: FXRates
