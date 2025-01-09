@@ -142,7 +142,7 @@ def _parse_str_calendar(calendar: str, named: bool) -> CalTypes:
     if len(vectors) == 1:
         return _parse_str_calendar_no_associated(vectors[0], named)
     elif len(vectors) == 2:
-        return _parse_str_calendar_no_associated(vectors[0], vectors[1], named)
+        return _parse_str_calendar_with_associated(vectors[0], vectors[1], named)
     else:
         raise ValueError("Cannot use more than one pipe ('|') operator in `calendar`.")
 

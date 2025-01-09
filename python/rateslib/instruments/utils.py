@@ -146,18 +146,8 @@ def _get_curves_maybe_from_solver(
 
     # parse curves_as_list
     if isinstance(solver, NoInput):
-
-        def check_curve(curve: str | Curve | dict[str, Curve | str] | NoInput) -> CurveOption:
-            if isinstance(curve, str):
-                raise ValueError("`curves` must contain Curve, not str, if `solver` not given.")
-            elif curve is None or isinstance(curve, NoInput):
-                return NoInput(0)
-            elif isinstance(curve, dict):
-                return {k: check_curve(v) for k, v in curve.items()}  # type: ignore[misc]
-            return curve
-
         curves_parsed: tuple[CurveOption, ...] = tuple(
-            check_curve(curve) for curve in curves_as_list
+            _validate_curve_not_str(curve) for curve in curves_as_list
         )
     else:
         try:
@@ -170,19 +160,32 @@ def _get_curves_maybe_from_solver(
                 f"The available ids are {list(solver.pre_curves.keys())}.",
             )
 
-    if len(curves_parsed) == 1:
-        curves_parsed *= 4
-    elif len(curves_parsed) == 2:
-        curves_parsed *= 2
-    elif len(curves_parsed) == 3:
-        curves_parsed += (curves_parsed[1],)
-    elif len(curves_parsed) > 4:
+    return _make_4_tuple_of_curve(curves_parsed)
+
+
+def _validate_curve_not_str(curve: CurveInput) -> CurveOption:
+    """
+    Check a curve as a CurveInput type and convert to a more specific CurveOption
+    """
+    if isinstance(curve, str):
+        raise ValueError("`curves` must contain Curve, not str, if `solver` not given.")
+    elif curve is None or isinstance(curve, NoInput):
+        return NoInput(0)
+    elif isinstance(curve, dict):
+        return {k: _validate_curve_not_str(v) for k, v in curve.items()}  # type: ignore[misc]
+    return curve
+
+def _make_4_tuple_of_curve(curves: tuple[CurveOption, ...]) -> CurvesTuple:
+    n = len(curves)
+    if n == 1:
+        curves *= 4
+    elif n == 2:
+        curves *= 2
+    elif n == 3:
+        curves += (curves[1],)
+    elif n > 4:
         raise ValueError("Can only supply a maximum of 4 `curves`.")
-    return curves_parsed  # type: ignore[return-value]
-
-
-def _make_4_tuple_of_curve(curves: tuple[Curve, ...]) -> CurvesTuple:
-
+    return curves  # type: ignore[return-value]
 
 def _get_curves_fx_and_base_maybe_from_solver(
     curves_attr: Curves,
