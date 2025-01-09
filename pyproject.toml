@@ -149,7 +149,7 @@ packages = [
     "rateslib"
 ]
 exclude = [
-    "/instruments/bonds/futures.py",
+    # "/instruments/bonds/futures.py",
     "/instruments/bonds/securities.py",
     "/instruments/fx_volatility.py",
     "/instruments/generics.py",

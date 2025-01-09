@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from pandas import DataFrame
 
@@ -16,6 +17,10 @@ from rateslib.periods import (
     _get_fx_and_base,
 )
 from rateslib.solver import Solver
+
+if TYPE_CHECKING:
+    from typing import Any
+    from rateslib.typing import DualTypes, Curves, FX
 
 
 class BondFuture(Sensitivities):
@@ -857,13 +862,13 @@ class BondFuture(Sensitivities):
 
     def rate(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         metric: str = "future_price",
         delivery: datetime | NoInput = NoInput(0),
-    ):
+    ) -> DualTypes:
         """
         Return various pricing metrics of the security calculated from
         :class:`~rateslib.curves.Curve` s.
@@ -906,16 +911,16 @@ class BondFuture(Sensitivities):
         if metric not in ["future_price", "ytm"]:
             raise ValueError("`metric` must be in {'future_price', 'ytm'}.")
 
-        if delivery is NoInput.blank:
+        if isinstance(delivery, NoInput):
             f_settlement = self.delivery[1]
         else:
             f_settlement = delivery
-        prices_ = [
+        prices_: list[DualTypes] = [
             bond.rate(curves, solver, fx, base, "clean_price", f_settlement) for bond in self.basket
         ]
-        future_prices_ = [price / self.cfs[i] for i, price in enumerate(prices_)]
-        future_price = min(future_prices_)
-        ctd_index = future_prices_.index(min(future_prices_))
+        future_prices_: list[DualTypes] = [price / self.cfs[i] for i, price in enumerate(prices_)]
+        future_price: DualTypes = min(future_prices_)
+        ctd_index: int = future_prices_.index(min(future_prices_))
 
         if metric == "future_price":
             return future_price
@@ -924,12 +929,12 @@ class BondFuture(Sensitivities):
 
     def npv(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
-    ):
+    ) -> DualTypes | dict[str, DualTypes]:
         """
         Determine the monetary value of the bond future position.
 
@@ -941,14 +946,14 @@ class BondFuture(Sensitivities):
         See :meth:`BaseDerivative.npv`.
         """
         future_price = self.rate(curves, solver, fx, base, "future_price")
-        fx, base = _get_fx_and_base(self.currency, fx, base)
+        fx_, base_ = _get_fx_and_base(self.currency, fx, base)
         npv_ = future_price / 100 * -self.notional
         if local:
             return {self.currency: npv_}
         else:
-            return npv_ * fx
+            return npv_ * fx_
 
-    def delta(self, *args, **kwargs):
+    def delta(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
         Calculate the delta of the *Instrument*.
 
@@ -956,7 +961,7 @@ class BondFuture(Sensitivities):
         """
         return super().delta(*args, **kwargs)
 
-    def gamma(self, *args, **kwargs):
+    def gamma(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
         Calculate the gamma of the *Instrument*.
 
