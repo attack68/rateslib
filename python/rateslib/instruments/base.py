@@ -11,17 +11,21 @@ from rateslib.instruments.utils import _get_curves_fx_and_base_maybe_from_solver
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, NPV, Curves, DualTypes
+    from rateslib.typing import FX, NPV, Curves, DualTypes, Leg
 
 
 class BaseMixin:
-    _fixed_rate_mixin = False
-    _float_spread_mixin = False
-    _leg2_fixed_rate_mixin = False
-    _leg2_float_spread_mixin = False
-    _index_base_mixin = False
-    _leg2_index_base_mixin = False
-    _rate_scalar = 1.0
+    _fixed_rate_mixin: bool = False
+    _float_spread_mixin: bool = False
+    _leg2_fixed_rate_mixin: bool = False
+    _leg2_float_spread_mixin: bool = False
+    _index_base_mixin: bool = False
+    _leg2_index_base_mixin: bool = False
+    _rate_scalar: float = 1.0
+
+    leg1: Leg
+    leg2: Leg
+    curves: Curves
 
     @property
     def fixed_rate(self) -> DualTypes | NoInput:
@@ -43,7 +47,7 @@ class BaseMixin:
         if not self._fixed_rate_mixin:
             raise AttributeError("Cannot set `fixed_rate` for this Instrument.")
         self._fixed_rate = value
-        self.leg1.fixed_rate = value
+        self.leg1.fixed_rate = value  # type: ignore[union-attr]
 
     @property
     def leg2_fixed_rate(self) -> DualTypes | NoInput:
@@ -58,7 +62,7 @@ class BaseMixin:
         if not self._leg2_fixed_rate_mixin:
             raise AttributeError("Cannot set `leg2_fixed_rate` for this Instrument.")
         self._leg2_fixed_rate = value
-        self.leg2.fixed_rate = value
+        self.leg2.fixed_rate = value  # type: ignore[union-attr]
 
     @property
     def float_spread(self) -> DualTypes | NoInput:
@@ -73,7 +77,7 @@ class BaseMixin:
         if not self._float_spread_mixin:
             raise AttributeError("Cannot set `float_spread` for this Instrument.")
         self._float_spread = value
-        self.leg1.float_spread = value
+        self.leg1.float_spread = value  # type: ignore[union-attr]
         # if getattr(self, "_float_mixin_leg", None) is NoInput.blank:
         #     self.leg1.float_spread = value
         # else:
@@ -94,7 +98,7 @@ class BaseMixin:
         if not self._leg2_float_spread_mixin:
             raise AttributeError("Cannot set `leg2_float_spread` for this Instrument.")
         self._leg2_float_spread = value
-        self.leg2.float_spread = value
+        self.leg2.float_spread = value  # type: ignore[union-attr]
 
     @property
     def index_base(self) -> DualTypes | NoInput:
@@ -115,7 +119,7 @@ class BaseMixin:
         if not self._index_base_mixin:
             raise AttributeError("Cannot set `index_base` for this Instrument.")
         self._index_base = value
-        self.leg1.index_base = value
+        self.leg1.index_base = value  # type: ignore[union-attr]
 
     @property
     def leg2_index_base(self) -> DualTypes | NoInput:
@@ -136,10 +140,10 @@ class BaseMixin:
         if not self._leg2_index_base_mixin:
             raise AttributeError("Cannot set `leg2_index_base` for this Instrument.")
         self._leg2_index_base = value
-        self.leg2.index_base = value
+        self.leg2.index_base = value  # type: ignore[union-attr]
 
     @abc.abstractmethod
-    def analytic_delta(self, *args: Any, leg=1, **kwargs: Any) -> DualTypes:
+    def analytic_delta(self, *args: Any, leg: int = 1, **kwargs: Any) -> DualTypes:
         """
         Return the analytic delta of a leg of the derivative object.
 
@@ -184,7 +188,8 @@ class BaseMixin:
            irs.analytic_delta(curve, curve, fxr)
            irs.analytic_delta(curve, curve, fxr, "gbp")
         """
-        return getattr(self, f"leg{leg}").analytic_delta(*args, **kwargs)
+        _: DualTypes = getattr(self, f"leg{leg}").analytic_delta(*args, **kwargs)
+        return _
 
     @abc.abstractmethod
     def cashflows(
@@ -245,7 +250,7 @@ class BaseMixin:
 
            irs.cashflows([curve], fx=fxr)
         """
-        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+        curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,
             curves,
@@ -254,15 +259,15 @@ class BaseMixin:
             self.leg1.currency,
         )
 
-        df1 = self.leg1.cashflows(curves[0], curves[1], fx_, base_)
-        df2 = self.leg2.cashflows(curves[2], curves[3], fx_, base_)
+        df1 = self.leg1.cashflows(curves_[0], curves_[1], fx_, base_)  # type: ignore[arg-type]
+        df2 = self.leg2.cashflows(curves_[2], curves_[3], fx_, base_)  # type: ignore[arg-type]
         # filter empty or all NaN
         dfs_filtered = [_ for _ in [df1, df2] if not (_.empty or isna(_).all(axis=None))]
 
         with warnings.catch_warnings():
             # TODO: pandas 2.1.0 has a FutureWarning for concatenating DataFrames with Null entries
             warnings.filterwarnings("ignore", category=FutureWarning)
-            _ = concat(dfs_filtered, keys=["leg1", "leg2"])
+            _: DataFrame = concat(dfs_filtered, keys=["leg1", "leg2"])
         return _
 
     @abc.abstractmethod
@@ -331,7 +336,7 @@ class BaseMixin:
            irs.npv([curve], fx=fxr)
            irs.npv([curve], fx=fxr, base="gbp")
         """
-        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+        curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,
             curves,
@@ -339,12 +344,12 @@ class BaseMixin:
             base,
             self.leg1.currency,
         )
-        leg1_npv: NPV = self.leg1.npv(curves[0], curves[1], fx_, base_, local)
-        leg2_npv: NPV = self.leg2.npv(curves[2], curves[3], fx_, base_, local)
+        leg1_npv: NPV = self.leg1.npv(curves_[0], curves_[1], fx_, base_, local)  # type: ignore[arg-type]
+        leg2_npv: NPV = self.leg2.npv(curves_[2], curves_[3], fx_, base_, local)  # type: ignore[arg-type]
         if local:
             return {
-                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0)
-                for k in set(leg1_npv) | set(leg2_npv)  # type: ignore[union-attr]
+                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0)  # type: ignore[union-attr]
+                for k in set(leg1_npv) | set(leg2_npv)  # type: ignore[arg-type]
             }
         else:
             return leg1_npv + leg2_npv  # type: ignore[operator]

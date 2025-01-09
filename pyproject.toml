@@ -143,12 +143,9 @@ packages = [
 ]
 exclude = [
     "/instruments/bonds/",
-    # "/instruments/__init__.py",
-    # "/instruments/sensitivities.py",
     "/instruments/fx_volatility.py",
     "/instruments/generics.py",
-    # "/instruments/utils.py",
-    "/instruments/base.py",
+    # "/instruments/base.py",
     "/instruments/rates_derivatives.py",
     "/instruments/rates_multi_ccy.py",
     "solver.py",
