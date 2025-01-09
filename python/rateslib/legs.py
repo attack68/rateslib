@@ -55,22 +55,11 @@ from rateslib.periods import (
 from rateslib.scheduling import Schedule
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, DualTypes
+    from rateslib.typing import CalInput, CurveOption, DualTypes, Period
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-
-Period = (
-    FixedPeriod
-    | FloatPeriod
-    | Cashflow
-    | IndexFixedPeriod
-    | IndexCashflow
-    | CreditPremiumPeriod
-    | CreditProtectionPeriod
-)
 
 
 class BaseLeg(metaclass=ABCMeta):
@@ -1402,7 +1391,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         _ = [period.dcf for period in self.periods if isinstance(period, FloatPeriod)]
         return sum(_)
 
-    def rate(self, curve: Curve | NoInput) -> DualTypes:
+    def rate(self, curve: CurveOption) -> DualTypes:
         """
         Calculate a simple period type floating rate for the zero coupon leg.
 
@@ -1423,7 +1412,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
 
     def npv(
         self,
-        curve: Curve,
+        curve: CurveOption,
         disc_curve: Curve | NoInput = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -1544,7 +1533,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
 
     def cashflows(
         self,
-        curve: Curve | NoInput = NoInput(0),
+        curve: CurveOption = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -1719,7 +1708,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
 
     def cashflows(
         self,
-        curve: Curve | NoInput = NoInput(0),
+        curve: CurveOption = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -2995,9 +2984,21 @@ class CustomLeg(BaseLeg):
     """  # noqa: E501
 
     def __init__(self, periods: list[Period]) -> None:
-        if not all(isinstance(p, Period) for p in periods):
+        if not all(
+            isinstance(
+                p,
+                FloatPeriod
+                | FixedPeriod
+                | IndexFixedPeriod
+                | Cashflow
+                | IndexCashflow
+                | CreditPremiumPeriod
+                | CreditProtectionPeriod,
+            )
+            for p in periods
+        ):
             raise ValueError(
-                "Each object in `periods` must be of type {FixedPeriod, FloatPeriod, " "Cashflow}.",
+                "Each object in `periods` must be a specific `Period` type.",
             )
         self._set_periods(periods)
 
