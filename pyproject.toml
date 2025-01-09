@@ -121,6 +121,7 @@ select = [
     # "RUF",  # -- Requires work
 ]
 ignore = [
+    "A005",  # json and typing module name shadowing is allowed
     "PT011", # -- Requires work inputting match statements
     "PIE790",  # unnecessary pass
     "C408",  # unnecessary dict call
