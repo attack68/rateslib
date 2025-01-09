@@ -4691,7 +4691,7 @@ class TestFXOptions:
         assert abs(result - expected) < 1e-6
 
     @pytest.mark.parametrize(
-        ("eval", "eom", "expected"),
+        ("evald", "eom", "expected"),
         [
             (
                 dt(2024, 4, 26),
@@ -4705,11 +4705,11 @@ class TestFXOptions:
             ),  # 2bd before 30th May (rolled from 30th April)
         ],
     )
-    def test_expiry_delivery_tenor_eom(self, eval, eom, expected) -> None:
+    def test_expiry_delivery_tenor_eom(self, evald, eom, expected) -> None:
         fxo = FXCall(
             pair="eurusd",
             expiry="1m",
-            eval_date=eval,
+            eval_date=evald,
             eom=eom,
             calendar="tgt|fed",
             modifier="mf",

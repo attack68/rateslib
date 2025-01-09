@@ -110,8 +110,8 @@ select = [
     "C4",  # flake8-comprehensions
     "S",  # flake8-bandit
     "PIE",  # flake8-pie
-    # "ANN",  # flake8-annotations  -- Requires work
-    # "A",  # flake8-builtins  -- Requires work
+    # "ANN",  # flake8-annotations  -- Superceded by the use of mypy
+    "A",  # flake8-builtins  -- Requires work
     # "COM",  # flake8-commas  -- conflicts with ruff format
     "Q",  # flake8-quotes
     "PT",  # flake8-pytest-style

@@ -88,7 +88,7 @@ class FXDeltaVolSmile(_WithState):
         eval_date: datetime,
         expiry: datetime,
         delta_type: str,
-        id: str | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),  # noqa: A002
         ad: int = 0,
     ):
         self.id: str = (
@@ -846,7 +846,7 @@ class FXDeltaVolSurface(_WithState):
         eval_date: datetime,
         delta_type: str,
         weights: Series[float] | NoInput = NoInput(0),
-        id: str | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),  # noqa: A002
         ad: int = 0,
     ):
         self.id: str = (
@@ -938,10 +938,10 @@ class FXDeltaVolSurface(_WithState):
 
     def _get_node_vars(self) -> tuple[str, ...]:
         """Get the variable names of elements updated by a Solver"""
-        vars: tuple[str, ...] = ()
+        vars_: tuple[str, ...] = ()
         for smile in self.smiles:
-            vars += tuple(f"{smile.id}{i}" for i in range(smile.n))
-        return vars
+            vars_ += tuple(f"{smile.id}{i}" for i in range(smile.n))
+        return vars_
 
     def get_smile(self, expiry: datetime) -> FXDeltaVolSmile:
         """

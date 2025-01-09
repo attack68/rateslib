@@ -594,7 +594,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
     def _plot_payoff(
         self,
-        range: list[float] | NoInput = NoInput(0),
+        window: list[float] | NoInput = NoInput(0),
         curves: Curve | str | list | NoInput = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
         fx: FXForwards | NoInput = NoInput(0),
@@ -615,12 +615,12 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         self._set_strike_and_vol(curves, fx, vol)
         # self._set_premium(curves, fx)
 
-        x, y = self.periods[0]._payoff_at_expiry(range)
+        x, y = self.periods[0]._payoff_at_expiry(window)
         return x, y
 
     def plot_payoff(
         self,
-        range: list[float] | NoInput = NoInput(0),
+        range: list[float] | NoInput = NoInput(0),  # noqa: A002
         curves: Curve | str | list | NoInput = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
         fx: FXForwards | NoInput = NoInput(0),
@@ -806,7 +806,7 @@ class FXOptionStrat:
 
     def _plot_payoff(
         self,
-        range: list[float] | NoInput = NoInput(0),
+        window: list[float] | NoInput = NoInput(0),
         curves: Curve | str | list | NoInput = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
         fx: FXForwards | NoInput = NoInput(0),
@@ -819,7 +819,7 @@ class FXOptionStrat:
 
         y = None
         for option, vol_ in zip(self.periods, vol, strict=False):
-            x, y_ = option._plot_payoff(range, curves, solver, fx, base, local, vol_)
+            x, y_ = option._plot_payoff(window, curves, solver, fx, base, local, vol_)
             if y is None:
                 y = y_
             else:
@@ -1709,7 +1709,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
 
     def _plot_payoff(
         self,
-        range: list[float] | NoInput = NoInput(0),
+        range: list[float] | NoInput = NoInput(0),  # noqa: A002
         curves: Curve | str | list | NoInput = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
         fx: FXForwards | NoInput = NoInput(0),

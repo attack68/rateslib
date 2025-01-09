@@ -87,7 +87,7 @@ class Sensitivities:
 
     def exo_delta(
         self,
-        vars: list[str],
+        vars: list[str],  # noqa: A002
         curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
         fx: FX = NoInput(0),

@@ -118,8 +118,8 @@ def test_pickle_interpolator(name) -> None:
     import pickle
 
     obj = _get_interpolator(name)
-    bytes = pickle.dumps(obj)
-    pickle.loads(bytes)
+    bytes_ = pickle.dumps(obj)
+    pickle.loads(bytes_)
 
 
 def test_get_interpolation(curve) -> None:

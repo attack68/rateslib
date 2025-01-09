@@ -817,7 +817,7 @@ class FXForwards(_WithState):
 
         # j = self.currencies[base]
         # return np.sum(array_ * self.fx_array[:, j])
-        sum: DualTypes = 0.0
+        sum_: DualTypes = 0.0
         for d in array_.columns:
             d_sum: DualTypes = 0.0
             for ccy in array_.index:
@@ -825,11 +825,11 @@ class FXForwards(_WithState):
                 value_: DualTypes | None = self.convert(array_.loc[ccy, d], ccy, base, d)  # type: ignore[arg-type]
                 d_sum += 0.0 if value_ is None else value_
             if abs(d_sum) < 1e-2:
-                sum += d_sum
+                sum_ += d_sum
             else:  # only discount if there is a real value
                 value_ = self.convert(d_sum, base, base, d, self.immediate)  # type: ignore[arg-type]
-                sum += 0.0 if value_ is None else value_
-        return sum
+                sum_ += 0.0 if value_ is None else value_
+        return sum_
 
     @_validate_states
     def swap(
@@ -915,7 +915,7 @@ class FXForwards(_WithState):
         convention: str | NoInput = NoInput(1),  # will inherit from available curve
         modifier: str | NoInput = NoInput(1),  # will inherit from available curve
         calendar: CalInput = NoInput(1),  # will inherit from available curve
-        id: str | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),  # noqa: A002
     ) -> Curve:
         """
         Return a cash collateral curve.

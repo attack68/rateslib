@@ -53,8 +53,8 @@ class Fixings:
     """
 
     @staticmethod
-    def _load_csv(dir: str, path: str) -> Series[float]:
-        target = os.path.join(dir, path)
+    def _load_csv(directory: str, path: str) -> Series[float]:
+        target = os.path.join(directory, path)
         if version.parse(pandas.__version__) < version.parse("2.0"):  # pragma: no cover
             # this is tested by the minimum version gitflow actions.
             # TODO (low:dependencies) remove when pandas min version is bumped to 2.0
