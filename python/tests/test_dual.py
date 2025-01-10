@@ -250,6 +250,14 @@ def test_dual_raises(x_1) -> None:
         x_1.dual2
 
 
+def test_dual_is_not_iterable(x_1, y_1):
+    assert getattr(x_1, "__iter__", None) is None
+    assert getattr(y_1, "__iter__", None) is None
+
+def test_dual_has_no_len(x_1, y_1):
+    assert getattr(x_1, "__len__", None) is None
+    assert getattr(y_1, "__len__", None) is None
+
 @pytest.mark.parametrize(
     ("op", "expected"),
     [

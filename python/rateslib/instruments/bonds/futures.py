@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from pandas import DataFrame
@@ -16,7 +17,7 @@ from rateslib.periods import (
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, Any, Curves, DualTypes, FixedRateBond, Sequence
+    from rateslib.typing import FX, Any, Curves, DualTypes, FixedRateBond
 
 
 class BondFuture(Sensitivities):
@@ -417,12 +418,12 @@ class BondFuture(Sensitivities):
 
     def cms(
         self,
-        prices: list[float],
+        prices: Sequence[float],
         settlement: datetime,
-        shifts: list[float],
+        shifts: Sequence[float],
         delivery: datetime | NoInput = NoInput(0),
         dirty: bool = False,
-    ):
+    ) -> DataFrame:
         """
         Perform CTD multi-security analysis.
 
@@ -432,7 +433,7 @@ class BondFuture(Sensitivities):
             The prices of the bonds in the deliverable basket (ordered).
         settlement: datetime
             The settlement date of the bonds.
-        shifts : list of float
+        shifts : Sequence[float]
             The scenarios to analyse.
         delivery: datetime, optional
             The date of the futures delivery. If not given uses the final delivery
@@ -482,7 +483,7 @@ class BondFuture(Sensitivities):
             )
         bcurve._set_ad_order(order=0)  # turn of AD for efficiency
 
-        data = {
+        data: dict[str | float, Any] = {
             "Bond": [
                 f"{bond.fixed_rate:,.3f}% {bond.leg1.schedule.termination.strftime('%d-%m-%Y')}"
                 for bond in self.basket
@@ -495,7 +496,7 @@ class BondFuture(Sensitivities):
                     shift: self.net_basis(
                         future_price=self.rate(curves=_curve),
                         prices=[_.rate(curves=_curve, metric=metric) for _ in self.basket],
-                        repo_rate=_curve.rate(settlement, self.delivery[1], "NONE"),
+                        repo_rate=_curve._rate_with_raise(settlement, self.delivery[1], "NONE"),
                         settlement=settlement,
                         delivery=delivery,
                         convention=_curve.convention,
@@ -533,7 +534,9 @@ class BondFuture(Sensitivities):
         tuple
         """
         if dirty:
-            prices_ = tuple(
+            if isinstance(settlement, NoInput):
+                raise ValueError("`settlement` must be specified if `dirty` is True.")
+            prices_: Sequence[DualTypes] = tuple(
                 prices[i] - bond.accrued(settlement) for i, bond in enumerate(self.basket)
             )
         else:
@@ -543,13 +546,13 @@ class BondFuture(Sensitivities):
     def net_basis(
         self,
         future_price: DualTypes,
-        prices: list[DualTypes],
-        repo_rate: DualTypes | list[DualTypes] | tuple[DualTypes, ...],
+        prices: Sequence[DualTypes],
+        repo_rate: DualTypes | Sequence[DualTypes],
         settlement: datetime,
         delivery: datetime | NoInput = NoInput(0),
         convention: str | NoInput = NoInput(0),
         dirty: bool = False,
-    ):
+    ) -> tuple[DualTypes, ...]:
         """
         Calculate the net basis of each bond in the basket via the proceeds
         method of repo.
@@ -576,13 +579,10 @@ class BondFuture(Sensitivities):
         -------
         tuple
         """
-        if delivery is NoInput.blank:
-            f_settlement = self.delivery[1]
-        else:
-            f_settlement = delivery
+        f_settlement: datetime = _drb(self.delivery[1], delivery)
 
-        if not isinstance(repo_rate, list | tuple):
-            r_ = (repo_rate,) * len(self.basket)
+        if not isinstance(repo_rate, Sequence):
+            r_: Sequence[DualTypes] = (repo_rate,) * len(self.basket)
         else:
             r_ = repo_rate
 
@@ -650,7 +650,7 @@ class BondFuture(Sensitivities):
         """
         f_settlement: datetime = _drb(self.delivery[1], delivery)
 
-        implied_repos = tuple()
+        implied_repos: tuple[DualTypes, ...] = tuple()
         for i, bond in enumerate(self.basket):
             invoice_price = future_price * self.cfs[i]
             implied_repos += (

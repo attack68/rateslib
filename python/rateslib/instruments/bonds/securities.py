@@ -398,7 +398,7 @@ class BondMixin:
         forward_price: DualTypes,
         convention: str | NoInput = NoInput(0),
         dirty: bool = False,
-    ):
+    ) -> DualTypes:
         """
         Return an implied repo rate from a forward price.
 
