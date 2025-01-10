@@ -1140,6 +1140,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     """  # noqa: E501
 
     _fixed_rate_mixin = True
+    fixed_rate: DualTypes
 
     def _period_cashflow(
         self,
@@ -1209,8 +1210,10 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         )
         self.kwargs = _update_with_defaults(self.kwargs, default_kwargs)
 
-        if self.kwargs["frequency"] is NoInput.blank:
+        if isinstance(self.kwargs["frequency"], NoInput):
             raise ValueError("`frequency` must be provided for Bond.")
+        if isinstance(self.kwargs["fixed_rate"], NoInput):
+            raise ValueError("`fixed_rate` must be provided for Bond.")
         # elif self.kwargs["frequency"].lower() == "z":
         #     raise ValueError("FixedRateBond `frequency` must be in {M, B, Q, T, S, A}.")
 

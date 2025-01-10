@@ -1148,6 +1148,18 @@ class TestFixedRateBond:
         assert bond.price(3.0, dt(2002, 3, 4)) == bond2.price(3.0, dt(2002, 3, 4))
         assert bond.accrued(dt(2002, 3, 4)) == bond2.accrued(dt(2002, 3, 4))
 
+    def test_must_have_fixed_rate(self):
+        with pytest.raises(ValueError, match="`fixed_rate` must be provided for Bond."):
+            FixedRateBond(
+                effective=dt(2001, 1, 1),
+                termination="10y",
+                frequency="s",
+                calendar="ldn",
+                convention="ActActICMA",
+                modifier="none",
+                settle=1,
+            )
+
 
 class TestIndexFixedRateBond:
     def test_fixed_rate_bond_price(self) -> None:

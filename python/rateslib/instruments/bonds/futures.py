@@ -10,6 +10,7 @@ from rateslib import defaults
 from rateslib.calendars import _get_years_and_months, get_calendar
 from rateslib.curves import Curve
 from rateslib.default import NoInput, _drb
+from rateslib.dual.utils import _dual_float
 from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.periods import (
     _get_fx_and_base,
@@ -201,20 +202,20 @@ class BondFuture(Sensitivities):
         if isinstance(delivery, datetime):
             self.delivery = (delivery, delivery)
         else:
-            self.delivery = tuple(delivery)
+            self.delivery = tuple(delivery)  # type: ignore[assignment]
         self.basket = tuple(basket)
         self.calendar = get_calendar(calendar)
         # self.last_trading = delivery[1] if last_trading is NoInput.blank else
-        self.nominal = _drb(defaults.notional, nominal)
-        self.contracts = _drb(1, contracts)
+        self.nominal: float = _drb(defaults.notional, nominal)
+        self.contracts: int = _drb(1, contracts)
         self.calc_mode = _drb(defaults.calc_mode_futures, calc_mode).lower()
-        self._cfs = NoInput(0)
+        self._cfs: tuple[DualTypes, ...] | NoInput = NoInput(0)
 
     def __repr__(self) -> str:
         return f"<rl.BondFuture at {hex(id(self))}>"
 
     @property
-    def notional(self) -> DualTypes:
+    def notional(self) -> float:
         """
         Return the notional as number of contracts multiplied by contract nominal.
 
@@ -225,7 +226,7 @@ class BondFuture(Sensitivities):
         return self.nominal * self.contracts * -1  # long positions is negative notn
 
     @property
-    def cfs(self):
+    def cfs(self) -> tuple[DualTypes, ...]:
         """
         Return the conversion factors for each bond in the ordered ``basket``.
 
@@ -281,7 +282,7 @@ class BondFuture(Sensitivities):
            future.cfs
 
         """
-        if self._cfs is NoInput.blank:
+        if isinstance(self._cfs, NoInput):
             self._cfs = self._conversion_factors()
         return self._cfs
 
@@ -295,9 +296,10 @@ class BondFuture(Sensitivities):
         else:
             raise ValueError("`calc_mode` must be in {'ytm', 'ust_short', 'ust_long'}")
 
-    def _cfs_ust(self, bond: FixedRateBond, short: bool):
+    def _cfs_ust(self, bond: FixedRateBond, short: bool) -> float:
+        # TODO: This method is not AD safe: it uses "round" function which destroys derivatives
         # See CME pdf in doc Notes for formula.
-        coupon = bond.fixed_rate / 100.0
+        coupon = _dual_float(bond.fixed_rate / 100.0)
         n, z = _get_years_and_months(self.delivery[0], bond.leg1.schedule.termination)
         if not short:
             mapping = {
@@ -329,7 +331,8 @@ class BondFuture(Sensitivities):
             c = 1 / 1.03 ** (2 * n + 1)
         d = (coupon / 0.06) * (1 - c)
         factor = a * ((coupon / 2) + c + d) - b
-        return round(factor, 4)
+        _: float = round(factor, 4)
+        return _
 
     def dlv(
         self,
@@ -472,7 +475,7 @@ class BondFuture(Sensitivities):
         solver = Solver(
             curves=[bcurve],
             instruments=[(_, (), {"curves": bcurve, "metric": metric}) for _ in self.basket],
-            s=prices,
+            s=prices,  # type: ignore[arg-type]
         )
         if solver.result["status"] != "SUCCESS":
             raise ValueError(
@@ -738,9 +741,10 @@ class BondFuture(Sensitivities):
             invoice_price = future_price * self.cfs[i]
             ytm = bond.ytm(invoice_price, f_settlement)
             if metric == "risk":
-                _ += (bond.duration(ytm, f_settlement, "risk") / self.cfs[i],)
+                _ += (_dual_float(bond.duration(ytm, f_settlement, "risk") / self.cfs[i]),)
             else:
-                _ += (bond.duration(ytm, f_settlement, metric),)
+                __ = (bond.duration(ytm, f_settlement, metric),)
+                _ += __
         return _
 
     def convexity(
@@ -789,7 +793,7 @@ class BondFuture(Sensitivities):
         for i, bond in enumerate(self.basket):
             invoice_price = future_price * self.cfs[i]
             ytm = bond.ytm(invoice_price, f_settlement)
-            _ += (bond.convexity(ytm, f_settlement) / self.cfs[i],)
+            _ += (_dual_float(bond.convexity(ytm, f_settlement) / self.cfs[i]),)
         return _
 
     def ctd_index(
