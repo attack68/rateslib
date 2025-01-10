@@ -215,11 +215,11 @@ class BondFuture(Sensitivities):
         )
         self._cfs = NoInput(0)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<rl.BondFuture at {hex(id(self))}>"
 
     @property
-    def notional(self):
+    def notional(self) -> DualTypes:
         """
         Return the notional as number of contracts multiplied by contract nominal.
 
@@ -290,7 +290,7 @@ class BondFuture(Sensitivities):
             self._cfs = self._conversion_factors()
         return self._cfs
 
-    def _conversion_factors(self):
+    def _conversion_factors(self) -> tuple[DualTypes, ...]:
         if self.calc_mode == "ytm":
             return tuple(bond.price(self.coupon, self.delivery[0]) / 100 for bond in self.basket)
         elif self.calc_mode == "ust_short":
@@ -338,14 +338,14 @@ class BondFuture(Sensitivities):
 
     def dlv(
         self,
-        future_price: float | Dual | Dual2,
-        prices: list[float, Dual, Dual2],
-        repo_rate: float | Dual | Dual2 | list | tuple,
+        future_price: DualTypes,
+        prices: list[DualTypes],
+        repo_rate: DualTypes | tuple[DualTypes, ...],
         settlement: datetime,
         delivery: datetime | NoInput = NoInput(0),
         convention: str | NoInput = NoInput(0),
         dirty: bool = False,
-    ):
+    ) -> DataFrame:
         """
         Return an aggregated DataFrame of metrics similar to the Bloomberg DLV function.
 
@@ -621,13 +621,13 @@ class BondFuture(Sensitivities):
 
     def implied_repo(
         self,
-        future_price: float | Dual | Dual2,
-        prices: list[float, Dual, Dual2],
+        future_price: DualTypes,
+        prices: list[DualTypes],
         settlement: datetime,
         delivery: datetime | NoInput = NoInput(0),
         convention: str | NoInput = NoInput(0),
         dirty: bool = False,
-    ):
+    ) -> tuple[DualTypes, ...]:
         """
         Calculate the implied repo of each bond in the basket using the proceeds
         method.
@@ -811,13 +811,13 @@ class BondFuture(Sensitivities):
 
     def ctd_index(
         self,
-        future_price: float,
-        prices: list | tuple,
+        future_price: DualTypes,
+        prices: list[DualTypes] | tuple[DualTypes, ...],
         settlement: datetime,
         delivery: datetime | NoInput = NoInput(0),
         dirty: bool = False,
         ordered: bool = False,
-    ):
+    ) -> int:
         """
         Determine the index of the CTD in the basket from implied repo rate.
 
@@ -924,10 +924,10 @@ class BondFuture(Sensitivities):
 
         if metric == "future_price":
             return future_price
-        elif metric == "ytm":
+        else: # metric == "ytm":
             return self.basket[ctd_index].ytm(future_price * self.cfs[ctd_index], f_settlement)
 
-    def npv(
+    def npv(  # type: ignore[override]
         self,
         curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
