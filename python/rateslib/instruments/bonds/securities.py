@@ -146,7 +146,7 @@ class BondMixin:
 
     def _ytm(
         self,
-        price: Number,
+        price: DualTypes,
         settlement: datetime,
         curve: Curve | LineCurve | NoInput,
         dirty: bool,
@@ -176,12 +176,17 @@ class BondMixin:
 
         """  # noqa: E501
 
+        price_float: float = _dual_float(price)
+
         def root(y):
             # we set this to work in float arithmetic for efficiency. Dual is added
             # back below, see PR GH3
-            return self._price_from_ytm(
-                ytm=y, settlement=settlement, calc_mode=self.calc_mode, dirty=dirty, curve=curve
-            ) - float(price)
+            return (
+                self._price_from_ytm(
+                    ytm=y, settlement=settlement, calc_mode=self.calc_mode, dirty=dirty, curve=curve
+                )
+                - price_float
+            )
 
         # x = brentq(root, -99, 10000)  # remove dependence to scipy.optimize.brentq
         # x, iters = _brents(root, -99, 10000)  # use own local brents code
@@ -1343,7 +1348,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     #     TODO: calculate this par_spread formula.
     #     return (self.notional - self.npv(*args, **kwargs)) / self.analytic_delta(*args, **kwargs)
 
-    def ytm(self, price: Number, settlement: datetime, dirty: bool = False) -> Number:
+    def ytm(self, price: DualTypes, settlement: datetime, dirty: bool = False) -> Number:
         """
         Calculate the yield-to-maturity of the security given its price.
 

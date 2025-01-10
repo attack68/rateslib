@@ -10,7 +10,10 @@ from rateslib.default import NoInput
 from rateslib.dual.variable import Variable
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
-from rateslib.instruments import Bill, FixedRateBond, FloatRateNote, IndexFixedRateBond
+from rateslib.instruments import Bill as Bill
+from rateslib.instruments import FixedRateBond as FixedRateBond
+from rateslib.instruments import FloatRateNote as FloatRateNote
+from rateslib.instruments import IndexFixedRateBond as IndexFixedRateBond
 from rateslib.legs import (
     CreditPremiumLeg,
     CreditProtectionLeg,

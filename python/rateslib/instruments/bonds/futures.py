@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
 from collections.abc import Sequence
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pandas import DataFrame
@@ -205,11 +205,9 @@ class BondFuture(Sensitivities):
         self.basket = tuple(basket)
         self.calendar = get_calendar(calendar)
         # self.last_trading = delivery[1] if last_trading is NoInput.blank else
-        self.nominal = defaults.notional if nominal is NoInput.blank else nominal
-        self.contracts = 1 if contracts is NoInput.blank else contracts
-        self.calc_mode = (
-            defaults.calc_mode_futures if calc_mode is NoInput.blank else calc_mode.lower()
-        )
+        self.nominal = _drb(defaults.notional, nominal)
+        self.contracts = _drb(1, contracts)
+        self.calc_mode = _drb(defaults.calc_mode_futures, calc_mode).lower()
         self._cfs = NoInput(0)
 
     def __repr__(self) -> str:
@@ -456,7 +454,7 @@ class BondFuture(Sensitivities):
         # build a curve for pricing
         today = self.basket[0].leg1.schedule.calendar.lag(
             settlement,
-            -self.basket[0].kwargs["settle"],
+            -self.basket[0].kwargs["settle"],  # type: ignore[arg-type, operator]
             False,
         )
         unsorted_nodes = {
