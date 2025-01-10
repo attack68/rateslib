@@ -3,7 +3,6 @@ from __future__ import annotations
 import abc
 import warnings
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING
 
 import numpy as np
 from pandas import DataFrame, Series
@@ -13,6 +12,7 @@ from rateslib.calendars import add_tenor, dcf
 from rateslib.curves import Curve, IndexCurve, LineCurve, average_rate, index_left
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, gradient, quadratic_eqn
+from rateslib.dual.utils import _dual_float
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments.base import BaseMixin
 from rateslib.instruments.bonds.conventions import (
@@ -43,8 +43,10 @@ from rateslib.periods import (
 )
 from rateslib.solver import Solver
 
+from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, DualTypes, Number
+    from rateslib.typing import CalInput, DualTypes, Number, Curves, FX
 
 
 class BondMixin:
@@ -219,7 +221,7 @@ class BondMixin:
 
     def _price_from_ytm(
         self,
-        ytm: float,
+        ytm: DualTypes,
         settlement: datetime,
         calc_mode: str | BondCalcMode | NoInput,
         dirty: bool,
@@ -1247,9 +1249,9 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
     def rate(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         metric: str = "clean_price",
         forward_settlement: datetime | NoInput = NoInput(0),
@@ -1390,7 +1392,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         """  # noqa: E501
         return self._ytm(price=price, settlement=settlement, dirty=dirty, curve=NoInput(0))
 
-    def duration(self, ytm: float, settlement: datetime, metric: str = "risk"):
+    def duration(self, ytm: DualTypes, settlement: datetime, metric: str = "risk") -> float:
         """
         Return the (negated) derivative of ``price`` w.r.t. ``ytm``.
 
@@ -1455,19 +1457,21 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
            gilt.price(4.445, dt(1999, 5, 27))
            gilt.price(4.455, dt(1999, 5, 27))
         """
+        # TODO: this is not AD safe: returns only float
+        ytm_: float = _dual_float(ytm)
         if metric == "risk":
-            _ = -gradient(self.price(Dual(float(ytm), ["y"], []), settlement), ["y"])[0]
+            _: float = -gradient(self.price(Dual(ytm_, ["y"], []), settlement), ["y"])[0]
         elif metric == "modified":
-            price = -self.price(Dual(float(ytm), ["y"], []), settlement, dirty=True)
+            price = -self.price(Dual(ytm_, ["y"], []), settlement, dirty=True)
             _ = -gradient(price, ["y"])[0] / float(price) * 100
         elif metric == "duration":
-            price = self.price(Dual(float(ytm), ["y"], []), settlement, dirty=True)
+            price = self.price(Dual(ytm_, ["y"], []), settlement, dirty=True)
             f = 12 / defaults.frequency_months[self.kwargs["frequency"].upper()]
-            v = 1 + float(ytm) / (100 * f)
+            v = 1 + ytm_ / (100 * f)
             _ = -gradient(price, ["y"])[0] / float(price) * v * 100
         return _
 
-    def convexity(self, ytm: float, settlement: datetime):
+    def convexity(self, ytm: DualTypes, settlement: datetime) -> float:
         """
         Return the second derivative of ``price`` w.r.t. ``ytm``.
 
@@ -1506,10 +1510,12 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
            gilt.duration(4.445, dt(1999, 5, 27))
            gilt.duration(4.455, dt(1999, 5, 27))
         """
-        _ = self.price(Dual2(float(ytm), ["y"], [], []), settlement)
-        return gradient(_, ["y"], 2)[0][0]
+        # TODO: method is not AD safe: returns float
+        ytm_: float = _dual_float(ytm)
+        _ = self.price(Dual2(ytm_, ["_ytm__§"], [], []), settlement)
+        return gradient(_, ["_ytm__§"], 2)[0][0]
 
-    def price(self, ytm: float, settlement: datetime, dirty: bool = False):
+    def price(self, ytm: DualTypes, settlement: datetime, dirty: bool = False):
         """
         Calculate the price of the security per nominal value of 100, given
         yield-to-maturity.

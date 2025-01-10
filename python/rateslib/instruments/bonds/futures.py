@@ -8,10 +8,7 @@ from pandas import DataFrame
 from rateslib import defaults
 from rateslib.calendars import _get_years_and_months, get_calendar
 from rateslib.curves import Curve
-from rateslib.default import NoInput
-from rateslib.dual import Dual, Dual2
-from rateslib.fx import FXForwards, FXRates
-from rateslib.instruments.bonds.securities import FixedRateBond
+from rateslib.default import NoInput, _drb
 from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.periods import (
     _get_fx_and_base,
@@ -19,8 +16,7 @@ from rateslib.periods import (
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from typing import Any
-    from rateslib.typing import DualTypes, Curves, FX
+    from rateslib.typing import FX, Any, Curves, DualTypes, FixedRateBond, Sequence
 
 
 class BondFuture(Sensitivities):
@@ -199,7 +195,7 @@ class BondFuture(Sensitivities):
         currency: str | NoInput = NoInput(0),
         calc_mode: str | NoInput = NoInput(0),
     ):
-        self.currency = defaults.base_currency if currency is NoInput.blank else currency.lower()
+        self.currency = _drb(defaults.base_currency, currency).lower()
         self.coupon = coupon
         if isinstance(delivery, datetime):
             self.delivery = (delivery, delivery)
@@ -513,8 +509,8 @@ class BondFuture(Sensitivities):
 
     def gross_basis(
         self,
-        future_price: float | Dual | Dual2,
-        prices: list[float, Dual, Dual2],
+        future_price: DualTypes,
+        prices: list[DualTypes],
         settlement: datetime | NoInput = NoInput(0),
         dirty: bool = False,
     ):
@@ -546,9 +542,9 @@ class BondFuture(Sensitivities):
 
     def net_basis(
         self,
-        future_price: float | Dual | Dual2,
-        prices: list[float, Dual, Dual2],
-        repo_rate: float | Dual | Dual2 | list | tuple,
+        future_price: DualTypes,
+        prices: list[DualTypes],
+        repo_rate: DualTypes | list[DualTypes] | tuple[DualTypes, ...],
         settlement: datetime,
         delivery: datetime | NoInput = NoInput(0),
         convention: str | NoInput = NoInput(0),
@@ -622,7 +618,7 @@ class BondFuture(Sensitivities):
     def implied_repo(
         self,
         future_price: DualTypes,
-        prices: list[DualTypes],
+        prices: Sequence[DualTypes],
         settlement: datetime,
         delivery: datetime | NoInput = NoInput(0),
         convention: str | NoInput = NoInput(0),
@@ -674,7 +670,7 @@ class BondFuture(Sensitivities):
 
     def ytm(
         self,
-        future_price: float | Dual | Dual2,
+        future_price: DualTypes,
         delivery: datetime | NoInput = NoInput(0),
     ):
         """
@@ -704,10 +700,10 @@ class BondFuture(Sensitivities):
 
     def duration(
         self,
-        future_price: float,
+        future_price: DualTypes,
         metric: str = "risk",
         delivery: datetime | NoInput = NoInput(0),
-    ):
+    ) -> tuple[float, ...]:
         """
         Return the (negated) derivative of ``price`` w.r.t. ``ytm`` .
 
@@ -743,12 +739,9 @@ class BondFuture(Sensitivities):
            future.ytm(112.98)
            future.ytm(112.98 + risk[0] / 100)
         """
-        if delivery is NoInput.blank:
-            f_settlement = self.delivery[1]
-        else:
-            f_settlement = delivery
+        f_settlement: datetime = _drb(self.delivery[1], delivery)
 
-        _ = ()
+        _: tuple[float, ...] = ()
         for i, bond in enumerate(self.basket):
             invoice_price = future_price * self.cfs[i]
             ytm = bond.ytm(invoice_price, f_settlement)
@@ -760,9 +753,9 @@ class BondFuture(Sensitivities):
 
     def convexity(
         self,
-        future_price: float,
+        future_price: DualTypes,
         delivery: datetime | NoInput = NoInput(0),
-    ):
+    ) -> tuple[float, ...]:
         """
         Return the second derivative of ``price`` w.r.t. ``ytm`` .
 
@@ -797,12 +790,10 @@ class BondFuture(Sensitivities):
            future.duration(112.98)
            future.duration(112.98 + risk[0] / 100)
         """
-        if delivery is NoInput.blank:
-            f_settlement = self.delivery[1]
-        else:
-            f_settlement = delivery
+        # TODO: Not AD safe becuase dependent convexity method is not AD safe. Returns float.
+        f_settlement: datetime = _drb(self.delivery[1], delivery)
 
-        _ = ()
+        _: tuple[float, ...] = ()
         for i, bond in enumerate(self.basket):
             invoice_price = future_price * self.cfs[i]
             ytm = bond.ytm(invoice_price, f_settlement)
@@ -812,12 +803,12 @@ class BondFuture(Sensitivities):
     def ctd_index(
         self,
         future_price: DualTypes,
-        prices: list[DualTypes] | tuple[DualTypes, ...],
+        prices: Sequence[DualTypes],
         settlement: datetime,
         delivery: datetime | NoInput = NoInput(0),
         dirty: bool = False,
         ordered: bool = False,
-    ) -> int:
+    ) -> int | list[int]:
         """
         Determine the index of the CTD in the basket from implied repo rate.
 
@@ -854,7 +845,7 @@ class BondFuture(Sensitivities):
             ctd_index_ = implied_repo.index(max(implied_repo))
             return ctd_index_
         else:
-            _ = dict(zip(range(len(implied_repo)), implied_repo, strict=False))
+            _: dict[int, DualTypes] = dict(zip(range(len(implied_repo)), implied_repo, strict=True))
             _ = dict(sorted(_.items(), key=lambda item: -item[1]))
             return list(_.keys())
 
@@ -924,7 +915,7 @@ class BondFuture(Sensitivities):
 
         if metric == "future_price":
             return future_price
-        else: # metric == "ytm":
+        else:  # metric == "ytm":
             return self.basket[ctd_index].ytm(future_price * self.cfs[ctd_index], f_settlement)
 
     def npv(  # type: ignore[override]
