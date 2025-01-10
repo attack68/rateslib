@@ -153,8 +153,8 @@ class FXRates(_WithState):
     def __repr__(self) -> str:
         if len(self.currencies_list) > 5:
             return (
-                f"<rl.FXRates:[{','.join(self.currencies_list[:2])},+{len(self.currencies_list)-2} "
-                f"others] at {hex(id(self))}>"
+                f"<rl.FXRates:[{','.join(self.currencies_list[:2])},"
+                f"+{len(self.currencies_list) - 2} others] at {hex(id(self))}>"
             )
         else:
             return f"<rl.FXRates:[{','.join(self.currencies_list)}] at {hex(id(self))}>"

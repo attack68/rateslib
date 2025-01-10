@@ -13,6 +13,7 @@ from rateslib.calendars import add_tenor, dcf
 from rateslib.curves import Curve, IndexCurve, LineCurve, average_rate, index_left
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, gradient, quadratic_eqn
+from rateslib.dual.utils import _dual_float, _get_order_of
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments.base import BaseMixin
 from rateslib.instruments.bonds.conventions import (
@@ -44,7 +45,7 @@ from rateslib.periods import (
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, DualTypes, Number
+    from rateslib.typing import FX, CalInput, Curves, DualTypes, Number
 
 
 class BondMixin:
@@ -145,7 +146,7 @@ class BondMixin:
 
     def _ytm(
         self,
-        price: Number,
+        price: DualTypes,
         settlement: datetime,
         curve: Curve | LineCurve | NoInput,
         dirty: bool,
@@ -175,18 +176,24 @@ class BondMixin:
 
         """  # noqa: E501
 
+        price_float: float = _dual_float(price)
+
         def root(y):
             # we set this to work in float arithmetic for efficiency. Dual is added
             # back below, see PR GH3
-            return self._price_from_ytm(
-                ytm=y, settlement=settlement, calc_mode=self.calc_mode, dirty=dirty, curve=curve
-            ) - float(price)
+            return (
+                self._price_from_ytm(
+                    ytm=y, settlement=settlement, calc_mode=self.calc_mode, dirty=dirty, curve=curve
+                )
+                - price_float
+            )
 
         # x = brentq(root, -99, 10000)  # remove dependence to scipy.optimize.brentq
         # x, iters = _brents(root, -99, 10000)  # use own local brents code
         x = _ytm_quadratic_converger2(root, -3.0, 2.0, 12.0)  # use special quad interp
 
-        if isinstance(price, Dual):
+        ad_order = _get_order_of(price)
+        if ad_order == 1:
             # use the inverse function theorem to express x as a Dual
             p = self._price_from_ytm(
                 ytm=Dual(x, ["y"], []),
@@ -196,7 +203,7 @@ class BondMixin:
                 curve=NoInput(0),
             )
             return Dual(x, price.vars, 1 / gradient(p, ["y"])[0] * price.dual)
-        elif isinstance(price, Dual2):
+        elif ad_order == 2:
             # use the IFT in 2nd order to express x as a Dual2
             p = self._price_from_ytm(
                 ytm=Dual2(x, ["y"], [], []),
@@ -219,7 +226,7 @@ class BondMixin:
 
     def _price_from_ytm(
         self,
-        ytm: float,
+        ytm: DualTypes,
         settlement: datetime,
         calc_mode: str | BondCalcMode | NoInput,
         dirty: bool,
@@ -302,14 +309,14 @@ class BondMixin:
 
     def fwd_from_repo(
         self,
-        price: float | Dual | Dual2,
+        price: DualTypes,
         settlement: datetime,
         forward_settlement: datetime,
-        repo_rate: float | Dual | Dual2,
+        repo_rate: DualTypes,
         convention: str | NoInput = NoInput(0),
         dirty: bool = False,
         method: str = "proceeds",
-    ):
+    ) -> DualTypes:
         """
         Return a forward price implied by a given repo rate.
 
@@ -391,13 +398,13 @@ class BondMixin:
 
     def repo_from_fwd(
         self,
-        price: float | Dual | Dual2,
+        price: DualTypes,
         settlement: datetime,
         forward_settlement: datetime,
-        forward_price: float | Dual | Dual2,
+        forward_price: DualTypes,
         convention: str | NoInput = NoInput(0),
         dirty: bool = False,
-    ):
+    ) -> DualTypes:
         """
         Return an implied repo rate from a forward price.
 
@@ -1133,6 +1140,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     """  # noqa: E501
 
     _fixed_rate_mixin = True
+    fixed_rate: DualTypes
 
     def _period_cashflow(
         self,
@@ -1202,8 +1210,10 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         )
         self.kwargs = _update_with_defaults(self.kwargs, default_kwargs)
 
-        if self.kwargs["frequency"] is NoInput.blank:
+        if isinstance(self.kwargs["frequency"], NoInput):
             raise ValueError("`frequency` must be provided for Bond.")
+        if isinstance(self.kwargs["fixed_rate"], NoInput):
+            raise ValueError("`fixed_rate` must be provided for Bond.")
         # elif self.kwargs["frequency"].lower() == "z":
         #     raise ValueError("FixedRateBond `frequency` must be in {M, B, Q, T, S, A}.")
 
@@ -1247,9 +1257,9 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
     def rate(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         metric: str = "clean_price",
         forward_settlement: datetime | NoInput = NoInput(0),
@@ -1341,7 +1351,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     #     TODO: calculate this par_spread formula.
     #     return (self.notional - self.npv(*args, **kwargs)) / self.analytic_delta(*args, **kwargs)
 
-    def ytm(self, price: Number, settlement: datetime, dirty: bool = False) -> Number:
+    def ytm(self, price: DualTypes, settlement: datetime, dirty: bool = False) -> Number:
         """
         Calculate the yield-to-maturity of the security given its price.
 
@@ -1390,7 +1400,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         """  # noqa: E501
         return self._ytm(price=price, settlement=settlement, dirty=dirty, curve=NoInput(0))
 
-    def duration(self, ytm: float, settlement: datetime, metric: str = "risk"):
+    def duration(self, ytm: DualTypes, settlement: datetime, metric: str = "risk") -> float:
         """
         Return the (negated) derivative of ``price`` w.r.t. ``ytm``.
 
@@ -1455,19 +1465,21 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
            gilt.price(4.445, dt(1999, 5, 27))
            gilt.price(4.455, dt(1999, 5, 27))
         """
+        # TODO: this is not AD safe: returns only float
+        ytm_: float = _dual_float(ytm)
         if metric == "risk":
-            _ = -gradient(self.price(Dual(float(ytm), ["y"], []), settlement), ["y"])[0]
+            _: float = -gradient(self.price(Dual(ytm_, ["y"], []), settlement), ["y"])[0]
         elif metric == "modified":
-            price = -self.price(Dual(float(ytm), ["y"], []), settlement, dirty=True)
+            price = -self.price(Dual(ytm_, ["y"], []), settlement, dirty=True)
             _ = -gradient(price, ["y"])[0] / float(price) * 100
         elif metric == "duration":
-            price = self.price(Dual(float(ytm), ["y"], []), settlement, dirty=True)
+            price = self.price(Dual(ytm_, ["y"], []), settlement, dirty=True)
             f = 12 / defaults.frequency_months[self.kwargs["frequency"].upper()]
-            v = 1 + float(ytm) / (100 * f)
+            v = 1 + ytm_ / (100 * f)
             _ = -gradient(price, ["y"])[0] / float(price) * v * 100
         return _
 
-    def convexity(self, ytm: float, settlement: datetime):
+    def convexity(self, ytm: DualTypes, settlement: datetime) -> float:
         """
         Return the second derivative of ``price`` w.r.t. ``ytm``.
 
@@ -1506,10 +1518,12 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
            gilt.duration(4.445, dt(1999, 5, 27))
            gilt.duration(4.455, dt(1999, 5, 27))
         """
-        _ = self.price(Dual2(float(ytm), ["y"], [], []), settlement)
-        return gradient(_, ["y"], 2)[0][0]
+        # TODO: method is not AD safe: returns float
+        ytm_: float = _dual_float(ytm)
+        _ = self.price(Dual2(ytm_, ["_ytm__§"], [], []), settlement)
+        return gradient(_, ["_ytm__§"], 2)[0][0]
 
-    def price(self, ytm: float, settlement: datetime, dirty: bool = False):
+    def price(self, ytm: DualTypes, settlement: datetime, dirty: bool = False):
         """
         Calculate the price of the security per nominal value of 100, given
         yield-to-maturity.

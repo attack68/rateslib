@@ -70,7 +70,7 @@ class Gradients:
         if self._J2 is None:
             if self._ad != 2:
                 raise ValueError(
-                    "Cannot perform second derivative calculations when ad mode is " f"{self._ad}.",
+                    f"Cannot perform second derivative calculations when ad mode is {self._ad}.",
                 )
 
             rates = np.array([_[0].rate(*_[1], **_[2]) for _ in self.instruments])
@@ -237,7 +237,7 @@ class Gradients:
         if self._J2_pre is None:
             if self._ad != 2:
                 raise ValueError(
-                    "Cannot perform second derivative calculations when ad mode is " f"{self._ad}.",
+                    f"Cannot perform second derivative calculations when ad mode is {self._ad}.",
                 )
 
             J2 = np.zeros(shape=(self.pre_n, self.pre_n, self.pre_m))
@@ -952,8 +952,7 @@ class Solver(Gradients, _WithState):
         # validate `s` and `instruments` with a naive length comparison
         if len(s) != len(instruments):
             raise ValueError(
-                f"`s: {len(s)}` (rates)  must be same length as "
-                f"`instruments: {len(instruments)}`."
+                f"`s: {len(s)}` (rates)  must be same length as `instruments: {len(instruments)}`."
             )
         self.s = np.asarray(s)
 

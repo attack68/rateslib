@@ -200,7 +200,7 @@ ticket in Bloomberg for reference point.
 
    ust = FixedRateBond(
        effective=dt(2023, 8, 15), termination=dt(2033, 8, 15),
-       fixed_rate=3.875, spec="ust"
+       fixed_rate=3.875, spec="us_gb"
    )  # Create a US-Treasury bond
    ust.price(ytm=4.0, settlement=dt(2025, 2, 14))
    ust.duration(ytm=4.0, settlement=dt(2025, 2, 14), metric="risk")
