@@ -3,6 +3,7 @@ from __future__ import annotations
 import abc
 import warnings
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 
 import numpy as np
 from pandas import DataFrame, Series
@@ -43,10 +44,8 @@ from rateslib.periods import (
 )
 from rateslib.solver import Solver
 
-from typing import TYPE_CHECKING
-
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, DualTypes, Number, Curves, FX
+    from rateslib.typing import FX, CalInput, Curves, DualTypes, Number
 
 
 class BondMixin:
@@ -304,14 +303,14 @@ class BondMixin:
 
     def fwd_from_repo(
         self,
-        price: float | Dual | Dual2,
+        price: DualTypes,
         settlement: datetime,
         forward_settlement: datetime,
-        repo_rate: float | Dual | Dual2,
+        repo_rate: DualTypes,
         convention: str | NoInput = NoInput(0),
         dirty: bool = False,
         method: str = "proceeds",
-    ):
+    ) -> DualTypes:
         """
         Return a forward price implied by a given repo rate.
 
@@ -393,10 +392,10 @@ class BondMixin:
 
     def repo_from_fwd(
         self,
-        price: float | Dual | Dual2,
+        price: DualTypes,
         settlement: datetime,
         forward_settlement: datetime,
-        forward_price: float | Dual | Dual2,
+        forward_price: DualTypes,
         convention: str | NoInput = NoInput(0),
         dirty: bool = False,
     ):

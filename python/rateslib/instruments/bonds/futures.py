@@ -513,7 +513,7 @@ class BondFuture(Sensitivities):
         prices: list[DualTypes],
         settlement: datetime | NoInput = NoInput(0),
         dirty: bool = False,
-    ):
+    ) -> tuple[DualTypes, ...]:
         """
         Calculate the gross basis of each bond in the basket.
 
@@ -648,10 +648,7 @@ class BondFuture(Sensitivities):
         -------
         tuple
         """
-        if delivery is NoInput.blank:
-            f_settlement = self.delivery[1]
-        else:
-            f_settlement = delivery
+        f_settlement: datetime = _drb(self.delivery[1], delivery)
 
         implied_repos = tuple()
         for i, bond in enumerate(self.basket):
@@ -672,7 +669,7 @@ class BondFuture(Sensitivities):
         self,
         future_price: DualTypes,
         delivery: datetime | NoInput = NoInput(0),
-    ):
+    ) -> tuple[DualTypes, ...]:
         """
         Calculate the yield-to-maturity of the bond future.
 
@@ -688,10 +685,7 @@ class BondFuture(Sensitivities):
         -------
         tuple
         """
-        if delivery is NoInput.blank:
-            settlement = self.delivery[1]
-        else:
-            settlement = delivery
+        settlement: datetime = _drb(self.delivery[1], delivery)
         adjusted_prices = [future_price * cf for cf in self.cfs]
         yields = tuple(
             bond.ytm(adjusted_prices[i], settlement) for i, bond in enumerate(self.basket)
