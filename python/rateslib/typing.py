@@ -1,9 +1,18 @@
 from collections.abc import Callable as Callable
 from collections.abc import Sequence as Sequence
 from typing import Any as Any
+from typing import NoReturn as NoReturn
 from typing import TypeAlias
 
 import numpy as np
+
+from rateslib.instruments import FXRiskReversal as FXRiskReversal
+from rateslib.instruments import FXStraddle as FXStraddle
+from rateslib.instruments import FXStrangle as FXStrangle
+from rateslib.instruments import FXCall as FXCall
+from rateslib.instruments import FXPut as FXPut
+from rateslib.instruments import FXOptionStrat as FXOptionStrat
+from rateslib.instruments import FXBrokerFly as FXBrokerFly
 
 from rateslib.curves import Curve
 from rateslib.default import NoInput
@@ -91,3 +100,6 @@ Leg: TypeAlias = "FixedLeg | FloatLeg | IndexFixedLeg | ZeroFloatLeg | ZeroFixed
 Period: TypeAlias = "FixedPeriod | FloatPeriod | Cashflow | IndexFixedPeriod | IndexCashflow | CreditPremiumPeriod | CreditProtectionPeriod"  # noqa: E501
 
 Security: TypeAlias = "FixedRateBond | FloatRateNote | Bill | IndexFixedRateBond"
+FXOptionTypes: TypeAlias = "FXCall | FXPut | FXRiskReversal | FXStraddle | FXStrangle | FXBrokerFly | FXOptionStrat"
+
+Instrument: TypeAlias = "Security | FXOptionTypes"

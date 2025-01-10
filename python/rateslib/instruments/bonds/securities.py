@@ -2929,10 +2929,10 @@ def _ytm_quadratic_converger2(
     y0: float,
     y1: float,
     y2: float,
-    f0: float | None =None,
-    f1: float | None =None,
-    f2: float | None =None,
-    tol: float =1e-9
+    f0: float | None = None,
+    f1: float | None = None,
+    f2: float | None = None,
+    tol: float = 1e-9,
 ) -> float:
     """
     Convert a price from yield function `f` into a quadratic approximation and
