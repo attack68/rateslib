@@ -13,7 +13,7 @@ from rateslib.calendars import add_tenor, dcf
 from rateslib.curves import Curve, IndexCurve, LineCurve, average_rate, index_left
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, gradient, quadratic_eqn
-from rateslib.dual.utils import _dual_float
+from rateslib.dual.utils import _dual_float, _get_order_of
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments.base import BaseMixin
 from rateslib.instruments.bonds.conventions import (
@@ -187,7 +187,8 @@ class BondMixin:
         # x, iters = _brents(root, -99, 10000)  # use own local brents code
         x = _ytm_quadratic_converger2(root, -3.0, 2.0, 12.0)  # use special quad interp
 
-        if isinstance(price, Dual):
+        ad_order = _get_order_of(price)
+        if ad_order == 1:
             # use the inverse function theorem to express x as a Dual
             p = self._price_from_ytm(
                 ytm=Dual(x, ["y"], []),
@@ -197,7 +198,7 @@ class BondMixin:
                 curve=NoInput(0),
             )
             return Dual(x, price.vars, 1 / gradient(p, ["y"])[0] * price.dual)
-        elif isinstance(price, Dual2):
+        elif ad_order == 2:
             # use the IFT in 2nd order to express x as a Dual2
             p = self._price_from_ytm(
                 ytm=Dual2(x, ["y"], [], []),

@@ -477,7 +477,7 @@ class BondFuture(Sensitivities):
             s=prices,
         )
         if solver.result["status"] != "SUCCESS":
-            return ValueError(
+            raise ValueError(
                 "A bond curve could not be solved for analysis. "
                 "See 'Cookbook: Bond Future CTD Multi-Security Analysis'.",
             )
@@ -505,7 +505,7 @@ class BondFuture(Sensitivities):
                 },
             )
 
-        _ = DataFrame(data=data)
+        _: DataFrame = DataFrame(data=data)
         return _
 
     def gross_basis(

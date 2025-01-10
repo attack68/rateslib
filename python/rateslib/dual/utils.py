@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from rateslib import defaults
 from rateslib.dual.variable import FLOATS, INTS, Variable
 from rateslib.rs import ADOrder, Dual, Dual2, _dsolve1, _dsolve2, _fdsolve1, _fdsolve2
 
@@ -40,6 +41,19 @@ def _abs_float(val: DualTypes) -> float:
         return abs(val.real)
     else:
         return abs(val)
+
+
+def _get_order_of(val: DualTypes) -> int:
+    """Get the AD order of a DualType including checking the globals for the current order."""
+    if isinstance(val, Dual):
+        ad_order: int = 1
+    elif isinstance(val, Dual2):
+        ad_order = 2
+    elif isinstance(val, Variable):
+        ad_order = defaults._global_ad_order
+    else:
+        ad_order = 0
+    return ad_order
 
 
 def set_order(val: DualTypes, order: int) -> DualTypes:
@@ -338,6 +352,7 @@ def dual_solve(
 
 
 def _get_adorder(order: int) -> ADOrder:
+    """Convert int AD order to an ADOrder enum type."""
     if order == 1:
         return ADOrder.One
     elif order == 0:
