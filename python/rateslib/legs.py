@@ -581,7 +581,7 @@ class _FloatLegMixin:
 
     def _set_fixings(
         self,
-        fixings: FixingsRates  # type: ignore[type-var]
+        fixings: FixingsRates,  # type: ignore[type-var]
     ) -> None:
         """
         Re-organises the fixings input to list structure for each period.
