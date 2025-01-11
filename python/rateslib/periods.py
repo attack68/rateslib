@@ -142,7 +142,7 @@ def _maybe_local(
     value: DualTypes,
     local: bool,
     currency: str,
-    fx: float | FXRates | FXForwards | NoInput,
+    fx: FX,
     base: str | NoInput,
 ) -> dict[str, DualTypes] | DualTypes:
     """
@@ -184,9 +184,11 @@ def _disc_maybe_from_curve(
 
 def _disc_required_maybe_from_curve(
     curve: CurveOption,
-    disc_curve: Curve | NoInput,
+    disc_curve: CurveOption,
 ) -> Curve:
     """Return a discount curve, pointed as the `curve` if not provided and if suitable Type."""
+    if isinstance(disc_curve, dict):
+        raise NotImplementedError("`disc_curve` cannot currently be inferred from a dict.")
     _: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
     if isinstance(_, NoInput):
         raise TypeError(
@@ -290,7 +292,7 @@ class BasePeriod(metaclass=ABCMeta):
     def analytic_delta(
         self,
         curve: CurveOption = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
+        disc_curve: CurveOption = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
@@ -931,7 +933,7 @@ class FloatPeriod(BasePeriod):
     def analytic_delta(
         self,
         curve: CurveOption = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
+        disc_curve: CurveOption = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
@@ -2314,8 +2316,8 @@ class CreditPremiumPeriod(BasePeriod):
     def npv(
         self,
         curve: CurveOption = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        disc_curve: CurveOption = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> DualTypes | dict[str, DualTypes]:
@@ -2360,7 +2362,7 @@ class CreditPremiumPeriod(BasePeriod):
     def analytic_delta(
         self,
         curve: CurveOption = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
+        disc_curve: CurveOption = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
@@ -2539,7 +2541,7 @@ class CreditProtectionPeriod(BasePeriod):
     def analytic_delta(
         self,
         curve: CurveOption = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
+        disc_curve: CurveOption = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
@@ -2805,7 +2807,7 @@ class IndexMixin(metaclass=ABCMeta):
     def real_cashflow(self) -> DualTypes | None:
         pass  # pragma: no cover
 
-    def cashflow(self, curve: Curve | NoInput = NoInput(0)) -> DualTypes | None:
+    def cashflow(self, curve: CurveOption = NoInput(0)) -> DualTypes | None:
         """
         float, Dual or Dual2 : The calculated value from rate, dcf and notional,
         adjusted for the index.
@@ -2825,7 +2827,7 @@ class IndexMixin(metaclass=ABCMeta):
             return ret
 
     def index_ratio(
-        self, curve: Curve | NoInput = NoInput(0)
+        self, curve: CurveOption = NoInput(0)
     ) -> tuple[DualTypes | None, DualTypes | None, DualTypes | None]:
         """
         Calculate the index ratio for the end date of the *IndexPeriod*.
@@ -2886,7 +2888,7 @@ class IndexMixin(metaclass=ABCMeta):
     def _index_value(
         i_fixings: DualTypes | Series[DualTypes] | NoInput,  # type: ignore[type-var]
         i_date: datetime | NoInput,
-        i_curve: Curve | NoInput,
+        i_curve: CurveOption,
         i_lag: int,
         i_method: str,
     ) -> DualTypes | None:
@@ -2904,6 +2906,11 @@ class IndexMixin(metaclass=ABCMeta):
         -------
         float, Dual, Dual2, Variable or None
         """
+        if isinstance(i_curve, dict):
+            raise NotImplementedError(
+                "`i_curve` cannot currently be supplied as dict. Use a Curve type or NoInput(0)."
+            )
+
         if isinstance(i_date, NoInput):
             if not isinstance(i_fixings, Series | NoInput):
                 # i_fixings is a given value, probably aligned with an ``index_base``
@@ -3069,8 +3076,8 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
 
     def analytic_delta(
         self,
-        curve: Curve | NoInput = NoInput(0),  # type: ignore[override]
-        disc_curve: Curve | NoInput = NoInput(0),
+        curve: CurveOption = NoInput(0),
+        disc_curve: CurveOption = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
@@ -4638,7 +4645,7 @@ def _get_vol_delta_type(vol: DualTypes | FXVols, delta_type: str) -> str:
         return vol.delta_type
 
 
-def _validate_credit_curves(curve: CurveOption, disc_curve: Curve | NoInput) -> tuple[Curve, Curve]:
+def _validate_credit_curves(curve: CurveOption, disc_curve: CurveOption) -> tuple[Curve, Curve]:
     # used by Credit type Periods to narrow inputs
     if not isinstance(curve, Curve):
         raise TypeError(

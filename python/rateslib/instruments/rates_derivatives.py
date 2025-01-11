@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from abc import ABCMeta, abstractmethod
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -10,20 +9,14 @@ from rateslib import defaults
 from rateslib.curves import Curve, LineCurve
 from rateslib.default import NoInput
 from rateslib.fx import FXForwards, FXRates
-from rateslib.instruments.base import BaseMixin
-from rateslib.instruments.sensitivities import Sensitivities
+from rateslib.instruments.base import BaseDerivative
 from rateslib.instruments.utils import (
     _composit_fixings_table,
     _get,
     _get_curves_fx_and_base_maybe_from_solver,
-    _inherit_or_negate,
-    _push,
     _update_not_noinput,
-    _update_with_defaults,
 )
 from rateslib.legs import (
-    CreditPremiumLeg,
-    CreditProtectionLeg,
     FixedLeg,
     FloatLeg,
     IndexFixedLeg,
@@ -40,209 +33,12 @@ from rateslib.periods import (
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, DualTypes
+    from rateslib.typing import FX, Any, Curves, DualTypes
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # This code cannot be installed or executed on a corporate computer without a paid licence extension
 # Contact info at rateslib.com if this code is observed outside its intended sphere of use.
-
-
-class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
-    """
-    Abstract base class with common parameters for many *Derivative* subclasses.
-
-    Parameters
-    ----------
-    effective : datetime
-        The adjusted or unadjusted effective date.
-    termination : datetime or str
-        The adjusted or unadjusted termination date. If a string, then a tenor must be
-        given expressed in days (`"D"`), months (`"M"`) or years (`"Y"`), e.g. `"48M"`.
-    frequency : str in {"M", "B", "Q", "T", "S", "A", "Z"}, optional
-        The frequency of the schedule.
-    stub : str combining {"SHORT", "LONG"} with {"FRONT", "BACK"}, optional
-        The stub type to enact on the swap. Can provide two types, for
-        example "SHORTFRONTLONGBACK".
-    front_stub : datetime, optional
-        An adjusted or unadjusted date for the first stub period.
-    back_stub : datetime, optional
-        An adjusted or unadjusted date for the back stub period.
-        See notes for combining ``stub``, ``front_stub`` and ``back_stub``
-        and any automatic stub inference.
-    roll : int in [1, 31] or str in {"eom", "imm", "som"}, optional
-        The roll day of the schedule. Inferred if not given.
-    eom : bool, optional
-        Use an end of month preference rather than regular rolls for inference. Set by
-        default. Not required if ``roll`` is specified.
-    modifier : str, optional
-        The modification rule, in {"F", "MF", "P", "MP"}
-    calendar : calendar or str, optional
-        The holiday calendar object to use. If str, looks up named calendar from
-        static data.
-    payment_lag : int, optional
-        The number of business days to lag payments by.
-    notional : float, optional
-        The leg notional, which is applied to each period.
-    amortization: float, optional
-        The amount by which to adjust the notional each successive period. Should have
-        sign equal to that of notional if the notional is to reduce towards zero.
-    convention: str, optional
-        The day count convention applied to calculations of period accrual dates.
-        See :meth:`~rateslib.calendars.dcf`.
-    leg2_kwargs: Any
-        All ``leg2`` arguments can be similarly input as above, e.g. ``leg2_frequency``.
-        If **not** given, any ``leg2``
-        argument inherits its value from the ``leg1`` arguments, except in the case of
-        ``notional`` and ``amortization`` where ``leg2`` inherits the negated value.
-    curves : Curve, LineCurve, str or list of such, optional
-        A single :class:`~rateslib.curves.Curve`,
-        :class:`~rateslib.curves.LineCurve` or id or a
-        list of such. A list defines the following curves in the order:
-
-        - Forecasting :class:`~rateslib.curves.Curve` or
-          :class:`~rateslib.curves.LineCurve` for ``leg1``.
-        - Discounting :class:`~rateslib.curves.Curve` for ``leg1``.
-        - Forecasting :class:`~rateslib.curves.Curve` or
-          :class:`~rateslib.curves.LineCurve` for ``leg2``.
-        - Discounting :class:`~rateslib.curves.Curve` for ``leg2``.
-    spec : str, optional
-        An identifier to pre-populate many field with conventional values. See
-        :ref:`here<defaults-doc>` for more info and available values.
-
-    Attributes
-    ----------
-    effective : datetime
-    termination : datetime
-    frequency : str
-    stub : str
-    front_stub : datetime
-    back_stub : datetime
-    roll : str, int
-    eom : bool
-    modifier : str
-    calendar : Calendar
-    payment_lag : int
-    notional : float
-    amortization : float
-    convention : str
-    leg2_effective : datetime
-    leg2_termination : datetime
-    leg2_frequency : str
-    leg2_stub : str
-    leg2_front_stub : datetime
-    leg2_back_stub : datetime
-    leg2_roll : str, int
-    leg2_eom : bool
-    leg2_modifier : str
-    leg2_calendar : Calendar
-    leg2_payment_lag : int
-    leg2_notional : float
-    leg2_amortization : float
-    leg2_convention : str
-    """
-
-    @abstractmethod
-    def __init__(
-        self,
-        effective: datetime | NoInput = NoInput(0),
-        termination: datetime | str | NoInput = NoInput(0),
-        frequency: int | NoInput = NoInput(0),
-        stub: str | NoInput = NoInput(0),
-        front_stub: datetime | NoInput = NoInput(0),
-        back_stub: datetime | NoInput = NoInput(0),
-        roll: str | int | NoInput = NoInput(0),
-        eom: bool | NoInput = NoInput(0),
-        modifier: str | NoInput = NoInput(0),
-        calendar: CalInput = NoInput(0),
-        payment_lag: int | NoInput = NoInput(0),
-        notional: float | NoInput = NoInput(0),
-        currency: str | NoInput = NoInput(0),
-        amortization: float | NoInput = NoInput(0),
-        convention: str | NoInput = NoInput(0),
-        leg2_effective: datetime | NoInput = NoInput(1),
-        leg2_termination: datetime | str | NoInput = NoInput(1),
-        leg2_frequency: int | NoInput = NoInput(1),
-        leg2_stub: str | NoInput = NoInput(1),
-        leg2_front_stub: datetime | NoInput = NoInput(1),
-        leg2_back_stub: datetime | NoInput = NoInput(1),
-        leg2_roll: str | int | NoInput = NoInput(1),
-        leg2_eom: bool | NoInput = NoInput(1),
-        leg2_modifier: str | NoInput = NoInput(1),
-        leg2_calendar: CalInput = NoInput(1),
-        leg2_payment_lag: int | NoInput = NoInput(1),
-        leg2_notional: float | NoInput = NoInput(-1),
-        leg2_currency: str | NoInput = NoInput(1),
-        leg2_amortization: float | NoInput = NoInput(-1),
-        leg2_convention: str | NoInput = NoInput(1),
-        curves: list | str | Curve | NoInput = NoInput(0),
-        spec: str | NoInput = NoInput(0),
-    ):
-        self.kwargs = dict(
-            effective=effective,
-            termination=termination,
-            frequency=frequency,
-            stub=stub,
-            front_stub=front_stub,
-            back_stub=back_stub,
-            roll=roll,
-            eom=eom,
-            modifier=modifier,
-            calendar=calendar,
-            payment_lag=payment_lag,
-            notional=notional,
-            currency=currency,
-            amortization=amortization,
-            convention=convention,
-            leg2_effective=leg2_effective,
-            leg2_termination=leg2_termination,
-            leg2_frequency=leg2_frequency,
-            leg2_stub=leg2_stub,
-            leg2_front_stub=leg2_front_stub,
-            leg2_back_stub=leg2_back_stub,
-            leg2_roll=leg2_roll,
-            leg2_eom=leg2_eom,
-            leg2_modifier=leg2_modifier,
-            leg2_calendar=leg2_calendar,
-            leg2_payment_lag=leg2_payment_lag,
-            leg2_notional=leg2_notional,
-            leg2_currency=leg2_currency,
-            leg2_amortization=leg2_amortization,
-            leg2_convention=leg2_convention,
-        )
-        self.kwargs = _push(spec, self.kwargs)
-        # set some defaults if missing
-        self.kwargs["notional"] = (
-            defaults.notional
-            if self.kwargs["notional"] is NoInput.blank
-            else self.kwargs["notional"]
-        )
-        if self.kwargs["payment_lag"] is NoInput.blank:
-            self.kwargs["payment_lag"] = defaults.payment_lag_specific[type(self).__name__]
-        self.kwargs = _inherit_or_negate(self.kwargs)  # inherit or negate the complete arg list
-
-        self.curves = curves
-        self.spec = spec
-
-    @abstractmethod
-    def _set_pricing_mid(self, *args, **kwargs):  # pragma: no cover
-        pass
-
-    def delta(self, *args, **kwargs):
-        """
-        Calculate the delta of the *Instrument*.
-
-        For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
-        """
-        return super().delta(*args, **kwargs)
-
-    def gamma(self, *args, **kwargs):
-        """
-        Calculate the gamma of the *Instrument*.
-
-        For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
-        """
-        return super().gamma(*args, **kwargs)
 
 
 class IRS(BaseDerivative):
@@ -394,7 +190,7 @@ class IRS(BaseDerivative):
 
     def _set_pricing_mid(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
     ):
         # the test for an unpriced IRS is that its fixed rate is not set.
@@ -403,7 +199,7 @@ class IRS(BaseDerivative):
             mid_market_rate = self.rate(curves, solver)
             self.leg1.fixed_rate = float(mid_market_rate)
 
-    def analytic_delta(self, *args, **kwargs):
+    def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
         """
         Return the analytic delta of a leg of the derivative object.
 
@@ -413,9 +209,9 @@ class IRS(BaseDerivative):
 
     def npv(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ):
@@ -2659,196 +2455,3 @@ class FRA(BaseDerivative):
         Date, under the calendar applicable to the Instrument.
         """
         return self.leg1.schedule.pschedule[0]
-
-
-class CDS(BaseDerivative):
-    """
-    Create a credit default swap composing a :class:`~rateslib.legs.CreditPremiumLeg` and
-    a :class:`~rateslib.legs.CreditProtectionLeg`.
-
-    Parameters
-    ----------
-    args : dict
-        Required positional args to :class:`BaseDerivative`.
-    fixed_rate : float or None, optional
-        The rate applied to determine the cashflow on the premium leg. If `None`, can be set later,
-        typically after a mid-market rate for all periods has been calculated.
-        Entered in percentage points, e.g. 50bps is 0.50.
-    premium_accrued : bool, optional
-        Whether the premium is accrued within the period to default.
-    recovery_rate : float, Dual, Dual2, optional
-        The assumed recovery rate on the protection leg that defines payment on
-        credit default. Set by ``defaults``.
-    discretization : int, optional
-        The number of days to discretize the numerical integration over possible credit defaults,
-        for the protection leg. Set by ``defaults``.
-    kwargs : dict
-        Required keyword arguments to :class:`BaseDerivative`.
-    """
-
-    _rate_scalar = 1.0
-    _fixed_rate_mixin = True
-
-    def __init__(
-        self,
-        *args,
-        fixed_rate: float | NoInput = NoInput(0),
-        premium_accrued: bool | NoInput = NoInput(0),
-        recovery_rate: DualTypes | NoInput = NoInput(0),
-        discretization: int | NoInput = NoInput(0),
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-        cds_specific = dict(
-            initial_exchange=False,  # CDS have no exchanges
-            final_exchange=False,
-            leg2_initial_exchange=False,
-            leg2_final_exchange=False,
-            leg2_frequency="Z",  # CDS protection is only ever one payoff
-            fixed_rate=fixed_rate,
-            premium_accrued=premium_accrued,
-            leg2_recovery_rate=recovery_rate,
-            leg2_discretization=discretization,
-        )
-        self.kwargs = _update_not_noinput(self.kwargs, cds_specific)
-
-        # set defaults for missing values
-        default_kwargs = dict(
-            premium_accrued=defaults.cds_premium_accrued,
-            leg2_recovery_rate=defaults.cds_recovery_rate,
-            leg2_discretization=defaults.cds_protection_discretization,
-        )
-        self.kwargs = _update_with_defaults(self.kwargs, default_kwargs)
-
-        self.leg1 = CreditPremiumLeg(**_get(self.kwargs, leg=1))
-        self.leg2 = CreditProtectionLeg(**_get(self.kwargs, leg=2))
-        self._fixed_rate = self.kwargs["fixed_rate"]
-
-    def _set_pricing_mid(
-        self,
-        curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-    ):
-        # the test for an unpriced IRS is that its fixed rate is not set.
-        if self.fixed_rate is NoInput.blank:
-            # set a rate for the purpose of generic methods NPV will be zero.
-            mid_market_rate = self.rate(curves, solver)
-            self.leg1.fixed_rate = float(mid_market_rate)
-
-    def analytic_delta(self, *args, **kwargs):
-        """
-        Return the analytic delta of a leg of the derivative object.
-
-        See :meth:`BaseDerivative.analytic_delta`.
-        """
-        return super().analytic_delta(*args, **kwargs)
-
-    def analytic_rec_risk(self, *args, **kwargs):
-        """
-        Return the analytic recovery risk of the derivative object.
-
-        See :meth:`BaseDerivative.analytic_delta`.
-        """
-        return self.leg2.analytic_rec_risk(*args, **kwargs)
-
-    def npv(
-        self,
-        curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
-        local: bool = False,
-    ):
-        """
-        Return the NPV of the derivative by summing legs.
-
-        See :meth:`BaseDerivative.npv`.
-        """
-        self._set_pricing_mid(curves, solver)
-        return super().npv(curves, solver, fx, base, local)
-
-    def rate(
-        self,
-        curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
-    ):
-        """
-        Return the mid-market credit spread of the CDS.
-
-        Parameters
-        ----------
-        curves : Curve, str or list of such
-            A single :class:`~rateslib.curves.Curve` or id or a list of such.
-            A list defines the following curves in the order:
-
-            - Forecasting :class:`~rateslib.curves.Curve` for floating leg.
-            - Discounting :class:`~rateslib.curves.Curve` for both legs.
-        solver : Solver, optional
-            The numerical :class:`~rateslib.solver.Solver` that
-            constructs :class:`~rateslib.curves.Curve` from calibrating instruments.
-
-            .. note::
-
-               The arguments ``fx`` and ``base`` are unused by single currency
-               derivatives rates calculations.
-
-        Returns
-        -------
-        float, Dual or Dual2
-
-        Notes
-        -----
-        The arguments ``fx`` and ``base`` are unused by single currency derivatives
-        rates calculations.
-        """
-        curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
-            self.curves,
-            solver,
-            curves,
-            fx,
-            base,
-            self.leg1.currency,
-        )
-        leg2_npv = self.leg2.npv(curves[2], curves[3])
-        return self.leg1._spread(-leg2_npv, curves[0], curves[1]) * 0.01
-
-    def cashflows(
-        self,
-        curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
-    ):
-        """
-        Return the properties of all legs used in calculating cashflows.
-
-        See :meth:`BaseDerivative.cashflows`.
-        """
-        self._set_pricing_mid(curves, solver)
-        return super().cashflows(curves, solver, fx, base)
-
-    # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-    # Commercial use of this code, and/or copying and redistribution is prohibited.
-    # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-    def accrued(self, settlement: datetime):
-        """
-        Calculate the amount of premium accrued until a specific date within the relevant *Period*.
-
-        Parameters
-        ----------
-        settlement: datetime
-            The date against which accrued is measured.
-
-        Returns
-        -------
-        float or None
-
-        Notes
-        ------
-        If the *CDS* is unpriced, i.e. there is no specified ``fixed_rate`` then None will be
-        returned.
-        """
-        return self.leg1.accrued(settlement)

@@ -1,17 +1,24 @@
 from __future__ import annotations
 
-import abc
 import warnings
-from typing import TYPE_CHECKING, Any
+from abc import ABCMeta, abstractmethod
+from datetime import datetime
+from typing import TYPE_CHECKING
 
 from pandas import DataFrame, concat, isna
 
+from rateslib import defaults
 from rateslib.default import NoInput
-from rateslib.instruments.utils import _get_curves_fx_and_base_maybe_from_solver
+from rateslib.instruments.sensitivities import Sensitivities
+from rateslib.instruments.utils import (
+    _get_curves_fx_and_base_maybe_from_solver,
+    _inherit_or_negate,
+    _push,
+)
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, NPV, Curves, DualTypes, Leg
+    from rateslib.typing import FX, NPV, Any, CalInput, Curves, DualTypes, Leg
 
 
 class BaseMixin:
@@ -142,7 +149,7 @@ class BaseMixin:
         self._leg2_index_base = value
         self.leg2.index_base = value  # type: ignore[union-attr]
 
-    @abc.abstractmethod
+    @abstractmethod
     def analytic_delta(self, *args: Any, leg: int = 1, **kwargs: Any) -> DualTypes:
         """
         Return the analytic delta of a leg of the derivative object.
@@ -191,7 +198,7 @@ class BaseMixin:
         _: DualTypes = getattr(self, f"leg{leg}").analytic_delta(*args, **kwargs)
         return _
 
-    @abc.abstractmethod
+    @abstractmethod
     def cashflows(
         self,
         curves: Curves = NoInput(0),
@@ -270,7 +277,7 @@ class BaseMixin:
             _: DataFrame = concat(dfs_filtered, keys=["leg1", "leg2"])
         return _
 
-    @abc.abstractmethod
+    @abstractmethod
     def npv(
         self,
         curves: Curves = NoInput(0),
@@ -354,7 +361,7 @@ class BaseMixin:
         else:
             return leg1_npv + leg2_npv  # type: ignore[operator]
 
-    @abc.abstractmethod
+    @abstractmethod
     def rate(self, *args: Any, **kwargs: Any) -> DualTypes:
         """
         Return the `rate` or typical `price` for a derivative instrument.
@@ -372,3 +379,200 @@ class BaseMixin:
 
     def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
+
+
+class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
+    """
+    Abstract base class with common parameters for many *Derivative* subclasses.
+
+    Parameters
+    ----------
+    effective : datetime
+        The adjusted or unadjusted effective date.
+    termination : datetime or str
+        The adjusted or unadjusted termination date. If a string, then a tenor must be
+        given expressed in days (`"D"`), months (`"M"`) or years (`"Y"`), e.g. `"48M"`.
+    frequency : str in {"M", "B", "Q", "T", "S", "A", "Z"}, optional
+        The frequency of the schedule.
+    stub : str combining {"SHORT", "LONG"} with {"FRONT", "BACK"}, optional
+        The stub type to enact on the swap. Can provide two types, for
+        example "SHORTFRONTLONGBACK".
+    front_stub : datetime, optional
+        An adjusted or unadjusted date for the first stub period.
+    back_stub : datetime, optional
+        An adjusted or unadjusted date for the back stub period.
+        See notes for combining ``stub``, ``front_stub`` and ``back_stub``
+        and any automatic stub inference.
+    roll : int in [1, 31] or str in {"eom", "imm", "som"}, optional
+        The roll day of the schedule. Inferred if not given.
+    eom : bool, optional
+        Use an end of month preference rather than regular rolls for inference. Set by
+        default. Not required if ``roll`` is specified.
+    modifier : str, optional
+        The modification rule, in {"F", "MF", "P", "MP"}
+    calendar : calendar or str, optional
+        The holiday calendar object to use. If str, looks up named calendar from
+        static data.
+    payment_lag : int, optional
+        The number of business days to lag payments by.
+    notional : float, optional
+        The leg notional, which is applied to each period.
+    amortization: float, optional
+        The amount by which to adjust the notional each successive period. Should have
+        sign equal to that of notional if the notional is to reduce towards zero.
+    convention: str, optional
+        The day count convention applied to calculations of period accrual dates.
+        See :meth:`~rateslib.calendars.dcf`.
+    leg2_kwargs: Any
+        All ``leg2`` arguments can be similarly input as above, e.g. ``leg2_frequency``.
+        If **not** given, any ``leg2``
+        argument inherits its value from the ``leg1`` arguments, except in the case of
+        ``notional`` and ``amortization`` where ``leg2`` inherits the negated value.
+    curves : Curve, LineCurve, str or list of such, optional
+        A single :class:`~rateslib.curves.Curve`,
+        :class:`~rateslib.curves.LineCurve` or id or a
+        list of such. A list defines the following curves in the order:
+
+        - Forecasting :class:`~rateslib.curves.Curve` or
+          :class:`~rateslib.curves.LineCurve` for ``leg1``.
+        - Discounting :class:`~rateslib.curves.Curve` for ``leg1``.
+        - Forecasting :class:`~rateslib.curves.Curve` or
+          :class:`~rateslib.curves.LineCurve` for ``leg2``.
+        - Discounting :class:`~rateslib.curves.Curve` for ``leg2``.
+    spec : str, optional
+        An identifier to pre-populate many field with conventional values. See
+        :ref:`here<defaults-doc>` for more info and available values.
+
+    Attributes
+    ----------
+    effective : datetime
+    termination : datetime
+    frequency : str
+    stub : str
+    front_stub : datetime
+    back_stub : datetime
+    roll : str, int
+    eom : bool
+    modifier : str
+    calendar : Calendar
+    payment_lag : int
+    notional : float
+    amortization : float
+    convention : str
+    leg2_effective : datetime
+    leg2_termination : datetime
+    leg2_frequency : str
+    leg2_stub : str
+    leg2_front_stub : datetime
+    leg2_back_stub : datetime
+    leg2_roll : str, int
+    leg2_eom : bool
+    leg2_modifier : str
+    leg2_calendar : Calendar
+    leg2_payment_lag : int
+    leg2_notional : float
+    leg2_amortization : float
+    leg2_convention : str
+    """
+
+    @abstractmethod
+    def __init__(
+        self,
+        effective: datetime | NoInput = NoInput(0),
+        termination: datetime | str | NoInput = NoInput(0),
+        frequency: int | NoInput = NoInput(0),
+        stub: str | NoInput = NoInput(0),
+        front_stub: datetime | NoInput = NoInput(0),
+        back_stub: datetime | NoInput = NoInput(0),
+        roll: str | int | NoInput = NoInput(0),
+        eom: bool | NoInput = NoInput(0),
+        modifier: str | NoInput = NoInput(0),
+        calendar: CalInput = NoInput(0),
+        payment_lag: int | NoInput = NoInput(0),
+        notional: float | NoInput = NoInput(0),
+        currency: str | NoInput = NoInput(0),
+        amortization: float | NoInput = NoInput(0),
+        convention: str | NoInput = NoInput(0),
+        leg2_effective: datetime | NoInput = NoInput(1),
+        leg2_termination: datetime | str | NoInput = NoInput(1),
+        leg2_frequency: int | NoInput = NoInput(1),
+        leg2_stub: str | NoInput = NoInput(1),
+        leg2_front_stub: datetime | NoInput = NoInput(1),
+        leg2_back_stub: datetime | NoInput = NoInput(1),
+        leg2_roll: str | int | NoInput = NoInput(1),
+        leg2_eom: bool | NoInput = NoInput(1),
+        leg2_modifier: str | NoInput = NoInput(1),
+        leg2_calendar: CalInput = NoInput(1),
+        leg2_payment_lag: int | NoInput = NoInput(1),
+        leg2_notional: float | NoInput = NoInput(-1),
+        leg2_currency: str | NoInput = NoInput(1),
+        leg2_amortization: float | NoInput = NoInput(-1),
+        leg2_convention: str | NoInput = NoInput(1),
+        curves: Curves = NoInput(0),
+        spec: str | NoInput = NoInput(0),
+    ):
+        self.kwargs = dict(
+            effective=effective,
+            termination=termination,
+            frequency=frequency,
+            stub=stub,
+            front_stub=front_stub,
+            back_stub=back_stub,
+            roll=roll,
+            eom=eom,
+            modifier=modifier,
+            calendar=calendar,
+            payment_lag=payment_lag,
+            notional=notional,
+            currency=currency,
+            amortization=amortization,
+            convention=convention,
+            leg2_effective=leg2_effective,
+            leg2_termination=leg2_termination,
+            leg2_frequency=leg2_frequency,
+            leg2_stub=leg2_stub,
+            leg2_front_stub=leg2_front_stub,
+            leg2_back_stub=leg2_back_stub,
+            leg2_roll=leg2_roll,
+            leg2_eom=leg2_eom,
+            leg2_modifier=leg2_modifier,
+            leg2_calendar=leg2_calendar,
+            leg2_payment_lag=leg2_payment_lag,
+            leg2_notional=leg2_notional,
+            leg2_currency=leg2_currency,
+            leg2_amortization=leg2_amortization,
+            leg2_convention=leg2_convention,
+        )
+        self.kwargs = _push(spec, self.kwargs)
+        # set some defaults if missing
+        self.kwargs["notional"] = (
+            defaults.notional
+            if self.kwargs["notional"] is NoInput.blank
+            else self.kwargs["notional"]
+        )
+        if self.kwargs["payment_lag"] is NoInput.blank:
+            self.kwargs["payment_lag"] = defaults.payment_lag_specific[type(self).__name__]
+        self.kwargs = _inherit_or_negate(self.kwargs)  # inherit or negate the complete arg list
+
+        self.curves = curves
+        self.spec = spec
+
+    @abstractmethod
+    def _set_pricing_mid(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover
+        pass
+
+    def delta(self, *args: Any, **kwargs: Any) -> DataFrame:
+        """
+        Calculate the delta of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
+        """
+        return super().delta(*args, **kwargs)
+
+    def gamma(self, *args: Any, **kwargs: Any) -> DataFrame:
+        """
+        Calculate the gamma of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
+        """
+        return super().gamma(*args, **kwargs)

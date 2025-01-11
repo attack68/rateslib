@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -23,7 +24,7 @@ from rateslib.instruments.utils import (
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, Curves, DualTypes, Any, NPV, NoReturn
+    from rateslib.typing import FX, NPV, Any, Curves, DualTypes, Instrument, NoReturn
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -357,7 +358,7 @@ class Spread(Sensitivities):
     #         args2 = args
     #     return self.instrument1.npv(*args1) + self.instrument2.npv(*args2)
 
-    def rate(self, *args, **kwargs):
+    def rate(self, *args: Any, **kwargs: Any) -> DualTypes:
         """
         Return the mid-market rate of the composited via the difference of instrument
         rates.
@@ -388,7 +389,7 @@ class Spread(Sensitivities):
     #         args2 = args
     #     return self.instrument2.rate(*args2) - self.instrument1.rate(*args1)
 
-    def cashflows(self, *args, **kwargs):
+    def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame:
         return concat(
             [
                 self.instrument1.cashflows(*args, **kwargs),
@@ -397,7 +398,7 @@ class Spread(Sensitivities):
             keys=["instrument1", "instrument2"],
         )
 
-    def delta(self, *args, **kwargs):
+    def delta(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
         Calculate the delta of the *Instrument*.
 
@@ -405,7 +406,7 @@ class Spread(Sensitivities):
         """
         return super().delta(*args, **kwargs)
 
-    def gamma(self, *args, **kwargs):
+    def gamma(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
         Calculate the gamma of the *Instrument*.
 
@@ -415,9 +416,9 @@ class Spread(Sensitivities):
 
     def fixings_table(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
@@ -467,12 +468,12 @@ class Fly(Sensitivities):
 
     _rate_scalar = 100.0
 
-    def __init__(self, instrument1, instrument2, instrument3):
+    def __init__(self, instrument1, instrument2, instrument3) -> None:
         self.instrument1 = instrument1
         self.instrument2 = instrument2
         self.instrument3 = instrument3
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
     def npv(self, *args: Any, **kwargs: Any) -> NPV:
@@ -503,7 +504,7 @@ class Fly(Sensitivities):
         else:
             return leg1_npv + leg2_npv + leg3_npv
 
-    def rate(self, *args, **kwargs):
+    def rate(self, *args: Any, **kwargs: Any) -> DualTypes:
         """
         Return the mid-market rate of the composited via the difference of instrument
         rates.
@@ -526,8 +527,8 @@ class Fly(Sensitivities):
         leg3_rate = self.instrument3.rate(*args, **kwargs)
         return (-leg3_rate + 2 * leg2_rate - leg1_rate) * 100.0
 
-    def cashflows(self, *args, **kwargs):
-        return concat(
+    def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame:
+        _: DataFrame = concat(
             [
                 self.instrument1.cashflows(*args, **kwargs),
                 self.instrument2.cashflows(*args, **kwargs),
@@ -535,8 +536,9 @@ class Fly(Sensitivities):
             ],
             keys=["instrument1", "instrument2", "instrument3"],
         )
+        return _
 
-    def delta(self, *args, **kwargs):
+    def delta(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
         Calculate the delta of the *Instrument*.
 
@@ -544,7 +546,7 @@ class Fly(Sensitivities):
         """
         return super().delta(*args, **kwargs)
 
-    def gamma(self, *args, **kwargs):
+    def gamma(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
         Calculate the gamma of the *Instrument*.
 
@@ -554,13 +556,13 @@ class Fly(Sensitivities):
 
     def fixings_table(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
-    ):
+    ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on the *Instruments*.
 
@@ -613,8 +615,8 @@ class Portfolio(Sensitivities):
     See examples for :class:`Spread` for similar functionality.
     """
 
-    def __init__(self, instruments) -> None:
-        if not isinstance(instruments, list):
+    def __init__(self, instruments: Sequence[Instrument]) -> None:
+        if not isinstance(instruments, Sequence):
             raise ValueError("`instruments` should be a list of Instruments.")
         self.instruments = instruments
 
@@ -636,7 +638,7 @@ class Portfolio(Sensitivities):
         For arguments see :meth:`BaseDerivative.npv()<rateslib.instruments.BaseDerivative.npv>`.
         """
         # TODO look at legs.npv where args len is used.
-        if not local and isinstance(base, NoInput) and isinstance(fx,  NoInput):
+        if not local and isinstance(base, NoInput) and isinstance(fx, NoInput):
             warnings.warn(
                 "No ``base`` currency is inferred, using ``local`` output. To return a single "
                 "PV specify a ``base`` currency and ensure an ``fx`` or ``solver.fx`` object "

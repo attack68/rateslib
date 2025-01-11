@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from rateslib.instruments.base import BaseMixin
+from rateslib.instruments.base import BaseDerivative, BaseMixin
 from rateslib.instruments.bonds import (
     Bill,
     BillCalcMode,
@@ -11,6 +11,7 @@ from rateslib.instruments.bonds import (
     FloatRateNote,
     IndexFixedRateBond,
 )
+from rateslib.instruments.credit import CDS
 from rateslib.instruments.fx_volatility import (
     FXBrokerFly,
     FXCall,
@@ -23,14 +24,12 @@ from rateslib.instruments.fx_volatility import (
 )
 from rateslib.instruments.generics import Fly, Portfolio, Spread, Value, VolValue
 from rateslib.instruments.rates_derivatives import (
-    CDS,
     FRA,
     IIRS,
     IRS,
     SBS,
     ZCIS,
     ZCS,
-    BaseDerivative,
     STIRFuture,
 )
 from rateslib.instruments.rates_multi_ccy import (
