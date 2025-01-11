@@ -16,7 +16,7 @@ from rateslib.curves import Curve, index_left
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.dual.utils import _dual_float
-from rateslib.fx import FXForwards, FXRates
+from rateslib.fx import FXForwards
 from rateslib.periods import (
     Cashflow,
     CreditPremiumPeriod,
@@ -34,7 +34,7 @@ from rateslib.periods import (
 from rateslib.scheduling import Schedule
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, CurveOption, DualTypes, Period, FX
+    from rateslib.typing import FX, CalInput, CurveOption, DualTypes, Period
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

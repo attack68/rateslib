@@ -6,9 +6,8 @@ from typing import TYPE_CHECKING
 from pandas import DataFrame, Series
 
 from rateslib import defaults
-from rateslib.curves import Curve, LineCurve
+from rateslib.curves import Curve
 from rateslib.default import NoInput
-from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments.base import BaseDerivative
 from rateslib.instruments.utils import (
     _composit_fixings_table,
@@ -2438,7 +2437,7 @@ class FRA(BaseDerivative):
         """
         return super().delta(*args, **kwargs)
 
-    def gamma(self, *args: Any, **kwargs: Any) ->DataFrame:
+    def gamma(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
         Calculate the gamma of the *Instrument*.
 
