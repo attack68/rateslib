@@ -351,8 +351,8 @@ class BaseMixin:
             base,
             self.leg1.currency,
         )
-        leg1_npv: NPV = self.leg1.npv(curves_[0], curves_[1], fx_, base_, local)  # type: ignore[arg-type]
-        leg2_npv: NPV = self.leg2.npv(curves_[2], curves_[3], fx_, base_, local)  # type: ignore[arg-type]
+        leg1_npv: NPV = self.leg1.npv(curves_[0], curves_[1], fx_, base_, local)
+        leg2_npv: NPV = self.leg2.npv(curves_[2], curves_[3], fx_, base_, local)
         if local:
             return {
                 k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0)  # type: ignore[union-attr]

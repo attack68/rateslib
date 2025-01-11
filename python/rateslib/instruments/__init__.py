@@ -23,19 +23,17 @@ from rateslib.instruments.fx_volatility import (
     FXStrangle,
 )
 from rateslib.instruments.generics import Fly, Portfolio, Spread, Value, VolValue
-from rateslib.instruments.rates_derivatives import (
+from rateslib.instruments.rates import (
     FRA,
     IIRS,
     IRS,
     SBS,
+    XCS,
     ZCIS,
     ZCS,
-    STIRFuture,
-)
-from rateslib.instruments.rates_multi_ccy import (
-    XCS,
     FXExchange,
     FXSwap,
+    STIRFuture,
 )
 from rateslib.instruments.sensitivities import Sensitivities
 

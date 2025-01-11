@@ -490,6 +490,8 @@ class FixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
        fixed_leg_exch.npv(curve)
     """  # noqa: E501
 
+    periods: list[FixedPeriod | Cashflow]  # type: ignore[assignment]
+
     def __init__(
         self, *args: Any, fixed_rate: DualTypes | NoInput = NoInput(0), **kwargs: Any
     ) -> None:
@@ -581,7 +583,7 @@ class _FloatLegMixin:
 
     def _set_fixings(
         self,
-        fixings: FixingsRates  # type: ignore[type-var]
+        fixings: FixingsRates,  # type: ignore[type-var]
     ) -> None:
         """
         Re-organises the fixings input to list structure for each period.
@@ -1050,8 +1052,8 @@ class FloatLeg(_FloatLegMixin, BaseLeg):
 
     def fixings_table(
         self,
-        curve: Curve,
-        disc_curve: Curve | NoInput = NoInput(0),
+        curve: CurveOption,
+        disc_curve: CurveOption = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
@@ -1380,7 +1382,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
     def npv(
         self,
         curve: CurveOption,
-        disc_curve: Curve | NoInput = NoInput(0),
+        disc_curve: CurveOption = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
@@ -1407,8 +1409,8 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
 
     def fixings_table(
         self,
-        curve: Curve,
-        disc_curve: Curve | NoInput = NoInput(0),
+        curve: CurveOption,
+        disc_curve: CurveOption = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
@@ -1437,32 +1439,27 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         -------
         DataFrame
         """
-        if isinstance(disc_curve, NoInput) and isinstance(curve, dict):
-            raise ValueError("Cannot infer `disc_curve` from a dict of curves.")
-        elif isinstance(disc_curve, NoInput):
-            if curve._base_type == "dfs":
-                disc_curve = curve
-            else:
-                raise ValueError("Must supply a discount factor based `disc_curve`.")
+        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
 
         if self.fixing_method == "ibor":
             dfs = []
             prod = 1 + self.dcf * self.rate(curve) / 100.0
-            prod *= -self.notional * disc_curve[self.schedule.pschedule[-1]]
+            prod *= -self.notional * disc_curve_[self.schedule.pschedule[-1]]
             for period in self.periods:
                 if not isinstance(period, FloatPeriod):
                     continue
                 scalar = period.dcf / (1 + period.dcf * period.rate(curve) / 100.0)
                 risk = prod * scalar
-                dfs.append(period._ibor_fixings_table(curve, disc_curve, right, risk))
+                dfs.append(period._ibor_fixings_table(curve, disc_curve_, right, risk))
         else:
             dfs = []
             prod = 1 + self.dcf * self.rate(curve) / 100.0
             for period in [_ for _ in self.periods if isinstance(_, FloatPeriod)]:
-                df = period.fixings_table(curve, approximate, disc_curve)
+                # TODO: handle interpolated fixings and curve as dict.
+                df = period.fixings_table(curve, approximate, disc_curve_)
                 scalar = prod / (1 + period.dcf * period.rate(curve) / 100.0)
-                df[(curve.id, "risk")] *= scalar  # type: ignore[operator]
-                df[(curve.id, "notional")] *= scalar  # type: ignore[operator]
+                df[(curve.id, "risk")] *= scalar  # type: ignore[operator, union-attr]
+                df[(curve.id, "notional")] *= scalar  # type: ignore[operator, union-attr]
                 dfs.append(df)
 
         with warnings.catch_warnings():

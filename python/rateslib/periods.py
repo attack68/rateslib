@@ -413,8 +413,8 @@ class BasePeriod(metaclass=ABCMeta):
     def npv(
         self,
         curve: CurveOption = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        disc_curve: CurveOption = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> DualTypes | dict[str, DualTypes]:
@@ -544,9 +544,9 @@ class FixedPeriod(BasePeriod):
 
     def npv(
         self,
-        curve: Curve | dict[str, Curve] | NoInput = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        curve: CurveOption = NoInput(0),
+        disc_curve: CurveOption = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> dict[str, DualTypes] | DualTypes:
@@ -1004,9 +1004,9 @@ class FloatPeriod(BasePeriod):
 
     def npv(
         self,
-        curve: Curve | dict[str, Curve] | NoInput = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        curve: CurveOption = NoInput(0),
+        disc_curve: CurveOption = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> dict[str, DualTypes] | DualTypes:
@@ -1015,9 +1015,7 @@ class FloatPeriod(BasePeriod):
         See
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
-        disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
-        if not isinstance(disc_curve_, Curve):
-            raise TypeError("`curves` have not been supplied correctly.")
+        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
         if self.payment < disc_curve_.node_dates[0]:
             if local:
                 return {self.currency: 0.0}
@@ -1468,9 +1466,9 @@ class FloatPeriod(BasePeriod):
 
     def fixings_table(
         self,
-        curve: Curve | dict[str, Curve],
+        curve: CurveOption,
         approximate: bool = False,
-        disc_curve: Curve | NoInput = NoInput(0),
+        disc_curve: CurveOption = NoInput(0),
         right: datetime | NoInput = NoInput(0),
     ) -> DataFrame:
         """
@@ -1604,16 +1602,7 @@ class FloatPeriod(BasePeriod):
            )
            period.fixings_table({"1m": ibor_1m, "3m": ibor_3m}, disc_curve=ibor_1m)
         """
-        if isinstance(disc_curve, NoInput):
-            if isinstance(curve, dict):
-                raise ValueError("Cannot infer `disc_curve` from a dict of curves.")
-            else:  # not isinstance(curve, dict):
-                if curve._base_type == "dfs":
-                    disc_curve_: Curve = curve
-                else:
-                    raise ValueError("Must supply a discount factor based `disc_curve`.")
-        else:
-            disc_curve_ = disc_curve
+        disc_curve_ = _disc_required_maybe_from_curve(curve, disc_curve)
 
         if approximate:
             if not isinstance(self.fixings, NoInput):
@@ -1696,7 +1685,7 @@ class FloatPeriod(BasePeriod):
             return self._ibor_fixings_table(curve, disc_curve_, right)
 
     def _fixings_table_fast(
-        self, curve: Curve | dict[str, Curve], disc_curve: Curve, right: NoInput | datetime
+        self, curve: CurveOption, disc_curve: Curve, right: NoInput | datetime
     ) -> DataFrame:
         """
         Return a DataFrame of **approximate** fixing exposures.
@@ -1801,7 +1790,7 @@ class FloatPeriod(BasePeriod):
 
     def _ibor_fixings_table(
         self,
-        curve: Curve | dict[str, Curve],
+        curve: CurveOption,
         disc_curve: Curve,
         right: datetime | NoInput,
         risk: DualTypes | NoInput = NoInput(0),
@@ -1828,6 +1817,8 @@ class FloatPeriod(BasePeriod):
             else:  # not self.stub:
                 # then extract the one relevant curve from dict
                 curve_: Curve = _get_ibor_curve_from_dict(self.freq_months, curve)
+        elif isinstance(curve, NoInput):
+            raise ValueError("`curve` must be supplied as Curve or dict for `ibor_fiixngs_table`.")
         else:
             curve_ = curve
 
@@ -2507,8 +2498,8 @@ class CreditProtectionPeriod(BasePeriod):
     def npv(
         self,
         curve: CurveOption = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        disc_curve: CurveOption = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> DualTypes | dict[str, DualTypes]:

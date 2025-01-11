@@ -914,7 +914,7 @@ class BondFuture(Sensitivities):
         else:  # metric == "ytm":
             return self.basket[ctd_index].ytm(future_price * self.cfs[ctd_index], f_settlement)
 
-    def npv(  # type: ignore[override]
+    def npv(
         self,
         curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),

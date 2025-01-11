@@ -746,10 +746,10 @@ class TestFloatPeriod:
             convention="act365f",
             notional=-1000000,
         )
-        with pytest.raises(ValueError, match="Must supply a discount factor based `disc_curve`."):
+        with pytest.raises(ValueError, match="`disc_curve` cannot be inferred from a non-DF"):
             period.fixings_table(curve=line_curve)
 
-        with pytest.raises(ValueError, match="Cannot infer `disc_curve` from a dict of curves."):
+        with pytest.raises(ValueError, match="`disc_curve` cannot be inferred from a dictionary"):
             period.fixings_table(curve={"1m": line_curve, "2m": line_curve})
 
     @pytest.mark.parametrize(

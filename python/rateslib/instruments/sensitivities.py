@@ -24,8 +24,8 @@ class Sensitivities:
     method.
     """
 
-    npv: Callable[P, NPV]
-    cashflows: Callable[P, DataFrame]
+    npv: Callable[..., NPV]
+    cashflows: Callable[..., DataFrame]
 
     def delta(
         self,
