@@ -137,6 +137,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["E402", "N801"]
+"typing.py" = ["E501"]
 "python/tests/*" = ["F401", "B", "N", "S", "ANN", "D"]
 "rust/*" = ["D"]
 
@@ -149,7 +150,6 @@ packages = [
     "rateslib"
 ]
 exclude = [
-    # "/instruments/bonds/futures.py",
     "/instruments/bonds/securities.py",
     "/instruments/fx_volatility.py",
     "/instruments/generics.py",

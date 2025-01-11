@@ -16,7 +16,7 @@ from rateslib.curves import Curve, index_left
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.dual.utils import _dual_float
-from rateslib.fx import FXForwards, FXRates
+from rateslib.fx import FXForwards
 from rateslib.periods import (
     Cashflow,
     CreditPremiumPeriod,
@@ -34,7 +34,7 @@ from rateslib.periods import (
 from rateslib.scheduling import Schedule
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, CurveOption, DualTypes, Period
+    from rateslib.typing import FX, CalInput, CurveOption, DualTypes, FixingsRates, Period
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -346,9 +346,9 @@ class BaseLeg(metaclass=ABCMeta):
     def _spread(
         self,
         target_npv: DualTypes,
-        fore_curve: Curve,
-        disc_curve: Curve,
-        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
+        fore_curve: CurveOption,
+        disc_curve: CurveOption,
+        fx: FX = NoInput(0),
     ) -> DualTypes:
         """
         Calculates an adjustment to the ``fixed_rate`` or ``float_spread`` to match
@@ -581,11 +581,7 @@ class _FloatLegMixin:
 
     def _set_fixings(
         self,
-        fixings: Series[DualTypes]  # type: ignore[type-var]
-        | list[DualTypes | list[DualTypes] | Series[DualTypes] | NoInput]
-        | tuple[DualTypes, Series[DualTypes]]
-        | DualTypes
-        | NoInput,
+        fixings: FixingsRates  # type: ignore[type-var]
     ) -> None:
         """
         Re-organises the fixings input to list structure for each period.
@@ -675,8 +671,8 @@ class _FloatLegMixin:
     def _spread_isda_approximated_rate(
         self,
         target_npv: DualTypes,
-        fore_curve: Curve,
-        disc_curve: Curve,
+        fore_curve: Curve,  # TODO: use CurveOption and handle dict[str, Curve]
+        disc_curve: Curve,  # TODO: use CurveOption and handle dict[str, Curve]
     ) -> DualTypes:
         """
         Use approximated derivatives through geometric averaged 1day rates to derive the
@@ -821,9 +817,9 @@ class _FloatLegMixin:
     def _spread(
         self,
         target_npv: DualTypes,
-        fore_curve: Curve,
-        disc_curve: Curve,
-        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
+        fore_curve: CurveOption,
+        disc_curve: CurveOption,
+        fx: FX = NoInput(0),
     ) -> DualTypes:
         """
         Calculates an adjustment to the ``fixed_rate`` or ``float_spread`` to match
@@ -865,7 +861,7 @@ class _FloatLegMixin:
             a_delta: DualTypes = self.analytic_delta(fore_curve, disc_curve, fx, self.currency)  # type: ignore[attr-defined]
             return -target_npv / a_delta
         else:
-            return self._spread_isda_approximated_rate(target_npv, fore_curve, disc_curve)
+            return self._spread_isda_approximated_rate(target_npv, fore_curve, disc_curve)  # type: ignore[arg-type]
             # _ = self._spread_isda_dual2(target_npv, fore_curve, disc_curve, fx)
 
 
@@ -1008,11 +1004,7 @@ class FloatLeg(_FloatLegMixin, BaseLeg):
         self,
         *args: Any,
         float_spread: DualTypes | NoInput = NoInput(0),
-        fixings: Series[DualTypes]  # type: ignore[type-var]
-        | list[DualTypes | list[DualTypes] | Series[DualTypes] | NoInput]
-        | tuple[DualTypes, Series[DualTypes]]
-        | DualTypes
-        | NoInput = NoInput(0),
+        fixings: FixingsRates = NoInput(0),
         fixing_method: str | NoInput = NoInput(0),
         method_param: int | NoInput = NoInput(0),
         spread_compound_method: str | NoInput = NoInput(0),
@@ -1060,7 +1052,7 @@ class FloatLeg(_FloatLegMixin, BaseLeg):
         self,
         curve: Curve,
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
@@ -1313,11 +1305,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         self,
         *args: Any,
         float_spread: DualTypes | NoInput = NoInput(0),
-        fixings: Series[DualTypes]  # type: ignore[type-var]
-        | list[DualTypes | list[DualTypes] | Series[DualTypes] | NoInput]
-        | tuple[DualTypes, Series[DualTypes]]
-        | DualTypes
-        | NoInput = NoInput(0),
+        fixings: FixingsRates = NoInput(0),
         fixing_method: str | NoInput = NoInput(0),
         method_param: int | NoInput = NoInput(0),
         spread_compound_method: str | NoInput = NoInput(0),
@@ -1393,7 +1381,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         self,
         curve: CurveOption,
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> dict[str, DualTypes] | DualTypes:
@@ -1421,7 +1409,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         self,
         curve: Curve,
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
@@ -1486,7 +1474,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         self,
         curve: Curve | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -1514,7 +1502,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         self,
         curve: CurveOption = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:
         """
@@ -1689,7 +1677,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
         self,
         curve: CurveOption = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:
         """
@@ -1738,7 +1726,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
         self,
         curve: Curve | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -1767,9 +1755,9 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
     def _spread(
         self,
         target_npv: DualTypes,
-        fore_curve: Curve,
-        disc_curve: Curve,
-        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
+        fore_curve: CurveOption,
+        disc_curve: CurveOption,
+        fx: FX = NoInput(0),
     ) -> DualTypes:
         """
         Overload the _spread calc to use analytic delta based on period rate
@@ -2590,7 +2578,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    def _get_fx_fixings(self, fx: DualTypes | FXRates | FXForwards | NoInput) -> list[DualTypes]:
+    def _get_fx_fixings(self, fx: FX) -> list[DualTypes]:
         """
         Return the calculated FX fixings.
 
@@ -2648,7 +2636,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
                 fx_fixings_.extend([fx_fixings_[-1]] * (n_req - n_given))
         return fx_fixings_
 
-    def _set_periods(self, fx: DualTypes | FXRates | FXForwards | NoInput) -> None:  # type: ignore[override]
+    def _set_periods(self, fx: FX) -> None:  # type: ignore[override]
         fx_fixings_: list[DualTypes] = self._get_fx_fixings(fx)
         self.notional = fx_fixings_[0] * self.alt_notional
         notionals = [self.alt_notional * fx_fixings_[i] for i in range(len(fx_fixings_))]
@@ -2722,7 +2710,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         self,
         curve: Curve,
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> DualTypes | dict[str, DualTypes]:
@@ -2736,7 +2724,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         self,
         curve: Curve | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:
         if not self._do_not_repeat_set_periods:
@@ -2749,7 +2737,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         self,
         curve: Curve | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         if not self._do_not_repeat_set_periods:
@@ -2882,11 +2870,7 @@ class FloatLegMtm(_FloatLegMixin, BaseLegMtm):
         self,
         *args: Any,
         float_spread: DualTypes | NoInput = NoInput(0),
-        fixings: Series[DualTypes]  # type: ignore[type-var]
-        | list[DualTypes | list[DualTypes] | Series[DualTypes] | NoInput]
-        | tuple[DualTypes, Series[DualTypes]]
-        | DualTypes
-        | NoInput = NoInput(0),
+        fixings: FixingsRates = NoInput(0),
         fixing_method: str | NoInput = NoInput(0),
         method_param: int | NoInput = NoInput(0),
         spread_compound_method: str | NoInput = NoInput(0),
@@ -2911,7 +2895,7 @@ class FloatLegMtm(_FloatLegMixin, BaseLegMtm):
         self,
         curve: Curve,
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),

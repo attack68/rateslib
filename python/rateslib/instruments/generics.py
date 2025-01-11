@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -23,7 +24,7 @@ from rateslib.instruments.utils import (
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, Curves, DualTypes
+    from rateslib.typing import FX, NPV, Any, Curves, DualTypes, Instrument, NoReturn
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -131,13 +132,13 @@ class Value(BaseMixin):
             return _
         raise ValueError("`metric`must be in {'curve_value', 'cc_zero_rate', 'index_value'}.")
 
-    def npv(self, *args, **kwargs):
+    def npv(self, *args: Any, **kwargs: Any) -> NoReturn:
         raise NotImplementedError("`Value` instrument has no concept of NPV.")
 
-    def cashflows(self, *args, **kwargs):
+    def cashflows(self, *args: Any, **kwargs: Any) -> NoReturn:
         raise NotImplementedError("`Value` instrument has no concept of cashflows.")
 
-    def analytic_delta(self, *args, **kwargs):
+    def analytic_delta(self, *args: Any, **kwargs: Any) -> NoReturn:
         raise NotImplementedError("`Value` instrument has no concept of analytic delta.")
 
 
@@ -249,13 +250,13 @@ class VolValue(BaseMixin):
 
         raise ValueError("`metric` must be in {'vol'}.")
 
-    def npv(self, *args, **kwargs):
+    def npv(self, *args: Any, **kwargs: Any) -> NoReturn:
         raise NotImplementedError("`VolValue` instrument has no concept of NPV.")
 
-    def cashflows(self, *args, **kwargs):
+    def cashflows(self, *args: Any, **kwargs: Any) -> NoReturn:
         raise NotImplementedError("`VolValue` instrument has no concept of cashflows.")
 
-    def analytic_delta(self, *args, **kwargs):
+    def analytic_delta(self, *args: Any, **kwargs: Any) -> NoReturn:
         raise NotImplementedError("`VolValue` instrument has no concept of analytic delta.")
 
 
@@ -315,7 +316,7 @@ class Spread(Sensitivities):
     def __repr__(self):
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
-    def npv(self, *args, **kwargs):
+    def npv(self, *args: Any, **kwargs: Any) -> NPV:
         """
         Return the NPV of the composited object by summing instrument NPVs.
 
@@ -357,7 +358,7 @@ class Spread(Sensitivities):
     #         args2 = args
     #     return self.instrument1.npv(*args1) + self.instrument2.npv(*args2)
 
-    def rate(self, *args, **kwargs):
+    def rate(self, *args: Any, **kwargs: Any) -> DualTypes:
         """
         Return the mid-market rate of the composited via the difference of instrument
         rates.
@@ -388,7 +389,7 @@ class Spread(Sensitivities):
     #         args2 = args
     #     return self.instrument2.rate(*args2) - self.instrument1.rate(*args1)
 
-    def cashflows(self, *args, **kwargs):
+    def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame:
         return concat(
             [
                 self.instrument1.cashflows(*args, **kwargs),
@@ -397,7 +398,7 @@ class Spread(Sensitivities):
             keys=["instrument1", "instrument2"],
         )
 
-    def delta(self, *args, **kwargs):
+    def delta(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
         Calculate the delta of the *Instrument*.
 
@@ -405,7 +406,7 @@ class Spread(Sensitivities):
         """
         return super().delta(*args, **kwargs)
 
-    def gamma(self, *args, **kwargs):
+    def gamma(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
         Calculate the gamma of the *Instrument*.
 
@@ -415,9 +416,9 @@ class Spread(Sensitivities):
 
     def fixings_table(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
@@ -467,15 +468,15 @@ class Fly(Sensitivities):
 
     _rate_scalar = 100.0
 
-    def __init__(self, instrument1, instrument2, instrument3):
+    def __init__(self, instrument1, instrument2, instrument3) -> None:
         self.instrument1 = instrument1
         self.instrument2 = instrument2
         self.instrument3 = instrument3
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
-    def npv(self, *args, **kwargs):
+    def npv(self, *args: Any, **kwargs: Any) -> NPV:
         """
         Return the NPV of the composited object by summing instrument NPVs.
 
@@ -503,7 +504,7 @@ class Fly(Sensitivities):
         else:
             return leg1_npv + leg2_npv + leg3_npv
 
-    def rate(self, *args, **kwargs):
+    def rate(self, *args: Any, **kwargs: Any) -> DualTypes:
         """
         Return the mid-market rate of the composited via the difference of instrument
         rates.
@@ -526,8 +527,8 @@ class Fly(Sensitivities):
         leg3_rate = self.instrument3.rate(*args, **kwargs)
         return (-leg3_rate + 2 * leg2_rate - leg1_rate) * 100.0
 
-    def cashflows(self, *args, **kwargs):
-        return concat(
+    def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame:
+        _: DataFrame = concat(
             [
                 self.instrument1.cashflows(*args, **kwargs),
                 self.instrument2.cashflows(*args, **kwargs),
@@ -535,8 +536,9 @@ class Fly(Sensitivities):
             ],
             keys=["instrument1", "instrument2", "instrument3"],
         )
+        return _
 
-    def delta(self, *args, **kwargs):
+    def delta(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
         Calculate the delta of the *Instrument*.
 
@@ -544,7 +546,7 @@ class Fly(Sensitivities):
         """
         return super().delta(*args, **kwargs)
 
-    def gamma(self, *args, **kwargs):
+    def gamma(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
         Calculate the gamma of the *Instrument*.
 
@@ -554,13 +556,13 @@ class Fly(Sensitivities):
 
     def fixings_table(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
-    ):
+    ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on the *Instruments*.
 
@@ -587,7 +589,7 @@ class Fly(Sensitivities):
 # Contact info at rateslib.com if this code is observed outside its intended sphere of use.
 
 
-def _instrument_npv(instrument, *args, **kwargs):  # pragma: no cover
+def _instrument_npv(instrument, *args: Any, **kwargs: Any) -> NPV:  # pragma: no cover
     # this function is captured by TestPortfolio pooling but is not registered as a parallel process
     # used for parallel processing with Portfolio.npv
     return instrument.npv(*args, **kwargs)
@@ -613,30 +615,30 @@ class Portfolio(Sensitivities):
     See examples for :class:`Spread` for similar functionality.
     """
 
-    def __init__(self, instruments):
-        if not isinstance(instruments, list):
+    def __init__(self, instruments: Sequence[Instrument]) -> None:
+        if not isinstance(instruments, Sequence):
             raise ValueError("`instruments` should be a list of Instruments.")
         self.instruments = instruments
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
-    def npv(
+    def npv(  # type: ignore[override]
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> NPV:
         """
         Return the NPV of the *Portfolio* by summing instrument NPVs.
 
         For arguments see :meth:`BaseDerivative.npv()<rateslib.instruments.BaseDerivative.npv>`.
         """
         # TODO look at legs.npv where args len is used.
-        if not local and base is NoInput.blank and fx is NoInput.blank:
+        if not local and isinstance(base, NoInput) and isinstance(fx, NoInput):
             warnings.warn(
                 "No ``base`` currency is inferred, using ``local`` output. To return a single "
                 "PV specify a ``base`` currency and ensure an ``fx`` or ``solver.fx`` object "
@@ -675,7 +677,7 @@ class Portfolio(Sensitivities):
         if local:
             _ = DataFrame(results).fillna(0.0)
             _ = _.sum()
-            ret = _.to_dict()
+            val1: dict[str, DualTypes] = _.to_dict()
 
             # ret = {}
             # for result in results:
@@ -685,36 +687,42 @@ class Portfolio(Sensitivities):
             #         else:
             #             ret[ccy] = result[ccy]
 
+            ret: NPV = val1
         else:
-            ret = sum(results)
+            val2: DualTypes = sum(results)  # type: ignore[arg-type]
+            ret = val2
 
         return ret
 
-    def _npv_single_core(self, *args, **kwargs):
+    def _npv_single_core(self, *args: Any, **kwargs: Any) -> NPV:
         if kwargs.get("local", False):
             # dicts = [instrument.npv(*args, **kwargs) for instrument in self.instruments]
             # result = dict(reduce(operator.add, map(Counter, dicts)))
 
-            ret = {}
+            val1: dict[str, DualTypes] = {}
             for instrument in self.instruments:
                 i_npv = instrument.npv(*args, **kwargs)
                 for ccy in i_npv:
-                    if ccy in ret:
-                        ret[ccy] += i_npv[ccy]
+                    if ccy in val1:
+                        val1[ccy] += i_npv[ccy]
                     else:
-                        ret[ccy] = i_npv[ccy]
+                        val1[ccy] = i_npv[ccy]
+            ret: DualTypes | dict[str, DualTypes] = val1
         else:
-            _ = (instrument.npv(*args, **kwargs) for instrument in self.instruments)
-            ret = sum(_)
+            val2: DualTypes = sum(
+                instrument.npv(*args, **kwargs) for instrument in self.instruments
+            )
+            ret = val2
         return ret
 
-    def cashflows(self, *args, **kwargs):
-        return concat(
+    def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame:
+        _: DataFrame = concat(
             [_.cashflows(*args, **kwargs) for _ in self.instruments],
             keys=[f"inst{i}" for i in range(len(self.instruments))],
         )
+        return _
 
-    def delta(self, *args, **kwargs):
+    def delta(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
         Calculate the delta of the *Instrument*.
 
@@ -722,7 +730,7 @@ class Portfolio(Sensitivities):
         """
         return super().delta(*args, **kwargs)
 
-    def gamma(self, *args, **kwargs):
+    def gamma(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
         Calculate the gamma of the *Instrument*.
 
@@ -732,13 +740,13 @@ class Portfolio(Sensitivities):
 
     def fixings_table(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
-    ):
+    ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on the *Instruments*.
 
