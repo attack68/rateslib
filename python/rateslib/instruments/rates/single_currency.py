@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from pandas import DataFrame, Series
+from pandas import DataFrame
 
 from rateslib import defaults
 from rateslib.curves import Curve
@@ -1779,7 +1779,9 @@ class FRA(BaseDerivative):
             NoInput(0),
             self.leg2.currency,
         )
-        df = self.leg2.fixings_table(curve=curves_[2], approximate=approximate, disc_curve=curves_[3])
+        df = self.leg2.fixings_table(
+            curve=curves_[2], approximate=approximate, disc_curve=curves_[3]
+        )
         rate = self.leg2.periods[0].rate(curve=curves_[2])
         scalar = curves_[3][self._payment_date] / curves_[3][self.leg2.periods[0].payment]
         scalar *= 1.0 / (1.0 + self.leg2.periods[0].dcf * rate / 100.0)
