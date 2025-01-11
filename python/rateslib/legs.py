@@ -490,6 +490,8 @@ class FixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
        fixed_leg_exch.npv(curve)
     """  # noqa: E501
 
+    periods: list[FixedPeriod | Cashflow]
+
     def __init__(
         self, *args: Any, fixed_rate: DualTypes | NoInput = NoInput(0), **kwargs: Any
     ) -> None:
@@ -1050,8 +1052,8 @@ class FloatLeg(_FloatLegMixin, BaseLeg):
 
     def fixings_table(
         self,
-        curve: Curve,
-        disc_curve: Curve | NoInput = NoInput(0),
+        curve: CurveOption,
+        disc_curve: CurveOption = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
@@ -1380,7 +1382,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
     def npv(
         self,
         curve: CurveOption,
-        disc_curve: Curve | NoInput = NoInput(0),
+        disc_curve: CurveOption = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
@@ -1407,8 +1409,8 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
 
     def fixings_table(
         self,
-        curve: Curve,
-        disc_curve: Curve | NoInput = NoInput(0),
+        curve: CurveOption,
+        disc_curve: CurveOption = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,

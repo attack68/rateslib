@@ -111,7 +111,7 @@ class CDS(BaseDerivative):
         """
         return self.leg2.analytic_rec_risk(*args, **kwargs)
 
-    def npv(  # type: ignore[override]
+    def npv(
         self,
         curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
@@ -174,7 +174,7 @@ class CDS(BaseDerivative):
         leg2_npv: DualTypes = self.leg2.npv(curves_[2], curves_[3], local=False)  # type: ignore[assignment]
         return self.leg1._spread(-leg2_npv, curves_[0], curves_[1]) * 0.01
 
-    def cashflows(  # type: ignore[override]
+    def cashflows(
         self,
         curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
