@@ -1602,16 +1602,7 @@ class FloatPeriod(BasePeriod):
            )
            period.fixings_table({"1m": ibor_1m, "3m": ibor_3m}, disc_curve=ibor_1m)
         """
-        if isinstance(disc_curve, NoInput):
-            if isinstance(curve, dict):
-                raise ValueError("Cannot infer `disc_curve` from a dict of curves.")
-            else:  # not isinstance(curve, dict):
-                if curve._base_type == "dfs":
-                    disc_curve_: Curve = curve
-                else:
-                    raise ValueError("Must supply a discount factor based `disc_curve`.")
-        else:
-            disc_curve_ = disc_curve
+        disc_curve_ = _disc_required_maybe_from_curve(curve, disc_curve)
 
         if approximate:
             if not isinstance(self.fixings, NoInput):
@@ -1694,7 +1685,7 @@ class FloatPeriod(BasePeriod):
             return self._ibor_fixings_table(curve, disc_curve_, right)
 
     def _fixings_table_fast(
-        self, curve: Curve | dict[str, Curve], disc_curve: Curve, right: NoInput | datetime
+        self, curve: CurveOption, disc_curve: Curve, right: NoInput | datetime
     ) -> DataFrame:
         """
         Return a DataFrame of **approximate** fixing exposures.
@@ -1799,7 +1790,7 @@ class FloatPeriod(BasePeriod):
 
     def _ibor_fixings_table(
         self,
-        curve: Curve | dict[str, Curve],
+        curve: CurveOption,
         disc_curve: Curve,
         right: datetime | NoInput,
         risk: DualTypes | NoInput = NoInput(0),
@@ -1826,6 +1817,8 @@ class FloatPeriod(BasePeriod):
             else:  # not self.stub:
                 # then extract the one relevant curve from dict
                 curve_: Curve = _get_ibor_curve_from_dict(self.freq_months, curve)
+        elif isinstance(curve, NoInput):
+            raise ValueError("`curve` must be supplied as Curve or dict for `ibor_fiixngs_table`.")
         else:
             curve_ = curve
 

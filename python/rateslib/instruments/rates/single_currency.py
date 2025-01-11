@@ -1591,7 +1591,7 @@ class FRA(BaseDerivative):
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
-    ) -> DualTypes:
+    ) -> NPV:
         """
         Return the NPV of the derivative.
 
@@ -1599,7 +1599,7 @@ class FRA(BaseDerivative):
         """
 
         self._set_pricing_mid(curves, solver)
-        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+        curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,
             curves,
@@ -1608,7 +1608,7 @@ class FRA(BaseDerivative):
             self.leg1.currency,
         )
         fx, base = _get_fx_and_base(self.leg1.currency, fx_, base_)
-        value = self.cashflow(curves[0]) * curves[1][self._payment_date]
+        value = self.cashflow(curves_[0]) * curves_[1][self._payment_date]
         if local:
             return {self.leg1.currency: value}
         else:
