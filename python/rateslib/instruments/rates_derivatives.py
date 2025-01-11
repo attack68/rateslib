@@ -163,15 +163,15 @@ class IRS(BaseDerivative):
 
     def __init__(
         self,
-        *args,
-        fixed_rate: float | NoInput = NoInput(0),
-        leg2_float_spread: float | NoInput = NoInput(0),
+        *args: Any,
+        fixed_rate: DualTypes | NoInput = NoInput(0),
+        leg2_float_spread: DualTypes | NoInput = NoInput(0),
         leg2_spread_compound_method: str | NoInput = NoInput(0),
         leg2_fixings: float | list | Series | NoInput = NoInput(0),
         leg2_fixing_method: str | NoInput = NoInput(0),
         leg2_method_param: int | NoInput = NoInput(0),
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         super().__init__(*args, **kwargs)
         user_kwargs = dict(
             fixed_rate=fixed_rate,
@@ -225,9 +225,9 @@ class IRS(BaseDerivative):
 
     def rate(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
         """
@@ -274,9 +274,9 @@ class IRS(BaseDerivative):
 
     def cashflows(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
         """
@@ -293,9 +293,9 @@ class IRS(BaseDerivative):
 
     def spread(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
         """
@@ -385,9 +385,9 @@ class IRS(BaseDerivative):
 
     def fixings_table(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
@@ -517,7 +517,7 @@ class STIRFuture(IRS):
 
     def __init__(
         self,
-        *args,
+        *args: Any,
         price: float | NoInput = NoInput(0),
         contracts: int = 1,
         bp_value: float | NoInput = NoInput(0),
@@ -556,9 +556,9 @@ class STIRFuture(IRS):
 
     def npv(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ):
@@ -579,9 +579,9 @@ class STIRFuture(IRS):
 
     def rate(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         metric: str = "rate",
     ):
@@ -638,7 +638,7 @@ class STIRFuture(IRS):
         self,
         curve: Curve | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
         """
@@ -652,9 +652,9 @@ class STIRFuture(IRS):
 
     def cashflows(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
         return DataFrame.from_records(
@@ -686,9 +686,9 @@ class STIRFuture(IRS):
 
     def fixings_table(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
@@ -879,7 +879,7 @@ class IIRS(BaseDerivative):
 
     def __init__(
         self,
-        *args,
+        *args: Any,
         fixed_rate: float | NoInput = NoInput(0),
         index_base: float | Series | NoInput = NoInput(0),
         index_fixings: float | Series | NoInput = NoInput(0),
@@ -925,7 +925,7 @@ class IIRS(BaseDerivative):
 
     def _set_pricing_mid(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
     ):
         mid_market_rate = self.rate(curves, solver)
@@ -933,9 +933,9 @@ class IIRS(BaseDerivative):
 
     def npv(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ):
@@ -960,9 +960,9 @@ class IIRS(BaseDerivative):
 
     def cashflows(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
@@ -986,9 +986,9 @@ class IIRS(BaseDerivative):
 
     def rate(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
         """
@@ -1046,9 +1046,9 @@ class IIRS(BaseDerivative):
 
     def spread(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
         """
@@ -1136,9 +1136,9 @@ class IIRS(BaseDerivative):
 
     def fixings_table(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
@@ -1294,14 +1294,14 @@ class ZCS(BaseDerivative):
 
     def __init__(
         self,
-        *args,
+        *args: Any,
         fixed_rate: float | NoInput = NoInput(0),
         leg2_float_spread: float | NoInput = NoInput(0),
         leg2_spread_compound_method: str | NoInput = NoInput(0),
         leg2_fixings: float | list | Series | NoInput = NoInput(0),
         leg2_fixing_method: str | NoInput = NoInput(0),
         leg2_method_param: int | NoInput = NoInput(0),
-        **kwargs,
+        **kwargs: Any,
     ):
         super().__init__(*args, **kwargs)
         user_kwargs = dict(
@@ -1318,7 +1318,7 @@ class ZCS(BaseDerivative):
         self.leg1 = ZeroFixedLeg(**_get(self.kwargs, leg=1))
         self.leg2 = ZeroFloatLeg(**_get(self.kwargs, leg=2))
 
-    def analytic_delta(self, *args, **kwargs):
+    def analytic_delta(self, *args: Any, **kwargs: Any):
         """
         Return the analytic delta of a leg of the derivative object.
 
@@ -1335,9 +1335,9 @@ class ZCS(BaseDerivative):
 
     def npv(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ):
@@ -1351,9 +1351,9 @@ class ZCS(BaseDerivative):
 
     def rate(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
         """
@@ -1407,9 +1407,9 @@ class ZCS(BaseDerivative):
 
     def cashflows(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
         """
@@ -1422,9 +1422,9 @@ class ZCS(BaseDerivative):
 
     def fixings_table(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
@@ -1581,7 +1581,7 @@ class ZCIS(BaseDerivative):
 
     def __init__(
         self,
-        *args,
+        *args: Any,
         fixed_rate: float | NoInput = NoInput(0),
         leg2_index_base: float | Series | NoInput = NoInput(0),
         leg2_index_fixings: float | Series | NoInput = NoInput(0),
@@ -1611,9 +1611,9 @@ class ZCIS(BaseDerivative):
 
     def cashflows(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
         self._set_pricing_mid(curves, solver)
@@ -1621,9 +1621,9 @@ class ZCIS(BaseDerivative):
 
     def npv(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ):
@@ -1632,9 +1632,9 @@ class ZCIS(BaseDerivative):
 
     def rate(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
         """
@@ -1859,7 +1859,7 @@ class SBS(BaseDerivative):
 
     def __init__(
         self,
-        *args,
+        *args: Any,
         float_spread: float | NoInput = NoInput(0),
         spread_compound_method: str | NoInput = NoInput(0),
         fixings: float | list | Series | NoInput = NoInput(0),
@@ -1897,7 +1897,7 @@ class SBS(BaseDerivative):
             rate = self.rate(curves, solver)
             self.leg1.float_spread = float(rate)
 
-    def analytic_delta(self, *args, **kwargs):
+    def analytic_delta(self, *args: Any, **kwargs: Any):
         """
         Return the analytic delta of a leg of the derivative object.
 
@@ -1907,9 +1907,9 @@ class SBS(BaseDerivative):
 
     def cashflows(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
         """
@@ -1922,9 +1922,9 @@ class SBS(BaseDerivative):
 
     def npv(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ):
@@ -1938,9 +1938,9 @@ class SBS(BaseDerivative):
 
     def rate(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         leg: int = 1,
     ):
@@ -1995,7 +1995,7 @@ class SBS(BaseDerivative):
         # _ = irs_npv / leg_analytic_delta + adjust
         # return _
 
-    def spread(self, *args, **kwargs):
+    def spread(self, *args: Any, **kwargs: Any):
         """
         Return the mid-market float spread on the specified leg of the SBS.
 
@@ -2005,9 +2005,9 @@ class SBS(BaseDerivative):
 
     def fixings_table(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
@@ -2168,7 +2168,7 @@ class FRA(BaseDerivative):
 
     def __init__(
         self,
-        *args,
+        *args: Any,
         fixed_rate: float | NoInput = NoInput(0),
         method_param: int | NoInput = NoInput(0),
         fixings: float | Series | NoInput = NoInput(0),
@@ -2202,7 +2202,7 @@ class FRA(BaseDerivative):
 
     def _set_pricing_mid(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
     ) -> None:
         if self.fixed_rate is NoInput.blank:
@@ -2213,7 +2213,7 @@ class FRA(BaseDerivative):
         self,
         curve: Curve,
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -2229,9 +2229,9 @@ class FRA(BaseDerivative):
 
     def npv(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> DualTypes:
@@ -2259,9 +2259,9 @@ class FRA(BaseDerivative):
 
     def rate(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -2297,7 +2297,7 @@ class FRA(BaseDerivative):
         )
         return self.leg2.periods[0].rate(curves[0])
 
-    def cashflow(self, curve: Curve | LineCurve):
+    def cashflow(self, curve: Curve) -> DualTypes | None:
         """
         Calculate the local currency cashflow on the FRA from current floating rate
         and fixed rate.
@@ -2314,7 +2314,7 @@ class FRA(BaseDerivative):
         cf1 = self.leg1.periods[0].cashflow
         rate = self.leg2.periods[0].rate(curve)
         cf2 = self.kwargs["notional"] * self.leg2.periods[0].dcf * rate / 100
-        if cf1 is not NoInput.blank and cf2 is not NoInput.blank:
+        if not isinstance(cf1, NoInput) and not isinstance(cf2, NoInput):
             cf = cf1 + cf2
         else:
             return None
@@ -2326,9 +2326,9 @@ class FRA(BaseDerivative):
 
     def cashflows(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:
         """
@@ -2376,9 +2376,9 @@ class FRA(BaseDerivative):
 
     def fixings_table(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
@@ -2430,7 +2430,7 @@ class FRA(BaseDerivative):
         df[(curves[2].id, "notional")] *= scalar
         return _trim_df_by_index(df, NoInput(0), right)
 
-    def delta(self, *args, **kwargs):
+    def delta(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
         Calculate the delta of the *Instrument*.
 
@@ -2438,7 +2438,7 @@ class FRA(BaseDerivative):
         """
         return super().delta(*args, **kwargs)
 
-    def gamma(self, *args, **kwargs):
+    def gamma(self, *args: Any, **kwargs: Any) ->DataFrame:
         """
         Calculate the gamma of the *Instrument*.
 
@@ -2447,7 +2447,7 @@ class FRA(BaseDerivative):
         return super().gamma(*args, **kwargs)
 
     @property
-    def _payment_date(self):
+    def _payment_date(self) -> datetime:
         """
         Get the adjusted payment date for the FRA under regular FRA specifications.
 
