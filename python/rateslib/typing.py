@@ -7,6 +7,7 @@ from typing import TypeAlias
 
 import numpy as np
 from pandas import DataFrame as DataFrame
+from pandas import Series as Series
 
 from rateslib.curves import Curve
 from rateslib.default import NoInput
@@ -81,8 +82,10 @@ Arr2dF64: TypeAlias = "np.ndarray[tuple[int, int], np.dtype[np.float64]]"
 Arr1dObj: TypeAlias = "np.ndarray[tuple[int], np.dtype[np.object_]]"
 Arr2dObj: TypeAlias = "np.ndarray[tuple[int, int], np.dtype[np.object_]]"
 
+FixingsRates: TypeAlias = "Series[DualTypes] | list[DualTypes | list[DualTypes] | Series[DualTypes] | NoInput] | tuple[DualTypes, Series[DualTypes]] | DualTypes | NoInput"
+
 Curves_: TypeAlias = (
-    "list[str | Curve | dict[str, Curve | str] | NoInput] | Curve | str | dict[str, Curve | str]"  # noqa: E501
+    "list[str | Curve | dict[str, Curve | str] | NoInput] | Curve | str | dict[str, Curve | str]"
 )
 Curves: TypeAlias = "Curves_ | NoInput"
 CurveInput_: TypeAlias = "str | Curve | dict[str, str | Curve]"
@@ -105,9 +108,9 @@ FX: TypeAlias = "FX_ | NoInput"
 
 NPV: TypeAlias = "DualTypes | dict[str, DualTypes]"
 
-CurveInterpolator: TypeAlias = "FlatBackwardInterpolator | FlatForwardInterpolator | LinearInterpolator | LogLinearInterpolator | LinearZeroRateInterpolator | NullInterpolator"  # noqa: E501
-Leg: TypeAlias = "FixedLeg | FloatLeg | IndexFixedLeg | ZeroFloatLeg | ZeroFixedLeg | ZeroIndexLeg | CreditPremiumLeg | CreditProtectionLeg"  # noqa: E501
-Period: TypeAlias = "FixedPeriod | FloatPeriod | Cashflow | IndexFixedPeriod | IndexCashflow | CreditPremiumPeriod | CreditProtectionPeriod"  # noqa: E501
+CurveInterpolator: TypeAlias = "FlatBackwardInterpolator | FlatForwardInterpolator | LinearInterpolator | LogLinearInterpolator | LinearZeroRateInterpolator | NullInterpolator"
+Leg: TypeAlias = "FixedLeg | FloatLeg | IndexFixedLeg | ZeroFloatLeg | ZeroFixedLeg | ZeroIndexLeg | CreditPremiumLeg | CreditProtectionLeg"
+Period: TypeAlias = "FixedPeriod | FloatPeriod | Cashflow | IndexFixedPeriod | IndexCashflow | CreditPremiumPeriod | CreditProtectionPeriod"
 
 Security: TypeAlias = "FixedRateBond | FloatRateNote | Bill | IndexFixedRateBond"
 FXOptionTypes: TypeAlias = (
