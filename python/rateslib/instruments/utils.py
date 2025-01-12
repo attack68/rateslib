@@ -9,7 +9,7 @@ from rateslib import FXDeltaVolSmile, FXDeltaVolSurface, defaults
 from rateslib.curves import (
     Curve,
 )
-from rateslib.curves._parsers import _map_curve_from_solver
+from rateslib.curves._parsers import _map_curve_from_solver, _validate_no_str_in_curve_input
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.fx import FXForwards, FXRates
@@ -95,7 +95,7 @@ def _get_curves_maybe_from_solver(
     # parse curves_as_list
     if isinstance(solver, NoInput):
         curves_parsed: tuple[CurveOption, ...] = tuple(
-            _validate_curve_not_str(curve) for curve in curves_as_list
+            _validate_no_str_in_curve_input(curve) for curve in curves_as_list
         )
     else:
         try:
@@ -109,19 +109,6 @@ def _get_curves_maybe_from_solver(
             )
 
     return _make_4_tuple_of_curve(curves_parsed)
-
-
-def _validate_curve_not_str(curve: CurveInput) -> CurveOption:
-    """
-    Check a curve as a CurveInput type and convert to a more specific CurveOption
-    """
-    if isinstance(curve, str):
-        raise ValueError("`curves` must contain Curve, not str, if `solver` not given.")
-    elif curve is None or isinstance(curve, NoInput):
-        return NoInput(0)
-    elif isinstance(curve, dict):
-        return {k: _validate_curve_not_str(v) for k, v in curve.items()}  # type: ignore[misc]
-    return curve
 
 
 def _make_4_tuple_of_curve(curves: tuple[CurveOption, ...]) -> CurvesTuple:

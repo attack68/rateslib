@@ -16,14 +16,16 @@ if TYPE_CHECKING:
         CurveOption,
         Curve,
         CurveOrId_,
+        CurveOrId
     )
 
 
 def _map_curve_or_id_from_solver_(curve: CurveOrId_, solver: Solver) -> Curve:
     """
-    Maps a str to a Curve contained in a Solver mapping.
+    Maps a "Curve | str" to a "Curve" via a Solver mapping.
 
-    If a Curve, runs a check against whether that Curve is associated with the given Solver.
+    If a Curve, runs a check against whether that Curve is associated with the given Solver,
+    and perform an action based on `defaults.curve_not_in_solver`
     """
     if isinstance(curve, str):
         return solver._get_pre_curve(curve)
@@ -69,7 +71,10 @@ def _map_curve_or_id_from_solver_(curve: CurveOrId_, solver: Solver) -> Curve:
 
 
 def _map_curve_from_solver_(curve: CurveInput_, solver: Solver) -> CurveOption_:
-    """If curve input involves strings get objects directly from solver curves mapping.
+    """
+    Maps a "Curve | str | dict[str, Curve | str]" to a "Curve | dict[str, Curve]" via a Solver.
+
+    If curve input involves strings get objects directly from solver curves mapping.
 
     This is the explicit variety which does not handle NoInput.
     """
@@ -83,7 +88,9 @@ def _map_curve_from_solver_(curve: CurveInput_, solver: Solver) -> CurveOption_:
 
 
 def _map_curve_from_solver(curve: CurveInput, solver: Solver) -> CurveOption:
-    """If curve input involves strings get objects directly from solver curves mapping.
+    """
+    Maps a "Curve | str | dict[str, Curve | str] | NoInput" to a
+    "Curve | dict[str, Curve] | NoInput" via a Solver.
 
     This is the inexplicit variety which handles NoInput.
     """
@@ -91,3 +98,21 @@ def _map_curve_from_solver(curve: CurveInput, solver: Solver) -> CurveOption:
         return NoInput(0)
     else:
         return _map_curve_from_solver_(curve, solver)
+
+
+def _validate_curve_not_str(curve: CurveOrId_) -> Curve:
+    if isinstance(curve, str):
+        raise ValueError("`curves` must contain Curve, not str, if `solver` not given.")
+    return curve
+
+
+def _validate_no_str_in_curve_input(curve: CurveInput) -> CurveOption:
+    """
+    If a Solver is not available then raise an Exception if a CurveInput contains string Id.
+    """
+    if isinstance(curve, dict):
+        return {k: _validate_curve_not_str(v) for k, v in curve.items()}
+    elif isinstance(curve, NoInput) or curve is None:
+        return NoInput(0)
+    else:
+        return _validate_curve_not_str(curve)
