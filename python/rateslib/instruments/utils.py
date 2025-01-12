@@ -6,11 +6,7 @@ from typing import TYPE_CHECKING, Any
 from pandas import DataFrame
 
 from rateslib import FXDeltaVolSmile, FXDeltaVolSurface, defaults
-from rateslib.curves import (
-    Curve,
-    MultiCsaCurve,
-    ProxyCurve,
-)
+from rateslib.curves._parsers import _get_curves_maybe_from_solver
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.fx import FXForwards, FXRates
@@ -19,7 +15,6 @@ from rateslib.solver import Solver
 if TYPE_CHECKING:
     from rateslib.typing import (
         FX,
-        CurveInput,
         CurveOption,
         Curves,
         CurvesTuple,
@@ -27,57 +22,6 @@ if TYPE_CHECKING:
         Vol_,
         VolOption,
     )
-
-
-def _get_curve_from_solver(curve: CurveInput, solver: Solver) -> CurveOption:
-    if isinstance(curve, dict):
-        # When supplying a curve as a dictionary of curves (for IBOR stubs) use recursion
-        _: dict[str, Curve] = {k: _get_curve_from_solver(v, solver) for k, v in curve.items()}  # type: ignore[misc]
-        return _
-    elif type(curve) is ProxyCurve or type(curve) is MultiCsaCurve:
-        # TODO: (mid) consider also adding CompositeCurves as exceptions under the same rule
-        # Proxy curves and MultiCsaCurves can exist outside of Solvers but be constructed
-        # directly from an FXForwards object tied to a Solver using only a Solver's
-        # dependent curves and AD variables.
-        return curve
-    elif isinstance(curve, str):
-        return solver._get_pre_curve(curve)
-    elif isinstance(curve, NoInput) or curve is None:
-        # pass through a None curve. This will either raise errors later or not be needed
-        return NoInput(0)
-    else:
-        try:
-            # it is a safeguard to load curves from solvers when a solver is
-            # provided and multiple curves might have the same id
-            __: Curve = solver._get_pre_curve(curve.id)
-            if id(__) != id(curve):  # Python id() is a memory id, not a string label id.
-                raise ValueError(
-                    "A curve has been supplied, as part of ``curves``, which has the same "
-                    f"`id` ('{curve.id}'),\nas one of the curves available as part of the "
-                    "Solver's collection but is not the same object.\n"
-                    "This is ambiguous and cannot price.\n"
-                    "Either refactor the arguments as follows:\n"
-                    "1) remove the conflicting curve: [curves=[..], solver=<Solver>] -> "
-                    "[curves=None, solver=<Solver>]\n"
-                    "2) change the `id` of the supplied curve and ensure the rateslib.defaults "
-                    "option 'curve_not_in_solver' is set to 'ignore'.\n"
-                    "   This will remove the ability to accurately price risk metrics.",
-                )
-            return __
-        except AttributeError:
-            raise AttributeError(
-                "`curve` has no attribute `id`, likely it not a valid object, got: "
-                f"{curve}.\nSince a solver is provided have you missed labelling the `curves` "
-                f"of the instrument or supplying `curves` directly?",
-            )
-        except KeyError:
-            if defaults.curve_not_in_solver == "ignore":
-                return curve
-            elif defaults.curve_not_in_solver == "warn":
-                warnings.warn("`curve` not found in `solver`.", UserWarning)
-                return curve
-            else:
-                raise ValueError("`curve` must be in `solver`.")
 
 
 def _get_base_maybe_from_fx(fx: FX, base: str | NoInput, local_ccy: str | NoInput) -> str | NoInput:
@@ -119,74 +63,6 @@ def _get_fx_maybe_from_solver(solver: Solver | NoInput, fx: FX) -> FX:
             )
 
     return fx_
-
-
-def _get_curves_maybe_from_solver(
-    curves_attr: Curves,
-    solver: Solver | NoInput,
-    curves: Curves,
-) -> CurvesTuple:
-    """
-    Attempt to resolve curves as a variety of input types to a 4-tuple consisting of:
-    (leg1 forecasting, leg1 discounting, leg2 forecasting, leg2 discounting)
-    """
-    if isinstance(curves, NoInput) and isinstance(curves_attr, NoInput):
-        # no data is available so consistently return a 4-tuple of no data
-        return (NoInput(0), NoInput(0), NoInput(0), NoInput(0))
-    elif isinstance(curves, NoInput):
-        # set the `curves` input as that which is set as attribute at instrument init.
-        curves = curves_attr
-
-    # refactor curves into a list
-    if not isinstance(curves, list | tuple):
-        # convert isolated value input to list
-        curves_as_list: list[Curve | dict[str, str | Curve] | NoInput | str] = [curves]
-    else:
-        curves_as_list = curves
-
-    # parse curves_as_list
-    if isinstance(solver, NoInput):
-        curves_parsed: tuple[CurveOption, ...] = tuple(
-            _validate_curve_not_str(curve) for curve in curves_as_list
-        )
-    else:
-        try:
-            curves_parsed = tuple(_get_curve_from_solver(curve, solver) for curve in curves_as_list)
-        except KeyError as e:
-            raise ValueError(
-                "`curves` must contain str curve `id` s existing in `solver` "
-                "(or its associated `pre_solvers`).\n"
-                f"The sought id was: '{e.args[0]}'.\n"
-                f"The available ids are {list(solver.pre_curves.keys())}.",
-            )
-
-    return _make_4_tuple_of_curve(curves_parsed)
-
-
-def _validate_curve_not_str(curve: CurveInput) -> CurveOption:
-    """
-    Check a curve as a CurveInput type and convert to a more specific CurveOption
-    """
-    if isinstance(curve, str):
-        raise ValueError("`curves` must contain Curve, not str, if `solver` not given.")
-    elif curve is None or isinstance(curve, NoInput):
-        return NoInput(0)
-    elif isinstance(curve, dict):
-        return {k: _validate_curve_not_str(v) for k, v in curve.items()}  # type: ignore[misc]
-    return curve
-
-
-def _make_4_tuple_of_curve(curves: tuple[CurveOption, ...]) -> CurvesTuple:
-    n = len(curves)
-    if n == 1:
-        curves *= 4
-    elif n == 2:
-        curves *= 2
-    elif n == 3:
-        curves += (curves[1],)
-    elif n > 4:
-        raise ValueError("Can only supply a maximum of 4 `curves`.")
-    return curves  # type: ignore[return-value]
 
 
 def _get_curves_fx_and_base_maybe_from_solver(
