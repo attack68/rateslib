@@ -18,7 +18,6 @@ from rateslib.solver import Solver
 if TYPE_CHECKING:
     from rateslib.typing import (
         FX,
-        CurveInput,
         CurveOption,
         Curves,
         CurvesTuple,

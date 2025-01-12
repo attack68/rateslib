@@ -1,22 +1,21 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 import warnings
+from typing import TYPE_CHECKING
 
 from rateslib import defaults
+from rateslib.curves import MultiCsaCurve, ProxyCurve
 from rateslib.default import NoInput
-from rateslib.curves import ProxyCurve, MultiCsaCurve
 
 if TYPE_CHECKING:
     from rateslib.typing import (
-        CurveInput_,
-        CurveInput,
-        Solver,
-        CurveOption_,
-        CurveOption,
         Curve,
+        CurveInput,
+        CurveInput_,
+        CurveOption,
+        CurveOption_,
         CurveOrId_,
-        CurveOrId
+        Solver,
     )
 
 
