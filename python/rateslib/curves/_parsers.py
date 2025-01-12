@@ -87,7 +87,7 @@ def _map_curve_from_solver(curve: CurveInput, solver: Solver) -> CurveOption:
 
     This is the inexplicit variety which handles NoInput.
     """
-    if isinstance(curve, NoInput):
+    if isinstance(curve, NoInput) or curve is None:
         return NoInput(0)
     else:
         return _map_curve_from_solver_(curve, solver)
