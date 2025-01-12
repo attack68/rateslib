@@ -266,8 +266,8 @@ class BaseMixin:
             self.leg1.currency,
         )
 
-        df1 = self.leg1.cashflows(curves_[0], curves_[1], fx_, base_)  # type: ignore[arg-type]
-        df2 = self.leg2.cashflows(curves_[2], curves_[3], fx_, base_)  # type: ignore[arg-type]
+        df1 = self.leg1.cashflows(curves_[0], curves_[1], fx_, base_)
+        df2 = self.leg2.cashflows(curves_[2], curves_[3], fx_, base_)
         # filter empty or all NaN
         dfs_filtered = [_ for _ in [df1, df2] if not (_.empty or isna(_).all(axis=None))]
 

@@ -193,7 +193,7 @@ class IRS(BaseDerivative):
             leg2_fixing_method=leg2_fixing_method,
             leg2_method_param=leg2_method_param,
         )
-        self.kwargs = _update_not_noinput(self.kwargs, user_kwargs)
+        self.kwargs: dict[str, Any] = _update_not_noinput(self.kwargs, user_kwargs)
 
         self._fixed_rate = fixed_rate
         self._leg2_float_spread = leg2_float_spread
@@ -896,7 +896,7 @@ class ZCS(BaseDerivative):
             leg2_fixing_method=leg2_fixing_method,
             leg2_method_param=leg2_method_param,
         )
-        self.kwargs = _update_not_noinput(self.kwargs, user_kwargs)
+        self.kwargs: dict[str, Any] = _update_not_noinput(self.kwargs, user_kwargs)
         self._fixed_rate = fixed_rate
         self._leg2_float_spread = leg2_float_spread
         self.leg1 = ZeroFixedLeg(**_get(self.kwargs, leg=1))
@@ -1251,14 +1251,14 @@ class SBS(BaseDerivative):
             leg2_fixing_method=leg2_fixing_method,
             leg2_method_param=leg2_method_param,
         )
-        self.kwargs = _update_not_noinput(self.kwargs, user_kwargs)
+        self.kwargs: dict[str, Any] = _update_not_noinput(self.kwargs, user_kwargs)
         self._float_spread = float_spread
         self._leg2_float_spread = leg2_float_spread
         self.leg1 = FloatLeg(**_get(self.kwargs, leg=1))
         self.leg2 = FloatLeg(**_get(self.kwargs, leg=2))
 
     def _set_pricing_mid(self, curves: Curves_, solver: Solver_) -> None:
-        if self.float_spread is NoInput.blank and self.leg2_float_spread is NoInput.blank:
+        if isinstance(self.float_spread, NoInput) and isinstance(self.leg2_float_spread, NoInput):
             # set a pricing parameter for the purpose of pricing NPV at zero.
             rate = self.rate(curves, solver)
             self.leg1.float_spread = _dual_float(rate)
@@ -1553,7 +1553,7 @@ class FRA(BaseDerivative):
             "leg2_fixing_method": "ibor",
             "leg2_float_spread": 0.0,
         }
-        self.kwargs = _update_not_noinput(self.kwargs, user_kwargs)
+        self.kwargs: dict[str, Any] = _update_not_noinput(self.kwargs, user_kwargs)
 
         # Build
         self._fixed_rate = self.kwargs["fixed_rate"]
@@ -1593,7 +1593,7 @@ class FRA(BaseDerivative):
         """
         disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.leg1.currency, fx, base)
-        rate = self.rate([curve])  # type: ignore[list-item]
+        rate = self.rate([curve])
         dcf = self._fixed_period.dcf
         _: DualTypes = self.leg1.notional * dcf * disc_curve_[self._payment_date] / 10000
         return fx * _ / (1 + dcf * rate / 100)
@@ -1735,18 +1735,26 @@ class FRA(BaseDerivative):
 
         if isinstance(self.fixed_rate, NoInput):
             _fix = None
-            _spd = None
             _cf = None
-            _df = None
-            _npv_local = None
-            _npv_fx = None
         else:
-            _cf = _dual_float(self.cashflow(curves_[0]))  # type: ignore[arg-type]
-            _df = _dual_float(curves_[1][self._payment_date])
             _fix = -_dual_float(self.fixed_rate)
-            _spd = -_dual_float(self.rate(curves_[1])) * 100
+            _cf = _dual_float(self.cashflow(curves_[0]))  # type: ignore[arg-type]
+
+        if isinstance(curves_[1], NoInput):
+            _df = None
+        else:
+            _df = _dual_float(curves_[1][self._payment_date])
+
+        _spd = self.rate(curves_[0])
+        if _spd is not None:
+            _spd = -_dual_float(_spd) * 100.0
+
+        if _cf is not None and _df is not None:
             _npv_local = _cf * _df
             _npv_fx = _npv_local * _dual_float(fx__)
+        else:
+            _npv_local = None
+            _npv_fx = None
 
         cfs = self._fixed_period.cashflows(curves_[0], curves_[1], fx__, base_)
         cfs[defaults.headers["type"]] = "FRA"
@@ -1810,14 +1818,17 @@ class FRA(BaseDerivative):
             NoInput(0),
             self.leg2.currency,
         )
+        if isinstance(curves_[2], NoInput) or isinstance(curves_[3], NoInput):
+            raise ValueError("`curves` are not supplied correctly.")
+
         df = self.leg2.fixings_table(
             curve=curves_[2], approximate=approximate, disc_curve=curves_[3]
         )
         rate = self._float_period.rate(curve=curves_[2])
-        scalar = curves_[3][self._payment_date] / curves_[3][self._float_period.payment]
+        scalar: DualTypes = curves_[3][self._payment_date] / curves_[3][self._float_period.payment]
         scalar *= 1.0 / (1.0 + self._float_period.dcf * rate / 100.0)
-        df[(curves_[2].id, "risk")] *= scalar
-        df[(curves_[2].id, "notional")] *= scalar
+        df[(curves_[2].id, "risk")] *= scalar  # type: ignore[operator, union-attr]
+        df[(curves_[2].id, "notional")] *= scalar  # type: ignore[operator, union-attr]
         return _trim_df_by_index(df, NoInput(0), right)
 
     def delta(self, *args: Any, **kwargs: Any) -> DataFrame:
@@ -1848,8 +1859,8 @@ class FRA(BaseDerivative):
 
     @property
     def _fixed_period(self) -> FixedPeriod:
-        return self.leg1.periods[0]
+        return self.leg1.periods[0]  # type: ignore[return-value]
 
     @property
     def _float_period(self) -> FloatPeriod:
-        return self.leg2.periods[0]
+        return self.leg2.periods[0]  # type: ignore[return-value]

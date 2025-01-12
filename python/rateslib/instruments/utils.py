@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from rateslib.typing import (
         FX,
         Curves_,
-        Curves_Tuple,
+        Curves_DiscTuple,
         Vol,
         Vol_,
         VolOption,
@@ -71,7 +71,7 @@ def _get_curves_fx_and_base_maybe_from_solver(
     fx: FX,
     base: str | NoInput,
     local_ccy: str | NoInput,
-) -> tuple[Curves_Tuple, FX, str | NoInput]:
+) -> tuple[Curves_DiscTuple, FX, str | NoInput]:
     """
     Parses the ``solver``, ``curves``, ``fx`` and ``base`` arguments in combination.
 

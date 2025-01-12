@@ -61,7 +61,7 @@ from rateslib.fx_volatility import (
 from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, CalInput, CalTypes, CurveOption_, DualTypes, Number
+    from rateslib.typing import FX, CalInput, CalTypes, Curve_, CurveOption_, DualTypes, Number
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -567,9 +567,9 @@ class FixedPeriod(BasePeriod):
 
     def cashflows(
         self,
-        curve: Curve | dict[str, Curve] | NoInput = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
-        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: Curve_ = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> dict[str, Any]:
         """
@@ -962,9 +962,9 @@ class FloatPeriod(BasePeriod):
 
     def cashflows(
         self,
-        curve: Curve | dict[str, Curve] | NoInput = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
-        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: Curve_ = NoInput(0),
+        fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> dict[str, Any]:
         """
@@ -1025,7 +1025,7 @@ class FloatPeriod(BasePeriod):
 
         return _maybe_local(value, local, self.currency, fx, base)
 
-    def cashflow(self, curve: Curve | dict[str, Curve] | NoInput = NoInput(0)) -> DualTypes | None:
+    def cashflow(self, curve: CurveOption_ = NoInput(0)) -> DualTypes | None:
         """
         Forecast the *Period* cashflow based on a *Curve* providing index rates.
 
@@ -1049,9 +1049,7 @@ class FloatPeriod(BasePeriod):
             # probably "needs a `curve` to forecast rate
             return None
 
-    def _maybe_get_cal_and_conv_from_curve(
-        self, curve: Curve | dict[str, Curve] | NoInput
-    ) -> tuple[CalTypes, str]:
+    def _maybe_get_cal_and_conv_from_curve(self, curve: CurveOption_) -> tuple[CalTypes, str]:
         if isinstance(curve, NoInput):
             cal_: CalTypes = get_calendar(self.calendar)
             conv_: str = self.convention
@@ -1073,7 +1071,7 @@ class FloatPeriod(BasePeriod):
                 conv_ = curve.convention
         return cal_, conv_
 
-    def rate(self, curve: Curve | dict[str, Curve] | NoInput = NoInput(0)) -> DualTypes:
+    def rate(self, curve: CurveOption_ = NoInput(0)) -> DualTypes:
         """
         Calculating the floating rate for the period.
 
