@@ -18,7 +18,7 @@ from rateslib.instruments.utils import (
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, NPV, Any, CalInput, Curves, DualTypes, Leg
+    from rateslib.typing import FX, NPV, Any, CalInput, Curves_, DualTypes, Leg
 
 
 class BaseMixin:
@@ -32,7 +32,7 @@ class BaseMixin:
 
     leg1: Leg
     leg2: Leg
-    curves: Curves
+    curves: Curves_
 
     @property
     def fixed_rate(self) -> DualTypes | NoInput:
@@ -201,7 +201,7 @@ class BaseMixin:
     @abstractmethod
     def cashflows(
         self,
-        curves: Curves = NoInput(0),
+        curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -280,7 +280,7 @@ class BaseMixin:
     @abstractmethod
     def npv(
         self,
-        curves: Curves = NoInput(0),
+        curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -508,7 +508,7 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
         leg2_currency: str | NoInput = NoInput(1),
         leg2_amortization: float | NoInput = NoInput(-1),
         leg2_convention: str | NoInput = NoInput(1),
-        curves: Curves = NoInput(0),
+        curves: Curves_ = NoInput(0),
         spec: str | NoInput = NoInput(0),
     ):
         self.kwargs: dict[str, Any] = dict(

@@ -15,9 +15,8 @@ from rateslib.solver import Solver
 if TYPE_CHECKING:
     from rateslib.typing import (
         FX,
-        CurveOption,
-        Curves,
-        CurvesTuple,
+        Curves_,
+        Curves_Tuple,
         Vol,
         Vol_,
         VolOption,
@@ -66,13 +65,13 @@ def _get_fx_maybe_from_solver(solver: Solver | NoInput, fx: FX) -> FX:
 
 
 def _get_curves_fx_and_base_maybe_from_solver(
-    curves_attr: Curves,
+    curves_attr: Curves_,
     solver: Solver | NoInput,
-    curves: Curves,
+    curves: Curves_,
     fx: FX,
     base: str | NoInput,
     local_ccy: str | NoInput,
-) -> tuple[CurvesTuple, FX, str | NoInput]:
+) -> tuple[Curves_Tuple, FX, str | NoInput]:
     """
     Parses the ``solver``, ``curves``, ``fx`` and ``base`` arguments in combination.
 

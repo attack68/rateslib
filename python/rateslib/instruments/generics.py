@@ -24,7 +24,7 @@ from rateslib.instruments.utils import (
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, NPV, Any, Curves, DualTypes, Instrument, NoReturn
+    from rateslib.typing import FX, NPV, Any, Curves_, DualTypes, Instrument, NoReturn
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -80,7 +80,7 @@ class Value(BaseMixin):
 
     def rate(
         self,
-        curves: Curves = NoInput(0),
+        curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -416,7 +416,7 @@ class Spread(Sensitivities):
 
     def fixings_table(
         self,
-        curves: Curves = NoInput(0),
+        curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -556,7 +556,7 @@ class Fly(Sensitivities):
 
     def fixings_table(
         self,
-        curves: Curves = NoInput(0),
+        curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -625,7 +625,7 @@ class Portfolio(Sensitivities):
 
     def npv(  # type: ignore[override]
         self,
-        curves: Curves = NoInput(0),
+        curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -740,7 +740,7 @@ class Portfolio(Sensitivities):
 
     def fixings_table(
         self,
-        curves: Curves = NoInput(0),
+        curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),

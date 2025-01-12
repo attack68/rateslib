@@ -10,18 +10,20 @@ from rateslib.default import NoInput
 if TYPE_CHECKING:
     from rateslib.typing import (
         Curve,
+        Curve_,
         CurveInput,
         CurveInput_,
         CurveOption,
         CurveOption_,
-        CurveOrId_,
+        CurveOrId,
+        Curves_,
+        Curves_DiscTuple,
+        Curves_Tuple,
         Solver,
-        Curves,
-        CurvesTuple
     )
 
 
-def _map_curve_or_id_from_solver_(curve: CurveOrId_, solver: Solver) -> Curve:
+def _map_curve_or_id_from_solver_(curve: CurveOrId, solver: Solver) -> Curve:
     """
     Maps a "Curve | str" to a "Curve" via a Solver mapping.
 
@@ -71,7 +73,7 @@ def _map_curve_or_id_from_solver_(curve: CurveOrId_, solver: Solver) -> Curve:
                 raise ValueError("`curve` must be in `solver`.")
 
 
-def _map_curve_from_solver_(curve: CurveInput_, solver: Solver) -> CurveOption_:
+def _map_curve_from_solver_(curve: CurveInput, solver: Solver) -> CurveOption:
     """
     Maps a "Curve | str | dict[str, Curve | str]" to a "Curve | dict[str, Curve]" via a Solver.
 
@@ -88,7 +90,7 @@ def _map_curve_from_solver_(curve: CurveInput_, solver: Solver) -> CurveOption_:
         return _map_curve_or_id_from_solver_(curve, solver)
 
 
-def _map_curve_from_solver(curve: CurveInput, solver: Solver) -> CurveOption:
+def _map_curve_from_solver(curve: CurveInput_, solver: Solver) -> CurveOption_:
     """
     Maps a "Curve | str | dict[str, Curve | str] | NoInput" to a
     "Curve | dict[str, Curve] | NoInput" via a Solver.
@@ -101,13 +103,13 @@ def _map_curve_from_solver(curve: CurveInput, solver: Solver) -> CurveOption:
         return _map_curve_from_solver_(curve, solver)
 
 
-def _validate_curve_not_str(curve: CurveOrId_) -> Curve:
+def _validate_curve_not_str(curve: CurveOrId) -> Curve:
     if isinstance(curve, str):
         raise ValueError("`curves` must contain Curve, not str, if `solver` not given.")
     return curve
 
 
-def _validate_no_str_in_curve_input(curve: CurveInput) -> CurveOption:
+def _validate_no_str_in_curve_input(curve: CurveInput_) -> CurveOption_:
     """
     If a Solver is not available then raise an Exception if a CurveInput contains string Id.
     """
@@ -120,10 +122,10 @@ def _validate_no_str_in_curve_input(curve: CurveInput) -> CurveOption:
 
 
 def _get_curves_maybe_from_solver(
-    curves_attr: Curves,
+    curves_attr: Curves_,
     solver: Solver | NoInput,
-    curves: Curves,
-) -> CurvesTuple:
+    curves: Curves_,
+) -> Curves_DiscTuple:
     """
     Attempt to resolve curves as a variety of input types to a 4-tuple consisting of:
     (leg1 forecasting, leg1 discounting, leg2 forecasting, leg2 discounting)
@@ -159,7 +161,7 @@ def _get_curves_maybe_from_solver(
 
     # parse curves_as_list
     if isinstance(solver, NoInput):
-        curves_parsed: tuple[CurveOption, ...] = tuple(
+        curves_parsed: tuple[CurveOption_, ...] = tuple(
             _validate_no_str_in_curve_input(curve) for curve in curves_as_list
         )
     else:
@@ -173,10 +175,11 @@ def _get_curves_maybe_from_solver(
                 f"The available ids are {list(solver.pre_curves.keys())}.",
             )
 
-    return _make_4_tuple_of_curve(curves_parsed)
+    curves_tuple = _make_4_tuple_of_curve(curves_parsed)
+    return _validate_disc_curves_are_not_dict(curves_tuple)
 
 
-def _make_4_tuple_of_curve(curves: tuple[CurveOption, ...]) -> CurvesTuple:
+def _make_4_tuple_of_curve(curves: tuple[CurveOption_, ...]) -> Curves_Tuple:
     """Convert user sequence input to a 4-Tuple."""
     n = len(curves)
     if n == 1:
@@ -190,15 +193,16 @@ def _make_4_tuple_of_curve(curves: tuple[CurveOption, ...]) -> CurvesTuple:
     return curves  # type: ignore[return-value]
 
 
-def _validate_disc_curve_is_not_dict(curve: CurveOption) -> Curve | NoInput:
+def _validate_disc_curve_is_not_dict(curve: CurveOption_) -> Curve_:
     if isinstance(curve, dict):
         raise ValueError("`disc_curve` cannot be supplied as, or inferred from, a dict of Curves.")
     return curve
 
-def _validate_disc_curves_are_not_dict(curves_tuple: CurvesTuple) -> Tuple[CurveOption, ]:
-    return tuple(
+
+def _validate_disc_curves_are_not_dict(curves_tuple: Curves_Tuple) -> Curves_DiscTuple:
+    return (
         curves_tuple[0],
         _validate_disc_curve_is_not_dict(curves_tuple[1]),
         curves_tuple[2],
-        _validate_disc_curve_is_not_dict(curves_tuple[3])
+        _validate_disc_curve_is_not_dict(curves_tuple[3]),
     )

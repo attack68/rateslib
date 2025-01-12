@@ -15,7 +15,7 @@ from rateslib.instruments.utils import (
 from rateslib.legs import CreditPremiumLeg, CreditProtectionLeg
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, NPV, Any, Curves, DataFrame, DualTypes, Solver, datetime
+    from rateslib.typing import FX, NPV, Any, Curves_, DataFrame, DualTypes, Solver_, datetime
 
 
 class CDS(BaseDerivative):
@@ -86,8 +86,8 @@ class CDS(BaseDerivative):
 
     def _set_pricing_mid(
         self,
-        curves: Curves = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
     ) -> None:
         # the test for an unpriced IRS is that its fixed rate is not set.
         if isinstance(self.fixed_rate, NoInput):
@@ -113,8 +113,8 @@ class CDS(BaseDerivative):
 
     def npv(
         self,
-        curves: Curves = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
@@ -129,8 +129,8 @@ class CDS(BaseDerivative):
 
     def rate(
         self,
-        curves: Curves = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
@@ -176,8 +176,8 @@ class CDS(BaseDerivative):
 
     def cashflows(
         self,
-        curves: Curves = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:

@@ -61,7 +61,7 @@ from rateslib.fx_volatility import (
 from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, CalInput, CalTypes, CurveOption, DualTypes, Number
+    from rateslib.typing import FX, CalInput, CalTypes, CurveOption_, DualTypes, Number
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -165,7 +165,7 @@ def _maybe_fx_converted(
 
 
 def _disc_maybe_from_curve(
-    curve: CurveOption,
+    curve: CurveOption_,
     disc_curve: Curve | NoInput,
 ) -> Curve | NoInput:
     """Return a discount curve, pointed as the `curve` if not provided and if suitable Type."""
@@ -183,8 +183,8 @@ def _disc_maybe_from_curve(
 
 
 def _disc_required_maybe_from_curve(
-    curve: CurveOption,
-    disc_curve: CurveOption,
+    curve: CurveOption_,
+    disc_curve: CurveOption_,
 ) -> Curve:
     """Return a discount curve, pointed as the `curve` if not provided and if suitable Type."""
     if isinstance(disc_curve, dict):
@@ -291,8 +291,8 @@ class BasePeriod(metaclass=ABCMeta):
     @abstractmethod
     def analytic_delta(
         self,
-        curve: CurveOption = NoInput(0),
-        disc_curve: CurveOption = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: CurveOption_ = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
@@ -350,7 +350,7 @@ class BasePeriod(metaclass=ABCMeta):
     @abstractmethod
     def cashflows(
         self,
-        curve: CurveOption = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -412,8 +412,8 @@ class BasePeriod(metaclass=ABCMeta):
     @abstractmethod
     def npv(
         self,
-        curve: CurveOption = NoInput(0),
-        disc_curve: CurveOption = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: CurveOption_ = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
@@ -544,8 +544,8 @@ class FixedPeriod(BasePeriod):
 
     def npv(
         self,
-        curve: CurveOption = NoInput(0),
-        disc_curve: CurveOption = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: CurveOption_ = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
@@ -932,8 +932,8 @@ class FloatPeriod(BasePeriod):
 
     def analytic_delta(
         self,
-        curve: CurveOption = NoInput(0),
-        disc_curve: CurveOption = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: CurveOption_ = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
@@ -1004,8 +1004,8 @@ class FloatPeriod(BasePeriod):
 
     def npv(
         self,
-        curve: CurveOption = NoInput(0),
-        disc_curve: CurveOption = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: CurveOption_ = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
@@ -1466,9 +1466,9 @@ class FloatPeriod(BasePeriod):
 
     def fixings_table(
         self,
-        curve: CurveOption,
+        curve: CurveOption_,
         approximate: bool = False,
-        disc_curve: CurveOption = NoInput(0),
+        disc_curve: CurveOption_ = NoInput(0),
         right: datetime | NoInput = NoInput(0),
     ) -> DataFrame:
         """
@@ -1685,7 +1685,7 @@ class FloatPeriod(BasePeriod):
             return self._ibor_fixings_table(curve, disc_curve_, right)
 
     def _fixings_table_fast(
-        self, curve: CurveOption, disc_curve: Curve, right: NoInput | datetime
+        self, curve: CurveOption_, disc_curve: Curve, right: NoInput | datetime
     ) -> DataFrame:
         """
         Return a DataFrame of **approximate** fixing exposures.
@@ -1790,7 +1790,7 @@ class FloatPeriod(BasePeriod):
 
     def _ibor_fixings_table(
         self,
-        curve: CurveOption,
+        curve: CurveOption_,
         disc_curve: Curve,
         right: datetime | NoInput,
         risk: DualTypes | NoInput = NoInput(0),
@@ -2306,8 +2306,8 @@ class CreditPremiumPeriod(BasePeriod):
 
     def npv(
         self,
-        curve: CurveOption = NoInput(0),
-        disc_curve: CurveOption = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: CurveOption_ = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
@@ -2352,8 +2352,8 @@ class CreditPremiumPeriod(BasePeriod):
 
     def analytic_delta(
         self,
-        curve: CurveOption = NoInput(0),
-        disc_curve: CurveOption = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: CurveOption_ = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
@@ -2497,8 +2497,8 @@ class CreditProtectionPeriod(BasePeriod):
 
     def npv(
         self,
-        curve: CurveOption = NoInput(0),
-        disc_curve: CurveOption = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: CurveOption_ = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
@@ -2531,8 +2531,8 @@ class CreditProtectionPeriod(BasePeriod):
 
     def analytic_delta(
         self,
-        curve: CurveOption = NoInput(0),
-        disc_curve: CurveOption = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: CurveOption_ = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
@@ -2798,7 +2798,7 @@ class IndexMixin(metaclass=ABCMeta):
     def real_cashflow(self) -> DualTypes | None:
         pass  # pragma: no cover
 
-    def cashflow(self, curve: CurveOption = NoInput(0)) -> DualTypes | None:
+    def cashflow(self, curve: CurveOption_ = NoInput(0)) -> DualTypes | None:
         """
         float, Dual or Dual2 : The calculated value from rate, dcf and notional,
         adjusted for the index.
@@ -2818,7 +2818,7 @@ class IndexMixin(metaclass=ABCMeta):
             return ret
 
     def index_ratio(
-        self, curve: CurveOption = NoInput(0)
+        self, curve: CurveOption_ = NoInput(0)
     ) -> tuple[DualTypes | None, DualTypes | None, DualTypes | None]:
         """
         Calculate the index ratio for the end date of the *IndexPeriod*.
@@ -2879,7 +2879,7 @@ class IndexMixin(metaclass=ABCMeta):
     def _index_value(
         i_fixings: DualTypes | Series[DualTypes] | NoInput,  # type: ignore[type-var]
         i_date: datetime | NoInput,
-        i_curve: CurveOption,
+        i_curve: CurveOption_,
         i_lag: int,
         i_method: str,
     ) -> DualTypes | None:
@@ -3067,8 +3067,8 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
 
     def analytic_delta(
         self,
-        curve: CurveOption = NoInput(0),
-        disc_curve: CurveOption = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: CurveOption_ = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
@@ -4636,7 +4636,7 @@ def _get_vol_delta_type(vol: DualTypes | FXVols, delta_type: str) -> str:
         return vol.delta_type
 
 
-def _validate_credit_curves(curve: CurveOption, disc_curve: CurveOption) -> tuple[Curve, Curve]:
+def _validate_credit_curves(curve: CurveOption_, disc_curve: CurveOption_) -> tuple[Curve, Curve]:
     # used by Credit type Periods to narrow inputs
     if not isinstance(curve, Curve):
         raise TypeError(
