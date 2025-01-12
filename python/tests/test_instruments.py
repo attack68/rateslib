@@ -40,9 +40,9 @@ from rateslib.instruments import (
     VolValue,
 )
 from rateslib.instruments.utils import (
-    _get_curve_from_solver,
     _get_curves_fx_and_base_maybe_from_solver,
 )
+from rateslib.curves._parsers import _map_curve_from_solver
 from rateslib.solver import Solver
 
 
@@ -169,30 +169,30 @@ class TestCurvesandSolver:
         inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
         solver = Solver([curve], [], inst, [0.975])
 
-        result = _get_curve_from_solver("tagged", solver)
+        result = _map_curve_from_solver("tagged", solver)
         assert result == curve
 
-        result = _get_curve_from_solver(curve, solver)
+        result = _map_curve_from_solver(curve, solver)
         assert result == curve
 
         no_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="not in solver")
 
         with default_context("curve_not_in_solver", "ignore"):
-            result = _get_curve_from_solver(no_curve, solver)
+            result = _map_curve_from_solver(no_curve, solver)
             assert result == no_curve
 
         with pytest.warns(), default_context("curve_not_in_solver", "warn"):
-            result = _get_curve_from_solver(no_curve, solver)
+            result = _map_curve_from_solver(no_curve, solver)
             assert result == no_curve
 
         with (
             pytest.raises(ValueError, match="`curve` must be in `solver`"),
             default_context("curve_not_in_solver", "raise"),
         ):
-            _get_curve_from_solver(no_curve, solver)
+            _map_curve_from_solver(no_curve, solver)
 
         with pytest.raises(AttributeError, match="`curve` has no attribute `id`, likely it not"):
-            _get_curve_from_solver(100.0, solver)
+            _map_curve_from_solver(100.0, solver)
 
     @pytest.mark.parametrize("solver", [True, False])
     @pytest.mark.parametrize("fxf", [True, False])
