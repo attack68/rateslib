@@ -1575,7 +1575,7 @@ class FRA(BaseDerivative):
         curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
     ) -> None:
-        if self.fixed_rate is NoInput.blank:
+        if isinstance(self.fixed_rate, NoInput):
             mid_market_rate = self.rate(curves, solver)
             self.leg1.fixed_rate = mid_market_rate.real
 
@@ -1692,7 +1692,7 @@ class FRA(BaseDerivative):
             return None
 
         # FRA specification discounts cashflows by the IBOR rate.
-        cf = 1 + self._float_period.dcf * rate / 100
+        cf /= 1 + self._float_period.dcf * rate / 100
         return cf
 
     def _cashflow_or_raise(self, curve: CurveOption) -> DualTypes:
