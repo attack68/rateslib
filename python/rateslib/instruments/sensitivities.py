@@ -14,7 +14,7 @@ from rateslib.instruments.utils import (
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, NPV, Curves
+    from rateslib.typing import FX, NPV, Curves_
 P = ParamSpec("P")
 
 
@@ -29,7 +29,7 @@ class Sensitivities:
 
     def delta(
         self,
-        curves: Curves = NoInput(0),
+        curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -88,7 +88,7 @@ class Sensitivities:
     def exo_delta(
         self,
         vars: list[str],  # noqa: A002
-        curves: Curves = NoInput(0),
+        curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -159,7 +159,7 @@ class Sensitivities:
 
     def gamma(
         self,
-        curves: Curves = NoInput(0),
+        curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -234,7 +234,7 @@ class Sensitivities:
 
     def cashflows_table(
         self,
-        curves: Curves = NoInput(0),
+        curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),

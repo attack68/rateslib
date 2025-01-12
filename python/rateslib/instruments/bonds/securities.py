@@ -45,7 +45,7 @@ from rateslib.periods import (
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, Any, CalInput, Callable, CurveOption, Curves, DualTypes, Number
+    from rateslib.typing import FX, Any, CalInput, Callable, CurveOption, Curves_, DualTypes, Number
 
 
 class BondMixin:
@@ -1257,7 +1257,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
     def rate(
         self,
-        curves: Curves = NoInput(0),
+        curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -2063,7 +2063,7 @@ class Bill(FixedRateBond):
 
     def rate(
         self,
-        curves: Curves = NoInput(0),
+        curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -2837,7 +2837,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
 
     def fixings_table(
         self,
-        curves: Curves = NoInput(0),
+        curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),

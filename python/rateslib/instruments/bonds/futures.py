@@ -18,7 +18,7 @@ from rateslib.periods import (
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, Any, Curves, DualTypes, FixedRateBond
+    from rateslib.typing import FX, Any, Curves_, DualTypes, FixedRateBond
 
 
 class BondFuture(Sensitivities):
@@ -849,7 +849,7 @@ class BondFuture(Sensitivities):
 
     def rate(
         self,
-        curves: Curves = NoInput(0),
+        curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -916,7 +916,7 @@ class BondFuture(Sensitivities):
 
     def npv(
         self,
-        curves: Curves = NoInput(0),
+        curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),

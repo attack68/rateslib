@@ -9,7 +9,6 @@ import numpy as np
 from pandas import DataFrame as DataFrame
 from pandas import Series as Series
 
-from rateslib.curves import Curve as Curve
 from rateslib.default import NoInput as NoInput
 from rateslib.dual.variable import Variable as Variable
 from rateslib.fx import FXForwards as FXForwards
@@ -38,16 +37,14 @@ from rateslib.instruments import FXStrangle as FXStrangle
 from rateslib.instruments import FXSwap as FXSwap
 from rateslib.instruments import IndexFixedRateBond as IndexFixedRateBond
 from rateslib.instruments import STIRFuture as STIRFuture
-from rateslib.legs import (
-    CreditPremiumLeg,
-    CreditProtectionLeg,
-    FixedLeg,
-    FloatLeg,
-    IndexFixedLeg,
-    ZeroFixedLeg,
-    ZeroFloatLeg,
-    ZeroIndexLeg,
-)
+from rateslib.legs import CreditPremiumLeg as CreditPremiumLeg
+from rateslib.legs import CreditProtectionLeg as CreditProtectionLeg
+from rateslib.legs import FixedLeg as FixedLeg
+from rateslib.legs import FloatLeg as FloatLeg
+from rateslib.legs import IndexFixedLeg as IndexFixedLeg
+from rateslib.legs import ZeroFixedLeg as ZeroFixedLeg
+from rateslib.legs import ZeroFloatLeg as ZeroFloatLeg
+from rateslib.legs import ZeroIndexLeg as ZeroIndexLeg
 from rateslib.periods import Cashflow as Cashflow
 from rateslib.periods import CreditPremiumPeriod as CreditPremiumPeriod
 from rateslib.periods import CreditProtectionPeriod as CreditProtectionPeriod
@@ -84,19 +81,23 @@ Arr2dObj: TypeAlias = "np.ndarray[tuple[int, int], np.dtype[np.object_]]"
 
 FixingsRates: TypeAlias = "Series[DualTypes] | list[DualTypes | list[DualTypes] | Series[DualTypes] | NoInput] | tuple[DualTypes, Series[DualTypes]] | DualTypes | NoInput"
 
-CurveOrId_: TypeAlias = "Curve | str"
-CurveOrId: TypeAlias = "CurveOrId_ | NoInput"
+from rateslib.curves import Curve as Curve  # noqa: E402
 
-Curves_: TypeAlias = "CurveOrId | dict[str, CurveOrId_] | list[CurveOrId_ | dict[str, CurveOrId_]]"
-Curves: TypeAlias = "CurveOrId | dict[str, CurveOrId_] | list[CurveOrId_ | dict[str, CurveOrId_] | NoInput] | NoInput"
+Curve_: TypeAlias = "Curve | NoInput"
 
-CurveInput_: TypeAlias = "CurveOrId_ | dict[str, CurveOrId_]"
-CurveInput: TypeAlias = "CurveInput_ | NoInput"
+CurveOrId: TypeAlias = "Curve | str"
+CurveOrId_: TypeAlias = "CurveOrId | NoInput"
 
-CurveOption_: TypeAlias = "Curve | dict[str, Curve]"
-CurveOption: TypeAlias = "CurveOption_ | NoInput"
+Curves: TypeAlias = "CurveOrId | dict[str, CurveOrId] | list[CurveOrId | dict[str, CurveOrId]]"
+Curves_: TypeAlias = "CurveOrId_ | dict[str, CurveOrId] | list[CurveOrId_ | dict[str, CurveOrId]]"
 
-CurvesTuple: TypeAlias = "tuple[CurveOption, CurveOption, CurveOption, CurveOption]"
+CurveInput: TypeAlias = "CurveOrId | dict[str, CurveOrId]"
+CurveInput_: TypeAlias = "CurveInput | NoInput"
+
+CurveOption: TypeAlias = "Curve | dict[str, Curve]"
+CurveOption_: TypeAlias = "CurveOption | NoInput"
+
+Curves_Tuple: TypeAlias = "tuple[CurveOption_, CurveOption_, CurveOption_, CurveOption_]"
 
 Vol_: TypeAlias = "DualTypes | FXDeltaVolSmile | FXDeltaVolSurface | str"
 Vol: TypeAlias = "Vol_ | NoInput"

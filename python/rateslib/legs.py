@@ -34,7 +34,7 @@ from rateslib.periods import (
 from rateslib.scheduling import Schedule
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, CalInput, CurveOption, DualTypes, FixingsRates, Period
+    from rateslib.typing import FX, CalInput, CurveOption_, DualTypes, FixingsRates, Period
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -346,8 +346,8 @@ class BaseLeg(metaclass=ABCMeta):
     def _spread(
         self,
         target_npv: DualTypes,
-        fore_curve: CurveOption,
-        disc_curve: CurveOption,
+        fore_curve: CurveOption_,
+        disc_curve: CurveOption_,
         fx: FX = NoInput(0),
     ) -> DualTypes:
         """
@@ -673,8 +673,8 @@ class _FloatLegMixin:
     def _spread_isda_approximated_rate(
         self,
         target_npv: DualTypes,
-        fore_curve: Curve,  # TODO: use CurveOption and handle dict[str, Curve]
-        disc_curve: Curve,  # TODO: use CurveOption and handle dict[str, Curve]
+        fore_curve: Curve,  # TODO: use CurveOption_ and handle dict[str, Curve]
+        disc_curve: Curve,  # TODO: use CurveOption_ and handle dict[str, Curve]
     ) -> DualTypes:
         """
         Use approximated derivatives through geometric averaged 1day rates to derive the
@@ -819,8 +819,8 @@ class _FloatLegMixin:
     def _spread(
         self,
         target_npv: DualTypes,
-        fore_curve: CurveOption,
-        disc_curve: CurveOption,
+        fore_curve: CurveOption_,
+        disc_curve: CurveOption_,
         fx: FX = NoInput(0),
     ) -> DualTypes:
         """
@@ -1052,8 +1052,8 @@ class FloatLeg(_FloatLegMixin, BaseLeg):
 
     def fixings_table(
         self,
-        curve: CurveOption,
-        disc_curve: CurveOption = NoInput(0),
+        curve: CurveOption_,
+        disc_curve: CurveOption_ = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
@@ -1360,7 +1360,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         _ = [period.dcf for period in self.periods if isinstance(period, FloatPeriod)]
         return sum(_)
 
-    def rate(self, curve: CurveOption) -> DualTypes:
+    def rate(self, curve: CurveOption_) -> DualTypes:
         """
         Calculate a simple period type floating rate for the zero coupon leg.
 
@@ -1381,8 +1381,8 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
 
     def npv(
         self,
-        curve: CurveOption,
-        disc_curve: CurveOption = NoInput(0),
+        curve: CurveOption_,
+        disc_curve: CurveOption_ = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
@@ -1409,8 +1409,8 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
 
     def fixings_table(
         self,
-        curve: CurveOption,
-        disc_curve: CurveOption = NoInput(0),
+        curve: CurveOption_,
+        disc_curve: CurveOption_ = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
@@ -1497,7 +1497,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
 
     def cashflows(
         self,
-        curve: CurveOption = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -1672,7 +1672,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
 
     def cashflows(
         self,
-        curve: CurveOption = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -1752,8 +1752,8 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
     def _spread(
         self,
         target_npv: DualTypes,
-        fore_curve: CurveOption,
-        disc_curve: CurveOption,
+        fore_curve: CurveOption_,
+        disc_curve: CurveOption_,
         fx: FX = NoInput(0),
     ) -> DualTypes:
         """
