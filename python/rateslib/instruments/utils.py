@@ -6,10 +6,7 @@ from typing import TYPE_CHECKING, Any
 from pandas import DataFrame
 
 from rateslib import FXDeltaVolSmile, FXDeltaVolSurface, defaults
-from rateslib.curves import (
-    Curve,
-)
-from rateslib.curves._parsers import _map_curve_from_solver, _validate_no_str_in_curve_input
+from rateslib.curves._parsers import _get_curves_maybe_from_solver
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.fx import FXForwards, FXRates
@@ -66,61 +63,6 @@ def _get_fx_maybe_from_solver(solver: Solver | NoInput, fx: FX) -> FX:
             )
 
     return fx_
-
-
-def _get_curves_maybe_from_solver(
-    curves_attr: Curves,
-    solver: Solver | NoInput,
-    curves: Curves,
-) -> CurvesTuple:
-    """
-    Attempt to resolve curves as a variety of input types to a 4-tuple consisting of:
-    (leg1 forecasting, leg1 discounting, leg2 forecasting, leg2 discounting)
-    """
-    if isinstance(curves, NoInput) and isinstance(curves_attr, NoInput):
-        # no data is available so consistently return a 4-tuple of no data
-        return (NoInput(0), NoInput(0), NoInput(0), NoInput(0))
-    elif isinstance(curves, NoInput):
-        # set the `curves` input as that which is set as attribute at instrument init.
-        curves = curves_attr
-
-    # refactor curves into a list
-    if not isinstance(curves, list | tuple):
-        # convert isolated value input to list
-        curves_as_list: list[Curve | dict[str, str | Curve] | NoInput | str] = [curves]
-    else:
-        curves_as_list = curves
-
-    # parse curves_as_list
-    if isinstance(solver, NoInput):
-        curves_parsed: tuple[CurveOption, ...] = tuple(
-            _validate_no_str_in_curve_input(curve) for curve in curves_as_list
-        )
-    else:
-        try:
-            curves_parsed = tuple(_map_curve_from_solver(curve, solver) for curve in curves_as_list)
-        except KeyError as e:
-            raise ValueError(
-                "`curves` must contain str curve `id` s existing in `solver` "
-                "(or its associated `pre_solvers`).\n"
-                f"The sought id was: '{e.args[0]}'.\n"
-                f"The available ids are {list(solver.pre_curves.keys())}.",
-            )
-
-    return _make_4_tuple_of_curve(curves_parsed)
-
-
-def _make_4_tuple_of_curve(curves: tuple[CurveOption, ...]) -> CurvesTuple:
-    n = len(curves)
-    if n == 1:
-        curves *= 4
-    elif n == 2:
-        curves *= 2
-    elif n == 3:
-        curves += (curves[1],)
-    elif n > 4:
-        raise ValueError("Can only supply a maximum of 4 `curves`.")
-    return curves  # type: ignore[return-value]
 
 
 def _get_curves_fx_and_base_maybe_from_solver(

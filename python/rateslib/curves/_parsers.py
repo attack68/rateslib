@@ -16,6 +16,8 @@ if TYPE_CHECKING:
         CurveOption_,
         CurveOrId_,
         Solver,
+        Curves,
+        CurvesTuple
     )
 
 
@@ -115,3 +117,88 @@ def _validate_no_str_in_curve_input(curve: CurveInput) -> CurveOption:
         return NoInput(0)
     else:
         return _validate_curve_not_str(curve)
+
+
+def _get_curves_maybe_from_solver(
+    curves_attr: Curves,
+    solver: Solver | NoInput,
+    curves: Curves,
+) -> CurvesTuple:
+    """
+    Attempt to resolve curves as a variety of input types to a 4-tuple consisting of:
+    (leg1 forecasting, leg1 discounting, leg2 forecasting, leg2 discounting)
+
+    Parameters
+    ----------
+    curves_attr : Curves
+        This is an external set of Curves which is used as a substitute for pricing. These might
+        be taken from an Instrument at initialisation, for example.
+    solver: Solver
+        Solver containing the Curves mapping
+    curves: Curves
+        A possible override option to allow curves to be specified directly, even if they exist
+        as an attribute on the Instrument.
+
+    Returns
+    -------
+    4-Tuple of Curve, dict[str, Curve], NoInput
+    """
+    if isinstance(curves, NoInput) and isinstance(curves_attr, NoInput):
+        # no data is available so consistently return a 4-tuple of no data
+        return (NoInput(0), NoInput(0), NoInput(0), NoInput(0))
+    elif isinstance(curves, NoInput):
+        # set the `curves` input as that which is set as attribute at instrument init.
+        curves = curves_attr
+
+    # refactor curves into a list
+    if not isinstance(curves, list | tuple):
+        # convert isolated value input to list
+        curves_as_list: list[Curve | dict[str, str | Curve] | NoInput | str] = [curves]
+    else:
+        curves_as_list = curves
+
+    # parse curves_as_list
+    if isinstance(solver, NoInput):
+        curves_parsed: tuple[CurveOption, ...] = tuple(
+            _validate_no_str_in_curve_input(curve) for curve in curves_as_list
+        )
+    else:
+        try:
+            curves_parsed = tuple(_map_curve_from_solver(curve, solver) for curve in curves_as_list)
+        except KeyError as e:
+            raise ValueError(
+                "`curves` must contain str curve `id` s existing in `solver` "
+                "(or its associated `pre_solvers`).\n"
+                f"The sought id was: '{e.args[0]}'.\n"
+                f"The available ids are {list(solver.pre_curves.keys())}.",
+            )
+
+    return _make_4_tuple_of_curve(curves_parsed)
+
+
+def _make_4_tuple_of_curve(curves: tuple[CurveOption, ...]) -> CurvesTuple:
+    """Convert user sequence input to a 4-Tuple."""
+    n = len(curves)
+    if n == 1:
+        curves *= 4
+    elif n == 2:
+        curves *= 2
+    elif n == 3:
+        curves += (curves[1],)
+    elif n > 4:
+        raise ValueError("Can only supply a maximum of 4 `curves`.")
+    return curves  # type: ignore[return-value]
+
+
+def _validate_disc_curve_is_not_dict(curve: CurveOption) -> Curve | NoInput:
+    if isinstance(curve, dict):
+        raise ValueError("`disc_curve` cannot be supplied as, or inferred from, a dict of Curves.")
+    return curve
+
+def _validate_disc_curves_are_not_dict(curves_tuple: CurvesTuple) -> Tuple[CurveOption, ]:
+    return tuple(
+        curves_tuple[0],
+        _validate_disc_curve_is_not_dict(curves_tuple[1]),
+        curves_tuple[2],
+        _validate_disc_curve_is_not_dict(curves_tuple[3])
+    )
