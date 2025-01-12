@@ -18,6 +18,7 @@ if TYPE_CHECKING:
         CurveOrId,
         Curves_,
         Curves_Tuple,
+        Curves_DiscTuple,
         Solver,
     )
 
@@ -124,7 +125,7 @@ def _get_curves_maybe_from_solver(
     curves_attr: Curves_,
     solver: Solver | NoInput,
     curves: Curves_,
-) -> Curves_Tuple:
+) -> Curves_DiscTuple:
     """
     Attempt to resolve curves as a variety of input types to a 4-tuple consisting of:
     (leg1 forecasting, leg1 discounting, leg2 forecasting, leg2 discounting)
@@ -174,7 +175,8 @@ def _get_curves_maybe_from_solver(
                 f"The available ids are {list(solver.pre_curves.keys())}.",
             )
 
-    return _make_4_tuple_of_curve(curves_parsed)
+    curves_tuple = _make_4_tuple_of_curve(curves_parsed)
+    return _validate_disc_curves_are_not_dict(curves_tuple)
 
 
 def _make_4_tuple_of_curve(curves: tuple[CurveOption_, ...]) -> Curves_Tuple:
@@ -197,9 +199,7 @@ def _validate_disc_curve_is_not_dict(curve: CurveOption_) -> Curve_:
     return curve
 
 
-def _validate_disc_curves_are_not_dict(curves_tuple: Curves_Tuple) -> tuple[
-    CurveOption_, Curve_, CurveOption_, Curve_
-]:
+def _validate_disc_curves_are_not_dict(curves_tuple: Curves_Tuple) -> Curves_DiscTuple:
     return (
         curves_tuple[0],
         _validate_disc_curve_is_not_dict(curves_tuple[1]),

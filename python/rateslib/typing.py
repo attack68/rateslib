@@ -65,7 +65,9 @@ from rateslib.rs import (
     NullInterpolator,
     UnionCal,
 )
+
 from rateslib.solver import Solver as Solver
+Solver_: TypeAlias = "Solver | NoInput"
 
 CalTypes: TypeAlias = "Cal | UnionCal | NamedCal"
 CalInput: TypeAlias = "CalTypes | str | NoInput"
@@ -88,16 +90,17 @@ Curve_: TypeAlias = "Curve | NoInput"
 CurveOrId: TypeAlias = "Curve | str"
 CurveOrId_: TypeAlias = "CurveOrId | NoInput"
 
-Curves: TypeAlias = "CurveOrId | dict[str, CurveOrId] | list[CurveOrId | dict[str, CurveOrId]]"
-Curves_: TypeAlias = "CurveOrId_ | dict[str, CurveOrId] | list[CurveOrId_ | dict[str, CurveOrId]]"
-
 CurveInput: TypeAlias = "CurveOrId | dict[str, CurveOrId]"
 CurveInput_: TypeAlias = "CurveInput | NoInput"
 
 CurveOption: TypeAlias = "Curve | dict[str, Curve]"
 CurveOption_: TypeAlias = "CurveOption | NoInput"
 
+Curves: TypeAlias = "CurveOrId | dict[str, CurveOrId] | list[CurveOrId | dict[str, CurveOrId]]"
+Curves_: TypeAlias = "CurveOrId_ | dict[str, CurveOrId] | list[CurveOrId_ | dict[str, CurveOrId]]"
+
 Curves_Tuple: TypeAlias = "tuple[CurveOption_, CurveOption_, CurveOption_, CurveOption_]"
+Curves_DiscTuple: TypeAlias = "tuple[CurveOption_, Curve_, CurveOption_, Curve_]"
 
 Vol_: TypeAlias = "DualTypes | FXDeltaVolSmile | FXDeltaVolSurface | str"
 Vol: TypeAlias = "Vol_ | NoInput"

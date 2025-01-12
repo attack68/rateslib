@@ -45,7 +45,7 @@ from rateslib.periods import (
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, Any, CalInput, Callable, CurveOption, Curves_, DualTypes, Number
+    from rateslib.typing import FX, Any, CalInput, Callable, CurveOption, Curves_, DualTypes, Number, Solver_
 
 
 class BondMixin:
@@ -546,7 +546,7 @@ class BondMixin:
     def npv(
         self,
         curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
@@ -646,7 +646,7 @@ class BondMixin:
     def cashflows(
         self,
         curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         settlement: datetime | NoInput = NoInput(0),
@@ -714,7 +714,7 @@ class BondMixin:
     def oaspread(
         self,
         curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         price: DualTypes = NoInput(0),
@@ -1258,7 +1258,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     def rate(
         self,
         curves: Curves_ = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         metric: str = "clean_price",
@@ -1775,7 +1775,7 @@ class IndexFixedRateBond(FixedRateBond):
     def rate(
         self,
         curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         metric: str = "clean_price",
@@ -2064,7 +2064,7 @@ class Bill(FixedRateBond):
     def rate(
         self,
         curves: Curves_ = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         metric: str = "price",
@@ -2740,7 +2740,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
     def rate(
         self,
         curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         metric="clean_price",
@@ -2838,7 +2838,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
     def fixings_table(
         self,
         curves: Curves_ = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: FX = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
