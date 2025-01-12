@@ -46,15 +46,13 @@ from rateslib.legs import (
     ZeroFloatLeg,
     ZeroIndexLeg,
 )
-from rateslib.periods import (
-    Cashflow,
-    CreditPremiumPeriod,
-    CreditProtectionPeriod,
-    FixedPeriod,
-    FloatPeriod,
-    IndexCashflow,
-    IndexFixedPeriod,
-)
+from rateslib.periods import Cashflow as Cashflow
+from rateslib.periods import CreditPremiumPeriod as CreditPremiumPeriod
+from rateslib.periods import CreditProtectionPeriod as CreditProtectionPeriod
+from rateslib.periods import FixedPeriod as FixedPeriod
+from rateslib.periods import FloatPeriod as FloatPeriod
+from rateslib.periods import IndexCashflow as IndexCashflow
+from rateslib.periods import IndexFixedPeriod as IndexFixedPeriod
 from rateslib.rs import (
     Cal,
     Dual,
@@ -84,8 +82,10 @@ Arr2dObj: TypeAlias = "np.ndarray[tuple[int, int], np.dtype[np.object_]]"
 
 FixingsRates: TypeAlias = "Series[DualTypes] | list[DualTypes | list[DualTypes] | Series[DualTypes] | NoInput] | tuple[DualTypes, Series[DualTypes]] | DualTypes | NoInput"
 
+CurveId_: TypeAlias = "Curve | str"
+CurveId
 Curves_: TypeAlias = (
-    "list[str | Curve | dict[str, Curve | str] | NoInput] | Curve | str | dict[str, Curve | str]"
+    "CurveId | dict[str, CurveId] | list[CurveId | dict[str, CurveId] | NoInput]"
 )
 Curves: TypeAlias = "Curves_ | NoInput"
 CurveInput_: TypeAlias = "str | Curve | dict[str, str | Curve]"
