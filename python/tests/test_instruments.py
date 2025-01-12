@@ -4029,7 +4029,7 @@ class TestSpec:
         (
             FRA(dt(2022, 1, 15), "3M", "Q", currency="eur", curves=["eureur", "eureur"]),
             DataFrame(
-                [0.0],
+                [0],
                 index=Index([dt(2022, 1, 15)], name="payment"),
                 columns=MultiIndex.from_tuples(
                     [("EUR", "eur")],

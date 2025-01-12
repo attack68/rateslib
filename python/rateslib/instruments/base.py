@@ -511,7 +511,7 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
         curves: Curves = NoInput(0),
         spec: str | NoInput = NoInput(0),
     ):
-        self.kwargs = dict(
+        self.kwargs: dict[str, Any] = dict(
             effective=effective,
             termination=termination,
             frequency=frequency,

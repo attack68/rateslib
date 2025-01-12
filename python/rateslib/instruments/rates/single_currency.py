@@ -33,7 +33,16 @@ from rateslib.solver import Solver
 if TYPE_CHECKING:
     from typing import Any, NoReturn
 
-    from rateslib.typing import FX, NPV, CurveOption, Curves, DualTypes, FixingsRates
+    from rateslib.typing import (
+        FX,
+        NPV,
+        CurveOption,
+        Curves,
+        DualTypes,
+        FixedPeriod,
+        FixingsRates,
+        FloatPeriod,
+    )
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -200,7 +209,7 @@ class IRS(BaseDerivative):
         if isinstance(self.fixed_rate, NoInput):
             # set a fixed rate for the purpose of generic methods NPV will be zero.
             mid_market_rate = self.rate(curves, solver)
-            self.leg1.fixed_rate = float(mid_market_rate)
+            self.leg1.fixed_rate = _dual_float(mid_market_rate)
 
     def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
         """
@@ -210,7 +219,7 @@ class IRS(BaseDerivative):
         """
         return super().analytic_delta(*args, **kwargs)
 
-    def npv(  # type: ignore[override]
+    def npv(
         self,
         curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
@@ -535,19 +544,19 @@ class STIRFuture(IRS):
         leg2_method_param: int | NoInput = NoInput(0),
         **kwargs: Any,
     ) -> None:
-        nominal = defaults.notional if nominal is NoInput.blank else nominal
+        nominal_: float = _drb(defaults.notional, nominal)
         # TODO this overwrite breaks positional arguments
-        kwargs["notional"] = nominal * contracts * -1.0
+        kwargs["notional"] = nominal_ * contracts * -1.0
         super(IRS, self).__init__(*args, **kwargs)  # call BaseDerivative.__init__()
         user_kwargs = dict(
             price=price,
-            fixed_rate=NoInput(0) if price is NoInput.blank else (100 - price),
+            fixed_rate=NoInput(0) if isinstance(price, NoInput) else (100 - price),
             leg2_float_spread=leg2_float_spread,
             leg2_spread_compound_method=leg2_spread_compound_method,
             leg2_fixings=leg2_fixings,
             leg2_fixing_method=leg2_fixing_method,
             leg2_method_param=leg2_method_param,
-            nominal=nominal,
+            nominal=nominal_,
             bp_value=bp_value,
             contracts=contracts,
         )
@@ -556,7 +565,7 @@ class STIRFuture(IRS):
         self._fixed_rate = self.kwargs["fixed_rate"]
         self._leg2_float_spread = leg2_float_spread
         self.leg1 = FixedLeg(
-            **_get(self.kwargs, leg=1, filter=["price", "nominal", "bp_value", "contracts"]),
+            **_get(self.kwargs, leg=1, filter=("price", "nominal", "bp_value", "contracts")),
         )
         self.leg2 = FloatLeg(**_get(self.kwargs, leg=2))
 
@@ -575,11 +584,13 @@ class STIRFuture(IRS):
         """
         # the test for an unpriced IRS is that its fixed rate is not set.
         mid_price = self.rate(curves, solver, fx, base, metric="price")
-        if self.fixed_rate is NoInput.blank:
+        if isinstance(self.fixed_rate, NoInput):
             # set a fixed rate for the purpose of generic methods NPV will be zero.
-            self.leg1.fixed_rate = float(100 - mid_price)
-
-        traded_price = 100 - self.leg1.fixed_rate
+            mid_rate = _dual_float(100 - mid_price)
+            self.leg1.fixed_rate = mid_rate
+            traded_price: DualTypes = 100.0 - mid_rate
+        else:
+            traded_price = 100 - self.fixed_rate
         _ = (mid_price - traded_price) * 100 * self.kwargs["contracts"] * self.kwargs["bp_value"]
         return _maybe_local(_, local, self.kwargs["currency"], fx, base)
 
@@ -653,8 +664,9 @@ class STIRFuture(IRS):
         See :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
         For *STIRFuture* this method requires no arguments.
         """
-        fx, base = _get_fx_and_base(self.kwargs["currency"], fx, base)
-        return fx * (-1.0 * self.kwargs["contracts"] * self.kwargs["bp_value"])
+        fx_, base_ = _get_fx_and_base(self.kwargs["currency"], fx, base)
+        _: DualTypes = fx_ * (-1.0 * self.kwargs["contracts"] * self.kwargs["bp_value"])
+        return _
 
     def cashflows(
         self,
@@ -673,11 +685,11 @@ class STIRFuture(IRS):
                     defaults.headers["a_acc_end"]: self.leg1.schedule.termination,
                     defaults.headers["payment"]: None,
                     defaults.headers["convention"]: "Exchange",
-                    defaults.headers["dcf"]: float(self.leg1.notional)
+                    defaults.headers["dcf"]: _dual_float(self.leg1.notional)
                     / self.kwargs["nominal"]
                     * self.kwargs["bp_value"]
                     / 100.0,
-                    defaults.headers["notional"]: float(self.leg1.notional),
+                    defaults.headers["notional"]: _dual_float(self.leg1.notional),
                     defaults.headers["df"]: 1.0,
                     defaults.headers["collateral"]: self.leg1.currency.lower(),
                 },
@@ -738,13 +750,14 @@ class STIRFuture(IRS):
             NoInput(0),
             self.leg2.currency,
         )
-        risk = -1.0 * self.kwargs["contracts"] * self.kwargs["bp_value"]
+        risk: float = -1.0 * self.kwargs["contracts"] * self.kwargs["bp_value"]
         df = self.leg2.fixings_table(
             curve=curves_[2], approximate=approximate, disc_curve=curves_[3]
         )
 
-        total_risk = df[(curves_[2].id, "risk")].sum()
-        df[[(curves_[2].id, "notional"), (curves_[2].id, "risk")]] *= risk / total_risk
+        # TODO: handle curves as dict. "id" is not available this is typing mismatch
+        total_risk = df[(curves_[2].id, "risk")].sum()  # type: ignore[union-attr]
+        df[[(curves_[2].id, "notional"), (curves_[2].id, "risk")]] *= risk / total_risk  # type: ignore[union-attr]
         return _trim_df_by_index(df, NoInput(0), right)
 
 
@@ -1248,7 +1261,7 @@ class SBS(BaseDerivative):
         if self.float_spread is NoInput.blank and self.leg2_float_spread is NoInput.blank:
             # set a pricing parameter for the purpose of pricing NPV at zero.
             rate = self.rate(curves, solver)
-            self.leg1.float_spread = float(rate)
+            self.leg1.float_spread = _dual_float(rate)
 
     def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
         """
@@ -1562,7 +1575,7 @@ class FRA(BaseDerivative):
         curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
     ) -> None:
-        if self.fixed_rate is NoInput.blank:
+        if isinstance(self.fixed_rate, NoInput):
             mid_market_rate = self.rate(curves, solver)
             self.leg1.fixed_rate = mid_market_rate.real
 
@@ -1581,8 +1594,9 @@ class FRA(BaseDerivative):
         disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.leg1.currency, fx, base)
         rate = self.rate([curve])  # type: ignore[list-item]
-        _ = self.leg1.notional * self.leg1.periods[0].dcf * disc_curve_[self._payment_date] / 10000
-        return fx * _ / (1 + self.leg1.periods[0].dcf * rate / 100)
+        dcf = self._fixed_period.dcf
+        _: DualTypes = self.leg1.notional * dcf * disc_curve_[self._payment_date] / 10000
+        return fx * _ / (1 + dcf * rate / 100)
 
     def npv(
         self,
@@ -1607,12 +1621,13 @@ class FRA(BaseDerivative):
             base,
             self.leg1.currency,
         )
-        fx, base = _get_fx_and_base(self.leg1.currency, fx_, base_)
-        value = self.cashflow(curves_[0]) * curves_[1][self._payment_date]
+        fx__, _ = _get_fx_and_base(self.leg1.currency, fx_, base_)
+        disc_curve_ = _disc_required_maybe_from_curve(curves_[0], curves_[1])
+        value = self._cashflow_or_raise(curves_[0]) * disc_curve_[self._payment_date]
         if local:
             return {self.leg1.currency: value}
         else:
-            return fx * value
+            return fx__ * value
 
     def rate(
         self,
@@ -1644,7 +1659,7 @@ class FRA(BaseDerivative):
         -------
         float, Dual or Dual2
         """
-        curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+        curves_, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,
             curves,
@@ -1652,9 +1667,9 @@ class FRA(BaseDerivative):
             base,
             self.leg1.currency,
         )
-        return self.leg2.periods[0].rate(curves[0])
+        return self._float_period.rate(curves_[0])
 
-    def cashflow(self, curve: Curve) -> DualTypes | None:
+    def cashflow(self, curve: CurveOption) -> DualTypes | None:
         """
         Calculate the local currency cashflow on the FRA from current floating rate
         and fixed rate.
@@ -1668,18 +1683,23 @@ class FRA(BaseDerivative):
         -------
         float, Dual or Dual2
         """
-        cf1 = self.leg1.periods[0].cashflow
-        rate = self.leg2.periods[0].rate(curve)
-        cf2 = self.kwargs["notional"] * self.leg2.periods[0].dcf * rate / 100
+        cf1 = self._fixed_period.cashflow
+        rate = self._float_period.rate(curve)
+        cf2 = self.kwargs["notional"] * self._float_period.dcf * rate / 100
         if not isinstance(cf1, NoInput) and not isinstance(cf2, NoInput):
-            cf = cf1 + cf2
+            cf: DualTypes = cf1 + cf2
         else:
             return None
 
         # FRA specification discounts cashflows by the IBOR rate.
-        cf /= 1 + self.leg2.periods[0].dcf * rate / 100
-
+        cf /= 1 + self._float_period.dcf * rate / 100
         return cf
+
+    def _cashflow_or_raise(self, curve: CurveOption) -> DualTypes:
+        cf_ = self.cashflow(curve)
+        if cf_ is None:
+            raise ValueError("Must supply a `curve` to determine cashflow for FRA.")
+        return cf_
 
     def cashflows(
         self,
@@ -1703,7 +1723,7 @@ class FRA(BaseDerivative):
         DataFrame
         """
         self._set_pricing_mid(curves, solver)
-        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+        curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,
             curves,
@@ -1711,25 +1731,36 @@ class FRA(BaseDerivative):
             base,
             self.leg1.currency,
         )
-        fx_, base_ = _get_fx_and_base(self.leg1.currency, fx_, base_)
+        fx__, base_ = _get_fx_and_base(self.leg1.currency, fx_, base_)
 
-        cf = float(self.cashflow(curves[0]))
-        df = float(curves[1][self._payment_date])
-        npv_local = cf * df
+        if isinstance(self.fixed_rate, NoInput):
+            _fix = None
+            _spd = None
+            _cf = None
+            _df = None
+            _npv_local = None
+            _npv_fx = None
+        else:
+            _cf = _dual_float(self.cashflow(curves_[0]))  # type: ignore[arg-type]
+            _df = _dual_float(curves_[1][self._payment_date])
+            _fix = -_dual_float(self.fixed_rate)
+            _spd = -_dual_float(self.rate(curves_[1])) * 100
+            _npv_local = _cf * _df
+            _npv_fx = _npv_local * _dual_float(fx__)
 
-        _fix = None if self.fixed_rate is NoInput.blank else -float(self.fixed_rate)
-        _spd = None if curves[1] is NoInput.blank else -float(self.rate(curves[1])) * 100
-        cfs = self.leg1.periods[0].cashflows(curves[0], curves[1], fx_, base_)
+        cfs = self._fixed_period.cashflows(curves_[0], curves_[1], fx__, base_)
         cfs[defaults.headers["type"]] = "FRA"
         cfs[defaults.headers["payment"]] = self._payment_date
-        cfs[defaults.headers["cashflow"]] = cf
+        cfs[defaults.headers["cashflow"]] = _cf
         cfs[defaults.headers["rate"]] = _fix
         cfs[defaults.headers["spread"]] = _spd
-        cfs[defaults.headers["npv"]] = npv_local
-        cfs[defaults.headers["df"]] = df
-        cfs[defaults.headers["fx"]] = float(fx_)
-        cfs[defaults.headers["npv_fx"]] = npv_local * float(fx_)
-        return DataFrame.from_records([cfs])
+        cfs[defaults.headers["npv"]] = _npv_local
+        cfs[defaults.headers["df"]] = _df
+        cfs[defaults.headers["fx"]] = _dual_float(fx__)
+        cfs[defaults.headers["npv_fx"]] = _npv_fx
+
+        _: DataFrame = DataFrame.from_records([cfs])
+        return _
 
     def fixings_table(
         self,
@@ -1782,9 +1813,9 @@ class FRA(BaseDerivative):
         df = self.leg2.fixings_table(
             curve=curves_[2], approximate=approximate, disc_curve=curves_[3]
         )
-        rate = self.leg2.periods[0].rate(curve=curves_[2])
-        scalar = curves_[3][self._payment_date] / curves_[3][self.leg2.periods[0].payment]
-        scalar *= 1.0 / (1.0 + self.leg2.periods[0].dcf * rate / 100.0)
+        rate = self._float_period.rate(curve=curves_[2])
+        scalar = curves_[3][self._payment_date] / curves_[3][self._float_period.payment]
+        scalar *= 1.0 / (1.0 + self._float_period.dcf * rate / 100.0)
         df[(curves_[2].id, "risk")] *= scalar
         df[(curves_[2].id, "notional")] *= scalar
         return _trim_df_by_index(df, NoInput(0), right)
@@ -1814,3 +1845,11 @@ class FRA(BaseDerivative):
         Date, under the calendar applicable to the Instrument.
         """
         return self.leg1.schedule.pschedule[0]
+
+    @property
+    def _fixed_period(self) -> FixedPeriod:
+        return self.leg1.periods[0]
+
+    @property
+    def _float_period(self) -> FloatPeriod:
+        return self.leg2.periods[0]
