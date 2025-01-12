@@ -82,18 +82,17 @@ Arr2dObj: TypeAlias = "np.ndarray[tuple[int, int], np.dtype[np.object_]]"
 
 FixingsRates: TypeAlias = "Series[DualTypes] | list[DualTypes | list[DualTypes] | Series[DualTypes] | NoInput] | tuple[DualTypes, Series[DualTypes]] | DualTypes | NoInput"
 
-CurveOption_: TypeAlias = "Curve | dict[str, Curve]"
-CurveOption: TypeAlias = "CurveOption_ | NoInput"
-
 CurveOrId_: TypeAlias = "Curve | str"
 CurveOrId: TypeAlias = "CurveOrId_ | NoInput"
+
+Curves_: TypeAlias = "CurveOrId | dict[str, CurveOrId_] | list[CurveOrId_ | dict[str, CurveOrId_]]"
+Curves: TypeAlias = "CurveOrId | dict[str, CurveOrId_] | list[CurveOrId_ | dict[str, CurveOrId_] | NoInput] | NoInput"
 
 CurveInput_: TypeAlias = "CurveOrId_ | dict[str, CurveOrId_]"
 CurveInput: TypeAlias = "CurveInput_ | NoInput"
 
-Curves_: TypeAlias = "CurveOrId | dict[str, CurveOrId_] | list[CurveOrId_ | dict[str, CurveOrId_]]"
-Curves: TypeAlias = "Curves_ | NoInput"
-
+CurveOption_: TypeAlias = "Curve | dict[str, Curve]"
+CurveOption: TypeAlias = "CurveOption_ | NoInput"
 
 CurvesTuple: TypeAlias = "tuple[CurveOption, CurveOption, CurveOption, CurveOption]"
 
