@@ -665,7 +665,7 @@ class STIRFuture(IRS):
         For *STIRFuture* this method requires no arguments.
         """
         fx_, base_ = _get_fx_and_base(self.kwargs["currency"], fx, base)
-        _: DualTypes =  fx_ * (-1.0 * self.kwargs["contracts"] * self.kwargs["bp_value"])
+        _: DualTypes = fx_ * (-1.0 * self.kwargs["contracts"] * self.kwargs["bp_value"])
         return _
 
     def cashflows(

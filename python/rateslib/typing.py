@@ -86,7 +86,7 @@ CurveOrId_: TypeAlias = "Curve | str"
 CurveOrId: TypeAlias = "CurveOrId_ | NoInput"
 
 Curves_: TypeAlias = "CurveOrId | dict[str, CurveOrId_] | list[CurveOrId_ | dict[str, CurveOrId_]]"
-Curves: TypeAlias = "Curves_ | NoInput"
+Curves: TypeAlias = "CurveOrId | dict[str, CurveOrId_] | list[CurveOrId_ | dict[str, CurveOrId_] | NoInput] | NoInput"
 
 CurveInput_: TypeAlias = "CurveOrId_ | dict[str, CurveOrId_]"
 CurveInput: TypeAlias = "CurveInput_ | NoInput"
