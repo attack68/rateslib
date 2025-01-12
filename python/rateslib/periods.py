@@ -61,7 +61,7 @@ from rateslib.fx_volatility import (
 from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, CalInput, CalTypes, CurveOption_, DualTypes, Number, Curve_
+    from rateslib.typing import FX, CalInput, CalTypes, Curve_, CurveOption_, DualTypes, Number
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
