@@ -17,8 +17,8 @@ if TYPE_CHECKING:
         CurveOption_,
         CurveOrId,
         Curves_,
-        Curves_Tuple,
         Curves_DiscTuple,
+        Curves_Tuple,
         Solver,
     )
 

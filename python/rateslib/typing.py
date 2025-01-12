@@ -65,8 +65,8 @@ from rateslib.rs import (
     NullInterpolator,
     UnionCal,
 )
-
 from rateslib.solver import Solver as Solver
+
 Solver_: TypeAlias = "Solver | NoInput"
 
 CalTypes: TypeAlias = "Cal | UnionCal | NamedCal"

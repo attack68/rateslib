@@ -42,10 +42,19 @@ from rateslib.periods import (
     _disc_maybe_from_curve,
     _maybe_local,
 )
-from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, Any, CalInput, Callable, CurveOption, Curves_, DualTypes, Number, Solver_
+    from rateslib.typing import (
+        FX,
+        Any,
+        CalInput,
+        Callable,
+        CurveOption,
+        Curves_,
+        DualTypes,
+        Number,
+        Solver_,
+    )
 
 
 class BondMixin:

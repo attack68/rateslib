@@ -41,7 +41,7 @@ if TYPE_CHECKING:
         FixedPeriod,
         FixingsRates,
         FloatPeriod,
-        Solver_
+        Solver_,
     )
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
