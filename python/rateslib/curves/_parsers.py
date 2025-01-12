@@ -155,7 +155,7 @@ def _get_curves_maybe_from_solver(
     # refactor curves into a list
     if not isinstance(curves, list | tuple):
         # convert isolated value input to list
-        curves_as_list: list[Curve | dict[str, str | Curve] | NoInput | str] = [curves]
+        curves_as_list: list[Curve | dict[str, str | Curve] | dict[str, str] | dict[str, Curve] | NoInput | str] = [curves]
     else:
         curves_as_list = curves
 

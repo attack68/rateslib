@@ -86,18 +86,19 @@ FixingsRates: TypeAlias = "Series[DualTypes] | list[DualTypes | list[DualTypes] 
 from rateslib.curves import Curve as Curve  # noqa: E402
 
 Curve_: TypeAlias = "Curve | NoInput"
+CurveDict: TypeAlias = "dict[str, Curve | str] | dict[str, Curve] | dict[str, str]"
 
 CurveOrId: TypeAlias = "Curve | str"
 CurveOrId_: TypeAlias = "CurveOrId | NoInput"
 
-CurveInput: TypeAlias = "CurveOrId | dict[str, CurveOrId]"
+CurveInput: TypeAlias = "CurveOrId | CurveDict"
 CurveInput_: TypeAlias = "CurveInput | NoInput"
 
 CurveOption: TypeAlias = "Curve | dict[str, Curve]"
 CurveOption_: TypeAlias = "CurveOption | NoInput"
 
-Curves: TypeAlias = "CurveOrId | dict[str, CurveOrId] | list[CurveOrId | dict[str, CurveOrId]]"
-Curves_: TypeAlias = "CurveOrId_ | dict[str, CurveOrId] | list[CurveOrId_ | dict[str, CurveOrId]]"
+Curves: TypeAlias = "CurveOrId | CurveDict | list[CurveOrId | CurveDict]"
+Curves_: TypeAlias = "CurveOrId_ | CurveDict | list[CurveOrId_ | CurveDict]"
 
 Curves_Tuple: TypeAlias = "tuple[CurveOption_, CurveOption_, CurveOption_, CurveOption_]"
 Curves_DiscTuple: TypeAlias = "tuple[CurveOption_, Curve_, CurveOption_, Curve_]"
