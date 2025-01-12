@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -9,28 +8,32 @@ from rateslib.default import NoInput
 from rateslib.curves import ProxyCurve, MultiCsaCurve
 
 if TYPE_CHECKING:
-    from rateslib.typing import CurveInput_, CurveInput, Solver, CurveOption_, CurveOption, Curve
+    from rateslib.typing import (
+        CurveInput_,
+        CurveInput,
+        Solver,
+        CurveOption_,
+        CurveOption,
+        Curve,
+        CurveOrId_,
+    )
 
 
-def _map_curve_from_solver_(curve: CurveInput_, solver: Solver) -> CurveOption_:
-    """If curve input involves strings get objects directly from solver curves mapping.
+def _map_curve_or_id_from_solver_(curve: CurveOrId_, solver: Solver) -> Curve:
+    """
+    Maps a str to a Curve contained in a Solver mapping.
 
-    This is the explicit variety which does not handle NoInput.
+    If a Curve, runs a check against whether that Curve is associated with the given Solver.
     """
     if isinstance(curve, str):
         return solver._get_pre_curve(curve)
-    elif isinstance(curve, dict):
-        return {k: _map_curve_from_solver_(v, solver) for k, v in curve.items()}
+    elif type(curve) is ProxyCurve or type(curve) is MultiCsaCurve:
+        # TODO: (mid) consider also adding CompositeCurves as exceptions under the same rule
+        # Proxy curves and MultiCsaCurves can exist outside of Solvers but be constructed
+        # directly from an FXForwards object tied to a Solver using only a Solver's
+        # dependent curves and AD variables.
+        return curve
     else:
-        # look to return the curve directly but perform a validation against the
-        # collection of the solver's curve dict
-        if type(curve) is ProxyCurve or type(curve) is MultiCsaCurve:
-            # TODO: (mid) consider also adding CompositeCurves as exceptions under the same rule
-            # Proxy curves and MultiCsaCurves can exist outside of Solvers but be constructed
-            # directly from an FXForwards object tied to a Solver using only a Solver's
-            # dependent curves and AD variables.
-            return curve
-
         try:
             # it is a safeguard to load curves from solvers when a solver is
             # provided and multiple curves might have the same id
@@ -63,6 +66,20 @@ def _map_curve_from_solver_(curve: CurveInput_, solver: Solver) -> CurveOption_:
                 return curve
             else:
                 raise ValueError("`curve` must be in `solver`.")
+
+
+def _map_curve_from_solver_(curve: CurveInput_, solver: Solver) -> CurveOption_:
+    """If curve input involves strings get objects directly from solver curves mapping.
+
+    This is the explicit variety which does not handle NoInput.
+    """
+    if isinstance(curve, dict):
+        mapped_dict: dict[str, Curve] = {
+            k: _map_curve_or_id_from_solver_(v, solver) for k, v in curve.items()
+        }
+        return mapped_dict
+    else:
+        return _map_curve_or_id_from_solver_(curve, solver)
 
 
 def _map_curve_from_solver(curve: CurveInput, solver: Solver) -> CurveOption:

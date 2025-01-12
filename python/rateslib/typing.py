@@ -9,11 +9,13 @@ import numpy as np
 from pandas import DataFrame as DataFrame
 from pandas import Series as Series
 
-from rateslib.curves import Curve
-from rateslib.default import NoInput
-from rateslib.dual.variable import Variable
-from rateslib.fx import FXForwards, FXRates
-from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
+from rateslib.curves import Curve as Curve
+from rateslib.default import NoInput as NoInput
+from rateslib.dual.variable import Variable as Variable
+from rateslib.fx import FXForwards as FXForwards
+from rateslib.fx import FXRates as FXRates
+from rateslib.fx_volatility import FXDeltaVolSmile as FXDeltaVolSmile
+from rateslib.fx_volatility import FXDeltaVolSurface as FXDeltaVolSurface
 from rateslib.instruments import CDS as CDS
 from rateslib.instruments import FRA as FRA
 from rateslib.instruments import IIRS as IIRS
