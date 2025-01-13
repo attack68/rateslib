@@ -1236,7 +1236,7 @@ def forward_fx(
     """  # noqa: E501
     if date == fx_settlement:  # noqa: SIM114
         return fx_rate  # noqa: SIM114
-    elif date == curve_domestic.node_dates[0] and fx_settlement is NoInput.blank:  # noqa: SIM114
+    elif date == curve_domestic.node_dates[0] and isinstance(fx_settlement, NoInput):  # noqa: SIM114
         return fx_rate  # noqa: SIM114
 
     _: DualTypes = curve_domestic[date] / curve_foreign[date]

@@ -4,10 +4,10 @@ import warnings
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from pandas import DataFrame, DatetimeIndex, MultiIndex, Series
+from pandas import DataFrame, DatetimeIndex, MultiIndex
 
 from rateslib import defaults
-from rateslib.curves import Curve
+from rateslib.curves._parsers import _validate_curve_not_no_input
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2
 from rateslib.dual.utils import _dual_float
@@ -36,7 +36,19 @@ from rateslib.periods import (
 # Contact info at rateslib.com if this code is observed outside its intended sphere of use.
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX_, NPV, Any, Curves_, DualTypes, DualTypes_, Solver_, str_
+    from rateslib.typing import (
+        FX_,
+        NPV,
+        Any,
+        Curve_,
+        Curves_,
+        DualTypes,
+        DualTypes_,
+        FixingsFx_,
+        FixingsRates_,
+        Solver_,
+        str_,
+    )
 
 
 class FXExchange(Sensitivities, BaseMixin):
@@ -59,8 +71,8 @@ class FXExchange(Sensitivities, BaseMixin):
         The signature should be: `[None, eur_curve, None, usd_curve]` for a "eurusd" pair.
     """
 
-    leg1: Cashflow
-    leg2: Cashflow
+    leg1: Cashflow  # type: ignore[assignment]
+    leg2: Cashflow  # type: ignore[assignment]
 
     def __init__(
         self,
@@ -141,8 +153,8 @@ class FXExchange(Sensitivities, BaseMixin):
             )
         elif not isinstance(fx_, FXRates | FXForwards):
             # force base_ leg1 currency to be converted consistent.
-            leg1_npv = self.leg1.npv(curves_[0], curves_[1], fx_, base_, local)
-            leg2_npv = self.leg2.npv(curves_[2], curves_[3], 1.0, base_, local)
+            leg1_npv: NPV = self.leg1.npv(curves_[0], curves_[1], fx_, base_, local)
+            leg2_npv: NPV = self.leg2.npv(curves_[2], curves_[3], 1.0, base_, local)
             warnings.warn(
                 "When valuing multi-currency derivatives it not best practice to "
                 "supply `fx` as numeric.\nYour input:\n"
@@ -160,10 +172,11 @@ class FXExchange(Sensitivities, BaseMixin):
 
         if local:
             return {
-                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0) for k in set(leg1_npv) | set(leg2_npv)
+                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0)  # type: ignore[union-attr]
+                for k in set(leg1_npv) | set(leg2_npv)  # type: ignore[arg-type]
             }
         else:
-            return leg1_npv + leg2_npv
+            return leg1_npv + leg2_npv  # type: ignore[operator]
 
     def cashflows(
         self,
@@ -190,7 +203,7 @@ class FXExchange(Sensitivities, BaseMixin):
             self.leg1.cashflows(curves_[0], curves_[1], fx_, base_),
             self.leg2.cashflows(curves_[2], curves_[3], fx_, base_),
         ]
-        _ = DataFrame.from_records(seq)
+        _: DataFrame = DataFrame.from_records(seq)
         _.index = MultiIndex.from_tuples([("leg1", 0), ("leg2", 0)])
         return _
 
@@ -214,17 +227,20 @@ class FXExchange(Sensitivities, BaseMixin):
             base,
             self.leg1.currency,
         )
-        if isinstance(fx_, FXRates | FXForwards):
-            imm_fx: FX_ = fx_.rate(self.pair)
-        else:
-            imm_fx = fx_
+        curves_1 = _validate_curve_not_no_input(curves_[1])
+        curves_3 = _validate_curve_not_no_input(curves_[3])
 
-        if isinstance(imm_fx, NoInput):
+        if isinstance(fx_, FXRates | FXForwards):
+            imm_fx: DualTypes = fx_.rate(self.pair)
+        elif isinstance(fx_, NoInput):
             raise ValueError(
                 "`fx` must be supplied to price FXExchange object.\n"
                 "Note: it can be attached to and then gotten from a Solver.",
             )
-        _ = forward_fx(self.settlement, curves_[1], curves_[3], imm_fx)
+        else:
+            imm_fx = fx_
+
+        _: DualTypes = forward_fx(self.settlement, curves_1, curves_3, imm_fx)
         return _
 
     def delta(self, *args: Any, **kwargs: Any) -> DataFrame:
@@ -329,7 +345,7 @@ class XCS(BaseDerivative):
     """
 
     leg1: FixedLeg | FloatLeg
-    leg2: FixedLeg | FloatLeg | FloatLegMtm | FixedLegMtm
+    leg2: FixedLeg | FloatLeg | FloatLegMtm | FixedLegMtm  # type: ignore[assignment]
 
     def __init__(
         self,
@@ -339,7 +355,7 @@ class XCS(BaseDerivative):
         fixed_rate: float | NoInput = NoInput(0),
         float_spread: float | NoInput = NoInput(0),
         spread_compound_method: str_ = NoInput(0),
-        fixings: float | list | Series | NoInput = NoInput(0),
+        fixings: FixingsRates_ = NoInput(0),  # type: ignore[type-var]
         fixing_method: str_ = NoInput(0),
         method_param: int | NoInput = NoInput(0),
         leg2_fixed: bool | NoInput = NoInput(0),
@@ -347,11 +363,11 @@ class XCS(BaseDerivative):
         leg2_payment_lag_exchange: int | NoInput = NoInput(1),
         leg2_fixed_rate: float | NoInput = NoInput(0),
         leg2_float_spread: float | NoInput = NoInput(0),
-        leg2_fixings: float | list | NoInput = NoInput(0),
+        leg2_fixings: FixingsRates_ = NoInput(0),
         leg2_fixing_method: str_ = NoInput(0),
         leg2_method_param: int | NoInput = NoInput(0),
         leg2_spread_compound_method: str_ = NoInput(0),
-        fx_fixings: list | DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
+        fx_fixings: FixingsFx_ = NoInput(0),  # type: ignore[type-var]
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
@@ -361,7 +377,7 @@ class XCS(BaseDerivative):
             leg2_fixed=False if isinstance(leg2_fixed, NoInput) else leg2_fixed,
             leg2_mtm=True if isinstance(leg2_mtm, NoInput) else leg2_mtm,
         )
-        self.kwargs = _update_not_noinput(self.kwargs, default_kwargs)
+        self.kwargs: dict[str, Any] = _update_not_noinput(self.kwargs, default_kwargs)
 
         if self.kwargs["fixed"]:
             self.kwargs.pop("spread_compound_method", None)
@@ -369,8 +385,8 @@ class XCS(BaseDerivative):
             self.kwargs.pop("method_param", None)
             self._fixed_rate_mixin = True
             self._fixed_rate = fixed_rate
-            leg1_user_kwargs = dict(fixed_rate=fixed_rate)
-            Leg1 = FixedLeg
+            leg1_user_kwargs: dict[str, Any] = dict(fixed_rate=fixed_rate)
+            Leg1: type[FixedLeg] | type[FloatLeg] = FixedLeg
         else:
             self._rate_scalar = 100.0
             self._float_spread_mixin = True
@@ -399,8 +415,10 @@ class XCS(BaseDerivative):
             self.kwargs.pop("leg2_method_param", None)
             self._leg2_fixed_rate_mixin = True
             self._leg2_fixed_rate = leg2_fixed_rate
-            leg2_user_kwargs = dict(leg2_fixed_rate=leg2_fixed_rate)
-            Leg2 = FixedLeg if not leg2_mtm else FixedLegMtm
+            leg2_user_kwargs: dict[str, Any] = dict(leg2_fixed_rate=leg2_fixed_rate)
+            Leg2: type[FloatLeg] | type[FixedLeg] | type[FloatLegMtm] | type[FixedLegMtm] = (
+                FixedLeg if not leg2_mtm else FixedLegMtm
+            )
         else:
             self._leg2_float_spread_mixin = True
             self._leg2_float_spread = leg2_float_spread
@@ -434,20 +452,11 @@ class XCS(BaseDerivative):
 
         self.kwargs = _update_not_noinput(self.kwargs, {**leg1_user_kwargs, **leg2_user_kwargs})
 
-        self.leg1 = Leg1(**_get(self.kwargs, leg=1, filter=["fixed"]))
-        self.leg2 = Leg2(**_get(self.kwargs, leg=2, filter=["leg2_fixed", "leg2_mtm"]))
+        self.leg1 = Leg1(**_get(self.kwargs, leg=1, filter=("fixed",)))
+        self.leg2 = Leg2(**_get(self.kwargs, leg=2, filter=("leg2_fixed", "leg2_mtm")))
         self._initialise_fx_fixings(fx_fixings)
 
-    @property
-    def fx_fixings(self):
-        return self._fx_fixings
-
-    @fx_fixings.setter
-    def fx_fixings(self, value):
-        self._fx_fixings = value
-        self._set_leg2_notional(value)
-
-    def _initialise_fx_fixings(self, fx_fixings):
+    def _initialise_fx_fixings(self, fx_fixings: FixingsFx_) -> None:
         """
         Sets the `fx_fixing` for non-mtm XCS instruments, which require only a single
         value.
@@ -470,7 +479,16 @@ class XCS(BaseDerivative):
         else:
             self._fx_fixings = fx_fixings
 
-    def _set_fx_fixings(self, fx):
+    @property
+    def fx_fixings(self) -> FixingsFx_:
+        return self._fx_fixings
+
+    @fx_fixings.setter
+    def fx_fixings(self, value: FX_) -> None:
+        self._fx_fixings = value
+        self._set_leg2_notional(value)
+
+    def _set_fx_fixings(self, fx: FX_) -> None:
         """
         Checks the `fx_fixings` and sets them according to given object if null.
 
@@ -509,7 +527,7 @@ class XCS(BaseDerivative):
         else:
             self._set_leg2_notional(fx)
 
-    def _set_leg2_notional(self, fx_arg: float | FXForwards):
+    def _set_leg2_notional(self, fx_arg: FX_) -> None:
         """
         Update the notional on leg2 (foreign leg) if the initial fx rate is unfixed.
 
@@ -535,7 +553,7 @@ class XCS(BaseDerivative):
                 self.leg2.amortization = self.leg2_amortization
 
     @property
-    def _is_unpriced(self):
+    def _is_unpriced(self) -> bool:
         if getattr(self, "_unpriced", None) is True:
             return True
         if self._fixed_rate_mixin and self._leg2_fixed_rate_mixin:
@@ -563,7 +581,7 @@ class XCS(BaseDerivative):
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards | NoInput = NoInput(0),
-    ):
+    ) -> None:
         leg: int = 1
         lookup = {
             1: ["_fixed_rate_mixin", "_float_spread_mixin"],
@@ -589,7 +607,7 @@ class XCS(BaseDerivative):
         fx: FXForwards | NoInput = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
-    ):
+    ) -> NPV:
         """
         Return the NPV of the derivative by summing legs.
 
@@ -600,7 +618,7 @@ class XCS(BaseDerivative):
 
         See :meth:`BaseDerivative.npv`.
         """
-        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+        curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,
             curves,
@@ -610,13 +628,13 @@ class XCS(BaseDerivative):
         )
 
         if self._is_unpriced:
-            self._set_pricing_mid(curves, solver, fx_)
+            self._set_pricing_mid(curves_, solver, fx_)
 
         self._set_fx_fixings(fx_)
         if self._is_mtm:
             self.leg2._do_not_repeat_set_periods = True
 
-        ret = super().npv(curves, solver, fx_, base_, local)
+        ret = super().npv(curves_, solver, fx_, base_, local)
         if self._is_mtm:
             self.leg2._do_not_repeat_set_periods = False  # reset for next calculation
         return ret
@@ -625,9 +643,9 @@ class XCS(BaseDerivative):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FXForwards | NoInput = NoInput(0),
+        fx: FX_ = NoInput(0),
         leg: int = 1,
-    ):
+    ) -> DualTypes:
         """
         Return the mid-market pricing parameter of the XCS.
 
@@ -668,7 +686,7 @@ class XCS(BaseDerivative):
         Examples
         --------
         """
-        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+        curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,
             curves,
@@ -678,11 +696,11 @@ class XCS(BaseDerivative):
         )
 
         if leg == 1:
-            tgt_fore_curve, tgt_disc_curve = curves[0], curves[1]
-            alt_fore_curve, alt_disc_curve = curves[2], curves[3]
+            tgt_fore_curve, tgt_disc_curve = curves_[0], curves_[1]
+            alt_fore_curve, alt_disc_curve = curves_[2], curves_[3]
         else:
-            tgt_fore_curve, tgt_disc_curve = curves[2], curves[3]
-            alt_fore_curve, alt_disc_curve = curves[0], curves[1]
+            tgt_fore_curve, tgt_disc_curve = curves_[2], curves_[3]
+            alt_fore_curve, alt_disc_curve = curves_[0], curves_[1]
 
         leg2 = 1 if leg == 2 else 2
         # tgt_str, alt_str = "" if leg == 1 else "leg2_", "" if leg2 == 1 else "leg2_"
@@ -749,7 +767,7 @@ class XCS(BaseDerivative):
         solver: Solver_ = NoInput(0),
         fx: FXForwards | NoInput = NoInput(0),
         base: str_ = NoInput(0),
-    ):
+    ) -> DataFrame:
         curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,
@@ -775,11 +793,11 @@ class XCS(BaseDerivative):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
-    ):
+    ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on any :class:`~rateslib.legs.FloatLeg` or
         :class:`~rateslib.legs.FloatLegMtm` associated with the *XCS*.
@@ -1052,15 +1070,24 @@ class FXSwap(XCS):
                     "Cannot initialise FXSwap with `split_notional` but without `fx_fixings`",
                 )
 
-    def _set_split_notional(self, curve: Curve | NoInput = NoInput(0), at_init: bool = False):
+    def _set_split_notional(self, curve: Curve_ = NoInput(0), at_init: bool = False) -> None:
         """
-        Will set the fixed rate, if not zero, for leg1, given provided split not or forecast splnot.
+        Will set the fixed rate, if not zero, for leg1, given the provided split notional or the
+        forecast split notional calculated from a curve.
 
-        self._split_notional is used as a temporary storage when mid market price is determined.
+        self._split_notional is used as a temporary storage when mid-market price is determined.
+
+        Parameters
+        ----------
+        curve: Curve, optional
+            A curve used to determine the split notional in the case calculation is needed
+        at_init: bool
+            A construction flag to indicate if this method is being called during initialisation.
         """
         if not self._is_split:
             self._split_notional = self.kwargs["notional"]
             # fixed rate at zero remains
+            return None
 
         # a split notional is given by a user and then this is set and never updated.
         elif not isinstance(self.kwargs["split_notional"], NoInput):
@@ -1073,8 +1100,13 @@ class FXSwap(XCS):
         # else new pricing parameters will affect and unpriced split notional
         else:
             if at_init:
-                self._split_notional = None
+                self._split_notional = NoInput(0)
             else:
+                if isinstance(curve, NoInput):
+                    raise ValueError(
+                        "A `curve` is required to determine a `split_notional` on an FXSwap if "
+                        "the `split_notional` is not provided at initialisation."
+                    )
                 dt1, dt2 = self.leg1.periods[0].payment, self.leg1.periods[2].payment
                 self._split_notional = self.kwargs["notional"] * curve[dt1] / curve[dt2]
                 self._set_leg1_fixed_rate()
