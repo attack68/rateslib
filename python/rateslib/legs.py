@@ -34,7 +34,7 @@ from rateslib.periods import (
 from rateslib.scheduling import Schedule
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX_, CalInput, CurveOption_, DualTypes, FixingsRates, Period, FixingsFx_
+    from rateslib.typing import FX_, CalInput, CurveOption_, DualTypes, FixingsRates_, Period, FixingsFx_
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -583,7 +583,7 @@ class _FloatLegMixin:
 
     def _set_fixings(
         self,
-        fixings: FixingsRates,  # type: ignore[type-var]
+        fixings: FixingsRates_,  # type: ignore[type-var]
     ) -> None:
         """
         Re-organises the fixings input to list structure for each period.
@@ -1006,7 +1006,7 @@ class FloatLeg(_FloatLegMixin, BaseLeg):
         self,
         *args: Any,
         float_spread: DualTypes | NoInput = NoInput(0),
-        fixings: FixingsRates = NoInput(0),
+        fixings: FixingsRates_ = NoInput(0),
         fixing_method: str | NoInput = NoInput(0),
         method_param: int | NoInput = NoInput(0),
         spread_compound_method: str | NoInput = NoInput(0),
@@ -1307,7 +1307,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         self,
         *args: Any,
         float_spread: DualTypes | NoInput = NoInput(0),
-        fixings: FixingsRates = NoInput(0),
+        fixings: FixingsRates_ = NoInput(0),
         fixing_method: str | NoInput = NoInput(0),
         method_param: int | NoInput = NoInput(0),
         spread_compound_method: str | NoInput = NoInput(0),
@@ -2869,7 +2869,7 @@ class FloatLegMtm(_FloatLegMixin, BaseLegMtm):
         self,
         *args: Any,
         float_spread: DualTypes | NoInput = NoInput(0),
-        fixings: FixingsRates = NoInput(0),
+        fixings: FixingsRates_ = NoInput(0),
         fixing_method: str | NoInput = NoInput(0),
         method_param: int | NoInput = NoInput(0),
         spread_compound_method: str | NoInput = NoInput(0),

@@ -36,7 +36,7 @@ from rateslib.periods import (
 # Contact info at rateslib.com if this code is observed outside its intended sphere of use.
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX_, NPV, Any, Curves_, DualTypes, DualTypes_, Solver_, str_
+    from rateslib.typing import FX_, NPV, Any, Curves_, DualTypes, DualTypes_, Solver_, str_, FixingsRates_, FixingsFx_
 
 
 class FXExchange(Sensitivities, BaseMixin):
@@ -59,8 +59,8 @@ class FXExchange(Sensitivities, BaseMixin):
         The signature should be: `[None, eur_curve, None, usd_curve]` for a "eurusd" pair.
     """
 
-    leg1: Cashflow
-    leg2: Cashflow
+    leg1: Cashflow  # type: ignore[assignment]
+    leg2: Cashflow  # type: ignore[assignment]
 
     def __init__(
         self,
@@ -332,7 +332,7 @@ class XCS(BaseDerivative):
     """
 
     leg1: FixedLeg | FloatLeg
-    leg2: FixedLeg | FloatLeg | FloatLegMtm | FixedLegMtm
+    leg2: FixedLeg | FloatLeg | FloatLegMtm | FixedLegMtm  # type: ignore[assignment]
 
     def __init__(
         self,
@@ -342,7 +342,7 @@ class XCS(BaseDerivative):
         fixed_rate: float | NoInput = NoInput(0),
         float_spread: float | NoInput = NoInput(0),
         spread_compound_method: str_ = NoInput(0),
-        fixings: float | list | Series | NoInput = NoInput(0),
+        fixings: FixingsRates_ = NoInput(0),  # type: ignore[type-var]
         fixing_method: str_ = NoInput(0),
         method_param: int | NoInput = NoInput(0),
         leg2_fixed: bool | NoInput = NoInput(0),
@@ -350,11 +350,11 @@ class XCS(BaseDerivative):
         leg2_payment_lag_exchange: int | NoInput = NoInput(1),
         leg2_fixed_rate: float | NoInput = NoInput(0),
         leg2_float_spread: float | NoInput = NoInput(0),
-        leg2_fixings: float | list | NoInput = NoInput(0),
+        leg2_fixings: FixingsRates_ = NoInput(0),
         leg2_fixing_method: str_ = NoInput(0),
         leg2_method_param: int | NoInput = NoInput(0),
         leg2_spread_compound_method: str_ = NoInput(0),
-        fx_fixings: list | DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
+        fx_fixings: FixingsFx_ = NoInput(0),  # type: ignore[type-var]
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
@@ -364,7 +364,7 @@ class XCS(BaseDerivative):
             leg2_fixed=False if isinstance(leg2_fixed, NoInput) else leg2_fixed,
             leg2_mtm=True if isinstance(leg2_mtm, NoInput) else leg2_mtm,
         )
-        self.kwargs = _update_not_noinput(self.kwargs, default_kwargs)
+        self.kwargs: dict[str, Any] = _update_not_noinput(self.kwargs, default_kwargs)
 
         if self.kwargs["fixed"]:
             self.kwargs.pop("spread_compound_method", None)
@@ -372,8 +372,8 @@ class XCS(BaseDerivative):
             self.kwargs.pop("method_param", None)
             self._fixed_rate_mixin = True
             self._fixed_rate = fixed_rate
-            leg1_user_kwargs = dict(fixed_rate=fixed_rate)
-            Leg1 = FixedLeg
+            leg1_user_kwargs: dict[str, Any] = dict(fixed_rate=fixed_rate)
+            Leg1: type[FixedLeg] | type[FloatLeg] = FixedLeg
         else:
             self._rate_scalar = 100.0
             self._float_spread_mixin = True
@@ -402,8 +402,8 @@ class XCS(BaseDerivative):
             self.kwargs.pop("leg2_method_param", None)
             self._leg2_fixed_rate_mixin = True
             self._leg2_fixed_rate = leg2_fixed_rate
-            leg2_user_kwargs = dict(leg2_fixed_rate=leg2_fixed_rate)
-            Leg2 = FixedLeg if not leg2_mtm else FixedLegMtm
+            leg2_user_kwargs: dict[str, Any] = dict(leg2_fixed_rate=leg2_fixed_rate)
+            Leg2: type[FloatLeg] | type[FixedLeg] | type[FloatLegMtm] | type[FixedLegMtm] = FixedLeg if not leg2_mtm else FixedLegMtm
         else:
             self._leg2_float_spread_mixin = True
             self._leg2_float_spread = leg2_float_spread
@@ -437,8 +437,8 @@ class XCS(BaseDerivative):
 
         self.kwargs = _update_not_noinput(self.kwargs, {**leg1_user_kwargs, **leg2_user_kwargs})
 
-        self.leg1 = Leg1(**_get(self.kwargs, leg=1, filter=["fixed"]))
-        self.leg2 = Leg2(**_get(self.kwargs, leg=2, filter=["leg2_fixed", "leg2_mtm"]))
+        self.leg1 = Leg1(**_get(self.kwargs, leg=1, filter=("fixed")))
+        self.leg2 = Leg2(**_get(self.kwargs, leg=2, filter=("leg2_fixed", "leg2_mtm")))
         self._initialise_fx_fixings(fx_fixings)
 
     @property
@@ -450,7 +450,7 @@ class XCS(BaseDerivative):
         self._fx_fixings = value
         self._set_leg2_notional(value)
 
-    def _initialise_fx_fixings(self, fx_fixings):
+    def _initialise_fx_fixings(self, fx_fixings: FixingsFx_) -> None:
         """
         Sets the `fx_fixing` for non-mtm XCS instruments, which require only a single
         value.
