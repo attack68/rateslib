@@ -61,7 +61,17 @@ from rateslib.fx_volatility import (
 from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX_, CalInput, CalTypes, Curve_, CurveOption_, DualTypes, Number
+    from rateslib.typing import (
+        FX_,
+        NPV,
+        CalInput,
+        CalTypes,
+        Curve_,
+        CurveOption_,
+        DualTypes,
+        Number,
+        str_,
+    )
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -2684,12 +2694,12 @@ class Cashflow:
 
     def npv(
         self,
-        curve: Curve | NoInput = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: Curve_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
         local: bool = False,
-    ) -> DualTypes | dict[str, DualTypes]:
+    ) -> NPV:
         """
         Return the NPV of the *Cashflow*.
         See
@@ -2701,10 +2711,10 @@ class Cashflow:
 
     def cashflows(
         self,
-        curve: Curve | NoInput = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: Curve_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
     ) -> dict[str, Any]:
         """
         Return the cashflows of the *Cashflow*.
