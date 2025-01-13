@@ -4,7 +4,7 @@ import warnings
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from pandas import DataFrame, DatetimeIndex, MultiIndex, Series
+from pandas import DataFrame, DatetimeIndex, MultiIndex
 
 from rateslib import defaults
 from rateslib.curves._parsers import _validate_curve_not_no_input
@@ -36,7 +36,20 @@ from rateslib.periods import (
 # Contact info at rateslib.com if this code is observed outside its intended sphere of use.
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX_, NPV, Any, Curves_, DualTypes, DualTypes_, Solver_, str_, FixingsRates_, FixingsFx_
+    from rateslib.typing import (
+        FX,
+        FX_,
+        NPV,
+        Any,
+        Curve_,
+        Curves_,
+        DualTypes,
+        DualTypes_,
+        FixingsFx_,
+        FixingsRates_,
+        Solver_,
+        str_,
+    )
 
 
 class FXExchange(Sensitivities, BaseMixin):
@@ -160,7 +173,8 @@ class FXExchange(Sensitivities, BaseMixin):
 
         if local:
             return {
-                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0) for k in set(leg1_npv) | set(leg2_npv)  # type: ignore[union-attr, arg-type]
+                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0)  # type: ignore[union-attr]
+                for k in set(leg1_npv) | set(leg2_npv)  # type: ignore[arg-type]
             }
         else:
             return leg1_npv + leg2_npv  # type: ignore[operator]
@@ -403,7 +417,9 @@ class XCS(BaseDerivative):
             self._leg2_fixed_rate_mixin = True
             self._leg2_fixed_rate = leg2_fixed_rate
             leg2_user_kwargs: dict[str, Any] = dict(leg2_fixed_rate=leg2_fixed_rate)
-            Leg2: type[FloatLeg] | type[FixedLeg] | type[FloatLegMtm] | type[FixedLegMtm] = FixedLeg if not leg2_mtm else FixedLegMtm
+            Leg2: type[FloatLeg] | type[FixedLeg] | type[FloatLegMtm] | type[FixedLegMtm] = (
+                FixedLeg if not leg2_mtm else FixedLegMtm
+            )
         else:
             self._leg2_float_spread_mixin = True
             self._leg2_float_spread = leg2_float_spread
@@ -437,16 +453,16 @@ class XCS(BaseDerivative):
 
         self.kwargs = _update_not_noinput(self.kwargs, {**leg1_user_kwargs, **leg2_user_kwargs})
 
-        self.leg1 = Leg1(**_get(self.kwargs, leg=1, filter=("fixed")))
+        self.leg1 = Leg1(**_get(self.kwargs, leg=1, filter=("fixed",)))
         self.leg2 = Leg2(**_get(self.kwargs, leg=2, filter=("leg2_fixed", "leg2_mtm")))
         self._initialise_fx_fixings(fx_fixings)
 
     @property
-    def fx_fixings(self):
+    def fx_fixings(self) -> FixingsFx_:
         return self._fx_fixings
 
     @fx_fixings.setter
-    def fx_fixings(self, value):
+    def fx_fixings(self, value: FX_) -> None:
         self._fx_fixings = value
         self._set_leg2_notional(value)
 
@@ -473,7 +489,7 @@ class XCS(BaseDerivative):
         else:
             self._fx_fixings = fx_fixings
 
-    def _set_fx_fixings(self, fx):
+    def _set_fx_fixings(self, fx: FX_) -> None:
         """
         Checks the `fx_fixings` and sets them according to given object if null.
 
@@ -512,7 +528,7 @@ class XCS(BaseDerivative):
         else:
             self._set_leg2_notional(fx)
 
-    def _set_leg2_notional(self, fx_arg: float | FXForwards):
+    def _set_leg2_notional(self, fx_arg: FX_) -> None:
         """
         Update the notional on leg2 (foreign leg) if the initial fx rate is unfixed.
 
@@ -538,7 +554,7 @@ class XCS(BaseDerivative):
                 self.leg2.amortization = self.leg2_amortization
 
     @property
-    def _is_unpriced(self):
+    def _is_unpriced(self) -> bool:
         if getattr(self, "_unpriced", None) is True:
             return True
         if self._fixed_rate_mixin and self._leg2_fixed_rate_mixin:
@@ -566,7 +582,7 @@ class XCS(BaseDerivative):
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards | NoInput = NoInput(0),
-    ):
+    ) -> None:
         leg: int = 1
         lookup = {
             1: ["_fixed_rate_mixin", "_float_spread_mixin"],
@@ -592,7 +608,7 @@ class XCS(BaseDerivative):
         fx: FXForwards | NoInput = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
-    ):
+    ) -> NPV:
         """
         Return the NPV of the derivative by summing legs.
 
@@ -630,7 +646,7 @@ class XCS(BaseDerivative):
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         leg: int = 1,
-    ):
+    ) -> DualTypes:
         """
         Return the mid-market pricing parameter of the XCS.
 
@@ -752,7 +768,7 @@ class XCS(BaseDerivative):
         solver: Solver_ = NoInput(0),
         fx: FXForwards | NoInput = NoInput(0),
         base: str_ = NoInput(0),
-    ):
+    ) -> DataFrame:
         curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,
@@ -778,11 +794,11 @@ class XCS(BaseDerivative):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
-    ):
+    ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on any :class:`~rateslib.legs.FloatLeg` or
         :class:`~rateslib.legs.FloatLegMtm` associated with the *XCS*.

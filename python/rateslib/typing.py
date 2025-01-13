@@ -89,7 +89,9 @@ Arr2dObj: TypeAlias = "np.ndarray[tuple[int, int], np.dtype[np.object_]]"
 FixingsRates: TypeAlias = "Series[DualTypes] | list[DualTypes | list[DualTypes] | Series[DualTypes] | NoInput] | tuple[DualTypes, Series[DualTypes]] | DualTypes"
 FixingsRates_: TypeAlias = "FixingsRates | NoInput"
 
-FixingsFx: TypeAlias = "DualTypes | list[DualTypes] | Series[DualTypes] | tuple[DualTypes, Series[DualTypes]]"
+FixingsFx: TypeAlias = (
+    "DualTypes | list[DualTypes] | Series[DualTypes] | tuple[DualTypes, Series[DualTypes]]"
+)
 FixingsFx_: TypeAlias = "FixingsFx | NoInput"
 
 str_: TypeAlias = "str | NoInput"

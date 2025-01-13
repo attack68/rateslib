@@ -34,7 +34,15 @@ from rateslib.periods import (
 from rateslib.scheduling import Schedule
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX_, CalInput, CurveOption_, DualTypes, FixingsRates_, Period, FixingsFx_
+    from rateslib.typing import (
+        FX_,
+        CalInput,
+        CurveOption_,
+        DualTypes,
+        FixingsFx_,
+        FixingsRates_,
+        Period,
+    )
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

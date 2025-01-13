@@ -212,7 +212,5 @@ def _validate_disc_curves_are_not_dict(curves_tuple: Curves_Tuple) -> Curves_Dis
 
 def _validate_curve_not_no_input(curve: Curve_) -> Curve:
     if isinstance(curve, NoInput):
-        raise ValueError(
-            "`curve` must be supplied. Got NoInput or None."
-        )
+        raise ValueError("`curve` must be supplied. Got NoInput or None.")
     return curve
