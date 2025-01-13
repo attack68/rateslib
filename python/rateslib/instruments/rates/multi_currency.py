@@ -29,7 +29,6 @@ from rateslib.legs import (
 from rateslib.periods import (
     Cashflow,
 )
-from rateslib.solver import Solver
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -37,7 +36,7 @@ from rateslib.solver import Solver
 # Contact info at rateslib.com if this code is observed outside its intended sphere of use.
 
 if TYPE_CHECKING:
-    from rateslib.typing import Curves_, DualTypes, Solver_, DualTypes_, str_, FX_, NPV, Any
+    from rateslib.typing import FX_, NPV, Any, Curves_, DualTypes, DualTypes_, Solver_, str_
 
 
 class FXExchange(Sensitivities, BaseMixin):
@@ -456,7 +455,9 @@ class XCS(BaseDerivative):
             # later. If a fixing is given this means the notional is fixed without any
             # further sensitivity, hence the downcast to a float below.
             if isinstance(fx_fixings, FXForwards):
-                self.fx_fixings = _dual_float(fx_fixings.rate(self.pair, self.leg2.periods[0].payment))
+                self.fx_fixings = _dual_float(
+                    fx_fixings.rate(self.pair, self.leg2.periods[0].payment)
+                )
             elif isinstance(fx_fixings, FXRates):
                 self.fx_fixings = _dual_float(fx_fixings.rate(self.pair))
             elif isinstance(fx_fixings, float | Dual | Dual2):
