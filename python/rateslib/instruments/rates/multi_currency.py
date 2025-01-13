@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from pandas import DataFrame, DatetimeIndex, MultiIndex, Series
 
 from rateslib import defaults
-from rateslib.curves import Curve
+from rateslib.curves._parsers import _validate_curve_not_no_input
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2
 from rateslib.dual.utils import _dual_float
@@ -141,8 +141,8 @@ class FXExchange(Sensitivities, BaseMixin):
             )
         elif not isinstance(fx_, FXRates | FXForwards):
             # force base_ leg1 currency to be converted consistent.
-            leg1_npv = self.leg1.npv(curves_[0], curves_[1], fx_, base_, local)
-            leg2_npv = self.leg2.npv(curves_[2], curves_[3], 1.0, base_, local)
+            leg1_npv: NPV = self.leg1.npv(curves_[0], curves_[1], fx_, base_, local)
+            leg2_npv: NPV = self.leg2.npv(curves_[2], curves_[3], 1.0, base_, local)
             warnings.warn(
                 "When valuing multi-currency derivatives it not best practice to "
                 "supply `fx` as numeric.\nYour input:\n"
@@ -160,10 +160,10 @@ class FXExchange(Sensitivities, BaseMixin):
 
         if local:
             return {
-                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0) for k in set(leg1_npv) | set(leg2_npv)
+                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0) for k in set(leg1_npv) | set(leg2_npv)  # type: ignore[union-attr, arg-type]
             }
         else:
-            return leg1_npv + leg2_npv
+            return leg1_npv + leg2_npv  # type: ignore[operator]
 
     def cashflows(
         self,
@@ -190,7 +190,7 @@ class FXExchange(Sensitivities, BaseMixin):
             self.leg1.cashflows(curves_[0], curves_[1], fx_, base_),
             self.leg2.cashflows(curves_[2], curves_[3], fx_, base_),
         ]
-        _ = DataFrame.from_records(seq)
+        _: DataFrame = DataFrame.from_records(seq)
         _.index = MultiIndex.from_tuples([("leg1", 0), ("leg2", 0)])
         return _
 
@@ -214,17 +214,20 @@ class FXExchange(Sensitivities, BaseMixin):
             base,
             self.leg1.currency,
         )
-        if isinstance(fx_, FXRates | FXForwards):
-            imm_fx: FX_ = fx_.rate(self.pair)
-        else:
-            imm_fx = fx_
+        curves_1 = _validate_curve_not_no_input(curves_[1])
+        curves_3 = _validate_curve_not_no_input(curves_[3])
 
-        if isinstance(imm_fx, NoInput):
+        if isinstance(fx_, FXRates | FXForwards):
+            imm_fx: DualTypes = fx_.rate(self.pair)
+        elif isinstance(fx_, NoInput):
             raise ValueError(
                 "`fx` must be supplied to price FXExchange object.\n"
                 "Note: it can be attached to and then gotten from a Solver.",
             )
-        _ = forward_fx(self.settlement, curves_[1], curves_[3], imm_fx)
+        else:
+            imm_fx = fx_
+
+        _: DualTypes = forward_fx(self.settlement, curves_1, curves_3, imm_fx)
         return _
 
     def delta(self, *args: Any, **kwargs: Any) -> DataFrame:
@@ -625,7 +628,7 @@ class XCS(BaseDerivative):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FXForwards | NoInput = NoInput(0),
+        fx: FX_ = NoInput(0),
         leg: int = 1,
     ):
         """
@@ -1052,15 +1055,24 @@ class FXSwap(XCS):
                     "Cannot initialise FXSwap with `split_notional` but without `fx_fixings`",
                 )
 
-    def _set_split_notional(self, curve: Curve | NoInput = NoInput(0), at_init: bool = False):
+    def _set_split_notional(self, curve: Curve_ = NoInput(0), at_init: bool = False) -> None:
         """
-        Will set the fixed rate, if not zero, for leg1, given provided split not or forecast splnot.
+        Will set the fixed rate, if not zero, for leg1, given the provided split notional or the
+        forecast split notional calculated from a curve.
 
-        self._split_notional is used as a temporary storage when mid market price is determined.
+        self._split_notional is used as a temporary storage when mid-market price is determined.
+
+        Parameters
+        ----------
+        curve: Curve, optional
+            A curve used to determine the split notional in the case calculation is needed
+        at_init: bool
+            A construction flag to indicate if this method is being called during initialisation.
         """
         if not self._is_split:
             self._split_notional = self.kwargs["notional"]
             # fixed rate at zero remains
+            return None
 
         # a split notional is given by a user and then this is set and never updated.
         elif not isinstance(self.kwargs["split_notional"], NoInput):
@@ -1073,8 +1085,13 @@ class FXSwap(XCS):
         # else new pricing parameters will affect and unpriced split notional
         else:
             if at_init:
-                self._split_notional = None
+                self._split_notional = NoInput(0)
             else:
+                if isinstance(curve, NoInput):
+                    raise ValueError(
+                        "A `curve` is required to determine a `split_notional` on an FXSwap if "
+                        "the `split_notional` is not provided at initialisation."
+                    )
                 dt1, dt2 = self.leg1.periods[0].payment, self.leg1.periods[2].payment
                 self._split_notional = self.kwargs["notional"] * curve[dt1] / curve[dt2]
                 self._set_leg1_fixed_rate()

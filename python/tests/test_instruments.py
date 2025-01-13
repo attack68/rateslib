@@ -3224,6 +3224,12 @@ class TestFXSwap:
         fxf._set_ad_order(2)
         fxs.rate(curves=[None, fxf.curve("usd", "usd"), None, fxf.curve("nok", "usd")], fx=fxf)
 
+    def test_split_notional_raises(self):
+        # this is an unpriced FXswap with split notional
+        fxs = FXSwap(effective=dt(2022, 2, 1), termination="3m", pair="eurusd")
+        with pytest.raises(ValueError, match="A `curve` is required to determine a `split_notion"):
+            fxs.rate()
+
 
 class TestSTIRFuture:
     def test_stir_rate(self, curve, curve2) -> None:
