@@ -1,3 +1,6 @@
+# This module is reserved only for typing purposes.
+# It avoids all circular import by performing a TYPE_CHECKING check on any component.
+
 from collections.abc import Callable as Callable
 from collections.abc import Sequence as Sequence
 from datetime import datetime as datetime
