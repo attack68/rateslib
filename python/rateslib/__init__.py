@@ -144,7 +144,7 @@ fixed income instrument configuration and calculation.
 It aims to be the fundamental high-level building block for practical analysis of
 fixed income securities, derivatives, FX representation and curve construction
 in Python.
-"""
+"""  # noqa: A001
 
 # Use __all__ to let type checkers know what is part of the public API.
 # Rateslib is not (yet) a py.typed library: the public API is determined

@@ -1,11 +1,3 @@
-"""
-.. ipython:: python
-   :suppress:
-
-   from rateslib.curves import *
-   from datetime import datetime as dt
-"""
-
 from __future__ import annotations
 
 import json
@@ -20,17 +12,13 @@ import numpy as np
 from pytz import UTC
 
 from rateslib import defaults
-from rateslib.calendars import CalInput, add_tenor, dcf
+from rateslib.calendars import add_tenor, dcf
 from rateslib.calendars.dcfs import _DCF1d
-from rateslib.calendars.rs import CalTypes, get_calendar
+from rateslib.calendars.rs import get_calendar
 from rateslib.default import NoInput, PlotOutput, _drb, _validate_states, _WithState, plot
-from rateslib.dual import (  # type: ignore[attr-defined]
-    Arr1dF64,
-    Arr1dObj,
+from rateslib.dual import (
     Dual,
     Dual2,
-    DualTypes,
-    Number,
     dual_exp,
     dual_log,
     set_order_convert,
@@ -41,6 +29,7 @@ from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
     from rateslib.fx import FXForwards  # pragma: no cover
+    from rateslib.typing import Arr1dF64, Arr1dObj, CalInput, CalTypes, DualTypes, Number
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -188,7 +177,7 @@ class Curve(_WithState):
         t: list[datetime] | NoInput = NoInput(0),
         c: list[float] | NoInput = NoInput(0),
         endpoints: str | tuple[str, str] | NoInput = NoInput(0),
-        id: str | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),  # noqa: A002
         convention: str | NoInput = NoInput(0),
         modifier: str | NoInput = NoInput(0),
         calendar: CalInput = NoInput(0),
@@ -499,7 +488,7 @@ class Curve(_WithState):
     def shift(
         self,
         spread: DualTypes,
-        id: str | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),  # noqa: A002
         composite: bool = True,
         collateral: str | NoInput = NoInput(0),
     ) -> Curve:
@@ -1788,7 +1777,7 @@ class LineCurve(Curve):
     def shift(
         self,
         spread: DualTypes,
-        id: str | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),  # noqa: A002
         composite: bool = True,
         collateral: str | NoInput = NoInput(0),
     ) -> Curve:
@@ -2349,7 +2338,7 @@ class CompositeCurve(Curve):
     def __init__(
         self,
         curves: list[Curve] | tuple[Curve, ...],
-        id: str | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),  # noqa: A002
     ) -> None:
         self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
 
@@ -2533,7 +2522,7 @@ class CompositeCurve(Curve):
     def shift(
         self,
         spread: DualTypes,
-        id: str | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),  # noqa: A002
         composite: bool = True,
         collateral: str | NoInput = NoInput(0),
     ) -> CompositeCurve:
@@ -2688,7 +2677,7 @@ class MultiCsaCurve(CompositeCurve):
     def __init__(
         self,
         curves: list[Curve] | tuple[Curve, ...],
-        id: str | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),  # noqa: A002
         multi_csa_min_step: int = 1,
         multi_csa_max_step: int = 1825,
     ) -> None:
@@ -2848,7 +2837,7 @@ class MultiCsaCurve(CompositeCurve):
     def shift(
         self,
         spread: DualTypes,
-        id: str | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),  # noqa: A002
         composite: bool | NoInput = True,
         collateral: str | NoInput = NoInput(0),
     ) -> MultiCsaCurve:
@@ -3208,14 +3197,13 @@ class ProxyCurve(Curve):
         convention: str | NoInput = NoInput(0),
         modifier: str | NoInput = NoInput(1),  # inherits from existing curve objects
         calendar: CalInput = NoInput(1),  # inherits from existing curve objects
-        id: str | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),  # noqa: A002
     ):
         self.index_base = NoInput(0)
         self.index_lag = 0  # not relevant for proxy curve
         self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
         self.collateral = coll_ccy
-        self._is_proxy = True
         self.fx_forwards = fx_forwards
         self.cash_currency = cash_ccy
         self.cash_pair = f"{cash_ccy}{cash_ccy}"

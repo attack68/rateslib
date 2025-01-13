@@ -3,16 +3,19 @@ from __future__ import annotations
 import abc
 import warnings
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 
 import numpy as np
 from pandas import DataFrame, Series
 
 from rateslib import defaults
-from rateslib.calendars import CalInput, add_tenor, dcf
+from rateslib.calendars import add_tenor, dcf
 from rateslib.curves import Curve, IndexCurve, LineCurve, average_rate, index_left
 from rateslib.default import NoInput, _drb
-from rateslib.dual import Dual, Dual2, DualTypes, Number, gradient
+from rateslib.dual import Dual, Dual2, gradient, quadratic_eqn
+from rateslib.dual.utils import _dual_float, _get_order_of
 from rateslib.fx import FXForwards, FXRates
+from rateslib.instruments.base import BaseMixin
 from rateslib.instruments.bonds.conventions import (
     BILL_MODE_MAP,
     BOND_MODE_MAP,
@@ -20,11 +23,10 @@ from rateslib.instruments.bonds.conventions import (
     BondCalcMode,
     _get_calc_mode_for_class,
 )
+from rateslib.instruments.sensitivities import Sensitivities
 
 # from scipy.optimize import brentq
-from rateslib.instruments.inst_core import (
-    BaseMixin,
-    Sensitivities,
+from rateslib.instruments.utils import (
     _get,
     _get_curves_fx_and_base_maybe_from_solver,
     _push,
@@ -40,7 +42,19 @@ from rateslib.periods import (
     _disc_maybe_from_curve,
     _maybe_local,
 )
-from rateslib.solver import Solver, quadratic_eqn
+
+if TYPE_CHECKING:
+    from rateslib.typing import (
+        FX_,
+        Any,
+        CalInput,
+        Callable,
+        CurveOption,
+        Curves_,
+        DualTypes,
+        Number,
+        Solver_,
+    )
 
 
 class BondMixin:
@@ -60,7 +74,7 @@ class BondMixin:
     def _period_cashflow(
         self,
         period: Cashflow | FixedPeriod | FloatPeriod | IndexCashflow | IndexFixedPeriod,
-        curve: Curve | LineCurve | NoInput,
+        curve: Curve | NoInput,
     ):
         pass  # pragma: no cover
 
@@ -78,14 +92,14 @@ class BondMixin:
     #     except KeyError:
     #         raise ValueError(f"Cannot calculate for `calc_mode`: {calc_mode}")
 
-    def _set_base_index_if_none(self, curve: IndexCurve):
-        if self._index_base_mixin and self.index_base is NoInput.blank:
+    def _set_base_index_if_none(self, curve: Curve) -> None:
+        if self._index_base_mixin and isinstance(self.index_base, NoInput):
             self.leg1.index_base = curve.index_value(
                 self.leg1.schedule.effective,
                 self.leg1.index_method,
             )
 
-    def ex_div(self, settlement: datetime):
+    def ex_div(self, settlement: datetime) -> bool:
         """
         Return a boolean whether the security is ex-div at the given settlement.
 
@@ -141,7 +155,7 @@ class BondMixin:
 
     def _ytm(
         self,
-        price: Number,
+        price: DualTypes,
         settlement: datetime,
         curve: Curve | LineCurve | NoInput,
         dirty: bool,
@@ -171,18 +185,24 @@ class BondMixin:
 
         """  # noqa: E501
 
+        price_float: float = _dual_float(price)
+
         def root(y):
             # we set this to work in float arithmetic for efficiency. Dual is added
             # back below, see PR GH3
-            return self._price_from_ytm(
-                ytm=y, settlement=settlement, calc_mode=self.calc_mode, dirty=dirty, curve=curve
-            ) - float(price)
+            return (
+                self._price_from_ytm(
+                    ytm=y, settlement=settlement, calc_mode=self.calc_mode, dirty=dirty, curve=curve
+                )
+                - price_float
+            )
 
         # x = brentq(root, -99, 10000)  # remove dependence to scipy.optimize.brentq
         # x, iters = _brents(root, -99, 10000)  # use own local brents code
         x = _ytm_quadratic_converger2(root, -3.0, 2.0, 12.0)  # use special quad interp
 
-        if isinstance(price, Dual):
+        ad_order = _get_order_of(price)
+        if ad_order == 1:
             # use the inverse function theorem to express x as a Dual
             p = self._price_from_ytm(
                 ytm=Dual(x, ["y"], []),
@@ -192,7 +212,7 @@ class BondMixin:
                 curve=NoInput(0),
             )
             return Dual(x, price.vars, 1 / gradient(p, ["y"])[0] * price.dual)
-        elif isinstance(price, Dual2):
+        elif ad_order == 2:
             # use the IFT in 2nd order to express x as a Dual2
             p = self._price_from_ytm(
                 ytm=Dual2(x, ["y"], [], []),
@@ -215,7 +235,7 @@ class BondMixin:
 
     def _price_from_ytm(
         self,
-        ytm: float,
+        ytm: DualTypes,
         settlement: datetime,
         calc_mode: str | BondCalcMode | NoInput,
         dirty: bool,
@@ -298,14 +318,14 @@ class BondMixin:
 
     def fwd_from_repo(
         self,
-        price: float | Dual | Dual2,
+        price: DualTypes,
         settlement: datetime,
         forward_settlement: datetime,
-        repo_rate: float | Dual | Dual2,
+        repo_rate: DualTypes,
         convention: str | NoInput = NoInput(0),
         dirty: bool = False,
         method: str = "proceeds",
-    ):
+    ) -> DualTypes:
         """
         Return a forward price implied by a given repo rate.
 
@@ -336,7 +356,7 @@ class BondMixin:
         Any intermediate (non ex-dividend) cashflows between ``settlement`` and
         ``forward_settlement`` will also be assumed to accrue at ``repo_rate``.
         """
-        convention = defaults.convention if convention is NoInput.blank else convention
+        convention = _drb(defaults.convention, convention)
         dcf_ = dcf(settlement, forward_settlement, convention)
         if not dirty:
             d_price = price + self.accrued(settlement)
@@ -387,13 +407,13 @@ class BondMixin:
 
     def repo_from_fwd(
         self,
-        price: float | Dual | Dual2,
+        price: DualTypes,
         settlement: datetime,
         forward_settlement: datetime,
-        forward_price: float | Dual | Dual2,
+        forward_price: DualTypes,
         convention: str | NoInput = NoInput(0),
         dirty: bool = False,
-    ):
+    ) -> DualTypes:
         """
         Return an implied repo rate from a forward price.
 
@@ -422,7 +442,7 @@ class BondMixin:
         Any intermediate (non ex-dividend) cashflows between ``settlement`` and
         ``forward_settlement`` will also be assumed to accrue at ``repo_rate``.
         """
-        convention = defaults.convention if convention is NoInput.blank else convention
+        convention = _drb(defaults.convention, convention)
         # forward price from repo is linear in repo_rate so reverse calculate with AD
         if not dirty:
             p_t = forward_price + self.accrued(forward_settlement)
@@ -527,7 +547,7 @@ class BondMixin:
             # deduct coupon after settlement which is also unpaid
             npv -= self.leg1.periods[settle_idx].npv(curve, disc_curve, NoInput(0), NoInput(0))
 
-        if projection is NoInput.blank:
+        if isinstance(projection, NoInput):
             return npv
         else:
             return npv / disc_curve[projection]
@@ -535,7 +555,7 @@ class BondMixin:
     def npv(
         self,
         curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
@@ -635,7 +655,7 @@ class BondMixin:
     def cashflows(
         self,
         curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         settlement: datetime | NoInput = NoInput(0),
@@ -680,9 +700,9 @@ class BondMixin:
         )
         self._set_base_index_if_none(curves[0])
 
-        if settlement is NoInput.blank and curves[1] is NoInput.blank:
+        if isinstance(settlement, NoInput) and isinstance(curves[1], NoInput):
             settlement = self.leg1.schedule.effective
-        elif settlement is NoInput.blank:
+        elif isinstance(settlement, NoInput):
             settlement = self.leg1.schedule.calendar.lag(
                 curves[1].node_dates[0],
                 self.kwargs["settle"],
@@ -703,7 +723,7 @@ class BondMixin:
     def oaspread(
         self,
         curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         price: DualTypes = NoInput(0),
@@ -1129,6 +1149,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     """  # noqa: E501
 
     _fixed_rate_mixin = True
+    fixed_rate: DualTypes
 
     def _period_cashflow(
         self,
@@ -1198,8 +1219,10 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         )
         self.kwargs = _update_with_defaults(self.kwargs, default_kwargs)
 
-        if self.kwargs["frequency"] is NoInput.blank:
+        if isinstance(self.kwargs["frequency"], NoInput):
             raise ValueError("`frequency` must be provided for Bond.")
+        if isinstance(self.kwargs["fixed_rate"], NoInput):
+            raise ValueError("`fixed_rate` must be provided for Bond.")
         # elif self.kwargs["frequency"].lower() == "z":
         #     raise ValueError("FixedRateBond `frequency` must be in {M, B, Q, T, S, A}.")
 
@@ -1243,9 +1266,9 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
     def rate(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         metric: str = "clean_price",
         forward_settlement: datetime | NoInput = NoInput(0),
@@ -1291,7 +1314,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
         metric = metric.lower()
         if metric in ["clean_price", "dirty_price", "ytm"]:
-            if forward_settlement is NoInput.blank:
+            if isinstance(forward_settlement, NoInput):
                 settlement = self.leg1.schedule.calendar.lag(
                     curves[1].node_dates[0],
                     self.kwargs["settle"],
@@ -1337,7 +1360,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
     #     TODO: calculate this par_spread formula.
     #     return (self.notional - self.npv(*args, **kwargs)) / self.analytic_delta(*args, **kwargs)
 
-    def ytm(self, price: Number, settlement: datetime, dirty: bool = False) -> Number:
+    def ytm(self, price: DualTypes, settlement: datetime, dirty: bool = False) -> Number:
         """
         Calculate the yield-to-maturity of the security given its price.
 
@@ -1386,7 +1409,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         """  # noqa: E501
         return self._ytm(price=price, settlement=settlement, dirty=dirty, curve=NoInput(0))
 
-    def duration(self, ytm: float, settlement: datetime, metric: str = "risk"):
+    def duration(self, ytm: DualTypes, settlement: datetime, metric: str = "risk") -> float:
         """
         Return the (negated) derivative of ``price`` w.r.t. ``ytm``.
 
@@ -1451,19 +1474,21 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
            gilt.price(4.445, dt(1999, 5, 27))
            gilt.price(4.455, dt(1999, 5, 27))
         """
+        # TODO: this is not AD safe: returns only float
+        ytm_: float = _dual_float(ytm)
         if metric == "risk":
-            _ = -gradient(self.price(Dual(float(ytm), ["y"], []), settlement), ["y"])[0]
+            _: float = -gradient(self.price(Dual(ytm_, ["y"], []), settlement), ["y"])[0]
         elif metric == "modified":
-            price = -self.price(Dual(float(ytm), ["y"], []), settlement, dirty=True)
+            price = -self.price(Dual(ytm_, ["y"], []), settlement, dirty=True)
             _ = -gradient(price, ["y"])[0] / float(price) * 100
         elif metric == "duration":
-            price = self.price(Dual(float(ytm), ["y"], []), settlement, dirty=True)
+            price = self.price(Dual(ytm_, ["y"], []), settlement, dirty=True)
             f = 12 / defaults.frequency_months[self.kwargs["frequency"].upper()]
-            v = 1 + float(ytm) / (100 * f)
+            v = 1 + ytm_ / (100 * f)
             _ = -gradient(price, ["y"])[0] / float(price) * v * 100
         return _
 
-    def convexity(self, ytm: float, settlement: datetime):
+    def convexity(self, ytm: DualTypes, settlement: datetime) -> float:
         """
         Return the second derivative of ``price`` w.r.t. ``ytm``.
 
@@ -1502,10 +1527,12 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
            gilt.duration(4.445, dt(1999, 5, 27))
            gilt.duration(4.455, dt(1999, 5, 27))
         """
-        _ = self.price(Dual2(float(ytm), ["y"], [], []), settlement)
-        return gradient(_, ["y"], 2)[0][0]
+        # TODO: method is not AD safe: returns float
+        ytm_: float = _dual_float(ytm)
+        _ = self.price(Dual2(ytm_, ["_ytm__§"], [], []), settlement)
+        return gradient(_, ["_ytm__§"], 2)[0][0]
 
-    def price(self, ytm: float, settlement: datetime, dirty: bool = False):
+    def price(self, ytm: DualTypes, settlement: datetime, dirty: bool = False):
         """
         Calculate the price of the security per nominal value of 100, given
         yield-to-maturity.
@@ -1707,7 +1734,7 @@ class IndexFixedRateBond(FixedRateBond):
         )
         self.kwargs = _update_with_defaults(self.kwargs, default_kwargs)
 
-        if self.kwargs["frequency"] is NoInput.blank:
+        if isinstance(self.kwargs["frequency"], NoInput):
             raise ValueError("`frequency` must be provided for Bond.")
         # elif self.kwargs["frequency"].lower() == "z":
         #     raise ValueError("FixedRateBond `frequency` must be in {M, B, Q, T, S, A}.")
@@ -1730,7 +1757,7 @@ class IndexFixedRateBond(FixedRateBond):
             raise NotImplementedError("`amortization` for IndexFixedRateBond must be zero.")
 
     def index_ratio(self, settlement: datetime, curve: IndexCurve | NoInput):
-        if self.leg1.index_fixings is not NoInput.blank and not isinstance(
+        if not isinstance(self.leg1.index_fixings, NoInput) and not isinstance(
             self.leg1.index_fixings,
             Series,
         ):
@@ -1757,7 +1784,7 @@ class IndexFixedRateBond(FixedRateBond):
     def rate(
         self,
         curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         metric: str = "clean_price",
@@ -1815,7 +1842,7 @@ class IndexFixedRateBond(FixedRateBond):
             "ytm",
             "index_dirty_price",
         ]:
-            if forward_settlement is NoInput.blank:
+            if isinstance(forward_settlement, NoInput):
                 settlement = self.leg1.schedule.calendar.lag(
                     curves[1].node_dates[0],
                     self.kwargs["settle"],
@@ -2036,7 +2063,7 @@ class Bill(FixedRateBond):
         )
 
     @property
-    def dcf(self):
+    def dcf(self) -> float:
         # bills will typically have 1 period since they are configured with frequency "z".
         d = 0.0
         for i in range(self.leg1.schedule.n_periods):
@@ -2045,12 +2072,12 @@ class Bill(FixedRateBond):
 
     def rate(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
-        metric="price",
-    ):
+        metric: str = "price",
+    ) -> DualTypes:
         """
         Return various pricing metrics of the security calculated from
         :class:`~rateslib.curves.Curve` s.
@@ -2182,12 +2209,12 @@ class Bill(FixedRateBond):
         price_func = getattr(self, f"_price_{self.calc_mode._price_type}")
         return price_func(rate, settlement)
 
-    def _price_discount(self, rate: DualTypes, settlement: datetime):
+    def _price_discount(self, rate: DualTypes, settlement: datetime) -> DualTypes:
         acc_frac = self.calc_mode._settle_acc_frac_func(self, settlement, 0)
         dcf = (1 - acc_frac) * self.dcf
         return 100 - rate * dcf
 
-    def _price_simple(self, rate: DualTypes, settlement: datetime):
+    def _price_simple(self, rate: DualTypes, settlement: datetime) -> DualTypes:
         acc_frac = self.calc_mode._settle_acc_frac_func(self, settlement, 0)
         dcf = (1 - acc_frac) * self.dcf
         return 100 / (1 + rate * dcf / 100)
@@ -2197,7 +2224,7 @@ class Bill(FixedRateBond):
         price: DualTypes,
         settlement: datetime,
         calc_mode: str | BillCalcMode | NoInput = NoInput(0),
-    ):
+    ) -> DualTypes:
         """
         Calculate the yield-to-maturity on an equivalent bond with a coupon of 0%.
 
@@ -2224,7 +2251,7 @@ class Bill(FixedRateBond):
         with a regular 0% coupon measured from the termination date of the bill.
         """
 
-        if calc_mode is NoInput.blank:
+        if isinstance(calc_mode, NoInput):
             calc_mode = self.calc_mode
             # kwargs["frequency"] is populated as the ytm_clone frequency at __init__
             freq = self.kwargs["frequency"]
@@ -2465,7 +2492,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         )
         self.kwargs = _update_with_defaults(self.kwargs, default_kwargs)
 
-        if self.kwargs["frequency"] is NoInput.blank:
+        if isinstance(self.kwargs["frequency"], NoInput):
             raise ValueError("`frequency` must be provided for Bond.")
         elif self.kwargs["frequency"].lower() == "z":
             raise ValueError("FloatRateNote `frequency` must be in {M, B, Q, T, S, A}.")
@@ -2499,7 +2526,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
             # self.notional which is currently assumed to be a fixed quantity
             raise NotImplementedError("`amortization` for FloatRateNote must be zero.")
 
-    def _accrual_rate(self, pseudo_period, curve, method_param):
+    def _accrual_rate(self, pseudo_period: FloatPeriod, curve: CurveOption, method_param: int):
         """
         Take a period and try to forecast the rate which determines the accrual,
         either from known fixings, a curve or forward filling historical fixings.
@@ -2510,7 +2537,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         if pseudo_period.dcf < 1e-10:
             return 0.0  # there are no fixings in the period.
 
-        if curve is not NoInput.blank:
+        if not isinstance(curve, NoInput):
             curve_ = curve
         else:
             # Test to see if any missing fixings are required:
@@ -2665,15 +2692,16 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
             if self.ex_div(settlement):
                 frac = frac - 1  # accrued is negative in ex-div period
 
-            if curve is not NoInput.blank:
-                curve_ = curve
-            else:
+            if isinstance(curve, NoInput):
                 curve_ = Curve(
                     {  # create a dummy curve. rate() will return the fixing
                         self.leg1.periods[acc_idx].start: 1.0,
                         self.leg1.periods[acc_idx].end: 1.0,
                     },
                 )
+            else:
+                curve_ = curve
+
             rate = self.leg1.periods[acc_idx].rate(curve_)
 
             cashflow = (
@@ -2721,7 +2749,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
     def rate(
         self,
         curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         metric="clean_price",
@@ -2773,7 +2801,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
 
         metric = metric.lower()
         if metric in ["clean_price", "dirty_price", "spread", "ytm"]:
-            if forward_settlement is NoInput.blank:
+            if isinstance(forward_settlement, NoInput):
                 settlement = self.leg1.schedule.calendar.lag(
                     curves[1].node_dates[0],  # discount curve
                     self.kwargs["settle"],
@@ -2791,7 +2819,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
                 return dirty_price - self.accrued(settlement, curve=curves[0])
             elif metric == "spread":
                 _ = self.leg1._spread(-(npv + self.leg1.notional), curves[0], curves[1])
-                z = 0.0 if self.float_spread is NoInput.blank else self.float_spread
+                z = _drb(0.0, self.float_spread)
                 return _ + z
             elif metric == "ytm":
                 return self.ytm(
@@ -2800,7 +2828,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
 
         raise ValueError("`metric` must be in {'dirty_price', 'clean_price', 'spread', 'ytm'}.")
 
-    def delta(self, *args, **kwargs):
+    def delta(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
         Calculate the delta of the *Instrument*.
 
@@ -2808,7 +2836,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         """
         return super().delta(*args, **kwargs)
 
-    def gamma(self, *args, **kwargs):
+    def gamma(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
         Calculate the gamma of the *Instrument*.
 
@@ -2818,9 +2846,9 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
 
     def fixings_table(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
@@ -2856,7 +2884,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         -------
         DataFrame
         """
-        curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+        curves_, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,
             curves,
@@ -2865,7 +2893,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
             self.leg1.currency,
         )
         df = self.leg1.fixings_table(
-            curve=curves[0], approximate=approximate, disc_curve=curves[1], right=right
+            curve=curves_[0], approximate=approximate, disc_curve=curves_[1], right=right
         )
         return df
 
@@ -2905,7 +2933,16 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         return self._ytm(price=price, settlement=settlement, dirty=dirty, curve=curve)
 
 
-def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9):
+def _ytm_quadratic_converger2(
+    f: Callable[[float], float],
+    y0: float,
+    y1: float,
+    y2: float,
+    f0: float | None = None,
+    f1: float | None = None,
+    f2: float | None = None,
+    tol: float = 1e-9,
+) -> float:
     """
     Convert a price from yield function `f` into a quadratic approximation and
     determine the root, yield, which matches the target price.
@@ -2934,7 +2971,8 @@ def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9
     # check tolerance from previous recursive estimations
     for i, f_ in enumerate([f0, f1, f2]):
         if abs(f_) < tol:
-            return _b[i, 0]
+            y: float = _b[i, 0]
+            return y
 
     _A = np.array([[f0**2, f0, 1], [f1**2, f1, 1], [f2**2, f2, 1]])
     c = np.linalg.solve(_A, _b)

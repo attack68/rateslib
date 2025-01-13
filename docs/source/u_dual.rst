@@ -36,6 +36,10 @@ Methods
    rateslib.dual.dual_norm_cdf
    rateslib.dual.dual_inv_norm_cdf
    rateslib.dual.dual_solve
+   rateslib.dual.newton_1dim
+   rateslib.dual.newton_ndim
+   rateslib.dual.quadratic_eqn
+
 
 Example
 *******

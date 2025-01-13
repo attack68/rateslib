@@ -1,9 +1,13 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from rateslib import defaults
 from rateslib.default import NoInput
 from rateslib.rs import Cal, Modifier, NamedCal, RollDay, UnionCal
 
-CalTypes = Cal | UnionCal | NamedCal
-CalInput = CalTypes | str | NoInput
+if TYPE_CHECKING:
+    from rateslib.typing import CalInput, CalTypes
 
 
 def _get_rollday(roll: str | int | NoInput) -> RollDay:
@@ -136,31 +140,24 @@ def _parse_str_calendar(calendar: str, named: bool) -> CalTypes:
     """Parse the calendar string using Python and construct calendar objects."""
     vectors = calendar.split("|")
     if len(vectors) == 1:
-        calendars = vectors[0].lower().split(",")
-        if len(calendars) == 1:  # only one named calendar is found
-            return defaults.calendars[calendars[0]]  # lookup Hashmap
-        else:
-            # combined calendars are not yet predefined so this does not beenfit from hashmap speed
-            if named:
-                return NamedCal(calendar)
-            else:
-                cals = [defaults.calendars[_] for _ in calendars]
-                cals_: list[Cal] = []
-                for cal in cals:
-                    if isinstance(cal, Cal):
-                        cals_.append(cal)
-                    elif isinstance(cal, NamedCal):
-                        cals_.extend(cal.union_cal.calendars)
-                    else:
-                        cals_.extend(cal.calendars)
-                return UnionCal(cals_, None)
+        return _parse_str_calendar_no_associated(vectors[0], named)
     elif len(vectors) == 2:
+        return _parse_str_calendar_with_associated(vectors[0], vectors[1], named)
+    else:
+        raise ValueError("Cannot use more than one pipe ('|') operator in `calendar`.")
+
+
+def _parse_str_calendar_no_associated(calendar: str, named: bool) -> CalTypes:
+    calendars = calendar.lower().split(",")
+    if len(calendars) == 1:  # only one named calendar is found
+        return defaults.calendars[calendars[0]]  # lookup Hashmap
+    else:
+        # combined calendars are not yet predefined so this does not benefit from hashmap speed
         if named:
             return NamedCal(calendar)
         else:
-            calendars = vectors[0].lower().split(",")
             cals = [defaults.calendars[_] for _ in calendars]
-            cals_ = []
+            cals_: list[Cal] = []
             for cal in cals:
                 if isinstance(cal, Cal):
                     cals_.append(cal)
@@ -168,18 +165,35 @@ def _parse_str_calendar(calendar: str, named: bool) -> CalTypes:
                     cals_.extend(cal.union_cal.calendars)
                 else:
                     cals_.extend(cal.calendars)
+            return UnionCal(cals_, None)
 
-            settlement_calendars = vectors[1].lower().split(",")
-            sets = [defaults.calendars[_] for _ in settlement_calendars]
-            sets_: list[Cal] = []
-            for cal in sets:
-                if isinstance(cal, Cal):
-                    sets_.append(cal)
-                elif isinstance(cal, NamedCal):
-                    sets_.extend(cal.union_cal.calendars)
-                else:
-                    sets_.extend(cal.calendars)
 
-            return UnionCal(cals_, sets_)
+def _parse_str_calendar_with_associated(
+    calendar: str, associated_calendar: str, named: bool
+) -> CalTypes:
+    if named:
+        return NamedCal(calendar + "|" + associated_calendar)
     else:
-        raise ValueError("Cannot use more than one pipe ('|') operator in `calendar`.")
+        calendars = calendar.lower().split(",")
+        cals = [defaults.calendars[_] for _ in calendars]
+        cals_ = []
+        for cal in cals:
+            if isinstance(cal, Cal):
+                cals_.append(cal)
+            elif isinstance(cal, NamedCal):
+                cals_.extend(cal.union_cal.calendars)
+            else:
+                cals_.extend(cal.calendars)
+
+        settlement_calendars = associated_calendar.lower().split(",")
+        sets = [defaults.calendars[_] for _ in settlement_calendars]
+        sets_: list[Cal] = []
+        for cal in sets:
+            if isinstance(cal, Cal):
+                sets_.append(cal)
+            elif isinstance(cal, NamedCal):
+                sets_.extend(cal.union_cal.calendars)
+            else:
+                sets_.extend(cal.calendars)
+
+        return UnionCal(cals_, sets_)

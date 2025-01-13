@@ -4,16 +4,19 @@ import json
 import warnings
 from datetime import datetime, timedelta
 from itertools import product
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from pandas import DataFrame, Series
 
-from rateslib.calendars import CalInput, add_tenor
+from rateslib.calendars import add_tenor
 from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
 from rateslib.default import NoInput, PlotOutput, _validate_states, _WithState, plot
-from rateslib.dual import Dual, DualTypes, Number, gradient
+from rateslib.dual import Dual, gradient
 from rateslib.fx.fx_rates import FXRates
+
+if TYPE_CHECKING:
+    from rateslib.typing import CalInput, DualTypes, Number
 
 """
 .. ipython:: python
@@ -330,7 +333,7 @@ class FXForwards(_WithState):
         if len(self.currencies_list) > 5:
             return (
                 f"<rl.FXForwards:[{','.join(self.currencies_list[:2])},"
-                f"+{len(self.currencies_list)-2} others] at {hex(id(self))}>"
+                f"+{len(self.currencies_list) - 2} others] at {hex(id(self))}>"
             )
         else:
             return f"<rl.FXForwards:[{','.join(self.currencies_list)}] at {hex(id(self))}>"
@@ -371,7 +374,7 @@ class FXForwards(_WithState):
             )
         elif T.sum() < (2 * q) - 1:
             raise ValueError(
-                f"`fx_curves` is underspecified. {2 * q -1} curves are expected "
+                f"`fx_curves` is underspecified. {2 * q - 1} curves are expected "
                 f"but {len(fx_curves.keys())} provided.",
             )
         elif np.linalg.matrix_rank(T) != q:
@@ -814,7 +817,7 @@ class FXForwards(_WithState):
 
         # j = self.currencies[base]
         # return np.sum(array_ * self.fx_array[:, j])
-        sum: DualTypes = 0.0
+        sum_: DualTypes = 0.0
         for d in array_.columns:
             d_sum: DualTypes = 0.0
             for ccy in array_.index:
@@ -822,11 +825,11 @@ class FXForwards(_WithState):
                 value_: DualTypes | None = self.convert(array_.loc[ccy, d], ccy, base, d)  # type: ignore[arg-type]
                 d_sum += 0.0 if value_ is None else value_
             if abs(d_sum) < 1e-2:
-                sum += d_sum
+                sum_ += d_sum
             else:  # only discount if there is a real value
                 value_ = self.convert(d_sum, base, base, d, self.immediate)  # type: ignore[arg-type]
-                sum += 0.0 if value_ is None else value_
-        return sum
+                sum_ += 0.0 if value_ is None else value_
+        return sum_
 
     @_validate_states
     def swap(
@@ -912,7 +915,7 @@ class FXForwards(_WithState):
         convention: str | NoInput = NoInput(1),  # will inherit from available curve
         modifier: str | NoInput = NoInput(1),  # will inherit from available curve
         calendar: CalInput = NoInput(1),  # will inherit from available curve
-        id: str | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),  # noqa: A002
     ) -> Curve:
         """
         Return a cash collateral curve.

@@ -9,7 +9,7 @@ from pandas.testing import assert_frame_equal, assert_series_equal
 from rateslib import default_context
 from rateslib.curves import CompositeCurve, Curve, LineCurve, index_left
 from rateslib.default import NoInput
-from rateslib.dual import Dual, Dual2, gradient
+from rateslib.dual import Dual, Dual2, gradient, newton_1dim, newton_ndim
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
 from rateslib.instruments import (
@@ -25,7 +25,7 @@ from rateslib.instruments import (
     Portfolio,
     Value,
 )
-from rateslib.solver import Gradients, Solver, newton_1dim, newton_ndim
+from rateslib.solver import Gradients, Solver
 
 
 class TestGradients:

@@ -9,7 +9,6 @@ from rateslib.dual import (
     Dual,
     Dual2,
     Variable,
-    _abs_float,
     dual_exp,
     dual_inv_norm_cdf,
     dual_log,
@@ -19,6 +18,7 @@ from rateslib.dual import (
     gradient,
     set_order,
 )
+from rateslib.dual.utils import _abs_float
 
 DUAL_CORE_PY = False
 
@@ -128,29 +128,29 @@ def test_dual_str(x_1, y_2) -> None:
 
 
 @pytest.mark.parametrize(
-    ("vars", "expected"),
+    ("vars_", "expected"),
     [
         (["v0"], 1.00),
         (["v1", "v0"], np.array([2.0, 1.0])),
     ],
 )
-def test_gradient_method(vars, expected, x_1, y_2) -> None:
-    result = gradient(x_1, vars)
+def test_gradient_method(vars_, expected, x_1, y_2) -> None:
+    result = gradient(x_1, vars_)
     assert np.all(result == expected)
 
-    result = gradient(y_2, vars)
+    result = gradient(y_2, vars_)
     assert np.all(result == expected)
 
 
 @pytest.mark.parametrize(
-    ("vars", "expected"),
+    ("vars_", "expected"),
     [
         (["v0"], 2.00),
         (["v1", "v0"], np.array([[2.0, 2.0], [2.0, 2.0]])),
     ],
 )
-def test_gradient_method2(vars, expected, y_2) -> None:
-    result = gradient(y_2, vars, 2)
+def test_gradient_method2(vars_, expected, y_2) -> None:
+    result = gradient(y_2, vars_, 2)
     assert np.all(result == expected)
 
 
@@ -248,6 +248,18 @@ def test_dual_immutable(x_1, op) -> None:
 def test_dual_raises(x_1) -> None:
     with pytest.raises(ValueError, match="`Dual` variable cannot possess `dual2`"):
         x_1.dual2
+
+
+def test_dual_is_not_iterable(x_1, y_1):
+    # do not want isinstance checks for Dual to identify them as a Sequence kind
+    assert getattr(x_1, "__iter__", None) is None
+    assert getattr(y_1, "__iter__", None) is None
+
+
+def test_dual_has_no_len(x_1, y_1):
+    # do not want isinstance checks for Dual to identify them as a Sequence kind
+    assert getattr(x_1, "__len__", None) is None
+    assert getattr(y_1, "__len__", None) is None
 
 
 @pytest.mark.parametrize(

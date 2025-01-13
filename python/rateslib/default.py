@@ -53,8 +53,8 @@ class Fixings:
     """
 
     @staticmethod
-    def _load_csv(dir: str, path: str) -> Series[float]:
-        target = os.path.join(dir, path)
+    def _load_csv(directory: str, path: str) -> Series[float]:
+        target = os.path.join(directory, path)
         if version.parse(pandas.__version__) < version.parse("2.0"):  # pragma: no cover
             # this is tested by the minimum version gitflow actions.
             # TODO (low:dependencies) remove when pandas min version is bumped to 2.0
@@ -299,52 +299,87 @@ class Defaults:
 
         _: str = f"""\
 Scheduling:\n
-{''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
-    'stub', 
-    'stub_length', 
-    'modifier', 
-    'eom', 
-    'eom_fx',
-    'eval_mode', 
-    'frequency_months',
-]])}
+{
+            "".join(
+                [
+                    _t_n(f"{attribute}: {getattr(self, attribute)}")
+                    for attribute in [
+                        "stub",
+                        "stub_length",
+                        "modifier",
+                        "eom",
+                        "eom_fx",
+                        "eval_mode",
+                        "frequency_months",
+                    ]
+                ]
+            )
+        }
 Instruments:\n
-{''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
-    'convention', 
-    'payment_lag', 
-    'payment_lag_exchange', 
-    'payment_lag_specific', 
-    'notional', 
-    'fixing_method',
-    'fixing_method_param',
-    'spread_compound_method',
-    'base_currency',
-    'fx_delivery_lag',
-    'fx_delta_type',
-    'fx_option_metric',
-    'cds_premium_accrued',
-    'cds_recovery_rate',
-    'cds_protection_discretization',   
-]])}
+{
+            "".join(
+                [
+                    _t_n(f"{attribute}: {getattr(self, attribute)}")
+                    for attribute in [
+                        "convention",
+                        "payment_lag",
+                        "payment_lag_exchange",
+                        "payment_lag_specific",
+                        "notional",
+                        "fixing_method",
+                        "fixing_method_param",
+                        "spread_compound_method",
+                        "base_currency",
+                        "fx_delivery_lag",
+                        "fx_delta_type",
+                        "fx_option_metric",
+                        "cds_premium_accrued",
+                        "cds_recovery_rate",
+                        "cds_protection_discretization",
+                    ]
+                ]
+            )
+        }
 Curves:\n
-{''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
-    'interpolation',
-    'endpoints',
-    'multi_csa_steps',    
-    'curve_caching',        
-]])}
+{
+            "".join(
+                [
+                    _t_n(f"{attribute}: {getattr(self, attribute)}")
+                    for attribute in [
+                        "interpolation",
+                        "endpoints",
+                        "multi_csa_steps",
+                        "curve_caching",
+                    ]
+                ]
+            )
+        }
 Solver:\n
-{''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
-    'algorithm',
-    'tag',
-    'curve_not_in_solver',         
-]])}
+{
+            "".join(
+                [
+                    _t_n(f"{attribute}: {getattr(self, attribute)}")
+                    for attribute in [
+                        "algorithm",
+                        "tag",
+                        "curve_not_in_solver",
+                    ]
+                ]
+            )
+        }
 Miscellaneous:\n
-{''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
-    'headers',
-    'no_fx_fixings_for_xcs',
-    'pool',         
-]])}
+{
+            "".join(
+                [
+                    _t_n(f"{attribute}: {getattr(self, attribute)}")
+                    for attribute in [
+                        "headers",
+                        "no_fx_fixings_for_xcs",
+                        "pool",
+                    ]
+                ]
+            )
+        }
 """  # noqa: W291
         return _
 

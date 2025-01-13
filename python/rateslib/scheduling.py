@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 import calendar as calendar_mod
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 from datetime import datetime, timedelta
 from itertools import product
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 from pandas import DataFrame
 
 from rateslib import defaults
 from rateslib.calendars import (  # type: ignore[attr-defined]
-    CalInput,
-    CalTypes,
+    _IS_ROLL,
     _adjust_date,
     _get_modifier,
     _get_roll,
@@ -19,12 +18,13 @@ from rateslib.calendars import (  # type: ignore[attr-defined]
     _is_day_type_tenor,
     _is_eom,
     _is_eom_cal,
-    _is_imm,
-    _is_som,
     add_tenor,
     get_calendar,
 )
 from rateslib.default import NoInput, _drb
+
+if TYPE_CHECKING:
+    from rateslib.typing import CalInput, CalTypes
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -520,11 +520,11 @@ class Schedule:
         return f"<rl.Schedule at {hex(id(self))}>"
 
     def __str__(self) -> str:
-        str = (
+        str_ = (
             f"freq: {self.frequency},  stub: {self.stub},  roll: {self.roll}"
             f",  pay lag: {self.payment_lag},  modifier: {self.modifier}\n"
         )
-        return str + self.table.__repr__()
+        return str_ + self.table.__repr__()
 
     @property
     def table(self) -> DataFrame:
@@ -755,37 +755,36 @@ def _check_unadjusted_regular_swap(
     if not freq_check:
         return _InvalidSchedule("Months date separation not aligned with frequency.")
 
-    roll = "eom" if roll == 31 else roll
-    iter_: list[tuple[str, Callable[..., bool]]] = [
-        ("eom", _is_eom),
-        ("imm", _is_imm),
-        ("som", _is_som),
-    ]
-    for roll_, _is_roll in iter_:
-        if str(roll).lower() == roll_:
-            if not _is_roll(ueffective):
-                return _InvalidSchedule(f"Non-{roll_} effective date with {roll_} rolls.")
-            if not _is_roll(utermination):
-                return _InvalidSchedule(f"Non-{roll_} termination date with {roll_} rolls.")
-
-    if isinstance(roll, int):
-        if roll in [29, 30]:
-            if ueffective.day != roll and not (ueffective.month == 2 and _is_eom(ueffective)):
-                return _InvalidSchedule(f"Effective date not aligned with {roll} rolls.")
-            if utermination.day != roll and not (utermination.month == 2 and _is_eom(utermination)):
-                return _InvalidSchedule(f"Termination date not aligned with {roll} rolls.")
-        else:
-            if ueffective.day != roll:
-                return _InvalidSchedule(f"Termination date not aligned with {roll} rolls.")
-            if utermination.day != roll:
-                return _InvalidSchedule(f"Termination date not aligned with {roll} rolls.")
-
     if isinstance(roll, NoInput):
         roll = _get_unadjusted_roll(ueffective, utermination, eom)
         if roll == 0:
             return _InvalidSchedule("Roll day could not be inferred from given dates.")
+        else:
+            ueff_ret: _InvalidSchedule | None = None
+            uter_ret: _InvalidSchedule | None = None
+    else:
+        ueff_ret = _validate_date_and_roll(roll, ueffective)
+        uter_ret = _validate_date_and_roll(roll, utermination)
 
+    if isinstance(ueff_ret, _InvalidSchedule):
+        return ueff_ret
+    elif isinstance(uter_ret, _InvalidSchedule):
+        return uter_ret
     return _ValidSchedule(ueffective, utermination, NoInput(0), NoInput(0), frequency, roll, eom)
+
+
+def _validate_date_and_roll(roll: int | str, date: datetime) -> _InvalidSchedule | None:
+    roll = "eom" if roll == 31 else roll
+    if isinstance(roll, str) and not _IS_ROLL[roll.lower()](date):
+        return _InvalidSchedule(f"Non-{roll} effective date with {roll} rolls.")
+    elif isinstance(roll, int):
+        if roll in [29, 30]:
+            if date.day != roll and not (date.month == 2 and _is_eom(date)):
+                return _InvalidSchedule(f"Effective date not aligned with {roll} rolls.")
+        else:
+            if date.day != roll:
+                return _InvalidSchedule(f"Termination date not aligned with {roll} rolls.")
+    return None
 
 
 def _check_regular_swap(

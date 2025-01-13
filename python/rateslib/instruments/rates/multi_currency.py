@@ -2,23 +2,23 @@ from __future__ import annotations
 
 import warnings
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from pandas import DataFrame, DatetimeIndex, MultiIndex, Series
 
 from rateslib import defaults
 from rateslib.curves import Curve
 from rateslib.default import NoInput
-from rateslib.dual import Dual, Dual2, DualTypes
+from rateslib.dual import Dual, Dual2
 from rateslib.fx import FXForwards, FXRates, forward_fx
-from rateslib.instruments.inst_core import (
-    BaseMixin,
-    Sensitivities,
+from rateslib.instruments.base import BaseDerivative, BaseMixin
+from rateslib.instruments.sensitivities import Sensitivities
+from rateslib.instruments.utils import (
     _composit_fixings_table,
     _get,
     _get_curves_fx_and_base_maybe_from_solver,
     _update_not_noinput,
 )
-from rateslib.instruments.rates_derivatives import BaseDerivative
 from rateslib.legs import (
     FixedLeg,
     FixedLegMtm,
@@ -34,6 +34,9 @@ from rateslib.solver import Solver
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # This code cannot be installed or executed on a corporate computer without a paid licence extension
 # Contact info at rateslib.com if this code is observed outside its intended sphere of use.
+
+if TYPE_CHECKING:
+    from rateslib.typing import DualTypes
 
 
 class FXExchange(Sensitivities, BaseMixin):
