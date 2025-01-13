@@ -457,15 +457,6 @@ class XCS(BaseDerivative):
         self.leg2 = Leg2(**_get(self.kwargs, leg=2, filter=("leg2_fixed", "leg2_mtm")))
         self._initialise_fx_fixings(fx_fixings)
 
-    @property
-    def fx_fixings(self) -> FixingsFx_:
-        return self._fx_fixings
-
-    @fx_fixings.setter
-    def fx_fixings(self, value: FX_) -> None:
-        self._fx_fixings = value
-        self._set_leg2_notional(value)
-
     def _initialise_fx_fixings(self, fx_fixings: FixingsFx_) -> None:
         """
         Sets the `fx_fixing` for non-mtm XCS instruments, which require only a single
@@ -488,6 +479,15 @@ class XCS(BaseDerivative):
                 self._fx_fixings = NoInput(0)
         else:
             self._fx_fixings = fx_fixings
+
+    @property
+    def fx_fixings(self) -> FixingsFx_:
+        return self._fx_fixings
+
+    @fx_fixings.setter
+    def fx_fixings(self, value: FX_) -> None:
+        self._fx_fixings = value
+        self._set_leg2_notional(value)
 
     def _set_fx_fixings(self, fx: FX_) -> None:
         """
