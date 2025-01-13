@@ -619,7 +619,7 @@ class XCS(BaseDerivative):
 
         See :meth:`BaseDerivative.npv`.
         """
-        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+        curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,
             curves,
@@ -629,13 +629,13 @@ class XCS(BaseDerivative):
         )
 
         if self._is_unpriced:
-            self._set_pricing_mid(curves, solver, fx_)
+            self._set_pricing_mid(curves_, solver, fx_)
 
         self._set_fx_fixings(fx_)
         if self._is_mtm:
             self.leg2._do_not_repeat_set_periods = True
 
-        ret = super().npv(curves, solver, fx_, base_, local)
+        ret = super().npv(curves_, solver, fx_, base_, local)
         if self._is_mtm:
             self.leg2._do_not_repeat_set_periods = False  # reset for next calculation
         return ret
@@ -687,7 +687,7 @@ class XCS(BaseDerivative):
         Examples
         --------
         """
-        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+        curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,
             curves,
@@ -697,11 +697,11 @@ class XCS(BaseDerivative):
         )
 
         if leg == 1:
-            tgt_fore_curve, tgt_disc_curve = curves[0], curves[1]
-            alt_fore_curve, alt_disc_curve = curves[2], curves[3]
+            tgt_fore_curve, tgt_disc_curve = curves_[0], curves_[1]
+            alt_fore_curve, alt_disc_curve = curves_[2], curves_[3]
         else:
-            tgt_fore_curve, tgt_disc_curve = curves[2], curves[3]
-            alt_fore_curve, alt_disc_curve = curves[0], curves[1]
+            tgt_fore_curve, tgt_disc_curve = curves_[2], curves_[3]
+            alt_fore_curve, alt_disc_curve = curves_[0], curves_[1]
 
         leg2 = 1 if leg == 2 else 2
         # tgt_str, alt_str = "" if leg == 1 else "leg2_", "" if leg2 == 1 else "leg2_"
