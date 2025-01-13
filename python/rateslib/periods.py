@@ -3257,10 +3257,10 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
 
     def cashflows(
         self,
-        curve: Curve | NoInput = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: Curve_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
     ) -> dict[str, Any]:
         """
         Return the cashflows of the *IndexCashflow*.
