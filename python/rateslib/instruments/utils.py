@@ -10,19 +10,9 @@ from rateslib.curves._parsers import _get_curves_maybe_from_solver
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.fx import FXForwards, FXRates
-from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
-        FX_,
-        Curves_,
-        Curves_DiscTuple,
-        Vol,
-        Vol_,
-        VolOption,
-        Solver_,
-        str_
-    )
+    from rateslib.typing import FX_, Curves_, Curves_DiscTuple, Solver_, Vol, Vol_, VolOption, str_
 
 
 def _get_base_maybe_from_fx(fx: FX_, base: str_, local_ccy: str_) -> str_:
