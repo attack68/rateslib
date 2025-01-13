@@ -504,7 +504,7 @@ class TestFixedRateBond:
     ## German gov bonds comparison with BBG and official bundesbank publications.
 
     @pytest.mark.parametrize(
-        ("set", "price", "exp_ytm", "exp_acc"),
+        ("sett", "price", "exp_ytm", "exp_acc"),
         [
             (dt(2024, 1, 10), 105.0, 1.208836, 0.321311),  # BBG BXT ticket data
             (
@@ -525,7 +525,7 @@ class TestFixedRateBond:
             (dt(2028, 11, 15), 97.5, 4.717949, 0.0),  # YAS
         ],
     )
-    def test_de_gb(self, set, price, exp_ytm, exp_acc) -> None:
+    def test_de_gb(self, sett, price, exp_ytm, exp_acc) -> None:
         frb = FixedRateBond(  # ISIN DE0001102622
             effective=dt(2022, 10, 20),
             termination=dt(2029, 11, 15),
@@ -533,14 +533,14 @@ class TestFixedRateBond:
             fixed_rate=2.1,
             spec="de_gb",
         )
-        result = frb.accrued(settlement=set)
+        result = frb.accrued(settlement=sett)
         assert abs(result - exp_acc) < 1e-6
 
-        result = frb.ytm(price=price, settlement=set)
+        result = frb.ytm(price=price, settlement=sett)
         assert abs(result - exp_ytm) < 1e-6
 
     @pytest.mark.parametrize(
-        ("set", "price", "exp_ytm", "exp_acc"),
+        ("sett", "price", "exp_ytm", "exp_acc"),
         [
             (
                 dt(2024, 6, 12),
@@ -550,7 +550,7 @@ class TestFixedRateBond:
             ),  # https://www.bundesbank.de/en/service/federal-securities/prices-and-yields
         ],
     )
-    def test_de_gb_mm(self, set, price, exp_ytm, exp_acc) -> None:
+    def test_de_gb_mm(self, sett, price, exp_ytm, exp_acc) -> None:
         # tests the MoneyMarket simple yield for the final period.
         frb = FixedRateBond(  # ISIN DE0001102366
             effective=dt(2014, 8, 15),
@@ -558,39 +558,39 @@ class TestFixedRateBond:
             fixed_rate=1.0,
             spec="de_gb",
         )
-        result = frb.accrued(settlement=set)
+        result = frb.accrued(settlement=sett)
         assert abs(result - exp_acc) < 1e-6
 
-        result = frb.ytm(price=price, settlement=set)
+        result = frb.ytm(price=price, settlement=sett)
         assert abs(result - exp_ytm) < 1e-6
 
     ## French OAT
 
     @pytest.mark.parametrize(
-        ("set", "price", "exp_ytm", "exp_acc"),
+        ("sett", "price", "exp_ytm", "exp_acc"),
         [
             (dt(2024, 6, 14), 101.0, 2.886581, 1.655738),  # BBG BXT ticket data
             (dt(2033, 11, 25), 99.75, 3.258145, 0.0),  # YAS
             (dt(2034, 6, 13), 101.0, 0.769200, 1.643836),  # BBG BXT ticket data
         ],
     )
-    def test_fr_gb(self, set, price, exp_ytm, exp_acc) -> None:
+    def test_fr_gb(self, sett, price, exp_ytm, exp_acc) -> None:
         frb = FixedRateBond(  # ISIN FR001400QMF9
             effective=dt(2023, 11, 25),
             termination=dt(2034, 11, 25),
             fixed_rate=3.0,
             spec="fr_gb",
         )
-        result = frb.accrued(settlement=set)
+        result = frb.accrued(settlement=sett)
         assert abs(result - exp_acc) < 1e-6
 
-        result = frb.ytm(price=price, settlement=set)
+        result = frb.ytm(price=price, settlement=sett)
         assert abs(result - exp_ytm) < 1e-6
 
     ## Italian BTP
 
     @pytest.mark.parametrize(
-        ("set", "price", "exp_ytm", "exp_acc"),
+        ("sett", "price", "exp_ytm", "exp_acc"),
         [
             (dt(2024, 6, 14), 98.0, 4.73006, 0.526090),  # BBG BXT ticket data
             (dt(2033, 3, 15), 99.65, 7.006149, 1.628730),  # BBG YAS Yield - Last coupon simple rate
@@ -599,7 +599,7 @@ class TestFixedRateBond:
             (dt(2033, 4, 29), 99.97, 9.623617, 2.175690),  # Test accrual upto adjusted payment date
         ],
     )
-    def test_it_gb(self, set, price, exp_ytm, exp_acc) -> None:
+    def test_it_gb(self, sett, price, exp_ytm, exp_acc) -> None:
         # TODO: it is unclear how date modifications affect the pricing of BTPs require offical
         # source docs.
         frb = FixedRateBond(  # ISIN IT0005518128
@@ -608,16 +608,16 @@ class TestFixedRateBond:
             fixed_rate=4.4,
             spec="it_gb",
         )
-        result = frb.accrued(settlement=set)
+        result = frb.accrued(settlement=sett)
         assert abs(result - exp_acc) < 5e-6
 
-        result = frb.ytm(price=price, settlement=set)
+        result = frb.ytm(price=price, settlement=sett)
         assert abs(result - exp_ytm) < 3e-3
 
     ## Norwegian
 
     @pytest.mark.parametrize(
-        ("set", "price", "exp_ytm", "exp_acc"),
+        ("set_", "price", "exp_ytm", "exp_acc"),
         [
             (dt(2026, 4, 13), 99.3, 3.727804, 0.0),  # YAS Coupon aligned
             (dt(2033, 4, 13), 99.9, 3.728729, 0.0),  # Last period
@@ -631,23 +631,23 @@ class TestFixedRateBond:
             ),  # Mid stub period: BBG YAS does not price cashflows correctly
         ],
     )
-    def test_no_gb(self, set, price, exp_ytm, exp_acc) -> None:
+    def test_no_gb(self, set_, price, exp_ytm, exp_acc) -> None:
         frb = FixedRateBond(  # ISIN NO0013148338
             effective=dt(2024, 2, 13),
             termination=dt(2034, 4, 13),
             fixed_rate=3.625,
             spec="no_gb",
         )
-        result = frb.accrued(settlement=set)
+        result = frb.accrued(settlement=set_)
         assert abs(result - exp_acc) < 5e-6
 
-        result = frb.ytm(price=price, settlement=set)
+        result = frb.ytm(price=price, settlement=set_)
         assert abs(result - exp_ytm) < 1e-5
 
     ## Dutch
 
     @pytest.mark.parametrize(
-        ("set", "price", "exp_ytm", "exp_acc"),
+        ("set_", "price", "exp_ytm", "exp_acc"),
         [
             (dt(2025, 6, 10), 98.0, 2.751162, 2.260274),  # YAS Coupon aligned
             (dt(2033, 7, 15), 99.8, 2.705411, 0.0),  # Last period
@@ -656,17 +656,17 @@ class TestFixedRateBond:
             (dt(2024, 3, 13), 99.0, 2.612194, 0.232240),  # Mid stub period
         ],
     )
-    def test_nl_gb(self, set, price, exp_ytm, exp_acc) -> None:
+    def test_nl_gb(self, set_, price, exp_ytm, exp_acc) -> None:
         frb = FixedRateBond(  # ISIN NL0015001XZ6
             effective=dt(2024, 2, 8),
             termination=dt(2034, 7, 15),
             fixed_rate=2.5,
             spec="nl_gb",
         )
-        result = frb.accrued(settlement=set)
+        result = frb.accrued(settlement=set_)
         assert abs(result - exp_acc) < 5e-6
 
-        result = frb.ytm(price=price, settlement=set)
+        result = frb.ytm(price=price, settlement=set_)
         assert abs(result - exp_ytm) < 1e-5
 
     # General Method Coverage
@@ -1147,6 +1147,18 @@ class TestFixedRateBond:
         bond2 = FixedRateBond(dt(2001, 1, 1), "10y", spec="uk_gb", fixed_rate=1.0)
         assert bond.price(3.0, dt(2002, 3, 4)) == bond2.price(3.0, dt(2002, 3, 4))
         assert bond.accrued(dt(2002, 3, 4)) == bond2.accrued(dt(2002, 3, 4))
+
+    def test_must_have_fixed_rate(self):
+        with pytest.raises(ValueError, match="`fixed_rate` must be provided for Bond."):
+            FixedRateBond(
+                effective=dt(2001, 1, 1),
+                termination="10y",
+                frequency="s",
+                calendar="ldn",
+                convention="ActActICMA",
+                modifier="none",
+                settle=1,
+            )
 
 
 class TestIndexFixedRateBond:

@@ -7,6 +7,7 @@ from pandas.testing import assert_frame_equal
 from rateslib import default_context
 from rateslib.calendars import add_tenor
 from rateslib.curves import CompositeCurve, Curve, IndexCurve, LineCurve, MultiCsaCurve
+from rateslib.curves._parsers import _map_curve_from_solver
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, dual_exp, gradient
 from rateslib.fx import FXForwards, FXRates
@@ -39,8 +40,7 @@ from rateslib.instruments import (
     Value,
     VolValue,
 )
-from rateslib.instruments.inst_core import (
-    _get_curve_from_solver,
+from rateslib.instruments.utils import (
     _get_curves_fx_and_base_maybe_from_solver,
 )
 from rateslib.solver import Solver
@@ -169,30 +169,30 @@ class TestCurvesandSolver:
         inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
         solver = Solver([curve], [], inst, [0.975])
 
-        result = _get_curve_from_solver("tagged", solver)
+        result = _map_curve_from_solver("tagged", solver)
         assert result == curve
 
-        result = _get_curve_from_solver(curve, solver)
+        result = _map_curve_from_solver(curve, solver)
         assert result == curve
 
         no_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="not in solver")
 
         with default_context("curve_not_in_solver", "ignore"):
-            result = _get_curve_from_solver(no_curve, solver)
+            result = _map_curve_from_solver(no_curve, solver)
             assert result == no_curve
 
         with pytest.warns(), default_context("curve_not_in_solver", "warn"):
-            result = _get_curve_from_solver(no_curve, solver)
+            result = _map_curve_from_solver(no_curve, solver)
             assert result == no_curve
 
         with (
             pytest.raises(ValueError, match="`curve` must be in `solver`"),
             default_context("curve_not_in_solver", "raise"),
         ):
-            _get_curve_from_solver(no_curve, solver)
+            _map_curve_from_solver(no_curve, solver)
 
         with pytest.raises(AttributeError, match="`curve` has no attribute `id`, likely it not"):
-            _get_curve_from_solver(100.0, solver)
+            _map_curve_from_solver(100.0, solver)
 
     @pytest.mark.parametrize("solver", [True, False])
     @pytest.mark.parametrize("fxf", [True, False])
@@ -340,7 +340,6 @@ class TestCurvesandSolver:
         assert result == (curve, curve, curve, curve)
 
     def test_get_proxy_curve_from_solver(self, usdusd, usdeur, eureur) -> None:
-        # TODO: check whether curves in fxf but not is solver should be allowed???
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
         inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
         fxf = FXForwards(
@@ -366,6 +365,21 @@ class TestCurvesandSolver:
         irs = IRS(dt(2022, 1, 1), "1y", "A", fixed_rate=2.0)
         with pytest.raises(ValueError, match="A curve has been supplied, as part of ``curves``,"):
             irs.npv(curves=curve, solver=solver)
+
+    def test_get_multicsa_curve_from_solver(self, usdusd, usdeur, eureur) -> None:
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
+        inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3)),
+            {"usdusd": usdusd, "usdeur": usdeur, "eureur": eureur},
+        )
+        solver = Solver([curve], [], inst, [0.975], fx=fxf)
+        curve = fxf.curve("eur", ("usd", "eur"))
+        irs = IRS(dt(2022, 1, 1), "3m", "Q")
+
+        # test the curve will return even though it is not included within the solver
+        # because it is a proxy curve.
+        irs.npv(curves=curve, solver=solver)
 
 
 class TestSolverFXandBase:
@@ -4015,7 +4029,7 @@ class TestSpec:
         (
             FRA(dt(2022, 1, 15), "3M", "Q", currency="eur", curves=["eureur", "eureur"]),
             DataFrame(
-                [0.0],
+                [0],
                 index=Index([dt(2022, 1, 15)], name="payment"),
                 columns=MultiIndex.from_tuples(
                     [("EUR", "eur")],
@@ -4677,7 +4691,7 @@ class TestFXOptions:
         assert abs(result - expected) < 1e-6
 
     @pytest.mark.parametrize(
-        ("eval", "eom", "expected"),
+        ("evald", "eom", "expected"),
         [
             (
                 dt(2024, 4, 26),
@@ -4691,11 +4705,11 @@ class TestFXOptions:
             ),  # 2bd before 30th May (rolled from 30th April)
         ],
     )
-    def test_expiry_delivery_tenor_eom(self, eval, eom, expected) -> None:
+    def test_expiry_delivery_tenor_eom(self, evald, eom, expected) -> None:
         fxo = FXCall(
             pair="eurusd",
             expiry="1m",
-            eval_date=eval,
+            eval_date=evald,
             eom=eom,
             calendar="tgt|fed",
             modifier="mf",

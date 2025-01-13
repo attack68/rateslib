@@ -3,17 +3,20 @@ from __future__ import annotations
 import warnings
 from datetime import datetime
 from functools import cached_property
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from pandas import DataFrame, Series
 
 from rateslib import defaults
 from rateslib.default import NoInput, _drb, _make_py_json, _WithState
-from rateslib.dual import Dual, DualTypes, Number, _get_adorder, gradient
-from rateslib.dual.variable import Arr1dF64, Arr1dObj, Arr2dObj
+from rateslib.dual import Dual, gradient
+from rateslib.dual.utils import _get_adorder
 from rateslib.rs import Ccy, FXRate
 from rateslib.rs import FXRates as FXRatesObj
+
+if TYPE_CHECKING:
+    from rateslib.typing import Arr1dF64, Arr1dObj, Arr2dObj, DualTypes, Number
 
 """
 .. ipython:: python
@@ -150,8 +153,8 @@ class FXRates(_WithState):
     def __repr__(self) -> str:
         if len(self.currencies_list) > 5:
             return (
-                f"<rl.FXRates:[{','.join(self.currencies_list[:2])},+{len(self.currencies_list)-2} "
-                f"others] at {hex(id(self))}>"
+                f"<rl.FXRates:[{','.join(self.currencies_list[:2])},"
+                f"+{len(self.currencies_list) - 2} others] at {hex(id(self))}>"
             )
         else:
             return f"<rl.FXRates:[{','.join(self.currencies_list)}] at {hex(id(self))}>"

@@ -1,14 +1,6 @@
-# Sphinx substitutions
-
-"""
-.. ipython:: python
-   :suppress:
-
-   from rateslib import *
-"""
-
 from __future__ import annotations
 
+from rateslib.instruments.base import BaseDerivative, BaseMixin
 from rateslib.instruments.bonds import (
     Bill,
     BillCalcMode,
@@ -19,6 +11,7 @@ from rateslib.instruments.bonds import (
     FloatRateNote,
     IndexFixedRateBond,
 )
+from rateslib.instruments.credit import CDS
 from rateslib.instruments.fx_volatility import (
     FXBrokerFly,
     FXCall,
@@ -30,26 +23,19 @@ from rateslib.instruments.fx_volatility import (
     FXStrangle,
 )
 from rateslib.instruments.generics import Fly, Portfolio, Spread, Value, VolValue
-from rateslib.instruments.inst_core import (
-    BaseMixin,
-    Sensitivities,
-)
-from rateslib.instruments.rates_derivatives import (
-    CDS,
+from rateslib.instruments.rates import (
     FRA,
     IIRS,
     IRS,
     SBS,
+    XCS,
     ZCIS,
     ZCS,
-    BaseDerivative,
-    STIRFuture,
-)
-from rateslib.instruments.rates_multi_ccy import (
-    XCS,
     FXExchange,
     FXSwap,
+    STIRFuture,
 )
+from rateslib.instruments.sensitivities import Sensitivities
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

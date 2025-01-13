@@ -84,7 +84,7 @@ def line_curve():
 
 
 @pytest.mark.parametrize(
-    "object",
+    "obj",
     [
         FixedPeriod(dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 2, 1), frequency="m", fixed_rate=2.0),
         Cashflow(notional=1e6, payment=dt(2022, 1, 1), currency="usd"),
@@ -107,9 +107,9 @@ def line_curve():
         ),
     ],
 )
-def test_repr(object):
-    result = object.__repr__()
-    expected = f"<rl.{type(object).__name__} at {hex(id(object))}>"
+def test_repr(obj):
+    result = obj.__repr__()
+    expected = f"<rl.{type(obj).__name__} at {hex(id(obj))}>"
     assert result == expected
 
 
@@ -324,7 +324,7 @@ class TestFloatPeriod:
             fixing_method="rfr_payment_delay_avg",
             spread_compound_method="isda_compounding",
         )
-        msg = "`spread_compound` method must be 'none_simple' in an RFR averaging " "period."
+        msg = "`spread_compound` method must be 'none_simple' in an RFR averaging period."
         with pytest.raises(ValueError, match=msg):
             period.rate(curve)
 
@@ -746,10 +746,10 @@ class TestFloatPeriod:
             convention="act365f",
             notional=-1000000,
         )
-        with pytest.raises(ValueError, match="Must supply a discount factor based `disc_curve`."):
+        with pytest.raises(ValueError, match="`disc_curve` cannot be inferred from a non-DF"):
             period.fixings_table(curve=line_curve)
 
-        with pytest.raises(ValueError, match="Cannot infer `disc_curve` from a dict of curves."):
+        with pytest.raises(ValueError, match="`disc_curve` cannot be inferred from a dictionary"):
             period.fixings_table(curve={"1m": line_curve, "2m": line_curve})
 
     @pytest.mark.parametrize(

@@ -2,18 +2,19 @@ from __future__ import annotations
 
 from abc import ABCMeta
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from pandas import DataFrame
 
 from rateslib import defaults
-from rateslib.calendars import CalInput, _get_fx_expiry_and_delivery, get_calendar
+from rateslib.calendars import _get_fx_expiry_and_delivery, get_calendar
 from rateslib.curves import Curve
 from rateslib.default import NoInput, _drb, plot
-from rateslib.dual import DualTypes, dual_log
+from rateslib.dual import dual_log
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXVolObj, FXVols
-from rateslib.instruments.inst_core import (
-    Sensitivities,
+from rateslib.instruments.sensitivities import Sensitivities
+from rateslib.instruments.utils import (
     _get_curves_fx_and_base_maybe_from_solver,
     _get_vol_maybe_from_solver,
     _push,
@@ -22,6 +23,9 @@ from rateslib.instruments.inst_core import (
 from rateslib.periods import Cashflow, FXCallPeriod, FXPutPeriod
 from rateslib.solver import Solver
 from rateslib.splines import evaluate
+
+if TYPE_CHECKING:
+    from rateslib.typing import CalInput, DualTypes
 
 
 class FXOption(Sensitivities, metaclass=ABCMeta):
@@ -590,7 +594,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
     def _plot_payoff(
         self,
-        range: list[float] | NoInput = NoInput(0),
+        window: list[float] | NoInput = NoInput(0),
         curves: Curve | str | list | NoInput = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
         fx: FXForwards | NoInput = NoInput(0),
@@ -611,12 +615,12 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         self._set_strike_and_vol(curves, fx, vol)
         # self._set_premium(curves, fx)
 
-        x, y = self.periods[0]._payoff_at_expiry(range)
+        x, y = self.periods[0]._payoff_at_expiry(window)
         return x, y
 
     def plot_payoff(
         self,
-        range: list[float] | NoInput = NoInput(0),
+        range: list[float] | NoInput = NoInput(0),  # noqa: A002
         curves: Curve | str | list | NoInput = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
         fx: FXForwards | NoInput = NoInput(0),
@@ -802,7 +806,7 @@ class FXOptionStrat:
 
     def _plot_payoff(
         self,
-        range: list[float] | NoInput = NoInput(0),
+        window: list[float] | NoInput = NoInput(0),
         curves: Curve | str | list | NoInput = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
         fx: FXForwards | NoInput = NoInput(0),
@@ -815,7 +819,7 @@ class FXOptionStrat:
 
         y = None
         for option, vol_ in zip(self.periods, vol, strict=False):
-            x, y_ = option._plot_payoff(range, curves, solver, fx, base, local, vol_)
+            x, y_ = option._plot_payoff(window, curves, solver, fx, base, local, vol_)
             if y is None:
                 y = y_
             else:
@@ -1705,7 +1709,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
 
     def _plot_payoff(
         self,
-        range: list[float] | NoInput = NoInput(0),
+        range: list[float] | NoInput = NoInput(0),  # noqa: A002
         curves: Curve | str | list | NoInput = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
         fx: FXForwards | NoInput = NoInput(0),

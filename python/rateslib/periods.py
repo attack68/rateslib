@@ -25,29 +25,29 @@ from abc import ABCMeta, abstractmethod
 from collections.abc import Sequence
 from datetime import datetime, timedelta
 from math import comb, log
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from pandas import NA, DataFrame, Index, MultiIndex, Series, concat, isna, notna
 
 from rateslib import defaults
-from rateslib.calendars import CalInput, CalTypes, _get_eom, add_tenor, dcf, get_calendar
+from rateslib.calendars import _get_eom, add_tenor, dcf, get_calendar
 from rateslib.curves import Curve, average_rate, index_left
 from rateslib.default import NoInput, _drb
 from rateslib.dual import (
     Dual,
     Dual2,
-    DualTypes,
-    Number,
     Variable,
-    _dual_float,
     dual_exp,
     dual_inv_norm_cdf,
     dual_log,
     dual_norm_cdf,
     dual_norm_pdf,
     gradient,
+    newton_1dim,
+    newton_ndim,
 )
+from rateslib.dual.utils import _dual_float
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import (
     FXDeltaVolSmile,
@@ -58,8 +58,10 @@ from rateslib.fx_volatility import (
     _d_plus_min_u,
     _delta_type_constants,
 )
-from rateslib.solver import newton_1dim, newton_ndim
 from rateslib.splines import evaluate
+
+if TYPE_CHECKING:
+    from rateslib.typing import FX_, CalInput, CalTypes, Curve_, CurveOption_, DualTypes, Number
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -68,7 +70,7 @@ from rateslib.splines import evaluate
 
 def _get_fx_and_base(
     currency: str,
-    fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
+    fx: FX_ = NoInput(0),
     base: str | NoInput = NoInput(0),
 ) -> tuple[DualTypes, str | NoInput]:
     """
@@ -140,7 +142,7 @@ def _maybe_local(
     value: DualTypes,
     local: bool,
     currency: str,
-    fx: float | FXRates | FXForwards | NoInput,
+    fx: FX_,
     base: str | NoInput,
 ) -> dict[str, DualTypes] | DualTypes:
     """
@@ -155,7 +157,7 @@ def _maybe_local(
 def _maybe_fx_converted(
     value: DualTypes,
     currency: str,
-    fx: DualTypes | FXRates | FXForwards | NoInput,
+    fx: FX_,
     base: str | NoInput,
 ) -> DualTypes:
     fx_, _ = _get_fx_and_base(currency, fx, base)
@@ -163,7 +165,7 @@ def _maybe_fx_converted(
 
 
 def _disc_maybe_from_curve(
-    curve: Curve | NoInput | dict[str, Curve],
+    curve: CurveOption_,
     disc_curve: Curve | NoInput,
 ) -> Curve | NoInput:
     """Return a discount curve, pointed as the `curve` if not provided and if suitable Type."""
@@ -181,10 +183,12 @@ def _disc_maybe_from_curve(
 
 
 def _disc_required_maybe_from_curve(
-    curve: Curve | NoInput | dict[str, Curve],
-    disc_curve: Curve | NoInput,
+    curve: CurveOption_,
+    disc_curve: CurveOption_,
 ) -> Curve:
     """Return a discount curve, pointed as the `curve` if not provided and if suitable Type."""
+    if isinstance(disc_curve, dict):
+        raise NotImplementedError("`disc_curve` cannot currently be inferred from a dict.")
     _: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
     if isinstance(_, NoInput):
         raise TypeError(
@@ -287,8 +291,8 @@ class BasePeriod(metaclass=ABCMeta):
     @abstractmethod
     def analytic_delta(
         self,
-        curve: Curve | NoInput = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: CurveOption_ = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
@@ -346,7 +350,7 @@ class BasePeriod(metaclass=ABCMeta):
     @abstractmethod
     def cashflows(
         self,
-        curve: Curve | dict[str, Curve] | NoInput = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
@@ -408,9 +412,9 @@ class BasePeriod(metaclass=ABCMeta):
     @abstractmethod
     def npv(
         self,
-        curve: Curve | NoInput = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: CurveOption_ = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> DualTypes | dict[str, DualTypes]:
@@ -540,9 +544,9 @@ class FixedPeriod(BasePeriod):
 
     def npv(
         self,
-        curve: Curve | dict[str, Curve] | NoInput = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: CurveOption_ = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> dict[str, DualTypes] | DualTypes:
@@ -563,9 +567,9 @@ class FixedPeriod(BasePeriod):
 
     def cashflows(
         self,
-        curve: Curve | dict[str, Curve] | NoInput = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
-        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: Curve_ = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> dict[str, Any]:
         """
@@ -635,7 +639,7 @@ def _validate_float_args(
         )
     elif fixing_method_ == "rfr_lockout" and method_param_ < 1:
         raise ValueError(
-            f'`method_param` must be >0 for "rfr_lockout" `fixing_method`, ' f"got {method_param_}",
+            f'`method_param` must be >0 for "rfr_lockout" `fixing_method`, got {method_param_}',
         )
 
     spread_compound_method_: str = _drb(
@@ -928,8 +932,8 @@ class FloatPeriod(BasePeriod):
 
     def analytic_delta(
         self,
-        curve: Curve | NoInput = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: CurveOption_ = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
@@ -958,9 +962,9 @@ class FloatPeriod(BasePeriod):
 
     def cashflows(
         self,
-        curve: Curve | dict[str, Curve] | NoInput = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
-        fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: Curve_ = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> dict[str, Any]:
         """
@@ -1000,9 +1004,9 @@ class FloatPeriod(BasePeriod):
 
     def npv(
         self,
-        curve: Curve | dict[str, Curve] | NoInput = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: CurveOption_ = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> dict[str, DualTypes] | DualTypes:
@@ -1011,9 +1015,7 @@ class FloatPeriod(BasePeriod):
         See
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
-        disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
-        if not isinstance(disc_curve_, Curve):
-            raise TypeError("`curves` have not been supplied correctly.")
+        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
         if self.payment < disc_curve_.node_dates[0]:
             if local:
                 return {self.currency: 0.0}
@@ -1023,7 +1025,7 @@ class FloatPeriod(BasePeriod):
 
         return _maybe_local(value, local, self.currency, fx, base)
 
-    def cashflow(self, curve: Curve | dict[str, Curve] | NoInput = NoInput(0)) -> DualTypes | None:
+    def cashflow(self, curve: CurveOption_ = NoInput(0)) -> DualTypes | None:
         """
         Forecast the *Period* cashflow based on a *Curve* providing index rates.
 
@@ -1047,9 +1049,7 @@ class FloatPeriod(BasePeriod):
             # probably "needs a `curve` to forecast rate
             return None
 
-    def _maybe_get_cal_and_conv_from_curve(
-        self, curve: Curve | dict[str, Curve] | NoInput
-    ) -> tuple[CalTypes, str]:
+    def _maybe_get_cal_and_conv_from_curve(self, curve: CurveOption_) -> tuple[CalTypes, str]:
         if isinstance(curve, NoInput):
             cal_: CalTypes = get_calendar(self.calendar)
             conv_: str = self.convention
@@ -1071,7 +1071,7 @@ class FloatPeriod(BasePeriod):
                 conv_ = curve.convention
         return cal_, conv_
 
-    def rate(self, curve: Curve | dict[str, Curve] | NoInput = NoInput(0)) -> DualTypes:
+    def rate(self, curve: CurveOption_ = NoInput(0)) -> DualTypes:
         """
         Calculating the floating rate for the period.
 
@@ -1278,7 +1278,7 @@ class FloatPeriod(BasePeriod):
         # dcf_vals = dcf_vals.set_axis(rates.index)
         if self.spread_compound_method != "none_simple":
             raise ValueError(
-                "`spread_compound` method must be 'none_simple' in an RFR averaging " "period.",
+                "`spread_compound` method must be 'none_simple' in an RFR averaging period.",
             )
         else:
             _: DualTypes = (dcf_vals * rates).sum() / dcf_vals.sum() + self.float_spread / 100
@@ -1364,8 +1364,7 @@ class FloatPeriod(BasePeriod):
             elif isinstance(self.fixings, Series):
                 if not self.fixings.index.is_monotonic_increasing:  # type: ignore[attr-defined]
                     raise ValueError(
-                        "`fixings` as a Series must have a monotonically increasing "
-                        "datetimeindex.",
+                        "`fixings` as a Series must have a monotonically increasing datetimeindex.",
                     )
                 # [-2] is used because the last rfr fixing is 1 day before the end
                 fixing_rates = self.fixings.loc[obs_dates.iloc[0] : obs_dates.iloc[-2]]  # type: ignore[attr-defined, misc]
@@ -1465,9 +1464,9 @@ class FloatPeriod(BasePeriod):
 
     def fixings_table(
         self,
-        curve: Curve | dict[str, Curve],
+        curve: CurveOption_,
         approximate: bool = False,
-        disc_curve: Curve | NoInput = NoInput(0),
+        disc_curve: CurveOption_ = NoInput(0),
         right: datetime | NoInput = NoInput(0),
     ) -> DataFrame:
         """
@@ -1601,16 +1600,7 @@ class FloatPeriod(BasePeriod):
            )
            period.fixings_table({"1m": ibor_1m, "3m": ibor_3m}, disc_curve=ibor_1m)
         """
-        if isinstance(disc_curve, NoInput):
-            if isinstance(curve, dict):
-                raise ValueError("Cannot infer `disc_curve` from a dict of curves.")
-            else:  # not isinstance(curve, dict):
-                if curve._base_type == "dfs":
-                    disc_curve_: Curve = curve
-                else:
-                    raise ValueError("Must supply a discount factor based `disc_curve`.")
-        else:
-            disc_curve_ = disc_curve
+        disc_curve_ = _disc_required_maybe_from_curve(curve, disc_curve)
 
         if approximate:
             if not isinstance(self.fixings, NoInput):
@@ -1693,7 +1683,7 @@ class FloatPeriod(BasePeriod):
             return self._ibor_fixings_table(curve, disc_curve_, right)
 
     def _fixings_table_fast(
-        self, curve: Curve | dict[str, Curve], disc_curve: Curve, right: NoInput | datetime
+        self, curve: CurveOption_, disc_curve: Curve, right: NoInput | datetime
     ) -> DataFrame:
         """
         Return a DataFrame of **approximate** fixing exposures.
@@ -1798,7 +1788,7 @@ class FloatPeriod(BasePeriod):
 
     def _ibor_fixings_table(
         self,
-        curve: Curve | dict[str, Curve],
+        curve: CurveOption_,
         disc_curve: Curve,
         right: datetime | NoInput,
         risk: DualTypes | NoInput = NoInput(0),
@@ -1825,6 +1815,8 @@ class FloatPeriod(BasePeriod):
             else:  # not self.stub:
                 # then extract the one relevant curve from dict
                 curve_: Curve = _get_ibor_curve_from_dict(self.freq_months, curve)
+        elif isinstance(curve, NoInput):
+            raise ValueError("`curve` must be supplied as Curve or dict for `ibor_fiixngs_table`.")
         else:
             curve_ = curve
 
@@ -2312,9 +2304,9 @@ class CreditPremiumPeriod(BasePeriod):
 
     def npv(
         self,
-        curve: Curve | NoInput = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: CurveOption_ = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> DualTypes | dict[str, DualTypes]:
@@ -2322,26 +2314,24 @@ class CreditPremiumPeriod(BasePeriod):
         Return the NPV of the *CreditPremiumPeriod*.
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
-        if not isinstance(disc_curve, Curve) and isinstance(disc_curve, NoInput):
-            raise TypeError("`curves` have not been supplied correctly.")
-        if not isinstance(curve, Curve) and isinstance(curve, NoInput):
-            raise TypeError("`curves` have not been supplied correctly.")
+        curve_, disc_curve_ = _validate_credit_curves(curve, disc_curve)
+
         if isinstance(self.fixed_rate, NoInput):
             raise ValueError("`fixed_rate` must be set as a value to return a valid NPV.")
-        v_payment = disc_curve[self.payment]
-        q_end = curve[self.end]
+        v_payment = disc_curve_[self.payment]
+        q_end = curve_[self.end]
         _ = 0.0
         if self.premium_accrued:
-            v_end = disc_curve[self.end]
+            v_end = disc_curve_[self.end]
             n = _dual_float((self.end - self.start).days)
 
-            if self.start < curve.node_dates[0]:
+            if self.start < curve_.node_dates[0]:
                 # then mid-period valuation
-                r: float = _dual_float((curve.node_dates[0] - self.start).days)
+                r: float = _dual_float((curve_.node_dates[0] - self.start).days)
                 q_start: DualTypes = 1.0
                 _v_start: DualTypes = 1.0
             else:
-                r, q_start, _v_start = 0.0, curve[self.start], disc_curve[self.start]
+                r, q_start, _v_start = 0.0, curve_[self.start], disc_curve_[self.start]
 
             # method 1:
             _ = 0.5 * (1 + r / n)
@@ -2360,8 +2350,8 @@ class CreditPremiumPeriod(BasePeriod):
 
     def analytic_delta(
         self,
-        curve: Curve | NoInput = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: CurveOption_ = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
@@ -2370,27 +2360,24 @@ class CreditPremiumPeriod(BasePeriod):
         See
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
         """
-        if not isinstance(disc_curve, Curve) and isinstance(disc_curve, NoInput):
-            raise TypeError("`curves` have not been supplied correctly.")
-        if not isinstance(curve, Curve) and isinstance(curve, NoInput):
-            raise TypeError("`curves` have not been supplied correctly.")
+        curve_, disc_curve_ = _validate_credit_curves(curve, disc_curve)
 
-        v_payment = disc_curve[self.payment]
-        q_end = curve[self.end]
+        v_payment = disc_curve_[self.payment]
+        q_end = curve_[self.end]
         _ = 0.0
         if self.premium_accrued:
-            v_end = disc_curve[self.end]
+            v_end = disc_curve_[self.end]
             n = _dual_float((self.end - self.start).days)
 
-            if self.start < curve.node_dates[0]:
+            if self.start < curve_.node_dates[0]:
                 # then mid-period valuation
-                r: float = _dual_float((curve.node_dates[0] - self.start).days)
+                r: float = _dual_float((curve_.node_dates[0] - self.start).days)
                 q_start: DualTypes = 1.0
                 _v_start: DualTypes = 1.0
             else:
                 r = 0.0
-                q_start = curve[self.start]
-                _v_start = disc_curve[self.start]
+                q_start = curve_[self.start]
+                _v_start = disc_curve_[self.start]
 
             # method 1:
             _ = 0.5 * (1 + r / n)
@@ -2508,9 +2495,9 @@ class CreditProtectionPeriod(BasePeriod):
 
     def npv(
         self,
-        curve: Curve | NoInput = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: CurveOption_ = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> DualTypes | dict[str, DualTypes]:
@@ -2518,25 +2505,22 @@ class CreditProtectionPeriod(BasePeriod):
         Return the NPV of the *CreditProtectionPeriod*.
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
-        if not isinstance(disc_curve, Curve) and isinstance(disc_curve, NoInput):
-            raise TypeError("`curves` have not been supplied correctly.")
-        if not isinstance(curve, Curve) and isinstance(curve, NoInput):
-            raise TypeError("`curves` have not been supplied correctly.")
+        curve_, disc_curve_ = _validate_credit_curves(curve, disc_curve)
 
-        if self.start < curve.node_dates[0]:
-            s2 = curve.node_dates[0]
+        if self.start < curve_.node_dates[0]:
+            s2 = curve_.node_dates[0]
         else:
             s2 = self.start
 
         value: DualTypes = 0.0
-        q2: DualTypes = curve[s2]
-        v2: DualTypes = disc_curve[s2]
+        q2: DualTypes = curve_[s2]
+        v2: DualTypes = disc_curve_[s2]
         while s2 < self.end:
             q1, v1 = q2, v2
             s2 = s2 + timedelta(days=self.discretization)
             if s2 > self.end:
                 s2 = self.end
-            q2, v2 = curve[s2], disc_curve[s2]
+            q2, v2 = curve_[s2], disc_curve_[s2]
             value += 0.5 * (v1 + v2) * (q1 - q2)
             # value += v2 * (q1 - q2)
 
@@ -2545,8 +2529,8 @@ class CreditProtectionPeriod(BasePeriod):
 
     def analytic_delta(
         self,
-        curve: Curve | NoInput = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: CurveOption_ = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
@@ -2812,7 +2796,7 @@ class IndexMixin(metaclass=ABCMeta):
     def real_cashflow(self) -> DualTypes | None:
         pass  # pragma: no cover
 
-    def cashflow(self, curve: Curve | NoInput = NoInput(0)) -> DualTypes | None:
+    def cashflow(self, curve: CurveOption_ = NoInput(0)) -> DualTypes | None:
         """
         float, Dual or Dual2 : The calculated value from rate, dcf and notional,
         adjusted for the index.
@@ -2832,7 +2816,7 @@ class IndexMixin(metaclass=ABCMeta):
             return ret
 
     def index_ratio(
-        self, curve: Curve | NoInput = NoInput(0)
+        self, curve: CurveOption_ = NoInput(0)
     ) -> tuple[DualTypes | None, DualTypes | None, DualTypes | None]:
         """
         Calculate the index ratio for the end date of the *IndexPeriod*.
@@ -2893,7 +2877,7 @@ class IndexMixin(metaclass=ABCMeta):
     def _index_value(
         i_fixings: DualTypes | Series[DualTypes] | NoInput,  # type: ignore[type-var]
         i_date: datetime | NoInput,
-        i_curve: Curve | NoInput,
+        i_curve: CurveOption_,
         i_lag: int,
         i_method: str,
     ) -> DualTypes | None:
@@ -2911,6 +2895,11 @@ class IndexMixin(metaclass=ABCMeta):
         -------
         float, Dual, Dual2, Variable or None
         """
+        if isinstance(i_curve, dict):
+            raise NotImplementedError(
+                "`i_curve` cannot currently be supplied as dict. Use a Curve type or NoInput(0)."
+            )
+
         if isinstance(i_date, NoInput):
             if not isinstance(i_fixings, Series | NoInput):
                 # i_fixings is a given value, probably aligned with an ``index_base``
@@ -3076,8 +3065,8 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
 
     def analytic_delta(
         self,
-        curve: Curve | NoInput = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: CurveOption_ = NoInput(0),
         fx: DualTypes | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
@@ -3504,7 +3493,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
-        vol: float | NoInput = NoInput(0),
+        vol: DualTypes | FXVols | NoInput = NoInput(0),
         metric: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -3591,6 +3580,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
         -------
         float, Dual or Dual2
         """
+        if isinstance(self.strike, NoInput):
+            raise ValueError("FXOption must set a `strike` for valuation.")
+
         # This function uses newton_1d and is AD safe.
 
         # convert the premium to a standardised immediate pips value.
@@ -3624,7 +3616,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         fx: FXForwards,
         base: str | NoInput = NoInput(0),
         local: bool = False,
-        vol: float | NoInput = NoInput(0),
+        vol: DualTypes | FXVols | NoInput = NoInput(0),
         premium: DualTypes | NoInput = NoInput(0),  # expressed in the payment currency
     ) -> dict[str, Any]:
         r"""
@@ -3724,10 +3716,17 @@ class FXOptionPeriod(metaclass=ABCMeta):
         u = self.strike / f_d
         sqrt_t = self._t_to_expiry(disc_curve.node_dates[0]) ** 0.5
 
-        if isinstance(vol, FXVolObj):
-            delta_idx, vol_, __ = vol.get_from_strike(self.strike, f_d, w_deli, w_spot, self.expiry)
+        if isinstance(vol, NoInput):
+            raise ValueError("`vol` must be a number quantity or FXDeltaVolSmile or Surface.")
+        elif isinstance(vol, FXVolObj):
+            res: tuple[DualTypes, DualTypes, DualTypes] = vol.get_from_strike(
+                self.strike, f_d, w_deli, w_spot, self.expiry
+            )
+            delta_idx: DualTypes | None = res[0]
+            vol_: DualTypes = res[1]
         else:
-            delta_idx, vol_ = None, vol
+            delta_idx = None
+            vol_ = vol
         vol_ /= 100.0
         vol_sqrt_t = vol_ * sqrt_t
         eta, z_w, z_u = _delta_type_constants(self.delta_type, w_deli / w_spot, u)
@@ -4633,6 +4632,21 @@ def _get_vol_delta_type(vol: DualTypes | FXVols, delta_type: str) -> str:
         return delta_type
     else:
         return vol.delta_type
+
+
+def _validate_credit_curves(curve: CurveOption_, disc_curve: CurveOption_) -> tuple[Curve, Curve]:
+    # used by Credit type Periods to narrow inputs
+    if not isinstance(curve, Curve):
+        raise TypeError(
+            "`curves` have not been supplied correctly.\n"
+            "`curve`for a CreditPremiumPeriod must be supplied as a Curve type."
+        )
+    if not isinstance(disc_curve, Curve):
+        raise TypeError(
+            "`curves` have not been supplied correctly.\n"
+            "`disc_curve` for a CreditPremiumPeriod must be supplied as a Curve type."
+        )
+    return curve, disc_curve
 
 
 # def _validate_broad_delta_bounds(phi, delta, delta_type):

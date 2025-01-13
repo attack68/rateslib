@@ -1,15 +1,24 @@
+from __future__ import annotations
+
+from collections.abc import Callable
 from datetime import datetime
+from typing import TYPE_CHECKING, Any
 
 from rateslib.calendars import dcf
-from rateslib.dual import DualTypes
+
+if TYPE_CHECKING:
+    from rateslib.typing import DualTypes, Security
 
 """
 The calculations for v2 (the interim, regular period discount value) are more standardised
 than the other calculations because they exclude the scenarios for stub handling.
 """
 
+# TODO fix the union-attr type ignores by considering aggergating coupon periods distinct from
+# cashflow periods
 
-def _v2_(obj, ytm: DualTypes, f: int, *args):
+
+def _v2_(obj: Security, ytm: DualTypes, f: int, *args: Any) -> DualTypes:
     """
     Default method for a single regular period discounted in the regular portion of bond.
     Implies compounding at the same frequency as the coupons.
@@ -17,7 +26,7 @@ def _v2_(obj, ytm: DualTypes, f: int, *args):
     return 1 / (1 + ytm / (100 * f))
 
 
-def _v2_annual(obj, ytm: DualTypes, f: int, *args):
+def _v2_annual(obj: Security, ytm: DualTypes, f: int, *args: Any) -> DualTypes:
     """
     ytm is expressed annually but coupon payments are on another frequency
     """
@@ -30,15 +39,15 @@ The calculations for v1 allow more inputs in order to avoid repeat calculations 
 
 
 def _v1_compounded_by_remaining_accrual_fraction(
-    obj,
+    obj: Security,
     ytm: DualTypes,
     f: int,
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes,
-    accrual: callable,
-    *args,
-):
+    accrual: Callable[[Security, datetime, int], float],
+    *args: Any,
+) -> DualTypes:
     """
     Determine the discount factor for the first cashflow after settlement.
 
@@ -47,10 +56,10 @@ def _v1_compounded_by_remaining_accrual_fraction(
     Method: compounds "v2" by the accrual fraction of the period.
     """
     acc_frac = accrual(obj, settlement, acc_idx)
-    if obj.leg1.periods[acc_idx].stub:
+    if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
         # If it is a stub then the remaining fraction must be scaled by the relative size of the
         # stub period compared with a regular period.
-        fd0 = obj.leg1.periods[acc_idx].dcf * f * (1 - acc_frac)
+        fd0 = obj.leg1.periods[acc_idx].dcf * f * (1 - acc_frac)  # type: ignore[union-attr]
     else:
         # 1 minus acc_fra is the fraction of the period remaining until the next cashflow.
         fd0 = 1 - acc_frac
@@ -58,15 +67,15 @@ def _v1_compounded_by_remaining_accrual_fraction(
 
 
 def _v1_compounded_by_remaining_accrual_frac_except_simple_final_period(
-    obj,
+    obj: Security,
     ytm: DualTypes,
     f: int,
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes,
-    accrual: callable,
-    *args,
-):
+    accrual: Callable[[Security, datetime, int], float],
+    *args: Any,
+) -> DualTypes:
     """
     Uses regular fractional compounding except if it is last period, when simple money-mkt
     yield is used instead.
@@ -91,17 +100,17 @@ def _v1_compounded_by_remaining_accrual_frac_except_simple_final_period(
 
 
 def _v1_comp_stub_act365f(
-    obj,
+    obj: Security,
     ytm: DualTypes,
     f: int,
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes,
-    accrual: callable,
-    *args,
-):
+    accrual: Callable[[Security, datetime, int], float],
+    *args: Any,
+) -> DualTypes:
     """Compounds the yield. In a stub period the act365f DCF is used"""
-    if not obj.leg1.periods[acc_idx].stub:
+    if not obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
         return _v1_compounded_by_remaining_accrual_fraction(
             obj,
             ytm,
@@ -118,22 +127,22 @@ def _v1_comp_stub_act365f(
 
 
 def _v1_simple(
-    obj,
+    obj: Security,
     ytm: DualTypes,
     f: int,
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes,
-    accrual: callable,
-    *args,
-):
+    accrual: Callable[[Security, datetime, int], float],
+    *args: Any,
+) -> DualTypes:
     """
     Use simple rates with a yield which matches the frequency of the coupon.
     """
     acc_frac = accrual(obj, settlement, acc_idx)
-    if obj.leg1.periods[acc_idx].stub:
+    if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
         # is a stub so must account for discounting in a different way.
-        fd0 = obj.leg1.periods[acc_idx].dcf * f * (1 - acc_frac)
+        fd0 = obj.leg1.periods[acc_idx].dcf * f * (1 - acc_frac)  # type: ignore[union-attr]
     else:
         fd0 = 1 - acc_frac
 
@@ -142,15 +151,15 @@ def _v1_simple(
 
 
 def _v1_simple_1y_adjustment(
-    obj,
+    obj: Security,
     ytm: DualTypes,
     f: int,
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes,
-    accrual: callable,
-    *args,
-):
+    accrual: Callable[[Security, datetime, int], float],
+    *args: Any,
+) -> DualTypes:
     """
     Use simple rates with a yield which matches the frequency of the coupon.
 
@@ -158,9 +167,9 @@ def _v1_simple_1y_adjustment(
     discount param ``v``.
     """
     acc_frac = accrual(obj, settlement, acc_idx)
-    if obj.leg1.periods[acc_idx].stub:
+    if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
         # is a stub so must account for discounting in a different way.
-        fd0 = obj.leg1.periods[acc_idx].dcf * f * (1 - acc_frac)
+        fd0 = obj.leg1.periods[acc_idx].dcf * f * (1 - acc_frac)  # type: ignore[union-attr]
     else:
         fd0 = 1 - acc_frac
 
@@ -172,56 +181,50 @@ def _v1_simple_1y_adjustment(
 
 
 def _v3_compounded(
-    obj,
+    obj: Security,
     ytm: DualTypes,
     f: int,
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes,
-    *args,
-):
+    *args: Any,
+) -> DualTypes:
     """
     Final period uses a compounding approach where the power is determined by the DCF of that
     period under the bond's specified convention.
     """
-    if obj.leg1.periods[acc_idx].stub:
+    if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
         # If it is a stub then the remaining fraction must be scaled by the relative size of the
         # stub period compared with a regular period.
-        fd0 = obj.leg1.periods[acc_idx].dcf * f
+        fd0 = obj.leg1.periods[acc_idx].dcf * f  # type: ignore[union-attr]
     else:
         fd0 = 1
     return v2**fd0
 
 
 def _v3_30e360_u_simple(
-    obj,
+    obj: Security,
     ytm: DualTypes,
     f: int,
     settlement: datetime,
     acc_idx: int,
-    v2: DualTypes,
-    *args,
-):
+    *args: Any,
+) -> DualTypes:
     """
     The final period is discounted by a simple interest method under a 30E360 convention.
 
     The YTM is assumed to have the same frequency as the coupons.
     """
-    d_ = dcf(obj.leg1.periods[acc_idx].start, obj.leg1.periods[acc_idx].end, "30E360")
+    d_ = dcf(obj.leg1.periods[acc_idx].start, obj.leg1.periods[acc_idx].end, "30E360")  # type: ignore[union-attr]
     return 1 / (1 + d_ * ytm / 100)  # simple interest
 
 
 def _v3_simple(
-    obj,
+    obj: Security,
     ytm: DualTypes,
-    f: int,
-    settlement: datetime,
-    acc_idx: int,
-    v2: DualTypes,
-    accrual: callable,
-    *args,
-):
-    v_ = 1 / (1 + obj.leg1.periods[-2].dcf * ytm / 100.0)
+    *args: Any,
+) -> DualTypes:
+    v_ = 1 / (1 + obj.leg1.periods[-2].dcf * ytm / 100.0)  # type: ignore[union-attr]
     return v_
 
 

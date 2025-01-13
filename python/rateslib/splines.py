@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from rateslib import defaults
-from rateslib.dual import Dual, Dual2, DualTypes, Variable
+from rateslib.dual import Dual, Dual2, Variable
 from rateslib.rs import PPSplineDual, PPSplineDual2, PPSplineF64, bspldnev_single, bsplev_single
 from rateslib.rs import PPSplineF64 as PPSpline
+
+if TYPE_CHECKING:
+    from rateslib.typing import DualTypes, Number
 
 # for legacy reasons allow a PPSpline class which allows only f64 datatypes.
 # TODO: (depr) remove this for version 2.0
@@ -19,7 +24,7 @@ def evaluate(
     spline: PPSplineF64 | PPSplineDual | PPSplineDual2,
     x: DualTypes,
     m: int = 0,
-) -> float | Dual | Dual2:
+) -> Number:
     """
     Evaluate a single x-axis data point, or a derivative value, on a *Spline*.
 

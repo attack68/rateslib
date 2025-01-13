@@ -69,14 +69,14 @@ def test_dual_str(x_1) -> None:
 
 @pytest.mark.skipif(DUAL_CORE_PY, reason="Gradient comparison cannot compare Py and Rs Duals.")
 @pytest.mark.parametrize(
-    ("vars", "expected"),
+    ("vars_", "expected"),
     [
         (["v1"], 2.00),
         (["v1", "v0"], np.array([2.0, 1.0])),
     ],
 )
-def test_gradient_method(vars, expected, x_1) -> None:
-    result = gradient(x_1, vars)
+def test_gradient_method(vars_, expected, x_1) -> None:
+    result = gradient(x_1, vars_)
     assert np.all(result == expected)
 
 
