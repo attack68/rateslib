@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from typing import Any, NoReturn
 
     from rateslib.typing import (
-        FX,
+        FX_,
         NPV,
         CurveOption_,
         Curves_,
@@ -223,7 +223,7 @@ class IRS(BaseDerivative):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> NPV:
@@ -239,7 +239,7 @@ class IRS(BaseDerivative):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -288,7 +288,7 @@ class IRS(BaseDerivative):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:
         """
@@ -307,7 +307,7 @@ class IRS(BaseDerivative):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -399,7 +399,7 @@ class IRS(BaseDerivative):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
@@ -573,7 +573,7 @@ class STIRFuture(IRS):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> NPV:
@@ -598,7 +598,7 @@ class STIRFuture(IRS):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         metric: str = "rate",
     ) -> DualTypes:
@@ -655,7 +655,7 @@ class STIRFuture(IRS):
         self,
         curve: CurveOption_ = NoInput(0),
         disc_curve: CurveOption_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -672,7 +672,7 @@ class STIRFuture(IRS):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:
         return DataFrame.from_records(
@@ -706,7 +706,7 @@ class STIRFuture(IRS):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
@@ -921,7 +921,7 @@ class ZCS(BaseDerivative):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> NPV:
@@ -937,7 +937,7 @@ class ZCS(BaseDerivative):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -993,7 +993,7 @@ class ZCS(BaseDerivative):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:
         """
@@ -1008,7 +1008,7 @@ class ZCS(BaseDerivative):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
@@ -1275,7 +1275,7 @@ class SBS(BaseDerivative):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:
         """
@@ -1290,7 +1290,7 @@ class SBS(BaseDerivative):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> NPV:
@@ -1306,7 +1306,7 @@ class SBS(BaseDerivative):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         leg: int = 1,
     ) -> DualTypes:
@@ -1374,7 +1374,7 @@ class SBS(BaseDerivative):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
@@ -1583,7 +1583,7 @@ class FRA(BaseDerivative):
         self,
         curve: CurveOption_,
         disc_curve: CurveOption_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -1602,7 +1602,7 @@ class FRA(BaseDerivative):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> NPV:
@@ -1633,7 +1633,7 @@ class FRA(BaseDerivative):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -1705,7 +1705,7 @@ class FRA(BaseDerivative):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:
         """
@@ -1774,7 +1774,7 @@ class FRA(BaseDerivative):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),

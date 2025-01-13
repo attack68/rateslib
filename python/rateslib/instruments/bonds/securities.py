@@ -45,7 +45,7 @@ from rateslib.periods import (
 
 if TYPE_CHECKING:
     from rateslib.typing import (
-        FX,
+        FX_,
         Any,
         CalInput,
         Callable,
@@ -1268,7 +1268,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         metric: str = "clean_price",
         forward_settlement: datetime | NoInput = NoInput(0),
@@ -2074,7 +2074,7 @@ class Bill(FixedRateBond):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         metric: str = "price",
     ) -> DualTypes:
@@ -2848,7 +2848,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),

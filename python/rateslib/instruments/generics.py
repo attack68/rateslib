@@ -24,7 +24,7 @@ from rateslib.instruments.utils import (
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, NPV, Any, Curves_, DualTypes, Instrument, NoReturn
+    from rateslib.typing import FX_, NPV, Any, Curves_, DualTypes, Instrument, NoReturn
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -82,7 +82,7 @@ class Value(BaseMixin):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         metric: str | NoInput = NoInput(0),
     ) -> DualTypes:
@@ -418,7 +418,7 @@ class Spread(Sensitivities):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
@@ -558,7 +558,7 @@ class Fly(Sensitivities):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
@@ -627,7 +627,7 @@ class Portfolio(Sensitivities):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
         **kwargs: Any,
@@ -742,7 +742,7 @@ class Portfolio(Sensitivities):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),

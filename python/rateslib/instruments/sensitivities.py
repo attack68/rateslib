@@ -14,7 +14,7 @@ from rateslib.instruments.utils import (
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, NPV, Curves_
+    from rateslib.typing import FX_, NPV, Curves_
 P = ParamSpec("P")
 
 
@@ -31,7 +31,7 @@ class Sensitivities:
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
         **kwargs: Any,
@@ -90,7 +90,7 @@ class Sensitivities:
         vars: list[str],  # noqa: A002
         curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
         vars_scalar: list[float] | NoInput = NoInput(0),
@@ -161,7 +161,7 @@ class Sensitivities:
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
         **kwargs: Any,
@@ -236,7 +236,7 @@ class Sensitivities:
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         **kwargs: Any,
     ) -> DataFrame:

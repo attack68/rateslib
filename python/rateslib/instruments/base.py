@@ -18,7 +18,7 @@ from rateslib.instruments.utils import (
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, NPV, Any, CalInput, Curves_, DualTypes, Leg
+    from rateslib.typing import FX_, NPV, Any, CalInput, Curves_, DualTypes, Leg
 
 
 class BaseMixin:
@@ -203,7 +203,7 @@ class BaseMixin:
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:
         """
@@ -282,7 +282,7 @@ class BaseMixin:
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> NPV:
