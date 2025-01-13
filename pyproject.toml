@@ -154,7 +154,7 @@ exclude = [
     "/instruments/fx_volatility.py",
     "/instruments/generics.py",
     "/instruments/rates/inflation.py",
-    # "/instruments/rates/multi_currency.py",
+    "/instruments/rates/multi_currency.py",
     "solver.py",
 ]
 strict = true
