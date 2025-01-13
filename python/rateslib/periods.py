@@ -61,7 +61,7 @@ from rateslib.fx_volatility import (
 from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, CalInput, CalTypes, Curve_, CurveOption_, DualTypes, Number
+    from rateslib.typing import FX_, CalInput, CalTypes, Curve_, CurveOption_, DualTypes, Number
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -70,7 +70,7 @@ if TYPE_CHECKING:
 
 def _get_fx_and_base(
     currency: str,
-    fx: FX = NoInput(0),
+    fx: FX_ = NoInput(0),
     base: str | NoInput = NoInput(0),
 ) -> tuple[DualTypes, str | NoInput]:
     """
@@ -142,7 +142,7 @@ def _maybe_local(
     value: DualTypes,
     local: bool,
     currency: str,
-    fx: FX,
+    fx: FX_,
     base: str | NoInput,
 ) -> dict[str, DualTypes] | DualTypes:
     """
@@ -157,7 +157,7 @@ def _maybe_local(
 def _maybe_fx_converted(
     value: DualTypes,
     currency: str,
-    fx: FX,
+    fx: FX_,
     base: str | NoInput,
 ) -> DualTypes:
     fx_, _ = _get_fx_and_base(currency, fx, base)
@@ -414,7 +414,7 @@ class BasePeriod(metaclass=ABCMeta):
         self,
         curve: CurveOption_ = NoInput(0),
         disc_curve: CurveOption_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> DualTypes | dict[str, DualTypes]:
@@ -546,7 +546,7 @@ class FixedPeriod(BasePeriod):
         self,
         curve: CurveOption_ = NoInput(0),
         disc_curve: CurveOption_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> dict[str, DualTypes] | DualTypes:
@@ -569,7 +569,7 @@ class FixedPeriod(BasePeriod):
         self,
         curve: CurveOption_ = NoInput(0),
         disc_curve: Curve_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> dict[str, Any]:
         """
@@ -964,7 +964,7 @@ class FloatPeriod(BasePeriod):
         self,
         curve: CurveOption_ = NoInput(0),
         disc_curve: Curve_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> dict[str, Any]:
         """
@@ -1006,7 +1006,7 @@ class FloatPeriod(BasePeriod):
         self,
         curve: CurveOption_ = NoInput(0),
         disc_curve: CurveOption_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> dict[str, DualTypes] | DualTypes:
@@ -2306,7 +2306,7 @@ class CreditPremiumPeriod(BasePeriod):
         self,
         curve: CurveOption_ = NoInput(0),
         disc_curve: CurveOption_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> DualTypes | dict[str, DualTypes]:
@@ -2497,7 +2497,7 @@ class CreditProtectionPeriod(BasePeriod):
         self,
         curve: CurveOption_ = NoInput(0),
         disc_curve: CurveOption_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> DualTypes | dict[str, DualTypes]:

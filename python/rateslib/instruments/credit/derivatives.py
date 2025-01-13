@@ -15,7 +15,7 @@ from rateslib.instruments.utils import (
 from rateslib.legs import CreditPremiumLeg, CreditProtectionLeg
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, NPV, Any, Curves_, DataFrame, DualTypes, Solver_, datetime
+    from rateslib.typing import FX_, NPV, Any, Curves_, DataFrame, DualTypes, Solver_, datetime
 
 
 class CDS(BaseDerivative):
@@ -115,7 +115,7 @@ class CDS(BaseDerivative):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> NPV:
@@ -131,7 +131,7 @@ class CDS(BaseDerivative):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -178,7 +178,7 @@ class CDS(BaseDerivative):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:
         """

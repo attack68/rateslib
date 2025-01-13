@@ -1,3 +1,6 @@
+# This module is reserved only for typing purposes.
+# It avoids all circular import by performing a TYPE_CHECKING check on any component.
+
 from collections.abc import Callable as Callable
 from collections.abc import Sequence as Sequence
 from datetime import datetime as datetime
@@ -83,6 +86,8 @@ Arr2dObj: TypeAlias = "np.ndarray[tuple[int, int], np.dtype[np.object_]]"
 
 FixingsRates: TypeAlias = "Series[DualTypes] | list[DualTypes | list[DualTypes] | Series[DualTypes] | NoInput] | tuple[DualTypes, Series[DualTypes]] | DualTypes | NoInput"
 
+str_: TypeAlias = "str | NoInput"
+
 from rateslib.curves import Curve as Curve  # noqa: E402
 
 Curve_: TypeAlias = "Curve | NoInput"
@@ -112,8 +117,8 @@ VolInput: TypeAlias = "VolInput_ | NoInput"
 VolOption_: TypeAlias = "FXDeltaVolSmile | DualTypes | FXDeltaVolSurface"
 VolOption: TypeAlias = "VolOption_ | NoInput"
 
-FX_: TypeAlias = "DualTypes | FXRates | FXForwards"
-FX: TypeAlias = "FX_ | NoInput"
+FX: TypeAlias = "DualTypes | FXRates | FXForwards"
+FX_: TypeAlias = "FX | NoInput"
 
 NPV: TypeAlias = "DualTypes | dict[str, DualTypes]"
 

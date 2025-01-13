@@ -12,7 +12,7 @@ from rateslib.instruments.utils import (
 from rateslib.legs import FloatLeg, IndexFixedLeg, ZeroFixedLeg, ZeroIndexLeg
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, Any, Curves, DataFrame, Series, Solver, datetime
+    from rateslib.typing import FX_, Any, Curves, DataFrame, Series, Solver, datetime
 
 
 class ZCIS(BaseDerivative):
@@ -155,7 +155,7 @@ class ZCIS(BaseDerivative):
         self,
         curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
         self._set_pricing_mid(curves, solver)
@@ -165,7 +165,7 @@ class ZCIS(BaseDerivative):
         self,
         curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ):
@@ -176,7 +176,7 @@ class ZCIS(BaseDerivative):
         self,
         curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
         """
@@ -425,7 +425,7 @@ class IIRS(BaseDerivative):
         self,
         curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ):
@@ -452,7 +452,7 @@ class IIRS(BaseDerivative):
         self,
         curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
@@ -478,7 +478,7 @@ class IIRS(BaseDerivative):
         self,
         curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
         """
@@ -538,7 +538,7 @@ class IIRS(BaseDerivative):
         self,
         curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ):
         """
@@ -628,7 +628,7 @@ class IIRS(BaseDerivative):
         self,
         curves: Curves = NoInput(0),
         solver: Solver | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),

@@ -34,7 +34,7 @@ from rateslib.periods import (
 from rateslib.scheduling import Schedule
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX, CalInput, CurveOption_, DualTypes, FixingsRates, Period
+    from rateslib.typing import FX_, CalInput, CurveOption_, DualTypes, FixingsRates, Period
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -348,7 +348,7 @@ class BaseLeg(metaclass=ABCMeta):
         target_npv: DualTypes,
         fore_curve: CurveOption_,
         disc_curve: CurveOption_,
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
     ) -> DualTypes:
         """
         Calculates an adjustment to the ``fixed_rate`` or ``float_spread`` to match
@@ -821,7 +821,7 @@ class _FloatLegMixin:
         target_npv: DualTypes,
         fore_curve: CurveOption_,
         disc_curve: CurveOption_,
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
     ) -> DualTypes:
         """
         Calculates an adjustment to the ``fixed_rate`` or ``float_spread`` to match
@@ -1054,7 +1054,7 @@ class FloatLeg(_FloatLegMixin, BaseLeg):
         self,
         curve: CurveOption_,
         disc_curve: CurveOption_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
@@ -1383,7 +1383,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         self,
         curve: CurveOption_,
         disc_curve: CurveOption_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> dict[str, DualTypes] | DualTypes:
@@ -1411,7 +1411,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         self,
         curve: CurveOption_,
         disc_curve: CurveOption_ = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
@@ -1471,7 +1471,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         self,
         curve: Curve | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -1499,7 +1499,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         self,
         curve: CurveOption_ = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:
         """
@@ -1674,7 +1674,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
         self,
         curve: CurveOption_ = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:
         """
@@ -1723,7 +1723,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
         self,
         curve: Curve | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -1754,7 +1754,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
         target_npv: DualTypes,
         fore_curve: CurveOption_,
         disc_curve: CurveOption_,
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
     ) -> DualTypes:
         """
         Overload the _spread calc to use analytic delta based on period rate
@@ -2575,7 +2575,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    def _get_fx_fixings(self, fx: FX) -> list[DualTypes]:
+    def _get_fx_fixings(self, fx: FX_) -> list[DualTypes]:
         """
         Return the calculated FX fixings.
 
@@ -2633,7 +2633,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
                 fx_fixings_.extend([fx_fixings_[-1]] * (n_req - n_given))
         return fx_fixings_
 
-    def _set_periods(self, fx: FX) -> None:  # type: ignore[override]
+    def _set_periods(self, fx: FX_) -> None:  # type: ignore[override]
         fx_fixings_: list[DualTypes] = self._get_fx_fixings(fx)
         self.notional = fx_fixings_[0] * self.alt_notional
         notionals = [self.alt_notional * fx_fixings_[i] for i in range(len(fx_fixings_))]
@@ -2707,7 +2707,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         self,
         curve: Curve,
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
     ) -> DualTypes | dict[str, DualTypes]:
@@ -2721,7 +2721,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         self,
         curve: Curve | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:
         if not self._do_not_repeat_set_periods:
@@ -2734,7 +2734,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         self,
         curve: Curve | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         if not self._do_not_repeat_set_periods:
@@ -2892,7 +2892,7 @@ class FloatLegMtm(_FloatLegMixin, BaseLegMtm):
         self,
         curve: Curve,
         disc_curve: Curve | NoInput = NoInput(0),
-        fx: FX = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),

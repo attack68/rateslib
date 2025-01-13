@@ -10,20 +10,12 @@ from rateslib.curves._parsers import _get_curves_maybe_from_solver
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.fx import FXForwards, FXRates
-from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
-        FX,
-        Curves_,
-        Curves_DiscTuple,
-        Vol,
-        Vol_,
-        VolOption,
-    )
+    from rateslib.typing import FX_, Curves_, Curves_DiscTuple, Solver_, Vol, Vol_, VolOption, str_
 
 
-def _get_base_maybe_from_fx(fx: FX, base: str | NoInput, local_ccy: str | NoInput) -> str | NoInput:
+def _get_base_maybe_from_fx(fx: FX_, base: str_, local_ccy: str_) -> str_:
     if isinstance(fx, NoInput | float) and isinstance(base, NoInput):
         # base will not be inherited from a 2nd level inherited object, i.e.
         # from solver.fx, to preserve single currency instruments being defaulted
@@ -36,10 +28,10 @@ def _get_base_maybe_from_fx(fx: FX, base: str | NoInput, local_ccy: str | NoInpu
     return base_
 
 
-def _get_fx_maybe_from_solver(solver: Solver | NoInput, fx: FX) -> FX:
+def _get_fx_maybe_from_solver(solver: Solver_, fx: FX_) -> FX_:
     if isinstance(fx, NoInput):
         if isinstance(solver, NoInput):
-            fx_: FX = NoInput(0)
+            fx_: FX_ = NoInput(0)
             # fx_ = 1.0
         else:  # solver is not NoInput:
             if isinstance(solver.fx, NoInput):
@@ -66,12 +58,12 @@ def _get_fx_maybe_from_solver(solver: Solver | NoInput, fx: FX) -> FX:
 
 def _get_curves_fx_and_base_maybe_from_solver(
     curves_attr: Curves_,
-    solver: Solver | NoInput,
+    solver: Solver_,
     curves: Curves_,
-    fx: FX,
-    base: str | NoInput,
-    local_ccy: str | NoInput,
-) -> tuple[Curves_DiscTuple, FX, str | NoInput]:
+    fx: FX_,
+    base: str_,
+    local_ccy: str_,
+) -> tuple[Curves_DiscTuple, FX_, str_]:
     """
     Parses the ``solver``, ``curves``, ``fx`` and ``base`` arguments in combination.
 
@@ -110,7 +102,7 @@ def _get_curves_fx_and_base_maybe_from_solver(
     return curves_, fx_, base_
 
 
-def _get_vol_maybe_from_solver(vol_attr: Vol, vol: Vol, solver: Solver | NoInput) -> VolOption:
+def _get_vol_maybe_from_solver(vol_attr: Vol, vol: Vol, solver: Solver_) -> VolOption:
     """
     Try to retrieve a general vol input from a solver or the default vol object associated with
     instrument.
@@ -190,7 +182,7 @@ def _get(kwargs: dict[str, Any], leg: int = 1, filter: tuple[str, ...] = ()) -> 
     return _
 
 
-def _push(spec: str | NoInput, kwargs: dict[str, Any]) -> dict[str, Any]:
+def _push(spec: str_, kwargs: dict[str, Any]) -> dict[str, Any]:
     """
     Push user specified kwargs to a default specification.
     Values from the `spec` dict will not overwrite specific user values already in `kwargs`.
@@ -260,13 +252,13 @@ def _inherit_or_negate(kwargs: dict[str, Any], ignore_blank: bool = False) -> di
     return {k: _replace(k, v) for k, v in kwargs.items()}
 
 
-def _lower(val: str | NoInput) -> str | NoInput:
+def _lower(val: str_) -> str_:
     if isinstance(val, str):
         return val.lower()
     return val
 
 
-def _upper(val: str | NoInput) -> str | NoInput:
+def _upper(val: str_) -> str_:
     if isinstance(val, str):
         return val.upper()
     return val
