@@ -76,6 +76,8 @@ CalTypes: TypeAlias = "Cal | UnionCal | NamedCal"
 CalInput: TypeAlias = "CalTypes | str | NoInput"
 
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"
+DualTypes_: TypeAlias = "DualTypes | NoInput"
+
 Number: TypeAlias = "float | Dual | Dual2"
 
 # https://stackoverflow.com/questions/68916893/
