@@ -37,7 +37,6 @@ from rateslib.periods import (
 
 if TYPE_CHECKING:
     from rateslib.typing import (
-        FX,
         FX_,
         NPV,
         Any,
