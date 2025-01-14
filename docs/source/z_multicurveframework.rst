@@ -217,6 +217,9 @@ do this to obtain 3m rates from 6m rates and vice-versa.
    data.loc[1:12, "6m"] = data.loc[1:12, "3m"] + data.loc[1:12, "3s6s Basis"] / 100.0
    data
 
+Preliminary Solver
+------------------
+
 Then we can create a Solver which solves the NOWA curve directly:
 
 .. ipython:: python
@@ -227,9 +230,12 @@ Then we can create a Solver which solves the NOWA curve directly:
      s = rfr_depo_s + [row.RFR for row in data.iloc[1:].itertuples()],
    )
 
-This Curve is now available to use to price the remaining Curves.
+Additional Solvers in dependency chain
+--------------------------------------
+
+This *Curve* is now available to use to price the remaining *Curves*.
 We will do the same trick for the rates on the 3M curve.
-Notice that we use the pre_solvers input to pass the already solved *Curve* into the system.
+Notice that we use the ``pre_solvers`` input to pass the already solved *Curve* into the system.
 
 .. ipython:: python
 
