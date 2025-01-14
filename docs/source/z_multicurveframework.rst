@@ -217,6 +217,9 @@ do this to obtain 3m rates from 6m rates and vice-versa.
    data.loc[1:12, "6m"] = data.loc[1:12, "3m"] + data.loc[1:12, "3s6s Basis"] / 100.0
    data
 
+Preliminary Solver
+------------------
+
 Then we can create a Solver which solves the NOWA curve directly:
 
 .. ipython:: python
@@ -227,9 +230,12 @@ Then we can create a Solver which solves the NOWA curve directly:
      s = rfr_depo_s + [row.RFR for row in data.iloc[1:].itertuples()],
    )
 
-This Curve is now available to use to price the remaining Curves.
+Additional Solvers in dependency chain
+--------------------------------------
+
+This *Curve* is now available to use to price the remaining *Curves*.
 We will do the same trick for the rates on the 3M curve.
-Notice that we use the pre_solvers input to pass the already solved *Curve* into the system.
+Notice that we use the ``pre_solvers`` input to pass the already solved *Curve* into the system.
 
 .. ipython:: python
 
@@ -243,6 +249,15 @@ Notice that we use the pre_solvers input to pass the already solved *Curve* into
 And finally we repeat this for the 6M Nibor curve. Notice that the total time to solve is about 50%
 of the time taken by the single solver system.
 
+.. ipython:: python
+
+   solver3 = Solver(
+     pre_solvers=[solver2],
+     curves=[nibor6],
+     instruments=ib6_depo + [IRS(row.effective, row.termination, spec="nok_irs6", curves=["nibor6", "nowa"]) for row in data.iloc[1:13].itertuples()] + ib6_irs,
+     s = ib6_depo_s + [row._5 for row in data.iloc[1:13].itertuples()] + ib6_irs_s,
+   )
+
 We can plot the curves.
 
 .. ipython:: python
@@ -253,11 +268,14 @@ We can plot the curves.
 
    Plotted 3m rates of each curve, NOWA, 3m-NIBOR and 6m-NIBOR.
 
-The curves look different, and erroneous. This is not because of the alternative framework and
+The curves look different, and erroneous. This is not because of the method used:
+i.e. the alternative framework and
 independent solvers. It is because the operation of adding the basis to imply rates of
-alternative *Instruments* is not exact adn was too simplistic.
-A 3s6s *SBS* rate of 10bps does not equate to subtracting
-10bps from the rate of a 6m *IRS* to yield a 3m *IRS*, because the frequencies ("A", "S" and "Q")
+alternative *Instruments* **is not exact**, in this case, and was too simplistic.
+A 3s6s *SBS* rate of 3m-NIBOR + 10bps does not equate to subtracting
+10bps from the fixed rate of a 6m *IRS* to yield a 3m *IRS* fixed rate, because the
+frequencies ("A", "S" and "Q")
 do not align and the conventions ("30e360" and "Act360") do not align either. This is also
 a problem for the RFR basis which has a convention of "Act365F" whilst the IBOR type is
-"Act360". This approximation has created kinks.
+"Act360". This approximation has created kinks about the part of the curve where real prices
+cross-over to approximated ones.
