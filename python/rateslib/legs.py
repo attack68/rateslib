@@ -214,25 +214,92 @@ class BaseLeg(metaclass=ABCMeta):
 
     @abstractmethod
     def _set_periods(self) -> None:
-        # initial exchange
-        self.periods = (
-            [
+        """Combine all period collection types into an ordered list."""
+        self._set_exchange_periods()  # initial and final exchange
+        self._set_regular_periods()  # normal coupon periods
+        self._set_interim_exchange_periods()  # amortisation exchanges
+
+        periods_: list[Period] = []
+
+        if self._exchange_periods[0] is not None:
+            periods_.append(self._exchange_periods[0])
+
+        if self._interim_exchange_periods is not None:
+            interleaved_periods_: list[Period] = [
+                val for pair in zip(self._regular_periods, self._interim_exchange_periods, strict=False) for val in pair
+            ]
+            interleaved_periods_.append(self._regular_periods[-1])  # add last regular period
+        else:
+            interleaved_periods_ = self._regular_periods
+        periods_.extend(interleaved_periods_)
+
+        if self._exchange_periods[1] is not None:
+            periods_.append(self._exchange_periods[1])
+
+        self.periods = periods_
+
+    def _set_exchange_periods(self) -> None:
+        """Set default cashflow exchanges on Legs with `initial_exchange` or `final_exchange`."""
+
+        periods_: list[Cashflow | None] = []
+
+        if self.initial_exchange:
+            periods_.append(
                 Cashflow(
-                    -self.notional,
-                    self.schedule.calendar.lag(
+                    notional=-self.notional,
+                    payment=self.schedule.calendar.lag(
                         self.schedule.aschedule[0],
                         self.payment_lag_exchange,
                         True,
                     ),
-                    self.currency,
-                    "Exchange",
+                    currency=self.currency,
+                    stub_type="Exchange",
                 ),
-            ]
-            if self.initial_exchange
-            else []
-        )
+            )
+        else:
+            periods_.append(None)
 
-        regular_periods = [
+        if self.final_exchange:
+            periods_.append(
+                Cashflow(
+                    notional=-self.notional,
+                    payment=self.schedule.calendar.lag(
+                        self.schedule.aschedule[0],
+                        self.payment_lag_exchange,
+                        True,
+                    ),
+                    currency=self.currency,
+                    stub_type="Exchange",
+                ),
+            )
+        else:
+            periods_.append(None)
+
+        self._exchange_periods: list[Cashflow | None] = periods_
+
+    def _set_interim_exchange_periods(self) -> None:
+        """Set cashflow exchanges if `amortization` and `final_exchange` are present."""
+        if not self.final_exchange or self.amortization == 0:
+            periods_: list[Cashflow] | None = None
+        else:
+            periods_ = [
+                Cashflow(
+                    notional=self.amortization,
+                    payment=self.schedule.calendar.lag(
+                        self.schedule.aschedule[i + 1],
+                        self.payment_lag_exchange,
+                        True,
+                    ),
+                    currency=self.currency,
+                    stub_type="Amortization",
+                )
+                for i in range(self.schedule.n_periods - 1)
+            ]
+
+        self._interim_exchange_periods: list[Cashflow] | None = periods_
+
+    def _set_regular_periods(self) -> None:
+        periods_: list[Period] = [
             self._regular_period(
                 start=period[defaults.headers["a_acc_start"]],
                 end=period[defaults.headers["a_acc_end"]],
@@ -243,42 +310,7 @@ class BaseLeg(metaclass=ABCMeta):
             )
             for i, period in enumerate(self.schedule.table.to_dict(orient="index").values())
         ]
-        if self.final_exchange and self.amortization != 0:
-            amortization = [
-                Cashflow(
-                    self.amortization,
-                    self.schedule.calendar.lag(
-                        self.schedule.aschedule[i + 1],
-                        self.payment_lag_exchange,
-                        True,
-                    ),
-                    self.currency,
-                    "Amortization",
-                )
-                for i in range(self.schedule.n_periods - 1)
-            ]
-            interleaved_periods = [
-                val for pair in zip(regular_periods, amortization, strict=False) for val in pair
-            ]
-            interleaved_periods.append(regular_periods[-1])  # add last regular period
-        else:
-            interleaved_periods = regular_periods
-        self.periods.extend(interleaved_periods)
-
-        # final cashflow
-        if self.final_exchange:
-            self.periods.append(
-                Cashflow(
-                    self.notional - self.amortization * (self.schedule.n_periods - 1),
-                    self.schedule.calendar.lag(
-                        self.schedule.aschedule[-1],
-                        self.payment_lag_exchange,
-                        True,
-                    ),
-                    self.currency,
-                    "Exchange",
-                ),
-            )
+        self._regular_periods: list[Period] = periods_
 
     @abstractmethod
     def _regular_period(
@@ -2549,12 +2581,15 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
     @property
     def fx_fixings(self) -> list[DualTypes]:
         """
-        list : FX fixing values used for consecutive periods.
+        list : FX fixing values input by user and attached to the instrument.
         """
         return self._fx_fixings
 
     @fx_fixings.setter
     def fx_fixings(self, value: FixingsFx_) -> None:  # type: ignore[type-var]
+        """
+        Parse a 'FixingsFx_' object to convert to a list[DualTypes] attached to _fx_fixings attr.
+        """
         if isinstance(value, NoInput):
             self._fx_fixings: list[DualTypes] = []
         elif isinstance(value, list):
