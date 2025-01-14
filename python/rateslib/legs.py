@@ -262,9 +262,9 @@ class BaseLeg(metaclass=ABCMeta):
         if self.final_exchange:
             periods_.append(
                 Cashflow(
-                    notional=-self.notional,
+                    notional=self.notional - self.amortization * (self.schedule.n_periods - 1),
                     payment=self.schedule.calendar.lag(
-                        self.schedule.aschedule[0],
+                        self.schedule.aschedule[-1],
                         self.payment_lag_exchange,
                         True,
                     ),
