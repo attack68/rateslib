@@ -44,10 +44,10 @@ if TYPE_CHECKING:
         FixingsFx_,
         FixingsRates_,
         Period,
-        str_,
-        int_,
         bool_,
         datetime_,
+        int_,
+        str_,
     )
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
