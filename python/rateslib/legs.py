@@ -36,12 +36,18 @@ from rateslib.scheduling import Schedule
 if TYPE_CHECKING:
     from rateslib.typing import (
         FX_,
+        NPV,
         CalInput,
         CurveOption_,
         DualTypes,
+        DualTypes_,
         FixingsFx_,
         FixingsRates_,
         Period,
+        str_,
+        int_,
+        bool_,
+        datetime_,
     )
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -153,22 +159,22 @@ class BaseLeg(metaclass=ABCMeta):
         termination: datetime | str,
         frequency: str,
         *,
-        stub: str | NoInput = NoInput(0),
-        front_stub: datetime | NoInput = NoInput(0),
-        back_stub: datetime | NoInput = NoInput(0),
-        roll: str | int | NoInput = NoInput(0),
-        eom: bool | NoInput = NoInput(0),
-        modifier: str | NoInput = NoInput(0),
+        stub: str_ = NoInput(0),
+        front_stub: datetime_ = NoInput(0),
+        back_stub: datetime_ = NoInput(0),
+        roll: int | str_ = NoInput(0),
+        eom: bool_ = NoInput(0),
+        modifier: str_ = NoInput(0),
         calendar: CalInput = NoInput(0),
-        payment_lag: int | NoInput = NoInput(0),
-        notional: DualTypes | NoInput = NoInput(0),
-        currency: str | NoInput = NoInput(0),
-        amortization: DualTypes | NoInput = NoInput(0),
-        convention: str | NoInput = NoInput(0),
-        payment_lag_exchange: int | NoInput = NoInput(0),
+        payment_lag: int_ = NoInput(0),
+        notional: DualTypes_ = NoInput(0),
+        currency: str_ = NoInput(0),
+        amortization: DualTypes_ = NoInput(0),
+        convention: str_ = NoInput(0),
+        payment_lag_exchange: int_ = NoInput(0),
         initial_exchange: bool = False,
         final_exchange: bool = False,
-    ):
+    ) -> None:
         self.schedule = Schedule(
             effective,
             termination,
@@ -188,7 +194,7 @@ class BaseLeg(metaclass=ABCMeta):
         self.initial_exchange: bool = initial_exchange
         self.final_exchange: bool = final_exchange
         self._notional: DualTypes = _drb(defaults.notional, notional)
-        self._amortization: float = _drb(0.0, amortization)
+        self._amortization: DualTypes = _drb(0.0, amortization)
         if getattr(self, "_delay_set_periods", False):
             pass
         else:
@@ -204,7 +210,7 @@ class BaseLeg(metaclass=ABCMeta):
         self._set_periods()
 
     @property
-    def amortization(self) -> float:
+    def amortization(self) -> DualTypes:
         return self._amortization
 
     @amortization.setter
@@ -346,7 +352,7 @@ class BaseLeg(metaclass=ABCMeta):
         seq = [period.cashflows(*args, **kwargs) for period in self.periods]
         return DataFrame.from_records(seq)
 
-    def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]:
+    def npv(self, *args: Any, **kwargs: Any) -> NPV:
         """
         Return the NPV of the *Leg* via summing all periods.
 
@@ -1040,11 +1046,11 @@ class FloatLeg(_FloatLegMixin, BaseLeg):
     def __init__(
         self,
         *args: Any,
-        float_spread: DualTypes | NoInput = NoInput(0),
+        float_spread: DualTypes_ = NoInput(0),
         fixings: FixingsRates_ = NoInput(0),
-        fixing_method: str | NoInput = NoInput(0),
-        method_param: int | NoInput = NoInput(0),
-        spread_compound_method: str | NoInput = NoInput(0),
+        fixing_method: str_ = NoInput(0),
+        method_param: int_ = NoInput(0),
+        spread_compound_method: str_ = NoInput(0),
         **kwargs: Any,
     ) -> None:
         self._float_spread = float_spread
@@ -1076,7 +1082,7 @@ class FloatLeg(_FloatLegMixin, BaseLeg):
         """
         return super().cashflows(*args, **kwargs)
 
-    def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]:
+    def npv(self, *args: Any, **kwargs: Any) -> NPV:
         """
         Return the NPV of the *FloatLeg* via summing all periods.
 
@@ -1090,9 +1096,9 @@ class FloatLeg(_FloatLegMixin, BaseLeg):
         curve: CurveOption_,
         disc_curve: CurveOption_ = NoInput(0),
         fx: FX_ = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
         approximate: bool = False,
-        right: datetime | NoInput = NoInput(0),
+        right: datetime_ = NoInput(0),
     ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on a :class:`~rateslib.legs.FloatLeg`.
