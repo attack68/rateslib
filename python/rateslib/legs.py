@@ -272,7 +272,7 @@ class BaseLeg(metaclass=ABCMeta):
     def _set_interim_exchange_periods(self) -> None:
         """Set cashflow exchanges if `amortization` and `final_exchange` are present."""
         if not self.final_exchange or self.amortization == 0:
-            periods_: list[Cashflow] | None = None
+            self._interim_exchange_periods: tuple[Cashflow, ...] | None = None
         else:
             periods_ = [
                 Cashflow(
@@ -287,8 +287,7 @@ class BaseLeg(metaclass=ABCMeta):
                 )
                 for i in range(self.schedule.n_periods - 1)
             ]
-
-        self._interim_exchange_periods: list[Cashflow] | None = periods_
+            self._interim_exchange_periods = tuple(periods_)
 
     def _set_regular_periods(self) -> None:
         self._regular_periods: tuple[Period, ...] = tuple(
