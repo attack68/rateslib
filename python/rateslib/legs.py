@@ -230,7 +230,7 @@ class BaseLeg(metaclass=ABCMeta):
             ]
             interleaved_periods_.append(self._regular_periods[-1])  # add last regular period
         else:
-            interleaved_periods_ = self._regular_periods
+            interleaved_periods_ = list(self._regular_periods)
         periods_.extend(interleaved_periods_)
 
         if self._exchange_periods[1] is not None:
@@ -241,11 +241,10 @@ class BaseLeg(metaclass=ABCMeta):
     def _set_exchange_periods(self) -> None:
         """Set default cashflow exchanges on Legs with `initial_exchange` or `final_exchange`."""
 
-        periods_: list[Cashflow | None] = []
+        periods_: list[Cashflow | None] = [None, None]
 
         if self.initial_exchange:
-            periods_.append(
-                Cashflow(
+            periods_[0] = Cashflow(
                     notional=-self.notional,
                     payment=self.schedule.calendar.lag(
                         self.schedule.aschedule[0],
@@ -254,14 +253,10 @@ class BaseLeg(metaclass=ABCMeta):
                     ),
                     currency=self.currency,
                     stub_type="Exchange",
-                ),
-            )
-        else:
-            periods_.append(None)
+                )
 
         if self.final_exchange:
-            periods_.append(
-                Cashflow(
+            periods_[1] = Cashflow(
                     notional=self.notional - self.amortization * (self.schedule.n_periods - 1),
                     payment=self.schedule.calendar.lag(
                         self.schedule.aschedule[-1],
@@ -270,12 +265,9 @@ class BaseLeg(metaclass=ABCMeta):
                     ),
                     currency=self.currency,
                     stub_type="Exchange",
-                ),
-            )
-        else:
-            periods_.append(None)
+                )
 
-        self._exchange_periods: list[Cashflow | None] = periods_
+        self._exchange_periods: tuple[Cashflow | None, Cashflow | None] = tuple(periods_)  # type: ignore[assignment]
 
     def _set_interim_exchange_periods(self) -> None:
         """Set cashflow exchanges if `amortization` and `final_exchange` are present."""
@@ -299,7 +291,8 @@ class BaseLeg(metaclass=ABCMeta):
         self._interim_exchange_periods: list[Cashflow] | None = periods_
 
     def _set_regular_periods(self) -> None:
-        periods_: list[Period] = [
+        self._regular_periods: tuple[Period, ...] = tuple(
+            [
             self._regular_period(
                 start=period[defaults.headers["a_acc_start"]],
                 end=period[defaults.headers["a_acc_end"]],
@@ -310,7 +303,7 @@ class BaseLeg(metaclass=ABCMeta):
             )
             for i, period in enumerate(self.schedule.table.to_dict(orient="index").values())
         ]
-        self._regular_periods: list[Period] = periods_
+        )
 
     @abstractmethod
     def _regular_period(
@@ -531,6 +524,7 @@ class FixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
     """  # noqa: E501
 
     periods: list[FixedPeriod | Cashflow]  # type: ignore[assignment]
+    _regular_periods: tuple[FixedPeriod, ...]
 
     def __init__(
         self, *args: Any, fixed_rate: DualTypes | NoInput = NoInput(0), **kwargs: Any
@@ -2240,6 +2234,8 @@ class CreditPremiumLeg(_FixedLegMixin, BaseLeg):
     """  # noqa: E501
 
     periods: list[CreditPremiumPeriod]  # type: ignore[assignment]
+
+    _regular_periods: tuple[CreditPremiumPeriod, ...]
 
     def __init__(
         self,
