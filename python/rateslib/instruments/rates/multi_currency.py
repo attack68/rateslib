@@ -48,6 +48,8 @@ if TYPE_CHECKING:
         FixingsRates_,
         Solver_,
         str_,
+        bool_,
+        int_
     )
 
 
@@ -350,22 +352,22 @@ class XCS(BaseDerivative):
     def __init__(
         self,
         *args: Any,
-        fixed: bool | NoInput = NoInput(0),
-        payment_lag_exchange: int | NoInput = NoInput(0),
-        fixed_rate: float | NoInput = NoInput(0),
-        float_spread: float | NoInput = NoInput(0),
+        fixed: bool_ = NoInput(0),
+        payment_lag_exchange: int_ = NoInput(0),
+        fixed_rate: DualTypes_ = NoInput(0),
+        float_spread: DualTypes_ = NoInput(0),
         spread_compound_method: str_ = NoInput(0),
         fixings: FixingsRates_ = NoInput(0),  # type: ignore[type-var]
         fixing_method: str_ = NoInput(0),
-        method_param: int | NoInput = NoInput(0),
-        leg2_fixed: bool | NoInput = NoInput(0),
-        leg2_mtm: bool | NoInput = NoInput(0),
-        leg2_payment_lag_exchange: int | NoInput = NoInput(1),
-        leg2_fixed_rate: float | NoInput = NoInput(0),
-        leg2_float_spread: float | NoInput = NoInput(0),
+        method_param: int_ = NoInput(0),
+        leg2_fixed: bool_ = NoInput(0),
+        leg2_mtm: bool_ = NoInput(0),
+        leg2_payment_lag_exchange: int_ = NoInput(1),
+        leg2_fixed_rate: DualTypes_ = NoInput(0),
+        leg2_float_spread: DualTypes_ = NoInput(0),
         leg2_fixings: FixingsRates_ = NoInput(0),
         leg2_fixing_method: str_ = NoInput(0),
-        leg2_method_param: int | NoInput = NoInput(0),
+        leg2_method_param: int_ = NoInput(0),
         leg2_spread_compound_method: str_ = NoInput(0),
         fx_fixings: FixingsFx_ = NoInput(0),  # type: ignore[type-var]
         **kwargs: Any,
@@ -439,7 +441,6 @@ class XCS(BaseDerivative):
         )
 
         if self.kwargs["leg2_mtm"]:
-            self._is_mtm = True
             leg2_user_kwargs.update(
                 dict(
                     leg2_alt_currency=self.kwargs["currency"],
@@ -447,8 +448,6 @@ class XCS(BaseDerivative):
                     leg2_fx_fixings=fx_fixings,
                 ),
             )
-        else:
-            self._is_mtm = False
 
         self.kwargs = _update_not_noinput(self.kwargs, {**leg1_user_kwargs, **leg2_user_kwargs})
 
@@ -512,7 +511,7 @@ class XCS(BaseDerivative):
                             "'raise'.",
                         )
                     else:
-                        fx_fixing = 1.0
+                        fx_fixing: DualTypes = 1.0
                         if defaults.no_fx_fixings_for_xcs.lower() == "warn":
                             warnings.warn(
                                 "Using 1.0 for FX, no `fx` or `fx_fixings` given and "
@@ -739,12 +738,12 @@ class XCS(BaseDerivative):
                 tgt_leg.fixed_rate = _dual_float(tgt_leg_fixed_rate)
 
         self._set_fx_fixings(fx_)
-        if self._is_mtm:
+        if isinstance(self.leg2, FloatLegMtm | FixedLegMtm):
             self.leg2._do_not_repeat_set_periods = True
 
         tgt_leg_npv = tgt_leg.npv(tgt_fore_curve, tgt_disc_curve, fx_, base_)
         alt_leg_npv = alt_leg.npv(alt_fore_curve, alt_disc_curve, fx_, base_)
-        fx_a_delta = 1.0 if not tgt_leg._is_mtm else fx_
+        fx_a_delta = 1.0 if not isinstance(tgt_leg, FloatLegMtm | FixedLegMtm) else fx_
         _ = tgt_leg._spread(
             -(tgt_leg_npv + alt_leg_npv),
             tgt_fore_curve,
@@ -760,7 +759,7 @@ class XCS(BaseDerivative):
 
         _ += specified_spd
 
-        if self._is_mtm:
+        if isinstance(self.leg2, FloatLegMtm | FixedLegMtm):
             self.leg2._do_not_repeat_set_periods = False  # reset the mtm calc
 
         return _ if _is_float_tgt_leg else _ * 0.01
@@ -791,12 +790,13 @@ class XCS(BaseDerivative):
             self._set_pricing_mid(curves_, solver, fx_)
 
         self._set_fx_fixings(fx_)
-        if self._is_mtm:
+        if isinstance(self.leg2, FloatLegMtm | FixedLegMtm):
             self.leg2._do_not_repeat_set_periods = True
-
-        ret = super().cashflows(curves_, solver, fx_, base_)
-        if self._is_mtm:
+            ret = super().cashflows(curves_, solver, fx_, base_)
             self.leg2._do_not_repeat_set_periods = False  # reset the mtm calc
+        else:
+            ret = super().cashflows(curves_, solver, fx_, base_)
+
         return ret
 
     def fixings_table(

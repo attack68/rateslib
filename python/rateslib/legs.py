@@ -38,6 +38,7 @@ if TYPE_CHECKING:
         NPV,
         CalInput,
         CurveOption_,
+        Curve_,
         DualTypes,
         DualTypes_,
         FixingsFx_,
@@ -148,7 +149,6 @@ class BaseLeg(metaclass=ABCMeta):
     CustomLeg : Create a leg composed of user specified periods.
     """
 
-    _is_mtm: bool = False
     periods: list[Period]
 
     @abc.abstractmethod
@@ -2916,11 +2916,11 @@ class FloatLegMtm(_FloatLegMixin, BaseLegMtm):
     def __init__(
         self,
         *args: Any,
-        float_spread: DualTypes | NoInput = NoInput(0),
+        float_spread: DualTypes_ = NoInput(0),
         fixings: FixingsRates_ = NoInput(0),
-        fixing_method: str | NoInput = NoInput(0),
-        method_param: int | NoInput = NoInput(0),
-        spread_compound_method: str | NoInput = NoInput(0),
+        fixing_method: str_ = NoInput(0),
+        method_param: int_ = NoInput(0),
+        spread_compound_method: str_ = NoInput(0),
         **kwargs: Any,
     ) -> None:
         self._float_spread = float_spread
@@ -2941,11 +2941,11 @@ class FloatLegMtm(_FloatLegMixin, BaseLegMtm):
     def fixings_table(
         self,
         curve: Curve,
-        disc_curve: Curve | NoInput = NoInput(0),
+        disc_curve: Curve_ = NoInput(0),
         fx: FX_ = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
         approximate: bool = False,
-        right: datetime | NoInput = NoInput(0),
+        right: datetime_ = NoInput(0),
     ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on a :class:`~rateslib.legs.FloatLegMtm`.
