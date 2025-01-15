@@ -20,6 +20,7 @@ if TYPE_CHECKING:
         Curves_DiscTuple,
         Curves_Tuple,
         Solver,
+        Sequence,
     )
 
 
@@ -153,13 +154,13 @@ def _get_curves_maybe_from_solver(
         curves = curves_attr
 
     # refactor curves into a list
-    if not isinstance(curves, list | tuple):
+    if not isinstance(curves, Sequence):
         # convert isolated value input to list
         curves_as_list: list[
             Curve | dict[str, str | Curve] | dict[str, str] | dict[str, Curve] | NoInput | str
         ] = [curves]
     else:
-        curves_as_list = curves
+        curves_as_list = list(curves)
 
     # parse curves_as_list
     if isinstance(solver, NoInput):
