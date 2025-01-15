@@ -214,3 +214,32 @@ def _validate_curve_not_no_input(curve: Curve_) -> Curve:
     if isinstance(curve, NoInput):
         raise ValueError("`curve` must be supplied. Got NoInput or None.")
     return curve
+
+
+def _disc_maybe_from_curve(curve: CurveOption_, disc_curve: Curve_) -> Curve_:
+    """Return a discount curve, pointed as the `curve` if not provided and if suitable Type."""
+    if isinstance(disc_curve, NoInput):
+        if isinstance(curve, dict):
+            raise ValueError("`disc_curve` cannot be inferred from a dictionary of curves.")
+        elif isinstance(curve, NoInput):
+            return NoInput(0)
+        elif curve._base_type == "values":
+            raise ValueError("`disc_curve` cannot be inferred from a non-DF based curve.")
+        _: Curve | NoInput = curve
+    else:
+        _ = disc_curve
+    return _
+
+
+def _disc_required_maybe_from_curve(curve: CurveOption_, disc_curve: CurveOption_) -> Curve:
+    """Return a discount curve, pointed as the `curve` if not provided and if suitable Type."""
+    if isinstance(disc_curve, dict):
+        raise NotImplementedError("`disc_curve` cannot currently be inferred from a dict.")
+    _: Curve_ = _disc_maybe_from_curve(curve, disc_curve)
+    if isinstance(_, NoInput):
+        raise TypeError(
+            "`curves` have not been supplied correctly. "
+            "A `disc_curve` is required to perform function."
+        )
+    return _
+
