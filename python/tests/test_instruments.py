@@ -9,7 +9,7 @@ from rateslib.calendars import add_tenor
 from rateslib.curves import CompositeCurve, Curve, IndexCurve, LineCurve, MultiCsaCurve
 from rateslib.curves._parsers import _map_curve_from_solver
 from rateslib.default import NoInput
-from rateslib.dual import Dual, Dual2, dual_exp, gradient
+from rateslib.dual import Dual, Dual2, dual_exp, gradient, Variable
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile
 from rateslib.instruments import (
@@ -1944,7 +1944,7 @@ class TestNonMtmXCS:
             "fxf": fxf,
             "float": 10.0,
             "dual": Dual(10.0, ["x"], []),
-            "dual2": Dual2(10.0, ["x"], [], []),
+            "variable": Variable(10.0, ["x"], []),
         }
         xcs = XCS(
             dt(2022, 2, 1),
@@ -1961,6 +1961,28 @@ class TestNonMtmXCS:
             fx_fixings=mapping[fix],
         )
         assert abs(xcs.npv([curve, curve, curve2, curve2], fx=fxr)) < 1e-7
+
+    def test_nonmtm_fx_fixing_raises_type_crossing(self, curve, curve2):
+        fxr = FXRates({"usdnok": 10}, settlement=dt(2022, 1, 1))
+        xcs = XCS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=False,
+            payment_lag=0,
+            currency="nok",
+            leg2_currency="usd",
+            payment_lag_exchange=0,
+            notional=10e6,
+            fx_fixings=Dual2(10.0, ["x"], [], []),
+        )
+        # the given fixing is not downcast to Float because it is a specific user provided value.
+        # Users should technically use a Variable.
+        with pytest.raises(TypeError, match=r"Dual2 operation with incompatible type \(Dual\)"):
+            xcs.npv([curve, curve, curve2, curve2], fx=fxr) < 1e-7
+
 
     def test_is_priced(self, curve, curve2) -> None:
         fxf = FXForwards(
@@ -2172,7 +2194,7 @@ class TestNonMtmFixedFloatXCS:
             expected,
         )
 
-    @pytest.mark.parametrize("fix", ["fxr", "fxf", "float", "dual", "dual2"])
+    @pytest.mark.parametrize("fix", ["fxr", "fxf", "float", "dual", "variable"])
     def test_nonmtmfixxcs_fx_fixing(self, curve, curve2, fix) -> None:
         fxr = FXRates({"usdnok": 10}, settlement=dt(2022, 1, 1))
         fxf = FXForwards(fxr, {"usdusd": curve, "nokusd": curve2, "noknok": curve2})
@@ -2181,7 +2203,7 @@ class TestNonMtmFixedFloatXCS:
             "fxf": fxf,
             "float": 10.0,
             "dual": Dual(10.0, ["x"], []),
-            "dual2": Dual2(10.0, ["x"], [], []),
+            "variable": Variable(10.0, ["x"], []),
         }
         xcs = XCS(
             dt(2022, 2, 1),
@@ -2199,6 +2221,27 @@ class TestNonMtmFixedFloatXCS:
             leg2_float_spread=10.0,
         )
         assert abs(xcs.npv([curve2, curve2, curve, curve], fx=fxf)) < 1e-7
+
+    def test_nonmtmfixxcs_fx_fixing_raises_type_crossing(self, curve, curve2) -> None:
+        fxr = FXRates({"usdnok": 10}, settlement=dt(2022, 1, 1))
+        fxf = FXForwards(fxr, {"usdusd": curve, "nokusd": curve2, "noknok": curve2})
+        xcs = XCS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            fixed=True,
+            leg2_fixed=False,
+            leg2_mtm=False,
+            payment_lag=0,
+            currency="nok",
+            leg2_currency="usd",
+            payment_lag_exchange=0,
+            notional=10e6,
+            fx_fixings=Dual2(2.0, ["c"], [], []),
+            leg2_float_spread=10.0,
+        )
+        with pytest.raises(TypeError, match=r"Dual2 operation with incompatible type \(Dual\)."):
+            xcs.npv([curve2, curve2, curve, curve], fx=fxf)
 
     def test_nonmtmfixxcs_raises(self, curve, curve2) -> None:
         fxf = FXForwards(

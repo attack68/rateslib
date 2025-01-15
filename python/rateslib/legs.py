@@ -13,6 +13,7 @@ from pandas import DataFrame, Series
 from rateslib import defaults
 from rateslib.calendars import add_tenor
 from rateslib.curves import Curve, index_left
+from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_maybe_from_curve
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.dual.utils import _dual_float
@@ -26,8 +27,6 @@ from rateslib.periods import (
     IndexCashflow,
     IndexFixedPeriod,
     IndexMixin,
-    _disc_maybe_from_curve,
-    _disc_required_maybe_from_curve,
     _get_fx_and_base,
     _validate_float_args,
 )
@@ -2681,7 +2680,10 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
                 fx_fixings_.extend([fx_fixings_[-1]] * (n_req - n_given))
         return fx_fixings_
 
-    def _set_periods(self, fx: FX_) -> None:  # type: ignore[override]
+    def _set_periods(self) -> None:
+        raise NotImplementedError("Mtm Legs do not implement this. Look for _set_periods_mtm().")
+
+    def _set_periods_mtm(self, fx: FX_) -> None:
         fx_fixings_: list[DualTypes] = self._get_fx_fixings(fx)
         self.notional = fx_fixings_[0] * self.alt_notional
         notionals = [self.alt_notional * fx_fixings_[i] for i in range(len(fx_fixings_))]
@@ -2760,7 +2762,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         local: bool = False,
     ) -> DualTypes | dict[str, DualTypes]:
         if not self._do_not_repeat_set_periods:
-            self._set_periods(fx)
+            self._set_periods_mtm(fx)
         ret = super().npv(curve, disc_curve, fx, base, local)
         # self._is_set_periods_fx = False
         return ret
@@ -2773,7 +2775,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:
         if not self._do_not_repeat_set_periods:
-            self._set_periods(fx)
+            self._set_periods_mtm(fx)
         ret = super().cashflows(curve, disc_curve, fx, base)
         # self._is_set_periods_fx = False
         return ret
@@ -2786,7 +2788,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         if not self._do_not_repeat_set_periods:
-            self._set_periods(fx)
+            self._set_periods_mtm(fx)
         ret = super().analytic_delta(curve, disc_curve, fx, base)
         # self._is_set_periods_fx = False
         return ret
@@ -2952,7 +2954,7 @@ class FloatLegMtm(_FloatLegMixin, BaseLegMtm):
         :meth:`FloatLeg.fixings_table()<rateslib.legs.FloatLeg.fixings_table>`.
         """
         if not self._do_not_repeat_set_periods:
-            self._set_periods(fx)
+            self._set_periods_mtm(fx)
         return super()._fixings_table(
             curve=curve, disc_curve=disc_curve, approximate=approximate, right=right
         )

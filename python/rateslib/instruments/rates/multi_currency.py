@@ -9,7 +9,7 @@ from pandas import DataFrame, DatetimeIndex, MultiIndex
 from rateslib import defaults
 from rateslib.curves._parsers import _validate_curve_not_no_input
 from rateslib.default import NoInput, _drb
-from rateslib.dual import Dual, Dual2
+from rateslib.dual import Dual, Dual2, Variable
 from rateslib.dual.utils import _dual_float
 from rateslib.fx import FXForwards, FXRates, forward_fx
 from rateslib.instruments.base import BaseDerivative, BaseMixin
@@ -461,19 +461,26 @@ class XCS(BaseDerivative):
         Sets the `fx_fixing` for non-mtm XCS instruments, which require only a single
         value.
         """
-        if not self._is_mtm:
+        if not isinstance(self.leg2, FloatLegMtm | FixedLegMtm):
+            # then we are not dealing with mark-to-market so only a single FX fixing is required
             self.pair = self.leg1.currency + self.leg2.currency
-            # if self.fx_fixing is NoInput.blank this indicates the swap is unfixed and will be set
-            # later. If a fixing is given this means the notional is fixed without any
-            # further sensitivity, hence the downcast to a float below.
+
+            # if self.fx_fixing is NoInput this indicates the swap is unfixed and will be set
+            # later (i.e. at price time). In that case, for the sake of obtaining reasonable
+            # delta risks, which assume a mid-market priced derivative, any forecast FX fixing
+            # is converted to float and affixed to the Instrument specification.
+            # If a fixing is given directly by a user including AD that AD is not downcast to float
+            # (i.e. it is assumed the user knows what they are doing) and is maintained.
+            # Users passing float will be, possibly ignorantly, unaffected.
             if isinstance(fx_fixings, FXForwards):
                 self.fx_fixings = _dual_float(
-                    fx_fixings.rate(self.pair, self.leg2.periods[0].payment)
+                    fx_fixings.rate(self.pair, self.leg2._exchange_periods[0].payment)
                 )
             elif isinstance(fx_fixings, FXRates):
                 self.fx_fixings = _dual_float(fx_fixings.rate(self.pair))
-            elif isinstance(fx_fixings, float | Dual | Dual2):
-                self.fx_fixings = _dual_float(fx_fixings)
+            elif isinstance(fx_fixings, float | Dual | Dual2 | Variable):
+                # If a fixing is input directly
+                self.fx_fixings = fx_fixings
             else:
                 self._fx_fixings = NoInput(0)
         else:
@@ -495,7 +502,7 @@ class XCS(BaseDerivative):
         Used by ``rate`` and ``npv`` methods when ``fx_fixings`` are not
         initialised but required for pricing and can be inferred from an FX object.
         """
-        if not self._is_mtm:  # then we manage the initial FX from the pricing object.
+        if not isinstance(self.leg2, FloatLegMtm | FixedLegMtm):  # then we manage the initial FX from the pricing object.
             if isinstance(self.fx_fixings, NoInput):
                 if isinstance(fx, NoInput):
                     if defaults.no_fx_fixings_for_xcs.lower() == "raise":
@@ -542,8 +549,9 @@ class XCS(BaseDerivative):
             The FX object from which to determine FX rates used as the initial
             notional fixing, and to determine MTM cashflow exchanges.
         """
-        if self._is_mtm:
-            self.leg2._set_periods(fx_arg)
+        if isinstance(self.leg2, FixedLegMtm | FloatLegMtm):
+            # then special calculation for mark-to-market type legs
+            self.leg2._set_periods_mtm(fx_arg)
             self.leg2_notional = self.leg2.notional
         else:
             self.leg2_notional = self.leg1.notional * -fx_arg
