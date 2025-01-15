@@ -41,6 +41,12 @@ email contact, see `rateslib <https://rateslib.com>`_.
        with appropriate cache and state management.
        (`584 <https://github.com/attack68/rateslib/pull/584>`_)
    * - Bug
+     - Defaults spec *"usd_stir1"* for CME 1m SOFR futures, and *"eur_stir1"* for ICE 1m ESTR
+       futures has corrected the
+       ``roll`` to *"som"*, instead of *"imm"*, to allow correct placement of contracts averaging
+       all of the rates in a specific contract month.
+       (`631 <https://github.com/attack68/rateslib/pull/631>`_)
+   * - Bug
      - :class:`~rateslib.instruments.STIRFuture` now correctly handles the ``fx`` and ``base``
        arguments when using the :meth:`~rateslib.instruments.STIRFuture.npv` or
        :meth:`~rateslib.instruments.STIRFuture.analytic_delta` methods.

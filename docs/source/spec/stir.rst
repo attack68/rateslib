@@ -34,7 +34,7 @@ Aliases: **"estr1mf"**.
 .. ipython:: python
 
    defaults.spec["eur_stir1"]
-   STIRFuture(dt(2023, 3, 15), dt(2023, 4, 19), spec="eur_stir1").kwargs
+   STIRFuture(dt(2023, 3, 1), dt(2023, 4, 1), spec="eur_stir1").kwargs
 
 .. _spec-eur-stir3:
 
@@ -90,4 +90,4 @@ Aliases: **"sofr1mf"**.
 .. ipython:: python
 
    defaults.spec["usd_stir1"]
-   STIRFuture(dt(2023, 3, 15), dt(2023, 4, 19), spec="usd_stir1").kwargs
+   STIRFuture(dt(2023, 3, 1), dt(2023, 4, 1), spec="usd_stir1").kwargs
