@@ -113,8 +113,8 @@ CurveInput_: TypeAlias = "CurveInput | NoInput"
 CurveOption: TypeAlias = "Curve | dict[str, Curve]"
 CurveOption_: TypeAlias = "CurveOption | NoInput"
 
-Curves: TypeAlias = "CurveOrId | CurveDict | list[CurveOrId | CurveDict]"
-Curves_: TypeAlias = "CurveOrId_ | CurveDict | list[CurveOrId_ | CurveDict]"
+Curves: TypeAlias = "CurveOrId | CurveDict | Sequence[CurveOrId | CurveDict]"
+Curves_: TypeAlias = "CurveOrId_ | CurveDict | Sequence[CurveOrId_ | CurveDict]"
 
 Curves_Tuple: TypeAlias = "tuple[CurveOption_, CurveOption_, CurveOption_, CurveOption_]"
 Curves_DiscTuple: TypeAlias = "tuple[CurveOption_, Curve_, CurveOption_, Curve_]"
