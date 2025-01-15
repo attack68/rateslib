@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from rateslib import defaults
@@ -153,13 +154,13 @@ def _get_curves_maybe_from_solver(
         curves = curves_attr
 
     # refactor curves into a list
-    if not isinstance(curves, list | tuple):
+    if isinstance(curves, str) or not isinstance(curves, Sequence):  # Sequence can be str!
         # convert isolated value input to list
         curves_as_list: list[
             Curve | dict[str, str | Curve] | dict[str, str] | dict[str, Curve] | NoInput | str
         ] = [curves]
     else:
-        curves_as_list = curves
+        curves_as_list = list(curves)
 
     # parse curves_as_list
     if isinstance(solver, NoInput):
