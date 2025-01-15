@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from rateslib import defaults
 from rateslib.curves import MultiCsaCurve, ProxyCurve
