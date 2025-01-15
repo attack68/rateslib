@@ -639,12 +639,14 @@ class XCS(BaseDerivative):
             self._set_pricing_mid(curves_, solver, fx_)
 
         self._set_fx_fixings(fx_)
-        if self._is_mtm:
-            self.leg2._do_not_repeat_set_periods = True
 
-        ret = super().npv(curves_, solver, fx_, base_, local)
-        if self._is_mtm:
+        if isinstance(self.leg2, FloatLegMtm | FixedLegMtm):
+            self.leg2._do_not_repeat_set_periods = True
+            ret = super().npv(curves_, solver, fx_, base_, local)
             self.leg2._do_not_repeat_set_periods = False  # reset for next calculation
+        else:
+            ret = super().npv(curves_, solver, fx_, base_, local)
+
         return ret
 
     def rate(
@@ -1119,7 +1121,7 @@ class FXSwap(XCS):
                 self._split_notional = self.kwargs["notional"] * curve[dt1] / curve[dt2]
                 self._set_leg1_fixed_rate()
 
-    def _set_leg1_fixed_rate(self):
+    def _set_leg1_fixed_rate(self) -> None:
         fixed_rate = (self.leg1.notional - self._split_notional) / (
             -self.leg1.notional * self.leg1.periods[1].dcf
         )
@@ -1159,11 +1161,11 @@ class FXSwap(XCS):
         self.points = points
 
     @property
-    def points(self):
+    def points(self) -> DualTypes:
         return self._points
 
     @points.setter
-    def points(self, value):
+    def points(self, value: DualTypes) -> None:
         self._unpriced = False
         self._points = value
         self._leg2_fixed_rate = NoInput(0)
@@ -1179,8 +1181,7 @@ class FXSwap(XCS):
 
             self.leg2_fixed_rate = fixed_rate * 100
 
-        # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-
+    # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
@@ -1198,11 +1199,11 @@ class FXSwap(XCS):
         self.points = _dual_float(points)
         self._unpriced = True  # setting pricing mid does not define a priced instrument
 
-    def rate(
+    def rate(  # type: ignore[override]
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FXForwards | NoInput = NoInput(0),
+        fx: FX_ = NoInput(0),
         fixed_rate: bool = False,
     ) -> DualTypes:
         """
@@ -1249,7 +1250,7 @@ class FXSwap(XCS):
         if fixed_rate:
             return leg2_fixed_rate
         else:
-            points = -self.leg2.notional * (
+            points: DualTypes = -self.leg2.notional * (
                 (1 + leg2_fixed_rate * self.leg2.periods[1].dcf / 100) / self._split_notional
                 - 1 / self.kwargs["notional"]
             )
