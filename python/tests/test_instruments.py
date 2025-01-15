@@ -1935,7 +1935,7 @@ class TestNonMtmXCS:
             expected,
         )
 
-    @pytest.mark.parametrize("fix", ["fxr", "fxf", "float", "dual", "dual2"])
+    @pytest.mark.parametrize("fix", ["fxr", "fxf", "float", "dual", "variable"])
     def test_nonmtm_fx_fixing(self, curve, curve2, fix) -> None:
         fxr = FXRates({"usdnok": 10}, settlement=dt(2022, 1, 1))
         fxf = FXForwards(fxr, {"usdusd": curve, "nokusd": curve2, "noknok": curve2})
@@ -1982,7 +1982,6 @@ class TestNonMtmXCS:
         # Users should technically use a Variable.
         with pytest.raises(TypeError, match=r"Dual2 operation with incompatible type \(Dual\)"):
             xcs.npv([curve, curve, curve2, curve2], fx=fxr) < 1e-7
-
 
     def test_is_priced(self, curve, curve2) -> None:
         fxf = FXForwards(
@@ -2337,7 +2336,7 @@ class TestNonMtmFixedFixedXCS:
     #         expected,
     #     )
 
-    @pytest.mark.parametrize("fix", ["fxr", "fxf", "float", "dual", "dual2"])
+    @pytest.mark.parametrize("fix", ["fxr", "fxf", "float", "dual", "variable"])
     def test_nonmtmfixxcs_fx_fixing(self, curve, curve2, fix) -> None:
         fxr = FXRates({"usdnok": 10}, settlement=dt(2022, 1, 1))
         fxf = FXForwards(fxr, {"usdusd": curve, "nokusd": curve2, "noknok": curve2})
@@ -2346,7 +2345,7 @@ class TestNonMtmFixedFixedXCS:
             "fxf": fxf,
             "float": 10.0,
             "dual": Dual(10.0, ["x"], []),
-            "dual2": Dual2(10.0, ["x"], [], []),
+            "variable": Variable(10.0, ["x"], []),
         }
         xcs = XCS(
             dt(2022, 2, 1),
@@ -2364,6 +2363,26 @@ class TestNonMtmFixedFixedXCS:
             leg2_fixed_rate=2.0,
         )
         assert abs(xcs.npv([curve2, curve2, curve, curve], fx=fxr)) < 1e-7
+
+    def test_nonmtmfixxcs_fx_fixing_type_crossing_raises(self, curve, curve2) -> None:
+        fxr = FXRates({"usdnok": 10}, settlement=dt(2022, 1, 1))
+        xcs = XCS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            fixed=True,
+            leg2_fixed=True,
+            leg2_mtm=False,
+            payment_lag=0,
+            currency="nok",
+            leg2_currency="usd",
+            payment_lag_exchange=0,
+            notional=10e6,
+            fx_fixings=Dual2(10.0, ["s"], [], []),
+            leg2_fixed_rate=2.0,
+        )
+        with pytest.raises(TypeError, match=r"Dual2 operation with incompatible type \(Dual\)."):
+            xcs.npv([curve2, curve2, curve, curve], fx=fxr)
 
     def test_nonmtmfixfixxcs_raises(self, curve, curve2) -> None:
         fxf = FXForwards(

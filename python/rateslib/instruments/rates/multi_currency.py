@@ -482,7 +482,7 @@ class XCS(BaseDerivative):
                 # If a fixing is input directly
                 self.fx_fixings = fx_fixings
             else:
-                self._fx_fixings = NoInput(0)
+                self._fx_fixings: FixingsFx_ = NoInput(0)
         else:
             self._fx_fixings = fx_fixings
 
@@ -491,7 +491,7 @@ class XCS(BaseDerivative):
         return self._fx_fixings
 
     @fx_fixings.setter
-    def fx_fixings(self, value: FX_) -> None:
+    def fx_fixings(self, value: FixingsFx_) -> None:
         self._fx_fixings = value
         self._set_leg2_notional(value)
 
