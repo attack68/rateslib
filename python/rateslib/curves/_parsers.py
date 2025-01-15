@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import warnings
 from typing import TYPE_CHECKING
+from collections.abc import Sequence
 
 from rateslib import defaults
 from rateslib.curves import MultiCsaCurve, ProxyCurve
@@ -20,7 +21,6 @@ if TYPE_CHECKING:
         Curves_DiscTuple,
         Curves_Tuple,
         Solver,
-        Sequence,
     )
 
 
@@ -154,7 +154,7 @@ def _get_curves_maybe_from_solver(
         curves = curves_attr
 
     # refactor curves into a list
-    if not isinstance(curves, Sequence):
+    if isinstance(curves, str) or not isinstance(curves, Sequence):  # Sequence can be str!
         # convert isolated value input to list
         curves_as_list: list[
             Curve | dict[str, str | Curve] | dict[str, str] | dict[str, Curve] | NoInput | str
