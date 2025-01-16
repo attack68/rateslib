@@ -146,3 +146,12 @@ IndexDerivative: TypeAlias = "IIRS | ZCIS"
 CurrencyDerivative: TypeAlias = "XCS | FXSwap | FXExchange"
 
 Instrument: TypeAlias = "Security | FXOptionTypes | RatesDerivative | CDS | CurrencyDerivative"
+
+
+class SupportsMetrics:
+    def rate(self, *args: Any, **kwargs: Any) -> DualTypes: ...  # type: ignore[empty-body]
+    def npv(self, *args: Any, **kwargs: Any) -> NPV: ...  # type: ignore[empty-body]
+    def delta(self, *args: Any, **kwargs: Any) -> DataFrame: ...  # type: ignore[empty-body]
+    def gamma(self, *args: Any, **kwargs: Any) -> DataFrame: ...  # type: ignore[empty-body]
+    def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame: ...  # type: ignore[empty-body]
+    def fixings_table(self, *args: Any, **kwargs: Any) -> DataFrame: ...  # type: ignore[empty-body]
