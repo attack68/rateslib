@@ -59,6 +59,9 @@ if TYPE_CHECKING:
 
 
 class BondMixin:
+
+    leg1: FixedLeg | FloatLeg | IndexFixedLeg
+
     def _period_index(self, settlement: datetime) -> int:
         """
         Get the coupon period index for that which the settlement date fall within.
