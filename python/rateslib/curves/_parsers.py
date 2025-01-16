@@ -196,7 +196,7 @@ def _make_4_tuple_of_curve(curves: tuple[CurveOption_, ...]) -> Curves_Tuple:
     return curves  # type: ignore[return-value]
 
 
-def _validate_disc_curve_is_not_dict(curve: CurveOption_) -> Curve_:
+def _validate_curve_is_not_dict(curve: CurveOption_) -> Curve_:
     if isinstance(curve, dict):
         raise ValueError("`disc_curve` cannot be supplied as, or inferred from, a dict of Curves.")
     return curve
@@ -205,9 +205,9 @@ def _validate_disc_curve_is_not_dict(curve: CurveOption_) -> Curve_:
 def _validate_disc_curves_are_not_dict(curves_tuple: Curves_Tuple) -> Curves_DiscTuple:
     return (
         curves_tuple[0],
-        _validate_disc_curve_is_not_dict(curves_tuple[1]),
+        _validate_curve_is_not_dict(curves_tuple[1]),
         curves_tuple[2],
-        _validate_disc_curve_is_not_dict(curves_tuple[3]),
+        _validate_curve_is_not_dict(curves_tuple[3]),
     )
 
 
