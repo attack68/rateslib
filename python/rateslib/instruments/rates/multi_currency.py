@@ -482,6 +482,8 @@ class XCS(BaseDerivative):
                 self.fx_fixings = fx_fixings
             else:
                 self._fx_fixings: FixingsFx_ = NoInput(0)
+                return None  # cannot set leg2_notional yet (wait for price time)
+            self._set_leg2_notional_nonmtm(self.fx_fixings)
         else:
             self._fx_fixings = fx_fixings
 
@@ -492,7 +494,6 @@ class XCS(BaseDerivative):
     @fx_fixings.setter
     def fx_fixings(self, value: FixingsFx_) -> None:
         self._fx_fixings = value
-        self._set_leg2_notional(value)
 
     def _set_fx_fixings(self, fx: FX_) -> None:
         """
@@ -529,35 +530,39 @@ class XCS(BaseDerivative):
                     else:
                         # possible float used in debugging also
                         fx_fixing = fx
-                self._set_leg2_notional(fx_fixing)
+                self._set_leg2_notional_nonmtm(fx_fixing)
         else:
-            self._set_leg2_notional(fx)
+            self._set_leg2_notional_mtm(fx)
 
-    def _set_leg2_notional(self, fx_arg: FX_) -> None:
+    def _set_leg2_notional_mtm(self, fx: FX_) -> None:
         """
-        Update the notional on leg2 (foreign leg) if the initial fx rate is unfixed.
+        Update the notional on leg2 (foreign leg) if the fx fixings are unknown
 
         ----------
-        fx_arg : float or FXForwards
-            For non-MTM XCSs this input must be a float.
-            The FX rate to use as the initial notional fixing.
-            Will only update the leg if ``NonMtmXCS.fx_fixings`` has been initially
-            set to `None`.
-
+        fx : DualTypes, FXRates or FXForwards
             For MTM XCSs this input must be ``FXForwards``.
             The FX object from which to determine FX rates used as the initial
             notional fixing, and to determine MTM cashflow exchanges.
         """
-        if isinstance(self.leg2, FixedLegMtm | FloatLegMtm):
-            # then special calculation for mark-to-market type legs
-            self.leg2._set_periods_mtm(fx_arg)
-            self.leg2_notional = self.leg2.notional
-        else:
-            self.leg2_notional = self.leg1.notional * -fx_arg
-            self.leg2.notional = self.leg2_notional
-            if not isinstance(self.kwargs["amortization"], NoInput):
-                self.leg2_amortization = self.leg1.amortization * -fx_arg
-                self.leg2.amortization = self.leg2_amortization
+        self.leg2._set_periods_mtm(fx)
+        self.leg2_notional = self.leg2.notional
+
+    def _set_leg2_notional_nonmtm(self, fx: DualTypes) -> None:
+        """
+        Update the notional on leg2 (foreign leg) based on a given fixing.
+
+        ----------
+        fx : DualTypes
+            For non-MTM XCSs this input must be a float.
+            The FX rate to use as the initial notional fixing.
+            Will only update the leg if ``NonMtmXCS.fx_fixings`` has been initially
+            set to `None`.
+        """
+        self.leg2_notional = self.leg1.notional * -fx
+        self.leg2.notional = self.leg2_notional
+        if not isinstance(self.kwargs["amortization"], NoInput):
+            self.leg2_amortization = self.leg1.amortization * -fx
+            self.leg2.amortization = self.leg2_amortization
 
     @property
     def _is_unpriced(self) -> bool:
