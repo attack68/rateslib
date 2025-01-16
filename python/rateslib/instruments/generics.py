@@ -732,7 +732,7 @@ class Portfolio(Sensitivities):
             ret: DualTypes | dict[str, DualTypes] = val1
         else:
             val2: DualTypes = sum(
-                instrument.npv(*args, **kwargs)   # type: ignore[misc]
+                instrument.npv(*args, **kwargs)  # type: ignore[misc]
                 for instrument in self.instruments
             )
             ret = val2

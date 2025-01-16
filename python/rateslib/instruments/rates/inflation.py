@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from rateslib.default import NoInput
+from rateslib.curves._parsers import _validate_curve_is_not_dict, _validate_curve_not_no_input
+from rateslib.default import NoInput, _drb
+from rateslib.dual.utils import _dual_float
 from rateslib.instruments.base import BaseDerivative
 from rateslib.instruments.utils import (
     _get,
@@ -12,7 +14,21 @@ from rateslib.instruments.utils import (
 from rateslib.legs import FloatLeg, IndexFixedLeg, ZeroFixedLeg, ZeroIndexLeg
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX_, Any, DataFrame, Series, datetime_, Solver_, Curves_, str_, int_, DualTypes_, bool_
+    from rateslib.typing import (
+        FX_,
+        NPV,
+        Any,
+        Curves_,
+        DataFrame,
+        DualTypes,
+        DualTypes_,
+        FixingsRates_,
+        Series,
+        Solver_,
+        datetime_,
+        int_,
+        str_,
+    )
 
 
 class ZCIS(BaseDerivative):
@@ -121,35 +137,38 @@ class ZCIS(BaseDerivative):
     _fixed_rate_mixin = True
     _leg2_index_base_mixin = True
 
+    leg1: ZeroFixedLeg
+    leg2: ZeroIndexLeg
+
     def __init__(
         self,
         *args: Any,
         fixed_rate: DualTypes_ = NoInput(0),
-        leg2_index_base: float | Series | NoInput = NoInput(0),
-        leg2_index_fixings: float | Series | NoInput = NoInput(0),
+        leg2_index_base: DualTypes_ | Series[DualTypes] = NoInput(0),  # type: ignore[type-var]
+        leg2_index_fixings: DualTypes_ | Series[DualTypes] = NoInput(0),  # type: ignore[type-var]
         leg2_index_method: str_ = NoInput(0),
         leg2_index_lag: int_ = NoInput(0),
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
-        user_kwargs = dict(
+        user_kwargs: dict[str, Any] = dict(
             fixed_rate=fixed_rate,
             leg2_index_base=leg2_index_base,
             leg2_index_fixings=leg2_index_fixings,
             leg2_index_lag=leg2_index_lag,
             leg2_index_method=leg2_index_method,
         )
-        self.kwargs = _update_not_noinput(self.kwargs, user_kwargs)
+        self.kwargs: dict[str, Any] = _update_not_noinput(self.kwargs, user_kwargs)
         self._fixed_rate = fixed_rate
         self._leg2_index_base = leg2_index_base
         self.leg1 = ZeroFixedLeg(**_get(self.kwargs, leg=1))
         self.leg2 = ZeroIndexLeg(**_get(self.kwargs, leg=2))
 
-    def _set_pricing_mid(self, curves, solver):
-        if self.fixed_rate is NoInput.blank:
+    def _set_pricing_mid(self, curves: Curves_, solver: Solver_) -> None:
+        if isinstance(self.fixed_rate, NoInput):
             # set a fixed rate for the purpose of pricing NPV, which should be zero.
             mid_market_rate = self.rate(curves, solver)
-            self.leg1.fixed_rate = float(mid_market_rate)
+            self.leg1.fixed_rate = _dual_float(mid_market_rate)
 
     def cashflows(
         self,
@@ -157,7 +176,7 @@ class ZCIS(BaseDerivative):
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-    ):
+    ) -> DataFrame:
         self._set_pricing_mid(curves, solver)
         return super().cashflows(curves, solver, fx, base)
 
@@ -168,7 +187,7 @@ class ZCIS(BaseDerivative):
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
-    ):
+    ) -> NPV:
         self._set_pricing_mid(curves, solver)
         return super().npv(curves, solver, fx, base, local)
 
@@ -178,7 +197,7 @@ class ZCIS(BaseDerivative):
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-    ):
+    ) -> DualTypes:
         """
         Return the mid-market IRR rate of the ZCIS.
 
@@ -208,7 +227,7 @@ class ZCIS(BaseDerivative):
         The arguments ``fx`` and ``base`` are unused by single currency derivatives
         rates calculations.
         """
-        curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+        curves_, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,
             curves,
@@ -218,7 +237,8 @@ class ZCIS(BaseDerivative):
         )
         if isinstance(self.leg2_index_base, NoInput):
             # must forecast for the leg
-            forecast_value = curves[2].index_value(
+            i_curve = _validate_curve_not_no_input(_validate_curve_is_not_dict(curves_[2]))
+            forecast_value = i_curve.index_value(
                 self.leg2.schedule.effective,
                 self.leg2.index_method,
             )
@@ -231,9 +251,9 @@ class ZCIS(BaseDerivative):
                     "specification.",
                 )
             self.leg2.index_base = forecast_value
-        leg2_npv = self.leg2.npv(curves[2], curves[3])
+        leg2_npv: DualTypes = self.leg2.npv(curves_[2], curves_[3], local=False)  # type: ignore[assignment]
 
-        return self.leg1._spread(-leg2_npv, curves[0], curves[1]) / 100
+        return self.leg1._spread(-leg2_npv, curves_[0], curves_[1]) / 100
 
 
 class IIRS(BaseDerivative):
@@ -367,24 +387,27 @@ class IIRS(BaseDerivative):
     _index_base_mixin = True
     _leg2_float_spread_mixin = True
 
+    leg1: IndexFixedLeg
+    leg2: FloatLeg
+
     def __init__(
         self,
         *args: Any,
-        fixed_rate: float | NoInput = NoInput(0),
-        index_base: float | Series | NoInput = NoInput(0),
-        index_fixings: float | Series | NoInput = NoInput(0),
+        fixed_rate: DualTypes_ = NoInput(0),
+        index_base: DualTypes_ | Series[DualTypes] = NoInput(0),  # type: ignore[type-var]
+        index_fixings: DualTypes_ | Series[DualTypes] = NoInput(0),  # type: ignore[type-var]
         index_method: str_ = NoInput(0),
         index_lag: int_ = NoInput(0),
-        notional_exchange: bool_ = False,
+        notional_exchange: bool = False,
         payment_lag_exchange: int_ = NoInput(0),
-        leg2_float_spread: float | NoInput = NoInput(0),
-        leg2_fixings: float | list | NoInput = NoInput(0),
+        leg2_float_spread: DualTypes_ = NoInput(0),
+        leg2_fixings: FixingsRates_ = NoInput(0),  # type: ignore[type-var]
         leg2_fixing_method: str_ = NoInput(0),
         leg2_method_param: int_ = NoInput(0),
         leg2_spread_compound_method: str_ = NoInput(0),
         leg2_payment_lag_exchange: int_ = NoInput(1),
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         super().__init__(*args, **kwargs)
         if leg2_payment_lag_exchange is NoInput.inherit:
             leg2_payment_lag_exchange = payment_lag_exchange
@@ -406,7 +429,7 @@ class IIRS(BaseDerivative):
             leg2_initial_exchange=False,
             leg2_final_exchange=notional_exchange,
         )
-        self.kwargs = _update_not_noinput(self.kwargs, user_kwargs)
+        self.kwargs: dict[str, Any] = _update_not_noinput(self.kwargs, user_kwargs)
 
         self._index_base = self.kwargs["index_base"]
         self._fixed_rate = self.kwargs["fixed_rate"]
@@ -417,9 +440,9 @@ class IIRS(BaseDerivative):
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-    ):
+    ) -> None:
         mid_market_rate = self.rate(curves, solver)
-        self.leg1.fixed_rate = float(mid_market_rate)
+        self.leg1.fixed_rate = _dual_float(mid_market_rate)
 
     def npv(
         self,
@@ -428,8 +451,8 @@ class IIRS(BaseDerivative):
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
-    ):
-        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+    ) -> NPV:
+        curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,
             curves,
@@ -437,16 +460,17 @@ class IIRS(BaseDerivative):
             base,
             self.leg1.currency,
         )
-        if self.index_base is NoInput.blank:
+        if isinstance(self.index_base, NoInput):
             # must forecast for the leg
-            self.leg1.index_base = curves[0].index_value(
+            i_curve = _validate_curve_not_no_input(_validate_curve_is_not_dict(curves_[0]))
+            self.leg1.index_base = i_curve.index_value(
                 self.leg1.schedule.effective,
                 self.leg1.index_method,
             )
-        if self.fixed_rate is NoInput.blank:
+        if isinstance(self.fixed_rate, NoInput):
             # set a fixed rate for the purpose of pricing NPV, which should be zero.
-            self._set_pricing_mid(curves, solver)
-        return super().npv(curves, solver, fx_, base_, local)
+            self._set_pricing_mid(curves_, solver)
+        return super().npv(curves_, solver, fx_, base_, local)
 
     def cashflows(
         self,
@@ -454,8 +478,8 @@ class IIRS(BaseDerivative):
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-    ):
-        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+    ) -> DataFrame:
+        curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,
             curves,
@@ -463,16 +487,17 @@ class IIRS(BaseDerivative):
             base,
             self.leg1.currency,
         )
-        if self.index_base is NoInput.blank:
+        if isinstance(self.index_base, NoInput):
             # must forecast for the leg
-            self.leg1.index_base = curves[0].index_value(
+            i_curve = _validate_curve_not_no_input(_validate_curve_is_not_dict(curves_[0]))
+            self.leg1.index_base = i_curve.index_value(
                 self.leg1.schedule.effective,
                 self.leg1.index_method,
             )
-        if self.fixed_rate is NoInput.blank:
+        if isinstance(self.fixed_rate, NoInput):
             # set a fixed rate for the purpose of pricing NPV, which should be zero.
-            self._set_pricing_mid(curves, solver)
-        return super().cashflows(curves, solver, fx_, base_)
+            self._set_pricing_mid(curves_, solver)
+        return super().cashflows(curves_, solver, fx_, base_)
 
     def rate(
         self,
@@ -480,7 +505,7 @@ class IIRS(BaseDerivative):
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-    ):
+    ) -> DualTypes:
         """
         Return the mid-market rate of the IRS.
 
@@ -510,7 +535,7 @@ class IIRS(BaseDerivative):
         The arguments ``fx`` and ``base`` are unused by single currency derivatives
         rates calculations.
         """
-        curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+        curves_, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,
             curves,
@@ -518,21 +543,25 @@ class IIRS(BaseDerivative):
             base,
             self.leg1.currency,
         )
-        if self.index_base is NoInput.blank:
+        if isinstance(self.index_base, NoInput):
             # must forecast for the leg
-            self.leg1.index_base = curves[0].index_value(
+            i_curve = _validate_curve_not_no_input(_validate_curve_is_not_dict(curves_[0]))
+            self.leg1.index_base = i_curve.index_value(
                 self.leg1.schedule.effective,
                 self.leg1.index_method,
             )
-        leg2_npv = self.leg2.npv(curves[2], curves[3])
+        leg2_npv: DualTypes = self.leg2.npv(curves_[2], curves_[3], local=False)  # type: ignore[assignment]
 
-        if self.fixed_rate is NoInput.blank:
+        if isinstance(self.fixed_rate, NoInput):
             self.leg1.fixed_rate = 0.0
-        _existing = self.leg1.fixed_rate
-        leg1_npv = self.leg1.npv(curves[0], curves[1])
+            _existing: DualTypes = 0.0
+        else:
+            _existing = self.fixed_rate
 
-        _ = self.leg1._spread(-leg2_npv - leg1_npv, curves[0], curves[1]) / 100
-        return _ + _existing
+        leg1_npv: DualTypes = self.leg1.npv(curves_[0], curves_[1], local=False)  # type: ignore[assignment]
+
+        ret: DualTypes = self.leg1._spread(-leg2_npv - leg1_npv, curves_[0], curves_[1]) / 100
+        return ret + _existing
 
     def spread(
         self,
@@ -540,7 +569,7 @@ class IIRS(BaseDerivative):
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-    ):
+    ) -> DualTypes:
         """
         Return the mid-market float spread (bps) required to equate to the fixed rate.
 
@@ -612,9 +641,9 @@ class IIRS(BaseDerivative):
         to ``irs.spread`` is different to the previous call, albeit the difference
         is 1/10000th of a basis point.
         """
-        irs_npv = self.npv(curves, solver)
-        specified_spd = 0 if self.leg2.float_spread is NoInput.blank else self.leg2.float_spread
-        curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+        irs_npv: DualTypes = self.npv(curves, solver, local=False)  # type: ignore[assignment]
+        specified_spd: DualTypes = _drb(0.0, self.leg2.float_spread)
+        curves_, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,
             curves,
@@ -622,7 +651,7 @@ class IIRS(BaseDerivative):
             base,
             self.leg1.currency,
         )
-        return self.leg2._spread(-irs_npv, curves[2], curves[3]) + specified_spd
+        return self.leg2._spread(-irs_npv, curves_[2], curves_[3]) + specified_spd
 
     def fixings_table(
         self,
