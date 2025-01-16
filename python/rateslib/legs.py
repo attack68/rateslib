@@ -13,6 +13,7 @@ from pandas import DataFrame, Series
 from rateslib import defaults
 from rateslib.calendars import add_tenor
 from rateslib.curves import Curve, index_left
+from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_maybe_from_curve
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.dual.utils import _dual_float
@@ -26,8 +27,6 @@ from rateslib.periods import (
     IndexCashflow,
     IndexFixedPeriod,
     IndexMixin,
-    _disc_maybe_from_curve,
-    _disc_required_maybe_from_curve,
     _get_fx_and_base,
     _validate_float_args,
 )
@@ -38,6 +37,7 @@ if TYPE_CHECKING:
         FX_,
         NPV,
         CalInput,
+        Curve_,
         CurveOption_,
         DualTypes,
         DualTypes_,
@@ -149,7 +149,6 @@ class BaseLeg(metaclass=ABCMeta):
     CustomLeg : Create a leg composed of user specified periods.
     """
 
-    _is_mtm: bool = False
     periods: list[Period]
 
     @abc.abstractmethod
@@ -590,8 +589,8 @@ class _FloatLegMixin:
     fixing_method: str
     spread_compound_method: str
     method_param: int
-    periods: list[Period]
     fixings: list[DualTypes | list[DualTypes] | Series[DualTypes] | NoInput]  # type: ignore[type-var]
+    periods: list[Period]
 
     def _get_fixings_from_series(
         self,
@@ -1042,6 +1041,7 @@ class FloatLeg(_FloatLegMixin, BaseLeg):
     """  # noqa: E501
 
     _delay_set_periods: bool = True  # do this to set fixings first
+    _regular_periods: tuple[FloatPeriod, ...]
 
     def __init__(
         self,
@@ -1343,6 +1343,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
     """  # noqa: E501
 
     _delay_set_periods: bool = True
+    _regular_periods: tuple[FloatPeriod, ...]
 
     def __init__(
         self,
@@ -2681,7 +2682,10 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
                 fx_fixings_.extend([fx_fixings_[-1]] * (n_req - n_given))
         return fx_fixings_
 
-    def _set_periods(self, fx: FX_) -> None:  # type: ignore[override]
+    def _set_periods(self) -> None:
+        raise NotImplementedError("Mtm Legs do not implement this. Look for _set_periods_mtm().")
+
+    def _set_periods_mtm(self, fx: FX_) -> None:
         fx_fixings_: list[DualTypes] = self._get_fx_fixings(fx)
         self.notional = fx_fixings_[0] * self.alt_notional
         notionals = [self.alt_notional * fx_fixings_[i] for i in range(len(fx_fixings_))]
@@ -2760,7 +2764,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         local: bool = False,
     ) -> DualTypes | dict[str, DualTypes]:
         if not self._do_not_repeat_set_periods:
-            self._set_periods(fx)
+            self._set_periods_mtm(fx)
         ret = super().npv(curve, disc_curve, fx, base, local)
         # self._is_set_periods_fx = False
         return ret
@@ -2773,7 +2777,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:
         if not self._do_not_repeat_set_periods:
-            self._set_periods(fx)
+            self._set_periods_mtm(fx)
         ret = super().cashflows(curve, disc_curve, fx, base)
         # self._is_set_periods_fx = False
         return ret
@@ -2786,7 +2790,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         if not self._do_not_repeat_set_periods:
-            self._set_periods(fx)
+            self._set_periods_mtm(fx)
         ret = super().analytic_delta(curve, disc_curve, fx, base)
         # self._is_set_periods_fx = False
         return ret
@@ -2914,11 +2918,11 @@ class FloatLegMtm(_FloatLegMixin, BaseLegMtm):
     def __init__(
         self,
         *args: Any,
-        float_spread: DualTypes | NoInput = NoInput(0),
+        float_spread: DualTypes_ = NoInput(0),
         fixings: FixingsRates_ = NoInput(0),
-        fixing_method: str | NoInput = NoInput(0),
-        method_param: int | NoInput = NoInput(0),
-        spread_compound_method: str | NoInput = NoInput(0),
+        fixing_method: str_ = NoInput(0),
+        method_param: int_ = NoInput(0),
+        spread_compound_method: str_ = NoInput(0),
         **kwargs: Any,
     ) -> None:
         self._float_spread = float_spread
@@ -2938,12 +2942,12 @@ class FloatLegMtm(_FloatLegMixin, BaseLegMtm):
 
     def fixings_table(
         self,
-        curve: Curve,
-        disc_curve: Curve | NoInput = NoInput(0),
+        curve: CurveOption_,
+        disc_curve: Curve_ = NoInput(0),
         fx: FX_ = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
         approximate: bool = False,
-        right: datetime | NoInput = NoInput(0),
+        right: datetime_ = NoInput(0),
     ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on a :class:`~rateslib.legs.FloatLegMtm`.
@@ -2952,7 +2956,7 @@ class FloatLegMtm(_FloatLegMixin, BaseLegMtm):
         :meth:`FloatLeg.fixings_table()<rateslib.legs.FloatLeg.fixings_table>`.
         """
         if not self._do_not_repeat_set_periods:
-            self._set_periods(fx)
+            self._set_periods_mtm(fx)
         return super()._fixings_table(
             curve=curve, disc_curve=disc_curve, approximate=approximate, right=right
         )

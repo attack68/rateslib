@@ -7,6 +7,7 @@ from pandas import DataFrame
 
 from rateslib import defaults
 from rateslib.curves import Curve
+from rateslib.curves._parsers import _disc_required_maybe_from_curve
 from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
 from rateslib.instruments.base import BaseDerivative
@@ -23,7 +24,6 @@ from rateslib.legs import (
     ZeroFloatLeg,
 )
 from rateslib.periods import (
-    _disc_required_maybe_from_curve,
     _get_fx_and_base,
     _maybe_local,
     _trim_df_by_index,
