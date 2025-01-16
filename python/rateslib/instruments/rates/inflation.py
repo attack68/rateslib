@@ -12,7 +12,7 @@ from rateslib.instruments.utils import (
 from rateslib.legs import FloatLeg, IndexFixedLeg, ZeroFixedLeg, ZeroIndexLeg
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX_, Any, Curves, DataFrame, Series, Solver, datetime
+    from rateslib.typing import FX_, Any, DataFrame, Series, datetime_, Solver_, Curves_, str_, int_, DualTypes_, bool_
 
 
 class ZCIS(BaseDerivative):
@@ -124,13 +124,13 @@ class ZCIS(BaseDerivative):
     def __init__(
         self,
         *args: Any,
-        fixed_rate: float | NoInput = NoInput(0),
+        fixed_rate: DualTypes_ = NoInput(0),
         leg2_index_base: float | Series | NoInput = NoInput(0),
         leg2_index_fixings: float | Series | NoInput = NoInput(0),
-        leg2_index_method: str | NoInput = NoInput(0),
-        leg2_index_lag: int | NoInput = NoInput(0),
-        **kwargs,
-    ):
+        leg2_index_method: str_ = NoInput(0),
+        leg2_index_lag: int_ = NoInput(0),
+        **kwargs: Any,
+    ) -> None:
         super().__init__(*args, **kwargs)
         user_kwargs = dict(
             fixed_rate=fixed_rate,
@@ -153,20 +153,20 @@ class ZCIS(BaseDerivative):
 
     def cashflows(
         self,
-        curves: Curves = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
     ):
         self._set_pricing_mid(curves, solver)
         return super().cashflows(curves, solver, fx, base)
 
     def npv(
         self,
-        curves: Curves = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
         local: bool = False,
     ):
         self._set_pricing_mid(curves, solver)
@@ -174,10 +174,10 @@ class ZCIS(BaseDerivative):
 
     def rate(
         self,
-        curves: Curves = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
     ):
         """
         Return the mid-market IRR rate of the ZCIS.
@@ -373,16 +373,16 @@ class IIRS(BaseDerivative):
         fixed_rate: float | NoInput = NoInput(0),
         index_base: float | Series | NoInput = NoInput(0),
         index_fixings: float | Series | NoInput = NoInput(0),
-        index_method: str | NoInput = NoInput(0),
-        index_lag: int | NoInput = NoInput(0),
-        notional_exchange: bool | NoInput = False,
-        payment_lag_exchange: int | NoInput = NoInput(0),
+        index_method: str_ = NoInput(0),
+        index_lag: int_ = NoInput(0),
+        notional_exchange: bool_ = False,
+        payment_lag_exchange: int_ = NoInput(0),
         leg2_float_spread: float | NoInput = NoInput(0),
         leg2_fixings: float | list | NoInput = NoInput(0),
-        leg2_fixing_method: str | NoInput = NoInput(0),
-        leg2_method_param: int | NoInput = NoInput(0),
-        leg2_spread_compound_method: str | NoInput = NoInput(0),
-        leg2_payment_lag_exchange: int | NoInput = NoInput(1),
+        leg2_fixing_method: str_ = NoInput(0),
+        leg2_method_param: int_ = NoInput(0),
+        leg2_spread_compound_method: str_ = NoInput(0),
+        leg2_payment_lag_exchange: int_ = NoInput(1),
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -415,18 +415,18 @@ class IIRS(BaseDerivative):
 
     def _set_pricing_mid(
         self,
-        curves: Curves = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
     ):
         mid_market_rate = self.rate(curves, solver)
         self.leg1.fixed_rate = float(mid_market_rate)
 
     def npv(
         self,
-        curves: Curves = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
         local: bool = False,
     ):
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
@@ -450,10 +450,10 @@ class IIRS(BaseDerivative):
 
     def cashflows(
         self,
-        curves: Curves = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
     ):
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -476,10 +476,10 @@ class IIRS(BaseDerivative):
 
     def rate(
         self,
-        curves: Curves = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
     ):
         """
         Return the mid-market rate of the IRS.
@@ -536,10 +536,10 @@ class IIRS(BaseDerivative):
 
     def spread(
         self,
-        curves: Curves = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
     ):
         """
         Return the mid-market float spread (bps) required to equate to the fixed rate.
@@ -626,12 +626,12 @@ class IIRS(BaseDerivative):
 
     def fixings_table(
         self,
-        curves: Curves = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
         approximate: bool = False,
-        right: datetime | NoInput = NoInput(0),
+        right: datetime_ = NoInput(0),
     ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on the :class:`~rateslib.legs.FloatLeg`.
