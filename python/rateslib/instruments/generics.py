@@ -358,8 +358,8 @@ class Spread(Sensitivities):
         leg2_npv = self.instrument2.npv(*args, **kwargs)
         if kwargs.get("local", False):
             return {
-                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0)
-                for k in set(leg1_npv) | set(leg2_npv)  # type: ignore[union-attr, arg-type]
+                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0)  # type: ignore[union-attr]
+                for k in set(leg1_npv) | set(leg2_npv)  # type: ignore[arg-type]
             }
         else:
             return leg1_npv + leg2_npv  # type: ignore[operator]
@@ -732,8 +732,8 @@ class Portfolio(Sensitivities):
             ret: DualTypes | dict[str, DualTypes] = val1
         else:
             val2: DualTypes = sum(
-                instrument.npv(*args, **kwargs)
-                for instrument in self.instruments  # type: ignore[misc]
+                instrument.npv(*args, **kwargs)   # type: ignore[misc]
+                for instrument in self.instruments
             )
             ret = val2
         return ret
