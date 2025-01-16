@@ -32,16 +32,17 @@ from rateslib.instruments.utils import (
     _push,
     _update_with_defaults,
 )
-from rateslib.legs import FixedLeg, FloatLeg, IndexFixedLeg, IndexMixin
+from rateslib.legs import FixedLeg, FloatLeg, IndexFixedLeg
 from rateslib.periods import (
     Cashflow,
     FixedPeriod,
     FloatPeriod,
     IndexCashflow,
     IndexFixedPeriod,
-    _disc_maybe_from_curve,
+    IndexMixin,
     _maybe_local,
 )
+from rateslib.curves._parsers import _disc_maybe_from_curve
 
 if TYPE_CHECKING:
     from rateslib.typing import (
@@ -58,12 +59,12 @@ if TYPE_CHECKING:
 
 
 class BondMixin:
-    def _period_index(self, settlement: datetime):
+    def _period_index(self, settlement: datetime) -> int:
         """
         Get the coupon period index for that which the settlement date fall within.
         Uses unadjusted dates.
         """
-        _ = index_left(
+        _: int = index_left(
             self.leg1.schedule.uschedule,
             len(self.leg1.schedule.uschedule),
             settlement,
@@ -1150,6 +1151,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
     _fixed_rate_mixin = True
     fixed_rate: DualTypes
+    leg1: FixedLeg
 
     def _period_cashflow(
         self,
