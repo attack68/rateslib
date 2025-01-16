@@ -1658,6 +1658,8 @@ class IndexFixedRateBond(FixedRateBond):
     _fixed_rate_mixin = True
     _index_base_mixin = True
 
+    leg1: IndexFixedLeg
+
     def _period_cashflow(
         self,
         period: Cashflow | FixedPeriod | FloatPeriod | IndexCashflow | IndexFixedPeriod,
