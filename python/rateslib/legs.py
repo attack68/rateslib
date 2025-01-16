@@ -37,8 +37,8 @@ if TYPE_CHECKING:
         FX_,
         NPV,
         CalInput,
-        CurveOption_,
         Curve_,
+        CurveOption_,
         DualTypes,
         DualTypes_,
         FixingsFx_,
@@ -589,8 +589,8 @@ class _FloatLegMixin:
     fixing_method: str
     spread_compound_method: str
     method_param: int
-    periods: list[Period]
     fixings: list[DualTypes | list[DualTypes] | Series[DualTypes] | NoInput]  # type: ignore[type-var]
+    periods: list[Period]
 
     def _get_fixings_from_series(
         self,
@@ -1041,6 +1041,7 @@ class FloatLeg(_FloatLegMixin, BaseLeg):
     """  # noqa: E501
 
     _delay_set_periods: bool = True  # do this to set fixings first
+    _regular_periods: tuple[FloatPeriod, ...]
 
     def __init__(
         self,
@@ -1342,6 +1343,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
     """  # noqa: E501
 
     _delay_set_periods: bool = True
+    _regular_periods: tuple[FloatPeriod, ...]
 
     def __init__(
         self,
@@ -2940,7 +2942,7 @@ class FloatLegMtm(_FloatLegMixin, BaseLegMtm):
 
     def fixings_table(
         self,
-        curve: Curve,
+        curve: CurveOption_,
         disc_curve: Curve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),

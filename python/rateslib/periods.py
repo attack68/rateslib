@@ -174,6 +174,7 @@ def _maybe_fx_converted(
     fx_, _ = _get_fx_and_base(currency, fx, base)
     return value * fx_
 
+
 class BasePeriod(metaclass=ABCMeta):
     """
     Abstract base class with common parameters for all ``Period`` subclasses.

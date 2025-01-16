@@ -9,7 +9,7 @@ from rateslib.calendars import add_tenor
 from rateslib.curves import CompositeCurve, Curve, IndexCurve, LineCurve, MultiCsaCurve
 from rateslib.curves._parsers import _map_curve_from_solver
 from rateslib.default import NoInput
-from rateslib.dual import Dual, Dual2, dual_exp, gradient, Variable
+from rateslib.dual import Dual, Dual2, Variable, dual_exp, gradient
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile
 from rateslib.instruments import (

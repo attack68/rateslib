@@ -243,4 +243,3 @@ def _disc_required_maybe_from_curve(curve: CurveOption_, disc_curve: CurveOption
             "A `disc_curve` is required to perform function."
         )
     return _
-
