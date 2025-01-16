@@ -2184,7 +2184,7 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
     def _set_periods(self) -> None:
         return super(_FixedLegMixin, self)._set_periods()
 
-    def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]:
+    def npv(self, *args: Any, **kwargs: Any) -> NPV:
         return super().npv(*args, **kwargs)
 
     def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame:

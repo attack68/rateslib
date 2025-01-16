@@ -296,30 +296,30 @@ class BondMixin:
         v3 = f3(self, ytm, f, settlement, self.leg1.schedule.n_periods - 1, v2, accrual)
 
         # Sum up the coupon cashflows discounted by the calculated factors
-        d = 0
+        d: DualTypes = 0.0
         for i, p_idx in enumerate(range(acc_idx, self.leg1.schedule.n_periods)):
             if i == 0 and self.ex_div(settlement):
                 # no coupon cashflow is receiveable so no addition to the sum
                 continue
             elif i == 0 and p_idx == (self.leg1.schedule.n_periods - 1):
                 # the last period is the first period so discounting handled only by v1
-                d += self._period_cashflow(self.leg1.periods[p_idx], curve) * v1
+                d += self._period_cashflow(self.leg1._regular_periods[p_idx], curve) * v1
             elif p_idx == (self.leg1.schedule.n_periods - 1):
                 # this is last period, but it is not the first (i>0). Tag on v3 at end.
                 d += (
-                    self._period_cashflow(self.leg1.periods[p_idx], curve) * v2 ** (i - 1) * v3 * v1
+                    self._period_cashflow(self.leg1._regular_periods[p_idx], curve) * v2 ** (i - 1) * v3 * v1
                 )
             else:
                 # this is not the first and not the last period. Discount only with v1 and v2.
-                d += self._period_cashflow(self.leg1.periods[p_idx], curve) * v2**i * v1
+                d += self._period_cashflow(self.leg1._regular_periods[p_idx], curve) * v2**i * v1
 
         # Add the redemption payment discounted by relevant factors
         if i == 0:  # only looped 1 period, only use the last discount
-            d += self._period_cashflow(self.leg1.periods[-1], curve) * v1
+            d += self._period_cashflow(self.leg1._exchange_periods[1], curve) * v1
         elif i == 1:  # only looped 2 periods, no need for v2
-            d += self._period_cashflow(self.leg1.periods[-1], curve) * v3 * v1
+            d += self._period_cashflow(self.leg1._exchange_periods[1], curve) * v3 * v1
         else:  # looped more than 2 periods, regular formula applied
-            d += self._period_cashflow(self.leg1.periods[-1], curve) * v2 ** (i - 1) * v3 * v1
+            d += self._period_cashflow(self.leg1._exchange_periods[1], curve) * v2 ** (i - 1) * v3 * v1
 
         # discount all by the first period factor and scaled to price
         p = d / -self.leg1.notional * 100
