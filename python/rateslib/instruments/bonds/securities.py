@@ -2414,6 +2414,8 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
 
     _float_spread_mixin = True
 
+    leg1: FloatLeg
+
     def _period_cashflow(
         self,
         period: Cashflow | FixedPeriod | FloatPeriod | IndexCashflow | IndexFixedPeriod,
