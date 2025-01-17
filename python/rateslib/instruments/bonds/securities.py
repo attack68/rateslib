@@ -17,7 +17,7 @@ from rateslib.curves._parsers import (
     _validate_curve_not_no_input,
 )
 from rateslib.default import NoInput, _drb
-from rateslib.dual import Dual, Dual2, gradient, quadratic_eqn, newton_1dim
+from rateslib.dual import Dual, Dual2, gradient, newton_1dim, quadratic_eqn
 from rateslib.dual.utils import _dual_float, _get_order_of
 from rateslib.instruments.base import BaseMixin
 from rateslib.instruments.bonds.conventions import (
@@ -50,23 +50,23 @@ if TYPE_CHECKING:
         Any,
         CalInput,
         Callable,
+        Cashflow,
         Curve_,
         CurveOption,
         CurveOption_,
         Curves_,
         DualTypes,
         DualTypes_,
+        FixedPeriod,
+        FixingsRates_,
+        IndexCashflow,
+        IndexFixedPeriod,
         Number,
         Solver_,
         bool_,
         datetime_,
         int_,
         str_,
-        FixingsRates_,
-        FixedPeriod,
-        IndexFixedPeriod,
-        IndexCashflow,
-        Cashflow,
     )
 
 
@@ -93,7 +93,7 @@ class BondMixin:
     def _period_cashflow(
         self,
         period: Cashflow | FixedPeriod | FloatPeriod | IndexCashflow | IndexFixedPeriod,
-        curve: Curve_,
+        curve: CurveOption_,
     ) -> DualTypes:
         pass  # pragma: no cover
 
@@ -179,7 +179,7 @@ class BondMixin:
         self,
         price: DualTypes,
         settlement: datetime,
-        curve: Curve | LineCurve | NoInput,
+        curve: CurveOption_,
         dirty: bool,
     ) -> Number:
         """
@@ -263,7 +263,7 @@ class BondMixin:
         settlement: datetime,
         calc_mode: str | BondCalcMode | NoInput,
         dirty: bool,
-        curve: Curve_,
+        curve: CurveOption_,
     ) -> DualTypes:
         """
         Loop through all future cashflows and discount them with ``ytm`` to achieve
@@ -295,7 +295,7 @@ class BondMixin:
         f2: Callable[..., DualTypes],
         f3: Callable[..., DualTypes],
         accrual: Callable[..., DualTypes],
-        curve: Curve_,
+        curve: CurveOption_,
     ) -> DualTypes:
         """
         Refer to supplementary material.
@@ -895,7 +895,6 @@ class BondMixin:
 
         z = z_hat + z_hat2 + z_hat3
         return z
-
 
     # TODO: unit tests for the oaspread_newton algo, and derive the analytics to keep this AD safe
     def _oaspread_newton_algorithm(
@@ -1792,7 +1791,9 @@ class IndexFixedRateBond(FixedRateBond):
     leg1: IndexFixedLeg  # type: ignore[assignment]
 
     def _period_cashflow(
-        self, period: IndexCashflow | IndexFixedPeriod, curve: Curve_  # type: ignore[override]
+        self,
+        period: IndexCashflow | IndexFixedPeriod,  # type: ignore[override]
+        curve: CurveOption_,
     ) -> DualTypes:
         """Indexed bonds use the known "real_cashflow" attribute on the *Period*."""
         return period.real_cashflow  # type: ignore[return-value]
@@ -1878,7 +1879,7 @@ class IndexFixedRateBond(FixedRateBond):
         self.spec = spec
 
         self._fixed_rate = fixed_rate
-        self._index_base = index_base
+        self._index_base = index_base  # type: ignore[assignment]
 
         self.leg1 = IndexFixedLeg(
             **_get(self.kwargs, leg=1, filter=("ex_div", "settle", "calc_mode")),
@@ -2354,10 +2355,16 @@ class Bill(FixedRateBond):
         -------
         float, Dual, Dual2
         """
-        if not isinstance(calc_mode, str):
-            calc_mode = self.calc_mode
-        price_func = getattr(self, f"_price_{self.calc_mode._price_type}")
-        return price_func(rate, settlement)
+        if isinstance(calc_mode, NoInput):
+            calc_mode_ = self.calc_mode
+        else:
+            if isinstance(calc_mode, str):
+                calc_mode_ = BILL_MODE_MAP[calc_mode.lower()]
+            else:
+                calc_mode_ = calc_mode
+
+        price_func = getattr(self, f"_price_{calc_mode_._price_type}")
+        return price_func(rate, settlement)  # type: ignore[no-any-return]
 
     def _price_discount(self, rate: DualTypes, settlement: datetime) -> DualTypes:
         acc_frac = self.calc_mode._settle_acc_frac_func(self, settlement, 0)
@@ -2369,7 +2376,7 @@ class Bill(FixedRateBond):
         dcf = (1 - acc_frac) * self.dcf
         return 100 / (1 + rate * dcf / 100)
 
-    def ytm(
+    def ytm(  # type: ignore[override]
         self,
         price: DualTypes,
         settlement: datetime,
@@ -2582,7 +2589,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):  # type: ignore[misc]
         amortization: DualTypes_ = NoInput(0),
         convention: str_ = NoInput(0),
         float_spread: DualTypes_ = NoInput(0),
-        fixings: FixingsRates_ = NoInput(0),
+        fixings: FixingsRates_ = NoInput(0),  # type: ignore[type-var]
         fixing_method: str_ = NoInput(0),
         method_param: int_ = NoInput(0),
         spread_compound_method: str_ = NoInput(0),
@@ -2666,15 +2673,17 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):  # type: ignore[misc]
             # self.notional which is currently assumed to be a fixed quantity
             raise NotImplementedError("`amortization` for FloatRateNote must be zero.")
 
-    def _period_cashflow(self, period: Cashflow | FloatPeriod, curve: Curve_) -> DualTypes: # type: ignore[override]
+    def _period_cashflow(self, period: Cashflow | FloatPeriod, curve: Curve_) -> DualTypes:  # type: ignore[override]
         """FloatRateNotes must forecast cashflows with a *Curve* on the *Period*."""
         if isinstance(period, FloatPeriod):
-            _: DualTypes = period.cashflow(curve)
+            _: DualTypes = period.cashflow(curve)  # type: ignore[assignment]
         else:
             _ = period.cashflow
         return _
 
-    def _accrual_rate(self, pseudo_period: FloatPeriod, curve: CurveOption, method_param: int):
+    def _accrual_rate(
+        self, pseudo_period: FloatPeriod, curve: CurveOption_, method_param: int
+    ) -> float:
         """
         Take a period and try to forecast the rate which determines the accrual,
         either from known fixings, a curve or forward filling historical fixings.
@@ -2682,6 +2691,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):  # type: ignore[misc]
         This method is required to handle the case where a curve is not provided and
         fixings are enough.
         """
+        # TODO: make this AD safe and not return a float.
         if pseudo_period.dcf < 1e-10:
             return 0.0  # there are no fixings in the period.
 
@@ -2699,17 +2709,17 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):  # type: ignore[misc]
                 modifier="F",
             )
             try:
-                _ = pseudo_period.rate(pseudo_curve)
-                return _
+                _: DualTypes = pseudo_period.rate(pseudo_curve)
+                return _  # type: ignore[return-value]
             except IndexError:
                 # the pseudo_curve has no nodes so when it needs to calculate a rate it cannot
                 # be indexed.
                 # Try to revert back to using the last fixing as forward projection.
                 try:
                     if isinstance(pseudo_period.fixings, Series):
-                        last_fixing = pseudo_period.fixings.iloc[-1]
+                        last_fixing = pseudo_period.fixings.iloc[-1]  # type: ignore[attr-defined]
                     else:
-                        last_fixing = pseudo_period.fixings[-1]
+                        last_fixing = pseudo_period.fixings[-1]  # type: ignore[index]
                     warnings.warn(
                         "A `Curve` was not supplied. Residual required fixings not yet "
                         "published are forecast from the last known fixing.",
@@ -2742,14 +2752,14 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):  # type: ignore[misc]
                 )
 
         # Otherwise rate to settle is determined fully by known fixings.
-        _ = float(pseudo_period.rate(curve_))
+        _ = _dual_float(pseudo_period.rate(curve_))
         return _
 
     def accrued(
         self,
         settlement: datetime,
-        curve: Curve_ = NoInput(0),
-    ):
+        curve: CurveOption_ = NoInput(0),
+    ) -> DualTypes:
         """
         Calculate the accrued amount per nominal par value of 100.
 
@@ -2841,7 +2851,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):  # type: ignore[misc]
                 frac = frac - 1  # accrued is negative in ex-div period
 
             if isinstance(curve, NoInput):
-                curve_ = Curve(
+                curve_: CurveOption = Curve(
                     {  # create a dummy curve. rate() will return the fixing
                         self.leg1._regular_periods[acc_idx].start: 1.0,
                         self.leg1._regular_periods[acc_idx].end: 1.0,
@@ -2853,7 +2863,10 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):  # type: ignore[misc]
             rate = self.leg1._regular_periods[acc_idx].rate(curve_)
 
             cashflow = (
-                -self.leg1.periods[acc_idx].notional * self.leg1.periods[acc_idx].dcf * rate / 100
+                -self.leg1._regular_periods[acc_idx].notional
+                * self.leg1._regular_periods[acc_idx].dcf
+                * rate
+                / 100
             )
             return frac * cashflow / -self.leg1.notional * 100
         else:  # is "rfr"
@@ -2885,11 +2898,11 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):  # type: ignore[misc]
 
             if self.ex_div(settlement):
                 rate_to_end = self._accrual_rate(
-                    self.leg1.periods[acc_idx],
+                    self.leg1._regular_periods[acc_idx],
                     curve,
                     self.leg1.method_param,
                 )
-                accrued_to_end = 100 * self.leg1.periods[acc_idx].dcf * rate_to_end / 100
+                accrued_to_end = 100 * self.leg1._regular_periods[acc_idx].dcf * rate_to_end / 100
                 return accrued_to_settle - accrued_to_end
             else:
                 return accrued_to_settle
@@ -2949,15 +2962,16 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):  # type: ignore[misc]
 
         metric = metric.lower()
         if metric in ["clean_price", "dirty_price", "spread", "ytm"]:
+            curves_1 = _validate_curve_not_no_input(curves_[1])
             if isinstance(forward_settlement, NoInput):
                 settlement = self.leg1.schedule.calendar.lag(
-                    curves_[1].node_dates[0],  # discount curve
+                    curves_1.node_dates[0],  # discount curve
                     self.kwargs["settle"],
                     True,
                 )
             else:
                 settlement = forward_settlement
-            npv = self._npv_local(curves_[0], curves_[1], settlement, settlement)
+            npv = self._npv_local(curves_[0], curves_1, settlement, settlement)
             # scale price to par 100 (npv is already projected forward to settlement)
             dirty_price = npv * 100 / -self.leg1.notional
 
@@ -2966,8 +2980,8 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):  # type: ignore[misc]
             elif metric == "clean_price":
                 return dirty_price - self.accrued(settlement, curve=curves_[0])
             elif metric == "spread":
-                _ = self.leg1._spread(-(npv + self.leg1.notional), curves_[0], curves_[1])
-                z = _drb(0.0, self.float_spread)
+                _: DualTypes = self.leg1._spread(-(npv + self.leg1.notional), curves_[0], curves_1)
+                z: DualTypes = _drb(0.0, self.float_spread)
                 return _ + z
             elif metric == "ytm":
                 return self.ytm(
@@ -3047,9 +3061,9 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):  # type: ignore[misc]
 
     def ytm(
         self,
-        price: Number,
+        price: DualTypes,
         settlement: datetime,
-        curve: Curve | LineCurve | NoInput = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
         dirty: bool = False,
     ) -> Number:
         """
@@ -3061,7 +3075,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):  # type: ignore[misc]
             The price, per 100 nominal, against which to determine the yield.
         settlement : datetime
             The settlement date on which to determine the price.
-        curve : Curve, LineCurve
+        curve : Curve, dict[str, Curve]
             Curve used to forecast cashflows.
         dirty : bool, optional
             If `True` will assume the
