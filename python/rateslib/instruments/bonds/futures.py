@@ -457,7 +457,7 @@ class BondFuture(Sensitivities):
         # build a curve for pricing
         today = self.basket[0].leg1.schedule.calendar.lag(
             settlement,
-            -self.basket[0].kwargs["settle"],  # type: ignore[arg-type, operator]
+            -self.basket[0].kwargs["settle"],
             False,
         )
         unsorted_nodes = {
