@@ -11,6 +11,7 @@ from pandas import DataFrame, Series
 from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
 from rateslib.curves import Curve, IndexCurve, LineCurve, average_rate, index_left
+from rateslib.curves._parsers import _disc_maybe_from_curve
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, gradient, quadratic_eqn
 from rateslib.dual.utils import _dual_float, _get_order_of
@@ -42,7 +43,6 @@ from rateslib.periods import (
     IndexMixin,
     _maybe_local,
 )
-from rateslib.curves._parsers import _disc_maybe_from_curve
 
 if TYPE_CHECKING:
     from rateslib.typing import (
@@ -50,18 +50,17 @@ if TYPE_CHECKING:
         Any,
         CalInput,
         Callable,
+        Curve_,
         CurveOption,
         Curves_,
         DualTypes,
         Number,
         Solver_,
-        Curve_,
         str_,
     )
 
 
 class BondMixin:
-
     leg1: FixedLeg | FloatLeg | IndexFixedLeg
     kwargs: dict[str, Any]
     calc_mode: BondCalcMode
@@ -152,7 +151,9 @@ class BondMixin:
         else:
             return settlement > ex_div_date
 
-    def _accrued(self, settlement: datetime, func: Callable[[Any, datetime, int], DualTypes]) -> DualTypes:
+    def _accrued(
+        self, settlement: datetime, func: Callable[[Any, datetime, int], DualTypes]
+    ) -> DualTypes:
         """func is the specific accrued function associated with the bond ``calc_mode``"""
         acc_idx = self._period_index(settlement)
         frac = func(self, settlement, acc_idx)
@@ -199,7 +200,7 @@ class BondMixin:
             # we set this to work in float arithmetic for efficiency. Dual is added
             # back below, see PR GH3
             _: float = (
-                    self._price_from_ytm(  # type: ignore[assignment]
+                self._price_from_ytm(  # type: ignore[assignment]
                     ytm=y, settlement=settlement, calc_mode=self.calc_mode, dirty=dirty, curve=curve
                 )
                 - price_float
@@ -307,7 +308,10 @@ class BondMixin:
             elif p_idx == (self.leg1.schedule.n_periods - 1):
                 # this is last period, but it is not the first (i>0). Tag on v3 at end.
                 d += (
-                    self._period_cashflow(self.leg1._regular_periods[p_idx], curve) * v2 ** (i - 1) * v3 * v1
+                    self._period_cashflow(self.leg1._regular_periods[p_idx], curve)
+                    * v2 ** (i - 1)
+                    * v3
+                    * v1
                 )
             else:
                 # this is not the first and not the last period. Discount only with v1 and v2.
@@ -417,7 +421,9 @@ class BondMixin:
         if dirty:
             return forward_price
         else:
-            return forward_price - self._accrued(forward_settlement, self.calc_mode._settle_acc_frac_func)
+            return forward_price - self._accrued(
+                forward_settlement, self.calc_mode._settle_acc_frac_func
+            )
 
     def repo_from_fwd(
         self,
@@ -459,7 +465,9 @@ class BondMixin:
         convention_ = _drb(defaults.convention, convention)
         # forward price from repo is linear in repo_rate so reverse calculate with AD
         if not dirty:
-            p_t = forward_price + self._accrued(forward_settlement, self.calc_mode._settle_acc_frac_func)
+            p_t = forward_price + self._accrued(
+                forward_settlement, self.calc_mode._settle_acc_frac_func
+            )
             p_0 = price + self._accrued(settlement, self.calc_mode._settle_acc_frac_func)
         else:
             p_t, p_0 = forward_price, price
