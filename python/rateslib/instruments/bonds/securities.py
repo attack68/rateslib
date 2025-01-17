@@ -833,11 +833,6 @@ class BondMixin:
 
         Not AD safe, returns a float.
 
-        .. warning::
-
-           These curves may be mutated. It is best to pass copies of the original objects so that
-           the originals remain unaffected.
-
         Parameters
         ----------
         curve
