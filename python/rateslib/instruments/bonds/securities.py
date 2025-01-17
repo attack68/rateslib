@@ -17,7 +17,7 @@ from rateslib.curves._parsers import (
     _validate_curve_not_no_input,
 )
 from rateslib.default import NoInput, _drb
-from rateslib.dual import Dual, Dual2, gradient, quadratic_eqn
+from rateslib.dual import Dual, Dual2, gradient, quadratic_eqn, newton_1dim
 from rateslib.dual.utils import _dual_float, _get_order_of
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments.base import BaseMixin
@@ -861,6 +861,91 @@ class BondMixin:
                     v._set_ad_order(order)
             else:
                 curve._set_ad_order(order)
+
+        # attach "z_spread" sensitivity to an AD order 1 curve.
+        disc_curve_ = disc_curve.shift(Dual(0.0, ["z_spread"], []), composite=False)
+        curve_ = _copy_curve(curve)
+        _set_ad_order_of_forecasting_curve(curve_, 1)
+
+        # find a first order approximation of z, z_hat, using a Dual approach:
+        npv_price: Dual | Dual2 = self.rate(curves=[curve_, disc_curve_], metric=metric)  # type: ignore[assignment]
+        b: float = gradient(npv_price, ["z_spread"], 1)[0]
+        c: float = _dual_float(npv_price) - price
+        z_hat: float = -c / b
+
+        # shift the curve to the first order approximation and fine tune with 2nd order approxim.
+        disc_curve_ = disc_curve.shift(Dual2(z_hat, ["z_spread"], [], []), composite=False)
+        _set_ad_order_of_forecasting_curve(curve_, 2)
+        npv_price = self.rate(curves=[curve_, disc_curve_], metric=metric)  # type: ignore[assignment]
+        coeffs: tuple[float, float, float] = (
+            0.5 * gradient(npv_price, ["z_spread"], 2)[0][0],
+            gradient(npv_price, ["z_spread"], 1)[0],
+            _dual_float(npv_price) - price,
+        )
+        z_hat2: float = quadratic_eqn(*coeffs, x0=-c / b)["g"]
+
+        # perform one final approximation albeit the additional price calculation slows calc time
+        disc_curve_ = disc_curve.shift(z_hat + z_hat2, composite=False)
+        disc_curve_._set_ad_order(0)
+        _set_ad_order_of_forecasting_curve(curve_, 0)
+        npv_price_: float = self.rate(curves=[curve_, disc_curve_], metric=metric)  # type: ignore[assignment]
+        b = coeffs[1] + 2 * coeffs[0] * z_hat2  # forecast the new gradient
+        c = npv_price_ - price
+        z_hat3: float = -c / b
+
+        z = z_hat + z_hat2 + z_hat3
+        return z
+
+    def _oaspread_newton_algorithm(
+        self, curve: CurveOption_, disc_curve: Curve, metric: str, price: float
+    ) -> float:
+        """
+        Perform the algorithm as specified in "Coding Interest Rates" to derive an OAS spread
+        balancing performance of the iteration with accuracy.
+
+        Not AD safe, returns a float.
+
+        Parameters
+        ----------
+        curve
+        disc_curve
+        metric
+        price
+
+        Returns
+        -------
+        float
+        """
+
+        def _copy_curve(curve: CurveOption_) -> CurveOption_:
+            if isinstance(curve, NoInput) or curve is None:
+                return NoInput(0)
+            elif isinstance(curve, dict):
+                return {k: v.copy() for k, v in curve.items()}
+            else:
+                return curve.copy()
+
+        def _set_ad_order_of_forecasting_curve(curve: CurveOption_, order: int) -> None:
+            if isinstance(curve, NoInput):
+                pass
+            elif isinstance(curve, dict):
+                for _k, v in curve.items():
+                    v._set_ad_order(order)
+            else:
+                curve._set_ad_order(order)
+
+        curve_ = _copy_curve(curve)
+
+        def root(z, P_tgt) -> tuple[DualTypes, float]:
+            shifted_curve = disc_curve.shift(z + Dual(0.0, ["__z_spd__§"], []), composite=False)
+            P_iter = self.rate(curves=[curve_, shifted_curve], metric=metric)
+            f_0 = P_tgt - P_iter
+            f_1 = -gradient(P_iter, vars=["__z_spd__§"], order=1)[0]
+            return f_0, f_1
+
+        soln = newton_1dim(root, 0.0, 10, 1e-8, 1e-7, (price,))
+        return soln["g"]
+
 
         # attach "z_spread" sensitivity to an AD order 1 curve.
         disc_curve_ = disc_curve.shift(Dual(0.0, ["z_spread"], []), composite=False)
