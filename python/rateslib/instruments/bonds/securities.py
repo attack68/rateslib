@@ -820,7 +820,7 @@ class BondMixin:
         )
         metric = "dirty_price" if dirty else "clean_price"
 
-        return self._oaspread_newton_algorithm(
+        return self._oaspread_algorithm(
             curves_[0], _validate_curve_not_no_input(curves_[1]), metric, _dual_float(price)
         )
 
@@ -896,6 +896,8 @@ class BondMixin:
         z = z_hat + z_hat2 + z_hat3
         return z
 
+
+    # TODO: unit tests for the oaspread_newton algo, and derive the analytics to keep this AD safe
     def _oaspread_newton_algorithm(
         self, curve: CurveOption_, disc_curve: Curve, metric: str, price: float
     ) -> float:
