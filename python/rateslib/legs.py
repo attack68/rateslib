@@ -2060,6 +2060,7 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
     """  # noqa: E501
 
     periods: list[IndexCashflow | IndexFixedPeriod]  # type: ignore[assignment]
+    _regular_periods: tuple[IndexFixedPeriod, ...]
 
     # TODO: spread calculations to determine the fixed rate on this leg do not work.
     def __init__(
@@ -2081,8 +2082,10 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
         self.index_fixings = index_fixings  # set index fixings after periods init
         self.index_base = index_base  # set after periods initialised
 
-    def _set_periods(self) -> None:
-        self.periods = []
+    def _set_exchange_periods(self) -> None:
+        """Set default cashflow exchanges on Legs with `initial_exchange` or `final_exchange`."""
+
+        periods_: list[IndexCashflow | None] = [None, None]
 
         # initial exchange
         if self.initial_exchange:
@@ -2109,31 +2112,33 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
             #     )
             # )
 
-        # regular periods
-        regular_periods = [
-            IndexFixedPeriod(
-                fixed_rate=self.fixed_rate,
-                start=period[defaults.headers["a_acc_start"]],
-                end=period[defaults.headers["a_acc_end"]],
-                payment=period[defaults.headers["payment"]],
-                notional=self.notional - self.amortization * i,
-                convention=self.convention,
+        # final cashflow
+        if self.final_exchange:
+            periods_[1] = IndexCashflow(
+                notional=self.notional - self.amortization * (self.schedule.n_periods - 1),
+                payment=self.schedule.calendar.lag(
+                    self.schedule.aschedule[-1],
+                    self.payment_lag_exchange,
+                    True,
+                ),
                 currency=self.currency,
-                termination=self.schedule.termination,
-                frequency=self.schedule.frequency,
-                stub=period[defaults.headers["stub_type"]] == "Stub",
-                roll=self.schedule.roll,
-                calendar=self.schedule.calendar,
+                stub_type="Exchange",
+                rate=NoInput(0),
                 index_base=self.index_base,
-                index_method=self.index_method,
-                index_fixings=self.index_fixings[i]
+                index_fixings=self.index_fixings[-1]
                 if isinstance(self.index_fixings, list)
                 else self.index_fixings,
+                index_method=self.index_method,
             )
-            for i, period in enumerate(self.schedule.table.to_dict(orient="index").values())
-        ]
-        if self.final_exchange and self.amortization != 0:
-            amortization = [
+
+        self._exchange_periods: tuple[IndexCashflow | None, IndexCashflow | None] = tuple(periods_)  # type: ignore[assignment]
+
+    def _set_interim_exchange_periods(self) -> None:
+        """Set cashflow exchanges if `amortization` and `final_exchange` are present."""
+        if not self.final_exchange or self.amortization == 0:
+            self._interim_exchange_periods: tuple[IndexCashflow, ...] | None = None
+        else:
+            periods_ = [
                 IndexCashflow(
                     notional=self.amortization,
                     payment=self.schedule.pschedule[1 + i],
@@ -2148,36 +2153,38 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
                 )
                 for i in range(self.schedule.n_periods - 1)
             ]
-            interleaved_periods: list[IndexCashflow | IndexFixedPeriod] = [
-                val for pair in zip(regular_periods, amortization, strict=False) for val in pair
-            ]
-            interleaved_periods.append(regular_periods[-1])  # add last regular period
-        else:
-            interleaved_periods = regular_periods  # type: ignore[assignment]
-        self.periods.extend(interleaved_periods)
+            self._interim_exchange_periods = tuple(periods_)
 
-        # final cashflow
-        if self.final_exchange:
-            self.periods.append(
-                IndexCashflow(
-                    notional=self.notional - self.amortization * (self.schedule.n_periods - 1),
-                    payment=self.schedule.calendar.lag(
-                        self.schedule.aschedule[-1],
-                        self.payment_lag_exchange,
-                        True,
-                    ),
+    def _set_regular_periods(self) -> None:
+        self._regular_periods: tuple[IndexFixedPeriod, ...] = tuple(
+            [
+                IndexFixedPeriod(
+                    fixed_rate=self.fixed_rate,
+                    start=period[defaults.headers["a_acc_start"]],
+                    end=period[defaults.headers["a_acc_end"]],
+                    payment=period[defaults.headers["payment"]],
+                    notional=self.notional - self.amortization * i,
+                    convention=self.convention,
                     currency=self.currency,
-                    stub_type="Exchange",
-                    rate=NoInput(0),
+                    termination=self.schedule.termination,
+                    frequency=self.schedule.frequency,
+                    stub=period[defaults.headers["stub_type"]] == "Stub",
+                    roll=self.schedule.roll,
+                    calendar=self.schedule.calendar,
                     index_base=self.index_base,
-                    index_fixings=self.index_fixings[-1]
+                    index_method=self.index_method,
+                    index_fixings=self.index_fixings[i]
                     if isinstance(self.index_fixings, list)
                     else self.index_fixings,
-                    index_method=self.index_method,
-                ),
-            )
+                )
+                for i, period in enumerate(self.schedule.table.to_dict(orient="index").values())
+            ]
+        )
 
-    def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]:
+    def _set_periods(self) -> None:
+        return super(_FixedLegMixin, self)._set_periods()
+
+    def npv(self, *args: Any, **kwargs: Any) -> NPV:
         return super().npv(*args, **kwargs)
 
     def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame:

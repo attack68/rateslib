@@ -11,6 +11,7 @@ from pandas import DataFrame, Series
 from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
 from rateslib.curves import Curve, IndexCurve, LineCurve, average_rate, index_left
+from rateslib.curves._parsers import _disc_maybe_from_curve
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, gradient, quadratic_eqn
 from rateslib.dual.utils import _dual_float, _get_order_of
@@ -32,14 +33,14 @@ from rateslib.instruments.utils import (
     _push,
     _update_with_defaults,
 )
-from rateslib.legs import FixedLeg, FloatLeg, IndexFixedLeg, IndexMixin
+from rateslib.legs import FixedLeg, FloatLeg, IndexFixedLeg
 from rateslib.periods import (
     Cashflow,
     FixedPeriod,
     FloatPeriod,
     IndexCashflow,
     IndexFixedPeriod,
-    _disc_maybe_from_curve,
+    IndexMixin,
     _maybe_local,
 )
 
@@ -49,21 +50,27 @@ if TYPE_CHECKING:
         Any,
         CalInput,
         Callable,
+        Curve_,
         CurveOption,
         Curves_,
         DualTypes,
         Number,
         Solver_,
+        str_,
     )
 
 
 class BondMixin:
-    def _period_index(self, settlement: datetime):
+    leg1: FixedLeg | FloatLeg | IndexFixedLeg
+    kwargs: dict[str, Any]
+    calc_mode: BondCalcMode
+
+    def _period_index(self, settlement: datetime) -> int:
         """
         Get the coupon period index for that which the settlement date fall within.
         Uses unadjusted dates.
         """
-        _ = index_left(
+        _: int = index_left(
             self.leg1.schedule.uschedule,
             len(self.leg1.schedule.uschedule),
             settlement,
@@ -75,10 +82,10 @@ class BondMixin:
         self,
         period: Cashflow | FixedPeriod | FloatPeriod | IndexCashflow | IndexFixedPeriod,
         curve: Curve | NoInput,
-    ):
+    ) -> DualTypes:
         pass  # pragma: no cover
 
-    # def _accrued_fraction(self, settlement: datetime, calc_mode: str | NoInput, acc_idx: int):
+    # def _accrued_fraction(self, settlement: datetime, calc_mode: str_, acc_idx: int):
     #     """
     #     Return the accrual fraction of period between last coupon and settlement and
     #     coupon period left index.
@@ -93,7 +100,7 @@ class BondMixin:
     #         raise ValueError(f"Cannot calculate for `calc_mode`: {calc_mode}")
 
     def _set_base_index_if_none(self, curve: Curve) -> None:
-        if self._index_base_mixin and isinstance(self.index_base, NoInput):
+        if type(self) is IndexFixedRateBond and isinstance(self.index_base, NoInput):
             self.leg1.index_base = curve.index_value(
                 self.leg1.schedule.effective,
                 self.leg1.index_method,
@@ -144,13 +151,15 @@ class BondMixin:
         else:
             return settlement > ex_div_date
 
-    def _accrued(self, settlement: datetime, func: callable):
+    def _accrued(
+        self, settlement: datetime, func: Callable[[Any, datetime, int], DualTypes]
+    ) -> DualTypes:
         """func is the specific accrued function associated with the bond ``calc_mode``"""
         acc_idx = self._period_index(settlement)
         frac = func(self, settlement, acc_idx)
         if self.ex_div(settlement):
             frac = frac - 1  # accrued is negative in ex-div period
-        _ = self._period_cashflow(self.leg1.periods[acc_idx], NoInput(0))
+        _: DualTypes = self._period_cashflow(self.leg1._regular_periods[acc_idx], NoInput(0))
         return frac * _ / -self.leg1.notional * 100
 
     def _ytm(
@@ -187,15 +196,16 @@ class BondMixin:
 
         price_float: float = _dual_float(price)
 
-        def root(y):
+        def root(y: float) -> float:
             # we set this to work in float arithmetic for efficiency. Dual is added
             # back below, see PR GH3
-            return (
-                self._price_from_ytm(
+            _: float = (
+                self._price_from_ytm(  # type: ignore[assignment]
                     ytm=y, settlement=settlement, calc_mode=self.calc_mode, dirty=dirty, curve=curve
                 )
                 - price_float
             )
+            return _
 
         # x = brentq(root, -99, 10000)  # remove dependence to scipy.optimize.brentq
         # x, iters = _brents(root, -99, 10000)  # use own local brents code
@@ -204,32 +214,33 @@ class BondMixin:
         ad_order = _get_order_of(price)
         if ad_order == 1:
             # use the inverse function theorem to express x as a Dual
-            p = self._price_from_ytm(
+            price_dual: Dual = price  # type: ignore[assignment]
+            p: Dual = self._price_from_ytm(  # type: ignore[assignment]
                 ytm=Dual(x, ["y"], []),
                 settlement=settlement,
                 calc_mode=self.calc_mode,
                 dirty=dirty,
                 curve=NoInput(0),
             )
-            return Dual(x, price.vars, 1 / gradient(p, ["y"])[0] * price.dual)
+            return Dual(x, price_dual.vars, 1 / gradient(p, ["y"])[0] * price_dual.dual)
         elif ad_order == 2:
             # use the IFT in 2nd order to express x as a Dual2
-            p = self._price_from_ytm(
+            price_dual2: Dual2 = price  # type: ignore[assignment]
+            p2: Dual2 = self._price_from_ytm(  # type: ignore[assignment]
                 ytm=Dual2(x, ["y"], [], []),
                 settlement=settlement,
                 calc_mode=self.calc_mode,
                 dirty=dirty,
                 curve=NoInput(0),
             )
-            dydP = 1 / gradient(p, ["y"])[0]
-            d2ydP2 = -gradient(p, ["y"], order=2)[0][0] * gradient(p, ["y"])[0] ** -3
-            dual = dydP * price.dual
+            dydP = 1 / gradient(p2, ["y"])[0]
+            d2ydP2 = -gradient(p2, ["y"], order=2)[0][0] * gradient(p2, ["y"])[0] ** -3
+            dual = dydP * price_dual2.dual
             dual2 = 0.5 * (
-                dydP * gradient(price, price.vars, order=2)
-                + d2ydP2 * np.matmul(price.dual[:, None], price.dual[None, :])
+                dydP * gradient(price_dual2, price_dual2.vars, order=2)
+                + d2ydP2 * np.matmul(price_dual2.dual[:, None], price_dual2.dual[None, :])
             )
-
-            return Dual2(x, price.vars, dual.tolist(), list(dual2.flat))
+            return Dual2(x, price_dual2.vars, dual.tolist(), list(dual2.flat))
         else:
             return x
 
@@ -239,8 +250,8 @@ class BondMixin:
         settlement: datetime,
         calc_mode: str | BondCalcMode | NoInput,
         dirty: bool,
-        curve: Curve | LineCurve | NoInput,
-    ):
+        curve: Curve_,
+    ) -> DualTypes:
         """
         Loop through all future cashflows and discount them with ``ytm`` to achieve
         correct price.
@@ -267,12 +278,12 @@ class BondMixin:
         ytm: DualTypes,
         settlement: datetime,
         dirty: bool,
-        f1: callable,
-        f2: callable,
-        f3: callable,
-        accrual: callable,
-        curve: Curve | LineCurve | NoInput,
-    ):
+        f1: Callable[..., DualTypes],
+        f2: Callable[..., DualTypes],
+        f3: Callable[..., DualTypes],
+        accrual: Callable[..., DualTypes],
+        curve: Curve_,
+    ) -> DualTypes:
         """
         Refer to supplementary material.
 
@@ -286,30 +297,34 @@ class BondMixin:
         v3 = f3(self, ytm, f, settlement, self.leg1.schedule.n_periods - 1, v2, accrual)
 
         # Sum up the coupon cashflows discounted by the calculated factors
-        d = 0
+        d: DualTypes = 0.0
         for i, p_idx in enumerate(range(acc_idx, self.leg1.schedule.n_periods)):
             if i == 0 and self.ex_div(settlement):
                 # no coupon cashflow is receiveable so no addition to the sum
                 continue
             elif i == 0 and p_idx == (self.leg1.schedule.n_periods - 1):
                 # the last period is the first period so discounting handled only by v1
-                d += self._period_cashflow(self.leg1.periods[p_idx], curve) * v1
+                d += self._period_cashflow(self.leg1._regular_periods[p_idx], curve) * v1
             elif p_idx == (self.leg1.schedule.n_periods - 1):
                 # this is last period, but it is not the first (i>0). Tag on v3 at end.
                 d += (
-                    self._period_cashflow(self.leg1.periods[p_idx], curve) * v2 ** (i - 1) * v3 * v1
+                    self._period_cashflow(self.leg1._regular_periods[p_idx], curve)
+                    * v2 ** (i - 1)
+                    * v3
+                    * v1
                 )
             else:
                 # this is not the first and not the last period. Discount only with v1 and v2.
-                d += self._period_cashflow(self.leg1.periods[p_idx], curve) * v2**i * v1
+                d += self._period_cashflow(self.leg1._regular_periods[p_idx], curve) * v2**i * v1
 
         # Add the redemption payment discounted by relevant factors
+        redemption: Cashflow | IndexCashflow = self.leg1._exchange_periods[1]  # type: ignore[assignment]
         if i == 0:  # only looped 1 period, only use the last discount
-            d += self._period_cashflow(self.leg1.periods[-1], curve) * v1
+            d += self._period_cashflow(redemption, curve) * v1
         elif i == 1:  # only looped 2 periods, no need for v2
-            d += self._period_cashflow(self.leg1.periods[-1], curve) * v3 * v1
+            d += self._period_cashflow(redemption, curve) * v3 * v1
         else:  # looped more than 2 periods, regular formula applied
-            d += self._period_cashflow(self.leg1.periods[-1], curve) * v2 ** (i - 1) * v3 * v1
+            d += self._period_cashflow(redemption, curve) * v2 ** (i - 1) * v3 * v1
 
         # discount all by the first period factor and scaled to price
         p = d / -self.leg1.notional * 100
@@ -322,7 +337,7 @@ class BondMixin:
         settlement: datetime,
         forward_settlement: datetime,
         repo_rate: DualTypes,
-        convention: str | NoInput = NoInput(0),
+        convention: str_ = NoInput(0),
         dirty: bool = False,
         method: str = "proceeds",
     ) -> DualTypes:
@@ -356,10 +371,10 @@ class BondMixin:
         Any intermediate (non ex-dividend) cashflows between ``settlement`` and
         ``forward_settlement`` will also be assumed to accrue at ``repo_rate``.
         """
-        convention = _drb(defaults.convention, convention)
-        dcf_ = dcf(settlement, forward_settlement, convention)
+        convention_ = _drb(defaults.convention, convention)
+        dcf_ = dcf(settlement, forward_settlement, convention_)
         if not dirty:
-            d_price = price + self.accrued(settlement)
+            d_price = price + self._accrued(settlement, self.calc_mode._settle_acc_frac_func)
         else:
             d_price = price
         if self.leg1.amortization != 0:
@@ -387,23 +402,28 @@ class BondMixin:
 
         for p_idx in range(settlement_idx, fwd_settlement_idx):
             # deduct accrued coupon from dirty price
+            c_period = self.leg1._regular_periods[p_idx]
+            c_cashflow: DualTypes = c_period.cashflow  # type: ignore[assignment]
+            # TODO handle FloatPeriod cashflow fetch if need a curve.
             if method.lower() == "proceeds":
-                dcf_ = dcf(self.leg1.periods[p_idx].payment, forward_settlement, convention)
-                accrued_coup = self.leg1.periods[p_idx].cashflow * (1 + dcf_ * repo_rate / 100)
+                dcf_ = dcf(c_period.payment, forward_settlement, convention_)
+                accrued_coup = c_cashflow * (1 + dcf_ * repo_rate / 100)
                 total_rtn -= accrued_coup
             elif method.lower() == "compounded":
-                r_bar, d, _ = average_rate(settlement, forward_settlement, convention, repo_rate)
-                n = (forward_settlement - self.leg1.periods[p_idx].payment).days
-                accrued_coup = self.leg1.periods[p_idx].cashflow * (1 + d * r_bar / 100) ** n
+                r_bar, d, _ = average_rate(settlement, forward_settlement, convention_, repo_rate)
+                n = (forward_settlement - c_period.payment).days
+                accrued_coup = c_cashflow * (1 + d * r_bar / 100) ** n
                 total_rtn -= accrued_coup
             else:
                 raise ValueError("`method` must be in {'proceeds', 'compounded'}.")
 
-        forward_price = total_rtn / -self.leg1.notional * 100
+        forward_price: DualTypes = total_rtn / -self.leg1.notional * 100
         if dirty:
             return forward_price
         else:
-            return forward_price - self.accrued(forward_settlement)
+            return forward_price - self._accrued(
+                forward_settlement, self.calc_mode._settle_acc_frac_func
+            )
 
     def repo_from_fwd(
         self,
@@ -411,7 +431,7 @@ class BondMixin:
         settlement: datetime,
         forward_settlement: datetime,
         forward_price: DualTypes,
-        convention: str | NoInput = NoInput(0),
+        convention: str_ = NoInput(0),
         dirty: bool = False,
     ) -> DualTypes:
         """
@@ -442,15 +462,17 @@ class BondMixin:
         Any intermediate (non ex-dividend) cashflows between ``settlement`` and
         ``forward_settlement`` will also be assumed to accrue at ``repo_rate``.
         """
-        convention = _drb(defaults.convention, convention)
+        convention_ = _drb(defaults.convention, convention)
         # forward price from repo is linear in repo_rate so reverse calculate with AD
         if not dirty:
-            p_t = forward_price + self.accrued(forward_settlement)
-            p_0 = price + self.accrued(settlement)
+            p_t = forward_price + self._accrued(
+                forward_settlement, self.calc_mode._settle_acc_frac_func
+            )
+            p_0 = price + self._accrued(settlement, self.calc_mode._settle_acc_frac_func)
         else:
             p_t, p_0 = forward_price, price
 
-        dcf_ = dcf(settlement, forward_settlement, convention)
+        dcf_ = dcf(settlement, forward_settlement, convention_)
         numerator = p_t - p_0
         denominator = p_0 * dcf_
 
@@ -473,19 +495,22 @@ class BondMixin:
 
         for p_idx in range(settlement_idx, fwd_settlement_idx):
             # deduct accrued coupon from dirty price
-            dcf_ = dcf(self.leg1.periods[p_idx].payment, forward_settlement, convention)
-            numerator += 100 * self.leg1.periods[p_idx].cashflow / -self.leg1.notional
-            denominator -= 100 * dcf_ * self.leg1.periods[p_idx].cashflow / -self.leg1.notional
+            c_period = self.leg1._regular_periods[p_idx]
+            c_cashflow: DualTypes = c_period.cashflow  # type: ignore[assignment]
+            # TODO handle FloatPeriod if it needs a Curve to forecast cashflow
+            dcf_ = dcf(c_period.payment, forward_settlement, convention_)
+            numerator += 100 * c_cashflow / -self.leg1.notional
+            denominator -= 100 * dcf_ * c_cashflow / -self.leg1.notional
 
         return numerator / denominator * 100
 
     def _npv_local(
         self,
-        curve: Curve | LineCurve,
+        curve: Curve,
         disc_curve: Curve,
         settlement: datetime,
         projection: datetime,
-    ):
+    ) -> DualTypes:
         """
         Return the NPV (local) of the security by summing cashflow valuations.
 
@@ -557,7 +582,7 @@ class BondMixin:
         curves: Curve | str | list | NoInput = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
         local: bool = False,
     ):
         """
@@ -623,7 +648,7 @@ class BondMixin:
         curve: Curve | NoInput = NoInput(0),
         disc_curve: Curve | NoInput = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
     ):
         """
         Return the analytic delta of the security via summing all periods.
@@ -657,7 +682,7 @@ class BondMixin:
         curves: Curve | str | list | NoInput = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
         settlement: datetime | NoInput = NoInput(0),
     ):
         """
@@ -725,7 +750,7 @@ class BondMixin:
         curves: Curve | str | list | NoInput = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
         price: DualTypes = NoInput(0),
         dirty: bool = False,
     ):
@@ -1150,21 +1175,22 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
     _fixed_rate_mixin = True
     fixed_rate: DualTypes
+    leg1: FixedLeg
 
     def _period_cashflow(
         self,
         period: Cashflow | FixedPeriod | FloatPeriod | IndexCashflow | IndexFixedPeriod,
         curve: Curve | LineCurve | NoInput,
-    ):
+    ) -> DualTypes:
         """Nominal fixed rate bonds use the known "cashflow" attribute on the *Period*."""
         return period.cashflow
 
     def __init__(
         self,
         effective: datetime | NoInput = NoInput(0),
-        termination: datetime | str | NoInput = NoInput(0),
+        termination: datetime | str_ = NoInput(0),
         frequency: int | NoInput = NoInput(0),
-        stub: str | NoInput = NoInput(0),
+        stub: str_ = NoInput(0),
         front_stub: datetime | NoInput = NoInput(0),
         back_stub: datetime | NoInput = NoInput(0),
         roll: str | int | NoInput = NoInput(0),
@@ -1173,15 +1199,15 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         calendar: CalInput = NoInput(0),
         payment_lag: int | NoInput = NoInput(0),
         notional: float | NoInput = NoInput(0),
-        currency: str | NoInput = NoInput(0),
+        currency: str_ = NoInput(0),
         amortization: float | NoInput = NoInput(0),
-        convention: str | NoInput = NoInput(0),
+        convention: str_ = NoInput(0),
         fixed_rate: float | NoInput = NoInput(0),
         ex_div: int | NoInput = NoInput(0),
         settle: int | NoInput = NoInput(0),
         calc_mode: str | BondCalcMode | NoInput = NoInput(0),
         curves: list | str | Curve | NoInput = NoInput(0),
-        spec: str | NoInput = NoInput(0),
+        spec: str_ = NoInput(0),
     ):
         self.kwargs = dict(
             effective=effective,
@@ -1269,7 +1295,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
         metric: str = "clean_price",
         forward_settlement: datetime | NoInput = NoInput(0),
     ):
@@ -1656,20 +1682,22 @@ class IndexFixedRateBond(FixedRateBond):
     _fixed_rate_mixin = True
     _index_base_mixin = True
 
+    leg1: IndexFixedLeg
+
     def _period_cashflow(
         self,
         period: Cashflow | FixedPeriod | FloatPeriod | IndexCashflow | IndexFixedPeriod,
         curve: Curve | LineCurve | NoInput,
-    ):
+    ) -> DualTypes:
         """Indexed bonds use the known "real_cashflow" attribute on the *Period*."""
         return period.real_cashflow
 
     def __init__(
         self,
         effective: datetime | NoInput = NoInput(0),
-        termination: datetime | str | NoInput = NoInput(0),
+        termination: datetime | str_ = NoInput(0),
         frequency: int | NoInput = NoInput(0),
-        stub: str | NoInput = NoInput(0),
+        stub: str_ = NoInput(0),
         front_stub: datetime | NoInput = NoInput(0),
         back_stub: datetime | NoInput = NoInput(0),
         roll: str | int | NoInput = NoInput(0),
@@ -1678,19 +1706,19 @@ class IndexFixedRateBond(FixedRateBond):
         calendar: CalInput = NoInput(0),
         payment_lag: int | NoInput = NoInput(0),
         notional: float | NoInput = NoInput(0),
-        currency: str | NoInput = NoInput(0),
+        currency: str_ = NoInput(0),
         amortization: float | NoInput = NoInput(0),
-        convention: str | NoInput = NoInput(0),
+        convention: str_ = NoInput(0),
         fixed_rate: float | NoInput = NoInput(0),
         index_base: float | Series | NoInput = NoInput(0),
         index_fixings: float | Series | NoInput = NoInput(0),
-        index_method: str | NoInput = NoInput(0),
+        index_method: str_ = NoInput(0),
         index_lag: int | NoInput = NoInput(0),
         ex_div: int | NoInput = NoInput(0),
         settle: int | NoInput = NoInput(0),
         calc_mode: str | BondCalcMode | NoInput = NoInput(0),
         curves: list | str | Curve | NoInput = NoInput(0),
-        spec: str | NoInput = NoInput(0),
+        spec: str_ = NoInput(0),
     ):
         self.kwargs = dict(
             effective=effective,
@@ -1786,7 +1814,7 @@ class IndexFixedRateBond(FixedRateBond):
         curves: Curve | str | list | NoInput = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
         metric: str = "clean_price",
         forward_settlement: datetime | NoInput = NoInput(0),
     ):
@@ -2021,18 +2049,18 @@ class Bill(FixedRateBond):
     def __init__(
         self,
         effective: datetime | NoInput = NoInput(0),
-        termination: datetime | str | NoInput = NoInput(0),
-        frequency: str | NoInput = NoInput(0),
+        termination: datetime | str_ = NoInput(0),
+        frequency: str_ = NoInput(0),
         modifier: str | None | NoInput = NoInput(0),
         calendar: CalInput = NoInput(0),
         payment_lag: int | NoInput = NoInput(0),
         notional: float | NoInput = NoInput(0),
-        currency: str | NoInput = NoInput(0),
-        convention: str | NoInput = NoInput(0),
-        settle: str | NoInput = NoInput(0),
+        currency: str_ = NoInput(0),
+        convention: str_ = NoInput(0),
+        settle: str_ = NoInput(0),
         calc_mode: str | BillCalcMode | NoInput = NoInput(0),
         curves: list | str | Curve | NoInput = NoInput(0),
-        spec: str | NoInput = NoInput(0),
+        spec: str_ = NoInput(0),
     ):
         super().__init__(
             effective=effective,
@@ -2075,7 +2103,7 @@ class Bill(FixedRateBond):
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
         metric: str = "price",
     ) -> DualTypes:
         """
@@ -2181,7 +2209,7 @@ class Bill(FixedRateBond):
         rate: DualTypes,
         settlement: datetime,
         dirty: bool = False,
-        calc_mode: str | NoInput = NoInput(0),
+        calc_mode: str_ = NoInput(0),
     ) -> DualTypes:
         """
         Return the price of the bill given the ``discount_rate``.
@@ -2412,11 +2440,13 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
 
     _float_spread_mixin = True
 
+    leg1: FloatLeg
+
     def _period_cashflow(
         self,
         period: Cashflow | FixedPeriod | FloatPeriod | IndexCashflow | IndexFixedPeriod,
         curve: Curve | LineCurve | NoInput,
-    ):
+    ) -> DualTypes:
         """FloatRateNotes must forecast cashflows with a *Curve* on the *Period*."""
         if isinstance(period, FloatPeriod):
             _ = period.cashflow(curve)
@@ -2427,9 +2457,9 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
     def __init__(
         self,
         effective: datetime | NoInput = NoInput(0),
-        termination: datetime | str | NoInput = NoInput(0),
+        termination: datetime | str_ = NoInput(0),
         frequency: int | NoInput = NoInput(0),
-        stub: str | NoInput = NoInput(0),
+        stub: str_ = NoInput(0),
         front_stub: datetime | NoInput = NoInput(0),
         back_stub: datetime | NoInput = NoInput(0),
         roll: str | int | NoInput = NoInput(0),
@@ -2438,19 +2468,19 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         calendar: CalInput = NoInput(0),
         payment_lag: int | NoInput = NoInput(0),
         notional: float | NoInput = NoInput(0),
-        currency: str | NoInput = NoInput(0),
+        currency: str_ = NoInput(0),
         amortization: float | NoInput = NoInput(0),
-        convention: str | NoInput = NoInput(0),
+        convention: str_ = NoInput(0),
         float_spread: float = NoInput(0),
         fixings: float | list | NoInput = NoInput(0),
-        fixing_method: str | NoInput = NoInput(0),
+        fixing_method: str_ = NoInput(0),
         method_param: int | NoInput = NoInput(0),
-        spread_compound_method: str | NoInput = NoInput(0),
+        spread_compound_method: str_ = NoInput(0),
         ex_div: int | NoInput = NoInput(0),
         settle: int | NoInput = NoInput(0),
-        calc_mode: str | NoInput = NoInput(0),
+        calc_mode: str_ = NoInput(0),
         curves: list | str | Curve | NoInput = NoInput(0),
-        spec: str | NoInput = NoInput(0),
+        spec: str_ = NoInput(0),
     ):
         self.kwargs = dict(
             effective=effective,
@@ -2751,7 +2781,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         curves: Curve | str | list | NoInput = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
         metric="clean_price",
         forward_settlement: datetime | NoInput = NoInput(0),
     ):
@@ -2790,7 +2820,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         float, Dual, Dual2
 
         """
-        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+        curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,
             curves,
@@ -2803,27 +2833,27 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         if metric in ["clean_price", "dirty_price", "spread", "ytm"]:
             if isinstance(forward_settlement, NoInput):
                 settlement = self.leg1.schedule.calendar.lag(
-                    curves[1].node_dates[0],  # discount curve
+                    curves_[1].node_dates[0],  # discount curve
                     self.kwargs["settle"],
                     True,
                 )
             else:
                 settlement = forward_settlement
-            npv = self._npv_local(curves[0], curves[1], settlement, settlement)
+            npv = self._npv_local(curves_[0], curves_[1], settlement, settlement)
             # scale price to par 100 (npv is already projected forward to settlement)
             dirty_price = npv * 100 / -self.leg1.notional
 
             if metric == "dirty_price":
                 return dirty_price
             elif metric == "clean_price":
-                return dirty_price - self.accrued(settlement, curve=curves[0])
+                return dirty_price - self.accrued(settlement, curve=curves_[0])
             elif metric == "spread":
-                _ = self.leg1._spread(-(npv + self.leg1.notional), curves[0], curves[1])
+                _ = self.leg1._spread(-(npv + self.leg1.notional), curves_[0], curves_[1])
                 z = _drb(0.0, self.float_spread)
                 return _ + z
             elif metric == "ytm":
                 return self.ytm(
-                    price=dirty_price, settlement=settlement, dirty=True, curve=curves[0]
+                    price=dirty_price, settlement=settlement, dirty=True, curve=curves_[0]
                 )
 
         raise ValueError("`metric` must be in {'dirty_price', 'clean_price', 'spread', 'ytm'}.")
@@ -2849,7 +2879,7 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
         approximate: bool = False,
         right: datetime | NoInput = NoInput(0),
     ) -> DataFrame:
