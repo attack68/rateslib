@@ -928,13 +928,20 @@ class BondMixin:
         curve_ = _copy_curve(curve)
 
         def root(z, P_tgt) -> tuple[DualTypes, float]:
-            shifted_curve = disc_curve.shift(z + Dual(0.0, ["__z_spd__§"], []), composite=False)
+            if isinstance(z, Dual):
+                vars_ = [_ for _ in z.vars if _ != "__z_spd__§"]
+                z_ = Dual(float(z), vars=vars_, dual=gradient(z, vars=vars_, order=1))
+                z_ += Dual(0.0, ["__z_spd__§"], [])
+            else:
+                z_ = z + Dual(0.0, ["__z_spd__§"], [])
+
+            shifted_curve = disc_curve.shift(z_, composite=False)
             P_iter = self.rate(curves=[curve_, shifted_curve], metric=metric)
             f_0 = P_tgt - P_iter
             f_1 = -gradient(P_iter, vars=["__z_spd__§"], order=1)[0]
             return f_0, f_1
 
-        soln = newton_1dim(root, 0.0, 10, 1e-8, 1e-7, (price,), raise_on_fail=False)
+        soln = newton_1dim(root, 0.0, 10, 1e-7, 1e-5, (price,), raise_on_fail=False)
         return soln["g"]
 
 
