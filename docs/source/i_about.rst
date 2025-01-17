@@ -12,9 +12,9 @@ Release Notes
 The History and Context of Rateslib
 ************************************
 
-*Rateslib* BETA was first released in April 2023.
+*Rateslib beta* was first released in April 2023 and *rateslib v1.0* in Feb 2024.
 
-The foundations of *rateslib* is really the code library
+The foundation of *rateslib* is really the code library
 `Book IRDS3 <https://github.com/attack68/book_irds3>`_, which laid down
 basic principles and was a sandbox code environment for the
 publication `Pricing and Trading Interest Rate Derivatives: A Practical Guide to Swaps <https://www.amazon.com/Pricing-Trading-Interest-Rate-Derivatives/dp/0995455538>`_.
