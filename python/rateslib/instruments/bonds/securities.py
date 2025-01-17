@@ -75,6 +75,7 @@ class BondMixin:
     kwargs: dict[str, Any]
     calc_mode: BondCalcMode
     curves: Curves_
+    rate: Callable[..., DualTypes]
 
     def _period_index(self, settlement: datetime) -> int:
         """
@@ -578,15 +579,15 @@ class BondMixin:
 
         for period_idx in range(initial_idx, settle_idx):
             # deduct coupon period
-            npv -= self.leg1.periods[period_idx].npv(
+            npv -= self.leg1.periods[period_idx].npv(  # type: ignore[operator]
                 curve, disc_curve, NoInput(0), NoInput(0), local=False
-            )  # type: ignore[operator]
+            )
 
         if self.ex_div(settlement):
             # deduct coupon after settlement which is also unpaid
-            npv -= self.leg1.periods[settle_idx].npv(
+            npv -= self.leg1.periods[settle_idx].npv(  # type: ignore[operator]
                 curve, disc_curve, NoInput(0), NoInput(0), local=False
-            )  # type: ignore[operator]
+            )
 
         if isinstance(projection, NoInput):
             return npv
@@ -819,51 +820,84 @@ class BondMixin:
         )
         metric = "dirty_price" if dirty else "clean_price"
 
-        # Create a discounting curve with ADOrder:1 exposure to z_spread
-        disc_curve = curves_[1].shift(Dual(0, ["z_spread"], []), composite=False)
+        return self._oaspread_algorithm(
+            curves_[0], _validate_curve_not_no_input(curves_[1]), metric, _dual_float(price)
+        )
 
-        # Get forecasting curve
-        if type(self).__name__ in ["FloatRateNote", "IndexFixedRateBond"]:
-            fore_curve = curves_[0].copy()
-            fore_curve._set_ad_order(1)
-        elif type(self).__name__ in ["FixedRateBond", "Bill"]:
-            fore_curve = None
-        else:
-            raise TypeError("Method `oaspread` can only be called on Bond type securities.")
+    def _oaspread_algorithm(
+        self, curve: CurveOption_, disc_curve: Curve, metric: str, price: float
+    ) -> float:
+        """
+        Perform the algorithm as specified in "Coding Interest Rates" to derive an OAS spread
+        balancing performance of the iteration with accuracy.
 
-        npv_price = self.rate(curves=[fore_curve, disc_curve], metric=metric)
-        # find a first order approximation of z
-        b = gradient(npv_price, ["z_spread"], 1)[0]
-        c = float(npv_price) - float(price)
-        z_hat = -c / b
+        Not AD safe, returns a float.
+
+        Parameters
+        ----------
+        curve
+        disc_curve
+        metric
+        price
+
+        Returns
+        -------
+        float
+        """
+
+        def _copy_curve(curve: CurveOption_) -> CurveOption_:
+            if isinstance(curve, NoInput) or curve is None:
+                return NoInput(0)
+            elif isinstance(curve, dict):
+                return {k: v.copy() for k, v in curve.items()}
+            else:
+                return curve.copy()
+
+        def _set_ad_order_of_forecasting_curve(curve: CurveOption_, order: int) -> None:
+            if isinstance(curve, NoInput):
+                pass
+            elif isinstance(curve, dict):
+                for _k, v in curve.items():
+                    v._set_ad_order(order)
+            else:
+                curve._set_ad_order(order)
+
+        # attach "z_spread" sensitivity to an AD order 1 curve.
+        disc_curve_ = disc_curve.shift(Dual(0.0, ["z_spread"], []), composite=False)
+        curve_ = _copy_curve(curve)
+        _set_ad_order_of_forecasting_curve(curve_, 1)
+
+        # find a first order approximation of z, z_hat, using a Dual approach:
+        npv_price: Dual | Dual2 = self.rate(curves=[curve_, disc_curve_], metric=metric)  # type: ignore[assignment]
+        b: float = gradient(npv_price, ["z_spread"], 1)[0]
+        c: float = _dual_float(npv_price) - price
+        z_hat: float = -c / b
 
         # shift the curve to the first order approximation and fine tune with 2nd order approxim.
-        disc_curve = curves_[1].shift(Dual2(z_hat, ["z_spread"], [], []), composite=False)
-        if fore_curve is not None:
-            fore_curve._set_ad_order(2)
-        npv_price = self.rate(curves=[fore_curve, disc_curve], metric=metric)
-        a, b, c = (
+        disc_curve_ = disc_curve.shift(Dual2(z_hat, ["z_spread"], [], []), composite=False)
+        _set_ad_order_of_forecasting_curve(curve_, 2)
+        npv_price = self.rate(curves=[curve_, disc_curve_], metric=metric)  # type: ignore[assignment]
+        coeffs: tuple[float, float, float] = (
             0.5 * gradient(npv_price, ["z_spread"], 2)[0][0],
             gradient(npv_price, ["z_spread"], 1)[0],
-            float(npv_price) - float(price),
+            _dual_float(npv_price) - price,
         )
-        z_hat2 = quadratic_eqn(a, b, c, x0=-c / b)["g"]
+        z_hat2: float = quadratic_eqn(*coeffs, x0=-c / b)["g"]
 
         # perform one final approximation albeit the additional price calculation slows calc time
-        disc_curve = curves_[1].shift(z_hat + z_hat2, composite=False)
-        disc_curve._set_ad_order(0)
-        if fore_curve is not None:
-            fore_curve._set_ad_order(0)
-        npv_price = self.rate(curves=[fore_curve, disc_curve], metric=metric)
-        b = b + 2 * a * z_hat2  # forecast the new gradient
-        c = float(npv_price) - float(price)
-        z_hat3 = -c / b
+        disc_curve_ = disc_curve.shift(z_hat + z_hat2, composite=False)
+        disc_curve_._set_ad_order(0)
+        _set_ad_order_of_forecasting_curve(curve_, 0)
+        npv_price_: float = self.rate(curves=[curve_, disc_curve_], metric=metric)  # type: ignore[assignment]
+        b = coeffs[1] + 2 * coeffs[0] * z_hat2  # forecast the new gradient
+        c = npv_price_ - price
+        z_hat3: float = -c / b
 
         z = z_hat + z_hat2 + z_hat3
         return z
 
 
-class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
+class FixedRateBond(Sensitivities, BondMixin, BaseMixin):  # type: ignore[misc]
     # TODO (mid) ensure calculations work for amortizing bonds.
     """
     Create a fixed rate bond security.
