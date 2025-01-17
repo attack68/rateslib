@@ -11,7 +11,7 @@ from pandas import DataFrame, Series
 from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
 from rateslib.curves import Curve, IndexCurve, LineCurve, average_rate, index_left
-from rateslib.curves._parsers import _disc_maybe_from_curve
+from rateslib.curves._parsers import _disc_maybe_from_curve, _validate_curve_not_no_input
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, gradient, quadratic_eqn
 from rateslib.dual.utils import _dual_float, _get_order_of
@@ -47,11 +47,13 @@ from rateslib.periods import (
 if TYPE_CHECKING:
     from rateslib.typing import (
         FX_,
+        NPV,
         Any,
         CalInput,
         Callable,
         Curve_,
         CurveOption,
+        CurveOption_,
         Curves_,
         DualTypes,
         Number,
@@ -64,6 +66,7 @@ class BondMixin:
     leg1: FixedLeg | FloatLeg | IndexFixedLeg
     kwargs: dict[str, Any]
     calc_mode: BondCalcMode
+    curves: Curves_
 
     def _period_index(self, settlement: datetime) -> int:
         """
@@ -549,7 +552,7 @@ class BondMixin:
         initial node date of the ``disc_curve``.
         """
         self._set_base_index_if_none(curve)
-        npv = self.leg1.npv(curve, disc_curve, NoInput(0), NoInput(0))
+        npv: DualTypes = self.leg1.npv(curve, disc_curve, NoInput(0), NoInput(0), local=False)  # type: ignore[assignment]
 
         # now must systematically deduct any cashflow between the initial node date
         # and the settlement date, including the cashflow after settlement if ex_div.
@@ -566,11 +569,11 @@ class BondMixin:
 
         for period_idx in range(initial_idx, settle_idx):
             # deduct coupon period
-            npv -= self.leg1.periods[period_idx].npv(curve, disc_curve, NoInput(0), NoInput(0))
+            npv -= self.leg1.periods[period_idx].npv(curve, disc_curve, NoInput(0), NoInput(0), local=False)  # type: ignore[operator]
 
         if self.ex_div(settlement):
             # deduct coupon after settlement which is also unpaid
-            npv -= self.leg1.periods[settle_idx].npv(curve, disc_curve, NoInput(0), NoInput(0))
+            npv -= self.leg1.periods[settle_idx].npv(curve, disc_curve, NoInput(0), NoInput(0), local=False)  # type: ignore[operator]
 
         if isinstance(projection, NoInput):
             return npv
@@ -579,12 +582,12 @@ class BondMixin:
 
     def npv(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
+        curves: Curves_= NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
-    ):
+    ) -> NPV:
         """
         Return the NPV of the security by summing cashflow valuations.
 
@@ -627,7 +630,7 @@ class BondMixin:
         curve on both legs and the discounting curve is used as the discounting
         curve for both legs.
         """
-        curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+        curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,
             curves,
@@ -635,21 +638,22 @@ class BondMixin:
             base,
             self.leg1.currency,
         )
+        curves_1 = _validate_curve_not_no_input(curves_[1])
         settlement = self.leg1.schedule.calendar.lag(
-            curves[1].node_dates[0],
+            curves_1.node_dates[0],
             self.kwargs["settle"],
             True,
         )
-        npv = self._npv_local(curves[0], curves[1], settlement, NoInput(0))
+        npv = self._npv_local(curves_[0], curves_1, settlement, NoInput(0))
         return _maybe_local(npv, local, self.leg1.currency, fx_, base_)
 
     def analytic_delta(
         self,
-        curve: Curve | NoInput = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: Curve_ = NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-    ):
+    ) -> DualTypes:
         """
         Return the analytic delta of the security via summing all periods.
 
