@@ -9,7 +9,7 @@ from pandas import DataFrame
 from rateslib import defaults
 from rateslib.calendars import _get_fx_expiry_and_delivery, get_calendar
 from rateslib.curves import Curve
-from rateslib.curves._parsers import _validate_curve_not_no_input
+from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.default import NoInput, _drb, plot
 from rateslib.dual.utils import _dual_float
 from rateslib.fx import FXForwards
@@ -17,6 +17,7 @@ from rateslib.fx_volatility import FXDeltaVolSmile, FXVolObj, FXVols
 from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.instruments.utils import (
     _get_curves_fx_and_base_maybe_from_solver,
+    _get_fxvol_curves_fx_and_base_maybe_from_solver,
     _get_fxvol_maybe_from_solver,
     _push,
     _update_with_defaults,
@@ -138,11 +139,10 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
     style: str = "european"
     _rate_scalar: float = 1.0
+    _pricing: dict[str, Any] = {}
 
     _option_periods: tuple[FXPutPeriod | FXCallPeriod]
     _cashflow_periods: tuple[Cashflow]
-
-    _pricing: dict[str, Any]
 
     def __init__(
         self,
@@ -270,18 +270,19 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
     def _set_strike_and_vol(
         self,
         curves: Curves_DiscTuple,
-        fx: FX,
-        vol: FXVolOption,
+        fx: FX_,
+        vol: FXVolOption_,
     ) -> None:
         # If the strike for the option is not set directly it must be inferred
         # and some of the pricing elements associated with this strike definition must
         # be captured for use in subsequent formulae.
         fx_ = _validate_fx_as_forwards(fx)
-        curves_3 = _validate_curve_not_no_input(curves[3])
-        curves_1 = _validate_curve_not_no_input(curves[1])
+        vol_ = _validate_obj_not_no_input(vol, "vol")
+        curves_3 = _validate_obj_not_no_input(curves[3], "curves[3]")
+        curves_1 = _validate_obj_not_no_input(curves[1], "curves[1]")
 
         self._pricing = {
-            "vol": vol,
+            "vol": vol_,
             "k": self.kwargs["strike"],
             "delta_index": None,
             "spot": fx_.pairs_settlement[self.kwargs["pair"]],
@@ -305,7 +306,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                     0
                 ]._strike_and_index_from_atm(
                     delta_type=self._option_periods[0].delta_type,
-                    vol=vol,
+                    vol=vol_,
                     w_deli=w_deli,
                     w_spot=w_spot,
                     f=self._pricing["f_d"],
@@ -319,7 +320,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                 ]._strike_and_index_from_delta(
                     delta=float(self.kwargs["strike"][:-1]) / 100.0,
                     delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
-                    vol=vol,
+                    vol=vol_,
                     w_deli=w_deli,
                     w_spot=w_spot,
                     f=self._pricing["f_d"],
@@ -334,9 +335,9 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             # self.periods[0].strike = self._pricing["k"]
             self._option_periods[0].strike = _dual_float(self._pricing["k"])
 
-        if isinstance(vol, FXVolObj):
+        if isinstance(vol_, FXVolObj):
             if self._pricing["delta_index"] is None:
-                self._pricing["delta_index"], self._pricing["vol"], _ = vol.get_from_strike(
+                self._pricing["delta_index"], self._pricing["vol"], _ = vol_.get_from_strike(
                     k=self._pricing["k"],
                     f=self._pricing["f_d"],
                     w_deli=w_deli,
@@ -344,24 +345,22 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                     expiry=self.kwargs["expiry"],
                 )
             else:
-                self._pricing["vol"] = vol._get_index(
+                self._pricing["vol"] = vol_._get_index(
                     self._pricing["delta_index"],
                     self.kwargs["expiry"],
                 )
 
-    def _set_premium(
-        self,
-        curves: Curves_DiscTuple = NoInput(0),
-        fx: FX_ = NoInput(0),
-    ) -> None:
+    def _set_premium(self, curves: Curves_DiscTuple, fx: FX_ = NoInput(0)) -> None:
         if isinstance(self.kwargs["premium"], NoInput):
             # then set the CashFlow to mid-market
+            curves_3: Curve = _validate_obj_not_no_input(curves[3], "curves[3]")
             try:
-                npv = self._option_periods[0].npv(
-                    _validate_curve_not_no_input(curves[1]),
-                    _validate_curve_not_no_input(curves[3]),
+                npv: DualTypes = self._option_periods[0].npv(  # type: ignore[assignment]
+                    _validate_obj_not_no_input(curves[1], "curves[1]"),
+                    curves_3,
                     fx,
-                    vol=self._pricing["vol"]
+                    vol=self._pricing["vol"],
+                    local=False,
                 )
             except AttributeError:
                 raise ValueError(
@@ -373,31 +372,12 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                 )
             m_p = self.kwargs["payment"]
             if self.kwargs["premium_ccy"] == self.kwargs["pair"][:3]:
-                premium = npv / (curves[3][m_p] * fx.rate("eurusd", m_p))
+                fx_ = _validate_fx_as_forwards(fx)
+                premium = npv / (curves_3[m_p] * fx_.rate("eurusd", m_p))
             else:
-                premium = npv / curves[3][m_p]
+                premium = npv / curves_3[m_p]
 
             self._cashflow_periods[0].notional = _dual_float(premium)
-
-    def _get_vol_curves_fx_and_base_maybe_from_solver(self, solver, curves, fx, base, vol):
-        """
-        Parses the inputs including the instrument's attributes and also validates them
-        """
-        curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
-            self.curves,
-            solver,
-            curves,
-            fx,
-            base,
-            self.kwargs["pair"][3:],
-        )
-        vol = _get_fxvol_maybe_from_solver(self.vol, vol, solver)
-        if isinstance(vol, FXDeltaVolSmile) and vol.eval_date != curves[1].node_dates[0]:
-            raise ValueError(
-                "The `eval_date` on the FXDeltaVolSmile and the Curve do not align.\n"
-                "Aborting calculation to avoid pricing errors.",
-            )
-        return curves, fx, base, vol
 
     def rate(
         self,
@@ -405,9 +385,9 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-        vol: float | FXVols | NoInput = NoInput(0),
+        vol: FXVol_ = NoInput(0),
         metric: str_ = NoInput(0),
-    ):
+    ) -> DualTypes:
         """
         Return various pricing metrics of the *FX Option*.
 
@@ -454,26 +434,29 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         more complex and
         integrated calculation.
         """
-        curves, fx, _base, vol = self._get_vol_curves_fx_and_base_maybe_from_solver(
+        curves_, fx_, base_, vol_ = _get_fxvol_curves_fx_and_base_maybe_from_solver(
+            self.curves,
+            self.vol,
             solver,
             curves,
             fx,
             base,
             vol,
+            self.kwargs["pair"][3:],
         )
-        self._set_strike_and_vol(curves, fx, vol)
+        self._set_strike_and_vol(curves_, fx_, vol_)
         # self._set_premium(curves, fx)
 
         metric = _drb(self.kwargs["metric"], metric)
         if metric in ["vol", "single_vol"]:
             return self._pricing["vol"]
 
-        _ = self.periods[0].rate(curves[1], curves[3], fx, NoInput(0), False, self._pricing["vol"])
+        _: DualTypes = self.periods[0].rate(curves_[1], curves_[3], fx_, NoInput(0), False, self._pricing["vol"])
         if metric == "premium":
             if self.periods[0].metric == "pips":
-                _ *= self.periods[0].notional / 10000
+                _ *= self._option_periods[0].notional / 10000
             else:  # == "percent"
-                _ *= self.periods[0].notional / 100
+                _ *= self._option_periods[0].notional / 100
         return _
 
     def npv(
@@ -510,12 +493,15 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         -------
         float, Dual, Dual2 or dict of such.
         """
-        curves_, fx_, base_, vol_ = self._get_vol_curves_fx_and_base_maybe_from_solver(
-            solver,
-            curves,
-            fx,
-            base,
-            vol,
+        curves_, fx_, base_, vol_ = _get_fxvol_curves_fx_and_base_maybe_from_solver(
+            curves_attr=self.curves,
+            vol_attr=self.vol,
+            solver=solver,
+            curves=curves,
+            fx=fx,
+            base=base,
+            vol=vol,
+            local_ccy=self.kwargs["pair"][3:],
         )
         self._set_strike_and_vol(curves_, fx_, vol_)
         self._set_premium(curves_, fx_)
@@ -563,12 +549,15 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         DataFrame
 
         """
-        curves_, fx_, base_, vol_ = self._get_vol_curves_fx_and_base_maybe_from_solver(
-            solver,
-            curves,
-            fx,
-            base,
-            vol,
+        curves_, fx_, base_, vol_ = _get_fxvol_curves_fx_and_base_maybe_from_solver(
+            curves_attr=self.curves,
+            vol_attr=self.vol,
+            solver=solver,
+            curves=curves,
+            fx=fx,
+            base=base,
+            vol=vol,
+            local_ccy=self.kwargs["pair"][3:],
         )
         self._set_strike_and_vol(curves_, fx_, vol_)
         self._set_premium(curves_, fx_)
@@ -613,23 +602,26 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         -------
         float, Dual, Dual2
         """
-        curves, fx, base, vol = self._get_vol_curves_fx_and_base_maybe_from_solver(
-            solver,
-            curves,
-            fx,
-            base,
-            vol,
+        curves_, fx_, base_, vol_ = _get_fxvol_curves_fx_and_base_maybe_from_solver(
+            curves_attr=self.curves,
+            vol_attr=self.vol,
+            solver=solver,
+            curves=curves,
+            fx=fx,
+            base=base,
+            vol=vol,
+            local_ccy=self.kwargs["pair"][3:],
         )
-        self._set_strike_and_vol(curves, fx, vol)
+        self._set_strike_and_vol(curves_, fx_, vol_)
         # self._set_premium(curves, fx)
 
-        return self.periods[0].analytic_greeks(
-            curves[1],
-            curves[3],
-            fx,
-            base,
+        return self._option_periods[0].analytic_greeks(
+            curves_[1],
+            curves_[3],
+            fx_,
+            base_,
             local,
-            vol,
+            vol_,
             premium=NoInput(0),
         )
 
@@ -646,17 +638,20 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         """
         Mechanics to determine (x,y) coordinates for payoff at expiry plot.
         """
-        curves, fx, base, vol = self._get_vol_curves_fx_and_base_maybe_from_solver(
-            solver,
-            curves,
-            fx,
-            base,
-            vol,
+        curves_, fx_, base_, vol_ = _get_fxvol_curves_fx_and_base_maybe_from_solver(
+            curves_attr=self.curves,
+            vol_attr=self.vol,
+            solver=solver,
+            curves=curves,
+            fx=fx,
+            base=base,
+            vol=vol,
+            local_ccy=self.kwargs["pair"][3:],
         )
-        self._set_strike_and_vol(curves, fx, vol)
+        self._set_strike_and_vol(curves_, fx_, vol_)
         # self._set_premium(curves, fx)
 
-        x, y = self.periods[0]._payoff_at_expiry(window)
+        x, y = self._option_periods[0]._payoff_at_expiry(window)
         return x, y
 
     def plot_payoff(

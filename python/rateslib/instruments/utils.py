@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 from pandas import DataFrame
 
 from rateslib import FXDeltaVolSmile, FXDeltaVolSurface, defaults
-from rateslib.curves._parsers import _get_curves_maybe_from_solver
+from rateslib.curves._parsers import _get_curves_maybe_from_solver, _validate_curve_not_no_input
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.fx import FXForwards, FXRates
@@ -192,6 +192,38 @@ def _get_fxvol_maybe_from_solver(vol_attr: FXVol_, vol: FXVol_, solver: Solver_)
                 return vol_
             else:
                 raise ValueError("`vol` must be in `solver`.")
+
+
+def _get_fxvol_curves_fx_and_base_maybe_from_solver(
+    curves_attr: Curves_,
+    vol_attr: FXVol_,
+    solver: Solver_,
+    curves: Curves_,
+    fx: FX_,
+    base: str_,
+    vol: FXVol_,
+    local_ccy: str_
+) -> tuple[Curves_DiscTuple, FX_, str_, FXVolOption_]:
+    """
+    Parses the inputs including the instrument's attributes and also validates them
+    """
+    curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+        curves_attr,
+        solver,
+        curves,
+        fx,
+        base,
+        local_ccy,
+    )
+    vol_ = _get_fxvol_maybe_from_solver(vol_attr, vol, solver)
+    if isinstance(vol_, FXDeltaVolSmile | FXDeltaVolSurface):
+        curves_1 = _validate_curve_not_no_input(curves_[1])
+        if vol_.eval_date != curves_1.node_dates[0]:
+            raise ValueError(
+                "The `eval_date` on the FXDeltaVolSmile and the Curve do not align.\n"
+                "Aborting calculation to avoid pricing errors.",
+            )
+    return curves_, fx_, base_, vol_
 
 
 def _get(kwargs: dict[str, Any], leg: int = 1, filter: tuple[str, ...] = ()) -> dict[str, Any]:  # noqa: A002

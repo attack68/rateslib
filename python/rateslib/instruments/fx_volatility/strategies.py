@@ -50,15 +50,17 @@ class FXOptionStrat:
         The multiplier for the *'vol'* metric that sums the options to a final *rate*.
     """
 
-    _pricing = {}
+    _pricing: dict[str, Any]
+    _strat_elements: tuple[FXOption | FXOptionStrat, ...]
+    periods: list[FXOption]
 
     def __init__(
         self,
-        options: list[FXOption],
+        options: list[FXOption | FXOptionStrat],
         rate_weight: list[float],
         rate_weight_vol: list[float],
     ):
-        self.periods = options
+        self._strat_elements = tuple(options)
         self.rate_weight = rate_weight
         self.rate_weight_vol = rate_weight_vol
         if len(self.periods) != len(self.rate_weight) or len(self.periods) != len(
@@ -68,7 +70,11 @@ class FXOptionStrat:
                 "`rate_weight` and `rate_weight_vol` must have same length as `options`.",
             )
 
-    def __repr__(self):
+    @property
+    def periods(self) -> list[FXOption | FXOptionStrat]:
+        return list(self._strat_elements)
+
+    def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
     def _vol_as_list(self, vol, solver):
@@ -85,7 +91,7 @@ class FXOptionStrat:
         base: str_ = NoInput(0),
         vol: list[float] | float = NoInput(0),
         metric: str_ = NoInput(0),  # "pips_or_%",
-    ):
+    ) -> DualTypes:
         """
         Return the mid-market rate of an option strategy.
 
@@ -123,7 +129,7 @@ class FXOptionStrat:
         base: str_ = NoInput(0),
         local: bool = False,
         vol: list[float] | float = NoInput(0),
-    ):
+    ) -> NPV:
         if not isinstance(vol, list):
             vol = [vol] * len(self.periods)
 
@@ -318,7 +324,7 @@ class FXRiskReversal(FXOptionStrat, FXOption):
             **kwargs,
         )
         self.kwargs["metric"] = metric
-        self.periods = [
+        self._strat_elements = [
             FXPut(
                 pair=self.kwargs["pair"],
                 expiry=self.kwargs["expiry"],
@@ -405,7 +411,7 @@ class FXStraddle(FXOptionStrat, FXOption):
     def __init__(self, *args, premium=(NoInput(0), NoInput(0)), metric="vol", **kwargs):
         super(FXOptionStrat, self).__init__(*args, premium=list(premium), **kwargs)
         self.kwargs["metric"] = metric
-        self.periods = [
+        self._strat_elements = [
             FXPut(
                 pair=self.kwargs["pair"],
                 expiry=self.kwargs["expiry"],
@@ -521,7 +527,7 @@ class FXStrangle(FXOptionStrat, FXOption):
             and self.kwargs["strike"][1][-1].lower() == "d"
             and self.kwargs["strike"][1] != "atm_forward",
         ]
-        self.periods = [
+        self._strat_elements = [
             FXPut(
                 pair=self.kwargs["pair"],
                 expiry=self.kwargs["expiry"],
@@ -856,7 +862,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
             NoInput(0) if self.kwargs["notional"][1] is None else self.kwargs["notional"][1]
         )
         self.kwargs["metric"] = metric
-        self.periods = [
+        self._strat_elements = (
             FXStrangle(
                 pair=self.kwargs["pair"],
                 expiry=self.kwargs["expiry"],
@@ -891,7 +897,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
                 curves=self.curves,
                 vol=self.vol,
             ),
-        ]
+        )
 
     def _maybe_set_vega_neutral_notional(self, curves, solver, fx, base, vol, metric):
         if self.kwargs["notional"][1] is NoInput.blank and metric in ["pips_or_%", "premium"]:

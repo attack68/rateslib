@@ -73,6 +73,7 @@ if TYPE_CHECKING:
         Number,
         str_,
         FXVolOption,
+        FXVolOption_,
     )
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -83,8 +84,8 @@ if TYPE_CHECKING:
 def _get_fx_and_base(
     currency: str,
     fx: FX_ = NoInput(0),
-    base: str | NoInput = NoInput(0),
-) -> tuple[DualTypes, str | NoInput]:
+    base: str_ = NoInput(0),
+) -> tuple[DualTypes, str_]:
     """
     From a local currency and potentially FX Objects determine the conversion rate between
     `currency` and `base`. If `base` is not given it is inferred from the FX Objects.
@@ -3402,10 +3403,10 @@ class FXOptionPeriod(metaclass=ABCMeta):
         self,
         disc_curve: Curve,
         disc_curve_ccy2: Curve,
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
         local: bool = False,
-        vol: DualTypes | FXVols | NoInput = NoInput(0),
+        vol: FXVolOption_ = NoInput(0),
     ) -> DualTypes | dict[str, DualTypes]:
         """
         Return the NPV of the *FXOption*.
@@ -3941,7 +3942,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         self,
         delta: float,
         delta_type: str,
-        vol: DualTypes | FXVols,
+        vol: FXVolOption_,
         w_deli: DualTypes,
         w_spot: DualTypes,
         f: DualTypes,
@@ -4605,9 +4606,9 @@ def _get_vol_smile_or_raise(vol: DualTypes | FXVols, expiry: datetime) -> FXDelt
         raise ValueError("Must supply FXDeltaVolSmile/Surface as `vol` not numeric value.")
 
 
-def _get_vol_delta_type(vol: DualTypes | FXVols, delta_type: str) -> str:
+def _get_vol_delta_type(vol: FXVolOption_, default_delta_type: str) -> str:
     if not isinstance(vol, FXVolObj):
-        return delta_type
+        return default_delta_type
     else:
         return vol.delta_type
 
