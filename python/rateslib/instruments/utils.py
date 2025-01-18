@@ -12,7 +12,16 @@ from rateslib.dual import Dual, Dual2, Variable
 from rateslib.fx import FXForwards, FXRates
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX_, Curves_, Curves_DiscTuple, Solver_, Vol, Vol_, VolOption, str_
+    from rateslib.typing import (
+        FX_,
+        Curves_,
+        Curves_DiscTuple,
+        Solver_,
+        FXVol,
+        FXVol_,
+        str_,
+        FXVolOption_,
+    )
 
 
 def _get_base_maybe_from_fx(fx: FX_, base: str_, local_ccy: str_) -> str_:
@@ -102,7 +111,7 @@ def _get_curves_fx_and_base_maybe_from_solver(
     return curves_, fx_, base_
 
 
-def _get_vol_maybe_from_solver(vol_attr: Vol, vol: Vol, solver: Solver_) -> VolOption:
+def _get_fxvol_maybe_from_solver(vol_attr: FXVol_, vol: FXVol_, solver: Solver_) -> FXVolOption_:
     """
     Try to retrieve a general vol input from a solver or the default vol object associated with
     instrument.
@@ -128,7 +137,7 @@ def _get_vol_maybe_from_solver(vol_attr: Vol, vol: Vol, solver: Solver_) -> VolO
     elif isinstance(vol, NoInput):
         vol = vol_attr
 
-    vol_: Vol_ = vol  # type: ignore[assignment]
+    vol_: FXVol = vol
     if isinstance(solver, NoInput):
         if isinstance(vol_, str):
             raise ValueError(

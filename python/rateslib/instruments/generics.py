@@ -19,7 +19,7 @@ from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.instruments.utils import (
     _composit_fixings_table,
     _get_curves_fx_and_base_maybe_from_solver,
-    _get_vol_maybe_from_solver,
+    _get_fxvol_maybe_from_solver,
 )
 from rateslib.solver import Solver
 
@@ -255,7 +255,7 @@ class VolValue(BaseMixin):
         #     base,
         #     "_",
         # )
-        vol_ = _get_vol_maybe_from_solver(self.vol, vol, solver)
+        vol_ = _get_fxvol_maybe_from_solver(self.vol, vol, solver)
         metric = _drb(self.metric, metric).lower()
 
         if metric == "vol":
