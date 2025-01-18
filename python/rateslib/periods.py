@@ -3890,7 +3890,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         w_deli: DualTypes,
         w_spot: DualTypes,
         f: DualTypes,
-        t_e: float,
+        t_e: DualTypes,
     ) -> tuple[DualTypes, DualTypes | None]:
         # TODO this method branches depending upon eta0 and eta1, but depending upon the
         # type of vol these maybe automatcially set equal to each other. Refactorin this would
@@ -3951,7 +3951,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         w_deli: DualTypes,
         w_spot: DualTypes,
         f: DualTypes,
-        t_e: float,
+        t_e: DualTypes,
     ) -> tuple[DualTypes, DualTypes | None]:
         vol_delta_type = _get_vol_delta_type(vol, delta_type)
 
@@ -3993,7 +3993,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         _2: DualTypes | None = delta_idx
         return _1, _2
 
-    def _moneyness_from_atm_delta_closed_form(self, vol: DualTypes, t_e: float) -> DualTypes:
+    def _moneyness_from_atm_delta_closed_form(self, vol: DualTypes, t_e: DualTypes) -> DualTypes:
         """
         Return `u` given premium unadjusted `delta`, of either 'spot' or 'forward' type.
 
@@ -4291,7 +4291,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         self,
         delta_type: str,
         vol: FXDeltaVolSmile,
-        t_e: float,
+        t_e: DualTypes,
         z_w: DualTypes,
     ) -> tuple[DualTypes, DualTypes]:
         def root2d(
@@ -4454,7 +4454,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
     def _get_vol_maybe_from_obj(
         self,
-        vol: FXVols | DualTypes | NoInput,
+        vol: FXVolOption_,
         fx: FXForwards,
         disc_curve: Curve,
     ) -> DualTypes:
