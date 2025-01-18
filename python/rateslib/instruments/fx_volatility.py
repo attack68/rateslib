@@ -25,7 +25,7 @@ from rateslib.solver import Solver
 from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, DualTypes
+    from rateslib.typing import CalInput, DualTypes, Curves_, Solver_, str_, FX_, NPV, DualTypes, DualTypes_
 
 
 class FXOption(Sensitivities, metaclass=ABCMeta):
@@ -127,19 +127,19 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         notional: float = NoInput(0),
         eval_date: datetime | NoInput = NoInput(0),
         calendar: CalInput = NoInput(0),
-        modifier: str | NoInput = NoInput(0),
+        modifier: str_ = NoInput(0),
         eom: bool | NoInput = NoInput(0),
         delivery_lag: int | NoInput = NoInput(0),
-        strike: DualTypes | str | NoInput = NoInput(0),
+        strike: DualTypes | str_ = NoInput(0),
         premium: float | NoInput = NoInput(0),
-        premium_ccy: str | NoInput = NoInput(0),
+        premium_ccy: str_ = NoInput(0),
         payment_lag: str | datetime | NoInput = NoInput(0),
         option_fixing: float | NoInput = NoInput(0),
         delta_type: float | NoInput = NoInput(0),
-        metric: str | NoInput = NoInput(0),
-        curves: list | str | Curve | NoInput = NoInput(0),
+        metric: str_ = NoInput(0),
+        curves: Curves_ = NoInput(0),
         vol: str | FXVols | NoInput = NoInput(0),
-        spec: str | NoInput = NoInput(0),
+        spec: str_ = NoInput(0),
     ):
         self.kwargs = dict(
             pair=pair,
@@ -230,8 +230,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
     def _set_strike_and_vol(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
-        fx: FXForwards | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        fx: FX_ = NoInput(0),
         vol: float = NoInput(0),
     ):
         # If the strike for the option is not set directly it must be inferred
@@ -315,8 +315,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
     def _set_premium(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
-        fx: FXForwards | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        fx: FX_ = NoInput(0),
     ):
         if self.kwargs["premium"] is NoInput.blank:
             # then set the CashFlow to mid-market
@@ -360,12 +360,12 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
     def rate(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
         vol: float | FXVols | NoInput = NoInput(0),
-        metric: str | NoInput = NoInput(0),
+        metric: str_ = NoInput(0),
     ):
         """
         Return various pricing metrics of the *FX Option*.
@@ -437,10 +437,10 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
     def npv(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        curves: Curves_= NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
         local: bool = False,
         vol: float = NoInput(0),
     ):
@@ -492,10 +492,10 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
     def cashflows(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
         vol: float = NoInput(0),
     ):
         """
@@ -540,10 +540,10 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
     def analytic_greeks(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
         local: bool = False,
         vol: float = NoInput(0),
     ):
@@ -595,10 +595,10 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
     def _plot_payoff(
         self,
         window: list[float] | NoInput = NoInput(0),
-        curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
         local: bool = False,
         vol: float = NoInput(0),
     ):
@@ -621,10 +621,10 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
     def plot_payoff(
         self,
         range: list[float] | NoInput = NoInput(0),  # noqa: A002
-        curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
         local: bool = False,
         vol: float = NoInput(0),
     ):
@@ -743,12 +743,12 @@ class FXOptionStrat:
 
     def rate(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
         vol: list[float] | float = NoInput(0),
-        metric: str | NoInput = NoInput(0),  # "pips_or_%",
+        metric: str_ = NoInput(0),  # "pips_or_%",
     ):
         """
         Return the mid-market rate of an option strategy.
@@ -781,10 +781,10 @@ class FXOptionStrat:
 
     def npv(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
         local: bool = False,
         vol: list[float] | float = NoInput(0),
     ):
@@ -807,10 +807,10 @@ class FXOptionStrat:
     def _plot_payoff(
         self,
         window: list[float] | NoInput = NoInput(0),
-        curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
         local: bool = False,
         vol: list[float] | float = NoInput(0),
     ):
@@ -837,10 +837,10 @@ class FXOptionStrat:
 
     def analytic_greeks(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
         local: bool = False,
         vol: float = NoInput(0),
     ):
@@ -1236,12 +1236,12 @@ class FXStrangle(FXOptionStrat, FXOption):
 
     def rate(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
         vol: list[float] | float = NoInput(0),
-        metric: str | NoInput = NoInput(0),  # "pips_or_%",
+        metric: str_ = NoInput(0),  # "pips_or_%",
     ):
         """
         Returns the rate of the *FXStraddle* according to a pricing metric.
@@ -1587,12 +1587,12 @@ class FXBrokerFly(FXOptionStrat, FXOption):
 
     def rate(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
         vol: list[float] | float = NoInput(0),
-        metric: str | NoInput = NoInput(0),
+        metric: str_ = NoInput(0),
     ):
         """
         Return the mid-market rate of an option strategy.
@@ -1658,10 +1658,10 @@ class FXBrokerFly(FXOptionStrat, FXOption):
 
     def analytic_greeks(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
         local: bool = False,
         vol: float = NoInput(0),
     ):
@@ -1710,10 +1710,10 @@ class FXBrokerFly(FXOptionStrat, FXOption):
     def _plot_payoff(
         self,
         range: list[float] | NoInput = NoInput(0),  # noqa: A002
-        curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
         local: bool = False,
         vol: list[float] | float = NoInput(0),
     ):
