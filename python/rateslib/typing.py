@@ -119,14 +119,16 @@ Curves_: TypeAlias = "CurveOrId_ | CurveDict | Sequence[CurveOrId_ | CurveDict]"
 Curves_Tuple: TypeAlias = "tuple[CurveOption_, CurveOption_, CurveOption_, CurveOption_]"
 Curves_DiscTuple: TypeAlias = "tuple[CurveOption_, Curve_, CurveOption_, Curve_]"
 
-Vol_: TypeAlias = "DualTypes | FXDeltaVolSmile | FXDeltaVolSurface | str"
-Vol: TypeAlias = "Vol_ | NoInput"
+FXVolObj: TypeAlias = "FXDeltaVolSurface | FXDeltaVolSmile"
+
+FXVolOption: TypeAlias = "FXVolObj | DualTypes"
+FXVolOption_: TypeAlias = "FXVolOption | NoInput"
+
+FXVol: TypeAlias = "FXVolOption | str"
+FXVol_: TypeAlias = "FXVol | NoInput"
 
 VolInput_: TypeAlias = "str | FXDeltaVolSmile | FXDeltaVolSurface"
 VolInput: TypeAlias = "VolInput_ | NoInput"
-
-VolOption_: TypeAlias = "FXDeltaVolSmile | DualTypes | FXDeltaVolSurface"
-VolOption: TypeAlias = "VolOption_ | NoInput"
 
 FX: TypeAlias = "DualTypes | FXRates | FXForwards"
 FX_: TypeAlias = "FX | NoInput"

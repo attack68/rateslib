@@ -15,7 +15,7 @@ from rateslib.default import NoInput, _drb
 from rateslib.rs import Cal, Modifier, NamedCal, RollDay, UnionCal
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput
+    from rateslib.typing import CalInput, bool_, datetime_, int_, str_
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -29,10 +29,10 @@ def dcf(
     start: datetime,
     end: datetime,
     convention: str,
-    termination: datetime | NoInput = NoInput(0),  # required for 30E360ISDA and ActActICMA
-    frequency_months: int | NoInput = NoInput(0),  # req. ActActICMA = ActActISMA = ActActBond
-    stub: bool | NoInput = NoInput(0),  # required for ActActICMA = ActActISMA = ActActBond
-    roll: str | int | NoInput = NoInput(0),  # required also for ActACtICMA = ...
+    termination: datetime_ = NoInput(0),  # required for 30E360ISDA and ActActICMA
+    frequency_months: int_ = NoInput(0),  # req. ActActICMA = ActActISMA = ActActBond
+    stub: bool_ = NoInput(0),  # required for ActActICMA = ActActISMA = ActActBond
+    roll: str | int_ = NoInput(0),  # required also for ActACtICMA = ...
     calendar: CalInput = NoInput(0),  # required for ActACtICMA = ActActISMA = ActActBond
 ) -> float:
     """
@@ -167,7 +167,7 @@ def add_tenor(
     tenor: str,
     modifier: str,
     calendar: CalInput = NoInput(0),
-    roll: str | int | NoInput = NoInput(0),
+    roll: str | int_ = NoInput(0),
     settlement: bool = False,
     mod_days: bool = False,
 ) -> datetime:
@@ -313,9 +313,9 @@ MONTHS = {
 
 
 def get_imm(
-    month: int | NoInput = NoInput(0),
-    year: int | NoInput = NoInput(0),
-    code: str | NoInput = NoInput(0),
+    month: int_ = NoInput(0),
+    year: int_ = NoInput(0),
+    code: str_ = NoInput(0),
 ) -> datetime:
     """
     Return an IMM date for a specified month.
@@ -523,7 +523,7 @@ def _is_som(date: datetime) -> bool:
 
 
 def _get_fx_expiry_and_delivery(
-    eval_date: NoInput | datetime,
+    eval_date: datetime_,
     expiry: str | datetime,
     delivery_lag: int | datetime,
     calendar: CalInput,

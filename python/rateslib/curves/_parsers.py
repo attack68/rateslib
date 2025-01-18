@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
 
 from rateslib import defaults
 from rateslib.curves import MultiCsaCurve, ProxyCurve
@@ -215,6 +215,15 @@ def _validate_curve_not_no_input(curve: Curve_) -> Curve:
     if isinstance(curve, NoInput):
         raise ValueError("`curve` must be supplied. Got NoInput or None.")
     return curve
+
+
+T = TypeVar("T")
+
+
+def _validate_obj_not_no_input(obj: T | NoInput, name: str) -> T:
+    if isinstance(obj, NoInput):
+        raise ValueError(f"`{name}` must be supplied. Got NoInput or None.")
+    return obj
 
 
 def _disc_maybe_from_curve(curve: CurveOption_, disc_curve: Curve_) -> Curve_:
