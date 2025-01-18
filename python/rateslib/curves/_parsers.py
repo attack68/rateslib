@@ -216,12 +216,15 @@ def _validate_curve_not_no_input(curve: Curve_) -> Curve:
         raise ValueError("`curve` must be supplied. Got NoInput or None.")
     return curve
 
+
 T = TypeVar("T")
+
 
 def _validate_obj_not_no_input(obj: T | NoInput, name: str) -> T:
     if isinstance(obj, NoInput):
         raise ValueError(f"`{name}` must be supplied. Got NoInput or None.")
     return obj
+
 
 def _disc_maybe_from_curve(curve: CurveOption_, disc_curve: Curve_) -> Curve_:
     """Return a discount curve, pointed as the `curve` if not provided and if suitable Type."""

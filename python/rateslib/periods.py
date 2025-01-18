@@ -33,7 +33,11 @@ from pandas import NA, DataFrame, Index, MultiIndex, Series, concat, isna, notna
 from rateslib import defaults
 from rateslib.calendars import _get_eom, add_tenor, dcf, get_calendar
 from rateslib.curves import Curve, average_rate, index_left
-from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_maybe_from_curve
+from rateslib.curves._parsers import (
+    _disc_maybe_from_curve,
+    _disc_required_maybe_from_curve,
+    _validate_obj_not_no_input,
+)
 from rateslib.default import NoInput, _drb
 from rateslib.dual import (
     Dual,
@@ -70,10 +74,10 @@ if TYPE_CHECKING:
         Curve_,
         CurveOption_,
         DualTypes,
-        Number,
-        str_,
         FXVolOption,
         FXVolOption_,
+        Number,
+        str_,
     )
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -3903,14 +3907,15 @@ class FXOptionPeriod(metaclass=ABCMeta):
         if eta_0 == 0.5:  # then delta type is unadjusted
             if eta_1 == 0.5:  # then smile delta type matches: closed form eqn available
                 if isinstance(vol, FXVols):
-                    delta_idx = z_w_1 / 2.0
-                    vol_value: DualTypes = _get_vol_smile_or_raise(vol, self.expiry)[delta_idx]
+                    d_i: DualTypes = z_w_1 / 2.0
+                    vol_value: DualTypes = _get_vol_smile_or_raise(vol, self.expiry)[d_i]
+                    delta_idx: DualTypes | None = d_i
                 else:
-                    vol_value = vol
+                    vol_value = _validate_obj_not_no_input(vol, "vol")  # type: ignore[assignment]
                     delta_idx = None
                 u = self._moneyness_from_atm_delta_closed_form(vol_value, t_e)
             else:  # then smile delta type unmatched: 2-d solver required
-                delta = z_w_0 * self.phi / 2.0
+                delta: DualTypes = z_w_0 * self.phi / 2.0
                 u, delta_idx = self._moneyness_from_delta_two_dimensional(
                     delta,
                     delta_type,
@@ -3957,13 +3962,13 @@ class FXOptionPeriod(metaclass=ABCMeta):
         # then delta types are both unadjusted, used closed form.
         if eta_0 == eta_1 and eta_0 == 0.5:
             if isinstance(vol, FXVols):
-                delta_idx = (-z_w_1 / z_w_0) * (delta - 0.5 * z_w_0 * (self.phi + 1.0))
-                vol_value: DualTypes = _get_vol_smile_or_raise(vol, self.expiry)[delta_idx]
+                d_i: DualTypes = (-z_w_1 / z_w_0) * (delta - 0.5 * z_w_0 * (self.phi + 1.0))
+                vol_value: DualTypes = _get_vol_smile_or_raise(vol, self.expiry)[d_i]
+                delta_idx: DualTypes | None = d_i
             else:
-                vol_value = vol
+                vol_value = _validate_obj_not_no_input(vol, "vol")  # type: ignore[assignment]
                 delta_idx = None
             u: DualTypes = self._moneyness_from_delta_closed_form(delta, vol_value, t_e, z_w_0)
-
         # then delta types are both adjusted, use 1-d solver.
         elif eta_0 == eta_1 and eta_0 == -0.5:
             u = self._moneyness_from_delta_one_dimensional(
@@ -4588,16 +4593,14 @@ def _trim_df_by_index(
         return df[left:right]  # type: ignore[misc]
 
 
-def _get_vol_smile_or_value(
-    vol: DualTypes | FXVols, expiry: datetime
-) -> FXDeltaVolSmile | DualTypes:
+def _get_vol_smile_or_value(vol: FXVolOption_, expiry: datetime) -> FXDeltaVolSmile | DualTypes:
     if isinstance(vol, FXDeltaVolSurface):
         return vol.get_smile(expiry)
     else:
-        return vol
+        return _validate_obj_not_no_input(vol, "vol")  # type: ignore[return-value]
 
 
-def _get_vol_smile_or_raise(vol: DualTypes | FXVols, expiry: datetime) -> FXDeltaVolSmile:
+def _get_vol_smile_or_raise(vol: FXVolOption_, expiry: datetime) -> FXDeltaVolSmile:
     if isinstance(vol, FXDeltaVolSurface):
         return vol.get_smile(expiry)
     elif isinstance(vol, FXDeltaVolSmile):

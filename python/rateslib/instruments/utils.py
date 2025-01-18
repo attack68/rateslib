@@ -16,11 +16,11 @@ if TYPE_CHECKING:
         FX_,
         Curves_,
         Curves_DiscTuple,
-        Solver_,
         FXVol,
         FXVol_,
-        str_,
         FXVolOption_,
+        Solver_,
+        str_,
     )
 
 
@@ -202,7 +202,7 @@ def _get_fxvol_curves_fx_and_base_maybe_from_solver(
     fx: FX_,
     base: str_,
     vol: FXVol_,
-    local_ccy: str_
+    local_ccy: str_,
 ) -> tuple[Curves_DiscTuple, FX_, str_, FXVolOption_]:
     """
     Parses the inputs including the instrument's attributes and also validates them

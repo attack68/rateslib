@@ -15,7 +15,7 @@ from rateslib.default import NoInput, _drb
 from rateslib.rs import Cal, Modifier, NamedCal, RollDay, UnionCal
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, datetime_, int_, str_, bool_
+    from rateslib.typing import CalInput, bool_, datetime_, int_, str_
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

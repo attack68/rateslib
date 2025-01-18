@@ -1,9 +1,11 @@
-from rateslib.instruments.fx_volatility.vanilla import (
-    FXPut, FXCall, FXOption
-)
 from rateslib.instruments.fx_volatility.strategies import (
-    FXOptionStrat, FXStraddle, FXStrangle, FXBrokerFly, FXRiskReversal
+    FXBrokerFly,
+    FXOptionStrat,
+    FXRiskReversal,
+    FXStraddle,
+    FXStrangle,
 )
+from rateslib.instruments.fx_volatility.vanilla import FXCall, FXOption, FXPut
 
 __all__ = [
     "FXStrangle",
@@ -13,5 +15,5 @@ __all__ = [
     "FXStraddle",
     "FXOption",
     "FXBrokerFly",
-    "FXOptionStrat"
+    "FXOptionStrat",
 ]

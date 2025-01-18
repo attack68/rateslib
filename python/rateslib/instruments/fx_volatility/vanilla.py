@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABCMeta
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 from pandas import DataFrame
 
@@ -12,13 +12,10 @@ from rateslib.curves import Curve
 from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.default import NoInput, _drb, plot
 from rateslib.dual.utils import _dual_float
-from rateslib.fx import FXForwards
-from rateslib.fx_volatility import FXDeltaVolSmile, FXVolObj, FXVols
+from rateslib.fx_volatility import FXVolObj
 from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.instruments.utils import (
-    _get_curves_fx_and_base_maybe_from_solver,
     _get_fxvol_curves_fx_and_base_maybe_from_solver,
-    _get_fxvol_maybe_from_solver,
     _push,
     _update_with_defaults,
     _validate_fx_as_forwards,
@@ -27,26 +24,31 @@ from rateslib.periods import Cashflow, FXCallPeriod, FXPutPeriod
 
 if TYPE_CHECKING:
     from rateslib.typing import (
+        FX_,
         Any,
         CalInput,
-        DualTypes,
         Curves_,
-        Solver_,
-        str_,
-        FX_,
-        FX,
-        NPV,
+        Curves_DiscTuple,
         DualTypes,
         DualTypes_,
-        datetime_,
-        bool_,
-        int_,
         FXVol_,
+        FXVolOption,
         FXVolOption_,
-        FXVolOption,
-        Curves_DiscTuple,
-        FXVolOption,
+        Solver_,
+        bool_,
+        datetime_,
+        int_,
+        str_,
     )
+
+
+class PricingMetrics(NamedTuple):
+    vol: FXVolOption
+    k: DualTypes_
+    delta_index: DualTypes | None
+    spot: datetime
+    t_e: DualTypes
+    f_d: DualTypes
 
 
 class FXOption(Sensitivities, metaclass=ABCMeta):
@@ -277,9 +279,9 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         # and some of the pricing elements associated with this strike definition must
         # be captured for use in subsequent formulae.
         fx_ = _validate_fx_as_forwards(fx)
-        vol_ = _validate_obj_not_no_input(vol, "vol")
-        curves_3 = _validate_obj_not_no_input(curves[3], "curves[3]")
-        curves_1 = _validate_obj_not_no_input(curves[1], "curves[1]")
+        vol_: FXVolOption = _validate_obj_not_no_input(vol, "vol")  # type: ignore[assignment]
+        curves_3: Curve = _validate_obj_not_no_input(curves[3], "curves[3]")
+        curves_1: Curve = _validate_obj_not_no_input(curves[1], "curves[1]")
 
         self._pricing = {
             "vol": vol_,
@@ -451,7 +453,9 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         if metric in ["vol", "single_vol"]:
             return self._pricing["vol"]
 
-        _: DualTypes = self.periods[0].rate(curves_[1], curves_[3], fx_, NoInput(0), False, self._pricing["vol"])
+        _: DualTypes = self.periods[0].rate(
+            curves_[1], curves_[3], fx_, NoInput(0), False, self._pricing["vol"]
+        )
         if metric == "premium":
             if self.periods[0].metric == "pips":
                 _ *= self._option_periods[0].notional / 10000
@@ -677,7 +681,7 @@ class FXCall(FXOption):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._option_periods= (
+        self._option_periods = (
             FXCallPeriod(
                 pair=self.kwargs["pair"],
                 expiry=self.kwargs["expiry"],

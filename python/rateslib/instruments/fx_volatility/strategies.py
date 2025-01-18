@@ -4,11 +4,10 @@ from typing import TYPE_CHECKING
 
 from pandas import DataFrame
 
-from rateslib.curves import Curve
-from rateslib.default import NoInput, _drb, plot
+from rateslib.default import NoInput, _drb
 from rateslib.dual import dual_log
 from rateslib.fx_volatility import FXDeltaVolSurface, FXVolObj
-from rateslib.instruments.fx_volatility.vanilla import FXPut, FXOption, FXCall
+from rateslib.instruments.fx_volatility.vanilla import FXCall, FXOption, FXPut
 from rateslib.instruments.utils import (
     _get_curves_fx_and_base_maybe_from_solver,
     _get_fxvol_maybe_from_solver,
@@ -17,22 +16,13 @@ from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
     from rateslib.typing import (
-        Any,
-        CalInput,
-        DualTypes,
-        Curves_,
-        Solver_,
-        str_,
         FX_,
         NPV,
+        Any,
+        Curves_,
         DualTypes,
-        DualTypes_,
-        datetime_,
-        bool_,
-        int_,
-        FXVol_,
-        FXVolOption_,
-        Curves_DiscTuple,
+        Solver_,
+        str_,
     )
 
 
