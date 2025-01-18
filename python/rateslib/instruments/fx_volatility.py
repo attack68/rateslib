@@ -233,6 +233,15 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         self.curves = curves
         self.spec = spec
 
+        self._cashflow_periods = (
+            Cashflow(
+                notional=self.kwargs["premium"],
+                payment=self.kwargs["payment"],
+                currency=self.kwargs["premium_ccy"],
+                stub_type="Premium",
+            ),
+        )
+
     @property
     def periods(self) -> tuple[FXCallPeriod | FXPutPeriod, Cashflow]:
         return (self._option_periods[0], self._cashflow_periods[0])
@@ -658,8 +667,6 @@ class FXCall(FXOption):
     For parameters see :class:`~rateslib.instruments.FXOption`.
     """
 
-    style = "european"
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._option_periods= (
@@ -677,14 +684,6 @@ class FXCall(FXOption):
                 metric=self.kwargs["metric_period"],
             ),
         )
-        self._cashflow_periods = (
-            Cashflow(
-                notional=self.kwargs["premium"],
-                payment=self.kwargs["payment"],
-                currency=self.kwargs["premium_ccy"],
-                stub_type="Premium",
-            ),
-        )
 
 
 class FXPut(FXOption):
@@ -694,11 +693,9 @@ class FXPut(FXOption):
     For parameters see :class:`~rateslib.instruments.FXOption`.
     """
 
-    style = "european"
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.periods = [
+        self._option_periods = (
             FXPutPeriod(
                 pair=self.kwargs["pair"],
                 expiry=self.kwargs["expiry"],
@@ -712,13 +709,7 @@ class FXPut(FXOption):
                 delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
                 metric=self.kwargs["metric_period"],
             ),
-            Cashflow(
-                notional=self.kwargs["premium"],
-                payment=self.kwargs["payment"],
-                currency=self.kwargs["premium_ccy"],
-                stub_type="Premium",
-            ),
-        ]
+        )
 
 
 class FXOptionStrat:
