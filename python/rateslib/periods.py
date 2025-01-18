@@ -72,6 +72,7 @@ if TYPE_CHECKING:
         DualTypes,
         Number,
         str_,
+        FXVolOption,
     )
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -3880,7 +3881,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
     def _strike_and_index_from_atm(
         self,
         delta_type: str,
-        vol: DualTypes | FXVols,
+        vol: FXVolOption,
         w_deli: DualTypes,
         w_spot: DualTypes,
         f: DualTypes,

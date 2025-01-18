@@ -125,7 +125,7 @@ FXVolOption: TypeAlias = "FXVolObj | DualTypes"
 FXVolOption_: TypeAlias = "FXVolOption | NoInput"
 
 FXVol: TypeAlias = "FXVolOption | str"
-FXVol_: TypeAlias = "FXVol_ | NoInput"
+FXVol_: TypeAlias = "FXVol | NoInput"
 
 VolInput_: TypeAlias = "str | FXDeltaVolSmile | FXDeltaVolSurface"
 VolInput: TypeAlias = "VolInput_ | NoInput"

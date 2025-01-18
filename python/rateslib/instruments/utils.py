@@ -24,6 +24,21 @@ if TYPE_CHECKING:
     )
 
 
+def _validate_fx_as_forwards(fx: FX_) -> FXForwards:
+    if isinstance(fx, NoInput):
+        raise ValueError(
+            "An FXForwards object for `fx` is required for FXOption pricing.\n"
+            "If this instrument is part of a Solver, have you omitted the `fx` input?",
+        )
+    elif not isinstance(fx, FXForwards):
+        raise ValueError(
+            "An FXForwards object for `fx` is required for FXOption prcing.\n"
+            f"The given type, '{type(fx).__name__}', cannot be used here."
+        )
+    else:
+        return fx
+
+
 def _get_base_maybe_from_fx(fx: FX_, base: str_, local_ccy: str_) -> str_:
     if isinstance(fx, NoInput | float) and isinstance(base, NoInput):
         # base will not be inherited from a 2nd level inherited object, i.e.
@@ -132,12 +147,14 @@ def _get_fxvol_maybe_from_solver(vol_attr: FXVol_, vol: FXVol_, solver: Solver_)
     if vol is None:  # capture blank user input and reset
         vol = NoInput(0)
 
-    if isinstance(vol, NoInput) and isinstance(vol_attr, NoInput):
-        return NoInput(0)
-    elif isinstance(vol, NoInput):
-        vol = vol_attr
+    if isinstance(vol, NoInput):
+        if isinstance(vol_attr, NoInput):
+            return NoInput(0)
+        else:
+            vol_: FXVol = vol_attr
+    else:
+        vol_ = vol
 
-    vol_: FXVol = vol
     if isinstance(solver, NoInput):
         if isinstance(vol_, str):
             raise ValueError(
