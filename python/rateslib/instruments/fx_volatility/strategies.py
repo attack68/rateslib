@@ -9,10 +9,11 @@ from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.default import NoInput, _drb
 from rateslib.dual import dual_log
 from rateslib.fx_volatility import FXDeltaVolSurface, FXVolObj
-from rateslib.instruments.fx_volatility.vanilla import FXCall, FXOption, FXPut, _validate_fx_as_forwards
+from rateslib.instruments.fx_volatility.vanilla import FXCall, FXOption, FXPut
 from rateslib.instruments.utils import (
     _get_curves_fx_and_base_maybe_from_solver,
     _get_fxvol_maybe_from_solver,
+    _validate_fx_as_forwards
 )
 from rateslib.splines import evaluate
 
@@ -316,12 +317,12 @@ class FXRiskReversal(FXOptionStrat, FXOption):
 
     def __init__(
         self,
-        *args,
+        *args: Any,
         strike=(NoInput(0), NoInput(0)),
         premium=(NoInput(0), NoInput(0)),
         metric: str = "vol",
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         super(FXOptionStrat, self).__init__(
             *args,
             strike=list(strike),
@@ -329,7 +330,7 @@ class FXRiskReversal(FXOptionStrat, FXOption):
             **kwargs,
         )
         self.kwargs["metric"] = metric
-        self._strat_elements = [
+        self._strat_elements = (
             FXPut(
                 pair=self.kwargs["pair"],
                 expiry=self.kwargs["expiry"],
@@ -362,9 +363,9 @@ class FXRiskReversal(FXOptionStrat, FXOption):
                 curves=self.curves,
                 vol=self.vol,
             ),
-        ]
+        )
 
-    def _validate_strike_and_premiums(self):
+    def _validate_strike_and_premiums(self) -> None:
         """called as part of init, specific validation rules for straddle"""
         if any(_ is NoInput.blank for _ in self.kwargs["strike"]):
             raise ValueError(
@@ -459,9 +460,9 @@ class FXStraddle(FXOptionStrat, FXOption):
         for option in self.periods:
             option.periods[0].notional = notional
 
-    def _validate_strike_and_premiums(self):
+    def _validate_strike_and_premiums(self) -> None:
         """called as part of init, specific validation rules for straddle"""
-        if self.kwargs["strike"] is NoInput.blank:
+        if isinstance(self.kwargs["strike"], NoInput):
             raise ValueError("`strike` for FXStraddle must be set to numeric or string value.")
         if isinstance(self.kwargs["strike"], str) and self.kwargs["premium"] != [
             NoInput.blank,
@@ -520,14 +521,16 @@ class FXStrangle(FXOptionStrat, FXOption):
     rate_weight_vol = [0.5, 0.5]
     _rate_scalar = 100.0
 
+    strike:
+
     def __init__(
         self,
-        *args,
+        *args: Any,
         strike=(NoInput(0), NoInput(0)),
         premium=(NoInput(0), NoInput(0)),
-        metric="single_vol",
-        **kwargs,
-    ):
+        metric: str ="single_vol",
+        **kwargs: Any,
+    ) -> None:
         super(FXOptionStrat, self).__init__(
             *args, strike=list(strike), premium=list(premium), **kwargs
         )
@@ -540,7 +543,7 @@ class FXStrangle(FXOptionStrat, FXOption):
             and self.kwargs["strike"][1][-1].lower() == "d"
             and self.kwargs["strike"][1] != "atm_forward",
         ]
-        self._strat_elements = [
+        self._strat_elements = (
             FXPut(
                 pair=self.kwargs["pair"],
                 expiry=self.kwargs["expiry"],
@@ -573,16 +576,16 @@ class FXStrangle(FXOptionStrat, FXOption):
                 curves=self.curves,
                 vol=self.vol,
             ),
-        ]
+        )
 
-    def _validate_strike_and_premiums(self):
+    def _validate_strike_and_premiums(self) -> None:
         """called as part of init, specific validation rules for strangle"""
-        if any(_ is NoInput.blank for _ in self.kwargs["strike"]):
+        if any(isinstance(_, NoInput) for _ in self.kwargs["strike"]):
             raise ValueError(
                 "`strike` for FXStrangle must be set to list of 2 numeric or string values.",
             )
         for k, p in zip(self.kwargs["strike"], self.kwargs["premium"], strict=False):
-            if isinstance(k, str) and p != NoInput.blank:
+            if isinstance(k, str) and not isinstance(p, NoInput):
                 raise ValueError(
                     "FXStrangle with string delta as `strike` cannot be initialised with a "
                     "known `premium`.\n"
@@ -597,7 +600,7 @@ class FXStrangle(FXOptionStrat, FXOption):
         base: str_ = NoInput(0),
         vol: list[float] | float = NoInput(0),
         metric: str_ = NoInput(0),  # "pips_or_%",
-    ):
+    ) -> DualTypes:
         """
         Returns the rate of the *FXStraddle* according to a pricing metric.
 
