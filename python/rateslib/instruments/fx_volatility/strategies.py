@@ -40,7 +40,7 @@ class FXOptionStrat:
         The multiplier for the *'vol'* metric that sums the options to a final *rate*.
     """
 
-    _pricing: dict[str, Any]
+    _greeks: dict[str, Any] = {}
     _strat_elements: tuple[FXOption | FXOptionStrat, ...]
     periods: list[FXOption]
 
@@ -733,7 +733,7 @@ class FXStrangle(FXOptionStrat, FXOption):
             iters += 1
 
         if record_greeks:  # this needs to be explicitly called since it degrades performance
-            self._pricing["strangle_greeks"] = {
+            self._greeks["strangle"] = {
                 "single_vol": {
                     "FXPut": self.periods[0].analytic_greeks(curves, solver, fx, base, vol=tgt_vol),
                     "FXCall": self.periods[1].analytic_greeks(
@@ -900,16 +900,16 @@ class FXBrokerFly(FXOptionStrat, FXOption):
                 metric="single_vol",
                 record_greeks=True,
             )
-            self._pricing["straddle_greeks"] = self.periods[1].analytic_greeks(
+            self._greeks["straddle"] = self.periods[1].analytic_greeks(
                 curves,
                 solver,
                 fx,
                 base,
                 vol=vol[1],
             )
-            strangle_vega = self._pricing["strangle_greeks"]["market_vol"]["FXPut"]["vega"]
-            strangle_vega += self._pricing["strangle_greeks"]["market_vol"]["FXCall"]["vega"]
-            straddle_vega = self._pricing["straddle_greeks"]["vega"]
+            strangle_vega = self._greeks["strangle"]["market_vol"]["FXPut"]["vega"]
+            strangle_vega += self._greeks["strangle"]["market_vol"]["FXCall"]["vega"]
+            straddle_vega = self._greeks["straddle"]["vega"]
             scalar = strangle_vega / straddle_vega
             self.periods[1].kwargs["notional"] = float(
                 self.periods[0].periods[0].periods[0].notional * -scalar,

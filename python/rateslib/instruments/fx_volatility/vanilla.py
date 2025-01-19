@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from abc import ABCMeta
+from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING
 
 from pandas import DataFrame
 
@@ -10,7 +11,7 @@ from rateslib import defaults
 from rateslib.calendars import _get_fx_expiry_and_delivery, get_calendar
 from rateslib.curves import Curve
 from rateslib.curves._parsers import _validate_obj_not_no_input
-from rateslib.default import NoInput, _drb, plot
+from rateslib.default import NoInput, PlotOutput, _drb, plot
 from rateslib.dual.utils import _dual_float
 from rateslib.fx_volatility import FXVolObj
 from rateslib.instruments.sensitivities import Sensitivities
@@ -23,8 +24,11 @@ from rateslib.instruments.utils import (
 from rateslib.periods import Cashflow, FXCallPeriod, FXPutPeriod
 
 if TYPE_CHECKING:
+    import numpy as np
+
     from rateslib.typing import (
         FX_,
+        NPV,
         Any,
         CalInput,
         Curves_,
@@ -32,19 +36,20 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXVol_,
-        FXVolOption,
         FXVolOption_,
         Solver_,
         bool_,
         datetime_,
+        float_,
         int_,
         str_,
     )
 
 
-class PricingMetrics(NamedTuple):
-    vol: FXVolOption
-    k: DualTypes_
+@dataclass
+class _PricingMetrics:
+    vol: FXVolOption_
+    k: DualTypes
     delta_index: DualTypes | None
     spot: datetime
     t_e: DualTypes
@@ -141,7 +146,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
     style: str = "european"
     _rate_scalar: float = 1.0
-    _pricing: dict[str, Any] = {}
+    _pricing: _PricingMetrics
 
     _option_periods: tuple[FXPutPeriod | FXCallPeriod]
     _cashflow_periods: tuple[Cashflow]
@@ -279,45 +284,47 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         # and some of the pricing elements associated with this strike definition must
         # be captured for use in subsequent formulae.
         fx_ = _validate_fx_as_forwards(fx)
-        vol_: FXVolOption = _validate_obj_not_no_input(vol, "vol")  # type: ignore[assignment]
+        # vol_: FXVolOption = _validate_obj_not_no_input(vol, "vol")  # type: ignore[assignment]
+        vol_ = vol
         curves_3: Curve = _validate_obj_not_no_input(curves[3], "curves[3]")
         curves_1: Curve = _validate_obj_not_no_input(curves[1], "curves[1]")
 
-        self._pricing = {
-            "vol": vol_,
-            "k": self.kwargs["strike"],
-            "delta_index": None,
-            "spot": fx_.pairs_settlement[self.kwargs["pair"]],
-            "t_e": self._option_periods[0]._t_to_expiry(curves_3.node_dates[0]),
-            "f_d": fx_.rate(self.kwargs["pair"], self.kwargs["delivery"]),
-        }
+        self._pricing = _PricingMetrics(
+            vol=vol_,
+            k=self.kwargs["strike"],
+            delta_index=None,
+            spot=fx_.pairs_settlement[self.kwargs["pair"]],
+            t_e=self._option_periods[0]._t_to_expiry(curves_3.node_dates[0]),
+            f_d=fx_.rate(self.kwargs["pair"], self.kwargs["delivery"]),
+        )
+
         w_deli = curves_1[self.kwargs["delivery"]]
-        w_spot = curves_1[self._pricing["spot"]]
+        w_spot = curves_1[self._pricing.spot]
 
         if isinstance(self.kwargs["strike"], str):
             method = self.kwargs["strike"].lower()
 
             if method == "atm_forward":
-                self._pricing["k"] = fx_.rate(self.kwargs["pair"], self.kwargs["delivery"])
+                self._pricing.k = fx_.rate(self.kwargs["pair"], self.kwargs["delivery"])
 
             elif method == "atm_spot":
-                self._pricing["k"] = fx_.rate(self.kwargs["pair"], self._pricing["spot"])
+                self._pricing.k = fx_.rate(self.kwargs["pair"], self._pricing.spot)
 
             elif method == "atm_delta":
-                self._pricing["k"], self._pricing["delta_index"] = self._option_periods[
+                self._pricing.k, self._pricing.delta_index = self._option_periods[
                     0
                 ]._strike_and_index_from_atm(
                     delta_type=self._option_periods[0].delta_type,
-                    vol=vol_,
+                    vol=_validate_obj_not_no_input(vol_, "vol"),  # type: ignore[arg-type]
                     w_deli=w_deli,
                     w_spot=w_spot,
-                    f=self._pricing["f_d"],
-                    t_e=self._pricing["t_e"],
+                    f=self._pricing.f_d,
+                    t_e=self._pricing.t_e,
                 )
 
             elif method[-1] == "d":  # representing delta
                 # then strike is commanded by delta
-                self._pricing["k"], self._pricing["delta_index"] = self._option_periods[
+                self._pricing.k, self._pricing.delta_index = self._option_periods[
                     0
                 ]._strike_and_index_from_delta(
                     delta=float(self.kwargs["strike"][:-1]) / 100.0,
@@ -325,8 +332,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                     vol=vol_,
                     w_deli=w_deli,
                     w_spot=w_spot,
-                    f=self._pricing["f_d"],
-                    t_e=self._pricing["t_e"],
+                    f=self._pricing.f_d,
+                    t_e=self._pricing.t_e,
                 )
 
             # TODO: this may affect solvers dependent upon sensitivity to vol for changing strikes.
@@ -335,20 +342,20 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             # IRS for mid-market.
 
             # self.periods[0].strike = self._pricing["k"]
-            self._option_periods[0].strike = _dual_float(self._pricing["k"])
+            self._option_periods[0].strike = _dual_float(self._pricing.k)
 
         if isinstance(vol_, FXVolObj):
-            if self._pricing["delta_index"] is None:
-                self._pricing["delta_index"], self._pricing["vol"], _ = vol_.get_from_strike(
-                    k=self._pricing["k"],
-                    f=self._pricing["f_d"],
+            if self._pricing.delta_index is None:
+                self._pricing.delta_index, self._pricing.vol, _ = vol_.get_from_strike(
+                    k=self._pricing.k,
+                    f=self._pricing.f_d,
                     w_deli=w_deli,
                     w_spot=w_spot,
                     expiry=self.kwargs["expiry"],
                 )
             else:
-                self._pricing["vol"] = vol_._get_index(
-                    self._pricing["delta_index"],
+                self._pricing.vol = vol_._get_index(
+                    self._pricing.delta_index,
                     self.kwargs["expiry"],
                 )
 
@@ -361,7 +368,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                     _validate_obj_not_no_input(curves[1], "curves[1]"),
                     curves_3,
                     fx,
-                    vol=self._pricing["vol"],
+                    vol=self._pricing.vol,
                     local=False,
                 )
             except AttributeError:
@@ -451,10 +458,15 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
         metric = _drb(self.kwargs["metric"], metric)
         if metric in ["vol", "single_vol"]:
-            return self._pricing["vol"]
+            return _validate_obj_not_no_input(self._pricing.vol, "vol")  # type: ignore[return-value]
 
-        _: DualTypes = self.periods[0].rate(
-            curves_[1], curves_[3], fx_, NoInput(0), False, self._pricing["vol"]
+        _: DualTypes = self._option_periods[0].rate(
+            disc_curve=_validate_obj_not_no_input(curves_[1], "curve"),
+            disc_curve_ccy2=_validate_obj_not_no_input(curves_[3], "curve"),
+            fx=fx_,
+            base=NoInput(0),
+            local=False,
+            vol=self._pricing.vol,
         )
         if metric == "premium":
             if self.periods[0].metric == "pips":
@@ -470,8 +482,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
-        vol: float = NoInput(0),
-    ):
+        vol: FXVol_ = NoInput(0),
+    ) -> NPV:
         """
         Return the NPV of the *Option*.
 
@@ -510,16 +522,23 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         self._set_strike_and_vol(curves_, fx_, vol_)
         self._set_premium(curves_, fx_)
 
-        opt_npv = self._option_periods[0].npv(curves_[1], curves_[3], fx_, base_, local, vol_)
+        opt_npv = self._option_periods[0].npv(
+            disc_curve=_validate_obj_not_no_input(curves_[1], "curve_[1]"),
+            disc_curve_ccy2=_validate_obj_not_no_input(curves_[3], "curve_[3]"),
+            fx=fx_,
+            base=base_,
+            local=local,
+            vol=vol_,
+        )
         if self.kwargs["premium_ccy"] == self.kwargs["pair"][:3]:
             disc_curve = curves_[1]
         else:
             disc_curve = curves_[3]
         prem_npv = self._cashflow_periods[0].npv(NoInput(0), disc_curve, fx, base, local)
         if local:
-            return {k: opt_npv.get(k, 0) + prem_npv.get(k, 0) for k in set(opt_npv) | set(prem_npv)}
+            return {k: opt_npv.get(k, 0) + prem_npv.get(k, 0) for k in set(opt_npv) | set(prem_npv)}  # type:ignore[union-attr, arg-type]
         else:
-            return opt_npv + prem_npv
+            return opt_npv + prem_npv  # type: ignore[operator]
 
     def cashflows(
         self,
@@ -527,8 +546,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-        vol: float = NoInput(0),
-    ):
+        vol: FXVol_ = NoInput(0),
+    ) -> DataFrame:
         """
         Return the properties of all periods used in calculating cashflows.
 
@@ -567,8 +586,14 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         self._set_premium(curves_, fx_)
 
         seq = [
-            self.periods[0].cashflows(curves_[1], curves_[3], fx_, base_, vol=vol_),
-            self.periods[1].cashflows(curves_[1], curves_[3], fx_, base_),
+            self._option_periods[0].cashflows(
+                disc_curve=_validate_obj_not_no_input(curves_[1], "curves_[1]"),
+                disc_curve_ccy2=_validate_obj_not_no_input(curves_[3], "curves_[3]"),
+                fx=fx_,
+                base=base_,
+                vol=vol_,
+            ),
+            self._cashflow_periods[0].cashflows(curves_[1], curves_[3], fx_, base_),
         ]
         return DataFrame.from_records(seq)
 
@@ -579,8 +604,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
-        vol: float = NoInput(0),
-    ):
+        vol: FXVol_ = NoInput(0),
+    ) -> dict[str, Any]:
         """
         Return various pricing metrics of the *FX Option*.
 
@@ -620,12 +645,12 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         # self._set_premium(curves, fx)
 
         return self._option_periods[0].analytic_greeks(
-            curves_[1],
-            curves_[3],
-            fx_,
-            base_,
-            local,
-            vol_,
+            disc_curve=_validate_obj_not_no_input(curves_[1], "curves_[1]"),
+            disc_curve_ccy2=_validate_obj_not_no_input(curves_[3], "curves_[3]"),
+            fx=_validate_fx_as_forwards(fx_),
+            base=base_,
+            local=local,
+            vol=vol_,
             premium=NoInput(0),
         )
 
@@ -637,8 +662,10 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
-        vol: float = NoInput(0),
-    ):
+        vol: FXVol_ = NoInput(0),
+    ) -> tuple[
+        np.ndarray[tuple[int], np.dtype[np.float64]], np.ndarray[tuple[int], np.dtype[np.float64]]
+    ]:
         """
         Mechanics to determine (x,y) coordinates for payoff at expiry plot.
         """
@@ -666,10 +693,10 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
-        vol: float = NoInput(0),
-    ):
+        vol: float_ = NoInput(0),
+    ) -> PlotOutput:
         x, y = self._plot_payoff(range, curves, solver, fx, base, local, vol)
-        return plot(x, [y])
+        return plot(x, [y])  # type: ignore
 
 
 class FXCall(FXOption):
@@ -679,7 +706,7 @@ class FXCall(FXOption):
     For parameters see :class:`~rateslib.instruments.FXOption`.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._option_periods = (
             FXCallPeriod(
@@ -705,7 +732,7 @@ class FXPut(FXOption):
     For parameters see :class:`~rateslib.instruments.FXOption`.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._option_periods = (
             FXPutPeriod(

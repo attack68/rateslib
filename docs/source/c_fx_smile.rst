@@ -404,8 +404,8 @@ this produces minor deviations from his calculated values.
    for op in ops:
        op.rate(fx=fxf)
 
-   strikes = [float(_._pricing["k"]) for _ in ops]
-   vols = [float(_._pricing["vol"]) for _ in ops]
+   strikes = [float(_._pricing.k) for _ in ops]
+   vols = [float(_._pricing.vol) for _ in ops]
    data2 = DataFrame(
        data=[strikes[0:3], vols[0:3], strikes[3:6], vols[3:6], strikes[6:9], vols[6:9]],
        index=[("1y", "k"), ("1y", "vol"), ("18m", "k"), ("18m", "vol"), ("2y", "k"), ("2y", "vol")],

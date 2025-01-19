@@ -4785,6 +4785,21 @@ class TestFXOptions:
         )
         assert fxo.kwargs["expiry"] == expected
 
+    def test_single_vol_not_no_input(self, fxfo):
+        fxo = FXCall(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery_lag=dt(2023, 6, 20),
+            payment_lag=dt(2023, 6, 20),
+            curves=[None, fxfo.curve("eur", "eur"), None, fxfo.curve("usd", "eur")],
+            delta_type="forward",
+            premium_ccy="usd",
+            strike=1.1,
+            notional=1e6,
+        )
+        with pytest.raises(ValueError, match="`vol` must be supplied. Got"):
+            fxo.rate(metric="vol", fx=fxfo)
+
 
 class TestRiskReversal:
     @pytest.mark.parametrize(

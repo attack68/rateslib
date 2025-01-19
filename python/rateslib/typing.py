@@ -98,6 +98,7 @@ str_: TypeAlias = "str | NoInput"
 bool_: TypeAlias = "bool | NoInput"
 int_: TypeAlias = "int | NoInput"
 datetime_: TypeAlias = "datetime | NoInput"
+float_: TypeAlias = "float | NoInput"
 
 from rateslib.curves import Curve as Curve  # noqa: E402
 
