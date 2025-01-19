@@ -104,7 +104,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
    * - Refactor
      - The internal data objects for *FXOption* pricing are restructured to conform to more
        strict data typing.
-       (`570 <https://github.com/attack68/rateslib/pull/570>`_)
+       (`642 <https://github.com/attack68/rateslib/pull/642>`_)
 
 1.6.0 (30th November 2024)
 ****************************
