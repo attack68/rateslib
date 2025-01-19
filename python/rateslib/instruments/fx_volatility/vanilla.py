@@ -41,6 +41,7 @@ if TYPE_CHECKING:
         float_,
         int_,
         str_,
+        NPV,
     )
 
 
@@ -456,10 +457,15 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
         metric = _drb(self.kwargs["metric"], metric)
         if metric in ["vol", "single_vol"]:
-            return self._pricing.vol
+            return _validate_obj_not_no_input(self._pricing.vol, "vol")  # type: ignore[return-value]
 
-        _: DualTypes = self.periods[0].rate(
-            curves_[1], curves_[3], fx_, NoInput(0), False, self._pricing.vol
+        _: DualTypes = self._option_periods[0].rate(
+            disc_curve=_validate_obj_not_no_input(curves_[1], "curve"),
+            disc_curve_ccy2=_validate_obj_not_no_input(curves_[3], "curve"),
+            fx=fx_,
+            base=NoInput(0),
+            local=False,
+            vol=self._pricing.vol
         )
         if metric == "premium":
             if self.periods[0].metric == "pips":
@@ -475,8 +481,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
-        vol: float = NoInput(0),
-    ):
+        vol: FXVol_ = NoInput(0),
+    ) -> NPV:
         """
         Return the NPV of the *Option*.
 
@@ -515,16 +521,22 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         self._set_strike_and_vol(curves_, fx_, vol_)
         self._set_premium(curves_, fx_)
 
-        opt_npv = self._option_periods[0].npv(curves_[1], curves_[3], fx_, base_, local, vol_)
+        opt_npv = self._option_periods[0].npv(
+            disc_curve=_validate_obj_not_no_input(curves_[1], "curve_[1]"),
+            disc_curve_ccy2=_validate_obj_not_no_input(curves_[3], "curve_[3]"),
+            fx=fx_,
+            base=base_,
+            local=local,
+            vol=vol_)
         if self.kwargs["premium_ccy"] == self.kwargs["pair"][:3]:
             disc_curve = curves_[1]
         else:
             disc_curve = curves_[3]
         prem_npv = self._cashflow_periods[0].npv(NoInput(0), disc_curve, fx, base, local)
         if local:
-            return {k: opt_npv.get(k, 0) + prem_npv.get(k, 0) for k in set(opt_npv) | set(prem_npv)}
+            return {k: opt_npv.get(k, 0) + prem_npv.get(k, 0) for k in set(opt_npv) | set(prem_npv)}  # type:ignore[union-attr, arg-type]
         else:
-            return opt_npv + prem_npv
+            return opt_npv + prem_npv  # type: ignore[operator]
 
     def cashflows(
         self,
@@ -532,8 +544,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-        vol: float = NoInput(0),
-    ):
+        vol: FXVol_ = NoInput(0),
+    ) -> DataFrame:
         """
         Return the properties of all periods used in calculating cashflows.
 
@@ -572,8 +584,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         self._set_premium(curves_, fx_)
 
         seq = [
-            self.periods[0].cashflows(curves_[1], curves_[3], fx_, base_, vol=vol_),
-            self.periods[1].cashflows(curves_[1], curves_[3], fx_, base_),
+            self._option_periods[0].cashflows(curves_[1], curves_[3], fx_, base_, vol=vol_),
+            self._cashflow_periods[0].cashflows(curves_[1], curves_[3], fx_, base_),
         ]
         return DataFrame.from_records(seq)
 
@@ -584,8 +596,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
-        vol: float = NoInput(0),
-    ):
+        vol: FXVol_ = NoInput(0),
+    ) -> dict[str, Any]:
         """
         Return various pricing metrics of the *FX Option*.
 
@@ -642,8 +654,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
-        vol: float = NoInput(0),
-    ):
+        vol: FXVol_ = NoInput(0),
+    ) -> PlotOutput:
         """
         Mechanics to determine (x,y) coordinates for payoff at expiry plot.
         """

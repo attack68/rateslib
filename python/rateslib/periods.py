@@ -74,6 +74,7 @@ if TYPE_CHECKING:
         Curve_,
         CurveOption_,
         DualTypes,
+        DualTypes_,
         FXVolOption,
         FXVolOption_,
         Number,
@@ -3334,10 +3335,10 @@ class FXOptionPeriod(metaclass=ABCMeta):
         self,
         disc_curve: Curve,
         disc_curve_ccy2: Curve,
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        fx: FX_= NoInput(0),
+        base: str_ = NoInput(0),
         local: bool = False,
-        vol: DualTypes | FXVols | NoInput = NoInput(0),
+        vol: FXVolOption_ = NoInput(0),
     ) -> dict[str, Any]:
         """
         Return the properties of the period used in calculating cashflows.
@@ -3473,11 +3474,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
         self,
         disc_curve: Curve,
         disc_curve_ccy2: Curve,
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
         local: bool = False,
-        vol: DualTypes | FXVols | NoInput = NoInput(0),
-        metric: str | NoInput = NoInput(0),
+        vol: FXVolOption_ = NoInput(0),
+        metric: str_ = NoInput(0),
     ) -> DualTypes:
         """
         Return the pricing metric of the *FXOption*.
@@ -3597,10 +3598,10 @@ class FXOptionPeriod(metaclass=ABCMeta):
         disc_curve: Curve,
         disc_curve_ccy2: Curve,
         fx: FXForwards,
-        base: str | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
         local: bool = False,
-        vol: DualTypes | FXVols | NoInput = NoInput(0),
-        premium: DualTypes | NoInput = NoInput(0),  # expressed in the payment currency
+        vol: FXVolOption_ = NoInput(0),
+        premium: DualTypes_ = NoInput(0),  # expressed in the payment currency
     ) -> dict[str, Any]:
         r"""
         Return the different greeks for the *FX Option*.
