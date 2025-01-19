@@ -24,8 +24,11 @@ from rateslib.instruments.utils import (
 from rateslib.periods import Cashflow, FXCallPeriod, FXPutPeriod
 
 if TYPE_CHECKING:
+    import numpy as np
+
     from rateslib.typing import (
         FX_,
+        NPV,
         Any,
         CalInput,
         Curves_,
@@ -33,7 +36,6 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXVol_,
-        FXVolOption,
         FXVolOption_,
         Solver_,
         bool_,
@@ -41,7 +43,6 @@ if TYPE_CHECKING:
         float_,
         int_,
         str_,
-        NPV,
     )
 
 
@@ -465,7 +466,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             fx=fx_,
             base=NoInput(0),
             local=False,
-            vol=self._pricing.vol
+            vol=self._pricing.vol,
         )
         if metric == "premium":
             if self.periods[0].metric == "pips":
@@ -527,7 +528,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             fx=fx_,
             base=base_,
             local=local,
-            vol=vol_)
+            vol=vol_,
+        )
         if self.kwargs["premium_ccy"] == self.kwargs["pair"][:3]:
             disc_curve = curves_[1]
         else:
@@ -584,7 +586,13 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         self._set_premium(curves_, fx_)
 
         seq = [
-            self._option_periods[0].cashflows(curves_[1], curves_[3], fx_, base_, vol=vol_),
+            self._option_periods[0].cashflows(
+                disc_curve=_validate_obj_not_no_input(curves_[1], "curves_[1]"),
+                disc_curve_ccy2=_validate_obj_not_no_input(curves_[3], "curves_[3]"),
+                fx=fx_,
+                base=base_,
+                vol=vol_,
+            ),
             self._cashflow_periods[0].cashflows(curves_[1], curves_[3], fx_, base_),
         ]
         return DataFrame.from_records(seq)
@@ -637,12 +645,12 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         # self._set_premium(curves, fx)
 
         return self._option_periods[0].analytic_greeks(
-            curves_[1],
-            curves_[3],
-            fx_,
-            base_,
-            local,
-            vol_,
+            disc_curve=_validate_obj_not_no_input(curves_[1], "curves_[1]"),
+            disc_curve_ccy2=_validate_obj_not_no_input(curves_[3], "curves_[3]"),
+            fx=_validate_fx_as_forwards(fx_),
+            base=base_,
+            local=local,
+            vol=vol_,
             premium=NoInput(0),
         )
 
@@ -655,7 +663,9 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         base: str_ = NoInput(0),
         local: bool = False,
         vol: FXVol_ = NoInput(0),
-    ) -> PlotOutput:
+    ) -> tuple[
+        np.ndarray[tuple[int], np.dtype[np.float64]], np.ndarray[tuple[int], np.dtype[np.float64]]
+    ]:
         """
         Mechanics to determine (x,y) coordinates for payoff at expiry plot.
         """
@@ -686,7 +696,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         vol: float_ = NoInput(0),
     ) -> PlotOutput:
         x, y = self._plot_payoff(range, curves, solver, fx, base, local, vol)
-        return plot(x, [y])
+        return plot(x, [y])  # type: ignore
 
 
 class FXCall(FXOption):

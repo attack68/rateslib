@@ -3335,7 +3335,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         self,
         disc_curve: Curve,
         disc_curve_ccy2: Curve,
-        fx: FX_= NoInput(0),
+        fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
         vol: FXVolOption_ = NoInput(0),
