@@ -9,7 +9,7 @@ from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.default import NoInput, _drb
 from rateslib.dual import dual_log
 from rateslib.fx_volatility import FXDeltaVolSurface, FXVolObj
-from rateslib.instruments.fx_volatility.vanilla import FXCall, FXOption, FXPut
+from rateslib.instruments.fx_volatility.vanilla import FXCall, FXOption, FXPut, _validate_fx_as_forwards
 from rateslib.instruments.utils import (
     _get_curves_fx_and_base_maybe_from_solver,
     _get_fxvol_maybe_from_solver,
@@ -170,14 +170,6 @@ class FXOptionStrat:
 
         return x, y
 
-    def _set_notionals(self, notional: DualTypes) -> None:
-        """
-        Set the notionals on each option period. Mainly used by Brokerfly for vega neutral
-        strangle and straddle.
-        """
-        for option in self.periods:
-            option.periods[0].notional = notional
-
     def analytic_greeks(
         self,
         curves: Curves_ = NoInput(0),
@@ -224,7 +216,7 @@ class FXOptionStrat:
         # interdependent options)
         self.rate(curves, solver, fx, base, vol)
 
-        curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
+        curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,
             curves,
@@ -232,25 +224,37 @@ class FXOptionStrat:
             base,
             self.kwargs["pair"][3:],
         )
-        vol = self._vol_as_list(vol, solver)
+        vol_ = self._vol_as_list(vol, solver)
 
         gks = []
-        for option, _vol in zip(self.periods, vol, strict=False):
-            # by calling on the OptionPeriod directly the strike is maintained from rate call.
-            gks.append(
-                option.periods[0].analytic_greeks(
-                    disc_curve=_validate_obj_not_no_input(curves[1], "curves_[1]"),
-                    disc_curve_ccy2=_validate_obj_not_no_input(curves[3], "curves_[3]"),
-                    fx=fx,
-                    base=base,
-                    local=local,
-                    vol=_vol,
-                    premium=option.kwargs["premium"],
-                ),
-            )
+        for option, vol_i in zip(self.periods, vol_, strict=False):
+            if isinstance(option, FXOptionStrat):
+                gks.append(
+                    option.analytic_greeks(
+                        curves=curves,
+                        solver=solver,
+                        fx=fx,
+                        base=base,
+                        local=local,
+                        vol=vol_i,
+                    )
+                )
+            else:  # option is FXOption
+                # by calling on the OptionPeriod directly the strike is maintained from rate call.
+                gks.append(
+                    option._option_periods[0].analytic_greeks(
+                        disc_curve=_validate_obj_not_no_input(curves_[1], "curves_[1]"),
+                        disc_curve_ccy2=_validate_obj_not_no_input(curves_[3], "curves_[3]"),
+                        fx=_validate_fx_as_forwards(fx_),
+                        base=base_,
+                        local=local,
+                        vol=vol_i,
+                        # premium=option.kwargs["premium"],
+                    ),
+                )
 
         _unit_attrs = ["delta", "gamma", "vega", "vomma", "vanna", "_kega", "_kappa", "__bs76"]
-        _ = {}
+        _: dict[str, Any] = {}
         for attr in _unit_attrs:
             _[attr] = sum(gk[attr] * self.rate_weight[i] for i, gk in enumerate(gks))
 
@@ -446,6 +450,14 @@ class FXStraddle(FXOptionStrat, FXOption):
                 vol=self.vol,
             ),
         ]
+
+    def _set_notionals(self, notional: DualTypes) -> None:
+        """
+        Set the notionals on each option period. Mainly used by Brokerfly for vega neutral
+        strangle and straddle.
+        """
+        for option in self.periods:
+            option.periods[0].notional = notional
 
     def _validate_strike_and_premiums(self):
         """called as part of init, specific validation rules for straddle"""
@@ -934,7 +946,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-        vol: list[float] | float = NoInput(0),
+        vol: Sequence[FXVol] | FXVol_ = NoInput(0),
         metric: str_ = NoInput(0),
     ):
         """
@@ -1006,7 +1018,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
-        vol: float = NoInput(0),
+        vol: Sequence[FXVol] | FXVol_ = NoInput(0),
     ):
         """ """
         # implicitly call set_pricing_mid for unpriced parameters
@@ -1066,7 +1078,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
 
 
 def _convert_vol_to_list(vol: Sequence[FXVol] | FXVol_, n: int) -> list[FXVol_]:
-    if isinstance(vol, str) and not isinstance(vol, Sequence):
+    if isinstance(vol, str) or not isinstance(vol, Sequence):
         return [vol] * n
     elif isinstance(vol, Sequence) and len(vol) != n:
         raise ValueError(
