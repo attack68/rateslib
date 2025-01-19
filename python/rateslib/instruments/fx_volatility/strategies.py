@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from collections.abc import Sequence
 
 from pandas import DataFrame
 
+from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.default import NoInput, _drb
 from rateslib.dual import dual_log
 from rateslib.fx_volatility import FXDeltaVolSurface, FXVolObj
@@ -16,7 +18,6 @@ from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
     from rateslib.typing import (
-        Sequence,
         FX_,
         NPV,
         Any,
@@ -238,13 +239,13 @@ class FXOptionStrat:
             # by calling on the OptionPeriod directly the strike is maintained from rate call.
             gks.append(
                 option.periods[0].analytic_greeks(
-                    curves[1],
-                    curves[3],
-                    fx,
-                    base,
-                    local,
-                    _vol,
-                    option.kwargs["premium"],
+                    disc_curve=_validate_obj_not_no_input(curves[1], "curves_[1]"),
+                    disc_curve_ccy2=_validate_obj_not_no_input(curves[3], "curves_[3]"),
+                    fx=fx,
+                    base=base,
+                    local=local,
+                    vol=_vol,
+                    premium=option.kwargs["premium"],
                 ),
             )
 
@@ -1067,7 +1068,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
 def _convert_vol_to_list(vol: Sequence[FXVol] | FXVol_, n: int) -> list[FXVol_]:
     if isinstance(vol, str) and not isinstance(vol, Sequence):
         return [vol] * n
-    elif len(vol) != n:
+    elif isinstance(vol, Sequence) and len(vol) != n:
         raise ValueError(
             "`vol` as a Sequence must have same length as the number of instruments in the "
             "strategy."
