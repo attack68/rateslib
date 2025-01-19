@@ -16,6 +16,7 @@ from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
     from rateslib.typing import (
+        Sequence,
         FX_,
         NPV,
         Any,
@@ -23,6 +24,8 @@ if TYPE_CHECKING:
         DualTypes,
         Solver_,
         str_,
+        FXVol,
+        FXVol_,
     )
 
 
@@ -42,7 +45,9 @@ class FXOptionStrat:
 
     _greeks: dict[str, Any] = {}
     _strat_elements: tuple[FXOption | FXOptionStrat, ...]
-    periods: list[FXOption]
+    vol: FXVol_
+    curves: Curves_
+    kwargs: dict[str, Any]
 
     def __init__(
         self,
@@ -67,10 +72,16 @@ class FXOptionStrat:
     def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
-    def _vol_as_list(self, vol, solver):
+    def _vol_as_list(self, vol: FXVol_ | Sequence[FXVol], solver: Solver_) -> list[FXVol]:
         """Standardise a vol input over the list of periods"""
-        if not isinstance(vol, list | tuple):
-            vol = [vol] * len(self.periods)
+        n = len(self.periods)
+        if isinstance(vol, str) or not isinstance(vol, Sequence):
+            vol = [vol] * n
+        elif n != len(vol):
+            raise ValueError(
+                "`vol` as a Sequence must equal the length of the number "
+                "of Instruments contained in the strategy."
+            )
         return [_get_fxvol_maybe_from_solver(self.vol, _, solver) for _ in vol]
 
     def rate(
@@ -79,7 +90,7 @@ class FXOptionStrat:
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-        vol: list[float] | float = NoInput(0),
+        vol: Sequence[FXVol] | FXVol_ = NoInput(0),
         metric: str_ = NoInput(0),  # "pips_or_%",
     ) -> DualTypes:
         """
@@ -97,18 +108,18 @@ class FXOptionStrat:
         )
         vol = self._vol_as_list(vol, solver)
 
-        metric = metric if metric is not NoInput.blank else self.kwargs["metric"]
+        metric_: str = _drb(self.kwargs["metric"], metric)
         map_ = {
             "pips_or_%": self.rate_weight,
             "vol": self.rate_weight_vol,
             "premium": [1.0] * len(self.periods),
             "single_vol": self.rate_weight_vol,
         }
-        weights = map_[metric]
+        weights = map_[metric_]
 
-        _ = 0.0
+        _: DualTypes = 0.0
         for option, vol_, weight in zip(self.periods, vol, weights, strict=False):
-            _ += option.rate(curves, solver, fx, base, vol_, metric) * weight
+            _ += option.rate(curves, solver, fx, base, vol_, metric_) * weight
         return _
 
     def npv(
@@ -118,22 +129,21 @@ class FXOptionStrat:
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
-        vol: list[float] | float = NoInput(0),
+        vol: Sequence[FXVol] | FXVol_ = NoInput(0),
     ) -> NPV:
-        if not isinstance(vol, list):
-            vol = [vol] * len(self.periods)
+        vol_ = _convert_vol_to_list(vol, len(self.periods))
 
         results = [
-            option.npv(curves, solver, fx, base, local, vol_)
-            for (option, vol_) in zip(self.periods, vol, strict=False)
+            option.npv(curves, solver, fx, base, local, vol__)
+            for (option, vol__) in zip(self.periods, vol_, strict=False)
         ]
 
         if local:
-            _ = DataFrame(results).fillna(0.0)
-            _ = _.sum()
-            _ = _.to_dict()
+            df = DataFrame(results).fillna(0.0)
+            df_sum = df.sum()
+            _: NPV = df_sum.to_dict()
         else:
-            _ = sum(results)
+            _ = sum(results)  # type: ignore[arg-type]
         return _
 
     def _plot_payoff(
@@ -144,8 +154,8 @@ class FXOptionStrat:
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
-        vol: list[float] | float = NoInput(0),
-    ):
+        vol: Sequence[FXVol] | FXVol_ = NoInput(0),
+    ) -> tuple[Any, Any]:
         if not isinstance(vol, list):
             vol = [vol] * len(self.periods)
 
@@ -159,7 +169,7 @@ class FXOptionStrat:
 
         return x, y
 
-    def _set_notionals(self, notional):
+    def _set_notionals(self, notional: DualTypes) -> None:
         """
         Set the notionals on each option period. Mainly used by Brokerfly for vega neutral
         strangle and straddle.
@@ -174,8 +184,8 @@ class FXOptionStrat:
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
-        vol: float = NoInput(0),
-    ):
+        vol: Sequence[FXVol] | FXVol_ = NoInput(0),
+    ) -> dict[str, Any]:
         """
         Return various pricing metrics of the *FX Option*.
 
@@ -1052,3 +1062,15 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         vol = self._vol_as_list(vol, solver)
         self._maybe_set_vega_neutral_notional(curves, solver, fx, base, vol, metric="pips_or_%")
         return super()._plot_payoff(range, curves, solver, fx, base, local, vol)
+
+
+def _convert_vol_to_list(vol: Sequence[FXVol] | FXVol_, n: int) -> list[FXVol_]:
+    if isinstance(vol, str) and not isinstance(vol, Sequence):
+        return [vol] * n
+    elif len(vol) != n:
+        raise ValueError(
+            "`vol` as a Sequence must have same length as the number of instruments in the "
+            "strategy."
+        )
+    else:
+        return list(vol)
