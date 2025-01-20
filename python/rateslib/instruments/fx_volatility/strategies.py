@@ -24,6 +24,7 @@ if TYPE_CHECKING:
         Any,
         Curves_,
         DualTypes,
+        DualTypes_,
         Solver_,
         str_,
         FXVol,
@@ -129,12 +130,12 @@ class FXOptionStrat:
         a Sequence of vols applied to the various levels of associated *Options* or *OptionStrats*
         """
         vol_ = self._parse_vol_sequence(vol)  # vol_ is properly nested for one vol per option
-        ret: list[FXVol_] = []
+        ret: ListFXVol_ = []
         for obj, vol__ in zip(self.periods, vol_):
             if isinstance(obj, FXOptionStrat):
                 ret.append(obj._get_fxvol_maybe_from_solver_recursive(vol__, solver))
             else:
-                ret.append(_get_fxvol_maybe_from_solver(vol_attr=obj.vol, vol=vol__, solver=solver))
+                ret.append(_get_fxvol_maybe_from_solver(vol_attr=obj.vol, vol=vol__, solver=solver))  # type: ignore[arg-type]
         return ret
 
     @property
@@ -196,7 +197,7 @@ class FXOptionStrat:
 
         _: DualTypes = 0.0
         for option, vol__, weight in zip(self.periods, vol_, weights, strict=True):
-            _ += option.rate(curves, solver, fx, base, vol__, metric_) * weight
+            _ += option.rate(curves, solver, fx, base, vol__, metric_) * weight  # type: ignore[arg-type]
         return _
 
     def npv(
@@ -242,7 +243,7 @@ class FXOptionStrat:
         vol_: ListFXVol_ = self._get_fxvol_maybe_from_solver_recursive(vol, solver)
 
         results = [
-            option.npv(curves, solver, fx, base, local, vol__)
+            option.npv(curves, solver, fx, base, local, vol__)  # type: ignore[arg-type]
             for (option, vol__) in zip(self.periods, vol_, strict=True)
         ]
 
@@ -268,7 +269,7 @@ class FXOptionStrat:
 
         y = None
         for option, vol__ in zip(self.periods, vol_, strict=True):
-            x, y_ = option._plot_payoff(window, curves, solver, fx, base, local, vol__)
+            x, y_ = option._plot_payoff(window, curves, solver, fx, base, local, vol__)  # type: ignore[arg-type]
             if y is None:
                 y = y_
             else:
@@ -350,8 +351,7 @@ class FXOptionStrat:
                         disc_curve_ccy2=_validate_obj_not_no_input(curves_[3], "curves_[3]"),
                         fx=_validate_fx_as_forwards(fx_),
                         base=base_,
-                        vol=vol_i,
-                        # premium=option.kwargs["premium"],
+                        vol=vol_i,  # type: ignore[arg-type]
                     ),
                 )
 
@@ -419,8 +419,8 @@ class FXRiskReversal(FXOptionStrat, FXOption):
     def __init__(
         self,
         *args: Any,
-        strike=(NoInput(0), NoInput(0)),
-        premium=(NoInput(0), NoInput(0)),
+        strike: tuple[str | DualTypes_, str | DualTypes_] =(NoInput(0), NoInput(0)),
+        premium: tuple[DualTypes_, DualTypes_] = (NoInput(0), NoInput(0)),
         metric: str = "vol",
         **kwargs: Any,
     ) -> None:
@@ -985,15 +985,17 @@ class FXBrokerFly(FXOptionStrat, FXOption):
     rate_weight_vol = [1.0, -1.0]
     _rate_scalar = 100.0
 
+    periods: tuple[FXStrangle, FXStraddle]  # type: ignore[assignment]
+
     def __init__(
         self,
-        *args,
+        *args: Any,
         strike=(NoInput(0), NoInput(0), NoInput(0)),
         premium=(NoInput(0), NoInput(0), NoInput(0), NoInput(0)),
         notional=(NoInput(0), NoInput(0)),
         metric="single_vol",
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         super(FXOptionStrat, self).__init__(
             *args,
             premium=list(premium),
@@ -1043,7 +1045,15 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         )
         self._vol_parsed = self._parse_vol_sequence(self.vol)
 
-    def _maybe_set_vega_neutral_notional(self, curves, solver, fx, base, vol, metric):
+    def _maybe_set_vega_neutral_notional(
+        self,
+        curves: Curves_,
+        solver: Solver_,
+        fx: FX_,
+        base: str_,
+        vol: ListFXVol_,
+        metric: str_
+    ) -> None:
         if isinstance(self.kwargs["notional"][1], NoInput) and metric in ["pips_or_%", "premium"]:
             self.periods[0]._rate(
                 curves,
@@ -1077,9 +1087,9 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-        vol: Sequence[FXVol] | FXVol_ = NoInput(0),
+        vol: ParsedVol_ = NoInput(0),
         metric: str_ = NoInput(0),
-    ):
+    ) -> DualTypes:
         """
         Return the mid-market rate of an option strategy.
 
