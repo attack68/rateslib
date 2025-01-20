@@ -60,7 +60,6 @@ class FXOptionStrat:
     _greeks: dict[str, Any] = {}
     _strat_elements: tuple[FXOption | FXOptionStrat, ...]
     vol: Sequence[FXVol] | FXVol_
-    _vol_parsed: list[FXVol_]
     curves: Curves_
     kwargs: dict[str, Any]
 
@@ -415,6 +414,8 @@ class FXRiskReversal(FXOptionStrat, FXOption):
     rate_weight = [-1.0, 1.0]
     rate_weight_vol = [-1.0, 1.0]
     _rate_scalar = 100.0
+    periods: list[FXOption]  # type: ignore[assignment]
+    vol: ParsedVol_
 
     def __init__(
         self,
@@ -424,10 +425,10 @@ class FXRiskReversal(FXOptionStrat, FXOption):
         metric: str = "vol",
         **kwargs: Any,
     ) -> None:
-        super(FXOptionStrat, self).__init__(
+        super(FXOptionStrat, self).__init__(  # type: ignore[misc]
             *args,
-            strike=list(strike),
-            premium=list(premium),
+            strike=list(strike),  # type: ignore[arg-type]
+            premium=list(premium),  # type: ignore[arg-type]
             **kwargs,
         )
         self.kwargs["metric"] = metric
@@ -465,7 +466,6 @@ class FXRiskReversal(FXOptionStrat, FXOption):
                 vol=self.vol,
             ),
         )
-        self._vol_parsed = self._parse_vol_sequence(self.vol)
 
     def _validate_strike_and_premiums(self) -> None:
         """called as part of init, specific validation rules for straddle"""
@@ -515,8 +515,16 @@ class FXStraddle(FXOptionStrat, FXOption):
     rate_weight = [1.0, 1.0]
     rate_weight_vol = [0.5, 0.5]
     _rate_scalar = 100.0
+    periods: list[FXOption]
+    vol: ParsedVol_
 
-    def __init__(self, *args, premium=(NoInput(0), NoInput(0)), metric="vol", **kwargs):
+    def __init__(
+        self,
+        *args: Any,
+        premium: tuple[DualTypes_, DualTypes_] = (NoInput(0), NoInput(0)),
+        metric: str ="vol",
+        **kwargs: Any
+    ) -> None:
         super(FXOptionStrat, self).__init__(*args, premium=list(premium), **kwargs)
         self.kwargs["metric"] = metric
         self._strat_elements = [
@@ -553,7 +561,6 @@ class FXStraddle(FXOptionStrat, FXOption):
                 vol=self.vol,
             ),
         ]
-        self._vol_parsed = self._parse_vol_sequence(self.vol)
 
     def _set_notionals(self, notional: DualTypes) -> None:
         """
@@ -678,7 +685,6 @@ class FXStrangle(FXOptionStrat, FXOption):
                 vol=self.vol,
             ),
         )
-        self._vol_parsed = self._parse_vol_sequence(self.vol)
 
     def _validate_strike_and_premiums(self) -> None:
         """called as part of init, specific validation rules for strangle"""
@@ -985,7 +991,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
     rate_weight_vol = [1.0, -1.0]
     _rate_scalar = 100.0
 
-    periods: tuple[FXStrangle, FXStraddle]  # type: ignore[assignment]
+    periods: list[FXOptionStrat]  # type: ignore[assignment]
 
     def __init__(
         self,
@@ -1043,7 +1049,6 @@ class FXBrokerFly(FXOptionStrat, FXOption):
                 vol=self.vol,
             ),
         )
-        self._vol_parsed = self._parse_vol_sequence(self.vol)
 
     def _maybe_set_vega_neutral_notional(
         self,

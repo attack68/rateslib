@@ -153,6 +153,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
 
     _option_periods: tuple[FXPutPeriod | FXCallPeriod]
     _cashflow_periods: tuple[Cashflow]
+    curves: Curves_
 
     def __init__(
         self,
