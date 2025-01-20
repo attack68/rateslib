@@ -128,18 +128,6 @@ def _get_curves_fx_and_base_maybe_from_solver(
     return curves_, fx_, base_
 
 
-def _get_fxvol_maybe_from_solver_recursive(vol_attr: ParsedVol_, vol: ParsedVol_, solver: Solver_) -> ParsedVol_:
-    if isinstance(vol, NoInput):
-        if not isinstance(vol_attr, str) and isinstance(vol_attr, Sequence):
-            return vol_attr  # return the alternative attribute as a Sequence
-        else:
-            return _get_fxvol_maybe_from_solver(vol_attr, vol, solver)
-    elif not isinstance(vol, str) and isinstance(vol, Sequence):
-        return vol  # return the input Sequence directly
-    else:
-        return _get_fxvol_maybe_from_solver(vol_attr, vol, solver)
-
-
 def _get_fxvol_maybe_from_solver(vol_attr: FXVol_, vol: FXVol_, solver: Solver_) -> FXVolOption_:
     """
     Try to retrieve a general vol input from a solver or the default vol object associated with

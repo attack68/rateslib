@@ -13,7 +13,6 @@ from rateslib.instruments.fx_volatility.vanilla import FXCall, FXOption, FXPut
 from rateslib.instruments.utils import (
     _get_curves_fx_and_base_maybe_from_solver,
     _get_fxvol_maybe_from_solver,
-    _get_fxvol_maybe_from_solver_recursive,
     _validate_fx_as_forwards
 )
 from rateslib.splines import evaluate
@@ -168,11 +167,7 @@ class FXOptionStrat:
         #     self.kwargs["pair"][3:],
         # )
 
-        vol_: ParsedVol_ = [
-            _get_fxvol_maybe_from_solver_recursive(self._vol_agg[i], _, solver)
-            for i, _ in enumerate(self._parse_vol_sequence(vol))
-        ]
-
+        vol_: ListFXVol_ = self._get_fxvol_maybe_from_solver_recursive(vol, solver)
         metric_: str = _drb(self.kwargs["metric"], metric)
         map_ = {
             "pips_or_%": self.rate_weight,
@@ -196,10 +191,7 @@ class FXOptionStrat:
         local: bool = False,
         vol: ParsedVol_ = NoInput(0),
     ) -> NPV:
-        vol_: ParsedVol_ = [
-            _get_fxvol_maybe_from_solver_recursive(self._vol_agg[i], _, solver)
-            for i, _ in enumerate(self._parse_vol_sequence(vol))
-        ]
+        vol_: ListFXVol_ = self._get_fxvol_maybe_from_solver_recursive(vol, solver)
 
         results = [
             option.npv(curves, solver, fx, base, local, vol__)
@@ -224,10 +216,7 @@ class FXOptionStrat:
         local: bool = False,
         vol: ParsedVol_ = NoInput(0),
     ) -> tuple[Any, Any]:
-        vol_: ParsedVol_ = [
-            _get_fxvol_maybe_from_solver_recursive(self._vol_agg[i], _, solver)
-            for i, _ in enumerate(self._parse_vol_sequence(vol))
-        ]
+        vol_: ListFXVol_ = self._get_fxvol_maybe_from_solver_recursive(vol, solver)
 
         y = None
         for option, vol__ in zip(self.periods, vol_, strict=True):
@@ -293,10 +282,7 @@ class FXOptionStrat:
             base,
             self.kwargs["pair"][3:],
         )
-        vol_: ParsedVol_ = [
-            _get_fxvol_maybe_from_solver_recursive(self._vol_agg[i], _, solver)
-            for i, _ in enumerate(self._parse_vol_sequence(vol))
-        ]
+        vol_: ListFXVol_ = self._get_fxvol_maybe_from_solver_recursive(vol, solver)
 
         gks = []
         for option, vol_i in zip(self.periods, vol_, strict=True):
@@ -740,10 +726,7 @@ class FXStrangle(FXOptionStrat, FXOption):
             base,
             self.kwargs["pair"][3:],
         )
-        vol_: ParsedVol_ = [
-            _get_fxvol_maybe_from_solver_recursive(self._vol_agg[i], _, solver)
-            for i, _ in enumerate(self._parse_vol_sequence(vol))
-        ]
+        vol_: ListFXVol_ = self._get_fxvol_maybe_from_solver_recursive(vol, solver)
 
         # Get data from objects
         curves_1: Curve = _validate_obj_not_no_input(curves[1], "curves_[1]")
@@ -757,19 +740,25 @@ class FXStrangle(FXOptionStrat, FXOption):
         f_0 = f_d if "forward" in self.kwargs["delta_type"] else f_t
 
         eta1 = None
-        if isinstance(vol[0], FXDeltaVolSurface | FXDeltaVolSmile):
-            eta1 = -0.5 if "_pa" in vol[0].delta_type else 0.5
-            z_w_1 = 1.0 if "forward" in vol[0].delta_type else w_deli / w_spot
+        if isinstance(vol_[0], FXDeltaVolSurface | FXDeltaVolSmile):  # multiple Vol objects cannot be used, will derive conventions from the first one found.
+            eta1 = -0.5 if "_pa" in vol_[0].delta_type else 0.5
+            z_w_1 = 1.0 if "forward" in vol_[0].delta_type else w_deli / w_spot
             fzw1zw0 = f_0 * z_w_1 / z_w_0
 
         # first start by evaluating the individual swaptions given their
         # strikes with the smile - delta or fixed
         gks = [
-            self.periods[0].analytic_greeks(curves, solver, fx, base, vol=vol[0]),
-            self.periods[1].analytic_greeks(curves, solver, fx, base, vol=vol[1]),
+            self.periods[0].analytic_greeks(curves, solver, fx, base, vol=vol_[0]),
+            self.periods[1].analytic_greeks(curves, solver, fx, base, vol=vol_[1]),
         ]
 
-        def d_wrt_sigma1(period_index, greeks, smile_greeks, vol, eta1):
+        def d_wrt_sigma1(
+            period_index: int,
+            greeks: list[dict[str, Any]],
+            smile_greeks: list[dict[str, Any]],
+            vol: FXVol,
+            eta1: float
+        ) -> tuple[DualTypes, DualTypes]:
             """
             Obtain derivatives with respect to tgt vol.
 
@@ -828,10 +817,10 @@ class FXStrangle(FXOptionStrat, FXOption):
             smile_gks = [
                 self.periods[0]
                 .periods[0]
-                .analytic_greeks(curves[1], curves[3], fx, base, vol=vol[0]),
+                .analytic_greeks(curves_[1], curves_[3], fx, base, vol=vol_[0]),
                 self.periods[1]
                 .periods[0]
-                .analytic_greeks(curves[1], curves[3], fx, base, vol=vol[1]),
+                .analytic_greeks(curves_[1], curves_[3], fx, base, vol=vol_[1]),
             ]
 
             # The value of the root function is derived from the 4 previous calculated prices
