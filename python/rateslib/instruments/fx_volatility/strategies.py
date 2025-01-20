@@ -1079,7 +1079,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         #     ]  # restructure to pass to Strangle and Straddle separately
 
         temp_metric = _drb(self.kwargs["metric"], metric)
-        self._maybe_set_vega_neutral_notional(curves, solver, fx, base, vol, temp_metric.lower())
+        self._maybe_set_vega_neutral_notional(curves, solver, fx, base, vol_, temp_metric.lower())
 
         if temp_metric == "pips_or_%":
             straddle_scalar = (

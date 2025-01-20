@@ -110,6 +110,9 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         entered either as *Curve* or str for discounting cashflows in the appropriate currency
         with a consistent collateral on each side. E.g. *[None, "eurusd", None, "usdusd"]*.
         Forecasting curves are not relevant.
+    vol: str, Smile, Surface, float, Dual, Dual2, Variable
+        An attached pricing metric used to value the *FXOption* in the absence of volatility
+        values supplied at price-time.
     spec : str, optional
         An identifier to pre-populate many field with conventional values. See
         :ref:`here<defaults-doc>` for more info and available values.
@@ -504,6 +507,8 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         local : bool, optional
             If `True` will return a dict identifying NPV by local currencies on each
             period.
+        vol: float, Dual, Dual2, FXDeltaVolSmile or FXDeltaVolSurface
+            The volatility used in calculation.
 
         Returns
         -------
@@ -564,7 +569,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             The object to project the relevant forward and spot FX rates.
         base: str, optional
             Not used by `rate`.
-        vol: float, Dual, Dual2 or FXDeltaVolSmile
+        vol: float, Dual, Dual2, FXDeltaVolSmile or FXDeltaVolSurface
             The volatility used in calculation.
 
         Returns
@@ -624,7 +629,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             Not used by `analytic_greeks`.
         local: bool,
             Not used by `analytic_greeks`.
-        vol: float, or FXDeltaVolSmile
+        vol: float, Dual, Dual2, FXDeltaVolSmile or FXDeltaVolSurface
             The volatility used in calculation.
 
         Returns
