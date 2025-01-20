@@ -3476,7 +3476,6 @@ class FXOptionPeriod(metaclass=ABCMeta):
         disc_curve_ccy2: Curve,
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-        local: bool = False,
         vol: FXVolOption_ = NoInput(0),
         metric: str_ = NoInput(0),
     ) -> DualTypes:
@@ -3492,8 +3491,6 @@ class FXOptionPeriod(metaclass=ABCMeta):
         fx: float, FXRates, FXForwards, optional
             The object to project the currency pair FX rate at delivery.
         base: str, optional
-            Not used by `rate`.
-        local: bool,
             Not used by `rate`.
         vol: float, Dual, Dual2
             The percentage log-normal volatility to price the option.
@@ -3599,7 +3596,6 @@ class FXOptionPeriod(metaclass=ABCMeta):
         disc_curve_ccy2: Curve,
         fx: FXForwards,
         base: str_ = NoInput(0),
-        local: bool = False,
         vol: FXVolOption_ = NoInput(0),
         premium: DualTypes_ = NoInput(0),  # expressed in the payment currency
     ) -> dict[str, Any]:
@@ -3615,8 +3611,6 @@ class FXOptionPeriod(metaclass=ABCMeta):
         fx: FXForwards
             The object to project the relevant forward and spot FX rates.
         base: str, optional
-            Not used by `analytic_greeks`.
-        local: bool,
             Not used by `analytic_greeks`.
         vol: float, Dual, Dual2, FXDeltaVolSmile, FXDeltaVolSurface
             The volatility used in calculation.

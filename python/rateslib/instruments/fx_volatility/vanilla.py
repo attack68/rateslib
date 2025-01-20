@@ -468,7 +468,6 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             disc_curve_ccy2=_validate_obj_not_no_input(curves_[3], "curve"),
             fx=fx_,
             base=NoInput(0),
-            local=False,
             vol=self._pricing.vol,
         )
         if metric == "premium":
@@ -608,7 +607,6 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-        local: bool = False,
         vol: FXVol_ = NoInput(0),
     ) -> dict[str, Any]:
         """
@@ -626,8 +624,6 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         fx: FXForwards
             The object to project the relevant forward and spot FX rates.
         base: str, optional
-            Not used by `analytic_greeks`.
-        local: bool,
             Not used by `analytic_greeks`.
         vol: float, Dual, Dual2, FXDeltaVolSmile or FXDeltaVolSurface
             The volatility used in calculation.
@@ -654,7 +650,6 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             disc_curve_ccy2=_validate_obj_not_no_input(curves_[3], "curves_[3]"),
             fx=_validate_fx_as_forwards(fx_),
             base=base_,
-            local=local,
             vol=vol_,
             premium=NoInput(0),
         )

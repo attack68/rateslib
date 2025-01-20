@@ -154,19 +154,36 @@ class FXOptionStrat:
         metric: str_ = NoInput(0),  # "pips_or_%",
     ) -> DualTypes:
         """
-        Return the mid-market rate of an option strategy.
+        Return various pricing metrics of the *FX Option*.
 
-        See :meth:`~rateslib.instruments.FXOption.rate`.
+        Parameters
+        ----------
+        curves : list of Curve
+            Curves for discounting cashflows. List follows the structure used by IRDs and
+            should be given as:
+            `[None, Curve for domestic ccy, None, Curve for foreign ccy]`
+        solver : Solver, optional
+            The numerical :class:`Solver` that constructs *Curves*, *Smiles* or *Surfaces* from
+            calibrating instruments.
+        fx: FXForwards
+            The object to project the relevant forward and spot FX rates.
+        base: str, optional
+            3-digit currency to express values in (not used by the `rate` method).
+        vol: float, Dual, Dual2, FXDeltaVolSmile or FXDeltaVolSurface, or Sequence of such, optional
+            The volatility used in calculation.
+        metric: str in {"pips_or_%", "vol", "premium"}, optional
+            The pricing metric type to return. See notes.
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        Notes
+        -----
+        If the ``vol`` option is given as a Sequence of volatility values, these should be
+        ordered according to each *FXOption* or *FXOptionStrat* contained on the *Instrument*.
+        For nested *FXOptionStrat* use nested sequences.
         """
-        # curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
-        #     self.curves,
-        #     solver,
-        #     curves,
-        #     fx,
-        #     base,
-        #     self.kwargs["pair"][3:],
-        # )
-
         vol_: ListFXVol_ = self._get_fxvol_maybe_from_solver_recursive(vol, solver)
         metric_: str = _drb(self.kwargs["metric"], metric)
         map_ = {
@@ -191,6 +208,37 @@ class FXOptionStrat:
         local: bool = False,
         vol: ParsedVol_ = NoInput(0),
     ) -> NPV:
+        """
+        Return the NPV of the *FX Option Strategy*.
+
+        Parameters
+        ----------
+        curves : list of Curve
+            Curves for discounting cashflows. List follows the structure used by IRDs and
+            should be given as:
+            `[None, Curve for domestic ccy, None, Curve for foreign ccy]`
+        solver : Solver, optional
+            The numerical :class:`Solver` that constructs *Curves*, *Smiles* or *Surfaces* from
+            calibrating instruments.
+        fx: FXForwards
+            The object to project the relevant forward and spot FX rates.
+        base: str, optional
+            3-digit currency to express values in (not used by the `rate` method).
+        vol: float, Dual, Dual2, FXDeltaVolSmile or FXDeltaVolSurface, or Sequence of such, optional
+            The volatility used in calculation.
+        metric: str in {"pips_or_%", "vol", "premium"}, optional
+            The pricing metric type to return. See notes.
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        Notes
+        -----
+        If the ``vol`` option is given as a Sequence of volatility values, these should be
+        ordered according to each *FXOption* or *FXOptionStrat* contained on the *Instrument*.
+        For nested *FXOptionStrat* use nested sequences.
+        """
         vol_: ListFXVol_ = self._get_fxvol_maybe_from_solver_recursive(vol, solver)
 
         results = [
@@ -234,38 +282,36 @@ class FXOptionStrat:
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-        local: bool = False,
         vol: ParsedVol_ = NoInput(0),
     ) -> dict[str, Any]:
         """
-        Return various pricing metrics of the *FX Option*.
+        Return aggregated greeks of the *FXOptionStrat*.
 
         Parameters
         ----------
         curves : list of Curve
-            Curves for discounting cashflows. List follows the structure used by IRDs and should
-            be given as:
+            Curves for discounting cashflows. List follows the structure used by IRDs and
+            should be given as:
             `[None, Curve for domestic ccy, None, Curve for foreign ccy]`
         solver : Solver, optional
-            The numerical :class:`Solver` that constructs ``Curves`` from calibrating
-            instruments.
-        fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            ``FXRates`` or ``FXForwards`` object, converts from local currency
-            into ``base``.
-        base : str, optional
-            The base currency to convert cashflows into (3-digit code), set by default.
-            Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
-
+            The numerical :class:`Solver` that constructs *Curves*, *Smiles* or *Surfaces* from
+            calibrating instruments.
+        fx: FXForwards
+            The object to project the relevant forward and spot FX rates.
+        base: str, optional
+            3-digit currency to express values in (not used by the `rate` method).
+        vol: float, Dual, Dual2, FXDeltaVolSmile or FXDeltaVolSurface, or Sequence of such, optional
+            The volatility used in calculation.
 
         Returns
         -------
-        float, Dual, Dual2
+        dict
 
         Notes
-        ------
-
+        -----
+        If the ``vol`` option is given as a Sequence of volatility values, these should be
+        ordered according to each *FXOption* or *FXOptionStrat* contained on the *Instrument*.
+        For nested *FXOptionStrat* use nested sequences.
         """
 
         # implicitly call set_pricing_mid for unpriced parameters
@@ -293,7 +339,6 @@ class FXOptionStrat:
                         solver=solver,
                         fx=fx,
                         base=base,
-                        local=local,
                         vol=vol_i,
                     )
                 )
@@ -305,7 +350,6 @@ class FXOptionStrat:
                         disc_curve_ccy2=_validate_obj_not_no_input(curves_[3], "curves_[3]"),
                         fx=_validate_fx_as_forwards(fx_),
                         base=base_,
-                        local=local,
                         vol=vol_i,
                         # premium=option.kwargs["premium"],
                     ),
@@ -729,7 +773,8 @@ class FXStrangle(FXOptionStrat, FXOption):
         vol_: ListFXVol_ = self._get_fxvol_maybe_from_solver_recursive(vol, solver)
 
         # Get data from objects
-        curves_1: Curve = _validate_obj_not_no_input(curves[1], "curves_[1]")
+        curves_1: Curve = _validate_obj_not_no_input(curves_[1], "curves_[1]")
+        curves_3: Curve = _validate_obj_not_no_input(curves_[3], "curves_[3]")
         spot: datetime = fx.pairs_settlement[self.kwargs["pair"]]
         w_spot: DualTypes = curves_1[spot]
         w_deli: DualTypes = curves_1[self.kwargs["delivery"]]
@@ -784,6 +829,8 @@ class FXStrangle(FXOptionStrat, FXOption):
                     sg[i]["_kappa"] * g[i]["_kega"],
                 )
             else:
+                if isinstance(vol, FXDeltaVolSurface):
+                    vol = vol.get_smile(self.kwargs["expiry"])
                 dvol_ddeltaidx = evaluate(vol.spline, sg[i]["_delta_index"], 1) * 0.01
                 ddeltaidx_dvol1 = sg[i]["gamma"] * fzw1zw0
                 if eta1 < 0:  # premium adjusted vol smile
@@ -817,10 +864,10 @@ class FXStrangle(FXOptionStrat, FXOption):
             smile_gks = [
                 self.periods[0]
                 .periods[0]
-                .analytic_greeks(curves_[1], curves_[3], fx, base, vol=vol_[0]),
+                .analytic_greeks(curves_1, curves_3, fx_, base_, vol=vol_[0]),
                 self.periods[1]
                 .periods[0]
-                .analytic_greeks(curves_[1], curves_[3], fx, base, vol=vol_[1]),
+                .analytic_greeks(curves_1, curves_3, fx_, base_, vol=vol_[1]),
             ]
 
             # The value of the root function is derived from the 4 previous calculated prices
@@ -853,10 +900,10 @@ class FXStrangle(FXOptionStrat, FXOption):
                 "market_vol": {
                     "FXPut": self.periods[0]
                     .periods[0]
-                    .analytic_greeks(curves[1], curves[3], fx, base, vol=vol_[0]),
+                    .analytic_greeks(curves_1, curves_3, fx, base, vol=vol_[0]),
                     "FXCall": self.periods[1]
                     .periods[0]
-                    .analytic_greeks(curves[1], curves[3], fx, base, vol=vol_[1]),
+                    .analytic_greeks(curves_1, curves_3, fx, base, vol=vol_[1]),
                 },
             }
 
@@ -1102,7 +1149,6 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-        local: bool = False,
         vol: Sequence[FXVol] | FXVol_ = NoInput(0),
     ):
         """ """
@@ -1118,8 +1164,8 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         #     vol = [[vol[0], vol[2]], vol[1]]  # restructure for strangle / straddle
 
         # TODO: this meth can be optimised because it calculates greeks at multiple times in frames
-        g_grks = self.periods[0].analytic_greeks(curves, solver, fx, base, local, vol_[0])
-        d_grks = self.periods[1].analytic_greeks(curves, solver, fx, base, local, vol_[1])
+        g_grks = self.periods[0].analytic_greeks(curves, solver, fx, base, vol_[0])
+        d_grks = self.periods[1].analytic_greeks(curves, solver, fx, base, vol_[1])
         sclr = abs(
             self.periods[1].periods[0].periods[0].notional
             / self.periods[0].periods[0].periods[0].notional,
