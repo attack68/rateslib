@@ -525,7 +525,7 @@ class FXStraddle(FXOptionStrat, FXOption):
         metric: str ="vol",
         **kwargs: Any
     ) -> None:
-        super(FXOptionStrat, self).__init__(*args, premium=list(premium), **kwargs)
+        super(FXOptionStrat, self).__init__(*args, premium=list(premium), **kwargs)  # type: ignore[misc, ]
         self.kwargs["metric"] = metric
         self._strat_elements = [
             FXPut(
@@ -634,9 +634,9 @@ class FXStrangle(FXOptionStrat, FXOption):
     def __init__(
         self,
         *args: Any,
-        strike=(NoInput(0), NoInput(0)),
-        premium=(NoInput(0), NoInput(0)),
-        metric: str ="single_vol",
+        strike: tuple[str | DualTypes_, str | DualTypes_] =(NoInput(0), NoInput(0)),
+        premium: tuple[DualTypes_, DualTypes_] =(NoInput(0), NoInput(0)),
+        metric: str = "single_vol",
         **kwargs: Any,
     ) -> None:
         super(FXOptionStrat, self).__init__(
@@ -1217,7 +1217,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
-        vol: list[float] | float = NoInput(0),
+        vol: ParsedVol_ = NoInput(0),
     ):
         vol_ = self._get_fxvol_maybe_from_solver_recursive(vol, solver)
         self._maybe_set_vega_neutral_notional(curves, solver, fx, base, vol_, metric="pips_or_%")
