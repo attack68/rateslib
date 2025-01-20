@@ -132,7 +132,8 @@ VolInput_: TypeAlias = "str | FXDeltaVolSmile | FXDeltaVolSurface"
 VolInput: TypeAlias = "VolInput_ | NoInput"
 
 ParsedVol_: TypeAlias = "Sequence[ParsedVol_] | FXVol_"
-ListFXVol_: TypeAlias = "list[ListFXVol_] | FXVol_"
+ListParsedVol: TypeAlias = "list[ParsedVol_]"
+ListFXVol_: TypeAlias = "list[ListFXVol_ | FXVol_]"
 
 FX: TypeAlias = "DualTypes | FXRates | FXForwards"
 FX_: TypeAlias = "FX | NoInput"

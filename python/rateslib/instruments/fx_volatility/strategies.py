@@ -32,7 +32,8 @@ if TYPE_CHECKING:
         datetime,
         FXForwards,
         ParsedVol_,
-        ListFXVol_
+        ListFXVol_,
+        ListParsedVol,
     )
 
 
@@ -77,7 +78,6 @@ class FXOptionStrat:
             raise ValueError(
                 "`rate_weight` and `rate_weight_vol` must have same length as `options`.",
             )
-        self._vol_parsed = self._parse_vol_sequence(self.vol)
 
     @property
     def _vol_agg(self) -> ParsedVol_:
@@ -89,7 +89,7 @@ class FXOptionStrat:
                 return obj._vol_agg
         return [vol_attr(obj) for obj in self._strat_elements]
 
-    def _parse_vol_sequence(self, vol: ParsedVol_) -> ParsedVol_:
+    def _parse_vol_sequence(self, vol: ParsedVol_) -> ListParsedVol:
         """
         This function exists to determine a recursive list
 
@@ -115,7 +115,7 @@ class FXOptionStrat:
                     f"strategy elements: {len(self.periods)}"
                 )
             else:
-                ret: list[ParsedVol_] = []
+                ret = []
                 for obj, vol_ in zip(self.periods, vol, strict=True):
                     if isinstance(obj, FXOptionStrat):
                         ret.append(obj._parse_vol_sequence(vol_))
@@ -132,7 +132,7 @@ class FXOptionStrat:
         ret: list[FXVol_] = []
         for obj, vol__ in zip(self.periods, vol_):
             if isinstance(obj, FXOptionStrat):
-                ret.append(self._get_fxvol_maybe_from_solver_recursive(vol__, solver))
+                ret.append(obj._get_fxvol_maybe_from_solver_recursive(vol__, solver))
             else:
                 ret.append(_get_fxvol_maybe_from_solver(vol_attr=obj.vol, vol=vol__, solver=solver))
         return ret
@@ -756,7 +756,7 @@ class FXStrangle(FXOptionStrat, FXOption):
             period_index: int,
             greeks: list[dict[str, Any]],
             smile_greeks: list[dict[str, Any]],
-            vol: FXVol,
+            vol: list[FXVol],
             eta1: float
         ) -> tuple[DualTypes, DualTypes]:
             """
@@ -831,8 +831,8 @@ class FXStrangle(FXOptionStrat, FXOption):
                 - gks[1]["__bs76"]
             )
 
-            dc1_dvol1_0, dcmkt_dvol1_0 = d_wrt_sigma1(0, gks, smile_gks, vol, eta1)
-            dc1_dvol1_1, dcmkt_dvol1_1 = d_wrt_sigma1(1, gks, smile_gks, vol, eta1)
+            dc1_dvol1_0, dcmkt_dvol1_0 = d_wrt_sigma1(0, gks, smile_gks, vol_, eta1)
+            dc1_dvol1_1, dcmkt_dvol1_1 = d_wrt_sigma1(1, gks, smile_gks, vol_, eta1)
             f1 = dcmkt_dvol1_0 + dcmkt_dvol1_1 - dc1_dvol1_0 - dc1_dvol1_1
 
             tgt_vol = tgt_vol - (f0 / f1) * 100.0  # Newton-Raphson step
@@ -853,10 +853,10 @@ class FXStrangle(FXOptionStrat, FXOption):
                 "market_vol": {
                     "FXPut": self.periods[0]
                     .periods[0]
-                    .analytic_greeks(curves[1], curves[3], fx, base, vol=vol[0]),
+                    .analytic_greeks(curves[1], curves[3], fx, base, vol=vol_[0]),
                     "FXCall": self.periods[1]
                     .periods[0]
-                    .analytic_greeks(curves[1], curves[3], fx, base, vol=vol[1]),
+                    .analytic_greeks(curves[1], curves[3], fx, base, vol=vol_[1]),
                 },
             }
 
@@ -997,7 +997,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         self._vol_parsed = self._parse_vol_sequence(self.vol)
 
     def _maybe_set_vega_neutral_notional(self, curves, solver, fx, base, vol, metric):
-        if self.kwargs["notional"][1] is NoInput.blank and metric in ["pips_or_%", "premium"]:
+        if isinstance(self.kwargs["notional"][1], NoInput) and metric in ["pips_or_%", "premium"]:
             self.periods[0]._rate(
                 curves,
                 solver,
@@ -1069,13 +1069,14 @@ class FXBrokerFly(FXOptionStrat, FXOption):
           the total premium
           is the sum of two premiums and the ``rate_weight`` parameters are [1.0, 1.0].
         """
-        if not isinstance(vol, list):
-            vol = [[vol, vol], vol]
-        else:
-            vol = [
-                [vol[0], vol[2]],
-                vol[1],
-            ]  # restructure to pass to Strangle and Straddle separately
+        vol_ = self._get_fxvol_maybe_from_solver_recursive(vol, solver)
+        # if not isinstance(vol, list):
+        #     vol = [[vol, vol], vol]
+        # else:
+        #     vol = [
+        #         [vol[0], vol[2]],
+        #         vol[1],
+        #     ]  # restructure to pass to Strangle and Straddle separately
 
         temp_metric = _drb(self.kwargs["metric"], metric)
         self._maybe_set_vega_neutral_notional(curves, solver, fx, base, vol, temp_metric.lower())
@@ -1091,8 +1092,8 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         else:
             weights = self.rate_weight_vol
         _ = 0.0
-        for option_strat, vol_, weight in zip(self.periods, vol, weights, strict=False):
-            _ += option_strat.rate(curves, solver, fx, base, vol_, metric) * weight
+        for option_strat, vol__, weight in zip(self.periods, vol_, weights, strict=False):
+            _ += option_strat.rate(curves, solver, fx, base, vol__, metric) * weight
         return _
 
     def analytic_greeks(
@@ -1110,14 +1111,15 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         # curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
         #     self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
         # )
-        if not isinstance(vol, list):
-            vol = [[vol, vol], vol]
-        else:
-            vol = [[vol[0], vol[2]], vol[1]]  # restructure for strangle / straddle
+        vol_ = self._get_fxvol_maybe_from_solver_recursive(vol, solver)
+        # if not isinstance(vol, list):
+        #     vol = [[vol, vol], vol]
+        # else:
+        #     vol = [[vol[0], vol[2]], vol[1]]  # restructure for strangle / straddle
 
         # TODO: this meth can be optimised because it calculates greeks at multiple times in frames
-        g_grks = self.periods[0].analytic_greeks(curves, solver, fx, base, local, vol[0])
-        d_grks = self.periods[1].analytic_greeks(curves, solver, fx, base, local, vol[1])
+        g_grks = self.periods[0].analytic_greeks(curves, solver, fx, base, local, vol_[0])
+        d_grks = self.periods[1].analytic_greeks(curves, solver, fx, base, local, vol_[1])
         sclr = abs(
             self.periods[1].periods[0].periods[0].notional
             / self.periods[0].periods[0].periods[0].notional,
@@ -1156,6 +1158,6 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         local: bool = False,
         vol: list[float] | float = NoInput(0),
     ):
-        vol = self._vol_as_list(vol, solver)
-        self._maybe_set_vega_neutral_notional(curves, solver, fx, base, vol, metric="pips_or_%")
-        return super()._plot_payoff(range, curves, solver, fx, base, local, vol)
+        vol_ = self._get_fxvol_maybe_from_solver_recursive(vol, solver)
+        self._maybe_set_vega_neutral_notional(curves, solver, fx, base, vol_, metric="pips_or_%")
+        return super()._plot_payoff(range, curves, solver, fx, base, local, vol_)
