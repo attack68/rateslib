@@ -828,16 +828,16 @@ class FXStrangle(FXOptionStrat, FXOption):
 
         # first start by evaluating the individual swaptions given their
         # strikes with the smile - delta or fixed
-        gks = [
+        gks: list[dict[str, Any]] = [
             self.periods[0].analytic_greeks(curves, solver, fx, base, vol=vol_0),
             self.periods[1].analytic_greeks(curves, solver, fx, base, vol=vol_1),
         ]
 
         def d_wrt_sigma1(
             period_index: int,
-            greeks: list[dict[str, Any]],
-            smile_greeks: list[dict[str, Any]],
-            vol: list[FXVol],
+            g: dict[str, Any],  # greeks
+            sg: dict[str, Any],  # smile_greeks
+            vol: FXVol,
             eta1: float
         ) -> tuple[DualTypes, DualTypes]:
             """
@@ -855,33 +855,32 @@ class FXStrangle(FXOptionStrat, FXOption):
             whether the strike above is set to float or is left in AD format which has other
             implications for the calculation of risk sensitivities.
             """
-            i, sg, g = period_index, smile_greeks, greeks
-            fixed_delta, vol = self._is_fixed_delta[i], vol[i]
+            fixed_delta = self._is_fixed_delta[period_index]
             if not fixed_delta:
-                return g[i]["vega"], 0.0
+                return g["vega"], 0.0
             elif not isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
                 return (
-                    g[i]["_kappa"] * g[i]["_kega"] + g[i]["vega"],
-                    sg[i]["_kappa"] * g[i]["_kega"],
+                    g["_kappa"] * g["_kega"] + g["vega"],
+                    sg["_kappa"] * g["_kega"],
                 )
             else:
                 if isinstance(vol, FXDeltaVolSurface):
                     vol = vol.get_smile(self.kwargs["expiry"])
-                dvol_ddeltaidx = evaluate(vol.spline, sg[i]["_delta_index"], 1) * 0.01
-                ddeltaidx_dvol1 = sg[i]["gamma"] * fzw1zw0
+                dvol_ddeltaidx = evaluate(vol.spline, sg["_delta_index"], 1) * 0.01
+                ddeltaidx_dvol1 = sg["gamma"] * fzw1zw0
                 if eta1 < 0:  # premium adjusted vol smile
-                    ddeltaidx_dvol1 += sg[i]["_delta_index"]
-                ddeltaidx_dvol1 *= g[i]["_kega"] / sg[i]["__strike"]
+                    ddeltaidx_dvol1 += sg["_delta_index"]
+                ddeltaidx_dvol1 *= g["_kega"] / sg["__strike"]
 
-                _ = dual_log(sg[i]["__strike"] / f_d) / sg[i]["__vol"]
-                _ += eta1 * sg[i]["__vol"] * sg[i]["__sqrt_t"] ** 2
-                _ *= dvol_ddeltaidx * sg[i]["gamma"] * fzw1zw0
+                _ = dual_log(sg["__strike"] / f_d) / sg["__vol"]
+                _ += eta1 * sg["__vol"] * sg["__sqrt_t"] ** 2
+                _ *= dvol_ddeltaidx * sg["gamma"] * fzw1zw0
                 ddeltaidx_dvol1 /= 1 + _
 
                 return (
-                    g[i]["_kappa"] * g[i]["_kega"] + g[i]["vega"],
-                    sg[i]["_kappa"] * g[i]["_kega"]
-                    + sg[i]["vega"] * dvol_ddeltaidx * ddeltaidx_dvol1,
+                    g["_kappa"] * g["_kega"] + g["vega"],
+                    sg["_kappa"] * g["_kega"]
+                    + sg["vega"] * dvol_ddeltaidx * ddeltaidx_dvol1,
                 )
 
         tgt_vol = (gks[0]["__vol"] * gks[0]["vega"] + gks[1]["__vol"] * gks[1]["vega"]) * 100.0
@@ -914,8 +913,8 @@ class FXStrangle(FXOptionStrat, FXOption):
                 - gks[1]["__bs76"]
             )
 
-            dc1_dvol1_0, dcmkt_dvol1_0 = d_wrt_sigma1(0, gks, smile_gks, [vol_0, vol_1], eta1)
-            dc1_dvol1_1, dcmkt_dvol1_1 = d_wrt_sigma1(1, gks, smile_gks, [vol_0, vol_1], eta1)
+            dc1_dvol1_0, dcmkt_dvol1_0 = d_wrt_sigma1(0, gks[0], smile_gks[0], vol_0, eta1)
+            dc1_dvol1_1, dcmkt_dvol1_1 = d_wrt_sigma1(1, gks[1], smile_gks[1], vol_1, eta1)
             f1 = dcmkt_dvol1_0 + dcmkt_dvol1_1 - dc1_dvol1_0 - dc1_dvol1_1
 
             tgt_vol = tgt_vol - (f0 / f1) * 100.0  # Newton-Raphson step
