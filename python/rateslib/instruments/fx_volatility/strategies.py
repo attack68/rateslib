@@ -154,25 +154,26 @@ class FXOptionStrat:
         metric: str_ = NoInput(0),  # "pips_or_%",
     ) -> DualTypes:
         """
-        Return various pricing metrics of the *FX Option*.
+        Return various pricing metrics of the *FXOptionStrat*.
 
         Parameters
         ----------
         curves : list of Curve
             Curves for discounting cashflows. List follows the structure used by IRDs and
             should be given as:
-            `[None, Curve for domestic ccy, None, Curve for foreign ccy]`
+            `[None, Curve for ccy1, None, Curve for ccy2]`
         solver : Solver, optional
             The numerical :class:`Solver` that constructs *Curves*, *Smiles* or *Surfaces* from
             calibrating instruments.
         fx: FXForwards
             The object to project the relevant forward and spot FX rates.
         base: str, optional
-            3-digit currency to express values in (not used by the `rate` method).
+            Not used by the `rate` method.
         vol: float, Dual, Dual2, FXDeltaVolSmile or FXDeltaVolSurface, or Sequence of such, optional
             The volatility used in calculation.
         metric: str in {"pips_or_%", "vol", "premium"}, optional
-            The pricing metric type to return. See notes.
+            The pricing metric type to return. See notes for
+            :meth:`FXOption.rate <rateslib.instruments.FXOption.rate>`
 
         Returns
         -------
@@ -209,25 +210,25 @@ class FXOptionStrat:
         vol: ParsedVol_ = NoInput(0),
     ) -> NPV:
         """
-        Return the NPV of the *FX Option Strategy*.
+        Return the NPV of the *FXOptionStrat*.
 
         Parameters
         ----------
         curves : list of Curve
             Curves for discounting cashflows. List follows the structure used by IRDs and
-            should be given as:
-            `[None, Curve for domestic ccy, None, Curve for foreign ccy]`
+            should be given as: `[None, Curve for ccy1, None, Curve for ccy2]`
         solver : Solver, optional
             The numerical :class:`Solver` that constructs *Curves*, *Smiles* or *Surfaces* from
             calibrating instruments.
         fx: FXForwards
             The object to project the relevant forward and spot FX rates.
         base: str, optional
-            3-digit currency to express values in (not used by the `rate` method).
+            3-digit currency in which to express values.
+        local: bool, optional
+            If `True` will return a dict identifying NPV by local currencies on each
+            period.
         vol: float, Dual, Dual2, FXDeltaVolSmile or FXDeltaVolSurface, or Sequence of such, optional
             The volatility used in calculation.
-        metric: str in {"pips_or_%", "vol", "premium"}, optional
-            The pricing metric type to return. See notes.
 
         Returns
         -------
@@ -299,7 +300,7 @@ class FXOptionStrat:
         fx: FXForwards
             The object to project the relevant forward and spot FX rates.
         base: str, optional
-            3-digit currency to express values in (not used by the `rate` method).
+            Not used by `analytic_greeks`.
         vol: float, Dual, Dual2, FXDeltaVolSmile or FXDeltaVolSurface, or Sequence of such, optional
             The volatility used in calculation.
 
