@@ -5608,8 +5608,8 @@ class TestFXBrokerFly:
     @pytest.mark.parametrize(
         "strikes",
         [
-            ("-20d", "atm_delta", "20d"),
-            (1.0238746345527665, 1.0683288279019205, 1.1159199351325004),
+            (("-20d", "20d"), "atm_delta"),
+            ((1.0238746345527665, 1.1159199351325004), 1.0683288279019205)
         ],
     )
     def test_greeks_delta_direction(self, fxfo, notn, expected_grks, expected_ccy, strikes) -> None:
@@ -5665,7 +5665,7 @@ class TestFXBrokerFly:
             curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
             delta_type="forward",
             premium_ccy="usd",
-            strike=["-20d", "atm_delta", "20d"],
+            strike=[["-20d", "20d"], "atm_delta"],
             vol=fxvs,
         )
         result = fxo.rate(metric="single_vol", fx=fxfo)
@@ -5680,7 +5680,7 @@ class TestFXBrokerFly:
             payment_lag=dt(2023, 6, 20),
             delta_type="forward",
             premium_ccy="usd",
-            strike=["-20d", "atm_delta", "20d"],
+            strike=[["-20d", "20d"], "atm_delta"],
         )
         expected = f"<rl.FXBrokerFly at {hex(id(fxo))}>"
         assert expected == fxo.__repr__()

@@ -2015,10 +2015,10 @@ def test_solver_with_surface() -> None:
         instruments.extend(
             [
                 FXStraddle(strike="atm_delta", expiry=row[0], **fx_args),
-                FXRiskReversal(strike=["-25d", "25d"], expiry=row[0], **fx_args),
-                FXBrokerFly(strike=["-25d", "atm_delta", "25d"], expiry=row[0], **fx_args),
-                FXRiskReversal(strike=["-10d", "10d"], expiry=row[0], **fx_args),
-                FXBrokerFly(strike=["-10d", "atm_delta", "10d"], expiry=row[0], **fx_args),
+                FXRiskReversal(strike=("-25d", "25d"), expiry=row[0], **fx_args),
+                FXBrokerFly(strike=(("-25d", "25d"), "atm_delta"), expiry=row[0], **fx_args),
+                FXRiskReversal(strike=("-10d", "10d"), expiry=row[0], **fx_args),
+                FXBrokerFly(strike=(("-10d", "10d"), "atm_delta"), expiry=row[0], **fx_args),
             ],
         )
         s.extend([row[1], row[2], row[3], row[4], row[5]])
@@ -2309,10 +2309,10 @@ class TestStateManagement:
                         dt(2024, 5, 9), "3W", pair="eurusd", curves=[None, "eurusd", None, "usdusd"]
                     ),
                     FXStraddle(strike="atm_delta", **option_args),
-                    FXRiskReversal(strike=["-25d", "25d"], **option_args),
-                    FXRiskReversal(strike=["-10d", "10d"], **option_args),
-                    FXBrokerFly(strike=["-25d", "atm_delta", "25d"], **option_args),
-                    FXBrokerFly(strike=["-10d", "atm_delta", "10d"], **option_args),
+                    FXRiskReversal(strike=("-25d", "25d"), **option_args),
+                    FXRiskReversal(strike=("-10d", "10d"), **option_args),
+                    FXBrokerFly(strike=(("-25d", "25d"), "atm_delta"), **option_args),
+                    FXBrokerFly(strike=(("-10d", "10d"), "atm_delta"), **option_args),
                 ],
                 s=[3.90, 5.32, 8.85, 5.493, -0.157, -0.289, 0.071, 0.238],
                 fx=fxf,
