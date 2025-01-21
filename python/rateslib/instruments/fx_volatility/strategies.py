@@ -170,7 +170,7 @@ class FXOptionStrat:
         base: str, optional
             Not used by the `rate` method.
         vol: float, Dual, Dual2, FXDeltaVolSmile or FXDeltaVolSurface, or Sequence of such, optional
-            The volatility used in calculation.
+            The volatility used in calculation. See notes.
         metric: str in {"pips_or_%", "vol", "premium"}, optional
             The pricing metric type to return. See notes for
             :meth:`FXOption.rate <rateslib.instruments.FXOption.rate>`
@@ -184,6 +184,13 @@ class FXOptionStrat:
         If the ``vol`` option is given as a Sequence of volatility values, these should be
         ordered according to each *FXOption* or *FXOptionStrat* contained on the *Instrument*.
         For nested *FXOptionStrat* use nested sequences.
+
+        For example, for an *FXBrokerFly*, which contains an *FXStrangle* and an *FXStraddle*,
+        ``vol`` may be entered as `[[12, 11], 10]` which are values of 12% and 11% on the
+        *Strangle* options and 10% for the two *Straddle* options, or just `"fx_surface1"` which
+        will determine all volatilities from an FXDeltaVolSurface associated with a *Solver*,
+        with id: "fx_surface1".
+
         """
         vol_: ListFXVol_ = self._get_fxvol_maybe_from_solver_recursive(vol, solver)
         metric_: str = _drb(self.kwargs["metric"], metric)
@@ -601,6 +608,9 @@ class FXStrangle(FXOptionStrat, FXOption):
     """
     Create an *FX Strangle* option strategy.
 
+    An *FXStrangle* is composed of a lower strike :class:`~rateslib.instruments.FXPut` and
+    a higher strike :class:`~rateslib.instruments.FXCall`.
+
     For additional arguments see :class:`~rateslib.instruments.FXOption`.
 
     Parameters
@@ -608,10 +618,10 @@ class FXStrangle(FXOptionStrat, FXOption):
     args: tuple
         Positional arguments to :class:`~rateslib.instruments.FXOption`.
     strike: 2-element sequence
-        The first element is applied to the lower strike put and the
-        second element applied to the higher strike call, e.g. `["-25d", "25d"]`.
+        The first element is applied to the lower strike *Put* and the
+        second element applied to the higher strike *Call*, e.g. `["-25d", "25d"]`.
     premium: 2-element sequence, optional
-        The premiums associated with each option of the strangle.
+        The premiums associated with each *FXOption* of the *Strangle*.
     metric: str, optional
         The default metric to apply in the method :meth:`~rateslib.instruments.FXOptionStrat.rate`
     kwargs: tuple
@@ -619,23 +629,25 @@ class FXStrangle(FXOptionStrat, FXOption):
 
     Notes
     -----
+    Buying a *Strangle* equates to buying a lower strike :class:`~rateslib.instruments.FXPut`
+    and buying a higher strike :class:`~rateslib.instruments.FXCall`. The ``notional`` is provided
+    as a single input and is applied to both *FXOptions*.
+
     When supplying ``strike`` as a string delta the strike will be determined at price time from
     the provided volatility.
 
-    Buying a *Strangle* equates to buying a lower strike :class:`~rateslib.instruments.FXPut`
-    and buying a higher strike :class:`~rateslib.instruments.FXCall`.
-
     This class is essentially an alias constructor for an
     :class:`~rateslib.instruments.FXOptionStrat` where the number
-    of options and their definitions and nominals have been specifically set.
+    of options and their definitions and nominals have been specifically overloaded for
+    convenience.
 
     .. warning::
 
-       The default ``metric`` for an *FXStraddle* is *'single_vol'*, which requires an iterative
-       algorithm to solve.
-       For defined strikes it is usually very accurate but for strikes defined by delta it
-       will return a solution within 0.1 pips. This means it is both slower than other instruments
-       and inexact.
+       The default ``metric`` for an *FXStrangle* is *'single_vol'*, which requires
+       an iterative algorithm to solve.
+       For defined strikes it is accurate but for strikes defined by delta it
+       will return an iterated solution within 0.1 pips. This means it is both slower
+       than other instruments and inexact.
 
     """
 
@@ -959,22 +971,26 @@ class FXBrokerFly(FXOptionStrat, FXOption):
     """
     Create an *FX BrokerFly* option strategy.
 
+    An *FXBrokerFly* is composed of an :class:`~rateslib.instruments.FXStrangle` and an
+    :class:`~rateslib.instruments.FXStraddle`, in that order.
+
     For additional arguments see :class:`~rateslib.instruments.FXOption`.
 
     Parameters
     ----------
     args: tuple
         Positional arguments to :class:`~rateslib.instruments.FXOption`.
-    strike: 3-element sequence
-        The first element is applied to the lower strike put, the
-        second element to the straddle strike and the third element to the higher strike
-        call, e.g. `["-25d", "atm_delta", "25d"]`.
-    premium: 4-element sequence, optional
-        The premiums associated with each option of the strategy; lower strike put, straddle put,
-        straddle call, higher strike call.
+    strike: 2-element sequence
+        The first element should be a 2-element sequence of strikes of the *FXStrangle*.
+        The second element should be a single element for the strike of the *FXStraddle*.
+        call, e.g. `[["-25d", "25d"], "atm_delta"]`.
+    premium: 2-element sequence, optional
+        The premiums associated with each option of the strategy;
+        The first element contains 2 values for the premiums of each *FXOption* in the *Strangle*.
+        The second element contains 2 values for the premiums of each *FXOption* in the *Straddle*.
     notional: 2-element sequence, optional
         The first element is the notional associated with the *Strangle*. If the second element
-        is *None*, it will be implied in a vega neutral sense.
+        is *None*, it will be implied in a vega neutral sense at price time.
     metric: str, optional
         The default metric to apply in the method :meth:`~rateslib.instruments.FXOptionStrat.rate`
     kwargs: tuple
@@ -982,18 +998,18 @@ class FXBrokerFly(FXOptionStrat, FXOption):
 
     Notes
     -----
-    When supplying ``strike`` as a string delta the strike will be determined at price time from
-    the provided volatility.
-
     Buying a *BrokerFly* equates to buying an :class:`~rateslib.instruments.FXStrangle` and
     selling a :class:`~rateslib.instruments.FXStraddle`, where the convention is to set the
     notional on the *Straddle* such that the entire strategy is *vega* neutral at inception.
+
+    When supplying ``strike`` as a string delta the strike will be determined at price time from
+    the provided volatility.
 
     .. warning::
 
        The default ``metric`` for an *FXBrokerFly* is *'single_vol'*, which requires an iterative
        algorithm to solve.
-       For defined strikes it is usually very accurate but for strikes defined by delta it
+       For defined strikes it is accurate but for strikes defined by delta it
        will return a solution within 0.1 pips. This means it is both slower than other instruments
        and inexact.
 
@@ -1008,8 +1024,8 @@ class FXBrokerFly(FXOptionStrat, FXOption):
     def __init__(
         self,
         *args: Any,
-        strike: tuple[DualTypes | str_, DualTypes | str_, DualTypes | str_] =(NoInput(0), NoInput(0), NoInput(0)),
-        premium: tuple[DualTypes_, DualTypes_, DualTypes, DualTypes_] =(NoInput(0), NoInput(0), NoInput(0), NoInput(0)),
+        strike: tuple[tuple[DualTypes | str_, DualTypes | str_], DualTypes | str_] =((NoInput(0), NoInput(0)), NoInput(0)),
+        premium: tuple[tuple[DualTypes_, DualTypes_], tuple[DualTypes, DualTypes_]] =((NoInput(0), NoInput(0)), (NoInput(0), NoInput(0))),
         notional: tuple[DualTypes_, DualTypes_] = (NoInput(0), NoInput(0)),
         metric="single_vol",
         **kwargs: Any,
@@ -1033,11 +1049,11 @@ class FXBrokerFly(FXOptionStrat, FXOption):
                 payment_lag=self.kwargs["payment"],
                 calendar=self.kwargs["calendar"],
                 modifier=self.kwargs["modifier"],
-                strike=[self.kwargs["strike"][0], self.kwargs["strike"][2]],
+                strike=self.kwargs["strike"][0],
                 notional=self.kwargs["notional"][0],
                 option_fixing=self.kwargs["option_fixing"],
                 delta_type=self.kwargs["delta_type"],
-                premium=[self.kwargs["premium"][0], self.kwargs["premium"][3]],
+                premium=self.kwargs["premium"][0],
                 premium_ccy=self.kwargs["premium_ccy"],
                 metric=self.kwargs["metric"],
                 curves=self.curves,
@@ -1054,7 +1070,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
                 notional=self.kwargs["notional"][1],
                 option_fixing=self.kwargs["option_fixing"],
                 delta_type=self.kwargs["delta_type"],
-                premium=self.kwargs["premium"][1:3],
+                premium=self.kwargs["premium"][1],
                 premium_ccy=self.kwargs["premium_ccy"],
                 metric="vol" if self.kwargs["metric"] == "single_vol" else self.kwargs["metric"],
                 curves=self.curves,
@@ -1108,40 +1124,24 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         metric: str_ = NoInput(0),
     ) -> DualTypes:
         """
-        Return the mid-market rate of an option strategy.
+        Returns the rate of the *FXBrokerFly* according to a pricing metric.
 
-        Parameters
-        ----------
-        curves
-        solver
-        fx
-        base
-        vol
-        metric
-
-        Returns
-        -------
-        float, Dual, Dual2
+        For parameters see :meth:`FXOptionStrat.rate <rateslib.instruments.FXOptionStrat.rate>`.
 
         Notes
-        -----
+        ------
 
-        The different types of ``metric`` return different quotation conventions.
+        .. warning::
 
-        - *'single_vol'*: the default type for a :class:`~rateslib.instruments.FXStrangle`
+           The default ``metric`` for an *FXBrokerFly* is *'single_vol'*, which requires an
+           iterative algorithm to solve.
+           For defined strikes it is usually very accurate but for strikes defined by delta it
+           will return a solution within 0.01 pips. This means it is both slower than other
+           instruments and inexact.
 
-        - *'vol'*: sums the mid-market volatilities of each option multiplied by their
-          respective ``rate_weight_vol``
-          parameter. For example this is the default pricing convention for
-          a :class:`~rateslib.instruments.FXRiskReversal` where the price is the vol of the call
-          minus the vol of the
-          put and the ``rate_weight_vol`` parameters are [-1.0, 1.0].
-
-        - *'pips_or_%'*: sums the mid-market pips or percent price of each option multiplied by
-          their respective
-          ``rate_weight`` parameter. For example for a :class:`~rateslib.instruments.FXStraddle`
-          the total premium
-          is the sum of two premiums and the ``rate_weight`` parameters are [1.0, 1.0].
+           The ``metric`` *'vol'* is not sensible to use with an *FXBrokerFly*, although it will
+           return the arithmetic average volatility across both strategies, *'single_vol'* is the
+           more standardised choice.
         """
         vol_ = self._get_fxvol_maybe_from_solver_recursive(vol, solver)
         # if not isinstance(vol, list):
@@ -1178,7 +1178,6 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         base: str_ = NoInput(0),
         vol: Sequence[FXVol] | FXVol_ = NoInput(0),
     ):
-        """ """
         # implicitly call set_pricing_mid for unpriced parameters
         self.rate(curves, solver, fx, base, vol, metric="pips_or_%")
         # curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
