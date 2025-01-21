@@ -131,6 +131,9 @@ def _get_fxvol_maybe_from_solver(vol_attr: FXVol_, vol: FXVol_, solver: Solver_)
     Try to retrieve a general vol input from a solver or the default vol object associated with
     instrument.
 
+    If the resolved input is a Sequence then return that directly. This aids with recursive
+    calculation in FXOptionStrats.
+
     Parameters
     ----------
     vol_attr: DualTypes, str or FXDeltaVolSmile

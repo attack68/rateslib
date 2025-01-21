@@ -15,6 +15,18 @@ email contact, see `rateslib <https://rateslib.com>`_.
 1.7.0 (No Release Date)
 ****************************
 
+The key theme for 1.7.0 was to add Python type hinting to the entire codebase, and adding
+``mypy`` CI checks to the development process. This resulted in
+a number of refactorisations which may have changed the way some argument inputs should be
+structured.
+
+*FXOptions* which were added and listed in beta status since v1.2.0, have seen the largest
+changes and have now been moved out beta status.
+
+Internally, caching and state management were improved to provide more safety, preventing users
+inadvertently mutating objects without the *Solver's* *Gradients* being updated. All mutable
+objects now have specific methods to allow *updates*.
+
 .. list-table::
    :widths: 25 75
    :header-rows: 1
@@ -105,6 +117,14 @@ email contact, see `rateslib <https://rateslib.com>`_.
      - The internal data objects for *FXOption* pricing are restructured to conform to more
        strict data typing.
        (`642 <https://github.com/attack68/rateslib/pull/642>`_)
+   * - Refactor
+     - :red:`Minor Breaking Change!` The argument inputs for *FXOptionStrat* types, such
+       as :class:`~rateslib.instruments.FXRiskReversal`, :class:`~rateslib.instruments.FXStraddle`,
+       :class:`~rateslib.instruments.FXStrangle` and :class:`~rateslib.instruments.FXBrokerFly`,
+       may have changed to conform to a more generalised structure. This may include the
+       specification of their ``premium``, ``strike``, ``notional`` and ``vol`` inputs. Review
+       their updated documentation for details.
+       (Mostly `643 <https://github.com/attack68/rateslib/pull/643>`_)
 
 1.6.0 (30th November 2024)
 ****************************

@@ -53,6 +53,9 @@ from rateslib.periods import CreditPremiumPeriod as CreditPremiumPeriod
 from rateslib.periods import CreditProtectionPeriod as CreditProtectionPeriod
 from rateslib.periods import FixedPeriod as FixedPeriod
 from rateslib.periods import FloatPeriod as FloatPeriod
+from rateslib.periods import FXCallPeriod as FXCallPeriod
+from rateslib.periods import FXOptionPeriod as FXOptionPeriod
+from rateslib.periods import FXPutPeriod as FXPutPeriod
 from rateslib.periods import IndexCashflow as IndexCashflow
 from rateslib.periods import IndexFixedPeriod as IndexFixedPeriod
 from rateslib.rs import (
@@ -130,6 +133,9 @@ FXVol_: TypeAlias = "FXVol | NoInput"
 
 VolInput_: TypeAlias = "str | FXDeltaVolSmile | FXDeltaVolSurface"
 VolInput: TypeAlias = "VolInput_ | NoInput"
+
+FXVolStrat_: TypeAlias = "Sequence[FXVolStrat_] | FXVol_"
+ListFXVol_: TypeAlias = "list[ListFXVol_ | FXVol_]"
 
 FX: TypeAlias = "DualTypes | FXRates | FXForwards"
 FX_: TypeAlias = "FX | NoInput"
