@@ -5609,7 +5609,7 @@ class TestFXBrokerFly:
         "strikes",
         [
             (("-20d", "20d"), "atm_delta"),
-            ((1.0238746345527665, 1.1159199351325004), 1.0683288279019205)
+            ((1.0238746345527665, 1.1159199351325004), 1.0683288279019205),
         ],
     )
     def test_greeks_delta_direction(self, fxfo, notn, expected_grks, expected_ccy, strikes) -> None:
