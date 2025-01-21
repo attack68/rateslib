@@ -505,7 +505,7 @@ The default pricing ``metric`` is *'single_vol'* which calculates the single vol
        pair="eurusd",
        expiry=dt(2023, 6, 16),
        notional=[20e6, -13.5e6],
-       strike=("-25d", "atm_delta", "25d"),
+       strike=(("-25d", "25d"), "atm_delta"),
        payment_lag=2,
        delivery_lag=2,
        calendar="tgt|fed",
@@ -515,7 +515,7 @@ The default pricing ``metric`` is *'single_vol'* which calculates the single vol
    fxbf.rate(
        curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
        fx=fxf,
-       vol=[10.15, 7.5, 8.9]
+       vol=[[10.15, 8.9], 7.5]
    )
    fxbf.plot_payoff(
        range=[1.000, 1.150],
@@ -549,7 +549,7 @@ The default pricing ``metric`` is *'single_vol'* which calculates the single vol
        pair="eurusd",
        expiry=dt(2023, 6, 16),
        notional=[20e6, -13.5e6],
-       strike=("-25d", "atm_delta", "25d"),
+       strike=(("-25d", "25d"), "atm_delta"),
        payment_lag=2,
        delivery_lag=2,
        calendar="tgt|fed",
