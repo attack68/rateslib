@@ -383,6 +383,9 @@ class FXRiskReversal(FXOptionStrat, FXOption):
     """
     Create an *FX Risk Reversal* option strategy.
 
+    A *RiskReversal* is composed of a lower strike :class:`~rateslib.instruments.FXPut` and a
+    higher strike :class:`~rateslib.instruments.FXCall`.
+
     For additional arguments see :class:`~rateslib.instruments.FXOption`.
 
     Parameters
@@ -401,15 +404,18 @@ class FXRiskReversal(FXOptionStrat, FXOption):
 
     Notes
     -----
+    Buying a *Risk Reversal* equates to selling a lower strike :class:`~rateslib.instruments.FXPut`
+    and buying a higher strike :class:`~rateslib.instruments.FXCall`. The ``notional`` of each are
+    the same, and should be entered as a single value.
+    A positive *notional* will indicate a sale of the *Put* and a purchase of the *Call*.
+
     When supplying ``strike`` as a string delta the strike will be determined at price time from
     the provided volatility.
 
-    Buying a *Risk Reversal* equates to selling a lower strike :class:`~rateslib.instruments.FXPut`
-    and buying a higher strike :class:`~rateslib.instruments.FXCall`.
-
-    This class is essentially an alias constructor for an
+    This class is an alias constructor for an
     :class:`~rateslib.instruments.FXOptionStrat` where the number
-    of options and their definitions and nominals have been specifically set.
+    of options and their definitions and nominals have been specifically overloaded for
+    convenience.
     """
 
     rate_weight = [-1.0, 1.0]
@@ -421,7 +427,7 @@ class FXRiskReversal(FXOptionStrat, FXOption):
     def __init__(
         self,
         *args: Any,
-        strike: tuple[str | DualTypes_, str | DualTypes_] =(NoInput(0), NoInput(0)),
+        strike: tuple[str | DualTypes_, str | DualTypes_] = (NoInput(0), NoInput(0)),
         premium: tuple[DualTypes_, DualTypes_] = (NoInput(0), NoInput(0)),
         metric: str = "vol",
         **kwargs: Any,
@@ -487,6 +493,9 @@ class FXStraddle(FXOptionStrat, FXOption):
     """
     Create an *FX Straddle* option strategy.
 
+    An *FXStraddle* is composed of an :class:`~rateslib.instruments.FXCall`
+    and an :class:`~rateslib.instruments.FXPut` at the same strike.
+
     For additional arguments see :class:`~rateslib.instruments.FXOption`.
 
     Parameters
@@ -502,15 +511,17 @@ class FXStraddle(FXOptionStrat, FXOption):
 
     Notes
     -----
-    When supplying ``strike`` as a string delta the strike will be determined at price time from
-    the provided volatility and FX forward market.
-
     Buying a *Straddle* equates to buying an :class:`~rateslib.instruments.FXCall`
-    and an :class:`~rateslib.instruments.FXPut` at the same strike.
+    and an :class:`~rateslib.instruments.FXPut` at the same strike. The ``notional`` of each are
+    the same, and is input as a single value.
+
+    ``strike`` should be supplied as a single value.
+    When providing a string delta the strike will be determined at price time from
+    the provided volatility and FX forward market.
 
     This class is essentially an alias constructor for an
     :class:`~rateslib.instruments.FXOptionStrat` where the number
-    of options and their definitions and nominals have been specifically set.
+    of options and their definitions have been specifically overloaded for convenience.
     """
 
     rate_weight = [1.0, 1.0]
@@ -713,6 +724,8 @@ class FXStrangle(FXOptionStrat, FXOption):
         """
         Returns the rate of the *FXStrangle* according to a pricing metric.
 
+        For parameters see :meth:`FXOptionStrat.rate <rateslib.instruments.FXOptionStrat.rate>`.
+
         Notes
         ------
 
@@ -724,11 +737,9 @@ class FXStrangle(FXOptionStrat, FXOption):
            will return a solution within 0.01 pips. This means it is both slower than other
            instruments and inexact.
 
-        For parameters see :meth:`~rateslib.instruments.FXOption.rate`.
-
-        The ``metric`` *'vol'* is not sensible to use with an *FXStrangle*, although it will
-        return the arithmetic average volatility across both options, *'single_vol'* is the
-        more standardised choice.
+           The ``metric`` *'vol'* is not sensible to use with an *FXStrangle*, although it will
+           return the arithmetic average volatility across both options, *'single_vol'* is the
+           more standardised choice.
         """
         return self._rate(curves, solver, fx, base, vol, metric)
 
@@ -997,9 +1008,9 @@ class FXBrokerFly(FXOptionStrat, FXOption):
     def __init__(
         self,
         *args: Any,
-        strike=(NoInput(0), NoInput(0), NoInput(0)),
-        premium=(NoInput(0), NoInput(0), NoInput(0), NoInput(0)),
-        notional=(NoInput(0), NoInput(0)),
+        strike: tuple[DualTypes | str_, DualTypes | str_, DualTypes | str_] =(NoInput(0), NoInput(0), NoInput(0)),
+        premium: tuple[DualTypes_, DualTypes_, DualTypes, DualTypes_] =(NoInput(0), NoInput(0), NoInput(0), NoInput(0)),
+        notional: tuple[DualTypes_, DualTypes_] = (NoInput(0), NoInput(0)),
         metric="single_vol",
         **kwargs: Any,
     ) -> None:
