@@ -8,6 +8,7 @@ from pandas import DataFrame
 from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.default import NoInput, _drb
 from rateslib.dual import dual_log, Dual, Variable, Dual2
+from rateslib.dual.utils import _dual_float
 from rateslib.fx_volatility import FXDeltaVolSurface, FXDeltaVolSmile
 from rateslib.instruments.fx_volatility.vanilla import FXCall, FXOption, FXPut
 from rateslib.instruments.utils import (
@@ -15,6 +16,7 @@ from rateslib.instruments.utils import (
     _get_fxvol_maybe_from_solver,
     _validate_fx_as_forwards
 )
+from rateslib.periods import FXOptionPeriod
 from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
@@ -34,6 +36,8 @@ if TYPE_CHECKING:
         FXForwards,
         FXVolStrat_,
         ListFXVol_,
+        FXOptionPeriod,
+        FXVolOption,
     )
 
 
@@ -805,8 +809,8 @@ class FXStrangle(FXOptionStrat, FXOption):
         )
         vol_: ListFXVol_ = self._get_fxvol_maybe_from_solver_recursive(vol, solver)
         # type assignment, instead of using assert
-        vol_0: FXVol = vol_[0]  # type: ignore[assignment]
-        vol_1: FXVol = vol_[1]  # type: ignore[assignment]
+        vol_0: FXVolOption = vol_[0]  # type: ignore[assignment]
+        vol_1: FXVolOption = vol_[1]  # type: ignore[assignment]
 
         # Get data from objects
         curves_1: Curve = _validate_obj_not_no_input(curves_[1], "curves_[1]")
@@ -829,8 +833,8 @@ class FXStrangle(FXOptionStrat, FXOption):
         # first start by evaluating the individual swaptions given their
         # strikes with the smile - delta or fixed
         gks: list[dict[str, Any]] = [
-            self.periods[0].analytic_greeks(curves, solver, fx, base, vol=vol_0),
-            self.periods[1].analytic_greeks(curves, solver, fx, base, vol=vol_1),
+            self.periods[0].analytic_greeks(curves, solver, fxf, base, vol_0),
+            self.periods[1].analytic_greeks(curves, solver, fxf, base, vol_1),
         ]
 
         def d_wrt_sigma1(
@@ -838,7 +842,7 @@ class FXStrangle(FXOptionStrat, FXOption):
             g: dict[str, Any],  # greeks
             sg: dict[str, Any],  # smile_greeks
             vol: FXVol,
-            eta1: float
+            eta1: float | None
         ) -> tuple[DualTypes, DualTypes]:
             """
             Obtain derivatives with respect to tgt vol.
@@ -864,6 +868,7 @@ class FXStrangle(FXOptionStrat, FXOption):
                     sg["_kappa"] * g["_kega"],
                 )
             else:
+                assert isinstance(eta1, float)  # becuase vol is Smile/Surface
                 if isinstance(vol, FXDeltaVolSurface):
                     vol = vol.get_smile(self.kwargs["expiry"])
                 dvol_ddeltaidx = evaluate(vol.spline, sg["_delta_index"], 1) * 0.01
@@ -883,26 +888,25 @@ class FXStrangle(FXOptionStrat, FXOption):
                     + sg["vega"] * dvol_ddeltaidx * ddeltaidx_dvol1,
                 )
 
-        tgt_vol = (gks[0]["__vol"] * gks[0]["vega"] + gks[1]["__vol"] * gks[1]["vega"]) * 100.0
+        tgt_vol: DualTypes = (gks[0]["__vol"] * gks[0]["vega"] + gks[1]["__vol"] * gks[1]["vega"]) * 100.0
         tgt_vol /= gks[0]["vega"] + gks[1]["vega"]
         f0, iters = 100e6, 1
+        put_op_period: FXOptionPeriod = self.periods[0]._option_periods[0]
+        call_op_period: FXOptionPeriod = self.periods[1]._option_periods[0]
+
         while abs(f0) > 1e-6 and iters < 10:
             # Determine the strikes at the current tgt_vol
             # Also determine the greeks of these options measure with tgt_vol
             gks = [
-                self.periods[0].analytic_greeks(curves, solver, fx, base, vol=tgt_vol),
-                self.periods[1].analytic_greeks(curves, solver, fx, base, vol=tgt_vol),
+                self.periods[0].analytic_greeks(curves, solver, fxf, base, tgt_vol),
+                self.periods[1].analytic_greeks(curves, solver, fxf, base, tgt_vol),
             ]
             # Also determine the greeks of these options measured with the market smile vol.
             # (note the strikes have been set by previous call, call OptionPeriods direct
             # to avoid re-determination)
             smile_gks = [
-                self.periods[0]
-                .periods[0]
-                .analytic_greeks(curves_1, curves_3, fx_, base_, vol=vol_0),
-                self.periods[1]
-                .periods[0]
-                .analytic_greeks(curves_1, curves_3, fx_, base_, vol=vol_1),
+                put_op_period.analytic_greeks(curves_1, curves_3, fxf, base_, vol_0),
+                call_op_period.analytic_greeks(curves_1, curves_3, fxf, base_, vol_1),
             ]
 
             # The value of the root function is derived from the 4 previous calculated prices
@@ -923,22 +927,12 @@ class FXStrangle(FXOptionStrat, FXOption):
         if record_greeks:  # this needs to be explicitly called since it degrades performance
             self._greeks["strangle"] = {
                 "single_vol": {
-                    "FXPut": self.periods[0].analytic_greeks(curves, solver, fx, base, vol=tgt_vol),
-                    "FXCall": self.periods[1].analytic_greeks(
-                        curves,
-                        solver,
-                        fx,
-                        base,
-                        vol=tgt_vol,
-                    ),
+                    "FXPut": self.periods[0].analytic_greeks(curves, solver, fxf, base, tgt_vol),
+                    "FXCall": self.periods[1].analytic_greeks(curves, solver, fxf, base, tgt_vol),
                 },
                 "market_vol": {
-                    "FXPut": self.periods[0]
-                    .periods[0]
-                    .analytic_greeks(curves_1, curves_3, fx, base, vol=vol_[0]),
-                    "FXCall": self.periods[1]
-                    .periods[0]
-                    .analytic_greeks(curves_1, curves_3, fx, base, vol=vol_[1]),
+                    "FXPut": put_op_period.analytic_greeks(curves_1, curves_3, fxf, base, vol_0),
+                    "FXCall": call_op_period.analytic_greeks(curves_1, curves_3, fxf, base, vol_1),
                 },
             }
 
@@ -1025,21 +1019,22 @@ class FXBrokerFly(FXOptionStrat, FXOption):
     _rate_scalar = 100.0
 
     periods: list[FXOptionStrat]  # type: ignore[assignment]
+    vol: FXVolStrat_
 
     def __init__(
         self,
         *args: Any,
         strike: tuple[tuple[DualTypes | str_, DualTypes | str_], DualTypes | str_] =((NoInput(0), NoInput(0)), NoInput(0)),
-        premium: tuple[tuple[DualTypes_, DualTypes_], tuple[DualTypes, DualTypes_]] =((NoInput(0), NoInput(0)), (NoInput(0), NoInput(0))),
+        premium: tuple[tuple[DualTypes_, DualTypes_], tuple[DualTypes_, DualTypes_]] =((NoInput(0), NoInput(0)), (NoInput(0), NoInput(0))),
         notional: tuple[DualTypes_, DualTypes_] = (NoInput(0), NoInput(0)),
-        metric="single_vol",
+        metric: str ="single_vol",
         **kwargs: Any,
     ) -> None:
-        super(FXOptionStrat, self).__init__(
+        super(FXOptionStrat, self).__init__(  # type: ignore[misc]
             *args,
-            premium=list(premium),
-            strike=list(strike),
-            notional=list(notional),
+            premium=list(premium), # type: ignore[arg-type]
+            strike=list(strike),  # type: ignore[arg-type]
+            notional=list(notional),  # type: ignore[arg-type]
             **kwargs,
         )
         self.kwargs["notional"][1] = (
@@ -1092,8 +1087,15 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         vol: ListFXVol_,
         metric: str_
     ) -> None:
+        """
+        Calculate the vega of the strangle and then set the notional on the straddle
+        to yield a vega neutral strategy.
+
+        Notional is set as a fixed quantity, collapsing any AD sensitivities in accordance
+        with the general principle for determining risk sensitivities of unpriced instruments.
+        """
         if isinstance(self.kwargs["notional"][1], NoInput) and metric in ["pips_or_%", "premium"]:
-            self.periods[0]._rate(
+            self.periods[0]._rate(  # type: ignore[attr-defined]
                 curves,
                 solver,
                 fx,
@@ -1113,10 +1115,10 @@ class FXBrokerFly(FXOptionStrat, FXOption):
             strangle_vega += self._greeks["strangle"]["market_vol"]["FXCall"]["vega"]
             straddle_vega = self._greeks["straddle"]["vega"]
             scalar = strangle_vega / straddle_vega
-            self.periods[1].kwargs["notional"] = float(
-                self.periods[0].periods[0].periods[0].notional * -scalar,
+            self.periods[1].kwargs["notional"] = _dual_float(
+                self.periods[0].periods[0].periods[0].notional * -scalar,  # type: ignore[union-attr]
             )
-            self.periods[1]._set_notionals(self.periods[1].kwargs["notional"])
+            self.periods[1]._set_notionals(self.periods[1].kwargs["notional"])  # type: ignore[attr-defined]
             # BrokerFly -> Strangle -> FXPut -> FXPutPeriod
 
     def rate(
@@ -1162,15 +1164,16 @@ class FXBrokerFly(FXOptionStrat, FXOption):
 
         if temp_metric == "pips_or_%":
             straddle_scalar = (
-                self.periods[1].periods[0].periods[0].notional
-                / self.periods[0].periods[0].periods[0].notional
+                self.periods[1].periods[0].periods[0].notional  # type: ignore[union-attr]
+                / self.periods[0].periods[0].periods[0].notional  # type: ignore[union-attr]
             )
-            weights = [1.0, straddle_scalar]
+            weights: Sequence[DualTypes] = [1.0, straddle_scalar]
         elif temp_metric == "premium":
             weights = self.rate_weight
         else:
             weights = self.rate_weight_vol
-        _ = 0.0
+        _: DualTypes = 0.0
+
         for option_strat, vol__, weight in zip(self.periods, vol_, weights, strict=False):
             _ += option_strat.rate(curves, solver, fx, base, vol__, metric) * weight
         return _
@@ -1181,7 +1184,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-        vol: Sequence[FXVol] | FXVol_ = NoInput(0),
+        vol: FXVolStrat_ = NoInput(0),
     ) -> dict[str, Any]:
         # implicitly call set_pricing_mid for unpriced parameters
         self.rate(curves, solver, fx, base, vol, metric="pips_or_%")
@@ -1198,8 +1201,8 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         g_grks = self.periods[0].analytic_greeks(curves, solver, fx, base, vol_[0])
         d_grks = self.periods[1].analytic_greeks(curves, solver, fx, base, vol_[1])
         sclr = abs(
-            self.periods[1].periods[0].periods[0].notional
-            / self.periods[0].periods[0].periods[0].notional,
+            self.periods[1].periods[0].periods[0].notional  # type: ignore[union-attr]
+            / self.periods[0].periods[0].periods[0].notional,  # type: ignore[union-attr]
         )
 
         _unit_attrs = ["delta", "gamma", "vega", "vomma", "vanna", "_kega", "_kappa", "__bs76"]
