@@ -32,9 +32,8 @@ if TYPE_CHECKING:
         Curve,
         datetime,
         FXForwards,
-        ParsedVol_,
+        FXVolStrat_,
         ListFXVol_,
-        ListParsedVol,
     )
 
 
@@ -59,7 +58,7 @@ class FXOptionStrat:
 
     _greeks: dict[str, Any] = {}
     _strat_elements: tuple[FXOption | FXOptionStrat, ...]
-    vol: Sequence[FXVol] | FXVol_
+    vol: FXVolStrat_
     curves: Curves_
     kwargs: dict[str, Any]
 
@@ -80,16 +79,16 @@ class FXOptionStrat:
             )
 
     @property
-    def _vol_agg(self) -> ParsedVol_:
+    def _vol_agg(self) -> FXVolStrat_:
         """Aggregate the `vol` metric on contained options into a container"""
-        def vol_attr(obj: FXOption | FXOptionStrat) -> ParsedVol_:
+        def vol_attr(obj: FXOption | FXOptionStrat) -> FXVolStrat_:
             if isinstance(obj, FXOption):
                 return obj.vol
             else:
                 return obj._vol_agg
         return [vol_attr(obj) for obj in self._strat_elements]
 
-    def _parse_vol_sequence(self, vol: ParsedVol_) -> ListParsedVol:
+    def _parse_vol_sequence(self, vol: FXVolStrat_) -> ListFXVol_:
         """
         This function exists to determine a recursive list
 
@@ -101,7 +100,7 @@ class FXOptionStrat:
         be repeatedly called within each strategy.
         """
         if isinstance(vol, str | float | Dual | Dual2 | Variable | FXDeltaVolSurface | FXDeltaVolSmile | NoInput):
-            ret: list[ParsedVol_] = []
+            ret: ListFXVol_ = []
             for obj in self.periods:
                 if isinstance(obj, FXOptionStrat):
                     ret.append(obj._parse_vol_sequence(vol))
@@ -120,10 +119,11 @@ class FXOptionStrat:
                     if isinstance(obj, FXOptionStrat):
                         ret.append(obj._parse_vol_sequence(vol_))
                     else:
+                        assert isinstance(vol_, str) or not isinstance(vol_, Sequence)
                         ret.append(vol_)
                 return ret
 
-    def _get_fxvol_maybe_from_solver_recursive(self, vol: ParsedVol_, solver: Solver_) -> ListFXVol_:
+    def _get_fxvol_maybe_from_solver_recursive(self, vol: FXVolStrat_, solver: Solver_) -> ListFXVol_:
         """
         Function must parse a ``vol`` input in combination with ``vol_agg`` attribute to yield
         a Sequence of vols applied to the various levels of associated *Options* or *OptionStrats*
@@ -134,7 +134,8 @@ class FXOptionStrat:
             if isinstance(obj, FXOptionStrat):
                 ret.append(obj._get_fxvol_maybe_from_solver_recursive(vol__, solver))
             else:
-                ret.append(_get_fxvol_maybe_from_solver(vol_attr=obj.vol, vol=vol__, solver=solver))  # type: ignore[arg-type]
+                assert isinstance(vol__, str) or not isinstance(vol__, Sequence)
+                ret.append(_get_fxvol_maybe_from_solver(vol_attr=obj.vol, vol=vol__, solver=solver))
         return ret
 
     @property
@@ -150,7 +151,7 @@ class FXOptionStrat:
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-        vol: ParsedVol_ = NoInput(0),
+        vol: FXVolStrat_ = NoInput(0),
         metric: str_ = NoInput(0),  # "pips_or_%",
     ) -> DualTypes:
         """
@@ -214,7 +215,7 @@ class FXOptionStrat:
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
-        vol: ParsedVol_ = NoInput(0),
+        vol: FXVolStrat_ = NoInput(0),
     ) -> NPV:
         """
         Return the NPV of the *FXOptionStrat*.
@@ -270,7 +271,7 @@ class FXOptionStrat:
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
-        vol: ParsedVol_ = NoInput(0),
+        vol: FXVolStrat_ = NoInput(0),
     ) -> tuple[Any, Any]:
         vol_: ListFXVol_ = self._get_fxvol_maybe_from_solver_recursive(vol, solver)
 
@@ -290,7 +291,7 @@ class FXOptionStrat:
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-        vol: ParsedVol_ = NoInput(0),
+        vol: FXVolStrat_ = NoInput(0),
     ) -> dict[str, Any]:
         """
         Return aggregated greeks of the *FXOptionStrat*.
@@ -429,7 +430,7 @@ class FXRiskReversal(FXOptionStrat, FXOption):
     rate_weight_vol = [-1.0, 1.0]
     _rate_scalar = 100.0
     periods: list[FXOption]  # type: ignore[assignment]
-    vol: ParsedVol_
+    vol: FXVolStrat_
 
     def __init__(
         self,
@@ -534,8 +535,8 @@ class FXStraddle(FXOptionStrat, FXOption):
     rate_weight = [1.0, 1.0]
     rate_weight_vol = [0.5, 0.5]
     _rate_scalar = 100.0
-    periods: list[FXOption]
-    vol: ParsedVol_
+    periods: list[FXOption]  # type: ignore[assignment]
+    vol: FXVolStrat_
 
     def __init__(
         self,
@@ -544,9 +545,9 @@ class FXStraddle(FXOptionStrat, FXOption):
         metric: str ="vol",
         **kwargs: Any
     ) -> None:
-        super(FXOptionStrat, self).__init__(*args, premium=list(premium), **kwargs)  # type: ignore[misc, ]
+        super(FXOptionStrat, self).__init__(*args, premium=list(premium), **kwargs)  # type: ignore[misc, arg-type]
         self.kwargs["metric"] = metric
-        self._strat_elements = [
+        self._strat_elements = (
             FXPut(
                 pair=self.kwargs["pair"],
                 expiry=self.kwargs["expiry"],
@@ -579,7 +580,7 @@ class FXStraddle(FXOptionStrat, FXOption):
                 curves=self.curves,
                 vol=self.vol,
             ),
-        ]
+        )
 
     def _set_notionals(self, notional: DualTypes) -> None:
         """
@@ -654,6 +655,8 @@ class FXStrangle(FXOptionStrat, FXOption):
     rate_weight = [1.0, 1.0]
     rate_weight_vol = [0.5, 0.5]
     _rate_scalar = 100.0
+    periods: list[FXOption]  # type: ignore[assignment]
+    vol: FXVolStrat_
 
     def __init__(
         self,
@@ -663,8 +666,8 @@ class FXStrangle(FXOptionStrat, FXOption):
         metric: str = "single_vol",
         **kwargs: Any,
     ) -> None:
-        super(FXOptionStrat, self).__init__(
-            *args, strike=list(strike), premium=list(premium), **kwargs
+        super(FXOptionStrat, self).__init__(  # type: ignore[misc]
+            *args, strike=list(strike), premium=list(premium), **kwargs  # type: ignore[arg-type]
         )
         self.kwargs["metric"] = metric
         self._is_fixed_delta = [
@@ -730,7 +733,7 @@ class FXStrangle(FXOptionStrat, FXOption):
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-        vol: ParsedVol_ = NoInput(0),
+        vol: FXVolStrat_ = NoInput(0),
         metric: str_ = NoInput(0),  # "pips_or_%",
     ) -> DualTypes:
         """
@@ -761,7 +764,7 @@ class FXStrangle(FXOptionStrat, FXOption):
         solver: Solver_,
         fx: FX_,
         base: str_,
-        vol: ParsedVol_,
+        vol: FXVolStrat_,
         metric: str_,
         record_greeks: bool = False
     ) -> DualTypes:
@@ -785,7 +788,7 @@ class FXStrangle(FXOptionStrat, FXOption):
         solver: Solver_,
         fx: FX_,
         base: str_,
-        vol: ParsedVol_,
+        vol: FXVolStrat_,
         record_greeks: bool,
     ) -> DualTypes:
         """
@@ -801,14 +804,17 @@ class FXStrangle(FXOptionStrat, FXOption):
             self.kwargs["pair"][3:],
         )
         vol_: ListFXVol_ = self._get_fxvol_maybe_from_solver_recursive(vol, solver)
+        # type assignment, instead of using assert
+        vol_0: FXVol = vol_[0]  # type: ignore[assignment]
+        vol_1: FXVol = vol_[1]  # type: ignore[assignment]
 
         # Get data from objects
         curves_1: Curve = _validate_obj_not_no_input(curves_[1], "curves_[1]")
         curves_3: Curve = _validate_obj_not_no_input(curves_[3], "curves_[3]")
-        spot: datetime = fx.pairs_settlement[self.kwargs["pair"]]
+        fxf: FXForwards = _validate_fx_as_forwards(fx_)
+        spot: datetime = fxf.pairs_settlement[self.kwargs["pair"]]
         w_spot: DualTypes = curves_1[spot]
         w_deli: DualTypes = curves_1[self.kwargs["delivery"]]
-        fxf: FXForwards = _validate_fx_as_forwards(fx_)
         f_d: DualTypes = fxf.rate(self.kwargs["pair"], self.kwargs["delivery"])
         f_t: DualTypes = fxf.rate(self.kwargs["pair"], spot)
         z_w_0 = 1.0 if "forward" in self.kwargs["delta_type"] else w_deli / w_spot
@@ -823,8 +829,8 @@ class FXStrangle(FXOptionStrat, FXOption):
         # first start by evaluating the individual swaptions given their
         # strikes with the smile - delta or fixed
         gks = [
-            self.periods[0].analytic_greeks(curves, solver, fx, base, vol=vol_[0]),
-            self.periods[1].analytic_greeks(curves, solver, fx, base, vol=vol_[1]),
+            self.periods[0].analytic_greeks(curves, solver, fx, base, vol=vol_0),
+            self.periods[1].analytic_greeks(curves, solver, fx, base, vol=vol_1),
         ]
 
         def d_wrt_sigma1(
@@ -894,10 +900,10 @@ class FXStrangle(FXOptionStrat, FXOption):
             smile_gks = [
                 self.periods[0]
                 .periods[0]
-                .analytic_greeks(curves_1, curves_3, fx_, base_, vol=vol_[0]),
+                .analytic_greeks(curves_1, curves_3, fx_, base_, vol=vol_0),
                 self.periods[1]
                 .periods[0]
-                .analytic_greeks(curves_1, curves_3, fx_, base_, vol=vol_[1]),
+                .analytic_greeks(curves_1, curves_3, fx_, base_, vol=vol_1),
             ]
 
             # The value of the root function is derived from the 4 previous calculated prices
@@ -908,8 +914,8 @@ class FXStrangle(FXOptionStrat, FXOption):
                 - gks[1]["__bs76"]
             )
 
-            dc1_dvol1_0, dcmkt_dvol1_0 = d_wrt_sigma1(0, gks, smile_gks, vol_, eta1)
-            dc1_dvol1_1, dcmkt_dvol1_1 = d_wrt_sigma1(1, gks, smile_gks, vol_, eta1)
+            dc1_dvol1_0, dcmkt_dvol1_0 = d_wrt_sigma1(0, gks, smile_gks, [vol_0, vol_1], eta1)
+            dc1_dvol1_1, dcmkt_dvol1_1 = d_wrt_sigma1(1, gks, smile_gks, [vol_0, vol_1], eta1)
             f1 = dcmkt_dvol1_0 + dcmkt_dvol1_1 - dc1_dvol1_0 - dc1_dvol1_1
 
             tgt_vol = tgt_vol - (f0 / f1) * 100.0  # Newton-Raphson step
@@ -1120,7 +1126,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-        vol: ParsedVol_ = NoInput(0),
+        vol: FXVolStrat_ = NoInput(0),
         metric: str_ = NoInput(0),
     ) -> DualTypes:
         """
@@ -1177,7 +1183,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         vol: Sequence[FXVol] | FXVol_ = NoInput(0),
-    ):
+    ) -> dict[str, Any]:
         # implicitly call set_pricing_mid for unpriced parameters
         self.rate(curves, solver, fx, base, vol, metric="pips_or_%")
         # curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
@@ -1198,7 +1204,7 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         )
 
         _unit_attrs = ["delta", "gamma", "vega", "vomma", "vanna", "_kega", "_kappa", "__bs76"]
-        _ = {}
+        _: dict[str, Any] = {}
         for attr in _unit_attrs:
             _[attr] = g_grks[attr] - sclr * d_grks[attr]
 
@@ -1228,8 +1234,8 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
-        vol: ParsedVol_ = NoInput(0),
-    ):
+        vol: FXVolStrat_ = NoInput(0),
+    ) -> tuple[Any, Any]:
         vol_ = self._get_fxvol_maybe_from_solver_recursive(vol, solver)
         self._maybe_set_vega_neutral_notional(curves, solver, fx, base, vol_, metric="pips_or_%")
         return super()._plot_payoff(range, curves, solver, fx, base, local, vol_)

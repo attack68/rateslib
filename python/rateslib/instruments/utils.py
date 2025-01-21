@@ -22,7 +22,6 @@ if TYPE_CHECKING:
         FXVolOption_,
         Solver_,
         str_,
-        ParsedVol_,
     )
 
 

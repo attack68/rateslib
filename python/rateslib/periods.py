@@ -3310,21 +3310,21 @@ class FXOptionPeriod(metaclass=ABCMeta):
         expiry: datetime,
         delivery: datetime,
         payment: datetime,
-        strike: DualTypes | NoInput = NoInput(0),
-        notional: float | NoInput = NoInput(0),
-        option_fixing: float | NoInput = NoInput(0),
-        delta_type: str | NoInput = NoInput(0),
-        metric: str | NoInput = NoInput(0),
+        strike: DualTypes_ = NoInput(0),
+        notional: DualTypes_ = NoInput(0),
+        option_fixing: DualTypes_ = NoInput(0),
+        delta_type: str_ = NoInput(0),
+        metric: str_ = NoInput(0),
     ) -> None:
         self.pair: str = pair.lower()
         self.currency: str = self.pair[3:]
         self.domestic: str = self.pair[:3]
-        self.notional: float = defaults.notional if isinstance(notional, NoInput) else notional
+        self.notional: DualTypes = defaults.notional if isinstance(notional, NoInput) else notional
         self.strike: DualTypes | NoInput = strike
         self.payment: datetime = payment
         self.delivery: datetime = delivery
         self.expiry: datetime = expiry
-        self.option_fixing: float | NoInput = option_fixing
+        self.option_fixing: DualTypes_ = option_fixing
         self.delta_type: str = _drb(defaults.fx_delta_type, delta_type).lower()
         self.metric: str | NoInput = metric
 
