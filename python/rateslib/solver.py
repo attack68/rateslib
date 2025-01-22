@@ -52,14 +52,18 @@ class Gradients:
     _grad_s_vT_final_iteration_algo: str = "gauss_newton_final"
 
     _J: NDArray[Nf64] | None
+    _J_pre: NDArray[Nf64] | None
     _J2: NDArray[Nf64] | None
+    _JS_pre: NDArray[Nf64] | None
     _grad_s_vT: NDArray[Nf64] | None
+    _grad_s_vT_pre: NDArray[Nf64] | None
     _grad_s_s_vT: NDArray[Nf64] | None
     _grad_s_s_vT_pre: NDArray[Nf64] | None
 
     _reset_properties_: Callable[..., None]
     _update_step_: Callable[[str], NDArray[Nobject]]
     _set_ad_order: Callable[[int], None]
+    iterate: Callable[..., None]
 
     func_tol: float
     conv_tol: float
@@ -1433,11 +1437,11 @@ class Solver(Gradients, _WithState):
             raise NotImplementedError(f"`algorithm`: {algorithm} (spelled correctly?)")
         return v_1
 
-    def _update_fx(self):
-        if self.fx is not NoInput.blank:
+    def _update_fx(self) -> None:
+        if isinstance(self.fx, NoInput):
             self.fx.update()  # note: with no variables this does nothing.
 
-    def iterate(self):
+    def iterate(self) -> None:
         r"""
         Solve the DF node values and update all the ``curves``.
 
@@ -1479,7 +1483,7 @@ class Solver(Gradients, _WithState):
             # self.v_prev = v_0
             self._update_curves_with_parameters(v_1)
 
-            if self.callback is not NoInput.blank:
+            if not isinstance(self.callback, NoInput):
                 self.callback(self, i, v_1)
 
         return self._solver_result(-1, self.max_iter, time() - t0)
