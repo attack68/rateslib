@@ -4,7 +4,7 @@ import warnings
 from collections.abc import Callable
 from itertools import combinations
 from time import time
-from typing import Any, ParamSpec
+from typing import Any, ParamSpec, TYPE_CHECKING
 from uuid import uuid4
 
 import numpy as np
@@ -25,6 +25,12 @@ from rateslib.fx_volatility import FXVols
 
 P = ParamSpec("P")
 
+if TYPE_CHECKING:
+    from rateslib.typing import DualTypes
+    from numpy.typing import NDArray
+    from numpy import float64 as Nf64
+    from numpy import object_ as Nobject
+
 
 class Gradients:
     """
@@ -32,8 +38,26 @@ class Gradients:
     sensitivties.
     """
 
+    _grad_s_vT_method: str = "_grad_s_vT_final_iteration_analytical"
+    _grad_s_vT_final_iteration_algo: str = "gauss_newton_final"
+
+    _J: NDArray[Nf64] | None
+    _J2: NDArray[Nf64] | None
+    _grad_s_vT: NDArray[Nf64] | None
+    _grad_s_s_vT: NDArray[Nf64] | None
+    _grad_s_s_vT_pre: NDArray[Nf64] | None
+
+    r: NDArray[Nobject]  # instrument rates at iterate
+    s: NDArray[Nobject]  # target instrument rates
+    m: int # number of instruments
+    n: int # number of parameters/variables
+    pre_n: int # number of parameters/variables in all solvers including pre_
+    variables: tuple[str, ...]  # string tags for AD coordination
+    pre_variables: tuple[str, ...]  # string tags for AD coordination
+    _ad: int  # ad order
+
     @property
-    def J(self):
+    def J(self) -> NDArray[Nf64]:
         """
         2d Jacobian array of calibrating instrument rates with respect to curve
         variables, of size (n, m);
@@ -49,14 +73,14 @@ class Gradients:
         return self._J
 
     @property
-    def grad_v_rT(self):
+    def grad_v_rT(self) -> NDArray[Nf64]:
         """
         Alias of ``J``.
         """
         return self.J
 
     @property
-    def J2(self):
+    def J2(self) -> NDArray[Nf64]:
         """
         3d array of second derivatives of calibrating instrument rates with
         respect to curve variables, of size (n, n, m);
@@ -80,14 +104,14 @@ class Gradients:
         return self._J2
 
     @property
-    def grad_v_v_rT(self):
+    def grad_v_v_rT(self) -> NDArray[Nf64]:
         """
         Alias of ``J2``.
         """
         return self.J2  # pragma: no cover
 
     @property
-    def grad_s_vT(self):
+    def grad_s_vT(self) -> NDArray[Nf64]:
         """
         2d Jacobian array of curve variables with respect to calibrating instruments,
         of size (m, n);
@@ -100,7 +124,7 @@ class Gradients:
             self._grad_s_vT = getattr(self, self._grad_s_vT_method)()
         return self._grad_s_vT
 
-    def _grad_s_vT_final_iteration_dual(self, algorithm: str | None = None):
+    def _grad_s_vT_final_iteration_dual(self, algorithm: str | None = None) -> NDArray[Nf64]:
         """
         This is not the ideal method since it requires reset_properties to reassess.
         """
@@ -114,12 +138,12 @@ class Gradients:
         self.s = _s
         return grad_s_vT
 
-    def _grad_s_vT_final_iteration_analytical(self):
+    def _grad_s_vT_final_iteration_analytical(self) -> NDArray[Nf64]:
         """Uses a pseudoinverse algorithm on floats"""
-        grad_s_vT = np.linalg.pinv(self.J)
+        grad_s_vT: NDArray[Nf64] = np.linalg.pinv(self.J)
         return grad_s_vT
 
-    def _grad_s_vT_fixed_point_iteration(self):
+    def _grad_s_vT_fixed_point_iteration(self) -> NDArray[Nf64]:
         """
         This is not the ideal method because it requires second order and reset props.
         """
@@ -147,7 +171,7 @@ class Gradients:
         return grad_s_vT
 
     @property
-    def grad_s_s_vT(self):
+    def grad_s_s_vT(self) -> NDArray[Nf64]:
         """
         3d array of second derivatives of curve variables with respect to
         calibrating instruments, of size (m, m, n);
@@ -160,7 +184,7 @@ class Gradients:
             self._grad_s_s_vT = self._grad_s_s_vT_final_iteration_analytical()
         return self._grad_s_s_vT
 
-    def _grad_s_s_vT_fwd_difference_method(self):
+    def _grad_s_s_vT_fwd_difference_method(self) -> NDArray[Nf64]:
         """Use a numerical method, iterating through changes in s to calculate."""
         ds = 10 ** (int(dual_log(self.func_tol, 10) / 2))
         grad_s_vT_0 = np.copy(self.grad_s_vT)
@@ -178,7 +202,7 @@ class Gradients:
         # self._grad_s_vT_fixed_point_iteration()  # TODO: returns nothing: what is purpose
         return grad_s_s_vT
 
-    def _grad_s_s_vT_final_iteration_analytical(self, use_pre=False):
+    def _grad_s_s_vT_final_iteration_analytical(self, use_pre: bool =False) -> NDArray[Nf64]:
         """
         Use an analytical formula and second order AD to calculate.
 
@@ -201,7 +225,7 @@ class Gradients:
 
     # _pre versions incorporate all variables of solver and pre_solvers
 
-    def grad_f_rT_pre(self, fx_vars):
+    def grad_f_rT_pre(self, fx_vars) -> NDArray[Nf64]:
         """
         2d Jacobian array of calibrating instrument rates with respect to FX rate
         variables, of size (len(fx_vars), pre_m);
@@ -219,7 +243,7 @@ class Gradients:
         return grad_f_rT
 
     @property
-    def J2_pre(self):
+    def J2_pre(self) -> NDArray[Nf64]:
         """
         3d array of second derivatives of calibrating instrument rates with
         respect to curve variables for all ``Solvers`` including ``pre_solvers``,
@@ -257,7 +281,7 @@ class Gradients:
             self._J2_pre = J2
         return self._J2_pre
 
-    def grad_f_v_rT_pre(self, fx_vars):
+    def grad_f_v_rT_pre(self, fx_vars) -> NDArray[Nf64]:
         """
         3d array of second derivatives of calibrating instrument rates with respect to
         FX rates and curve variables, of size (len(fx_vars), pre_n, pre_m);
@@ -279,7 +303,7 @@ class Gradients:
         grad_f_v_rT = all_gradients[self.pre_n :, : self.pre_n, :]
         return grad_f_v_rT
 
-    def grad_f_f_rT_pre(self, fx_vars):
+    def grad_f_f_rT_pre(self, fx_vars) -> NDArray[Nf64]:
         """
         3d array of second derivatives of calibrating instrument rates with respect to
         FX rates, of size (len(fx_vars), len(fx_vars), pre_m);
@@ -301,7 +325,7 @@ class Gradients:
         return grad_f_f_rT
 
     @property
-    def grad_s_s_vT_pre(self):
+    def grad_s_s_vT_pre(self) -> NDArray[Nf64]:
         """
         3d array of second derivatives of curve variables with respect to
         calibrating instruments, of size (pre_m, pre_m, pre_n);
@@ -318,13 +342,13 @@ class Gradients:
         return self._grad_s_s_vT_pre
 
     @property
-    def grad_v_v_rT_pre(self):
+    def grad_v_v_rT_pre(self) -> NDArray[Nf64]:
         """
         Alias of ``J2_pre``.
         """
         return self.J2_pre  # pragma: no cover
 
-    def grad_f_s_vT_pre(self, fx_vars):
+    def grad_f_s_vT_pre(self, fx_vars) -> NDArray[Nf64]:
         """
         3d array of second derivatives of curve variables with respect to
         FX rates and calibrating instrument rates, of size (len(fx_vars), pre_m, pre_n);
@@ -344,7 +368,7 @@ class Gradients:
         grad_f_s_vT = _
         return grad_f_s_vT
 
-    def grad_f_f_vT_pre(self, fx_vars):
+    def grad_f_f_vT_pre(self, fx_vars) -> NDArray[Nf64]:
         """
         3d array of second derivatives of curve variables with respect to
         FX rates, of size (len(fx_vars), len(fx_vars), pre_n);
@@ -364,7 +388,7 @@ class Gradients:
         grad_f_f_vT = _
         return grad_f_f_vT
 
-    def grad_f_vT_pre(self, fx_vars):
+    def grad_f_vT_pre(self, fx_vars) -> NDArray[Nf64]:
         """
         2d array of the derivatives of curve variables with respect to FX rates, of
         size (len(fx_vars), pre_n).
@@ -382,7 +406,7 @@ class Gradients:
         grad_f_rT = np.array([gradient(rate, fx_vars) for rate in self.r_pre]).T
         return -np.matmul(grad_f_rT, self.grad_s_vT_pre)
 
-    def grad_f_f(self, f, fx_vars):
+    def grad_f_f(self, f, fx_vars) -> NDArray[Nf64]:
         """
         1d array of total derivatives of FX conversion rate with respect to
         FX rate variables, of size (len(fx_vars));
@@ -403,7 +427,7 @@ class Gradients:
         return grad_f_f
 
     @property
-    def grad_s_vT_pre(self):
+    def grad_s_vT_pre(self) -> NDArray[Nf64]:
         """
         2d Jacobian array of curve variables with respect to calibrating instruments
         including all pre solvers attached to the Solver, of size (pre_m, pre_n).
@@ -437,7 +461,7 @@ class Gradients:
             self._grad_s_vT_pre = grad_s_vT
         return self._grad_s_vT_pre
 
-    def grad_s_f_pre(self, f):
+    def grad_s_f_pre(self, f) -> NDArray[Nf64]:
         """
         1d array of FX conversion rate with respect to calibrating instruments,
         of size (pre_m);
@@ -455,7 +479,7 @@ class Gradients:
         grad_s_f = _
         return grad_s_f
 
-    def grad_s_sT_f_pre(self, f):
+    def grad_s_sT_f_pre(self, f) -> NDArray[Nf64]:
         """
         2d array of derivatives of FX conversion rate with respect to
         calibrating instruments, of size (pre_m, pre_m);
@@ -478,7 +502,7 @@ class Gradients:
         grad_s_sT_f = _
         return grad_s_sT_f
 
-    def grad_f_sT_f_pre(self, f, fx_vars):
+    def grad_f_sT_f_pre(self, f, fx_vars) -> NDArray[Nf64]:
         """
         2d array of derivatives of FX conversion rate with respect to
         calibrating instruments, of size (pre_m, pre_m);
@@ -512,7 +536,7 @@ class Gradients:
         grad_f_sT_f = _ + __
         return grad_f_sT_f
 
-    def grad_f_fT_f_pre(self, f, fx_vars):
+    def grad_f_fT_f_pre(self, f, fx_vars) -> NDArray[Nf64]:
         """
         2d array of derivatives of FX conversion rate with respect to
         calibrating instruments, of size (pre_m, pre_m);
@@ -552,7 +576,7 @@ class Gradients:
 
     # delta and gamma calculations require all solver and pre_solver variables
 
-    def grad_s_Ploc(self, npv):
+    def grad_s_Ploc(self, npv) -> NDArray[Nf64]:
         """
         1d array of derivatives of local currency PV with respect to calibrating
         instruments, of size (pre_m).
@@ -568,7 +592,7 @@ class Gradients:
         grad_s_P = np.matmul(self.grad_s_vT_pre, gradient(npv, self.pre_variables))
         return grad_s_P
 
-    def grad_f_Ploc(self, npv, fx_vars):
+    def grad_f_Ploc(self, npv, fx_vars) -> NDArray[Nf64]:
         r"""
         1d array of derivatives of local currency PV with respect to FX rate variable,
         of size (len(fx_vars)).
@@ -587,7 +611,7 @@ class Gradients:
         grad_f_P += np.matmul(self.grad_f_vT_pre(fx_vars), gradient(npv, self.pre_variables))
         return grad_f_P
 
-    def grad_s_Pbase(self, npv, grad_s_P, f):
+    def grad_s_Pbase(self, npv, grad_s_P, f) -> NDArray[Nf64]:
         """
         1d array of derivatives of base currency PV with respect to calibrating
         instruments, of size (pre_m).
@@ -608,7 +632,7 @@ class Gradients:
         grad_s_Pbas += grad_s_P * float(f)  # <- use float to cast float array not Dual
         return grad_s_Pbas
 
-    def grad_f_Pbase(self, npv, grad_f_P, f, fx_vars):
+    def grad_f_Pbase(self, npv, grad_f_P, f, fx_vars) -> NDArray[Nf64]:
         """
         1d array of derivatives of base currency PV with respect to FX rate variables,
         of size (len(fx_vars)).
@@ -631,7 +655,7 @@ class Gradients:
         ret += float(npv) * self.grad_f_f(f, fx_vars)
         return ret
 
-    def grad_s_sT_Ploc(self, npv):
+    def grad_s_sT_Ploc(self, npv) -> NDArray[Nf64]:
         """
         2d array of derivatives of local currency PV with respect to calibrating
         instruments, of size (pre_m, pre_m).
@@ -661,7 +685,7 @@ class Gradients:
         #     self.grad_s_s_vT_pre, npv.gradient(self.pre_variables)[:, None]
         # )[:, :, 0]
 
-    def gradp_f_vT_Ploc(self, npv, fx_vars):
+    def gradp_f_vT_Ploc(self, npv, fx_vars) -> NDArray[Nf64]:
         """
         2d array of (partial) derivatives of local currency PV with respect to
         FX rate variables and curve variables, of size (len(fx_vars), pre_n).
@@ -680,7 +704,7 @@ class Gradients:
         grad_f_vT_Ploc = grad_x_xT_Ploc[self.pre_n :, : self.pre_n]
         return grad_f_vT_Ploc
 
-    def grad_f_sT_Ploc(self, npv, fx_vars):
+    def grad_f_sT_Ploc(self, npv, fx_vars) -> NDArray[Nf64]:
         """
         2d array of derivatives of local currency PV with respect to calibrating
         instruments, of size (pre_m, pre_m).
@@ -707,7 +731,7 @@ class Gradients:
         grad_f_sT_Ploc = _
         return grad_f_sT_Ploc
 
-    def grad_f_fT_Ploc(self, npv, fx_vars):
+    def grad_f_fT_Ploc(self, npv, fx_vars) -> NDArray[Nf64]:
         """
         2d array of derivatives of local currency PV with respect to FX rate variables,
         of size (len(fx_vars), len(fx_vars)).
@@ -739,7 +763,7 @@ class Gradients:
         grad_f_f_Ploc = _ + __
         return grad_f_f_Ploc
 
-    def grad_s_sT_Pbase(self, npv, grad_s_sT_P, f):
+    def grad_s_sT_Pbase(self, npv, grad_s_sT_P, f) -> NDArray[Nf64]:
         """
         2d array of derivatives of base currency PV with respect to calibrating
         instrument rate variables, of size (pre_m, pre_m).
@@ -768,7 +792,7 @@ class Gradients:
         grad_s_sT_Pbas = _
         return grad_s_sT_Pbas
 
-    def grad_f_sT_Pbase(self, npv, grad_f_sT_P, f, fx_vars):
+    def grad_f_sT_Pbase(self, npv, grad_f_sT_P, f, fx_vars) -> NDArray[Nf64]:
         """
         2d array of derivatives of base currency PV with respect to FX variables and
         calibrating instrument rate variables, of size (len(fx_vars), pre_m).
@@ -802,7 +826,7 @@ class Gradients:
         grad_s_sT_Pbas = _
         return grad_s_sT_Pbas
 
-    def grad_f_fT_Pbase(self, npv, grad_f_fT_P, f, fx_vars):
+    def grad_f_fT_Pbase(self, npv, grad_f_fT_P, f, fx_vars) -> NDArray[Nf64]:
         """
         2d array of derivatives of base currency PV with respect to calibrating
         instrument rate variables, of size (pre_m, pre_m).
@@ -909,9 +933,6 @@ class Solver(Gradients, _WithState):
     See the documentation user guide :ref:`here <c-solver-doc>`.
 
     """
-
-    _grad_s_vT_method = "_grad_s_vT_final_iteration_analytical"
-    _grad_s_vT_final_iteration_algo = "gauss_newton_final"
 
     def __init__(
         self,
@@ -1240,7 +1261,7 @@ class Solver(Gradients, _WithState):
         return self._result
 
     @property
-    def v(self):
+    def v(self) -> NDArray[Nobject]:
         """
         1d array of curve node variables for each ordered curve, size (n,).
 
@@ -1251,7 +1272,7 @@ class Solver(Gradients, _WithState):
         return self._v
 
     @property
-    def r(self):
+    def r(self) -> NDArray[Nobject]:
         """
         1d array of mid-market rates of each calibrating instrument with given curves,
         size (m,).
@@ -1264,7 +1285,7 @@ class Solver(Gradients, _WithState):
         return self._r
 
     @property
-    def r_pre(self):
+    def r_pre(self) -> NDArray[Nobject]:
         if len(self.pre_solvers) == 0:
             return self.r
 
@@ -1283,7 +1304,7 @@ class Solver(Gradients, _WithState):
         return self._r_pre
 
     @property
-    def x(self):
+    def x(self) -> NDArray[Nobject]:
         """
         1d array of error in each calibrating instrument rate, of size (m,).
 
@@ -1325,7 +1346,7 @@ class Solver(Gradients, _WithState):
         return s
 
     @property
-    def g(self):
+    def g(self) -> DualTypes:
         """
         Objective function scalar value of the solver;
 
@@ -2062,7 +2083,7 @@ class Solver(Gradients, _WithState):
         for ccy in npv:
             container[("exogenous", ccy, ccy)] = self.grad_f_Ploc(npv[ccy], vars) * vars_scalar
 
-            if base is not NoInput.blank and base != ccy:
+            if not isinstance(base, NoInput) and base != ccy:
                 # extend the derivatives
                 f = fx.rate(f"{ccy}{base}")
                 container[("exogenous", ccy, base)] = (
