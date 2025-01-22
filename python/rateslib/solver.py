@@ -14,7 +14,7 @@ from pandas.errors import PerformanceWarning
 from rateslib import defaults
 from rateslib.curves import CompositeCurve, Curve, MultiCsaCurve, ProxyCurve
 from rateslib.default import NoInput, _validate_states, _WithState
-from rateslib.dual import Dual, Dual2, dual_log, dual_solve, gradient
+from rateslib.dual import Dual, Dual2, dual_solve, gradient
 from rateslib.dual.newton import _solver_result
 from rateslib.fx import FXForwards, FXRates
 
@@ -31,7 +31,8 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
     from rateslib.typing import (
-        DualTypes,
+        Variable,
+        Any,
         FXDeltaVolSmile,
         FXDeltaVolSurface,
         Sequence,
@@ -392,7 +393,7 @@ class Gradients:
         # FX sensitivity requires reverting through all pre-solvers rates.
         _ = -np.tensordot(self.grad_f_v_rT_pre(fx_vars), self.grad_s_vT_pre, (1, 1)).swapaxes(1, 2)
         _ = np.tensordot(_, self.grad_s_vT_pre, (2, 0))
-        grad_f_s_vT: NDArray[Nf64] = _  # type: ignore[assignment]
+        grad_f_s_vT: NDArray[Nf64] = _
         return grad_f_s_vT
 
     def grad_f_f_vT_pre(self, fx_vars: Sequence[str]) -> NDArray[Nf64]:
@@ -412,7 +413,7 @@ class Gradients:
         # FX sensitivity requires reverting through all pre-solvers rates.
         _ = -np.tensordot(self.grad_f_f_rT_pre(fx_vars), self.grad_s_vT_pre, (2, 0))
         _ -= np.tensordot(self.grad_f_rT_pre(fx_vars), self.grad_f_s_vT_pre(fx_vars), (1, 1))
-        grad_f_f_vT: NDArray[Nf64] = _  # type: ignore[assignment]
+        grad_f_f_vT: NDArray[Nf64] = _
         return grad_f_f_vT
 
     def grad_f_vT_pre(self, fx_vars: Sequence[str]) -> NDArray[Nf64]:
@@ -434,7 +435,7 @@ class Gradients:
         _: NDArray[Nf64] = -np.matmul(grad_f_rT, self.grad_s_vT_pre)
         return _
 
-    def grad_f_f(self, f, fx_vars: Sequence[str]) -> NDArray[Nf64]:
+    def grad_f_f(self, f: Dual | Dual2 | Variable, fx_vars: Sequence[str]) -> NDArray[Nf64]:
         """
         1d array of total derivatives of FX conversion rate with respect to
         FX rate variables, of size (len(fx_vars));
@@ -489,7 +490,7 @@ class Gradients:
             self._grad_s_vT_pre = grad_s_vT
         return self._grad_s_vT_pre
 
-    def grad_s_f_pre(self, f) -> NDArray[Nf64]:
+    def grad_s_f_pre(self, f: Dual | Dual2 | Variable) -> NDArray[Nf64]:
         """
         1d array of FX conversion rate with respect to calibrating instruments,
         of size (pre_m);
@@ -506,7 +507,7 @@ class Gradients:
         grad_s_f: NDArray[Nf64] = np.tensordot(self.grad_s_vT_pre, gradient(f, self.pre_variables), (1, 0))
         return grad_s_f
 
-    def grad_s_sT_f_pre(self, f) -> NDArray[Nf64]:
+    def grad_s_sT_f_pre(self, f: Dual | Dual2 | Variable) -> NDArray[Nf64]:
         """
         2d array of derivatives of FX conversion rate with respect to
         calibrating instruments, of size (pre_m, pre_m);
@@ -529,7 +530,7 @@ class Gradients:
         grad_s_sT_f = _
         return grad_s_sT_f
 
-    def grad_f_sT_f_pre(self, f, fx_vars: Sequence[str]) -> NDArray[Nf64]:
+    def grad_f_sT_f_pre(self, f: Dual | Dual2 | Variable, fx_vars: Sequence[str]) -> NDArray[Nf64]:
         """
         2d array of derivatives of FX conversion rate with respect to
         calibrating instruments, of size (pre_m, pre_m);
@@ -1098,10 +1099,10 @@ class Solver(Gradients, _WithState):
         }
         self.iterate()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<rl.Solver:{self.id} at {hex(id(self))}>"
 
-    def _set_new_state(self):
+    def _set_new_state(self) -> None:
         self._state_fx = self._get_composited_fx_state()
         self._state_curves = self._get_composited_curves_state()
         self._state_pre_curves = self._get_composited_pre_curves_state()
@@ -1141,22 +1142,22 @@ class Solver(Gradients, _WithState):
         else:
             return self.fx._state
 
-    def _get_composited_curves_state(self):
+    def _get_composited_curves_state(self) -> int:
         return hash(sum(curve._state for curve in self.curves.values()))
 
-    def _get_composited_pre_curves_state(self):
+    def _get_composited_pre_curves_state(self) -> int:
         return hash(
             sum(curve._state for solver in self.pre_solvers for curve in solver.curves.values())
         )
 
-    def _get_composited_state(self):
+    def _get_composited_state(self) -> int:
         fx_state = self._get_composited_fx_state()
         curves_state = self._get_composited_curves_state()
         pre_curves_state = self._get_composited_pre_curves_state()
         _ = hash(fx_state + curves_state + pre_curves_state)
         return _
 
-    def _parse_instrument(self, value):
+    def _parse_instrument(self, value) -> tuple[SupportsRate, tuple[Any,...], dict[str, Any]]:
         """
         Parses different input formats for an instrument given to the ``Solver``.
 
@@ -1299,7 +1300,7 @@ class Solver(Gradients, _WithState):
         return self._v
 
     @property
-    def r(self) -> NDArray[Nobject]:
+    def r(self) -> NDArray[Nobject]:  # type: ignore[override]
         """
         1d array of mid-market rates of each calibrating instrument with given curves,
         size (m,).
@@ -1312,7 +1313,7 @@ class Solver(Gradients, _WithState):
         return self._r
 
     @property
-    def r_pre(self) -> NDArray[Nobject]:
+    def r_pre(self) -> NDArray[Nobject]:  # type: ignore[override]
         if len(self.pre_solvers) == 0:
             return self.r
 
@@ -1346,7 +1347,7 @@ class Solver(Gradients, _WithState):
         return self._x
 
     @property
-    def error(self):
+    def error(self) -> Series[float]:
         """
         Return the error in calibrating instruments, including ``pre_solvers``, scaled
         to the risk representation factor.
