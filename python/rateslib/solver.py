@@ -4,7 +4,7 @@ import warnings
 from collections.abc import Callable
 from itertools import combinations
 from time import time
-from typing import Any, ParamSpec, TYPE_CHECKING
+from typing import TYPE_CHECKING, ParamSpec
 from uuid import uuid4
 
 import numpy as np
@@ -26,10 +26,20 @@ from rateslib.fx_volatility import FXVols
 P = ParamSpec("P")
 
 if TYPE_CHECKING:
-    from rateslib.typing import DualTypes
+    from numpy import float64 as Nf64  # noqa: N812
+    from numpy import object_ as Nobject  # noqa: N812
     from numpy.typing import NDArray
-    from numpy import float64 as Nf64
-    from numpy import object_ as Nobject
+
+    from rateslib.typing import (
+        DualTypes,
+        FXDeltaVolSmile,
+        FXDeltaVolSurface,
+        Sequence,
+        SupportsRate,
+        Callable,
+        FX_,
+        str_
+    )
 
 
 class Gradients:
@@ -47,14 +57,20 @@ class Gradients:
     _grad_s_s_vT: NDArray[Nf64] | None
     _grad_s_s_vT_pre: NDArray[Nf64] | None
 
+    _reset_properties_: Callable[..., None]
+    _update_step_: Callable[[str], NDArray[Nobject]]
+    _set_ad_order: Callable[[int], None]
+
     r: NDArray[Nobject]  # instrument rates at iterate
     s: NDArray[Nobject]  # target instrument rates
-    m: int # number of instruments
-    n: int # number of parameters/variables
-    pre_n: int # number of parameters/variables in all solvers including pre_
+    m: int  # number of instruments
+    n: int  # number of parameters/variables
+    pre_n: int  # number of parameters/variables in all solvers including pre_
+    g: DualTypes  # solver objective function value
     variables: tuple[str, ...]  # string tags for AD coordination
     pre_variables: tuple[str, ...]  # string tags for AD coordination
     _ad: int  # ad order
+    instruments: tuple[SupportsRate, ...]  # calibrating instruments
 
     @property
     def J(self) -> NDArray[Nf64]:
@@ -140,7 +156,7 @@ class Gradients:
 
     def _grad_s_vT_final_iteration_analytical(self) -> NDArray[Nf64]:
         """Uses a pseudoinverse algorithm on floats"""
-        grad_s_vT: NDArray[Nf64] = np.linalg.pinv(self.J)
+        grad_s_vT: NDArray[Nf64] = np.linalg.pinv(self.J)  # type: ignore[assignment]
         return grad_s_vT
 
     def _grad_s_vT_fixed_point_iteration(self) -> NDArray[Nf64]:
@@ -202,7 +218,7 @@ class Gradients:
         # self._grad_s_vT_fixed_point_iteration()  # TODO: returns nothing: what is purpose
         return grad_s_s_vT
 
-    def _grad_s_s_vT_final_iteration_analytical(self, use_pre: bool =False) -> NDArray[Nf64]:
+    def _grad_s_s_vT_final_iteration_analytical(self, use_pre: bool = False) -> NDArray[Nf64]:
         """
         Use an analytical formula and second order AD to calculate.
 
@@ -936,9 +952,9 @@ class Solver(Gradients, _WithState):
 
     def __init__(
         self,
-        curves: list | tuple = (),
-        surfaces: list | tuple = (),
-        instruments: tuple[Any] | list[Any] = (),
+        curves: Sequence[Curve, FXDeltaVolSmile] = (),
+        surfaces: Sequence[FXDeltaVolSurface] = (),
+        instruments: Sequence[SupportsRate] = (),
         s: tuple[float] | list[float] = (),
         weights: list | NoInput = NoInput(0),
         algorithm: str | NoInput = NoInput(0),
@@ -1177,7 +1193,7 @@ class Solver(Gradients, _WithState):
                 ret2 = {**ret2, **value[2]}
             return (ret0, ret1, ret2)
 
-    def _reset_properties_(self, dual2_only=False):
+    def _reset_properties_(self, dual2_only=False) -> None:
         """
         Set all calculated attributes to `None` requiring re-evaluation.
 
@@ -1367,7 +1383,7 @@ class Solver(Gradients, _WithState):
     #     _Jkm = np.array([rate.gradient(self.variables + extra_vars, keep_manifold=True) for rate in self.r]).T  # noqa: E501
     #     return _Jkm
 
-    def _update_step_(self, algorithm):
+    def _update_step_(self, algorithm: str) -> NDArray[Nobject]:
         if algorithm == "gradient_descent":
             grad_v_g = gradient(self.g, self.variables)
             y = np.matmul(self.J.transpose(), grad_v_g[:, np.newaxis])[:, 0]
@@ -1614,15 +1630,15 @@ class Solver(Gradients, _WithState):
         sorted_cols = df.columns.sort_values()
         return df.loc[:, sorted_cols].astype("float64")
 
-    def _get_base_and_fx(self, base: str | NoInput, fx: FXForwards | FXRates | float | NoInput):
-        if base is not NoInput.blank and self.fx is NoInput.blank and fx is NoInput.blank:
+    def _get_base_and_fx(self, base: str_, fx: FX_) -> tuple[str_, FX_]:
+        if not isinstance(base, NoInput) and isinstance(self.fx, NoInput) and isinstance(fx, NoInput):
             raise ValueError(
                 "`base` is given but `fx` is not and Solver does not "
                 "contain an attached FXForwards object.",
             )
-        elif fx is NoInput.blank:
+        elif isinstance(fx, NoInput):
             fx = self.fx
-        elif fx is not NoInput.blank and self.fx is not NoInput.blank and id(fx) != id(self.fx):
+        elif not isinstance(fx, NoInput) and not isinstance(self.fx, NoInput) and id(fx) != id(self.fx):
             warnings.warn(
                 "Solver contains an `fx` attribute but an `fx` argument has been "
                 "supplied which is not the same. This can lead to risk sensitivity "
@@ -1630,12 +1646,12 @@ class Solver(Gradients, _WithState):
                 UserWarning,
             )
 
-        if base is not NoInput.blank:
+        if not isinstance(base, NoInput):
             base = base.lower()
         return base, fx
 
     @_validate_states
-    def gamma(self, npv, base=NoInput(0), fx=NoInput(0)):
+    def gamma(self, npv, base=NoInput(0), fx=NoInput(0)) -> DataFrame:
         """
         Calculate the cross-gamma risk sensitivity of an instrument's NPV to the
         calibrating instruments of the :class:`~rateslib.solver.Solver`.
@@ -1896,7 +1912,7 @@ class Solver(Gradients, _WithState):
         raise NotImplementedError()
 
     @_validate_states
-    def market_movements(self, solver: Solver):
+    def market_movements(self, solver: Solver) -> DataFrame:
         """
         Determine market movements between the *Solver's* instrument rates and those rates priced
         from a second *Solver*.
@@ -1934,7 +1950,7 @@ class Solver(Gradients, _WithState):
         )
 
     @_validate_states
-    def jacobian(self, solver: Solver):
+    def jacobian(self, solver: Solver) -> DataFrame:
         """
         Calculate the Jacobian with respect to another *Solver's* instruments.
 
@@ -2074,9 +2090,9 @@ class Solver(Gradients, _WithState):
         """
 
         base, fx = self._get_base_and_fx(base, fx)
-        if vars_scalar is NoInput.blank:
+        if isinstance(vars_scalar, NoInput):
             vars_scalar = [1.0] * len(vars)
-        if vars_labels is NoInput.blank:
+        if isinstance(vars_labels, NoInput):
             vars_labels = vars
 
         container = {}
@@ -2106,7 +2122,7 @@ class Solver(Gradients, _WithState):
         for key, array in container.items():
             df.loc[indexes[key[0]], (key[1], key[2])] = array
 
-        if base is not NoInput.blank:
+        if isinstance(base, NoInput):
             df.loc[r_idx, ("all", base)] = df.loc[r_idx, (slice(None), base)].sum(axis=1)
 
         sorted_cols = df.columns.sort_values()
