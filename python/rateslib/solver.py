@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Callable
 from itertools import combinations
 from time import time
 from typing import TYPE_CHECKING, ParamSpec
 from uuid import uuid4
+from math import log
 
 import numpy as np
 from pandas import DataFrame, MultiIndex, Series, concat
@@ -54,7 +54,7 @@ class Gradients:
     _J: NDArray[Nf64] | None
     _J_pre: NDArray[Nf64] | None
     _J2: NDArray[Nf64] | None
-    _JS_pre: NDArray[Nf64] | None
+    _J2_pre: NDArray[Nf64] | None
     _grad_s_vT: NDArray[Nf64] | None
     _grad_s_vT_pre: NDArray[Nf64] | None
     _grad_s_s_vT: NDArray[Nf64] | None
@@ -180,7 +180,7 @@ class Gradients:
         grad2 = gradient(self.g, self.variables + s_vars, order=2)
         grad_v_vT_f = grad2[: self.n, : self.n]
         grad_s_vT_f = grad2[self.n :, : self.n]
-        grad_s_vT: NDArray[Nf64] = np.linalg.solve(grad_v_vT_f, -grad_s_vT_f.T).T
+        grad_s_vT: NDArray[Nf64] = np.linalg.solve(grad_v_vT_f, -grad_s_vT_f.T).T  # type: ignore[assignment]
 
         # The following are alternative representations. Actually faster to calculate and
         # do not require sensitivity against S variables to be measured.
@@ -211,7 +211,7 @@ class Gradients:
 
     def _grad_s_s_vT_fwd_difference_method(self) -> NDArray[Nf64]:
         """Use a numerical method, iterating through changes in s to calculate."""
-        ds = 10 ** (int(dual_log(self.func_tol, 10) / 2))
+        ds = 10 ** (int(log(self.func_tol, 10) / 2))
         grad_s_vT_0 = np.copy(self.grad_s_vT)
         grad_s_s_vT = np.zeros(shape=(self.m, self.m, self.n))
 
@@ -222,7 +222,7 @@ class Gradients:
             self.s[i] -= ds
 
         # ensure exact symmetry (maybe redundant)
-        grad_s_s_vT = (grad_s_s_vT + np.swapaxes(grad_s_s_vT, 0, 1)) / 2
+        grad_s_s_vT = (grad_s_s_vT + np.swapaxes(grad_s_s_vT, 0, 1)) / 2  # type: ignore[assignment]
         self.iterate()
         return grad_s_s_vT
 
@@ -238,9 +238,12 @@ class Gradients:
         else:
             J2, grad_s_vT = self.J2, self.grad_s_vT
 
-        _ = np.tensordot(J2, grad_s_vT, (2, 0))  # dv/dr_l * d2r_l / dvdv
-        _ = np.tensordot(grad_s_vT, _, (1, 0))  # dv_z /ds * d2v / dv_zdv
-        _ = -np.tensordot(grad_s_vT, _, (1, 1))  # dv_h /ds * d2v /dvdv_h
+        # dv/dr_l * d2r_l / dvdv
+        _ : NDArray[Nf64] = np.tensordot(J2, grad_s_vT, (2, 0)) # type: ignore[assignment]
+        # dv_z /ds * d2v / dv_zdv
+        _ = np.tensordot(grad_s_vT, _, (1, 0))  # type: ignore[assignment]
+        # dv_h /ds * d2v /dvdv_h
+        _ = -np.tensordot(grad_s_vT, _, (1, 1))  # type: ignore[assignment]
         grad_s_s_vT = _
         return grad_s_s_vT
         # _ = np.matmul(grad_s_vT, np.matmul(J2, grad_s_vT))
@@ -389,7 +392,7 @@ class Gradients:
         # FX sensitivity requires reverting through all pre-solvers rates.
         _ = -np.tensordot(self.grad_f_v_rT_pre(fx_vars), self.grad_s_vT_pre, (1, 1)).swapaxes(1, 2)
         _ = np.tensordot(_, self.grad_s_vT_pre, (2, 0))
-        grad_f_s_vT = _
+        grad_f_s_vT: NDArray[Nf64] = _  # type: ignore[assignment]
         return grad_f_s_vT
 
     def grad_f_f_vT_pre(self, fx_vars: Sequence[str]) -> NDArray[Nf64]:
@@ -409,7 +412,7 @@ class Gradients:
         # FX sensitivity requires reverting through all pre-solvers rates.
         _ = -np.tensordot(self.grad_f_f_rT_pre(fx_vars), self.grad_s_vT_pre, (2, 0))
         _ -= np.tensordot(self.grad_f_rT_pre(fx_vars), self.grad_f_s_vT_pre(fx_vars), (1, 1))
-        grad_f_f_vT = _
+        grad_f_f_vT: NDArray[Nf64] = _  # type: ignore[assignment]
         return grad_f_f_vT
 
     def grad_f_vT_pre(self, fx_vars: Sequence[str]) -> NDArray[Nf64]:
@@ -428,7 +431,8 @@ class Gradients:
         """  # noqa: E501
         # FX sensitivity requires reverting through all pre-solvers rates.
         grad_f_rT = np.array([gradient(rate, fx_vars) for rate in self.r_pre]).T
-        return -np.matmul(grad_f_rT, self.grad_s_vT_pre)
+        _: NDArray[Nf64] = -np.matmul(grad_f_rT, self.grad_s_vT_pre)
+        return _
 
     def grad_f_f(self, f, fx_vars: Sequence[str]) -> NDArray[Nf64]:
         """
@@ -1887,7 +1891,15 @@ class Solver(Gradients, _WithState):
 
         return df.astype("float64")
 
-    def _pnl_explain(self, npv, ds, dfx=None, base=NoInput.blank, fx=NoInput.blank, order=1):
+    def _pnl_explain(
+        self,
+        npv: Dual | Dual2,
+        ds: Sequence[float],
+        dfx: Sequence[float] | None =None,
+        base: str_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        order: int =1
+    ) -> DataFrame:
         """
         Calculate PnL from market movements over delta and, optionally, gamma.
 
@@ -2056,12 +2068,12 @@ class Solver(Gradients, _WithState):
     @_validate_states
     def exo_delta(
         self,
-        npv,
-        vars: list[str],  # noqa: A002
-        vars_scalar: list[float] | NoInput = NoInput(0),
-        vars_labels: list[str] | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
-        fx=NoInput(0),
+        npv: dict[str, Dual | Dual2],
+        vars: Sequence[str],  # noqa: A002
+        vars_scalar: Sequence[float] | NoInput = NoInput(0),
+        vars_labels: Sequence[str] | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
+        fx: FX_ = NoInput(0),
     ) -> DataFrame:
         """
         Calculate risk sensitivity to user defined, exogenous variables in the
