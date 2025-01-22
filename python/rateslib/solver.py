@@ -1442,7 +1442,7 @@ class Solver(Gradients, _WithState):
         return v_1
 
     def _update_fx(self) -> None:
-        if isinstance(self.fx, NoInput):
+        if not isinstance(self.fx, NoInput):
             self.fx.update()  # note: with no variables this does nothing.
 
     def iterate(self) -> None:
@@ -2141,7 +2141,7 @@ class Solver(Gradients, _WithState):
         for key, array in container.items():
             df.loc[indexes[key[0]], (key[1], key[2])] = array
 
-        if isinstance(base, NoInput):
+        if not isinstance(base, NoInput):
             df.loc[r_idx, ("all", base)] = df.loc[r_idx, (slice(None), base)].sum(axis=1)
 
         sorted_cols = df.columns.sort_values()
