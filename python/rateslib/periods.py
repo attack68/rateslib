@@ -63,6 +63,7 @@ from rateslib.fx_volatility import (
     _d_plus_min_u,
     _delta_type_constants,
 )
+from rateslib.instruments.utils import _validate_fx_as_forwards
 from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
@@ -2755,6 +2756,122 @@ class Cashflow:
         """
         return 0.0
 
+
+class NonDeliverableCashflow:
+
+    def __init__(
+        self,
+        notional: DualTypes,
+        pair: str_,
+        settlement_currency: str,
+        settlement: datetime,
+        fixing_date: datetime,
+        fx_rate: DualTypes_ = NoInput(0),
+        fx_fixing: DualTypes_ = NoInput(0),
+    ):
+        self.notional = notional
+        self.settlement = settlement
+        self.settlement_currency = settlement_currency.lower()
+        self.pair = pair.lower()
+        self.fixing_date = fixing_date
+        self.fx_rate = fx_rate
+        self.fx_fixing = fx_fixing
+
+    def analytic_delta(
+        self,
+        curve: Curve_ = NoInput(0),
+        disc_curve: Curve_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
+    ) -> DualTypes:
+        """
+        Return the analytic delta of the *NonDeliverableCashflow*.
+        See
+        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
+        """
+        return 0.0
+
+    def npv(
+        self,
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: Curve_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
+        local: bool = False,
+    ) -> NPV:
+        """
+        Return the NPV of the *NonDeliverableCashflow*.
+        See
+        :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
+        """
+        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
+        disc_cashflow = self.cashflow(fx) * disc_curve_[self.settlement]
+        return _maybe_local(disc_cashflow, local, self.settlement_currency, fx, base)
+
+    def cashflow(self, fx: FX_) -> DualTypes:
+        """Cashflow is expressed in the settlement, i.e. deliverable currency."""
+        if isinstance(self.fx_fixing, NoInput):
+            fx_ = _validate_fx_as_forwards(fx)
+            fx_fixing = fx_.rate(self.pair, self.settlement_currency)
+        else:
+            fx_fixing = self.fx_fixing
+
+        nd_value: DualTypes = self.notional * (fx_fixing - self.fx_rate)
+        d_value: DualTypes = nd_value * fx_.rate(
+            f"{self.pair[3:]}{self.settlement_currency}", self.settlement_currency
+        )
+        return d_value
+
+    def cashflows(
+        self,
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: Curve_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
+    ) -> dict[str, Any]:
+        """
+        Return the cashflows of the *NonDeliverableCashflow*.
+        See
+        :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
+        """
+        disc_curve_: Curve_ = _disc_maybe_from_curve(curve, disc_curve)
+        imm_fx_to_base, _ = _get_fx_and_base(self.settlement_currency, fx, base)
+
+        if isinstance(disc_curve_, NoInput) or not isinstance(fx, FXForwards):
+            npv, npv_fx, df, collateral, cashflow = None, None, None, None, None
+        else:
+            npv_: DualTypes = self.npv(curve, disc_curve_, fx_)  # type: ignore[assignment]
+            npv = _dual_float(npv_)
+
+            npv_fx = npv * _dual_float(imm_fx_to_base)
+            df, collateral = _dual_float(disc_curve_[self.settlement]), disc_curve_.collateral
+            cashflow = _dual_float(self.cashflow(fx))
+
+        rate = _float_or_none(_drb(None, self.fx_rate))
+        stub_type = None if isinstance(self.stub_type, NoInput) else self.stub_type
+        return {
+            defaults.headers["type"]: type(self).__name__,
+            defaults.headers["stub_type"]: self.pair,
+            defaults.headers["currency"]: self.settlement_currency.upper(),
+            # defaults.headers["a_acc_start"]: None,
+            # defaults.headers["a_acc_end"]: None,
+            defaults.headers["payment"]: self.settlement,
+            # defaults.headers["convention"]: None,
+            # defaults.headers["dcf"]: None,
+            defaults.headers["notional"]: _dual_float(self.notional),
+            defaults.headers["df"]: df,
+            defaults.headers["rate"]: rate,
+            # defaults.headers["spread"]: None,
+            defaults.headers["cashflow"]: cashflow,
+            defaults.headers["npv"]: npv,
+            defaults.headers["fx"]: _dual_float(imm_fx_to_base),
+            defaults.headers["npv_fx"]: npv_fx,
+            defaults.headers["collateral"]: collateral,
+        }
+
+    def rate(self, fx: FX_) -> DualTypes:
+        fx_ = _validate_fx_as_forwards(fx)
+        return fx_.rate(self.pair, self.settlement)
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

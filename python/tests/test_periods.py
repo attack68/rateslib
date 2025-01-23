@@ -2815,6 +2815,14 @@ class TestIndexCashflow:
         assert isinstance(result["Cashflow"], float)
 
 
+class TestNonDeliverableCashflow:
+
+    def setup(self):
+
+    def test_npv(self):
+
+
+
 def test_base_period_dates_raise() -> None:
     with pytest.raises(ValueError):
         _ = FixedPeriod(dt(2023, 1, 1), dt(2022, 1, 1), dt(2024, 1, 1), "Q")
