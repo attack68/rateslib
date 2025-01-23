@@ -2810,15 +2810,15 @@ class NonDeliverableCashflow:
 
     def cashflow(self, fx: FX_) -> DualTypes:
         """Cashflow is expressed in the settlement, i.e. deliverable currency."""
+        fx_ = _validate_fx_as_forwards(fx)
         if isinstance(self.fx_fixing, NoInput):
-            fx_ = _validate_fx_as_forwards(fx)
-            fx_fixing = fx_.rate(self.pair, self.settlement_currency)
+            fx_fixing = fx_.rate(self.pair, self.settlement)
         else:
             fx_fixing = self.fx_fixing
 
         nd_value: DualTypes = self.notional * (fx_fixing - self.fx_rate)
         d_value: DualTypes = nd_value * fx_.rate(
-            f"{self.pair[3:]}{self.settlement_currency}", self.settlement_currency
+            f"{self.pair[3:]}{self.settlement_currency}", self.settlement
         )
         return d_value
 
@@ -2848,7 +2848,6 @@ class NonDeliverableCashflow:
             cashflow = _dual_float(self.cashflow(fx))
 
         rate = _float_or_none(_drb(None, self.fx_rate))
-        stub_type = None if isinstance(self.stub_type, NoInput) else self.stub_type
         return {
             defaults.headers["type"]: type(self).__name__,
             defaults.headers["stub_type"]: self.pair,

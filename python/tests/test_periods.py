@@ -24,6 +24,7 @@ from rateslib.periods import (
     IndexCashflow,
     IndexFixedPeriod,
     IndexMixin,
+    NonDeliverableCashflow,
 )
 
 
@@ -2817,9 +2818,47 @@ class TestIndexCashflow:
 
 class TestNonDeliverableCashflow:
 
-    def setup(self):
+    @pytest.fixture(scope="class")
+    def fxf_ndf(self):
+        fxr = FXRates({"eurusd": 1.02, "usdjpy": 100.0}, settlement=dt(2025, 1, 23))
+        fxf = FXForwards(
+            fx_rates=fxr,
+            fx_curves={
+                "eureur": Curve({dt(2025, 1, 21): 1.0, dt(2026, 1, 23): 0.98}),
+                "usdusd": Curve({dt(2025, 1, 21): 1.0, dt(2026, 1, 23): 0.96}),
+                "eurusd": Curve({dt(2025, 1, 21): 1.0, dt(2026, 1, 23): 0.978}),
+                "jpyjpy": Curve({dt(2025, 1, 21): 1.0, dt(2026, 1, 23): 0.99}),
+                "jpyusd": Curve({dt(2025, 1, 21): 1.0, dt(2026, 1, 23): 0.991}),
+            }
+        )
+        return fxf
 
-    def test_npv(self):
+    def test_npv(self, fxf_ndf):
+        ndf = NonDeliverableCashflow(
+            notional=1e6,
+            pair="eurjpy",
+            settlement_currency="usd",
+            settlement=dt(2025, 6, 1),
+            fixing_date=dt(2025, 5, 29),
+            fx_rate=100.0,
+        )
+        result = ndf.npv(disc_curve=fxf_ndf.curve("usd", "usd"), fx=fxf_ndf)
+        expected = 1e6 * (101.527664853268 - 100) * 0.9855343095437953 * 0.010112336953830053
+        assert abs(result - expected) < 1e-8
+
+    def test_npv(self, fxf_ndf):
+        ndf = NonDeliverableCashflow(
+            notional=1e6,
+            pair="eurjpy",
+            settlement_currency="usd",
+            settlement=dt(2025, 6, 1),
+            fixing_date=dt(2025, 5, 29),
+            fx_rate=100.0,
+        )
+        result = ndf.npv(disc_curve=fxf_ndf.curve("usd", "usd"), fx=fxf_ndf)
+        expected = 1e6 * (101.527664853268 - 100) * 0.9855343095437953 * 0.010112336953830053
+        assert abs(result - expected) < 1e-8
+
 
 
 
