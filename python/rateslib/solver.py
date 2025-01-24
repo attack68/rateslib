@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import warnings
 from itertools import combinations
+from math import log
 from time import time
 from typing import TYPE_CHECKING, ParamSpec
 from uuid import uuid4
-from math import log
 
 import numpy as np
 from pandas import DataFrame, MultiIndex, Series, concat
@@ -15,6 +15,7 @@ from rateslib import defaults
 from rateslib.curves import CompositeCurve, Curve, MultiCsaCurve, ProxyCurve
 from rateslib.default import NoInput, _validate_states, _WithState
 from rateslib.dual import Dual, Dual2, dual_solve, gradient
+from rateslib.dual.utils import _dual_float
 from rateslib.dual.newton import _solver_result
 from rateslib.fx import FXForwards, FXRates
 
@@ -31,15 +32,15 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
     from rateslib.typing import (
-        Variable,
+        FX_,
         Any,
+        Callable,
         FXDeltaVolSmile,
         FXDeltaVolSurface,
         Sequence,
         SupportsRate,
-        Callable,
-        FX_,
-        str_
+        Variable,
+        str_,
     )
 
 
@@ -240,7 +241,7 @@ class Gradients:
             J2, grad_s_vT = self.J2, self.grad_s_vT
 
         # dv/dr_l * d2r_l / dvdv
-        _ : NDArray[Nf64] = np.tensordot(J2, grad_s_vT, (2, 0)) # type: ignore[assignment]
+        _: NDArray[Nf64] = np.tensordot(J2, grad_s_vT, (2, 0))  # type: ignore[assignment]
         # dv_z /ds * d2v / dv_zdv
         _ = np.tensordot(grad_s_vT, _, (1, 0))  # type: ignore[assignment]
         # dv_h /ds * d2v /dvdv_h
@@ -504,7 +505,9 @@ class Gradients:
         f : Dual or Dual2
             The value of the local to base FX conversion rate.
         """
-        grad_s_f: NDArray[Nf64] = np.tensordot(self.grad_s_vT_pre, gradient(f, self.pre_variables), (1, 0))
+        grad_s_f: NDArray[Nf64] = np.tensordot(
+            self.grad_s_vT_pre, gradient(f, self.pre_variables), (1, 0)
+        )  # type: ignore[assignment]
         return grad_s_f
 
     def grad_s_sT_f_pre(self, f: Dual | Dual2 | Variable) -> NDArray[Nf64]:
@@ -524,8 +527,8 @@ class Gradients:
         grad_s_vT = self.grad_s_vT_pre
         grad_v_vT_f = gradient(f, self.pre_variables, order=2)
 
-        _ = np.tensordot(grad_s_vT, grad_v_vT_f, (1, 0))
-        _ = np.tensordot(_, grad_s_vT, (1, 1))
+        _: NDArray[Nf64] = np.tensordot(grad_s_vT, grad_v_vT_f, (1, 0))  # type: ignore[assignment]
+        _ = np.tensordot(_, grad_s_vT, (1, 1))  # type: ignore[assignment]
 
         grad_s_sT_f = _
         return grad_s_sT_f
@@ -561,10 +564,10 @@ class Gradients:
         __ = np.tensordot(grad_f_vT, grad_v_vT_f, (1, 0))
         __ = np.tensordot(__, grad_s_vT, (1, 1))
 
-        grad_f_sT_f = _ + __
+        grad_f_sT_f: NDArray[Nf64] = _ + __
         return grad_f_sT_f
 
-    def grad_f_fT_f_pre(self, f, fx_vars: Sequence[str]) -> NDArray[Nf64]:
+    def grad_f_fT_f_pre(self, f: Dual | Dual2 | Variable, fx_vars: Sequence[str]) -> NDArray[Nf64]:
         """
         2d array of derivatives of FX conversion rate with respect to
         calibrating instruments, of size (pre_m, pre_m);
@@ -598,13 +601,13 @@ class Gradients:
         __ = np.tensordot(__, grad_f_vT, (1, 1))
 
         grad_f_fT_f = _ + __
-        return grad_f_fT_f
+        return grad_f_fT_f  # type: ignore[no-any-return]
 
     # grad_v_v_f: calculated within grad_s_vT_fixed_point_iteration
 
     # delta and gamma calculations require all solver and pre_solver variables
 
-    def grad_s_Ploc(self, npv) -> NDArray[Nf64]:
+    def grad_s_Ploc(self, npv: Dual | Dual2 | Variable) -> NDArray[Nf64]:
         """
         1d array of derivatives of local currency PV with respect to calibrating
         instruments, of size (pre_m).
@@ -617,10 +620,10 @@ class Gradients:
             npv : Dual or Dual2
                 A local currency NPV of a period of a leg.
         """
-        grad_s_P = np.matmul(self.grad_s_vT_pre, gradient(npv, self.pre_variables))
+        grad_s_P: NDArray[Nf64] = np.matmul(self.grad_s_vT_pre, gradient(npv, self.pre_variables))
         return grad_s_P
 
-    def grad_f_Ploc(self, npv, fx_vars: Sequence[str]) -> NDArray[Nf64]:
+    def grad_f_Ploc(self, npv: Dual | Dual2 | Variable, fx_vars: Sequence[str]) -> NDArray[Nf64]:
         r"""
         1d array of derivatives of local currency PV with respect to FX rate variable,
         of size (len(fx_vars)).
@@ -639,7 +642,12 @@ class Gradients:
         grad_f_P += np.matmul(self.grad_f_vT_pre(fx_vars), gradient(npv, self.pre_variables))
         return grad_f_P
 
-    def grad_s_Pbase(self, npv, grad_s_P, f) -> NDArray[Nf64]:
+    def grad_s_Pbase(
+        self,
+        npv: Dual | Dual2 | Variable,
+        grad_s_P: NDArray[Nf64],
+        f: Dual | Dual2 | Variable
+    ) -> NDArray[Nf64]:
         """
         1d array of derivatives of base currency PV with respect to calibrating
         instruments, of size (pre_m).
@@ -656,11 +664,17 @@ class Gradients:
             f : Dual or Dual2
                 The local:base FX rate.
         """  # noqa: E501
-        grad_s_Pbas = float(npv) * np.matmul(self.grad_s_vT_pre, gradient(f, self.pre_variables))
-        grad_s_Pbas += grad_s_P * float(f)  # <- use float to cast float array not Dual
+        grad_s_Pbas: NDArray[Nf64] = _dual_float(npv) * np.matmul(self.grad_s_vT_pre, gradient(f, self.pre_variables))
+        grad_s_Pbas += grad_s_P * _dual_float(f)  # <- use float to cast float array not Dual
         return grad_s_Pbas
 
-    def grad_f_Pbase(self, npv, grad_f_P, f, fx_vars: Sequence[str]) -> NDArray[Nf64]:
+    def grad_f_Pbase(
+        self,
+        npv: Dual | Dual2 | Variable,
+        grad_f_P: NDArray[Nf64],
+        f: Dual | Dual2 | Variable,
+        fx_vars: Sequence[str]
+    ) -> NDArray[Nf64]:
         """
         1d array of derivatives of base currency PV with respect to FX rate variables,
         of size (len(fx_vars)).
@@ -679,11 +693,12 @@ class Gradients:
             fx_vars : list or tuple of str
                 The variable tags for automatic differentiation of FX rate sensitivity
         """  # noqa: E501
-        ret = grad_f_P * float(f)  # <- use float here to cast float array not Dual
-        ret += float(npv) * self.grad_f_f(f, fx_vars)
+        # use float here to cast float array not Dual
+        ret: NDArray[Nf64] = grad_f_P * _dual_float(f)  # type: ignore[assignment]
+        ret += _dual_float(npv) * self.grad_f_f(f, fx_vars)
         return ret
 
-    def grad_s_sT_Ploc(self, npv) -> NDArray[Nf64]:
+    def grad_s_sT_Ploc(self, npv: Dual2 | Variable) -> NDArray[Nf64]:
         """
         2d array of derivatives of local currency PV with respect to calibrating
         instruments, of size (pre_m, pre_m).
@@ -914,8 +929,8 @@ class Solver(Gradients, _WithState):
         same length as ``instruments``. If not given defaults to all ones.
     algorithm : str in {"levenberg_marquardt", "gauss_newton", "gradient_descent"}
         The optimisation algorithm to use when solving curves via :meth:`iterate`.
-    fx : FXForwards, optional
-        The ``FXForwards`` object used in FX rate calculations for ``instruments``.
+    fx : FXForwards, FXRates, optional
+        The fx object used in FX rate calculations for ``instruments`` rates or sensitivities.
     instrument_labels : list of str, optional
         The names of the calibrating instruments which will be used in delta risk
         outputs.
@@ -1080,9 +1095,13 @@ class Solver(Gradients, _WithState):
 
         # Final elements
         self._ad = 1
-        self.fx = fx
-        if not isinstance(self.fx, NoInput):
+        self.fx: FXRates | FXForwards | NoInput = fx
+        if isinstance(self.fx, FXRates | FXForwards):
             self.fx._set_ad_order(1)
+        elif not isinstance(self.fx, NoInput):
+            raise ValueError(
+                "`fx` argument to Solver must be either FXRates, FXForwards or NoInput(0)."
+            )
         self.instruments = tuple(self._parse_instrument(inst) for inst in instruments)
         self.pre_instruments += self.instruments
         self.rate_scalars = tuple(inst[0]._rate_scalar for inst in self.instruments)
@@ -1157,7 +1176,7 @@ class Solver(Gradients, _WithState):
         _ = hash(fx_state + curves_state + pre_curves_state)
         return _
 
-    def _parse_instrument(self, value) -> tuple[SupportsRate, tuple[Any,...], dict[str, Any]]:
+    def _parse_instrument(self, value) -> tuple[SupportsRate, tuple[Any, ...], dict[str, Any]]:
         """
         Parses different input formats for an instrument given to the ``Solver``.
 
@@ -1595,7 +1614,10 @@ class Solver(Gradients, _WithState):
         emitted if they are not the same object.
         """
         base, fx = self._get_base_and_fx(base, fx)
-        fx_vars = tuple() if fx is NoInput.blank else fx.variables
+        if isinstance(fx, FXRates | FXForwards):
+            fx_vars: tuple[str, ...] = fx.variables
+        else:
+            fx_vars = tuple()
 
         inst_scalar = np.array(self.pre_rate_scalars) / 100  # instruments scalar
         fx_scalar = 0.0001
@@ -1643,27 +1665,38 @@ class Solver(Gradients, _WithState):
         return df.loc[:, sorted_cols].astype("float64")
 
     def _get_base_and_fx(self, base: str_, fx: FX_) -> tuple[str_, FX_]:
-        if not isinstance(base, NoInput) and isinstance(self.fx, NoInput) and isinstance(fx, NoInput):
+        # method is used by delta, gamma, and exo_delta. prohibit fx as scalar because it cannot
+        # convert from arbitrary currencies.
+        if not isinstance(fx, NoInput | FXRates | FXForwards):
             raise ValueError(
-                "`base` is given but `fx` is not and Solver does not "
-                "contain an attached FXForwards object.",
-            )
-        elif isinstance(fx, NoInput):
-            fx = self.fx
-        elif not isinstance(fx, NoInput) and not isinstance(self.fx, NoInput) and id(fx) != id(self.fx):
-            warnings.warn(
-                "Solver contains an `fx` attribute but an `fx` argument has been "
-                "supplied which is not the same. This can lead to risk sensitivity "
-                "inconsistencies, mathematically.",
-                UserWarning,
+                "`fx` used in sensitivity calculations cannot be a scalar. An FXRates or "
+                "FXForwards object is required, or the input left as NoInput(0), in which case "
+                "the `fx` object associated with a Solver is used in place."
             )
 
         if not isinstance(base, NoInput):
             base = base.lower()
+            # then a valid fx object that can convert is required.
+            if not isinstance(fx, FXRates | FXForwards) and isinstance(self.fx, NoInput):
+                raise ValueError(
+                    "`base` is given but `fx` is not given as either FXRates or FXForwards, "
+                    "and Solver does not contain its own `fx` attributed which can be substituted."
+                )
+
+        if isinstance(fx, NoInput):
+            fx = self.fx
+        elif not isinstance(self.fx, NoInput) and id(fx) != id(self.fx):
+            warnings.warn(
+                "Solver contains an `fx` object but an `fx` argument has been "
+                "supplied as object which is not the same. This can lead to risk sensitivity "
+                "inconsistencies, mathematically.",
+                UserWarning,
+            )
+
         return base, fx
 
     @_validate_states
-    def gamma(self, npv, base=NoInput(0), fx=NoInput(0)) -> DataFrame:
+    def gamma(self, npv: Dual2, base: str_ = NoInput(0), fx: FX_ = NoInput(0)) -> DataFrame:
         """
         Calculate the cross-gamma risk sensitivity of an instrument's NPV to the
         calibrating instruments of the :class:`~rateslib.solver.Solver`.
@@ -1678,7 +1711,9 @@ class Solver(Gradients, _WithState):
         fx : FXRates, FXForwards, optional
             The FX object to use to convert risk metrics. If needed but not given
             will default to the ``fx`` object associated with the
-            :class:`~rateslib.solver.Solver`.
+            :class:`~rateslib.solver.Solver`. It is not recommended to use this
+            argument with multi-currency instruments, see
+            :meth:`Solver.delta <rateslib.solver.Solver.delta>`.
 
         Returns
         -------
@@ -1795,7 +1830,10 @@ class Solver(Gradients, _WithState):
 
         # new
         base, fx = self._get_base_and_fx(base, fx)
-        fx_vars = tuple() if fx is NoInput.blank else fx.variables
+        if isinstance(fx, FXRates | FXForwards):
+            fx_vars: tuple[str, ...] = fx.variables
+        else:
+            fx_vars = tuple()
 
         inst_scalar = np.array(self.pre_rate_scalars) / 100  # instruments scalar
         fx_scalar = np.ones(len(fx_vars)) * 0.0001
@@ -1896,10 +1934,10 @@ class Solver(Gradients, _WithState):
         self,
         npv: Dual | Dual2,
         ds: Sequence[float],
-        dfx: Sequence[float] | None =None,
+        dfx: Sequence[float] | None = None,
         base: str_ = NoInput(0),
         fx: FX_ = NoInput(0),
-        order: int =1
+        order: int = 1,
     ) -> DataFrame:
         """
         Calculate PnL from market movements over delta and, optionally, gamma.
@@ -2108,8 +2146,8 @@ class Solver(Gradients, _WithState):
         -------
         DataFrame
         """
-
         base, fx = self._get_base_and_fx(base, fx)
+
         if isinstance(vars_scalar, NoInput):
             vars_scalar = [1.0] * len(vars)
         if isinstance(vars_labels, NoInput):
@@ -2120,6 +2158,7 @@ class Solver(Gradients, _WithState):
             container[("exogenous", ccy, ccy)] = self.grad_f_Ploc(npv[ccy], vars) * vars_scalar
 
             if not isinstance(base, NoInput) and base != ccy:
+                assert isinstance(fx, FXRates | FXForwards)  # noqa S101
                 # extend the derivatives
                 f = fx.rate(f"{ccy}{base}")
                 container[("exogenous", ccy, base)] = (
