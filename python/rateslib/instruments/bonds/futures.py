@@ -474,15 +474,15 @@ class BondFuture(Sensitivities):
             metric = "clean_price"
         solver = Solver(
             curves=[bcurve],
-            instruments=[(_, (), {"curves": bcurve, "metric": metric}) for _ in self.basket],
-            s=prices,  # type: ignore[arg-type]
+            instruments=[(_, (), {"curves": bcurve, "metric": metric}) for _ in self.basket],  # type: ignore[misc]
+            s=prices,
         )
         if solver.result["status"] != "SUCCESS":
             raise ValueError(
                 "A bond curve could not be solved for analysis. "
                 "See 'Cookbook: Bond Future CTD Multi-Security Analysis'.",
             )
-        bcurve._set_ad_order(order=0)  # turn of AD for efficiency
+        bcurve._set_ad_order(order=0)  # turn off AD for efficiency
 
         data: dict[str | float, Any] = {
             "Bond": [

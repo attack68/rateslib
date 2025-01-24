@@ -65,8 +65,6 @@ from rateslib.periods import IndexCashflow as IndexCashflow
 from rateslib.periods import IndexFixedPeriod as IndexFixedPeriod
 from rateslib.rs import (
     Cal,
-    Dual,
-    Dual2,
     FlatBackwardInterpolator,
     FlatForwardInterpolator,
     LinearInterpolator,
@@ -76,6 +74,8 @@ from rateslib.rs import (
     NullInterpolator,
     UnionCal,
 )
+from rateslib.rs import Dual as Dual
+from rateslib.rs import Dual2 as Dual2
 from rateslib.solver import Solver as Solver
 
 Solver_: TypeAlias = "Solver | NoInput"
@@ -167,6 +167,8 @@ Instrument: TypeAlias = (
 
 class SupportsRate:
     def rate(self, *args: Any, **kwargs: Any) -> DualTypes: ...  # type: ignore[empty-body]
+
+    _rate_scalar: float
 
 
 class SupportsMetrics:

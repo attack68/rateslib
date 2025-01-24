@@ -13,10 +13,10 @@ from pandas.errors import PerformanceWarning
 
 from rateslib import defaults
 from rateslib.curves import CompositeCurve, Curve, MultiCsaCurve, ProxyCurve
-from rateslib.default import NoInput, _validate_states, _WithState
+from rateslib.default import NoInput, _drb, _validate_states, _WithState
 from rateslib.dual import Dual, Dual2, dual_solve, gradient
-from rateslib.dual.utils import _dual_float
 from rateslib.dual.newton import _solver_result
+from rateslib.dual.utils import _dual_float
 from rateslib.fx import FXForwards, FXRates
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -35,6 +35,7 @@ if TYPE_CHECKING:
         FX_,
         Any,
         Callable,
+        DualTypes,
         FXDeltaVolSmile,
         FXDeltaVolSurface,
         Sequence,
@@ -80,8 +81,9 @@ class Gradients:
     g: Dual | Dual2  # solver objective function value
     variables: tuple[str, ...]  # string tags for AD coordination
     pre_variables: tuple[str, ...]  # string tags for AD coordination
+    pre_rate_scalars: list[float]  # scalars for the rate attribute of instruments
     _ad: int  # ad order
-    instruments: tuple[SupportsRate, ...]  # calibrating instruments
+    instruments: tuple[tuple[SupportsRate, tuple[Any, ...], dict[str, Any]], ...]  # calibrators
 
     @property
     def J(self) -> NDArray[Nf64]:
@@ -643,10 +645,7 @@ class Gradients:
         return grad_f_P
 
     def grad_s_Pbase(
-        self,
-        npv: Dual | Dual2 | Variable,
-        grad_s_P: NDArray[Nf64],
-        f: Dual | Dual2 | Variable
+        self, npv: Dual | Dual2 | Variable, grad_s_P: NDArray[Nf64], f: Dual | Dual2 | Variable
     ) -> NDArray[Nf64]:
         """
         1d array of derivatives of base currency PV with respect to calibrating
@@ -664,7 +663,9 @@ class Gradients:
             f : Dual or Dual2
                 The local:base FX rate.
         """  # noqa: E501
-        grad_s_Pbas: NDArray[Nf64] = _dual_float(npv) * np.matmul(self.grad_s_vT_pre, gradient(f, self.pre_variables))
+        grad_s_Pbas: NDArray[Nf64] = _dual_float(npv) * np.matmul(
+            self.grad_s_vT_pre, gradient(f, self.pre_variables)
+        )
         grad_s_Pbas += grad_s_P * _dual_float(f)  # <- use float to cast float array not Dual
         return grad_s_Pbas
 
@@ -673,7 +674,7 @@ class Gradients:
         npv: Dual | Dual2 | Variable,
         grad_f_P: NDArray[Nf64],
         f: Dual | Dual2 | Variable,
-        fx_vars: Sequence[str]
+        fx_vars: Sequence[str],
     ) -> NDArray[Nf64]:
         """
         1d array of derivatives of base currency PV with respect to FX rate variables,
@@ -716,7 +717,7 @@ class Gradients:
         _ = np.tensordot(self.grad_s_vT_pre, _, (1, 0))
 
         _ += np.tensordot(self.grad_s_s_vT_pre, gradient(npv, self.pre_variables), (2, 0))
-        grad_s_sT_P = _
+        grad_s_sT_P: NDArray[Nf64] = _
         return grad_s_sT_P
         # grad_s_sT_P = np.matmul(
         #     self.grad_s_vT_pre,
@@ -728,7 +729,9 @@ class Gradients:
         #     self.grad_s_s_vT_pre, npv.gradient(self.pre_variables)[:, None]
         # )[:, :, 0]
 
-    def gradp_f_vT_Ploc(self, npv, fx_vars: Sequence[str]) -> NDArray[Nf64]:
+    def gradp_f_vT_Ploc(
+        self, npv: Dual | Dual2 | Variable, fx_vars: Sequence[str]
+    ) -> NDArray[Nf64]:
         """
         2d array of (partial) derivatives of local currency PV with respect to
         FX rate variables and curve variables, of size (len(fx_vars), pre_n).
@@ -747,7 +750,7 @@ class Gradients:
         grad_f_vT_Ploc = grad_x_xT_Ploc[self.pre_n :, : self.pre_n]
         return grad_f_vT_Ploc
 
-    def grad_f_sT_Ploc(self, npv, fx_vars: Sequence[str]) -> NDArray[Nf64]:
+    def grad_f_sT_Ploc(self, npv: Dual | Dual2 | Variable, fx_vars: Sequence[str]) -> NDArray[Nf64]:
         """
         2d array of derivatives of local currency PV with respect to calibrating
         instruments, of size (pre_m, pre_m).
@@ -771,10 +774,10 @@ class Gradients:
         _ += self.gradp_f_vT_Ploc(npv, fx_vars)
         _ = np.tensordot(_, self.grad_s_vT_pre, (1, 1))
         _ += np.tensordot(self.grad_f_s_vT_pre(fx_vars), gradient(npv, self.pre_variables), (2, 0))
-        grad_f_sT_Ploc = _
+        grad_f_sT_Ploc: NDArray[Nf64] = _
         return grad_f_sT_Ploc
 
-    def grad_f_fT_Ploc(self, npv, fx_vars: Sequence[str]) -> NDArray[Nf64]:
+    def grad_f_fT_Ploc(self, npv: Dual | Dual2 | Variable, fx_vars: Sequence[str]) -> NDArray[Nf64]:
         """
         2d array of derivatives of local currency PV with respect to FX rate variables,
         of size (len(fx_vars), len(fx_vars)).
@@ -803,10 +806,15 @@ class Gradients:
         __ = np.tensordot(grad_f_vT_pre, grad_v_vT_Ploc, (1, 0))
         __ = np.tensordot(__, grad_f_vT_pre, (1, 1))
 
-        grad_f_f_Ploc = _ + __
+        grad_f_f_Ploc: NDArray[Nf64] = _ + __
         return grad_f_f_Ploc
 
-    def grad_s_sT_Pbase(self, npv, grad_s_sT_P, f) -> NDArray[Nf64]:
+    def grad_s_sT_Pbase(
+        self,
+        npv: Dual | Dual2 | Variable,
+        grad_s_sT_P: NDArray[Nf64],
+        f: Dual | Dual2 | Variable,
+    ) -> NDArray[Nf64]:
         """
         2d array of derivatives of base currency PV with respect to calibrating
         instrument rate variables, of size (pre_m, pre_m).
@@ -827,15 +835,21 @@ class Gradients:
         grad_s_sT_f = self.grad_s_sT_f_pre(f)
         grad_s_P = self.grad_s_Ploc(npv)
 
-        _ = float(f) * grad_s_sT_P
+        _ = _dual_float(f) * grad_s_sT_P
         _ += np.tensordot(grad_s_f[:, None], grad_s_P[None, :], (1, 0))
         _ += np.tensordot(grad_s_P[:, None], grad_s_f[None, :], (1, 0))
-        _ += float(npv) * grad_s_sT_f  # <- use float to cast float array not Dual
+        _ += _dual_float(npv) * grad_s_sT_f  # <- use float to cast float array not Dual
 
-        grad_s_sT_Pbas = _
+        grad_s_sT_Pbas: NDArray[Nf64] = _
         return grad_s_sT_Pbas
 
-    def grad_f_sT_Pbase(self, npv, grad_f_sT_P, f, fx_vars: Sequence[str]) -> NDArray[Nf64]:
+    def grad_f_sT_Pbase(
+        self,
+        npv: Dual | Dual2 | Variable,
+        grad_f_sT_P: NDArray[Nf64],
+        f: Dual | Dual2 | Variable,
+        fx_vars: Sequence[str],
+    ) -> NDArray[Nf64]:
         """
         2d array of derivatives of base currency PV with respect to FX variables and
         calibrating instrument rate variables, of size (len(fx_vars), pre_m).
@@ -861,15 +875,21 @@ class Gradients:
         grad_f_P = self.grad_f_Ploc(npv, fx_vars)
         grad_f_sT_f = self.grad_f_sT_f_pre(f, fx_vars)
 
-        _ = float(f) * grad_f_sT_P
+        _ = _dual_float(f) * grad_f_sT_P
         _ += np.tensordot(grad_f_f[:, None], grad_s_P[None, :], (1, 0))
         _ += np.tensordot(grad_f_P[:, None], grad_s_f[None, :], (1, 0))
-        _ += float(npv) * grad_f_sT_f  # <- use float to cast float array not Dual
+        _ += _dual_float(npv) * grad_f_sT_f  # <- use float to cast float array not Dual
 
-        grad_s_sT_Pbas = _
+        grad_s_sT_Pbas: NDArray[Nf64] = _
         return grad_s_sT_Pbas
 
-    def grad_f_fT_Pbase(self, npv, grad_f_fT_P, f, fx_vars: Sequence[str]) -> NDArray[Nf64]:
+    def grad_f_fT_Pbase(
+        self,
+        npv: Dual | Dual2 | Variable,
+        grad_f_fT_P: NDArray[Nf64],
+        f: Dual | Dual2 | Variable,
+        fx_vars: Sequence[str],
+    ) -> NDArray[Nf64]:
         """
         2d array of derivatives of base currency PV with respect to calibrating
         instrument rate variables, of size (pre_m, pre_m).
@@ -894,12 +914,12 @@ class Gradients:
         grad_f_P = self.grad_f_Ploc(npv, fx_vars)
         grad_f_fT_f = self.grad_f_fT_f_pre(f, fx_vars)
 
-        _ = float(f) * grad_f_fT_P
+        _ = _dual_float(f) * grad_f_fT_P
         _ += np.tensordot(grad_f_f[:, None], grad_f_P[None, :], (1, 0))
         _ += np.tensordot(grad_f_P[:, None], grad_f_f[None, :], (1, 0))
-        _ += float(npv) * grad_f_fT_f  # <- use float to cast float array not Dual
+        _ += _dual_float(npv) * grad_f_fT_f  # <- use float to cast float array not Dual
 
-        grad_s_sT_Pbas = _
+        grad_s_sT_Pbas: NDArray[Nf64] = _
         return grad_s_sT_Pbas
 
 
@@ -979,31 +999,28 @@ class Solver(Gradients, _WithState):
 
     def __init__(
         self,
-        curves: Sequence[Curve, FXDeltaVolSmile] = (),
+        curves: Sequence[Curve | FXDeltaVolSmile] = (),
         surfaces: Sequence[FXDeltaVolSurface] = (),
         instruments: Sequence[SupportsRate] = (),
-        s: tuple[float] | list[float] = (),
-        weights: list | NoInput = NoInput(0),
-        algorithm: str | NoInput = NoInput(0),
+        s: Sequence[DualTypes] = (),
+        weights: Sequence[float] | NoInput = NoInput(0),
+        algorithm: str_ = NoInput(0),
         fx: FXForwards | FXRates | NoInput = NoInput(0),
-        instrument_labels: tuple[str] | list[str] | NoInput = NoInput(0),
-        id: str | NoInput = NoInput(0),  # noqa: A002
-        pre_solvers: tuple[Solver] | list[Solver] = (),
+        instrument_labels: Sequence[str] | NoInput = NoInput(0),
+        id: str_ = NoInput(0),  # noqa: A002
+        pre_solvers: Sequence[Solver] = (),
         max_iter: int = 100,
         func_tol: float = 1e-11,
         conv_tol: float = 1e-14,
         ini_lambda: tuple[float, float, float] | NoInput = NoInput(0),
-        callback: Callable | NoInput = NoInput(0),
+        callback: Callable[[Solver, int, NDArray[Nobject]], None] | NoInput = NoInput(0),
     ) -> None:
         self.callback = callback
-        self.algorithm = defaults.algorithm if algorithm is NoInput.blank else algorithm
-        if isinstance(ini_lambda, NoInput):
-            self.ini_lambda = defaults.ini_lambda
-        else:
-            self.ini_lambda = ini_lambda
+        self.algorithm = _drb(defaults.algorithm, algorithm).lower()
+        self.ini_lambda = _drb(defaults.ini_lambda, ini_lambda)
+        self.id: str = _drb(uuid4().hex[:5] + "_", id)  # 1 in a million clash
         self.m = len(instruments)
         self.func_tol, self.conv_tol, self.max_iter = func_tol, conv_tol, max_iter
-        self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
         self.pre_solvers = tuple(pre_solvers)
 
         # validate `id`s so that DataFrame indexing does not share duplicated keys.
@@ -1033,7 +1050,7 @@ class Solver(Gradients, _WithState):
             self.instrument_labels = tuple(f"{self.id}{i}" for i in range(self.m))
 
         if isinstance(weights, NoInput):
-            self.weights = np.ones(len(instruments))
+            self.weights: NDArray[Nf64] = np.ones(len(instruments), dtype=np.float64)
         else:
             if len(weights) != self.m:
                 raise ValueError(
@@ -1057,13 +1074,13 @@ class Solver(Gradients, _WithState):
         self.n = len(self.variables)
 
         # aggregate and organise variables and labels including pre_solvers
-        self.pre_curves: dict[str, Curve] = {}
-        self.pre_variables = ()
-        self.pre_instrument_labels = ()
-        self.pre_instruments = ()
+        self.pre_curves: dict[str, Curve | FXDeltaVolSmile | FXDeltaVolSurface] = {}
+        self.pre_variables: tuple[str, ...] = ()
+        self.pre_instrument_labels: tuple[tuple[str, str], ...] = ()
+        self.pre_instruments: tuple[tuple[SupportsRate, tuple[Any, ...], dict[str, Any]], ...] = ()
         self.pre_rate_scalars = []
         self.pre_m, self.pre_n = self.m, self.n
-        curve_collection = []
+        curve_collection: list[Curve | FXDeltaVolSmile | FXDeltaVolSurface] = []
         for pre_solver in self.pre_solvers:
             self.pre_variables += pre_solver.pre_variables
             self.pre_instrument_labels += pre_solver.pre_instrument_labels
@@ -1102,7 +1119,9 @@ class Solver(Gradients, _WithState):
             raise ValueError(
                 "`fx` argument to Solver must be either FXRates, FXForwards or NoInput(0)."
             )
-        self.instruments = tuple(self._parse_instrument(inst) for inst in instruments)
+        self.instruments: tuple[tuple[SupportsRate, tuple[Any, ...], dict[str, Any]], ...] = tuple(
+            self._parse_instrument(inst) for inst in instruments
+        )
         self.pre_instruments += self.instruments
         self.rate_scalars = tuple(inst[0]._rate_scalar for inst in self.instruments)
         self.pre_rate_scalars += self.rate_scalars
@@ -1173,10 +1192,12 @@ class Solver(Gradients, _WithState):
         fx_state = self._get_composited_fx_state()
         curves_state = self._get_composited_curves_state()
         pre_curves_state = self._get_composited_pre_curves_state()
-        _ = hash(fx_state + curves_state + pre_curves_state)
+        _: int = hash(fx_state + curves_state + pre_curves_state)
         return _
 
-    def _parse_instrument(self, value) -> tuple[SupportsRate, tuple[Any, ...], dict[str, Any]]:
+    def _parse_instrument(
+        self, value: SupportsRate | tuple[SupportsRate, tuple[Any, ...], dict[str, Any]]
+    ) -> tuple[SupportsRate, tuple[Any, ...], dict[str, Any]]:
         """
         Parses different input formats for an instrument given to the ``Solver``.
 
@@ -1208,7 +1229,12 @@ class Solver(Gradients, _WithState):
         """
         if not isinstance(value, tuple):
             # is a direct Instrument so convert to tuple with pricing params
-            return (value, tuple(), {"solver": self, "fx": self.fx})
+            _: tuple[SupportsRate, tuple[Any, ...], dict[str, Any]] = (
+                value,
+                tuple(),
+                {"solver": self, "fx": self.fx},
+            )
+            return _
         else:
             # object is tuple
             if len(value) != 3:
@@ -1217,14 +1243,16 @@ class Solver(Gradients, _WithState):
                     "signature: (Instrument, positional args[tuple], keyword "
                     "args[dict]).",
                 )
-            ret0, ret1, ret2 = value[0], tuple(), {"solver": self, "fx": self.fx}
+            ret0 = value[0]
+            ret1: tuple[Any, ...] = tuple()
+            ret2: dict[str, Any] = {"solver": self, "fx": self.fx}
             if not (value[1] is None or value[1] == ()):
                 ret1 = value[1]
             if not (value[2] is None or value[2] == {}):
                 ret2 = {**ret2, **value[2]}
-            return (ret0, ret1, ret2)
+            return ret0, ret1, ret2
 
-    def _reset_properties_(self, dual2_only=False) -> None:
+    def _reset_properties_(self, dual2_only: bool = False) -> None:
         """
         Set all calculated attributes to `None` requiring re-evaluation.
 
@@ -1246,16 +1274,22 @@ class Solver(Gradients, _WithState):
         None
         """
         if not dual2_only:
-            self._v = None  # depends on self.curves
-            self._r = None  # depends on self.pre_curves and self.instruments
-            self._r_pre = None  # depends on pre_solvers and self.r
-            self._x = None  # depends on self.r, self.s
-            self._g = None  # depends on self.x, self.weights
-            self._J = None  # depends on self.r
-            self._grad_s_vT = None  # final_iter_dual: depends on self.s and iteration
+            self._v: NDArray[Nobject] | None = None  # depends on self.curves
+            self._r: NDArray[Nobject] | None = (
+                None  # depends on self.pre_curves and self.instruments
+            )
+            self._r_pre: NDArray[Nobject] | None = None  # depends on pre_solvers and self.r
+            self._x: NDArray[Nobject] | None = None  # depends on self.r, self.s
+            self._g: Dual | Dual2 | None = None  # depends on self.x, self.weights
+            self._J: NDArray[Nf64] | None = None  # depends on self.r
+            self._grad_s_vT: NDArray[Nf64] | None = (
+                None  # final_iter_dual: depends on self.s and iteration
+            )
             # fixed_point_iter: depends on self.f
             # final_iter_anal: depends on self.J
-            self._grad_s_vT_pre = None  # depends on self.grad_s_vT and pre_solvers.
+            self._grad_s_vT_pre: NDArray[Nf64] | None = (
+                None  # depends on self.grad_s_vT and pre_solvers.
+            )
 
         self._J2 = None  # defines its own self.r under dual2
         self._J2_pre = None  # depends on self.r and pre_solvers
@@ -1295,7 +1329,7 @@ class Solver(Gradients, _WithState):
         return self.fx
 
     @property
-    def result(self):
+    def result(self) -> dict[str, Any]:
         """
         Show statistics relevant to the last *Solver* iteration.
 
@@ -1375,25 +1409,25 @@ class Solver(Gradients, _WithState):
         -------
         Series
         """
-        s = None
+        pre_s: Series[float] | None = None
         for pre_solver in self.pre_solvers:
-            if s is None:
-                s = pre_solver.error
+            if pre_s is None:
+                pre_s = pre_solver.error
             else:
-                s = concat([pre_solver.error, s])
+                pre_s = concat([pre_solver.error, pre_s])
 
-        _ = Series(
+        _: Series[float] = Series(
             self.x.astype(float) * 100 / self.rate_scalars,
             index=MultiIndex.from_tuples([(self.id, inst) for inst in self.instrument_labels]),
         )
-        if s is None:
-            s = _
+        if pre_s is None:
+            s: Series[float] = _
         else:
-            s = concat([s, _])
+            s = concat([pre_s, _])
         return s
 
     @property
-    def g(self) -> Dual | Dual2:
+    def g(self) -> Dual | Dual2:  # type: ignore[override]
         """
         Objective function scalar value of the solver;
 
@@ -1419,7 +1453,7 @@ class Solver(Gradients, _WithState):
             grad_v_g = gradient(self.g, self.variables)
             y = np.matmul(self.J.transpose(), grad_v_g[:, np.newaxis])[:, 0]
             alpha = np.dot(y, self.weights * self.x) / np.dot(y, self.weights * y)
-            v_1 = self.v - grad_v_g * alpha.real
+            v_1: NDArray[Nobject] = self.v - grad_v_g * alpha.real
         elif algorithm == "gauss_newton":
             if self.J.shape[0] == self.J.shape[1]:  # square system
                 A = self.J.transpose()
@@ -1427,7 +1461,7 @@ class Solver(Gradients, _WithState):
             else:
                 A = np.matmul(self.J, np.matmul(self.W, self.J.transpose()))
                 b = -0.5 * gradient(self.g, self.variables)[:, np.newaxis]
-            delta = np.linalg.solve(A, b)[:, 0]
+            delta: NDArray[Nobject] = np.linalg.solve(A, b)[:, 0]
             v_1 = self.v + delta
         elif algorithm == "levenberg_marquardt":
             if self.g_list[-2] < self.g.real:
@@ -1455,7 +1489,7 @@ class Solver(Gradients, _WithState):
                 A = np.matmul(self.J, np.matmul(self.W, self.J.transpose()))
                 b = -np.matmul(np.matmul(self.J, self.W), self.x[:, np.newaxis])
 
-            delta = dual_solve(A, b)[:, 0]
+            delta = dual_solve(A, b)[:, 0]  # type: ignore[arg-type, assignment]
             v_1 = self.v + delta
         else:
             raise NotImplementedError(f"`algorithm`: {algorithm} (spelled correctly?)")
@@ -1486,7 +1520,8 @@ class Solver(Gradients, _WithState):
         """  # noqa: E501
 
         # Initialise data and clear and caches
-        self.g_list, self.lambd = [1e10], self.ini_lambda[0]
+        self.g_list: list[float] = [1e10]
+        self.lambd: float = self.ini_lambda[0]
         self._reset_properties_()
         # self._update_fx()
         t0 = time()
@@ -1516,14 +1551,14 @@ class Solver(Gradients, _WithState):
         self._result = _solver_result(state, i, self.g.real, time, True, self.algorithm)
         self._set_new_state()
 
-    def _update_curves_with_parameters(self, v_new):
+    def _update_curves_with_parameters(self, v_new: NDArray[Nobject]) -> None:
         """Populate the variable curves with the new values"""
         var_counter = 0
         for curve in self.curves.values():
             # this was amended in PR126 as performance improvement to keep consistent `vars`
             # and was restructured in PR## to decouple methods to accomodate vol surfaces
             n_vars = curve.n - curve._ini_solve
-            curve._set_node_vector(v_new[var_counter : var_counter + n_vars], self._ad)
+            curve._set_node_vector(v_new[var_counter : var_counter + n_vars], self._ad)  # type: ignore[arg-type]
             var_counter += n_vars
 
         self._update_fx()
@@ -1545,7 +1580,9 @@ class Solver(Gradients, _WithState):
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     @_validate_states
-    def delta(self, npv, base: str | NoInput = NoInput(0), fx=NoInput(0)) -> DataFrame:
+    def delta(
+        self, npv: dict[str, Dual], base: str_ = NoInput(0), fx: FX_ = NoInput(0)
+    ) -> DataFrame:
         """
         Calculate the delta risk sensitivity of an instrument's NPV to the
         calibrating instruments of the :class:`~rateslib.solver.Solver`, and to
@@ -1626,9 +1663,11 @@ class Solver(Gradients, _WithState):
             container[("instruments", ccy, ccy)] = self.grad_s_Ploc(npv[ccy]) * inst_scalar
             container[("fx", ccy, ccy)] = self.grad_f_Ploc(npv[ccy], fx_vars) * fx_scalar
 
-            if base is not NoInput.blank and base != ccy:
+            if not isinstance(base, NoInput) and base != ccy:
+                # is validated by  `_get_base_and _fx`
+                assert isinstance(fx, FXForwards | FXRates)  # noqa: S101
                 # extend the derivatives
-                f = fx.rate(f"{ccy}{base}")
+                f: Dual | Dual2 = fx.rate(f"{ccy}{base}")  # type: ignore[assignment]
                 container[("instruments", ccy, base)] = (
                     self.grad_s_Pbase(
                         npv[ccy],
@@ -1638,7 +1677,7 @@ class Solver(Gradients, _WithState):
                     * inst_scalar
                 )
                 container[("fx", ccy, base)] = (
-                    self.grad_f_Pbase(npv[ccy], container[("fx", ccy, ccy)] / fx_scalar, f, fx_vars)
+                    self.grad_f_Pbase(npv[ccy], container[("fx", ccy, ccy)] / fx_scalar, f, fx_vars)  # type: ignore[arg-type]
                     * fx_scalar
                 )
 
@@ -1652,17 +1691,18 @@ class Solver(Gradients, _WithState):
             names=["type", "solver", "label"],
         )
         indexes = {"instruments": inst_idx, "fx": fx_idx}
-        r_idx = inst_idx.append(fx_idx)
+        r_idx = inst_idx.append(fx_idx)  # type: ignore[no-untyped-call]
         c_idx = MultiIndex.from_tuples([], names=["local_ccy", "display_ccy"])
         df = DataFrame(None, index=r_idx, columns=c_idx)
         for key, array in container.items():
             df.loc[indexes[key[0]], (key[1], key[2])] = array
 
-        if base is not NoInput.blank:
-            df.loc[r_idx, ("all", base)] = df.loc[r_idx, (slice(None), base)].sum(axis=1)
+        if not isinstance(base, NoInput):
+            df.loc[r_idx, ("all", base)] = df.loc[r_idx, (slice(None), base)].sum(axis=1)  # type: ignore[index]
 
         sorted_cols = df.columns.sort_values()
-        return df.loc[:, sorted_cols].astype("float64")
+        ret: DataFrame = df.loc[:, sorted_cols].astype("float64")
+        return ret
 
     def _get_base_and_fx(self, base: str_, fx: FX_) -> tuple[str_, FX_]:
         # method is used by delta, gamma, and exo_delta. prohibit fx as scalar because it cannot
@@ -1696,7 +1736,9 @@ class Solver(Gradients, _WithState):
         return base, fx
 
     @_validate_states
-    def gamma(self, npv: Dual2, base: str_ = NoInput(0), fx: FX_ = NoInput(0)) -> DataFrame:
+    def gamma(
+        self, npv: dict[str, Dual2], base: str_ = NoInput(0), fx: FX_ = NoInput(0)
+    ) -> DataFrame:
         """
         Calculate the cross-gamma risk sensitivity of an instrument's NPV to the
         calibrating instruments of the :class:`~rateslib.solver.Solver`.
@@ -1837,7 +1879,7 @@ class Solver(Gradients, _WithState):
 
         inst_scalar = np.array(self.pre_rate_scalars) / 100  # instruments scalar
         fx_scalar = np.ones(len(fx_vars)) * 0.0001
-        container = {}
+        container: dict[tuple[str, str], dict[tuple[str, ...], Any]] = {}
         for ccy in npv:
             container[(ccy, ccy)] = {}
             container[(ccy, ccy)]["instruments", "instruments"] = self.grad_s_sT_Ploc(
@@ -1855,9 +1897,11 @@ class Solver(Gradients, _WithState):
                 fx_scalar[None, :],
             )
 
-            if base is not NoInput.blank and base != ccy:
+            if not isinstance(base, NoInput) and base != ccy:
+                # validated by `_get_base_and_fx`
+                assert isinstance(fx, FXRates | FXForwards)  # noqa: S101
                 # extend the derivatives
-                f = fx.rate(f"{ccy}{base}")
+                f: Dual | Dual2 = fx.rate(f"{ccy}{base}")  # type: ignore[assignment]
                 container[(ccy, base)] = {}
                 container[(ccy, base)]["instruments", "instruments"] = self.grad_s_sT_Pbase(
                     npv[ccy],
@@ -1896,7 +1940,7 @@ class Solver(Gradients, _WithState):
             names=["local_ccy", "display_ccy", "type", "solver", "label"],
         )
         if base is not NoInput.blank:
-            ridx = ridx.append(
+            ridx = ridx.append(  # type: ignore[no-untyped-call]
                 MultiIndex.from_tuples(
                     [("all", base) + _ for _ in inst_keys + fx_keys],
                     names=["local_ccy", "display_ccy", "type", "solver", "label"],
@@ -1916,9 +1960,9 @@ class Solver(Gradients, _WithState):
             with warnings.catch_warnings():
                 # TODO: pandas 3.0.0 can optionally turn off these PerformanceWarnings
                 warnings.simplefilter(action="ignore", category=PerformanceWarning)
-                df.loc[locator, :] = array
+                df.loc[locator, :] = array  # type: ignore[index]
 
-        if base is not NoInput.blank:
+        if not isinstance(base, NoInput):
             # sum over all the base rows to aggregate
             gdf = (
                 df.loc[(currencies, base, slice(None), slice(None), slice(None)), :]
@@ -2160,10 +2204,13 @@ class Solver(Gradients, _WithState):
             if not isinstance(base, NoInput) and base != ccy:
                 assert isinstance(fx, FXRates | FXForwards)  # noqa S101
                 # extend the derivatives
-                f = fx.rate(f"{ccy}{base}")
+                f: Dual | Dual2 = fx.rate(f"{ccy}{base}")  # type: ignore[assignment]
                 container[("exogenous", ccy, base)] = (
                     self.grad_f_Pbase(
-                        npv[ccy], container[("exogenous", ccy, ccy)] / vars_scalar, f, vars
+                        npv[ccy],
+                        container[("exogenous", ccy, ccy)] / vars_scalar,  # type: ignore[arg-type]
+                        f,
+                        vars,
                     )
                     * vars_scalar
                 )
@@ -2182,7 +2229,7 @@ class Solver(Gradients, _WithState):
             df.loc[indexes[key[0]], (key[1], key[2])] = array
 
         if not isinstance(base, NoInput):
-            df.loc[r_idx, ("all", base)] = df.loc[r_idx, (slice(None), base)].sum(axis=1)
+            df.loc[r_idx, ("all", base)] = df.loc[r_idx, (slice(None), base)].sum(axis=1)  # type: ignore[index]
 
         sorted_cols = df.columns.sort_values()
         _: DataFrame = df.loc[:, sorted_cols].astype("float64")
