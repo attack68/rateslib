@@ -265,6 +265,71 @@ class FXExchange(Sensitivities, BaseMixin):
         raise NotImplementedError("`analytic_delta` for FXExchange not defined.")
 
 
+# class NDF(Sensitivities, BaseMixin):
+#
+#     leg1: FXExchange
+#
+#     def __init__(
+#         self,
+#         settlement: datetime,
+#         pair: str,
+#         settlement_currency: str,
+#         fx_rate: DualTypes_ = NoInput(0),
+#         notional: DualTypes_ = NoInput(0),
+#         curves: Curves_ = NoInput(0),
+#     ):
+#
+#     def rate(
+#         self,
+#         curves: Curves_ = NoInput(0),
+#         solver: Solver_ = NoInput(0),
+#         fx: FX_ = NoInput(0),
+#         base: str_ = NoInput(0),
+#     ):
+#         curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+#             self.curves,
+#             solver,
+#             curves,
+#             fx,
+#             base,
+#             self.leg1.currency,
+#         )
+#         curves_1 = _validate_curve_not_no_input(curves_[1])
+#         curves_3 = _validate_curve_not_no_input(curves_[3])
+#
+#         if isinstance(fx_, FXRates | FXForwards):
+#             imm_fx: DualTypes = fx_.rate(self.pair)
+#         elif isinstance(fx_, NoInput):
+#             raise ValueError(
+#                 "`fx` must be supplied to price FXExchange object.\n"
+#                 "Note: it can be attached to and then gotten from a Solver.",
+#             )
+#         else:
+#             imm_fx = fx_
+#
+#         _: DualTypes = forward_fx(self.settlement, curves_1, curves_3, imm_fx)
+#         return _
+#
+#     def delta(self, *args: Any, **kwargs: Any) -> DataFrame:
+#         """
+#         Calculate the delta of the *Instrument*.
+#
+#         For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
+#         """
+#         return super().delta(*args, **kwargs)
+#
+#     def gamma(self, *args: Any, **kwargs: Any) -> DataFrame:
+#         """
+#         Calculate the gamma of the *Instrument*.
+#
+#         For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
+#         """
+#         return super().gamma(*args, **kwargs)
+#
+#     def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
+#         raise NotImplementedError("`analytic_delta` for NDF not defined.")
+
+
 class XCS(BaseDerivative):
     """
     Create a cross-currency swap (XCS) composing relevant fixed or floating *Legs*.
