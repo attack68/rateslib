@@ -134,8 +134,8 @@ class _DualOps:
     def to_json(self) -> str: ...
     def ptr_eq(self, other: Self) -> bool: ...
     def __repr__(self) -> str: ...
-    def grad1(self, vars: list[str]) -> Arr1dF64: ...  # noqa: A002
-    def grad2(self, vars: list[str]) -> Arr2dF64: ...  # noqa: A002
+    def grad1(self, vars: Sequence[str]) -> Arr1dF64: ...  # noqa: A002
+    def grad2(self, vars: Sequence[str]) -> Arr2dF64: ...  # noqa: A002
 
 class Dual(_DualOps):
     def __init__(self, real: float, vars: Sequence[str], dual: Sequence[float] | Arr1dF64): ...  # noqa: A002
