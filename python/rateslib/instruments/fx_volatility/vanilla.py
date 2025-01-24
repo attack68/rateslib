@@ -19,9 +19,9 @@ from rateslib.instruments.utils import (
     _get_fxvol_curves_fx_and_base_maybe_from_solver,
     _push,
     _update_with_defaults,
-    _validate_fx_as_forwards,
 )
 from rateslib.periods import Cashflow, FXCallPeriod, FXPutPeriod
+from rateslib.periods.utils import _validate_fx_as_forwards
 
 if TYPE_CHECKING:
     import numpy as np

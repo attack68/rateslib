@@ -12,9 +12,7 @@ from rateslib.curves import Curve
 from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
 from rateslib.instruments.sensitivities import Sensitivities
-from rateslib.periods import (
-    _get_fx_and_base,
-)
+from rateslib.periods.utils import _get_fx_and_base
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:

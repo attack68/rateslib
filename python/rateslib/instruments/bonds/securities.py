@@ -40,8 +40,8 @@ from rateslib.legs import FixedLeg, FloatLeg, IndexFixedLeg
 from rateslib.periods import (
     FloatPeriod,
     IndexMixin,
-    _maybe_local,
 )
+from rateslib.periods.utils import _maybe_local
 
 if TYPE_CHECKING:
     from rateslib.typing import (
