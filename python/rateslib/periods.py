@@ -2839,9 +2839,11 @@ class NonDeliverableCashflow:
 
         if isinstance(disc_curve_, NoInput) or not isinstance(fx, FXForwards):
             npv, npv_fx, df, collateral, cashflow = None, None, None, None, None
+            index_val_ = None
         else:
-            npv_: DualTypes = self.npv(curve, disc_curve_, fx_)  # type: ignore[assignment]
+            npv_: DualTypes = self.npv(curve, disc_curve_, fx)  # type: ignore[assignment]
             npv = _dual_float(npv_)
+            index_val_ = self.rate(fx)
 
             npv_fx = npv * _dual_float(imm_fx_to_base)
             df, collateral = _dual_float(disc_curve_[self.settlement]), disc_curve_.collateral
@@ -2850,7 +2852,7 @@ class NonDeliverableCashflow:
         rate = _float_or_none(_drb(None, self.fx_rate))
         return {
             defaults.headers["type"]: type(self).__name__,
-            defaults.headers["stub_type"]: self.pair,
+            defaults.headers["stub_type"]: f"{self.pair.upper()}",
             defaults.headers["currency"]: self.settlement_currency.upper(),
             # defaults.headers["a_acc_start"]: None,
             # defaults.headers["a_acc_end"]: None,
@@ -2860,6 +2862,7 @@ class NonDeliverableCashflow:
             defaults.headers["notional"]: _dual_float(self.notional),
             defaults.headers["df"]: df,
             defaults.headers["rate"]: rate,
+            defaults.headers["index_value"]: _float_or_none(index_val_),
             # defaults.headers["spread"]: None,
             defaults.headers["cashflow"]: cashflow,
             defaults.headers["npv"]: npv,
