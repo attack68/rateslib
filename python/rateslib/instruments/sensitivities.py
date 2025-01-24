@@ -154,7 +154,7 @@ class Sensitivities:
         if local:
             base_ = NoInput(0)
         return solver.exo_delta(
-            npv=npv,   # type: ignore[arg-type]
+            npv=npv,  # type: ignore[arg-type]
             vars=vars,
             base=base_,
             fx=fx_,
