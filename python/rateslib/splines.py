@@ -72,4 +72,5 @@ __all__ = (
     "PPSpline",
     "bspldnev_single",
     "bsplev_single",
+    "evaluate",
 )
