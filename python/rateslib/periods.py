@@ -2818,7 +2818,6 @@ class NonDeliverableCashflow:
        ndc.cashflows()
     """
 
-
     def __init__(
         self,
         notional: DualTypes,
@@ -2878,7 +2877,7 @@ class NonDeliverableCashflow:
             fx_fixing = self.fx_fixing
 
         try:
-            d_value: DualTypes = self.notional * (fx_fixing - self.fx_rate)   # type: ignore[operator]
+            d_value: DualTypes = self.notional * (fx_fixing - self.fx_rate)  # type: ignore[operator]
         except TypeError as e:
             # either fixed rate is None
             if isinstance(self.fx_rate, NoInput):
@@ -2943,6 +2942,7 @@ class NonDeliverableCashflow:
             return fx_.rate(self.pair, self.settlement)
         else:
             return self.fx_fixing
+
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
