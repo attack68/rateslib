@@ -2873,11 +2873,19 @@ class NonDeliverableCashflow:
         """Cashflow is expressed in the settlement, i.e. deliverable currency."""
         if isinstance(self.fx_fixing, NoInput):
             fx_ = _validate_fx_as_forwards(fx)
-            fx_fixing = fx_.rate(self.pair, self.settlement)
+            fx_fixing: DualTypes = fx_.rate(self.pair, self.settlement)
         else:
             fx_fixing = self.fx_fixing
 
-        d_value: DualTypes = self.notional * (fx_fixing - self.fx_rate)
+        try:
+            d_value: DualTypes = self.notional * (fx_fixing - self.fx_rate)   # type: ignore[operator]
+        except TypeError as e:
+            # either fixed rate is None
+            if isinstance(self.fx_rate, NoInput):
+                raise TypeError("`fx_rate` must be set on the Period for an `npv`.")
+            else:
+                raise e
+
         return d_value
 
     def cashflows(

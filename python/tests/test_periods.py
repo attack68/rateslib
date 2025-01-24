@@ -2940,7 +2940,28 @@ class TestNonDeliverableCashflow:
         }
         assert result == expected
 
+    def test_analytic_delta(self):
+        ndf = NonDeliverableCashflow(
+            notional=1e6,
+            reference_currency="brl",
+            settlement_currency="usd",
+            settlement=dt(2025, 6, 1),
+            fixing_date=dt(2025, 5, 29),
+            fx_rate=0.18,
+            fx_fixing=0.25
+        )
+        assert ndf.analytic_delta() == 0.0
 
+    def test_cashflow_raises(self, fxf_ndf):
+        ndf = NonDeliverableCashflow(
+            notional=1e6,
+            reference_currency="brl",
+            settlement_currency="usd",
+            settlement=dt(2025, 6, 1),
+            fixing_date=dt(2025, 5, 29),
+        )
+        with pytest.raises(TypeError, match="`fx_rate` must be set on the Period for an `npv`"):
+            ndf.cashflow(fxf_ndf)
 
 
 def test_base_period_dates_raise() -> None:
