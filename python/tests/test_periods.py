@@ -2913,14 +2913,14 @@ class TestNonDeliverableCashflow:
         }
         assert result == expected
 
-    def test_cashflows_unpriced(self):
+    def test_cashflows_no_args(self):
         ndf = NonDeliverableCashflow(
             notional=1e6,
-            pair="eurjpy",
+            reference_currency="brl",
             settlement_currency="usd",
             settlement=dt(2025, 6, 1),
             fixing_date=dt(2025, 5, 29),
-            fx_rate=100.0,
+            fx_rate=0.18,
         )
         result = ndf.cashflows()
         expected = {
@@ -2934,8 +2934,8 @@ class TestNonDeliverableCashflow:
             'NPV Ccy': None,
             'Notional': 1000000.0,
             'Payment': dt(2025, 6, 1, 0, 0),
-            'Period': 'EURJPY',
-            'Rate': 100.0,
+            'Period': 'BRLUSD',
+            'Rate': 0.18,
             'Type': 'NonDeliverableCashflow',
         }
         assert result == expected
