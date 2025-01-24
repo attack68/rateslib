@@ -2758,11 +2758,71 @@ class Cashflow:
 
 
 class NonDeliverableCashflow:
+    """
+    Create a cashflow amount associated with a non-deliverable FX forward.
+
+    Parameters
+    ----------
+    notional : float, Dual, Dual2
+        The notional amount of the cashflow expressed in units of the ``reference_currency``.
+    reference_currency : str
+        The non-deliverable reference currency (3-digit code).
+    settlement_currency : str
+        The currency of the deliverable currency (3-digit code), e.g. "usd" or "eur".
+    settlement : datetime
+        The settlement date of the exchange.
+    fixing_date: datetime
+        The date on which the FX fixings will be recorded.
+    fx_rate: float, Dual, Dual2, optional
+        The pricing parameter of the period to record the entry level of the transaction.
+        The ``reference_currency`` should be the left hand side, e.g. BRLUSD, not a USDBRL rate.
+    fx_fixing: float, Dual, Dual2, optional
+        The FX fixing to determine the settlement amount.
+        The ``reference_currency`` should be the left hand side.
+
+    Notes
+    -----
+    The ``cashflow`` is defined as follows;
+
+    .. math::
+
+       C = N (f_2 - f_1)
+
+    where :math:`f_1` is the ``fx_rate``, :math:`f_2` is the ``fx_fixing`` or market forecast
+    rate at settlement. This amount is expressed in units of ``settlement_currency``.
+
+    The :meth:`~rateslib.periods.BasePeriod.npv` is defined as;
+
+    .. math::
+
+       P = Cv(m) = N (f_2 - f_1) v(m)
+
+    The :meth:`~rateslib.periods.BasePeriod.analytic_delta` is defined as;
+
+    .. math::
+
+       A = 0
+
+    Example
+    -------
+    .. ipython:: python
+
+       ndc = NonDeliverableCashflow(
+           notional=10e6,
+           reference_currency="brl",
+           settlement_currency="usd",
+           settlement=dt(2025, 6, 1),
+           fixing_date=dt(2025, 5, 29),
+           fx_rate=0.200,
+       )
+       ndc.cashflows()
+    """
+
 
     def __init__(
         self,
         notional: DualTypes,
-        pair: str_,
+        reference_currency: str,
         settlement_currency: str,
         settlement: datetime,
         fixing_date: datetime,
@@ -2772,7 +2832,8 @@ class NonDeliverableCashflow:
         self.notional = notional
         self.settlement = settlement
         self.settlement_currency = settlement_currency.lower()
-        self.pair = pair.lower()
+        self.reference_currency = reference_currency.lower()
+        self.pair = f"{self.reference_currency}{self.settlement_currency}"
         self.fixing_date = fixing_date
         self.fx_rate = fx_rate
         self.fx_fixing = fx_fixing
@@ -2810,16 +2871,13 @@ class NonDeliverableCashflow:
 
     def cashflow(self, fx: FX_) -> DualTypes:
         """Cashflow is expressed in the settlement, i.e. deliverable currency."""
-        fx_ = _validate_fx_as_forwards(fx)
         if isinstance(self.fx_fixing, NoInput):
+            fx_ = _validate_fx_as_forwards(fx)
             fx_fixing = fx_.rate(self.pair, self.settlement)
         else:
             fx_fixing = self.fx_fixing
 
-        nd_value: DualTypes = self.notional * (fx_fixing - self.fx_rate)
-        d_value: DualTypes = nd_value * fx_.rate(
-            f"{self.pair[3:]}{self.settlement_currency}", self.settlement
-        )
+        d_value: DualTypes = self.notional * (fx_fixing - self.fx_rate)
         return d_value
 
     def cashflows(
@@ -2872,8 +2930,11 @@ class NonDeliverableCashflow:
         }
 
     def rate(self, fx: FX_) -> DualTypes:
-        fx_ = _validate_fx_as_forwards(fx)
-        return fx_.rate(self.pair, self.settlement)
+        if isinstance(self.fx_fixing, NoInput):
+            fx_ = _validate_fx_as_forwards(fx)
+            return fx_.rate(self.pair, self.settlement)
+        else:
+            return self.fx_fixing
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
