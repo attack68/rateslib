@@ -72,21 +72,23 @@ class BasePeriod(metaclass=ABCMeta):
         frequency: str,
         notional: float_ = NoInput(0),
         currency: str_ = NoInput(0),
-        convention: str | NoInput = NoInput(0),
+        convention: str_ = NoInput(0),
         termination: datetime_ = NoInput(0),
         stub: bool = False,
-        roll: int | str | NoInput = NoInput(0),
+        roll: int | str_ = NoInput(0),
         calendar: CalInput = NoInput(0),
     ):
         if end < start:
             raise ValueError("`end` cannot be before `start`.")
-        self.start, self.end, self.payment = start, end, payment
+        self.start: datetime = start
+        self.end: datetime = end
+        self.payment: datetime = payment
         self.frequency: str = frequency.upper()
         self.notional: float = _drb(defaults.notional, notional)
         self.currency: str = _drb(defaults.base_currency, currency).lower()
         self.convention: str = _drb(defaults.convention, convention)
         self.termination = termination
-        self.freq_months = defaults.frequency_months[self.frequency]
+        self.freq_months: int = defaults.frequency_months[self.frequency]
         self.stub: bool = stub
         self.roll: int | str | NoInput = roll
         self.calendar: CalInput = calendar
