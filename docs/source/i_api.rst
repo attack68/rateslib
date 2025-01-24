@@ -191,25 +191,6 @@ Link to the :ref:`Periods<periods-doc>` section in the user guide.
 
 .. automodapi:: rateslib.periods
    :no-heading:
-   :skip: Any
-   :skip: Sequence
-   :skip: Index
-   :skip: NoInput
-   :skip: ABCMeta
-   :skip: Variable
-   :skip: MultiIndex
-   :skip: Curve
-   :skip: DataFrame
-   :skip: Dual
-   :skip: Dual2
-   :skip: FXRates
-   :skip: FXForwards
-   :skip: Series
-   :skip: datetime
-   :skip: comb
-   :skip: FXDeltaVolSurface
-   :skip: FXDeltaVolSmile
-   :skip: timedelta
 
 Legs
 =====
@@ -238,7 +219,6 @@ Solver
 
 .. automodapi:: rateslib.solver
    :no-heading:
-   :skip: Callable
    :skip: Curve
    :skip: ParamSpec
    :skip: MultiCsaCurve
@@ -254,13 +234,11 @@ Solver
    :skip: CompositeCurve
    :skip: ProxyCurve
    :skip: concat
-   :skip: dual_log
    :skip: dual_solve
    :skip: gradient
    :skip: time
    :skip: uuid4
    :skip: PerformanceWarning
-   :skip: Any
 
 Cookbook
 =========

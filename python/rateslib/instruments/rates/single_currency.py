@@ -23,7 +23,7 @@ from rateslib.legs import (
     ZeroFixedLeg,
     ZeroFloatLeg,
 )
-from rateslib.periods import (
+from rateslib.periods.utils import (
     _get_fx_and_base,
     _maybe_local,
     _trim_df_by_index,

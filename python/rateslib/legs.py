@@ -27,9 +27,8 @@ from rateslib.periods import (
     IndexCashflow,
     IndexFixedPeriod,
     IndexMixin,
-    _get_fx_and_base,
-    _validate_float_args,
 )
+from rateslib.periods.utils import _get_fx_and_base, _validate_float_args
 from rateslib.scheduling import Schedule
 
 if TYPE_CHECKING:
