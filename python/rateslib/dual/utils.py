@@ -12,7 +12,7 @@ from rateslib.dual.variable import FLOATS, INTS, Variable
 from rateslib.rs import ADOrder, Dual, Dual2, _dsolve1, _dsolve2, _fdsolve1, _fdsolve2
 
 if TYPE_CHECKING:
-    from rateslib.typing import Arr1dF64, Arr1dObj, Arr2dF64, Arr2dObj, DualTypes, Number
+    from rateslib.typing import Arr1dF64, Arr1dObj, Arr2dF64, Arr2dObj, DualTypes, Number, Sequence
 
 Dual.__doc__ = "Dual number data type to perform first derivative automatic differentiation."
 Dual2.__doc__ = "Dual number data type to perform second derivative automatic differentiation."
@@ -131,7 +131,7 @@ def set_order_convert(
 
 def gradient(
     dual: Dual | Dual2 | Variable,
-    vars: list[str] | None = None,  # noqa: A002
+    vars: Sequence[str] | None = None,  # noqa: A002
     order: int = 1,
     keep_manifold: bool = False,
 ) -> Arr1dF64 | Arr2dF64:

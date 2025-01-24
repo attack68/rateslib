@@ -29,6 +29,7 @@ from rateslib.instruments import ZCS as ZCS
 from rateslib.instruments import Bill as Bill
 from rateslib.instruments import FixedRateBond as FixedRateBond
 from rateslib.instruments import FloatRateNote as FloatRateNote
+from rateslib.instruments import Fly as Fly
 from rateslib.instruments import FXBrokerFly as FXBrokerFly
 from rateslib.instruments import FXCall as FXCall
 from rateslib.instruments import FXExchange as FXExchange
@@ -39,7 +40,11 @@ from rateslib.instruments import FXStraddle as FXStraddle
 from rateslib.instruments import FXStrangle as FXStrangle
 from rateslib.instruments import FXSwap as FXSwap
 from rateslib.instruments import IndexFixedRateBond as IndexFixedRateBond
+from rateslib.instruments import Portfolio as Portfolio
+from rateslib.instruments import Spread as Spread
 from rateslib.instruments import STIRFuture as STIRFuture
+from rateslib.instruments import Value as Value
+from rateslib.instruments import VolValue as VolValue
 from rateslib.legs import CreditPremiumLeg as CreditPremiumLeg
 from rateslib.legs import CreditProtectionLeg as CreditProtectionLeg
 from rateslib.legs import FixedLeg as FixedLeg
@@ -60,8 +65,6 @@ from rateslib.periods import IndexCashflow as IndexCashflow
 from rateslib.periods import IndexFixedPeriod as IndexFixedPeriod
 from rateslib.rs import (
     Cal,
-    Dual,
-    Dual2,
     FlatBackwardInterpolator,
     FlatForwardInterpolator,
     LinearInterpolator,
@@ -71,6 +74,8 @@ from rateslib.rs import (
     NullInterpolator,
     UnionCal,
 )
+from rateslib.rs import Dual as Dual
+from rateslib.rs import Dual2 as Dual2
 from rateslib.solver import Solver as Solver
 
 Solver_: TypeAlias = "Solver | NoInput"
@@ -153,8 +158,17 @@ FXOptionTypes: TypeAlias = (
 RatesDerivative: TypeAlias = "IRS | SBS | FRA | ZCS | STIRFuture"
 IndexDerivative: TypeAlias = "IIRS | ZCIS"
 CurrencyDerivative: TypeAlias = "XCS | FXSwap | FXExchange"
+Combinations: TypeAlias = "Portfolio | Fly | Spread | Value | VolValue"
 
-Instrument: TypeAlias = "Security | FXOptionTypes | RatesDerivative | CDS | CurrencyDerivative"
+Instrument: TypeAlias = (
+    "Combinations | Security | FXOptionTypes | RatesDerivative | CDS | CurrencyDerivative"
+)
+
+
+class SupportsRate:
+    def rate(self, *args: Any, **kwargs: Any) -> DualTypes: ...  # type: ignore[empty-body]
+
+    _rate_scalar: float
 
 
 class SupportsMetrics:

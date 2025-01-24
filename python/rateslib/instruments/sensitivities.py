@@ -14,7 +14,7 @@ from rateslib.instruments.utils import (
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX_, NPV, Curves_
+    from rateslib.typing import FX_, NPV, Curves_, Dual2, DualTypes
 P = ParamSpec("P")
 
 
@@ -72,7 +72,7 @@ class Sensitivities:
         """
         if isinstance(solver, NoInput):
             raise ValueError("`solver` is required for delta/gamma methods.")
-        npv = self.npv(curves, solver, fx, base, local=True, **kwargs)
+        npv: dict[str, DualTypes] = self.npv(curves, solver, fx, base, local=True, **kwargs)  # type: ignore[assignment]
         _, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             NoInput(0),
             solver,
@@ -83,7 +83,7 @@ class Sensitivities:
         )
         if local:
             base_ = NoInput(0)
-        return solver.delta(npv, base_, fx_)
+        return solver.delta(npv, base_, fx_)  # type: ignore[arg-type]
 
     def exo_delta(
         self,
@@ -154,7 +154,12 @@ class Sensitivities:
         if local:
             base_ = NoInput(0)
         return solver.exo_delta(
-            npv=npv, vars=vars, base=base_, fx=fx_, vars_scalar=vars_scalar, vars_labels=vars_labels
+            npv=npv,  # type: ignore[arg-type]
+            vars=vars,
+            base=base_,
+            fx=fx_,
+            vars_scalar=vars_scalar,
+            vars_labels=vars_labels,
         )
 
     def gamma(
@@ -222,7 +227,7 @@ class Sensitivities:
         _ad1 = solver._ad
         solver._set_ad_order(2)
 
-        npv = self.npv(curves, solver, fx_, base_, local=True, **kwargs)
+        npv: dict[str, Dual2] = self.npv(curves, solver, fx_, base_, local=True, **kwargs)  # type: ignore[assignment]
         grad_s_sT_P: DataFrame = solver.gamma(npv, base_, fx_)
 
         # reset original order
