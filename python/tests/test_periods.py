@@ -2845,13 +2845,13 @@ class TestNonDeliverableCashflow:
 
     def test_npv_reversed(self, fxf_ndf):
         ndf = NonDeliverableCashflow(
-            notional=1e6*0.18,
+            notional=1e6 * 0.18,
             reference_currency="brl",
             settlement_currency="usd",
             settlement=dt(2025, 6, 1),
             fixing_date=dt(2025, 5, 29),
-            fx_rate=1/0.18,
-            reversed=True
+            fx_rate=1 / 0.18,
+            reversed=True,
         )
         result = ndf.npv(disc_curve=fxf_ndf.curve("usd", "usd"), fx=fxf_ndf)
         expected = -1e6 * (0.20131018767289705 - 0.18) * 0.9855343095437953

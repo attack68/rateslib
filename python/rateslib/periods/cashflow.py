@@ -284,7 +284,7 @@ class NonDeliverableCashflow:
         fixing_date: datetime,
         fx_rate: DualTypes_ = NoInput(0),
         fx_fixing: DualTypes_ = NoInput(0),
-        reversed: bool = False,
+        reversed: bool = False,  # noqa: A002
     ):
         self.notional = notional
         self.settlement = settlement
