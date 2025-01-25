@@ -2843,6 +2843,20 @@ class TestNonDeliverableCashflow:
         expected = 1e6 * (0.20131018767289705 - 0.18) * 0.9855343095437953
         assert abs(result - expected) < 1e-8
 
+    def test_npv_reversed(self, fxf_ndf):
+        ndf = NonDeliverableCashflow(
+            notional=1e6 * 0.18,
+            reference_currency="brl",
+            settlement_currency="usd",
+            settlement=dt(2025, 6, 1),
+            fixing_date=dt(2025, 5, 29),
+            fx_rate=1 / 0.18,
+            reversed=True,
+        )
+        result = ndf.npv(disc_curve=fxf_ndf.curve("usd", "usd"), fx=fxf_ndf)
+        expected = -1e6 * (0.20131018767289705 - 0.18) * 0.9855343095437953
+        assert abs(result - expected) < 1e-8
+
     def test_npv_fixing(self, fxf_ndf):
         ndf = NonDeliverableCashflow(
             notional=1e6,

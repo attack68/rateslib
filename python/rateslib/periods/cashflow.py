@@ -207,7 +207,8 @@ class NonDeliverableCashflow:
     Parameters
     ----------
     notional : float, Dual, Dual2
-        The notional amount of the cashflow expressed in units of the ``reference_currency``.
+        The notional amount of the cashflow expressed in units of the ``reference_currency``,
+        unless ``reversed`` in which case in units of ``settlement_currency``.
     reference_currency : str
         The non-deliverable reference currency (3-digit code).
     settlement_currency : str
@@ -218,10 +219,12 @@ class NonDeliverableCashflow:
         The date on which the FX fixings will be recorded.
     fx_rate: float, Dual, Dual2, optional
         The pricing parameter of the period to record the entry level of the transaction.
-        The ``reference_currency`` should be the left hand side, e.g. BRLUSD, not a USDBRL rate.
+        The ``reference_currency`` should be the left hand side, e.g. BRLUSD, unless ``reversed``
+        in which case should be right hand side, e.g. USDBRL.
     fx_fixing: float, Dual, Dual2, optional
-        The FX fixing to determine the settlement amount.
-        The ``reference_currency`` should be the left hand side.
+        The FX fixing to determine the settlement amount, expressed in the same way as ``fx_rate``.
+    reversed: bool, optional
+        If *True* reverses the FX rate, as shown above.
 
     Notes
     -----
@@ -251,12 +254,23 @@ class NonDeliverableCashflow:
     .. ipython:: python
 
        ndc = NonDeliverableCashflow(
-           notional=10e6,
+           notional=10e6,  # <- this is BRL amount
            reference_currency="brl",
            settlement_currency="usd",
            settlement=dt(2025, 6, 1),
            fixing_date=dt(2025, 5, 29),
-           fx_rate=0.200,
+           fx_rate=0.200,  # <- this is BRLUSD FX rate
+       )
+       ndc.cashflows()
+
+       ndc = NonDeliverableCashflow(
+           notional=2e6,  # <- this is USD amount
+           reference_currency="brl",
+           settlement_currency="usd",
+           settlement=dt(2025, 6, 1),
+           fixing_date=dt(2025, 5, 29),
+           fx_rate=5.00,  # <- this is USDBRL FX rate
+           reversed=True,
        )
        ndc.cashflows()
     """
@@ -270,12 +284,17 @@ class NonDeliverableCashflow:
         fixing_date: datetime,
         fx_rate: DualTypes_ = NoInput(0),
         fx_fixing: DualTypes_ = NoInput(0),
+        reversed: bool = False,  # noqa: A002
     ):
         self.notional = notional
         self.settlement = settlement
         self.settlement_currency = settlement_currency.lower()
         self.reference_currency = reference_currency.lower()
-        self.pair = f"{self.reference_currency}{self.settlement_currency}"
+        self.reversed = reversed
+        if reversed:
+            self.pair = f"{self.settlement_currency}{self.reference_currency}"
+        else:
+            self.pair = f"{self.reference_currency}{self.settlement_currency}"
         self.fixing_date = fixing_date
         self.fx_rate = fx_rate
         self.fx_fixing = fx_fixing
@@ -317,7 +336,7 @@ class NonDeliverableCashflow:
 
         Parameters
         ----------
-        fx: FXforwards, optional
+        fx: FXForwards, optional
             Required to forecast the FX rate at settlement, if an ``fx_fixing`` is not known.
 
         Returns
@@ -339,6 +358,9 @@ class NonDeliverableCashflow:
                 raise TypeError("`fx_rate` must be set on the Period for an `npv`.")
             else:
                 raise e
+
+        if self.reversed:
+            d_value /= fx_fixing
 
         return d_value
 
