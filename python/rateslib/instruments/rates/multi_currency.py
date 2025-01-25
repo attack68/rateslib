@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from pandas import DataFrame, DatetimeIndex, MultiIndex
 
-from rateslib import defaults, add_tenor
+from rateslib import add_tenor, defaults
 from rateslib.calendars import get_calendar
 from rateslib.curves._parsers import _validate_curve_not_no_input
 from rateslib.default import NoInput, _drb
@@ -19,8 +19,8 @@ from rateslib.instruments.utils import (
     _composit_fixings_table,
     _get,
     _get_curves_fx_and_base_maybe_from_solver,
-    _update_not_noinput,
     _push,
+    _update_not_noinput,
     _update_with_defaults,
 )
 from rateslib.legs import (
@@ -30,7 +30,8 @@ from rateslib.legs import (
     FloatLegMtm,
 )
 from rateslib.periods import (
-    Cashflow, NonDeliverableCashflow,
+    Cashflow,
+    NonDeliverableCashflow,
 )
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -43,6 +44,7 @@ if TYPE_CHECKING:
         FX_,
         NPV,
         Any,
+        CalInput,
         Curve_,
         Curves_,
         DualTypes,
@@ -51,10 +53,9 @@ if TYPE_CHECKING:
         FixingsRates_,
         Solver_,
         bool_,
+        datetime_,
         int_,
         str_,
-        CalInput,
-        datetime_
     )
 
 
@@ -330,6 +331,7 @@ class NDF(Sensitivities):
             eval_date=eval_date,
             calendar=calendar,
             modifier=modifier,
+            payment_lag=payment_lag,
         )
         self.kwargs = _push(spec, self.kwargs)
 
@@ -353,37 +355,40 @@ class NDF(Sensitivities):
                     calendar=self.kwargs["calendar"],
                     roll=NoInput(0),
                     settlement=True,
-                    mod_days=False
+                    mod_days=False,
                 )
 
-        if not self.kwargs["currency"] in self.kwargs["pair"]:
+        if self.kwargs["currency"] not in self.kwargs["pair"]:
             raise ValueError("`currency` must be one of the currencies in `pair`.")
 
         self.periods = [
             NonDeliverableCashflow(
                 notional=self.kwargs["notional"],
-                reference_currency=self.kwargs["pair"][0:3] if self.kwargs["pair"][0:3] != currency else self.kwargs["pair"][3:],
+                reference_currency=self.kwargs["pair"][0:3]
+                if self.kwargs["pair"][0:3] != currency
+                else self.kwargs["pair"][3:],
                 settlement_currency=self.kwargs["currency"],
                 settlement=self.kwargs["settlement"],
-                fixing_date=self.kwargs["calendar"].lag(self.kwargs["settlement"], -self.kwargs["payment_lag"], False), # a fixing date can be on a non-settlable date
+                fixing_date=self.kwargs["calendar"].lag(
+                    self.kwargs["settlement"], -self.kwargs["payment_lag"], False
+                ),  # a fixing date can be on a non-settlable date
                 fx_rate=self.kwargs["fx_rate"],
                 fx_fixing=self.kwargs["fx_fixing"],
-                reversed=self.kwargs["pair"][0:3] == self.kwargs["currency"]
+                reversed=self.kwargs["pair"][0:3] == self.kwargs["currency"],
             )
         ]
-        self.curves=curves
-        self.spec=spec
+        self.curves = curves
+        self.spec = spec
 
     def _set_pricing_mid(
-            self,
-            curves: Curves_ = NoInput(0),
-            solver: Solver_ = NoInput(0),
-            fx: FX_ = NoInput(0),
+        self,
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FX_ = NoInput(0),
     ) -> None:
-        if isinstance(self.fx_rate, NoInput):
+        if isinstance(self.kwargs["fx_rate"], NoInput):
             mid_market_rate = self.rate(curves, solver, fx)
-            self.fx_rate = _dual_float(mid_market_rate)
-            self._fx_rate = NoInput(0)
+            self.periods[0].fx_rate = _dual_float(mid_market_rate)
 
     def rate(
         self,
@@ -398,7 +403,7 @@ class NDF(Sensitivities):
             curves,
             fx,
             base,
-            self.leg1.currency,
+            self.kwargs["currency"],
         )
         return self.periods[0].rate(fx_)
 
@@ -438,6 +443,7 @@ class NDF(Sensitivities):
         base: str_ = NoInput(0),
         local: bool = False,
     ):
+        self._set_pricing_mid(curves, solver, fx)
         curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,

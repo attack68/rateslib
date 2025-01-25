@@ -39,6 +39,7 @@ from rateslib.instruments import (
     STIRFuture,
     Value,
     VolValue,
+    NDF,
 )
 from rateslib.instruments.utils import (
     _get_curves_fx_and_base_maybe_from_solver,
@@ -722,6 +723,51 @@ class TestNullPricing:
         assert abs(result3) < 1e-3
 
     @pytest.mark.parametrize(
+        "inst",
+        [
+            NDF(
+                pair="eurusd",
+                notional=1e6*0.333,
+                settlement=dt(2022, 10, 1),
+                curves="usdusd",
+            )
+        ],
+    )
+    def test_null_priced_delta2(self, inst) -> None:
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
+        c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.982}, id="eurusd")
+        c4 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995}, id="eu_cpi", index_base=100.0)
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
+            {"usdusd": c1, "eureur": c2, "eurusd": c3},
+        )
+        ins = [
+            IRS(dt(2022, 1, 1), "1y", "A", curves="eureur"),
+            IRS(dt(2022, 1, 1), "1y", "A", curves="usdusd"),
+            IRS(dt(2022, 1, 1), "1y", "A", curves="eurusd"),
+            ZCIS(dt(2022, 1, 1), "1y", "A", curves=["eureur", "eureur", "eu_cpi", "eureur"]),
+        ]
+        solver = Solver(
+            curves=[c1, c2, c3, c4],
+            instruments=ins,
+            s=[1.2, 1.3, 1.33, 0.5],
+            id="solver",
+            instrument_labels=["eur 1y", "usd 1y", "eur 1y xcs adj.", "1y cpi"],
+            fx=fxf,
+        )
+        result = inst.delta(solver=solver)
+        assert abs(result.iloc[1, 0] - 25.0) < 1.0
+        result2 = inst.npv(solver=solver)
+        assert abs(result2) < 1e-3
+
+        # test that instruments have not been set by the previous pricing action
+        solver.s = [1.3, 1.4, 1.36, 0.55]
+        solver.iterate()
+        result3 = inst.npv(solver=solver)
+        assert abs(result3) < 1e-3
+
+    @pytest.mark.parametrize(
         ("inst", "param"),
         [
             (IRS(dt(2022, 7, 1), "3M", "A", curves="usdusd"), "fixed_rate"),
@@ -829,9 +875,7 @@ class TestNullPricing:
     @pytest.mark.parametrize(
         "inst",
         [
-            CDS(
-                dt(2022, 7, 1), "3M", "Q", notional=1e6 * 25 / 14.91357
-            ),
+            CDS(dt(2022, 7, 1), "3M", "Q", notional=1e6 * 25 / 14.91357),
             IRS(dt(2022, 7, 1), "3M", "A", notional=1e6),
             STIRFuture(
                 dt(2022, 3, 16),
@@ -941,6 +985,10 @@ class TestNullPricing:
                 settlement=dt(2022, 10, 1),
                 pair="eurusd",
                 notional=-1e6 * 25 / 74.27,
+            ),
+            NDF(
+                pair="eurusd",  # settlement currency defaults to right hand side: usd
+                settlement=dt(2022, 10, 1),
             ),
         ],
     )
@@ -3491,8 +3539,7 @@ class TestSTIRFuture:
         c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
         c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.97})
         fxf = FXForwards(
-            FXRates({"eurusd": 1.1}, dt(2022, 1, 1)),
-            {"eureur": c1, "eurusd": c2, "usdusd": c3}
+            FXRates({"eurusd": 1.1}, dt(2022, 1, 1)), {"eureur": c1, "eurusd": c2, "usdusd": c3}
         )
         stir = STIRFuture(
             effective=dt(2022, 3, 16),

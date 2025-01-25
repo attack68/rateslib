@@ -34,6 +34,7 @@ from rateslib.instruments.rates import (
     FXExchange,
     FXSwap,
     STIRFuture,
+    NDF,
 )
 from rateslib.instruments.sensitivities import Sensitivities
 
@@ -67,6 +68,7 @@ __all__ = [
     "IIRS",
     "IRS",
     "IndexFixedRateBond",
+    "NDF",
     "Portfolio",
     "SBS",
     "STIRFuture",
