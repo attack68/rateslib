@@ -281,7 +281,7 @@ class NDF(Sensitivities):
         The FX pair against which settlement takes place (2 x 3-digit code).
     settlement: datetime or str
         The date on which settlement will occur. String tenors are allowed, e.g. "3M".
-    notional: float, Variable
+    notional: float, Variable, optional
         The notional amount expressed in units of currency 1 of ``pair``.
     fx_rate: float, Variable, optional
         The agreed price on the NDF contact. May be omitted for unpriced contracts.
