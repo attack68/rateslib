@@ -17,6 +17,7 @@ from rateslib.instruments import (
     FRA,
     IIRS,
     IRS,
+    NDF,
     SBS,
     XCS,
     ZCIS,
@@ -39,7 +40,6 @@ from rateslib.instruments import (
     STIRFuture,
     Value,
     VolValue,
-    NDF,
 )
 from rateslib.instruments.utils import (
     _get_curves_fx_and_base_maybe_from_solver,
@@ -727,7 +727,7 @@ class TestNullPricing:
         [
             NDF(
                 pair="eurusd",
-                notional=1e6*0.333,
+                notional=1e6 * 0.333,
                 settlement=dt(2022, 10, 1),
                 curves="usdusd",
             )

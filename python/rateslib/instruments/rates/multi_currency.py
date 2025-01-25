@@ -350,7 +350,7 @@ class NDF(Sensitivities):
             else:
                 self.kwargs["settlement"] = add_tenor(
                     start=self.kwargs["eval_date"],
-                    tenor=settlement,
+                    tenor=self.kwargs["settlement"],
                     modifier=self.kwargs["modifier"],
                     calendar=self.kwargs["calendar"],
                     roll=NoInput(0),
@@ -396,7 +396,7 @@ class NDF(Sensitivities):
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-    ):
+    ) -> DualTypes:
         curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,
@@ -442,7 +442,7 @@ class NDF(Sensitivities):
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
-    ):
+    ) -> NPV:
         self._set_pricing_mid(curves, solver, fx)
         curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,

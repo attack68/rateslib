@@ -27,6 +27,7 @@ from rateslib.instruments.rates import (
     FRA,
     IIRS,
     IRS,
+    NDF,
     SBS,
     XCS,
     ZCIS,
@@ -34,7 +35,6 @@ from rateslib.instruments.rates import (
     FXExchange,
     FXSwap,
     STIRFuture,
-    NDF,
 )
 from rateslib.instruments.sensitivities import Sensitivities
 
