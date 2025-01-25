@@ -38,6 +38,7 @@ of each *Period* type:
    rateslib.periods.Cashflow
    rateslib.periods.IndexFixedPeriod
    rateslib.periods.IndexCashflow
+   rateslib.periods.NonDeliverableCashflow
 
 **Common methods**
 
