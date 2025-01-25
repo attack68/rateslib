@@ -826,6 +826,161 @@ class TestNullPricing:
 
         assert_frame_equal(unpriced_delta, priced_delta)
 
+    @pytest.mark.parametrize(
+        "inst",
+        [
+            # CDS(
+            #     dt(2022, 7, 1), "3M", "Q", notional=1e6 * 25 / 14.91357
+            # ),
+            # IRS(dt(2022, 7, 1), "3M", "A", notional=1e6),
+            STIRFuture(
+                dt(2022, 3, 16),
+                dt(2022, 6, 15),
+                "Q",
+                bp_value=25.0,
+                contracts=-1,
+            ),
+            # FRA(dt(2022, 7, 1), "3M", "A", notional=1e6),
+            # SBS(
+            #     dt(2022, 7, 1),
+            #     "3M",
+            #     "A",
+            #     notional=-1e6,
+            # ),
+            # ZCS(dt(2022, 7, 1), "3M", "A", notional=1e6),
+            IIRS(
+                dt(2022, 7, 1),
+                "3M",
+                "A",
+                notional=1e6,
+            ),
+            IIRS(
+                dt(2022, 7, 1),
+                "3M",
+                "A",
+                notional=1e6,
+                notional_exchange=True,
+            ),
+            # # TODO add a null price test for ZCIS
+            # XCS(  # XCS - FloatFloat
+            #     dt(2022, 7, 1),
+            #     "3M",
+            #     "A",
+            #     currency="usd",
+            #     leg2_currency="eur",
+            #     notional=1e6,
+            # ),
+            # XCS(  # XCS-FloatFloatNonMtm
+            #     dt(2022, 7, 1),
+            #     "3M",
+            #     "A",
+            #     fixed=False,
+            #     leg2_fixed=False,
+            #     leg2_mtm=False,
+            #     currency="usd",
+            #     leg2_currency="eur",
+            #     notional=1e6,
+            # ),
+            # XCS(  # XCS-FixedFloatNonMtm
+            #     dt(2022, 7, 1),
+            #     "3M",
+            #     "A",
+            #     fixed=True,
+            #     leg2_fixed=False,
+            #     leg2_mtm=False,
+            #     currency="eur",
+            #     leg2_currency="usd",
+            #     notional=1e6,
+            # ),
+            # XCS(  # XCS-FixedFixedNonMtm
+            #     dt(2022, 7, 1),
+            #     "3M",
+            #     "A",
+            #     fixed=True,
+            #     leg2_fixed=True,
+            #     leg2_mtm=False,
+            #     currency="eur",
+            #     leg2_currency="usd",
+            #     fixed_rate=1.2,
+            #     notional=1e6,
+            # ),
+            # XCS(  # XCS - FixedFloat
+            #     dt(2022, 7, 1),
+            #     "3M",
+            #     "A",
+            #     fixed=True,
+            #     leg2_fixed=False,
+            #     leg2_mtm=True,
+            #     currency="eur",
+            #     leg2_currency="usd",
+            #     notional=1e6,
+            # ),
+            # XCS(  # XCS-FixedFixed
+            #     dt(2022, 7, 1),
+            #     "3M",
+            #     "A",
+            #     fixed=True,
+            #     leg2_fixed=True,
+            #     leg2_mtm=True,
+            #     currency="eur",
+            #     leg2_currency="usd",
+            #     leg2_fixed_rate=1.3,
+            #     notional=1e6,
+            # ),
+            # XCS(  # XCS - FloatFixed
+            #     dt(2022, 7, 1),
+            #     "3M",
+            #     "A",
+            #     fixed=False,
+            #     leg2_fixed=True,
+            #     leg2_mtm=True,
+            #     currency="usd",
+            #     leg2_currency="eur",
+            #     notional=-1e6,
+            # ),
+            # FXSwap(
+            #     dt(2022, 7, 1),
+            #     "3M",
+            #     currency="usd",
+            #     leg2_currency="eur",
+            #     notional=-1e6,
+            #     # fx_fixing=0.999851,
+            #     # split_notional=1003052.812,
+            #     # points=2.523505,
+            # ),
+            # FXExchange(
+            #     settlement=dt(2022, 10, 1),
+            #     pair="eurusd",
+            #     notional=-1e6 * 25 / 74.27,
+            # ),
+        ],
+    )
+    def test_set_pricing_does_not_overwrite_unpriced_status(self, inst):
+        # unpriced instruments run a `set_pricing_mid` method
+        # this test ensures that after that run the price is not permanently set and
+        # will reset when priced from an alternative set of curves.
+        curve1 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.99})
+        curve2 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.98})
+        curve3 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.97})
+        curve4 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.96})
+        curve5 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.95})
+        curve6 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.94})
+        fxr1 = FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1))
+        fxr2 = FXRates({"eurusd": 1.5}, settlement=dt(2022, 1, 1))
+        fxf1 = FXForwards(fxr1, {"usdusd": curve1, "eureur": curve2, "eurusd": curve3})
+        fxf2 = FXForwards(fxr2, {"usdusd": curve4, "eureur": curve5, "eurusd": curve6})
+
+        rate1 = inst.rate(curves=[curve1, curve1, curve2, curve3], fx=fxf1)
+        npv1 = inst.npv(curves=[curve1, curve1, curve2, curve3], fx=fxf1)
+        assert abs(npv1) < 1e-8
+
+        rate2 = inst.rate(curves=[curve4, curve4, curve5, curve6], fx=fxf2)
+        npv2 = inst.npv(curves=[curve4, curve4, curve5, curve6], fx=fxf2)
+        assert rate1 != rate2
+        assert abs(npv2) < 1e-8
+
+
+
 
 class TestIRS:
     @pytest.mark.parametrize(
