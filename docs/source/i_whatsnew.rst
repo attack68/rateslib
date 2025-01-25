@@ -68,6 +68,10 @@ objects now have specific methods to allow *updates*.
        :meth:`~rateslib.instruments.STIRFuture.analytic_delta` methods.
        (`519 <https://github.com/attack68/rateslib/pull/519>`_)
    * - Bug
+     - :class:`~rateslib.instruments.STIRFuture` now correctly handles *NPV* when ``fx``
+       is provided as an, potentially unused, argument.
+       (`653 <https://github.com/attack68/rateslib/pull/653>`_)
+   * - Bug
      - :meth:`~rateslib.periods.FloatPeriod.rate` now correctly calculates when ``fixings``
        are provided in any of the acceptable formats and contains all data to do so, in the
        absense of a forecast ``curve``, instead of returning *None* for some cases.
