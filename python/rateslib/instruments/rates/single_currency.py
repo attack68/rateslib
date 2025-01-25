@@ -592,7 +592,7 @@ class STIRFuture(IRS):
         else:
             traded_price = 100 - self.fixed_rate
         _ = (mid_price - traded_price) * 100 * self.kwargs["contracts"] * self.kwargs["bp_value"]
-        return _maybe_local(_, local, self.kwargs["currency"], fx, base)
+        return _maybe_local(_, local, self.leg1.currency, fx, base)
 
     def rate(
         self,
