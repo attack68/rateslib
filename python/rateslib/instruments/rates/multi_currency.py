@@ -6,7 +6,8 @@ from typing import TYPE_CHECKING
 
 from pandas import DataFrame, DatetimeIndex, MultiIndex
 
-from rateslib import defaults
+from rateslib import defaults, add_tenor
+from rateslib.calendars import get_calendar
 from rateslib.curves._parsers import _validate_curve_not_no_input
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, Variable
@@ -19,6 +20,8 @@ from rateslib.instruments.utils import (
     _get,
     _get_curves_fx_and_base_maybe_from_solver,
     _update_not_noinput,
+    _push,
+    _update_with_defaults,
 )
 from rateslib.legs import (
     FixedLeg,
@@ -27,7 +30,7 @@ from rateslib.legs import (
     FloatLegMtm,
 )
 from rateslib.periods import (
-    Cashflow,
+    Cashflow, NonDeliverableCashflow,
 )
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -50,6 +53,8 @@ if TYPE_CHECKING:
         bool_,
         int_,
         str_,
+        CalInput,
+        datetime_
     )
 
 
@@ -265,69 +270,118 @@ class FXExchange(Sensitivities, BaseMixin):
         raise NotImplementedError("`analytic_delta` for FXExchange not defined.")
 
 
-# class NDF(Sensitivities, BaseMixin):
-#
-#     leg1: FXExchange
-#
-#     def __init__(
-#         self,
-#         settlement: datetime,
-#         pair: str,
-#         settlement_currency: str,
-#         fx_rate: DualTypes_ = NoInput(0),
-#         notional: DualTypes_ = NoInput(0),
-#         curves: Curves_ = NoInput(0),
-#     ):
-#
-#     def rate(
-#         self,
-#         curves: Curves_ = NoInput(0),
-#         solver: Solver_ = NoInput(0),
-#         fx: FX_ = NoInput(0),
-#         base: str_ = NoInput(0),
-#     ):
-#         curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
-#             self.curves,
-#             solver,
-#             curves,
-#             fx,
-#             base,
-#             self.leg1.currency,
-#         )
-#         curves_1 = _validate_curve_not_no_input(curves_[1])
-#         curves_3 = _validate_curve_not_no_input(curves_[3])
-#
-#         if isinstance(fx_, FXRates | FXForwards):
-#             imm_fx: DualTypes = fx_.rate(self.pair)
-#         elif isinstance(fx_, NoInput):
-#             raise ValueError(
-#                 "`fx` must be supplied to price FXExchange object.\n"
-#                 "Note: it can be attached to and then gotten from a Solver.",
-#             )
-#         else:
-#             imm_fx = fx_
-#
-#         _: DualTypes = forward_fx(self.settlement, curves_1, curves_3, imm_fx)
-#         return _
-#
-#     def delta(self, *args: Any, **kwargs: Any) -> DataFrame:
-#         """
-#         Calculate the delta of the *Instrument*.
-#
-#         For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
-#         """
-#         return super().delta(*args, **kwargs)
-#
-#     def gamma(self, *args: Any, **kwargs: Any) -> DataFrame:
-#         """
-#         Calculate the gamma of the *Instrument*.
-#
-#         For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
-#         """
-#         return super().gamma(*args, **kwargs)
-#
-#     def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
-#         raise NotImplementedError("`analytic_delta` for NDF not defined.")
+class NDF(Sensitivities, BaseMixin):
+
+    def __init__(
+        self,
+        pair: str,
+        settlement: datetime | str,
+        notional: DualTypes_ = NoInput(0),
+        fx_rate: DualTypes_ = NoInput(0),
+        fx_fixing: DualTypes_ = NoInput(0),
+        eval_date: datetime_ = NoInput(0),
+        calendar: CalInput = NoInput(0),
+        modifier: str_ = NoInput(0),
+        spec: str_ = NoInput(0),
+        curves: Curves_ = NoInput(0),
+    ):
+        self.kwargs: dict[str, Any] = dict(
+            pair=pair,
+            notional=notional,
+            fx_rate=fx_rate,
+            settlement=settlement,
+            fx_fixing=fx_fixing,
+            eval_date=eval_date,
+            calendar=calendar,
+            modifier=modifier,
+        )
+        self.kwargs = _push(spec, self.kwargs)
+
+        # set some defaults if missing
+        default_kws = {
+            "modifier": defaults.modifier,
+            "notional": defaults.notional,
+            "calendar": get_calendar(self.kwargs["calendar"]),
+        }
+        self.kwargs = _update_with_defaults(self.kwargs, default_kws)
+
+        if isinstance(self.kwargs["settlement"], str):
+            if isinstance(self.kwargs["eval_date"], NoInput):
+                raise ValueError("`eval_date` must be supplied if `settlement` is string tenor.")
+            else:
+                self.kwargs["settlement"] = add_tenor(
+                    start=self.kwargs["eval_date"],
+                    tenor=settlement,
+                    modifier=self.kwargs["modifier"],
+                    calendar=self.kwargs["calendar"],
+                    roll=NoInput(0),
+                    settlement=True,
+                    mod_days=False
+                )
+
+        self.periods = [
+            NonDeliverableCashflow(
+                notional=self.kwargs["notional"],
+                reference_currency=self.kwargs["reference_currency"],
+                settlement_currency=self.kwargs["settlement_currency"],
+                settlement=self.kwargs["settlement"],
+                fixing_date=,
+                fx_rate: DualTypes_ = NoInput(0),
+                fx_fixing: DualTypes_ = NoInput(0),
+            )
+        ]
+        self.curves=curves
+        self.spec=spec
+
+    def rate(
+        self,
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
+    ):
+        curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves,
+            solver,
+            curves,
+            fx,
+            base,
+            self.leg1.currency,
+        )
+        curves_1 = _validate_curve_not_no_input(curves_[1])
+        curves_3 = _validate_curve_not_no_input(curves_[3])
+
+        if isinstance(fx_, FXRates | FXForwards):
+            imm_fx: DualTypes = fx_.rate(self.pair)
+        elif isinstance(fx_, NoInput):
+            raise ValueError(
+                "`fx` must be supplied to price FXExchange object.\n"
+                "Note: it can be attached to and then gotten from a Solver.",
+            )
+        else:
+            imm_fx = fx_
+
+        _: DualTypes = forward_fx(self.settlement, curves_1, curves_3, imm_fx)
+        return _
+
+    def delta(self, *args: Any, **kwargs: Any) -> DataFrame:
+        """
+        Calculate the delta of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
+        """
+        return super().delta(*args, **kwargs)
+
+    def gamma(self, *args: Any, **kwargs: Any) -> DataFrame:
+        """
+        Calculate the gamma of the *Instrument*.
+
+        For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
+        """
+        return super().gamma(*args, **kwargs)
+
+    def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
+        raise NotImplementedError("`analytic_delta` for NDF not defined.")
 
 
 class XCS(BaseDerivative):
