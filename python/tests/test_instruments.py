@@ -3498,6 +3498,25 @@ class TestSTIRFuture:
         expected = (99.5 - (100 - 0.99250894761)) * 2500 * -1.0
         assert abs(result - expected) < 1e-7
 
+    def test_stir_npv_currency_bug(self) -> None:
+        # GH  : instantiation without a currency failed to NPV when an fx object provided.
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99})
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
+        c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.97})
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.1}, dt(2022, 1, 1)),
+            {"eureur": c1, "eurusd": c2, "usdusd": c3}
+        )
+        stir = STIRFuture(
+            effective=dt(2022, 3, 16),
+            termination=dt(2022, 6, 15),
+            frequency="Q",
+            bp_value=25.0,
+            contracts=-1,
+        )
+        result = stir.npv(curves=[c1, c1, c2, c3], fx=fxf)
+        assert abs(result) < 1e-7
+
     def test_stir_npv_fx(self) -> None:
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
         # irs = IRS(dt(2022, 3, 16), dt(2022, 6, 15), "Q", curves="usdusd")
