@@ -996,6 +996,7 @@ class TestNullPricing:
         # unpriced instruments run a `set_pricing_mid` method
         # this test ensures that after that run the price is not permanently set and
         # will reset when priced from an alternative set of curves.
+        # test is slightly different to null_priced_delta: uses fx and includes rate call
         curve1 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.99}, index_base=66)
         curve2 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.98}, index_base=66)
         curve3 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.97})
