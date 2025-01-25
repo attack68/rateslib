@@ -312,7 +312,19 @@ class NonDeliverableCashflow:
         return _maybe_local(disc_cashflow, local, self.settlement_currency, fx, base)
 
     def cashflow(self, fx: FX_) -> DualTypes:
-        """Cashflow is expressed in the settlement, i.e. deliverable currency."""
+        """
+        Determine the cashflow amount, expressed in ``settlement_currency``.
+
+        Parameters
+        ----------
+        fx: FXforwards, optional
+            Required to forecast the FX rate at settlement, if an ``fx_fixing`` is not known.
+
+        Returns
+        -------
+        float, Dual, Dual2
+        """
+
         if isinstance(self.fx_fixing, NoInput):
             fx_ = _validate_fx_as_forwards(fx)
             fx_fixing: DualTypes = fx_.rate(self.pair, self.settlement)
