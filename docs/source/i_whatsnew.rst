@@ -135,6 +135,11 @@ objects now have specific methods to allow *updates*.
        specification of their ``premium``, ``strike``, ``notional`` and ``vol`` inputs. Review
        their updated documentation for details.
        (Mostly `643 <https://github.com/attack68/rateslib/pull/643>`_)
+   * - Developers
+     - *rateslib-rs* extension upgrades to using PyO3:0.23, numpy:0.23, itertools:0.14,
+       statrs:0.18, indexmap:2.7
+       (`655 <https://github.com/attack68/rateslib/pull/655>`_)
+       (`656 <https://github.com/attack68/rateslib/pull/656>`_)
 
 1.6.0 (30th November 2024)
 ****************************
