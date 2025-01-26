@@ -322,7 +322,7 @@ class NDF(Sensitivities):
         modifier: str_ = NoInput(0),
         currency: str_ = NoInput(0),
         payment_lag: int_ = NoInput(0),
-        eom: bool = NoInput(0),
+        eom: bool_ = NoInput(0),
         curves: Curves_ = NoInput(0),
         spec: str_ = NoInput(0),
     ):
