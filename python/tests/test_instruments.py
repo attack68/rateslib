@@ -1906,6 +1906,58 @@ class TestFXExchange:
             )
 
 
+class TestNDF:
+
+    def test_construction(self) -> None:
+        ndf = NDF(
+            pair="brlusd",
+            settlement=dt(2022, 1, 1),
+        )
+        assert ndf.periods[0].reference_currency == "brl"
+        assert ndf.periods[0].settlement_currency == "usd"
+        assert ndf.periods[0].reversed is False
+
+    def test_construction_reversed(self) -> None:
+        ndf = NDF(
+            pair="usdbrl",
+            settlement=dt(2022, 1, 1),
+            currency="usd"
+        )
+        assert ndf.periods[0].reference_currency == "brl"
+        assert ndf.periods[0].settlement_currency == "usd"
+        assert ndf.periods[0].reversed is True
+
+    @pytest.mark.parametrize(("lag", "eval1", "exp1", "exp2"),[
+        (2, dt(2009, 8, 11), dt(2009, 11, 11), dt(2009, 11, 13)),
+        (3, dt(2009, 8, 10), dt(2009, 11, 10), dt(2009, 11, 13)),
+    ])
+    def test_dates(self, lag, eval1, exp1, exp2):
+        ndf = NDF(
+            pair="eurusd",
+            settlement="3m",
+            eval_date=eval1,
+            currency="usd",
+            calendar="tgt|fed",
+            payment_lag=lag,
+        )
+        assert ndf.periods[0].settlement == exp2
+        assert ndf.periods[0].fixing_date == exp1
+
+    @pytest.mark.parametrize(("eom"),[
+        True,
+        False,
+    ])
+    def test_roll(self, eom):
+        ndf = NDF(
+            pair="eurusd",
+            settlement="3m",
+            eval_date=dt(2009, 8, 13),
+            currency="usd",
+            calendar="tgt|fed",
+            payment_lag=2,
+            eom=eom
+        )
+
 # test the commented out FXSwap variant
 # def test_fx_swap(curve, curve2):
 #     fxs = FXSwap(dt(2022, 1, 15), "3M", notional=1000, fx_fixing_points=(10.1, 105),

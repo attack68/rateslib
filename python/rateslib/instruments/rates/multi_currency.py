@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from pandas import DataFrame, DatetimeIndex, MultiIndex
 
 from rateslib import add_tenor, defaults
-from rateslib.calendars import get_calendar
+from rateslib.calendars import get_calendar, _get_fx_expiry_and_delivery
 from rateslib.curves._parsers import _validate_curve_not_no_input
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, Variable
@@ -288,7 +288,9 @@ class NDF(Sensitivities):
     fx_fixing: float, Variable, optional
         The rate against which settlement takes place. Will be forecast if not given or not known.
     eval_date: datetime, optional
-        Required only if ``settlement`` is given as string tenor.
+        Required only if ``settlement`` is given as string tenor. Should be entered as today
+        (also called horizon), and **not** spot. Spot is derived from ``payment_lag`` and
+        ``calendar``.
     calendar: str or Calendar, optional
         Determines settlement if given as string tenor and fixing date from settlement.
     modifier: str, optional
@@ -298,6 +300,8 @@ class NDF(Sensitivities):
         ``pair``, e.g. USD in BRLUSD. Must be one of the currencies in ``pair``.
     payment_lag: int, optional
         Determines the FX rate fixing date from the settlement. Defaults to 2 (spot) if not given.
+    eom: bool, optional
+        Whether to allow end of month rolls to ``settlement`` as tenor.
     curves : Curve, str or list of such, optional
         Only one curve is required for an *NDF*. This curve should discount cashflows in the
         given ``currency`` at a known collateral rate.
@@ -318,6 +322,7 @@ class NDF(Sensitivities):
         modifier: str_ = NoInput(0),
         currency: str_ = NoInput(0),
         payment_lag: int_ = NoInput(0),
+        eom: bool = NoInput(0),
         curves: Curves_ = NoInput(0),
         spec: str_ = NoInput(0),
     ):
@@ -329,9 +334,10 @@ class NDF(Sensitivities):
             settlement=settlement,
             fx_fixing=fx_fixing,
             eval_date=eval_date,
-            calendar=calendar,
+            calendar=get_calendar(calendar),
             modifier=modifier,
             payment_lag=payment_lag,
+            eom=eom,
         )
         self.kwargs = _push(spec, self.kwargs)
 
@@ -339,24 +345,19 @@ class NDF(Sensitivities):
         default_kws = {
             "modifier": defaults.modifier,
             "notional": defaults.notional,
-            "calendar": get_calendar(self.kwargs["calendar"]),
             "payment_lag": defaults.payment_lag_specific[type(self).__name__],
+            "eom": defaults.eom_fx,
         }
         self.kwargs = _update_with_defaults(self.kwargs, default_kws)
 
-        if isinstance(self.kwargs["settlement"], str):
-            if isinstance(self.kwargs["eval_date"], NoInput):
-                raise ValueError("`eval_date` must be supplied if `settlement` is string tenor.")
-            else:
-                self.kwargs["settlement"] = add_tenor(
-                    start=self.kwargs["eval_date"],
-                    tenor=self.kwargs["settlement"],
-                    modifier=self.kwargs["modifier"],
-                    calendar=self.kwargs["calendar"],
-                    roll=NoInput(0),
-                    settlement=True,
-                    mod_days=False,
-                )
+        self.kwargs["fixing_date"], self.kwargs["settlement"] = _get_fx_expiry_and_delivery(
+            eval_date,
+            self.kwargs["settlement"],
+            self.kwargs["payment_lag"],
+            self.kwargs["calendar"],
+            self.kwargs["modifier"],
+            self.kwargs["eom"],
+        )
 
         if self.kwargs["currency"] not in self.kwargs["pair"]:
             raise ValueError("`currency` must be one of the currencies in `pair`.")
@@ -365,7 +366,7 @@ class NDF(Sensitivities):
             NonDeliverableCashflow(
                 notional=self.kwargs["notional"],
                 reference_currency=self.kwargs["pair"][0:3]
-                if self.kwargs["pair"][0:3] != currency
+                if self.kwargs["pair"][0:3] != self.kwargs["currency"]
                 else self.kwargs["pair"][3:],
                 settlement_currency=self.kwargs["currency"],
                 settlement=self.kwargs["settlement"],
