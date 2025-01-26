@@ -733,43 +733,6 @@ class TestNullPricing:
             )
         ],
     )
-    def test_null_priced_gamma2(self, inst) -> None:
-        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
-        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
-        c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.982}, id="eurusd")
-        c4 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995}, id="eu_cpi", index_base=100.0)
-        fxf = FXForwards(
-            FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
-            {"usdusd": c1, "eureur": c2, "eurusd": c3},
-        )
-        ins = [
-            IRS(dt(2022, 1, 1), "1y", "A", curves="eureur"),
-            IRS(dt(2022, 1, 1), "1y", "A", curves="usdusd"),
-            IRS(dt(2022, 1, 1), "1y", "A", curves="eurusd"),
-            ZCIS(dt(2022, 1, 1), "1y", "A", curves=["eureur", "eureur", "eu_cpi", "eureur"]),
-        ]
-        solver = Solver(
-            curves=[c1, c2, c3, c4],
-            instruments=ins,
-            s=[1.2, 1.3, 1.33, 0.5],
-            id="solver",
-            instrument_labels=["eur 1y", "usd 1y", "eur 1y xcs adj.", "1y cpi"],
-            fx=fxf,
-        )
-        result = inst.gamma(solver=solver)
-        assert isinstance(result, DataFrame)
-
-    @pytest.mark.parametrize(
-        "inst",
-        [
-            NDF(
-                pair="eurusd",
-                notional=1e6 * 0.333,
-                settlement=dt(2022, 10, 1),
-                curves="usdusd",
-            )
-        ],
-    )
     def test_null_priced_delta2(self, inst) -> None:
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
         c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
@@ -803,6 +766,43 @@ class TestNullPricing:
         solver.iterate()
         result3 = inst.npv(solver=solver)
         assert abs(result3) < 1e-3
+
+    @pytest.mark.parametrize(
+        "inst",
+        [
+            NDF(
+                pair="eurusd",
+                notional=1e6 * 0.333,
+                settlement=dt(2022, 10, 1),
+                curves="usdusd",
+            )
+        ],
+    )
+    def test_null_priced_gamma2(self, inst) -> None:
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
+        c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.982}, id="eurusd")
+        c4 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995}, id="eu_cpi", index_base=100.0)
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
+            {"usdusd": c1, "eureur": c2, "eurusd": c3},
+        )
+        ins = [
+            IRS(dt(2022, 1, 1), "1y", "A", curves="eureur"),
+            IRS(dt(2022, 1, 1), "1y", "A", curves="usdusd"),
+            IRS(dt(2022, 1, 1), "1y", "A", curves="eurusd"),
+            ZCIS(dt(2022, 1, 1), "1y", "A", curves=["eureur", "eureur", "eu_cpi", "eureur"]),
+        ]
+        solver = Solver(
+            curves=[c1, c2, c3, c4],
+            instruments=ins,
+            s=[1.2, 1.3, 1.33, 0.5],
+            id="solver",
+            instrument_labels=["eur 1y", "usd 1y", "eur 1y xcs adj.", "1y cpi"],
+            fx=fxf,
+        )
+        result = inst.gamma(solver=solver)
+        assert isinstance(result, DataFrame)
 
     @pytest.mark.parametrize(
         ("inst", "param"),
