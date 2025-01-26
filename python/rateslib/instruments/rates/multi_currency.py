@@ -299,7 +299,7 @@ class NDF(Sensitivities):
         The settlement currency of the contract. If not given is assumed to be currency 2 of the
         ``pair``, e.g. USD in BRLUSD. Must be one of the currencies in ``pair``.
     payment_lag: int, optional
-        Determines the FX rate fixing date from the settlement. Defaults to 2 (spot) if not given.
+        Number of business day until settlement delivery. Defaults to 2 (spot) if not given.
     eom: bool, optional
         Whether to allow end of month rolls to ``settlement`` as tenor.
     curves : Curve, str or list of such, optional
