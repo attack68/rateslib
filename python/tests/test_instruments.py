@@ -1998,7 +1998,6 @@ class TestNDF:
         assert ndf.periods[0].settlement == exp
         assert ndf.periods[0].fixing_date == exp2
 
-
     def test_zero_analytic_delta(self):
         ndf = NDF(
             pair="eurusd",

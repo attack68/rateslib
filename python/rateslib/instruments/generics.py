@@ -13,7 +13,7 @@ from rateslib.curves import Curve
 from rateslib.curves._parsers import _validate_curve_is_not_dict, _validate_curve_not_no_input
 from rateslib.default import NoInput, _drb
 from rateslib.dual import dual_log
-from rateslib.fx_volatility import FXVols, FXDeltaVolSmile, FXDeltaVolSurface
+from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
 from rateslib.instruments.base import BaseMixin
 from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.instruments.utils import (
@@ -30,13 +30,12 @@ if TYPE_CHECKING:
         Any,
         Curves_,
         DualTypes,
-        DualTypes_,
+        FXVol_,
         NoReturn,
         Solver_,
         SupportsMetrics,
         datetime_,
         str_,
-        FXVol_
     )
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -259,7 +258,8 @@ class VolValue(BaseMixin):
 
         if metric == "vol":
             if isinstance(vol_, FXDeltaVolSmile | FXDeltaVolSurface):
-                return vol_._get_index(self.index_value, self.expiry)
+                # Must initialise with an ``expiry`` if a Surface is used
+                return vol_._get_index(self.index_value, self.expiry)  # type: ignore[arg-type]
             else:
                 raise ValueError("`vol` as an object must be provided for VolValue.")
 
