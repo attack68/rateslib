@@ -159,6 +159,7 @@ class Defaults:
             "Bill": 0,
             "FRA": 0,
             "CDS": 0,
+            "NDF": 2,
         }
         self.fixing_method = "rfr_payment_delay"
         self.fixing_method_param = {

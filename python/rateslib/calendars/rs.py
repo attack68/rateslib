@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 
 
 def _get_rollday(roll: str | int | NoInput) -> RollDay:
+    """Convert a user str or int into a RollDay enum object."""
     if isinstance(roll, str):
         return {
             "EOM": RollDay.EoM(),

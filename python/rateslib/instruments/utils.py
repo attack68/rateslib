@@ -259,7 +259,7 @@ def _update_with_defaults(
     base_kwargs: dict[str, Any], default_kwargs: dict[str, Any]
 ) -> dict[str, Any]:
     """
-    Update the `base_kwargs` with `default_kwargs` if the values are NoInput.blank.
+    Update the `base_kwargs` with `default_kwargs` if the base_values are NoInput.blank.
     """
     updaters = {
         k: v

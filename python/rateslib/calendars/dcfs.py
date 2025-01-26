@@ -35,6 +35,7 @@ CONVENTIONS_MAP: dict[str, Convention] = {
 
 
 def _get_convention(convention: str) -> Convention:
+    """Convert a user str input into a Convention enum."""
     try:
         return CONVENTIONS_MAP[convention.upper()]
     except KeyError:

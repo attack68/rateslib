@@ -17,6 +17,7 @@ from rateslib.instruments import (
     FRA,
     IIRS,
     IRS,
+    NDF,
     SBS,
     XCS,
     ZCIS,
@@ -722,6 +723,88 @@ class TestNullPricing:
         assert abs(result3) < 1e-3
 
     @pytest.mark.parametrize(
+        "inst",
+        [
+            NDF(
+                pair="eurusd",
+                notional=1e6 * 0.333,
+                settlement=dt(2022, 10, 1),
+                curves="usdusd",
+            )
+        ],
+    )
+    def test_null_priced_delta2(self, inst) -> None:
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
+        c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.982}, id="eurusd")
+        c4 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995}, id="eu_cpi", index_base=100.0)
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
+            {"usdusd": c1, "eureur": c2, "eurusd": c3},
+        )
+        ins = [
+            IRS(dt(2022, 1, 1), "1y", "A", curves="eureur"),
+            IRS(dt(2022, 1, 1), "1y", "A", curves="usdusd"),
+            IRS(dt(2022, 1, 1), "1y", "A", curves="eurusd"),
+            ZCIS(dt(2022, 1, 1), "1y", "A", curves=["eureur", "eureur", "eu_cpi", "eureur"]),
+        ]
+        solver = Solver(
+            curves=[c1, c2, c3, c4],
+            instruments=ins,
+            s=[1.2, 1.3, 1.33, 0.5],
+            id="solver",
+            instrument_labels=["eur 1y", "usd 1y", "eur 1y xcs adj.", "1y cpi"],
+            fx=fxf,
+        )
+        result = inst.delta(solver=solver)
+        assert abs(result.iloc[1, 0] - 25.0) < 1.0
+        result2 = inst.npv(solver=solver)
+        assert abs(result2) < 1e-3
+
+        # test that instruments have not been set by the previous pricing action
+        solver.s = [1.3, 1.4, 1.36, 0.55]
+        solver.iterate()
+        result3 = inst.npv(solver=solver)
+        assert abs(result3) < 1e-3
+
+    @pytest.mark.parametrize(
+        "inst",
+        [
+            NDF(
+                pair="eurusd",
+                notional=1e6 * 0.333,
+                settlement=dt(2022, 10, 1),
+                curves="usdusd",
+            )
+        ],
+    )
+    def test_null_priced_gamma2(self, inst) -> None:
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
+        c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.982}, id="eurusd")
+        c4 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995}, id="eu_cpi", index_base=100.0)
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
+            {"usdusd": c1, "eureur": c2, "eurusd": c3},
+        )
+        ins = [
+            IRS(dt(2022, 1, 1), "1y", "A", curves="eureur"),
+            IRS(dt(2022, 1, 1), "1y", "A", curves="usdusd"),
+            IRS(dt(2022, 1, 1), "1y", "A", curves="eurusd"),
+            ZCIS(dt(2022, 1, 1), "1y", "A", curves=["eureur", "eureur", "eu_cpi", "eureur"]),
+        ]
+        solver = Solver(
+            curves=[c1, c2, c3, c4],
+            instruments=ins,
+            s=[1.2, 1.3, 1.33, 0.5],
+            id="solver",
+            instrument_labels=["eur 1y", "usd 1y", "eur 1y xcs adj.", "1y cpi"],
+            fx=fxf,
+        )
+        result = inst.gamma(solver=solver)
+        assert isinstance(result, DataFrame)
+
+    @pytest.mark.parametrize(
         ("inst", "param"),
         [
             (IRS(dt(2022, 7, 1), "3M", "A", curves="usdusd"), "fixed_rate"),
@@ -825,6 +908,151 @@ class TestNullPricing:
         priced_delta = inst.delta(solver=solver, fx=fxf)
 
         assert_frame_equal(unpriced_delta, priced_delta)
+
+    @pytest.mark.parametrize(
+        "inst",
+        [
+            CDS(dt(2022, 7, 1), "3M", "Q", notional=1e6 * 25 / 14.91357),
+            IRS(dt(2022, 7, 1), "3M", "A", notional=1e6),
+            STIRFuture(
+                dt(2022, 3, 16),
+                dt(2022, 6, 15),
+                "Q",
+                bp_value=25.0,
+                contracts=-1,
+            ),
+            FRA(dt(2022, 7, 1), "3M", "A", notional=1e6),
+            SBS(
+                dt(2022, 7, 1),
+                "3M",
+                "A",
+                notional=-1e6,
+            ),
+            ZCS(dt(2022, 7, 1), "3M", "A", notional=1e6),
+            IIRS(
+                dt(2022, 7, 1),
+                "3M",
+                "A",
+                notional=1e6,
+            ),
+            IIRS(
+                dt(2022, 7, 1),
+                "3M",
+                "A",
+                notional=1e6,
+                notional_exchange=True,
+            ),
+            # TODO add a null price test for ZCIS
+            XCS(  # XCS - FloatFloat
+                dt(2022, 7, 1),
+                "3M",
+                "A",
+                currency="usd",
+                leg2_currency="eur",
+                notional=1e6,
+            ),
+            XCS(  # XCS-FloatFloatNonMtm
+                dt(2022, 7, 1),
+                "3M",
+                "A",
+                fixed=False,
+                leg2_fixed=False,
+                leg2_mtm=False,
+                currency="usd",
+                leg2_currency="eur",
+                notional=1e6,
+            ),
+            XCS(  # XCS-FixedFloatNonMtm
+                dt(2022, 7, 1),
+                "3M",
+                "A",
+                fixed=True,
+                leg2_fixed=False,
+                leg2_mtm=False,
+                currency="eur",
+                leg2_currency="usd",
+                notional=1e6,
+            ),
+            XCS(  # XCS-FixedFixedNonMtm
+                dt(2022, 7, 1),
+                "3M",
+                "A",
+                fixed=True,
+                leg2_fixed=True,
+                leg2_mtm=False,
+                currency="eur",
+                leg2_currency="usd",
+                leg2_fixed_rate=1.2,
+                notional=1e6,
+            ),
+            XCS(  # XCS - FixedFloat
+                dt(2022, 7, 1),
+                "3M",
+                "A",
+                fixed=True,
+                leg2_fixed=False,
+                leg2_mtm=True,
+                currency="eur",
+                leg2_currency="usd",
+                notional=1e6,
+            ),
+            XCS(  # XCS-FixedFixed
+                dt(2022, 7, 1),
+                "3M",
+                "A",
+                fixed=True,
+                leg2_fixed=True,
+                leg2_mtm=True,
+                currency="eur",
+                leg2_currency="usd",
+                leg2_fixed_rate=1.3,
+                notional=1e6,
+            ),
+            FXSwap(
+                dt(2022, 7, 1),
+                "3M",
+                currency="usd",
+                leg2_currency="eur",
+                notional=-1e6,
+                # fx_fixing=0.999851,
+                # split_notional=1003052.812,
+                # points=2.523505,
+            ),
+            FXExchange(
+                settlement=dt(2022, 10, 1),
+                pair="eurusd",
+                notional=-1e6 * 25 / 74.27,
+            ),
+            NDF(
+                pair="eurusd",  # settlement currency defaults to right hand side: usd
+                settlement=dt(2022, 10, 1),
+            ),
+        ],
+    )
+    def test_set_pricing_does_not_overwrite_unpriced_status(self, inst):
+        # unpriced instruments run a `set_pricing_mid` method
+        # this test ensures that after that run the price is not permanently set and
+        # will reset when priced from an alternative set of curves.
+        # test is slightly different to null_priced_delta: uses fx and includes rate call
+        curve1 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.99}, index_base=66)
+        curve2 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.98}, index_base=66)
+        curve3 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.97})
+        curve4 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.96}, index_base=80)
+        curve5 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.95}, index_base=80)
+        curve6 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.94})
+        fxr1 = FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1))
+        fxr2 = FXRates({"eurusd": 1.5}, settlement=dt(2022, 1, 1))
+        fxf1 = FXForwards(fxr1, {"usdusd": curve1, "eureur": curve2, "eurusd": curve3})
+        fxf2 = FXForwards(fxr2, {"usdusd": curve4, "eureur": curve5, "eurusd": curve6})
+
+        rate1 = inst.rate(curves=[curve1, curve1, curve2, curve3], fx=fxf1)
+        npv1 = inst.npv(curves=[curve1, curve1, curve2, curve3], fx=fxf1)
+        assert abs(npv1) < 1e-8
+
+        rate2 = inst.rate(curves=[curve4, curve4, curve5, curve6], fx=fxf2)
+        npv2 = inst.npv(curves=[curve4, curve4, curve5, curve6], fx=fxf2)
+        assert rate1 != rate2
+        assert abs(npv2) < 1e-8
 
 
 class TestIRS:
@@ -1713,6 +1941,106 @@ class TestFXExchange:
                 ],
                 s=[3.77, 5.51, 1.0775],
             )
+
+
+class TestNDF:
+    def test_construction(self) -> None:
+        ndf = NDF(
+            pair="brlusd",
+            settlement=dt(2022, 1, 1),
+        )
+        assert ndf.periods[0].reference_currency == "brl"
+        assert ndf.periods[0].settlement_currency == "usd"
+        assert ndf.periods[0].reversed is False
+
+    def test_construction_reversed(self) -> None:
+        ndf = NDF(pair="usdbrl", settlement=dt(2022, 1, 1), currency="usd")
+        assert ndf.periods[0].reference_currency == "brl"
+        assert ndf.periods[0].settlement_currency == "usd"
+        assert ndf.periods[0].reversed is True
+
+    @pytest.mark.parametrize(
+        ("lag", "eval1", "exp1", "exp2"),
+        [
+            (2, dt(2009, 8, 11), dt(2009, 11, 11), dt(2009, 11, 13)),
+            (3, dt(2009, 8, 10), dt(2009, 11, 10), dt(2009, 11, 13)),
+        ],
+    )
+    def test_dates(self, lag, eval1, exp1, exp2):
+        ndf = NDF(
+            pair="eurusd",
+            settlement="3m",
+            eval_date=eval1,
+            currency="usd",
+            calendar="tgt|fed",
+            payment_lag=lag,
+        )
+        assert ndf.periods[0].settlement == exp2
+        assert ndf.periods[0].fixing_date == exp1
+
+    @pytest.mark.parametrize(
+        ("eom", "exp", "exp2"),
+        [
+            (True, dt(2025, 5, 30), dt(2025, 5, 28)),
+            (False, dt(2025, 5, 28), dt(2025, 5, 26)),
+        ],
+    )
+    def test_roll(self, eom, exp, exp2):
+        ndf = NDF(
+            pair="eurusd",
+            settlement="3m",
+            eval_date=dt(2025, 2, 26),
+            currency="usd",
+            calendar="tgt|fed",
+            payment_lag=2,
+            eom=eom,
+        )
+        assert ndf.periods[0].settlement == exp
+        assert ndf.periods[0].fixing_date == exp2
+
+
+    def test_zero_analytic_delta(self):
+        ndf = NDF(
+            pair="eurusd",
+            settlement="3m",
+            eval_date=dt(2009, 8, 13),
+            currency="usd",
+            calendar="tgt|fed",
+            payment_lag=2,
+        )
+        assert ndf.analytic_delta() == 0.0
+
+    def test_bad_currency_raises(self):
+        with pytest.raises(ValueError, match="`currency` must be one of the currencies in `pair`."):
+            NDF(
+                pair="eurusd",
+                currency="jpy",
+                settlement="3m",
+                eval_date=dt(2009, 8, 13),
+                calendar="tgt|fed",
+                payment_lag=2,
+            )
+
+    def test_cashflows(self, usdusd, usdeur, eureur):
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.02}, settlement=dt(2022, 1, 3)),
+            {"eureur": eureur, "usdeur": usdeur, "usdusd": usdusd},
+        )
+        ndf = NDF(
+            pair="eurusd",
+            settlement="3m",
+            eval_date=dt(2022, 1, 1),
+            currency="usd",
+            calendar="tgt|fed",
+            payment_lag=2,
+        )
+        result = ndf.cashflows(curves=usdusd, fx=fxf)
+        assert result.loc[("leg1", 0), "Type"] == "NonDeliverableCashflow"
+        assert result.loc[("leg1", 0), "Period"] == "EURUSD"
+        assert result.loc[("leg1", 0), "Ccy"] == "USD"
+        assert result.loc[("leg1", 0), "Payment"] == dt(2022, 4, 4)
+        assert result.loc[("leg1", 0), "Rate"] == 1.0210354810081033
+        assert result.loc[("leg1", 0), "Index Val"] == 1.0210354810081033
 
 
 # test the commented out FXSwap variant
@@ -3344,13 +3672,12 @@ class TestSTIRFuture:
         assert abs(result - expected) < 1e-7
 
     def test_stir_npv_currency_bug(self) -> None:
-        # GH  : instantiation without a currency failed to NPV when an fx object provided.
+        # GH653: instantiation without a currency failed to NPV when an fx object provided.
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99})
         c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
         c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.97})
         fxf = FXForwards(
-            FXRates({"eurusd": 1.1}, dt(2022, 1, 1)),
-            {"eureur": c1, "eurusd": c2, "usdusd": c3}
+            FXRates({"eurusd": 1.1}, dt(2022, 1, 1)), {"eureur": c1, "eurusd": c2, "usdusd": c3}
         )
         stir = STIRFuture(
             effective=dt(2022, 3, 16),

@@ -537,8 +537,8 @@ def _get_fx_expiry_and_delivery(
 
     Parameters
     ----------
-    eval: datetime
-        The evalation date, which is today (if required)
+    eval_date: datetime
+        The evaluation date, which is today (if required)
     expiry: str, datetime
         The expiry date
     delivery_lag: int, datetime
