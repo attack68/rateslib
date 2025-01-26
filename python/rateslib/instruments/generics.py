@@ -13,7 +13,7 @@ from rateslib.curves import Curve
 from rateslib.curves._parsers import _validate_curve_is_not_dict, _validate_curve_not_no_input
 from rateslib.default import NoInput, _drb
 from rateslib.dual import dual_log
-from rateslib.fx_volatility import FXVols
+from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
 from rateslib.instruments.base import BaseMixin
 from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.instruments.utils import (
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
         Any,
         Curves_,
         DualTypes,
-        DualTypes_,
+        FXVol_,
         NoReturn,
         Solver_,
         SupportsMetrics,
@@ -164,6 +164,8 @@ class VolValue(BaseMixin):
     ----------
     index_value : float, Dual, Dual2
         The value of some index to the *VolSmile* or *VolSurface*.
+    expiry: datetime, optional
+        The expiry at which to evaluate. This will only be used with *Surfaces*, not *Smiles*.
     metric: str, optional
         The default metric to return from the ``rate`` method.
     vol: str, FXDeltaVolSmile, optional
@@ -204,12 +206,14 @@ class VolValue(BaseMixin):
     def __init__(
         self,
         index_value: DualTypes,
+        expiry: datetime_ = NoInput(0),
         # index_type: str = "delta",
         # delta_type: str = NoInput(0),
         metric: str = "vol",
-        vol: NoInput | str | FXVols = NoInput(0),
+        vol: FXVol_ = NoInput(0),
     ):
         self.index_value = index_value
+        self.expiry = expiry
         # self.index_type = index_type
         # self.delta_type = delta_type
         self.vol = vol
@@ -222,7 +226,7 @@ class VolValue(BaseMixin):
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-        vol: DualTypes_ | FXVols = NoInput(0),
+        vol: FXVol_ = NoInput(0),
         metric: str = "vol",
     ) -> DualTypes:
         """
@@ -239,6 +243,8 @@ class VolValue(BaseMixin):
             Not used.
         base : str, optional
             Not used.
+        vol: float, Dual, Dual2, FXDeltaVolSmile or FXDeltaVolSurface
+            The volatility used in calculation.
         metric: str in {"curve_value", "index_value", "cc_zero_rate"}, optional
             Configures which type of value to return from the applicable *Curve*.
 
@@ -247,20 +253,15 @@ class VolValue(BaseMixin):
         float, Dual, Dual2
 
         """
-        # curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
-        #     self.curves,
-        #     solver,
-        #     curves,
-        #     fx,
-        #     base,
-        #     "_",
-        # )
         vol_ = _get_fxvol_maybe_from_solver(self.vol, vol, solver)
         metric = _drb(self.metric, metric).lower()
 
         if metric == "vol":
-            # TODO: should validate that vol is Vol object and not NoInput, remove type ignore
-            return vol_[self.index_value]  # type: ignore[index]
+            if isinstance(vol_, FXDeltaVolSmile | FXDeltaVolSurface):
+                # Must initialise with an ``expiry`` if a Surface is used
+                return vol_._get_index(self.index_value, self.expiry)  # type: ignore[arg-type]
+            else:
+                raise ValueError("`vol` as an object must be provided for VolValue.")
 
         raise ValueError("`metric` must be in {'vol'}.")
 

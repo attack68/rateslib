@@ -11,7 +11,7 @@ from rateslib.curves._parsers import _map_curve_from_solver
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, dual_exp, gradient
 from rateslib.fx import FXForwards, FXRates
-from rateslib.fx_volatility import FXDeltaVolSmile
+from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
 from rateslib.instruments import (
     CDS,
     FRA,
@@ -1997,7 +1997,6 @@ class TestNDF:
         )
         assert ndf.periods[0].settlement == exp
         assert ndf.periods[0].fixing_date == exp2
-
 
     def test_zero_analytic_delta(self):
         ndf = NDF(
@@ -6050,6 +6049,23 @@ class TestVolValue:
         assert abs(smile[0.25] - 8.9) < 5e-7
         assert abs(smile[0.5] - 8.2) < 5e-7
         assert abs(smile[0.75] - 9.1) < 5e-7
+
+    def test_solver_surface_passthrough(self) -> None:
+        surface = FXDeltaVolSurface(
+            delta_indexes=[0.5],
+            expiries=[dt(2000, 1, 1), dt(2001, 1, 1)],
+            node_values=[[1.0], [1.0]],
+            eval_date=dt(1999, 12, 1),
+            delta_type="forward",
+            id="VolSurf",
+        )
+        instruments = [
+            VolValue(0.25, dt(2000, 1, 1), vol=surface),
+            VolValue(0.5, dt(2001, 1, 1), vol="VolSurf"),
+        ]
+        Solver(surfaces=[surface], instruments=instruments, s=[8.9, 8.2], func_tol=1e-14)
+        assert abs(surface._get_index(0.5, dt(2000, 1, 1)) - 8.9) < 5e-7
+        assert abs(surface._get_index(0.5, dt(2001, 1, 1)) - 8.2) < 5e-7
 
     def test_no_solver_vol_value(self) -> None:
         vv = VolValue(0.25, vol="string_id")
