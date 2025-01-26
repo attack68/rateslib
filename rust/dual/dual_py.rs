@@ -16,7 +16,7 @@ use numpy::{Element, PyArray1, PyArray2, PyArrayDescr, ToPyArray};
 
 unsafe impl Element for Dual {
     const IS_COPY: bool = false;
-    fn get_dtype_bound(py: Python<'_>) -> Bound<'_, PyArrayDescr> {
+    fn get_dtype(py: Python<'_>) -> Bound<'_, PyArrayDescr> {
         PyArrayDescr::object_bound(py)
     }
 
@@ -26,7 +26,7 @@ unsafe impl Element for Dual {
 }
 unsafe impl Element for Dual2 {
     const IS_COPY: bool = false;
-    fn get_dtype_bound(py: Python<'_>) -> Bound<'_, PyArrayDescr> {
+    fn get_dtype(py: Python<'_>) -> Bound<'_, PyArrayDescr> {
         PyArrayDescr::object_bound(py)
     }
 
@@ -35,15 +35,16 @@ unsafe impl Element for Dual2 {
     }
 }
 
-impl IntoPy<PyObject> for Number {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        match self {
-            Number::F64(f) => PyFloat::new_bound(py, f).to_object(py),
-            Number::Dual(d) => Py::new(py, d).unwrap().to_object(py),
-            Number::Dual2(d) => Py::new(py, d).unwrap().to_object(py),
-        }
-    }
-}
+// This was removed when upgrading to pyO3 0.23: see https://pyo3.rs/v0.23.0/migration#intopyobject-and-intopyobjectref-derive-macros
+// impl IntoPy<PyObject> for Number {
+//     fn into_py(self, py: Python<'_>) -> PyObject {
+//         match self {
+//             Number::F64(f) => PyFloat::new_bound(py, f).to_object(py),
+//             Number::Dual(d) => Py::new(py, d).unwrap().to_object(py),
+//             Number::Dual2(d) => Py::new(py, d).unwrap().to_object(py),
+//         }
+//     }
+// }
 
 // https://github.com/PyO3/pyo3/discussions/3911
 // #[derive(Debug, Clone, PartialEq, PartialOrd, FromPyObject)]
@@ -151,7 +152,7 @@ impl Dual {
 
     #[getter]
     #[pyo3(name = "dual2")]
-    fn dual2_py<'py>(&'py self, _py: Python<'py>) -> PyResult<&'py PyArray2<f64>> {
+    fn dual2_py<'py>(&'py self, _py: Python<'py>) -> PyResult<Bound<'py, PyArray2<f64>>> {
         Err(PyValueError::new_err(
             "`Dual` variable cannot possess `dual2` attribute.",
         ))
@@ -167,7 +168,11 @@ impl Dual {
     }
 
     #[pyo3(name = "grad2")]
-    fn grad2<'py>(&'py self, _py: Python<'py>, _vars: Vec<String>) -> PyResult<&'py PyArray2<f64>> {
+    fn grad2<'py>(
+        &'py self,
+        _py: Python<'py>,
+        _vars: Vec<String>
+    ) -> PyResult<Bound<'py, PyArray2<f64>>> {
         Err(PyValueError::new_err(
             "Cannot evaluate second order derivative on a Dual.",
         ))
