@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 
 from pandas import DataFrame, DatetimeIndex, MultiIndex
 
-from rateslib import add_tenor, defaults
-from rateslib.calendars import get_calendar, _get_fx_expiry_and_delivery
+from rateslib import defaults
+from rateslib.calendars import _get_fx_expiry_and_delivery, get_calendar
 from rateslib.curves._parsers import _validate_curve_not_no_input
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, Variable

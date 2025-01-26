@@ -1944,7 +1944,6 @@ class TestFXExchange:
 
 
 class TestNDF:
-
     def test_construction(self) -> None:
         ndf = NDF(
             pair="brlusd",
@@ -1955,19 +1954,18 @@ class TestNDF:
         assert ndf.periods[0].reversed is False
 
     def test_construction_reversed(self) -> None:
-        ndf = NDF(
-            pair="usdbrl",
-            settlement=dt(2022, 1, 1),
-            currency="usd"
-        )
+        ndf = NDF(pair="usdbrl", settlement=dt(2022, 1, 1), currency="usd")
         assert ndf.periods[0].reference_currency == "brl"
         assert ndf.periods[0].settlement_currency == "usd"
         assert ndf.periods[0].reversed is True
 
-    @pytest.mark.parametrize(("lag", "eval1", "exp1", "exp2"),[
-        (2, dt(2009, 8, 11), dt(2009, 11, 11), dt(2009, 11, 13)),
-        (3, dt(2009, 8, 10), dt(2009, 11, 10), dt(2009, 11, 13)),
-    ])
+    @pytest.mark.parametrize(
+        ("lag", "eval1", "exp1", "exp2"),
+        [
+            (2, dt(2009, 8, 11), dt(2009, 11, 11), dt(2009, 11, 13)),
+            (3, dt(2009, 8, 10), dt(2009, 11, 10), dt(2009, 11, 13)),
+        ],
+    )
     def test_dates(self, lag, eval1, exp1, exp2):
         ndf = NDF(
             pair="eurusd",
@@ -1980,20 +1978,26 @@ class TestNDF:
         assert ndf.periods[0].settlement == exp2
         assert ndf.periods[0].fixing_date == exp1
 
-    @pytest.mark.parametrize(("eom"),[
-        True,
-        False,
-    ])
-    def test_roll(self, eom):
+    @pytest.mark.parametrize(
+        ("eom", "exp", "exp2"),
+        [
+            (True, dt(2025, 5, 30), dt(2025, 5, 28)),
+            (False, dt(2025, 5, 28), dt(2025, 5, 26)),
+        ],
+    )
+    def test_roll(self, eom, exp, exp2):
         ndf = NDF(
             pair="eurusd",
             settlement="3m",
-            eval_date=dt(2009, 8, 13),
+            eval_date=dt(2025, 2, 26),
             currency="usd",
             calendar="tgt|fed",
             payment_lag=2,
-            eom=eom
+            eom=eom,
         )
+        assert ndf.periods[0].settlement == exp
+        assert ndf.periods[0].fixing_date == exp2
+
 
     def test_zero_analytic_delta(self):
         ndf = NDF(
@@ -2020,7 +2024,7 @@ class TestNDF:
     def test_cashflows(self, usdusd, usdeur, eureur):
         fxf = FXForwards(
             FXRates({"eurusd": 1.02}, settlement=dt(2022, 1, 3)),
-            {"eureur": eureur, "usdeur": usdeur, "usdusd": usdusd}
+            {"eureur": eureur, "usdeur": usdeur, "usdusd": usdusd},
         )
         ndf = NDF(
             pair="eurusd",
@@ -2037,6 +2041,7 @@ class TestNDF:
         assert result.loc[("leg1", 0), "Payment"] == dt(2022, 4, 4)
         assert result.loc[("leg1", 0), "Rate"] == 1.0210354810081033
         assert result.loc[("leg1", 0), "Index Val"] == 1.0210354810081033
+
 
 # test the commented out FXSwap variant
 # def test_fx_swap(curve, curve2):
