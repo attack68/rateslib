@@ -16,7 +16,7 @@ use numpy::{Element, PyArray1, PyArray2, PyArrayDescr, ToPyArray};
 
 unsafe impl Element for Dual {
     const IS_COPY: bool = false;
-    fn get_dtype_bound(py: Python<'_>) -> Bound<'_, PyArrayDescr> {
+    fn get_dtype(py: Python<'_>) -> Bound<'_, PyArrayDescr> {
         PyArrayDescr::object_bound(py)
     }
 
@@ -26,7 +26,7 @@ unsafe impl Element for Dual {
 }
 unsafe impl Element for Dual2 {
     const IS_COPY: bool = false;
-    fn get_dtype_bound(py: Python<'_>) -> Bound<'_, PyArrayDescr> {
+    fn get_dtype(py: Python<'_>) -> Bound<'_, PyArrayDescr> {
         PyArrayDescr::object_bound(py)
     }
 
@@ -151,7 +151,7 @@ impl Dual {
 
     #[getter]
     #[pyo3(name = "dual2")]
-    fn dual2_py<'py>(&'py self, _py: Python<'py>) -> PyResult<&'py PyArray2<f64>> {
+    fn dual2_py<'py>(&'py self, _py: Python<'py>) -> PyResult<Bound<'py, PyArray2<f64>>> {
         Err(PyValueError::new_err(
             "`Dual` variable cannot possess `dual2` attribute.",
         ))
@@ -167,7 +167,11 @@ impl Dual {
     }
 
     #[pyo3(name = "grad2")]
-    fn grad2<'py>(&'py self, _py: Python<'py>, _vars: Vec<String>) -> PyResult<&'py PyArray2<f64>> {
+    fn grad2<'py>(
+        &'py self,
+        _py: Python<'py>,
+        _vars: Vec<String>
+    ) -> PyResult<Bound<'py, PyArray2<f64>>> {
         Err(PyValueError::new_err(
             "Cannot evaluate second order derivative on a Dual.",
         ))
