@@ -35,15 +35,16 @@ unsafe impl Element for Dual2 {
     }
 }
 
-impl IntoPy<PyObject> for Number {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        match self {
-            Number::F64(f) => PyFloat::new_bound(py, f).to_object(py),
-            Number::Dual(d) => Py::new(py, d).unwrap().to_object(py),
-            Number::Dual2(d) => Py::new(py, d).unwrap().to_object(py),
-        }
-    }
-}
+// This was removed when upgrading to pyO3 0.23: see https://pyo3.rs/v0.23.0/migration#intopyobject-and-intopyobjectref-derive-macros
+// impl IntoPy<PyObject> for Number {
+//     fn into_py(self, py: Python<'_>) -> PyObject {
+//         match self {
+//             Number::F64(f) => PyFloat::new_bound(py, f).to_object(py),
+//             Number::Dual(d) => Py::new(py, d).unwrap().to_object(py),
+//             Number::Dual2(d) => Py::new(py, d).unwrap().to_object(py),
+//         }
+//     }
+// }
 
 // https://github.com/PyO3/pyo3/discussions/3911
 // #[derive(Debug, Clone, PartialEq, PartialOrd, FromPyObject)]
