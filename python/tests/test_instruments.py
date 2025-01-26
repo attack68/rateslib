@@ -733,6 +733,43 @@ class TestNullPricing:
             )
         ],
     )
+    def test_null_priced_gamma2(self, inst) -> None:
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
+        c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.982}, id="eurusd")
+        c4 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995}, id="eu_cpi", index_base=100.0)
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
+            {"usdusd": c1, "eureur": c2, "eurusd": c3},
+        )
+        ins = [
+            IRS(dt(2022, 1, 1), "1y", "A", curves="eureur"),
+            IRS(dt(2022, 1, 1), "1y", "A", curves="usdusd"),
+            IRS(dt(2022, 1, 1), "1y", "A", curves="eurusd"),
+            ZCIS(dt(2022, 1, 1), "1y", "A", curves=["eureur", "eureur", "eu_cpi", "eureur"]),
+        ]
+        solver = Solver(
+            curves=[c1, c2, c3, c4],
+            instruments=ins,
+            s=[1.2, 1.3, 1.33, 0.5],
+            id="solver",
+            instrument_labels=["eur 1y", "usd 1y", "eur 1y xcs adj.", "1y cpi"],
+            fx=fxf,
+        )
+        result = inst.gamma(solver=solver)
+        assert isinstance(result, DataFrame)
+
+    @pytest.mark.parametrize(
+        "inst",
+        [
+            NDF(
+                pair="eurusd",
+                notional=1e6 * 0.333,
+                settlement=dt(2022, 10, 1),
+                curves="usdusd",
+            )
+        ],
+    )
     def test_null_priced_delta2(self, inst) -> None:
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
         c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
@@ -1957,6 +1994,49 @@ class TestNDF:
             payment_lag=2,
             eom=eom
         )
+
+    def test_zero_analytic_delta(self):
+        ndf = NDF(
+            pair="eurusd",
+            settlement="3m",
+            eval_date=dt(2009, 8, 13),
+            currency="usd",
+            calendar="tgt|fed",
+            payment_lag=2,
+        )
+        assert ndf.analytic_delta() == 0.0
+
+    def test_bad_currency_raises(self):
+        with pytest.raises(ValueError, match="`currency` must be one of the currencies in `pair`."):
+            NDF(
+                pair="eurusd",
+                currency="jpy",
+                settlement="3m",
+                eval_date=dt(2009, 8, 13),
+                calendar="tgt|fed",
+                payment_lag=2,
+            )
+
+    def test_cashflows(self, usdusd, usdeur, eureur):
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.02}, settlement=dt(2022, 1, 3)),
+            {"eureur": eureur, "usdeur": usdeur, "usdusd": usdusd}
+        )
+        ndf = NDF(
+            pair="eurusd",
+            settlement="3m",
+            eval_date=dt(2022, 1, 1),
+            currency="usd",
+            calendar="tgt|fed",
+            payment_lag=2,
+        )
+        result = ndf.cashflows(curves=usdusd, fx=fxf)
+        assert result.loc[("leg1", 0), "Type"] == "NonDeliverableCashflow"
+        assert result.loc[("leg1", 0), "Period"] == "EURUSD"
+        assert result.loc[("leg1", 0), "Ccy"] == "USD"
+        assert result.loc[("leg1", 0), "Payment"] == dt(2022, 4, 4)
+        assert result.loc[("leg1", 0), "Rate"] == 1.0210354810081033
+        assert result.loc[("leg1", 0), "Index Val"] == 1.0210354810081033
 
 # test the commented out FXSwap variant
 # def test_fx_swap(curve, curve2):
