@@ -48,6 +48,10 @@ objects now have specific methods to allow *updates*.
        an alternate currency to be valued.
        (`647 <https://github.com/attack68/rateslib/pull/647>`_)
        (`651 <https://github.com/attack68/rateslib/pull/651>`_)
+   * - Instruments
+     - Add parameter ``expiry`` to :class:`~rateslib.instruments.VolValue` to permit more
+       flexibility in calibrating *FXDeltaVolSurfaces*.
+       (`658 <https://github.com/attack68/rateslib/pull/658>`_)
    * - Splines
      - The *Spline* :meth:`~rateslib.splines.evaluate` method is enhanced to allow an x-axis
        evaluation if a :class:`~rateslib.dual.Variable` is passed, through dynamic *Dual* or *Dual2*
