@@ -2,7 +2,7 @@ use chrono::prelude::*;
 use chrono::Weekday;
 use indexmap::set::IndexSet;
 use pyo3::exceptions::PyValueError;
-use pyo3::{pyclass, FromPyObject, PyErr, IntoPyObject};
+use pyo3::{pyclass, FromPyObject, IntoPyObject, PyErr};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
