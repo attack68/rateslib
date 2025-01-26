@@ -109,7 +109,7 @@ Which ``fixed income instruments`` does *rateslib* include?
      - :class:`~rateslib.instruments.FXRiskReversal`
      - :class:`~rateslib.instruments.Portfolio`
    * - :class:`~rateslib.instruments.STIRFuture`
-     -
+     - :class:`~rateslib.instruments.NDF`
      - :class:`~rateslib.instruments.BondFuture`
      - :class:`~rateslib.instruments.FXStraddle`
      -
