@@ -56,7 +56,7 @@ impl Convention {
         Ok(())
     }
     pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+        Ok(PyBytes::new(py, &serialize(&self).unwrap()))
     }
     pub fn __getnewargs__<'py>(&self) -> PyResult<(u8,)> {
         match self {
@@ -96,7 +96,7 @@ impl Modifier {
         Ok(())
     }
     pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+        Ok(PyBytes::new(py, &serialize(&self).unwrap()))
     }
     pub fn __getnewargs__<'py>(&self) -> PyResult<(u8,)> {
         match self {
@@ -405,7 +405,7 @@ impl Cal {
         Ok(())
     }
     fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+        Ok(PyBytes::new(py, &serialize(&self).unwrap()))
     }
     fn __getnewargs__(&self) -> PyResult<(Vec<NaiveDateTime>, Vec<u8>)> {
         Ok((
@@ -598,7 +598,7 @@ impl UnionCal {
         Ok(())
     }
     pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+        Ok(PyBytes::new(py, &serialize(&self).unwrap()))
     }
     pub fn __getnewargs__(&self) -> PyResult<(Vec<Cal>, Option<Vec<Cal>>)> {
         Ok((self.calendars.clone(), self.settlement_calendars.clone()))
@@ -776,7 +776,7 @@ impl NamedCal {
         Ok(())
     }
     pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+        Ok(PyBytes::new(py, &serialize(&self).unwrap()))
     }
     pub fn __getnewargs__(&self) -> PyResult<(String,)> {
         Ok((self.name.clone(),))
