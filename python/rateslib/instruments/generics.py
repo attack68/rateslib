@@ -258,7 +258,7 @@ class VolValue(BaseMixin):
         metric = _drb(self.metric, metric).lower()
 
         if metric == "vol":
-            if isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
+            if isinstance(vol_, FXDeltaVolSmile | FXDeltaVolSurface):
                 return vol_._get_index(self.index_value, self.expiry)
             else:
                 raise ValueError("`vol` as an object must be provided for VolValue.")
