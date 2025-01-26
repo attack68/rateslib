@@ -43,9 +43,11 @@ objects now have specific methods to allow *updates*.
        yield-to-maturity for that *Instrument* based on ``calc_mode`` similar to
        *FixedRateBonds*. (`529 <https://github.com/attack68/rateslib/pull/529>`_)
    * - Instruments
-     - :class:`~rateslib.periods.NonDeliverableCashflow` added to allow FX forwards settled in
+     - :class:`~rateslib.periods.NonDeliverableCashflow` and
+       :class:`~rateslib.instruments.NDF` added to allow FX forwards settled in
        an alternate currency to be valued.
        (`647 <https://github.com/attack68/rateslib/pull/647>`_)
+       (`651 <https://github.com/attack68/rateslib/pull/651>`_)
    * - Splines
      - The *Spline* :meth:`~rateslib.splines.evaluate` method is enhanced to allow an x-axis
        evaluation if a :class:`~rateslib.dual.Variable` is passed, through dynamic *Dual* or *Dual2*
