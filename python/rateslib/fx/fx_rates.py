@@ -9,7 +9,14 @@ import numpy as np
 from pandas import DataFrame, Series
 
 from rateslib import defaults
-from rateslib.default import NoInput, _drb, _make_py_json, _WithState
+from rateslib.default import (
+    NoInput,
+    _drb,
+    _make_py_json,
+    _WithState,
+    _clear_cache_post,
+    _new_state_post,
+)
 from rateslib.dual import Dual, gradient
 from rateslib.dual.utils import _get_adorder
 from rateslib.rs import Ccy, FXRate
@@ -122,7 +129,7 @@ class FXRates(_WithState):
             base_ = Ccy(base)
         self.obj = FXRatesObj(fx_rates_, base_)
         self.__init_post_obj__()
-        self.__clear_cached_properties__()
+        self._clear_cache()
         self._set_new_state()
 
     @classmethod
@@ -450,14 +457,17 @@ class FXRates(_WithState):
 
     # Cache management
 
-    def __clear_cached_properties__(self) -> None:
+    def _clear_cache(self) -> None:
         """
         Clear the cache ID so the fx_array can be fetched and cached from Rust object.
         """
+        # the fx_array is a cached property.
         self.__dict__.pop("fx_array", None)
 
     # Mutation
 
+    @_new_state_post
+    @_clear_cache_post
     def update(self, fx_rates: dict[str, float] | NoInput = NoInput(0)) -> None:
         """
         Update all or some of the FX rates of the instance with new market data.
@@ -519,16 +529,13 @@ class FXRates(_WithState):
             return None
         fx_rates_ = [FXRate(k[0:3], k[3:6], v, self.settlement) for k, v in fx_rates.items()]
         self.obj.update(fx_rates_)
-        self.__clear_cached_properties__()
-        self._set_new_state()
 
+    @_clear_cache_post
     def _set_ad_order(self, order: int) -> None:
         """
         Change the node values to float, Dual or Dual2 based on input parameter.
         """
-
         self.obj.set_ad_order(_get_adorder(order))
-        self.__clear_cached_properties__()
 
     # Serialization
 

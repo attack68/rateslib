@@ -11,7 +11,16 @@ from pytz import UTC
 
 from rateslib import defaults
 from rateslib.calendars import get_calendar
-from rateslib.default import NoInput, PlotOutput, _drb, _WithState, plot, plot3d
+from rateslib.default import (
+    NoInput,
+    PlotOutput,
+    _drb,
+    _WithState,
+    plot,
+    plot3d,
+    _clear_cache_post,
+    _new_state_post,
+)
 from rateslib.dual import (
     Dual,
     Dual2,
@@ -101,33 +110,6 @@ class FXDeltaVolSmile(_WithState):
         self.delta_type: str = _validate_delta_type(delta_type)
 
         self.__set_nodes__(nodes, ad)
-
-    def __set_nodes__(self, nodes: dict[float, DualTypes], ad: int) -> None:
-        # self.ad = None
-
-        self.nodes = nodes
-        self.node_keys = list(self.nodes.keys())
-        self.n = len(self.node_keys)
-        if "_pa" in self.delta_type:
-            vol = list(self.nodes.values())[-1] / 100.0
-            upper_bound = dual_exp(
-                vol * self.t_expiry_sqrt * (3.75 - 0.5 * vol * self.t_expiry_sqrt),
-            )
-            self.plot_upper_bound = dual_exp(
-                vol * self.t_expiry_sqrt * (3.25 - 0.5 * vol * self.t_expiry_sqrt),
-            )
-            self._right_n = 1  # right hand spline endpoint will be constrained by derivative
-        else:
-            upper_bound = 1.0
-            self.plot_upper_bound = 1.0
-            self._right_n = 2  # right hand spline endpoint will be constrained by derivative
-
-        if self.n in [1, 2]:
-            self.t = [0.0] * 4 + [_dual_float(upper_bound)] * 4
-        else:
-            self.t = [0.0] * 4 + self.node_keys[1:-1] + [_dual_float(upper_bound)] * 4
-
-        self._set_ad_order(ad)  # includes _csolve()
 
     def __iter__(self) -> Any:
         raise TypeError("`FXDeltaVolSmile` is not iterable.")
@@ -600,6 +582,33 @@ class FXDeltaVolSmile(_WithState):
 
     # Mutation
 
+    def __set_nodes__(self, nodes: dict[float, DualTypes], ad: int) -> None:
+        # self.ad = None
+
+        self.nodes = nodes
+        self.node_keys = list(self.nodes.keys())
+        self.n = len(self.node_keys)
+        if "_pa" in self.delta_type:
+            vol = list(self.nodes.values())[-1] / 100.0
+            upper_bound = dual_exp(
+                vol * self.t_expiry_sqrt * (3.75 - 0.5 * vol * self.t_expiry_sqrt),
+            )
+            self.plot_upper_bound = dual_exp(
+                vol * self.t_expiry_sqrt * (3.25 - 0.5 * vol * self.t_expiry_sqrt),
+            )
+            self._right_n = 1  # right hand spline endpoint will be constrained by derivative
+        else:
+            upper_bound = 1.0
+            self.plot_upper_bound = 1.0
+            self._right_n = 2  # right hand spline endpoint will be constrained by derivative
+
+        if self.n in [1, 2]:
+            self.t = [0.0] * 4 + [_dual_float(upper_bound)] * 4
+        else:
+            self.t = [0.0] * 4 + self.node_keys[1:-1] + [_dual_float(upper_bound)] * 4
+
+        self._set_ad_order(ad)  # includes _csolve()
+
     def _csolve_n1(self) -> tuple[list[float], list[DualTypes], int, int]:
         # create a straight line by converting from one to two nodes with the first at tau=0.
         tau = list(self.nodes.keys())
@@ -647,6 +656,8 @@ class FXDeltaVolSmile(_WithState):
         self.spline: PPSplineF64 | PPSplineDual | PPSplineDual2 = Spline(4, self.t, None)
         self.spline.csolve(tau, y, left_n, right_n, False)  # type: ignore[arg-type]
 
+    @_new_state_post
+    @_clear_cache_post
     def csolve(self) -> None:
         """
         Solves **and sets** the coefficients, ``c``, of the :class:`PPSpline`.
@@ -664,9 +675,9 @@ class FXDeltaVolSmile(_WithState):
         method.
         """
         self._csolve()
-        self._clear_cache()
-        self._set_new_state()
 
+    @_new_state_post
+    @_clear_cache_post
     def _set_node_vector(
         self, vector: np.ndarray[tuple[int, ...], np.dtype[np.object_]], ad: int
     ) -> None:
@@ -690,9 +701,8 @@ class FXDeltaVolSmile(_WithState):
                 *DualArgs[1:],
             )
         self._csolve()
-        self._clear_cache()
-        self._set_new_state()
 
+    @_clear_cache_post
     def _set_ad_order(self, order: int) -> None:
         if order == getattr(self, "ad", None):
             return None
@@ -705,8 +715,9 @@ class FXDeltaVolSmile(_WithState):
             for i, (k, v) in enumerate(self.nodes.items())
         }
         self._csolve()
-        self._clear_cache()
 
+    @_new_state_post
+    # @_clear_cache_post performed by __set_nodes__
     def update(
         self,
         nodes: dict[float, DualTypes],
@@ -740,12 +751,11 @@ class FXDeltaVolSmile(_WithState):
             ad_ = defaults._global_ad_order
         else:
             ad_ = 0
+        # self._csolve() is performed in set_nodes
         self.__set_nodes__(nodes, ad_)
 
-        # self._csolve() is performed in set_nodes
-        # self._clear_cache() is performed in set_nodes
-        self._set_new_state()
-
+    @_new_state_post
+    @_clear_cache_post
     def update_node(self, key: float, value: DualTypes) -> None:
         """
         Update a single node value on the *Curve*.
@@ -776,10 +786,7 @@ class FXDeltaVolSmile(_WithState):
         if key not in self.nodes:
             raise KeyError("`key` is not in Curve ``nodes``.")
         self.nodes[key] = value
-
         self._csolve()
-        self._clear_cache()
-        self._set_new_state()
 
     # Serialization
 

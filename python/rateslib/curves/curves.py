@@ -15,7 +15,16 @@ from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
 from rateslib.calendars.dcfs import _DCF1d
 from rateslib.calendars.rs import get_calendar
-from rateslib.default import NoInput, PlotOutput, _drb, _validate_states, _WithState, plot, _new_state_post, _clear_cache_post
+from rateslib.default import (
+    NoInput,
+    PlotOutput,
+    _drb,
+    _validate_states,
+    _WithState,
+    plot,
+    _new_state_post,
+    _clear_cache_post,
+)
 from rateslib.dual import (
     Dual,
     Dual2,
@@ -28,8 +37,16 @@ from rateslib.rs import from_json as from_json_rs
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
-    from rateslib.fx import FXForwards  # pragma: no cover
-    from rateslib.typing import Arr1dF64, Arr1dObj, CalInput, CalTypes, DualTypes, Number
+    from rateslib.typing import (
+        Arr1dF64,
+        Arr1dObj,
+        CalInput,
+        CalTypes,
+        DualTypes,
+        Number,
+        str_,
+        FXForwards,
+    )
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -1777,9 +1794,9 @@ class LineCurve(Curve):
     def shift(
         self,
         spread: DualTypes,
-        id: str | NoInput = NoInput(0),  # noqa: A002
+        id: str_ = NoInput(0),  # noqa: A002
         composite: bool = True,
-        collateral: str | NoInput = NoInput(0),
+        collateral: str_ = NoInput(0),
     ) -> Curve:
         """
         Raise or lower the curve in parallel by a set number of basis points.

@@ -448,6 +448,7 @@ def _validate_states(func: Callable[P, R]) -> Callable[P, R]:
 
     return wrapper
 
+
 def _clear_cache_post(func: Callable[P, R]) -> Callable[P, R]:
     """
     Add a decorator to a class instance method to clear the cache and set a new state
@@ -461,6 +462,7 @@ def _clear_cache_post(func: Callable[P, R]) -> Callable[P, R]:
         return result
 
     return wrapper
+
 
 def _new_state_post(func: Callable[P, R]) -> Callable[P, R]:
     """
