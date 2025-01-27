@@ -15,7 +15,7 @@ from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
 from rateslib.calendars.dcfs import _DCF1d
 from rateslib.calendars.rs import get_calendar
-from rateslib.default import NoInput, PlotOutput, _drb, _validate_states, _WithState, plot
+from rateslib.default import NoInput, PlotOutput, _drb, _validate_states, _WithState, plot, _new_state_post, _clear_cache_post
 from rateslib.dual import (
     Dual,
     Dual2,
@@ -1312,7 +1312,8 @@ class Curve(_WithState):
         return val
 
     # Mutation
-
+    @_new_state_post
+    @_clear_cache_post
     def csolve(self) -> None:
         """
         Solves **and sets** the coefficients, ``c``, of the :class:`PPSpline`.
@@ -1330,8 +1331,6 @@ class Curve(_WithState):
         method.
         """
         self._csolve()
-        self._clear_cache()
-        self._set_new_state()
 
     def _csolve(self) -> None:
         if isinstance(self.t, NoInput) or self._c_input:
@@ -1378,6 +1377,8 @@ class Curve(_WithState):
 
         self.spline.csolve(tau_posix, y, left_n, right_n, False)  # type: ignore[attr-defined]
 
+    @_new_state_post
+    @_clear_cache_post
     def _set_node_vector(self, vector: list[DualTypes], ad: int) -> None:
         """Used to update curve values during a Solver iteration. ``ad`` in {1, 2}."""
         DualType: type[Dual | Dual2] = Dual if ad == 1 else Dual2
@@ -1407,9 +1408,8 @@ class Curve(_WithState):
                 *DualArgs[1:],
             )
         self._csolve()
-        self._clear_cache()
-        self._set_new_state()
 
+    @_clear_cache_post
     def _set_ad_order(self, order: int) -> None:
         """
         Change the node values to float, Dual or Dual2 based on input parameter.
@@ -1425,8 +1425,9 @@ class Curve(_WithState):
             for i, (k, v) in enumerate(self.nodes.items())
         }
         self._csolve()
-        self._clear_cache()
 
+    @_new_state_post
+    @_clear_cache_post
     def update(
         self,
         nodes: dict[datetime, DualTypes] | NoInput = NoInput(0),
@@ -1467,9 +1468,9 @@ class Curve(_WithState):
             self.__set_endpoints__(endpoints)
 
         self._csolve()
-        self._clear_cache()
-        self._set_new_state()
 
+    @_new_state_post
+    @_clear_cache_post
     def update_node(self, key: datetime, value: DualTypes) -> None:
         """
         Update a single node value on the *Curve*.
@@ -1502,8 +1503,6 @@ class Curve(_WithState):
         self.nodes[key] = value
 
         self._csolve()
-        self._clear_cache()
-        self._set_new_state()
 
     # Solver interaction
 

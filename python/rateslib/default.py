@@ -436,15 +436,43 @@ R = TypeVar("R")
 
 def _validate_states(func: Callable[P, R]) -> Callable[P, R]:
     """
-    Add a decorator to a class instance method to first validate the cache before performing
-    additional operations. If a change is detected the implemented `validate_cache` function
-    is responsible for resetting the cache and updating any `cache_id`s.
+    Add a decorator to a class instance method to first validate the object state before performing
+    additional operations. If a change is detected the implemented `validate_state` function
+    is responsible for resetting the cache and updating any `state_id`s.
     """
 
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         self = args[0]
         self._validate_state()  # type: ignore[attr-defined]
         return func(*args, **kwargs)
+
+    return wrapper
+
+def _clear_cache_post(func: Callable[P, R]) -> Callable[P, R]:
+    """
+    Add a decorator to a class instance method to clear the cache and set a new state
+    post performing the function.
+    """
+
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        self = args[0]
+        result = func(*args, **kwargs)
+        self._clear_cache()
+        return result
+
+    return wrapper
+
+def _new_state_post(func: Callable[P, R]) -> Callable[P, R]:
+    """
+    Add a decorator to a class instance method to clear the cache and set a new state
+    post performing the function.
+    """
+
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        self = args[0]
+        result = func(*args, **kwargs)
+        self._set_new_state()
+        return result
 
     return wrapper
 
