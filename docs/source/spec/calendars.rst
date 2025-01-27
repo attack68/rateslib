@@ -19,3 +19,4 @@ Calendars
     calendars/jpy_tyo.rst
     calendars/aud_syd.rst
     calendars/nzd_wlg.rst
+    calendars/inr_mum.rst
