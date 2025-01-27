@@ -1332,6 +1332,7 @@ class Curve(_WithState):
         """
         self._csolve()
 
+    # All calling methods will clear the cache and/or set new state after `_csolve`
     def _csolve(self) -> None:
         if isinstance(self.t, NoInput) or self._c_input:
             return None
