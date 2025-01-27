@@ -122,6 +122,7 @@ class Defaults:
             "tyo": NamedCal("tyo"),
             "syd": NamedCal("syd"),
             "wlg": NamedCal("wlg"),
+            "mum": NamedCal("mum"),
         }
         self.frequency_months = {
             "M": 1,

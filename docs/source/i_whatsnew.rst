@@ -62,6 +62,9 @@ objects now have specific methods to allow *updates*.
        :meth:`~rateslib.curves.Curve.update_node` to allow mutating *Curve* types directly
        with appropriate cache and state management.
        (`584 <https://github.com/attack68/rateslib/pull/584>`_)
+   * - Calendars
+     - Add *"mum"* (INR: Mumbai) to list of default calendars.
+       (`584 <https://github.com/attack68/rateslib/pull/584>`_)
    * - Bug
      - Defaults spec *"usd_stir1"* for CME 1m SOFR futures, and *"eur_stir1"* for ICE 1m ESTR
        futures has corrected the
