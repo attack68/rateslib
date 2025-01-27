@@ -245,12 +245,13 @@ def test_calendar_against_historical_fixings(datafile, calendar, known_exception
     errors = 0
     if len(diff) != 0:
         print(f"{calendar} for {datafile}")
-        for date in diff:
+        for i, date in enumerate(diff):
             if date in known_exceptions:
                 continue
             elif date in fixings.index:
                 print(f"{date} exists in fixings: does calendar wrongly classify as a holiday?")
             else:
+                # print(f'Holiday("adhoc{i}", year={date.year}, month={date.month}, day={date.day}),')  # noqa: E501
                 print(f"{date} exists in calendar: should this date be classified as a holiday?")
             errors += 1
 

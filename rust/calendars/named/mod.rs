@@ -36,7 +36,7 @@ fn get_weekmask_by_name(name: &str) -> Result<Vec<u8>, PyErr> {
         ("tyo", tyo::WEEKMASK),
         ("syd", syd::WEEKMASK),
         ("wlg", wlg::WEEKMASK),
-        ("mum", mum::WEEKMASK)
+        ("mum", mum::WEEKMASK),
     ]);
     match hmap.get(name) {
         None => Err(PyValueError::new_err(format!(
