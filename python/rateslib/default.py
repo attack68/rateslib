@@ -458,7 +458,7 @@ def _clear_cache_post(func: Callable[P, R]) -> Callable[P, R]:
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         self = args[0]
         result = func(*args, **kwargs)
-        self._clear_cache()
+        self._clear_cache()   # type: ignore[attr-defined]
         return result
 
     return wrapper
@@ -473,7 +473,7 @@ def _new_state_post(func: Callable[P, R]) -> Callable[P, R]:
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         self = args[0]
         result = func(*args, **kwargs)
-        self._set_new_state()
+        self._set_new_state()  # type: ignore[attr-defined]
         return result
 
     return wrapper
