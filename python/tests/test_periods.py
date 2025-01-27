@@ -8,6 +8,7 @@ import pytest
 from pandas import NA, DataFrame, Index, MultiIndex, Series, date_range
 from pandas.testing import assert_frame_equal
 from rateslib import defaults
+from rateslib.calendars import Cal
 from rateslib.curves import CompositeCurve, Curve, IndexCurve, LineCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual
@@ -1139,6 +1140,64 @@ class TestFloatPeriod:
         # with pytest.warns(UserWarning):
         #     period.rate(curve)
 
+        with (
+            pytest.raises(ValueError, match="RFRs could not be calculated, have you missed"),
+            pytest.warns(UserWarning, match="`fixings` has missed a calendar value"),
+        ):
+            period.rate(curve)
+
+    def test_more_fixings_than_expected_by_calednar_raises(self):
+        # Create historical fixings spanning 5 days for a FloatPeriod.
+        # But set a Cal that does not expect all of these - one holdiay midweek.
+        # Observe the rate calculation.
+        fixings = Series(
+            data=[1.0, 2.0, 3.0, 4.0, 5.0],
+            index=[
+                dt(2023, 1, 23),
+                dt(2023, 1, 24),
+                dt(2023, 1, 25),
+                dt(2023, 1, 26),
+                dt(2023, 1, 27),
+            ],
+        )
+        cal = Cal(holidays=[dt(2023, 1, 25)], week_mask=[5, 6])
+        period = FloatPeriod(
+            start=dt(2023, 1, 23),
+            end=dt(2023, 1, 30),
+            payment=dt(2023, 1, 30),
+            frequency="Q",
+            fixing_method="rfr_payment_delay",
+            fixings=fixings,
+            convention="act365F",
+            calendar="bus",
+        )
+        curve = Curve({dt(2023, 1, 26): 1.0, dt(2025, 1, 26): 1.0}, calendar=cal)
+        msg = "The supplied `fixings` contain more fixings than were expected"
+        with pytest.raises(ValueError, match=msg):
+            period.rate(curve)
+
+    def test_fewer_fixings_than_expected_by_calendar_warns_and_fills(self):
+        # Create historical fixings spanning 4 days for a FloatPeriod, with mid-week holiday
+        # But set a Cal that expects 5 (the cal does not have the holiday)
+        # Observe the rate calculation.
+
+        # this tests performs a minimal version of test_period_historic_fixings_series_missing_warns
+        fixings = Series(
+            data=[1.0, 2.0, 4.0, 5.0],
+            index=[dt(2023, 1, 23), dt(2023, 1, 24), dt(2023, 1, 26), dt(2023, 1, 27)],
+        )
+        cal = Cal(holidays=[], week_mask=[5, 6])
+        period = FloatPeriod(
+            start=dt(2023, 1, 23),
+            end=dt(2023, 1, 30),
+            payment=dt(2023, 1, 30),
+            frequency="Q",
+            fixing_method="rfr_payment_delay",
+            fixings=fixings,
+            convention="act365F",
+            calendar="bus",
+        )
+        curve = Curve({dt(2023, 1, 29): 1.0, dt(2025, 1, 22): 1.0}, calendar=cal)
         with (
             pytest.raises(ValueError, match="RFRs could not be calculated, have you missed"),
             pytest.warns(UserWarning, match="`fixings` has missed a calendar value"),
