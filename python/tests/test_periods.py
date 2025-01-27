@@ -1174,6 +1174,8 @@ class TestFloatPeriod:
         # Create historical fixings spanning 4 days for a FloatPeriod, with mid-week holiday
         # But set a Cal that expects 5 (the cal does not have the holiday)
         # Observe the rate calculation.
+
+        # this tests performs a minimal version of test_period_historic_fixings_series_missing_warns
         fixings=Series(
             data=[1.0, 2.0, 4.0, 5.0],
             index=[dt(2023, 1, 23), dt(2023, 1, 24), dt(2023, 1, 26), dt(2023, 1, 27)]
@@ -1189,9 +1191,11 @@ class TestFloatPeriod:
             convention="act365F",
             calendar="bus",
         )
-        curve=Curve({dt(2023, 1, 23): 1.0, dt(2025, 1, 22):1.0}, calendar=cal)
-        msg = "The supplied `fixings` contain more fixings than were expected"
-        with pytest.raises(ValueError, match=msg):
+        curve=Curve({dt(2023, 1, 29): 1.0, dt(2025, 1, 22):1.0}, calendar=cal)
+        with (
+            pytest.raises(ValueError, match="RFRs could not be calculated, have you missed"),
+            pytest.warns(UserWarning, match="`fixings` has missed a calendar value"),
+        ):
             period.rate(curve)
 
     def test_fixing_with_float_spread_warning(self, curve) -> None:
