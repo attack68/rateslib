@@ -1,6 +1,8 @@
 from datetime import datetime as dt
+from pandas import Index
 
 import pytest
+from rateslib import defaults
 from rateslib.calendars import _get_modifier, get_calendar
 from rateslib.json import from_json
 from rateslib.rs import Cal, Modifier, NamedCal, RollDay, UnionCal
@@ -44,8 +46,11 @@ class TestCal:
         UnionCal([cal], None)
 
     def test_is_business_day(self, simple_cal, simple_union) -> None:
-        assert not simple_cal.is_bus_day(dt(2015, 9, 7))
-        assert simple_cal.is_bus_day(dt(2015, 9, 8))
+
+        assert not simple_cal.is_bus_day(dt(2015, 9, 7))  # Monday Holiday
+        assert simple_cal.is_bus_day(dt(2015, 9, 8)) # Tuesday
+        assert not simple_cal.is_bus_day(dt(2015, 9, 12))  # Saturday
+
         assert not simple_union.is_bus_day(dt(2015, 9, 7))
         assert simple_union.is_bus_day(dt(2015, 9, 8))
 
@@ -212,3 +217,33 @@ class TestNamedCal:
         ncal = NamedCal("ldn,tgt|fed")
         assert ucal == ncal
         assert ncal == ucal
+
+
+@pytest.mark.parametrize(("datafile", "calendar", "known_exceptions"), [
+    ("usd_rfr", "nyc", []),
+    ("gbp_rfr", "ldn", [dt(2020, 5, 4)]),
+    ("cad_rfr", "tro", []),
+    ("eur_rfr", "tgt", []),
+    ("jpy_rfr", "tyo", []),
+    ("sek_rfr", "stk", []),
+    ("nok_rfr", "osl", []),
+])
+def test_calendar_against_historical_fixings(datafile, calendar, known_exceptions):
+    fixings = defaults.fixings[datafile]
+    calendar_ = get_calendar(calendar)
+    bus_days = Index(calendar_.bus_date_range(fixings.index[0], fixings.index[-1]))
+    diff = fixings.index.difference(bus_days)
+
+    errors = 0
+    if len(diff) != 0:
+        print(f"{calendar} for {datafile}")
+        for date in diff:
+            if date in known_exceptions:
+                continue
+            elif date in fixings.index:
+                print(f"{date} exists in fixings: does calendar wrongly classify as a holiday?")
+            else:
+                print(f"{date} exists in calendar: should this date be classified as a holdiay?")
+            errors += 1
+
+    assert errors == 0
