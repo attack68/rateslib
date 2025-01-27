@@ -18,12 +18,12 @@ from rateslib.calendars.rs import get_calendar
 from rateslib.default import (
     NoInput,
     PlotOutput,
+    _clear_cache_post,
     _drb,
+    _new_state_post,
     _validate_states,
     _WithState,
     plot,
-    _new_state_post,
-    _clear_cache_post,
 )
 from rateslib.dual import (
     Dual,
@@ -43,9 +43,9 @@ if TYPE_CHECKING:
         CalInput,
         CalTypes,
         DualTypes,
+        FXForwards,
         Number,
         str_,
-        FXForwards,
     )
 
 
