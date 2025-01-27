@@ -226,19 +226,21 @@ class TestNamedCal:
     ("datafile", "calendar", "known_exceptions"),
     [
         ("usd_rfr", "nyc", []),
-        ("gbp_rfr", "ldn", [dt(2020, 5, 4)]),
+        ("gbp_rfr", "ldn", []),
         ("cad_rfr", "tro", []),
         ("eur_rfr", "tgt", []),
         ("jpy_rfr", "tyo", []),
         ("sek_rfr", "stk", []),
         ("nok_rfr", "osl", []),
+        ("aud_rfr", "syd", []),
+        ("inr_rfr", "mum", []),
     ],
 )
 def test_calendar_against_historical_fixings(datafile, calendar, known_exceptions):
     fixings = defaults.fixings[datafile]
     calendar_ = get_calendar(calendar)
     bus_days = Index(calendar_.bus_date_range(fixings.index[0], fixings.index[-1]))
-    diff = fixings.index.difference(bus_days)
+    diff = fixings.index.symmetric_difference(bus_days)
 
     errors = 0
     if len(diff) != 0:
@@ -249,7 +251,7 @@ def test_calendar_against_historical_fixings(datafile, calendar, known_exception
             elif date in fixings.index:
                 print(f"{date} exists in fixings: does calendar wrongly classify as a holiday?")
             else:
-                print(f"{date} exists in calendar: should this date be classified as a holdiay?")
+                print(f"{date} exists in calendar: should this date be classified as a holiday?")
             errors += 1
 
     assert errors == 0

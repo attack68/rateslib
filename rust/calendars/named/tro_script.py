@@ -30,6 +30,15 @@ RULES = [
     Holiday("National Truth & Reconciliation", month=9, day=30, start_date=datetime(2021, 1, 1)),
     Holiday("Christmas Day Holiday", month=12, day=25, observance=next_monday),
     Holiday("Boxing Day Holiday", month=12, day=26, observance=next_monday_or_tuesday),
+
+    # Ad hoc dates
+    Holiday("adhoc1", year=1997, month=8, day=13),
+    Holiday("adhoc2",year=1997, month=8, day=14),
+    Holiday("adhoc3",year=1997, month=8, day=15),
+    Holiday("adhoc4",year=1997, month=8, day=29),
+    Holiday("adhoc5",year=1997, month=12, day=22),
+    Holiday("adhoc6",year=1998, month=4, day=9),
+    Holiday("adhoc7",year=1998, month=4, day=29),
 ]
 
 CALENDAR = CustomBusinessDay(
