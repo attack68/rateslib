@@ -13,7 +13,13 @@ from pandas.tseries.offsets import CustomBusinessDay, Day, Easter
 
 RULES = [
     Holiday("New Year's Day Holiday", month=1, day=1, observance=next_monday),
-    Holiday("Family Day", month=2, day=1, offset=DateOffset(weekday=MO(3)), start_date=datetime(2008, 1, 1)),
+    Holiday(
+        "Family Day",
+        month=2,
+        day=1,
+        offset=DateOffset(weekday=MO(3)),
+        start_date=datetime(2008, 1, 1),
+    ),
     Holiday("Good Friday", month=1, day=1, offset=[Easter(), Day(-2)]),
     Holiday("Victoria Day", month=5, day=24, offset=DateOffset(weekday=MO(-1))),
     Holiday("Canada Day", month=7, day=1, observance=next_monday),

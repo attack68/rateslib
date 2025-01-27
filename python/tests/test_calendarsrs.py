@@ -1,7 +1,7 @@
 from datetime import datetime as dt
-from pandas import Index
 
 import pytest
+from pandas import Index
 from rateslib import defaults
 from rateslib.calendars import _get_modifier, get_calendar
 from rateslib.json import from_json
@@ -46,9 +46,8 @@ class TestCal:
         UnionCal([cal], None)
 
     def test_is_business_day(self, simple_cal, simple_union) -> None:
-
         assert not simple_cal.is_bus_day(dt(2015, 9, 7))  # Monday Holiday
-        assert simple_cal.is_bus_day(dt(2015, 9, 8)) # Tuesday
+        assert simple_cal.is_bus_day(dt(2015, 9, 8))  # Tuesday
         assert not simple_cal.is_bus_day(dt(2015, 9, 12))  # Saturday
 
         assert not simple_union.is_bus_day(dt(2015, 9, 7))
@@ -219,15 +218,18 @@ class TestNamedCal:
         assert ncal == ucal
 
 
-@pytest.mark.parametrize(("datafile", "calendar", "known_exceptions"), [
-    ("usd_rfr", "nyc", []),
-    ("gbp_rfr", "ldn", [dt(2020, 5, 4)]),
-    ("cad_rfr", "tro", []),
-    ("eur_rfr", "tgt", []),
-    ("jpy_rfr", "tyo", []),
-    ("sek_rfr", "stk", []),
-    ("nok_rfr", "osl", []),
-])
+@pytest.mark.parametrize(
+    ("datafile", "calendar", "known_exceptions"),
+    [
+        ("usd_rfr", "nyc", []),
+        ("gbp_rfr", "ldn", [dt(2020, 5, 4)]),
+        ("cad_rfr", "tro", []),
+        ("eur_rfr", "tgt", []),
+        ("jpy_rfr", "tyo", []),
+        ("sek_rfr", "stk", []),
+        ("nok_rfr", "osl", []),
+    ],
+)
 def test_calendar_against_historical_fixings(datafile, calendar, known_exceptions):
     fixings = defaults.fixings[datafile]
     calendar_ = get_calendar(calendar)

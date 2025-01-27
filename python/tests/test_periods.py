@@ -1150,11 +1150,17 @@ class TestFloatPeriod:
         # Create historical fixings spanning 5 days for a FloatPeriod.
         # But set a Cal that does not expect all of these - one holdiay midweek.
         # Observe the rate calculation.
-        fixings=Series(
+        fixings = Series(
             data=[1.0, 2.0, 3.0, 4.0, 5.0],
-            index=[dt(2023, 1, 23), dt(2023, 1, 24), dt(2023, 1, 25), dt(2023, 1, 26), dt(2023, 1, 27)]
+            index=[
+                dt(2023, 1, 23),
+                dt(2023, 1, 24),
+                dt(2023, 1, 25),
+                dt(2023, 1, 26),
+                dt(2023, 1, 27),
+            ],
         )
-        cal = Cal(holidays=[dt(2023, 1, 25)], week_mask=[5,6])
+        cal = Cal(holidays=[dt(2023, 1, 25)], week_mask=[5, 6])
         period = FloatPeriod(
             start=dt(2023, 1, 23),
             end=dt(2023, 1, 30),
@@ -1165,7 +1171,7 @@ class TestFloatPeriod:
             convention="act365F",
             calendar="bus",
         )
-        curve=Curve({dt(2023, 1, 26): 1.0, dt(2025, 1, 26):1.0}, calendar=cal)
+        curve = Curve({dt(2023, 1, 26): 1.0, dt(2025, 1, 26): 1.0}, calendar=cal)
         msg = "The supplied `fixings` contain more fixings than were expected"
         with pytest.raises(ValueError, match=msg):
             period.rate(curve)
@@ -1176,11 +1182,11 @@ class TestFloatPeriod:
         # Observe the rate calculation.
 
         # this tests performs a minimal version of test_period_historic_fixings_series_missing_warns
-        fixings=Series(
+        fixings = Series(
             data=[1.0, 2.0, 4.0, 5.0],
-            index=[dt(2023, 1, 23), dt(2023, 1, 24), dt(2023, 1, 26), dt(2023, 1, 27)]
+            index=[dt(2023, 1, 23), dt(2023, 1, 24), dt(2023, 1, 26), dt(2023, 1, 27)],
         )
-        cal = Cal(holidays=[], week_mask=[5,6])
+        cal = Cal(holidays=[], week_mask=[5, 6])
         period = FloatPeriod(
             start=dt(2023, 1, 23),
             end=dt(2023, 1, 30),
@@ -1191,7 +1197,7 @@ class TestFloatPeriod:
             convention="act365F",
             calendar="bus",
         )
-        curve=Curve({dt(2023, 1, 29): 1.0, dt(2025, 1, 22):1.0}, calendar=cal)
+        curve = Curve({dt(2023, 1, 29): 1.0, dt(2025, 1, 22): 1.0}, calendar=cal)
         with (
             pytest.raises(ValueError, match="RFRs could not be calculated, have you missed"),
             pytest.warns(UserWarning, match="`fixings` has missed a calendar value"),
