@@ -35,6 +35,7 @@ from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,
     _WithState,
+    _WithCache,
 )
 from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
@@ -45,7 +46,7 @@ if TYPE_CHECKING:
 TERMINAL_DATE = dt(2100, 1, 1)
 
 
-class FXDeltaVolSmile(_WithState):
+class FXDeltaVolSmile(_WithState, _WithCache):
     r"""
     Create an *FX Volatility Smile* at a given expiry indexed by delta percent.
 
@@ -562,26 +563,6 @@ class FXDeltaVolSmile(_WithState):
             return plot(x_as_u, y, labels)
         return plot(x, y, labels)
 
-    # Cache management
-
-    def _clear_cache(self) -> None:
-        """
-        Clear the cache of values on a *Smile* type.
-
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-        This should be used if any modification has been made to the *Smile*.
-        Users are advised against making direct modification to *Curve* classes once
-        constructed to avoid the issue of un-cleared caches returning erroneous values.
-
-        Alternatively the curve caching as a feature can be set to *False* in ``defaults``.
-        """
-        self._cache: dict[float, DualTypes] = dict()
-
     # Mutation
 
     def __set_nodes__(self, nodes: dict[float, DualTypes], ad: int) -> None:
@@ -793,7 +774,7 @@ class FXDeltaVolSmile(_WithState):
     # Serialization
 
 
-class FXDeltaVolSurface(_WithState):
+class FXDeltaVolSurface(_WithState, _WithCache):
     r"""
     Create an *FX Volatility Surface* parametrised by cross-sectional *Smiles* at different
     expiries.
@@ -895,24 +876,9 @@ class FXDeltaVolSurface(_WithState):
 
         self._set_ad_order(ad)  # includes csolve on each smile
 
+    @_new_state_post
     def _clear_cache(self) -> None:
-        """
-        Clear the cache of cross-sectional *Smiles* on a *Surface* type.
-
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-        This should be used if any modification has been made to the *Surface*.
-        Users are advised against making direct modification to *Surface* classes once
-        constructed to avoid the issue of un-cleared caches returning erroneous values.
-        Alternatively set ``defaults.curve_caching`` to *False* to turn off global
-        caching in general.
-        """
-        self._cache: dict[datetime, FXDeltaVolSmile] = dict()
-        self._set_new_state()
+        super()._clear_cache()
 
     def _get_composited_state(self) -> int:
         return hash(smile._state for smile in self.smiles)
@@ -926,12 +892,14 @@ class FXDeltaVolSurface(_WithState):
         if defaults.curve_caching:
             self._cache[date] = val
 
+    @_clear_cache_post
     def _set_ad_order(self, order: int) -> None:
         self.ad = order
         for smile in self.smiles:
             smile._set_ad_order(order)
-        self._clear_cache()
 
+    @_new_state_post
+    @_clear_cache_post
     def _set_node_vector(
         self, vector: np.ndarray[tuple[int, ...], np.dtype[np.object_]], ad: int
     ) -> None:
@@ -939,7 +907,6 @@ class FXDeltaVolSurface(_WithState):
         for i in range(int(len(vector) / m)):
             # smiles are indexed by expiry, shortest first
             self.smiles[i]._set_node_vector(vector[i * m : i * m + m], ad)
-        self._clear_cache()
 
     def _get_node_vector(self) -> np.ndarray[tuple[int, ...], np.dtype[np.object_]]:
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""

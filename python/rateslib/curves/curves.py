@@ -33,6 +33,7 @@ from rateslib.mutability import (
     _new_state_post,
     _validate_states,
     _WithState,
+    _WithCache,
 )
 from rateslib.rs import Modifier, index_left_f64
 from rateslib.rs import from_json as from_json_rs
@@ -56,7 +57,7 @@ if TYPE_CHECKING:
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class Curve(_WithState):
+class Curve(_WithState, _WithCache):
     """
     Curve based on DF parametrisation at given node dates with interpolation.
 

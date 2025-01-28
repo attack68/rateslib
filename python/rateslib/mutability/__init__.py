@@ -1,17 +1,14 @@
-
 from __future__ import annotations
 
 import os
 from collections import OrderedDict
 from collections.abc import Callable
-from typing import ParamSpec, TypeVar
+from typing import ParamSpec, TypeVar, Generic
 
 from rateslib import defaults
 
 P = ParamSpec("P")
 R = TypeVar("R")
-KT = TypeVar("KT")
-VT = TypeVar("VT")
 
 
 def _validate_states(func: Callable[P, R]) -> Callable[P, R]:
@@ -38,7 +35,7 @@ def _clear_cache_post(func: Callable[P, R]) -> Callable[P, R]:
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         self = args[0]
         result = func(*args, **kwargs)
-        self._clear_cache()   # type: ignore[attr-defined]
+        self._clear_cache()  # type: ignore[attr-defined]
         return result
 
     return wrapper
@@ -59,7 +56,7 @@ def _new_state_post(func: Callable[P, R]) -> Callable[P, R]:
     return wrapper
 
 
-class _WithState:
+class _WithState[KT, VT]:
     """
     Record and manage the `state_id` of mutable classes.
 
@@ -95,7 +92,10 @@ class _WithState:
         objects and set this as the object's own state."""
         raise NotImplementedError("Must be implemented for 'mutable by association' types")
 
-    def _cached_value(self, key: KT , val: VT) -> VT:
+
+class _WithCache[KT, VT]:
+
+    def _cached_value(self, key: KT, val: VT) -> VT:
         """Used to add a value to the cache and control memory size when returning some
         parameter from an object using cache and state management."""
         if defaults.curve_caching and key not in self._cache:
