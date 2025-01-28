@@ -64,9 +64,9 @@ class FXRates(_WithState):
 
     .. note::
        When this class uses ``Dual`` numbers to represent sensitivities of values to
-       certain FX rates the variable names are called `"fx_domfor"` where `"dom"`
-       is a domestic currency and `"for"` is a foreign currency. See the examples
-       contained in class methods for clarification.
+       certain FX rates the variable names are called `"fx_cc1cc2"` where `"cc1"`
+       is left hand currency and `"cc2"` is the right hand currency in the currency pair.
+       See the examples contained in class methods for clarification.
 
     Examples
     --------
@@ -507,7 +507,7 @@ class FXRates(_WithState):
         This object may be linked to others, probably an :class:`~rateslib.fx.FXForwards` class.
         It can be updated with some new market data. This will preserve its memory id and
         association with other objects. Any :class:`~rateslib.fx.FXForwards` objects referencing
-        this will detect this change and will also lazily update via *rateslib's* cache
+        this will detect this change and will also lazily update via *rateslib's* state
         management.
 
         .. ipython:: python
@@ -542,6 +542,12 @@ class FXRates(_WithState):
     # Serialization
 
     def to_json(self) -> str:
+        """Return a JSON representation of the object.
+
+        Returns
+        -------
+        str
+        """
         return _make_py_json(self.obj.to_json(), "FXRates")
 
 
