@@ -762,10 +762,24 @@ class TestStateAndCache:
         assert pre_state != post_state  # validate states has been run and updated the state.
 
     def test_initialisation_state_smile(self):
-        assert False
+        smile = FXDeltaVolSmile(
+            nodes={0.25: 10.0, 0.5: 10.0, 0.75: 11.0},
+            delta_type="forward",
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            id="vol",
+        )
+        assert smile._state != 0
 
     def test_initialisation_state_surface(self):
-        assert False
+        surf = FXDeltaVolSurface(
+            expiries=[dt(2000, 1, 1), dt(2001, 1, 1)],
+            delta_indexes=[0.5],
+            node_values=[[10.0], [9.0]],
+            eval_date=dt(1999, 1, 1),
+            delta_type="forward",
+        )
+        assert surf._state != 0
 
 def test_validate_delta_type() -> None:
     with pytest.raises(ValueError, match="`delta_type` must be in"):
