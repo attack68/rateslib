@@ -66,7 +66,7 @@ objects now have specific methods to allow *updates*.
      - Caching and state management was extended to :class:`~rateslib.curves.MultiCsaCurve` and
        the *defaults* option ``curve_caching_max`` (initially set to 1000 elements) was added
        to prevent memory issues of unlimitedly expanding caches.
-       (`584 <https://github.com/attack68/rateslib/pull/584>`_)
+       (`661 <https://github.com/attack68/rateslib/pull/661>`_)
    * - Calendars
      - Add *"mum"* (INR: Mumbai) to list of default calendars.
        (`659 <https://github.com/attack68/rateslib/pull/659>`_)

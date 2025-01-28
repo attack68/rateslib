@@ -14,10 +14,6 @@ from pandas.errors import PerformanceWarning
 from rateslib import defaults
 from rateslib.curves import CompositeCurve, Curve, MultiCsaCurve, ProxyCurve
 from rateslib.default import NoInput, _drb
-from rateslib.mutability import (
-    _validate_states,
-    _WithState
-)
 from rateslib.dual import Dual, Dual2, dual_solve, gradient
 from rateslib.dual.newton import _solver_result
 from rateslib.dual.utils import _dual_float
@@ -27,6 +23,7 @@ from rateslib.fx import FXForwards, FXRates
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 from rateslib.fx_volatility import FXVols
+from rateslib.mutability import _validate_states, _WithState
 
 P = ParamSpec("P")
 

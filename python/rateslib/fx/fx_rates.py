@@ -14,13 +14,13 @@ from rateslib.default import (
     _drb,
     _make_py_json,
 )
+from rateslib.dual import Dual, gradient
+from rateslib.dual.utils import _get_adorder
 from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,
     _WithState,
 )
-from rateslib.dual import Dual, gradient
-from rateslib.dual.utils import _get_adorder
 from rateslib.rs import Ccy, FXRate
 from rateslib.rs import FXRates as FXRatesObj
 

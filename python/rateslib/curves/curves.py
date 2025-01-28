@@ -21,18 +21,18 @@ from rateslib.default import (
     _drb,
     plot,
 )
-from rateslib.mutability import (
-    _clear_cache_post,
-    _new_state_post,
-    _validate_states,
-    _WithState,
-)
 from rateslib.dual import (
     Dual,
     Dual2,
     dual_exp,
     dual_log,
     set_order_convert,
+)
+from rateslib.mutability import (
+    _clear_cache_post,
+    _new_state_post,
+    _validate_states,
+    _WithState,
 )
 from rateslib.rs import Modifier, index_left_f64
 from rateslib.rs import from_json as from_json_rs

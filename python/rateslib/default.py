@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
-from typing import Any, ParamSpec, TypeVar
+from typing import Any
 
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt

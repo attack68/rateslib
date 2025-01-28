@@ -12,9 +12,9 @@ from pandas import DataFrame, Series
 from rateslib.calendars import add_tenor
 from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
 from rateslib.default import NoInput, PlotOutput, plot
-from rateslib.mutability import _validate_states, _WithState
 from rateslib.dual import Dual, gradient
 from rateslib.fx.fx_rates import FXRates
+from rateslib.mutability import _validate_states, _WithState
 
 if TYPE_CHECKING:
     from rateslib.typing import CalInput, DualTypes, Number

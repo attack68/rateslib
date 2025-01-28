@@ -18,11 +18,6 @@ from rateslib.default import (
     plot,
     plot3d,
 )
-from rateslib.mutability import (
-    _clear_cache_post,
-    _new_state_post,
-    _WithState,
-)
 from rateslib.dual import (
     Dual,
     Dual2,
@@ -36,6 +31,11 @@ from rateslib.dual import (
     set_order_convert,
 )
 from rateslib.dual.utils import _dual_float
+from rateslib.mutability import (
+    _clear_cache_post,
+    _new_state_post,
+    _WithState,
+)
 from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
 
