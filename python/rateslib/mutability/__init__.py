@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from collections import OrderedDict
 from collections.abc import Callable
-from typing import ParamSpec, TypeVar
+from typing import Generic, ParamSpec, TypeVar
 
 from rateslib import defaults
 
@@ -91,8 +91,11 @@ class _WithState:
         raise NotImplementedError("Must be implemented for 'mutable by association' types")
 
 
-class _WithCache[KT, VT]:
+KT = TypeVar("KT")
+VT = TypeVar("VT")
 
+
+class _WithCache(Generic[KT, VT]):
     _cache: OrderedDict[KT, VT]
     _cache_len: int
 
