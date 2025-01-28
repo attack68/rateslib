@@ -681,6 +681,42 @@ class TestStateAndCache:
         # objects have yet to implement cache handling
         pass
 
+    @pytest.mark.parametrize(("method", "args"), [
+        ("_set_node_vector", ([0.99, 0.98], 1)),
+        ("_set_ad_order", (2,)),
+    ])
+    def test_surface_clear_cache(self, method, args):
+        surf = FXDeltaVolSurface(
+            expiries=[dt(2000, 1, 1), dt(2001, 1, 1)],
+            delta_indexes=[0.5],
+            node_values=[[10.0], [9.0]],
+            eval_date=dt(1999, 1, 1),
+            delta_type="forward",
+        )
+        surf.get_smile(dt(2000, 3, 1))
+        assert dt(2000, 3, 1) in surf._cache
+
+        getattr(surf, method)(*args)
+        assert len(surf._cache) == 0
+
+    @pytest.mark.parametrize(("method", "args"), [
+        ("get_from_strike", (1.0, 1.0, NoInput(0), NoInput(0), dt(2000, 5, 3))),
+        ("_get_index", (0.9, dt(2000, 5, 3))),
+        ("get_smile", (dt(2000, 5, 3),)),
+    ])
+    def test_surface_populate_cache(self, method, args):
+        surf = FXDeltaVolSurface(
+            expiries=[dt(2000, 1, 1), dt(2001, 1, 1)],
+            delta_indexes=[0.5],
+            node_values=[[10.0], [9.0]],
+            eval_date=dt(1999, 1, 1),
+            delta_type="forward",
+        )
+        before = surf._cache_len
+        getattr(surf, method)(*args)
+        assert surf._cache_len == before + 1
+
+
 
 def test_validate_delta_type() -> None:
     with pytest.raises(ValueError, match="`delta_type` must be in"):

@@ -1,9 +1,8 @@
 from __future__ import annotations  # type hinting
 
-from collections import OrderedDict
 from datetime import datetime, timedelta
 from datetime import datetime as dt
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import Any, TypeAlias
 from uuid import uuid4
 
 import numpy as np
@@ -35,6 +34,7 @@ from rateslib.dual.utils import _dual_float
 from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,
+    _validate_states,
     _WithCache,
     _WithState,
 )
@@ -878,10 +878,6 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
 
         self._set_ad_order(ad)  # includes csolve on each smile
 
-    @_new_state_post
-    def _clear_cache(self) -> None:
-        super()._clear_cache()
-
     def _get_composited_state(self) -> int:
         return hash(smile._state for smile in self.smiles)
 
@@ -889,10 +885,6 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         if self._state != self._get_composited_state():
             # If any of the associated curves have been mutated then the cache is invalidated
             self._clear_cache()
-
-    def _maybe_add_to_cache(self, date: datetime, val: FXDeltaVolSmile) -> None:
-        if defaults.curve_caching:
-            self._cache[date] = val
 
     @_clear_cache_post
     def _set_ad_order(self, order: int) -> None:
@@ -921,6 +913,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
             vars_ += tuple(f"{smile.id}{i}" for i in range(smile.n))
         return vars_
 
+    @_validate_states
     def get_smile(self, expiry: datetime) -> FXDeltaVolSmile:
         """
         Construct a *DeltaVolSmile* with linear total variance interpolation over delta indexes.
@@ -1016,8 +1009,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
                 id=ls.id + "_" + rs.id + "_intp",
             )
 
-        self._maybe_add_to_cache(expiry, smile)
-        return smile
+        return self._cached_value(expiry, smile)
 
     def _t_var_interp(
         self,
@@ -1093,6 +1085,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
             )  # scale by real cal days and not adjusted weights
         return _**0.5
 
+    # _validate_states not required since called by `get_smile` internally
     def get_from_strike(
         self,
         k: DualTypes,
@@ -1132,6 +1125,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         smile = self.get_smile(expiry)
         return smile.get_from_strike(k, f, w_deli, w_spot, expiry)
 
+    # _validate_states not required since called by `get_smile` internally
     def _get_index(self, delta_index: DualTypes, expiry: datetime) -> DualTypes:
         """
         Return a volatility from a given delta index.
