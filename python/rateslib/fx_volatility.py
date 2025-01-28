@@ -3,7 +3,7 @@ from __future__ import annotations  # type hinting
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from datetime import datetime as dt
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 from uuid import uuid4
 
 import numpy as np
@@ -41,14 +41,14 @@ from rateslib.mutability import (
 from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
 
-if TYPE_CHECKING:
-    from rateslib.typing import DualTypes
-
+# if TYPE_CHECKING:
+#     from rateslib.typing import DualTypes
+DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
 
 TERMINAL_DATE = dt(2100, 1, 1)
 
 
-class FXDeltaVolSmile(_WithState, _WithCache):  # type: ignore[type-arg]
+class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
     r"""
     Create an *FX Volatility Smile* at a given expiry indexed by delta percent.
 
@@ -95,7 +95,6 @@ class FXDeltaVolSmile(_WithState, _WithCache):  # type: ignore[type-arg]
     """
 
     _ini_solve = 0  # All node values are solvable
-    _cache: OrderedDict[float, DualTypes]
 
     def __init__(
         self,
