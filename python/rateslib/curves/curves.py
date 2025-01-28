@@ -18,12 +18,14 @@ from rateslib.calendars.rs import get_calendar
 from rateslib.default import (
     NoInput,
     PlotOutput,
-    _clear_cache_post,
     _drb,
+    plot,
+)
+from rateslib.mutability import (
+    _clear_cache_post,
     _new_state_post,
     _validate_states,
     _WithState,
-    plot,
 )
 from rateslib.dual import (
     Dual,
@@ -242,8 +244,7 @@ class Curve(_WithState):
         self.index_base: DualTypes | NoInput = index_base
         self.index_lag: int = _drb(defaults.index_lag, index_lag)
 
-        self._clear_cache()
-        self._set_ad_order(order=ad)
+        self._set_ad_order(order=ad)  # will also clear and initialise the cache
         self._set_new_state()
 
     def __set_interpolation__(
@@ -1302,31 +1303,6 @@ class Curve(_WithState):
         x = [left + timedelta(days=i) for i in range(points)]
         rates = [forward_fx(_, self, curve_foreign, fx_rate, fx_settlement) for _ in x]
         return plot(x, [rates])
-
-    # Cache management
-
-    def _clear_cache(self) -> None:
-        """
-        Clear the cache of values on a *Curve* type.
-
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-        This should be used if any modification has been made to the *Curve*.
-        Users are advised against making direct modification to *Curve* classes once
-        constructed to avoid the issue of un-cleared caches returning erroneous values.
-
-        Alternatively the curve caching as a feature can be set to *False* in ``defaults``.
-        """
-        self._cache: dict[datetime, DualTypes] = dict()
-
-    def _cached_value(self, date: datetime, val: DualTypes) -> DualTypes:
-        if defaults.curve_caching:
-            self._cache[date] = val
-        return val
 
     # Mutation
     @_new_state_post
@@ -2782,14 +2758,14 @@ class MultiCsaCurve(CompositeCurve):
 
         # finish the loop on the correct date
         if date == d1:
-            return _
+            return self._cached_value(date, _)
         else:
             min_ratio = 1e5
             for i, curve in enumerate(self.curves):
                 ratio_ = curve[date] / cache[i]  # cache[i] = curve[d1]
                 min_ratio = ratio_ if ratio_ < min_ratio else min_ratio
             _ *= min_ratio
-            return _
+            return self._cached_value(date, _)
 
     @_validate_states
     # unnecessary because up-to-date objects are referred to directly

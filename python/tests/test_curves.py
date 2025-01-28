@@ -2282,7 +2282,7 @@ class TestStateAndCache:
 
     @pytest.mark.parametrize("Klass", [CompositeCurve, MultiCsaCurve])
     def test_composite_curve_validation_cache_clearing_and_state(self, Klass):
-        # test that a composite curve curve will validate and clear its cache
+        # test that a composite curve will validate and clear its cache
         # and following that update its own state to its composited state
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.95})
         c2 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.90})
@@ -2306,3 +2306,21 @@ class TestStateAndCache:
         # check that the cache is correct
         assert dt(2022, 6, 1) in cc._cache
         assert dt(2022, 6, 30) not in cc._cache
+
+    def test_max_cache_size(self):
+        with default_context("curve_caching_max", 3):
+            curve = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.95})
+            assert curve._cache_len == 0
+            curve[dt(2022, 2, 1)]
+            assert curve._cache_len == 1
+            curve[dt(2022, 3, 1)]
+            assert curve._cache_len == 2
+            curve[dt(2022, 4, 1)]
+            assert curve._cache_len == 3
+            curve[dt(2022, 5, 1)]
+            assert curve._cache_len == 3
+
+            assert dt(2022, 2, 1) not in curve._cache
+            assert dt(2022, 3, 1) in curve._cache
+            assert dt(2022, 4, 1) in curve._cache
+            assert dt(2022, 5, 1) in curve._cache

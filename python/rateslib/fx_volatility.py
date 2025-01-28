@@ -14,12 +14,14 @@ from rateslib.calendars import get_calendar
 from rateslib.default import (
     NoInput,
     PlotOutput,
-    _clear_cache_post,
     _drb,
-    _new_state_post,
-    _WithState,
     plot,
     plot3d,
+)
+from rateslib.mutability import (
+    _clear_cache_post,
+    _new_state_post,
+    _WithState,
 )
 from rateslib.dual import (
     Dual,

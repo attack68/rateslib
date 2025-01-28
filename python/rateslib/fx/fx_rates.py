@@ -11,9 +11,11 @@ from pandas import DataFrame, Series
 from rateslib import defaults
 from rateslib.default import (
     NoInput,
-    _clear_cache_post,
     _drb,
     _make_py_json,
+)
+from rateslib.mutability import (
+    _clear_cache_post,
     _new_state_post,
     _WithState,
 )
