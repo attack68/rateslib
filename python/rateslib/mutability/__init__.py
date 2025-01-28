@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from collections import OrderedDict
 from collections.abc import Callable
+from functools import wraps
 from typing import Generic, ParamSpec, TypeVar
 
 from rateslib import defaults
@@ -17,7 +18,7 @@ def _validate_states(func: Callable[P, R]) -> Callable[P, R]:
     additional operations. If a change is detected the implemented `validate_state` function
     is responsible for resetting the cache and updating any `state_id`s.
     """
-
+    @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         self = args[0]
         self._validate_state()  # type: ignore[attr-defined]
@@ -31,7 +32,7 @@ def _clear_cache_post(func: Callable[P, R]) -> Callable[P, R]:
     Add a decorator to a class instance method to clear the cache and set a new state
     post performing the function.
     """
-
+    @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         self = args[0]
         result = func(*args, **kwargs)
@@ -46,7 +47,7 @@ def _new_state_post(func: Callable[P, R]) -> Callable[P, R]:
     Add a decorator to a class instance method to clear the cache and set a new state
     post performing the function.
     """
-
+    @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         self = args[0]
         result = func(*args, **kwargs)
