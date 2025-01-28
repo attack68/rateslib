@@ -34,8 +34,8 @@ from rateslib.dual.utils import _dual_float
 from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,
-    _WithState,
     _WithCache,
+    _WithState,
 )
 from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
@@ -46,7 +46,7 @@ if TYPE_CHECKING:
 TERMINAL_DATE = dt(2100, 1, 1)
 
 
-class FXDeltaVolSmile(_WithState, _WithCache):
+class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
     r"""
     Create an *FX Volatility Smile* at a given expiry indexed by delta percent.
 
@@ -774,7 +774,7 @@ class FXDeltaVolSmile(_WithState, _WithCache):
     # Serialization
 
 
-class FXDeltaVolSurface(_WithState, _WithCache):
+class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
     r"""
     Create an *FX Volatility Surface* parametrised by cross-sectional *Smiles* at different
     expiries.

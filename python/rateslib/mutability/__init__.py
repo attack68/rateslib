@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from collections import OrderedDict
 from collections.abc import Callable
-from typing import ParamSpec, TypeVar, Generic
+from typing import ParamSpec, TypeVar
 
 from rateslib import defaults
 
@@ -56,7 +56,7 @@ def _new_state_post(func: Callable[P, R]) -> Callable[P, R]:
     return wrapper
 
 
-class _WithState[KT, VT]:
+class _WithState:
     """
     Record and manage the `state_id` of mutable classes.
 
@@ -70,8 +70,6 @@ class _WithState[KT, VT]:
 
     _state: int = 0
     _mutable_by_association = False
-    _cache: OrderedDict[KT, VT]
-    _cache_len: int
 
     def _set_new_state(self) -> None:
         """Set the state_id of a superclass. Some objects which are 'mutable by association'
@@ -94,6 +92,9 @@ class _WithState[KT, VT]:
 
 
 class _WithCache[KT, VT]:
+
+    _cache: OrderedDict[KT, VT]
+    _cache_len: int
 
     def _cached_value(self, key: KT, val: VT) -> VT:
         """Used to add a value to the cache and control memory size when returning some
