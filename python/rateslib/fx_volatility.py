@@ -877,6 +877,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         )
 
         self._set_ad_order(ad)  # includes csolve on each smile
+        self._set_new_state()
 
     def _get_composited_state(self) -> int:
         return hash(smile._state for smile in self.smiles)
@@ -885,6 +886,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         if self._state != self._get_composited_state():
             # If any of the associated curves have been mutated then the cache is invalidated
             self._clear_cache()
+            self._set_new_state()
 
     @_clear_cache_post
     def _set_ad_order(self, order: int) -> None:

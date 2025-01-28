@@ -748,7 +748,19 @@ class TestStateAndCache:
 
     def test_surface_validate_states(self):
         # test the get_smile method validates the states after a mutation
-        assert False
+        surf = FXDeltaVolSurface(
+            expiries=[dt(2000, 1, 1), dt(2001, 1, 1)],
+            delta_indexes=[0.5],
+            node_values=[[10.0], [9.0]],
+            eval_date=dt(1999, 1, 1),
+            delta_type="forward",
+        )
+        pre_state = surf._state
+        surf.smiles[0].update_node(0.5, 11.0)
+        surf.get_smile(dt(2000, 1, 9))
+        post_state = surf._state
+        test = pre_state != post_state
+        assert test  # validate states has been run and updated the state.
 
 def test_validate_delta_type() -> None:
     with pytest.raises(ValueError, match="`delta_type` must be in"):
