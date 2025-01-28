@@ -716,7 +716,39 @@ class TestStateAndCache:
         getattr(surf, method)(*args)
         assert surf._cache_len == before + 1
 
+    @pytest.mark.parametrize(("method", "args"), [
+        ("_set_node_vector", ([0.99, 0.98], 1)),
+    ])
+    def test_surface_change_state(self, method, args):
+        surf = FXDeltaVolSurface(
+            expiries=[dt(2000, 1, 1), dt(2001, 1, 1)],
+            delta_indexes=[0.5],
+            node_values=[[10.0], [9.0]],
+            eval_date=dt(1999, 1, 1),
+            delta_type="forward",
+        )
+        pre_state = surf._state
+        getattr(surf, method)(*args)
+        assert surf._state != pre_state
 
+    @pytest.mark.parametrize(("method", "args"), [
+        ("_set_ad_order", (2,)),
+    ])
+    def test_surface_maintain_state(self, method, args):
+        surf = FXDeltaVolSurface(
+            expiries=[dt(2000, 1, 1), dt(2001, 1, 1)],
+            delta_indexes=[0.5],
+            node_values=[[10.0], [9.0]],
+            eval_date=dt(1999, 1, 1),
+            delta_type="forward",
+        )
+        pre_state = surf._state
+        getattr(surf, method)(*args)
+        assert surf._state == pre_state
+
+    def test_surface_validate_states(self):
+        # test the get_smile method validates the states after a mutation
+        assert False
 
 def test_validate_delta_type() -> None:
     with pytest.raises(ValueError, match="`delta_type` must be in"):
