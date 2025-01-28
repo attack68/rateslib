@@ -759,8 +759,13 @@ class TestStateAndCache:
         surf.smiles[0].update_node(0.5, 11.0)
         surf.get_smile(dt(2000, 1, 9))
         post_state = surf._state
-        test = pre_state != post_state
-        assert test  # validate states has been run and updated the state.
+        assert pre_state != post_state  # validate states has been run and updated the state.
+
+    def test_initialisation_state_smile(self):
+        assert False
+
+    def test_initialisation_state_surface(self):
+        assert False
 
 def test_validate_delta_type() -> None:
     with pytest.raises(ValueError, match="`delta_type` must be in"):

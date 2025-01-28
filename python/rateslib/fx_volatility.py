@@ -115,6 +115,7 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
         self.delta_type: str = _validate_delta_type(delta_type)
 
         self.__set_nodes__(nodes, ad)
+        self._set_new_state()
 
     def __iter__(self) -> Any:
         raise TypeError("`FXDeltaVolSmile` is not iterable.")
@@ -880,7 +881,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         self._set_new_state()
 
     def _get_composited_state(self) -> int:
-        return hash(smile._state for smile in self.smiles)
+        return hash(sum(smile._state for smile in self.smiles))
 
     def _validate_state(self) -> None:
         if self._state != self._get_composited_state():
