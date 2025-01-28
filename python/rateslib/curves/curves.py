@@ -5,7 +5,7 @@ import warnings
 from collections.abc import Callable
 from datetime import datetime, timedelta
 from math import comb, floor
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 from uuid import uuid4
 
 import numpy as np
@@ -15,21 +15,44 @@ from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
 from rateslib.calendars.dcfs import _DCF1d
 from rateslib.calendars.rs import get_calendar
-from rateslib.default import NoInput, PlotOutput, _drb, _validate_states, _WithState, plot
+from rateslib.default import (
+    NoInput,
+    PlotOutput,
+    _drb,
+    plot,
+)
 from rateslib.dual import (
     Dual,
     Dual2,
+    Variable,
     dual_exp,
     dual_log,
     set_order_convert,
+)
+from rateslib.mutability import (
+    _clear_cache_post,
+    _new_state_post,
+    _validate_states,
+    _WithCache,
+    _WithState,
 )
 from rateslib.rs import Modifier, index_left_f64
 from rateslib.rs import from_json as from_json_rs
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
-    from rateslib.fx import FXForwards  # pragma: no cover
-    from rateslib.typing import Arr1dF64, Arr1dObj, CalInput, CalTypes, DualTypes, Number
+    from rateslib.typing import (
+        Arr1dF64,
+        Arr1dObj,
+        CalInput,
+        CalTypes,
+        FXForwards,
+        Number,
+        str_,
+    )
+DualTypes: TypeAlias = (
+    "Dual | Dual2 | Variable | float"  # required for non-cyclic import on _WithCache
+)
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -37,7 +60,7 @@ if TYPE_CHECKING:
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class Curve(_WithState):
+class Curve(_WithState, _WithCache[datetime, DualTypes]):
     """
     Curve based on DF parametrisation at given node dates with interpolation.
 
@@ -225,8 +248,7 @@ class Curve(_WithState):
         self.index_base: DualTypes | NoInput = index_base
         self.index_lag: int = _drb(defaults.index_lag, index_lag)
 
-        self._clear_cache()
-        self._set_ad_order(order=ad)
+        self._set_ad_order(order=ad)  # will also clear and initialise the cache
         self._set_new_state()
 
     def __set_interpolation__(
@@ -1286,33 +1308,9 @@ class Curve(_WithState):
         rates = [forward_fx(_, self, curve_foreign, fx_rate, fx_settlement) for _ in x]
         return plot(x, [rates])
 
-    # Cache management
-
-    def _clear_cache(self) -> None:
-        """
-        Clear the cache of values on a *Curve* type.
-
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-        This should be used if any modification has been made to the *Curve*.
-        Users are advised against making direct modification to *Curve* classes once
-        constructed to avoid the issue of un-cleared caches returning erroneous values.
-
-        Alternatively the curve caching as a feature can be set to *False* in ``defaults``.
-        """
-        self._cache: dict[datetime, DualTypes] = dict()
-
-    def _cached_value(self, date: datetime, val: DualTypes) -> DualTypes:
-        if defaults.curve_caching:
-            self._cache[date] = val
-        return val
-
     # Mutation
-
+    @_new_state_post
+    @_clear_cache_post
     def csolve(self) -> None:
         """
         Solves **and sets** the coefficients, ``c``, of the :class:`PPSpline`.
@@ -1330,9 +1328,8 @@ class Curve(_WithState):
         method.
         """
         self._csolve()
-        self._clear_cache()
-        self._set_new_state()
 
+    # All calling methods will clear the cache and/or set new state after `_csolve`
     def _csolve(self) -> None:
         if isinstance(self.t, NoInput) or self._c_input:
             return None
@@ -1378,6 +1375,8 @@ class Curve(_WithState):
 
         self.spline.csolve(tau_posix, y, left_n, right_n, False)  # type: ignore[attr-defined]
 
+    @_new_state_post
+    @_clear_cache_post
     def _set_node_vector(self, vector: list[DualTypes], ad: int) -> None:
         """Used to update curve values during a Solver iteration. ``ad`` in {1, 2}."""
         DualType: type[Dual | Dual2] = Dual if ad == 1 else Dual2
@@ -1407,9 +1406,8 @@ class Curve(_WithState):
                 *DualArgs[1:],
             )
         self._csolve()
-        self._clear_cache()
-        self._set_new_state()
 
+    @_clear_cache_post
     def _set_ad_order(self, order: int) -> None:
         """
         Change the node values to float, Dual or Dual2 based on input parameter.
@@ -1425,8 +1423,9 @@ class Curve(_WithState):
             for i, (k, v) in enumerate(self.nodes.items())
         }
         self._csolve()
-        self._clear_cache()
 
+    @_new_state_post
+    @_clear_cache_post
     def update(
         self,
         nodes: dict[datetime, DualTypes] | NoInput = NoInput(0),
@@ -1467,9 +1466,9 @@ class Curve(_WithState):
             self.__set_endpoints__(endpoints)
 
         self._csolve()
-        self._clear_cache()
-        self._set_new_state()
 
+    @_new_state_post
+    @_clear_cache_post
     def update_node(self, key: datetime, value: DualTypes) -> None:
         """
         Update a single node value on the *Curve*.
@@ -1502,8 +1501,6 @@ class Curve(_WithState):
         self.nodes[key] = value
 
         self._csolve()
-        self._clear_cache()
-        self._set_new_state()
 
     # Solver interaction
 
@@ -1777,9 +1774,9 @@ class LineCurve(Curve):
     def shift(
         self,
         spread: DualTypes,
-        id: str | NoInput = NoInput(0),  # noqa: A002
+        id: str_ = NoInput(0),  # noqa: A002
         composite: bool = True,
-        collateral: str | NoInput = NoInput(0),
+        collateral: str_ = NoInput(0),
     ) -> Curve:
         """
         Raise or lower the curve in parallel by a set number of basis points.
@@ -2638,6 +2635,7 @@ class CompositeCurve(Curve):
         if self._state != self._get_composited_state():
             # If any of the associated curves have been mutated then the cache is invalidated
             self._clear_cache()
+            self._set_new_state()
 
     def _get_composited_state(self) -> int:
         return hash(sum(curve._state for curve in self.curves))
@@ -2764,14 +2762,14 @@ class MultiCsaCurve(CompositeCurve):
 
         # finish the loop on the correct date
         if date == d1:
-            return _
+            return self._cached_value(date, _)
         else:
             min_ratio = 1e5
             for i, curve in enumerate(self.curves):
                 ratio_ = curve[date] / cache[i]  # cache[i] = curve[d1]
                 min_ratio = ratio_ if ratio_ < min_ratio else min_ratio
             _ *= min_ratio
-            return _
+            return self._cached_value(date, _)
 
     @_validate_states
     # unnecessary because up-to-date objects are referred to directly

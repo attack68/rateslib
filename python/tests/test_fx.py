@@ -33,6 +33,13 @@ class TestStateAndCache:
         new = fxr._state
         assert new == original
 
+    def test_cached_property_fxarray(self):
+        fxr = FXRates({"eurusd": 1.0, "usdgbp": 1.0})
+        original = fxr.rate("eurgbp")
+        fxr.update({"eurusd": 2.0})  # clear the FXarray cached property
+        new = fxr.rate("eurgbp")
+        assert new != original
+
 
 @pytest.mark.parametrize(
     "fx_rates",
