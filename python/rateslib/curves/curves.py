@@ -5,7 +5,7 @@ import warnings
 from collections.abc import Callable
 from datetime import datetime, timedelta
 from math import comb, floor
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 from uuid import uuid4
 
 import numpy as np
@@ -24,6 +24,7 @@ from rateslib.default import (
 from rateslib.dual import (
     Dual,
     Dual2,
+    Variable,
     dual_exp,
     dual_log,
     set_order_convert,
@@ -47,11 +48,11 @@ if TYPE_CHECKING:
         Arr1dObj,
         CalInput,
         CalTypes,
-        DualTypes,
         FXForwards,
         Number,
         str_,
     )
+DualTypes: TypeAlias = "Dual | Dual2 | Variable | float"  # required for non-cyclic import on _WithCache
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -59,7 +60,7 @@ if TYPE_CHECKING:
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class Curve(_WithState, _WithCache):  # type: ignore[type-arg]
+class Curve(_WithState, _WithCache[datetime, DualTypes]):
     """
     Curve based on DF parametrisation at given node dates with interpolation.
 
@@ -188,7 +189,6 @@ class Curve(_WithState, _WithCache):  # type: ignore[type-arg]
     _ini_solve: int = 1  # Curve is assumed to have initial DF node at 1.0 as constraint
     _base_type: str = "dfs"
     collateral: str | None = None
-    _cache: OrderedDict[datetime, DualTypes]
 
     def __init__(  # type: ignore[no-untyped-def]
         self,
@@ -317,7 +317,7 @@ class Curve(_WithState, _WithCache):  # type: ignore[type-arg]
             # self.spline cannot be None becuase self.t is given and it has been calibrated
             val = self._op_exp(self.spline.ppev_single(date_posix))  # type: ignore[union-attr]
 
-        return self._cached_value(date, val)  # type: ignore[no-any-return]
+        return self._cached_value(date, val)
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -2501,14 +2501,14 @@ class CompositeCurve(Curve):
                 avg_rate = ((1.0 / curve[date]) ** (1.0 / days) - 1) / d
                 total_rate += avg_rate
             _: DualTypes = 1.0 / (1 + total_rate * d) ** days
-            return self._cached_value(date, _)  # type: ignore[no-any-return]
+            return self._cached_value(date, _)
 
         elif self._base_type == "values":
             # will return a composited rate
             _ = 0.0
             for curve in self.curves:
                 _ += curve[date]
-            return self._cached_value(date, _)  # type: ignore[no-any-return]
+            return self._cached_value(date, _)
 
         else:
             raise TypeError(
@@ -2762,14 +2762,14 @@ class MultiCsaCurve(CompositeCurve):
 
         # finish the loop on the correct date
         if date == d1:
-            return self._cached_value(date, _)  # type: ignore[no-any-return]
+            return self._cached_value(date, _)
         else:
             min_ratio = 1e5
             for i, curve in enumerate(self.curves):
                 ratio_ = curve[date] / cache[i]  # cache[i] = curve[d1]
                 min_ratio = ratio_ if ratio_ < min_ratio else min_ratio
             _ *= min_ratio
-            return self._cached_value(date, _)  # type: ignore[no-any-return]
+            return self._cached_value(date, _)
 
     @_validate_states
     # unnecessary because up-to-date objects are referred to directly
