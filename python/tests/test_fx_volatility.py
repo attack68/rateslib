@@ -681,10 +681,13 @@ class TestStateAndCache:
         # objects have yet to implement cache handling
         pass
 
-    @pytest.mark.parametrize(("method", "args"), [
-        ("_set_node_vector", ([0.99, 0.98], 1)),
-        ("_set_ad_order", (2,)),
-    ])
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("_set_node_vector", ([0.99, 0.98], 1)),
+            ("_set_ad_order", (2,)),
+        ],
+    )
     def test_surface_clear_cache(self, method, args):
         surf = FXDeltaVolSurface(
             expiries=[dt(2000, 1, 1), dt(2001, 1, 1)],
@@ -699,11 +702,14 @@ class TestStateAndCache:
         getattr(surf, method)(*args)
         assert len(surf._cache) == 0
 
-    @pytest.mark.parametrize(("method", "args"), [
-        ("get_from_strike", (1.0, 1.0, NoInput(0), NoInput(0), dt(2000, 5, 3))),
-        ("_get_index", (0.9, dt(2000, 5, 3))),
-        ("get_smile", (dt(2000, 5, 3),)),
-    ])
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("get_from_strike", (1.0, 1.0, NoInput(0), NoInput(0), dt(2000, 5, 3))),
+            ("_get_index", (0.9, dt(2000, 5, 3))),
+            ("get_smile", (dt(2000, 5, 3),)),
+        ],
+    )
     def test_surface_populate_cache(self, method, args):
         surf = FXDeltaVolSurface(
             expiries=[dt(2000, 1, 1), dt(2001, 1, 1)],
@@ -716,9 +722,12 @@ class TestStateAndCache:
         getattr(surf, method)(*args)
         assert surf._cache_len == before + 1
 
-    @pytest.mark.parametrize(("method", "args"), [
-        ("_set_node_vector", ([0.99, 0.98], 1)),
-    ])
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("_set_node_vector", ([0.99, 0.98], 1)),
+        ],
+    )
     def test_surface_change_state(self, method, args):
         surf = FXDeltaVolSurface(
             expiries=[dt(2000, 1, 1), dt(2001, 1, 1)],
@@ -731,9 +740,12 @@ class TestStateAndCache:
         getattr(surf, method)(*args)
         assert surf._state != pre_state
 
-    @pytest.mark.parametrize(("method", "args"), [
-        ("_set_ad_order", (2,)),
-    ])
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("_set_ad_order", (2,)),
+        ],
+    )
     def test_surface_maintain_state(self, method, args):
         surf = FXDeltaVolSurface(
             expiries=[dt(2000, 1, 1), dt(2001, 1, 1)],
@@ -780,6 +792,7 @@ class TestStateAndCache:
             delta_type="forward",
         )
         assert surf._state != 0
+
 
 def test_validate_delta_type() -> None:
     with pytest.raises(ValueError, match="`delta_type` must be in"):

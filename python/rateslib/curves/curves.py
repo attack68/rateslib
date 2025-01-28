@@ -41,8 +41,6 @@ from rateslib.rs import from_json as from_json_rs
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
-    from collections import OrderedDict
-
     from rateslib.typing import (
         Arr1dF64,
         Arr1dObj,
@@ -52,7 +50,9 @@ if TYPE_CHECKING:
         Number,
         str_,
     )
-DualTypes: TypeAlias = "Dual | Dual2 | Variable | float"  # required for non-cyclic import on _WithCache
+DualTypes: TypeAlias = (
+    "Dual | Dual2 | Variable | float"  # required for non-cyclic import on _WithCache
+)
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
