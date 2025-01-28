@@ -2655,6 +2655,7 @@ class CompositeCurve(Curve):
         if self._state != self._get_composited_state():
             # If any of the associated curves have been mutated then the cache is invalidated
             self._clear_cache()
+            self._set_new_state()
 
     def _get_composited_state(self) -> int:
         return hash(sum(curve._state for curve in self.curves))

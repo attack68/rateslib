@@ -2279,3 +2279,30 @@ class TestStateAndCache:
         assert dt(2000, 5, 1) in curve._cache
         getattr(curve, method)(*args)
         assert curve._cache == {}
+
+    @pytest.mark.parametrize("Klass", [CompositeCurve, MultiCsaCurve])
+    def test_composite_curve_validation_cache_clearing_and_state(self, Klass):
+        # test that a composite curve curve will validate and clear its cache
+        # and following that update its own state to its composited state
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.95})
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.90})
+        cc = Klass([c1, c2])
+        cc_state_pre = cc._state
+        # get a value and check the cache
+        cc_result_pre = cc[dt(2022, 6, 1)]
+        _ = cc[dt(2022, 6, 30)]
+        assert dt(2022, 6, 1) in cc._cache
+        assert dt(2022, 6, 30) in cc._cache
+
+        # update an underlying curve
+        c2.update_node(dt(2024, 1, 1), 0.85)
+        # check the cache is cleared when using a get using
+        cc_result_post = cc[dt(2022, 6, 1)]
+        assert cc_result_post < cc_result_pre
+        # check that the state of the composite curve has changed
+        cc_state_post = cc._state
+        assert cc_state_pre != cc_state_post
+        assert cc_state_post == cc._get_composited_state()
+        # check that the cache is correct
+        assert dt(2022, 6, 1) in cc._cache
+        assert dt(2022, 6, 30) not in cc._cache
