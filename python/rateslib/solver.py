@@ -1144,8 +1144,8 @@ class Solver(Gradients, _WithState):
     def _set_new_state(self) -> None:
         self._state_fx = self._get_composited_fx_state()
         self._state_curves = self._get_composited_curves_state()
-        self._state_pre_curves = self._get_composited_pre_curves_state()
-        _ = hash(self._state_fx + self._state_curves + self._state_pre_curves)
+        # self._state_pre_curves = self._get_composited_pre_curves_state()
+        _ = hash(self._state_fx + self._state_curves)
         self._state = _
 
     def _validate_state(self) -> None:
@@ -1167,13 +1167,13 @@ class Solver(Gradients, _WithState):
                     "this state because they will likely be erroneous or a consequence of a bad "
                     "design pattern."
                 )
-            if self._state_pre_curves != self._get_composited_pre_curves_state():
-                raise ValueError(
-                    "The `curves` associated with the `pre_solvers` have been updated without the "
-                    "`solver` performing additional iterations.\nCalculations are prevented in "
-                    "this state because they will likely be erroneous or a consequence of a "
-                    "bad design pattern."
-                )
+            # if self._state_pre_curves != self._get_composited_pre_curves_state():
+            #     raise ValueError(
+            #         "The `curves` associated with the `pre_solvers` have been updated without the "
+            #         "`solver` performing additional iterations.\nCalculations are prevented in "
+            #         "this state because they will likely be erroneous or a consequence of a "
+            #         "bad design pattern."
+            #     )
 
     @staticmethod
     def _validate_and_get_state(obj: Any) -> int:
@@ -1187,18 +1187,18 @@ class Solver(Gradients, _WithState):
             return self._validate_and_get_state(self.fx)
 
     def _get_composited_curves_state(self) -> int:
-        return hash(sum(self._validate_and_get_state(curve) for curve in self.curves.values()))
+        return hash(sum(self._validate_and_get_state(curve) for curve in self.pre_curves.values()))
 
-    def _get_composited_pre_curves_state(self) -> int:
-        return hash(
-            sum(self._validate_and_get_state(curve) for solver in self.pre_solvers for curve in solver.curves.values())
-        )
+    # def _get_composited_pre_curves_state(self) -> int:
+    #     return hash(
+    #         sum(self._validate_and_get_state(curve) for solver in self.pre_solvers for curve in solver.curves.values())
+    #    )
 
     def _get_composited_state(self) -> int:
         fx_state = self._get_composited_fx_state()
         curves_state = self._get_composited_curves_state()
-        pre_curves_state = self._get_composited_pre_curves_state()
-        _: int = hash(fx_state + curves_state + pre_curves_state)
+        # pre_curves_state = self._get_composited_pre_curves_state()
+        _: int = hash(fx_state + curves_state)
         return _
 
     def _parse_instrument(

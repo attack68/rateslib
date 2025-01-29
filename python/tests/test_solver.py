@@ -2263,6 +2263,35 @@ class TestStateManagement:
         with pytest.raises(ValueError, match="The `curves` associated with `solver` have been up"):
             getattr(irs, method)(solver=s2)
 
+    @pytest.mark.parametrize(
+        "method",
+        [
+            # "delta",
+            "gamma",
+            # "npv",
+            # "rate",
+        ],
+    )
+    def test_raise_on_composite_curve_mutation(self, method):
+        # test the solver stores hashes of its objects: FXForwards, Curves and presolvers
+        uu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="uu")
+        ee = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="ee")
+        cc = CompositeCurve([uu, ee], id="cc")
+
+        s1 = Solver(
+            curves=[ee, cc],
+            instruments=[
+                IRS(dt(2022, 1, 1), "1y", "A", curves="cc"),
+            ],
+            s=[1.5],
+            id="local",
+        )
+
+        uu.update_node(dt(2023, 1, 1), 0.98)
+        irs = IRS(dt(2022, 1, 1), "3y", "A", curves="cc")
+        with pytest.raises(ValueError, match="The `curves` associated with `solver` have been up"):
+            getattr(irs, method)(solver=s1)
+
     def test_solver_auto_updates_fx_before_state_setting(self):
         # added `self.fx._set_ad_order(1)` to Solver.__init__
         with warnings.catch_warnings():
