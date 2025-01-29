@@ -2403,3 +2403,19 @@ class TestStateManagement:
                 ]
             )
             pf.gamma(solver=solver, base="eur")
+
+    def test_fxrates_update_is_autochecked_by_solver(self):
+        curve = Curve({dt(2025, 1, 1): 1.0, dt(2026, 1, 1): 1.0})
+        fxr = FXRates({"eurusd": 1.10}, settlement=dt(2025, 1, 5))
+        fxf = FXForwards(fx_rates=fxr,
+                         fx_curves={"eureur": curve, "usdusd": curve, "eurusd": curve})
+        solver1 = Solver(curves=[curve],
+                         instruments=[IRS(dt(2025, 1, 1), "1m", spec="usd_irs", curves=curve)],
+                         s=[1.0], fx=fxf)
+
+        # user updates the FXrates
+        fxr.update({"eurusd": 1.20})
+
+        # Try to price with solver1...
+        res = IRS(dt(2025, 1, 1), "2m", spec="usd_irs", curves=curve).rate(solver=solver1)
+
