@@ -2293,6 +2293,10 @@ class TestFloatRateNote:
         assert abs(result["Cashflow"].iloc[0] + 10000) < 50.0
         assert abs(result["Cashflow"].iloc[1] + 10000) < 50.0
 
+    def test_ytm_from_curve(self):
+        curve = Curve({dt(2000, 1, 1): 1.0, dt(2010, 1, 1): 0.8}, convention="act365f")
+        frn = FloatRateNote(dt(2000, 1, 1), "5y", "Q", float_spread=200)
+        result = frn.ytm(price=100, settlement=dt(2000, 1, 1), curve=curve)
 
 class TestBondFuture:
     def test_repr(self):
