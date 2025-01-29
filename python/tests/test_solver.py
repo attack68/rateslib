@@ -7,7 +7,7 @@ from numpy.testing import assert_allclose
 from pandas import DataFrame, MultiIndex
 from pandas.testing import assert_frame_equal, assert_series_equal
 from rateslib import default_context
-from rateslib.curves import CompositeCurve, Curve, LineCurve, index_left, MultiCsaCurve
+from rateslib.curves import CompositeCurve, Curve, LineCurve, MultiCsaCurve, index_left
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, gradient, newton_1dim, newton_ndim
 from rateslib.fx import FXForwards, FXRates
@@ -2038,7 +2038,6 @@ def test_solver_with_surface() -> None:
 
 
 class TestStateManagement:
-
     def test_solver_state_storage(self):
         # test the solver stores hashes of its objects: FXForwards, Curves and presolvers
         uu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="uu")
@@ -2080,7 +2079,7 @@ class TestStateManagement:
             fx=fxf1,
             pre_solvers=[s1],
         )
-        hashes = {**{"fx": s2.fx._state}, **{k: curve._state for k, curve in s2.pre_curves.items()}}
+        hashes = {"fx": s2.fx._state, **{k: curve._state for k, curve in s2.pre_curves.items()}}
         assert s2._states == hashes
 
     @pytest.mark.parametrize(
@@ -2092,10 +2091,9 @@ class TestStateManagement:
             "rate",
         ],
     )
-    @pytest.mark.parametrize(("obj", "args"), [
-        ("fxr", ({"eurusd": 1.0},)),
-        ("fxf", ([{"eurusd" : 1.10}],))
-    ])
+    @pytest.mark.parametrize(
+        ("obj", "args"), [("fxr", ({"eurusd": 1.0},)), ("fxf", ([{"eurusd": 1.10}],))]
+    )
     def test_warning_on_fx_mutation(self, method, obj, args):
         # test the solver stores hashes of its objects: FXForwards, Curves and presolvers
         uu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="uu")
@@ -2428,8 +2426,7 @@ class TestStateManagement:
                 nodes={dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0}, id="estr"
             )
             eurusd = Curve(
-                nodes={dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0},
-                id="eurusd"
+                nodes={dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0}, id="eurusd"
             )
             fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
             fxf = FXForwards(fxr, {"eureur": estr, "eurusd": eurusd, "usdusd": sofr})
@@ -2466,7 +2463,7 @@ class TestStateManagement:
             # solver 2 will solve the FX basis and update the FXForwards object which is also
             # associated with solver1. If solver1 is state validated it will then fail.
             # except when the _update_fx method of solver2 also nests calls to pre_solvers
-            solver2 = Solver(
+            _solver2 = Solver(
                 curves=[eurusd],
                 instruments=instruments[4:],
                 s=[-10, -15],
@@ -2486,38 +2483,60 @@ class TestStateManagement:
             )
             irs.gamma(solver=solver1, base="eur")
 
-    @pytest.mark.parametrize("obj", [
-        Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
-        LineCurve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
-        FXDeltaVolSmile(nodes={0.5:10.0}, expiry=dt(2000, 1, 1), eval_date=dt(1999, 1, 1), delta_type="forward"),
-        FXRates({"eurusd": 1.0}),
-        FXForwards(
-            FXRates({"eurusd": 1.0}, settlement=dt(2000, 1, 3)),
-            {"eurusd": Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
-             "eureur": Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
-             "usdusd": Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99})},
-        ),
-        CompositeCurve([
+    @pytest.mark.parametrize(
+        "obj",
+        [
             Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
-            Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
-        ]),
-        MultiCsaCurve([
-            Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
-            Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
-        ]),
-        FXDeltaVolSurface(delta_type="forward", delta_indexes=[0.5], expiries=[dt(2000, 1, 8), dt(2001, 1, 1)], eval_date=dt(1999, 1, 1), node_values=[[10], [11]]),
-        Solver(
-            curves=[Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}, id="abc")],
-            instruments=[IRS(dt(2000, 1, 1), "1m", spec="usd_irs", curves="abc")],
-            s=[2.0],
-            fx=FXForwards(
+            LineCurve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
+            FXDeltaVolSmile(
+                nodes={0.5: 10.0},
+                expiry=dt(2000, 1, 1),
+                eval_date=dt(1999, 1, 1),
+                delta_type="forward",
+            ),
+            FXRates({"eurusd": 1.0}),
+            FXForwards(
                 FXRates({"eurusd": 1.0}, settlement=dt(2000, 1, 3)),
-                {"eurusd": Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
-                 "eureur": Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
-                 "usdusd": Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99})},
-            )
-        )
-    ])
+                {
+                    "eurusd": Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
+                    "eureur": Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
+                    "usdusd": Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
+                },
+            ),
+            CompositeCurve(
+                [
+                    Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
+                    Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
+                ]
+            ),
+            MultiCsaCurve(
+                [
+                    Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
+                    Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
+                ]
+            ),
+            FXDeltaVolSurface(
+                delta_type="forward",
+                delta_indexes=[0.5],
+                expiries=[dt(2000, 1, 8), dt(2001, 1, 1)],
+                eval_date=dt(1999, 1, 1),
+                node_values=[[10], [11]],
+            ),
+            Solver(
+                curves=[Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}, id="abc")],
+                instruments=[IRS(dt(2000, 1, 1), "1m", spec="usd_irs", curves="abc")],
+                s=[2.0],
+                fx=FXForwards(
+                    FXRates({"eurusd": 1.0}, settlement=dt(2000, 1, 3)),
+                    {
+                        "eurusd": Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
+                        "eureur": Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
+                        "usdusd": Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
+                    },
+                ),
+            ),
+        ],
+    )
     def test_set_ad_order_does_not_change_object_state(self, obj):
         pre_state = obj._state
         obj._set_ad_order(2)

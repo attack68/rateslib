@@ -3021,7 +3021,7 @@ class ProxyCurve(Curve):
         self.node_dates = [self.fx_forwards.immediate, self.terminal]
 
     @property
-    def ad(self):
+    def ad(self) -> int:  # type: ignore[override]
         return self.fx_forwards._ad
 
     @property

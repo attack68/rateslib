@@ -23,7 +23,7 @@ from rateslib.fx import FXForwards, FXRates
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 from rateslib.fx_volatility import FXVols
-from rateslib.mutability import _validate_states, _WithState, _new_state_post
+from rateslib.mutability import _new_state_post, _validate_states, _WithState
 
 P = ParamSpec("P")
 
@@ -1188,11 +1188,11 @@ class Solver(Gradients, _WithState):
     @staticmethod
     def _validate_and_get_state(obj: Any) -> int:
         obj._validate_state()
-        return obj._state
+        return obj._state   # type: ignore[no-any-return]
 
     def _associated_states(self) -> dict[str, int]:
         states_: dict[str, int] = {
-            k: self._validate_and_get_state(v) for k,v in self.pre_curves.items()
+            k: self._validate_and_get_state(v) for k, v in self.pre_curves.items()
         }
         if not isinstance(self.fx, NoInput):
             states_["fx"] = self._validate_and_get_state(self.fx)
@@ -1529,7 +1529,9 @@ class Solver(Gradients, _WithState):
         """  # noqa: E501
 
         # Initialise data and clear and caches
-        self._do_not_validate = True  # this will eliminate unnecessary state validations during iters
+        self._do_not_validate = (
+            True  # this will eliminate unnecessary state validations during iters
+        )
         self.g_list: list[float] = [1e10]
         self.lambd: float = self.ini_lambda[0]
         self._reset_properties_()
@@ -1662,7 +1664,7 @@ class Solver(Gradients, _WithState):
         association exists and a direct ``fx`` object is supplied a warning may be
         emitted if they are not the same object.
         """
-        self._do_not_validate = True # state is validated prior to the call
+        self._do_not_validate = True  # state is validated prior to the call
         base, fx = self._get_base_and_fx(base, fx)
         if isinstance(fx, FXRates | FXForwards):
             fx_vars: tuple[str, ...] = fx.variables
@@ -1881,7 +1883,7 @@ class Solver(Gradients, _WithState):
            irs.delta(solver=solver)
            irs.gamma(solver=solver)
         """  # noqa: E501
-        self._do_not_validate = True # validation is performed prior to the call
+        self._do_not_validate = True  # validation is performed prior to the call
         if self._ad != 2:
             raise ValueError("`Solver` must be in ad order 2 to use `gamma` method.")
 
@@ -2206,7 +2208,7 @@ class Solver(Gradients, _WithState):
         -------
         DataFrame
         """
-        self._do_not_validate = True # validation is done at the start of the call
+        self._do_not_validate = True  # validation is done at the start of the call
         base, fx = self._get_base_and_fx(base, fx)
 
         if isinstance(vars_scalar, NoInput):
