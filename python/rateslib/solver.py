@@ -23,7 +23,7 @@ from rateslib.fx import FXForwards, FXRates
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 from rateslib.fx_volatility import FXVols
-from rateslib.mutability import _validate_states, _WithState
+from rateslib.mutability import _validate_states, _WithState, _new_state_post
 
 P = ParamSpec("P")
 
@@ -1143,19 +1143,17 @@ class Solver(Gradients, _WithState):
         return f"<rl.Solver:{self.id} at {hex(id(self))}>"
 
     def _set_new_state(self) -> None:
-        self._state_fx = self._get_composited_fx_state()
-        self._state_curves = self._get_composited_curves_state()
-        # self._state_pre_curves = self._get_composited_pre_curves_state()
-        _ = hash(self._state_fx + self._state_curves)
-        self._state = _
+        self._states = self._associated_states()
+        self._state = hash(sum(v for v in self._states.values()))
 
     def _validate_state(self) -> None:
         if self._ITERATING:
             return None  # do not perform state validation during iterations
-        _objects_state = self._get_composited_state()
-        if self._state != _objects_state:
+        if self._state != self._get_composited_state():
             # then something has been mutated
-            if not isinstance(self.fx, NoInput) and self._state_fx != self.fx._state:
+            states_ = self._associated_states()
+
+            if not isinstance(self.fx, NoInput) and states_.pop("fx") != self._states["fx"]:
                 warnings.warn(
                     "The `fx` object associated with `solver` has been updated without "
                     "the `solver` performing additional iterations.\nCalculations can still be "
@@ -1163,45 +1161,33 @@ class Solver(Gradients, _WithState):
                     "or significant.",
                     UserWarning,
                 )
-            if self._state_curves != self._get_composited_curves_state():
-                raise ValueError(
-                    "The `curves` associated with `solver` have been updated without the "
-                    "`solver` performing additional iterations.\nCalculations are prevented in "
-                    "this state because they will likely be erroneous or a consequence of a bad "
-                    "design pattern."
-                )
-            # if self._state_pre_curves != self._get_composited_pre_curves_state():
-            #     raise ValueError(
-            #         "The `curves` associated with the `pre_solvers` have been updated without the "
-            #         "`solver` performing additional iterations.\nCalculations are prevented in "
-            #         "this state because they will likely be erroneous or a consequence of a "
-            #         "bad design pattern."
-            #     )
+
+            for k, v in states_.items():
+                if self._states[k] != v:
+                    raise ValueError(
+                        "The `curves` associated with `solver` have been updated without the "
+                        "`solver` performing additional iterations.\n"
+                        f"In particular the object with id: '{k}' is detected to have been mutated "
+                        f"outside of Solver's purview.\nCalculations are prevented in "
+                        "this state because they will likely be erroneous or a consequence of a bad "
+                        "design pattern."
+                    )
 
     @staticmethod
     def _validate_and_get_state(obj: Any) -> int:
         obj._validate_state()
         return obj._state
 
-    def _get_composited_fx_state(self) -> int:
-        if isinstance(self.fx, NoInput):
-            return 0
-        else:
-            return self._validate_and_get_state(self.fx)
-
-    def _get_composited_curves_state(self) -> int:
-        return hash(sum(self._validate_and_get_state(curve) for curve in self.pre_curves.values()))
-
-    # def _get_composited_pre_curves_state(self) -> int:
-    #     return hash(
-    #         sum(self._validate_and_get_state(curve) for solver in self.pre_solvers for curve in solver.curves.values())
-    #    )
+    def _associated_states(self) -> dict[str, int]:
+        states_: dict[str, int] = {
+            k: self._validate_and_get_state(v) for k,v in self.pre_curves.items()
+        }
+        if not isinstance(self.fx, NoInput):
+            states_["fx"] = self._validate_and_get_state(self.fx)
+        return states_
 
     def _get_composited_state(self) -> int:
-        fx_state = self._get_composited_fx_state()
-        curves_state = self._get_composited_curves_state()
-        # pre_curves_state = self._get_composited_pre_curves_state()
-        _: int = hash(fx_state + curves_state)
+        _: int = hash(sum(v for v in self._associated_states().values()))
         return _
 
     def _parse_instrument(
@@ -1307,7 +1293,6 @@ class Solver(Gradients, _WithState):
         self._grad_s_s_vT_pre = None  # final_iter: depends on pre versions of above
         # finite_diff: TODO update comment
 
-        self._set_new_state()
         # self._grad_v_v_f = None
         # self._Jkm = None  # keep manifold originally used for exploring J2 calc method
 
@@ -1562,6 +1547,7 @@ class Solver(Gradients, _WithState):
         self._ITERATING = False
         self._set_new_state()
 
+    @_new_state_post
     def _update_curves_with_parameters(self, v_new: NDArray[Nobject]) -> None:
         """Populate the variable curves with the new values"""
         var_counter = 0

@@ -2352,7 +2352,7 @@ class CompositeCurve(Curve):
 
         # validate
         self._validate_curve_collection()
-        self._clear_cache()
+        self._set_ad_order(self.curves[0].ad)  # also clears cache
         self._set_new_state()
 
     def _validate_curve_collection(self) -> None:
@@ -2625,6 +2625,24 @@ class CompositeCurve(Curve):
         return super().index_value(date, interpolation)
 
     # Solver interaction
+
+    @_clear_cache_post
+    def _set_ad_order(self, order: int) -> None:
+        """
+        Change the node values on each curve to float, Dual or Dual2 based on input parameter.
+        """
+        if order == getattr(self, "ad", None):
+            return None
+        elif order not in [0, 1, 2]:
+            raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
+
+        self.ad = order
+        for curve in self.curves:
+            if type(curve) is ProxyCurve:
+                continue
+                # raise TypeError("Cannot directly set the ad of ProxyCurve. Set the FXForwards.")
+                # TODO: decide if setting the AD of the associated FXForwards is viable
+            curve._set_ad_order(order)
 
     def _get_node_vector(self) -> Arr1dObj | Arr1dF64:
         raise NotImplementedError("Instances of CompositeCurve do not have solvable variables.")
@@ -3001,6 +3019,10 @@ class ProxyCurve(Curve):
         self.modifier = default_curve.modifier
         self.calendar = default_curve.calendar
         self.node_dates = [self.fx_forwards.immediate, self.terminal]
+
+    @property
+    def ad(self):
+        return self.fx_forwards._ad
 
     @property
     def _state(self) -> int:  # type: ignore[override]

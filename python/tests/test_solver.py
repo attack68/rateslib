@@ -2038,15 +2038,8 @@ def test_solver_with_surface() -> None:
 
 
 class TestStateManagement:
-    @pytest.mark.parametrize(
-        "attr",
-        [
-            "_get_composited_fx_state",
-            "_get_composited_curves_state",
-            "_get_composited_pre_curves_state",
-        ],
-    )
-    def test_solver_state_storage(self, attr):
+
+    def test_solver_state_storage(self):
         # test the solver stores hashes of its objects: FXForwards, Curves and presolvers
         uu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="uu")
         ee = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="ee")
@@ -2087,15 +2080,8 @@ class TestStateManagement:
             fx=fxf1,
             pre_solvers=[s1],
         )
-        hashes = {
-            "_get_composited_fx_state": s2.fx._state,
-            "_get_composited_curves_state": hash(sum(curve._state for curve in s2.curves.values())),
-            "_get_composited_pre_curves_state": hash(
-                sum(curve._state for solver in s2.pre_solvers for curve in solver.curves.values())
-            ),
-        }
-        result = getattr(s2, attr)()
-        assert result == hashes[attr]
+        hashes = {**{"fx": s2.fx._state}, **{k: curve._state for k, curve in s2.pre_curves.items()}}
+        assert s2._states == hashes
 
     @pytest.mark.parametrize(
         "method",
@@ -2204,7 +2190,7 @@ class TestStateManagement:
 
         uu._set_node_vector([0.995], 1)
         irs = IRS(dt(2022, 1, 1), "3y", "A", curves="uu")
-        with pytest.raises(ValueError, match="The `curves` associated with the `pre_solvers` have"):
+        with pytest.raises(ValueError, match="The `curves` associated with `solver` have been upd"):
             getattr(irs, method)(solver=s2)
 
     @pytest.mark.parametrize(
@@ -2266,10 +2252,10 @@ class TestStateManagement:
     @pytest.mark.parametrize(
         "method",
         [
-            # "delta",
+            "delta",
             "gamma",
-            # "npv",
-            # "rate",
+            "npv",
+            "rate",
         ],
     )
     def test_raise_on_composite_curve_mutation(self, method):
@@ -2430,3 +2416,26 @@ class TestStateManagement:
                 ]
             )
             pf.gamma(solver=solver, base="eur")
+
+    @pytest.mark.parametrize("obj", [
+        Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
+        LineCurve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
+        FXDeltaVolSmile(nodes={0.5:10.0}, expiry=dt(2000, 1, 1), eval_date=dt(1999, 1, 1), delta_type="forward"),
+        FXRates({"eurusd": 1.0}),
+        FXForwards(
+            FXRates({"eurusd": 1.0}, settlement=dt(2000, 1, 3)),
+            {"eurusd": Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
+             "eureur": Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
+             "usdusd": Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99})},
+        ),
+        CompositeCurve([
+            Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
+            Curve({dt(2000, 1, 1): 1.0, dt(2000, 3, 2): 0.99}),
+        ]),
+        FXDeltaVolSurface(delta_type="forward", delta_indexes=[0.5], expiries=[dt(2000, 1, 8), dt(2001, 1, 1)], eval_date=dt(1999, 1, 1), node_values=[[10], [11]])
+    ])
+    def test_set_ad_order_does_not_change_object_state(self, obj):
+        pre_state = obj._state
+        obj._set_ad_order(2)
+        post_state = obj._state
+        assert pre_state == post_state
