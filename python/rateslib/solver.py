@@ -1136,7 +1136,7 @@ class Solver(Gradients, _WithState):
             "iterations": 0,
             "time": None,
         }
-        self._ITERATING = False
+        self._do_not_validate = False
         self.iterate()
 
     def __repr__(self) -> str:
@@ -1146,8 +1146,18 @@ class Solver(Gradients, _WithState):
         self._states = self._associated_states()
         self._state = hash(sum(v for v in self._states.values()))
 
+    @property
+    def _do_not_validate(self) -> bool:
+        return self._do_not_validate_
+
+    @_do_not_validate.setter
+    def _do_not_validate(self, value: bool) -> None:
+        self._do_not_validate_: bool = value
+        for solver in self.pre_solvers:
+            solver._do_not_validate = value
+
     def _validate_state(self) -> None:
-        if self._ITERATING:
+        if self._do_not_validate:
             return None  # do not perform state validation during iterations
         if self._state != self._get_composited_state():
             # then something has been mutated
@@ -1155,7 +1165,8 @@ class Solver(Gradients, _WithState):
 
             if not isinstance(self.fx, NoInput) and states_.pop("fx") != self._states["fx"]:
                 warnings.warn(
-                    "The `fx` object associated with `solver` has been updated without "
+                    f"The `fx` object associated with `solver` having id '{self.id}' "
+                    "has been updated without "
                     "the `solver` performing additional iterations.\nCalculations can still be "
                     "performed but, dependent upon those updates, errors may be negligible "
                     "or significant.",
@@ -1167,9 +1178,10 @@ class Solver(Gradients, _WithState):
                     raise ValueError(
                         "The `curves` associated with `solver` have been updated without the "
                         "`solver` performing additional iterations.\n"
-                        f"In particular the object with id: '{k}' is detected to have been mutated "
-                        f"outside of Solver's purview.\nCalculations are prevented in "
-                        "this state because they will likely be erroneous or a consequence of a bad "
+                        f"In particular the object with id: '{k}' contained in solver with id: "
+                        f"'{self.id}' is detected to have been mutated.\n"
+                        "Calculations are prevented in this "
+                        "state because they will likely be erroneous or a consequence of a bad "
                         "design pattern."
                     )
 
@@ -1489,9 +1501,12 @@ class Solver(Gradients, _WithState):
             raise NotImplementedError(f"`algorithm`: {algorithm} (spelled correctly?)")
         return v_1
 
+    @_new_state_post
     def _update_fx(self) -> None:
         if not isinstance(self.fx, NoInput):
             self.fx.update()  # note: with no variables this does nothing.
+        for solver in self.pre_solvers:
+            solver._update_fx()
 
     def iterate(self) -> None:
         r"""
@@ -1514,7 +1529,7 @@ class Solver(Gradients, _WithState):
         """  # noqa: E501
 
         # Initialise data and clear and caches
-        self._ITERATING = True  # this will eliminate unnecessary state validations during iters
+        self._do_not_validate = True  # this will eliminate unnecessary state validations during iters
         self.g_list: list[float] = [1e10]
         self.lambd: float = self.ini_lambda[0]
         self._reset_properties_()
@@ -1544,7 +1559,7 @@ class Solver(Gradients, _WithState):
 
     def _solver_result(self, state: int, i: int, time: float) -> None:
         self._result = _solver_result(state, i, self.g.real, time, True, self.algorithm)
-        self._ITERATING = False
+        self._do_not_validate = False
         self._set_new_state()
 
     @_new_state_post
@@ -1647,6 +1662,7 @@ class Solver(Gradients, _WithState):
         association exists and a direct ``fx`` object is supplied a warning may be
         emitted if they are not the same object.
         """
+        self._do_not_validate = True # state is validated prior to the call
         base, fx = self._get_base_and_fx(base, fx)
         if isinstance(fx, FXRates | FXForwards):
             fx_vars: tuple[str, ...] = fx.variables
@@ -1699,6 +1715,7 @@ class Solver(Gradients, _WithState):
 
         sorted_cols = df.columns.sort_values()
         ret: DataFrame = df.loc[:, sorted_cols].astype("float64")
+        self._do_not_validate = False
         return ret
 
     def _get_base_and_fx(self, base: str_, fx: FX_) -> tuple[str_, FX_]:
@@ -1864,6 +1881,7 @@ class Solver(Gradients, _WithState):
            irs.delta(solver=solver)
            irs.gamma(solver=solver)
         """  # noqa: E501
+        self._do_not_validate = True # validation is performed prior to the call
         if self._ad != 2:
             raise ValueError("`Solver` must be in ad order 2 to use `gamma` method.")
 
@@ -1969,6 +1987,7 @@ class Solver(Gradients, _WithState):
             gdf.index = MultiIndex.from_tuples([("all", base) + _ for _ in gdf.index])
             df.loc[("all", base, slice(None), slice(None), slice(None))] = gdf
 
+        self._do_not_validate = False
         return df.astype("float64")
 
     def _pnl_explain(
@@ -2187,6 +2206,7 @@ class Solver(Gradients, _WithState):
         -------
         DataFrame
         """
+        self._do_not_validate = True # validation is done at the start of the call
         base, fx = self._get_base_and_fx(base, fx)
 
         if isinstance(vars_scalar, NoInput):
@@ -2230,6 +2250,7 @@ class Solver(Gradients, _WithState):
 
         sorted_cols = df.columns.sort_values()
         _: DataFrame = df.loc[:, sorted_cols].astype("float64")
+        self._do_not_validate = False
         return _
 
 
