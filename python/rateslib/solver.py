@@ -1136,6 +1136,7 @@ class Solver(Gradients, _WithState):
             "iterations": 0,
             "time": None,
         }
+        self._ITERATING = False
         self.iterate()
 
     def __repr__(self) -> str:
@@ -1149,6 +1150,8 @@ class Solver(Gradients, _WithState):
         self._state = _
 
     def _validate_state(self) -> None:
+        if self._ITERATING:
+            return None  # do not perform state validation during iterations
         _objects_state = self._get_composited_state()
         if self._state != _objects_state:
             # then something has been mutated
@@ -1526,6 +1529,7 @@ class Solver(Gradients, _WithState):
         """  # noqa: E501
 
         # Initialise data and clear and caches
+        self._ITERATING = True  # this will eliminate unnecessary state validations during iters
         self.g_list: list[float] = [1e10]
         self.lambd: float = self.ini_lambda[0]
         self._reset_properties_()
@@ -1555,6 +1559,7 @@ class Solver(Gradients, _WithState):
 
     def _solver_result(self, state: int, i: int, time: float) -> None:
         self._result = _solver_result(state, i, self.g.real, time, True, self.algorithm)
+        self._ITERATING = False
         self._set_new_state()
 
     def _update_curves_with_parameters(self, v_new: NDArray[Nobject]) -> None:
