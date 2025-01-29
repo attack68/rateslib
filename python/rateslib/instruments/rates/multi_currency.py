@@ -277,10 +277,10 @@ class NDF(Sensitivities):
 
     Parameters
     ----------
-    pair: str
-        The FX pair against which settlement takes place (2 x 3-digit code).
     settlement: datetime or str
         The date on which settlement will occur. String tenors are allowed, e.g. "3M".
+    pair: str
+        The FX pair against which settlement takes place (2 x 3-digit code).
     notional: float, Variable, optional
         The notional amount expressed in units of currency 1 of ``pair``.
     fx_rate: float, Variable, optional
@@ -312,8 +312,8 @@ class NDF(Sensitivities):
 
     def __init__(
         self,
-        pair: str,
         settlement: datetime | str,
+        pair: str,
         notional: DualTypes_ = NoInput(0),
         fx_rate: DualTypes_ = NoInput(0),
         fx_fixing: DualTypes_ = NoInput(0),

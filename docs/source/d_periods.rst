@@ -23,7 +23,7 @@ generated under various calculation methodologies. It is probably quite rare tha
 The following *Periods* are provided, click on the links for a full description
 of each *Period* type:
 
-.. inheritance-diagram:: rateslib.periods.FixedPeriod rateslib.periods.FloatPeriod rateslib.periods.IndexFixedPeriod rateslib.periods.Cashflow rateslib.periods.IndexCashflow
+.. inheritance-diagram:: rateslib.periods.FixedPeriod rateslib.periods.FloatPeriod rateslib.periods.IndexFixedPeriod rateslib.periods.Cashflow rateslib.periods.IndexCashflow rateslib.periods.NonDeliverableCashflow
    :private-bases:
    :parts: 1
 
@@ -96,7 +96,7 @@ Every volatility *Period* type is endowed with the following methods:
    rateslib.periods.FXOptionPeriod.rate
    rateslib.periods.FXOptionPeriod.implied_vol
 
-Credit Period
+Credit Periods
 **************
 
 *Credit* periods provide the calculations for default protection and premium calculations

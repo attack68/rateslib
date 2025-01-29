@@ -23,4 +23,3 @@ structures.
    rateslib.instruments.FXSwap
    rateslib.instruments.FXExchange
    rateslib.instruments.NDF
-   rateslib.fx.forward_fx

@@ -24,6 +24,12 @@ summarised below,
    rateslib.fx.FXForwards.convert
    rateslib.fx.FXForwards.convert_positions
    rateslib.fx.FXForwards.positions
+   rateslib.fx.FXForwards.update
+
+There is also an ad-hoc method to derive FX forward rates from a given set of curves.
+
+.. autosummary::
+   rateslib.fx.forward_fx
 
 Introduction
 ------------
@@ -127,15 +133,17 @@ discount curve.
 
    fxf.rate("eurusd", dt(2022, 9, 15))
 
-We can repeat the above manual calculation with the necessary adjustments.
-
-.. ipython:: python
-
-   fxf.fx_curves["eurusd"].rate(dt(2022, 1, 3), dt(2022, 9, 15))
+Where the manual calculation to derive this value is as follows:
 
 .. math::
 
    f_{EURUSD, i} = \frac{1 + d_i r_{USDUSD, i}}{1 + d^*_i r^*_{EURUSD, i}} f_{EURUSD, i-1} = \frac{1 + 0.708 \times 0.03558}{1+0.708 \times 0.01297} \times 1.05 = 1.06666
+
+And the rate which went into the above manual calculation is confirmed by:
+
+.. ipython:: python
+
+   fxf.fx_curves["eurusd"].rate(dt(2022, 1, 3), dt(2022, 9, 15))
 
 Visualization
 --------------
