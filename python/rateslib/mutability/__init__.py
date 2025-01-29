@@ -82,8 +82,12 @@ class _WithState:
 
     def _validate_state(self) -> None:
         """Used by 'mutable by association' objects to evaluate if their own record of
-        associated objects states matches the current state of those objects."""
-        raise NotImplementedError("Must be implemented for 'mutable by association' types")
+        associated objects states matches the current state of those objects.
+
+        Mutable by update objects have no concept of state validation, they simply maintain
+        a *state* id.
+        """
+        return None
 
     def _get_composited_state(self) -> int:
         """Used by 'mutable by association' objects to record the state of their associated

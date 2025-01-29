@@ -1175,18 +1175,23 @@ class Solver(Gradients, _WithState):
                     "bad design pattern."
                 )
 
+    @staticmethod
+    def _validate_and_get_state(obj: Any) -> int:
+        obj._validate_state()
+        return obj._state
+
     def _get_composited_fx_state(self) -> int:
         if isinstance(self.fx, NoInput):
             return 0
         else:
-            return self.fx._state
+            return self._validate_and_get_state(self.fx)
 
     def _get_composited_curves_state(self) -> int:
-        return hash(sum(curve._state for curve in self.curves.values()))
+        return hash(sum(self._validate_and_get_state(curve) for curve in self.curves.values()))
 
     def _get_composited_pre_curves_state(self) -> int:
         return hash(
-            sum(curve._state for solver in self.pre_solvers for curve in solver.curves.values())
+            sum(self._validate_and_get_state(curve) for solver in self.pre_solvers for curve in solver.curves.values())
         )
 
     def _get_composited_state(self) -> int:

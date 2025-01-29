@@ -2106,20 +2106,18 @@ class TestStateManagement:
             "rate",
         ],
     )
-    def test_warning_on_fx_mutation(self, method):
+    @pytest.mark.parametrize(("obj", "args"), [
+        ("fxr", ({"eurusd": 1.0},)),
+        ("fxf", ([{"eurusd" : 1.10}],))
+    ])
+    def test_warning_on_fx_mutation(self, method, obj, args):
         # test the solver stores hashes of its objects: FXForwards, Curves and presolvers
         uu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="uu")
         ee = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="ee")
         eu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="eu")
 
-        fxf1 = FXForwards(
-            fx_rates=FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
-            fx_curves={
-                "usdusd": uu,
-                "eureur": ee,
-                "eurusd": eu,
-            },
-        )
+        fxr = FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1))
+        fxf = FXForwards(fx_rates=fxr, fx_curves={"usdusd": uu, "eureur": ee, "eurusd": eu})
 
         s1 = Solver(
             curves=[uu, ee],
@@ -2144,11 +2142,11 @@ class TestStateManagement:
             ],
             s=[10.0],
             id="x1",
-            fx=fxf1,
+            fx=fxf,
             pre_solvers=[s1],
         )
 
-        fxf1.update([{"eurusd": 1.10}])
+        vars()[obj].update(*args)
         irs = IRS(dt(2022, 1, 1), "3y", "A", curves="uu")
         with pytest.warns(UserWarning, match="The `fx` object associated with `solver`"):
             getattr(irs, method)(solver=s2)
@@ -2403,19 +2401,3 @@ class TestStateManagement:
                 ]
             )
             pf.gamma(solver=solver, base="eur")
-
-    def test_fxrates_update_is_autochecked_by_solver(self):
-        curve = Curve({dt(2025, 1, 1): 1.0, dt(2026, 1, 1): 1.0})
-        fxr = FXRates({"eurusd": 1.10}, settlement=dt(2025, 1, 5))
-        fxf = FXForwards(fx_rates=fxr,
-                         fx_curves={"eureur": curve, "usdusd": curve, "eurusd": curve})
-        solver1 = Solver(curves=[curve],
-                         instruments=[IRS(dt(2025, 1, 1), "1m", spec="usd_irs", curves=curve)],
-                         s=[1.0], fx=fxf)
-
-        # user updates the FXrates
-        fxr.update({"eurusd": 1.20})
-
-        # Try to price with solver1...
-        res = IRS(dt(2025, 1, 1), "2m", spec="usd_irs", curves=curve).rate(solver=solver1)
-
