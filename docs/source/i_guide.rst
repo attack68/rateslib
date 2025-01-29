@@ -629,43 +629,6 @@ interpolation so the overnight forward rates are constant between node dates.
    fig, ax, line = usd_curve.plot("1b", labels=["SOFR o/n"])
    plt.show()
 
-
-Pricing Mechanisms
-===================
-
-Since *rateslib* is an object oriented library with object associations we give
-detailed instructions of the way in which the associations can be constructed in
-:ref:`mechanisms<mechanisms-doc>`.
-
-.. toctree::
-    :hidden:
-    :maxdepth: 0
-    :titlesonly:
-
-    g_mechanisms.rst
-
-The **key takeway** is that when you initialise and create an *Instrument* you can do one
-of three things:
-
-1) Not provide any *Curves* (or *Vol* surface) for pricing upfront (``curves=NoInput(0)``).
-2) Create an explicit association to pre-existing Python objects, e.g. ``curves=my_curve``.
-3) Define some reference to a *Curves* mapping with strings using ``curves="my_curve_id"``.
-
-
-If you do *1)* then you must provide *Curves* at price
-time: ``instrument.npv(curves=my_curve)``.
-
-If you do *2)* then you do not need to provide anything further at price time:
-``instrument.npv()``. But you still can provide *Curves* directly, like for *1)*, as an override.
-
-If you do *3)* then you can provide a :class:`~rateslib.solver.Solver` which contains the *Curves* and will
-resolve the string mapping: ``instrument.npv(solver=my_solver)``. But you can also provide *Curves*
-directly, like for *1)*, as an override.
-
-**Best practice** in *rateslib* is to use *3)*. This is the safest and most flexible approach and
-designed to work best with risk sensitivity calculations also.
-
-
 Risk Sensitivities
 ===================
 
@@ -720,6 +683,56 @@ into any one category. See the :ref:`Cookbook index <cookbook-doc>`.
     :titlesonly:
 
     g_cookbook.rst
+
+Advanced Concepts
+==================
+
+These sections describe and exemplify some of the architectural choices in *rateslib*.
+
+.. toctree::
+    :hidden:
+    :maxdepth: 0
+    :titlesonly:
+
+    g_advancedconcepts.rst
+
+Pricing Mechanisms
+------------------
+
+Since *rateslib* is an object oriented library with object associations we give
+detailed instructions of the way in which the associations can be constructed in
+:ref:`mechanisms<mechanisms-doc>`.
+
+The **key takeway** is that when you initialise and create an *Instrument* you can do one
+of three things:
+
+1) Not provide any *Curves* (or *Vol* surface) for pricing upfront (``curves=NoInput(0)``).
+2) Create an explicit association to pre-existing Python objects, e.g. ``curves=my_curve``.
+3) Define some reference to a *Curves* mapping with strings using ``curves="my_curve_id"``.
+
+If you do *1)* then you must provide *Curves* at price
+time: ``instrument.npv(curves=my_curve)``.
+
+If you do *2)* then you do not need to provide anything further at price time:
+``instrument.npv()``. But you still can provide *Curves* directly, like for *1)*, as an override.
+
+If you do *3)* then you can provide a :class:`~rateslib.solver.Solver` which contains the *Curves* and will
+resolve the string mapping: ``instrument.npv(solver=my_solver)``. But you can also provide *Curves*
+directly, like for *1)*, as an override.
+
+**Best practice** in *rateslib* is to use *3)*. This is the safest and most flexible approach and
+designed to work best with risk sensitivity calculations also.
+
+Mutability
+----------
+
+A proper outline of the mutability of objects is given in :ref:`mutability<mutability-doc>`.
+
+In summary, **best practice** is to create new instances and avoid directly overwriting or adding
+to class attributes. *Don't mutate a created object unless using an official method to do so,
+e.g. :meth:`FXRates.update <rateslib.fx.FXRates.update>` or
+:meth:`Curve.update <rateslib.curves.Curve.update>`*
+
 
 .. toctree::
     :hidden:

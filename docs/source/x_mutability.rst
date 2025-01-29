@@ -5,7 +5,7 @@ Mutability
 ******************
 
 General guidance in *rateslib* is to create objects and not attempt to mutate them directly,
-by directly overwriting their attributes or updating the
+by directly overwriting or creating class attributes.
 
 Certain objects are defined as *mutable by updates* and have dedicated methods
 to allow the types of mutations typical.
