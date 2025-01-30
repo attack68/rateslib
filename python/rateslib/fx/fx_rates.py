@@ -48,8 +48,8 @@ class FXRates(_WithState):
 
     Parameters
     ----------
-    fx_rates : dict
-        Dict whose keys are 6-character domestic-foreign currency pairs, and whose
+    fx_rates : dict[str, float]
+        Dict whose keys are 6-character currency pairs, and whose
         values are the relevant rates.
     settlement : datetime, optional
         The settlement date for the FX rates.
