@@ -11,6 +11,23 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
+def _no_interior_validation(func: Callable[P, R]) -> Callable[P, R]:
+    """
+    Used with a Solver to provide a context to set a flag to prevent repetitive validation,
+    for example during iteration. After conclusion of the function re-activate validation.
+    """
+
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        self = args[0]
+        self._do_not_validate = True
+        result = func(*args, **kwargs)
+        self._do_not_validate = False
+        return result
+
+    return wrapper
+
+
+
 def _validate_states(func: Callable[P, R]) -> Callable[P, R]:
     """
     Add a decorator to a class instance method to first validate the object state before performing

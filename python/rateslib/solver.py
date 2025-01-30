@@ -23,7 +23,7 @@ from rateslib.fx import FXForwards, FXRates
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 from rateslib.fx_volatility import FXVols
-from rateslib.mutability import _new_state_post, _validate_states, _WithState
+from rateslib.mutability import _new_state_post, _validate_states, _WithState, _no_interior_validation
 
 P = ParamSpec("P")
 
@@ -1136,7 +1136,6 @@ class Solver(Gradients, _WithState):
             "iterations": 0,
             "time": None,
         }
-        self._do_not_validate = False
         self.iterate()
 
     def __repr__(self) -> str:
@@ -1162,16 +1161,7 @@ class Solver(Gradients, _WithState):
         if self._state != self._get_composited_state():
             # then something has been mutated
             states_ = self._associated_states()
-
-            if not isinstance(self.fx, NoInput) and states_.pop("fx") != self._states["fx"]:
-                warnings.warn(
-                    f"The `fx` object associated with `solver` having id '{self.id}' "
-                    "has been updated without "
-                    "the `solver` performing additional iterations.\nCalculations can still be "
-                    "performed but, dependent upon those updates, errors may be negligible "
-                    "or significant.",
-                    UserWarning,
-                )
+            fx_state_ = states_.pop("fx")
 
             for k, v in states_.items():
                 if self._states[k] != v:
@@ -1185,6 +1175,16 @@ class Solver(Gradients, _WithState):
                         "design pattern."
                     )
 
+            if not isinstance(self.fx, NoInput) and fx_state_ != self._states["fx"]:
+                warnings.warn(
+                    f"The `fx` object associated with `solver` having id '{self.id}' "
+                    "has been updated without "
+                    "the `solver` performing additional iterations.\nCalculations can still be "
+                    "performed but, dependent upon those updates, errors may be negligible "
+                    "or significant.",
+                    UserWarning,
+                )
+
     @staticmethod
     def _validate_and_get_state(obj: Any) -> int:
         obj._validate_state()
@@ -1196,6 +1196,8 @@ class Solver(Gradients, _WithState):
         }
         if not isinstance(self.fx, NoInput):
             states_["fx"] = self._validate_and_get_state(self.fx)
+        else:
+            states_["fx"] = 0
         return states_
 
     def _get_composited_state(self) -> int:
@@ -1508,6 +1510,7 @@ class Solver(Gradients, _WithState):
         for solver in self.pre_solvers:
             solver._update_fx()
 
+    @_no_interior_validation
     def iterate(self) -> None:
         r"""
         Solve the DF node values and update all the ``curves``.
@@ -1529,9 +1532,6 @@ class Solver(Gradients, _WithState):
         """  # noqa: E501
 
         # Initialise data and clear and caches
-        self._do_not_validate = (
-            True  # this will eliminate unnecessary state validations during iters
-        )
         self.g_list: list[float] = [1e10]
         self.lambd: float = self.ini_lambda[0]
         self._reset_properties_()
@@ -1561,7 +1561,6 @@ class Solver(Gradients, _WithState):
 
     def _solver_result(self, state: int, i: int, time: float) -> None:
         self._result = _solver_result(state, i, self.g.real, time, True, self.algorithm)
-        self._do_not_validate = False
         self._set_new_state()
 
     @_new_state_post
@@ -1594,6 +1593,7 @@ class Solver(Gradients, _WithState):
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     @_validate_states
+    @_no_interior_validation
     def delta(
         self, npv: dict[str, Dual], base: str_ = NoInput(0), fx: FX_ = NoInput(0)
     ) -> DataFrame:
@@ -1752,6 +1752,7 @@ class Solver(Gradients, _WithState):
         return base, fx
 
     @_validate_states
+    @_no_interior_validation
     def gamma(
         self, npv: dict[str, Dual2], base: str_ = NoInput(0), fx: FX_ = NoInput(0)
     ) -> DataFrame:
@@ -1883,7 +1884,6 @@ class Solver(Gradients, _WithState):
            irs.delta(solver=solver)
            irs.gamma(solver=solver)
         """  # noqa: E501
-        self._do_not_validate = True  # validation is performed prior to the call
         if self._ad != 2:
             raise ValueError("`Solver` must be in ad order 2 to use `gamma` method.")
 
@@ -1989,7 +1989,6 @@ class Solver(Gradients, _WithState):
             gdf.index = MultiIndex.from_tuples([("all", base) + _ for _ in gdf.index])
             df.loc[("all", base, slice(None), slice(None), slice(None))] = gdf
 
-        self._do_not_validate = False
         return df.astype("float64")
 
     def _pnl_explain(
@@ -2032,6 +2031,7 @@ class Solver(Gradients, _WithState):
         raise NotImplementedError()
 
     @_validate_states
+    @_no_interior_validation
     def market_movements(self, solver: Solver) -> DataFrame:
         """
         Determine market movements between the *Solver's* instrument rates and those rates priced
@@ -2070,6 +2070,7 @@ class Solver(Gradients, _WithState):
         )
 
     @_validate_states
+    @_no_interior_validation
     def jacobian(self, solver: Solver) -> DataFrame:
         """
         Calculate the Jacobian with respect to another *Solver's* instruments.
@@ -2167,6 +2168,7 @@ class Solver(Gradients, _WithState):
         )
 
     @_validate_states
+    @_no_interior_validation
     def exo_delta(
         self,
         npv: dict[str, Dual | Dual2],
@@ -2208,7 +2210,6 @@ class Solver(Gradients, _WithState):
         -------
         DataFrame
         """
-        self._do_not_validate = True  # validation is done at the start of the call
         base, fx = self._get_base_and_fx(base, fx)
 
         if isinstance(vars_scalar, NoInput):
@@ -2252,7 +2253,6 @@ class Solver(Gradients, _WithState):
 
         sorted_cols = df.columns.sort_values()
         _: DataFrame = df.loc[:, sorted_cols].astype("float64")
-        self._do_not_validate = False
         return _
 
 
