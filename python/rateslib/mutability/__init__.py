@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from collections import OrderedDict
 from collections.abc import Callable
+from functools import wraps
 from typing import TYPE_CHECKING, Generic, ParamSpec, TypeVar
 
 from rateslib import defaults
@@ -20,6 +21,7 @@ def _no_interior_validation(func: Callable[P, R]) -> Callable[P, R]:
     for example during iteration. After conclusion of the function re-activate validation.
     """
 
+    @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         self: Solver = args[0]  # type: ignore[assignment]
         self._do_not_validate = True
@@ -37,6 +39,7 @@ def _validate_states(func: Callable[P, R]) -> Callable[P, R]:
     is responsible for resetting the cache and updating any `state_id`s.
     """
 
+    @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         self = args[0]
         self._validate_state()  # type: ignore[attr-defined]
@@ -51,6 +54,7 @@ def _clear_cache_post(func: Callable[P, R]) -> Callable[P, R]:
     post performing the function.
     """
 
+    @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         self = args[0]
         result = func(*args, **kwargs)
@@ -66,6 +70,7 @@ def _new_state_post(func: Callable[P, R]) -> Callable[P, R]:
     post performing the function.
     """
 
+    @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         self = args[0]
         result = func(*args, **kwargs)

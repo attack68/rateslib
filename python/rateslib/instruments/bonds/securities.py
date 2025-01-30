@@ -71,6 +71,8 @@ if TYPE_CHECKING:
 
 
 class BondMixin:
+    """Inheritable class to provide basic functionality."""
+
     leg1: FixedLeg | FloatLeg | IndexFixedLeg
     kwargs: dict[str, Any]
     calc_mode: BondCalcMode

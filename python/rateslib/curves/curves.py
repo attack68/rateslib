@@ -1440,6 +1440,15 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         For arguments see :class:`~rateslib.curves.curves.Curve`. Any value not given will not
         change the underlying *Curve*.
 
+        Parameters
+        ----------
+        nodes: dict[datetime, DualTypes], optional
+            New nodes to assign to the curve.
+        interpolation: str or Callable, optional
+            Interpolation method to use.
+        endpoints: str or tuple[str, str], optional
+            Endpoint constraints to apply to spline interpolation.
+
         Returns
         -------
         None
@@ -2659,6 +2668,32 @@ class CompositeCurve(Curve):
         return hash(sum(curve._state for curve in self.curves))
 
     # Serialization
+
+    # Overloads
+
+    def update(self, *args: Any, **kwargs: Any) -> None:
+        """Not implemented on CompositeCurve types."""
+        raise NotImplementedError("CompositeCurve types do not provide update methods.")
+
+    def update_node(self, *args: Any, **kwargs: Any) -> None:
+        """Not implemented on CompositeCurve types."""
+        raise NotImplementedError("CompositeCurve types do not provide update methods.")
+
+    def to_json(self, *args: Any, **kwargs: Any) -> None:  # type: ignore[override]
+        """Not implemented on CompositeCurve types."""
+        raise NotImplementedError("CompositeCurve types do not provide serialization methods.")
+
+    def from_json(self, *args: Any, **kwargs: Any) -> None:  # type: ignore[override]
+        """Not implemented on CompositeCurve types."""
+        raise NotImplementedError("CompositeCurve types do not provide update methods.")
+
+    def csolve(self, *args: Any, **kwargs: Any) -> None:
+        """Not implemented on CompositeCurve types."""
+        raise NotImplementedError("CompositeCurve types does not set interpolation directly.")
+
+    def copy(self, *args: Any, **kwargs: Any) -> None:  # type: ignore[override]
+        """Not implemented on CompositeCurve types."""
+        raise NotImplementedError("CompositeCurve types do not currently have copy function.")
 
 
 class MultiCsaCurve(CompositeCurve):

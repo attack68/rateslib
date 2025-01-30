@@ -48,9 +48,6 @@ Defaults
    :skip: NamedCal
    :skip: Series
    :skip: UnionCal
-   :skip: Callable
-   :skip: ParamSpec
-   :skip: TypeVar
 
 Calendars
 ==========
