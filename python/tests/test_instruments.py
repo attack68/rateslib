@@ -1949,13 +1949,13 @@ class TestNDF:
             pair="brlusd",
             settlement=dt(2022, 1, 1),
         )
-        assert ndf.periods[0].reference_currency == "brl"
+        assert ndf.periods[0].currency == "brl"
         assert ndf.periods[0].settlement_currency == "usd"
         assert ndf.periods[0].reversed is False
 
     def test_construction_reversed(self) -> None:
         ndf = NDF(pair="usdbrl", settlement=dt(2022, 1, 1), currency="usd")
-        assert ndf.periods[0].reference_currency == "brl"
+        assert ndf.periods[0].currency == "brl"
         assert ndf.periods[0].settlement_currency == "usd"
         assert ndf.periods[0].reversed is True
 

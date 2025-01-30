@@ -209,7 +209,7 @@ class NonDeliverableCashflow:
     notional : float, Dual, Dual2
         The notional amount of the cashflow expressed in units of the ``reference_currency``,
         unless ``reversed`` in which case in units of ``settlement_currency``.
-    reference_currency : str
+    currency : str
         The non-deliverable reference currency (3-digit code).
     settlement_currency : str
         The currency of the deliverable currency (3-digit code), e.g. "usd" or "eur".
@@ -278,7 +278,7 @@ class NonDeliverableCashflow:
     def __init__(
         self,
         notional: DualTypes,
-        reference_currency: str,
+        currency: str,
         settlement_currency: str,
         settlement: datetime,
         fixing_date: datetime,
@@ -289,12 +289,12 @@ class NonDeliverableCashflow:
         self.notional = notional
         self.settlement = settlement
         self.settlement_currency = settlement_currency.lower()
-        self.reference_currency = reference_currency.lower()
+        self.currency = currency.lower()
         self.reversed = reversed
         if reversed:
-            self.pair = f"{self.settlement_currency}{self.reference_currency}"
+            self.pair = f"{self.settlement_currency}{self.currency}"
         else:
-            self.pair = f"{self.reference_currency}{self.settlement_currency}"
+            self.pair = f"{self.currency}{self.settlement_currency}"
         self.fixing_date = fixing_date
         self.fx_rate = fx_rate
         self.fx_fixing = fx_fixing

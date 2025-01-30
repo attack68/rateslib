@@ -365,7 +365,7 @@ class NDF(Sensitivities):
         self.periods = [
             NonDeliverableCashflow(
                 notional=self.kwargs["notional"],
-                reference_currency=self.kwargs["pair"][0:3]
+                currency=self.kwargs["pair"][0:3]
                 if self.kwargs["pair"][0:3] != self.kwargs["currency"]
                 else self.kwargs["pair"][3:],
                 settlement_currency=self.kwargs["currency"],

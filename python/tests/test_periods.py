@@ -2892,7 +2892,7 @@ class TestNonDeliverableCashflow:
     def test_npv(self, fxf_ndf):
         ndf = NonDeliverableCashflow(
             notional=1e6,
-            reference_currency="brl",
+            currency="brl",
             settlement_currency="usd",
             settlement=dt(2025, 6, 1),
             fixing_date=dt(2025, 5, 29),
@@ -2905,7 +2905,7 @@ class TestNonDeliverableCashflow:
     def test_npv_reversed(self, fxf_ndf):
         ndf = NonDeliverableCashflow(
             notional=1e6 * 0.18,
-            reference_currency="brl",
+            currency="brl",
             settlement_currency="usd",
             settlement=dt(2025, 6, 1),
             fixing_date=dt(2025, 5, 29),
@@ -2919,7 +2919,7 @@ class TestNonDeliverableCashflow:
     def test_npv_fixing(self, fxf_ndf):
         ndf = NonDeliverableCashflow(
             notional=1e6,
-            reference_currency="brl",
+            currency="brl",
             settlement_currency="usd",
             settlement=dt(2025, 6, 1),
             fixing_date=dt(2025, 5, 29),
@@ -2933,7 +2933,7 @@ class TestNonDeliverableCashflow:
     def test_rate_as_fixing(self, fxf_ndf):
         ndf = NonDeliverableCashflow(
             notional=1e6,
-            reference_currency="brl",
+            currency="brl",
             settlement_currency="usd",
             settlement=dt(2025, 6, 1),
             fixing_date=dt(2025, 5, 29),
@@ -2947,7 +2947,7 @@ class TestNonDeliverableCashflow:
     def test_rate(self, fxf_ndf):
         ndf = NonDeliverableCashflow(
             notional=1e6,
-            reference_currency="brl",
+            currency="brl",
             settlement_currency="usd",
             settlement=dt(2025, 6, 1),
             fixing_date=dt(2025, 5, 29),
@@ -2960,7 +2960,7 @@ class TestNonDeliverableCashflow:
     def test_cashflows_priced(self, fxf_ndf):
         ndf = NonDeliverableCashflow(
             notional=1e6,
-            reference_currency="brl",
+            currency="brl",
             settlement_currency="usd",
             settlement=dt(2025, 6, 1),
             fixing_date=dt(2025, 5, 29),
@@ -2988,7 +2988,7 @@ class TestNonDeliverableCashflow:
     def test_cashflows_no_args(self):
         ndf = NonDeliverableCashflow(
             notional=1e6,
-            reference_currency="brl",
+            currency="brl",
             settlement_currency="usd",
             settlement=dt(2025, 6, 1),
             fixing_date=dt(2025, 5, 29),
@@ -3015,7 +3015,7 @@ class TestNonDeliverableCashflow:
     def test_analytic_delta(self):
         ndf = NonDeliverableCashflow(
             notional=1e6,
-            reference_currency="brl",
+            currency="brl",
             settlement_currency="usd",
             settlement=dt(2025, 6, 1),
             fixing_date=dt(2025, 5, 29),
@@ -3027,7 +3027,7 @@ class TestNonDeliverableCashflow:
     def test_cashflow_raises(self, fxf_ndf):
         ndf = NonDeliverableCashflow(
             notional=1e6,
-            reference_currency="brl",
+            currency="brl",
             settlement_currency="usd",
             settlement=dt(2025, 6, 1),
             fixing_date=dt(2025, 5, 29),
