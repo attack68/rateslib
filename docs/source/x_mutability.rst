@@ -147,7 +147,7 @@ perhaps directly mutates a *Curve*) but does not reiterate the *Solver*.
    fxr.update({"eurusd": 1.20})
 
    # Try to price with solver1...
-   try:
+   import warnings
+   with warnings.catch_warnings(record=True) as w:
        IRS(dt(2025, 1, 1), "2m", spec="usd_irs", curves=curve).rate(solver=solver1)
-   except ValueError as e:
-       print(e)
+       print(w[-1].message)

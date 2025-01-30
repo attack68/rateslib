@@ -729,9 +729,9 @@ Mutability
 A proper outline of the mutability of objects is given in :ref:`mutability<mutability-doc>`.
 
 In summary, **best practice** is to create new instances and avoid directly overwriting or adding
-to class attributes. *Don't mutate a created object unless using an official method to do so,
-e.g. :meth:`FXRates.update <rateslib.fx.FXRates.update>` or
-:meth:`Curve.update <rateslib.curves.Curve.update>`*
+to class attributes. *Don't mutate a created object unless using an official method to do so*,
+e.g. :meth:`FXRates.update<rateslib.fx.FXRates.update>` or
+:meth:`Curve.update<rateslib.curves.Curve.update>`
 
 
 .. toctree::
