@@ -23,7 +23,12 @@ from rateslib.fx import FXForwards, FXRates
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 from rateslib.fx_volatility import FXVols
-from rateslib.mutability import _validate_states, _WithState
+from rateslib.mutability import (
+    _new_state_post,
+    _no_interior_validation,
+    _validate_states,
+    _WithState,
+)
 
 P = ParamSpec("P")
 
@@ -1142,58 +1147,66 @@ class Solver(Gradients, _WithState):
         return f"<rl.Solver:{self.id} at {hex(id(self))}>"
 
     def _set_new_state(self) -> None:
-        self._state_fx = self._get_composited_fx_state()
-        self._state_curves = self._get_composited_curves_state()
-        self._state_pre_curves = self._get_composited_pre_curves_state()
-        _ = hash(self._state_fx + self._state_curves + self._state_pre_curves)
-        self._state = _
+        self._states = self._associated_states()
+        self._state = hash(sum(v for v in self._states.values()))
+
+    @property
+    def _do_not_validate(self) -> bool:
+        return self._do_not_validate_
+
+    @_do_not_validate.setter
+    def _do_not_validate(self, value: bool) -> None:
+        self._do_not_validate_: bool = value
+        for solver in self.pre_solvers:
+            solver._do_not_validate = value
 
     def _validate_state(self) -> None:
-        _objects_state = self._get_composited_state()
-        if self._state != _objects_state:
+        if self._do_not_validate:
+            return None  # do not perform state validation during iterations
+        if self._state != self._get_composited_state():
             # then something has been mutated
-            if not isinstance(self.fx, NoInput) and self._state_fx != self.fx._state:
+            states_ = self._associated_states()
+            fx_state_ = states_.pop("fx")
+
+            for k, v in states_.items():
+                if self._states[k] != v:
+                    raise ValueError(
+                        "The `curves` associated with `solver` have been updated without the "
+                        "`solver` performing additional iterations.\n"
+                        f"In particular the object with id: '{k}' contained in solver with id: "
+                        f"'{self.id}' is detected to have been mutated.\n"
+                        "Calculations are prevented in this "
+                        "state because they will likely be erroneous or a consequence of a bad "
+                        "design pattern."
+                    )
+
+            if not isinstance(self.fx, NoInput) and fx_state_ != self._states["fx"]:
                 warnings.warn(
-                    "The `fx` object associated with `solver` has been updated without "
+                    f"The `fx` object associated with `solver` having id '{self.id}' "
+                    "has been updated without "
                     "the `solver` performing additional iterations.\nCalculations can still be "
                     "performed but, dependent upon those updates, errors may be negligible "
                     "or significant.",
                     UserWarning,
                 )
-            if self._state_curves != self._get_composited_curves_state():
-                raise ValueError(
-                    "The `curves` associated with `solver` have been updated without the "
-                    "`solver` performing additional iterations.\nCalculations are prevented in "
-                    "this state because they will likely be erroneous or a consequence of a bad "
-                    "design pattern."
-                )
-            if self._state_pre_curves != self._get_composited_pre_curves_state():
-                raise ValueError(
-                    "The `curves` associated with the `pre_solvers` have been updated without the "
-                    "`solver` performing additional iterations.\nCalculations are prevented in "
-                    "this state because they will likely be erroneous or a consequence of a "
-                    "bad design pattern."
-                )
 
-    def _get_composited_fx_state(self) -> int:
-        if isinstance(self.fx, NoInput):
-            return 0
+    @staticmethod
+    def _validate_and_get_state(obj: Any) -> int:
+        obj._validate_state()
+        return obj._state  # type: ignore[no-any-return]
+
+    def _associated_states(self) -> dict[str, int]:
+        states_: dict[str, int] = {
+            k: self._validate_and_get_state(v) for k, v in self.pre_curves.items()
+        }
+        if not isinstance(self.fx, NoInput):
+            states_["fx"] = self._validate_and_get_state(self.fx)
         else:
-            return self.fx._state
-
-    def _get_composited_curves_state(self) -> int:
-        return hash(sum(curve._state for curve in self.curves.values()))
-
-    def _get_composited_pre_curves_state(self) -> int:
-        return hash(
-            sum(curve._state for solver in self.pre_solvers for curve in solver.curves.values())
-        )
+            states_["fx"] = 0
+        return states_
 
     def _get_composited_state(self) -> int:
-        fx_state = self._get_composited_fx_state()
-        curves_state = self._get_composited_curves_state()
-        pre_curves_state = self._get_composited_pre_curves_state()
-        _: int = hash(fx_state + curves_state + pre_curves_state)
+        _: int = hash(sum(v for v in self._associated_states().values()))
         return _
 
     def _parse_instrument(
@@ -1299,7 +1312,6 @@ class Solver(Gradients, _WithState):
         self._grad_s_s_vT_pre = None  # final_iter: depends on pre versions of above
         # finite_diff: TODO update comment
 
-        self._set_new_state()
         # self._grad_v_v_f = None
         # self._Jkm = None  # keep manifold originally used for exploring J2 calc method
 
@@ -1496,10 +1508,14 @@ class Solver(Gradients, _WithState):
             raise NotImplementedError(f"`algorithm`: {algorithm} (spelled correctly?)")
         return v_1
 
+    @_new_state_post
     def _update_fx(self) -> None:
         if not isinstance(self.fx, NoInput):
             self.fx.update()  # note: with no variables this does nothing.
+        for solver in self.pre_solvers:
+            solver._update_fx()
 
+    @_no_interior_validation
     def iterate(self) -> None:
         r"""
         Solve the DF node values and update all the ``curves``.
@@ -1552,6 +1568,7 @@ class Solver(Gradients, _WithState):
         self._result = _solver_result(state, i, self.g.real, time, True, self.algorithm)
         self._set_new_state()
 
+    @_new_state_post
     def _update_curves_with_parameters(self, v_new: NDArray[Nobject]) -> None:
         """Populate the variable curves with the new values"""
         var_counter = 0
@@ -1581,6 +1598,7 @@ class Solver(Gradients, _WithState):
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     @_validate_states
+    @_no_interior_validation
     def delta(
         self, npv: dict[str, Dual], base: str_ = NoInput(0), fx: FX_ = NoInput(0)
     ) -> DataFrame:
@@ -1651,6 +1669,7 @@ class Solver(Gradients, _WithState):
         association exists and a direct ``fx`` object is supplied a warning may be
         emitted if they are not the same object.
         """
+        self._do_not_validate = True  # state is validated prior to the call
         base, fx = self._get_base_and_fx(base, fx)
         if isinstance(fx, FXRates | FXForwards):
             fx_vars: tuple[str, ...] = fx.variables
@@ -1703,6 +1722,7 @@ class Solver(Gradients, _WithState):
 
         sorted_cols = df.columns.sort_values()
         ret: DataFrame = df.loc[:, sorted_cols].astype("float64")
+        self._do_not_validate = False
         return ret
 
     def _get_base_and_fx(self, base: str_, fx: FX_) -> tuple[str_, FX_]:
@@ -1737,6 +1757,7 @@ class Solver(Gradients, _WithState):
         return base, fx
 
     @_validate_states
+    @_no_interior_validation
     def gamma(
         self, npv: dict[str, Dual2], base: str_ = NoInput(0), fx: FX_ = NoInput(0)
     ) -> DataFrame:
@@ -2015,6 +2036,7 @@ class Solver(Gradients, _WithState):
         raise NotImplementedError()
 
     @_validate_states
+    @_no_interior_validation
     def market_movements(self, solver: Solver) -> DataFrame:
         """
         Determine market movements between the *Solver's* instrument rates and those rates priced
@@ -2053,6 +2075,7 @@ class Solver(Gradients, _WithState):
         )
 
     @_validate_states
+    @_no_interior_validation
     def jacobian(self, solver: Solver) -> DataFrame:
         """
         Calculate the Jacobian with respect to another *Solver's* instruments.
@@ -2150,6 +2173,7 @@ class Solver(Gradients, _WithState):
         )
 
     @_validate_states
+    @_no_interior_validation
     def exo_delta(
         self,
         npv: dict[str, Dual | Dual2],
