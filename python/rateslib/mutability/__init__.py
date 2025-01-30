@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from collections import OrderedDict
 from collections.abc import Callable
-from typing import Generic, ParamSpec, TypeVar, TYPE_CHECKING
+from typing import TYPE_CHECKING, Generic, ParamSpec, TypeVar
 
 from rateslib import defaults
 
