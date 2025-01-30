@@ -398,6 +398,24 @@ class NDF(Sensitivities):
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
     ) -> DualTypes:
+        """Return the mid-market pricing parameter of the *NDF*.
+
+        Parameters
+        ----------
+        curves: str or Curve
+            Not used by *NDF.rate*.
+        solver: Solver, optional
+            The numerical :class:`~rateslib.solver.Solver` which may contain a mapping of
+            ``curves``, ``fx`` and/or ``base``.
+        fx: FXForwards, optional
+            An FXForwards market for forecasting.
+        base: str, optional
+            Not used by *NDF.rate*.
+
+        Returns
+        -------
+        float, Dual, Dual2
+        """
         curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,
@@ -416,9 +434,9 @@ class NDF(Sensitivities):
         base: str_ = NoInput(0),
     ) -> DataFrame:
         """
-        Return the cashflows of the *FXExchange* by aggregating legs.
+        Return the cashflows of the *NDF*.
 
-        For arguments see :meth:`BaseMixin.npv<rateslib.instruments.BaseMixin.cashflows>`
+        For arguments see :meth:`BaseMixin.cashflows<rateslib.instruments.BaseMixin.cashflows>`
         """
         self._set_pricing_mid(curves, solver, fx)
         curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
@@ -444,6 +462,28 @@ class NDF(Sensitivities):
         base: str_ = NoInput(0),
         local: bool = False,
     ) -> NPV:
+        """Return the NPV of the *NDF*.
+
+        Parameters
+        ----------
+        curves: str or Curve
+            The discount curve used for the settlement currency.
+        solver: Solver, optional
+            The numerical :class:`~rateslib.solver.Solver` which may contain a mapping of
+            ``curves``, ``fx`` and/or ``base``.
+        fx: FXForwards, optional
+            An FXForwards market for forecasting.
+        base: str, optional
+            The base currency to convert cashflows into (3-digit code).
+            Only used if ``fx`` is an FXRates or FXForwards object. If not given defaults to
+            ``fx.base``.
+        local: bool, optional
+            If True will return a dict identifying NPV by settlement currency.
+
+        Returns
+        -------
+        float, Dual, Dual2 or dict of such.
+        """
         self._set_pricing_mid(curves, solver, fx)
         curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -472,6 +512,15 @@ class NDF(Sensitivities):
         return super().gamma(*args, **kwargs)
 
     def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
+        """
+        Return the analytic delta of the *NDF*.
+
+        Defined as zero.
+
+        Returns
+        -------
+        float
+        """
         return 0.0
 
 
