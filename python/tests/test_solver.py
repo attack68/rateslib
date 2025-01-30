@@ -2542,3 +2542,19 @@ class TestStateManagement:
         obj._set_ad_order(2)
         post_state = obj._state
         assert pre_state == post_state
+
+    def test_solver_validation_control(self):
+        curve = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0})
+        solver = Solver(
+            curves=[curve],
+            instruments=[IRS(dt(2000, 1, 1), "1m", spec="usd_irs", curves=curve)],
+            s=[2.0],
+        )
+        curve.update_node(dt(2001, 1, 1), 0.99)
+        irs = IRS(dt(2000, 1, 1), "2m", spec="usd_irs", curves=curve)
+        with pytest.raises(ValueError, match="The `curves` associated with `solver` have"):
+            irs.rate(solver=solver)
+
+        solver._do_not_validate = True
+        result = irs.rate(solver=solver)
+        assert abs(result - 0.989345) < 1e-5
