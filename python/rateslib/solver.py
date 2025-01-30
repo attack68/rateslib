@@ -23,7 +23,12 @@ from rateslib.fx import FXForwards, FXRates
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 from rateslib.fx_volatility import FXVols
-from rateslib.mutability import _new_state_post, _validate_states, _WithState, _no_interior_validation
+from rateslib.mutability import (
+    _new_state_post,
+    _no_interior_validation,
+    _validate_states,
+    _WithState,
+)
 
 P = ParamSpec("P")
 
@@ -1188,7 +1193,7 @@ class Solver(Gradients, _WithState):
     @staticmethod
     def _validate_and_get_state(obj: Any) -> int:
         obj._validate_state()
-        return obj._state   # type: ignore[no-any-return]
+        return obj._state  # type: ignore[no-any-return]
 
     def _associated_states(self) -> dict[str, int]:
         states_: dict[str, int] = {

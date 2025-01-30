@@ -3,9 +3,12 @@ from __future__ import annotations
 import os
 from collections import OrderedDict
 from collections.abc import Callable
-from typing import Generic, ParamSpec, TypeVar
+from typing import Generic, ParamSpec, TypeVar, TYPE_CHECKING
 
 from rateslib import defaults
+
+if TYPE_CHECKING:
+    from rateslib.typing import Solver
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -18,14 +21,13 @@ def _no_interior_validation(func: Callable[P, R]) -> Callable[P, R]:
     """
 
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-        self = args[0]
+        self: Solver = args[0]  # type: ignore[assignment]
         self._do_not_validate = True
         result = func(*args, **kwargs)
         self._do_not_validate = False
         return result
 
     return wrapper
-
 
 
 def _validate_states(func: Callable[P, R]) -> Callable[P, R]:
