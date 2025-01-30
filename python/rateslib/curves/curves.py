@@ -2679,11 +2679,11 @@ class CompositeCurve(Curve):
         """Not implemented on CompositeCurve types."""
         raise NotImplementedError("CompositeCurve types do not provide update methods.")
 
-    def to_json(self, *args: Any, **kwargs: Any) -> None:
+    def to_json(self, *args: Any, **kwargs: Any) -> None:  # type: ignore[override]
         """Not implemented on CompositeCurve types."""
         raise NotImplementedError("CompositeCurve types do not provide serialization methods.")
 
-    def from_json(self, *args: Any, **kwargs: Any) -> None:
+    def from_json(self, *args: Any, **kwargs: Any) -> None:  # type: ignore[override]
         """Not implemented on CompositeCurve types."""
         raise NotImplementedError("CompositeCurve types do not provide update methods.")
 
@@ -2691,9 +2691,10 @@ class CompositeCurve(Curve):
         """Not implemented on CompositeCurve types."""
         raise NotImplementedError("CompositeCurve types does not set interpolation directly.")
 
-    def copy(self, *args: Any, **kwargs: Any) -> None:
+    def copy(self, *args: Any, **kwargs: Any) -> None:  # type: ignore[override]
         """Not implemented on CompositeCurve types."""
         raise NotImplementedError("CompositeCurve types do not currently have copy function.")
+
 
 class MultiCsaCurve(CompositeCurve):
     """

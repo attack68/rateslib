@@ -20,6 +20,7 @@ def _no_interior_validation(func: Callable[P, R]) -> Callable[P, R]:
     Used with a Solver to provide a context to set a flag to prevent repetitive validation,
     for example during iteration. After conclusion of the function re-activate validation.
     """
+
     @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         self: Solver = args[0]  # type: ignore[assignment]
@@ -37,6 +38,7 @@ def _validate_states(func: Callable[P, R]) -> Callable[P, R]:
     additional operations. If a change is detected the implemented `validate_state` function
     is responsible for resetting the cache and updating any `state_id`s.
     """
+
     @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         self = args[0]
@@ -51,6 +53,7 @@ def _clear_cache_post(func: Callable[P, R]) -> Callable[P, R]:
     Add a decorator to a class instance method to clear the cache and set a new state
     post performing the function.
     """
+
     @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         self = args[0]
@@ -66,6 +69,7 @@ def _new_state_post(func: Callable[P, R]) -> Callable[P, R]:
     Add a decorator to a class instance method to clear the cache and set a new state
     post performing the function.
     """
+
     @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         self = args[0]
