@@ -474,11 +474,11 @@ class NDF(Sensitivities):
         fx: FXForwards, optional
             An FXForwards market for forecasting.
         base: str, optional
-             The base currency to convert cashflows into (3-digit code).
-             Only used if ``fx`` is an FXRates or FXForwards object. If not given defaults to
-             ``fx.base``.
+            The base currency to convert cashflows into (3-digit code).
+            Only used if ``fx`` is an FXRates or FXForwards object. If not given defaults to
+            ``fx.base``.
         local: bool, optional
-             If True will return a dict identifying NPV by settlement currency.
+            If True will return a dict identifying NPV by settlement currency.
 
         Returns
         -------
