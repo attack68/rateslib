@@ -3,12 +3,31 @@ from __future__ import annotations
 import os
 from collections import OrderedDict
 from collections.abc import Callable
-from typing import Generic, ParamSpec, TypeVar
+from typing import TYPE_CHECKING, Generic, ParamSpec, TypeVar
 
 from rateslib import defaults
 
+if TYPE_CHECKING:
+    from rateslib.typing import Solver
+
 P = ParamSpec("P")
 R = TypeVar("R")
+
+
+def _no_interior_validation(func: Callable[P, R]) -> Callable[P, R]:
+    """
+    Used with a Solver to provide a context to set a flag to prevent repetitive validation,
+    for example during iteration. After conclusion of the function re-activate validation.
+    """
+
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        self: Solver = args[0]  # type: ignore[assignment]
+        self._do_not_validate = True
+        result = func(*args, **kwargs)
+        self._do_not_validate = False
+        return result
+
+    return wrapper
 
 
 def _validate_states(func: Callable[P, R]) -> Callable[P, R]:
@@ -82,8 +101,12 @@ class _WithState:
 
     def _validate_state(self) -> None:
         """Used by 'mutable by association' objects to evaluate if their own record of
-        associated objects states matches the current state of those objects."""
-        raise NotImplementedError("Must be implemented for 'mutable by association' types")
+        associated objects states matches the current state of those objects.
+
+        Mutable by update objects have no concept of state validation, they simply maintain
+        a *state* id.
+        """
+        return None
 
     def _get_composited_state(self) -> int:
         """Used by 'mutable by association' objects to record the state of their associated

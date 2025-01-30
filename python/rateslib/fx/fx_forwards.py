@@ -1056,7 +1056,6 @@ class FXForwards(_WithState):
         else:
             self.fx_rates._set_ad_order(order)
         self.fx_rates_immediate._set_ad_order(order)
-        self._set_new_state()
 
     @_validate_states
     def to_json(self) -> str:
