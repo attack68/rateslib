@@ -181,7 +181,7 @@ class FXForwards(_WithState):
         self._validate_fx_curves(fx_curves)
         self.fx_rates: FXRates | list[FXRates] = fx_rates
         self._calculate_immediate_rates(base, init=True)
-        assert self.currencies_list == self.fx_rates_immediate.currencies_list
+        assert self.currencies_list == self.fx_rates_immediate.currencies_list  # noqa: S101
         self._set_new_state()
 
     def _get_composited_state(self) -> int:

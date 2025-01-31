@@ -711,7 +711,7 @@ class TestFXForwardsBase:
         ccys = ["usd", "eur", "cad"]
         shuffle(ccys)
         pairs = [f"{ccys[0]}{ccys[1]}", f"{ccys[idx]}{ccys[2]}"]
-        fxr = FXRates({k: v for k, v in zip(pairs, [5.0, 15.0])}, base=base, settlement=dt(2022, 1, 3))
+        fxr = FXRates(dict(zip(pairs, [5.0, 15.0])), base=base, settlement=dt(2022, 1, 3))
 
         shuffle(ccys)
         curv_pairs = [f"{ccys[0]}{ccys[1]}", f"{ccys[idx]}{ccys[2]}"]
@@ -719,7 +719,7 @@ class TestFXForwardsBase:
             "eureur": eureur,
             "cadcad": cadcad,
             "usdusd": usdusd,
-            **{k: v for k, v in zip(curv_pairs, [cadcol, usdeur])},
+            **dict(zip(curv_pairs, [cadcol, usdeur])),
         }
         fxf1 = FXForwards(fxr, fxc, base="usd")
         fxf2 = FXForwards(fxr, fxc, base="eur")
@@ -735,7 +735,6 @@ class TestFXForwardsBase:
         assert r1 == r2
         assert r1 == r3
         assert r1 == r4
-
 
     @pytest.mark.parametrize("base1", [NoInput(0), "usd", "cad"])
     @pytest.mark.parametrize("base2", [NoInput(0), "eur", "usd"])
