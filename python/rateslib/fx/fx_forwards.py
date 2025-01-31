@@ -327,7 +327,7 @@ class FXForwards(_WithState):
                 pair = f"{cash_ccy}{coll_ccy}"
                 fx_rates_immediate.update({pair: self.fx_rates.fx_array[row, col] * v_i / w_i})
 
-        fx_rates_immediate_ = FXRates(fx_rates_immediate, self.immediate, self.base)
+        fx_rates_immediate_ = FXRates(fx_rates_immediate, self.immediate, self.currencies_list[0])
         return fx_rates_immediate_.restate(self.fx_rates.pairs, keep_ad=True)
 
     def __repr__(self) -> str:

@@ -684,7 +684,7 @@ def test_fx_forwards_base_does_not_impact_rates(usdusd, eureur):
     fxf1 = FXForwards(fxr, {"eureur": eureur, "eurusd": eureur, "usdusd": usdusd}, base="usd")
     fxf2 = FXForwards(fxr, {"eureur": eureur, "eurusd": eureur, "usdusd": usdusd}, base="eur")
     res1 = fxf1.rate("eurusd", dt(2022, 3, 1))
-    res2 = fxf2.rate("eurusd", dt(2022, 3, 1))
+    res2 = fxf2.rate("eurusd", dt(2022, 3, 1))  # problem
     assert res1 == res2
 
 
