@@ -12,7 +12,7 @@ and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
 email contact, see `rateslib <https://rateslib.com>`_.
 
-1.7.0 (No Release Date)
+1.7.0 (31st January 2025)
 ****************************
 
 The key theme for 1.7.0 was to add Python type hinting to the entire codebase, and adding
