@@ -679,6 +679,15 @@ def test_forwards_codependent_curve_raise(usdusd) -> None:
         )
 
 
+def test_fx_forwards_base_does_not_impact_rates(usdusd, eureur):
+    fxr = FXRates({"eurusd": 200.0}, settlement=dt(2022, 1, 3))
+    fxf1 = FXForwards(fxr, {"eureur": eureur, "eurusd": eureur, "usdusd": usdusd}, base="usd")
+    fxf2 = FXForwards(fxr, {"eureur": eureur, "eurusd": eureur, "usdusd": usdusd}, base="eur")
+    res1 = fxf1.rate("eurusd", dt(2022, 3, 1))
+    res2 = fxf2.rate("eurusd", dt(2022, 3, 1))
+    assert res1 == res2
+
+
 def test_multiple_settlement_forwards() -> None:
     fxr1 = FXRates({"usdeur": 0.95}, dt(2022, 1, 3))
     fxr2 = FXRates({"usdcad": 1.1}, dt(2022, 1, 2))
