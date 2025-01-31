@@ -86,6 +86,11 @@ objects now have specific methods to allow *updates*.
        is provided as an, potentially unused, argument.
        (`653 <https://github.com/attack68/rateslib/pull/653>`_)
    * - Bug
+     - :class:`~rateslib.fx.FXForwards` corrects a bug which possibly mis-ordered some
+       currencies if a ``base`` argument was given at initialisation, yielding mis-stated FX rates
+       for some pair combinations.
+       (`669 <https://github.com/attack68/rateslib/pull/669>`_)
+   * - Bug
      - :meth:`~rateslib.periods.FloatPeriod.rate` now correctly calculates when ``fixings``
        are provided in any of the acceptable formats and contains all data to do so, in the
        absense of a forecast ``curve``, instead of returning *None* for some cases.
