@@ -56,6 +56,7 @@ software provided as below.
              <span style="text-align: center; font-style:italic;">
              contact: info<span class="spamoff">Lively magic</span>@rateslib.com
              </span>
+           <span><a href="https://buy.stripe.com/3cs6qU9yz9wd8YEcMM">Buy a licence extension</a></span>
           </td>
         </tr>
       </tbody>
@@ -82,38 +83,34 @@ with Python.
 
    <div class="clear" style="text-align: center; padding: 1em 0em 1em;"></div>
 
-.. container:: twocol
-
-   .. container:: leftside50
-
-      .. image:: _static/rateslib_excel_logo_label.png
-         :align: center
-         :alt: Excel bindings for rateslib
-         :width: 203
-         :target: https://rateslib.com/excel/latest/
-
-      .. raw:: html
-
-         <div style="text-align: center; width: 60%; margin-left:auto; margin-right:auto; padding-top:1em;">
-         <a href="https://rateslib.com/excel/latest/">Rateslib-excel</a> provides Excel bindings to use
-         all of <span style="font-style: italic;">rateslib's</span> functionality in Excel.
-         </div>
-
-
-   .. container:: rightside50
-
-      .. image:: _static/rateslib_rs_logo_label.png
-         :align: center
-         :alt: Rust codebase for rateslib
-         :width: 203
-         :target: https://rateslib.com/rs/latest/rateslib
-
-      .. raw:: html
-
-         <div style="text-align: center; width: 60%; margin-left:auto; margin-right:auto; padding-top:1em;">
-         <a href="https://rateslib.com/rs/latest/rateslib/">Rateslib-rs</a> is the backend codebase
-         for parts of <span style="font-style: italic;">rateslib</span> written in Rust using PyO3.
-         </div>
+   <div class="flex-container-line">
+     <div class="flex-item">
+       <a href="https://rateslib.com/excel/latest/"><img src="_static/rateslib_excel_logo_small.png" alt="Rateslib-Excel" width="170" height="37"></a>
+     </div>
+     <div class="flex-item-right">
+       <a href="https://rateslib.com/excel/latest/">rateslib-excel</a> provides Excel bindings for the Python library, to users
+       with a <a href="https://rateslib.readthedocs.io/en/latest/i_licence.html" target="_blank">commercial licence extension</a>.
+     </div>
+   </div>
+   <div class="flex-container-line">
+     <div class="flex-item">
+       <a href="https://rateslib.com/script/demo/"><img src="_static/rateslib_js_logo_small.png" alt="Rateslib-JS" width="170" height="37"></a>
+     </div>
+     <div class="flex-item-right">
+       <a href="https://rateslib.com/script/demo/">rateslib-js</a> allows integration with JavaScript/TypeScript via PyOdide, which is
+        a Python interpreter for web browsers. The demo page gives a browser build where the code is shown in source,
+        and integrates with Vue.js. Also see <a href="https://www.linkedin.com/pulse/rateslib-javascript-via-pyodide-rateslib-qpmpf/">this LinkedIn article example</a>.
+     </div>
+   </div>
+   <div class="flex-container-line">
+     <div class="flex-item">
+        <a href="https://rateslib.com/rs/latest/rateslib/"><img src="_static/rateslib_rs_logo_small.png" alt="Rateslib-Rust" width="170" height="37"></a>
+     </div>
+     <div class="flex-item-right">
+       <a href="https://rateslib.com/rs/latest/rateslib/">rateslib-rs</a> is the lower level codebase written in Rust, with PyO3 bindings,
+        providing performant solutions for some of the Python classes and methods.
+     </div>
+   </div>
 
 .. raw:: html
 
