@@ -2,6 +2,9 @@ Attribution-NonCommercial-NoDerivatives 4.0 International
 
 =======================================================================
 
+This an an amended Creative Commons Attribution-NonCommercial-NoDerivatives
+4.0 International licence.
+
 Creative Commons Corporation ("Creative Commons") is not a law firm and
 does not provide legal services or legal advice. Distribution of
 Creative Commons public licenses does not create a lawyer-client or
@@ -54,11 +57,11 @@ exhaustive, and do not form part of our licenses.
 
 =======================================================================
 
-Creative Commons Attribution-NonCommercial-NoDerivatives 4.0
+Amended Creative Commons Attribution-NonCommercial-NoDerivatives 4.0
 International Public License
 
 By exercising the Licensed Rights (defined below), You accept and agree
-to be bound by the terms and conditions of this Creative Commons
+to be bound by the terms and conditions of this Amended Creative Commons
 Attribution-NonCommercial-NoDerivatives 4.0 International Public
 License ("Public License"). To the extent this Public License may be
 interpreted as a contract, You are granted the Licensed Rights in
@@ -102,6 +105,9 @@ Section 1 -- Definitions.
      or other material to which the Licensor applied this Public
      License.
 
+     All of Rateslib's codebases, documentation, and other training
+     materials falls under Licensed Material.
+
   f. Licensed Rights means the rights granted to You subject to the
      terms and conditions of this Public License, which are limited to
      all Copyright and Similar Rights that apply to Your use of the
@@ -110,15 +116,38 @@ Section 1 -- Definitions.
   g. Licensor means the individual(s) or entity(ies) granting rights
      under this Public License.
 
-  h. NonCommercial means not primarily intended for or directed towards
-     commercial advantage or monetary compensation. For purposes of
-     this Public License, the exchange of the Licensed Material for
-     other material subject to Copyright and Similar Rights by digital
-     file-sharing or similar means is NonCommercial provided there is
-     no payment of monetary compensation in connection with the
-     exchange.
+     The Licensor for Rateslib is Siffrorna Technology Limited.
 
-  i. Share means to provide material to the public by any means or
+  h. NonCommercial means not primarily intended for or directed towards
+     commercial advantage or monetary compensation. NonCommercial cannot
+     also be any of the activities defined as Commercial.
+
+  i. Commercial means use intended for or directed towards commercial
+     advantage or monetary compensation.
+
+     In the context of Rateslib the definition of Commercial includes:
+
+     - Code execution on any physical operating system or virtual
+       environment owned by a commercial entity.
+     - Installation on any operating system owned by a commercial entity via
+       methods such as; direct code transfer from source, installation via PyPI,
+       installation via Conda.
+     - Installation in a virtual environment from a machine
+       owned by a commercial entity, such as in a WebBrowser via PyOdide or
+       in a BQuant environment via a Bloomberg Terminal.
+     - Including Rateslib code directly, or as a software dependency, in the
+       creation of another software product, used either internally by that
+       creating commercial entity or for transmission or resale to
+       associates or customers of the creating commercial entity.
+
+  j. First-hand Commercial Use means any Commercial activity used only
+     internally and exclusively by You.
+
+  k. Second-hand Commercial Use means packaging, distributing and
+     re-selling any of the functions defined as Commercial to any
+     third-party.
+
+  l. Share means to provide material to the public by any means or
      process that requires permission under the Licensed Rights, such
      as reproduction, public display, public performance, distribution,
      dissemination, communication, or importation, and to make material
@@ -126,14 +155,32 @@ Section 1 -- Definitions.
      public may access the material from a place and at a time
      individually chosen by them.
 
-  j. Sui Generis Database Rights means rights other than copyright
+  m. Sui Generis Database Rights means rights other than copyright
      resulting from Directive 96/9/EC of the European Parliament and of
      the Council of 11 March 1996 on the legal protection of databases,
      as amended and/or succeeded, as well as other essentially
      equivalent rights anywhere in the world.
 
-  k. You means the individual or entity exercising the Licensed Rights
+  n. You means the individual or entity exercising the Licensed Rights
      under this Public License. Your has a corresponding meaning.
+
+  o. User is a person or a device that executes Rateslib source code.
+     A single user constitutes:
+
+     - A person that installs Rateslib on any of their operating systems
+       or virtual machines and executes its source code non-synchronously.
+     - A person that connects to a server (local or cloud based) and
+       executes Rateslib source code remotely accessing the results from
+       the request.
+     - A server that installs Rateslib and executes its source code for
+       any reason, e.g. to perform scheduled daily tasks, generate results,
+       or respond to queries from incoming API requests.
+     - A person that regularly uses and consumes streaming results
+       generated from Rateslib source code on a remote server.
+
+     For the avoidance of doubt a recipient of an isolated report which
+     has been produced in whole, or in part, by Rateslib is not a User. However,
+     the producer of that report is a User.
 
 
 Section 2 -- Scope.
@@ -379,6 +426,30 @@ Section 8 -- Interpretation.
      as a limitation upon, or waiver of, any privileges and immunities
      that apply to the Licensor or You, including from the legal
      processes of any jurisdiction or authority.
+
+Section 9 -- Commercial Licence Extension
+
+  a. The Licensor may grant explicitly, or for a royalty fee,
+     a specific amendment to this licence which permits
+     Section 2.a) 1.b) for Commercial purposes as well as
+     NonCommercial.
+
+  b. For the avoidance of doubt Section 2.a) 1.a) is not
+     amended under a Commercial Licence Extension. This provides
+     the distinction between First-Hand Commercial Use and
+     Second-Hand Commercial Use, the former being permitted
+     under a Commercial Licence Extension, whilst the latter
+     remains prohibited.
+
+  c. Commercial Licence Extensions may be granted to an entire
+     commercial entity or per User. In the case a Commercial
+     Licence Extension is granted per User the definition of
+     User is as given in Section 1.
+
+  d. Commercial Licence Extensions are granted with their own
+     terms of contract which often involve a negotiated fee
+     and a date of expiration at which point the licence reverts
+     back to the NonCommercial version.
 
 =======================================================================
 

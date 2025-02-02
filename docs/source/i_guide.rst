@@ -475,6 +475,28 @@ around target mid-market rates, and generate market risks.
          xcs.cashflows(curves=[eur_curve, eurusd_curve, usd_curve, usd_curve], fx=fxf)
          xcs.cashflows_table(curves=[eur_curve, eurusd_curve, usd_curve, usd_curve], fx=fxf)
 
+   .. tab:: NDF
+
+      Non-deliverable forwards (:class:`~rateslib.instruments.NDF`) can be constructed.
+
+      .. ipython:: python
+         :suppress:
+
+         from rateslib.instruments import NDF
+
+      .. ipython:: python
+
+         ndf = NDF(
+             settlement=dt(2022, 8, 15),
+             pair="eurusd",
+             notional=10e6,  # 10mm EUR
+             calendar="tgt|fed",
+             fx_rate=1.1
+         )
+         ndf.rate(fx=fxf)
+         ndf.cashflows(curves=usd_curve, fx=fxf)
+         ndf.cashflows_table(curves=usd_curve, fx=fxf)
+
 .. raw:: html
 
    <div style="width: 100%; padding: 0em 0em 1em; text-align: center;">

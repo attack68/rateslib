@@ -31,7 +31,7 @@ Utilities
 
 The :class:`~rateslib.instruments.Value` and :class:`~rateslib.instruments.VolValue` class
 serve as null *Instruments*, whose purpose is to directly parametrize a :ref:`Curve<curves-doc>`,
-:ref:`FXDeltaVolSmile<c-fx-smile-doc>` or :class:`~rateslib.fx_volatility.FXDeltaVolSurface via a
+:ref:`FXDeltaVolSmile<c-fx-smile-doc>` or :class:`~rateslib.fx_volatility.FXDeltaVolSurface` via a
 :class:`~rateslib.solver.Solver`, without complicated *Instrument* construction.
 
 .. inheritance-diagram:: rateslib.instruments.Value rateslib.instruments.VolValue

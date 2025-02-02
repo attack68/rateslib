@@ -161,6 +161,7 @@ strict = true
 [tool.coverage.run]
 omit = [
     "/typing.py",
+    # "python/tests/*"
 ]
 
 [tool.isort]
