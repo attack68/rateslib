@@ -58,8 +58,7 @@ No-Derivatives 4.0 International Licence**.
 
 
 Attribution-NonCommercial-NoDerivatives 4.0 International (as Amended)
-
-=======================================================================
+======================================================================
 
 Amended Creative Commons Attribution-NonCommercial-NoDerivatives 4.0
 International Public License
