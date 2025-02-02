@@ -30,41 +30,19 @@
 
 *Rateslib* is a state-of-the-art **fixed income library** designed for Python.
 Its purpose is to provide advanced, flexible and efficient fixed income analysis
-with a high level, well documented API. *Rateslib* is not freely licensed, it is copyrightable
-software provided as below.
+with a high level, well documented API.
+
+Licence
+=======
+
+*Rateslib* is released under an **Amended Creative Commons Attribution, Non-Commercial,
+No-Derivatives 4.0 International Licence**. For more details see :ref:`here<licence-doc>`.
 
 .. raw:: html
 
-   <div class="clear" style="text-align: center; padding: 1em 0em 1em;"></div>
-
-.. raw:: html
-
-   <table style="width:100%; text-align:center; border-collapse: separate; font-size:0.8em; border: 1px solid #d0d7de; border-radius: 5pt;">
-      <thead style="background-color: #ebf0f4;">
-        <tr>
-          <th style="color:#459db9; border-bottom: 1px solid #d0d7de;">Academic or Home Educational Use</th>
-          <th style="color:#459db9; border-bottom: 1px solid #d0d7de;">Commercial Use by Anyone in: Banks, Funds, Accountants, Treasuries</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td style="color:green; font-size: 1.25em; font-weight:bold;">FREE to use and modify.<br></td>
-          <td style="">
-          <span style="color: red; font-size:1.25em;">Not Licenced - Cannot be installed on a corporate machine without permission.</span><br>
-             <span style="text-align: center; font-style:italic;">
-             Can purchase a licence extension. $300 per year / per user.</span><br>
-             <span style="text-align: center; font-style:italic;">
-             contact: info<span class="spamoff">Lively magic</span>@rateslib.com
-             </span>
-           <span><a href="https://buy.stripe.com/3cs6qU9yz9wd8YEcMM">Buy a licence extension</a></span>
-          </td>
-        </tr>
-      </tbody>
-   </table>
-
-.. The techniques and object interaction within *rateslib* were inspired by
-   the requirements of multi-disciplined fixed income teams working, both cooperatively
-   and independently, within global investment banks.
+   <span style="font-size:1.5em;font-weight:bold;">Academic and at-home educational use:</span> <span style="color:green; font-size: 1.5em; font-weight:bold;">FREE to use and modify.</span><br>
+   <span style="font-size:1.5em;font-weight:bold;">Commercial use:</span> <span style="color:red; font-size: 1.15em;">Not licensed for any use (funds, banks, etc,).</span>
+   <a class="purchase-btn" href="i_purchase.html">Purchase User Licences</a>
 
 .. raw:: html
 
@@ -217,12 +195,6 @@ own forward mode module.
 
 The test coverage is very high.
 
-Licence
-=======
-
-This library is released under a **Creative Commons Attribution, Non-Commercial,
-No-Derivatives 4.0 International Licence**. See :ref:`here<licence-doc>` for more details.
-
 
 Get Started
 ===========
@@ -241,3 +213,4 @@ Move on to the next page to :ref:`Get Started<pricing-doc>`
     i_api.rst
     i_whatsnew.rst
     i_developers.rst
+    i_purchase.rst

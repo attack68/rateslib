@@ -4,57 +4,46 @@
 Licence
 *******
 
-
-This library is released under a **Creative Commons Attribution, Non-Commercial,
+*Rateslib* is released under an **Amended Creative Commons Attribution, Non-Commercial,
 No-Derivatives 4.0 International Licence**.
 
 .. raw:: html
 
-   <table style="width:100%; text-align:center; border-collapse: separate; font-size:0.8em; border: 1px solid #d0d7de; border-radius: 5pt;">
-      <thead style="background-color: #ebf0f4;">
-        <tr>
-          <th style="color:#459db9; border-bottom: 1px solid #d0d7de;">Academic or Home Educational Use</th>
-          <th style="color:#459db9; border-bottom: 1px solid #d0d7de;">Commercial Use by Anyone in: Banks, Funds, Accountants, Treasuries</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td style="color:green; font-size: 1.25em; font-weight:bold;">FREE to use and modify.<br></td>
-          <td style="">
-          <span style="color: red; font-size:1.25em;">Not Licenced.</span><br>
-             <span style="text-align: center; font-style:italic;">
-             Can purchase a licence extension. $300 per year / per user.</span><br>
-             <span style="text-align: center; font-style:italic;">
-             contact: info<span class="spamoff">monkey wrench</span>@rateslib.com.
-             </span>
-          </td>
-        </tr>
-      </tbody>
-   </table>
+   <span style="font-size:1.5em;font-weight:bold;">Academic and home educational use:</span> <span style="color:green; font-size: 1.5em; font-weight:bold;">FREE to use and modify.</span>
 
 .. note::
 
    This means that you **can**;
 
-   - Download and use the code privately in a non-profit function, such as a learning environment.
+   - Install and use the code privately, and **not** on a corporate machine, in a non-profit function,
+     such as a learning environment, or a university.
    - Modify the code for **private, non-commercial use** only.
    - Share or redistribute the code, but only in its **entirety without modification**, and **with attribution**,
-     and such that **end use is non-commercial** and in a non-profit function.
+     and such that **end use is non-commercial** and in a non-profit function, and distributed
+     with a copy of this licence.
+
+.. raw:: html
+
+   <span style="font-size:1.5em;font-weight:bold;">Commercial Use:</span> <span style="color:red; font-size: 1.5em; font-weight:bold;">Not licensed.</span>
+   <a class="purchase-btn" href="i_purchase.html">Purchase User Licences</a>
+
+This use is defined as any use inside a corporate entity, such as a bank, fund, treasury,
+accountant, consultant, corporate, etc. To use *rateslib* for commercial use requires purchasing
+a :ref:`licence extension <licence-extension>` on basis that is :ref:`per user <licence-user>`.
+
 
 .. warning::
 
    This means that you **cannot** (without a licence extension);
 
-   - Use the library or code for any form of commercial or profit based activity. You cannot use it
-     inside a bank, fund company, brokerage firm, or any form of investment firm where
-     its use is part of the operation, or decision making process, of that entity.
+   - Install it or import it to any corporate machine or corporate virtual environment.
+   - Use the library or code for any form of commercial or profit based activity.
    - Copy or modify the code and use it in any derivative product or commercial activity,
      such as in a trading application, API or other form of publication.
-   - Share or redistribute any **sub-part** of the code, or **modified** code, even with attribution.
-   - Share or redistribute the code in its entirety **without attribution**.
-   - Include this code, or package, as a **dependency** of any other package.
+   - Include this code, or package, as a **dependency** of any other package used within
+     a corporate entity.
    - Use this code as a benchmark or as a validator for developing your own code
-     which will be used in a commercial capacity.
+     which will be used in a capacity by a corporate institution.
 
 
 Attribution-NonCommercial-NoDerivatives 4.0 International (as Amended)
@@ -168,6 +157,8 @@ Section 1 -- Definitions.
   n. You means the individual or entity exercising the Licensed Rights
      under this Public License. Your has a corresponding meaning.
 
+.. _licence-user:
+
   o. User is a person or a device that executes Rateslib source code.
      A single user constitutes:
 
@@ -190,10 +181,12 @@ Section 1 -- Definitions.
 Section 2 -- Scope.
 -------------------
 
+.. _licence-2a1:
+
   a. License grant.
 
        1. Subject to the terms and conditions of this Public License,
-          the Licensor hereby grants You a worldwide, royalty-free,
+          the Licensor hereby grants You a worldwide,
           non-sublicensable, non-exclusive, irrevocable license to
           exercise the Licensed Rights in the Licensed Material to:
 
@@ -438,15 +431,17 @@ Section 8 -- Interpretation.
      that apply to the Licensor or You, including from the legal
      processes of any jurisdiction or authority.
 
+.. _licence-extension:
+
 Section 9 -- Commercial Licence Extension
 -------------------------------------------
 
   a. The Licensor may grant explicitly, or for a royalty fee,
      a specific amendment to this licence which permits
-     Section 2.a) 1.b) for Commercial purposes as well as
+     :ref:`Section 2.a) 1.b) <licence-2a1>` for Commercial purposes as well as
      NonCommercial.
 
-  b. For the avoidance of doubt Section 2.a) 1.a) is not
+  b. For the avoidance of doubt :ref:`Section 2.a) 1.a) <licence-2a1>` is not
      amended under a Commercial Licence Extension. This provides
      the distinction between First-Hand Commercial Use and
      Second-Hand Commercial Use, the former being permitted
@@ -456,7 +451,7 @@ Section 9 -- Commercial Licence Extension
   c. Commercial Licence Extensions may be granted to an entire
      commercial entity or per User. In the case a Commercial
      Licence Extension is granted per User the definition of
-     User is as given in Section 1.
+     :ref:`User <licence-user>` is as given in Section 1.
 
   d. Commercial Licence Extensions are granted with their own
      terms of contract which often involve a negotiated fee
