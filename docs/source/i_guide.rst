@@ -645,8 +645,10 @@ advanced curves :class:`~rateslib.curves.CompositeCurve`,
     g_curves.rst
 
 Calibrating curves is a very natural thing to do in fixed income. We typically use
-market prices of commonly traded instruments to set values. *FX Volatility Smiles* and
-*FX Volatility Surfaces* are also calibrated using the exact same optimising algorithms.
+market prices of commonly traded instruments to set values.
+:class:`~rateslib.fx_volatility.FXDeltaVolSmile` and
+:class:`~rateslib.fx_volatility.FXDeltaVolSurface` are also calibrated using the exact
+same optimising algorithms.
 
 Below we demonstrate how to calibrate the :class:`~rateslib.curves.Curve` that
 we created above in the initial trivial example using SOFR swap market data. First, we
