@@ -14,6 +14,7 @@ from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.default import NoInput, PlotOutput, _drb, plot
 from rateslib.dual.utils import _dual_float
 from rateslib.fx_volatility import FXVolObj
+from rateslib.instruments.base import Metrics
 from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.instruments.utils import (
     _get_fxvol_curves_fx_and_base_maybe_from_solver,
@@ -56,7 +57,7 @@ class _PricingMetrics:
     f_d: DualTypes
 
 
-class FXOption(Sensitivities, metaclass=ABCMeta):
+class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
     """
     Create an *FX Option*.
 

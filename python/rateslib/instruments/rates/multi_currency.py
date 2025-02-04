@@ -13,7 +13,7 @@ from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.dual.utils import _dual_float
 from rateslib.fx import FXForwards, FXRates, forward_fx
-from rateslib.instruments.base import BaseDerivative, BaseMixin
+from rateslib.instruments.base import BaseDerivative, Metrics
 from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.instruments.utils import (
     _composit_fixings_table,
@@ -59,7 +59,7 @@ if TYPE_CHECKING:
     )
 
 
-class FXExchange(Sensitivities, BaseMixin):
+class FXExchange(Sensitivities, Metrics):
     """
     Create a simple exchange of two currencies.
 
@@ -271,7 +271,7 @@ class FXExchange(Sensitivities, BaseMixin):
         raise NotImplementedError("`analytic_delta` for FXExchange not defined.")
 
 
-class NDF(Sensitivities):
+class NDF(Sensitivities, Metrics):
     """
     Create a non-deliverable forward (NDF).
 
