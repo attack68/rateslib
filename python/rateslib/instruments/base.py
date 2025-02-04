@@ -560,6 +560,7 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
         Calculate the delta of the *Instrument*, measured against user
         defined :class:`~rateslib.dual.Variable` s.
 
-        For arguments see :meth:`Sensitivities.exo_delta()<rateslib.instruments.Sensitivities.exo_delta>`.
+        For arguments see
+        :meth:`Sensitivities.exo_delta()<rateslib.instruments.Sensitivities.exo_delta>`.
         """
         return super().exo_delta(*args, **kwargs)
