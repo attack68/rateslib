@@ -288,7 +288,7 @@ where
     // that has not already been checked and return the combinations of currency pairs that
     // do not already have a determined FX rate.
     let mut combinations_: Vec<Vec<usize>> = Vec::new();
-    let mut node: usize = edges.len_of(Axis(1)) + 1_usize;  // out of bounds value initially
+    let mut node: usize = edges.len_of(Axis(1)) + 1_usize; // out of bounds value initially
     let mut start_flag = true;
     while start_flag || prev_value.contains(&node) {
         start_flag = false;
