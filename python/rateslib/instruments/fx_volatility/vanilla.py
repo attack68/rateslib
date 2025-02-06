@@ -657,6 +657,9 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
         )
 
     def analytic_delta(self, *args: Any, leg: int = 1, **kwargs: Any) -> NoReturn:
+        """Not implemented for Option types.
+        Use :class:`~rateslib.instruments.FXOption.analytic_greeks`.
+        """
         raise NotImplementedError("For Option types use `analytic_greeks`.")
 
     def _plot_payoff(
