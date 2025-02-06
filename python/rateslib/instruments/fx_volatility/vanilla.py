@@ -26,7 +26,7 @@ from rateslib.periods.utils import _validate_fx_as_forwards
 
 if TYPE_CHECKING:
     import numpy as np
-
+    from typing import NoReturn
     from rateslib.typing import (
         FX_,
         NPV,
@@ -655,6 +655,9 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
             vol=vol_,
             premium=NoInput(0),
         )
+
+    def analytic_delta(self, *args: Any, leg: int = 1, **kwargs: Any) -> NoReturn:
+        raise NotImplementedError("For Option types use `analytic_greeks`.")
 
     def _plot_payoff(
         self,
