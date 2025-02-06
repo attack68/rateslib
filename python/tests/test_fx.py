@@ -1,4 +1,5 @@
 from datetime import datetime as dt
+from random import choice, shuffle
 
 import numpy as np
 import pytest
@@ -275,6 +276,18 @@ def eureur():
 @pytest.fixture
 def usdeur():
     nodes = {dt(2022, 1, 1): 1.00, dt(2022, 4, 1): 0.996}
+    return Curve(nodes=nodes, interpolation="log_linear")
+
+
+@pytest.fixture
+def cadcad():
+    nodes = {dt(2022, 1, 1): 1.00, dt(2022, 4, 1): 0.987}
+    return Curve(nodes=nodes, interpolation="log_linear")
+
+
+@pytest.fixture
+def cadcol():
+    nodes = {dt(2022, 1, 1): 1.00, dt(2022, 4, 1): 0.984}
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
@@ -677,6 +690,98 @@ def test_forwards_codependent_curve_raise(usdusd) -> None:
                 "noknok": usdusd,
             },
         )
+
+
+class TestFXForwardsBase:
+    # these tests will validate the base argument supplied to the FXForwards object
+    # in different framework type constructions
+
+    def test_single_system(self, usdusd, eureur):
+        # test that creating 2 currencies setting base as either yields the same FX rates.
+        fxr = FXRates({"eurusd": 200.0}, settlement=dt(2022, 1, 3))
+        fxf1 = FXForwards(fxr, {"eureur": eureur, "eurusd": eureur, "usdusd": usdusd}, base="usd")
+        fxf2 = FXForwards(fxr, {"eureur": eureur, "eurusd": eureur, "usdusd": usdusd}, base="eur")
+        res1 = fxf1.rate("eurusd", dt(2022, 3, 1))
+        res2 = fxf2.rate("eurusd", dt(2022, 3, 1))
+        assert res1 == res2
+
+    @pytest.mark.parametrize("base", ["usd", "eur", "cad", NoInput(0)])
+    @pytest.mark.parametrize("idx", [0, 1])
+    def test_multi_currency_system(self, base, idx, usdusd, eureur, cadcad, cadcol, usdeur):
+        ccys = ["usd", "eur", "cad"]
+        shuffle(ccys)
+        pairs = [f"{ccys[0]}{ccys[1]}", f"{ccys[idx]}{ccys[2]}"]
+        fxr = FXRates(dict(zip(pairs, [5.0, 15.0])), base=base, settlement=dt(2022, 1, 3))
+
+        shuffle(ccys)
+        curv_pairs = [f"{ccys[0]}{ccys[1]}", f"{ccys[idx]}{ccys[2]}"]
+        fxc = {
+            "eureur": eureur,
+            "cadcad": cadcad,
+            "usdusd": usdusd,
+            **dict(zip(curv_pairs, [cadcol, usdeur])),
+        }
+        fxf1 = FXForwards(fxr, fxc, base="usd")
+        fxf2 = FXForwards(fxr, fxc, base="eur")
+        fxf3 = FXForwards(fxr, fxc, base="cad")
+        fxf4 = FXForwards(fxr, fxc, base=NoInput(0))
+
+        shuffle(ccys)
+        r1 = fxf1.rate(f"{ccys[0]}{ccys[1]}", dt(2022, 2, 27))
+        r2 = fxf2.rate(f"{ccys[0]}{ccys[1]}", dt(2022, 2, 27))
+        r3 = fxf3.rate(f"{ccys[0]}{ccys[1]}", dt(2022, 2, 27))
+        r4 = fxf4.rate(f"{ccys[0]}{ccys[1]}", dt(2022, 2, 27))
+
+        assert r1 == r2
+        assert r1 == r3
+        assert r1 == r4
+
+    @pytest.mark.parametrize("base1", [NoInput(0), "usd", "cad"])
+    @pytest.mark.parametrize("base2", [NoInput(0), "eur", "usd"])
+    @pytest.mark.parametrize("pair1", ["cadusd", "usdcad"])
+    @pytest.mark.parametrize("pair2", ["usdeur", "eurusd"])
+    def test_separable_system(
+        self, usdusd, eureur, usdeur, cadcad, cadcol, base1, base2, pair1, pair2
+    ):
+        fxr1 = FXRates({pair1: 1.25}, settlement=dt(2022, 1, 3), base=base1)
+        fxr2 = FXRates({pair2: 2.0}, settlement=dt(2022, 1, 2), base=base2)
+
+        curves = {
+            "usdusd": usdusd,
+            "eureur": eureur,
+            "cadcad": cadcad,
+            "cadusd": cadcol,
+            "usdeur": usdeur,
+        }
+        fxf1 = FXForwards([fxr2, fxr1], curves, base="usd")
+        fxf2 = FXForwards([fxr2, fxr1], curves, base="eur")
+        fxf3 = FXForwards([fxr2, fxr1], curves, base="cad")
+
+        for pair in ["usdcad", "cadeur", "eurusd"]:
+            assert fxf1.rate(pair, dt(2022, 3, 20)) == fxf2.rate(pair, dt(2022, 3, 20))
+            assert fxf1.rate(pair, dt(2022, 3, 20)) == fxf3.rate(pair, dt(2022, 3, 20))
+
+    def test_dependent_acyclic_system(self, usdusd, eureur, usdeur, cadcad, cadcol):
+        pair = choice(["usdcad", "cadusd"])
+        pair2 = choice(["eurusd", "usdeur"])
+
+        fxr1 = FXRates({pair2: 1.25}, settlement=dt(2022, 1, 3))
+        fxr2 = FXRates({pair: 2.0}, settlement=dt(2022, 1, 2))
+
+        curves = {
+            "usdusd": usdusd,
+            "eureur": eureur,
+            "cadcad": cadcad,
+            "cadeur": cadcol,
+            "usdeur": usdeur,
+        }
+        fxf1 = FXForwards([fxr1, fxr2], curves, base="usd")
+        fxf2 = FXForwards([fxr1, fxr2], curves, base="eur")
+        fxf3 = FXForwards([fxr1, fxr2], curves, base="cad")
+
+        for pair in ["usdcad", "cadeur", "eurusd"]:
+            assert fxf1.rate(pair, dt(2022, 3, 20)) == fxf2.rate(pair, dt(2022, 3, 20))
+            assert fxf1.rate(pair, dt(2022, 3, 20)) == fxf3.rate(pair, dt(2022, 3, 20))
 
 
 def test_multiple_settlement_forwards() -> None:

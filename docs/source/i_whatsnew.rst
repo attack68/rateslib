@@ -12,7 +12,7 @@ and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
 email contact, see `rateslib <https://rateslib.com>`_.
 
-1.7.0 (No Release Date)
+1.7.0 (31st January 2025)
 ****************************
 
 The key theme for 1.7.0 was to add Python type hinting to the entire codebase, and adding
@@ -85,6 +85,11 @@ objects now have specific methods to allow *updates*.
      - :class:`~rateslib.instruments.STIRFuture` now correctly handles *NPV* when ``fx``
        is provided as an, potentially unused, argument.
        (`653 <https://github.com/attack68/rateslib/pull/653>`_)
+   * - Bug
+     - :class:`~rateslib.fx.FXForwards` corrects a bug which possibly mis-ordered some
+       currencies if a ``base`` argument was given at initialisation, yielding mis-stated FX rates
+       for some pair combinations.
+       (`669 <https://github.com/attack68/rateslib/pull/669>`_)
    * - Bug
      - :meth:`~rateslib.periods.FloatPeriod.rate` now correctly calculates when ``fixings``
        are provided in any of the acceptable formats and contains all data to do so, in the

@@ -786,7 +786,7 @@ class Portfolio(Sensitivities):
         )
         for inst in self.instruments:
             try:
-                df = inst.fixings_table(
+                df = inst.fixings_table(  # type: ignore[attr-defined]
                     curves=curves,
                     solver=solver,
                     fx=fx,

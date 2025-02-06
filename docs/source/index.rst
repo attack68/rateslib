@@ -30,40 +30,19 @@
 
 *Rateslib* is a state-of-the-art **fixed income library** designed for Python.
 Its purpose is to provide advanced, flexible and efficient fixed income analysis
-with a high level, well documented API. *Rateslib* is not freely licensed, it is copyrightable
-software provided as below.
+with a high level, well documented API.
+
+Licence
+=======
+
+*Rateslib* is released under an **Amended Creative Commons Attribution, Non-Commercial,
+No-Derivatives 4.0 International Licence**. For more details see :ref:`here<licence-doc>`.
 
 .. raw:: html
 
-   <div class="clear" style="text-align: center; padding: 1em 0em 1em;"></div>
-
-.. raw:: html
-
-   <table style="width:100%; text-align:center; border-collapse: separate; font-size:0.8em; border: 1px solid #d0d7de; border-radius: 5pt;">
-      <thead style="background-color: #ebf0f4;">
-        <tr>
-          <th style="color:#459db9; border-bottom: 1px solid #d0d7de;">Academic or Home Educational Use</th>
-          <th style="color:#459db9; border-bottom: 1px solid #d0d7de;">Commercial Use by Anyone in: Banks, Funds, Accountants, Treasuries</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td style="color:green; font-size: 1.25em; font-weight:bold;">FREE to use and modify.<br></td>
-          <td style="">
-          <span style="color: red; font-size:1.25em;">Not Licenced - Cannot be installed on a corporate machine without permission.</span><br>
-             <span style="text-align: center; font-style:italic;">
-             Can purchase a licence extension. $300 per year / per user.</span><br>
-             <span style="text-align: center; font-style:italic;">
-             contact: info<span class="spamoff">Lively magic</span>@rateslib.com
-             </span>
-          </td>
-        </tr>
-      </tbody>
-   </table>
-
-.. The techniques and object interaction within *rateslib* were inspired by
-   the requirements of multi-disciplined fixed income teams working, both cooperatively
-   and independently, within global investment banks.
+   <span style="font-size:1.5em;font-weight:bold;">Academic and at-home educational use:</span> <span style="color:green; font-size: 1.5em; font-weight:bold;">FREE to use and modify.</span><br>
+   <span style="font-size:1.5em;font-weight:bold;">Commercial use:</span> <span style="color:red; font-size: 1.15em;">Not licensed for any use (funds, banks, etc,).</span>
+   <a class="purchase-btn" href="i_purchase.html">Purchase User Licences</a>
 
 .. raw:: html
 
@@ -82,38 +61,34 @@ with Python.
 
    <div class="clear" style="text-align: center; padding: 1em 0em 1em;"></div>
 
-.. container:: twocol
-
-   .. container:: leftside50
-
-      .. image:: _static/rateslib_excel_logo_label.png
-         :align: center
-         :alt: Excel bindings for rateslib
-         :width: 203
-         :target: https://rateslib.com/excel/latest/
-
-      .. raw:: html
-
-         <div style="text-align: center; width: 60%; margin-left:auto; margin-right:auto; padding-top:1em;">
-         <a href="https://rateslib.com/excel/latest/">Rateslib-excel</a> provides Excel bindings to use
-         all of <span style="font-style: italic;">rateslib's</span> functionality in Excel.
-         </div>
-
-
-   .. container:: rightside50
-
-      .. image:: _static/rateslib_rs_logo_label.png
-         :align: center
-         :alt: Rust codebase for rateslib
-         :width: 203
-         :target: https://rateslib.com/rs/latest/rateslib
-
-      .. raw:: html
-
-         <div style="text-align: center; width: 60%; margin-left:auto; margin-right:auto; padding-top:1em;">
-         <a href="https://rateslib.com/rs/latest/rateslib/">Rateslib-rs</a> is the backend codebase
-         for parts of <span style="font-style: italic;">rateslib</span> written in Rust using PyO3.
-         </div>
+   <div class="flex-container-line">
+     <div class="flex-item">
+       <a href="https://rateslib.com/excel/latest/"><img src="_static/rateslib_excel_logo_small.png" alt="Rateslib-Excel" width="170" height="37"></a>
+     </div>
+     <div class="flex-item-right">
+       <a href="https://rateslib.com/excel/latest/">rateslib-excel</a> provides Excel bindings for the Python library, to users
+       with a <a href="https://rateslib.readthedocs.io/en/latest/i_licence.html" target="_blank">commercial licence extension</a>.
+     </div>
+   </div>
+   <div class="flex-container-line">
+     <div class="flex-item">
+       <a href="https://rateslib.com/script/demo/"><img src="_static/rateslib_js_logo_small.png" alt="Rateslib-JS" width="170" height="37"></a>
+     </div>
+     <div class="flex-item-right">
+       <a href="https://rateslib.com/script/demo/">rateslib-js</a> allows integration with JavaScript/TypeScript via PyOdide, which is
+        a Python interpreter for web browsers. The demo page gives a browser build where the code is shown in source,
+        and integrates with Vue.js. Also see <a href="https://www.linkedin.com/pulse/rateslib-javascript-via-pyodide-rateslib-qpmpf/">this LinkedIn article example</a>.
+     </div>
+   </div>
+   <div class="flex-container-line">
+     <div class="flex-item">
+        <a href="https://rateslib.com/rs/latest/rateslib/"><img src="_static/rateslib_rs_logo_small.png" alt="Rateslib-Rust" width="170" height="37"></a>
+     </div>
+     <div class="flex-item-right">
+       <a href="https://rateslib.com/rs/latest/rateslib/">rateslib-rs</a> is the lower level codebase written in Rust, with PyO3 bindings,
+        providing performant solutions for some of the Python classes and methods.
+     </div>
+   </div>
 
 .. raw:: html
 
@@ -220,12 +195,6 @@ own forward mode module.
 
 The test coverage is very high.
 
-Licence
-=======
-
-This library is released under a **Creative Commons Attribution, Non-Commercial,
-No-Derivatives 4.0 International Licence**. See :ref:`here<licence-doc>` for more details.
-
 
 Get Started
 ===========
@@ -244,3 +213,4 @@ Move on to the next page to :ref:`Get Started<pricing-doc>`
     i_api.rst
     i_whatsnew.rst
     i_developers.rst
+    i_purchase.rst

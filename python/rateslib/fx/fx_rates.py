@@ -286,7 +286,7 @@ class FXRates(_WithState):
            fxr2 = fxr.restate({"eurusd", "gbpusd"})
            fxr2.rates_table()
         """
-        if set(pairs) == set(self.pairs) and keep_ad:
+        if pairs == self.pairs and keep_ad:
             return self.__copy__()  # no restate needed but return new instance
 
         restated_fx_rates = FXRates(

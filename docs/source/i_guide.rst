@@ -475,6 +475,28 @@ around target mid-market rates, and generate market risks.
          xcs.cashflows(curves=[eur_curve, eurusd_curve, usd_curve, usd_curve], fx=fxf)
          xcs.cashflows_table(curves=[eur_curve, eurusd_curve, usd_curve, usd_curve], fx=fxf)
 
+   .. tab:: NDF
+
+      Non-deliverable forwards (:class:`~rateslib.instruments.NDF`) can be constructed.
+
+      .. ipython:: python
+         :suppress:
+
+         from rateslib.instruments import NDF
+
+      .. ipython:: python
+
+         ndf = NDF(
+             settlement=dt(2022, 8, 15),
+             pair="eurusd",
+             notional=10e6,  # 10mm EUR
+             calendar="tgt|fed",
+             fx_rate=1.1
+         )
+         ndf.rate(fx=fxf)
+         ndf.cashflows(curves=usd_curve, fx=fxf)
+         ndf.cashflows_table(curves=usd_curve, fx=fxf)
+
 .. raw:: html
 
    <div style="width: 100%; padding: 0em 0em 1em; text-align: center;">
@@ -486,28 +508,103 @@ around target mid-market rates, and generate market risks.
 Securities and bonds
 --------------------
 
-A very common instrument in financial investing is a :class:`~rateslib.instruments.FixedRateBond`.
-At time of writing the on-the-run 10Y US treasury was the 3.875% Aug 2033 bond. Here we can
-construct this using the street convention and derive the price from yield-to-maturity and
-risk calculations.
+.. tabs::
 
-.. ipython:: python
+   .. tab:: Fixed Bonds
 
-   fxb = FixedRateBond(
-       effective=dt(2023, 8, 15),
-       termination=dt(2033, 8, 15),
-       fixed_rate=3.875,
-       spec="ust"
-   )
-   fxb.accrued(settlement=dt(2025, 2, 14))
-   fxb.price(ytm=4.0, settlement=dt(2025, 2, 14))
-   fxb.duration(ytm=4.0, settlement=dt(2025, 2, 14), metric="duration")
-   fxb.duration(ytm=4.0, settlement=dt(2025, 2, 14), metric="modified")
-   fxb.duration(ytm=4.0, settlement=dt(2025, 2, 14), metric="risk")
+      A very common instrument in financial investing is a :class:`~rateslib.instruments.FixedRateBond`.
+      At time of writing the on-the-run 10Y US treasury was the 3.875% Aug 2033 bond. Here we
+      construct this using the street convention and derive the price from yield-to-maturity and
+      risk calculations.
 
-.. image:: _static/ust_10y.gif
-  :alt: US Treasury example using the FixedRateBond class
-  :width: 611
+      .. ipython:: python
+
+         fxb = FixedRateBond(
+             effective=dt(2023, 8, 15),
+             termination=dt(2033, 8, 15),
+             fixed_rate=3.875,
+             spec="us_gb"  # US Government Bond
+         )
+         fxb.accrued(settlement=dt(2025, 2, 14))
+         fxb.price(ytm=4.0, settlement=dt(2025, 2, 14))
+         fxb.duration(ytm=4.0, settlement=dt(2025, 2, 14), metric="duration")
+         fxb.duration(ytm=4.0, settlement=dt(2025, 2, 14), metric="modified")
+         fxb.duration(ytm=4.0, settlement=dt(2025, 2, 14), metric="risk")
+
+      .. image:: _static/ust_10y.gif
+         :alt: US Treasury example using the FixedRateBond class
+         :width: 611
+
+   .. tab:: FRN
+
+      A :class:`~rateslib.instruments.FloatRateNote` can also be constructed. The below bond
+      settles to 3M-TermSOFR which is an *IBOR* style term ``fixing_method`` (and we simulate
+      its pricing with the *Curves* already constructed). Compounded *RFR*
+      FRNs can also be constructed, using other method inputs.
+
+      .. ipython:: python
+
+         frn = FloatRateNote(
+             effective=dt(2021, 8, 15),
+             termination=dt(2022, 8, 15),
+             frequency="Q",
+             float_spread=86.0,
+             spread_compound_method="none_simple",
+             convention="act360",
+             calendar="nyc",
+             payment_lag=0,
+             fixing_method="ibor",
+             method_param=0,  # fixing lag is 0 business days
+             fixings=[2.00, 2.14],
+             ex_div=1,
+             settle=1,
+             currency="usd",
+         )
+         frn.accrued(settlement=dt(2022, 1, 2))
+         frn.rate(curves=[usd_legacy_3mIBOR, usd_curve])
+         frn.cashflows(curves=[usd_legacy_3mIBOR, usd_curve])
+
+   .. tab:: Bill
+
+      Below we construct a US government bond :class:`~rateslib.instruments.Bill` using
+      default ``spec``.
+
+      .. ipython:: python
+
+         bill = Bill(
+             effective=dt(2024, 10, 24),
+             termination=dt(2025, 4, 24),
+             spec="us_gbb",  # US Government Bond-Bill
+         )
+         bill.discount_rate(price=99.0808021, settlement=dt(2025, 2, 4))
+         bill.ytm(price=99.0808021, settlement=dt(2025, 2, 4))
+         bill.duration(ytm=4.18875, settlement=dt(2025, 2, 4), metric="risk")
+         bill.price(rate=4.18875, settlement=dt(2025, 2, 4))
+
+      .. image:: _static/us_gbb.png
+         :alt: US Treasury example using the Bill class
+         :width: 303
+
+   .. tab:: Inflation linked
+
+      Below we construct an :class:`~rateslib.instruments.IndexFixedRateBond`, using relevant
+      indexing arguments.
+
+      .. ipython:: python
+
+         ifrb = IndexFixedRateBond(  # CUSIP:91282CCA7 ISIN:US91282CCA71
+             effective=dt(2021, 4, 15),
+             termination=dt(2026, 4, 15),
+             fixed_rate=0.125,
+             index_base=262.250270,
+             index_lag=3,
+             index_fixings=[265.0],
+             spec="us_gb",
+         )
+         ifrb.price(ytm=1.397926, settlement=dt(2025, 2, 4))
+         ifrb.accrued(settlement=dt(2025, 2, 4))
+         ifrb.cashflows(curves=[usd_cpi, usd_curve])
+
 
 .. raw:: html
 
@@ -548,8 +645,10 @@ advanced curves :class:`~rateslib.curves.CompositeCurve`,
     g_curves.rst
 
 Calibrating curves is a very natural thing to do in fixed income. We typically use
-market prices of commonly traded instruments to set values. *FX Volatility Smiles* and
-*FX Volatility Surfaces* are also calibrated using the exact same optimising algorithms.
+market prices of commonly traded instruments to set values.
+:class:`~rateslib.fx_volatility.FXDeltaVolSmile` and
+:class:`~rateslib.fx_volatility.FXDeltaVolSurface` are also calibrated using the exact
+same optimising algorithms.
 
 Below we demonstrate how to calibrate the :class:`~rateslib.curves.Curve` that
 we created above in the initial trivial example using SOFR swap market data. First, we
