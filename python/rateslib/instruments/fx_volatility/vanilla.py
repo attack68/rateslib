@@ -25,8 +25,10 @@ from rateslib.periods import Cashflow, FXCallPeriod, FXPutPeriod
 from rateslib.periods.utils import _validate_fx_as_forwards
 
 if TYPE_CHECKING:
-    import numpy as np
     from typing import NoReturn
+
+    import numpy as np
+
     from rateslib.typing import (
         FX_,
         NPV,
