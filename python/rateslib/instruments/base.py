@@ -26,6 +26,7 @@ class Metrics:
     Base class fpr *Instruments* adding optional pricing parameters, such as fixed rates,
     float spreads etc. Also provides key pricing methods.
     """
+
     _fixed_rate_mixin: bool = False
     _float_spread_mixin: bool = False
     _leg2_fixed_rate_mixin: bool = False
@@ -383,7 +384,6 @@ class Metrics:
 
     def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
-
 
     def cashflows_table(
         self,
