@@ -177,4 +177,4 @@ class SupportsMetrics:
     def delta(self, *args: Any, **kwargs: Any) -> DataFrame: ...  # type: ignore[empty-body]
     def gamma(self, *args: Any, **kwargs: Any) -> DataFrame: ...  # type: ignore[empty-body]
     def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame: ...  # type: ignore[empty-body]
-    def fixings_table(self, *args: Any, **kwargs: Any) -> DataFrame: ...  # type: ignore[empty-body]
+    def cashflows_table(self, *args: Any, **kwargs: Any) -> DataFrame: ...  # type: ignore[empty-body]
