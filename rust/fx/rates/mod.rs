@@ -284,14 +284,16 @@ where
     }
     let mut row_edges = edges.sum_axis(Axis(1));
 
-    let mut node: usize = edges.len_of(Axis(1)) + 1_usize;
+    // scan through edges to find the node (ccy index) with the most outgoing connections
+    // that has not already been checked and return the combinations of currency pairs that
+    // do not already have a determined FX rate.
     let mut combinations_: Vec<Vec<usize>> = Vec::new();
+    let mut node: usize = edges.len_of(Axis(1)) + 1_usize;  // out of bounds value initially
     let mut start_flag = true;
-
     while start_flag || prev_value.contains(&node) {
         start_flag = false;
 
-        // find node with most outgoing edges
+        // find node with most outgoing edges and then set those edges to zero to avoid next loop
         node = argabsmax(row_edges.view());
         row_edges[node] = 0_i16;
 
@@ -307,6 +309,8 @@ where
             .collect();
     }
 
+    // iterate through the unpopulated combinations and determine the FX rate between those
+    // nodes calculating via the FX rate with the central node.
     let mut counter: i16 = 0;
     for c in combinations_ {
         counter += 1_i16;
@@ -317,9 +321,14 @@ where
     }
 
     if counter == 0 {
+        // then that discovered node not yielded any results, so add it to the list of checked
+        // prev values checked and run again, recursively.
         prev_value.insert(node);
         return mut_arrays_remaining_elements(fx_array.view_mut(), edges.view_mut(), prev_value);
     } else {
+        // a population has been successful. Re run the algorithm placing the most recently
+        // sampled node in the set of prev values, so that an infinite loop is avoide and a new
+        // node will be sampled next time.
         return mut_arrays_remaining_elements(
             fx_array.view_mut(),
             edges.view_mut(),
