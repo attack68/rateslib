@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 class Metrics:
     """
-    Base class fpr *Instruments* adding optional pricing parameters, such as fixed rates,
+    Base class for *Instruments* adding optional pricing parameters, such as fixed rates,
     float spreads etc. Also provides key pricing methods.
     """
 
