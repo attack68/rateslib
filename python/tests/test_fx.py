@@ -72,6 +72,38 @@ def test_rates() -> None:
     assert fxr.rate("eurgbp") == Dual(1.25, ["fx_usdeur", "fx_usdgbp"], [-0.625, 0.50])
 
 
+def test_fxrates_multi_single_currency() -> None:
+    fxr = FXRates({"eurusd": 0.5, "usdgbp": 1.25, "usdjpy": 100.0, "usdnok": 10.0, "usdbrl": 50.0})
+    fxr._set_ad_order(0)
+    expected = np.array([
+        [1.0, 2.0, 1.25, 100.0, 10.0, 50.0],
+        [0.5, 1.0, 0.625, 50.0, 5.0, 25.0],
+        [0.8, 1.6, 1.0, 80.0, 8.0, 40.0],
+        [0.01, 0.02, 0.0125, 1.0, 0.1, 0.5],
+        [0.1, 0.2, 0.125, 10.0, 1.0, 5.0],
+        [0.02, 0.04, 0.025, 2.0, 0.2, 1.0],
+    ])
+    for i in range(0, 6):
+        for j in range(0, 6):
+            assert abs(fxr.fx_array[i, j] - expected[i, j]) < 1e-8
+
+def test_fxrates_multi_chain() -> None:
+    fxr = FXRates({"eurusd": 0.5, "usdgbp": 1.25, "gbpjpy": 100.0, "nokjpy": 10.0, "nokbrl": 5.0})
+    fxr._set_ad_order(0)
+    expected = np.array([
+        [1.0, 2.0, 1.25, 125.0, 12.5, 62.5],
+        [0.5, 1.0, 0.625, 62.5, 6.25, 31.25],
+        [0.8, 1.6, 1.0, 100.0, 10.0, 50.0],
+        [0.008, 0.016, 0.01, 1.0, 0.1, 0.5],
+        [0.08, 0.16, 0.10, 10.0, 1.0, 5.0],
+        [0.016, 0.032, 0.02, 2.0, 0.2, 1.0],
+    ])
+    for i in range(0, 6):
+        for j in range(0, 6):
+            assert abs(fxr.fx_array[i, j] - expected[i, j]) < 1e-8
+
+
+
 def test_fxrates_pickle():
     fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5}, settlement=dt(2002, 1, 1))
     import pickle

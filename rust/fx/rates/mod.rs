@@ -272,21 +272,27 @@ where
     for<'a> &'a T: Mul<&'a T, Output = T>,
     for<'a> f64: Div<&'a T, Output = T>,
 {
+    // check for stopping criteria if all edges, i.e. FX rates have been populated.
     if edges.sum() == ((edges.len_of(Axis(0)) * edges.len_of(Axis(1))) as i16) {
-        return Ok(true); // all edges and values have already been populated.
+        return Ok(true);
     }
-    let available_edges_and_nodes: Vec<i16> = edges
+
+    // otherwise, for all
+    let available_edges_and_nodes: Vec<(i16, usize)> = edges
         .sum_axis(Axis(1))
         .into_iter()
         .zip(0_usize..)
         .filter(|(_v, i)| !prev_value.contains(i))
-        .map(|(v, _i)| v)
+        .into_iter()
         .collect();
-    let sampled_node: Option<usize> = arg_max_(&available_edges_and_nodes);
+    let sampled_node = available_edges_and_nodes
+        .into_iter()
+        .max_by_key(|(value, _)| *value)
+        .map(|(_, idx)| idx);
 
     let node: usize;
     match sampled_node {
-        None =>  {
+        None => {
             // The `prev_value` list contain every node and the `edges` matrix is not solved,
             // hence this cannot be solved.
             return Err(PyValueError::new_err(
@@ -294,7 +300,7 @@ where
                     For example ('eurusd' + 'usdeur') or ('usdeur', 'eurjpy', 'usdjpy').",
             ));
         }
-        Some(node_) => { node = usize::try_from(node_).unwrap() }
+        Some(node_) => node = usize::try_from(node_).unwrap(),
     }
 
     // `combinations` is a list of pairs that can be formed from the edges associated
@@ -389,10 +395,6 @@ fn create_fx_array(
     }
 }
 
-fn arg_max_<T: Ord + Copy>(slice: &[T]) -> Option<usize> {
-    slice.iter().enumerate().max_by_key(|(_, &value)| value).map(|(idx, _)| idx)
-}
-
 impl JSON for FXRates {}
 
 #[cfg(test)]
@@ -422,6 +424,72 @@ mod tests {
             NumberArray2::Dual(arr) => arr.iter().map(|x| x.real()).collect(),
             _ => panic!("unreachable"),
         };
+        assert!(arr
+            .iter()
+            .zip(expected.iter())
+            .all(|(x, y)| (x - y).abs() < 1e-6))
+    }
+
+    #[test]
+    fn fxrates_multi_chain() {
+        let fxr = FXRates::try_new(
+            vec![
+                FXRate::try_new("eur", "usd", Number::F64(0.5), Some(ndt(2004, 1, 1))).unwrap(),
+                FXRate::try_new("usd", "gbp", Number::F64(1.25), Some(ndt(2004, 1, 1))).unwrap(),
+                FXRate::try_new("gbp", "jpy", Number::F64(100.0), Some(ndt(2004, 1, 1))).unwrap(),
+                FXRate::try_new("nok", "jpy", Number::F64(10.0), Some(ndt(2004, 1, 1))).unwrap(),
+                FXRate::try_new("nok", "brl", Number::F64(5.0), Some(ndt(2004, 1, 1))).unwrap(),
+            ],
+            Some(Ccy::try_new("usd").unwrap()),
+        )
+        .unwrap();
+        let expected = arr2(&[
+            [1.0, 2.0, 1.25, 125.0, 12.5, 62.5],
+            [0.5, 1.0, 0.625, 62.5, 6.25, 31.25],
+            [0.8, 1.6, 1.0, 100.0, 10.0, 50.0],
+            [0.008, 0.016, 0.01, 1.0, 0.1, 0.5],
+            [0.08, 0.16, 0.10, 10.0, 1.0, 5.0],
+            [0.016, 0.032, 0.02, 2.0, 0.2, 1.0],
+        ]);
+
+        let arr: Vec<f64> = match fxr.fx_array {
+            NumberArray2::Dual(arr) => arr.iter().map(|x| x.real()).collect(),
+            _ => panic!("unreachable"),
+        };
+        println!("arr: {:?}", arr);
+        assert!(arr
+            .iter()
+            .zip(expected.iter())
+            .all(|(x, y)| (x - y).abs() < 1e-6))
+    }
+
+    #[test]
+    fn fxrates_single_central_currency() {
+        let fxr = FXRates::try_new(
+            vec![
+                FXRate::try_new("eur", "usd", Number::F64(0.5), Some(ndt(2004, 1, 1))).unwrap(),
+                FXRate::try_new("usd", "gbp", Number::F64(1.25), Some(ndt(2004, 1, 1))).unwrap(),
+                FXRate::try_new("usd", "jpy", Number::F64(100.0), Some(ndt(2004, 1, 1))).unwrap(),
+                FXRate::try_new("usd", "nok", Number::F64(10.0), Some(ndt(2004, 1, 1))).unwrap(),
+                FXRate::try_new("usd", "brl", Number::F64(50.0), Some(ndt(2004, 1, 1))).unwrap(),
+            ],
+            Some(Ccy::try_new("usd").unwrap()),
+        )
+        .unwrap();
+        let expected = arr2(&[
+            [1.0, 2.0, 1.25, 100.0, 10.0, 50.0],
+            [0.5, 1.0, 0.625, 50.0, 5.0, 25.0],
+            [0.8, 1.6, 1.0, 80.0, 8.0, 40.0],
+            [0.01, 0.02, 0.0125, 1.0, 0.1, 0.5],
+            [0.1, 0.2, 0.125, 10.0, 1.0, 5.0],
+            [0.02, 0.04, 0.025, 2.0, 0.2, 1.0],
+        ]);
+
+        let arr: Vec<f64> = match fxr.fx_array {
+            NumberArray2::Dual(arr) => arr.iter().map(|x| x.real()).collect(),
+            _ => panic!("unreachable"),
+        };
+        println!("arr: {:?}", arr);
         assert!(arr
             .iter()
             .zip(expected.iter())
