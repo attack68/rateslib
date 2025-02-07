@@ -230,7 +230,6 @@ impl FXRates {
 /// given the pairs associated with the FX rates.
 fn create_initial_edges(currencies: &IndexSet<Ccy>, fx_pairs: &[FXPair]) -> Array2<i16> {
     let mut edges: Array2<i16> = Array2::eye(currencies.len());
-    println!("create_initial_edges {:?}", fx_pairs);
     for pair in fx_pairs.iter() {
         let row = currencies.get_index_of(&pair.0).unwrap();
         let col = currencies.get_index_of(&pair.1).unwrap();
@@ -273,18 +272,17 @@ where
     for<'a> &'a T: Mul<&'a T, Output = T>,
     for<'a> f64: Div<&'a T, Output = T>,
 {
-    println!("prev_value: {:?}", prev_value);
     if edges.sum() == ((edges.len_of(Axis(0)) * edges.len_of(Axis(1))) as i16) {
         return Ok(true); // all edges and values have already been populated.
     }
-    let sampled_node = edges
+    let available_edges_and_nodes: Vec<i16> = edges
         .sum_axis(Axis(1))
         .into_iter()
         .zip(0_usize..)
         .filter(|(_v, i)| !prev_value.contains(i))
         .map(|(v, _i)| v)
-        .into_iter()
-        .max();
+        .collect();
+    let sampled_node: Option<usize> = arg_max_(&available_edges_and_nodes);
 
     let node: usize;
     match sampled_node {
@@ -391,6 +389,10 @@ fn create_fx_array(
     }
 }
 
+fn arg_max_<T: Ord + Copy>(slice: &[T]) -> Option<usize> {
+    slice.iter().enumerate().max_by_key(|(_, &value)| value).map(|(idx, _)| idx)
+}
+
 impl JSON for FXRates {}
 
 #[cfg(test)]
@@ -428,7 +430,6 @@ mod tests {
 
     #[test]
     fn fxrates_creation_error() {
-        println!("running fxcreation error");
         let fxr = FXRates::try_new(
             vec![
                 FXRate::try_new("eur", "usd", Number::F64(1.0), Some(ndt(2004, 1, 1))).unwrap(),
