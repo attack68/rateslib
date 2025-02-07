@@ -12,6 +12,19 @@ and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
 email contact, see `rateslib <https://rateslib.com>`_.
 
+1.8.0 (No release date)
+****************************
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - Refactor
+     - Rename :class:`~rateslib.instruments.BaseMixin` to :class:`~rateslib.instruments.Metrics`.
+       (`678 <https://github.com/attack68/rateslib/pull/678>`_)
+
 1.7.0 (31st January 2025)
 ****************************
 

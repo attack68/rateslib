@@ -14,6 +14,7 @@ from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.default import NoInput, PlotOutput, _drb, plot
 from rateslib.dual.utils import _dual_float
 from rateslib.fx_volatility import FXVolObj
+from rateslib.instruments.base import Metrics
 from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.instruments.utils import (
     _get_fxvol_curves_fx_and_base_maybe_from_solver,
@@ -24,6 +25,8 @@ from rateslib.periods import Cashflow, FXCallPeriod, FXPutPeriod
 from rateslib.periods.utils import _validate_fx_as_forwards
 
 if TYPE_CHECKING:
+    from typing import NoReturn
+
     import numpy as np
 
     from rateslib.typing import (
@@ -56,7 +59,7 @@ class _PricingMetrics:
     f_d: DualTypes
 
 
-class FXOption(Sensitivities, metaclass=ABCMeta):
+class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
     """
     Create an *FX Option*.
 
@@ -654,6 +657,12 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             vol=vol_,
             premium=NoInput(0),
         )
+
+    def analytic_delta(self, *args: Any, leg: int = 1, **kwargs: Any) -> NoReturn:
+        """Not implemented for Option types.
+        Use :class:`~rateslib.instruments.FXOption.analytic_greeks`.
+        """
+        raise NotImplementedError("For Option types use `analytic_greeks`.")
 
     def _plot_payoff(
         self,
