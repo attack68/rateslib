@@ -1,7 +1,6 @@
 //! Create objects related to the management and valuation of monetary amounts in different
 //! currencies, measured at different settlement dates in time.
 
-use crate::dual::linalg::argabsmax;
 use crate::dual::{set_order_clone, ADOrder, Dual, Dual2, Number, NumberArray2};
 use crate::json::JSON;
 use chrono::prelude::*;
@@ -231,6 +230,7 @@ impl FXRates {
 /// given the pairs associated with the FX rates.
 fn create_initial_edges(currencies: &IndexSet<Ccy>, fx_pairs: &[FXPair]) -> Array2<i16> {
     let mut edges: Array2<i16> = Array2::eye(currencies.len());
+    println!("create_initial_edges {:?}", fx_pairs);
     for pair in fx_pairs.iter() {
         let row = currencies.get_index_of(&pair.0).unwrap();
         let col = currencies.get_index_of(&pair.1).unwrap();
@@ -273,6 +273,7 @@ where
     for<'a> &'a T: Mul<&'a T, Output = T>,
     for<'a> f64: Div<&'a T, Output = T>,
 {
+    println!("prev_value: {:?}", prev_value);
     if edges.sum() == ((edges.len_of(Axis(0)) * edges.len_of(Axis(1))) as i16) {
         return Ok(true); // all edges and values have already been populated.
     }
@@ -427,6 +428,7 @@ mod tests {
 
     #[test]
     fn fxrates_creation_error() {
+        println!("running fxcreation error");
         let fxr = FXRates::try_new(
             vec![
                 FXRate::try_new("eur", "usd", Number::F64(1.0), Some(ndt(2004, 1, 1))).unwrap(),
