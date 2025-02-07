@@ -277,7 +277,8 @@ where
         return Ok(true);
     }
 
-    // otherwise, for all
+    // otherwise, find the number of edges connected with each currency
+    // that is not in the list of pre-checked values
     let available_edges_and_nodes: Vec<(i16, usize)> = edges
         .sum_axis(Axis(1))
         .into_iter()
@@ -285,6 +286,7 @@ where
         .filter(|(_v, i)| !prev_value.contains(i))
         .into_iter()
         .collect();
+    // and from those find the index of the currency with the most edges
     let sampled_node = available_edges_and_nodes
         .into_iter()
         .max_by_key(|(value, _)| *value)
