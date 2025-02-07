@@ -273,46 +273,48 @@ where
     for<'a> &'a T: Mul<&'a T, Output = T>,
     for<'a> f64: Div<&'a T, Output = T>,
 {
-    if prev_value.len() == edges.len_of(Axis(0)) {
-        return Err(PyValueError::new_err(
-            "FX Array cannot be solved. There are degenerate FX rate pairs.\n\
-                For example ('eurusd' + 'usdeur') or ('usdeur', 'eurjpy', 'usdjpy').",
-        ));
-    }
     if edges.sum() == ((edges.len_of(Axis(0)) * edges.len_of(Axis(1))) as i16) {
         return Ok(true); // all edges and values have already been populated.
     }
-    let mut row_edges = edges.sum_axis(Axis(1));
+    let sampled_node = edges
+        .sum_axis(Axis(1))
+        .into_iter()
+        .zip(0_usize..)
+        .filter(|(_v, i)| !prev_value.contains(i))
+        .map(|(v, _i)| v)
+        .into_iter()
+        .max();
 
-    // scan through edges to find the node (ccy index) with the most outgoing connections
-    // that has not already been checked and return the combinations of currency pairs that
-    // do not already have a determined FX rate.
-    let mut combinations_: Vec<Vec<usize>> = Vec::new();
-    let mut node: usize = edges.len_of(Axis(1)) + 1_usize; // out of bounds value initially
-    let mut start_flag = true;
-    while start_flag || prev_value.contains(&node) {
-        start_flag = false;
-
-        // find node with most outgoing edges and then set those edges to zero to avoid next loop
-        node = argabsmax(row_edges.view());
-        row_edges[node] = 0_i16;
-
-        // filter by combinations that are not already populated
-        combinations_ = edges
-            .row(node)
-            .iter()
-            .zip(0_usize..)
-            .filter(|(v, i)| **v == 1_i16 && *i != node)
-            .map(|(_v, i)| i)
-            .combinations(2)
-            .filter(|v| edges[[v[0], v[1]]] == 0_i16)
-            .collect();
+    let node: usize;
+    match sampled_node {
+        None =>  {
+            // The `prev_value` list contain every node and the `edges` matrix is not solved,
+            // hence this cannot be solved.
+            return Err(PyValueError::new_err(
+                "FX Array cannot be solved. There are degenerate FX rate pairs.\n\
+                    For example ('eurusd' + 'usdeur') or ('usdeur', 'eurjpy', 'usdjpy').",
+            ));
+        }
+        Some(node_) => { node = usize::try_from(node_).unwrap() }
     }
+
+    // `combinations` is a list of pairs that can be formed from the edges associated
+    // with `node`, but which have not yet been populated. These will be populated
+    // in the next stage.
+    let combinations: Vec<Vec<usize>> = edges
+        .row(node)
+        .iter()
+        .zip(0_usize..)
+        .filter(|(v, i)| **v == 1_i16 && *i != node)
+        .map(|(_v, i)| i)
+        .combinations(2)
+        .filter(|v| edges[[v[0], v[1]]] == 0_i16)
+        .collect();
 
     // iterate through the unpopulated combinations and determine the FX rate between those
     // nodes calculating via the FX rate with the central node.
     let mut counter: i16 = 0;
-    for c in combinations_ {
+    for c in combinations {
         counter += 1_i16;
         edges[[c[0], c[1]]] = 1_i16;
         edges[[c[1], c[0]]] = 1_i16;
