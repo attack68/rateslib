@@ -24,6 +24,19 @@ email contact, see `rateslib <https://rateslib.com>`_.
    * - Refactor
      - Rename :class:`~rateslib.instruments.BaseMixin` to :class:`~rateslib.instruments.Metrics`.
        (`678 <https://github.com/attack68/rateslib/pull/678>`_)
+   * - Bug
+     - Add :class:`~rateslib.instruments.NDF` to global *rateslib* namespace.
+       (`680 <https://github.com/attack68/rateslib/pull/680>`_)
+   * - Refactor
+     - :red:`Minor Breaking Change!` The default ``currency`` in
+       :class:`~rateslib.instruments.NDF` is now currency 1 of ``pair`` and not currency 2.
+       (`680 <https://github.com/attack68/rateslib/pull/680>`_)
+   * - Refactor
+     - :red:`Minor Breaking Change!` The arguments ``settlement_currency`` and ``settlement``
+       are renamed to ``currency`` and ``payment`` in
+       :class:`~rateslib.periods.NonDeliverableCashflow`, and the ``reversed`` argument is,
+       ironically, reversed.
+       (`680 <https://github.com/attack68/rateslib/pull/680>`_)
 
 1.7.0 (31st January 2025)
 ****************************
