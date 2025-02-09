@@ -259,23 +259,23 @@ class NonDeliverableCashflow:
     .. ipython:: python
 
        ndc = NonDeliverableCashflow(
-           notional=10e6,  # <- this is BRL amount
-           reference_currency="brl",
+           notional=2e6,  # <- this is USD amount
            currency="usd",
+           reference_currency="brl",
            payment=dt(2025, 6, 1),
            fixing_date=dt(2025, 5, 29),
-           fx_rate=0.200,  # <- this is BRLUSD FX rate
+           fx_rate=5.0,  # <- this is USDBRL FX rate
        )
        ndc.cashflows()
 
        ndc = NonDeliverableCashflow(
-           notional=2e6,  # <- this is USD amount
+           notional=10e6,  # <- this is BRL amount
+           currency="usd",
            reference_currency="brl",
-           settlement_currency="usd",
-           settlement=dt(2025, 6, 1),
-           fixing_date=dt(2025, 5, 29),
-           fx_rate=5.00,  # <- this is USDBRL FX rate
            reversed=True,
+           payment=dt(2025, 6, 1),
+           fixing_date=dt(2025, 5, 29),
+           fx_rate=0.2,  # <- this is BRLUSD FX rate
        )
        ndc.cashflows()
     """
