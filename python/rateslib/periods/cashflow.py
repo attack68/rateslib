@@ -332,7 +332,7 @@ class NonDeliverableCashflow:
 
     def cashflow(self, fx: FX_) -> DualTypes:
         """
-        Determine the cashflow amount, expressed in the deliverable ``currency``.
+        Determine the cashflow amount, expressed in the ``settlement_currency``.
 
         Parameters
         ----------
