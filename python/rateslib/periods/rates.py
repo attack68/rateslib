@@ -1854,4 +1854,11 @@ class NonDeliverableFixedPeriod(FixedPeriod):
         reference_ccy_value = super().analytic_delta(
             curve=curve, disc_curve=disc_curve, fx=NoInput(0), base=self.currency
         )
-        settlement_ccy_value =
+        fx_fixing: DualTypes = self._get_fx_fixing(fx)
+        if self.reversed:
+            settlement_ccy_value = reference_ccy_value / fx_fixing
+        else:
+            settlement_ccy_value = reference_ccy_value * fx_fixing
+        fx_, _ = _get_fx_and_base(self.settlement_currency, fx, base)
+        return settlement_ccy_value * fx_
+
