@@ -3093,15 +3093,15 @@ class TestNonDeliverableFixedPeriod:
         expected = -0.2e6 * 0.25 * 0.03 * fx_fixing  # in USD
         assert abs(cf - expected) < 1e-8
 
-    @pytest.mark.parametrize("fx_fixing", [NoInput(0), 5.00])
+    @pytest.mark.parametrize("fx_fixing", [NoInput(0), 0.20])
     def test_no_cashflow(self, fx_fixing, fxf_ndf):
         ndfp = NonDeliverableFixedPeriod(
             start=dt(2025, 2, 1),
             end=dt(2025, 5, 1),
             payment=dt(2025, 5, 1),
             convention="30e360",
-            currency="usd",
-            reference_currency="brl",
+            settlement_currency="usd",
+            currency="brl",
             notional=1e6,
             fx_fixing=fx_fixing,
             fx_fixing_date=dt(2025, 4, 29),
