@@ -1850,6 +1850,9 @@ class NonDeliverableFixedPeriod(FixedPeriod):
         Return the analytic delta of the *NonDeliverableFixedPeriod*.
         See
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
+
+        Value is expressed in units of ``settlement_currency`` unless ``base`` is directly
+        specified.
         """
         reference_ccy_value = super().analytic_delta(
             curve=curve, disc_curve=disc_curve, fx=NoInput(0), base=self.currency
@@ -1862,3 +1865,28 @@ class NonDeliverableFixedPeriod(FixedPeriod):
         fx_, _ = _get_fx_and_base(self.settlement_currency, fx, base)
         return settlement_ccy_value * fx_
 
+    def npv(
+        self,
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: CurveOption_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
+        local: bool = False,
+    ) -> dict[str, DualTypes] | DualTypes:
+        """
+        Return the NPV of the *NonDeliverableFixedPeriod*.
+        See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
+
+        Value is expressed in units of ``settlement_currency`` unless ``base`` is directly
+        specified.
+        """
+        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
+        try:
+            value: DualTypes = self.cashflow(fx) * disc_curve_[self.payment]  # type: ignore[operator]
+        except TypeError as e:
+            # either fixed rate is None
+            if isinstance(self.fixed_rate, NoInput):
+                raise TypeError("`fixed_rate` must be set on the Period for an `npv`.")
+            else:
+                raise e
+        return _maybe_local(value, local, self.settlement_currency, fx, base)
