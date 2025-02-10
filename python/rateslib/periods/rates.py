@@ -1722,3 +1722,27 @@ class FloatPeriod(BasePeriod):
             a, b = 0.0, Nvd * drdz
 
         return a, b
+
+
+class NonDeliverableFixedPeriod(FixedPeriod):
+    """
+    Create a *FixedPeriod* whose cashflow is delivered in an alternate currency.
+
+    Parameters
+    ----------
+    args:
+        Positional arguments to :class:`~rateslib.periods.FixedPeriod`.
+    reference_currency:
+        The non-deliverable currency of the period.
+    fx_fixing: float, Dual, Dual2, optional
+        The FX fixing to determine the settlement amount.
+        The ``currency`` should be the left hand side, and ``reference_currency`` as RHS,
+        e.g. USDBRL, unless ``reversed``
+        in which case it should be, e.g. BRLUSD.
+    fx_fixing_date: datetime
+        Date on which the FX fixing for settlement is determined.
+    reversed: bool, optional
+        If *True* reverses the FX rate, as shown above.
+    """
+
+    def __init__(self, *args, reference_currency, fx_fixing, reversed, **kwargs):
