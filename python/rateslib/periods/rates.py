@@ -1890,3 +1890,36 @@ class NonDeliverableFixedPeriod(FixedPeriod):
             else:
                 raise e
         return _maybe_local(value, local, self.settlement_currency, fx, base)
+
+    def cashflows(
+        self,
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: Curve_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str | NoInput = NoInput(0),
+    ) -> dict[str, Any]:
+        """
+        Return the cashflows of the *FixedPeriod*.
+        See :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
+        """
+        disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
+        fx_, base_ = _get_fx_and_base(self.currency, fx, base)
+
+        if isinstance(disc_curve_, NoInput) or isinstance(self.fixed_rate, NoInput):
+            npv = None
+            npv_fx = None
+        else:
+            npv_dual: DualTypes = self.npv(curve, disc_curve_, local=False)  # type: ignore[assignment]
+            npv = _dual_float(npv_dual)
+            npv_fx = npv * _dual_float(fx_)
+
+        cashflow = None if self.cashflow is None else _dual_float(self.cashflow)
+        return {
+            **super().cashflows(curve, disc_curve_, fx_, base_),
+            defaults.headers["rate"]: self.fixed_rate,
+            defaults.headers["spread"]: None,
+            defaults.headers["cashflow"]: cashflow,
+            defaults.headers["npv"]: npv,
+            defaults.headers["fx"]: _dual_float(fx_),
+            defaults.headers["npv_fx"]: npv_fx,
+        }
