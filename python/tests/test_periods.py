@@ -2890,7 +2890,7 @@ class TestNonDeliverableCashflow:
         )
         return fxf
 
-    def test_npv_reversed(self, fxf_ndf):
+    def test_npv(self, fxf_ndf):
         ndf = NonDeliverableCashflow(
             notional=1e6,
             reference_currency="brl",
@@ -2903,7 +2903,7 @@ class TestNonDeliverableCashflow:
         expected = 1e6 * (0.20131018767289705 - 0.18) * 0.9855343095437953
         assert abs(result - expected) < 1e-8
 
-    def test_npv(self, fxf_ndf):
+    def test_npv_reversed(self, fxf_ndf):
         ndf = NonDeliverableCashflow(
             notional=1e6 * 0.18,
             reference_currency="brl",
