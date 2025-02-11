@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from rateslib import Schedule, defaults
+from rateslib import defaults
 from rateslib.curves import index_left
 from rateslib.default import NoInput, _drb
 from rateslib.legs.base import BaseLeg, _FixedLegMixin
@@ -11,7 +11,7 @@ from rateslib.periods.credit import CreditPremiumPeriod, CreditProtectionPeriod
 if TYPE_CHECKING:
     from pandas import DataFrame
 
-    from rateslib.typing import Any, DualTypes, DualTypes_, datetime
+    from rateslib.typing import Any, DualTypes, DualTypes_, datetime, Schedule
 
 
 class CreditPremiumLeg(_FixedLegMixin, BaseLeg):

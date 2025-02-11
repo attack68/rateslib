@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from pandas import DataFrame, concat
 
-from rateslib import Schedule, defaults
+from rateslib import defaults
 from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_maybe_from_curve
 from rateslib.default import NoInput
 from rateslib.dual.utils import _dual_float
@@ -25,6 +25,7 @@ if TYPE_CHECKING:
         DualTypes_,
         FixingsRates_,
         datetime,
+        Schedule,
     )
 
 

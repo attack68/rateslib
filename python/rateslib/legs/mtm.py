@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from pandas import Series
 
-from rateslib import Schedule, defaults
+from rateslib import defaults
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.fx import FXForwards
@@ -30,6 +30,7 @@ if TYPE_CHECKING:
         datetime_,
         int_,
         str_,
+        Schedule,
     )
 
 
