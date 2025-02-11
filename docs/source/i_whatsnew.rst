@@ -27,6 +27,9 @@ email contact, see `rateslib <https://rateslib.com>`_.
    * - Refactor
      - Rename :class:`~rateslib.instruments.BaseMixin` to :class:`~rateslib.instruments.Metrics`.
        (`678 <https://github.com/attack68/rateslib/pull/678>`_)
+   * - Bug
+     - Add :class:`~rateslib.instruments.NDF` to global *rateslib* namespace.
+       (`682 <https://github.com/attack68/rateslib/pull/682>`_)
 
 1.7.0 (31st January 2025)
 ****************************
