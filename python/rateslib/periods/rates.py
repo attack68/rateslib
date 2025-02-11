@@ -1727,7 +1727,7 @@ class FloatPeriod(BasePeriod):
 
 class NonDeliverableFixedPeriod(FixedPeriod):
     """
-    Create a *FixedPeriod* whose non-deliverable cashflow is converted to a settlement ``currency``.
+    Create a *FixedPeriod* whose non-deliverable cashflow is converted to a ``settlement_currency``.
 
     Parameters
     ----------
