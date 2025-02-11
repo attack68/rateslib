@@ -11,7 +11,7 @@ from rateslib.periods.credit import CreditPremiumPeriod, CreditProtectionPeriod
 if TYPE_CHECKING:
     from pandas import DataFrame
 
-    from rateslib.typing import Any, DualTypes, DualTypes_, datetime, Schedule
+    from rateslib.typing import Any, DualTypes, DualTypes_, Schedule, datetime
 
 
 class CreditPremiumLeg(_FixedLegMixin, BaseLeg):

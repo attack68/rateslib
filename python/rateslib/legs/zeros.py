@@ -24,8 +24,8 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FixingsRates_,
-        datetime,
         Schedule,
+        datetime,
     )
 
 

@@ -27,10 +27,10 @@ if TYPE_CHECKING:
         DualTypes_,
         FixingsFx_,
         FixingsRates_,
+        Schedule,
         datetime_,
         int_,
         str_,
-        Schedule,
     )
 
 
