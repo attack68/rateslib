@@ -259,8 +259,6 @@ class Defaults:
             # CDS headers
             "survival": "Survival",
             "recovery": "Recovery",
-            # Non-deliverable
-            "pair": "Pair",
         }
         self._global_ad_order = 1
 
