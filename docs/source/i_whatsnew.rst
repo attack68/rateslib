@@ -21,6 +21,9 @@ email contact, see `rateslib <https://rateslib.com>`_.
 
    * - Feature
      - Description
+   * - Period
+     - Add :class:`~rateslib.periods.NonDeliverableFixedPeriod`
+       (`681 <https://github.com/attack68/rateslib/pull/681>`_)
    * - Refactor
      - Rename :class:`~rateslib.instruments.BaseMixin` to :class:`~rateslib.instruments.Metrics`.
        (`678 <https://github.com/attack68/rateslib/pull/678>`_)
