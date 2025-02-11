@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from pandas import Series
 
-from rateslib import defaults, Schedule
+from rateslib import Schedule, defaults
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.fx import FXForwards
@@ -456,6 +456,7 @@ class FloatLegMtm(_FloatLegMixin, BaseLegMtm):
     --------
     For an example see :ref:`Mtm Legs<mtm-legs>`.
     """
+
     schedule: Schedule
 
     def __init__(

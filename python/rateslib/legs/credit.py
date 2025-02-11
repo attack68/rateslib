@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from rateslib import defaults, Schedule
+from rateslib import Schedule, defaults
 from rateslib.curves import index_left
 from rateslib.default import NoInput, _drb
 from rateslib.legs.base import BaseLeg, _FixedLegMixin

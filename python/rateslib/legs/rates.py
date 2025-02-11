@@ -18,10 +18,10 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FixingsRates_,
+        Schedule,
         datetime_,
         int_,
         str_,
-        Schedule,
     )
 
 
