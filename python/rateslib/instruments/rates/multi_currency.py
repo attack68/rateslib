@@ -296,10 +296,11 @@ class NDF(Sensitivities, Metrics):
     modifier: str, optional
         Date modifier for determining string tenor.
     currency: str, optional
-        The settlement currency of the contract. If not given is assumed to be currency 2 of the
-        ``pair``, e.g. USD in BRLUSD. Must be one of the currencies in ``pair``.
+        The settlement currency of the contract. If not given is assumed to be currency 1 of the
+        ``pair``, e.g. USD in USDBRL. Must be one of the currencies in ``pair``.
     payment_lag: int, optional
         Number of business day until settlement delivery. Defaults to 2 (spot) if not given.
+        Used to derive the ``fixing_date`` for the underlying *NonDeliverableCashflow*.
     eom: bool, optional
         Whether to allow end of month rolls to ``settlement`` as tenor.
     curves : Curve, str or list of such, optional
@@ -328,7 +329,7 @@ class NDF(Sensitivities, Metrics):
     ):
         self.kwargs: dict[str, Any] = dict(
             pair=pair.lower(),
-            currency=_drb(pair[3:], currency).lower(),
+            currency=_drb(pair[0:3], currency).lower(),
             notional=notional,
             fx_rate=fx_rate,
             settlement=settlement,
@@ -368,14 +369,14 @@ class NDF(Sensitivities, Metrics):
                 reference_currency=self.kwargs["pair"][0:3]
                 if self.kwargs["pair"][0:3] != self.kwargs["currency"]
                 else self.kwargs["pair"][3:],
-                settlement_currency=self.kwargs["currency"],
-                settlement=self.kwargs["settlement"],
+                currency=self.kwargs["currency"],
+                payment=self.kwargs["settlement"],
                 fixing_date=self.kwargs["calendar"].lag(
                     self.kwargs["settlement"], -self.kwargs["payment_lag"], False
                 ),  # a fixing date can be on a non-settlable date
                 fx_rate=self.kwargs["fx_rate"],
                 fx_fixing=self.kwargs["fx_fixing"],
-                reversed=self.kwargs["pair"][0:3] == self.kwargs["currency"],
+                reversed=self.kwargs["pair"][3:6] == self.kwargs["currency"],
             )
         ]
         self.curves = curves

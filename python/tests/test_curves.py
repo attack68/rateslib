@@ -1997,6 +1997,7 @@ class TestProxyCurve:
         assert isinstance(curve, Curve)
 
     def test_cache_is_validated_on_getitem_and_lookup(self):
+        # test that a ProxyCurve's state is updated and validated when using methods
         fxr1 = FXRates({"usdeur": 0.95}, dt(2022, 1, 3))
         fxr2 = FXRates({"usdcad": 1.1}, dt(2022, 1, 2))
         fxf = FXForwards(

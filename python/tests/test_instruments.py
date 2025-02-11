@@ -1946,17 +1946,17 @@ class TestFXExchange:
 class TestNDF:
     def test_construction(self) -> None:
         ndf = NDF(
-            pair="brlusd",
+            pair="usdbrl",
             settlement=dt(2022, 1, 1),
         )
         assert ndf.periods[0].reference_currency == "brl"
-        assert ndf.periods[0].settlement_currency == "usd"
+        assert ndf.periods[0].currency == "usd"
         assert ndf.periods[0].reversed is False
 
     def test_construction_reversed(self) -> None:
-        ndf = NDF(pair="usdbrl", settlement=dt(2022, 1, 1), currency="usd")
+        ndf = NDF(pair="brlusd", settlement=dt(2022, 1, 1), currency="usd")
         assert ndf.periods[0].reference_currency == "brl"
-        assert ndf.periods[0].settlement_currency == "usd"
+        assert ndf.periods[0].currency == "usd"
         assert ndf.periods[0].reversed is True
 
     @pytest.mark.parametrize(
@@ -1975,7 +1975,7 @@ class TestNDF:
             calendar="tgt|fed",
             payment_lag=lag,
         )
-        assert ndf.periods[0].settlement == exp2
+        assert ndf.periods[0].payment == exp2
         assert ndf.periods[0].fixing_date == exp1
 
     @pytest.mark.parametrize(
@@ -1995,7 +1995,7 @@ class TestNDF:
             payment_lag=2,
             eom=eom,
         )
-        assert ndf.periods[0].settlement == exp
+        assert ndf.periods[0].payment == exp
         assert ndf.periods[0].fixing_date == exp2
 
     def test_zero_analytic_delta(self):
