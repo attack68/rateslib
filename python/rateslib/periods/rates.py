@@ -1903,22 +1903,25 @@ class NonDeliverableFixedPeriod(FixedPeriod):
         See :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
         """
         disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
-        fx_, base_ = _get_fx_and_base(self.currency, fx, base)
+        fx_, base_ = _get_fx_and_base(self.settlement_currency, fx, base)
 
         if isinstance(disc_curve_, NoInput) or isinstance(self.fixed_rate, NoInput):
             npv = None
             npv_fx = None
         else:
-            npv_dual: DualTypes = self.npv(curve, disc_curve_, local=False)  # type: ignore[assignment]
+            npv_dual: DualTypes = self.npv(curve, disc_curve_, fx=fx, local=False)  # type: ignore[assignment]
             npv = _dual_float(npv_dual)
             npv_fx = npv * _dual_float(fx_)
 
-        cashflow = None if self.cashflow is None else _dual_float(self.cashflow)
+        cashflow = _float_or_none(self.cashflow(fx))
         return {
-            **super().cashflows(curve, disc_curve_, fx_, base_),
+            **BasePeriod.cashflows(self, curve, disc_curve_, fx_, base_),
+            defaults.headers["pair"]: self.pair,
+            defaults.headers["currency"]: self.settlement_currency,
             defaults.headers["rate"]: self.fixed_rate,
             defaults.headers["spread"]: None,
             defaults.headers["cashflow"]: cashflow,
+            defaults.headers["index_value"]: _float_or_none(self._get_fx_fixing(fx)),
             defaults.headers["npv"]: npv,
             defaults.headers["fx"]: _dual_float(fx_),
             defaults.headers["npv_fx"]: npv_fx,
