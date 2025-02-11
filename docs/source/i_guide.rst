@@ -480,11 +480,6 @@ around target mid-market rates, and generate market risks.
       Non-deliverable forwards (:class:`~rateslib.instruments.NDF`) can be constructed.
 
       .. ipython:: python
-         :suppress:
-
-         from rateslib.instruments import NDF
-
-      .. ipython:: python
 
          ndf = NDF(
              settlement=dt(2022, 8, 15),
