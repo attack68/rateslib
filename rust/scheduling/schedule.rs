@@ -257,30 +257,60 @@ mod tests {
 
     #[test]
     fn test_get_unadjusted_roll_non_eom() {
-        let options: Vec<(NaiveDateTime, NaiveDateTime, RollDay) = vec![
-            (ndt(2022, 2, 28), ndt(2022, 2, 28), RollDay::Int { day:28 })
+        let options: Vec<(NaiveDateTime, NaiveDateTime, RollDay)> = vec![
+            (ndt(2022, 2, 28), ndt(2022, 2, 28), RollDay::Int { day:28 }),
+            (ndt(2022, 2, 28), ndt(2024, 2, 29), RollDay::Int { day:29 }),
+            (ndt(2024, 2, 29), ndt(2022, 2, 28), RollDay::Int { day:29 }),
+            (ndt(2022, 2, 28), ndt(2022, 4, 28), RollDay::Int { day:28 }),
+            (ndt(2022, 2, 28), ndt(2022, 4, 29), RollDay::Int { day:29 }),
+            (ndt(2022, 2, 28), ndt(2022, 4, 30), RollDay::Int { day:30 }),
+            (ndt(2022, 4, 28), ndt(2022, 2, 28), RollDay::Int { day:28 }),
+            (ndt(2022, 4, 29), ndt(2022, 2, 28), RollDay::Int { day:29 }),
+            (ndt(2022, 4, 30), ndt(2022, 2, 28), RollDay::Int { day:30 }),
+            (ndt(2022, 2, 28), ndt(2022, 7, 31), RollDay::Int { day:31 }),
+            (ndt(2022, 7, 31), ndt(2022, 2, 28), RollDay::Int { day:31 }),
+            (ndt(2022, 4, 28), ndt(2022, 7, 28), RollDay::Int { day:28 }),
+            (ndt(2022, 4, 29), ndt(2022, 7, 29), RollDay::Int { day:29 }),
+            (ndt(2022, 4, 30), ndt(2022, 7, 30), RollDay::Int { day:30 }),
+            (ndt(2022, 4, 30), ndt(2022, 7, 31), RollDay::Int { day:31 }),
+            (ndt(2022, 7, 28), ndt(2022, 4, 28), RollDay::Int { day:28 }),
+            (ndt(2022, 7, 29), ndt(2022, 4, 29), RollDay::Int { day:29 }),
+            (ndt(2022, 7, 30), ndt(2022, 4, 30), RollDay::Int { day:30 }),
+            (ndt(2022, 7, 31), ndt(2022, 4, 30), RollDay::Int { day:31 }),
         ];
 
-//         ndt(2022, 2, 28),
-//         ndt(2024, 2, 28),
-//         ndt(2024, 2, 29),
-//         ndt(2024, 4, 28),
-//         ndt(2024, 4, 29),
-//         ndt(2024, 4, 30),
-//         ndt(2024, 7, 28),
-//         nst(2024, 7, 29),
-//         ndt(2024, 7, 30),
-//         ndt(2024, 7, 31),
-//         ]
-
-        let inputs: Vec<Vec<NaiveDateTime>> = vec![
-            vec![ndt(2022, 2, 22), ndt(2024, 2, 22)],
-            vec![ndt(2022, 2, 22), ndt(2024, 2, 22)],
-            vec![ndt(2022, 2, 28), ndt(2024, 2, 22)],
-            vec![ndt(2022, 2, 22), ndt(2024, 2, 22)],
-            vec![ndt(2022, 2, 22), ndt(2024, 2, 22)],
-            vec![ndt(2022, 2, 22), ndt(2024, 2, 22)],
-            vec![ndt(2022, 2, 22), ndt(2024, 2, 22)],
-        ]
+        for option in options.iter() {
+            assert_eq!(option.2, RollDayCategory::for_date(&option.0).combined(&RollDayCategory::for_date(&option.1), false));
+        }
     }
+
+        #[test]
+    fn test_get_unadjusted_roll_eom() {
+        let options: Vec<(NaiveDateTime, NaiveDateTime, RollDay)> = vec![
+            (ndt(2022, 2, 28), ndt(2022, 2, 28), RollDay::EoM {}),
+            (ndt(2022, 2, 28), ndt(2024, 2, 29), RollDay::EoM {}),
+            (ndt(2024, 2, 29), ndt(2022, 2, 28), RollDay::EoM {}),
+            (ndt(2022, 2, 28), ndt(2022, 4, 28), RollDay::Int { day:28 }),
+            (ndt(2022, 2, 28), ndt(2022, 4, 29), RollDay::Int { day:29 }),
+            (ndt(2022, 2, 28), ndt(2022, 4, 30), RollDay::EoM {}),
+            (ndt(2022, 4, 28), ndt(2022, 2, 28), RollDay::Int { day:28 }),
+            (ndt(2022, 4, 29), ndt(2022, 2, 28), RollDay::Int { day:29 }),
+            (ndt(2022, 4, 30), ndt(2022, 2, 28), RollDay::EoM {}),
+            (ndt(2022, 2, 28), ndt(2022, 7, 31), RollDay::Int { day:31 }),
+            (ndt(2022, 7, 31), ndt(2022, 2, 28), RollDay::Int { day:31 }),
+            (ndt(2022, 4, 28), ndt(2022, 7, 28), RollDay::Int { day:28 }),
+            (ndt(2022, 4, 29), ndt(2022, 7, 29), RollDay::Int { day:29 }),
+            (ndt(2022, 4, 30), ndt(2022, 7, 30), RollDay::Int { day:30 }),
+            (ndt(2022, 4, 30), ndt(2022, 7, 31), RollDay::Int { day:31 }),
+            (ndt(2022, 7, 28), ndt(2022, 4, 28), RollDay::Int { day:28 }),
+            (ndt(2022, 7, 29), ndt(2022, 4, 29), RollDay::Int { day:29 }),
+            (ndt(2022, 7, 30), ndt(2022, 4, 30), RollDay::Int { day:30 }),
+            (ndt(2022, 7, 31), ndt(2022, 4, 30), RollDay::Int { day:31 }),
+        ];
+
+        for option in options.iter() {
+            assert_eq!(option.2, RollDayCategory::for_date(&option.0).combined(&RollDayCategory::for_date(&option.1), true));
+        }
+    }
+
 }

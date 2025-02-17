@@ -8,7 +8,7 @@ use std::cmp::{Ordering, PartialEq};
 
 /// A roll day.
 #[pyclass(module = "rateslib.rs")]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum RollDay {
     /// Inherit the day of the input date as the roll.
     Unspecified {},
