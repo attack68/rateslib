@@ -1,7 +1,7 @@
 use crate::dual::{Dual, Dual2};
 use crate::splines::{PPSplineDual, PPSplineDual2, PPSplineF64};
 use ndarray::{Array1, Array2};
-use pyo3::{pyclass, FromPyObject, PyErr};
+use pyo3::{pyclass, FromPyObject, IntoPyObject, PyErr};
 use serde::{Deserialize, Serialize};
 
 /// Defines the order of gradients available in a calculation with AD.
@@ -17,7 +17,7 @@ pub enum ADOrder {
 }
 
 /// Container for the three core numeric types; [f64], [Dual] and [Dual2].
-#[derive(Debug, Clone, FromPyObject, Serialize, Deserialize)]
+#[derive(Debug, Clone, FromPyObject, Serialize, Deserialize, IntoPyObject)]
 pub enum Number {
     Dual(Dual),
     Dual2(Dual2),
@@ -49,7 +49,7 @@ pub enum NumberArray2 {
 }
 
 /// Container for [PPSpline] definitive type variants.
-#[derive(Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, IntoPyObject)]
 pub enum NumberPPSpline {
     F64(PPSplineF64),
     Dual(PPSplineDual),

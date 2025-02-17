@@ -150,14 +150,19 @@ packages = [
     "rateslib"
 ]
 exclude = [
-    "/instruments/bonds/securities.py",
-    "/instruments/fx_volatility.py",
-    "/instruments/generics.py",
-    "/instruments/rates/inflation.py",
-    "/instruments/rates/multi_currency.py",
-    "solver.py",
+    # "/instruments/bonds/securities.py",
+    # "/instruments/fx_volatility/strategies.py",
+    # "/instruments/generics.py",
+    # "/instruments/rates/inflation.py",
+    # "solver.py",
 ]
 strict = true
+
+[tool.coverage.run]
+omit = [
+    "/typing.py",
+    # "python/tests/*"
+]
 
 [tool.isort]
 profile = "black"

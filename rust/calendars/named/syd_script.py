@@ -21,6 +21,7 @@ RULES = [
     Holiday("Boxing Day Holiday", month=12, day=26, observance=next_monday_or_tuesday),
     # One Off
     Holiday("Memorial", year=2022, month=9, day=22),
+    Holiday("Adhoc1-Anzac fix", year=2011, month=4, day=26),
 ]
 
 CALENDAR = CustomBusinessDay(  # type: ignore[call-arg]

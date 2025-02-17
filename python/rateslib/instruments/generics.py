@@ -10,21 +10,33 @@ from pandas import DataFrame, DatetimeIndex, concat
 from rateslib import defaults
 from rateslib.calendars import dcf
 from rateslib.curves import Curve
-from rateslib.default import NoInput
+from rateslib.curves._parsers import _validate_curve_is_not_dict, _validate_curve_not_no_input
+from rateslib.default import NoInput, _drb
 from rateslib.dual import dual_log
-from rateslib.fx import FXForwards, FXRates
-from rateslib.fx_volatility import FXVols
-from rateslib.instruments.base import BaseMixin
+from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
+from rateslib.instruments.base import Metrics
 from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.instruments.utils import (
     _composit_fixings_table,
     _get_curves_fx_and_base_maybe_from_solver,
-    _get_vol_maybe_from_solver,
+    _get_fxvol_maybe_from_solver,
 )
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX_, NPV, Any, Curves_, DualTypes, Instrument, NoReturn
+    from rateslib.typing import (
+        FX_,
+        NPV,
+        Any,
+        Curves_,
+        DualTypes,
+        FXVol_,
+        NoReturn,
+        Solver_,
+        SupportsMetrics,
+        datetime_,
+        str_,
+    )
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -32,7 +44,7 @@ if TYPE_CHECKING:
 # Contact info at rateslib.com if this code is observed outside its intended sphere of use.
 
 
-class Value(BaseMixin):
+class Value(Metrics):
     """
     A null *Instrument* which can be used within a :class:`~rateslib.solver.Solver`
     to directly parametrise a *Curve* node, via some calculated value.
@@ -69,13 +81,13 @@ class Value(BaseMixin):
     def __init__(
         self,
         effective: datetime,
-        convention: str | NoInput = NoInput(0),
+        convention: str_ = NoInput(0),
         metric: str = "curve_value",
-        curves: list[str | Curve] | str | Curve | NoInput = NoInput(0),
+        curves: Curves_ = NoInput(0),
     ) -> None:
         self.effective = effective
         self.curves = curves
-        self.convention = defaults.convention if convention is NoInput.blank else convention
+        self.convention = _drb(defaults.convention, convention)
         self.metric = metric.lower()
 
     def rate(
@@ -108,7 +120,7 @@ class Value(BaseMixin):
         float, Dual, Dual2
 
         """
-        curves, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+        curves_, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,
             curves,
@@ -116,20 +128,21 @@ class Value(BaseMixin):
             NoInput(0),
             "_",
         )
-        metric = self.metric if metric is NoInput.blank else metric.lower()
+        metric = _drb(self.metric, metric).lower()
+        curve_0: Curve = _validate_curve_not_no_input(_validate_curve_is_not_dict(curves_[0]))
         if metric == "curve_value":
-            return curves[0][self.effective]
+            return curve_0[self.effective]
         elif metric == "cc_zero_rate":
-            if curves[0]._base_type != "dfs":
+            if curve_0._base_type != "dfs":
                 raise TypeError(
                     "`curve` used with `metric`='cc_zero_rate' must be discount factor based.",
                 )
-            dcf_ = dcf(curves[0].node_dates[0], self.effective, self.convention)
-            _ = (dual_log(curves[0][self.effective]) / -dcf_) * 100
-            return _
+            dcf_ = dcf(curve_0.node_dates[0], self.effective, self.convention)
+            ret: DualTypes = (dual_log(curve_0[self.effective]) / -dcf_) * 100
+            return ret
         elif metric == "index_value":
-            _ = curves[0].index_value(self.effective)
-            return _
+            ret = curve_0.index_value(self.effective)
+            return ret
         raise ValueError("`metric`must be in {'curve_value', 'cc_zero_rate', 'index_value'}.")
 
     def npv(self, *args: Any, **kwargs: Any) -> NoReturn:
@@ -142,7 +155,7 @@ class Value(BaseMixin):
         raise NotImplementedError("`Value` instrument has no concept of analytic delta.")
 
 
-class VolValue(BaseMixin):
+class VolValue(Metrics):
     """
     A null *Instrument* which can be used within a :class:`~rateslib.solver.Solver`
     to directly parametrise a *Vol* node, via some calculated metric.
@@ -151,6 +164,8 @@ class VolValue(BaseMixin):
     ----------
     index_value : float, Dual, Dual2
         The value of some index to the *VolSmile* or *VolSurface*.
+    expiry: datetime, optional
+        The expiry at which to evaluate. This will only be used with *Surfaces*, not *Smiles*.
     metric: str, optional
         The default metric to return from the ``rate`` method.
     vol: str, FXDeltaVolSmile, optional
@@ -191,12 +206,14 @@ class VolValue(BaseMixin):
     def __init__(
         self,
         index_value: DualTypes,
+        expiry: datetime_ = NoInput(0),
         # index_type: str = "delta",
         # delta_type: str = NoInput(0),
         metric: str = "vol",
-        vol: NoInput | str | FXVols = NoInput(0),
+        vol: FXVol_ = NoInput(0),
     ):
         self.index_value = index_value
+        self.expiry = expiry
         # self.index_type = index_type
         # self.delta_type = delta_type
         self.vol = vol
@@ -205,13 +222,13 @@ class VolValue(BaseMixin):
 
     def rate(
         self,
-        curves: Curve | str | list | NoInput = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
-        base: str | NoInput = NoInput(0),
-        vol: DualTypes | FXVols = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
+        vol: FXVol_ = NoInput(0),
         metric: str = "vol",
-    ):
+    ) -> DualTypes:
         """
         Return a value derived from a *Curve*.
 
@@ -226,6 +243,8 @@ class VolValue(BaseMixin):
             Not used.
         base : str, optional
             Not used.
+        vol: float, Dual, Dual2, FXDeltaVolSmile or FXDeltaVolSurface
+            The volatility used in calculation.
         metric: str in {"curve_value", "index_value", "cc_zero_rate"}, optional
             Configures which type of value to return from the applicable *Curve*.
 
@@ -234,19 +253,15 @@ class VolValue(BaseMixin):
         float, Dual, Dual2
 
         """
-        curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
-            self.curves,
-            solver,
-            curves,
-            fx,
-            base,
-            "_",
-        )
-        vol = _get_vol_maybe_from_solver(self.vol, vol, solver)
-        metric = self.metric if metric is NoInput.blank else metric.lower()
+        vol_ = _get_fxvol_maybe_from_solver(self.vol, vol, solver)
+        metric = _drb(self.metric, metric).lower()
 
         if metric == "vol":
-            return vol[self.index_value]
+            if isinstance(vol_, FXDeltaVolSmile | FXDeltaVolSurface):
+                # Must initialise with an ``expiry`` if a Surface is used
+                return vol_._get_index(self.index_value, self.expiry)  # type: ignore[arg-type]
+            else:
+                raise ValueError("`vol` as an object must be provided for VolValue.")
 
         raise ValueError("`metric` must be in {'vol'}.")
 
@@ -309,11 +324,11 @@ class Spread(Sensitivities):
 
     _rate_scalar = 100.0
 
-    def __init__(self, instrument1, instrument2):
+    def __init__(self, instrument1: SupportsMetrics, instrument2: SupportsMetrics) -> None:
         self.instrument1 = instrument1
         self.instrument2 = instrument2
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
     def npv(self, *args: Any, **kwargs: Any) -> NPV:
@@ -344,10 +359,11 @@ class Spread(Sensitivities):
         leg2_npv = self.instrument2.npv(*args, **kwargs)
         if kwargs.get("local", False):
             return {
-                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0) for k in set(leg1_npv) | set(leg2_npv)
+                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0)  # type: ignore[union-attr]
+                for k in set(leg1_npv) | set(leg2_npv)  # type: ignore[arg-type]
             }
         else:
-            return leg1_npv + leg2_npv
+            return leg1_npv + leg2_npv  # type: ignore[operator]
 
     # def npv(self, *args, **kwargs):
     #     if len(args) == 0:
@@ -417,12 +433,12 @@ class Spread(Sensitivities):
     def fixings_table(
         self,
         curves: Curves_ = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
         approximate: bool = False,
-        right: datetime | NoInput = NoInput(0),
-    ):
+        right: datetime_ = NoInput(0),
+    ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on the *Instruments*.
 
@@ -468,7 +484,12 @@ class Fly(Sensitivities):
 
     _rate_scalar = 100.0
 
-    def __init__(self, instrument1, instrument2, instrument3) -> None:
+    def __init__(
+        self,
+        instrument1: SupportsMetrics,
+        instrument2: SupportsMetrics,
+        instrument3: SupportsMetrics,
+    ) -> None:
         self.instrument1 = instrument1
         self.instrument2 = instrument2
         self.instrument3 = instrument3
@@ -498,11 +519,11 @@ class Fly(Sensitivities):
         leg3_npv = self.instrument3.npv(*args, **kwargs)
         if kwargs.get("local", False):
             return {
-                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0) + leg3_npv.get(k, 0)
-                for k in set(leg1_npv) | set(leg2_npv) | set(leg3_npv)
+                k: leg1_npv.get(k, 0) + leg2_npv.get(k, 0) + leg3_npv.get(k, 0)  # type: ignore[union-attr]
+                for k in set(leg1_npv) | set(leg2_npv) | set(leg3_npv)  # type: ignore[arg-type]
             }
         else:
-            return leg1_npv + leg2_npv + leg3_npv
+            return leg1_npv + leg2_npv + leg3_npv  # type: ignore[operator]
 
     def rate(self, *args: Any, **kwargs: Any) -> DualTypes:
         """
@@ -589,13 +610,15 @@ class Fly(Sensitivities):
 # Contact info at rateslib.com if this code is observed outside its intended sphere of use.
 
 
-def _instrument_npv(instrument, *args: Any, **kwargs: Any) -> NPV:  # pragma: no cover
+def _instrument_npv(
+    instrument: SupportsMetrics, *args: Any, **kwargs: Any
+) -> NPV:  # pragma: no cover
     # this function is captured by TestPortfolio pooling but is not registered as a parallel process
     # used for parallel processing with Portfolio.npv
     return instrument.npv(*args, **kwargs)
 
 
-class Portfolio(Sensitivities):
+class Portfolio(Sensitivities, Metrics):
     """
     Create a collection of *Instruments* to group metrics
 
@@ -615,7 +638,7 @@ class Portfolio(Sensitivities):
     See examples for :class:`Spread` for similar functionality.
     """
 
-    def __init__(self, instruments: Sequence[Instrument]) -> None:
+    def __init__(self, instruments: Sequence[SupportsMetrics]) -> None:
         if not isinstance(instruments, Sequence):
             raise ValueError("`instruments` should be a list of Instruments.")
         self.instruments = instruments
@@ -623,12 +646,12 @@ class Portfolio(Sensitivities):
     def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
-    def npv(  # type: ignore[override]
+    def npv(
         self,
         curves: Curves_ = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
         local: bool = False,
         **kwargs: Any,
     ) -> NPV:
@@ -701,7 +724,7 @@ class Portfolio(Sensitivities):
 
             val1: dict[str, DualTypes] = {}
             for instrument in self.instruments:
-                i_npv = instrument.npv(*args, **kwargs)
+                i_npv: dict[str, DualTypes] = instrument.npv(*args, **kwargs)  # type: ignore[assignment]
                 for ccy in i_npv:
                     if ccy in val1:
                         val1[ccy] += i_npv[ccy]
@@ -710,7 +733,8 @@ class Portfolio(Sensitivities):
             ret: DualTypes | dict[str, DualTypes] = val1
         else:
             val2: DualTypes = sum(
-                instrument.npv(*args, **kwargs) for instrument in self.instruments
+                instrument.npv(*args, **kwargs)  # type: ignore[misc]
+                for instrument in self.instruments
             )
             ret = val2
         return ret
@@ -738,14 +762,24 @@ class Portfolio(Sensitivities):
         """
         return super().gamma(*args, **kwargs)
 
+    def exo_delta(self, *args: Any, **kwargs: Any) -> DataFrame:
+        """
+        Calculate the delta of the *Instrument* measured
+        against user defined :class:`~rateslib.dual.Variable`.
+
+        For arguments see
+        :meth:`Sensitivities.exo_delta()<rateslib.instruments.Sensitivities.exo_delta>`.
+        """
+        return super().exo_delta(*args, **kwargs)
+
     def fixings_table(
         self,
         curves: Curves_ = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
         approximate: bool = False,
-        right: datetime | NoInput = NoInput(0),
+        right: datetime_ = NoInput(0),
     ) -> DataFrame:
         """
         Return a DataFrame of fixing exposures on the *Instruments*.
@@ -762,7 +796,7 @@ class Portfolio(Sensitivities):
         )
         for inst in self.instruments:
             try:
-                df = inst.fixings_table(
+                df = inst.fixings_table(  # type: ignore[attr-defined]
                     curves=curves,
                     solver=solver,
                     fx=fx,
@@ -774,3 +808,9 @@ class Portfolio(Sensitivities):
                 continue
             df_result = _composit_fixings_table(df_result, df)
         return df_result
+
+    def rate(self, *args: Any, **kwargs: Any) -> NoReturn:
+        raise NotImplementedError("`rate` is not defined for Portfolio.")
+
+    def analytic_delta(self, *args: Any, **kwargs: Any) -> NoReturn:
+        raise NotImplementedError("`analytic_delta` is not defined for Portfolio.")

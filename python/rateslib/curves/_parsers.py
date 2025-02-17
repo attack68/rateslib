@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, TypeVar
 
 from rateslib import defaults
 from rateslib.curves import MultiCsaCurve, ProxyCurve
@@ -153,13 +154,13 @@ def _get_curves_maybe_from_solver(
         curves = curves_attr
 
     # refactor curves into a list
-    if not isinstance(curves, list | tuple):
+    if isinstance(curves, str) or not isinstance(curves, Sequence):  # Sequence can be str!
         # convert isolated value input to list
         curves_as_list: list[
             Curve | dict[str, str | Curve] | dict[str, str] | dict[str, Curve] | NoInput | str
         ] = [curves]
     else:
-        curves_as_list = curves
+        curves_as_list = list(curves)
 
     # parse curves_as_list
     if isinstance(solver, NoInput):
@@ -195,7 +196,7 @@ def _make_4_tuple_of_curve(curves: tuple[CurveOption_, ...]) -> Curves_Tuple:
     return curves  # type: ignore[return-value]
 
 
-def _validate_disc_curve_is_not_dict(curve: CurveOption_) -> Curve_:
+def _validate_curve_is_not_dict(curve: CurveOption_) -> Curve_:
     if isinstance(curve, dict):
         raise ValueError("`disc_curve` cannot be supplied as, or inferred from, a dict of Curves.")
     return curve
@@ -204,7 +205,50 @@ def _validate_disc_curve_is_not_dict(curve: CurveOption_) -> Curve_:
 def _validate_disc_curves_are_not_dict(curves_tuple: Curves_Tuple) -> Curves_DiscTuple:
     return (
         curves_tuple[0],
-        _validate_disc_curve_is_not_dict(curves_tuple[1]),
+        _validate_curve_is_not_dict(curves_tuple[1]),
         curves_tuple[2],
-        _validate_disc_curve_is_not_dict(curves_tuple[3]),
+        _validate_curve_is_not_dict(curves_tuple[3]),
     )
+
+
+def _validate_curve_not_no_input(curve: Curve_) -> Curve:
+    if isinstance(curve, NoInput):
+        raise ValueError("`curve` must be supplied. Got NoInput or None.")
+    return curve
+
+
+T = TypeVar("T")
+
+
+def _validate_obj_not_no_input(obj: T | NoInput, name: str) -> T:
+    if isinstance(obj, NoInput):
+        raise ValueError(f"`{name}` must be supplied. Got NoInput or None.")
+    return obj
+
+
+def _disc_maybe_from_curve(curve: CurveOption_, disc_curve: Curve_) -> Curve_:
+    """Return a discount curve, pointed as the `curve` if not provided and if suitable Type."""
+    if isinstance(disc_curve, NoInput):
+        if isinstance(curve, dict):
+            raise ValueError("`disc_curve` cannot be inferred from a dictionary of curves.")
+        elif isinstance(curve, NoInput):
+            return NoInput(0)
+        elif curve._base_type == "values":
+            raise ValueError("`disc_curve` cannot be inferred from a non-DF based curve.")
+        _: Curve | NoInput = curve
+    else:
+        _ = disc_curve
+    return _
+
+
+def _disc_required_maybe_from_curve(curve: CurveOption_, disc_curve: CurveOption_) -> Curve:
+    """Return a discount curve, pointed as the `curve` if not provided and if suitable Type."""
+    if isinstance(disc_curve, dict):
+        raise NotImplementedError("`disc_curve` cannot currently be inferred from a dict.")
+    _: Curve_ = _disc_maybe_from_curve(curve, disc_curve)
+    if isinstance(_, NoInput):
+        raise TypeError(
+            "`curves` have not been supplied correctly. "
+            "A `disc_curve` is required to perform function."
+        )
+    return _

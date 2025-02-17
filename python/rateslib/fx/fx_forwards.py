@@ -11,9 +11,10 @@ from pandas import DataFrame, Series
 
 from rateslib.calendars import add_tenor
 from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
-from rateslib.default import NoInput, PlotOutput, _validate_states, _WithState, plot
+from rateslib.default import NoInput, PlotOutput, plot
 from rateslib.dual import Dual, gradient
 from rateslib.fx.fx_rates import FXRates
+from rateslib.mutability import _validate_states, _WithState
 
 if TYPE_CHECKING:
     from rateslib.typing import CalInput, DualTypes, Number
@@ -180,6 +181,7 @@ class FXForwards(_WithState):
         self._validate_fx_curves(fx_curves)
         self.fx_rates: FXRates | list[FXRates] = fx_rates
         self._calculate_immediate_rates(base, init=True)
+        assert self.currencies_list == self.fx_rates_immediate.currencies_list  # noqa: S101
         self._set_new_state()
 
     def _get_composited_state(self) -> int:
@@ -215,7 +217,7 @@ class FXForwards(_WithState):
             if init:
                 self.currencies = self.fx_rates.currencies
                 self.q = len(self.currencies.keys())
-                self.currencies_list: list[str] = list(self.currencies.keys())
+                self.currencies_list: list[str] = self.fx_rates.currencies_list
                 self.transform = self._get_forwards_transformation_matrix(
                     self.q,
                     self.currencies,
@@ -240,7 +242,7 @@ class FXForwards(_WithState):
                 pair: self.fx_rates[0].settlement for pair in self.fx_rates[0].pairs
             }
 
-            # Now itertate through the remaining FXRates objects and patch them into the fxf
+            # Now iterate through the remaining FXRates objects and patch them into the fxf
             for fx_rates_obj in self.fx_rates[1:]:
                 # create sub FXForwards for each FXRates instance and re-combine.
                 # This reuses the arg validation of a single FXRates object and
@@ -326,7 +328,7 @@ class FXForwards(_WithState):
                 pair = f"{cash_ccy}{coll_ccy}"
                 fx_rates_immediate.update({pair: self.fx_rates.fx_array[row, col] * v_i / w_i})
 
-        fx_rates_immediate_ = FXRates(fx_rates_immediate, self.immediate, self.base)
+        fx_rates_immediate_ = FXRates(fx_rates_immediate, self.immediate, self.currencies_list[0])
         return fx_rates_immediate_.restate(self.fx_rates.pairs, keep_ad=True)
 
     def __repr__(self) -> str:
@@ -1055,7 +1057,6 @@ class FXForwards(_WithState):
         else:
             self.fx_rates._set_ad_order(order)
         self.fx_rates_immediate._set_ad_order(order)
-        self._set_new_state()
 
     @_validate_states
     def to_json(self) -> str:
@@ -1236,7 +1237,7 @@ def forward_fx(
     """  # noqa: E501
     if date == fx_settlement:  # noqa: SIM114
         return fx_rate  # noqa: SIM114
-    elif date == curve_domestic.node_dates[0] and fx_settlement is NoInput.blank:  # noqa: SIM114
+    elif date == curve_domestic.node_dates[0] and isinstance(fx_settlement, NoInput):  # noqa: SIM114
         return fx_rate  # noqa: SIM114
 
     _: DualTypes = curve_domestic[date] / curve_foreign[date]

@@ -18,10 +18,15 @@ from rateslib.instruments.utils import (
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX_, NPV, Any, CalInput, Curves_, DualTypes, Leg
+    from rateslib.typing import FX_, NPV, Any, CalInput, Curves_, DualTypes, Leg, Solver_, str_
 
 
-class BaseMixin:
+class Metrics:
+    """
+    Base class for *Instruments* adding optional pricing parameters, such as fixed rates,
+    float spreads etc. Also provides key pricing methods.
+    """
+
     _fixed_rate_mixin: bool = False
     _float_spread_mixin: bool = False
     _leg2_fixed_rate_mixin: bool = False
@@ -202,9 +207,9 @@ class BaseMixin:
     def cashflows(
         self,
         curves: Curves_ = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
     ) -> DataFrame:
         """
         Return the properties of all legs used in calculating cashflows.
@@ -380,8 +385,60 @@ class BaseMixin:
     def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
+    def cashflows_table(
+        self,
+        curves: Curves_ = NoInput(0),
+        solver: Solver | NoInput = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        **kwargs: Any,
+    ) -> DataFrame:
+        """
+        Aggregate the values derived from a :meth:`~rateslib.instruments.BaseMixin.cashflows`
+        method on an *Instrument*.
 
-class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
+        Parameters
+        ----------
+        curves : CurveType, str or list of such, optional
+            Argument input to the underlying ``cashflows`` method of the *Instrument*.
+        solver : Solver, optional
+            Argument input to the underlying ``cashflows`` method of the *Instrument*.
+        fx : float, FXRates, FXForwards, optional
+            Argument input to the underlying ``cashflows`` method of the *Instrument*.
+        base : str, optional
+            Argument input to the underlying ``cashflows`` method of the *Instrument*.
+        kwargs : dict
+            Additional arguments input the underlying ``cashflows`` method of the *Instrument*.
+
+        Returns
+        -------
+        DataFrame
+        """
+        cashflows = self.cashflows(curves, solver, fx, base, **kwargs)
+        cashflows = cashflows[
+            [
+                defaults.headers["currency"],
+                defaults.headers["collateral"],
+                defaults.headers["payment"],
+                defaults.headers["cashflow"],
+            ]
+        ]
+        _: DataFrame = cashflows.groupby(  # type: ignore[assignment]
+            [
+                defaults.headers["currency"],
+                defaults.headers["collateral"],
+                defaults.headers["payment"],
+            ],
+            dropna=False,
+        )
+        _ = _.sum().unstack([0, 1]).droplevel(0, axis=1)  # type: ignore[arg-type]
+        _.columns.names = ["local_ccy", "collateral_ccy"]
+        _.index.names = ["payment"]
+        _ = _.sort_index(ascending=True, axis=0).infer_objects().fillna(0.0)
+        return _
+
+
+class BaseDerivative(Sensitivities, Metrics, metaclass=ABCMeta):
     """
     Abstract base class with common parameters for many *Derivative* subclasses.
 
@@ -445,34 +502,12 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
 
     Attributes
     ----------
-    effective : datetime
-    termination : datetime
-    frequency : str
-    stub : str
-    front_stub : datetime
-    back_stub : datetime
-    roll : str, int
-    eom : bool
-    modifier : str
-    calendar : Calendar
-    payment_lag : int
-    notional : float
-    amortization : float
-    convention : str
-    leg2_effective : datetime
-    leg2_termination : datetime
-    leg2_frequency : str
-    leg2_stub : str
-    leg2_front_stub : datetime
-    leg2_back_stub : datetime
-    leg2_roll : str, int
-    leg2_eom : bool
-    leg2_modifier : str
-    leg2_calendar : Calendar
-    leg2_payment_lag : int
-    leg2_notional : float
-    leg2_amortization : float
-    leg2_convention : str
+    kwargs: dict[str, Any]
+        A record of the input arguments to the *Instrument*.
+    curves: Curves_
+        Curves associated with the *Instrument* used in pricing methods.
+    spec: str_
+        The default configuration used to populate arguments.
     """
 
     @abstractmethod
@@ -576,3 +611,13 @@ class BaseDerivative(Sensitivities, BaseMixin, metaclass=ABCMeta):
         For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
         """
         return super().gamma(*args, **kwargs)
+
+    def exo_delta(self, *args: Any, **kwargs: Any) -> DataFrame:
+        """
+        Calculate the delta of the *Instrument*, measured against user
+        defined :class:`~rateslib.dual.Variable` s.
+
+        For arguments see
+        :meth:`Sensitivities.exo_delta()<rateslib.instruments.Sensitivities.exo_delta>`.
+        """
+        return super().exo_delta(*args, **kwargs)

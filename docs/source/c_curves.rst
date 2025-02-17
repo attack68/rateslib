@@ -23,7 +23,6 @@ This module relies on the ultility modules :ref:`splines<splines-doc>`
 and :ref:`dual<dual-doc>`.
 
 .. inheritance-diagram:: rateslib.curves.Curve rateslib.curves.LineCurve rateslib.curves.CompositeCurve rateslib.curves.MultiCsaCurve rateslib.curves.ProxyCurve
-   :private-bases:
    :top-classes: rateslib.curves.Curve
    :parts: 1
 
@@ -36,8 +35,9 @@ and :ref:`dual<dual-doc>`.
    rateslib.curves.interpolate
    rateslib.curves.index_left
 
-Each fundamental curve type has ``rate()``, ``plot()``, ``shift()``, ``roll()`` and
-``translate()`` methods. A :class:`~rateslib.curves.Curve` with included ``index_base`` and
+Each fundamental curve type has ``rate()``, ``plot()``, ``shift()``, ``roll()``,
+``translate()``, ``update`` and ``update_node`` methods. A :class:`~rateslib.curves.Curve`
+with included ``index_base`` and
 ``index_lag`` can also calculate future ``index_value()`` and ``plot_index()``.
 
 .. autosummary::
@@ -46,11 +46,15 @@ Each fundamental curve type has ``rate()``, ``plot()``, ``shift()``, ``roll()`` 
    rateslib.curves.Curve.shift
    rateslib.curves.Curve.roll
    rateslib.curves.Curve.translate
+   rateslib.curves.Curve.update
+   rateslib.curves.Curve.update_node
    rateslib.curves.LineCurve.rate
    rateslib.curves.LineCurve.plot
    rateslib.curves.LineCurve.shift
    rateslib.curves.LineCurve.roll
    rateslib.curves.LineCurve.translate
+   rateslib.curves.LineCurve.update
+   rateslib.curves.LineCurve.update_node
    rateslib.curves.Curve.index_value
    rateslib.curves.Curve.plot_index
 

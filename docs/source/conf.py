@@ -14,7 +14,7 @@ from rateslib import *
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'Rateslib'
-copyright = '2022, JHM Darbyshire'
+copyright = '2022, 2023, 2024, 2025, Siffrorna Technology Limited'
 author = 'JHM Darbyshire'
 release = 'dev'
 

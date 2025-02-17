@@ -56,15 +56,15 @@ earlier pre-rust 1.1.0 version.
      - 3.12
      - 3.10 (Oct '21)
    * - NumPy
-     - 2.1.3
-     - 1.26.4
+     - 2.2.2
+     - 2.2.2
      - 1.21.5 (Dec '21)
    * - Pandas
      - 2.2.3
-     - 2.2.2
+     - 2.2.3
      - 1.4.1 (Feb '22)
    * - Matplotlib
-     - 3.9.3
+     - 3.10.0
      - 3.9.3
      - 3.5.1 (Dec '21)
 
@@ -109,7 +109,7 @@ Which ``fixed income instruments`` does *rateslib* include?
      - :class:`~rateslib.instruments.FXRiskReversal`
      - :class:`~rateslib.instruments.Portfolio`
    * - :class:`~rateslib.instruments.STIRFuture`
-     -
+     - :class:`~rateslib.instruments.NDF`
      - :class:`~rateslib.instruments.BondFuture`
      - :class:`~rateslib.instruments.FXStraddle`
      -

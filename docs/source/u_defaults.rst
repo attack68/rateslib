@@ -182,6 +182,20 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
      -
      -
+   * - INR
+     - :ref:`mum <spec-inr-mum>`
+     -
+     -
+     -
+     -
+     -
+     -
+     -
+     -
+     -
+     -
+     -
+
 
 **Securities**
 

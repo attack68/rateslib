@@ -12,8 +12,39 @@ and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
 email contact, see `rateslib <https://rateslib.com>`_.
 
-1.7.0 (No Release Date)
+1.8.0 (No release date)
 ****************************
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - Period
+     - Add :class:`~rateslib.periods.NonDeliverableFixedPeriod`
+       (`681 <https://github.com/attack68/rateslib/pull/681>`_)
+   * - Refactor
+     - Rename :class:`~rateslib.instruments.BaseMixin` to :class:`~rateslib.instruments.Metrics`.
+       (`678 <https://github.com/attack68/rateslib/pull/678>`_)
+   * - Bug
+     - Add :class:`~rateslib.instruments.NDF` to global *rateslib* namespace.
+       (`682 <https://github.com/attack68/rateslib/pull/682>`_)
+
+1.7.0 (31st January 2025)
+****************************
+
+The key theme for 1.7.0 was to add Python type hinting to the entire codebase, and adding
+``mypy`` CI checks to the development process. This resulted in
+a number of refactorisations which may have changed the way some argument inputs should be
+structured.
+
+*FXOptions* which were added and listed in beta status since v1.2.0, have seen the largest
+changes and have now been moved out beta status.
+
+Internally, caching and state management were improved to provide more safety, preventing users
+inadvertently mutating objects without the *Solver's* *Gradients* being updated. All mutable
+objects now have specific methods to allow *updates*.
 
 .. list-table::
    :widths: 25 75
@@ -30,6 +61,16 @@ email contact, see `rateslib <https://rateslib.com>`_.
        :class:`~rateslib.instruments.FloatRateNote` to allow the calculation of
        yield-to-maturity for that *Instrument* based on ``calc_mode`` similar to
        *FixedRateBonds*. (`529 <https://github.com/attack68/rateslib/pull/529>`_)
+   * - Instruments
+     - :class:`~rateslib.periods.NonDeliverableCashflow` and
+       :class:`~rateslib.instruments.NDF` added to allow FX forwards settled in
+       an alternate currency to be valued.
+       (`647 <https://github.com/attack68/rateslib/pull/647>`_)
+       (`651 <https://github.com/attack68/rateslib/pull/651>`_)
+   * - Instruments
+     - Add parameter ``expiry`` to :class:`~rateslib.instruments.VolValue` to permit more
+       flexibility in calibrating *FXDeltaVolSurfaces*.
+       (`658 <https://github.com/attack68/rateslib/pull/658>`_)
    * - Splines
      - The *Spline* :meth:`~rateslib.splines.evaluate` method is enhanced to allow an x-axis
        evaluation if a :class:`~rateslib.dual.Variable` is passed, through dynamic *Dual* or *Dual2*
@@ -40,11 +81,34 @@ email contact, see `rateslib <https://rateslib.com>`_.
        :meth:`~rateslib.curves.Curve.update_node` to allow mutating *Curve* types directly
        with appropriate cache and state management.
        (`584 <https://github.com/attack68/rateslib/pull/584>`_)
+   * - Curves
+     - Caching and state management was extended to :class:`~rateslib.curves.MultiCsaCurve` and
+       the *defaults* option ``curve_caching_max`` (initially set to 1000 elements) was added
+       to prevent memory issues of unlimitedly expanding caches.
+       (`661 <https://github.com/attack68/rateslib/pull/661>`_)
+   * - Calendars
+     - Add *"mum"* (INR: Mumbai) to list of default calendars.
+       (`659 <https://github.com/attack68/rateslib/pull/659>`_)
+   * - Bug
+     - Defaults spec *"usd_stir1"* for CME 1m SOFR futures, and *"eur_stir1"* for ICE 1m ESTR
+       futures has corrected the
+       ``roll`` to *"som"*, instead of *"imm"*, to allow correct placement of contracts averaging
+       all of the rates in a specific contract month.
+       (`631 <https://github.com/attack68/rateslib/pull/631>`_)
    * - Bug
      - :class:`~rateslib.instruments.STIRFuture` now correctly handles the ``fx`` and ``base``
        arguments when using the :meth:`~rateslib.instruments.STIRFuture.npv` or
        :meth:`~rateslib.instruments.STIRFuture.analytic_delta` methods.
        (`519 <https://github.com/attack68/rateslib/pull/519>`_)
+   * - Bug
+     - :class:`~rateslib.instruments.STIRFuture` now correctly handles *NPV* when ``fx``
+       is provided as an, potentially unused, argument.
+       (`653 <https://github.com/attack68/rateslib/pull/653>`_)
+   * - Bug
+     - :class:`~rateslib.fx.FXForwards` corrects a bug which possibly mis-ordered some
+       currencies if a ``base`` argument was given at initialisation, yielding mis-stated FX rates
+       for some pair combinations.
+       (`669 <https://github.com/attack68/rateslib/pull/669>`_)
    * - Bug
      - :meth:`~rateslib.periods.FloatPeriod.rate` now correctly calculates when ``fixings``
        are provided in any of the acceptable formats and contains all data to do so, in the
@@ -95,6 +159,23 @@ email contact, see `rateslib <https://rateslib.com>`_.
        *FXRates* and *FXForwards* to allow auto-mutate detection of associated objects and ensure
        consistent method results.
        (`570 <https://github.com/attack68/rateslib/pull/570>`_)
+   * - Refactor
+     - The internal data objects for *FXOption* pricing are restructured to conform to more
+       strict data typing.
+       (`642 <https://github.com/attack68/rateslib/pull/642>`_)
+   * - Refactor
+     - :red:`Minor Breaking Change!` The argument inputs for *FXOptionStrat* types, such
+       as :class:`~rateslib.instruments.FXRiskReversal`, :class:`~rateslib.instruments.FXStraddle`,
+       :class:`~rateslib.instruments.FXStrangle` and :class:`~rateslib.instruments.FXBrokerFly`,
+       may have changed to conform to a more generalised structure. This may include the
+       specification of their ``premium``, ``strike``, ``notional`` and ``vol`` inputs. Review
+       their updated documentation for details.
+       (Mostly `643 <https://github.com/attack68/rateslib/pull/643>`_)
+   * - Developers
+     - *rateslib-rs* extension upgrades to using PyO3:0.23, numpy:0.23, itertools:0.14,
+       statrs:0.18, indexmap:2.7
+       (`655 <https://github.com/attack68/rateslib/pull/655>`_)
+       (`656 <https://github.com/attack68/rateslib/pull/656>`_)
 
 1.6.0 (30th November 2024)
 ****************************

@@ -40,7 +40,7 @@ impl Ccy {
         Ok(())
     }
     pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+        Ok(PyBytes::new(py, &serialize(&self).unwrap()))
     }
     pub fn __getnewargs__<'py>(&self) -> PyResult<(String,)> {
         Ok(((*(self.name)).clone(),))
@@ -114,7 +114,7 @@ impl FXRate {
         Ok(())
     }
     pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+        Ok(PyBytes::new(py, &serialize(&self).unwrap()))
     }
     pub fn __getnewargs__<'py>(&self) -> PyResult<(String, String, Number, Option<NaiveDateTime>)> {
         Ok((
@@ -254,7 +254,7 @@ impl FXRates {
         Ok(())
     }
     pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+        Ok(PyBytes::new(py, &serialize(&self).unwrap()))
     }
     pub fn __getnewargs__<'py>(&self) -> PyResult<(Vec<FXRate>, Option<Ccy>)> {
         Ok((self.fx_rates.clone(), Some(self.currencies[0])))

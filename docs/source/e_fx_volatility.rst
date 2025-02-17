@@ -10,12 +10,6 @@
 FX Volatility
 ****************************
 
-.. warning::
-
-   FX volatility products in *rateslib* are not in stable status. Their API and/or object
-   interactions *may* incur breaking changes in upcoming releases as they mature and other
-   classes or pricing models may be added.
-
 Interbank standard conventions for quoting FX volatility products are quite varied.
 None-the-less, *rateslib* provides the most common definitions and products, all priced using
 the **Black-76** model.
@@ -196,10 +190,10 @@ Restrictions
 (LHS) or the foreign (RHS) currency of the FX pair of the option (which is also the default
 if none is specified).
 
-If the currency is specified as foreign, then the pricing metric will
+If the currency is left as the default foreign RHS, then the pricing metric will
 be stated in **pips** and the percent delta calculations are unadjusted.
 
-If the currency is stated as domestic, then the pricing metric is stated as
+If the currency is specifically stated as the LHS domestic, then the pricing metric used is
 **percentage of notional** and the percent delta calculations are **premium adjusted**.
 
 Strikes given in Delta terms
@@ -214,7 +208,7 @@ explicitly stated. Suppose building a *FXCall* with a specified 25% delta.
        pair="eurusd",
        expiry=dt(2023, 6, 16),
        notional=20e6,
-       strike="25d",
+       strike="25d",  #  <-  Input for 25% delta
        payment_lag=2,
        delivery_lag=2,
        calendar="tgt|fed",
@@ -505,7 +499,7 @@ The default pricing ``metric`` is *'single_vol'* which calculates the single vol
        pair="eurusd",
        expiry=dt(2023, 6, 16),
        notional=[20e6, -13.5e6],
-       strike=("-25d", "atm_delta", "25d"),
+       strike=(("-25d", "25d"), "atm_delta"),
        payment_lag=2,
        delivery_lag=2,
        calendar="tgt|fed",
@@ -515,7 +509,7 @@ The default pricing ``metric`` is *'single_vol'* which calculates the single vol
    fxbf.rate(
        curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
        fx=fxf,
-       vol=[10.15, 7.5, 8.9]
+       vol=[[10.15, 8.9], 7.5]
    )
    fxbf.plot_payoff(
        range=[1.000, 1.150],
@@ -549,7 +543,7 @@ The default pricing ``metric`` is *'single_vol'* which calculates the single vol
        pair="eurusd",
        expiry=dt(2023, 6, 16),
        notional=[20e6, -13.5e6],
-       strike=("-25d", "atm_delta", "25d"),
+       strike=(("-25d", "25d"), "atm_delta"),
        payment_lag=2,
        delivery_lag=2,
        calendar="tgt|fed",

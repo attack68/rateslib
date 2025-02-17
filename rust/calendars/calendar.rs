@@ -2,7 +2,7 @@ use chrono::prelude::*;
 use chrono::Weekday;
 use indexmap::set::IndexSet;
 use pyo3::exceptions::PyValueError;
-use pyo3::{pyclass, FromPyObject, PyErr};
+use pyo3::{pyclass, FromPyObject, IntoPyObject, PyErr};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
@@ -10,7 +10,7 @@ use crate::calendars::dateroll::DateRoll;
 use crate::calendars::named::get_calendar_by_name;
 
 /// Container for calendar types.
-#[derive(Debug, Clone, PartialEq, FromPyObject, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, FromPyObject, Serialize, Deserialize, IntoPyObject)]
 pub enum CalType {
     Cal(Cal),
     UnionCal(UnionCal),

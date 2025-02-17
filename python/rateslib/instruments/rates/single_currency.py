@@ -7,6 +7,7 @@ from pandas import DataFrame
 
 from rateslib import defaults
 from rateslib.curves import Curve
+from rateslib.curves._parsers import _disc_required_maybe_from_curve
 from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
 from rateslib.instruments.base import BaseDerivative
@@ -22,8 +23,7 @@ from rateslib.legs import (
     ZeroFixedLeg,
     ZeroFloatLeg,
 )
-from rateslib.periods import (
-    _disc_required_maybe_from_curve,
+from rateslib.periods.utils import (
     _get_fx_and_base,
     _maybe_local,
     _trim_df_by_index,
@@ -39,7 +39,7 @@ if TYPE_CHECKING:
         Curves_,
         DualTypes,
         FixedPeriod,
-        FixingsRates,
+        FixingsRates_,
         FloatPeriod,
         Solver_,
     )
@@ -179,7 +179,7 @@ class IRS(BaseDerivative):
         fixed_rate: DualTypes | NoInput = NoInput(0),
         leg2_float_spread: DualTypes | NoInput = NoInput(0),
         leg2_spread_compound_method: str | NoInput = NoInput(0),
-        leg2_fixings: FixingsRates = NoInput(0),  # type: ignore[type-var]
+        leg2_fixings: FixingsRates_ = NoInput(0),  # type: ignore[type-var]
         leg2_fixing_method: str | NoInput = NoInput(0),
         leg2_method_param: int | NoInput = NoInput(0),
         **kwargs: Any,
@@ -539,7 +539,7 @@ class STIRFuture(IRS):
         nominal: float | NoInput = NoInput(0),
         leg2_float_spread: float | NoInput = NoInput(0),
         leg2_spread_compound_method: str | NoInput = NoInput(0),
-        leg2_fixings: FixingsRates = NoInput(0),
+        leg2_fixings: FixingsRates_ = NoInput(0),
         leg2_fixing_method: str | NoInput = NoInput(0),
         leg2_method_param: int | NoInput = NoInput(0),
         **kwargs: Any,
@@ -592,7 +592,7 @@ class STIRFuture(IRS):
         else:
             traded_price = 100 - self.fixed_rate
         _ = (mid_price - traded_price) * 100 * self.kwargs["contracts"] * self.kwargs["bp_value"]
-        return _maybe_local(_, local, self.kwargs["currency"], fx, base)
+        return _maybe_local(_, local, self.leg1.currency, fx, base)
 
     def rate(
         self,
@@ -882,7 +882,7 @@ class ZCS(BaseDerivative):
         fixed_rate: float | NoInput = NoInput(0),
         leg2_float_spread: float | NoInput = NoInput(0),
         leg2_spread_compound_method: str | NoInput = NoInput(0),
-        leg2_fixings: FixingsRates = NoInput(0),
+        leg2_fixings: FixingsRates_ = NoInput(0),
         leg2_fixing_method: str | NoInput = NoInput(0),
         leg2_method_param: int | NoInput = NoInput(0),
         **kwargs: Any,
@@ -1228,12 +1228,12 @@ class SBS(BaseDerivative):
         *args: Any,
         float_spread: float | NoInput = NoInput(0),
         spread_compound_method: str | NoInput = NoInput(0),
-        fixings: FixingsRates = NoInput(0),
+        fixings: FixingsRates_ = NoInput(0),
         fixing_method: str | NoInput = NoInput(0),
         method_param: int | NoInput = NoInput(0),
         leg2_float_spread: float | NoInput = NoInput(0),
         leg2_spread_compound_method: str | NoInput = NoInput(0),
-        leg2_fixings: FixingsRates = NoInput(0),
+        leg2_fixings: FixingsRates_ = NoInput(0),
         leg2_fixing_method: str | NoInput = NoInput(0),
         leg2_method_param: int | NoInput = NoInput(0),
         **kwargs: Any,
@@ -1541,7 +1541,7 @@ class FRA(BaseDerivative):
         *args: Any,
         fixed_rate: DualTypes | NoInput = NoInput(0),
         method_param: int | NoInput = NoInput(0),
-        fixings: FixingsRates = NoInput(0),
+        fixings: FixingsRates_ = NoInput(0),
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)

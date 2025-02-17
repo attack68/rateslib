@@ -12,17 +12,26 @@ Release Notes
 The History and Context of Rateslib
 ************************************
 
-*Rateslib* BETA was first released in April 2023.
+*Rateslib beta* was first released in April 2023 and *rateslib v1.0* in Feb 2024.
 
-The foundations of *rateslib* is really the code library
-`Book IRDS3 <https://github.com/attack68/book_irds3>`_, which laid down
-basic principles and was a sandbox code environment for the
-publication `Pricing and Trading Interest Rate Derivatives: A Practical Guide to Swaps <https://www.amazon.com/Pricing-Trading-Interest-Rate-Derivatives/dp/0995455538>`_.
-Some of the code and algorithms also date back to the author's
-time trading IRSs as a market-maker between 2006 and 2017. The algorithms and mathematical
-code developments of *rateslib*
-are all characterised and explained in
-`Coding Interest Rates: FX, Swaps and Bonds <https://www.amazon.com/dp/0995455554>`_.
+The foundation of *rateslib* comes from two parts:
+
+- The code library introduced in `Book IRDS3 <https://github.com/attack68/book_irds3>`_, which laid down
+  basic principles and was a sandbox code environment for the
+  publication `Pricing and Trading Interest Rate Derivatives: A Practical Guide to Swaps <https://www.amazon.com/Pricing-Trading-Interest-Rate-Derivatives/dp/0995455538>`_.
+  This code prioritised a pedagogical style with an API as simple and intuitive as possible, with
+  the aim of communicating relevant aspects of fixed income to those even with limited coding experience.
+- Code and algorithms dating back to the author's
+  time trading IRSs as a market-maker between 2006 and 2017.
+  This code prioritised accuracy and capturing market nuances with the aim of
+  maximising profit from a market-maker's perspective.
+
+Since those foundations, on going development has been substantial and arises due to interactions
+with industry professionals and identified gaps in features and products. There is always a
+focus on performance enhancement and documentation improvement.
+
+The algorithms and mathematical code developments of *rateslib* are all characterised and
+explained in `Coding Interest Rates: FX, Swaps and Bonds <https://www.amazon.com/dp/0995455554>`_.
 
 .. container:: twocol
 

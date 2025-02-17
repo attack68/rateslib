@@ -11,7 +11,7 @@ use crate::dual::{Dual, Dual2};
 use crate::fx::rates::FXRates;
 use crate::json::JSON;
 use crate::splines::{PPSplineDual, PPSplineDual2, PPSplineF64};
-use pyo3::conversion::ToPyObject;
+// use pyo3::conversion::ToPyObject;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// This allows a single `from_json` function to automatically detect the type and
 /// convert it directly to a usable type in Python.
-#[derive(Serialize, Deserialize, FromPyObject)]
+#[derive(Serialize, Deserialize, FromPyObject, IntoPyObject)]
 pub(crate) enum DeserializedObj {
     Dual(Dual),
     Dual2(Dual2),
@@ -34,22 +34,23 @@ pub(crate) enum DeserializedObj {
     PPSplineDual2(PPSplineDual2),
 }
 
-impl IntoPy<PyObject> for DeserializedObj {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        match self {
-            DeserializedObj::Dual(v) => Py::new(py, v).unwrap().to_object(py),
-            DeserializedObj::Dual2(v) => Py::new(py, v).unwrap().to_object(py),
-            DeserializedObj::Cal(v) => Py::new(py, v).unwrap().to_object(py),
-            DeserializedObj::UnionCal(v) => Py::new(py, v).unwrap().to_object(py),
-            DeserializedObj::NamedCal(v) => Py::new(py, v).unwrap().to_object(py),
-            DeserializedObj::FXRates(v) => Py::new(py, v).unwrap().to_object(py),
-            DeserializedObj::Curve(v) => Py::new(py, v).unwrap().to_object(py),
-            DeserializedObj::PPSplineF64(v) => Py::new(py, v).unwrap().to_object(py),
-            DeserializedObj::PPSplineDual(v) => Py::new(py, v).unwrap().to_object(py),
-            DeserializedObj::PPSplineDual2(v) => Py::new(py, v).unwrap().to_object(py),
-        }
-    }
-}
+// removed on upgrade to pyo3 0.23, see https://pyo3.rs/v0.23.0/migration#intopyobject-and-intopyobjectref-derive-macros
+// impl IntoPy<PyObject> for DeserializedObj {
+//     fn into_py(self, py: Python<'_>) -> PyObject {
+//         match self {
+//             DeserializedObj::Dual(v) => Py::new(py, v).unwrap().to_object(py),
+//             DeserializedObj::Dual2(v) => Py::new(py, v).unwrap().to_object(py),
+//             DeserializedObj::Cal(v) => Py::new(py, v).unwrap().to_object(py),
+//             DeserializedObj::UnionCal(v) => Py::new(py, v).unwrap().to_object(py),
+//             DeserializedObj::NamedCal(v) => Py::new(py, v).unwrap().to_object(py),
+//             DeserializedObj::FXRates(v) => Py::new(py, v).unwrap().to_object(py),
+//             DeserializedObj::Curve(v) => Py::new(py, v).unwrap().to_object(py),
+//             DeserializedObj::PPSplineF64(v) => Py::new(py, v).unwrap().to_object(py),
+//             DeserializedObj::PPSplineDual(v) => Py::new(py, v).unwrap().to_object(py),
+//             DeserializedObj::PPSplineDual2(v) => Py::new(py, v).unwrap().to_object(py),
+//         }
+//     }
+// }
 
 impl JSON for DeserializedObj {}
 

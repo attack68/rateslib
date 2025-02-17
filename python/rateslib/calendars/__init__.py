@@ -15,7 +15,7 @@ from rateslib.default import NoInput, _drb
 from rateslib.rs import Cal, Modifier, NamedCal, RollDay, UnionCal
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput
+    from rateslib.typing import CalInput, bool_, datetime_, int_, str_
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -29,10 +29,10 @@ def dcf(
     start: datetime,
     end: datetime,
     convention: str,
-    termination: datetime | NoInput = NoInput(0),  # required for 30E360ISDA and ActActICMA
-    frequency_months: int | NoInput = NoInput(0),  # req. ActActICMA = ActActISMA = ActActBond
-    stub: bool | NoInput = NoInput(0),  # required for ActActICMA = ActActISMA = ActActBond
-    roll: str | int | NoInput = NoInput(0),  # required also for ActACtICMA = ...
+    termination: datetime_ = NoInput(0),  # required for 30E360ISDA and ActActICMA
+    frequency_months: int_ = NoInput(0),  # req. ActActICMA = ActActISMA = ActActBond
+    stub: bool_ = NoInput(0),  # required for ActActICMA = ActActISMA = ActActBond
+    roll: str | int_ = NoInput(0),  # required also for ActACtICMA = ...
     calendar: CalInput = NoInput(0),  # required for ActACtICMA = ActActISMA = ActActBond
 ) -> float:
     """
@@ -167,7 +167,7 @@ def add_tenor(
     tenor: str,
     modifier: str,
     calendar: CalInput = NoInput(0),
-    roll: str | int | NoInput = NoInput(0),
+    roll: str | int_ = NoInput(0),
     settlement: bool = False,
     mod_days: bool = False,
 ) -> datetime:
@@ -216,7 +216,7 @@ def add_tenor(
        from rateslib.scheduling import Schedule
        from rateslib.curves import Curve, LineCurve, interpolate, index_left, IndexCurve
        from rateslib.dual import Dual, Dual2
-       from rateslib.periods import FixedPeriod, FloatPeriod, Cashflow, IndexFixedPeriod, IndexCashflow
+       from rateslib.periods import FixedPeriod, FloatPeriod, Cashflow, IndexFixedPeriod, IndexCashflow, NonDeliverableCashflow, NonDeliverableFixedPeriod
        from rateslib.legs import FixedLeg, FloatLeg, CustomLeg, FloatLegMtm, FixedLegMtm, IndexFixedLeg, ZeroFixedLeg, ZeroFloatLeg, ZeroIndexLeg
        from rateslib.instruments import FixedRateBond, FloatRateNote, Value, IRS, SBS, FRA, Spread, Fly, BondFuture, Bill, ZCS, FXSwap, ZCIS, IIRS, STIRFuture
        from rateslib.fx import forward_fx
@@ -313,9 +313,9 @@ MONTHS = {
 
 
 def get_imm(
-    month: int | NoInput = NoInput(0),
-    year: int | NoInput = NoInput(0),
-    code: str | NoInput = NoInput(0),
+    month: int_ = NoInput(0),
+    year: int_ = NoInput(0),
+    code: str_ = NoInput(0),
 ) -> datetime:
     """
     Return an IMM date for a specified month.
@@ -523,7 +523,7 @@ def _is_som(date: datetime) -> bool:
 
 
 def _get_fx_expiry_and_delivery(
-    eval_date: NoInput | datetime,
+    eval_date: datetime_,
     expiry: str | datetime,
     delivery_lag: int | datetime,
     calendar: CalInput,
@@ -537,8 +537,8 @@ def _get_fx_expiry_and_delivery(
 
     Parameters
     ----------
-    eval: datetime
-        The evalation date, which is today (if required)
+    eval_date: datetime
+        The evaluation date, which is today (if required)
     expiry: str, datetime
         The expiry date
     delivery_lag: int, datetime

@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Any, ParamSpec
 
 from pandas import DataFrame
 
-from rateslib import defaults
 from rateslib.default import NoInput
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments.utils import (
@@ -14,7 +13,7 @@ from rateslib.instruments.utils import (
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX_, NPV, Curves_
+    from rateslib.typing import FX_, NPV, Curves_, Dual2, DualTypes
 P = ParamSpec("P")
 
 
@@ -72,7 +71,7 @@ class Sensitivities:
         """
         if isinstance(solver, NoInput):
             raise ValueError("`solver` is required for delta/gamma methods.")
-        npv = self.npv(curves, solver, fx, base, local=True, **kwargs)
+        npv: dict[str, DualTypes] = self.npv(curves, solver, fx, base, local=True, **kwargs)  # type: ignore[assignment]
         _, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             NoInput(0),
             solver,
@@ -83,7 +82,7 @@ class Sensitivities:
         )
         if local:
             base_ = NoInput(0)
-        return solver.delta(npv, base_, fx_)
+        return solver.delta(npv, base_, fx_)  # type: ignore[arg-type]
 
     def exo_delta(
         self,
@@ -154,7 +153,12 @@ class Sensitivities:
         if local:
             base_ = NoInput(0)
         return solver.exo_delta(
-            npv=npv, vars=vars, base=base_, fx=fx_, vars_scalar=vars_scalar, vars_labels=vars_labels
+            npv=npv,  # type: ignore[arg-type]
+            vars=vars,
+            base=base_,
+            fx=fx_,
+            vars_scalar=vars_scalar,
+            vars_labels=vars_labels,
         )
 
     def gamma(
@@ -222,7 +226,7 @@ class Sensitivities:
         _ad1 = solver._ad
         solver._set_ad_order(2)
 
-        npv = self.npv(curves, solver, fx_, base_, local=True, **kwargs)
+        npv: dict[str, Dual2] = self.npv(curves, solver, fx_, base_, local=True, **kwargs)  # type: ignore[assignment]
         grad_s_sT_P: DataFrame = solver.gamma(npv, base_, fx_)
 
         # reset original order
@@ -231,55 +235,3 @@ class Sensitivities:
         solver._set_ad_order(_ad1)
 
         return grad_s_sT_P
-
-    def cashflows_table(
-        self,
-        curves: Curves_ = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: FX_ = NoInput(0),
-        base: str | NoInput = NoInput(0),
-        **kwargs: Any,
-    ) -> DataFrame:
-        """
-        Aggregate the values derived from a :meth:`~rateslib.instruments.BaseMixin.cashflows`
-        method on an *Instrument*.
-
-        Parameters
-        ----------
-        curves : CurveType, str or list of such, optional
-            Argument input to the underlying ``cashflows`` method of the *Instrument*.
-        solver : Solver, optional
-            Argument input to the underlying ``cashflows`` method of the *Instrument*.
-        fx : float, FXRates, FXForwards, optional
-            Argument input to the underlying ``cashflows`` method of the *Instrument*.
-        base : str, optional
-            Argument input to the underlying ``cashflows`` method of the *Instrument*.
-        kwargs : dict
-            Additional arguments input the underlying ``cashflows`` method of the *Instrument*.
-
-        Returns
-        -------
-        DataFrame
-        """
-        cashflows = self.cashflows(curves, solver, fx, base, **kwargs)
-        cashflows = cashflows[
-            [
-                defaults.headers["currency"],
-                defaults.headers["collateral"],
-                defaults.headers["payment"],
-                defaults.headers["cashflow"],
-            ]
-        ]
-        _: DataFrame = cashflows.groupby(  # type: ignore[assignment]
-            [
-                defaults.headers["currency"],
-                defaults.headers["collateral"],
-                defaults.headers["payment"],
-            ],
-            dropna=False,
-        )
-        _ = _.sum().unstack([0, 1]).droplevel(0, axis=1)  # type: ignore[arg-type]
-        _.columns.names = ["local_ccy", "collateral_ccy"]
-        _.index.names = ["payment"]
-        _ = _.sort_index(ascending=True, axis=0).fillna(0.0)
-        return _

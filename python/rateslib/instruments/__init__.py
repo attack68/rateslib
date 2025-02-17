@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from rateslib.instruments.base import BaseDerivative, BaseMixin
+from rateslib.instruments.base import BaseDerivative, Metrics
 from rateslib.instruments.bonds import (
     Bill,
     BillCalcMode,
@@ -27,6 +27,7 @@ from rateslib.instruments.rates import (
     FRA,
     IIRS,
     IRS,
+    NDF,
     SBS,
     XCS,
     ZCIS,
@@ -43,7 +44,7 @@ from rateslib.instruments.sensitivities import Sensitivities
 
 __all__ = [
     "BaseDerivative",
-    "BaseMixin",
+    "Metrics",
     "Bill",
     "BondMixin",
     "BondCalcMode",
@@ -67,6 +68,7 @@ __all__ = [
     "IIRS",
     "IRS",
     "IndexFixedRateBond",
+    "NDF",
     "Portfolio",
     "SBS",
     "STIRFuture",

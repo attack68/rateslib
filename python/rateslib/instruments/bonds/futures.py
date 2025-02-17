@@ -12,9 +12,7 @@ from rateslib.curves import Curve
 from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
 from rateslib.instruments.sensitivities import Sensitivities
-from rateslib.periods import (
-    _get_fx_and_base,
-)
+from rateslib.periods.utils import _get_fx_and_base
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
@@ -457,7 +455,7 @@ class BondFuture(Sensitivities):
         # build a curve for pricing
         today = self.basket[0].leg1.schedule.calendar.lag(
             settlement,
-            -self.basket[0].kwargs["settle"],  # type: ignore[arg-type, operator]
+            -self.basket[0].kwargs["settle"],
             False,
         )
         unsorted_nodes = {
@@ -474,15 +472,15 @@ class BondFuture(Sensitivities):
             metric = "clean_price"
         solver = Solver(
             curves=[bcurve],
-            instruments=[(_, (), {"curves": bcurve, "metric": metric}) for _ in self.basket],
-            s=prices,  # type: ignore[arg-type]
+            instruments=[(_, (), {"curves": bcurve, "metric": metric}) for _ in self.basket],  # type: ignore[misc]
+            s=prices,
         )
         if solver.result["status"] != "SUCCESS":
             raise ValueError(
                 "A bond curve could not be solved for analysis. "
                 "See 'Cookbook: Bond Future CTD Multi-Security Analysis'.",
             )
-        bcurve._set_ad_order(order=0)  # turn of AD for efficiency
+        bcurve._set_ad_order(order=0)  # turn off AD for efficiency
 
         data: dict[str | float, Any] = {
             "Bond": [

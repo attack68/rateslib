@@ -9,9 +9,18 @@ import numpy as np
 from pandas import DataFrame, Series
 
 from rateslib import defaults
-from rateslib.default import NoInput, _drb, _make_py_json, _WithState
+from rateslib.default import (
+    NoInput,
+    _drb,
+    _make_py_json,
+)
 from rateslib.dual import Dual, gradient
 from rateslib.dual.utils import _get_adorder
+from rateslib.mutability import (
+    _clear_cache_post,
+    _new_state_post,
+    _WithState,
+)
 from rateslib.rs import Ccy, FXRate
 from rateslib.rs import FXRates as FXRatesObj
 
@@ -39,8 +48,8 @@ class FXRates(_WithState):
 
     Parameters
     ----------
-    fx_rates : dict
-        Dict whose keys are 6-character domestic-foreign currency pairs, and whose
+    fx_rates : dict[str, float]
+        Dict whose keys are 6-character currency pairs, and whose
         values are the relevant rates.
     settlement : datetime, optional
         The settlement date for the FX rates.
@@ -55,9 +64,9 @@ class FXRates(_WithState):
 
     .. note::
        When this class uses ``Dual`` numbers to represent sensitivities of values to
-       certain FX rates the variable names are called `"fx_domfor"` where `"dom"`
-       is a domestic currency and `"for"` is a foreign currency. See the examples
-       contained in class methods for clarification.
+       certain FX rates the variable names are called `"fx_cc1cc2"` where `"cc1"`
+       is left hand currency and `"cc2"` is the right hand currency in the currency pair.
+       See the examples contained in class methods for clarification.
 
     Examples
     --------
@@ -122,7 +131,7 @@ class FXRates(_WithState):
             base_ = Ccy(base)
         self.obj = FXRatesObj(fx_rates_, base_)
         self.__init_post_obj__()
-        self.__clear_cached_properties__()
+        self._clear_cache()
         self._set_new_state()
 
     @classmethod
@@ -277,7 +286,7 @@ class FXRates(_WithState):
            fxr2 = fxr.restate({"eurusd", "gbpusd"})
            fxr2.rates_table()
         """
-        if set(pairs) == set(self.pairs) and keep_ad:
+        if pairs == self.pairs and keep_ad:
             return self.__copy__()  # no restate needed but return new instance
 
         restated_fx_rates = FXRates(
@@ -450,14 +459,17 @@ class FXRates(_WithState):
 
     # Cache management
 
-    def __clear_cached_properties__(self) -> None:
+    def _clear_cache(self) -> None:
         """
         Clear the cache ID so the fx_array can be fetched and cached from Rust object.
         """
+        # the fx_array is a cached property.
         self.__dict__.pop("fx_array", None)
 
     # Mutation
 
+    @_new_state_post
+    @_clear_cache_post
     def update(self, fx_rates: dict[str, float] | NoInput = NoInput(0)) -> None:
         """
         Update all or some of the FX rates of the instance with new market data.
@@ -495,7 +507,7 @@ class FXRates(_WithState):
         This object may be linked to others, probably an :class:`~rateslib.fx.FXForwards` class.
         It can be updated with some new market data. This will preserve its memory id and
         association with other objects. Any :class:`~rateslib.fx.FXForwards` objects referencing
-        this will detect this change and will also lazily update via *rateslib's* cache
+        this will detect this change and will also lazily update via *rateslib's* state
         management.
 
         .. ipython:: python
@@ -519,20 +531,23 @@ class FXRates(_WithState):
             return None
         fx_rates_ = [FXRate(k[0:3], k[3:6], v, self.settlement) for k, v in fx_rates.items()]
         self.obj.update(fx_rates_)
-        self.__clear_cached_properties__()
-        self._set_new_state()
 
+    @_clear_cache_post
     def _set_ad_order(self, order: int) -> None:
         """
         Change the node values to float, Dual or Dual2 based on input parameter.
         """
-
         self.obj.set_ad_order(_get_adorder(order))
-        self.__clear_cached_properties__()
 
     # Serialization
 
     def to_json(self) -> str:
+        """Return a JSON representation of the object.
+
+        Returns
+        -------
+        str
+        """
         return _make_py_json(self.obj.to_json(), "FXRates")
 
 

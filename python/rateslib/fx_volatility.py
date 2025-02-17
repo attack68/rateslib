@@ -2,7 +2,7 @@ from __future__ import annotations  # type hinting
 
 from datetime import datetime, timedelta
 from datetime import datetime as dt
-from typing import TYPE_CHECKING, Any
+from typing import Any, TypeAlias
 from uuid import uuid4
 
 import numpy as np
@@ -11,7 +11,13 @@ from pytz import UTC
 
 from rateslib import defaults
 from rateslib.calendars import get_calendar
-from rateslib.default import NoInput, PlotOutput, _drb, _WithState, plot, plot3d
+from rateslib.default import (
+    NoInput,
+    PlotOutput,
+    _drb,
+    plot,
+    plot3d,
+)
 from rateslib.dual import (
     Dual,
     Dual2,
@@ -25,16 +31,24 @@ from rateslib.dual import (
     set_order_convert,
 )
 from rateslib.dual.utils import _dual_float
+from rateslib.mutability import (
+    _clear_cache_post,
+    _new_state_post,
+    _validate_states,
+    _WithCache,
+    _WithState,
+)
 from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
 
-if TYPE_CHECKING:
-    from rateslib.typing import DualTypes
+# if TYPE_CHECKING:
+#     from rateslib.typing import DualTypes
+DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
 
 TERMINAL_DATE = dt(2100, 1, 1)
 
 
-class FXDeltaVolSmile(_WithState):
+class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
     r"""
     Create an *FX Volatility Smile* at a given expiry indexed by delta percent.
 
@@ -101,33 +115,7 @@ class FXDeltaVolSmile(_WithState):
         self.delta_type: str = _validate_delta_type(delta_type)
 
         self.__set_nodes__(nodes, ad)
-
-    def __set_nodes__(self, nodes: dict[float, DualTypes], ad: int) -> None:
-        # self.ad = None
-
-        self.nodes = nodes
-        self.node_keys = list(self.nodes.keys())
-        self.n = len(self.node_keys)
-        if "_pa" in self.delta_type:
-            vol = list(self.nodes.values())[-1] / 100.0
-            upper_bound = dual_exp(
-                vol * self.t_expiry_sqrt * (3.75 - 0.5 * vol * self.t_expiry_sqrt),
-            )
-            self.plot_upper_bound = dual_exp(
-                vol * self.t_expiry_sqrt * (3.25 - 0.5 * vol * self.t_expiry_sqrt),
-            )
-            self._right_n = 1  # right hand spline endpoint will be constrained by derivative
-        else:
-            upper_bound = 1.0
-            self.plot_upper_bound = 1.0
-            self._right_n = 2  # right hand spline endpoint will be constrained by derivative
-
-        if self.n in [1, 2]:
-            self.t = [0.0] * 4 + [_dual_float(upper_bound)] * 4
-        else:
-            self.t = [0.0] * 4 + self.node_keys[1:-1] + [_dual_float(upper_bound)] * 4
-
-        self._set_ad_order(ad)  # includes _csolve()
+        self._set_new_state()
 
     def __iter__(self) -> Any:
         raise TypeError("`FXDeltaVolSmile` is not iterable.")
@@ -578,27 +566,34 @@ class FXDeltaVolSmile(_WithState):
             return plot(x_as_u, y, labels)
         return plot(x, y, labels)
 
-    # Cache management
-
-    def _clear_cache(self) -> None:
-        """
-        Clear the cache of values on a *Smile* type.
-
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-        This should be used if any modification has been made to the *Smile*.
-        Users are advised against making direct modification to *Curve* classes once
-        constructed to avoid the issue of un-cleared caches returning erroneous values.
-
-        Alternatively the curve caching as a feature can be set to *False* in ``defaults``.
-        """
-        self._cache: dict[float, DualTypes] = dict()
-
     # Mutation
+
+    def __set_nodes__(self, nodes: dict[float, DualTypes], ad: int) -> None:
+        # self.ad = None
+
+        self.nodes = nodes
+        self.node_keys = list(self.nodes.keys())
+        self.n = len(self.node_keys)
+        if "_pa" in self.delta_type:
+            vol = list(self.nodes.values())[-1] / 100.0
+            upper_bound = dual_exp(
+                vol * self.t_expiry_sqrt * (3.75 - 0.5 * vol * self.t_expiry_sqrt),
+            )
+            self.plot_upper_bound = dual_exp(
+                vol * self.t_expiry_sqrt * (3.25 - 0.5 * vol * self.t_expiry_sqrt),
+            )
+            self._right_n = 1  # right hand spline endpoint will be constrained by derivative
+        else:
+            upper_bound = 1.0
+            self.plot_upper_bound = 1.0
+            self._right_n = 2  # right hand spline endpoint will be constrained by derivative
+
+        if self.n in [1, 2]:
+            self.t = [0.0] * 4 + [_dual_float(upper_bound)] * 4
+        else:
+            self.t = [0.0] * 4 + self.node_keys[1:-1] + [_dual_float(upper_bound)] * 4
+
+        self._set_ad_order(ad)  # includes _csolve()
 
     def _csolve_n1(self) -> tuple[list[float], list[DualTypes], int, int]:
         # create a straight line by converting from one to two nodes with the first at tau=0.
@@ -647,6 +642,8 @@ class FXDeltaVolSmile(_WithState):
         self.spline: PPSplineF64 | PPSplineDual | PPSplineDual2 = Spline(4, self.t, None)
         self.spline.csolve(tau, y, left_n, right_n, False)  # type: ignore[arg-type]
 
+    @_new_state_post
+    @_clear_cache_post
     def csolve(self) -> None:
         """
         Solves **and sets** the coefficients, ``c``, of the :class:`PPSpline`.
@@ -664,9 +661,9 @@ class FXDeltaVolSmile(_WithState):
         method.
         """
         self._csolve()
-        self._clear_cache()
-        self._set_new_state()
 
+    @_new_state_post
+    @_clear_cache_post
     def _set_node_vector(
         self, vector: np.ndarray[tuple[int, ...], np.dtype[np.object_]], ad: int
     ) -> None:
@@ -690,9 +687,8 @@ class FXDeltaVolSmile(_WithState):
                 *DualArgs[1:],
             )
         self._csolve()
-        self._clear_cache()
-        self._set_new_state()
 
+    @_clear_cache_post
     def _set_ad_order(self, order: int) -> None:
         if order == getattr(self, "ad", None):
             return None
@@ -705,8 +701,9 @@ class FXDeltaVolSmile(_WithState):
             for i, (k, v) in enumerate(self.nodes.items())
         }
         self._csolve()
-        self._clear_cache()
 
+    @_new_state_post
+    # @_clear_cache_post performed by __set_nodes__
     def update(
         self,
         nodes: dict[float, DualTypes],
@@ -740,12 +737,11 @@ class FXDeltaVolSmile(_WithState):
             ad_ = defaults._global_ad_order
         else:
             ad_ = 0
+        # self._csolve() is performed in set_nodes
         self.__set_nodes__(nodes, ad_)
 
-        # self._csolve() is performed in set_nodes
-        # self._clear_cache() is performed in set_nodes
-        self._set_new_state()
-
+    @_new_state_post
+    @_clear_cache_post
     def update_node(self, key: float, value: DualTypes) -> None:
         """
         Update a single node value on the *Curve*.
@@ -776,15 +772,12 @@ class FXDeltaVolSmile(_WithState):
         if key not in self.nodes:
             raise KeyError("`key` is not in Curve ``nodes``.")
         self.nodes[key] = value
-
         self._csolve()
-        self._clear_cache()
-        self._set_new_state()
 
     # Serialization
 
 
-class FXDeltaVolSurface(_WithState):
+class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
     r"""
     Create an *FX Volatility Surface* parametrised by cross-sectional *Smiles* at different
     expiries.
@@ -885,44 +878,25 @@ class FXDeltaVolSurface(_WithState):
         )
 
         self._set_ad_order(ad)  # includes csolve on each smile
-
-    def _clear_cache(self) -> None:
-        """
-        Clear the cache of cross-sectional *Smiles* on a *Surface* type.
-
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-        This should be used if any modification has been made to the *Surface*.
-        Users are advised against making direct modification to *Surface* classes once
-        constructed to avoid the issue of un-cleared caches returning erroneous values.
-        Alternatively set ``defaults.curve_caching`` to *False* to turn off global
-        caching in general.
-        """
-        self._cache: dict[datetime, FXDeltaVolSmile] = dict()
         self._set_new_state()
 
     def _get_composited_state(self) -> int:
-        return hash(smile._state for smile in self.smiles)
+        return hash(sum(smile._state for smile in self.smiles))
 
     def _validate_state(self) -> None:
         if self._state != self._get_composited_state():
             # If any of the associated curves have been mutated then the cache is invalidated
             self._clear_cache()
+            self._set_new_state()
 
-    def _maybe_add_to_cache(self, date: datetime, val: FXDeltaVolSmile) -> None:
-        if defaults.curve_caching:
-            self._cache[date] = val
-
+    @_clear_cache_post
     def _set_ad_order(self, order: int) -> None:
         self.ad = order
         for smile in self.smiles:
             smile._set_ad_order(order)
-        self._clear_cache()
 
+    @_new_state_post
+    @_clear_cache_post
     def _set_node_vector(
         self, vector: np.ndarray[tuple[int, ...], np.dtype[np.object_]], ad: int
     ) -> None:
@@ -930,7 +904,6 @@ class FXDeltaVolSurface(_WithState):
         for i in range(int(len(vector) / m)):
             # smiles are indexed by expiry, shortest first
             self.smiles[i]._set_node_vector(vector[i * m : i * m + m], ad)
-        self._clear_cache()
 
     def _get_node_vector(self) -> np.ndarray[tuple[int, ...], np.dtype[np.object_]]:
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""
@@ -943,6 +916,7 @@ class FXDeltaVolSurface(_WithState):
             vars_ += tuple(f"{smile.id}{i}" for i in range(smile.n))
         return vars_
 
+    @_validate_states
     def get_smile(self, expiry: datetime) -> FXDeltaVolSmile:
         """
         Construct a *DeltaVolSmile* with linear total variance interpolation over delta indexes.
@@ -1038,8 +1012,7 @@ class FXDeltaVolSurface(_WithState):
                 id=ls.id + "_" + rs.id + "_intp",
             )
 
-        self._maybe_add_to_cache(expiry, smile)
-        return smile
+        return self._cached_value(expiry, smile)
 
     def _t_var_interp(
         self,
@@ -1115,6 +1088,7 @@ class FXDeltaVolSurface(_WithState):
             )  # scale by real cal days and not adjusted weights
         return _**0.5
 
+    # _validate_states not required since called by `get_smile` internally
     def get_from_strike(
         self,
         k: DualTypes,
@@ -1154,6 +1128,7 @@ class FXDeltaVolSurface(_WithState):
         smile = self.get_smile(expiry)
         return smile.get_from_strike(k, f, w_deli, w_spot, expiry)
 
+    # _validate_states not required since called by `get_smile` internally
     def _get_index(self, delta_index: DualTypes, expiry: datetime) -> DualTypes:
         """
         Return a volatility from a given delta index.
