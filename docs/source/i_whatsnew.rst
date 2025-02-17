@@ -24,6 +24,9 @@ email contact, see `rateslib <https://rateslib.com>`_.
    * - Period
      - Add :class:`~rateslib.periods.NonDeliverableFixedPeriod`
        (`681 <https://github.com/attack68/rateslib/pull/681>`_)
+   * - Calendars
+     - Allow custom calendar additions to ``defaults.calendars`` and fast fetching with
+       :meth:`~rateslib.calendars.get_calendar`.
    * - Refactor
      - Rename :class:`~rateslib.instruments.BaseMixin` to :class:`~rateslib.instruments.Metrics`.
        (`678 <https://github.com/attack68/rateslib/pull/678>`_)
