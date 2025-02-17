@@ -606,3 +606,9 @@ def test_is_day_type_tenor(tenor):
 @pytest.mark.parametrize("tenor", ["1M", "1m", "4Y", "4y"])
 def test_is_not_day_type_tenor(tenor):
     assert not _is_day_type_tenor(tenor)
+
+
+def test_get_calendar_from_defaults() -> None:
+    defaults.calendars["custom"] = "my_object"
+    assert get_calendar("custom") == "my_object"
+    defaults.calendars.pop("custom")
