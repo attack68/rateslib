@@ -8,6 +8,12 @@ pub(crate) fn is_leap_year(year: i32) -> bool {
 }
 
 /// Infer a RollDay from given dates of a regular schedule.
+///
+/// Days before month end will only be valid if they match by day.
+/// Month end options are controlled by the cases and the ``eom`` parameter.
+/// If any date is 31 and the other date is EoM then '31' is returned.
+/// If both dates are EoM but neither is 31 and ``eom`` is True then 'EoM' is returned.
+/// If both dates are EoM but neither is 31 and ``eom`` is False then max(day) is returned.
 pub(crate) fn get_unadjusted_rollday(
     ueffective: &NaiveDateTime,
     utermination: &NaiveDateTime,
@@ -30,20 +36,31 @@ pub(crate) fn get_unadjusted_rollday(
     }
 }
 
-// pub(crate) fn check_unadjusted_regular_schedule(
-//     ueffective: &NaiveDateTime,
-//     utermination: &NaiveDateTime,
-//     frequency: &Frequency,
-//     eom: bool,
-//     roll: Option<RollDay>,
-// ) -> ValidateSchedule {
-//     if !frequency.is_divisible(ueffective, utermination) {
-//         ValidateSchedule::Invalid {
-//             error: "Months date separation not aligned with frequency.".to_string(),
-//         }
-//     } else {
-//     }
-// }
+
+pub(crate) fn check_unadjusted_regular_schedule(
+    ueffective: &NaiveDateTime,
+    utermination: &NaiveDateTime,
+    frequency: &Frequency,
+    eom: bool,
+    roll: Option<RollDay>,
+) -> ValidateSchedule {
+    if !frequency.is_divisible(ueffective, utermination) {
+        ValidateSchedule::Invalid {
+            error: "Months date separation not aligned with frequency.".to_string(),
+        }
+    } else {
+        let mut roll_;
+        match roll {
+            None => {
+                let rollday = get_unadjusted_rollday(&ueffective, &utermination, eom);
+                match rollday {
+                    None => return ValidateSchedule::Invalid {error: "Roll day could not be inferred from given dates.".to_string() }
+                    Some(v) =>
+                }
+            }
+        }
+    }
+}
 
 // UNIT TESTS
 #[cfg(test)]

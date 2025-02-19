@@ -22,6 +22,20 @@ pub enum RollDay {
     IMM {},
 }
 
+impl RollDay {
+    /// Validate whether a given date is a possible variant of the RollDay.
+    ///
+    /// Returns an error string if invalid or None if it is valid.
+    pub(crate) validate_date(&self, date: &NaiveDateTime) -> Option<String> {
+        match self {
+            RollDay::Unspecified{} => None, // any date satisfies unspecified RollDay
+            RollDay::Int{day: 31} | RollDay::Eom{} => {
+
+            }
+        }
+    }
+}
+
 /// A rule to adjust a non-business day to a business day.
 #[pyclass(module = "rateslib.rs", eq, eq_int)]
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -362,6 +376,12 @@ pub fn get_imm(year: i32, month: u32) -> NaiveDateTime {
         Weekday::Sat => ndt(year, month, 19),
         Weekday::Sun => ndt(year, month, 18),
     }
+}
+
+/// Tests whether a given date is an IMM (third Wednesday)
+pub fn is_imm(date: &NaiveDateTime) -> bool {
+    let imm = get_imm(date.year(), date.month());
+    date == imm
 }
 
 fn roll_with_settlement(
