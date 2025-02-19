@@ -494,9 +494,9 @@ class BondFuture(Sensitivities):
                 {
                     shift: self.net_basis(
                         future_price=self.rate(curves=_curve),
-                        prices=[_.rate(curves=_curve, metric=metric) for _ in self.basket],
-                        repo_rate=_curve._rate_with_raise(settlement, self.delivery[1], "NONE"),
-                        settlement=settlement,
+                        prices=[_.rate(curves=_curve, metric=metric, forward_settlement=delivery) for _ in self.basket],
+                        repo_rate=0.0,  # not required because settlement assumed at delivery
+                        settlement=delivery,
                         delivery=delivery,
                         convention=_curve.convention,
                         dirty=dirty,
