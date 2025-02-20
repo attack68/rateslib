@@ -1,11 +1,10 @@
-use crate::calendars::{CalType, Modifier, RollDay};
+use crate::calendars::{CalType, Modifier, RollDay, is_leap_year};
 use chrono::prelude::*;
 use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
 use std::cmp::{Ordering, PartialEq};
 
 use crate::scheduling::enums::Frequency;
-use crate::scheduling::utils::is_leap_year;
 
 pub struct Schedule {
     ueffective: NaiveDateTime,

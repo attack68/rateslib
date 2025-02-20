@@ -1,5 +1,4 @@
-use crate::calendars::{CalType, Modifier, RollDay};
-use crate::scheduling::utils::is_leap_year;
+use crate::calendars::{CalType, Modifier, RollDay, is_leap_year};
 use chrono::prelude::*;
 use pyo3::pyclass;
 
@@ -19,7 +18,7 @@ pub(crate) enum ValidateSchedule {
     },
 }
 
-/// A stub type indicator for date inference.
+/// A stub type indicator for date inference on one side of the schedule.
 #[pyclass(module = "rateslib.rs")]
 #[derive(Copy, Clone)]
 pub enum Stub {

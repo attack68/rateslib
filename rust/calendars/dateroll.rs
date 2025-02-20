@@ -404,6 +404,11 @@ pub fn is_eom(date: &NaiveDateTime) -> bool {
     *date == eom
 }
 
+/// Return if a given year is a leap year.
+pub fn is_leap_year(year: i32) -> bool {
+    NaiveDate::from_ymd_opt(year, 2, 29).is_some()
+}
+
 
 fn roll_with_settlement(
     date: &NaiveDateTime,
@@ -825,5 +830,11 @@ mod tests {
     fn test_is_eom() {
         assert_eq!(true, is_eom(&ndt(2025, 3, 31)));
         assert_eq!(false, is_eom(&ndt(2025, 3, 30)));
+    }
+
+    #[test]
+    fn test_is_leap() {
+        assert_eq!(true, is_leap_year(2024));
+        assert_eq!(false, is_leap_year(2022));
     }
 }

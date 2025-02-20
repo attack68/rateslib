@@ -2,11 +2,6 @@ use crate::calendars::RollDay;
 use crate::scheduling::enums::{Frequency, RollDayCategory, ValidateSchedule};
 use chrono::prelude::*;
 
-/// Return if a given year is a leap year.
-pub(crate) fn is_leap_year(year: i32) -> bool {
-    NaiveDate::from_ymd_opt(year, 2, 29).is_some()
-}
-
 /// Infer a RollDay from given dates of a regular schedule.
 ///
 /// Days before month end will only be valid if they match by day.
@@ -67,12 +62,6 @@ pub(crate) fn get_unadjusted_rollday(
 mod tests {
     use super::*;
     use crate::calendars::ndt;
-
-    #[test]
-    fn test_is_leap() {
-        assert_eq!(true, is_leap_year(2024));
-        assert_eq!(false, is_leap_year(2022));
-    }
 
     #[test]
     fn test_get_unadjusted_rollday() {
