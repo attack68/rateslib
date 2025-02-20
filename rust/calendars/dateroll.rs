@@ -381,13 +381,13 @@ pub fn get_imm(year: i32, month: u32) -> NaiveDateTime {
     }
 }
 
-/// Tests whether a given date is an IMM (third Wednesday)
+/// Test whether a given date is an IMM (third Wednesday).
 pub fn is_imm(date: &NaiveDateTime) -> bool {
     let imm = get_imm(date.year(), date.month());
     *date == imm
 }
 
-/// Return an end of month date.
+/// Return an end of month date for given month and year.
 pub fn get_eom(year: i32, month: u32) -> NaiveDateTime {
     let mut day = 31;
     let mut date = NaiveDate::from_ymd_opt(year, month, day);
@@ -397,6 +397,13 @@ pub fn get_eom(year: i32, month: u32) -> NaiveDateTime {
     }
     date.unwrap().and_hms_opt(0,0,0).unwrap()
 }
+
+/// Test whether a given date is EoM.
+pub fn is_eom(date: &NaiveDateTime) -> bool {
+    let eom = get_eom(date.year(), date.month());
+    *date == eom
+}
+
 
 fn roll_with_settlement(
     date: &NaiveDateTime,
@@ -812,5 +819,11 @@ mod tests {
        assert_eq!(ndt(2024, 2, 29), get_eom(2024, 2));
        assert_eq!(ndt(2022, 4, 30), get_eom(2022, 4));
        assert_eq!(ndt(2022, 3, 31), get_eom(2022, 3));
+    }
+
+    #[test]
+    fn test_is_eom() {
+        assert_eq!(true, is_eom(&ndt(2025, 3, 31)));
+        assert_eq!(false, is_eom(&ndt(2025, 3, 30)));
     }
 }
