@@ -1,27 +1,27 @@
-use crate::calendars::{CalType, Modifier, RollDay, is_leap_year};
-use chrono::prelude::*;
-use pyo3::exceptions::PyValueError;
-use pyo3::{pyclass, PyErr};
-use std::cmp::{Ordering, PartialEq};
+// use crate::calendars::{is_leap_year, CalType, Modifier, RollDay};
+// use chrono::prelude::*;
+// use pyo3::exceptions::PyValueError;
+// use pyo3::{pyclass, PyErr};
+// use std::cmp::{Ordering, PartialEq};
+//
+// use crate::scheduling::enums::Frequency;
 
-use crate::scheduling::enums::Frequency;
-
-pub struct Schedule {
-    ueffective: NaiveDateTime,
-    utermination: NaiveDateTime,
-    frequency: Frequency,
-    front_stub: Option<NaiveDateTime>,
-    back_stub: Option<NaiveDateTime>,
-    roll: RollDay,
-    modifier: Modifier,
-    calendar: CalType,
-    payment_lag: i8,
-
-    // created data objects
-    uschedule: Vec<NaiveDateTime>,
-    aschedule: Vec<NaiveDateTime>,
-    pschedule: Vec<NaiveDateTime>,
-}
+// pub struct Schedule {
+//     ueffective: NaiveDateTime,
+//     utermination: NaiveDateTime,
+//     frequency: Frequency,
+//     front_stub: Option<NaiveDateTime>,
+//     back_stub: Option<NaiveDateTime>,
+//     roll: RollDay,
+//     modifier: Modifier,
+//     calendar: CalType,
+//     payment_lag: i8,
+//
+//     // created data objects
+//     uschedule: Vec<NaiveDateTime>,
+//     aschedule: Vec<NaiveDateTime>,
+//     pschedule: Vec<NaiveDateTime>,
+// }
 
 // impl Schedule {
 //     pub fn try_new(

@@ -31,7 +31,6 @@ pub(crate) fn get_unadjusted_rollday(
     }
 }
 
-
 // pub(crate) fn check_unadjusted_regular_schedule(
 //     ueffective: &NaiveDateTime,
 //     utermination: &NaiveDateTime,
@@ -67,18 +66,51 @@ mod tests {
     fn test_get_unadjusted_rollday() {
         // take two dates and ensure that the inferred roll is accurate give the input
         let options: Vec<(NaiveDateTime, NaiveDateTime, bool, RollDay)> = vec![
-            (ndt(2000, 1, 15), ndt(2000, 2, 15), false, RollDay::Int {day: 15}),
-            (ndt(2022, 2, 28), ndt(2022, 9, 30), false, RollDay::Int {day: 30}),
+            (
+                ndt(2000, 1, 15),
+                ndt(2000, 2, 15),
+                false,
+                RollDay::Int { day: 15 },
+            ),
+            (
+                ndt(2022, 2, 28),
+                ndt(2022, 9, 30),
+                false,
+                RollDay::Int { day: 30 },
+            ),
             (ndt(2022, 2, 28), ndt(2022, 9, 30), true, RollDay::EoM {}),
-            (ndt(2024, 2, 29), ndt(2022, 9, 30), false, RollDay::Int {day: 30}),
+            (
+                ndt(2024, 2, 29),
+                ndt(2022, 9, 30),
+                false,
+                RollDay::Int { day: 30 },
+            ),
             (ndt(2024, 2, 29), ndt(2022, 9, 30), true, RollDay::EoM {}),
             (ndt(2024, 4, 30), ndt(2022, 9, 30), true, RollDay::EoM {}),
-            (ndt(2024, 4, 30), ndt(2022, 9, 30), false, RollDay::Int {day: 30}),
-            (ndt(2024, 5, 31), ndt(2022, 9, 30), false, RollDay::Int {day: 31}),
-            (ndt(2024, 5, 31), ndt(2022, 9, 30), true, RollDay::Int {day: 31}),
+            (
+                ndt(2024, 4, 30),
+                ndt(2022, 9, 30),
+                false,
+                RollDay::Int { day: 30 },
+            ),
+            (
+                ndt(2024, 5, 31),
+                ndt(2022, 9, 30),
+                false,
+                RollDay::Int { day: 31 },
+            ),
+            (
+                ndt(2024, 5, 31),
+                ndt(2022, 9, 30),
+                true,
+                RollDay::Int { day: 31 },
+            ),
         ];
         for option in options.iter() {
-            assert_eq!(option.3, get_unadjusted_rollday(&option.0, &option.1, option.2).unwrap());
+            assert_eq!(
+                option.3,
+                get_unadjusted_rollday(&option.0, &option.1, option.2).unwrap()
+            );
         }
     }
 
@@ -86,9 +118,9 @@ mod tests {
     fn test_get_unadjusted_rollday_invalid() {
         // take two dates and ensure that the inferred roll is accurate give the input
         let options: Vec<(NaiveDateTime, NaiveDateTime, bool)> = vec![
-            (ndt(2024, 2, 28), ndt(2022, 9, 30), false),  // is leap
+            (ndt(2024, 2, 28), ndt(2022, 9, 30), false), // is leap
             (ndt(2024, 2, 28), ndt(2022, 9, 30), true),  // is leap
-            (ndt(2024, 2, 10), ndt(2022, 9, 15), false),  // day unaligned
+            (ndt(2024, 2, 10), ndt(2022, 9, 15), false), // day unaligned
             (ndt(2024, 4, 29), ndt(2022, 9, 30), true),  // day unaligned
         ];
         for option in options.iter() {

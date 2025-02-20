@@ -1,22 +1,22 @@
-use crate::calendars::{CalType, Modifier, RollDay, is_leap_year};
+use crate::calendars::{is_leap_year, CalType, Modifier, RollDay};
 use chrono::prelude::*;
 use pyo3::pyclass;
 
-/// An indicator for valid or invalid schedules.
-pub(crate) enum ValidateSchedule {
-    Invalid {
-        error: String,
-    },
-    Valid {
-        ueffective: NaiveDateTime,
-        utermination: NaiveDateTime,
-        front_stub: Option<NaiveDateTime>,
-        back_stub: Option<NaiveDateTime>,
-        frequency: Frequency,
-        roll: RollDay,
-        eom: bool,
-    },
-}
+// /// An indicator for valid or invalid schedules.
+// pub(crate) enum ValidateSchedule {
+//     Invalid {
+//         error: String,
+//     },
+//     Valid {
+//         ueffective: NaiveDateTime,
+//         utermination: NaiveDateTime,
+//         front_stub: Option<NaiveDateTime>,
+//         back_stub: Option<NaiveDateTime>,
+//         frequency: Frequency,
+//         roll: RollDay,
+//         eom: bool,
+//     },
+// }
 
 /// A stub type indicator for date inference on one side of the schedule.
 #[pyclass(module = "rateslib.rs")]
