@@ -1,5 +1,5 @@
 use crate::calendars::RollDay;
-use crate::scheduling::enums::{Frequency, RollDayCategory, ValidateSchedule};
+use crate::scheduling::enums::{Frequency, RollDayCategory};
 use chrono::prelude::*;
 
 /// Infer a RollDay from given dates of a regular schedule.

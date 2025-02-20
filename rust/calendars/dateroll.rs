@@ -22,22 +22,23 @@ pub enum RollDay {
     IMM {},
 }
 
-// impl RollDay {
-//     /// Validate whether a given date is a possible variant of the RollDay.
-//     ///
-//     /// Returns an error string if invalid or None if it is valid.
-//     pub(crate) fn validate_date(&self, date: &NaiveDateTime) -> Option<String> {
-//         match self {
-//             RollDay::Unspecified{} => None, // any date satisfies unspecified RollDay
-//             RollDay::Int{day: 31} | RollDay::Eom{} => {
-//
-//             }
-//             RollDay::IMM {} => if is_imm(date) { None } else {Some("`date` does not align with given `roll`.".to_string())},
-//             RollDay::Int {day: value} => if date.day() == *value {None} else {Some("`date` does not align with given `roll`.".to_string())}
-//             RollDay::SoM {} => if date.day() == 1 {None} else {Some("`date` does not align with given `roll`.".to_string())}
-//         }
-//     }
-// }
+impl RollDay {
+    /// Validate whether a given `date` is a possible variant of the RollDay.
+    ///
+    /// Returns an error string if invalid or None if it is valid.
+    pub(crate) fn validate_date(&self, date: &NaiveDateTime) -> Option<String> {
+        let msg = "`date` does not align with given `roll`.".to_string();
+        match self {
+            RollDay::Unspecified {} => None, // any date satisfies unspecified RollDay
+            RollDay::Int {day: 31} | RollDay::EoM {} => if is_eom(date) { None } else {Some(msg)},
+            RollDay::Int {day: 30} => if (is_eom(date) && date.day() < 30) || date.day() == 30 { None } else {Some(msg)},
+            RollDay::Int {day: 29} => if (is_eom(date) && date.day() < 29) || date.day() == 29 { None } else {Some(msg)},
+            RollDay::IMM {} => if is_imm(date) { None } else {Some(msg)},
+            RollDay::Int {day: value} => if date.day() == *value {None} else {Some(msg)}
+            RollDay::SoM {} => if date.day() == 1 {None} else {Some(msg)}
+        }
+    }
+}
 
 /// A rule to adjust a non-business day to a business day.
 #[pyclass(module = "rateslib.rs", eq, eq_int)]
@@ -835,5 +836,24 @@ mod tests {
     fn test_is_leap() {
         assert_eq!(true, is_leap_year(2024));
         assert_eq!(false, is_leap_year(2022));
+    }
+
+    #[test]
+    fn test_rollday_validate_date() {
+        let options: Vec<(RollDay, NaiveDateTime)> = vec![
+            (RollDay::Int {day: 15}, ndt(2000, 3, 15)),
+            (RollDay::Int {day: 31}, ndt(2000, 3, 31)),
+            (RollDay::Int {day: 31}, ndt(2022, 2, 28)),
+            (RollDay::EoM {}, ndt(2000, 3, 31)),
+            (RollDay::EoM {}, ndt(2022, 2, 28)),
+            (RollDay::Int {day: 30}, ndt(2024, 2, 29)),
+            (RollDay::Int {day: 30}, ndt(2024, 2, 29)),
+            (RollDay::EoM {}, ndt(2024, 2, 29)),
+            (RollDay::EoM {}, ndt(2024, 2, 29)),
+            (RollDay::EoM {}, ndt(2024, 2, 29)),
+        ];
+        for option in options {
+            assert_eq!(None, option.0.validate_date(&option.1));
+        }
     }
 }
