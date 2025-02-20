@@ -100,7 +100,9 @@ pub mod named;
 pub use crate::calendars::named::get_calendar_by_name;
 
 mod dateroll;
-pub use crate::calendars::dateroll::{get_imm, get_roll, DateRoll, Modifier, RollDay};
+pub use crate::calendars::dateroll::{
+    get_eom, get_imm, get_roll, is_eom, is_imm, is_leap_year, DateRoll, Modifier, RollDay,
+};
 
 mod dcfs;
 pub use crate::calendars::dcfs::Convention;

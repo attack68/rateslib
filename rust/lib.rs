@@ -43,6 +43,8 @@ pub mod fx;
 use fx::rates::ccy::Ccy;
 use fx::rates::{FXRate, FXRates};
 
+pub mod scheduling;
+
 #[pymodule]
 fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // JSON
