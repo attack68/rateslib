@@ -37,30 +37,30 @@ pub(crate) fn get_unadjusted_rollday(
 }
 
 
-pub(crate) fn check_unadjusted_regular_schedule(
-    ueffective: &NaiveDateTime,
-    utermination: &NaiveDateTime,
-    frequency: &Frequency,
-    eom: bool,
-    roll: Option<RollDay>,
-) -> ValidateSchedule {
-    if !frequency.is_divisible(ueffective, utermination) {
-        ValidateSchedule::Invalid {
-            error: "Months date separation not aligned with frequency.".to_string(),
-        }
-    } else {
-        let mut roll_;
-        match roll {
-            None => {
-                let rollday = get_unadjusted_rollday(&ueffective, &utermination, eom);
-                match rollday {
-                    None => return ValidateSchedule::Invalid {error: "Roll day could not be inferred from given dates.".to_string() }
-                    Some(v) =>
-                }
-            }
-        }
-    }
-}
+// pub(crate) fn check_unadjusted_regular_schedule(
+//     ueffective: &NaiveDateTime,
+//     utermination: &NaiveDateTime,
+//     frequency: &Frequency,
+//     eom: bool,
+//     roll: Option<RollDay>,
+// ) -> ValidateSchedule {
+//     if !frequency.is_divisible(ueffective, utermination) {
+//         ValidateSchedule::Invalid {
+//             error: "Months date separation not aligned with frequency.".to_string(),
+//         }
+//     } else {
+//         let mut roll_;
+//         match roll {
+//             None => {
+//                 let rollday = get_unadjusted_rollday(&ueffective, &utermination, eom);
+//                 match rollday {
+//                     None => return ValidateSchedule::Invalid {error: "Roll day could not be inferred from given dates.".to_string() }
+//                     Some(v) =>
+//                 }
+//             }
+//         }
+//     }
+// }
 
 // UNIT TESTS
 #[cfg(test)]

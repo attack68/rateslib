@@ -22,19 +22,22 @@ pub enum RollDay {
     IMM {},
 }
 
-impl RollDay {
-    /// Validate whether a given date is a possible variant of the RollDay.
-    ///
-    /// Returns an error string if invalid or None if it is valid.
-    pub(crate) validate_date(&self, date: &NaiveDateTime) -> Option<String> {
-        match self {
-            RollDay::Unspecified{} => None, // any date satisfies unspecified RollDay
-            RollDay::Int{day: 31} | RollDay::Eom{} => {
-
-            }
-        }
-    }
-}
+// impl RollDay {
+//     /// Validate whether a given date is a possible variant of the RollDay.
+//     ///
+//     /// Returns an error string if invalid or None if it is valid.
+//     pub(crate) fn validate_date(&self, date: &NaiveDateTime) -> Option<String> {
+//         match self {
+//             RollDay::Unspecified{} => None, // any date satisfies unspecified RollDay
+//             RollDay::Int{day: 31} | RollDay::Eom{} => {
+//
+//             }
+//             RollDay::IMM {} => if is_imm(date) { None } else {Some("`date` does not align with given `roll`.".to_string())},
+//             RollDay::Int {day: value} => if date.day() == *value {None} else {Some("`date` does not align with given `roll`.".to_string())}
+//             RollDay::SoM {} => if date.day() == 1 {None} else {Some("`date` does not align with given `roll`.".to_string())}
+//         }
+//     }
+// }
 
 /// A rule to adjust a non-business day to a business day.
 #[pyclass(module = "rateslib.rs", eq, eq_int)]
@@ -381,7 +384,18 @@ pub fn get_imm(year: i32, month: u32) -> NaiveDateTime {
 /// Tests whether a given date is an IMM (third Wednesday)
 pub fn is_imm(date: &NaiveDateTime) -> bool {
     let imm = get_imm(date.year(), date.month());
-    date == imm
+    *date == imm
+}
+
+/// Return an end of month date.
+pub fn get_eom(year: i32, month: u32) -> NaiveDateTime {
+    let mut day = 31;
+    let mut date = NaiveDate::from_ymd_opt(year, month, day);
+    while date == None {
+        day = day -1;
+        date = NaiveDate::from_ymd_opt(year, month, day);
+    }
+    date.unwrap().and_hms_opt(0,0,0).unwrap()
 }
 
 fn roll_with_settlement(
@@ -784,5 +798,19 @@ mod tests {
                 modi[i].1
             );
         }
+    }
+
+    #[test]
+    fn test_is_imm() {
+        assert_eq!(true, is_imm(&ndt(2025, 3, 19)));
+        assert_eq!(false, is_imm(&ndt(2025, 3, 18)));
+    }
+
+    #[test]
+    fn test_get_eom() {
+       assert_eq!(ndt(2022, 2, 28), get_eom(2022, 2));
+       assert_eq!(ndt(2024, 2, 29), get_eom(2024, 2));
+       assert_eq!(ndt(2022, 4, 30), get_eom(2022, 4));
+       assert_eq!(ndt(2022, 3, 31), get_eom(2022, 3));
     }
 }
