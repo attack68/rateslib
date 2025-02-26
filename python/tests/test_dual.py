@@ -712,6 +712,22 @@ def test_variable_set_order() -> None:
     assert isinstance(x_dual2, Dual2)
 
 
+def test_perturbation_confusion() -> None:
+    # https://www.bcl.hamilton.ie/~barak/papers/ifl2005.pdf
+
+    # Utilised tagged variables
+    x = Dual(1.0, ["x"], [])
+    y = Dual(1.0, ["y"], [])
+    result = gradient(x * gradient(x + y, ["y"]), ["x"])
+    assert result == 1.0
+
+    # Replicates untagged variables
+    x = Dual(1.0, ["x"], [])
+    y = Dual(1.0, ["x"], [])
+    result = gradient(x * gradient(x + y, ["x"]), ["x"])
+    assert result == 2.0
+
+
 # Linalg dual_solve tests
 
 

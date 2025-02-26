@@ -9,7 +9,7 @@ from pandas import NA, DataFrame, Index, MultiIndex, Series, date_range
 from pandas.testing import assert_frame_equal
 from rateslib import defaults
 from rateslib.calendars import Cal
-from rateslib.curves import CompositeCurve, Curve, IndexCurve, LineCurve
+from rateslib.curves import CompositeCurve, Curve, LineCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual
 from rateslib.fx import FXForwards, FXRates
@@ -2535,9 +2535,10 @@ class TestIndexFixedPeriod:
             index_base=100.0,
             index_method=method,
         )
-        index_curve = IndexCurve(
+        index_curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
             index_base=200.0,
+            interpolation="linear_index",
         )
         _, result, _ = index_period.index_ratio(index_curve)
         assert abs(result - expected) < 1e-8
@@ -2555,9 +2556,10 @@ class TestIndexFixedPeriod:
             currency="usd",
             index_base=100.0,
         )
-        index_curve = IndexCurve(
+        index_curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
             index_base=200.0,
+            interpolation="linear_index",
         )
         result = index_period.real_cashflow
         expected = -1e7 * ((dt(2022, 4, 1) - dt(2022, 1, 1)) / timedelta(days=360)) * 4
@@ -2568,9 +2570,10 @@ class TestIndexFixedPeriod:
         assert abs(result - expected) < 1e-8
 
     def test_period_analytic_delta(self, fxr, curve) -> None:
-        index_curve = IndexCurve(
+        index_curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
             index_base=200.0,
+            interpolation="linear_index",
         )
         fixed_period = IndexFixedPeriod(
             start=dt(2022, 1, 1),
@@ -2647,9 +2650,10 @@ class TestIndexFixedPeriod:
             currency="usd",
             index_base=100.0,
         )
-        index_curve = IndexCurve(
+        index_curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
             index_base=200.0,
+            interpolation="linear_index",
         )
         result = index_period.npv(index_curve, curve)
         expected = -19895057.826930363
@@ -2797,9 +2801,10 @@ class TestIndexFixedPeriod:
             currency="usd",
             index_base=100.0,
         )
-        index_curve = IndexCurve(
+        index_curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
             index_base=200.0,
+            interpolation="linear_index",
         )
         composite_curve = CompositeCurve([index_curve])
         _, result, _ = index_period.index_ratio(composite_curve)
@@ -2860,7 +2865,7 @@ class TestIndexCashflow:
         assert abs(cf.npv(curve) + 1e6) < 1e-6
 
     def test_index_cashflow_floats(self, curve) -> None:
-        icurve = IndexCurve(
+        icurve = Curve(
             nodes={
                 dt(2022, 1, 1): 1.00,
                 dt(2022, 4, 1): 0.99,
@@ -2868,6 +2873,7 @@ class TestIndexCashflow:
                 dt(2022, 10, 1): 0.97,
             },
             index_base=100.0,
+            interpolation="linear_index",
         )
         icurve._set_ad_order(1)
         curve._set_ad_order(1)
