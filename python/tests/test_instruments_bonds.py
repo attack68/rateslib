@@ -2688,3 +2688,99 @@ class TestBondFuture:
         result = future.duration(112.98, delivery=delivery, metric="modified")[0]
         expected = 7.23419455163
         assert abs(result - expected) < 1e-3
+
+    def test_cms(self):
+        data = DataFrame(
+            data=[
+                [
+                    FixedRateBond(
+                        dt(2022, 1, 1), dt(2039, 8, 15), fixed_rate=4.5, spec="ust", curves="bcurve"
+                    ),
+                    98.6641,
+                ],
+                [
+                    FixedRateBond(
+                        dt(2022, 1, 1),
+                        dt(2040, 2, 15),
+                        fixed_rate=4.625,
+                        spec="ust",
+                        curves="bcurve",
+                    ),
+                    99.8203,
+                ],
+                [
+                    FixedRateBond(
+                        dt(2022, 1, 1),
+                        dt(2041, 2, 15),
+                        fixed_rate=4.75,
+                        spec="ust",
+                        curves="bcurve",
+                    ),
+                    100.7734,
+                ],
+                [
+                    FixedRateBond(
+                        dt(2022, 1, 1),
+                        dt(2040, 5, 15),
+                        fixed_rate=4.375,
+                        spec="ust",
+                        curves="bcurve",
+                    ),
+                    96.6953,
+                ],
+                [
+                    FixedRateBond(
+                        dt(2022, 1, 1),
+                        dt(2042, 11, 15),
+                        fixed_rate=4.00,
+                        spec="ust",
+                        curves="bcurve",
+                    ),
+                    90.4766,
+                ],
+            ],
+            columns=["bonds", "prices"],
+        )
+        usz3 = BondFuture(  # Construct the BondFuture Instrument
+            coupon=6.0,
+            delivery=(dt(2023, 12, 1), dt(2023, 12, 29)),
+            basket=data["bonds"],
+            nominal=100e3,
+            calendar="nyc",
+            currency="usd",
+            calc_mode="ust_long",
+        )
+        result = usz3.cms(prices=data["prices"], settlement=dt(2023, 11, 22), shifts=[-50, 0, 50])
+        expected = DataFrame(
+            data={
+                "Bond": [
+                    "4.500% 15-08-2039",
+                    "4.625% 15-02-2040",
+                    "4.750% 15-02-2041",
+                    "4.375% 15-05-2040",
+                    "4.000% 15-11-2042",
+                ],
+                -50: [
+                    0.0,
+                    0.10938764224876252,
+                    0.32693578691382186,
+                    0.24721845093496597,
+                    1.1960030963801813,
+                ],
+                0: [
+                    0.0,
+                    0.01148721023514554,
+                    0.016282194434154462,
+                    0.032902987886402,
+                    0.33598669301149187,
+                ],
+                50: [
+                    0.43066112621522734,
+                    0.3653207547713322,
+                    0.19632745772335625,
+                    0.27120849999053576,
+                    0.0
+                ],
+            }
+        )
+        assert_frame_equal(result, expected)
