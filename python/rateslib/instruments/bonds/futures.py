@@ -490,16 +490,13 @@ class BondFuture(Sensitivities):
         }
         for shift in shifts:
             _curve = bcurve.shift(shift, composite=False)
+            future_price = self.rate(curves=_curve, metric="future_price")
             data.update(
                 {
-                    shift: self.net_basis(
-                        future_price=self.rate(curves=_curve),
-                        prices=[_.rate(curves=_curve, metric=metric) for _ in self.basket],
-                        repo_rate=_curve._rate_with_raise(settlement, self.delivery[1], "NONE"),
-                        settlement=settlement,
-                        delivery=delivery,
-                        convention=_curve.convention,
-                        dirty=dirty,
+                    shift: tuple(
+                        bond.rate(curves=_curve, metric="clean_price", forward_settlement=delivery)
+                        - self.cfs[i] * future_price
+                        for i, bond in enumerate(self.basket)
                     ),
                 },
             )
