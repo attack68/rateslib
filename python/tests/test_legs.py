@@ -1006,7 +1006,7 @@ class TestZeroIndexLeg:
                 dt(2023, 1, 1): 0.97,
             },
             index_base=100.0,
-            interpolation="linear_index"
+            interpolation="linear_index",
         )
         zil = ZeroIndexLeg(
             effective=dt(2022, 1, 15),
@@ -1052,7 +1052,7 @@ class TestZeroIndexLeg:
                 dt(2023, 1, 1): 0.97,
             },
             index_base=100.0,
-            interpolation="linear_index"
+            interpolation="linear_index",
         )
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.97})
         zil = ZeroIndexLeg(
@@ -1468,7 +1468,7 @@ class TestIndexFixedLegExchange:
                 dt(2022, 12, 15): 1.0 / 1.15,
             },
             index_base=200.0,
-            interpolation="linear_index"
+            interpolation="linear_index",
         )
         disc_curve = Curve({dt(2022, 3, 15): 1.0, dt(2022, 12, 15): 1.0})
         flows = leg.cashflows(curve=index_curve, disc_curve=disc_curve)
@@ -1538,7 +1538,11 @@ class TestIndexFixedLegExchange:
 
     def test_npv(self) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
-        index_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_base=100.0, interpolation="linear_index")
+        index_curve = Curve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
+            index_base=100.0,
+            interpolation="linear_index",
+        )
         index_leg_exch = IndexFixedLeg(
             dt(2022, 1, 1),
             "9M",
@@ -1599,7 +1603,7 @@ class TestIndexFixedLeg:
                 dt(2022, 12, 15): 1.0 / 1.15,
             },
             index_base=200.0,
-            interpolation="linear_index"
+            interpolation="linear_index",
         )
         disc_curve = Curve({dt(2022, 3, 15): 1.0, dt(2022, 12, 15): 1.0})
         flows = leg.cashflows(curve=index_curve, disc_curve=disc_curve)
@@ -1650,7 +1654,7 @@ class TestIndexFixedLeg:
                 dt(2022, 12, 20): 1.0 / 1.15,
             },
             index_base=200.0,
-            interpolation="linear_index"
+            interpolation="linear_index",
         )
         cashflows = leg.cashflows(index_curve)
         result = cashflows.iloc[2]["Index Val"]

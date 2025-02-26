@@ -2538,7 +2538,7 @@ class TestIndexFixedPeriod:
         index_curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
             index_base=200.0,
-            interpolation="linear_index"
+            interpolation="linear_index",
         )
         _, result, _ = index_period.index_ratio(index_curve)
         assert abs(result - expected) < 1e-8
@@ -2559,7 +2559,7 @@ class TestIndexFixedPeriod:
         index_curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
             index_base=200.0,
-            interpolation="linear_index"
+            interpolation="linear_index",
         )
         result = index_period.real_cashflow
         expected = -1e7 * ((dt(2022, 4, 1) - dt(2022, 1, 1)) / timedelta(days=360)) * 4
@@ -2653,7 +2653,7 @@ class TestIndexFixedPeriod:
         index_curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
             index_base=200.0,
-            interpolation="linear_index"
+            interpolation="linear_index",
         )
         result = index_period.npv(index_curve, curve)
         expected = -19895057.826930363

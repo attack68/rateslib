@@ -692,7 +692,12 @@ class TestNullPricing:
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
         c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
         c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.982}, id="eurusd")
-        c4 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995}, id="eu_cpi", index_base=100.0, interpolation="linear_index")
+        c4 = Curve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995},
+            id="eu_cpi",
+            index_base=100.0,
+            interpolation="linear_index",
+        )
         fxf = FXForwards(
             FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
             {"usdusd": c1, "eureur": c2, "eurusd": c3},
@@ -737,7 +742,12 @@ class TestNullPricing:
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
         c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
         c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.982}, id="eurusd")
-        c4 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995}, id="eu_cpi", index_base=100.0, interpolation="linear_index")
+        c4 = Curve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995},
+            id="eu_cpi",
+            index_base=100.0,
+            interpolation="linear_index",
+        )
         fxf = FXForwards(
             FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
             {"usdusd": c1, "eureur": c2, "eurusd": c3},
@@ -782,7 +792,12 @@ class TestNullPricing:
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
         c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
         c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.982}, id="eurusd")
-        c4 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995}, id="eu_cpi", index_base=100.0, interpolation="linear_index")
+        c4 = Curve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995},
+            id="eu_cpi",
+            index_base=100.0,
+            interpolation="linear_index",
+        )
         fxf = FXForwards(
             FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
             {"usdusd": c1, "eureur": c2, "eurusd": c3},
@@ -836,7 +851,12 @@ class TestNullPricing:
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
         c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
         c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.982}, id="eurusd")
-        c4 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995}, id="eu_cpi", index_base=100.0, interpolation="linear_index")
+        c4 = Curve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995},
+            id="eu_cpi",
+            index_base=100.0,
+            interpolation="linear_index",
+        )
         fxf = FXForwards(
             FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
             {"usdusd": c1, "eureur": c2, "eurusd": c3},
@@ -882,7 +902,12 @@ class TestNullPricing:
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
         c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
         c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.982}, id="eurusd")
-        c4 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995}, id="eu_cpi", index_base=100.0, interpolation="linear_index")
+        c4 = Curve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995},
+            id="eu_cpi",
+            index_base=100.0,
+            interpolation="linear_index",
+        )
         fxf = FXForwards(
             FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
             {"usdusd": c1, "eureur": c2, "eurusd": c3},
@@ -1749,7 +1774,11 @@ class TestZCS:
 
 class TestZCIS:
     def test_leg2_index_base(self, curve) -> None:
-        i_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_base=200.0, interpolation="linear_index")
+        i_curve = Curve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
+            index_base=200.0,
+            interpolation="linear_index",
+        )
         zcis = ZCIS(
             effective=dt(2022, 1, 1),
             termination="9m",
@@ -1764,7 +1793,11 @@ class TestZCIS:
     def test_solver_failure_unspecified_index_base(self, curve) -> None:
         # GH 349
         curve = Curve({dt(2022, 1, 15): 1.0, dt(2023, 1, 1): 0.98})
-        i_curve = Curve({dt(2022, 1, 15): 1.0, dt(2023, 1, 1): 0.99}, index_base=200.0, interpolation="linear_index")
+        i_curve = Curve(
+            {dt(2022, 1, 15): 1.0, dt(2023, 1, 1): 0.99},
+            index_base=200.0,
+            interpolation="linear_index",
+        )
         zcis = ZCIS(
             effective=dt(2022, 1, 15),
             termination="9m",

@@ -2361,8 +2361,7 @@ class CompositeCurve(Curve):
             )
 
         if not (
-            all(_ is Curve or _ is ProxyCurve for _ in types)
-            or all(_ is LineCurve for _ in types)
+            all(_ is Curve or _ is ProxyCurve for _ in types) or all(_ is LineCurve for _ in types)
         ):
             raise TypeError(f"`curves` must be a list of similar type curves, got {types}.")
 

@@ -1293,7 +1293,11 @@ class TestIndexFixedRateBond:
     def test_fixed_rate_bond_npv_private(self) -> None:
         # this test shadows 'fixed_rate_bond_npv' but extends it for projection
         curve = Curve({dt(2004, 11, 25): 1.0, dt(2010, 11, 25): 1.0, dt(2015, 12, 7): 0.75})
-        index_curve = Curve({dt(2004, 11, 25): 1.0, dt(2034, 1, 1): 1.0}, index_base=100.0, interpolation="linear_index")
+        index_curve = Curve(
+            {dt(2004, 11, 25): 1.0, dt(2034, 1, 1): 1.0},
+            index_base=100.0,
+            interpolation="linear_index",
+        )
         gilt = IndexFixedRateBond(
             effective=dt(1998, 12, 7),
             termination=dt(2015, 12, 7),
@@ -1356,7 +1360,11 @@ class TestIndexFixedRateBond:
             index_base=50.0,
         )
         curve = Curve({dt(1998, 12, 9): 1.0, dt(2015, 12, 7): 0.50})
-        i_curve = Curve({dt(1998, 12, 9): 1.0, dt(2015, 12, 7): 1.0}, index_base=100.0, interpolation="linear_index")
+        i_curve = Curve(
+            {dt(1998, 12, 9): 1.0, dt(2015, 12, 7): 1.0},
+            index_base=100.0,
+            interpolation="linear_index",
+        )
         clean_price = gilt.rate([i_curve, curve], metric="clean_price")
         index_clean_price = gilt.rate([i_curve, curve], metric="index_clean_price")
         assert abs(index_clean_price * 0.5 - clean_price) < 1e-3
@@ -1435,7 +1443,11 @@ class TestIndexFixedRateBond:
     def test_rate_with_fx_is_same(self) -> None:
         usd = Curve(nodes={dt(2000, 1, 1): 1.0, dt(2005, 1, 1): 0.9, dt(2010, 1, 5): 0.8})
         gbp = Curve(nodes={dt(2000, 1, 1): 1.0, dt(2005, 1, 1): 0.9, dt(2010, 1, 5): 0.8})
-        gbpi = Curve(nodes={dt(2000, 1, 1): 1.0, dt(2010, 1, 1): 0.95}, index_base=100.0, interpolation="linear_index")
+        gbpi = Curve(
+            nodes={dt(2000, 1, 1): 1.0, dt(2010, 1, 1): 0.95},
+            index_base=100.0,
+            interpolation="linear_index",
+        )
         fxf = FXForwards(
             fx_rates=FXRates({"gbpusd": 1.25}, settlement=dt(2000, 1, 1)),
             fx_curves={"gbpgbp": gbp, "usdusd": usd, "gbpusd": gbp},
