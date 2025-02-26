@@ -76,7 +76,7 @@ class ZCIS(BaseDerivative):
            },
            id="usd",
        )
-       us_cpi = IndexCurve(
+       us_cpi = Curve(
            nodes={
                dt(2022, 1, 1): 1.0,
                dt(2027, 1, 1): 0.85,
@@ -303,7 +303,7 @@ class IIRS(BaseDerivative):
           },
           id="usd",
       )
-      us_cpi = IndexCurve(
+      us_cpi = Curve(
           nodes={
               dt(2022, 1, 1): 1.0,
               dt(2027, 1, 1): 0.85,
