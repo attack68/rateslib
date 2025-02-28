@@ -21,9 +21,25 @@ email contact, see `rateslib <https://rateslib.com>`_.
 
    * - Feature
      - Description
+   * - **Removed**
+     - ``IndexCurve``, which was deprecated with warnings in 1.7.0, has been removed.
+      (`691 <https://github.com/attack68/rateslib/pull/691>`_)
+   * - Period
+     - Add :class:`~rateslib.periods.NonDeliverableFixedPeriod`
+       (`681 <https://github.com/attack68/rateslib/pull/681>`_)
+   * - Calendars
+     - Allow custom calendar additions to ``defaults.calendars`` and fast fetching with
+       :meth:`~rateslib.calendars.get_calendar`.
    * - Refactor
      - Rename :class:`~rateslib.instruments.BaseMixin` to :class:`~rateslib.instruments.Metrics`.
        (`678 <https://github.com/attack68/rateslib/pull/678>`_)
+   * - Refactor
+     - Minor changes to :class:`BondFuture.cms <rateslib.instruments.BondFuture.cms>` to avoid
+       the proceeds method of repo rates and utilise only a bond curve for forward bond prices.
+       (`693 <https://github.com/attack68/rateslib/pull/693>`_)
+   * - Bug
+     - Add :class:`~rateslib.instruments.NDF` to global *rateslib* namespace.
+       (`682 <https://github.com/attack68/rateslib/pull/682>`_)
 
 1.7.0 (31st January 2025)
 ****************************

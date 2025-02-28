@@ -9,7 +9,7 @@ from pandas import NA, DataFrame, Index, MultiIndex, Series, date_range
 from pandas.testing import assert_frame_equal
 from rateslib import defaults
 from rateslib.calendars import Cal
-from rateslib.curves import CompositeCurve, Curve, IndexCurve, LineCurve
+from rateslib.curves import CompositeCurve, Curve, LineCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual
 from rateslib.fx import FXForwards, FXRates
@@ -26,6 +26,7 @@ from rateslib.periods import (
     IndexFixedPeriod,
     IndexMixin,
     NonDeliverableCashflow,
+    NonDeliverableFixedPeriod,
 )
 
 
@@ -2534,9 +2535,10 @@ class TestIndexFixedPeriod:
             index_base=100.0,
             index_method=method,
         )
-        index_curve = IndexCurve(
+        index_curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
             index_base=200.0,
+            interpolation="linear_index",
         )
         _, result, _ = index_period.index_ratio(index_curve)
         assert abs(result - expected) < 1e-8
@@ -2554,9 +2556,10 @@ class TestIndexFixedPeriod:
             currency="usd",
             index_base=100.0,
         )
-        index_curve = IndexCurve(
+        index_curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
             index_base=200.0,
+            interpolation="linear_index",
         )
         result = index_period.real_cashflow
         expected = -1e7 * ((dt(2022, 4, 1) - dt(2022, 1, 1)) / timedelta(days=360)) * 4
@@ -2567,9 +2570,10 @@ class TestIndexFixedPeriod:
         assert abs(result - expected) < 1e-8
 
     def test_period_analytic_delta(self, fxr, curve) -> None:
-        index_curve = IndexCurve(
+        index_curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
             index_base=200.0,
+            interpolation="linear_index",
         )
         fixed_period = IndexFixedPeriod(
             start=dt(2022, 1, 1),
@@ -2646,9 +2650,10 @@ class TestIndexFixedPeriod:
             currency="usd",
             index_base=100.0,
         )
-        index_curve = IndexCurve(
+        index_curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
             index_base=200.0,
+            interpolation="linear_index",
         )
         result = index_period.npv(index_curve, curve)
         expected = -19895057.826930363
@@ -2796,9 +2801,10 @@ class TestIndexFixedPeriod:
             currency="usd",
             index_base=100.0,
         )
-        index_curve = IndexCurve(
+        index_curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
             index_base=200.0,
+            interpolation="linear_index",
         )
         composite_curve = CompositeCurve([index_curve])
         _, result, _ = index_period.index_ratio(composite_curve)
@@ -2859,7 +2865,7 @@ class TestIndexCashflow:
         assert abs(cf.npv(curve) + 1e6) < 1e-6
 
     def test_index_cashflow_floats(self, curve) -> None:
-        icurve = IndexCurve(
+        icurve = Curve(
             nodes={
                 dt(2022, 1, 1): 1.00,
                 dt(2022, 4, 1): 0.99,
@@ -2867,6 +2873,7 @@ class TestIndexCashflow:
                 dt(2022, 10, 1): 0.97,
             },
             index_base=100.0,
+            interpolation="linear_index",
         )
         icurve._set_ad_order(1)
         curve._set_ad_order(1)
@@ -3031,9 +3038,210 @@ class TestNonDeliverableCashflow:
             settlement_currency="usd",
             settlement=dt(2025, 6, 1),
             fixing_date=dt(2025, 5, 29),
+            reversed=True,
         )
         with pytest.raises(TypeError, match="`fx_rate` must be set on the Period for an `npv`"):
             ndf.cashflow(fxf_ndf)
+
+
+class TestNonDeliverableFixedPeriod:
+    @pytest.fixture(scope="class")
+    def fxf_ndf(self):
+        fxr = FXRates({"brlusd": 0.200}, settlement=dt(2025, 1, 23))
+        fxf = FXForwards(
+            fx_rates=fxr,
+            fx_curves={
+                "brlbrl": Curve({dt(2025, 1, 21): 1.0, dt(2026, 1, 23): 0.98}),
+                "usdusd": Curve({dt(2025, 1, 21): 1.0, dt(2026, 1, 23): 0.96}),
+                "brlusd": Curve({dt(2025, 1, 21): 1.0, dt(2026, 1, 23): 0.978}),
+            },
+        )
+        return fxf
+
+    @pytest.mark.parametrize("fx_fixing", [NoInput(0), 5.00])
+    def test_cashflow_reversed(self, fx_fixing, fxf_ndf):
+        ndfp = NonDeliverableFixedPeriod(
+            start=dt(2025, 2, 1),
+            end=dt(2025, 5, 1),
+            payment=dt(2025, 5, 1),
+            convention="30e360",
+            currency="brl",
+            settlement_currency="usd",
+            notional=1e6,
+            fx_fixing=fx_fixing,
+            fx_fixing_date=dt(2025, 4, 29),
+            frequency="q",
+            fixed_rate=3.0,
+            reversed=True,
+        )
+        cf = ndfp.cashflow(fx=fxf_ndf)
+        fx_fixing = ndfp._get_fx_fixing(fx=fxf_ndf)
+        expected = -1e6 * 0.25 * 0.03 / fx_fixing  # in USD
+        assert abs(cf - expected) < 1e-8
+
+    @pytest.mark.parametrize("fx_fixing", [NoInput(0), 0.2])
+    def test_cashflow(self, fx_fixing, fxf_ndf):
+        ndfp = NonDeliverableFixedPeriod(
+            start=dt(2025, 2, 1),
+            end=dt(2025, 5, 1),
+            payment=dt(2025, 5, 1),
+            convention="30e360",
+            currency="brl",
+            settlement_currency="usd",
+            notional=0.2e6,
+            fx_fixing=fx_fixing,
+            fx_fixing_date=dt(2025, 4, 29),
+            frequency="q",
+            fixed_rate=3.0,
+        )
+        cf = ndfp.cashflow(fx=fxf_ndf)
+        fx_fixing = ndfp._get_fx_fixing(fx=fxf_ndf)
+        expected = -0.2e6 * 0.25 * 0.03 * fx_fixing  # in USD
+        assert abs(cf - expected) < 1e-8
+
+    @pytest.mark.parametrize("fx_fixing", [NoInput(0), 0.20])
+    def test_no_cashflow(self, fx_fixing, fxf_ndf):
+        ndfp = NonDeliverableFixedPeriod(
+            start=dt(2025, 2, 1),
+            end=dt(2025, 5, 1),
+            payment=dt(2025, 5, 1),
+            convention="30e360",
+            settlement_currency="usd",
+            currency="brl",
+            notional=1e6,
+            fx_fixing=fx_fixing,
+            fx_fixing_date=dt(2025, 4, 29),
+            frequency="q",
+        )
+        assert ndfp.cashflow(fx=fxf_ndf) is None
+
+    @pytest.mark.parametrize("fx_fixing", [NoInput(0), 5.0])
+    def test_analytic_delta(self, fx_fixing, fxf_ndf):
+        ndfp = NonDeliverableFixedPeriod(
+            start=dt(2025, 2, 1),
+            end=dt(2025, 5, 1),
+            payment=dt(2025, 5, 1),
+            convention="30e360",
+            currency="brl",
+            settlement_currency="usd",
+            notional=1e9,
+            fx_fixing=fx_fixing,
+            fx_fixing_date=dt(2025, 4, 29),
+            frequency="q",
+            fixed_rate=3.0,
+            reversed=True,
+        )
+        curve = fxf_ndf.curve("usd", "usd")
+        result = ndfp.analytic_delta(curve=curve, fx=fxf_ndf)
+        fx_fixing = ndfp._get_fx_fixing(fx=fxf_ndf)
+        expected = 1e9 * 0.25 * 0.0001 * curve[dt(2025, 5, 1)] / fx_fixing  # in USD
+        assert abs(result - expected) < 1e-8
+
+    @pytest.mark.parametrize("fx_conv", [FXRates({"usdeur": 105.0}), 105.0])
+    def test_analytic_delta_base(self, fx_conv, fxf_ndf):
+        ndfp = NonDeliverableFixedPeriod(
+            start=dt(2025, 2, 1),
+            end=dt(2025, 5, 1),
+            payment=dt(2025, 5, 1),
+            convention="30e360",
+            currency="brl",
+            settlement_currency="usd",
+            notional=1e9,
+            fx_fixing=5.0,
+            fx_fixing_date=dt(2025, 4, 29),
+            frequency="q",
+            fixed_rate=3.0,
+            reversed=True,
+        )
+        curve = fxf_ndf.curve("usd", "usd")
+        result = ndfp.analytic_delta(curve=curve, fx=fx_conv, base="eur")
+        fx_fixing = 5.0
+        expected = 105 * 1e9 * 0.25 * 0.0001 * curve[dt(2025, 5, 1)] / fx_fixing  # in USD
+        assert abs(result - expected) < 1e-8
+
+    @pytest.mark.parametrize("fx_fixing", [NoInput(0), 5.0])
+    def test_npv_reversed(self, fx_fixing, fxf_ndf):
+        ndfp = NonDeliverableFixedPeriod(
+            start=dt(2025, 2, 1),
+            end=dt(2025, 5, 1),
+            payment=dt(2025, 5, 1),
+            convention="30e360",
+            currency="brl",
+            settlement_currency="usd",
+            notional=1e9,
+            fx_fixing=fx_fixing,
+            fx_fixing_date=dt(2025, 4, 29),
+            frequency="q",
+            fixed_rate=3.0,
+            reversed=True,
+        )
+        curve = fxf_ndf.curve("usd", "usd")
+        result = ndfp.npv(curve=curve, fx=fxf_ndf)
+        fx_fixing = ndfp._get_fx_fixing(fx=fxf_ndf)
+        expected = -1e9 * 0.25 * 0.03 * curve[dt(2025, 5, 1)] / fx_fixing  # in USD
+        assert abs(result - expected) < 1e-8
+
+    @pytest.mark.parametrize("fx_fixing", [NoInput(0), 0.20])
+    def test_npv(self, fx_fixing, fxf_ndf):
+        ndfp = NonDeliverableFixedPeriod(
+            start=dt(2025, 2, 1),
+            end=dt(2025, 5, 1),
+            payment=dt(2025, 5, 1),
+            convention="30e360",
+            currency="brl",
+            settlement_currency="usd",
+            notional=1e9,
+            fx_fixing=fx_fixing,
+            fx_fixing_date=dt(2025, 4, 29),
+            frequency="q",
+            fixed_rate=3.0,
+        )
+        curve = fxf_ndf.curve("usd", "usd")
+        result = ndfp.npv(curve=curve, fx=fxf_ndf)
+        fx_fixing = ndfp._get_fx_fixing(fx=fxf_ndf)
+        expected = -1e9 * 0.25 * 0.03 * curve[dt(2025, 5, 1)] * fx_fixing  # in USD
+        assert abs(result - expected) < 1e-8
+
+    @pytest.mark.parametrize("curve", [True, False])
+    @pytest.mark.parametrize("fixed_rate", [3.0])
+    def test_cashflows(self, curve, fixed_rate, fxf_ndf):
+        curve_ = fxf_ndf.curve("usd", "usd") if curve else NoInput(0)
+        ndfp = NonDeliverableFixedPeriod(
+            start=dt(2025, 2, 1),
+            end=dt(2025, 5, 1),
+            payment=dt(2025, 5, 1),
+            convention="30e360",
+            currency="brl",
+            settlement_currency="usd",
+            notional=1e9,
+            fx_fixing=NoInput(0),
+            fx_fixing_date=dt(2025, 4, 29),
+            frequency="q",
+            fixed_rate=fixed_rate,
+        )
+        result = ndfp.cashflows(curve=curve_, fx=fxf_ndf)
+        expected = {
+            "Acc End": dt(2025, 5, 1, 0, 0),
+            "Acc Start": dt(2025, 2, 1, 0, 0),
+            "Cashflow": -1507459.1627133065,
+            "Ccy": "usd",
+            "Collateral": "usd" if curve else None,
+            "Convention": "30e360",
+            "DCF": 0.25,
+            "DF": 0.9889384743344495 if curve else None,
+            "FX Rate": 1.0,
+            "Index Val": 0.20099455502844088,
+            "NPV": -1490784.364495184 if curve else None,
+            "NPV Ccy": -1490784.364495184 if curve else None,
+            "Notional": 1000000000.0,
+            "Pair": "brlusd",
+            "Payment": dt(2025, 5, 1, 0, 0),
+            "Period": "Regular",
+            "Rate": 3.0,
+            "Spread": None,
+            "Type": "NonDeliverableFixedPeriod",
+        }
+        assert result == expected
 
 
 def test_base_period_dates_raise() -> None:

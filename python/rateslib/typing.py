@@ -76,6 +76,7 @@ from rateslib.rs import (
 )
 from rateslib.rs import Dual as Dual
 from rateslib.rs import Dual2 as Dual2
+from rateslib.scheduling import Schedule as Schedule
 from rateslib.solver import Solver as Solver
 
 Solver_: TypeAlias = "Solver | NoInput"

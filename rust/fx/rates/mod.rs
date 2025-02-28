@@ -302,7 +302,7 @@ where
                     For example ('eurusd' + 'usdeur') or ('usdeur', 'eurjpy', 'usdjpy').",
             ));
         }
-        Some(node_) => node = usize::try_from(node_).unwrap(),
+        Some(node_) => node = node_,
     }
 
     // `combinations` is a list of pairs that can be formed from the edges associated

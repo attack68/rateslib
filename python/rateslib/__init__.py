@@ -62,7 +62,6 @@ from rateslib.calendars import (
 from rateslib.curves import (
     CompositeCurve,
     Curve,
-    IndexCurve,
     LineCurve,
     MultiCsaCurve,
     ProxyCurve,
@@ -77,6 +76,7 @@ from rateslib.instruments import (
     FRA,
     IIRS,
     IRS,
+    NDF,
     SBS,
     XCS,
     ZCIS,
@@ -182,7 +182,6 @@ __all__ = [
     # curves.py
     "Curve",
     "LineCurve",
-    "IndexCurve",
     "MultiCsaCurve",
     "CompositeCurve",
     "ProxyCurve",
@@ -225,6 +224,7 @@ __all__ = [
     "VolValue",
     "Bill",
     "IRS",
+    "NDF",
     "STIRFuture",
     "IIRS",
     "ZCS",
