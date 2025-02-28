@@ -255,7 +255,7 @@ class NonDeliverableCashflow:
 
        ndc = NonDeliverableCashflow(
            notional=10e6,  # <- this is BRL amount
-           reference_currency="brl",
+           currency="brl",
            settlement_currency="usd",
            settlement=dt(2025, 6, 1),
            fixing_date=dt(2025, 5, 29),
