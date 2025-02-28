@@ -2014,7 +2014,7 @@ class TestNDF:
             calendar="tgt|fed",
             payment_lag=lag,
         )
-        assert ndf.periods[0].settlement == exp2
+        assert ndf.periods[0].payment == exp2
         assert ndf.periods[0].fixing_date == exp1
 
     @pytest.mark.parametrize(
@@ -2034,7 +2034,7 @@ class TestNDF:
             payment_lag=2,
             eom=eom,
         )
-        assert ndf.periods[0].settlement == exp
+        assert ndf.periods[0].payment == exp
         assert ndf.periods[0].fixing_date == exp2
 
     def test_zero_analytic_delta(self):
