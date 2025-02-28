@@ -369,7 +369,7 @@ class NDF(Sensitivities, Metrics):
                 if self.kwargs["pair"][0:3] != self.kwargs["currency"]
                 else self.kwargs["pair"][3:],
                 settlement_currency=self.kwargs["currency"],
-                settlement=self.kwargs["settlement"],
+                payment=self.kwargs["settlement"],
                 fixing_date=self.kwargs["calendar"].lag(
                     self.kwargs["settlement"], -self.kwargs["payment_lag"], False
                 ),  # a fixing date can be on a non-settlable date

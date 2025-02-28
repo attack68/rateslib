@@ -39,9 +39,11 @@ email contact, see `rateslib <https://rateslib.com>`_.
        the proceeds method of repo rates and utilise only a bond curve for forward bond prices.
        (`693 <https://github.com/attack68/rateslib/pull/693>`_)
    * - Refactor
-     - :red:`Minor Breaking Change!` The argument ``reference_currency`` is renamed ``currency`` in
+     - :red:`Minor Breaking Change!` The argument ``reference_currency`` is renamed ``currency``,
+       and the argument ``settlement`` is renamed ``payment`` in
        :class:`~rateslib.periods.NonDeliverableCashflow`.
        (`677 <https://github.com/attack68/rateslib/pull/677>`_)
+       (`694 <https://github.com/attack68/rateslib/pull/694>`_)
    * - Bug
      - Add :class:`~rateslib.instruments.NDF` to global *rateslib* namespace.
        (`682 <https://github.com/attack68/rateslib/pull/682>`_)
