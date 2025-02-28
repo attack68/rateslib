@@ -30,6 +30,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
    * - Calendars
      - Allow custom calendar additions to ``defaults.calendars`` and fast fetching with
        :meth:`~rateslib.calendars.get_calendar`.
+       (`684 <https://github.com/attack68/rateslib/pull/684>`_)
    * - Refactor
      - Rename :class:`~rateslib.instruments.BaseMixin` to :class:`~rateslib.instruments.Metrics`.
        (`678 <https://github.com/attack68/rateslib/pull/678>`_)
@@ -37,6 +38,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
      - Minor changes to :class:`BondFuture.cms <rateslib.instruments.BondFuture.cms>` to avoid
        the proceeds method of repo rates and utilise only a bond curve for forward bond prices.
        (`693 <https://github.com/attack68/rateslib/pull/693>`_)
+   * - Refactor
+     - :red:`Minor Breaking Change!` The argument ``reference_currency`` is renamed ``currency`` in
+       :class:`~rateslib.periods.NonDeliverableCashflow`.
+       (`677 <https://github.com/attack68/rateslib/pull/677>`_)
    * - Bug
      - Add :class:`~rateslib.instruments.NDF` to global *rateslib* namespace.
        (`682 <https://github.com/attack68/rateslib/pull/682>`_)
