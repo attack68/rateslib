@@ -282,7 +282,10 @@ class NDF(Sensitivities, Metrics):
     pair: str
         The FX pair against which settlement takes place (2 x 3-digit code).
     notional: float, Variable, optional
-        The notional amount expressed in units of currency 1 of ``pair``.
+        The notional amount expressed in units of the currency 1 of pair, e.g. BRL in BRLUSD.
+    currency: str, optional
+        The settlement currency of the contract. If not given is assumed to be currency 2 of the
+        ``pair``, e.g. USD in BRLUSD. Must be one of the currencies in ``pair``.
     fx_rate: float, Variable, optional
         The agreed price on the NDF contact. May be omitted for unpriced contracts.
     fx_fixing: float, Variable, optional
@@ -295,9 +298,6 @@ class NDF(Sensitivities, Metrics):
         Determines settlement if given as string tenor and fixing date from settlement.
     modifier: str, optional
         Date modifier for determining string tenor.
-    currency: str, optional
-        The settlement currency of the contract. If not given is assumed to be currency 2 of the
-        ``pair``, e.g. USD in BRLUSD. Must be one of the currencies in ``pair``.
     payment_lag: int, optional
         Number of business day until settlement delivery. Defaults to 2 (spot) if not given.
     eom: bool, optional
@@ -364,7 +364,20 @@ class NDF(Sensitivities, Metrics):
 
         self.periods = [
             NonDeliverableCashflow(
-                notional=self.kwargs["notional"],
+                notional=0.0,  # will be set by set_cashflow_notional
+                currency=self.kwargs["pair"][0:3]
+                if self.kwargs["pair"][0:3] != self.kwargs["currency"]
+                else self.kwargs["pair"][3:],
+                settlement_currency=self.kwargs["currency"],
+                payment=self.kwargs["settlement"],
+                fixing_date=self.kwargs["calendar"].lag(
+                    self.kwargs["settlement"], -self.kwargs["payment_lag"], False
+                ),  # a fixing date can be on a non-settlable date
+                fx_fixing=self.kwargs["fx_fixing"],
+                reversed=self.kwargs["pair"][0:3] == self.kwargs["currency"],
+            ),
+            Cashflow(
+                notional=0.0,  # will be set by set_cashflow_notional
                 currency=self.kwargs["pair"][0:3]
                 if self.kwargs["pair"][0:3] != self.kwargs["currency"]
                 else self.kwargs["pair"][3:],
@@ -378,8 +391,36 @@ class NDF(Sensitivities, Metrics):
                 reversed=self.kwargs["pair"][0:3] == self.kwargs["currency"],
             )
         ]
+        self._set_cashflow_notional(init=True)
         self.curves = curves
         self.spec = spec
+
+    def _set_cashflow_notional(self, fx: FX_, init: bool) -> None:
+        """
+        Sets the notionals on the *Cashflow* types of the NDF.
+
+        Parameters
+        ----------
+        init: bool
+            Flag to indicate if the instance method is being run at initialisation, i.e. first time.
+        """
+        # set the notional based on direction of ``pair`` relative to the ``currency``.
+        if init or isinstance(self.kwargs["fx_rate"], NoInput):
+            if self.kwargs["pair"][0:3] == self.kwargs["currency"]:
+                # then the notional is expressed in the settlement currency:
+                # the Cashflow is determined, whilst the NonDeliverableCashflow is dependent
+                self.periods[1].notional = self.kwargs["notional"]
+                if not isinstance(self.kwargs["fx_rate"], NoInput):
+                    self.periods[0].notional = ...
+                else:
+                    fx_ = _validate_fx_fowards(fx)
+                    self.periods[0].notional = self.kwargs["fx_rate"].notional
+
+            else:
+                # the notional is expressed in terms of the reference currency:
+                # the NonDeliverableCashflow is determined, whilst the Cashflow is dependent
+                self.periods[0].notional = self.kwargs["notional"]
+                self.periods[1].notional = ...
 
     def _set_pricing_mid(
         self,
