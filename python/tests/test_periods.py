@@ -2903,24 +2903,22 @@ class TestNonDeliverableCashflow:
             settlement_currency="usd",
             payment=dt(2025, 6, 1),
             fixing_date=dt(2025, 5, 29),
-            fx_rate=0.18,
         )
         result = ndf.npv(disc_curve=fxf_ndf.curve("usd", "usd"), fx=fxf_ndf)
-        expected = 1e6 * (0.20131018767289705 - 0.18) * 0.9855343095437953
+        expected = -1e6 * 0.20131018767289705 * 0.9855343095437953
         assert abs(result - expected) < 1e-8
 
     def test_npv_reversed(self, fxf_ndf):
         ndf = NonDeliverableCashflow(
-            notional=1e6 * 0.18,
+            notional=1e6,
             currency="brl",
             settlement_currency="usd",
             payment=dt(2025, 6, 1),
             fixing_date=dt(2025, 5, 29),
-            fx_rate=1 / 0.18,
             reversed=True,
         )
         result = ndf.npv(disc_curve=fxf_ndf.curve("usd", "usd"), fx=fxf_ndf)
-        expected = -1e6 * (0.20131018767289705 - 0.18) * 0.9855343095437953
+        expected = -1e6 * 0.20131018767289705 * 0.9855343095437953
         assert abs(result - expected) < 1e-8
 
     def test_npv_fixing(self, fxf_ndf):
@@ -2930,11 +2928,10 @@ class TestNonDeliverableCashflow:
             settlement_currency="usd",
             payment=dt(2025, 6, 1),
             fixing_date=dt(2025, 5, 29),
-            fx_rate=0.18,
             fx_fixing=0.25,
         )
         result = ndf.npv(disc_curve=fxf_ndf.curve("usd", "usd"), fx=fxf_ndf)
-        expected = 1e6 * (0.25 - 0.18) * 0.9855343095437953
+        expected = -1e6 * 0.25 * 0.9855343095437953
         assert abs(result - expected) < 1e-8
 
     def test_rate_as_fixing(self, fxf_ndf):
@@ -2944,7 +2941,6 @@ class TestNonDeliverableCashflow:
             settlement_currency="usd",
             payment=dt(2025, 6, 1),
             fixing_date=dt(2025, 5, 29),
-            fx_rate=0.18,
             fx_fixing=0.25,
         )
         result = ndf.rate(fx=fxf_ndf)
@@ -2958,7 +2954,6 @@ class TestNonDeliverableCashflow:
             settlement_currency="usd",
             payment=dt(2025, 6, 1),
             fixing_date=dt(2025, 5, 29),
-            fx_rate=0.18,
         )
         result = ndf.rate(fx=fxf_ndf)
         expected = fxf_ndf.rate(ndf.pair, dt(2025, 6, 1))
@@ -2971,23 +2966,21 @@ class TestNonDeliverableCashflow:
             settlement_currency="usd",
             payment=dt(2025, 6, 1),
             fixing_date=dt(2025, 5, 29),
-            fx_rate=0.18,
             fx_fixing=0.25,
         )
         result = ndf.cashflows(disc_curve=fxf_ndf.curve("usd", "usd"), fx=fxf_ndf)
         expected = {
-            "Cashflow": 70000.0,
+            "Cashflow": -250000.0,
             "Ccy": "USD",
             "Collateral": "usd",
             "DF": 0.9855343095437953,
             "FX Rate": 1.0,
-            "Index Val": 0.25,
-            "NPV": 68987.40166806566,
-            "NPV Ccy": 68987.40166806566,
+            "NPV": -246383.57738594883,
+            "NPV Ccy": -246383.57738594883,
             "Notional": 1000000.0,
             "Payment": dt(2025, 6, 1, 0, 0),
             "Period": "BRLUSD",
-            "Rate": 0.18,
+            "Rate": 0.25,
             "Type": "NonDeliverableCashflow",
         }
         assert result == expected
@@ -2999,7 +2992,6 @@ class TestNonDeliverableCashflow:
             settlement_currency="usd",
             payment=dt(2025, 6, 1),
             fixing_date=dt(2025, 5, 29),
-            fx_rate=0.18,
         )
         result = ndf.cashflows()
         expected = {
@@ -3008,13 +3000,12 @@ class TestNonDeliverableCashflow:
             "Collateral": None,
             "DF": None,
             "FX Rate": 1.0,
-            "Index Val": None,
             "NPV": None,
             "NPV Ccy": None,
             "Notional": 1000000.0,
             "Payment": dt(2025, 6, 1, 0, 0),
             "Period": "BRLUSD",
-            "Rate": 0.18,
+            "Rate": None,
             "Type": "NonDeliverableCashflow",
         }
         assert result == expected
@@ -3026,22 +3017,9 @@ class TestNonDeliverableCashflow:
             settlement_currency="usd",
             payment=dt(2025, 6, 1),
             fixing_date=dt(2025, 5, 29),
-            fx_rate=0.18,
             fx_fixing=0.25,
         )
         assert ndf.analytic_delta() == 0.0
-
-    def test_cashflow_raises(self, fxf_ndf):
-        ndf = NonDeliverableCashflow(
-            notional=1e6,
-            currency="brl",
-            settlement_currency="usd",
-            payment=dt(2025, 6, 1),
-            fixing_date=dt(2025, 5, 29),
-            reversed=True,
-        )
-        with pytest.raises(TypeError, match="`fx_rate` must be set on the Period for an `npv`"):
-            ndf.cashflow(fxf_ndf)
 
 
 class TestNonDeliverableFixedPeriod:
