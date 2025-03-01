@@ -176,7 +176,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         n_given, n_req = len(self.fx_fixings), self.schedule.n_periods
         fx_fixings_: list[DualTypes] = self.fx_fixings.copy()
 
-        # Only FXForwards can correctly forecast rates. Other inputs may raise Errros or Warnings.
+        # Only FXForwards can correctly forecast rates. Other inputs may raise or warn.
         if isinstance(fx, FXForwards):
             for i in range(n_given, n_req):
                 fx_fixings_.append(
