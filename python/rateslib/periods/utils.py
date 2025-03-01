@@ -288,9 +288,7 @@ def _validate_fx_as_forwards(fx: FX_) -> FXForwards:
 
 
 def _get_fx_fixings_from_non_fx_forwards(
-    n_given: int = 0,
-    n_required: int = 1,
-    given_fixings: list[DualTypes] | NoInput = NoInput(0)
+    n_given: int = 0, n_required: int = 1, given_fixings: list[DualTypes] | NoInput = NoInput(0)
 ) -> list[DualTypes]:
     """
     Return a list of FX fixings for a multi-currency derivative in the event an FXForwards
@@ -321,28 +319,31 @@ def _get_fx_fixings_from_non_fx_forwards(
             "those are not given then an FXForwards object should be provided which "
             "will calculate the relevant FX rates."
         )
-    elif defaults.no_fx_fixings_for_xcs.lower() == "warn":
+    else:
         if n_given == 0:
-            warnings.warn(
-                "Using 1.0 for FX, no `fx` or `fx_fixing` given and "
-                "the option `defaults.no_fx_fixings_for_xcs` is set to "
-                "'warn'.\nFurther info: You are trying to value a mark-to-market "
-                "leg on a multi-currency derivative.\nThese require FX fixings and if "
-                "those are not given then an FXForwards object should be provided which "
-                "will calculate the relevant FX rates.",
-                UserWarning,
-            )
+            if defaults.no_fx_fixings_for_xcs.lower() == "warn":
+                warnings.warn(
+                    "Using 1.0 for FX, no `fx` or `fx_fixing` given and "
+                    "the option `defaults.no_fx_fixings_for_xcs` is set to "
+                    "'warn'.\nFurther info: You are trying to value a mark-to-market "
+                    "leg on a multi-currency derivative.\nThese require FX fixings and if "
+                    "those are not given then an FXForwards object should be provided which "
+                    "will calculate the relevant FX rates.",
+                    UserWarning,
+                )
             return [1.0] * n_required
         else:
-            warnings.warn(
-                "Using final FX fixing given for missing periods, "
-                "rateslib option `no_fx_fixings_for_xcs` is set to "
-                "'warn'.\nFurther info: You are trying to value a mark-to-market "
-                "leg on a multi-currency derivative.\nThese require FX fixings and if "
-                "those are not given then an FXForwards object should be provided which "
-                "will calculate the relevant FX rates.",
-                UserWarning,
-            )
-            ret = given_fixings.copy()
+            if defaults.no_fx_fixings_for_xcs.lower() == "warn":
+                warnings.warn(
+                    "Using final FX fixing given for missing periods, "
+                    "rateslib option `no_fx_fixings_for_xcs` is set to "
+                    "'warn'.\nFurther info: You are trying to value a mark-to-market "
+                    "leg on a multi-currency derivative.\nThese require FX fixings and if "
+                    "those are not given then an FXForwards object should be provided which "
+                    "will calculate the relevant FX rates.",
+                    UserWarning,
+                )
+            # some fixings are given
+            ret = given_fixings.copy()  # type: ignore[union-attr]
             ret.extend([ret[-1]] * (n_required - n_given))
             return ret

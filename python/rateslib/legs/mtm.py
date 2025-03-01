@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from abc import ABCMeta
 from typing import TYPE_CHECKING
 
@@ -12,7 +11,7 @@ from rateslib.dual import Dual, Dual2, Variable
 from rateslib.fx import FXForwards
 from rateslib.legs.base import BaseLeg, _FixedLegMixin, _FloatLegMixin
 from rateslib.periods import Cashflow
-from rateslib.periods.utils import _validate_float_args, _get_fx_fixings_from_non_fx_forwards
+from rateslib.periods.utils import _get_fx_fixings_from_non_fx_forwards, _validate_float_args
 
 if TYPE_CHECKING:
     from pandas import DataFrame
