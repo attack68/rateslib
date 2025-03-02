@@ -2071,6 +2071,7 @@ class TestNDF:
             currency="usd",
             calendar="tgt|fed",
             payment_lag=2,
+            fx_rate=1.05,
         )
         result = ndf.cashflows(curves=usdusd, fx=fxf)
         assert result.loc[("leg1", 0), "Type"] == "NonDeliverableCashflow"

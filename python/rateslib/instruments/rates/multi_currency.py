@@ -33,6 +33,7 @@ from rateslib.periods import (
     Cashflow,
     NonDeliverableCashflow,
 )
+from rateslib.periods.utils import _get_fx_fixings_from_non_fx_forwards
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -282,10 +283,12 @@ class NDF(Sensitivities, Metrics):
     pair: str
         The FX pair against which settlement takes place (2 x 3-digit code).
     notional: float, Variable, optional
-        The notional amount expressed in units of the currency 1 of pair, e.g. BRL in BRLUSD.
+        The notional amount expressed in units of *reference currency*, and not
+        *settlement currency*.
     currency: str, optional
-        The settlement currency of the contract. If not given is assumed to be currency 2 of the
-        ``pair``, e.g. USD in BRLUSD. Must be one of the currencies in ``pair``.
+        The *settlement currency* of the contract. If not given is assumed to be currency 2 of the
+        ``pair``, e.g. USD in BRLUSD. Must be one of the currencies in ``pair``. The
+        *reference currency* is inferred as the other currency in the ``pair``.
     fx_rate: float, Variable, optional
         The agreed price on the NDF contact. May be omitted for unpriced contracts.
     fx_fixing: float, Variable, optional
@@ -361,13 +364,12 @@ class NDF(Sensitivities, Metrics):
 
         if self.kwargs["currency"] not in self.kwargs["pair"]:
             raise ValueError("`currency` must be one of the currencies in `pair`.")
+        reference_currency = self.kwargs["pair"][0:3] if self.kwargs["pair"][0:3] != self.kwargs["currency"] else self.kwargs["pair"][3:]
 
         self.periods = [
             NonDeliverableCashflow(
-                notional=0.0,  # will be set by set_cashflow_notional
-                currency=self.kwargs["pair"][0:3]
-                if self.kwargs["pair"][0:3] != self.kwargs["currency"]
-                else self.kwargs["pair"][3:],
+                notional=self.kwargs["notional"],
+                currency=reference_currency,
                 settlement_currency=self.kwargs["currency"],
                 payment=self.kwargs["settlement"],
                 fixing_date=self.kwargs["calendar"].lag(
@@ -378,22 +380,19 @@ class NDF(Sensitivities, Metrics):
             ),
             Cashflow(
                 notional=0.0,  # will be set by set_cashflow_notional
-                currency=self.kwargs["pair"][0:3]
-                if self.kwargs["pair"][0:3] != self.kwargs["currency"]
-                else self.kwargs["pair"][3:],
-                settlement_currency=self.kwargs["currency"],
+                currency=self.kwargs["currency"],
                 payment=self.kwargs["settlement"],
-                fixing_date=self.kwargs["calendar"].lag(
-                    self.kwargs["settlement"], -self.kwargs["payment_lag"], False
-                ),  # a fixing date can be on a non-settlable date
-                # fx_rate=self.kwargs["fx_rate"],
-                fx_fixing=self.kwargs["fx_fixing"],
-                reversed=self.kwargs["pair"][0:3] == self.kwargs["currency"],
+                stub_type=self.kwargs["pair"].upper(),
+                rate=self.kwargs["fx_rate"],
             )
         ]
-        self._set_cashflow_notional(init=True)
+        self._set_cashflow_notional(NoInput(0), init=True)
         self.curves = curves
         self.spec = spec
+
+    @property
+    def _unpriced(self) -> bool:
+        return isinstance(self.kwargs["fx_rate"], NoInput)
 
     def _set_cashflow_notional(self, fx: FX_, init: bool) -> None:
         """
@@ -405,22 +404,23 @@ class NDF(Sensitivities, Metrics):
             Flag to indicate if the instance method is being run at initialisation, i.e. first time.
         """
         # set the notional based on direction of ``pair`` relative to the ``currency``.
-        if init or isinstance(self.kwargs["fx_rate"], NoInput):
-            if self.kwargs["pair"][0:3] == self.kwargs["currency"]:
-                # then the notional is expressed in the settlement currency:
-                # the Cashflow is determined, whilst the NonDeliverableCashflow is dependent
-                self.periods[1].notional = self.kwargs["notional"]
-                if not isinstance(self.kwargs["fx_rate"], NoInput):
-                    self.periods[0].notional = ...
-                else:
-                    fx_ = _validate_fx_fowards(fx)
-                    self.periods[0].notional = self.kwargs["fx_rate"].notional
-
+        if init and self._unpriced:
+            pass  # do nothing
+        elif init:
+            if self.kwargs["currency"] == self.kwargs["pair"][3:]:
+                self.periods[1].notional = -self.kwargs["notional"] * self.kwargs["fx_rate"]
             else:
-                # the notional is expressed in terms of the reference currency:
-                # the NonDeliverableCashflow is determined, whilst the Cashflow is dependent
-                self.periods[0].notional = self.kwargs["notional"]
-                self.periods[1].notional = ...
+                self.periods[1].notional = -self.kwargs["notional"] / self.kwargs["fx_rate"]
+        elif self._unpriced:
+            # set pricing notional
+            if isinstance(fx, FXForwards):
+                fx_rate: DualTypes = fx.rate(self.kwargs["pair"], self.kwargs["settlement"])
+            else:
+                fx_rate = _get_fx_fixings_from_non_fx_forwards(0, 1)[0]
+            if self.kwargs["currency"] == self.kwargs["pair"][3:]:
+                self.periods[1].notional = -self.kwargs["notional"] * _dual_float(fx_rate)
+            else:
+                self.periods[1].notional = -self.kwargs["notional"] / _dual_float(fx_rate)
 
     def _set_pricing_mid(
         self,
@@ -428,9 +428,8 @@ class NDF(Sensitivities, Metrics):
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
     ) -> None:
-        if isinstance(self.kwargs["fx_rate"], NoInput):
-            mid_market_rate = self.rate(curves, solver, fx)
-            self.periods[0].fx_rate = _dual_float(mid_market_rate)
+        if self._unpriced:
+            self._set_cashflow_notional(fx, init=False)
 
     def rate(
         self,
@@ -490,9 +489,10 @@ class NDF(Sensitivities, Metrics):
         )
         seq = [
             self.periods[0].cashflows(curves_[0], curves_[1], fx_, base_),
+            self.periods[1].cashflows(curves_[0], curves_[1], fx_, base_),
         ]
         _: DataFrame = DataFrame.from_records(seq)
-        _.index = MultiIndex.from_tuples([("leg1", 0)])
+        _.index = MultiIndex.from_tuples([("leg1", 0), ("leg1", 1)])
         return _
 
     def npv(
