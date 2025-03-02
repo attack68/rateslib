@@ -206,7 +206,7 @@ class Defaults:
 
         self.tag = "v"
         self.algorithm = "levenberg_marquardt"
-        self.curve_not_in_solver = "ignore"
+        self.curve_not_in_solver = "ignore"  # or "warn" or "raise"
         self.ini_lambda = (1000.0, 0.25, 2.0)
 
         # bonds
@@ -223,7 +223,7 @@ class Defaults:
         # misc
 
         self.pool = 1
-        self.no_fx_fixings_for_xcs = "warn"
+        self.no_fx_fixings_for_xcs = "warn"  # or "raise" or "ignore"
         self.headers = {
             "type": "Type",
             "stub_type": "Period",
