@@ -319,6 +319,11 @@ class NDF(Sensitivities, Metrics):
     settling in USD.
 
     .. ipython:: python
+       :suppress:
+
+       from rateslib.instruments import NDF
+
+    .. ipython:: python
 
        ndf = NDF(
            settlement="3m",
