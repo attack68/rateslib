@@ -2071,6 +2071,7 @@ class TestNDF:
             currency="usd",
             calendar="tgt|fed",
             payment_lag=2,
+            fx_rate=1.05,
         )
         result = ndf.cashflows(curves=usdusd, fx=fxf)
         assert result.loc[("leg1", 0), "Type"] == "NonDeliverableCashflow"
@@ -2078,7 +2079,91 @@ class TestNDF:
         assert result.loc[("leg1", 0), "Ccy"] == "USD"
         assert result.loc[("leg1", 0), "Payment"] == dt(2022, 4, 4)
         assert result.loc[("leg1", 0), "Rate"] == 1.0210354810081033
-        assert result.loc[("leg1", 0), "Index Val"] == 1.0210354810081033
+        assert result.loc[("leg1", 1), "Rate"] == 1.05
+        assert result.loc[("leg1", 1), "Notional"] == 1050000.0
+
+    @pytest.mark.parametrize(("base", "expected"), [("eur", -28103.831), ("usd", -28665.269)])
+    def test_npv(self, usdusd, usdeur, eureur, base, expected):
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.02}, settlement=dt(2022, 1, 3)),
+            {"eureur": eureur, "usdeur": usdeur, "usdusd": usdusd},
+        )
+        ndf = NDF(
+            pair="eurusd",
+            settlement="3m",
+            eval_date=dt(2022, 1, 1),
+            currency="usd",
+            calendar="tgt|fed",
+            payment_lag=2,
+            fx_rate=1.05,
+            notional=1e6,
+        )
+        result = ndf.npv(curves=usdusd, fx=fxf, base=base)
+        assert abs(result - expected) < 1e-3
+
+        expected = {"usd": -28665.269}
+        local_result = ndf.npv(curves=usdusd, fx=fxf, base=base, local=True)
+        assert len(local_result.keys()) == 1
+        assert abs(local_result["usd"] - expected["usd"]) < 1e-3
+
+    @pytest.mark.parametrize(("pair", "rate"), [("eurusd", 1.05), ("usdeur", 0.952380952)])
+    def test_npv_direction(self, usdusd, usdeur, eureur, pair, rate):
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.02}, settlement=dt(2022, 1, 3)),
+            {"eureur": eureur, "usdeur": usdeur, "usdusd": usdusd},
+        )
+        ndf = NDF(
+            pair=pair,
+            settlement="3m",
+            eval_date=dt(2022, 1, 1),
+            currency="usd",
+            calendar="tgt|fed",
+            payment_lag=2,
+            fx_rate=rate,
+            notional=1e6,
+        )
+        result = ndf.npv(curves=usdusd, fx=fxf)
+        expected = -28665.26900
+        assert abs(result - expected) < 1e-3
+
+    @pytest.mark.parametrize(("base", "expected"), [("eur", 0.0), ("usd", 0.0)])
+    def test_npv_unpriced(self, usdusd, usdeur, eureur, base, expected):
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.02}, settlement=dt(2022, 1, 3)),
+            {"eureur": eureur, "usdeur": usdeur, "usdusd": usdusd},
+        )
+        ndf = NDF(
+            pair="eurusd",
+            settlement="3m",
+            eval_date=dt(2022, 1, 1),
+            currency="usd",
+            calendar="tgt|fed",
+            payment_lag=2,
+        )
+        result = ndf.npv(curves=usdusd, fx=fxf, base=base)
+        assert abs(result - expected) < 1e-3
+
+        local_result = ndf.npv(curves=usdusd, fx=fxf, base=base, local=True)
+        expected = {"usd": 0.0}
+        assert len(local_result.keys()) == 1
+        assert abs(local_result["usd"] - expected["usd"]) < 1e-3
+
+    def test_rate(self, usdusd, usdeur, eureur):
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.02}, settlement=dt(2022, 1, 3)),
+            {"eureur": eureur, "usdeur": usdeur, "usdusd": usdusd},
+        )
+        ndf = NDF(
+            pair="eurusd",
+            settlement="3m",
+            eval_date=dt(2022, 1, 1),
+            currency="usd",
+            calendar="tgt|fed",
+            payment_lag=2,
+        )
+        result = ndf.rate(curves=usdusd, fx=fxf)
+        expected = 1.021035
+        assert abs(result - expected) < 1e-6
 
 
 # test the commented out FXSwap variant

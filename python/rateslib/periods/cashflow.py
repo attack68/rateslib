@@ -96,7 +96,8 @@ class Cashflow:
         stub_type: str_ = NoInput(0),
         rate: DualTypes_ = NoInput(0),
     ):
-        self.notional, self.payment = notional, payment
+        self.notional = notional
+        self.payment = payment
         self.currency = _drb(defaults.base_currency, currency).lower()
         self.stub_type = stub_type
         self._rate: DualTypes | NoInput = rate if isinstance(rate, NoInput) else _dual_float(rate)
@@ -207,22 +208,19 @@ class NonDeliverableCashflow:
     Parameters
     ----------
     notional : float, Dual, Dual2
-        The notional amount of the cashflow expressed in units of the ``reference_currency``,
-        unless ``reversed`` in which case in units of ``settlement_currency``.
+        The notional amount of the cashflow expressed in units of the ``currency``,
     currency : str
-        The non-deliverable reference currency (3-digit code).
+        The non-deliverable reference currency (3-digit code), e.g. "brl".
     payment : datetime
         The settlement date of the exchange.
     settlement_currency : str
         The currency of the deliverable currency (3-digit code), e.g. "usd" or "eur".
     fixing_date: datetime
         The date on which the FX fixings will be recorded.
-    fx_rate: float, Dual, Dual2, optional
-        The pricing parameter of the period to record the entry level of the transaction.
-        The ``reference_currency`` should be the left hand side, e.g. BRLUSD, unless ``reversed``
-        in which case should be right hand side, e.g. USDBRL.
     fx_fixing: float, Dual, Dual2, optional
-        The FX fixing to determine the settlement amount, expressed in the same way as ``fx_rate``.
+        The FX fixing to determine the settlement amount. The reference ``currency`` should be
+        the left hand side, e.g. BRLUSD, unless ``reversed``
+        in which case should be right hand side, e.g. USDBRL.
     reversed: bool, optional
         If *True* reverses the FX rate, as shown above.
 
@@ -232,16 +230,16 @@ class NonDeliverableCashflow:
 
     .. math::
 
-       C = N (f_2 - f_1)
+       C = - N f
 
-    where :math:`f_1` is the ``fx_rate``, :math:`f_2` is the ``fx_fixing`` or market forecast
+    where :math:`f` is the ``fx_fixing`` (or derivable FX fixing if ``reversed``) or market forecast
     rate at settlement. This amount is expressed in units of ``settlement_currency``.
 
-    The :meth:`~rateslib.periods.BasePeriod.npv` is defined as;
+    The :meth:`~rateslib.periods.BasePeriod.npv` is defined in ``settlement_currency`` terms as;
 
     .. math::
 
-       P = Cv(m) = N (f_2 - f_1) v(m)
+       P = Cv(m) = - N f v(m)
 
     The :meth:`~rateslib.periods.BasePeriod.analytic_delta` is defined as;
 
@@ -258,8 +256,7 @@ class NonDeliverableCashflow:
            currency="brl",
            payment=dt(2025, 6, 1),
            settlement_currency="usd",
-           fixing_date=dt(2025, 5, 29),
-           fx_rate=0.200,  # <- this is BRLUSD FX rate
+           fixing_date=dt(2025, 5, 29),  # <- for the BRLUSD FX rate
        )
        ndc.cashflows()
 
@@ -268,8 +265,7 @@ class NonDeliverableCashflow:
            currency="brl",
            payment=dt(2025, 6, 1),
            settlement_currency="usd",
-           fixing_date=dt(2025, 5, 29),
-           fx_rate=5.00,  # <- this is USDBRL FX rate
+           fixing_date=dt(2025, 5, 29),  # <- this is USDBRL FX rate
            reversed=True,
        )
        ndc.cashflows()
@@ -282,7 +278,6 @@ class NonDeliverableCashflow:
         payment: datetime,
         settlement_currency: str,
         fixing_date: datetime,
-        fx_rate: DualTypes_ = NoInput(0),
         fx_fixing: DualTypes_ = NoInput(0),
         reversed: bool = False,  # noqa: A002
     ):
@@ -296,7 +291,6 @@ class NonDeliverableCashflow:
         else:
             self.pair = f"{self.currency}{self.settlement_currency}"
         self.fixing_date = fixing_date
-        self.fx_rate = fx_rate
         self.fx_fixing = fx_fixing
 
     def analytic_delta(
@@ -350,17 +344,10 @@ class NonDeliverableCashflow:
         else:
             fx_fixing = self.fx_fixing
 
-        try:
-            d_value: DualTypes = self.notional * (fx_fixing - self.fx_rate)  # type: ignore[operator]
-        except TypeError as e:
-            # either fixed rate is None
-            if isinstance(self.fx_rate, NoInput):
-                raise TypeError("`fx_rate` must be set on the Period for an `npv`.")
-            else:
-                raise e
-
         if self.reversed:
-            d_value /= fx_fixing
+            d_value: DualTypes = -self.notional / fx_fixing
+        else:
+            d_value = -self.notional * fx_fixing
 
         return d_value
 
@@ -380,18 +367,25 @@ class NonDeliverableCashflow:
         imm_fx_to_base, _ = _get_fx_and_base(self.settlement_currency, fx, base)
 
         if isinstance(disc_curve_, NoInput) or not isinstance(fx, FXForwards):
-            npv, npv_fx, df, collateral, cashflow = None, None, None, None, None
-            index_val_ = None
+            npv = None
+            npv_fx = None
+            df = None
+            collateral = None
+            cashflow = None
+            rate = None
         else:
             npv_: DualTypes = self.npv(curve, disc_curve_, fx)  # type: ignore[assignment]
             npv = _dual_float(npv_)
-            index_val_ = self.rate(fx)
 
             npv_fx = npv * _dual_float(imm_fx_to_base)
             df, collateral = _dual_float(disc_curve_[self.payment]), disc_curve_.collateral
             cashflow = _dual_float(self.cashflow(fx))
+            if isinstance(self.fx_fixing, NoInput):
+                fx_ = _validate_fx_as_forwards(fx)
+                rate = fx_.rate(self.pair, self.payment)
+            else:
+                rate = self.fx_fixing
 
-        rate = _float_or_none(_drb(None, self.fx_rate))
         return {
             defaults.headers["type"]: type(self).__name__,
             defaults.headers["stub_type"]: f"{self.pair.upper()}",
@@ -403,8 +397,7 @@ class NonDeliverableCashflow:
             # defaults.headers["dcf"]: None,
             defaults.headers["notional"]: _dual_float(self.notional),
             defaults.headers["df"]: df,
-            defaults.headers["rate"]: rate,
-            defaults.headers["index_value"]: _float_or_none(index_val_),
+            defaults.headers["rate"]: _float_or_none(rate),
             # defaults.headers["spread"]: None,
             defaults.headers["cashflow"]: cashflow,
             defaults.headers["npv"]: npv,
