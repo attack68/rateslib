@@ -364,11 +364,15 @@ class NDF(Sensitivities, Metrics):
 
         if self.kwargs["currency"] not in self.kwargs["pair"]:
             raise ValueError("`currency` must be one of the currencies in `pair`.")
-        reference_currency = self.kwargs["pair"][0:3] if self.kwargs["pair"][0:3] != self.kwargs["currency"] else self.kwargs["pair"][3:]
+        reference_currency = (
+            self.kwargs["pair"][0:3]
+            if self.kwargs["pair"][0:3] != self.kwargs["currency"]
+            else self.kwargs["pair"][3:]
+        )
 
         self.periods = [
             NonDeliverableCashflow(
-                notional=self.kwargs["notional"],
+                notional=-self.kwargs["notional"],
                 currency=reference_currency,
                 settlement_currency=self.kwargs["currency"],
                 payment=self.kwargs["settlement"],
@@ -384,7 +388,7 @@ class NDF(Sensitivities, Metrics):
                 payment=self.kwargs["settlement"],
                 stub_type=self.kwargs["pair"].upper(),
                 rate=self.kwargs["fx_rate"],
-            )
+            ),
         ]
         self._set_cashflow_notional(NoInput(0), init=True)
         self.curves = curves
@@ -404,23 +408,26 @@ class NDF(Sensitivities, Metrics):
             Flag to indicate if the instance method is being run at initialisation, i.e. first time.
         """
         # set the notional based on direction of ``pair`` relative to the ``currency``.
-        if init and self._unpriced:
-            pass  # do nothing
-        elif init:
-            if self.kwargs["currency"] == self.kwargs["pair"][3:]:
-                self.periods[1].notional = -self.kwargs["notional"] * self.kwargs["fx_rate"]
+        if init:
+            if self._unpriced:
+                return None  # do nothing - wait for price time to set mid-market
             else:
-                self.periods[1].notional = -self.kwargs["notional"] / self.kwargs["fx_rate"]
-        elif self._unpriced:
-            # set pricing notional
-            if isinstance(fx, FXForwards):
-                fx_rate: DualTypes = fx.rate(self.kwargs["pair"], self.kwargs["settlement"])
+                fx_rate = self.kwargs["fx_rate"]
+        else:
+            if self._unpriced:
+                if isinstance(fx, FXForwards):
+                    fx_rate: DualTypes = fx.rate(self.kwargs["pair"], self.kwargs["settlement"])
+                else:
+                    fx_rate = _get_fx_fixings_from_non_fx_forwards(0, 1)[0]
+                fx_rate = _dual_float(fx_rate)  # priced insts set parameters to float for risk.
             else:
-                fx_rate = _get_fx_fixings_from_non_fx_forwards(0, 1)[0]
-            if self.kwargs["currency"] == self.kwargs["pair"][3:]:
-                self.periods[1].notional = -self.kwargs["notional"] * _dual_float(fx_rate)
-            else:
-                self.periods[1].notional = -self.kwargs["notional"] / _dual_float(fx_rate)
+                return None  # do nothing - already set at init using priced fx_rate
+
+        # set pricing notional
+        if self.kwargs["currency"] == self.kwargs["pair"][3:]:
+            self.periods[1].notional = self.kwargs["notional"] * fx_rate
+        else:
+            self.periods[1].notional = self.kwargs["notional"] / fx_rate
 
     def _set_pricing_mid(
         self,
@@ -525,7 +532,6 @@ class NDF(Sensitivities, Metrics):
         -------
         float, Dual, Dual2 or dict of such.
         """
-        self._set_pricing_mid(curves, solver, fx)
         curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,
@@ -534,6 +540,7 @@ class NDF(Sensitivities, Metrics):
             base,
             self.kwargs["currency"],
         )
+        self._set_pricing_mid(NoInput(0), NoInput(0), fx_)
         _ = self.periods[0].npv(NoInput(0), curves_[1], fx_, self.kwargs["currency"], local=False)
         _ += self.periods[1].npv(NoInput(0), curves_[1], fx_, self.kwargs["currency"], local=False)
         return _maybe_local(_, local, self.kwargs["currency"], fx_, base_)
