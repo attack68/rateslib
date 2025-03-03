@@ -103,6 +103,8 @@ from rateslib.instruments import (
 )
 from rateslib.json import from_json
 from rateslib.legs import (
+    CreditPremiumLeg,
+    CreditProtectionLeg,
     CustomLeg,
     FixedLeg,
     FixedLegMtm,
@@ -112,11 +114,11 @@ from rateslib.legs import (
     ZeroFixedLeg,
     ZeroFloatLeg,
     ZeroIndexLeg,
-    CreditProtectionLeg,
-    CreditPremiumLeg,
 )
 from rateslib.periods import (
     Cashflow,
+    CreditPremiumPeriod,
+    CreditProtectionPeriod,
     FixedPeriod,
     FloatPeriod,
     FXCallPeriod,
@@ -124,8 +126,6 @@ from rateslib.periods import (
     IndexCashflow,
     IndexFixedPeriod,
     NonDeliverableCashflow,
-    CreditPremiumPeriod,
-    CreditProtectionPeriod,
 )
 from rateslib.scheduling import Schedule
 from rateslib.solver import Solver
