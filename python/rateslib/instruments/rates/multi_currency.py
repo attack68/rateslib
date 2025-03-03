@@ -353,6 +353,7 @@ class NDF(Sensitivities, Metrics):
            fx_rate=0.96,  # (=120/125) <- implies short 1.0416mm USD
         )
     """
+
     periods: tuple[NonDeliverableCashflow, Cashflow]
 
     def __init__(

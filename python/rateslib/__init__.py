@@ -103,6 +103,8 @@ from rateslib.instruments import (
 )
 from rateslib.json import from_json
 from rateslib.legs import (
+    CreditPremiumLeg,
+    CreditProtectionLeg,
     CustomLeg,
     FixedLeg,
     FixedLegMtm,
@@ -115,12 +117,15 @@ from rateslib.legs import (
 )
 from rateslib.periods import (
     Cashflow,
+    CreditPremiumPeriod,
+    CreditProtectionPeriod,
     FixedPeriod,
     FloatPeriod,
     FXCallPeriod,
     FXPutPeriod,
     IndexCashflow,
     IndexFixedPeriod,
+    NonDeliverableCashflow,
 )
 from rateslib.scheduling import Schedule
 from rateslib.solver import Solver
@@ -203,6 +208,9 @@ __all__ = [
     "IndexFixedPeriod",
     "FXCallPeriod",
     "FXPutPeriod",
+    "NonDeliverableCashflow",
+    "CreditPremiumPeriod",
+    "CreditProtectionPeriod",
     # legs.py
     "FixedLeg",
     "FloatLeg",
@@ -213,6 +221,8 @@ __all__ = [
     "IndexFixedLeg",
     "ZeroIndexLeg",
     "CustomLeg",
+    "CreditPremiumLeg",
+    "CreditProtectionLeg",
     # instruments.py
     "FixedRateBond",
     "IndexFixedRateBond",
