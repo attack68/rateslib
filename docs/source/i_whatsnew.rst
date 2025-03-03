@@ -54,6 +54,12 @@ email contact, see `rateslib <https://rateslib.com>`_.
    * - Bug
      - Add :class:`~rateslib.instruments.NDF` to global *rateslib* namespace.
        (`682 <https://github.com/attack68/rateslib/pull/682>`_)
+   * - Bug
+     - Add :class:`~rateslib.legs.CreditProtectionLeg`,
+       :class:`~rateslib.legs.CreditPremiumLeg`, :class:`~rateslib.periods.CreditProtectionPeriod`,
+       :class:`~rateslib.periods.CreditPremiumPeriod` and
+       :class:`~rateslib.periods.NonDeliverableCashflow` to global *rateslib* namespace.
+       (`697 <https://github.com/attack68/rateslib/pull/697>`_)
 
 1.7.0 (31st January 2025)
 ****************************
