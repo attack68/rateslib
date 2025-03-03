@@ -39,6 +39,13 @@ email contact, see `rateslib <https://rateslib.com>`_.
        the proceeds method of repo rates and utilise only a bond curve for forward bond prices.
        (`693 <https://github.com/attack68/rateslib/pull/693>`_)
    * - Refactor
+     - :red:`Minor Breaking Change!` The argument ``notional`` in
+       :class:`~rateslib.instruments.NDF` now **always** refers to the *reference currency* and
+       **never** the *settlement currency*. The :meth:`~rateslib.instruments.NDF.cashflows` method
+       is also now more explicit and shows both the settlement exchange and the converted amount
+       of the deliverable cashflow.
+       (`695 <https://github.com/attack68/rateslib/pull/695>`_)
+   * - Refactor
      - :red:`Minor Breaking Change!` The argument ``reference_currency`` is renamed ``currency``,
        and the argument ``settlement`` is renamed ``payment`` in
        :class:`~rateslib.periods.NonDeliverableCashflow`.
