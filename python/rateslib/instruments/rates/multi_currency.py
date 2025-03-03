@@ -313,6 +313,7 @@ class NDF(Sensitivities, Metrics):
         An identifier to pre-populate many fields with conventional values. See
         :ref:`here<defaults-doc>` for more info and available values.
     """
+    periods: tuple[NonDeliverableCashflow, Cashflow]
 
     def __init__(
         self,
@@ -371,7 +372,7 @@ class NDF(Sensitivities, Metrics):
             else self.kwargs["pair"][3:]
         )
 
-        self.periods = [
+        self.periods = (
             NonDeliverableCashflow(
                 notional=-self.kwargs["notional"],
                 currency=reference_currency,
@@ -390,7 +391,7 @@ class NDF(Sensitivities, Metrics):
                 stub_type=self.kwargs["pair"].upper(),
                 rate=self.kwargs["fx_rate"],
             ),
-        ]
+        )
         self._set_cashflow_notional(NoInput(0), init=True)
         self.curves = curves
         self.spec = spec
@@ -413,11 +414,11 @@ class NDF(Sensitivities, Metrics):
             if self._unpriced:
                 return None  # do nothing - wait for price time to set mid-market
             else:
-                fx_rate = self.kwargs["fx_rate"]
+                fx_rate: DualTypes = self.kwargs["fx_rate"]
         else:
             if self._unpriced:
                 if isinstance(fx, FXForwards):
-                    fx_rate: DualTypes = fx.rate(self.kwargs["pair"], self.kwargs["settlement"])
+                    fx_rate = fx.rate(self.kwargs["pair"], self.kwargs["settlement"])
                 else:
                     fx_rate = _get_fx_fixings_from_non_fx_forwards(0, 1)[0]
                 fx_rate = _dual_float(fx_rate)  # priced insts set parameters to float for risk.

@@ -96,7 +96,8 @@ class Cashflow:
         stub_type: str_ = NoInput(0),
         rate: DualTypes_ = NoInput(0),
     ):
-        self.notional, self.payment = notional, payment
+        self.notional = notional
+        self.payment = payment
         self.currency = _drb(defaults.base_currency, currency).lower()
         self.stub_type = stub_type
         self._rate: DualTypes | NoInput = rate if isinstance(rate, NoInput) else _dual_float(rate)
