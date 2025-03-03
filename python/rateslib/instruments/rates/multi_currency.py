@@ -33,7 +33,7 @@ from rateslib.periods import (
     Cashflow,
     NonDeliverableCashflow,
 )
-from rateslib.periods.utils import _get_fx_fixings_from_non_fx_forwards
+from rateslib.periods.utils import _get_fx_fixings_from_non_fx_forwards, _maybe_local
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -534,7 +534,9 @@ class NDF(Sensitivities, Metrics):
             base,
             self.kwargs["currency"],
         )
-        return self.periods[0].npv(NoInput(0), curves_[1], fx_, base_, local)
+        _ = self.periods[0].npv(NoInput(0), curves_[1], fx_, self.kwargs["currency"], local=False)
+        _ += self.periods[1].npv(NoInput(0), curves_[1], fx_, self.kwargs["currency"], local=False)
+        return _maybe_local(_, local, self.kwargs["currency"], fx_, base_)
 
     def delta(self, *args: Any, **kwargs: Any) -> DataFrame:
         """

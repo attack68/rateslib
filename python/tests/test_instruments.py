@@ -2081,6 +2081,51 @@ class TestNDF:
         assert result.loc[("leg1", 0), "Rate"] == 1.0210354810081033
         assert result.loc[("leg1", 0), "Index Val"] == 1.0210354810081033
 
+    @pytest.mark.parametrize(("base", "expected"), [("eur", 28103.831), ("usd", 28665.269)])
+    def test_npv(self, usdusd, usdeur, eureur, base, expected):
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.02}, settlement=dt(2022, 1, 3)),
+            {"eureur": eureur, "usdeur": usdeur, "usdusd": usdusd},
+        )
+        ndf = NDF(
+            pair="eurusd",
+            settlement="3m",
+            eval_date=dt(2022, 1, 1),
+            currency="usd",
+            calendar="tgt|fed",
+            payment_lag=2,
+            fx_rate=1.05,
+        )
+        result = ndf.npv(curves=usdusd, fx=fxf, base=base)
+        assert abs(result-expected) < 1e-3
+
+        local_result = ndf.npv(curves=usdusd, fx=fxf, base=base, local=True)
+        expected = {"usd": 28665.269}
+        assert len(local_result.keys()) == 1
+        assert abs(local_result["usd"]-expected["usd"]) < 1e-3
+
+    @pytest.mark.parametrize(("base", "expected"), [("eur", 0.0), ("usd", 0.0)])
+    def test_npv_unpriced(self, usdusd, usdeur, eureur, base, expected):
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.02}, settlement=dt(2022, 1, 3)),
+            {"eureur": eureur, "usdeur": usdeur, "usdusd": usdusd},
+        )
+        ndf = NDF(
+            pair="eurusd",
+            settlement="3m",
+            eval_date=dt(2022, 1, 1),
+            currency="usd",
+            calendar="tgt|fed",
+            payment_lag=2,
+        )
+        result = ndf.npv(curves=usdusd, fx=fxf, base=base)
+        assert abs(result-expected) < 1e-3
+
+        local_result = ndf.npv(curves=usdusd, fx=fxf, base=base, local=True)
+        expected = {"usd": 0.0}
+        assert len(local_result.keys()) == 1
+        assert abs(local_result["usd"]-expected["usd"]) < 1e-3
+
 
 # test the commented out FXSwap variant
 # def test_fx_swap(curve, curve2):
