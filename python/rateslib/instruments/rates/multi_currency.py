@@ -312,6 +312,41 @@ class NDF(Sensitivities, Metrics):
     spec : str, optional
         An identifier to pre-populate many fields with conventional values. See
         :ref:`here<defaults-doc>` for more info and available values.
+
+    Examples
+    --------
+    This is a standard *non-deliverable forward* with the ``notional`` expressed in EUR
+    settling in USD.
+
+    .. ipython:: python
+
+       ndf = NDF(
+           settlement="3m",
+           pair="eurusd",  # <- EUR is the reference currency
+           currency="usd",  # <- USD is the settlement currency
+           notional=1e6,  # <- this is long 1mm EUR
+           eval_date=dt(2000, 7, 1),
+           calendar="tgt|fed",
+           modifier="mf",
+           payment_lag=2,
+           fx_rate=1.04166666,  # (=125/120) <- implies short 1.0416mm USD
+        )
+
+    This has the ``pair`` reversed but the notional is still expressed in EUR.
+
+    .. ipython:: python
+
+       ndf = NDF(
+           settlement="3m",
+           pair="usd",  # <- EUR is still reference currency
+           currency="usd",  # <- USD is the settlement currency
+           notional=1e6,  # <- this is long 1mm EUR
+           eval_date=dt(2000, 7, 1),
+           calendar="tgt|fed",
+           modifier="mf",
+           payment_lag=2,
+           fx_rate=0.96,  # (=120/125) <- implies short 1.0416mm USD
+        )
     """
     periods: tuple[NonDeliverableCashflow, Cashflow]
 
@@ -1009,8 +1044,6 @@ class XCS(BaseDerivative):
         for calculation is the implied mid-market rate including the
         current ``float_spread`` parameter.
 
-        Examples
-        --------
         """
         curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
