@@ -283,7 +283,7 @@ class NDF(Sensitivities, Metrics):
     pair: str
         The FX pair against which settlement takes place (2 x 3-digit code).
     notional: float, Variable, optional
-        The notional amount expressed in units of *reference currency*, and not
+        The notional amount expressed in terms of buying units of the *reference currency*, and not
         *settlement currency*.
     currency: str, optional
         The *settlement currency* of the contract. If not given is assumed to be currency 2 of the
@@ -303,6 +303,7 @@ class NDF(Sensitivities, Metrics):
         Date modifier for determining string tenor.
     payment_lag: int, optional
         Number of business day until settlement delivery. Defaults to 2 (spot) if not given.
+        Used to derive the ``fx_fixing`` date and *spot* if using an ``eval_date``.
     eom: bool, optional
         Whether to allow end of month rolls to ``settlement`` as tenor.
     curves : Curve, str or list of such, optional
