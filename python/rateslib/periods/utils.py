@@ -280,7 +280,7 @@ def _validate_fx_as_forwards(fx: FX_) -> FXForwards:
         )
     elif not isinstance(fx, FXForwards):
         raise ValueError(
-            "An FXForwards object for `fx` is required for instrument prcing.\n"
+            "An FXForwards object for `fx` is required for instrument pricing.\n"
             f"The given type, '{type(fx).__name__}', cannot be used here."
         )
     else:
