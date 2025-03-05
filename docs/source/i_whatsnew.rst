@@ -23,7 +23,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
      - Description
    * - **Removed**
      - ``IndexCurve``, which was deprecated with warnings in 1.7.0, has been removed.
-      (`691 <https://github.com/attack68/rateslib/pull/691>`_)
+       (`691 <https://github.com/attack68/rateslib/pull/691>`_)
    * - Period
      - Add :class:`~rateslib.periods.NonDeliverableFixedPeriod`
        (`681 <https://github.com/attack68/rateslib/pull/681>`_)
