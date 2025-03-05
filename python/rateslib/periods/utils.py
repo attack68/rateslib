@@ -275,12 +275,12 @@ def _validate_credit_curves(curve: CurveOption_, disc_curve: CurveOption_) -> tu
 def _validate_fx_as_forwards(fx: FX_) -> FXForwards:
     if isinstance(fx, NoInput):
         raise ValueError(
-            "An FXForwards object for `fx` is required for FXOption pricing.\n"
+            "An FXForwards object for `fx` is required for instrument pricing.\n"
             "If this instrument is part of a Solver, have you omitted the `fx` input?",
         )
     elif not isinstance(fx, FXForwards):
         raise ValueError(
-            "An FXForwards object for `fx` is required for FXOption prcing.\n"
+            "An FXForwards object for `fx` is required for instrument pricing.\n"
             f"The given type, '{type(fx).__name__}', cannot be used here."
         )
     else:
