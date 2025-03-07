@@ -2336,10 +2336,10 @@ class TestBondFuture:
             (dt(2023, 12, 11), dt(2033, 2, 15), 2.3, 0.744390),
         ],
     )
-    def test_conversion_factors_eurex_bund(self, delivery, mat, coupon, exp) -> None:
+    def test_conversion_factors_eurex_bund_ytm(self, delivery, mat, coupon, exp) -> None:
         # The expected results are downloaded from the EUREX website
         # regarding precalculated conversion factors.
-        # this test allows for an error in the cf < 1e-4.
+        # this test allows for an error in the cf < 1e-4, due to YTM method
         kwargs = dict(
             effective=dt(2020, 1, 1),
             stub="ShortFront",
@@ -2353,6 +2353,37 @@ class TestBondFuture:
         fut = BondFuture(delivery=delivery, coupon=6.0, basket=[bond1])
         result = fut.cfs
         assert abs(result[0] - exp) < 1e-4
+
+    @pytest.mark.parametrize(
+        ("delivery", "mat", "coupon", "exp"),
+        [
+            (dt(2023, 6, 12), dt(2032, 2, 15), 0.0, 0.603058),
+            (dt(2023, 6, 12), dt(2032, 8, 15), 1.7, 0.703125),
+            (dt(2023, 6, 12), dt(2033, 2, 15), 2.3, 0.733943),
+            (dt(2023, 9, 11), dt(2032, 8, 15), 1.7, 0.709321),
+            (dt(2023, 9, 11), dt(2033, 2, 15), 2.3, 0.739087),
+            (dt(2023, 12, 11), dt(2032, 8, 15), 1.7, 0.715464),
+            (dt(2023, 12, 11), dt(2033, 2, 15), 2.3, 0.744390),
+        ],
+    )
+    def test_conversion_factors_eurex_bund_method(self, delivery, mat, coupon, exp) -> None:
+        # The expected results are downloaded from the EUREX website
+        # regarding precalculated conversion factors.
+        # these should be exact due to specifically coded methods
+        kwargs = dict(
+            effective=dt(2020, 1, 1),
+            stub="ShortFront",
+            frequency="A",
+            calendar="tgt",
+            currency="eur",
+            convention="ActActICMA",
+            modifier="none",
+        )
+        bond1 = FixedRateBond(termination=mat, fixed_rate=coupon, **kwargs)
+
+        fut = BondFuture(delivery=delivery, coupon=6.0, basket=[bond1], calc_mode="eurex_eur")
+        result = fut.cfs
+        assert result[0] == exp
 
     @pytest.mark.parametrize(
         ("mat", "coupon", "exp"),
