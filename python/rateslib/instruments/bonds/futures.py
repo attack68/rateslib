@@ -363,7 +363,7 @@ class BondFuture(Sensitivities):
 
         _ = 1.0 + not_ / 100
 
-        cf = 1 / _ ** f * (c / 100.0 * d_e / act2 + c / not_ * (_ - 1 / _ ** n) + 1 / _ ** n )
+        cf = 1 / _ ** f * (c / 100.0 * d_i / act2 + c / not_ * (_ - 1 / _ ** n) + 1 / _ ** n )
         cf -= c / 100.0 * (d_i / act2 - d_e / act1)
         return round(cf, 6)
 
