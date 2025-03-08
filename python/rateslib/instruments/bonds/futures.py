@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from pandas import DataFrame
 
 from rateslib import defaults
-from rateslib.calendars import _get_years_and_months, get_calendar, add_tenor
+from rateslib.calendars import _get_years_and_months, add_tenor, get_calendar
 from rateslib.curves import Curve
 from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
@@ -346,13 +346,13 @@ class BondFuture(Sensitivities):
 
         d_e = float((ncd1y - dd).days)
         if d_e < 0:
-            act1 = float((ncd-ncd1y).days)
+            act1 = float((ncd - ncd1y).days)
         else:
             act1 = float((ncd1y - ncd2y).days)
 
         d_i = float((ncd1y - lcd).days)
         if d_i < 0:
-            act2 = float((ncd-ncd1y).days)
+            act2 = float((ncd - ncd1y).days)
         else:
             act2 = float((ncd1y - ncd2y).days)
 
@@ -363,10 +363,9 @@ class BondFuture(Sensitivities):
 
         _ = 1.0 + not_ / 100
 
-        cf = 1 / _ ** f * (c / 100.0 * d_i / act2 + c / not_ * (_ - 1 / _ ** n) + 1 / _ ** n )
+        cf = 1 / _**f * (c / 100.0 * d_i / act2 + c / not_ * (_ - 1 / _**n) + 1 / _**n)
         cf -= c / 100.0 * (d_i / act2 - d_e / act1)
-        return round(cf, 6)
-
+        return round(_dual_float(cf), 6)
 
     def dlv(
         self,
