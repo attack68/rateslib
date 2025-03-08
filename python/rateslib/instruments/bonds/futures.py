@@ -51,6 +51,8 @@ class BondFuture(Sensitivities):
     - *"ust_short"* which applies to CME 2y, 3y and 5y treasury futures. See
       :download:`CME Treasury Conversion Factors<_static/us-treasury-cfs.pdf>`.
     - *"ust_long"* which applies to CME 10y and 30y treasury futures.
+    - *"eurex_eur"* which applies to EUREX EUR denominated government bond futures, except
+      Italian BTPs which require a different CF formula.
 
     Examples
     --------
