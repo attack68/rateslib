@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from pandas import DataFrame
 
 from rateslib import defaults
-from rateslib.calendars import _get_years_and_months, get_calendar
+from rateslib.calendars import _get_years_and_months, add_tenor, get_calendar
 from rateslib.curves import Curve
 from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
@@ -51,6 +51,8 @@ class BondFuture(Sensitivities):
     - *"ust_short"* which applies to CME 2y, 3y and 5y treasury futures. See
       :download:`CME Treasury Conversion Factors<_static/us-treasury-cfs.pdf>`.
     - *"ust_long"* which applies to CME 10y and 30y treasury futures.
+    - *"eurex_eur"* which applies to EUREX EUR denominated government bond futures, except
+      Italian BTPs which require a different CF formula.
 
     Examples
     --------
@@ -291,6 +293,8 @@ class BondFuture(Sensitivities):
             return tuple(self._cfs_ust(bond, True) for bond in self.basket)
         elif self.calc_mode == "ust_long":
             return tuple(self._cfs_ust(bond, False) for bond in self.basket)
+        elif self.calc_mode == "eurex_eur":
+            return tuple(self._cfs_eurex_eur(bond) for bond in self.basket)
         else:
             raise ValueError("`calc_mode` must be in {'ytm', 'ust_short', 'ust_long'}")
 
@@ -331,6 +335,39 @@ class BondFuture(Sensitivities):
         factor = a * ((coupon / 2) + c + d) - b
         _: float = round(factor, 4)
         return _
+
+    def _cfs_eurex_eur(self, bond: FixedRateBond) -> float:
+        # TODO: This method is not AD safe: it uses "round" function which destroys derivatives
+        # See EUREX specs
+        dd = self.delivery[1]
+        i = bond._period_index(dd)
+        ncd = bond.leg1._regular_periods[i].end
+        ncd1y = add_tenor(ncd, "-1y", "none")
+        ncd2y = add_tenor(ncd, "-2y", "none")
+        lcd = bond.leg1._regular_periods[i].start
+
+        d_e = float((ncd1y - dd).days)
+        if d_e < 0:
+            act1 = float((ncd - ncd1y).days)
+        else:
+            act1 = float((ncd1y - ncd2y).days)
+
+        d_i = float((ncd1y - lcd).days)
+        if d_i < 0:
+            act2 = float((ncd - ncd1y).days)
+        else:
+            act2 = float((ncd1y - ncd2y).days)
+
+        f = 1.0 + d_e / act1
+        c = bond.fixed_rate
+        n = round((bond.leg1.schedule.termination - ncd).days / 365.25)
+        not_ = self.coupon
+
+        _ = 1.0 + not_ / 100
+
+        cf = 1 / _**f * (c / 100.0 * d_i / act2 + c / not_ * (_ - 1 / _**n) + 1 / _**n)
+        cf -= c / 100.0 * (d_i / act2 - d_e / act1)
+        return round(_dual_float(cf), 6)
 
     def dlv(
         self,
