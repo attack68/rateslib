@@ -35,7 +35,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
      - Add ``calc_mode`` *'eurex_eur'* for :class:`~rateslib.instruments.BondFuture`.
        (`699 <https://github.com/attack68/rateslib/pull/699>`_)
    * - Instruments
-     - Add ``spec`` argument for :class:`~rateslib.instruments.BondFuture`.
+     - Add ``spec`` argument for :class:`~rateslib.instruments.BondFuture`, and some CME treasury futures and EUREX
+       bond future default specifications. This has also refactored the *BondFuture* attributes into a ``kwargs``
+       dict instead of being directly accessible on the object. This may affect existing code that relies on these
+       attributes.
        (`700 <https://github.com/attack68/rateslib/pull/700>`_)
    * - Refactor
      - Rename :class:`~rateslib.instruments.BaseMixin` to :class:`~rateslib.instruments.Metrics`.

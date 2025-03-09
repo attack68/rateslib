@@ -208,22 +208,27 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      - Bill
      - IndexFixedRateBond
      - FloatRateNote
+     - BondFuture
    * - USD
      - :ref:`us_gb <spec-us-gb>`, :ref:`us_gb_tsy <spec-us-gb>`
      - :ref:`us_gbb <spec-usd-gbb>`
      -
      -
+     - :ref:`us_gb_2y <spec-us-gb-2y>` :ref:`us_gb_3y <spec-us-gb-3y>` :ref:`us_gb_5y <spec-us-gb-5y>`:ref:`us_gb_10y <spec-us-gb-10y>`:ref:`us_gb_30y <spec-us-gb-30y>`
    * - EUR
      - :ref:`de_gb <spec-de-gb>`, :ref:`fr_gb <spec-fr-gb>`, :ref:`it_gb <spec-it-gb>`, :ref:`nl_gb <spec-nl-gb>`
      -
      -
      -
+     - :ref:`de_gb_2y <spec-de-gb-2y>`, :ref:`de_gb_5y <spec-de-gb-5y>`, :ref:`de_gb_10y <spec-de-gb-10y>`, :ref:`de_gb_30y <spec-de-gb-30y>`, :ref:`fr_gb_5y <spec-fr-gb-5y>`, :ref:`fr_gb_10y <spec-fr-gb-10y>`, :ref:`sp_gb_10y <spec-sp-gb-10y>`
    * - GBP
      - :ref:`uk_gb <spec-uk-gb>`
      - :ref:`uk_gbb <spec-uk-gbb>`
      -
      -
+     -
    * - CHF
+     -
      -
      -
      -
@@ -233,8 +238,10 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      - :ref:`se_gbb <spec-se-gbb>`
      -
      -
+     -
    * - NOK
      - :ref:`no_gb <spec-no-gb>`
+     -
      -
      -
      -
@@ -243,7 +250,9 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
      -
      -
+     -
    * - JPY
+     -
      -
      -
      -
@@ -253,7 +262,9 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
      -
      -
+     -
    * - NZD
+     -
      -
      -
      -
@@ -272,6 +283,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
     spec/sbs.rst
     spec/fra.rst
     spec/fixedratebond.rst
+    spec/bondfuture.rst
     spec/bill.rst
     spec/stir.rst
     spec/zcis.rst
