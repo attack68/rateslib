@@ -20,7 +20,7 @@ CME Treasury Futures
 .. ipython:: python
 
    defaults.spec["us_gb_2y"]
-   BondFuture(spec="us_gb_2y").kwargs
+   BondFuture(spec="us_gb_2y", delivery=(dt(2000, 3, 1), dt(2000, 3, 31))).kwargs
 
 .. _spec-us-gb-3y:
 
@@ -29,7 +29,7 @@ CME Treasury Futures
 .. ipython:: python
 
    defaults.spec["us_gb_3y"]
-   BondFuture(spec="us_gb_3y").kwargs
+   BondFuture(spec="us_gb_3y", delivery=(dt(2000, 3, 1), dt(2000, 3, 31))).kwargs
 
 .. _spec-us-gb-5y:
 
@@ -38,7 +38,7 @@ CME Treasury Futures
 .. ipython:: python
 
    defaults.spec["us_gb_5y"]
-   BondFuture(spec="us_gb_5y").kwargs
+   BondFuture(spec="us_gb_5y", delivery=(dt(2000, 3, 1), dt(2000, 3, 31))).kwargs
 
 .. _spec-us-gb-10y:
 
@@ -47,7 +47,7 @@ CME Treasury Futures
 .. ipython:: python
 
    defaults.spec["us_gb_10y"]
-   BondFuture(spec="us_gb_10y").kwargs
+   BondFuture(spec="us_gb_10y", delivery=(dt(2000, 3, 1), dt(2000, 3, 31))).kwargs
 
 .. _spec-us-gb-30y:
 
@@ -56,7 +56,7 @@ CME Treasury Futures
 .. ipython:: python
 
    defaults.spec["us_gb_30y"]
-   BondFuture(spec="us_gb_30y").kwargs
+   BondFuture(spec="us_gb_30y", delivery=(dt(2000, 3, 1), dt(2000, 3, 31))).kwargs
 
 EUR
 ********
@@ -68,7 +68,7 @@ EUR
 .. ipython:: python
 
    defaults.spec["de_gb_2y"]
-   BondFuture(spec="de_gb_2y").kwargs
+   BondFuture(spec="de_gb_2y", delivery=dt(2000, 3, 10)).kwargs
 
 .. _spec-de-gb-5y:
 
@@ -77,7 +77,7 @@ EUR
 .. ipython:: python
 
    defaults.spec["de_gb_5y"]
-   BondFuture(spec="de_gb_5y").kwargs
+   BondFuture(spec="de_gb_5y", delivery=dt(2000, 3, 10)).kwargs
 
 .. _spec-de-gb-10y:
 
@@ -86,7 +86,7 @@ EUR
 .. ipython:: python
 
    defaults.spec["de_gb_10y"]
-   BondFuture(spec="de_gb_10y").kwargs
+   BondFuture(spec="de_gb_10y", delivery=dt(2000, 3, 10)).kwargs
 
 .. _spec-de-gb-30y:
 
@@ -95,7 +95,7 @@ EUR
 .. ipython:: python
 
    defaults.spec["de_gb_30y"]
-   BondFuture(spec="de_gb_30y").kwargs
+   BondFuture(spec="de_gb_30y", delivery=dt(2000, 3, 10)).kwargs
 
 .. _spec-fr-gb-5y:
 
@@ -104,7 +104,7 @@ EUR
 .. ipython:: python
 
    defaults.spec["fr_gb_5y"]
-   BondFuture(spec="fr_gb_5y").kwargs
+   BondFuture(spec="fr_gb_5y", delivery=dt(2000, 3, 10)).kwargs
 
 .. _spec-fr-gb-10y:
 
@@ -113,7 +113,7 @@ EUR
 .. ipython:: python
 
    defaults.spec["fr_gb_10y"]
-   BondFuture(spec="fr_gb_10y").kwargs
+   BondFuture(spec="fr_gb_10y", delivery=dt(2000, 3, 10)).kwargs
 
 .. _spec-sp-gb-10y:
 
@@ -122,4 +122,4 @@ EUR
 .. ipython:: python
 
    defaults.spec["sp_gb_10y"]
-   BondFuture(spec="sp_gb_10y").kwargs
+   BondFuture(spec="sp_gb_10y", delivery=dt(2000, 3, 10)).kwargs
