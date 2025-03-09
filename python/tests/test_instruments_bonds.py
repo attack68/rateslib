@@ -2506,8 +2506,9 @@ class TestBondFuture:
         ]
         future = BondFuture(delivery=(dt(2000, 6, 1), dt(2000, 6, 30)), coupon=7.0, basket=bonds)
         prices = [102.732, 131.461, 107.877, 134.455]
+        basket = future.kwargs["basket"]
         dirty_prices = [
-            price + future.basket[i].accrued(dt(2000, 3, 16)) for i, price in enumerate(prices)
+            price + basket[i].accrued(dt(2000, 3, 16)) for i, price in enumerate(prices)
         ]
         result = future.gross_basis(112.98, dirty_prices, dt(2000, 3, 16), True)
         expected = future.gross_basis(112.98, prices, dt(2000, 3, 16), False)
