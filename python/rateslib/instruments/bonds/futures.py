@@ -328,7 +328,7 @@ class BondFuture(Sensitivities):
 
     def _conversion_factors(self) -> tuple[DualTypes, ...]:
         calc_mode: str = self.kwargs["calc_mode"].lower()  # type: ignore[union-attr]
-        coupon: DualTypes = self.kwargs["coupon"]   # type: ignore[assignment]
+        coupon: DualTypes = self.kwargs["coupon"]  # type: ignore[assignment]
         delivery: tuple[datetime, datetime] = self.kwargs["delivery"]  # type: ignore[assignment]
         basket: tuple[FixedRateBond, ...] = self.kwargs["basket"]  # type: ignore[assignment]
         if calc_mode == "ytm":
