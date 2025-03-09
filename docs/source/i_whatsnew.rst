@@ -36,7 +36,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
        (`699 <https://github.com/attack68/rateslib/pull/699>`_)
    * - Instruments
      - Add ``spec`` argument for :class:`~rateslib.instruments.BondFuture`.
-       (`699 <https://github.com/attack68/rateslib/pull/699>`_)
+       (`700 <https://github.com/attack68/rateslib/pull/700>`_)
    * - Refactor
      - Rename :class:`~rateslib.instruments.BaseMixin` to :class:`~rateslib.instruments.Metrics`.
        (`678 <https://github.com/attack68/rateslib/pull/678>`_)
