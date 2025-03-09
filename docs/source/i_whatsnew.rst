@@ -34,6 +34,9 @@ email contact, see `rateslib <https://rateslib.com>`_.
    * - Instruments
      - Add ``calc_mode`` *'eurex_eur'* for :class:`~rateslib.instruments.BondFuture`.
        (`699 <https://github.com/attack68/rateslib/pull/699>`_)
+   * - Instruments
+     - Add ``spec`` argument for :class:`~rateslib.instruments.BondFuture`.
+       (`699 <https://github.com/attack68/rateslib/pull/699>`_)
    * - Refactor
      - Rename :class:`~rateslib.instruments.BaseMixin` to :class:`~rateslib.instruments.Metrics`.
        (`678 <https://github.com/attack68/rateslib/pull/678>`_)
