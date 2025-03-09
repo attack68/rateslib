@@ -220,7 +220,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
      -
      -
-     -
+     - :ref:`de_gb_2y <spec-de-gb-2y>`, :ref:`de_gb_5y <spec-de-gb-5y>`, :ref:`de_gb_10y <spec-de-gb-10y>`, :ref:`de_gb_30y <spec-de-gb-30y>`, :ref:`fr_gb_5y <spec-fr-gb-5y>`, :ref:`fr_gb_10y <spec-fr-gb-10y>`, :ref:`sp_gb_10y <spec-sp-gb-10y>`
    * - GBP
      - :ref:`uk_gb <spec-uk-gb>`
      - :ref:`uk_gbb <spec-uk-gbb>`

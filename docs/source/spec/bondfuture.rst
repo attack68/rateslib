@@ -20,7 +20,7 @@ CME Treasury Futures
 .. ipython:: python
 
    defaults.spec["us_gb_2y"]
-   FixedRateBond(spec="us_gb_2y").kwargs
+   BondFuture(spec="us_gb_2y").kwargs
 
 .. _spec-us-gb-3y:
 
@@ -29,7 +29,7 @@ CME Treasury Futures
 .. ipython:: python
 
    defaults.spec["us_gb_3y"]
-   FixedRateBond(spec="us_gb_3y").kwargs
+   BondFuture(spec="us_gb_3y").kwargs
 
 .. _spec-us-gb-5y:
 
@@ -38,7 +38,7 @@ CME Treasury Futures
 .. ipython:: python
 
    defaults.spec["us_gb_5y"]
-   FixedRateBond(spec="us_gb_5y").kwargs
+   BondFuture(spec="us_gb_5y").kwargs
 
 .. _spec-us-gb-10y:
 
@@ -47,7 +47,7 @@ CME Treasury Futures
 .. ipython:: python
 
    defaults.spec["us_gb_10y"]
-   FixedRateBond(spec="us_gb_10y").kwargs
+   BondFuture(spec="us_gb_10y").kwargs
 
 .. _spec-us-gb-30y:
 
@@ -56,7 +56,70 @@ CME Treasury Futures
 .. ipython:: python
 
    defaults.spec["us_gb_30y"]
-   FixedRateBond(spec="us_gb_30y").kwargs
+   BondFuture(spec="us_gb_30y").kwargs
 
 EUR
 ********
+
+.. _spec-de-gb-2y:
+
+**Eurex Schatz**
+
+.. ipython:: python
+
+   defaults.spec["de_gb_2y"]
+   BondFuture(spec="de_gb_2y").kwargs
+
+.. _spec-de-gb-5y:
+
+**Eurex Bobl**
+
+.. ipython:: python
+
+   defaults.spec["de_gb_5y"]
+   BondFuture(spec="de_gb_5y").kwargs
+
+.. _spec-de-gb-10y:
+
+**Eurex Bund**
+
+.. ipython:: python
+
+   defaults.spec["de_gb_10y"]
+   BondFuture(spec="de_gb_10y").kwargs
+
+.. _spec-de-gb-30y:
+
+**Eurex Buxl**
+
+.. ipython:: python
+
+   defaults.spec["de_gb_30y"]
+   BondFuture(spec="de_gb_30y").kwargs
+
+.. _spec-fr-gb-5y:
+
+**Eurex OAT 5y**
+
+.. ipython:: python
+
+   defaults.spec["fr_gb_5y"]
+   BondFuture(spec="fr_gb_5y").kwargs
+
+.. _spec-fr-gb-10y:
+
+**Eurex OAT 10y**
+
+.. ipython:: python
+
+   defaults.spec["fr_gb_10y"]
+   BondFuture(spec="fr_gb_10y").kwargs
+
+.. _spec-sp-gb-10y:
+
+**Eurex BONO**
+
+.. ipython:: python
+
+   defaults.spec["sp_gb_10y"]
+   BondFuture(spec="sp_gb_10y").kwargs
