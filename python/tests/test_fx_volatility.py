@@ -354,6 +354,21 @@ class TestFXDeltaVolSmile:
         fxvs.update_node(0.5, 12.0)
         assert fxvs[0.5] == 12.0
 
+    @pytest.mark.parametrize("nodes", [
+        {0.5:10.0}, {0.35: 10.0, 0.65: 9.0}, {0.25, 10.0, 0.5, 8.0, 0.75, 11.0}
+    ])
+    def test_delta_index_range_for_spot(self, nodes):
+        # spot delta type can lead to a delta index greater than 1.0
+        # test ensures extrapolation of a DeltaVolSmile is possible, but it is a flat function
+        fxv = FXDeltaVolSmile(
+            eval_date=dt(2000, 1, 1),
+            expiry=dt(2001, 1, 1),
+            nodes=nodes,
+            delta_type="spot",
+        )
+        result = fxv[1.025]
+        assert result == fxv[1.0]
+
 
 class TestFXDeltaVolSurface:
     def test_expiry_before_eval(self) -> None:
