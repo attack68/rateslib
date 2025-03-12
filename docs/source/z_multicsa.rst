@@ -5,7 +5,7 @@
 
    from rateslib.curves import *
    from rateslib.instruments import *
-   from rateslib.dual import Dual
+   from rateslib.dual import Dual, gradient
    import matplotlib.pyplot as plt
    from datetime import datetime as dt
    import numpy as np
@@ -15,29 +15,32 @@ MultiCsaCurves have discontinuous derivatives
 ******************************************************
 
 This documentation page is written to exemplify the discontinuous nature of the
-:class:`~rateslib.curves.MultiCsaCurve`. Even though the AD of *rateslib* still functions the
-way *intrinsic multi-csa Curves* are defined creates the discontinuity.
+:class:`~rateslib.curves.MultiCsaCurve`. Even though the AD of *rateslib* still functions, the
+definition of an *intrinsic* :class:`~rateslib.curves.MultiCsaCurve` forces discontinuity.
 
-To set the stage consider the **absolute value** function, :math:`abs(x)`. This function has a
+To set the stage, consider the **absolute value** function, :math:`abs(x)`. This function has a
 continuous and calculable derivative at every point except zero.
 
 .. ipython:: python
 
-   x_p1 = Dual(1.0, ["x"], [])
-   abs(x_p1)
+   x_plus_1 = Dual(1.0, ["x"], [])
+   abs(x_plus_1)
+   gradient(abs(x_plus_1))
 
-   x_m1 = Dual(-1.0, ["x"], [])
-   abs(x_m1)
+   x_minus_1 = Dual(-1.0, ["x"], [])
+   abs(x_minus_1)
+   gradient(abs(x_minus_1))
 
 At the point zero *rateslib* still returns a result (which contains a true derivative from one side,
-but a false derivative from the other side). Users would be expected to know that that
+but a false derivative from the other side). Users are expected to know that
 automatic differentiation, calculated in this way, does not work. The **abs** function is
-not completely AD safe.
+not AD safe over its complete domain.
 
 .. ipython:: python
 
-   x_z = Dual(0.0, ["x"], [])
-   abs(x_z)
+   x_zero = Dual(0.0, ["x"], [])
+   abs(x_zero)
+   gradient(abs(x_zero))
 
 An intrinsic :class:`~rateslib.curves.MultiCsaCurve` has the same properties. It has real,
 calculable derivatives everywhere, except when there is a crossover point from one CTD currency
@@ -69,7 +72,7 @@ Either is valid as the CTD.
            XCS(dt(2000, 1, 1), "5y", spec="eurusd_xcs", curves=[eur, eurusd, usd, usd]),
            XCS(dt(2000, 1, 1), "10y", spec="eurusd_xcs", curves=[eur, eurusd, usd, usd]),
        ],
-       s=[1.0, 1.5, 1.0, 1.5, 0.0, 0.0],
+       s=[1.0, 1.5, 1.0, 1.5, 0.0, 0.0],  # <-- local ccy rates are same and no xccy basis
        instrument_labels=["5yEur", "10yEur", "5yUsd", "10yUsd", "5yXcy", "10yXcy"],
        fx=fxf,
    )
@@ -79,7 +82,7 @@ curve discounts EUR cashflows with the cheapest to deliver of EUR and USD collat
 
 .. ipython:: python
 
-   multi_csa = fxf.curve("eur", ("eur", "usd"))
+   multi_csa = fxf.curve(cashflow="eur", collateral=("eur", "usd"))
    type(multi_csa)
 
 What happens to risk and NPV when the market moves?
