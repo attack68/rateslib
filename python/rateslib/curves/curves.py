@@ -2683,6 +2683,11 @@ class MultiCsaCurve(CompositeCurve):
        Can only combine curves of the type: :class:`Curve`. Other curve parameters such as
        ``modifier``, and ``convention`` must also match.
 
+    .. warning::
+       Intrinsic *MultiCsaCurves*, by definition, are not natively AD safe, due to having
+       discontinuities and no available derivatives in certain cases. See
+       :ref:`discontinuous MultiCsaCurves <cook-multicsadisc-doc>`.
+
     Parameters
     ----------
     curves : sequence of :class:`Curve`
