@@ -255,8 +255,8 @@ i.e. local currency interest rates at 3.90% and 5.32%, and an FX Swap rate at 8.
 FX Volatility Surfaces
 **********************
 
-An :class:`~rateslib.fx_volatility.FXDeltaVolSurface` in *rateslib* is a collection
-of multiple, cross-sectional :class:`~rateslib.fx_volatility.FXDeltaVolSmile` where:
+An :class:`~rateslib.fx_volatility.FXDeltaVolSurface` in *rateslib* is a collection of
+multiple, cross-sectional :class:`~rateslib.fx_volatility.FXDeltaVolSmile` where:
 
 - each cross-sectional *Smile* will represent a *Smile* at that explicit *expiry*,
 - the *delta type* and the *delta indexes* on each cross-sectional *Smile* are the same,
