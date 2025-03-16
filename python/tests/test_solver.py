@@ -294,7 +294,7 @@ def test_large_spline_solver() -> None:
         dt(2050, 1, 3),
     ]
     curve = Curve(
-        nodes={_: 1.0 for _ in dates},
+        nodes=dict.fromkeys(dates, 1.0),
         t=[dt(2000, 1, 3)] * 3 + dates[:-1] + [dt(2050, 1, 5)] * 4,
         calendar="nyc",
     )

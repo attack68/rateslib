@@ -238,9 +238,7 @@ class FXForwards(_WithState):
                 fx_rates=self.fx_rates[0],
                 fx_curves=sub_curves,
             )
-            settlement_pairs = {
-                pair: self.fx_rates[0].settlement for pair in self.fx_rates[0].pairs
-            }
+            settlement_pairs = dict.fromkeys(self.fx_rates[0].pairs, self.fx_rates[0].settlement)
 
             # Now iterate through the remaining FXRates objects and patch them into the fxf
             for fx_rates_obj in self.fx_rates[1:]:
@@ -277,7 +275,7 @@ class FXForwards(_WithState):
                 )
                 acyclic_fxf = FXForwards(fx_rates=combined_fx_rates, fx_curves=sub_curves)
                 settlement_pairs.update(
-                    {pair: fx_rates_obj.settlement for pair in fx_rates_obj.pairs},
+                    dict.fromkeys(fx_rates_obj.pairs, fx_rates_obj.settlement),
                 )
 
             if not isinstance(base, NoInput):

@@ -2781,7 +2781,7 @@ class MultiCsaCurve(CompositeCurve):
 
         d2 = d1 + timedelta(days=_get_step(defaults.multi_csa_steps[0]))
         # cache stores looked up DF values to next loop, avoiding double calc
-        cache: dict[int, DualTypes] = {i: 1.0 for i in range(len(self.curves))}
+        cache: dict[int, DualTypes] = dict.fromkeys(range(len(self.curves)), 1.0)
         k: int = 1
         while d2 < date:
             min_ratio: DualTypes = 1e5
