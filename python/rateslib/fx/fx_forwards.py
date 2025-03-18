@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import warnings
 from datetime import datetime, timedelta
-from itertools import product
+from itertools import product, combinations
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -1244,3 +1244,59 @@ def forward_fx(
     # else: fx_settlement is deemed to be immediate hence DF are both equal to 1.0
     _ *= fx_rate
     return _
+
+
+class _FXForwardsAggregator:
+
+    def __init__(self, fxfs: list[FXForwards]) -> None:
+        self.fxfs = fxfs
+        self.currencies: dict[str, int] = {}
+        _crosses = np.ones((0,0), dtype=int)
+        for fxf in self.fxfs:
+
+            # add the new currencies to the currencies dict
+            m = len(self.currencies)
+            for ccy in fxf.currencies_list:
+                if ccy not in self.currencies:
+                    self.currencies[ccy] = len(self.currencies)
+            n = len(self.currencies)
+
+            # update the _crosses array
+            _crosses = np.block([
+                [_crosses, np.zeros((m, m), dtype=int)],
+                [np.zeros((m, m), dtype=int), np.eye((n-m, n-m), dtype=int)],
+            ])
+            for i, ccy1 in enumerate(fxf.currencies_list):
+                for ccy2 in fxf.currencies_list[i:]:
+                    idx1, idx2 = self.currencies[ccy1], self.currencies[ccy2]
+                    if _crosses[idx1, idx2] == 1:
+                        raise ValueError(
+                            "Degenerate currencies are already available."
+                        )
+                    _crosses[idx1, idx2] = 1
+                    _crosses[idx2, idx1] = 1
+            _crosses = _find_crosses(_crosses)
+
+        
+
+
+def _find_crosses(arr):
+    new_arr = arr.copy()
+    for i in range(len(new_arr)):
+        ccy_idxs = [_ for _ in range(len(new_arr)) if new_arr[i, _] == 1]
+        pairs = combinations(ccy_idxs, 2)
+        for pair in pairs:
+            new_arr[pair[0], [pair[1]]] = 1
+            new_arr[pair[1], [pair[0]]] = 1
+
+    if np.all(new_arr == arr):
+        return new_arr
+    else:
+        return _find_crosses(new_arr)
+
+
+
+
+
+
+
