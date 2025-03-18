@@ -1261,23 +1261,23 @@ class _FXForwardsAggregator:
                     self.currencies[ccy] = len(self.currencies)
             n = len(self.currencies)
 
-            # update the _crosses array
+            # update the _crosses array and validate if degenerate
             _crosses = np.block([
-                [_crosses, np.zeros((m, m), dtype=int)],
-                [np.zeros((m, m), dtype=int), np.eye((n-m, n-m), dtype=int)],
+                [_crosses, np.zeros((m, n-m), dtype=int)],
+                [np.zeros((n-m, m), dtype=int), np.eye(n-m, dtype=int)],
             ])
             for i, ccy1 in enumerate(fxf.currencies_list):
                 for ccy2 in fxf.currencies_list[i:]:
                     idx1, idx2 = self.currencies[ccy1], self.currencies[ccy2]
-                    if _crosses[idx1, idx2] == 1:
+                    if idx1 == idx2:
+                        continue
+                    elif _crosses[idx1, idx2] == 1:
                         raise ValueError(
                             "Degenerate currencies are already available."
                         )
                     _crosses[idx1, idx2] = 1
                     _crosses[idx2, idx1] = 1
             _crosses = _find_crosses(_crosses)
-
-        
 
 
 def _find_crosses(arr):
@@ -1289,7 +1289,7 @@ def _find_crosses(arr):
             new_arr[pair[0], [pair[1]]] = 1
             new_arr[pair[1], [pair[0]]] = 1
 
-    if np.all(new_arr == arr):
+    if np.all(new_arr == arr) or np.sum(new_arr, axis=None) == len(new_arr) ** 2:
         return new_arr
     else:
         return _find_crosses(new_arr)

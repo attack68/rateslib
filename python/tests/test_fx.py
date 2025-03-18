@@ -14,6 +14,7 @@ from rateslib.fx import (
     FXRates,
     forward_fx,
 )
+from rateslib.fx.fx_forwards import _FXForwardsAggregator
 from rateslib.json import from_json
 
 
@@ -1489,3 +1490,36 @@ class TestFXForwards:
         fxf.update([{"eurusd": 2.0}])
         after = fxf._state
         assert before != after
+
+    def test_degenerate_currencies(self):
+        c = Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.99})
+        fxf1 = FXForwards(
+            fx_rates=FXRates({"eursek": 1.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={"eureur": c, "eursek": c, "seksek": c},
+        )
+        fxf2 = FXForwards(
+            fx_rates=FXRates({"eurnok": 1.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={"eureur": c, "eurnok": c, "noknok": c},
+        )
+        fxf3 = FXForwards(
+            fx_rates=FXRates({"noksek": 1.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={"noknok": c, "seksek": c, "noksek": c},
+        )
+        fxf = _FXForwardsAggregator([fxf1, fxf2, fxf3])
+
+    def test_not_degenerate_currencies(self):
+        c = Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.99})
+        fxf1 = FXForwards(
+            fx_rates=FXRates({"eursek": 1.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={"eureur": c, "eursek": c, "seksek": c},
+        )
+        fxf2 = FXForwards(
+            fx_rates=FXRates({"usdnok": 1.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={"usdusd": c, "usdnok": c, "noknok": c},
+        )
+        fxf3 = FXForwards(
+            fx_rates=FXRates({"noksek": 1.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={"noknok": c, "seksek": c, "noksek": c},
+        )
+        fxf = _FXForwardsAggregator([fxf1, fxf2, fxf3])
+
