@@ -1491,7 +1491,7 @@ class TestFXForwards:
         after = fxf._state
         assert before != after
 
-    def test_degenerate_currencies(self):
+    def test_overspecified_currencies(self):
         c = Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.99})
         fxf1 = FXForwards(
             fx_rates=FXRates({"eursek": 1.0}, settlement=dt(2000, 1, 1)),
@@ -1505,9 +1505,10 @@ class TestFXForwards:
             fx_rates=FXRates({"noksek": 1.0}, settlement=dt(2000, 1, 1)),
             fx_curves={"noknok": c, "seksek": c, "noksek": c},
         )
-        fxf = _FXForwardsAggregator([fxf1, fxf2, fxf3])
+        with pytest.raises(ValueError, match="Overspecified currencies detected"):
+            _FXForwardsAggregator([fxf1, fxf2, fxf3])
 
-    def test_not_degenerate_currencies(self):
+    def test_completely_specified_currencies(self):
         c = Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.99})
         fxf1 = FXForwards(
             fx_rates=FXRates({"eursek": 1.0}, settlement=dt(2000, 1, 1)),
@@ -1522,4 +1523,33 @@ class TestFXForwards:
             fx_curves={"noknok": c, "seksek": c, "noksek": c},
         )
         fxf = _FXForwardsAggregator([fxf1, fxf2, fxf3])
+
+        expected = {
+            'eurnok': 'sek',
+            'eursek': 0,
+            'eurusd': 'nok',
+            'nokeur': 'sek',
+            'noksek': 2,
+            'nokusd': 1,
+            'sekeur': 0,
+            'seknok': 2,
+            'sekusd': 'nok',
+            'usdeur': 'nok',
+            'usdnok': 1,
+            'usdsek': 'nok'
+        }
+        assert fxf.paths == expected
+
+    def test_underspecified_currencies(self):
+        c = Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.99})
+        fxf1 = FXForwards(
+            fx_rates=FXRates({"eursek": 1.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={"eureur": c, "eursek": c, "seksek": c},
+        )
+        fxf2 = FXForwards(
+            fx_rates=FXRates({"jpynok": 1.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={"jpyjpy": c, "jpynok": c, "noknok": c},
+        )
+        with pytest.raises(ValueError, match="Underspecified currencies detected"):
+            _FXForwardsAggregator([fxf1, fxf2])
 

@@ -1251,43 +1251,79 @@ class _FXForwardsAggregator:
     def __init__(self, fxfs: list[FXForwards]) -> None:
         self.fxfs = fxfs
         self.currencies: dict[str, int] = {}
-        _crosses = np.ones((0,0), dtype=int)
-        for fxf in self.fxfs:
-
-            # add the new currencies to the currencies dict
-            m = len(self.currencies)
-            for ccy in fxf.currencies_list:
-                if ccy not in self.currencies:
-                    self.currencies[ccy] = len(self.currencies)
-            n = len(self.currencies)
-
-            # update the _crosses array and validate if degenerate
-            _crosses = np.block([
-                [_crosses, np.zeros((m, n-m), dtype=int)],
-                [np.zeros((n-m, m), dtype=int), np.eye(n-m, dtype=int)],
-            ])
-            for i, ccy1 in enumerate(fxf.currencies_list):
-                for ccy2 in fxf.currencies_list[i:]:
-                    idx1, idx2 = self.currencies[ccy1], self.currencies[ccy2]
-                    if idx1 == idx2:
-                        continue
-                    elif _crosses[idx1, idx2] == 1:
-                        raise ValueError(
-                            "Degenerate currencies are already available."
-                        )
-                    _crosses[idx1, idx2] = 1
-                    _crosses[idx2, idx1] = 1
-            _crosses = _find_crosses(_crosses)
+        self.paths = _validate_crosses(self.fxfs, self.currencies)
+        horizon = self.fxfs[0].immediate
+        for fxf in self.fxfs[1:]:
+            if fxf.immediate != horizon:
+                raise ValueError(
+                    "The `immediate` date (or horizon) date must be the same on all aggregated "
+                    "FXForwards objects."
+                )
 
 
-def _find_crosses(arr):
+def _validate_crosses(fxfs: list[FXForwards], currencies: dict[str, int]) -> dict[str, int | str]:
+    # crosses will consecutively check which FX rates are already available and if a degenerate
+    # pair is found then it will error.
+    # _paths will be updated to find a map for how to derive all forward crosses made against the
+    # various FXForwards objects.
+    _crosses = np.ones((0, 0), dtype=int)
+    _paths: dict[str, int | str] = {}
+    for i, fxf in enumerate(fxfs):
+
+        # add the new currencies to the currencies dict
+        m = len(currencies)
+        for ccy in fxf.currencies_list:
+            if ccy not in currencies:
+                currencies[ccy] = len(currencies)
+        n = len(currencies)
+
+        # update the _crosses array and validate if degenerate
+        _crosses = np.block([
+            [_crosses, np.zeros((m, n - m), dtype=int)],
+            [np.zeros((n - m, m), dtype=int), np.eye(n - m, dtype=int)],
+        ])
+        for j, ccy1 in enumerate(fxf.currencies_list):
+            for ccy2 in fxf.currencies_list[j:]:
+                idx1, idx2 = currencies[ccy1], currencies[ccy2]
+                if idx1 == idx2:
+                    continue
+                elif _crosses[idx1, idx2] == 1:
+                    raise ValueError(
+                        "Overspecified currencies detected.\nSpecifically, currencies: "
+                        f"'{ccy1}' and '{ccy2}' in FXForwards object with index: {i} already "
+                        "have FX rates determinable from previously aggregated FXForwards objects."
+                    )
+                _crosses[idx1, idx2] = 1
+                _crosses[idx2, idx1] = 1
+                _paths[f"{ccy1}{ccy2}"] = i
+                _paths[f"{ccy2}{ccy1}"] = i
+        _crosses = _find_crosses(_crosses, list(currencies.keys()), _paths)
+
+    if np.sum(_crosses, axis=None) != len(currencies) ** 2:
+        for i in range(len(currencies)):
+            for j in range(i + 1, len(currencies)):
+                if _crosses[i, j] == 0:
+                    ccy1 = list(currencies.keys())[i]
+                    ccy2 = list(currencies.keys())[j]
+        raise ValueError(
+            "Underspecified currencies detected.\nSpecifically, the FXForwards objects define "
+            f"{len(currencies)} currencies but it is impossible to determine a rate "
+            f"between '{ccy1}' and '{ccy2}' as an example."
+        )
+    return _paths
+
+def _find_crosses(arr, currencies: list[str], _paths: dict[str, int | str]):
     new_arr = arr.copy()
     for i in range(len(new_arr)):
         ccy_idxs = [_ for _ in range(len(new_arr)) if new_arr[i, _] == 1]
         pairs = combinations(ccy_idxs, 2)
         for pair in pairs:
+            if new_arr[pair[0], pair[1]] == 1:
+                continue
             new_arr[pair[0], [pair[1]]] = 1
             new_arr[pair[1], [pair[0]]] = 1
+            _paths[f"{currencies[pair[0]]}{currencies[pair[1]]}"] = currencies[i]
+            _paths[f"{currencies[pair[1]]}{currencies[pair[0]]}"] = currencies[i]
 
     if np.all(new_arr == arr) or np.sum(new_arr, axis=None) == len(new_arr) ** 2:
         return new_arr
