@@ -1491,6 +1491,9 @@ class TestFXForwards:
         after = fxf._state
         assert before != after
 
+
+class TestFXForwardsAggregator:
+
     def test_overspecified_currencies(self):
         c = Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.99})
         fxf1 = FXForwards(
@@ -1553,3 +1556,16 @@ class TestFXForwards:
         with pytest.raises(ValueError, match="Underspecified currencies detected"):
             _FXForwardsAggregator([fxf1, fxf2])
 
+    def test_mismatched_horizons(self):
+        c = Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.99})
+        c2 = Curve({dt(2000, 1, 2): 1.0, dt(2000, 1, 3): 0.99})
+        fxf1 = FXForwards(
+            fx_rates=FXRates({"eursek": 1.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={"eureur": c, "eursek": c, "seksek": c},
+        )
+        fxf3 = FXForwards(
+            fx_rates=FXRates({"noksek": 1.0}, settlement=dt(2000, 1, 2)),
+            fx_curves={"noknok": c2, "seksek": c2, "noksek": c2},
+        )
+        with pytest.raises(ValueError, match="The `immediate` date \(or horizon\) date must"):
+            _FXForwardsAggregator([fxf1, fxf3])
