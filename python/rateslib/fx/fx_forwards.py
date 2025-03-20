@@ -1252,6 +1252,7 @@ class _FXForwardsAggregator:
         self.fxfs = fxfs
         self.currencies: dict[str, int] = {}
         self.paths = _validate_crosses(self.fxfs, self.currencies)
+        self.currencies_list = list(self.currencies.keys())
         horizon = self.fxfs[0].immediate
         for fxf in self.fxfs[1:]:
             if fxf.immediate != horizon:
@@ -1259,6 +1260,7 @@ class _FXForwardsAggregator:
                     "The `immediate` date (or horizon) date must be the same on all aggregated "
                     "FXForwards objects."
                 )
+        self.immediate = self.fxfs[0].immediate
 
 
 def _validate_crosses(fxfs: list[FXForwards], currencies: dict[str, int]) -> dict[str, int | str]:
@@ -1313,6 +1315,11 @@ def _validate_crosses(fxfs: list[FXForwards], currencies: dict[str, int]) -> dic
     return _paths
 
 def _find_crosses(arr, currencies: list[str], _paths: dict[str, int | str]):
+    """
+    Analyse a matrix of FX crosses and recursively determine if other crosses are possible.
+    If other crosses are determined, update the _paths dict to define the route to calculate the
+    fx rate.
+    """
     new_arr = arr.copy()
     for i in range(len(new_arr)):
         ccy_idxs = [_ for _ in range(len(new_arr)) if new_arr[i, _] == 1]
