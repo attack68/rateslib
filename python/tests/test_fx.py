@@ -1569,3 +1569,24 @@ class TestFXForwardsAggregator:
         )
         with pytest.raises(ValueError, match="The `immediate` date \(or horizon\) date must"):
             _FXForwardsAggregator([fxf1, fxf3])
+
+    def test_state_and_update(self):
+        c = Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.99})
+        fxf1 = FXForwards(
+            fx_rates=FXRates({"eursek": 1.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={"eureur": c, "eursek": c, "seksek": c},
+        )
+        fxf2 = FXForwards(
+            fx_rates=FXRates({"usdnok": 1.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={"usdusd": c, "usdnok": c, "noknok": c},
+        )
+        fxf3 = FXForwards(
+            fx_rates=FXRates({"noksek": 1.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={"noknok": c, "seksek": c, "noksek": c},
+        )
+        fxf = _FXForwardsAggregator([fxf1, fxf2, fxf3])
+        assert isinstance(fxf._state, int)
+        fxf1.update([{"eursek": 1.0}])
+        assert fxf._state != fxf._get_composited_state()
+        fxf._validate_state()
+        assert fxf._state == fxf._get_composited_state()

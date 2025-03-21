@@ -14,7 +14,7 @@ from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
 from rateslib.default import NoInput, PlotOutput, plot
 from rateslib.dual import Dual, gradient
 from rateslib.fx.fx_rates import FXRates
-from rateslib.mutability import _validate_states, _WithState
+from rateslib.mutability import _validate_states, _WithState, _new_state_post
 
 if TYPE_CHECKING:
     from rateslib.typing import CalInput, DualTypes, Number
@@ -171,6 +171,7 @@ class FXForwards(_WithState):
             self._calculate_immediate_rates(base=self.base, init=False)
             self._set_new_state()
 
+    @_new_state_post
     def __init__(
         self,
         fx_rates: FXRates | list[FXRates],
@@ -182,7 +183,6 @@ class FXForwards(_WithState):
         self.fx_rates: FXRates | list[FXRates] = fx_rates
         self._calculate_immediate_rates(base, init=True)
         assert self.currencies_list == self.fx_rates_immediate.currencies_list  # noqa: S101
-        self._set_new_state()
 
     def _get_composited_state(self) -> int:
         self_fx_rates = [self.fx_rates] if not isinstance(self.fx_rates, list) else self.fx_rates
@@ -1246,8 +1246,11 @@ def forward_fx(
     return _
 
 
-class _FXForwardsAggregator:
+class _FXForwardsAggregator(_WithState):
 
+    _mutable_by_association = True
+
+    @_new_state_post
     def __init__(self, fxfs: list[FXForwards]) -> None:
         self.fxfs = fxfs
         self.currencies: dict[str, int] = {}
@@ -1262,6 +1265,31 @@ class _FXForwardsAggregator:
                 )
         self.immediate = self.fxfs[0].immediate
 
+    def _get_composited_state(self) -> int:
+        return hash(sum(fxf._state for fxf in self.fxfs))
+
+    def _validate_state(self) -> None:
+        # FXForwardsAggregator inherits its state from its objects. It is not directly
+        # mutable and has no updat
+        if self._state != self._get_composited_state():
+            self._set_new_state()
+
+    @_new_state_post
+    def update(self):
+        """
+        This method calls a state *update* method, with no arguments, on its contained
+        :class:`~rateslib.fx.FXForwards` objects.
+
+        .. warning::
+
+           Users should not find it necessary to use this method. It is only used internally.
+
+        Returns
+        -------
+        None
+        """
+        for fxf in self.fxfs:
+            fxf.update()
 
 def _validate_crosses(fxfs: list[FXForwards], currencies: dict[str, int]) -> dict[str, int | str]:
     # crosses will consecutively check which FX rates are already available and if a degenerate
@@ -1336,10 +1364,4 @@ def _find_crosses(arr, currencies: list[str], _paths: dict[str, int | str]):
         return new_arr
     else:
         return _find_crosses(new_arr)
-
-
-
-
-
-
 
