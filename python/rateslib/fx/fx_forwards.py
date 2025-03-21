@@ -1402,7 +1402,7 @@ def _validate_curves(fxfs: list[FXForwards]) -> dict[str, Curve]:
 def _find_crosses(
     arr: np.ndarray[tuple[int, int], np.dtype[Any]],
     currencies: list[str],
-    _paths: dict[str, int | str]
+    _paths: dict[str, int | str],
 ) -> np.ndarray[tuple[int, int], np.dtype[Any]]:
     """
     Analyse a matrix of FX crosses and recursively determine if other crosses are possible.
