@@ -17,7 +17,7 @@ from rateslib.fx.fx_rates import FXRates
 from rateslib.mutability import _new_state_post, _validate_states, _WithState
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, DualTypes, Number
+    from rateslib.typing import CalInput, DualTypes, Number, str_
 
 """
 .. ipython:: python
@@ -174,17 +174,38 @@ class FXForwards(_WithState):
     @_new_state_post
     def __init__(
         self,
-        fx_rates: FXRates | list[FXRates],
-        fx_curves: dict[str, Curve],
-        base: str | NoInput = NoInput(0),
+        fx_rates: FXRates | list[FXRates] | NoInput = NoInput(0),
+        fx_curves: dict[str, Curve] | NoInput = NoInput(0),
+        base: str_ = NoInput(0),
+        fx_forwards: list[FXForwards] | NoInput = NoInput(0),
     ) -> None:
-        self._ad = 1
-        self._validate_fx_curves(fx_curves)
-        self.fx_rates: FXRates | list[FXRates] = fx_rates
-        self._calculate_immediate_rates(base, init=True)
-        assert self.currencies_list == self.fx_rates_immediate.currencies_list  # noqa: S101
+        if isinstance(fx_rates, NoInput) or isinstance(fx_curves, NoInput):
+            # use an FXForwardsAggregator
+            if isinstance(fx_forwards, NoInput):
+                raise ValueError(
+                    "Must supply `fx_forwards` when aggregation FXForwards objects."
+                )
+            self.aggregator: _FXForwardsAggregator | None = _FXForwardsAggregator(fx_forwards=fx_forwards, base=base)
+            self.curves = self.aggregator.curves
+            self.currencies = self.aggregator.currencies
+            self.currencies_list = self.aggregator.currencies_list
+            self.terminal: datetime = datetime(2200, 1, 1)
+            self.immediate: datetime = self.aggregator.immediate
+        else:
+            self.aggregator = None
+            if not isinstance(fx_forwards, NoInput):
+                raise ValueError(
+                    "Cannot supply `fx_rates`, `fx_curves`, and `fx_forwards` simultaneously."
+                )
+            self._ad = 1
+            self._validate_fx_curves(fx_curves)
+            self.fx_rates: FXRates | list[FXRates] = fx_rates
+            self._calculate_immediate_rates(base, init=True)
+            assert self.currencies_list == self.fx_rates_immediate.currencies_list  # noqa: S101
 
     def _get_composited_state(self) -> int:
+        if self.aggregator is not None:
+            return self.aggregator._get_composited_state()
         self_fx_rates = [self.fx_rates] if not isinstance(self.fx_rates, list) else self.fx_rates
         total = sum(curve._state for curve in self.fx_curves.values()) + sum(
             fxr._state for fxr in self_fx_rates
@@ -535,6 +556,9 @@ class FXForwards(_WithState):
         This function does not have automatic cache management. If a *Curve* or an *FXRates*
         object has been updated, one *must* call `FXForwards.update` before calling this methob.
         """
+
+        if self.aggregator is not None:
+            return self.aggregator.rate(pair, settlement), []
 
         def _get_d_f_idx_and_path(
             pair: str, path: list[dict[str, int]] | NoInput
@@ -1250,23 +1274,24 @@ class _FXForwardsAggregator(_WithState):
     _mutable_by_association = True
 
     @_new_state_post
-    def __init__(self, fxfs: list[FXForwards]) -> None:
-        self.fxfs = fxfs
+    def __init__(self, fx_forwards: list[FXForwards], base: str_ = NoInput(0)) -> None:
+        self.fx_forwards = fx_forwards
         self.currencies: dict[str, int] = {}
-        self.paths = _validate_crosses(self.fxfs, self.currencies)
+        self.paths = _validate_crosses(self.fx_forwards, self.currencies)
         self.currencies_list = list(self.currencies.keys())
-        horizon = self.fxfs[0].immediate
-        for fxf in self.fxfs[1:]:
+        horizon = self.fx_forwards[0].immediate
+        for fxf in self.fx_forwards[1:]:
             if fxf.immediate != horizon:
                 raise ValueError(
                     "The `immediate` date (or horizon) date must be the same on all aggregated "
                     "FXForwards objects."
                 )
-        self.immediate = self.fxfs[0].immediate
-        self.curves = _validate_curves(self.fxfs)
+        self.immediate = self.fx_forwards[0].immediate
+        self.curves = _validate_curves(self.fx_forwards)
+        self.base = _drb(self.fx_forwards[0].base, base)
 
     def _get_composited_state(self) -> int:
-        return hash(sum(fxf._state for fxf in self.fxfs))
+        return hash(sum(fxf._state for fxf in self.fx_forwards))
 
     def _validate_state(self) -> None:
         # FXForwardsAggregator inherits its state from its objects. It is not directly
@@ -1288,7 +1313,7 @@ class _FXForwardsAggregator(_WithState):
         -------
         None
         """
-        for fxf in self.fxfs:
+        for fxf in self.fx_forwards:
             fxf.update()
 
     @_validate_states
@@ -1326,7 +1351,7 @@ class _FXForwardsAggregator(_WithState):
                 f"{path}{pair[3:6]}", settlement_
             )
         else:
-            return self.fxfs[path].rate(pair, settlement_)
+            return self.fx_forwards[path].rate(pair, settlement_)
 
 
 def _validate_crosses(fxfs: list[FXForwards], currencies: dict[str, int]) -> dict[str, int | str]:

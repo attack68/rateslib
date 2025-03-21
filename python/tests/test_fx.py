@@ -1626,3 +1626,25 @@ class TestFXForwardsAggregator:
         )
         with pytest.raises(ValueError, match="Curves mapped to the same currency"):
             _FXForwardsAggregator([fxf1, fxf2, fxf3])
+
+
+class TestFXForwardsAsAgg:
+
+    def test_rate(self):
+        c = Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.99})
+        fxf1 = FXForwards(
+            fx_rates=FXRates({"eursek": 1.5}, settlement=dt(2000, 1, 1)),
+            fx_curves={"eureur": c, "eursek": c, "seksek": c},
+        )
+        fxf2 = FXForwards(
+            fx_rates=FXRates({"usdnok": 1.25}, settlement=dt(2000, 1, 1)),
+            fx_curves={"usdusd": c, "usdnok": c, "noknok": c},
+        )
+        fxf3 = FXForwards(
+            fx_rates=FXRates({"noksek": 1.75}, settlement=dt(2000, 1, 1)),
+            fx_curves={"noknok": c, "seksek": c, "noksek": c},
+        )
+        fxf = FXForwards(fx_forwards=[fxf1, fxf2, fxf3])
+        result = fxf.rate("sekusd")
+        expected = 1 / 1.75 * 1 / 1.25
+        assert abs(result - expected) < 1e-8
