@@ -1493,7 +1493,6 @@ class TestFXForwards:
 
 
 class TestFXForwardsAggregator:
-
     def test_overspecified_currencies(self):
         c = Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.99})
         fxf1 = FXForwards(
@@ -1528,18 +1527,18 @@ class TestFXForwardsAggregator:
         fxf = _FXForwardsAggregator([fxf1, fxf2, fxf3])
 
         expected = {
-            'eurnok': 'sek',
-            'eursek': 0,
-            'eurusd': 'nok',
-            'nokeur': 'sek',
-            'noksek': 2,
-            'nokusd': 1,
-            'sekeur': 0,
-            'seknok': 2,
-            'sekusd': 'nok',
-            'usdeur': 'nok',
-            'usdnok': 1,
-            'usdsek': 'nok'
+            "eurnok": "sek",
+            "eursek": 0,
+            "eurusd": "nok",
+            "nokeur": "sek",
+            "noksek": 2,
+            "nokusd": 1,
+            "sekeur": 0,
+            "seknok": 2,
+            "sekusd": "nok",
+            "usdeur": "nok",
+            "usdnok": 1,
+            "usdsek": "nok",
         }
         assert fxf.paths == expected
 
@@ -1567,7 +1566,7 @@ class TestFXForwardsAggregator:
             fx_rates=FXRates({"noksek": 1.0}, settlement=dt(2000, 1, 2)),
             fx_curves={"noknok": c2, "seksek": c2, "noksek": c2},
         )
-        with pytest.raises(ValueError, match="The `immediate` date \(or horizon\) date must"):
+        with pytest.raises(ValueError, match=r"The `immediate` date \(or horizon\) date must"):
             _FXForwardsAggregator([fxf1, fxf3])
 
     def test_state_and_update(self):

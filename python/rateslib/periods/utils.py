@@ -99,7 +99,7 @@ def _get_fx_and_base(
     if base is None:
         raise NotImplementedError("TraceBack for NoInput")  # pragma: no cover
 
-    if isinstance(fx, FXRates | FXForwards):
+    if isinstance(fx, FXForwards | FXRates):
         base_: str | NoInput = fx.base if isinstance(base, NoInput) else base.lower()
         if base_ == currency:
             fx_: DualTypes = 1.0
@@ -118,7 +118,7 @@ def _get_fx_and_base(
                 )
             fx_ = 1.0
         else:
-            if abs(fx - 1.0) < 1e-10:
+            if abs(fx - 1.0) < 1e-10:  # type: ignore[operator]
                 pass  # no warning when fx == 1.0
             else:
                 warnings.warn(
@@ -130,13 +130,13 @@ def _get_fx_and_base(
                     f"[fx=FXRates({{'{currency}{base}': {fx}}}), base='{base}'].",
                     UserWarning,
                 )
-            fx_ = fx
+            fx_ = fx  # type: ignore[assignment]
     else:  # base is None and fx is float or None.
         base_ = NoInput(0)
         if isinstance(fx, NoInput):
             fx_ = 1.0
         else:
-            if abs(fx - 1.0) < 1e-12:
+            if abs(fx - 1.0) < 1e-12:  # type: ignore[operator]
                 pass  # no warning when fx == 1.0
             else:
                 warnings.warn(
@@ -149,7 +149,7 @@ def _get_fx_and_base(
                     f"[fx=FXRates({{'{currency}bas': {fx}}}), base='bas'].",
                     UserWarning,
                 )
-            fx_ = fx
+            fx_ = fx  # type: ignore[assignment]
 
     return fx_, base_
 
@@ -284,7 +284,8 @@ def _validate_fx_as_forwards(fx: FX_) -> FXForwards:
             f"The given type, '{type(fx).__name__}', cannot be used here."
         )
     else:
-        return fx
+        _: FXForwards = fx
+        return _
 
 
 def _get_fx_fixings_from_non_fx_forwards(

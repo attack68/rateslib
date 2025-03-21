@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import warnings
 from datetime import datetime, timedelta
-from itertools import product, combinations
+from itertools import combinations, product
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -11,10 +11,10 @@ from pandas import DataFrame, Series
 
 from rateslib.calendars import add_tenor
 from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
-from rateslib.default import NoInput, PlotOutput, plot, _drb
+from rateslib.default import NoInput, PlotOutput, _drb, plot
 from rateslib.dual import Dual, gradient
 from rateslib.fx.fx_rates import FXRates
-from rateslib.mutability import _validate_states, _WithState, _new_state_post
+from rateslib.mutability import _new_state_post, _validate_states, _WithState
 
 if TYPE_CHECKING:
     from rateslib.typing import CalInput, DualTypes, Number
@@ -1247,7 +1247,6 @@ def forward_fx(
 
 
 class _FXForwardsAggregator(_WithState):
-
     _mutable_by_association = True
 
     @_new_state_post
@@ -1276,7 +1275,7 @@ class _FXForwardsAggregator(_WithState):
             self._set_new_state()
 
     @_new_state_post
-    def update(self):
+    def update(self) -> None:
         """
         This method calls a state *update* method, with no arguments, on its contained
         :class:`~rateslib.fx.FXForwards` objects.
@@ -1323,9 +1322,12 @@ class _FXForwardsAggregator(_WithState):
         path = self.paths[pair]
         if isinstance(path, str):
             # then use the cross defined by the intermediate currency
-            return self.rate(f"{pair[0:3]}{path}", settlement_) * self.rate(f"{path}{pair[3:6]}", settlement_)
+            return self.rate(f"{pair[0:3]}{path}", settlement_) * self.rate(
+                f"{path}{pair[3:6]}", settlement_
+            )
         else:
             return self.fxfs[path].rate(pair, settlement_)
+
 
 def _validate_crosses(fxfs: list[FXForwards], currencies: dict[str, int]) -> dict[str, int | str]:
     # crosses will consecutively check which FX rates are already available and if a degenerate
@@ -1335,7 +1337,6 @@ def _validate_crosses(fxfs: list[FXForwards], currencies: dict[str, int]) -> dic
     _crosses = np.ones((0, 0), dtype=int)
     _paths: dict[str, int | str] = {}
     for i, fxf in enumerate(fxfs):
-
         # add the new currencies to the currencies dict
         m = len(currencies)
         for ccy in fxf.currencies_list:
@@ -1344,10 +1345,12 @@ def _validate_crosses(fxfs: list[FXForwards], currencies: dict[str, int]) -> dic
         n = len(currencies)
 
         # update the _crosses array and validate if degenerate
-        _crosses = np.block([
-            [_crosses, np.zeros((m, n - m), dtype=int)],
-            [np.zeros((n - m, m), dtype=int), np.eye(n - m, dtype=int)],
-        ])
+        _crosses = np.block(  # type: ignore[assignment]
+            [
+                [_crosses, np.zeros((m, n - m), dtype=int)],
+                [np.zeros((n - m, m), dtype=int), np.eye(n - m, dtype=int)],
+            ]
+        )
         for j, ccy1 in enumerate(fxf.currencies_list):
             for ccy2 in fxf.currencies_list[j:]:
                 idx1, idx2 = currencies[ccy1], currencies[ccy2]
@@ -1378,6 +1381,7 @@ def _validate_crosses(fxfs: list[FXForwards], currencies: dict[str, int]) -> dic
         )
     return _paths
 
+
 def _validate_curves(fxfs: list[FXForwards]) -> dict[str, Curve]:
     # validate the fx curves on different FXForwards objects in the Aggregator are the same
     curves: dict[str, Curve] = {}
@@ -1395,7 +1399,11 @@ def _validate_curves(fxfs: list[FXForwards]) -> dict[str, Curve]:
     return curves
 
 
-def _find_crosses(arr, currencies: list[str], _paths: dict[str, int | str]):
+def _find_crosses(
+    arr: np.ndarray[tuple[int, int], np.dtype[Any]],
+    currencies: list[str],
+    _paths: dict[str, int | str]
+) -> np.ndarray[tuple[int, int], np.dtype[Any]]:
     """
     Analyse a matrix of FX crosses and recursively determine if other crosses are possible.
     If other crosses are determined, update the _paths dict to define the route to calculate the
@@ -1416,4 +1424,4 @@ def _find_crosses(arr, currencies: list[str], _paths: dict[str, int | str]):
     if np.all(new_arr == arr) or np.sum(new_arr, axis=None) == len(new_arr) ** 2:
         return new_arr
     else:
-        return _find_crosses(new_arr)
+        return _find_crosses(new_arr, currencies, _paths)
