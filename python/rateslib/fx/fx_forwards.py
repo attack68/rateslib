@@ -11,7 +11,7 @@ from pandas import DataFrame, Series
 
 from rateslib.calendars import add_tenor
 from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
-from rateslib.default import NoInput, PlotOutput, plot
+from rateslib.default import NoInput, PlotOutput, plot, _drb
 from rateslib.dual import Dual, gradient
 from rateslib.fx.fx_rates import FXRates
 from rateslib.mutability import _validate_states, _WithState, _new_state_post
@@ -1291,6 +1291,41 @@ class _FXForwardsAggregator(_WithState):
         for fxf in self.fxfs:
             fxf.update()
 
+    @_validate_states
+    def rate(
+        self,
+        pair: str,
+        settlement: datetime | NoInput = NoInput(0),
+    ) -> DualTypes:
+        """
+        Return the FX forward rate for a currency pair.
+
+        Parameters
+        ----------
+        pair : str
+            The FX pair in usual domestic:foreign convention (6 digit code), e.g. "eurusd".
+        settlement : datetime, optional
+            The settlement date of currency exchange. If not given defaults to
+            immediate settlement.
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        Notes
+        -----
+        Calls the associated method :meth:`FXForwards.rate() <rateslib.fx.FXForwards.rate>`
+        to derive FX rates either directly or indirectly via crosses.
+
+        """  # noqa: E501
+        settlement_: datetime = _drb(self.immediate, settlement)
+        path = self.paths[pair]
+        if isinstance(path, str):
+            # then use the cross defined by the intermediate currency
+            return self.rate(f"{pair[0:3]}{path}", settlement_) * self.rate(f"{path}{pair[3:6]}", settlement_)
+        else:
+            return self.fxfs[path].rate(pair, settlement_)
+
 def _validate_crosses(fxfs: list[FXForwards], currencies: dict[str, int]) -> dict[str, int | str]:
     # crosses will consecutively check which FX rates are already available and if a degenerate
     # pair is found then it will error.
@@ -1364,4 +1399,3 @@ def _find_crosses(arr, currencies: list[str], _paths: dict[str, int | str]):
         return new_arr
     else:
         return _find_crosses(new_arr)
-
