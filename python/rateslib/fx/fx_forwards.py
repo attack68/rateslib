@@ -1264,6 +1264,7 @@ class _FXForwardsAggregator(_WithState):
                     "FXForwards objects."
                 )
         self.immediate = self.fxfs[0].immediate
+        self.curves = _validate_curves(self.fxfs)
 
     def _get_composited_state(self) -> int:
         return hash(sum(fxf._state for fxf in self.fxfs))
@@ -1376,6 +1377,23 @@ def _validate_crosses(fxfs: list[FXForwards], currencies: dict[str, int]) -> dic
             f"between '{ccy1}' and '{ccy2}' as an example."
         )
     return _paths
+
+def _validate_curves(fxfs: list[FXForwards]) -> dict[str, Curve]:
+    # validate the fx curves on different FXForwards objects in the Aggregator are the same
+    curves: dict[str, Curve] = {}
+    for i, fxf in enumerate(fxfs):
+        for k, curve in fxf.fx_curves.items():
+            if k in curves and id(curves[k]) != id(curve):
+                raise ValueError(
+                    "Curves mapped to the same currency are different objects.\n"
+                    f"Specifically, the curve with id: '{curve.id}' in FXForwards object with "
+                    f"index: {i}, mapped to currency key: '{k}' does not match the existing Curve "
+                    "in the FXForwardsAggregator."
+                )
+            else:
+                curves[k] = curve
+    return curves
+
 
 def _find_crosses(arr, currencies: list[str], _paths: dict[str, int | str]):
     """
