@@ -1511,7 +1511,7 @@ class Solver(Gradients, _WithState):
     @_new_state_post
     def _update_fx(self) -> None:
         if not isinstance(self.fx, NoInput):
-            self.fx.update()  # note: with no variables this does nothing.
+            self.fx.update()  # note: with no variables this only updates states
         for solver in self.pre_solvers:
             solver._update_fx()
 
@@ -2057,7 +2057,7 @@ class Solver(Gradients, _WithState):
         .. warning::
            Market movement calculations are only possible between *Solvers* whose ``instruments``
            are associated with *Curves* with string ID mappings (which is best practice and
-           demonstrated HERE XXX). This allows two different
+           demonstrated in :ref:`Mechanisms <mechanisms-curves-doc>`). This allows two different
            *Solvers* to contain their own *Curves* (which may or may not be equivalent models),
            and for the instrument rates of one *Solver* to be evaluated by the *Curves* present
            in another *Solver*.
@@ -2097,7 +2097,7 @@ class Solver(Gradients, _WithState):
         .. warning::
            A Jacobian transformation is only possible between *Solvers* whose ``instruments``
            are associated with *Curves* with string ID mappings (which is best practice and
-           demonstrated HERE XXX). This allows two different
+           demonstrated in :ref:`Mechanisms <mechanisms-curves-doc>`). This allows two different
            *Solvers* to contain their own *Curves* (which may or may not be equivalent models),
            and for the instrument rates of one *Solver* to be evaluated by the *Curves* present
            in another *Solver*

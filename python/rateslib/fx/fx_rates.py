@@ -207,7 +207,7 @@ class FXRates(_WithState):
 
     @property
     def pairs_settlement(self) -> dict[str, datetime]:
-        return {k: self.settlement for k in self.pairs}
+        return dict.fromkeys(self.pairs, self.settlement)
 
     @property
     def variables(self) -> tuple[str, ...]:

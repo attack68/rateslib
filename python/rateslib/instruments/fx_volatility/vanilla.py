@@ -77,6 +77,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
         If str, there are four possibilities as above. If giving a specific delta should end
         with a 'd' for delta e.g. "-25d". Put deltas should be input including negative sign.
     eval_date: datetime, optional
+        Only required if ``expiry`` is given as string tenor.
         Should be entered as today (also called horizon) and **not** spot. Spot is derived
         from ``delivery_lag`` and ``calendar``.
     modifier : str, optional (defaults.modifier)

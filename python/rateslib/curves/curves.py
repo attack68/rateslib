@@ -623,7 +623,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                     interpolation="linear",
                 )
             else:  # or type(self) is IndexCurve
-                shifted = IndexCurve(
+                shifted = Curve(
                     nodes={start: 1.0, end: 1.0 / (1 + d * spread / 10000) ** days},
                     convention=self.convention,
                     calendar=self.calendar,
@@ -2128,25 +2128,6 @@ class LineCurve(Curve):
         return super().roll(tenor)
 
 
-class IndexCurve(Curve):
-    """
-    Deprecated. Use :class:`~rateslib.curves.Curve` with a valid ``index_base``.
-    """
-
-    def __init__(  # type: ignore[no-untyped-def]
-        self,
-        *args,
-        **kwargs,
-    ) -> None:
-        warnings.warn(
-            "`IndexCurve` is deprecated: use a `Curve` instead and the same arguments.",
-            DeprecationWarning,
-        )
-        super().__init__(*args, **{"interpolation": "linear_index", **kwargs})
-        if isinstance(self.index_base, NoInput):
-            raise ValueError("`index_base` must be given for IndexCurve.")
-
-
 class CompositeCurve(Curve):
     """
     A dynamic composition of a sequence of other curves.
@@ -2366,7 +2347,7 @@ class CompositeCurve(Curve):
 
     def _validate_curve_collection(self) -> None:
         """Perform checks to ensure CompositeCurve can exist"""
-        if type(self) is MultiCsaCurve and isinstance(self.curves[0], LineCurve | IndexCurve):
+        if type(self) is MultiCsaCurve and isinstance(self.curves[0], LineCurve):
             raise TypeError("Multi-CSA curves must be of type `Curve`.")
 
         if type(self) is MultiCsaCurve and self.multi_csa_min_step > self.multi_csa_max_step:
@@ -2380,9 +2361,7 @@ class CompositeCurve(Curve):
             )
 
         if not (
-            all(_ is Curve or _ is ProxyCurve for _ in types)
-            or all(_ is LineCurve for _ in types)
-            or all(_ is IndexCurve for _ in types)
+            all(_ is Curve or _ is ProxyCurve for _ in types) or all(_ is LineCurve for _ in types)
         ):
             raise TypeError(f"`curves` must be a list of similar type curves, got {types}.")
 
@@ -2704,6 +2683,11 @@ class MultiCsaCurve(CompositeCurve):
        Can only combine curves of the type: :class:`Curve`. Other curve parameters such as
        ``modifier``, and ``convention`` must also match.
 
+    .. warning::
+       Intrinsic *MultiCsaCurves*, by definition, are not natively AD safe, due to having
+       discontinuities and no available derivatives in certain cases. See
+       :ref:`discontinuous MultiCsaCurves <cook-multicsadisc-doc>`.
+
     Parameters
     ----------
     curves : sequence of :class:`Curve`
@@ -2797,7 +2781,7 @@ class MultiCsaCurve(CompositeCurve):
 
         d2 = d1 + timedelta(days=_get_step(defaults.multi_csa_steps[0]))
         # cache stores looked up DF values to next loop, avoiding double calc
-        cache: dict[int, DualTypes] = {i: 1.0 for i in range(len(self.curves))}
+        cache: dict[int, DualTypes] = dict.fromkeys(range(len(self.curves)), 1.0)
         k: int = 1
         while d2 < date:
             min_ratio: DualTypes = 1e5

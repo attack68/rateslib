@@ -21,18 +21,54 @@ email contact, see `rateslib <https://rateslib.com>`_.
 
    * - Feature
      - Description
+   * - **Removed**
+     - ``IndexCurve``, which was deprecated with warnings in 1.7.0, has been removed.
+       (`691 <https://github.com/attack68/rateslib/pull/691>`_)
    * - Period
      - Add :class:`~rateslib.periods.NonDeliverableFixedPeriod`
        (`681 <https://github.com/attack68/rateslib/pull/681>`_)
    * - Calendars
      - Allow custom calendar additions to ``defaults.calendars`` and fast fetching with
        :meth:`~rateslib.calendars.get_calendar`.
+       (`684 <https://github.com/attack68/rateslib/pull/684>`_)
+   * - Instruments
+     - Add ``calc_mode`` *'eurex_eur'* for :class:`~rateslib.instruments.BondFuture`.
+       (`699 <https://github.com/attack68/rateslib/pull/699>`_)
+   * - Instruments
+     - Add ``spec`` argument for :class:`~rateslib.instruments.BondFuture`, and some CME treasury futures and EUREX
+       bond future default specifications. This has also refactored the *BondFuture* attributes into a ``kwargs``
+       dict instead of being directly accessible on the object. This may affect existing code that relies on these
+       attributes.
+       (`700 <https://github.com/attack68/rateslib/pull/700>`_)
    * - Refactor
      - Rename :class:`~rateslib.instruments.BaseMixin` to :class:`~rateslib.instruments.Metrics`.
        (`678 <https://github.com/attack68/rateslib/pull/678>`_)
+   * - Refactor
+     - Minor changes to :class:`BondFuture.cms <rateslib.instruments.BondFuture.cms>` to avoid
+       the proceeds method of repo rates and utilise only a bond curve for forward bond prices.
+       (`693 <https://github.com/attack68/rateslib/pull/693>`_)
+   * - Refactor
+     - :red:`Minor Breaking Change!` The argument ``notional`` in
+       :class:`~rateslib.instruments.NDF` now **always** refers to the *reference currency* and
+       **never** the *settlement currency*. The :meth:`~rateslib.instruments.NDF.cashflows` method
+       is also now more explicit and shows both the settlement exchange and the converted amount
+       of the deliverable cashflow.
+       (`695 <https://github.com/attack68/rateslib/pull/695>`_)
+   * - Refactor
+     - :red:`Minor Breaking Change!` The argument ``reference_currency`` is renamed ``currency``,
+       and the argument ``settlement`` is renamed ``payment`` in
+       :class:`~rateslib.periods.NonDeliverableCashflow`.
+       (`677 <https://github.com/attack68/rateslib/pull/677>`_)
+       (`694 <https://github.com/attack68/rateslib/pull/694>`_)
    * - Bug
      - Add :class:`~rateslib.instruments.NDF` to global *rateslib* namespace.
        (`682 <https://github.com/attack68/rateslib/pull/682>`_)
+   * - Bug
+     - Add :class:`~rateslib.legs.CreditProtectionLeg`,
+       :class:`~rateslib.legs.CreditPremiumLeg`, :class:`~rateslib.periods.CreditProtectionPeriod`,
+       :class:`~rateslib.periods.CreditPremiumPeriod` and
+       :class:`~rateslib.periods.NonDeliverableCashflow` to global *rateslib* namespace.
+       (`697 <https://github.com/attack68/rateslib/pull/697>`_)
 
 1.7.0 (31st January 2025)
 ****************************

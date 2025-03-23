@@ -67,13 +67,13 @@ class TimeSuite:
         self.curve = Curve(
             {
                 dt(2023, 8, 17): 1.0,  # <- this is today's DF,
-                **{_: 0.99 for _ in dates[1:]},
+                **dict.fromkeys(dates[1:], 0.99),
             }
         )
         self.curve2 = Curve(
             {
                 dt(2023, 8, 17): 1.0,  # <- this is today's DF,
-                **{_: 1.0 for _ in self.data["Termination"]},
+                **dict.fromkeys(self.data["Termination"], 1.0),
             },
             t=[dates[0], dates[0], dates[0]] + dates + [dates[-1], dates[-1], dates[-1]],
         )
@@ -88,7 +88,7 @@ class TimeSuite:
             interpolation="log_linear",
             nodes={
                 dt(2023, 8, 17): 1.0,  # <- this is today's DF,
-                **{_: 1.0 for _ in self.data["Termination"]},
+                **dict.fromkeys(self.data["Termination"], 1.0),
             },
         )
         sofr_args = dict(effective=dt(2023, 8, 21), spec="usd_irs", curves="sofr")
@@ -109,7 +109,7 @@ class TimeSuite:
             interpolation="log_linear",
             nodes={
                 dt(2023, 8, 17): 1.0,  # <- this is today's DF,
-                **{_: 1.0 for _ in self.data["Termination"]},
+                **dict.fromkeys(self.data["Termination"], 1.0),
             },
         )
         spread = Curve(

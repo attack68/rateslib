@@ -55,3 +55,4 @@ into any one category.
     z_bondctd.rst
     z_exogenous.rst
     z_fixings_exposures.rst
+    z_multicsa.rst

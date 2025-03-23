@@ -6,7 +6,7 @@ from pandas import DataFrame, Index, MultiIndex, Series, isna
 from pandas.testing import assert_frame_equal
 from rateslib import default_context
 from rateslib.calendars import add_tenor
-from rateslib.curves import CompositeCurve, Curve, IndexCurve, LineCurve, MultiCsaCurve
+from rateslib.curves import CompositeCurve, Curve, LineCurve, MultiCsaCurve
 from rateslib.curves._parsers import _map_curve_from_solver
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, dual_exp, gradient
@@ -262,7 +262,7 @@ class TestCurvesandSolver:
         [
             (Curve({dt(2000, 1, 1): 1.0})),
             (LineCurve({dt(2000, 1, 1): 1.0})),
-            (IndexCurve({dt(2000, 1, 1): 1.0}, index_base=100.0)),
+            (Curve({dt(2000, 1, 1): 1.0}, index_base=100.0)),
             (CompositeCurve([Curve({dt(2000, 1, 1): 1.0})])),
             (MultiCsaCurve([Curve({dt(2000, 1, 1): 1.0})])),
             (
@@ -692,7 +692,12 @@ class TestNullPricing:
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
         c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
         c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.982}, id="eurusd")
-        c4 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995}, id="eu_cpi", index_base=100.0)
+        c4 = Curve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995},
+            id="eu_cpi",
+            index_base=100.0,
+            interpolation="linear_index",
+        )
         fxf = FXForwards(
             FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
             {"usdusd": c1, "eureur": c2, "eurusd": c3},
@@ -737,7 +742,12 @@ class TestNullPricing:
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
         c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
         c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.982}, id="eurusd")
-        c4 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995}, id="eu_cpi", index_base=100.0)
+        c4 = Curve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995},
+            id="eu_cpi",
+            index_base=100.0,
+            interpolation="linear_index",
+        )
         fxf = FXForwards(
             FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
             {"usdusd": c1, "eureur": c2, "eurusd": c3},
@@ -782,7 +792,12 @@ class TestNullPricing:
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
         c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
         c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.982}, id="eurusd")
-        c4 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995}, id="eu_cpi", index_base=100.0)
+        c4 = Curve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995},
+            id="eu_cpi",
+            index_base=100.0,
+            interpolation="linear_index",
+        )
         fxf = FXForwards(
             FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
             {"usdusd": c1, "eureur": c2, "eurusd": c3},
@@ -836,7 +851,12 @@ class TestNullPricing:
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
         c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
         c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.982}, id="eurusd")
-        c4 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995}, id="eu_cpi", index_base=100.0)
+        c4 = Curve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995},
+            id="eu_cpi",
+            index_base=100.0,
+            interpolation="linear_index",
+        )
         fxf = FXForwards(
             FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
             {"usdusd": c1, "eureur": c2, "eurusd": c3},
@@ -882,7 +902,12 @@ class TestNullPricing:
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
         c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
         c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.982}, id="eurusd")
-        c4 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995}, id="eu_cpi", index_base=100.0)
+        c4 = Curve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995},
+            id="eu_cpi",
+            index_base=100.0,
+            interpolation="linear_index",
+        )
         fxf = FXForwards(
             FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
             {"usdusd": c1, "eureur": c2, "eurusd": c3},
@@ -1369,10 +1394,11 @@ class TestIRS:
 
 class TestIIRS:
     def test_index_base_none_populated(self, curve) -> None:
-        i_curve = IndexCurve(
+        i_curve = Curve(
             {dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.5, dt(2034, 1, 1): 0.4},
             index_lag=3,
             index_base=100.0,
+            interpolation_method="linear_index",
         )
         iirs = IIRS(
             effective=dt(2022, 2, 1),
@@ -1388,10 +1414,11 @@ class TestIIRS:
             assert period.index_base == 200.0
 
     def test_iirs_npv_mid_mkt_zero(self, curve) -> None:
-        i_curve = IndexCurve(
+        i_curve = Curve(
             {dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.5, dt(2034, 1, 1): 0.4},
             index_lag=3,
             index_base=100.0,
+            interpolation="linear_index",
         )
         iirs = IIRS(
             effective=dt(2022, 2, 1),
@@ -1419,10 +1446,11 @@ class TestIIRS:
         assert abs(mid_fixed - new_mid) < 1e-6
 
     def test_cashflows(self, curve) -> None:
-        i_curve = IndexCurve(
+        i_curve = Curve(
             {dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 0.99},
             index_lag=3,
             index_base=100.0,
+            interpolation="linear_index",
         )
         iirs = IIRS(
             effective=dt(2022, 2, 1),
@@ -1453,10 +1481,11 @@ class TestIIRS:
         )
 
     def test_npv_no_index_base(self, curve) -> None:
-        i_curve = IndexCurve(
+        i_curve = Curve(
             {dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.5, dt(2034, 1, 1): 0.4},
             index_lag=3,
             index_base=100.0,
+            interpolation="linear_index",
         )
         iirs = IIRS(
             effective=dt(2022, 2, 1),
@@ -1471,10 +1500,11 @@ class TestIIRS:
         assert abs(result - expected) < 1e-6
 
     def test_cashflows_no_index_base(self, curve) -> None:
-        i_curve = IndexCurve(
+        i_curve = Curve(
             {dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.5, dt(2034, 1, 1): 0.4},
             index_lag=3,
             index_base=100.0,
+            interpolation="linear_index",
         )
         iirs = IIRS(
             effective=dt(2022, 2, 1),
@@ -1744,7 +1774,11 @@ class TestZCS:
 
 class TestZCIS:
     def test_leg2_index_base(self, curve) -> None:
-        i_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_base=200.0)
+        i_curve = Curve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
+            index_base=200.0,
+            interpolation="linear_index",
+        )
         zcis = ZCIS(
             effective=dt(2022, 1, 1),
             termination="9m",
@@ -1759,7 +1793,11 @@ class TestZCIS:
     def test_solver_failure_unspecified_index_base(self, curve) -> None:
         # GH 349
         curve = Curve({dt(2022, 1, 15): 1.0, dt(2023, 1, 1): 0.98})
-        i_curve = IndexCurve({dt(2022, 1, 15): 1.0, dt(2023, 1, 1): 0.99}, index_base=200.0)
+        i_curve = Curve(
+            {dt(2022, 1, 15): 1.0, dt(2023, 1, 1): 0.99},
+            index_base=200.0,
+            interpolation="linear_index",
+        )
         zcis = ZCIS(
             effective=dt(2022, 1, 15),
             termination="9m",
@@ -1794,10 +1832,11 @@ class TestValue:
         assert result == expected
 
     def test_index_value(self) -> None:
-        curve = IndexCurve(
+        curve = Curve(
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995},
             id="eu_cpi",
             index_base=100.0,
+            interpolation="linear_index",
         )
         v = Value(effective=dt(2022, 7, 1), metric="index_value")
         result = v.rate(curve)
@@ -1949,13 +1988,13 @@ class TestNDF:
             pair="brlusd",
             settlement=dt(2022, 1, 1),
         )
-        assert ndf.periods[0].reference_currency == "brl"
+        assert ndf.periods[0].currency == "brl"
         assert ndf.periods[0].settlement_currency == "usd"
         assert ndf.periods[0].reversed is False
 
     def test_construction_reversed(self) -> None:
         ndf = NDF(pair="usdbrl", settlement=dt(2022, 1, 1), currency="usd")
-        assert ndf.periods[0].reference_currency == "brl"
+        assert ndf.periods[0].currency == "brl"
         assert ndf.periods[0].settlement_currency == "usd"
         assert ndf.periods[0].reversed is True
 
@@ -1975,7 +2014,7 @@ class TestNDF:
             calendar="tgt|fed",
             payment_lag=lag,
         )
-        assert ndf.periods[0].settlement == exp2
+        assert ndf.periods[0].payment == exp2
         assert ndf.periods[0].fixing_date == exp1
 
     @pytest.mark.parametrize(
@@ -1995,7 +2034,7 @@ class TestNDF:
             payment_lag=2,
             eom=eom,
         )
-        assert ndf.periods[0].settlement == exp
+        assert ndf.periods[0].payment == exp
         assert ndf.periods[0].fixing_date == exp2
 
     def test_zero_analytic_delta(self):
@@ -2032,6 +2071,7 @@ class TestNDF:
             currency="usd",
             calendar="tgt|fed",
             payment_lag=2,
+            fx_rate=1.05,
         )
         result = ndf.cashflows(curves=usdusd, fx=fxf)
         assert result.loc[("leg1", 0), "Type"] == "NonDeliverableCashflow"
@@ -2039,7 +2079,91 @@ class TestNDF:
         assert result.loc[("leg1", 0), "Ccy"] == "USD"
         assert result.loc[("leg1", 0), "Payment"] == dt(2022, 4, 4)
         assert result.loc[("leg1", 0), "Rate"] == 1.0210354810081033
-        assert result.loc[("leg1", 0), "Index Val"] == 1.0210354810081033
+        assert result.loc[("leg1", 1), "Rate"] == 1.05
+        assert result.loc[("leg1", 1), "Notional"] == 1050000.0
+
+    @pytest.mark.parametrize(("base", "expected"), [("eur", -28103.831), ("usd", -28665.269)])
+    def test_npv(self, usdusd, usdeur, eureur, base, expected):
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.02}, settlement=dt(2022, 1, 3)),
+            {"eureur": eureur, "usdeur": usdeur, "usdusd": usdusd},
+        )
+        ndf = NDF(
+            pair="eurusd",
+            settlement="3m",
+            eval_date=dt(2022, 1, 1),
+            currency="usd",
+            calendar="tgt|fed",
+            payment_lag=2,
+            fx_rate=1.05,
+            notional=1e6,
+        )
+        result = ndf.npv(curves=usdusd, fx=fxf, base=base)
+        assert abs(result - expected) < 1e-3
+
+        expected = {"usd": -28665.269}
+        local_result = ndf.npv(curves=usdusd, fx=fxf, base=base, local=True)
+        assert len(local_result.keys()) == 1
+        assert abs(local_result["usd"] - expected["usd"]) < 1e-3
+
+    @pytest.mark.parametrize(("pair", "rate"), [("eurusd", 1.05), ("usdeur", 0.952380952)])
+    def test_npv_direction(self, usdusd, usdeur, eureur, pair, rate):
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.02}, settlement=dt(2022, 1, 3)),
+            {"eureur": eureur, "usdeur": usdeur, "usdusd": usdusd},
+        )
+        ndf = NDF(
+            pair=pair,
+            settlement="3m",
+            eval_date=dt(2022, 1, 1),
+            currency="usd",
+            calendar="tgt|fed",
+            payment_lag=2,
+            fx_rate=rate,
+            notional=1e6,
+        )
+        result = ndf.npv(curves=usdusd, fx=fxf)
+        expected = -28665.26900
+        assert abs(result - expected) < 1e-3
+
+    @pytest.mark.parametrize(("base", "expected"), [("eur", 0.0), ("usd", 0.0)])
+    def test_npv_unpriced(self, usdusd, usdeur, eureur, base, expected):
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.02}, settlement=dt(2022, 1, 3)),
+            {"eureur": eureur, "usdeur": usdeur, "usdusd": usdusd},
+        )
+        ndf = NDF(
+            pair="eurusd",
+            settlement="3m",
+            eval_date=dt(2022, 1, 1),
+            currency="usd",
+            calendar="tgt|fed",
+            payment_lag=2,
+        )
+        result = ndf.npv(curves=usdusd, fx=fxf, base=base)
+        assert abs(result - expected) < 1e-3
+
+        local_result = ndf.npv(curves=usdusd, fx=fxf, base=base, local=True)
+        expected = {"usd": 0.0}
+        assert len(local_result.keys()) == 1
+        assert abs(local_result["usd"] - expected["usd"]) < 1e-3
+
+    def test_rate(self, usdusd, usdeur, eureur):
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.02}, settlement=dt(2022, 1, 3)),
+            {"eureur": eureur, "usdeur": usdeur, "usdusd": usdusd},
+        )
+        ndf = NDF(
+            pair="eurusd",
+            settlement="3m",
+            eval_date=dt(2022, 1, 1),
+            currency="usd",
+            calendar="tgt|fed",
+            payment_lag=2,
+        )
+        result = ndf.rate(curves=usdusd, fx=fxf)
+        expected = 1.021035
+        assert abs(result - expected) < 1e-6
 
 
 # test the commented out FXSwap variant
@@ -3771,9 +3895,10 @@ class TestPricingMechanism:
         ob.spread()
 
     def test_iirs(self, curve) -> None:
-        i_curve = IndexCurve(
+        i_curve = Curve(
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_base=100.0,
+            interpolation="linear_index",
         )
         ob = IIRS(dt(2022, 1, 28), "6m", "Q", curves=[i_curve, curve, curve, curve])
         ob.rate()
@@ -3831,9 +3956,10 @@ class TestPricingMechanism:
         ob.cashflows()
 
     def test_zcis(self, curve) -> None:
-        i_curve = IndexCurve(
+        i_curve = Curve(
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_base=100.0,
+            interpolation="linear_index",
         )
         ob = ZCIS(dt(2022, 1, 28), "6m", "S", curves=[curve, curve, i_curve, curve])
         ob.rate()

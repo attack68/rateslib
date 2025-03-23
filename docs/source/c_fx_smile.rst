@@ -255,7 +255,8 @@ i.e. local currency interest rates at 3.90% and 5.32%, and an FX Swap rate at 8.
 FX Volatility Surfaces
 **********************
 
-*FX Surfaces* in *rateslib* are collections of cross sectional *FX Smiles* where:
+An :class:`~rateslib.fx_volatility.FXDeltaVolSurface` in *rateslib* is a collection of
+multiple, cross-sectional :class:`~rateslib.fx_volatility.FXDeltaVolSmile` where:
 
 - each cross-sectional *Smile* will represent a *Smile* at that explicit *expiry*,
 - the *delta type* and the *delta indexes* on each cross-sectional *Smile* are the same,
@@ -416,6 +417,10 @@ this produces minor deviations from his calculated values.
 
    with option_context("display.float_format", lambda x: '%.4f' % x):
        print(data2)
+
+See the article entitled **FX Volatility Surface Temporal Interpolation** in the
+:ref:`Cookbook <cookbook-doc>` to read more about time-weighted volatility, and accounting for
+weekends and holidays etc..
 
 Plotting
 *********
