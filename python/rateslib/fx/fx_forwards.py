@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import warnings
 from datetime import datetime, timedelta
-from itertools import product
+from itertools import product, combinations
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -1246,18 +1246,65 @@ def forward_fx(
     return _
 
 
-def _recursive_pair_population(arr: np.ndarray) -> None:
+def _recursive_pair_population(
+    arr: np.ndarray,
+    mapping: dict[(int, int), int | None] | None = None,
+) -> tuple[np.ndarray, dict[(int, int), int | None]]:
     """
-    Recursively scan through an indicator matrix and populate new entries if possible.
-    Also detect if
+    Recursively scan through an indicator matrix and populate new entries.
 
+    This identifies existing FX pairs and attempts to derive new FX pairs from those values.
 
     Parameters
     ----------
-    arr
+    arr: 2d-ndarray
+        An square indicator matrix consisting only of zeros and ones.
 
-    Returns
-    -------
+    Notes
+    -----
+    ``arr`` should satify the following:
 
+    - be a square matrix,
+    - be an indicator matrix containing only zero and ones,
+    - have unit diagonal,
+    - sum to 2n - 1, so that the correct number of prior rates are supplied,
+    - be a full rank matrix so no pairs are degenerate
     """
+    # Build the initial mapping if none exists
+    if mapping is None:
+        mapping: dict[(int, int), int | None] = {}
+        for i in range(len(arr)):
+            for j in range(len(arr)):
+                if i == j:
+                    continue
+                if arr[i,j] == 1:
+                    mapping[(i,j)] = None  # identify the pair as being directly mapped
+
+    # loop through currencies and find new pairs
+    _arr = arr.copy()
+    for i in range(len(_arr)):
+        ccy_idxs = [_ for _ in range(len(_arr)) if _arr[i, _] == 1]
+        pairs = combinations(ccy_idxs, 2)
+        for pair in pairs:
+            if _arr[pair[0], pair[1]] == 1 and _arr[pair[1], pair[0]] == 1:
+                # then the rate and its inverse are already attainable
+                continue
+            elif _arr[pair[0], pair[1]] == 1:
+                # then the inverse is directly attainable
+                mapping[pair[1], pair[0]] = mapping[pair[0], pair[1]]
+                _arr[pair[1], pair[0]] = 1
+            elif _arr[pair[1], pair[0]] == 1:
+                # then the inverse is directly attainable
+                mapping[pair[0], pair[1]] = mapping[pair[1], pair[0]]
+                _arr[pair[0], pair[1]] = 1
+            else:
+                _arr[pair[0], [pair[1]]] = 1
+                _arr[pair[1], [pair[0]]] = 1
+                mapping[(pair[0], pair[1])] = i
+                mapping[(pair[1], pair[0])] = i
+
+    if np.all(_arr == arr) or np.sum(_arr, axis=None) == len(_arr) ** 2:
+        return _arr, mapping
+    else:
+        return _recursive_pair_population(_arr, mapping)
 

@@ -14,6 +14,7 @@ from rateslib.fx import (
     FXRates,
     forward_fx,
 )
+from rateslib.fx.fx_forwards import _recursive_pair_population
 from rateslib.json import from_json
 
 
@@ -1489,3 +1490,55 @@ class TestFXForwards:
         fxf.update([{"eurusd": 2.0}])
         after = fxf._state
         assert before != after
+
+
+def test_recursive_pair_population1():
+    arr = np.array([
+        [1, 0, 1],
+        [0, 1, 0],
+        [0, 1, 1],
+    ])
+    result = _recursive_pair_population(arr)
+    expected = {
+        (0, 1): 2,
+        (0, 2): None,
+        (1, 0): 2,
+        (1, 2): None,
+        (2, 0): None,
+        (2, 1): None,
+    }
+    assert result[1] == expected
+
+def test_recursive_pair_population2():
+    # 5 currency example in 'Coding Interest Rates'
+    arr = np.array([
+        [1, 0, 0, 0, 0],
+        [1, 1, 0, 0, 0],
+        [0, 1, 1, 0, 0],
+        [1, 0, 0, 1, 0],
+        [0, 0, 0, 1, 1],
+    ])
+    result = _recursive_pair_population(arr)
+    expected = {
+        (0, 1): None,
+        (0, 2): 1,
+        (0, 3): None,
+        (0, 4): 3,
+        (1, 0): None,
+        (1, 2): None,
+        (1, 3): 0,
+        (1, 4): 3,
+        (2, 0): 1,
+        (2, 1): None,
+        (2, 3): 1,
+        (2, 4): 3,
+        (3, 0): None,
+        (3, 1): 0,
+        (3, 2): 1,
+        (3, 4): None,
+        (4, 0): 3,
+        (4, 1): 3,
+        (4, 2): 3,
+        (4, 3): None
+    }
+    assert result[1] == expected
