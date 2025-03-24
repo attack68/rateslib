@@ -206,13 +206,13 @@ class FXRates(_WithState):
 
     @property
     def currencies_list(self) -> list[str]:
-        """An list of currencies available in the object. Aligns with ``currencies``."""
+        """A list of currencies available in the object. Aligns with ``currencies``."""
         return [ccy.name for ccy in self.obj.currencies]
 
     @property
     def currencies(self) -> dict[str, int]:
         """A dict whose keys are the currencies contained in the object and the value is the
-        ordered index of that currencies in other attributes such as ``fx_array`` and
+        ordered index of that currency in other attributes such as ``fx_array`` and
         ``currencies_list``."""
         return self._currencies
 

@@ -14,7 +14,7 @@ from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
 from rateslib.default import NoInput, PlotOutput, plot
 from rateslib.dual import Dual, gradient
 from rateslib.fx.fx_rates import FXRates
-from rateslib.mutability import _validate_states, _WithState
+from rateslib.mutability import _validate_states, _WithState, _new_state_post
 
 if TYPE_CHECKING:
     from rateslib.typing import CalInput, DualTypes, Number
@@ -34,6 +34,304 @@ if TYPE_CHECKING:
 
 
 class FXForwards(_WithState):
+
+    def __repr__(self) -> str:
+        if len(self.currencies_list) > 5:
+            return (
+                f"<rl.FXForwards:[{','.join(self.currencies_list[:2])},"
+                f"+{len(self.currencies_list) - 2} others] at {hex(id(self))}>"
+            )
+        else:
+            return f"<rl.FXForwards:[{','.join(self.currencies_list)}] at {hex(id(self))}>"
+
+    @_new_state_post
+    def __init__(
+        self,
+        fx_rates: FXRates | list[FXRates],
+        fx_curves: dict[str, Curve],
+        base: str | NoInput = NoInput(0),
+    ) -> None:
+        self.obj = _FXForwards(fx_rates, fx_curves, base)
+
+    @property
+    def currencies(self) -> dict[str, int]:
+        """A dict whose keys are the currencies contained in the object and the value is the
+        ordered index of that currency in other attributes such as
+        ``currencies_list``."""
+        return self.obj.currencies
+
+    @property
+    def q(self) -> int:
+        return self.obj.q
+
+    @property
+    def currencies_list(self) -> list[str]:
+        """A list of currencies available in the object. Aligns with ``currencies``."""
+        return self.obj.currencies_list
+
+    @property
+    def fx_rates(self) -> FXRates | list[FXRates]:
+        """FXRates objects that have defined this object."""
+        return self.obj.fx_rates
+
+    @property
+    def fx_curves(self) -> dict[str, Curve]:
+        return self.obj.fx_curves
+
+    @property
+    def immediate(self) -> datetime:
+        return self.obj.immediate
+
+    @property
+    def terminal(self) -> datetime:
+        return self.obj.terminal
+
+    @property
+    def base(self) -> str:
+        """The assumed base currency of the object which may be used as the default ``base``
+        currency in ``npv`` calculations when otherwise omitted.
+        """
+        return self.obj.base
+
+    @property
+    def _ad(self) -> int:
+        return self.obj._ad
+
+    def update(self):
+        return self.obj.update()
+
+    def _set_ad_order(self, order: int) -> None:
+        return self.obj._set_ad_order(order)
+
+    def rate(
+        self,
+        pair: str,
+        settlement: datetime | NoInput = NoInput(0),
+    ) -> DualTypes:
+        """
+        Return the fx forward rate for a currency pair.
+
+        Parameters
+        ----------
+        pair : str
+            The FX pair in usual domestic:foreign convention (6 digit code).
+        settlement : datetime, optional
+            The settlement date of currency exchange. If not given defaults to
+            immediate settlement.
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        Notes
+        -----
+        Uses the formula,
+
+        .. math::
+
+           f_{DOMFOR, i} = \\frac{w_{dom:for, i}}{v_{for:for, i}} F_{DOMFOR,0} = \\frac{v_{dom:dom, i}}{w_{for:dom, i}} F_{DOMFOR,0}
+
+        where :math:`v` is a local currency discount curve and :math:`w` is a discount
+        curve collateralised with an alternate currency.
+
+        If required curves do not exist in the relevant currencies then forwards rates are chained
+        using those calculable from available curves. The chain is found using a search algorithm.
+
+        .. math::
+
+           f_{DOMFOR, i} = f_{DOMALT, i} ...  f_{ALTFOR, i}
+
+        """  # noqa: E501
+        return self.obj._rate_with_path(pair, settlement)[0]
+
+    # @_validate_state: unused because this is circular. Any method that calls _rate_with_path
+    # should be pre cache validated. This is also used in initialisation.
+    def _rate_with_path(
+        self,
+        pair: str,
+        settlement: datetime | NoInput = NoInput(0),
+        path: list[dict[str, int]] | NoInput = NoInput(0),
+    ) -> tuple[DualTypes, list[dict[str, int]]]:
+        """
+        Return the fx forward rate for a currency pair, including the path taken to traverse ccys.
+
+        Parameters
+        ----------
+        pair : str
+            The FX pair in usual domestic:foreign convention (6 digit code).
+        settlement : datetime, optional
+            The settlement date of currency exchange. If not given defaults to
+            immediate settlement.
+        path : list of dict, optional
+            The chain of currency collateral curves to traverse to calculate the rate.
+            This is calculated automatically and this argument is provided for
+            internal calculation to avoid repeatedly calculating the same path. Use of
+            this argument in normal circumstances is not recommended.
+
+        Returns
+        -------
+        tuple
+
+        Notes
+        -----
+        This function does not have automatic cache management. If a *Curve* or an *FXRates*
+        object has been updated, one *must* call `FXForwards.update` before calling this methob.
+        """
+        return self.obj._rate_with_path(pair, settlement, path)
+
+    @_validate_states
+    def swap(
+        self,
+        pair: str,
+        settlements: list[datetime],
+        path: list[dict[str, int]] | NoInput = NoInput(0),
+    ) -> DualTypes:
+        """
+        Return the FXSwap mid-market rate for the given currency pair.
+
+        Parameters
+        ----------
+        pair : str
+            The FX pair in usual domestic:foreign convention (6-digit code).
+        settlements : list of datetimes,
+            The settlement date of currency exchanges.
+        path : list of dict, optional
+            The chain of currency collateral curves to traverse to calculate the rate.
+            This is calculated automatically and this argument is provided for
+            internal calculation to avoid repeatedly calculating the same path. Use of
+            this argument in normal circumstances is not recommended.
+
+        Returns
+        -------
+        Dual
+        """
+        fx0, path_ = self._rate_with_path(pair, settlements[0], path)
+        fx1, _ = self._rate_with_path(pair, settlements[1], path_)
+        return (fx1 - fx0) * 10000
+
+    @_validate_states
+    def plot(
+        self,
+        pair: str,
+        right: datetime | str | NoInput = NoInput(0),
+        left: datetime | str | NoInput = NoInput(0),
+        fx_swap: bool = False,
+    ) -> PlotOutput:
+        """
+        Plot given forward FX rates.
+
+        Parameters
+        ----------
+        pair : str
+            The FX pair to determine rates for (6-digit code).
+        right : datetime or str, optional
+            The right bound of the graph. If given as str should be a tenor format
+            defining a point measured from the initial node date of the curve.
+            Defaults to the terminal date of the FXForwards object.
+        left : datetime or str, optional
+            The left bound of the graph. If given as str should be a tenor format
+            defining a point measured from the initial node date of the curve.
+            Defaults to the immediate FX settlement date.
+        fx_swap : bool
+            Whether to plot as the FX rate or as FX swap points relative to the
+            initial FX rate on the left side of the chart.
+            Default is `False`.
+
+        Returns
+        -------
+        (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
+        """
+        if isinstance(left, NoInput):
+            left_: datetime = self.immediate
+        elif isinstance(left, str):
+            left_ = add_tenor(self.immediate, left, "NONE", NoInput(0))
+        elif isinstance(left, datetime):
+            left_ = left
+        else:
+            raise ValueError("`left` must be supplied as datetime or tenor string.")
+
+        if isinstance(right, NoInput):
+            right_: datetime = self.terminal
+        elif isinstance(right, str):
+            right_ = add_tenor(self.immediate, right, "NONE", NoInput(0))
+        elif isinstance(right, datetime):
+            right_ = right
+        else:
+            raise ValueError("`right` must be supplied as datetime or tenor string.")
+
+        points: int = (right_ - left_).days
+        x = [left_ + timedelta(days=i) for i in range(points)]
+        _, path = self._rate_with_path(pair, x[0])
+        rates: list[DualTypes] = [self._rate_with_path(pair, _, path=path)[0] for _ in x]
+        if not fx_swap:
+            y: list[list[DualTypes]] = [rates]
+        else:
+            y = [[(rate - rates[0]) * 10000 for rate in rates]]
+        return plot(x, y)
+
+    @_validate_states
+    def to_json(self) -> str:
+        if isinstance(self.fx_rates, list):
+            fx_rates: list[str] | str = [_.to_json() for _ in self.fx_rates]
+        else:
+            fx_rates = self.fx_rates.to_json()
+        container = {
+            "base": self.base,
+            "fx_rates": fx_rates,
+            "fx_curves": {k: v.to_json() for k, v in self.fx_curves.items()},
+        }
+        return json.dumps(container, default=str)
+
+    @classmethod
+    def from_json(cls, fx_forwards: str, **kwargs) -> FXForwards:  # type: ignore[no-untyped-def]
+        """
+        Loads an FXForwards object from JSON.
+
+        Parameters
+        ----------
+        fx_forwards : str
+            JSON string describing the FXForwards class. Typically constructed with
+            :meth:`to_json`.
+
+        Returns
+        -------
+        FXForwards
+
+        Notes
+        -----
+        This method also creates new ``FXRates`` and ``Curve`` objects from JSON.
+        These new objects can be accessed from the attributes of the ``FXForwards``
+        instance.
+        """
+        from rateslib.json import from_json
+
+        serial = json.loads(fx_forwards)
+
+        if isinstance(serial["fx_rates"], list):
+            fx_rates = [from_json(_) for _ in serial["fx_rates"]]
+        else:
+            fx_rates = from_json(serial["fx_rates"])
+
+        fx_curves = {k: Curve.from_json(v) for k, v in serial["fx_curves"].items()}
+        base = serial["base"]
+        return FXForwards(fx_rates, fx_curves, base)
+
+    def __eq__(self, other: Any) -> bool:
+        """Test two FXForwards are identical"""
+        return self.obj.__eq__(other)
+
+    def __ne__(self, other: Any) -> bool:
+        return not self.__eq__(other)
+
+    # @_validate_state: unused because it is redirected to a cache_validated method (to_json)
+    def copy(self) -> FXForwards:
+        """
+        An FXForwards copy creates a new object with copied references.
+        """
+        return self.from_json(self.to_json())
+
+
+class _FXForwards(_WithState):
     """
     Class for storing and calculating FX forward rates.
 
@@ -444,7 +742,7 @@ class FXForwards(_WithState):
                 elif path_idx != search_idx and path_idx not in traced_paths:
                     recursive_path_app = recursive_path + [{axis: path_idx}]
                     traced_paths_app = traced_paths + [path_idx]
-                    recursion = FXForwards._get_recursive_chain(
+                    recursion = _FXForwards._get_recursive_chain(
                         T,
                         path_idx,
                         search_idx,
@@ -831,36 +1129,6 @@ class FXForwards(_WithState):
                 sum_ += 0.0 if value_ is None else value_
         return sum_
 
-    @_validate_states
-    def swap(
-        self,
-        pair: str,
-        settlements: list[datetime],
-        path: list[dict[str, int]] | NoInput = NoInput(0),
-    ) -> DualTypes:
-        """
-        Return the FXSwap mid-market rate for the given currency pair.
-
-        Parameters
-        ----------
-        pair : str
-            The FX pair in usual domestic:foreign convention (6-digit code).
-        settlements : list of datetimes,
-            The settlement date of currency exchanges.
-        path : list of dict, optional
-            The chain of currency collateral curves to traverse to calculate the rate.
-            This is calculated automatically and this argument is provided for
-            internal calculation to avoid repeatedly calculating the same path. Use of
-            this argument in normal circumstances is not recommended.
-
-        Returns
-        -------
-        Dual
-        """
-        fx0, path_ = self._rate_with_path(pair, settlements[0], path)
-        fx1, _ = self._rate_with_path(pair, settlements[1], path_)
-        return (fx1 - fx0) * 10000
-
     # @_validate_state TODO
     def _full_curve(self, cashflow: str, collateral: str) -> Curve:
         """
@@ -982,66 +1250,6 @@ class FXForwards(_WithState):
             calendar=calendar,
             id=id,
         )
-
-    @_validate_states
-    def plot(
-        self,
-        pair: str,
-        right: datetime | str | NoInput = NoInput(0),
-        left: datetime | str | NoInput = NoInput(0),
-        fx_swap: bool = False,
-    ) -> PlotOutput:
-        """
-        Plot given forward FX rates.
-
-        Parameters
-        ----------
-        pair : str
-            The FX pair to determine rates for (6-digit code).
-        right : datetime or str, optional
-            The right bound of the graph. If given as str should be a tenor format
-            defining a point measured from the initial node date of the curve.
-            Defaults to the terminal date of the FXForwards object.
-        left : datetime or str, optional
-            The left bound of the graph. If given as str should be a tenor format
-            defining a point measured from the initial node date of the curve.
-            Defaults to the immediate FX settlement date.
-        fx_swap : bool
-            Whether to plot as the FX rate or as FX swap points relative to the
-            initial FX rate on the left side of the chart.
-            Default is `False`.
-
-        Returns
-        -------
-        (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
-        """
-        if isinstance(left, NoInput):
-            left_: datetime = self.immediate
-        elif isinstance(left, str):
-            left_ = add_tenor(self.immediate, left, "NONE", NoInput(0))
-        elif isinstance(left, datetime):
-            left_ = left
-        else:
-            raise ValueError("`left` must be supplied as datetime or tenor string.")
-
-        if isinstance(right, NoInput):
-            right_: datetime = self.terminal
-        elif isinstance(right, str):
-            right_ = add_tenor(self.immediate, right, "NONE", NoInput(0))
-        elif isinstance(right, datetime):
-            right_ = right
-        else:
-            raise ValueError("`right` must be supplied as datetime or tenor string.")
-
-        points: int = (right_ - left_).days
-        x = [left_ + timedelta(days=i) for i in range(points)]
-        _, path = self._rate_with_path(pair, x[0])
-        rates: list[DualTypes] = [self._rate_with_path(pair, _, path=path)[0] for _ in x]
-        if not fx_swap:
-            y: list[list[DualTypes]] = [rates]
-        else:
-            y = [[(rate - rates[0]) * 10000 for rate in rates]]
-        return plot(x, y)
 
     def _set_ad_order(self, order: int) -> None:
         # does not require cache validation because updates the cache_id at end of method

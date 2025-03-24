@@ -97,7 +97,7 @@ class _WithState:
 
     def _set_new_state(self) -> None:
         """Set the state_id of a superclass. Some objects which are 'mutable by association'
-        will overload the `get_compoisted_state` method to derive a state from their
+        will overload the `get_composited_state` method to derive a state from their
         associated items."""
         if self._mutable_by_association:
             self._state = self._get_composited_state()
