@@ -1244,3 +1244,20 @@ def forward_fx(
     # else: fx_settlement is deemed to be immediate hence DF are both equal to 1.0
     _ *= fx_rate
     return _
+
+
+def _recursive_pair_population(arr: np.ndarray) -> None:
+    """
+    Recursively scan through an indicator matrix and populate new entries if possible.
+    Also detect if
+
+
+    Parameters
+    ----------
+    arr
+
+    Returns
+    -------
+
+    """
+
