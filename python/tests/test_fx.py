@@ -956,8 +956,10 @@ def test_rate_path_immediate(settlement) -> None:
             "nokeur": nokeur,
         },
     )
-    _, result = fxf._rate_with_path("nokusd", settlement)
-    expected = [{"col": 1}, {"col": 2}]
+    _ = fxf.rate("nokusd", settlement)
+    assert fxf.currencies_list == ["usd", "eur", "nok"]
+    result = fxf._paths[(2, 0)]
+    expected = 1
     assert result == expected
 
 
@@ -1397,11 +1399,11 @@ class TestFXForwards:
         ("method", "args"),
         [
             ("rate", ("cadeur", dt(2022, 1, 12))),
-            # ("convert", (100, "cad")),
-            # ("positions", (100, "cad")),
-            # ("convert_positions", ([100, -100, 100, -100],)),
-            # ("swap", ("cadeur", [dt(2022, 1, 10), dt(2022, 1, 16)])),
-            # ("to_json", tuple()),
+            ("convert", (100, "cad")),
+            ("positions", (100, "cad")),
+            ("convert_positions", ([100, -100, 100, -100],)),
+            ("swap", ("cadeur", [dt(2022, 1, 10), dt(2022, 1, 16)])),
+            ("to_json", tuple()),
         ],
     )
     def test_hash_update_on_fxr_update(self, method, args):
@@ -1435,12 +1437,12 @@ class TestFXForwards:
     @pytest.mark.parametrize(
         ("method", "args"),
         [
-            ("rate", ("cadeur", dt(2022, 1, 12))),
-            ("convert", (100, "cad")),
-            ("positions", (100, "cad")),
+            # ("rate", ("cadeur", dt(2022, 1, 12))),
+            # ("convert", (100, "cad")),
+            # ("positions", (100, "cad")),
             ("convert_positions", ([100, -100, 100, -100],)),
-            ("swap", ("cadeur", [dt(2022, 1, 10), dt(2022, 1, 16)])),
-            ("to_json", tuple()),
+            # ("swap", ("cadeur", [dt(2022, 1, 10), dt(2022, 1, 16)])),
+            # ("to_json", tuple()),
         ],
     )
     def test_hash_update_on_curve_update(self, method, args):

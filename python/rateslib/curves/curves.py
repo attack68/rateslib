@@ -3052,7 +3052,7 @@ class ProxyCurve(Curve):
     def __getitem__(self, date: datetime) -> DualTypes:
         self.fx_forwards._validate_state()  # manually handle cache check
 
-        _1: DualTypes = self.fx_forwards._rate_with_path(self.pair, date, path=self.path)[0]
+        _1: DualTypes = self.fx_forwards.rate(self.pair, date)
         _2: DualTypes = self.fx_forwards.fx_rates_immediate._fx_array_el(
             self.cash_idx, self.coll_idx
         )
