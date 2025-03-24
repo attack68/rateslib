@@ -196,7 +196,7 @@ class FXRates(_WithState):
     @property
     def pairs(self) -> list[str]:
         """A list of the currency pairs that define the object. The number of pairs is one
-         less than ``q``."""
+        less than ``q``."""
         return [fxr.pair for fxr in self.obj.fx_rates]
 
     @property

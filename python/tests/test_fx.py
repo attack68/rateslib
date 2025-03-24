@@ -1493,11 +1493,13 @@ class TestFXForwards:
 
 
 def test_recursive_pair_population1():
-    arr = np.array([
-        [1, 0, 1],
-        [0, 1, 0],
-        [0, 1, 1],
-    ])
+    arr = np.array(
+        [
+            [1, 0, 1],
+            [0, 1, 0],
+            [0, 1, 1],
+        ]
+    )
     result = _recursive_pair_population(arr)
     expected = {
         (0, 1): 2,
@@ -1509,15 +1511,18 @@ def test_recursive_pair_population1():
     }
     assert result[1] == expected
 
+
 def test_recursive_pair_population2():
     # 5 currency example in 'Coding Interest Rates'
-    arr = np.array([
-        [1, 0, 0, 0, 0],
-        [1, 1, 0, 0, 0],
-        [0, 1, 1, 0, 0],
-        [1, 0, 0, 1, 0],
-        [0, 0, 0, 1, 1],
-    ])
+    arr = np.array(
+        [
+            [1, 0, 0, 0, 0],
+            [1, 1, 0, 0, 0],
+            [0, 1, 1, 0, 0],
+            [1, 0, 0, 1, 0],
+            [0, 0, 0, 1, 1],
+        ]
+    )
     result = _recursive_pair_population(arr)
     expected = {
         (0, 1): None,
@@ -1539,6 +1544,6 @@ def test_recursive_pair_population2():
         (4, 0): 3,
         (4, 1): 3,
         (4, 2): 3,
-        (4, 3): None
+        (4, 3): None,
     }
     assert result[1] == expected

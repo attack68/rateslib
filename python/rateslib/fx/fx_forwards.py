@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import warnings
 from datetime import datetime, timedelta
-from itertools import product, combinations
+from itertools import combinations, product
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -1247,9 +1247,9 @@ def forward_fx(
 
 
 def _recursive_pair_population(
-    arr: np.ndarray,
-    mapping: dict[(int, int), int | None] | None = None,
-) -> tuple[np.ndarray, dict[(int, int), int | None]]:
+    arr: np.ndarray[tuple[int, int], np.dtype[np.int_]],
+    mapping: dict[tuple[int, int], int | None] | None = None,
+) -> tuple[np.ndarray[tuple[int, int], np.dtype[np.int_]], dict[tuple[int, int], int | None]]:
     """
     Recursively scan through an indicator matrix and populate new entries.
 
@@ -1272,13 +1272,15 @@ def _recursive_pair_population(
     """
     # Build the initial mapping if none exists
     if mapping is None:
-        mapping: dict[(int, int), int | None] = {}
+        _mapping: dict[tuple[int, int], int | None] = {}
         for i in range(len(arr)):
             for j in range(len(arr)):
                 if i == j:
                     continue
-                if arr[i,j] == 1:
-                    mapping[(i,j)] = None  # identify the pair as being directly mapped
+                if arr[i, j] == 1:
+                    _mapping[(i, j)] = None  # identify the pair as being directly mapped
+    else:
+        _mapping = mapping
 
     # loop through currencies and find new pairs
     _arr = arr.copy()
@@ -1291,20 +1293,19 @@ def _recursive_pair_population(
                 continue
             elif _arr[pair[0], pair[1]] == 1:
                 # then the inverse is directly attainable
-                mapping[pair[1], pair[0]] = mapping[pair[0], pair[1]]
+                _mapping[pair[1], pair[0]] = _mapping[pair[0], pair[1]]
                 _arr[pair[1], pair[0]] = 1
             elif _arr[pair[1], pair[0]] == 1:
                 # then the inverse is directly attainable
-                mapping[pair[0], pair[1]] = mapping[pair[1], pair[0]]
+                _mapping[pair[0], pair[1]] = _mapping[pair[1], pair[0]]
                 _arr[pair[0], pair[1]] = 1
             else:
                 _arr[pair[0], [pair[1]]] = 1
                 _arr[pair[1], [pair[0]]] = 1
-                mapping[(pair[0], pair[1])] = i
-                mapping[(pair[1], pair[0])] = i
+                _mapping[(pair[0], pair[1])] = i
+                _mapping[(pair[1], pair[0])] = i
 
     if np.all(_arr == arr) or np.sum(_arr, axis=None) == len(_arr) ** 2:
-        return _arr, mapping
+        return _arr, _mapping
     else:
-        return _recursive_pair_population(_arr, mapping)
-
+        return _recursive_pair_population(_arr, _mapping)
