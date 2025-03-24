@@ -11,7 +11,7 @@ from pandas import DataFrame, Series
 
 from rateslib.calendars import add_tenor
 from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
-from rateslib.default import NoInput, PlotOutput, plot
+from rateslib.default import NoInput, PlotOutput, plot, _drb
 from rateslib.dual import Dual, gradient
 from rateslib.fx.fx_rates import FXRates
 from rateslib.mutability import _validate_states, _WithState
@@ -182,6 +182,7 @@ class FXForwards(_WithState):
         self.fx_rates: FXRates | list[FXRates] = fx_rates
         self._calculate_immediate_rates(base, init=True)
         assert self.currencies_list == self.fx_rates_immediate.currencies_list  # noqa: S101
+
         self._set_new_state()
 
     def _get_composited_state(self) -> int:
@@ -223,6 +224,7 @@ class FXForwards(_WithState):
                     self.currencies,
                     self.fx_curves,
                 )
+                self._paths = _create_initial_mapping(self.transform)
                 self.base: str = self.fx_rates.base if isinstance(base, NoInput) else base
                 self.pairs = self.fx_rates.pairs
                 self.variables = tuple(f"fx_{pair}" for pair in self.pairs)
@@ -289,6 +291,7 @@ class FXForwards(_WithState):
                 "base",
                 "fx_rates_immediate",
                 "pairs",
+                "_paths",
             ]:
                 setattr(self, attr, getattr(acyclic_fxf, attr))
             self.pairs_settlement = settlement_pairs
@@ -500,7 +503,50 @@ class FXForwards(_WithState):
            f_{DOMFOR, i} = f_{DOMALT, i} ...  f_{ALTFOR, i}
 
         """  # noqa: E501
-        return self._rate_with_path(pair, settlement)[0]
+        ccy_lhs = pair[0:3].lower()
+        ccy_rhs = pair[3:6].lower()
+        if (self.currencies[ccy_lhs], self.currencies[ccy_rhs]) not in self._paths:
+            # then paths have not been recursively determined, so determine them and cache now.
+            self._paths = _recursive_pair_population(self.transform, self._paths)[1]
+
+        via_idx = self._paths[(self.currencies[ccy_lhs], self.currencies[ccy_rhs])]
+        if via_idx == -1:
+            # then a rate is directly available
+            return self._rate_direct(ccy_lhs, ccy_rhs, settlement)
+        else:
+            # recursively determine from FX-crosses
+            via_ccy = self.currencies_list[via_idx]
+            return self.rate(f"{ccy_lhs}{via_ccy}", settlement) * self.rate(f"{via_ccy}{ccy_rhs}", settlement)
+
+    def _rate_direct(
+        self,
+        ccy_lhs: str,
+        ccy_rhs: str,
+        settlement: datetime | NoInput = NoInput(0),
+    ):
+        """Return a forward FX rate conditional on curves existing directly between the
+        given currency indexes."""
+        settlement_: datetime = _drb(self.immediate, settlement)
+        if settlement_ < self.immediate:
+            raise ValueError("`settlement` cannot be before immediate FX rate date.")
+
+        ccy_lhs_idx = self.currencies[ccy_lhs]
+        ccy_rhs_idx = self.currencies[ccy_rhs]
+        if self.transform[ccy_lhs_idx, ccy_rhs_idx] == 1:
+            # f_ab = w_ab / v_bb * F_ab
+            w_ab = self.fx_curves[f"{ccy_lhs}{ccy_rhs}"][settlement_]
+            v_bb = self.fx_curves[f"{ccy_rhs}{ccy_rhs}"][settlement_]
+            scalar = w_ab / v_bb
+        elif  self.transform[ccy_rhs_idx, ccy_lhs_idx] == 1:
+            # f_ab = v_aa / w_ba * F_ab
+            v_aa = self.fx_curves[f"{ccy_lhs}{ccy_lhs}"][settlement_]
+            w_ba = self.fx_curves[f"{ccy_rhs}{ccy_lhs}"][settlement_]
+            scalar = v_aa / w_ba
+        else:
+            raise ValueError("`fx_curves` do not exist to create a direct FX rate for the pair.")
+
+        return scalar * self.fx_rates_immediate.rate(f"{ccy_lhs}{ccy_rhs}")
+
 
     # @_validate_state: unused because this is circular. Any method that calls _rate_with_path
     # should be pre cache validated. This is also used in initialisation.
@@ -1248,8 +1294,8 @@ def forward_fx(
 
 def _recursive_pair_population(
     arr: np.ndarray[tuple[int, int], np.dtype[np.int_]],
-    mapping: dict[tuple[int, int], int | None] | None = None,
-) -> tuple[np.ndarray[tuple[int, int], np.dtype[np.int_]], dict[tuple[int, int], int | None]]:
+    mapping: dict[tuple[int, int], int] | None = None,
+) -> tuple[np.ndarray[tuple[int, int], np.dtype[np.int_]], dict[tuple[int, int], int]]:
     """
     Recursively scan through an indicator matrix and populate new entries.
 
@@ -1272,13 +1318,7 @@ def _recursive_pair_population(
     """
     # Build the initial mapping if none exists
     if mapping is None:
-        _mapping: dict[tuple[int, int], int | None] = {}
-        for i in range(len(arr)):
-            for j in range(len(arr)):
-                if i == j:
-                    continue
-                if arr[i, j] == 1:
-                    _mapping[(i, j)] = None  # identify the pair as being directly mapped
+        _mapping: dict[tuple[int, int], int] = _create_initial_mapping(arr)
     else:
         _mapping = mapping
 
@@ -1309,3 +1349,18 @@ def _recursive_pair_population(
         return _arr, _mapping
     else:
         return _recursive_pair_population(_arr, _mapping)
+
+
+def _create_initial_mapping(
+    arr: np.ndarray[tuple[int, int], np.dtype[np.int_]],
+) -> dict[tuple[int, int], int]:
+    """Detect the mappings immediately available and denote these with the value '-1'."""
+    _mapping: dict[tuple[int, int], int] = {}
+    for i in range(len(arr)):
+        for j in range(len(arr)):
+            if i == j:
+                continue
+            if arr[i, j] == 1:
+                _mapping[(i, j)] = -1
+                _mapping[(j, i)] = -1
+    return _mapping
