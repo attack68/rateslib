@@ -760,7 +760,7 @@ class FXForwards(_WithState):
         fx1 = self._rate_without_validation(pair, settlements[1])
         return (fx1 - fx0) * 10000
 
-    # @_validate_state TODO
+    @_validate_states
     def _full_curve(self, cashflow: str, collateral: str) -> Curve:
         """
         Calculate a cash collateral curve.
@@ -789,12 +789,11 @@ class FXForwards(_WithState):
         """
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
         cash_idx, coll_idx = self.currencies[cash_ccy], self.currencies[coll_ccy]
-        # path = self._get_recursive_chain(self.transform, coll_idx, cash_idx, [], [])[1]
         end = list(self.fx_curves[f"{coll_ccy}{coll_ccy}"].nodes.keys())[-1]
         days = (end - self.immediate).days
         nodes = {
             k: (
-                self.rate(f"{cash_ccy}{coll_ccy}", k)
+                self._rate_without_validation(f"{cash_ccy}{coll_ccy}", k)
                 / self.fx_rates_immediate.fx_array[cash_idx, coll_idx]
                 * self.fx_curves[f"{coll_ccy}{coll_ccy}"][k]
             )
@@ -934,7 +933,7 @@ class FXForwards(_WithState):
 
         points: int = (right_ - left_).days
         x = [left_ + timedelta(days=i) for i in range(points)]
-        rates: list[DualTypes] = [self.rate(pair, _) for _ in x]
+        rates: list[DualTypes] = [self._rate_without_validation(pair, _) for _ in x]
         if not fx_swap:
             y: list[list[DualTypes]] = [rates]
         else:
