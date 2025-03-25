@@ -1499,12 +1499,12 @@ class TestFXForwards:
     @pytest.mark.parametrize(
         ("method", "args"),
         [
-            # ("rate", ("cadeur", dt(2022, 1, 12))),
-            # ("convert", (100, "cad")),
-            # ("positions", (100, "cad")),
+            ("rate", ("cadeur", dt(2022, 1, 12))),
+            ("convert", (100, "cad")),
+            ("positions", (100, "cad")),
             ("convert_positions", ([100, -100, 100, -100],)),
-            # ("swap", ("cadeur", [dt(2022, 1, 10), dt(2022, 1, 16)])),
-            # ("to_json", tuple()),
+            ("swap", ("cadeur", [dt(2022, 1, 10), dt(2022, 1, 16)])),
+            ("to_json", tuple()),
         ],
     )
     def test_hash_update_on_curve_update(self, method, args):
