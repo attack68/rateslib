@@ -938,9 +938,32 @@ def test_full_curves(usdusd, eureur, usdeur) -> None:
     assert len(curve.nodes) == 10  # constructed with DF on every date
 
 
-@pytest.mark.parametrize("settlement", [dt(2022, 1, 3), dt(2022, 1, 7)])
-def test_rate_dynamic_path_calculation(settlement) -> None:
+def test_rate_dynamic_path_calculation() -> None:
     # test that a path is dynamically determined for regular settle dates
+    usdusd = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.999})
+    eureur = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.998})
+    eurusd = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.9985})
+    noknok = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.997})
+    nokeur = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.9965})
+    fxr = FXRates({"eurusd": 1.05, "usdnok": 8.0}, settlement=dt(2022, 1, 3), base="usd")
+    fxf = FXForwards(
+        fxr,
+        {
+            "usdusd": usdusd,
+            "eureur": eureur,
+            "eurusd": eurusd,
+            "noknok": noknok,
+            "nokeur": nokeur,
+        },
+    )
+    _ = fxf.rate("nokusd", dt(2022, 1, 7))
+    assert fxf.currencies_list == ["usd", "eur", "nok"]
+    assert fxf._paths[(2, 0)] == 1
+
+
+@pytest.mark.parametrize("settlement", [dt(2022, 1, 3), dt(2022, 1, 1)])
+def test_no_rate_path_on_immediate(settlement) -> None:
+    # test that a path is not dynamically determined for an immediate calculation
     usdusd = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.999})
     eureur = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.998})
     eurusd = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.9985})
@@ -959,30 +982,7 @@ def test_rate_dynamic_path_calculation(settlement) -> None:
     )
     _ = fxf.rate("nokusd", settlement)
     assert fxf.currencies_list == ["usd", "eur", "nok"]
-    assert fxf._paths[(2,0)] == 1
-
-
-def test_no_rate_path_on_immediate() -> None:
-    # test that a path is not dynamically determined for an immediate calculation
-    usdusd = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.999})
-    eureur = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.998})
-    eurusd = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.9985})
-    noknok = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.997})
-    nokeur = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.9965})
-    fxr = FXRates({"eurusd": 1.05, "usdnok": 8.0}, settlement=dt(2022, 1, 3), base="usd")
-    fxf = FXForwards(
-        fxr,
-        {
-            "usdusd": usdusd,
-            "eureur": eureur,
-            "eurusd": eurusd,
-            "noknok": noknok,
-            "nokeur": nokeur,
-        },
-    )
-    _ = fxf.rate("nokusd", dt(2022, 1, 1))
-    assert fxf.currencies_list == ["usd", "eur", "nok"]
-    assert not (2,0) in fxf._paths
+    assert (2, 0) not in fxf._paths
 
 
 @pytest.mark.parametrize(
@@ -1064,11 +1064,11 @@ def test_delta_risk_equivalence() -> None:
     #     "ne1",
     #     "uu1",
     # ]
-    vars = result1.vars
+    v = result1.vars
     assert abs(result1 - result2) < 1e-12
     assert abs(result1 - result3) < 1e-12
-    assert all(np.isclose(gradient(result1, vars), gradient(result3, vars)))
-    assert all(np.isclose(gradient(result1, vars), gradient(result2, vars)))
+    assert all(np.isclose(gradient(result1, v), gradient(result3, v)))
+    assert all(np.isclose(gradient(result1, v), gradient(result2, v)))
 
 
 def test_fx_immediate_rate_equivalence_to_forward() -> None:

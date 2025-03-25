@@ -11,10 +11,10 @@ from pandas import DataFrame, Series
 
 from rateslib.calendars import add_tenor
 from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
-from rateslib.default import NoInput, PlotOutput, plot, _drb
+from rateslib.default import NoInput, PlotOutput, _drb, plot
 from rateslib.dual import Dual, gradient
 from rateslib.fx.fx_rates import FXRates
-from rateslib.mutability import _validate_states, _WithState, _new_state_post
+from rateslib.mutability import _new_state_post, _validate_states, _WithState
 
 if TYPE_CHECKING:
     from rateslib.typing import CalInput, DualTypes, Number, datetime_
@@ -433,18 +433,17 @@ class FXForwards(_WithState):
         """  # noqa: E501
         return self._rate_without_validation(pair, settlement)
 
-    def _rate_without_validation(
-        self,
-        pair: str,
-        settlement: datetime_ = NoInput(0)
-    ) -> DualTypes:
+    def _rate_without_validation(self, pair: str, settlement: datetime_ = NoInput(0)) -> DualTypes:
         settlement_: datetime = _drb(self.immediate, settlement)
         if settlement_ < self.immediate:
             raise ValueError("`settlement` cannot be before immediate FX rate date.")
 
         if settlement_ == self.immediate:
-            # get FX rate directly from object
+            # get FX rate directly from the immediate object
             return self.fx_rates_immediate.rate(pair)
+        elif isinstance(self.fx_rates, FXRates) and settlement_ == self.fx_rates.settlement:
+            # get FX rate directly from the spot object
+            return self.fx_rates.rate(pair)
 
         ccy_lhs = pair[0:3].lower()
         ccy_rhs = pair[3:6].lower()
@@ -462,7 +461,9 @@ class FXForwards(_WithState):
         else:
             # recursively determine from FX-crosses
             via_ccy = self.currencies_list[via_idx]
-            return self.rate(f"{ccy_lhs}{via_ccy}", settlement_) * self.rate(f"{via_ccy}{ccy_rhs}", settlement_)
+            return self.rate(f"{ccy_lhs}{via_ccy}", settlement_) * self.rate(
+                f"{via_ccy}{ccy_rhs}", settlement_
+            )
 
     def _rate_direct(
         self,
@@ -479,7 +480,7 @@ class FXForwards(_WithState):
             w_ab = self.fx_curves[f"{ccy_lhs}{ccy_rhs}"][settlement]
             v_bb = self.fx_curves[f"{ccy_rhs}{ccy_rhs}"][settlement]
             scalar = w_ab / v_bb
-        elif  self.transform[ccy_rhs_idx, ccy_lhs_idx] == 1:
+        elif self.transform[ccy_rhs_idx, ccy_lhs_idx] == 1:
             # f_ab = v_aa / w_ba * F_ab
             v_aa = self.fx_curves[f"{ccy_lhs}{ccy_lhs}"][settlement]
             w_ba = self.fx_curves[f"{ccy_rhs}{ccy_lhs}"][settlement]
