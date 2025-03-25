@@ -17,7 +17,7 @@ from rateslib.fx.fx_rates import FXRates
 from rateslib.mutability import _validate_states, _WithState
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, DualTypes, Number
+    from rateslib.typing import CalInput, DualTypes, Number, datetime_
 
 """
 .. ipython:: python
@@ -471,7 +471,7 @@ class FXForwards(_WithState):
     def rate(
         self,
         pair: str,
-        settlement: datetime | NoInput = NoInput(0),
+        settlement: datetime_ = NoInput(0),
     ) -> DualTypes:
         """
         Return the fx forward rate for a currency pair.
@@ -507,6 +507,13 @@ class FXForwards(_WithState):
            f_{DOMFOR, i} = f_{DOMALT, i} ...  f_{ALTFOR, i}
 
         """  # noqa: E501
+        return self._rate_without_validation(pair, settlement)
+
+    def _rate_without_validation(
+        self,
+        pair: str,
+        settlement: datetime_ = NoInput(0)
+    ) -> DualTypes:
         settlement_: datetime = _drb(self.immediate, settlement)
         if settlement_ < self.immediate:
             raise ValueError("`settlement` cannot be before immediate FX rate date.")
