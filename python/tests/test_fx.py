@@ -1074,31 +1074,6 @@ def test_fx_immediate_rate_equivalence_to_forward() -> None:
     assert all(np.isclose(gradient(result, result.vars), gradient(expected, result.vars)))
 
 
-def test_fx_immediate_rate_equivalence_to_forward() -> None:
-    # this test checks that the FX Immediate object created has the same dual values
-    # expected from manual calculation.
-    start, end = dt(2022, 1, 1), dt(2023, 1, 1)
-    fx_curves = {
-        "usdusd": Curve({start: 1.0, end: 0.96}, id="uu", ad=1),
-        "eureur": Curve({start: 1.0, end: 0.99}, id="ee", ad=1),
-        "eurusd": Curve({start: 1.0, end: 0.991}, id="eu", ad=1),
-        "noknok": Curve({start: 1.0, end: 0.98}, id="nn", ad=1),
-        "nokeur": Curve({start: 1.0, end: 0.978}, id="ne", ad=1),
-    }
-    fx_rates = FXRates({"usdeur": 0.9, "eurnok": 8.888889}, dt(2022, 1, 3))
-    fxf = FXForwards(fx_rates, fx_curves)
-
-    # nokeur
-    ne = fxf.curve("nok", "eur")
-    ee = fxf.curve("eur", "eur")
-    ne0, ne1 = ne[start], ne[dt(2022, 1, 3)]
-    ee0, ee1 = ee[start], ee[dt(2022, 1, 3)]
-    expected = 1 / Dual(8.888889, ["fx_eurnok"], []) * ne0 / ne1 * ee1 / ee0
-    result = fxf.fx_rates_immediate.rate("nokeur")
-    assert abs(result - expected) < 1e-12
-    assert all(np.isclose(gradient(result, result.vars), gradient(expected, result.vars)))
-
-
 def test_rates_update_empty_dict() -> None:
     # test updating an FXRates with empty dict does nothing.
     fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5})
