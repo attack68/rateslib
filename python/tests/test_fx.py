@@ -1034,10 +1034,19 @@ def test_delta_risk_equivalence() -> None:
         "uu0",
         "uu1",
     }
+    # vars = [
+    #     "ee1",
+    #     "eu1",
+    #     "fx_eurnok",
+    #     "fx_usdeur",
+    #     "ne1",
+    #     "uu1",
+    # ]
+    vars = result1.vars
     assert abs(result1 - result2) < 1e-12
     assert abs(result1 - result3) < 1e-12
-    assert all(np.isclose(gradient(result1), gradient(result3, result1.vars)))
-    assert all(np.isclose(gradient(result1), gradient(result2, result1.vars)))
+    assert all(np.isclose(gradient(result1, vars), gradient(result3, vars)))
+    assert all(np.isclose(gradient(result1, vars), gradient(result2, vars)))
 
 
 def test_rates_update_empty_dict() -> None:
