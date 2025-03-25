@@ -319,15 +319,19 @@ class FXForwards(_WithState):
                 cash_ccy = self.currencies_list[row]
                 coll_ccy = self.currencies_list[col]
                 settlement = self.fx_rates.settlement
-                if settlement is NoInput.blank or settlement is None:
+                if isinstance(settlement, NoInput) or settlement is None:
                     raise ValueError(
                         "`fx_rates` as FXRates supplied to FXForwards must contain a "
                         "`settlement` argument.",
                     )
                 v_i = self.fx_curves[f"{coll_ccy}{coll_ccy}"][settlement]
+                v_0 = self.fx_curves[f"{coll_ccy}{coll_ccy}"][self.immediate]
                 w_i = self.fx_curves[f"{cash_ccy}{coll_ccy}"][settlement]
+                w_0 = self.fx_curves[f"{cash_ccy}{coll_ccy}"][self.immediate]
                 pair = f"{cash_ccy}{coll_ccy}"
-                fx_rates_immediate.update({pair: self.fx_rates.fx_array[row, col] * v_i / w_i})
+                fx_rates_immediate.update(
+                    {pair: self.fx_rates.fx_array[row, col] * v_i / w_i * w_0 / v_0}
+                )
 
         fx_rates_immediate_ = FXRates(fx_rates_immediate, self.immediate, self.currencies_list[0])
         return fx_rates_immediate_.restate(self.fx_rates.pairs, keep_ad=True)
