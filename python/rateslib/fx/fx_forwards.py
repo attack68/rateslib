@@ -470,7 +470,7 @@ class FXForwards(_WithState):
         ccy_lhs: str,
         ccy_rhs: str,
         settlement: datetime,
-    ):
+    ) -> DualTypes:
         """Return a forward FX rate conditional on curves existing directly between the
         given currency indexes."""
         ccy_lhs_idx = self.currencies[ccy_lhs]
@@ -631,10 +631,10 @@ class FXForwards(_WithState):
            fxf.convert(1000, "usd", "cad")
 
         """
-        foreign = _drb(self.base, foreign).lower()
-        domestic = domestic.lower()
-        collateral = _drb(domestic, collateral).lower()
-        for ccy in [domestic, foreign]:
+        foreign_ = _drb(self.base, foreign).lower()
+        domestic_ = domestic.lower()
+        collateral_ = _drb(domestic_, collateral).lower()
+        for ccy in [domestic_, foreign_]:
             if ccy not in self.currencies:
                 if on_error == "ignore":
                     return None
@@ -650,11 +650,11 @@ class FXForwards(_WithState):
         settlement_: datetime = _drb(self.immediate, settlement)
         value_date_: datetime = _drb(settlement_, value_date)
 
-        fx_rate: DualTypes = self.rate(domestic + foreign, settlement_)
+        fx_rate: DualTypes = self.rate(domestic_ + foreign_, settlement_)
         if value_date_ == settlement_:
             return fx_rate * value
         else:
-            crv = self.curve(foreign, collateral)
+            crv = self.curve(foreign_, collateral_)
             return fx_rate * value * crv[settlement_] / crv[value_date_]
 
     @_validate_states
