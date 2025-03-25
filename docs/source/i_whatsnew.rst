@@ -69,6 +69,12 @@ email contact, see `rateslib <https://rateslib.com>`_.
        :class:`~rateslib.periods.CreditPremiumPeriod` and
        :class:`~rateslib.periods.NonDeliverableCashflow` to global *rateslib* namespace.
        (`697 <https://github.com/attack68/rateslib/pull/697>`_)
+   * - Bug
+     - The ``fx_rates_immediate`` attribute on the :class:`~rateslib.fx.FXForwards` class now
+       preserves AD sensitivity to the initial discount factor on the ``fx_curves``. Although this
+       is assumed to be, constantly, 1.0 and has no effect on risk sensitivity calculations
+       it is more consistent for unit test building.
+       (`712 <https://github.com/attack68/rateslib/pull/712>`_)
 
 1.7.0 (31st January 2025)
 ****************************
