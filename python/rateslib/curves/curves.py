@@ -3007,13 +3007,6 @@ class ProxyCurve(Curve):
         self.coll_pair = f"{coll_ccy}{coll_ccy}"
         self.coll_idx = self.fx_forwards.currencies[coll_ccy]
         self.pair = f"{cash_ccy}{coll_ccy}"
-        # self.path = self.fx_forwards._get_recursive_chain(
-        #     self.fx_forwards.transform,
-        #     self.coll_idx,
-        #     self.cash_idx,
-        #     [],
-        #     [],
-        # )[1]
         self.terminal = list(self.fx_forwards.fx_curves[self.cash_pair].nodes.keys())[-1]
 
         default_curve = Curve(
@@ -3050,8 +3043,6 @@ class ProxyCurve(Curve):
         return self.fx_forwards._state
 
     def __getitem__(self, date: datetime) -> DualTypes:
-        self.fx_forwards._validate_state()  # manually handle cache check
-
         _1: DualTypes = self.fx_forwards.rate(self.pair, date)
         _2: DualTypes = self.fx_forwards.fx_rates_immediate._fx_array_el(
             self.cash_idx, self.coll_idx

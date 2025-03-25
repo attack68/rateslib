@@ -14,7 +14,7 @@ from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
 from rateslib.default import NoInput, PlotOutput, plot, _drb
 from rateslib.dual import Dual, gradient
 from rateslib.fx.fx_rates import FXRates
-from rateslib.mutability import _validate_states, _WithState
+from rateslib.mutability import _validate_states, _WithState, _new_state_post
 
 if TYPE_CHECKING:
     from rateslib.typing import CalInput, DualTypes, Number, datetime_
@@ -171,6 +171,7 @@ class FXForwards(_WithState):
             self._calculate_immediate_rates(base=self.base, init=False)
             self._set_new_state()
 
+    @_new_state_post
     def __init__(
         self,
         fx_rates: FXRates | list[FXRates],
@@ -182,8 +183,6 @@ class FXForwards(_WithState):
         self.fx_rates: FXRates | list[FXRates] = fx_rates
         self._calculate_immediate_rates(base, init=True)
         assert self.currencies_list == self.fx_rates_immediate.currencies_list  # noqa: S101
-
-        self._set_new_state()
 
     def _get_composited_state(self) -> int:
         self_fx_rates = [self.fx_rates] if not isinstance(self.fx_rates, list) else self.fx_rates
@@ -261,7 +260,7 @@ class FXForwards(_WithState):
                     if ccy not in fx_rates_obj.currencies_list
                 ]
                 pre_rates = {
-                    f"{overlapping_currencies[0]}{ccy}": acyclic_fxf.rate(
+                    f"{overlapping_currencies[0]}{ccy}": acyclic_fxf._rate_without_validation(
                         f"{overlapping_currencies[0]}{ccy}",
                         fx_rates_obj.settlement,
                     )
@@ -388,81 +387,6 @@ class FXForwards(_WithState):
             raise ValueError("`fx_curves` contains co-dependent rates.")
         return T
 
-    # @staticmethod
-    # def _get_recursive_chain(
-    #     T: np.ndarray[tuple[int, int], np.dtype[np.int_]],
-    #     start_idx: int,
-    #     search_idx: int,
-    #     traced_paths: list[int],
-    #     recursive_path: list[dict[str, int]],
-    # ) -> tuple[bool, list[dict[str, int]]]:
-    #     """
-    #     Recursively calculate map from a cash currency to another via collateral curves.
-    #
-    #     Parameters
-    #     ----------
-    #     T : ndarray
-    #         The transformation mapping of cash and collateral currencies.
-    #     start_idx : int
-    #         The index of the currency as the starting point of this search.
-    #     search_idx : int
-    #         The index of the currency identifying the termination of search.
-    #     traced_paths : list[int]
-    #         The index of currencies that have already been exhausted within the search.
-    #     recursive_path : list[dict]
-    #         The path taken from the original start to the current search start location.
-    #
-    #     Returns
-    #     -------
-    #     bool, path
-    #
-    #     Notes
-    #     -----
-    #     The return path outlines the route taken from the ``start_idx`` to the
-    #     ``search_idx`` detailing each step as either traversing a row or column.
-    #
-    #     Examples
-    #     --------
-    #     .. ipython:: python
-    #
-    #        T = np.array([[1,1,1,0], [0,1,0,1],[0,0,1,0],[0,0,0,1]])
-    #        FXForwards._get_recursive_chain(T, 0, 3)
-    #
-    #     """
-    #     recursive_path = recursive_path.copy()
-    #     traced_paths = traced_paths.copy()
-    #     if len(traced_paths) == 0:
-    #         traced_paths.append(start_idx)
-    #
-    #     # try row:
-    #     row_paths = np.where(T[start_idx, :] == 1)[0]
-    #     col_paths = np.where(T[:, start_idx] == 1)[0]
-    #     if search_idx in row_paths:
-    #         recursive_path.append({"row": search_idx})
-    #         return True, recursive_path
-    #     if search_idx in col_paths:
-    #         recursive_path.append({"col": search_idx})
-    #         return True, recursive_path
-    #
-    #     for axis, paths in [("row", row_paths), ("col", col_paths)]:
-    #         for path_idx in paths:
-    #             if path_idx == start_idx:
-    #                 pass
-    #             elif path_idx != search_idx and path_idx not in traced_paths:
-    #                 recursive_path_app = recursive_path + [{axis: path_idx}]
-    #                 traced_paths_app = traced_paths + [path_idx]
-    #                 recursion = FXForwards._get_recursive_chain(
-    #                     T,
-    #                     path_idx,
-    #                     search_idx,
-    #                     traced_paths_app,
-    #                     recursive_path_app,
-    #                 )
-    #                 if recursion[0]:
-    #                     return recursion
-    #
-    #     return False, recursive_path
-
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
@@ -564,90 +488,6 @@ class FXForwards(_WithState):
             raise ValueError("`fx_curves` do not exist to create a direct FX rate for the pair.")
         f = self.fx_rates_immediate.rate(f"{ccy_lhs}{ccy_rhs}")
         return scalar * f
-
-
-    # # @_validate_state: unused because this is circular. Any method that calls _rate_with_path
-    # # should be pre cache validated. This is also used in initialisation.
-    # def _rate_with_path(
-    #     self,
-    #     pair: str,
-    #     settlement: datetime | NoInput = NoInput(0),
-    #     path: list[dict[str, int]] | NoInput = NoInput(0),
-    # ) -> tuple[DualTypes, list[dict[str, int]]]:
-    #     """
-    #     Return the fx forward rate for a currency pair, including the path taken to traverse ccys.
-    #
-    #     Parameters
-    #     ----------
-    #     pair : str
-    #         The FX pair in usual domestic:foreign convention (6 digit code).
-    #     settlement : datetime, optional
-    #         The settlement date of currency exchange. If not given defaults to
-    #         immediate settlement.
-    #     path : list of dict, optional
-    #         The chain of currency collateral curves to traverse to calculate the rate.
-    #         This is calculated automatically and this argument is provided for
-    #         internal calculation to avoid repeatedly calculating the same path. Use of
-    #         this argument in normal circumstances is not recommended.
-    #
-    #     Returns
-    #     -------
-    #     tuple
-    #
-    #     Notes
-    #     -----
-    #     This function does not have automatic cache management. If a *Curve* or an *FXRates*
-    #     object has been updated, one *must* call `FXForwards.update` before calling this methob.
-    #     """
-    #
-    #     def _get_d_f_idx_and_path(
-    #         pair: str, path: list[dict[str, int]] | NoInput
-    #     ) -> tuple[int, int, list[dict[str, int]]]:
-    #         domestic, foreign = pair[:3].lower(), pair[3:].lower()
-    #         d_idx: int = self.fx_rates_immediate.currencies[domestic]
-    #         f_idx: int = self.fx_rates_immediate.currencies[foreign]
-    #         if isinstance(path, NoInput):
-    #             path = self._get_recursive_chain(self.transform, f_idx, d_idx, [], [])[1]
-    #         return d_idx, f_idx, path
-    #
-    #     # perform a fast conversion if settlement aligns with known dates,
-    #     settlement_: datetime = self.immediate if isinstance(settlement, NoInput) else settlement
-    #     if settlement_ < self.immediate:
-    #         raise ValueError("`settlement` cannot be before immediate FX rate date.")
-    #
-    #     if settlement_ == self.fx_rates_immediate.settlement:
-    #         rate_: DualTypes = self.fx_rates_immediate.rate(pair)
-    #         _, _, path = _get_d_f_idx_and_path(pair, path)
-    #         return rate_, path
-    #
-    #     elif isinstance(self.fx_rates, FXRates) and settlement_ == self.fx_rates.settlement:
-    #         rate_ = self.fx_rates.rate(pair)
-    #         _, _, path = _get_d_f_idx_and_path(pair, path)
-    #         return rate_, path
-    #
-    #     # otherwise must rely on curves and path search which is slower
-    #     d_idx, f_idx, path = _get_d_f_idx_and_path(pair, path)
-    #     rate_ = 1.0
-    #     current_idx = f_idx
-    #     for route in path:
-    #         if "col" in route:
-    #             coll_ccy = self.currencies_list[current_idx]
-    #             cash_ccy = self.currencies_list[route["col"]]
-    #             w_i = self.fx_curves[f"{cash_ccy}{coll_ccy}"][settlement_]
-    #             v_i = self.fx_curves[f"{coll_ccy}{coll_ccy}"][settlement_]
-    #             rate_ *= self.fx_rates_immediate._fx_array_el(route["col"], current_idx)
-    #             rate_ *= w_i / v_i
-    #             current_idx = route["col"]
-    #         elif "row" in route:
-    #             coll_ccy = self.currencies_list[route["row"]]
-    #             cash_ccy = self.currencies_list[current_idx]
-    #             w_i = self.fx_curves[f"{cash_ccy}{coll_ccy}"][settlement_]
-    #             v_i = self.fx_curves[f"{coll_ccy}{coll_ccy}"][settlement_]
-    #             rate_ *= self.fx_rates_immediate._fx_array_el(route["row"], current_idx)
-    #             rate_ *= v_i / w_i
-    #             current_idx = route["row"]
-    #
-    #     return rate_, path
 
     @_validate_states
     def positions(
