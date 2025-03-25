@@ -1056,14 +1056,6 @@ def test_delta_risk_equivalence() -> None:
         "uu0",
         "uu1",
     }
-    # vars = [
-    #     "ee1",
-    #     "eu1",
-    #     "fx_eurnok",
-    #     "fx_usdeur",
-    #     "ne1",
-    #     "uu1",
-    # ]
     v = result1.vars
     assert abs(result1 - result2) < 1e-12
     assert abs(result1 - result3) < 1e-12
