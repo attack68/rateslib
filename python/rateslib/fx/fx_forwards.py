@@ -547,8 +547,8 @@ class FXForwards(_WithState):
             scalar = v_aa / w_ba
         else:
             raise ValueError("`fx_curves` do not exist to create a direct FX rate for the pair.")
-
-        return scalar * self.fx_rates_immediate.rate(f"{ccy_lhs}{ccy_rhs}")
+        f = self.fx_rates_immediate.rate(f"{ccy_lhs}{ccy_rhs}")
+        return scalar * f
 
 
     # # @_validate_state: unused because this is circular. Any method that calls _rate_with_path
