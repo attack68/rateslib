@@ -507,6 +507,10 @@ class FXForwards(_WithState):
         if settlement_ < self.immediate:
             raise ValueError("`settlement` cannot be before immediate FX rate date.")
 
+        if settlement_ == self.immediate:
+            # get FX rate directly from object
+            return self.fx_rates_immediate.rate(pair)
+
         ccy_lhs = pair[0:3].lower()
         ccy_rhs = pair[3:6].lower()
         if ccy_lhs == ccy_rhs:
