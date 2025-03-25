@@ -653,33 +653,33 @@ def test_fxforwards_position_not_dual(usdusd, eureur, usdeur) -> None:
     assert_series_equal(result, expected)
 
 
-def test_recursive_chain() -> None:
-    T = np.array([[1, 1], [0, 1]])
-    result = FXForwards._get_recursive_chain(T, 1, 0, [], [])
-    expected = True, [{"col": 0}]
-    assert result == expected
-
-    result = FXForwards._get_recursive_chain(T, 0, 1, [], [])
-    expected = True, [{"row": 1}]
-    assert result == expected
-
-
-def test_recursive_chain3() -> None:
-    T = np.array([[1, 1, 0], [0, 1, 1], [0, 0, 1]])
-    result = FXForwards._get_recursive_chain(T, 2, 0, [], [])
-    expected = True, [{"col": 1}, {"col": 0}]
-    assert result == expected
-
-    result = FXForwards._get_recursive_chain(T, 0, 2, [], [])
-    expected = True, [{"row": 1}, {"row": 2}]
-    assert result == expected
+# def test_recursive_chain() -> None:
+#     T = np.array([[1, 1], [0, 1]])
+#     result = FXForwards._get_recursive_chain(T, 1, 0, [], [])
+#     expected = True, [{"col": 0}]
+#     assert result == expected
+#
+#     result = FXForwards._get_recursive_chain(T, 0, 1, [], [])
+#     expected = True, [{"row": 1}]
+#     assert result == expected
 
 
-def test_recursive_chain_interim_broken_path() -> None:
-    T = np.array([[1, 1, 1, 0], [0, 1, 0, 0], [0, 0, 1, 1], [0, 0, 0, 1]])
-    result = FXForwards._get_recursive_chain(T, 0, 3, [], [])
-    expected = True, [{"row": 2}, {"row": 3}]
-    assert result == expected
+# def test_recursive_chain3() -> None:
+#     T = np.array([[1, 1, 0], [0, 1, 1], [0, 0, 1]])
+#     result = FXForwards._get_recursive_chain(T, 2, 0, [], [])
+#     expected = True, [{"col": 1}, {"col": 0}]
+#     assert result == expected
+#
+#     result = FXForwards._get_recursive_chain(T, 0, 2, [], [])
+#     expected = True, [{"row": 1}, {"row": 2}]
+#     assert result == expected
+
+
+# def test_recursive_chain_interim_broken_path() -> None:
+#     T = np.array([[1, 1, 1, 0], [0, 1, 0, 0], [0, 0, 1, 1], [0, 0, 0, 1]])
+#     result = FXForwards._get_recursive_chain(T, 0, 3, [], [])
+#     expected = True, [{"row": 2}, {"row": 3}]
+#     assert result == expected
 
 
 def test_multiple_currencies_number_raises(usdusd) -> None:
@@ -1018,6 +1018,10 @@ def test_delta_risk_equivalence() -> None:
     discounted_eur = forward_eur * fx_curves["eureur"][dt(2022, 8, 15)]
     result2 = discounted_eur * fxf.rate("eurusd", dt(2022, 1, 1))
 
+    forward_usd = fxf.rate("nokusd", dt(2022, 8, 15)) * 1000
+    discounted_usd = forward_usd * fxf.curve("usd", "eur")[dt(2022, 8, 15)]
+    result3 = discounted_usd
+
     assert set(result1.vars) == {
         "ee0",
         "ee1",
@@ -1031,6 +1035,8 @@ def test_delta_risk_equivalence() -> None:
         "uu1",
     }
     assert abs(result1 - result2) < 1e-12
+    assert abs(result1 - result3) < 1e-12
+    assert all(np.isclose(gradient(result1), gradient(result3, result1.vars)))
     assert all(np.isclose(gradient(result1), gradient(result2, result1.vars)))
 
 

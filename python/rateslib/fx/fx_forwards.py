@@ -384,80 +384,80 @@ class FXForwards(_WithState):
             raise ValueError("`fx_curves` contains co-dependent rates.")
         return T
 
-    @staticmethod
-    def _get_recursive_chain(
-        T: np.ndarray[tuple[int, int], np.dtype[np.int_]],
-        start_idx: int,
-        search_idx: int,
-        traced_paths: list[int],
-        recursive_path: list[dict[str, int]],
-    ) -> tuple[bool, list[dict[str, int]]]:
-        """
-        Recursively calculate map from a cash currency to another via collateral curves.
-
-        Parameters
-        ----------
-        T : ndarray
-            The transformation mapping of cash and collateral currencies.
-        start_idx : int
-            The index of the currency as the starting point of this search.
-        search_idx : int
-            The index of the currency identifying the termination of search.
-        traced_paths : list[int]
-            The index of currencies that have already been exhausted within the search.
-        recursive_path : list[dict]
-            The path taken from the original start to the current search start location.
-
-        Returns
-        -------
-        bool, path
-
-        Notes
-        -----
-        The return path outlines the route taken from the ``start_idx`` to the
-        ``search_idx`` detailing each step as either traversing a row or column.
-
-        Examples
-        --------
-        .. ipython:: python
-
-           T = np.array([[1,1,1,0], [0,1,0,1],[0,0,1,0],[0,0,0,1]])
-           FXForwards._get_recursive_chain(T, 0, 3)
-
-        """
-        recursive_path = recursive_path.copy()
-        traced_paths = traced_paths.copy()
-        if len(traced_paths) == 0:
-            traced_paths.append(start_idx)
-
-        # try row:
-        row_paths = np.where(T[start_idx, :] == 1)[0]
-        col_paths = np.where(T[:, start_idx] == 1)[0]
-        if search_idx in row_paths:
-            recursive_path.append({"row": search_idx})
-            return True, recursive_path
-        if search_idx in col_paths:
-            recursive_path.append({"col": search_idx})
-            return True, recursive_path
-
-        for axis, paths in [("row", row_paths), ("col", col_paths)]:
-            for path_idx in paths:
-                if path_idx == start_idx:
-                    pass
-                elif path_idx != search_idx and path_idx not in traced_paths:
-                    recursive_path_app = recursive_path + [{axis: path_idx}]
-                    traced_paths_app = traced_paths + [path_idx]
-                    recursion = FXForwards._get_recursive_chain(
-                        T,
-                        path_idx,
-                        search_idx,
-                        traced_paths_app,
-                        recursive_path_app,
-                    )
-                    if recursion[0]:
-                        return recursion
-
-        return False, recursive_path
+    # @staticmethod
+    # def _get_recursive_chain(
+    #     T: np.ndarray[tuple[int, int], np.dtype[np.int_]],
+    #     start_idx: int,
+    #     search_idx: int,
+    #     traced_paths: list[int],
+    #     recursive_path: list[dict[str, int]],
+    # ) -> tuple[bool, list[dict[str, int]]]:
+    #     """
+    #     Recursively calculate map from a cash currency to another via collateral curves.
+    #
+    #     Parameters
+    #     ----------
+    #     T : ndarray
+    #         The transformation mapping of cash and collateral currencies.
+    #     start_idx : int
+    #         The index of the currency as the starting point of this search.
+    #     search_idx : int
+    #         The index of the currency identifying the termination of search.
+    #     traced_paths : list[int]
+    #         The index of currencies that have already been exhausted within the search.
+    #     recursive_path : list[dict]
+    #         The path taken from the original start to the current search start location.
+    #
+    #     Returns
+    #     -------
+    #     bool, path
+    #
+    #     Notes
+    #     -----
+    #     The return path outlines the route taken from the ``start_idx`` to the
+    #     ``search_idx`` detailing each step as either traversing a row or column.
+    #
+    #     Examples
+    #     --------
+    #     .. ipython:: python
+    #
+    #        T = np.array([[1,1,1,0], [0,1,0,1],[0,0,1,0],[0,0,0,1]])
+    #        FXForwards._get_recursive_chain(T, 0, 3)
+    #
+    #     """
+    #     recursive_path = recursive_path.copy()
+    #     traced_paths = traced_paths.copy()
+    #     if len(traced_paths) == 0:
+    #         traced_paths.append(start_idx)
+    #
+    #     # try row:
+    #     row_paths = np.where(T[start_idx, :] == 1)[0]
+    #     col_paths = np.where(T[:, start_idx] == 1)[0]
+    #     if search_idx in row_paths:
+    #         recursive_path.append({"row": search_idx})
+    #         return True, recursive_path
+    #     if search_idx in col_paths:
+    #         recursive_path.append({"col": search_idx})
+    #         return True, recursive_path
+    #
+    #     for axis, paths in [("row", row_paths), ("col", col_paths)]:
+    #         for path_idx in paths:
+    #             if path_idx == start_idx:
+    #                 pass
+    #             elif path_idx != search_idx and path_idx not in traced_paths:
+    #                 recursive_path_app = recursive_path + [{axis: path_idx}]
+    #                 traced_paths_app = traced_paths + [path_idx]
+    #                 recursion = FXForwards._get_recursive_chain(
+    #                     T,
+    #                     path_idx,
+    #                     search_idx,
+    #                     traced_paths_app,
+    #                     recursive_path_app,
+    #                 )
+    #                 if recursion[0]:
+    #                     return recursion
+    #
+    #     return False, recursive_path
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -933,7 +933,7 @@ class FXForwards(_WithState):
         """
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
         cash_idx, coll_idx = self.currencies[cash_ccy], self.currencies[coll_ccy]
-        path = self._get_recursive_chain(self.transform, coll_idx, cash_idx, [], [])[1]
+        # path = self._get_recursive_chain(self.transform, coll_idx, cash_idx, [], [])[1]
         end = list(self.fx_curves[f"{coll_ccy}{coll_ccy}"].nodes.keys())[-1]
         days = (end - self.immediate).days
         nodes = {

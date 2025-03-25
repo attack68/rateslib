@@ -3007,13 +3007,13 @@ class ProxyCurve(Curve):
         self.coll_pair = f"{coll_ccy}{coll_ccy}"
         self.coll_idx = self.fx_forwards.currencies[coll_ccy]
         self.pair = f"{cash_ccy}{coll_ccy}"
-        self.path = self.fx_forwards._get_recursive_chain(
-            self.fx_forwards.transform,
-            self.coll_idx,
-            self.cash_idx,
-            [],
-            [],
-        )[1]
+        # self.path = self.fx_forwards._get_recursive_chain(
+        #     self.fx_forwards.transform,
+        #     self.coll_idx,
+        #     self.cash_idx,
+        #     [],
+        #     [],
+        # )[1]
         self.terminal = list(self.fx_forwards.fx_curves[self.cash_pair].nodes.keys())[-1]
 
         default_curve = Curve(
