@@ -756,8 +756,8 @@ class FXForwards(_WithState):
         -------
         Dual
         """
-        fx0 = self.rate(pair, settlements[0])
-        fx1 = self.rate(pair, settlements[1])
+        fx0 = self._rate_without_validation(pair, settlements[0])
+        fx1 = self._rate_without_validation(pair, settlements[1])
         return (fx1 - fx0) * 10000
 
     # @_validate_state TODO
