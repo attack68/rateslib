@@ -326,7 +326,9 @@ class FXForwards(_WithState):
                 w_i = self.fx_curves[f"{cash_ccy}{coll_ccy}"][settlement]
                 w_0 = self.fx_curves[f"{cash_ccy}{coll_ccy}"][self.immediate]
                 pair = f"{cash_ccy}{coll_ccy}"
-                fx_rates_immediate.update({pair: self.fx_rates.fx_array[row, col] * v_i / w_i * w_0 / v_0})
+                fx_rates_immediate.update(
+                    {pair: self.fx_rates.fx_array[row, col] * v_i / w_i * w_0 / v_0}
+                )
 
         fx_rates_immediate_ = FXRates(fx_rates_immediate, self.immediate, self.currencies_list[0])
         return fx_rates_immediate_.restate(self.fx_rates.pairs, keep_ad=True)
