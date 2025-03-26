@@ -663,7 +663,7 @@ def test_fx_curves_locals_raises():
                 "usdeur": Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.99}),
                 "eureur": Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.99}),
                 "noknok": Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.99}),
-            }
+            },
         )
 
 
