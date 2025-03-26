@@ -653,6 +653,20 @@ def test_fxforwards_position_not_dual(usdusd, eureur, usdeur) -> None:
     assert_series_equal(result, expected)
 
 
+def test_fx_curves_locals_raises():
+    with pytest.raises(ValueError, match="`fx_curves` must contain local cash-collateral curves"):
+        FXForwards(
+            fx_rates=FXRates({"eurusd": 1.0, "usdnok": 1.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={
+                "eurusd": Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.99}),
+                "usdnok": Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.99}),
+                "usdeur": Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.99}),
+                "eureur": Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.99}),
+                "noknok": Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.99}),
+            },
+        )
+
+
 def test_multiple_currencies_number_raises(usdusd) -> None:
     fxr1 = FXRates({"eurusd": 0.95}, settlement=dt(2022, 1, 3))
     fxr2 = FXRates({"gbpcad": 1.1}, settlement=dt(2022, 1, 2))

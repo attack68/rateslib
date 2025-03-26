@@ -218,7 +218,7 @@ class FXForwards(_WithState):
                 self.currencies = self.fx_rates.currencies
                 self.q = len(self.currencies.keys())
                 self.currencies_list: list[str] = self.fx_rates.currencies_list
-                self.transform = self._get_forwards_transformation_matrix(
+                self.transform = _get_curves_indicator_array(
                     self.q,
                     self.currencies,
                     self.fx_curves,
@@ -352,40 +352,6 @@ class FXForwards(_WithState):
         ps = product(currencies, currencies)
         ret = {p[0] + p[1]: fx_curves[p[0] + p[1]] for p in ps if p[0] + p[1] in fx_curves}
         return ret
-
-    @staticmethod
-    def _get_forwards_transformation_matrix(
-        q: int, currencies: dict[str, int], fx_curves: dict[str, Curve]
-    ) -> np.ndarray[tuple[int, int], np.dtype[np.int_]]:
-        """
-        Performs checks to ensure FX forwards can be generated from provided DF curves.
-
-        The transformation matrix has cash currencies by row and collateral currencies
-        by column.
-        """
-        # Define the transformation matrix with unit elements in each valid pair.
-        T = np.zeros((q, q), dtype=int)
-        for k, _ in fx_curves.items():
-            cash, coll = k[:3].lower(), k[3:].lower()
-            try:
-                cash_idx, coll_idx = currencies[cash], currencies[coll]
-            except KeyError:
-                raise ValueError(f"`fx_curves` contains an unexpected currency: {cash} or {coll}")
-            T[cash_idx, coll_idx] = 1
-
-        if T.sum() > (2 * q) - 1:
-            raise ValueError(
-                f"`fx_curves` is overspecified. {2 * q - 1} curves are expected "
-                f"but {len(fx_curves.keys())} provided.",
-            )
-        elif T.sum() < (2 * q) - 1:
-            raise ValueError(
-                f"`fx_curves` is underspecified. {2 * q - 1} curves are expected "
-                f"but {len(fx_curves.keys())} provided.",
-            )
-        elif np.linalg.matrix_rank(T) != q:
-            raise ValueError("`fx_curves` contains co-dependent rates.")
-        return T
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -1141,6 +1107,51 @@ def forward_fx(
     # else: fx_settlement is deemed to be immediate hence DF are both equal to 1.0
     _ *= fx_rate
     return _
+
+
+def _get_curves_indicator_array(
+    q: int, currencies: dict[str, int], fx_curves: dict[str, Curve]
+) -> np.ndarray[tuple[int, int], np.dtype[np.int_]]:
+    """
+    Constructs an indicator array identifying which cash-collateral curves are available in the
+    `fx_curves` dictionary.
+    """
+    # Define the transformation matrix with unit elements in each valid pair.
+    T = np.zeros((q, q), dtype=int)
+    for k, _ in fx_curves.items():
+        cash, coll = k[:3].lower(), k[3:].lower()
+        try:
+            cash_idx, coll_idx = currencies[cash], currencies[coll]
+        except KeyError:
+            raise ValueError(f"`fx_curves` contains an unexpected currency: {cash} or {coll}")
+        T[cash_idx, coll_idx] = 1
+
+    _validate_curves_indicator_array(T)
+    return T
+
+
+def _validate_curves_indicator_array(T: np.ndarray[tuple[int, int], np.dtype[np.int_]]) -> None:
+    """
+    Performs checks to ensure the indicator array of cash-collateral curves contains the
+    appropriate number of curves required by an FXForwards object.
+    """
+    q = T.shape[0]
+    if T.sum() > (2 * q) - 1:
+        raise ValueError(
+            f"`fx_curves` is overspecified. {2 * q - 1} curves are expected "
+            f"but {T.sum()} provided.",
+        )
+    elif T.sum() < (2 * q) - 1:
+        raise ValueError(
+            f"`fx_curves` is underspecified. {2 * q - 1} curves are expected "
+            f"but {T.sum()} provided.",
+        )
+    elif T.diagonal().sum() != q:
+        raise ValueError(
+            "`fx_curves` must contain local cash-collateral curves for each and every currency."
+        )
+    elif np.linalg.matrix_rank(T) != q:
+        raise ValueError("`fx_curves` contains co-dependent rates.")
 
 
 def _recursive_pair_population(
