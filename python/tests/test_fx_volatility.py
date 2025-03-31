@@ -647,14 +647,16 @@ class TestFXDeltaVolSurface:
 
 
 class TestFXSabrSmile:
-
-    @pytest.mark.parametrize(("strike", "vol"), [
-        (1.2034, 19.49),
-        (1.2050, 19.47),
-        (1.3620, 18.25),
-        (1.5410, 18.89),
-        (1.5449, 18.93),
-    ])
+    @pytest.mark.parametrize(
+        ("strike", "vol"),
+        [
+            (1.2034, 19.49),
+            (1.2050, 19.47),
+            (1.3620, 18.25),
+            (1.5410, 18.89),
+            (1.5449, 18.93),
+        ],
+    )
     def test_vol(self, strike, vol):
         # test the SABR function using Clark 'FX Option Pricing' Table 3.7 as benchmark.
         fxss = FXSabrSmile(
@@ -670,7 +672,7 @@ class TestFXSabrSmile:
         )
         # F_0,T is stated in section 3.5.4 as 1.3395
         result = fxss.get_from_strike(strike, 1.3395)[1]
-        assert abs(result-vol) < 1e-2
+        assert abs(result - vol) < 1e-2
 
     @pytest.mark.parametrize("param", ["alpha", "beta", "rho", "nu"])
     def test_missing_param_raises(self, param):
@@ -704,7 +706,6 @@ class TestFXSabrSmile:
         with pytest.raises(TypeError):
             for _ in fxss:
                 print(_)
-
 
     def test_update_node_raises(self):
         fxss = FXSabrSmile(
@@ -755,7 +756,6 @@ class TestFXSabrSmile:
         result = fxss._get_node_vector()
         expected = np.array([0.20, -0.1, 0.80])
         assert np.all(result == expected)
-
 
     def test_get_from_strike_expiry_raises(self):
         fxss = FXSabrSmile(

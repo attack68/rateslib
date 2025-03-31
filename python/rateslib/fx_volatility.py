@@ -1241,7 +1241,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         expiry: datetime | NoInput = NoInput(0),
     ) -> tuple[DualTypes, DualTypes, DualTypes]:
         """
-        Given an option strike return associated values.
+        Given an option strike return the volatility.
 
         Parameters
         -----------
