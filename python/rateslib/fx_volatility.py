@@ -1170,6 +1170,10 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
     r"""
     Create an *FX Volatility Smile* at a given expiry indexed by strike using SABR parameters.
 
+    .. warning::
+
+       This class is in beta status.
+
     Parameters
     ----------
     alpha: DualTypes
