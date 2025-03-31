@@ -96,6 +96,7 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
 
     _ini_solve = 0  # All node values are solvable
 
+    @_new_state_post
     def __init__(
         self,
         nodes: dict[float, DualTypes],
@@ -115,7 +116,6 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
         self.delta_type: str = _validate_delta_type(delta_type)
 
         self.__set_nodes__(nodes, ad)
-        self._set_new_state()
 
     def __iter__(self) -> Any:
         raise TypeError("`FXDeltaVolSmile` is not iterable.")
@@ -1164,6 +1164,202 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
             )  # scale the weights to allocate the correct time between nodes.
         w[self.eval_date] = 0.0
         return w
+
+
+class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
+    @_new_state_post
+    def __init__(
+        self,
+        alpha: DualTypes,
+        beta: DualTypes,
+        rho: DualTypes,
+        nu: DualTypes,
+        eval_date: datetime,
+        expiry: datetime,
+        id: str | NoInput = NoInput(0),  # noqa: A002
+        ad: int = 0,
+    ):
+        self.id: str = (
+            uuid4().hex[:5] + "_" if isinstance(id, NoInput) else id
+        )  # 1 in a million clash
+
+        self.eval_date: datetime = eval_date
+        self.expiry: datetime = expiry
+        self.t_expiry: float = (expiry - eval_date).days / 365.0
+        self.t_expiry_sqrt: float = self.t_expiry**0.5
+
+        self.nodes = {
+            "alpha": alpha,
+            "rho": rho,
+            "nu": nu,
+            "beta": beta,
+        }
+        self._set_ad_order(ad)
+
+    def __iter__(self) -> Any:
+        raise TypeError("`FXSabrSmile` is not iterable.")
+
+    def _get_vol(self, k: DualTypes, f: DualTypes) -> DualTypes:
+        """
+        Get a volatility value from the *SabrSmile* given an option strike and the forward FX rate
+        relevant for delivery.
+
+        Parameters
+        ----------
+        k: DualTypes
+            The option strike with ``expiry`` aligning with the *SabrSmile*.
+        f: DualTypes
+            The forward FX rate for the ``delivery`` date associated with the option.
+
+        Returns
+        -------
+        DualTypes
+        """
+        return self._sabr(
+            k,
+            f,
+            self.t_expiry,
+            self.nodes["alpha"],
+            self.nodes["beta"],
+            self.nodes["rho"],
+            self.nodes["nu"],
+        )
+
+    def _get_node_vector(self) -> np.ndarray[tuple[int, ...], np.dtype[np.object_]]:
+        """Get a 1d array of variables associated with nodes of this object updated by Solver"""
+        return np.array([self.nodes["alpha"], self.nodes["rho"], self.nodes["nu"]])
+
+    def _get_node_vars(self) -> tuple[str, ...]:
+        """Get the variable names of elements updated by a Solver"""
+        return tuple(f"{self.id}{i}" for i in range(3))
+
+    @_new_state_post
+    @_clear_cache_post
+    def _set_node_vector(
+        self, vector: np.ndarray[tuple[int, ...], np.dtype[np.object_]], ad: int
+    ) -> None:
+        """
+        Update the node values in a Solver. ``ad`` in {1, 2}.
+        Only the real values in vector are used, dual components are dropped and restructured.
+        """
+        DualType: type[Dual] | type[Dual2] = Dual if ad == 1 else Dual2
+        DualArgs: tuple[list[float]] | tuple[list[float], list[float]] = (
+            ([],) if ad == 1 else ([], [])
+        )
+        base_obj = DualType(0.0, [f"{self.id}{i}" for i in range(3)], *DualArgs)
+        ident = np.eye(3)
+
+        self.nodes["alpha"] = DualType.vars_from(
+            base_obj,  # type: ignore[arg-type]
+            vector[0].real,
+            base_obj.vars,
+            ident[0, :].tolist(),  # type: ignore[arg-type]
+            *DualArgs[1:],
+        )
+        self.nodes["rho"] = DualType.vars_from(
+            base_obj,  # type: ignore[arg-type]
+            vector[1].real,
+            base_obj.vars,
+            ident[1, :].tolist(),  # type: ignore[arg-type]
+            *DualArgs[1:],
+        )
+        self.nodes["nu"] = DualType.vars_from(
+            base_obj,  # type: ignore[arg-type]
+            vector[2].real,
+            base_obj.vars,
+            ident[2, :].tolist(),  # type: ignore[arg-type]
+            *DualArgs[1:],
+        )
+
+    @_clear_cache_post
+    def _set_ad_order(self, order: int) -> None:
+        """This does not alter the beta node, since that is not varied by a Solver.
+        beta values that are AD sensitive should be given as a Variable and not Dual/Dual2.
+        """
+        if order == getattr(self, "ad", None):
+            return None
+        elif order not in [0, 1, 2]:
+            raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
+
+        self.ad = order
+
+        self.nodes["alpha"] = set_order_convert(self.nodes["alpha"], order, [f"{self.id}0"])
+        self.nodes["rho"] = set_order_convert(self.nodes["rho"], order, [f"{self.id}1"])
+        self.nodes["nu"] = set_order_convert(self.nodes["nu"], order, [f"{self.id}2"])
+
+    @_new_state_post
+    @_clear_cache_post
+    def update_node(self, key: str, value: DualTypes) -> None:
+        """
+        Update a single node value on the *SABRSmile*.
+
+        Parameters
+        ----------
+        key: str in {"alpha", "beta", "rho", "nu"}
+            The node value to update.
+        value: float, Dual, Dual2, Variable
+            Value to update on the *Smile*.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+
+        .. warning::
+
+           *Rateslib* is an object-oriented library that uses complex associations. Although
+           Python may not object to directly mutating attributes of a *Curve* instance, this
+           should be avoided in *rateslib*. Only use official ``update`` methods to mutate the
+           values of an existing *Curve* instance.
+           This class is labelled as a **mutable on update** object.
+
+        """
+        if key not in self.nodes:
+            raise KeyError("`key` is not in ``nodes``.")
+        self.nodes[key] = value
+
+    def _sabr(
+        self,
+        k: DualTypes,
+        f: DualTypes,
+        t: DualTypes,
+        a: DualTypes,
+        b: DualTypes,
+        p: DualTypes,
+        v: DualTypes,
+    ) -> DualTypes:
+        """
+        Calculate the SABR vol. For formula see for example I. Clark "Foreign Exchange Option
+        Pricing" section 3.10.
+        """
+        c1 = (f * k) ** ((1.0 - b) / 2.0)
+        c2 = (f * k) ** (1.0 - b)
+        l1 = dual_log(f / k)
+
+        z = v / a * c1 * l1
+        chi = dual_log(((1 - 2 * p * z + z * z) ** 0.5 + z - p) / (1 - p))
+
+        _ = a / (c1 * (1 + ((1 - b) ** 2 / 24.0) * l1**2 + ((1 - b) ** 4 / 1920) * l1**4))
+
+        if abs(z) > 1e-14:
+            _ *= z / chi
+        else:
+            # this is an approximation to avoid 0/0 yet preserve the result of 1.0 and maintain
+            # AD sensitivity, rather than just omitting the multiplication
+            _ *= (z + 1e-12) / (chi + 1e-12)
+
+        _ *= (
+            1
+            + (
+                (1 - b) ** 2 / 24.0 * a**2 / c2
+                + 0.25 * (p * b * v * a) / c1
+                + (2 - 3 * p * p) * v * v / 24
+            )
+            * t
+        )
+        return _
 
 
 def _validate_delta_type(delta_type: str) -> str:
