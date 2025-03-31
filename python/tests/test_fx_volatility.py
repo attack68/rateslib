@@ -15,7 +15,12 @@ from rateslib.fx import (
     FXRates,
     forward_fx,
 )
-from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, _validate_delta_type
+from rateslib.fx_volatility import (
+    FXDeltaVolSmile,
+    FXDeltaVolSurface,
+    _validate_delta_type,
+    FXSabrSmile,
+)
 from rateslib.periods import FXPutPeriod
 
 
@@ -641,6 +646,10 @@ class TestFXDeltaVolSurface:
             assert dt(2024, 7, 1) not in fxvs._cache
 
 
+class TestFXSabrSmile:
+    pass
+
+
 class TestStateAndCache:
     @pytest.mark.parametrize(
         "curve",
@@ -648,6 +657,17 @@ class TestStateAndCache:
             FXDeltaVolSmile(
                 nodes={0.25: 10.0, 0.5: 10.0, 0.75: 11.0},
                 delta_type="forward",
+                eval_date=dt(2023, 3, 16),
+                expiry=dt(2023, 6, 16),
+                id="vol",
+            ),
+            FXSabrSmile(
+                nodes={
+                    "alpha": 0.17431060,
+                    "beta": 1.0,
+                    "rho": -0.11268306,
+                    "nu": 0.81694072,
+                },
                 eval_date=dt(2023, 3, 16),
                 expiry=dt(2023, 6, 16),
                 id="vol",
@@ -683,6 +703,35 @@ class TestStateAndCache:
         ],
     )
     def test_method_changes_state(self, curve, method, args):
+        before = curve._state
+        getattr(curve, method)(*args)
+        after = curve._state
+        assert before != after
+
+    @pytest.mark.parametrize(
+        "curve",
+        [
+            FXSabrSmile(
+                nodes={
+                    "alpha": 0.17431060,
+                    "beta": 1.0,
+                    "rho": -0.11268306,
+                    "nu": 0.81694072,
+                },
+                eval_date=dt(2023, 3, 16),
+                expiry=dt(2023, 6, 16),
+                id="vol",
+            )
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("_set_node_vector", ([0.99, 0.98, 0.99], 1)),
+            ("update_node", ("alpha", 0.98)),
+        ],
+    )
+    def test_method_changes_state_sabr(self, curve, method, args):
         before = curve._state
         getattr(curve, method)(*args)
         after = curve._state
@@ -788,14 +837,30 @@ class TestStateAndCache:
         post_state = surf._state
         assert pre_state != post_state  # validate states has been run and updated the state.
 
-    def test_initialisation_state_smile(self):
-        smile = FXDeltaVolSmile(
-            nodes={0.25: 10.0, 0.5: 10.0, 0.75: 11.0},
-            delta_type="forward",
-            eval_date=dt(2023, 3, 16),
-            expiry=dt(2023, 6, 16),
-            id="vol",
-        )
+    @pytest.mark.parametrize(
+        "smile",
+        [
+            FXDeltaVolSmile(
+                nodes={0.25: 10.0, 0.5: 10.0, 0.75: 11.0},
+                delta_type="forward",
+                eval_date=dt(2023, 3, 16),
+                expiry=dt(2023, 6, 16),
+                id="vol",
+            ),
+            FXSabrSmile(
+                nodes={
+                    "alpha": 0.17431060,
+                    "beta": 1.0,
+                    "rho": -0.11268306,
+                    "nu": 0.81694072,
+                },
+                eval_date=dt(2023, 3, 16),
+                expiry=dt(2023, 6, 16),
+                id="vol",
+            ),
+        ],
+    )
+    def test_initialisation_state_smile(self, smile):
         assert smile._state != 0
 
     def test_initialisation_state_surface(self):

@@ -1176,14 +1176,8 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
 
     Parameters
     ----------
-    alpha: DualTypes
-        The initial volatility parameter (e.g. 0.10 for 10%) of the SABR model.
-    beta: float or Variable in [0, 1]
-        The scaling parameter between normal (0) and lognormal (1) of the SABR model.
-    rho: DualTypes
-        The correlation between spot and volatility of the SABR model, e.g. -0.10.
-    nu: DualTypes
-        The volatility of volatility parameter of the SABR model, e.g. 0.80.
+    nodes: dict[str, DualTypes]
+        The parameters for the SABR model. Keys must be *'alpha', 'beta', 'rho', 'nu'*. See below.
     eval_date: datetime
         Acts as the initial node of a *Curve*. Should be assigned today's immediate date.
     expiry: datetime
@@ -1197,15 +1191,23 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         :class:`~rateslib.dual.Dual2`. It is advised against
         using this setting directly. It is mainly used internally.
 
+    Notes
+    -----
+    The keys for ``nodes`` are described as the following:
+
+    - ``alpha`` (DualTypes): The initial volatility parameter (e.g. 0.10 for 10%) of the SABR model.
+    - ``beta`` (float or Variable): The scaling parameter between normal (0) and lognormal (1)
+      of the SABR model in [0, 1].
+    - ``rho`` (DualTypes): The correlation between spot and volatility of the SABR model,
+      e.g. -0.10.
+    - ``nu`` (DualTypes): The volatility of volatility parameter of the SABR model, e.g. 0.80.
+
     """
 
     @_new_state_post
     def __init__(
         self,
-        alpha: DualTypes,
-        beta: DualTypes,
-        rho: DualTypes,
-        nu: DualTypes,
+        nodes: dict[str, DualTypes],
         eval_date: datetime,
         expiry: datetime,
         id: str | NoInput = NoInput(0),  # noqa: A002
@@ -1220,34 +1222,60 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         self.t_expiry: float = (expiry - eval_date).days / 365.0
         self.t_expiry_sqrt: float = self.t_expiry**0.5
 
-        self.nodes = {
-            "alpha": alpha,
-            "rho": rho,
-            "nu": nu,
-            "beta": beta,
-        }
+        self.nodes = nodes
+        for _ in ["alpha", "beta", "rho", "nu"]:
+            if _ not in self.nodes:
+                raise ValueError(
+                    f"'{_}' is a required SABR parameter that must be included in ``nodes``"
+                )
         self._set_ad_order(ad)
 
     def __iter__(self) -> Any:
         raise TypeError("`FXSabrSmile` is not iterable.")
 
-    def _get_vol(self, k: DualTypes, f: DualTypes) -> DualTypes:
+    def get_from_strike(
+        self,
+        k: DualTypes,
+        f: DualTypes,
+        w_deli: NoInput = NoInput(0),
+        w_spot: NoInput = NoInput(0),
+        expiry: datetime | NoInput = NoInput(0),
+    ) -> tuple[DualTypes, DualTypes, DualTypes]:
         """
-        Get a volatility value from the *SabrSmile* given an option strike and the forward FX rate
-        relevant for delivery.
+        Given an option strike return associated values.
 
         Parameters
-        ----------
-        k: DualTypes
-            The option strike with ``expiry`` aligning with the *SabrSmile*.
-        f: DualTypes
-            The forward FX rate for the ``delivery`` date associated with the option.
+        -----------
+        k: float, Dual, Dual2
+            The strike of the option.
+        f: float, Dual, Dual2
+            The forward rate at delivery of the option.
+        w_deli: DualTypes, optional
+            Not used by *SabrSmile*
+        w_spot: DualTypes, optional
+            Not used by *SabrSmile*
+        expiry: datetime, optional
+            If given, performs a check to ensure consistency of valuations. Raises if expiry
+            requested and expiry of the *Smile* do not match. Used internally.
 
         Returns
         -------
-        DualTypes
+        tuple of DualTypes : (placeholder, vol, k)
+
+        Notes
+        -----
+        This function returns a tuple consistent with an
+        :class:`~rateslib.fx_volatility.FXDeltaVolSmile`, however since the *FXSabrSmile* has no
+        concept of a `delta index` the first element returned is always zero and can be
+        effectively ignored.
         """
-        return self._sabr(
+        expiry = _drb(self.expiry, expiry)
+        if self.expiry != expiry:
+            raise ValueError(
+                "`expiry` of VolSmile and OptionPeriod do not match: calculation aborted "
+                "due to potential pricing errors.",
+            )
+        vol_ = self._sabr(
             k,
             f,
             self.t_expiry,
@@ -1256,6 +1284,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
             self.nodes["rho"],
             self.nodes["nu"],
         )
+        return 0.0, vol_, k
 
     def _get_node_vector(self) -> np.ndarray[tuple[int, ...], np.dtype[np.object_]]:
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""
@@ -1348,7 +1377,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
            This class is labelled as a **mutable on update** object.
 
         """
-        if key not in self.nodes:
+        if not key in self.nodes:
             raise KeyError("`key` is not in ``nodes``.")
         self.nodes[key] = value
 
