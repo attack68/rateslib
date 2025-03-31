@@ -703,7 +703,7 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
         self._csolve()
 
     @_new_state_post
-    # @_clear_cache_post performed by __set_nodes__
+    @_clear_cache_post
     def update(
         self,
         nodes: dict[float, DualTypes],
@@ -1380,6 +1380,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         if not key in self.nodes:
             raise KeyError("`key` is not in ``nodes``.")
         self.nodes[key] = value
+        self._set_ad_order(self.ad)
 
     def _sabr(
         self,
