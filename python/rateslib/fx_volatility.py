@@ -1167,6 +1167,34 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
 
 
 class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
+    r"""
+    Create an *FX Volatility Smile* at a given expiry indexed by strike using SABR parameters.
+
+    Parameters
+    ----------
+    alpha: DualTypes
+        The initial volatility parameter (e.g. 0.10 for 10%) of the SABR model.
+    beta: float or Variable in [0, 1]
+        The scaling parameter between normal (0) and lognormal (1) of the SABR model.
+    rho: DualTypes
+        The correlation between spot and volatility of the SABR model, e.g. -0.10.
+    nu: DualTypes
+        The volatility of volatility parameter of the SABR model, e.g. 0.80.
+    eval_date: datetime
+        Acts as the initial node of a *Curve*. Should be assigned today's immediate date.
+    expiry: datetime
+        The expiry date of the options associated with this *Smile*
+    id: str, optional
+        The unique identifier to distinguish between *Smiles* in a multicurrency framework
+        and/or *Surface*.
+    ad: int, optional
+        Sets the automatic differentiation order. Defines whether to convert node
+        values to float, :class:`~rateslib.dual.Dual` or
+        :class:`~rateslib.dual.Dual2`. It is advised against
+        using this setting directly. It is mainly used internally.
+
+    """
+
     @_new_state_post
     def __init__(
         self,
