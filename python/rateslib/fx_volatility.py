@@ -1056,7 +1056,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
                 # left side extrapolation
                 ep1 = self.eval_posix
                 ep2 = self.expiries_posix[expiry_index]
-            else: # bounds_flag == 1:
+            else:  # bounds_flag == 1:
                 # right side extrapolation
                 ep1 = self.expiries_posix[expiry_index + 1]
                 ep2 = TERMINAL_DATE.replace(tzinfo=UTC).timestamp()
@@ -1073,7 +1073,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
                 # left side extrapolation
                 t1 = 0.0
                 t2 = self.weights_cum[self.expiries[expiry_index]]
-            else: # bounds_flag == 1:
+            else:  # bounds_flag == 1:
                 # right side extrapolation
                 t1 = self.weights_cum[self.expiries[expiry_index + 1]]
                 t2 = self.weights_cum[TERMINAL_DATE]
@@ -1402,7 +1402,9 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         z = v / a * c1 * l1
         chi = dual_log(((1 - 2 * p * z + z * z) ** 0.5 + z - p) / (1 - p))
 
-        _: DualTypes = a / (c1 * (1 + ((1 - b) ** 2 / 24.0) * l1**2 + ((1 - b) ** 4 / 1920) * l1**4))
+        _: DualTypes = a / (
+            c1 * (1 + ((1 - b) ** 2 / 24.0) * l1**2 + ((1 - b) ** 4 / 1920) * l1**4)
+        )
 
         if abs(z) > 1e-14:
             _ *= z / chi
