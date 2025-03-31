@@ -103,17 +103,17 @@ class FXOptionStrat:
         If a sub-sequence, e.g BrokerFly is a strategy of strategies then this function will
         be repeatedly called within each strategy.
         """
+        ret: ListFXVol_ = []
         if isinstance(
             vol,
             str | float | Dual | Dual2 | Variable | FXDeltaVolSurface | FXDeltaVolSmile | NoInput,
         ):
-            ret: ListFXVol_ = []
             for obj in self.periods:
                 if isinstance(obj, FXOptionStrat):
                     ret.append(obj._parse_vol_sequence(vol))
                 else:
                     ret.append(vol)
-            return ret
+
         elif isinstance(vol, Sequence):
             if len(vol) != len(self.periods):
                 raise ValueError(
@@ -121,14 +121,13 @@ class FXOptionStrat:
                     f"strategy elements: {len(self.periods)}"
                 )
             else:
-                ret = []
                 for obj, vol_ in zip(self.periods, vol, strict=True):
                     if isinstance(obj, FXOptionStrat):
                         ret.append(obj._parse_vol_sequence(vol_))
                     else:
                         assert isinstance(vol_, str) or not isinstance(vol_, Sequence)  # noqa: S101
                         ret.append(vol_)
-                return ret
+        return ret
 
     def _get_fxvol_maybe_from_solver_recursive(
         self, vol: FXVolStrat_, solver: Solver_
