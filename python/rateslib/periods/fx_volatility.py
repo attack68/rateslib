@@ -1099,7 +1099,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
             dvol_ddeltaidx = _dual_float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
 
-            dd_du = -1 / (u * vol_sqrt_t)
+            dd_du = -1 / (u * vol_sqrt_t)  # this is the same for 0 or 1 variety
             nd0 = dual_norm_pdf(phi * d0)
             nd1 = dual_norm_pdf(-d1)
             lnu = dual_log(u) / (vol_**2 * sqrt_t_e)
