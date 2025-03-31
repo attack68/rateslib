@@ -1195,7 +1195,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
     The keys for ``nodes`` are described as the following:
 
     - ``alpha`` (DualTypes): The initial volatility parameter (e.g. 0.10 for 10%) of the SABR model.
-    - ``beta`` (float or Variable): The scaling parameter between normal (0) and lognormal (1)
+    - ``beta`` (float): The scaling parameter between normal (0) and lognormal (1)
       of the SABR model in [0, 1].
     - ``rho`` (DualTypes): The correlation between spot and volatility of the SABR model,
       e.g. -0.10.
@@ -1279,7 +1279,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
             f,
             self.t_expiry,
             self.nodes["alpha"],
-            self.nodes["beta"],
+            self.nodes["beta"],  # type: ignore[arg-type]
             self.nodes["rho"],
             self.nodes["nu"],
         )
@@ -1376,7 +1376,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
            This class is labelled as a **mutable on update** object.
 
         """
-        if not key in self.nodes:
+        if key not in self.nodes:
             raise KeyError("`key` is not in ``nodes``.")
         self.nodes[key] = value
         self._set_ad_order(self.ad)
@@ -1387,7 +1387,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         f: DualTypes,
         t: DualTypes,
         a: DualTypes,
-        b: DualTypes,
+        b: float,
         p: DualTypes,
         v: DualTypes,
     ) -> DualTypes:

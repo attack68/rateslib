@@ -18,8 +18,8 @@ from rateslib.fx import (
 from rateslib.fx_volatility import (
     FXDeltaVolSmile,
     FXDeltaVolSurface,
-    _validate_delta_type,
     FXSabrSmile,
+    _validate_delta_type,
 )
 from rateslib.periods import FXPutPeriod
 
@@ -704,8 +704,8 @@ class TestFXSabrSmile:
             id="vol",
         )
         with pytest.raises(TypeError):
-            for _ in fxss:
-                print(_)
+            for iterable in fxss:
+                pass
 
     def test_update_node_raises(self):
         fxss = FXSabrSmile(
