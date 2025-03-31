@@ -757,6 +757,22 @@ class TestFXSabrSmile:
         assert np.all(result == expected)
 
 
+    def test_get_from_strike_expiry_raises(self):
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.20,
+                "beta": 1.0,
+                "rho": -0.10,
+                "nu": 0.80,
+            },
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            id="vol",
+            ad=2,
+        )
+        with pytest.raises(ValueError, match="`expiry` of VolSmile and OptionPeriod do not match"):
+            fxss.get_from_strike(1.0, 1.0, 1.0, 1.0, dt(1999, 1, 1))
+
     @pytest.mark.parametrize("k", [1.2034, 1.2050, 1.3620, 1.5410, 1.5449])
     def test_get_from_strike_ad_2(self, fxfo, k) -> None:
         # Use finite diff to validate the 2nd order AD of the SABR function in alpha and rho.
@@ -799,6 +815,7 @@ class TestFXSabrSmile:
         ad_grad = gradient(pv00[1], ["vol0", "vol1"], 2)[0, 1]
 
         assert abs(finite_diff - ad_grad) < 1e-4
+
 
 class TestStateAndCache:
     @pytest.mark.parametrize(
