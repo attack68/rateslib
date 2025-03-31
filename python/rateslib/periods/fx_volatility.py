@@ -846,7 +846,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 vol_: DualTypes = vol[delta_idx] / 100.0
                 dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
             else:
-                vol_ = vol / 100.0
+                vol_ = vol / 100.0  # type: ignore[operator]
                 dvol_ddeltaidx = 0.0
             vol_ = _dual_float(vol_) if ad == 0 else vol_
             dvol_ddeltaidx = _dual_float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
@@ -873,7 +873,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         if isinstance(vol, FXDeltaVolSmile):
             avg_vol: DualTypes = _dual_float(list(vol.nodes.values())[int(vol.n / 2)])
         else:
-            avg_vol = vol
+            avg_vol = vol  # type: ignore[assignment]
         g01 = self.phi * 0.5 * (z_w if "spot" in delta_type else 1.0)
         g00 = self._moneyness_from_delta_closed_form(g01, avg_vol, t_e, 1.0)
 
@@ -919,7 +919,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 vol_: DualTypes = vol[delta_idx] / 100.0
                 dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
             else:
-                vol_ = vol / 100.0
+                vol_ = vol / 100.0  # type: ignore[operator]
                 dvol_ddeltaidx = 0.0
             vol_ = _dual_float(vol_) if ad == 0 else vol_
             dvol_ddeltaidx = _dual_float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
@@ -946,7 +946,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         if isinstance(vol, FXDeltaVolSmile):
             avg_vol: DualTypes = _dual_float(list(vol.nodes.values())[int(vol.n / 2)])
         else:
-            avg_vol = vol
+            avg_vol = vol  # type: ignore[assignment]
         g01 = delta if self.phi > 0 else max(delta, -0.75)
         g00 = self._moneyness_from_delta_closed_form(g01, avg_vol, t_e, 1.0)
 
@@ -1160,7 +1160,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 vol_: DualTypes = vol[delta_idx] / 100.0
                 dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
             else:
-                vol_ = vol / 100.0
+                vol_ = vol / 100.0  # type: ignore[operator]
                 dvol_ddeltaidx = 0.0
             vol_ = _dual_float(vol_) if ad == 0 else vol_
             vol_sqrt_t = vol_ * sqrt_t_e
@@ -1206,7 +1206,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             avg_vol: DualTypes = _dual_float(list(vol.nodes.values())[int(vol.n / 2)])
             vol_delta_type = vol.delta_type
         else:
-            avg_vol = vol
+            avg_vol = vol  # type: ignore[assignment]
             vol_delta_type = self.delta_type
         g02 = 0.5 * self.phi * (z_w if "spot" in delta_type else 1.0)
         g01 = g02 if self.phi > 0 else max(g02, -0.75)
