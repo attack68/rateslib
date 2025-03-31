@@ -737,8 +737,7 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
             ad_ = defaults._global_ad_order
         else:
             ad_ = 0
-        # self._csolve() is performed in set_nodes
-        self.__set_nodes__(nodes, ad_)
+        self.__set_nodes__(nodes, ad_)  # this will also perform `csolve` and `clear_cache`.
 
     @_new_state_post
     @_clear_cache_post
