@@ -647,7 +647,30 @@ class TestFXDeltaVolSurface:
 
 
 class TestFXSabrSmile:
-    pass
+
+    @pytest.mark.parametrize(("strike", "vol"), [
+        (1.2034, 19.49),
+        (1.2050, 19.47),
+        (1.3620, 18.25),
+        (1.5410, 18.89),
+        (1.5449, 18.93),
+    ])
+    def test_vol(self, strike, vol):
+        # test the SABR function using Clark 'FX Option Pricing' Table 3.7 as benchmark.
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.17431060,
+                "beta": 1.0,
+                "rho": -0.11268306,
+                "nu": 0.81694072,
+            },
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            id="vol",
+        )
+        # F_0,T is stated in section 3.5.4 as 1.3395
+        result = fxss.get_from_strike(strike, 1.3395)[1]
+        assert abs(result-vol) < 1e-2
 
 
 class TestStateAndCache:

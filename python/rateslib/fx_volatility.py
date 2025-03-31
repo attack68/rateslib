@@ -1284,7 +1284,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
             self.nodes["rho"],
             self.nodes["nu"],
         )
-        return 0.0, vol_, k
+        return 0.0, vol_ * 100.0, k
 
     def _get_node_vector(self) -> np.ndarray[tuple[int, ...], np.dtype[np.object_]]:
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""
