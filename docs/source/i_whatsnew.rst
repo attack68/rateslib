@@ -40,6 +40,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
        dict instead of being directly accessible on the object. This may affect existing code that relies on these
        attributes.
        (`700 <https://github.com/attack68/rateslib/pull/700>`_)
+   * - FX Volatility
+     - An :class:`~rateslib.fx_volatility.FXSabrSmile` is implemented in *beta* status, which
+       cannot yet be used to price *Instruments*.
+       (`714 <https://github.com/attack68/rateslib/pull/714>`_)
    * - Refactor
      - Rename :class:`~rateslib.instruments.BaseMixin` to :class:`~rateslib.instruments.Metrics`.
        (`678 <https://github.com/attack68/rateslib/pull/678>`_)

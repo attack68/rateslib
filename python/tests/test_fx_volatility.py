@@ -15,7 +15,12 @@ from rateslib.fx import (
     FXRates,
     forward_fx,
 )
-from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, _validate_delta_type
+from rateslib.fx_volatility import (
+    FXDeltaVolSmile,
+    FXDeltaVolSurface,
+    FXSabrSmile,
+    _validate_delta_type,
+)
 from rateslib.periods import FXPutPeriod
 
 
@@ -641,6 +646,177 @@ class TestFXDeltaVolSurface:
             assert dt(2024, 7, 1) not in fxvs._cache
 
 
+class TestFXSabrSmile:
+    @pytest.mark.parametrize(
+        ("strike", "vol"),
+        [
+            (1.2034, 19.49),
+            (1.2050, 19.47),
+            (1.3620, 18.25),
+            (1.5410, 18.89),
+            (1.5449, 18.93),
+        ],
+    )
+    def test_vol(self, strike, vol):
+        # test the SABR function using Clark 'FX Option Pricing' Table 3.7 as benchmark.
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.17431060,
+                "beta": 1.0,
+                "rho": -0.11268306,
+                "nu": 0.81694072,
+            },
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            id="vol",
+        )
+        # F_0,T is stated in section 3.5.4 as 1.3395
+        result = fxss.get_from_strike(strike, 1.3395)[1]
+        assert abs(result - vol) < 1e-2
+
+    @pytest.mark.parametrize("param", ["alpha", "beta", "rho", "nu"])
+    def test_missing_param_raises(self, param):
+        nodes = {
+            "alpha": 0.17431060,
+            "beta": 1.0,
+            "rho": -0.11268306,
+            "nu": 0.81694072,
+        }
+        nodes.pop(param)
+        with pytest.raises(ValueError):
+            FXSabrSmile(
+                nodes=nodes,
+                eval_date=dt(2001, 1, 1),
+                expiry=dt(2002, 1, 1),
+                id="vol",
+            )
+
+    def test_non_iterable(self):
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.17431060,
+                "beta": 1.0,
+                "rho": -0.11268306,
+                "nu": 0.81694072,
+            },
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            id="vol",
+        )
+        with pytest.raises(TypeError):
+            for iterable in fxss:
+                pass
+
+    def test_update_node_raises(self):
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.17431060,
+                "beta": 1.0,
+                "rho": -0.11268306,
+                "nu": 0.81694072,
+            },
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            id="vol",
+        )
+        with pytest.raises(KeyError, match="`key` is not in ``nodes``."):
+            fxss.update_node("bananas", 12.0)
+
+    def test_set_ad_order_raises(self):
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.17431060,
+                "beta": 1.0,
+                "rho": -0.11268306,
+                "nu": 0.81694072,
+            },
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            id="vol",
+        )
+        with pytest.raises(ValueError, match="`order` can only be in {0, 1, 2} "):
+            fxss._set_ad_order(12)
+
+    def test_get_node_vars_and_vector(self):
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.20,
+                "beta": 1.0,
+                "rho": -0.10,
+                "nu": 0.80,
+            },
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            id="myid",
+        )
+        result = fxss._get_node_vars()
+        expected = ("myid0", "myid1", "myid2")
+        assert result == expected
+
+        result = fxss._get_node_vector()
+        expected = np.array([0.20, -0.1, 0.80])
+        assert np.all(result == expected)
+
+    def test_get_from_strike_expiry_raises(self):
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.20,
+                "beta": 1.0,
+                "rho": -0.10,
+                "nu": 0.80,
+            },
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            id="vol",
+            ad=2,
+        )
+        with pytest.raises(ValueError, match="`expiry` of VolSmile and OptionPeriod do not match"):
+            fxss.get_from_strike(1.0, 1.0, 1.0, 1.0, dt(1999, 1, 1))
+
+    @pytest.mark.parametrize("k", [1.2034, 1.2050, 1.3620, 1.5410, 1.5449])
+    def test_get_from_strike_ad_2(self, fxfo, k) -> None:
+        # Use finite diff to validate the 2nd order AD of the SABR function in alpha and rho.
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.20,
+                "beta": 1.0,
+                "rho": -0.10,
+                "nu": 0.80,
+            },
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            id="vol",
+            ad=2,
+        )
+        fxfo._set_ad_order(2)
+        args = (
+            k,
+            fxfo.rate("eurusd", dt(2023, 6, 20)),
+        )
+        pv00 = fxss.get_from_strike(*args)
+
+        fxss.update_node("alpha", 0.20 + 0.00001)
+        fxss.update_node("rho", -0.10 + 0.00001)
+        pv11 = fxss.get_from_strike(*args)
+
+        fxss.update_node("alpha", 0.20 + 0.00001)
+        fxss.update_node("rho", -0.10 - 0.00001)
+        pv1_1 = fxss.get_from_strike(*args)
+
+        fxss.update_node("alpha", 0.20 - 0.00001)
+        fxss.update_node("rho", -0.10 - 0.00001)
+        pv_1_1 = fxss.get_from_strike(*args)
+
+        fxss.update_node("alpha", 0.20 - 0.00001)
+        fxss.update_node("rho", -0.10 + 0.00001)
+        pv_11 = fxss.get_from_strike(*args)
+
+        finite_diff = (pv11[1] + pv_1_1[1] - pv1_1[1] - pv_11[1]) * 1e10 / 4.0
+        ad_grad = gradient(pv00[1], ["vol0", "vol1"], 2)[0, 1]
+
+        assert abs(finite_diff - ad_grad) < 1e-4
+
+
 class TestStateAndCache:
     @pytest.mark.parametrize(
         "curve",
@@ -648,6 +824,17 @@ class TestStateAndCache:
             FXDeltaVolSmile(
                 nodes={0.25: 10.0, 0.5: 10.0, 0.75: 11.0},
                 delta_type="forward",
+                eval_date=dt(2023, 3, 16),
+                expiry=dt(2023, 6, 16),
+                id="vol",
+            ),
+            FXSabrSmile(
+                nodes={
+                    "alpha": 0.17431060,
+                    "beta": 1.0,
+                    "rho": -0.11268306,
+                    "nu": 0.81694072,
+                },
                 eval_date=dt(2023, 3, 16),
                 expiry=dt(2023, 6, 16),
                 id="vol",
@@ -683,6 +870,35 @@ class TestStateAndCache:
         ],
     )
     def test_method_changes_state(self, curve, method, args):
+        before = curve._state
+        getattr(curve, method)(*args)
+        after = curve._state
+        assert before != after
+
+    @pytest.mark.parametrize(
+        "curve",
+        [
+            FXSabrSmile(
+                nodes={
+                    "alpha": 0.17431060,
+                    "beta": 1.0,
+                    "rho": -0.11268306,
+                    "nu": 0.81694072,
+                },
+                eval_date=dt(2023, 3, 16),
+                expiry=dt(2023, 6, 16),
+                id="vol",
+            )
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("_set_node_vector", ([0.99, 0.98, 0.99], 1)),
+            ("update_node", ("alpha", 0.98)),
+        ],
+    )
+    def test_method_changes_state_sabr(self, curve, method, args):
         before = curve._state
         getattr(curve, method)(*args)
         after = curve._state
@@ -788,14 +1004,30 @@ class TestStateAndCache:
         post_state = surf._state
         assert pre_state != post_state  # validate states has been run and updated the state.
 
-    def test_initialisation_state_smile(self):
-        smile = FXDeltaVolSmile(
-            nodes={0.25: 10.0, 0.5: 10.0, 0.75: 11.0},
-            delta_type="forward",
-            eval_date=dt(2023, 3, 16),
-            expiry=dt(2023, 6, 16),
-            id="vol",
-        )
+    @pytest.mark.parametrize(
+        "smile",
+        [
+            FXDeltaVolSmile(
+                nodes={0.25: 10.0, 0.5: 10.0, 0.75: 11.0},
+                delta_type="forward",
+                eval_date=dt(2023, 3, 16),
+                expiry=dt(2023, 6, 16),
+                id="vol",
+            ),
+            FXSabrSmile(
+                nodes={
+                    "alpha": 0.17431060,
+                    "beta": 1.0,
+                    "rho": -0.11268306,
+                    "nu": 0.81694072,
+                },
+                eval_date=dt(2023, 3, 16),
+                expiry=dt(2023, 6, 16),
+                id="vol",
+            ),
+        ],
+    )
+    def test_initialisation_state_smile(self, smile):
         assert smile._state != 0
 
     def test_initialisation_state_surface(self):
