@@ -20,6 +20,8 @@ from rateslib.fx_volatility import (
     FXDeltaVolSurface,
     FXSabrSmile,
     _validate_delta_type,
+    _sabr,
+    _d_sabr_d_k
 )
 from rateslib.periods import FXPutPeriod
 
@@ -815,6 +817,24 @@ class TestFXSabrSmile:
 
         assert abs(finite_diff - ad_grad) < 1e-4
 
+    @pytest.mark.parametrize("p", [-0.1, 0.15])
+    @pytest.mark.parametrize("a", [0.05, 0.2])
+    @pytest.mark.parametrize("k_", [1.15, 1.3620, 1.45])
+    def test_sabr_derivative(self, a, p, k_):
+        # test the analytic derivative of the SABR function with respect to k created by sympy
+        b = 1.0
+        v = 0.8
+        f = 1.3395
+        t = 1.0
+        k = Dual(k_, ["k"], [1.0])
+
+        sabr_vol = _sabr(k, f, t, a, b, p, v)
+        result = _d_sabr_d_k(k, f, t, a, b, p, v)
+        expected =  gradient(sabr_vol, ["k"])[0]
+
+        assert abs(result - expected) < 1e-10
+
+
 
 class TestStateAndCache:
     @pytest.mark.parametrize(
@@ -1043,3 +1063,5 @@ class TestStateAndCache:
 def test_validate_delta_type() -> None:
     with pytest.raises(ValueError, match="`delta_type` must be in"):
         _validate_delta_type("BAD_TYPE")
+
+
