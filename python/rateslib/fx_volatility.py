@@ -1285,6 +1285,18 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         )
         return 0.0, vol_ * 100.0, k
 
+    def _d_sabr_d_k(self, k: DualTypes, f: DualTypes) -> DualTypes:
+        """Get the derivative of sabr vol with respect to strike"""
+        return _d_sabr_d_k(
+            k,
+            f,
+            self.t_expiry,
+            self.nodes["alpha"],
+            self.nodes["beta"],  # type: ignore[arg-type]
+            self.nodes["rho"],
+            self.nodes["nu"],
+        )
+
     def _get_node_vector(self) -> np.ndarray[tuple[int, ...], np.dtype[np.object_]]:
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""
         return np.array([self.nodes["alpha"], self.nodes["rho"], self.nodes["nu"]])

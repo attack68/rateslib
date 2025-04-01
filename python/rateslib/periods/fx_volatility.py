@@ -15,6 +15,7 @@ from rateslib.fx import FXForwards
 from rateslib.fx_volatility import (
     FXDeltaVolSmile,
     FXDeltaVolSurface,
+    FXSabrSmile,
     _black76,
     _d_plus_min_u,
     _delta_type_constants,
@@ -664,14 +665,41 @@ class FXOptionPeriod(metaclass=ABCMeta):
         f: DualTypes,
         t_e: DualTypes,
     ) -> tuple[DualTypes, DualTypes | None]:
+        """
+        This function returns strike and, where available, a delta index for an option period
+        defined by ATM delta.
+
+        Parameters
+        ----------
+        delta_type: str
+            The delta type of the option period.
+        vol: DualTypes | Smile | Surface
+            The volatility used, either specifici value or a Smile/Surface.
+        w_deli: DualTypes
+            The relevant discount factor at delivery.
+        w_spot: DualTypes
+            The relevant discount factor at spot.
+        f: DualTypes
+            The forward FX rate for delivery.
+        t_e: DualTypes
+            The time to expiry
+
+        Returns
+        -------
+        (DualTypes, DualTypes)
+        """
         # TODO this method branches depending upon eta0 and eta1, but depending upon the
-        # type of vol these maybe automatcially set equal to each other. Refactorin this would
+        # type of vol these maybe automatically set equal to each other. Refactoring this would
         # make eliminate repeated type checking for the vol argument.
         vol_delta_type = _get_vol_delta_type(vol, delta_type)
 
         z_w = w_deli / w_spot
         eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, 0.0)  # u: unused
         eta_1, z_w_1, _ = _delta_type_constants(vol_delta_type, z_w, 0.0)  #  u: unused
+
+        if isinstance(vol, FXSabrSmile):
+            k = self._strike_from_atm_sabr(f, eta_0, vol, t_e)
+            return k, None
 
         # u, delta_idx, delta =
         # self._moneyness_from_delta_three_dimensional(delta_type, vol, t_e, z_w)
@@ -714,6 +742,25 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 )
 
         return u * f, delta_idx
+
+    def _strike_from_atm_sabr(
+        self, f: DualTypes, eta_0: float, vol: FXSabrSmile, t_e: DualTypes
+    ) -> DualTypes:
+        def root1d(k: DualTypes, f: DualTypes) -> tuple[DualTypes, DualTypes]:
+            sigma = vol.get_from_strike(k, f)[1]
+            f0 = -dual_log(k / f) + eta_0 * sigma**2 * t_e
+            f1 = -1 / k + eta_0 * 2 * sigma * vol._d_sabr_d_k(k, f)
+            return f0, f1
+
+        root_solver = newton_1dim(
+            root1d,
+            _dual_float(f),
+            args=(f,),
+            raise_on_fail=True,
+        )
+
+        k: DualTypes = root_solver["g"]
+        return k
 
     def _strike_and_index_from_delta(
         self,
