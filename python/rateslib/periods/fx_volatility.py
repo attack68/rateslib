@@ -474,7 +474,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         if isinstance(vol, NoInput):
             raise ValueError("`vol` must be a number quantity or FXDeltaVolSmile or Surface.")
-        elif isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
+        elif isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile):
             res: tuple[DualTypes, DualTypes, DualTypes] = vol.get_from_strike(
                 self.strike, f_d, w_deli, w_spot, self.expiry
             )
@@ -747,14 +747,14 @@ class FXOptionPeriod(metaclass=ABCMeta):
         self, f: DualTypes, eta_0: float, vol: FXSabrSmile, t_e: DualTypes
     ) -> DualTypes:
         def root1d(k: DualTypes, f: DualTypes) -> tuple[DualTypes, DualTypes]:
-            sigma = vol.get_from_strike(k, f)[1]
+            sigma = vol.get_from_strike(k, f)[1] / 100.0
             f0 = -dual_log(k / f) + eta_0 * sigma**2 * t_e
-            f1 = -1 / k + eta_0 * 2 * sigma * vol._d_sabr_d_k(k, f)
+            f1 = -1 / k + eta_0 * 2 * sigma * vol._d_sabr_d_k(k, f) * t_e
             return f0, f1
 
         root_solver = newton_1dim(
             root1d,
-            _dual_float(f),
+            f + 1e-4,
             args=(f,),
             raise_on_fail=True,
         )

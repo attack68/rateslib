@@ -5115,7 +5115,7 @@ class TestFXOptions:
 
         f_d = fxfo.rate("eurusd", dt(2023, 6, 20))
         eta = 0.5 if prem_ccy == "usd" else -0.5
-        expected = f_d * dual_exp(result["__vol"] ** 2 * fxvs.t_expiry * eta)
+        expected = f_d * dual_exp(result["__vol"] ** 2 * vol.t_expiry * eta)
         assert abs(result["__strike"] - expected) < 1e-8
 
     @pytest.mark.parametrize("phi", [1.0, -1.0])
