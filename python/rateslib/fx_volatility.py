@@ -1679,7 +1679,6 @@ def _d_sabr_d_k(
     This function was composed using the Python package `sympy` in the following way:
 
     SABR(k) = A(k) * B(k) * C(k) * D(k)
-    dSABR/dk = dA/dk BCD + A dB/dk CD + AB dC/dk D + ABC dD/dk
 
     .. code::
 
@@ -1693,129 +1692,76 @@ def _d_sabr_d_k(
        p = sym.Symbol("p")
 
        A = a/((f*k)**((1-b)/2)*(1+(1-b)/24*sym.log(f/k)**2+(1-b)**4/1920*sym.log(f/k)**4))
-       sym.pycode(sym.diff(A, k))
 
        z = v/a*(f*k)**((1-b)/2)*sym.log(f/k)
        B = z
-       sym.pycode(sym.diff(B, k))
 
        chi = sym.log(((1-2*p*z+z*z)**(1/2)+z-p)/(1-p))
        C = chi**-1
-       sym.pycode(sym.diff(C, k))
 
        D = 1+((1-b)**2/24*a**2/(f*k)**(1-b)+(1/4)*(p*b*v*a)/(f*k)**((1-b)/2)+(2-3*p*p)*v*v/24)*t
-       sym.pycode(sym.diff(D, k))
+
+       sym.cse(sym.diff(A * B * C * D, k))
 
     """
-    c1 = f * k
-    c2 = c1 ** ((1 - b) / 2)
-    d1 = dual_log(f / k)
-
-    A = a / (c2 * (1 + (1 - b) / 24 * d1**2 + (1 - b) ** 4 / 1920 * d1**4))
-    B = v / a * c2 * d1
-    C = (dual_log(((1 - 2 * p * B + B * B) ** (1 / 2) + B - p) / (1 - p))) ** -1
-    D = (
-        1
-        + (
-            (1 - b) ** 2 / 24 * a**2 / c1 ** (1 - b)
-            + (1 / 4) * (p * b * v * a) / c2
-            + (2 - 3 * p * p) * v * v / 24
-        )
-        * t
-    )
-    dA = _d_A_d_k(k, f, t, a, b, p, v)
-    dB = _d_B_d_k(k, f, t, a, b, p, v)
-    dC = _d_C_d_k(k, f, t, a, b, p, v)
-    dD = _d_D_d_k(k, f, t, a, b, p, v)
-
-    return dA * B * C * D + A * dB * C * D + A * B * dC * D + A * B * C * dD
-
-
-def _d_A_d_k(
-    k: DualTypes, f: DualTypes, t: DualTypes, a: DualTypes, b: float, p: DualTypes, v: DualTypes
-) -> DualTypes:
-    """For use with _d_sabr_d_k"""
-    c1 = f * k
-    c2 = c1 ** (0.5 * b - 0.5)
-    d1 = dual_log(f / k)
-    d2 = d1**2
-    d3 = d1**3
-    d4 = d1**4
-
-    return a * c2 * (2 * (1 / 24 - 1 / 24 * b) * d1 / k + (1 / 480) * (1 - b) ** 4 * d3 / k) / (
-        (1 / 24 - 1 / 24 * b) * d2 + (1 / 1920) * (1 - b) ** 4 * d4 + 1
-    ) ** 2 + a * c2 * ((1 / 2) * b - 1 / 2) / (
-        k * ((1 / 24 - 1 / 24 * b) * d2 + (1 / 1920) * (1 - b) ** 4 * d4 + 1)
-    )
-
-
-def _d_B_d_k(
-    k: DualTypes,
-    f: DualTypes,
-    t: DualTypes,
-    a: DualTypes,
-    b: float,
-    p: DualTypes,
-    v: DualTypes,
-) -> DualTypes:
-    """For use with _d_sabr_d_k"""
-    c1 = f * k
-    c2 = c1 ** (0.5 - 0.5 * b)
-    return v * c2 * (0.5 - 0.5 * b) * dual_log(f / k) / (a * k) - v * c2 / (a * k)
-
-
-def _d_C_d_k(
-    k: DualTypes,
-    f: DualTypes,
-    t: DualTypes,
-    a: DualTypes,
-    b: float,
-    p: DualTypes,
-    v: DualTypes,
-) -> DualTypes:
-    """For use with _d_sabr_d_k"""
-    c1 = f * k
-    c2 = c1 ** (0.5 - 0.5 * b)
-    c3 = c1 ** (1 - b)
-    d1 = dual_log(f / k)
-    a1 = a * k
-    a2 = a**2 * k
-
-    return -(
-        (1 - 2 * p * v * c2 * d1 / a + v**2 * c3 * d1**2 / a**2) ** (-0.5)
+    x0 = 1 / k
+    x1 = v**2
+    x2 = f * k
+    x3 = b / 2 - 1 / 2
+    x4 = x2**x3
+    x5 = 0.25 * a * b * p * v * x4
+    x6 = a**2
+    x7 = b - 1
+    x8 = x2**x7
+    x9 = -x7
+    x10 = x6 * x8 * x9**2 / 24
+    x11 = t * (x1 * (2 - 3 * p**2) / 24 + x10 + x5) + 1
+    x12 = 1 / 24 - b / 24
+    x13 = dual_log(f * x0)
+    x14 = x13**2
+    x15 = x9**4
+    x16 = x12 * x14 + x13**4 * x15 / 1920 + 1
+    x17 = 1 / x16
+    x18 = 1 / a
+    x19 = 1 / x4
+    x20 = v * x19
+    x21 = x18 * x20
+    x22 = x13 * x21
+    x23 = p * x22
+    x24 = 1 / x6
+    x25 = 1 / x8
+    x26 = x1 * x24 * x25
+    x27 = (x14 * x26 - 2 * x23 + 1) ** 0.5
+    x28 = -p + x22 + x27
+    x29 = dual_log(x28 / (1 - p))
+    x30 = 1 / x29
+    x31 = x17 * x20 * x30 * x4
+    x32 = x11 * x31
+    x33 = -x3
+    x34 = x0 * x13
+    x35 = x32 * x34
+    x36 = x11 * x13 * x20 * x4
+    x37 = x0 * x33
+    return (
+        t * x13 * x31 * (x0 * x10 * x7 + x0 * x3 * x5)
+        - x0 * x32
+        - x17
+        * x36
         * (
-            -1.0 * p * v * c2 * (1 / 2 - 1 / 2 * b) * d1 / a1
-            + 1.0 * p * v * c2 / (a * k)
-            + 0.5 * v**2 * c3 * (1 - b) * d1**2 / a2
-            - 1.0 * v**2 * c3 * d1 / a2
+            -x0 * x21
+            + x22 * x37
+            + (
+                1.0 * p * v * x0 * x18 * x19
+                + 0.5 * x0 * x1 * x14 * x24 * x25 * x9
+                - 1.0 * x23 * x37
+                - 1.0 * x26 * x34
+            )
+            / x27
         )
-        + v * c2 * (1 / 2 - 1 / 2 * b) * d1 / a1
-        - v * c2 / a1
-    ) / (
-        (-p + (1 - 2 * p * v * c2 * d1 / a + v**2 * c3 * d1**2 / a**2) ** 0.5 + v * c2 * d1 / a)
-        * dual_log(
-            (-p + (1 - 2 * p * v * c2 * d1 / a + v**2 * c3 * d1**2 / a**2) ** 0.5 + v * c2 * d1 / a)
-            / (1 - p)
-        )
-        ** 2
-    )
-
-
-def _d_D_d_k(
-    k: DualTypes,
-    f: DualTypes,
-    t: DualTypes,
-    a: DualTypes,
-    b: float,
-    p: DualTypes,
-    v: DualTypes,
-) -> DualTypes:
-    """For use with _d_sabr_d_k"""
-    c1 = f * k
-    b1 = 0.5 * b - 0.5
-    return t * (
-        (1 / 24) * a**2 * c1 ** (b - 1) * (1 - b) ** 2 * (b - 1) / k
-        + 0.25 * a * b * p * v * c1**b1 * b1 / k
+        / (x28 * x29**2)
+        + x3 * x35
+        + x33 * x35
+        + x30 * x36 * (x0 * x13**3 * x15 / 480 + 2 * x12 * x34) / x16**2
     )
 
 
