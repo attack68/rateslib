@@ -704,8 +704,7 @@ class TestFXSabrSmile:
             id="vol",
         )
         with pytest.raises(TypeError):
-            for iterable in fxss:
-                pass
+            _ = list(fxss)
 
     def test_update_node_raises(self):
         fxss = FXSabrSmile(
