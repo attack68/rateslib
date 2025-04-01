@@ -18,6 +18,7 @@ from rateslib.fx import FXForwards as FXForwards
 from rateslib.fx import FXRates as FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile as FXDeltaVolSmile
 from rateslib.fx_volatility import FXDeltaVolSurface as FXDeltaVolSurface
+from rateslib.fx_volatility import FXSabrSmile as FXSabrSmile
 from rateslib.instruments import CDS as CDS
 from rateslib.instruments import FRA as FRA
 from rateslib.instruments import IIRS as IIRS
