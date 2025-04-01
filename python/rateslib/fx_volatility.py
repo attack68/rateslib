@@ -1734,20 +1734,17 @@ def _d_sabr_d_k(
 def _d_A_d_k(
     k: DualTypes, f: DualTypes, t: DualTypes, a: DualTypes, b: float, p: DualTypes, v: DualTypes
 ) -> DualTypes:
-    return a * (f * k) ** ((1 / 2) * b - 1 / 2) * (
-        2 * (1 / 24 - 1 / 24 * b) * dual_log(f / k) / k
-        + (1 / 480) * (1 - b) ** 4 * dual_log(f / k) ** 3 / k
-    ) / (
-        (1 / 24 - 1 / 24 * b) * dual_log(f / k) ** 2
-        + (1 / 1920) * (1 - b) ** 4 * dual_log(f / k) ** 4
-        + 1
-    ) ** 2 + a * (f * k) ** ((1 / 2) * b - 1 / 2) * ((1 / 2) * b - 1 / 2) / (
-        k
-        * (
-            (1 / 24 - 1 / 24 * b) * dual_log(f / k) ** 2
-            + (1 / 1920) * (1 - b) ** 4 * dual_log(f / k) ** 4
-            + 1
-        )
+    c1 = f * k
+    c2 = c1 ** (0.5 * b - 0.5)
+    d1 = dual_log(f / k)
+    d2 = d1**2
+    d3 = d1**3
+    d4 = d1**4
+
+    return a * c2 * (2 * (1 / 24 - 1 / 24 * b) * d1 / k + (1 / 480) * (1 - b) ** 4 * d3 / k) / (
+        (1 / 24 - 1 / 24 * b) * d2 + (1 / 1920) * (1 - b) ** 4 * d4 + 1
+    ) ** 2 + a * c2 * ((1 / 2) * b - 1 / 2) / (
+        k * ((1 / 24 - 1 / 24 * b) * d2 + (1 / 1920) * (1 - b) ** 4 * d4 + 1)
     )
 
 
