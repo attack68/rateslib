@@ -1274,7 +1274,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
                 "`expiry` of VolSmile and OptionPeriod do not match: calculation aborted "
                 "due to potential pricing errors.",
             )
-        vol_ = self._sabr(
+        vol_ = _sabr(
             k,
             f,
             self.t_expiry,
@@ -1380,49 +1380,6 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
             raise KeyError("`key` is not in ``nodes``.")
         self.nodes[key] = value
         self._set_ad_order(self.ad)
-
-    def _sabr(
-        self,
-        k: DualTypes,
-        f: DualTypes,
-        t: DualTypes,
-        a: DualTypes,
-        b: float,
-        p: DualTypes,
-        v: DualTypes,
-    ) -> DualTypes:
-        """
-        Calculate the SABR vol. For formula see for example I. Clark "Foreign Exchange Option
-        Pricing" section 3.10.
-        """
-        c1 = (f * k) ** ((1.0 - b) / 2.0)
-        c2 = (f * k) ** (1.0 - b)
-        l1 = dual_log(f / k)
-
-        z = v / a * c1 * l1
-        chi = dual_log(((1 - 2 * p * z + z * z) ** 0.5 + z - p) / (1 - p))
-
-        _: DualTypes = a / (
-            c1 * (1 + ((1 - b) ** 2 / 24.0) * l1**2 + ((1 - b) ** 4 / 1920) * l1**4)
-        )
-
-        if abs(z) > 1e-14:
-            _ *= z / chi
-        else:
-            # this is an approximation to avoid 0/0 yet preserve the result of 1.0 and maintain
-            # AD sensitivity, rather than just omitting the multiplication
-            _ *= (z + 1e-12) / (chi + 1e-12)
-
-        _ *= (
-            1
-            + (
-                (1 - b) ** 2 / 24.0 * a**2 / c2
-                + 0.25 * (p * b * v * a) / c1
-                + (2 - 3 * p * p) * v * v / 24
-            )
-            * t
-        )
-        return _
 
 
 def _validate_delta_type(delta_type: str) -> str:
@@ -1664,6 +1621,202 @@ def _delta_type_constants(
         return -0.5, 1.0, u  # type: ignore[return-value]
     else:  # "spot_pa"
         return -0.5, w, u  # type: ignore[return-value]
+
+
+def _sabr(
+    k: DualTypes,
+    f: DualTypes,
+    t: DualTypes,
+    a: DualTypes,
+    b: float,
+    p: DualTypes,
+    v: DualTypes,
+) -> DualTypes:
+    """
+    Calculate the SABR vol. For formula see for example I. Clark "Foreign Exchange Option
+    Pricing" section 3.10.
+    """
+    c1 = (f * k) ** ((1.0 - b) / 2.0)
+    c2 = (f * k) ** (1.0 - b)
+    l1 = dual_log(f / k)
+
+    z = v / a * c1 * l1
+    chi = dual_log(((1 - 2 * p * z + z * z) ** 0.5 + z - p) / (1 - p))
+
+    _: DualTypes = a / (c1 * (1 + ((1 - b) ** 2 / 24.0) * l1**2 + ((1 - b) ** 4 / 1920) * l1**4))
+
+    if abs(z) > 1e-14:
+        _ *= z / chi
+    else:
+        # this is an approximation to avoid 0/0 yet preserve the result of 1.0 and maintain
+        # AD sensitivity, rather than just omitting the multiplication
+        _ *= (z + 1e-12) / (chi + 1e-12)
+
+    _ *= (
+        1
+        + (
+            (1 - b) ** 2 / 24.0 * a**2 / c2
+            + 0.25 * (p * b * v * a) / c1
+            + (2 - 3 * p * p) * v * v / 24
+        )
+        * t
+    )
+    return _
+
+
+def _d_sabr_d_k(
+    k: DualTypes,
+    f: DualTypes,
+    t: DualTypes,
+    a: DualTypes,
+    b: float,
+    p: DualTypes,
+    v: DualTypes,
+) -> DualTypes:
+    """
+    Calculate the derivative of the SABR function with respect to k.
+
+    This function was composed using the Python package `sympy` in the following way:
+
+    SABR(k) = A(k) * B(k) * C(k) * D(k)
+    dSABR/dk = dA/dk BCD + A dB/dk CD + AB dC/dk D + ABC dD/dk
+
+    .. code::
+
+       import sympy as sym
+       k = sym.Symbol("k")
+       f = sym.Symbol("f")
+       t = sym.Symbol("t")
+       a = sym.Symbol("a")
+       b = sym.Symbol("b")
+       v = sym.Symbol("v")
+       p = sym.Symbol("p")
+
+       A = a/((f*k)**((1-b)/2)*(1+(1-b)/24*sym.log(f/k)**2+(1-b)**4/1920*sym.log(f/k)**4))
+       sym.pycode(sym.diff(A, k))
+
+       z = v/a*(f*k)**((1-b)/2)*sym.log(f/k)
+       B = z
+       sym.pycode(sym.diff(B, k))
+
+       chi = sym.log(((1-2*p*z+z*z)**(1/2)+z-p)/(1-p))
+       C = chi**-1
+       sym.pycode(sym.diff(C, k))
+
+       D = 1+((1-b)**2/24*a**2/(f*k)**(1-b)+(1/4)*(p*b*v*a)/(f*k)**((1-b)/2)+(2-3*p*p)*v*v/24)*t
+       sym.pycode(sym.diff(D, k))
+
+    """
+    c1 = f * k
+    c2 = c1 ** ((1 - b) / 2)
+    d1 = dual_log(f / k)
+
+    A = a / (c2 * (1 + (1 - b) / 24 * d1**2 + (1 - b) ** 4 / 1920 * d1**4))
+    B = v / a * c2 * d1
+    C = (dual_log(((1 - 2 * p * B + B * B) ** (1 / 2) + B - p) / (1 - p))) ** -1
+    D = (
+        1
+        + (
+            (1 - b) ** 2 / 24 * a**2 / c1 ** (1 - b)
+            + (1 / 4) * (p * b * v * a) / c2
+            + (2 - 3 * p * p) * v * v / 24
+        )
+        * t
+    )
+    dA = _d_A_d_k(k, f, t, a, b, p, v)
+    dB = _d_B_d_k(k, f, t, a, b, p, v)
+    dC = _d_C_d_k(k, f, t, a, b, p, v)
+    dD = _d_D_d_k(k, f, t, a, b, p, v)
+
+    return dA * B * C * D + A * dB * C * D + A * B * dC * D + A * B * C * dD
+
+
+def _d_A_d_k(
+    k: DualTypes, f: DualTypes, t: DualTypes, a: DualTypes, b: float, p: DualTypes, v: DualTypes
+) -> DualTypes:
+    """For use with _d_sabr_d_k"""
+    c1 = f * k
+    c2 = c1 ** (0.5 * b - 0.5)
+    d1 = dual_log(f / k)
+    d2 = d1**2
+    d3 = d1**3
+    d4 = d1**4
+
+    return a * c2 * (2 * (1 / 24 - 1 / 24 * b) * d1 / k + (1 / 480) * (1 - b) ** 4 * d3 / k) / (
+        (1 / 24 - 1 / 24 * b) * d2 + (1 / 1920) * (1 - b) ** 4 * d4 + 1
+    ) ** 2 + a * c2 * ((1 / 2) * b - 1 / 2) / (
+        k * ((1 / 24 - 1 / 24 * b) * d2 + (1 / 1920) * (1 - b) ** 4 * d4 + 1)
+    )
+
+
+def _d_B_d_k(
+    k: DualTypes,
+    f: DualTypes,
+    t: DualTypes,
+    a: DualTypes,
+    b: float,
+    p: DualTypes,
+    v: DualTypes,
+) -> DualTypes:
+    """For use with _d_sabr_d_k"""
+    c1 = f * k
+    c2 = c1 ** (0.5 - 0.5 * b)
+    return v * c2 * (0.5 - 0.5 * b) * dual_log(f / k) / (a * k) - v * c2 / (a * k)
+
+
+def _d_C_d_k(
+    k: DualTypes,
+    f: DualTypes,
+    t: DualTypes,
+    a: DualTypes,
+    b: float,
+    p: DualTypes,
+    v: DualTypes,
+) -> DualTypes:
+    """For use with _d_sabr_d_k"""
+    c1 = f * k
+    c2 = c1 ** (0.5 - 0.5 * b)
+    c3 = c1 ** (1 - b)
+    d1 = dual_log(f / k)
+    a1 = a * k
+    a2 = a**2 * k
+
+    return -(
+        (1 - 2 * p * v * c2 * d1 / a + v**2 * c3 * d1**2 / a**2) ** (-0.5)
+        * (
+            -1.0 * p * v * c2 * (1 / 2 - 1 / 2 * b) * d1 / a1
+            + 1.0 * p * v * c2 / (a * k)
+            + 0.5 * v**2 * c3 * (1 - b) * d1**2 / a2
+            - 1.0 * v**2 * c3 * d1 / a2
+        )
+        + v * c2 * (1 / 2 - 1 / 2 * b) * d1 / a1
+        - v * c2 / a1
+    ) / (
+        (-p + (1 - 2 * p * v * c2 * d1 / a + v**2 * c3 * d1**2 / a**2) ** 0.5 + v * c2 * d1 / a)
+        * dual_log(
+            (-p + (1 - 2 * p * v * c2 * d1 / a + v**2 * c3 * d1**2 / a**2) ** 0.5 + v * c2 * d1 / a)
+            / (1 - p)
+        )
+        ** 2
+    )
+
+
+def _d_D_d_k(
+    k: DualTypes,
+    f: DualTypes,
+    t: DualTypes,
+    a: DualTypes,
+    b: float,
+    p: DualTypes,
+    v: DualTypes,
+) -> DualTypes:
+    """For use with _d_sabr_d_k"""
+    c1 = f * k
+    b1 = 0.5 * b - 0.5
+    return t * (
+        (1 / 24) * a**2 * c1 ** (b - 1) * (1 - b) ** 2 * (b - 1) / k
+        + 0.25 * a * b * p * v * c1**b1 * b1 / k
+    )
 
 
 FXVols = FXDeltaVolSmile | FXDeltaVolSurface

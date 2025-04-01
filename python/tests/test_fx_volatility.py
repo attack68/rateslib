@@ -19,6 +19,8 @@ from rateslib.fx_volatility import (
     FXDeltaVolSmile,
     FXDeltaVolSurface,
     FXSabrSmile,
+    _d_sabr_d_k,
+    _sabr,
     _validate_delta_type,
 )
 from rateslib.periods import FXPutPeriod
@@ -704,8 +706,7 @@ class TestFXSabrSmile:
             id="vol",
         )
         with pytest.raises(TypeError):
-            for iterable in fxss:
-                pass
+            _ = list(fxss)
 
     def test_update_node_raises(self):
         fxss = FXSabrSmile(
@@ -815,6 +816,23 @@ class TestFXSabrSmile:
         ad_grad = gradient(pv00[1], ["vol0", "vol1"], 2)[0, 1]
 
         assert abs(finite_diff - ad_grad) < 1e-4
+
+    @pytest.mark.parametrize("p", [-0.1, 0.15])
+    @pytest.mark.parametrize("a", [0.05, 0.2])
+    @pytest.mark.parametrize("k_", [1.15, 1.3620, 1.45])
+    def test_sabr_derivative(self, a, p, k_):
+        # test the analytic derivative of the SABR function with respect to k created by sympy
+        b = 1.0
+        v = 0.8
+        f = 1.3395
+        t = 1.0
+        k = Dual(k_, ["k"], [1.0])
+
+        sabr_vol = _sabr(k, f, t, a, b, p, v)
+        result = _d_sabr_d_k(k, f, t, a, b, p, v)
+        expected = gradient(sabr_vol, ["k"])[0]
+
+        assert abs(result - expected) < 1e-13
 
 
 class TestStateAndCache:
