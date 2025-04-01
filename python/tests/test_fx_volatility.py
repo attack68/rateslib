@@ -832,7 +832,7 @@ class TestFXSabrSmile:
         result = _d_sabr_d_k(k, f, t, a, b, p, v)
         expected =  gradient(sabr_vol, ["k"])[0]
 
-        assert abs(result - expected) < 1e-10
+        assert abs(result - expected) < 1e-13
 
 
 
