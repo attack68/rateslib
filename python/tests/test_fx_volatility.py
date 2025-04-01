@@ -21,7 +21,7 @@ from rateslib.fx_volatility import (
     FXSabrSmile,
     _validate_delta_type,
     _sabr,
-    _d_sabr_d_k
+    _d_sabr_d_k,
 )
 from rateslib.periods import FXPutPeriod
 
@@ -830,10 +830,9 @@ class TestFXSabrSmile:
 
         sabr_vol = _sabr(k, f, t, a, b, p, v)
         result = _d_sabr_d_k(k, f, t, a, b, p, v)
-        expected =  gradient(sabr_vol, ["k"])[0]
+        expected = gradient(sabr_vol, ["k"])[0]
 
         assert abs(result - expected) < 1e-13
-
 
 
 class TestStateAndCache:
@@ -1063,5 +1062,3 @@ class TestStateAndCache:
 def test_validate_delta_type() -> None:
     with pytest.raises(ValueError, match="`delta_type` must be in"):
         _validate_delta_type("BAD_TYPE")
-
-
