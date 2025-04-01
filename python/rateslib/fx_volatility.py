@@ -1757,9 +1757,9 @@ def _d_B_d_k(
     p: DualTypes,
     v: DualTypes,
 ) -> DualTypes:
-    return v * (f * k) ** (1 / 2 - 1 / 2 * b) * (1 / 2 - 1 / 2 * b) * dual_log(f / k) / (
-        a * k
-    ) - v * (f * k) ** (1 / 2 - 1 / 2 * b) / (a * k)
+    c1 = f * k
+    c2 = c1 ** (0.5 - 0.5 * b)
+    return v * c2 * (0.5 - 0.5 * b) * dual_log(f / k) / (a * k) - v * c2 / (a * k)
 
 
 def _d_C_d_k(
