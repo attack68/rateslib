@@ -834,6 +834,22 @@ class TestFXSabrSmile:
 
         assert abs(result - expected) < 1e-13
 
+    def test_sabr_derivative_root(self):
+        # test the analytic derivative of the SABR function when f == k
+        a = 0.10
+        b = 1.0
+        p = -0.20
+        v = 0.8
+        f = 1.3395
+        t = 1.0
+        k = Dual(1.3395, ["k"], [1.0])
+
+        sabr_vol = _sabr(k, f, t, a, b, p, v)
+        result = _d_sabr_d_k(k, f, t, a, b, p, v)
+        expected = gradient(sabr_vol, ["k"])[0]
+
+        assert abs(result - expected) < 1e-13
+
 
 class TestStateAndCache:
     @pytest.mark.parametrize(
