@@ -758,7 +758,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         root_solver = newton_1dim(
             root1d,
-            f * dual_exp(eta_0 * vol.nodes["alpha"]**2 * t_e),
+            f * dual_exp(eta_0 * vol.nodes["alpha"] ** 2 * t_e),
             args=(f,),
             raise_on_fail=True,
         )
