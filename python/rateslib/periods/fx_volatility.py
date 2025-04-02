@@ -133,7 +133,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             The base currency in which to express the NPV.
         local: bool,
             Whether to display NPV in a currency local to the object.
-        vol: float, Dual, Dual2, FXDeltaVolSmile, FXDeltaVolSurface
+        vol: float, Dual, Dual2, FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile
             The percentage log-normal volatility to price the option.
 
         Returns
@@ -206,7 +206,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             The base currency in which to express the NPV.
         local: bool,
             Whether to display NPV in a currency local to the object.
-        vol: float, Dual, Dual2, FXDeltaVolSmile, FXDeltaVolSurface
+        vol: float, Dual, Dual2, FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile
             The percentage log-normal volatility to price the option.
 
         Returns
@@ -390,7 +390,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             The object to project the relevant forward and spot FX rates.
         base: str, optional
             Not used by `analytic_greeks`.
-        vol: float, Dual, Dual2, FXDeltaVolSmile, FXDeltaVolSurface
+        vol: float, Dual, Dual2, FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile
             The volatility used in calculation.
         premium: float, Dual, Dual2, optional
             The premium value of the option paid at the appropriate payment date.
@@ -473,13 +473,17 @@ class FXOptionPeriod(metaclass=ABCMeta):
         sqrt_t = self._t_to_expiry(disc_curve.node_dates[0]) ** 0.5
 
         if isinstance(vol, NoInput):
-            raise ValueError("`vol` must be a number quantity or FXDeltaVolSmile or Surface.")
-        elif isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile):
+            raise ValueError("`vol` must be a number quantity or Smile or Surface.")
+        elif isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
             res: tuple[DualTypes, DualTypes, DualTypes] = vol.get_from_strike(
                 self.strike, f_d, w_deli, w_spot, self.expiry
             )
             delta_idx: DualTypes | None = res[0]
             vol_: DualTypes = res[1]
+        elif isinstance(vol, FXSabrSmile):
+            res = vol.get_from_strike(self.strike, f_d, NoInput(0), NoInput(0), self.expiry)
+            delta_idx = None
+            vol_ = res[1]
         else:
             delta_idx = None
             vol_ = vol
