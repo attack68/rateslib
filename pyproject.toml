@@ -146,9 +146,6 @@ ignore = [
 max-complexity = 14
 
 [tool.mypy]
-#packages = [
-#    "rateslib"
-#]
 files = ["python/"]
 exclude = [
     "python/tests"
@@ -159,6 +156,9 @@ exclude = [
     # "solver.py",
 ]
 strict = true
+#packages = [
+#    "rateslib"
+#]
 
 [tool.coverage.run]
 omit = [
