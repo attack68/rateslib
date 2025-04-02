@@ -160,7 +160,8 @@ class ZCIS(BaseDerivative):
         )
         self.kwargs: dict[str, Any] = _update_not_noinput(self.kwargs, user_kwargs)
         self._fixed_rate = fixed_rate
-        self._leg2_index_base = leg2_index_base
+        # TODO: correct - issue 412
+        self._leg2_index_base = leg2_index_base  # type: ignore[assignment]
         self.leg1 = ZeroFixedLeg(**_get(self.kwargs, leg=1))
         self.leg2 = ZeroIndexLeg(**_get(self.kwargs, leg=2))
 
