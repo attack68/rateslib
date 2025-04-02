@@ -1194,11 +1194,12 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
     -----
     The keys for ``nodes`` are described as the following:
 
-    - ``alpha`` (DualTypes): The initial volatility parameter (e.g. 0.10 for 10%) of the SABR model.
+    - ``alpha`` (DualTypes): The initial volatility parameter (e.g. 0.10 for 10%) of the SABR model,
+      in (0, inf).
     - ``beta`` (float): The scaling parameter between normal (0) and lognormal (1)
       of the SABR model in [0, 1].
     - ``rho`` (DualTypes): The correlation between spot and volatility of the SABR model,
-      e.g. -0.10.
+      e.g. -0.10, in [-1.0, 1.0)
     - ``nu`` (DualTypes): The volatility of volatility parameter of the SABR model, e.g. 0.80.
 
     """
@@ -1655,25 +1656,30 @@ def _sabr(
     z = v / a * c1 * l1
     chi = dual_log(((1 - 2 * p * z + z * z) ** 0.5 + z - p) / (1 - p))
 
-    _: DualTypes = a / (c1 * (1 + ((1 - b) ** 2 / 24.0) * l1**2 + ((1 - b) ** 4 / 1920) * l1**4))
+    X0 = a / (c1 * (1. + (1-b)**2 / 24. * l1 ** 2 + (1-b)**4 / 1920. * l1 ** 4))
+    X1 = 1. + t * ((1-b)**2 / 24.  * a **2 / c2 + 0.25 * p * b * v * a / c1 + (2- 3 * p**2) * v**2 / 24.)
 
-    if abs(z) > 1e-14:
-        _ *= z / chi
+    if abs(z) > 1e-15:
+        X2 = z / chi
     else:
-        # this is an approximation to avoid 0/0 yet preserve the result of 1.0 and maintain
-        # AD sensitivity, rather than just omitting the multiplication
-        _ *= (z + 1e-12) / (chi + 1e-12)
+        # must construct the dual number directly from analytic formulae due to div by zero error.
+        p_ = _dual_float(p)
+        if isinstance(chi, float):
+            X2 = 1.0
+        elif isinstance(chi, Dual):
+            X2 = Dual.vars_from(z, 1.0, z.vars, z.dual * -0.5 * p_)
+        elif isinstance(chi, Dual2):
+            X2 = Dual2.vars_from(
+                z,
+                1.0,
+                z.vars,
+                z.dual * -0.5 * p_,
+                np.ravel(z.dual2 * -0.5 * p_ + np.outer(z.dual, z.dual) * 0.5 * (2 - 3 * p_ * p_) / 6.0)
+            )
+        else:
+            raise TypeError("Unrecognized dual number data type for differentiation.")
 
-    _ *= (
-        1
-        + (
-            (1 - b) ** 2 / 24.0 * a**2 / c2
-            + 0.25 * (p * b * v * a) / c1
-            + (2 - 3 * p * p) * v * v / 24
-        )
-        * t
-    )
-    return _
+    return X0 * X1 * X2
 
 
 def _d_sabr_d_k(

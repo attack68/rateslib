@@ -676,6 +676,31 @@ class TestFXSabrSmile:
         result = fxss.get_from_strike(strike, 1.3395)[1]
         assert abs(result - vol) < 1e-2
 
+    def test_vol_with_strike_as_forward(self):
+        # test the SABR function when regular arithmetic operations produce an undefined 0/0
+        # value so AD has to be hard coded into the solution.
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.17431060,
+                "beta": 1.0,
+                "rho": -0.11268306,
+                "nu": 0.81694072,
+            },
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            id="vol",
+            ad=1,
+        )
+        # F_0,T is stated in section 3.5.4 as 1.3395
+        base = fxss.get_from_strike(Dual(1.34, ["k"], []), Dual(1.34, ["f"], []))[1]
+
+        # test SABR derivative via finite diff
+        base2 = fxss.get_from_strike(Dual(1.34001, ["k"], []), Dual(1.34, ["f"], []))[1]
+        base3 = fxss.get_from_strike(Dual(1.33999, ["k"], []), Dual(1.34, ["f"], []))[1]
+        result = (base2-base3) / 2e-5
+        expected = gradient(base, ["k"])[0]
+        assert abs(expected - result) < 5e-6
+
     @pytest.mark.parametrize("param", ["alpha", "beta", "rho", "nu"])
     def test_missing_param_raises(self, param):
         nodes = {
