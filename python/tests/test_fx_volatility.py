@@ -689,17 +689,22 @@ class TestFXSabrSmile:
             eval_date=dt(2001, 1, 1),
             expiry=dt(2002, 1, 1),
             id="vol",
-            ad=1,
+            ad=2,
         )
         # F_0,T is stated in section 3.5.4 as 1.3395
-        base = fxss.get_from_strike(Dual(1.34, ["k"], []), Dual(1.34, ["f"], []))[1]
+        base = fxss.get_from_strike(Dual2(1.34, ["k"], [], []), Dual2(1.34, ["f"], [], []))[1]
 
         # test SABR derivative via finite diff
-        base2 = fxss.get_from_strike(Dual(1.34001, ["k"], []), Dual(1.34, ["f"], []))[1]
-        base3 = fxss.get_from_strike(Dual(1.33999, ["k"], []), Dual(1.34, ["f"], []))[1]
+        base2 = fxss.get_from_strike(Dual2(1.34001, ["k"], [],[]), Dual2(1.34, ["f"], [], []))[1]
+        base3 = fxss.get_from_strike(Dual2(1.33999, ["k"], [],[]), Dual2(1.34, ["f"], [], []))[1]
         result = (base2-base3) / 2e-5
         expected = gradient(base, ["k"])[0]
         assert abs(expected - result) < 5e-6
+
+        # test SABR second derivative via finite diff
+        result = (base2 - 2* base + base3) / 1e-10
+        expected = gradient(base, ["k"], order=2)[0][0]
+        assert abs(expected - result) < 5e-2
 
     @pytest.mark.parametrize("param", ["alpha", "beta", "rho", "nu"])
     def test_missing_param_raises(self, param):
