@@ -1653,8 +1653,8 @@ def _sabr(
     "Coding Interest Rates" chapter 13 to handle AD using dual numbers effectively.
     """
     X0 = _sabr_X0(k, f, t, a, b, p, v, False)[0]
-    X1 = _sabr_X0(k, f, t, a, b, p, v, False)[0]
-    X2 = _sabr_X0(k, f, t, a, b, p, v, False)[0]
+    X1 = _sabr_X1(k, f, t, a, b, p, v, False)[0]
+    X2 = _sabr_X2(k, f, t, a, b, p, v, False)[0]
 
     return X0 * X1 * X2
 
