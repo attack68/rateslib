@@ -1648,36 +1648,13 @@ def _sabr(
     """
     Calculate the SABR vol. For formula see for example I. Clark "Foreign Exchange Option
     Pricing" section 3.10.
+
+    Rateslib uses the representation sigma(k) = X0 * X1 * X2, with these variables as defined in
+    "Coding Interest Rates" chapter 13 to handle AD using dual numbers effectively.
     """
-    c1 = (f * k) ** ((1.0 - b) / 2.0)
-    c2 = (f * k) ** (1.0 - b)
-    l1 = dual_log(f / k)
-
-    z = v / a * c1 * l1
-    chi = dual_log(((1 - 2 * p * z + z * z) ** 0.5 + z - p) / (1 - p))
-
-    X0 = a / (c1 * (1. + (1-b)**2 / 24. * l1 ** 2 + (1-b)**4 / 1920. * l1 ** 4))
-    X1 = 1. + t * ((1-b)**2 / 24.  * a **2 / c2 + 0.25 * p * b * v * a / c1 + (2- 3 * p**2) * v**2 / 24.)
-
-    if abs(z) > 1e-15:
-        X2 = z / chi
-    else:
-        # must construct the dual number directly from analytic formulae due to div by zero error.
-        p_ = _dual_float(p)
-        if isinstance(chi, float):
-            X2 = 1.0
-        elif isinstance(chi, Dual):
-            X2 = Dual.vars_from(z, 1.0, z.vars, z.dual * -0.5 * p_)
-        elif isinstance(chi, Dual2):
-            X2 = Dual2.vars_from(
-                z,
-                1.0,
-                z.vars,
-                z.dual * -0.5 * p_,
-                np.ravel(z.dual2 * -0.5 * p_ + np.outer(z.dual, z.dual) * 0.5 * (2 - 3 * p_ * p_) / 6.0)
-            )
-        else:
-            raise TypeError("Unrecognized dual number data type for differentiation.")
+    X0 = _sabr_X0(k, f, t, a, b, p, v, False)[0]
+    X1 = _sabr_X0(k, f, t, a, b, p, v, False)[0]
+    X2 = _sabr_X0(k, f, t, a, b, p, v, False)[0]
 
     return X0 * X1 * X2
 
@@ -1690,7 +1667,7 @@ def _d_sabr_d_k(
     b: float,
     p: DualTypes,
     v: DualTypes,
-) -> DualTypes:
+) -> tuple[DualTypes, DualTypes]:
     """
     Calculate the derivative of the SABR function with respect to k.
 
@@ -1722,27 +1699,173 @@ def _d_sabr_d_k(
        sym.cse(sym.diff(A * B * C * D, k))
 
     """
+    X0, dX0 = _sabr_X0(k, f, t, a, b, p, v, True)
+    X1, dX1 = _sabr_X1(k, f, t, a, b, p, v, True)
+    X2, dX2 = _sabr_X2(k, f, t, a, b, p, v, True)
+    return dX0 * X1 * X2 + X0 * dX1 * X2 + X0 * X1 * dX2
 
+
+def _sabr_X0(
+    k: DualTypes,
+    f: DualTypes,
+    t: DualTypes,
+    a: DualTypes,
+    b: float,
+    p: DualTypes,
+    v: DualTypes,
+    derivative: bool = False
+) -> tuple[DualTypes, DualTypes | None]:
+    """
+    X0 = a / ((fk)^((1-b)/2) * (1 + (1-b)^2/24 ln^2(f/k) + (1-b)^4/1920 ln^4(f/k) )
+
+    If ``derivative`` also returns dX0/dk, calculated using sympy.
+    """
     x0 = 1 / k
-    x1 = b - 1
+    x1 = 1 / 24 - b / 24
     x2 = dual_log(f * x0)
-    x3 = x2 ** 2
-    x4 = 80 * x3
-    x5 = x1 ** 4 * x2 ** 4 + 1920
-    x6 = -x1 * x4 + x5
+    x3 = (1 - b) ** 4
+    x4 = x1 * x2 ** 2 + x2 ** 4 * x3 / 1920 + 1
+    x5 = b / 2 - 1 / 2
+    x6 = a * (f * k) ** x5
 
-    X0 = a / ((f * k) ** (-x1 / 2) * (1 - x1 / 24 * x3 + (1 - b) ** 4 / 1920 * x2 ** 4))
-    dX0 = 960 * a * x0 * x1 * (f * k) ** (b / 2 - 1 / 2) * (-8 * x2 * (-x1 * x4 + x5) * (-x1 ** 3 * x3 + 40) + x6 ** 2) / x6 ** 3
+    dX0: DualTypes | None = None
+    if derivative:
+        dX0 = x0 * x5 * x6 / x4 + x6 * (2 * x0 * x1 * x2 + x0 * x2 ** 3 * x3 / 480) / x4 ** 2
 
+    X0 = x6 / (x2 ** 4 * (1 - b) ** 4 / 1920 + x2 ** 2 * (1 / 24 - b / 24) + 1)
+
+    return X0, dX0
+
+def _sabr_X1(
+    k: DualTypes,
+    f: DualTypes,
+    t: DualTypes,
+    a: DualTypes,
+    b: float,
+    p: DualTypes,
+    v: DualTypes,
+    derivative: bool = False
+) -> tuple[DualTypes, DualTypes | None]:
+    """
+    X1 = 1 + t ( (1-b)^2 / 24 * a^2 / (fk)^(1-b) + 1/4 p b v a / (fk)^((1-b)/2) + (2-3p^2)/24 v^2 )
+
+    If ``derivative`` also returns dX0/dk, calculated using sympy.
+    """
     x0 = 1 / k
     x1 = b / 2 - 1 / 2
     x2 = f * k
     x3 = b - 1
 
-    X1 = 1 + ((1 - b) ** 2 / 24 * a ** 2 / x2 ** -x3 + (1 / 4) * (p * b * v * a) / x2 ** -x1 + (2 - 3 * p * p) * v * v / 24) * t
-    dX1 = t * (a ** 2 * x0 * x2 ** x3 * x3 ** 3 / 24 + 0.25 * a * b * p * v * x0 * x1 * x2 ** x1)
+    dX1: DualTypes | None = None
+    if derivative:
+        dX1 = t * (a ** 2 * x0 * x2 ** x3 * x3 ** 3 / 24 + 0.25 * a * b * p * v * x0 * x1 * x2 ** x1)
 
-    return None
+    X1 = t*(a**2*x2**x3*x3**2/24 + 0.25*a*b*p*v*x2**(b/2 - 1/2) + v**2*(2 - 3*p**2)/24) + 1
+
+    return X1, dX1
+
+def _sabr_X2(
+    k: DualTypes,
+    f: DualTypes,
+    t: DualTypes,
+    a: DualTypes,
+    b: float,
+    p: DualTypes,
+    v: DualTypes,
+    derivative: bool = False
+) -> tuple[DualTypes, DualTypes | None]:
+    """
+    X2 = z / chi(z)
+
+    z = v / a * (fk) ^((1-b)/2) * ln(f/k)
+    chi(z) = ln( (sqrt(1-2pz+z^2) + z -p) / (1-p) )
+
+    If ``derivative`` also returns dX2/dk, calculated using sympy.
+    """
+    x0 = 1 / k
+    x1 = dual_log(f * x0)
+    x2 = 1 / a
+    x3 = f * k
+    x4 = b / 2 - 1 / 2
+    x5 = x3 ** (-x4)
+    x6 = v * x2 * x5
+
+    z = x6 * x1
+    chi = dual_log(((1 - 2 * p * z + z * z) ** 0.5 + z - p) / (1 - p))
+
+    if abs(z) > 1e-15:
+        X2 = z / chi
+    else:
+        # must construct the dual number directly from analytic formulae due to div by zero error.
+        p_ = _dual_float(p)
+        if isinstance(chi, float):
+            X2 = 1.0
+        elif isinstance(chi, Dual):
+            X2 = Dual.vars_from(z, 1.0, z.vars, z.dual * -0.5 * p_)
+        elif isinstance(chi, Dual2):
+            X2 = Dual2.vars_from(
+                z,
+                1.0,
+                z.vars,
+                z.dual * -0.5 * p_,
+                np.ravel(
+                    z.dual2 * -0.5 * p_ + np.outer(z.dual, z.dual) * 0.5 * (2 - 3 * p_ * p_) / 6.0)
+            )
+        else:
+            raise TypeError("Unrecognized dual number data type for differentiation.")
+
+    dX2: DualTypes | None = None
+    if derivative:
+        if abs(z) > 1e-15:
+            x7 = x1 * x6
+            x8 = p * x7
+            x9 = x1 ** 2
+            x10 = a ** (-2)
+            x11 = v ** 2
+            x12 = b - 1
+            x13 = x3 ** (-x12)
+            x14 = x10 * x11 * x13
+            x15 = (x14 * x9 - 2 * x8 + 1) ** 0.5
+            x16 = -p + x15 + x7
+            x17 = dual_log(x16 / (1 - p))
+            x18 = 1 / x17
+            x19 = x0 * x6
+            x20 = -x4
+            x21 = 1.0 * x0
+
+            dX2 = v * x0 * x1 * x18 * x2 * x20 * x5 - x18 * x19 - x7 * (x0 * x20 * x7 - x19 + (
+                    1.0 * p * v * x0 * x2 * x5 - 0.5 * x0 * x10 * x11 * x12 * x13 * x9 - x1 * x14 * x21 - x20 * x21 * x8) / x15) / (
+                          x16 * x17 ** 2)
+        else:
+            # must construct the dual number directly from analytic formulae due to div by zero error.
+            # dX
+            y0 = 1/k
+            y1 = b/2 - 1/2
+            y2 = v * x0 / (a * (f*k) ** y1)
+            dz: DualTypes = - y2 * (y1 * dual_log(f*y0) + 1)
+
+            p_ = _dual_float(p)
+            if isinstance(chi, float):
+                dX2_dz: DualTypes = - p_ / 2
+            elif isinstance(chi, Dual):
+                dX2_dz = Dual.vars_from(z, -p_/2, z.vars, z.dual * (2-3*p_ ** 2) / 6.)
+            elif isinstance(chi, Dual2):
+                scl = (2-3*p_ ** 2) / 6.
+                dX2_dz = Dual2.vars_from(
+                    z,
+                    - p_ / 2,
+                    z.vars,
+                    z.dual * scl,
+                    np.ravel(
+                        z.dual2 * scl + np.outer(z.dual, z.dual) * (p_ *(5-6*p_*p_) / 8)
+                    )
+                )
+            else:
+                raise TypeError("Unrecognized dual number data type for differentiation.")
+
+            dX2 = dX2_dz * dz
+
+    return X2, dX2
 
 
 FXVols = FXDeltaVolSmile | FXDeltaVolSurface
