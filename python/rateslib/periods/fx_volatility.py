@@ -750,7 +750,6 @@ class FXOptionPeriod(metaclass=ABCMeta):
     def _strike_from_atm_sabr(
         self, f: DualTypes, eta_0: float, vol: FXSabrSmile, t_e: DualTypes
     ) -> DualTypes:
-
         def root1d(k: DualTypes, f: DualTypes) -> tuple[DualTypes, DualTypes]:
             sigma, dsigma_dk = vol._d_sabr_d_k(k, f, t_e)
             f0 = -dual_log(k / f) + eta_0 * sigma**2 * t_e
@@ -1287,7 +1286,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         # only be performed after a `strike` has been set, temporarily or otherwise.
         assert not isinstance(self.strike, NoInput)  # noqa: S101
 
-        if isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
+        if isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile):
             spot = fx.pairs_settlement[self.pair]
             f = fx.rate(self.pair, self.delivery)
             _: tuple[Any, DualTypes, Any] = vol.get_from_strike(

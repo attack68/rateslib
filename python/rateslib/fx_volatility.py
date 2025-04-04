@@ -2,7 +2,7 @@ from __future__ import annotations  # type hinting
 
 from datetime import datetime, timedelta
 from datetime import datetime as dt
-from typing import Any, TypeAlias, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, TypeAlias
 from uuid import uuid4
 
 import numpy as np
@@ -1238,8 +1238,8 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         self,
         k: DualTypes,
         f: DualTypes,
-        w_deli: NoInput = NoInput(0),
-        w_spot: NoInput = NoInput(0),
+        w_deli: DualTypes | NoInput = NoInput(0),
+        w_spot: DualTypes | NoInput = NoInput(0),
         expiry: datetime_ = NoInput(0),
     ) -> tuple[DualTypes, DualTypes, DualTypes]:
         """
@@ -1287,7 +1287,9 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         )
         return 0.0, vol_ * 100.0, k
 
-    def _d_sabr_d_k(self, k: DualTypes, f: DualTypes, t_e: DualTypes) -> tuple[DualTypes, DualTypes]:
+    def _d_sabr_d_k(
+        self, k: DualTypes, f: DualTypes, t_e: DualTypes
+    ) -> tuple[DualTypes, DualTypes]:
         """Get the derivative of sabr vol with respect to strike"""
         return _d_sabr_d_k(
             k,
@@ -1703,7 +1705,7 @@ def _d_sabr_d_k(
     X0, dX0 = _sabr_X0(k, f, t, a, b, p, v, True)
     X1, dX1 = _sabr_X1(k, f, t, a, b, p, v, True)
     X2, dX2 = _sabr_X2(k, f, t, a, b, p, v, True)
-    return X0 * X1 * X2, dX0 * X1 * X2 + X0 * dX1 * X2 + X0 * X1 * dX2
+    return X0 * X1 * X2, dX0 * X1 * X2 + X0 * dX1 * X2 + X0 * X1 * dX2  # type: ignore[operator]
 
 
 def _sabr_X0(
@@ -1809,16 +1811,16 @@ def _sabr_X2(
     else:
         # must construct the dual number directly from analytic formulae due to div by zero error.
         p_ = _dual_float(p)
-        if isinstance(chi, float):
+        if isinstance(z, float):
             X2 = 1.0
-        elif isinstance(chi, Dual):
-            X2 = Dual.vars_from(z, 1.0, z.vars, z.dual * -0.5 * p_)
-        elif isinstance(chi, Dual2):
+        elif isinstance(z, Dual):
+            X2 = Dual.vars_from(z, 1.0, z.vars, z.dual * -0.5 * p_)  # type: ignore[arg-type]
+        elif isinstance(z, Dual2):
             X2 = Dual2.vars_from(
                 z,
                 1.0,
                 z.vars,
-                z.dual * -0.5 * p_,
+                z.dual * -0.5 * p_,  # type: ignore[arg-type]
                 np.ravel(
                     z.dual2 * -0.5 * p_ + np.outer(z.dual, z.dual) * 0.5 * (2 - 3 * p_ * p_) / 6.0
                 ),
@@ -1871,17 +1873,17 @@ def _sabr_X2(
             dz: DualTypes = -y2 * (y1 * dual_log(f * y0) + 1)
 
             p_ = _dual_float(p)
-            if isinstance(chi, float):
+            if isinstance(z, float):
                 dX2_dz: DualTypes = -p_ / 2
-            elif isinstance(chi, Dual):
-                dX2_dz = Dual.vars_from(z, -p_ / 2, z.vars, z.dual * (2 - 3 * p_**2) / 6.0)
-            elif isinstance(chi, Dual2):
+            elif isinstance(z, Dual):
+                dX2_dz = Dual.vars_from(z, -p_ / 2, z.vars, z.dual * (2 - 3 * p_**2) / 6.0)  # type: ignore[arg-type]
+            elif isinstance(z, Dual2):
                 scl = (2 - 3 * p_**2) / 6.0
                 dX2_dz = Dual2.vars_from(
                     z,
                     -p_ / 2,
                     z.vars,
-                    z.dual * scl,
+                    z.dual * scl,  # type: ignore[arg-type]
                     np.ravel(
                         z.dual2 * scl + np.outer(z.dual, z.dual) * (p_ * (5 - 6 * p_ * p_) / 8)
                     ),
