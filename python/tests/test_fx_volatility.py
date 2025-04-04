@@ -858,8 +858,7 @@ class TestFXSabrSmile:
         t = 1.0
         k = Dual(k_, ["k"], [1.0])
 
-        sabr_vol = _sabr(k, f, t, a, b, p, v)
-        result = _d_sabr_d_k(k, f, t, a, b, p, v)
+        sabr_vol, result = _d_sabr_d_k(k, f, t, a, b, p, v)
         expected = gradient(sabr_vol, ["k"])[0]
 
         assert abs(result - expected) < 1e-13
@@ -874,8 +873,7 @@ class TestFXSabrSmile:
         t = 1.0
         k = Dual(1.3395, ["k"], [1.0])
 
-        sabr_vol = _sabr(k, f, t, a, b, p, v)
-        result = _d_sabr_d_k(k, f, t, a, b, p, v)
+        sabr_vol, result = _d_sabr_d_k(k, f, t, a, b, p, v)
         expected = gradient(sabr_vol, ["k"])[0]
 
         assert abs(result - expected) < 1e-13

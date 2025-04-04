@@ -2,7 +2,7 @@ from __future__ import annotations  # type hinting
 
 from datetime import datetime, timedelta
 from datetime import datetime as dt
-from typing import Any, TypeAlias
+from typing import Any, TypeAlias, TYPE_CHECKING
 from uuid import uuid4
 
 import numpy as np
@@ -41,8 +41,9 @@ from rateslib.mutability import (
 from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
 
-# if TYPE_CHECKING:
-#     from rateslib.typing import DualTypes
+if TYPE_CHECKING:
+    from rateslib.typing import datetime_
+
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
 
 TERMINAL_DATE = dt(2100, 1, 1)
@@ -1239,7 +1240,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         f: DualTypes,
         w_deli: NoInput = NoInput(0),
         w_spot: NoInput = NoInput(0),
-        expiry: datetime | NoInput = NoInput(0),
+        expiry: datetime_ = NoInput(0),
     ) -> tuple[DualTypes, DualTypes, DualTypes]:
         """
         Given an option strike return the volatility.
@@ -1286,12 +1287,12 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         )
         return 0.0, vol_ * 100.0, k
 
-    def _d_sabr_d_k(self, k: DualTypes, f: DualTypes) -> DualTypes:
+    def _d_sabr_d_k(self, k: DualTypes, f: DualTypes, t_e: DualTypes) -> tuple[DualTypes, DualTypes]:
         """Get the derivative of sabr vol with respect to strike"""
         return _d_sabr_d_k(
             k,
             f,
-            self.t_expiry,
+            t_e,
             self.nodes["alpha"],
             self.nodes["beta"],  # type: ignore[arg-type]
             self.nodes["rho"],
@@ -1702,7 +1703,7 @@ def _d_sabr_d_k(
     X0, dX0 = _sabr_X0(k, f, t, a, b, p, v, True)
     X1, dX1 = _sabr_X1(k, f, t, a, b, p, v, True)
     X2, dX2 = _sabr_X2(k, f, t, a, b, p, v, True)
-    return dX0 * X1 * X2 + X0 * dX1 * X2 + X0 * X1 * dX2
+    return X0 * X1 * X2, dX0 * X1 * X2 + X0 * dX1 * X2 + X0 * X1 * dX2
 
 
 def _sabr_X0(

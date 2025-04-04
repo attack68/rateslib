@@ -750,10 +750,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
     def _strike_from_atm_sabr(
         self, f: DualTypes, eta_0: float, vol: FXSabrSmile, t_e: DualTypes
     ) -> DualTypes:
+
         def root1d(k: DualTypes, f: DualTypes) -> tuple[DualTypes, DualTypes]:
-            sigma = vol.get_from_strike(k, f)[1] / 100.0
+            sigma, dsigma_dk = vol._d_sabr_d_k(k, f, t_e)
             f0 = -dual_log(k / f) + eta_0 * sigma**2 * t_e
-            f1 = -1 / k + eta_0 * 2 * sigma * vol._d_sabr_d_k(k, f) * t_e
+            f1 = -1 / k + eta_0 * 2 * sigma * dsigma_dk * t_e
             return f0, f1
 
         root_solver = newton_1dim(
