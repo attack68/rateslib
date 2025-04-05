@@ -103,6 +103,40 @@ def test_no_type_crossing_on_ops(x_1, y_1, op) -> None:
         getattr(y_1, op)(x_1)
 
 
+def test_functions_of_two_duals_analytic_formula():
+    # test the analytic formula for determining the resultant dual number of a function of
+    # 2 dual numbers
+
+    a = Dual2(2.0, ["a"], [], [])
+    b = Dual2(3.0, ["b"], [], [])
+
+    # z and p contain 2nd order manifolds
+    z = a**2 * b  # = 12
+    p = b**2 * a  # = 18
+    p = Dual2.vars_from(z, p.real, p.vars, p.dual, np.ravel(p.dual2))
+
+    # f is the actual expected result, calculated using dual number arithmetic
+    expected = z**2 * p**3
+
+    # result is pieced together using the analytic formula
+    f_0 = 12**2 * 18**3
+    f_z = 2 * 12 * 18**3
+    f_p = 3 * 12**2 * 18**2
+    f_zz = 2 * 18**3
+    f_zp = 6 * 12 * 18**2
+    f_pp = 6 * 12**2 * 18
+
+    real = f_0
+    dual = z.dual * f_z + p.dual * f_p
+    dual2 = f_z * z.dual2 + f_p * p.dual2
+    dual2 += 0.5 * f_zz * np.outer(z.dual, z.dual)
+    dual2 += 0.5 * f_pp * np.outer(p.dual, p.dual)
+    dual2 += 0.5 * f_zp * (np.outer(z.dual, p.dual) + np.outer(p.dual, z.dual))
+    result = Dual2.vars_from(z, real, z.vars, dual, np.ravel(dual2))
+
+    assert result == expected
+
+
 def test_dual_repr(x_1, y_2) -> None:
     result = x_1.__repr__()
     assert result == "<Dual: 1.000000, (v0, v1), [1.0, 2.0]>"
