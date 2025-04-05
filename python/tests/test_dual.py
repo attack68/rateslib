@@ -116,15 +116,15 @@ def test_functions_of_two_duals_analytic_formula():
     p = Dual2.vars_from(z, p.real, p.vars, p.dual, np.ravel(p.dual2))
 
     # f is the actual expected result, calculated using dual number arithmetic
-    expected = z **2 * p ** 3
+    expected = z**2 * p**3
 
     # result is pieced together using the analytic formula
-    f_0 = 12 ** 2 * 18 ** 3
-    f_z = 2 * 12 * 18 ** 3
-    f_p = 3 * 12 ** 2 * 18 ** 2
-    f_zz = 2 * 18 ** 3
-    f_zp = 6 * 12 * 18 ** 2
-    f_pp = 6 * 12 ** 2 * 18
+    f_0 = 12**2 * 18**3
+    f_z = 2 * 12 * 18**3
+    f_p = 3 * 12**2 * 18**2
+    f_zz = 2 * 18**3
+    f_zp = 6 * 12 * 18**2
+    f_pp = 6 * 12**2 * 18
 
     real = f_0
     dual = z.dual * f_z + p.dual * f_p
