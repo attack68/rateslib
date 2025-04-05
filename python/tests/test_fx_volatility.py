@@ -659,7 +659,7 @@ class TestFXSabrSmile:
             (1.5449, 18.93),
         ],
     )
-    def test_vol(self, strike, vol):
+    def test_sabr_vol(self, strike, vol):
         # test the SABR function using Clark 'FX Option Pricing' Table 3.7 as benchmark.
         fxss = FXSabrSmile(
             nodes={
@@ -676,9 +676,9 @@ class TestFXSabrSmile:
         result = fxss.get_from_strike(strike, 1.3395)[1]
         assert abs(result - vol) < 1e-2
 
-    def test_vol_with_strike_as_forward(self):
+    def test_sabr_vol_root_finite_diff(self):
         # test the SABR function when regular arithmetic operations produce an undefined 0/0
-        # value so AD has to be hard coded into the solution.
+        # value so AD has to be hard coded into the solution. This occurs when f == k.
         fxss = FXSabrSmile(
             nodes={
                 "alpha": 0.17431060,
@@ -705,6 +705,78 @@ class TestFXSabrSmile:
         result = (base2 - 2 * base + base3) / 1e-10
         expected = gradient(base, ["k"], order=2)[0][0]
         assert abs(expected - result) < 5e-2
+
+        # test SABR derivative via finite diff
+        base2 = fxss.get_from_strike(Dual2(1.34, ["k"], [], []), Dual2(1.34001, ["f"], [], []))[1]
+        base3 = fxss.get_from_strike(Dual2(1.34, ["k"], [], []), Dual2(1.33999, ["f"], [], []))[1]
+        result = (base2 - base3) / 2e-5
+        expected = gradient(base, ["f"])[0]
+        assert abs(expected - result) < 5e-6
+
+        # test SABR second derivative via finite diff
+        result = (base2 - 2 * base + base3) / 1e-10
+        expected = gradient(base, ["f"], order=2)[0][0]
+        assert abs(expected - result) < 1e-0
+
+    def test_sabr_vol_root_multi_duals_finite_diff(self):
+        # test the SABR function when regular arithmetic operations produce an undefined 0/0
+        # value so AD has to be hard coded into the solution. This occurs when f == k.
+        # test that all variables are captured.
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.17431060,
+                "beta": 1.0,
+                "rho": -0.11268306,
+                "nu": 0.81694072,
+            },
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            id="vol",
+            ad=2,
+        )
+        # F_0,T is stated in section 3.5.4 as 1.3395
+        base = fxss.get_from_strike(Dual2(1.34, ["k"], [], []), Dual2(1.34, ["f"], [], []))[1]
+
+        for i, key in enumerate(["alpha", "rho", "nu"]):
+            fxss.nodes[key] = fxss.nodes[key] + 1e-5
+            base2 = fxss.get_from_strike(Dual2(1.34, ["k"], [], []), Dual2(1.34, ["f"], [], []))[1]
+            fxss.nodes[key] = fxss.nodes[key] - 2e-5
+            base3 = fxss.get_from_strike(Dual2(1.34, ["k"], [], []), Dual2(1.34, ["f"], [], []))[1]
+            fxss.nodes[key] = fxss.nodes[key] + 1e-5
+
+            # test SABR derivative via finite diff
+            result = (base2 - base3) / 2e-5
+            expected = gradient(base, [f"vol{i}"])[0]
+            assert abs(expected - result) < 5e-4
+
+            # test SABR second derivative via finite diff
+            result = (base2 - 2 * base + base3) / 1e-10
+            expected = gradient(base, [f"vol{i}"], order=2)[0][0]
+            assert abs(expected - result) < 5e-4
+
+    def test_sabr_vol_root_multi_duals_neighbourhood(self):
+        # test the SABR function when regular arithmetic operations produce an undefined 0/0
+        # value so AD has to be hard coded into the solution. This occurs when f == k.
+        # test by comparing derivatives with those captured at a nearby valid point
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.17431060,
+                "beta": 1.0,
+                "rho": -0.11268306,
+                "nu": 0.81694072,
+            },
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            id="vol",
+            ad=2,
+        )
+        # F_0,T is stated in section 3.5.4 as 1.3395
+        base = fxss.get_from_strike(Dual2(1.34, ["k"], [], []), Dual2(1.34, ["f"], [], []))[1]
+        comparison = fxss.get_from_strike(Dual2(1.34, ["k"], [], []), Dual2(1.340001, ["f"], [], []))[1]
+
+        assert np.all(abs(base.dual - comparison.dual) < 1e-3)
+        dual2 = abs(base.dual2 - comparison.dual2) < 1e-3
+        assert np.all(dual2)
 
     @pytest.mark.parametrize("param", ["alpha", "beta", "rho", "nu"])
     def test_missing_param_raises(self, param):

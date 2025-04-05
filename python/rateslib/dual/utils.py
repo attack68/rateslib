@@ -56,6 +56,27 @@ def _get_order_of(val: DualTypes) -> int:
     return ad_order
 
 
+def _cast_pair(val1: DualTypes, val2: DualTypes) -> tuple[DualTypes, DualTypes]:
+    order_pair = (_get_order_of(val1), _get_order_of(val2))
+    if order_pair == (0,0):
+        return val1, val2
+    elif order_pair in [(0,1), (1,0), (1,1)]:
+        vars_base = val1 + val2
+        val1 = set_order_convert(val1, 1, None, None)
+        val2 = set_order_convert(val2, 1, None, None)
+        _1 = Dual.vars_from(vars_base, val1.real, val1.vars, val1.dual)
+        _2 = Dual.vars_from(vars_base, val2.real, val2.vars, val2.dual)
+        return _1, _2
+    elif order_pair in [(0,2), (2,0), (2,2)]:
+        vars_base = val1 + val2
+        val1 = set_order_convert(val1, 2, None, None)
+        val2 = set_order_convert(val2, 2, None, None)
+        _1 = Dual2.vars_from(vars_base, val1.real, val1.vars, val1.dual, np.ravel(val1.dual2))
+        _2 = Dual2.vars_from(vars_base, val2.real, val2.vars, val2.dual, np.ravel(val2.dual2))
+        return _1, _2
+    else: # order_pair in [(1,2), (2,1)]:
+        raise TypeError("Cannot cast a Dual and Dual2 object to a consistent dual number.")
+
 def set_order(val: DualTypes, order: int) -> DualTypes:
     """
     Changes the order of a :class:`Dual` or :class:`Dual2` and a sets a :class:`Variable`

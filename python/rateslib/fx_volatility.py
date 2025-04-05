@@ -30,7 +30,7 @@ from rateslib.dual import (
     newton_1dim,
     set_order_convert,
 )
-from rateslib.dual.utils import _dual_float
+from rateslib.dual.utils import _dual_float, _cast_pair
 from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,
@@ -1811,20 +1811,18 @@ def _sabr_X2(
     else:
         # must construct the dual number directly from analytic formulae due to div by zero error.
         p_ = _dual_float(p)
+        z, p = _cast_pair(z, p)
+
         if isinstance(z, float):
             X2 = 1.0
         elif isinstance(z, Dual):
             X2 = Dual.vars_from(z, 1.0, z.vars, z.dual * -0.5 * p_)  # type: ignore[arg-type]
         elif isinstance(z, Dual2):
-            X2 = Dual2.vars_from(
-                z,
-                1.0,
-                z.vars,
-                z.dual * -0.5 * p_,  # type: ignore[arg-type]
-                np.ravel(
-                    z.dual2 * -0.5 * p_ + np.outer(z.dual, z.dual) * 0.5 * (2 - 3 * p_ * p_) / 6.0
-                ),
-            )
+            dual2 = z.dual2 * -0.5 * p_
+            dual2 += np.outer(z.dual, z.dual) * 0.5 * (2 - 3 * p_ * p_) / 6.0
+            dual2 += np.outer(p.dual, z.dual) * 0.5
+            dual2 += np.outer(z.dual, p.dual) * 0.5
+            X2 = Dual2.vars_from(z,1.0, z.vars, z.dual * -0.5 * p_, np.ravel(dual2))
         else:
             raise TypeError("Unrecognized dual number data type for differentiation.")
 
