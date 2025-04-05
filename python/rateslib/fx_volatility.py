@@ -1818,10 +1818,10 @@ def _sabr_X2(
         elif isinstance(z, Dual):
             X2 = Dual.vars_from(z, 1.0, z.vars, z.dual * -0.5 * p_)  # type: ignore[arg-type]
         elif isinstance(z, Dual2):
-            dual2 = z.dual2 * -0.5 * p_
+            dual2 = np.outer(p.dual, z.dual) * -0.5
+            dual2 += np.outer(z.dual, p.dual) * -0.5
             dual2 += np.outer(z.dual, z.dual) * 0.5 * (2 - 3 * p_ * p_) / 6.0
-            dual2 += np.outer(p.dual, z.dual) * 0.5
-            dual2 += np.outer(z.dual, p.dual) * 0.5
+            dual2 += z.dual2 * -0.5 * p_
             X2 = Dual2.vars_from(z,1.0, z.vars, z.dual * -0.5 * p_, np.ravel(dual2))
         else:
             raise TypeError("Unrecognized dual number data type for differentiation.")
