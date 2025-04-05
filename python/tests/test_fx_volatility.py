@@ -759,8 +759,10 @@ class TestFXSabrSmile:
 
     @pytest.mark.parametrize(("k, f"), [
         (1.34, 1.34),
-        # (1.33, 1.35),
-        # (1.35, 1.33)
+        (1.33, 1.35),
+        (1.35, 1.33),
+        (1.3399, 1.34),
+        (1.34, 1.3401)
     ])
     @pytest.mark.parametrize("pair", [_ for _ in combinations(["k", "f", "alpha", "rho", "nu"], 2)])
     def test_sabr_vol_cross_finite_diff_second_order(self, k, f, pair):
@@ -814,13 +816,13 @@ class TestFXSabrSmile:
 
         v_map = {"k": "k", "f": "f", "alpha": "v0", "rho": "v1", "nu": "v2"}
 
-        upup = inc_(pair[0], pair[1], 1e-5, 1e-5)
-        updown = inc_(pair[0], pair[1], 1e-5, -1e-5)
-        downup = inc_(pair[0], pair[1], -1e-5, 1e-5)
-        downdown = inc_(pair[0], pair[1], -1e-5, -1e-5)
-        expected = (upup + downdown - updown - downup) / 4e-10
+        upup = inc_(pair[0], pair[1], 1e-3, 1e-3)
+        updown = inc_(pair[0], pair[1], 1e-3, -1e-3)
+        downup = inc_(pair[0], pair[1], -1e-3, 1e-3)
+        downdown = inc_(pair[0], pair[1], -1e-3, -1e-3)
+        expected = (upup + downdown - updown - downup) / 4e-6
         result = gradient(base, [v_map[pair[0]], v_map[pair[1]]], order=2)[0][1]
-        assert abs(result - expected) < 1e-1
+        assert abs(result - expected) < 1e-2
 
 
     def test_sabr_vol_root_multi_duals_finite_diff(self):
