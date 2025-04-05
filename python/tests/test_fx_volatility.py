@@ -863,6 +863,30 @@ class TestFXSabrSmile:
 
         assert abs(result - expected) < 1e-13
 
+    def test_sabr_derivative_ad(self):
+        # test the analytic derivative of the SABR function and its preservation of AD.
+        a = 0.10
+        b = 1.0
+        p = Dual2(-0.20, ["p"], [1.0], [0.0])
+        v = 0.8
+        f = 1.3395
+        t = 1.0
+        k = Dual2(1.45, ["k"], [1.0], [0.0])
+
+        _, result = _d_sabr_d_k(k, f, t, a, b, p, v)
+        _, r1 = _d_sabr_d_k(k, f, t, a, b, p + 1e-4, v)
+        _, r_1 = _d_sabr_d_k(k, f, t, a, b, p - 1e-4, v)
+        expected = (r1 - r_1) / (2e-4)
+        result = gradient(result, ["p"])[0]
+        assert abs(result - expected) < 1e-9
+
+        _, result = _d_sabr_d_k(k, f, t, a, b, p, v)
+        _, r1 = _d_sabr_d_k(k, f, t, a, b, p + 1e-4, v)
+        _, r_1 = _d_sabr_d_k(k, f, t, a, b, p - 1e-4, v)
+        expected = (r1 - 2* result + r_1) / (1e-8)
+        result = gradient(result, ["p"], order=2)[0][0]
+        assert abs(result - expected) < 1e-8
+
     def test_sabr_derivative_root(self):
         # test the analytic derivative of the SABR function when f == k
         a = 0.10
@@ -877,6 +901,30 @@ class TestFXSabrSmile:
         expected = gradient(sabr_vol, ["k"])[0]
 
         assert abs(result - expected) < 1e-13
+
+    def test_sabr_derivative_root_ad(self):
+        # test the analytic derivative of the SABR function when f == k, and its preservation of AD.
+        a = 0.10
+        b = 1.0
+        p = Dual2(-0.20, ["p"], [1.0], [0.0])
+        v = 0.8
+        f = 1.3395
+        t = 1.0
+        k = Dual2(1.3395, ["k"], [1.0], [0.0])
+
+        _, result = _d_sabr_d_k(k, f, t, a, b, p, v)
+        _, r1 = _d_sabr_d_k(k, f, t, a, b, p + 1e-4, v)
+        _, r_1 = _d_sabr_d_k(k, f, t, a, b, p - 1e-4, v)
+        expected = (r1 - r_1) / (2e-4)
+        result = gradient(result, ["p"])[0]
+        assert abs(result - expected) < 1e-9
+
+        _, result = _d_sabr_d_k(k, f, t, a, b, p, v)
+        _, r1 = _d_sabr_d_k(k, f, t, a, b, p + 1e-4, v)
+        _, r_1 = _d_sabr_d_k(k, f, t, a, b, p - 1e-4, v)
+        expected = (r1 - 2* result + r_1) / (1e-8)
+        result = gradient(result, ["p"], order=2)[0][0]
+        assert abs(result - expected) < 1e-8
 
 
 class TestStateAndCache:
