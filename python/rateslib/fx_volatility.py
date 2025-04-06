@@ -1818,7 +1818,7 @@ def _sabr_X2(
         elif isinstance(z_, Dual):
             X2 = Dual.vars_from(z_, 1.0, z_.vars, z_.dual * -0.5 * p_f64)  # type: ignore[arg-type]
         elif isinstance(z_, Dual2):
-            assert isinstance(p_, Dual2)
+            assert isinstance(p_, Dual2)  # noqa: S101
 
             f_z = -0.5 * p_f64
             # f_p = 0.0
@@ -1885,7 +1885,7 @@ def _sabr_X2(
             if isinstance(z_, float):
                 dX2_dz: DualTypes = -p_f64 / 2
             elif isinstance(z_, Dual):
-                assert isinstance(p_, Dual)
+                assert isinstance(p_, Dual)  # noqa: S101
 
                 dX2_dz = Dual.vars_from(
                     z_,
@@ -1894,7 +1894,7 @@ def _sabr_X2(
                     z_.dual * (2 - 3 * p_f64**2) / 6.0 - 0.5 * p_.dual,  # type: ignore[arg-type]
                 )
             elif isinstance(z_, Dual2):
-                assert isinstance(p_, Dual2)
+                assert isinstance(p_, Dual2)  # noqa: S101
 
                 f_z = (2 - 3 * p_f64**2) / 6
                 f_p = -0.5
