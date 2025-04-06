@@ -1863,27 +1863,37 @@ def _sabr_X2(
                 / (x16 * x17**2)
             )
         else:
-            # must construct the dual directly from analytic formulae due to div by zero error.
+            # must construct the dual number directly from analytic formulae due to div by zero.
+            p_ = _dual_float(p)
+            z, p = _cast_pair(z, p)
+
             # dX
             y0 = 1 / k
             y1 = b / 2 - 1 / 2
             y2 = v * x0 / (a * (f * k) ** y1)
             dz: DualTypes = -y2 * (y1 * dual_log(f * y0) + 1)
 
-            p_ = _dual_float(p)
             if isinstance(z, float):
                 dX2_dz: DualTypes = -p_ / 2
             elif isinstance(z, Dual):
-                dX2_dz = Dual.vars_from(z, -p_ / 2, z.vars, z.dual * (2 - 3 * p_**2) / 6.0)  # type: ignore[arg-type]
+                dX2_dz = Dual.vars_from(
+                    z,
+                    -p_ / 2,
+                    z.vars,
+                    z.dual * (2 - 3 * p_**2) / 6.0 - 0.5 * p.dual,  # type: ignore[arg-type]
+                )
             elif isinstance(z, Dual2):
                 scl = (2 - 3 * p_**2) / 6.0
                 dX2_dz = Dual2.vars_from(
                     z,
                     -p_ / 2,
                     z.vars,
-                    z.dual * scl,  # type: ignore[arg-type]
+                    z.dual * scl - 0.5 * p.dual,  # type: ignore[arg-type]
                     np.ravel(
-                        z.dual2 * scl + np.outer(z.dual, z.dual) * (p_ * (5 - 6 * p_ * p_) / 8)
+                        z.dual2 * scl
+                        + np.outer(z.dual, z.dual) * (p_ * (5 - 6 * p_ * p_) / 8)
+                        -p.dual2
+                        -p_ * (np.outer(z.dual, p.dual) + np.outer(p.dual, z.dual))
                     ),
                 )
             else:
