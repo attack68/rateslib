@@ -816,6 +816,52 @@ class FXOptionPeriod(metaclass=ABCMeta):
         _2: DualTypes | None = delta_idx
         return _1, _2
 
+    def _strike_from_delta_sabr(
+        self,
+        delta: float,
+        delta_type: str,
+        vol: FXSabrSmile,
+        w_deli: DualTypes,
+        w_spot: DualTypes,
+        f: DualTypes,
+        t_e: DualTypes,
+    ) -> DualTypes:
+
+        z_w = w_deli / w_spot
+        eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, 0.0)  # u: unused
+        sqrt_t = t_e ** 0.5
+
+        def root1d(k: DualTypes, f: DualTypes) -> tuple[DualTypes, DualTypes]:
+            sigma, dsigma_dk = vol._d_sabr_d_k(k, f, t_e)
+            dn0 = -dual_log(k / f) / (sigma * sqrt_t) + eta_0 * sigma * sqrt_t
+            Phi = dual_norm_cdf(self.phi * dn0)
+
+            if eta_0 == -0.5:
+                z_u, dz_u_dk = k / f, 1 / f
+                d_1 = -dz_u_dk * z_w * self.phi * Phi
+            else:
+                z_u, dz_u_dk = 1.0, 0.0
+                d_1 = 0.0
+
+            ddn_dk = (dual_log(k / f) / (sigma**2 * sqrt_t) + eta_0 * sqrt_t) * dsigma_dk - 1 / (k * sigma *sqrt_t)
+            d_2 = -z_u * z_w * dual_norm_pdf(self.phi * dn0) * ddn_dk
+
+            f0 = delta - z_w * z_u * self.phi * Phi
+            f1 = d_1 + d_2
+            return f0, f1
+
+        g0 = self._moneyness_from_delta_closed_form(g01, avg_vol, t_e, 1.0)
+
+        root_solver = newton_1dim(
+            root1d,
+            g0,
+            args=(f,),
+            raise_on_fail=True,
+        )
+
+        k: DualTypes = root_solver["g"]
+        return k
+
     def _moneyness_from_atm_delta_closed_form(self, vol: DualTypes, t_e: DualTypes) -> DualTypes:
         """
         Return `u` given premium unadjusted `delta`, of either 'spot' or 'forward' type.
