@@ -4791,16 +4791,23 @@ class TestFXOptions:
             (dt(2023, 6, 20), 1.101, 0.6578, 131569.29, 0.245178),
         ],
     )
-    @pytest.mark.parametrize("vol", [8.9, FXDeltaVolSmile(
+    @pytest.mark.parametrize(
+        "vol",
+        [
+            8.9,
+            FXDeltaVolSmile(
                 nodes={0.5: 8.9},
                 eval_date=dt(2023, 3, 16),
                 expiry=dt(2023, 6, 16),
                 delta_type="forward",
-            ), FXSabrSmile(
+            ),
+            FXSabrSmile(
                 nodes={"alpha": 0.089, "beta": 1.0, "rho": 0.0, "nu": 0.0},
                 eval_date=dt(2023, 3, 16),
                 expiry=dt(2023, 6, 16),
-            )])
+            ),
+        ],
+    )
     def test_premium_bbg_eur_pc(self, fxfo, pay, k, exp_pts, exp_prem, exp_dl, vol) -> None:
         fxo = FXCall(
             pair="eurusd",
@@ -4831,16 +4838,23 @@ class TestFXOptions:
             (dt(2023, 6, 20), 1.101, 0.6578, 131569.29, 0.243548),
         ],
     )
-    @pytest.mark.parametrize("vol", [8.9, FXDeltaVolSmile(
-        nodes={0.5: 8.9},
-        eval_date=dt(2023, 3, 16),
-        expiry=dt(2023, 6, 16),
-        delta_type="spot",
-    ), FXSabrSmile(
-        nodes={"alpha": 0.089, "beta": 1.0, "rho": 0.0, "nu": 0.0},
-        eval_date=dt(2023, 3, 16),
-        expiry=dt(2023, 6, 16),
-    )])
+    @pytest.mark.parametrize(
+        "vol",
+        [
+            8.9,
+            FXDeltaVolSmile(
+                nodes={0.5: 8.9},
+                eval_date=dt(2023, 3, 16),
+                expiry=dt(2023, 6, 16),
+                delta_type="spot",
+            ),
+            FXSabrSmile(
+                nodes={"alpha": 0.089, "beta": 1.0, "rho": 0.0, "nu": 0.0},
+                eval_date=dt(2023, 3, 16),
+                expiry=dt(2023, 6, 16),
+            ),
+        ],
+    )
     def test_premium_bbg_eur_pc_spot(self, fxfo, pay, k, exp_pts, exp_prem, exp_dl, vol) -> None:
         fxo = FXCall(
             pair="eurusd",
