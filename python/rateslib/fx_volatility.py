@@ -1889,9 +1889,9 @@ def _sabr_X2(
                     -p_ / 2,
                     z.vars,
                     z.dual * scl - 0.5 * p.dual,  # type: ignore[arg-type]
-                    np.ravel(
+                    0.5 * np.ravel(
                         z.dual2 * scl
-                        + np.outer(z.dual, z.dual) * (p_ * (5 - 6 * p_ * p_) / 8)
+                        + np.outer(z.dual, z.dual) * (p_ * (5 - 6 * p_**2) / 4)
                         -p.dual2
                         -p_ * (np.outer(z.dual, p.dual) + np.outer(p.dual, z.dual))
                     ),
