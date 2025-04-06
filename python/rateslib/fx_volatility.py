@@ -1397,6 +1397,79 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         self.nodes[key] = value
         self._set_ad_order(self.ad)
 
+    # Plotting
+
+    def plot(
+        self,
+        comparators: list[FXDeltaVolSmile] | NoInput = NoInput(0),
+        difference: bool = False,
+        labels: list[str] | NoInput = NoInput(0),
+        x_axis: str = "delta",
+    ) -> PlotOutput:
+        """
+        Plot given forward tenor rates from the curve.
+
+        Parameters
+        ----------
+        tenor : str
+            The tenor of the forward rates to plot, e.g. "1D", "3M".
+        right : datetime or str, optional
+            The right bound of the graph. If given as str should be a tenor format
+            defining a point measured from the initial node date of the curve.
+            Defaults to the final node of the curve minus the ``tenor``.
+        left : datetime or str, optional
+            The left bound of the graph. If given as str should be a tenor format
+            defining a point measured from the initial node date of the curve.
+            Defaults to the initial node of the curve.
+        comparators: list[Curve]
+            A list of curves which to include on the same plot as comparators.
+        difference : bool
+            Whether to plot as comparator minus base curve or outright curve levels in
+            plot. Default is `False`.
+        labels : list[str]
+            A list of strings associated with the plot and comparators. Must be same
+            length as number of plots.
+        x_axis : str in {"delta", "moneyness"}
+            If "delta" the vol is shown relative to its native delta values.
+            If "moneyness" the delta values are converted to :math:`K/f_d`.
+
+        Returns
+        -------
+        (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
+        """
+        # reversed for intuitive strike direction
+        comparators = _drb([], comparators)
+        labels = _drb([], labels)
+        x: list[float] = np.linspace(_dual_float(self.plot_upper_bound), self.t[0], 301)  # type: ignore[assignment]
+        vols: list[float] | list[Dual] | list[Dual2] = self.spline.ppev(x)
+        if x_axis == "moneyness":
+            x, vols = x[40:-40], vols[40:-40]
+            x_as_u: list[float] | list[Dual] | list[Dual2] = [  # type: ignore[assignment]
+                dual_exp(
+                    _2  # type: ignore[operator]
+                    * self.t_expiry_sqrt
+                    / 100.0
+                    * (dual_inv_norm_cdf(_1) * _2 * self.t_expiry_sqrt * _2 / 100.0),  # type: ignore[operator]
+                )
+                for (_1, _2) in zip(x, vols, strict=True)
+            ]
+
+        if difference and not isinstance(comparators, NoInput):
+            y: list[list[float] | list[Dual] | list[Dual2]] = []
+            for comparator in comparators:
+                diff = [(y_ - v_) for y_, v_ in zip(comparator.spline.ppev(x), vols, strict=True)]  # type: ignore[operator]
+                y.append(diff)
+        else:  # not difference:
+            y = [vols]
+            if not isinstance(comparators, NoInput):
+                for comparator in comparators:
+                    y.append(comparator.spline.ppev(x))
+
+        # reverse for intuitive strike direction
+        if x_axis == "moneyness":
+            return plot(x_as_u, y, labels)
+        return plot(x, y, labels)
+
 
 def _validate_delta_type(delta_type: str) -> str:
     if delta_type.lower() not in ["spot", "spot_pa", "forward", "forward_pa"]:
