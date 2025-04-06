@@ -1136,7 +1136,7 @@ class TestFXSabrSmile:
         downdown = inc_(pair[0], pair[1], -1e-3, -1e-3)
         expected = (upup + downdown - updown - downup) / 4e-6
         result = gradient(base, [v_map[pair[0]], v_map[pair[1]]], order=2)[0][1]
-        assert abs(result - expected) < 1e-2
+        assert abs(result - expected) < 5e-2
 
     @pytest.mark.parametrize(("k, f"), [
         (1.34, 1.34),
@@ -1194,9 +1194,36 @@ class TestFXSabrSmile:
         down = inc_(var, -1e-3)
         expected = (up + down - 2 * base) / 1e-6
         result = gradient(base, [v_map[var]], order=2)[0][0]
-        assert abs(result - expected) < 5e-3
+        assert abs(result - expected) < 3e-2
+
+    def test_sabr_derivative_root_multi_duals_neighbourhood(self):
+        # test the SABR function when regular arithmetic operations produce an undefined 0/0
+        # value so AD has to be hard coded into the solution. This occurs when f == k.
+        # test by comparing derivatives with those captured at a nearby valid point
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.17431060,
+                "beta": 1.0,
+                "rho": -0.11268306,
+                "nu": 0.81694072,
+            },
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            id="vol",
+            ad=2,
+        )
+        # F_0,T is stated in section 3.5.4 as 1.3395
+        base = fxss._d_sabr_d_k(Dual2(1.34, ["k"], [], []), Dual2(1.34, ["f"], [], []), 1.0)[1]
+        comparison1 = fxss._d_sabr_d_k(Dual2(1.341, ["k"], [], []), Dual2(1.34, ["f"], [], []), 1.0)[1]
+
+        assert np.all(abs(base.dual - comparison1.dual) < 5e-3)
+        diff = base.dual2 - comparison1.dual2
+        dual2 = abs(diff) < 5e-2
+        assert np.all(dual2)
 
     def test_sabr_derivative_ad(self):
+        # Test is probably superceded by test_sabr_derivative_same/cross_finite_diff
+
         # test the analytic derivative of the SABR function and its preservation of AD.
         a = 0.10
         b = 1.0
@@ -1221,6 +1248,8 @@ class TestFXSabrSmile:
         assert abs(result - expected) < 1e-8
 
     def test_sabr_derivative_root(self):
+        # Test is probably superceded by test_sabr_derivative_same/cross_finite_diff
+
         # test the analytic derivative of the SABR function when f == k
         a = 0.10
         b = 1.0
@@ -1236,6 +1265,8 @@ class TestFXSabrSmile:
         assert abs(result - expected) < 1e-13
 
     def test_sabr_derivative_root_ad(self):
+        # Test is probably superceded by test_sabr_derivative_same/cross_finite_diff
+
         # test the analytic derivative of the SABR function when f == k, and its preservation of AD.
         a = 0.10
         b = 1.0

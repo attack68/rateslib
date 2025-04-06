@@ -1818,10 +1818,17 @@ def _sabr_X2(
         elif isinstance(z, Dual):
             X2 = Dual.vars_from(z, 1.0, z.vars, z.dual * -0.5 * p_)  # type: ignore[arg-type]
         elif isinstance(z, Dual2):
-            dual2 = np.outer(p.dual, z.dual) * -0.25
-            dual2 += np.outer(z.dual, p.dual) * -0.25
-            dual2 += np.outer(z.dual, z.dual) * 0.5 * (2 - 3 * p_ * p_) / 6.0
-            dual2 += z.dual2 * -0.5 * p_
+            f_z = -0.5 * p_
+            # f_p = 0.0
+            f_zz = (2-3*p_**2) / 6
+            f_zp = -0.5
+            # f_pp = 0.0
+
+            dual2 = f_z * z.dual2  # + f_p * p.dual2
+            dual2 += 0.5 * f_zz * np.outer(z.dual, z.dual)
+            # dual2 += 0.5 * f_pp * np.outer(p.dual, p.dual)
+            dual2 += 0.5 * f_zp * (np.outer(z.dual, p.dual) + np.outer(p.dual, z.dual))
+
             X2 = Dual2.vars_from(z,1.0, z.vars, z.dual * -0.5 * p_, np.ravel(dual2))
         else:
             raise TypeError("Unrecognized dual number data type for differentiation.")
@@ -1883,18 +1890,23 @@ def _sabr_X2(
                     z.dual * (2 - 3 * p_**2) / 6.0 - 0.5 * p.dual,  # type: ignore[arg-type]
                 )
             elif isinstance(z, Dual2):
-                scl = (2 - 3 * p_**2) / 6.0
+                f_z = (2 - 3 * p_ ** 2) / 6
+                f_p = -0.5
+                f_zz = p_ * (5 - p_ **2) / 4
+                f_zp = -p_
+                # f_pp = 0.0
+
+                dual2 = f_z * z.dual2 + f_p * p.dual2
+                dual2 += 0.5 * f_zz * np.outer(z.dual, z.dual)
+                # dual2 += 0.5 * f_pp * np.outer(p.dual, p.dual)
+                dual2 += 0.5 * f_zp * (np.outer(z.dual, p.dual) + np.outer(p.dual, z.dual))
+
                 dX2_dz = Dual2.vars_from(
                     z,
                     -p_ / 2,
                     z.vars,
-                    z.dual * scl - 0.5 * p.dual,  # type: ignore[arg-type]
-                    0.5 * np.ravel(
-                        z.dual2 * scl
-                        + np.outer(z.dual, z.dual) * (p_ * (5 - 6 * p_**2) / 4)
-                        -p.dual2
-                        -p_ * (np.outer(z.dual, p.dual) + np.outer(p.dual, z.dual))
-                    ),
+                    z.dual * (2 - 3 * p_**2) / 6.0 - 0.5 * p.dual,  # type: ignore[arg-type]
+                    np.ravel(dual2),
                 )
             else:
                 raise TypeError("Unrecognized dual number data type for differentiation.")
