@@ -1009,7 +1009,7 @@ class TestFXSabrSmile:
 
     @pytest.mark.parametrize("p", [-0.1, 0.15])
     @pytest.mark.parametrize("a", [0.05, 0.2])
-    @pytest.mark.parametrize("k_", [1.15, 1.3620, 1.45])
+    @pytest.mark.parametrize("k_", [1.15, 1.3620, 1.45, 1.3395])
     def test_sabr_derivative(self, a, p, k_):
         # test the analytic derivative of the SABR function with respect to k created by sympy
         b = 1.0
@@ -1022,6 +1022,54 @@ class TestFXSabrSmile:
         expected = gradient(sabr_vol, ["k"])[0]
 
         assert abs(result - expected) < 1e-13
+
+    @pytest.mark.parametrize(("k, f"), [
+        (1.34, 1.34),
+        (1.33, 1.35),
+        (1.35, 1.33)
+    ])
+    def test_sabr_derivative_finite_diff_first_order(self, k, f):
+        # Test all of the first order gradients using finite diff, for the case when f != k and
+        # when f == k, which is a branched calculation to handle a undefined point.
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.17431060,
+                "beta": 1.0,
+                "rho": -0.11268306,
+                "nu": 0.81694072,
+            },
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            id="vol",
+            ad=2,
+        )
+        t = 1.0
+        base = fxss._d_sabr_d_k(Dual2(k, ["k"], [1.0], []), Dual2(f, ["f"], [1.0], []), t)[1]
+
+        # k
+        _up = fxss._d_sabr_d_k(Dual2(k+1e-4, ["k"], [], []), Dual2(f, ["f"], [], []), t)[1]
+        _dw = fxss._d_sabr_d_k(Dual2(k-1e-4, ["k"], [], []), Dual2(f, ["f"], [], []), t)[1]
+        result = gradient(base, ["k"])[0]
+        expected = (_up - _dw) / 2e-4
+        assert abs(result - expected) < 1e-5
+
+        # f
+        _up = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f+1e-4, ["f"], [], []), t)[1]
+        _dw = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f-1e-4, ["f"], [], []), t)[1]
+        result = gradient(base, ["f"])[0]
+        expected = (_up - _dw) / 2e-4
+        assert abs(result - expected) < 1e-5
+
+        # SABR params
+        for i, key in enumerate(["alpha", "rho", "nu"]):
+            fxss.nodes[key] = fxss.nodes[key] + 1e-5
+            _up = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), t)[1]
+            fxss.nodes[key] = fxss.nodes[key] - 2e-5
+            _dw = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), t)[1]
+            fxss.nodes[key] = fxss.nodes[key] + 1e-5
+            result = gradient(base, [f"vol{i}"])[0]
+            expected = (_up - _dw) / 2e-5
+            assert abs(result - expected) < 1e-5
 
     def test_sabr_derivative_ad(self):
         # test the analytic derivative of the SABR function and its preservation of AD.
