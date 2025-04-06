@@ -7,13 +7,13 @@ from typing import TYPE_CHECKING
 
 from pandas import DataFrame
 
-from rateslib import defaults
+from rateslib import FXDeltaVolSmile, FXDeltaVolSurface, defaults
 from rateslib.calendars import _get_fx_expiry_and_delivery, get_calendar
 from rateslib.curves import Curve
 from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.default import NoInput, PlotOutput, _drb, plot
 from rateslib.dual.utils import _dual_float
-from rateslib.fx_volatility import FXVolObj
+from rateslib.fx_volatility import FXSabrSmile, FXVolObj
 from rateslib.instruments.base import Metrics
 from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.instruments.utils import (
@@ -297,12 +297,17 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
         curves_3: Curve = _validate_obj_not_no_input(curves[3], "curves[3]")
         curves_1: Curve = _validate_obj_not_no_input(curves[1], "curves[1]")
 
+        if isinstance(vol_, FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile):
+            eval_date = vol_.eval_date
+        else:
+            eval_date = curves_3.node_dates[0]
+
         self._pricing = _PricingMetrics(
             vol=vol_,
             k=self.kwargs["strike"],
             delta_index=None,
             spot=fx_.pairs_settlement[self.kwargs["pair"]],
-            t_e=self._option_periods[0]._t_to_expiry(curves_3.node_dates[0]),
+            t_e=self._option_periods[0]._t_to_expiry(eval_date),
             f_d=fx_.rate(self.kwargs["pair"], self.kwargs["delivery"]),
         )
 
