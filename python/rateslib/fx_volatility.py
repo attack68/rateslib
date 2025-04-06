@@ -30,7 +30,7 @@ from rateslib.dual import (
     newton_1dim,
     set_order_convert,
 )
-from rateslib.dual.utils import _dual_float, _cast_pair
+from rateslib.dual.utils import _cast_pair, _dual_float
 from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,
@@ -1810,26 +1810,28 @@ def _sabr_X2(
         X2 = z / chi
     else:
         # must construct the dual number directly from analytic formulae due to div by zero error.
-        p_ = _dual_float(p)
-        z, p = _cast_pair(z, p)
+        p_f64 = _dual_float(p)
+        z_, p_ = _cast_pair(z, p)
 
-        if isinstance(z, float):
+        if isinstance(z_, float):
             X2 = 1.0
-        elif isinstance(z, Dual):
-            X2 = Dual.vars_from(z, 1.0, z.vars, z.dual * -0.5 * p_)  # type: ignore[arg-type]
-        elif isinstance(z, Dual2):
-            f_z = -0.5 * p_
+        elif isinstance(z_, Dual):
+            X2 = Dual.vars_from(z_, 1.0, z_.vars, z_.dual * -0.5 * p_f64)  # type: ignore[arg-type]
+        elif isinstance(z_, Dual2):
+            assert isinstance(p_, Dual2)
+
+            f_z = -0.5 * p_f64
             # f_p = 0.0
-            f_zz = (2-3*p_**2) / 6
+            f_zz = (2 - 3 * p_f64**2) / 6
             f_zp = -0.5
             # f_pp = 0.0
 
-            dual2 = f_z * z.dual2  # + f_p * p.dual2
-            dual2 += 0.5 * f_zz * np.outer(z.dual, z.dual)
-            # dual2 += 0.5 * f_pp * np.outer(p.dual, p.dual)
-            dual2 += 0.5 * f_zp * (np.outer(z.dual, p.dual) + np.outer(p.dual, z.dual))
+            dual2 = f_z * z_.dual2  # + f_p * p_.dual2
+            dual2 += 0.5 * f_zz * np.outer(z_.dual, z_.dual)
+            # dual2 += 0.5 * f_pp * np.outer(p_.dual, p_.dual)
+            dual2 += 0.5 * f_zp * (np.outer(z_.dual, p_.dual) + np.outer(p_.dual, z_.dual))
 
-            X2 = Dual2.vars_from(z,1.0, z.vars, z.dual * -0.5 * p_, np.ravel(dual2))
+            X2 = Dual2.vars_from(z_, 1.0, z_.vars, z_.dual * -0.5 * p_f64, np.ravel(dual2))  # type: ignore[arg-type]
         else:
             raise TypeError("Unrecognized dual number data type for differentiation.")
 
@@ -1871,8 +1873,8 @@ def _sabr_X2(
             )
         else:
             # must construct the dual number directly from analytic formulae due to div by zero.
-            p_ = _dual_float(p)
-            z, p = _cast_pair(z, p)
+            p_f64 = _dual_float(p)
+            z_, p_ = _cast_pair(z, p)
 
             # dX
             y0 = 1 / k
@@ -1880,32 +1882,36 @@ def _sabr_X2(
             y2 = v * x0 / (a * (f * k) ** y1)
             dz: DualTypes = -y2 * (y1 * dual_log(f * y0) + 1)
 
-            if isinstance(z, float):
-                dX2_dz: DualTypes = -p_ / 2
-            elif isinstance(z, Dual):
+            if isinstance(z_, float):
+                dX2_dz: DualTypes = -p_f64 / 2
+            elif isinstance(z_, Dual):
+                assert isinstance(p_, Dual)
+
                 dX2_dz = Dual.vars_from(
-                    z,
-                    -p_ / 2,
-                    z.vars,
-                    z.dual * (2 - 3 * p_**2) / 6.0 - 0.5 * p.dual,  # type: ignore[arg-type]
+                    z_,
+                    -p_f64 / 2,
+                    z_.vars,
+                    z_.dual * (2 - 3 * p_f64**2) / 6.0 - 0.5 * p_.dual,  # type: ignore[arg-type]
                 )
-            elif isinstance(z, Dual2):
-                f_z = (2 - 3 * p_ ** 2) / 6
+            elif isinstance(z_, Dual2):
+                assert isinstance(p_, Dual2)
+
+                f_z = (2 - 3 * p_f64**2) / 6
                 f_p = -0.5
-                f_zz = p_ * (5 - p_ **2) / 4
-                f_zp = -p_
+                f_zz = p_f64 * (5 - p_f64**2) / 4
+                f_zp = -p_f64
                 # f_pp = 0.0
 
-                dual2 = f_z * z.dual2 + f_p * p.dual2
-                dual2 += 0.5 * f_zz * np.outer(z.dual, z.dual)
-                # dual2 += 0.5 * f_pp * np.outer(p.dual, p.dual)
-                dual2 += 0.5 * f_zp * (np.outer(z.dual, p.dual) + np.outer(p.dual, z.dual))
+                dual2 = f_z * z_.dual2 + f_p * p_.dual2
+                dual2 += 0.5 * f_zz * np.outer(z_.dual, z_.dual)
+                # dual2 += 0.5 * f_pp * np.outer(p_.dual, p_.dual)
+                dual2 += 0.5 * f_zp * (np.outer(z_.dual, p_.dual) + np.outer(p_.dual, z_.dual))
 
                 dX2_dz = Dual2.vars_from(
-                    z,
-                    -p_ / 2,
-                    z.vars,
-                    z.dual * (2 - 3 * p_**2) / 6.0 - 0.5 * p.dual,  # type: ignore[arg-type]
+                    z_,
+                    -p_f64 / 2,
+                    z_.vars,
+                    z_.dual * (2 - 3 * p_f64**2) / 6.0 - 0.5 * p_.dual,  # type: ignore[arg-type]
                     np.ravel(dual2),
                 )
             else:

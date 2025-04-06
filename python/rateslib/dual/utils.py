@@ -57,25 +57,29 @@ def _get_order_of(val: DualTypes) -> int:
 
 
 def _cast_pair(val1: DualTypes, val2: DualTypes) -> tuple[DualTypes, DualTypes]:
+    """cast a pair of dual numbers into consistent values with ordered vars."""
     order_pair = (_get_order_of(val1), _get_order_of(val2))
-    if order_pair == (0,0):
+    if order_pair == (0, 0):
         return val1, val2
-    elif order_pair in [(0,1), (1,0), (1,1)]:
-        vars_base = val1 + val2
-        val1 = set_order_convert(val1, 1, None, None)
-        val2 = set_order_convert(val2, 1, None, None)
-        _1 = Dual.vars_from(vars_base, val1.real, val1.vars, val1.dual)
-        _2 = Dual.vars_from(vars_base, val2.real, val2.vars, val2.dual)
-        return _1, _2
-    elif order_pair in [(0,2), (2,0), (2,2)]:
-        vars_base = val1 + val2
-        val1 = set_order_convert(val1, 2, None, None)
-        val2 = set_order_convert(val2, 2, None, None)
-        _1 = Dual2.vars_from(vars_base, val1.real, val1.vars, val1.dual, np.ravel(val1.dual2))
-        _2 = Dual2.vars_from(vars_base, val2.real, val2.vars, val2.dual, np.ravel(val2.dual2))
-        return _1, _2
-    else: # order_pair in [(1,2), (2,1)]:
+    elif order_pair in [(0, 1), (1, 0), (1, 1)]:
+        base1: Dual = val1 + val2  # type: ignore[assignment]
+        _1: Dual = set_order_convert(val1, 1, None, None)  # type: ignore[assignment]
+        __1: Dual = set_order_convert(val2, 1, None, None)  # type: ignore[assignment]
+        return (
+            Dual.vars_from(base1, _1.real, _1.vars, _1.dual),
+            Dual.vars_from(base1, __1.real, __1.vars, __1.dual),
+        )
+    elif order_pair in [(0, 2), (2, 0), (2, 2)]:
+        base2: Dual2 = val1 + val2  # type: ignore[assignment]
+        _2: Dual2 = set_order_convert(val1, 2, None, None)  # type: ignore[assignment]
+        __2: Dual2 = set_order_convert(val2, 2, None, None)  # type: ignore[assignment]
+        return (
+            Dual2.vars_from(base2, _2.real, _2.vars, _2.dual, np.ravel(_2.dual2)),
+            Dual2.vars_from(base2, __2.real, __2.vars, __2.dual, np.ravel(__2.dual2)),
+        )
+    else:  # order_pair in [(1,2), (2,1)]:
         raise TypeError("Cannot cast a Dual and Dual2 object to a consistent dual number.")
+
 
 def set_order(val: DualTypes, order: int) -> DualTypes:
     """
