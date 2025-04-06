@@ -4884,26 +4884,29 @@ class TestFXOptions:
             ("eur", 0.680949, 1.099976),
         ],
     )
-    @pytest.mark.parametrize("vol", [
-        8.90,
-        FXDeltaVolSmile(
-            {
-                0.75: 8.9,
-            },
-            eval_date=dt(2023, 3, 16),
-            expiry=dt(2023, 6, 16),
-            delta_type="spot",
-            id="vol",
-            ad=1,
-        ),
-        FXSabrSmile(
-            nodes={"alpha": 0.089, "beta": 1.0, "rho": 0.0, "nu": 0.0},
-            eval_date=dt(2023, 3, 16),
-            expiry=dt(2023, 6, 16),
-            id="vol",
-            ad=1,
-        )
-    ])
+    @pytest.mark.parametrize(
+        "vol",
+        [
+            8.90,
+            FXDeltaVolSmile(
+                {
+                    0.75: 8.9,
+                },
+                eval_date=dt(2023, 3, 16),
+                expiry=dt(2023, 6, 16),
+                delta_type="spot",
+                id="vol",
+                ad=1,
+            ),
+            FXSabrSmile(
+                nodes={"alpha": 0.089, "beta": 1.0, "rho": 0.0, "nu": 0.0},
+                eval_date=dt(2023, 3, 16),
+                expiry=dt(2023, 6, 16),
+                id="vol",
+                ad=1,
+            ),
+        ],
+    )
     def test_fx_call_rate_delta_strike(self, fxfo, ccy, exp_rate, exp_strike, vol) -> None:
         fxo = FXCall(
             pair="eurusd",

@@ -828,9 +828,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
         f: DualTypes,
         t_e: DualTypes,
     ) -> DualTypes:
-
         eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, 0.0)  # u: unused
-        sqrt_t = t_e ** 0.5
+        sqrt_t = t_e**0.5
 
         def root1d(k: DualTypes, f: DualTypes) -> tuple[DualTypes, DualTypes]:
             sigma, dsigma_dk = vol._d_sabr_d_k(k, f, t_e)
@@ -844,7 +843,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 z_u, dz_u_dk = 1.0, 0.0
                 d_1 = 0.0
 
-            ddn_dk = (dual_log(k / f) / (sigma**2 * sqrt_t) + eta_0 * sqrt_t) * dsigma_dk - 1 / (k * sigma *sqrt_t)
+            ddn_dk = (dual_log(k / f) / (sigma**2 * sqrt_t) + eta_0 * sqrt_t) * dsigma_dk - 1 / (
+                k * sigma * sqrt_t
+            )
             d_2 = -z_u * z_w * dual_norm_pdf(self.phi * dn0) * ddn_dk
 
             f0 = delta - z_w * z_u * self.phi * Phi
