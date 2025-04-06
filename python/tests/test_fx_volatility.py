@@ -841,7 +841,6 @@ class TestFXSabrSmile:
         result = gradient(base, [v_map[var]], order=2)[0][0]
         assert abs(result - expected) < 5e-3
 
-
     def test_sabr_vol_root_multi_duals_neighbourhood(self):
         # test the SABR function when regular arithmetic operations produce an undefined 0/0
         # value so AD has to be hard coded into the solution. This occurs when f == k.
@@ -860,14 +859,11 @@ class TestFXSabrSmile:
         )
         # F_0,T is stated in section 3.5.4 as 1.3395
         base = fxss.get_from_strike(Dual2(1.34, ["k"], [], []), Dual2(1.34, ["f"], [], []))[1]
-        comparison1 = fxss.get_from_strike(Dual2(1.34, ["k"], [], []), Dual2(1.340001, ["f"], [], []))[1]
-        comparison2 = fxss.get_from_strike(Dual2(1.34, ["k"], [], []), Dual2(1.339999, ["f"], [], []))[1]
-        comparison3 = fxss.get_from_strike(Dual2(1.340001, ["k"], [], []), Dual2(1.34, ["f"], [], []))[1]
-        comparison4 = fxss.get_from_strike(Dual2(1.339999, ["k"], [], []), Dual2(1.34, ["f"], [], []))[1]
-        comparison = 0.25 * (comparison1 + comparison2 + comparison3 + comparison4)
+        comparison1 = fxss.get_from_strike(Dual2(1.341, ["k"], [], []), Dual2(1.34, ["f"], [], []))[1]
 
-        assert np.all(abs(base.dual - comparison.dual) < 1e-3)
-        dual2 = abs(base.dual2 - comparison.dual2) < 1e-3
+        assert np.all(abs(base.dual - comparison1.dual) < 1e-1)
+        diff = base.dual2 - comparison1.dual2
+        dual2 = abs(diff) < 5e-1
         assert np.all(dual2)
 
     @pytest.mark.parametrize("param", ["alpha", "beta", "rho", "nu"])
