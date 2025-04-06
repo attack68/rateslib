@@ -777,11 +777,14 @@ class FXOptionPeriod(metaclass=ABCMeta):
         t_e: DualTypes,
     ) -> tuple[DualTypes, DualTypes | None]:
         vol_delta_type = _get_vol_delta_type(vol, delta_type)
-
         z_w = w_deli / w_spot
+
+        if isinstance(vol, FXSabrSmile):
+            k = self._strike_from_delta_sabr(delta, delta_type, vol, z_w, f, t_e)
+            return k, None
+
         eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, 0.0)  # u: unused
         eta_1, z_w_1, _ = _delta_type_constants(vol_delta_type, z_w, 0.0)  # u: unused
-
         # then delta types are both unadjusted, used closed form.
         if eta_0 == eta_1 and eta_0 == 0.5:
             if isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
@@ -821,13 +824,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
         delta: float,
         delta_type: str,
         vol: FXSabrSmile,
-        w_deli: DualTypes,
-        w_spot: DualTypes,
+        z_w: DualTypes,
         f: DualTypes,
         t_e: DualTypes,
     ) -> DualTypes:
 
-        z_w = w_deli / w_spot
         eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, 0.0)  # u: unused
         sqrt_t = t_e ** 0.5
 
@@ -850,7 +851,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
             f1 = d_1 + d_2
             return f0, f1
 
-        g0 = self._moneyness_from_delta_closed_form(g01, avg_vol, t_e, 1.0)
+        g01 = delta if self.phi > 0 else max(delta, -0.75)
+        g0 = self._moneyness_from_delta_closed_form(g01, vol.nodes["alpha"], t_e, 1.0) * f
 
         root_solver = newton_1dim(
             root1d,
