@@ -1122,7 +1122,7 @@ class TestFXSabrSmile:
         downdown = inc_(pair[0], pair[1], -1e-3, -1e-3)
         expected = (upup + downdown - updown - downup) / 4e-6
         result = gradient(base, [v_map[pair[0]], v_map[pair[1]]], order=2)[0][1]
-        assert abs(result - expected) < 5e-2
+        assert abs(result - expected) < 5e-3
 
     @pytest.mark.parametrize(
         ("k", "f"),
@@ -1177,7 +1177,7 @@ class TestFXSabrSmile:
         down = inc_(var, -1e-3)
         expected = (up + down - 2 * base) / 1e-6
         result = gradient(base, [v_map[var]], order=2)[0][0]
-        assert abs(result - expected) < 3e-2
+        assert abs(result - expected) < 3e-3
 
     def test_sabr_derivative_root_multi_duals_neighbourhood(self):
         # test the SABR function when regular arithmetic operations produce an undefined 0/0
@@ -1203,7 +1203,7 @@ class TestFXSabrSmile:
 
         assert np.all(abs(base.dual - comparison1.dual) < 5e-3)
         diff = base.dual2 - comparison1.dual2
-        dual2 = abs(diff) < 5e-2
+        dual2 = abs(diff) < 3e-2
         assert np.all(dual2)
 
     def test_sabr_derivative_ad(self):
