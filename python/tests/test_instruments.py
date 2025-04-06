@@ -4785,26 +4785,23 @@ class TestFXOptions:
         assert abs(result - exp_prem) < 1e-2
 
     @pytest.mark.parametrize(
-        ("pay", "k", "exp_pts", "exp_prem", "dlty", "exp_dl"),
+        ("pay", "k", "exp_pts", "exp_prem", "exp_dl"),
         [
-            (dt(2023, 3, 20), 1.101, 0.6536, 130717.44, "spot", 0.243588),
-            (dt(2023, 3, 20), 1.101, 0.6536, 130717.44, "forward", 0.245175),
-            (dt(2023, 6, 20), 1.101, 0.6578, 131569.29, "spot", 0.243548),
-            (dt(2023, 6, 20), 1.101, 0.6578, 131569.29, "forward", 0.245178),
+            (dt(2023, 3, 20), 1.101, 0.6536, 130717.44, 0.245175),
+            (dt(2023, 6, 20), 1.101, 0.6578, 131569.29, 0.245178),
         ],
     )
-    @pytest.mark.parametrize("smile", [False, True])
-    def test_premium_bbg_eur_pc(self, fxfo, pay, k, exp_pts, exp_prem, dlty, exp_dl, smile) -> None:
-        vol_ = (
-            8.9
-            if not smile
-            else FXDeltaVolSmile(
+    @pytest.mark.parametrize("vol", [8.9, FXDeltaVolSmile(
                 nodes={0.5: 8.9},
                 eval_date=dt(2023, 3, 16),
                 expiry=dt(2023, 6, 16),
-                delta_type=dlty,
-            )
-        )
+                delta_type="forward",
+            ), FXSabrSmile(
+                nodes={"alpha": 0.089, "beta": 1.0, "rho": 0.0, "nu": 0.0},
+                eval_date=dt(2023, 3, 16),
+                expiry=dt(2023, 6, 16),
+            )])
+    def test_premium_bbg_eur_pc(self, fxfo, pay, k, exp_pts, exp_prem, exp_dl, vol) -> None:
         fxo = FXCall(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -4812,13 +4809,53 @@ class TestFXOptions:
             payment_lag=pay,
             strike=k,
             notional=20e6,
-            delta_type=dlty,
+            delta_type="forward",
             premium_ccy="eur",
         )
         result = fxo.rate(
             curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
             fx=fxfo,
-            vol=vol_,
+            vol=vol,
+        )
+        expected = exp_pts
+        assert abs(result - expected) < 1e-3
+
+        result = 20e6 * result / 100
+        expected = exp_prem
+        assert abs(result - expected) < 1e-1
+
+    @pytest.mark.parametrize(
+        ("pay", "k", "exp_pts", "exp_prem", "exp_dl"),
+        [
+            (dt(2023, 3, 20), 1.101, 0.6536, 130717.44, 0.243588),
+            (dt(2023, 6, 20), 1.101, 0.6578, 131569.29, 0.243548),
+        ],
+    )
+    @pytest.mark.parametrize("vol", [8.9, FXDeltaVolSmile(
+        nodes={0.5: 8.9},
+        eval_date=dt(2023, 3, 16),
+        expiry=dt(2023, 6, 16),
+        delta_type="spot",
+    ), FXSabrSmile(
+        nodes={"alpha": 0.089, "beta": 1.0, "rho": 0.0, "nu": 0.0},
+        eval_date=dt(2023, 3, 16),
+        expiry=dt(2023, 6, 16),
+    )])
+    def test_premium_bbg_eur_pc_spot(self, fxfo, pay, k, exp_pts, exp_prem, exp_dl, vol) -> None:
+        fxo = FXCall(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery_lag=dt(2023, 6, 20),
+            payment_lag=pay,
+            strike=k,
+            notional=20e6,
+            delta_type="spot",
+            premium_ccy="eur",
+        )
+        result = fxo.rate(
+            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            fx=fxfo,
+            vol=vol,
         )
         expected = exp_pts
         assert abs(result - expected) < 1e-3
