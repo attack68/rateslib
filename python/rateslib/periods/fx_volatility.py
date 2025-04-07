@@ -16,6 +16,7 @@ from rateslib.fx_volatility import (
     FXDeltaVolSmile,
     FXDeltaVolSurface,
     FXSabrSmile,
+    FXSabrSurface,
     _black76,
     _d_plus_min_u,
     _delta_type_constants,
@@ -480,8 +481,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
             )
             delta_idx: DualTypes | None = res[0]
             vol_: DualTypes = res[1]
-        elif isinstance(vol, FXSabrSmile):
-            res = vol.get_from_strike(self.strike, f_d, NoInput(0), NoInput(0), self.expiry)
+        elif isinstance(vol, FXSabrSmile | FXSabrSurface):
+            res = vol.get_from_strike(self.strike, f_d, NoInput(0), NoInput(0), self.expiry)  # type: ignore[union-attr]
             delta_idx = None
             vol_ = res[1]
         else:
@@ -1335,10 +1336,10 @@ class FXOptionPeriod(metaclass=ABCMeta):
         # only be performed after a `strike` has been set, temporarily or otherwise.
         assert not isinstance(self.strike, NoInput)  # noqa: S101
 
-        if isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile):
+        if isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile | FXSabrSurface):
             spot = fx.pairs_settlement[self.pair]
             f = fx.rate(self.pair, self.delivery)
-            _: tuple[Any, DualTypes, Any] = vol.get_from_strike(
+            _: tuple[Any, DualTypes, Any] = vol.get_from_strike(  # type: ignore[union-attr]
                 self.strike,
                 f,
                 disc_curve[self.delivery],
