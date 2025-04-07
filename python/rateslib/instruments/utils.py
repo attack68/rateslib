@@ -158,7 +158,9 @@ def _get_fxvol_maybe_from_solver(vol_attr: FXVol_, vol: FXVol_, solver: Solver_)
         try:
             # it is a safeguard to load curves from solvers when a solver is
             # provided and multiple curves might have the same id
-            _: FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile | FXSabrSurface = solver._get_pre_fxvol(vol_.id)  # type: ignore[union-attr]
+            _: FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile | FXSabrSurface = (
+                solver._get_pre_fxvol(vol_.id)
+            )  # type: ignore[union-attr]
             if id(_) != id(vol_):
                 raise ValueError(  # ignore: type[union-attr]
                     "A ``vol`` object has been supplied which has the same "
