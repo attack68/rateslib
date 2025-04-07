@@ -10,6 +10,7 @@ from rateslib.curves._parsers import _get_curves_maybe_from_solver, _validate_cu
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.fx import FXForwards, FXRates
+from rateslib.fx_volatility import FXSabrSmile, FXSabrSurface
 
 if TYPE_CHECKING:
     from rateslib.typing import (
@@ -157,11 +158,13 @@ def _get_fxvol_maybe_from_solver(vol_attr: FXVol_, vol: FXVol_, solver: Solver_)
         try:
             # it is a safeguard to load curves from solvers when a solver is
             # provided and multiple curves might have the same id
-            _: FXDeltaVolSmile | FXDeltaVolSurface = solver._get_pre_fxvol(vol_.id)
+            _: FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile | FXSabrSurface = (
+                solver._get_pre_fxvol(vol_.id)  # type: ignore[union-attr]
+            )
             if id(_) != id(vol_):
                 raise ValueError(  # ignore: type[union-attr]
                     "A ``vol`` object has been supplied which has the same "
-                    f"`id` ('{vol_.id}'),\nas one of those available as part of the "
+                    f"`id` ('{vol_.id}'),\nas one of those available as part of the "  # type: ignore[union-attr]
                     "Solver's collection but is not the same object.\n"
                     "This is ambiguous and may lead to erroneous prices.\n",
                 )

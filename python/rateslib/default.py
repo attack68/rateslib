@@ -381,19 +381,21 @@ Miscellaneous:\n
         return _
 
 
-def plot(x: list[Any], y: list[list[Any]], labels: list[str] | NoInput = NoInput(0)) -> PlotOutput:
+def plot(
+    x: list[list[Any]], y: list[list[Any]], labels: list[str] | NoInput = NoInput(0)
+) -> PlotOutput:
     labels = _drb([], labels)
     fig, ax = plt.subplots(1, 1)
     lines = []
-    for _y in y:
-        (line,) = ax.plot(x, _y)
+    for _x, _y in zip(x, y, strict=True):
+        (line,) = ax.plot(_x, _y)
         lines.append(line)
     if not isinstance(labels, NoInput) and len(labels) == len(lines):
         ax.legend(lines, labels)
 
     ax.grid(True)
 
-    if isinstance(x[0], datetime):
+    if isinstance(x[0][0], datetime):
         years = mdates.YearLocator()  # type: ignore[no-untyped-call]
         months = mdates.MonthLocator()  # type: ignore[no-untyped-call]
         yearsFmt = mdates.DateFormatter("%Y")  # type: ignore[no-untyped-call]
