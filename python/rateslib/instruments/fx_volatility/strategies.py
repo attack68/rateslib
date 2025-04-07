@@ -106,7 +106,7 @@ class FXOptionStrat:
         ret: ListFXVol_ = []
         if isinstance(
             vol,
-            str | float | Dual | Dual2 | Variable | FXDeltaVolSurface | FXDeltaVolSmile | NoInput,
+            str | float | Dual | Dual2 | Variable | FXDeltaVolSurface | FXDeltaVolSmile | FXSabrSmile | FXSabrSurface | NoInput,
         ):
             for obj in self.periods:
                 if isinstance(obj, FXOptionStrat):

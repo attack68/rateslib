@@ -5659,15 +5659,40 @@ class TestFXStrangle:
             (["-20d", "20d"], "eur"),
         ],
     )
-    @pytest.mark.parametrize(
-        "smile",
-        [
-            True,
-            False,
-        ],
-    )
-    @pytest.mark.parametrize("delta_type", ["forward", "spot_pa"])
-    def test_strangle_rate(self, fxfo, delta_type, strike, ccy, smile) -> None:
+    @pytest.mark.parametrize("vol", [
+         FXDeltaVolSmile(
+            nodes={
+                0.25: 10.15,
+                0.50: 7.9,
+                0.75: 8.9,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="forward",
+        ),
+        FXDeltaVolSmile(
+            nodes={
+                0.25: 10.15,
+                0.50: 7.9,
+                0.75: 8.9,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="spot_pa",
+        ),
+        10.0,
+        FXSabrSmile(
+            nodes={
+                "alpha": 0.10,
+                "beta": 1.0,
+                "rho": 0.00,
+                "nu": 0.50,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+        )
+    ])
+    def test_strangle_rate_forward(self, fxfo, strike, ccy, vol) -> None:
         # test pricing a straddle with vol 10.0 returns 10.0
         fxo = FXStrangle(
             pair="eurusd",
@@ -5680,17 +5705,7 @@ class TestFXStrangle:
             premium_ccy=ccy,
             delta_type="forward",
         )
-        fxvs = FXDeltaVolSmile(
-            nodes={
-                0.25: 10.15,
-                0.50: 7.9,
-                0.75: 8.9,
-            },
-            eval_date=dt(2023, 3, 16),
-            expiry=dt(2023, 6, 16),
-            delta_type=delta_type,
-        )
-        vol = fxvs if smile else 10.0
+
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
         result = fxo.rate(curves, fx=fxfo, vol=vol)
 
@@ -5720,7 +5735,30 @@ class TestFXStrangle:
         )
         assert abs(premium - premium_vol) < 5e-2
 
-    def test_strangle_rate_strike_str(self, fxfo) -> None:
+    @pytest.mark.parametrize("vol", [
+        FXDeltaVolSmile(
+            nodes={
+                0.25: 10.15,
+                0.50: 7.9,
+                0.75: 8.9,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="spot",
+            ad=1,
+        ),
+        FXSabrSmile(
+            nodes={
+                "alpha": 0.079,
+                "beta": 1.0,
+                "rho": 0.00,
+                "nu": 0.50,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+        )
+    ])
+    def test_strangle_rate_strike_str(self, fxfo, vol) -> None:
         # test pricing a strangle with delta as string that is not a delta percent should fail?
         fxo = FXStrangle(
             pair="eurusd",
@@ -5733,18 +5771,6 @@ class TestFXStrangle:
             premium_ccy="eur",
             delta_type="forward",
         )
-        fxvs = FXDeltaVolSmile(
-            nodes={
-                0.25: 10.15,
-                0.50: 7.9,
-                0.75: 8.9,
-            },
-            eval_date=dt(2023, 3, 16),
-            expiry=dt(2023, 6, 16),
-            delta_type="spot",
-            ad=1,
-        )
-        vol = fxvs
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
         result = fxo.rate(curves, fx=fxfo, vol=vol)
 
