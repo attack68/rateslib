@@ -1011,7 +1011,7 @@ class FXForwards(_WithState):
             y: list[list[DualTypes]] = [rates]
         else:
             y = [[(rate - rates[0]) * 10000 for rate in rates]]
-        return plot(x, y)
+        return plot([x] * len(y), y)
 
     def _set_ad_order(self, order: int) -> None:
         # does not require cache validation because updates the cache_id at end of method

@@ -1135,7 +1135,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             for comparator in comparators:
                 diff = [comparator.index_value(_) - rates[i] for i, _ in enumerate(x)]
                 y.append(diff)
-        return plot(x, y, labels)
+        return plot([x] * len(y), y, labels)
 
     def plot(
         self,
@@ -1209,7 +1209,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                 pm_ = comparator._plot_modifier(tenor)
                 y_.append([comparator._plot_rate(_x, tenor, pm_) for _x in x])
 
-        return plot(x, y_, labels)
+        return plot([x] * len(y_), y_, labels)
 
     def _plot_diff(
         self, date: datetime, tenor: str, rate: DualTypes | None, comparator: Curve
@@ -1306,7 +1306,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         points = (right - left).days
         x = [left + timedelta(days=i) for i in range(points)]
         rates = [forward_fx(_, self, curve_foreign, fx_rate, fx_settlement) for _ in x]
-        return plot(x, [rates])
+        return plot([x], [rates])
 
     # Mutation
     @_new_state_post
