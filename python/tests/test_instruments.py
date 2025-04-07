@@ -5800,7 +5800,33 @@ class TestFXStrangle:
         )
         assert abs(premium - premium_vol) < 5e-2
 
-    def test_strangle_rate_ad(self, fxfo) -> None:
+    @pytest.mark.parametrize("vol", [
+        FXDeltaVolSmile(
+            nodes={
+                0.25: 10.15,
+                0.50: 7.9,
+                0.75: 8.9,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="spot",
+            ad=1,
+            id="vol"
+        ),
+        FXSabrSmile(
+            nodes={
+                "alpha": 0.079,
+                "beta": 1.0,
+                "rho": 0.00,
+                "nu": 0.50,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            ad=1,
+            id="vol"
+        )
+    ])
+    def test_strangle_rate_ad(self, fxfo, vol) -> None:
         # test pricing a strangle with delta as string that is not a delta percent should fail?
         fxo = FXStrangle(
             pair="eurusd",
@@ -5813,7 +5839,24 @@ class TestFXStrangle:
             premium_ccy="eur",
             delta_type="forward",
         )
-        fxvs = FXDeltaVolSmile(
+        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves, fx=fxfo, vol=vol)
+
+        # test fwd diff
+        v = vol._get_node_vector()
+        m_ = {
+            0: [0.001, 0.0, 0.0],
+            1: [0.0, 0.001, 0.0],
+            2: [0.0, 0.0, 0.001],
+        }
+        for i in range(3):
+            vol._set_node_vector(v + np.array(m_[i]), ad=1)
+            result2 = fxo.rate(curves, fx=fxfo, vol=vol)
+            fwd_diff = (result2 - result) * 1000.0
+            assert abs(fwd_diff - gradient(result, [f"vol{i}"])[0]) < 2e-4
+
+    @pytest.mark.parametrize("vol", [
+        FXDeltaVolSmile(
             nodes={
                 0.25: 10.15,
                 0.50: 7.9,
@@ -5822,37 +5865,23 @@ class TestFXStrangle:
             eval_date=dt(2023, 3, 16),
             expiry=dt(2023, 6, 16),
             delta_type="spot",
-            ad=1,
-            id="vol",
+            ad=2,
+            id="vol"
+        ),
+        FXSabrSmile(
+            nodes={
+                "alpha": 0.079,
+                "beta": 1.0,
+                "rho": 0.00,
+                "nu": 0.50,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            ad=2,
+            id="vol"
         )
-        vol = fxvs
-        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.rate(curves, fx=fxfo, vol=vol)
-
-        # test fwd diff
-        m_ = {
-            0: [10.151, 7.9, 8.9],
-            1: [10.15, 7.901, 8.9],
-            2: [10.15, 7.9, 8.901],
-        }
-        for i in range(3):
-            fxvs2 = FXDeltaVolSmile(
-                nodes={
-                    0.25: m_[i][0],
-                    0.50: m_[i][1],
-                    0.75: m_[i][2],
-                },
-                eval_date=dt(2023, 3, 16),
-                expiry=dt(2023, 6, 16),
-                delta_type="spot",
-                ad=1,
-                id="vol",
-            )
-            result2 = fxo.rate(curves, fx=fxfo, vol=fxvs2)
-            fwd_diff = (result2 - result) * 1000.0
-            assert abs(fwd_diff - gradient(result, [f"vol{i}"])[0]) < 1e-4
-
-    def test_strangle_rate_ad2(self, fxfo) -> None:
+    ])
+    def test_strangle_rate_ad2(self, fxfo, vol) -> None:
         # test pricing a strangle with delta as string that is not a delta percent should fail?
         fxo = FXStrangle(
             pair="eurusd",
@@ -5866,60 +5895,26 @@ class TestFXStrangle:
             delta_type="forward",
         )
         fxfo._set_ad_order(2)
-        fxvs = FXDeltaVolSmile(
-            nodes={
-                0.25: 10.15,
-                0.50: 7.9,
-                0.75: 8.9,
-            },
-            eval_date=dt(2023, 3, 16),
-            expiry=dt(2023, 6, 16),
-            delta_type="spot",
-            ad=2,
-            id="vol",
-        )
-        vol = fxvs
         curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
         result = fxo.rate(curves, fx=fxfo, vol=vol)
 
         # test fwd diff
         m_ = {
-            0: [10.151, 7.9, 8.9],
-            1: [10.15, 7.901, 8.9],
-            2: [10.15, 7.9, 8.901],
+            0: [0.001, 0.0, 0.0],
+            1: [0.0, 0.001, 0.0],
+            2: [0.0, 0.0, 0.001],
         }
         n_ = {
-            0: [10.149, 7.9, 8.9],
-            1: [10.15, 7.899, 8.9],
-            2: [10.15, 7.9, 8.899],
+            0: [-0.001, 0.0, 0.0],
+            1: [0.0, -0.001, 0.0],
+            2: [0.0, 0.0, -0.001],
         }
+        v = vol._get_node_vector()
         for i in range(3):
-            fxvs2 = FXDeltaVolSmile(
-                nodes={
-                    0.25: m_[i][0],
-                    0.50: m_[i][1],
-                    0.75: m_[i][2],
-                },
-                eval_date=dt(2023, 3, 16),
-                expiry=dt(2023, 6, 16),
-                delta_type="spot",
-                ad=2,
-                id="vol",
-            )
-            result_plus = fxo.rate(curves, fx=fxfo, vol=fxvs2)
-            fxvs3 = FXDeltaVolSmile(
-                nodes={
-                    0.25: n_[i][0],
-                    0.50: n_[i][1],
-                    0.75: n_[i][2],
-                },
-                eval_date=dt(2023, 3, 16),
-                expiry=dt(2023, 6, 16),
-                delta_type="spot",
-                ad=2,
-                id="vol",
-            )
-            result_min = fxo.rate(curves, fx=fxfo, vol=fxvs3)
+            vol._set_node_vector(v + np.array(m_[i]), ad=2)
+            result_plus = fxo.rate(curves, fx=fxfo, vol=vol)
+            vol._set_node_vector(v + np.array(n_[i]), ad=2)
+            result_min = fxo.rate(curves, fx=fxfo, vol=vol)
 
             fwd_diff = (result_plus + result_min - 2 * result) * 1000000.0
             assert abs(fwd_diff - gradient(result, [f"vol{i}"], order=2)[0][0]) < 1e-4
