@@ -876,9 +876,10 @@ class FXStrangle(FXOptionStrat, FXOption):
             """
             fixed_delta = self._is_fixed_delta[period_index]
             if not fixed_delta:
-                return g["vega"]  # kega is 0.0
+                # kega is 0.0
+                return g["vega"]  # type: ignore[no-any-return]
             else:
-                return g["_kappa"] * g["_kega"] + g["vega"]
+                return g["_kappa"] * g["_kega"] + g["vega"]  # type: ignore[no-any-return]
 
         def d_c_mkt_d_sigma_hat(
             period_index: int,
@@ -919,7 +920,8 @@ class FXStrangle(FXOptionStrat, FXOption):
                     dvol_ddeltaidx = evaluate(vol.spline, sg["_delta_index"], 1) * 0.01
 
                     ddeltaidx_dvol1 = sg["gamma"] * fzw1zw0
-                    if eta1 < 0:  # premium adjusted vol smile
+                    if eta1 < 0:  # type: ignore[operator]
+                        # premium adjusted vol smile
                         ddeltaidx_dvol1 += sg["_delta_index"]
                     ddeltaidx_dvol1 *= g["_kega"] / sg["__strike"]
 
@@ -930,7 +932,7 @@ class FXStrangle(FXOptionStrat, FXOption):
 
                     dvol_dvol1: DualTypes = dvol_ddeltaidx * ddeltaidx_dvol1
                 elif isinstance(vol, FXSabrSmile | FXSabrSurface):
-                    dvol_dk = vol._d_sabr_d_k(
+                    dvol_dk = vol._d_sabr_d_k(  # type: ignore[union-attr]
                         k=sg["__strike"], f=sg["__forward"], t_e=sg["__sqrt_t"] ** 2
                     )[1]
 
@@ -938,7 +940,7 @@ class FXStrangle(FXOptionStrat, FXOption):
                 else:
                     dvol_dvol1 = 0.0
 
-                return sg["_kappa"] * g["_kega"] + sg["vega"] * dvol_dvol1
+                return sg["_kappa"] * g["_kega"] + sg["vega"] * dvol_dvol1  # type: ignore[no-any-return]
 
         tgt_vol: DualTypes = (
             gks[0]["__vol"] * gks[0]["vega"] + gks[1]["__vol"] * gks[1]["vega"]

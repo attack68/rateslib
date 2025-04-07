@@ -1983,7 +1983,10 @@ def _sabr_X2(
     return X2, dX2
 
 
-def _validate_smile_plot_comparators(smile, allowed_types):
+def _validate_smile_plot_comparators(
+        smile: FXSabrSmile | FXDeltaVolSmile,
+        allowed_types: tuple[Any, ...]
+) -> None:
     if not isinstance(smile, allowed_types):
         raise ValueError(f"A `comparator` type is not valid. Must be of type: {allowed_types}.")
 
