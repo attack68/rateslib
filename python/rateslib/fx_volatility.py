@@ -1452,6 +1452,10 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         return plot(x, y, labels)
 
 
+class FXSabrSurface:
+    pass
+
+
 def _validate_delta_type(delta_type: str) -> str:
     if delta_type.lower() not in ["spot", "spot_pa", "forward", "forward_pa"]:
         raise ValueError("`delta_type` must be in {'spot', 'spot_pa', 'forward', 'forward_pa'}.")

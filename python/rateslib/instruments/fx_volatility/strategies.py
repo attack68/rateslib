@@ -9,7 +9,7 @@ from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, Variable, dual_log
 from rateslib.dual.utils import _dual_float
-from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
+from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments.fx_volatility.vanilla import FXCall, FXOption, FXPut
 from rateslib.instruments.utils import (
     _get_curves_fx_and_base_maybe_from_solver,
@@ -846,55 +846,92 @@ class FXStrangle(FXOptionStrat, FXOption):
             self.periods[1].analytic_greeks(curves, solver, fxf, base, vol_1),
         ]
 
-        def d_wrt_sigma1(
+        def d_c_hat_d_sigma_hat(
+            period_index: int,
+            g: dict[str, Any],  # greeks
+        ) -> DualTypes:
+            """
+            Return the total derivative of option priced with single vol with respect to single
+            vol.
+
+            Parameters
+            ----------
+            period_index: int
+                The index of the option period associated with the Strangle, in {0, 1}.
+            g: dict
+                The dict of greeks for the given option period measured against the tgt, single vol.
+
+            Returns
+            -------
+            DualTypes
+            """
+            fixed_delta = self._is_fixed_delta[period_index]
+            if not fixed_delta:
+                return g["vega"]  # kega is 0.0
+            else:
+                return g["_kappa"] * g["_kega"] + g["vega"]
+
+        def d_c_mkt_d_sigma_hat(
             period_index: int,
             g: dict[str, Any],  # greeks
             sg: dict[str, Any],  # smile_greeks
             vol: FXVol,
             eta1: float | None,
-        ) -> tuple[DualTypes, DualTypes]:
+        ) -> DualTypes:
             """
-            Obtain derivatives with respect to tgt vol.
+            Return the total derivative of option priced with mkt vol with respect to single
+            vol.
 
-            This function was tested by adding AD to the tgt_vol as a variable e.g.:
-            tgt_vol = Dual(float(tgt_vol), ["tgt_vol"], [100.0]) # note scaled to 100
-            Then the options defined by fixed delta should not have a strike set to float, i.e.
-            self.periods[0].strike = float(self._pricing["k"]) ->
-            self.periods[0].strike = self._pricing["k"]
-            Then evaluate, for example: smile_greeks[i]["_delta_index"] with respect to "tgt_vol".
-            That value calculated with AD aligns with the analyical method here.
+            Parameters
+            ----------
+            period_index: int
+                The index of the option period associated with the Strangle, in {0, 1}.
+            g: dict
+                The dict of greeks for the given option period measured against the tgt, single vol.
+            sg: dict
+                The dict of greeks for the given option period measured against the smile.
+            vol: VolObj
+                The smile object.
+            eta1: float | None
+                The delta type of the Smile if available
 
-            To speed up this function AD could be used, but it requires careful management of
-            whether the strike above is set to float or is left in AD format which has other
-            implications for the calculation of risk sensitivities.
+            Returns
+            -------
+            DualTypes
             """
             fixed_delta = self._is_fixed_delta[period_index]
             if not fixed_delta:
-                return g["vega"], 0.0
-            elif not isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
-                return (
-                    g["_kappa"] * g["_kega"] + g["vega"],
-                    sg["_kappa"] * g["_kega"],
-                )
+                return 0.0  # kega is zero and the mkt vol has no sensitivity to vol_hat.
             else:
-                assert isinstance(eta1, float)  # noqa: S101 / becuase vol is Smile/Surface
-                if isinstance(vol, FXDeltaVolSurface):
-                    vol = vol.get_smile(self.kwargs["expiry"])
-                dvol_ddeltaidx = evaluate(vol.spline, sg["_delta_index"], 1) * 0.01
-                ddeltaidx_dvol1 = sg["gamma"] * fzw1zw0
-                if eta1 < 0:  # premium adjusted vol smile
-                    ddeltaidx_dvol1 += sg["_delta_index"]
-                ddeltaidx_dvol1 *= g["_kega"] / sg["__strike"]
+                if isinstance(vol, FXDeltaVolSurface | FXDeltaVolSmile):
+                    if isinstance(vol, FXDeltaVolSurface):
+                        vol = vol.get_smile(self.kwargs["expiry"])
 
-                _ = dual_log(sg["__strike"] / f_d) / sg["__vol"]
-                _ += eta1 * sg["__vol"] * sg["__sqrt_t"] ** 2
-                _ *= dvol_ddeltaidx * sg["gamma"] * fzw1zw0
-                ddeltaidx_dvol1 /= 1 + _
+                    dvol_ddeltaidx = evaluate(vol.spline, sg["_delta_index"], 1) * 0.01
 
-                return (
-                    g["_kappa"] * g["_kega"] + g["vega"],
-                    sg["_kappa"] * g["_kega"] + sg["vega"] * dvol_ddeltaidx * ddeltaidx_dvol1,
-                )
+                    ddeltaidx_dvol1 = sg["gamma"] * fzw1zw0
+                    if eta1 < 0:  # premium adjusted vol smile
+                        ddeltaidx_dvol1 += sg["_delta_index"]
+                    ddeltaidx_dvol1 *= g["_kega"] / sg["__strike"]
+
+                    _ = dual_log(sg["__strike"] / f_d) / sg["__vol"]
+                    _ += eta1 * sg["__vol"] * sg["__sqrt_t"] ** 2
+                    _ *= dvol_ddeltaidx * sg["gamma"] * fzw1zw0
+                    ddeltaidx_dvol1 /= 1 + _
+
+                    dvol_dvol1: DualTypes = dvol_ddeltaidx * ddeltaidx_dvol1
+                elif isinstance(vol, FXSabrSmile | FXSabrSurface):
+                    dvol_dk = vol._d_sabr_d_k(
+                        k = sg["__strike"],
+                        f = sg["__forward"],
+                        t_e=sg["__sqrt_t"] ** 2
+                    )[1]
+
+                    dvol_dvol1 = dvol_dk * g["_kega"]
+                else:
+                    dvol_dvol1 = 0.0
+
+                return sg["_kappa"] * g["_kega"] + g["vega"] * dvol_dvol1
 
         tgt_vol: DualTypes = (
             gks[0]["__vol"] * gks[0]["vega"] + gks[1]["__vol"] * gks[1]["vega"]
@@ -927,8 +964,10 @@ class FXStrangle(FXOptionStrat, FXOption):
                 - gks[1]["__bs76"]
             )
 
-            dc1_dvol1_0, dcmkt_dvol1_0 = d_wrt_sigma1(0, gks[0], smile_gks[0], vol_0, eta1)
-            dc1_dvol1_1, dcmkt_dvol1_1 = d_wrt_sigma1(1, gks[1], smile_gks[1], vol_1, eta1)
+            dc1_dvol1_0 = d_c_hat_d_sigma_hat(0, gks[0])
+            dcmkt_dvol1_0 = d_c_mkt_d_sigma_hat(0, gks[0], smile_gks[0], vol_0, eta1)
+            dc1_dvol1_1 = d_c_hat_d_sigma_hat(1, gks[1])
+            dcmkt_dvol1_1 = d_c_mkt_d_sigma_hat(1, gks[1], smile_gks[1], vol_1, eta1)
             f1 = dcmkt_dvol1_0 + dcmkt_dvol1_1 - dc1_dvol1_0 - dc1_dvol1_1
 
             tgt_vol = tgt_vol - (f0 / f1) * 100.0  # Newton-Raphson step
