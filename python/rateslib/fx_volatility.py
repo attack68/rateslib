@@ -554,8 +554,8 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
 
         # reverse for intuitive strike direction
         if x_axis == "moneyness":
-            return plot(x_as_u, y, labels)
-        return plot(x, y, labels)
+            return plot([x_as_u] * len(y), y, labels)
+        return plot([x] * len(y), y, labels)
 
     # Mutation
 
@@ -1435,7 +1435,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
             x_as_u = x / f_
 
         if difference and not isinstance(comparators, NoInput):
-            y: list[list[float] | list[Dual] | list[Dual2]] = []
+            y: list[list[DualTypes]] = []
             for comparator in comparators:
                 comp_vals: list[DualTypes] = [comparator.get_from_strike(_, f_)[1] for _ in x]
                 diff = [(y_ - v_) for y_, v_ in zip(comp_vals, vols, strict=True)]
@@ -1444,12 +1444,16 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
             y = [vols]
             if not isinstance(comparators, NoInput):
                 for comparator in comparators:
-                    y.append([comparator.get_from_strike(_, f_) for _ in x])
+                    y.append([comparator.get_from_strike(_, f_)[1] for _ in x])
 
         # reverse for intuitive strike direction
         if x_axis == "moneyness":
-            return plot(x_as_u, y, labels)
-        return plot(x, y, labels)
+            return plot([x_as_u] * len(y), y, labels)  # type: ignore[list-item]
+        return plot([x] * len(y), y, labels)  # type: ignore[list-item]
+
+
+class FXSabrSurface:
+    pass
 
 
 def _validate_delta_type(delta_type: str) -> str:

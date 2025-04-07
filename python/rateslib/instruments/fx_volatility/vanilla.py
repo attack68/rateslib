@@ -13,7 +13,7 @@ from rateslib.curves import Curve
 from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.default import NoInput, PlotOutput, _drb, plot
 from rateslib.dual.utils import _dual_float
-from rateslib.fx_volatility import FXSabrSmile, FXVolObj
+from rateslib.fx_volatility import FXSabrSmile, FXSabrSurface, FXVolObj
 from rateslib.instruments.base import Metrics
 from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.instruments.utils import (
@@ -367,6 +367,8 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
                     expiry=self.kwargs["expiry"],
                 )
             else:
+                # Sabr objects do not generate delta_index pricing metrics.
+                assert not isinstance(vol_, FXSabrSmile | FXSabrSurface)  # noqa: S101
                 self._pricing.vol = vol_._get_index(
                     self._pricing.delta_index,
                     self.kwargs["expiry"],
@@ -712,7 +714,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
         vol: float_ = NoInput(0),
     ) -> PlotOutput:
         x, y = self._plot_payoff(range, curves, solver, fx, base, local, vol)
-        return plot(x, [y])  # type: ignore
+        return plot([x], [y])  # type: ignore
 
 
 class FXCall(FXOption):
