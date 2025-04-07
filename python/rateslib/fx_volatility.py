@@ -544,12 +544,14 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
         if difference and not isinstance(comparators, NoInput):
             y: list[list[float] | list[Dual] | list[Dual2]] = []
             for comparator in comparators:
+                _validate_smile_plot_comparators(comparator, (FXDeltaVolSmile,))
                 diff = [(y_ - v_) for y_, v_ in zip(comparator.spline.ppev(x), vols, strict=True)]  # type: ignore[operator]
                 y.append(diff)
         else:  # not difference:
             y = [vols]
             if not isinstance(comparators, NoInput):
                 for comparator in comparators:
+                    _validate_smile_plot_comparators(comparator, (FXDeltaVolSmile,))
                     y.append(comparator.spline.ppev(x))
 
         # reverse for intuitive strike direction
@@ -1437,6 +1439,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         if difference and not isinstance(comparators, NoInput):
             y: list[list[float] | list[Dual] | list[Dual2]] = []
             for comparator in comparators:
+                _validate_smile_plot_comparators(comparator, (FXDeltaVolSmile, FXSabrSmile))
                 comp_vals: list[DualTypes] = [comparator.get_from_strike(_, f_)[1] for _ in x]
                 diff = [(y_ - v_) for y_, v_ in zip(comp_vals, vols, strict=True)]
                 y.append(diff)
@@ -1444,6 +1447,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
             y = [vols]
             if not isinstance(comparators, NoInput):
                 for comparator in comparators:
+                    _validate_smile_plot_comparators(comparator, (FXDeltaVolSmile, FXSabrSmile))
                     y.append([comparator.get_from_strike(_, f_) for _ in x])
 
         # reverse for intuitive strike direction
@@ -1978,6 +1982,13 @@ def _sabr_X2(
             dX2 = dX2_dz * dz
 
     return X2, dX2
+
+
+def _validate_smile_plot_comparators(smile, allowed_types):
+    if not isinstance(smile, allowed_types):
+        raise ValueError(
+            f"A `comparator` type is not valid. Must be of type: {allowed_types}."
+        )
 
 
 FXVols = FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile
