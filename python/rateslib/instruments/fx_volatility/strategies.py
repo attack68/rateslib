@@ -931,7 +931,7 @@ class FXStrangle(FXOptionStrat, FXOption):
                 else:
                     dvol_dvol1 = 0.0
 
-                return sg["_kappa"] * g["_kega"] + g["vega"] * dvol_dvol1
+                return sg["_kappa"] * g["_kega"] + sg["vega"] * dvol_dvol1
 
         tgt_vol: DualTypes = (
             gks[0]["__vol"] * gks[0]["vega"] + gks[1]["__vol"] * gks[1]["vega"]
