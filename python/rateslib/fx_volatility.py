@@ -1459,10 +1459,6 @@ class FXSabrSurface:
     pass
 
 
-class FXSabrSurface:
-    pass
-
-
 def _validate_delta_type(delta_type: str) -> str:
     if delta_type.lower() not in ["spot", "spot_pa", "forward", "forward_pa"]:
         raise ValueError("`delta_type` must be in {'spot', 'spot_pa', 'forward', 'forward_pa'}.")
@@ -1989,9 +1985,7 @@ def _sabr_X2(
 
 def _validate_smile_plot_comparators(smile, allowed_types):
     if not isinstance(smile, allowed_types):
-        raise ValueError(
-            f"A `comparator` type is not valid. Must be of type: {allowed_types}."
-        )
+        raise ValueError(f"A `comparator` type is not valid. Must be of type: {allowed_types}.")
 
 
 FXVols = FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile

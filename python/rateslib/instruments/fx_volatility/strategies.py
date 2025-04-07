@@ -106,7 +106,16 @@ class FXOptionStrat:
         ret: ListFXVol_ = []
         if isinstance(
             vol,
-            str | float | Dual | Dual2 | Variable | FXDeltaVolSurface | FXDeltaVolSmile | FXSabrSmile | FXSabrSurface | NoInput,
+            str
+            | float
+            | Dual
+            | Dual2
+            | Variable
+            | FXDeltaVolSurface
+            | FXDeltaVolSmile
+            | FXSabrSmile
+            | FXSabrSurface
+            | NoInput,
         ):
             for obj in self.periods:
                 if isinstance(obj, FXOptionStrat):
@@ -922,9 +931,7 @@ class FXStrangle(FXOptionStrat, FXOption):
                     dvol_dvol1: DualTypes = dvol_ddeltaidx * ddeltaidx_dvol1
                 elif isinstance(vol, FXSabrSmile | FXSabrSurface):
                     dvol_dk = vol._d_sabr_d_k(
-                        k = sg["__strike"],
-                        f = sg["__forward"],
-                        t_e=sg["__sqrt_t"] ** 2
+                        k=sg["__strike"], f=sg["__forward"], t_e=sg["__sqrt_t"] ** 2
                     )[1]
 
                     dvol_dvol1 = dvol_dk * g["_kega"]
