@@ -22,12 +22,17 @@ which can be used to price *FX Options* and *FX Option Strategies*.
 
 .. autosummary::
    rateslib.fx_volatility.FXDeltaVolSmile
+   rateslib.fx_volatility.FXSabrSmile
    rateslib.fx_volatility.FXDeltaVolSurface
 
 Introduction and FX Volatility Smiles
 *************************************
 
-The :class:`~rateslib.fx_volatility.FXDeltaVolSmile` is parametrised by a series of
+*Ratelib* offers two different *Smile* models for pricing FX volatility at a given expiry. An
+:class:`~rateslib.fx_volatility.FXDeltaVolSmile` and an
+:class:`~rateslib.fx_volatility.FXSabrSmile`.
+
+The *FXDeltaVolSmile* is parametrised by a series of
 *(delta-index, vol)* node points interpolated by a cubic spline. This interpolation is
 automatically constructed with knot sequences that adjust to the number of given ``nodes``:
 
@@ -37,14 +42,25 @@ automatically constructed with knot sequences that adjust to the number of given
 - Providing more nodes (appropriately calibrated) will create a traditional smile shape with
   the mentioned interpolation structure.
 
-An *FXDeltaVolSmile* must also be initialised with:
+An *FXDeltaVolSmile* must also be initialised with a ``delta_type`` to define how it references
+delta on its index. It can still be used to price *Instruments* even
+if their *delta types* are different. That is, an *FXDeltaVolSmile* defined by *"forward"* delta
+types can still price *FXOptions* defined with *"spot"* delta types or *premium adjusted*
+delta types due to appropriate mathematical conversions.
+
+An :class:`~rateslib.fx_volatility.FXSabrSmile` is a *Smile* parametrised by the
+conventional :math:`\alpha, \beta, \rho, \nu` variables of the SABR model. The parameter
+:math:`\beta` is considered a hyper-parameter and will not be varied by a
+:class:`~rateslib.solver.Solver` but :math:`\alpha, \beta, \rho` will be varied.
+
+Both *Smiles* must also be initialised with:
 
 - An ``eval_date`` which serves the same purpose as the initial node point on a *Curve*,
-  and indicates *'today'*.
-- An ``expiry``, for which options priced with this *Smile* must have an equivalent expiry or errors will be raised.
-- A ``delta_type`` so that its *delta-index* is well defined, and it can price different *Instruments* even
-  if their *delta types* are different. I.e. A *Smile* defined by *"forward"* delta types can still
-  price *FXOptions* defined with *"spot"* delta types due to appropriate mathematical conversions.
+  and indicates *'today'* or *'horizon'*.
+- An ``expiry``, for which options priced with this *Smile* must have an equivalent
+  expiry or errors will be raised.
+
+An example of an *FXDeltaVolSmile* is shown below.
 
 .. ipython:: python
 
@@ -110,12 +126,20 @@ An *FXDeltaVolSmile* must also be initialised with:
 Constructing a Smile
 *********************
 
+It is expected that *Smiles* will typically be calibrated to market prices, similar to
+interest rate curves.
+
 The following data describes *Instruments* to calibrate the EURUSD FX volatility surface on 7th May 2024.
-We will take a cross-section of this data, at the 3-week expiry (28th May 2024), and create an *FXDeltaVolSmile*.
+We will take a cross-section of this data, at the 3-week expiry (28th May 2024), and create
+both an *FXDeltaVolSmile* and *FXSabrSmile*.
 
 .. image:: _static/fx_eurusd_3m_surf.PNG
   :alt: EURUSD FX volatility surface prices on 7th May 2024
   :width: 489
+
+
+
+
 
 Since EURUSD is **not** premium adjusted and the premium currency is USD we will match the *Smile* with this
 definition and set it to a ``delta_type`` of *'spot'*, matching the market convention of these quoted instruments.
