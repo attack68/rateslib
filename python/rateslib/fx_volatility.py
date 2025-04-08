@@ -42,7 +42,7 @@ from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
 
 if TYPE_CHECKING:
-    from rateslib.typing import datetime_
+    from rateslib.typing import datetime_, str_
 
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
 
@@ -499,9 +499,9 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
     def plot(
         self,
         comparators: list[FXDeltaVolSmile] | NoInput = NoInput(0),
-        difference: bool = False,
         labels: list[str] | NoInput = NoInput(0),
         x_axis: str = "delta",
+        f: DualTypes | NoInput = NoInput(0)
     ) -> PlotOutput:
         """
         Plot volatilities associated with the *Smile*.
@@ -510,15 +510,15 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
         ----------
         comparators: list[Smile]
             A list of Smiles which to include on the same plot as comparators.
-        difference : bool
-            Whether to plot as comparator minus calling Smile or outright Smile levels in
-            plot. Default is `False`.
         labels : list[str]
             A list of strings associated with the plot and comparators. Must be same
             length as number of plots.
         x_axis : str in {"delta", "moneyness"}
             If "delta" the vol is shown relative to its native delta values.
             If "moneyness" the delta values are converted to :math:`K/f_d`.
+        f: DualTypes, optional
+            The FX forward rate at delivery. Required in certain cases to derive the strike on
+            the x-axis.
 
         Returns
         -------
@@ -527,37 +527,49 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
         # reversed for intuitive strike direction
         comparators = _drb([], comparators)
         labels = _drb([], labels)
+
+        x_, y_ = self._plot(x_axis, f, NoInput(0))
+
+        x = [x_]
+        y = [y_]
+        if not isinstance(comparators, NoInput):
+            for smile in comparators:
+                _validate_smile_plot_comparators(smile, (FXDeltaVolSmile, FXSabrSmile))
+                x_, y_ = smile._plot(x_axis, f, self.delta_type)
+                x.append(x_)
+                y.append(y_)
+
+        return plot(x, y, labels)
+
+    def _plot(
+        self,
+        x_axis: str,
+        f: DualTypes | NoInput,
+        delta_type: str_  # NOT USED by FXDeltaVolSmile  (exists as consistent signature with Sabr)
+    ) -> tuple[list[float], list[DualTypes]]:
         x: list[float] = np.linspace(_dual_float(self.plot_upper_bound), self.t[0], 301)  # type: ignore[assignment]
-        vols: list[float] | list[Dual] | list[Dual2] = self.spline.ppev(x)
-        if x_axis == "moneyness":
+        vols: list[DualTypes] = self.spline.ppev(x)
+        if x_axis in ["moneyness", "strike"]:
             x, vols = x[40:-40], vols[40:-40]
             x_as_u: list[float] | list[Dual] | list[Dual2] = [  # type: ignore[assignment]
                 dual_exp(
                     _2  # type: ignore[operator]
                     * self.t_expiry_sqrt
                     / 100.0
-                    * (dual_inv_norm_cdf(_1) * _2 * self.t_expiry_sqrt * _2 / 100.0),  # type: ignore[operator]
+                    * (dual_inv_norm_cdf(_1) * _2 * self.t_expiry_sqrt * _2 / 100.0),
+                    # type: ignore[operator]
                 )
                 for (_1, _2) in zip(x, vols, strict=True)
             ]
-
-        if difference and not isinstance(comparators, NoInput):
-            y: list[list[float] | list[Dual] | list[Dual2]] = []
-            for comparator in comparators:
-                _validate_smile_plot_comparators(comparator, (FXDeltaVolSmile,))
-                diff = [(y_ - v_) for y_, v_ in zip(comparator.spline.ppev(x), vols, strict=True)]  # type: ignore[operator]
-                y.append(diff)
-        else:  # not difference:
-            y = [vols]
-            if not isinstance(comparators, NoInput):
-                for comparator in comparators:
-                    _validate_smile_plot_comparators(comparator, (FXDeltaVolSmile,))
-                    y.append(comparator.spline.ppev(x))
-
-        # reverse for intuitive strike direction
-        if x_axis == "moneyness":
-            return plot([x_as_u] * len(y), y, labels)
-        return plot([x] * len(y), y, labels)
+            if x_axis == "strike":
+                if isinstance(f, NoInput):
+                    raise ValueError(
+                        "`f` (ATM-forward FX rate) is required by `FXDeltaVolSmile.plot` "
+                        "to convert 'moneyness' to 'strike'."
+                    )
+                return (x_as_u * _dual_float(f), vols)
+            return (x_as_u, vols)
+        return (x, vols)
 
     # Mutation
 
@@ -1397,7 +1409,6 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
     def plot(
         self,
         comparators: list[FXSabrSmile] | NoInput = NoInput(0),
-        difference: bool = False,
         labels: list[str] | NoInput = NoInput(0),
         x_axis: str = "strike",
         f: DualTypes | NoInput = NoInput(0),
@@ -1423,36 +1434,43 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         -------
         (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
         """
-        if isinstance(f, NoInput):
-            raise ValueError("`f` (ATM-Forward rate) must be specified for an FXSabrSmile plot.")
-        else:
-            f_: float = _dual_float(f)
-
         # reversed for intuitive strike direction
         comparators = _drb([], comparators)
         labels = _drb([], labels)
-        x = np.linspace(f_ * 0.85, f_ * 1.15, 301)
-        vols: list[DualTypes] = [self.get_from_strike(_, f_)[1] for _ in x]
-        if x_axis == "moneyness":
-            x_as_u = x / f_
 
-        if difference and not isinstance(comparators, NoInput):
-            y: list[list[DualTypes]] = []
-            for comparator in comparators:
-                _validate_smile_plot_comparators(comparator, (FXDeltaVolSmile, FXSabrSmile))
-                comp_vals: list[DualTypes] = [comparator.get_from_strike(_, f_)[1] for _ in x]
-                diff = [(y_ - v_) for y_, v_ in zip(comp_vals, vols, strict=True)]
-                y.append(diff)
-        else:  # not difference:
-            y = [vols]
-            if not isinstance(comparators, NoInput):
-                for comparator in comparators:
-                    y.append([comparator.get_from_strike(_, f_)[1] for _ in x])
+        x_, y_ = self._plot(x_axis, f, NoInput(0))
 
-        # reverse for intuitive strike direction
+        x = [x_]
+        y = [y_]
+        if not isinstance(comparators, NoInput):
+            for smile in comparators:
+                _validate_smile_plot_comparators(smile, (FXDeltaVolSmile, FXSabrSmile))
+                x_, y_ = smile._plot(x_axis, f, "forward")
+                x.append(x_)
+                y.append(y_)
+
+        return plot(x, y, labels)
+
+    def _plot(
+        self,
+        x_axis: str,
+        f: DualTypes | NoInput,
+        delta_type: str_,
+    ) -> tuple[list[float], list[DualTypes]]:
+        if isinstance(f, NoInput):
+            raise ValueError("`f` (ATM-forward FX rate) is required by `FXSabrSmile.plot`.")
+        else:
+            f_: float = _dual_float(f)
+
+        x = np.linspace(f_ * 0.80, f_ * 1.20, 301)
+        u = x / f_
+        y: list[DualTypes] = [self.get_from_strike(_, f_)[1] for _ in x]
         if x_axis == "moneyness":
-            return plot([x_as_u] * len(y), y, labels)  # type: ignore[list-item]
-        return plot([x] * len(y), y, labels)  # type: ignore[list-item]
+            return list(u), y
+        elif x_axis == "delta":
+            raise NotImplementedError("delta plot not implemented for SabrSmile")
+        else: # x_axis = "strike"
+            return list(x), y
 
 
 class FXSabrSurface:
