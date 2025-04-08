@@ -1156,6 +1156,8 @@ class FXBrokerFly(FXOptionStrat, FXOption):
 
         Notional is set as a fixed quantity, collapsing any AD sensitivities in accordance
         with the general principle for determining risk sensitivities of unpriced instruments.
+
+        This is only applied if ``metric`` is a cash based quantity, {"pips_or_%", "premium"}
         """
         if isinstance(self.kwargs["notional"][1], NoInput) and metric in ["pips_or_%", "premium"]:
             self.periods[0]._rate(  # type: ignore[attr-defined]
@@ -1223,20 +1225,16 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         #     ]  # restructure to pass to Strangle and Straddle separately
 
         temp_metric = _drb(self.kwargs["metric"], metric)
+        self._maybe_set_vega_neutral_notional(curves, solver, fx, base, vol_, temp_metric.lower())
 
-        if temp_metric in ["pips_or_%", "premium"]:
-            # need notionals to be specified for calculation.
-            self._maybe_set_vega_neutral_notional(
-                curves, solver, fx, base, vol_, temp_metric.lower()
+        if temp_metric == "pips_or_%":
+            straddle_scalar = (
+                self.periods[1].periods[0].periods[0].notional  # type: ignore[union-attr]
+                / self.periods[0].periods[0].periods[0].notional  # type: ignore[union-attr]
             )
-            if temp_metric == "pips_or_%":
-                straddle_scalar = (
-                    self.periods[1].periods[0].periods[0].notional  # type: ignore[union-attr]
-                    / self.periods[0].periods[0].periods[0].notional  # type: ignore[union-attr]
-                )
-                weights: Sequence[DualTypes] = [1.0, straddle_scalar]
-            else:  # temp_metric == "premium":
-                weights = self.rate_weight
+            weights: Sequence[DualTypes] = [1.0, straddle_scalar]
+        elif temp_metric == "premium":
+            weights = self.rate_weight
         else:
             weights = self.rate_weight_vol
         _: DualTypes = 0.0
