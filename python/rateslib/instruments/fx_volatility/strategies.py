@@ -1156,6 +1156,8 @@ class FXBrokerFly(FXOptionStrat, FXOption):
 
         Notional is set as a fixed quantity, collapsing any AD sensitivities in accordance
         with the general principle for determining risk sensitivities of unpriced instruments.
+
+        This is only applied if ``metric`` is a cash based quantity, {"pips_or_%", "premium"}
         """
         if isinstance(self.kwargs["notional"][1], NoInput) and metric in ["pips_or_%", "premium"]:
             self.periods[0]._rate(  # type: ignore[attr-defined]
