@@ -6057,37 +6057,46 @@ class TestFXBrokerFly:
     @pytest.mark.parametrize(
         ("vol", "expected"),
         [
-            (FXDeltaVolSmile(
-                nodes={
-                    0.25: 10.15,
-                    0.50: 7.9,
-                    0.75: 8.9,
-                },
-                eval_date=dt(2023, 3, 16),
-                expiry=dt(2023, 6, 16),
-                delta_type="forward",
-            ), 2.225),
-            (FXDeltaVolSmile(
-                nodes={
-                    0.25: 10.15,
-                    0.50: 7.9,
-                    0.75: 8.9,
-                },
-                eval_date=dt(2023, 3, 16),
-                expiry=dt(2023, 6, 16),
-                delta_type="spot_pa",
-            ), 2.39),
+            (
+                FXDeltaVolSmile(
+                    nodes={
+                        0.25: 10.15,
+                        0.50: 7.9,
+                        0.75: 8.9,
+                    },
+                    eval_date=dt(2023, 3, 16),
+                    expiry=dt(2023, 6, 16),
+                    delta_type="forward",
+                ),
+                2.225,
+            ),
+            (
+                FXDeltaVolSmile(
+                    nodes={
+                        0.25: 10.15,
+                        0.50: 7.9,
+                        0.75: 8.9,
+                    },
+                    eval_date=dt(2023, 3, 16),
+                    expiry=dt(2023, 6, 16),
+                    delta_type="spot_pa",
+                ),
+                2.39,
+            ),
             (9.5, 0.0),
-            (FXSabrSmile(
-                nodes={
-                    "alpha": 0.071,
-                    "beta": 1.0,
-                    "rho": 0.00,
-                    "nu": 2.5,
-                },
-                eval_date=dt(2023, 3, 16),
-                expiry=dt(2023, 6, 16),
-            ), 2.065),
+            (
+                FXSabrSmile(
+                    nodes={
+                        "alpha": 0.071,
+                        "beta": 1.0,
+                        "rho": 0.00,
+                        "nu": 2.5,
+                    },
+                    eval_date=dt(2023, 3, 16),
+                    expiry=dt(2023, 6, 16),
+                ),
+                2.065,
+            ),
         ],
     )
     def test_fxbf_rate(self, fxfo, strike, ccy, vol, expected) -> None:
@@ -6159,26 +6168,32 @@ class TestFXBrokerFly:
     @pytest.mark.parametrize(
         ("vol", "expected"),
         [
-            (FXDeltaVolSmile(
-                nodes={
-                    0.25: 10.15,
-                    0.50: 7.8,
-                    0.75: 8.9,
-                },
-                eval_date=dt(2023, 3, 16),
-                expiry=dt(2023, 6, 16),
-                delta_type="forward",
-            ), (-221743, -210350)),
-            (FXSabrSmile(
-                nodes={
-                    "alpha": 0.071,
-                    "beta": 1.0,
-                    "rho": 0.00,
-                    "nu": 2.5,
-                },
-                eval_date=dt(2023, 3, 16),
-                expiry=dt(2023, 6, 16),
-            ), (-240740, -225500)),
+            (
+                FXDeltaVolSmile(
+                    nodes={
+                        0.25: 10.15,
+                        0.50: 7.8,
+                        0.75: 8.9,
+                    },
+                    eval_date=dt(2023, 3, 16),
+                    expiry=dt(2023, 6, 16),
+                    delta_type="forward",
+                ),
+                (-221743, -210350),
+            ),
+            (
+                FXSabrSmile(
+                    nodes={
+                        "alpha": 0.071,
+                        "beta": 1.0,
+                        "rho": 0.00,
+                        "nu": 2.5,
+                    },
+                    eval_date=dt(2023, 3, 16),
+                    expiry=dt(2023, 6, 16),
+                ),
+                (-240740, -225500),
+            ),
         ],
     )
     def test_fxbf_rate_premium(self, fxfo, strike, ccy, vol, expected) -> None:
