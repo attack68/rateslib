@@ -550,15 +550,12 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
         vols: list[DualTypes] = self.spline.ppev(x)
         if x_axis in ["moneyness", "strike"]:
             x, vols = x[40:-40], vols[40:-40]
+            sq_t = self.t_expiry_sqrt
             x_as_u: list[float] | list[Dual] | list[Dual2] = [  # type: ignore[assignment]
                 dual_exp(
-                    _2  # type: ignore[operator]
-                    * self.t_expiry_sqrt
-                    / 100.0
-                    * (dual_inv_norm_cdf(_1) * _2 * self.t_expiry_sqrt * _2 / 100.0),
-                    # type: ignore[operator]
+                    _s / 100.0 *  sq_t * ( dual_inv_norm_cdf(_D) + 0.5 * _s / 100.0 * sq_t)
                 )
-                for (_1, _2) in zip(x, vols, strict=True)
+                for (_D, _s) in zip(x, vols, strict=True)
             ]
             if x_axis == "strike":
                 if isinstance(f, NoInput):
@@ -1460,7 +1457,10 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         else:
             f_: float = _dual_float(f)
 
-        x = np.linspace(f_ * 0.91, f_ * 1.09, 301)
+        vol_approx = self.get_from_strike(f_, f_)[1]
+        scalar = 0.04 * vol_approx * self.t_expiry_sqrt ** 2
+
+        x = np.linspace(f_ * (1.0 - scalar), f_ * (1.0 + scalar), 301)
         u = x / f_
         y: list[DualTypes] = [self.get_from_strike(_, f_)[1] for _ in x]
         if x_axis == "moneyness":
