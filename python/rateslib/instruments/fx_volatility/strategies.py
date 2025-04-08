@@ -1223,16 +1223,19 @@ class FXBrokerFly(FXOptionStrat, FXOption):
         #     ]  # restructure to pass to Strangle and Straddle separately
 
         temp_metric = _drb(self.kwargs["metric"], metric)
-        self._maybe_set_vega_neutral_notional(curves, solver, fx, base, vol_, temp_metric.lower())
 
-        if temp_metric == "pips_or_%":
-            straddle_scalar = (
-                self.periods[1].periods[0].periods[0].notional  # type: ignore[union-attr]
-                / self.periods[0].periods[0].periods[0].notional  # type: ignore[union-attr]
-            )
-            weights: Sequence[DualTypes] = [1.0, straddle_scalar]
-        elif temp_metric == "premium":
-            weights = self.rate_weight
+        if temp_metric in ["pips_or_%", "premium"]:
+            # need notionals to be specified for calculation.
+            self._maybe_set_vega_neutral_notional(curves, solver, fx, base, vol_,
+                                                  temp_metric.lower())
+            if temp_metric == "pips_or_%":
+                straddle_scalar = (
+                    self.periods[1].periods[0].periods[0].notional  # type: ignore[union-attr]
+                    / self.periods[0].periods[0].periods[0].notional  # type: ignore[union-attr]
+                )
+                weights: Sequence[DualTypes] = [1.0, straddle_scalar]
+            else: # temp_metric == "premium":
+                weights = self.rate_weight
         else:
             weights = self.rate_weight_vol
         _: DualTypes = 0.0
