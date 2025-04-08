@@ -965,6 +965,11 @@ class FXStrangle(FXOptionStrat, FXOption):
                 call_op_period.analytic_greeks(curves_1, curves_3, fxf, base_, vol_1),
             ]
 
+            # INLINE TEST
+            # test that the strikes determined by the single volatility value are consistent
+            # assert gks[0]["__strike"] == smile_gks[0]["__strike"]
+            # assert gks[1]["__strike"] == smile_gks[1]["__strike"]
+
             # The value of the root function is derived from the 4 previous calculated prices
             f0 = (
                 smile_gks[0]["__bs76"]
