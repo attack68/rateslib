@@ -545,7 +545,7 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
         if not isinstance(comparators, NoInput):
             for smile in comparators:
                 _validate_smile_plot_comparators(smile, (FXDeltaVolSmile, FXSabrSmile))
-                x_, y_ = smile._plot(x_axis, f, self.delta_type)
+                x_, y_ = smile._plot(x_axis, f)
                 x.append(x_)
                 y.append(y_)
 
