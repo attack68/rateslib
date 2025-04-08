@@ -1,4 +1,5 @@
 from datetime import datetime as dt
+from itertools import combinations
 
 import numpy as np
 import pytest
@@ -19,6 +20,8 @@ from rateslib.fx_volatility import (
     FXDeltaVolSmile,
     FXDeltaVolSurface,
     FXSabrSmile,
+    _d_sabr_d_k,
+    _sabr,
     _validate_delta_type,
 )
 from rateslib.periods import FXPutPeriod
@@ -652,12 +655,13 @@ class TestFXSabrSmile:
         [
             (1.2034, 19.49),
             (1.2050, 19.47),
+            (1.3395, 18.31),  # f == k
             (1.3620, 18.25),
             (1.5410, 18.89),
             (1.5449, 18.93),
         ],
     )
-    def test_vol(self, strike, vol):
+    def test_sabr_vol(self, strike, vol):
         # test the SABR function using Clark 'FX Option Pricing' Table 3.7 as benchmark.
         fxss = FXSabrSmile(
             nodes={
@@ -673,6 +677,188 @@ class TestFXSabrSmile:
         # F_0,T is stated in section 3.5.4 as 1.3395
         result = fxss.get_from_strike(strike, 1.3395)[1]
         assert abs(result - vol) < 1e-2
+
+    @pytest.mark.parametrize(("k", "f"), [(1.34, 1.34), (1.33, 1.35), (1.35, 1.33)])
+    def test_sabr_vol_finite_diff_first_order(self, k, f):
+        # Test all of the first order gradients using finite diff, for the case when f != k and
+        # when f == k, which is a branched calculation to handle a undefined point.
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.17431060,
+                "beta": 1.0,
+                "rho": -0.11268306,
+                "nu": 0.81694072,
+            },
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            id="vol",
+            ad=2,
+        )
+        # F_0,T is stated in section 3.5.4 as 1.3395
+        base = fxss.get_from_strike(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []))[1]
+
+        # k
+        _up = fxss.get_from_strike(Dual2(k + 1e-5, ["k"], [], []), Dual2(f, ["f"], [], []))[1]
+        _dw = fxss.get_from_strike(Dual2(k - 1e-5, ["k"], [], []), Dual2(f, ["f"], [], []))[1]
+        assert abs((_up - _dw) / 2e-5 - gradient(base, ["k"])[0]) < 1e-5
+
+        # f
+        _up = fxss.get_from_strike(Dual2(k, ["k"], [], []), Dual2(f + 1e-5, ["f"], [], []))[1]
+        _dw = fxss.get_from_strike(Dual2(k, ["k"], [], []), Dual2(f - 1e-5, ["f"], [], []))[1]
+        assert abs((_up - _dw) / 2e-5 - gradient(base, ["f"])[0]) < 1e-5
+
+        # SABR params
+        for i, key in enumerate(["alpha", "rho", "nu"]):
+            fxss.nodes[key] = fxss.nodes[key] + 1e-5
+            _up = fxss.get_from_strike(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []))[1]
+            fxss.nodes[key] = fxss.nodes[key] - 2e-5
+            _dw = fxss.get_from_strike(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []))[1]
+            fxss.nodes[key] = fxss.nodes[key] + 1e-5
+            assert abs((_up - _dw) / 2e-5 - gradient(base, [f"vol{i}"])[0]) < 1e-5
+
+    @pytest.mark.parametrize(
+        ("k", "f"), [(1.34, 1.34), (1.33, 1.35), (1.35, 1.33), (1.3399, 1.34), (1.34, 1.3401)]
+    )
+    @pytest.mark.parametrize("pair", list(combinations(["k", "f", "alpha", "rho", "nu"], 2)))
+    def test_sabr_vol_cross_finite_diff_second_order(self, k, f, pair):
+        # Test all of the second order cross gradients using finite diff,
+        # for the case when f != k and
+        # when f == k, which is a branched calculation to handle a undefined point.
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.17431060,
+                "beta": 1.0,
+                "rho": -0.11268306,
+                "nu": 0.81694072,
+            },
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            id="v",
+            ad=2,
+        )
+
+        a = fxss.nodes["alpha"]
+        p = fxss.nodes["rho"]
+        v = fxss.nodes["nu"]
+
+        # F_0,T is stated in section 3.5.4 as 1.3395
+        base = fxss.get_from_strike(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []))[1]
+
+        def inc_(key1, key2, inc1, inc2):
+            k_ = k
+            f_ = f
+            if key1 == "k":
+                k_ = k + inc1
+            elif key1 == "f":
+                f_ = f + inc1
+            else:
+                fxss.nodes[key1] = fxss.nodes[key1] + inc1
+
+            if key2 == "k":
+                k_ = k + inc2
+            elif key2 == "f":
+                f_ = f + inc2
+            else:
+                fxss.nodes[key2] = fxss.nodes[key2] + inc2
+
+            _ = fxss.get_from_strike(Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []))[1]
+
+            fxss.nodes["alpha"] = a
+            fxss.nodes["rho"] = p
+            fxss.nodes["nu"] = v
+
+            return _
+
+        v_map = {"k": "k", "f": "f", "alpha": "v0", "rho": "v1", "nu": "v2"}
+
+        upup = inc_(pair[0], pair[1], 1e-3, 1e-3)
+        updown = inc_(pair[0], pair[1], 1e-3, -1e-3)
+        downup = inc_(pair[0], pair[1], -1e-3, 1e-3)
+        downdown = inc_(pair[0], pair[1], -1e-3, -1e-3)
+        expected = (upup + downdown - updown - downup) / 4e-6
+        result = gradient(base, [v_map[pair[0]], v_map[pair[1]]], order=2)[0][1]
+        assert abs(result - expected) < 1e-2
+
+    @pytest.mark.parametrize(
+        ("k", "f"), [(1.34, 1.34), (1.33, 1.35), (1.35, 1.33), (1.3399, 1.34), (1.34, 1.3401)]
+    )
+    @pytest.mark.parametrize("var", ["k", "f", "alpha", "rho", "nu"])
+    def test_sabr_vol_same_finite_diff_second_order(self, k, f, var):
+        # Test all of the second order cross gradients using finite diff,
+        # for the case when f != k and
+        # when f == k, which is a branched calculation to handle a undefined point.
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.17431060,
+                "beta": 1.0,
+                "rho": -0.11268306,
+                "nu": 0.81694072,
+            },
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            id="v",
+            ad=2,
+        )
+
+        a = fxss.nodes["alpha"]
+        p = fxss.nodes["rho"]
+        v = fxss.nodes["nu"]
+
+        # F_0,T is stated in section 3.5.4 as 1.3395
+        base = fxss.get_from_strike(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []))[1]
+
+        def inc_(key1, inc1):
+            k_ = k
+            f_ = f
+            if key1 == "k":
+                k_ = k + inc1
+            elif key1 == "f":
+                f_ = f + inc1
+            else:
+                fxss.nodes[key1] = fxss.nodes[key1] + inc1
+
+            _ = fxss.get_from_strike(Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []))[1]
+
+            fxss.nodes["alpha"] = a
+            fxss.nodes["rho"] = p
+            fxss.nodes["nu"] = v
+
+            return _
+
+        v_map = {"k": "k", "f": "f", "alpha": "v0", "rho": "v1", "nu": "v2"}
+
+        up = inc_(var, 1e-4)
+        down = inc_(var, -1e-4)
+        expected = (up + down - 2 * base) / 1e-8
+        result = gradient(base, [v_map[var]], order=2)[0][0]
+        assert abs(result - expected) < 5e-3
+
+    def test_sabr_vol_root_multi_duals_neighbourhood(self):
+        # test the SABR function when regular arithmetic operations produce an undefined 0/0
+        # value so AD has to be hard coded into the solution. This occurs when f == k.
+        # test by comparing derivatives with those captured at a nearby valid point
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.17431060,
+                "beta": 1.0,
+                "rho": -0.11268306,
+                "nu": 0.81694072,
+            },
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            id="vol",
+            ad=2,
+        )
+        # F_0,T is stated in section 3.5.4 as 1.3395
+        base = fxss.get_from_strike(Dual2(1.34, ["k"], [], []), Dual2(1.34, ["f"], [], []))[1]
+        comparison1 = fxss.get_from_strike(Dual2(1.341, ["k"], [], []), Dual2(1.34, ["f"], [], []))[
+            1
+        ]
+
+        assert np.all(abs(base.dual - comparison1.dual) < 1e-1)
+        diff = base.dual2 - comparison1.dual2
+        dual2 = abs(diff) < 5e-1
+        assert np.all(dual2)
 
     @pytest.mark.parametrize("param", ["alpha", "beta", "rho", "nu"])
     def test_missing_param_raises(self, param):
@@ -704,8 +890,7 @@ class TestFXSabrSmile:
             id="vol",
         )
         with pytest.raises(TypeError):
-            for iterable in fxss:
-                pass
+            _ = list(fxss)
 
     def test_update_node_raises(self):
         fxss = FXSabrSmile(
@@ -815,6 +1000,280 @@ class TestFXSabrSmile:
         ad_grad = gradient(pv00[1], ["vol0", "vol1"], 2)[0, 1]
 
         assert abs(finite_diff - ad_grad) < 1e-4
+
+    @pytest.mark.parametrize("p", [-0.1, 0.15])
+    @pytest.mark.parametrize("a", [0.05, 0.2])
+    @pytest.mark.parametrize("k_", [1.15, 1.3620, 1.45, 1.3395])
+    def test_sabr_derivative(self, a, p, k_):
+        # test the analytic derivative of the SABR function with respect to k created by sympy
+        b = 1.0
+        v = 0.8
+        f = 1.3395
+        t = 1.0
+        k = Dual(k_, ["k"], [1.0])
+
+        sabr_vol, result = _d_sabr_d_k(k, f, t, a, b, p, v)
+        expected = gradient(sabr_vol, ["k"])[0]
+
+        assert abs(result - expected) < 1e-13
+
+    @pytest.mark.parametrize(("k", "f"), [(1.34, 1.34), (1.33, 1.35), (1.35, 1.33)])
+    def test_sabr_derivative_finite_diff_first_order(self, k, f):
+        # Test all of the first order gradients using finite diff, for the case when f != k and
+        # when f == k, which is a branched calculation to handle a undefined point.
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.17431060,
+                "beta": 1.0,
+                "rho": -0.11268306,
+                "nu": 0.81694072,
+            },
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            id="vol",
+            ad=2,
+        )
+        t = 1.0
+        base = fxss._d_sabr_d_k(Dual2(k, ["k"], [1.0], []), Dual2(f, ["f"], [1.0], []), t)[1]
+
+        # k
+        _up = fxss._d_sabr_d_k(Dual2(k + 1e-4, ["k"], [], []), Dual2(f, ["f"], [], []), t)[1]
+        _dw = fxss._d_sabr_d_k(Dual2(k - 1e-4, ["k"], [], []), Dual2(f, ["f"], [], []), t)[1]
+        result = gradient(base, ["k"])[0]
+        expected = (_up - _dw) / 2e-4
+        assert abs(result - expected) < 1e-5
+
+        # f
+        _up = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f + 1e-4, ["f"], [], []), t)[1]
+        _dw = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f - 1e-4, ["f"], [], []), t)[1]
+        result = gradient(base, ["f"])[0]
+        expected = (_up - _dw) / 2e-4
+        assert abs(result - expected) < 1e-5
+
+        # SABR params
+        for i, key in enumerate(["alpha", "rho", "nu"]):
+            fxss.nodes[key] = fxss.nodes[key] + 1e-5
+            _up = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), t)[1]
+            fxss.nodes[key] = fxss.nodes[key] - 2e-5
+            _dw = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), t)[1]
+            fxss.nodes[key] = fxss.nodes[key] + 1e-5
+            result = gradient(base, [f"vol{i}"])[0]
+            expected = (_up - _dw) / 2e-5
+            assert abs(result - expected) < 1e-5
+
+    @pytest.mark.parametrize(
+        ("k", "f"), [(1.34, 1.34), (1.33, 1.35), (1.35, 1.33), (1.3395, 1.34), (1.34, 1.3405)]
+    )
+    @pytest.mark.parametrize("pair", list(combinations(["k", "f", "alpha", "rho", "nu"], 2)))
+    def test_sabr_derivative_cross_finite_diff_second_order(self, k, f, pair):
+        # Test all of the second order cross gradients using finite diff,
+        # for the case when f != k and
+        # when f == k, which is a branched calculation to handle a undefined point.
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.17431060,
+                "beta": 1.0,
+                "rho": -0.11268306,
+                "nu": 0.81694072,
+            },
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            id="v",
+            ad=2,
+        )
+
+        a = fxss.nodes["alpha"]
+        p = fxss.nodes["rho"]
+        v = fxss.nodes["nu"]
+
+        # F_0,T is stated in section 3.5.4 as 1.3395
+        base = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), 1.0)[1]
+
+        def inc_(key1, key2, inc1, inc2):
+            k_ = k
+            f_ = f
+            if key1 == "k":
+                k_ = k + inc1
+            elif key1 == "f":
+                f_ = f + inc1
+            else:
+                fxss.nodes[key1] = fxss.nodes[key1] + inc1
+
+            if key2 == "k":
+                k_ = k + inc2
+            elif key2 == "f":
+                f_ = f + inc2
+            else:
+                fxss.nodes[key2] = fxss.nodes[key2] + inc2
+
+            _ = fxss._d_sabr_d_k(Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []), 1.0)[1]
+
+            fxss.nodes["alpha"] = a
+            fxss.nodes["rho"] = p
+            fxss.nodes["nu"] = v
+
+            return _
+
+        v_map = {"k": "k", "f": "f", "alpha": "v0", "rho": "v1", "nu": "v2"}
+
+        upup = inc_(pair[0], pair[1], 1e-3, 1e-3)
+        updown = inc_(pair[0], pair[1], 1e-3, -1e-3)
+        downup = inc_(pair[0], pair[1], -1e-3, 1e-3)
+        downdown = inc_(pair[0], pair[1], -1e-3, -1e-3)
+        expected = (upup + downdown - updown - downup) / 4e-6
+        result = gradient(base, [v_map[pair[0]], v_map[pair[1]]], order=2)[0][1]
+        assert abs(result - expected) < 5e-3
+
+    @pytest.mark.parametrize(
+        ("k", "f"),
+        [(1.34, 1.34), (1.33, 1.35), (1.35, 1.33), (1.3395, 1.34), (1.34, 1.3405)],
+    )
+    @pytest.mark.parametrize("var", ["k", "f", "alpha", "rho", "nu"])
+    def test_sabr_derivative_same_finite_diff_second_order(self, k, f, var):
+        # Test all of the second order cross gradients using finite diff,
+        # for the case when f != k and
+        # when f == k, which is a branched calculation to handle a undefined point.
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.17431060,
+                "beta": 1.0,
+                "rho": -0.11268306,
+                "nu": 0.81694072,
+            },
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            id="v",
+            ad=2,
+        )
+
+        a = fxss.nodes["alpha"]
+        p = fxss.nodes["rho"]
+        v = fxss.nodes["nu"]
+
+        # F_0,T is stated in section 3.5.4 as 1.3395
+        base = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), 1.0)[1]
+
+        def inc_(key1, inc1):
+            k_ = k
+            f_ = f
+            if key1 == "k":
+                k_ = k + inc1
+            elif key1 == "f":
+                f_ = f + inc1
+            else:
+                fxss.nodes[key1] = fxss.nodes[key1] + inc1
+
+            _ = fxss._d_sabr_d_k(Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []), 1.0)[1]
+
+            fxss.nodes["alpha"] = a
+            fxss.nodes["rho"] = p
+            fxss.nodes["nu"] = v
+
+            return _
+
+        v_map = {"k": "k", "f": "f", "alpha": "v0", "rho": "v1", "nu": "v2"}
+
+        up = inc_(var, 1e-3)
+        down = inc_(var, -1e-3)
+        expected = (up + down - 2 * base) / 1e-6
+        result = gradient(base, [v_map[var]], order=2)[0][0]
+        assert abs(result - expected) < 3e-3
+
+    def test_sabr_derivative_root_multi_duals_neighbourhood(self):
+        # test the SABR function when regular arithmetic operations produce an undefined 0/0
+        # value so AD has to be hard coded into the solution. This occurs when f == k.
+        # test by comparing derivatives with those captured at a nearby valid point
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.17431060,
+                "beta": 1.0,
+                "rho": -0.11268306,
+                "nu": 0.81694072,
+            },
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            id="vol",
+            ad=2,
+        )
+        # F_0,T is stated in section 3.5.4 as 1.3395
+        base = fxss._d_sabr_d_k(Dual2(1.34, ["k"], [], []), Dual2(1.34, ["f"], [], []), 1.0)[1]
+        comparison1 = fxss._d_sabr_d_k(
+            Dual2(1.341, ["k"], [], []), Dual2(1.34, ["f"], [], []), 1.0
+        )[1]
+
+        assert np.all(abs(base.dual - comparison1.dual) < 5e-3)
+        diff = base.dual2 - comparison1.dual2
+        dual2 = abs(diff) < 3e-2
+        assert np.all(dual2)
+
+    def test_sabr_derivative_ad(self):
+        # Test is probably superceded by test_sabr_derivative_same/cross_finite_diff
+
+        # test the analytic derivative of the SABR function and its preservation of AD.
+        a = 0.10
+        b = 1.0
+        p = Dual2(-0.20, ["p"], [1.0], [0.0])
+        v = 0.8
+        f = 1.3395
+        t = 1.0
+        k = Dual2(1.45, ["k"], [1.0], [0.0])
+
+        _, result = _d_sabr_d_k(k, f, t, a, b, p, v)
+        _, r1 = _d_sabr_d_k(k, f, t, a, b, p + 1e-4, v)
+        _, r_1 = _d_sabr_d_k(k, f, t, a, b, p - 1e-4, v)
+        expected = (r1 - r_1) / (2e-4)
+        result = gradient(result, ["p"])[0]
+        assert abs(result - expected) < 1e-9
+
+        _, result = _d_sabr_d_k(k, f, t, a, b, p, v)
+        _, r1 = _d_sabr_d_k(k, f, t, a, b, p + 1e-4, v)
+        _, r_1 = _d_sabr_d_k(k, f, t, a, b, p - 1e-4, v)
+        expected = (r1 - 2 * result + r_1) / (1e-8)
+        result = gradient(result, ["p"], order=2)[0][0]
+        assert abs(result - expected) < 1e-8
+
+    def test_sabr_derivative_root(self):
+        # Test is probably superceded by test_sabr_derivative_same/cross_finite_diff
+
+        # test the analytic derivative of the SABR function when f == k
+        a = 0.10
+        b = 1.0
+        p = -0.20
+        v = 0.8
+        f = 1.3395
+        t = 1.0
+        k = Dual(1.3395, ["k"], [1.0])
+
+        sabr_vol, result = _d_sabr_d_k(k, f, t, a, b, p, v)
+        expected = gradient(sabr_vol, ["k"])[0]
+
+        assert abs(result - expected) < 1e-13
+
+    def test_sabr_derivative_root_ad(self):
+        # Test is probably superceded by test_sabr_derivative_same/cross_finite_diff
+
+        # test the analytic derivative of the SABR function when f == k, and its preservation of AD.
+        a = 0.10
+        b = 1.0
+        p = Dual2(-0.20, ["p"], [1.0], [0.0])
+        v = 0.8
+        f = 1.3395
+        t = 1.0
+        k = Dual2(1.3395, ["k"], [1.0], [0.0])
+
+        _, result = _d_sabr_d_k(k, f, t, a, b, p, v)
+        _, r1 = _d_sabr_d_k(k, f, t, a, b, p + 1e-4, v)
+        _, r_1 = _d_sabr_d_k(k, f, t, a, b, p - 1e-4, v)
+        expected = (r1 - r_1) / (2e-4)
+        result = gradient(result, ["p"])[0]
+        assert abs(result - expected) < 1e-9
+
+        _, result = _d_sabr_d_k(k, f, t, a, b, p, v)
+        _, r1 = _d_sabr_d_k(k, f, t, a, b, p + 1e-4, v)
+        _, r_1 = _d_sabr_d_k(k, f, t, a, b, p - 1e-4, v)
+        expected = (r1 - 2 * result + r_1) / (1e-8)
+        result = gradient(result, ["p"], order=2)[0][0]
+        assert abs(result - expected) < 1e-8
 
 
 class TestStateAndCache:

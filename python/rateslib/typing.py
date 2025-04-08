@@ -18,6 +18,8 @@ from rateslib.fx import FXForwards as FXForwards
 from rateslib.fx import FXRates as FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile as FXDeltaVolSmile
 from rateslib.fx_volatility import FXDeltaVolSurface as FXDeltaVolSurface
+from rateslib.fx_volatility import FXSabrSmile as FXSabrSmile
+from rateslib.fx_volatility import FXSabrSurface as FXSabrSurface
 from rateslib.instruments import CDS as CDS
 from rateslib.instruments import FRA as FRA
 from rateslib.instruments import IIRS as IIRS
@@ -129,7 +131,7 @@ Curves_: TypeAlias = "CurveOrId_ | CurveDict | Sequence[CurveOrId_ | CurveDict]"
 Curves_Tuple: TypeAlias = "tuple[CurveOption_, CurveOption_, CurveOption_, CurveOption_]"
 Curves_DiscTuple: TypeAlias = "tuple[CurveOption_, Curve_, CurveOption_, Curve_]"
 
-FXVolObj: TypeAlias = "FXDeltaVolSurface | FXDeltaVolSmile"
+FXVolObj: TypeAlias = "FXDeltaVolSurface | FXDeltaVolSmile | FXSabrSmile | FXSabrSurface"
 
 FXVolOption: TypeAlias = "FXVolObj | DualTypes"
 FXVolOption_: TypeAlias = "FXVolOption | NoInput"
@@ -137,7 +139,7 @@ FXVolOption_: TypeAlias = "FXVolOption | NoInput"
 FXVol: TypeAlias = "FXVolOption | str"
 FXVol_: TypeAlias = "FXVol | NoInput"
 
-VolInput_: TypeAlias = "str | FXDeltaVolSmile | FXDeltaVolSurface"
+VolInput_: TypeAlias = "str | FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile | FXSabrSurface"
 VolInput: TypeAlias = "VolInput_ | NoInput"
 
 FXVolStrat_: TypeAlias = "Sequence[FXVolStrat_] | FXVol_"
