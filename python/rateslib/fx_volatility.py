@@ -528,7 +528,7 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
         comparators = _drb([], comparators)
         labels = _drb([], labels)
 
-        x_, y_ = self._plot(x_axis, f, NoInput(0))
+        x_, y_ = self._plot(x_axis, f)
 
         x = [x_]
         y = [y_]
@@ -545,7 +545,6 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
         self,
         x_axis: str,
         f: DualTypes | NoInput,
-        delta_type: str_  # NOT USED by FXDeltaVolSmile  (exists as consistent signature with Sabr)
     ) -> tuple[list[float], list[DualTypes]]:
         x: list[float] = np.linspace(_dual_float(self.plot_upper_bound), self.t[0], 301)  # type: ignore[assignment]
         vols: list[DualTypes] = self.spline.ppev(x)
@@ -567,7 +566,7 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
                         "`f` (ATM-forward FX rate) is required by `FXDeltaVolSmile.plot` "
                         "to convert 'moneyness' to 'strike'."
                     )
-                return (x_as_u * _dual_float(f), vols)
+                return ([_ * _dual_float(f) for _ in x_as_u], vols)
             return (x_as_u, vols)
         return (x, vols)
 
@@ -1438,14 +1437,14 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         comparators = _drb([], comparators)
         labels = _drb([], labels)
 
-        x_, y_ = self._plot(x_axis, f, NoInput(0))
+        x_, y_ = self._plot(x_axis, f)
 
         x = [x_]
         y = [y_]
         if not isinstance(comparators, NoInput):
             for smile in comparators:
                 _validate_smile_plot_comparators(smile, (FXDeltaVolSmile, FXSabrSmile))
-                x_, y_ = smile._plot(x_axis, f, "forward")
+                x_, y_ = smile._plot(x_axis, f)
                 x.append(x_)
                 y.append(y_)
 
@@ -1455,20 +1454,26 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         self,
         x_axis: str,
         f: DualTypes | NoInput,
-        delta_type: str_,
     ) -> tuple[list[float], list[DualTypes]]:
         if isinstance(f, NoInput):
             raise ValueError("`f` (ATM-forward FX rate) is required by `FXSabrSmile.plot`.")
         else:
             f_: float = _dual_float(f)
 
-        x = np.linspace(f_ * 0.80, f_ * 1.20, 301)
+        x = np.linspace(f_ * 0.91, f_ * 1.09, 301)
         u = x / f_
         y: list[DualTypes] = [self.get_from_strike(_, f_)[1] for _ in x]
         if x_axis == "moneyness":
             return list(u), y
         elif x_axis == "delta":
-            raise NotImplementedError("delta plot not implemented for SabrSmile")
+            z_w = 1.0  # delta type is assumed to be 'forward' for SabrSmile
+            z_u = 1.0  #  delta type is assumed to be 'unadjusted' for SabrSmile
+            eta_1 = 0.5  # for same reason
+
+            sq_t = self.t_expiry_sqrt
+            dn = [-dual_log(u_) * 100.0 / (s_ * sq_t) + eta_1 * s_ * sq_t / 100.0 for u_, s_ in zip(u, y, strict=True)]
+            delta_index = [dual_norm_cdf(-d_) for d_ in dn]
+            return delta_index, y
         else: # x_axis = "strike"
             return list(x), y
 
