@@ -667,35 +667,6 @@ def test_fx_curves_locals_raises():
         )
 
 
-def test_recursive_chain() -> None:
-    T = np.array([[1, 1], [0, 1]])
-    result = FXForwards._get_recursive_chain(T, 1, 0, [], [])
-    expected = True, [{"col": 0}]
-    assert result == expected
-
-    result = FXForwards._get_recursive_chain(T, 0, 1, [], [])
-    expected = True, [{"row": 1}]
-    assert result == expected
-
-
-def test_recursive_chain3() -> None:
-    T = np.array([[1, 1, 0], [0, 1, 1], [0, 0, 1]])
-    result = FXForwards._get_recursive_chain(T, 2, 0, [], [])
-    expected = True, [{"col": 1}, {"col": 0}]
-    assert result == expected
-
-    result = FXForwards._get_recursive_chain(T, 0, 2, [], [])
-    expected = True, [{"row": 1}, {"row": 2}]
-    assert result == expected
-
-
-def test_recursive_chain_interim_broken_path() -> None:
-    T = np.array([[1, 1, 1, 0], [0, 1, 0, 0], [0, 0, 1, 1], [0, 0, 0, 1]])
-    result = FXForwards._get_recursive_chain(T, 0, 3, [], [])
-    expected = True, [{"row": 2}, {"row": 3}]
-    assert result == expected
-
-
 def test_multiple_currencies_number_raises(usdusd) -> None:
     fxr1 = FXRates({"eurusd": 0.95}, settlement=dt(2022, 1, 3))
     fxr2 = FXRates({"gbpcad": 1.1}, settlement=dt(2022, 1, 2))
@@ -952,8 +923,8 @@ def test_full_curves(usdusd, eureur, usdeur) -> None:
     assert len(curve.nodes) == 10  # constructed with DF on every date
 
 
-@pytest.mark.parametrize("settlement", [dt(2022, 1, 1), dt(2022, 1, 3), dt(2022, 1, 7)])
-def test_rate_path_immediate(settlement) -> None:
+def test_rate_dynamic_path_calculation() -> None:
+    # test that a path is dynamically determined for regular settle dates
     usdusd = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.999})
     eureur = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.998})
     eurusd = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.9985})
@@ -970,9 +941,33 @@ def test_rate_path_immediate(settlement) -> None:
             "nokeur": nokeur,
         },
     )
-    _, result = fxf._rate_with_path("nokusd", settlement)
-    expected = [{"col": 1}, {"col": 2}]
-    assert result == expected
+    _ = fxf.rate("nokusd", dt(2022, 1, 7))
+    assert fxf.currencies_list == ["usd", "eur", "nok"]
+    assert fxf._paths[(2, 0)] == 1
+
+
+@pytest.mark.parametrize("settlement", [dt(2022, 1, 3), dt(2022, 1, 1)])
+def test_no_rate_path_on_immediate(settlement) -> None:
+    # test that a path is not dynamically determined for an immediate calculation
+    usdusd = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.999})
+    eureur = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.998})
+    eurusd = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.9985})
+    noknok = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.997})
+    nokeur = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.9965})
+    fxr = FXRates({"eurusd": 1.05, "usdnok": 8.0}, settlement=dt(2022, 1, 3), base="usd")
+    fxf = FXForwards(
+        fxr,
+        {
+            "usdusd": usdusd,
+            "eureur": eureur,
+            "eurusd": eurusd,
+            "noknok": noknok,
+            "nokeur": nokeur,
+        },
+    )
+    _ = fxf.rate("nokusd", settlement)
+    assert fxf.currencies_list == ["usd", "eur", "nok"]
+    assert (2, 0) not in fxf._paths
 
 
 @pytest.mark.parametrize(
@@ -1030,6 +1025,10 @@ def test_delta_risk_equivalence() -> None:
     discounted_eur = forward_eur * fx_curves["eureur"][dt(2022, 8, 15)]
     result2 = discounted_eur * fxf.rate("eurusd", dt(2022, 1, 1))
 
+    forward_usd = fxf.rate("nokusd", dt(2022, 8, 15)) * 1000
+    discounted_usd = forward_usd * fxf.curve("usd", "eur")[dt(2022, 8, 15)]
+    result3 = discounted_usd
+
     assert set(result1.vars) == {
         "ee0",
         "ee1",
@@ -1042,8 +1041,11 @@ def test_delta_risk_equivalence() -> None:
         "uu0",
         "uu1",
     }
+    v = result1.vars
     assert abs(result1 - result2) < 1e-12
-    assert all(np.isclose(gradient(result1), gradient(result2, result1.vars)))
+    assert abs(result1 - result3) < 1e-12
+    assert all(np.isclose(gradient(result1, v), gradient(result3, v)))
+    assert all(np.isclose(gradient(result1, v), gradient(result2, v)))
 
 
 def test_fx_immediate_rate_equivalence_to_forward() -> None:
@@ -1542,11 +1544,11 @@ def test_recursive_pair_population1():
     result = _recursive_pair_population(arr)
     expected = {
         (0, 1): 2,
-        (0, 2): None,
+        (0, 2): -1,
         (1, 0): 2,
-        (1, 2): None,
-        (2, 0): None,
-        (2, 1): None,
+        (1, 2): -1,
+        (2, 0): -1,
+        (2, 1): -1,
     }
     assert result[1] == expected
 
@@ -1564,25 +1566,25 @@ def test_recursive_pair_population2():
     )
     result = _recursive_pair_population(arr)
     expected = {
-        (0, 1): None,
+        (0, 1): -1,
         (0, 2): 1,
-        (0, 3): None,
+        (0, 3): -1,
         (0, 4): 3,
-        (1, 0): None,
-        (1, 2): None,
+        (1, 0): -1,
+        (1, 2): -1,
         (1, 3): 0,
         (1, 4): 3,
         (2, 0): 1,
-        (2, 1): None,
+        (2, 1): -1,
         (2, 3): 1,
         (2, 4): 3,
-        (3, 0): None,
+        (3, 0): -1,
         (3, 1): 0,
         (3, 2): 1,
-        (3, 4): None,
+        (3, 4): -1,
         (4, 0): 3,
         (4, 1): 3,
         (4, 2): 3,
-        (4, 3): None,
+        (4, 3): -1,
     }
     assert result[1] == expected
