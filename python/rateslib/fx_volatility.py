@@ -1489,8 +1489,8 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         if x_axis == "moneyness":
             return list(u), y
         elif x_axis == "delta":
-            z_w = 1.0  # delta type is assumed to be 'forward' for SabrSmile
-            z_u = 1.0  #  delta type is assumed to be 'unadjusted' for SabrSmile
+            # z_w = 1.0  # delta type is assumed to be 'forward' for SabrSmile
+            # z_u = 1.0  #  delta type is assumed to be 'unadjusted' for SabrSmile
             eta_1 = 0.5  # for same reason
 
             sq_t = self.t_expiry_sqrt
