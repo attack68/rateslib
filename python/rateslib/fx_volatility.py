@@ -556,8 +556,8 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
         x_axis: str,
         f: DualTypes | NoInput,
     ) -> tuple[list[float], list[DualTypes]]:
-        x: list[float] = np.linspace(_dual_float(self.plot_upper_bound), self.t[0], 301)  # type: ignore[assignment]
-        vols: list[DualTypes] = self.spline.ppev(x)
+        x: list[float] = list(np.linspace(_dual_float(self.plot_upper_bound), self.t[0], 301))
+        vols: list[float] | list[Dual] | list[Dual2] = self.spline.ppev(x)
         if x_axis in ["moneyness", "strike"]:
             if self.delta_type != "forward":
                 warnings.warn(
@@ -567,10 +567,11 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
                     UserWarning,
                 )
 
-            x, vols = x[40:-40], vols[40:-40]
+            x = x[40:-40]
+            vols = vols[40:-40]
             sq_t = self.t_expiry_sqrt
-            x_as_u: list[float] | list[Dual] | list[Dual2] = [  # type: ignore[assignment]
-                dual_exp(_s / 100.0 * sq_t * (dual_inv_norm_cdf(_D) + 0.5 * _s / 100.0 * sq_t))
+            x_as_u: list[DualTypes] = [
+                dual_exp(_s / 100.0 * sq_t * (dual_inv_norm_cdf(_D) + 0.5 * _s / 100.0 * sq_t))  # type: ignore[operator]
                 for (_D, _s) in zip(x, vols, strict=True)
             ]
             if x_axis == "strike":
@@ -579,9 +580,9 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
                         "`f` (ATM-forward FX rate) is required by `FXDeltaVolSmile.plot` "
                         "to convert 'moneyness' to 'strike'."
                     )
-                return ([_ * _dual_float(f) for _ in x_as_u], vols)
-            return (x_as_u, vols)
-        return (x, vols)
+                return ([_ * _dual_float(f) for _ in x_as_u], vols)  # type: ignore[return-value]
+            return (x_as_u, vols)  # type: ignore[return-value]
+        return (x, vols)  # type: ignore[return-value]
 
     # Mutation
 
@@ -1481,7 +1482,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
             f_: float = _dual_float(f)
 
         vol_approx = self.get_from_strike(f_, f_)[1]
-        scalar = 0.04 * vol_approx * self.t_expiry_sqrt**2
+        scalar = _dual_float(0.04 * vol_approx * self.t_expiry_sqrt**2)
 
         x = np.linspace(f_ * (1.0 - scalar), f_ * (1.0 + scalar), 301)
         u = x / f_
@@ -1495,11 +1496,11 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
 
             sq_t = self.t_expiry_sqrt
             dn = [
-                -dual_log(u_) * 100.0 / (s_ * sq_t) + eta_1 * s_ * sq_t / 100.0
+                -dual_log(u_) * 100.0 / (s_ * sq_t) + eta_1 * s_ * sq_t / 100.0  # type: ignore[arg-type]
                 for u_, s_ in zip(u, y, strict=True)
             ]
             delta_index = [dual_norm_cdf(-d_) for d_ in dn]
-            return delta_index, y
+            return delta_index, y  # type: ignore[return-value]
         else:  # x_axis = "strike"
             return list(x), y
 
