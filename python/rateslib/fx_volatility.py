@@ -32,6 +32,7 @@ from rateslib.dual import (
     set_order_convert,
 )
 from rateslib.dual.utils import _cast_pair, _dual_float
+from rateslib.fx import FXForwards
 from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,
@@ -43,7 +44,7 @@ from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
 
 if TYPE_CHECKING:
-    from rateslib.typing import datetime_
+    from rateslib.typing import CalInput, datetime_, int_, str_
 
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
 
@@ -1202,6 +1203,15 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
     id: str, optional
         The unique identifier to distinguish between *Smiles* in a multicurrency framework
         and/or *Surface*.
+    delivery_lag: int, optional
+        The number of business days after expiry that the physical settlement of the FX
+        exchange occurs. Uses ``defaults.fx_delivery_lag``. Used in determination of ATM forward
+        rates.
+    calendar : calendar or str, optional
+        The holiday calendar object to use for FX delivery day determination. If str, looks up
+        named calendar from static data.
+    pair : str, optional
+        The FX currency pair used to determine ATM forward rates.
     ad: int, optional
         Sets the automatic differentiation order. Defines whether to convert node
         values to float, :class:`~rateslib.dual.Dual` or
@@ -1220,6 +1230,10 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
       e.g. -0.10, in [-1.0, 1.0)
     - ``nu`` (DualTypes): The volatility of volatility parameter of the SABR model, e.g. 0.80.
 
+    The arguments ``delivery_lag``, ``calendar`` and ``pair`` are only required if using an
+    :class:`~rateslib.fx.FXForwards` object to forecast ATM-forward FX rates for pricing. If
+    the forward rates are supplied directly as numeric values these arguments are not required.
+
     """
 
     _ini_solve = 1
@@ -1231,6 +1245,9 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         nodes: dict[str, DualTypes],
         eval_date: datetime,
         expiry: datetime,
+        delivery_lag: int_ = NoInput(0),
+        calendar: CalInput = NoInput(0),
+        pair: str_ = NoInput(0),
         id: str | NoInput = NoInput(0),  # noqa: A002
         ad: int = 0,
     ):
@@ -1242,6 +1259,10 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         self.expiry: datetime = expiry
         self.t_expiry: float = (expiry - eval_date).days / 365.0
         self.t_expiry_sqrt: float = self.t_expiry**0.5
+
+        self.delivery_lag = _drb(defaults.fx_delivery_lag, delivery_lag)
+        self.delivery = get_calendar(calendar).lag(self.expiry, self.delivery_lag, True)
+        self.pair = pair
 
         self.nodes = nodes
         for _ in ["alpha", "beta", "rho", "nu"]:
@@ -1257,7 +1278,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
     def get_from_strike(
         self,
         k: DualTypes,
-        f: DualTypes,
+        f: DualTypes | FXForwards,
         w_deli: DualTypes | NoInput = NoInput(0),
         w_spot: DualTypes | NoInput = NoInput(0),
         expiry: datetime_ = NoInput(0),
@@ -1296,9 +1317,22 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
                 "`expiry` of VolSmile and OptionPeriod do not match: calculation aborted "
                 "due to potential pricing errors.",
             )
+
+        if isinstance(f, FXForwards):
+            if isinstance(self.pair, NoInput):
+                raise ValueError(
+                    "`FXSabrSmile` must be specified with a `pair` argument to use "
+                    "`FXForwards` objects for forecasting ATM-forward FX rates."
+                )
+            f_: DualTypes = f.rate(self.pair, self.delivery)
+        elif isinstance(f, float | Dual | Dual2 | Variable):
+            f_ = f
+        else:
+            raise ValueError("`f` (ATM-forward FX rate) must be a value or FXForwards object.")
+
         vol_ = _sabr(
             k,
-            f,
+            f_,
             self.t_expiry,
             self.nodes["alpha"],
             self.nodes["beta"],  # type: ignore[arg-type]
@@ -1424,7 +1458,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         comparators: list[FXSabrSmile] | NoInput = NoInput(0),
         labels: list[str] | NoInput = NoInput(0),
         x_axis: str = "strike",
-        f: DualTypes | NoInput = NoInput(0),
+        f: DualTypes | FXForwards | NoInput = NoInput(0),
     ) -> PlotOutput:
         """
         Plot volatilities associated with the *Smile*.
@@ -1474,12 +1508,21 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
     def _plot(
         self,
         x_axis: str,
-        f: DualTypes | NoInput,
+        f: DualTypes | FXForwards | NoInput,
     ) -> tuple[list[float], list[DualTypes]]:
         if isinstance(f, NoInput):
             raise ValueError("`f` (ATM-forward FX rate) is required by `FXSabrSmile.plot`.")
+        elif isinstance(f, FXForwards):
+            if isinstance(self.pair, NoInput):
+                raise ValueError(
+                    "`FXSabrSmile` must be specified with a `pair` argument to use "
+                    "`FXForwards` objects for forecasting ATM-forward FX rates."
+                )
+            f_: float = _dual_float(f.rate(self.pair, self.delivery))
+        elif isinstance(f, float | Dual | Dual2 | Variable):
+            f_ = _dual_float(f)
         else:
-            f_: float = _dual_float(f)
+            raise ValueError("`f` (ATM-forward FX rate) must be a value or FXForwards object.")
 
         vol_approx = self.get_from_strike(f_, f_)[1]
         scalar = _dual_float(0.04 * vol_approx * self.t_expiry_sqrt**2)
