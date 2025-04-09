@@ -890,7 +890,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         ]
         self.n: int = len(self.expiries) * len(self.delta_indexes)
 
-        self.weights = self._validate_weights(weights)
+        self.weights = _validate_weights(weights, eval_date, expiries)
         self.weights_cum = (
             NoInput(0) if isinstance(self.weights, NoInput) else self.weights.cumsum()
         )
@@ -1161,28 +1161,6 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         expiries = [(_ - self.eval_posix) / (365 * 24 * 60 * 60.0) for _ in self.expiries_posix]
         return plot3d(deltas, expiries, vols)  # type: ignore[arg-type, return-value]
 
-    def _validate_weights(self, weights: Series[float] | NoInput) -> Series[float] | NoInput:
-        if isinstance(weights, NoInput):
-            return weights
-
-        w: Series[float] = Series(
-            1.0, index=get_calendar("all").cal_date_range(self.eval_date, TERMINAL_DATE)
-        )
-        w.update(weights)
-        # restrict to sorted and filtered for outliers
-        w = w.sort_index()
-        w = w[self.eval_date :]  # type: ignore[misc]
-
-        node_points: list[datetime] = [self.eval_date] + self.expiries + [TERMINAL_DATE]
-        for i in range(len(self.expiries) + 1):
-            s, e = node_points[i] + timedelta(days=1), node_points[i + 1]
-            days = (e - s).days + 1
-            w[s:e] = (  # type: ignore[misc]
-                w[s:e] * days / w[s:e].sum()  # type: ignore[misc]
-            )  # scale the weights to allocate the correct time between nodes.
-        w[self.eval_date] = 0.0
-        return w
-
 
 class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
     r"""
@@ -1261,6 +1239,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         self.t_expiry_sqrt: float = self.t_expiry**0.5
 
         self.delivery_lag = _drb(defaults.fx_delivery_lag, delivery_lag)
+        self.calendar = get_calendar(calendar)
         self.delivery = get_calendar(calendar).lag(self.expiry, self.delivery_lag, True)
         self.pair = pair
 
@@ -1566,6 +1545,15 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
        Acts as the initial node of a *Curve*. Should be assigned today's immediate date.
     weights: Series, optional
        Weights used for temporal volatility interpolation. See notes.
+    delivery_lag: int, optional
+        The number of business days after expiry that the physical settlement of the FX
+        exchange occurs. Uses ``defaults.fx_delivery_lag``. Used in determination of ATM forward
+        rates for different expiries.
+    calendar : calendar or str, optional
+        The holiday calendar object to use for FX delivery day determination. If str, looks up
+        named calendar from static data.
+    pair : str, optional
+        The FX currency pair used to determine ATM forward rates.
     id: str, optional
        The unique identifier to label the *Surface* and its variables.
     ad: int, optional
@@ -1598,13 +1586,16 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
     _mutable_by_association = True
 
     def __init__(
-            self,
-            expiries: list[datetime],
-            node_values: list[DualTypes],
-            eval_date: datetime,
-            weights: Series[float] | NoInput = NoInput(0),
-            id: str | NoInput = NoInput(0),  # noqa: A002
-            ad: int = 0,
+        self,
+        expiries: list[datetime],
+        node_values: list[DualTypes],
+        eval_date: datetime,
+        weights: Series[float] | NoInput = NoInput(0),
+        delivery_lag: int_ = NoInput(0),
+        calendar: CalInput = NoInput(0),
+        pair: str_ = NoInput(0),
+        id: str | NoInput = NoInput(0),  # noqa: A002
+        ad: int = 0,
     ):
         self.id: str = (
             uuid4().hex[:5] + "_" if isinstance(id, NoInput) else id
@@ -1621,19 +1612,26 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         self.eval_date: datetime = eval_date
         self.eval_posix: float = self.eval_date.replace(tzinfo=UTC).timestamp()
 
+        self.delivery_lag = _drb(defaults.fx_delivery_lag, delivery_lag)
+        self.calendar = get_calendar(calendar)
+        self.pair = pair
+
         node_values_: np.ndarray[tuple[int, ...], np.dtype[np.object_]] = np.asarray(node_values)
         self.smiles = [
             FXSabrSmile(
                 nodes=dict(zip(["alpha", "beta", "rho", "nu"], node_values_[i, :], strict=True)),
                 expiry=expiry,
                 eval_date=self.eval_date,
+                delivery_lag=delivery_lag,
+                calendar=calendar,
+                pair=pair,
                 id=f"{self.id}_{i}_",
             )
             for i, expiry in enumerate(self.expiries)
         ]
         self.n: int = len(self.expiries) * 3  # alpha, beta, rho
 
-        self.weights = self._validate_weights(weights)
+        self.weights = _validate_weights(weights, eval_date, expiries)
         self.weights_cum = (
             NoInput(0) if isinstance(self.weights, NoInput) else self.weights.cumsum()
         )
@@ -1678,111 +1676,105 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         return vars_
 
     @_validate_states
-    def get_smile(self, expiry: datetime) -> FXDeltaVolSmile:
+    def get_from_strike(
+        self,
+        k: DualTypes,
+        f: DualTypes | FXForwards,
+        w_deli: DualTypes | NoInput = NoInput(0),
+        w_spot: DualTypes | NoInput = NoInput(0),
+        expiry: datetime_ = NoInput(0),
+    ) -> tuple[DualTypes, DualTypes, DualTypes]:
         """
-        Construct a *SabrSmile* with linear total variance interpolation over strikes.
+        Given an option strike return the volatility.
 
         Parameters
-        ----------
-        expiry: datetime
-            The expiry for the *Smile* as cross-section of *Surface*.
+        -----------
+        k: float, Dual, Dual2
+            The strike of the option.
+        f: float, Dual, Dual2
+            The forward rate at delivery of the option.
+        w_deli: DualTypes, optional
+            Not used by *SabrSmile*
+        w_spot: DualTypes, optional
+            Not used by *SabrSmile*
+        expiry: datetime, optional
+            If given, performs a check to ensure consistency of valuations. Raises if expiry
+            requested and expiry of the *Smile* do not match. Used internally.
 
         Returns
         -------
-        FXDeltaVolSmile
-        """
-        if defaults.curve_caching and expiry in self._cache:
-            return self._cache[expiry]
+        tuple of DualTypes : (placeholder, vol, k)
 
+        Notes
+        -----
+        This function returns a tuple consistent with an
+        :class:`~rateslib.fx_volatility.FXDeltaVolSmile`, however since the *FXSabrSmile* has no
+        concept of a `delta index` the first element returned is always zero and can be
+        effectively ignored.
+        """
         expiry_posix = expiry.replace(tzinfo=UTC).timestamp()
         e_idx = index_left_f64(self.expiries_posix, expiry_posix)
         if expiry == self.expiries[0]:
-            smile = self.smiles[0]
+            return self.smiles[0].get_from_strike(k, f, w_deli, w_spot, expiry)
         elif abs(expiry_posix - self.expiries_posix[e_idx + 1]) < 1e-10:
             # expiry aligns with a known smile
-            smile = self.smiles[e_idx + 1]
+            return self.smiles[e_idx + 1].get_from_strike(k, f, w_deli, w_spot, expiry)
         elif expiry_posix > self.expiries_posix[-1]:
-            # use the data from the last smile
-            smile = FXDeltaVolSmile(
-                nodes={
-                    k: self._t_var_interp(
-                        expiry_index=e_idx,
-                        expiry=expiry,
-                        expiry_posix=expiry_posix,
-                        vol1=vol1,
-                        vol2=vol1,
-                        bounds_flag=1,
-                    )
-                    for k, vol1 in zip(
-                        self.delta_indexes, self.smiles[e_idx + 1].nodes.values(), strict=False
-                    )
-                },
+            # use the SABR parameters from the last smile
+            smile = FXSabrSmile(
+                nodes=self.smiles[e_idx + 1].nodes.copy(),
                 eval_date=self.eval_date,
                 expiry=expiry,
                 ad=self.ad,
-                delta_type=self.delta_type,
+                pair=self.pair,
+                delivery_lag=self.delivery_lag,
+                calendar=self.calendar,
                 id=self.smiles[e_idx + 1].id + "_ext",
             )
+            return smile.get_from_strike(k, f, w_deli, w_spot, expiry)
         elif expiry <= self.eval_date:
             raise ValueError("`expiry` before the `eval_date` of the Surface is invalid.")
         elif expiry_posix < self.expiries_posix[0]:
-            # use the data from the first smile
-            smile = FXDeltaVolSmile(
-                nodes={
-                    k: self._t_var_interp(
-                        expiry_index=e_idx,
-                        expiry=expiry,
-                        expiry_posix=expiry_posix,
-                        vol1=vol1,
-                        vol2=vol1,
-                        bounds_flag=-1,
-                    )
-                    for k, vol1 in zip(
-                        self.delta_indexes, self.smiles[0].nodes.values(), strict=False
-                    )
-                },
+            # use the SABR parameters from the first smile
+            smile = FXSabrSmile(
+                nodes=self.smiles[0].nodes.copy(),
                 eval_date=self.eval_date,
                 expiry=expiry,
                 ad=self.ad,
-                delta_type=self.delta_type,
+                pair=self.pair,
+                delivery_lag=self.delivery_lag,
+                calendar=self.calendar,
                 id=self.smiles[0].id + "_ext",
             )
+            return smile.get_from_strike(k, f, w_deli, w_spot, expiry)
         else:
             ls, rs = self.smiles[e_idx], self.smiles[e_idx + 1]  # left_smile, right_smile
-            smile = FXDeltaVolSmile(
-                nodes={
-                    k: self._t_var_interp(
-                        expiry_index=e_idx,
-                        expiry=expiry,
-                        expiry_posix=expiry_posix,
-                        vol1=vol1,
-                        vol2=vol2,
-                        bounds_flag=0,
-                    )
-                    for k, vol1, vol2 in zip(
-                        self.delta_indexes,
-                        ls.nodes.values(),
-                        rs.nodes.values(),
-                        strict=False,
-                    )
-                },
-                eval_date=self.eval_date,
-                expiry=expiry,
-                ad=self.ad,
-                delta_type=self.delta_type,
-                id=ls.id + "_" + rs.id + "_intp",
-            )
+            if not isinstance(f, FXForwards):
+                raise ValueError(
+                    "`f` must be supplied as `FXForwards` in order to calculate"
+                    "dynamic ATM-forward rates for temporally-interpolated SABR volatility."
+                )
+            lvol = ls.get_from_strike(k, f, NoInput(0), NoInput(0), NoInput(0))[1]
+            rvol = rs.get_from_strike(k, f, NoInput(0), NoInput(0), NoInput(0))[1]
 
-        return self._cached_value(expiry, smile)
+            vol = self._t_var_interp(
+                expiry_index=e_idx,
+                expiry=expiry,
+                expiry_posix=expiry_posix,
+                vol1=lvol,
+                vol2=rvol,
+                bounds_flag=0,
+            )
+            return 0.0, vol, k
 
     def _t_var_interp(
-            self,
-            expiry_index: int,
-            expiry: datetime,
-            expiry_posix: float,
-            vol1: DualTypes,
-            vol2: DualTypes,
-            bounds_flag: int,
+        self,
+        expiry_index: int,
+        expiry: datetime,
+        expiry_posix: float,
+        vol1: DualTypes,
+        vol2: DualTypes,
+        bounds_flag: int,
     ) -> DualTypes:
         """
         Return the volatility of an intermediate timestamp via total linear variance interpolation.
@@ -1823,8 +1815,8 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                 ep1 = self.expiries_posix[expiry_index + 1]
                 ep2 = TERMINAL_DATE.replace(tzinfo=UTC).timestamp()
 
-            t_var_1 = (ep1 - self.eval_posix) * vol1 ** 2
-            t_var_2 = (ep2 - self.eval_posix) * vol2 ** 2
+            t_var_1 = (ep1 - self.eval_posix) * vol1**2
+            t_var_2 = (ep2 - self.eval_posix) * vol2**2
             _: DualTypes = t_var_1 + (t_var_2 - t_var_1) * (expiry_posix - ep1) / (ep2 - ep1)
             _ /= expiry_posix - self.eval_posix
         else:
@@ -1841,19 +1833,46 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                 t2 = self.weights_cum[TERMINAL_DATE]
 
             t = self.weights_cum[expiry]
-            t_var_1 = t1 * vol1 ** 2
-            t_var_2 = t2 * vol2 ** 2
+            t_var_1 = t1 * vol1**2
+            t_var_2 = t2 * vol2**2
             _ = t_var_1 + (t_var_2 - t_var_1) * (t - t1) / (t2 - t1)
             _ *= 86400.0 / (
-                    expiry_posix - self.eval_posix
+                expiry_posix - self.eval_posix
             )  # scale by real cal days and not adjusted weights
-        return _ ** 0.5
+        return _**0.5
 
 
 def _validate_delta_type(delta_type: str) -> str:
     if delta_type.lower() not in ["spot", "spot_pa", "forward", "forward_pa"]:
         raise ValueError("`delta_type` must be in {'spot', 'spot_pa', 'forward', 'forward_pa'}.")
     return delta_type.lower()
+
+
+def _validate_weights(
+    weights: Series[float] | NoInput,
+    eval_date: datetime,
+    expiries: list[datetime],
+) -> Series[float] | NoInput:
+    if isinstance(weights, NoInput):
+        return weights
+
+    w: Series[float] = Series(
+        1.0, index=get_calendar("all").cal_date_range(eval_date, TERMINAL_DATE)
+    )
+    w.update(weights)
+    # restrict to sorted and filtered for outliers
+    w = w.sort_index()
+    w = w[eval_date :]  # type: ignore[misc]
+
+    node_points: list[datetime] = [eval_date] + expiries + [TERMINAL_DATE]
+    for i in range(len(expiries) + 1):
+        s, e = node_points[i] + timedelta(days=1), node_points[i + 1]
+        days = (e - s).days + 1
+        w[s:e] = (  # type: ignore[misc]
+            w[s:e] * days / w[s:e].sum()  # type: ignore[misc]
+        )  # scale the weights to allocate the correct time between nodes.
+    w[eval_date] = 0.0
+    return w
 
 
 # def _convert_same_adjustment_delta(
