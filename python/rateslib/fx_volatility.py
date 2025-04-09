@@ -2399,5 +2399,5 @@ def _validate_smile_plot_comparators(
         raise ValueError(f"A `comparator` type is not valid. Must be of type: {allowed_types}.")
 
 
-FXVols = FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile
-FXVolObj = (FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile)
+FXVols = FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile | FXSabrSurface
+FXVolObj = (FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface)
