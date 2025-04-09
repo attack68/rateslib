@@ -1319,6 +1319,11 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
             )
 
         if isinstance(f, FXForwards):
+            if isinstance(self.pair, NoInput):
+                raise ValueError(
+                    "`FXSabrSmile` must be specified with a `pair` argument to use "
+                    "`FXForwards` objects for forecasting ATM-forward FX rates."
+                )
             f_: DualTypes = f.rate(self.pair, self.delivery)
         elif isinstance(f, float | Dual | Dual2 | Variable):
             f_ = f
@@ -1508,6 +1513,11 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         if isinstance(f, NoInput):
             raise ValueError("`f` (ATM-forward FX rate) is required by `FXSabrSmile.plot`.")
         elif isinstance(f, FXForwards):
+            if isinstance(self.pair, NoInput):
+                raise ValueError(
+                    "`FXSabrSmile` must be specified with a `pair` argument to use "
+                    "`FXForwards` objects for forecasting ATM-forward FX rates."
+                )
             f_: float = _dual_float(f.rate(self.pair, self.delivery))
         elif isinstance(f, float | Dual | Dual2 | Variable):
             f_ = _dual_float(f)
