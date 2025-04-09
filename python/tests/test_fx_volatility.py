@@ -1312,6 +1312,7 @@ class TestFXSabrSmile:
         with pytest.raises(ValueError):
             fxss.get_from_strike(1.02, FXRates({"eurusd": 1.06}))
 
+
 class TestStateAndCache:
     @pytest.mark.parametrize(
         "curve",

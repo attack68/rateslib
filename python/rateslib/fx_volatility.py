@@ -32,6 +32,7 @@ from rateslib.dual import (
     set_order_convert,
 )
 from rateslib.dual.utils import _cast_pair, _dual_float
+from rateslib.fx import FXForwards
 from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,
@@ -39,12 +40,11 @@ from rateslib.mutability import (
     _WithCache,
     _WithState,
 )
-from rateslib.fx import FXForwards
 from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
 
 if TYPE_CHECKING:
-    from rateslib.typing import datetime_, int_, CalInput, str_
+    from rateslib.typing import CalInput, datetime_, int_, str_
 
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
 
