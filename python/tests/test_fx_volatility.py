@@ -1275,6 +1275,43 @@ class TestFXSabrSmile:
         result = gradient(result, ["p"], order=2)[0][0]
         assert abs(result - expected) < 1e-8
 
+    def test_f_with_fxforwards(self, fxfo):
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.17431060,
+                "beta": 1.0,
+                "rho": -0.11268306,
+                "nu": 0.81694072,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 4, 16),
+            id="v",
+            ad=1,
+            pair="eurusd",
+            calendar="tgt|fed",
+        )
+        result = fxss.get_from_strike(1.02, fxfo)[1]
+        expected = 17.803563
+        assert abs(result - expected) < 1e-6
+
+    def test_f_with_fxrates_raises(self, fxfo):
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.17431060,
+                "beta": 1.0,
+                "rho": -0.11268306,
+                "nu": 0.81694072,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 4, 16),
+            id="v",
+            ad=1,
+            pair="eurusd",
+            calendar="tgt|fed",
+        )
+        with pytest.raises(ValueError):
+            fxss.get_from_strike(1.02, FXRates({"eurusd": 1.06}))
+
 
 class TestStateAndCache:
     @pytest.mark.parametrize(
