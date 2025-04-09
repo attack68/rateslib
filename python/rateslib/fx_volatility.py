@@ -1735,18 +1735,17 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         elif expiry <= self.eval_date:
             raise ValueError("`expiry` before the `eval_date` of the Surface is invalid.")
         elif expiry_posix < self.expiries_posix[0]:
-            # use the SABR parameters from the first smile
-            smile = FXSabrSmile(
-                nodes=self.smiles[0].nodes.copy(),
-                eval_date=self.eval_date,
+            # Perform temporal interpolation from the start to the first Smile
+            v_ = self.smiles[0].get_from_strike(k, f, NoInput(0), NoInput(0), NoInput(0))[1]
+            vol = self._t_var_interp(
+                expiry_index=e_idx,
                 expiry=expiry,
-                ad=self.ad,
-                pair=self.pair,
-                delivery_lag=self.delivery_lag,
-                calendar=self.calendar,
-                id=self.smiles[0].id + "_ext",
+                expiry_posix=expiry_posix,
+                vol1=v_,
+                vol2=v_,
+                bounds_flag=-1,
             )
-            return smile.get_from_strike(k, f, w_deli, w_spot, expiry)
+            return 0.0, vol, k
         else:
             ls, rs = self.smiles[e_idx], self.smiles[e_idx + 1]  # left_smile, right_smile
             if not isinstance(f, FXForwards):
