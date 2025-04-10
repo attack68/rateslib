@@ -703,7 +703,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         eta_1, z_w_1, _ = _delta_type_constants(vol_delta_type, z_w, 0.0)  #  u: unused
 
         if isinstance(vol, FXSabrSmile):
-            k = self._strike_from_atm_sabr(f, eta_0, vol, t_e)
+            k = self._strike_from_atm_sabr(f, eta_0, vol)
             return k, None
 
         # u, delta_idx, delta =
@@ -749,10 +749,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
         return u * f, delta_idx
 
     def _strike_from_atm_sabr(
-        self, f: DualTypes, eta_0: float, vol: FXSabrSmile, t_e: DualTypes
+        self, f: DualTypes, eta_0: float, vol: FXSabrSmile,
     ) -> DualTypes:
+        t_e = (self.expiry - vol.eval_date).days / 365.0
         def root1d(k: DualTypes, f: DualTypes) -> tuple[DualTypes, DualTypes]:
-            sigma, dsigma_dk = vol._d_sabr_d_k(k, f, t_e)
+            sigma, dsigma_dk = vol._d_sabr_d_k(k, f, self.expiry)
             f0 = -dual_log(k / f) + eta_0 * sigma**2 * t_e
             f1 = -1 / k + eta_0 * 2 * sigma * dsigma_dk * t_e
             return f0, f1
@@ -781,7 +782,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         z_w = w_deli / w_spot
 
         if isinstance(vol, FXSabrSmile):
-            k = self._strike_from_delta_sabr(delta, delta_type, vol, z_w, f, t_e)
+            k = self._strike_from_delta_sabr(delta, delta_type, vol, z_w, f)
             return k, None
 
         eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, 0.0)  # u: unused
@@ -827,13 +828,13 @@ class FXOptionPeriod(metaclass=ABCMeta):
         vol: FXSabrSmile,
         z_w: DualTypes,
         f: DualTypes,
-        t_e: DualTypes,
     ) -> DualTypes:
         eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, 0.0)  # u: unused
+        t_e = (self.expiry - vol.eval_date).days / 365.
         sqrt_t = t_e**0.5
 
         def root1d(k: DualTypes, f: DualTypes) -> tuple[DualTypes, DualTypes]:
-            sigma, dsigma_dk = vol._d_sabr_d_k(k, f, t_e)
+            sigma, dsigma_dk = vol._d_sabr_d_k(k, f, self.expiry)
             dn0 = -dual_log(k / f) / (sigma * sqrt_t) + eta_0 * sigma * sqrt_t
             Phi = dual_norm_cdf(self.phi * dn0)
 

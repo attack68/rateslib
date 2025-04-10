@@ -1259,9 +1259,10 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         return 0.0, vol_ * 100.0, k
 
     def _d_sabr_d_k(
-        self, k: DualTypes, f: DualTypes, t_e: DualTypes
+        self, k: DualTypes, f: DualTypes, expiry: datetime
     ) -> tuple[DualTypes, DualTypes]:
         """Get the derivative of sabr vol with respect to strike"""
+        t_e = (expiry - self.eval_date).days / 365.0
         return _d_sabr_d_k(
             k,
             f,
@@ -1716,6 +1717,79 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
             )
             return 0.0, vol, k
 
+    @_validate_states
+    def _d_sabr_d_k(
+        self,
+        k: DualTypes,
+        f: DualTypes,
+        expiry: datetime_ = NoInput(0),
+    ):
+        expiry_posix = expiry.replace(tzinfo=UTC).timestamp()
+        e_idx = index_left_f64(self.expiries_posix, expiry_posix)
+        t_e = (expiry_posix - self.eval_posix) / (86400 * 365)
+        if expiry == self.expiries[0]:
+            return self.smiles[0]._d_sabr_d_k(k, f, t_e)
+        elif abs(expiry_posix - self.expiries_posix[e_idx + 1]) < 1e-10:
+            # expiry aligns with a known smile
+            return self.smiles[e_idx + 1]._d_sabr_d_k(k, f, t_e)
+        elif expiry_posix > self.expiries_posix[-1]:
+            # use the SABR parameters from the last smile
+            smile = FXSabrSmile(
+                nodes=self.smiles[e_idx + 1].nodes.copy(),
+                eval_date=self.eval_date,
+                expiry=expiry,
+                ad=self.ad,
+                pair=self.pair,
+                delivery_lag=self.delivery_lag,
+                calendar=self.calendar,
+                id=self.smiles[e_idx + 1].id + "_ext",
+            )
+            return smile._d_sabr_d_k(k, f, t_e)
+        elif expiry <= self.eval_date:
+            raise ValueError("`expiry` before the `eval_date` of the Surface is invalid.")
+        elif expiry_posix < self.expiries_posix[0]:
+            # Perform temporal interpolation from the start to the first Smile
+            vol_, dvol_k = self.smiles[0]._d_sabr_d_k(k, f, t_e)
+            return _t_var_interp_d_sabr_d_k(
+                expiries=self.expiries,
+                expiries_posix=self.expiries_posix,
+                expiry=expiry,
+                expiry_posix=expiry_posix,
+                expiry_index=e_idx,
+                eval_posix=self.eval_posix,
+                weights_cum=self.weights_cum,
+                vol1=vol_,
+                dvol1_dk=dvol_k,
+                vol2=vol_,
+                dvol2_dk=dvol_k,
+                bounds_flag=-1,
+            )
+        else:
+            ls, rs = self.smiles[e_idx], self.smiles[e_idx + 1]  # left_smile, right_smile
+            if not isinstance(f, FXForwards):
+                raise ValueError(
+                    "`f` must be supplied as `FXForwards` in order to calculate"
+                    "dynamic ATM-forward rates for temporally-interpolated SABR volatility."
+                )
+            lvol, d_lvol_dk = ls._d_sabr_d_k(k, f, t_e)
+            rvol, d_lvol_dk = rs._d_sabr_d_k(k, f, t_e)
+
+            vol_, dvol_k = self.smiles[0]._d_sabr_d_k(k, f, t_e)
+            return _t_var_interp_d_sabr_d_k(
+                expiries=self.expiries,
+                expiries_posix=self.expiries_posix,
+                expiry=expiry,
+                expiry_posix=expiry_posix,
+                expiry_index=e_idx,
+                eval_posix=self.eval_posix,
+                weights_cum=self.weights_cum,
+                vol1=vol_,
+                dvol1_dk=dvol_k,
+                vol2=vol_,
+                dvol2_dk=dvol_k,
+                bounds_flag=-1,
+            )
+
 
 def _validate_delta_type(delta_type: str) -> str:
     if delta_type.lower() not in ["spot", "spot_pa", "forward", "forward_pa"]:
@@ -1830,10 +1904,62 @@ def _t_var_interp(
         t_var_1 = t1 * vol1**2
         t_var_2 = t2 * vol2**2
         _ = t_var_1 + (t_var_2 - t_var_1) * (t - t1) / (t2 - t1)
-        _ *= 86400.0 / (
-            expiry_posix - eval_posix
-        )  # scale by real cal days and not adjusted weights
+        # scale by real cal days and not adjusted weights
+        _ *= 86400.0 / (expiry_posix - eval_posix)
     return _**0.5
+
+
+def _t_var_interp_d_sabr_d_k(
+    expiries: list[datetime],
+    expiries_posix: list[float],
+    expiry: datetime,
+    expiry_posix: float,
+    expiry_index: int,
+    eval_posix: float,
+    weights_cum: Series[float] | NoInput,
+    vol1: DualTypes,
+    dvol1_dk: DualTypes,
+    vol2: DualTypes,
+    dvol2_dk: DualTypes,
+    bounds_flag: int,
+):
+    if isinstance(weights_cum, NoInput):  # weights must also be NoInput
+        if bounds_flag == 0:
+            t1 = expiries_posix[expiry_index] - eval_posix
+            t2 = expiries_posix[expiry_index + 1] - eval_posix
+        elif bounds_flag == -1:
+            # left side extrapolation
+            t1 = 0.0
+            t2 = expiries_posix[expiry_index] - eval_posix
+        else:  # bounds_flag == 1:
+            # right side extrapolation
+            t1 = expiries_posix[expiry_index + 1] - eval_posix
+            t2 = TERMINAL_DATE.replace(tzinfo=UTC).timestamp() - eval_posix
+
+        t_hat = expiry_posix - eval_posix
+        t = expiry_posix - eval_posix
+    else:
+        if bounds_flag == 0:
+            t1 = weights_cum[expiries[expiry_index]]
+            t2 = weights_cum[expiries[expiry_index + 1]]
+        elif bounds_flag == -1:
+            # left side extrapolation
+            t1 = 0.0
+            t2 = weights_cum[expiries[expiry_index]]
+        else:  # bounds_flag == 1:
+            # right side extrapolation
+            t1 = weights_cum[expiries[expiry_index + 1]]
+            t2 = weights_cum[TERMINAL_DATE]
+
+        t_hat = weights_cum[expiry]  # number of vol weighted calendar days
+        t = (expiry_posix - eval_posix) / 86400.0  # number of calendar days
+
+    t_quotient = (t_hat - t1) / (t2 - t1)
+    vol = ((t1 * vol1 ** 2 + t_quotient*(t2 * vol2**2 - t1 * vol1 ** 2)) / t) ** 0.5
+    dvol_dk = -(
+        (t2 / t) * t_quotient * vol2 * dvol1_dk + (t1 / t) * (1 - t_quotient) * vol1 * dvol2_dk
+    ) / vol
+    return vol, dvol_dk
 
 
 # def _convert_same_adjustment_delta(
