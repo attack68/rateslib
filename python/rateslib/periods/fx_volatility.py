@@ -713,6 +713,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
     def _strike_from_atm_sabr(  # SABR type models
         self, f: DualTypes, eta_0: float, vol: FXSabrSmile, t_e: DualTypes
     ) -> DualTypes:
+        """Determine strike from ATM delta specification with SABR models."""
         def root1d(k: DualTypes, f: DualTypes) -> tuple[DualTypes, DualTypes]:
             sigma, dsigma_dk = vol._d_sabr_d_k(k, f, t_e)
             f0 = -dual_log(k / f) + eta_0 * sigma**2 * t_e
@@ -742,6 +743,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         vol_delta_type: str,
         z_w: DualTypes,
     ) -> tuple[DualTypes, DualTypes | None]:
+        """Determine strike from ATM delta specification with DeltaVol models or fixed volatility"""
         if eta_0 == 0.5:  # then delta type is unadjusted
             if eta_1 == 0.5:  # then smile delta type matches: closed form eqn available
                 if isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
@@ -793,13 +795,52 @@ class FXOptionPeriod(metaclass=ABCMeta):
         f: DualTypes,
         t_e: DualTypes,
     ) -> tuple[DualTypes, DualTypes | None]:
+        """
+        This function returns strike and, where available, a delta index for an option period
+        defined by a fixed delta percentage.
+
+        Parameters
+        ----------
+        delta: float
+           The delta percent, e.g 0.25.
+        delta_type: str
+           The delta type of the option period.
+        vol: DualTypes | Smile | Surface
+           The volatility used, either a specific value or a Smile/Surface.
+        w_deli: DualTypes
+           The relevant discount factor at delivery.
+        w_spot: DualTypes
+           The relevant discount factor at spot.
+        f: DualTypes
+           The forward FX rate for delivery.
+        t_e: DualTypes
+           The time to expiry
+
+        Returns
+        -------
+        (DualTypes, DualTypes)
+        """
         vol_delta_type = _get_vol_delta_type(vol, delta_type)
         z_w = w_deli / w_spot
 
         if isinstance(vol, FXSabrSmile):
             k = self._strike_from_delta_sabr(delta, delta_type, vol, z_w, f, t_e)
             return k, None
+        else: # DualTypes | FXDeltaVolSmile | FXDeltaVolSurface
+            return self._strike_from_atm_dv(f, delta, vol, t_e, delta_type, vol_delta_type, z_w)
 
+    def _strike_from_delta_dv(
+        self,
+        f: DualTypes,
+        delta: float,
+        vol: DualTypes | FXDeltaVolSmile | FXDeltaVolSurface,
+        t_e: DualTypes,
+        delta_type: str,
+        vol_delta_type: str,
+        z_w: DualTypes,
+    ) -> tuple[DualTypes, DualTypes | None]:
+        """Determine strike and delta index for an option by delta % for DeltaVol type models
+        or constant volatility"""
         eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, 0.0)  # u: unused
         eta_1, z_w_1, _ = _delta_type_constants(vol_delta_type, z_w, 0.0)  # u: unused
         # then delta types are both unadjusted, used closed form.
