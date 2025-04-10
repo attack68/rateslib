@@ -848,18 +848,18 @@ class FXOptionPeriod(metaclass=ABCMeta):
             Phi = dual_norm_cdf(self.phi * dn0)
 
             if eta_0 == -0.5:
-                z_u, dz_u_dk = k / f, 1 / f
-                d_1 = -dz_u_dk * z_w * self.phi * Phi
+                z_u_0, dz_u_dk = k / f, 1 / f
+                d_1 = -dz_u_dk * z_w_0 * self.phi * Phi
             else:
-                z_u, dz_u_dk = 1.0, 0.0
+                z_u_0, dz_u_dk = 1.0, 0.0
                 d_1 = 0.0
 
             ddn_dk = (dual_log(k / f) / (sigma**2 * sqrt_t) + eta_0 * sqrt_t) * dsigma_dk - 1 / (
                 k * sigma * sqrt_t
             )
-            d_2 = -z_u * z_w * dual_norm_pdf(self.phi * dn0) * ddn_dk
+            d_2 = -z_u_0 * z_w_0 * dual_norm_pdf(self.phi * dn0) * ddn_dk
 
-            f0 = delta - z_w * z_u * self.phi * Phi
+            f0 = delta - z_w_0 * z_u_0 * self.phi * Phi
             f1 = d_1 + d_2
             return f0, f1
 
@@ -870,7 +870,12 @@ class FXOptionPeriod(metaclass=ABCMeta):
             expiry_posix = self.expiry.replace(tzinfo=UTC).timestamp()
             e_idx = index_left_f64(vol.expiries_posix, expiry_posix)
             alpha = vol.smiles[e_idx].nodes["alpha"]
-        g0 = self._moneyness_from_delta_closed_form(g01, alpha * 100.0, t_e, 1.0) * f
+
+        g0 = self._moneyness_from_delta_closed_form(g01, alpha * 100.0, t_e, z_w_0) * f
+        # v0 = vol.get_from_strike(_dual_float(g0), _dual_float(f), NoInput(0), NoInput(0), self.expiry)[1]
+        # g0 = self._moneyness_from_delta_closed_form(g01, v0, t_e, z_w_0) * f
+        # v0 = vol.get_from_strike(_dual_float(g0), _dual_float(f), NoInput(0), NoInput(0), self.expiry)[1]
+        # g0 = self._moneyness_from_delta_closed_form(g01, v0, t_e, z_w_0) * f
 
         root_solver = newton_1dim(
             root1d,

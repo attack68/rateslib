@@ -1518,7 +1518,7 @@ class TestFXSabrSurface:
 
         test = instruments_gt_1y[59]
 
-        calc = test.periods[1].analytic_greeks([None, eurusd, None, usd], NoInput(0), fxf, NoInput(0), surface)
+        calc = test.rate([None, eurusd, None, usd], fx=fxf, vol=surface)
 
 
         callback = lambda x: print("ITERATION")
@@ -1533,7 +1533,6 @@ class TestFXSabrSurface:
             id="eurusd_vol",
             callback=callback,
         )
-
 
 
 class TestStateAndCache:
