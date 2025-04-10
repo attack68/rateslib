@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING
-from pytz import UTC
 
 import numpy as np
+from pytz import UTC
 
 from rateslib import defaults
 from rateslib.curves._parsers import _validate_obj_not_no_input
@@ -29,8 +29,8 @@ from rateslib.periods.utils import (
     _get_vol_smile_or_value,
     _maybe_local,
 )
-from rateslib.splines import evaluate
 from rateslib.rs import index_left_f64
+from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
     from rateslib.typing import (
@@ -751,9 +751,13 @@ class FXOptionPeriod(metaclass=ABCMeta):
         return u * f, delta_idx
 
     def _strike_from_atm_sabr(
-        self, f: DualTypes, eta_0: float, vol: FXSabrSmile | FXSabrSurface,
+        self,
+        f: DualTypes,
+        eta_0: float,
+        vol: FXSabrSmile | FXSabrSurface,
     ) -> DualTypes:
         t_e = (self.expiry - vol.eval_date).days / 365.0
+
         def root1d(k: DualTypes, f: DualTypes) -> tuple[DualTypes, DualTypes]:
             sigma, dsigma_dk = vol._d_sabr_d_k(k, f, self.expiry)
             f0 = -dual_log(k / f) + eta_0 * sigma**2 * t_e
@@ -769,7 +773,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         root_solver = newton_1dim(
             root1d,
-            f * dual_exp(eta_0 * alpha ** 2 * t_e),
+            f * dual_exp(eta_0 * alpha**2 * t_e),
             args=(f,),
             raise_on_fail=True,
         )
@@ -839,7 +843,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         f: DualTypes,
     ) -> DualTypes:
         eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, 0.0)  # u: unused
-        t_e = (self.expiry - vol.eval_date).days / 365.
+        t_e = (self.expiry - vol.eval_date).days / 365.0
         sqrt_t = t_e**0.5
 
         def root1d(k: DualTypes, f: DualTypes) -> tuple[DualTypes, DualTypes]:
@@ -872,10 +876,6 @@ class FXOptionPeriod(metaclass=ABCMeta):
             alpha = vol.smiles[e_idx].nodes["alpha"]
 
         g0 = self._moneyness_from_delta_closed_form(g01, alpha * 100.0, t_e, z_w_0) * f
-        # v0 = vol.get_from_strike(_dual_float(g0), _dual_float(f), NoInput(0), NoInput(0), self.expiry)[1]
-        # g0 = self._moneyness_from_delta_closed_form(g01, v0, t_e, z_w_0) * f
-        # v0 = vol.get_from_strike(_dual_float(g0), _dual_float(f), NoInput(0), NoInput(0), self.expiry)[1]
-        # g0 = self._moneyness_from_delta_closed_form(g01, v0, t_e, z_w_0) * f
 
         root_solver = newton_1dim(
             root1d,

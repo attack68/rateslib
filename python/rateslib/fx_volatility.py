@@ -1816,7 +1816,7 @@ def _validate_weights(
     w.update(weights)
     # restrict to sorted and filtered for outliers
     w = w.sort_index()
-    w = w[eval_date :]  # type: ignore[misc]
+    w = w[eval_date:]  # type: ignore[misc]
 
     node_points: list[datetime] = [eval_date] + expiries + [TERMINAL_DATE]
     for i in range(len(expiries) + 1):
@@ -1960,10 +1960,11 @@ def _t_var_interp_d_sabr_d_k(
         t = (expiry_posix - eval_posix) / 86400.0  # number of calendar days
 
     t_quotient = (t_hat - t1) / (t2 - t1)
-    vol = ((t1 * vol1 ** 2 + t_quotient*(t2 * vol2**2 - t1 * vol1 ** 2)) / t) ** 0.5
-    dvol_dk = -(
-        (t2 / t) * t_quotient * vol2 * dvol1_dk + (t1 / t) * (1 - t_quotient) * vol1 * dvol2_dk
-    ) / vol
+    vol = ((t1 * vol1**2 + t_quotient * (t2 * vol2**2 - t1 * vol1**2)) / t) ** 0.5
+    dvol_dk = (
+        -((t2 / t) * t_quotient * vol2 * dvol1_dk + (t1 / t) * (1 - t_quotient) * vol1 * dvol2_dk)
+        / vol
+    )
     return vol, dvol_dk
 
 
