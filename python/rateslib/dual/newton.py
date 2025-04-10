@@ -133,12 +133,8 @@ def newton_1dim(
     g0 = _dual_float(g0)
     state = -1
 
-    # f0_cache = []
-    # g0_cache = []
     while i < max_iter:
-        # g0_cache.append(g0)
         f0, f1 = f(*(g0, *float_args, *pre_args))  # type: ignore[call-arg, arg-type]
-        # f0_cache.append(f0)
         i += 1
         g1 = g0 - f0 / f1
         if abs(f0) < func_tol:
@@ -147,10 +143,6 @@ def newton_1dim(
         elif abs(g1 - g0) < conv_tol:
             state = 1
             break
-        # elif i > 1 and abs(f0_cache[-1]) > abs(f0_cache[-2]):
-        #     g1 = (g0_cache[-1] + g0_cache[-2]) / 2.0
-        #     g0_cache.pop()
-        #     f0_cache.pop()
         g0 = g1
 
     if i == max_iter:
