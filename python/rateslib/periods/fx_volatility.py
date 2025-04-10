@@ -702,7 +702,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, 0.0)  # u: unused
         eta_1, z_w_1, _ = _delta_type_constants(vol_delta_type, z_w, 0.0)  #  u: unused
 
-        if isinstance(vol, FXSabrSmile):
+        if isinstance(vol, FXSabrSmile | FXSabrSurface):
             k = self._strike_from_atm_sabr(f, eta_0, vol, t_e)
             return k, None
         else:  # DualTypes | FXDeltaVolSmile | FXDeltaVolSurface
@@ -714,6 +714,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         self, f: DualTypes, eta_0: float, vol: FXSabrSmile, t_e: DualTypes
     ) -> DualTypes:
         """Determine strike from ATM delta specification with SABR models."""
+
         def root1d(k: DualTypes, f: DualTypes) -> tuple[DualTypes, DualTypes]:
             sigma, dsigma_dk = vol._d_sabr_d_k(k, f, t_e)
             f0 = -dual_log(k / f) + eta_0 * sigma**2 * t_e
@@ -823,10 +824,10 @@ class FXOptionPeriod(metaclass=ABCMeta):
         vol_delta_type = _get_vol_delta_type(vol, delta_type)
         z_w = w_deli / w_spot
 
-        if isinstance(vol, FXSabrSmile):
+        if isinstance(vol, FXSabrSmile | FXSabrSurface):
             k = self._strike_from_delta_sabr(delta, delta_type, vol, z_w, f, t_e)
             return k, None
-        else: # DualTypes | FXDeltaVolSmile | FXDeltaVolSurface
+        else:  # DualTypes | FXDeltaVolSmile | FXDeltaVolSurface
             return self._strike_from_delta_dv(f, delta, vol, t_e, delta_type, vol_delta_type, z_w)
 
     def _strike_from_delta_dv(
