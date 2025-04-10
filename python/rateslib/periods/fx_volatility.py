@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING
+from pytz import UTC
 
 import numpy as np
 
@@ -29,6 +30,7 @@ from rateslib.periods.utils import (
     _maybe_local,
 )
 from rateslib.splines import evaluate
+from rateslib.rs import index_left_f64
 
 if TYPE_CHECKING:
     from rateslib.typing import (
@@ -702,7 +704,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, 0.0)  # u: unused
         eta_1, z_w_1, _ = _delta_type_constants(vol_delta_type, z_w, 0.0)  #  u: unused
 
-        if isinstance(vol, FXSabrSmile):
+        if isinstance(vol, FXSabrSmile | FXSabrSurface):
             k = self._strike_from_atm_sabr(f, eta_0, vol)
             return k, None
 
@@ -749,7 +751,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         return u * f, delta_idx
 
     def _strike_from_atm_sabr(
-        self, f: DualTypes, eta_0: float, vol: FXSabrSmile,
+        self, f: DualTypes, eta_0: float, vol: FXSabrSmile | FXSabrSurface,
     ) -> DualTypes:
         t_e = (self.expiry - vol.eval_date).days / 365.0
         def root1d(k: DualTypes, f: DualTypes) -> tuple[DualTypes, DualTypes]:
@@ -758,9 +760,16 @@ class FXOptionPeriod(metaclass=ABCMeta):
             f1 = -1 / k + eta_0 * 2 * sigma * dsigma_dk * t_e
             return f0, f1
 
+        if isinstance(vol, FXSabrSmile):
+            alpha = vol.nodes["alpha"]
+        else:  # FXSabrSurface
+            expiry_posix = self.expiry.replace(tzinfo=UTC).timestamp()
+            e_idx = index_left_f64(vol.expiries_posix, expiry_posix)
+            alpha = vol.smiles[e_idx].nodes["alpha"]
+
         root_solver = newton_1dim(
             root1d,
-            f * dual_exp(eta_0 * vol.nodes["alpha"] ** 2 * t_e),
+            f * dual_exp(eta_0 * alpha ** 2 * t_e),
             args=(f,),
             raise_on_fail=True,
         )
@@ -781,7 +790,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         vol_delta_type = _get_vol_delta_type(vol, delta_type)
         z_w = w_deli / w_spot
 
-        if isinstance(vol, FXSabrSmile):
+        if isinstance(vol, FXSabrSmile | FXSabrSurface):
             k = self._strike_from_delta_sabr(delta, delta_type, vol, z_w, f)
             return k, None
 
@@ -825,7 +834,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         self,
         delta: float,
         delta_type: str,
-        vol: FXSabrSmile,
+        vol: FXSabrSmile | FXSabrSurface,
         z_w: DualTypes,
         f: DualTypes,
     ) -> DualTypes:
@@ -855,7 +864,13 @@ class FXOptionPeriod(metaclass=ABCMeta):
             return f0, f1
 
         g01 = delta if self.phi > 0 else max(delta, -0.75)
-        g0 = self._moneyness_from_delta_closed_form(g01, vol.nodes["alpha"], t_e, 1.0) * f
+        if isinstance(vol, FXSabrSmile):
+            alpha = vol.nodes["alpha"]
+        else:  # FXSabrSurface
+            expiry_posix = self.expiry.replace(tzinfo=UTC).timestamp()
+            e_idx = index_left_f64(vol.expiries_posix, expiry_posix)
+            alpha = vol.smiles[e_idx].nodes["alpha"]
+        g0 = self._moneyness_from_delta_closed_form(g01, alpha * 100.0, t_e, 1.0) * f
 
         root_solver = newton_1dim(
             root1d,

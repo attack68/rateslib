@@ -1726,12 +1726,12 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
     ):
         expiry_posix = expiry.replace(tzinfo=UTC).timestamp()
         e_idx = index_left_f64(self.expiries_posix, expiry_posix)
-        t_e = (expiry_posix - self.eval_posix) / (86400 * 365)
+
         if expiry == self.expiries[0]:
-            return self.smiles[0]._d_sabr_d_k(k, f, t_e)
+            return self.smiles[0]._d_sabr_d_k(k, f, expiry)
         elif abs(expiry_posix - self.expiries_posix[e_idx + 1]) < 1e-10:
             # expiry aligns with a known smile
-            return self.smiles[e_idx + 1]._d_sabr_d_k(k, f, t_e)
+            return self.smiles[e_idx + 1]._d_sabr_d_k(k, f, expiry)
         elif expiry_posix > self.expiries_posix[-1]:
             # use the SABR parameters from the last smile
             smile = FXSabrSmile(
@@ -1744,12 +1744,12 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                 calendar=self.calendar,
                 id=self.smiles[e_idx + 1].id + "_ext",
             )
-            return smile._d_sabr_d_k(k, f, t_e)
+            return smile._d_sabr_d_k(k, f, expiry)
         elif expiry <= self.eval_date:
             raise ValueError("`expiry` before the `eval_date` of the Surface is invalid.")
         elif expiry_posix < self.expiries_posix[0]:
             # Perform temporal interpolation from the start to the first Smile
-            vol_, dvol_k = self.smiles[0]._d_sabr_d_k(k, f, t_e)
+            vol_, dvol_k = self.smiles[0]._d_sabr_d_k(k, f, expiry)
             return _t_var_interp_d_sabr_d_k(
                 expiries=self.expiries,
                 expiries_posix=self.expiries_posix,
@@ -1771,10 +1771,10 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                     "`f` must be supplied as `FXForwards` in order to calculate"
                     "dynamic ATM-forward rates for temporally-interpolated SABR volatility."
                 )
-            lvol, d_lvol_dk = ls._d_sabr_d_k(k, f, t_e)
-            rvol, d_lvol_dk = rs._d_sabr_d_k(k, f, t_e)
+            lvol, d_lvol_dk = ls._d_sabr_d_k(k, f, expiry)
+            rvol, d_lvol_dk = rs._d_sabr_d_k(k, f, expiry)
 
-            vol_, dvol_k = self.smiles[0]._d_sabr_d_k(k, f, t_e)
+            vol_, dvol_k = self.smiles[0]._d_sabr_d_k(k, f, expiry)
             return _t_var_interp_d_sabr_d_k(
                 expiries=self.expiries,
                 expiries_posix=self.expiries_posix,
