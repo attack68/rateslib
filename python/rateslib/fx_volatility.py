@@ -1524,15 +1524,16 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         else:
             raise ValueError("`f` (ATM-forward FX rate) must be a value or FXForwards object.")
 
-        vol_approx = _dual_float(self.get_from_strike(f_, f_)[1])
-        xlow = _dual_float(
-            dual_exp(dual_log(f_) * (1 - 3.0 * vol_approx / 100 * self.t_expiry_sqrt))
+        v_ = _dual_float(self.get_from_strike(f_, f_)[1]) / 100.0
+        sq_t = self.t_expiry_sqrt
+        x_low = _dual_float(
+            dual_exp(0.5 * v_**2 * sq_t**2 - dual_inv_norm_cdf(0.95) * v_ * sq_t) * f_
         )
-        xtop = _dual_float(
-            dual_exp(dual_log(f_) * (1 + 3.0 * vol_approx / 100 * self.t_expiry_sqrt))
+        x_top = _dual_float(
+            dual_exp(0.5 * v_**2 * sq_t**2 - dual_inv_norm_cdf(0.05) * v_ * sq_t) * f_
         )
 
-        x = np.linspace(xlow, xtop, 301)
+        x = np.linspace(x_low, x_top, 301)
         u = x / f_
         y: list[DualTypes] = [self.get_from_strike(_, f_)[1] for _ in x]
         if x_axis == "moneyness":

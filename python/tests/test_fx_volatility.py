@@ -1319,10 +1319,10 @@ class TestFXSabrSmile:
             nodes={"alpha": 0.02, "beta": 1.0, "rho": 0.01, "nu": 0.05},
         )
         ax, fig, lines = ss.plot(f=1.60)
-        assert abs(lines[0]._x[0] - 1.3696) < 1e-4
-        assert abs(lines[0]._x[-1] - 1.8692) < 1e-4
-        assert abs(lines[0]._y[0] - 2.0576) < 1e-4
-        assert abs(lines[0]._y[-1] - 2.0650) < 1e-4
+        assert abs(lines[0]._x[0] - 1.3427) < 1e-4
+        assert abs(lines[0]._x[-1] - 1.9299) < 1e-4
+        assert abs(lines[0]._y[0] - 2.0698) < 1e-4
+        assert abs(lines[0]._y[-1] - 2.0865) < 1e-4
 
 
 class TestStateAndCache:
