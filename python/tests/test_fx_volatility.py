@@ -1312,6 +1312,17 @@ class TestFXSabrSmile:
         with pytest.raises(ValueError):
             fxss.get_from_strike(1.02, FXRates({"eurusd": 1.06}))
 
+    def test_plot_domain(self):
+        ss = FXSabrSmile(
+            eval_date=dt(2024, 5, 28),
+            expiry=dt(2054, 5, 28),
+            nodes={"alpha": 0.02, "beta": 1.0, "rho": 0.01, "nu": 0.05}
+        )
+        ax, fig, lines = ss.plot(f=1.60)
+        assert abs(lines[0]._x[0] - 1.3696) < 1e-4
+        assert abs(lines[0]._x[-1] - 1.8692) < 1e-4
+        assert abs(lines[0]._y[0] - 2.0576) < 1e-4
+        assert abs(lines[0]._y[-1] - 2.0650) < 1e-4
 
 class TestStateAndCache:
     @pytest.mark.parametrize(
