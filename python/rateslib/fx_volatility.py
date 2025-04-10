@@ -1526,8 +1526,8 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
 
         v_ = _dual_float(self.get_from_strike(f_, f_)[1]) / 100.0
         sq_t = self.t_expiry_sqrt
-        x_low = dual_exp(0.5 * v_ ** 2 * sq_t ** 2 - dual_inv_norm_cdf(0.95) * v_ * sq_t) * f_
-        x_top = dual_exp(0.5 * v_ ** 2 * sq_t ** 2 - dual_inv_norm_cdf(0.05) * v_ * sq_t) * f_
+        x_low = dual_exp(0.5 * v_**2 * sq_t**2 - dual_inv_norm_cdf(0.95) * v_ * sq_t) * f_
+        x_top = dual_exp(0.5 * v_**2 * sq_t**2 - dual_inv_norm_cdf(0.05) * v_ * sq_t) * f_
 
         x = np.linspace(x_low, x_top, 301)
         u = x / f_
