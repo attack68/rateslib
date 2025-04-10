@@ -705,10 +705,43 @@ class FXOptionPeriod(metaclass=ABCMeta):
         if isinstance(vol, FXSabrSmile):
             k = self._strike_from_atm_sabr(f, eta_0, vol, t_e)
             return k, None
+        else:  # DualTypes | FXDeltaVolSmile | FXDeltaVolSurface
+            return self._strike_from_atm_dv(
+                f, eta_0, eta_1, z_w_0, z_w_1, vol, t_e, delta_type, vol_delta_type, z_w
+            )
 
-        # u, delta_idx, delta =
-        # self._moneyness_from_delta_three_dimensional(delta_type, vol, t_e, z_w)
+    def _strike_from_atm_sabr(  # SABR type models
+        self, f: DualTypes, eta_0: float, vol: FXSabrSmile, t_e: DualTypes
+    ) -> DualTypes:
+        def root1d(k: DualTypes, f: DualTypes) -> tuple[DualTypes, DualTypes]:
+            sigma, dsigma_dk = vol._d_sabr_d_k(k, f, t_e)
+            f0 = -dual_log(k / f) + eta_0 * sigma**2 * t_e
+            f1 = -1 / k + eta_0 * 2 * sigma * dsigma_dk * t_e
+            return f0, f1
 
+        root_solver = newton_1dim(
+            root1d,
+            f * dual_exp(eta_0 * vol.nodes["alpha"] ** 2 * t_e),
+            args=(f,),
+            raise_on_fail=True,
+        )
+
+        k: DualTypes = root_solver["g"]
+        return k
+
+    def _strike_from_atm_dv(  # DeltaVol type models
+        self,
+        f: DualTypes,
+        eta_0: float,
+        eta_1: float,
+        z_w_0: DualTypes,
+        z_w_1: DualTypes,
+        vol: DualTypes | FXDeltaVolSmile | FXDeltaVolSurface,
+        t_e: DualTypes,
+        delta_type: str,
+        vol_delta_type: str,
+        z_w: DualTypes,
+    ) -> tuple[DualTypes, DualTypes | None]:
         if eta_0 == 0.5:  # then delta type is unadjusted
             if eta_1 == 0.5:  # then smile delta type matches: closed form eqn available
                 if isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
@@ -746,26 +779,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
                     z_w,
                 )
 
+        # u, delta_idx, delta =
+        # self._moneyness_from_delta_three_dimensional(delta_type, vol, t_e, z_w)
         return u * f, delta_idx
-
-    def _strike_from_atm_sabr(
-        self, f: DualTypes, eta_0: float, vol: FXSabrSmile, t_e: DualTypes
-    ) -> DualTypes:
-        def root1d(k: DualTypes, f: DualTypes) -> tuple[DualTypes, DualTypes]:
-            sigma, dsigma_dk = vol._d_sabr_d_k(k, f, t_e)
-            f0 = -dual_log(k / f) + eta_0 * sigma**2 * t_e
-            f1 = -1 / k + eta_0 * 2 * sigma * dsigma_dk * t_e
-            return f0, f1
-
-        root_solver = newton_1dim(
-            root1d,
-            f * dual_exp(eta_0 * vol.nodes["alpha"] ** 2 * t_e),
-            args=(f,),
-            raise_on_fail=True,
-        )
-
-        k: DualTypes = root_solver["g"]
-        return k
 
     def _strike_and_index_from_delta(
         self,
