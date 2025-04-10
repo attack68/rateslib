@@ -147,7 +147,10 @@ def newton_1dim(
 
     if i == max_iter:
         if raise_on_fail:
-            raise ValueError(f"`max_iter`: {max_iter} exceeded in 'newton_1dim' algorithm'.")
+            raise ValueError(
+                f"`max_iter`: {max_iter} exceeded in 'newton_1dim' algorithm'.\n"
+                f"Last iteration values:\nf0: {f0}\nf1: {f1}\ng0: {g0}"
+            )
         else:
             return _solver_result(-1, i, g1, time() - t0, log=True, algo="newton_1dim")
 
