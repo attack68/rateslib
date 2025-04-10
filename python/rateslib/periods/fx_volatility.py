@@ -827,7 +827,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             k = self._strike_from_delta_sabr(delta, delta_type, vol, z_w, f, t_e)
             return k, None
         else: # DualTypes | FXDeltaVolSmile | FXDeltaVolSurface
-            return self._strike_from_atm_dv(f, delta, vol, t_e, delta_type, vol_delta_type, z_w)
+            return self._strike_from_delta_dv(f, delta, vol, t_e, delta_type, vol_delta_type, z_w)
 
     def _strike_from_delta_dv(
         self,
