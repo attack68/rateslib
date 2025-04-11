@@ -488,11 +488,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             delta_idx: DualTypes | None = res[0]
             vol_: DualTypes = res[1]
         elif isinstance(vol, FXSabrSmile | FXSabrSurface):
-            res = vol.get_from_strike(
-                k=self.strike,
-                f=f_d,
-                expiry=self.expiry
-            )
+            res = vol.get_from_strike(k=self.strike, f=f_d, expiry=self.expiry)
             delta_idx = None
             vol_ = res[1]
         else:

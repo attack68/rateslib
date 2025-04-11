@@ -503,7 +503,7 @@ class TestFXDeltaVolSurface:
             delta_type="forward",
         )
         with pytest.raises(ValueError, match="`expiry` required to get cross-section"):
-            fxvs.get_from_strike(k=1.05,f= 1.03,w_deli= 0.99,w_spot= 0.999)
+            fxvs.get_from_strike(k=1.05, f=1.03, w_deli=0.99, w_spot=0.999)
 
     def test_set_node_vector(self) -> None:
         fxvs = FXDeltaVolSurface(
@@ -568,7 +568,7 @@ class TestFXDeltaVolSurface:
             delta_type="forward",
             weights=Series(scalar, index=[dt(2023, 2, 2), dt(2023, 2, 3)]),
         )
-        kwargs=dict(k=1.03, f=1.03, w_deli=0.99, w_spot=0.999, expiry=dt(2023, 2, 3))
+        kwargs = dict(k=1.03, f=1.03, w_deli=0.99, w_spot=0.999, expiry=dt(2023, 2, 3))
         result = fxvs.get_from_strike(**kwargs)
         result2 = fxvs_weights.get_from_strike(**kwargs)
         w = fxvs_weights.weights

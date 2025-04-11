@@ -342,7 +342,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
                 ]._strike_and_index_from_delta(
                     delta=float(self.kwargs["strike"][:-1]) / 100.0,
                     delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
-                    vol=vol_,
+                    vol=_validate_obj_not_no_input(vol_, "vol"),  # type: ignore[arg-type]
                     w_deli=w_deli,
                     w_spot=w_spot,
                     f=self._pricing.f_d,
