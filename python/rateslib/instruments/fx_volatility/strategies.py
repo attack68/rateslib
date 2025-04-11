@@ -932,7 +932,7 @@ class FXStrangle(FXOptionStrat, FXOption):
 
                     dvol_dvol1: DualTypes = dvol_ddeltaidx * ddeltaidx_dvol1
                 elif isinstance(vol, FXSabrSmile | FXSabrSurface):
-                    dvol_dk = vol._d_sabr_d_k(  # type: ignore[union-attr]
+                    dvol_dk = vol._d_sabr_d_k(
                         k=sg["__strike"], f=sg["__forward"], expiry=self.kwargs["expiry"]
                     )[1]
 

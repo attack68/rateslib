@@ -192,9 +192,9 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
         self,
         k: DualTypes,
         f: DualTypes,
-        w_deli: DualTypes | NoInput,
-        w_spot: DualTypes | NoInput,
         expiry: datetime | NoInput = NoInput(0),
+        w_deli: DualTypes | NoInput = NoInput(0),
+        w_spot: DualTypes | NoInput = NoInput(0),
     ) -> tuple[DualTypes, DualTypes, DualTypes]:
         """
         Given an option strike return associated delta and vol values.
@@ -205,13 +205,15 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
             The strike of the option.
         f: float, Dual, Dual2
             The forward rate at delivery of the option.
+        expiry: datetime, optional
+            Typically used with *Surfaces*.
+            If given, performs a check to ensure consistency of valuations. Raises if expiry
+            requested and expiry of the *Smile* do not match. Used internally.
         w_deli: DualTypes, optional
             Required only for spot/forward conversions.
         w_spot: DualTypes, optional
             Required only for spot/forward conversions.
-        expiry: datetime, optional
-            If given, performs a check to ensure consistency of valuations. Raises if expiry
-            requested and expiry of the *Smile* do not match. Used internally.
+
 
         Returns
         -------
@@ -1049,9 +1051,9 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         self,
         k: DualTypes,
         f: DualTypes,
+        expiry: datetime | NoInput = NoInput(0),
         w_deli: DualTypes | NoInput = NoInput(0),
         w_spot: DualTypes | NoInput = NoInput(0),
-        expiry: datetime | NoInput = NoInput(0),
     ) -> tuple[DualTypes, DualTypes, DualTypes]:
         """
         Given an option strike and expiry return associated delta and vol values.
@@ -1062,12 +1064,12 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
             The strike of the option.
         f: float, Dual, Dual2
             The forward rate at delivery of the option.
+        expiry: datetime
+            Required to produce the cross-sectional *Smile* on the *Surface*.
         w_deli: DualTypes, optional
             Required only for spot/forward conversions.
         w_spot: DualTypes, optional
             Required only for spot/forward conversions.
-        expiry: datetime
-            Required to produce the cross-sectional *Smile* on the *Surface*.
 
         Returns
         -------
@@ -1082,7 +1084,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         if isinstance(expiry, NoInput):
             raise ValueError("`expiry` required to get cross-section of FXDeltaVolSurface.")
         smile = self.get_smile(expiry)
-        return smile.get_from_strike(k, f, w_deli, w_spot, expiry)
+        return smile.get_from_strike(k, f, expiry, w_deli, w_spot)
 
     # _validate_states not required since called by `get_smile` internally
     def _get_index(self, delta_index: DualTypes, expiry: datetime) -> DualTypes:
@@ -1196,9 +1198,9 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         self,
         k: DualTypes,
         f: DualTypes | FXForwards,
+        expiry: datetime_ = NoInput(0),
         w_deli: DualTypes | NoInput = NoInput(0),
         w_spot: DualTypes | NoInput = NoInput(0),
-        expiry: datetime_ = NoInput(0),
     ) -> tuple[DualTypes, DualTypes, DualTypes]:
         """
         Given an option strike return the volatility.
@@ -1209,13 +1211,14 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
             The strike of the option.
         f: float, Dual, Dual2
             The forward rate at delivery of the option.
+        expiry: datetime, optional
+            Typically uses with *Surfaces*.
+            If given, performs a check to ensure consistency of valuations. Raises if expiry
+            requested and expiry of the *Smile* do not match. Used internally.
         w_deli: DualTypes, optional
             Not used by *SabrSmile*
         w_spot: DualTypes, optional
             Not used by *SabrSmile*
-        expiry: datetime, optional
-            If given, performs a check to ensure consistency of valuations. Raises if expiry
-            requested and expiry of the *Smile* do not match. Used internally.
 
         Returns
         -------
@@ -1629,9 +1632,9 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         self,
         k: DualTypes,
         f: DualTypes | FXForwards,
+        expiry: datetime,
         w_deli: DualTypes | NoInput = NoInput(0),
         w_spot: DualTypes | NoInput = NoInput(0),
-        expiry: datetime_ = NoInput(0),
     ) -> tuple[DualTypes, DualTypes, DualTypes]:
         """
         Given an option strike return the volatility.
@@ -1642,13 +1645,13 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
             The strike of the option.
         f: float, Dual, Dual2
             The forward rate at delivery of the option.
-        w_deli: DualTypes, optional
-            Not used by *SabrSmile*
-        w_spot: DualTypes, optional
-            Not used by *SabrSmile*
         expiry: datetime, optional
-            If given, performs a check to ensure consistency of valuations. Raises if expiry
-            requested and expiry of the *Smile* do not match. Used internally.
+            The expiry of the option. Required for temporal interpolation between
+            cross-sectional *Smiles*.
+        w_deli: DualTypes, optional
+            Not used by *SabrSurface*
+        w_spot: DualTypes, optional
+            Not used by *SabrSurface*
 
         Returns
         -------
@@ -1664,10 +1667,10 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         expiry_posix = expiry.replace(tzinfo=UTC).timestamp()
         e_idx = index_left_f64(self.expiries_posix, expiry_posix)
         if expiry == self.expiries[0]:
-            return self.smiles[0].get_from_strike(k, f, w_deli, w_spot, expiry)
+            return self.smiles[0].get_from_strike(k, f, expiry)
         elif abs(expiry_posix - self.expiries_posix[e_idx + 1]) < 1e-10:
             # expiry aligns with a known smile
-            return self.smiles[e_idx + 1].get_from_strike(k, f, w_deli, w_spot, expiry)
+            return self.smiles[e_idx + 1].get_from_strike(k, f, expiry)
         elif expiry_posix > self.expiries_posix[-1]:
             # use the SABR parameters from the last smile
             smile = FXSabrSmile(
@@ -1680,12 +1683,12 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                 calendar=self.calendar,
                 id=self.smiles[e_idx + 1].id + "_ext",
             )
-            return smile.get_from_strike(k, f, w_deli, w_spot, expiry)
+            return smile.get_from_strike(k, f, expiry)
         elif expiry <= self.eval_date:
             raise ValueError("`expiry` before the `eval_date` of the Surface is invalid.")
         elif expiry_posix < self.expiries_posix[0]:
             # Perform temporal interpolation from the start to the first Smile
-            v_ = self.smiles[0].get_from_strike(k, f, NoInput(0), NoInput(0), NoInput(0))[1]
+            v_ = self.smiles[0].get_from_strike(k, f, expiry)[1]
             vol = _t_var_interp(
                 expiries=self.expiries,
                 expiries_posix=self.expiries_posix,
@@ -1706,8 +1709,8 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                     "`f` must be supplied as `FXForwards` in order to calculate"
                     "dynamic ATM-forward rates for temporally-interpolated SABR volatility."
                 )
-            lvol = ls.get_from_strike(k, f, NoInput(0), NoInput(0), NoInput(0))[1]
-            rvol = rs.get_from_strike(k, f, NoInput(0), NoInput(0), NoInput(0))[1]
+            lvol = ls.get_from_strike(k, f, expiry)[1]
+            rvol = rs.get_from_strike(k, f, expiry)[1]
 
             vol = _t_var_interp(
                 expiries=self.expiries,
@@ -1728,8 +1731,8 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         self,
         k: DualTypes,
         f: DualTypes,
-        expiry: datetime_ = NoInput(0),
-    ):
+        expiry: datetime,
+    ) -> tuple[DualTypes, DualTypes]:
         expiry_posix = expiry.replace(tzinfo=UTC).timestamp()
         e_idx = index_left_f64(self.expiries_posix, expiry_posix)
 
@@ -1928,7 +1931,7 @@ def _t_var_interp_d_sabr_d_k(
     vol2: DualTypes,
     dvol2_dk: DualTypes,
     bounds_flag: int,
-):
+) -> tuple[DualTypes, DualTypes]:
     if isinstance(weights_cum, NoInput):  # weights must also be NoInput
         if bounds_flag == 0:
             t1 = expiries_posix[expiry_index] - eval_posix

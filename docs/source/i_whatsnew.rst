@@ -44,6 +44,15 @@ email contact, see `rateslib <https://rateslib.com>`_.
      - An :class:`~rateslib.fx_volatility.FXSabrSmile` is implemented in *beta* status, which
        cannot yet be used to price *Instruments*.
        (`714 <https://github.com/attack68/rateslib/pull/714>`_)
+   * - FX Volatility
+     - An :class:`~rateslib.fx_volatility.FXSabrSurface` is implemented in *beta* status, which
+       cannot yet be used to price *Instruments*.
+       (`729 <https://github.com/attack68/rateslib/pull/729>`_)
+   * - FX Volatility
+     - :red:`Minor Breaking Change!` The arguments to all FX Volatility model objects'
+       :meth:`~rateslib.fx_volatility.FXDeltaVolSmile.get_from_strike` methods are reordered
+       to prioritise ``expiry`` which is more commonly required for *Surfaces*.
+       (`735 <https://github.com/attack68/rateslib/pull/735>`_)
    * - Refactor
      - Rename :class:`~rateslib.instruments.BaseMixin` to :class:`~rateslib.instruments.Metrics`.
        (`678 <https://github.com/attack68/rateslib/pull/678>`_)

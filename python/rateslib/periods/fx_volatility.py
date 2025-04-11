@@ -479,12 +479,20 @@ class FXOptionPeriod(metaclass=ABCMeta):
             raise ValueError("`vol` must be a number quantity or Smile or Surface.")
         elif isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
             res: tuple[DualTypes, DualTypes, DualTypes] = vol.get_from_strike(
-                self.strike, f_d, w_deli, w_spot, self.expiry
+                k=self.strike,
+                f=f_d,
+                expiry=self.expiry,
+                w_deli=w_deli,
+                w_spot=w_spot,
             )
             delta_idx: DualTypes | None = res[0]
             vol_: DualTypes = res[1]
         elif isinstance(vol, FXSabrSmile | FXSabrSurface):
-            res = vol.get_from_strike(self.strike, f_d, NoInput(0), NoInput(0), self.expiry)  # type: ignore[union-attr]
+            res = vol.get_from_strike(
+                k=self.strike,
+                f=f_d,
+                expiry=self.expiry
+            )
             delta_idx = None
             vol_ = res[1]
         else:
@@ -802,7 +810,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         self,
         delta: float,
         delta_type: str,
-        vol: FXVolOption_,
+        vol: FXVolOption,
         w_deli: DualTypes,
         w_spot: DualTypes,
         f: DualTypes,
@@ -1416,12 +1424,12 @@ class FXOptionPeriod(metaclass=ABCMeta):
         if isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile | FXSabrSurface):
             spot = fx.pairs_settlement[self.pair]
             f = fx.rate(self.pair, self.delivery)
-            _: tuple[Any, DualTypes, Any] = vol.get_from_strike(  # type: ignore[union-attr]
-                self.strike,
-                f,
-                disc_curve[self.delivery],
-                disc_curve[spot],
-                self.expiry,
+            _: tuple[Any, DualTypes, Any] = vol.get_from_strike(
+                k=self.strike,
+                f=f,
+                w_deli=disc_curve[self.delivery],
+                w_spot=disc_curve[spot],
+                expiry=self.expiry,
             )
             vol_: DualTypes = _[1]
         elif isinstance(vol, NoInput):
