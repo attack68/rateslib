@@ -1262,19 +1262,30 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         return 0.0, vol_ * 100.0, k
 
     def _d_sabr_d_k(
-        self, k: DualTypes, f: DualTypes, expiry: datetime
+        self, k: DualTypes, f: DualTypes, expiry: datetime, as_float: bool
     ) -> tuple[DualTypes, DualTypes]:
-        """Get the derivative of sabr vol with respect to strike"""
+        """Get the derivative of sabr vol with respect to strike
+
+        as_float: bool
+            Allow expedited calculation by avoiding dual numbers. Useful during the root solving
+            phase of Newton iterations.
+        """
         t_e = (expiry - self.eval_date).days / 365.0
-        return _d_sabr_d_k(
-            k,
-            f,
-            t_e,
-            self.nodes["alpha"],
-            self.nodes["beta"],  # type: ignore[arg-type]
-            self.nodes["rho"],
-            self.nodes["nu"],
-        )
+
+        if as_float:
+            k = _dual_float(k)
+            f = _dual_float(f)
+            a = _dual_float(self.nodes["alpha"])
+            b = _dual_float(self.nodes["beta"])
+            p = _dual_float(self.nodes["rho"])
+            v = _dual_float(self.nodes["nu"])
+        else:
+            a = self.nodes["alpha"]
+            b = self.nodes["beta"]
+            p = self.nodes["rho"]
+            v = self.nodes["nu"]
+
+        return _d_sabr_d_k(k, f, t_e, a, b, p, v)
 
     def _get_node_vector(self) -> np.ndarray[tuple[int, ...], np.dtype[np.object_]]:
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""
@@ -1732,15 +1743,16 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         k: DualTypes,
         f: DualTypes,
         expiry: datetime,
+        as_float: bool,
     ) -> tuple[DualTypes, DualTypes]:
         expiry_posix = expiry.replace(tzinfo=UTC).timestamp()
         e_idx = index_left_f64(self.expiries_posix, expiry_posix)
 
         if expiry == self.expiries[0]:
-            return self.smiles[0]._d_sabr_d_k(k, f, expiry)
+            return self.smiles[0]._d_sabr_d_k(k, f, expiry, as_float)
         elif abs(expiry_posix - self.expiries_posix[e_idx + 1]) < 1e-10:
             # expiry aligns with a known smile
-            return self.smiles[e_idx + 1]._d_sabr_d_k(k, f, expiry)
+            return self.smiles[e_idx + 1]._d_sabr_d_k(k, f, expiry, as_float)
         elif expiry_posix > self.expiries_posix[-1]:
             # use the SABR parameters from the last smile
             smile = FXSabrSmile(
@@ -1753,12 +1765,12 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                 calendar=self.calendar,
                 id=self.smiles[e_idx + 1].id + "_ext",
             )
-            return smile._d_sabr_d_k(k, f, expiry)
+            return smile._d_sabr_d_k(k, f, expiry, as_float)
         elif expiry <= self.eval_date:
             raise ValueError("`expiry` before the `eval_date` of the Surface is invalid.")
         elif expiry_posix < self.expiries_posix[0]:
             # Perform temporal interpolation from the start to the first Smile
-            vol_, dvol_k = self.smiles[0]._d_sabr_d_k(k, f, expiry)
+            vol_, dvol_k = self.smiles[0]._d_sabr_d_k(k, f, expiry, as_float)
             return _t_var_interp_d_sabr_d_k(
                 expiries=self.expiries,
                 expiries_posix=self.expiries_posix,
@@ -1780,10 +1792,10 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                     "`f` must be supplied as `FXForwards` in order to calculate"
                     "dynamic ATM-forward rates for temporally-interpolated SABR volatility."
                 )
-            lvol, d_lvol_dk = ls._d_sabr_d_k(k, f, expiry)
-            rvol, d_lvol_dk = rs._d_sabr_d_k(k, f, expiry)
+            lvol, d_lvol_dk = ls._d_sabr_d_k(k, f, expiry, as_float)
+            rvol, d_lvol_dk = rs._d_sabr_d_k(k, f, expiry, as_float)
 
-            vol_, dvol_k = self.smiles[0]._d_sabr_d_k(k, f, expiry)
+            vol_, dvol_k = self.smiles[0]._d_sabr_d_k(k, f, expiry, as_float)
             return _t_var_interp_d_sabr_d_k(
                 expiries=self.expiries,
                 expiries_posix=self.expiries_posix,
