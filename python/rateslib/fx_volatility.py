@@ -1290,7 +1290,9 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
 
         return _d_sabr_d_k(k, f, t_e, a, b, p, v)
 
-    def _d_sabr_d_k_float(self, k: DualTypes, f: DualTypes, expiry: datetime) -> tuple[DualTypes, DualTypes]:
+    def _d_sabr_d_k_float(
+        self, k: DualTypes, f: DualTypes, expiry: datetime
+    ) -> tuple[DualTypes, DualTypes]:
         t_e = (expiry - self.eval_date).days / 365.0
         k = _dual_float(k)
         f = _dual_float(f)

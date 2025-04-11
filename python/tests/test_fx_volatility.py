@@ -1091,7 +1091,9 @@ class TestFXSabrSmile:
         v = fxss.nodes["nu"]
 
         # F_0,T is stated in section 3.5.4 as 1.3395
-        base = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), dt(2002, 1, 1), False)[1]
+        base = fxss._d_sabr_d_k(
+            Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), dt(2002, 1, 1), False
+        )[1]
 
         def inc_(key1, key2, inc1, inc2):
             k_ = k
@@ -1157,7 +1159,9 @@ class TestFXSabrSmile:
         v = fxss.nodes["nu"]
 
         # F_0,T is stated in section 3.5.4 as 1.3395
-        base = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), dt(2002, 1, 1), False)[1]
+        base = fxss._d_sabr_d_k(
+            Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), dt(2002, 1, 1), False
+        )[1]
 
         def inc_(key1, inc1):
             k_ = k

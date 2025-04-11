@@ -724,9 +724,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
     ) -> DualTypes:
         t_e = (self.expiry - vol.eval_date).days / 365.0
 
-        def root1d(
-            k: DualTypes, f: DualTypes, as_float: bool
-        ) -> tuple[DualTypes, DualTypes]:
+        def root1d(k: DualTypes, f: DualTypes, as_float: bool) -> tuple[DualTypes, DualTypes]:
             sigma, dsigma_dk = vol._d_sabr_d_k(k, f, self.expiry, as_float)
             f0 = -dual_log(k / f) + eta_0 * sigma**2 * t_e
             f1 = -1 / k + eta_0 * 2 * sigma * dsigma_dk * t_e
