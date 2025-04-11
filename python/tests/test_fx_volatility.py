@@ -1038,18 +1038,18 @@ class TestFXSabrSmile:
             ad=2,
         )
         t = dt(2002, 1, 1)
-        base = fxss._d_sabr_d_k(Dual2(k, ["k"], [1.0], []), Dual2(f, ["f"], [1.0], []), t)[1]
+        base = fxss._d_sabr_d_k(Dual2(k, ["k"], [1.0], []), Dual2(f, ["f"], [1.0], []), t, False)[1]
 
         # k
-        _up = fxss._d_sabr_d_k(Dual2(k + 1e-4, ["k"], [], []), Dual2(f, ["f"], [], []), t)[1]
-        _dw = fxss._d_sabr_d_k(Dual2(k - 1e-4, ["k"], [], []), Dual2(f, ["f"], [], []), t)[1]
+        _up = fxss._d_sabr_d_k(Dual2(k + 1e-4, ["k"], [], []), Dual2(f, ["f"], [], []), t, False)[1]
+        _dw = fxss._d_sabr_d_k(Dual2(k - 1e-4, ["k"], [], []), Dual2(f, ["f"], [], []), t, False)[1]
         result = gradient(base, ["k"])[0]
         expected = (_up - _dw) / 2e-4
         assert abs(result - expected) < 1e-5
 
         # f
-        _up = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f + 1e-4, ["f"], [], []), t)[1]
-        _dw = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f - 1e-4, ["f"], [], []), t)[1]
+        _up = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f + 1e-4, ["f"], [], []), t, False)[1]
+        _dw = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f - 1e-4, ["f"], [], []), t, False)[1]
         result = gradient(base, ["f"])[0]
         expected = (_up - _dw) / 2e-4
         assert abs(result - expected) < 1e-5
@@ -1057,9 +1057,9 @@ class TestFXSabrSmile:
         # SABR params
         for i, key in enumerate(["alpha", "rho", "nu"]):
             fxss.nodes[key] = fxss.nodes[key] + 1e-5
-            _up = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), t)[1]
+            _up = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), t, False)[1]
             fxss.nodes[key] = fxss.nodes[key] - 2e-5
-            _dw = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), t)[1]
+            _dw = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), t, False)[1]
             fxss.nodes[key] = fxss.nodes[key] + 1e-5
             result = gradient(base, [f"vol{i}"])[0]
             expected = (_up - _dw) / 2e-5
@@ -1091,7 +1091,9 @@ class TestFXSabrSmile:
         v = fxss.nodes["nu"]
 
         # F_0,T is stated in section 3.5.4 as 1.3395
-        base = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), dt(2002, 1, 1))[1]
+        base = fxss._d_sabr_d_k(
+            Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), dt(2002, 1, 1), False
+        )[1]
 
         def inc_(key1, key2, inc1, inc2):
             k_ = k
@@ -1111,7 +1113,7 @@ class TestFXSabrSmile:
                 fxss.nodes[key2] = fxss.nodes[key2] + inc2
 
             _ = fxss._d_sabr_d_k(
-                Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []), dt(2002, 1, 1)
+                Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []), dt(2002, 1, 1), False
             )[1]
 
             fxss.nodes["alpha"] = a
@@ -1157,7 +1159,9 @@ class TestFXSabrSmile:
         v = fxss.nodes["nu"]
 
         # F_0,T is stated in section 3.5.4 as 1.3395
-        base = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), dt(2002, 1, 1))[1]
+        base = fxss._d_sabr_d_k(
+            Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), dt(2002, 1, 1), False
+        )[1]
 
         def inc_(key1, inc1):
             k_ = k
@@ -1170,7 +1174,7 @@ class TestFXSabrSmile:
                 fxss.nodes[key1] = fxss.nodes[key1] + inc1
 
             _ = fxss._d_sabr_d_k(
-                Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []), dt(2002, 1, 1)
+                Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []), dt(2002, 1, 1), False
             )[1]
 
             fxss.nodes["alpha"] = a
@@ -1205,10 +1209,10 @@ class TestFXSabrSmile:
         )
         # F_0,T is stated in section 3.5.4 as 1.3395
         base = fxss._d_sabr_d_k(
-            Dual2(1.34, ["k"], [], []), Dual2(1.34, ["f"], [], []), dt(2002, 1, 1)
+            Dual2(1.34, ["k"], [], []), Dual2(1.34, ["f"], [], []), dt(2002, 1, 1), False
         )[1]
         comparison1 = fxss._d_sabr_d_k(
-            Dual2(1.341, ["k"], [], []), Dual2(1.34, ["f"], [], []), dt(2002, 1, 1)
+            Dual2(1.341, ["k"], [], []), Dual2(1.34, ["f"], [], []), dt(2002, 1, 1), False
         )[1]
 
         assert np.all(abs(base.dual - comparison1.dual) < 5e-3)
