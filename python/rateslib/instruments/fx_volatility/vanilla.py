@@ -362,9 +362,9 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
                 self._pricing.delta_index, self._pricing.vol, _ = vol_.get_from_strike(
                     k=self._pricing.k,
                     f=self._pricing.f_d,
+                    expiry=self.kwargs["expiry"],
                     w_deli=w_deli,
                     w_spot=w_spot,
-                    expiry=self.kwargs["expiry"],
                 )
             else:
                 # Sabr objects do not generate delta_index pricing metrics.

@@ -93,17 +93,17 @@ class TestFXDeltaVolSmile:
             id="vol",
             ad=1,
         )
-        args = (
-            k,
-            fxfo.rate("eurusd", dt(2023, 6, 20)),
-            fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
-            fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+        kwargs = dict(
+            k=k,
+            f=fxfo.rate("eurusd", dt(2023, 6, 20)),
+            w_deli=fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
+            w_spot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
         )
-        put_vol = fxvs.get_from_strike(*args)
+        put_vol = fxvs.get_from_strike(**kwargs)
 
         fxvs.nodes[idx] = Dual(val + 0.0000001, [var], [])
         fxvs.csolve()
-        put_vol_plus = fxvs.get_from_strike(*args)
+        put_vol_plus = fxvs.get_from_strike(**kwargs)
 
         finite_diff = (put_vol_plus[1] - put_vol[1]) * 10000000.0
         ad_grad = gradient(put_vol[1], [var])[0]
@@ -133,33 +133,33 @@ class TestFXDeltaVolSmile:
             ad=2,
         )
         fxfo._set_ad_order(2)
-        args = (
-            k,
-            fxfo.rate("eurusd", dt(2023, 6, 20)),
-            fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
-            fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+        kwargs = dict(
+            k=k,
+            f=fxfo.rate("eurusd", dt(2023, 6, 20)),
+            w_deli=fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
+            w_spot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
         )
-        pv00 = fxvs.get_from_strike(*args)
+        pv00 = fxvs.get_from_strike(**kwargs)
 
         fxvs.nodes[cross[0][2]] = Dual2(cross[0][1] + 0.00001, [cross[0][0]], [], [])
         fxvs.nodes[cross[1][2]] = Dual2(cross[1][1] + 0.00001, [cross[1][0]], [], [])
         fxvs.csolve()
-        pv11 = fxvs.get_from_strike(*args)
+        pv11 = fxvs.get_from_strike(**kwargs)
 
         fxvs.nodes[cross[0][2]] = Dual2(cross[0][1] + 0.00001, [cross[0][0]], [], [])
         fxvs.nodes[cross[1][2]] = Dual2(cross[1][1] - 0.00001, [cross[1][0]], [], [])
         fxvs.csolve()
-        pv1_1 = fxvs.get_from_strike(*args)
+        pv1_1 = fxvs.get_from_strike(**kwargs)
 
         fxvs.nodes[cross[0][2]] = Dual2(cross[0][1] - 0.00001, [cross[0][0]], [], [])
         fxvs.nodes[cross[1][2]] = Dual2(cross[1][1] - 0.00001, [cross[1][0]], [], [])
         fxvs.csolve()
-        pv_1_1 = fxvs.get_from_strike(*args)
+        pv_1_1 = fxvs.get_from_strike(**kwargs)
 
         fxvs.nodes[cross[0][2]] = Dual2(cross[0][1] - 0.00001, [cross[0][0]], [], [])
         fxvs.nodes[cross[1][2]] = Dual2(cross[1][1] + 0.00001, [cross[1][0]], [], [])
         fxvs.csolve()
-        pv_11 = fxvs.get_from_strike(*args)
+        pv_11 = fxvs.get_from_strike(**kwargs)
 
         finite_diff = (pv11[1] + pv_1_1[1] - pv1_1[1] - pv_11[1]) * 1e10 / 4.0
         ad_grad = gradient(pv00[1], [cross[0][0], cross[1][0]], 2)[0, 1]
@@ -486,7 +486,9 @@ class TestFXDeltaVolSurface:
             eval_date=dt(2023, 1, 1),
             delta_type="forward",
         )
-        result = fxvs.get_from_strike(1.05, 1.03, 0.99, 0.999, dt(2024, 7, 1))[1]
+        result = fxvs.get_from_strike(
+            k=1.05, f=1.03, w_deli=0.99, w_spot=0.999, expiry=dt(2024, 7, 1)
+        )[1]
         # expected close to delta index of 0.5 i.e around 17.87% vol
         expected = 17.882603173
         assert abs(result - expected) < 1e-8
@@ -501,7 +503,7 @@ class TestFXDeltaVolSurface:
             delta_type="forward",
         )
         with pytest.raises(ValueError, match="`expiry` required to get cross-section"):
-            fxvs.get_from_strike(1.05, 1.03, 0.99, 0.999)
+            fxvs.get_from_strike(k=1.05,f= 1.03,w_deli= 0.99,w_spot= 0.999)
 
     def test_set_node_vector(self) -> None:
         fxvs = FXDeltaVolSurface(
@@ -566,8 +568,9 @@ class TestFXDeltaVolSurface:
             delta_type="forward",
             weights=Series(scalar, index=[dt(2023, 2, 2), dt(2023, 2, 3)]),
         )
-        result = fxvs.get_from_strike(1.03, 1.03, 0.99, 0.999, dt(2023, 2, 3))
-        result2 = fxvs_weights.get_from_strike(1.03, 1.03, 0.99, 0.999, dt(2023, 2, 3))
+        kwargs=dict(k=1.03, f=1.03, w_deli=0.99, w_spot=0.999, expiry=dt(2023, 2, 3))
+        result = fxvs.get_from_strike(**kwargs)
+        result2 = fxvs_weights.get_from_strike(**kwargs)
         w = fxvs_weights.weights
 
         expected = result[1] * (w[: dt(2023, 2, 3)].sum() / 33.0) ** 0.5
@@ -1794,7 +1797,7 @@ class TestStateAndCache:
     @pytest.mark.parametrize(
         ("method", "args"),
         [
-            ("get_from_strike", (1.0, 1.0, NoInput(0), NoInput(0), dt(2000, 5, 3))),
+            ("get_from_strike", (1.0, 1.0, dt(2000, 5, 3), NoInput(0), NoInput(0))),
             ("_get_index", (0.9, dt(2000, 5, 3))),
             ("get_smile", (dt(2000, 5, 3),)),
         ],
