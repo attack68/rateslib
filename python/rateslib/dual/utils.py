@@ -12,7 +12,16 @@ from rateslib.dual.variable import FLOATS, INTS, Variable
 from rateslib.rs import ADOrder, Dual, Dual2, _dsolve1, _dsolve2, _fdsolve1, _fdsolve2
 
 if TYPE_CHECKING:
-    from rateslib.typing import Arr1dF64, Arr1dObj, Arr2dF64, Arr2dObj, DualTypes, Number, Sequence
+    from rateslib.typing import (
+        Any,
+        Arr1dF64,
+        Arr1dObj,
+        Arr2dF64,
+        Arr2dObj,
+        DualTypes,
+        Number,
+        Sequence,
+    )
 
 Dual.__doc__ = "Dual number data type to perform first derivative automatic differentiation."
 Dual2.__doc__ = "Dual number data type to perform second derivative automatic differentiation."
@@ -386,3 +395,34 @@ def _get_adorder(order: int) -> ADOrder:
         return ADOrder.Two
     else:
         raise ValueError("Order for AD can only be in {0,1,2}")
+
+
+def _set_ad_order_objects(order: list[int], objs: list[Any]) -> list[int]:
+    """
+    Set the order on multiple Objects, returning their previous order.
+
+    Parameters
+    ----------
+    order: list[int]
+        A list of orders to set the objects to.
+    objs: list[Any]
+        A list of objects to convert the AD orders of.
+
+    Returns
+    -------
+    list[int]
+
+    Notes
+    -----
+    If an Object does not have a `_set_ad_order` method then
+    it will simply be passed and return 0 for its associated
+    previous AD order.
+    """
+    existing_order: list[int] = []
+    for ad, obj in zip(order, objs, strict=True):
+        try:
+            existing_order.append(obj.ad)
+            obj._set_ad_order(ad)
+        except AttributeError:
+            continue
+    return existing_order

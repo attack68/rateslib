@@ -827,11 +827,11 @@ class FXStrangle(FXOptionStrat, FXOption):
         # type assignment, instead of using assert
         vol_0: FXVolOption = vol_[0]  # type: ignore[assignment]
         vol_1: FXVolOption = vol_[1]  # type: ignore[assignment]
-
-        # Get data from objects
         curves_1: Curve = _validate_obj_not_no_input(curves_[1], "curves_[1]")
         curves_3: Curve = _validate_obj_not_no_input(curves_[3], "curves_[3]")
         fxf: FXForwards = _validate_fx_as_forwards(fx_)
+
+        # Get initial data from objects in their native AD order
         spot: datetime = fxf.pairs_settlement[self.kwargs["pair"]]
         w_spot: DualTypes = curves_1[spot]
         w_deli: DualTypes = curves_1[self.kwargs["delivery"]]
@@ -849,11 +849,24 @@ class FXStrangle(FXOptionStrat, FXOption):
             z_w_1 = 1.0 if "forward" in vol_[0].delta_type else w_deli / w_spot
             fzw1zw0 = f_0 * z_w_1 / z_w_0
 
-        # first start by evaluating the individual swaptions given their
-        # strikes with the smile - delta or fixed
+        # Determine the initial guess for Newton type iterations
+
+        # _ad = _set_ad_order_objects([0]*5, [vol_0, vol_1, curves_1, curves_3, fxf])
         gks: list[dict[str, Any]] = [
-            self.periods[0].analytic_greeks(curves, solver, fxf, base, vol_0),
-            self.periods[1].analytic_greeks(curves, solver, fxf, base, vol_1),
+            self.periods[0].analytic_greeks(
+                curves=[None, curves_1, None, curves_3],
+                solver=NoInput(0),
+                fx=fxf,
+                base=base,
+                vol=vol_0,
+            ),
+            self.periods[1].analytic_greeks(
+                curves=[None, curves_1, None, curves_3],
+                solver=NoInput(0),
+                fx=fxf,
+                base=base,
+                vol=vol_1,
+            ),
         ]
 
         tgt_vol: DualTypes = (
