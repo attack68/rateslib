@@ -51,7 +51,7 @@ delta types due to appropriate mathematical conversions.
 An :class:`~rateslib.fx_volatility.FXSabrSmile` is a *Smile* parametrised by the
 conventional :math:`\alpha, \beta, \rho, \nu` variables of the SABR model. The parameter
 :math:`\beta` is considered a hyper-parameter and will not be varied by a
-:class:`~rateslib.solver.Solver` but :math:`\alpha, \beta, \rho` will be varied.
+:class:`~rateslib.solver.Solver` but :math:`\alpha, \rho, \nu` will be varied.
 
 Both *Smiles* must also be initialised with:
 
@@ -189,10 +189,10 @@ Since we have 5 calibrating instruments we can safely utilise 5 degrees of freed
 
    sabr_smile = FXSabrSmile(
        nodes={
-           "alpha": 0.10,
-           "beta": 1.0,
+           "alpha": 0.10,  # default vol level set to 10%
+           "beta": 1.0,  # model is fully lognormal
            "rho": 0.10,
-           "nu": 1.0,
+           "nu": 1.0,  # initialised with curvature
        },
        eval_date=dt(2024, 5, 7),
        expiry=dt(2024, 5, 28),
@@ -206,7 +206,7 @@ instruments, given in the market prices data table.
 
 .. ipython:: python
 
-   # Setup the Solver instrument calibration for rates Curves and vol Smiles
+   # Setup the Solver instrument calibration for FXOptions and vol Smiles
    option_args=dict(
        pair="eurusd", expiry=dt(2024, 5, 28), calendar="tgt|fed", delta_type="spot",
        curves=[None, "eurusd", None, "usdusd"], vol="eurusd_3w_smile"
