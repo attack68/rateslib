@@ -424,5 +424,6 @@ def _set_ad_order_objects(order: list[int], objs: list[Any]) -> list[int]:
             existing_order.append(obj.ad)
             obj._set_ad_order(ad)
         except AttributeError:
+            existing_order.append(0)
             continue
     return existing_order

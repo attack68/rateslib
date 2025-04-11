@@ -7,8 +7,8 @@ from pandas import DataFrame
 
 from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.default import NoInput, _drb
-from rateslib.dual import Dual, Dual2, Variable, dual_log
-from rateslib.dual.utils import _dual_float
+from rateslib.dual import Dual, Dual2, Variable, dual_log, newton_1dim
+from rateslib.dual.utils import _dual_float, _set_ad_order_objects
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments.fx_volatility.vanilla import FXCall, FXOption, FXPut
 from rateslib.instruments.utils import (
@@ -841,7 +841,7 @@ class FXStrangle(FXOptionStrat, FXOption):
         f_0 = f_d if "forward" in self.kwargs["delta_type"] else f_t
 
         eta1 = None
-        fzw1zw0: DualTypes | None = None
+        fzw1zw0: DualTypes = 0.0
         if isinstance(
             vol_[0], FXDeltaVolSurface | FXDeltaVolSmile
         ):  # multiple Vol objects cannot be used, will derive conventions from the first one found.
@@ -851,7 +851,7 @@ class FXStrangle(FXOptionStrat, FXOption):
 
         # Determine the initial guess for Newton type iterations
 
-        # _ad = _set_ad_order_objects([0]*5, [vol_0, vol_1, curves_1, curves_3, fxf])
+        _ad = _set_ad_order_objects([0]*5, [vol_0, vol_1, curves_1, curves_3, fxf])
         gks: list[dict[str, Any]] = [
             self.periods[0].analytic_greeks(
                 curves=[None, curves_1, None, curves_3],
@@ -869,46 +869,50 @@ class FXStrangle(FXOptionStrat, FXOption):
             ),
         ]
 
-        tgt_vol: DualTypes = (
-            gks[0]["__vol"] * gks[0]["vega"] + gks[1]["__vol"] * gks[1]["vega"]
-        ) * 100.0
-        tgt_vol /= gks[0]["vega"] + gks[1]["vega"]
-        f0, iters = 100e6, 1
+        g0: DualTypes = gks[0]["__vol"] * gks[0]["vega"] + gks[1]["__vol"] * gks[1]["vega"]
+        g0 /= gks[0]["vega"] + gks[1]["vega"]
+
         put_op_period: FXOptionPeriod = self.periods[0]._option_periods[0]
         call_op_period: FXOptionPeriod = self.periods[1]._option_periods[0]
 
-        while abs(f0) > 1e-6 and iters < 10:
-            # Determine the strikes at the current tgt_vol
-            # Also determine the greeks of these options measure with tgt_vol
+        def root1d(tgt_vol, fzw1zw0: DualTypes, as_float:bool):
+            if not as_float:
+                # reset objects to their original order and perform final iterations
+                _set_ad_order_objects(_ad, [vol_0, vol_1, curves_1, curves_3, fxf])
+
+            # Determine the greeks of the options with the current tgt_vol iterate
             gks = [
-                self.periods[0].analytic_greeks(curves, solver, fxf, base, tgt_vol),
-                self.periods[1].analytic_greeks(curves, solver, fxf, base, tgt_vol),
+                self.periods[0].analytic_greeks(
+                    curves=[None, curves_1, None, curves_3],
+                    solver=NoInput(0),
+                    fx=fxf,
+                    base=base,
+                    vol=tgt_vol * 100.0
+                ),
+                self.periods[1].analytic_greeks(
+                    curves=[None, curves_1, None, curves_3],
+                    solver=NoInput(0),
+                    fx=fxf,
+                    base=base,
+                    vol=tgt_vol * 100.0
+                ),
             ]
+
             # Also determine the greeks of these options measured with the market smile vol.
             # (note the strikes have been set by previous call, call OptionPeriods direct
             # to avoid re-determination)
-            smile_gks = [
+            s_gks = [
                 put_op_period.analytic_greeks(curves_1, curves_3, fxf, base_, vol_0),
                 call_op_period.analytic_greeks(curves_1, curves_3, fxf, base_, vol_1),
             ]
 
-            # INLINE TEST
-            # test that the strikes determined by the single volatility value are consistent
-            # assert gks[0]["__strike"] == smile_gks[0]["__strike"]
-            # assert gks[1]["__strike"] == smile_gks[1]["__strike"]
-
             # The value of the root function is derived from the 4 previous calculated prices
-            f0 = (
-                smile_gks[0]["__bs76"]
-                + smile_gks[1]["__bs76"]
-                - gks[0]["__bs76"]
-                - gks[1]["__bs76"]
-            )
+            f0 = s_gks[0]["__bs76"] + s_gks[1]["__bs76"] - gks[0]["__bs76"] - gks[1]["__bs76"]
 
             dc1_dvol1_0 = _d_c_hat_d_sigma_hat(gks[0], self._is_fixed_delta[0])
             dcmkt_dvol1_0 = _d_c_mkt_d_sigma_hat(
                 gks[0],
-                smile_gks[0],
+                s_gks[0],
                 self.kwargs["expiry"],
                 vol_0,
                 eta1,
@@ -918,7 +922,7 @@ class FXStrangle(FXOptionStrat, FXOption):
             dc1_dvol1_1 = _d_c_hat_d_sigma_hat(gks[1], self._is_fixed_delta[1])
             dcmkt_dvol1_1 = _d_c_mkt_d_sigma_hat(
                 gks[1],
-                smile_gks[1],
+                s_gks[1],
                 self.kwargs["expiry"],
                 vol_1,
                 eta1,
@@ -927,8 +931,19 @@ class FXStrangle(FXOptionStrat, FXOption):
             )
             f1 = dcmkt_dvol1_0 + dcmkt_dvol1_1 - dc1_dvol1_0 - dc1_dvol1_1
 
-            tgt_vol = tgt_vol - (f0 / f1) * 100.0  # Newton-Raphson step
-            iters += 1
+            return f0, f1
+
+        root_solver = newton_1dim(
+            root1d,
+            g0,
+            args=(fzw1zw0,),
+            pre_args=(True,),  # solve `as_float` in iterations
+            final_args=(False,),  # capture AD in final iterations
+            raise_on_fail=True,
+            max_iter=10,
+            func_tol=1e-6,
+        )
+        tgt_vol = root_solver["g"] * 100.0
 
         if record_greeks:  # this needs to be explicitly called since it degrades performance
             self._greeks["strangle"] = {
