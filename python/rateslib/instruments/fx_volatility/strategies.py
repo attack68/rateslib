@@ -841,6 +841,7 @@ class FXStrangle(FXOptionStrat, FXOption):
         f_0 = f_d if "forward" in self.kwargs["delta_type"] else f_t
 
         eta1 = None
+        fzw1zw0: DualTypes | None = None
         if isinstance(
             vol_[0], FXDeltaVolSurface | FXDeltaVolSmile
         ):  # multiple Vol objects cannot be used, will derive conventions from the first one found.
@@ -854,96 +855,6 @@ class FXStrangle(FXOptionStrat, FXOption):
             self.periods[0].analytic_greeks(curves, solver, fxf, base, vol_0),
             self.periods[1].analytic_greeks(curves, solver, fxf, base, vol_1),
         ]
-
-        def d_c_hat_d_sigma_hat(
-            period_index: int,
-            g: dict[str, Any],  # greeks
-        ) -> DualTypes:
-            """
-            Return the total derivative of option priced with single vol with respect to single
-            vol.
-
-            Parameters
-            ----------
-            period_index: int
-                The index of the option period associated with the Strangle, in {0, 1}.
-            g: dict
-                The dict of greeks for the given option period measured against the tgt, single vol.
-
-            Returns
-            -------
-            DualTypes
-            """
-            fixed_delta = self._is_fixed_delta[period_index]
-            if not fixed_delta:
-                # kega is 0.0
-                return g["vega"]  # type: ignore[no-any-return]
-            else:
-                return g["_kappa"] * g["_kega"] + g["vega"]  # type: ignore[no-any-return]
-
-        def d_c_mkt_d_sigma_hat(
-            period_index: int,
-            g: dict[str, Any],  # greeks
-            sg: dict[str, Any],  # smile_greeks
-            vol: FXVol,
-            eta1: float | None,
-        ) -> DualTypes:
-            """
-            Return the total derivative of option priced with mkt vol with respect to single
-            vol.
-
-            Parameters
-            ----------
-            period_index: int
-                The index of the option period associated with the Strangle, in {0, 1}.
-            g: dict
-                The dict of greeks for the given option period measured against the tgt, single vol.
-            sg: dict
-                The dict of greeks for the given option period measured against the smile.
-            vol: VolObj
-                The smile object.
-            eta1: float | None
-                The delta type of the Smile if available
-
-            Returns
-            -------
-            DualTypes
-            """
-            fixed_delta = self._is_fixed_delta[period_index]
-            if not fixed_delta:
-                return 0.0  # kega is zero and the mkt vol has no sensitivity to vol_hat.
-            else:
-                if isinstance(vol, FXDeltaVolSurface | FXDeltaVolSmile):
-                    if isinstance(vol, FXDeltaVolSurface):
-                        vol = vol.get_smile(self.kwargs["expiry"])
-
-                    dvol_ddeltaidx = evaluate(vol.spline, sg["_delta_index"], 1) * 0.01
-
-                    ddeltaidx_dvol1 = sg["gamma"] * fzw1zw0
-                    if eta1 < 0:  # type: ignore[operator]
-                        # premium adjusted vol smile
-                        ddeltaidx_dvol1 += sg["_delta_index"]
-                    ddeltaidx_dvol1 *= g["_kega"] / sg["__strike"]
-
-                    _ = dual_log(sg["__strike"] / f_d) / sg["__vol"]
-                    _ += eta1 * sg["__vol"] * sg["__sqrt_t"] ** 2
-                    _ *= dvol_ddeltaidx * sg["gamma"] * fzw1zw0
-                    ddeltaidx_dvol1 /= 1 + _
-
-                    dvol_dvol1: DualTypes = dvol_ddeltaidx * ddeltaidx_dvol1
-                elif isinstance(vol, FXSabrSmile | FXSabrSurface):
-                    dvol_dk = vol._d_sabr_d_k(
-                        k=sg["__strike"],
-                        f=sg["__forward"],
-                        expiry=self.kwargs["expiry"],
-                        as_float=False,
-                    )[1]
-
-                    dvol_dvol1 = dvol_dk * g["_kega"]
-                else:
-                    dvol_dvol1 = 0.0
-
-                return sg["_kappa"] * g["_kega"] + sg["vega"] * dvol_dvol1  # type: ignore[no-any-return]
 
         tgt_vol: DualTypes = (
             gks[0]["__vol"] * gks[0]["vega"] + gks[1]["__vol"] * gks[1]["vega"]
@@ -981,10 +892,26 @@ class FXStrangle(FXOptionStrat, FXOption):
                 - gks[1]["__bs76"]
             )
 
-            dc1_dvol1_0 = d_c_hat_d_sigma_hat(0, gks[0])
-            dcmkt_dvol1_0 = d_c_mkt_d_sigma_hat(0, gks[0], smile_gks[0], vol_0, eta1)
-            dc1_dvol1_1 = d_c_hat_d_sigma_hat(1, gks[1])
-            dcmkt_dvol1_1 = d_c_mkt_d_sigma_hat(1, gks[1], smile_gks[1], vol_1, eta1)
+            dc1_dvol1_0 = _d_c_hat_d_sigma_hat(gks[0], self._is_fixed_delta[0])
+            dcmkt_dvol1_0 = _d_c_mkt_d_sigma_hat(
+                gks[0],
+                smile_gks[0],
+                self.kwargs["expiry"],
+                vol_0,
+                eta1,
+                self._is_fixed_delta[0],
+                fzw1zw0,
+            )
+            dc1_dvol1_1 = _d_c_hat_d_sigma_hat(gks[1], self._is_fixed_delta[1])
+            dcmkt_dvol1_1 = _d_c_mkt_d_sigma_hat(
+                gks[1],
+                smile_gks[1],
+                self.kwargs["expiry"],
+                vol_1,
+                eta1,
+                self._is_fixed_delta[1],
+                fzw1zw0,
+            )
             f1 = dcmkt_dvol1_0 + dcmkt_dvol1_1 - dc1_dvol1_0 - dc1_dvol1_1
 
             tgt_vol = tgt_vol - (f0 / f1) * 100.0  # Newton-Raphson step
@@ -1030,6 +957,103 @@ class FXStrangle(FXOptionStrat, FXOption):
     #
     #     result = newton_1dim(root, g0=g0, args=(imm_prem, k1, k2, f_d, sqrt_t, v_deli))
     #     return result["g"]
+
+
+# Calculations related to Strange:single_vol
+
+
+def _d_c_hat_d_sigma_hat(
+    g: dict[str, Any],  # greeks
+    fixed_delta: bool,
+) -> DualTypes:
+    """
+    Return the total derivative of option priced with single vol with respect to single
+    vol.
+
+    Parameters
+    ----------
+    g: dict
+        The dict of greeks for the given option period measured against the tgt, single vol.
+    fixed_delta: bool
+        Whether the given FXOption is defined by fixed delta or an explicit strike.
+
+    Returns
+    -------
+    DualTypes
+    """
+    if not fixed_delta:
+        # kega is 0.0
+        return g["vega"]  # type: ignore[no-any-return]
+    else:
+        return g["_kappa"] * g["_kega"] + g["vega"]  # type: ignore[no-any-return]
+
+
+def _d_c_mkt_d_sigma_hat(
+    g: dict[str, Any],  # greeks
+    sg: dict[str, Any],  # smile_greeks
+    expiry: datetime,
+    vol: FXVol,
+    eta1: float | None,
+    fixed_delta: bool,
+    fzw1zw0: DualTypes | None,
+) -> DualTypes:
+    """
+    Return the total derivative of option priced with mkt vol with respect to single
+    vol.
+
+    Parameters
+    ----------
+    g: dict
+        The dict of greeks for the given option period measured against the tgt, single vol.
+    sg: dict
+        The dict of greeks for the given option period measured against the smile.
+    expiry: datetime
+        The expiry of the Option.
+    vol: VolObj
+        The smile object.
+    eta1: float | None
+        The delta type of the Smile if available
+    fixed_delta: bool
+        Whether the option is defined by fixed delta or an explicit strike.
+
+    Returns
+    -------
+    DualTypes
+    """
+    if not fixed_delta:
+        return 0.0  # kega is zero and the mkt vol has no sensitivity to vol_hat.
+    else:
+        if isinstance(vol, FXDeltaVolSurface | FXDeltaVolSmile):
+            if isinstance(vol, FXDeltaVolSurface):
+                vol = vol.get_smile(expiry)
+
+            dvol_ddeltaidx = evaluate(vol.spline, sg["_delta_index"], 1) * 0.01
+
+            ddeltaidx_dvol1 = sg["gamma"] * fzw1zw0
+            if eta1 < 0:  # type: ignore[operator]
+                # premium adjusted vol smile
+                ddeltaidx_dvol1 += sg["_delta_index"]
+            ddeltaidx_dvol1 *= g["_kega"] / sg["__strike"]
+
+            _ = dual_log(sg["__strike"] / sg["__forward"]) / sg["__vol"]
+            _ += eta1 * sg["__vol"] * sg["__sqrt_t"] ** 2
+            _ *= dvol_ddeltaidx * sg["gamma"] * fzw1zw0
+            ddeltaidx_dvol1 /= 1 + _
+
+            dvol_dvol1: DualTypes = dvol_ddeltaidx * ddeltaidx_dvol1
+        elif isinstance(vol, FXSabrSmile | FXSabrSurface):
+            dvol_dk = vol._d_sabr_d_k(
+                k=sg["__strike"],
+                f=sg["__forward"],
+                expiry=expiry,
+                as_float=False,
+            )[1]
+
+            dvol_dvol1 = dvol_dk * g["_kega"]
+        else:
+            dvol_dvol1 = 0.0
+
+        return sg["_kappa"] * g["_kega"] + sg["vega"] * dvol_dvol1  # type: ignore[no-any-return]
 
 
 class FXBrokerFly(FXOptionStrat, FXOption):
