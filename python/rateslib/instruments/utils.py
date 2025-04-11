@@ -164,7 +164,7 @@ def _get_fxvol_maybe_from_solver(vol_attr: FXVol_, vol: FXVol_, solver: Solver_)
             if id(_) != id(vol_):
                 raise ValueError(  # ignore: type[union-attr]
                     "A ``vol`` object has been supplied which has the same "
-                    f"`id` ('{vol_.id}'),\nas one of those available as part of the "  
+                    f"`id` ('{vol_.id}'),\nas one of those available as part of the "
                     "Solver's collection but is not the same object.\n"
                     "This is ambiguous and may lead to erroneous prices.\n",
                 )
