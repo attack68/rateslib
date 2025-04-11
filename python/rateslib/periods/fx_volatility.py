@@ -4,6 +4,7 @@ from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING
 
 import numpy as np
+from pytz import UTC
 
 from rateslib import defaults
 from rateslib.curves._parsers import _validate_obj_not_no_input
@@ -28,6 +29,7 @@ from rateslib.periods.utils import (
     _get_vol_smile_or_value,
     _maybe_local,
 )
+from rateslib.rs import index_left_f64
 from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
@@ -703,27 +705,37 @@ class FXOptionPeriod(metaclass=ABCMeta):
         eta_1, z_w_1, _ = _delta_type_constants(vol_delta_type, z_w, 0.0)  #  u: unused
 
         if isinstance(vol, FXSabrSmile | FXSabrSurface):
-            k = self._strike_from_atm_sabr(f, eta_0, vol, t_e)
+            k = self._strike_from_atm_sabr(f, eta_0, vol)
             return k, None
         else:  # DualTypes | FXDeltaVolSmile | FXDeltaVolSurface
             return self._strike_from_atm_dv(
                 f, eta_0, eta_1, z_w_0, z_w_1, vol, t_e, delta_type, vol_delta_type, z_w
             )
 
-    def _strike_from_atm_sabr(  # SABR type models
-        self, f: DualTypes, eta_0: float, vol: FXSabrSmile, t_e: DualTypes
+    def _strike_from_atm_sabr(
+        self,
+        f: DualTypes,
+        eta_0: float,
+        vol: FXSabrSmile | FXSabrSurface,
     ) -> DualTypes:
-        """Determine strike from ATM delta specification with SABR models."""
+        t_e = (self.expiry - vol.eval_date).days / 365.0
 
         def root1d(k: DualTypes, f: DualTypes) -> tuple[DualTypes, DualTypes]:
-            sigma, dsigma_dk = vol._d_sabr_d_k(k, f, t_e)
+            sigma, dsigma_dk = vol._d_sabr_d_k(k, f, self.expiry)
             f0 = -dual_log(k / f) + eta_0 * sigma**2 * t_e
             f1 = -1 / k + eta_0 * 2 * sigma * dsigma_dk * t_e
             return f0, f1
 
+        if isinstance(vol, FXSabrSmile):
+            alpha = vol.nodes["alpha"]
+        else:  # FXSabrSurface
+            expiry_posix = self.expiry.replace(tzinfo=UTC).timestamp()
+            e_idx = index_left_f64(vol.expiries_posix, expiry_posix)
+            alpha = vol.smiles[e_idx].nodes["alpha"]
+
         root_solver = newton_1dim(
             root1d,
-            f * dual_exp(eta_0 * vol.nodes["alpha"] ** 2 * t_e),
+            f * dual_exp(eta_0 * alpha**2 * t_e),
             args=(f,),
             raise_on_fail=True,
         )
@@ -825,7 +837,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         z_w = w_deli / w_spot
 
         if isinstance(vol, FXSabrSmile | FXSabrSurface):
-            k = self._strike_from_delta_sabr(delta, delta_type, vol, z_w, f, t_e)
+            k = self._strike_from_delta_sabr(delta, delta_type, vol, z_w, f)
             return k, None
         else:  # DualTypes | FXDeltaVolSmile | FXDeltaVolSurface
             return self._strike_from_delta_dv(f, delta, vol, t_e, delta_type, vol_delta_type, z_w)
@@ -882,37 +894,44 @@ class FXOptionPeriod(metaclass=ABCMeta):
         self,
         delta: float,
         delta_type: str,
-        vol: FXSabrSmile,
+        vol: FXSabrSmile | FXSabrSurface,
         z_w: DualTypes,
         f: DualTypes,
-        t_e: DualTypes,
     ) -> DualTypes:
         eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, 0.0)  # u: unused
+        t_e = (self.expiry - vol.eval_date).days / 365.0
         sqrt_t = t_e**0.5
 
         def root1d(k: DualTypes, f: DualTypes) -> tuple[DualTypes, DualTypes]:
-            sigma, dsigma_dk = vol._d_sabr_d_k(k, f, t_e)
+            sigma, dsigma_dk = vol._d_sabr_d_k(k, f, self.expiry)
             dn0 = -dual_log(k / f) / (sigma * sqrt_t) + eta_0 * sigma * sqrt_t
             Phi = dual_norm_cdf(self.phi * dn0)
 
             if eta_0 == -0.5:
-                z_u, dz_u_dk = k / f, 1 / f
-                d_1 = -dz_u_dk * z_w * self.phi * Phi
+                z_u_0, dz_u_dk = k / f, 1 / f
+                d_1 = -dz_u_dk * z_w_0 * self.phi * Phi
             else:
-                z_u, dz_u_dk = 1.0, 0.0
+                z_u_0, dz_u_dk = 1.0, 0.0
                 d_1 = 0.0
 
             ddn_dk = (dual_log(k / f) / (sigma**2 * sqrt_t) + eta_0 * sqrt_t) * dsigma_dk - 1 / (
                 k * sigma * sqrt_t
             )
-            d_2 = -z_u * z_w * dual_norm_pdf(self.phi * dn0) * ddn_dk
+            d_2 = -z_u_0 * z_w_0 * dual_norm_pdf(self.phi * dn0) * ddn_dk
 
-            f0 = delta - z_w * z_u * self.phi * Phi
+            f0 = delta - z_w_0 * z_u_0 * self.phi * Phi
             f1 = d_1 + d_2
             return f0, f1
 
         g01 = delta if self.phi > 0 else max(delta, -0.75)
-        g0 = self._moneyness_from_delta_closed_form(g01, vol.nodes["alpha"], t_e, 1.0) * f
+        if isinstance(vol, FXSabrSmile):
+            alpha = vol.nodes["alpha"]
+        else:  # FXSabrSurface
+            expiry_posix = self.expiry.replace(tzinfo=UTC).timestamp()
+            e_idx = index_left_f64(vol.expiries_posix, expiry_posix)
+            alpha = vol.smiles[e_idx].nodes["alpha"]
+
+        g0 = self._moneyness_from_delta_closed_form(g01, alpha * 100.0, t_e, z_w_0) * f
 
         root_solver = newton_1dim(
             root1d,
