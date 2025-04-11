@@ -298,7 +298,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
         curves_1: Curve = _validate_obj_not_no_input(curves[1], "curves[1]")
 
         if isinstance(vol_, FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile | FXSabrSurface):
-            eval_date = vol_.eval_date  # type: ignore[union-attr]
+            eval_date = vol_.eval_date
         else:
             eval_date = curves_3.node_dates[0]
 

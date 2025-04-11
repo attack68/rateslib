@@ -1632,7 +1632,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         self,
         k: DualTypes,
         f: DualTypes | FXForwards,
-        expiry: datetime_ = NoInput(0),
+        expiry: datetime,
         w_deli: DualTypes | NoInput = NoInput(0),
         w_spot: DualTypes | NoInput = NoInput(0),
     ) -> tuple[DualTypes, DualTypes, DualTypes]:
@@ -1731,8 +1731,8 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         self,
         k: DualTypes,
         f: DualTypes,
-        expiry: datetime_ = NoInput(0),
-    ):
+        expiry: datetime,
+    ) -> tuple[DualTypes, DualTypes]:
         expiry_posix = expiry.replace(tzinfo=UTC).timestamp()
         e_idx = index_left_f64(self.expiries_posix, expiry_posix)
 
@@ -1931,7 +1931,7 @@ def _t_var_interp_d_sabr_d_k(
     vol2: DualTypes,
     dvol2_dk: DualTypes,
     bounds_flag: int,
-):
+) -> tuple[DualTypes, DualTypes]:
     if isinstance(weights_cum, NoInput):  # weights must also be NoInput
         if bounds_flag == 0:
             t1 = expiries_posix[expiry_index] - eval_posix

@@ -492,7 +492,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 k=self.strike,
                 f=f_d,
                 expiry=self.expiry
-            )  # type: ignore[union-attr]
+            )
             delta_idx = None
             vol_ = res[1]
         else:
@@ -810,7 +810,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         self,
         delta: float,
         delta_type: str,
-        vol: FXVolOption_,
+        vol: FXVolOption,
         w_deli: DualTypes,
         w_spot: DualTypes,
         f: DualTypes,
@@ -1424,7 +1424,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         if isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile | FXSabrSurface):
             spot = fx.pairs_settlement[self.pair]
             f = fx.rate(self.pair, self.delivery)
-            _: tuple[Any, DualTypes, Any] = vol.get_from_strike(  # type: ignore[union-attr]
+            _: tuple[Any, DualTypes, Any] = vol.get_from_strike(
                 k=self.strike,
                 f=f,
                 w_deli=disc_curve[self.delivery],
