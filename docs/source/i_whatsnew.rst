@@ -54,6 +54,13 @@ email contact, see `rateslib <https://rateslib.com>`_.
        to prioritise ``expiry`` which is more commonly required for *Surfaces*.
        (`735 <https://github.com/attack68/rateslib/pull/735>`_)
    * - Refactor
+     - All pricing objects, such as :class:`~rateslib.curves.Curve`, :class:`~rateslib.fx.FXRates`,
+       :class:`~rateslib.fx_volatility.FXDeltaVolSmile` etc., and pricing containers, such as
+       :class:`~rateslib.curves.CompositeCurve`, :class:`~rateslib.fx.FXForwards`,
+       :class:`~rateslib.fx_volatility.FXDeltaVolSurface` etc., have moved their AD identifying
+       attribute to the private value ``_ad`` instead of ``ad``, although ``ad`` is still readable.
+       (`738 <https://github.com/attack68/rateslib/pull/738>`_)
+   * - Refactor
      - Rename :class:`~rateslib.instruments.BaseMixin` to :class:`~rateslib.instruments.Metrics`.
        (`678 <https://github.com/attack68/rateslib/pull/678>`_)
    * - Refactor

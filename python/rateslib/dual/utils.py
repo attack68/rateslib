@@ -421,9 +421,13 @@ def _set_ad_order_objects(order: list[int], objs: list[Any]) -> list[int]:
     existing_order: list[int] = []
     for ad, obj in zip(order, objs, strict=True):
         try:
-            existing_order.append(obj.ad)
+            _ad = getattr(obj, "_ad", None) or getattr(obj, "ad", None)
+            existing_order.append(_ad)
+            if _ad is None:
+                print("DEBUG: ", obj)
             obj._set_ad_order(ad)
         except AttributeError:
+            print(obj)
             existing_order.append(0)
             continue
     return existing_order
