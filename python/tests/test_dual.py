@@ -18,7 +18,7 @@ from rateslib.dual import (
     gradient,
     set_order,
 )
-from rateslib.dual.utils import _abs_float
+from rateslib.dual.utils import _abs_float, _set_ad_order_objects
 
 DUAL_CORE_PY = False
 
@@ -1178,3 +1178,29 @@ class TestVariable:
         assert abs(exp0 - result.iloc[0, 0]) < 1e-8
         assert abs(exp1 + result.iloc[1, 0]) < 1e-8
         assert abs(exp2 + result.iloc[2, 0]) < 1e-8
+
+
+def test_set_multiple_objects_order():
+    a = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}, id="a")
+    b = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}, id="b")
+    c = a
+
+    result = _set_ad_order_objects([2, 2, 0], [a, b, c])
+    assert a._ad == 2
+    assert b._ad == 2
+    assert c._ad == 2  # c is a!
+    expected = {
+        id(a): 0,
+        id(b): 0,
+    }
+    assert result == expected
+
+    _set_ad_order_objects(result, [a, b, c])
+    assert a._ad == 0
+    assert b._ad == 0
+    assert c._ad == 0  # c is a!
+
+def test_set_multiple_objects_order_raises():
+    a = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}, id="a")
+    with pytest.raises(ValueError):
+        _set_ad_order_objects([0], [a, a])
