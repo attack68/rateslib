@@ -53,6 +53,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
        :meth:`~rateslib.fx_volatility.FXDeltaVolSmile.get_from_strike` methods are reordered
        to prioritise ``expiry`` which is more commonly required for *Surfaces*.
        (`735 <https://github.com/attack68/rateslib/pull/735>`_)
+   * - Performance
+     - The :meth:`FXStrangle.rate <rateslib.instruments.FXStrange.rate` method is refactored to
+       use :meth:`rateslib.dual.newton_1dim` for performance.
+       (`735 <https://github.com/attack68/rateslib/pull/735>`_)
    * - Refactor
      - All pricing objects, such as :class:`~rateslib.curves.Curve`, :class:`~rateslib.fx.FXRates`,
        :class:`~rateslib.fx_volatility.FXDeltaVolSmile` etc., and pricing containers, such as
