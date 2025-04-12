@@ -1282,9 +1282,6 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
             Allow expedited calculation by avoiding dual numbers. Useful during the root solving
             phase of Newton iterations.
         """
-        if as_float:
-            return self._d_sabr_d_k_float(k, f, expiry)
-
         t_e = (expiry - self.eval_date).days / 365.0
 
         if as_float:
@@ -1301,18 +1298,6 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
             v = self.nodes["nu"]
 
         return _d_sabr_d_k(k, f, t_e, a, b, p, v)  # type: ignore[arg-type]
-
-    def _d_sabr_d_k_float(
-        self, k: DualTypes, f: DualTypes, expiry: datetime
-    ) -> tuple[DualTypes, DualTypes]:
-        t_e = (expiry - self.eval_date).days / 365.0
-        k = _dual_float(k)
-        f = _dual_float(f)
-        a = _dual_float(self.nodes["alpha"])
-        b = _dual_float(self.nodes["beta"])
-        p = _dual_float(self.nodes["rho"])
-        v = _dual_float(self.nodes["nu"])
-        return _d_sabr_d_k(k, f, t_e, a, b, p, v)
 
     def _get_node_vector(self) -> np.ndarray[tuple[int, ...], np.dtype[np.object_]]:
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""

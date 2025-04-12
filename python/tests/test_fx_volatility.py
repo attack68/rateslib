@@ -1338,8 +1338,42 @@ class TestFXSabrSmile:
         assert abs(lines[0]._y[0] - 2.0698) < 1e-4
         assert abs(lines[0]._y[-1] - 2.0865) < 1e-4
 
+    def test_get_from_strike_raises_fx(self, fxfo):
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.17431060,
+                "beta": 1.0,
+                "rho": -0.11268306,
+                "nu": 0.81694072,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 4, 16),
+            id="v",
+            ad=1,
+            calendar="tgt|fed",
+        )
+        with pytest.raises(ValueError, match="`FXSabrSmile` must be specified with a `pair` arg"):
+            fxss.get_from_strike(1.02, fxfo)
+
 
 class TestFXSabrSurface:
+
+    @pytest.mark.parametrize("expiries", [
+        [dt(2024, 5, 29), dt(2024, 7, 29), dt(2024, 6, 29)],
+        [dt(2024, 5, 29), dt(2024, 6, 29), dt(2024, 6, 29)],
+    ])
+    def test_unsorted_expiries(self, expiries):
+        with pytest.raises(ValueError, match="Surface `expiries` are not sorted or contain dupl"):
+            FXSabrSurface(
+                eval_date=dt(2024, 5, 28),
+                expiries=expiries,
+                node_values=[[0.05, 1.0, 0.01, 0.15]] * 3,
+                pair="eurusd",
+                delivery_lag=2,
+                calendar="tgt|fed",
+                id="eurusd_vol",
+            )
+
     def test_z_eurusd_surface_cookbook(self):
         from rateslib import (
             IRS,
