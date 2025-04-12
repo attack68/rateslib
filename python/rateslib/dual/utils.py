@@ -397,20 +397,20 @@ def _get_adorder(order: int) -> ADOrder:
         raise ValueError("Order for AD can only be in {0,1,2}")
 
 
-def _set_ad_order_objects(order: list[int], objs: list[Any]) -> list[int]:
+def _set_ad_order_objects(order: list[int] | dict[int, int], objs: list[Any]) -> dict[int, int]:
     """
-    Set the order on multiple Objects, returning their previous order.
+    Set the order on multiple Objects, returning their previous order indexed my memory id.
 
     Parameters
     ----------
-    order: list[int]
-        A list of orders to set the objects to.
+    order: list[int] or dict[int,int]
+        A list of orders to set the objects to. If a dict indexed my memory id.
     objs: list[Any]
         A list of objects to convert the AD orders of.
 
     Returns
     -------
-    list[int]
+    dict[int]
 
     Notes
     -----
@@ -418,16 +418,25 @@ def _set_ad_order_objects(order: list[int], objs: list[Any]) -> list[int]:
     it will simply be passed and return 0 for its associated
     previous AD order.
     """
-    existing_order: list[int] = []
-    for ad, obj in zip(order, objs, strict=True):
-        try:
-            _ad = getattr(obj, "_ad", None) or getattr(obj, "ad", None)
-            existing_order.append(_ad)
-            if _ad is None:
-                print("DEBUG: ", obj)
-            obj._set_ad_order(ad)
-        except AttributeError:
-            print(obj)
-            existing_order.append(0)
+    # this function catches duplicate objects that are identical by memory id
+    if isinstance(order, list) and len(order) != len(objs):
+        raise ValueError("`order` and `objs` must have the same length")
+
+    original_order: dict[int, int] = {}
+    for i, obj in enumerate(objs):
+        if id(obj) in original_order:
+            continue  # object has already been parsed
+
+        _ad = getattr(obj, "_ad", None)
+        if _ad is None:
+            # object cannot be set_ad_order
             continue
-    return existing_order
+
+        if isinstance(order, dict):
+            obj._set_ad_order(order[id(obj)])
+            original_order[id(obj)] = _ad
+        else:  # isinstance(order, list)
+            obj._set_ad_order(order[i])
+            original_order[id(obj)] = _ad
+
+    return original_order
