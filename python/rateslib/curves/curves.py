@@ -251,6 +251,10 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         self._set_ad_order(order=ad)  # will also clear and initialise the cache
         self._set_new_state()
 
+    @property
+    def ad(self) -> int:
+        return self._ad
+
     def __set_interpolation__(
         self,
         interpolation: str | Callable[[datetime, dict[datetime, DualTypes]], DualTypes],
@@ -1417,7 +1421,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         elif order not in [0, 1, 2]:
             raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
 
-        self.ad = order
+        self._ad = order
         self.nodes = {
             k: set_order_convert(v, order, [f"{self.id}{i}"])
             for i, (k, v) in enumerate(self.nodes.items())
@@ -2624,7 +2628,7 @@ class CompositeCurve(Curve):
         elif order not in [0, 1, 2]:
             raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
 
-        self.ad = order
+        self._ad = order
         for curve in self.curves:
             if type(curve) is ProxyCurve:
                 continue
@@ -3040,7 +3044,7 @@ class ProxyCurve(Curve):
         self.node_dates = [self.fx_forwards.immediate, self.terminal]
 
     @property
-    def ad(self) -> int:  # type: ignore[override]
+    def ad(self) -> int:
         return self.fx_forwards._ad
 
     @property

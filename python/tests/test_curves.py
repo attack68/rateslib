@@ -276,7 +276,7 @@ def test_copy_curve(curve, line_curve) -> None:
         ("nodes", {dt(2022, 3, 1): 1.00}),
         ("interpolation", "log_linear"),
         ("id", "x"),
-        ("ad", 0),
+        ("_ad", 0),
         ("convention", "actact"),
         ("t", [dt(2022, 1, 1)]),
         ("calendar_type", "bad"),

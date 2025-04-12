@@ -120,6 +120,10 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
 
         self.__set_nodes__(nodes, ad)
 
+    @property
+    def ad(self) -> int:
+        return self._ad
+
     def __iter__(self) -> Any:
         raise TypeError("`FXDeltaVolSmile` is not iterable.")
 
@@ -716,7 +720,7 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
         elif order not in [0, 1, 2]:
             raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
 
-        self.ad = order
+        self._ad = order
         self.nodes = {
             k: set_order_convert(v, order, [f"{self.id}{i}"])
             for i, (k, v) in enumerate(self.nodes.items())
@@ -900,6 +904,10 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         self._set_ad_order(ad)  # includes csolve on each smile
         self._set_new_state()
 
+    @property
+    def ad(self) -> int:
+        return self._ad
+
     def _get_composited_state(self) -> int:
         return hash(sum(smile._state for smile in self.smiles))
 
@@ -911,7 +919,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
 
     @_clear_cache_post
     def _set_ad_order(self, order: int) -> None:
-        self.ad = order
+        self._ad = order
         for smile in self.smiles:
             smile._set_ad_order(order)
 
@@ -1191,6 +1199,10 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
                 )
         self._set_ad_order(ad)
 
+    @property
+    def ad(self) -> int:
+        return self._ad
+
     def __iter__(self) -> Any:
         raise TypeError("`FXSabrSmile` is not iterable.")
 
@@ -1288,7 +1300,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
             p = self.nodes["rho"]
             v = self.nodes["nu"]
 
-        return _d_sabr_d_k(k, f, t_e, a, b, p, v)
+        return _d_sabr_d_k(k, f, t_e, a, b, p, v)  # type: ignore[arg-type]
 
     def _d_sabr_d_k_float(
         self, k: DualTypes, f: DualTypes, expiry: datetime
@@ -1353,12 +1365,12 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         """This does not alter the beta node, since that is not varied by a Solver.
         beta values that are AD sensitive should be given as a Variable and not Dual/Dual2.
         """
-        if order == getattr(self, "ad", None):
+        if order == getattr(self, "_ad", None):
             return None
         elif order not in [0, 1, 2]:
             raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
 
-        self.ad = order
+        self._ad = order
 
         self.nodes["alpha"] = set_order_convert(self.nodes["alpha"], order, [f"{self.id}0"])
         self.nodes["rho"] = set_order_convert(self.nodes["rho"], order, [f"{self.id}1"])
@@ -1617,6 +1629,10 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         self._set_ad_order(ad)  # includes csolve on each smile
         self._set_new_state()
 
+    @property
+    def ad(self) -> int:
+        return self._ad
+
     def _get_composited_state(self) -> int:
         return hash(sum(smile._state for smile in self.smiles))
 
@@ -1628,7 +1644,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
 
     @_clear_cache_post
     def _set_ad_order(self, order: int) -> None:
-        self.ad = order
+        self._ad = order
         for smile in self.smiles:
             smile._set_ad_order(order)
 
