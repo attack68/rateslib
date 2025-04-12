@@ -252,7 +252,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         self._set_new_state()
 
     @property
-    def ad(self):
+    def ad(self) -> int:
         return self._ad
 
     def __set_interpolation__(
@@ -3044,7 +3044,7 @@ class ProxyCurve(Curve):
         self.node_dates = [self.fx_forwards.immediate, self.terminal]
 
     @property
-    def ad(self) -> int:  # type: ignore[override]
+    def ad(self) -> int:
         return self.fx_forwards._ad
 
     @property

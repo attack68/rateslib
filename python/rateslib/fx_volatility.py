@@ -121,7 +121,7 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
         self.__set_nodes__(nodes, ad)
 
     @property
-    def ad(self):
+    def ad(self) -> int:
         return self._ad
 
     def __iter__(self) -> Any:
@@ -905,7 +905,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         self._set_new_state()
 
     @property
-    def ad(self):
+    def ad(self) -> int:
         return self._ad
 
     def _get_composited_state(self) -> int:
@@ -1200,7 +1200,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         self._set_ad_order(ad)
 
     @property
-    def ad(self):
+    def ad(self) -> int:
         return self._ad
 
     def __iter__(self) -> Any:
@@ -1300,7 +1300,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
             p = self.nodes["rho"]
             v = self.nodes["nu"]
 
-        return _d_sabr_d_k(k, f, t_e, a, b, p, v)
+        return _d_sabr_d_k(k, f, t_e, a, b, p, v)  # type: ignore[arg-type]
 
     def _d_sabr_d_k_float(
         self, k: DualTypes, f: DualTypes, expiry: datetime
@@ -1630,7 +1630,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         self._set_new_state()
 
     @property
-    def ad(self):
+    def ad(self) -> int:
         return self._ad
 
     def _get_composited_state(self) -> int:

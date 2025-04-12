@@ -854,14 +854,14 @@ class FXStrangle(FXOptionStrat, FXOption):
         _ad = _set_ad_order_objects([0]*5, [vol_0, vol_1, curves_1, curves_3, fxf])
         gks: list[dict[str, Any]] = [
             self.periods[0].analytic_greeks(
-                curves=[None, curves_1, None, curves_3],
+                curves=[NoInput(0), curves_1, NoInput(0), curves_3],
                 solver=NoInput(0),
                 fx=fxf,
                 base=base,
                 vol=vol_0,
             ),
             self.periods[1].analytic_greeks(
-                curves=[None, curves_1, None, curves_3],
+                curves=[NoInput(0), curves_1, NoInput(0), curves_3],
                 solver=NoInput(0),
                 fx=fxf,
                 base=base,
@@ -875,7 +875,7 @@ class FXStrangle(FXOptionStrat, FXOption):
         put_op_period: FXOptionPeriod = self.periods[0]._option_periods[0]
         call_op_period: FXOptionPeriod = self.periods[1]._option_periods[0]
 
-        def root1d(tgt_vol, fzw1zw0: DualTypes, as_float:bool):
+        def root1d(tgt_vol: DualTypes, fzw1zw0: DualTypes, as_float:bool) -> tuple[DualTypes, DualTypes]:
             if not as_float:
                 # reset objects to their original order and perform final iterations
                 _set_ad_order_objects(_ad, [vol_0, vol_1, curves_1, curves_3, fxf])
@@ -883,14 +883,14 @@ class FXStrangle(FXOptionStrat, FXOption):
             # Determine the greeks of the options with the current tgt_vol iterate
             gks = [
                 self.periods[0].analytic_greeks(
-                    curves=[None, curves_1, None, curves_3],
+                    curves=[NoInput(0), curves_1, NoInput(0), curves_3],
                     solver=NoInput(0),
                     fx=fxf,
                     base=base,
                     vol=tgt_vol * 100.0
                 ),
                 self.periods[1].analytic_greeks(
-                    curves=[None, curves_1, None, curves_3],
+                    curves=[NoInput(0), curves_1, NoInput(0), curves_3],
                     solver=NoInput(0),
                     fx=fxf,
                     base=base,
@@ -943,7 +943,7 @@ class FXStrangle(FXOptionStrat, FXOption):
             max_iter=10,
             func_tol=1e-6,
         )
-        tgt_vol = root_solver["g"] * 100.0
+        tgt_vol: DualTypes = root_solver["g"] * 100.0
 
         if record_greeks:  # this needs to be explicitly called since it degrades performance
             self._greeks["strangle"] = {
@@ -958,33 +958,6 @@ class FXStrangle(FXOptionStrat, FXOption):
             }
 
         return tgt_vol
-
-    # def _single_vol_rate_known_strikes(
-    #     self,
-    #     imm_prem,
-    #     f_d,
-    #     t_e,
-    #     v_deli,
-    #     g0,
-    # ):
-    #     k1 = self.kwargs["strike"][0]
-    #     k2 = self.kwargs["strike"][1]
-    #     sqrt_t = t_e ** 0.5
-    #
-    #     def root(g, imm_prem, k1, k2, f_d, sqrt_t, v_deli):
-    #         vol_sqrt_t = g * sqrt_t
-    #         d_plus_1 = _d_plus_min(k1, f_d, vol_sqrt_t, 0.5)
-    #         d_min_1 = _d_plus_min(k1, f_d, vol_sqrt_t, -0.5)
-    #         d_plus_2 = _d_plus_min(k2, f_d, vol_sqrt_t, 0.5)
-    #         d_min_2 = _d_plus_min(k2, f_d, vol_sqrt_t, -0.5)
-    #         f0 = -(f_d * dual_norm_cdf(-d_plus_1) - k1 * dual_norm_cdf(-d_min_1))
-    #         f0 += (f_d * dual_norm_cdf(d_plus_2) - k2 * dual_norm_cdf(d_min_2))
-    #         f0 = f0 * v_deli - imm_prem
-    #         f1 = v_deli * f_d * sqrt_t * (dual_norm_pdf(-d_plus_1) + dual_norm_pdf(d_plus_2))
-    #         return f0, f1
-    #
-    #     result = newton_1dim(root, g0=g0, args=(imm_prem, k1, k2, f_d, sqrt_t, v_deli))
-    #     return result["g"]
 
 
 # Calculations related to Strange:single_vol
