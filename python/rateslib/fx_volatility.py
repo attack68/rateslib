@@ -1730,7 +1730,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
             raise ValueError("`expiry` before the `eval_date` of the Surface is invalid.")
         elif expiry_posix < self.expiries_posix[0]:
             # Perform temporal interpolation from the start to the first Smile
-            v_ = self.smiles[0].get_from_strike(k, f, expiry)[1]
+            v_ = self.smiles[0].get_from_strike(k, f)[1]
             vol = _t_var_interp(
                 expiries=self.expiries,
                 expiries_posix=self.expiries_posix,
@@ -1751,8 +1751,8 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                     "`f` must be supplied as `FXForwards` in order to calculate"
                     "dynamic ATM-forward rates for temporally-interpolated SABR volatility."
                 )
-            lvol = ls.get_from_strike(k, f, expiry)[1]
-            rvol = rs.get_from_strike(k, f, expiry)[1]
+            lvol = ls.get_from_strike(k, f)[1]
+            rvol = rs.get_from_strike(k, f)[1]
 
             vol = _t_var_interp(
                 expiries=self.expiries,
