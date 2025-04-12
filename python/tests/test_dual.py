@@ -1200,6 +1200,7 @@ def test_set_multiple_objects_order():
     assert b._ad == 0
     assert c._ad == 0  # c is a!
 
+
 def test_set_multiple_objects_order_raises():
     a = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}, id="a")
     with pytest.raises(ValueError):

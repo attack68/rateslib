@@ -1287,12 +1287,12 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         if as_float:
             k = _dual_float(k)
             f = _dual_float(f)
-            a = _dual_float(self.nodes["alpha"])
-            b = _dual_float(self.nodes["beta"])
-            p = _dual_float(self.nodes["rho"])
-            v = _dual_float(self.nodes["nu"])
+            a: DualTypes = _dual_float(self.nodes["alpha"])
+            b: DualTypes = _dual_float(self.nodes["beta"])
+            p: DualTypes = _dual_float(self.nodes["rho"])
+            v: DualTypes = _dual_float(self.nodes["nu"])
         else:
-            a = self.nodes["alpha"]
+            a = self.nodes["alpha"]  #
             b = self.nodes["beta"]
             p = self.nodes["rho"]
             v = self.nodes["nu"]
