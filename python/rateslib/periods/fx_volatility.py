@@ -724,8 +724,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
     ) -> DualTypes:
         t_e = (self.expiry - vol.eval_date).days / 365.0
 
-        def root1d(k: DualTypes, f: DualTypes) -> tuple[DualTypes, DualTypes]:
-            sigma, dsigma_dk = vol._d_sabr_d_k(k, f, self.expiry)
+        def root1d(k: DualTypes, f: DualTypes, as_float: bool) -> tuple[DualTypes, DualTypes]:
+            sigma, dsigma_dk = vol._d_sabr_d_k(k, f, self.expiry, as_float)
             f0 = -dual_log(k / f) + eta_0 * sigma**2 * t_e
             f1 = -1 / k + eta_0 * 2 * sigma * dsigma_dk * t_e
             return f0, f1
@@ -741,6 +741,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
             root1d,
             f * dual_exp(eta_0 * alpha**2 * t_e),
             args=(f,),
+            pre_args=(True,),  # solve `as_float` in iterations
+            final_args=(False,),  # capture AD in final iterations
             raise_on_fail=True,
         )
 
@@ -906,8 +908,10 @@ class FXOptionPeriod(metaclass=ABCMeta):
         t_e = (self.expiry - vol.eval_date).days / 365.0
         sqrt_t = t_e**0.5
 
-        def root1d(k: DualTypes, f: DualTypes) -> tuple[DualTypes, DualTypes]:
-            sigma, dsigma_dk = vol._d_sabr_d_k(k, f, self.expiry)
+        def root1d(
+            k: DualTypes, f: DualTypes, z_w_0: DualTypes, delta: float, as_float: bool
+        ) -> tuple[DualTypes, DualTypes]:
+            sigma, dsigma_dk = vol._d_sabr_d_k(k, f, self.expiry, as_float)
             dn0 = -dual_log(k / f) / (sigma * sqrt_t) + eta_0 * sigma * sqrt_t
             Phi = dual_norm_cdf(self.phi * dn0)
 
@@ -940,7 +944,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
         root_solver = newton_1dim(
             root1d,
             g0,
-            args=(f,),
+            args=(f, z_w_0, delta),
+            pre_args=(True,),  # solve iterations `as_float`
+            final_args=(False,),  # solve final iteration with AD
             raise_on_fail=True,
         )
 
