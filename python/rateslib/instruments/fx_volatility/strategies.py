@@ -851,7 +851,7 @@ class FXStrangle(FXOptionStrat, FXOption):
 
         # Determine the initial guess for Newton type iterations
 
-        _ad = _set_ad_order_objects([0]*5, [vol_0, vol_1, curves_1, curves_3, fxf])
+        _ad = _set_ad_order_objects([0] * 5, [vol_0, vol_1, curves_1, curves_3, fxf])
         gks: list[dict[str, Any]] = [
             self.periods[0].analytic_greeks(
                 curves=[NoInput(0), curves_1, NoInput(0), curves_3],
@@ -875,7 +875,9 @@ class FXStrangle(FXOptionStrat, FXOption):
         put_op_period: FXOptionPeriod = self.periods[0]._option_periods[0]
         call_op_period: FXOptionPeriod = self.periods[1]._option_periods[0]
 
-        def root1d(tgt_vol: DualTypes, fzw1zw0: DualTypes, as_float:bool) -> tuple[DualTypes, DualTypes]:
+        def root1d(
+            tgt_vol: DualTypes, fzw1zw0: DualTypes, as_float: bool
+        ) -> tuple[DualTypes, DualTypes]:
             if not as_float:
                 # reset objects to their original order and perform final iterations
                 _set_ad_order_objects(_ad, [vol_0, vol_1, curves_1, curves_3, fxf])
@@ -887,14 +889,14 @@ class FXStrangle(FXOptionStrat, FXOption):
                     solver=NoInput(0),
                     fx=fxf,
                     base=base,
-                    vol=tgt_vol * 100.0
+                    vol=tgt_vol * 100.0,
                 ),
                 self.periods[1].analytic_greeks(
                     curves=[NoInput(0), curves_1, NoInput(0), curves_3],
                     solver=NoInput(0),
                     fx=fxf,
                     base=base,
-                    vol=tgt_vol * 100.0
+                    vol=tgt_vol * 100.0,
                 ),
             ]
 
