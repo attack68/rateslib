@@ -161,7 +161,7 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
         delta: DualTypes,
         delta_type: str,
         phi: float,
-        z_w: DualTypes | NoInput = NoInput(0),
+        z_w: DualTypes,
         u: DualTypes | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -179,10 +179,11 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
             The delta type the given delta is expressed in.
         phi: float
             Whether the given delta is assigned to a put or call option.
-        z_w: DualTypes | NoInput
+        z_w: DualTypes
             Required only for spot delta types. This is a scaling factor between spot and
             forward rate, equal to :math:`w_(m_{delivery})/w_(m_{spot})`, where *w* is curve
-            for the domestic currency collateralised in the foreign currency.
+            for the domestic currency collateralised in the foreign currency. If not required
+            enter 1.0.
         u: DualTypes, optional
             Required only for premium adjustment / unadjusted conversions.
 
