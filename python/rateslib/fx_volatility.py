@@ -29,6 +29,7 @@ from rateslib.dual import (
     dual_norm_cdf,
     dual_norm_pdf,
     newton_1dim,
+    newton_ndim,
     set_order_convert,
 )
 from rateslib.dual.utils import _cast_pair, _dual_float
@@ -44,7 +45,7 @@ from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, datetime_, int_, str_
+    from rateslib.typing import CalInput, Sequence, datetime_, int_, str_
 
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
 
@@ -2233,6 +2234,472 @@ def _delta_type_constants(
         return -0.5, 1.0, u  # type: ignore[return-value]
     else:  # "spot_pa"
         return -0.5, w, u  # type: ignore[return-value]
+
+
+def _moneyness_from_atm_delta_closed_form(vol: DualTypes, t_e: DualTypes) -> DualTypes:
+    """
+    Return `u` given premium unadjusted `delta`, of either 'spot' or 'forward' type.
+
+    This function preserves AD.
+
+    Book2: section "Strike and Volatility implied from ATM delta" (FXDeltaVolSMile)
+
+    Parameters
+    -----------
+    vol: float, Dual, Dual2
+        The volatility (in %, e.g. 10.0) to use in calculations.
+    t_e: float,
+        The time to expiry.
+
+    Returns
+    -------
+    float, Dual or Dual2
+    """
+    return dual_exp((vol / 100.0) ** 2 * t_e / 2.0)
+
+
+def _moneyness_from_delta_closed_form(
+    delta: DualTypes,
+    vol: DualTypes,
+    t_e: DualTypes,
+    z_w_0: DualTypes,
+    phi: float,
+) -> DualTypes:
+    """
+    Return `u` given premium unadjusted `delta`, of either 'spot' or 'forward' type.
+
+    This function preserves AD.
+
+    Book2: section "Strike and Volatility implied from a given option's delta" (FXDeltaVolSmile)
+
+    Parameters
+    -----------
+    delta: float
+        The input unadjusted delta for which to determine the moneyness for.
+    vol: float, Dual, Dual2
+        The volatility (in %, e.g. 10.0) to use in calculations.
+    t_e: float, Dual, Dual2
+        The time to expiry.
+    z_w_0: float, Dual, Dual2
+        The scalar for 'spot' or 'forward' delta types.
+        If 'forward', this should equal 1.0.
+        If 'spot', this should be :math:`w_deli / w_spot`.
+    phi: float
+        1.0 if is call, -1.0 if is put.
+
+    Returns
+    -------
+    float, Dual or Dual2
+    """
+    vol_sqrt_t = vol * t_e**0.5 / 100.0
+    _: DualTypes = dual_inv_norm_cdf(phi * delta / z_w_0)
+    _ = dual_exp(vol_sqrt_t * (0.5 * vol_sqrt_t - phi * _))
+    return _
+
+
+def _moneyness_from_atm_delta_one_dimensional(
+    delta_type: str,
+    vol_delta_type: str,
+    vol: DualTypes | FXDeltaVolSmile,
+    t_e: DualTypes,
+    z_w: DualTypes,
+    phi: float,
+) -> DualTypes:
+    def root1d(
+        g: DualTypes,
+        delta_type: str,
+        vol_delta_type: str,
+        phi: float,
+        sqrt_t_e: float,
+        z_w: DualTypes,
+        ad: int,
+    ) -> tuple[DualTypes, DualTypes]:
+        u = g
+
+        eta_0, z_w_0, z_u_0 = _delta_type_constants(delta_type, z_w, u)
+        eta_1, z_w_1, z_u_1 = _delta_type_constants(vol_delta_type, z_w, u)
+        dz_u_0_du = 0.5 - eta_0
+
+        delta_idx = z_w_1 * z_u_0 / 2.0
+        if isinstance(vol, FXDeltaVolSmile):
+            vol_: DualTypes = vol[delta_idx] / 100.0
+            dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
+        else:
+            vol_ = vol / 100.0
+            dvol_ddeltaidx = 0.0
+        vol_ = _dual_float(vol_) if ad == 0 else vol_
+        dvol_ddeltaidx = _dual_float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
+        vol_sqrt_t = vol_ * sqrt_t_e
+
+        # Calculate function values
+        d0 = _d_plus_min_u(u, vol_sqrt_t, eta_0)
+        _phi0 = dual_norm_cdf(phi * d0)
+        f0 = phi * z_w_0 * z_u_0 * (0.5 - _phi0)
+
+        # Calculate derivative values
+        ddelta_idx_du = dz_u_0_du * z_w_1 * 0.5
+
+        lnu = dual_log(u) / (vol_**2 * sqrt_t_e)
+        dd_du = -1 / (u * vol_sqrt_t) + dvol_ddeltaidx * (lnu + eta_0 * sqrt_t_e) * ddelta_idx_du
+
+        nd0 = dual_norm_pdf(phi * d0)
+        f1 = -dz_u_0_du * z_w_0 * phi * _phi0 - z_u_0 * z_w_0 * nd0 * dd_du
+
+        return f0, f1
+
+    if isinstance(vol, FXDeltaVolSmile):
+        avg_vol: DualTypes = _dual_float(list(vol.nodes.values())[int(vol.n / 2)])
+    else:
+        avg_vol = vol
+    g01 = phi * 0.5 * (z_w if "spot" in delta_type else 1.0)
+    g00 = _moneyness_from_delta_closed_form(g01, avg_vol, t_e, 1.0, phi)
+
+    root_solver = newton_1dim(
+        root1d,
+        g00,
+        args=(delta_type, vol_delta_type, phi, t_e**0.5, z_w),
+        pre_args=(0,),
+        final_args=(1,),
+        raise_on_fail=True,
+    )
+
+    u: DualTypes = root_solver["g"]
+    return u
+
+
+def _moneyness_from_delta_one_dimensional(
+    delta: DualTypes,
+    delta_type: str,
+    vol_delta_type: str,
+    vol: FXDeltaVolSmile | DualTypes,
+    t_e: DualTypes,
+    z_w: DualTypes,
+    phi: float,
+) -> DualTypes:
+    def root1d(
+        g: DualTypes,
+        delta: DualTypes,
+        delta_type: str,
+        vol_delta_type: str,
+        phi: float,
+        sqrt_t_e: DualTypes,
+        z_w: DualTypes,
+        ad: int,
+    ) -> tuple[DualTypes, DualTypes]:
+        u = g
+
+        eta_0, z_w_0, z_u_0 = _delta_type_constants(delta_type, z_w, u)
+        eta_1, z_w_1, z_u_1 = _delta_type_constants(vol_delta_type, z_w, u)
+        dz_u_0_du = 0.5 - eta_0
+
+        delta_idx = (-z_w_1 / z_w_0) * (delta - z_w_0 * z_u_0 * (phi + 1.0) * 0.5)
+        if isinstance(vol, FXDeltaVolSmile):
+            vol_: DualTypes = vol[delta_idx] / 100.0
+            dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
+        else:
+            vol_ = vol / 100.0
+            dvol_ddeltaidx = 0.0
+        vol_ = _dual_float(vol_) if ad == 0 else vol_
+        dvol_ddeltaidx = _dual_float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
+        vol_sqrt_t = vol_ * sqrt_t_e
+
+        # Calculate function values
+        d0 = _d_plus_min_u(u, vol_sqrt_t, eta_0)
+        _phi0 = dual_norm_cdf(phi * d0)
+        f0 = delta - z_w_0 * z_u_0 * phi * _phi0
+
+        # Calculate derivative values
+        ddelta_idx_du = dz_u_0_du * z_w_1 * (phi + 1.0) * 0.5
+
+        lnu = dual_log(u) / (vol_**2 * sqrt_t_e)
+        dd_du = -1 / (u * vol_sqrt_t) + dvol_ddeltaidx * (lnu + eta_0 * sqrt_t_e) * ddelta_idx_du
+
+        nd0 = dual_norm_pdf(phi * d0)
+        f1 = -dz_u_0_du * z_w_0 * phi * _phi0 - z_u_0 * z_w_0 * nd0 * dd_du
+
+        return f0, f1
+
+    if isinstance(vol, FXDeltaVolSmile):
+        avg_vol: DualTypes = _dual_float(list(vol.nodes.values())[int(vol.n / 2)])
+    else:
+        avg_vol = vol
+    g01 = delta if phi > 0 else max(delta, -0.75)
+    g00 = _moneyness_from_delta_closed_form(g01, avg_vol, t_e, 1.0, phi)
+
+    msg = (
+        f"If the delta, {delta:.1f}, is premium adjusted for a call option is it infeasible?"
+        if phi > 0
+        else ""
+    )
+    try:
+        root_solver = newton_1dim(
+            root1d,
+            g00,
+            args=(delta, delta_type, vol_delta_type, phi, t_e**0.5, z_w),
+            pre_args=(0,),
+            final_args=(1,),
+        )
+    except ValueError as e:
+        raise ValueError(f"Newton root solver failed, with error: {e.__str__()}.\n{msg}")
+
+    if root_solver["state"] == -1:
+        raise ValueError(
+            f"Newton root solver failed, after {root_solver['iterations']} iterations.\n{msg}",
+        )
+
+    u: DualTypes = root_solver["g"]
+    return u
+
+
+def _moneyness_from_atm_delta_two_dimensional(
+    delta_type: str,
+    vol: FXDeltaVolSmile,
+    t_e: DualTypes,
+    z_w: DualTypes,
+    phi: float,
+) -> tuple[DualTypes, DualTypes]:
+    def root2d(
+        g: list[DualTypes],
+        delta_type: str,
+        vol_delta_type: str,
+        phi: float,
+        sqrt_t_e: DualTypes,
+        z_w: DualTypes,
+        ad: int,
+    ) -> tuple[list[DualTypes], list[list[DualTypes]]]:
+        u, delta_idx = g[0], g[1]
+
+        eta_0, z_w_0, z_u_0 = _delta_type_constants(delta_type, z_w, u)
+        eta_1, z_w_1, z_u_1 = _delta_type_constants(vol_delta_type, z_w, u)
+        dz_u_0_du = 0.5 - eta_0
+        dz_u_1_du = 0.5 - eta_1
+
+        vol_ = vol[delta_idx] / 100.0
+        vol_ = _dual_float(vol_) if ad == 0 else vol_
+        vol_sqrt_t = vol_ * sqrt_t_e
+
+        # Calculate function values
+        d0 = _d_plus_min_u(u, vol_sqrt_t, eta_0)
+        _phi0 = dual_norm_cdf(phi * d0)
+        f0_0 = phi * z_w_0 * z_u_0 * (0.5 - _phi0)
+
+        d1 = _d_plus_min_u(u, vol_sqrt_t, eta_1)
+        _phi1 = dual_norm_cdf(-d1)
+        f0_1 = delta_idx - z_w_1 * z_u_1 * _phi1
+
+        # Calculate Jacobian values
+        dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
+        dvol_ddeltaidx = _dual_float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
+
+        dd_du = -1 / (u * vol_sqrt_t)  # this is the same for 0 or 1 variety
+        nd0 = dual_norm_pdf(phi * d0)
+        nd1 = dual_norm_pdf(-d1)
+        lnu = dual_log(u) / (vol_**2 * sqrt_t_e)
+        dd0_ddeltaidx = (lnu + eta_0 * sqrt_t_e) * dvol_ddeltaidx
+        dd1_ddeltaidx = (lnu + eta_1 * sqrt_t_e) * dvol_ddeltaidx
+
+        f1_00 = phi * z_w_0 * dz_u_0_du * (0.5 - _phi0) - z_w_0 * z_u_0 * nd0 * dd_du
+        f1_10 = -z_w_1 * dz_u_1_du * _phi1 + z_w_1 * z_u_1 * nd1 * dd_du
+        f1_01 = -z_w_0 * z_u_0 * nd0 * dd0_ddeltaidx
+        f1_11 = 1.0 + z_w_1 * z_u_1 * nd1 * dd1_ddeltaidx
+
+        return [f0_0, f0_1], [[f1_00, f1_01], [f1_10, f1_11]]
+
+    avg_vol = _dual_float(list(vol.nodes.values())[int(vol.n / 2)])
+    g01 = phi * 0.5 * (z_w if "spot" in delta_type else 1.0)
+    g00 = _moneyness_from_delta_closed_form(g01, avg_vol, t_e, 1.0, phi)
+
+    root_solver = newton_ndim(
+        root2d,
+        [g00, abs(g01)],
+        args=(delta_type, vol.delta_type, phi, t_e**0.5, z_w),
+        pre_args=(0,),
+        final_args=(1,),
+        raise_on_fail=True,
+    )
+
+    u, delta_idx = root_solver["g"][0], root_solver["g"][1]
+    return u, delta_idx
+
+
+def _moneyness_from_delta_two_dimensional(
+    delta: DualTypes,
+    delta_type: str,
+    vol: FXDeltaVolSmile,
+    t_e: DualTypes,
+    z_w: DualTypes,
+    phi: float,
+) -> tuple[DualTypes, DualTypes]:
+    def root2d(
+        g: Sequence[DualTypes],
+        delta: DualTypes,
+        delta_type: str,
+        vol_delta_type: str,
+        phi: float,
+        sqrt_t_e: float,
+        z_w: DualTypes,
+        ad: int,
+    ) -> tuple[list[DualTypes], list[list[DualTypes]]]:
+        u, delta_idx = g[0], g[1]
+
+        eta_0, z_w_0, z_u_0 = _delta_type_constants(delta_type, z_w, u)
+        eta_1, z_w_1, z_u_1 = _delta_type_constants(vol_delta_type, z_w, u)
+        dz_u_0_du = 0.5 - eta_0
+        dz_u_1_du = 0.5 - eta_1
+
+        vol_ = vol[delta_idx] / 100.0
+        vol_ = _dual_float(vol_) if ad == 0 else vol_
+        vol_sqrt_t = vol_ * sqrt_t_e
+
+        # Calculate function values
+        d0 = _d_plus_min_u(u, vol_sqrt_t, eta_0)
+        _phi0 = dual_norm_cdf(phi * d0)
+        f0_0: DualTypes = delta - z_w_0 * z_u_0 * phi * _phi0
+
+        d1 = _d_plus_min_u(u, vol_sqrt_t, eta_1)
+        _phi1 = dual_norm_cdf(-d1)
+        f0_1: DualTypes = delta_idx - z_w_1 * z_u_1 * _phi1
+
+        # Calculate Jacobian values
+        dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
+        dvol_ddeltaidx = _dual_float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
+
+        dd_du = -1 / (u * vol_sqrt_t)
+        nd0 = dual_norm_pdf(phi * d0)
+        nd1 = dual_norm_pdf(-d1)
+        lnu = dual_log(u) / (vol_**2 * sqrt_t_e)
+        dd0_ddeltaidx = (lnu + eta_0 * sqrt_t_e) * dvol_ddeltaidx
+        dd1_ddeltaidx = (lnu + eta_1 * sqrt_t_e) * dvol_ddeltaidx
+
+        f1_00: DualTypes = -z_w_0 * dz_u_0_du * phi * _phi0 - z_w_0 * z_u_0 * nd0 * dd_du
+        f1_10: DualTypes = -z_w_1 * dz_u_1_du * _phi1 + z_w_1 * z_u_1 * nd1 * dd_du
+        f1_01: DualTypes = -z_w_0 * z_u_0 * nd0 * dd0_ddeltaidx
+        f1_11: DualTypes = 1.0 + z_w_1 * z_u_1 * nd1 * dd1_ddeltaidx
+
+        return [f0_0, f0_1], [[f1_00, f1_01], [f1_10, f1_11]]
+
+    avg_vol = _dual_float(list(vol.nodes.values())[int(vol.n / 2)])
+    g01 = delta if phi > 0 else max(delta, -0.75)
+    g00 = _moneyness_from_delta_closed_form(g01, avg_vol, t_e, 1.0, phi)
+
+    msg = (
+        f"If the delta, {_dual_float(delta):.1f}, is premium adjusted for a "
+        "call option is it infeasible?"
+        if phi > 0
+        else ""
+    )
+    try:
+        root_solver = newton_ndim(
+            root2d,
+            [g00, abs(g01)],
+            args=(delta, delta_type, vol.delta_type, phi, t_e**0.5, z_w),
+            pre_args=(0,),
+            final_args=(1,),
+            raise_on_fail=False,
+        )
+    except ValueError as e:
+        raise ValueError(f"Newton root solver failed, with error: {e.__str__()}.\n{msg}")
+
+    if root_solver["state"] == -1:
+        raise ValueError(
+            f"Newton root solver failed, after {root_solver['iterations']} iterations.\n{msg}",
+        )
+    u, delta_idx = root_solver["g"][0], root_solver["g"][1]
+    return u, delta_idx
+
+
+def _moneyness_from_delta_three_dimensional(
+    delta_type: str, vol: DualTypes | FXDeltaVolSmile, t_e: DualTypes, z_w: DualTypes, phi: float
+) -> tuple[DualTypes, DualTypes, DualTypes]:
+    """
+    Solve the ATM delta problem where delta is not explicit.
+
+    Book2: section "Strike and Volatility implied from ATM delta" (FXDeltaVolSMile)
+    """
+
+    def root3d(
+        g: list[DualTypes],
+        delta_type: str,
+        vol_delta_type: str,
+        phi: float,
+        sqrt_t_e: DualTypes,
+        z_w: DualTypes,
+        ad: int,
+    ) -> tuple[list[DualTypes], list[list[DualTypes]]]:
+        u, delta_idx, delta = g[0], g[1], g[2]
+
+        eta_0, z_w_0, z_u_0 = _delta_type_constants(delta_type, z_w, u)
+        eta_1, z_w_1, z_u_1 = _delta_type_constants(vol_delta_type, z_w, u)
+        dz_u_0_du = 0.5 - eta_0
+        dz_u_1_du = 0.5 - eta_1
+
+        if isinstance(vol, FXDeltaVolSmile):
+            vol_: DualTypes = vol[delta_idx] / 100.0
+            dvol_ddeltaidx = evaluate(vol.spline, delta_idx, 1) / 100.0
+        else:
+            vol_ = vol / 100.0
+            dvol_ddeltaidx = 0.0
+        vol_ = _dual_float(vol_) if ad == 0 else vol_
+        vol_sqrt_t = vol_ * sqrt_t_e
+
+        # Calculate function values
+        d0 = _d_plus_min_u(u, vol_sqrt_t, eta_0)
+        _phi0 = dual_norm_cdf(phi * d0)
+        f0_0 = delta - z_w_0 * z_u_0 * phi * _phi0
+
+        d1 = _d_plus_min_u(u, vol_sqrt_t, eta_1)
+        _phi1 = dual_norm_cdf(-d1)
+        f0_1 = delta_idx - z_w_1 * z_u_1 * _phi1
+
+        f0_2 = delta - phi * z_u_0 * z_w_0 / 2.0
+
+        # Calculate Jacobian values
+        dvol_ddeltaidx = _dual_float(dvol_ddeltaidx) if ad == 0 else dvol_ddeltaidx
+
+        dd_du = -1 / (u * vol_sqrt_t)
+        nd0 = dual_norm_pdf(phi * d0)
+        nd1 = dual_norm_pdf(-d1)
+        lnu = dual_log(u) / (vol_**2 * sqrt_t_e)
+        dd0_ddeltaidx = (lnu + eta_0 * sqrt_t_e) * dvol_ddeltaidx
+        dd1_ddeltaidx = (lnu + eta_1 * sqrt_t_e) * dvol_ddeltaidx
+
+        f1_00 = -z_w_0 * dz_u_0_du * phi * _phi0 - z_w_0 * z_u_0 * nd0 * dd_du  # dh0/du
+        f1_10 = -z_w_1 * dz_u_1_du * _phi1 + z_w_1 * z_u_1 * nd1 * dd_du  # dh1/du
+        f1_20 = -phi * z_w_0 * dz_u_0_du / 2.0  # dh2/du
+        f1_01 = -z_w_0 * z_u_0 * nd0 * dd0_ddeltaidx  # dh0/ddidx
+        f1_11 = 1.0 + z_w_1 * z_u_1 * nd1 * dd1_ddeltaidx  # dh1/ddidx
+        f1_21 = 0.0  # dh2/ddidx
+        f1_02 = 1.0  # dh0/ddelta
+        f1_12 = 0.0  # dh1/ddelta
+        f1_22 = 1.0  # dh2/ddelta
+
+        return [f0_0, f0_1, f0_2], [
+            [f1_00, f1_01, f1_02],
+            [f1_10, f1_11, f1_12],
+            [f1_20, f1_21, f1_22],
+        ]
+
+    if isinstance(vol, FXDeltaVolSmile):
+        avg_vol: DualTypes = _dual_float(list(vol.nodes.values())[int(vol.n / 2)])
+        vol_delta_type = vol.delta_type
+    else:
+        avg_vol = vol
+        vol_delta_type = delta_type
+    g02 = 0.5 * phi * (z_w if "spot" in delta_type else 1.0)
+    g01 = g02 if phi > 0 else max(g02, -0.75)
+    g00 = _moneyness_from_delta_closed_form(g01, avg_vol, t_e, 1.0, phi)
+
+    root_solver = newton_ndim(
+        root3d,
+        [g00, abs(g01), g02],
+        args=(delta_type, vol_delta_type, phi, t_e**0.5, z_w),
+        pre_args=(0,),
+        final_args=(1,),
+        raise_on_fail=True,
+    )
+
+    u, delta_idx, delta = root_solver["g"][0], root_solver["g"][1], root_solver["g"][1]
+    return u, delta_idx, delta
 
 
 def _sabr(
