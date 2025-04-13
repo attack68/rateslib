@@ -161,16 +161,14 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
         delta: DualTypes,
         delta_type: str,
         phi: float,
-        w_deli: DualTypes | NoInput = NoInput(0),
-        w_spot: DualTypes | NoInput = NoInput(0),
-        u: DualTypes | NoInput = NoInput(0),
+        z_w: DualTypes,
     ) -> DualTypes:
         """
         Return a volatility for a provided real option delta.
 
         This function is more explicit than the `__getitem__` method of the *Smile* because it
-        permits certain forward/spot delta conversions and put/call option delta conversions,
-        and also converts to the index delta of the *Smile*.
+        permits forward/spot, adjusted/unadjusted and put/call option delta conversions,
+        by deriving an appropriate delta index relevant to that of the *Smile* ``delta_type``.
 
         Parameters
         ----------
@@ -180,18 +178,40 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
             The delta type the given delta is expressed in.
         phi: float
             Whether the given delta is assigned to a put or call option.
-        w_deli: DualTypes, optional
-            Required only for spot/forward conversions.
-        w_spot: DualTypes, optional
-            Required only for spot/forward conversions.
-        u: DualTypes, optional
-            Required only for premium adjustment / unadjusted conversions.
+        z_w: DualTypes
+            Required only for spot delta types. This is a scaling factor between spot and
+            forward rate, equal to :math:`w_(m_{delivery})/w_(m_{spot})`, where *w* is curve
+            for the domestic currency collateralised in the foreign currency. If not required
+            enter 1.0.
 
         Returns
         -------
         DualTypes
         """
-        return self[self._convert_delta(delta, delta_type, phi, w_deli, w_spot, u)]
+        eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, 0.0)  # u: unused
+        eta_1, z_w_1, _ = _delta_type_constants(self.delta_type, z_w, 0.0)  # u: unused
+        # then delta types are both unadjusted, used closed form.
+        if eta_0 == eta_1 and eta_0 == 0.5:
+            d_i: DualTypes = (-z_w_1 / z_w_0) * (delta - 0.5 * z_w_0 * (phi + 1.0))
+            return self[d_i]
+        # then delta types are both adjusted, use 1-d solver.
+        elif eta_0 == eta_1 and eta_0 == -0.5:
+            u = _moneyness_from_delta_one_dimensional(
+                delta,
+                delta_type,
+                self.delta_type,
+                self,
+                self.t_expiry,
+                z_w,
+                phi,
+            )
+            delta_idx = (-z_w_1 / z_w_0) * (delta - z_w_0 * u * (phi + 1.0) * 0.5)
+            return self[delta_idx]
+        else:  # delta adjustment types are different, use 2-d solver.
+            u, delta_idx = _moneyness_from_delta_two_dimensional(
+                delta, delta_type, self, self.t_expiry, z_w, phi
+            )
+            return self[delta_idx]
 
     def get_from_strike(
         self,
@@ -289,86 +309,6 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
         delta = solver_result["g"]
         delta_index = -delta
         return delta_index, self[delta_index], k
-
-    def _convert_delta(
-        self,
-        delta: DualTypes,
-        delta_type: str,
-        phi: float,
-        w_deli: DualTypes | NoInput,
-        w_spot: DualTypes | NoInput,
-        u: DualTypes | NoInput,
-    ) -> DualTypes:
-        """
-        Convert the given option delta into a delta index associated with the *Smile*.
-
-        Parameters
-        ----------
-        delta: DualTypes
-            The delta to convert to an equivalent Smile delta index
-        delta_type: str in {"spot", "spot_pa", "forward", "forward_pa"}
-            The delta type the given delta is expressed in.
-        phi: float
-            Whether the given delta is assigned to a put or call option.
-        w_deli: DualTypes, optional
-            Required only for spot/forward conversions.
-        w_spot: DualTypes, optional
-            Required only for spot/forward conversions.
-        u: DualTypes, optional
-            Required only for premium adjustment / unadjusted conversions.
-
-        Returns
-        -------
-        DualTypes
-        """
-        z_w = (
-            NoInput(0)
-            if (isinstance(w_deli, NoInput) or isinstance(w_spot, NoInput))
-            else w_deli / w_spot
-        )
-        eta_0, z_w_0, z_u_0 = _delta_type_constants(delta_type, z_w, u)
-        eta_1, z_w_1, z_u_1 = _delta_type_constants(self.delta_type, z_w, u)
-
-        if phi > 0:
-            delta = delta - z_w_0 * z_u_0
-
-        if eta_0 == eta_1:  # premium adjustment types are same so closed form (=> z_u_0 == z_u_1)
-            if z_w_1 == z_w_0:
-                return -delta
-            else:
-                return -delta * z_w_1 / z_w_0
-        else:  # root solver
-            phi_inv = dual_inv_norm_cdf(-delta / (z_w_0 * z_u_0))
-
-            def root(
-                delta_idx: DualTypes,
-                z_1: DualTypes,
-                eta_0: float,
-                eta_1: float,
-                sqrt_t: DualTypes,
-                ad: int,
-            ) -> tuple[DualTypes, DualTypes]:
-                # Function value
-                vol_ = self[delta_idx] / 100.0
-                vol_ = _dual_float(vol_) if ad == 0 else vol_
-                _ = phi_inv - (eta_1 - eta_0) * vol_ * sqrt_t
-                f0 = delta_idx - z_1 * dual_norm_cdf(_)
-                # Derivative
-                dvol_ddelta_idx = evaluate(self.spline, delta_idx, 1) / 100.0
-                dvol_ddelta_idx = _dual_float(dvol_ddelta_idx) if ad == 0 else dvol_ddelta_idx
-                f1 = 1 - z_1 * dual_norm_pdf(_) * (eta_1 - eta_0) * sqrt_t * dvol_ddelta_idx
-                return f0, f1
-
-            g0: DualTypes = min(-delta, _dual_float(w_deli / w_spot))  # type: ignore[operator, assignment]
-            solver_result = newton_1dim(
-                f=root,
-                g0=g0,
-                args=(z_u_1 * z_w_1, eta_0, eta_1, self.t_expiry_sqrt),
-                pre_args=(0,),
-                final_args=(1,),
-            )
-            ret: DualTypes = solver_result["g"]
-            return ret
 
     def _delta_index_from_call_or_put_delta(
         self,
@@ -1999,155 +1939,6 @@ def _t_var_interp_d_sabr_d_k(
         / vol
     )
     return vol, dvol_dk
-
-
-# def _convert_same_adjustment_delta(
-#     delta: float,
-#     from_delta_type: str,
-#     to_delta_type: str,
-#     w_deli: Union[DualTypes, NoInput] = NoInput(0),
-#     w_spot: Union[DualTypes, NoInput] = NoInput(0),
-# ):
-#     """
-#     Convert a delta of one type to another, preserving its unadjusted or premium adjusted nature.
-#
-#     Parameters
-#     ----------
-#     delta: float
-#         The delta to obtain a volatility for.
-#     from_delta_type: str in {"spot", "forward"}
-#         The delta type the given delta is expressed in.
-#     to_delta_type: str in {"spot", "forward"}
-#         The delta type the given delta is to be converted to
-#     w_deli: DualTypes, optional
-#         Required only for spot/forward conversions.
-#     w_spot: DualTypes, optional
-#         Required only for spot/forward conversions.
-#
-#     Returns
-#     -------
-#     DualTypes
-#     """
-#     if ("_pa" in from_delta_type and "_pa" not in to_delta_type) or (
-#         "_pa" not in from_delta_type and "_pa" in to_delta_type
-#     ):
-#         raise ValueError(
-#             "Can only convert between deltas of the same premium type, i.e. adjusted or "
-#             "unadjusted."
-#         )
-#
-#     if from_delta_type == to_delta_type:
-#         return delta
-#     elif "forward" in to_delta_type and "spot" in from_delta_type:
-#         return delta * w_spot / w_deli
-#     else:  # to_delta_type == "spot" and from_delta_type == "forward":
-#         return delta * w_deli / w_spot
-
-
-#
-# def _get_pricing_params_from_delta_vol(
-#     delta,
-#     delta_type,
-#     vol: Union[DualTypes, FXDeltaVolSmile],
-#     t_e,
-#     phi,
-#     w_deli: Union[DualTypes, NoInput] = NoInput(0),
-#     w_spot: Union[DualTypes, NoInput] = NoInput(0),
-# ):
-#     if isinstance(vol, FXDeltaVolSmile):
-#         vol_ = vol.get(delta, delta_type, phi, w_deli, w_spot)
-#     else:  # vol is DualTypes
-#         vol_ = vol
-#
-#     if "_pa" in delta_type:
-#         return _get_pricing_params_from_delta_vol_adjusted_fixed_vol(
-#             delta,
-#             delta_type,
-#             vol_,
-#             t_e,
-#             phi,
-#             w_deli,
-#             w_spot,
-#         )
-#     else:
-#         return _get_pricing_params_from_delta_vol_unadjusted_fixed_vol(
-#             delta,
-#             delta_type,
-#             vol_,
-#             t_e,
-#             phi,
-#             w_deli,
-#             w_spot,
-#         )
-#
-#
-# def _get_pricing_params_from_delta_vol_unadjusted_fixed_vol(
-#     delta,
-#     delta_type,
-#     vol: DualTypes,
-#     t_e,
-#     phi,
-#     w_deli: Union[DualTypes, NoInput] = NoInput(0),
-#     w_spot: Union[DualTypes, NoInput] = NoInput(0),
-# ) -> dict:
-#     _ = {"delta": delta, "delta_type": delta_type, "vol": vol}
-#     if "spot" in delta_type:
-#         _["d_plus"] = phi * dual_inv_norm_cdf(phi * delta * w_spot / w_deli)
-#     else:
-#         _["d_plus"] = phi * dual_inv_norm_cdf(phi * delta)
-#
-#     _["vol_sqrt_t"] = vol * t_e**0.5 / 100.0
-#     _["d_min"] = _["d_plus"] - _["vol_sqrt_t"]
-#     _["ln_u"] = (0.5 * _["vol_sqrt_t"] - _["d_plus"]) * _["vol_sqrt_t"]
-#     _["u"] = dual_exp(_["ln_u"])
-#     return _
-#
-#
-# def _get_pricing_params_from_delta_vol_adjusted_fixed_vol(
-#     delta: DualTypes,
-#     delta_type: str,
-#     vol: DualTypes,
-#     t_e: DualTypes,
-#     phi: float,
-#     w_deli: Union[DualTypes, NoInput] = NoInput(0),
-#     w_spot: Union[DualTypes, NoInput] = NoInput(0),
-# ) -> dict:
-#     """
-#     Iterative algorithm.
-#
-#     AD is preserved by newton_root.
-#     """
-#     # TODO can get unadjusted prcing params for out of bounds adjusted delta e.g. -1.5
-#     _ = _get_pricing_params_from_delta_vol_unadjusted_fixed_vol(
-#         delta, delta_type, vol, t_e, phi, w_deli, w_spot
-#     )
-#
-#     if "spot" in delta_type:
-#         z_w = w_deli / w_spot
-#     else:
-#         z_w = 1.0
-#
-#     def root(u, delta, vol_sqrt_t, z):
-#         d_min = -dual_log(u) / vol_sqrt_t - 0.5 * vol_sqrt_t
-#         f0 = delta - z * u * phi * dual_norm_cdf(phi * d_min)
-#         f1 = z * (
-#             -phi * dual_norm_cdf(phi * d_min) + u * dual_norm_pdf(phi * d_min) / (u * vol_sqrt_t)
-#         )
-#         return f0, f1
-#
-#     root_solver = newton_root(root, _["u"], args=(delta, _["vol_sqrt_t"], z_w))
-#
-#     _ = {"delta": delta, "delta_type": delta_type, "vol": vol}
-#     _["u"] = root_solver["g"]
-#     if "spot" in delta_type:
-#         _["d_min"] = phi * dual_inv_norm_cdf(phi * delta * w_spot / (w_deli * _["u"]))
-#     else:
-#         _["d_min"] = phi * dual_inv_norm_cdf(phi * delta / _["u"])
-#
-#     _["vol_sqrt_t"] = vol * t_e**0.5
-#     _["d_plus"] = _["d_min"] + _["vol_sqrt_t"]
-#     _["ln_u"] = dual_log(_["u"])
-#     return _
 
 
 def _black76(

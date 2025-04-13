@@ -166,132 +166,6 @@ class TestFXDeltaVolSmile:
 
         assert abs(finite_diff - ad_grad) < 5e-5
 
-    # @pytest.mark.parametrize("delta, type, smile_type, k, phi, exp", [
-    #     (-0.2, "forward", "forward", 1.02, -1, 0.2),
-    #     (-0.2, "spot", "spot", 1.02, -1, 0.2),
-    #     (-0.2, "forward_pa", "forward_pa", 1.02, -1, 0.2),
-    #     (-0.2, "spot_pa", "spot_pa", 1.02, -1, 0.2),
-    #     (-0.2, "forward", "spot", 1.02, -1, 0.19870506706),
-    #     (-0.2, "spot", "forward", 1.02, -1, 0.20130337183),
-    #     (-0.2, "forward_pa", "spot_pa", 1.02, -1, 0.19870506706),
-    #     (-0.2, "spot_pa", "forward_pa", 1.02, -1, 0.20130337183),
-    #     (-0.2, "forward", "forward_pa", 1.02, -1, 0.22081326385),
-    #     (-0.2, "forward", "spot_pa", 1.02, -1, 0.2194459183655),
-    # ])
-    # def test_convert_delta_put(self, fxfo, delta, type, smile_type, k, phi, exp):
-    #     fxvs = FXDeltaVolSmile(
-    #         nodes={
-    #             0.25: 10.15,
-    #             0.5: 7.8,
-    #             0.75: 8.9
-    #         },
-    #         delta_type=smile_type,
-    #         eval_date=dt(2023, 3, 16),
-    #         expiry=dt(2023, 6, 16),
-    #         id="vol",
-    #     )
-    #     result = fxvs._convert_delta(
-    #         delta,
-    #         type,
-    #         phi,
-    #         fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
-    #         fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
-    #         k / fxfo.rate("eurusd", dt(2023, 6, 20))
-    #     )
-    #
-    #     assert abs(result - exp) < 1e-10
-
-    @pytest.mark.parametrize(
-        ("delta_type", "smile_type", "k"),
-        [
-            ("forward", "forward_pa", 0.8),
-            ("forward", "spot_pa", 0.8),
-            ("spot", "forward_pa", 0.8),
-            ("spot", "spot_pa", 0.8),
-            ("forward", "forward_pa", 1.0),
-            ("forward", "spot_pa", 1.0),
-            ("spot", "forward_pa", 1.0),
-            ("spot", "spot_pa", 1.0),
-            ("forward", "forward_pa", 1.10),
-            ("forward", "spot_pa", 1.10),
-            ("spot", "forward_pa", 1.10),
-            ("spot", "spot_pa", 1.10),
-            ("forward", "forward_pa", 1.2),
-            ("forward", "spot_pa", 1.2),
-            ("spot", "forward_pa", 1.2),
-            ("spot", "spot_pa", 1.2),
-            ("forward_pa", "forward", 0.8),
-            ("forward_pa", "spot", 0.8),
-            ("spot_pa", "forward", 0.8),
-            ("spot_pa", "spot", 0.8),
-            ("forward_pa", "forward", 1.0),
-            ("forward_pa", "spot", 1.0),
-            ("spot_pa", "forward", 1.0),
-            ("spot_pa", "spot", 1.0),
-            ("forward_pa", "forward", 1.10),
-            ("forward_pa", "spot", 1.10),
-            ("spot_pa", "forward", 1.10),
-            ("spot_pa", "spot", 1.10),
-            ("forward_pa", "forward", 1.19),
-            ("forward_pa", "spot", 1.19),
-            ("spot_pa", "forward", 1.2),
-            ("spot_pa", "spot", 1.2),
-        ],
-    )
-    def test_convert_delta_put2(self, fxfo, delta_type, smile_type, k) -> None:
-        # Test the _convert_delta method of a DeltaVolSmile
-
-        fxo1 = FXPutPeriod(
-            pair="eurusd",
-            expiry=dt(2023, 6, 16),
-            delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
-            strike=k,
-            delta_type=smile_type,
-        )
-        fxo2 = FXPutPeriod(
-            pair="eurusd",
-            expiry=dt(2023, 6, 16),
-            delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
-            strike=k,
-            delta_type=delta_type,
-        )
-        smile_delta = fxo1.analytic_greeks(
-            fxfo.curve("eur", "usd"),
-            fxfo.curve("usd", "usd"),
-            fxfo,
-            vol=0.10,
-        )["delta"]
-        delta = fxo2.analytic_greeks(
-            fxfo.curve("eur", "usd"),
-            fxfo.curve("usd", "usd"),
-            fxfo,
-            vol=0.10,
-        )["delta"]
-
-        if -smile_delta < 0.5:
-            nodes = {float(-smile_delta): 10.0, float(-smile_delta) + 0.25: 12.5}
-        else:
-            nodes = {float(-smile_delta) - 0.25: 7.5, float(-smile_delta): 10}
-
-        fxvs = FXDeltaVolSmile(
-            nodes=nodes,
-            delta_type=smile_type,
-            eval_date=dt(2023, 3, 16),
-            expiry=dt(2023, 6, 16),
-            id="vol",
-        )
-        result = fxvs._convert_delta(
-            delta,
-            delta_type,
-            -1.0,
-            fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
-            fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
-            k / fxfo.rate("eurusd", dt(2023, 6, 20)),
-        )
-        assert abs(result + smile_delta) < 1e-10
-
     def test_get_from_unsimilar_delta(self) -> None:
         fxvs = FXDeltaVolSmile(
             nodes={0.25: 10.0, 0.5: 10.0, 0.75: 11.0},
@@ -300,7 +174,7 @@ class TestFXDeltaVolSmile:
             expiry=dt(2023, 6, 16),
             id="vol",
         )
-        result = fxvs.get(0.65, "spot_pa", 1.0, 0.99, 0.999, 0.9)
+        result = fxvs.get(0.65, "spot_pa", 1.0, 0.99 / 0.999)
         expected = 10.0
         assert (result - expected) < 0.01
 
@@ -313,8 +187,26 @@ class TestFXDeltaVolSmile:
             expiry=dt(2023, 6, 16),
             id="vol",
         )
-        result = fxvs.get(0.5, delta_type, 1.0, 0.99, 0.991, 1.02)
+        result = fxvs.get(0.5, delta_type, 1.0, 0.99 / 0.991)
         assert abs(result - exp) < 1e-6
+
+    def test_get_from_unsimilar_delta2(self):
+        # GH 730
+        fdvs = FXDeltaVolSmile(
+            nodes={
+                0.1: 5,
+                0.25: 4,
+                0.5: 3,
+                0.75: 4,
+                0.9: 5,
+            },
+            expiry=dt(2025, 5, 10),
+            eval_date=dt(2025, 4, 10),
+            delta_type="forward",
+        )
+        result = fdvs.get(delta=0.1, delta_type="forward_pa", phi=1, z_w=1.0)
+        expected = 4.995304045589985
+        assert abs(result - expected) < 1e-9
 
     def test_set_same_ad_order(self) -> None:
         fxvs = FXDeltaVolSmile(
