@@ -87,8 +87,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
    * - Bug
      - :meth:`FXDeltaVolSmile.get <rateslib.fx_volatility.FXDeltaVolSmile.get>` fixes a bug
        where the delta index was not properly generated for ``delta_types`` with different
-       premium adjustments.
-       (`682 <https://github.com/attack68/rateslib/pull/682>`_)
+       premium adjustments. :red:`Minor Breaking Change!` Also changes the arguments to the
+       method to make it more user friendly, removing ``w_deli`` and ``w_spot`` and using a
+       single value ``z_w`` which is the quotient of the previous two.
+       (`742 <https://github.com/attack68/rateslib/pull/742>`_)
    * - Bug
      - Add :class:`~rateslib.instruments.NDF` to global *rateslib* namespace.
        (`682 <https://github.com/attack68/rateslib/pull/682>`_)
