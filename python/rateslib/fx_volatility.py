@@ -162,14 +162,13 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
         delta_type: str,
         phi: float,
         z_w: DualTypes,
-        u: DualTypes | NoInput = NoInput(0),
     ) -> DualTypes:
         """
         Return a volatility for a provided real option delta.
 
         This function is more explicit than the `__getitem__` method of the *Smile* because it
-        permits certain forward/spot delta conversions and put/call option delta conversions,
-        and also converts to the index delta of the *Smile*.
+        permits forward/spot, adjusted/unadjusted and put/call option delta conversions,
+        by deriving an appropriate delta index relevant to that of the *Smile* ``delta_type``.
 
         Parameters
         ----------
@@ -184,8 +183,6 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
             forward rate, equal to :math:`w_(m_{delivery})/w_(m_{spot})`, where *w* is curve
             for the domestic currency collateralised in the foreign currency. If not required
             enter 1.0.
-        u: DualTypes, optional
-            Required only for premium adjustment / unadjusted conversions.
 
         Returns
         -------
