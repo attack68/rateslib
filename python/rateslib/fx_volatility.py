@@ -161,8 +161,7 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
         delta: DualTypes,
         delta_type: str,
         phi: float,
-        w_deli: DualTypes | NoInput = NoInput(0),
-        w_spot: DualTypes | NoInput = NoInput(0),
+        z_w: DualTypes | NoInput = NoInput(0),
         u: DualTypes | NoInput = NoInput(0),
     ) -> DualTypes:
         """
@@ -180,10 +179,10 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
             The delta type the given delta is expressed in.
         phi: float
             Whether the given delta is assigned to a put or call option.
-        w_deli: DualTypes, optional
-            Required only for spot/forward conversions.
-        w_spot: DualTypes, optional
-            Required only for spot/forward conversions.
+        z_w: DualTypes | NoInput
+            Required only for spot delta types. This is a scaling factor between spot and
+            forward rate, equal to :math:`w_(m_{delivery})/w_(m_{spot})`, where *w* is curve
+            for the domestic currency collateralised in the foreign currency.
         u: DualTypes, optional
             Required only for premium adjustment / unadjusted conversions.
 
@@ -191,7 +190,30 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
         -------
         DualTypes
         """
-        return self[self._convert_delta(delta, delta_type, phi, w_deli, w_spot, u)]
+        eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, 0.0)  # u: unused
+        eta_1, z_w_1, _ = _delta_type_constants(self.delta_type, z_w, 0.0)  # u: unused
+        # then delta types are both unadjusted, used closed form.
+        if eta_0 == eta_1 and eta_0 == 0.5:
+            d_i: DualTypes = (-z_w_1 / z_w_0) * (delta - 0.5 * z_w_0 * (phi + 1.0))
+            return self[d_i]
+        # then delta types are both adjusted, use 1-d solver.
+        elif eta_0 == eta_1 and eta_0 == -0.5:
+            u = _moneyness_from_delta_one_dimensional(
+                delta,
+                delta_type,
+                self.delta_type,
+                self,
+                self.t_expiry,
+                z_w,
+                phi,
+            )
+            delta_idx = (-z_w_1 / z_w_0) * (delta - z_w_0 * u * (phi + 1.0) * 0.5)
+            return self[delta_idx]
+        else:  # delta adjustment types are different, use 2-d solver.
+            u, delta_idx = _moneyness_from_delta_two_dimensional(
+                delta, delta_type, self, self.t_expiry, z_w, phi
+            )
+            return self[delta_idx]
 
     def get_from_strike(
         self,

@@ -300,7 +300,7 @@ class TestFXDeltaVolSmile:
             expiry=dt(2023, 6, 16),
             id="vol",
         )
-        result = fxvs.get(0.65, "spot_pa", 1.0, 0.99, 0.999, 0.9)
+        result = fxvs.get(0.65, "spot_pa", 1.0, 0.99/0.999, 0.9)
         expected = 10.0
         assert (result - expected) < 0.01
 
@@ -315,6 +315,24 @@ class TestFXDeltaVolSmile:
         )
         result = fxvs.get(0.5, delta_type, 1.0, 0.99, 0.991, 1.02)
         assert abs(result - exp) < 1e-6
+
+    def test_get_from_unsimilar_delta2(self):
+        # GH 730
+        fdvs = FXDeltaVolSmile(
+            nodes={
+                0.1: 5,
+                0.25: 4,
+                0.5: 3,
+                0.75: 4,
+                0.9: 5,
+            },
+            expiry=dt(2025, 5, 10),
+            eval_date=dt(2025, 4, 10),
+            delta_type='forward',
+        )
+        result = fdvs.get(delta=0.1, delta_type='forward_pa', phi=1, z_w=1.0, u=1.0)
+        expected = 4.995304045589985
+        assert abs(result - expected) < 1e-9
 
     def test_set_same_ad_order(self) -> None:
         fxvs = FXDeltaVolSmile(
