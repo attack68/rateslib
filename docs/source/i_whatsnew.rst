@@ -107,10 +107,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
        it is more consistent for unit test building.
        (`712 <https://github.com/attack68/rateslib/pull/712>`_)
    * - Bug
-     - Correct an issue where *Solver* dependency chains were incorrectly constructed in the  case
+     - Correct an issue where *Solver* dependency chains were incorrectly constructed in the case
        of mismatching numbers of *Curve* variables and calibrating *Instruments* leading to
-       *ValueErrors*.
-       (`712 <https://github.com/attack68/rateslib/pull/712>`_)
+       *ValueErrors* for *delta* and *gamma* calculations.
+       (`744 <https://github.com/attack68/rateslib/pull/744>`_)
 
 1.7.0 (31st January 2025)
 ****************************

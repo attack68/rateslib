@@ -1248,7 +1248,8 @@ class TestFXSabrSmile:
             fxss.get_from_strike(1.02, fxfo)
 
     def test_solver_variable_numbers(self):
-        from rateslib import Solver, IRS, FXSwap, FXStraddle, FXBrokerFly, FXRiskReversal, FXCall
+        from rateslib import IRS, FXBrokerFly, FXCall, FXRiskReversal, FXStraddle, FXSwap, Solver
+
         usdusd = Curve({dt(2024, 5, 7): 1.0, dt(2024, 5, 30): 1.0}, calendar="nyc", id="usdusd")
         eureur = Curve({dt(2024, 5, 7): 1.0, dt(2024, 5, 30): 1.0}, calendar="tgt", id="eureur")
         eurusd = Curve({dt(2024, 5, 7): 1.0, dt(2024, 5, 30): 1.0}, id="eurusd")
@@ -1265,8 +1266,9 @@ class TestFXSabrSmile:
             instruments=[
                 IRS(dt(2024, 5, 9), "3W", spec="eur_irs", curves="eureur"),
                 IRS(dt(2024, 5, 9), "3W", spec="usd_irs", curves="usdusd"),
-                FXSwap(dt(2024, 5, 9), "3W", pair="eurusd",
-                       curves=[None, "eurusd", None, "usdusd"]),
+                FXSwap(
+                    dt(2024, 5, 9), "3W", pair="eurusd", curves=[None, "eurusd", None, "usdusd"]
+                ),
             ],
             s=[3.90, 5.32, 8.85],
             fx=fxf,
@@ -1281,8 +1283,12 @@ class TestFXSabrSmile:
             pair="eurusd",
         )
         option_args = dict(
-            pair="eurusd", expiry=dt(2024, 5, 28), calendar="tgt|fed", delta_type="spot",
-            curves=[None, "eurusd", None, "usdusd"], vol="eurusd_3w_smile"
+            pair="eurusd",
+            expiry=dt(2024, 5, 28),
+            calendar="tgt|fed",
+            delta_type="spot",
+            curves=[None, "eurusd", None, "usdusd"],
+            vol="eurusd_3w_smile",
         )
 
         dv_solver = Solver(
@@ -1312,6 +1318,7 @@ class TestFXSabrSmile:
             delta_type="spot",
         )
         fc.delta(solver=dv_solver)
+
 
 class TestFXSabrSurface:
     @pytest.mark.parametrize(
