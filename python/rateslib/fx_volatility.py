@@ -1215,7 +1215,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         return 0.0, vol_ * 100.0, k
 
     def _d_sabr_d_k(
-        self, k: DualTypes, f: DualTypes, expiry: datetime, as_float: bool
+        self, k: DualTypes, f: DualTypes | FXForwards, expiry: datetime, as_float: bool
     ) -> tuple[DualTypes, DualTypes]:
         """Get the derivative of sabr vol with respect to strike
 
@@ -1224,6 +1224,8 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
             phase of Newton iterations.
         """
         t_e = (expiry - self.eval_date).days / 365.0
+        if isinstance(f, FXForwards):
+            f = f.rate(self.pair, self.delivery)  # type: ignore[arg-type]
 
         if as_float:
             k = _dual_float(k)
@@ -1698,7 +1700,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
     def _d_sabr_d_k(
         self,
         k: DualTypes,
-        f: DualTypes,
+        f: DualTypes | FXForwards,
         expiry: datetime,
         as_float: bool,
     ) -> tuple[DualTypes, DualTypes]:
@@ -1750,9 +1752,8 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                     "dynamic ATM-forward rates for temporally-interpolated SABR volatility."
                 )
             lvol, d_lvol_dk = ls._d_sabr_d_k(k, f, expiry, as_float)
-            rvol, d_lvol_dk = rs._d_sabr_d_k(k, f, expiry, as_float)
+            rvol, d_rvol_dk = rs._d_sabr_d_k(k, f, expiry, as_float)
 
-            vol_, dvol_k = self.smiles[0]._d_sabr_d_k(k, f, expiry, as_float)
             return _t_var_interp_d_sabr_d_k(
                 expiries=self.expiries,
                 expiries_posix=self.expiries_posix,
@@ -1761,11 +1762,11 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                 expiry_index=e_idx,
                 eval_posix=self.eval_posix,
                 weights_cum=self.weights_cum,
-                vol1=vol_,
-                dvol1_dk=dvol_k,
-                vol2=vol_,
-                dvol2_dk=dvol_k,
-                bounds_flag=-1,
+                vol1=lvol,
+                dvol1_dk=d_lvol_dk,
+                vol2=rvol,
+                dvol2_dk=d_rvol_dk,
+                bounds_flag=0,
             )
 
 
@@ -1935,9 +1936,8 @@ def _t_var_interp_d_sabr_d_k(
     t_quotient = (t_hat - t1) / (t2 - t1)
     vol = ((t1 * vol1**2 + t_quotient * (t2 * vol2**2 - t1 * vol1**2)) / t) ** 0.5
     dvol_dk = (
-        -((t2 / t) * t_quotient * vol2 * dvol1_dk + (t1 / t) * (1 - t_quotient) * vol1 * dvol2_dk)
-        / vol
-    )
+        (t2 / t) * t_quotient * vol2 * dvol2_dk + (t1 / t) * (1 - t_quotient) * vol1 * dvol1_dk
+    ) / vol
     return vol, dvol_dk
 
 

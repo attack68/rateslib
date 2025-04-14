@@ -10,7 +10,7 @@ from rateslib import default_context
 from rateslib.calendars import get_calendar
 from rateslib.curves import CompositeCurve, Curve, LineCurve
 from rateslib.default import NoInput
-from rateslib.dual import Dual, Dual2, gradient
+from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.fx import (
     FXForwards,
     FXRates,
@@ -1608,6 +1608,31 @@ class TestFXSabrSurface:
             id="eurusd_vol",
             callback=cb,
         )
+
+    def test_k_derivative_interpolation(self, fxfo):
+        # test the derivative of the k-interpolated volatility of a SabrSurface against Fwd diff
+        # and AD.
+        surface = FXSabrSurface(
+            eval_date=dt(2023, 3, 16),
+            expiries=[dt(2025, 5, 28), dt(2026, 5, 28)],
+            node_values=[
+                [0.05, 1.0, 0.01, 0.15],
+                [0.06, 1.0, 0.02, 0.20],
+            ],
+            pair="eurusd",
+            delivery_lag=2,
+            calendar="tgt|fed",
+            id="eurusd_vol",
+        )
+        k = Variable(1.10, ["k"])
+        base = surface.get_from_strike(k, fxfo, dt(2025, 12, 12))[1]
+        expected_ad = gradient(base, vars=["k"])[0]
+        expected_fwd_diff = (
+            surface.get_from_strike(k + 0.0001, fxfo, dt(2025, 12, 12))[1] - base
+        ) / 1e-4
+        result = surface._d_sabr_d_k(k, fxfo, dt(2025, 12, 12), False)[1] * 100.0
+        assert abs(expected_fwd_diff - result) < 1e-3
+        assert abs(expected_ad - result) < 1e-3
 
 
 class TestStateAndCache:
