@@ -1247,6 +1247,78 @@ class TestFXSabrSmile:
         with pytest.raises(ValueError, match="`FXSabrSmile` must be specified with a `pair` arg"):
             fxss.get_from_strike(1.02, fxfo)
 
+    def test_solver_variable_numbers(self):
+        from rateslib import IRS, FXBrokerFly, FXCall, FXRiskReversal, FXStraddle, FXSwap, Solver
+
+        usdusd = Curve({dt(2024, 5, 7): 1.0, dt(2024, 5, 30): 1.0}, calendar="nyc", id="usdusd")
+        eureur = Curve({dt(2024, 5, 7): 1.0, dt(2024, 5, 30): 1.0}, calendar="tgt", id="eureur")
+        eurusd = Curve({dt(2024, 5, 7): 1.0, dt(2024, 5, 30): 1.0}, id="eurusd")
+
+        # Create an FX Forward market with spot FX rate data
+        fxr = FXRates({"eurusd": 1.0760}, settlement=dt(2024, 5, 9))
+        fxf = FXForwards(
+            fx_rates=fxr,
+            fx_curves={"eureur": eureur, "usdusd": usdusd, "eurusd": eurusd},
+        )
+
+        pre_solver = Solver(
+            curves=[eureur, eurusd, usdusd],
+            instruments=[
+                IRS(dt(2024, 5, 9), "3W", spec="eur_irs", curves="eureur"),
+                IRS(dt(2024, 5, 9), "3W", spec="usd_irs", curves="usdusd"),
+                FXSwap(
+                    dt(2024, 5, 9), "3W", pair="eurusd", curves=[None, "eurusd", None, "usdusd"]
+                ),
+            ],
+            s=[3.90, 5.32, 8.85],
+            fx=fxf,
+            id="rates_sv",
+        )
+
+        dv_smile = FXSabrSmile(
+            nodes={"alpha": 0.05, "beta": 1.0, "rho": 0.01, "nu": 0.03},
+            eval_date=dt(2024, 5, 7),
+            expiry=dt(2024, 5, 28),
+            id="eurusd_3w_smile",
+            pair="eurusd",
+        )
+        option_args = dict(
+            pair="eurusd",
+            expiry=dt(2024, 5, 28),
+            calendar="tgt|fed",
+            delta_type="spot",
+            curves=[None, "eurusd", None, "usdusd"],
+            vol="eurusd_3w_smile",
+        )
+
+        dv_solver = Solver(
+            pre_solvers=[pre_solver],
+            curves=[dv_smile],
+            instruments=[
+                FXStraddle(strike="atm_delta", **option_args),
+                FXRiskReversal(strike=("-25d", "25d"), **option_args),
+                FXRiskReversal(strike=("-10d", "10d"), **option_args),
+                FXBrokerFly(strike=(("-25d", "25d"), "atm_delta"), **option_args),
+                FXBrokerFly(strike=(("-10d", "10d"), "atm_delta"), **option_args),
+            ],
+            s=[5.493, -0.157, -0.289, 0.071, 0.238],
+            fx=fxf,
+            id="dv_solver",
+        )
+
+        fc = FXCall(
+            expiry=dt(2024, 5, 28),
+            pair="eurusd",
+            strike=1.07,
+            notional=100e6,
+            curves=[None, "eurusd", None, "usdusd"],
+            vol="eurusd_3w_smile",
+            premium=98.216647 * 1e8 / 1e4,
+            premium_ccy="usd",
+            delta_type="spot",
+        )
+        fc.delta(solver=dv_solver)
+
 
 class TestFXSabrSurface:
     @pytest.mark.parametrize(

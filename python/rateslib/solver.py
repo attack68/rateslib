@@ -490,12 +490,12 @@ class Gradients:
                 grad_v_r = np.array([gradient(r, pre_solver.pre_variables) for r in self.r]).T
                 block = np.matmul(grad_v_r, self.grad_s_vT)
                 block = -1 * np.matmul(pre_solver.grad_s_vT_pre, block)
-                grad_s_vT[i : i + m, -self.m :] = block
+                grad_s_vT[i : i + m, -self.n :] = block
 
                 i, j = i + m, j + n
 
             # create bottom right block
-            grad_s_vT[-self.m :, -self.m :] = self.grad_s_vT
+            grad_s_vT[-self.m :, -self.n :] = self.grad_s_vT
             self._grad_s_vT_pre = grad_s_vT
         return self._grad_s_vT_pre
 
