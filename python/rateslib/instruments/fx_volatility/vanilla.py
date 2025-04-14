@@ -297,7 +297,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
         curves_3: Curve = _validate_obj_not_no_input(curves[3], "curves[3]")
         curves_1: Curve = _validate_obj_not_no_input(curves[1], "curves[1]")
 
-        if isinstance(vol_, FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile):
+        if isinstance(vol_, FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile | FXSabrSurface):
             eval_date = vol_.eval_date
         else:
             eval_date = curves_3.node_dates[0]
@@ -342,7 +342,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
                 ]._strike_and_index_from_delta(
                     delta=float(self.kwargs["strike"][:-1]) / 100.0,
                     delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
-                    vol=vol_,
+                    vol=_validate_obj_not_no_input(vol_, "vol"),  # type: ignore[arg-type]
                     w_deli=w_deli,
                     w_spot=w_spot,
                     f=self._pricing.f_d,
@@ -362,9 +362,9 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
                 self._pricing.delta_index, self._pricing.vol, _ = vol_.get_from_strike(
                     k=self._pricing.k,
                     f=self._pricing.f_d,
+                    expiry=self.kwargs["expiry"],
                     w_deli=w_deli,
                     w_spot=w_spot,
-                    expiry=self.kwargs["expiry"],
                 )
             else:
                 # Sabr objects do not generate delta_index pricing metrics.

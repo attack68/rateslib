@@ -10,7 +10,7 @@ from rateslib import default_context
 from rateslib.calendars import get_calendar
 from rateslib.curves import CompositeCurve, Curve, LineCurve
 from rateslib.default import NoInput
-from rateslib.dual import Dual, Dual2, gradient
+from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.fx import (
     FXForwards,
     FXRates,
@@ -20,6 +20,7 @@ from rateslib.fx_volatility import (
     FXDeltaVolSmile,
     FXDeltaVolSurface,
     FXSabrSmile,
+    FXSabrSurface,
     _d_sabr_d_k,
     _sabr,
     _validate_delta_type,
@@ -92,17 +93,17 @@ class TestFXDeltaVolSmile:
             id="vol",
             ad=1,
         )
-        args = (
-            k,
-            fxfo.rate("eurusd", dt(2023, 6, 20)),
-            fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
-            fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+        kwargs = dict(
+            k=k,
+            f=fxfo.rate("eurusd", dt(2023, 6, 20)),
+            w_deli=fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
+            w_spot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
         )
-        put_vol = fxvs.get_from_strike(*args)
+        put_vol = fxvs.get_from_strike(**kwargs)
 
         fxvs.nodes[idx] = Dual(val + 0.0000001, [var], [])
         fxvs.csolve()
-        put_vol_plus = fxvs.get_from_strike(*args)
+        put_vol_plus = fxvs.get_from_strike(**kwargs)
 
         finite_diff = (put_vol_plus[1] - put_vol[1]) * 10000000.0
         ad_grad = gradient(put_vol[1], [var])[0]
@@ -132,164 +133,38 @@ class TestFXDeltaVolSmile:
             ad=2,
         )
         fxfo._set_ad_order(2)
-        args = (
-            k,
-            fxfo.rate("eurusd", dt(2023, 6, 20)),
-            fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
-            fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+        kwargs = dict(
+            k=k,
+            f=fxfo.rate("eurusd", dt(2023, 6, 20)),
+            w_deli=fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
+            w_spot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
         )
-        pv00 = fxvs.get_from_strike(*args)
+        pv00 = fxvs.get_from_strike(**kwargs)
 
         fxvs.nodes[cross[0][2]] = Dual2(cross[0][1] + 0.00001, [cross[0][0]], [], [])
         fxvs.nodes[cross[1][2]] = Dual2(cross[1][1] + 0.00001, [cross[1][0]], [], [])
         fxvs.csolve()
-        pv11 = fxvs.get_from_strike(*args)
+        pv11 = fxvs.get_from_strike(**kwargs)
 
         fxvs.nodes[cross[0][2]] = Dual2(cross[0][1] + 0.00001, [cross[0][0]], [], [])
         fxvs.nodes[cross[1][2]] = Dual2(cross[1][1] - 0.00001, [cross[1][0]], [], [])
         fxvs.csolve()
-        pv1_1 = fxvs.get_from_strike(*args)
+        pv1_1 = fxvs.get_from_strike(**kwargs)
 
         fxvs.nodes[cross[0][2]] = Dual2(cross[0][1] - 0.00001, [cross[0][0]], [], [])
         fxvs.nodes[cross[1][2]] = Dual2(cross[1][1] - 0.00001, [cross[1][0]], [], [])
         fxvs.csolve()
-        pv_1_1 = fxvs.get_from_strike(*args)
+        pv_1_1 = fxvs.get_from_strike(**kwargs)
 
         fxvs.nodes[cross[0][2]] = Dual2(cross[0][1] - 0.00001, [cross[0][0]], [], [])
         fxvs.nodes[cross[1][2]] = Dual2(cross[1][1] + 0.00001, [cross[1][0]], [], [])
         fxvs.csolve()
-        pv_11 = fxvs.get_from_strike(*args)
+        pv_11 = fxvs.get_from_strike(**kwargs)
 
         finite_diff = (pv11[1] + pv_1_1[1] - pv1_1[1] - pv_11[1]) * 1e10 / 4.0
         ad_grad = gradient(pv00[1], [cross[0][0], cross[1][0]], 2)[0, 1]
 
         assert abs(finite_diff - ad_grad) < 5e-5
-
-    # @pytest.mark.parametrize("delta, type, smile_type, k, phi, exp", [
-    #     (-0.2, "forward", "forward", 1.02, -1, 0.2),
-    #     (-0.2, "spot", "spot", 1.02, -1, 0.2),
-    #     (-0.2, "forward_pa", "forward_pa", 1.02, -1, 0.2),
-    #     (-0.2, "spot_pa", "spot_pa", 1.02, -1, 0.2),
-    #     (-0.2, "forward", "spot", 1.02, -1, 0.19870506706),
-    #     (-0.2, "spot", "forward", 1.02, -1, 0.20130337183),
-    #     (-0.2, "forward_pa", "spot_pa", 1.02, -1, 0.19870506706),
-    #     (-0.2, "spot_pa", "forward_pa", 1.02, -1, 0.20130337183),
-    #     (-0.2, "forward", "forward_pa", 1.02, -1, 0.22081326385),
-    #     (-0.2, "forward", "spot_pa", 1.02, -1, 0.2194459183655),
-    # ])
-    # def test_convert_delta_put(self, fxfo, delta, type, smile_type, k, phi, exp):
-    #     fxvs = FXDeltaVolSmile(
-    #         nodes={
-    #             0.25: 10.15,
-    #             0.5: 7.8,
-    #             0.75: 8.9
-    #         },
-    #         delta_type=smile_type,
-    #         eval_date=dt(2023, 3, 16),
-    #         expiry=dt(2023, 6, 16),
-    #         id="vol",
-    #     )
-    #     result = fxvs._convert_delta(
-    #         delta,
-    #         type,
-    #         phi,
-    #         fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
-    #         fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
-    #         k / fxfo.rate("eurusd", dt(2023, 6, 20))
-    #     )
-    #
-    #     assert abs(result - exp) < 1e-10
-
-    @pytest.mark.parametrize(
-        ("delta_type", "smile_type", "k"),
-        [
-            ("forward", "forward_pa", 0.8),
-            ("forward", "spot_pa", 0.8),
-            ("spot", "forward_pa", 0.8),
-            ("spot", "spot_pa", 0.8),
-            ("forward", "forward_pa", 1.0),
-            ("forward", "spot_pa", 1.0),
-            ("spot", "forward_pa", 1.0),
-            ("spot", "spot_pa", 1.0),
-            ("forward", "forward_pa", 1.10),
-            ("forward", "spot_pa", 1.10),
-            ("spot", "forward_pa", 1.10),
-            ("spot", "spot_pa", 1.10),
-            ("forward", "forward_pa", 1.2),
-            ("forward", "spot_pa", 1.2),
-            ("spot", "forward_pa", 1.2),
-            ("spot", "spot_pa", 1.2),
-            ("forward_pa", "forward", 0.8),
-            ("forward_pa", "spot", 0.8),
-            ("spot_pa", "forward", 0.8),
-            ("spot_pa", "spot", 0.8),
-            ("forward_pa", "forward", 1.0),
-            ("forward_pa", "spot", 1.0),
-            ("spot_pa", "forward", 1.0),
-            ("spot_pa", "spot", 1.0),
-            ("forward_pa", "forward", 1.10),
-            ("forward_pa", "spot", 1.10),
-            ("spot_pa", "forward", 1.10),
-            ("spot_pa", "spot", 1.10),
-            ("forward_pa", "forward", 1.19),
-            ("forward_pa", "spot", 1.19),
-            ("spot_pa", "forward", 1.2),
-            ("spot_pa", "spot", 1.2),
-        ],
-    )
-    def test_convert_delta_put2(self, fxfo, delta_type, smile_type, k) -> None:
-        # Test the _convert_delta method of a DeltaVolSmile
-
-        fxo1 = FXPutPeriod(
-            pair="eurusd",
-            expiry=dt(2023, 6, 16),
-            delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
-            strike=k,
-            delta_type=smile_type,
-        )
-        fxo2 = FXPutPeriod(
-            pair="eurusd",
-            expiry=dt(2023, 6, 16),
-            delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
-            strike=k,
-            delta_type=delta_type,
-        )
-        smile_delta = fxo1.analytic_greeks(
-            fxfo.curve("eur", "usd"),
-            fxfo.curve("usd", "usd"),
-            fxfo,
-            vol=0.10,
-        )["delta"]
-        delta = fxo2.analytic_greeks(
-            fxfo.curve("eur", "usd"),
-            fxfo.curve("usd", "usd"),
-            fxfo,
-            vol=0.10,
-        )["delta"]
-
-        if -smile_delta < 0.5:
-            nodes = {float(-smile_delta): 10.0, float(-smile_delta) + 0.25: 12.5}
-        else:
-            nodes = {float(-smile_delta) - 0.25: 7.5, float(-smile_delta): 10}
-
-        fxvs = FXDeltaVolSmile(
-            nodes=nodes,
-            delta_type=smile_type,
-            eval_date=dt(2023, 3, 16),
-            expiry=dt(2023, 6, 16),
-            id="vol",
-        )
-        result = fxvs._convert_delta(
-            delta,
-            delta_type,
-            -1.0,
-            fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
-            fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
-            k / fxfo.rate("eurusd", dt(2023, 6, 20)),
-        )
-        assert abs(result + smile_delta) < 1e-10
 
     def test_get_from_unsimilar_delta(self) -> None:
         fxvs = FXDeltaVolSmile(
@@ -299,7 +174,7 @@ class TestFXDeltaVolSmile:
             expiry=dt(2023, 6, 16),
             id="vol",
         )
-        result = fxvs.get(0.65, "spot_pa", 1.0, 0.99, 0.999, 0.9)
+        result = fxvs.get(0.65, "spot_pa", 1.0, 0.99 / 0.999)
         expected = 10.0
         assert (result - expected) < 0.01
 
@@ -312,8 +187,26 @@ class TestFXDeltaVolSmile:
             expiry=dt(2023, 6, 16),
             id="vol",
         )
-        result = fxvs.get(0.5, delta_type, 1.0, 0.99, 0.991, 1.02)
+        result = fxvs.get(0.5, delta_type, 1.0, 0.99 / 0.991)
         assert abs(result - exp) < 1e-6
+
+    def test_get_from_unsimilar_delta2(self):
+        # GH 730
+        fdvs = FXDeltaVolSmile(
+            nodes={
+                0.1: 5,
+                0.25: 4,
+                0.5: 3,
+                0.75: 4,
+                0.9: 5,
+            },
+            expiry=dt(2025, 5, 10),
+            eval_date=dt(2025, 4, 10),
+            delta_type="forward",
+        )
+        result = fdvs.get(delta=0.1, delta_type="forward_pa", phi=1, z_w=1.0)
+        expected = 4.995304045589985
+        assert abs(result - expected) < 1e-9
 
     def test_set_same_ad_order(self) -> None:
         fxvs = FXDeltaVolSmile(
@@ -485,7 +378,9 @@ class TestFXDeltaVolSurface:
             eval_date=dt(2023, 1, 1),
             delta_type="forward",
         )
-        result = fxvs.get_from_strike(1.05, 1.03, 0.99, 0.999, dt(2024, 7, 1))[1]
+        result = fxvs.get_from_strike(
+            k=1.05, f=1.03, w_deli=0.99, w_spot=0.999, expiry=dt(2024, 7, 1)
+        )[1]
         # expected close to delta index of 0.5 i.e around 17.87% vol
         expected = 17.882603173
         assert abs(result - expected) < 1e-8
@@ -500,7 +395,7 @@ class TestFXDeltaVolSurface:
             delta_type="forward",
         )
         with pytest.raises(ValueError, match="`expiry` required to get cross-section"):
-            fxvs.get_from_strike(1.05, 1.03, 0.99, 0.999)
+            fxvs.get_from_strike(k=1.05, f=1.03, w_deli=0.99, w_spot=0.999)
 
     def test_set_node_vector(self) -> None:
         fxvs = FXDeltaVolSurface(
@@ -565,8 +460,9 @@ class TestFXDeltaVolSurface:
             delta_type="forward",
             weights=Series(scalar, index=[dt(2023, 2, 2), dt(2023, 2, 3)]),
         )
-        result = fxvs.get_from_strike(1.03, 1.03, 0.99, 0.999, dt(2023, 2, 3))
-        result2 = fxvs_weights.get_from_strike(1.03, 1.03, 0.99, 0.999, dt(2023, 2, 3))
+        kwargs = dict(k=1.03, f=1.03, w_deli=0.99, w_spot=0.999, expiry=dt(2023, 2, 3))
+        result = fxvs.get_from_strike(**kwargs)
+        result2 = fxvs_weights.get_from_strike(**kwargs)
         w = fxvs_weights.weights
 
         expected = result[1] * (w[: dt(2023, 2, 3)].sum() / 33.0) ** 0.5
@@ -1033,19 +929,19 @@ class TestFXSabrSmile:
             id="vol",
             ad=2,
         )
-        t = 1.0
-        base = fxss._d_sabr_d_k(Dual2(k, ["k"], [1.0], []), Dual2(f, ["f"], [1.0], []), t)[1]
+        t = dt(2002, 1, 1)
+        base = fxss._d_sabr_d_k(Dual2(k, ["k"], [1.0], []), Dual2(f, ["f"], [1.0], []), t, False)[1]
 
         # k
-        _up = fxss._d_sabr_d_k(Dual2(k + 1e-4, ["k"], [], []), Dual2(f, ["f"], [], []), t)[1]
-        _dw = fxss._d_sabr_d_k(Dual2(k - 1e-4, ["k"], [], []), Dual2(f, ["f"], [], []), t)[1]
+        _up = fxss._d_sabr_d_k(Dual2(k + 1e-4, ["k"], [], []), Dual2(f, ["f"], [], []), t, False)[1]
+        _dw = fxss._d_sabr_d_k(Dual2(k - 1e-4, ["k"], [], []), Dual2(f, ["f"], [], []), t, False)[1]
         result = gradient(base, ["k"])[0]
         expected = (_up - _dw) / 2e-4
         assert abs(result - expected) < 1e-5
 
         # f
-        _up = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f + 1e-4, ["f"], [], []), t)[1]
-        _dw = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f - 1e-4, ["f"], [], []), t)[1]
+        _up = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f + 1e-4, ["f"], [], []), t, False)[1]
+        _dw = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f - 1e-4, ["f"], [], []), t, False)[1]
         result = gradient(base, ["f"])[0]
         expected = (_up - _dw) / 2e-4
         assert abs(result - expected) < 1e-5
@@ -1053,9 +949,9 @@ class TestFXSabrSmile:
         # SABR params
         for i, key in enumerate(["alpha", "rho", "nu"]):
             fxss.nodes[key] = fxss.nodes[key] + 1e-5
-            _up = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), t)[1]
+            _up = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), t, False)[1]
             fxss.nodes[key] = fxss.nodes[key] - 2e-5
-            _dw = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), t)[1]
+            _dw = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), t, False)[1]
             fxss.nodes[key] = fxss.nodes[key] + 1e-5
             result = gradient(base, [f"vol{i}"])[0]
             expected = (_up - _dw) / 2e-5
@@ -1087,7 +983,9 @@ class TestFXSabrSmile:
         v = fxss.nodes["nu"]
 
         # F_0,T is stated in section 3.5.4 as 1.3395
-        base = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), 1.0)[1]
+        base = fxss._d_sabr_d_k(
+            Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), dt(2002, 1, 1), False
+        )[1]
 
         def inc_(key1, key2, inc1, inc2):
             k_ = k
@@ -1106,7 +1004,9 @@ class TestFXSabrSmile:
             else:
                 fxss.nodes[key2] = fxss.nodes[key2] + inc2
 
-            _ = fxss._d_sabr_d_k(Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []), 1.0)[1]
+            _ = fxss._d_sabr_d_k(
+                Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []), dt(2002, 1, 1), False
+            )[1]
 
             fxss.nodes["alpha"] = a
             fxss.nodes["rho"] = p
@@ -1151,7 +1051,9 @@ class TestFXSabrSmile:
         v = fxss.nodes["nu"]
 
         # F_0,T is stated in section 3.5.4 as 1.3395
-        base = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), 1.0)[1]
+        base = fxss._d_sabr_d_k(
+            Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), dt(2002, 1, 1), False
+        )[1]
 
         def inc_(key1, inc1):
             k_ = k
@@ -1163,7 +1065,9 @@ class TestFXSabrSmile:
             else:
                 fxss.nodes[key1] = fxss.nodes[key1] + inc1
 
-            _ = fxss._d_sabr_d_k(Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []), 1.0)[1]
+            _ = fxss._d_sabr_d_k(
+                Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []), dt(2002, 1, 1), False
+            )[1]
 
             fxss.nodes["alpha"] = a
             fxss.nodes["rho"] = p
@@ -1196,9 +1100,11 @@ class TestFXSabrSmile:
             ad=2,
         )
         # F_0,T is stated in section 3.5.4 as 1.3395
-        base = fxss._d_sabr_d_k(Dual2(1.34, ["k"], [], []), Dual2(1.34, ["f"], [], []), 1.0)[1]
+        base = fxss._d_sabr_d_k(
+            Dual2(1.34, ["k"], [], []), Dual2(1.34, ["f"], [], []), dt(2002, 1, 1), False
+        )[1]
         comparison1 = fxss._d_sabr_d_k(
-            Dual2(1.341, ["k"], [], []), Dual2(1.34, ["f"], [], []), 1.0
+            Dual2(1.341, ["k"], [], []), Dual2(1.34, ["f"], [], []), dt(2002, 1, 1), False
         )[1]
 
         assert np.all(abs(base.dual - comparison1.dual) < 5e-3)
@@ -1274,6 +1180,459 @@ class TestFXSabrSmile:
         expected = (r1 - 2 * result + r_1) / (1e-8)
         result = gradient(result, ["p"], order=2)[0][0]
         assert abs(result - expected) < 1e-8
+
+    def test_f_with_fxforwards(self, fxfo):
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.17431060,
+                "beta": 1.0,
+                "rho": -0.11268306,
+                "nu": 0.81694072,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 4, 16),
+            id="v",
+            ad=1,
+            pair="eurusd",
+            calendar="tgt|fed",
+        )
+        result = fxss.get_from_strike(1.02, fxfo)[1]
+        expected = 17.803563
+        assert abs(result - expected) < 1e-6
+
+    def test_f_with_fxrates_raises(self, fxfo):
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.17431060,
+                "beta": 1.0,
+                "rho": -0.11268306,
+                "nu": 0.81694072,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 4, 16),
+            id="v",
+            ad=1,
+            pair="eurusd",
+            calendar="tgt|fed",
+        )
+        with pytest.raises(ValueError):
+            fxss.get_from_strike(1.02, FXRates({"eurusd": 1.06}))
+
+    def test_plot_domain(self):
+        ss = FXSabrSmile(
+            eval_date=dt(2024, 5, 28),
+            expiry=dt(2054, 5, 28),
+            nodes={"alpha": 0.02, "beta": 1.0, "rho": 0.01, "nu": 0.05},
+        )
+        ax, fig, lines = ss.plot(f=1.60)
+        assert abs(lines[0]._x[0] - 1.3427) < 1e-4
+        assert abs(lines[0]._x[-1] - 1.9299) < 1e-4
+        assert abs(lines[0]._y[0] - 2.0698) < 1e-4
+        assert abs(lines[0]._y[-1] - 2.0865) < 1e-4
+
+    def test_get_from_strike_raises_fx(self, fxfo):
+        fxss = FXSabrSmile(
+            nodes={
+                "alpha": 0.17431060,
+                "beta": 1.0,
+                "rho": -0.11268306,
+                "nu": 0.81694072,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 4, 16),
+            id="v",
+            ad=1,
+            calendar="tgt|fed",
+        )
+        with pytest.raises(ValueError, match="`FXSabrSmile` must be specified with a `pair` arg"):
+            fxss.get_from_strike(1.02, fxfo)
+
+
+class TestFXSabrSurface:
+    @pytest.mark.parametrize(
+        "expiries",
+        [
+            [dt(2024, 5, 29), dt(2024, 7, 29), dt(2024, 6, 29)],
+            [dt(2024, 5, 29), dt(2024, 6, 29), dt(2024, 6, 29)],
+        ],
+    )
+    def test_unsorted_expiries(self, expiries):
+        with pytest.raises(ValueError, match="Surface `expiries` are not sorted or contain dupl"):
+            FXSabrSurface(
+                eval_date=dt(2024, 5, 28),
+                expiries=expiries,
+                node_values=[[0.05, 1.0, 0.01, 0.15]] * 3,
+                pair="eurusd",
+                delivery_lag=2,
+                calendar="tgt|fed",
+                id="eurusd_vol",
+            )
+
+    def test_z_eurusd_surface_cookbook(self):
+        from rateslib import (
+            IRS,
+            XCS,
+            FXBrokerFly,
+            FXRiskReversal,
+            FXStraddle,
+            FXSwap,
+            Solver,
+            add_tenor,
+        )
+
+        fxr = FXRates({"eurusd": 1.0867}, settlement=dt(2024, 5, 30))
+        mkt_data = DataFrame(
+            data=[
+                [
+                    "1w",
+                    3.9035,
+                    5.3267,
+                    3.33,
+                ],
+                [
+                    "2w",
+                    3.9046,
+                    5.3257,
+                    6.37,
+                ],
+                [
+                    "3w",
+                    3.8271,
+                    5.3232,
+                    9.83,
+                ],
+                [
+                    "1m",
+                    3.7817,
+                    5.3191,
+                    13.78,
+                ],
+                [
+                    "2m",
+                    3.7204,
+                    5.3232,
+                    30.04,
+                ],
+                ["3m", 3.667, 5.3185, 45.85, -2.5],
+                [
+                    "4m",
+                    3.6252,
+                    5.3307,
+                    61.95,
+                ],
+                [
+                    "5m",
+                    3.587,
+                    5.3098,
+                    78.1,
+                ],
+                ["6m", 3.5803, 5.3109, 94.25, -3.125],
+                [
+                    "7m",
+                    3.5626,
+                    5.301,
+                    110.82,
+                ],
+                [
+                    "8m",
+                    3.531,
+                    5.2768,
+                    130.45,
+                ],
+                ["9m", 3.5089, 5.2614, 145.6, -7.25],
+                [
+                    "10m",
+                    3.4842,
+                    5.2412,
+                    162.05,
+                ],
+                [
+                    "11m",
+                    3.4563,
+                    5.2144,
+                    178,
+                ],
+                ["1y", 3.4336, 5.1936, None, -6.75],
+                ["15m", 3.3412, 5.0729, None, -6.75],
+                ["18m", 3.2606, 4.9694, None, -6.75],
+                ["21m", 3.1897, 4.8797, None, -7.75],
+                ["2y", 3.1283, 4.8022, None, -7.875],
+                ["3y", 2.9254, 4.535, None, -9],
+                ["4y", 2.81, 4.364, None, -10.125],
+                ["5y", 2.7252, 4.256, None, -11.125],
+                ["6y", 2.6773, 4.192, None, -12.125],
+                ["7y", 2.6541, 4.151, None, -13],
+                ["8y", 2.6431, 4.122, None, -13.625],
+                ["9y", 2.6466, 4.103, None, -14.25],
+                ["10y", 2.6562, 4.091, None, -14.875],
+                ["12y", 2.6835, 4.084, None, -16.125],
+                ["15y", 2.7197, 4.08, None, -17],
+                ["20y", 2.6849, 4.04, None, -16],
+                ["25y", 2.6032, 3.946, None, -12.75],
+                ["30y", 2.5217, 3.847, None, -9.5],
+            ],
+            columns=["tenor", "estr", "sofr", "fx_swap", "xccy"],
+        )
+        eur = Curve(
+            nodes={
+                dt(2024, 5, 28): 1.0,
+                **{add_tenor(dt(2024, 5, 30), _, "F", "tgt"): 1.0 for _ in mkt_data["tenor"]},
+            },
+            calendar="tgt",
+            interpolation="log_linear",
+            convention="act360",
+            id="estr",
+        )
+        usd = Curve(
+            nodes={
+                dt(2024, 5, 28): 1.0,
+                **{add_tenor(dt(2024, 5, 30), _, "F", "nyc"): 1.0 for _ in mkt_data["tenor"]},
+            },
+            calendar="nyc",
+            interpolation="log_linear",
+            convention="act360",
+            id="sofr",
+        )
+        eurusd = Curve(
+            nodes={
+                dt(2024, 5, 28): 1.0,
+                **{add_tenor(dt(2024, 5, 30), _, "F", "tgt"): 1.0 for _ in mkt_data["tenor"]},
+            },
+            interpolation="log_linear",
+            convention="act360",
+            id="eurusd",
+        )
+        fxf = FXForwards(fx_rates=fxr, fx_curves={"eureur": eur, "eurusd": eurusd, "usdusd": usd})
+        estr_swaps = [
+            IRS(dt(2024, 5, 30), _, spec="eur_irs", curves="estr") for _ in mkt_data["tenor"]
+        ]
+        estr_rates = mkt_data["estr"].tolist()
+        labels = mkt_data["tenor"].to_list()
+        sofr_swaps = [
+            IRS(dt(2024, 5, 30), _, spec="usd_irs", curves="sofr") for _ in mkt_data["tenor"]
+        ]
+        sofr_rates = mkt_data["sofr"].tolist()
+        eur_solver = Solver(
+            curves=[eur],
+            instruments=estr_swaps,
+            s=estr_rates,
+            fx=fxf,
+            instrument_labels=labels,
+            id="eur",
+        )
+        usd_solver = Solver(
+            curves=[usd],
+            instruments=sofr_swaps,
+            s=sofr_rates,
+            fx=fxf,
+            instrument_labels=labels,
+            id="usd",
+        )
+        fxswaps = [
+            FXSwap(dt(2024, 5, 30), _, pair="eurusd", curves=[None, "eurusd", None, "sofr"])
+            for _ in mkt_data["tenor"][0:14]
+        ]
+        fxswap_rates = mkt_data["fx_swap"][0:14].tolist()
+        xcs = [
+            XCS(dt(2024, 5, 30), _, spec="eurusd_xcs", curves=["estr", "eurusd", "sofr", "sofr"])
+            for _ in mkt_data["tenor"][14:]
+        ]
+        xcs_rates = mkt_data["xccy"][14:].tolist()
+        fx_solver = Solver(
+            pre_solvers=[eur_solver, usd_solver],
+            curves=[eurusd],
+            instruments=fxswaps + xcs,
+            s=fxswap_rates + xcs_rates,
+            fx=fxf,
+            instrument_labels=labels,
+            id="eurusd_xccy",
+        )
+        vol_data = DataFrame(
+            data=[
+                ["1w", 4.535, -0.047, 0.07, -0.097, 0.252],
+                ["2w", 5.168, -0.082, 0.077, -0.165, 0.24],
+                ["3w", 5.127, -0.175, 0.07, -0.26, 0.233],
+                ["1m", 5.195, -0.2, 0.07, -0.295, 0.235],
+                ["2m", 5.237, -0.28, 0.087, -0.535, 0.295],
+                ["3m", 5.257, -0.363, 0.1, -0.705, 0.35],
+                ["4m", 5.598, -0.47, 0.123, -0.915, 0.422],
+                ["5m", 5.776, -0.528, 0.133, -1.032, 0.463],
+                ["6m", 5.92, -0.565, 0.14, -1.11, 0.49],
+                ["9m", 6.01, -0.713, 0.182, -1.405, 0.645],
+                ["1y", 6.155, -0.808, 0.23, -1.585, 0.795],
+                ["18m", 6.408, -0.812, 0.248, -1.588, 0.868],
+                ["2y", 6.525, -0.808, 0.257, -1.58, 0.9],
+                ["3y", 6.718, -0.733, 0.265, -1.45, 0.89],
+                ["4y", 7.025, -0.665, 0.265, -1.31, 0.885],
+                ["5y", 7.26, -0.62, 0.26, -1.225, 0.89],
+                ["6y", 7.508, -0.516, 0.27, -0.989, 0.94],
+                ["7y", 7.68, -0.442, 0.278, -0.815, 0.975],
+                ["10y", 8.115, -0.267, 0.288, -0.51, 1.035],
+                ["15y", 8.652, -0.325, 0.362, -0.4, 1.195],
+                ["20y", 8.651, -0.078, 0.343, -0.303, 1.186],
+                ["25y", 8.65, -0.029, 0.342, -0.218, 1.178],
+                ["30y", 8.65, 0.014, 0.341, -0.142, 1.171],
+            ],
+            columns=["tenor", "atm", "25drr", "25dbf", "10drr", "10dbf"],
+        )
+        vol_data["expiry"] = [add_tenor(dt(2024, 5, 28), _, "MF", "tgt") for _ in vol_data["tenor"]]
+        surface = FXSabrSurface(
+            eval_date=dt(2024, 5, 28),
+            expiries=list(vol_data["expiry"]),
+            node_values=[[0.05, 1.0, 0.01, 0.15]] * 23,
+            pair="eurusd",
+            delivery_lag=2,
+            calendar="tgt|fed",
+            id="eurusd_vol",
+        )
+        fx_args = dict(
+            pair="eurusd",
+            curves=[None, "eurusd", None, "sofr"],
+            calendar="tgt",
+            delivery_lag=2,
+            payment_lag=2,
+            eval_date=dt(2024, 5, 28),
+            modifier="MF",
+            premium_ccy="usd",
+            vol="eurusd_vol",
+        )
+
+        instruments_le_1y, rates_le_1y, labels_le_1y = [], [], []
+        for row in range(11):
+            instruments_le_1y.extend(
+                [
+                    FXStraddle(
+                        strike="atm_delta",
+                        expiry=vol_data["expiry"][row],
+                        delta_type="spot",
+                        **fx_args,
+                    ),
+                    FXRiskReversal(
+                        strike=("-25d", "25d"),
+                        expiry=vol_data["expiry"][row],
+                        delta_type="spot",
+                        **fx_args,
+                    ),
+                    FXBrokerFly(
+                        strike=(("-25d", "25d"), "atm_delta"),
+                        expiry=vol_data["expiry"][row],
+                        delta_type="spot",
+                        **fx_args,
+                    ),
+                    FXRiskReversal(
+                        strike=("-10d", "10d"),
+                        expiry=vol_data["expiry"][row],
+                        delta_type="spot",
+                        **fx_args,
+                    ),
+                    FXBrokerFly(
+                        strike=(("-10d", "10d"), "atm_delta"),
+                        expiry=vol_data["expiry"][row],
+                        delta_type="spot",
+                        **fx_args,
+                    ),
+                ]
+            )
+            rates_le_1y.extend(
+                [
+                    vol_data["atm"][row],
+                    vol_data["25drr"][row],
+                    vol_data["25dbf"][row],
+                    vol_data["10drr"][row],
+                    vol_data["10dbf"][row],
+                ]
+            )
+            labels_le_1y.extend(
+                [f"atm_{row}", f"25drr_{row}", f"25dbf_{row}", f"10drr_{row}", f"10dbf_{row}"]
+            )
+
+        instruments_gt_1y, rates_gt_1y, labels_gt_1y = [], [], []
+        for row in range(11, 23):
+            instruments_gt_1y.extend(
+                [
+                    FXStraddle(
+                        strike="atm_delta",
+                        expiry=vol_data["expiry"][row],
+                        delta_type="forward",
+                        **fx_args,
+                    ),
+                    FXRiskReversal(
+                        strike=("-25d", "25d"),
+                        expiry=vol_data["expiry"][row],
+                        delta_type="forward",
+                        **fx_args,
+                    ),
+                    FXBrokerFly(
+                        strike=(("-25d", "25d"), "atm_delta"),
+                        expiry=vol_data["expiry"][row],
+                        delta_type="forward",
+                        **fx_args,
+                    ),
+                    FXRiskReversal(
+                        strike=("-10d", "10d"),
+                        expiry=vol_data["expiry"][row],
+                        delta_type="forward",
+                        **fx_args,
+                    ),
+                    FXBrokerFly(
+                        strike=(("-10d", "10d"), "atm_delta"),
+                        expiry=vol_data["expiry"][row],
+                        delta_type="forward",
+                        **fx_args,
+                    ),
+                ]
+            )
+            rates_gt_1y.extend(
+                [
+                    vol_data["atm"][row],
+                    vol_data["25drr"][row],
+                    vol_data["25dbf"][row],
+                    vol_data["10drr"][row],
+                    vol_data["10dbf"][row],
+                ]
+            )
+            labels_gt_1y.extend(
+                [f"atm_{row}", f"25drr_{row}", f"25dbf_{row}", f"10drr_{row}", f"10dbf_{row}"]
+            )
+
+        def cb(a, b, c):
+            print("ITERATION")
+
+        Solver(
+            surfaces=[surface],
+            instruments=instruments_le_1y + instruments_gt_1y,
+            s=rates_le_1y + rates_gt_1y,
+            instrument_labels=labels_le_1y + labels_gt_1y,
+            fx=fxf,
+            pre_solvers=[fx_solver],
+            id="eurusd_vol",
+            callback=cb,
+        )
+
+    def test_k_derivative_interpolation(self, fxfo):
+        # test the derivative of the k-interpolated volatility of a SabrSurface against Fwd diff
+        # and AD.
+        surface = FXSabrSurface(
+            eval_date=dt(2023, 3, 16),
+            expiries=[dt(2025, 5, 28), dt(2026, 5, 28)],
+            node_values=[
+                [0.05, 1.0, 0.01, 0.15],
+                [0.06, 1.0, 0.02, 0.20],
+            ],
+            pair="eurusd",
+            delivery_lag=2,
+            calendar="tgt|fed",
+            id="eurusd_vol",
+        )
+        k = Variable(1.10, ["k"])
+        base = surface.get_from_strike(k, fxfo, dt(2025, 12, 12))[1]
+        expected_ad = gradient(base, vars=["k"])[0]
+        expected_fwd_diff = (
+            surface.get_from_strike(k + 0.0001, fxfo, dt(2025, 12, 12))[1] - base
+        ) / 1e-4
+        result = surface._d_sabr_d_k(k, fxfo, dt(2025, 12, 12), False)[1] * 100.0
+        assert abs(expected_fwd_diff - result) < 1e-3
+        assert abs(expected_ad - result) < 1e-3
 
 
 class TestStateAndCache:
@@ -1395,7 +1754,7 @@ class TestStateAndCache:
     @pytest.mark.parametrize(
         ("method", "args"),
         [
-            ("get_from_strike", (1.0, 1.0, NoInput(0), NoInput(0), dt(2000, 5, 3))),
+            ("get_from_strike", (1.0, 1.0, dt(2000, 5, 3), NoInput(0), NoInput(0))),
             ("_get_index", (0.9, dt(2000, 5, 3))),
             ("get_smile", (dt(2000, 5, 3),)),
         ],
@@ -1415,20 +1774,30 @@ class TestStateAndCache:
     @pytest.mark.parametrize(
         ("method", "args"),
         [
-            ("_set_node_vector", ([0.99, 0.98], 1)),
+            ("_set_node_vector", ([0.99, 0.98, 0.99, 0.99, 0.98, 0.99], 1)),
         ],
     )
-    def test_surface_change_state(self, method, args):
-        surf = FXDeltaVolSurface(
-            expiries=[dt(2000, 1, 1), dt(2001, 1, 1)],
-            delta_indexes=[0.5],
-            node_values=[[10.0], [9.0]],
-            eval_date=dt(1999, 1, 1),
-            delta_type="forward",
-        )
-        pre_state = surf._state
-        getattr(surf, method)(*args)
-        assert surf._state != pre_state
+    @pytest.mark.parametrize(
+        "surface",
+        [
+            FXDeltaVolSurface(
+                expiries=[dt(2000, 1, 1), dt(2001, 1, 1)],
+                delta_indexes=[0.25, 0.5, 0.75],
+                node_values=[[10.0, 9.0, 8.0], [9.0, 8.0, 7.0]],
+                eval_date=dt(1999, 1, 1),
+                delta_type="forward",
+            ),
+            FXSabrSurface(
+                expiries=[dt(2000, 1, 1), dt(2001, 1, 1)],
+                node_values=[[10.0, 1.0, 8.0, 9.0], [9.0, 1.0, 8.0, 7.0]],
+                eval_date=dt(1999, 1, 1),
+            ),
+        ],
+    )
+    def test_surface_change_state(self, method, args, surface):
+        pre_state = surface._state
+        getattr(surface, method)(*args)
+        assert surface._state != pre_state
 
     @pytest.mark.parametrize(
         ("method", "args"),
@@ -1436,17 +1805,27 @@ class TestStateAndCache:
             ("_set_ad_order", (2,)),
         ],
     )
-    def test_surface_maintain_state(self, method, args):
-        surf = FXDeltaVolSurface(
-            expiries=[dt(2000, 1, 1), dt(2001, 1, 1)],
-            delta_indexes=[0.5],
-            node_values=[[10.0], [9.0]],
-            eval_date=dt(1999, 1, 1),
-            delta_type="forward",
-        )
-        pre_state = surf._state
-        getattr(surf, method)(*args)
-        assert surf._state == pre_state
+    @pytest.mark.parametrize(
+        "surface",
+        [
+            FXDeltaVolSurface(
+                expiries=[dt(2000, 1, 1), dt(2001, 1, 1)],
+                delta_indexes=[0.25, 0.5, 0.75],
+                node_values=[[10.0, 9.0, 8.0], [9.0, 8.0, 7.0]],
+                eval_date=dt(1999, 1, 1),
+                delta_type="forward",
+            ),
+            FXSabrSurface(
+                expiries=[dt(2000, 1, 1), dt(2001, 1, 1)],
+                node_values=[[10.0, 1.0, 8.0, 9.0], [9.0, 1.0, 8.0, 7.0]],
+                eval_date=dt(1999, 1, 1),
+            ),
+        ],
+    )
+    def test_surface_maintain_state(self, method, args, surface):
+        pre_state = surface._state
+        getattr(surface, method)(*args)
+        assert surface._state == pre_state
 
     def test_surface_validate_states(self):
         # test the get_smile method validates the states after a mutation

@@ -7,7 +7,7 @@
    warnings.filterwarnings('always')
    from rateslib.solver import *
    from rateslib.instruments import *
-   from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
+   from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile
    import matplotlib.pyplot as plt
    from datetime import datetime as dt
    import numpy as np
@@ -22,10 +22,15 @@ which can be used to price *FX Options* and *FX Option Strategies*.
 
 .. autosummary::
    rateslib.fx_volatility.FXDeltaVolSmile
+   rateslib.fx_volatility.FXSabrSmile
    rateslib.fx_volatility.FXDeltaVolSurface
 
 Introduction and FX Volatility Smiles
 *************************************
+
+*Ratelib* offers two different *Smile* models for pricing FX volatility at a given expiry. An
+:class:`~rateslib.fx_volatility.FXDeltaVolSmile` and an
+:class:`~rateslib.fx_volatility.FXSabrSmile`.
 
 The :class:`~rateslib.fx_volatility.FXDeltaVolSmile` is parametrised by a series of
 *(delta-index, vol)* node points interpolated by a cubic spline. This interpolation is
@@ -37,14 +42,25 @@ automatically constructed with knot sequences that adjust to the number of given
 - Providing more nodes (appropriately calibrated) will create a traditional smile shape with
   the mentioned interpolation structure.
 
-An *FXDeltaVolSmile* must also be initialised with:
+An *FXDeltaVolSmile* must also be initialised with a ``delta_type`` to define how it references
+delta on its index. It can still be used to price *Instruments* even
+if their *delta types* are different. That is, an *FXDeltaVolSmile* defined by *"forward"* delta
+types can still price *FXOptions* defined with *"spot"* delta types or *premium adjusted*
+delta types due to appropriate mathematical conversions.
+
+An :class:`~rateslib.fx_volatility.FXSabrSmile` is a *Smile* parametrised by the
+conventional :math:`\alpha, \beta, \rho, \nu` variables of the SABR model. The parameter
+:math:`\beta` is considered a hyper-parameter and will not be varied by a
+:class:`~rateslib.solver.Solver` but :math:`\alpha, \rho, \nu` will be varied.
+
+Both *Smiles* must also be initialised with:
 
 - An ``eval_date`` which serves the same purpose as the initial node point on a *Curve*,
-  and indicates *'today'*.
-- An ``expiry``, for which options priced with this *Smile* must have an equivalent expiry or errors will be raised.
-- A ``delta_type`` so that its *delta-index* is well defined, and it can price different *Instruments* even
-  if their *delta types* are different. I.e. A *Smile* defined by *"forward"* delta types can still
-  price *FXOptions* defined with *"spot"* delta types due to appropriate mathematical conversions.
+  and indicates *'today'* or *'horizon'*.
+- An ``expiry``, for which options priced with this *Smile* must have an equivalent
+  expiry or errors will be raised.
+
+An example of an *FXDeltaVolSmile* is shown below.
 
 .. ipython:: python
 
@@ -110,20 +126,54 @@ An *FXDeltaVolSmile* must also be initialised with:
 Constructing a Smile
 *********************
 
+It is expected that *Smiles* will typically be calibrated to market prices, similar to
+interest rate curves.
+
 The following data describes *Instruments* to calibrate the EURUSD FX volatility surface on 7th May 2024.
-We will take a cross-section of this data, at the 3-week expiry (28th May 2024), and create an *FXDeltaVolSmile*.
+We will take a cross-section of this data, at the 3-week expiry (28th May 2024), and create
+both an *FXDeltaVolSmile* and *FXSabrSmile*.
 
 .. image:: _static/fx_eurusd_3m_surf.PNG
   :alt: EURUSD FX volatility surface prices on 7th May 2024
   :width: 489
 
-Since EURUSD is **not** premium adjusted and the premium currency is USD we will match the *Smile* with this
-definition and set it to a ``delta_type`` of *'spot'*, matching the market convention of these quoted instruments.
-Since we have 5 calibrating instruments we require 5 degrees of freedom.
+FX Options are **multi-currency derivative** *Instruments* and require an :class:`~rateslib.fx.FXForwards`
+framework for pricing. We will do this first using other prevailing market data,
+i.e. local currency interest rates at 3.90% and 5.32%, and an FX Swap rate at 8.85 points.
 
 .. ipython:: python
 
-   smile = FXDeltaVolSmile(
+   # Define the interest rate curves for EUR, USD and X-Ccy basis
+   usdusd = Curve({dt(2024, 5, 7): 1.0, dt(2024, 5, 30): 1.0}, calendar="nyc", id="usdusd")
+   eureur = Curve({dt(2024, 5, 7): 1.0, dt(2024, 5, 30): 1.0}, calendar="tgt", id="eureur")
+   eurusd = Curve({dt(2024, 5, 7): 1.0, dt(2024, 5, 30): 1.0}, id="eurusd")
+
+   # Create an FX Forward market with spot FX rate data
+   fxf = FXForwards(
+       fx_rates=FXRates({"eurusd": 1.0760}, settlement=dt(2024, 5, 9)),
+       fx_curves={"eureur": eureur, "usdusd": usdusd, "eurusd": eurusd},
+   )
+
+   pre_solver = Solver(
+       curves=[eureur, eurusd, usdusd],
+       instruments=[
+           IRS(dt(2024, 5, 9), "3W", spec="eur_irs", curves="eureur"),
+           IRS(dt(2024, 5, 9), "3W", spec="usd_irs", curves="usdusd"),
+           FXSwap(dt(2024, 5, 9), "3W", pair="eurusd", curves=[None, "eurusd", None, "usdusd"]),
+       ],
+       s=[3.90, 5.32, 8.85],
+       fx=fxf,
+       id="rates_sv",
+   )
+
+Since EURUSD *Options* are **not** premium adjusted and the premium currency is USD we will match
+the *FXDeltaVolSmile* with this definition and set it to a ``delta_type`` of *'spot'*, matching
+the market convention of these quoted instruments.
+Since we have 5 calibrating instruments we can safely utilise 5 degrees of freedom.
+
+.. ipython:: python
+
+   dv_smile = FXDeltaVolSmile(
        nodes={
            0.10: 10.0,
            0.25: 10.0,
@@ -137,61 +187,81 @@ Since we have 5 calibrating instruments we require 5 degrees of freedom.
        id="eurusd_3w_smile"
    )
 
-The above *Smile* is initialised as a flat vol at 10%. In order to calibrate it we need to create the pricing
-instruments, given in the market prices data table.
+   sabr_smile = FXSabrSmile(
+       nodes={
+           "alpha": 0.10,  # default vol level set to 10%
+           "beta": 1.0,  # model is fully lognormal
+           "rho": 0.10,
+           "nu": 1.0,  # initialised with curvature
+       },
+       eval_date=dt(2024, 5, 7),
+       expiry=dt(2024, 5, 28),
+       id="eurusd_3w_smile"
+   )
 
-Since these *Instruments* are **multi-currency derivatives** an :class:`~rateslib.fx.FXForwards`
-framework also needs to be setup for pricing. We will do this simultaneously using other prevailing market data,
-i.e. local currency interest rates at 3.90% and 5.32%, and an FX Swap rate at 8.85 points.
+The above *FXDeltaVolSmile* is initialised as a flat vol at 10%, whilst the *FXSabrSmile*
+is initialised with around 10% with some shallow curvature. In order to calibrate
+these, we need to create the pricing
+instruments, given in the market prices data table.
 
 .. ipython:: python
 
-   # Define the interest rate curves for EUR, USD and X-Ccy basis
-   eureur = Curve({dt(2024, 5, 7): 1.0, dt(2024, 5, 30): 1.0}, calendar="tgt", id="eureur")
-   eurusd = Curve({dt(2024, 5, 7): 1.0, dt(2024, 5, 30): 1.0}, id="eurusd")
-   usdusd = Curve({dt(2024, 5, 7): 1.0, dt(2024, 5, 30): 1.0}, calendar="nyc", id="usdusd")
-   # Create an FX Forward market with spot FX rate data
-   fxf = FXForwards(
-       fx_rates=FXRates({"eurusd": 1.0760}, settlement=dt(2024, 5, 9)),
-       fx_curves={"eureur": eureur, "usdusd": usdusd, "eurusd": eurusd},
-   )
-   # Setup the Solver instrument calibration for rates Curves and vol Smiles
+   # Setup the Solver instrument calibration for FXOptions and vol Smiles
    option_args=dict(
-       pair="eurusd", expiry=dt(2024, 5, 28), calendar="tgt", delta_type="spot",
+       pair="eurusd", expiry=dt(2024, 5, 28), calendar="tgt|fed", delta_type="spot",
        curves=[None, "eurusd", None, "usdusd"], vol="eurusd_3w_smile"
    )
-   solver = Solver(
-       curves=[eureur, eurusd, usdusd, smile],
+   dv_solver = Solver(
+       pre_solvers=[pre_solver],
+       curves=[dv_smile],
        instruments=[
-           IRS(dt(2024, 5, 9), "3W", spec="eur_irs", curves="eureur"),
-           IRS(dt(2024, 5, 9), "3W", spec="usd_irs", curves="usdusd"),
-           FXSwap(dt(2024, 5, 9), "3W", pair="eurusd", curves=[None, "eurusd", None, "usdusd"]),
            FXStraddle(strike="atm_delta", **option_args),
            FXRiskReversal(strike=("-25d", "25d"), **option_args),
            FXRiskReversal(strike=("-10d", "10d"), **option_args),
            FXBrokerFly(strike=(("-25d", "25d"), "atm_delta"), **option_args),
            FXBrokerFly(strike=(("-10d", "10d"), "atm_delta"), **option_args),
        ],
-       s=[3.90, 5.32, 8.85, 5.493, -0.157, -0.289, 0.071, 0.238],
+       s=[5.493, -0.157, -0.289, 0.071, 0.238],
        fx=fxf,
+       id="dv_solver",
    )
-   smile.plot()
+
+The *FXSabrSmile* can be similarly calibrated.
+
+.. ipython:: python
+
+   sabr_solver = Solver(
+       pre_solvers=[pre_solver],
+       curves=[sabr_smile],
+       instruments=[
+           FXStraddle(strike="atm_delta", **option_args),
+           FXRiskReversal(strike=("-25d", "25d"), **option_args),
+           FXRiskReversal(strike=("-10d", "10d"), **option_args),
+           FXBrokerFly(strike=(("-25d", "25d"), "atm_delta"), **option_args),
+           FXBrokerFly(strike=(("-10d", "10d"), "atm_delta"), **option_args),
+       ],
+       s=[5.493, -0.157, -0.289, 0.071, 0.238],
+       fx=fxf,
+       id="sabr_solver",
+   )
+
+   dv_smile.plot(f=fxf.rate("eurusd", dt(2024, 5, 30)), x_axis="delta", labels=["DeltaVol", "Sabr"])
 
 .. container:: twocol
 
    .. container:: leftside50
 
       .. plot::
-         :caption: Rateslib Vol Smile
+         :caption: Rateslib Vol Smile: 'delta index'
 
          from rateslib.curves import Curve
          from rateslib.instruments import *
-         from rateslib.fx_volatility import FXDeltaVolSmile
+         from rateslib.fx_volatility import FXDeltaVolSmile, FXSabrSmile
          from rateslib.fx import FXRates, FXForwards
          from rateslib.solver import Solver
          import matplotlib.pyplot as plt
          from datetime import datetime as dt
-         smile = FXDeltaVolSmile(
+         dv_smile = FXDeltaVolSmile(
              nodes={
                  0.10: 10.0,
                  0.25: 10.0,
@@ -202,6 +272,17 @@ i.e. local currency interest rates at 3.90% and 5.32%, and an FX Swap rate at 8.
              eval_date=dt(2024, 5, 7),
              expiry=dt(2024, 5, 28),
              delta_type="spot",
+             id="eurusd_3w_smile"
+         )
+         sabr_smile = FXSabrSmile(
+             nodes={
+                 "alpha": 0.10,
+                 "beta": 1.0,
+                 "rho": 0.10,
+                 "nu": 1.0,
+             },
+             eval_date=dt(2024, 5, 7),
+             expiry=dt(2024, 5, 28),
              id="eurusd_3w_smile"
          )
          # Define the interest rate curves for EUR, USD and X-Ccy basis
@@ -218,22 +299,45 @@ i.e. local currency interest rates at 3.90% and 5.32%, and an FX Swap rate at 8.
              pair="eurusd", expiry=dt(2024, 5, 28), calendar="tgt", delta_type="spot",
              curves=[None, "eurusd", None, "usdusd"], vol="eurusd_3w_smile"
          )
-         solver = Solver(
-             curves=[eureur, eurusd, usdusd, smile],
+         pre_solver = Solver(
+             curves=[eureur, eurusd, usdusd],
              instruments=[
                  IRS(dt(2024, 5, 9), "3W", spec="eur_irs", curves="eureur"),
                  IRS(dt(2024, 5, 9), "3W", spec="usd_irs", curves="usdusd"),
                  FXSwap(dt(2024, 5, 9), "3W", currency="eur", leg2_currency="usd", curves=[None, "eurusd", None, "usdusd"]),
+             ],
+             s=[3.90, 5.32, 8.85],
+             fx=fxf,
+         )
+         sabr_solver = Solver(
+             pre_solvers=[pre_solver],
+             curves=[sabr_smile],
+             instruments=[
                  FXStraddle(strike="atm_delta", **option_args),
                  FXRiskReversal(strike=("-25d", "25d"), **option_args),
                  FXRiskReversal(strike=("-10d", "10d"), **option_args),
                  FXBrokerFly(strike=(("-25d", "25d"), "atm_delta"), **option_args),
                  FXBrokerFly(strike=(("-10d", "10d"), "atm_delta"), **option_args),
              ],
-             s=[3.90, 5.32, 8.85, 5.493, -0.157, -0.289, 0.071, 0.238],
+             s=[5.493, -0.157, -0.289, 0.071, 0.238],
              fx=fxf,
+             id="sabr_solver",
          )
-         fig, ax, line = smile.plot()
+         dv_solver = Solver(
+             pre_solvers=[pre_solver],
+             curves=[dv_smile],
+             instruments=[
+                 FXStraddle(strike="atm_delta", **option_args),
+                 FXRiskReversal(strike=("-25d", "25d"), **option_args),
+                 FXRiskReversal(strike=("-10d", "10d"), **option_args),
+                 FXBrokerFly(strike=(("-25d", "25d"), "atm_delta"), **option_args),
+                 FXBrokerFly(strike=(("-10d", "10d"), "atm_delta"), **option_args),
+             ],
+             s=[5.493, -0.157, -0.289, 0.071, 0.238],
+             fx=fxf,
+             id="dv_solver",
+         )
+         fig, ax, line = dv_smile.plot(f=fxf.rate("eurusd", dt(2024, 5, 30)), x_axis="delta", comparators=[sabr_smile], labels=["DeltaVol", "Sabr"])
          plt.show()
          plt.close()
 

@@ -44,6 +44,26 @@ email contact, see `rateslib <https://rateslib.com>`_.
      - An :class:`~rateslib.fx_volatility.FXSabrSmile` is implemented in *beta* status, which
        cannot yet be used to price *Instruments*.
        (`714 <https://github.com/attack68/rateslib/pull/714>`_)
+   * - FX Volatility
+     - An :class:`~rateslib.fx_volatility.FXSabrSurface` is implemented in *beta* status, which
+       cannot yet be used to price *Instruments*.
+       (`729 <https://github.com/attack68/rateslib/pull/729>`_)
+   * - FX Volatility
+     - :red:`Minor Breaking Change!` The arguments to all FX Volatility model objects'
+       :meth:`~rateslib.fx_volatility.FXDeltaVolSmile.get_from_strike` methods are reordered
+       to prioritise ``expiry`` which is more commonly required for *Surfaces*.
+       (`735 <https://github.com/attack68/rateslib/pull/735>`_)
+   * - Performance
+     - The :meth:`FXStrangle.rate <rateslib.instruments.FXStrange.rate` method is refactored to
+       use :meth:`rateslib.dual.newton_1dim` for performance.
+       (`735 <https://github.com/attack68/rateslib/pull/735>`_)
+   * - Refactor
+     - All pricing objects, such as :class:`~rateslib.curves.Curve`, :class:`~rateslib.fx.FXRates`,
+       :class:`~rateslib.fx_volatility.FXDeltaVolSmile` etc., and pricing containers, such as
+       :class:`~rateslib.curves.CompositeCurve`, :class:`~rateslib.fx.FXForwards`,
+       :class:`~rateslib.fx_volatility.FXDeltaVolSurface` etc., have moved their AD identifying
+       attribute to the private value ``_ad`` instead of ``ad``, although ``ad`` is still readable.
+       (`738 <https://github.com/attack68/rateslib/pull/738>`_)
    * - Refactor
      - Rename :class:`~rateslib.instruments.BaseMixin` to :class:`~rateslib.instruments.Metrics`.
        (`678 <https://github.com/attack68/rateslib/pull/678>`_)
@@ -64,6 +84,13 @@ email contact, see `rateslib <https://rateslib.com>`_.
        :class:`~rateslib.periods.NonDeliverableCashflow`.
        (`677 <https://github.com/attack68/rateslib/pull/677>`_)
        (`694 <https://github.com/attack68/rateslib/pull/694>`_)
+   * - Bug
+     - :meth:`FXDeltaVolSmile.get <rateslib.fx_volatility.FXDeltaVolSmile.get>` fixes a bug
+       where the delta index was not properly generated for ``delta_types`` with different
+       premium adjustments. :red:`Minor Breaking Change!` Also changes the arguments to the
+       method to make it more user friendly, removing ``w_deli`` and ``w_spot`` and using a
+       single value ``z_w`` which is the quotient of the previous two.
+       (`742 <https://github.com/attack68/rateslib/pull/742>`_)
    * - Bug
      - Add :class:`~rateslib.instruments.NDF` to global *rateslib* namespace.
        (`682 <https://github.com/attack68/rateslib/pull/682>`_)
