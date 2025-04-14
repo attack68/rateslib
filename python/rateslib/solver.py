@@ -1551,7 +1551,7 @@ class Solver(Gradients, _WithState):
                 # results in the same solution and this is erroneously categorised
                 # as a converged solution.
                 return self._solver_result(1, i, time() - t0)
-            elif i != 0 and self.g.real < self.func_tol:
+            elif self.g.real < self.func_tol:
                 return self._solver_result(2, i, time() - t0)
 
             # v_0 = self.v.copy()
