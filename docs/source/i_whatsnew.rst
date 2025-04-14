@@ -54,7 +54,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
        to prioritise ``expiry`` which is more commonly required for *Surfaces*.
        (`735 <https://github.com/attack68/rateslib/pull/735>`_)
    * - Performance
-     - The :meth:`FXStrangle.rate <rateslib.instruments.FXStrange.rate` method is refactored to
+     - The :meth:`FXStrangle.rate <rateslib.instruments.FXStrange.rate>` method is refactored to
        use :meth:`rateslib.dual.newton_1dim` for performance.
        (`735 <https://github.com/attack68/rateslib/pull/735>`_)
    * - Refactor
