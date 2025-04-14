@@ -1225,7 +1225,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         """
         t_e = (expiry - self.eval_date).days / 365.0
         if isinstance(f, FXForwards):
-            f = f.rate(self.pair, self.delivery)
+            f = f.rate(self.pair, self.delivery)  # type: ignore[arg-type]
 
         if as_float:
             k = _dual_float(k)
