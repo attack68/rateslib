@@ -5362,6 +5362,94 @@ class TestFXOptions:
         with pytest.raises(ValueError, match="`vol` must be supplied. Got"):
             fxo.rate(metric="vol", fx=fxfo)
 
+    def test_hyper_parameter_setting_and_solver_interaction(self):
+        # Define the interest rate curves for EUR, USD and X-Ccy basis
+        usdusd = Curve({dt(2024, 5, 7): 1.0, dt(2024, 5, 30): 1.0}, calendar="nyc", id="usdusd")
+        eureur = Curve({dt(2024, 5, 7): 1.0, dt(2024, 5, 30): 1.0}, calendar="tgt", id="eureur")
+        eurusd = Curve({dt(2024, 5, 7): 1.0, dt(2024, 5, 30): 1.0}, id="eurusd")
+
+        # Create an FX Forward market with spot FX rate data
+        fxr = FXRates({"eurusd": 1.0760}, settlement=dt(2024, 5, 9))
+        fxf = FXForwards(
+            fx_rates=fxr,
+            fx_curves={"eureur": eureur, "usdusd": usdusd, "eurusd": eurusd},
+        )
+
+        pre_solver = Solver(
+            curves=[eureur, eurusd, usdusd],
+            instruments=[
+                IRS(dt(2024, 5, 9), "3W", spec="eur_irs", curves="eureur"),
+                IRS(dt(2024, 5, 9), "3W", spec="usd_irs", curves="usdusd"),
+                FXSwap(dt(2024, 5, 9), "3W", pair="eurusd",
+                       curves=[None, "eurusd", None, "usdusd"]),
+            ],
+            s=[3.90, 5.32, 8.85],
+            fx=fxf,
+            id="rates_sv",
+        )
+        dv_smile = FXDeltaVolSmile(
+            nodes={
+                0.10: 10.0,
+                0.25: 10.0,
+                0.50: 10.0,
+                0.75: 10.0,
+                0.90: 10.0,
+            },
+            eval_date=dt(2024, 5, 7),
+            expiry=dt(2024, 5, 28),
+            delta_type="spot",
+            id="eurusd_3w_smile"
+        )
+        option_args = dict(
+            pair="eurusd", expiry=dt(2024, 5, 28), calendar="tgt|fed", delta_type="spot",
+            curves=[None, "eurusd", None, "usdusd"], vol="eurusd_3w_smile"
+        )
+
+        dv_solver = Solver(
+            pre_solvers=[pre_solver],
+            curves=[dv_smile],
+            instruments=[
+                FXStraddle(strike="atm_delta", **option_args),
+                FXRiskReversal(strike=("-25d", "25d"), **option_args),
+                FXRiskReversal(strike=("-10d", "10d"), **option_args),
+                FXBrokerFly(strike=(("-25d", "25d"), "atm_delta"), **option_args),
+                FXBrokerFly(strike=(("-10d", "10d"), "atm_delta"), **option_args),
+            ],
+            s=[5.493, -0.157, -0.289, 0.071, 0.238],
+            fx=fxf,
+            id="dv_solver",
+        )
+        fc = FXCall(
+            expiry=dt(2024, 5, 28),
+            pair="eurusd",
+            strike=1.07,
+            notional=100e6,
+            curves=[None, "eurusd", None, "usdusd"],
+            vol="eurusd_3w_smile",
+            premium=98.216647*1e8/1e4,
+            premium_ccy="usd",
+            delta_type="spot",
+        )
+        assert abs(fc.npv(solver=dv_solver, base="usd")) < 1e-2
+        delta = fc.delta(solver=dv_solver, base="usd").loc[("fx", "fx", "eurusd"), ("all", "usd")]
+        gamma = fc.gamma(solver=dv_solver, base="usd").loc[("all", "usd", "fx", "fx", "eurusd"), ("fx", "fx", "eurusd")]
+
+        fxr.update({"eurusd": 1.0761})
+        pre_solver.iterate()
+        dv_solver.iterate()
+
+        result = fc.npv(solver=dv_solver, base="usd")
+        expected = (delta + 0.5 * gamma)
+        assert abs(result - expected) < 5e-2
+
+        fxr.update({"eurusd": 1.0759})
+        pre_solver.iterate()
+        dv_solver.iterate()
+
+        result = fc.npv(solver=dv_solver, base="usd")
+        expected = (-delta + 0.5 * gamma)
+        assert abs(result - expected) < 5e-2
+
 
 class TestRiskReversal:
     @pytest.mark.parametrize(
