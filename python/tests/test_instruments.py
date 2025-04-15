@@ -2541,6 +2541,7 @@ class TestNonMtmXCS:
         xcs.npv(curves=[eureur, eurusd, usdusd, usdusd], fx=fxf)
         assert xcs.leg2.notional == -Dual(1.0760, ["fx_eurusd"], []) * 10e6
 
+
 class TestNonMtmFixedFloatXCS:
     @pytest.mark.parametrize(
         ("float_spd", "compound", "expected"),
