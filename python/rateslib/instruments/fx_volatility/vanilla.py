@@ -349,13 +349,9 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
                     t_e=self._pricing.t_e,
                 )
 
-            # TODO: this may affect solvers dependent upon sensitivity to vol for changing strikes.
-            # set the strike as a float without any sensitivity. Trade definition is a fixed
-            # quantity at this stage. Similar to setting a fixed rate as a float on an unpriced
-            # IRS for mid-market.
-
-            # self.periods[0].strike = self._pricing["k"]
-            self._option_periods[0].strike = _dual_float(self._pricing.k)
+            # Review section in book regarding Hyper-parameters and Solver interaction
+            self.periods[0].strike = self._pricing.k
+            # self._option_periods[0].strike = _dual_float(self._pricing.k)
 
         if isinstance(vol_, FXVolObj):
             if self._pricing.delta_index is None:
@@ -469,6 +465,9 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
             self.kwargs["pair"][3:],
         )
         self._set_strike_and_vol(curves_, fx_, vol_)
+
+        # Premium is not required for rate and also sets as float
+        # Review section: "Hyper-parameters and Solver interaction" before enabling.
         # self._set_premium(curves, fx)
 
         metric = _drb(self.kwargs["metric"], metric)
