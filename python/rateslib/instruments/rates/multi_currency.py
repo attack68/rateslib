@@ -877,7 +877,7 @@ class XCS(BaseDerivative):
                 else:
                     if isinstance(fx, FXForwards):
                         # this is the correct pricing path
-                        fx_fixing = fx.rate(self.pair, self.leg2._exchange_periods[0].payment)
+                        fx_fixing = fx.rate(self.pair, self.leg2._exchange_periods[0].payment)  # type: ignore[union-attr]
                     elif isinstance(fx, FXRates):
                         # maybe used in debugging
                         fx_fixing = fx.rate(self.pair)
