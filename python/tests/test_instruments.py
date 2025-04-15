@@ -5380,8 +5380,9 @@ class TestFXOptions:
             instruments=[
                 IRS(dt(2024, 5, 9), "3W", spec="eur_irs", curves="eureur"),
                 IRS(dt(2024, 5, 9), "3W", spec="usd_irs", curves="usdusd"),
-                FXSwap(dt(2024, 5, 9), "3W", pair="eurusd",
-                       curves=[None, "eurusd", None, "usdusd"]),
+                FXSwap(
+                    dt(2024, 5, 9), "3W", pair="eurusd", curves=[None, "eurusd", None, "usdusd"]
+                ),
             ],
             s=[3.90, 5.32, 8.85],
             fx=fxf,
@@ -5398,11 +5399,15 @@ class TestFXOptions:
             eval_date=dt(2024, 5, 7),
             expiry=dt(2024, 5, 28),
             delta_type="spot",
-            id="eurusd_3w_smile"
+            id="eurusd_3w_smile",
         )
         option_args = dict(
-            pair="eurusd", expiry=dt(2024, 5, 28), calendar="tgt|fed", delta_type="spot",
-            curves=[None, "eurusd", None, "usdusd"], vol="eurusd_3w_smile"
+            pair="eurusd",
+            expiry=dt(2024, 5, 28),
+            calendar="tgt|fed",
+            delta_type="spot",
+            curves=[None, "eurusd", None, "usdusd"],
+            vol="eurusd_3w_smile",
         )
 
         dv_solver = Solver(
@@ -5426,20 +5431,22 @@ class TestFXOptions:
             notional=100e6,
             curves=[None, "eurusd", None, "usdusd"],
             vol="eurusd_3w_smile",
-            premium=98.216647*1e8/1e4,
+            premium=98.216647 * 1e8 / 1e4,
             premium_ccy="usd",
             delta_type="spot",
         )
         assert abs(fc.npv(solver=dv_solver, base="usd")) < 1e-2
         delta = fc.delta(solver=dv_solver, base="usd").loc[("fx", "fx", "eurusd"), ("all", "usd")]
-        gamma = fc.gamma(solver=dv_solver, base="usd").loc[("all", "usd", "fx", "fx", "eurusd"), ("fx", "fx", "eurusd")]
+        gamma = fc.gamma(solver=dv_solver, base="usd").loc[
+            ("all", "usd", "fx", "fx", "eurusd"), ("fx", "fx", "eurusd")
+        ]
 
         fxr.update({"eurusd": 1.0761})
         pre_solver.iterate()
         dv_solver.iterate()
 
         result = fc.npv(solver=dv_solver, base="usd")
-        expected = (delta + 0.5 * gamma)
+        expected = delta + 0.5 * gamma
         assert abs(result - expected) < 5e-2
 
         fxr.update({"eurusd": 1.0759})
@@ -5447,7 +5454,7 @@ class TestFXOptions:
         dv_solver.iterate()
 
         result = fc.npv(solver=dv_solver, base="usd")
-        expected = (-delta + 0.5 * gamma)
+        expected = -delta + 0.5 * gamma
         assert abs(result - expected) < 5e-2
 
 
