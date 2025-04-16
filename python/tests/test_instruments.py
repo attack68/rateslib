@@ -2512,6 +2512,35 @@ class TestNonMtmXCS:
         result = xcs.npv(curves=curve, fx=FXRates({"usdnok": 10.0}))
         assert abs(result) < 1e-6
 
+    def test_setting_fx_fixing_no_input(self):
+        # Define the interest rate curves for EUR, USD and X-Ccy basis
+        usdusd = Curve({dt(2024, 5, 7): 1.0, dt(2024, 11, 7): 0.98}, calendar="nyc", id="usdusd")
+        eureur = Curve({dt(2024, 5, 7): 1.0, dt(2024, 11, 7): 0.99}, calendar="tgt", id="eureur")
+        eurusd = Curve({dt(2024, 5, 7): 1.0, dt(2024, 11, 7): 0.992}, id="eurusd")
+
+        # Create an FX Forward market with spot FX rate data
+        fxr = FXRates({"eurusd": 1.0760}, settlement=dt(2024, 5, 9))
+        fxf = FXForwards(
+            fx_rates=fxr,
+            fx_curves={"eureur": eureur, "usdusd": usdusd, "eurusd": eurusd},
+        )
+
+        xcs = XCS(
+            dt(2024, 5, 9),
+            "6M",
+            "Q",
+            fixed=False,
+            leg2_fixed=False,
+            leg2_mtm=False,
+            payment_lag=0,
+            currency="eur",
+            leg2_currency="usd",
+            payment_lag_exchange=0,
+            notional=10e6,
+        )
+        xcs.npv(curves=[eureur, eurusd, usdusd, usdusd], fx=fxf)
+        assert xcs.leg2.notional == -Dual(1.0760, ["fx_eurusd"], []) * 10e6
+
 
 class TestNonMtmFixedFloatXCS:
     @pytest.mark.parametrize(
