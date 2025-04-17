@@ -11,7 +11,7 @@ from rateslib import defaults
 from rateslib.calendars import Cal
 from rateslib.curves import CompositeCurve, Curve, LineCurve
 from rateslib.default import NoInput
-from rateslib.dual import Dual
+from rateslib.dual import Dual, gradient
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, _d_plus_min_u
 from rateslib.periods import (
@@ -4203,3 +4203,37 @@ class TestFXOption:
         assert (result[defaults.headers["cashflow"]] - expected) < 1e-3
         assert result[defaults.headers["currency"]] == "USD"
         assert result[defaults.headers["type"]] == "FXCallPeriod"
+
+    def test_sticky_delta_delta_vol_smile_against_ad(self, fxfo) -> None:
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.101,
+            notional=20e6,
+            delta_type="spot",
+        )
+        vol_ = FXDeltaVolSmile(
+            nodes={
+                0.25: 8.9,
+                0.5: 8.7,
+                0.75: 10.15,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="spot",
+        )
+        gks = fxo.analytic_greeks(
+            disc_curve=fxfo.curve("eur", "usd"),
+            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            base="usd",
+            vol=vol_
+        )
+        # this is the actual derivative of vol with respect to spot via AD
+        expected = gradient(gks["__vol"], ["fx_eurusd"])[0]
+        # this is the reverse engineered part of the sticky delta
+        result = (gks["delta_sticky"] - gks["delta"]) * fxfo.curve("usd", "usd")[fxo.delivery] / gks["vega"]
+        # delta is
+        assert abs(result - expected) < 1e-3
