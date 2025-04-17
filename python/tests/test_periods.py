@@ -4229,11 +4229,15 @@ class TestFXOption:
             disc_curve_ccy2=fxfo.curve("usd", "usd"),
             fx=fxfo,
             base="usd",
-            vol=vol_
+            vol=vol_,
         )
         # this is the actual derivative of vol with respect to spot via AD
         expected = gradient(gks["__vol"], ["fx_eurusd"])[0]
         # this is the reverse engineered part of the sticky delta
-        result = (gks["delta_sticky"] - gks["delta"]) * fxfo.curve("usd", "usd")[fxo.delivery] / gks["vega"]
+        result = (
+            (gks["delta_sticky"] - gks["delta"])
+            * fxfo.curve("usd", "usd")[fxo.delivery]
+            / gks["vega"]
+        )
         # delta is
         assert abs(result - expected) < 1e-3
