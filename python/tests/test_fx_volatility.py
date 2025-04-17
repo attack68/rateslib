@@ -917,7 +917,9 @@ class TestFXSabrSmile:
     @pytest.mark.parametrize("a", [0.05, 0.2])
     @pytest.mark.parametrize("f_", [1.15, 1.3620, 1.45, 1.3395])
     def test_sabr_derivative_f(self, a, p, f_):
-        # test the analytic derivative of the SABR function with respect to k created by sympy
+        # test the analytic derivative of the SABR function with respect to f created by sympy
+        # tests the regular case as well as the limit z->0 where a separate AD calculation o
+        # is branched.
         b = 1.0
         v = 0.8
         k = 1.3395
