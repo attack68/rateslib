@@ -487,7 +487,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         if isinstance(vol, NoInput):
             raise ValueError("`vol` must be a number quantity or Smile or Surface.")
         elif isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
-            eta_1, z_w_1, _ = _delta_type_constants(vol.delta_type, w_deli / w_spot, u)
+            eta_1, z_w_1, __ = _delta_type_constants(vol.delta_type, w_deli / w_spot, u)
             res: tuple[DualTypes, DualTypes, DualTypes] = vol.get_from_strike(
                 k=self.strike,
                 f=f_d,
@@ -658,7 +658,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         vol_: DualTypes,
         expiry: datetime,
         f_d: DualTypes,
-        delta_idx: DualTypes,
+        delta_idx: DualTypes | None,
         u: DualTypes,
         z_v_0: DualTypes,
         z_w_0: DualTypes,
@@ -676,11 +676,12 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 smile: FXDeltaVolSmile = vol.get_smile(expiry)
             else:
                 smile = vol
-            _B = evaluate(smile.spline, delta_idx, 1) / 100.0  # d sigma / d delta_idx
+            # d sigma / d delta_idx
+            _B = evaluate(smile.spline, delta_idx, 1) / 100.0  # type: ignore[arg-type]
 
             if "pa" in vol.delta_type:
                 # then smile is adjusted:
-                ddelta_idx_df_d: DualTypes = -delta_idx / f_d
+                ddelta_idx_df_d: DualTypes = -delta_idx / f_d  # type: ignore[operator]
             else:
                 ddelta_idx_df_d = 0.0
             _A = z_w_1 * dual_norm_pdf(-d_plus)
@@ -806,11 +807,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         def root1d(k: DualTypes, f: DualTypes, as_float: bool) -> tuple[DualTypes, DualTypes]:
             sigma, dsigma_dk = vol._d_sabr_d_k_or_f(
-                k=k,
-                f=f,
-                expiry=self.expiry,
-                as_float=as_float,
-                derivative=1
+                k=k, f=f, expiry=self.expiry, as_float=as_float, derivative=1
             )
             f0 = -dual_log(k / f) + eta_0 * sigma**2 * t_e
             f1 = -1 / k + eta_0 * 2 * sigma * dsigma_dk * t_e

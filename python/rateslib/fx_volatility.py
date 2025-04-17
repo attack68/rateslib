@@ -1215,7 +1215,12 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         return 0.0, vol_ * 100.0, k
 
     def _d_sabr_d_k_or_f(
-        self, k: DualTypes, f: DualTypes | FXForwards, expiry: datetime, as_float: bool, derivative: int
+        self,
+        k: DualTypes,
+        f: DualTypes | FXForwards,
+        expiry: datetime,
+        as_float: bool,
+        derivative: int,
     ) -> tuple[DualTypes, DualTypes]:
         """Get the derivative of sabr vol with respect to strike
 
@@ -2527,7 +2532,7 @@ def _d_sabr_d_k_or_f(
     b: float,
     p: DualTypes,
     v: DualTypes,
-    derivative: int
+    derivative: int,
 ) -> tuple[DualTypes, DualTypes]:
     """
     Calculate the derivative of the SABR function with respect to k.
@@ -2743,7 +2748,7 @@ def _sabr_X2(
         # calculate with respec to f
         if abs(z) > 1e-15:
             y0 = a**2
-            y1 = 1 / y0
+            y1 = 1 / y0  # type: ignore[assignment]
             y3 = x3 ** (1 / 2 - b / 2)
             y4 = a * p
             y6 = v * x1
@@ -2767,14 +2772,14 @@ def _sabr_X2(
         else:
             # must construct the dual number directly from analytic formulae due to div by zero.
 
-            dz: DualTypes = v * x5 * (-(b - 1) * x1 + 2) / (2 * a * f)
+            dz = v * x5 * (-(b - 1) * x1 + 2) / (2 * a * f)
             dX2_dz = _sabr_dX2_dz(z, p)
             dX2 = dX2_dz * dz
 
     return X2, dX2
 
 
-def _sabr_dX2_dz(z, p):
+def _sabr_dX2_dz(z: DualTypes, p: DualTypes) -> DualTypes:
     """
     Derive this result in the limit as z tends to 0 for AD safe implementation
 

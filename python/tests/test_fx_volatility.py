@@ -946,18 +946,28 @@ class TestFXSabrSmile:
             ad=2,
         )
         t = dt(2002, 1, 1)
-        base = fxss._d_sabr_d_k_or_f(Dual2(k, ["k"], [1.0], []), Dual2(f, ["f"], [1.0], []), t, False, 1)[1]
+        base = fxss._d_sabr_d_k_or_f(
+            Dual2(k, ["k"], [1.0], []), Dual2(f, ["f"], [1.0], []), t, False, 1
+        )[1]
 
         # k
-        _up = fxss._d_sabr_d_k_or_f(Dual2(k + 1e-4, ["k"], [], []), Dual2(f, ["f"], [], []), t, False, 1)[1]
-        _dw = fxss._d_sabr_d_k_or_f(Dual2(k - 1e-4, ["k"], [], []), Dual2(f, ["f"], [], []), t, False, 1)[1]
+        _up = fxss._d_sabr_d_k_or_f(
+            Dual2(k + 1e-4, ["k"], [], []), Dual2(f, ["f"], [], []), t, False, 1
+        )[1]
+        _dw = fxss._d_sabr_d_k_or_f(
+            Dual2(k - 1e-4, ["k"], [], []), Dual2(f, ["f"], [], []), t, False, 1
+        )[1]
         result = gradient(base, ["k"])[0]
         expected = (_up - _dw) / 2e-4
         assert abs(result - expected) < 1e-5
 
         # f
-        _up = fxss._d_sabr_d_k_or_f(Dual2(k, ["k"], [], []), Dual2(f + 1e-4, ["f"], [], []), t, False, 1)[1]
-        _dw = fxss._d_sabr_d_k_or_f(Dual2(k, ["k"], [], []), Dual2(f - 1e-4, ["f"], [], []), t, False, 1)[1]
+        _up = fxss._d_sabr_d_k_or_f(
+            Dual2(k, ["k"], [], []), Dual2(f + 1e-4, ["f"], [], []), t, False, 1
+        )[1]
+        _dw = fxss._d_sabr_d_k_or_f(
+            Dual2(k, ["k"], [], []), Dual2(f - 1e-4, ["f"], [], []), t, False, 1
+        )[1]
         result = gradient(base, ["f"])[0]
         expected = (_up - _dw) / 2e-4
         assert abs(result - expected) < 1e-5
@@ -965,9 +975,13 @@ class TestFXSabrSmile:
         # SABR params
         for i, key in enumerate(["alpha", "rho", "nu"]):
             fxss.nodes[key] = fxss.nodes[key] + 1e-5
-            _up = fxss._d_sabr_d_k_or_f(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), t, False, 1)[1]
+            _up = fxss._d_sabr_d_k_or_f(
+                Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), t, False, 1
+            )[1]
             fxss.nodes[key] = fxss.nodes[key] - 2e-5
-            _dw = fxss._d_sabr_d_k_or_f(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), t, False, 1)[1]
+            _dw = fxss._d_sabr_d_k_or_f(
+                Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), t, False, 1
+            )[1]
             fxss.nodes[key] = fxss.nodes[key] + 1e-5
             result = gradient(base, [f"vol{i}"])[0]
             expected = (_up - _dw) / 2e-5
