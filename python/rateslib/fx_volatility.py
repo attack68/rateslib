@@ -2570,12 +2570,13 @@ def _sabr_X0(
     b: float,
     p: DualTypes,
     v: DualTypes,
-    derivative: bool = False,
+    derivative: int = 0,
 ) -> tuple[DualTypes, DualTypes | None]:
     """
     X0 = a / ((fk)^((1-b)/2) * (1 + (1-b)^2/24 ln^2(f/k) + (1-b)^4/1920 ln^4(f/k) )
 
-    If ``derivative`` also returns dX0/dk, calculated using sympy.
+    If ``derivative`` is 1 also returns dX0/dk, calculated using sympy.
+    If ``derivative`` is 2 also returns dX0/df, calculated using sympy.
     """
     x0 = 1 / k
     x1 = 1 / 24 - b / 24
@@ -2586,8 +2587,15 @@ def _sabr_X0(
     x6 = a * (f * k) ** x5
 
     dX0: DualTypes | None = None
-    if derivative:
+    if derivative == 1:
+        # return derivative with respect to k
         dX0 = x0 * x5 * x6 / x4 + x6 * (2 * x0 * x1 * x2 + x0 * x2**3 * x3 / 480) / x4**2
+    elif derivative == 2:
+        # return derivative with respect to f
+        y0 = b - 1
+        y2 = y0 ** 2 * x2 ** 2
+        y3 = y0 ** 4 * x2 ** 4 + 80 * y2 + 1920
+        dX0 = 960 * a * y0 * (f * k) ** (b / 2 - 1 / 2) * (-8 * y0 * x2 * (y2 + 40) + y3) / (f * y3 ** 2)
 
     X0 = x6 / (x2**4 * (1 - b) ** 4 / 1920 + x2**2 * (1 / 24 - b / 24) + 1)
 
