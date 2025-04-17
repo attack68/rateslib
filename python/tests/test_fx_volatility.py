@@ -913,6 +913,22 @@ class TestFXSabrSmile:
 
         assert abs(result - expected) < 1e-13
 
+    @pytest.mark.parametrize("p", [-0.1, 0.15])
+    @pytest.mark.parametrize("a", [0.05, 0.2])
+    @pytest.mark.parametrize("f_", [1.15, 1.3620, 1.45, 1.3395])
+    def test_sabr_derivative_f(self, a, p, f_):
+        # test the analytic derivative of the SABR function with respect to k created by sympy
+        b = 1.0
+        v = 0.8
+        k = 1.3395
+        t = 1.0
+        f = Dual(f_, ["f"], [1.0])
+
+        sabr_vol, result = _d_sabr_d_k_or_f(k, f, t, a, b, p, v, 2)
+        expected = gradient(sabr_vol, ["f"])[0]
+
+        assert abs(result - expected) < 1e-13
+
     @pytest.mark.parametrize(("k", "f"), [(1.34, 1.34), (1.33, 1.35), (1.35, 1.33)])
     def test_sabr_derivative_finite_diff_first_order(self, k, f):
         # Test all of the first order gradients using finite diff, for the case when f != k and
