@@ -21,7 +21,7 @@ from rateslib.fx_volatility import (
     FXDeltaVolSurface,
     FXSabrSmile,
     FXSabrSurface,
-    _d_sabr_d_k,
+    _d_sabr_d_k_or_f,
     _sabr,
     _validate_delta_type,
 )
@@ -908,7 +908,7 @@ class TestFXSabrSmile:
         t = 1.0
         k = Dual(k_, ["k"], [1.0])
 
-        sabr_vol, result = _d_sabr_d_k(k, f, t, a, b, p, v)
+        sabr_vol, result = _d_sabr_d_k_or_f(k, f, t, a, b, p, v, 1)
         expected = gradient(sabr_vol, ["k"])[0]
 
         assert abs(result - expected) < 1e-13
@@ -930,18 +930,18 @@ class TestFXSabrSmile:
             ad=2,
         )
         t = dt(2002, 1, 1)
-        base = fxss._d_sabr_d_k(Dual2(k, ["k"], [1.0], []), Dual2(f, ["f"], [1.0], []), t, False)[1]
+        base = fxss._d_sabr_d_k_or_f(Dual2(k, ["k"], [1.0], []), Dual2(f, ["f"], [1.0], []), t, False, 1)[1]
 
         # k
-        _up = fxss._d_sabr_d_k(Dual2(k + 1e-4, ["k"], [], []), Dual2(f, ["f"], [], []), t, False)[1]
-        _dw = fxss._d_sabr_d_k(Dual2(k - 1e-4, ["k"], [], []), Dual2(f, ["f"], [], []), t, False)[1]
+        _up = fxss._d_sabr_d_k_or_f(Dual2(k + 1e-4, ["k"], [], []), Dual2(f, ["f"], [], []), t, False, 1)[1]
+        _dw = fxss._d_sabr_d_k_or_f(Dual2(k - 1e-4, ["k"], [], []), Dual2(f, ["f"], [], []), t, False, 1)[1]
         result = gradient(base, ["k"])[0]
         expected = (_up - _dw) / 2e-4
         assert abs(result - expected) < 1e-5
 
         # f
-        _up = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f + 1e-4, ["f"], [], []), t, False)[1]
-        _dw = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f - 1e-4, ["f"], [], []), t, False)[1]
+        _up = fxss._d_sabr_d_k_or_f(Dual2(k, ["k"], [], []), Dual2(f + 1e-4, ["f"], [], []), t, False, 1)[1]
+        _dw = fxss._d_sabr_d_k_or_f(Dual2(k, ["k"], [], []), Dual2(f - 1e-4, ["f"], [], []), t, False, 1)[1]
         result = gradient(base, ["f"])[0]
         expected = (_up - _dw) / 2e-4
         assert abs(result - expected) < 1e-5
@@ -949,9 +949,9 @@ class TestFXSabrSmile:
         # SABR params
         for i, key in enumerate(["alpha", "rho", "nu"]):
             fxss.nodes[key] = fxss.nodes[key] + 1e-5
-            _up = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), t, False)[1]
+            _up = fxss._d_sabr_d_k_or_f(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), t, False, 1)[1]
             fxss.nodes[key] = fxss.nodes[key] - 2e-5
-            _dw = fxss._d_sabr_d_k(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), t, False)[1]
+            _dw = fxss._d_sabr_d_k_or_f(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), t, False, 1)[1]
             fxss.nodes[key] = fxss.nodes[key] + 1e-5
             result = gradient(base, [f"vol{i}"])[0]
             expected = (_up - _dw) / 2e-5
@@ -983,8 +983,8 @@ class TestFXSabrSmile:
         v = fxss.nodes["nu"]
 
         # F_0,T is stated in section 3.5.4 as 1.3395
-        base = fxss._d_sabr_d_k(
-            Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), dt(2002, 1, 1), False
+        base = fxss._d_sabr_d_k_or_f(
+            Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), dt(2002, 1, 1), False, 1
         )[1]
 
         def inc_(key1, key2, inc1, inc2):
@@ -1004,8 +1004,8 @@ class TestFXSabrSmile:
             else:
                 fxss.nodes[key2] = fxss.nodes[key2] + inc2
 
-            _ = fxss._d_sabr_d_k(
-                Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []), dt(2002, 1, 1), False
+            _ = fxss._d_sabr_d_k_or_f(
+                Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []), dt(2002, 1, 1), False, 1
             )[1]
 
             fxss.nodes["alpha"] = a
@@ -1051,8 +1051,8 @@ class TestFXSabrSmile:
         v = fxss.nodes["nu"]
 
         # F_0,T is stated in section 3.5.4 as 1.3395
-        base = fxss._d_sabr_d_k(
-            Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), dt(2002, 1, 1), False
+        base = fxss._d_sabr_d_k_or_f(
+            Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), dt(2002, 1, 1), False, 1
         )[1]
 
         def inc_(key1, inc1):
@@ -1065,8 +1065,8 @@ class TestFXSabrSmile:
             else:
                 fxss.nodes[key1] = fxss.nodes[key1] + inc1
 
-            _ = fxss._d_sabr_d_k(
-                Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []), dt(2002, 1, 1), False
+            _ = fxss._d_sabr_d_k_or_f(
+                Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []), dt(2002, 1, 1), False, 1
             )[1]
 
             fxss.nodes["alpha"] = a
@@ -1100,11 +1100,11 @@ class TestFXSabrSmile:
             ad=2,
         )
         # F_0,T is stated in section 3.5.4 as 1.3395
-        base = fxss._d_sabr_d_k(
-            Dual2(1.34, ["k"], [], []), Dual2(1.34, ["f"], [], []), dt(2002, 1, 1), False
+        base = fxss._d_sabr_d_k_or_f(
+            Dual2(1.34, ["k"], [], []), Dual2(1.34, ["f"], [], []), dt(2002, 1, 1), False, 1
         )[1]
-        comparison1 = fxss._d_sabr_d_k(
-            Dual2(1.341, ["k"], [], []), Dual2(1.34, ["f"], [], []), dt(2002, 1, 1), False
+        comparison1 = fxss._d_sabr_d_k_or_f(
+            Dual2(1.341, ["k"], [], []), Dual2(1.34, ["f"], [], []), dt(2002, 1, 1), False, 1
         )[1]
 
         assert np.all(abs(base.dual - comparison1.dual) < 5e-3)
@@ -1124,16 +1124,16 @@ class TestFXSabrSmile:
         t = 1.0
         k = Dual2(1.45, ["k"], [1.0], [0.0])
 
-        _, result = _d_sabr_d_k(k, f, t, a, b, p, v)
-        _, r1 = _d_sabr_d_k(k, f, t, a, b, p + 1e-4, v)
-        _, r_1 = _d_sabr_d_k(k, f, t, a, b, p - 1e-4, v)
+        _, result = _d_sabr_d_k_or_f(k, f, t, a, b, p, v, 1)
+        _, r1 = _d_sabr_d_k_or_f(k, f, t, a, b, p + 1e-4, v, 1)
+        _, r_1 = _d_sabr_d_k_or_f(k, f, t, a, b, p - 1e-4, v, 1)
         expected = (r1 - r_1) / (2e-4)
         result = gradient(result, ["p"])[0]
         assert abs(result - expected) < 1e-9
 
-        _, result = _d_sabr_d_k(k, f, t, a, b, p, v)
-        _, r1 = _d_sabr_d_k(k, f, t, a, b, p + 1e-4, v)
-        _, r_1 = _d_sabr_d_k(k, f, t, a, b, p - 1e-4, v)
+        _, result = _d_sabr_d_k_or_f(k, f, t, a, b, p, v, 1)
+        _, r1 = _d_sabr_d_k_or_f(k, f, t, a, b, p + 1e-4, v, 1)
+        _, r_1 = _d_sabr_d_k_or_f(k, f, t, a, b, p - 1e-4, v, 1)
         expected = (r1 - 2 * result + r_1) / (1e-8)
         result = gradient(result, ["p"], order=2)[0][0]
         assert abs(result - expected) < 1e-8
@@ -1150,7 +1150,7 @@ class TestFXSabrSmile:
         t = 1.0
         k = Dual(1.3395, ["k"], [1.0])
 
-        sabr_vol, result = _d_sabr_d_k(k, f, t, a, b, p, v)
+        sabr_vol, result = _d_sabr_d_k_or_f(k, f, t, a, b, p, v, 1)
         expected = gradient(sabr_vol, ["k"])[0]
 
         assert abs(result - expected) < 1e-13
@@ -1167,16 +1167,16 @@ class TestFXSabrSmile:
         t = 1.0
         k = Dual2(1.3395, ["k"], [1.0], [0.0])
 
-        _, result = _d_sabr_d_k(k, f, t, a, b, p, v)
-        _, r1 = _d_sabr_d_k(k, f, t, a, b, p + 1e-4, v)
-        _, r_1 = _d_sabr_d_k(k, f, t, a, b, p - 1e-4, v)
+        _, result = _d_sabr_d_k_or_f(k, f, t, a, b, p, v, 1)
+        _, r1 = _d_sabr_d_k_or_f(k, f, t, a, b, p + 1e-4, v, 1)
+        _, r_1 = _d_sabr_d_k_or_f(k, f, t, a, b, p - 1e-4, v, 1)
         expected = (r1 - r_1) / (2e-4)
         result = gradient(result, ["p"])[0]
         assert abs(result - expected) < 1e-9
 
-        _, result = _d_sabr_d_k(k, f, t, a, b, p, v)
-        _, r1 = _d_sabr_d_k(k, f, t, a, b, p + 1e-4, v)
-        _, r_1 = _d_sabr_d_k(k, f, t, a, b, p - 1e-4, v)
+        _, result = _d_sabr_d_k_or_f(k, f, t, a, b, p, v, 1)
+        _, r1 = _d_sabr_d_k_or_f(k, f, t, a, b, p + 1e-4, v, 1)
+        _, r_1 = _d_sabr_d_k_or_f(k, f, t, a, b, p - 1e-4, v, 1)
         expected = (r1 - 2 * result + r_1) / (1e-8)
         result = gradient(result, ["p"], order=2)[0][0]
         assert abs(result - expected) < 1e-8
@@ -1702,7 +1702,7 @@ class TestFXSabrSurface:
         expected_fwd_diff = (
             surface.get_from_strike(k + 0.0001, fxfo, dt(2025, 12, 12))[1] - base
         ) / 1e-4
-        result = surface._d_sabr_d_k(k, fxfo, dt(2025, 12, 12), False)[1] * 100.0
+        result = surface._d_sabr_d_k_or_f(k, fxfo, dt(2025, 12, 12), False, 1)[1] * 100.0
         assert abs(expected_fwd_diff - result) < 1e-3
         assert abs(expected_ad - result) < 1e-3
 

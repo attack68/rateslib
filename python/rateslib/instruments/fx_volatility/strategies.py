@@ -1045,11 +1045,12 @@ def _d_c_mkt_d_sigma_hat(
 
             dvol_dvol1: DualTypes = dvol_ddeltaidx * ddeltaidx_dvol1
         elif isinstance(vol, FXSabrSmile | FXSabrSurface):
-            dvol_dk = vol._d_sabr_d_k(
+            dvol_dk = vol._d_sabr_d_k_or_f(
                 k=sg["__strike"],
                 f=sg["__forward"],
                 expiry=expiry,
                 as_float=False,
+                derivative=1,
             )[1]
 
             dvol_dvol1 = dvol_dk * g["_kega"]
