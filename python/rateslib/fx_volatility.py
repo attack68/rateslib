@@ -2610,7 +2610,7 @@ def _sabr_X1(
     b: float,
     p: DualTypes,
     v: DualTypes,
-    derivative: bool = False,
+    derivative: int = 0,
 ) -> tuple[DualTypes, DualTypes | None]:
     """
     X1 = 1 + t ( (1-b)^2 / 24 * a^2 / (fk)^(1-b) + 1/4 p b v a / (fk)^((1-b)/2) + (2-3p^2)/24 v^2 )
@@ -2623,8 +2623,12 @@ def _sabr_X1(
     x3 = b - 1
 
     dX1: DualTypes | None = None
-    if derivative:
+    if derivative == 1:
+        # calculate with respect to k
         dX1 = t * (a**2 * x0 * x2**x3 * x3**3 / 24 + 0.25 * a * b * p * v * x0 * x1 * x2**x1)
+    elif derivative == 2:
+        # calculate with respect to f
+        dX1 = a * t * x3 * (a * x3 ** 2 * x2 ** x3 + 3.0 * b * p * v * x2 ** (b / 2 - 1 / 2)) / (24 * f)
 
     X1 = (
         t
