@@ -905,27 +905,35 @@ class FXOptionPeriod(metaclass=ABCMeta):
         delta_type: str,
         vol: FXSabrSmile | FXSabrSurface,
         z_w: DualTypes,
-        f: DualTypes,
+        f: DualTypes | FXForwards,
     ) -> DualTypes:
         eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, 0.0)  # u: unused
         t_e = (self.expiry - vol.eval_date).days / 365.0
         sqrt_t = t_e**0.5
+        if isinstance(f, FXForwards):
+            f_d: DualTypes = f.rate(self.pair, self.delivery)
+            _ad = _set_ad_order_objects([0], [f])
+        else:
+            f_d = f
 
         def root1d(
-            k: DualTypes, f: DualTypes, z_w_0: DualTypes, delta: float, as_float: bool
+            k: DualTypes, f_d: DualTypes, fx: FXForwards | DualTypes, z_w_0: DualTypes, delta: float, as_float: bool
         ) -> tuple[DualTypes, DualTypes]:
-            sigma, dsigma_dk = vol._d_sabr_d_k(k, f, self.expiry, as_float)
-            dn0 = -dual_log(k / f) / (sigma * sqrt_t) + eta_0 * sigma * sqrt_t
+            if not as_float and isinstance(fx, FXForwards):
+                _set_ad_order_objects(_ad, [fx])
+
+            sigma, dsigma_dk = vol._d_sabr_d_k(k, fx, self.expiry, as_float)
+            dn0 = -dual_log(k / f_d) / (sigma * sqrt_t) + eta_0 * sigma * sqrt_t
             Phi = dual_norm_cdf(self.phi * dn0)
 
             if eta_0 == -0.5:
-                z_u_0, dz_u_dk = k / f, 1 / f
+                z_u_0, dz_u_dk = k / f_d, 1 / f_d
                 d_1 = -dz_u_dk * z_w_0 * self.phi * Phi
             else:
                 z_u_0, dz_u_dk = 1.0, 0.0
                 d_1 = 0.0
 
-            ddn_dk = (dual_log(k / f) / (sigma**2 * sqrt_t) + eta_0 * sqrt_t) * dsigma_dk - 1 / (
+            ddn_dk = (dual_log(k / f_d) / (sigma**2 * sqrt_t) + eta_0 * sqrt_t) * dsigma_dk - 1 / (
                 k * sigma * sqrt_t
             )
             d_2 = -z_u_0 * z_w_0 * dual_norm_pdf(self.phi * dn0) * ddn_dk
@@ -942,12 +950,12 @@ class FXOptionPeriod(metaclass=ABCMeta):
             e_idx = index_left_f64(vol.expiries_posix, expiry_posix)
             alpha = vol.smiles[e_idx].nodes["alpha"]
 
-        g0 = _moneyness_from_delta_closed_form(g01, alpha * 100.0, t_e, z_w_0, self.phi) * f
+        g0 = _moneyness_from_delta_closed_form(g01, alpha * 100.0, t_e, z_w_0, self.phi) * f_d
 
         root_solver = newton_1dim(
             root1d,
             g0,
-            args=(f, z_w_0, delta),
+            args=(f_d, f, z_w_0, delta),
             pre_args=(True,),  # solve iterations `as_float`
             final_args=(False,),  # solve final iteration with AD
             raise_on_fail=True,
