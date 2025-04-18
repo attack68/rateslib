@@ -13,7 +13,7 @@ from rateslib.curves import CompositeCurve, Curve, LineCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual, gradient
 from rateslib.fx import FXForwards, FXRates
-from rateslib.fx_volatility import FXDeltaVolSmile, _d_plus_min_u
+from rateslib.fx_volatility import FXDeltaVolSmile, _d_plus_min_u, FXSabrSmile
 from rateslib.periods import (
     Cashflow,
     CreditPremiumPeriod,
@@ -4241,3 +4241,79 @@ class TestFXOption:
         )
         # delta is
         assert abs(result - expected) < 1e-3
+
+    @pytest.mark.parametrize(("smile", "expected"), [
+        (FXSabrSmile(
+            nodes={"alpha": 0.05, "beta": 1.0, "rho": 0.01, "nu": 0.03},
+            eval_date=dt(2024, 5, 7),
+            expiry=dt(2024, 5, 28),
+            id="smile",
+            pair="eurusd",
+        ), 1.20),
+        (FXDeltaVolSmile(
+            nodes={0.25: 10, 0.5: 9, 0.75: 11},
+            eval_date=dt(2024, 5, 7),
+            expiry=dt(2024, 5, 28),
+            delta_type="forward",
+            id="smile",
+        ), 0.704153)
+    ])
+    def test_stick_delta_calculation(self, smile, expected) -> None:
+        from rateslib import IRS, Solver, FXSwap, FXStraddle, FXRiskReversal, FXBrokerFly, FXCall
+
+        usd = Curve({dt(2024, 5, 7): 1.0, dt(2024, 5, 30): 1.0}, calendar="nyc", id="usd")
+        eur = Curve({dt(2024, 5, 7): 1.0, dt(2024, 5, 30): 1.0}, calendar="tgt", id="eur")
+        eurusd = Curve({dt(2024, 5, 7): 1.0, dt(2024, 5, 30): 1.0}, id="eurusd")
+        # Create an FX Forward market with spot FX rate data
+        spot = dt(2024, 5, 9)
+        fxr = FXRates({"eurusd": 1.0760}, settlement=spot)
+        fxf = FXForwards(
+            fx_rates=fxr,
+            fx_curves={"eureur": eur, "usdusd": usd, "eurusd": eurusd},
+        )
+        # Solve the Curves to market
+        pre_solver = Solver(
+            curves=[eur, eurusd, usd],
+            instruments=[
+                IRS(spot, "3W", spec="eur_irs", curves="eur"),
+                IRS(spot, "3W", spec="usd_irs", curves="usd"),
+                FXSwap(spot, "3W", pair="eurusd", curves=[None, "eurusd", None, "usd"]),
+            ],
+            s=[3.90, 5.32, 8.85], fx=fxf,
+            id="fxf",
+        )
+
+        option_args = dict(
+            pair="eurusd",
+            expiry=dt(2024, 5, 28),
+            calendar="tgt|fed",
+            delta_type="spot",
+            curves=[None, "eurusd", None, "usd"],
+            vol="smile",
+        )
+
+        # Calibrate the Smile to market option data
+        solver = Solver(
+            pre_solvers=[pre_solver],
+            curves=[smile],
+            instruments=[
+                FXStraddle(strike="atm_delta", **option_args),
+                FXRiskReversal(strike=("-25d", "25d"), **option_args),
+                FXRiskReversal(strike=("-10d", "10d"), **option_args),
+                FXBrokerFly(strike=(("-25d", "25d"), "atm_delta"), **option_args),
+                FXBrokerFly(strike=(("-10d", "10d"), "atm_delta"), **option_args),
+            ],
+            s=[5.493, -0.157, -0.289, 0.071, 0.238],
+            fx=fxf,
+            id="smile",
+        )
+
+        fxc = FXCall(
+            **option_args,
+            notional=100e6,
+            strike=1.07,
+            premium=982144.59
+        )
+
+        result = fxc.analytic_greeks(solver=solver)["delta_sticky"]
+        assert abs(result - expected) < 1e-6
