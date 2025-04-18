@@ -11,7 +11,7 @@ from rateslib.curves._parsers import _map_curve_from_solver
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, dual_exp, gradient
 from rateslib.fx import FXForwards, FXRates
-from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile
+from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments import (
     CDS,
     FRA,
@@ -5485,6 +5485,30 @@ class TestFXOptions:
         result = fc.npv(solver=dv_solver, base="usd")
         expected = -delta + 0.5 * gamma
         assert abs(result - expected) < 5e-2
+
+    @pytest.mark.parametrize("k", [1.07, "25d", "atm_delta"])
+    def test_pricing_with_interpolated_sabr_surface(self, k, fxfo):
+        surf = FXSabrSurface(
+            eval_date=dt(2023, 3, 16),
+            expiries=[dt(2023, 6, 16), dt(2023, 10, 17)],
+            node_values=[
+                [0.05, 1.0, 0.03, 0.04],
+                [0.055, 1.0, 0.04, 0.05]
+            ],
+            pair="eurusd",
+            calendar="tgt|fed",
+        )
+        fxc = FXCall(
+            expiry=dt(2023, 7, 21),
+            pair="eurusd",
+            calendar="tgt|fed",
+            delta_type="spot",
+            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            vol=surf,
+            strike=k
+        )
+        result = fxc.rate(fx=fxfo)
+
 
 
 class TestRiskReversal:
