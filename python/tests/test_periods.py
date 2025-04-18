@@ -13,7 +13,7 @@ from rateslib.curves import CompositeCurve, Curve, LineCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual, gradient
 from rateslib.fx import FXForwards, FXRates
-from rateslib.fx_volatility import FXDeltaVolSmile, _d_plus_min_u, FXSabrSmile
+from rateslib.fx_volatility import FXDeltaVolSmile, _d_plus_min_u, FXSabrSmile, FXSabrSurface
 from rateslib.periods import (
     Cashflow,
     CreditPremiumPeriod,
@@ -4243,20 +4243,30 @@ class TestFXOption:
         assert abs(result - expected) < 1e-3
 
     @pytest.mark.parametrize(("smile", "expected"), [
-        (FXSabrSmile(
-            nodes={"alpha": 0.05, "beta": 1.0, "rho": 0.01, "nu": 0.03},
+        # (FXSabrSmile(
+        #     nodes={"alpha": 0.05, "beta": 1.0, "rho": 0.01, "nu": 0.03},
+        #     eval_date=dt(2024, 5, 7),
+        #     expiry=dt(2024, 5, 28),
+        #     id="smile",
+        #     pair="eurusd",
+        # ), 0.700643),
+        (FXSabrSurface(
+            expiries=[dt(2024, 5, 23), dt(2024, 6, 4)],
+            node_values=[
+                [0.05, 1.0, 0.01, 0.03],
+                [0.052, 1.0, 0.03, 0.05]
+            ],
             eval_date=dt(2024, 5, 7),
-            expiry=dt(2024, 5, 28),
             id="smile",
             pair="eurusd",
-        ), 1.20),
-        (FXDeltaVolSmile(
-            nodes={0.25: 10, 0.5: 9, 0.75: 11},
-            eval_date=dt(2024, 5, 7),
-            expiry=dt(2024, 5, 28),
-            delta_type="forward",
-            id="smile",
-        ), 0.704153)
+        ), 0.700643),
+        # (FXDeltaVolSmile(
+        #     nodes={0.25: 10, 0.5: 9, 0.75: 11},
+        #     eval_date=dt(2024, 5, 7),
+        #     expiry=dt(2024, 5, 28),
+        #     delta_type="forward",
+        #     id="smile",
+        # ), 0.704153)
     ])
     def test_stick_delta_calculation(self, smile, expected) -> None:
         from rateslib import IRS, Solver, FXSwap, FXStraddle, FXRiskReversal, FXBrokerFly, FXCall

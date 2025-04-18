@@ -564,6 +564,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             z_w_1,
             eta_1,
             d_plus,
+            self.strike
         )
         _["vomma"] = self._analytic_vomma(_["vega"], d_plus, d_min, vol_)
         _["vanna"] = self._analytic_vanna(z_w_0, self.phi, d_plus, d_min, vol_)
@@ -665,12 +666,16 @@ class FXOptionPeriod(metaclass=ABCMeta):
         z_w_1: DualTypes,
         eta_1: float,
         d_plus: DualTypes,
+        k: DualTypes,
     ) -> DualTypes:
         if isinstance(vol, FXSabrSmile | FXSabrSurface):
-            warnings.warn(
-                "Sticky delta not implemented for FXSabrSmile or FXSabrSurface", UserWarning
+            _, dvol_df = vol._d_sabr_d_k_or_f(
+                k = k,
+                f = f_d,
+                expiry = expiry,
+                as_float=False,
+                derivative=2  # with respect to f
             )
-            return 0.0
         elif isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
             if isinstance(vol, FXDeltaVolSurface):
                 smile: FXDeltaVolSmile = vol.get_smile(expiry)
