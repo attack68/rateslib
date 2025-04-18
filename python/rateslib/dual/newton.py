@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from time import time
-from typing import TYPE_CHECKING, Any, ParamSpec
+from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
 
 import numpy as np
 
 from rateslib.dual.utils import _dual_float, dual_solve
+from rateslib.dual.variable import Variable
 from rateslib.rs import Dual, Dual2
 
 if TYPE_CHECKING:
@@ -43,8 +44,12 @@ def _solver_result(
     }
 
 
-def _float_if_not_string(x: str | DualTypes) -> str | float:
-    if not isinstance(x, str):
+T = TypeVar("T")
+
+
+def _dual_float_or_unchanged(x: T | DualTypes) -> T | float:
+    """If x is a DualType convert it to float otherwise leave it as is"""
+    if isinstance(x, float | Dual | Dual2 | Variable):
         return _dual_float(x)
     return x
 
@@ -129,7 +134,7 @@ def newton_1dim(
     i = 0
 
     # First attempt solution using faster float calculations
-    float_args = tuple(_float_if_not_string(_) for _ in args)
+    float_args = tuple(_dual_float_or_unchanged(_) for _ in args)
     g0 = _dual_float(g0)
     state = -1
 
@@ -271,7 +276,7 @@ def newton_ndim(
     n = len(g0)
 
     # First attempt solution using faster float calculations
-    float_args = tuple(_float_if_not_string(_) for _ in args)
+    float_args = tuple(_dual_float_or_unchanged(_) for _ in args)
     g0_ = np.array([_dual_float(_) for _ in g0])
     state = -1
 
