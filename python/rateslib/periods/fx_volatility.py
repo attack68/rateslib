@@ -716,7 +716,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             k = self._strike_from_atm_sabr(f, eta_0, vol)
             return k, None
         else:  # DualTypes | FXDeltaVolSmile | FXDeltaVolSurface
-            assert not isinstance(f, FXForwards)  # should not pass when only 1 rate required.
+            assert not isinstance(f, FXForwards)  # noqa: S101
             return self._strike_from_atm_dv(
                 f, eta_0, eta_1, z_w_0, z_w_1, vol, t_e, delta_type, vol_delta_type, z_w
             )
@@ -734,7 +734,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
         else:
             f_d = f
 
-        def root1d(k: DualTypes, f_d: DualTypes, fx: DualTypes | FXForwards, as_float: bool) -> tuple[DualTypes, DualTypes]:
+        def root1d(
+            k: DualTypes, f_d: DualTypes, fx: DualTypes | FXForwards, as_float: bool
+        ) -> tuple[DualTypes, DualTypes]:
             if not as_float and isinstance(fx, FXForwards):
                 _set_ad_order_objects(_ad, [fx])
             sigma, dsigma_dk = vol._d_sabr_d_k(k, fx, self.expiry, as_float)
@@ -917,7 +919,12 @@ class FXOptionPeriod(metaclass=ABCMeta):
             f_d = f
 
         def root1d(
-            k: DualTypes, f_d: DualTypes, fx: FXForwards | DualTypes, z_w_0: DualTypes, delta: float, as_float: bool
+            k: DualTypes,
+            f_d: DualTypes,
+            fx: FXForwards | DualTypes,
+            z_w_0: DualTypes,
+            delta: float,
+            as_float: bool,
         ) -> tuple[DualTypes, DualTypes]:
             if not as_float and isinstance(fx, FXForwards):
                 _set_ad_order_objects(_ad, [fx])

@@ -323,7 +323,10 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
         w_spot = curves_1[self._pricing.spot]
 
         # determine if _PricingMetrics.k can be set directly to a numeric value
-        if isinstance(self.kwargs["strike"], str) and self.kwargs["strike"].lower() in ["atm_forward", "atm_spot"]:
+        if isinstance(self.kwargs["strike"], str) and self.kwargs["strike"].lower() in [
+            "atm_forward",
+            "atm_spot",
+        ]:
             # then strike can be set directly as a calculated value
             method: str = self.kwargs["strike"].lower()
             if method == "atm_forward":

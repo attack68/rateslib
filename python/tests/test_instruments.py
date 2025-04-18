@@ -5491,12 +5491,11 @@ class TestFXOptions:
         surf = FXSabrSurface(
             eval_date=dt(2023, 3, 16),
             expiries=[dt(2023, 6, 16), dt(2023, 10, 17)],
-            node_values=[
-                [0.05, 1.0, 0.03, 0.04],
-                [0.055, 1.0, 0.04, 0.05]
-            ],
+            node_values=[[0.05, 1.0, 0.03, 0.04], [0.055, 1.0, 0.04, 0.05]],
             pair="eurusd",
             calendar="tgt|fed",
+            ad=1,
+            id="v",
         )
         fxc = FXCall(
             expiry=dt(2023, 7, 21),
@@ -5505,9 +5504,14 @@ class TestFXOptions:
             delta_type="spot",
             curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
             vol=surf,
-            strike=k
+            strike=k,
         )
-        result = fxc.rate(fx=fxfo)
+        fxc.rate(fx=fxfo)
+        result = fxc._pricing
+        assert abs(result.vol - 5.25) < 1e-2
+        assert np.all(gradient(result.vol, vars=["v_0_0", "v_1_0"]) > 49.2)
+        assert np.all(gradient(result.vol, vars=["v_0_0", "v_1_0"]) < 50.6)
+
 
 
 
