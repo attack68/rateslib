@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
 
 import numpy as np
 
-from rateslib.dual.variable import Variable
 from rateslib.dual.utils import _dual_float, dual_solve
+from rateslib.dual.variable import Variable
 from rateslib.rs import Dual, Dual2
 
 if TYPE_CHECKING:
@@ -43,7 +43,9 @@ def _solver_result(
         "time": time,
     }
 
+
 T = TypeVar("T")
+
 
 def _dual_float_or_unchanged(x: T | DualTypes) -> T | float:
     """If x is a DualType convert it to float otherwise leave it as is"""

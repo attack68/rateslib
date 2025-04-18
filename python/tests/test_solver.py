@@ -1908,16 +1908,15 @@ def test_newton_ndim_raises() -> None:
 
 def test_newton_solver_object_args():
     def root(x, s):
-        return x ** 2 - s["some_obj"], 2 * x
+        return x**2 - s["some_obj"], 2 * x
 
     x0 = Dual(1.0, ["x"], [])
     s = {"some_obj": Dual(2.0, ["s"], [])}
     result = newton_1dim(root, x0, args=(s,))
 
-    expected = 0.5 / 2.0 ** 0.5
+    expected = 0.5 / 2.0**0.5
     sensitivity = gradient(result["g"], ["s"])[0]
     assert abs(expected - sensitivity) < 1e-9
-
 
 
 def test_solver_with_vol_smile() -> None:
