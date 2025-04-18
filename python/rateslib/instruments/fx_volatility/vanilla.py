@@ -343,7 +343,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
                     vol=_validate_obj_not_no_input(vol_, "vol"),  # type: ignore[arg-type]
                     w_deli=w_deli,
                     w_spot=w_spot,
-                    f=fx_,
+                    f=fx_ if isinstance(vol_, FXSabrSurface) else self._pricing.f_d,
                     t_e=self._pricing.t_e,
                 )
 
@@ -357,7 +357,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
                     vol=_validate_obj_not_no_input(vol_, "vol"),  # type: ignore[arg-type]
                     w_deli=w_deli,
                     w_spot=w_spot,
-                    f=self._pricing.f_d,
+                    f=fx_ if isinstance(vol_, FXSabrSurface) else self._pricing.f_d,
                     t_e=self._pricing.t_e,
                 )
 
@@ -387,7 +387,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
             else:
                 if self._pricing.delta_index is None:
                     # must use get from strike
-                    self._pricing.vol = vol_.get_from_strike(
+                    self._pricing.delta_index, self._pricing.vol, _ = vol_.get_from_strike(
                         k=self._pricing.k,
                         f=self._pricing.f_d,
                         expiry=self.kwargs["expiry"],

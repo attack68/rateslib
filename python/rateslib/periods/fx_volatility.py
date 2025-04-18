@@ -11,7 +11,7 @@ from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.default import NoInput, _drb
 from rateslib.dual import dual_exp, dual_log, dual_norm_cdf, dual_norm_pdf
 from rateslib.dual.newton import newton_1dim
-from rateslib.dual.utils import _dual_float
+from rateslib.dual.utils import _dual_float, _set_ad_order_objects
 from rateslib.fx import FXForwards
 from rateslib.fx_volatility import (
     FXDeltaVolSmile,
@@ -677,7 +677,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         vol: FXVolOption,
         w_deli: DualTypes,
         w_spot: DualTypes,
-        f: DualTypes,
+        f: DualTypes | FXForwards,
         t_e: DualTypes,
     ) -> tuple[DualTypes, DualTypes | None]:
         """
@@ -716,21 +716,29 @@ class FXOptionPeriod(metaclass=ABCMeta):
             k = self._strike_from_atm_sabr(f, eta_0, vol)
             return k, None
         else:  # DualTypes | FXDeltaVolSmile | FXDeltaVolSurface
+            assert not isinstance(f, FXForwards)  # should not pass when only 1 rate required.
             return self._strike_from_atm_dv(
                 f, eta_0, eta_1, z_w_0, z_w_1, vol, t_e, delta_type, vol_delta_type, z_w
             )
 
     def _strike_from_atm_sabr(
         self,
-        f: DualTypes,
+        f: DualTypes | FXForwards,
         eta_0: float,
         vol: FXSabrSmile | FXSabrSurface,
     ) -> DualTypes:
         t_e = (self.expiry - vol.eval_date).days / 365.0
+        if isinstance(f, FXForwards):
+            f_d: DualTypes = f.rate(self.pair, self.delivery)
+            _ad = _set_ad_order_objects([0], [f])
+        else:
+            f_d = f
 
-        def root1d(k: DualTypes, f: DualTypes, as_float: bool) -> tuple[DualTypes, DualTypes]:
-            sigma, dsigma_dk = vol._d_sabr_d_k(k, f, self.expiry, as_float)
-            f0 = -dual_log(k / f) + eta_0 * sigma**2 * t_e
+        def root1d(k: DualTypes, f_d: DualTypes, fx: DualTypes | FXForwards, as_float: bool) -> tuple[DualTypes, DualTypes]:
+            if not as_float and isinstance(fx, FXForwards):
+                _set_ad_order_objects(_ad, [fx])
+            sigma, dsigma_dk = vol._d_sabr_d_k(k, fx, self.expiry, as_float)
+            f0 = -dual_log(k / f_d) + eta_0 * sigma**2 * t_e
             f1 = -1 / k + eta_0 * 2 * sigma * dsigma_dk * t_e
             return f0, f1
 
@@ -743,8 +751,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         root_solver = newton_1dim(
             root1d,
-            f * dual_exp(eta_0 * alpha**2 * t_e),
-            args=(f,),
+            f_d * dual_exp(eta_0 * alpha**2 * t_e),
+            args=(f_d, f),
             pre_args=(True,),  # solve `as_float` in iterations
             final_args=(False,),  # capture AD in final iterations
             raise_on_fail=True,
