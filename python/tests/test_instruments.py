@@ -5210,7 +5210,42 @@ class TestFXOptions:
         assert abs(result["__strike"] - expected) < 1e-8
 
     @pytest.mark.parametrize("phi", [1.0, -1.0])
-    def test_traded_option_rate_vol(self, fxfo, phi) -> None:
+    @pytest.mark.parametrize(
+        ("vol_", "expected"),
+        [
+            (
+                FXDeltaVolSmile(
+                    {0.25: 10.15, 0.5: 7.8, 0.75: 8.9},
+                    eval_date=dt(2023, 3, 16),
+                    expiry=dt(2023, 6, 16),
+                    delta_type="spot",
+                ),
+                8.899854,
+            ),
+            (
+                FXSabrSmile(
+                    nodes={"alpha": 0.078, "beta": 1.0, "rho": 0.03, "nu": 0.04},
+                    eval_date=dt(2023, 3, 16),
+                    expiry=dt(2023, 6, 16),
+                ),
+                7.799409,
+            ),
+            (
+                FXSabrSurface(
+                    expiries=[dt(2023, 5, 16), dt(2023, 7, 16)],
+                    node_values=[
+                        [0.078, 1.0, 0.03, 0.04],
+                        [0.08, 1.0, 0.04, 0.05],
+                    ],
+                    eval_date=dt(2023, 3, 16),
+                    pair="eurusd",
+                    calendar="tgt|fed",
+                ),
+                7.934473,
+            ),
+        ],
+    )
+    def test_traded_option_rate_vol(self, fxfo, phi, vol_, expected) -> None:
         FXOp = FXCall if phi > 0 else FXPut
         fxo = FXOp(
             pair="eurusd",
@@ -5223,19 +5258,12 @@ class TestFXOptions:
             strike=1.05,
             premium=100000.0,
         )
-        fxvs = FXDeltaVolSmile(
-            {0.25: 10.15, 0.5: 7.8, 0.75: 8.9},
-            eval_date=dt(2023, 3, 16),
-            expiry=dt(2023, 6, 16),
-            delta_type="spot",
-        )
         result = fxo.rate(
             curves=[None, fxfo.curve("eur", "usd", None, fxfo.curve("usd", "usd"))],
-            vol=fxvs,
+            vol=vol_,
             fx=fxfo,
             metric="vol",
         )
-        expected = 8.899854
         assert abs(result - expected) < 1e-6
 
     def test_option_strike_premium_validation(self) -> None:

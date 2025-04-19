@@ -3663,7 +3663,7 @@ class TestFXOption:
             notional=20e6,
             delta_type=dlty,
         )
-        result = fxo._strike_and_index_from_delta(
+        result = fxo._index_vol_and_strike_from_delta(
             delta,
             dlty,
             vol_,
@@ -3671,7 +3671,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
             fxfo.rate("eurusd", dt(2023, 6, 20)),
             fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
-        )[0]
+        )[2]
         expected = exp_k
         assert abs(result - expected) < 1e-8
 
@@ -3760,7 +3760,7 @@ class TestFXOption:
         else:
             vol_ = 9.00
 
-        result = fxo._strike_and_index_from_delta(
+        result = fxo._index_vol_and_strike_from_delta(
             delta,
             delta_type,
             vol_,
@@ -3770,10 +3770,10 @@ class TestFXOption:
             fxo._t_to_expiry(fxfo.curve("eur", "usd").node_dates[0]),
         )
 
-        fxo.strike = result[0]
+        fxo.strike = result[2]
 
         if vol_smile:
-            vol_ = vol_[result[1]]
+            vol_ = result[1]
 
         expected = fxo.analytic_greeks(
             disc_curve=fxfo.curve("eur", "usd"),
@@ -3820,7 +3820,7 @@ class TestFXOption:
             )
         else:
             vol_ = 9.00
-        result = fxo._strike_and_index_from_delta(
+        result = fxo._index_vol_and_strike_from_delta(
             delta,
             delta_type,
             vol_,
@@ -3830,9 +3830,9 @@ class TestFXOption:
             fxo._t_to_expiry(fxfo.curve("eur", "usd").node_dates[0]),
         )
 
-        fxo.strike = result[0]
+        fxo.strike = result[2]
         if vol_smile:
-            vol_ = vol_[result[1]]
+            vol_ = result[1]
 
         expected = fxo.analytic_greeks(
             disc_curve=fxfo.curve("eur", "usd"),
@@ -3877,7 +3877,7 @@ class TestFXOption:
         else:
             vol_ = 9.00
         with pytest.raises(ValueError, match="Newton root solver failed"):
-            fxo._strike_and_index_from_delta(
+            fxo._index_vol_and_strike_from_delta(
                 delta,
                 delta_type,
                 vol_,

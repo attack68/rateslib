@@ -792,7 +792,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
     ) -> DualTypes:
         return phi * v_deli * (f_d * dual_norm_cdf(phi * d_plus) - k * dual_norm_cdf(phi * d_min))
 
-    def _strike_and_index_from_atm(
+    def _index_vol_and_strike_from_atm(
         self,
         delta_type: str,
         vol: FXVolOption,
@@ -800,9 +800,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
         w_spot: DualTypes,
         f: DualTypes | FXForwards,
         t_e: DualTypes,
-    ) -> tuple[DualTypes, DualTypes | None]:
+    ) -> tuple[DualTypes | None, DualTypes, DualTypes]:
         """
-        This function returns strike and, where available, a delta index for an option period
+        This function returns strike and vol, where available, a delta index for an option period
         defined by ATM delta.
 
         Parameters
@@ -822,7 +822,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         Returns
         -------
-        (DualTypes, DualTypes)
+        (delta_index, vol, strike)
         """
         # TODO this method branches depending upon eta0 and eta1, but depending upon the
         # type of vol these maybe automatically set equal to each other. Refactoring this would
@@ -834,12 +834,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
         eta_1, z_w_1, _ = _delta_type_constants(vol_delta_type, z_w, 0.0)  #  u: unused
 
         if isinstance(vol, FXSabrSmile | FXSabrSurface):
-            k = self._strike_from_atm_sabr(f, eta_0, vol)
-            return k, None
+            return self._index_vol_and_strike_from_atm_sabr(f, eta_0, vol)
         else:  # DualTypes | FXDeltaVolSmile | FXDeltaVolSurface
             assert not isinstance(f, FXForwards)  # noqa: S101
             # TODO mypy errors here: the assertion should narrow the type of f, but does not
-            return self._strike_from_atm_dv(
+            return self._index_vol_and_strike_from_atm_dv(
                 f,  # type:ignore[arg-type]
                 eta_0,
                 eta_1,
@@ -852,12 +851,13 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 z_w,
             )
 
-    def _strike_from_atm_sabr(
+    def _index_vol_and_strike_from_atm_sabr(
         self,
         f: DualTypes | FXForwards,
         eta_0: float,
         vol: FXSabrSmile | FXSabrSurface,
-    ) -> DualTypes:
+    ) -> tuple[DualTypes | None, DualTypes, DualTypes]:
+        """Get vol and strike from ATM delta specification under a SABR model."""
         t_e = (self.expiry - vol.eval_date).days / 365.0
         if isinstance(f, FXForwards):
             f_d: DualTypes = f.rate(self.pair, self.delivery)
@@ -895,9 +895,10 @@ class FXOptionPeriod(metaclass=ABCMeta):
         )
 
         k: DualTypes = root_solver["g"]
-        return k
+        v_ = vol.get_from_strike(k, f, self.expiry)[1]
+        return None, v_, k
 
-    def _strike_from_atm_dv(  # DeltaVol type models
+    def _index_vol_and_strike_from_atm_dv(  # DeltaVol type models
         self,
         f: DualTypes,
         eta_0: float,
@@ -909,7 +910,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         delta_type: str,
         vol_delta_type: str,
         z_w: DualTypes,
-    ) -> tuple[DualTypes, DualTypes | None]:
+    ) -> tuple[DualTypes | None, DualTypes, DualTypes]:
         """Determine strike from ATM delta specification with DeltaVol models or fixed volatility"""
         if eta_0 == 0.5:  # then delta type is unadjusted
             if eta_1 == 0.5:  # then smile delta type matches: closed form eqn available
@@ -921,6 +922,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
                     vol_value = _validate_obj_not_no_input(vol, "vol")  # type: ignore[assignment]
                     delta_idx = None
                 u = _moneyness_from_atm_delta_closed_form(vol_value, t_e)
+                return delta_idx, vol_value, u * f
             else:  # then smile delta type unmatched: 2-d solver required
                 delta: DualTypes = z_w_0 * self.phi / 2.0
                 u, delta_idx = _moneyness_from_delta_two_dimensional(
@@ -942,11 +944,16 @@ class FXOptionPeriod(metaclass=ABCMeta):
                     delta_type, _get_vol_smile_or_raise(vol, self.expiry), t_e, z_w, self.phi
                 )
 
+        if isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
+            vol_value = _get_vol_smile_or_raise(vol, self.expiry)[delta_idx]
+        else:
+            vol_value = _validate_obj_not_no_input(vol, "vol")  # type: ignore[assignment]
+
         # u, delta_idx, delta =
         # self._moneyness_from_delta_three_dimensional(delta_type, vol, t_e, z_w)
-        return u * f, delta_idx
+        return delta_idx, vol_value, u * f
 
-    def _strike_and_index_from_delta(
+    def _index_vol_and_strike_from_delta(
         self,
         delta: float,
         delta_type: str,
@@ -955,7 +962,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         w_spot: DualTypes,
         f: DualTypes | FXForwards,
         t_e: DualTypes,
-    ) -> tuple[DualTypes, DualTypes | None]:
+    ) -> tuple[DualTypes | None, DualTypes, DualTypes]:
         """
         This function returns strike and, where available, a delta index for an option period
         defined by a fixed delta percentage.
@@ -986,14 +993,21 @@ class FXOptionPeriod(metaclass=ABCMeta):
         z_w = w_deli / w_spot
 
         if isinstance(vol, FXSabrSmile | FXSabrSurface):
-            k = self._strike_from_delta_sabr(delta, delta_type, vol, z_w, f)
-            return k, None
+            return self._index_vol_and_strike_from_delta_sabr(delta, delta_type, vol, z_w, f)
         else:  # DualTypes | FXDeltaVolSmile | FXDeltaVolSurface
             assert not isinstance(f, FXDeltaVolSurface)  # noqa: S101
             # TODO: f not type narrowed by assert, mypy error
-            return self._strike_from_delta_dv(f, delta, vol, t_e, delta_type, vol_delta_type, z_w)  # type: ignore[arg-type]
+            return self._index_vol_and_strike_from_delta_dv(
+                f,  # type: ignore[arg-type]
+                delta,
+                vol,
+                t_e,
+                delta_type,
+                vol_delta_type,
+                z_w,
+            )
 
-    def _strike_from_delta_dv(
+    def _index_vol_and_strike_from_delta_dv(
         self,
         f: DualTypes,
         delta: float,
@@ -1002,7 +1016,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         delta_type: str,
         vol_delta_type: str,
         z_w: DualTypes,
-    ) -> tuple[DualTypes, DualTypes | None]:
+    ) -> tuple[DualTypes | None, DualTypes, DualTypes]:
         """Determine strike and delta index for an option by delta % for DeltaVol type models
         or constant volatility"""
         eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, 0.0)  # u: unused
@@ -1017,6 +1031,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 vol_value = _validate_obj_not_no_input(vol, "vol")  # type: ignore[assignment]
                 delta_idx = None
             u: DualTypes = _moneyness_from_delta_closed_form(delta, vol_value, t_e, z_w_0, self.phi)
+            return delta_idx, vol_value, u * f
         # then delta types are both adjusted, use 1-d solver.
         elif eta_0 == eta_1 and eta_0 == -0.5:
             u = _moneyness_from_delta_one_dimensional(
@@ -1034,18 +1049,22 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 delta, delta_type, _get_vol_smile_or_raise(vol, self.expiry), t_e, z_w, self.phi
             )
 
-        _1: DualTypes = u * f
-        _2: DualTypes | None = delta_idx
-        return _1, _2
+        _1: DualTypes | None = delta_idx
+        _2: DualTypes = u * f
+        if isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
+            vol_value = _get_vol_smile_or_raise(vol, self.expiry)[delta_idx]
+        else:
+            vol_value = _validate_obj_not_no_input(vol, "vol")  # type: ignore[assignment]
+        return _1, vol_value, _2
 
-    def _strike_from_delta_sabr(
+    def _index_vol_and_strike_from_delta_sabr(
         self,
         delta: float,
         delta_type: str,
         vol: FXSabrSmile | FXSabrSurface,
         z_w: DualTypes,
         f: DualTypes | FXForwards,
-    ) -> DualTypes:
+    ) -> tuple[DualTypes | None, DualTypes, DualTypes]:
         eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, 0.0)  # u: unused
         t_e = (self.expiry - vol.eval_date).days / 365.0
         sqrt_t = t_e**0.5
@@ -1109,7 +1128,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
         )
 
         k: DualTypes = root_solver["g"]
-        return k
+        v_ = vol.get_from_strike(k, f, self.expiry)[1]
+        return None, v_, k
 
     def _get_vol_maybe_from_obj(
         self,
@@ -1119,7 +1139,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
     ) -> DualTypes:
         """Return a volatility for the option from a given Smile."""
         # FXOption can have a `strike` that is NoInput, however this internal function should
-        # only be performed after a `strike` has been set, temporarily or otherwise.
+        # only be performed after a `strike` has been set to number, temporarily or otherwise.
         assert not isinstance(self.strike, NoInput)  # noqa: S101
 
         if isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile | FXSabrSurface):
