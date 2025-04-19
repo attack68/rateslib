@@ -13,7 +13,7 @@ from rateslib.curves import Curve
 from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.default import NoInput, PlotOutput, _drb, plot
 from rateslib.dual.utils import _dual_float
-from rateslib.fx_volatility import FXSabrSmile, FXSabrSurface, FXVolObj
+from rateslib.fx_volatility import FXSabrSmile, FXSabrSurface
 from rateslib.instruments.base import Metrics
 from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.instruments.utils import (
@@ -51,11 +51,13 @@ if TYPE_CHECKING:
 
 @dataclass
 class _PricingMetrics:
-    vol: FXVolOption_
+    """None elements are used as flags to indicate an element is not yet set."""
+
+    vol: FXVolOption_ | None
     k: DualTypes | None
     delta_index: DualTypes | None
     spot: datetime
-    t_e: DualTypes
+    t_e: DualTypes | None
     f_d: DualTypes
 
 
@@ -305,19 +307,21 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
         curves_3: Curve = _validate_obj_not_no_input(curves[3], "curves[3]")
         curves_1: Curve = _validate_obj_not_no_input(curves[1], "curves[1]")
 
+        self._pricing = _PricingMetrics(
+            vol=None,
+            k=None,
+            delta_index=None,
+            spot=fx_.pairs_settlement[self.kwargs["pair"]],
+            t_e=None,
+            f_d=fx_.rate(self.kwargs["pair"], self.kwargs["delivery"]),
+        )
+
         if isinstance(vol_, FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile | FXSabrSurface):
             eval_date = vol_.eval_date
         else:
             eval_date = curves_3.node_dates[0]
-
-        self._pricing = _PricingMetrics(
-            vol=vol_,
-            k=None,
-            delta_index=None,
-            spot=fx_.pairs_settlement[self.kwargs["pair"]],
-            t_e=self._option_periods[0]._t_to_expiry(eval_date),
-            f_d=fx_.rate(self.kwargs["pair"], self.kwargs["delivery"]),
-        )
+            self._pricing.vol = vol_  # Not a vol model so set directly
+        self._pricing.t_e = self._option_periods[0]._t_to_expiry(eval_date)
 
         w_deli = curves_1[self.kwargs["delivery"]]
         w_spot = curves_1[self._pricing.spot]
@@ -335,26 +339,39 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
                 self._pricing.k = fx_.rate(self.kwargs["pair"], self._pricing.spot)
         elif not isinstance(self.kwargs["strike"], str):
             self._pricing.k = self.kwargs["strike"]
-        else:
-            # strike on the option will either a delta % or ATM delta, as string
-            method = self.kwargs["strike"].lower()
-            if method == "atm_delta":
-                self._pricing.k, self._pricing.delta_index = self._option_periods[
-                    0
-                ]._strike_and_index_from_atm(
-                    delta_type=self._option_periods[0].delta_type,
-                    vol=_validate_obj_not_no_input(vol_, "vol"),  # type: ignore[arg-type]
+
+        if self._pricing.k is not None:
+            if self._pricing.vol is None:
+                # then an explicit strike is set so determine the vol from strike, set and return.
+                self._pricing.delta_index, self._pricing.vol, _ = vol_.get_from_strike(
+                    k=self._pricing.k,
+                    f=self._pricing.f_d if not isinstance(vol_, FXSabrSurface) else fx_,
+                    expiry=self.kwargs["expiry"],
                     w_deli=w_deli,
                     w_spot=w_spot,
-                    f=fx_ if isinstance(vol_, FXSabrSurface) else self._pricing.f_d,
-                    t_e=self._pricing.t_e,
+                )
+        else:
+            # will determine the strike from % delta or ATM-delta string
+            method = self.kwargs["strike"].lower()
+            if method == "atm_delta":
+                self._pricing.delta_index, self._pricing.vol, self._pricing.k = (
+                    self._option_periods[0]._index_vol_and_strike_from_atm(
+                        delta_type=self._option_periods[0].delta_type,
+                        vol=_validate_obj_not_no_input(vol_, "vol"),  # type: ignore[arg-type]
+                        w_deli=w_deli,
+                        w_spot=w_spot,
+                        f=fx_ if isinstance(vol_, FXSabrSurface) else self._pricing.f_d,
+                        t_e=self._pricing.t_e,
+                    )
                 )
 
             elif method[-1] == "d":  # representing delta
                 # then strike is commanded by delta
-                self._pricing.k, self._pricing.delta_index = self._option_periods[
-                    0
-                ]._strike_and_index_from_delta(
+                (
+                    self._pricing.delta_index,
+                    self._pricing.vol,
+                    self._pricing.k,
+                ) = self._option_periods[0]._index_vol_and_strike_from_delta(
                     delta=float(self.kwargs["strike"][:-1]) / 100.0,
                     delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
                     vol=_validate_obj_not_no_input(vol_, "vol"),  # type: ignore[arg-type]
@@ -369,44 +386,6 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
         # Review section in book regarding Hyper-parameters and Solver interaction
         self.periods[0].strike = self._pricing.k
         # self._option_periods[0].strike = _dual_float(self._pricing.k)
-
-        # Now determine the volatility knowing the strike on the OptionPeriod
-        if isinstance(vol_, FXVolObj):
-            if isinstance(vol_, FXSabrSmile):
-                self._pricing.delta_index, self._pricing.vol, _ = vol_.get_from_strike(
-                    k=self._pricing.k,
-                    f=self._pricing.f_d,
-                    expiry=self.kwargs["expiry"],
-                    w_deli=w_deli,
-                    w_spot=w_spot,
-                )
-            elif isinstance(vol_, FXSabrSurface):
-                self._pricing.delta_index, self._pricing.vol, _ = vol_.get_from_strike(
-                    k=self._pricing.k,
-                    f=fx_,  # SabrSurfaces need an FXForwards object to derive multiple rates.
-                    expiry=self.kwargs["expiry"],
-                    w_deli=w_deli,
-                    w_spot=w_spot,
-                )
-            else:
-                if self._pricing.delta_index is None:
-                    # must use get from strike
-                    self._pricing.delta_index, self._pricing.vol, _ = vol_.get_from_strike(
-                        k=self._pricing.k,
-                        f=self._pricing.f_d,
-                        expiry=self.kwargs["expiry"],
-                        w_deli=w_deli,
-                        w_spot=w_spot,
-                    )
-                else:
-                    # can call volatility directly from Object with delta_index
-                    self._pricing.vol = vol_._get_index(
-                        self._pricing.delta_index,
-                        self.kwargs["expiry"],
-                    )
-        else:
-            # volatility is a DualType, set directly
-            self._pricing.vol = vol_
 
     def _set_premium(self, curves: Curves_DiscTuple, fx: FX_ = NoInput(0)) -> None:
         if isinstance(self.kwargs["premium"], NoInput):
