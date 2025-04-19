@@ -1162,6 +1162,11 @@ def test_curve_zero_width_rate_raises(curve) -> None:
         curve.rate(dt(2022, 3, 10), dt(2022, 3, 10))
 
 
+def test_set_node_vector_updates_ad_attribute(curve) -> None:
+    curve._set_node_vector([0.98], ad=2)
+    assert curve.ad == 2
+
+
 class TestCurve:
     def test_repr(self):
         curve = Curve(
