@@ -60,9 +60,9 @@ def newton_1dim(
     max_iter: int = 50,
     func_tol: float = 1e-14,
     conv_tol: float = 1e-9,
-    args: tuple[str | DualTypes, ...] = (),
-    pre_args: tuple[str | DualTypes, ...] = (),
-    final_args: tuple[str | DualTypes, ...] = (),
+    args: tuple[Any, ...] = (),
+    pre_args: tuple[Any, ...] = (),
+    final_args: tuple[Any, ...] = (),
     raise_on_fail: bool = True,
 ) -> dict[str, Any]:
     """
@@ -139,7 +139,7 @@ def newton_1dim(
     state = -1
 
     while i < max_iter:
-        f0, f1 = f(*(g0, *float_args, *pre_args))  # type: ignore[call-arg, arg-type]
+        f0, f1 = f(*(g0, *float_args, *pre_args))  # type: ignore[call-arg]
         i += 1
         g1 = g0 - f0 / f1
         if abs(f0) < func_tol:
@@ -160,12 +160,12 @@ def newton_1dim(
             return _solver_result(-1, i, g1, time() - t0, log=True, algo="newton_1dim")
 
     # # Final iteration method to preserve AD
-    f0, f1 = f(*(g1, *args, *final_args))  # type: ignore[call-arg, arg-type]
+    f0, f1 = f(*(g1, *args, *final_args))  # type: ignore[call-arg]
     if isinstance(f0, Dual | Dual2) or isinstance(f1, Dual | Dual2):
         i += 1
         g1 = g1 - f0 / f1
     if isinstance(f0, Dual2) or isinstance(f1, Dual2):
-        f0, f1 = f(*(g1, *args, *final_args))  # type: ignore[call-arg, arg-type]
+        f0, f1 = f(*(g1, *args, *final_args))  # type: ignore[call-arg]
         i += 1
         g1 = g1 - f0 / f1
 
@@ -206,9 +206,9 @@ def newton_ndim(
     max_iter: int = 50,
     func_tol: float = 1e-14,
     conv_tol: float = 1e-9,
-    args: tuple[str | DualTypes, ...] = (),
-    pre_args: tuple[str | DualTypes, ...] = (),
-    final_args: tuple[str | DualTypes, ...] = (),
+    args: tuple[Any, ...] = (),
+    pre_args: tuple[Any, ...] = (),
+    final_args: tuple[Any, ...] = (),
     raise_on_fail: bool = True,
 ) -> dict[str, Any]:
     r"""
@@ -281,7 +281,7 @@ def newton_ndim(
     state = -1
 
     while i < max_iter:
-        f0, f1 = f(*(g0_, *float_args, *pre_args))  # type: ignore[call-arg, arg-type]
+        f0, f1 = f(*(g0_, *float_args, *pre_args))  # type: ignore[call-arg]
         f0 = np.array(f0)[:, np.newaxis]
         f1 = np.array(f1)
 

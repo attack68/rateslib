@@ -11,7 +11,7 @@ from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.default import NoInput, _drb
 from rateslib.dual import dual_exp, dual_log, dual_norm_cdf, dual_norm_pdf
 from rateslib.dual.newton import newton_1dim
-from rateslib.dual.utils import _dual_float
+from rateslib.dual.utils import _dual_float, _set_ad_order_objects
 from rateslib.fx import FXForwards
 from rateslib.fx_volatility import (
     FXDeltaVolSmile,
@@ -677,7 +677,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         vol: FXVolOption,
         w_deli: DualTypes,
         w_spot: DualTypes,
-        f: DualTypes,
+        f: DualTypes | FXForwards,
         t_e: DualTypes,
     ) -> tuple[DualTypes, DualTypes | None]:
         """
@@ -716,21 +716,42 @@ class FXOptionPeriod(metaclass=ABCMeta):
             k = self._strike_from_atm_sabr(f, eta_0, vol)
             return k, None
         else:  # DualTypes | FXDeltaVolSmile | FXDeltaVolSurface
+            assert not isinstance(f, FXForwards)  # noqa: S101
+            # TODO mypy errors here: the assertion should narrow the type of f, but does not
             return self._strike_from_atm_dv(
-                f, eta_0, eta_1, z_w_0, z_w_1, vol, t_e, delta_type, vol_delta_type, z_w
+                f,  # type:ignore[arg-type]
+                eta_0,
+                eta_1,
+                z_w_0,
+                z_w_1,
+                vol,
+                t_e,
+                delta_type,
+                vol_delta_type,
+                z_w,
             )
 
     def _strike_from_atm_sabr(
         self,
-        f: DualTypes,
+        f: DualTypes | FXForwards,
         eta_0: float,
         vol: FXSabrSmile | FXSabrSurface,
     ) -> DualTypes:
         t_e = (self.expiry - vol.eval_date).days / 365.0
+        if isinstance(f, FXForwards):
+            f_d: DualTypes = f.rate(self.pair, self.delivery)
+            _ad = _set_ad_order_objects([0], [f])
+        else:
+            # TODO: mypy should narrow the type of f, but it does not
+            f_d = f  # type: ignore[assignment]
 
-        def root1d(k: DualTypes, f: DualTypes, as_float: bool) -> tuple[DualTypes, DualTypes]:
-            sigma, dsigma_dk = vol._d_sabr_d_k(k, f, self.expiry, as_float)
-            f0 = -dual_log(k / f) + eta_0 * sigma**2 * t_e
+        def root1d(
+            k: DualTypes, f_d: DualTypes, fx: DualTypes | FXForwards, as_float: bool
+        ) -> tuple[DualTypes, DualTypes]:
+            if not as_float and isinstance(fx, FXForwards):
+                _set_ad_order_objects(_ad, [fx])
+            sigma, dsigma_dk = vol._d_sabr_d_k(k, fx, self.expiry, as_float)
+            f0 = -dual_log(k / f_d) + eta_0 * sigma**2 * t_e
             f1 = -1 / k + eta_0 * 2 * sigma * dsigma_dk * t_e
             return f0, f1
 
@@ -743,8 +764,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         root_solver = newton_1dim(
             root1d,
-            f * dual_exp(eta_0 * alpha**2 * t_e),
-            args=(f,),
+            f_d * dual_exp(eta_0 * alpha**2 * t_e),
+            args=(f_d, f),
             pre_args=(True,),  # solve `as_float` in iterations
             final_args=(False,),  # capture AD in final iterations
             raise_on_fail=True,
@@ -809,7 +830,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         vol: FXVolOption,
         w_deli: DualTypes,
         w_spot: DualTypes,
-        f: DualTypes,
+        f: DualTypes | FXForwards,
         t_e: DualTypes,
     ) -> tuple[DualTypes, DualTypes | None]:
         """
@@ -828,8 +849,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
            The relevant discount factor at delivery.
         w_spot: DualTypes
            The relevant discount factor at spot.
-        f: DualTypes
-           The forward FX rate for delivery.
+        f: DualTypes | FXForwards
+           The forward FX rate for delivery. When using a *SabrSurface* this is required in
+           *FXForwards* form.
         t_e: DualTypes
            The time to expiry
 
@@ -844,7 +866,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
             k = self._strike_from_delta_sabr(delta, delta_type, vol, z_w, f)
             return k, None
         else:  # DualTypes | FXDeltaVolSmile | FXDeltaVolSurface
-            return self._strike_from_delta_dv(f, delta, vol, t_e, delta_type, vol_delta_type, z_w)
+            assert not isinstance(f, FXDeltaVolSurface)  # noqa: S101
+            # TODO: f not type narrowed by assert, mypy error
+            return self._strike_from_delta_dv(f, delta, vol, t_e, delta_type, vol_delta_type, z_w)  # type: ignore[arg-type]
 
     def _strike_from_delta_dv(
         self,
@@ -897,27 +921,41 @@ class FXOptionPeriod(metaclass=ABCMeta):
         delta_type: str,
         vol: FXSabrSmile | FXSabrSurface,
         z_w: DualTypes,
-        f: DualTypes,
+        f: DualTypes | FXForwards,
     ) -> DualTypes:
         eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, 0.0)  # u: unused
         t_e = (self.expiry - vol.eval_date).days / 365.0
         sqrt_t = t_e**0.5
+        if isinstance(f, FXForwards):
+            f_d: DualTypes = f.rate(self.pair, self.delivery)
+            _ad = _set_ad_order_objects([0], [f])
+        else:
+            # TODO: mypy should narrow type of f, but does not
+            f_d = f  # type: ignore[assignment]
 
         def root1d(
-            k: DualTypes, f: DualTypes, z_w_0: DualTypes, delta: float, as_float: bool
+            k: DualTypes,
+            f_d: DualTypes,
+            fx: FXForwards | DualTypes,
+            z_w_0: DualTypes,
+            delta: float,
+            as_float: bool,
         ) -> tuple[DualTypes, DualTypes]:
-            sigma, dsigma_dk = vol._d_sabr_d_k(k, f, self.expiry, as_float)
-            dn0 = -dual_log(k / f) / (sigma * sqrt_t) + eta_0 * sigma * sqrt_t
+            if not as_float and isinstance(fx, FXForwards):
+                _set_ad_order_objects(_ad, [fx])
+
+            sigma, dsigma_dk = vol._d_sabr_d_k(k, fx, self.expiry, as_float)
+            dn0 = -dual_log(k / f_d) / (sigma * sqrt_t) + eta_0 * sigma * sqrt_t
             Phi = dual_norm_cdf(self.phi * dn0)
 
             if eta_0 == -0.5:
-                z_u_0, dz_u_dk = k / f, 1 / f
+                z_u_0, dz_u_dk = k / f_d, 1 / f_d
                 d_1 = -dz_u_dk * z_w_0 * self.phi * Phi
             else:
                 z_u_0, dz_u_dk = 1.0, 0.0
                 d_1 = 0.0
 
-            ddn_dk = (dual_log(k / f) / (sigma**2 * sqrt_t) + eta_0 * sqrt_t) * dsigma_dk - 1 / (
+            ddn_dk = (dual_log(k / f_d) / (sigma**2 * sqrt_t) + eta_0 * sqrt_t) * dsigma_dk - 1 / (
                 k * sigma * sqrt_t
             )
             d_2 = -z_u_0 * z_w_0 * dual_norm_pdf(self.phi * dn0) * ddn_dk
@@ -934,12 +972,12 @@ class FXOptionPeriod(metaclass=ABCMeta):
             e_idx = index_left_f64(vol.expiries_posix, expiry_posix)
             alpha = vol.smiles[e_idx].nodes["alpha"]
 
-        g0 = _moneyness_from_delta_closed_form(g01, alpha * 100.0, t_e, z_w_0, self.phi) * f
+        g0 = _moneyness_from_delta_closed_form(g01, alpha * 100.0, t_e, z_w_0, self.phi) * f_d
 
         root_solver = newton_1dim(
             root1d,
             g0,
-            args=(f, z_w_0, delta),
+            args=(f_d, f, z_w_0, delta),
             pre_args=(True,),  # solve iterations `as_float`
             final_args=(False,),  # solve final iteration with AD
             raise_on_fail=True,
