@@ -853,21 +853,19 @@ class FXStrangle(FXOptionStrat, FXOption):
 
         _ad = _set_ad_order_objects([0] * 5, [vol_0, vol_1, curves_1, curves_3, fxf])
         gks: list[dict[str, Any]] = [
-            self.periods[0]._analytic_greeks(
+            self.periods[0]._analytic_greeks_reduced(
                 curves=[NoInput(0), curves_1, NoInput(0), curves_3],
                 solver=NoInput(0),
                 fx=fxf,
                 base=base,
                 vol=vol_0,
-                _reduced=True,
             ),
-            self.periods[1]._analytic_greeks(
+            self.periods[1]._analytic_greeks_reduced(
                 curves=[NoInput(0), curves_1, NoInput(0), curves_3],
                 solver=NoInput(0),
                 fx=fxf,
                 base=base,
                 vol=vol_1,
-                _reduced=True,
             ),
         ]
 
@@ -886,21 +884,19 @@ class FXStrangle(FXOptionStrat, FXOption):
 
             # Determine the greeks of the options with the current tgt_vol iterate
             gks = [
-                self.periods[0]._analytic_greeks(
+                self.periods[0]._analytic_greeks_reduced(
                     curves=[NoInput(0), curves_1, NoInput(0), curves_3],
                     solver=NoInput(0),
                     fx=fxf,
                     base=base,
                     vol=tgt_vol * 100.0,
-                    _reduced=True,
                 ),
-                self.periods[1]._analytic_greeks(
+                self.periods[1]._analytic_greeks_reduced(
                     curves=[NoInput(0), curves_1, NoInput(0), curves_3],
                     solver=NoInput(0),
                     fx=fxf,
                     base=base,
                     vol=tgt_vol * 100.0,
-                    _reduced=True,
                 ),
             ]
 

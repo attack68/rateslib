@@ -2741,7 +2741,7 @@ def _sabr_X2(
             y2 = v * x0 / (a * (f * k) ** y1)
             dz: DualTypes = -y2 * (y1 * dual_log(f * y0) + 1)
 
-            dX2_dz = _sabr_dX2_dz(z, p)
+            dX2_dz = _sabr_dX2_dz(z_, p_, p_f64)  # calculated in prior branch
             dX2 = dX2_dz * dz
 
     elif derivative == 2:
@@ -2773,21 +2773,18 @@ def _sabr_X2(
             # must construct the dual number directly from analytic formulae due to div by zero.
 
             dz = v * x5 * (-(b - 1) * x1 + 2) / (2 * a * f)
-            dX2_dz = _sabr_dX2_dz(z, p)
+            dX2_dz = _sabr_dX2_dz(z_, p_, p_f64)  # calculated in prior branch
             dX2 = dX2_dz * dz
 
     return X2, dX2
 
 
-def _sabr_dX2_dz(z: DualTypes, p: DualTypes) -> DualTypes:
+def _sabr_dX2_dz(z_: DualTypes, p_: DualTypes, p_f64: float) -> DualTypes:
     """
     Derive this result in the limit as z tends to 0 for AD safe implementation
 
     z_ and p_ are pre cast to share the same
     """
-    p_f64 = _dual_float(p)
-    z_, p_ = _cast_pair(z, p)
-
     if isinstance(z_, float):
         dX2_dz: DualTypes = -p_f64 / 2
     elif isinstance(z_, Dual):

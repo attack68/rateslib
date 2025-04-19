@@ -560,7 +560,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
             fx=fx_,
             base=base_,
             local=local,
-            vol=vol_,
+            vol=self._pricing.vol,
         )
         if self.kwargs["premium_ccy"] == self.kwargs["pair"][:3]:
             disc_curve = curves_[1]
@@ -660,16 +660,36 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
         -------
         float, Dual, Dual2
         """
-        return self._analytic_greeks(curves, solver, fx, base, vol)
+        curves_, fx_, base_, vol_ = _get_fxvol_curves_fx_and_base_maybe_from_solver(
+            curves_attr=self.curves,
+            vol_attr=self.vol,
+            solver=solver,
+            curves=curves,
+            fx=fx,
+            base=base,
+            vol=vol,
+            local_ccy=self.kwargs["pair"][3:],
+        )
+        self._set_strike_and_vol(curves_, fx_, vol_)
+        # self._set_premium(curves, fx)
 
-    def _analytic_greeks(
+        return self._option_periods[0]._analytic_greeks(
+            disc_curve=_validate_obj_not_no_input(curves_[1], "curves_[1]"),
+            disc_curve_ccy2=_validate_obj_not_no_input(curves_[3], "curves_[3]"),
+            fx=_validate_fx_as_forwards(fx_),
+            base=base_,
+            vol=vol_,
+            premium=NoInput(0),
+            _reduced=False,
+        )
+
+    def _analytic_greeks_reduced(
         self,
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         vol: FXVol_ = NoInput(0),
-        _reduced: bool = False,
     ) -> dict[str, Any]:
         """
         Return various pricing metrics of the *FX Option*.
@@ -692,9 +712,9 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
             disc_curve_ccy2=_validate_obj_not_no_input(curves_[3], "curves_[3]"),
             fx=_validate_fx_as_forwards(fx_),
             base=base_,
-            vol=vol_,
+            vol=self._pricing.vol,  # none of the reduced greeks need a VolObj - faster to reuse.
             premium=NoInput(0),
-            _reduced=_reduced,
+            _reduced=True,
         )
 
     def analytic_delta(self, *args: Any, leg: int = 1, **kwargs: Any) -> NoReturn:
