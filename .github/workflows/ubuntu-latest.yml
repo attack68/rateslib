@@ -44,7 +44,7 @@ jobs:
         ruff check
     - name: Python Ruff formatting
       run: |
-        ruff format
+        ruff format --check
     - name: Python typing with Mypy
       run: |
         mypy --config-file pyproject.toml

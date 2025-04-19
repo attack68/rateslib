@@ -11,7 +11,7 @@ from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.default import NoInput, _drb
 from rateslib.dual import dual_exp, dual_log, dual_norm_cdf, dual_norm_pdf
 from rateslib.dual.newton import newton_1dim
-from rateslib.dual.utils import _dual_float, _set_ad_order_objects
+from rateslib.dual.utils import _dual_float
 from rateslib.fx import FXForwards
 from rateslib.fx_volatility import (
     FXDeltaVolSmile,
@@ -861,7 +861,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         t_e = (self.expiry - vol.eval_date).days / 365.0
         if isinstance(f, FXForwards):
             f_d: DualTypes = f.rate(self.pair, self.delivery)
-            _ad = _set_ad_order_objects([0], [f])
+            # _ad = _set_ad_order_objects([0], [f])  # GH755
         else:
             # TODO: mypy should narrow the type of f, but it does not
             f_d = f  # type: ignore[assignment]
@@ -869,8 +869,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
         def root1d(
             k: DualTypes, f_d: DualTypes, fx: DualTypes | FXForwards, as_float: bool
         ) -> tuple[DualTypes, DualTypes]:
-            if not as_float and isinstance(fx, FXForwards):
-                _set_ad_order_objects(_ad, [fx])
+            # if not as_float and isinstance(fx, FXForwards):
+            #     _set_ad_order_objects(_ad, [fx])
             sigma, dsigma_dk = vol._d_sabr_d_k_or_f(
                 k=k, f=fx, expiry=self.expiry, as_float=as_float, derivative=1
             )
@@ -1070,7 +1070,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         sqrt_t = t_e**0.5
         if isinstance(f, FXForwards):
             f_d: DualTypes = f.rate(self.pair, self.delivery)
-            _ad = _set_ad_order_objects([0], [f])
+            # _ad = _set_ad_order_objects([0], [f])  # GH755
         else:
             # TODO: mypy should narrow type of f, but does not
             f_d = f  # type: ignore[assignment]
@@ -1083,8 +1083,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
             delta: float,
             as_float: bool,
         ) -> tuple[DualTypes, DualTypes]:
-            if not as_float and isinstance(fx, FXForwards):
-                _set_ad_order_objects(_ad, [fx])
+            # if not as_float and isinstance(fx, FXForwards):
+            #     _set_ad_order_objects(_ad, [fx])
 
             sigma, dsigma_dk = vol._d_sabr_d_k_or_f(
                 k=k, f=fx, expiry=self.expiry, as_float=as_float, derivative=1
