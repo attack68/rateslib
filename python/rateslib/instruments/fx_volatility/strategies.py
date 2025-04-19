@@ -908,8 +908,12 @@ class FXStrangle(FXOptionStrat, FXOption):
             # (note the strikes have been set by previous call, call OptionPeriods direct
             # to avoid re-determination)
             s_gks = [
-                put_op_period._analytic_greeks(curves_1, curves_3, fxf, base_, vol_0, _reduced=True),
-                call_op_period._analytic_greeks(curves_1, curves_3, fxf, base_, vol_1, _reduced=True),
+                put_op_period._analytic_greeks(
+                    curves_1, curves_3, fxf, base_, vol_0, _reduced=True
+                ),
+                call_op_period._analytic_greeks(
+                    curves_1, curves_3, fxf, base_, vol_1, _reduced=True
+                ),
             ]
 
             # The value of the root function is derived from the 4 previous calculated prices

@@ -474,7 +474,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         base: str_ = NoInput(0),
         vol: FXVolOption_ = NoInput(0),
         premium: DualTypes_ = NoInput(0),  # expressed in the payment currency
-        _reduced = False
+        _reduced: bool = False,
     ) -> dict[str, Any]:
         """Calculates `analytic_greeks`, if _reduced only calculates those necessary for
         Strange single_vol calculation.
