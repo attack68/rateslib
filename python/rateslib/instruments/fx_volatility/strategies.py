@@ -920,6 +920,7 @@ class FXStrangle(FXOptionStrat, FXOption):
                 eta1,
                 self._is_fixed_delta[0],
                 fzw1zw0,
+                fxf,
             )
             dc1_dvol1_1 = _d_c_hat_d_sigma_hat(gks[1], self._is_fixed_delta[1])
             dcmkt_dvol1_1 = _d_c_mkt_d_sigma_hat(
@@ -930,6 +931,7 @@ class FXStrangle(FXOptionStrat, FXOption):
                 eta1,
                 self._is_fixed_delta[1],
                 fzw1zw0,
+                fxf,
             )
             f1 = dcmkt_dvol1_0 + dcmkt_dvol1_1 - dc1_dvol1_0 - dc1_dvol1_1
 
@@ -999,6 +1001,7 @@ def _d_c_mkt_d_sigma_hat(
     eta1: float | None,
     fixed_delta: bool,
     fzw1zw0: DualTypes | None,
+    fxf: FXForwards,
 ) -> DualTypes:
     """
     Return the total derivative of option priced with mkt vol with respect to single
@@ -1018,6 +1021,9 @@ def _d_c_mkt_d_sigma_hat(
         The delta type of the Smile if available
     fixed_delta: bool
         Whether the option is defined by fixed delta or an explicit strike.
+    fxf: FXForwards,
+        Used by SabrSurface to forecast multiple forward rates for cross-sectional smiles before
+        interpolation.
 
     Returns
     -------
@@ -1044,14 +1050,23 @@ def _d_c_mkt_d_sigma_hat(
             ddeltaidx_dvol1 /= 1 + _
 
             dvol_dvol1: DualTypes = dvol_ddeltaidx * ddeltaidx_dvol1
-        elif isinstance(vol, FXSabrSmile | FXSabrSurface):
-            dvol_dk = vol._d_sabr_d_k(
+        elif isinstance(vol, FXSabrSmile):
+            dvol_dk = vol._d_sabr_d_k_or_f(
                 k=sg["__strike"],
                 f=sg["__forward"],
                 expiry=expiry,
                 as_float=False,
+                derivative=1,
             )[1]
-
+            dvol_dvol1 = dvol_dk * g["_kega"]
+        elif isinstance(vol, FXSabrSurface):
+            dvol_dk = vol._d_sabr_d_k_or_f(
+                k=sg["__strike"],
+                f=fxf,
+                expiry=expiry,
+                as_float=False,
+                derivative=1,
+            )[1]
             dvol_dvol1 = dvol_dk * g["_kega"]
         else:
             dvol_dvol1 = 0.0

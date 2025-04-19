@@ -36,6 +36,7 @@ from rateslib.periods.utils import (
     _maybe_local,
 )
 from rateslib.rs import index_left_f64
+from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
     from rateslib.typing import (
@@ -394,7 +395,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
         disc_curve_ccy2: Curve
             The discount *Curve* for the RHS currency.
         fx: FXForwards
-            The object to project the relevant forward and spot FX rates.
+            The object to project the relevant forward and spot FX rates. The *'spot'* date is
+            assumed to be that applied to the `FXRates` objects for relevant currencies.
         base: str, optional
             Not used by `analytic_greeks`.
         vol: float, Dual, Dual2, FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile
@@ -479,9 +481,12 @@ class FXOptionPeriod(metaclass=ABCMeta):
         u = self.strike / f_d
         sqrt_t = self._t_to_expiry(disc_curve.node_dates[0]) ** 0.5
 
+        eta_0, z_w_0, z_u_0 = _delta_type_constants(self.delta_type, w_deli / w_spot, u)
+
         if isinstance(vol, NoInput):
             raise ValueError("`vol` must be a number quantity or Smile or Surface.")
         elif isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
+            eta_1, z_w_1, __ = _delta_type_constants(vol.delta_type, w_deli / w_spot, u)
             res: tuple[DualTypes, DualTypes, DualTypes] = vol.get_from_strike(
                 k=self.strike,
                 f=f_d,
@@ -491,17 +496,29 @@ class FXOptionPeriod(metaclass=ABCMeta):
             )
             delta_idx: DualTypes | None = res[0]
             vol_: DualTypes = res[1]
-        elif isinstance(vol, FXSabrSmile | FXSabrSurface):
+        elif isinstance(vol, FXSabrSmile):
+            eta_1, z_w_1 = eta_0, z_w_0
             res = vol.get_from_strike(k=self.strike, f=f_d, expiry=self.expiry)
             delta_idx = None
             vol_ = res[1]
+        elif isinstance(vol, FXSabrSurface):
+            eta_1, z_w_1 = eta_0, z_w_0
+            # SabrSurface uses FXForwards to derive multiple rates
+            res = vol.get_from_strike(k=self.strike, f=fx, expiry=self.expiry)
+            delta_idx = None
+            vol_ = res[1]
         else:
+            eta_1, z_w_1 = eta_0, z_w_0
             delta_idx = None
             vol_ = vol
         vol_ /= 100.0
         vol_sqrt_t = vol_ * sqrt_t
-        eta, z_w, z_u = _delta_type_constants(self.delta_type, w_deli / w_spot, u)
-        d_eta = _d_plus_min_u(u, vol_sqrt_t, eta)
+
+        if "spot" in self.delta_type:
+            z_v_0 = v_deli / v_spot
+        else:
+            z_v_0 = 1.0
+        d_eta_0 = _d_plus_min_u(u, vol_sqrt_t, eta_0)
         d_plus = _d_plus_min_u(u, vol_sqrt_t, 0.5)
         d_min = _d_plus_min_u(u, vol_sqrt_t, -0.5)
         _is_spot = "spot" in self.delta_type
@@ -510,9 +527,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
         _["delta"] = self._analytic_delta(
             premium,
             "_pa" in self.delta_type,
-            z_u,
-            z_w,
-            d_eta,
+            z_u_0,
+            z_w_0,
+            d_eta_0,
             self.phi,
             d_plus,
             w_payment,
@@ -524,7 +541,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             _is_spot,
             v_deli,
             v_spot,
-            z_w,
+            z_w_0,
             self.phi,
             d_plus,
             f_d,
@@ -535,20 +552,40 @@ class FXOptionPeriod(metaclass=ABCMeta):
         )
         _["vega"] = self._analytic_vega(v_deli, f_d, sqrt_t, self.phi, d_plus)
         _[f"vega_{self.pair[3:]}"] = _["vega"] * abs(self.notional) * 0.01
+
+        _["delta_sticky"] = self._analytic_sticky_delta(
+            _["delta"],
+            _["vega"],
+            v_deli,
+            vol,
+            sqrt_t,
+            vol_,
+            self.expiry,
+            f_d,
+            delta_idx,
+            u,
+            z_v_0,
+            z_w_0,
+            z_w_1,
+            eta_1,
+            d_plus,
+            self.strike,
+            fx,
+        )
         _["vomma"] = self._analytic_vomma(_["vega"], d_plus, d_min, vol_)
-        _["vanna"] = self._analytic_vanna(z_w, self.phi, d_plus, d_min, vol_)
+        _["vanna"] = self._analytic_vanna(z_w_0, self.phi, d_plus, d_min, vol_)
         # _["vanna"] = self._analytic_vanna(_["vega"], _is_spot, f_t, f_d, d_plus, vol_sqrt_t)
 
         _["_kega"] = self._analytic_kega(
-            z_u,
-            z_w,
-            eta,
+            z_u_0,
+            z_w_0,
+            eta_0,
             vol_,
             sqrt_t,
             f_d,
             self.phi,
             self.strike,
-            d_eta,
+            d_eta_0,
         )
         _["_kappa"] = self._analytic_kappa(v_deli, self.phi, d_min)
 
@@ -617,6 +654,66 @@ class FXOptionPeriod(metaclass=ABCMeta):
             # returns adjusted delta with set premium in domestic (LHS) currency.
             # ASSUMES: if premium adjusted the premium is expressed in LHS currency.
             return z_w * phi * dual_norm_cdf(phi * d_plus) - w_payment / w_spot * premium / N_dom
+
+    @staticmethod
+    def _analytic_sticky_delta(
+        delta: DualTypes,
+        vega: DualTypes,
+        v_deli: DualTypes,
+        vol: FXVolOption,
+        sqrt_t: DualTypes,
+        vol_: DualTypes,
+        expiry: datetime,
+        f_d: DualTypes,
+        delta_idx: DualTypes | None,
+        u: DualTypes,
+        z_v_0: DualTypes,
+        z_w_0: DualTypes,
+        z_w_1: DualTypes,
+        eta_1: float,
+        d_plus: DualTypes,
+        k: DualTypes,
+        fxf: FXForwards,
+    ) -> DualTypes:
+        if isinstance(vol, FXSabrSmile):
+            _, dvol_df = vol._d_sabr_d_k_or_f(
+                k=k,
+                f=f_d,
+                expiry=expiry,
+                as_float=False,
+                derivative=2,  # with respect to f
+            )
+        elif isinstance(vol, FXSabrSurface):
+            _, dvol_df = vol._d_sabr_d_k_or_f(
+                k=k,
+                f=fxf,  # use FXForwards to derive multiple rates
+                expiry=expiry,
+                as_float=False,
+                derivative=2,  # with respect to f
+            )
+        elif isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
+            if isinstance(vol, FXDeltaVolSurface):
+                smile: FXDeltaVolSmile = vol.get_smile(expiry)
+            else:
+                smile = vol
+            # d sigma / d delta_idx
+            _B = evaluate(smile.spline, delta_idx, 1) / 100.0  # type: ignore[arg-type]
+
+            if "pa" in vol.delta_type:
+                # then smile is adjusted:
+                ddelta_idx_df_d: DualTypes = -delta_idx / f_d  # type: ignore[operator]
+            else:
+                ddelta_idx_df_d = 0.0
+            _A = z_w_1 * dual_norm_pdf(-d_plus)
+            ddelta_idx_df_d -= _A / (f_d * vol_ * sqrt_t)
+            ddelta_idx_df_d /= 1 + _A * ((dual_log(u) / (vol_**2 * sqrt_t) + eta_1 * sqrt_t) * _B)
+
+            dvol_df = _B * z_w_0 / z_v_0 * ddelta_idx_df_d
+
+        else:
+            dvol_df = 0.0
+
+        return delta + vega / v_deli * dvol_df
 
     @staticmethod
     def _analytic_vanna(
@@ -750,7 +847,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
         ) -> tuple[DualTypes, DualTypes]:
             if not as_float and isinstance(fx, FXForwards):
                 _set_ad_order_objects(_ad, [fx])
-            sigma, dsigma_dk = vol._d_sabr_d_k(k, fx, self.expiry, as_float)
+            sigma, dsigma_dk = vol._d_sabr_d_k_or_f(
+                k=k, f=fx, expiry=self.expiry, as_float=as_float, derivative=1
+            )
             f0 = -dual_log(k / f_d) + eta_0 * sigma**2 * t_e
             f1 = -1 / k + eta_0 * 2 * sigma * dsigma_dk * t_e
             return f0, f1
@@ -944,7 +1043,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
             if not as_float and isinstance(fx, FXForwards):
                 _set_ad_order_objects(_ad, [fx])
 
-            sigma, dsigma_dk = vol._d_sabr_d_k(k, fx, self.expiry, as_float)
+            sigma, dsigma_dk = vol._d_sabr_d_k_or_f(
+                k=k, f=fx, expiry=self.expiry, as_float=as_float, derivative=1
+            )
             dn0 = -dual_log(k / f_d) / (sigma * sqrt_t) + eta_0 * sigma * sqrt_t
             Phi = dual_norm_cdf(self.phi * dn0)
 
