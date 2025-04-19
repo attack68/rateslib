@@ -342,10 +342,11 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
 
         if self._pricing.k is not None:
             if self._pricing.vol is None:
+                # vol is only None if vol_ is a VolObj so can be safely type ignored
                 # then an explicit strike is set so determine the vol from strike, set and return.
-                self._pricing.delta_index, self._pricing.vol, _ = vol_.get_from_strike(
+                self._pricing.delta_index, self._pricing.vol, _ = vol_.get_from_strike(  # type: ignore[union-attr]
                     k=self._pricing.k,
-                    f=self._pricing.f_d if not isinstance(vol_, FXSabrSurface) else fx_,
+                    f=self._pricing.f_d if not isinstance(vol_, FXSabrSurface) else fx_,  # type: ignore[arg-type]
                     expiry=self.kwargs["expiry"],
                     w_deli=w_deli,
                     w_spot=w_spot,
@@ -396,7 +397,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
                     _validate_obj_not_no_input(curves[1], "curves[1]"),
                     curves_3,
                     fx,
-                    vol=self._pricing.vol,
+                    vol=self._pricing.vol,  # type: ignore[arg-type]
                     local=False,
                 )
             except AttributeError:
@@ -496,7 +497,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
             disc_curve_ccy2=_validate_obj_not_no_input(curves_[3], "curve"),
             fx=fx_,
             base=NoInput(0),
-            vol=self._pricing.vol,
+            vol=self._pricing.vol,   # type: ignore[arg-type]
         )
         if metric == "premium":
             if self.periods[0].metric == "pips":
@@ -560,7 +561,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
             fx=fx_,
             base=base_,
             local=local,
-            vol=self._pricing.vol,
+            vol=self._pricing.vol,   # type: ignore[arg-type]
         )
         if self.kwargs["premium_ccy"] == self.kwargs["pair"][:3]:
             disc_curve = curves_[1]
@@ -712,10 +713,10 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
             disc_curve_ccy2=_validate_obj_not_no_input(curves_[3], "curves_[3]"),
             fx=_validate_fx_as_forwards(fx_),
             base=base_,
-            vol=self._pricing.vol,  # none of the reduced greeks need a VolObj - faster to reuse.
+            vol=self._pricing.vol,  # type: ignore[arg-type]
             premium=NoInput(0),
             _reduced=True,
-        )
+        )  # none of the reduced greeks need a VolObj - faster to reuse from _pricing.vol
 
     def analytic_delta(self, *args: Any, leg: int = 1, **kwargs: Any) -> NoReturn:
         """Not implemented for Option types.
