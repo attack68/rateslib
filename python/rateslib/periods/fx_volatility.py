@@ -464,6 +464,26 @@ class FXOptionPeriod(metaclass=ABCMeta):
         ------
         ValueError: if the ``strike`` is not set on the *Option*.
         """  # noqa: E501
+        return self._analytic_greeks(disc_curve, disc_curve_ccy2, fx, base, vol, premium)
+
+    def _analytic_greeks(
+        self,
+        disc_curve: Curve,
+        disc_curve_ccy2: Curve,
+        fx: FXForwards,
+        base: str_ = NoInput(0),
+        vol: FXVolOption_ = NoInput(0),
+        premium: DualTypes_ = NoInput(0),  # expressed in the payment currency
+        _reduced: bool = False,
+    ) -> dict[str, Any]:
+        """Calculates `analytic_greeks`, if _reduced only calculates those necessary for
+        Strange single_vol calculation.
+
+        _reduced calculates:
+
+        __vol, vega, __bs76, _kappa, _kega, _delta_index, gamma, __strike, __forward, __sqrt_t
+        """
+
         if isinstance(self.strike, NoInput):
             raise ValueError("`strike` must be set to value FXOption.")
 
@@ -524,19 +544,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         _is_spot = "spot" in self.delta_type
 
         _: dict[str, Any] = dict()
-        _["delta"] = self._analytic_delta(
-            premium,
-            "_pa" in self.delta_type,
-            z_u_0,
-            z_w_0,
-            d_eta_0,
-            self.phi,
-            d_plus,
-            w_payment,
-            w_spot,
-            self.notional,
-        )
-        _[f"delta_{self.pair[:3]}"] = abs(self.notional) * _["delta"]
+
         _["gamma"] = self._analytic_gamma(
             _is_spot,
             v_deli,
@@ -547,35 +555,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             f_d,
             vol_sqrt_t,
         )
-        _[f"gamma_{self.pair[:3]}_1%"] = (
-            _["gamma"] * abs(self.notional) * (f_t if _is_spot else f_d) * 0.01
-        )
         _["vega"] = self._analytic_vega(v_deli, f_d, sqrt_t, self.phi, d_plus)
-        _[f"vega_{self.pair[3:]}"] = _["vega"] * abs(self.notional) * 0.01
-
-        _["delta_sticky"] = self._analytic_sticky_delta(
-            _["delta"],
-            _["vega"],
-            v_deli,
-            vol,
-            sqrt_t,
-            vol_,
-            self.expiry,
-            f_d,
-            delta_idx,
-            u,
-            z_v_0,
-            z_w_0,
-            z_w_1,
-            eta_1,
-            d_plus,
-            self.strike,
-            fx,
-        )
-        _["vomma"] = self._analytic_vomma(_["vega"], d_plus, d_min, vol_)
-        _["vanna"] = self._analytic_vanna(z_w_0, self.phi, d_plus, d_min, vol_)
-        # _["vanna"] = self._analytic_vanna(_["vega"], _is_spot, f_t, f_d, d_plus, vol_sqrt_t)
-
         _["_kega"] = self._analytic_kega(
             z_u_0,
             z_w_0,
@@ -588,7 +568,6 @@ class FXOptionPeriod(metaclass=ABCMeta):
             d_eta_0,
         )
         _["_kappa"] = self._analytic_kappa(v_deli, self.phi, d_min)
-
         _["_delta_index"] = delta_idx
         _["__delta_type"] = self.delta_type
         _["__vol"] = vol_
@@ -601,6 +580,51 @@ class FXOptionPeriod(metaclass=ABCMeta):
             _["__class"] = "FXCallPeriod"
         else:
             _["__class"] = "FXPutPeriod"
+
+        if not _reduced:
+            _["delta"] = self._analytic_delta(
+                premium,
+                "_pa" in self.delta_type,
+                z_u_0,
+                z_w_0,
+                d_eta_0,
+                self.phi,
+                d_plus,
+                w_payment,
+                w_spot,
+                self.notional,
+            )
+            _[f"delta_{self.pair[:3]}"] = abs(self.notional) * _["delta"]
+
+            _[f"gamma_{self.pair[:3]}_1%"] = (
+                _["gamma"] * abs(self.notional) * (f_t if _is_spot else f_d) * 0.01
+            )
+
+            _[f"vega_{self.pair[3:]}"] = _["vega"] * abs(self.notional) * 0.01
+
+            _["delta_sticky"] = self._analytic_sticky_delta(
+                _["delta"],
+                _["vega"],
+                v_deli,
+                vol,
+                sqrt_t,
+                vol_,
+                self.expiry,
+                f_d,
+                delta_idx,
+                u,
+                z_v_0,
+                z_w_0,
+                z_w_1,
+                eta_1,
+                d_plus,
+                self.strike,
+                fx,
+            )
+            _["vomma"] = self._analytic_vomma(_["vega"], d_plus, d_min, vol_)
+            _["vanna"] = self._analytic_vanna(z_w_0, self.phi, d_plus, d_min, vol_)
+            # _["vanna"] = self._analytic_vanna(_["vega"], _is_spot, f_t, f_d, d_plus, vol_sqrt_t)
+
         return _
 
     @staticmethod
