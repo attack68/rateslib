@@ -365,6 +365,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
                 )
 
         # _PricingMetrics.k is completely specified
+        assert self._pricing.k is not None  # noqa: S101
         # Review section in book regarding Hyper-parameters and Solver interaction
         self.periods[0].strike = self._pricing.k
         # self._option_periods[0].strike = _dual_float(self._pricing.k)

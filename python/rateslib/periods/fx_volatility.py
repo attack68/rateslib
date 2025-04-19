@@ -717,8 +717,18 @@ class FXOptionPeriod(metaclass=ABCMeta):
             return k, None
         else:  # DualTypes | FXDeltaVolSmile | FXDeltaVolSurface
             assert not isinstance(f, FXForwards)  # noqa: S101
+            # TODO mypy errors here: the assertion should narrow the type of f, but does not
             return self._strike_from_atm_dv(
-                f, eta_0, eta_1, z_w_0, z_w_1, vol, t_e, delta_type, vol_delta_type, z_w
+                f,  # type:ignore[arg-type]
+                eta_0,
+                eta_1,
+                z_w_0,
+                z_w_1,
+                vol,
+                t_e,
+                delta_type,
+                vol_delta_type,
+                z_w,
             )
 
     def _strike_from_atm_sabr(
@@ -732,7 +742,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
             f_d: DualTypes = f.rate(self.pair, self.delivery)
             _ad = _set_ad_order_objects([0], [f])
         else:
-            f_d = f
+            # TODO: mypy should narrow the type of f, but it does not
+            f_d = f  # type: ignore[assignment]
 
         def root1d(
             k: DualTypes, f_d: DualTypes, fx: DualTypes | FXForwards, as_float: bool
@@ -819,7 +830,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         vol: FXVolOption,
         w_deli: DualTypes,
         w_spot: DualTypes,
-        f: DualTypes,
+        f: DualTypes | FXForwards,
         t_e: DualTypes,
     ) -> tuple[DualTypes, DualTypes | None]:
         """
@@ -838,8 +849,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
            The relevant discount factor at delivery.
         w_spot: DualTypes
            The relevant discount factor at spot.
-        f: DualTypes
-           The forward FX rate for delivery.
+        f: DualTypes | FXForwards
+           The forward FX rate for delivery. When using a *SabrSurface* this is required in
+           *FXForwards* form.
         t_e: DualTypes
            The time to expiry
 
@@ -854,7 +866,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
             k = self._strike_from_delta_sabr(delta, delta_type, vol, z_w, f)
             return k, None
         else:  # DualTypes | FXDeltaVolSmile | FXDeltaVolSurface
-            return self._strike_from_delta_dv(f, delta, vol, t_e, delta_type, vol_delta_type, z_w)
+            assert not isinstance(f, FXDeltaVolSurface)  # noqa: S101
+            # TODO: f not type narrowed by assert, mypy error
+            return self._strike_from_delta_dv(f, delta, vol, t_e, delta_type, vol_delta_type, z_w)  # type: ignore[arg-type]
 
     def _strike_from_delta_dv(
         self,
@@ -916,7 +930,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
             f_d: DualTypes = f.rate(self.pair, self.delivery)
             _ad = _set_ad_order_objects([0], [f])
         else:
-            f_d = f
+            # TODO: mypy should narrow type of f, but does not
+            f_d = f  # type: ignore[assignment]
 
         def root1d(
             k: DualTypes,

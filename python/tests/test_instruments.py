@@ -5513,8 +5513,6 @@ class TestFXOptions:
         assert np.all(gradient(result.vol, vars=["v_0_0", "v_1_0"]) < 50.6)
 
 
-
-
 class TestRiskReversal:
     @pytest.mark.parametrize(
         ("metric", "expected"),
