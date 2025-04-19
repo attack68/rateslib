@@ -497,7 +497,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
             disc_curve_ccy2=_validate_obj_not_no_input(curves_[3], "curve"),
             fx=fx_,
             base=NoInput(0),
-            vol=self._pricing.vol,   # type: ignore[arg-type]
+            vol=self._pricing.vol,  # type: ignore[arg-type]
         )
         if metric == "premium":
             if self.periods[0].metric == "pips":
@@ -561,7 +561,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
             fx=fx_,
             base=base_,
             local=local,
-            vol=self._pricing.vol,   # type: ignore[arg-type]
+            vol=self._pricing.vol,  # type: ignore[arg-type]
         )
         if self.kwargs["premium_ccy"] == self.kwargs["pair"][:3]:
             disc_curve = curves_[1]

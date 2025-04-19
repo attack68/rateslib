@@ -998,7 +998,13 @@ class FXOptionPeriod(metaclass=ABCMeta):
             assert not isinstance(f, FXDeltaVolSurface)  # noqa: S101
             # TODO: f not type narrowed by assert, mypy error
             return self._index_vol_and_strike_from_delta_dv(
-                f, delta, vol, t_e, delta_type, vol_delta_type, z_w  # type: ignore[arg-type]
+                f,  # type: ignore[arg-type]
+                delta,
+                vol,
+                t_e,
+                delta_type,
+                vol_delta_type,
+                z_w,
             )
 
     def _index_vol_and_strike_from_delta_dv(
