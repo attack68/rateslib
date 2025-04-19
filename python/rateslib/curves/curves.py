@@ -29,6 +29,7 @@ from rateslib.dual import (
     dual_log,
     set_order_convert,
 )
+from rateslib.dual.utils import _dual_float
 from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,
@@ -1383,33 +1384,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     @_clear_cache_post
     def _set_node_vector(self, vector: list[DualTypes], ad: int) -> None:
         """Used to update curve values during a Solver iteration. ``ad`` in {1, 2}."""
-        DualType: type[Dual | Dual2] = Dual if ad == 1 else Dual2
-        DualArgs: tuple[list[float]] | tuple[list[float], list[float]] = (
-            ([],) if ad == 1 else ([], [])
-        )
-        base_obj = DualType(0.0, [f"{self.id}{i}" for i in range(self.n)], *DualArgs)
-        ident: np.ndarray[tuple[int, ...], np.dtype[np.float64]] = np.eye(self.n, dtype=np.float64)
-
-        if self._ini_solve == 1:
-            # then the first node on the Curve is not updated but
-            # set it as a dual type with consistent vars.
-            self.nodes[self.node_keys[0]] = DualType.vars_from(
-                base_obj,  # type: ignore[arg-type]
-                self.nodes[self.node_keys[0]].real,
-                base_obj.vars,
-                ident[0, :].tolist(),  # type: ignore[arg-type]
-                *DualArgs[1:],
-            )
-
-        for i, k in enumerate(self.node_keys[self._ini_solve :]):
-            self.nodes[k] = DualType.vars_from(
-                base_obj,  # type: ignore[arg-type]
-                vector[i].real,
-                base_obj.vars,
-                ident[i + self._ini_solve, :].tolist(),  # type: ignore[arg-type]
-                *DualArgs[1:],
-            )
-        self._csolve()
+        self._set_node_vector_direct(vector, ad)
 
     @_clear_cache_post
     def _set_ad_order(self, order: int) -> None:
@@ -1426,6 +1401,44 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             k: set_order_convert(v, order, [f"{self.id}{i}"])
             for i, (k, v) in enumerate(self.nodes.items())
         }
+        self._csolve()
+
+    def _set_node_vector_direct(self, vector: list[DualTypes], ad: int) -> None:
+        if ad == 0:
+            if self._ini_solve == 1 and len(self.node_keys) > 0:
+                self.nodes[self.node_keys[0]] = _dual_float(self.nodes[self.node_keys[0]])
+            for i, k in enumerate(self.node_keys[self._ini_solve :]):
+                self.nodes[k] = _dual_float(vector[i])
+        else:
+            DualType: type[Dual | Dual2] = Dual if ad == 1 else Dual2
+            DualArgs: tuple[list[float]] | tuple[list[float], list[float]] = (
+                ([],) if ad == 1 else ([], [])
+            )
+            base_obj = DualType(0.0, [f"{self.id}{i}" for i in range(self.n)], *DualArgs)
+            ident: np.ndarray[tuple[int, ...], np.dtype[np.float64]] = np.eye(
+                self.n, dtype=np.float64
+            )
+
+            if self._ini_solve == 1:
+                # then the first node on the Curve is not updated but
+                # set it as a dual type with consistent vars.
+                self.nodes[self.node_keys[0]] = DualType.vars_from(
+                    base_obj,  # type: ignore[arg-type]
+                    _dual_float(self.nodes[self.node_keys[0]]),
+                    base_obj.vars,
+                    ident[0, :].tolist(),  # type: ignore[arg-type]
+                    *DualArgs[1:],
+                )
+
+            for i, k in enumerate(self.node_keys[self._ini_solve :]):
+                self.nodes[k] = DualType.vars_from(
+                    base_obj,  # type: ignore[arg-type]
+                    _dual_float(vector[i]),
+                    base_obj.vars,
+                    ident[i + self._ini_solve, :].tolist(),  # type: ignore[arg-type]
+                    *DualArgs[1:],
+                )
+        self._ad = ad
         self._csolve()
 
     @_new_state_post
