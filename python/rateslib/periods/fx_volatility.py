@@ -11,7 +11,7 @@ from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.default import NoInput, _drb
 from rateslib.dual import dual_exp, dual_log, dual_norm_cdf, dual_norm_pdf
 from rateslib.dual.newton import newton_1dim
-from rateslib.dual.utils import _dual_float, _set_ad_order_objects
+from rateslib.dual.utils import _dual_float
 from rateslib.fx import FXForwards
 from rateslib.fx_volatility import (
     FXDeltaVolSmile,
