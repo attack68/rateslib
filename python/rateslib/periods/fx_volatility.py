@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING
 
@@ -497,9 +496,15 @@ class FXOptionPeriod(metaclass=ABCMeta):
             )
             delta_idx: DualTypes | None = res[0]
             vol_: DualTypes = res[1]
-        elif isinstance(vol, FXSabrSmile | FXSabrSurface):
+        elif isinstance(vol, FXSabrSmile):
             eta_1, z_w_1 = eta_0, z_w_0
             res = vol.get_from_strike(k=self.strike, f=f_d, expiry=self.expiry)
+            delta_idx = None
+            vol_ = res[1]
+        elif isinstance(vol, FXSabrSurface):
+            eta_1, z_w_1 = eta_0, z_w_0
+            # SabrSurface uses FXForwards to derive multiple rates
+            res = vol.get_from_strike(k=self.strike, f=fx, expiry=self.expiry)
             delta_idx = None
             vol_ = res[1]
         else:
@@ -564,7 +569,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
             z_w_1,
             eta_1,
             d_plus,
-            self.strike
+            self.strike,
+            fx,
         )
         _["vomma"] = self._analytic_vomma(_["vega"], d_plus, d_min, vol_)
         _["vanna"] = self._analytic_vanna(z_w_0, self.phi, d_plus, d_min, vol_)
@@ -667,14 +673,23 @@ class FXOptionPeriod(metaclass=ABCMeta):
         eta_1: float,
         d_plus: DualTypes,
         k: DualTypes,
+        fxf: FXForwards,
     ) -> DualTypes:
-        if isinstance(vol, FXSabrSmile | FXSabrSurface):
+        if isinstance(vol, FXSabrSmile):
             _, dvol_df = vol._d_sabr_d_k_or_f(
-                k = k,
-                f = f_d,
-                expiry = expiry,
+                k=k,
+                f=f_d,
+                expiry=expiry,
                 as_float=False,
-                derivative=2  # with respect to f
+                derivative=2,  # with respect to f
+            )
+        elif isinstance(vol, FXSabrSurface):
+            _, dvol_df = vol._d_sabr_d_k_or_f(
+                k=k,
+                f=fxf,  # use FXForwards to derive multiple rates
+                expiry=expiry,
+                as_float=False,
+                derivative=2,  # with respect to f
             )
         elif isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
             if isinstance(vol, FXDeltaVolSurface):
@@ -832,7 +847,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         ) -> tuple[DualTypes, DualTypes]:
             if not as_float and isinstance(fx, FXForwards):
                 _set_ad_order_objects(_ad, [fx])
-            sigma, dsigma_dk = vol._d_sabr_d_k(
+            sigma, dsigma_dk = vol._d_sabr_d_k_or_f(
                 k=k, f=fx, expiry=self.expiry, as_float=as_float, derivative=1
             )
             f0 = -dual_log(k / f_d) + eta_0 * sigma**2 * t_e
@@ -1028,7 +1043,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             if not as_float and isinstance(fx, FXForwards):
                 _set_ad_order_objects(_ad, [fx])
 
-            sigma, dsigma_dk = vol._d_sabr_d_k(
+            sigma, dsigma_dk = vol._d_sabr_d_k_or_f(
                 k=k, f=fx, expiry=self.expiry, as_float=as_float, derivative=1
             )
             dn0 = -dual_log(k / f_d) / (sigma * sqrt_t) + eta_0 * sigma * sqrt_t
