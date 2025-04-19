@@ -861,7 +861,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         t_e = (self.expiry - vol.eval_date).days / 365.0
         if isinstance(f, FXForwards):
             f_d: DualTypes = f.rate(self.pair, self.delivery)
-            # _ad = _set_ad_order_objects([0], [f])
+            # _ad = _set_ad_order_objects([0], [f])  # GH755
         else:
             # TODO: mypy should narrow the type of f, but it does not
             f_d = f  # type: ignore[assignment]
@@ -1070,7 +1070,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         sqrt_t = t_e**0.5
         if isinstance(f, FXForwards):
             f_d: DualTypes = f.rate(self.pair, self.delivery)
-            # _ad = _set_ad_order_objects([0], [f])
+            # _ad = _set_ad_order_objects([0], [f])  # GH755
         else:
             # TODO: mypy should narrow type of f, but does not
             f_d = f  # type: ignore[assignment]
