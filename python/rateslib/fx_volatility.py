@@ -42,6 +42,7 @@ from rateslib.mutability import (
     _WithState,
 )
 from rateslib.rs import _sabr_x0 as _rs_sabr_X0
+from rateslib.rs import _sabr_x1 as _rs_sabr_X1
 from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
 
@@ -2583,30 +2584,7 @@ def _sabr_X1(
 
     If ``derivative`` also returns dX0/dk, calculated using sympy.
     """
-    x0 = 1 / k
-    x1 = b / 2 - 1 / 2
-    x2 = f * k
-    x3 = b - 1
-
-    dX1: DualTypes | None = None
-    if derivative == 1:
-        # calculate with respect to k
-        dX1 = t * (a**2 * x0 * x2**x3 * x3**3 / 24 + 0.25 * a * b * p * v * x0 * x1 * x2**x1)
-    elif derivative == 2:
-        # calculate with respect to f
-        dX1 = a * t * x3 * (a * x3**2 * x2**x3 + 3.0 * b * p * v * x2 ** (b / 2 - 1 / 2)) / (24 * f)
-
-    X1 = (
-        t
-        * (
-            a**2 * x2**x3 * x3**2 / 24
-            + 0.25 * a * b * p * v * x2 ** (b / 2 - 1 / 2)
-            + v**2 * (2 - 3 * p**2) / 24
-        )
-        + 1
-    )
-
-    return X1, dX1
+    return _rs_sabr_X1(k, f, t, a, b, p, v, derivative)
 
 
 def _sabr_X2(
