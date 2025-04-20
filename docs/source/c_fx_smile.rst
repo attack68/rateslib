@@ -33,7 +33,7 @@ Introduction and FX Volatility Smiles
 :class:`~rateslib.fx_volatility.FXSabrSmile`.
 
 The :class:`~rateslib.fx_volatility.FXDeltaVolSmile` is parametrised by a series of
-*(delta-index, vol)* node points interpolated by a cubic spline. This interpolation is
+*(delta-index, vol)* node points interpolated by a natural cubic spline. This interpolation is
 automatically constructed with knot sequences that adjust to the number of given ``nodes``:
 
 - Providing only one node, e.g. *(0.5, 11.0)*, will create a constant volatility level, here at 11%.

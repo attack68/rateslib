@@ -1498,8 +1498,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
     **Temporal Interpolation**
 
     Interpolation along the expiry axis occurs by performing total linear variance interpolation
-    for each *delta index* and then dynamically constructing a *Smile* with the usual cubic
-    interpolation.
+    for a given *strike* measured on neighboring *Smiles*.
 
     If ``weights`` are given this uses the scaling approach of forward volatility (as demonstrated
     in Clark's *FX Option Pricing*) for calendar days (different options 'cuts' and timezone are
