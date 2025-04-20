@@ -324,7 +324,6 @@ def _sabr_x1(
     v: DualTypes,
     derivative: int = 0,
 ) -> tuple[DualTypes, DualTypes | None]: ...
-
 def _sabr_x2(
     k: DualTypes,
     f: DualTypes,

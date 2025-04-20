@@ -2610,50 +2610,6 @@ def _sabr_X2(
     return _rs_sabr_x2(k, f, t, a, b, p, v, derivative)
 
 
-def _sabr_dX2_dz(z_: DualTypes, p_: DualTypes, p_f64: float) -> DualTypes:
-    """
-    Derive this result in the limit as z tends to 0 for AD safe implementation
-
-    z_ and p_ are pre cast to share the same
-    """
-    if isinstance(z_, float):
-        dX2_dz: DualTypes = -p_f64 / 2
-    elif isinstance(z_, Dual):
-        assert isinstance(p_, Dual)  # noqa: S101
-
-        dX2_dz = Dual.vars_from(
-            z_,
-            -p_f64 / 2,
-            z_.vars,
-            z_.dual * (2 - 3 * p_f64**2) / 6.0 - 0.5 * p_.dual,  # type: ignore[arg-type]
-        )
-    elif isinstance(z_, Dual2):
-        assert isinstance(p_, Dual2)  # noqa: S101
-
-        f_z = (2 - 3 * p_f64**2) / 6
-        f_p = -0.5
-        f_zz = p_f64 * (5 - 6 * p_f64**2) / 4
-        f_zp = -p_f64
-        # f_pp = 0.0
-
-        dual2 = f_z * z_.dual2 + f_p * p_.dual2
-        dual2 += 0.5 * f_zz * np.outer(z_.dual, z_.dual)
-        # dual2 += 0.5 * f_pp * np.outer(p_.dual, p_.dual)
-        dual2 += 0.5 * f_zp * (np.outer(z_.dual, p_.dual) + np.outer(p_.dual, z_.dual))
-
-        dX2_dz = Dual2.vars_from(
-            z_,
-            -p_f64 / 2,
-            z_.vars,
-            z_.dual * (2 - 3 * p_f64**2) / 6.0 - 0.5 * p_.dual,  # type: ignore[arg-type]
-            np.ravel(dual2),
-        )
-    else:
-        raise TypeError("Unrecognized dual number data type for differentiation.")
-
-    return dX2_dz
-
-
 def _validate_smile_plot_comparators(
     smile: FXSabrSmile | FXDeltaVolSmile, allowed_types: tuple[Any, ...]
 ) -> None:

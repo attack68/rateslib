@@ -701,7 +701,7 @@ class Gradients:
                 The variable tags for automatic differentiation of FX rate sensitivity
         """  # noqa: E501
         # use float here to cast float array not Dual
-        ret: NDArray[Nf64] = grad_f_P * _dual_float(f)
+        ret: NDArray[Nf64] = grad_f_P * _dual_float(f)  # type: ignore[assignment]
         ret += _dual_float(npv) * self.grad_f_f(f, fx_vars)
         return ret
 
@@ -1487,7 +1487,7 @@ class Solver(Gradients, _WithState):
             A = np.matmul(self.J, np.matmul(self.W, self.J.transpose()))
             A += self.lambd * np.eye(self.n)
             b = -0.5 * gradient(self.g, self.variables)[:, np.newaxis]
-            delta = np.linalg.solve(A, b)[:, 0]  # type: ignore[assignment]
+            delta = np.linalg.solve(A, b)[:, 0]
             v_1 = self.v + delta
         # elif algorithm == "gradient_descent_final":
         #     _ = np.matmul(self.Jkm, np.matmul(self.W, self.x[:, np.newaxis]))
@@ -1982,7 +1982,7 @@ class Solver(Gradients, _WithState):
             with warnings.catch_warnings():
                 # TODO: pandas 3.0.0 can optionally turn off these PerformanceWarnings
                 warnings.simplefilter(action="ignore", category=PerformanceWarning)
-                df.loc[locator, :] = array
+                df.loc[locator, :] = array  # type: ignore[index]
 
         if not isinstance(base, NoInput):
             # sum over all the base rows to aggregate
