@@ -41,7 +41,7 @@ from rateslib.mutability import (
     _WithCache,
     _WithState,
 )
-from rateslib.rs import _sabr_X0 as _rs_sabr_X0
+from rateslib.rs import _sabr_x0 as _rs_sabr_X0
 from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
 
