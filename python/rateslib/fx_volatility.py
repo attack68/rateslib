@@ -3,7 +3,7 @@ from __future__ import annotations  # type hinting
 import warnings
 from datetime import datetime, timedelta
 from datetime import datetime as dt
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias, NamedTuple
 from uuid import uuid4
 
 import numpy as np
@@ -1051,6 +1051,13 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         return plot3d(deltas, expiries, vols)  # type: ignore[arg-type, return-value]
 
 
+class _SabrNodes(NamedTuple):
+    alpha: DualTypes
+    beta: float
+    rho: DualTypes
+    nu: DualTypes
+
+
 class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
     r"""
     Create an *FX Volatility Smile* at a given expiry indexed by strike using SABR parameters.
@@ -1132,12 +1139,15 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         self.delivery = get_calendar(calendar).lag(self.expiry, self.delivery_lag, True)
         self.pair = pair
 
-        self.nodes = nodes
         for _ in ["alpha", "beta", "rho", "nu"]:
-            if _ not in self.nodes:
+            if _ not in nodes:
                 raise ValueError(
                     f"'{_}' is a required SABR parameter that must be included in ``nodes``"
                 )
+        self.nodes: _SabrNodes = _SabrNodes(
+            alpha=nodes["alpha"], beta=nodes["beta"], rho=nodes["rho"], nu=nodes["nu"]
+        )
+
         self._set_ad_order(ad)
 
     @property
@@ -1207,10 +1217,10 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
             k,
             f_,
             self.t_expiry,
-            self.nodes["alpha"],
-            self.nodes["beta"],  # type: ignore[arg-type]
-            self.nodes["rho"],
-            self.nodes["nu"],
+            self.nodes.alpha,
+            self.nodes.beta,
+            self.nodes.rho,
+            self.nodes.nu,
         )
         return 0.0, vol_ * 100.0, k
 
@@ -1237,21 +1247,21 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         if as_float:
             k = _dual_float(k)
             f = _dual_float(f)
-            a: DualTypes = _dual_float(self.nodes["alpha"])
-            b: DualTypes = _dual_float(self.nodes["beta"])
-            p: DualTypes = _dual_float(self.nodes["rho"])
-            v: DualTypes = _dual_float(self.nodes["nu"])
+            a: DualTypes = _dual_float(self.nodes.alpha)
+            b: DualTypes = _dual_float(self.nodes.beta)
+            p: DualTypes = _dual_float(self.nodes.rho)
+            v: DualTypes = _dual_float(self.nodes.nu)
         else:
-            a = self.nodes["alpha"]  #
-            b = self.nodes["beta"]
-            p = self.nodes["rho"]
-            v = self.nodes["nu"]
+            a = self.nodes.alpha  #
+            b = self.nodes.beta
+            p = self.nodes.rho
+            v = self.nodes.nu
 
         return _d_sabr_d_k_or_f(k, f, t_e, a, b, p, v, derivative)  # type: ignore[arg-type]
 
     def _get_node_vector(self) -> np.ndarray[tuple[int, ...], np.dtype[np.object_]]:
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""
-        return np.array([self.nodes["alpha"], self.nodes["rho"], self.nodes["nu"]])
+        return np.array([self.nodes.alpha, self.nodes.rho, self.nodes.nu])
 
     def _get_node_vars(self) -> tuple[str, ...]:
         """Get the variable names of elements updated by a Solver"""
@@ -1273,26 +1283,29 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         base_obj = DualType(0.0, [f"{self.id}{i}" for i in range(3)], *DualArgs)
         ident = np.eye(3)
 
-        self.nodes["alpha"] = DualType.vars_from(
-            base_obj,  # type: ignore[arg-type]
-            vector[0].real,
-            base_obj.vars,
-            ident[0, :].tolist(),  # type: ignore[arg-type]
-            *DualArgs[1:],
-        )
-        self.nodes["rho"] = DualType.vars_from(
-            base_obj,  # type: ignore[arg-type]
-            vector[1].real,
-            base_obj.vars,
-            ident[1, :].tolist(),  # type: ignore[arg-type]
-            *DualArgs[1:],
-        )
-        self.nodes["nu"] = DualType.vars_from(
-            base_obj,  # type: ignore[arg-type]
-            vector[2].real,
-            base_obj.vars,
-            ident[2, :].tolist(),  # type: ignore[arg-type]
-            *DualArgs[1:],
+        self.nodes = _SabrNodes(
+            beta=self.nodes.beta,
+            alpha=DualType.vars_from(
+                base_obj,  # type: ignore[arg-type]
+                vector[0].real,
+                base_obj.vars,
+                ident[0, :].tolist(),  # type: ignore[arg-type]
+                *DualArgs[1:],
+            ),
+            rho=DualType.vars_from(
+                base_obj,  # type: ignore[arg-type]
+                vector[1].real,
+                base_obj.vars,
+                ident[1, :].tolist(),  # type: ignore[arg-type]
+                *DualArgs[1:],
+            ),
+            nu=DualType.vars_from(
+                base_obj,  # type: ignore[arg-type]
+                vector[2].real,
+                base_obj.vars,
+                ident[2, :].tolist(),  # type: ignore[arg-type]
+                *DualArgs[1:],
+            )
         )
 
     @_clear_cache_post
@@ -1307,9 +1320,12 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
 
         self._ad = order
 
-        self.nodes["alpha"] = set_order_convert(self.nodes["alpha"], order, [f"{self.id}0"])
-        self.nodes["rho"] = set_order_convert(self.nodes["rho"], order, [f"{self.id}1"])
-        self.nodes["nu"] = set_order_convert(self.nodes["nu"], order, [f"{self.id}2"])
+        self.nodes = _SabrNodes(
+            beta=self.nodes.beta,
+            alpha=set_order_convert(self.nodes.alpha, order, [f"{self.id}0"]),
+            rho=set_order_convert(self.nodes.rho, order, [f"{self.id}1"]),
+            nu=set_order_convert(self.nodes.nu, order, [f"{self.id}2"])
+        )
 
     @_new_state_post
     @_clear_cache_post
@@ -1340,9 +1356,14 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
            This class is labelled as a **mutable on update** object.
 
         """
-        if key not in self.nodes:
+        params = ["alpha", "beta", "rho", "nu"]
+        if key not in params:
             raise KeyError("`key` is not in ``nodes``.")
-        self.nodes[key] = value
+        kwargs = {
+            _: getattr(self.nodes, _) for _ in params if _ != key
+        }
+        kwargs.update({key: value})
+        self.nodes = _SabrNodes(**kwargs)
         self._set_ad_order(self.ad)
 
     # Plotting

@@ -879,11 +879,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
             return f0, f1
 
         if isinstance(vol, FXSabrSmile):
-            alpha = vol.nodes["alpha"]
+            alpha = vol.nodes.alpha
         else:  # FXSabrSurface
             expiry_posix = self.expiry.replace(tzinfo=UTC).timestamp()
             e_idx = index_left_f64(vol.expiries_posix, expiry_posix)
-            alpha = vol.smiles[e_idx].nodes["alpha"]
+            alpha = vol.smiles[e_idx].nodes.alpha
 
         root_solver = newton_1dim(
             root1d,
@@ -1110,11 +1110,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         g01 = delta if self.phi > 0 else max(delta, -0.75)
         if isinstance(vol, FXSabrSmile):
-            alpha = vol.nodes["alpha"]
+            alpha = vol.nodes.alpha
         else:  # FXSabrSurface
             expiry_posix = self.expiry.replace(tzinfo=UTC).timestamp()
             e_idx = index_left_f64(vol.expiries_posix, expiry_posix)
-            alpha = vol.smiles[e_idx].nodes["alpha"]
+            alpha = vol.smiles[e_idx].nodes.alpha
 
         g0 = _moneyness_from_delta_closed_form(g01, alpha * 100.0, t_e, z_w_0, self.phi) * f_d
 

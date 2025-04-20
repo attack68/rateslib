@@ -21,6 +21,7 @@ from rateslib.fx_volatility import (
     FXDeltaVolSurface,
     FXSabrSmile,
     FXSabrSurface,
+    _SabrNodes,
     _d_sabr_d_k_or_f,
     _sabr,
     _validate_delta_type,
@@ -1010,9 +1011,9 @@ class TestFXSabrSmile:
             ad=2,
         )
 
-        a = fxss.nodes["alpha"]
-        p = fxss.nodes["rho"]
-        v = fxss.nodes["nu"]
+        a = fxss.nodes.alpha
+        p = fxss.nodes.rho
+        v = fxss.nodes.nu
 
         # F_0,T is stated in section 3.5.4 as 1.3395
         base = fxss._d_sabr_d_k_or_f(
@@ -1027,6 +1028,7 @@ class TestFXSabrSmile:
             elif key1 == "f":
                 f_ = f + inc1
             else:
+
                 fxss.nodes[key1] = fxss.nodes[key1] + inc1
 
             if key2 == "k":
@@ -1078,9 +1080,9 @@ class TestFXSabrSmile:
             ad=2,
         )
 
-        a = fxss.nodes["alpha"]
-        p = fxss.nodes["rho"]
-        v = fxss.nodes["nu"]
+        a = fxss.nodes.alpha
+        p = fxss.nodes.rho
+        v = fxss.nodes.nu
 
         # F_0,T is stated in section 3.5.4 as 1.3395
         base = fxss._d_sabr_d_k_or_f(
@@ -1095,16 +1097,14 @@ class TestFXSabrSmile:
             elif key1 == "f":
                 f_ = f + inc1
             else:
-                fxss.nodes[key1] = fxss.nodes[key1] + inc1
+                fxss.update_node(key1, getattr(fxss.nodes, key1) + inc1)
+                #fxss.nodes[key1] = fxss.nodes[key1] + inc1
 
             _ = fxss._d_sabr_d_k_or_f(
                 Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []), dt(2002, 1, 1), False, 1
             )[1]
 
-            fxss.nodes["alpha"] = a
-            fxss.nodes["rho"] = p
-            fxss.nodes["nu"] = v
-
+            fxss.nodes = _SabrNodes(alpha=a, beta=1.0, rho=p, nu=v)
             return _
 
         v_map = {"k": "k", "f": "f", "alpha": "v0", "rho": "v1", "nu": "v2"}
