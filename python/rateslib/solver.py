@@ -1982,7 +1982,7 @@ class Solver(Gradients, _WithState):
             with warnings.catch_warnings():
                 # TODO: pandas 3.0.0 can optionally turn off these PerformanceWarnings
                 warnings.simplefilter(action="ignore", category=PerformanceWarning)
-                df.loc[locator, :] = array  # type: ignore[index]
+                df.loc[locator, :] = array
 
         if not isinstance(base, NoInput):
             # sum over all the base rows to aggregate
