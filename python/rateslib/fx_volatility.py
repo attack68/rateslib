@@ -43,6 +43,7 @@ from rateslib.mutability import (
 )
 from rateslib.rs import _sabr_x0 as _rs_sabr_x0
 from rateslib.rs import _sabr_x1 as _rs_sabr_x1
+from rateslib.rs import _sabr_x2 as _rs_sabr_x2
 from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
 
@@ -2606,128 +2607,7 @@ def _sabr_X2(
     If ``derivative`` = 1 also returns dX2/dk, calculated using sympy.
     If ``derivative`` = 2 also returns dX2/df, calculated using sympy.
     """
-    x0 = 1 / k
-    x1 = dual_log(f * x0)
-    x2 = 1 / a
-    x3 = f * k
-    x4 = b / 2 - 1 / 2
-    x5 = x3 ** (-x4)
-    x6 = v * x2 * x5
-
-    z = x6 * x1
-    chi = dual_log(((1 - 2 * p * z + z * z) ** 0.5 + z - p) / (1 - p))
-
-    if abs(z) > 1e-15:
-        X2 = z / chi
-    else:
-        # must construct the dual number directly from analytic formulae due to div by zero error.
-        p_f64 = _dual_float(p)
-        z_, p_ = _cast_pair(z, p)
-
-        if isinstance(z_, float):
-            X2 = 1.0
-        elif isinstance(z_, Dual):
-            X2 = Dual.vars_from(z_, 1.0, z_.vars, z_.dual * -0.5 * p_f64)  # type: ignore[arg-type]
-        elif isinstance(z_, Dual2):
-            assert isinstance(p_, Dual2)  # noqa: S101
-
-            f_z = -0.5 * p_f64
-            # f_p = 0.0
-            f_zz = (2 - 3 * p_f64**2) / 6
-            f_zp = -0.5
-            # f_pp = 0.0
-
-            dual2 = f_z * z_.dual2  # + f_p * p_.dual2
-            dual2 += 0.5 * f_zz * np.outer(z_.dual, z_.dual)
-            # dual2 += 0.5 * f_pp * np.outer(p_.dual, p_.dual)
-            dual2 += 0.5 * f_zp * (np.outer(z_.dual, p_.dual) + np.outer(p_.dual, z_.dual))
-
-            X2 = Dual2.vars_from(z_, 1.0, z_.vars, z_.dual * -0.5 * p_f64, np.ravel(dual2))  # type: ignore[arg-type]
-        else:
-            raise TypeError("Unrecognized dual number data type for differentiation.")
-
-    dX2: DualTypes | None = None
-    if derivative == 1:
-        # calculate with respect to k
-        if abs(z) > 1e-15:
-            x7 = x1 * x6
-            x8 = p * x7
-            x9 = x1**2
-            x10 = a ** (-2)
-            x11 = v**2
-            x12 = b - 1
-            x13 = x3 ** (-x12)
-            x14 = x10 * x11 * x13
-            x15 = (x14 * x9 - 2 * x8 + 1) ** 0.5
-            x16 = -p + x15 + x7
-            x17 = dual_log(x16 / (1 - p))
-            x18 = 1 / x17
-            x19 = x0 * x6
-            x20 = -x4
-            x21 = 1.0 * x0
-
-            dX2 = (
-                v * x0 * x1 * x18 * x2 * x20 * x5
-                - x18 * x19
-                - x7
-                * (
-                    x0 * x20 * x7
-                    - x19
-                    + (
-                        1.0 * p * v * x0 * x2 * x5
-                        - 0.5 * x0 * x10 * x11 * x12 * x13 * x9
-                        - x1 * x14 * x21
-                        - x20 * x21 * x8
-                    )
-                    / x15
-                )
-                / (x16 * x17**2)
-            )
-        else:
-            # must construct the dual number directly from analytic formulae due to div by zero.
-
-            # dX
-            y0 = 1 / k
-            y1 = b / 2 - 1 / 2
-            y2 = v * x0 / (a * (f * k) ** y1)
-            dz: DualTypes = -y2 * (y1 * dual_log(f * y0) + 1)
-
-            dX2_dz = _sabr_dX2_dz(z_, p_, p_f64)  # calculated in prior branch
-            dX2 = dX2_dz * dz
-
-    elif derivative == 2:
-        # calculate with respec to f
-        if abs(z) > 1e-15:
-            y0 = a**2
-            y1 = 1 / y0  # type: ignore[assignment]
-            y3 = x3 ** (1 / 2 - b / 2)
-            y4 = a * p
-            y6 = v * x1
-            y7 = y3 * y6
-            y8 = b - 1
-            y9 = x3 ** (-y8)
-            y10 = (y1 * (v**2 * x1**2 * y9 + y0 - 2 * y4 * y7)) ** 0.5
-            y11 = a * (-p + y10) + y7
-            y12 = a * y10
-            y13 = dual_log((a * p - y12 - y7) / (a * (p - 1)))
-            y14 = x1 * y8 - 2
-            y15 = -y14
-
-            dX2 = (
-                v
-                * y1
-                * y3
-                * (y11 * y12 * y13 * y15 + y6 * (y12 * y14 * y3 + y14 * y6 * y9 + y15 * y3 * y4))
-                / (2 * f * y10 * y11 * y13**2)
-            )
-        else:
-            # must construct the dual number directly from analytic formulae due to div by zero.
-
-            dz = v * x5 * (-(b - 1) * x1 + 2) / (2 * a * f)
-            dX2_dz = _sabr_dX2_dz(z_, p_, p_f64)  # calculated in prior branch
-            dX2 = dX2_dz * dz
-
-    return X2, dX2
+    return _rs_sabr_x2(k, f, t, a, b, p, v, derivative)
 
 
 def _sabr_dX2_dz(z_: DualTypes, p_: DualTypes, p_f64: float) -> DualTypes:
