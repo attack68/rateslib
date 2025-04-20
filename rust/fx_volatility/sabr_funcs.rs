@@ -49,3 +49,39 @@ pub(crate) fn _sabr_x0(
 
     Ok((x, dx))
 }
+
+#[pyfunction]
+pub(crate) fn _sabr_x1(
+    k: Number,
+    f: Number,
+    t: Number,
+    a: Number,
+    b: f64,
+    p: Number,
+    v: Number,
+    derivative: u8,
+) -> Result<(Number, Option<Number>), PyErr> {
+    let x0 = 1_f64 / &k;
+    let x1 = b / 2_f64 - 0.5_f64;
+    let x2 = &f * &k;
+    let x3 = b - 1_f64;
+    let x = &t
+        * ((&a).pow(2_f64) * (&x2).pow(x3) * x3.pow(2_f64) / 24_f64
+            + 0.25_f64 * &a * b * &p * &v * (&x2).pow(x1)
+            + (&v).pow(2_f64) * (2_f64 - 3_f64 * (&p).pow(2_f64)) / 24_f64)
+        + 1_f64;
+
+    let dx: Option<Number> = match derivative {
+        1 => Some(
+            &t * ((&a).pow(2_f64) * &x0 * (&x2).pow(x3) * x3.pow(3_f64) / 24_f64
+                + 0.25 * &a * b * p * &v * x0 * x1 * x2.pow(x1)),
+        ),
+        2 => Some(
+            &a * &t * x3 * (&a * x3.pow(2_f64) * (&x2).pow(x3) + 3_f64 * b * p * v * x2.pow(x1))
+                / (24_f64 * f),
+        ),
+        _ => None,
+    };
+
+    Ok((x, dx))
+}
