@@ -1210,7 +1210,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
             f_,
             self.t_expiry,
             self.nodes["alpha"],
-            self.nodes["beta"],
+            self.nodes["beta"],  # type: ignore[arg-type]
             self.nodes["rho"],
             self.nodes["nu"],
         )
