@@ -701,7 +701,7 @@ class Gradients:
                 The variable tags for automatic differentiation of FX rate sensitivity
         """  # noqa: E501
         # use float here to cast float array not Dual
-        ret: NDArray[Nf64] = grad_f_P * _dual_float(f)  # type: ignore[assignment]
+        ret: NDArray[Nf64] = grad_f_P * _dual_float(f)
         ret += _dual_float(npv) * self.grad_f_f(f, fx_vars)
         return ret
 
@@ -1487,7 +1487,7 @@ class Solver(Gradients, _WithState):
             A = np.matmul(self.J, np.matmul(self.W, self.J.transpose()))
             A += self.lambd * np.eye(self.n)
             b = -0.5 * gradient(self.g, self.variables)[:, np.newaxis]
-            delta = np.linalg.solve(A, b)[:, 0]
+            delta = np.linalg.solve(A, b)[:, 0]  # type: ignore[assignment]
             v_1 = self.v + delta
         # elif algorithm == "gradient_descent_final":
         #     _ = np.matmul(self.Jkm, np.matmul(self.W, self.x[:, np.newaxis]))
@@ -1697,7 +1697,7 @@ class Solver(Gradients, _WithState):
                     * inst_scalar
                 )
                 container[("fx", ccy, base)] = (
-                    self.grad_f_Pbase(npv[ccy], container[("fx", ccy, ccy)] / fx_scalar, f, fx_vars)  # type: ignore[arg-type]
+                    self.grad_f_Pbase(npv[ccy], container[("fx", ccy, ccy)] / fx_scalar, f, fx_vars)
                     * fx_scalar
                 )
 
@@ -2233,7 +2233,7 @@ class Solver(Gradients, _WithState):
                 container[("exogenous", ccy, base)] = (
                     self.grad_f_Pbase(
                         npv[ccy],
-                        container[("exogenous", ccy, ccy)] / vars_scalar,  # type: ignore[arg-type]
+                        container[("exogenous", ccy, ccy)] / vars_scalar,
                         f,
                         vars,
                     )

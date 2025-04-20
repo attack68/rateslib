@@ -1426,7 +1426,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                     base_obj,  # type: ignore[arg-type]
                     _dual_float(self.nodes[self.node_keys[0]]),
                     base_obj.vars,
-                    ident[0, :].tolist(),  # type: ignore[arg-type]
+                    ident[0, :].tolist(),
                     *DualArgs[1:],
                 )
 
@@ -1435,7 +1435,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                     base_obj,  # type: ignore[arg-type]
                     _dual_float(vector[i]),
                     base_obj.vars,
-                    ident[i + self._ini_solve, :].tolist(),  # type: ignore[arg-type]
+                    ident[i + self._ini_solve, :].tolist(),
                     *DualArgs[1:],
                 )
         self._ad = ad

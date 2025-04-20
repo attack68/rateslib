@@ -652,7 +652,7 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
                 base_obj,  # type: ignore[arg-type]
                 vector[i].real,
                 base_obj.vars,
-                ident[i, :].tolist(),  # type: ignore[arg-type]
+                ident[i, :].tolist(),
                 *DualArgs[1:],
             )
         self._csolve()
@@ -1280,21 +1280,21 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
             base_obj,  # type: ignore[arg-type]
             vector[0].real,
             base_obj.vars,
-            ident[0, :].tolist(),  # type: ignore[arg-type]
+            ident[0, :].tolist(),
             *DualArgs[1:],
         )
         self.nodes["rho"] = DualType.vars_from(
             base_obj,  # type: ignore[arg-type]
             vector[1].real,
             base_obj.vars,
-            ident[1, :].tolist(),  # type: ignore[arg-type]
+            ident[1, :].tolist(),
             *DualArgs[1:],
         )
         self.nodes["nu"] = DualType.vars_from(
             base_obj,  # type: ignore[arg-type]
             vector[2].real,
             base_obj.vars,
-            ident[2, :].tolist(),  # type: ignore[arg-type]
+            ident[2, :].tolist(),
             *DualArgs[1:],
         )
 
@@ -1442,7 +1442,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
 
             sq_t = self.t_expiry_sqrt
             dn = [
-                -dual_log(u_) * 100.0 / (s_ * sq_t) + eta_1 * s_ * sq_t / 100.0  # type: ignore[arg-type]
+                -dual_log(u_) * 100.0 / (s_ * sq_t) + eta_1 * s_ * sq_t / 100.0
                 for u_, s_ in zip(u, y, strict=True)
             ]
             delta_index = [dual_norm_cdf(-d_) for d_ in dn]
