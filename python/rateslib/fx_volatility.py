@@ -32,7 +32,7 @@ from rateslib.dual import (
     newton_ndim,
     set_order_convert,
 )
-from rateslib.dual.utils import _cast_pair, _dual_float
+from rateslib.dual.utils import _dual_float
 from rateslib.fx import FXForwards
 from rateslib.mutability import (
     _clear_cache_post,
