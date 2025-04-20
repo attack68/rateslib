@@ -198,7 +198,7 @@ pub(crate) fn _sabr_x2(
                 let y1 = b / 2_f64 - 0.5_f64;
                 let y2 = &v * &x0 / (&a * (&f * &k).pow(y1));
                 let dz = -y2 * (y1 * (&f * y0).log() + 1_f64);
-                
+
                 dx = Some(dx_dz * dz);
             }
         }
@@ -254,13 +254,11 @@ fn _sabr_dx2_dz(z: &Number, p: &Number) -> Number {
             };
             let mut dual = -0.5_f64 * &p_cast.dual;
             dual = dual + (2_f64 - 3_f64 * p_f64 * p_f64) / 6_f64 * &z_cast.dual;
-            Number::Dual(
-                Dual {
-                    real: -0.5_f64 * p_f64,
-                    vars: Arc::clone(&z_cast.vars),
-                    dual
-                }
-            )
+            Number::Dual(Dual {
+                real: -0.5_f64 * p_f64,
+                vars: Arc::clone(&z_cast.vars),
+                dual,
+            })
         }
         Number::Dual2(z_) => {
             let (z_cast, p_cast): (Dual2, Dual2) = match &p {
@@ -275,16 +273,20 @@ fn _sabr_dx2_dz(z: &Number, p: &Number) -> Number {
             dual = dual + (2_f64 - 3_f64 * p_f64 * p_f64) / 6_f64 * &z_cast.dual;
             let mut dual2 = (2_f64 - 3_f64 * p_f64 * p_f64) / 6_f64 * &z_cast.dual2;
             dual2 = dual2 - 0.5_f64 * &p_cast.dual2;
-            dual2 = dual2 + p_f64 * (5_f64 - 6_f64 * p_f64 * p_f64) / 8_f64 * fouter11_(&z_cast.dual.view(), &z_cast.dual.view());
-            dual2 = dual2 - 0.5_f64 * p_f64 * (fouter11_(&z_cast.dual.view(), &p_cast.dual.view()) + fouter11_(&p_cast.dual.view(), &z_cast.dual.view()));
-            Number::Dual2(
-                Dual2 {
-                    real: -0.5_f64 * p_f64,
-                    vars: Arc::clone(&z_cast.vars),
-                    dual: dual,
-                    dual2: dual2
-                }
-            )
+            dual2 = dual2
+                + p_f64 * (5_f64 - 6_f64 * p_f64 * p_f64) / 8_f64
+                    * fouter11_(&z_cast.dual.view(), &z_cast.dual.view());
+            dual2 = dual2
+                - 0.5_f64
+                    * p_f64
+                    * (fouter11_(&z_cast.dual.view(), &p_cast.dual.view())
+                        + fouter11_(&p_cast.dual.view(), &z_cast.dual.view()));
+            Number::Dual2(Dual2 {
+                real: -0.5_f64 * p_f64,
+                vars: Arc::clone(&z_cast.vars),
+                dual: dual,
+                dual2: dual2,
+            })
         }
     }
 }
