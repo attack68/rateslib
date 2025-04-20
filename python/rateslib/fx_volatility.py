@@ -1208,7 +1208,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
             f_,
             self.t_expiry,
             self.nodes["alpha"],
-            self.nodes["beta"],  # type: ignore[arg-type]
+            self.nodes["beta"],
             self.nodes["rho"],
             self.nodes["nu"],
         )
@@ -2548,7 +2548,9 @@ def _d_sabr_d_k_or_f(
     return X0 * X1 * X2, dX0 * X1 * X2 + X0 * dX1 * X2 + X0 * X1 * dX2  # type: ignore[operator]
 
 
-def _sabr_X0(
+from rateslib.rs import _sabr_X0
+
+def _sabr_X0_py(
     k: DualTypes,
     f: DualTypes,
     t: DualTypes,

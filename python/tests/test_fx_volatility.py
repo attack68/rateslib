@@ -1728,7 +1728,7 @@ class TestFXSabrSurface:
             calendar="tgt|fed",
             id="eurusd_vol",
         )
-        k = Variable(1.10, ["k"])
+        k = Dual(1.10, ["k"], [1.0])
         base = surface.get_from_strike(k, fxfo, dt(2025, 12, 12))[1]
         expected_ad = gradient(base, vars=["k"])[0]
         expected_fwd_diff = (
