@@ -1986,21 +1986,3 @@ class TestStateAndCache:
 def test_validate_delta_type() -> None:
     with pytest.raises(ValueError, match="`delta_type` must be in"):
         _validate_delta_type("BAD_TYPE")
-
-
-# Rust Extensions
-
-from rateslib.rs import _sabr_X0
-
-def test_rs_sabr_x0() -> None:
-    result = _sabr_X0(
-        k=Dual(1.02, ["k"], []),
-        f=1.02,
-        t=0.25,
-        a=Dual(0.05, ["a"], []),
-        b=1.0,
-        p=0.05,
-        v=0.06,
-        derivative=2,
-    )
-    pass

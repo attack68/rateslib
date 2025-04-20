@@ -41,6 +41,7 @@ from rateslib.mutability import (
     _WithCache,
     _WithState,
 )
+from rateslib.rs import _sabr_X0 as _rs_sabr_X0
 from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
 
@@ -2548,9 +2549,7 @@ def _d_sabr_d_k_or_f(
     return X0 * X1 * X2, dX0 * X1 * X2 + X0 * dX1 * X2 + X0 * X1 * dX2  # type: ignore[operator]
 
 
-from rateslib.rs import _sabr_X0
-
-def _sabr_X0_py(
+def _sabr_X0(
     k: DualTypes,
     f: DualTypes,
     t: DualTypes,
@@ -2563,38 +2562,10 @@ def _sabr_X0_py(
     """
     X0 = a / ((fk)^((1-b)/2) * (1 + (1-b)^2/24 ln^2(f/k) + (1-b)^4/1920 ln^4(f/k) )
 
-    If ``derivative`` is 1 also returns dX0/dk, calculated using sympy.
-    If ``derivative`` is 2 also returns dX0/df, calculated using sympy.
+    If ``derivative`` is 1 also returns dX0/dk, derived using sympy auto code generator.
+    If ``derivative`` is 2 also returns dX0/df, derived using sympy auto code generator.
     """
-    x0 = 1 / k
-    x1 = 1 / 24 - b / 24
-    x2 = dual_log(f * x0)
-    x3 = (1 - b) ** 4
-    x4 = x1 * x2**2 + x2**4 * x3 / 1920 + 1
-    x5 = b / 2 - 1 / 2
-    x6 = a * (f * k) ** x5
-
-    dX0: DualTypes | None = None
-    if derivative == 1:
-        # return derivative with respect to k
-        dX0 = x0 * x5 * x6 / x4 + x6 * (2 * x0 * x1 * x2 + x0 * x2**3 * x3 / 480) / x4**2
-    elif derivative == 2:
-        # return derivative with respect to f
-        y0 = b - 1
-        y2 = y0**2 * x2**2
-        y3 = y0**4 * x2**4 + 80 * y2 + 1920
-        dX0 = (
-            960
-            * a
-            * y0
-            * (f * k) ** (b / 2 - 1 / 2)
-            * (-8 * y0 * x2 * (y2 + 40) + y3)
-            / (f * y3**2)
-        )
-
-    X0 = x6 / (x2**4 * (1 - b) ** 4 / 1920 + x2**2 * (1 / 24 - b / 24) + 1)
-
-    return X0, dX0
+    return _rs_sabr_X0(k, f, t, a, b, p, v, derivative)
 
 
 def _sabr_X1(
