@@ -44,7 +44,7 @@ use fx::rates::ccy::Ccy;
 use fx::rates::{FXRate, FXRates};
 
 pub mod fx_volatility;
-use fx_volatility::sabr_funcs::{_sabr_x0, _sabr_x1};
+use fx_volatility::sabr_funcs::{_sabr_x0, _sabr_x1, _sabr_x2};
 
 // pub mod scheduling;
 
@@ -98,6 +98,7 @@ fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // FX Volatility
     m.add_function(wrap_pyfunction!(_sabr_x0, m)?)?;
     m.add_function(wrap_pyfunction!(_sabr_x1, m)?)?;
+    m.add_function(wrap_pyfunction!(_sabr_x2, m)?)?;
 
     Ok(())
 }

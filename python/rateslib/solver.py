@@ -1697,7 +1697,7 @@ class Solver(Gradients, _WithState):
                     * inst_scalar
                 )
                 container[("fx", ccy, base)] = (
-                    self.grad_f_Pbase(npv[ccy], container[("fx", ccy, ccy)] / fx_scalar, f, fx_vars)  # type: ignore[arg-type]
+                    self.grad_f_Pbase(npv[ccy], container[("fx", ccy, ccy)] / fx_scalar, f, fx_vars)
                     * fx_scalar
                 )
 
@@ -2233,7 +2233,7 @@ class Solver(Gradients, _WithState):
                 container[("exogenous", ccy, base)] = (
                     self.grad_f_Pbase(
                         npv[ccy],
-                        container[("exogenous", ccy, ccy)] / vars_scalar,  # type: ignore[arg-type]
+                        container[("exogenous", ccy, ccy)] / vars_scalar,
                         f,
                         vars,
                     )
