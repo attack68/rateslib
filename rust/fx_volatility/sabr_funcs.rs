@@ -30,13 +30,11 @@ pub(crate) fn _sabr_x0(
             + 1_f64);
 
     let dx: Option<Number> = match derivative {
-        1 => {
-            Some(
-                &x0 * x5 * &x6 / &x4
-                    + &x6 * (2_f64 * &x0 * x1 * &x2 + &x0 * (&x2).pow(3_f64) * x3 / 480_f64)
-                        / x4.pow(2_f64),
-            )
-        }
+        1 => Some(
+            &x0 * x5 * &x6 / &x4
+                + &x6 * (2_f64 * &x0 * x1 * &x2 + &x0 * (&x2).pow(3_f64) * x3 / 480_f64)
+                    / x4.pow(2_f64),
+        ),
         2 => {
             let y0 = b - 1_f64;
             let y2 = (&y0).pow(2_f64) * (&x2).pow(2_f64);
