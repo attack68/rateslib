@@ -14,8 +14,7 @@ from rateslib.fx import (
     FXRates,
     forward_fx,
 )
-from rateslib.fx.fx_forwards import _recursive_pair_population
-from rateslib.fx.fx_forwards import _FXForwardsAggregator
+from rateslib.fx.fx_forwards import _FXForwardsAggregator, _recursive_pair_population
 from rateslib.json import from_json
 
 
