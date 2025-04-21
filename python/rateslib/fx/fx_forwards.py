@@ -4,20 +4,25 @@ import json
 import warnings
 from datetime import datetime, timedelta
 from itertools import combinations, product
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 import numpy as np
 from pandas import DataFrame, Series
 
+from rateslib import defaults
 from rateslib.calendars import add_tenor
 from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
 from rateslib.default import NoInput, PlotOutput, _drb, plot
 from rateslib.dual import Dual, gradient
 from rateslib.fx.fx_rates import FXRates
-from rateslib.mutability import _new_state_post, _validate_states, _WithState
+from rateslib.mutability import _new_state_post, _validate_states, _WithState, _WithCache, _clear_cache_post
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, DualTypes, Number, datetime_
+    from rateslib.typing import CalInput, Number, datetime_
+DualTypes: TypeAlias = (
+    "Dual | Dual2 | Variable | float"  # required for non-cyclic import on _WithCache
+)
+
 
 """
 .. ipython:: python
@@ -33,7 +38,7 @@ if TYPE_CHECKING:
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class FXForwards(_WithState):
+class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
     """
     Class for storing and calculating FX forward rates.
 
@@ -101,6 +106,8 @@ class FXForwards(_WithState):
 
     _mutable_by_association = True
 
+    # @_new_state_post # handled internally
+    @_clear_cache_post
     def update(self, fx_rates: list[dict[str, float]] | NoInput = NoInput(0)) -> None:
         """
         Update the FXForward object with the latest FX rates and FX curves values.
@@ -172,6 +179,7 @@ class FXForwards(_WithState):
             self._set_new_state()
 
     @_new_state_post
+    @_clear_cache_post
     def __init__(
         self,
         fx_rates: FXRates | list[FXRates],
@@ -401,15 +409,18 @@ class FXForwards(_WithState):
 
     def _rate_without_validation(self, pair: str, settlement: datetime_ = NoInput(0)) -> DualTypes:
         settlement_: datetime = _drb(self.immediate, settlement)
+        if defaults.curve_caching and (pair, settlement_) in self._cache:
+            return self._cache[(pair, settlement_)]
+
         if settlement_ < self.immediate:
             raise ValueError("`settlement` cannot be before immediate FX rate date.")
 
         if settlement_ == self.immediate:
             # get FX rate directly from the immediate object
-            return self.fx_rates_immediate.rate(pair)
+            return self._cached_value((pair, settlement_), self.fx_rates_immediate.rate(pair))
         elif isinstance(self.fx_rates, FXRates) and settlement_ == self.fx_rates.settlement:
             # get FX rate directly from the spot object
-            return self.fx_rates.rate(pair)
+            return self._cached_value((pair, settlement_), self.fx_rates.rate(pair))
 
         ccy_lhs = pair[0:3].lower()
         ccy_rhs = pair[3:6].lower()
@@ -427,9 +438,10 @@ class FXForwards(_WithState):
         else:
             # recursively determine from FX-crosses
             via_ccy = self.currencies_list[via_idx]
-            return self.rate(f"{ccy_lhs}{via_ccy}", settlement_) * self.rate(
+            ret = self.rate(f"{ccy_lhs}{via_ccy}", settlement_) * self.rate(
                 f"{via_ccy}{ccy_rhs}", settlement_
             )
+            return self._cached_value((pair, settlement_), ret)
 
     def _rate_direct(
         self,
@@ -454,7 +466,7 @@ class FXForwards(_WithState):
         else:
             raise ValueError("`fx_curves` do not exist to create a direct FX rate for the pair.")
         f = self.fx_rates_immediate.rate(f"{ccy_lhs}{ccy_rhs}")
-        return scalar * f
+        return self._cached_value((f"{ccy_lhs}{ccy_rhs}", settlement), scalar * f)
 
     @_validate_states
     def positions(
@@ -906,6 +918,7 @@ class FXForwards(_WithState):
             y = [[(rate - rates[0]) * 10000 for rate in rates]]
         return plot([x] * len(y), y)
 
+    @_clear_cache_post
     def _set_ad_order(self, order: int) -> None:
         # does not require cache validation because updates the cache_id at end of method
         self._ad = order

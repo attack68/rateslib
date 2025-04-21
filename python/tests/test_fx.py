@@ -1532,6 +1532,30 @@ class TestFXForwards:
         after = fxf._state
         assert before != after
 
+    def test_cache_population(self):
+        fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
+        fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2))
+        fxr3 = FXRates({"gbpusd": 1.2}, settlement=dt(2022, 1, 3))
+        fxf = FXForwards(
+            fx_rates=[fxr1, fxr2, fxr3],  # FXRates as list
+            fx_curves={
+                "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "cadcad": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "usdeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "cadeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "gbpcad": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "gbpgbp": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            },
+        )
+        fxf._set_ad_order(0)
+        assert fxf._cache == {}
+        fxf.rate("gbpeur", dt(2022, 1, 11))
+        assert fxf._cache == {
+            ("gbpcad", dt(2022, 1, 11)): 1.3199999999999998,
+            ("cadeur", dt(2022, 1, 11)): 0.8658008658008657,
+            ("gbpeur", dt(2022, 1, 11)): 1.1428571428571426,
+        }
 
 def test_recursive_pair_population1():
     arr = np.array(
