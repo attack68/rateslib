@@ -70,7 +70,7 @@ from rateslib.curves import (
 )
 from rateslib.dual import Dual, Dual2, Variable, dual_exp, dual_log, dual_solve, gradient
 from rateslib.fx import FXForwards, FXRates
-from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
+from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments import (
     CDS,
     FRA,
@@ -195,6 +195,8 @@ __all__ = [
     # fx_volatility.py
     "FXDeltaVolSmile",
     "FXDeltaVolSurface",
+    "FXSabrSmile",
+    "FXSabrSurface",
     # solver.py
     "Solver",
     # fx.py

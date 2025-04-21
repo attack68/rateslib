@@ -304,3 +304,33 @@ class Curve:
 def _get_convention_str(convention: Convention) -> str: ...
 def _get_modifier_str(modifier: Modifier) -> str: ...
 def index_left_f64(list_input: list[float], value: float, left_count: int | None = None) -> int: ...
+def _sabr_x0(
+    k: DualTypes,
+    f: DualTypes,
+    t: DualTypes,
+    a: DualTypes,
+    b: float,
+    p: DualTypes,
+    v: DualTypes,
+    derivative: int = 0,
+) -> tuple[DualTypes, DualTypes | None]: ...
+def _sabr_x1(
+    k: DualTypes,
+    f: DualTypes,
+    t: DualTypes,
+    a: DualTypes,
+    b: float,
+    p: DualTypes,
+    v: DualTypes,
+    derivative: int = 0,
+) -> tuple[DualTypes, DualTypes | None]: ...
+def _sabr_x2(
+    k: DualTypes,
+    f: DualTypes,
+    t: DualTypes,
+    a: DualTypes,
+    b: float,
+    p: DualTypes,
+    v: DualTypes,
+    derivative: int = 0,
+) -> tuple[DualTypes, DualTypes | None]: ...

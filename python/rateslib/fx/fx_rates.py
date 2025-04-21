@@ -117,7 +117,7 @@ class FXRates(_WithState):
         base: str | NoInput = NoInput(0),
     ):
         # Temporary declaration - will be overwritten
-        self.currencies: dict[str, int] = {}
+        self._currencies: dict[str, int] = {}
 
         settlement_: datetime | None = _drb(None, settlement)
         fx_rates_ = [FXRate(k[0:3], k[3:6], v, settlement_) for k, v in fx_rates.items()]
@@ -144,7 +144,7 @@ class FXRates(_WithState):
         return new
 
     def __init_post_obj__(self) -> None:
-        self.currencies = {ccy.name: i for (i, ccy) in enumerate(self.obj.currencies)}
+        self._currencies = {ccy.name: i for (i, ccy) in enumerate(self.obj.currencies)}
 
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, FXRates):
@@ -170,6 +170,7 @@ class FXRates(_WithState):
 
     @cached_property
     def fx_array(self) -> Arr2dObj:
+        """An array containing all of the FX pairs/crosses available on the object."""
         # caching this prevents repetitive data transformations between Rust/Python
         return np.array(self.obj.fx_array)  # type: ignore[return-value]
 
@@ -179,38 +180,62 @@ class FXRates(_WithState):
 
     @property
     def base(self) -> str:
+        """The assumed base currency of the object which may be used as the default ``base``
+        currency in ``npv`` calculations when otherwise omitted.
+
+        The base currency has index 0 in the ``currencies`` dict and is that which the ``fx_vector``
+        is defined relative to.
+        """
         return self.obj.base.name
 
     @property
     def settlement(self) -> datetime:
+        """The settlement date of the FX rates that define the object."""
         return self.obj.fx_rates[0].settlement
 
     @property
     def pairs(self) -> list[str]:
+        """A list of the currency pairs that define the object. The number of pairs is one
+        less than ``q``."""
         return [fxr.pair for fxr in self.obj.fx_rates]
 
     @property
     def fx_rates(self) -> dict[str, DualTypes]:
+        """The dict of currency pairs and their FX rates that define the object."""
         return {fxr.pair: fxr.rate for fxr in self.obj.fx_rates}
 
     @property
     def currencies_list(self) -> list[str]:
+        """An list of currencies available in the object. Aligns with ``currencies``."""
         return [ccy.name for ccy in self.obj.currencies]
 
     @property
+    def currencies(self) -> dict[str, int]:
+        """A dict whose keys are the currencies contained in the object and the value is the
+        ordered index of that currencies in other attributes such as ``fx_array`` and
+        ``currencies_list``."""
+        return self._currencies
+
+    @property
     def q(self) -> int:
+        """The number of currencies contained in the object."""
         return len(self.obj.currencies)
 
     @property
     def fx_vector(self) -> Arr1dObj:
+        """A vector of currency FX rates all relative to the stated ``base`` currency."""
         return self.fx_array[0, :]  # type: ignore[return-value]
 
     @property
     def pairs_settlement(self) -> dict[str, datetime]:
+        """A dict aggregating each FX pair and its settlement date. In an *FXRates* object
+        all pairs settle on the same settlement date."""
         return dict.fromkeys(self.pairs, self.settlement)
 
     @property
     def variables(self) -> tuple[str, ...]:
+        """The names of the variables associated with the object for automatic differentiation (AD)
+        purposes."""
         return tuple(f"fx_{pair}" for pair in self.pairs)
 
     @property

@@ -22,14 +22,14 @@ def _no_interior_validation(func: Callable[P, R]) -> Callable[P, R]:
     """
 
     @wraps(func)
-    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+    def wrapper_no_interior_validation(*args: P.args, **kwargs: P.kwargs) -> R:
         self: Solver = args[0]  # type: ignore[assignment]
         self._do_not_validate = True
         result = func(*args, **kwargs)
         self._do_not_validate = False
         return result
 
-    return wrapper
+    return wrapper_no_interior_validation
 
 
 def _validate_states(func: Callable[P, R]) -> Callable[P, R]:
@@ -40,12 +40,12 @@ def _validate_states(func: Callable[P, R]) -> Callable[P, R]:
     """
 
     @wraps(func)
-    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+    def wrapper_validate_states(*args: P.args, **kwargs: P.kwargs) -> R:
         self = args[0]
         self._validate_state()  # type: ignore[attr-defined]
         return func(*args, **kwargs)
 
-    return wrapper
+    return wrapper_validate_states
 
 
 def _clear_cache_post(func: Callable[P, R]) -> Callable[P, R]:
@@ -55,13 +55,13 @@ def _clear_cache_post(func: Callable[P, R]) -> Callable[P, R]:
     """
 
     @wraps(func)
-    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+    def wrapper_clear_cache(*args: P.args, **kwargs: P.kwargs) -> R:
         self = args[0]
         result = func(*args, **kwargs)
         self._clear_cache()  # type: ignore[attr-defined]
         return result
 
-    return wrapper
+    return wrapper_clear_cache
 
 
 def _new_state_post(func: Callable[P, R]) -> Callable[P, R]:
@@ -71,13 +71,13 @@ def _new_state_post(func: Callable[P, R]) -> Callable[P, R]:
     """
 
     @wraps(func)
-    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+    def wrapper_new_state(*args: P.args, **kwargs: P.kwargs) -> R:
         self = args[0]
         result = func(*args, **kwargs)
         self._set_new_state()  # type: ignore[attr-defined]
         return result
 
-    return wrapper
+    return wrapper_new_state
 
 
 class _WithState:

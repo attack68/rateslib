@@ -276,7 +276,7 @@ def test_copy_curve(curve, line_curve) -> None:
         ("nodes", {dt(2022, 3, 1): 1.00}),
         ("interpolation", "log_linear"),
         ("id", "x"),
-        ("ad", 0),
+        ("_ad", 0),
         ("convention", "actact"),
         ("t", [dt(2022, 1, 1)]),
         ("calendar_type", "bad"),
@@ -1160,6 +1160,11 @@ def test_curve_translate_raises(curve) -> None:
 def test_curve_zero_width_rate_raises(curve) -> None:
     with pytest.raises(ZeroDivisionError, match="effective:"):
         curve.rate(dt(2022, 3, 10), dt(2022, 3, 10))
+
+
+def test_set_node_vector_updates_ad_attribute(curve) -> None:
+    curve._set_node_vector([0.98], ad=2)
+    assert curve.ad == 2
 
 
 class TestCurve:

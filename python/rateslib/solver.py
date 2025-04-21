@@ -490,12 +490,12 @@ class Gradients:
                 grad_v_r = np.array([gradient(r, pre_solver.pre_variables) for r in self.r]).T
                 block = np.matmul(grad_v_r, self.grad_s_vT)
                 block = -1 * np.matmul(pre_solver.grad_s_vT_pre, block)
-                grad_s_vT[i : i + m, -self.m :] = block
+                grad_s_vT[i : i + m, -self.n :] = block
 
                 i, j = i + m, j + n
 
             # create bottom right block
-            grad_s_vT[-self.m :, -self.m :] = self.grad_s_vT
+            grad_s_vT[-self.m :, -self.n :] = self.grad_s_vT
             self._grad_s_vT_pre = grad_s_vT
         return self._grad_s_vT_pre
 
@@ -1317,13 +1317,13 @@ class Solver(Gradients, _WithState):
 
     @_validate_states
     def _get_pre_curve(self, obj: str) -> Curve:
-        _: Curve | FXVols = self.pre_curves[obj]
-        if isinstance(_, Curve):
-            return _
+        ret: Curve | FXVols = self.pre_curves[obj]
+        if isinstance(ret, Curve):
+            return ret  # type: ignore[no-any-return]
         else:
             raise ValueError(
                 f"A type of `Curve` object was sought with id:'{obj}' from Solver but another "
-                f"type object was returned:'{type(_)}'."
+                f"type object was returned:'{type(ret)}'."
             )
 
     @_validate_states
@@ -1697,7 +1697,7 @@ class Solver(Gradients, _WithState):
                     * inst_scalar
                 )
                 container[("fx", ccy, base)] = (
-                    self.grad_f_Pbase(npv[ccy], container[("fx", ccy, ccy)] / fx_scalar, f, fx_vars)  # type: ignore[arg-type]
+                    self.grad_f_Pbase(npv[ccy], container[("fx", ccy, ccy)] / fx_scalar, f, fx_vars)
                     * fx_scalar
                 )
 
@@ -2233,7 +2233,7 @@ class Solver(Gradients, _WithState):
                 container[("exogenous", ccy, base)] = (
                     self.grad_f_Pbase(
                         npv[ccy],
-                        container[("exogenous", ccy, ccy)] / vars_scalar,  # type: ignore[arg-type]
+                        container[("exogenous", ccy, ccy)] / vars_scalar,
                         f,
                         vars,
                     )

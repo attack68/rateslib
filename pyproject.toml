@@ -146,10 +146,9 @@ ignore = [
 max-complexity = 14
 
 [tool.mypy]
-packages = [
-    "rateslib"
-]
+files = ["python/"]
 exclude = [
+    "python/tests"
     # "/instruments/bonds/securities.py",
     # "/instruments/fx_volatility/strategies.py",
     # "/instruments/generics.py",
@@ -157,6 +156,9 @@ exclude = [
     # "solver.py",
 ]
 strict = true
+#packages = [
+#    "rateslib"
+#]
 
 [tool.coverage.run]
 omit = [
