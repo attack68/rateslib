@@ -1557,6 +1557,7 @@ class TestFXForwards:
             ("gbpeur", dt(2022, 1, 11)): 1.1428571428571426,
         }
 
+
 def test_recursive_pair_population1():
     arr = np.array(
         [
