@@ -1699,9 +1699,6 @@ class TestFXSabrSurface:
                 [f"atm_{row}", f"25drr_{row}", f"25dbf_{row}", f"10drr_{row}", f"10dbf_{row}"]
             )
 
-        def cb(a, b, c):
-            print("ITERATION")
-
         Solver(
             surfaces=[surface],
             instruments=instruments_le_1y + instruments_gt_1y,
@@ -1710,7 +1707,6 @@ class TestFXSabrSurface:
             fx=fxf,
             pre_solvers=[fx_solver],
             id="eurusd_vol",
-            callback=cb,
         )
 
     def test_k_derivative_interpolation(self, fxfo):
