@@ -13,9 +13,15 @@ from rateslib import defaults
 from rateslib.calendars import add_tenor
 from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
 from rateslib.default import NoInput, PlotOutput, _drb, plot
-from rateslib.dual import Dual, gradient
+from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.fx.fx_rates import FXRates
-from rateslib.mutability import _new_state_post, _validate_states, _WithState, _WithCache, _clear_cache_post
+from rateslib.mutability import (
+    _clear_cache_post,
+    _new_state_post,
+    _validate_states,
+    _WithCache,
+    _WithState,
+)
 
 if TYPE_CHECKING:
     from rateslib.typing import CalInput, Number, datetime_
@@ -777,7 +783,8 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
             )
             for k in [self.immediate + timedelta(days=i) for i in range(days + 1)]
         }
-        return Curve(nodes)
+        c_: Curve = Curve(nodes)
+        return c_
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
