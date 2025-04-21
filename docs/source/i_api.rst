@@ -158,6 +158,7 @@ FX Volatility
 .. automodapi:: rateslib.fx_volatility
    :no-heading:
    :no-inheritance-diagram:
+   :skip: FXForwards
    :skip: Any
    :skip: Variable
    :skip: set_order_convert
