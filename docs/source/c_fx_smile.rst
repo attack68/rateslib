@@ -24,6 +24,7 @@ which can be used to price *FX Options* and *FX Option Strategies*.
    rateslib.fx_volatility.FXDeltaVolSmile
    rateslib.fx_volatility.FXSabrSmile
    rateslib.fx_volatility.FXDeltaVolSurface
+   rateslib.fx_volatility.FXSabrSurface
 
 Introduction and FX Volatility Smiles
 *************************************
