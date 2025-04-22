@@ -31,8 +31,9 @@ into any one category.
 .. toctree::
     :titlesonly:
 
-    z_eurusd_surface.ipynb
+    z_fxvol_surface_construction.ipynb
     z_fxvol_temporal.ipynb
+    z_eurusd_surface.ipynb
 
 **Instrument Pricing**
 

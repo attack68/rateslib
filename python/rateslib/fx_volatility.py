@@ -794,6 +794,31 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
 
     See :ref:`constructing FX volatility surfaces <c-fx-smile-doc>` for more details.
 
+    **Calibration**
+
+    *Instruments* that do not match the ``delta_type`` of this *Surface* can still be used within
+    a :class:`~rateslib.solver.Solver` to calibrate the surface. This is quite common, when
+    *Options* less than or equal to one year expiry might use a *'spot'* delta type whilst longer
+    expiries use *'forward'* delta type.
+
+    Internally this is all handled appropriately with necessary conversions, but it is the users
+    responsibility to label the *Surface* and *Instrument* with the correct types. Failing to
+    take correct delta types into account often introduces a mismatch -
+    large enough to be relevant for calibration and pricing, but small enough that it may not be
+    noticed at first. Parametrising the *Surface* with a *'forward'* delta type is the
+    **recommended**
+    choice because it is more standardised and the configuration of which *delta types* to use for
+    the *Instruments* can be a separate consideration.
+
+    For performance reasons it is recommended to match unadjusted delta type *Surfaces* with
+    calibrating *Instruments* that also have unadjusted delta types. And vice versa with
+    premium adjusted
+    delta types. However, *rateslib* has internal root solvers which can handle these
+    cross-delta type
+    specifications, although it degrades the performance of the *Solver* because the calculations
+    are made more difficult. Mixing 'spot' and 'forward' is not a difficult distinction to
+    refactor and that does not cause performance degradation.
+
     """
 
     _ini_solve = 0
