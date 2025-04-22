@@ -56,7 +56,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
    * - Performance
      - The :meth:`FXStrangle.rate <rateslib.instruments.FXStrangle.rate>` method is refactored to
        use :meth:`rateslib.dual.newton_1dim` for performance.
-       (`735 <https://github.com/attack68/rateslib/pull/735>`_)
+       (`738 <https://github.com/attack68/rateslib/pull/738>`_)
    * - Performance
      - A cache has been added to :class:`~rateslib.fx.FXForwards` for forward FX rate caching
        per currency pair per date.
