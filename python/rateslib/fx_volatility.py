@@ -813,7 +813,8 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
     For performance reasons it is recommended to match unadjusted delta type *Surfaces* with
     calibrating *Instruments* that also have unadjusted delta types. And vice versa with
     premium adjusted
-    delta types. However, *rateslib* has internal root solvers which can handle these cross-delta type
+    delta types. However, *rateslib* has internal root solvers which can handle these
+    cross-delta type
     specifications, although it degrades the performance of the *Solver* because the calculations
     are made more difficult. Mixing 'spot' and 'forward' is not a difficult distinction to
     refactor and that does not cause performance degradation.
