@@ -16,7 +16,7 @@ from rateslib import *
 project = 'Rateslib'
 copyright = '2022, 2023, 2024, 2025, Siffrorna Technology Limited'
 author = 'JHM Darbyshire'
-release = 'dev'
+release = '1.8.x'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
