@@ -6,7 +6,7 @@ from rateslib.instruments import IRS
 
 
 def test_version() -> None:
-    assert __version__ == "1.7.0"
+    assert __version__ == "1.8.0"
 
 
 @pytest.mark.parametrize("name", ["estr", "sonia", "sofr", "swestr", "nowa"])
