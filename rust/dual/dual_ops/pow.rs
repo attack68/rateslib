@@ -40,6 +40,48 @@ impl Pow<Dual> for &f64 {
     }
 }
 
+impl Pow<&Dual2> for f64 {
+    type Output = Dual2;
+    fn pow(self, power: &Dual2) -> Self::Output {
+        let df_dp = self.ln() * self.pow(power.real);
+        let d2f_dp2 = df_dp * self.ln();
+        Dual2 {
+            real: self.pow(power.real),
+            vars: Arc::clone(power.vars()),
+            dual: &power.dual * self.pow(power.real) * self.ln(),
+            dual2: df_dp * &power.dual2 + 0.5_f64 * d2f_dp2 * fouter11_(&power.dual.view(), &power.dual.view())
+        }
+    }
+}
+
+impl Pow<Dual2> for f64 {
+    type Output = Dual2;
+    fn pow(self, power: Dual2) -> Self::Output {
+        let df_dp = self.ln() * self.pow(power.real);
+        let d2f_dp2 = df_dp * self.ln();
+        Dual2 {
+            real: self.pow(power.real),
+            vars: power.vars,
+            dual: &power.dual * self.pow(power.real) * self.ln(),
+            dual2: df_dp * &power.dual2 + 0.5_f64 * d2f_dp2 * fouter11_(&power.dual.view(), &power.dual.view())
+        }
+    }
+}
+
+impl Pow<&Dual2> for &f64 {
+    type Output = Dual2;
+    fn pow(self, power: &Dual2) -> Self::Output {
+        return (*self).pow(power)
+    }
+}
+
+impl Pow<Dual2> for &f64 {
+    type Output = Dual2;
+    fn pow(self, power: Dual2) -> Self::Output {
+        return (*self).pow(power)
+    }
+}
+
 
 impl Pow<f64> for Dual {
     type Output = Dual;
@@ -235,6 +277,23 @@ mod tests {
         let result2 = (&2_f64).pow(p);
         assert_eq!(result2, expected);
         let p = Dual::new(3.0_f64, vec!["p".to_string()]);
+        let result3 = (2_f64).pow(&p);
+        assert_eq!(result3, expected);
+        let result4 = (2_f64).pow(p);
+        assert_eq!(result4, expected);
+    }
+
+    #[test]
+    fn test_f64_dual2() {
+        let p = Dual2::new(3.0_f64, vec!["p".to_string()]);
+        let result = (&2_f64).pow(&p);
+        let expected = Dual2::try_new(
+            8.0, vec!["p".to_string()], vec![2.0_f64.ln() * 8.0], vec![2_f64.ln() * 2_f64.ln() * 4_f64]).unwrap();
+        assert_eq!(result, expected);
+
+        let result2 = (&2_f64).pow(p);
+        assert_eq!(result2, expected);
+        let p = Dual2::new(3.0_f64, vec!["p".to_string()]);
         let result3 = (2_f64).pow(&p);
         assert_eq!(result3, expected);
         let result4 = (2_f64).pow(p);
