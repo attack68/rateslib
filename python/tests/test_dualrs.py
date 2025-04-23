@@ -3,7 +3,7 @@ import math
 import numpy as np
 import pytest
 from packaging import version
-from rateslib.dual import Dual, Dual2, dual_solve, gradient
+from rateslib.dual import Dual, Dual2, dual_solve, gradient, dual_exp, dual_log
 from rateslib.rs import ADOrder, from_json
 
 DUAL_CORE_PY = False
@@ -394,3 +394,14 @@ def test_dual_powers_finite_diff(z, p):
         # Finite diff test
         p_diff = (z ** (p + 0.00001) - result) / 0.00001
         assert abs(gradient(result, ["p"])[0] - p_diff) < 1e-4
+
+def test_dual_powers_operators() -> None:
+    z = Dual(2.3, ["x", "y", "z"], [1.0, 2.0, 3.0])
+    p = Dual(2.3, ["x", "y", "p"], [2.0, 3.0, 4.0])
+    result = z ** p
+    expected = dual_exp(p * dual_log(z))
+    assert abs(result -expected) < 1e-12
+    assert np.all(np.isclose(
+        gradient(result, ["x", "y", "z", "p"]),
+        gradient(expected, ["x", "y", "z", "p"])
+    ))
