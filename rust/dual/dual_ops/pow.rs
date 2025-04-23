@@ -26,6 +26,39 @@ impl Pow<f64> for &Dual {
     }
 }
 
+impl Pow<&Dual> for &Dual {
+    type Output = Dual;
+    fn pow(self, power: &Dual) -> Self::Output {
+        let (z,p) = self.to_union_vars(power, None);
+        Dual {
+            real: z.real.pow(p.real),
+            vars: Arc::clone(z.vars()),
+            dual: p.real * z.real.pow(p.real - 1_f64) * &z.dual + z.real.ln() * z.real.pow(p.real) * &p.dual,
+        }
+    }
+}
+
+impl Pow<&Dual> for Dual {
+    type Output = Dual;
+    fn pow(self, power: &Dual) -> Self::Output {
+        return (&self).pow(power)
+    }
+}
+
+impl Pow<Dual> for &Dual {
+    type Output = Dual;
+    fn pow(self, power: Dual) -> Self::Output {
+        return self.pow(&power)
+    }
+}
+
+impl Pow<Dual> for Dual {
+    type Output = Dual;
+    fn pow(self, power: Dual) -> Self::Output {
+        return (&self).pow(&power)
+    }
+}
+
 impl Pow<f64> for Dual2 {
     type Output = Dual2;
     fn pow(self, power: f64) -> Self::Output {
@@ -134,5 +167,23 @@ mod tests {
 
         let res = (&d).pow(2.0_f64);
         assert_eq!(Number::Dual(res), Number::Dual(d).pow(2.0_f64));
+    }
+
+    #[test]
+    fn test_dual_dual() {
+        let z = Dual::new(2.0_f64, vec!["x".to_string()]);
+        let p = Dual::new(3.0_f64, vec!["p".to_string()]);
+        let result = (&z).pow(&p);
+        let expected = Dual::try_new(8.0, vec!["x".to_string(), "p".to_string()], vec![12.0, 2.0_f64.ln() * 8.0]).unwrap();
+        assert_eq!(result, expected);
+
+        let result2 = (&z).pow(p);
+        assert_eq!(result2, expected);
+        let p = Dual::new(3.0_f64, vec!["p".to_string()]);
+        let result3 = (z).pow(&p);
+        assert_eq!(result3, expected);
+        let z = Dual::new(2.0_f64, vec!["x".to_string()]);
+        let result4 = (z).pow(p);
+        assert_eq!(result4, expected);
     }
 }
