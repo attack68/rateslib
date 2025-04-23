@@ -700,6 +700,19 @@ impl Dual2 {
         }
     }
 
+    fn __rpow__(&self, other: Number, modulo: Option<i32>) -> PyResult<Self> {
+        if modulo.unwrap_or(0) != 0 {
+            panic!("Power function with mod not available for Dual2.")
+        }
+        match other {
+            Number::F64(f) => Ok(f.pow(self)),
+            Number::Dual(_d) => Err(PyTypeError::new_err(
+                "Power operation does not permit Dual/Dual2 type crossing.",
+            )),
+            Number::Dual2(d_) => Ok(d_.pow(self)),
+        }
+    }
+
     fn __exp__(&self) -> Self {
         self.exp()
     }

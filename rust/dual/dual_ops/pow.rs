@@ -29,14 +29,14 @@ impl Pow<Dual> for f64 {
 impl Pow<&Dual> for &f64 {
     type Output = Dual;
     fn pow(self, power: &Dual) -> Self::Output {
-        return (*self).pow(power)
+        (*self).pow(power)
     }
 }
 
 impl Pow<Dual> for &f64 {
     type Output = Dual;
     fn pow(self, power: Dual) -> Self::Output {
-        return (*self).pow(power)
+        (*self).pow(power)
     }
 }
 
@@ -49,7 +49,8 @@ impl Pow<&Dual2> for f64 {
             real: self.pow(power.real),
             vars: Arc::clone(power.vars()),
             dual: &power.dual * self.pow(power.real) * self.ln(),
-            dual2: df_dp * &power.dual2 + 0.5_f64 * d2f_dp2 * fouter11_(&power.dual.view(), &power.dual.view())
+            dual2: df_dp * &power.dual2
+                + 0.5_f64 * d2f_dp2 * fouter11_(&power.dual.view(), &power.dual.view()),
         }
     }
 }
@@ -63,7 +64,8 @@ impl Pow<Dual2> for f64 {
             real: self.pow(power.real),
             vars: power.vars,
             dual: &power.dual * self.pow(power.real) * self.ln(),
-            dual2: df_dp * &power.dual2 + 0.5_f64 * d2f_dp2 * fouter11_(&power.dual.view(), &power.dual.view())
+            dual2: df_dp * &power.dual2
+                + 0.5_f64 * d2f_dp2 * fouter11_(&power.dual.view(), &power.dual.view()),
         }
     }
 }
@@ -71,17 +73,16 @@ impl Pow<Dual2> for f64 {
 impl Pow<&Dual2> for &f64 {
     type Output = Dual2;
     fn pow(self, power: &Dual2) -> Self::Output {
-        return (*self).pow(power)
+        (*self).pow(power)
     }
 }
 
 impl Pow<Dual2> for &f64 {
     type Output = Dual2;
     fn pow(self, power: Dual2) -> Self::Output {
-        return (*self).pow(power)
+        (*self).pow(power)
     }
 }
-
 
 impl Pow<f64> for Dual {
     type Output = Dual;
@@ -108,11 +109,12 @@ impl Pow<f64> for &Dual {
 impl Pow<&Dual> for &Dual {
     type Output = Dual;
     fn pow(self, power: &Dual) -> Self::Output {
-        let (z,p) = self.to_union_vars(power, None);
+        let (z, p) = self.to_union_vars(power, None);
         Dual {
             real: z.real.pow(p.real),
             vars: Arc::clone(z.vars()),
-            dual: p.real * z.real.pow(p.real - 1_f64) * &z.dual + z.real.ln() * z.real.pow(p.real) * &p.dual,
+            dual: p.real * z.real.pow(p.real - 1_f64) * &z.dual
+                + z.real.ln() * z.real.pow(p.real) * &p.dual,
         }
     }
 }
@@ -120,21 +122,21 @@ impl Pow<&Dual> for &Dual {
 impl Pow<&Dual> for Dual {
     type Output = Dual;
     fn pow(self, power: &Dual) -> Self::Output {
-        return (&self).pow(power)
+        (&self).pow(power)
     }
 }
 
 impl Pow<Dual> for &Dual {
     type Output = Dual;
     fn pow(self, power: Dual) -> Self::Output {
-        return self.pow(&power)
+        self.pow(&power)
     }
 }
 
 impl Pow<Dual> for Dual {
     type Output = Dual;
     fn pow(self, power: Dual) -> Self::Output {
-        return (&self).pow(&power)
+        (&self).pow(&power)
     }
 }
 
@@ -165,6 +167,52 @@ impl Pow<f64> for &Dual2 {
             dual: &self.dual * coeff,
             dual2: &self.dual2 * coeff + beta_cross * coeff2,
         }
+    }
+}
+
+impl Pow<&Dual2> for &Dual2 {
+    type Output = Dual2;
+    fn pow(self, power: &Dual2) -> Self::Output {
+        let (z, p) = self.to_union_vars(power, None);
+        let f_z = p.real * z.real.pow(p.real - 1_f64);
+        let f_p = z.real.pow(p.real) * z.real.ln();
+        let f_zz = z.real * (z.real - 1_f64) * z.real.pow(p.real - 2_f64);
+        let f_pp = z.real.ln() * z.real.ln() * z.real.pow(p.real);
+        let f_pz = (p.real * z.real.ln() + 1_f64) * z.real.pow(p.real - 1_f64);
+        Dual2 {
+            real: z.real.pow(p.real),
+            vars: Arc::clone(z.vars()),
+            dual: f_z * &z.dual + f_p * &p.dual,
+            dual2: f_z * &z.dual2
+                + f_p * &p.dual2
+                + 0.5_f64 * f_zz * fouter11_(&z.dual.view(), &z.dual.view())
+                + 0.5_f64
+                    * f_pz
+                    * (fouter11_(&z.dual.view(), &p.dual.view())
+                        + fouter11_(&p.dual.view(), &z.dual.view()))
+                + 0.5_f64 * f_pp * fouter11_(&p.dual.view(), &p.dual.view()),
+        }
+    }
+}
+
+impl Pow<&Dual2> for Dual2 {
+    type Output = Dual2;
+    fn pow(self, power: &Dual2) -> Self::Output {
+        (&self).pow(power)
+    }
+}
+
+impl Pow<Dual2> for &Dual2 {
+    type Output = Dual2;
+    fn pow(self, power: Dual2) -> Self::Output {
+        self.pow(&power)
+    }
+}
+
+impl Pow<Dual2> for Dual2 {
+    type Output = Dual2;
+    fn pow(self, power: Dual2) -> Self::Output {
+        (&self).pow(&power)
     }
 }
 
@@ -253,7 +301,12 @@ mod tests {
         let z = Dual::new(2.0_f64, vec!["x".to_string()]);
         let p = Dual::new(3.0_f64, vec!["p".to_string()]);
         let result = (&z).pow(&p);
-        let expected = Dual::try_new(8.0, vec!["x".to_string(), "p".to_string()], vec![12.0, 2.0_f64.ln() * 8.0]).unwrap();
+        let expected = Dual::try_new(
+            8.0,
+            vec!["x".to_string(), "p".to_string()],
+            vec![12.0, 2.0_f64.ln() * 8.0],
+        )
+        .unwrap();
         assert_eq!(result, expected);
 
         let result2 = (&z).pow(p);
@@ -265,7 +318,6 @@ mod tests {
         let result4 = (z).pow(p);
         assert_eq!(result4, expected);
     }
-
 
     #[test]
     fn test_f64_dual() {
@@ -288,7 +340,12 @@ mod tests {
         let p = Dual2::new(3.0_f64, vec!["p".to_string()]);
         let result = (&2_f64).pow(&p);
         let expected = Dual2::try_new(
-            8.0, vec!["p".to_string()], vec![2.0_f64.ln() * 8.0], vec![2_f64.ln() * 2_f64.ln() * 4_f64]).unwrap();
+            8.0,
+            vec!["p".to_string()],
+            vec![2.0_f64.ln() * 8.0],
+            vec![2_f64.ln() * 2_f64.ln() * 4_f64],
+        )
+        .unwrap();
         assert_eq!(result, expected);
 
         let result2 = (&2_f64).pow(p);
