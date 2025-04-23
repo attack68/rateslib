@@ -4,6 +4,43 @@ use crate::dual::linalg::fouter11_;
 use num_traits::Pow;
 use std::sync::Arc;
 
+impl Pow<&Dual> for f64 {
+    type Output = Dual;
+    fn pow(self, power: &Dual) -> Self::Output {
+        Dual {
+            real: self.pow(power.real),
+            vars: Arc::clone(power.vars()),
+            dual: &power.dual * self.pow(power.real) * self.ln(),
+        }
+    }
+}
+
+impl Pow<Dual> for f64 {
+    type Output = Dual;
+    fn pow(self, power: Dual) -> Self::Output {
+        Dual {
+            real: self.pow(power.real),
+            vars: power.vars,
+            dual: power.dual * self.pow(power.real) * self.ln(),
+        }
+    }
+}
+
+impl Pow<&Dual> for &f64 {
+    type Output = Dual;
+    fn pow(self, power: &Dual) -> Self::Output {
+        return (*self).pow(power)
+    }
+}
+
+impl Pow<Dual> for &f64 {
+    type Output = Dual;
+    fn pow(self, power: Dual) -> Self::Output {
+        return (*self).pow(power)
+    }
+}
+
+
 impl Pow<f64> for Dual {
     type Output = Dual;
     fn pow(self, power: f64) -> Self::Output {
@@ -184,6 +221,23 @@ mod tests {
         assert_eq!(result3, expected);
         let z = Dual::new(2.0_f64, vec!["x".to_string()]);
         let result4 = (z).pow(p);
+        assert_eq!(result4, expected);
+    }
+
+
+    #[test]
+    fn test_f64_dual() {
+        let p = Dual::new(3.0_f64, vec!["p".to_string()]);
+        let result = (&2_f64).pow(&p);
+        let expected = Dual::try_new(8.0, vec!["p".to_string()], vec![2.0_f64.ln() * 8.0]).unwrap();
+        assert_eq!(result, expected);
+
+        let result2 = (&2_f64).pow(p);
+        assert_eq!(result2, expected);
+        let p = Dual::new(3.0_f64, vec!["p".to_string()]);
+        let result3 = (2_f64).pow(&p);
+        assert_eq!(result3, expected);
+        let result4 = (2_f64).pow(p);
         assert_eq!(result4, expected);
     }
 }
