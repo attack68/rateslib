@@ -21,9 +21,11 @@ email contact, see `rateslib <https://rateslib.com>`_.
 
    * - Feature
      - Description
-   * - Title
-     - Description
-       (`691 <https://github.com/attack68/rateslib/pull/691>`_)
+   * - Automatic Differentiation
+     - Operator overloads added to allow dual number exponents, i.e. :math:`z^p`, where *z*,
+       *p* are dual number types. This facilitates AD for the SABR function as well as other
+       exotic functions.
+       (`767 <https://github.com/attack68/rateslib/pull/767>`_)
 
 1.8.0 (22 April 2025)
 ****************************
