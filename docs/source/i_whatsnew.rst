@@ -41,12 +41,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
        attributes.
        (`700 <https://github.com/attack68/rateslib/pull/700>`_)
    * - FX Volatility
-     - An :class:`~rateslib.fx_volatility.FXSabrSmile` is implemented in *beta* status, which
-       cannot yet be used to price *Instruments*.
+     - An :class:`~rateslib.fx_volatility.FXSabrSmile` is implemented in *beta* status.
        (`714 <https://github.com/attack68/rateslib/pull/714>`_)
    * - FX Volatility
-     - An :class:`~rateslib.fx_volatility.FXSabrSurface` is implemented in *beta* status, which
-       cannot yet be used to price *Instruments*.
+     - An :class:`~rateslib.fx_volatility.FXSabrSurface` is implemented in *beta* status.
        (`729 <https://github.com/attack68/rateslib/pull/729>`_)
    * - FX Volatility
      - :red:`Minor Breaking Change!` The arguments to all FX Volatility model objects'
