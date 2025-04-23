@@ -345,9 +345,20 @@ impl Dual {
         }
         match power {
             Number::F64(f) => Ok(self.clone().pow(f)),
-            Number::Dual(_d) => Err(PyTypeError::new_err(
+            Number::Dual(d_) => Ok(self.pow(d_)),
+            Number::Dual2(_) => Err(PyTypeError::new_err(
                 "Power operation not defined with Dual type exponent.",
             )),
+        }
+    }
+
+    fn __rpow__(&self, other: Number, modulo: Option<i32>) -> PyResult<Self> {
+        if modulo.unwrap_or(0) != 0 {
+            panic!("Power function with mod not available for Dual.")
+        }
+        match other {
+            Number::F64(f) => Ok(f.pow(self)),
+            Number::Dual(d_) => Ok(d_.pow(self)),
             Number::Dual2(_) => Err(PyTypeError::new_err(
                 "Power operation not defined with Dual type exponent.",
             )),

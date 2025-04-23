@@ -375,3 +375,22 @@ def test_dual_powers_raise() -> None:
     y = Dual(2.0, ["y"], [])
     with pytest.raises(TypeError):
         x**y
+
+
+@pytest.mark.parametrize("z", [2.0, Dual(2.0, ["z"], [])])
+@pytest.mark.parametrize("p", [2.0, Dual(2.0, ["p"], [])])
+def test_dual_powers_finite_diff(z, p):
+    if isinstance(z, float) and isinstance(p, float):
+        return None  # float power not in scope
+
+    result = z ** p
+
+    if isinstance(z, Dual):
+        # Finite diff test
+        z_diff = ((z + 0.00001) ** p - result) / 0.00001
+        assert abs(gradient(result, ["z"])[0] - z_diff) < 1e-4
+
+    if isinstance(p, Dual):
+        # Finite diff test
+        p_diff = (z ** (p + 0.00001) - result) / 0.00001
+        assert abs(gradient(result, ["p"])[0] - p_diff) < 1e-4
