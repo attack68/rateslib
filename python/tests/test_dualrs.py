@@ -3,7 +3,7 @@ import math
 import numpy as np
 import pytest
 from packaging import version
-from rateslib.dual import Dual, Dual2, dual_solve, gradient, dual_exp, dual_log
+from rateslib.dual import Dual, Dual2, dual_exp, dual_log, dual_solve, gradient
 from rateslib.rs import ADOrder, from_json
 
 DUAL_CORE_PY = False
@@ -383,7 +383,7 @@ def test_dual_powers_finite_diff(z, p):
     if isinstance(z, float) and isinstance(p, float):
         return None  # float power not in scope
 
-    result = z ** p
+    result = z**p
 
     if isinstance(z, Dual):
         # Finite diff test
@@ -395,16 +395,16 @@ def test_dual_powers_finite_diff(z, p):
         p_diff = (z ** (p + 0.00001) - result) / 0.00001
         assert abs(gradient(result, ["p"])[0] - p_diff) < 1e-4
 
+
 def test_dual_powers_operators() -> None:
     z = Dual(2.3, ["x", "y", "z"], [1.0, 2.0, 3.0])
     p = Dual(4.4, ["x", "y", "p"], [2.0, 3.0, 4.0])
-    result = z ** p
+    result = z**p
     expected = dual_exp(p * dual_log(z))
-    assert abs(result -expected) < 1e-12
-    assert np.all(np.isclose(
-        gradient(result, ["x", "y", "z", "p"]),
-        gradient(expected, ["x", "y", "z", "p"])
-    ))
+    assert abs(result - expected) < 1e-12
+    assert np.all(
+        np.isclose(gradient(result, ["x", "y", "z", "p"]), gradient(expected, ["x", "y", "z", "p"]))
+    )
 
 
 @pytest.mark.parametrize("z", [2.0, Dual2(2.0, ["z"], [], [])])
@@ -413,7 +413,7 @@ def test_dual2_powers_finite_diff_first_order(z, p):
     if isinstance(z, float) and isinstance(p, float):
         return None  # float power not in scope
 
-    result = z ** p
+    result = z**p
 
     if isinstance(z, Dual2):
         # Finite diff test
@@ -432,7 +432,7 @@ def test_dual2_powers_finite_diff_second_order(z, p):
     if isinstance(z, float) and isinstance(p, float):
         return None  # float power not in scope
 
-    result = z ** p
+    result = z**p
 
     vars_ = (isinstance(z, Dual2), isinstance(p, Dual2))
     if vars_[0]:
@@ -457,16 +457,17 @@ def test_dual2_powers_finite_diff_second_order(z, p):
 
 
 def test_dual2_powers_operators() -> None:
-    z = Dual2(2.3, ["x", "y", "z"], [1.0, 2.0, 3.0], [1,2,3,4,5,6,7,8,9])
-    p = Dual2(4.4, ["x", "y", "p"], [2.0, 3.0, 4.0], [2,3,4,5,2,3,4,3,4])
-    result = z ** p
+    z = Dual2(2.3, ["x", "y", "z"], [1.0, 2.0, 3.0], [1, 2, 3, 4, 5, 6, 7, 8, 9])
+    p = Dual2(4.4, ["x", "y", "p"], [2.0, 3.0, 4.0], [2, 3, 4, 5, 2, 3, 4, 3, 4])
+    result = z**p
     expected = dual_exp(p * dual_log(z))
-    assert abs(result -expected) < 1e-12
-    assert np.all(np.isclose(
-        gradient(result, ["x", "y", "z", "p"]),
-        gradient(expected, ["x", "y", "z", "p"])
-    ))
-    assert np.all(np.isclose(
-        gradient(result, ["x", "y", "z", "p"], order=2),
-        gradient(expected, ["x", "y", "z", "p"], order=2)
-    ))
+    assert abs(result - expected) < 1e-12
+    assert np.all(
+        np.isclose(gradient(result, ["x", "y", "z", "p"]), gradient(expected, ["x", "y", "z", "p"]))
+    )
+    assert np.all(
+        np.isclose(
+            gradient(result, ["x", "y", "z", "p"], order=2),
+            gradient(expected, ["x", "y", "z", "p"], order=2),
+        )
+    )
