@@ -397,7 +397,7 @@ def test_dual_powers_finite_diff(z, p):
 
 def test_dual_powers_operators() -> None:
     z = Dual(2.3, ["x", "y", "z"], [1.0, 2.0, 3.0])
-    p = Dual(2.3, ["x", "y", "p"], [2.0, 3.0, 4.0])
+    p = Dual(4.4, ["x", "y", "p"], [2.0, 3.0, 4.0])
     result = z ** p
     expected = dual_exp(p * dual_log(z))
     assert abs(result -expected) < 1e-12
