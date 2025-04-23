@@ -176,7 +176,7 @@ impl Pow<&Dual2> for &Dual2 {
         let (z, p) = self.to_union_vars(power, None);
         let f_z = p.real * z.real.pow(p.real - 1_f64);
         let f_p = z.real.pow(p.real) * z.real.ln();
-        let f_zz = z.real * (z.real - 1_f64) * z.real.pow(p.real - 2_f64);
+        let f_zz = p.real * (p.real - 1_f64) * z.real.pow(p.real - 2_f64);
         let f_pp = z.real.ln() * z.real.ln() * z.real.pow(p.real);
         let f_pz = (p.real * z.real.ln() + 1_f64) * z.real.pow(p.real - 1_f64);
         Dual2 {

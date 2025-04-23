@@ -454,3 +454,19 @@ def test_dual2_powers_finite_diff_second_order(z, p):
         dwup = (z - 0.00001) ** (p + 0.00001)
         diff = (upup + dwdw - updw - dwup) / 4e-10
         assert abs(gradient(result, ["z", "p"], order=2)[0, 1] - diff) < 1e-4
+
+
+def test_dual2_powers_operators() -> None:
+    z = Dual2(2.3, ["x", "y", "z"], [1.0, 2.0, 3.0], [1,2,3,4,5,6,7,8,9])
+    p = Dual2(4.4, ["x", "y", "p"], [2.0, 3.0, 4.0], [2,3,4,5,2,3,4,3,4])
+    result = z ** p
+    expected = dual_exp(p * dual_log(z))
+    assert abs(result -expected) < 1e-12
+    assert np.all(np.isclose(
+        gradient(result, ["x", "y", "z", "p"]),
+        gradient(expected, ["x", "y", "z", "p"])
+    ))
+    assert np.all(np.isclose(
+        gradient(result, ["x", "y", "z", "p"], order=2),
+        gradient(expected, ["x", "y", "z", "p"], order=2)
+    ))
