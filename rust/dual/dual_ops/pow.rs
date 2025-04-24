@@ -1,5 +1,5 @@
 use crate::dual::dual::{Dual, Dual2, Vars, VarsRelationship};
-use crate::dual::dual_ops::math_funcs::{MathFuncs};
+use crate::dual::dual_ops::math_funcs::MathFuncs;
 use crate::dual::enums::Number;
 use crate::dual::linalg::fouter11_;
 use num_traits::Pow;
@@ -283,7 +283,11 @@ mod tests {
     }
 
     fn assert_is_close_vecs(v1: &Vec<f64>, v2: &Vec<f64>) {
-        let v: Vec<bool> = v1.iter().zip(v2.iter()).map(|(x, y)| is_close(&x, &y, None)).collect();
+        let v: Vec<bool> = v1
+            .iter()
+            .zip(v2.iter())
+            .map(|(x, y)| is_close(&x, &y, None))
+            .collect();
         assert!(v.iter().all(|x| *x));
     }
 
@@ -417,9 +421,28 @@ mod tests {
     #[test]
     fn test_dual2_dual2_branch_equivalence() {
         // test match branches yield the same calculation for Var equivalence and difference
-        let p = Dual2::try_new(3.0_f64, vec!["p".to_string(), "s".to_string()], vec![1.1, 2.1], vec![1.1, 2.2, 2.2, 1.4]).unwrap();
-        let z = Dual2::try_new(2.0_f64, vec!["s".to_string(), "p".to_string()], vec![1.9, 2.9], vec![3.4, 1.2, 1.2, 0.1]).unwrap();
-        let z_p = Dual2::try_new_from(&p, 2.0_f64, vec!["p".to_string(), "s".to_string()], vec![2.9, 1.9], vec![0.1, 1.2, 1.2, 3.4]).unwrap();
+        let p = Dual2::try_new(
+            3.0_f64,
+            vec!["p".to_string(), "s".to_string()],
+            vec![1.1, 2.1],
+            vec![1.1, 2.2, 2.2, 1.4],
+        )
+        .unwrap();
+        let z = Dual2::try_new(
+            2.0_f64,
+            vec!["s".to_string(), "p".to_string()],
+            vec![1.9, 2.9],
+            vec![3.4, 1.2, 1.2, 0.1],
+        )
+        .unwrap();
+        let z_p = Dual2::try_new_from(
+            &p,
+            2.0_f64,
+            vec!["p".to_string(), "s".to_string()],
+            vec![2.9, 1.9],
+            vec![0.1, 1.2, 1.2, 3.4],
+        )
+        .unwrap();
         let result1 = (&p).pow(z);
         let result2 = p.pow(z_p);
         assert_eq!(result1, result2);
@@ -428,12 +451,26 @@ mod tests {
     #[test]
     fn test_dual2_dual2_op_equivalence() {
         // test the analytical derivative calculations match those expected from exp and log
-        let p = Dual2::try_new(3.0_f64, vec!["p".to_string(), "s".to_string()], vec![1.1, 2.1], vec![1.1, 2.2, 2.2, 1.4]).unwrap();
-        let z = Dual2::try_new(2.0_f64, vec!["s".to_string(), "p".to_string()], vec![1.9, 2.9], vec![3.4, 1.2, 1.2, 0.1]).unwrap();
+        let p = Dual2::try_new(
+            3.0_f64,
+            vec!["p".to_string(), "s".to_string()],
+            vec![1.1, 2.1],
+            vec![1.1, 2.2, 2.2, 1.4],
+        )
+        .unwrap();
+        let z = Dual2::try_new(
+            2.0_f64,
+            vec!["s".to_string(), "p".to_string()],
+            vec![1.9, 2.9],
+            vec![3.4, 1.2, 1.2, 0.1],
+        )
+        .unwrap();
         let r1 = (&z).pow(&p);
         let r2 = (z.log() * p).exp();
         assert_is_close_vecs(&r1.dual.to_vec(), &r2.dual.to_vec());
-        assert_is_close_vecs(&r1.dual2.into_raw_vec_and_offset().0, &r2.dual2.into_raw_vec_and_offset().0);
+        assert_is_close_vecs(
+            &r1.dual2.into_raw_vec_and_offset().0,
+            &r2.dual2.into_raw_vec_and_offset().0,
+        );
     }
-
 }
