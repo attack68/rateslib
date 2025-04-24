@@ -26,6 +26,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
        *p* are dual number types. This facilitates AD for the SABR function as well as other
        exotic functions.
        (`767 <https://github.com/attack68/rateslib/pull/767>`_)
+       (`768 <https://github.com/attack68/rateslib/pull/768>`_)
 
 1.8.0 (22 April 2025)
 ****************************

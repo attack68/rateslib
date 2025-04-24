@@ -95,6 +95,13 @@ impl Pow<f64> for Dual {
     }
 }
 
+impl Pow<&f64> for Dual {
+    type Output = Dual;
+    fn pow(self, power: &f64) -> Self::Output {
+        self.pow(*power)
+    }
+}
+
 impl Pow<f64> for &Dual {
     type Output = Dual;
     fn pow(self, power: f64) -> Self::Output {
@@ -103,6 +110,13 @@ impl Pow<f64> for &Dual {
             vars: Arc::clone(self.vars()),
             dual: &self.dual * power * self.real.pow(power - 1.0),
         }
+    }
+}
+
+impl Pow<&f64> for &Dual {
+    type Output = Dual;
+    fn pow(self, power: &f64) -> Self::Output {
+        self.pow(*power)
     }
 }
 
@@ -166,6 +180,13 @@ impl Pow<f64> for Dual2 {
     }
 }
 
+impl Pow<&f64> for Dual2 {
+    type Output = Dual2;
+    fn pow(self, power: &f64) -> Self::Output {
+        self.pow(*power)
+    }
+}
+
 impl Pow<f64> for &Dual2 {
     type Output = Dual2;
     fn pow(self, power: f64) -> Self::Output {
@@ -178,6 +199,13 @@ impl Pow<f64> for &Dual2 {
             dual: &self.dual * coeff,
             dual2: &self.dual2 * coeff + beta_cross * coeff2,
         }
+    }
+}
+
+impl Pow<&f64> for &Dual2 {
+    type Output = Dual2;
+    fn pow(self, power: &f64) -> Self::Output {
+        self.pow(*power)
     }
 }
 
@@ -260,6 +288,17 @@ impl Pow<f64> for Number {
     }
 }
 
+impl Pow<&f64> for Number {
+    type Output = Number;
+    fn pow(self, power: &f64) -> Self::Output {
+        match self {
+            Number::F64(f) => Number::F64(f.pow(power)),
+            Number::Dual(d) => Number::Dual(d.pow(power)),
+            Number::Dual2(d) => Number::Dual2(d.pow(power)),
+        }
+    }
+}
+
 impl Pow<f64> for &Number {
     type Output = Number;
     fn pow(self, power: f64) -> Self::Output {
@@ -267,6 +306,101 @@ impl Pow<f64> for &Number {
             Number::F64(f) => Number::F64(f.pow(power)),
             Number::Dual(d) => Number::Dual(d.pow(power)),
             Number::Dual2(d) => Number::Dual2(d.pow(power)),
+        }
+    }
+}
+
+impl Pow<&f64> for &Number {
+    type Output = Number;
+    fn pow(self, power: &f64) -> Self::Output {
+        match self {
+            Number::F64(f) => Number::F64(f.pow(power)),
+            Number::Dual(d) => Number::Dual(d.pow(power)),
+            Number::Dual2(d) => Number::Dual2(d.pow(power)),
+        }
+    }
+}
+
+impl Pow<Number> for Number {
+    type Output = Number;
+    fn pow(self, power: Number) -> Self::Output {
+        match (self, power) {
+            (Number::F64(f), Number::F64(f2)) => Number::F64(f.pow(f2)),
+            (Number::F64(f), Number::Dual(d2)) => Number::Dual(f.pow(d2)),
+            (Number::F64(f), Number::Dual2(d2)) => Number::Dual2(f.pow(d2)),
+            (Number::Dual(d), Number::F64(f2)) => Number::Dual(d.pow(f2)),
+            (Number::Dual(d), Number::Dual(d2)) => Number::Dual(d.pow(d2)),
+            (Number::Dual(_), Number::Dual2(_)) => {
+                panic!("Cannot mix dual types: Dual/Dual2")
+            }
+            (Number::Dual2(d), Number::F64(f2)) => Number::Dual2(d.pow(f2)),
+            (Number::Dual2(_), Number::Dual(_)) => {
+                panic!("Cannot mix dual types: Dual2/Dual")
+            }
+            (Number::Dual2(d), Number::Dual2(d2)) => Number::Dual2(d.pow(d2)),
+        }
+    }
+}
+
+impl Pow<&Number> for Number {
+    type Output = Number;
+    fn pow(self, power: &Number) -> Self::Output {
+        match (self, power) {
+            (Number::F64(f), Number::F64(f2)) => Number::F64(f.pow(f2)),
+            (Number::F64(f), Number::Dual(d2)) => Number::Dual(f.pow(d2)),
+            (Number::F64(f), Number::Dual2(d2)) => Number::Dual2(f.pow(d2)),
+            (Number::Dual(d), Number::F64(f2)) => Number::Dual(d.pow(f2)),
+            (Number::Dual(d), Number::Dual(d2)) => Number::Dual(d.pow(d2)),
+            (Number::Dual(_), Number::Dual2(_)) => {
+                panic!("Cannot mix dual types: Dual/Dual2")
+            }
+            (Number::Dual2(d), Number::F64(f2)) => Number::Dual2(d.pow(f2)),
+            (Number::Dual2(_), Number::Dual(_)) => {
+                panic!("Cannot mix dual types: Dual2/Dual")
+            }
+            (Number::Dual2(d), Number::Dual2(d2)) => Number::Dual2(d.pow(d2)),
+        }
+    }
+}
+
+impl Pow<Number> for &Number {
+    type Output = Number;
+    fn pow(self, power: Number) -> Self::Output {
+        match (self, power) {
+            (Number::F64(f), Number::F64(f2)) => Number::F64(f.pow(f2)),
+            (Number::F64(f), Number::Dual(d2)) => Number::Dual(f.pow(d2)),
+            (Number::F64(f), Number::Dual2(d2)) => Number::Dual2(f.pow(d2)),
+            (Number::Dual(d), Number::F64(f2)) => Number::Dual(d.pow(f2)),
+            (Number::Dual(d), Number::Dual(d2)) => Number::Dual(d.pow(d2)),
+            (Number::Dual(_), Number::Dual2(_)) => {
+                panic!("Cannot mix dual types: Dual/Dual2")
+            }
+            (Number::Dual2(d), Number::F64(f2)) => Number::Dual2(d.pow(f2)),
+            (Number::Dual2(_), Number::Dual(_)) => {
+                panic!("Cannot mix dual types: Dual2/Dual")
+            }
+            (Number::Dual2(d), Number::Dual2(d2)) => Number::Dual2(d.pow(d2)),
+        }
+    }
+}
+
+impl Pow<&Number> for &Number {
+    type Output = Number;
+    fn pow(self, power: &Number) -> Self::Output {
+        match (self, power) {
+            (Number::F64(f), Number::F64(f2)) => Number::F64(f.pow(f2)),
+            (Number::F64(f), Number::Dual(d2)) => Number::Dual(f.pow(d2)),
+            (Number::F64(f), Number::Dual2(d2)) => Number::Dual2(f.pow(d2)),
+            (Number::Dual(d), Number::F64(f2)) => Number::Dual(d.pow(f2)),
+            (Number::Dual(d), Number::Dual(d2)) => Number::Dual(d.pow(d2)),
+            (Number::Dual(_), Number::Dual2(_)) => {
+                panic!("Cannot mix dual types: Dual/Dual2")
+            }
+            (Number::Dual2(d), Number::F64(f2)) => Number::Dual2(d.pow(f2)),
+            (Number::Dual2(_), Number::Dual(_)) => {
+                panic!("Cannot mix dual types: Dual2/Dual")
+            }
+            (Number::Dual2(d), Number::Dual2(d2)) => Number::Dual2(d.pow(d2)),
         }
     }
 }
