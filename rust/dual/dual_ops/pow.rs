@@ -274,8 +274,8 @@ impl Pow<f64> for &Number {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
     use crate::dual::dual_ops::math_funcs::MathFuncs;
+    use ndarray::Array1;
 
     fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
         // used rather than equality for float numbers
