@@ -1,5 +1,4 @@
 use crate::dual::dual::{Dual, Dual2, Vars, VarsRelationship};
-use crate::dual::dual_ops::math_funcs::MathFuncs;
 use crate::dual::enums::Number;
 use crate::dual::linalg::fouter11_;
 use num_traits::Pow;
@@ -276,6 +275,7 @@ impl Pow<f64> for &Number {
 mod tests {
     use super::*;
     use ndarray::Array1;
+    use crate::dual::dual_ops::math_funcs::MathFuncs;
 
     fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
         // used rather than equality for float numbers
