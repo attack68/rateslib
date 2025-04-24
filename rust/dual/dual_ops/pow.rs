@@ -1,4 +1,4 @@
-use crate::dual::dual::{Dual, Dual2, Vars};
+use crate::dual::dual::{Dual, Dual2, Vars, VarsRelationship};
 use crate::dual::enums::Number;
 use crate::dual::linalg::fouter11_;
 use num_traits::Pow;
@@ -109,12 +109,23 @@ impl Pow<f64> for &Dual {
 impl Pow<&Dual> for &Dual {
     type Output = Dual;
     fn pow(self, power: &Dual) -> Self::Output {
-        let (z, p) = self.to_union_vars(power, None);
-        Dual {
-            real: z.real.pow(p.real),
-            vars: Arc::clone(z.vars()),
-            dual: p.real * z.real.pow(p.real - 1_f64) * &z.dual
-                + z.real.ln() * z.real.pow(p.real) * &p.dual,
+        let state = self.vars_cmp(power.vars());
+        match state {
+            VarsRelationship::ArcEquivalent | VarsRelationship::ValueEquivalent => Dual {
+                real: self.real.pow(power.real),
+                vars: Arc::clone(&self.vars),
+                dual: power.real * self.real.pow(power.real - 1_f64) * &self.dual
+                       + self.real.ln() * self.real.pow(power.real) * &power.dual,
+            },
+            _ => {
+                let (z, p) = self.to_union_vars(power, None);
+                Dual {
+                    real: z.real.pow(p.real),
+                    vars: Arc::clone(z.vars()),
+                    dual: p.real * z.real.pow(p.real - 1_f64) * &z.dual
+                       + z.real.ln() * z.real.pow(p.real) * &p.dual,
+                }
+            }
         }
     }
 }
@@ -173,24 +184,49 @@ impl Pow<f64> for &Dual2 {
 impl Pow<&Dual2> for &Dual2 {
     type Output = Dual2;
     fn pow(self, power: &Dual2) -> Self::Output {
-        let (z, p) = self.to_union_vars(power, None);
-        let f_z = p.real * z.real.pow(p.real - 1_f64);
-        let f_p = z.real.pow(p.real) * z.real.ln();
-        let f_zz = p.real * (p.real - 1_f64) * z.real.pow(p.real - 2_f64);
-        let f_pp = z.real.ln() * z.real.ln() * z.real.pow(p.real);
-        let f_pz = (p.real * z.real.ln() + 1_f64) * z.real.pow(p.real - 1_f64);
-        Dual2 {
-            real: z.real.pow(p.real),
-            vars: Arc::clone(z.vars()),
-            dual: f_z * &z.dual + f_p * &p.dual,
-            dual2: f_z * &z.dual2
-                + f_p * &p.dual2
-                + 0.5_f64 * f_zz * fouter11_(&z.dual.view(), &z.dual.view())
-                + 0.5_f64
-                    * f_pz
-                    * (fouter11_(&z.dual.view(), &p.dual.view())
+        let state = self.vars_cmp(power.vars());
+        match state {
+            VarsRelationship::ArcEquivalent | VarsRelationship::ValueEquivalent => {
+                let f_z = power.real * self.real.pow(power.real - 1_f64);
+                let f_p = self.real.pow(power.real) * self.real.ln();
+                let f_zz = power.real * (power.real - 1_f64) * self.real.pow(power.real - 2_f64);
+                let f_pp = self.real.ln() * self.real.ln() * self.real.pow(power.real);
+                let f_pz = (power.real * self.real.ln() + 1_f64) * self.real.pow(power.real - 1_f64);
+                Dual2 {
+                    real: self.real.pow(power.real),
+                    vars: Arc::clone(self.vars()),
+                    dual: f_z * &self.dual + f_p * &power.dual,
+                    dual2: f_z * &self.dual2
+                        + f_p * &power.dual2
+                        + 0.5_f64 * f_zz * fouter11_(&self.dual.view(), &self.dual.view())
+                        + 0.5_f64
+                            * f_pz
+                            * (fouter11_(&self.dual.view(), &power.dual.view())
+                        + fouter11_(&power.dual.view(), &self.dual.view()))
+                        + 0.5_f64 * f_pp * fouter11_(&power.dual.view(), &power.dual.view()),
+                }
+            }
+            _ => {
+                let (z, p) = self.to_union_vars(power, None);
+                let f_z = p.real * z.real.pow(p.real - 1_f64);
+                let f_p = z.real.pow(p.real) * z.real.ln();
+                let f_zz = p.real * (p.real - 1_f64) * z.real.pow(p.real - 2_f64);
+                let f_pp = z.real.ln() * z.real.ln() * z.real.pow(p.real);
+                let f_pz = (p.real * z.real.ln() + 1_f64) * z.real.pow(p.real - 1_f64);
+                Dual2 {
+                    real: z.real.pow(p.real),
+                    vars: Arc::clone(z.vars()),
+                    dual: f_z * &z.dual + f_p * &p.dual,
+                    dual2: f_z * &z.dual2
+                        + f_p * &p.dual2
+                        + 0.5_f64 * f_zz * fouter11_(&z.dual.view(), &z.dual.view())
+                        + 0.5_f64
+                            * f_pz
+                            * (fouter11_(&z.dual.view(), &p.dual.view())
                         + fouter11_(&p.dual.view(), &z.dual.view()))
-                + 0.5_f64 * f_pp * fouter11_(&p.dual.view(), &p.dual.view()),
+                        + 0.5_f64 * f_pp * fouter11_(&p.dual.view(), &p.dual.view()),
+                }
+            }
         }
     }
 }
