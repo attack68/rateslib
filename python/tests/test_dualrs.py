@@ -370,13 +370,6 @@ def test_pickle(obj) -> None:
     assert obj == reloaded
 
 
-def test_dual_powers_raise() -> None:
-    x = Dual(1.0, ["x"], [])
-    y = Dual(2.0, ["y"], [])
-    with pytest.raises(TypeError):
-        x**y
-
-
 @pytest.mark.parametrize("z", [2.0, Dual(2.0, ["z"], [])])
 @pytest.mark.parametrize("p", [2.0, Dual(2.0, ["p"], [])])
 def test_dual_powers_finite_diff(z, p):
