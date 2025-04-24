@@ -115,7 +115,7 @@ impl Pow<&Dual> for &Dual {
                 real: self.real.pow(power.real),
                 vars: Arc::clone(&self.vars),
                 dual: power.real * self.real.pow(power.real - 1_f64) * &self.dual
-                       + self.real.ln() * self.real.pow(power.real) * &power.dual,
+                    + self.real.ln() * self.real.pow(power.real) * &power.dual,
             },
             _ => {
                 let (z, p) = self.to_union_vars(power, None);
@@ -123,7 +123,7 @@ impl Pow<&Dual> for &Dual {
                     real: z.real.pow(p.real),
                     vars: Arc::clone(z.vars()),
                     dual: p.real * z.real.pow(p.real - 1_f64) * &z.dual
-                       + z.real.ln() * z.real.pow(p.real) * &p.dual,
+                        + z.real.ln() * z.real.pow(p.real) * &p.dual,
                 }
             }
         }
@@ -191,7 +191,8 @@ impl Pow<&Dual2> for &Dual2 {
                 let f_p = self.real.pow(power.real) * self.real.ln();
                 let f_zz = power.real * (power.real - 1_f64) * self.real.pow(power.real - 2_f64);
                 let f_pp = self.real.ln() * self.real.ln() * self.real.pow(power.real);
-                let f_pz = (power.real * self.real.ln() + 1_f64) * self.real.pow(power.real - 1_f64);
+                let f_pz =
+                    (power.real * self.real.ln() + 1_f64) * self.real.pow(power.real - 1_f64);
                 let cross_beta = fouter11_(&power.dual.view(), &self.dual.view());
                 Dual2 {
                     real: self.real.pow(power.real),
@@ -211,7 +212,7 @@ impl Pow<&Dual2> for &Dual2 {
                 let f_zz = p.real * (p.real - 1_f64) * z.real.pow(p.real - 2_f64);
                 let f_pp = z.real.ln() * z.real.ln() * z.real.pow(p.real);
                 let f_pz = (p.real * z.real.ln() + 1_f64) * z.real.pow(p.real - 1_f64);
-                let cross_beta = fouter11_(&power.dual.view(), &self.dual.view());
+                let cross_beta = fouter11_(&p.dual.view(), &z.dual.view());
                 Dual2 {
                     real: z.real.pow(p.real),
                     vars: Arc::clone(z.vars()),
