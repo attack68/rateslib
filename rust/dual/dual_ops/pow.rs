@@ -416,7 +416,7 @@ mod tests {
 
     #[test]
     fn test_dual2_dual2_branch_equivalence() {
-        // test match branches yield the same calculation
+        // test match branches yield the same calculation for Var equivalence and difference
         let p = Dual2::try_new(3.0_f64, vec!["p".to_string(), "s".to_string()], vec![1.1, 2.1], vec![1.1, 2.2, 2.2, 1.4]).unwrap();
         let z = Dual2::try_new(2.0_f64, vec!["s".to_string(), "p".to_string()], vec![1.9, 2.9], vec![3.4, 1.2, 1.2, 0.1]).unwrap();
         let z_p = Dual2::try_new_from(&p, 2.0_f64, vec!["p".to_string(), "s".to_string()], vec![2.9, 1.9], vec![0.1, 1.2, 1.2, 3.4]).unwrap();
@@ -427,7 +427,7 @@ mod tests {
 
     #[test]
     fn test_dual2_dual2_op_equivalence() {
-        // test the analytical derivative calculations match those expecteed from exp and log
+        // test the analytical derivative calculations match those expected from exp and log
         let p = Dual2::try_new(3.0_f64, vec!["p".to_string(), "s".to_string()], vec![1.1, 2.1], vec![1.1, 2.2, 2.2, 1.4]).unwrap();
         let z = Dual2::try_new(2.0_f64, vec!["s".to_string(), "p".to_string()], vec![1.9, 2.9], vec![3.4, 1.2, 1.2, 0.1]).unwrap();
         let r1 = (&z).pow(&p);
