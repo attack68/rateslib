@@ -192,6 +192,7 @@ impl Pow<&Dual2> for &Dual2 {
                 let f_zz = power.real * (power.real - 1_f64) * self.real.pow(power.real - 2_f64);
                 let f_pp = self.real.ln() * self.real.ln() * self.real.pow(power.real);
                 let f_pz = (power.real * self.real.ln() + 1_f64) * self.real.pow(power.real - 1_f64);
+                let cross_beta = fouter11_(&power.dual.view(), &self.dual.view());
                 Dual2 {
                     real: self.real.pow(power.real),
                     vars: Arc::clone(self.vars()),
@@ -199,10 +200,7 @@ impl Pow<&Dual2> for &Dual2 {
                     dual2: f_z * &self.dual2
                         + f_p * &power.dual2
                         + 0.5_f64 * f_zz * fouter11_(&self.dual.view(), &self.dual.view())
-                        + 0.5_f64
-                            * f_pz
-                            * (fouter11_(&self.dual.view(), &power.dual.view())
-                        + fouter11_(&power.dual.view(), &self.dual.view()))
+                        + 0.5_f64 * f_pz * (&cross_beta + &cross_beta.t())
                         + 0.5_f64 * f_pp * fouter11_(&power.dual.view(), &power.dual.view()),
                 }
             }
@@ -213,6 +211,7 @@ impl Pow<&Dual2> for &Dual2 {
                 let f_zz = p.real * (p.real - 1_f64) * z.real.pow(p.real - 2_f64);
                 let f_pp = z.real.ln() * z.real.ln() * z.real.pow(p.real);
                 let f_pz = (p.real * z.real.ln() + 1_f64) * z.real.pow(p.real - 1_f64);
+                let cross_beta = fouter11_(&power.dual.view(), &self.dual.view());
                 Dual2 {
                     real: z.real.pow(p.real),
                     vars: Arc::clone(z.vars()),
@@ -220,10 +219,7 @@ impl Pow<&Dual2> for &Dual2 {
                     dual2: f_z * &z.dual2
                         + f_p * &p.dual2
                         + 0.5_f64 * f_zz * fouter11_(&z.dual.view(), &z.dual.view())
-                        + 0.5_f64
-                            * f_pz
-                            * (fouter11_(&z.dual.view(), &p.dual.view())
-                        + fouter11_(&p.dual.view(), &z.dual.view()))
+                        + 0.5_f64 * f_pz * (&cross_beta + &cross_beta.t())
                         + 0.5_f64 * f_pp * fouter11_(&p.dual.view(), &p.dual.view()),
                 }
             }
