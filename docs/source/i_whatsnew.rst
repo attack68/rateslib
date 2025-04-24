@@ -27,6 +27,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
        exotic functions.
        (`767 <https://github.com/attack68/rateslib/pull/767>`_)
        (`768 <https://github.com/attack68/rateslib/pull/768>`_)
+       (`769 <https://github.com/attack68/rateslib/pull/769>`_)
 
 1.8.0 (22 April 2025)
 ****************************

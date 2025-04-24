@@ -611,9 +611,15 @@ mod tests {
     #[test]
     fn test_number_number() {
         // test implemented crosses
-        fn x1() -> Number { Number::F64(2.3) }
-        fn x2() -> Number { Number::Dual(Dual::new(2.3, vec![])) }
-        fn x3() -> Number { Number::Dual2(Dual2::new(1.1, vec![])) }
+        fn x1() -> Number {
+            Number::F64(2.3)
+        }
+        fn x2() -> Number {
+            Number::Dual(Dual::new(2.3, vec![]))
+        }
+        fn x3() -> Number {
+            Number::Dual2(Dual2::new(1.1, vec![]))
+        }
 
         let mut _res: Number;
         _res = (&x1()).pow(&x1());
@@ -647,6 +653,5 @@ mod tests {
         _res = (x2()).pow(x2());
         _res = (x3()).pow(x1());
         _res = (x3()).pow(x3());
-
     }
 }
