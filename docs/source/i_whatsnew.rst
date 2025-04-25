@@ -12,7 +12,24 @@ and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
 email contact, see `rateslib <https://rateslib.com>`_.
 
-1.8.0 (No release date)
+2.0.0 (No release date)
+****************************
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - Automatic Differentiation
+     - Operator overloads added to allow dual number exponents, i.e. :math:`z^p`, where *z*,
+       *p* are dual number types. This facilitates AD for the SABR function as well as other
+       exotic functions.
+       (`767 <https://github.com/attack68/rateslib/pull/767>`_)
+       (`768 <https://github.com/attack68/rateslib/pull/768>`_)
+       (`769 <https://github.com/attack68/rateslib/pull/769>`_)
+
+1.8.0 (22 April 2025)
 ****************************
 
 .. list-table::
@@ -41,12 +58,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
        attributes.
        (`700 <https://github.com/attack68/rateslib/pull/700>`_)
    * - FX Volatility
-     - An :class:`~rateslib.fx_volatility.FXSabrSmile` is implemented in *beta* status, which
-       cannot yet be used to price *Instruments*.
+     - An :class:`~rateslib.fx_volatility.FXSabrSmile` is implemented in *beta* status.
        (`714 <https://github.com/attack68/rateslib/pull/714>`_)
    * - FX Volatility
-     - An :class:`~rateslib.fx_volatility.FXSabrSurface` is implemented in *beta* status, which
-       cannot yet be used to price *Instruments*.
+     - An :class:`~rateslib.fx_volatility.FXSabrSurface` is implemented in *beta* status.
        (`729 <https://github.com/attack68/rateslib/pull/729>`_)
    * - FX Volatility
      - :red:`Minor Breaking Change!` The arguments to all FX Volatility model objects'
@@ -54,9 +69,13 @@ email contact, see `rateslib <https://rateslib.com>`_.
        to prioritise ``expiry`` which is more commonly required for *Surfaces*.
        (`735 <https://github.com/attack68/rateslib/pull/735>`_)
    * - Performance
-     - The :meth:`FXStrangle.rate <rateslib.instruments.FXStrange.rate>` method is refactored to
+     - The :meth:`FXStrangle.rate <rateslib.instruments.FXStrangle.rate>` method is refactored to
        use :meth:`rateslib.dual.newton_1dim` for performance.
-       (`735 <https://github.com/attack68/rateslib/pull/735>`_)
+       (`738 <https://github.com/attack68/rateslib/pull/738>`_)
+   * - Performance
+     - A cache has been added to :class:`~rateslib.fx.FXForwards` for forward FX rate caching
+       per currency pair per date.
+       (`761 <https://github.com/attack68/rateslib/pull/761>`_)
    * - Refactor
      - All pricing objects, such as :class:`~rateslib.curves.Curve`, :class:`~rateslib.fx.FXRates`,
        :class:`~rateslib.fx_volatility.FXDeltaVolSmile` etc., and pricing containers, such as

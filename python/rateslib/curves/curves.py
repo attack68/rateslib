@@ -191,6 +191,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     _base_type: str = "dfs"
     collateral: str | None = None
 
+    @_new_state_post
     def __init__(  # type: ignore[no-untyped-def]
         self,
         nodes: dict[datetime, DualTypes],
@@ -250,7 +251,6 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         self.index_lag: int = _drb(defaults.index_lag, index_lag)
 
         self._set_ad_order(order=ad)  # will also clear and initialise the cache
-        self._set_new_state()
 
     @property
     def ad(self) -> int:
@@ -1426,7 +1426,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                     base_obj,  # type: ignore[arg-type]
                     _dual_float(self.nodes[self.node_keys[0]]),
                     base_obj.vars,
-                    ident[0, :].tolist(),  # type: ignore[arg-type]
+                    ident[0, :].tolist(),
                     *DualArgs[1:],
                 )
 
@@ -1435,7 +1435,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                     base_obj,  # type: ignore[arg-type]
                     _dual_float(vector[i]),
                     base_obj.vars,
-                    ident[i + self._ini_solve, :].tolist(),  # type: ignore[arg-type]
+                    ident[i + self._ini_solve, :].tolist(),
                     *DualArgs[1:],
                 )
         self._ad = ad

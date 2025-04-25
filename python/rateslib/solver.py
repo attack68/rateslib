@@ -1317,13 +1317,13 @@ class Solver(Gradients, _WithState):
 
     @_validate_states
     def _get_pre_curve(self, obj: str) -> Curve:
-        _: Curve | FXVols = self.pre_curves[obj]
-        if isinstance(_, Curve):
-            return _
+        ret: Curve | FXVols = self.pre_curves[obj]
+        if isinstance(ret, Curve):
+            return ret  # type: ignore[no-any-return]
         else:
             raise ValueError(
                 f"A type of `Curve` object was sought with id:'{obj}' from Solver but another "
-                f"type object was returned:'{type(_)}'."
+                f"type object was returned:'{type(ret)}'."
             )
 
     @_validate_states
@@ -1697,7 +1697,7 @@ class Solver(Gradients, _WithState):
                     * inst_scalar
                 )
                 container[("fx", ccy, base)] = (
-                    self.grad_f_Pbase(npv[ccy], container[("fx", ccy, ccy)] / fx_scalar, f, fx_vars)  # type: ignore[arg-type]
+                    self.grad_f_Pbase(npv[ccy], container[("fx", ccy, ccy)] / fx_scalar, f, fx_vars)
                     * fx_scalar
                 )
 
@@ -2233,7 +2233,7 @@ class Solver(Gradients, _WithState):
                 container[("exogenous", ccy, base)] = (
                     self.grad_f_Pbase(
                         npv[ccy],
-                        container[("exogenous", ccy, ccy)] / vars_scalar,  # type: ignore[arg-type]
+                        container[("exogenous", ccy, ccy)] / vars_scalar,
                         f,
                         vars,
                     )

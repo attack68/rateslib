@@ -154,8 +154,10 @@ consistent currencies.
 
 Additionally *rateslib* also includes certain *FX Option*
 products and the ability to
-construct an :class:`~rateslib.fx_volatility.FXDeltaVolSmile` and
-:class:`~rateslib.fx_volatility.FXDeltaVolSurface` for pricing.
+construct an :class:`~rateslib.fx_volatility.FXDeltaVolSmile` or
+:class:`~rateslib.fx_volatility.FXDeltaVolSurface` and
+:class:`~rateslib.fx_volatility.FXSabrSmile` or :class:`~rateslib.fx_volatility.FXSabrSurface`
+for pricing.
 
 .. raw:: html
 
@@ -214,8 +216,9 @@ the **risk sensitivity** calculations.
 Does *rateslib* use ``automatic differentiation (AD)``?
 ===========================================================
 
-**Yes**. The *dual* module provides *rateslib* with its own integrated
-automatic differentiation toolset, primarily the dual datatypes :class:`~rateslib.dual.Dual` and
+**Yes** fully integrated into all calculations.
+The *dual* module provides *rateslib* with its own automatic differentiation toolset,
+primarily the dual datatypes :class:`~rateslib.dual.Dual` and
 :class:`~rateslib.dual.Dual2`, which operate in forward mode
 (as opposed to backwards, or adjoint, mode). This allows native calculations to store first
 (or second) derivative information as those calculations are made on-the-fly.
