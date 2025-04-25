@@ -59,28 +59,28 @@ pub(crate) fn _sabr_x1(
     f: Number,
     t: Number,
     a: Number,
-    b: f64,
+    b: Number,
     p: Number,
     v: Number,
     derivative: u8,
 ) -> Result<(Number, Option<Number>), PyErr> {
     let x0 = 1_f64 / &k;
-    let x1 = b / 2_f64 - 0.5_f64;
+    let x1 = &b / 2_f64 - 0.5_f64;
     let x2 = &f * &k;
-    let x3 = b - 1_f64;
+    let x3 = &b - 1_f64;
     let x = &t
-        * ((&a).pow(2_f64) * (&x2).pow(x3) * x3.pow(2_f64) / 24_f64
-            + 0.25_f64 * &a * b * &p * &v * (&x2).pow(x1)
+        * ((&a).pow(2_f64) * (&x2).pow(&x3) * (&x3).pow(2_f64) / 24_f64
+            + 0.25_f64 * &a * &b * &p * &v * (&x2).pow(&x1)
             + (&v).pow(2_f64) * (2_f64 - 3_f64 * (&p).pow(2_f64)) / 24_f64)
         + 1_f64;
 
     let dx: Option<Number> = match derivative {
         1 => Some(
-            &t * ((&a).pow(2_f64) * &x0 * (&x2).pow(x3) * x3.pow(3_f64) / 24_f64
-                + 0.25 * &a * b * p * &v * x0 * x1 * x2.pow(x1)),
+            &t * ((&a).pow(2_f64) * &x0 * (&x2).pow(&x3) * (&x3).pow(3_f64) / 24_f64
+                + 0.25 * &a * &b * p * &v * x0 * &x1 * x2.pow(x1)),
         ),
         2 => Some(
-            &a * &t * x3 * (&a * x3.pow(2_f64) * (&x2).pow(x3) + 3_f64 * b * p * v * x2.pow(x1))
+            &a * &t * &x3 * (&a * (&x3).pow(2_f64) * (&x2).pow(x3) + 3_f64 * b * p * v * x2.pow(x1))
                 / (24_f64 * f),
         ),
         _ => None,
@@ -95,7 +95,7 @@ pub(crate) fn _sabr_x2(
     f: Number,
     _t: Number,
     a: Number,
-    b: f64,
+    b: Number,
     p: Number,
     v: Number,
     derivative: u8,
@@ -104,8 +104,8 @@ pub(crate) fn _sabr_x2(
     let x1 = (&f * &x0).log();
     let x2 = 1_f64 / &a;
     let x3 = &f * &k;
-    let x4 = b / 2_f64 - 0.5_f64;
-    let x5 = (&x3).pow(-x4);
+    let x4 = &b / 2_f64 - 0.5_f64;
+    let x5 = (&x3).pow(-&x4);
     let x6 = &v * &x2 * &x5;
 
     let z = &x6 * &x1;
@@ -168,8 +168,8 @@ pub(crate) fn _sabr_x2(
                 let x9 = (&x1).pow(2_f64);
                 let x10 = (&a).pow(-2_f64);
                 let x11 = (&v).pow(2_f64);
-                let x12 = b - 1_f64;
-                let x13 = (&x3).pow(-x12);
+                let x12 = &b - 1_f64;
+                let x13 = (&x3).pow(-&x12);
                 let x14 = &x10 * &x11 * &x13;
                 let x15 = (&x14 * &x9 - 2_f64 * &x8 + 1_f64).pow(0.5_f64);
                 let x16 = -&p + &x15 + &x7;
@@ -183,7 +183,7 @@ pub(crate) fn _sabr_x2(
                     &v * &x0 * &x1 * &x18 * &x2 * &x20 * &x5
                         - &x18 * &x19
                         - &x7
-                            * (&x0 * x20 * &x7 - x19
+                            * (&x0 * &x20 * &x7 - x19
                                 + (1.0_f64 * p * v * &x0 * x2 * x5
                                     - 0.5_f64 * x0 * x10 * x11 * x12 * x13 * x9
                                     - x1 * x14 * &x21
@@ -195,8 +195,8 @@ pub(crate) fn _sabr_x2(
                 let dx_dz = _sabr_dx2_dz(&z, &p);
 
                 let y0 = 1_f64 / &k;
-                let y1 = b / 2_f64 - 0.5_f64;
-                let y2 = &v * &x0 / (&a * (&f * &k).pow(y1));
+                let y1 = &b / 2_f64 - 0.5_f64;
+                let y2 = &v * &x0 / (&a * (&f * &k).pow(&y1));
                 let dz = -y2 * (y1 * (&f * y0).log() + 1_f64);
 
                 dx = Some(dx_dz * dz);
@@ -210,8 +210,8 @@ pub(crate) fn _sabr_x2(
                 let y4 = &a * &p;
                 let y6 = &v * &x1;
                 let y7 = &y3 * &y6;
-                let y8 = b - 1_f64;
-                let y9 = (&x3).pow(-y8);
+                let y8 = &b - 1_f64;
+                let y9 = (&x3).pow(-&y8);
                 let y10 =
                     (&y1 * (&v * &v * &x1 * &x1 * &y9 + &y0 - 2_f64 * &y4 * &y7)).pow(0.5_f64);
                 let y11 = &a * (-&p + &y10) + &y7;
@@ -229,7 +229,7 @@ pub(crate) fn _sabr_x2(
                 )
             } else {
                 let dx_dz = _sabr_dx2_dz(&z, &p);
-                let dz = &v * &x5 * (-(b - 1_f64) * &x1 + 2_f64) / (2_f64 * &a * &f);
+                let dz = &v * &x5 * (-(&b - 1_f64) * &x1 + 2_f64) / (2_f64 * &a * &f);
                 dx = Some(dx_dz * dz);
             }
         }
