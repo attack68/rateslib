@@ -1733,6 +1733,9 @@ class TestFXSabrSurface:
         assert abs(expected_fwd_diff - result) < 1e-3
         assert abs(expected_ad - result) < 1e-3
 
+    def test_variables_on_extrapolated_sabr_smiles(self):
+        # assert that vars on extrapolated smiles reference the underlying smiles vars
+        assert False
 
 class TestStateAndCache:
     @pytest.mark.parametrize(

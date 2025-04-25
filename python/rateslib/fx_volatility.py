@@ -32,7 +32,7 @@ from rateslib.dual import (
     newton_ndim,
     set_order_convert,
 )
-from rateslib.dual.utils import _dual_float
+from rateslib.dual.utils import _dual_float, _to_number
 from rateslib.fx import FXForwards
 from rateslib.mutability import (
     _clear_cache_post,
@@ -1085,7 +1085,7 @@ class _SabrNodes(NamedTuple):
     rho: Number
     nu: Number
 
-    def __getitem__(self, item: str) -> DualTypes:
+    def __getitem__(self, item: str) -> Any:  # type: ignore[override]
         # Syntactic sugar. Should be avoided in production code. Use _SabrNodes.item instead.
         if item not in ["alpha", "beta", "rho", "nu"]:
             raise KeyError(f"SabrNodes only permit 4 parameters of which '{item}' is not one.")
@@ -1158,7 +1158,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
     @_new_state_post
     def __init__(
         self,
-        nodes: dict[str, float | Variable],
+        nodes: dict[str, DualTypes],
         eval_date: datetime,
         expiry: datetime,
         delivery_lag: int_ = NoInput(0),
@@ -1187,10 +1187,10 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
                     f"'{_}' is a required SABR parameter that must be included in ``nodes``"
                 )
         self.nodes: _SabrNodes = _SabrNodes(
-            alpha=_dual_float(nodes["alpha"]),
-            beta=nodes["beta"],
-            rho=_dual_float(nodes["rho"]),
-            nu=_dual_float(nodes["nu"]),
+            alpha=_to_number(nodes["alpha"]),
+            beta=nodes["beta"],  # type: ignore[arg-type]
+            rho=_to_number(nodes["rho"]),
+            nu=_to_number(nodes["nu"]),
         )
 
         self._set_ad_order(ad)
@@ -1259,8 +1259,8 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
             raise ValueError("`f` (ATM-forward FX rate) must be a value or FXForwards object.")
 
         vol_ = _sabr(
-            k,
-            f_,
+            _to_number(k),
+            _to_number(f_),
             self.t_expiry,
             self.nodes.alpha,
             self.nodes.beta,
@@ -1287,22 +1287,26 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         """
         t_e = (expiry - self.eval_date).days / 365.0
         if isinstance(f, FXForwards):
-            f = f.rate(self.pair, self.delivery)  # type: ignore[arg-type]
+            f__: DualTypes = f.rate(self.pair, self.delivery)  # type: ignore[arg-type]
+        else:
+            f__ = f
 
         if as_float:
-            k = _dual_float(k)
-            f = _dual_float(f)
-            a: DualTypes = _dual_float(self.nodes.alpha)
-            b: DualTypes = _dual_float(self.nodes.beta)
-            p: DualTypes = _dual_float(self.nodes.rho)
-            v: DualTypes = _dual_float(self.nodes.nu)
+            k_: Number = _dual_float(k)
+            f_: Number = _dual_float(f__)
+            a_: Number = _dual_float(self.nodes.alpha)
+            b_: float | Variable = _dual_float(self.nodes.beta)
+            p_: Number = _dual_float(self.nodes.rho)
+            v_: Number = _dual_float(self.nodes.nu)
         else:
-            a = self.nodes.alpha  #
-            b = self.nodes.beta
-            p = self.nodes.rho
-            v = self.nodes.nu
+            k_ = _to_number(k)
+            f_ = _to_number(f__)
+            a_ = self.nodes.alpha  #
+            b_ = self.nodes.beta
+            p_ = self.nodes.rho
+            v_ = self.nodes.nu
 
-        return _d_sabr_d_k_or_f(k, f, t_e, a, b, p, v, derivative)  # type: ignore[arg-type]
+        return _d_sabr_d_k_or_f(k_, f_, t_e, a_, b_, p_, v_, derivative)
 
     def _get_node_vector(self) -> np.ndarray[tuple[int, ...], np.dtype[np.object_]]:
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""
@@ -1714,7 +1718,12 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         elif expiry_posix > self.expiries_posix[-1]:
             # use the SABR parameters from the last smile
             smile = FXSabrSmile(
-                nodes=self.smiles[e_idx + 1].nodes.copy(),
+                nodes={
+                    "alpha": self.smiles[e_idx + 1].nodes.alpha,
+                    "beta": self.smiles[e_idx + 1].nodes.beta,
+                    "rho": self.smiles[e_idx + 1].nodes.rho,
+                    "nu": self.smiles[e_idx + 1].nodes.nu,
+                },
                 eval_date=self.eval_date,
                 expiry=expiry,
                 ad=self.ad,
@@ -1786,7 +1795,12 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         elif expiry_posix > self.expiries_posix[-1]:
             # use the SABR parameters from the last smile
             smile = FXSabrSmile(
-                nodes=self.smiles[e_idx + 1].nodes.copy(),
+                nodes={
+                    "alpha": self.smiles[e_idx + 1].nodes.alpha,
+                    "beta": self.smiles[e_idx + 1].nodes.beta,
+                    "rho": self.smiles[e_idx + 1].nodes.rho,
+                    "nu": self.smiles[e_idx + 1].nodes.nu,
+                },
                 eval_date=self.eval_date,
                 expiry=expiry,
                 ad=self.ad,
@@ -2565,14 +2579,14 @@ def _moneyness_from_delta_three_dimensional(
 
 
 def _sabr(
-    k: DualTypes,
-    f: DualTypes,
-    t: DualTypes,
-    a: DualTypes,
-    b: float,
-    p: DualTypes,
-    v: DualTypes,
-) -> DualTypes:
+    k: Number,
+    f: Number,
+    t: Number,
+    a: Number,
+    b: float | Variable,
+    p: Number,
+    v: Number,
+) -> Number:
     """
     Calculate the SABR vol. For formula see for example I. Clark "Foreign Exchange Option
     Pricing" section 3.10.
@@ -2580,23 +2594,24 @@ def _sabr(
     Rateslib uses the representation sigma(k) = X0 * X1 * X2, with these variables as defined in
     "Coding Interest Rates" chapter 13 to handle AD using dual numbers effectively.
     """
-    X0 = _sabr_X0(k, f, t, a, b, p, v, False)[0]
-    X1 = _sabr_X1(k, f, t, a, b, p, v, False)[0]
-    X2 = _sabr_X2(k, f, t, a, b, p, v, False)[0]
+    b_: Number = _to_number(b)
+    X0 = _sabr_X0(k, f, t, a, b_, p, v, False)[0]
+    X1 = _sabr_X1(k, f, t, a, b_, p, v, False)[0]
+    X2 = _sabr_X2(k, f, t, a, b_, p, v, False)[0]
 
     return X0 * X1 * X2
 
 
 def _d_sabr_d_k_or_f(
-    k: DualTypes,
-    f: DualTypes,
-    t: DualTypes,
-    a: DualTypes,
-    b: float,
-    p: DualTypes,
-    v: DualTypes,
+    k: Number,
+    f: Number,
+    t: Number,
+    a: Number,
+    b: float | Variable,
+    p: Number,
+    v: Number,
     derivative: int,
-) -> tuple[DualTypes, DualTypes]:
+) -> tuple[Number, Number]:
     """
     Calculate the derivative of the SABR function with respect to k.
 
@@ -2605,22 +2620,23 @@ def _d_sabr_d_k_or_f(
 
     See "Coding Interest Rates: FX Swaps and Bonds edition 2"
     """
-    X0, dX0 = _sabr_X0(k, f, t, a, b, p, v, derivative)
-    X1, dX1 = _sabr_X1(k, f, t, a, b, p, v, derivative)
-    X2, dX2 = _sabr_X2(k, f, t, a, b, p, v, derivative)
+    b_: Number = _to_number(b)
+    X0, dX0 = _sabr_X0(k, f, t, a, b_, p, v, derivative)
+    X1, dX1 = _sabr_X1(k, f, t, a, b_, p, v, derivative)
+    X2, dX2 = _sabr_X2(k, f, t, a, b_, p, v, derivative)
     return X0 * X1 * X2, dX0 * X1 * X2 + X0 * dX1 * X2 + X0 * X1 * dX2  # type: ignore[operator]
 
 
 def _sabr_X0(
-    k: DualTypes,
-    f: DualTypes,
-    t: DualTypes,
-    a: DualTypes,
-    b: float,
-    p: DualTypes,
-    v: DualTypes,
+    k: Number,
+    f: Number,
+    t: Number,
+    a: Number,
+    b: Number,
+    p: Number,
+    v: Number,
     derivative: int = 0,
-) -> tuple[DualTypes, DualTypes | None]:
+) -> tuple[Number, Number | None]:
     """
     X0 = a / ((fk)^((1-b)/2) * (1 + (1-b)^2/24 ln^2(f/k) + (1-b)^4/1920 ln^4(f/k) )
 
@@ -2631,15 +2647,15 @@ def _sabr_X0(
 
 
 def _sabr_X1(
-    k: DualTypes,
-    f: DualTypes,
-    t: DualTypes,
-    a: DualTypes,
-    b: float,
-    p: DualTypes,
-    v: DualTypes,
+    k: Number,
+    f: Number,
+    t: Number,
+    a: Number,
+    b: Number,
+    p: Number,
+    v: Number,
     derivative: int = 0,
-) -> tuple[DualTypes, DualTypes | None]:
+) -> tuple[Number, Number | None]:
     """
     X1 = 1 + t ( (1-b)^2 / 24 * a^2 / (fk)^(1-b) + 1/4 p b v a / (fk)^((1-b)/2) + (2-3p^2)/24 v^2 )
 
@@ -2649,15 +2665,15 @@ def _sabr_X1(
 
 
 def _sabr_X2(
-    k: DualTypes,
-    f: DualTypes,
-    t: DualTypes,
-    a: DualTypes,
-    b: float,
-    p: DualTypes,
-    v: DualTypes,
+    k: Number,
+    f: Number,
+    t: Number,
+    a: Number,
+    b: Number,
+    p: Number,
+    v: Number,
     derivative: int = 0,
-) -> tuple[DualTypes, DualTypes | None]:
+) -> tuple[Number, Number | None]:
     """
     X2 = z / chi(z)
 

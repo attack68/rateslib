@@ -65,6 +65,13 @@ def _get_order_of(val: DualTypes) -> int:
     return ad_order
 
 
+def _to_number(val: DualTypes) -> Number:
+    """Convert a DualType to a Number Type by casting a Variable to the required global AD order."""
+    if isinstance(val, Variable):
+        return set_order(val, defaults._global_ad_order)
+    return val
+
+
 def set_order(val: DualTypes, order: int) -> Number:
     """
     Changes the order of a :class:`Dual` or :class:`Dual2` and a sets a :class:`Variable`.
