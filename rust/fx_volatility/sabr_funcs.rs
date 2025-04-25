@@ -80,7 +80,9 @@ pub(crate) fn _sabr_x1(
                 + 0.25 * &a * &b * p * &v * x0 * &x1 * x2.pow(x1)),
         ),
         2 => Some(
-            &a * &t * &x3 * (&a * (&x3).pow(2_f64) * (&x2).pow(x3) + 3_f64 * b * p * v * x2.pow(x1))
+            &a * &t
+                * &x3
+                * (&a * (&x3).pow(2_f64) * (&x2).pow(x3) + 3_f64 * b * p * v * x2.pow(x1))
                 / (24_f64 * f),
         ),
         _ => None,
