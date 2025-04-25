@@ -3,7 +3,7 @@ from __future__ import annotations  # type hinting
 import warnings
 from datetime import datetime, timedelta
 from datetime import datetime as dt
-from typing import TYPE_CHECKING, Any, TypeAlias, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple, TypeAlias
 from uuid import uuid4
 
 import numpy as np
@@ -48,7 +48,7 @@ from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, Sequence, datetime_, int_, str_
+    from rateslib.typing import CalInput, Number, Sequence, datetime_, int_, str_
 
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
 
@@ -1080,10 +1080,16 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
 
 
 class _SabrNodes(NamedTuple):
-    alpha: DualTypes
-    beta: float
-    rho: DualTypes
-    nu: DualTypes
+    alpha: Number
+    beta: float | Variable
+    rho: Number
+    nu: Number
+
+    def __getitem__(self, item: str) -> DualTypes:
+        # Syntactic sugar. Should be avoided in production code. Use _SabrNodes.item instead.
+        if item not in ["alpha", "beta", "rho", "nu"]:
+            raise KeyError(f"SabrNodes only permit 4 parameters of which '{item}' is not one.")
+        return getattr(self, item)
 
 
 class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
@@ -1096,7 +1102,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
 
     Parameters
     ----------
-    nodes: dict[str, DualTypes]
+    nodes: dict[str, float]
         The parameters for the SABR model. Keys must be *'alpha', 'beta', 'rho', 'nu'*. See below.
     eval_date: datetime
         Acts as the initial node of a *Curve*. Should be assigned today's immediate date.
@@ -1124,13 +1130,21 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
     -----
     The keys for ``nodes`` are described as the following:
 
-    - ``alpha`` (DualTypes): The initial volatility parameter (e.g. 0.10 for 10%) of the SABR model,
+    - ``alpha``: The initial volatility parameter (e.g. 0.10 for 10%) of the SABR model,
       in (0, inf).
-    - ``beta`` (float): The scaling parameter between normal (0) and lognormal (1)
+    - ``beta``: The scaling parameter between normal (0) and lognormal (1)
       of the SABR model in [0, 1].
-    - ``rho`` (DualTypes): The correlation between spot and volatility of the SABR model,
+    - ``rho``: The correlation between spot and volatility of the SABR model,
       e.g. -0.10, in [-1.0, 1.0)
-    - ``nu`` (DualTypes): The volatility of volatility parameter of the SABR model, e.g. 0.80.
+    - ``nu``: The volatility of volatility parameter of the SABR model, e.g. 0.80.
+
+    The parameters :math:`\alpha, \rho, \nu` will be calibrated/mutated by
+    a :class:`~rateslib.solver.Solver` object. These should be entered as *float* and the argument
+    ``ad`` can be used to automatically tag these as variables.
+
+    The parameter :math:`\beta` will **not** be calibrated/mutated by a
+    :class:`~rateslib.solver.Solver`. This value can be entered either as a *float*, or a
+    :class:`~rateslib.dual.Variable` to capture exogenous sensivities.
 
     The arguments ``delivery_lag``, ``calendar`` and ``pair`` are only required if using an
     :class:`~rateslib.fx.FXForwards` object to forecast ATM-forward FX rates for pricing. If
@@ -1144,7 +1158,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
     @_new_state_post
     def __init__(
         self,
-        nodes: dict[str, DualTypes],
+        nodes: dict[str, float | Variable],
         eval_date: datetime,
         expiry: datetime,
         delivery_lag: int_ = NoInput(0),
@@ -1173,7 +1187,10 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
                     f"'{_}' is a required SABR parameter that must be included in ``nodes``"
                 )
         self.nodes: _SabrNodes = _SabrNodes(
-            alpha=nodes["alpha"], beta=nodes["beta"], rho=nodes["rho"], nu=nodes["nu"]
+            alpha=_dual_float(nodes["alpha"]),
+            beta=nodes["beta"],
+            rho=_dual_float(nodes["rho"]),
+            nu=_dual_float(nodes["nu"]),
         )
 
         self._set_ad_order(ad)
@@ -1317,23 +1334,23 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
                 base_obj,  # type: ignore[arg-type]
                 vector[0].real,
                 base_obj.vars,
-                ident[0, :].tolist(),  # type: ignore[arg-type]
+                ident[0, :].tolist(),
                 *DualArgs[1:],
             ),
             rho=DualType.vars_from(
                 base_obj,  # type: ignore[arg-type]
                 vector[1].real,
                 base_obj.vars,
-                ident[1, :].tolist(),  # type: ignore[arg-type]
+                ident[1, :].tolist(),
                 *DualArgs[1:],
             ),
             nu=DualType.vars_from(
                 base_obj,  # type: ignore[arg-type]
                 vector[2].real,
                 base_obj.vars,
-                ident[2, :].tolist(),  # type: ignore[arg-type]
+                ident[2, :].tolist(),
                 *DualArgs[1:],
-            )
+            ),
         )
 
     @_clear_cache_post
@@ -1352,7 +1369,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
             beta=self.nodes.beta,
             alpha=set_order_convert(self.nodes.alpha, order, [f"{self.id}0"]),
             rho=set_order_convert(self.nodes.rho, order, [f"{self.id}1"]),
-            nu=set_order_convert(self.nodes.nu, order, [f"{self.id}2"])
+            nu=set_order_convert(self.nodes.nu, order, [f"{self.id}2"]),
         )
 
     @_new_state_post
@@ -1387,9 +1404,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         params = ["alpha", "beta", "rho", "nu"]
         if key not in params:
             raise KeyError("`key` is not in ``nodes``.")
-        kwargs = {
-            _: getattr(self.nodes, _) for _ in params if _ != key
-        }
+        kwargs = {_: getattr(self.nodes, _) for _ in params if _ != key}
         kwargs.update({key: value})
         self.nodes = _SabrNodes(**kwargs)
         self._set_ad_order(self.ad)

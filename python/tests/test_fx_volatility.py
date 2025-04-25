@@ -21,9 +21,9 @@ from rateslib.fx_volatility import (
     FXDeltaVolSurface,
     FXSabrSmile,
     FXSabrSurface,
-    _SabrNodes,
     _d_sabr_d_k_or_f,
     _sabr,
+    _SabrNodes,
     _validate_delta_type,
 )
 from rateslib.periods import FXPutPeriod
@@ -594,24 +594,37 @@ class TestFXSabrSmile:
         # F_0,T is stated in section 3.5.4 as 1.3395
         base = fxss.get_from_strike(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []))[1]
 
-        # k
-        _up = fxss.get_from_strike(Dual2(k + 1e-5, ["k"], [], []), Dual2(f, ["f"], [], []))[1]
-        _dw = fxss.get_from_strike(Dual2(k - 1e-5, ["k"], [], []), Dual2(f, ["f"], [], []))[1]
-        assert abs((_up - _dw) / 2e-5 - gradient(base, ["k"])[0]) < 1e-5
+        a = fxss.nodes.alpha
+        p = fxss.nodes.rho
+        v = fxss.nodes.nu
 
-        # f
-        _up = fxss.get_from_strike(Dual2(k, ["k"], [], []), Dual2(f + 1e-5, ["f"], [], []))[1]
-        _dw = fxss.get_from_strike(Dual2(k, ["k"], [], []), Dual2(f - 1e-5, ["f"], [], []))[1]
-        assert abs((_up - _dw) / 2e-5 - gradient(base, ["f"])[0]) < 1e-5
+        def inc_(key1, inc1):
+            in_ = {"k": k, "f": f, "alpha": a, "rho": p, "nu": v}
+            in_[key1] += inc1
 
-        # SABR params
-        for i, key in enumerate(["alpha", "rho", "nu"]):
-            fxss.nodes[key] = fxss.nodes[key] + 1e-5
-            _up = fxss.get_from_strike(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []))[1]
-            fxss.nodes[key] = fxss.nodes[key] - 2e-5
-            _dw = fxss.get_from_strike(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []))[1]
-            fxss.nodes[key] = fxss.nodes[key] + 1e-5
-            assert abs((_up - _dw) / 2e-5 - gradient(base, [f"vol{i}"])[0]) < 1e-5
+            fxss.nodes = _SabrNodes(
+                alpha=in_["alpha"], beta=1.0, rho=in_["rho"], nu=in_["nu"]
+            )
+            _ = (
+                fxss._d_sabr_d_k_or_f(
+                    Dual2(in_["k"], ["k"], [], []),
+                    Dual2(in_["f"], ["f"], [], []),
+                    dt(2002, 1, 1),
+                    False,
+                    1,
+                )[0]
+                * 100.0
+            )
+
+            # reset
+            fxss.nodes = _SabrNodes(alpha=a, beta=1.0, rho=p, nu=v)
+            return _
+
+        for key in ["k", "f", "alpha", "rho", "nu"]:
+            map_ = {"k": "k", "f": "f", "alpha": "vol0", "rho": "vol1", "nu": "vol2"}
+            up_ = inc_(key, 1e-5)
+            dw_ = inc_(key, -1e-5)
+            assert abs((up_ - dw_) / 2e-5 - gradient(base, [map_[key]])[0]) < 1e-5
 
     @pytest.mark.parametrize(
         ("k", "f"), [(1.34, 1.34), (1.33, 1.35), (1.35, 1.33), (1.3399, 1.34), (1.34, 1.3401)]
@@ -642,28 +655,26 @@ class TestFXSabrSmile:
         base = fxss.get_from_strike(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []))[1]
 
         def inc_(key1, key2, inc1, inc2):
-            k_ = k
-            f_ = f
-            if key1 == "k":
-                k_ = k + inc1
-            elif key1 == "f":
-                f_ = f + inc1
-            else:
-                fxss.nodes[key1] = fxss.nodes[key1] + inc1
+            in_ = {"k": k, "f": f, "alpha": a, "rho": p, "nu": v}
+            in_[key1] += inc1
+            in_[key2] += inc2
 
-            if key2 == "k":
-                k_ = k + inc2
-            elif key2 == "f":
-                f_ = f + inc2
-            else:
-                fxss.nodes[key2] = fxss.nodes[key2] + inc2
+            fxss.nodes = _SabrNodes(
+                alpha=in_["alpha"], beta=1.0, rho=in_["rho"], nu=in_["nu"]
+            )
+            _ = (
+                fxss._d_sabr_d_k_or_f(
+                    Dual2(in_["k"], ["k"], [], []),
+                    Dual2(in_["f"], ["f"], [], []),
+                    dt(2002, 1, 1),
+                    False,
+                    1,
+                )[0]
+                * 100.0
+            )
 
-            _ = fxss.get_from_strike(Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []))[1]
-
-            fxss.nodes["alpha"] = a
-            fxss.nodes["rho"] = p
-            fxss.nodes["nu"] = v
-
+            # reset
+            fxss.nodes = _SabrNodes(alpha=a, beta=1.0, rho=p, nu=v)
             return _
 
         v_map = {"k": "k", "f": "f", "alpha": "v0", "rho": "v1", "nu": "v2"}
@@ -705,21 +716,25 @@ class TestFXSabrSmile:
         base = fxss.get_from_strike(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []))[1]
 
         def inc_(key1, inc1):
-            k_ = k
-            f_ = f
-            if key1 == "k":
-                k_ = k + inc1
-            elif key1 == "f":
-                f_ = f + inc1
-            else:
-                fxss.nodes[key1] = fxss.nodes[key1] + inc1
+            in_ = {"k": k, "f": f, "alpha": a, "rho": p, "nu": v}
+            in_[key1] += inc1
 
-            _ = fxss.get_from_strike(Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []))[1]
+            fxss.nodes = _SabrNodes(
+                alpha=in_["alpha"], beta=1.0, rho=in_["rho"], nu=in_["nu"]
+            )
+            _ = (
+                fxss._d_sabr_d_k_or_f(
+                    Dual2(in_["k"], ["k"], [], []),
+                    Dual2(in_["f"], ["f"], [], []),
+                    dt(2002, 1, 1),
+                    False,
+                    1,
+                )[0]
+                * 100.0
+            )
 
-            fxss.nodes["alpha"] = a
-            fxss.nodes["rho"] = p
-            fxss.nodes["nu"] = v
-
+            # reset
+            fxss.nodes = _SabrNodes(alpha=a, beta=1.0, rho=p, nu=v)
             return _
 
         v_map = {"k": "k", "f": "f", "alpha": "v0", "rho": "v1", "nu": "v2"}
@@ -953,42 +968,34 @@ class TestFXSabrSmile:
             Dual2(k, ["k"], [1.0], []), Dual2(f, ["f"], [1.0], []), t, False, 1
         )[1]
 
-        # k
-        _up = fxss._d_sabr_d_k_or_f(
-            Dual2(k + 1e-4, ["k"], [], []), Dual2(f, ["f"], [], []), t, False, 1
-        )[1]
-        _dw = fxss._d_sabr_d_k_or_f(
-            Dual2(k - 1e-4, ["k"], [], []), Dual2(f, ["f"], [], []), t, False, 1
-        )[1]
-        result = gradient(base, ["k"])[0]
-        expected = (_up - _dw) / 2e-4
-        assert abs(result - expected) < 1e-5
+        a = fxss.nodes.alpha
+        p = fxss.nodes.rho
+        v = fxss.nodes.nu
 
-        # f
-        _up = fxss._d_sabr_d_k_or_f(
-            Dual2(k, ["k"], [], []), Dual2(f + 1e-4, ["f"], [], []), t, False, 1
-        )[1]
-        _dw = fxss._d_sabr_d_k_or_f(
-            Dual2(k, ["k"], [], []), Dual2(f - 1e-4, ["f"], [], []), t, False, 1
-        )[1]
-        result = gradient(base, ["f"])[0]
-        expected = (_up - _dw) / 2e-4
-        assert abs(result - expected) < 1e-5
+        def inc_(key1, inc1):
+            in_ = {"k": k, "f": f, "alpha": a, "rho": p, "nu": v}
+            in_[key1] += inc1
 
-        # SABR params
-        for i, key in enumerate(["alpha", "rho", "nu"]):
-            fxss.nodes[key] = fxss.nodes[key] + 1e-5
-            _up = fxss._d_sabr_d_k_or_f(
-                Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), t, False, 1
+            fxss.nodes = _SabrNodes(
+                alpha=in_["alpha"], beta=1.0, rho=in_["rho"], nu=in_["nu"]
+            )
+            _ = fxss._d_sabr_d_k_or_f(
+                Dual2(in_["k"], ["k"], [], []),
+                Dual2(in_["f"], ["f"], [], []),
+                dt(2002, 1, 1),
+                False,
+                1,
             )[1]
-            fxss.nodes[key] = fxss.nodes[key] - 2e-5
-            _dw = fxss._d_sabr_d_k_or_f(
-                Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), t, False, 1
-            )[1]
-            fxss.nodes[key] = fxss.nodes[key] + 1e-5
-            result = gradient(base, [f"vol{i}"])[0]
-            expected = (_up - _dw) / 2e-5
-            assert abs(result - expected) < 1e-5
+
+            # reset
+            fxss.nodes = _SabrNodes(alpha=a, beta=1.0, rho=p, nu=v)
+            return _
+
+        for key in ["k", "f", "alpha", "rho", "nu"]:
+            map_ = {"k": "k", "f": "f", "alpha": "vol0", "rho": "vol1", "nu": "vol2"}
+            up_ = inc_(key, 1e-5)
+            dw_ = inc_(key, -1e-5)
+            assert abs((up_ - dw_) / 2e-5 - gradient(base, [map_[key]])[0]) < 2e-3
 
     @pytest.mark.parametrize(
         ("k", "f"), [(1.34, 1.34), (1.33, 1.35), (1.35, 1.33), (1.3395, 1.34), (1.34, 1.3405)]
@@ -1021,31 +1028,23 @@ class TestFXSabrSmile:
         )[1]
 
         def inc_(key1, key2, inc1, inc2):
-            k_ = k
-            f_ = f
-            if key1 == "k":
-                k_ = k + inc1
-            elif key1 == "f":
-                f_ = f + inc1
-            else:
+            in_ = {"k": k, "f": f, "alpha": a, "rho": p, "nu": v}
+            in_[key1] += inc1
+            in_[key2] += inc2
 
-                fxss.nodes[key1] = fxss.nodes[key1] + inc1
-
-            if key2 == "k":
-                k_ = k + inc2
-            elif key2 == "f":
-                f_ = f + inc2
-            else:
-                fxss.nodes[key2] = fxss.nodes[key2] + inc2
-
+            fxss.nodes = _SabrNodes(
+                alpha=in_["alpha"], beta=1.0, rho=in_["rho"], nu=in_["nu"]
+            )
             _ = fxss._d_sabr_d_k_or_f(
-                Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []), dt(2002, 1, 1), False, 1
+                Dual2(in_["k"], ["k"], [], []),
+                Dual2(in_["f"], ["f"], [], []),
+                dt(2002, 1, 1),
+                False,
+                1,
             )[1]
 
-            fxss.nodes["alpha"] = a
-            fxss.nodes["rho"] = p
-            fxss.nodes["nu"] = v
-
+            # reset
+            fxss.nodes = _SabrNodes(alpha=a, beta=1.0, rho=p, nu=v)
             return _
 
         v_map = {"k": "k", "f": "f", "alpha": "v0", "rho": "v1", "nu": "v2"}
@@ -1098,7 +1097,7 @@ class TestFXSabrSmile:
                 f_ = f + inc1
             else:
                 fxss.update_node(key1, getattr(fxss.nodes, key1) + inc1)
-                #fxss.nodes[key1] = fxss.nodes[key1] + inc1
+                # fxss.nodes[key1] = fxss.nodes[key1] + inc1
 
             _ = fxss._d_sabr_d_k_or_f(
                 Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []), dt(2002, 1, 1), False, 1

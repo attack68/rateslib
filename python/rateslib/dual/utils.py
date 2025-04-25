@@ -65,69 +65,59 @@ def _get_order_of(val: DualTypes) -> int:
     return ad_order
 
 
-def _cast_pair(val1: DualTypes, val2: DualTypes) -> tuple[DualTypes, DualTypes]:
-    """cast a pair of dual numbers into consistent values with ordered vars."""
-    order_pair = (_get_order_of(val1), _get_order_of(val2))
-    if order_pair == (0, 0):
-        return val1, val2
-    elif order_pair in [(0, 1), (1, 0), (1, 1)]:
-        base1: Dual = val1 + val2  # type: ignore[assignment]
-        _1: Dual = set_order_convert(val1, 1, None, None)  # type: ignore[assignment]
-        __1: Dual = set_order_convert(val2, 1, None, None)  # type: ignore[assignment]
-        return (
-            Dual.vars_from(base1, _1.real, _1.vars, _1.dual),
-            Dual.vars_from(base1, __1.real, __1.vars, __1.dual),
-        )
-    elif order_pair in [(0, 2), (2, 0), (2, 2)]:
-        base2: Dual2 = val1 + val2  # type: ignore[assignment]
-        _2: Dual2 = set_order_convert(val1, 2, None, None)  # type: ignore[assignment]
-        __2: Dual2 = set_order_convert(val2, 2, None, None)  # type: ignore[assignment]
-        return (
-            Dual2.vars_from(base2, _2.real, _2.vars, _2.dual, np.ravel(_2.dual2)),
-            Dual2.vars_from(base2, __2.real, __2.vars, __2.dual, np.ravel(__2.dual2)),
-        )
-    else:  # order_pair in [(1,2), (2,1)]:
-        raise TypeError("Cannot cast a Dual and Dual2 object to a consistent dual number.")
-
-
-def set_order(val: DualTypes, order: int) -> DualTypes:
+def set_order(val: DualTypes, order: int) -> Number:
     """
-    Changes the order of a :class:`Dual` or :class:`Dual2` and a sets a :class:`Variable`
-    leaving floats and ints unchanged.
+    Changes the order of a :class:`Dual` or :class:`Dual2` and a sets a :class:`Variable`.
 
     Parameters
     ----------
-    val : float, int, Dual or Dual2
+    val : float, Dual, Dual2, Variable
         The value to convert the order of.
     order : int in [0, 1, 2]
         The AD order to convert to. If ``val`` is float or int 0 will be used.
 
     Returns
     -------
-    float, int, Dual or Dual2
-    """
-    if order == 2 and isinstance(val, Dual | Variable):
-        return val.to_dual2()
-    elif order == 1 and isinstance(val, Dual2 | Variable):
-        return val.to_dual()
-    elif order == 0:
-        return _dual_float(val)
+    float, Dual or Dual2
 
-    # otherwise:
-    #  - val is a Float or an Int
-    #  - val is a Dual and order == 1 OR val is Dual2 and order == 2
-    return val
+    Notes
+    ------
+    **floats** are not affected by this function. There is no benefit to converting
+    one of these types to a dual number type with no tagged variable sensitivity.
+
+    If ``order`` is **zero**, all objects are converted to float.
+
+    If ``order`` is **one**, *Dual2* are converted to *Dual* by dropping second order gradients.
+
+    If ``order`` is **two**, *Dual* are converted to *DUal2* by setting second order gradients to
+    default zero values.
+    """
+    if order == 0:
+        return _dual_float(val)
+    elif order == 1:
+        if isinstance(val, Dual):
+            return val
+        elif isinstance(val, Dual2 | Variable):
+            return val.to_dual()
+        return val  # as float
+    else:  # order == 2
+        if isinstance(val, Dual2):
+            return val
+        elif isinstance(val, Dual | Variable):
+            return val.to_dual2()
+        return val  # as float
 
 
 def set_order_convert(
     val: DualTypes, order: int, tag: list[str] | None, vars_from: Dual | Dual2 | None = None
-) -> DualTypes:
+) -> Number:
     """
-    Convert a float, :class:`Dual` or :class:`Dual2` type to a specified alternate type.
+    Convert a float, :class:`Dual` or :class:`Dual2` type to a specified alternate type with
+    tagged variables.
 
     Parameters
     ----------
-    val : float, Dual or Dual2
+    val : float, Dual, Dual2, Variable
         The value to convert.
     order : int
         The AD order to convert the value to if necessary.
@@ -140,6 +130,14 @@ def set_order_convert(
     Returns
     -------
     float, Dual, Dual2
+
+    Notes
+    -----
+    This function is used for AD variable management.
+
+    ``tag`` and ``vars_from`` are only used when floats are upcast and the variables need to be
+    specifically define.
+
     """
     if isinstance(val, FLOATS | INTS):
         _ = [] if tag is None else tag
