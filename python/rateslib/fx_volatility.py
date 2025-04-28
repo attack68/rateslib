@@ -313,46 +313,46 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
         delta_index = -delta
         return delta_index, self[delta_index], k
 
-    def _delta_index_from_call_or_put_delta(
-        self,
-        delta: DualTypes,
-        phi: float,
-        z_w: DualTypes | NoInput = NoInput(0),
-        u: DualTypes | NoInput = NoInput(0),
-    ) -> DualTypes:
-        """
-        Get the *Smile* index delta given an option delta of the same type as the *Smile*.
-
-        Note: This is required because the delta_index of the *Smile* uses negated put deltas.
-
-        Parameters
-        ----------
-        delta: DualTypes
-            The expressed option delta. This MUST be given in the same type as the *Smile*.
-        phi: float
-            Whether a call (1.0) or a put (-1.0)
-        z_w: DualTypes
-            The spot/forward conversion factor defined by: `w_deli / w_spot`.
-        u: DualTypes
-            Moneyness defined by: `k/f_d`
-
-        Returns
-        -------
-        float, Dual, Dual2
-        """
-        # if call then must convert to put delta using delta parity equations
-        if phi > 0:
-            if self.delta_type == "forward":
-                put_delta = delta - 1.0
-            elif self.delta_type == "spot":
-                put_delta = delta - z_w  # type: ignore[operator]
-            elif self.delta_type == "forward_pa":
-                put_delta = delta - u  # type: ignore[operator]
-            else:  # self.delta_type == "spot_pa":
-                put_delta = delta - z_w * u  # type: ignore[operator]
-        else:
-            put_delta = delta
-        return -1.0 * put_delta
+    # def _delta_index_from_call_or_put_delta(
+    #     self,
+    #     delta: DualTypes,
+    #     phi: float,
+    #     z_w: DualTypes | NoInput = NoInput(0),
+    #     u: DualTypes | NoInput = NoInput(0),
+    # ) -> DualTypes:
+    #     """
+    #     Get the *Smile* index delta given an option delta of the same type as the *Smile*.
+    #
+    #     Note: This is required because the delta_index of the *Smile* uses negated put deltas.
+    #
+    #     Parameters
+    #     ----------
+    #     delta: DualTypes
+    #         The expressed option delta. This MUST be given in the same type as the *Smile*.
+    #     phi: float
+    #         Whether a call (1.0) or a put (-1.0)
+    #     z_w: DualTypes
+    #         The spot/forward conversion factor defined by: `w_deli / w_spot`.
+    #     u: DualTypes
+    #         Moneyness defined by: `k/f_d`
+    #
+    #     Returns
+    #     -------
+    #     float, Dual, Dual2
+    #     """
+    #     # if call then must convert to put delta using delta parity equations
+    #     if phi > 0:
+    #         if self.delta_type == "forward":
+    #             put_delta = delta - 1.0
+    #         elif self.delta_type == "spot":
+    #             put_delta = delta - z_w  # type: ignore[operator]
+    #         elif self.delta_type == "forward_pa":
+    #             put_delta = delta - u  # type: ignore[operator]
+    #         else:  # self.delta_type == "spot_pa":
+    #             put_delta = delta - z_w * u  # type: ignore[operator]
+    #     else:
+    #         put_delta = delta
+    #     return -1.0 * put_delta
 
     # def _build_datatable(self):
     #     """
@@ -1258,7 +1258,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         else:
             raise ValueError("`f` (ATM-forward FX rate) must be a value or FXForwards object.")
 
-        vol_ = _sabr(
+        vol_ = _d_sabr_d_k_or_f(
             _to_number(k),
             _to_number(f_),
             self.t_expiry,
@@ -1266,7 +1266,8 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
             self.nodes.beta,
             self.nodes.rho,
             self.nodes.nu,
-        )
+            derivative=0,
+        )[0]
         return 0.0, vol_ * 100.0, k
 
     def _d_sabr_d_k_or_f(
@@ -1276,7 +1277,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         expiry: datetime,
         as_float: bool,
         derivative: int,
-    ) -> tuple[DualTypes, DualTypes]:
+    ) -> tuple[DualTypes, DualTypes | None]:
         """Get the derivative of sabr vol with respect to strike
 
         as_float: bool
@@ -1572,6 +1573,23 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
 
     See :ref:`constructing FX volatility surfaces <c-fx-smile-doc>` for more details.
 
+    **Extrapolation**
+
+    When an ``expiry`` is sought that is prior to the first parametrised *Smile expiry* or after the
+    final parametrised *Smile expiry* extrapolation is required. This is not recommended,
+    however. It would be wiser to create parameterised *Smiles* at *expiries* which suit those
+    one wishes to obtian values for.
+
+    When seeking an ``expiry`` beyond the final expiry, a new
+    :class:`~rateslib.fx_volatility.SabrSmile` is created at that specific *expiry* using the
+    same SABR parameters as matching the final parametrised *Smile*. This will capture the
+    evolution of ATM-forward rates through time.
+
+    When seeking an ``expiry`` prior to the first expiry, the volatility found on the first *Smile*
+    will be used an interpolated, using total linear variance accooridng to the given ``weights``.
+    If ``weights`` are not used then this will return the same value as obtained from that
+    first parametrised *Smile*. This does not account any evolution of ATM-forward rates.
+
     """
 
     _ini_solve = 0
@@ -1671,7 +1689,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
             vars_ += tuple(f"{smile.id}{i}" for i in range(3))
         return vars_
 
-    @_validate_states
+    # @_validate_states: not required becuase state is validated by interior function
     def get_from_strike(
         self,
         k: DualTypes,
@@ -1708,72 +1726,8 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         concept of a `delta index` the first element returned is always zero and can be
         effectively ignored.
         """
-        expiry_posix = expiry.replace(tzinfo=UTC).timestamp()
-        e_idx = index_left_f64(self.expiries_posix, expiry_posix)
-        if expiry == self.expiries[0]:
-            return self.smiles[0].get_from_strike(k, f, expiry)
-        elif abs(expiry_posix - self.expiries_posix[e_idx + 1]) < 1e-10:
-            # expiry aligns with a known smile
-            return self.smiles[e_idx + 1].get_from_strike(k, f, expiry)
-        elif expiry_posix > self.expiries_posix[-1]:
-            # use the SABR parameters from the last smile
-            smile = FXSabrSmile(
-                nodes={
-                    "alpha": self.smiles[e_idx + 1].nodes.alpha,
-                    "beta": self.smiles[e_idx + 1].nodes.beta,
-                    "rho": self.smiles[e_idx + 1].nodes.rho,
-                    "nu": self.smiles[e_idx + 1].nodes.nu,
-                },
-                eval_date=self.eval_date,
-                expiry=expiry,
-                ad=self.ad,
-                pair=self.pair,
-                delivery_lag=self.delivery_lag,
-                calendar=self.calendar,
-                id=self.smiles[e_idx + 1].id + "_ext",
-            )
-            return smile.get_from_strike(k, f, expiry)
-        elif expiry <= self.eval_date:
-            raise ValueError("`expiry` before the `eval_date` of the Surface is invalid.")
-        elif expiry_posix < self.expiries_posix[0]:
-            # Perform temporal interpolation from the start to the first Smile
-            v_ = self.smiles[0].get_from_strike(k, f)[1]
-            vol = _t_var_interp(
-                expiries=self.expiries,
-                expiries_posix=self.expiries_posix,
-                expiry=expiry,
-                expiry_posix=expiry_posix,
-                expiry_index=e_idx,
-                eval_posix=self.eval_posix,
-                weights_cum=self.weights_cum,
-                vol1=v_,
-                vol2=v_,
-                bounds_flag=-1,
-            )
-            return 0.0, vol, k
-        else:
-            ls, rs = self.smiles[e_idx], self.smiles[e_idx + 1]  # left_smile, right_smile
-            if not isinstance(f, FXForwards):
-                raise ValueError(
-                    "`f` must be supplied as `FXForwards` in order to calculate"
-                    "dynamic ATM-forward rates for temporally-interpolated SABR volatility."
-                )
-            lvol = ls.get_from_strike(k, f)[1]
-            rvol = rs.get_from_strike(k, f)[1]
-
-            vol = _t_var_interp(
-                expiries=self.expiries,
-                expiries_posix=self.expiries_posix,
-                expiry=expiry,
-                expiry_posix=expiry_posix,
-                expiry_index=e_idx,
-                eval_posix=self.eval_posix,
-                weights_cum=self.weights_cum,
-                vol1=lvol,
-                vol2=rvol,
-                bounds_flag=0,
-            )
-            return 0.0, vol, k
+        vol_ = self._d_sabr_d_k_or_f(k, f, expiry, as_float=False, derivative=0)[0]
+        return 0.0, vol_ * 100.0, k
 
     @_validate_states
     def _d_sabr_d_k_or_f(
@@ -1783,17 +1737,19 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         expiry: datetime,
         as_float: bool,
         derivative: int,
-    ) -> tuple[DualTypes, DualTypes]:
+    ) -> tuple[DualTypes, DualTypes | None]:
         expiry_posix = expiry.replace(tzinfo=UTC).timestamp()
         e_idx = index_left_f64(self.expiries_posix, expiry_posix)
 
         if expiry == self.expiries[0]:
+            # expiry matches the expiry on the first Smile, call that method directly.
             return self.smiles[0]._d_sabr_d_k_or_f(k, f, expiry, as_float, derivative)
         elif abs(expiry_posix - self.expiries_posix[e_idx + 1]) < 1e-10:
-            # expiry aligns with a known smile
+            # expiry matches an expiry of a known Smile (not the first), call method directly.
             return self.smiles[e_idx + 1]._d_sabr_d_k_or_f(k, f, expiry, as_float, derivative)
         elif expiry_posix > self.expiries_posix[-1]:
-            # use the SABR parameters from the last smile
+            # expiry is beyond that of the last known Smile. Construct a new Smile at the expiry
+            # by using the SABR parameters of the final Smile. (allows for ATM-forward calculation)
             smile = FXSabrSmile(
                 nodes={
                     "alpha": self.smiles[e_idx + 1].nodes.alpha,
@@ -1813,8 +1769,12 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         elif expiry <= self.eval_date:
             raise ValueError("`expiry` before the `eval_date` of the Surface is invalid.")
         elif expiry_posix < self.expiries_posix[0]:
-            # Perform temporal interpolation from the start to the first Smile
-            vol_, dvol_k_or_f = self.smiles[0]._d_sabr_d_k_or_f(k, f, expiry, as_float, derivative)
+            # expiry is before the expiry of the first known Smile.
+            # calculate the vol as if it were for expiry on the first Smile and then use
+            # temporal interpolation (including weights) to obtain an adjusted volatility.
+            vol_, dvol_k_or_f = self.smiles[0]._d_sabr_d_k_or_f(
+                k=k, f=f, expiry=self.smiles[0].expiry, as_float=as_float, derivative=derivative
+            )
             return _t_var_interp_d_sabr_d_k_or_f(
                 expiries=self.expiries,
                 expiries_posix=self.expiries_posix,
@@ -1824,21 +1784,28 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                 eval_posix=self.eval_posix,
                 weights_cum=self.weights_cum,
                 vol1=vol_,
-                dvol1_dk=dvol_k_or_f,
+                dvol1_dk=dvol_k_or_f,  # type: ignore[arg-type]
                 vol2=vol_,
-                dvol2_dk=dvol_k_or_f,
+                dvol2_dk=dvol_k_or_f,  # type: ignore[arg-type]
                 bounds_flag=-1,
+                derivative=derivative > 0,
             )
         else:
+            # expiry is sandwiched between two known Smile expiries.
+            # Calculate the vol for strike on either of these Smiles and then interpolate
+            # for the correct expiry, including weights.
             ls, rs = self.smiles[e_idx], self.smiles[e_idx + 1]  # left_smile, right_smile
             if not isinstance(f, FXForwards):
                 raise ValueError(
                     "`f` must be supplied as `FXForwards` in order to calculate"
                     "dynamic ATM-forward rates for temporally-interpolated SABR volatility."
                 )
-            lvol, d_lvol_dk_or_f = ls._d_sabr_d_k_or_f(k, f, expiry, as_float, derivative)
-            rvol, d_rvol_dk_or_f = rs._d_sabr_d_k_or_f(k, f, expiry, as_float, derivative)
-
+            lvol, d_lvol_dk_or_f = ls._d_sabr_d_k_or_f(
+                k=k, f=f, expiry=ls.expiry, as_float=as_float, derivative=derivative
+            )
+            rvol, d_rvol_dk_or_f = rs._d_sabr_d_k_or_f(
+                k=k, f=f, expiry=rs.expiry, as_float=as_float, derivative=derivative
+            )
             return _t_var_interp_d_sabr_d_k_or_f(
                 expiries=self.expiries,
                 expiries_posix=self.expiries_posix,
@@ -1848,10 +1815,11 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                 eval_posix=self.eval_posix,
                 weights_cum=self.weights_cum,
                 vol1=lvol,
-                dvol1_dk=d_lvol_dk_or_f,
+                dvol1_dk=d_lvol_dk_or_f,  # type: ignore[arg-type]
                 vol2=rvol,
-                dvol2_dk=d_rvol_dk_or_f,
+                dvol2_dk=d_rvol_dk_or_f,  # type: ignore[arg-type]
                 bounds_flag=0,
+                derivative=derivative > 0,
             )
 
 
@@ -1986,7 +1954,8 @@ def _t_var_interp_d_sabr_d_k_or_f(
     vol2: DualTypes,
     dvol2_dk: DualTypes,
     bounds_flag: int,
-) -> tuple[DualTypes, DualTypes]:
+    derivative: bool,
+) -> tuple[DualTypes, DualTypes | None]:
     if isinstance(weights_cum, NoInput):  # weights must also be NoInput
         if bounds_flag == 0:
             t1 = expiries_posix[expiry_index] - eval_posix
@@ -2020,9 +1989,12 @@ def _t_var_interp_d_sabr_d_k_or_f(
 
     t_quotient = (t_hat - t1) / (t2 - t1)
     vol = ((t1 * vol1**2 + t_quotient * (t2 * vol2**2 - t1 * vol1**2)) / t) ** 0.5
-    dvol_dk = (
-        (t2 / t) * t_quotient * vol2 * dvol2_dk + (t1 / t) * (1 - t_quotient) * vol1 * dvol1_dk
-    ) / vol
+    if derivative:
+        dvol_dk = (
+            (t2 / t) * t_quotient * vol2 * dvol2_dk + (t1 / t) * (1 - t_quotient) * vol1 * dvol1_dk
+        ) / vol
+    else:
+        dvol_dk = None
     return vol, dvol_dk
 
 
@@ -2578,30 +2550,6 @@ def _moneyness_from_delta_three_dimensional(
     return u, delta_idx, delta
 
 
-def _sabr(
-    k: Number,
-    f: Number,
-    t: Number,
-    a: Number,
-    b: float | Variable,
-    p: Number,
-    v: Number,
-) -> Number:
-    """
-    Calculate the SABR vol. For formula see for example I. Clark "Foreign Exchange Option
-    Pricing" section 3.10.
-
-    Rateslib uses the representation sigma(k) = X0 * X1 * X2, with these variables as defined in
-    "Coding Interest Rates" chapter 13 to handle AD using dual numbers effectively.
-    """
-    b_: Number = _to_number(b)
-    X0 = _sabr_X0(k, f, t, a, b_, p, v, False)[0]
-    X1 = _sabr_X1(k, f, t, a, b_, p, v, False)[0]
-    X2 = _sabr_X2(k, f, t, a, b_, p, v, False)[0]
-
-    return X0 * X1 * X2
-
-
 def _d_sabr_d_k_or_f(
     k: Number,
     f: Number,
@@ -2611,12 +2559,19 @@ def _d_sabr_d_k_or_f(
     p: Number,
     v: Number,
     derivative: int,
-) -> tuple[Number, Number]:
+) -> tuple[Number, Number | None]:
     """
-    Calculate the derivative of the SABR function with respect to k.
+    Calculate the SABR function and its derivative with respect to k or f.
 
-    For derivatives with respect to `k` use 1
-    For derivatives with respect to `f` use 2
+    For formula see for example I. Clark "Foreign Exchange Option
+    Pricing" section 3.10.
+
+    Rateslib uses the representation sigma(k) = X0 * X1 * X2, with these variables as defined in
+    "Coding Interest Rates" chapter 13 to handle AD using dual numbers effectively.
+
+    For no derivative and just the SABR function value use 0.
+    For derivatives with respect to `k` use 1.
+    For derivatives with respect to `f` use 2.
 
     See "Coding Interest Rates: FX Swaps and Bonds edition 2"
     """
@@ -2624,7 +2579,11 @@ def _d_sabr_d_k_or_f(
     X0, dX0 = _sabr_X0(k, f, t, a, b_, p, v, derivative)
     X1, dX1 = _sabr_X1(k, f, t, a, b_, p, v, derivative)
     X2, dX2 = _sabr_X2(k, f, t, a, b_, p, v, derivative)
-    return X0 * X1 * X2, dX0 * X1 * X2 + X0 * dX1 * X2 + X0 * X1 * dX2  # type: ignore[operator]
+
+    if derivative == 0:
+        return X0 * X1 * X2, None
+    else:
+        return X0 * X1 * X2, dX0 * X1 * X2 + X0 * dX1 * X2 + X0 * X1 * dX2  # type: ignore[operator]
 
 
 def _sabr_X0(

@@ -699,8 +699,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
         k: DualTypes,
         fxf: FXForwards,
     ) -> DualTypes:
+        dvol_df: DualTypes
         if isinstance(vol, FXSabrSmile):
-            _, dvol_df = vol._d_sabr_d_k_or_f(
+            _, dvol_df = vol._d_sabr_d_k_or_f(  # type: ignore[assignment]
                 k=k,
                 f=f_d,
                 expiry=expiry,
@@ -708,7 +709,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 derivative=2,  # with respect to f
             )
         elif isinstance(vol, FXSabrSurface):
-            _, dvol_df = vol._d_sabr_d_k_or_f(
+            _, dvol_df = vol._d_sabr_d_k_or_f(  # type: ignore[assignment]
                 k=k,
                 f=fxf,  # use FXForwards to derive multiple rates
                 expiry=expiry,
@@ -871,7 +872,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
         ) -> tuple[DualTypes, DualTypes]:
             # if not as_float and isinstance(fx, FXForwards):
             #     _set_ad_order_objects(_ad, [fx])
-            sigma, dsigma_dk = vol._d_sabr_d_k_or_f(
+            dsigma_dk: Number
+            sigma, dsigma_dk = vol._d_sabr_d_k_or_f(  # type: ignore[assignment]
                 k=k, f=fx, expiry=self.expiry, as_float=as_float, derivative=1
             )
             f0 = -dual_log(k / f_d) + eta_0 * sigma**2 * t_e

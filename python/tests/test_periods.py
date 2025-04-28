@@ -4263,7 +4263,7 @@ class TestFXOption:
                     id="smile",
                     pair="eurusd",
                 ),
-                0.701090,
+                0.701242,
             ),
             (
                 FXDeltaVolSmile(

@@ -22,7 +22,6 @@ from rateslib.fx_volatility import (
     FXSabrSmile,
     FXSabrSurface,
     _d_sabr_d_k_or_f,
-    _sabr,
     _SabrNodes,
     _validate_delta_type,
 )
@@ -602,9 +601,7 @@ class TestFXSabrSmile:
             in_ = {"k": k, "f": f, "alpha": a, "rho": p, "nu": v}
             in_[key1] += inc1
 
-            fxss.nodes = _SabrNodes(
-                alpha=in_["alpha"], beta=1.0, rho=in_["rho"], nu=in_["nu"]
-            )
+            fxss.nodes = _SabrNodes(alpha=in_["alpha"], beta=1.0, rho=in_["rho"], nu=in_["nu"])
             _ = (
                 fxss._d_sabr_d_k_or_f(
                     Dual2(in_["k"], ["k"], [], []),
@@ -659,9 +656,7 @@ class TestFXSabrSmile:
             in_[key1] += inc1
             in_[key2] += inc2
 
-            fxss.nodes = _SabrNodes(
-                alpha=in_["alpha"], beta=1.0, rho=in_["rho"], nu=in_["nu"]
-            )
+            fxss.nodes = _SabrNodes(alpha=in_["alpha"], beta=1.0, rho=in_["rho"], nu=in_["nu"])
             _ = (
                 fxss._d_sabr_d_k_or_f(
                     Dual2(in_["k"], ["k"], [], []),
@@ -719,9 +714,7 @@ class TestFXSabrSmile:
             in_ = {"k": k, "f": f, "alpha": a, "rho": p, "nu": v}
             in_[key1] += inc1
 
-            fxss.nodes = _SabrNodes(
-                alpha=in_["alpha"], beta=1.0, rho=in_["rho"], nu=in_["nu"]
-            )
+            fxss.nodes = _SabrNodes(alpha=in_["alpha"], beta=1.0, rho=in_["rho"], nu=in_["nu"])
             _ = (
                 fxss._d_sabr_d_k_or_f(
                     Dual2(in_["k"], ["k"], [], []),
@@ -976,9 +969,7 @@ class TestFXSabrSmile:
             in_ = {"k": k, "f": f, "alpha": a, "rho": p, "nu": v}
             in_[key1] += inc1
 
-            fxss.nodes = _SabrNodes(
-                alpha=in_["alpha"], beta=1.0, rho=in_["rho"], nu=in_["nu"]
-            )
+            fxss.nodes = _SabrNodes(alpha=in_["alpha"], beta=1.0, rho=in_["rho"], nu=in_["nu"])
             _ = fxss._d_sabr_d_k_or_f(
                 Dual2(in_["k"], ["k"], [], []),
                 Dual2(in_["f"], ["f"], [], []),
@@ -1032,9 +1023,7 @@ class TestFXSabrSmile:
             in_[key1] += inc1
             in_[key2] += inc2
 
-            fxss.nodes = _SabrNodes(
-                alpha=in_["alpha"], beta=1.0, rho=in_["rho"], nu=in_["nu"]
-            )
+            fxss.nodes = _SabrNodes(alpha=in_["alpha"], beta=1.0, rho=in_["rho"], nu=in_["nu"])
             _ = fxss._d_sabr_d_k_or_f(
                 Dual2(in_["k"], ["k"], [], []),
                 Dual2(in_["f"], ["f"], [], []),
@@ -1733,9 +1722,84 @@ class TestFXSabrSurface:
         assert abs(expected_fwd_diff - result) < 1e-3
         assert abs(expected_ad - result) < 1e-3
 
-    def test_variables_on_extrapolated_sabr_smiles(self):
+    @pytest.mark.parametrize(
+        ("k", "expiry", "expected"),
+        [
+            (1.10, dt(2023, 4, 15), 5.011351023668074),
+            (1.10, dt(2023, 6, 28), 5.011351023668074),
+            (1.10, dt(2023, 7, 15), 5.333915841859923),
+            (1.10, dt(2023, 9, 28), 6.021827601466909),
+            (1.10, dt(2023, 10, 28), 6.022252380963102),
+        ],
+    )
+    def test_get_from_strike(self, fxfo, k, expiry, expected):
+        # test different branches for expiry
+        surface = FXSabrSurface(
+            eval_date=dt(2023, 3, 16),
+            expiries=[dt(2023, 6, 28), dt(2023, 9, 28)],
+            node_values=[
+                [0.05, 1.0, 0.01, 0.15],
+                [0.06, 1.0, 0.02, 0.20],
+            ],
+            pair="eurusd",
+            delivery_lag=2,
+            calendar="tgt|fed",
+            id="eurusd_vol",
+        )
+        result = surface.get_from_strike(k, fxfo, expiry)
+        assert result[0] == 0.0
+        assert abs(result[1] - expected) < 1e-14
+        assert result[2] == k
+
+    def test_variables_on_extrapolated_sabr_smiles_before(self, fxfo):
         # assert that vars on extrapolated smiles reference the underlying smiles vars
-        assert False
+        fxss = FXSabrSurface(
+            eval_date=dt(2023, 3, 16),
+            expiries=[dt(2023, 7, 15), dt(2023, 9, 15)],
+            node_values=[[0.05, 1.0, 0.01, 0.15]] * 2,
+            pair="eurusd",
+            delivery_lag=2,
+            calendar="tgt|fed",
+            id="v",
+            ad=1,
+        )
+        result = fxss.get_from_strike(1.10, fxfo, dt(2023, 4, 14))[1]
+        assert result.vars == ["v_0_0", "v_0_1", "v_0_2", "fx_eurusd"]
+
+    def test_variables_on_extrapolated_sabr_smiles_after(self, fxfo):
+        # assert that vars on extrapolated smiles reference the underlying smiles vars
+        fxss = FXSabrSurface(
+            eval_date=dt(2023, 3, 16),
+            expiries=[dt(2023, 7, 15), dt(2023, 9, 15)],
+            node_values=[[0.05, 1.0, 0.01, 0.15]] * 2,
+            pair="eurusd",
+            delivery_lag=2,
+            calendar="tgt|fed",
+            id="v",
+            ad=1,
+        )
+        result = fxss.get_from_strike(1.10, fxfo, dt(2024, 4, 14))[1]
+        assert result.vars == ["v_1_0", "v_1_1", "v_1_2", "fx_eurusd"]
+
+    def test_update_state(self):
+        fxss = FXSabrSurface(
+            eval_date=dt(2023, 3, 16),
+            expiries=[dt(2023, 7, 15), dt(2023, 9, 15)],
+            node_values=[[0.05, 1.0, 0.01, 0.15]] * 2,
+            pair="eurusd",
+            delivery_lag=2,
+            calendar="tgt|fed",
+            id="v",
+            ad=1,
+        )
+        state_ = fxss._state
+        fxss.smiles[1].update_node("alpha", 0.06)
+        assert state_ != fxss._get_composited_state()
+
+        # calling get from strike will validate
+        fxss.get_from_strike(1.1, 1.1, dt(2023, 7, 15))
+        assert fxss._state == fxss._get_composited_state()
+
 
 class TestStateAndCache:
     @pytest.mark.parametrize(
