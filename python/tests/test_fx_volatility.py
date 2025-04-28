@@ -1339,6 +1339,63 @@ class TestFXSabrSmile:
         )
         fc.delta(solver=dv_solver)
 
+    @pytest.mark.parametrize("a", [0.02, 0.06])
+    @pytest.mark.parametrize("b", [0.0, 0.4, 0.65, 1.0])
+    @pytest.mark.parametrize("p", [-0.1, 0.1])
+    @pytest.mark.parametrize("v", [0.05, 0.15])
+    @pytest.mark.parametrize("k", [1.05, 1.25, 1.6])
+    def test_sabr_function_values(self, a, b, p, v, k):
+
+        fxs = FXSabrSmile(
+            nodes={"alpha": a, "beta": b, "rho": p, "nu": v},
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            ad=0,
+        )
+
+        # this code is taken from PySabr, another library implementing SABR.
+        # it is used as a benchmark
+        def _x(rho, z):
+            """Return function x used in Hagan's 2002 SABR lognormal vol expansion."""
+            a = (1 - 2 * rho * z + z ** 2) ** .5 + z - rho
+            b = 1 - rho
+            return np.log(a / b)
+
+        def lognormal_vol(k, f, t, alpha, beta, rho, volvol):
+            """
+            Hagan's 2002 SABR lognormal vol expansion.
+
+            The strike k can be a scalar or an array, the function will return an array
+            of lognormal vols.
+            """
+            # Negative strikes or forwards
+            if k <= 0 or f <= 0:
+                return 0.
+            eps = 1e-07
+            logfk = np.log(f / k)
+            fkbeta = (f * k) ** (1 - beta)
+            a = (1 - beta) ** 2 * alpha ** 2 / (24 * fkbeta)
+            b = 0.25 * rho * beta * volvol * alpha / fkbeta ** 0.5
+            c = (2 - 3 * rho ** 2) * volvol ** 2 / 24
+            d = fkbeta ** 0.5
+            v = (1 - beta) ** 2 * logfk ** 2 / 24
+            w = (1 - beta) ** 4 * logfk ** 4 / 1920
+            z = volvol * fkbeta ** 0.5 * logfk / alpha
+            # if |z| > eps
+            if abs(z) > eps:
+                vz = alpha * z * (1 + (a + b + c) * t) / (d * (1 + v + w) * _x(rho, z))
+                return vz
+            # if |z| <= eps
+            else:
+                v0 = alpha * (1 + (a + b + c) * t) / (d * (1 + v + w))
+                return v0
+
+        expected = lognormal_vol(k, 1.25, 1.0, a, b, p, v)
+        result = fxs.get_from_strike(k, 1.25)[1] / 100.0
+
+        assert abs(result - expected) < 1e-4
+
+
 
 class TestFXSabrSurface:
     @pytest.mark.parametrize(
