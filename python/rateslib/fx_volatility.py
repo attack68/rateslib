@@ -3,7 +3,7 @@ from __future__ import annotations  # type hinting
 import warnings
 from datetime import datetime, timedelta
 from datetime import datetime as dt
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Any, NamedTuple, TypeAlias
 from uuid import uuid4
 
 import numpy as np
@@ -32,7 +32,7 @@ from rateslib.dual import (
     newton_ndim,
     set_order_convert,
 )
-from rateslib.dual.utils import _dual_float
+from rateslib.dual.utils import _dual_float, _to_number
 from rateslib.fx import FXForwards
 from rateslib.mutability import (
     _clear_cache_post,
@@ -48,7 +48,7 @@ from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, Sequence, datetime_, int_, str_
+    from rateslib.typing import CalInput, Number, Sequence, datetime_, int_, str_
 
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
 
@@ -313,46 +313,46 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
         delta_index = -delta
         return delta_index, self[delta_index], k
 
-    def _delta_index_from_call_or_put_delta(
-        self,
-        delta: DualTypes,
-        phi: float,
-        z_w: DualTypes | NoInput = NoInput(0),
-        u: DualTypes | NoInput = NoInput(0),
-    ) -> DualTypes:
-        """
-        Get the *Smile* index delta given an option delta of the same type as the *Smile*.
-
-        Note: This is required because the delta_index of the *Smile* uses negated put deltas.
-
-        Parameters
-        ----------
-        delta: DualTypes
-            The expressed option delta. This MUST be given in the same type as the *Smile*.
-        phi: float
-            Whether a call (1.0) or a put (-1.0)
-        z_w: DualTypes
-            The spot/forward conversion factor defined by: `w_deli / w_spot`.
-        u: DualTypes
-            Moneyness defined by: `k/f_d`
-
-        Returns
-        -------
-        float, Dual, Dual2
-        """
-        # if call then must convert to put delta using delta parity equations
-        if phi > 0:
-            if self.delta_type == "forward":
-                put_delta = delta - 1.0
-            elif self.delta_type == "spot":
-                put_delta = delta - z_w  # type: ignore[operator]
-            elif self.delta_type == "forward_pa":
-                put_delta = delta - u  # type: ignore[operator]
-            else:  # self.delta_type == "spot_pa":
-                put_delta = delta - z_w * u  # type: ignore[operator]
-        else:
-            put_delta = delta
-        return -1.0 * put_delta
+    # def _delta_index_from_call_or_put_delta(
+    #     self,
+    #     delta: DualTypes,
+    #     phi: float,
+    #     z_w: DualTypes | NoInput = NoInput(0),
+    #     u: DualTypes | NoInput = NoInput(0),
+    # ) -> DualTypes:
+    #     """
+    #     Get the *Smile* index delta given an option delta of the same type as the *Smile*.
+    #
+    #     Note: This is required because the delta_index of the *Smile* uses negated put deltas.
+    #
+    #     Parameters
+    #     ----------
+    #     delta: DualTypes
+    #         The expressed option delta. This MUST be given in the same type as the *Smile*.
+    #     phi: float
+    #         Whether a call (1.0) or a put (-1.0)
+    #     z_w: DualTypes
+    #         The spot/forward conversion factor defined by: `w_deli / w_spot`.
+    #     u: DualTypes
+    #         Moneyness defined by: `k/f_d`
+    #
+    #     Returns
+    #     -------
+    #     float, Dual, Dual2
+    #     """
+    #     # if call then must convert to put delta using delta parity equations
+    #     if phi > 0:
+    #         if self.delta_type == "forward":
+    #             put_delta = delta - 1.0
+    #         elif self.delta_type == "spot":
+    #             put_delta = delta - z_w  # type: ignore[operator]
+    #         elif self.delta_type == "forward_pa":
+    #             put_delta = delta - u  # type: ignore[operator]
+    #         else:  # self.delta_type == "spot_pa":
+    #             put_delta = delta - z_w * u  # type: ignore[operator]
+    #     else:
+    #         put_delta = delta
+    #     return -1.0 * put_delta
 
     # def _build_datatable(self):
     #     """
@@ -1079,6 +1079,19 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         return plot3d(deltas, expiries, vols)  # type: ignore[arg-type, return-value]
 
 
+class _SabrNodes(NamedTuple):
+    alpha: Number
+    beta: float | Variable
+    rho: Number
+    nu: Number
+
+    def __getitem__(self, item: str) -> Any:  # type: ignore[override]
+        # Syntactic sugar. Should be avoided in production code. Use _SabrNodes.item instead.
+        if item not in ["alpha", "beta", "rho", "nu"]:
+            raise KeyError(f"SabrNodes only permit 4 parameters of which '{item}' is not one.")
+        return getattr(self, item)
+
+
 class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
     r"""
     Create an *FX Volatility Smile* at a given expiry indexed by strike using SABR parameters.
@@ -1089,7 +1102,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
 
     Parameters
     ----------
-    nodes: dict[str, DualTypes]
+    nodes: dict[str, float]
         The parameters for the SABR model. Keys must be *'alpha', 'beta', 'rho', 'nu'*. See below.
     eval_date: datetime
         Acts as the initial node of a *Curve*. Should be assigned today's immediate date.
@@ -1117,13 +1130,21 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
     -----
     The keys for ``nodes`` are described as the following:
 
-    - ``alpha`` (DualTypes): The initial volatility parameter (e.g. 0.10 for 10%) of the SABR model,
+    - ``alpha``: The initial volatility parameter (e.g. 0.10 for 10%) of the SABR model,
       in (0, inf).
-    - ``beta`` (float): The scaling parameter between normal (0) and lognormal (1)
+    - ``beta``: The scaling parameter between normal (0) and lognormal (1)
       of the SABR model in [0, 1].
-    - ``rho`` (DualTypes): The correlation between spot and volatility of the SABR model,
+    - ``rho``: The correlation between spot and volatility of the SABR model,
       e.g. -0.10, in [-1.0, 1.0)
-    - ``nu`` (DualTypes): The volatility of volatility parameter of the SABR model, e.g. 0.80.
+    - ``nu``: The volatility of volatility parameter of the SABR model, e.g. 0.80.
+
+    The parameters :math:`\alpha, \rho, \nu` will be calibrated/mutated by
+    a :class:`~rateslib.solver.Solver` object. These should be entered as *float* and the argument
+    ``ad`` can be used to automatically tag these as variables.
+
+    The parameter :math:`\beta` will **not** be calibrated/mutated by a
+    :class:`~rateslib.solver.Solver`. This value can be entered either as a *float*, or a
+    :class:`~rateslib.dual.Variable` to capture exogenous sensivities.
 
     The arguments ``delivery_lag``, ``calendar`` and ``pair`` are only required if using an
     :class:`~rateslib.fx.FXForwards` object to forecast ATM-forward FX rates for pricing. If
@@ -1160,12 +1181,18 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         self.delivery = get_calendar(calendar).lag(self.expiry, self.delivery_lag, True)
         self.pair = pair
 
-        self.nodes = nodes
         for _ in ["alpha", "beta", "rho", "nu"]:
-            if _ not in self.nodes:
+            if _ not in nodes:
                 raise ValueError(
                     f"'{_}' is a required SABR parameter that must be included in ``nodes``"
                 )
+        self.nodes: _SabrNodes = _SabrNodes(
+            alpha=_to_number(nodes["alpha"]),
+            beta=nodes["beta"],  # type: ignore[arg-type]
+            rho=_to_number(nodes["rho"]),
+            nu=_to_number(nodes["nu"]),
+        )
+
         self._set_ad_order(ad)
 
     @property
@@ -1231,15 +1258,16 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         else:
             raise ValueError("`f` (ATM-forward FX rate) must be a value or FXForwards object.")
 
-        vol_ = _sabr(
-            k,
-            f_,
+        vol_ = _d_sabr_d_k_or_f(
+            _to_number(k),
+            _to_number(f_),
             self.t_expiry,
-            self.nodes["alpha"],
-            self.nodes["beta"],  # type: ignore[arg-type]
-            self.nodes["rho"],
-            self.nodes["nu"],
-        )
+            self.nodes.alpha,
+            self.nodes.beta,
+            self.nodes.rho,
+            self.nodes.nu,
+            derivative=0,
+        )[0]
         return 0.0, vol_ * 100.0, k
 
     def _d_sabr_d_k_or_f(
@@ -1249,7 +1277,7 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         expiry: datetime,
         as_float: bool,
         derivative: int,
-    ) -> tuple[DualTypes, DualTypes]:
+    ) -> tuple[DualTypes, DualTypes | None]:
         """Get the derivative of sabr vol with respect to strike
 
         as_float: bool
@@ -1260,26 +1288,30 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         """
         t_e = (expiry - self.eval_date).days / 365.0
         if isinstance(f, FXForwards):
-            f = f.rate(self.pair, self.delivery)  # type: ignore[arg-type]
+            f__: DualTypes = f.rate(self.pair, self.delivery)  # type: ignore[arg-type]
+        else:
+            f__ = f
 
         if as_float:
-            k = _dual_float(k)
-            f = _dual_float(f)
-            a: DualTypes = _dual_float(self.nodes["alpha"])
-            b: DualTypes = _dual_float(self.nodes["beta"])
-            p: DualTypes = _dual_float(self.nodes["rho"])
-            v: DualTypes = _dual_float(self.nodes["nu"])
+            k_: Number = _dual_float(k)
+            f_: Number = _dual_float(f__)
+            a_: Number = _dual_float(self.nodes.alpha)
+            b_: float | Variable = _dual_float(self.nodes.beta)
+            p_: Number = _dual_float(self.nodes.rho)
+            v_: Number = _dual_float(self.nodes.nu)
         else:
-            a = self.nodes["alpha"]  #
-            b = self.nodes["beta"]
-            p = self.nodes["rho"]
-            v = self.nodes["nu"]
+            k_ = _to_number(k)
+            f_ = _to_number(f__)
+            a_ = self.nodes.alpha  #
+            b_ = self.nodes.beta
+            p_ = self.nodes.rho
+            v_ = self.nodes.nu
 
-        return _d_sabr_d_k_or_f(k, f, t_e, a, b, p, v, derivative)  # type: ignore[arg-type]
+        return _d_sabr_d_k_or_f(k_, f_, t_e, a_, b_, p_, v_, derivative)
 
     def _get_node_vector(self) -> np.ndarray[tuple[int, ...], np.dtype[np.object_]]:
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""
-        return np.array([self.nodes["alpha"], self.nodes["rho"], self.nodes["nu"]])
+        return np.array([self.nodes.alpha, self.nodes.rho, self.nodes.nu])
 
     def _get_node_vars(self) -> tuple[str, ...]:
         """Get the variable names of elements updated by a Solver"""
@@ -1301,26 +1333,29 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         base_obj = DualType(0.0, [f"{self.id}{i}" for i in range(3)], *DualArgs)
         ident = np.eye(3)
 
-        self.nodes["alpha"] = DualType.vars_from(
-            base_obj,  # type: ignore[arg-type]
-            vector[0].real,
-            base_obj.vars,
-            ident[0, :].tolist(),
-            *DualArgs[1:],
-        )
-        self.nodes["rho"] = DualType.vars_from(
-            base_obj,  # type: ignore[arg-type]
-            vector[1].real,
-            base_obj.vars,
-            ident[1, :].tolist(),
-            *DualArgs[1:],
-        )
-        self.nodes["nu"] = DualType.vars_from(
-            base_obj,  # type: ignore[arg-type]
-            vector[2].real,
-            base_obj.vars,
-            ident[2, :].tolist(),
-            *DualArgs[1:],
+        self.nodes = _SabrNodes(
+            beta=self.nodes.beta,
+            alpha=DualType.vars_from(
+                base_obj,  # type: ignore[arg-type]
+                vector[0].real,
+                base_obj.vars,
+                ident[0, :].tolist(),
+                *DualArgs[1:],
+            ),
+            rho=DualType.vars_from(
+                base_obj,  # type: ignore[arg-type]
+                vector[1].real,
+                base_obj.vars,
+                ident[1, :].tolist(),
+                *DualArgs[1:],
+            ),
+            nu=DualType.vars_from(
+                base_obj,  # type: ignore[arg-type]
+                vector[2].real,
+                base_obj.vars,
+                ident[2, :].tolist(),
+                *DualArgs[1:],
+            ),
         )
 
     @_clear_cache_post
@@ -1335,9 +1370,12 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
 
         self._ad = order
 
-        self.nodes["alpha"] = set_order_convert(self.nodes["alpha"], order, [f"{self.id}0"])
-        self.nodes["rho"] = set_order_convert(self.nodes["rho"], order, [f"{self.id}1"])
-        self.nodes["nu"] = set_order_convert(self.nodes["nu"], order, [f"{self.id}2"])
+        self.nodes = _SabrNodes(
+            beta=self.nodes.beta,
+            alpha=set_order_convert(self.nodes.alpha, order, [f"{self.id}0"]),
+            rho=set_order_convert(self.nodes.rho, order, [f"{self.id}1"]),
+            nu=set_order_convert(self.nodes.nu, order, [f"{self.id}2"]),
+        )
 
     @_new_state_post
     @_clear_cache_post
@@ -1368,9 +1406,12 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
            This class is labelled as a **mutable on update** object.
 
         """
-        if key not in self.nodes:
+        params = ["alpha", "beta", "rho", "nu"]
+        if key not in params:
             raise KeyError("`key` is not in ``nodes``.")
-        self.nodes[key] = value
+        kwargs = {_: getattr(self.nodes, _) for _ in params if _ != key}
+        kwargs.update({key: value})
+        self.nodes = _SabrNodes(**kwargs)
         self._set_ad_order(self.ad)
 
     # Plotting
@@ -1532,6 +1573,23 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
 
     See :ref:`constructing FX volatility surfaces <c-fx-smile-doc>` for more details.
 
+    **Extrapolation**
+
+    When an ``expiry`` is sought that is prior to the first parametrised *Smile expiry* or after the
+    final parametrised *Smile expiry* extrapolation is required. This is not recommended,
+    however. It would be wiser to create parameterised *Smiles* at *expiries* which suit those
+    one wishes to obtian values for.
+
+    When seeking an ``expiry`` beyond the final expiry, a new
+    :class:`~rateslib.fx_volatility.SabrSmile` is created at that specific *expiry* using the
+    same SABR parameters as matching the final parametrised *Smile*. This will capture the
+    evolution of ATM-forward rates through time.
+
+    When seeking an ``expiry`` prior to the first expiry, the volatility found on the first *Smile*
+    will be used an interpolated, using total linear variance accooridng to the given ``weights``.
+    If ``weights`` are not used then this will return the same value as obtained from that
+    first parametrised *Smile*. This does not account any evolution of ATM-forward rates.
+
     """
 
     _ini_solve = 0
@@ -1631,7 +1689,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
             vars_ += tuple(f"{smile.id}{i}" for i in range(3))
         return vars_
 
-    @_validate_states
+    # @_validate_states: not required becuase state is validated by interior function
     def get_from_strike(
         self,
         k: DualTypes,
@@ -1668,67 +1726,8 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         concept of a `delta index` the first element returned is always zero and can be
         effectively ignored.
         """
-        expiry_posix = expiry.replace(tzinfo=UTC).timestamp()
-        e_idx = index_left_f64(self.expiries_posix, expiry_posix)
-        if expiry == self.expiries[0]:
-            return self.smiles[0].get_from_strike(k, f, expiry)
-        elif abs(expiry_posix - self.expiries_posix[e_idx + 1]) < 1e-10:
-            # expiry aligns with a known smile
-            return self.smiles[e_idx + 1].get_from_strike(k, f, expiry)
-        elif expiry_posix > self.expiries_posix[-1]:
-            # use the SABR parameters from the last smile
-            smile = FXSabrSmile(
-                nodes=self.smiles[e_idx + 1].nodes.copy(),
-                eval_date=self.eval_date,
-                expiry=expiry,
-                ad=self.ad,
-                pair=self.pair,
-                delivery_lag=self.delivery_lag,
-                calendar=self.calendar,
-                id=self.smiles[e_idx + 1].id + "_ext",
-            )
-            return smile.get_from_strike(k, f, expiry)
-        elif expiry <= self.eval_date:
-            raise ValueError("`expiry` before the `eval_date` of the Surface is invalid.")
-        elif expiry_posix < self.expiries_posix[0]:
-            # Perform temporal interpolation from the start to the first Smile
-            v_ = self.smiles[0].get_from_strike(k, f)[1]
-            vol = _t_var_interp(
-                expiries=self.expiries,
-                expiries_posix=self.expiries_posix,
-                expiry=expiry,
-                expiry_posix=expiry_posix,
-                expiry_index=e_idx,
-                eval_posix=self.eval_posix,
-                weights_cum=self.weights_cum,
-                vol1=v_,
-                vol2=v_,
-                bounds_flag=-1,
-            )
-            return 0.0, vol, k
-        else:
-            ls, rs = self.smiles[e_idx], self.smiles[e_idx + 1]  # left_smile, right_smile
-            if not isinstance(f, FXForwards):
-                raise ValueError(
-                    "`f` must be supplied as `FXForwards` in order to calculate"
-                    "dynamic ATM-forward rates for temporally-interpolated SABR volatility."
-                )
-            lvol = ls.get_from_strike(k, f)[1]
-            rvol = rs.get_from_strike(k, f)[1]
-
-            vol = _t_var_interp(
-                expiries=self.expiries,
-                expiries_posix=self.expiries_posix,
-                expiry=expiry,
-                expiry_posix=expiry_posix,
-                expiry_index=e_idx,
-                eval_posix=self.eval_posix,
-                weights_cum=self.weights_cum,
-                vol1=lvol,
-                vol2=rvol,
-                bounds_flag=0,
-            )
-            return 0.0, vol, k
+        vol_ = self._d_sabr_d_k_or_f(k, f, expiry, as_float=False, derivative=0)[0]
+        return 0.0, vol_ * 100.0, k
 
     @_validate_states
     def _d_sabr_d_k_or_f(
@@ -1738,19 +1737,26 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         expiry: datetime,
         as_float: bool,
         derivative: int,
-    ) -> tuple[DualTypes, DualTypes]:
+    ) -> tuple[DualTypes, DualTypes | None]:
         expiry_posix = expiry.replace(tzinfo=UTC).timestamp()
         e_idx = index_left_f64(self.expiries_posix, expiry_posix)
 
         if expiry == self.expiries[0]:
+            # expiry matches the expiry on the first Smile, call that method directly.
             return self.smiles[0]._d_sabr_d_k_or_f(k, f, expiry, as_float, derivative)
         elif abs(expiry_posix - self.expiries_posix[e_idx + 1]) < 1e-10:
-            # expiry aligns with a known smile
+            # expiry matches an expiry of a known Smile (not the first), call method directly.
             return self.smiles[e_idx + 1]._d_sabr_d_k_or_f(k, f, expiry, as_float, derivative)
         elif expiry_posix > self.expiries_posix[-1]:
-            # use the SABR parameters from the last smile
+            # expiry is beyond that of the last known Smile. Construct a new Smile at the expiry
+            # by using the SABR parameters of the final Smile. (allows for ATM-forward calculation)
             smile = FXSabrSmile(
-                nodes=self.smiles[e_idx + 1].nodes.copy(),
+                nodes={
+                    "alpha": self.smiles[e_idx + 1].nodes.alpha,
+                    "beta": self.smiles[e_idx + 1].nodes.beta,
+                    "rho": self.smiles[e_idx + 1].nodes.rho,
+                    "nu": self.smiles[e_idx + 1].nodes.nu,
+                },
                 eval_date=self.eval_date,
                 expiry=expiry,
                 ad=self.ad,
@@ -1763,8 +1769,12 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         elif expiry <= self.eval_date:
             raise ValueError("`expiry` before the `eval_date` of the Surface is invalid.")
         elif expiry_posix < self.expiries_posix[0]:
-            # Perform temporal interpolation from the start to the first Smile
-            vol_, dvol_k_or_f = self.smiles[0]._d_sabr_d_k_or_f(k, f, expiry, as_float, derivative)
+            # expiry is before the expiry of the first known Smile.
+            # calculate the vol as if it were for expiry on the first Smile and then use
+            # temporal interpolation (including weights) to obtain an adjusted volatility.
+            vol_, dvol_k_or_f = self.smiles[0]._d_sabr_d_k_or_f(
+                k=k, f=f, expiry=self.smiles[0].expiry, as_float=as_float, derivative=derivative
+            )
             return _t_var_interp_d_sabr_d_k_or_f(
                 expiries=self.expiries,
                 expiries_posix=self.expiries_posix,
@@ -1774,21 +1784,28 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                 eval_posix=self.eval_posix,
                 weights_cum=self.weights_cum,
                 vol1=vol_,
-                dvol1_dk=dvol_k_or_f,
+                dvol1_dk=dvol_k_or_f,  # type: ignore[arg-type]
                 vol2=vol_,
-                dvol2_dk=dvol_k_or_f,
+                dvol2_dk=dvol_k_or_f,  # type: ignore[arg-type]
                 bounds_flag=-1,
+                derivative=derivative > 0,
             )
         else:
+            # expiry is sandwiched between two known Smile expiries.
+            # Calculate the vol for strike on either of these Smiles and then interpolate
+            # for the correct expiry, including weights.
             ls, rs = self.smiles[e_idx], self.smiles[e_idx + 1]  # left_smile, right_smile
             if not isinstance(f, FXForwards):
                 raise ValueError(
                     "`f` must be supplied as `FXForwards` in order to calculate"
                     "dynamic ATM-forward rates for temporally-interpolated SABR volatility."
                 )
-            lvol, d_lvol_dk_or_f = ls._d_sabr_d_k_or_f(k, f, expiry, as_float, derivative)
-            rvol, d_rvol_dk_or_f = rs._d_sabr_d_k_or_f(k, f, expiry, as_float, derivative)
-
+            lvol, d_lvol_dk_or_f = ls._d_sabr_d_k_or_f(
+                k=k, f=f, expiry=ls.expiry, as_float=as_float, derivative=derivative
+            )
+            rvol, d_rvol_dk_or_f = rs._d_sabr_d_k_or_f(
+                k=k, f=f, expiry=rs.expiry, as_float=as_float, derivative=derivative
+            )
             return _t_var_interp_d_sabr_d_k_or_f(
                 expiries=self.expiries,
                 expiries_posix=self.expiries_posix,
@@ -1798,10 +1815,11 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                 eval_posix=self.eval_posix,
                 weights_cum=self.weights_cum,
                 vol1=lvol,
-                dvol1_dk=d_lvol_dk_or_f,
+                dvol1_dk=d_lvol_dk_or_f,  # type: ignore[arg-type]
                 vol2=rvol,
-                dvol2_dk=d_rvol_dk_or_f,
+                dvol2_dk=d_rvol_dk_or_f,  # type: ignore[arg-type]
                 bounds_flag=0,
+                derivative=derivative > 0,
             )
 
 
@@ -1936,7 +1954,8 @@ def _t_var_interp_d_sabr_d_k_or_f(
     vol2: DualTypes,
     dvol2_dk: DualTypes,
     bounds_flag: int,
-) -> tuple[DualTypes, DualTypes]:
+    derivative: bool,
+) -> tuple[DualTypes, DualTypes | None]:
     if isinstance(weights_cum, NoInput):  # weights must also be NoInput
         if bounds_flag == 0:
             t1 = expiries_posix[expiry_index] - eval_posix
@@ -1970,9 +1989,12 @@ def _t_var_interp_d_sabr_d_k_or_f(
 
     t_quotient = (t_hat - t1) / (t2 - t1)
     vol = ((t1 * vol1**2 + t_quotient * (t2 * vol2**2 - t1 * vol1**2)) / t) ** 0.5
-    dvol_dk = (
-        (t2 / t) * t_quotient * vol2 * dvol2_dk + (t1 / t) * (1 - t_quotient) * vol1 * dvol1_dk
-    ) / vol
+    if derivative:
+        dvol_dk = (
+            (t2 / t) * t_quotient * vol2 * dvol2_dk + (t1 / t) * (1 - t_quotient) * vol1 * dvol1_dk
+        ) / vol
+    else:
+        dvol_dk = None
     return vol, dvol_dk
 
 
@@ -2528,63 +2550,52 @@ def _moneyness_from_delta_three_dimensional(
     return u, delta_idx, delta
 
 
-def _sabr(
-    k: DualTypes,
-    f: DualTypes,
-    t: DualTypes,
-    a: DualTypes,
-    b: float,
-    p: DualTypes,
-    v: DualTypes,
-) -> DualTypes:
+def _d_sabr_d_k_or_f(
+    k: Number,
+    f: Number,
+    t: Number,
+    a: Number,
+    b: float | Variable,
+    p: Number,
+    v: Number,
+    derivative: int,
+) -> tuple[Number, Number | None]:
     """
-    Calculate the SABR vol. For formula see for example I. Clark "Foreign Exchange Option
+    Calculate the SABR function and its derivative with respect to k or f.
+
+    For formula see for example I. Clark "Foreign Exchange Option
     Pricing" section 3.10.
 
     Rateslib uses the representation sigma(k) = X0 * X1 * X2, with these variables as defined in
     "Coding Interest Rates" chapter 13 to handle AD using dual numbers effectively.
-    """
-    X0 = _sabr_X0(k, f, t, a, b, p, v, False)[0]
-    X1 = _sabr_X1(k, f, t, a, b, p, v, False)[0]
-    X2 = _sabr_X2(k, f, t, a, b, p, v, False)[0]
 
-    return X0 * X1 * X2
-
-
-def _d_sabr_d_k_or_f(
-    k: DualTypes,
-    f: DualTypes,
-    t: DualTypes,
-    a: DualTypes,
-    b: float,
-    p: DualTypes,
-    v: DualTypes,
-    derivative: int,
-) -> tuple[DualTypes, DualTypes]:
-    """
-    Calculate the derivative of the SABR function with respect to k.
-
-    For derivatives with respect to `k` use 1
-    For derivatives with respect to `f` use 2
+    For no derivative and just the SABR function value use 0.
+    For derivatives with respect to `k` use 1.
+    For derivatives with respect to `f` use 2.
 
     See "Coding Interest Rates: FX Swaps and Bonds edition 2"
     """
-    X0, dX0 = _sabr_X0(k, f, t, a, b, p, v, derivative)
-    X1, dX1 = _sabr_X1(k, f, t, a, b, p, v, derivative)
-    X2, dX2 = _sabr_X2(k, f, t, a, b, p, v, derivative)
-    return X0 * X1 * X2, dX0 * X1 * X2 + X0 * dX1 * X2 + X0 * X1 * dX2  # type: ignore[operator]
+    b_: Number = _to_number(b)
+    X0, dX0 = _sabr_X0(k, f, t, a, b_, p, v, derivative)
+    X1, dX1 = _sabr_X1(k, f, t, a, b_, p, v, derivative)
+    X2, dX2 = _sabr_X2(k, f, t, a, b_, p, v, derivative)
+
+    if derivative == 0:
+        return X0 * X1 * X2, None
+    else:
+        return X0 * X1 * X2, dX0 * X1 * X2 + X0 * dX1 * X2 + X0 * X1 * dX2  # type: ignore[operator]
 
 
 def _sabr_X0(
-    k: DualTypes,
-    f: DualTypes,
-    t: DualTypes,
-    a: DualTypes,
-    b: float,
-    p: DualTypes,
-    v: DualTypes,
+    k: Number,
+    f: Number,
+    t: Number,
+    a: Number,
+    b: Number,
+    p: Number,
+    v: Number,
     derivative: int = 0,
-) -> tuple[DualTypes, DualTypes | None]:
+) -> tuple[Number, Number | None]:
     """
     X0 = a / ((fk)^((1-b)/2) * (1 + (1-b)^2/24 ln^2(f/k) + (1-b)^4/1920 ln^4(f/k) )
 
@@ -2595,15 +2606,15 @@ def _sabr_X0(
 
 
 def _sabr_X1(
-    k: DualTypes,
-    f: DualTypes,
-    t: DualTypes,
-    a: DualTypes,
-    b: float,
-    p: DualTypes,
-    v: DualTypes,
+    k: Number,
+    f: Number,
+    t: Number,
+    a: Number,
+    b: Number,
+    p: Number,
+    v: Number,
     derivative: int = 0,
-) -> tuple[DualTypes, DualTypes | None]:
+) -> tuple[Number, Number | None]:
     """
     X1 = 1 + t ( (1-b)^2 / 24 * a^2 / (fk)^(1-b) + 1/4 p b v a / (fk)^((1-b)/2) + (2-3p^2)/24 v^2 )
 
@@ -2613,15 +2624,15 @@ def _sabr_X1(
 
 
 def _sabr_X2(
-    k: DualTypes,
-    f: DualTypes,
-    t: DualTypes,
-    a: DualTypes,
-    b: float,
-    p: DualTypes,
-    v: DualTypes,
+    k: Number,
+    f: Number,
+    t: Number,
+    a: Number,
+    b: Number,
+    p: Number,
+    v: Number,
     derivative: int = 0,
-) -> tuple[DualTypes, DualTypes | None]:
+) -> tuple[Number, Number | None]:
     """
     X2 = z / chi(z)
 
