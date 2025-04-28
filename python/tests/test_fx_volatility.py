@@ -1345,7 +1345,6 @@ class TestFXSabrSmile:
     @pytest.mark.parametrize("v", [0.05, 0.15])
     @pytest.mark.parametrize("k", [1.05, 1.25, 1.6])
     def test_sabr_function_values(self, a, b, p, v, k):
-
         fxs = FXSabrSmile(
             nodes={"alpha": a, "beta": b, "rho": p, "nu": v},
             eval_date=dt(2001, 1, 1),
@@ -1357,7 +1356,7 @@ class TestFXSabrSmile:
         # it is used as a benchmark
         def _x(rho, z):
             """Return function x used in Hagan's 2002 SABR lognormal vol expansion."""
-            a = (1 - 2 * rho * z + z ** 2) ** .5 + z - rho
+            a = (1 - 2 * rho * z + z**2) ** 0.5 + z - rho
             b = 1 - rho
             return np.log(a / b)
 
@@ -1370,17 +1369,17 @@ class TestFXSabrSmile:
             """
             # Negative strikes or forwards
             if k <= 0 or f <= 0:
-                return 0.
+                return 0.0
             eps = 1e-07
             logfk = np.log(f / k)
             fkbeta = (f * k) ** (1 - beta)
-            a = (1 - beta) ** 2 * alpha ** 2 / (24 * fkbeta)
-            b = 0.25 * rho * beta * volvol * alpha / fkbeta ** 0.5
-            c = (2 - 3 * rho ** 2) * volvol ** 2 / 24
-            d = fkbeta ** 0.5
-            v = (1 - beta) ** 2 * logfk ** 2 / 24
-            w = (1 - beta) ** 4 * logfk ** 4 / 1920
-            z = volvol * fkbeta ** 0.5 * logfk / alpha
+            a = (1 - beta) ** 2 * alpha**2 / (24 * fkbeta)
+            b = 0.25 * rho * beta * volvol * alpha / fkbeta**0.5
+            c = (2 - 3 * rho**2) * volvol**2 / 24
+            d = fkbeta**0.5
+            v = (1 - beta) ** 2 * logfk**2 / 24
+            w = (1 - beta) ** 4 * logfk**4 / 1920
+            z = volvol * fkbeta**0.5 * logfk / alpha
             # if |z| > eps
             if abs(z) > eps:
                 vz = alpha * z * (1 + (a + b + c) * t) / (d * (1 + v + w) * _x(rho, z))
@@ -1394,7 +1393,6 @@ class TestFXSabrSmile:
         result = fxs.get_from_strike(k, 1.25)[1] / 100.0
 
         assert abs(result - expected) < 1e-4
-
 
 
 class TestFXSabrSurface:
