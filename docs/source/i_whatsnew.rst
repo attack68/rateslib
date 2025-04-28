@@ -28,6 +28,12 @@ email contact, see `rateslib <https://rateslib.com>`_.
        (`767 <https://github.com/attack68/rateslib/pull/767>`_)
        (`768 <https://github.com/attack68/rateslib/pull/768>`_)
        (`769 <https://github.com/attack68/rateslib/pull/769>`_)
+   * - Bug
+     - The SABR functions are modified to handle ``expiry`` for an interpolated
+       :class:`~rateslib.fx_volatility.SabrSurface`. Previously, the specific expiry was used to
+       evaluate the volatility on each *SabrSmile*. Now the relevant *Smile* expiry is used as the
+       entry to the SABR function before interpolating for the given expiry.
+       (`757 <https://github.com/attack68/rateslib/pull/757>`_)
 
 1.8.0 (22 April 2025)
 ****************************
