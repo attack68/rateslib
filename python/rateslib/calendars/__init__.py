@@ -328,7 +328,7 @@ NEXT_IMM_MAP = {
 
 
 def next_imm(start: datetime, method: str = "imm") -> datetime:
-    """Get the next IMM date *after* the given start date.
+    """Return the next IMM date *after* the given start date.
 
     Parameters
     ----------
