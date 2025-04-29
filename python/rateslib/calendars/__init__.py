@@ -356,14 +356,13 @@ def next_imm(start: datetime, method: str = "imm") -> datetime:
     """
     month, year = start.month, start.year
     candidate1 = _next_imm_from_som(month, year, method)
-    if month == 12:
-        candidate2 = _next_imm_from_som(1, year + 1, method)
-    else:
-        candidate2 = _next_imm_from_som(month + 1, year, method)
-
-    if start < candidate1:
+    if start < candidate1:  # then the first detected next_imm is valid
         return candidate1
     else:
+        if month == 12:
+            candidate2 = _next_imm_from_som(1, year + 1, method)
+        else:
+            candidate2 = _next_imm_from_som(month + 1, year, method)
         return candidate2
 
 
