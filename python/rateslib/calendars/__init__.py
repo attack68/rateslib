@@ -671,4 +671,5 @@ __all__ = (
     "UnionCal",
     "get_calendar",
     "get_imm",
+    "next_imm",
 )
