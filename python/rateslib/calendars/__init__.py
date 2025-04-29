@@ -311,6 +311,73 @@ MONTHS = {
     "Z": 12,
 }
 
+NEXT_IMM_MAP = {
+    1: [3, 1, 3, 3, 6],
+    2: [3, 2, 3, 3, 6],
+    3: [3, 3, 3, 3, 6],
+    4: [6, 4, 6, 9, 6],
+    5: [6, 5, 6, 9, 6],
+    6: [6, 6, 6, 9, 6],
+    7: [9, 7, 9, 9, 12],
+    8: [9, 8, 9, 9, 12],
+    9: [9, 9, 9, 9, 12],
+    10: [12, 10, 12, 3, 12],
+    11: [12, 11, 12, 3, 12],
+    12: [12, 12, 12, 3, 12],
+}
+
+
+def next_imm(start: datetime, method: str = "imm") -> datetime:
+    """Get the next IMM date *after* the given start date.
+    
+    Parameters
+    ----------
+    start : datetime
+        The date from which to determine the next IMM.
+    method : str in {"imm", "serial_imm", "credit_imm", "credit_imm_HU", "credit_imm_MZ"}
+        A calculation identifier. See notes
+        
+    Returns
+    -------
+    datetime
+    
+    Notes
+    -----
+    Default *'imm'* returns the third Wednesday in any month of March, June, September or December.
+
+    *'serial_imm'* returns the third Wednesday in any month of the year.
+
+    *'credit_imm'* returns the 20th of the month in March, June, September or December.
+
+    *'credit_imm_HU'* returns the 20th of the month in March or September, facilitating CDSs that
+    rolls on a 6-month basis.
+
+    *'credit_imm_MZ'* returns the 20th of the month in June and December.
+    """
+    month, year = start.month, start.year
+    candidate1 = _next_imm_from_som(month, year, method)
+    if month == 12:
+        candidate2 = _next_imm_from_som(1, year + 1, method)
+    else:
+        candidate2 = _next_imm_from_som(month + 1, year, method)
+
+    if start < candidate1:
+        return candidate1
+    else:
+        return candidate2
+
+
+def _next_imm_from_som(month: int, year: int, method: str = "imm") -> datetime:
+    """Get the next IMM date after the 1st day of the given month and year."""
+    _idx = {"imm": 0, "serial_imm": 1, "credit_imm": 2, "credit_imm_HU": 3, "credit_imm_MZ": 4}
+    required_month = NEXT_IMM_MAP[month][_idx[method]]
+    required_year = year if required_month >= month else year + 1
+
+    if method == "imm" or method == "serial_imm":
+        return get_imm(required_month, required_year)
+    else:
+        return datetime(required_year, required_month, 20)
+
 
 def get_imm(
     month: int_ = NoInput(0),

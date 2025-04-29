@@ -21,6 +21,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
 
    * - Feature
      - Description
+   * - Calendars
+     - Added a new method :meth:`~rateslib.calendars.next_imm` to determine the next IMM date
+       from a given start date under different IMM methodologies.
+       (`773 <https://github.com/attack68/rateslib/pull/773>`_)
    * - Automatic Differentiation
      - Operator overloads added to allow dual number exponents, i.e. :math:`z^p`, where *z*,
        *p* are dual number types. This facilitates AD for the SABR function as well as other
