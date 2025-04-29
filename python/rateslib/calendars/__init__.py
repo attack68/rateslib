@@ -329,18 +329,18 @@ NEXT_IMM_MAP = {
 
 def next_imm(start: datetime, method: str = "imm") -> datetime:
     """Get the next IMM date *after* the given start date.
-    
+
     Parameters
     ----------
     start : datetime
         The date from which to determine the next IMM.
     method : str in {"imm", "serial_imm", "credit_imm", "credit_imm_HU", "credit_imm_MZ"}
         A calculation identifier. See notes
-        
+
     Returns
     -------
     datetime
-    
+
     Notes
     -----
     Default *'imm'* returns the third Wednesday in any month of March, June, September or December.
