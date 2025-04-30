@@ -2,8 +2,7 @@ from __future__ import annotations  # type hinting
 
 import warnings
 from datetime import datetime
-from datetime import datetime as dt
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import numpy as np
@@ -15,7 +14,6 @@ from rateslib.default import (
     NoInput,
     PlotOutput,
     _drb,
-    plot,
     plot3d,
 )
 from rateslib.dual import (
@@ -32,13 +30,13 @@ from rateslib.dual import (
     set_order_convert,
 )
 from rateslib.dual.utils import _dual_float
+from rateslib.fx_volatility.base import _BaseSmile
 from rateslib.fx_volatility.utils import (
     _d_plus_min_u,
     _delta_type_constants,
     _moneyness_from_delta_closed_form,
     _t_var_interp,
     _validate_delta_type,
-    _validate_smile_plot_comparators,
     _validate_weights,
 )
 from rateslib.mutability import (
@@ -52,14 +50,10 @@ from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
 
 if TYPE_CHECKING:
-    from rateslib.typing import Sequence
-
-DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
-
-TERMINAL_DATE = dt(2100, 1, 1)
+    from rateslib.typing import DualTypes, Sequence
 
 
-class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
+class FXDeltaVolSmile(_BaseSmile):
     r"""
     Create an *FX Volatility Smile* at a given expiry indexed by delta percent.
 
@@ -127,13 +121,6 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
         self.delta_type: str = _validate_delta_type(delta_type)
 
         self.__set_nodes__(nodes, ad)
-
-    @property
-    def ad(self) -> int:
-        return self._ad
-
-    def __iter__(self) -> Any:
-        raise TypeError("`FXDeltaVolSmile` is not iterable.")
 
     def __getitem__(self, item: DualTypes) -> DualTypes:
         """
@@ -317,131 +304,6 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
         delta_index = -delta
         return delta_index, self[delta_index], k
 
-    # def _delta_index_from_call_or_put_delta(
-    #     self,
-    #     delta: DualTypes,
-    #     phi: float,
-    #     z_w: DualTypes | NoInput = NoInput(0),
-    #     u: DualTypes | NoInput = NoInput(0),
-    # ) -> DualTypes:
-    #     """
-    #     Get the *Smile* index delta given an option delta of the same type as the *Smile*.
-    #
-    #     Note: This is required because the delta_index of the *Smile* uses negated put deltas.
-    #
-    #     Parameters
-    #     ----------
-    #     delta: DualTypes
-    #         The expressed option delta. This MUST be given in the same type as the *Smile*.
-    #     phi: float
-    #         Whether a call (1.0) or a put (-1.0)
-    #     z_w: DualTypes
-    #         The spot/forward conversion factor defined by: `w_deli / w_spot`.
-    #     u: DualTypes
-    #         Moneyness defined by: `k/f_d`
-    #
-    #     Returns
-    #     -------
-    #     float, Dual, Dual2
-    #     """
-    #     # if call then must convert to put delta using delta parity equations
-    #     if phi > 0:
-    #         if self.delta_type == "forward":
-    #             put_delta = delta - 1.0
-    #         elif self.delta_type == "spot":
-    #             put_delta = delta - z_w  # type: ignore[operator]
-    #         elif self.delta_type == "forward_pa":
-    #             put_delta = delta - u  # type: ignore[operator]
-    #         else:  # self.delta_type == "spot_pa":
-    #             put_delta = delta - z_w * u  # type: ignore[operator]
-    #     else:
-    #         put_delta = delta
-    #     return -1.0 * put_delta
-
-    # def _build_datatable(self):
-    #     """
-    #     With the given (Delta, Vol)
-    #     """
-    #     N_ROWS = 101  # Must be odd to have explicit midpoint (0, 1, 2, 3, 4) = 2
-    #     MID = int((N_ROWS - 1) / 2)
-    #
-    #     # Choose an appropriate distribution of forward delta:
-    #     delta = np.linspace(0, 1, N_ROWS)
-    #     delta[0] = 0.0001
-    #     delta[-1] = 0.9999
-    #
-    #     # Derive the vol directly from the spline
-    #     vol = self.spline.ppev(delta)
-    #
-    #     # Derive d_plus from forward delta, using symmetry to reduce calculations
-    #     _ = np.array([dual_inv_norm_cdf(_) for _ in delta[: MID + 1]])
-    #     d_plus = np.concatenate((-1.0 * _, _[:-1][::-1]))
-    #
-    #     data = DataFrame(
-    #         data={
-    #             "index_delta": delta,
-    #             "put_delta_forward": delta * -1.0,
-    #             "vol": vol,
-    #             "d_plus": d_plus,
-    #         },
-    #     )
-    #     data["vol_sqrt_t"] = data["vol"] * self.t_expiry_sqrt / 100.0
-    #     data["d_min"] = data["d_plus"] - data["vol_sqrt_t"]
-    #     data["log_moneyness"] = (0.5 * data["vol_sqrt_t"] - data["d_plus"]) * data["vol_sqrt_t"]
-    #     data["moneyness"] = data["log_moneyness"].map(dual_exp)
-    #     data["put_delta_forward_pa"] = (data["d_min"].map(dual_norm_cdf)-1.0) * data["moneyness"]
-    #     return data
-
-    # def _create_approx_spline_conversions(
-    #     self, spline_class: Union[PPSplineF64, PPSplineDual, PPSplineDual2]
-    # ):
-    #     """
-    #     Create approximation splines for (U, Vol) pairs and (Delta, U) pairs given the
-    #     (Delta, Vol) spline.
-    #
-    #     U is moneyness i.e.: U = K / f
-    #     """
-    #     # TODO: this only works for forward unadjusted delta because no spot conversion takes
-    #     # place
-    #     # Create approximate (K, Delta) curve via interpolation
-    #     delta = np.array(
-    #         [
-    #             0.00001,
-    #             0.05,
-    #             0.1,
-    #             0.15,
-    #             0.2,
-    #             0.25,
-    #             0.3,
-    #             0.35,
-    #             0.4,
-    #             0.45,
-    #             0.5,
-    #             0.55,
-    #             0.6,
-    #             0.65,
-    #             0.7,
-    #             0.75,
-    #             0.8,
-    #             0.85,
-    #             0.9,
-    #             0.95,
-    #             0.99999,
-    #         ]
-    #     )
-    #     vols = self.spline.ppev(delta).tolist()
-    #     u = [
-    #         dual_exp(
-    #             -dual_inv_norm_cdf(_1) * _2 * self.t_expiry_sqrt / 100.0
-    #             + 0.0005 * _2 * _2 * self.t_expiry
-    #         )
-    #         for (_1, _2) in zip(delta, vols)
-    #     ][::-1]
-    #
-    #     self.spline_u_delta_approx = spline_class(t=[u[0]] * 4 + u[2:-2] + [u[-1]] * 4, k=4)
-    #     self.spline_u_delta_approx.csolve(u, delta.tolist()[::-1], 0, 0, False)
-    #     return None
-
     def _get_node_vector(self) -> np.ndarray[tuple[int, ...], np.dtype[np.object_]]:
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""
         return np.array(list(self.nodes.values()))
@@ -451,60 +313,6 @@ class FXDeltaVolSmile(_WithState, _WithCache[float, DualTypes]):
         return tuple(f"{self.id}{i}" for i in range(self.n))
 
     # Plotting
-
-    def plot(
-        self,
-        comparators: list[FXDeltaVolSmile] | NoInput = NoInput(0),
-        labels: list[str] | NoInput = NoInput(0),
-        x_axis: str = "delta",
-        f: DualTypes | NoInput = NoInput(0),
-    ) -> PlotOutput:
-        """
-        Plot volatilities associated with the *Smile*.
-
-        .. warning::
-
-           If the ``x_axis`` types *'moneyness'* and *'strike'* are used these will be
-           generated by assuming that the delta indexes of this *Smile* are **forward, unadjusted**
-           types. If this *Smile* has another, actual delta type, then the produced graphs
-           will not be correct. This approximation is made to avoid complicated calculations
-           involving iterations for each graph point.
-
-        Parameters
-        ----------
-        comparators: list[Smile]
-            A list of Smiles which to include on the same plot as comparators.
-        labels : list[str]
-            A list of strings associated with the plot and comparators. Must be same
-            length as number of plots.
-        x_axis : str in {"delta", "moneyness", "strike"}
-            *'delta'* is the natural option for this *SMile* type.
-            If *'moneyness'* the delta values are converted (see warning), and if *'strike'* then
-            those moneyness values are converted using ``f``.
-        f: DualTypes, optional
-            The FX forward rate at delivery. Required in certain cases to derive the strike on
-            the x-axis.
-
-        Returns
-        -------
-        (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
-        """
-        # reversed for intuitive strike direction
-        comparators = _drb([], comparators)
-        labels = _drb([], labels)
-
-        x_, y_ = self._plot(x_axis, f)
-
-        x = [x_]
-        y = [y_]
-        if not isinstance(comparators, NoInput):
-            for smile in comparators:
-                _validate_smile_plot_comparators(smile, (FXDeltaVolSmile, FXSabrSmile))
-                x_, y_ = smile._plot(x_axis, f)
-                x.append(x_)
-                y.append(y_)
-
-        return plot(x, y, labels)
 
     def _plot(
         self,

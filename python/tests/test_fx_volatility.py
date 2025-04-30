@@ -240,7 +240,7 @@ class TestFXDeltaVolSmile:
             eval_date=dt(2023, 3, 16),
             expiry=dt(2023, 6, 16),
         )
-        with pytest.raises(TypeError, match="`FXDeltaVolSmile` is not iterable."):
+        with pytest.raises(TypeError, match="`Smile` types are not iterable."):
             fxvs.__iter__()
 
     def test_update_node(self):

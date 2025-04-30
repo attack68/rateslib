@@ -820,8 +820,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
             The relevant discount factor at delivery.
         w_spot: DualTypes
             The relevant discount factor at spot.
-        f: DualTypes
-            The forward FX rate for delivery.
+        f: DualTypes, FXForwards
+            The forward FX rate for delivery. FXForwards is used when a SabrSurface is present.
         t_e: DualTypes
             The time to expiry
 
@@ -841,15 +841,15 @@ class FXOptionPeriod(metaclass=ABCMeta):
         if isinstance(vol, FXSabrSmile | FXSabrSurface):
             return self._index_vol_and_strike_from_atm_sabr(f, eta_0, vol)
         else:  # DualTypes | FXDeltaVolSmile | FXDeltaVolSurface
-            assert not isinstance(f, FXForwards)  # noqa: S101
-            # TODO mypy errors here: the assertion should narrow the type of f, but does not
+            f_: DualTypes = f  # type: ignore[assignment]
+            vol_: DualTypes | FXDeltaVolSmile | FXDeltaVolSurface = vol  # type: ignore[assignment]
             return self._index_vol_and_strike_from_atm_dv(
-                f,  # type:ignore[arg-type]
+                f_,
                 eta_0,
                 eta_1,
                 z_w_0,
                 z_w_1,
-                vol,
+                vol_,
                 t_e,
                 delta_type,
                 vol_delta_type,
@@ -887,9 +887,10 @@ class FXOptionPeriod(metaclass=ABCMeta):
         if isinstance(vol, FXSabrSmile):
             alpha = vol.nodes.alpha
         else:  # FXSabrSurface
+            vol_: FXSabrSurface = vol  # type: ignore[assignment]
             expiry_posix = self.expiry.replace(tzinfo=UTC).timestamp()
-            e_idx = index_left_f64(vol.expiries_posix, expiry_posix)
-            alpha = vol.smiles[e_idx].nodes.alpha
+            e_idx = index_left_f64(vol_.expiries_posix, expiry_posix)
+            alpha = vol_.smiles[e_idx].nodes.alpha
 
         root_solver = newton_1dim(
             root1d,
@@ -1001,12 +1002,12 @@ class FXOptionPeriod(metaclass=ABCMeta):
         if isinstance(vol, FXSabrSmile | FXSabrSurface):
             return self._index_vol_and_strike_from_delta_sabr(delta, delta_type, vol, z_w, f)
         else:  # DualTypes | FXDeltaVolSmile | FXDeltaVolSurface
-            assert not isinstance(f, FXDeltaVolSurface)  # noqa: S101
-            # TODO: f not type narrowed by assert, mypy error
+            f_: DualTypes = f  # type: ignore[assignment]
+            vol_: DualTypes | FXDeltaVolSmile = vol  # type: ignore[assignment]
             return self._index_vol_and_strike_from_delta_dv(
-                f,  # type: ignore[arg-type]
+                f_,
                 delta,
-                vol,
+                vol_,
                 t_e,
                 delta_type,
                 vol_delta_type,
@@ -1118,9 +1119,10 @@ class FXOptionPeriod(metaclass=ABCMeta):
         if isinstance(vol, FXSabrSmile):
             alpha = vol.nodes.alpha
         else:  # FXSabrSurface
+            vol_: FXSabrSurface = vol  # type: ignore[assignment]
             expiry_posix = self.expiry.replace(tzinfo=UTC).timestamp()
-            e_idx = index_left_f64(vol.expiries_posix, expiry_posix)
-            alpha = vol.smiles[e_idx].nodes.alpha
+            e_idx = index_left_f64(vol_.expiries_posix, expiry_posix)
+            alpha = vol_.smiles[e_idx].nodes.alpha
 
         g0 = _moneyness_from_delta_closed_form(g01, alpha * 100.0, t_e, z_w_0, self.phi) * f_d
 

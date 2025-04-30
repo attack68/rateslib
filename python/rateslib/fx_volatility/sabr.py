@@ -1,7 +1,7 @@
 from __future__ import annotations  # type hinting
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, NamedTuple, TypeAlias
+from typing import TYPE_CHECKING, Any, NamedTuple
 from uuid import uuid4
 
 import numpy as np
@@ -12,9 +12,7 @@ from rateslib import defaults
 from rateslib.calendars import get_calendar
 from rateslib.default import (
     NoInput,
-    PlotOutput,
     _drb,
-    plot,
 )
 from rateslib.dual import (
     Dual,
@@ -28,6 +26,7 @@ from rateslib.dual import (
 )
 from rateslib.dual.utils import _dual_float, _to_number
 from rateslib.fx import FXForwards
+from rateslib.fx_volatility.base import _BaseSmile
 from rateslib.fx_volatility.utils import (
     _d_sabr_d_k_or_f,
     _t_var_interp_d_sabr_d_k_or_f,
@@ -43,9 +42,7 @@ from rateslib.mutability import (
 from rateslib.rs import index_left_f64
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, Number, datetime_, int_, str_
-
-DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
+    from rateslib.typing import CalInput, DualTypes, Number, datetime_, int_, str_
 
 
 class _SabrNodes(NamedTuple):
@@ -61,7 +58,7 @@ class _SabrNodes(NamedTuple):
         return getattr(self, item)
 
 
-class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
+class FXSabrSmile(_BaseSmile):
     r"""
     Create an *FX Volatility Smile* at a given expiry indexed by strike using SABR parameters.
 
@@ -163,13 +160,6 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
         )
 
         self._set_ad_order(ad)
-
-    @property
-    def ad(self) -> int:
-        return self._ad
-
-    def __iter__(self) -> Any:
-        raise TypeError("`FXSabrSmile` is not iterable.")
 
     def get_from_strike(
         self,
@@ -385,58 +375,6 @@ class FXSabrSmile(_WithState, _WithCache[float, DualTypes]):
 
     # Plotting
 
-    def plot(
-        self,
-        comparators: list[FXSabrSmile] | NoInput = NoInput(0),
-        labels: list[str] | NoInput = NoInput(0),
-        x_axis: str = "strike",
-        f: DualTypes | FXForwards | NoInput = NoInput(0),
-    ) -> PlotOutput:
-        """
-        Plot volatilities associated with the *Smile*.
-
-        .. warning::
-
-           The *'delta'* ``x_axis`` type for a *SabrSmile* is calculated based on a
-           **forward, unadjusted** delta and is expressed as a negated put option delta
-           consistent with the definition for a :class:`~rateslib.fx_volatility.FXDeltaVolSmile`.
-
-        Parameters
-        ----------
-        comparators: list[Smile]
-            A list of Smiles which to include on the same plot as comparators.
-            Note the comments on
-            :meth:`FXDeltaVolSmile.plot <rateslib.fx_volatility.FXDeltaVolSmile.plot>`.
-        labels : list[str]
-            A list of strings associated with the plot and comparators. Must be same
-            length as number of plots.
-        x_axis : str in {"strike", "moneyness", "delta"}
-            *'strike'* is the natural option for this *Smile* type.
-            If *'delta'* see the warning. If *'moneyness'* the strikes are converted using ``f``.
-        f: DualTypes
-            The FX forward rate at delivery.
-
-        Returns
-        -------
-        (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
-        """
-        # reversed for intuitive strike direction
-        comparators = _drb([], comparators)
-        labels = _drb([], labels)
-
-        x_, y_ = self._plot(x_axis, f)
-
-        x = [x_]
-        y = [y_]
-        if not isinstance(comparators, NoInput):
-            for smile in comparators:
-                _validate_smile_plot_comparators(smile, (FXDeltaVolSmile, FXSabrSmile))
-                x_, y_ = smile._plot(x_axis, f)
-                x.append(x_)
-                y.append(y_)
-
-        return plot(x, y, labels)
-
     def _plot(
         self,
         x_axis: str,
@@ -561,6 +499,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
 
     """
 
+    smiles: list[FXSabrSmile]
     _ini_solve = 0
     _mutable_by_association = True
 

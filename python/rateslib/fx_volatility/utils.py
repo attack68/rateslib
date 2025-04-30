@@ -2,7 +2,7 @@ from __future__ import annotations  # type hinting
 
 from datetime import datetime, timedelta
 from datetime import datetime as dt
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, TypeAlias
 
 from pandas import Series
 from pytz import UTC
@@ -448,10 +448,3 @@ def _sabr_X2(
     If ``derivative`` = 2 also returns dX2/df, calculated using sympy.
     """
     return _rs_sabr_x2(k, f, t, a, b, p, v, derivative)
-
-
-def _validate_smile_plot_comparators(
-    smile: FXSabrSmile | FXDeltaVolSmile, allowed_types: tuple[Any, ...]
-) -> None:
-    if not isinstance(smile, allowed_types):
-        raise ValueError(f"A `comparator` type is not valid. Must be of type: {allowed_types}.")
