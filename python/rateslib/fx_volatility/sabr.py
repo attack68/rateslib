@@ -120,6 +120,7 @@ class FXSabrSmile(_BaseSmile):
 
     _ini_solve = 1
     n = 4
+    _default_plot_x_axis = "strike"
 
     @_new_state_post
     def __init__(

@@ -14,6 +14,7 @@ DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined cause
 
 class _BaseSmile(_WithState, _WithCache[float, DualTypes]):
     _ad: int
+    _default_plot_x_axis: str
 
     @property
     def ad(self) -> int:
@@ -26,7 +27,7 @@ class _BaseSmile(_WithState, _WithCache[float, DualTypes]):
         self,
         comparators: list[_BaseSmile] | NoInput = NoInput(0),
         labels: list[str] | NoInput = NoInput(0),
-        x_axis: str = "strike",
+        x_axis: str | NoInput = NoInput(0),
         f: DualTypes | FXForwards | NoInput = NoInput(0),
     ) -> PlotOutput:
         """
@@ -48,7 +49,8 @@ class _BaseSmile(_WithState, _WithCache[float, DualTypes]):
             A list of strings associated with the plot and comparators. Must be same
             length as number of plots.
         x_axis : str in {"strike", "moneyness", "delta"}
-            *'strike'* is the natural option for this *Smile* type.
+            *'strike'* is the natural option for this *SabrSmile* types while *'delta'* is the
+            natural choice for *DeltaVolSmile* types.
             If *'delta'* see the warning. If *'moneyness'* the strikes are converted using ``f``.
         f: DualTypes
             The FX forward rate at delivery.
@@ -61,7 +63,9 @@ class _BaseSmile(_WithState, _WithCache[float, DualTypes]):
         comparators = _drb([], comparators)
         labels = _drb([], labels)
 
-        x_, y_ = self._plot(x_axis, f)  # type: ignore[attr-defined]
+        x_axis_: str = _drb(self._default_plot_x_axis, x_axis)
+
+        x_, y_ = self._plot(x_axis_, f)  # type: ignore[attr-defined]
 
         x = [x_]
         y = [y_]
@@ -69,7 +73,7 @@ class _BaseSmile(_WithState, _WithCache[float, DualTypes]):
             for smile in comparators:
                 if not isinstance(smile, _BaseSmile):
                     raise ValueError("A `comparator` must be a valid FX Smile type.")
-                x_, y_ = smile._plot(x_axis, f)  # type: ignore[attr-defined]
+                x_, y_ = smile._plot(x_axis_, f)  # type: ignore[attr-defined]
                 x.append(x_)
                 y.append(y_)
 

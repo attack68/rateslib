@@ -100,6 +100,7 @@ class FXDeltaVolSmile(_BaseSmile):
     """
 
     _ini_solve = 0  # All node values are solvable
+    _default_plot_x_axis = "delta"
 
     @_new_state_post
     def __init__(
