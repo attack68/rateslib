@@ -21,11 +21,12 @@ from rateslib.fx_volatility import (
     FXDeltaVolSurface,
     FXSabrSmile,
     FXSabrSurface,
+)
+from rateslib.fx_volatility.sabr import _SabrNodes
+from rateslib.fx_volatility.utils import (
     _d_sabr_d_k_or_f,
-    _SabrNodes,
     _validate_delta_type,
 )
-from rateslib.periods import FXPutPeriod
 
 
 @pytest.fixture
@@ -239,7 +240,7 @@ class TestFXDeltaVolSmile:
             eval_date=dt(2023, 3, 16),
             expiry=dt(2023, 6, 16),
         )
-        with pytest.raises(TypeError, match="`FXDeltaVolSmile` is not iterable."):
+        with pytest.raises(TypeError, match="`Smile` types are not iterable."):
             fxvs.__iter__()
 
     def test_update_node(self):
