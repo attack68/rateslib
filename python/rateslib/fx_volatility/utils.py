@@ -110,45 +110,21 @@ def _t_var_interp(
     This function performs different interpolation if weights are given or not. ``bounds_flag``
     is used to parse the inputs when *Smiles* to the left and/or right are not available.
     """
-    # 86400 posix seconds per day
-    # 31536000 posix seconds per 365 day year
-    if isinstance(weights_cum, NoInput):  # weights must also be NoInput
-        if bounds_flag == 0:
-            ep1 = expiries_posix[expiry_index]
-            ep2 = expiries_posix[expiry_index + 1]
-        elif bounds_flag == -1:
-            # left side extrapolation
-            ep1 = eval_posix
-            ep2 = expiries_posix[expiry_index]
-        else:  # bounds_flag == 1:
-            # right side extrapolation
-            ep1 = expiries_posix[expiry_index + 1]
-            ep2 = TERMINAL_DATE.replace(tzinfo=UTC).timestamp()
-
-        t_var_1 = (ep1 - eval_posix) * vol1**2
-        t_var_2 = (ep2 - eval_posix) * vol2**2
-        _: DualTypes = t_var_1 + (t_var_2 - t_var_1) * (expiry_posix - ep1) / (ep2 - ep1)
-        _ /= expiry_posix - eval_posix
-    else:
-        if bounds_flag == 0:
-            t1 = weights_cum[expiries[expiry_index]]
-            t2 = weights_cum[expiries[expiry_index + 1]]
-        elif bounds_flag == -1:
-            # left side extrapolation
-            t1 = 0.0
-            t2 = weights_cum[expiries[expiry_index]]
-        else:  # bounds_flag == 1:
-            # right side extrapolation
-            t1 = weights_cum[expiries[expiry_index + 1]]
-            t2 = weights_cum[TERMINAL_DATE]
-
-        t = weights_cum[expiry]
-        t_var_1 = t1 * vol1**2
-        t_var_2 = t2 * vol2**2
-        _ = t_var_1 + (t_var_2 - t_var_1) * (t - t1) / (t2 - t1)
-        # scale by real cal days and not adjusted weights
-        _ *= 86400.0 / (expiry_posix - eval_posix)
-    return _**0.5
+    return _t_var_interp_d_sabr_d_k_or_f(
+        expiries,
+        expiries_posix,
+        expiry,
+        expiry_posix,
+        expiry_index,
+        eval_posix,
+        weights_cum,
+        vol1,
+        dvol1_dk=0.0,
+        vol2=vol2,
+        dvol2_dk=0.0,
+        bounds_flag=bounds_flag,
+        derivative=False,
+    )[0]
 
 
 def _t_var_interp_d_sabr_d_k_or_f(
