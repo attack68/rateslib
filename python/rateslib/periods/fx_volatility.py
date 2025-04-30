@@ -18,15 +18,19 @@ from rateslib.fx_volatility import (
     FXDeltaVolSurface,
     FXSabrSmile,
     FXSabrSurface,
+)
+from rateslib.fx_volatility.delta_vol import (
+    _moneyness_from_atm_delta_one_dimensional,
+    _moneyness_from_atm_delta_two_dimensional,
+    _moneyness_from_delta_one_dimensional,
+    _moneyness_from_delta_two_dimensional,
+)
+from rateslib.fx_volatility.utils import (
     _black76,
     _d_plus_min_u,
     _delta_type_constants,
     _moneyness_from_atm_delta_closed_form,
-    _moneyness_from_atm_delta_one_dimensional,
-    _moneyness_from_atm_delta_two_dimensional,
     _moneyness_from_delta_closed_form,
-    _moneyness_from_delta_one_dimensional,
-    _moneyness_from_delta_two_dimensional,
 )
 from rateslib.periods.utils import (
     _get_fx_and_base,

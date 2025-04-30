@@ -13,7 +13,8 @@ from rateslib.curves import CompositeCurve, Curve, LineCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual, gradient
 from rateslib.fx import FXForwards, FXRates
-from rateslib.fx_volatility import FXDeltaVolSmile, FXSabrSmile, FXSabrSurface, _d_plus_min_u
+from rateslib.fx_volatility import FXDeltaVolSmile, FXSabrSmile, FXSabrSurface
+from rateslib.fx_volatility.utils import _d_plus_min_u
 from rateslib.periods import (
     Cashflow,
     CreditPremiumPeriod,
