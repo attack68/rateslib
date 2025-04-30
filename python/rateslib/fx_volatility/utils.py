@@ -19,19 +19,14 @@ from rateslib.dual import (
     dual_inv_norm_cdf,
     dual_log,
     dual_norm_cdf,
-    dual_norm_pdf,
-    newton_1dim,
-    newton_ndim,
 )
-from rateslib.dual.utils import _dual_float, _to_number
-from rateslib.splines import evaluate
-
+from rateslib.dual.utils import _to_number
 from rateslib.rs import _sabr_x0 as _rs_sabr_x0
 from rateslib.rs import _sabr_x1 as _rs_sabr_x1
 from rateslib.rs import _sabr_x2 as _rs_sabr_x2
 
 if TYPE_CHECKING:
-    from rateslib.typing import Number, Sequence
+    from rateslib.typing import Number
 
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
 

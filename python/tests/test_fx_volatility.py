@@ -22,11 +22,11 @@ from rateslib.fx_volatility import (
     FXSabrSmile,
     FXSabrSurface,
 )
+from rateslib.fx_volatility.sabr import _SabrNodes
 from rateslib.fx_volatility.utils import (
     _d_sabr_d_k_or_f,
     _validate_delta_type,
 )
-from rateslib.fx_volatility.sabr import _SabrNodes
 
 
 @pytest.fixture

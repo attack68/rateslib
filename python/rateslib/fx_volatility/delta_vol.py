@@ -32,6 +32,15 @@ from rateslib.dual import (
     set_order_convert,
 )
 from rateslib.dual.utils import _dual_float
+from rateslib.fx_volatility.utils import (
+    _d_plus_min_u,
+    _delta_type_constants,
+    _moneyness_from_delta_closed_form,
+    _t_var_interp,
+    _validate_delta_type,
+    _validate_smile_plot_comparators,
+    _validate_weights,
+)
 from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,
@@ -41,18 +50,9 @@ from rateslib.mutability import (
 )
 from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
-from rateslib.fx_volatility.utils import (
-    _validate_delta_type,
-    _delta_type_constants,
-    _moneyness_from_delta_closed_form,
-    _validate_smile_plot_comparators,
-    _validate_weights,
-    _t_var_interp,
-    _d_plus_min_u
-)
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, Number, Sequence, datetime_, int_, str_
+    from rateslib.typing import Sequence
 
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
 

@@ -1,8 +1,6 @@
 from __future__ import annotations  # type hinting
 
-import warnings
-from datetime import datetime, timedelta
-from datetime import datetime as dt
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeAlias
 from uuid import uuid4
 
@@ -17,7 +15,6 @@ from rateslib.default import (
     PlotOutput,
     _drb,
     plot,
-    plot3d,
 )
 from rateslib.dual import (
     Dual,
@@ -27,13 +24,15 @@ from rateslib.dual import (
     dual_inv_norm_cdf,
     dual_log,
     dual_norm_cdf,
-    dual_norm_pdf,
-    newton_1dim,
-    newton_ndim,
     set_order_convert,
 )
 from rateslib.dual.utils import _dual_float, _to_number
 from rateslib.fx import FXForwards
+from rateslib.fx_volatility.utils import (
+    _d_sabr_d_k_or_f,
+    _t_var_interp_d_sabr_d_k_or_f,
+    _validate_weights,
+)
 from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,
@@ -41,14 +40,7 @@ from rateslib.mutability import (
     _WithCache,
     _WithState,
 )
-
-
 from rateslib.rs import index_left_f64
-from rateslib.fx_volatility.utils import (
-    _t_var_interp_d_sabr_d_k_or_f,
-    _validate_weights,
-    _d_sabr_d_k_or_f
-)
 
 if TYPE_CHECKING:
     from rateslib.typing import CalInput, Number, datetime_, int_, str_
@@ -798,5 +790,3 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                 bounds_flag=0,
                 derivative=derivative > 0,
             )
-
-
