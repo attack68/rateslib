@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from rateslib.dual.newton import newton_1dim, newton_ndim
 from rateslib.dual.ift import ift_1dim
+from rateslib.dual.newton import newton_1dim, newton_ndim
 from rateslib.dual.quadratic import quadratic_eqn
 from rateslib.dual.utils import (
     dual_exp,

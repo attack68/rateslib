@@ -3,29 +3,29 @@ from __future__ import annotations
 from collections.abc import Callable
 from time import time
 from typing import TYPE_CHECKING, Any, ParamSpec
+
 import numpy as np
 
+from rateslib.dual.newton import _dual_float_or_unchanged, _solver_result
 from rateslib.dual.utils import _dual_float, _get_order_of, gradient
 from rateslib.rs import Dual, Dual2
-from rateslib.dual.newton import _dual_float_or_unchanged, _solver_result
 
 if TYPE_CHECKING:
     from rateslib.typing import DualTypes, Number
 
 P = ParamSpec("P")
-Q = ParamSpec("Q")
 
 
 def ift_1dim(
     s: Callable[P, DualTypes],
     s_tgt: DualTypes,
-    h: Callable[P, Q],
+    h: Callable[P, tuple[float, float, int, tuple[Any, ...]]],
     ini_h_args: tuple[Any, ...] = (),
     max_iter: int = 50,
     func_tol: float = 1e-14,
     conv_tol: float = 1e-9,
     raise_on_fail: bool = True,
-):
+) -> dict[str, Any]:
     r"""
     Use the inverse function theorem to implement AD safe version of a 1-dimensional root solution.
 
@@ -134,7 +134,7 @@ def ift_1dim(
     float_ini_hargs = tuple(_dual_float_or_unchanged(_) for _ in ini_h_args)
     s0_: float = _dual_float(s_tgt)
 
-    g0, f0, state, *hargs = h(s, s0_, conv_tol, *float_ini_hargs)
+    g0, f0, state, *hargs = h(s, s0_, conv_tol, *float_ini_hargs)  # type: ignore[call-arg, arg-type]
     while i < max_iter:
         if state == 1:
             break
@@ -149,7 +149,7 @@ def ift_1dim(
             state = 2
             g1 = g0
             break
-        g1, f1, state, *hargs = h(s, s0_, conv_tol, *hargs)
+        g1, f1, state, *hargs = h(s, s0_, conv_tol, *hargs)  # type: ignore[call-arg, arg-type]
         i += 1
         g0 = g1
         f0 = f1
@@ -169,21 +169,21 @@ def ift_1dim(
         # return g1 as is.
         ret: Number = g1
     elif ad_order == 1:
-        s_ = s(Dual(g1, ["x"], []))
+        s_: Dual | Dual2 = s(Dual(g1, ["x"], []))  # type: ignore[call-arg, arg-type, assignment]
         ds_dx = gradient(s_, vars=["x"])[0]
-        ret = Dual.vars_from(s_tgt, g1, s_tgt.vars, 1.0 / ds_dx * s_tgt.dual)
+        ret = Dual.vars_from(s_tgt, g1, s_tgt.vars, 1.0 / ds_dx * s_tgt.dual)  # type: ignore[union-attr, arg-type]
     else:  # ad_order == 2
-        s_ = s(Dual2(g1, ["x"], [], []))
+        s_ = s(Dual2(g1, ["x"], [], []))  # type: ignore[call-arg, arg-type, assignment]
         ds_dx = gradient(s_, vars=["x"])[0]
         d2s_dx2 = gradient(s_, vars=["x"], order=2)[0][0]
         ret = Dual2.vars_from(
-            s_tgt,
+            s_tgt,  # type: ignore[arg-type]
             g1,
-            s_tgt.vars,
-            1.0 / ds_dx * s_tgt.dual,
+            s_tgt.vars,  # type: ignore[union-attr, arg-type]
+            1.0 / ds_dx * s_tgt.dual,  # type: ignore[union-attr]
             np.ravel(
-                1.0 / ds_dx * s_tgt.dual2
-                - 0.5 * d2s_dx2 * ds_dx**-3 * np.outer(s_tgt.dual, s_tgt.dual)
+                1.0 / ds_dx * s_tgt.dual2  # type: ignore[union-attr]
+                - 0.5 * d2s_dx2 * ds_dx**-3 * np.outer(s_tgt.dual, s_tgt.dual)  # type: ignore[union-attr]
             ),
         )
 
@@ -211,20 +211,18 @@ def _bisection(
     The `ini_hargs` needed for this method are only (g_lower, g_upper).
     """
     if s_lower is None:
-        s_lower = s(g_lower)
+        s_lower = s(g_lower)  # type: ignore[call-arg, assignment, arg-type]
     if s_upper is None:
-        s_upper = s(g_upper)
+        s_upper = s(g_upper)  # type: ignore[call-arg, assignment, arg-type]
 
-    f_lower = s_lower - s_target
-    f_upper = s_upper - s_target
+    f_lower = s_lower - s_target  # type: ignore[operator]
+    f_upper = s_upper - s_target  # type: ignore[operator]
 
-    if f_lower > 0 and f_upper > 0:
-        return 0, 0, -2, 0, 0, 0  # return failed state
-    elif f_lower < 0 and f_upper < 0:
+    if f_lower > 0 and f_upper > 0 or f_lower < 0 and f_upper < 0:
         return 0, 0, -2, 0, 0, 0  # return failed state
 
     g_mid = (g_lower + g_upper) / 2.0
-    s_mid = s(g_mid)
+    s_mid = s(g_mid)  # type: ignore[call-arg, arg-type]
     f_mid = s_mid - s_target
 
     if (g_mid - g_lower) < conv_tol:
@@ -234,12 +232,12 @@ def _bisection(
 
     if abs(f_lower) < abs(f_mid):
         # g_lower is closer to the target value than g_mid
-        return g_lower, f_lower, state, g_lower, g_mid, s_lower, s_mid
+        return g_lower, f_lower, state, g_lower, g_mid, s_lower, s_mid  # type: ignore[return-value]
     elif abs(f_upper) < abs(f_mid):
         # g_upper is closer to the target value than g_mid
-        return g_upper, f_upper, state, g_mid, g_upper, s_mid, s_upper
+        return g_upper, f_upper, state, g_mid, g_upper, s_mid, s_upper  # type: ignore[return-value]
     elif abs(f_lower) < abs(f_upper):
         # g_mid is closest to the target value with g_lower being the better side
-        return g_mid, f_mid, state, g_lower, g_mid, s_lower, s_mid
+        return g_mid, f_mid, state, g_lower, g_mid, s_lower, s_mid  # type: ignore[return-value]
     else:
-        return g_mid, f_mid, state, g_mid, g_upper, s_mid, s_upper
+        return g_mid, f_mid, state, g_mid, g_upper, s_mid, s_upper  # type: ignore[return-value]

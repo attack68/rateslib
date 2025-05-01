@@ -9,7 +9,7 @@ from pandas.testing import assert_frame_equal, assert_series_equal
 from rateslib import default_context
 from rateslib.curves import CompositeCurve, Curve, LineCurve, MultiCsaCurve, index_left
 from rateslib.default import NoInput
-from rateslib.dual import Dual, Dual2, gradient, newton_1dim, newton_ndim, ift_1dim
+from rateslib.dual import Dual, Dual2, gradient, ift_1dim, newton_1dim, newton_ndim
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments import (
@@ -29,7 +29,6 @@ from rateslib.solver import Gradients, Solver
 
 
 class TestIFTSolver:
-
     @pytest.mark.parametrize("args", [(2.0, 3.0), (-2.0, -1.0)])
     def test_failed_state(self, args):
         def s(x):
@@ -68,19 +67,21 @@ class TestIFTSolver:
         def s(x):
             return x**2
 
-        result = ift_1dim(s, 9.0, "bisection", (1.15, 5.0), conv_tol=1e-5, max_iter=5, raise_on_fail=False)
+        result = ift_1dim(
+            s, 9.0, "bisection", (1.15, 5.0), conv_tol=1e-5, max_iter=5, raise_on_fail=False
+        )
         # function should perform many bisections iterations and arrive close to 3.0 with conv_tol
         assert result["state"] == -1
 
     def test_dual_returns(self):
         def s(x):
-            return 3.0 / (1 + x / 100.0) + (100.0 + 3.0) / (1 + x / 100.0)**2
+            return 3.0 / (1 + x / 100.0) + (100.0 + 3.0) / (1 + x / 100.0) ** 2
 
         result = ift_1dim(s, Dual(101.0, ["s"], []), "bisection", (2.0, 4.0), conv_tol=1e-5)
 
         # ds_dx = -3 / (1+g)**2 - 2*(103) / (1+g)**3
         g = result["g"]
-        ds_dx = -3.0 / (1.0 + g/100.0)**2 - 2.0 * (103.0) / (1.0 + g/100.0)**3
+        ds_dx = -3.0 / (1.0 + g / 100.0) ** 2 - 2.0 * (103.0) / (1.0 + g / 100.0) ** 3
         dg_ds_analytic = 1 / ds_dx * 100.0
         dg_ds_ad = gradient(g, ["s"])[0]
 
@@ -89,16 +90,16 @@ class TestIFTSolver:
     def test_dual2_returns(self):
         # second part of dual returns
         def s(x):
-            return 3.0 / (1 + x / 100.0) + (100.0 + 3.0) / (1 + x / 100.0)**2
+            return 3.0 / (1 + x / 100.0) + (100.0 + 3.0) / (1 + x / 100.0) ** 2
 
         result = ift_1dim(s, Dual2(101.0, ["s"], [], []), "bisection", (2.0, 4.0), conv_tol=1e-5)
 
         # d2s_dx2 = 2.3 / (1+g)**3 + 6*(103) / (1+g)**4
         g = result["g"]
-        ds_dx = -3.0 / (1.0 + g/100.0)**2 - 2.0 * (103.0) / (1.0 + g/100.0)**3
-        d2s_dx2 = 6.0 / (1.0 + g/100.0)**3 + 6.0 * (103.0) / (1.0 + g/100.0)**4
+        ds_dx = -3.0 / (1.0 + g / 100.0) ** 2 - 2.0 * (103.0) / (1.0 + g / 100.0) ** 3
+        d2s_dx2 = 6.0 / (1.0 + g / 100.0) ** 3 + 6.0 * (103.0) / (1.0 + g / 100.0) ** 4
 
-        d2g_ds2_analytic = -100 * d2s_dx2 / ds_dx **3
+        d2g_ds2_analytic = -100 * d2s_dx2 / ds_dx**3
         d2g_ds2_ad = gradient(g, ["s"], order=2)[0][0]
 
         assert abs(d2g_ds2_ad - d2g_ds2_analytic) < 1e-10
