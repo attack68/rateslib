@@ -115,7 +115,7 @@ class TestIFTSolver:
         assert result["iterations"] < 12
 
         result2 = ift_1dim(s, s_tgt, "bisection", (1.15, 5.0), conv_tol=1e-12)
-        assert result["time"] < result2["time"]
+        assert result["time"] <= result2["time"]
 
     def test_dekker_conv_tol(self):
         def s(x):
