@@ -17,7 +17,7 @@ P = ParamSpec("P")
 
 
 def ift_1dim(
-    s: Callable[P, DualTypes],
+    s: Callable[[DualTypes], DualTypes],
     s_tgt: DualTypes,
     h: Callable[P, tuple[float, float, int, tuple[Any, ...]]],
     ini_h_args: tuple[Any, ...] = (),
@@ -171,11 +171,11 @@ def ift_1dim(
         # return g1 as is.
         ret: Number = g1
     elif ad_order == 1:
-        s_: Dual | Dual2 = s(Dual(g1, ["x"], []))  # type: ignore[call-arg, arg-type, assignment]
+        s_: Dual | Dual2 = s(Dual(g1, ["x"], []))  # type: ignore[assignment]
         ds_dx = gradient(s_, vars=["x"])[0]
         ret = Dual.vars_from(s_tgt, g1, s_tgt.vars, 1.0 / ds_dx * s_tgt.dual)  # type: ignore[union-attr, arg-type]
     else:  # ad_order == 2
-        s_ = s(Dual2(g1, ["x"], [], []))  # type: ignore[call-arg, arg-type, assignment]
+        s_ = s(Dual2(g1, ["x"], [], []))  # type: ignore[assignment]
         ds_dx = gradient(s_, vars=["x"])[0]
         d2s_dx2 = gradient(s_, vars=["x"], order=2)[0][0]
         ret = Dual2.vars_from(
@@ -193,7 +193,7 @@ def ift_1dim(
 
 
 def _bisection(
-    s: Callable[P, DualTypes],
+    s: Callable[[DualTypes], DualTypes],
     s_tgt: float,
     conv_tol: float,
     g_lower: float,
@@ -213,9 +213,9 @@ def _bisection(
     The `ini_hargs` needed for this method are only (g_lower, g_upper).
     """
     if s_lower is None:
-        s_lower = s(g_lower)  # type: ignore[call-arg, assignment, arg-type]
+        s_lower = s(g_lower)  # type: ignore[assignment]
     if s_upper is None:
-        s_upper = s(g_upper)  # type: ignore[call-arg, assignment, arg-type]
+        s_upper = s(g_upper)  # type: ignore[assignment]
 
     f_lower = s_lower - s_tgt  # type: ignore[operator]
     f_upper = s_upper - s_tgt  # type: ignore[operator]
@@ -224,7 +224,7 @@ def _bisection(
         return 0, 0, -2, 0, 0, 0  # return failed state
 
     g_mid = (g_lower + g_upper) / 2.0
-    s_mid = s(g_mid)  # type: ignore[call-arg, arg-type]
+    s_mid = s(g_mid)
     f_mid = s_mid - s_tgt
 
     if (g_mid - g_lower) < conv_tol:
@@ -245,13 +245,13 @@ def _bisection(
         return g_mid, f_mid, state, g_mid, g_upper, s_mid, s_upper  # type: ignore[return-value]
 
 
-def _root_f(x, s, s_tgt):
+def _root_f(x: float, s: Callable[[DualTypes], DualTypes], s_tgt: float) -> float:
     """Root reformulation for Dekker's algorithm"""
-    return s(x) - s_tgt
+    return s(x) - s_tgt  # type: ignore[return-value]
 
 
 def _dekker(
-    s: Callable[P, DualTypes],
+    s: Callable[[DualTypes], DualTypes],
     s_tgt: float,
     conv_tol: float,
     a_k: float,
