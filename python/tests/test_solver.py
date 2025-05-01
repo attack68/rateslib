@@ -1,5 +1,6 @@
 import warnings
 from datetime import datetime as dt
+from math import exp
 
 import numpy as np
 import pytest
@@ -103,6 +104,26 @@ class TestIFTSolver:
         d2g_ds2_ad = gradient(g, ["s"], order=2)[0][0]
 
         assert abs(d2g_ds2_ad - d2g_ds2_analytic) < 1e-10
+
+    def test_dekker(self):
+        def s(x):
+            return exp(x) + x**2
+
+        s_tgt = s(2.0)
+        result = ift_1dim(s, s_tgt, "modified_dekker", (1.15, 5.0), conv_tol=1e-12)
+        assert result["g"] == 2.0
+        assert result["iterations"] < 12
+
+        result2 = ift_1dim(s, s_tgt, "bisection", (1.15, 5.0), conv_tol=1e-12)
+        assert result["time"] <= result2["time"]
+
+    def test_dekker_conv_tol(self):
+        def s(x):
+            return exp(x) + x**2
+
+        s_tgt = s(2.0)
+        result = ift_1dim(s, s_tgt, "modified_dekker", (1.15, 5.0), conv_tol=1e-3)
+        assert result["state"] == 1
 
 
 class TestGradients:

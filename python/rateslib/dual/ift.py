@@ -17,7 +17,7 @@ P = ParamSpec("P")
 
 
 def ift_1dim(
-    s: Callable[P, DualTypes],
+    s: Callable[[DualTypes], DualTypes],
     s_tgt: DualTypes,
     h: Callable[P, tuple[float, float, int, tuple[Any, ...]]],
     ini_h_args: tuple[Any, ...] = (),
@@ -50,6 +50,13 @@ def ift_1dim(
 
     Notes
     ------
+    **Available iterative methods**
+
+    - **'bisection'**: requires ``ini_h_args`` to be a tuple of two floats defining the interval.
+      The interval will be halved in each iteration and the relevant interval side kept.
+    - **'modified_dekker'**: Requires ``ini_h_args`` to be a tuple of two floats defining the
+      interval. For info see :download:`Halving Interval for Dekker<_static/modified_dekker.pdf>`.
+
     **Mathematical background**
 
     This method is used to find the value of *g* from *s* in the one-dimensional equation:
@@ -62,15 +69,8 @@ def ift_1dim(
 
     **What is ``h``**
 
-    *h()* is a function that is used to perform iterations to determine *g* from *s*.
-
-    *h* can use the iterative methods already implemented:
-
-    - *'bisection'*: The Bisection method which requires ``ini_h_args`` to be a tuple of two floats.
-      The first float is the lower bound of g. The second float is the
-      upper bound of g. Bounds must provide function values of different signs.
-
-    Or, it can be a custom function. The signature of *h* is important and must conform to:
+    *h()* is a function that is used to perform iterations to determine *g* from *s*. If
+    a custom function is provided, it must conform to the following signature:
 
     `h(s, s_target, conv_tol, *h_args) -> (g_i, f_i, state, *h_args_i)`
 
@@ -125,6 +125,8 @@ def ift_1dim(
     if isinstance(h, str):
         if h == "bisection":
             h = _bisection
+        elif h == "modified_dekker":
+            h = _dekker
         else:
             raise ValueError(f"Unknown iterative function: {h}")
 
@@ -169,11 +171,11 @@ def ift_1dim(
         # return g1 as is.
         ret: Number = g1
     elif ad_order == 1:
-        s_: Dual | Dual2 = s(Dual(g1, ["x"], []))  # type: ignore[call-arg, arg-type, assignment]
+        s_: Dual | Dual2 = s(Dual(g1, ["x"], []))  # type: ignore[assignment]
         ds_dx = gradient(s_, vars=["x"])[0]
         ret = Dual.vars_from(s_tgt, g1, s_tgt.vars, 1.0 / ds_dx * s_tgt.dual)  # type: ignore[union-attr, arg-type]
     else:  # ad_order == 2
-        s_ = s(Dual2(g1, ["x"], [], []))  # type: ignore[call-arg, arg-type, assignment]
+        s_ = s(Dual2(g1, ["x"], [], []))  # type: ignore[assignment]
         ds_dx = gradient(s_, vars=["x"])[0]
         d2s_dx2 = gradient(s_, vars=["x"], order=2)[0][0]
         ret = Dual2.vars_from(
@@ -191,8 +193,8 @@ def ift_1dim(
 
 
 def _bisection(
-    s: Callable[P, DualTypes],
-    s_target: float,
+    s: Callable[[DualTypes], DualTypes],
+    s_tgt: float,
     conv_tol: float,
     g_lower: float,
     g_upper: float,
@@ -211,19 +213,19 @@ def _bisection(
     The `ini_hargs` needed for this method are only (g_lower, g_upper).
     """
     if s_lower is None:
-        s_lower = s(g_lower)  # type: ignore[call-arg, assignment, arg-type]
+        s_lower = s(g_lower)  # type: ignore[assignment]
     if s_upper is None:
-        s_upper = s(g_upper)  # type: ignore[call-arg, assignment, arg-type]
+        s_upper = s(g_upper)  # type: ignore[assignment]
 
-    f_lower = s_lower - s_target  # type: ignore[operator]
-    f_upper = s_upper - s_target  # type: ignore[operator]
+    f_lower = s_lower - s_tgt  # type: ignore[operator]
+    f_upper = s_upper - s_tgt  # type: ignore[operator]
 
-    if f_lower > 0 and f_upper > 0 or f_lower < 0 and f_upper < 0:
+    if float(f_lower * f_upper) > 0:
         return 0, 0, -2, 0, 0, 0  # return failed state
 
     g_mid = (g_lower + g_upper) / 2.0
-    s_mid = s(g_mid)  # type: ignore[call-arg, arg-type]
-    f_mid = s_mid - s_target
+    s_mid = s(g_mid)
+    f_mid = s_mid - s_tgt
 
     if (g_mid - g_lower) < conv_tol:
         state: int | None = 1
@@ -241,3 +243,61 @@ def _bisection(
         return g_mid, f_mid, state, g_lower, g_mid, s_lower, s_mid  # type: ignore[return-value]
     else:
         return g_mid, f_mid, state, g_mid, g_upper, s_mid, s_upper  # type: ignore[return-value]
+
+
+def _root_f(x: float, s: Callable[[DualTypes], DualTypes], s_tgt: float) -> float:
+    """Root reformulation for Dekker's algorithm"""
+    return s(x) - s_tgt  # type: ignore[return-value]
+
+
+def _dekker(
+    s: Callable[[DualTypes], DualTypes],
+    s_tgt: float,
+    conv_tol: float,
+    a_k: float,
+    b_k: float,
+    b_k_: float | None = None,
+) -> tuple[float, float, int | None, float, float, float]:
+    """
+    Alternative root solver.
+    See docs/source/_static/modified_dekker.pdf for details.
+    """
+    f_a_k = _root_f(a_k, s, s_tgt)
+    f_b_k = _root_f(b_k, s, s_tgt)
+    if abs(f_a_k) < abs(f_b_k):
+        # switch to make b_k the 'best' solution
+        f_a_k, f_b_k = f_b_k, f_a_k
+        a_k, b_k = b_k, a_k
+
+    if abs(a_k - b_k) < conv_tol:
+        return b_k, f_b_k, 1, 0.0, 0.0, 0.0
+
+    # for the first iteration set b_k_1 equal to a_k, else it is returned from previous
+    if b_k_ is None:
+        b_k_m1: float = a_k
+    else:
+        b_k_m1 = b_k_
+
+    f_b_k_m1 = _root_f(b_k_m1, s, s_tgt)
+
+    # provisional values for the next iteration
+    m = (a_k + b_k) / 2.0  # midpoint
+    q = b_k - f_b_k * (b_k - b_k_m1) / (f_b_k - f_b_k_m1)  # secant
+
+    if q >= min(b_k, m) and q <= max(b_k, m):
+        b_k_p1 = q
+    else:
+        b_k_p1 = m
+
+    f_b_k_p1 = _root_f(b_k_p1, s, s_tgt)
+
+    # determine a_k_p1
+    a_k_p1 = a_k
+    if float(f_a_k * f_b_k_p1) > 0:
+        a_k_p1 = b_k
+    elif q >= min(b_k, m) and q <= max(b_k, m):
+        f_m = _root_f(m, s, s_tgt)
+        if float(f_m * f_b_k_p1) < 0:
+            a_k_p1 = m
+
+    return b_k_p1, f_b_k_p1, None, a_k_p1, b_k_p1, b_k
