@@ -38,6 +38,7 @@ Methods
    rateslib.dual.dual_solve
    rateslib.dual.newton_1dim
    rateslib.dual.newton_ndim
+   rateslib.dual.ift_1dim
    rateslib.dual.quadratic_eqn
 
 
