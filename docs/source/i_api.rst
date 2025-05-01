@@ -158,29 +158,6 @@ FX Volatility
 .. automodapi:: rateslib.fx_volatility
    :no-heading:
    :no-inheritance-diagram:
-   :skip: FXForwards
-   :skip: Any
-   :skip: Variable
-   :skip: set_order_convert
-   :skip: dual_exp
-   :skip: dual_inv_norm_cdf
-   :skip: Dual
-   :skip: Dual2
-   :skip: dual_norm_cdf
-   :skip: dual_log
-   :skip: dual_norm_pdf
-   :skip: PPSplineF64
-   :skip: PPSplineDual
-   :skip: PPSplineDual2
-   :skip: evaluate
-   :skip: plot
-   :skip: NoInput
-   :skip: newton_1dim
-   :skip: uuid4
-   :skip: datetime
-   :skip: dt
-   :skip: timedelta
-   :skip: Series
 
 Periods
 ========
