@@ -36,7 +36,8 @@ email contact, see `rateslib <https://rateslib.com>`_.
      - Implement a new type of iterative root solver, :meth:`~rateslib.dual.ift_1dim`, that
        solves a one-dimensional implicit function if its derivatives are not known but its inverse
        function is analytical.
-       (`767 <https://github.com/attack68/rateslib/pull/767>`_)
+       (`775 <https://github.com/attack68/rateslib/pull/775>`_)
+       (`776 <https://github.com/attack68/rateslib/pull/776>`_)
    * - Bug
      - The SABR functions are modified to handle ``expiry`` for an interpolated
        :class:`~rateslib.fx_volatility.FXSabrSurface`. Previously, the specific expiry was used to
