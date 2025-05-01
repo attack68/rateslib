@@ -192,7 +192,7 @@ def ift_1dim(
 
 def _bisection(
     s: Callable[P, DualTypes],
-    s_target: float,
+    s_tgt: float,
     conv_tol: float,
     g_lower: float,
     g_upper: float,
@@ -215,15 +215,15 @@ def _bisection(
     if s_upper is None:
         s_upper = s(g_upper)  # type: ignore[call-arg, assignment, arg-type]
 
-    f_lower = s_lower - s_target  # type: ignore[operator]
-    f_upper = s_upper - s_target  # type: ignore[operator]
+    f_lower = s_lower - s_tgt  # type: ignore[operator]
+    f_upper = s_upper - s_tgt  # type: ignore[operator]
 
-    if f_lower > 0 and f_upper > 0 or f_lower < 0 and f_upper < 0:
+    if float(f_lower * f_upper) > 0:
         return 0, 0, -2, 0, 0, 0  # return failed state
 
     g_mid = (g_lower + g_upper) / 2.0
     s_mid = s(g_mid)  # type: ignore[call-arg, arg-type]
-    f_mid = s_mid - s_target
+    f_mid = s_mid - s_tgt
 
     if (g_mid - g_lower) < conv_tol:
         state: int | None = 1
@@ -241,3 +241,122 @@ def _bisection(
         return g_mid, f_mid, state, g_lower, g_mid, s_lower, s_mid  # type: ignore[return-value]
     else:
         return g_mid, f_mid, state, g_mid, g_upper, s_mid, s_upper  # type: ignore[return-value]
+
+
+
+def _root_f(x, s, s_tgt):
+    """Root reformulation for Dekker's algorithm"""
+    return s(x) - s_tgt
+
+
+def _dekker(
+    s: Callable[P, DualTypes],
+    s_tgt: float,
+    conv_tol: float,
+    a_k: float,
+    b_k: float,
+    b_k_: float | None = None,
+) -> tuple[float, float, int | None, float, float, float]:
+    """
+    Alternative root solver.
+    """
+
+    f_a_k = _root_f(a_k, s, s_tgt)
+    f_b_k = _root_f(b_k, s, s_tgt)
+    if abs(f_a_k) < abs(f_b_k):
+        # switch to make b_k the 'best' solution
+        f_a_k, f_b_k = f_b_k, f_a_k
+        a_k, b_k = b_k, a_k
+
+    # for the first iteration set b_k_1 equal to a_k
+    if b_k_ is None:
+        b_k_1: float = a_k
+    else:
+        b_k_1 = b_k_
+
+    f_b_k_1 = _root_f(b_k_1, s, s_tgt)
+
+    # provisional values for the next iteration
+    m = (a_k + b_k) / 2.0
+    if f_b_k != f_b_k_1:
+        s = b_k - f_b_k * (b_k - b_k_1) / (f_b_k - f_b_k_1)  # secant
+    else:
+        s = m  # bisection
+
+    if
+
+
+
+    return x1, steps_taken
+
+
+
+def _brents(
+    s: Callable[P, DualTypes],
+    s_tgt: float,
+    conv_tol: float,
+    g_lower: float,
+    g_upper: float
+) -> tuple[float, float, int | None, float, float, float]:
+    """
+    Alternative root solver.
+    """
+    f_lower = _brent_f(g_lower, s, s_tgt)
+    f_upper = _brent_f(g_upper, s, s_tgt)
+
+    if float(f_lower * f_upper) > 0:
+        # `brents` must initiate from function values with opposite signs.
+        return 0, 0, -2, 0, 0, 0  # return failed state
+
+    if abs(f_lower) < abs(f_upper):
+        # switch labels
+        g_lower, g_upper = g_upper, g_lower
+        f_lower, f_upper = f_upper, f_lower
+
+    g_2, f_2 = g_lower, f_lower
+
+    mflag = True
+    steps_taken = 0
+
+    while steps_taken < max_iter and abs(x1 - x0) > tolerance:
+        fx0 = f(x0)
+        fx1 = f(x1)
+        fx2 = f(x2)
+
+        if fx0 != fx2 and fx1 != fx2:
+            L0 = (x0 * fx1 * fx2) / ((fx0 - fx1) * (fx0 - fx2))
+            L1 = (x1 * fx0 * fx2) / ((fx1 - fx0) * (fx1 - fx2))
+            L2 = (x2 * fx1 * fx0) / ((fx2 - fx0) * (fx2 - fx1))
+            new = L0 + L1 + L2
+
+        else:
+            new = x1 - ((fx1 * (x1 - x0)) / (fx1 - fx0))
+
+        if (
+            (float(new) < float((3 * x0 + x1) / 4) or float(new) > float(x1))
+            or (mflag is True and (abs(new - x1)) >= (abs(x1 - x2) / 2))
+            or (mflag is False and (abs(new - x1)) >= (abs(x2 - d) / 2))
+            or (mflag is True and (abs(x1 - x2)) < tolerance)
+            or (mflag is False and (abs(x2 - d)) < tolerance)
+        ):
+            new = (x0 + x1) / 2
+            mflag = True
+
+        else:
+            mflag = False
+
+        fnew = f(new)
+        d, x2 = x2, x1
+
+        if float(fx0 * fnew) < 0:
+            x1 = new
+        else:
+            x0 = new
+
+        if abs(fx0) < abs(fx1):
+            x0, x1 = x1, x0
+
+        steps_taken += 1
+
+    return x1, steps_taken
+
