@@ -1,6 +1,7 @@
 import warnings
 from datetime import datetime as dt
 from math import exp
+
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
@@ -106,7 +107,7 @@ class TestIFTSolver:
 
     def test_dekker(self):
         def s(x):
-            return exp(x) + x ** 2
+            return exp(x) + x**2
 
         s_tgt = s(2.0)
         result = ift_1dim(s, s_tgt, "modified_dekker", (1.15, 5.0), conv_tol=1e-12)
@@ -118,7 +119,7 @@ class TestIFTSolver:
 
     def test_dekker_conv_tol(self):
         def s(x):
-            return exp(x) + x ** 2
+            return exp(x) + x**2
 
         s_tgt = s(2.0)
         result = ift_1dim(s, s_tgt, "modified_dekker", (1.15, 5.0), conv_tol=1e-3)
