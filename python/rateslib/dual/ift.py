@@ -50,6 +50,13 @@ def ift_1dim(
 
     Notes
     ------
+    **Available iterative methods**
+
+    - **'bisection'**: requires ``ini_h_args`` to be a tuple of two floats defining the interval.
+      The interval will be halved in each iteration and the relevant interval side kept.
+    - **'modified_dekker'**: Requires ``ini_h_args`` to be a tuple of two floats defining the
+      interval.
+
     **Mathematical background**
 
     This method is used to find the value of *g* from *s* in the one-dimensional equation:
@@ -62,15 +69,8 @@ def ift_1dim(
 
     **What is ``h``**
 
-    *h()* is a function that is used to perform iterations to determine *g* from *s*.
-
-    *h* can use the iterative methods already implemented:
-
-    - *'bisection'*: The Bisection method which requires ``ini_h_args`` to be a tuple of two floats.
-      The first float is the lower bound of g. The second float is the
-      upper bound of g. Bounds must provide function values of different signs.
-
-    Or, it can be a custom function. The signature of *h* is important and must conform to:
+    *h()* is a function that is used to perform iterations to determine *g* from *s*. If
+    a custom function is provided, it must conform to the following signature:
 
     `h(s, s_target, conv_tol, *h_args) -> (g_i, f_i, state, *h_args_i)`
 
@@ -125,6 +125,8 @@ def ift_1dim(
     if isinstance(h, str):
         if h == "bisection":
             h = _bisection
+        elif h == "modified_dekker":
+            h = _dekker
         else:
             raise ValueError(f"Unknown iterative function: {h}")
 
@@ -243,7 +245,6 @@ def _bisection(
         return g_mid, f_mid, state, g_mid, g_upper, s_mid, s_upper  # type: ignore[return-value]
 
 
-
 def _root_f(x, s, s_tgt):
     """Root reformulation for Dekker's algorithm"""
     return s(x) - s_tgt
@@ -259,8 +260,8 @@ def _dekker(
 ) -> tuple[float, float, int | None, float, float, float]:
     """
     Alternative root solver.
+    See docs/source/_static/modified_dekker.pdf for details.
     """
-
     f_a_k = _root_f(a_k, s, s_tgt)
     f_b_k = _root_f(b_k, s, s_tgt)
     if abs(f_a_k) < abs(f_b_k):
@@ -268,95 +269,35 @@ def _dekker(
         f_a_k, f_b_k = f_b_k, f_a_k
         a_k, b_k = b_k, a_k
 
-    # for the first iteration set b_k_1 equal to a_k
-    if b_k_ is None:
-        b_k_1: float = a_k
-    else:
-        b_k_1 = b_k_
+    if abs(a_k - b_k) < conv_tol:
+        return b_k, f_b_k, 1, 0.0, 0.0, 0.0
 
-    f_b_k_1 = _root_f(b_k_1, s, s_tgt)
+    # for the first iteration set b_k_1 equal to a_k, else it is returned from previous
+    if b_k_ is None:
+        b_k_m1: float = a_k
+    else:
+        b_k_m1 = b_k_
+
+    f_b_k_m1 = _root_f(b_k_m1, s, s_tgt)
 
     # provisional values for the next iteration
-    m = (a_k + b_k) / 2.0
-    if f_b_k != f_b_k_1:
-        s = b_k - f_b_k * (b_k - b_k_1) / (f_b_k - f_b_k_1)  # secant
+    m = (a_k + b_k) / 2.0  # midpoint
+    q = b_k - f_b_k * (b_k - b_k_m1) / (f_b_k - f_b_k_m1)  # secant
+
+    if q >= min(b_k, m) and q <= max(b_k, m):
+        b_k_p1 = q
     else:
-        s = m  # bisection
+        b_k_p1 = m
 
-    if
+    f_b_k_p1 = _root_f(b_k_p1, s, s_tgt)
 
+    # determine a_k_p1
+    a_k_p1 = a_k
+    if float(f_a_k * f_b_k_p1) > 0:
+        a_k_p1 = b_k
+    elif q >= min(b_k, m) and q <= max(b_k, m):
+        f_m = _root_f(m, s, s_tgt)
+        if float(f_m * f_b_k_p1) < 0:
+            a_k_p1 = m
 
-
-    return x1, steps_taken
-
-
-
-def _brents(
-    s: Callable[P, DualTypes],
-    s_tgt: float,
-    conv_tol: float,
-    g_lower: float,
-    g_upper: float
-) -> tuple[float, float, int | None, float, float, float]:
-    """
-    Alternative root solver.
-    """
-    f_lower = _brent_f(g_lower, s, s_tgt)
-    f_upper = _brent_f(g_upper, s, s_tgt)
-
-    if float(f_lower * f_upper) > 0:
-        # `brents` must initiate from function values with opposite signs.
-        return 0, 0, -2, 0, 0, 0  # return failed state
-
-    if abs(f_lower) < abs(f_upper):
-        # switch labels
-        g_lower, g_upper = g_upper, g_lower
-        f_lower, f_upper = f_upper, f_lower
-
-    g_2, f_2 = g_lower, f_lower
-
-    mflag = True
-    steps_taken = 0
-
-    while steps_taken < max_iter and abs(x1 - x0) > tolerance:
-        fx0 = f(x0)
-        fx1 = f(x1)
-        fx2 = f(x2)
-
-        if fx0 != fx2 and fx1 != fx2:
-            L0 = (x0 * fx1 * fx2) / ((fx0 - fx1) * (fx0 - fx2))
-            L1 = (x1 * fx0 * fx2) / ((fx1 - fx0) * (fx1 - fx2))
-            L2 = (x2 * fx1 * fx0) / ((fx2 - fx0) * (fx2 - fx1))
-            new = L0 + L1 + L2
-
-        else:
-            new = x1 - ((fx1 * (x1 - x0)) / (fx1 - fx0))
-
-        if (
-            (float(new) < float((3 * x0 + x1) / 4) or float(new) > float(x1))
-            or (mflag is True and (abs(new - x1)) >= (abs(x1 - x2) / 2))
-            or (mflag is False and (abs(new - x1)) >= (abs(x2 - d) / 2))
-            or (mflag is True and (abs(x1 - x2)) < tolerance)
-            or (mflag is False and (abs(x2 - d)) < tolerance)
-        ):
-            new = (x0 + x1) / 2
-            mflag = True
-
-        else:
-            mflag = False
-
-        fnew = f(new)
-        d, x2 = x2, x1
-
-        if float(fx0 * fnew) < 0:
-            x1 = new
-        else:
-            x0 = new
-
-        if abs(fx0) < abs(fx1):
-            x0, x1 = x1, x0
-
-        steps_taken += 1
-
-    return x1, steps_taken
-
+    return b_k_p1, f_b_k_p1, None, a_k_p1, b_k_p1, b_k
