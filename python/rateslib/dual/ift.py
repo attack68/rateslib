@@ -55,7 +55,8 @@ def ift_1dim(
     - **'bisection'**: requires ``ini_h_args`` to be a tuple of two floats defining the interval.
       The interval will be halved in each iteration and the relevant interval side kept.
     - **'modified_dekker'**: Requires ``ini_h_args`` to be a tuple of two floats defining the
-      interval. For info see :download:`Halving Interval for Dekker<_static/modified_dekker.pdf>`.
+      interval. For info see
+      :download:`Halving Interval for Dekker<_static/modified-dekker.pdf>`.
 
     **Mathematical background**
 
@@ -260,7 +261,7 @@ def _dekker(
 ) -> tuple[float, float, int | None, float, float, float]:
     """
     Alternative root solver.
-    See docs/source/_static/modified_dekker.pdf for details.
+    See docs/source/_static/modified-dekker.pdf for details.
     """
     f_a_k = _root_f(a_k, s, s_tgt)
     f_b_k = _root_f(b_k, s, s_tgt)
