@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from rateslib.dual.ift import ift_1dim
 from rateslib.dual.newton import newton_1dim, newton_ndim
 from rateslib.dual.quadratic import quadratic_eqn
 from rateslib.dual.utils import (
@@ -38,5 +39,6 @@ __all__ = [
     "set_order",
     "newton_ndim",
     "newton_1dim",
+    "ift_1dim",
     "quadratic_eqn",
 ]
