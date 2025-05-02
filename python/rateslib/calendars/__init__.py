@@ -93,7 +93,7 @@ def dcf(
       and start and end dates are converted under the rule:
 
       * start day is minimum of (30, start day),
-      * end day is minimum of (30, start day) only if start day was adjusted.
+      * end day is minimum of (30, end day) if start day >= 30.
 
     - `"30360ISDA"`: Months are treated as having 30 days and start and end dates are
       converted under the rule:
