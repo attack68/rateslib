@@ -27,7 +27,7 @@ def ift_1dim(
     raise_on_fail: bool = True,
 ) -> dict[str, Any]:
     r"""
-    Use the inverse function theorem to implement AD safe version of a 1-dimensional root solution.
+    Use the inverse function theorem to determine a function value of **one** variable.
 
     Parameters
     ----------
@@ -258,13 +258,28 @@ def _dekker(
     a_k: float,
     b_k: float,
     b_k_: float | None = None,
-) -> tuple[float, float, int | None, float, float, float]:
+    cached_f_a_k: float | None = None,
+    cached_f_b_k: float | None = None,
+    cached_f_b_k_: float | None = None,
+) -> tuple[float, float, int | None, float, float, float, float, float, float]:
     """
     Alternative root solver.
     See docs/source/_static/modified-dekker.pdf for details.
+
+    Cached values allow value transmission from one function to the next with many efficiencies.
     """
-    f_a_k = _root_f(a_k, s, s_tgt)
-    f_b_k = _root_f(b_k, s, s_tgt)
+
+    # Load cached values
+    if cached_f_a_k is None:
+        f_a_k = _root_f(a_k, s, s_tgt)
+    else:
+        f_a_k = cached_f_a_k
+
+    if cached_f_b_k is None:
+        f_b_k = _root_f(b_k, s, s_tgt)
+    else:
+        f_b_k = cached_f_b_k
+
     if abs(f_a_k) < abs(f_b_k):
         # switch to make b_k the 'best' solution
         f_a_k, f_b_k = f_b_k, f_a_k
@@ -273,13 +288,16 @@ def _dekker(
     if abs(a_k - b_k) < conv_tol:
         return b_k, f_b_k, 1, 0.0, 0.0, 0.0
 
-    # for the first iteration set b_k_1 equal to a_k, else it is returned from previous
+    # for the first iteration set b_k_m1 equal to a_k, else it is returned from previous
     if b_k_ is None:
         b_k_m1: float = a_k
+        f_b_k_m1 = f_a_k
     else:
         b_k_m1 = b_k_
-
-    f_b_k_m1 = _root_f(b_k_m1, s, s_tgt)
+        if cached_f_b_k_ is None:
+            f_b_k_m1 = _root_f(b_k_m1, s, s_tgt)
+        else:
+            f_b_k_m1 = cached_f_b_k_
 
     # provisional values for the next iteration
     m = (a_k + b_k) / 2.0  # midpoint
@@ -294,11 +312,14 @@ def _dekker(
 
     # determine a_k_p1
     a_k_p1 = a_k
+    f_a_k_p1 = f_a_k
     if float(f_a_k * f_b_k_p1) > 0:
         a_k_p1 = b_k
+        f_a_k_p1 = f_b_k
     elif q >= min(b_k, m) and q <= max(b_k, m):
         f_m = _root_f(m, s, s_tgt)
         if float(f_m * f_b_k_p1) < 0:
             a_k_p1 = m
+            f_a_k_p1 = f_m
 
-    return b_k_p1, f_b_k_p1, None, a_k_p1, b_k_p1, b_k
+    return b_k_p1, f_b_k_p1, None, a_k_p1, b_k_p1, b_k, f_a_k_p1, f_b_k_p1, f_b_k
