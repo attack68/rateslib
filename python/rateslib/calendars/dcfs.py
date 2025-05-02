@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from rateslib.calendars.rs import _get_modifier, _get_rollday, get_calendar
+from rateslib.rs import RollDay
 from rateslib.default import NoInput
 from rateslib.rs import Convention
 
@@ -32,6 +33,13 @@ CONVENTIONS_MAP: dict[str, Convention] = {
     "1+": Convention.OnePlus,
     "BUS252": Convention.Bus252,
 }
+
+
+def _is_end_feb(date: datetime) -> bool:
+    if date.month == 2:
+        _, end_feb = calendar_mod.monthrange(date.year, 2)
+        return date.day == end_feb
+    return False
 
 
 def _get_convention(convention: str) -> Convention:
@@ -76,10 +84,33 @@ def _dcf_30u360(
     roll: str | int | NoInput,
     calendar: CalInput,
 ) -> float:
+    """
+    Date adjustment rules (more than one may take effect; apply them in order, and if a date is
+    changed in one rule the changed value is used in the following rules):
 
+    - If the investment is EOM and (Date1 is the last day of February) and (Date2 is the last day
+      of February), then change D2 to 30.
+    - If the investment is EOM and (Date1 is the last day of February), then change D1 to 30.
+    - If D2 is 31 and D1 is 30 or 31, then change D2 to 30.
+    - If D1 is 31, then change D1 to 30.
 
-    ds = min(30, start.day)
-    de = min(ds, end.day) if ds == 30 else end.day
+    """
+    roll_day = _get_rollday(roll)
+    _is_eom = roll_day == RollDay.EoM() or roll_day == RollDay.Int(31)
+
+    ds, de = start.day, end.day
+    if _is_eom:
+        if _is_end_feb(start):
+            ds = 30
+            if _is_end_feb(end):
+                de = 30
+
+    if de == 31 and ds >= 30:
+        de = 30
+
+    if ds == 31:
+        ds = 30
+
     y, m = end.year - start.year, (end.month - start.month) / 12.0
     return y + m + (de - ds) / 360.0
 
@@ -98,12 +129,6 @@ def _dcf_30e360isda(
 ) -> float:
     if isinstance(termination, NoInput):
         raise ValueError("`termination` must be supplied with specified `convention`.")
-
-    def _is_end_feb(date: datetime) -> bool:
-        if date.month == 2:
-            _, end_feb = calendar_mod.monthrange(date.year, 2)
-            return date.day == end_feb
-        return False
 
     ds = 30 if (start.day == 31 or _is_end_feb(start)) else start.day
     de = 30 if (end.day == 31 or (_is_end_feb(end) and end != termination)) else end.day
