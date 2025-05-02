@@ -67,6 +67,22 @@ def _dcf_30360(start: datetime, end: datetime, *args: Any) -> float:
     y, m = end.year - start.year, (end.month - start.month) / 12.0
     return y + m + (de - ds) / 360.0
 
+def _dcf_30u360(
+    start: datetime,
+    end: datetime,
+    termination: datetime | NoInput,
+    frequency_months: int | NoInput,
+    stub: bool | NoInput,
+    roll: str | int | NoInput,
+    calendar: CalInput,
+) -> float:
+
+
+    ds = min(30, start.day)
+    de = min(ds, end.day) if ds == 30 else end.day
+    y, m = end.year - start.year, (end.month - start.month) / 12.0
+    return y + m + (de - ds) / 360.0
+
 
 def _dcf_30e360(start: datetime, end: datetime, *args: Any) -> float:
     ds, de = min(30, start.day), min(30, end.day)

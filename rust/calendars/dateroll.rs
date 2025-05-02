@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::cmp::{Ordering, PartialEq};
 
 /// A roll day.
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", eq)]
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum RollDay {
     /// Inherit the day of the input date as the roll.
@@ -447,6 +447,26 @@ mod tests {
         let hols = vec![ndt(2015, 9, 5), ndt(2015, 9, 7)]; // Saturday and Monday
         Cal::new(hols, vec![5, 6])
     }
+
+    #[test]
+    fn test_rollday_equality() {
+        let rd1 = RollDay::IMM {};
+        let rd2 = RollDay::IMM {};
+        assert_eq!(rd1, rd2);
+
+        let rd1 = RollDay::IMM {};
+        let rd2 = RollDay::EoM {};
+        assert_ne!(rd1, rd2);
+
+        let rd1 = RollDay::Int {day: 20};
+        let rd2 = RollDay::Int {day: 20};
+        assert_eq!(rd1, rd2);
+
+        let rd1 = RollDay::Int {day: 21};
+        let rd2 = RollDay::Int {day: 9};
+        assert_ne!(rd1, rd2);
+    }
+
 
     #[test]
     fn test_roll_with_settlement() {
