@@ -286,7 +286,7 @@ def _dekker(
         a_k, b_k = b_k, a_k
 
     if abs(a_k - b_k) < conv_tol:
-        return b_k, f_b_k, 1, 0.0, 0.0, 0.0
+        return b_k, f_b_k, 1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
 
     # for the first iteration set b_k_m1 equal to a_k, else it is returned from previous
     if b_k_ is None:
