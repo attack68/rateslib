@@ -125,6 +125,41 @@ class TestIFTSolver:
         result = ift_1dim(s, s_tgt, "modified_dekker", (1.15, 5.0), conv_tol=1e-3)
         assert result["state"] == 1
 
+    def test_brent(self):
+        def s(x):
+            return exp(x) + x**2
+
+        s_tgt = s(2.0)
+        result = ift_1dim(s, s_tgt, "modified_brent", (1.15, 5.0), conv_tol=1e-12)
+        assert result["g"] == 2.0
+        assert result["iterations"] < 12
+
+        result2 = ift_1dim(s, s_tgt, "bisection", (1.15, 5.0), conv_tol=1e-12)
+        assert result["time"] <= result2["time"]
+
+    def test_brent_conv_tol(self):
+        def s(x):
+            return exp(x) + x**2
+
+        s_tgt = s(2.0)
+        result = ift_1dim(s, s_tgt, "modified_brent", (1.15, 5.0), conv_tol=1e-3)
+        assert result["state"] == 1
+
+    def test_another_func(self):
+        def s(g):
+            from math import cos
+
+            return cos(g) + g**3 + 2 * g**2 - 1.2
+
+        s_tgt = s(-1.5)  # close to zero, 3 roots in [-4.0, 2.0]
+        r_bi = ift_1dim(s, s_tgt, "bisection", (-4.0, 2.0))
+        r_dk = ift_1dim(s, s_tgt, "modified_dekker", (-4.0, 2.0))
+        r_br = ift_1dim(s, s_tgt, "modified_brent", (-4.0, 2.0))
+
+        assert r_bi["status"] == "SUCCESS"
+        assert r_dk["status"] == "SUCCESS"
+        assert r_br["status"] == "SUCCESS"
+
 
 class TestGradients:
     @classmethod
