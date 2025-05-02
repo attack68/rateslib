@@ -38,6 +38,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
        function is analytical.
        (`775 <https://github.com/attack68/rateslib/pull/775>`_)
        (`776 <https://github.com/attack68/rateslib/pull/776>`_)
+       (`777 <https://github.com/attack68/rateslib/pull/777>`_)
    * - Bug
      - The SABR functions are modified to handle ``expiry`` for an interpolated
        :class:`~rateslib.fx_volatility.FXSabrSurface`. Previously, the specific expiry was used to
