@@ -57,6 +57,9 @@ def ift_1dim(
     - **'modified_dekker'**: Requires ``ini_h_args`` to be a tuple of two floats defining the
       interval. For info see
       :download:`Halving Interval for Dekker<_static/modified-dekker.pdf>`.
+    - **'modified_brent'**: Requires ``ini_h_args`` to be a tuple of two floats defining the
+      interval. For info see
+      :download:`Halving Interval for Brent<_static/modified-dekker.pdf>`.
 
     **Mathematical background**
 
@@ -128,6 +131,8 @@ def ift_1dim(
             h = _bisection
         elif h == "modified_dekker":
             h = _dekker
+        elif h == "modified_brent":
+            h = _brent
         else:
             raise ValueError(f"Unknown iterative function: {h}")
 
@@ -233,17 +238,19 @@ def _bisection(
     else:
         state = None
 
-    if abs(f_lower) < abs(f_mid):
-        # g_lower is closer to the target value than g_mid
-        return g_lower, f_lower, state, g_lower, g_mid, s_lower, s_mid  # type: ignore[return-value]
-    elif abs(f_upper) < abs(f_mid):
-        # g_upper is closer to the target value than g_mid
-        return g_upper, f_upper, state, g_mid, g_upper, s_mid, s_upper  # type: ignore[return-value]
-    elif abs(f_lower) < abs(f_upper):
-        # g_mid is closest to the target value with g_lower being the better side
-        return g_mid, f_mid, state, g_lower, g_mid, s_lower, s_mid  # type: ignore[return-value]
+    if float(f_lower * f_mid) > 0:  # type: ignore[arg-type]
+        # then lower and mid have same sign so must return upper interval
+        if abs(f_mid) < abs(f_upper):
+            return g_mid, f_mid, state, g_mid, g_upper, s_mid, s_upper  # type: ignore[return-value]
+        else:
+            return g_upper, f_upper, state, g_mid, g_upper, s_mid, s_upper  # type: ignore[return-value]
     else:
-        return g_mid, f_mid, state, g_mid, g_upper, s_mid, s_upper  # type: ignore[return-value]
+        # then lower and mid have opposite sign so return the lower interval
+        if abs(f_mid) < abs(f_lower):
+            # g_mid is closest to the target value with g_lower being the better side
+            return g_mid, f_mid, state, g_lower, g_mid, s_lower, s_mid  # type: ignore[return-value]
+        else:
+            return g_lower, f_lower, state, g_lower, g_mid, s_lower, s_mid  # type: ignore[return-value]
 
 
 def _root_f(x: float, s: Callable[[DualTypes], DualTypes], s_tgt: float) -> float:
@@ -280,16 +287,17 @@ def _dekker(
     else:
         f_b_k = cached_f_b_k
 
-    if abs(f_a_k) < abs(f_b_k):
-        # switch to make b_k the 'best' solution
-        f_a_k, f_b_k = f_b_k, f_a_k
-        a_k, b_k = b_k, a_k
-
     if abs(a_k - b_k) < conv_tol:
         return b_k, f_b_k, 1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
 
     # for the first iteration set b_k_m1 equal to a_k, else it is returned from previous
     if b_k_ is None:
+        # then the first iteration is active (b_k_ is only None once), also check for side
+        if abs(f_a_k) < abs(f_b_k):
+            # switch to make b_k the 'best' solution
+            f_a_k, f_b_k = f_b_k, f_a_k
+            a_k, b_k = b_k, a_k
+
         b_k_m1: float = a_k
         f_b_k_m1 = f_a_k
     else:
@@ -321,5 +329,102 @@ def _dekker(
         if float(f_m * f_b_k_p1) < 0:
             a_k_p1 = m
             f_a_k_p1 = f_m
+
+    if abs(f_a_k_p1) < abs(f_b_k_p1):
+        # switch to make b_k the 'best' solution
+        f_a_k_p1, f_b_k_p1 = f_b_k_p1, f_a_k_p1
+        a_k_p1, b_k_p1 = b_k_p1, a_k_p1
+        # also switch the existing values
+        f_a_k, f_b_k = f_b_k, f_a_k
+        a_k, b_k = b_k, a_k
+
+    return b_k_p1, f_b_k_p1, None, a_k_p1, b_k_p1, b_k, f_a_k_p1, f_b_k_p1, f_b_k
+
+
+def _brent(
+    s: Callable[[DualTypes], DualTypes],
+    s_tgt: float,
+    conv_tol: float,
+    a_k: float,
+    b_k: float,
+    b_k_: float | None = None,
+    cached_f_a_k: float | None = None,
+    cached_f_b_k: float | None = None,
+    cached_f_b_k_: float | None = None,
+) -> tuple[float, float, int | None, float, float, float, float, float, float]:
+    """
+    Alternative root solver.
+    See docs/source/_static/modified-dekker.pdf for details.
+
+    Cached values allow value transmission from one function to the next with many efficiencies.
+    """
+
+    # Load cached values
+    if cached_f_a_k is None:
+        f_a_k = _root_f(a_k, s, s_tgt)
+    else:
+        f_a_k = cached_f_a_k
+
+    if cached_f_b_k is None:
+        f_b_k = _root_f(b_k, s, s_tgt)
+    else:
+        f_b_k = cached_f_b_k
+
+    if abs(a_k - b_k) < conv_tol:
+        return b_k, f_b_k, 1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+    # for the first iteration set b_k_m1 equal to a_k, else it is returned from previous
+    if b_k_ is None:
+        # then the first iteration is active (b_k_ is only None once) so also check the side
+        if abs(f_a_k) < abs(f_b_k):
+            # switch to make b_k the 'best' solution
+            f_a_k, f_b_k = f_b_k, f_a_k
+            a_k, b_k = b_k, a_k
+
+        b_k_m1: float = a_k
+        f_b_k_m1 = f_a_k
+    else:
+        b_k_m1 = b_k_
+        if cached_f_b_k_ is None:
+            f_b_k_m1 = _root_f(b_k_m1, s, s_tgt)
+        else:
+            f_b_k_m1 = cached_f_b_k_
+
+    # provisional values for the next iteration
+    if b_k == b_k_m1 or a_k == b_k_m1:
+        denom = f_b_k - f_b_k_m1
+        q = b_k - f_b_k * (b_k - b_k_m1) / denom  # secant
+    else:
+        fba = f_b_k / f_a_k
+        fbbm = f_b_k / f_b_k_m1
+        fabm = f_a_k / f_b_k_m1
+        denom = (fbbm - 1.0) * (fba - 1.0) * (fabm - 1.0)
+        q = b_k + fba * ((1.0 - fbbm) * (a_k - b_k) + fabm * (fbbm - fabm) * (b_k_m1 - b_k)) / denom
+
+    if q <= min(b_k, (3.0 * a_k + b_k) / 4.0) or q >= max(b_k, (3.0 * a_k + b_k) / 4.0):
+        q = (a_k + b_k) / 2.0
+
+    b_k_p1 = q
+    f_b_k_p1 = _root_f(b_k_p1, s, s_tgt)
+
+    a_k_p1 = a_k
+    f_a_k_p1 = f_a_k
+    if float(f_a_k * f_b_k_p1) > 0:
+        a_k_p1 = b_k
+        f_a_k_p1 = f_b_k
+    else:
+        m = (a_k + b_k) / 2.0
+        f_m = _root_f(m, s, s_tgt)
+        if float(f_m * f_b_k_p1) < 0:
+            a_k_p1 = m
+            f_a_k_p1 = f_m
+
+    if abs(f_a_k_p1) < abs(f_b_k_p1):
+        # switch to make b_k the 'best' solution
+        f_a_k_p1, f_b_k_p1 = f_b_k_p1, f_a_k_p1
+        a_k_p1, b_k_p1 = b_k_p1, a_k_p1
+        # also switch the existing values
+        f_a_k, f_b_k = f_b_k, f_a_k
+        a_k, b_k = b_k, a_k
 
     return b_k_p1, f_b_k_p1, None, a_k_p1, b_k_p1, b_k, f_a_k_p1, f_b_k_p1, f_b_k
