@@ -56,7 +56,7 @@ def ift_1dim(
       The interval will be halved in each iteration and the relevant interval side kept.
     - **'modified_dekker'**: Requires ``ini_h_args`` to be a tuple of two floats defining the
       interval. For info see
-      :download:`Halving Interval for Dekker <_static/modified-dekker.pdf>`.
+      :download:`Halving Interval for Dekker<_static/modified-dekker.pdf>`.
 
     **Mathematical background**
 
