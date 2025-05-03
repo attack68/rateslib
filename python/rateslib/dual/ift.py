@@ -476,8 +476,13 @@ def _ytm_quadratic(
 
     if g0 < g_new and g_new < g1:
         return g_new, f_new, None, g0, g_new, g1, f0, f_new, f1
-    else:
+    elif g1 < g_new and g_new < g2:
         return g_new, f_new, None, g1, g_new, g2, f1, f_new, f2
+    else:
+        if g_new < g0:
+            return g_new, f_new, None, g_new, g0, g1, None, f0, f1
+        else:
+            return g_new, f_new, None, g1, g2, g_new, f1, f2, None
 
 
 ift_map: dict[str, Callable[P, tuple[float, float, int, tuple[Any, ...]]]] = {

@@ -1160,6 +1160,16 @@ class TestFixedRateBond:
                 settle=1,
             )
 
+    def test_ytm_domains2(self):
+        frb = FixedRateBond(
+            effective=dt(2000, 1, 15),
+            termination=dt(2030, 3, 5),
+            spec="uk_gb",
+            fixed_rate=2.6645873578358135,
+        )
+        result = frb.ytm(price=189.5123165763607, settlement=dt(2001, 1, 20))
+        pass
+
 
 class TestIndexFixedRateBond:
     def test_fixed_rate_bond_price(self) -> None:
