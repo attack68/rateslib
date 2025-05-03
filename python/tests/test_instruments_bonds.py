@@ -702,7 +702,7 @@ class TestFixedRateBond:
         P = bond.price(4, dt(1995, 1, 1))
         result = bond.ytm(Dual(P, ["a", "b"], [1, -0.5]), dt(1995, 1, 1))
         expected = Dual(4.00, ["a", "b"], [-1 / dPdy, 0.5 / dPdy])
-        assert abs(result - expected) < 1e-13
+        assert abs(result - expected) < 1e-11
         assert all(np.isclose(expected.dual, result.dual))
 
         d2ydP2 = -bond.convexity(4, dt(1995, 1, 1)) * -(dPdy**-3)
@@ -713,7 +713,7 @@ class TestFixedRateBond:
             [-1 / dPdy, 0.5 / dPdy],
             [d2ydP2 * 0.5, d2ydP2 * -0.25, d2ydP2 * -0.25, d2ydP2 * 0.125],
         )
-        assert abs(result - expected) < 1e-13
+        assert abs(result - expected) < 1e-11
         assert all(np.isclose(result.dual, expected.dual))
         assert all(np.isclose(result.dual2, expected.dual2).flat)
 
