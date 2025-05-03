@@ -454,15 +454,15 @@ def _ytm_quadratic(
     # Test interval
     if f0 < 0 and f1 < 0 and f2 < 0:
         # then g(s*) must be
-        g0 = g0 - (g2 - g0)
-        g1 = g1 - (g2 - g1)
-        g2 = g0
-        return g1, 1e9, None, g0, g1, g2, None, None, None
+        g0_ = g0 - (g2 - g0)
+        g1_ = g1 - (g2 - g1)
+        g2_ = g0
+        return g1_, 1e9, None, g0_, g1_, g2_, None, None, None
     elif f0 > 0 and f1 > 0 and f2 > 0:
-        g0 = g2
-        g1 = g1 + (g2 - g0)
-        g2 = g2 + 2 * (g2 - g0)
-        return g1, 1e9, None, g0, g1, g1, None, None, None
+        g0_ = g2
+        g1_ = g1 + (g2 - g0)
+        g2_ = g2 + 2 * (g2 - g0)
+        return g1_, 1e9, None, g0_, g1_, g2_, None, None, None
 
     # Solver g_new via quadratic approximation
     _b = np.array([g0, g1, g2])[:, None]
