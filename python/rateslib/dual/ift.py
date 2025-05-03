@@ -469,6 +469,22 @@ def _ytm_quadratic(
     _A = np.array([[f0**2, f0, 1], [f1**2, f1, 1], [f2**2, f2, 1]])
     c = np.linalg.solve(_A, _b)
     g_new = c[2, 0]
+
+    # # Analytical solution
+    # f012, f022, f01, f02, g01, g02 = f0**2 - f1**2, f0**2 - f2**2, f0- f1, f0-f2, g0-g1, g0-g2
+    # x0 = (g01 * f02 - g02 * f01) / (f012 * f02 - f022 * f01)
+    # x1 = (g01 - x0 * f012) / f01
+    # x2 = g0 - x1 * f0 - x0 * f0**2
+
+    if g_new < g0 or g_new > g2:
+        # if the quadratic approximation is outside the interval then use a bisection method
+        if f0 * f1 < 0:
+            # bisect in the left hand side
+            g_new = g0 + (g1 - g0) * f0 / (f0 - f1)
+        else:
+            # bisect in the right hand side
+            g_new = g1 - (g2 - g1) * f1 / (f2 - f1)
+
     f_new = _root_f(g_new, s, s_tgt)
     for g_ in [g0, g1, g2]:
         if abs(g_ - g_new) < conv_tol:
@@ -476,13 +492,10 @@ def _ytm_quadratic(
 
     if g0 < g_new and g_new < g1:
         return g_new, f_new, None, g0, g_new, g1, f0, f_new, f1
-    elif g1 < g_new and g_new < g2:
+    else: # g1 < g_new and g_new < g2:
         return g_new, f_new, None, g1, g_new, g2, f1, f_new, f2
-    else:
-        if g_new < g0:
-            return g_new, f_new, None, g_new, g0, g1, None, f0, f1
-        else:
-            return g_new, f_new, None, g1, g2, g_new, f1, f2, None
+    # else:
+    #     raise RuntimeError("Unexpected interval: this line should never be reached.")
 
 
 ift_map: dict[str, Callable[P, tuple[float, float, int, tuple[Any, ...]]]] = {
