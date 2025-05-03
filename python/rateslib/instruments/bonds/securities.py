@@ -3159,15 +3159,9 @@ def _ytm_quadratic_converger2(
             tol,
         )  # pragma: no cover
     elif y0 < y <= y1:
-        if (y - y0) < (y1 - y):
-            return _ytm_quadratic_converger2(f, y0, y, 2 * y - y0 + pad, f0, f_, None, tol)
-        else:
-            return _ytm_quadratic_converger2(f, 2 * y - y1 - pad, y, y1, None, f_, f1, tol)
+        return _ytm_quadratic_converger2(f, y0, y, y1, f0, f_, f1, tol)
     elif y1 < y <= y2:
-        if (y - y1) < (y2 - y):
-            return _ytm_quadratic_converger2(f, y1, y, 2 * y - y1 + pad, f1, f_, None, tol)
-        else:
-            return _ytm_quadratic_converger2(f, 2 * y - y2 - pad, y, y2, None, f_, f2, tol)
+        return _ytm_quadratic_converger2(f, y1, y, y2, f1, f_, f2, tol)
     else:  # y2 < y:
         # line not hit due to reassessment of initial vars?
         return _ytm_quadratic_converger2(
