@@ -5,7 +5,6 @@ import warnings
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
-import numpy as np
 from pandas import DataFrame, Series
 
 from rateslib import defaults
