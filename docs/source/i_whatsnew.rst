@@ -42,8 +42,9 @@ email contact, see `rateslib <https://rateslib.com>`_.
        (`778 <https://github.com/attack68/rateslib/pull/778>`_)
    * - Performance
      - Amend the iterative algorithm for YTM to widen the consecutive ytm search
-       interval, but require less function evaluations overall.
+       interval, but require one function evaluation per iteration instead of two.
        (`781 <https://github.com/attack68/rateslib/pull/781>`_)
+       (`782 <https://github.com/attack68/rateslib/pull/782>`_)
    * - Bug
      - The SABR functions are modified to handle ``expiry`` for an interpolated
        :class:`~rateslib.fx_volatility.FXSabrSurface`. Previously, the specific expiry was used to
