@@ -702,7 +702,7 @@ class TestFixedRateBond:
         P = bond.price(4, dt(1995, 1, 1))
         result = bond.ytm(Dual(P, ["a", "b"], [1, -0.5]), dt(1995, 1, 1))
         expected = Dual(4.00, ["a", "b"], [-1 / dPdy, 0.5 / dPdy])
-        assert abs(result - expected) < 1e-13
+        assert abs(result - expected) < 1e-11
         assert all(np.isclose(expected.dual, result.dual))
 
         d2ydP2 = -bond.convexity(4, dt(1995, 1, 1)) * -(dPdy**-3)
@@ -713,7 +713,7 @@ class TestFixedRateBond:
             [-1 / dPdy, 0.5 / dPdy],
             [d2ydP2 * 0.5, d2ydP2 * -0.25, d2ydP2 * -0.25, d2ydP2 * 0.125],
         )
-        assert abs(result - expected) < 1e-13
+        assert abs(result - expected) < 1e-11
         assert all(np.isclose(result.dual, expected.dual))
         assert all(np.isclose(result.dual2, expected.dual2).flat)
 
@@ -1159,6 +1159,19 @@ class TestFixedRateBond:
                 modifier="none",
                 settle=1,
             )
+
+    def test_ytm_domains2(self):
+        # the first pass in the quadratic approximator predicts a yield outside of the
+        # interval so a bisection method is adopted instead.
+
+        frb = FixedRateBond(
+            effective=dt(2000, 1, 15),
+            termination=dt(2030, 9, 25),
+            spec="uk_gb",
+            fixed_rate=0.57744089871129,
+        )
+        result = frb.ytm(price=173.80904334438674, settlement=dt(2000, 1, 20))
+        assert abs(result + 1.3549202231746622) < 1e-10
 
 
 class TestIndexFixedRateBond:

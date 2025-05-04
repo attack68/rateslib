@@ -5,7 +5,6 @@ import warnings
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
-import numpy as np
 from pandas import DataFrame, Series
 
 from rateslib import defaults
@@ -17,8 +16,8 @@ from rateslib.curves._parsers import (
     _validate_curve_not_no_input,
 )
 from rateslib.default import NoInput, _drb
-from rateslib.dual import Dual, Dual2, gradient, newton_1dim, quadratic_eqn
-from rateslib.dual.utils import _dual_float, _get_order_of
+from rateslib.dual import Dual, Dual2, gradient, ift_1dim, newton_1dim, quadratic_eqn
+from rateslib.dual.utils import _dual_float
 from rateslib.instruments.base import Metrics
 from rateslib.instruments.bonds.conventions import (
     BILL_MODE_MAP,
@@ -209,55 +208,21 @@ class BondMixin:
 
         """  # noqa: E501
 
-        price_float: float = _dual_float(price)
+        def s(g: DualTypes) -> DualTypes:
+            return self._price_from_ytm(
+                ytm=g, settlement=settlement, calc_mode=self.calc_mode, dirty=dirty, curve=curve
+            )
 
-        def root(y: float) -> float:
-            # we set this to work in float arithmetic for efficiency. Dual is added
-            # back below, see PR GH3
-            _: float = (
-                self._price_from_ytm(  # type: ignore[assignment]
-                    ytm=y, settlement=settlement, calc_mode=self.calc_mode, dirty=dirty, curve=curve
-                )
-                - price_float
-            )
-            return _
-
-        # x = brentq(root, -99, 10000)  # remove dependence to scipy.optimize.brentq
-        # x, iters = _brents(root, -99, 10000)  # use own local brents code
-        x = _ytm_quadratic_converger2(root, -3.0, 2.0, 12.0)  # use special quad interp
-
-        ad_order = _get_order_of(price)
-        if ad_order == 1:
-            # use the inverse function theorem to express x as a Dual
-            price_dual: Dual = price  # type: ignore[assignment]
-            p: Dual = self._price_from_ytm(  # type: ignore[assignment]
-                ytm=Dual(x, ["y"], []),
-                settlement=settlement,
-                calc_mode=self.calc_mode,
-                dirty=dirty,
-                curve=NoInput(0),
-            )
-            return Dual(x, price_dual.vars, 1 / gradient(p, ["y"])[0] * price_dual.dual)
-        elif ad_order == 2:
-            # use the IFT in 2nd order to express x as a Dual2
-            price_dual2: Dual2 = price  # type: ignore[assignment]
-            p2: Dual2 = self._price_from_ytm(  # type: ignore[assignment]
-                ytm=Dual2(x, ["y"], [], []),
-                settlement=settlement,
-                calc_mode=self.calc_mode,
-                dirty=dirty,
-                curve=NoInput(0),
-            )
-            dydP = 1 / gradient(p2, ["y"])[0]
-            d2ydP2 = -gradient(p2, ["y"], order=2)[0][0] * gradient(p2, ["y"])[0] ** -3
-            dual = dydP * price_dual2.dual
-            dual2 = 0.5 * (
-                dydP * gradient(price_dual2, price_dual2.vars, order=2)
-                + d2ydP2 * np.matmul(price_dual2.dual[:, None], price_dual2.dual[None, :])
-            )
-            return Dual2(x, price_dual2.vars, dual.tolist(), list(dual2.flat))
-        else:
-            return x
+        result = ift_1dim(
+            s,
+            s_tgt=price,
+            h="ytm_quadratic",
+            ini_h_args=(-3.0, 2.0, 12.0),
+            func_tol=1e-9,
+            conv_tol=1e-9,
+            raise_on_fail=True,
+        )
+        return result["g"]  # type: ignore[no-any-return]
 
     def _price_from_ytm(
         self,
@@ -3095,125 +3060,3 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
 
         """  # noqa: E501
         return self._ytm(price=price, settlement=settlement, dirty=dirty, curve=curve)
-
-
-def _ytm_quadratic_converger2(
-    f: Callable[[float], float],
-    y0: float,
-    y1: float,
-    y2: float,
-    f0: float | None = None,
-    f1: float | None = None,
-    f2: float | None = None,
-    tol: float = 1e-9,
-) -> float:
-    """
-    Convert a price from yield function `f` into a quadratic approximation and
-    determine the root, yield, which matches the target price.
-    """
-    # allow function values to be passed recursively to avoid re-calculation
-    f0 = f0 if f0 is not None else f(y0)
-    f1 = f1 if f1 is not None else f(y1)
-    f2 = f2 if f2 is not None else f(y2)
-
-    if f0 < 0 and f1 < 0 and f2 < 0:
-        # reassess initial values
-        return _ytm_quadratic_converger2(f, 2 * y0 - y2, y1 - y2 + y0, y0, None, None, f0, tol)
-    elif f0 > 0 and f1 > 0 and f2 > 0:
-        return _ytm_quadratic_converger2(
-            f,
-            y2,
-            y1 + 1 * (y2 - y0),
-            y2 + 2 * (y2 - y0),
-            f2,
-            None,
-            None,
-            tol,
-        )
-
-    _b = np.array([y0, y1, y2])[:, None]
-    # check tolerance from previous recursive estimations
-    for i, f_ in enumerate([f0, f1, f2]):
-        if abs(f_) < tol:
-            y: float = _b[i, 0]
-            return y
-
-    _A = np.array([[f0**2, f0, 1], [f1**2, f1, 1], [f2**2, f2, 1]])
-    c = np.linalg.solve(_A, _b)
-    y = c[2, 0]
-    f_ = f(y)
-    if abs(f_) < tol:
-        return y
-
-    pad = min(tol * 1e8, 0.0001, abs(f_ * 1e4))  # avoids singular matrix error
-    if y <= y0:
-        # line not hit due to reassessment of initial vars?
-        return _ytm_quadratic_converger2(
-            f,
-            2 * y - y0 - pad,
-            y,
-            y0 + pad,
-            None,
-            f_,
-            None,
-            tol,
-        )  # pragma: no cover
-    elif y0 < y <= y1:
-        if (y - y0) < (y1 - y):
-            return _ytm_quadratic_converger2(f, y0, y, 2 * y - y0 + pad, f0, f_, None, tol)
-        else:
-            return _ytm_quadratic_converger2(f, 2 * y - y1 - pad, y, y1, None, f_, f1, tol)
-    elif y1 < y <= y2:
-        if (y - y1) < (y2 - y):
-            return _ytm_quadratic_converger2(f, y1, y, 2 * y - y1 + pad, f1, f_, None, tol)
-        else:
-            return _ytm_quadratic_converger2(f, 2 * y - y2 - pad, y, y2, None, f_, f2, tol)
-    else:  # y2 < y:
-        # line not hit due to reassessment of initial vars?
-        return _ytm_quadratic_converger2(
-            f,
-            y2 - pad,
-            y,
-            2 * y - y2 + pad,
-            None,
-            f_,
-            None,
-            tol,
-        )  # pragma: no cover
-
-
-# def _ytm_quadratic_converger(f, y0, y1, y2, tol=1e-9):
-#     """
-#     Convert a price from yield function `f` into a quadratic approximation and
-#     determine the root, yield, which matches the target price.
-#     """
-#     _A = np.array([[y0**2, y0, 1], [y1**2, y1, 1], [y2**2, y2, 1]])
-#     _b = np.array([f(y0), f(y1), f(y2)])[:, None]
-#
-#     # check tolerance from previous recursive estimations
-#     if abs(_b[1, 0]) < tol:
-#         return y1
-#
-#     c = np.linalg.solve(_A, _b)
-#
-#     yield1 = ((-c[1] + sqrt(c[1]**2 - 4 * c[0] * c[2])) / (2 * c[0]))[0]
-#     yield2 = ((-c[1] - sqrt(c[1]**2 - 4 * c[0] * c[2])) / (2 * c[0]))[0]
-#     z1, z2 = f(yield1), f(yield2)
-#
-#     # make a linear guess at new quadratic solution
-#     approx_yield = yield1 - (yield2 - yield1) * z1 / (z2 - z1)
-#     if abs(z1) < abs(z2):
-#         soln_yield = yield1
-#         if abs(z1) < tol:
-#             return soln_yield
-#     else:
-#         soln_yield = yield2
-#         if abs(z2) < tol:
-#             return soln_yield
-#     return _ytm_quadratic_converger(
-#         f,
-#         approx_yield - max(10 * (approx_yield - soln_yield), 0.001),
-#         approx_yield,
-#         approx_yield + max(10 * (approx_yield - soln_yield), 0.001),
-#         tol
-#     )
