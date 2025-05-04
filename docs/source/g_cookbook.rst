@@ -40,6 +40,7 @@ into any one category.
 .. toctree::
     :titlesonly:
 
+    z_bond_conventions.rst
     z_stubs.rst
     z_fixings.rst
     z_historical_swap.ipynb
