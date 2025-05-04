@@ -21,14 +21,14 @@ class BondCalcMode:
     settle_accrual_type: str or Callable
         The calculation type for accrued interest for physical settlement.
         If providing a custom function, it must accept three arguments:
-        `(bond object, settlement, accrual index)` and return a float in [0,1] which is the 
-         fraction of the bond cashflow that is attributed to the settlement date.
+        `(bond object, settlement, accrual index)` and return a float in [0,1] which is the
+        fraction of the bond cashflow that is attributed to the settlement date.
     ytm_accrual_type: str or Callable
         The calculation method for accrued interest used in the YTM formula. Often the same
         as above but not always (e.g. Canadian GBs).
         If providing a custom function, it must accept three arguments:
-        `(bond object, settlement, accrual index)` and return a float in [0,1] which is the 
-         fraction of the bond cashflow that is attributed to the settlement date.
+        `(bond object, settlement, accrual index)` and return a float in [0,1] which is the
+        fraction of the bond cashflow that is attributed to the settlement date.
     v1_type: str
         The calculation function that defines discounting of the first period of the YTM formula.
     v2_type: str
@@ -142,8 +142,6 @@ class BondCalcMode:
     - "simple"
     - "simple_30e360": the final period uses simple interest with a DCF calculated
       under 30e360 convention, irrespective of the bond's underlying convention.
-
-        
 
     """  # noqa: E501
 
