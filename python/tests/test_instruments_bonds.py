@@ -1149,7 +1149,6 @@ class TestFixedRateBond:
             BONDS[i].ytm(price=RAND_PRICES[i], settlement=dt(2001, 8, 30))
 
     def test_custom_calc_mode(self):
-
         cm = BondCalcMode(
             settle_accrual_type="linear_days",
             ytm_accrual_type="linear_days",
@@ -1524,7 +1523,6 @@ class TestIndexFixedRateBond:
         assert (result - 0.749935) < 1e-5
 
     def test_custom_calc_mode(self):
-
         cm = BondCalcMode(
             settle_accrual_type="linear_days",
             ytm_accrual_type="linear_days",
