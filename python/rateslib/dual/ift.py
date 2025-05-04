@@ -464,17 +464,27 @@ def _ytm_quadratic(
         g2_ = g2 + 2 * (g2 - g0)
         return g1_, 1e9, None, g0_, g1_, g2_, None, None, None
 
-    # Solver g_new via quadratic approximation
-    _b = np.array([g0, g1, g2])[:, None]
-    _A = np.array([[f0**2, f0, 1], [f1**2, f1, 1], [f2**2, f2, 1]])
-    c = np.linalg.solve(_A, _b)
-    g_new = c[2, 0]
+    # Solve g_new via quadratic approximation
 
-    # # Analytical solution
-    # f012, f022, f01, f02, g01, g02 = f0**2 - f1**2, f0**2 - f2**2, f0- f1, f0-f2, g0-g1, g0-g2
-    # x0 = (g01 * f02 - g02 * f01) / (f012 * f02 - f022 * f01)
-    # x1 = (g01 - x0 * f012) / f01
-    # x2 = g0 - x1 * f0 - x0 * f0**2
+    # # Linear algebra solution
+    # _b = np.array([g0, g1, g2])[:, None]
+    # _A = np.array([[f0**2, f0, 1], [f1**2, f1, 1], [f2**2, f2, 1]])
+    # x = np.linalg.solve(_A, _b)
+    # g_new = x[2, 0]
+
+    # Analytical solution
+    f012, f022, f01, f02, g01, g02 = (
+        f0**2 - f1**2,
+        f0**2 - f2**2,
+        f0 - f1,
+        f0 - f2,
+        g0 - g1,
+        g0 - g2,
+    )
+    x0 = (g01 * f02 - g02 * f01) / (f012 * f02 - f022 * f01)
+    x1 = (g01 - x0 * f012) / f01
+    x2 = g0 - x1 * f0 - x0 * f0**2
+    g_new = x2
 
     if g_new < g0 or g_new > g2:
         # if the quadratic approximation is outside the interval then use a bisection method
