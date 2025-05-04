@@ -18,6 +18,7 @@ from rateslib.instruments import (
     FloatRateNote,
     IndexFixedRateBond,
 )
+from rateslib.instruments.bonds import BondCalcMode
 from rateslib.solver import Solver
 
 
@@ -669,6 +670,30 @@ class TestFixedRateBond:
         result = frb.ytm(price=price, settlement=set_)
         assert abs(result - exp_ytm) < 1e-5
 
+    # US Corp: BNY Mello
+
+    @pytest.mark.parametrize(
+        ("settlement", "price", "exp_ytm", "exp_acc"),
+        [
+            (dt(2025, 5, 6), 101.0, 3.493237, 0.08555556),
+            (dt(2028, 4, 3), 100.05, 3.077448, 1.65763889),
+        ],
+    )
+    def test_bny_mellon(self, settlement, price, exp_ytm, exp_acc) -> None:
+        # BNY Mellon ISIN: US06406RAH03, compared with BBG BXT.
+        b = FixedRateBond(
+            effective=dt(2018, 4, 30),
+            termination=dt(2028, 4, 28),
+            fixed_rate=3.85,
+            convention="30u360",
+            spec="us_gb",
+            calc_mode="us_corp",
+        )
+        ytm = b.ytm(price, settlement)
+        acc = b.accrued(settlement)
+        assert abs(ytm - exp_ytm) < 1e-6
+        assert abs(acc - exp_acc) < 1e-8
+
     # General Method Coverage
 
     def test_fixed_rate_bond_yield_domains(self) -> None:
@@ -1124,8 +1149,6 @@ class TestFixedRateBond:
             BONDS[i].ytm(price=RAND_PRICES[i], settlement=dt(2001, 8, 30))
 
     def test_custom_calc_mode(self):
-        from rateslib.instruments.bonds import BondCalcMode
-
         cm = BondCalcMode(
             settle_accrual_type="linear_days",
             ytm_accrual_type="linear_days",
@@ -1500,8 +1523,6 @@ class TestIndexFixedRateBond:
         assert (result - 0.749935) < 1e-5
 
     def test_custom_calc_mode(self):
-        from rateslib.instruments.bonds import BondCalcMode
-
         cm = BondCalcMode(
             settle_accrual_type="linear_days",
             ytm_accrual_type="linear_days",
@@ -1728,7 +1749,7 @@ class TestBill:
         assert result == 0.4985413405436174
 
     def test_custom_calc_mode(self):
-        from rateslib.instruments.bonds import BillCalcMode, BondCalcMode
+        from rateslib.instruments.bonds import BillCalcMode
 
         cm = BillCalcMode(price_type="simple", ytm_clone_kwargs="uk_gb")
         bill = Bill(

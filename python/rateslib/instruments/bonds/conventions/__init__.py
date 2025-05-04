@@ -64,6 +64,16 @@ class BondCalcMode:
          &d = \\text{30e360 DCF between settlement and next unadjusted coupon date} \\\\
          &f = \\text{Number of regular coupon periods per year} \\\\
 
+    - *"30u360"*: Ignores the coupon convention on the bond and calculates accrued from the
+      unadjusted last coupon date to settlement with a 30u360 day count convention, **except**
+      stubs revert to *'linear_days'*.
+
+      .. math::
+
+         &\\text{Accrual fraction} =  1 - d f  \\\\
+         &\\text{where,} \\\\
+         &d = \\text{30u360 DCF between settlement and next unadjusted coupon date} \\\\
+         &f = \\text{Number of regular coupon periods per year} \\\\
     - *"Act365_1y"*: Ignores the coupon convention on the bond and calculates accrued from
       the unadjusted last coupon date to settlement with an Act365F day count convention. Stub
       periods are adjusted to use *'linear_days'* and periods longer than 1y have additional
@@ -240,6 +250,15 @@ US_GB_TSY = BondCalcMode(
     v3_type="compounding",
 )
 
+US_CORP = BondCalcMode(
+    # US Corporate bond street convention
+    settle_accrual_type="30u360",
+    ytm_accrual_type="30u360",
+    v1_type="compounding_final_simple",
+    v2_type="regular",
+    v3_type="compounding",
+)
+
 SE_GB = BondCalcMode(
     # Swedish government bonds
     settle_accrual_type="30e360",
@@ -333,6 +352,7 @@ BOND_MODE_MAP = {
     "no_gb": NO_GB,
     "se_gb": SE_GB,
     "us_gb_tsy": US_GB_TSY,
+    "us_corp": US_CORP,
     "it_gb": IT_GB,
     "ca_gb": CA_GB,
     # aliases
