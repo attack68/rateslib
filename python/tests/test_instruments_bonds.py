@@ -672,10 +672,13 @@ class TestFixedRateBond:
 
     # US Corp: BNY Mello
 
-    @pytest.mark.parametrize(("settlement", "price", "exp_ytm", "exp_acc"), [
-        (dt(2025, 5, 6), 101.0, 3.493237, 0.08555556),
-        (dt(2028, 4, 3), 100.05, 3.077448, 1.65763889)
-    ])
+    @pytest.mark.parametrize(
+        ("settlement", "price", "exp_ytm", "exp_acc"),
+        [
+            (dt(2025, 5, 6), 101.0, 3.493237, 0.08555556),
+            (dt(2028, 4, 3), 100.05, 3.077448, 1.65763889),
+        ],
+    )
     def test_bny_mellon(self, settlement, price, exp_ytm, exp_acc) -> None:
         # BNY Mellon ISIN: US06406RAH03, compared with BBG BXT.
         b = FixedRateBond(
@@ -1146,7 +1149,6 @@ class TestFixedRateBond:
             BONDS[i].ytm(price=RAND_PRICES[i], settlement=dt(2001, 8, 30))
 
     def test_custom_calc_mode(self):
-        from rateslib.instruments.bonds import BondCalcMode
 
         cm = BondCalcMode(
             settle_accrual_type="linear_days",
@@ -1522,7 +1524,6 @@ class TestIndexFixedRateBond:
         assert (result - 0.749935) < 1e-5
 
     def test_custom_calc_mode(self):
-        from rateslib.instruments.bonds import BondCalcMode
 
         cm = BondCalcMode(
             settle_accrual_type="linear_days",
@@ -1750,7 +1751,7 @@ class TestBill:
         assert result == 0.4985413405436174
 
     def test_custom_calc_mode(self):
-        from rateslib.instruments.bonds import BillCalcMode, BondCalcMode
+        from rateslib.instruments.bonds import BillCalcMode
 
         cm = BillCalcMode(price_type="simple", ytm_clone_kwargs="uk_gb")
         bill = Bill(
