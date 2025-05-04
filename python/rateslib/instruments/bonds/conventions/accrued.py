@@ -36,7 +36,10 @@ def _acc_linear_proportion_by_days(
 
 
 def _acc_linear_proportion_by_days_long_stub_split(
-    obj: Security, settlement: datetime, acc_idx: int, *args: Any,
+    obj: Security,
+    settlement: datetime,
+    acc_idx: int,
+    *args: Any,
 ) -> float:
     """
     For long stub periods this splits the accrued interest into two components.

@@ -174,11 +174,13 @@ class BondCalcMode:
         self._v2 = V2_FUNCS[v2_type.lower()]
         self._v3 = V3_FUNCS[v3_type.lower()]
 
-        self._kwargs.update({
-            "v1": v1_type,
-            "v2": v2_type,
-            "v3": v3_type,
-        })
+        self._kwargs.update(
+            {
+                "v1": v1_type,
+                "v2": v2_type,
+                "v3": v3_type,
+            }
+        )
 
     @property
     def kwargs(self) -> dict[str, str]:
