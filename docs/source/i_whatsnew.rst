@@ -42,7 +42,8 @@ email contact, see `rateslib <https://rateslib.com>`_.
        (`778 <https://github.com/attack68/rateslib/pull/778>`_)
    * - Performance
      - Amend the iterative algorithm for YTM to widen the consecutive ytm search
-       interval, but require one function evaluation per iteration instead of two.
+       interval, but require one function evaluation per iteration instead of two, and use
+       analytical formula instead of NumPy solve.
        (`781 <https://github.com/attack68/rateslib/pull/781>`_)
        (`782 <https://github.com/attack68/rateslib/pull/782>`_)
        (`783 <https://github.com/attack68/rateslib/pull/783>`_)
