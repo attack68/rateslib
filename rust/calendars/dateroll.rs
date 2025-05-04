@@ -458,15 +458,14 @@ mod tests {
         let rd2 = RollDay::EoM {};
         assert_ne!(rd1, rd2);
 
-        let rd1 = RollDay::Int {day: 20};
-        let rd2 = RollDay::Int {day: 20};
+        let rd1 = RollDay::Int { day: 20 };
+        let rd2 = RollDay::Int { day: 20 };
         assert_eq!(rd1, rd2);
 
-        let rd1 = RollDay::Int {day: 21};
-        let rd2 = RollDay::Int {day: 9};
+        let rd1 = RollDay::Int { day: 21 };
+        let rd2 = RollDay::Int { day: 9 };
         assert_ne!(rd1, rd2);
     }
-
 
     #[test]
     fn test_roll_with_settlement() {
