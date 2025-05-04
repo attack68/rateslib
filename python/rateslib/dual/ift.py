@@ -473,7 +473,14 @@ def _ytm_quadratic(
     # g_new = x[2, 0]
 
     # Analytical solution
-    f012, f022, f01, f02, g01, g02 = f0**2 - f1**2, f0**2 - f2**2, f0- f1, f0-f2, g0-g1, g0-g2
+    f012, f022, f01, f02, g01, g02 = (
+        f0**2 - f1**2,
+        f0**2 - f2**2,
+        f0 - f1,
+        f0 - f2,
+        g0 - g1,
+        g0 - g2,
+    )
     x0 = (g01 * f02 - g02 * f01) / (f012 * f02 - f022 * f01)
     x1 = (g01 - x0 * f012) / f01
     x2 = g0 - x1 * f0 - x0 * f0**2
