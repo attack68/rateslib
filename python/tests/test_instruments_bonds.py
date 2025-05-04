@@ -714,7 +714,6 @@ class TestFixedRateBond:
         assert abs(ytm - exp_ytm) < 1e-6
         assert abs(acc - exp_acc) < 1e-8
 
-
     # General Method Coverage
 
     def test_fixed_rate_bond_yield_domains(self) -> None:
