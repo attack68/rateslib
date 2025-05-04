@@ -1171,7 +1171,7 @@ class TestFixedRateBond:
             fixed_rate=0.57744089871129,
         )
         result = frb.ytm(price=173.80904334438674, settlement=dt(2000, 1, 20))
-        assert result["status"] == "SUCCESS"
+        assert abs(result + 1.3549202231746622) < 1e-10
 
 
 class TestIndexFixedRateBond:
