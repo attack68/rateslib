@@ -492,7 +492,7 @@ def _ytm_quadratic(
 
     if g0 < g_new and g_new < g1:
         return g_new, f_new, None, g0, g_new, g1, f0, f_new, f1
-    else: # g1 < g_new and g_new < g2:
+    else:  # g1 < g_new and g_new < g2:
         return g_new, f_new, None, g1, g_new, g2, f1, f_new, f2
     # else:
     #     raise RuntimeError("Unexpected interval: this line should never be reached.")
