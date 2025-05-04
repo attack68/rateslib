@@ -216,8 +216,8 @@ class BondMixin:
         result = ift_1dim(
             s,
             s_tgt=price,
-            h="ytm_quadratic",
-            ini_h_args=(-3.0, 2.0, 12.0),
+            h="ytm_dekker",
+            ini_h_args=(-3.0, 12.0),
             func_tol=1e-9,
             conv_tol=1e-9,
             raise_on_fail=True,

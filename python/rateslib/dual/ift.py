@@ -338,6 +338,98 @@ def _dekker(
 
     return b_k_p1, f_b_k_p1, None, a_k_p1, b_k_p1, b_k, f_a_k_p1, f_b_k_p1, f_b_k
 
+def _ytm_dekker(
+    s: Callable[[DualTypes], DualTypes],
+    s_tgt: float,
+    conv_tol: float,
+    a_k: float,
+    b_k: float,
+    b_k_: float | None = None,
+    cached_f_a_k: float | None = None,
+    cached_f_b_k: float | None = None,
+    cached_f_b_k_: float | None = None,
+) -> tuple[float, float, int | None, float, float, float | None, float | None, float | None, float | None]:
+    """
+    Alternative root solver.
+    See docs/source/_static/modified-dekker.pdf for details.
+
+    Cached values allow value transmission from one function to the next with many efficiencies.
+    """
+
+    # Load cached values
+    if cached_f_a_k is None:
+        f_a_k = _root_f(a_k, s, s_tgt)
+    else:
+        f_a_k = cached_f_a_k
+
+    if cached_f_b_k is None:
+        f_b_k = _root_f(b_k, s, s_tgt)
+    else:
+        f_b_k = cached_f_b_k
+
+    # Shift interval if it is not appropriate
+    if f_a_k < 0 and f_b_k < 0:
+        a_k_ = min(a_k, b_k) - abs(b_k - a_k)
+        b_k_ = min(a_k, b_k)
+        return 0.0, 1e9, None, a_k_, b_k_, None, None, None, None
+    elif f_a_k > 0 and f_b_k > 0:
+        a_k_ = max(a_k, b_k)
+        b_k_ = max(a_k, b_k) + abs(b_k - a_k)
+        return 0.0, 1e9, None, a_k_, b_k_, None, None, None, None
+
+    if abs(a_k - b_k) < conv_tol:
+        return b_k, f_b_k, 1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+    # for the first iteration set b_k_m1 equal to a_k, else it is returned from previous
+    if b_k_ is None:
+        # then the first iteration is active (b_k_ is only None once), also check for side
+        if abs(f_a_k) < abs(f_b_k):
+            # switch to make b_k the 'best' solution
+            f_a_k, f_b_k = f_b_k, f_a_k
+            a_k, b_k = b_k, a_k
+
+        b_k_m1: float = a_k
+        f_b_k_m1 = f_a_k
+    else:
+        b_k_m1 = b_k_
+        if cached_f_b_k_ is None:
+            f_b_k_m1 = _root_f(b_k_m1, s, s_tgt)
+        else:
+            f_b_k_m1 = cached_f_b_k_
+
+    # provisional values for the next iteration
+    m = (a_k + b_k) / 2.0  # midpoint
+    q = b_k - f_b_k * (b_k - b_k_m1) / (f_b_k - f_b_k_m1)  # secant
+
+    if q >= min(b_k, m) and q <= max(b_k, m):
+        b_k_p1 = q
+    else:
+        b_k_p1 = m
+
+    f_b_k_p1 = _root_f(b_k_p1, s, s_tgt)
+
+    # determine a_k_p1
+    a_k_p1 = a_k
+    f_a_k_p1 = f_a_k
+    if float(f_a_k * f_b_k_p1) > 0:
+        a_k_p1 = b_k
+        f_a_k_p1 = f_b_k
+    elif q >= min(b_k, m) and q <= max(b_k, m):
+        f_m = _root_f(m, s, s_tgt)
+        if float(f_m * f_b_k_p1) < 0:
+            a_k_p1 = m
+            f_a_k_p1 = f_m
+
+    if abs(f_a_k_p1) < abs(f_b_k_p1):
+        # switch to make b_k the 'best' solution
+        f_a_k_p1, f_b_k_p1 = f_b_k_p1, f_a_k_p1
+        a_k_p1, b_k_p1 = b_k_p1, a_k_p1
+        # also switch the existing values
+        f_a_k, f_b_k = f_b_k, f_a_k
+        a_k, b_k = b_k, a_k
+
+    return b_k_p1, f_b_k_p1, None, a_k_p1, b_k_p1, b_k, f_a_k_p1, f_b_k_p1, f_b_k
+
 
 def _brent(
     s: Callable[[DualTypes], DualTypes],
@@ -506,4 +598,5 @@ ift_map: dict[str, Callable[P, tuple[float, float, int, tuple[Any, ...]]]] = {
     "modified_dekker": _dekker,  # type: ignore[dict-item]
     "modified_brent": _brent,  # type: ignore[dict-item]
     "ytm_quadratic": _ytm_quadratic,  # type: ignore[dict-item]
+    "ytm_dekker": _ytm_dekker,  # type: ignore[dict-item]
 }

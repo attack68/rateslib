@@ -1173,6 +1173,16 @@ class TestFixedRateBond:
         result = frb.ytm(price=173.80904334438674, settlement=dt(2000, 1, 20))
         assert abs(result + 1.3549202231746622) < 1e-10
 
+    def test_ytm_dekker_domain(self):
+        # tests a case where the interval must be shifted for the ytm_dekker case.
+        frb = FixedRateBond(
+            effective=dt(2000, 1, 15),
+            termination=dt(2003, 2, 25),
+            spec="uk_gb",
+            fixed_rate=4.584569847410855,
+        )
+        result = frb.ytm(price=178.37983991785532, settlement=dt(2000, 1, 20))
+
 
 class TestIndexFixedRateBond:
     def test_fixed_rate_bond_price(self) -> None:
