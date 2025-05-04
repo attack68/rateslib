@@ -132,7 +132,7 @@ def dcf(
     except KeyError:
         raise ValueError(
             "`convention` must be in {'Act365f', '1', '1+', 'Act360', "
-            "'30360' '360360', 'BondBasis', '30E360', 'EuroBondBasis', "
+            "'30360' '360360', 'BondBasis', '30U360', '30E360', 'EuroBondBasis', "
             "'30E360ISDA', 'ActAct', 'ActActISDA', 'ActActICMA', "
             "'ActActISMA', 'ActActBond'}",
         )
