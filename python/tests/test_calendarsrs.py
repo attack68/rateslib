@@ -9,16 +9,18 @@ from rateslib.rs import Cal, Modifier, NamedCal, RollDay, UnionCal
 
 
 class TestRollDay:
-
-    @pytest.mark.parametrize(("left", "right", "expected"), [
-        (RollDay.EoM(), RollDay.EoM(), True),
-        (RollDay.IMM(), RollDay.IMM(), True),
-        (RollDay.SoM(), RollDay.SoM(), True),
-        (RollDay.Unspecified(), RollDay.Unspecified(), True),
-        (RollDay.Int(20), RollDay.Int(20), True),
-        (RollDay.Int(20), RollDay.Int(30), False),
-        (RollDay.Int(31), RollDay.EoM, False),
-    ])
+    @pytest.mark.parametrize(
+        ("left", "right", "expected"),
+        [
+            (RollDay.EoM(), RollDay.EoM(), True),
+            (RollDay.IMM(), RollDay.IMM(), True),
+            (RollDay.SoM(), RollDay.SoM(), True),
+            (RollDay.Unspecified(), RollDay.Unspecified(), True),
+            (RollDay.Int(20), RollDay.Int(20), True),
+            (RollDay.Int(20), RollDay.Int(30), False),
+            (RollDay.Int(31), RollDay.EoM, False),
+        ],
+    )
     def test_equality(self, left, right, expected):
         result = left == right
         assert result is expected

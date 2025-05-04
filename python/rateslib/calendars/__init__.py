@@ -95,6 +95,17 @@ def dcf(
       * start day is minimum of (30, start day),
       * end day is minimum of (30, end day) if start day >= 30.
 
+    - `"30U360"`: Months are treated as having 30 days and start and end dates are converted
+      under the following rules in order:
+
+      * If the ``roll`` is EoM and ``start`` is end-Feb then:
+
+         - start day is 30.
+         - end day is 30 ``end`` is also end-Feb.
+
+      * If start day is 30 or 31 then it is converted to 30.
+      * End day is converted to 30 if it is 31 and start day is 30.
+
     - `"30360ISDA"`: Months are treated as having 30 days and start and end dates are
       converted under the rule:
 

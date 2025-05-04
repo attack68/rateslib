@@ -6,9 +6,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from rateslib.calendars.rs import _get_modifier, _get_rollday, get_calendar
-from rateslib.rs import RollDay
 from rateslib.default import NoInput
-from rateslib.rs import Convention
+from rateslib.rs import Convention, RollDay
 
 if TYPE_CHECKING:
     from rateslib.typing import Any, CalInput, Callable
@@ -75,6 +74,7 @@ def _dcf_30360(start: datetime, end: datetime, *args: Any) -> float:
     y, m = end.year - start.year, (end.month - start.month) / 12.0
     return y + m + (de - ds) / 360.0
 
+
 def _dcf_30u360(
     start: datetime,
     end: datetime,
@@ -99,17 +99,16 @@ def _dcf_30u360(
     _is_eom = roll_day == RollDay.EoM() or roll_day == RollDay.Int(31)
 
     ds, de = start.day, end.day
-    if _is_eom:
-        if _is_end_feb(start):
-            ds = 30
-            if _is_end_feb(end):
-                de = 30
-
-    if de == 31 and ds >= 30:
-        de = 30
+    if _is_eom and _is_end_feb(start) :
+        ds = 30
+        if _is_end_feb(end):
+            de = 30
 
     if ds == 31:
         ds = 30
+
+    if de == 31 and ds == 30:
+        de = 30
 
     y, m = end.year - start.year, (end.month - start.month) / 12.0
     return y + m + (de - ds) / 360.0
