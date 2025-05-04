@@ -678,20 +678,13 @@ class TestFixedRateBond:
     ])
     def test_bny_mellon(self, settlement, price, exp_ytm, exp_acc) -> None:
         # BNY Mellon ISIN: US06406RAH03, compared with BBG BXT.
-        mode = BondCalcMode(
-            settle_accrual_type="30u360",
-            ytm_accrual_type="30u360",
-            v1_type="compounding_final_simple",
-            v2_type="regular",
-            v3_type="compounding",
-        )
         b = FixedRateBond(
             effective=dt(2018, 4, 30),
             termination=dt(2028, 4, 28),
             fixed_rate=3.85,
             convention="30u360",
             spec="us_gb",
-            calc_mode=mode,
+            calc_mode="us_corp",
         )
         ytm = b.ytm(price, settlement)
         acc = b.accrued(settlement)
