@@ -19,7 +19,7 @@ P = ParamSpec("P")
 def ift_1dim(
     s: Callable[[DualTypes], DualTypes],
     s_tgt: DualTypes,
-    h: Callable[P, tuple[float, float, int, tuple[Any, ...]]],
+    h: Callable[P, tuple[float, float, int, tuple[Any, ...]]] | str,
     ini_h_args: tuple[Any, ...] = (),
     max_iter: int = 50,
     func_tol: float = 1e-14,
@@ -60,6 +60,9 @@ def ift_1dim(
     - **'modified_brent'**: Requires ``ini_h_args`` to be a tuple of two floats defining the
       interval. For info see
       :download:`Halving Interval for Brent<_static/modified-dekker.pdf>`.
+    - **'ytm_quadratic'**: Requires ``ini_h_args`` to be a tuple of three floats defining the
+      interval and interior point. This algorithm utilises sequential quadratic approximation
+      and is specifically tuned for solving bond yield-to-maturity.
 
     **Mathematical background**
 
@@ -127,14 +130,9 @@ def ift_1dim(
 
     """
     if isinstance(h, str):
-        if h == "bisection":
-            h = _bisection
-        elif h == "modified_dekker":
-            h = _dekker
-        elif h == "modified_brent":
-            h = _brent
-        else:
-            raise ValueError(f"Unknown iterative function: {h}")
+        h_: Callable[P, tuple[float, float, int, tuple[Any, ...]]] = ift_map[h]
+    else:
+        h_ = h
 
     t0 = time()
     i = 1
@@ -142,7 +140,7 @@ def ift_1dim(
     float_ini_hargs = tuple(_dual_float_or_unchanged(_) for _ in ini_h_args)
     s0_: float = _dual_float(s_tgt)
 
-    g0, f0, state, *hargs = h(s, s0_, conv_tol, *float_ini_hargs)  # type: ignore[call-arg, arg-type]
+    g0, f0, state, *hargs = h_(s, s0_, conv_tol, *float_ini_hargs)  # type: ignore[call-arg, arg-type]
     while i < max_iter:
         if state == 1:
             break
@@ -157,7 +155,7 @@ def ift_1dim(
             state = 2
             g1 = g0
             break
-        g1, f1, state, *hargs = h(s, s0_, conv_tol, *hargs)  # type: ignore[call-arg, arg-type]
+        g1, f1, state, *hargs = h_(s, s0_, conv_tol, *hargs)  # type: ignore[call-arg, arg-type]
         i += 1
         g0 = g1
         f0 = f1
@@ -428,3 +426,81 @@ def _brent(
         a_k, b_k = b_k, a_k
 
     return b_k_p1, f_b_k_p1, None, a_k_p1, b_k_p1, b_k, f_a_k_p1, f_b_k_p1, f_b_k
+
+
+def _ytm_quadratic(
+    s: Callable[[DualTypes], DualTypes],
+    s_tgt: float,
+    conv_tol: float,
+    g0: float,
+    g1: float,
+    g2: float,
+    cached_f0: float | None = None,
+    cached_f1: float | None = None,
+    cached_f2: float | None = None,
+) -> tuple[float, float, int | None, float, float, float, float | None, float | None, float | None]:
+    """
+    Alternative root solver.
+    See docs/source/_static/modified-dekker.pdf for details.
+
+    Cached values allow value transmission from one function to the next with many efficiencies.
+    """
+
+    # Load cached values
+    f0: float = cached_f0 if cached_f0 is not None else _root_f(g0, s, s_tgt)
+    f1: float = cached_f1 if cached_f1 is not None else _root_f(g1, s, s_tgt)
+    f2: float = cached_f2 if cached_f2 is not None else _root_f(g2, s, s_tgt)
+
+    # Test interval
+    if f0 < 0 and f1 < 0 and f2 < 0:
+        # then g(s*) must be
+        g0_ = g0 - (g2 - g0)
+        g1_ = g1 - (g2 - g1)
+        g2_ = g0
+        return g1_, 1e9, None, g0_, g1_, g2_, None, None, None
+    elif f0 > 0 and f1 > 0 and f2 > 0:
+        g0_ = g2
+        g1_ = g1 + (g2 - g0)
+        g2_ = g2 + 2 * (g2 - g0)
+        return g1_, 1e9, None, g0_, g1_, g2_, None, None, None
+
+    # Solver g_new via quadratic approximation
+    _b = np.array([g0, g1, g2])[:, None]
+    _A = np.array([[f0**2, f0, 1], [f1**2, f1, 1], [f2**2, f2, 1]])
+    c = np.linalg.solve(_A, _b)
+    g_new = c[2, 0]
+
+    # # Analytical solution
+    # f012, f022, f01, f02, g01, g02 = f0**2 - f1**2, f0**2 - f2**2, f0- f1, f0-f2, g0-g1, g0-g2
+    # x0 = (g01 * f02 - g02 * f01) / (f012 * f02 - f022 * f01)
+    # x1 = (g01 - x0 * f012) / f01
+    # x2 = g0 - x1 * f0 - x0 * f0**2
+
+    if g_new < g0 or g_new > g2:
+        # if the quadratic approximation is outside the interval then use a bisection method
+        if f0 * f1 < 0:
+            # bisect in the left hand side
+            g_new = g0 + (g1 - g0) * f0 / (f0 - f1)
+        else:
+            # bisect in the right hand side
+            g_new = g1 - (g2 - g1) * f1 / (f2 - f1)
+
+    f_new = _root_f(g_new, s, s_tgt)
+    for g_ in [g0, g1, g2]:
+        if abs(g_ - g_new) < conv_tol:
+            return g_new, f_new, 1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+    if g0 < g_new and g_new < g1:
+        return g_new, f_new, None, g0, g_new, g1, f0, f_new, f1
+    else:  # g1 < g_new and g_new < g2:
+        return g_new, f_new, None, g1, g_new, g2, f1, f_new, f2
+    # else:
+    #     raise RuntimeError("Unexpected interval: this line should never be reached.")
+
+
+ift_map: dict[str, Callable[P, tuple[float, float, int, tuple[Any, ...]]]] = {
+    "bisection": _bisection,  # type: ignore[dict-item]
+    "modified_dekker": _dekker,  # type: ignore[dict-item]
+    "modified_brent": _brent,  # type: ignore[dict-item]
+    "ytm_quadratic": _ytm_quadratic,  # type: ignore[dict-item]
+}

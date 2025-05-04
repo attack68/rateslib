@@ -1160,6 +1160,19 @@ class TestFixedRateBond:
                 settle=1,
             )
 
+    def test_ytm_domains2(self):
+        # the first pass in the quadratic approximator predicts a yield outside of the
+        # interval so a bisection method is adopted instead.
+
+        frb = FixedRateBond(
+            effective=dt(2000, 1, 15),
+            termination=dt(2030, 9, 25),
+            spec="uk_gb",
+            fixed_rate=0.57744089871129,
+        )
+        result = frb.ytm(price=173.80904334438674, settlement=dt(2000, 1, 20))
+        assert abs(result + 1.3549202231746622) < 1e-10
+
 
 class TestIndexFixedRateBond:
     def test_fixed_rate_bond_price(self) -> None:
