@@ -99,7 +99,7 @@ def _get_fx_and_base(
     if base is None:
         raise NotImplementedError("TraceBack for NoInput")  # pragma: no cover
 
-    if isinstance(fx, FXRates | FXForwards):
+    if isinstance(fx, FXForwards | FXRates):
         base_: str | NoInput = fx.base if isinstance(base, NoInput) else base.lower()
         if base_ == currency:
             fx_: DualTypes = 1.0
@@ -284,7 +284,8 @@ def _validate_fx_as_forwards(fx: FX_) -> FXForwards:
             f"The given type, '{type(fx).__name__}', cannot be used here."
         )
     else:
-        return fx  # type: ignore[no-any-return]
+        _: FXForwards = fx
+        return _
 
 
 def _get_fx_fixings_from_non_fx_forwards(

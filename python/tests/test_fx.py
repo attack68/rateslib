@@ -14,7 +14,7 @@ from rateslib.fx import (
     FXRates,
     forward_fx,
 )
-from rateslib.fx.fx_forwards import _recursive_pair_population
+from rateslib.fx.fx_forwards import _FXForwardsAggregator, _recursive_pair_population
 from rateslib.json import from_json
 
 
@@ -1613,3 +1613,139 @@ def test_recursive_pair_population2():
         (4, 3): -1,
     }
     assert result[1] == expected
+
+
+class TestFXForwardsAggregator:
+    def test_overspecified_currencies(self):
+        c = Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.99})
+        fxf1 = FXForwards(
+            fx_rates=FXRates({"eursek": 1.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={"eureur": c, "eursek": c, "seksek": c},
+        )
+        fxf2 = FXForwards(
+            fx_rates=FXRates({"eurnok": 1.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={"eureur": c, "eurnok": c, "noknok": c},
+        )
+        fxf3 = FXForwards(
+            fx_rates=FXRates({"noksek": 1.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={"noknok": c, "seksek": c, "noksek": c},
+        )
+        with pytest.raises(ValueError, match="Overspecified currencies detected"):
+            _FXForwardsAggregator([fxf1, fxf2, fxf3])
+
+    def test_completely_specified_currencies(self):
+        c = Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.99})
+        fxf1 = FXForwards(
+            fx_rates=FXRates({"eursek": 1.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={"eureur": c, "eursek": c, "seksek": c},
+        )
+        fxf2 = FXForwards(
+            fx_rates=FXRates({"usdnok": 1.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={"usdusd": c, "usdnok": c, "noknok": c},
+        )
+        fxf3 = FXForwards(
+            fx_rates=FXRates({"noksek": 1.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={"noknok": c, "seksek": c, "noksek": c},
+        )
+        fxf = _FXForwardsAggregator([fxf1, fxf2, fxf3])
+
+        expected = {
+            "eurnok": "sek",
+            "eursek": 0,
+            "eurusd": "nok",
+            "nokeur": "sek",
+            "noksek": 2,
+            "nokusd": 1,
+            "sekeur": 0,
+            "seknok": 2,
+            "sekusd": "nok",
+            "usdeur": "nok",
+            "usdnok": 1,
+            "usdsek": "nok",
+        }
+        assert fxf.paths == expected
+
+    def test_underspecified_currencies(self):
+        c = Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.99})
+        fxf1 = FXForwards(
+            fx_rates=FXRates({"eursek": 1.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={"eureur": c, "eursek": c, "seksek": c},
+        )
+        fxf2 = FXForwards(
+            fx_rates=FXRates({"jpynok": 1.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={"jpyjpy": c, "jpynok": c, "noknok": c},
+        )
+        with pytest.raises(ValueError, match="Underspecified currencies detected"):
+            _FXForwardsAggregator([fxf1, fxf2])
+
+    def test_mismatched_horizons(self):
+        c = Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.99})
+        c2 = Curve({dt(2000, 1, 2): 1.0, dt(2000, 1, 3): 0.99})
+        fxf1 = FXForwards(
+            fx_rates=FXRates({"eursek": 1.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={"eureur": c, "eursek": c, "seksek": c},
+        )
+        fxf3 = FXForwards(
+            fx_rates=FXRates({"noksek": 1.0}, settlement=dt(2000, 1, 2)),
+            fx_curves={"noknok": c2, "seksek": c2, "noksek": c2},
+        )
+        with pytest.raises(ValueError, match=r"The `immediate` date \(or horizon\) date must"):
+            _FXForwardsAggregator([fxf1, fxf3])
+
+    def test_state_and_update(self):
+        c = Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.99})
+        fxf1 = FXForwards(
+            fx_rates=FXRates({"eursek": 1.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={"eureur": c, "eursek": c, "seksek": c},
+        )
+        fxf2 = FXForwards(
+            fx_rates=FXRates({"usdnok": 1.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={"usdusd": c, "usdnok": c, "noknok": c},
+        )
+        fxf3 = FXForwards(
+            fx_rates=FXRates({"noksek": 1.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={"noknok": c, "seksek": c, "noksek": c},
+        )
+        fxf = _FXForwardsAggregator([fxf1, fxf2, fxf3])
+        assert isinstance(fxf._state, int)
+        fxf1.update([{"eursek": 1.0}])
+        assert fxf._state != fxf._get_composited_state()
+        fxf._validate_state()
+        assert fxf._state == fxf._get_composited_state()
+
+    def test_fxrate_cross(self):
+        c = Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.99})
+        fxf1 = FXForwards(
+            fx_rates=FXRates({"eursek": 1.25}, settlement=dt(2000, 1, 1)),
+            fx_curves={"eureur": c, "eursek": c, "seksek": c},
+        )
+        fxf2 = FXForwards(
+            fx_rates=FXRates({"usdnok": 1.5}, settlement=dt(2000, 1, 1)),
+            fx_curves={"usdusd": c, "usdnok": c, "noknok": c},
+        )
+        fxf3 = FXForwards(
+            fx_rates=FXRates({"noksek": 1.75}, settlement=dt(2000, 1, 1)),
+            fx_curves={"noknok": c, "seksek": c, "noksek": c},
+        )
+        fxf = _FXForwardsAggregator([fxf1, fxf2, fxf3])
+        result = fxf.rate("nokeur")
+        expected = 1.75 / 1.25
+        assert abs(result - expected) < 1e-8
+
+    def test_mismatched_fx_curves(self):
+        c = Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.99})
+        c2 = Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.99})
+        fxf1 = FXForwards(
+            fx_rates=FXRates({"eursek": 1.25}, settlement=dt(2000, 1, 1)),
+            fx_curves={"eureur": c, "eursek": c, "seksek": c},
+        )
+        fxf2 = FXForwards(
+            fx_rates=FXRates({"usdnok": 1.5}, settlement=dt(2000, 1, 1)),
+            fx_curves={"usdusd": c, "usdnok": c, "noknok": c},
+        )
+        fxf3 = FXForwards(
+            fx_rates=FXRates({"noksek": 1.75}, settlement=dt(2000, 1, 1)),
+            fx_curves={"noknok": c, "seksek": c2, "noksek": c},
+        )
+        with pytest.raises(ValueError, match="Curves mapped to the same currency"):
+            _FXForwardsAggregator([fxf1, fxf2, fxf3])
