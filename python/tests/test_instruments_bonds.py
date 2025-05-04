@@ -18,6 +18,7 @@ from rateslib.instruments import (
     FloatRateNote,
     IndexFixedRateBond,
 )
+from rateslib.instruments.bonds import BondCalcMode
 from rateslib.solver import Solver
 
 
@@ -668,6 +669,32 @@ class TestFixedRateBond:
 
         result = frb.ytm(price=price, settlement=set_)
         assert abs(result - exp_ytm) < 1e-5
+
+    # US Corp: BNY Mello
+
+    @pytest.mark.parametrize(("settlement", "price", "exp_ytm", "exp_acc"), [
+        (dt(2025, 5, 6), 101.0, 3.493237, 0.08556)
+    ])
+    def test_bny_mellon(self, settlement, price, exp_ytm, exp_acc) -> None:
+        mode = BondCalcMode(
+            settle_accrual_type="30u360",
+            ytm_accrual_type="30u360",
+            v1_type="compounding_final_simple",
+            v2_type="regular",
+            v3_type="compounding",
+        )
+        b = FixedRateBond(  # ISIN: US06406RAH03
+            effective=dt(2018, 4, 30),
+            termination=dt(2028, 4, 28),
+            fixed_rate=3.85,
+            convention="30u360",
+            spec="us_gb",
+            calc_mode=mode,
+        )
+        ytm = b.ytm(price, settlement)
+        acc = b.accrued(settlement)
+        assert abs(ytm - exp_ytm) < 1e-6
+        assert abs(acc - exp_acc) < 1e-5
 
     # General Method Coverage
 

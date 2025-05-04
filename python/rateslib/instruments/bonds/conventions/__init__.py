@@ -64,6 +64,16 @@ class BondCalcMode:
          &d = \\text{30e360 DCF between settlement and next unadjusted coupon date} \\\\
          &f = \\text{Number of regular coupon periods per year} \\\\
 
+    - *"30u360"*: Ignores the coupon convention on the bond and calculates accrued from the
+      unadjusted last coupon date to settlement with a 30u360 day count convention, **except**
+      stubs revert to *'linear_days'*.
+
+      .. math::
+
+         &\\text{Accrual fraction} =  1 - d f  \\\\
+         &\\text{where,} \\\\
+         &d = \\text{30u360 DCF between settlement and next unadjusted coupon date} \\\\
+         &f = \\text{Number of regular coupon periods per year} \\\\
     - *"Act365_1y"*: Ignores the coupon convention on the bond and calculates accrued from
       the unadjusted last coupon date to settlement with an Act365F day count convention. Stub
       periods are adjusted to use *'linear_days'* and periods longer than 1y have additional

@@ -102,6 +102,22 @@ def _acc_30e360(obj: Security, settlement: datetime, acc_idx: int, *args: Any) -
     return _
 
 
+def _acc_30u360(obj: Security, settlement: datetime, acc_idx: int, *args: Any) -> float:
+    """
+    Ignoring the convention on the leg uses "30U360" to determine the accrual fraction.
+    Measures between unadjusted date and settlement.
+    [Designed primarily for US Corporate Bonds]
+
+    If stub revert to linear proportioning.
+    """
+    if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
+        return _acc_linear_proportion_by_days(obj, settlement, acc_idx)
+    f = 12 / defaults.frequency_months[obj.leg1.schedule.frequency]
+    _: float = dcf(settlement, obj.leg1.schedule.uschedule[acc_idx + 1], "30u360") * f
+    _ = 1 - _
+    return _
+
+
 def _acc_act365_with_1y_and_stub_adjustment(
     obj: Security, settlement: datetime, acc_idx: int, *args: Any
 ) -> float:
@@ -130,5 +146,6 @@ ACC_FRAC_FUNCS = {
     "linear_days": _acc_linear_proportion_by_days,
     "linear_days_long_front_split": _acc_linear_proportion_by_days_long_stub_split,
     "30e360": _acc_30e360,
+    "30u360": _acc_30u360,
     "act365f_1y": _acc_act365_with_1y_and_stub_adjustment,
 }
