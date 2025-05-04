@@ -36,6 +36,18 @@ US Treasury convention. Reprices examples in federal documents: Section 31-B-ii)
    US_GB_TSY.kwargs
    FixedRateBond(dt(2000, 1, 1), "10y", spec="us_gb_tsy", fixed_rate=2.5).kwargs
 
+.. _spec-us-corp:
+
+Corporate Bonds
+----------------
+
+.. ipython:: python
+
+   defaults.spec["us_corp"]
+   from rateslib.instruments.bonds.conventions import US_CORP
+   US_CORP.kwargs
+   FixedRateBond(dt(2000, 1, 1), "10y", spec="us_corp", fixed_rate=2.5).kwargs
+
 EUR
 ********
 

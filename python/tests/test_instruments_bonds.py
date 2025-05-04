@@ -694,6 +694,27 @@ class TestFixedRateBond:
         assert abs(ytm - exp_ytm) < 1e-6
         assert abs(acc - exp_acc) < 1e-8
 
+    @pytest.mark.parametrize(
+        ("settlement", "price", "exp_ytm", "exp_acc"),
+        [
+            (dt(2025, 5, 6), 101.0, 3.493237, 0.08555556),
+            (dt(2028, 4, 3), 100.05, 3.077448, 1.65763889),
+        ],
+    )
+    def test_bny_mellon_spec(self, settlement, price, exp_ytm, exp_acc) -> None:
+        # BNY Mellon ISIN: US06406RAH03, compared with BBG BXT.
+        b = FixedRateBond(
+            effective=dt(2018, 4, 30),
+            termination=dt(2028, 4, 28),
+            fixed_rate=3.85,
+            spec="us_corp",
+        )
+        ytm = b.ytm(price, settlement)
+        acc = b.accrued(settlement)
+        assert abs(ytm - exp_ytm) < 1e-6
+        assert abs(acc - exp_acc) < 1e-8
+
+
     # General Method Coverage
 
     def test_fixed_rate_bond_yield_domains(self) -> None:
