@@ -95,6 +95,36 @@ class TestBondCalcMode:
 
         assert abs(result - expected) < 1e-10
 
+    def test_custom_ytm_disc_funcs(self):
+        def _my_acc(*args):
+            return 0.0
+
+        def _v(*args):
+            return 1 / (1 + 0.02)
+
+        calc_mode = BondCalcMode(
+            settle_accrual_type=_my_acc,
+            ytm_accrual_type=_my_acc,
+            v1_type=_v,
+            v2_type=_v,
+            v3_type=_v
+        )
+
+        bond = FixedRateBond(
+            effective=dt(2000, 1, 1),
+            termination="2y",
+            fixed_rate=2.00,
+            spec="de_gb",
+            calc_mode=calc_mode,
+        )
+
+        # custom funcs give the same clean price of 100 for any date
+        for date in [dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 11, 1), dt(2001, 6, 1)]:
+            result = bond.price(ytm=2.0, settlement=dt(2000, 1, 1))
+            assert abs(result - 100.0) < 1e-10
+
+
+
 
 class TestFixedRateBond:
     def test_metric_ytm_no_fx(self) -> None:
