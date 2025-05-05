@@ -19,16 +19,10 @@ class BondCalcMode:
     Parameters
     ----------
     settle_accrual_type: str or Callable
-        The calculation type for accrued interest for physical settlement.
-        If providing a custom function, it must accept three arguments:
-        `(bond object, settlement, accrual index)` and return a float in [0,1] which is the
-        fraction of the bond cashflow that is attributed to the settlement date.
+        The calculation type for accrued interest for physical settlement. See notes.
     ytm_accrual_type: str or Callable
         The calculation method for accrued interest used in the YTM formula. Often the same
-        as above but not always (e.g. Canadian GBs).
-        If providing a custom function, it must accept three arguments:
-        `(bond object, settlement, accrual index)` and return a float in [0,1] which is the
-        fraction of the bond cashflow that is attributed to the settlement date.
+        as above but not always (e.g. Canadian GBs). See notes.
     v1_type: str
         The calculation function that defines discounting of the first period of the YTM formula.
     v2_type: str
@@ -41,8 +35,16 @@ class BondCalcMode:
 
     **Accrual Functions**
 
-    These functions return the **fraction** of a bond cashflow that is attributed to the settlement
-    date, in order to determine accrued interest. The available input options are;
+    Accrual functions must be supplied to the ``settle_accrual_type`` and ``ytm_accrual_type``
+    arguments. The available values are:
+    
+    - *"linear_days"*, or the modified version, *"linear_days_long_front_split"*.
+    - *"30u360"*, or its European counterpart *"30e360"*.
+    - *"act365f_1y"
+    
+    Accrual functions are designed to return the **fraction** of a bond cashflow that is attributed
+    to the settlement date, in order to determine an amount of payable accrued interest. 
+    The details for the above method are stated below;
 
     - *"linear_days"*: Measures a calendar day, linear proportion between unadjusted start and
       end coupon dates of the coupon period, and applies that proportion to the cashflow, which is
@@ -57,7 +59,7 @@ class BondCalcMode:
          &s = \\text{Calendar days between unadjusted coupon dates} \\\\
 
     - *"linear_days_long_front_split"*: Is the same as above, **except** in the case of long
-      stub periods, which are treated as front stubs. (Primarily implemented to satisfy the
+      stub periods. (Primarily implemented to satisfy the
       US Treasury calculations in Section 31B ii A.356)
     - *"30e360"*: Ignores the coupon convention on the bond and calculates accrued from the
       unadjusted last coupon date to settlement with a 30e360 day count convention, **except**
@@ -90,6 +92,19 @@ class BondCalcMode:
          & r = s \\qquad \\implies \\quad \\text{Accrual fraction} =  1.0  \\\\
          & r > 365 / f \\qquad \\implies \\quad \\text{Accrual fraction} =  1.0 - f(s-r) / 365 \\\\
          & r \\le 365 / f \\qquad \\implies \\quad \\text{Accrual fraction} =  rf / 365 \\\\
+
+    **Custom accrual functions** can also be supplied where the input arguments signature should
+    accept the bond object, the settlement date, and the index relating to the period in which
+    the relevant coupon period falls. It should return an accrual fraction upto settlement.
+    As an example the code below shows the implementation of the
+    *"linear_days"* accrual function:
+    
+    .. ipython:: python
+    
+       def _linear_days(obj, settlement, acc_idx, *args) -> float:
+            r = settlement - obj.leg1.schedule.uschedule[acc_idx]
+            s = obj.leg1.schedule.uschedule[acc_idx + 1] - obj.leg1.schedule.uschedule[acc_idx]
+            return r / s
 
     **Discounting Functions for YTM Calculation**
 
