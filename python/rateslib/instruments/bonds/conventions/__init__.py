@@ -7,6 +7,8 @@ from rateslib.instruments.bonds.conventions.accrued import ACC_FRAC_FUNCS
 from rateslib.instruments.bonds.conventions.discounting import V1_FUNCS, V2_FUNCS, V3_FUNCS
 
 if TYPE_CHECKING:
+    from rateslib.instruments.bonds.conventions.accrued import AccrualFunction
+    from rateslib.instruments.bonds.conventions.discounting import YtmDiscountFunction
     from rateslib.typing import Security
 
 
@@ -145,40 +147,33 @@ class BondCalcMode:
 
     """  # noqa: E501
 
+    _settle_accrual: AccrualFunction
+    _ytm_accrual: AccrualFunction
+    _v1: YtmDiscountFunction
+    _v2: YtmDiscountFunction
+    _v3: YtmDiscountFunction
+
     def __init__(
         self,
-        settle_accrual_type: str,
-        ytm_accrual_type: str,
-        v1_type: str,
-        v2_type: str,
-        v3_type: str,
+        settle_accrual_type: str | AccrualFunction,
+        ytm_accrual_type: str | AccrualFunction,
+        v1_type: str | YtmDiscountFunction,
+        v2_type: str | YtmDiscountFunction,
+        v3_type: str | YtmDiscountFunction,
     ):
         self._kwargs: dict[str, str] = {}
-        if isinstance(settle_accrual_type, str):
-            self._settle_acc_frac_func = ACC_FRAC_FUNCS[settle_accrual_type.lower()]
-            self._kwargs["settle_accrual"] = settle_accrual_type
-        else:
-            self._settle_acc_frac_func = settle_accrual_type
-            self._kwargs["settle_accrual"] = "custom"
-
-        if isinstance(ytm_accrual_type, str):
-            self._ytm_acc_frac_func = ACC_FRAC_FUNCS[ytm_accrual_type.lower()]
-            self._kwargs["ytm_accrual"] = ytm_accrual_type
-        else:
-            self._ytm_acc_frac_func = ytm_accrual_type
-            self._kwargs["ytm_accrual"] = "custom"
-
-        self._v1 = V1_FUNCS[v1_type.lower()]
-        self._v2 = V2_FUNCS[v2_type.lower()]
-        self._v3 = V3_FUNCS[v3_type.lower()]
-
-        self._kwargs.update(
-            {
-                "v1": v1_type,
-                "v2": v2_type,
-                "v3": v3_type,
-            }
-        )
+        for name, func, _map in zip(
+            ["settle_accrual", "ytm_accrual", "v1", "v2", "v3"],
+            [settle_accrual_type, ytm_accrual_type, v1_type, v2_type, v3_type],
+            [ACC_FRAC_FUNCS, ACC_FRAC_FUNCS, V1_FUNCS, V2_FUNCS, V3_FUNCS],
+            strict=False,
+        ):
+            if isinstance(func, str):
+                setattr(self, f"_{name}", _map[func.lower()])  # type: ignore[index]
+                self._kwargs[name] = func
+            else:
+                setattr(self, f"_{name}", func)
+                self._kwargs[name] = "custom"
 
     @property
     def kwargs(self) -> dict[str, str]:
@@ -225,7 +220,7 @@ class BillCalcMode:
     ):
         self._price_type = price_type
         price_accrual_type = "linear_days"
-        self._settle_acc_frac_func = ACC_FRAC_FUNCS[price_accrual_type.lower()]
+        self._settle_accrual = ACC_FRAC_FUNCS[price_accrual_type.lower()]
         if isinstance(ytm_clone_kwargs, dict):
             self._ytm_clone_kwargs = ytm_clone_kwargs
         else:
