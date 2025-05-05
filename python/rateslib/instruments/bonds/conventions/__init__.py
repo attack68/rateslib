@@ -39,13 +39,13 @@ class BondCalcMode:
 
     Accrual functions must be supplied to the ``settle_accrual_type`` and ``ytm_accrual_type``
     arguments. The available values are:
-    
+
     - *"linear_days"*, or the modified version, *"linear_days_long_front_split"*.
     - *"30u360"*, or its European counterpart *"30e360"*.
     - *"act365f_1y"
-    
+
     Accrual functions are designed to return the **fraction** of a bond cashflow that is attributed
-    to the settlement date, in order to determine an amount of payable accrued interest. 
+    to the settlement date, in order to determine an amount of payable accrued interest.
     The details for the above method are stated below;
 
     - *"linear_days"*: Measures a calendar day, linear proportion between unadjusted start and
@@ -100,9 +100,9 @@ class BondCalcMode:
     the relevant coupon period falls. It should return an accrual fraction upto settlement.
     As an example the code below shows the implementation of the
     *"linear_days"* accrual function:
-    
+
     .. ipython:: python
-    
+
        def _linear_days(obj, settlement, acc_idx, *args) -> float:
             r = settlement - obj.leg1.schedule.uschedule[acc_idx]
             s = obj.leg1.schedule.uschedule[acc_idx + 1] - obj.leg1.schedule.uschedule[acc_idx]
@@ -160,12 +160,12 @@ class BondCalcMode:
     - "simple_30e360": the final period uses simple interest with a DCF calculated
       under 30e360 convention, irrespective of the bond's underlying convention.
 
-    **Custom discount functions** can also be supplied where the input arguments signature 
+    **Custom discount functions** can also be supplied where the input arguments signature
     is shown in the below example. It should return a discount factor. The example
     shows the implementation of the *"regular"* discount function:
-    
+
     .. ipython:: python
-    
+
        def _v2_(obj, ytm, f, settlement, acc_idx, v2, accrual):
            return 1 / (1 + ytm / (100 * f))
 
