@@ -8,7 +8,7 @@ from rateslib.calendars import add_tenor, dcf
 from rateslib.default import NoInput
 
 if TYPE_CHECKING:
-    from rateslib.typing import Any, Security, BondMixin
+    from rateslib.typing import Any, BondMixin, Security
 
 """
 All functions in this module are designed to take a Bond object and return the **fraction**
@@ -20,7 +20,9 @@ This fraction is used to assess the total accrued calculation at a subsequent st
 
 class AccrualFunction(Protocol):
     # Callable type for Accrual Functions
-    def __call__(self, obj: Security | BondMixin, settlement: datetime, acc_idx: int, *args: Any) -> float: ...
+    def __call__(
+        self, obj: Security | BondMixin, settlement: datetime, acc_idx: int, *args: Any
+    ) -> float: ...
 
 
 def _acc_linear_proportion_by_days(

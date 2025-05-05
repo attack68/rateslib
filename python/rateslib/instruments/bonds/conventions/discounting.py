@@ -7,7 +7,7 @@ from rateslib.calendars import dcf
 
 if TYPE_CHECKING:
     from rateslib.instruments.bonds.conventions.accrued import AccrualFunction
-    from rateslib.typing import DualTypes, Security, BondMixin
+    from rateslib.typing import BondMixin, DualTypes, Security
 
 """
 The calculations for v2 (the interim, regular period discount value) are more standardised
