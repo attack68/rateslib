@@ -47,6 +47,7 @@ from rateslib.instruments import Spread as Spread
 from rateslib.instruments import STIRFuture as STIRFuture
 from rateslib.instruments import Value as Value
 from rateslib.instruments import VolValue as VolValue
+from rateslib.instruments.bonds import BondMixin as BondMixin
 from rateslib.legs import CreditPremiumLeg as CreditPremiumLeg
 from rateslib.legs import CreditProtectionLeg as CreditProtectionLeg
 from rateslib.legs import FixedLeg as FixedLeg
