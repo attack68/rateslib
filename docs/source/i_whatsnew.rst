@@ -33,6 +33,11 @@ email contact, see `rateslib <https://rateslib.com>`_.
        *'us_corp'* to support generic US corporate bonds.
        (`785 <https://github.com/attack68/rateslib/pull/785>`_)
        (`786 <https://github.com/attack68/rateslib/pull/786>`_)
+   * - Instruments
+     - Extend :class:`~rateslib.instruments.bonds.BondCalcMode` to support custom accrual and
+       discount functions for calculations.
+       (`788 <https://github.com/attack68/rateslib/pull/788>`_)
+       (`791 <https://github.com/attack68/rateslib/pull/791>`_)
    * - Automatic Differentiation
      - Operator overloads added to allow dual number exponents, i.e. :math:`z^p`, where *z*,
        *p* are dual number types. This facilitates AD for the SABR function as well as other
