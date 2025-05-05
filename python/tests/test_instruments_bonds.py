@@ -75,6 +75,28 @@ class TestBondCalcMode:
         assert my_calc.kwargs["ytm_accrual"] == "custom"
 
 
+    def test_custom_function_affects_ytm(self):
+        def _my_acc(*args):
+            return 0.4
+
+        my_calc = BondCalcMode(
+            settle_accrual_type="linear_days",
+            ytm_accrual_type=_my_acc,
+            v1_type="compounding_final_simple",
+            v2_type="regular",
+            v3_type="compounding",
+        )
+
+        bond = FixedRateBond(dt(2022, 1, 1), "2y", spec="de_gb", fixed_rate=2.0, calc_mode=my_calc)
+
+        v2 = 1 / (1 + 0.02)
+        v1 = v2 ** (1 - 0.4)
+        expected = 2 * v1 + 102 * v1 * v2  - 0.4 * 2
+        result = bond.price(ytm=2.00, settlement=dt(2022, 1, 1))
+
+        assert abs(result - expected) < 1e-10
+
+
 class TestFixedRateBond:
     def test_metric_ytm_no_fx(self) -> None:
         # GH 193
