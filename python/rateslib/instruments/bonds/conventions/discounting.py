@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Protocol
 
 from rateslib.calendars import dcf
 
 if TYPE_CHECKING:
+    from rateslib.instruments.bonds.conventions.accrued import AccrualFunction
     from rateslib.typing import DualTypes, Security
 
 """
@@ -14,11 +14,34 @@ The calculations for v2 (the interim, regular period discount value) are more st
 than the other calculations because they exclude the scenarios for stub handling.
 """
 
+
+class YTMDiscountFunction(Protocol):
+    # Callable Type for discount functions
+    def __call__(
+        self,
+        obj: Security,
+        ytm: DualTypes,
+        f: int,
+        settlement: datetime,
+        acc_idx: int,
+        v2: DualTypes,
+        accrual: AccrualFunction,
+    ) -> DualTypes: ...
+
+
 # TODO fix the union-attr type ignores by considering aggergating coupon periods distinct from
 # cashflow periods
 
 
-def _v2_(obj: Security, ytm: DualTypes, f: int, *args: Any) -> DualTypes:
+def _v2_(
+    obj: Security,
+    ytm: DualTypes,
+    f: int,
+    settlement: datetime,
+    acc_idx: int,
+    v2: DualTypes,
+    accrual: AccrualFunction,
+) -> DualTypes:
     """
     Default method for a single regular period discounted in the regular portion of bond.
     Implies compounding at the same frequency as the coupons.
@@ -26,7 +49,15 @@ def _v2_(obj: Security, ytm: DualTypes, f: int, *args: Any) -> DualTypes:
     return 1 / (1 + ytm / (100 * f))
 
 
-def _v2_annual(obj: Security, ytm: DualTypes, f: int, *args: Any) -> DualTypes:
+def _v2_annual(
+    obj: Security,
+    ytm: DualTypes,
+    f: int,
+    settlement: datetime,
+    acc_idx: int,
+    v2: DualTypes,
+    accrual: AccrualFunction,
+) -> DualTypes:
     """
     ytm is expressed annually but coupon payments are on another frequency
     """
@@ -45,8 +76,7 @@ def _v1_compounded_by_remaining_accrual_fraction(
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes,
-    accrual: Callable[[Security, datetime, int], float],
-    *args: Any,
+    accrual: AccrualFunction,
 ) -> DualTypes:
     """
     Determine the discount factor for the first cashflow after settlement.
@@ -73,8 +103,7 @@ def _v1_compounded_by_remaining_accrual_frac_except_simple_final_period(
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes,
-    accrual: Callable[[Security, datetime, int], float],
-    *args: Any,
+    accrual: AccrualFunction,
 ) -> DualTypes:
     """
     Uses regular fractional compounding except if it is last period, when simple money-mkt
@@ -85,7 +114,7 @@ def _v1_compounded_by_remaining_accrual_frac_except_simple_final_period(
         # or \
         # settlement == self.leg1.schedule.uschedule[acc_idx + 1]:
         # then settlement is in last period use simple interest.
-        return _v1_simple(obj, ytm, f, settlement, acc_idx, v2, accrual, *args)
+        return _v1_simple(obj, ytm, f, settlement, acc_idx, v2, accrual)
     else:
         return _v1_compounded_by_remaining_accrual_fraction(
             obj,
@@ -95,7 +124,6 @@ def _v1_compounded_by_remaining_accrual_frac_except_simple_final_period(
             acc_idx,
             v2,
             accrual,
-            *args,
         )
 
 
@@ -106,8 +134,7 @@ def _v1_comp_stub_act365f(
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes,
-    accrual: Callable[[Security, datetime, int], float],
-    *args: Any,
+    accrual: AccrualFunction,
 ) -> DualTypes:
     """Compounds the yield. In a stub period the act365f DCF is used"""
     if not obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
@@ -119,7 +146,6 @@ def _v1_comp_stub_act365f(
             acc_idx,
             v2,
             accrual,
-            *args,
         )
     else:
         fd0 = dcf(settlement, obj.leg1.schedule.uschedule[acc_idx + 1], "Act365F")
@@ -133,8 +159,7 @@ def _v1_simple(
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes,
-    accrual: Callable[[Security, datetime, int], float],
-    *args: Any,
+    accrual: AccrualFunction,
 ) -> DualTypes:
     """
     Use simple rates with a yield which matches the frequency of the coupon.
@@ -157,8 +182,7 @@ def _v1_simple_1y_adjustment(
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes,
-    accrual: Callable[[Security, datetime, int], float],
-    *args: Any,
+    accrual: AccrualFunction,
 ) -> DualTypes:
     """
     Use simple rates with a yield which matches the frequency of the coupon.
@@ -187,7 +211,7 @@ def _v3_compounded(
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes,
-    *args: Any,
+    accrual: AccrualFunction,
 ) -> DualTypes:
     """
     Final period uses a compounding approach where the power is determined by the DCF of that
@@ -208,7 +232,8 @@ def _v3_30e360_u_simple(
     f: int,
     settlement: datetime,
     acc_idx: int,
-    *args: Any,
+    v2: DualTypes,
+    accrual: AccrualFunction,
 ) -> DualTypes:
     """
     The final period is discounted by a simple interest method under a 30E360 convention.
@@ -222,13 +247,17 @@ def _v3_30e360_u_simple(
 def _v3_simple(
     obj: Security,
     ytm: DualTypes,
-    *args: Any,
+    f: int,
+    settlement: datetime,
+    acc_idx: int,
+    v2: DualTypes,
+    accrual: AccrualFunction,
 ) -> DualTypes:
     v_ = 1 / (1 + obj.leg1.periods[-2].dcf * ytm / 100.0)  # type: ignore[union-attr]
     return v_
 
 
-V1_FUNCS = {
+V1_FUNCS: dict[str, YTMDiscountFunction] = {
     "compounding": _v1_compounded_by_remaining_accrual_fraction,
     "compounding_final_simple": _v1_compounded_by_remaining_accrual_frac_except_simple_final_period,
     "compounding_stub_act365f": _v1_comp_stub_act365f,
@@ -236,12 +265,12 @@ V1_FUNCS = {
     "simple_long_stub_compounding": _v1_simple_1y_adjustment,
 }
 
-V2_FUNCS = {
+V2_FUNCS: dict[str, YTMDiscountFunction] = {
     "regular": _v2_,
     "annual": _v2_annual,
 }
 
-V3_FUNCS = {
+V3_FUNCS: dict[str, YTMDiscountFunction] = {
     "compounding": _v3_compounded,
     "simple": _v3_simple,
     "simple_30e360": _v3_30e360_u_simple,

@@ -7,6 +7,7 @@ from rateslib.instruments.bonds.conventions.accrued import ACC_FRAC_FUNCS
 from rateslib.instruments.bonds.conventions.discounting import V1_FUNCS, V2_FUNCS, V3_FUNCS
 
 if TYPE_CHECKING:
+    from rateslib.instruments.bonds.conventions.accrued import AccrualFunction
     from rateslib.typing import Security
 
 
@@ -147,8 +148,8 @@ class BondCalcMode:
 
     def __init__(
         self,
-        settle_accrual_type: str,
-        ytm_accrual_type: str,
+        settle_accrual_type: str | AccrualFunction,
+        ytm_accrual_type: str | AccrualFunction,
         v1_type: str,
         v2_type: str,
         v3_type: str,

@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Protocol
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
 from rateslib.default import NoInput
 
 if TYPE_CHECKING:
-    from rateslib.typing import Security
+    from rateslib.typing import Any, Security
 
 """
 All functions in this module are designed to take a Bond object and return the **fraction**
@@ -16,6 +16,11 @@ of the current coupon period associated with the given settlement.
 
 This fraction is used to assess the total accrued calculation at a subsequent stage.
 """
+
+
+class AccrualFunction(Protocol):
+    # Callable type for Accrual Functions
+    def __call__(self, obj: Security, settlement: datetime, acc_idx: int, *args: Any) -> float: ...
 
 
 def _acc_linear_proportion_by_days(
@@ -142,7 +147,7 @@ def _acc_act365_with_1y_and_stub_adjustment(
     return _
 
 
-ACC_FRAC_FUNCS = {
+ACC_FRAC_FUNCS: dict[str, AccrualFunction] = {
     "linear_days": _acc_linear_proportion_by_days,
     "linear_days_long_front_split": _acc_linear_proportion_by_days_long_stub_split,
     "30e360": _acc_30e360,

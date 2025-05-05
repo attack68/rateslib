@@ -272,7 +272,7 @@ class BondMixin:
         f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
         acc_idx = self._period_index(settlement)
 
-        v2 = f2(self, ytm, f, settlement, acc_idx)
+        v2 = f2(self, ytm, f, settlement, acc_idx, 1e9, accrual)
         v1 = f1(self, ytm, f, settlement, acc_idx, v2, accrual)
         v3 = f3(self, ytm, f, settlement, self.leg1.schedule.n_periods - 1, v2, accrual)
 
