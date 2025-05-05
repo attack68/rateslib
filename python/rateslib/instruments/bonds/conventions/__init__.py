@@ -25,11 +25,11 @@ class BondCalcMode:
     ytm_accrual_type: str or Callable
         The calculation method for accrued interest used in the YTM formula. Often the same
         as above but not always (e.g. Canadian GBs). See notes.
-    v1_type: str
+    v1_type: str or Callable
         The calculation function that defines discounting of the first period of the YTM formula.
-    v2_type: str
+    v2_type: str or Callable
         The calculation function that defines discounting of the regular periods of the YTM formula.
-    v3_type: str
+    v3_type: str or Callable
         The calculation function that defines discounting of the last period of the YTM formula.
 
     Notes
@@ -159,6 +159,15 @@ class BondCalcMode:
     - "simple"
     - "simple_30e360": the final period uses simple interest with a DCF calculated
       under 30e360 convention, irrespective of the bond's underlying convention.
+
+    **Custom discount functions** can also be supplied where the input arguments signature 
+    is shown in the below example. It should return a discount factor. The example
+    shows the implementation of the *"regular"* discount function:
+    
+    .. ipython:: python
+    
+       def _v2_(obj, ytm, f, settlement, acc_idx, v2, accrual):
+           return 1 / (1 + ytm / (100 * f))
 
     """  # noqa: E501
 
