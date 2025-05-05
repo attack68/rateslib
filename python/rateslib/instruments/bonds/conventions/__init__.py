@@ -147,6 +147,12 @@ class BondCalcMode:
 
     """  # noqa: E501
 
+    _settle_accrual: AccrualFunction
+    _ytm_accrual: AccrualFunction
+    _v1: YtmDiscountFunction
+    _v2: YtmDiscountFunction
+    _v3: YtmDiscountFunction
+
     def __init__(
         self,
         settle_accrual_type: str | AccrualFunction,
@@ -163,7 +169,7 @@ class BondCalcMode:
             strict=False,
         ):
             if isinstance(func, str):
-                setattr(self, f"_{name}", _map[func.lower()])
+                setattr(self, f"_{name}", _map[func.lower()])  # type: ignore[index]
                 self._kwargs[name] = func
             else:
                 setattr(self, f"_{name}", func)

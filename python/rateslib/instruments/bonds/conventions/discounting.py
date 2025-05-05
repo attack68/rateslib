@@ -7,7 +7,7 @@ from rateslib.calendars import dcf
 
 if TYPE_CHECKING:
     from rateslib.instruments.bonds.conventions.accrued import AccrualFunction
-    from rateslib.typing import DualTypes, Security
+    from rateslib.typing import DualTypes, Security, BondMixin
 
 """
 The calculations for v2 (the interim, regular period discount value) are more standardised
@@ -19,7 +19,7 @@ class YtmDiscountFunction(Protocol):
     # Callable Type for discount functions
     def __call__(
         self,
-        obj: Security,
+        obj: Security | BondMixin,
         ytm: DualTypes,
         f: int,
         settlement: datetime,
@@ -34,7 +34,7 @@ class YtmDiscountFunction(Protocol):
 
 
 def _v2_(
-    obj: Security,
+    obj: Security | BondMixin,
     ytm: DualTypes,
     f: int,
     settlement: datetime,
@@ -50,7 +50,7 @@ def _v2_(
 
 
 def _v2_annual(
-    obj: Security,
+    obj: Security | BondMixin,
     ytm: DualTypes,
     f: int,
     settlement: datetime,
@@ -70,7 +70,7 @@ The calculations for v1 allow more inputs in order to avoid repeat calculations 
 
 
 def _v1_compounded_by_remaining_accrual_fraction(
-    obj: Security,
+    obj: Security | BondMixin,
     ytm: DualTypes,
     f: int,
     settlement: datetime,
@@ -97,7 +97,7 @@ def _v1_compounded_by_remaining_accrual_fraction(
 
 
 def _v1_compounded_by_remaining_accrual_frac_except_simple_final_period(
-    obj: Security,
+    obj: Security | BondMixin,
     ytm: DualTypes,
     f: int,
     settlement: datetime,
@@ -128,7 +128,7 @@ def _v1_compounded_by_remaining_accrual_frac_except_simple_final_period(
 
 
 def _v1_comp_stub_act365f(
-    obj: Security,
+    obj: Security | BondMixin,
     ytm: DualTypes,
     f: int,
     settlement: datetime,
@@ -153,7 +153,7 @@ def _v1_comp_stub_act365f(
 
 
 def _v1_simple(
-    obj: Security,
+    obj: Security | BondMixin,
     ytm: DualTypes,
     f: int,
     settlement: datetime,
@@ -176,7 +176,7 @@ def _v1_simple(
 
 
 def _v1_simple_1y_adjustment(
-    obj: Security,
+    obj: Security | BondMixin,
     ytm: DualTypes,
     f: int,
     settlement: datetime,
@@ -205,7 +205,7 @@ def _v1_simple_1y_adjustment(
 
 
 def _v3_compounded(
-    obj: Security,
+    obj: Security | BondMixin,
     ytm: DualTypes,
     f: int,
     settlement: datetime,
@@ -227,7 +227,7 @@ def _v3_compounded(
 
 
 def _v3_30e360_u_simple(
-    obj: Security,
+    obj: Security | BondMixin,
     ytm: DualTypes,
     f: int,
     settlement: datetime,
@@ -245,7 +245,7 @@ def _v3_30e360_u_simple(
 
 
 def _v3_simple(
-    obj: Security,
+    obj: Security | BondMixin,
     ytm: DualTypes,
     f: int,
     settlement: datetime,

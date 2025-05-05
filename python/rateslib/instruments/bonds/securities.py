@@ -269,8 +269,8 @@ class BondMixin:
 
         Note: `curve` is only needed for FloatRate Periods on `_period_cashflow`
         """
-        f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
-        acc_idx = self._period_index(settlement)
+        f: int = 12 / defaults.frequency_months[self.leg1.schedule.frequency]  # type: ignore[assignment]
+        acc_idx: int = self._period_index(settlement)
 
         v2 = f2(self, ytm, f, settlement, acc_idx, 1e9, accrual)
         v1 = f1(self, ytm, f, settlement, acc_idx, v2, accrual)

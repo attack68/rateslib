@@ -8,7 +8,7 @@ from rateslib.calendars import add_tenor, dcf
 from rateslib.default import NoInput
 
 if TYPE_CHECKING:
-    from rateslib.typing import Any, Security
+    from rateslib.typing import Any, Security, BondMixin
 
 """
 All functions in this module are designed to take a Bond object and return the **fraction**
@@ -20,11 +20,11 @@ This fraction is used to assess the total accrued calculation at a subsequent st
 
 class AccrualFunction(Protocol):
     # Callable type for Accrual Functions
-    def __call__(self, obj: Security, settlement: datetime, acc_idx: int, *args: Any) -> float: ...
+    def __call__(self, obj: Security | BondMixin, settlement: datetime, acc_idx: int, *args: Any) -> float: ...
 
 
 def _acc_linear_proportion_by_days(
-    obj: Security, settlement: datetime, acc_idx: int, *args: Any
+    obj: Security | BondMixin, settlement: datetime, acc_idx: int, *args: Any
 ) -> float:
     """
     Return the fraction of an accrual period between start and settlement.
@@ -41,7 +41,7 @@ def _acc_linear_proportion_by_days(
 
 
 def _acc_linear_proportion_by_days_long_stub_split(
-    obj: Security,
+    obj: Security | BondMixin,
     settlement: datetime,
     acc_idx: int,
     *args: Any,
@@ -91,7 +91,7 @@ def _acc_linear_proportion_by_days_long_stub_split(
     return _acc_linear_proportion_by_days(obj, settlement, acc_idx, *args)
 
 
-def _acc_30e360(obj: Security, settlement: datetime, acc_idx: int, *args: Any) -> float:
+def _acc_30e360(obj: Security | BondMixin, settlement: datetime, acc_idx: int, *args: Any) -> float:
     """
     Ignoring the convention on the leg uses "30E360" to determine the accrual fraction.
     Measures between unadjusted date and settlement.
@@ -107,7 +107,7 @@ def _acc_30e360(obj: Security, settlement: datetime, acc_idx: int, *args: Any) -
     return _
 
 
-def _acc_30u360(obj: Security, settlement: datetime, acc_idx: int, *args: Any) -> float:
+def _acc_30u360(obj: Security | BondMixin, settlement: datetime, acc_idx: int, *args: Any) -> float:
     """
     Ignoring the convention on the leg uses "30U360" to determine the accrual fraction.
     Measures between unadjusted date and settlement.
@@ -124,7 +124,7 @@ def _acc_30u360(obj: Security, settlement: datetime, acc_idx: int, *args: Any) -
 
 
 def _acc_act365_with_1y_and_stub_adjustment(
-    obj: Security, settlement: datetime, acc_idx: int, *args: Any
+    obj: Security | BondMixin, settlement: datetime, acc_idx: int, *args: Any
 ) -> float:
     """
     Ignoring the convention on the leg uses "Act365f" to determine the accrual fraction.
