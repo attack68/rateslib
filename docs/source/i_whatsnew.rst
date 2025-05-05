@@ -29,8 +29,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
      - Added a new day count convention *'30U360'* to :meth:`~rateslib.calendars.dcf`.
        (`780 <https://github.com/attack68/rateslib/pull/780>`_)
    * - Instruments
-     - Add bond calculation convention to support *'30U360'* accrued.
+     - Add bond calculation convention to support *'30U360'* accrued, and a new bond ``spec``
+       *'us_corp'* to support generic US corporate bonds.
        (`785 <https://github.com/attack68/rateslib/pull/785>`_)
+       (`786 <https://github.com/attack68/rateslib/pull/786>`_)
    * - Automatic Differentiation
      - Operator overloads added to allow dual number exponents, i.e. :math:`z^p`, where *z*,
        *p* are dual number types. This facilitates AD for the SABR function as well as other
