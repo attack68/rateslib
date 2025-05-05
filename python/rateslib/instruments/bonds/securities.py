@@ -43,8 +43,8 @@ from rateslib.periods import (
 from rateslib.periods.utils import _maybe_local
 
 if TYPE_CHECKING:
-    from rateslib.instruments.bonds.conventions.discounting import YtmDiscountFunction
     from rateslib.instruments.bonds.conventions.accrued import AccrualFunction
+    from rateslib.instruments.bonds.conventions.discounting import YtmDiscountFunction
     from rateslib.typing import (
         FX_,
         NPV,
@@ -401,9 +401,7 @@ class BondMixin:
         if dirty:
             return forward_price
         else:
-            return forward_price - self._accrued(
-                forward_settlement, self.calc_mode._settle_accrual
-            )
+            return forward_price - self._accrued(forward_settlement, self.calc_mode._settle_accrual)
 
     def repo_from_fwd(
         self,
@@ -445,9 +443,7 @@ class BondMixin:
         convention_ = _drb(defaults.convention, convention)
         # forward price from repo is linear in repo_rate so reverse calculate with AD
         if not dirty:
-            p_t = forward_price + self._accrued(
-                forward_settlement, self.calc_mode._settle_accrual
-            )
+            p_t = forward_price + self._accrued(forward_settlement, self.calc_mode._settle_accrual)
             p_0 = price + self._accrued(settlement, self.calc_mode._settle_accrual)
         else:
             p_t, p_0 = forward_price, price

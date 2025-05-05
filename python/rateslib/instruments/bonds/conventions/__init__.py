@@ -7,8 +7,8 @@ from rateslib.instruments.bonds.conventions.accrued import ACC_FRAC_FUNCS
 from rateslib.instruments.bonds.conventions.discounting import V1_FUNCS, V2_FUNCS, V3_FUNCS
 
 if TYPE_CHECKING:
-    from rateslib.instruments.bonds.conventions.discounting import YtmDiscountFunction
     from rateslib.instruments.bonds.conventions.accrued import AccrualFunction
+    from rateslib.instruments.bonds.conventions.discounting import YtmDiscountFunction
     from rateslib.typing import Security
 
 
@@ -159,7 +159,8 @@ class BondCalcMode:
         for name, func, _map in zip(
             ["settle_accrual", "ytm_accrual", "v1", "v2", "v3"],
             [settle_accrual_type, ytm_accrual_type, v1_type, v2_type, v3_type],
-            [ACC_FRAC_FUNCS, ACC_FRAC_FUNCS, V1_FUNCS, V2_FUNCS, V3_FUNCS]
+            [ACC_FRAC_FUNCS, ACC_FRAC_FUNCS, V1_FUNCS, V2_FUNCS, V3_FUNCS],
+            strict=False,
         ):
             if isinstance(func, str):
                 setattr(self, f"_{name}", _map[func.lower()])
