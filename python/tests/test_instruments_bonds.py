@@ -74,7 +74,6 @@ class TestBondCalcMode:
         assert my_calc.kwargs["settle_accrual"] == "custom"
         assert my_calc.kwargs["ytm_accrual"] == "custom"
 
-
     def test_custom_function_affects_ytm(self):
         def _my_acc(*args):
             return 0.4
@@ -91,7 +90,7 @@ class TestBondCalcMode:
 
         v2 = 1 / (1 + 0.02)
         v1 = v2 ** (1 - 0.4)
-        expected = 2 * v1 + 102 * v1 * v2  - 0.4 * 2
+        expected = 2 * v1 + 102 * v1 * v2 - 0.4 * 2
         result = bond.price(ytm=2.00, settlement=dt(2022, 1, 1))
 
         assert abs(result - expected) < 1e-10
