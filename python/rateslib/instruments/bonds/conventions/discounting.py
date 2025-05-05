@@ -15,7 +15,7 @@ than the other calculations because they exclude the scenarios for stub handling
 """
 
 
-class YTMDiscountFunction(Protocol):
+class YtmDiscountFunction(Protocol):
     # Callable Type for discount functions
     def __call__(
         self,
@@ -257,7 +257,7 @@ def _v3_simple(
     return v_
 
 
-V1_FUNCS: dict[str, YTMDiscountFunction] = {
+V1_FUNCS: dict[str, YtmDiscountFunction] = {
     "compounding": _v1_compounded_by_remaining_accrual_fraction,
     "compounding_final_simple": _v1_compounded_by_remaining_accrual_frac_except_simple_final_period,
     "compounding_stub_act365f": _v1_comp_stub_act365f,
@@ -265,12 +265,12 @@ V1_FUNCS: dict[str, YTMDiscountFunction] = {
     "simple_long_stub_compounding": _v1_simple_1y_adjustment,
 }
 
-V2_FUNCS: dict[str, YTMDiscountFunction] = {
+V2_FUNCS: dict[str, YtmDiscountFunction] = {
     "regular": _v2_,
     "annual": _v2_annual,
 }
 
-V3_FUNCS: dict[str, YTMDiscountFunction] = {
+V3_FUNCS: dict[str, YtmDiscountFunction] = {
     "compounding": _v3_compounded,
     "simple": _v3_simple,
     "simple_30e360": _v3_30e360_u_simple,

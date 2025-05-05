@@ -43,6 +43,8 @@ from rateslib.periods import (
 from rateslib.periods.utils import _maybe_local
 
 if TYPE_CHECKING:
+    from rateslib.instruments.bonds.conventions.discounting import YtmDiscountFunction
+    from rateslib.instruments.bonds.conventions.accrued import AccrualFunction
     from rateslib.typing import (
         FX_,
         NPV,
@@ -165,9 +167,7 @@ class BondMixin:
         else:
             return settlement > ex_div_date
 
-    def _accrued(
-        self, settlement: datetime, func: Callable[[Any, datetime, int], DualTypes]
-    ) -> DualTypes:
+    def _accrued(self, settlement: datetime, func: AccrualFunction) -> DualTypes:
         """func is the specific accrued function associated with the bond ``calc_mode``"""
         acc_idx = self._period_index(settlement)
         frac = func(self, settlement, acc_idx)
@@ -247,7 +247,7 @@ class BondMixin:
                 f1=calc_mode_._v1,
                 f2=calc_mode_._v2,
                 f3=calc_mode_._v3,
-                accrual=calc_mode_._ytm_acc_frac_func,
+                accrual=calc_mode_._ytm_accrual,
                 curve=curve,
             )
         except KeyError:
@@ -258,10 +258,10 @@ class BondMixin:
         ytm: DualTypes,
         settlement: datetime,
         dirty: bool,
-        f1: Callable[..., DualTypes],
-        f2: Callable[..., DualTypes],
-        f3: Callable[..., DualTypes],
-        accrual: Callable[..., DualTypes],
+        f1: YtmDiscountFunction,
+        f2: YtmDiscountFunction,
+        f3: YtmDiscountFunction,
+        accrual: AccrualFunction,
         curve: CurveOption_,
     ) -> DualTypes:
         """
@@ -354,7 +354,7 @@ class BondMixin:
         convention_ = _drb(defaults.convention, convention)
         dcf_ = dcf(settlement, forward_settlement, convention_)
         if not dirty:
-            d_price = price + self._accrued(settlement, self.calc_mode._settle_acc_frac_func)
+            d_price = price + self._accrued(settlement, self.calc_mode._settle_accrual)
         else:
             d_price = price
         if self.leg1.amortization != 0:
@@ -402,7 +402,7 @@ class BondMixin:
             return forward_price
         else:
             return forward_price - self._accrued(
-                forward_settlement, self.calc_mode._settle_acc_frac_func
+                forward_settlement, self.calc_mode._settle_accrual
             )
 
     def repo_from_fwd(
@@ -446,9 +446,9 @@ class BondMixin:
         # forward price from repo is linear in repo_rate so reverse calculate with AD
         if not dirty:
             p_t = forward_price + self._accrued(
-                forward_settlement, self.calc_mode._settle_acc_frac_func
+                forward_settlement, self.calc_mode._settle_accrual
             )
-            p_0 = price + self._accrued(settlement, self.calc_mode._settle_acc_frac_func)
+            p_0 = price + self._accrued(settlement, self.calc_mode._settle_accrual)
         else:
             p_t, p_0 = forward_price, price
 
@@ -1360,7 +1360,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
            \\text{Accrued} = \\text{Coupon} \\times \\frac{\\text{Settle - Last Coupon}}{\\text{Next Coupon - Last Coupon}}
 
         """  # noqa: E501
-        return self._accrued(settlement, self.calc_mode._settle_acc_frac_func)
+        return self._accrued(settlement, self.calc_mode._settle_accrual)
 
     def rate(
         self,
@@ -2270,7 +2270,7 @@ class Bill(FixedRateBond):
         -------
         float, Dual, or Dual2
         """
-        acc_frac = self.calc_mode._settle_acc_frac_func(self, settlement, 0)
+        acc_frac = self.calc_mode._settle_accrual(self, settlement, 0)
         dcf = (1 - acc_frac) * self.dcf
         return ((100 / price - 1) / dcf) * 100
 
@@ -2289,7 +2289,7 @@ class Bill(FixedRateBond):
         -------
         float, Dual, or Dual2
         """
-        acc_frac = self.calc_mode._settle_acc_frac_func(self, settlement, 0)
+        acc_frac = self.calc_mode._settle_accrual(self, settlement, 0)
         dcf = (1 - acc_frac) * self.dcf
         rate = ((1 - price / 100) / dcf) * 100
         return rate
@@ -2334,12 +2334,12 @@ class Bill(FixedRateBond):
         return price_func(rate, settlement)  # type: ignore[no-any-return]
 
     def _price_discount(self, rate: DualTypes, settlement: datetime) -> DualTypes:
-        acc_frac = self.calc_mode._settle_acc_frac_func(self, settlement, 0)
+        acc_frac = self.calc_mode._settle_accrual(self, settlement, 0)
         dcf = (1 - acc_frac) * self.dcf
         return 100 - rate * dcf
 
     def _price_simple(self, rate: DualTypes, settlement: datetime) -> DualTypes:
-        acc_frac = self.calc_mode._settle_acc_frac_func(self, settlement, 0)
+        acc_frac = self.calc_mode._settle_accrual(self, settlement, 0)
         dcf = (1 - acc_frac) * self.dcf
         return 100 / (1 + rate * dcf / 100)
 
@@ -2813,7 +2813,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         """  # noqa: E501
         if self.leg1.fixing_method == "ibor":
             acc_idx = self._period_index(settlement)
-            frac = self.calc_mode._settle_acc_frac_func(self, settlement, acc_idx)
+            frac = self.calc_mode._settle_accrual(self, settlement, acc_idx)
             if self.ex_div(settlement):
                 frac = frac - 1  # accrued is negative in ex-div period
 
