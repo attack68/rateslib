@@ -67,7 +67,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
        entry to the SABR function before interpolating for the given expiry.
        (`757 <https://github.com/attack68/rateslib/pull/757>`_)
 
-1.8.0 (22 April 2025)
+1.8.0 (22nd April 2025)
 ****************************
 
 .. list-table::
