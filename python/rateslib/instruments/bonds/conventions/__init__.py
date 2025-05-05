@@ -18,11 +18,17 @@ class BondCalcMode:
 
     Parameters
     ----------
-    settle_accrual_type: str,
+    settle_accrual_type: str or Callable
         The calculation type for accrued interest for physical settlement.
-    ytm_accrual_type: str
+        If providing a custom function, it must accept three arguments:
+        `(bond object, settlement, accrual index)` and return a float in [0,1] which is the
+        fraction of the bond cashflow that is attributed to the settlement date.
+    ytm_accrual_type: str or Callable
         The calculation method for accrued interest used in the YTM formula. Often the same
         as above but not always (e.g. Canadian GBs).
+        If providing a custom function, it must accept three arguments:
+        `(bond object, settlement, accrual index)` and return a float in [0,1] which is the
+        fraction of the bond cashflow that is attributed to the settlement date.
     v1_type: str
         The calculation function that defines discounting of the first period of the YTM formula.
     v2_type: str
@@ -147,19 +153,32 @@ class BondCalcMode:
         v2_type: str,
         v3_type: str,
     ):
-        self._settle_acc_frac_func = ACC_FRAC_FUNCS[settle_accrual_type.lower()]
-        self._ytm_acc_frac_func = ACC_FRAC_FUNCS[ytm_accrual_type.lower()]
+        self._kwargs: dict[str, str] = {}
+        if isinstance(settle_accrual_type, str):
+            self._settle_acc_frac_func = ACC_FRAC_FUNCS[settle_accrual_type.lower()]
+            self._kwargs["settle_accrual"] = settle_accrual_type
+        else:
+            self._settle_acc_frac_func = settle_accrual_type
+            self._kwargs["settle_accrual"] = "custom"
+
+        if isinstance(ytm_accrual_type, str):
+            self._ytm_acc_frac_func = ACC_FRAC_FUNCS[ytm_accrual_type.lower()]
+            self._kwargs["ytm_accrual"] = ytm_accrual_type
+        else:
+            self._ytm_acc_frac_func = ytm_accrual_type
+            self._kwargs["ytm_accrual"] = "custom"
+
         self._v1 = V1_FUNCS[v1_type.lower()]
         self._v2 = V2_FUNCS[v2_type.lower()]
         self._v3 = V3_FUNCS[v3_type.lower()]
 
-        self._kwargs: dict[str, str] = {
-            "settle_accrual": settle_accrual_type,
-            "ytm_accrual": ytm_accrual_type,
-            "v1": v1_type,
-            "v2": v2_type,
-            "v3": v3_type,
-        }
+        self._kwargs.update(
+            {
+                "v1": v1_type,
+                "v2": v2_type,
+                "v3": v3_type,
+            }
+        )
 
     @property
     def kwargs(self) -> dict[str, str]:
