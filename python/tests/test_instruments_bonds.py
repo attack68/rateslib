@@ -107,7 +107,7 @@ class TestBondCalcMode:
             ytm_accrual_type=_my_acc,
             v1_type=_v,
             v2_type=_v,
-            v3_type=_v
+            v3_type=_v,
         )
 
         bond = FixedRateBond(
@@ -122,8 +122,6 @@ class TestBondCalcMode:
         for date in [dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 11, 1), dt(2001, 6, 1)]:
             result = bond.price(ytm=2.0, settlement=dt(2000, 1, 1))
             assert abs(result - 100.0) < 1e-10
-
-
 
 
 class TestFixedRateBond:
