@@ -87,7 +87,7 @@ def _acc_linear_proportion_by_days_long_stub_split(
                 s_u = (obj.leg1.schedule.uschedule[acc_idx + 1] - quasi_coupon).days
                 r_bar_u = (quasi_coupon - obj.leg1.schedule.uschedule[acc_idx]).days
 
-            return (r_bar_u / s_bar_u + r_u / s_u) / (obj.leg1.periods[acc_idx].dcf * f)
+            return (r_bar_u / s_bar_u + r_u / s_u) / (obj.leg1.periods[acc_idx].dcf * f)  # type: ignore[union-attr]
 
     return _acc_linear_proportion_by_days(obj, settlement, acc_idx, *args)
 
