@@ -7,7 +7,7 @@ from rateslib.calendars import dcf
 
 if TYPE_CHECKING:
     from rateslib.instruments.bonds.conventions.accrued import AccrualFunction
-    from rateslib.typing import BondMixin, DualTypes, Security
+    from rateslib.typing import BondMixin, CurveOption_, DualTypes, Security
 
 """
 The calculations for v2 (the interim, regular period discount value) are more standardised
@@ -16,7 +16,7 @@ than the other calculations because they exclude the scenarios for stub handling
 
 
 class YtmDiscountFunction(Protocol):
-    # Callable Type for discount functions
+    # Callable Type for discount functions in YTM formula
     def __call__(
         self,
         obj: Security | BondMixin,
@@ -26,6 +26,20 @@ class YtmDiscountFunction(Protocol):
         acc_idx: int,
         v2: DualTypes,
         accrual: AccrualFunction,
+    ) -> DualTypes: ...
+
+
+class CashflowFunction(Protocol):
+    # Callable Type for cashflow generation in YTM formula
+    def __call__(
+        self,
+        obj: Security | BondMixin,
+        ytm: DualTypes,
+        f: int,
+        acc_idx: int,
+        p_idx: int,
+        n: int,
+        curve: CurveOption_,
     ) -> DualTypes: ...
 
 
@@ -281,4 +295,42 @@ V3_FUNCS: dict[str, YtmDiscountFunction] = {
     "compounding": _v3_compounded,
     "simple": _v3_simple,
     "simple_30e360": _v3_30e360_u_simple,
+}
+
+
+def _c_from_obj(
+    obj: Security | BondMixin,
+    ytm: DualTypes,
+    f: int,
+    acc_idx: int,
+    p_idx: int,
+    n: int,
+    curve: CurveOption_,
+) -> DualTypes:
+    """
+    Return the cashflow as it has been calculated directly on the object according to the
+    native schedule and conventions, for the specified period index.
+    """
+    return obj._period_cashflow(obj.leg1._regular_periods[p_idx], curve)  # type: ignore[arg-type]
+
+
+def _c_full_coupon(
+    obj: Security | BondMixin,
+    ytm: DualTypes,
+    f: int,
+    acc_idx: int,
+    p_idx: int,
+    n: int,
+    curve: CurveOption_,
+) -> DualTypes:
+    """
+    Ignore the native schedule and conventions and return an amount based on the period
+    notional, the bond coupon, and the bond frequency.
+    """
+    return -obj.leg1._regular_periods[p_idx].notional * obj.fixed_rate / (100 * f)  # type: ignore[operator, union-attr]
+
+
+C_FUNCS: dict[str, CashflowFunction] = {
+    "cashflow": _c_from_obj,
+    "full_coupon": _c_full_coupon,
 }
