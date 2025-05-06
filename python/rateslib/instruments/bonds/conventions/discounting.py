@@ -254,7 +254,13 @@ def _v3_simple(
     v2: DualTypes,
     accrual: AccrualFunction,
 ) -> DualTypes:
-    v_ = 1 / (1 + obj.leg1.periods[-2].dcf * ytm / 100.0)  # type: ignore[union-attr]
+    if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
+        # is a stub so must account for discounting in a different way.
+        fd0 = obj.leg1.periods[acc_idx].dcf * f  # type: ignore[union-attr]
+    else:
+        fd0 = 1.0
+
+    v_ = 1 / (1 + fd0 * ytm / (100 * f))
     return v_
 
 

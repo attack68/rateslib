@@ -92,8 +92,8 @@ class BondCalcMode:
          \\xi = (\\bar{r}_u / \\bar{s}_u + r_u / s_u) / ( d_i * f )
       
     - ``30u360`` and ``30e360``: For **stubs** this method reverts to ``linear_days``. Otherwise,
-      determines the remaining part of the coupon period from settlement and deducts this 
-      from the full accrual fraction.
+      determines the DCF, under the required convention, of the remaining part of the coupon 
+      period from settlement and deducts this from the full accrual fraction.
       
       .. math::
       
@@ -219,10 +219,17 @@ class BondCalcMode:
 
     **v3** Functions
 
-    - "compounding"
-    - "simple"
-    - "simple_30e360": the final period uses simple interest with a DCF calculated
+    *v3* functions will never have a settlement mid period, and are only used in the case
+    of 2 or more remaining coupon periods. The available functions are:
+
+    - ``compounding``: is identical to *v1 compounding* where :math:`\\xi_y` is set to zero.
+    - ``simple``: is identical to *v1 simple* where :math:`\\xi_y` is set to zero.
+    - ``simple_30e360``: the final period uses simple interest with a DCF calculated
       under 30e360 convention, irrespective of the bond's underlying convention.
+      
+      .. math::
+      
+         v_3 = \\frac{1}{1+\\bar{d}_i y}
 
     **Custom discount functions** can also be supplied where the input arguments signature
     is shown in the below example. It should return a discount factor. The example
@@ -230,7 +237,15 @@ class BondCalcMode:
 
     .. ipython:: python
 
-       def _v2_(obj, ytm, f, settlement, acc_idx, v2, accrual):
+       def _v2_(
+           obj,         # the bond object
+           ytm,         # y as defined
+           f,           # f as defined
+           settlement,  # datetime
+           acc_idx,     # the index of the period in which settlement occurs
+           v2,          # the numeric value of v2 already calculated
+           accrual,     # the ytm_accrual function to return accrual fractions
+       ):
            return 1 / (1 + ytm / (100 * f))
 
     """  # noqa: E501
