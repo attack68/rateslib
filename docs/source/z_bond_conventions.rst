@@ -10,8 +10,8 @@
    import numpy as np
    from pandas import DataFrame, option_context
 
-How to customise FixedRateBond conventions
-******************************************************
+Understanding and customising FixedRateBond conventions
+********************************************************
 
 There are hundreds of bond conventions in use across different sectors and geographies.
 *Rateslib* tries to provide a framework general enough to catch the most used conventions
@@ -54,13 +54,13 @@ These are visible directly in the *default dict* for a US government bond.
    from rateslib import defaults
    defaults.spec["us_gb"]
 
-One observes that the ``calc_mode`` here is also consistent for a *"us_gb"*.
+One observes that the ``calc_mode`` here is also consistent for a *"us_gb"*, which we review later.
 
 Regular scheduling parameters
 -------------------------------
 
 Sometimes multiple scheduling parameters can result in the same cashflow periods.
-For example, the below bond does not define any holidays in its calendar so no modification are
+For example, the below bond does not define any holidays in its calendar so no modifications are
 made to coupon dates. But that also means payment dates are not adjusted to real
 business days either.
 
@@ -70,7 +70,7 @@ business days either.
    bond.cashflows()
 
 A better configuration (which is reflected in *rateslib* defaults) is to directly specify
-no *modifier* with an appropriate holiday calendar to adjust payments.
+a *modifier* of *"none"* but with an appropriate holiday calendar to adjust physical payment dates.
 
 .. ipython:: python
 
@@ -81,9 +81,10 @@ no *modifier* with an appropriate holiday calendar to adjust payments.
 Calculation modes
 -------------------
 
-The ``calc_mode`` argument allows a string input for a
+The ``calc_mode`` argument is the element that gives more direct control of calculations.
+It allows a string input for a
 :class:`~rateslib.instruments.bonds.conventions.BondCalcMode` that is predefined, *or*
-a user can defined their own.
+a user can define their own.
 
 For the above US Treasury Bond the *calculation mode* is preconfigured and has the
 following representation:
@@ -104,4 +105,81 @@ representation:
 A :class:`~rateslib.instruments.bonds.conventions.BondCalcMode` can be directly constructed
 and passed as the ``calc_mode`` in the *FixedRateBond* initialisation.
 The relevant properties of the construction are explained on the documentation page for that
-object. Some
+object. It contains all of the necessary formulae to achieve the desired results.
+
+Example implementation
+------------------------
+
+*Rateslib* has **not** implemented Thai Government Bonds by default, but let's suppose we want to
+construct one. The calculation for these types of bonds were found in a document on the Thai
+Bond Market Association website (:download:`pdf copy <_static/thai_bond_formula.pdf>`)
+
+An example (A-3) is given which provides actionable tests. The ``convention`` for Thai GBs uses
+Act365F and the accrued interest matches this convention with Act365F so a ``linear_days`` accrual
+function will return an accrual fraction that determines the correct accrued interest. Noting
+
+.. math::
+
+   \\underbrace{\\frac{r_u}{s_u}}_{\\text{accrual fraction}} \\underbrace{\\frac{s_u}{365} C}_{\\text{cashflow}} = \\frac{r_u}{365} C
+
+Since ``linear_days`` is the default the correct amount of accrued interest should be returned
+by default when constructing a bond with Act365F convention. The document example
+gives an accrued interest calculation of 4.86986301. *Rateslib* gives the following:
+
+.. ipython:: python
+
+   bond = FixedRateBond(
+       effective=dt(1991, 1, 15),
+       termination=dt(1996, 4, 30),
+       stub="shortback",
+       frequency="S",
+       roll=15,
+       convention="act365f",
+       modifier="none",
+       currency="thb",
+       calendar="bus",
+   )
+   bond.accrued(settlement=dt(1994, 12, 20))
+
+The calculations for YTM are not as straightforward. The example gives the clean price for
+a YTM of 8.75% to be 103.1099263, however, *rateslib* default calculation mode returns:
+
+.. ipython:: python
+
+   bond.price(ytm=8.75, settlement=dt(1994, 12, 20))
+
+From the YTM formula this is due to the discount functions, *v1* and *v3* handling the days in the
+stubs. These must be implemented directly.
+
+.. ipython:: python
+
+   def _v1_thb_gb(
+       obj,         # the bond object
+       ytm,         # y as defined
+       f,           # f as defined
+       settlement,  # datetime
+       acc_idx,     # the index of the period in which settlement occurs
+       v2,          # the numeric value of v2 already calculated
+       accrual,     # the ytm_accrual function to return accrual fractions
+   ):
+       r_u = (settlement - obj.leg1.schedule.uschedule[acc_idx]).days
+       return v2 ** (r_u / 365)
+
+.. ipython::
+
+
+If we look at what is called a *"Straight bond (normal)"* in this document we can rearrange the
+formula as follows, using *rateslib's* notation:
+
+.. math::
+
+   & P = v_1 \\left ( \\sum_{i=1}^{n-1} c_i v_2^{i-1} + c_nv_2^{n-2}v_3 + 100 v_2^{n-2}v_3 \\right ) \\\\
+   & \\text{where,}} \\\\
+   & v_1 = \\left ( \\frac{1}{1+y/f} \\right )^{\\bar{d}_u f} \\\\
+   & v_2 = \\frac{1}{1+y/f} \\\\
+   & v_3 = \\frac{1}{1+y/f} \\\\
+
+The day count convention used for the bond cashflows is not specified
+
+
+where :math:`\\bar{d}_u` is calculated with an Act365F convention.
