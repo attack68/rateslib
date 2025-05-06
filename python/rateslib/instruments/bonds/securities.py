@@ -44,8 +44,10 @@ from rateslib.periods.utils import _maybe_local
 
 if TYPE_CHECKING:
     from rateslib.instruments.bonds.conventions.accrued import AccrualFunction
-    from rateslib.instruments.bonds.conventions.discounting import YtmDiscountFunction, \
-        CashflowFunction
+    from rateslib.instruments.bonds.conventions.discounting import (
+        CashflowFunction,
+        YtmDiscountFunction,
+    )
     from rateslib.typing import (
         FX_,
         NPV,

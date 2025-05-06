@@ -4,11 +4,14 @@ from typing import TYPE_CHECKING
 
 from rateslib import defaults
 from rateslib.instruments.bonds.conventions.accrued import ACC_FRAC_FUNCS
-from rateslib.instruments.bonds.conventions.discounting import V1_FUNCS, V2_FUNCS, V3_FUNCS, C_FUNCS
+from rateslib.instruments.bonds.conventions.discounting import C_FUNCS, V1_FUNCS, V2_FUNCS, V3_FUNCS
 
 if TYPE_CHECKING:
     from rateslib.instruments.bonds.conventions.accrued import AccrualFunction
-    from rateslib.instruments.bonds.conventions.discounting import YtmDiscountFunction, CashflowFunction
+    from rateslib.instruments.bonds.conventions.discounting import (
+        CashflowFunction,
+        YtmDiscountFunction,
+    )
     from rateslib.typing import Security
 
 
@@ -32,13 +35,13 @@ class BondCalcMode:
     v3_type: str or Callable
         The calculation function that defines discounting of the last period of the YTM formula.
     c1_type: str or Callable
-        The calculation function that determines the cashflow amount in the first period of the 
+        The calculation function that determines the cashflow amount in the first period of the
         YTM formula.
     ci_type: str or Callable
         The calculation function that determines the cashflow amount in the interim periods of the
         YTM formula.
     cn_type: str or Callable
-        The calculation function that determines the cashflow amount in the final period of the 
+        The calculation function that determines the cashflow amount in the final period of the
         YTM formula.
 
     Notes
@@ -282,8 +285,26 @@ class BondCalcMode:
         self._kwargs: dict[str, str] = {}
         for name, func, _map in zip(
             ["settle_accrual", "ytm_accrual", "v1", "v2", "v3", "c1", "ci", "cn"],
-            [settle_accrual_type, ytm_accrual_type, v1_type, v2_type, v3_type, c1_type, ci_type, cn_type],
-            [ACC_FRAC_FUNCS, ACC_FRAC_FUNCS, V1_FUNCS, V2_FUNCS, V3_FUNCS, C_FUNCS, C_FUNCS, C_FUNCS],
+            [
+                settle_accrual_type,
+                ytm_accrual_type,
+                v1_type,
+                v2_type,
+                v3_type,
+                c1_type,
+                ci_type,
+                cn_type,
+            ],
+            [
+                ACC_FRAC_FUNCS,
+                ACC_FRAC_FUNCS,
+                V1_FUNCS,
+                V2_FUNCS,
+                V3_FUNCS,
+                C_FUNCS,
+                C_FUNCS,
+                C_FUNCS,
+            ],
             strict=False,
         ):
             if isinstance(func, str):

@@ -7,7 +7,7 @@ from rateslib.calendars import dcf
 
 if TYPE_CHECKING:
     from rateslib.instruments.bonds.conventions.accrued import AccrualFunction
-    from rateslib.typing import BondMixin, DualTypes, Security, CurveOption_
+    from rateslib.typing import BondMixin, CurveOption_, DualTypes, Security
 
 """
 The calculations for v2 (the interim, regular period discount value) are more standardised
@@ -311,7 +311,7 @@ def _c_from_obj(
     Return the cashflow as it has been calculated directly on the object according to the
     native schedule and conventions, for the specified period index.
     """
-    return obj._period_cashflow(obj.leg1._regular_periods[p_idx], curve)
+    return obj._period_cashflow(obj.leg1._regular_periods[p_idx], curve)  # type: ignore[arg-type]
 
 
 C_FUNCS: dict[str, CashflowFunction] = {
