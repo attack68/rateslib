@@ -431,7 +431,7 @@ class TestFixedRateBond:
             stub="longfront",
             spec="us_gb",
             fixed_rate=7.875,
-            notional=-7000
+            notional=-7000,
         )
         assert abs(note.leg1.periods[0].cashflow - 386.474184670) < 5e-7
 

@@ -42,30 +42,30 @@ class BondCalcMode:
     - :math:`\\xi`: The **accrual fraction** is a float, typically, in [0, 1] which defines the
       amount of a bond's current cashflow period that is paid at *settlement* as accrued interest.
     - :math:`\\xi_y`: The **accrual fraction** determined in a secondary method, used only in YTM
-      calculations and **not** for physical settlement. 
-      (Almost always :math:`\\xi_y` and :math:`\\xi` are the same, for an exception see 
+      calculations and **not** for physical settlement.
+      (Almost always :math:`\\xi_y` and :math:`\\xi` are the same, for an exception see
       Canadian GBs)
-    - :math:`r_u`: The number of calendar days between the last (unadjusted) coupon date and 
+    - :math:`r_u`: The number of calendar days between the last (unadjusted) coupon date and
       settlement. If a **long stub** this is either; zero if settlement falls before the
-      (unadjusted) quasi-coupon date, or the number of calendar days between 
-      those dates. 
+      (unadjusted) quasi-coupon date, or the number of calendar days between
+      those dates.
     - :math:`s_u`: The number of calendar days between the last (unadjusted) coupon date and the
-      next (unadjusted) coupon date, i.e the number of calendar days in the (unadjusted) coupon 
-      period. If a **long stub** this is the number of calendar days in the (unadjusted) 
+      next (unadjusted) coupon date, i.e the number of calendar days in the (unadjusted) coupon
+      period. If a **long stub** this is the number of calendar days in the (unadjusted)
       quasi-coupon period.
     - :math:`\\bar{r}_u`: If a **long stub**, the number of calendar days between the accrual
-      effective date and either; the next (unadjusted) quasi-coupon date, or settlement date, 
-      whichever is earliest.     
+      effective date and either; the next (unadjusted) quasi-coupon date, or settlement date,
+      whichever is earliest.
     - :math:`\\bar{s}_u`: If a **long stub**, the number of calendar days between the prior
       (unadjusted) quasi-coupon date and the (unadjusted) next quasi-coupon date surrounding the
       accrual effective date.
-    - :math:`d_i`: The full DCF of coupon period, *i*, calculated with the convention which 
+    - :math:`d_i`: The full DCF of coupon period, *i*, calculated with the convention which
       determines the physical cashflows.
-    - :math:`f`: The frequency of the coupon as integer, 1-annually, 2-semi, 3-tertiary, 
+    - :math:`f`: The frequency of the coupon as integer, 1-annually, 2-semi, 3-tertiary,
       4-quarterly, 6-bi-monthly, 12-monthly.
     - :math:`\\bar{d}_u`: The DCF between settlement and the next (unadjusted) coupon date
-      determined with the convention of the accrual function (which may be different to the 
-      convention for determining physical bond cashflows)  
+      determined with the convention of the accrual function (which may be different to the
+      convention for determining physical bond cashflows)
     - :math:`c_i`: A coupon cashflow monetary amount, **per 100 nominal**, for coupon period, *i*.
     - :math:`y`: The yield-to-maturity for a given bond. The expression of which, i.e. annually
       or semi-annually is derived from the calculation context.
@@ -75,7 +75,7 @@ class BondCalcMode:
     Accrual functions must be supplied to the ``settle_accrual_type`` and ``ytm_accrual_type``
     arguments, and must output **accrual fractions**. The available values are:
 
-    - ``linear_days``: A calendar day, linear proportion used in any period. 
+    - ``linear_days``: A calendar day, linear proportion used in any period.
       (Used by UK and German GBs).
     
       .. math::
@@ -83,7 +83,7 @@ class BondCalcMode:
          \\xi = r_u / s_u
     
     - ``linear_days_long_front_split``: A modified version of the above which, **only for long
-      stub** periods, uses a different formula treating the first quasi period as part of the 
+      stub** periods, uses a different formula treating the first quasi period as part of the
       long stub differently. This adjustment is then scaled according to the length of the period.
       (Treasury method for US Treasuries, see Section 31B ii A.356, Code of Federal Regulations)
       
@@ -92,7 +92,7 @@ class BondCalcMode:
          \\xi = (\\bar{r}_u / \\bar{s}_u + r_u / s_u) / ( d_i * f )
       
     - ``30u360`` and ``30e360``: For **stubs** this method reverts to ``linear_days``. Otherwise,
-      determines the DCF, under the required convention, of the remaining part of the coupon 
+      determines the DCF, under the required convention, of the remaining part of the coupon
       period from settlement and deducts this from the full accrual fraction.
       
       .. math::
@@ -128,19 +128,19 @@ class BondCalcMode:
     .. math::
     
        &AI = \\xi c_i \\qquad \\text{if not ex-dividend} \\\\
-       &AI = (\\xi - 1) c_i \\qquad \\text{if ex-dividend} \\\\       
+       &AI = (\\xi - 1) c_i \\qquad \\text{if ex-dividend} \\\\
        
     And accrued interest for the purpose of YTM calculations, :math:`AI_y`, is:
     
     .. math::
     
        &AI_y = \\xi_y c_i \\qquad \\text{if not ex-dividend} \\\\
-       &AI_y = (\\xi_y - 1) c_i \\qquad \\text{if ex-dividend} \\\\   
+       &AI_y = (\\xi_y - 1) c_i \\qquad \\text{if ex-dividend} \\\\
 
     **Discounting Functions for YTM Calculation**
 
-    Yield-to-maturity is calculated using the below formula, where specific discounting functions 
-    must be provided to determine values based on the conventions of a given bond. 
+    Yield-to-maturity is calculated using the below formula, where specific discounting functions
+    must be provided to determine values based on the conventions of a given bond.
     The below formula outlines the
     cases where the number of remaining coupons are 1, 2, or generically >=2.
 
@@ -166,7 +166,7 @@ class BondCalcMode:
     *v2* forms the core, regular part of discounting the cashflows. These coupon periods are
     never stubs. The available functions are described below:
 
-    - ``regular``: uses the traditional discounting function matching the actual frequency of 
+    - ``regular``: uses the traditional discounting function matching the actual frequency of
       coupons:
 
       .. math::
@@ -181,7 +181,7 @@ class BondCalcMode:
 
     **v1** Functions
 
-    *v1* may or may not be dependent upon *v2*. 
+    *v1* may or may not be dependent upon *v2*.
     The available functions for determining *v1* are described below:
     
     - ``compounding``: one of most common conventions. If a **stub** then scaled by the length of
@@ -200,21 +200,21 @@ class BondCalcMode:
 
     - ``compounding_final_simple``: uses *'compounding'*, unless settlement occurs in the final
       period of the bond (and in which case n=1) and then the *'simple'* method is applied.
-    - ``compounding_stub_act365f``: uses *'compounding'*, unless settlement occurs in a stub 
+    - ``compounding_stub_act365f``: uses *'compounding'*, unless settlement occurs in a stub
       period in which case Act365F convention derives the exponent.
       
       .. math::
       
          v_1 = v_2^{\\bar{d}_u}
-   
-    - ``simple_long_stub_compounding``: uses *'simple'* formula **except** for long stubs, 
+
+    - ``simple_long_stub_compounding``: uses *'simple'* formula **except** for long stubs,
       and the calculation is only different if settlement falls before the quasi-coupon.
       If settlement occurs before the quasi-coupon date then the entire quasi-coupon period
       applies regular *v2* discounting, and the preliminary component has *simple* method
       applied.
       
-      .. math:: 
-      
+      .. math::
+
          v_1 = \\left \\{ \\begin{matrix} v_2 \\frac{1}{1 + [f d_i(1 - \\xi_y) - 1] y / f} & \\text{if settlement before quasi-coupon} \\\\ \\frac{1}{1 + f d_i (1-\\xi_y) y / f}  & \\text{if settlement after quasi-coupon} \\\\ \\end{matrix} \\right .
 
     **v3** Functions
@@ -228,7 +228,7 @@ class BondCalcMode:
       under 30e360 convention, irrespective of the bond's underlying convention.
       
       .. math::
-      
+
          v_3 = \\frac{1}{1+\\bar{d}_i y}
 
     **Custom discount functions** can also be supplied where the input arguments signature
@@ -248,7 +248,7 @@ class BondCalcMode:
        ):
            return 1 / (1 + ytm / (100 * f))
 
-    """  # noqa: E501
+    """  # noqa: E501, W293
 
     _settle_accrual: AccrualFunction
     _ytm_accrual: AccrualFunction
