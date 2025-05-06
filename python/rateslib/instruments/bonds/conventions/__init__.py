@@ -241,7 +241,7 @@ class BondCalcMode:
       
       .. math::
 
-         v_3 = \\frac{1}{1+\\bar{d}_i y}
+         v_3 = \\frac{1}{1+\\bar{d}_n y}
 
     **Custom discount functions** can also be supplied where the input arguments signature
     is shown in the below example. It should return a discount factor. The example
@@ -269,7 +269,7 @@ class BondCalcMode:
     i.e. *coupon / frequency*. Since this is by definition under the *ActActICMA* convention
     and unadjusted *30360* will also tend to return standardised coupons.
     
-    However, some bond conventions use a *convention* which does not lead to standardised
+    However, some bonds use a *convention* which does not lead to standardised
     coupons, but have YTM formula definitions which do require standardised coupons. An example
     is Thai Government Bonds.
     
