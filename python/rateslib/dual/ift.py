@@ -143,6 +143,7 @@ def ift_1dim(
     g0, f0, state, *hargs = h_(s, s0_, conv_tol, *float_ini_hargs)  # type: ignore[call-arg, arg-type]
     while i < max_iter:
         if state == 1:
+            g1 = g0
             break
         elif state == -2:
             if raise_on_fail:

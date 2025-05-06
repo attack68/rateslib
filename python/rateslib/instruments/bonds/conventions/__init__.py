@@ -7,6 +7,8 @@ from rateslib.instruments.bonds.conventions.accrued import ACC_FRAC_FUNCS
 from rateslib.instruments.bonds.conventions.discounting import V1_FUNCS, V2_FUNCS, V3_FUNCS
 
 if TYPE_CHECKING:
+    from rateslib.instruments.bonds.conventions.accrued import AccrualFunction
+    from rateslib.instruments.bonds.conventions.discounting import YtmDiscountFunction
     from rateslib.typing import Security
 
 
@@ -18,77 +20,129 @@ class BondCalcMode:
 
     Parameters
     ----------
-    settle_accrual_type: str,
-        The calculation type for accrued interest for physical settlement.
-    ytm_accrual_type: str
+    settle_accrual_type: str or Callable
+        The calculation type for accrued interest for physical settlement. See notes.
+    ytm_accrual_type: str or Callable
         The calculation method for accrued interest used in the YTM formula. Often the same
-        as above but not always (e.g. Canadian GBs).
-    v1_type: str
+        as above but not always (e.g. Canadian GBs). See notes.
+    v1_type: str or Callable
         The calculation function that defines discounting of the first period of the YTM formula.
-    v2_type: str
+    v2_type: str or Callable
         The calculation function that defines discounting of the regular periods of the YTM formula.
-    v3_type: str
+    v3_type: str or Callable
         The calculation function that defines discounting of the last period of the YTM formula.
 
     Notes
     -------
 
+    **Notation**
+    
+    The following notation is used in this section:
+    
+    - :math:`\\xi`: The **accrual fraction** is a float, typically, in [0, 1] which defines the
+      amount of a bond's current cashflow period that is paid at *settlement* as accrued interest.
+    - :math:`\\xi_y`: The **accrual fraction** determined in a secondary method, used only in YTM
+      calculations and **not** for physical settlement.
+      (Almost always :math:`\\xi_y` and :math:`\\xi` are the same, for an exception see
+      Canadian GBs)
+    - :math:`r_u`: The number of calendar days between the last (unadjusted) coupon date and
+      settlement. If a **long stub** this is either; zero if settlement falls before the
+      (unadjusted) quasi-coupon date, or the number of calendar days between
+      those dates.
+    - :math:`s_u`: The number of calendar days between the last (unadjusted) coupon date and the
+      next (unadjusted) coupon date, i.e the number of calendar days in the (unadjusted) coupon
+      period. If a **long stub** this is the number of calendar days in the (unadjusted)
+      quasi-coupon period.
+    - :math:`\\bar{r}_u`: If a **long stub**, the number of calendar days between the accrual
+      effective date and either; the next (unadjusted) quasi-coupon date, or settlement date,
+      whichever is earliest.
+    - :math:`\\bar{s}_u`: If a **long stub**, the number of calendar days between the prior
+      (unadjusted) quasi-coupon date and the (unadjusted) next quasi-coupon date surrounding the
+      accrual effective date.
+    - :math:`d_i`: The full DCF of coupon period, *i*, calculated with the convention which
+      determines the physical cashflows.
+    - :math:`f`: The frequency of the coupon as integer, 1-annually, 2-semi, 3-tertiary,
+      4-quarterly, 6-bi-monthly, 12-monthly.
+    - :math:`\\bar{d}_u`: The DCF between settlement and the next (unadjusted) coupon date
+      determined with the convention of the accrual function (which may be different to the
+      convention for determining physical bond cashflows)
+    - :math:`c_i`: A coupon cashflow monetary amount, **per 100 nominal**, for coupon period, *i*.
+    - :math:`y`: The yield-to-maturity for a given bond. The expression of which, i.e. annually
+      or semi-annually is derived from the calculation context.
+
     **Accrual Functions**
 
-    These functions return the **fraction** of a bond cashflow that is attributed to the settlement
-    date, in order to determine accrued interest. The available input options are;
+    Accrual functions must be supplied to the ``settle_accrual_type`` and ``ytm_accrual_type``
+    arguments, and must output **accrual fractions**. The available values are:
 
-    - *"linear_days"*: Measures a calendar day, linear proportion between unadjusted start and
-      end coupon dates of the coupon period, and applies that proportion to the cashflow, which is
-      calculated separately using the conventions for the bond. (Typically used by many bonds, e.g.
-      UK and German GBs)
-
+    - ``linear_days``: A calendar day, linear proportion used in any period.
+      (Used by UK and German GBs).
+    
       .. math::
-
-         &\\text{Accrual fraction} = r / s \\\\
-         &\\text{where,} \\\\
-         &r = \\text{Calendar days between last coupon (unadjusted) and settlement} \\\\
-         &s = \\text{Calendar days between unadjusted coupon dates} \\\\
-
-    - *"linear_days_long_front_split"*: Is the same as above, **except** in the case of long
-      stub periods, which are treated as front stubs. (Primarily implemented to satisfy the
-      US Treasury calculations in Section 31B ii A.356)
-    - *"30e360"*: Ignores the coupon convention on the bond and calculates accrued from the
-      unadjusted last coupon date to settlement with a 30e360 day count convention, **except**
-      stubs revert to *'linear_days'*. (Used by Swedish GBs)
-
+      
+         \\xi = r_u / s_u
+    
+    - ``linear_days_long_front_split``: A modified version of the above which, **only for long
+      stub** periods, uses a different formula treating the first quasi period as part of the
+      long stub differently. This adjustment is then scaled according to the length of the period.
+      (Treasury method for US Treasuries, see Section 31B ii A.356, Code of Federal Regulations)
+      
       .. math::
-
-         &\\text{Accrual fraction} =  1 - d f  \\\\
-         &\\text{where,} \\\\
-         &d = \\text{30e360 DCF between settlement and next unadjusted coupon date} \\\\
-         &f = \\text{Number of regular coupon periods per year} \\\\
-
-    - *"30u360"*: Ignores the coupon convention on the bond and calculates accrued from the
-      unadjusted last coupon date to settlement with a 30u360 day count convention, **except**
-      stubs revert to *'linear_days'*.
-
+      
+         \\xi = (\\bar{r}_u / \\bar{s}_u + r_u / s_u) / ( d_i * f )
+      
+    - ``30u360`` and ``30e360``: For **stubs** this method reverts to ``linear_days``. Otherwise,
+      determines the DCF, under the required convention, of the remaining part of the coupon
+      period from settlement and deducts this from the full accrual fraction.
+      
       .. math::
-
-         &\\text{Accrual fraction} =  1 - d f  \\\\
-         &\\text{where,} \\\\
-         &d = \\text{30u360 DCF between settlement and next unadjusted coupon date} \\\\
-         &f = \\text{Number of regular coupon periods per year} \\\\
-    - *"Act365_1y"*: Ignores the coupon convention on the bond and calculates accrued from
-      the unadjusted last coupon date to settlement with an Act365F day count convention. Stub
-      periods are adjusted to use *'linear_days'* and periods longer than 1y have additional
-      adjustment. (Used by Canadian GBs)
-
+      
+         \\xi = 1 - \\bar{d_u} f
+      
+      
+    - ``act365f_1y``: For **stubs** this method reverts to ``linear_days``. Otherwise,
+      determines the accrual fraction using an approach that uses ACT365F convention.
+      (Used by Canadian GBs)
+      
       .. math::
+      
+         \\xi = \\left \\{ \\begin{matrix} 1.0 & \\text{if, } r_u = s_u \\\\ 1.0 - f(s_u - r_u) / 365 & \\text{if, } r_u \\ge 365 / f \\\\ fr_u / 365 & \\text{if, } r_u < 365 / f \\\\ \\end{matrix} \\right .
 
-         & r = s \\qquad \\implies \\quad \\text{Accrual fraction} =  1.0  \\\\
-         & r > 365 / f \\qquad \\implies \\quad \\text{Accrual fraction} =  1.0 - f(s-r) / 365 \\\\
-         & r \\le 365 / f \\qquad \\implies \\quad \\text{Accrual fraction} =  rf / 365 \\\\
+    **Custom accrual functions** can also be supplied where the input arguments signature should
+    accept the bond object, the settlement date, and the index relating to the period in which
+    the relevant coupon period falls. It should return an accrual fraction upto settlement.
+    As an example the code below shows the implementation of the
+    *"linear_days"* accrual function:
+
+    .. ipython:: python
+
+       def _linear_days(obj, settlement, acc_idx, *args) -> float:
+            r_u = (settlement - obj.leg1.schedule.uschedule[acc_idx]).days
+            s_u = (obj.leg1.schedule.uschedule[acc_idx + 1] - obj.leg1.schedule.uschedule[acc_idx]).days
+            return r_u / s_u
+            
+    **Calculation of Accrued Interest**
+    
+    Accrued interest, *AI*, is then calculated according to the following:
+    
+    .. math::
+    
+       &AI = \\xi c_i \\qquad \\text{if not ex-dividend} \\\\
+       &AI = (\\xi - 1) c_i \\qquad \\text{if ex-dividend} \\\\
+       
+    And accrued interest for the purpose of YTM calculations, :math:`AI_y`, is:
+    
+    .. math::
+    
+       &AI_y = \\xi_y c_i \\qquad \\text{if not ex-dividend} \\\\
+       &AI_y = (\\xi_y - 1) c_i \\qquad \\text{if ex-dividend} \\\\
 
     **Discounting Functions for YTM Calculation**
 
-    Yield-to-maturity is calculated using the below formula, where specific functions derive
-    some values based on the conventions of a given bond.
+    Yield-to-maturity is calculated using the below formula, where specific discounting functions
+    must be provided to determine values based on the conventions of a given bond.
+    The below formula outlines the
+    cases where the number of remaining coupons are 1, 2, or generically >=2.
 
     .. math::
 
@@ -107,59 +161,122 @@ class BondCalcMode:
        v_2 &= \\text{Discount value for the interim regular periods} \\\\
        v_3 &= \\text{Discount value for the final, possibly stub, period} \\\\
 
+    **v2** Functions
+    
+    *v2* forms the core, regular part of discounting the cashflows. These coupon periods are
+    never stubs. The available functions are described below:
+
+    - ``regular``: uses the traditional discounting function matching the actual frequency of
+      coupons:
+
+      .. math::
+
+         v_2 = \\frac{1}{1 + y/f}
+
+    - ``annual``: assumes an annually expressed YTM disregarding the actual coupon frequency:
+
+      .. math::
+
+         v_2 = \\left ( \\frac{1}{1 + y} \\right ) ^ {1/f}
+
     **v1** Functions
 
-    - *"compounding"*: the exponent is defined by the generated ytm accrual fraction.
-    - "compounding_stub_act365f": stub exponents use *act365f* convention to derive.
-    - "compounding_final_simple": uses *simple* method only for the final period of the bond.
-    - "simple": calculation uses a simple interest formula.
-    - "simple_long_stub_compounding": uses simple interest formula except for long stubs which
-      are combined with compounding formula for the regular period of the stub.
+    *v1* may or may not be dependent upon *v2*.
+    The available functions for determining *v1* are described below:
+    
+    - ``compounding``: one of most common conventions. If a **stub** then scaled by the length of
+      the stub. At issue, or on a coupon date, for a regular period, *v1* converges to *v2*.
+         
+      .. math::
+      
+         v_1 =  v_2^{g(\\xi_y)}  \\quad \\text{where,} \\quad g(\\xi_y) = \\left \\{ \\begin{matrix} 1-\\xi_y & \\text{if regular,} \\\\ (1-\\xi_y) f d_i & \\text{if stub,} \\\\ \\end{matrix} \\right . \\\\
 
-    **v2** Functions
+    - ``simple``: calculation uses a simple interest formula. At issue, or on a coupon date,
+      for a regular period, *v1* converges to a *'regular'* style *v2*.
+    
+      .. math::
+      
+         v_1 = \\frac{1}{1 + g(\\xi_y) y / f}  \\quad \\text{where, } g(\\xi_y) \\text{ defined as above}
 
-    - *"regular"*: uses the traditional discounting function per the frequency of coupons:
+    - ``compounding_final_simple``: uses *'compounding'*, unless settlement occurs in the final
+      period of the bond (and in which case n=1) and then the *'simple'* method is applied.
+    - ``compounding_stub_act365f``: uses *'compounding'*, unless settlement occurs in a stub
+      period in which case Act365F convention derives the exponent.
+      
+      .. math::
+      
+         v_1 = v_2^{\\bar{d}_u}
 
+    - ``simple_long_stub_compounding``: uses *'simple'* formula **except** for long stubs,
+      and the calculation is only different if settlement falls before the quasi-coupon.
+      If settlement occurs before the quasi-coupon date then the entire quasi-coupon period
+      applies regular *v2* discounting, and the preliminary component has *simple* method
+      applied.
+      
       .. math::
 
-         v_2 = \\frac{1}{1 + \\frac{y}{f}}
-
-    - *"annual"*: assumes an annually expressed YTM disregarding the actual coupon frequency:
-
-      .. math::
-
-         v_2 = \\left ( \\frac{1}{1 + y} \\right ) ^ {\\frac{1}{f}}
+         v_1 = \\left \\{ \\begin{matrix} v_2 \\frac{1}{1 + [f d_i(1 - \\xi_y) - 1] y / f} & \\text{if settlement before quasi-coupon} \\\\ \\frac{1}{1 + f d_i (1-\\xi_y) y / f}  & \\text{if settlement after quasi-coupon} \\\\ \\end{matrix} \\right .
 
     **v3** Functions
 
-    - "compounding"
-    - "simple"
-    - "simple_30e360": the final period uses simple interest with a DCF calculated
-      under 30e360 convention, irrespective of the bond's underlying convention.
+    *v3* functions will never have a settlement mid period, and are only used in the case
+    of 2 or more remaining coupon periods. The available functions are:
 
-    """  # noqa: E501
+    - ``compounding``: is identical to *v1 compounding* where :math:`\\xi_y` is set to zero.
+    - ``simple``: is identical to *v1 simple* where :math:`\\xi_y` is set to zero.
+    - ``simple_30e360``: the final period uses simple interest with a DCF calculated
+      under 30e360 convention, irrespective of the bond's underlying convention.
+      
+      .. math::
+
+         v_3 = \\frac{1}{1+\\bar{d}_i y}
+
+    **Custom discount functions** can also be supplied where the input arguments signature
+    is shown in the below example. It should return a discount factor. The example
+    shows the implementation of the *"regular"* discount function:
+
+    .. ipython:: python
+
+       def _v2_(
+           obj,         # the bond object
+           ytm,         # y as defined
+           f,           # f as defined
+           settlement,  # datetime
+           acc_idx,     # the index of the period in which settlement occurs
+           v2,          # the numeric value of v2 already calculated
+           accrual,     # the ytm_accrual function to return accrual fractions
+       ):
+           return 1 / (1 + ytm / (100 * f))
+
+    """  # noqa: E501, W293
+
+    _settle_accrual: AccrualFunction
+    _ytm_accrual: AccrualFunction
+    _v1: YtmDiscountFunction
+    _v2: YtmDiscountFunction
+    _v3: YtmDiscountFunction
 
     def __init__(
         self,
-        settle_accrual_type: str,
-        ytm_accrual_type: str,
-        v1_type: str,
-        v2_type: str,
-        v3_type: str,
+        settle_accrual_type: str | AccrualFunction,
+        ytm_accrual_type: str | AccrualFunction,
+        v1_type: str | YtmDiscountFunction,
+        v2_type: str | YtmDiscountFunction,
+        v3_type: str | YtmDiscountFunction,
     ):
-        self._settle_acc_frac_func = ACC_FRAC_FUNCS[settle_accrual_type.lower()]
-        self._ytm_acc_frac_func = ACC_FRAC_FUNCS[ytm_accrual_type.lower()]
-        self._v1 = V1_FUNCS[v1_type.lower()]
-        self._v2 = V2_FUNCS[v2_type.lower()]
-        self._v3 = V3_FUNCS[v3_type.lower()]
-
-        self._kwargs: dict[str, str] = {
-            "settle_accrual": settle_accrual_type,
-            "ytm_accrual": ytm_accrual_type,
-            "v1": v1_type,
-            "v2": v2_type,
-            "v3": v3_type,
-        }
+        self._kwargs: dict[str, str] = {}
+        for name, func, _map in zip(
+            ["settle_accrual", "ytm_accrual", "v1", "v2", "v3"],
+            [settle_accrual_type, ytm_accrual_type, v1_type, v2_type, v3_type],
+            [ACC_FRAC_FUNCS, ACC_FRAC_FUNCS, V1_FUNCS, V2_FUNCS, V3_FUNCS],
+            strict=False,
+        ):
+            if isinstance(func, str):
+                setattr(self, f"_{name}", _map[func.lower()])  # type: ignore[index]
+                self._kwargs[name] = func
+            else:
+                setattr(self, f"_{name}", func)
+                self._kwargs[name] = "custom"
 
     @property
     def kwargs(self) -> dict[str, str]:
@@ -206,7 +323,7 @@ class BillCalcMode:
     ):
         self._price_type = price_type
         price_accrual_type = "linear_days"
-        self._settle_acc_frac_func = ACC_FRAC_FUNCS[price_accrual_type.lower()]
+        self._settle_accrual = ACC_FRAC_FUNCS[price_accrual_type.lower()]
         if isinstance(ytm_clone_kwargs, dict):
             self._ytm_clone_kwargs = ytm_clone_kwargs
         else:

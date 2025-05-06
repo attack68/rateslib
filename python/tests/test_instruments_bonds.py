@@ -45,6 +45,85 @@ def curve2():
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
+class TestBondCalcMode:
+    def test_custom_function(self):
+        def _my_acc(*args):
+            return 0.5
+
+        my_calc = BondCalcMode(
+            settle_accrual_type=_my_acc,
+            ytm_accrual_type=_my_acc,
+            v1_type="compounding",
+            v2_type="regular",
+            v3_type="compounding",
+        )
+
+        bond = FixedRateBond(dt(2022, 1, 1), "2y", spec="de_gb", fixed_rate=2.0, calc_mode=my_calc)
+        de_bond = FixedRateBond(
+            dt(2022, 1, 1),
+            "2y",
+            spec="de_gb",
+            fixed_rate=2.0,
+        )
+
+        assert bond.accrued(dt(2022, 2, 4)) == 1.0  # 0.5 * 2.0
+        assert bond.accrued(dt(2022, 2, 4)) != de_bond.accrued(dt(2022, 2, 4))
+
+        assert bond.ytm(100.0, dt(2022, 2, 4)) != de_bond.ytm(100.0, dt(2022, 2, 4))
+
+        assert my_calc.kwargs["settle_accrual"] == "custom"
+        assert my_calc.kwargs["ytm_accrual"] == "custom"
+
+    def test_custom_function_affects_ytm(self):
+        def _my_acc(*args):
+            return 0.4
+
+        my_calc = BondCalcMode(
+            settle_accrual_type="linear_days",
+            ytm_accrual_type=_my_acc,
+            v1_type="compounding_final_simple",
+            v2_type="regular",
+            v3_type="compounding",
+        )
+
+        bond = FixedRateBond(dt(2022, 1, 1), "2y", spec="de_gb", fixed_rate=2.0, calc_mode=my_calc)
+
+        v2 = 1 / (1 + 0.02)
+        v1 = v2 ** (1 - 0.4)
+        expected = 2 * v1 + 102 * v1 * v2 - 0.4 * 2
+        result = bond.price(ytm=2.00, settlement=dt(2022, 1, 1))
+
+        assert abs(result - expected) < 1e-10
+
+    def test_custom_ytm_disc_funcs(self):
+        def _my_acc(*args):
+            return 0.0
+
+        def _v(*args):
+            return 1 / (1 + 0.02)
+
+        calc_mode = BondCalcMode(
+            settle_accrual_type=_my_acc,
+            ytm_accrual_type=_my_acc,
+            v1_type=_v,
+            v2_type=_v,
+            v3_type=_v,
+        )
+
+        bond = FixedRateBond(
+            effective=dt(2000, 1, 1),
+            termination="2y",
+            fixed_rate=2.00,
+            spec="de_gb",
+            calc_mode=calc_mode,
+        )
+
+        # custom funcs give the same clean price of 100 for any date
+        for date in [dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 11, 1), dt(2001, 6, 1)]:
+            result = bond.price(ytm=2.0, settlement=dt(2000, 1, 1))
+            assert abs(result - 100.0) < 1e-10
+
+
 class TestFixedRateBond:
     def test_metric_ytm_no_fx(self) -> None:
         # GH 193
@@ -343,6 +422,18 @@ class TestFixedRateBond:
         accrued = bond.accrued(settlement=s)
         assert abs(accrued - acc) < 1e-6
         assert abs(result - exp) < 1e-5
+
+    def test_long_stub_first_cashflow(self):
+        # test against 31.B.ii.A356.Appendix.B.I.A Example Long First
+        note = FixedRateBond(
+            effective=dt(1990, 12, 3),
+            termination=dt(1996, 2, 15),
+            stub="longfront",
+            spec="us_gb",
+            fixed_rate=7.875,
+            notional=-7000,
+        )
+        assert abs(note.leg1.periods[0].cashflow - 386.474184670) < 5e-7
 
     # Swedish Government Bond Tests. Data from alternative systems.
 
