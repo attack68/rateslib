@@ -149,11 +149,11 @@ class BondCalcMode:
        &AI_y = \\xi_y c_i \\qquad \\text{if not ex-dividend} \\\\
        &AI_y = (\\xi_y - 1) c_i \\qquad \\text{if ex-dividend} \\\\
 
-    **Discounting Functions for YTM Calculation**
+    **YTM Calculation and Required Functions**
 
-    Yield-to-maturity is calculated using the below formula, where specific discounting functions
-    must be provided to determine values based on the conventions of a given bond.
-    The below formula outlines the
+    Yield-to-maturity is calculated using the below formula, where specific discounting and
+    cashflow functions must be provided to determine values based on the conventions of a given
+    bond. The below formula outlines the
     cases where the number of remaining coupons are 1, 2, or generically >=2.
 
     .. math::
