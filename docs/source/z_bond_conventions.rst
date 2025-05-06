@@ -112,18 +112,18 @@ Example implementation
 
 *Rateslib* has **not** implemented Thai Government Bonds by default, but let's suppose we want to
 construct one. The calculation for these types of bonds were found in a document on the Thai
-Bond Market Association website (:download:`pdf copy <_static/thai_bond_formula.pdf>`)
+Bond Market Association website (:download:`pdf copy <_static/thai_standard_formula.pdf>`)
 
 An example (A-3) is given which provides actionable tests. The ``convention`` for Thai GBs uses
-Act365F and the accrued interest matches this convention with Act365F so a ``linear_days`` accrual
-function will return an accrual fraction that determines the correct accrued interest. Noting
+Act365F and the accrued interest matches this convention with Act365F, so a ``linear_days`` accrual
+function will return an accrual fraction that determines the correct accrued interest. Noting,
 
 .. math::
 
-   \\underbrace{\\frac{r_u}{s_u}}_{\\text{accrual fraction}} \\underbrace{\\frac{s_u}{365} C}_{\\text{cashflow}} = \\frac{r_u}{365} C
+   \underbrace{\frac{r_u}{s_u}}_{\text{accrual fraction}} \underbrace{\frac{s_u}{365} C}_{\text{cashflow}} = \frac{r_u}{365} C
 
 Since ``linear_days`` is the default the correct amount of accrued interest should be returned
-by default when constructing a bond with Act365F convention. The document example
+by default when constructing a bond with Act365F convention. The official example
 gives an accrued interest calculation of 4.86986301. *Rateslib* gives the following:
 
 .. ipython:: python
@@ -132,6 +132,7 @@ gives an accrued interest calculation of 4.86986301. *Rateslib* gives the follow
        effective=dt(1991, 1, 15),
        termination=dt(1996, 4, 30),
        stub="shortback",
+       fixed_rate=11.25,
        frequency="S",
        roll=15,
        convention="act365f",
@@ -141,15 +142,17 @@ gives an accrued interest calculation of 4.86986301. *Rateslib* gives the follow
    )
    bond.accrued(settlement=dt(1994, 12, 20))
 
-The calculations for YTM are not as straightforward. The example gives the clean price for
-a YTM of 8.75% to be 103.1099263, however, *rateslib* default calculation mode returns:
+The calculations for YTM are not as straightforward, however. The official example gives the
+clean price for a YTM of 8.75% to be 103.1099263, however, *rateslib* default
+calculation mode returns:
 
 .. ipython:: python
 
    bond.price(ytm=8.75, settlement=dt(1994, 12, 20))
 
-From the YTM formula this is due to the discount functions, *v1* and *v3* handling the days in the
-stubs. These must be implemented directly.
+From the YTM formula this is due to a number of things. Firstly, the discount functions,
+*v1* and *v3* handling the days in the stubs incorrectly by default.
+To match the Thai standard formula, these must be implemented directly.
 
 .. ipython:: python
 
@@ -162,24 +165,52 @@ stubs. These must be implemented directly.
        v2,          # the numeric value of v2 already calculated
        accrual,     # the ytm_accrual function to return accrual fractions
    ):
-       r_u = (settlement - obj.leg1.schedule.uschedule[acc_idx]).days
-       return v2 ** (r_u / 365)
+       """The exponent to the regular discount factor is derived from ACT365F"""
+       r_u = (obj.leg1.schedule.uschedule[acc_idx + 1] - settlement).days
+       return v2 ** (r_u * f / 365)
 
-.. ipython::
+.. ipython:: python
 
+   def _v3_thb_gb(obj, ytm, f, settlement, acc_idx, v2, accrual):
+       """The exponent to the regular discount function is derived from ACT365F"""
+       r_u = (obj.leg1.schedule.uschedule[-1] - obj.leg1.schedule.uschedule[-2]).days
+       return v2 ** (r_u * f / 365)
 
-If we look at what is called a *"Straight bond (normal)"* in this document we can rearrange the
-formula as follows, using *rateslib's* notation:
+Lastly, the Thai formula assumes a standardised coupon payment for the regular flows, whereas
+the actual convention of Act365F does not generate the same, standardised coupon payments
+each period. This is also amended from default by setting the ``ci_type`` to be ``full_coupon``.
 
-.. math::
+With these modifications to the ``calc_mode`` the bond returns exactly that which aligns with
+the official source.
 
-   & P = v_1 \\left ( \\sum_{i=1}^{n-1} c_i v_2^{i-1} + c_nv_2^{n-2}v_3 + 100 v_2^{n-2}v_3 \\right ) \\\\
-   & \\text{where,}} \\\\
-   & v_1 = \\left ( \\frac{1}{1+y/f} \\right )^{\\bar{d}_u f} \\\\
-   & v_2 = \\frac{1}{1+y/f} \\\\
-   & v_3 = \\frac{1}{1+y/f} \\\\
+.. ipython:: python
 
-The day count convention used for the bond cashflows is not specified
+   from rateslib.instruments import BondCalcMode
+   thb_gb = BondCalcMode(
+       settle_accrual_type="linear_days",
+       ytm_accrual_type="linear_days",
+       v1_type=_v1_thb_gb,
+       v2_type="regular",
+       v3_type=_v3_thb_gb,
+       c1_type="cashflow",
+       ci_type="full_coupon",
+       cn_type="cashflow",
+   )
+   bond = FixedRateBond(
+       effective=dt(1991, 1, 15),
+       termination=dt(1996, 4, 30),
+       stub="shortback",
+       fixed_rate=11.25,
+       frequency="S",
+       roll=15,
+       convention="act365f",
+       modifier="none",
+       currency="thb",
+       calendar="bus",
+       calc_mode=thb_gb
+   )
+   bond.accrued(settlement=dt(1994, 12, 20))
 
+.. ipython:: python
 
-where :math:`\\bar{d}_u` is calculated with an Act365F convention.
+   bond.price(ytm=8.75, settlement=dt(1994, 12, 20))
