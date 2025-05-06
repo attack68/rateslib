@@ -277,10 +277,14 @@ class BondCalcMode:
     
     - ``cashflow``: determine the cashflow for the period by using the native cashflow calculation
       under the *schedule* and *convention* on the bond.
-    - ``coupon``:    
+    - ``full_coupon``: determine the cashflow as a full coupon payment, irrespective of period
+      dates, based on the notional of the period and the coupon rate of the bond. This method is 
+      only for fixed rate bonds.
+      
+      .. math::
+      
+         cf = \\frac{-c_i N_i}{f}
     
-    
-
     """  # noqa: E501, W293
 
     _settle_accrual: AccrualFunction
