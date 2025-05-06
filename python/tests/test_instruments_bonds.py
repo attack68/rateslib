@@ -56,6 +56,9 @@ class TestBondCalcMode:
             v1_type="compounding",
             v2_type="regular",
             v3_type="compounding",
+            c1_type="cashflow",
+            ci_type="cashflow",
+            cn_type="cashflow",
         )
 
         bond = FixedRateBond(dt(2022, 1, 1), "2y", spec="de_gb", fixed_rate=2.0, calc_mode=my_calc)
@@ -84,6 +87,9 @@ class TestBondCalcMode:
             v1_type="compounding_final_simple",
             v2_type="regular",
             v3_type="compounding",
+            c1_type="cashflow",
+            ci_type="cashflow",
+            cn_type="cashflow",
         )
 
         bond = FixedRateBond(dt(2022, 1, 1), "2y", spec="de_gb", fixed_rate=2.0, calc_mode=my_calc)
@@ -108,6 +114,9 @@ class TestBondCalcMode:
             v1_type=_v,
             v2_type=_v,
             v3_type=_v,
+            c1_type="cashflow",
+            ci_type="cashflow",
+            cn_type="cashflow",
         )
 
         bond = FixedRateBond(
@@ -1266,6 +1275,9 @@ class TestFixedRateBond:
             v1_type="compounding",
             v2_type="regular",
             v3_type="compounding",
+            c1_type="cashflow",
+            ci_type="cashflow",
+            cn_type="cashflow",
         )
         bond = FixedRateBond(
             effective=dt(2001, 1, 1),
@@ -1640,6 +1652,9 @@ class TestIndexFixedRateBond:
             v1_type="compounding",
             v2_type="regular",
             v3_type="compounding",
+            c1_type="cashflow",
+            ci_type="cashflow",
+            cn_type="cashflow",
         )
         bond = IndexFixedRateBond(
             effective=dt(2001, 1, 1),

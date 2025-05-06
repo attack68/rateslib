@@ -44,7 +44,8 @@ from rateslib.periods.utils import _maybe_local
 
 if TYPE_CHECKING:
     from rateslib.instruments.bonds.conventions.accrued import AccrualFunction
-    from rateslib.instruments.bonds.conventions.discounting import YtmDiscountFunction
+    from rateslib.instruments.bonds.conventions.discounting import YtmDiscountFunction, \
+        CashflowFunction
     from rateslib.typing import (
         FX_,
         NPV,
@@ -247,6 +248,9 @@ class BondMixin:
                 f1=calc_mode_._v1,
                 f2=calc_mode_._v2,
                 f3=calc_mode_._v3,
+                c1=calc_mode_._c1,
+                ci=calc_mode_._ci,
+                cn=calc_mode_._cn,
                 accrual=calc_mode_._ytm_accrual,
                 curve=curve,
             )
@@ -261,6 +265,9 @@ class BondMixin:
         f1: YtmDiscountFunction,
         f2: YtmDiscountFunction,
         f3: YtmDiscountFunction,
+        c1: CashflowFunction,
+        ci: CashflowFunction,
+        cn: CashflowFunction,
         accrual: AccrualFunction,
         curve: CurveOption_,
     ) -> DualTypes:
@@ -278,24 +285,23 @@ class BondMixin:
 
         # Sum up the coupon cashflows discounted by the calculated factors
         d: DualTypes = 0.0
-        for i, p_idx in enumerate(range(acc_idx, self.leg1.schedule.n_periods)):
+        n = self.leg1.schedule.n_periods
+        for i, p_idx in enumerate(range(acc_idx, n)):
             if i == 0 and self.ex_div(settlement):
-                # no coupon cashflow is receiveable so no addition to the sum
+                # no coupon cashflow is receivable so no addition to the sum
                 continue
             elif i == 0 and p_idx == (self.leg1.schedule.n_periods - 1):
                 # the last period is the first period so discounting handled only by v1
-                d += self._period_cashflow(self.leg1._regular_periods[p_idx], curve) * v1
+                cf1 = c1(self, ytm, f, acc_idx, p_idx, n, curve)
+                d += cf1 * v1
             elif p_idx == (self.leg1.schedule.n_periods - 1):
                 # this is last period, but it is not the first (i>0). Tag on v3 at end.
-                d += (
-                    self._period_cashflow(self.leg1._regular_periods[p_idx], curve)
-                    * v2 ** (i - 1)
-                    * v3
-                    * v1
-                )
+                cfn = cn(self, ytm, f, acc_idx, p_idx, n, curve)
+                d += cfn * v2 ** (i - 1) * v3 * v1
             else:
                 # this is not the first and not the last period. Discount only with v1 and v2.
-                d += self._period_cashflow(self.leg1._regular_periods[p_idx], curve) * v2**i * v1
+                cfi = c1(self, ytm, f, acc_idx, p_idx, n, curve)
+                d += cfi * v2**i * v1
 
         # Add the redemption payment discounted by relevant factors
         redemption: Cashflow | IndexCashflow = self.leg1._exchange_periods[1]  # type: ignore[assignment]

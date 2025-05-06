@@ -4,11 +4,11 @@ from typing import TYPE_CHECKING
 
 from rateslib import defaults
 from rateslib.instruments.bonds.conventions.accrued import ACC_FRAC_FUNCS
-from rateslib.instruments.bonds.conventions.discounting import V1_FUNCS, V2_FUNCS, V3_FUNCS
+from rateslib.instruments.bonds.conventions.discounting import V1_FUNCS, V2_FUNCS, V3_FUNCS, C_FUNCS
 
 if TYPE_CHECKING:
     from rateslib.instruments.bonds.conventions.accrued import AccrualFunction
-    from rateslib.instruments.bonds.conventions.discounting import YtmDiscountFunction
+    from rateslib.instruments.bonds.conventions.discounting import YtmDiscountFunction, CashflowFunction
     from rateslib.typing import Security
 
 
@@ -31,6 +31,15 @@ class BondCalcMode:
         The calculation function that defines discounting of the regular periods of the YTM formula.
     v3_type: str or Callable
         The calculation function that defines discounting of the last period of the YTM formula.
+    c1_type: str or Callable
+        The calculation function that determines the cashflow amount in the first period of the 
+        YTM formula.
+    ci_type: str or Callable
+        The calculation function that determines the cashflow amount in the interim periods of the
+        YTM formula.
+    cn_type: str or Callable
+        The calculation function that determines the cashflow amount in the final period of the 
+        YTM formula.
 
     Notes
     -------
@@ -255,6 +264,9 @@ class BondCalcMode:
     _v1: YtmDiscountFunction
     _v2: YtmDiscountFunction
     _v3: YtmDiscountFunction
+    _c1: CashflowFunction
+    _ci: CashflowFunction
+    _cn: CashflowFunction
 
     def __init__(
         self,
@@ -263,12 +275,15 @@ class BondCalcMode:
         v1_type: str | YtmDiscountFunction,
         v2_type: str | YtmDiscountFunction,
         v3_type: str | YtmDiscountFunction,
+        c1_type: str | CashflowFunction,
+        ci_type: str | CashflowFunction,
+        cn_type: str | CashflowFunction,
     ):
         self._kwargs: dict[str, str] = {}
         for name, func, _map in zip(
-            ["settle_accrual", "ytm_accrual", "v1", "v2", "v3"],
-            [settle_accrual_type, ytm_accrual_type, v1_type, v2_type, v3_type],
-            [ACC_FRAC_FUNCS, ACC_FRAC_FUNCS, V1_FUNCS, V2_FUNCS, V3_FUNCS],
+            ["settle_accrual", "ytm_accrual", "v1", "v2", "v3", "c1", "ci", "cn"],
+            [settle_accrual_type, ytm_accrual_type, v1_type, v2_type, v3_type, c1_type, ci_type, cn_type],
+            [ACC_FRAC_FUNCS, ACC_FRAC_FUNCS, V1_FUNCS, V2_FUNCS, V3_FUNCS, C_FUNCS, C_FUNCS, C_FUNCS],
             strict=False,
         ):
             if isinstance(func, str):
@@ -347,6 +362,9 @@ UK_GB = BondCalcMode(
     v1_type="compounding",
     v2_type="regular",
     v3_type="compounding",
+    c1_type="cashflow",
+    ci_type="cashflow",
+    cn_type="cashflow",
 )
 
 US_GB = BondCalcMode(
@@ -356,6 +374,9 @@ US_GB = BondCalcMode(
     v1_type="compounding",
     v2_type="regular",
     v3_type="compounding",
+    c1_type="cashflow",
+    ci_type="cashflow",
+    cn_type="cashflow",
 )
 
 US_GB_TSY = BondCalcMode(
@@ -365,6 +386,9 @@ US_GB_TSY = BondCalcMode(
     v1_type="simple_long_stub_compounding",
     v2_type="regular",
     v3_type="compounding",
+    c1_type="cashflow",
+    ci_type="cashflow",
+    cn_type="cashflow",
 )
 
 US_CORP = BondCalcMode(
@@ -374,6 +398,9 @@ US_CORP = BondCalcMode(
     v1_type="compounding_final_simple",
     v2_type="regular",
     v3_type="compounding",
+    c1_type="cashflow",
+    ci_type="cashflow",
+    cn_type="cashflow",
 )
 
 SE_GB = BondCalcMode(
@@ -383,6 +410,9 @@ SE_GB = BondCalcMode(
     v1_type="compounding_final_simple",
     v2_type="regular",
     v3_type="simple_30e360",
+    c1_type="cashflow",
+    ci_type="cashflow",
+    cn_type="cashflow",
 )
 
 CA_GB = BondCalcMode(
@@ -392,6 +422,9 @@ CA_GB = BondCalcMode(
     v1_type="compounding",
     v2_type="regular",
     v3_type="simple_30e360",
+    c1_type="cashflow",
+    ci_type="cashflow",
+    cn_type="cashflow",
 )
 
 DE_GB = BondCalcMode(
@@ -401,6 +434,9 @@ DE_GB = BondCalcMode(
     v1_type="compounding_final_simple",
     v2_type="regular",
     v3_type="compounding",
+    c1_type="cashflow",
+    ci_type="cashflow",
+    cn_type="cashflow",
 )
 
 FR_GB = BondCalcMode(
@@ -410,6 +446,9 @@ FR_GB = BondCalcMode(
     v1_type="compounding",
     v2_type="regular",
     v3_type="compounding",
+    c1_type="cashflow",
+    ci_type="cashflow",
+    cn_type="cashflow",
 )
 
 IT_GB = BondCalcMode(
@@ -419,6 +458,9 @@ IT_GB = BondCalcMode(
     v1_type="compounding_final_simple",
     v2_type="annual",
     v3_type="compounding",
+    c1_type="cashflow",
+    ci_type="cashflow",
+    cn_type="cashflow",
 )
 
 NO_GB = BondCalcMode(
@@ -428,6 +470,9 @@ NO_GB = BondCalcMode(
     v1_type="compounding_stub_act365f",
     v2_type="regular",
     v3_type="compounding",
+    c1_type="cashflow",
+    ci_type="cashflow",
+    cn_type="cashflow",
 )
 
 NL_GB = BondCalcMode(
@@ -437,6 +482,9 @@ NL_GB = BondCalcMode(
     v1_type="compounding_final_simple",
     v2_type="regular",
     v3_type="compounding",
+    c1_type="cashflow",
+    ci_type="cashflow",
+    cn_type="cashflow",
 )
 
 UK_GBB = BillCalcMode(
