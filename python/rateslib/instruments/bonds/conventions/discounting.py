@@ -313,7 +313,8 @@ def _c_from_obj(
     """
     return obj._period_cashflow(obj.leg1._regular_periods[p_idx], curve)  # type: ignore[arg-type]
 
-def _c_coupon(
+
+def _c_full_coupon(
     obj: Security | BondMixin,
     ytm: DualTypes,
     f: int,
@@ -326,10 +327,10 @@ def _c_coupon(
     Ignore the native schedule and conventions and return an amount based on the period
     notional, the bond coupon, and the bond frequency.
     """
-    return -obj.leg1._regular_periods[p_idx].notional * obj.fixed_rate / (100 * f)
+    return -obj.leg1._regular_periods[p_idx].notional * obj.fixed_rate / (100 * f)  # type: ignore[operator, union-attr]
 
 
 C_FUNCS: dict[str, CashflowFunction] = {
     "cashflow": _c_from_obj,
-    "coupon": _c_coupon,
+    "full_coupon": _c_full_coupon,
 }

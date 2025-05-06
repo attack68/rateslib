@@ -814,6 +814,93 @@ class TestFixedRateBond:
         assert abs(ytm - exp_ytm) < 1e-6
         assert abs(acc - exp_acc) < 1e-8
 
+    # Customised Thai Government Bonds
+
+    def test_thai_example_a3(self):
+        # see file in _static/thai_standard_formula.pdf
+        def _v1_thb_gb(obj, ytm, f,  settlement,  acc_idx,  v2,  accrual):
+            r_u = (obj.leg1.schedule.uschedule[acc_idx + 1] - settlement).days
+            return v2 ** (r_u * f / 365)
+
+        def _v3_thb_gb(obj, ytm, f,  settlement, acc_idx, v2,  accrual):
+            r_u = (obj.leg1.schedule.uschedule[-1] - obj.leg1.schedule.uschedule[-2]).days
+            return v2 ** (r_u * f / 365)
+
+        thai_cm = BondCalcMode(
+            settle_accrual_type="linear_days",
+            ytm_accrual_type="linear_days",
+            v1_type=_v1_thb_gb,
+            v2_type="regular",
+            v3_type=_v3_thb_gb,
+            c1_type="cashflow",
+            ci_type="full_coupon",
+            cn_type="cashflow",
+        )
+
+        b = FixedRateBond(
+            effective=dt(1993, 1, 15),
+            termination=dt(1996, 4, 30),
+            stub="shortback",
+            frequency="S",
+            fixed_rate=11.25,
+            convention="act365f",
+            modifier="none",
+            currency="thb",
+            calendar="bus",
+            calc_mode=thai_cm,
+        )
+
+        expected_acc = 4.86986301
+        expected_clean = 103.1099263
+        result_acc = b.accrued(settlement=dt(1994, 12, 20))
+        result_clean = b.price(ytm=8.75, settlement=dt(1994, 12, 20))
+
+        assert abs(result_acc - expected_acc) < 1e-8
+        assert abs(result_clean - expected_clean) < 1e-7
+
+    def test_thai_example_a3_exdiv(self):
+        # see file in _static/thai_standard_formula.pdf
+        def _v1_thb_gb(obj, ytm, f,  settlement,  acc_idx,  v2,  accrual):
+            r_u = (obj.leg1.schedule.uschedule[acc_idx + 1] - settlement).days
+            return v2 ** (r_u * f / 365)
+
+        def _v3_thb_gb(obj, ytm, f,  settlement, acc_idx, v2,  accrual):
+            r_u = (obj.leg1.schedule.uschedule[-1] - obj.leg1.schedule.uschedule[-2]).days
+            return v2 ** (r_u * f / 365)
+
+        thai_cm = BondCalcMode(
+            settle_accrual_type="linear_days",
+            ytm_accrual_type="linear_days",
+            v1_type=_v1_thb_gb,
+            v2_type="regular",
+            v3_type=_v3_thb_gb,
+            c1_type="cashflow",
+            ci_type="full_coupon",
+            cn_type="cashflow",
+        )
+
+        b = FixedRateBond(
+            effective=dt(1993, 1, 15),
+            termination=dt(1996, 4, 30),
+            stub="shortback",
+            frequency="S",
+            fixed_rate=11.25,
+            convention="act365f",
+            modifier="none",
+            currency="thb",
+            calendar="bus",
+            calc_mode=thai_cm,
+            ex_div=21,
+        )
+
+        result_acc = b.accrued(dt(1994, 12, 20))
+        expected_acc = -0.80136986
+        assert abs(result_acc - expected_acc) < 1e-8
+
+        result_clean = b.price(ytm=8.75, settlement=dt(1994, 12, 20))
+        expected_clean = 103.19036939
+        assert abs(result_clean - expected_clean) < 1e-8
+
     # General Method Coverage
 
     def test_fixed_rate_bond_yield_domains(self) -> None:
