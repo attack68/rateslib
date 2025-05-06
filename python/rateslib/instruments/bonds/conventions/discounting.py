@@ -175,7 +175,7 @@ def _v1_simple(
     return v_
 
 
-def _v1_simple_1y_adjustment(
+def _v1_simple_long_stub(
     obj: Security | BondMixin,
     ytm: DualTypes,
     f: int,
@@ -190,18 +190,19 @@ def _v1_simple_1y_adjustment(
     If the stub period is long, then discount the regular part of the stub with the regular
     discount param ``v``.
     """
-    acc_frac = accrual(obj, settlement, acc_idx)
-    if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
-        # is a stub so must account for discounting in a different way.
+    if obj.leg1.periods[acc_idx].stub and obj.leg1.periods[acc_idx].dcf * f > 1:  # type: ignore[union-attr]
+        # long stub
+        acc_frac = accrual(obj, settlement, acc_idx)
         fd0 = obj.leg1.periods[acc_idx].dcf * f * (1 - acc_frac)  # type: ignore[union-attr]
+        if fd0 > 1.0:
+            # then there is a whole quasi-coupon period until payment of next cashflow
+            v_ = v2 * 1 / (1 + (fd0 - 1) * ytm / (100 * f))
+        else:
+            # this is standard _v1_simple formula
+            v_ = 1 / (1 + fd0 * ytm / (100 * f))
+        return v_
     else:
-        fd0 = 1 - acc_frac
-
-    if fd0 > 1.0:
-        v_ = v2 * 1 / (1 + (fd0 - 1) * ytm / (100 * f))
-    else:
-        v_ = 1 / (1 + fd0 * ytm / (100 * f))
-    return v_
+        return _v1_simple(obj, ytm, f, settlement, acc_idx, v2, accrual)
 
 
 def _v3_compounded(
@@ -253,7 +254,13 @@ def _v3_simple(
     v2: DualTypes,
     accrual: AccrualFunction,
 ) -> DualTypes:
-    v_ = 1 / (1 + obj.leg1.periods[-2].dcf * ytm / 100.0)  # type: ignore[union-attr]
+    if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
+        # is a stub so must account for discounting in a different way.
+        fd0 = obj.leg1.periods[acc_idx].dcf * f  # type: ignore[union-attr]
+    else:
+        fd0 = 1.0
+
+    v_ = 1 / (1 + fd0 * ytm / (100 * f))
     return v_
 
 
@@ -262,7 +269,7 @@ V1_FUNCS: dict[str, YtmDiscountFunction] = {
     "compounding_final_simple": _v1_compounded_by_remaining_accrual_frac_except_simple_final_period,
     "compounding_stub_act365f": _v1_comp_stub_act365f,
     "simple": _v1_simple,
-    "simple_long_stub_compounding": _v1_simple_1y_adjustment,
+    "simple_long_stub_compounding": _v1_simple_long_stub,
 }
 
 V2_FUNCS: dict[str, YtmDiscountFunction] = {
