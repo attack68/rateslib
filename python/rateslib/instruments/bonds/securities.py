@@ -302,7 +302,7 @@ class BondMixin:
                 d += cfn * v2 ** (i - 1) * v3 * v1
             else:
                 # this is not the first and not the last period. Discount only with v1 and v2.
-                cfi = c1(self, ytm, f, acc_idx, p_idx, n, curve)
+                cfi = ci(self, ytm, f, acc_idx, p_idx, n, curve)
                 d += cfi * v2**i * v1
 
         # Add the redemption payment discounted by relevant factors
