@@ -35,65 +35,78 @@ class BondCalcMode:
     Notes
     -------
 
+    **Notation**
+    
+    The following notation is used in this section:
+    
+    - :math:`\\xi`: The **accrual fraction** is a float, typically, in [0, 1] which defines the
+      amount of a bond's current cashflow period that is paid at *settlement* as accrued interest.
+    - :math:`\\xi_y`: The **accrual fraction** determined in a secondary method, used only in YTM
+      calculations and **not** for physical settlement. 
+      (Almost always :math:`\\xi_y` and :math:`\\xi` are the same, for an exception see 
+      Canadian GBs)
+    - :math:`r_u`: The number of calendar days between the last (unadjusted) coupon date and 
+      settlement. If a **long stub** this is either; zero if settlement falls before the
+      (unadjusted) quasi-coupon date, or the number of calendar days between 
+      those dates. 
+    - :math:`s_u`: The number of calendar days between the last (unadjusted) coupon date and the
+      next (unadjusted) coupon date, i.e the number of calendar days in the (unadjusted) coupon 
+      period. If a **long stub** this is the number of calendar days in the (unadjusted) 
+      quasi-coupon period.
+    - :math:`\\bar{r}_u`: If a **long stub**, the number of calendar days between the accrual
+      effective date and either; the next (unadjusted) quasi-coupon date, or settlement date, 
+      whichever is earliest.     
+    - :math:`\\bar{s}_u`: If a **long stub**, the number of calendar days between the prior
+      (unadjusted) quasi-coupon date and the (unadjusted) next quasi-coupon date surrounding the
+      accrual effective date.
+    - :math:`d_i`: The full DCF of coupon period, *i*, calculated with the convention which 
+      determines the physical cashflows.
+    - :math:`f`: The frequency of the coupon as integer, 1-annually, 2-semi, 3-tertiary, 
+      4-quarterly, 6-bi-monthly, 12-monthly.
+    - :math:`\\bar{d}_u`: The DCF between settlement and the next (unadjusted) coupon date
+      determined with the convention of the accrual function (which may be different to the 
+      convention for determining physical bond cashflows)  
+    - :math:`cf_i`: A coupon cashflow amount, **per 100 nominal**, for coupon period, *i*.  
+
     **Accrual Functions**
 
     Accrual functions must be supplied to the ``settle_accrual_type`` and ``ytm_accrual_type``
-    arguments. The available values are:
+    arguments, and must output **accrual fractions*. The available values are:
 
-    - *"linear_days"*, or the modified version, *"linear_days_long_front_split"*.
-    - *"30u360"*, or its European counterpart *"30e360"*.
-    - *"act365f_1y"
-
-    Accrual functions are designed to return the **fraction** of a bond cashflow that is attributed
-    to the settlement date, in order to determine an amount of payable accrued interest.
-    The details for the above method are stated below;
-
-    - *"linear_days"*: Measures a calendar day, linear proportion between unadjusted start and
-      end coupon dates of the coupon period, and applies that proportion to the cashflow, which is
-      calculated separately using the conventions for the bond. (Typically used by many bonds, e.g.
-      UK and German GBs)
-
+    - ``linear_days``: A calendar day, linear proportion used in any period. 
+      (Used by UK and German GBs).
+    
       .. math::
-
-         &\\text{Accrual fraction} = r / s \\\\
-         &\\text{where,} \\\\
-         &r = \\text{Calendar days between last coupon (unadjusted) and settlement} \\\\
-         &s = \\text{Calendar days between unadjusted coupon dates} \\\\
-
-    - *"linear_days_long_front_split"*: Is the same as above, **except** in the case of long
-      stub periods. (Primarily implemented to satisfy the
-      US Treasury calculations in Section 31B ii A.356)
-    - *"30e360"*: Ignores the coupon convention on the bond and calculates accrued from the
-      unadjusted last coupon date to settlement with a 30e360 day count convention, **except**
-      stubs revert to *'linear_days'*. (Used by Swedish GBs)
-
+      
+         \\xi = r_u / s_u
+    
+    - ``linear_days_long_front_split``: A modified version of the above which, **only for long
+      stub** periods, uses a different formula treating the first quasi period as part of the 
+      long stub differently. This adjustment is then scaled according to the length of the period.
+      (Treasury method for US Treasuries, see Section 31B ii A.356, Code of Federal Regulations)
+      
       .. math::
-
-         &\\text{Accrual fraction} =  1 - d f  \\\\
-         &\\text{where,} \\\\
-         &d = \\text{30e360 DCF between settlement and next unadjusted coupon date} \\\\
-         &f = \\text{Number of regular coupon periods per year} \\\\
-
-    - *"30u360"*: Ignores the coupon convention on the bond and calculates accrued from the
-      unadjusted last coupon date to settlement with a 30u360 day count convention, **except**
-      stubs revert to *'linear_days'*.
-
+      
+         \\xi = (\\bar{r}_u / \\bar{s}_u + r_u / s_u) / ( d_i * f )
+      
+    - ``30u360`` and ``30e360``: For **stubs** this method reverts to ``linear_days``. Otherwise,
+      determines the remaining part of the coupon period from settlement and deducts this 
+      from the accrual fraction.
+      
       .. math::
-
-         &\\text{Accrual fraction} =  1 - d f  \\\\
-         &\\text{where,} \\\\
-         &d = \\text{30u360 DCF between settlement and next unadjusted coupon date} \\\\
-         &f = \\text{Number of regular coupon periods per year} \\\\
-    - *"Act365_1y"*: Ignores the coupon convention on the bond and calculates accrued from
-      the unadjusted last coupon date to settlement with an Act365F day count convention. Stub
-      periods are adjusted to use *'linear_days'* and periods longer than 1y have additional
-      adjustment. (Used by Canadian GBs)
-
+      
+         \\xi = 1 - \\bar{d_u} f
+      
+      
+    - ``act365f_1y``: For **stubs** this method reverts to ``linear_days``. Otherwise,
+      determines the accrual fraction using an approach that uses ACT365F convention.
+      (Used by Canadian GBs)
+      
       .. math::
-
-         & r = s \\qquad \\implies \\quad \\text{Accrual fraction} =  1.0  \\\\
-         & r > 365 / f \\qquad \\implies \\quad \\text{Accrual fraction} =  1.0 - f(s-r) / 365 \\\\
-         & r \\le 365 / f \\qquad \\implies \\quad \\text{Accrual fraction} =  rf / 365 \\\\
+      
+         \\xi &= 1.0 \\qquad  \\text{if,} \\quad r_u = s_u \\\\
+         &= 1.0 - f(s_u - r_u) / 365 \\qquad \\text{if,} \\quad r_u \\ge 365 / f \\\\
+         &= fr_u / 365 \\qquad \\text{if,} \\quad r_u < 365 / f \\\\  
 
     **Custom accrual functions** can also be supplied where the input arguments signature should
     accept the bond object, the settlement date, and the index relating to the period in which
@@ -104,14 +117,24 @@ class BondCalcMode:
     .. ipython:: python
 
        def _linear_days(obj, settlement, acc_idx, *args) -> float:
-            r = settlement - obj.leg1.schedule.uschedule[acc_idx]
-            s = obj.leg1.schedule.uschedule[acc_idx + 1] - obj.leg1.schedule.uschedule[acc_idx]
-            return r / s
+            r_u = (settlement - obj.leg1.schedule.uschedule[acc_idx]).days
+            s_u = (obj.leg1.schedule.uschedule[acc_idx + 1] - obj.leg1.schedule.uschedule[acc_idx]).days
+            return r_u / s_u
+            
+    **Calculation of Accrued Interest**
+    
+    Accrued interest, *AI*, is then calculated according to the following:
+    
+    .. math::
+    
+       &AI = \\xi * cf_i \\qquad \\text{if not ex-div} \\\\
+       &AI = (\\xi - 1) * cf_i \\qquad \\text{if ex-div} \\\\        
 
     **Discounting Functions for YTM Calculation**
 
     Yield-to-maturity is calculated using the below formula, where specific functions derive
-    some values based on the conventions of a given bond.
+    some values based on the conventions of a given bond. The below formula outlines the
+    cases where the number of remaining coupons are 1, 2, or >=2.
 
     .. math::
 
@@ -133,6 +156,14 @@ class BondCalcMode:
     **v1** Functions
 
     - *"compounding"*: the exponent is defined by the generated ytm accrual fraction.
+    
+      .. math::
+
+         & r = s \\qquad \\implies \\quad \\text{Accrual fraction} =  1.0  \\\\
+         & r > 365 / f \\qquad \\implies \\quad \\text{Accrual fraction} =  1.0 - f(s-r) / 365 \\\\
+         & r \\le 365 / f \\qquad \\implies \\quad \\text{Accrual fraction} =  rf / 365 \\\\
+    
+    
     - "compounding_stub_act365f": stub exponents use *act365f* convention to derive.
     - "compounding_final_simple": uses *simple* method only for the final period of the bond.
     - "simple": calculation uses a simple interest formula.

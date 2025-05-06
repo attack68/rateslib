@@ -37,9 +37,9 @@ def _acc_linear_proportion_by_days(
     This is a general method, used by many types of bonds, for example by UK Gilts,
     German Bunds.
     """
-    r = settlement - obj.leg1.schedule.uschedule[acc_idx]
-    s = obj.leg1.schedule.uschedule[acc_idx + 1] - obj.leg1.schedule.uschedule[acc_idx]
-    return r / s
+    r = (settlement - obj.leg1.schedule.uschedule[acc_idx]).days
+    s = (obj.leg1.schedule.uschedule[acc_idx + 1] - obj.leg1.schedule.uschedule[acc_idx]).days
+    return float(r / s)
 
 
 def _acc_linear_proportion_by_days_long_stub_split(
@@ -74,21 +74,20 @@ def _acc_linear_proportion_by_days_long_stub_split(
                 NoInput(0),
                 obj.leg1.schedule.roll,
             )
+
+            s_bar_u = (quasi_coupon - quasi_start).days
             if settlement <= quasi_coupon:
                 # then first part of long stub
-                r = quasi_coupon - settlement
-                s = quasi_coupon - quasi_start
-                r_ = quasi_coupon - obj.leg1.schedule.uschedule[acc_idx]
-                _: float = (r_ - r) / s
-                return _ / (obj.leg1.periods[acc_idx].dcf * f)  # type: ignore[union-attr]
+                r_bar_u = (settlement - obj.leg1.schedule.uschedule[acc_idx]).days
+                r_u = 0.0
+                s_u = 1.0
             else:
                 # then second part of long stub
-                r = obj.leg1.schedule.uschedule[acc_idx + 1] - settlement
-                s = obj.leg1.schedule.uschedule[acc_idx + 1] - quasi_coupon
-                r_ = quasi_coupon - obj.leg1.schedule.uschedule[acc_idx]
-                s_ = quasi_coupon - quasi_start
-                _ = r_ / s_ + (s - r) / s
-                return _ / (obj.leg1.periods[acc_idx].dcf * f)  # type: ignore[union-attr]
+                r_u = (settlement - quasi_coupon).days
+                s_u = (obj.leg1.schedule.uschedule[acc_idx + 1] - quasi_coupon).days
+                r_bar_u = (quasi_coupon - obj.leg1.schedule.uschedule[acc_idx]).days
+
+            return (r_bar_u / s_bar_u + r_u / s_u) / (obj.leg1.periods[acc_idx].dcf * f)
 
     return _acc_linear_proportion_by_days(obj, settlement, acc_idx, *args)
 
@@ -142,7 +141,7 @@ def _acc_act365_with_1y_and_stub_adjustment(
     s = (obj.leg1.schedule.uschedule[acc_idx + 1] - obj.leg1.schedule.uschedule[acc_idx]).days
     if r == s:
         _: float = 1.0  # then settlement falls on the coupon date
-    elif r > 365.0 / f:
+    elif r >= 365.0 / f:
         _ = 1.0 - ((s - r) * f) / 365.0  # counts remaining days
     else:
         _ = f * r / 365.0

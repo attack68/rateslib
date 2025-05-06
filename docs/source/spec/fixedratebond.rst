@@ -178,7 +178,7 @@ Aliases **"cadgb"**
 
 Canadian government bond convention. Accrued is calculated using an ACT365F
 convention. Yield calculations are still derived with linearly proportioned compounded
-coupons.
+coupons. **Note** this is not the appropriate convention for monthly-pay securities.
 
 .. ipython:: python
 

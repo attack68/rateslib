@@ -423,6 +423,18 @@ class TestFixedRateBond:
         assert abs(accrued - acc) < 1e-6
         assert abs(result - exp) < 1e-5
 
+    def test_long_stub_first_cashflow(self):
+        # test against 31.B.ii.A356.Appendix.B.I.A Example Long First
+        note = FixedRateBond(
+            effective=dt(1990, 12, 3),
+            termination=dt(1996, 2, 15),
+            stub="longfront",
+            spec="us_gb",
+            fixed_rate=7.875,
+            notional=-7000
+        )
+        assert abs(note.leg1.periods[0].cashflow - 386.474184670) < 5e-7
+
     # Swedish Government Bond Tests. Data from alternative systems.
 
     @pytest.mark.parametrize(
