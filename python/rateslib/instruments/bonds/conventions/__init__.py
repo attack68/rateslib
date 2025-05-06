@@ -259,6 +259,27 @@ class BondCalcMode:
            accrual,     # the ytm_accrual function to return accrual fractions
        ):
            return 1 / (1 + ytm / (100 * f))
+           
+    **Cashflow Generating Functions**
+    
+    Most of the time, for the cashflows shown above in the YTM formula, the actual cashflows, as
+    determined by the native *schedule* and *convention* on the bond itself, can be used.
+    
+    This is because the cashflow often aligns with a *typical* expected amount, 
+    i.e. *coupon / frequency*. Since this is by definition under the *ActActICMA* convention
+    and unadjusted *30360* will also tend to return standardised coupons. 
+    
+    However, some bond conventions use a *convention* which does not lead to standardised 
+    coupons, but have YTM formula definitions which do require standardised coupons. An example
+    is Thai Government Bonds.
+    
+    The available functions here are:
+    
+    - ``cashflow``: determine the cashflow for the period by using the native cashflow calculation
+      under the *schedule* and *convention* on the bond.
+    - ``coupon``:    
+    
+    
 
     """  # noqa: E501, W293
 
