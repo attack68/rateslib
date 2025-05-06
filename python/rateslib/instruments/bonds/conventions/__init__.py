@@ -66,12 +66,14 @@ class BondCalcMode:
     - :math:`\\bar{d}_u`: The DCF between settlement and the next (unadjusted) coupon date
       determined with the convention of the accrual function (which may be different to the 
       convention for determining physical bond cashflows)  
-    - :math:`cf_i`: A coupon cashflow amount, **per 100 nominal**, for coupon period, *i*.  
+    - :math:`c_i`: A coupon cashflow monetary amount, **per 100 nominal**, for coupon period, *i*.
+    - :math:`y`: The yield-to-maturity for a given bond. The expression of which, i.e. annually
+      or semi-annually is derived from the calculation context.
 
     **Accrual Functions**
 
     Accrual functions must be supplied to the ``settle_accrual_type`` and ``ytm_accrual_type``
-    arguments, and must output **accrual fractions*. The available values are:
+    arguments, and must output **accrual fractions**. The available values are:
 
     - ``linear_days``: A calendar day, linear proportion used in any period. 
       (Used by UK and German GBs).
@@ -91,7 +93,7 @@ class BondCalcMode:
       
     - ``30u360`` and ``30e360``: For **stubs** this method reverts to ``linear_days``. Otherwise,
       determines the remaining part of the coupon period from settlement and deducts this 
-      from the accrual fraction.
+      from the full accrual fraction.
       
       .. math::
       
@@ -104,9 +106,7 @@ class BondCalcMode:
       
       .. math::
       
-         \\xi &= 1.0 \\qquad  \\text{if,} \\quad r_u = s_u \\\\
-         &= 1.0 - f(s_u - r_u) / 365 \\qquad \\text{if,} \\quad r_u \\ge 365 / f \\\\
-         &= fr_u / 365 \\qquad \\text{if,} \\quad r_u < 365 / f \\\\  
+         \\xi = \\left \\{ \\begin{matrix} 1.0 & \\text{if, } r_u = s_u \\\\ 1.0 - f(s_u - r_u) / 365 & \\text{if, } r_u \\ge 365 / f \\\\ fr_u / 365 & \\text{if, } r_u < 365 / f \\\\ \\end{matrix} \\right .
 
     **Custom accrual functions** can also be supplied where the input arguments signature should
     accept the bond object, the settlement date, and the index relating to the period in which
@@ -127,14 +127,22 @@ class BondCalcMode:
     
     .. math::
     
-       &AI = \\xi * cf_i \\qquad \\text{if not ex-div} \\\\
-       &AI = (\\xi - 1) * cf_i \\qquad \\text{if ex-div} \\\\        
+       &AI = \\xi c_i \\qquad \\text{if not ex-dividend} \\\\
+       &AI = (\\xi - 1) c_i \\qquad \\text{if ex-dividend} \\\\       
+       
+    And accrued interest for the purpose of YTM calculations, :math:`AI_y`, is:
+    
+    .. math::
+    
+       &AI_y = \\xi_y c_i \\qquad \\text{if not ex-dividend} \\\\
+       &AI_y = (\\xi_y - 1) c_i \\qquad \\text{if ex-dividend} \\\\   
 
     **Discounting Functions for YTM Calculation**
 
-    Yield-to-maturity is calculated using the below formula, where specific functions derive
-    some values based on the conventions of a given bond. The below formula outlines the
-    cases where the number of remaining coupons are 1, 2, or >=2.
+    Yield-to-maturity is calculated using the below formula, where specific discounting functions 
+    must be provided to determine values based on the conventions of a given bond. 
+    The below formula outlines the
+    cases where the number of remaining coupons are 1, 2, or generically >=2.
 
     .. math::
 
@@ -153,36 +161,61 @@ class BondCalcMode:
        v_2 &= \\text{Discount value for the interim regular periods} \\\\
        v_3 &= \\text{Discount value for the final, possibly stub, period} \\\\
 
+    **v2** Functions
+    
+    *v2* forms the core, regular part of discounting the cashflows. These coupon periods are
+    never stubs. The available functions are described below:
+
+    - ``regular``: uses the traditional discounting function matching the actual frequency of 
+      coupons:
+
+      .. math::
+
+         v_2 = \\frac{1}{1 + y/f}
+
+    - ``annual``: assumes an annually expressed YTM disregarding the actual coupon frequency:
+
+      .. math::
+
+         v_2 = \\left ( \\frac{1}{1 + y} \\right ) ^ {1/f}
+
     **v1** Functions
 
-    - *"compounding"*: the exponent is defined by the generated ytm accrual fraction.
+    *v1* may or may not be dependent upon *v2*. 
+    The available functions for determining *v1* are described below:
+    
+    - ``compounding``: one of most common conventions. If a **stub** then scaled by the length of
+      the stub. At issue, or on a coupon date, for a regular period, *v1* converges to *v2*.
+         
+      .. math::
+      
+         v_1 =  v_2^{g(\\xi_y)}  \\quad \\text{where,} \\quad g(\\xi_y) = \\left \\{ \\begin{matrix} 1-\\xi_y & \\text{if regular,} \\\\ (1-\\xi_y) f d_i & \\text{if stub,} \\\\ \\end{matrix} \\right . \\\\
+
+    - ``simple``: calculation uses a simple interest formula. At issue, or on a coupon date,
+      for a regular period, *v1* converges to a *'regular'* style *v2*.
     
       .. math::
+      
+         v_1 = \\frac{1}{1 + g(\\xi_y) y / f}  \\quad \\text{where, } g(\\xi_y) \\text{ defined as above}
 
-         & r = s \\qquad \\implies \\quad \\text{Accrual fraction} =  1.0  \\\\
-         & r > 365 / f \\qquad \\implies \\quad \\text{Accrual fraction} =  1.0 - f(s-r) / 365 \\\\
-         & r \\le 365 / f \\qquad \\implies \\quad \\text{Accrual fraction} =  rf / 365 \\\\
-    
-    
-    - "compounding_stub_act365f": stub exponents use *act365f* convention to derive.
-    - "compounding_final_simple": uses *simple* method only for the final period of the bond.
-    - "simple": calculation uses a simple interest formula.
-    - "simple_long_stub_compounding": uses simple interest formula except for long stubs which
-      are combined with compounding formula for the regular period of the stub.
-
-    **v2** Functions
-
-    - *"regular"*: uses the traditional discounting function per the frequency of coupons:
-
+    - ``compounding_final_simple``: uses *'compounding'*, unless settlement occurs in the final
+      period of the bond (and in which case n=1) and then the *'simple'* method is applied.
+    - ``compounding_stub_act365f``: uses *'compounding'*, unless settlement occurs in a stub 
+      period in which case Act365F convention derives the exponent.
+      
       .. math::
-
-         v_2 = \\frac{1}{1 + \\frac{y}{f}}
-
-    - *"annual"*: assumes an annually expressed YTM disregarding the actual coupon frequency:
-
-      .. math::
-
-         v_2 = \\left ( \\frac{1}{1 + y} \\right ) ^ {\\frac{1}{f}}
+      
+         v_1 = v_2^{\\bar{d}_u}
+   
+    - ``simple_long_stub_compounding``: uses *'simple'* formula **except** for long stubs, 
+      and the calculation is only different if settlement falls before the quasi-coupon.
+      If settlement occurs before the quasi-coupon date then the entire quasi-coupon period
+      applies regular *v2* discounting, and the preliminary component has *simple* method
+      applied.
+      
+      .. math:: 
+      
+         v_1 = \\left \\{ \\begin{matrix} v_2 \\frac{1}{1 + [f d_i(1 - \\xi_y) - 1] y / f} & \\text{if settlement before quasi-coupon} \\\\ \\frac{1}{1 + f d_i (1-\\xi_y) y / f}  & \\text{if settlement after quasi-coupon} \\\\ \\end{matrix} \\right .
 
     **v3** Functions
 
