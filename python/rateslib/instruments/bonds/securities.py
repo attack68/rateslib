@@ -281,7 +281,7 @@ class BondMixin:
         f: int = 12 / defaults.frequency_months[self.leg1.schedule.frequency]  # type: ignore[assignment]
         acc_idx: int = self._period_index(settlement)
         _is_ex_div: bool = self.ex_div(settlement)
-        if settlement == self.leg1.schedule.uschedule[acc_idx+1]:
+        if settlement == self.leg1.schedule.uschedule[acc_idx + 1]:
             # then settlement aligns with a cashflow: manually adjust to next period
             _is_ex_div = False
             acc_idx += 1

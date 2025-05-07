@@ -82,6 +82,10 @@ class BondCalcMode:
       determined with the convention of the accrual function (which may be different to the
       convention for determining physical bond cashflows)
     - :math:`c_i`: A coupon cashflow monetary amount, **per 100 nominal**, for coupon period, *i*.
+    - :math:`p_d`: Number of days between unadjusted coupon date and payment date in a coupon 
+      period, i.e. the pay delay.
+    - :math:`p_D` = Number of days between previous payment date and current payment date, in a 
+      coupon period.
     - :math:`C`: The nominal annual coupon rate for the bond.
     - :math:`y`: The yield-to-maturity for a given bond. The expression of which, i.e. annually
       or semi-annually is derived from the calculation context.
@@ -158,13 +162,13 @@ class BondCalcMode:
     Yield-to-maturity is calculated using the below formula, where specific discounting and
     cashflow functions must be provided to determine values based on the conventions of a given
     bond. The below formula outlines the
-    cases where the number of remaining coupons are 1, 2, or generically >=2.
+    cases where the number of remaining coupons are 1, 2, or generically >2.
 
     .. math::
 
        P &= v_1 \\left ( c_1 + 100 \\right ), \\quad n = 1 \\\\
        P &= v_1 \\left ( c_1 + v3(c_n + 100) \\right ), \\quad n = 2 \\\\
-       P &= v_1 \\left ( \\sum_{i=1}^{n-1} c_i v_2^{i-1} + c_nv_2^{n-2}v_3 + 100 v_2^{n-2}v_3 \\right ), \\quad n > 1  \\\\
+       P &= v_1 \\left ( c_1 + \\sum_{i=2}^{n-1} c_i v_2^{i-2} v_{2,i} + c_nv_2^{n-2}v_3 + 100 v_2^{n-2}v_3 \\right ), \\quad n > 2  \\\\
        Q &= P - AI_y
 
     where,
@@ -176,7 +180,8 @@ class BondCalcMode:
        c_1 &= \\text{Cashflow (per 100) on next coupon date (may be zero if ex-dividend)} \\\\
        c_i &= i \\text{'th cashflow (per 100) on subsequent coupon dates} \\\\
        v_1 &= \\text{Discount value for the initial, possibly stub, period} \\\\
-       v_2 &= \\text{Discount value for the interim regular periods} \\\\
+       v_2 &= \\text{General discount value for the interim regular periods} \\\\
+       v_{2,i} &= \\text{Specific discount value for the i'th interim regular period} \\\\
        v_3 &= \\text{Discount value for the final, possibly stub, period} \\\\
 
     **v2** Functions
@@ -196,7 +201,14 @@ class BondCalcMode:
       .. math::
 
          v_2 = \\left ( \\frac{1}{1 + y} \\right ) ^ {1/f}
-
+         
+    - ``annual_pay_adjust``: adjusts the *'annual'* method to account for the payment date. (Used
+      by Italian BTPs)
+      
+      .. math::
+      
+         &v_2 = \\left ( \\frac{1}{1 + y} \\right ) ^ {(1 + p_d / p_D)/f} \\\\
+              
     **v1** Functions
 
     *v1* may or may not be dependent upon *v2*.
@@ -235,6 +247,12 @@ class BondCalcMode:
 
          v_1 = \\left \\{ \\begin{matrix} v_2 \\frac{1}{1 + [f d_i(1 - \\xi_y) - 1] y / f} & \\text{if settlement before quasi-coupon} \\\\ \\frac{1}{1 + f d_i (1-\\xi_y) y / f}  & \\text{if settlement after quasi-coupon} \\\\ \\end{matrix} \\right .
 
+    - ``simple_pay_adjust``: adjusts the *'simple'* method to account for the payment date.
+    
+      .. math::
+      
+         v_1 = \\frac{1}{1 + g_p(\\xi_y) y / f} \\quad \\text{where,} \\quad g_p(\\xi_y) = \\left \\{ \\begin{matrix} 1-\\xi_y + p_d / p_D & \\text{if regular,} \\\\ (1-\\xi_y + p_d / p_D) f d_i & \\text{if stub,} \\\\ \\end{matrix} \\right .
+           
     **v3** Functions
 
     *v3* functions will never have a settlement mid period, and are only used in the case

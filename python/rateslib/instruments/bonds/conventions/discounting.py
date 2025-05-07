@@ -117,8 +117,9 @@ def _v2_annual_pay_adjust(
         # This is the initial, regular determination of v2
         return (1 / (1 + ytm / 100)) ** (1 / f)
     else:
-        de = (obj.leg1.schedule.pschedule[period_idx+1] - obj.leg1.schedule.uschedule[period_idx + 1]).days
-        dc = (obj.leg1.schedule.pschedule[period_idx+1] - obj.leg1.schedule.pschedule[period_idx]).days
+        s = obj.leg1.schedule
+        de = (s.pschedule[period_idx + 1] - s.uschedule[period_idx + 1]).days
+        dc = (s.pschedule[period_idx + 1] - s.pschedule[period_idx]).days
         return v2 ** (1.0 + de / dc)
 
 
@@ -177,14 +178,7 @@ def _v1_compounded_by_remaining_accrual_frac_except_simple_final_period(
         return _v1_simple(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
     else:
         return _v1_compounded_by_remaining_accrual_fraction(
-            obj,
-            ytm,
-            f,
-            settlement,
-            acc_idx,
-            v2,
-            accrual,
-            period_idx
+            obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx
         )
 
 
@@ -201,35 +195,20 @@ def _v1_compounded_by_remaining_accrual_frac_except_simple_final_period_pay_adju
     """
     Uses regular fractional compounding except if it is last period, when simple money-mkt
     yield is used instead.
-    Introduced for German Bunds.
+    Both methods are adjusted to account for pay delays.
     """
-    # if (acc_idx == obj.leg1.schedule.n_periods - 2) and settlement == obj.leg1.schedule.uschedule[-2]:
-    #         # catch the case where settlement straddles the last two coupon periods
-    #     return _v1_simple(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
     if acc_idx == obj.leg1.schedule.n_periods - 1:
-        # or \
-        # settlement == self.leg1.schedule.uschedule[acc_idx + 1]:
-        # then settlement is in last period use simple interest.
         return _v1_simple_pay_adjust(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
     else:
         regular_v1 = _v1_compounded_by_remaining_accrual_fraction(
-            obj,
-            ytm,
-            f,
-            settlement,
-            acc_idx,
-            v2,
-            accrual,
-            period_idx
+            obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx
         )
 
         # adjust by pay delay
-        de = (obj.leg1.schedule.pschedule[period_idx + 1] - obj.leg1.schedule.uschedule[
-            period_idx + 1]).days
-        dc = (obj.leg1.schedule.pschedule[period_idx + 1] - obj.leg1.schedule.pschedule[
-            period_idx]).days
+        s = obj.leg1.schedule
+        de = (s.pschedule[period_idx + 1] - s.uschedule[period_idx + 1]).days
+        dc = (s.pschedule[period_idx + 1] - s.pschedule[period_idx]).days
         return regular_v1 ** (1.0 + de / dc)
-
 
 
 def _v1_comp_stub_act365f(
@@ -291,14 +270,13 @@ def _v1_simple_pay_adjust(
     """
     acc_frac = accrual(obj, settlement, acc_idx)
     # adjust by pay delay
-    de = (obj.leg1.schedule.pschedule[period_idx + 1] - obj.leg1.schedule.uschedule[
-        period_idx + 1]).days
-    dc = (obj.leg1.schedule.pschedule[period_idx + 1] - obj.leg1.schedule.pschedule[
-        period_idx]).days
+    s = obj.leg1.schedule
+    de = (s.pschedule[period_idx + 1] - s.uschedule[period_idx + 1]).days
+    dc = (s.pschedule[period_idx + 1] - s.pschedule[period_idx]).days
 
     if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
         # is a stub so must account for discounting in a different way.
-        fd0 = obj.leg1.periods[acc_idx].dcf * f * ((1 - acc_frac) + de / dc) # type: ignore[union-attr]
+        fd0 = obj.leg1.periods[acc_idx].dcf * f * (1 - acc_frac + de / dc)  # type: ignore[union-attr]
     else:
         fd0 = 1 - acc_frac + de / dc
 
@@ -375,10 +353,12 @@ def _v3_compounded_pay_adjust(
     period under the bond's specified convention.
     """
     regular_v3 = _v3_compounded(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
-    de = (obj.leg1.schedule.pschedule[period_idx + 1] - obj.leg1.schedule.uschedule[
-        period_idx + 1]).days
-    dc = (obj.leg1.schedule.pschedule[period_idx + 1] - obj.leg1.schedule.pschedule[
-        period_idx]).days
+    de = (
+        obj.leg1.schedule.pschedule[period_idx + 1] - obj.leg1.schedule.uschedule[period_idx + 1]
+    ).days
+    dc = (
+        obj.leg1.schedule.pschedule[period_idx + 1] - obj.leg1.schedule.pschedule[period_idx]
+    ).days
     return regular_v3 ** (1.0 + de / dc)
 
 
@@ -424,7 +404,7 @@ def _v3_simple(
 V1_FUNCS: dict[str, YtmStubDiscountFunction] = {
     "compounding": _v1_compounded_by_remaining_accrual_fraction,
     "compounding_final_simple": _v1_compounded_by_remaining_accrual_frac_except_simple_final_period,
-    "compounding_final_simple_pay_adjust": _v1_compounded_by_remaining_accrual_frac_except_simple_final_period_pay_adjust_,
+    "compounding_final_simple_pay_adjust": _v1_compounded_by_remaining_accrual_frac_except_simple_final_period_pay_adjust_,  # noqa: E501
     "compounding_stub_act365f": _v1_comp_stub_act365f,
     "simple": _v1_simple,
     "simple_long_stub_compounding": _v1_simple_long_stub,
@@ -480,3 +460,10 @@ C_FUNCS: dict[str, CashflowFunction] = {
     "cashflow": _c_from_obj,
     "full_coupon": _c_full_coupon,
 }
+
+
+def _pay_adj(obj: Security | BondMixin) -> float:
+    sch = obj.leg1.schedule
+    pd = (sch.pschedule[1] - sch.uschedule[1]).days
+    PD = (sch.pschedule[1] - sch.pschedule[0]).days
+    return pd / PD
