@@ -24,8 +24,25 @@ class YtmDiscountFunction(Protocol):
         f: int,
         settlement: datetime,
         acc_idx: int,
+        v2: DualTypes | None,
+        accrual: AccrualFunction,
+        period_idx: int,
+    ) -> DualTypes: ...
+
+
+class YtmStubDiscountFunction(Protocol):
+    # Callable Type for discount functions in YTM formula
+    # This is same as above, except v2 must be pre-calculated and cannot be None
+    def __call__(
+        self,
+        obj: Security | BondMixin,
+        ytm: DualTypes,
+        f: int,
+        settlement: datetime,
+        acc_idx: int,
         v2: DualTypes,
         accrual: AccrualFunction,
+        period_idx: int,
     ) -> DualTypes: ...
 
 
@@ -53,14 +70,18 @@ def _v2_(
     f: int,
     settlement: datetime,
     acc_idx: int,
-    v2: DualTypes,
+    v2: DualTypes | None,
     accrual: AccrualFunction,
+    period_idx: int,
 ) -> DualTypes:
     """
     Default method for a single regular period discounted in the regular portion of bond.
     Implies compounding at the same frequency as the coupons.
     """
-    return 1 / (1 + ytm / (100 * f))
+    if v2 is None:
+        return 1 / (1 + ytm / (100 * f))
+    else:
+        return v2
 
 
 def _v2_annual(
@@ -69,13 +90,17 @@ def _v2_annual(
     f: int,
     settlement: datetime,
     acc_idx: int,
-    v2: DualTypes,
+    v2: DualTypes | None,
     accrual: AccrualFunction,
+    period_idx: int,
 ) -> DualTypes:
     """
     ytm is expressed annually but coupon payments are on another frequency
     """
-    return (1 / (1 + ytm / 100)) ** (1 / f)
+    if v2 is None:
+        return (1 / (1 + ytm / 100)) ** (1 / f)
+    else:
+        return v2
 
 
 """
@@ -91,6 +116,7 @@ def _v1_compounded_by_remaining_accrual_fraction(
     acc_idx: int,
     v2: DualTypes,
     accrual: AccrualFunction,
+    period_idx: int,
 ) -> DualTypes:
     """
     Determine the discount factor for the first cashflow after settlement.
@@ -118,6 +144,7 @@ def _v1_compounded_by_remaining_accrual_frac_except_simple_final_period(
     acc_idx: int,
     v2: DualTypes,
     accrual: AccrualFunction,
+    period_idx: int,
 ) -> DualTypes:
     """
     Uses regular fractional compounding except if it is last period, when simple money-mkt
@@ -128,16 +155,10 @@ def _v1_compounded_by_remaining_accrual_frac_except_simple_final_period(
         # or \
         # settlement == self.leg1.schedule.uschedule[acc_idx + 1]:
         # then settlement is in last period use simple interest.
-        return _v1_simple(obj, ytm, f, settlement, acc_idx, v2, accrual)
+        return _v1_simple(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
     else:
         return _v1_compounded_by_remaining_accrual_fraction(
-            obj,
-            ytm,
-            f,
-            settlement,
-            acc_idx,
-            v2,
-            accrual,
+            obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx
         )
 
 
@@ -149,17 +170,12 @@ def _v1_comp_stub_act365f(
     acc_idx: int,
     v2: DualTypes,
     accrual: AccrualFunction,
+    period_idx: int,
 ) -> DualTypes:
     """Compounds the yield. In a stub period the act365f DCF is used"""
     if not obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
         return _v1_compounded_by_remaining_accrual_fraction(
-            obj,
-            ytm,
-            f,
-            settlement,
-            acc_idx,
-            v2,
-            accrual,
+            obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx
         )
     else:
         fd0 = dcf(settlement, obj.leg1.schedule.uschedule[acc_idx + 1], "Act365F")
@@ -174,6 +190,7 @@ def _v1_simple(
     acc_idx: int,
     v2: DualTypes,
     accrual: AccrualFunction,
+    period_idx: int,
 ) -> DualTypes:
     """
     Use simple rates with a yield which matches the frequency of the coupon.
@@ -197,6 +214,7 @@ def _v1_simple_long_stub(
     acc_idx: int,
     v2: DualTypes,
     accrual: AccrualFunction,
+    period_idx: int,
 ) -> DualTypes:
     """
     Use simple rates with a yield which matches the frequency of the coupon.
@@ -216,7 +234,7 @@ def _v1_simple_long_stub(
             v_ = 1 / (1 + fd0 * ytm / (100 * f))
         return v_
     else:
-        return _v1_simple(obj, ytm, f, settlement, acc_idx, v2, accrual)
+        return _v1_simple(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
 
 
 def _v3_compounded(
@@ -227,6 +245,7 @@ def _v3_compounded(
     acc_idx: int,
     v2: DualTypes,
     accrual: AccrualFunction,
+    period_idx: int,
 ) -> DualTypes:
     """
     Final period uses a compounding approach where the power is determined by the DCF of that
@@ -249,6 +268,7 @@ def _v3_30e360_u_simple(
     acc_idx: int,
     v2: DualTypes,
     accrual: AccrualFunction,
+    period_idx: int,
 ) -> DualTypes:
     """
     The final period is discounted by a simple interest method under a 30E360 convention.
@@ -267,6 +287,7 @@ def _v3_simple(
     acc_idx: int,
     v2: DualTypes,
     accrual: AccrualFunction,
+    period_idx: int,
 ) -> DualTypes:
     if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
         # is a stub so must account for discounting in a different way.
@@ -278,7 +299,7 @@ def _v3_simple(
     return v_
 
 
-V1_FUNCS: dict[str, YtmDiscountFunction] = {
+V1_FUNCS: dict[str, YtmStubDiscountFunction] = {
     "compounding": _v1_compounded_by_remaining_accrual_fraction,
     "compounding_final_simple": _v1_compounded_by_remaining_accrual_frac_except_simple_final_period,
     "compounding_stub_act365f": _v1_comp_stub_act365f,
@@ -291,7 +312,7 @@ V2_FUNCS: dict[str, YtmDiscountFunction] = {
     "annual": _v2_annual,
 }
 
-V3_FUNCS: dict[str, YtmDiscountFunction] = {
+V3_FUNCS: dict[str, YtmStubDiscountFunction] = {
     "compounding": _v3_compounded,
     "simple": _v3_simple,
     "simple_30e360": _v3_30e360_u_simple,
