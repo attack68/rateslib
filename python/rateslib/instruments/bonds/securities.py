@@ -302,8 +302,9 @@ class BondMixin:
                 d += cfn * v2 ** (i - 1) * v3 * v1
             else:
                 # this is not the first and not the last period. Discount only with v1 and v2.
+                v2i = f2(self, ytm, f, settlement, acc_idx, v2, accrual)
                 cfi = ci(self, ytm, f, acc_idx, p_idx, n, curve)
-                d += cfi * v2**i * v1
+                d += cfi * v2**(i-1) * v2i * v1
 
         # Add the redemption payment discounted by relevant factors
         redemption: Cashflow | IndexCashflow = self.leg1._exchange_periods[1]  # type: ignore[assignment]
