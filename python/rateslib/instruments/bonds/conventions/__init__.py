@@ -79,6 +79,7 @@ class BondCalcMode:
       determined with the convention of the accrual function (which may be different to the
       convention for determining physical bond cashflows)
     - :math:`c_i`: A coupon cashflow monetary amount, **per 100 nominal**, for coupon period, *i*.
+    - :math:`C`: The nominal annual coupon rate for the bond. 
     - :math:`y`: The yield-to-maturity for a given bond. The expression of which, i.e. annually
       or semi-annually is derived from the calculation context.
 
@@ -161,12 +162,14 @@ class BondCalcMode:
        P &= v_1 \\left ( c_1 + 100 \\right ), \\quad n = 1 \\\\
        P &= v_1 \\left ( c_1 + v3(c_2 + 100) \\right ), \\quad n = 2 \\\\
        P &= v_1 \\left ( \\sum_{i=1}^{n-1} c_i v_2^{i-1} + c_nv_2^{n-2}v_3 + 100 v_2^{n-2}v_3 \\right ), \\quad n > 1  \\\\
+       Q &= P - AI_y
 
     where,
 
     .. math::
 
-       P &= \\text{Dirty price}, \\; n = \\text{Coupon periods remaining} \\\\
+       P &= \\text{Dirty price}, \\; Q = \\text{Clean Price}
+       n &= \\text{Coupon periods remaining} \\\\
        c_1 &= \\text{Cashflow (per 100) on next coupon date (may be zero if ex-dividend)} \\\\
        c_i &= i \\text{'th cashflow (per 100) on subsequent coupon dates} \\\\
        v_1 &= \\text{Discount value for the initial, possibly stub, period} \\\\
@@ -283,7 +286,7 @@ class BondCalcMode:
       
       .. math::
       
-         cf = \\frac{-c_i N_i}{f}
+         c_i = \\frac{-C N_i}{f}
     
     """  # noqa: E501, W293
 

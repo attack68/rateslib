@@ -105,7 +105,26 @@ representation:
 A :class:`~rateslib.instruments.bonds.conventions.BondCalcMode` can be directly constructed
 and passed as the ``calc_mode`` in the *FixedRateBond* initialisation.
 The relevant properties of the construction are explained on the documentation page for that
-object. It contains all of the necessary formulae to achieve the desired results.
+object. It contains all of the necessary formulae to achieve the desired results. Importantly
+all the functions must be correctly specified, or implemented, such that each element of the YTM
+formula are calculable.
+
+.. math::
+
+       P &= v_1 \left ( c_1 + 100 \right ), \quad n = 1 \\
+       P &= v_1 \left ( c_1 + v3(c_2 + 100) \right ), \quad n = 2 \\
+       P &= v_1 \left ( \sum_{i=1}^{n-1} c_i v_2^{i-1} + c_nv_2^{n-2}v_3 + 100 v_2^{n-2}v_3 \right ), \quad n > 1  \\
+
+    where,
+
+    .. math::
+
+       P &= \text{Dirty price}, \; n = \text{Coupon periods remaining} \\
+       c_1 &= \text{Cashflow (per 100) on next coupon date (may be zero if ex-dividend)} \\
+       c_i &= i \text{'th cashflow (per 100) on subsequent coupon dates} \\
+       v_1 &= \text{Discount value for the initial, possibly stub, period} \\
+       v_2 &= \text{Discount value for the interim regular periods} \\
+       v_3 &= \text{Discount value for the final, possibly stub, period} \\
 
 Example implementation
 ------------------------
@@ -120,7 +139,7 @@ function will return an accrual fraction that determines the correct accrued int
 
 .. math::
 
-   \underbrace{\frac{r_u}{s_u}}_{\text{accrual fraction}} \underbrace{\frac{s_u}{365} C}_{\text{cashflow}} = \frac{r_u}{365} C
+   \underbrace{\frac{r_u}{s_u}}_{\text{accrual fraction}} \underbrace{\frac{s_u}{365} C}_{\text{cashflow}} = \underbrace{\frac{r_u}{365} C}_{\text{accrued interest formula}}
 
 Since ``linear_days`` is the default the correct amount of accrued interest should be returned
 by default when constructing a bond with Act365F convention. The official example
@@ -176,7 +195,7 @@ To match the Thai standard formula, these must be implemented directly.
        r_u = (obj.leg1.schedule.uschedule[-1] - obj.leg1.schedule.uschedule[-2]).days
        return v2 ** (r_u * f / 365)
 
-Lastly, the Thai formula assumes a standardised coupon payment for the regular flows, whereas
+Lastly, the Thai YTM formula assumes a standardised coupon payment for the regular flows, whereas
 the actual convention of Act365F does not generate the same, standardised coupon payments
 each period. This is also amended from default by setting the ``ci_type`` to be ``full_coupon``.
 
