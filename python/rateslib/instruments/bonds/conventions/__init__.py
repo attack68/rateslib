@@ -46,6 +46,8 @@ class BondCalcMode:
 
     Notes
     -------
+    For an example custom implementation of a *BondCalcMode* see the cookbook article:
+    :ref:`Understanding and Customising FixedRateBond Conventions <cook-bond_convs>`
 
     **Notation**
     
@@ -286,7 +288,7 @@ class BondCalcMode:
       
       .. math::
       
-         c_i = \\frac{-C N_i}{f}
+         c_i = \\frac{-N_i C}{f}
     
     """  # noqa: E501, W293
 
