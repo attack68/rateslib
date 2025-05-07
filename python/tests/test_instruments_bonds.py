@@ -713,7 +713,7 @@ class TestFixedRateBond:
         assert abs(result - exp_acc) < 5e-6
 
         result = frb.ytm(price=price, settlement=sett)
-        assert abs(result - exp_ytm) < 3e-3
+        assert abs(result - exp_ytm) < 5e-5
 
     ## Norwegian
 

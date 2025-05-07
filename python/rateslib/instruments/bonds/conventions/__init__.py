@@ -163,7 +163,7 @@ class BondCalcMode:
     .. math::
 
        P &= v_1 \\left ( c_1 + 100 \\right ), \\quad n = 1 \\\\
-       P &= v_1 \\left ( c_1 + v3(c_2 + 100) \\right ), \\quad n = 2 \\\\
+       P &= v_1 \\left ( c_1 + v3(c_n + 100) \\right ), \\quad n = 2 \\\\
        P &= v_1 \\left ( \\sum_{i=1}^{n-1} c_i v_2^{i-1} + c_nv_2^{n-2}v_3 + 100 v_2^{n-2}v_3 \\right ), \\quad n > 1  \\\\
        Q &= P - AI_y
 
@@ -507,9 +507,9 @@ IT_GB = BondCalcMode(
     # Italian GBs
     settle_accrual_type="linear_days",
     ytm_accrual_type="linear_days",
-    v1_type="compounding_final_simple",
-    v2_type="annual",
-    v3_type="compounding",
+    v1_type="compounding_pay_adjust_final_simple",
+    v2_type="annual_pay_adjust",
+    v3_type="compounding_pay_adjust",
     c1_type="cashflow",
     ci_type="cashflow",
     cn_type="cashflow",

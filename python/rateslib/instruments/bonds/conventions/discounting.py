@@ -26,6 +26,7 @@ class YtmDiscountFunction(Protocol):
         acc_idx: int,
         v2: DualTypes | None,
         accrual: AccrualFunction,
+        period_idx: int,
     ) -> DualTypes: ...
 
 
@@ -41,6 +42,7 @@ class YtmStubDiscountFunction(Protocol):
         acc_idx: int,
         v2: DualTypes,
         accrual: AccrualFunction,
+        period_idx: int,
     ) -> DualTypes: ...
 
 
@@ -70,6 +72,7 @@ def _v2_(
     acc_idx: int,
     v2: DualTypes | None,
     accrual: AccrualFunction,
+    period_idx: int,
 ) -> DualTypes:
     """
     Default method for a single regular period discounted in the regular portion of bond.
@@ -89,6 +92,7 @@ def _v2_annual(
     acc_idx: int,
     v2: DualTypes | None,
     accrual: AccrualFunction,
+    period_idx: int,
 ) -> DualTypes:
     """
     ytm is expressed annually but coupon payments are on another frequency
@@ -97,6 +101,25 @@ def _v2_annual(
         return (1 / (1 + ytm / 100)) ** (1 / f)
     else:
         return v2
+
+
+def _v2_annual_pay_adjust(
+    obj: Security | BondMixin,
+    ytm: DualTypes,
+    f: int,
+    settlement: datetime,
+    acc_idx: int,
+    v2: DualTypes | None,
+    accrual: AccrualFunction,
+    period_idx: int,
+):
+    if v2 is None:
+        # This is the initial, regular determination of v2
+        return (1 / (1 + ytm / 100)) ** (1 / f)
+    else:
+        de = (obj.leg1.schedule.pschedule[period_idx+1] - obj.leg1.schedule.uschedule[period_idx + 1]).days
+        dc = (obj.leg1.schedule.pschedule[period_idx+1] - obj.leg1.schedule.pschedule[period_idx]).days
+        return v2 ** (1.0 + de / dc)
 
 
 """
@@ -112,6 +135,7 @@ def _v1_compounded_by_remaining_accrual_fraction(
     acc_idx: int,
     v2: DualTypes,
     accrual: AccrualFunction,
+    period_idx: int,
 ) -> DualTypes:
     """
     Determine the discount factor for the first cashflow after settlement.
@@ -139,6 +163,7 @@ def _v1_compounded_by_remaining_accrual_frac_except_simple_final_period(
     acc_idx: int,
     v2: DualTypes,
     accrual: AccrualFunction,
+    period_idx: int,
 ) -> DualTypes:
     """
     Uses regular fractional compounding except if it is last period, when simple money-mkt
@@ -149,7 +174,7 @@ def _v1_compounded_by_remaining_accrual_frac_except_simple_final_period(
         # or \
         # settlement == self.leg1.schedule.uschedule[acc_idx + 1]:
         # then settlement is in last period use simple interest.
-        return _v1_simple(obj, ytm, f, settlement, acc_idx, v2, accrual)
+        return _v1_simple(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
     else:
         return _v1_compounded_by_remaining_accrual_fraction(
             obj,
@@ -159,7 +184,47 @@ def _v1_compounded_by_remaining_accrual_frac_except_simple_final_period(
             acc_idx,
             v2,
             accrual,
+            period_idx
         )
+
+
+def _v1_compounded_by_remaining_accrual_frac_pay_adjust_except_simple_final_period(
+    obj: Security | BondMixin,
+    ytm: DualTypes,
+    f: int,
+    settlement: datetime,
+    acc_idx: int,
+    v2: DualTypes,
+    accrual: AccrualFunction,
+    period_idx: int,
+) -> DualTypes:
+    """
+    Uses regular fractional compounding except if it is last period, when simple money-mkt
+    yield is used instead.
+    Introduced for German Bunds.
+    """
+    if acc_idx == obj.leg1.schedule.n_periods - 1:
+        # or \
+        # settlement == self.leg1.schedule.uschedule[acc_idx + 1]:
+        # then settlement is in last period use simple interest.
+        return _v1_simple(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
+    else:
+        regular_v1 = _v1_compounded_by_remaining_accrual_fraction(
+            obj,
+            ytm,
+            f,
+            settlement,
+            acc_idx,
+            v2,
+            accrual,
+            period_idx
+        )
+        de = (obj.leg1.schedule.pschedule[period_idx + 1] - obj.leg1.schedule.uschedule[
+            period_idx + 1]).days
+        dc = (obj.leg1.schedule.pschedule[period_idx + 1] - obj.leg1.schedule.pschedule[
+            period_idx]).days
+        return regular_v1 ** (1.0 + de / dc)
+
 
 
 def _v1_comp_stub_act365f(
@@ -170,6 +235,7 @@ def _v1_comp_stub_act365f(
     acc_idx: int,
     v2: DualTypes,
     accrual: AccrualFunction,
+    period_idx: int,
 ) -> DualTypes:
     """Compounds the yield. In a stub period the act365f DCF is used"""
     if not obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
@@ -195,6 +261,7 @@ def _v1_simple(
     acc_idx: int,
     v2: DualTypes,
     accrual: AccrualFunction,
+    period_idx: int,
 ) -> DualTypes:
     """
     Use simple rates with a yield which matches the frequency of the coupon.
@@ -218,6 +285,7 @@ def _v1_simple_long_stub(
     acc_idx: int,
     v2: DualTypes,
     accrual: AccrualFunction,
+    period_idx: int,
 ) -> DualTypes:
     """
     Use simple rates with a yield which matches the frequency of the coupon.
@@ -237,7 +305,7 @@ def _v1_simple_long_stub(
             v_ = 1 / (1 + fd0 * ytm / (100 * f))
         return v_
     else:
-        return _v1_simple(obj, ytm, f, settlement, acc_idx, v2, accrual)
+        return _v1_simple(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
 
 
 def _v3_compounded(
@@ -248,6 +316,7 @@ def _v3_compounded(
     acc_idx: int,
     v2: DualTypes,
     accrual: AccrualFunction,
+    period_idx: int,
 ) -> DualTypes:
     """
     Final period uses a compounding approach where the power is determined by the DCF of that
@@ -262,6 +331,28 @@ def _v3_compounded(
     return v2**fd0
 
 
+def _v3_compounded_pay_adjust(
+    obj: Security | BondMixin,
+    ytm: DualTypes,
+    f: int,
+    settlement: datetime,
+    acc_idx: int,
+    v2: DualTypes,
+    accrual: AccrualFunction,
+    period_idx: int,
+) -> DualTypes:
+    """
+    Final period uses a compounding approach where the power is determined by the DCF of that
+    period under the bond's specified convention.
+    """
+    regular_v3 = _v3_compounded(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
+    de = (obj.leg1.schedule.pschedule[period_idx + 1] - obj.leg1.schedule.uschedule[
+        period_idx + 1]).days
+    dc = (obj.leg1.schedule.pschedule[period_idx + 1] - obj.leg1.schedule.pschedule[
+        period_idx]).days
+    return regular_v3 ** (1.0 + de / dc)
+
+
 def _v3_30e360_u_simple(
     obj: Security | BondMixin,
     ytm: DualTypes,
@@ -270,6 +361,7 @@ def _v3_30e360_u_simple(
     acc_idx: int,
     v2: DualTypes,
     accrual: AccrualFunction,
+    period_idx: int,
 ) -> DualTypes:
     """
     The final period is discounted by a simple interest method under a 30E360 convention.
@@ -288,6 +380,7 @@ def _v3_simple(
     acc_idx: int,
     v2: DualTypes,
     accrual: AccrualFunction,
+    period_idx: int,
 ) -> DualTypes:
     if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
         # is a stub so must account for discounting in a different way.
@@ -302,6 +395,7 @@ def _v3_simple(
 V1_FUNCS: dict[str, YtmStubDiscountFunction] = {
     "compounding": _v1_compounded_by_remaining_accrual_fraction,
     "compounding_final_simple": _v1_compounded_by_remaining_accrual_frac_except_simple_final_period,
+    "compounding_pay_adjust_final_simple": _v1_compounded_by_remaining_accrual_frac_pay_adjust_except_simple_final_period,
     "compounding_stub_act365f": _v1_comp_stub_act365f,
     "simple": _v1_simple,
     "simple_long_stub_compounding": _v1_simple_long_stub,
@@ -310,10 +404,12 @@ V1_FUNCS: dict[str, YtmStubDiscountFunction] = {
 V2_FUNCS: dict[str, YtmDiscountFunction] = {
     "regular": _v2_,
     "annual": _v2_annual,
+    "annual_pay_adjust": _v2_annual_pay_adjust,
 }
 
 V3_FUNCS: dict[str, YtmStubDiscountFunction] = {
     "compounding": _v3_compounded,
+    "compounding_pay_adjust": _v3_compounded_pay_adjust,
     "simple": _v3_simple,
     "simple_30e360": _v3_30e360_u_simple,
 }
