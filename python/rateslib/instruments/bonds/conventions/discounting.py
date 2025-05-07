@@ -203,6 +203,9 @@ def _v1_compounded_by_remaining_accrual_frac_pay_adjust_except_simple_final_peri
     yield is used instead.
     Introduced for German Bunds.
     """
+    # if (acc_idx == obj.leg1.schedule.n_periods - 2) and settlement == obj.leg1.schedule.uschedule[-2]:
+    #         # catch the case where settlement straddles the last two coupon periods
+    #     return _v1_simple(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
     if acc_idx == obj.leg1.schedule.n_periods - 1:
         # or \
         # settlement == self.leg1.schedule.uschedule[acc_idx + 1]:
@@ -247,6 +250,7 @@ def _v1_comp_stub_act365f(
             acc_idx,
             v2,
             accrual,
+            period_idx,
         )
     else:
         fd0 = dcf(settlement, obj.leg1.schedule.uschedule[acc_idx + 1], "Act365F")

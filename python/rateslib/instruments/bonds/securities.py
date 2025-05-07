@@ -280,6 +280,7 @@ class BondMixin:
         """
         f: int = 12 / defaults.frequency_months[self.leg1.schedule.frequency]  # type: ignore[assignment]
         acc_idx: int = self._period_index(settlement)
+        _is_ex_div: bool = self.ex_div(settlement)
 
         v2 = f2(self, ytm, f, settlement, acc_idx, None, accrual, acc_idx)
         v1 = f1(self, ytm, f, settlement, acc_idx, v2, accrual, acc_idx)
@@ -289,7 +290,7 @@ class BondMixin:
         d: DualTypes = 0.0
         n = self.leg1.schedule.n_periods
         for i, p_idx in enumerate(range(acc_idx, n)):
-            if i == 0 and self.ex_div(settlement):
+            if i == 0 and _is_ex_div:
                 # no coupon cashflow is receivable so no addition to the sum
                 continue
             elif i == 0:

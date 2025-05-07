@@ -696,7 +696,7 @@ class TestFixedRateBond:
             (dt(2024, 6, 14), 98.0, 4.73006, 0.526090),  # BBG BXT ticket data
             (dt(2033, 3, 15), 99.65, 7.006149, 1.628730),  # BBG YAS Yield - Last coupon simple rate
             (dt(2032, 11, 1), 99.00, 6.569126, 0.0),  # BBG YAS Yield - Annualised
-            # (dt(2032, 11, 2), 99.00, 6.464840, 0.01215),  # BBG YAS Yield-Last coupon simple rate
+            (dt(2032, 11, 2), 99.00, 6.464840, 0.01215),  # BBG YAS Yield-Last coupon simple rate
             (dt(2033, 4, 29), 99.97, 9.623617, 2.175690),  # Test accrual upto adjusted payment date
         ],
     )
@@ -818,11 +818,11 @@ class TestFixedRateBond:
 
     def test_thai_example_a3(self):
         # see file in _static/thai_standard_formula.pdf
-        def _v1_thb_gb(obj, ytm, f, settlement, acc_idx, v2, accrual):
+        def _v1_thb_gb(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx):
             r_u = (obj.leg1.schedule.uschedule[acc_idx + 1] - settlement).days
             return v2 ** (r_u * f / 365)
 
-        def _v3_thb_gb(obj, ytm, f, settlement, acc_idx, v2, accrual):
+        def _v3_thb_gb(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx):
             r_u = (obj.leg1.schedule.uschedule[-1] - obj.leg1.schedule.uschedule[-2]).days
             return v2 ** (r_u * f / 365)
 
