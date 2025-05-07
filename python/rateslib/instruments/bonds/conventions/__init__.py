@@ -507,7 +507,7 @@ IT_GB = BondCalcMode(
     # Italian GBs
     settle_accrual_type="linear_days",
     ytm_accrual_type="linear_days",
-    v1_type="compounding_pay_adjust_final_simple",
+    v1_type="compounding_final_simple_pay_adjust",
     v2_type="annual_pay_adjust",
     v3_type="compounding_pay_adjust",
     c1_type="cashflow",
