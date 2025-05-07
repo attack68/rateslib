@@ -243,14 +243,7 @@ def _v1_comp_stub_act365f(
     """Compounds the yield. In a stub period the act365f DCF is used"""
     if not obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
         return _v1_compounded_by_remaining_accrual_fraction(
-            obj,
-            ytm,
-            f,
-            settlement,
-            acc_idx,
-            v2,
-            accrual,
-            period_idx,
+            obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx
         )
     else:
         fd0 = dcf(settlement, obj.leg1.schedule.uschedule[acc_idx + 1], "Act365F")

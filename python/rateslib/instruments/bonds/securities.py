@@ -282,9 +282,18 @@ class BondMixin:
         acc_idx: int = self._period_index(settlement)
         _is_ex_div: bool = self.ex_div(settlement)
 
-        v2 = f2(self, ytm, f, settlement, acc_idx, None, accrual, acc_idx)
+        v2 = f2(self, ytm, f, settlement, acc_idx, None, accrual, -100000)
         v1 = f1(self, ytm, f, settlement, acc_idx, v2, accrual, acc_idx)
-        v3 = f3(self, ytm, f, settlement, self.leg1.schedule.n_periods - 1, v2, accrual, self.leg1.schedule.n_periods - 1)
+        v3 = f3(
+            self,
+            ytm,
+            f,
+            settlement,
+            self.leg1.schedule.n_periods - 1,
+            v2,
+            accrual,
+            self.leg1.schedule.n_periods - 1,
+        )
 
         # Sum up the coupon cashflows discounted by the calculated factors
         d: DualTypes = 0.0
