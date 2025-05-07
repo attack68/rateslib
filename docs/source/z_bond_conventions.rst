@@ -112,7 +112,7 @@ formula are calculable.
 .. math::
 
        P &= v_1 \left ( c_1 + 100 \right ), \quad n = 1 \\
-       P &= v_1 \left ( c_1 + v3(c_2 + 100) \right ), \quad n = 2 \\
+       P &= v_1 \left ( c_1 + v3(c_n + 100) \right ), \quad n = 2 \\
        P &= v_1 \left ( \sum_{i=1}^{n-1} c_i v_2^{i-1} + c_nv_2^{n-2}v_3 + 100 v_2^{n-2}v_3 \right ), \quad n > 1  \\
 
     where,
@@ -183,6 +183,7 @@ To match the Thai standard formula, these must be implemented directly.
        acc_idx,     # the index of the period in which settlement occurs
        v2,          # the numeric value of v2 already calculated
        accrual,     # the ytm_accrual function to return accrual fractions
+       period_idx,  # the index of the current period
    ):
        """The exponent to the regular discount factor is derived from ACT365F"""
        r_u = (obj.leg1.schedule.uschedule[acc_idx + 1] - settlement).days
@@ -190,7 +191,7 @@ To match the Thai standard formula, these must be implemented directly.
 
 .. ipython:: python
 
-   def _v3_thb_gb(obj, ytm, f, settlement, acc_idx, v2, accrual):
+   def _v3_thb_gb(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx):
        """The exponent to the regular discount function is derived from ACT365F"""
        r_u = (obj.leg1.schedule.uschedule[-1] - obj.leg1.schedule.uschedule[-2]).days
        return v2 ** (r_u * f / 365)

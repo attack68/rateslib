@@ -280,16 +280,26 @@ class BondMixin:
         """
         f: int = 12 / defaults.frequency_months[self.leg1.schedule.frequency]  # type: ignore[assignment]
         acc_idx: int = self._period_index(settlement)
+        _is_ex_div: bool = self.ex_div(settlement)
 
-        v2 = f2(self, ytm, f, settlement, acc_idx, 1e9, accrual)
-        v1 = f1(self, ytm, f, settlement, acc_idx, v2, accrual)
-        v3 = f3(self, ytm, f, settlement, self.leg1.schedule.n_periods - 1, v2, accrual)
+        v2 = f2(self, ytm, f, settlement, acc_idx, None, accrual, -100000)
+        v1 = f1(self, ytm, f, settlement, acc_idx, v2, accrual, acc_idx)
+        v3 = f3(
+            self,
+            ytm,
+            f,
+            settlement,
+            self.leg1.schedule.n_periods - 1,
+            v2,
+            accrual,
+            self.leg1.schedule.n_periods - 1,
+        )
 
         # Sum up the coupon cashflows discounted by the calculated factors
         d: DualTypes = 0.0
         n = self.leg1.schedule.n_periods
         for i, p_idx in enumerate(range(acc_idx, n)):
-            if i == 0 and self.ex_div(settlement):
+            if i == 0 and _is_ex_div:
                 # no coupon cashflow is receivable so no addition to the sum
                 continue
             elif i == 0 and p_idx == (self.leg1.schedule.n_periods - 1):
@@ -302,8 +312,11 @@ class BondMixin:
                 d += cfn * v2 ** (i - 1) * v3 * v1
             else:
                 # this is not the first and not the last period. Discount only with v1 and v2.
+                # i >= 1, when i == 1 only v2i will be the multiplier.
+                # v2i allows for a per-period adjustment to the v2 discount factor, e.g. BTPs.
+                v2i = f2(self, ytm, f, settlement, acc_idx, v2, accrual, p_idx)
                 cfi = ci(self, ytm, f, acc_idx, p_idx, n, curve)
-                d += cfi * v2**i * v1
+                d += cfi * v2 ** (i - 1) * v2i * v1
 
         # Add the redemption payment discounted by relevant factors
         redemption: Cashflow | IndexCashflow = self.leg1._exchange_periods[1]  # type: ignore[assignment]

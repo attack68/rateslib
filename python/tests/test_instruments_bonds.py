@@ -818,11 +818,11 @@ class TestFixedRateBond:
 
     def test_thai_example_a3(self):
         # see file in _static/thai_standard_formula.pdf
-        def _v1_thb_gb(obj, ytm, f, settlement, acc_idx, v2, accrual):
+        def _v1_thb_gb(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx):
             r_u = (obj.leg1.schedule.uschedule[acc_idx + 1] - settlement).days
             return v2 ** (r_u * f / 365)
 
-        def _v3_thb_gb(obj, ytm, f, settlement, acc_idx, v2, accrual):
+        def _v3_thb_gb(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx):
             r_u = (obj.leg1.schedule.uschedule[-1] - obj.leg1.schedule.uschedule[-2]).days
             return v2 ** (r_u * f / 365)
 
@@ -860,11 +860,11 @@ class TestFixedRateBond:
 
     def test_thai_example_a3_exdiv(self):
         # see file in _static/thai_standard_formula.pdf
-        def _v1_thb_gb(obj, ytm, f, settlement, acc_idx, v2, accrual):
+        def _v1_thb_gb(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx):
             r_u = (obj.leg1.schedule.uschedule[acc_idx + 1] - settlement).days
             return v2 ** (r_u * f / 365)
 
-        def _v3_thb_gb(obj, ytm, f, settlement, acc_idx, v2, accrual):
+        def _v3_thb_gb(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx):
             r_u = (obj.leg1.schedule.uschedule[-1] - obj.leg1.schedule.uschedule[-2]).days
             return v2 ** (r_u * f / 365)
 
