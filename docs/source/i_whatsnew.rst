@@ -34,14 +34,17 @@ email contact, see `rateslib <https://rateslib.com>`_.
        (`785 <https://github.com/attack68/rateslib/pull/785>`_)
        (`786 <https://github.com/attack68/rateslib/pull/786>`_)
    * - Instruments
-     - Extend :class:`~rateslib.instruments.BondCalcMode` to support custom accrual and
-       discount functions for calculations.
+     - Extend :class:`~rateslib.instruments.BondCalcMode` to support custom accrual,
+       discount and cashflow functions for calculations.
        (`788 <https://github.com/attack68/rateslib/pull/788>`_)
        (`791 <https://github.com/attack68/rateslib/pull/791>`_)
+       (`793 <https://github.com/attack68/rateslib/pull/793>`_)
    * - Documentation
      - The documentation page for the :class:`~rateslib.instruments.BondCalcMode` has been
        re-written to included all of the current formulae and structuring of bond accrual and
        yield-to-maturity calculations.
+       (`790 <https://github.com/attack68/rateslib/pull/790>`_)
+       (`789 <https://github.com/attack68/rateslib/pull/789>`_)
    * - Automatic Differentiation
      - Operator overloads added to allow dual number exponents, i.e. :math:`z^p`, where *z*,
        *p* are dual number types. This facilitates AD for the SABR function as well as other
