@@ -24,6 +24,21 @@ class YtmDiscountFunction(Protocol):
         f: int,
         settlement: datetime,
         acc_idx: int,
+        v2: DualTypes | None,
+        accrual: AccrualFunction,
+    ) -> DualTypes: ...
+
+
+class YtmStubDiscountFunction(Protocol):
+    # Callable Type for discount functions in YTM formula
+    # This is same as above, except v2 must be pre-calculated and cannot be None
+    def __call__(
+        self,
+        obj: Security | BondMixin,
+        ytm: DualTypes,
+        f: int,
+        settlement: datetime,
+        acc_idx: int,
         v2: DualTypes,
         accrual: AccrualFunction,
     ) -> DualTypes: ...
@@ -53,14 +68,17 @@ def _v2_(
     f: int,
     settlement: datetime,
     acc_idx: int,
-    v2: DualTypes,
+    v2: DualTypes | None,
     accrual: AccrualFunction,
 ) -> DualTypes:
     """
     Default method for a single regular period discounted in the regular portion of bond.
     Implies compounding at the same frequency as the coupons.
     """
-    return 1 / (1 + ytm / (100 * f))
+    if v2 is None:
+        return 1 / (1 + ytm / (100 * f))
+    else:
+        return v2
 
 
 def _v2_annual(
@@ -69,13 +87,16 @@ def _v2_annual(
     f: int,
     settlement: datetime,
     acc_idx: int,
-    v2: DualTypes,
+    v2: DualTypes | None,
     accrual: AccrualFunction,
 ) -> DualTypes:
     """
     ytm is expressed annually but coupon payments are on another frequency
     """
-    return (1 / (1 + ytm / 100)) ** (1 / f)
+    if v2 is None:
+        return (1 / (1 + ytm / 100)) ** (1 / f)
+    else:
+        return v2
 
 
 """
@@ -278,7 +299,7 @@ def _v3_simple(
     return v_
 
 
-V1_FUNCS: dict[str, YtmDiscountFunction] = {
+V1_FUNCS: dict[str, YtmStubDiscountFunction] = {
     "compounding": _v1_compounded_by_remaining_accrual_fraction,
     "compounding_final_simple": _v1_compounded_by_remaining_accrual_frac_except_simple_final_period,
     "compounding_stub_act365f": _v1_comp_stub_act365f,
@@ -291,7 +312,7 @@ V2_FUNCS: dict[str, YtmDiscountFunction] = {
     "annual": _v2_annual,
 }
 
-V3_FUNCS: dict[str, YtmDiscountFunction] = {
+V3_FUNCS: dict[str, YtmStubDiscountFunction] = {
     "compounding": _v3_compounded,
     "simple": _v3_simple,
     "simple_30e360": _v3_30e360_u_simple,

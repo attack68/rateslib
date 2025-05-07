@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from rateslib.instruments.bonds.conventions.discounting import (
         CashflowFunction,
         YtmDiscountFunction,
+        YtmStubDiscountFunction,
     )
     from rateslib.typing import Security
 
@@ -294,9 +295,9 @@ class BondCalcMode:
 
     _settle_accrual: AccrualFunction
     _ytm_accrual: AccrualFunction
-    _v1: YtmDiscountFunction
+    _v1: YtmStubDiscountFunction
     _v2: YtmDiscountFunction
-    _v3: YtmDiscountFunction
+    _v3: YtmStubDiscountFunction
     _c1: CashflowFunction
     _ci: CashflowFunction
     _cn: CashflowFunction
@@ -305,9 +306,9 @@ class BondCalcMode:
         self,
         settle_accrual_type: str | AccrualFunction,
         ytm_accrual_type: str | AccrualFunction,
-        v1_type: str | YtmDiscountFunction,
+        v1_type: str | YtmStubDiscountFunction,
         v2_type: str | YtmDiscountFunction,
-        v3_type: str | YtmDiscountFunction,
+        v3_type: str | YtmStubDiscountFunction,
         c1_type: str | CashflowFunction,
         ci_type: str | CashflowFunction,
         cn_type: str | CashflowFunction,
