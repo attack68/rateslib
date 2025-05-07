@@ -81,7 +81,7 @@ class BondCalcMode:
       determined with the convention of the accrual function (which may be different to the
       convention for determining physical bond cashflows)
     - :math:`c_i`: A coupon cashflow monetary amount, **per 100 nominal**, for coupon period, *i*.
-    - :math:`C`: The nominal annual coupon rate for the bond. 
+    - :math:`C`: The nominal annual coupon rate for the bond.
     - :math:`y`: The yield-to-maturity for a given bond. The expression of which, i.e. annually
       or semi-annually is derived from the calculation context.
 
