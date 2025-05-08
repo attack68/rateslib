@@ -22,7 +22,7 @@ class BondCalcMode:
     :class:`~rateslib.instruments.IndexFixedRateBond` and
     :class:`~rateslib.instruments.FloatRateNote` types.
 
-    For a list of :class:`~rateslib.instruments.BondCalcMode` that have already 
+    For a list of :class:`~rateslib.instruments.BondCalcMode` that have already
     been pre-defined see :ref:`Securities Defaults <defaults-securities-input>`.
     
     Parameters
