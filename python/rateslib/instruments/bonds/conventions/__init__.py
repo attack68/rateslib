@@ -186,7 +186,8 @@ class BondCalcMode:
 
     **v2** Functions
     
-    *v2* forms the core, regular part of discounting the cashflows. These coupon periods are
+    *v2* forms the core, regular part of discounting the cashflows. *v2* functions are required when
+    a bond has more than two coupon remaining. This reflects coupon periods that are
     never stubs. The available functions are described below:
 
     - ``regular``: uses the traditional discounting function matching the actual frequency of
@@ -202,7 +203,8 @@ class BondCalcMode:
 
          v_2 = \\left ( \\frac{1}{1 + y} \\right ) ^ {1/f}
          
-    - ``annual_pay_adjust``: adjusts the *'annual'* method to account for the payment date. (Used
+    - ``annual_pay_adjust``: an extension to *'annual'* that adjusts the period in scope to 
+      account for a delay between its unadjusted coupon end date and the actual payment date. (Used
       by Italian BTPs)
       
       .. math::
@@ -211,10 +213,17 @@ class BondCalcMode:
               
     **v1** Functions
 
-    *v1* may or may not be dependent upon *v2*.
-    The available functions for determining *v1* are described below:
+    *v1* functions are required for every bond. Its value may, or may not, be dependent upon *v2*.
+    *v1* functions have to handle the cases whereby the coupon period in which *settlement* falls
+    is
     
-    - ``compounding``: one of most common conventions. If a **stub** then scaled by the length of
+    - The first coupon period, **and** it may be a **stub**,
+    - A regular interim coupon period,
+    - The final coupon period **and** it may be a **stub**.
+     
+    The two most common functions for determining *v1* are described below:
+    
+    - ``compounding``: If a **stub** then scaled by the length of
       the stub. At issue, or on a coupon date, for a regular period, *v1* converges to *v2*.
          
       .. math::
@@ -227,6 +236,9 @@ class BondCalcMode:
       .. math::
       
          v_1 = \\frac{1}{1 + g(\\xi_y) y / f}  \\quad \\text{where, } g(\\xi_y) \\text{ defined as above}
+
+    Combinations, or extensions, of the two above functions are also required for some 
+    bond conventions:
 
     - ``compounding_final_simple``: uses *'compounding'*, unless settlement occurs in the final
       period of the bond (and in which case n=1) and then the *'simple'* method is applied.
@@ -252,7 +264,18 @@ class BondCalcMode:
       .. math::
       
          v_1 = \\frac{1}{1 + g_p(\\xi_y) y / f} \\quad \\text{where,} \\quad g_p(\\xi_y) = \\left \\{ \\begin{matrix} 1-\\xi_y + p_d / p_D & \\text{if regular,} \\\\ (1-\\xi_y + p_d / p_D) f d_i & \\text{if stub,} \\\\ \\end{matrix} \\right .
-           
+    
+    - ``compounding_pay_adjust``: adjusts the *'compounding'* method to account for payment date.
+    
+      .. math::
+      
+         v_1 = v_2^{g_y(\\xi_y)}  \\quad \\text{where, } g(\\xi_y) \\text{ defined as above}
+         
+    - ``compounding_final_simple_pay_adjust``: uses *'compounding_pay_adjust'* unless settlement 
+      occurs in the final period of the bond (and in which case n=1) and then the 
+      *'simple_pay_adjust'* method is applied.
+    
+    
     **v3** Functions
 
     *v3* functions will never have a settlement mid period, and are only used in the case

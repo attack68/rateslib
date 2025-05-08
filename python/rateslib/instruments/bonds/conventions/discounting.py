@@ -60,8 +60,9 @@ class CashflowFunction(Protocol):
     ) -> DualTypes: ...
 
 
-# TODO fix the union-attr type ignores by considering aggergating coupon periods distinct from
-# cashflow periods
+"""
+The calculations for v2:
+"""
 
 
 def _v2_(
@@ -117,18 +118,15 @@ def _v2_annual_pay_adjust(
         # This is the initial, regular determination of v2
         return (1 / (1 + ytm / 100)) ** (1 / f)
     else:
-        s = obj.leg1.schedule
-        de = (s.pschedule[period_idx + 1] - s.uschedule[period_idx + 1]).days
-        dc = (s.pschedule[period_idx + 1] - s.pschedule[period_idx]).days
-        return v2 ** (1.0 + de / dc)
+        return v2 ** (1.0 + _pay_adj(obj))
 
 
 """
-The calculations for v1 allow more inputs in order to avoid repeat calculations in the chain.
+The calculations for v1:
 """
 
 
-def _v1_compounded_by_remaining_accrual_fraction(
+def _v1_compounded(
     obj: Security | BondMixin,
     ytm: DualTypes,
     f: int,
@@ -143,7 +141,7 @@ def _v1_compounded_by_remaining_accrual_fraction(
 
     The parameter "v2" is a generic discount function which is normally :math:`1/(1+y/f)`
 
-    Method: compounds "v2" by the accrual fraction of the period.
+    Method: compounds "v2" with exponent in terms of the accrual fraction of the period.
     """
     acc_frac = accrual(obj, settlement, acc_idx)
     if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
@@ -154,81 +152,6 @@ def _v1_compounded_by_remaining_accrual_fraction(
         # 1 minus acc_fra is the fraction of the period remaining until the next cashflow.
         fd0 = 1 - acc_frac
     return v2**fd0
-
-
-def _v1_compounded_by_remaining_accrual_frac_except_simple_final_period(
-    obj: Security | BondMixin,
-    ytm: DualTypes,
-    f: int,
-    settlement: datetime,
-    acc_idx: int,
-    v2: DualTypes,
-    accrual: AccrualFunction,
-    period_idx: int,
-) -> DualTypes:
-    """
-    Uses regular fractional compounding except if it is last period, when simple money-mkt
-    yield is used instead.
-    Introduced for German Bunds.
-    """
-    if acc_idx == obj.leg1.schedule.n_periods - 1:
-        # or \
-        # settlement == self.leg1.schedule.uschedule[acc_idx + 1]:
-        # then settlement is in last period use simple interest.
-        return _v1_simple(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
-    else:
-        return _v1_compounded_by_remaining_accrual_fraction(
-            obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx
-        )
-
-
-def _v1_compounded_by_remaining_accrual_frac_except_simple_final_period_pay_adjust_(
-    obj: Security | BondMixin,
-    ytm: DualTypes,
-    f: int,
-    settlement: datetime,
-    acc_idx: int,
-    v2: DualTypes,
-    accrual: AccrualFunction,
-    period_idx: int,
-) -> DualTypes:
-    """
-    Uses regular fractional compounding except if it is last period, when simple money-mkt
-    yield is used instead.
-    Both methods are adjusted to account for pay delays.
-    """
-    if acc_idx == obj.leg1.schedule.n_periods - 1:
-        return _v1_simple_pay_adjust(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
-    else:
-        regular_v1 = _v1_compounded_by_remaining_accrual_fraction(
-            obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx
-        )
-
-        # adjust by pay delay
-        s = obj.leg1.schedule
-        de = (s.pschedule[period_idx + 1] - s.uschedule[period_idx + 1]).days
-        dc = (s.pschedule[period_idx + 1] - s.pschedule[period_idx]).days
-        return regular_v1 ** (1.0 + de / dc)
-
-
-def _v1_comp_stub_act365f(
-    obj: Security | BondMixin,
-    ytm: DualTypes,
-    f: int,
-    settlement: datetime,
-    acc_idx: int,
-    v2: DualTypes,
-    accrual: AccrualFunction,
-    period_idx: int,
-) -> DualTypes:
-    """Compounds the yield. In a stub period the act365f DCF is used"""
-    if not obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
-        return _v1_compounded_by_remaining_accrual_fraction(
-            obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx
-        )
-    else:
-        fd0 = dcf(settlement, obj.leg1.schedule.uschedule[acc_idx + 1], "Act365F")
-        return v2**fd0
 
 
 def _v1_simple(
@@ -269,19 +192,115 @@ def _v1_simple_pay_adjust(
     Use simple rates with a yield which matches the frequency of the coupon.
     """
     acc_frac = accrual(obj, settlement, acc_idx)
-    # adjust by pay delay
-    s = obj.leg1.schedule
-    de = (s.pschedule[period_idx + 1] - s.uschedule[period_idx + 1]).days
-    dc = (s.pschedule[period_idx + 1] - s.pschedule[period_idx]).days
-
     if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
         # is a stub so must account for discounting in a different way.
-        fd0 = obj.leg1.periods[acc_idx].dcf * f * (1 - acc_frac + de / dc)  # type: ignore[union-attr]
+        fd0 = obj.leg1.periods[acc_idx].dcf * f * (1 - acc_frac + _pay_adj(obj))  # type: ignore[union-attr]
     else:
-        fd0 = 1 - acc_frac + de / dc
+        fd0 = 1 - acc_frac + _pay_adj(obj)
 
     v_ = 1 / (1 + fd0 * ytm / (100 * f))
     return v_
+
+
+def _v1_compounded_pay_adjust(
+    obj: Security | BondMixin,
+    ytm: DualTypes,
+    f: int,
+    settlement: datetime,
+    acc_idx: int,
+    v2: DualTypes,
+    accrual: AccrualFunction,
+    period_idx: int,
+) -> DualTypes:
+    """
+    Determine the discount factor for the first cashflow after settlement.
+
+    The parameter "v2" is a generic discount function which is normally :math:`1/(1+y/f)`
+
+    Method: compounds "v2" with exponent in terms of the accrual fraction of the period.
+    """
+    acc_frac = accrual(obj, settlement, acc_idx)
+    if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
+        # If it is a stub then the remaining fraction must be scaled by the relative size of the
+        # stub period compared with a regular period.
+        fd0 = obj.leg1.periods[acc_idx].dcf * f * (1 - acc_frac + _pay_adj(obj))  # type: ignore[union-attr]
+    else:
+        # 1 minus acc_fra is the fraction of the period remaining until the next cashflow.
+        fd0 = 1 - acc_frac + _pay_adj(obj)
+    return v2**fd0
+
+
+def _v1_compounded_final_simple(
+    obj: Security | BondMixin,
+    ytm: DualTypes,
+    f: int,
+    settlement: datetime,
+    acc_idx: int,
+    v2: DualTypes,
+    accrual: AccrualFunction,
+    period_idx: int,
+) -> DualTypes:
+    """
+    Uses regular fractional compounding except if it is last period, when simple money-mkt
+    yield is used instead.
+    Introduced for German Bunds.
+    """
+    if acc_idx == obj.leg1.schedule.n_periods - 1:
+        # or \
+        # settlement == self.leg1.schedule.uschedule[acc_idx + 1]:
+        # then settlement is in last period use simple interest.
+        return _v1_simple(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
+    else:
+        return _v1_compounded(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
+
+
+def _v1_compounded_final_simple_pay_adjust(
+    obj: Security | BondMixin,
+    ytm: DualTypes,
+    f: int,
+    settlement: datetime,
+    acc_idx: int,
+    v2: DualTypes,
+    accrual: AccrualFunction,
+    period_idx: int,
+) -> DualTypes:
+    """
+    Uses regular fractional compounding except if it is last period, when simple money-mkt
+    yield is used instead.
+    Both methods are adjusted to account for pay delays.
+    """
+    if acc_idx == obj.leg1.schedule.n_periods - 1:
+        return _v1_simple_pay_adjust(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
+    else:
+        regular_v1 = _v1_compounded(
+            obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx
+        )
+
+        # adjust by pay delay
+        s = obj.leg1.schedule
+        de = (s.pschedule[period_idx + 1] - s.uschedule[period_idx + 1]).days
+        dc = (s.pschedule[period_idx + 1] - s.pschedule[period_idx]).days
+        return regular_v1 ** (1.0 + de / dc)
+
+
+def _v1_comp_stub_act365f(
+    obj: Security | BondMixin,
+    ytm: DualTypes,
+    f: int,
+    settlement: datetime,
+    acc_idx: int,
+    v2: DualTypes,
+    accrual: AccrualFunction,
+    period_idx: int,
+) -> DualTypes:
+    """Compounds the yield. In a stub period the act365f DCF is used"""
+    if not obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
+        return _v1_compounded(
+            obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx
+        )
+    else:
+        fd0 = dcf(settlement, obj.leg1.schedule.uschedule[acc_idx + 1], "Act365F")
+        return v2**fd0
 
 
 def _v1_simple_long_stub(
@@ -313,6 +332,11 @@ def _v1_simple_long_stub(
         return v_
     else:
         return _v1_simple(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
+
+
+"""
+The calculations for v3:
+"""
 
 
 def _v3_compounded(
@@ -402,9 +426,9 @@ def _v3_simple(
 
 
 V1_FUNCS: dict[str, YtmStubDiscountFunction] = {
-    "compounding": _v1_compounded_by_remaining_accrual_fraction,
-    "compounding_final_simple": _v1_compounded_by_remaining_accrual_frac_except_simple_final_period,
-    "compounding_final_simple_pay_adjust": _v1_compounded_by_remaining_accrual_frac_except_simple_final_period_pay_adjust_,  # noqa: E501
+    "compounding": _v1_compounded,
+    "compounding_final_simple": _v1_compounded_final_simple,
+    "compounding_final_simple_pay_adjust": _v1_compounded_final_simple_pay_adjust,  # noqa: E501
     "compounding_stub_act365f": _v1_comp_stub_act365f,
     "simple": _v1_simple,
     "simple_long_stub_compounding": _v1_simple_long_stub,
