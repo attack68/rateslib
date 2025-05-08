@@ -118,7 +118,7 @@ def _v2_annual_pay_adjust(
         # This is the initial, regular determination of v2
         return (1 / (1 + ytm / 100)) ** (1 / f)
     else:
-        return v2 ** (1.0 + _pay_adj(obj))
+        return v2 ** (1.0 + _pay_adj(obj, period_idx))
 
 
 """
@@ -191,15 +191,15 @@ def _v1_simple_pay_adjust(
     acc_frac = accrual(obj, settlement, acc_idx)
     if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
         # is a stub so must account for discounting in a different way.
-        fd0 = obj.leg1.periods[acc_idx].dcf * f * (1 - acc_frac + _pay_adj(obj))  # type: ignore[union-attr]
+        fd0 = obj.leg1.periods[acc_idx].dcf * f * (1 - acc_frac + _pay_adj(obj, period_idx))  # type: ignore[union-attr]
     else:
-        fd0 = 1 - acc_frac + _pay_adj(obj)
+        fd0 = 1 - acc_frac + _pay_adj(obj, period_idx)
 
     v_ = 1 / (1 + fd0 * ytm / (100 * f))
     return v_
 
 
-def _v1_compounding_pay_adjust(
+def _v1_compounded_pay_adjust(
     obj: Security | BondMixin,
     ytm: DualTypes,
     f: int,
@@ -213,10 +213,10 @@ def _v1_compounding_pay_adjust(
     if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
         # If it is a stub then the remaining fraction must be scaled by the relative size of the
         # stub period compared with a regular period.
-        fd0 = obj.leg1.periods[acc_idx].dcf * f * (1 - acc_frac + _pay_adj(obj))  # type: ignore[union-attr]
+        fd0 = obj.leg1.periods[acc_idx].dcf * f * (1 - acc_frac + _pay_adj(obj, period_idx))  # type: ignore[union-attr]
     else:
         # 1 minus acc_fra is the fraction of the period remaining until the next cashflow.
-        fd0 = 1 - acc_frac + _pay_adj(obj)
+        fd0 = 1 - acc_frac + _pay_adj(obj, period_idx)
     return v2**fd0
 
 
@@ -262,7 +262,8 @@ def _v1_compounded_final_simple_pay_adjust(
     if acc_idx == obj.leg1.schedule.n_periods - 1:
         return _v1_simple_pay_adjust(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
     else:
-        return _v1_compounding_pay_adjust(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
+        # Pay adjustment is not applied if it is not the final period
+        return _v1_compounded(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
 
 
 def _v1_comp_stub_act365f(
@@ -277,9 +278,7 @@ def _v1_comp_stub_act365f(
 ) -> DualTypes:
     """Compounds the yield. In a stub period the act365f DCF is used"""
     if not obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
-        return _v1_compounded(
-            obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx
-        )
+        return _v1_compounded(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
     else:
         fd0 = dcf(settlement, obj.leg1.schedule.uschedule[acc_idx + 1], "Act365F")
         return v2**fd0
@@ -359,13 +358,7 @@ def _v3_compounded_pay_adjust(
     period under the bond's specified convention.
     """
     regular_v3 = _v3_compounded(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
-    de = (
-        obj.leg1.schedule.pschedule[period_idx + 1] - obj.leg1.schedule.uschedule[period_idx + 1]
-    ).days
-    dc = (
-        obj.leg1.schedule.pschedule[period_idx + 1] - obj.leg1.schedule.pschedule[period_idx]
-    ).days
-    return regular_v3 ** (1.0 + de / dc)
+    return regular_v3 ** (1.0 + _pay_adj(obj, period_idx))
 
 
 def _v3_30e360_u_simple(
@@ -419,9 +412,9 @@ def _v3_simple_pay_adjust(
 ) -> DualTypes:
     if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
         # is a stub so must account for discounting in a different way.
-        fd0 = (1.0 + _pay_adj(obj)) * obj.leg1.periods[acc_idx].dcf * f  # type: ignore[union-attr]
+        fd0 = (1.0 + _pay_adj(obj, period_idx)) * obj.leg1.periods[acc_idx].dcf * f  # type: ignore[union-attr]
     else:
-        fd0 = 1.0 + _pay_adj(obj)
+        fd0 = 1.0 + _pay_adj(obj, period_idx)
 
     v_ = 1 / (1 + fd0 * ytm / (100 * f))
     return v_
@@ -429,7 +422,7 @@ def _v3_simple_pay_adjust(
 
 V1_FUNCS: dict[str, YtmStubDiscountFunction] = {
     "compounding": _v1_compounded,
-    "compounding_pay_adjust": _v1_compounding_pay_adjust,
+    "compounding_pay_adjust": _v1_compounded_pay_adjust,
     "simple": _v1_simple,
     "simple_pay_adjust": _v1_simple_pay_adjust,
     "compounding_final_simple": _v1_compounded_final_simple,
@@ -491,8 +484,8 @@ C_FUNCS: dict[str, CashflowFunction] = {
 }
 
 
-def _pay_adj(obj: Security | BondMixin) -> float:
+def _pay_adj(obj: Security | BondMixin, period_idx: int) -> float:
     sch = obj.leg1.schedule
-    pd = (sch.pschedule[1] - sch.uschedule[1]).days
-    PD = (sch.pschedule[1] - sch.pschedule[0]).days
+    pd = (sch.pschedule[period_idx + 1] - sch.uschedule[period_idx + 1]).days
+    PD = (sch.pschedule[period_idx + 1] - sch.pschedule[period_idx]).days
     return pd / PD

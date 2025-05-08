@@ -82,9 +82,9 @@ class BondCalcMode:
       determined with the convention of the accrual function (which may be different to the
       convention for determining physical bond cashflows)
     - :math:`c_i`: A coupon cashflow monetary amount, **per 100 nominal**, for coupon period, *i*.
-    - :math:`p_d`: Number of days between unadjusted coupon date and payment date in a coupon 
+    - :math:`p_d`: Number of days between unadjusted coupon date and payment date in a coupon
       period, i.e. the pay delay.
-    - :math:`p_D` = Number of days between previous payment date and current payment date, in a 
+    - :math:`p_D` = Number of days between previous payment date and current payment date, in a
       coupon period.
     - :math:`C`: The nominal annual coupon rate for the bond.
     - :math:`y`: The yield-to-maturity for a given bond. The expression of which, i.e. annually
@@ -204,7 +204,7 @@ class BondCalcMode:
 
          v_2 = \\left ( \\frac{1}{1 + y} \\right ) ^ {1/f}
          
-    - ``annual_pay_adjust``: an extension to ``annual`` that adjusts the period in scope to 
+    - ``annual_pay_adjust``: an extension to ``annual`` that adjusts the period in scope to
       account for a delay between its unadjusted coupon end date and the actual payment date. (Used
       by Italian BTPs)
       
@@ -238,7 +238,7 @@ class BondCalcMode:
       
          v_1 = \\frac{1}{1 + g(\\xi_y) y / f}  \\quad \\text{where, } g(\\xi_y) \\text{ defined as above}
 
-    Combinations, or extensions, of the two above functions are also required for some 
+    Combinations, or extensions, of the two above functions are also required for some
     bond conventions:
 
     - ``compounding_final_simple``: uses ``compounding``, unless settlement occurs in the final
@@ -258,7 +258,7 @@ class BondCalcMode:
       
       .. math::
 
-         v_1 = \\left \\{ \\begin{matrix} v_2 \\frac{1}{1 + [f d_i(1 - \\xi_y) - 1] y / f} & \\text{if settlement before quasi-coupon} \\\\ \\frac{1}{1 + f d_i (1-\\xi_y) y / f}  & \\text{if settlement after quasi-coupon} \\\\ \\end{matrix} \\right .
+         v_1 = v_2 \\frac{1}{1 + [f d_i(1 - \\xi_y) - 1] y / f} \\qquad \\text{if settlement before quasi-coupon in long stub}
 
     - ``simple_pay_adjust``: adjusts the *'simple'* method to account for the payment date.
     
@@ -270,10 +270,10 @@ class BondCalcMode:
     
       .. math::
       
-         v_1 = v_2^{g_y(\\xi_y)}  \\quad \\text{where, } g(\\xi_y) \\text{ defined as above}
+         v_1 = v_2^{g_p(\\xi_y)}  \\quad \\text{where, } g_p(\\xi_y) \\text{ defined as above}
          
-    - ``compounding_final_simple_pay_adjust``: uses ``compounding_pay_adjust`` unless settlement 
-      occurs in the final period of the bond (and in which case n=1) and then the 
+    - ``compounding_final_simple_pay_adjust``: uses ``compounding`` unless settlement
+      occurs in the final period of the bond (and in which case n=1) and then the
       ``simple_pay_adjust`` method is applied.
     
     
@@ -283,8 +283,7 @@ class BondCalcMode:
     of 2 or more remaining coupon periods. The available functions are:
 
     - ``compounding``: is identical to *v1 'compounding'* where :math:`\\xi_y` is set to zero.
-    - ``compounding_pay_adjust``: is identical to *v1 'compounding_pay_adjust'* where 
-      :math:`\\xi_y` is set to zero.
+    - ``compounding_pay_adjust``: is identical to *v1 'compounding_pay_adjust'* where :math:`\\xi_y` is set to zero.
     - ``simple``: is identical to *v1 'simple'* where :math:`\\xi_y` is set to zero.
     - ``simple_pay_adjust``: is identical to *v1 'simple_pay_adjust'* where :math:`\\xi_y`
       is set to zero.
