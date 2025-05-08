@@ -102,29 +102,12 @@ representation:
    from rateslib.instruments.bonds.conventions import DE_GB
    DE_GB.kwargs
 
-A :class:`~rateslib.instruments.bonds.conventions.BondCalcMode` can be directly constructed
+A :class:`~rateslib.instruments.BondCalcMode` can be directly constructed
 and passed as the ``calc_mode`` in the *FixedRateBond* initialisation.
 The relevant properties of the construction are explained on the documentation page for that
 object. It contains all of the necessary formulae to achieve the desired results. Importantly
 all the functions must be correctly specified, or implemented, such that each element of the YTM
-formula are calculable.
-
-.. math::
-
-       P &= v_1 \left ( c_1 + 100 \right ), \quad n = 1 \\
-       P &= v_1 \left ( c_1 + v3(c_n + 100) \right ), \quad n = 2 \\
-       P &= v_1 \left ( \sum_{i=1}^{n-1} c_i v_2^{i-1} + c_nv_2^{n-2}v_3 + 100 v_2^{n-2}v_3 \right ), \quad n > 1  \\
-
-    where,
-
-    .. math::
-
-       P &= \text{Dirty price}, \; n = \text{Coupon periods remaining} \\
-       c_1 &= \text{Cashflow (per 100) on next coupon date (may be zero if ex-dividend)} \\
-       c_i &= i \text{'th cashflow (per 100) on subsequent coupon dates} \\
-       v_1 &= \text{Discount value for the initial, possibly stub, period} \\
-       v_2 &= \text{Discount value for the interim regular periods} \\
-       v_3 &= \text{Discount value for the final, possibly stub, period} \\
+formula (visible in the docs for :class:`~rateslib.instruments.BondCalcMode`) are calculable.
 
 Example implementation
 ------------------------
