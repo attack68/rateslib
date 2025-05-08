@@ -116,7 +116,8 @@ Example implementation
 construct one. The calculation for these types of bonds were found in a document on the Thai
 Bond Market Association website (:download:`pdf copy <_static/thai_standard_formula.pdf>`)
 
-An example (A-3) is given which provides actionable tests. The ``convention`` for Thai GBs uses
+An example (A-3) is given which provides a couple of actionable tests.
+The ``convention`` for Thai GBs uses
 Act365F and the accrued interest matches this convention with Act365F, so a ``linear_days`` accrual
 function will return an accrual fraction that determines the correct accrued interest. Noting,
 
@@ -124,8 +125,8 @@ function will return an accrual fraction that determines the correct accrued int
 
    \underbrace{\frac{r_u}{s_u}}_{\text{accrual fraction}} \underbrace{\frac{s_u}{365} C}_{\text{cashflow}} = \underbrace{\frac{r_u}{365} C}_{\text{accrued interest formula}}
 
-Since ``linear_days`` is the default the correct amount of accrued interest should be returned
-by default when constructing a bond with Act365F convention. The official example
+Since ``linear_days`` is the default, the correct amount of accrued interest should be returned
+by default when constructing a bond with an Act365F *convention*. The official example
 gives an accrued interest calculation of 4.86986301. *Rateslib* gives the following:
 
 .. ipython:: python
@@ -152,9 +153,10 @@ calculation mode returns:
 
    bond.price(ytm=8.75, settlement=dt(1994, 12, 20))
 
-From the YTM formula this is due to a number of things. Firstly, the discount functions,
-*v1* and *v3* handling the days in the stubs incorrectly by default.
-To match the Thai standard formula, these must be implemented directly.
+From the specific Thai YTM formula this is due to a number of things.
+Firstly, the discount functions,
+*v1* and *v3* are handling the days in the stubs differently to Thai conventions.
+To match, these must be implemented directly.
 
 .. ipython:: python
 
@@ -181,7 +183,8 @@ To match the Thai standard formula, these must be implemented directly.
 
 Lastly, the Thai YTM formula assumes a standardised coupon payment for the regular flows, whereas
 the actual convention of Act365F does not generate the same, standardised coupon payments
-each period. This is also amended from default by setting the ``ci_type`` to be ``full_coupon``.
+each period. This is also amended from default by setting the ``c1_type`` and
+``ci_type`` to be ``full_coupon``. The back stub remains as ``cashflow``.
 
 With these modifications to the ``calc_mode`` the bond returns exactly that which aligns with
 the official source.
@@ -195,7 +198,7 @@ the official source.
        v1_type=_v1_thb_gb,
        v2_type="regular",
        v3_type=_v3_thb_gb,
-       c1_type="cashflow",
+       c1_type="full_coupon",
        ci_type="full_coupon",
        cn_type="cashflow",
    )
@@ -217,3 +220,7 @@ the official source.
 .. ipython:: python
 
    bond.price(ytm=8.75, settlement=dt(1994, 12, 20))
+
+These conventions work specifically for this bond because it was identified that it had a
+back stub, but for the more general case it would be better to implement and pass
+custom cashflow functions with a name similar to *'full_coupon_except_cashflow_stub'*.

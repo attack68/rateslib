@@ -161,6 +161,8 @@ class BondCalcMode:
        &AI_y = \\xi_y c_i \\qquad \\text{if not ex-dividend} \\\\
        &AI_y = (\\xi_y - 1) c_i \\qquad \\text{if ex-dividend} \\\\
 
+    Where in these formula :math:`c_i` currently always uses the ``cashflow`` method (see below).
+
     **YTM Calculation and Required Functions**
 
     Yield-to-maturity is calculated using the below formula, where specific discounting and
