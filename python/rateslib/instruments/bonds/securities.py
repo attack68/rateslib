@@ -306,7 +306,7 @@ class BondMixin:
             if i == 0 and _is_ex_div:
                 # no coupon cashflow is received so no addition to the sum
                 continue
-            elif i == 0 and p_idx == (self.leg1.schedule.n_periods - 1):
+            elif i == 0:
                 # then this is the first period: c1 and v1 are used
                 cf1 = c1(self, ytm, f, acc_idx, p_idx, n, curve)
                 d += cf1 * v1

@@ -197,6 +197,8 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
 
 
+.. _defaults-securities-input:
+
 **Securities**
 
 .. list-table::
