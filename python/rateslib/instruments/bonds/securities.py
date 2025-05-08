@@ -994,7 +994,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         ex-dividend.
     settle : int
         The number of business days for regular settlement time, i.e, 1 is T+1.
-    calc_mode : str
+    calc_mode : str or BondCalcMode
         A calculation mode for dealing with bonds under different conventions. See notes.
     curves : CurveType, str or list of such, optional
         A single *Curve* or string id or a list of such.
@@ -1019,158 +1019,12 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
 
     **Calculation Modes**
 
-    The ``calc_mode`` parameter allows the calculation for **yield-to-maturity** and **accrued interest**
-    to branch depending upon the particular convention of different bonds.
+    The ``calc_mode`` parameter allows the calculation for **yield-to-maturity** and 
+    **accrued interest** to branch depending upon the particular convention of different bonds.
+    See the documentation for the :class:`~rateslib.instruments.BondCalcMode` class.
 
-    The following modes are currently available with a brief description of its particular
-    action:
-
-    - *"us_gb"*: US Treasury Bond Street convention  (deprecated alias *"ust"*)
-    - *"us_gb_tsy"*: US Treasury Bond Treasury convention. (deprecated alias *"ust_31bii"*)
-    - *"uk_gb"*: UK Gilt DMO method. (deprecated alias *"ukg"*)
-    - *"se_gb"*: Swedish Government Bond DMO convention. (deprecated alias *"sgb"*)
-    - *"ca_gb"*: Canadian Government Bond DMO convention. (deprecated alias *"cadgb"*)
-    - *"de_gb"*: German Government Bond (Bunds/Bobls) ICMA convention.
-    - *"fr_gb"*: French Government Bond (OAT) ICMA convention.
-    - *"it_gb"*: Italian Government Bond (BTP) ICMA convention.
-    - *"nl_gb"*: Dutch Government Bond ICMA convention.
-    - *"no_gb"*: Norwegian Government Bond DMO convention.
-
-    More details available in supplementary materials. The table below
-    outlines the *rateslib* price result relative to the calculation examples provided
-    from official sources.
-
-    .. ipython:: python
-       :suppress:
-
-       sgb = FixedRateBond(
-           effective=dt(2022, 3, 30), termination=dt(2039, 3, 30),
-           frequency="A", convention="ActActICMA", calc_mode="se_gb",
-           fixed_rate=3.5, calendar="stk"
-       )
-       s1c = sgb.price(ytm=2.261, settlement=dt(2023, 3, 15), dirty=False)
-       s1d = sgb.price(ytm=2.261, settlement=dt(2023, 3, 15), dirty=True)
-
-       uk1 = FixedRateBond(
-           effective=dt(1995, 1, 1), termination=dt(2015, 12, 7),
-           frequency="S", convention="ActActICMA", calc_mode="uk_gb",
-           fixed_rate=8.0, calendar="ldn", ex_div=7,
-       )
-       uk11c = uk1.price(ytm=4.445, settlement=dt(1999, 5, 24), dirty=False)
-       uk11d = uk1.price(ytm=4.445, settlement=dt(1999, 5, 24), dirty=True)
-       uk12c = uk1.price(ytm=4.445, settlement=dt(1999, 5, 26), dirty=False)
-       uk12d = uk1.price(ytm=4.445, settlement=dt(1999, 5, 26), dirty=True)
-       uk13c = uk1.price(ytm=4.445, settlement=dt(1999, 5, 27), dirty=False)
-       uk13d = uk1.price(ytm=4.445, settlement=dt(1999, 5, 27), dirty=True)
-       uk14c = uk1.price(ytm=4.445, settlement=dt(1999, 6, 7), dirty=False)
-       uk14d = uk1.price(ytm=4.445, settlement=dt(1999, 6, 7), dirty=True)
-
-       uk2 = FixedRateBond(
-           effective=dt(1998, 11, 26), termination=dt(2004, 11, 26),
-           frequency="S", convention="ActActICMA", calc_mode="uk_gb",
-           fixed_rate=6.75, calendar="ldn", ex_div=7,
-       )
-       uk21c = uk2.price(ytm=4.634, settlement=dt(1999, 5, 10), dirty=False)
-       uk21d = uk2.price(ytm=4.634, settlement=dt(1999, 5, 10), dirty=True)
-       uk22c = uk2.price(ytm=4.634, settlement=dt(1999, 5, 17), dirty=False)
-       uk22d = uk2.price(ytm=4.634, settlement=dt(1999, 5, 17), dirty=True)
-       uk23c = uk2.price(ytm=4.634, settlement=dt(1999, 5, 18), dirty=False)
-       uk23d = uk2.price(ytm=4.634, settlement=dt(1999, 5, 18), dirty=True)
-       uk24c = uk2.price(ytm=4.634, settlement=dt(1999, 5, 26), dirty=False)
-       uk24d = uk2.price(ytm=4.634, settlement=dt(1999, 5, 26), dirty=True)
-
-       usA = FixedRateBond(
-           effective=dt(1990, 5, 15), termination=dt(2020, 5, 15),
-           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
-           fixed_rate=8.75, calendar="nyc", ex_div=1, modifier="none",
-       )
-
-       usAc = usA.price(ytm=8.84, settlement=dt(1990, 5, 15), dirty=False)
-       usAd = usA.price(ytm=8.84, settlement=dt(1990, 5, 15), dirty=True)
-
-       usB = FixedRateBond(
-           effective=dt(1990, 4, 2), termination=dt(1992, 3, 31),
-           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
-           fixed_rate=8.5, calendar="nyc", ex_div=1, modifier="none",
-       )
-
-       usBc = usB.price(ytm=8.59, settlement=dt(1990, 4, 2), dirty=False)
-       usBd = usB.price(ytm=8.59, settlement=dt(1990, 4, 2), dirty=True)
-
-       usC = FixedRateBond(
-           effective=dt(1990, 3, 1), termination=dt(1995, 5, 15),
-           front_stub=dt(1990, 11, 15),
-           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
-           fixed_rate=8.5, calendar="nyc", ex_div=1, modifier="none",
-       )
-
-       usCc = usC.price(ytm=8.53, settlement=dt(1990, 3, 1), dirty=False)
-       usCd = usC.price(ytm=8.53, settlement=dt(1990, 3, 1), dirty=True)
-
-       usD = FixedRateBond(
-           effective=dt(1985, 11, 15), termination=dt(1995, 11, 15),
-           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
-           fixed_rate=9.5, calendar="nyc", ex_div=1, modifier="none",
-       )
-
-       usDc = usD.price(ytm=9.54, settlement=dt(1985, 11, 29), dirty=False)
-       usDd = usD.price(ytm=9.54, settlement=dt(1985, 11, 29), dirty=True)
-
-       usE = FixedRateBond(
-           effective=dt(1985, 7, 2), termination=dt(2005, 8, 15),
-           front_stub=dt(1986, 2, 15),
-           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
-           fixed_rate=10.75, calendar="nyc", ex_div=1, modifier="none",
-       )
-
-       usEc = usE.price(ytm=10.47, settlement=dt(1985, 11, 4), dirty=False)
-       usEd = usE.price(ytm=10.47, settlement=dt(1985, 11, 4), dirty=True)
-
-       usF = FixedRateBond(
-           effective=dt(1983, 5, 16), termination=dt(1991, 5, 15), roll=15,
-           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
-           fixed_rate=10.50, calendar="nyc", ex_div=1, modifier="none",
-       )
-
-       usFc = usF.price(ytm=10.53, settlement=dt(1983, 8, 15), dirty=False)
-       usFd = usF.price(ytm=10.53, settlement=dt(1983, 8, 15), dirty=True)
-
-       usG = FixedRateBond(
-           effective=dt(1988, 10, 15), termination=dt(1994, 12, 15),
-           front_stub=dt(1989, 6, 15),
-           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
-           fixed_rate=9.75, calendar="nyc", ex_div=1, modifier="none",
-       )
-
-       usGc = usG.price(ytm=9.79, settlement=dt(1988, 11, 15), dirty=False)
-       usGd = usG.price(ytm=9.79, settlement=dt(1988, 11, 15), dirty=True)
-
-       data = DataFrame(data=[
-               ["Riksgalden Website", "Nominal Bond", 116.514000, 119.868393, "se_gb", s1c, s1d],
-               ["UK DMO Website", "Ex 1, Scen 1", None, 145.012268, "uk_gb", uk11c, uk11d],
-               ["UK DMO Website", "Ex 1, Scen 2", None, 145.047301, "uk_gb", uk12c, uk12d],
-               ["UK DMO Website", "Ex 1, Scen 3", None, 141.070132, "uk_gb", uk13c, uk13d],
-               ["UK DMO Website", "Ex 1, Scen 4", None, 141.257676, "uk_gb", uk14c, uk14d],
-               ["UK DMO Website", "Ex 2, Scen 1", None, 113.315543, "uk_gb", uk21c, uk21d],
-               ["UK DMO Website", "Ex 2, Scen 2", None, 113.415969, "uk_gb", uk22c, uk22d],
-               ["UK DMO Website", "Ex 2, Scen 3", None, 110.058738, "uk_gb", uk23c, uk23d],
-               ["UK DMO Website", "Ex 2, Scen 4", None, 110.170218, "uk_gb", uk24c, uk24d],
-               ["Title-31 Subtitle-B II", "Ex A (reg)",99.057893, 99.057893, "us_gb_tsy", usAc, usAd],
-               ["Title-31 Subtitle-B II", "Ex B (stub)", 99.838183, 99.838183, "us_gb_tsy", usBc, usBd],
-               ["Title-31 Subtitle-B II", "Ex C (stub)", 99.805118, 99.805118, "us_gb_tsy", usCc, usCd],
-               ["Title-31 Subtitle-B II", "Ex D (reg)", 99.730918, 100.098321, "us_gb_tsy", usDc, usDd],
-               ["Title-31 Subtitle-B II", "Ex E (stub)", 102.214586, 105.887384, "us_gb_tsy", usEc, usEd],
-               ["Title-31 Subtitle-B II", "Ex F (stub)", 99.777074, 102.373541, "us_gb_tsy", usFc, usFd],
-               ["Title-31 Subtitle-B II", "Ex G (stub)", 99.738045, 100.563865, "us_gb_tsy", usGc, usGd],
-           ],
-           columns=["Source", "Example", "Expected clean", "Expected dirty", "Calc mode", "Rateslib clean", "Rateslib dirty"],
-       )
-
-    .. ipython:: python
-
-       from pandas import option_context
-       with option_context("display.float_format", lambda x: '%.6f' % x):
-           print(data)
+    Calculation modes that have been preconfigured, and are available, can be 
+    found at :ref:`Securities Defaults <defaults-securities-input>`.
 
     Examples
     --------
