@@ -188,9 +188,6 @@ def _v1_simple_pay_adjust(
     accrual: AccrualFunction,
     period_idx: int,
 ) -> DualTypes:
-    """
-    Use simple rates with a yield which matches the frequency of the coupon.
-    """
     acc_frac = accrual(obj, settlement, acc_idx)
     if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
         # is a stub so must account for discounting in a different way.
@@ -202,7 +199,7 @@ def _v1_simple_pay_adjust(
     return v_
 
 
-def _v1_compounded_pay_adjust(
+def _v1_compounding_pay_adjust(
     obj: Security | BondMixin,
     ytm: DualTypes,
     f: int,
@@ -212,13 +209,6 @@ def _v1_compounded_pay_adjust(
     accrual: AccrualFunction,
     period_idx: int,
 ) -> DualTypes:
-    """
-    Determine the discount factor for the first cashflow after settlement.
-
-    The parameter "v2" is a generic discount function which is normally :math:`1/(1+y/f)`
-
-    Method: compounds "v2" with exponent in terms of the accrual fraction of the period.
-    """
     acc_frac = accrual(obj, settlement, acc_idx)
     if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
         # If it is a stub then the remaining fraction must be scaled by the relative size of the
@@ -272,15 +262,7 @@ def _v1_compounded_final_simple_pay_adjust(
     if acc_idx == obj.leg1.schedule.n_periods - 1:
         return _v1_simple_pay_adjust(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
     else:
-        regular_v1 = _v1_compounded(
-            obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx
-        )
-
-        # adjust by pay delay
-        s = obj.leg1.schedule
-        de = (s.pschedule[period_idx + 1] - s.uschedule[period_idx + 1]).days
-        dc = (s.pschedule[period_idx + 1] - s.pschedule[period_idx]).days
-        return regular_v1 ** (1.0 + de / dc)
+        return _v1_compounding_pay_adjust(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
 
 
 def _v1_comp_stub_act365f(
@@ -425,12 +407,34 @@ def _v3_simple(
     return v_
 
 
+def _v3_simple_pay_adjust(
+    obj: Security | BondMixin,
+    ytm: DualTypes,
+    f: int,
+    settlement: datetime,
+    acc_idx: int,
+    v2: DualTypes,
+    accrual: AccrualFunction,
+    period_idx: int,
+) -> DualTypes:
+    if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
+        # is a stub so must account for discounting in a different way.
+        fd0 = (1.0 + _pay_adj(obj)) * obj.leg1.periods[acc_idx].dcf * f  # type: ignore[union-attr]
+    else:
+        fd0 = 1.0 + _pay_adj(obj)
+
+    v_ = 1 / (1 + fd0 * ytm / (100 * f))
+    return v_
+
+
 V1_FUNCS: dict[str, YtmStubDiscountFunction] = {
     "compounding": _v1_compounded,
+    "compounding_pay_adjust": _v1_compounding_pay_adjust,
+    "simple": _v1_simple,
+    "simple_pay_adjust": _v1_simple_pay_adjust,
     "compounding_final_simple": _v1_compounded_final_simple,
     "compounding_final_simple_pay_adjust": _v1_compounded_final_simple_pay_adjust,  # noqa: E501
     "compounding_stub_act365f": _v1_comp_stub_act365f,
-    "simple": _v1_simple,
     "simple_long_stub_compounding": _v1_simple_long_stub,
 }
 
@@ -444,6 +448,7 @@ V3_FUNCS: dict[str, YtmStubDiscountFunction] = {
     "compounding": _v3_compounded,
     "compounding_pay_adjust": _v3_compounded_pay_adjust,
     "simple": _v3_simple,
+    "simple_pay_adjust": _v3_simple_pay_adjust,
     "simple_30e360": _v3_30e360_u_simple,
 }
 

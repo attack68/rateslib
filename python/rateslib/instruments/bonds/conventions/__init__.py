@@ -137,8 +137,9 @@ class BondCalcMode:
     .. ipython:: python
 
        def _linear_days(obj, settlement, acc_idx, *args) -> float:
-            r_u = (settlement - obj.leg1.schedule.uschedule[acc_idx]).days
-            s_u = (obj.leg1.schedule.uschedule[acc_idx + 1] - obj.leg1.schedule.uschedule[acc_idx]).days
+            sch = obj.leg1.schedule
+            r_u = (settlement - sch.uschedule[acc_idx]).days
+            s_u = (sch.uschedule[acc_idx + 1] - sch.uschedule[acc_idx]).days
             return r_u / s_u
             
     **Calculation of Accrued Interest**
@@ -175,7 +176,7 @@ class BondCalcMode:
 
     .. math::
 
-       P &= \\text{Dirty price}, \\; Q = \\text{Clean Price}
+       P &= \\text{Dirty price}, \\; Q = \\text{Clean Price} \\\\
        n &= \\text{Coupon periods remaining} \\\\
        c_1 &= \\text{Cashflow (per 100) on next coupon date (may be zero if ex-dividend)} \\\\
        c_i &= i \\text{'th cashflow (per 100) on subsequent coupon dates} \\\\
@@ -184,7 +185,7 @@ class BondCalcMode:
        v_{2,i} &= \\text{Specific discount value for the i'th interim regular period} \\\\
        v_3 &= \\text{Discount value for the final, possibly stub, period} \\\\
 
-    **v2** Functions
+    **v2 Functions**
     
     *v2* forms the core, regular part of discounting the cashflows. *v2* functions are required when
     a bond has more than two coupon remaining. This reflects coupon periods that are
@@ -203,7 +204,7 @@ class BondCalcMode:
 
          v_2 = \\left ( \\frac{1}{1 + y} \\right ) ^ {1/f}
          
-    - ``annual_pay_adjust``: an extension to *'annual'* that adjusts the period in scope to 
+    - ``annual_pay_adjust``: an extension to ``annual`` that adjusts the period in scope to 
       account for a delay between its unadjusted coupon end date and the actual payment date. (Used
       by Italian BTPs)
       
@@ -211,7 +212,7 @@ class BondCalcMode:
       
          &v_2 = \\left ( \\frac{1}{1 + y} \\right ) ^ {(1 + p_d / p_D)/f} \\\\
               
-    **v1** Functions
+    **v1 Functions**
 
     *v1* functions are required for every bond. Its value may, or may not, be dependent upon *v2*.
     *v1* functions have to handle the cases whereby the coupon period in which *settlement* falls
@@ -240,16 +241,16 @@ class BondCalcMode:
     Combinations, or extensions, of the two above functions are also required for some 
     bond conventions:
 
-    - ``compounding_final_simple``: uses *'compounding'*, unless settlement occurs in the final
-      period of the bond (and in which case n=1) and then the *'simple'* method is applied.
-    - ``compounding_stub_act365f``: uses *'compounding'*, unless settlement occurs in a stub
+    - ``compounding_final_simple``: uses ``compounding``, unless settlement occurs in the final
+      period of the bond (and in which case n=1) and then the ``simple`` method is applied.
+    - ``compounding_stub_act365f``: uses ``compounding``, unless settlement occurs in a stub
       period in which case Act365F convention derives the exponent.
       
       .. math::
       
-         v_1 = v_2^{\\bar{d}_u}
+         v_1 = v_2^{\\bar{d}_u} \\qquad \\text{if stub.}
 
-    - ``simple_long_stub_compounding``: uses *'simple'* formula **except** for long stubs,
+    - ``simple_long_stub_compounding``: uses ``simple`` formula **except** for long stubs,
       and the calculation is only different if settlement falls before the quasi-coupon.
       If settlement occurs before the quasi-coupon date then the entire quasi-coupon period
       applies regular *v2* discounting, and the preliminary component has *simple* method
@@ -271,19 +272,23 @@ class BondCalcMode:
       
          v_1 = v_2^{g_y(\\xi_y)}  \\quad \\text{where, } g(\\xi_y) \\text{ defined as above}
          
-    - ``compounding_final_simple_pay_adjust``: uses *'compounding_pay_adjust'* unless settlement 
+    - ``compounding_final_simple_pay_adjust``: uses ``compounding_pay_adjust`` unless settlement 
       occurs in the final period of the bond (and in which case n=1) and then the 
-      *'simple_pay_adjust'* method is applied.
+      ``simple_pay_adjust`` method is applied.
     
     
-    **v3** Functions
+    **v3 Functions**
 
     *v3* functions will never have a settlement mid period, and are only used in the case
     of 2 or more remaining coupon periods. The available functions are:
 
-    - ``compounding``: is identical to *v1 compounding* where :math:`\\xi_y` is set to zero.
-    - ``simple``: is identical to *v1 simple* where :math:`\\xi_y` is set to zero.
-    - ``simple_30e360``: the final period uses simple interest with a DCF calculated
+    - ``compounding``: is identical to *v1 'compounding'* where :math:`\\xi_y` is set to zero.
+    - ``compounding_pay_adjust``: is identical to *v1 'compounding_pay_adjust'* where 
+      :math:`\\xi_y` is set to zero.
+    - ``simple``: is identical to *v1 'simple'* where :math:`\\xi_y` is set to zero.
+    - ``simple_pay_adjust``: is identical to *v1 'simple_pay_adjust'* where :math:`\\xi_y`
+      is set to zero.
+    - ``simple_30e360``: uses simple interest with a DCF calculated
       under 30e360 convention, irrespective of the bond's underlying convention.
       
       .. math::
