@@ -281,6 +281,10 @@ class BondMixin:
         f: int = 12 / defaults.frequency_months[self.leg1.schedule.frequency]  # type: ignore[assignment]
         acc_idx: int = self._period_index(settlement)
         _is_ex_div: bool = self.ex_div(settlement)
+        if settlement == self.leg1.schedule.uschedule[acc_idx + 1]:
+            # then settlement aligns with a cashflow: manually adjust to next period
+            _is_ex_div = False
+            acc_idx += 1
 
         v2 = f2(self, ytm, f, settlement, acc_idx, None, accrual, -100000)
         v1 = f1(self, ytm, f, settlement, acc_idx, v2, accrual, acc_idx)
@@ -300,22 +304,23 @@ class BondMixin:
         n = self.leg1.schedule.n_periods
         for i, p_idx in enumerate(range(acc_idx, n)):
             if i == 0 and _is_ex_div:
-                # no coupon cashflow is receivable so no addition to the sum
+                # no coupon cashflow is received so no addition to the sum
                 continue
             elif i == 0 and p_idx == (self.leg1.schedule.n_periods - 1):
-                # the last period is the first period so discounting handled only by v1
+                # then this is the first period: c1 and v1 are used
                 cf1 = c1(self, ytm, f, acc_idx, p_idx, n, curve)
                 d += cf1 * v1
             elif p_idx == (self.leg1.schedule.n_periods - 1):
-                # this is last period, but it is not the first (i>0). Tag on v3 at end.
+                # then this is last period, but it is not the first (i>0).
+                # cn and v3 are relevant, but v1 is also used, and if i > 1 then v2 is also used.
                 cfn = cn(self, ytm, f, acc_idx, p_idx, n, curve)
                 d += cfn * v2 ** (i - 1) * v3 * v1
             else:
-                # this is not the first and not the last period. Discount only with v1 and v2.
-                # i >= 1, when i == 1 only v2i will be the multiplier.
+                # this is not the first and not the last period.
+                # ci and v2i are relevant, but v1 is also required and v2 may also be used if i > 1.
                 # v2i allows for a per-period adjustment to the v2 discount factor, e.g. BTPs.
-                v2i = f2(self, ytm, f, settlement, acc_idx, v2, accrual, p_idx)
                 cfi = ci(self, ytm, f, acc_idx, p_idx, n, curve)
+                v2i = f2(self, ytm, f, settlement, acc_idx, v2, accrual, p_idx)
                 d += cfi * v2 ** (i - 1) * v2i * v1
 
         # Add the redemption payment discounted by relevant factors

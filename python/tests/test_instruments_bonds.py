@@ -693,16 +693,12 @@ class TestFixedRateBond:
     @pytest.mark.parametrize(
         ("sett", "price", "exp_ytm", "exp_acc"),
         [
-            (dt(2024, 6, 14), 98.0, 4.73006, 0.526090),  # BBG BXT ticket data
-            (dt(2033, 3, 15), 99.65, 7.006149, 1.628730),  # BBG YAS Yield - Last coupon simple rate
-            (dt(2032, 11, 1), 99.00, 6.569126, 0.0),  # BBG YAS Yield - Annualised
-            # (dt(2032, 11, 2), 99.00, 6.464840, 0.01215),  # BBG YAS Yield-Last coupon simple rate
-            (dt(2033, 4, 29), 99.97, 9.623617, 2.175690),  # Test accrual upto adjusted payment date
+            (dt(2024, 6, 14), 98.0, 4.730058, 0.526090),
+            (dt(2026, 4, 14), 99.0, 4.617209, 1.993370),  # BBG BXT ticket data
         ],
     )
-    def test_it_gb(self, sett, price, exp_ytm, exp_acc) -> None:
-        # TODO: it is unclear how date modifications affect the pricing of BTPs require offical
-        # source docs.
+    def test_regular_it_gb(self, sett, price, exp_ytm, exp_acc) -> None:
+        # Values compared with BBG YA for "True Yield" and Accrued
         frb = FixedRateBond(  # ISIN IT0005518128
             effective=dt(2022, 11, 1),
             termination=dt(2033, 5, 1),
@@ -712,8 +708,82 @@ class TestFixedRateBond:
         result = frb.accrued(settlement=sett)
         assert abs(result - exp_acc) < 5e-6
 
+        result = frb.price(ytm=exp_ytm, settlement=sett)
         result = frb.ytm(price=price, settlement=sett)
-        assert abs(result - exp_ytm) < 3e-3
+        assert abs(result - exp_ytm) < 2e-4
+
+    @pytest.mark.parametrize(
+        ("sett", "ytm", "exp_price", "exp_acc"),
+        [
+            (dt(2032, 11, 1), 6.5, 98.96593464, 0.0),
+            (dt(2032, 11, 2), 6.5, 98.97099073, 0.01215),
+            (dt(2033, 3, 15), 6.5, 99.69805695, 1.628730),
+            (dt(2033, 4, 29), 6.5, 99.96938727, 2.175690),
+        ],
+    )
+    def test_regular_it_gb_final_simple_vs_excel(self, sett, ytm, exp_price, exp_acc) -> None:
+        # These values are not the same as for BBG YA.
+        # BBG YA can be replicated here if the number of days between payments
+        # in the last period 1/11/32 to 2/5/33 is 184 days and the pay_adj is 1/184 instead of
+        # 1/182. Problem is, the actual number of days between payments are 182.
+        frb = FixedRateBond(  # ISIN IT0005518128
+            effective=dt(2022, 11, 1),
+            termination=dt(2033, 5, 1),
+            fixed_rate=4.4,
+            spec="it_gb",
+        )
+
+        result = frb.accrued(settlement=sett)
+        assert abs(result - exp_acc) < 5e-6
+
+        result = frb.price(ytm=ytm, settlement=sett)
+        assert abs(result - exp_price) < 1e-6
+
+    @pytest.mark.parametrize(
+        ("sett", "ytm", "exp_price", "exp_acc"),
+        [
+            (dt(2032, 11, 1), 6.429702, 99.00, 0.0),  # BBG - Last coupon simple rate
+            (dt(2032, 11, 2), 6.439891, 99.00, 0.01215),  # BBG YAS Yield-Last coupon simple rate
+            (dt(2033, 3, 15), 6.862519, 99.65, 1.628730),  # BBG YAS Yield - Last coupon simple rate
+            (dt(2033, 4, 29), 6.450803, 99.97, 2.175690),  # Test accrual upto adjusted payment date
+        ],
+    )
+    def test_regular_it_gb_final_simple(self, sett, ytm, exp_price, exp_acc) -> None:
+        # Values compared with BBG YA for "True Yield" and Accrued
+        frb = FixedRateBond(  # ISIN IT0005518128
+            effective=dt(2022, 11, 1),
+            termination=dt(2033, 5, 1),
+            fixed_rate=4.4,
+            spec="it_gb",
+        )
+
+        result = frb.accrued(settlement=sett)
+        assert abs(result - exp_acc) < 5e-6
+
+        result = frb.price(ytm=ytm, settlement=sett)
+        assert abs(result - exp_price) < 3e-3
+
+    @pytest.mark.parametrize(
+        ("sett", "ytm", "exp_price", "exp_acc"),
+        [
+            (dt(2026, 12, 13), 6.5, 98.77226353, 0.0),
+            (dt(2027, 1, 11), 6.5, 98.95139167, 0.318681),
+        ],
+    )
+    def test_regular_it_gb_final_simple_vs_excel2(self, sett, ytm, exp_price, exp_acc) -> None:
+        # These values are not the same as for BBG YA, by small tolerance. See above > test1.
+        frb = FixedRateBond(  # ISIN IT0005547408
+            effective=dt(2023, 6, 13),
+            termination=dt(2027, 6, 13),
+            fixed_rate=4.00,
+            spec="it_gb",
+        )
+
+        result = frb.accrued(settlement=sett)
+        assert abs(result - exp_acc) < 5e-6
+
+        result = frb.price(ytm=ytm, settlement=sett)
+        assert abs(result - exp_price) < 1e-6
 
     ## Norwegian
 
@@ -832,7 +902,7 @@ class TestFixedRateBond:
             v1_type=_v1_thb_gb,
             v2_type="regular",
             v3_type=_v3_thb_gb,
-            c1_type="cashflow",
+            c1_type="full_coupon",
             ci_type="full_coupon",
             cn_type="cashflow",
         )

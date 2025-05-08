@@ -82,6 +82,10 @@ class BondCalcMode:
       determined with the convention of the accrual function (which may be different to the
       convention for determining physical bond cashflows)
     - :math:`c_i`: A coupon cashflow monetary amount, **per 100 nominal**, for coupon period, *i*.
+    - :math:`p_d`: Number of days between unadjusted coupon date and payment date in a coupon
+      period, i.e. the pay delay.
+    - :math:`p_D` = Number of days between previous payment date and current payment date, in a
+      coupon period.
     - :math:`C`: The nominal annual coupon rate for the bond.
     - :math:`y`: The yield-to-maturity for a given bond. The expression of which, i.e. annually
       or semi-annually is derived from the calculation context.
@@ -133,8 +137,9 @@ class BondCalcMode:
     .. ipython:: python
 
        def _linear_days(obj, settlement, acc_idx, *args) -> float:
-            r_u = (settlement - obj.leg1.schedule.uschedule[acc_idx]).days
-            s_u = (obj.leg1.schedule.uschedule[acc_idx + 1] - obj.leg1.schedule.uschedule[acc_idx]).days
+            sch = obj.leg1.schedule
+            r_u = (settlement - sch.uschedule[acc_idx]).days
+            s_u = (sch.uschedule[acc_idx + 1] - sch.uschedule[acc_idx]).days
             return r_u / s_u
             
     **Calculation of Accrued Interest**
@@ -158,30 +163,32 @@ class BondCalcMode:
     Yield-to-maturity is calculated using the below formula, where specific discounting and
     cashflow functions must be provided to determine values based on the conventions of a given
     bond. The below formula outlines the
-    cases where the number of remaining coupons are 1, 2, or generically >=2.
+    cases where the number of remaining coupons are 1, 2, or generically >2.
 
     .. math::
 
        P &= v_1 \\left ( c_1 + 100 \\right ), \\quad n = 1 \\\\
-       P &= v_1 \\left ( c_1 + v3(c_2 + 100) \\right ), \\quad n = 2 \\\\
-       P &= v_1 \\left ( \\sum_{i=1}^{n-1} c_i v_2^{i-1} + c_nv_2^{n-2}v_3 + 100 v_2^{n-2}v_3 \\right ), \\quad n > 1  \\\\
+       P &= v_1 \\left ( c_1 + v3(c_n + 100) \\right ), \\quad n = 2 \\\\
+       P &= v_1 \\left ( c_1 + \\sum_{i=2}^{n-1} c_i v_2^{i-2} v_{2,i} + c_nv_2^{n-2}v_3 + 100 v_2^{n-2}v_3 \\right ), \\quad n > 2  \\\\
        Q &= P - AI_y
 
     where,
 
     .. math::
 
-       P &= \\text{Dirty price}, \\; Q = \\text{Clean Price}
+       P &= \\text{Dirty price}, \\; Q = \\text{Clean Price} \\\\
        n &= \\text{Coupon periods remaining} \\\\
        c_1 &= \\text{Cashflow (per 100) on next coupon date (may be zero if ex-dividend)} \\\\
        c_i &= i \\text{'th cashflow (per 100) on subsequent coupon dates} \\\\
        v_1 &= \\text{Discount value for the initial, possibly stub, period} \\\\
-       v_2 &= \\text{Discount value for the interim regular periods} \\\\
+       v_2 &= \\text{General discount value for the interim regular periods} \\\\
+       v_{2,i} &= \\text{Specific discount value for the i'th interim regular period} \\\\
        v_3 &= \\text{Discount value for the final, possibly stub, period} \\\\
 
-    **v2** Functions
+    **v2 Functions**
     
-    *v2* forms the core, regular part of discounting the cashflows. These coupon periods are
+    *v2* forms the core, regular part of discounting the cashflows. *v2* functions are required when
+    a bond has more than two coupon remaining. This reflects coupon periods that are
     never stubs. The available functions are described below:
 
     - ``regular``: uses the traditional discounting function matching the actual frequency of
@@ -196,13 +203,28 @@ class BondCalcMode:
       .. math::
 
          v_2 = \\left ( \\frac{1}{1 + y} \\right ) ^ {1/f}
+         
+    - ``annual_pay_adjust``: an extension to ``annual`` that adjusts the period in scope to
+      account for a delay between its unadjusted coupon end date and the actual payment date. (Used
+      by Italian BTPs)
+      
+      .. math::
+      
+         v_2 = \\left ( \\frac{1}{1 + y} \\right ) ^ {1/f}, \\qquad \\text{and in the current period} \\qquad v_{2,i} = v_2 ^ {(1 + p_d / p_D)}
+              
+    **v1 Functions**
 
-    **v1** Functions
-
-    *v1* may or may not be dependent upon *v2*.
-    The available functions for determining *v1* are described below:
+    *v1* functions are required for every bond. Its value may, or may not, be dependent upon *v2*.
+    *v1* functions have to handle the cases whereby the coupon period in which *settlement* falls
+    is
     
-    - ``compounding``: one of most common conventions. If a **stub** then scaled by the length of
+    - The first coupon period, **and** it may be a **stub**,
+    - A regular interim coupon period,
+    - The final coupon period **and** it may be a **stub**.
+     
+    The two most common functions for determining *v1* are described below:
+    
+    - ``compounding``: If a **stub** then scaled by the length of
       the stub. At issue, or on a coupon date, for a regular period, *v1* converges to *v2*.
          
       .. math::
@@ -216,16 +238,19 @@ class BondCalcMode:
       
          v_1 = \\frac{1}{1 + g(\\xi_y) y / f}  \\quad \\text{where, } g(\\xi_y) \\text{ defined as above}
 
-    - ``compounding_final_simple``: uses *'compounding'*, unless settlement occurs in the final
-      period of the bond (and in which case n=1) and then the *'simple'* method is applied.
-    - ``compounding_stub_act365f``: uses *'compounding'*, unless settlement occurs in a stub
+    Combinations, or extensions, of the two above functions are also required for some
+    bond conventions:
+
+    - ``compounding_final_simple``: uses ``compounding``, unless settlement occurs in the final
+      period of the bond (and in which case n=1) and then the ``simple`` method is applied.
+    - ``compounding_stub_act365f``: uses ``compounding``, unless settlement occurs in a stub
       period in which case Act365F convention derives the exponent.
       
       .. math::
       
-         v_1 = v_2^{\\bar{d}_u}
+         v_1 = v_2^{\\bar{d}_u} \\qquad \\text{if stub.}
 
-    - ``simple_long_stub_compounding``: uses *'simple'* formula **except** for long stubs,
+    - ``simple_long_stub_compounding``: uses ``simple`` formula **except** for long stubs,
       and the calculation is only different if settlement falls before the quasi-coupon.
       If settlement occurs before the quasi-coupon date then the entire quasi-coupon period
       applies regular *v2* discounting, and the preliminary component has *simple* method
@@ -233,16 +258,36 @@ class BondCalcMode:
       
       .. math::
 
-         v_1 = \\left \\{ \\begin{matrix} v_2 \\frac{1}{1 + [f d_i(1 - \\xi_y) - 1] y / f} & \\text{if settlement before quasi-coupon} \\\\ \\frac{1}{1 + f d_i (1-\\xi_y) y / f}  & \\text{if settlement after quasi-coupon} \\\\ \\end{matrix} \\right .
+         v_1 = v_2 \\frac{1}{1 + [f d_i(1 - \\xi_y) - 1] y / f} \\qquad \\text{if settlement before quasi-coupon in long stub}
 
-    **v3** Functions
+    - ``simple_pay_adjust``: adjusts the *'simple'* method to account for the payment date.
+    
+      .. math::
+      
+         v_1 = \\frac{1}{1 + g_p(\\xi_y) y / f} \\quad \\text{where,} \\quad g_p(\\xi_y) = \\left \\{ \\begin{matrix} 1-\\xi_y + p_d / p_D & \\text{if regular,} \\\\ (1-\\xi_y + p_d / p_D) f d_i & \\text{if stub,} \\\\ \\end{matrix} \\right .
+    
+    - ``compounding_pay_adjust``: adjusts the *'compounding'* method to account for payment date.
+    
+      .. math::
+      
+         v_1 = v_2^{g_p(\\xi_y)}  \\quad \\text{where, } g_p(\\xi_y) \\text{ defined as above}
+         
+    - ``compounding_final_simple_pay_adjust``: uses ``compounding`` unless settlement
+      occurs in the final period of the bond (and in which case n=1) and then the
+      ``simple_pay_adjust`` method is applied.
+    
+    
+    **v3 Functions**
 
     *v3* functions will never have a settlement mid period, and are only used in the case
     of 2 or more remaining coupon periods. The available functions are:
 
-    - ``compounding``: is identical to *v1 compounding* where :math:`\\xi_y` is set to zero.
-    - ``simple``: is identical to *v1 simple* where :math:`\\xi_y` is set to zero.
-    - ``simple_30e360``: the final period uses simple interest with a DCF calculated
+    - ``compounding``: is identical to *v1 'compounding'* where :math:`\\xi_y` is set to zero.
+    - ``compounding_pay_adjust``: is identical to *v1 'compounding_pay_adjust'* where :math:`\\xi_y` is set to zero.
+    - ``simple``: is identical to *v1 'simple'* where :math:`\\xi_y` is set to zero.
+    - ``simple_pay_adjust``: is identical to *v1 'simple_pay_adjust'* where :math:`\\xi_y`
+      is set to zero.
+    - ``simple_30e360``: uses simple interest with a DCF calculated
       under 30e360 convention, irrespective of the bond's underlying convention.
       
       .. math::
@@ -507,9 +552,9 @@ IT_GB = BondCalcMode(
     # Italian GBs
     settle_accrual_type="linear_days",
     ytm_accrual_type="linear_days",
-    v1_type="compounding_final_simple",
-    v2_type="annual",
-    v3_type="compounding",
+    v1_type="compounding_final_simple_pay_adjust",
+    v2_type="annual_pay_adjust",
+    v3_type="compounding_pay_adjust",
     c1_type="cashflow",
     ci_type="cashflow",
     cn_type="cashflow",
