@@ -113,7 +113,7 @@ def _v2_annual_pay_adjust(
     v2: DualTypes | None,
     accrual: AccrualFunction,
     period_idx: int,
-):
+) -> DualTypes:
     if v2 is None:
         # This is the initial, regular determination of v2
         return (1 / (1 + ytm / 100)) ** (1 / f)

@@ -210,7 +210,7 @@ class BondCalcMode:
       
       .. math::
       
-         &v_2 = \\left ( \\frac{1}{1 + y} \\right ) ^ {(1 + p_d / p_D)/f} \\\\
+         v_2 = \\left ( \\frac{1}{1 + y} \\right ) ^ {1/f}, \\qquad \\text{and in the current period} \\qquad v_{2,i} = v_2 ^ {(1 + p_d / p_D)}
               
     **v1 Functions**
 
