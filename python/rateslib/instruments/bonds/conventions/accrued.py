@@ -92,7 +92,9 @@ def _acc_linear_proportion_by_days_long_stub_split(
     return _acc_linear_proportion_by_days(obj, settlement, acc_idx, *args)
 
 
-def _acc_30e360_backward(obj: Security | BondMixin, settlement: datetime, acc_idx: int, *args: Any) -> float:
+def _acc_30e360_backward(
+    obj: Security | BondMixin, settlement: datetime, acc_idx: int, *args: Any
+) -> float:
     """
     Ignoring the convention on the leg uses "30E360" to determine the accrual fraction.
     Measures between unadjusted date and settlement.
@@ -108,18 +110,17 @@ def _acc_30e360_backward(obj: Security | BondMixin, settlement: datetime, acc_id
     return _
 
 
-
-def _acc_30u360_forward(obj: Security | BondMixin, settlement: datetime, acc_idx: int, *args: Any) -> float:
+def _acc_30u360_forward(
+    obj: Security | BondMixin, settlement: datetime, acc_idx: int, *args: Any
+) -> float:
     """
     Ignoring the convention on the leg uses "30U360" to determine the accrual fraction.
-    Measures between unadjusted date and settlement.
+    Measures between unadjusted dates and settlement.
     [Designed primarily for US Corporate/Muni Bonds]
-
-    If stub revert to linear proportioning.
     """
     sch = obj.leg1.schedule
     accrued = dcf(sch.uschedule[acc_idx], settlement, "30u360")
-    period = dcf(sch.uschedule[acc_idx], sch.uschedule[acc_idx+1], "30u360")
+    period = dcf(sch.uschedule[acc_idx], sch.uschedule[acc_idx + 1], "30u360")
     return accrued / period
 
 

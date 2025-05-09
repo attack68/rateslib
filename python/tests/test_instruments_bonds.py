@@ -912,7 +912,6 @@ class TestFixedRateBond:
         assert abs(ytm - exp_ytm) < 1e-3
         assert abs(acc - exp_acc) < 1e-6
 
-
     @pytest.mark.parametrize(
         ("settlement", "price", "exp_ytm", "exp_acc"),
         [
@@ -936,8 +935,6 @@ class TestFixedRateBond:
         acc = b.accrued(settlement)
         assert abs(acc - exp_acc) < 1e-6
         assert abs(ytm - exp_ytm) < 1e-3
-
-
 
     # Customised Thai Government Bonds
 
