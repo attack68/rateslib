@@ -57,8 +57,8 @@ Municipal Bonds
 
    defaults.spec["us_muni"]
    from rateslib.instruments.bonds.conventions import US_MUNI
-   US_CORP.kwargs
-   FixedRateBond(dt(2000, 1, 1), "10y", spec="us_corp", fixed_rate=2.5).kwargs
+   US_MUNI.kwargs
+   FixedRateBond(dt(2000, 1, 1), "10y", spec="us_muni", fixed_rate=2.5).kwargs
 
 EUR
 ********
