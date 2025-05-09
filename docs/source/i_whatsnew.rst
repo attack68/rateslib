@@ -30,9 +30,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
        (`780 <https://github.com/attack68/rateslib/pull/780>`_)
    * - Instruments
      - Add bond calculation convention to support *'30U360'* accrued, and a new bond ``spec``
-       *'us_corp'* to support generic US corporate bonds.
+       *'us_corp'* and *'us_muni'* to support generic US corporate and municipal bonds.
        (`785 <https://github.com/attack68/rateslib/pull/785>`_)
        (`786 <https://github.com/attack68/rateslib/pull/786>`_)
+       (`797 <https://github.com/attack68/rateslib/pull/797>`_)
    * - Instruments
      - Extend :class:`~rateslib.instruments.BondCalcMode` to support custom accrual,
        discount and cashflow functions for calculations. Italian BTP default, *'it_gb'*, is
