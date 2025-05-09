@@ -495,8 +495,20 @@ US_GB_TSY = BondCalcMode(
 
 US_CORP = BondCalcMode(
     # US Corporate bond street convention
-    settle_accrual_type="30u360",
-    ytm_accrual_type="30u360",
+    settle_accrual_type="30u360_forward",
+    ytm_accrual_type="30u360_forward",
+    v1_type="compounding_final_simple",
+    v2_type="regular",
+    v3_type="compounding",
+    c1_type="cashflow",
+    ci_type="cashflow",
+    cn_type="cashflow",
+)
+
+US_MUNI = BondCalcMode(
+    # US Corporate bond street convention
+    settle_accrual_type="30u360_forward",
+    ytm_accrual_type="30u360_forward",
     v1_type="compounding_final_simple",
     v2_type="regular",
     v3_type="compounding",
@@ -507,8 +519,8 @@ US_CORP = BondCalcMode(
 
 SE_GB = BondCalcMode(
     # Swedish government bonds
-    settle_accrual_type="30e360",
-    ytm_accrual_type="30e360",
+    settle_accrual_type="30e360_backward",
+    ytm_accrual_type="30e360_backward",
     v1_type="compounding_final_simple",
     v2_type="regular",
     v3_type="simple_30e360",
@@ -620,6 +632,7 @@ BOND_MODE_MAP = {
     "se_gb": SE_GB,
     "us_gb_tsy": US_GB_TSY,
     "us_corp": US_CORP,
+    "us_muni": US_MUNI,
     "it_gb": IT_GB,
     "ca_gb": CA_GB,
     # aliases
