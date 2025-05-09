@@ -867,6 +867,8 @@ class TestFixedRateBond:
     @pytest.mark.parametrize(
         ("settlement", "price", "exp_ytm", "exp_acc"),
         [
+            (dt(2018, 5, 30), 101.0, 3.728114, 0.32083333),
+            (dt(2018, 5, 31), 101.0, 3.728114, 0.32083333),
             (dt(2025, 5, 6), 101.0, 3.493237, 0.08555556),
             (dt(2028, 4, 3), 100.05, 3.077448, 1.65763889),
         ],
@@ -879,10 +881,60 @@ class TestFixedRateBond:
             fixed_rate=3.85,
             spec="us_corp",
         )
+        assert abs(b.leg1.periods[0].cashflow + 19036.1111) < 1e-4
         ytm = b.ytm(price, settlement)
         acc = b.accrued(settlement)
-        assert abs(ytm - exp_ytm) < 1e-6
         assert abs(acc - exp_acc) < 1e-8
+        assert abs(ytm - exp_ytm) < 1e-6
+
+    # US MUNI: Cali State
+
+    @pytest.mark.parametrize(
+        ("settlement", "price", "exp_ytm", "exp_acc"),
+        [
+            (dt(2025, 5, 12), 102.35, 2.879, 1.819444),
+            (dt(2025, 1, 31), 100.1, 4.923, 0.416667),
+            (dt(2026, 1, 1), 102.35, 0.293, 0.0),
+            (dt(2026, 5, 19), 100.10, 4.061, 1.916667),
+            (dt(2026, 6, 30), 100.10, -30.219, 2.486111),
+        ],
+    )
+    def test_cali_state_school(self, settlement, price, exp_ytm, exp_acc) -> None:
+        # LA Unif ISIN: US544647CW89, compared with BBG BXT.
+        b = FixedRateBond(
+            effective=dt(2020, 11, 10),
+            termination=dt(2026, 7, 1),
+            fixed_rate=5.0,
+            spec="us_muni",
+        )
+        ytm = b.ytm(price, settlement)
+        acc = b.accrued(settlement)
+        assert abs(ytm - exp_ytm) < 1e-3
+        assert abs(acc - exp_acc) < 1e-6
+
+    @pytest.mark.parametrize(
+        ("settlement", "price", "exp_ytm", "exp_acc"),
+        [
+            (dt(2025, 3, 31), 110.0, -3.441, 1.356800),
+            (dt(2025, 5, 12), 101.0, 3.662, 1.881600),
+            (dt(2025, 5, 30), 100.02, 4.586, 2.11200),
+            (dt(2025, 12, 15), 101.0, 2.582, 0.0),
+            (dt(2026, 3, 19), 101.0, 0.413, 1.203200),
+            (dt(2026, 6, 11), 100.02, 2.746, 2.2528),
+        ],
+    )
+    def test_new_jersey_transport(self, settlement, price, exp_ytm, exp_acc) -> None:
+        # NJ Transport ISIN: US64613CEZ77, compared with BBG BXT.
+        b = FixedRateBond(
+            effective=dt(2024, 10, 24),
+            termination=dt(2026, 6, 15),
+            fixed_rate=4.608,
+            spec="us_muni",
+        )
+        ytm = b.ytm(price, settlement)
+        acc = b.accrued(settlement)
+        assert abs(acc - exp_acc) < 1e-6
+        assert abs(ytm - exp_ytm) < 1e-3
 
     # Customised Thai Government Bonds
 

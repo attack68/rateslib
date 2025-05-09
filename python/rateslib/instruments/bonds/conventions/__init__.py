@@ -114,7 +114,7 @@ class BondCalcMode:
       
          \\xi = (\\bar{r}_u / \\bar{s}_u + r_u / s_u) / ( d_i * f )
       
-    - ``30u360`` and ``30e360``: For **stubs** this method reverts to ``linear_days``. Otherwise,
+    - ``30u360_backward``: For **stubs** this method reverts to ``linear_days``. Otherwise,
       determines the DCF, under the required convention, of the remaining part of the coupon
       period from settlement and deducts this from the full accrual fraction.
       
@@ -122,7 +122,14 @@ class BondCalcMode:
       
          \\xi = 1 - \\bar{d_u} f
       
+    - ``30u360_forward``: Calculates the DCF between last (unadjusted) coupon and settlement,
+      and compares this with DCF between (unadjusted) coupon dates, both measured using *'30u360'*
+      (See MSRB Rule G-33):
       
+      .. math::
+      
+         \\xi = DCF(prior, settlement) / DCF(prior, next)
+           
     - ``act365f_1y``: For **stubs** this method reverts to ``linear_days``. Otherwise,
       determines the accrual fraction using an approach that uses ACT365F convention.
       (Used by Canadian GBs)
@@ -495,8 +502,20 @@ US_GB_TSY = BondCalcMode(
 
 US_CORP = BondCalcMode(
     # US Corporate bond street convention
-    settle_accrual_type="30u360",
-    ytm_accrual_type="30u360",
+    settle_accrual_type="30u360_forward",
+    ytm_accrual_type="30u360_forward",
+    v1_type="compounding_final_simple",
+    v2_type="regular",
+    v3_type="compounding",
+    c1_type="cashflow",
+    ci_type="cashflow",
+    cn_type="cashflow",
+)
+
+US_MUNI = BondCalcMode(
+    # US Corporate bond street convention
+    settle_accrual_type="30u360_forward",
+    ytm_accrual_type="30u360_forward",
     v1_type="compounding_final_simple",
     v2_type="regular",
     v3_type="compounding",
@@ -507,8 +526,8 @@ US_CORP = BondCalcMode(
 
 SE_GB = BondCalcMode(
     # Swedish government bonds
-    settle_accrual_type="30e360",
-    ytm_accrual_type="30e360",
+    settle_accrual_type="30e360_backward",
+    ytm_accrual_type="30e360_backward",
     v1_type="compounding_final_simple",
     v2_type="regular",
     v3_type="simple_30e360",
@@ -620,6 +639,7 @@ BOND_MODE_MAP = {
     "se_gb": SE_GB,
     "us_gb_tsy": US_GB_TSY,
     "us_corp": US_CORP,
+    "us_muni": US_MUNI,
     "it_gb": IT_GB,
     "ca_gb": CA_GB,
     # aliases

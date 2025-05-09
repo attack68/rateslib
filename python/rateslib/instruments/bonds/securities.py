@@ -1019,11 +1019,11 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
 
     **Calculation Modes**
 
-    The ``calc_mode`` parameter allows the calculation for **yield-to-maturity** and 
+    The ``calc_mode`` parameter allows the calculation for **yield-to-maturity** and
     **accrued interest** to branch depending upon the particular convention of different bonds.
     See the documentation for the :class:`~rateslib.instruments.BondCalcMode` class.
 
-    Calculation modes that have been preconfigured, and are available, can be 
+    Calculation modes that have been preconfigured, and are available, can be
     found at :ref:`Securities Defaults <defaults-securities-input>`.
 
     Examples
