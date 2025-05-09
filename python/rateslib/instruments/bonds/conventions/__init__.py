@@ -123,7 +123,8 @@ class BondCalcMode:
          \\xi = 1 - \\bar{d_u} f
       
     - ``30u360_forward``: Calculates the DCF between last (unadjusted) coupon and settlement,
-      and compares this with DCF between (unadjusted) coupon dates, both measured using *'30u360'*:
+      and compares this with DCF between (unadjusted) coupon dates, both measured using *'30u360'*
+      (See MSRB Rule G-33):
       
       .. math::
       
