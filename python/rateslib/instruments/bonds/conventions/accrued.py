@@ -108,21 +108,6 @@ def _acc_30e360_backward(obj: Security | BondMixin, settlement: datetime, acc_id
     return _
 
 
-def _acc_30u360_backward(obj: Security | BondMixin, settlement: datetime, acc_idx: int, *args: Any) -> float:
-    """
-    Ignoring the convention on the leg uses "30U360" to determine the accrual fraction.
-    Measures between unadjusted date and settlement.
-    [Designed primarily for US Corporate Bonds]
-
-    If stub revert to linear proportioning.
-    """
-    if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
-        return _acc_linear_proportion_by_days(obj, settlement, acc_idx)
-    f = 12 / defaults.frequency_months[obj.leg1.schedule.frequency]
-    _: float = dcf(settlement, obj.leg1.schedule.uschedule[acc_idx + 1], "30u360") * f
-    _ = 1 - _
-    return _
-
 
 def _acc_30u360_forward(obj: Security | BondMixin, settlement: datetime, acc_idx: int, *args: Any) -> float:
     """
@@ -132,11 +117,10 @@ def _acc_30u360_forward(obj: Security | BondMixin, settlement: datetime, acc_idx
 
     If stub revert to linear proportioning.
     """
-    if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
-        return _acc_linear_proportion_by_days(obj, settlement, acc_idx)
-    f = 12 / defaults.frequency_months[obj.leg1.schedule.frequency]
-    _: float = dcf(obj.leg1.schedule.uschedule[acc_idx], settlement, "30u360") * f
-    return _
+    sch = obj.leg1.schedule
+    accrued = dcf(sch.uschedule[acc_idx], settlement, "30u360")
+    period = dcf(sch.uschedule[acc_idx], sch.uschedule[acc_idx+1], "30u360")
+    return accrued / period
 
 
 def _acc_act365_with_1y_and_stub_adjustment(
@@ -167,7 +151,6 @@ ACC_FRAC_FUNCS: dict[str, AccrualFunction] = {
     "linear_days": _acc_linear_proportion_by_days,
     "linear_days_long_front_split": _acc_linear_proportion_by_days_long_stub_split,
     "30e360_backward": _acc_30e360_backward,
-    "30u360_backward": _acc_30u360_backward,
     "30u360_forward": _acc_30u360_forward,
     "act365f_1y": _acc_act365_with_1y_and_stub_adjustment,
 }

@@ -867,6 +867,8 @@ class TestFixedRateBond:
     @pytest.mark.parametrize(
         ("settlement", "price", "exp_ytm", "exp_acc"),
         [
+            (dt(2018, 5, 30), 101.0, 3.728114, 0.32083333),
+            (dt(2018, 5, 31), 101.0, 3.728114, 0.32083333),
             (dt(2025, 5, 6), 101.0, 3.493237, 0.08555556),
             (dt(2028, 4, 3), 100.05, 3.077448, 1.65763889),
         ],
@@ -879,10 +881,11 @@ class TestFixedRateBond:
             fixed_rate=3.85,
             spec="us_corp",
         )
+        assert abs(b.leg1.periods[0].cashflow + 19036.1111) < 1e-4
         ytm = b.ytm(price, settlement)
         acc = b.accrued(settlement)
-        assert abs(ytm - exp_ytm) < 1e-6
         assert abs(acc - exp_acc) < 1e-8
+        assert abs(ytm - exp_ytm) < 1e-6
 
     # US MUNI: Cali State
 

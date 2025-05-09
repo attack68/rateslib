@@ -114,7 +114,7 @@ class BondCalcMode:
       
          \\xi = (\\bar{r}_u / \\bar{s}_u + r_u / s_u) / ( d_i * f )
       
-    - ``30u360`` and ``30e360``: For **stubs** this method reverts to ``linear_days``. Otherwise,
+    - ``30u360_backward``: For **stubs** this method reverts to ``linear_days``. Otherwise,
       determines the DCF, under the required convention, of the remaining part of the coupon
       period from settlement and deducts this from the full accrual fraction.
       
@@ -122,7 +122,13 @@ class BondCalcMode:
       
          \\xi = 1 - \\bar{d_u} f
       
+    - ``30u360_forward``: Calculates the DCF between last (unadjusted) coupon and settlement,
+      and compares this with DCF between (unadjusted) coupon dates, both measured using *'30u360'*:
       
+      .. math::
+      
+         \\xi = DCF(prior, settlement) / DCF(prior, next)
+           
     - ``act365f_1y``: For **stubs** this method reverts to ``linear_days``. Otherwise,
       determines the accrual fraction using an approach that uses ACT365F convention.
       (Used by Canadian GBs)
