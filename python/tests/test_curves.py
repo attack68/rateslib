@@ -991,7 +991,7 @@ def test_curve_translate(crv, t, tol) -> None:
     )
     assert np.all(np.abs(diff) < tol)
     if not isinstance(result_curve.index_base, NoInput):
-        assert result_curve.index_base == crv.index_value(dt(2023, 1, 1))
+        assert result_curve.index_base == crv.index_value(dt(2023, 1, 1), crv.index_lag)
 
 
 @pytest.mark.parametrize(
@@ -1271,12 +1271,13 @@ class TestIndexCurve:
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 1, 5): 0.9999},
             index_base=200.0,
             interpolation="linear_index",
+            index_lag=2,
         )
-        result = curve.index_value(dt(2022, 1, 5))
+        result = curve.index_value(dt(2022, 1, 5), 2)
         expected = 200.020002002
         assert abs(result - expected) < 1e-7
 
-        result = curve.index_value(dt(2022, 1, 3))
+        result = curve.index_value(dt(2022, 1, 3), 2)
         expected = 200.010001001  # value is linearly interpolated between index values.
         assert abs(result - expected) < 1e-7
 
@@ -1288,7 +1289,7 @@ class TestIndexCurve:
     def test_index_value_raises(self) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0}, index_base=100.0)
         with pytest.raises(ValueError, match="`interpolation` for `index_value`"):
-            curve.index_value(dt(2022, 1, 1), interpolation="BAD")
+            curve.index_value(dt(2022, 1, 1), 3, interpolation="BAD")
 
     @pytest.mark.parametrize("ad", [0, 1, 2])
     def test_roll_preserves_ad(self, ad) -> None:
@@ -1486,7 +1487,7 @@ class TestCompositeCurve:
             ("translate", (dt(2022, 1, 10),)),
             ("shift", (10.0, "id", False)),
             ("__getitem__", (dt(2022, 1, 10),)),
-            ("index_value", (dt(2022, 1, 10),)),
+            ("index_value", (dt(2022, 1, 10), 3)),
         ],
     )
     def test_composite_curve_precheck_cache(self, method, args) -> None:
@@ -1563,15 +1564,15 @@ class TestCompositeCurve:
         assert cc.index_lag == 3
         assert cc.index_base == 101.1
 
-        result = cc.index_value(dt(2022, 1, 31), interpolation="monthly")
+        result = cc.index_value(dt(2022, 1, 31), 3, interpolation="monthly")
         expected = 101.1
         assert abs(result - expected) < 1e-5
 
-        result = cc.index_value(dt(1999, 1, 1))
+        result = cc.index_value(dt(1999, 1, 1), 3)
         expected = 0.0
         assert abs(result - expected) < 1e-5
 
-        result = cc.index_value(dt(2022, 1, 1))
+        result = cc.index_value(dt(2022, 1, 1), 3)
         expected = 101.1
         assert abs(result - expected) < 1e-5
 
@@ -1580,7 +1581,7 @@ class TestCompositeCurve:
         ic2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
         cc = CompositeCurve([ic1, ic2])
         with pytest.raises(ValueError, match="`interpolation` for `index_value` must"):
-            cc.index_value(dt(2022, 1, 31), interpolation="bad interp")
+            cc.index_value(dt(2022, 1, 31), 3, interpolation="bad interp")
 
     def test_composite_curve_proxies(self) -> None:
         uu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="uu")
@@ -1611,7 +1612,7 @@ class TestCompositeCurve:
     def test_composite_curve_no_index_value_raises(self, curve) -> None:
         cc = CompositeCurve([curve])
         with pytest.raises(ValueError, match="Curve must be initialised with an `index_base`"):
-            cc.index_value(dt(2022, 1, 1))
+            cc.index_value(dt(2022, 1, 1), 3)
 
     def test_historic_rate_is_none(self) -> None:
         c1 = Curve(

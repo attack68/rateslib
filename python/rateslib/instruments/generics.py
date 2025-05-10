@@ -141,7 +141,7 @@ class Value(Metrics):
             ret: DualTypes = (dual_log(curve_0[self.effective]) / -dcf_) * 100
             return ret
         elif metric == "index_value":
-            ret = curve_0.index_value(self.effective)
+            ret = curve_0.index_value(self.effective, curve_0.index_lag)
             return ret
         raise ValueError("`metric`must be in {'curve_value', 'cc_zero_rate', 'index_value'}.")
 
