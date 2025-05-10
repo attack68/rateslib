@@ -114,7 +114,7 @@ Example implementation
 
 *Rateslib* has **not** implemented Thai Government Bonds by default, but let's suppose we want to
 construct one. The calculation for these types of bonds were found in a document on the Thai
-Bond Market Association website (:download:`pdf copy <_static/thai_standard_formula.pdf>`)
+Bond Market Association website (:download:`pdf copy <api/_static/thai_standard_formula.pdf>`)
 
 An example (A-3) is given which provides a couple of actionable tests.
 The ``convention`` for Thai GBs uses
