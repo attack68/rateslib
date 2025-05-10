@@ -1,7 +1,7 @@
 .. _purchase-doc:
 
 *******************************
-Purchasing A Licence Extension
+Purchasing Licence Extensions
 *******************************
 
 Licensing enquiries typically fall into two categories;
