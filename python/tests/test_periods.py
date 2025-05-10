@@ -2556,18 +2556,20 @@ class TestIndexFixedPeriod:
             fixed_rate=4.00,
             currency="usd",
             index_base=100.0,
+            index_lag=3
         )
         index_curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
             index_base=200.0,
             interpolation="linear_index",
+            index_lag=3,
         )
         result = index_period.real_cashflow
         expected = -1e7 * ((dt(2022, 4, 1) - dt(2022, 1, 1)) / timedelta(days=360)) * 4
         assert abs(result - expected) < 1e-8
 
         result = index_period.cashflow(index_curve)
-        expected = expected * index_curve.index_value(dt(2022, 4, 3)) / 100.0
+        expected = expected * index_curve.index_value(dt(2022, 4, 3), 3) / 100.0
         assert abs(result - expected) < 1e-8
 
     def test_period_analytic_delta(self, fxr, curve) -> None:
@@ -2829,6 +2831,35 @@ class TestIndexFixedPeriod:
         composite_curve = CompositeCurve([curve])
         with pytest.raises(ValueError, match="Curve must be initialised with an `index_base`"):
             _, result, _ = index_period.index_ratio(composite_curve)
+
+    @pytest.mark.parametrize(
+        ("method", "expected"),
+        [("daily", 201.00502512562812), ("monthly", 200.98317675333183)],
+    )
+    def test_index_lag_on_period_zero_curve(self, method, expected):
+        # test if a period can calculate the correct value by referencing a curve with
+        # zero index lag.
+        index_period = IndexFixedPeriod(
+            start=dt(2022, 1, 3),
+            end=dt(2022, 4, 3),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 3),
+            frequency="Q",
+            fixed_rate=4.00,
+            currency="usd",
+            index_base=100.0,
+            index_method=method,
+        )
+        index_curve = Curve(
+            nodes={dt(2021, 10, 1): 1.0, dt(2022, 1, 3): 0.995},
+            index_base=200.0,
+            interpolation="linear_index",
+            index_lag=0,
+        )
+        _, result, _ = index_period.index_ratio(index_curve)
+        assert abs(result - expected) < 1e-8
 
 
 class TestIndexCashflow:

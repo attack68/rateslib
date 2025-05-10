@@ -863,7 +863,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             ad=self.ad,
             index_base=NoInput(0)
             if isinstance(self.index_base, NoInput)
-            else self.index_value(start),
+            else self.index_value(start, self.index_lag),
             index_lag=self.index_lag,
         )
         return new_curve
@@ -1010,7 +1010,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         else:  # tenor < self.node_dates[0]
             return new_curve.translate(self.node_dates[0])
 
-    def index_value(self, date: datetime, interpolation: str = "daily") -> DualTypes:
+    def index_value(self, date: datetime, index_lag: int, interpolation: str = "daily") -> DualTypes:
         """
         Calculate the accrued value of the index from the ``index_base``.
 
@@ -1018,6 +1018,8 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         ----------
         date : datetime
             The date for which the index value will be returned.
+        index_lag : int
+            The number of months by which to lag the index when determining the value.
         interpolation : str in {"monthly", "daily"}
             The method for returning the index value. Monthly returns the index value
             for the start of the month and daily returns a value based on the
@@ -1043,29 +1045,42 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                },
                index_base=100.73350964,
                convention="Act360",
+               index_lag=0,
            )
            index_curve.rate(dt(2021, 9, 6), "1d")
-           index_curve.index_value(dt(2021, 9, 7))
+           index_curve.index_value(dt(2021, 9, 7), 0)
         """
         if isinstance(self.index_base, NoInput):
             raise ValueError(
                 "Curve must be initialised with an `index_base` value to derive `index_value`."
             )
 
-        if interpolation.lower() == "daily":
-            date_ = date
-        elif interpolation.lower() == "monthly":
-            date_ = datetime(date.year, date.month, 1)
-        else:
+        if interpolation.lower() not in ["monthly", "daily"]:
             raise ValueError("`interpolation` for `index_value` must be in {'daily', 'monthly'}.")
-        if date_ < self.node_dates[0]:
-            return 0.0
-            # return zero for index dates in the past
-            # the proper way for instruments to deal with this is to supply i_fixings
-        elif date_ == self.node_dates[0]:
-            return self.index_base
+
+        lag_time = index_lag - self.index_lag
+        # if lag time is positive then must interrogate the curve for dates that many number of
+        # months earlier than expected.
+        if lag_time == 0 :
+            if interpolation.lower() == "monthly":
+                date_ = datetime(date.year, date.month, 1)
+            elif interpolation.lower() == "daily":
+                date_ = date
+
+            if date_ < self.node_dates[0]:
+                return 0.0
+                # return zero for index dates in the past
+                # the proper way for instruments to deal with this is to supply i_fixings
+            elif date_ == self.node_dates[0]:
+                return self.index_base
+            else:
+                return self.index_base * 1.0 / self[date_]
+
         else:
-            return self.index_base * 1.0 / self[date_]
+            raise NotImplementedError(
+                "Index Curve Lag does not match Instrumet Lag"
+            )
+
 
     # Plotting
 
@@ -1127,18 +1142,18 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
         points: int = (right_ - left_).days + 1
         x = [left_ + timedelta(days=i) for i in range(points)]
-        rates = [self.index_value(_) for _ in x]
+        rates = [self.index_value(_, self.index_lag) for _ in x]
         if not difference:
             y = [rates]
             if not isinstance(comparators, NoInput) and len(comparators) > 0:
                 for comparator in comparators:
-                    y.append([comparator.index_value(_) for _ in x])
+                    y.append([comparator.index_value(_, self.index_lag) for _ in x])
         elif difference and (isinstance(comparators, NoInput) or len(comparators) == 0):
             raise ValueError("If `difference` is True must supply at least one `comparators`.")
         else:
             y = []
             for comparator in comparators:
-                diff = [comparator.index_value(_) - rates[i] for i, _ in enumerate(x)]
+                diff = [comparator.index_value(_, self.index_lag) - rates[i] for i, _ in enumerate(x)]
                 y.append(diff)
         return plot([x] * len(y), y, labels)
 
@@ -2620,14 +2635,14 @@ class CompositeCurve(Curve):
         return CompositeCurve(curves=[curve.roll(tenor) for curve in self.curves])
 
     @_validate_states
-    def index_value(self, date: datetime, interpolation: str = "daily") -> DualTypes:
+    def index_value(self, date: datetime, index_lag: int, interpolation: str = "daily") -> DualTypes:
         """
         Calculate the accrued value of the index from the ``index_base``, which is taken
         as ``index_base`` of the *first* composited curve given.
 
         See :meth:`Curve.index_value()<rateslib.curves.Curve.index_value>`
         """
-        return super().index_value(date, interpolation)
+        return super().index_value(date, index_lag, interpolation)
 
     # Solver interaction
 

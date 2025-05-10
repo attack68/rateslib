@@ -115,7 +115,7 @@ class IndexMixin(metaclass=ABCMeta):
             )
             return None  # TODO decide if RolledCurve to correct index lag be attempted
         else:
-            return i_curve.index_value(i_date, i_method)
+            return i_curve.index_value(i_date, i_lag, i_method)
 
     @staticmethod
     def _index_value(
