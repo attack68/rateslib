@@ -260,7 +260,7 @@ The various end point constraints can be generated in this implementation:
 - **Mixed constraints**: this allows combinations of the above methods at each end.
 
 Suppose we wish to generate between the points (0,0), (1,0), (3,2), (4,2), as
-demonstrated in this :download:`spline note<_static/spline_note_cs_tau.pdf>` published
+demonstrated in this :download:`spline note<api/_static/spline_note_cs_tau.pdf>` published
 by the school of computer science at Tel Aviv University, then  we can generate the
 following splines using this library in the following way:
 
