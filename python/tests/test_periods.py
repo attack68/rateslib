@@ -2556,7 +2556,7 @@ class TestIndexFixedPeriod:
             fixed_rate=4.00,
             currency="usd",
             index_base=100.0,
-            index_lag=3
+            index_lag=3,
         )
         index_curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
