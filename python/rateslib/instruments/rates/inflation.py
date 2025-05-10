@@ -495,6 +495,7 @@ class IIRS(BaseDerivative):
             i_curve = _validate_curve_not_no_input(_validate_curve_is_not_dict(curves_[0]))
             self.leg1.index_base = i_curve.index_value(
                 self.leg1.schedule.effective,
+                self.leg1.index_lag,
                 self.leg1.index_method,
             )
         if isinstance(self.fixed_rate, NoInput):

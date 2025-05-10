@@ -122,6 +122,7 @@ class BondMixin:
             curve_ = _validate_curve_not_no_input(_validate_curve_is_not_dict(curve))
             self.leg1.index_base = curve_.index_value(
                 self.leg1.schedule.effective,
+                self.leg1.index_lag,
                 self.leg1.index_method,
             )
 

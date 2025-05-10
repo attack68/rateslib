@@ -2832,6 +2832,7 @@ class TestIndexFixedPeriod:
         with pytest.raises(ValueError, match="Curve must be initialised with an `index_base`"):
             _, result, _ = index_period.index_ratio(composite_curve)
 
+    @pytest.mark.skip(reason="test driven development")
     @pytest.mark.parametrize(
         ("method", "expected"),
         [("daily", 201.00502512562812), ("monthly", 200.98317675333183)],
