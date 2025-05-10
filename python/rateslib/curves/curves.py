@@ -1079,7 +1079,14 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                 return self.index_base * 1.0 / self[date_]
 
         else:
-            raise NotImplementedError("Index Curve Lag does not match Instrumet Lag")
+            if interpolation.lower() == "monthly":
+                # adjust the date by the appropriate number of months and recalculate
+                date_ = add_tenor(date, f"-{lag_time}m", "none", NoInput(0), 1)
+                return self.index_value(date_, self.index_lag, interpolation)
+            elif interpolation.lower() == "daily":
+                # TODO: this does not match months with 31 days versus those with 30 or 28
+                date_ = add_tenor(date, f"-{lag_time}m", "none", NoInput(0), date.day)
+                return self.index_value(date_, self.index_lag, interpolation)
 
     # Plotting
 
