@@ -29,9 +29,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
      - Added a new day count convention *'30U360'* to :meth:`~rateslib.calendars.dcf`.
        (`780 <https://github.com/attack68/rateslib/pull/780>`_)
    * - Curves
-     - The :meth:`Curve.index_value() <rateslib.curves.Curve.index_value` is amended
-       *'us_corp'* and *'us_muni'* to support generic US corporate and municipal bonds.
-       (`785 <https://github.com/attack68/rateslib/pull/785>`_)
+     - The :meth:`Curve.index_value() <rateslib.curves.Curve.index_value` is changed to accept an
+       ``index_lag`` argument which allows the determination of an *index value* for a specific
+       date defined with a given *lag* and *interpolation* method.
+       (`802 <https://github.com/attack68/rateslib/pull/802>`_)
    * - Instruments
      - Add bond calculation convention to support *'30U360'* accrued, and a new bond ``spec``
        *'us_corp'* and *'us_muni'* to support generic US corporate and municipal bonds.
