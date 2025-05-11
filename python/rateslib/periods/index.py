@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from pandas import Series
 
-from rateslib import defaults
+from rateslib import defaults, add_tenor
 from rateslib.calendars import _get_eom
 from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_maybe_from_curve
 from rateslib.default import NoInput
@@ -109,11 +109,24 @@ class IndexMixin(metaclass=ABCMeta):
         if isinstance(i_curve, NoInput):
             return None
         elif i_lag != i_curve.index_lag:
-            warnings.warn(
-                f"The `index_lag` of the Period ({i_lag}) does not match "
-                f"the `index_lag` of the Curve ({i_curve.index_lag}): returning None."
-            )
-            return None  # TODO decide if RolledCurve to correct index lag be attempted
+            lag_mths = i_lag - i_curve.index_lag
+            if i_method == "monthly":
+                date_ = add_tenor(i_date, f"-{lag_mths}m", "none", NoInput(0), 1)
+                return i_curve.index_value(date_, i_curve.index_lag, i_method)
+            elif i_method == "daily":
+                ref_month = datetime(i_date.year, i_date.month, 1)
+                ref_end = add_tenor(ref_month, "1M", "none", NoInput(0), 1)
+                weight = (i_date.day - 1) / (ref_end - ref_month).days
+
+                act_date = add_tenor(i_date, f"-{lag_mths}m", "none", NoInput(0), 1)
+                act_end = add_tenor(act_date, f"1M", "none", NoInput(0), 1)
+                act_val = i_curve.index_value(act_date, i_curve.index_lag, "monthly")
+                act_end_val = i_curve.index_value(act_end, i_curve.index_lag, "monthly")
+                return act_val * (1 - weight) + act_end_val * weight
+            else:
+                raise ValueError(
+                    "Index interpolation must be in {'daily', 'monthly'}."
+                )
         else:
             return i_curve.index_value(i_date, i_lag, i_method)
 
