@@ -53,8 +53,8 @@ Each *Curve* type has the following parameters:
      - **Parameters**
      - The explicit values associated with node dates.
      - | **Yes.**
-       | For :class:`~rateslib.curves.Curve` all parameters except the initial node value of 1.0 is varied.
-       | For :class:`~rateslib.curves.LineCurve` all parameters including the initial node value is varied.
+       | For :class:`~rateslib.curves.Curve` all parameters except the initial node value of 1.0 are varied.
+       | For :class:`~rateslib.curves.LineCurve` all parameters including the initial node value are varied.
    * - ``interpolation``
      - Hyper parameter
      - Equation or mechanism to determine intermediate values not defined explicitly
