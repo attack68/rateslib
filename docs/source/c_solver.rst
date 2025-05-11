@@ -91,13 +91,12 @@ Each *Smile* type has the following parameters:
        | For :class:`~rateslib.fx_volatility.FXDeltaVolSmile` node values are varied.
        | For :class:`~rateslib.fx_volatility.FXSabrSmile` the parameters *"alpha"*, *"rho"*
        and *"nu"* are varied whilst *"beta"* is held constant.
-  *  - ``delta_type``
+   * - ``delta_type``
      - Hyper parameter
      - Only relevant to *DeltaVolSmile*
      - No
 
 *Surfaces* are containers for multiple *Smiles* and the above is applied.
-
 
 Calibrating Pricing Objects
 ****************************
