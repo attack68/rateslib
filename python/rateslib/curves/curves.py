@@ -863,7 +863,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             ad=self.ad,
             index_base=NoInput(0)
             if isinstance(self.index_base, NoInput)
-            else self.index_value(start, self.index_lag),
+            else self.index_value(start, self.index_lag, "daily"),
             index_lag=self.index_lag,
         )
         return new_curve
@@ -1086,7 +1086,6 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                 date_ = add_tenor(date, f"-{lag_time}m", "none", NoInput(0), date.day)
                 return self.index_value(date_, self.index_lag, interpolation)
 
-
     # Plotting
 
     def plot_index(
@@ -1096,9 +1095,10 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         comparators: list[Curve] | NoInput = NoInput(0),
         difference: bool = False,
         labels: list[str] | NoInput = NoInput(0),
+        interpolation: str = "daily",
     ) -> PlotOutput:
         """
-        Plot given forward tenor rates from the curve.
+        Plot given index values on a  curve.
 
         Parameters
         ----------
@@ -1120,10 +1120,13 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         labels : list[str]
             A list of strings associated with the plot and comparators. Must be same
             length as number of plots.
+        interpolation : str in {"daily", "monthly"}
+            The type of index interpolation method to use.
 
         Returns
         -------
         (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
+
         """
         comparators = _drb([], comparators)
         labels = _drb([], labels)
@@ -1147,7 +1150,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
         points: int = (right_ - left_).days + 1
         x = [left_ + timedelta(days=i) for i in range(points)]
-        rates = [self.index_value(_, self.index_lag) for _ in x]
+        rates = [self.index_value(_, self.index_lag, interpolation) for _ in x]
         if not difference:
             y = [rates]
             if not isinstance(comparators, NoInput) and len(comparators) > 0:
@@ -1159,7 +1162,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             y = []
             for comparator in comparators:
                 diff = [
-                    comparator.index_value(_, self.index_lag) - rates[i] for i, _ in enumerate(x)
+                    comparator.index_value(_, self.index_lag, interpolation) - rates[i] for i, _ in enumerate(x)
                 ]
                 y.append(diff)
         return plot([x] * len(y), y, labels)
