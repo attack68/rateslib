@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -8,7 +7,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from pandas import Series
 
-from rateslib import defaults, add_tenor
+from rateslib import add_tenor, defaults
 from rateslib.calendars import _get_eom
 from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_maybe_from_curve
 from rateslib.default import NoInput
@@ -119,14 +118,12 @@ class IndexMixin(metaclass=ABCMeta):
                 weight = (i_date.day - 1) / (ref_end - ref_month).days
 
                 act_date = add_tenor(i_date, f"-{lag_mths}m", "none", NoInput(0), 1)
-                act_end = add_tenor(act_date, f"1M", "none", NoInput(0), 1)
+                act_end = add_tenor(act_date, "1M", "none", NoInput(0), 1)
                 act_val = i_curve.index_value(act_date, i_curve.index_lag, "monthly")
                 act_end_val = i_curve.index_value(act_end, i_curve.index_lag, "monthly")
                 return act_val * (1 - weight) + act_end_val * weight
             else:
-                raise ValueError(
-                    "Index interpolation must be in {'daily', 'monthly'}."
-                )
+                raise ValueError("Index interpolation must be in {'daily', 'monthly'}.")
         else:
             return i_curve.index_value(i_date, i_lag, i_method)
 
