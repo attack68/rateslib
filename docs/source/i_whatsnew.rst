@@ -32,8 +32,11 @@ email contact, see `rateslib <https://rateslib.com>`_.
      - :red:`Minor Breaking Change!` The
        :meth:`Curve.index_value() <rateslib.curves.Curve.index_value>` method is changed to
        accept an ``index_lag`` argument which allows the determination of an *index value*
-       for a specific date defined with a given *lag* and *interpolation* method.
+       for a specific date defined with a given *lag* and *interpolation* method. Also
+       amended the way :class:`~rateslib.periods.IndexPeriod` will handle the
+       determination of cashflows given different ``index_lag`` specifications.
        (`802 <https://github.com/attack68/rateslib/pull/802>`_)
+       (`803 <https://github.com/attack68/rateslib/pull/803>`_)
    * - Instruments
      - Add bond calculation convention to support *'30U360'* accrued, and a new bond ``spec``
        *'us_corp'* and *'us_muni'* to support generic US corporate and municipal bonds.
