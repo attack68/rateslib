@@ -1010,9 +1010,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         else:  # tenor < self.node_dates[0]
             return new_curve.translate(self.node_dates[0])
 
-    def index_value(
-        self, date: datetime, index_lag: int, interpolation: str = "daily"
-    ) -> DualTypes:
+    def index_value(self, date: datetime, index_lag: int, interpolation: str = "daily") -> DualTypes:
         """
         Calculate the accrued value of the index from the ``index_base``.
 
@@ -1083,10 +1081,11 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                 # adjust the date by the appropriate number of months and recalculate
                 date_ = add_tenor(date, f"-{lag_time}m", "none", NoInput(0), 1)
                 return self.index_value(date_, self.index_lag, interpolation)
-            elif interpolation.lower() == "daily":
+            else: #  interpolation.lower() == "daily":
                 # TODO: this does not match months with 31 days versus those with 30 or 28
                 date_ = add_tenor(date, f"-{lag_time}m", "none", NoInput(0), date.day)
                 return self.index_value(date_, self.index_lag, interpolation)
+
 
     # Plotting
 
