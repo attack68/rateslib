@@ -140,31 +140,7 @@ class IndexMixin(metaclass=ABCMeta):
                 if isinstance(i_curve, NoInput):
                     return None
                 return i_curve.index_value(i_date, i_lag, i_method)
-            elif isinstance(i_fixings, Series):
-                if i_method == "daily":
-                    adj_date = i_date
-                    unavailable_date: datetime = i_fixings.index[-1]  # type: ignore[attr-defined]
-                else:
-                    adj_date = datetime(i_date.year, i_date.month, 1)
-                    _: datetime = i_fixings.index[-1]  # type: ignore[attr-defined]
-                    unavailable_date = _get_eom(_.month, _.year)
-
-                if i_date > unavailable_date:
-                    if isinstance(i_curve, NoInput):
-                        return None  # NoInput(0)
-                    else:
-                        return i_curve.index_value(i_date, i_lag, i_method)
-                else:
-                    try:
-                        ret: DualTypes | None = i_fixings[adj_date]  # type: ignore[index]
-                        return ret
-                    except KeyError:
-                        s = i_fixings.copy()  # type: ignore[attr-defined]
-                        s.loc[adj_date] = np.nan
-                        ret = s.sort_index().interpolate("time")[adj_date]
-                        return ret
             else:
-                # i_fixings is a given value
                 return i_fixings
 
     def npv(
@@ -270,7 +246,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
         self,
         *args: Any,
         index_base: DualTypes | NoInput = NoInput(0),
-        index_fixings: DualTypes | Series[DualTypes] | NoInput = NoInput(0),  # type: ignore[type-var]
+        index_fixings: DualTypes | NoInput = NoInput(0),
         index_method: str | NoInput = NoInput(0),
         index_lag: int | NoInput = NoInput(0),
         **kwargs: Any,
