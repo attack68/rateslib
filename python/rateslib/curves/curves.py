@@ -1098,6 +1098,13 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                 )
             # use traditional discount factor from Index base to determine index value.
             if date < self.node_dates[0]:
+                warnings.warn(
+                    "The date queried on the Curve for an `ìndex_value` is prior to the "
+                    "initial node on the Curve.\nThis is returned as zero and likely "
+                    f"causes downstream calculation error.\ndate queried: {date}"
+                    "Either providing `index_fixings` to the object or extend the Curve backwards."
+                    , UserWarning
+                )
                 return 0.0
                 # return zero for index dates in the past
                 # the proper way for instruments to deal with this is to supply i_fixings
