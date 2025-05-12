@@ -1730,7 +1730,7 @@ class TestIndexFixedRateBond:
         )
         curve = Curve({dt(1998, 12, 9): 1.0, dt(2015, 12, 7): 0.50})
         i_curve = Curve(
-            {dt(1998, 12, 9): 1.0, dt(2015, 12, 7): 1.0},
+            {dt(1998, 12, 1): 1.0, dt(2015, 12, 7): 1.0},
             index_base=100.0,
             interpolation="linear_index",
             index_lag=3

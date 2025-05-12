@@ -99,35 +99,6 @@ class IndexMixin(metaclass=ABCMeta):
             return numerator / denominator, numerator, denominator
 
     @staticmethod
-    def _index_value_from_curve(
-        i_date: datetime,
-        i_curve: Curve_,
-        i_lag: int,
-        i_method: str,
-    ) -> DualTypes | None:
-        if isinstance(i_curve, NoInput):
-            return None
-        elif i_lag != i_curve.index_lag:
-            lag_mths = i_lag - i_curve.index_lag
-            if i_method == "monthly":
-                date_ = add_tenor(i_date, f"-{lag_mths}m", "none", NoInput(0), 1)
-                return i_curve.index_value(date_, i_curve.index_lag, i_method)
-            elif i_method == "daily":
-                ref_month = datetime(i_date.year, i_date.month, 1)
-                ref_end = add_tenor(ref_month, "1M", "none", NoInput(0), 1)
-                weight = (i_date.day - 1) / (ref_end - ref_month).days
-
-                act_date = add_tenor(i_date, f"-{lag_mths}m", "none", NoInput(0), 1)
-                act_end = add_tenor(act_date, "1M", "none", NoInput(0), 1)
-                act_val = i_curve.index_value(act_date, i_curve.index_lag, "monthly")
-                act_end_val = i_curve.index_value(act_end, i_curve.index_lag, "monthly")
-                return act_val * (1 - weight) + act_end_val * weight
-            else:
-                raise ValueError("Index interpolation must be in {'daily', 'monthly'}.")
-        else:
-            return i_curve.index_value(i_date, i_lag, i_method)
-
-    @staticmethod
     def _index_value(
         i_fixings: DualTypes | Series[DualTypes] | NoInput,  # type: ignore[type-var]
         i_date: datetime | NoInput,
@@ -165,7 +136,10 @@ class IndexMixin(metaclass=ABCMeta):
                 )  # pragma: no cover
         else:
             if isinstance(i_fixings, NoInput):
-                return IndexMixin._index_value_from_curve(i_date, i_curve, i_lag, i_method)
+                # forecast from curve if available
+                if isinstance(i_curve, NoInput):
+                    return None
+                return i_curve.index_value(i_date, i_lag, i_method)
             elif isinstance(i_fixings, Series):
                 if i_method == "daily":
                     adj_date = i_date
@@ -179,11 +153,7 @@ class IndexMixin(metaclass=ABCMeta):
                     if isinstance(i_curve, NoInput):
                         return None  # NoInput(0)
                     else:
-                        return IndexMixin._index_value_from_curve(i_date, i_curve, i_lag, i_method)
-                    # raise ValueError(
-                    #     "`index_fixings` cannot forecast the index value. "
-                    #     f"There are no fixings available after date: {unavailable_date}"
-                    # )
+                        return i_curve.index_value(i_date, i_lag, i_method)
                 else:
                     try:
                         ret: DualTypes | None = i_fixings[adj_date]  # type: ignore[index]
