@@ -2690,7 +2690,7 @@ class CompositeCurve(Curve):
 
     @_validate_states
     def index_value(
-        self, date: datetime, index_lag: int, interpolation: str = "daily"
+        self, date: datetime, index_lag: int, interpolation: str = "curve"
     ) -> DualTypes:
         """
         Calculate the accrued value of the index from the ``index_base``, which is taken

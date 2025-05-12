@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from calendar import monthrange
 
 from pandas import Series
 
 from rateslib import defaults
+from rateslib.calendars import add_tenor
 from rateslib.default import NoInput, _drb
 from rateslib.legs.base import BaseLeg, _FixedLegMixin
 from rateslib.periods import Cashflow, IndexCashflow, IndexFixedPeriod, IndexMixin
@@ -43,20 +45,6 @@ class _IndexLegMixin:
                 raise ValueError("`index_fixings` must be unique index values.")
 
         self._index_fixings: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput = value  # type: ignore[type-var]
-
-        def _index_from_series(ser: Series[DualTypes], end: datetime) -> DualTypes | NoInput:  # type: ignore[type-var]
-            val: DualTypes | None = IndexMixin._index_value(
-                i_fixings=ser,
-                i_method=self.index_method,
-                i_lag=self.index_lag,
-                i_date=end,
-                i_curve=NoInput(0),  # ! NoInput returned for periods beyond Series end.
-            )
-            if val is None:
-                _: DualTypes | NoInput = NoInput(0)
-            else:
-                _ = val
-            return _
 
         def _index_from_list(ls: list[DualTypes], i: int) -> DualTypes_:
             return NoInput(0) if i >= len(ls) else ls[i]
@@ -184,8 +172,10 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
         index_lag: int | NoInput = NoInput(0),
         **kwargs: Any,
     ) -> None:
-        self.index_method = _drb(defaults.index_method, index_method).lower()
-        self.index_lag = _drb(defaults.index_lag, index_lag)
+        self.index_method, self.index_lag = _validate_index_method_and_lag(
+            _drb(defaults.index_method, index_method),
+            _drb(defaults.index_lag, index_lag)
+        )
         super().__init__(*args, **kwargs)
         self.index_fixings = index_fixings  # set index fixings after periods init
         # set after periods initialised
@@ -364,10 +354,10 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
         **kwargs: Any,
     ) -> None:
         self._fixed_rate = fixed_rate
-        self.index_lag: int = _drb(defaults.index_lag, index_lag)
-        self.index_method = _drb(defaults.index_method, index_method).lower()
-        if self.index_method not in ["daily", "monthly"]:
-            raise ValueError("`index_method` must be in {'daily', 'monthly'}.")
+        self.index_method, self.index_lag = _validate_index_method_and_lag(
+            _drb(defaults.index_method, index_method),
+            _drb(defaults.index_lag, index_lag)
+        )
         super().__init__(*args, **kwargs)
         self.index_fixings = index_fixings  # set index fixings after periods init
         self.index_base = index_base  # set after periods initialised
@@ -482,3 +472,72 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
 
     def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
         return super().analytic_delta(*args, **kwargs)
+
+
+def _validate_index_method_and_lag(index_method: str, index_lag: int) -> tuple[str, int]:
+    lower_method = index_method.lower()
+    if lower_method not in ["daily", "monthly", "curve"]:
+        raise ValueError("`index_method` must be in {'daily', 'monthly', 'curve'}.")
+    if index_lag != 0 and lower_method == "curve":
+        raise ValueError("`index_lag` must be zero when using `index_method`='curve'.")
+    return lower_method, index_lag
+
+
+def _index_from_series(
+    ser: Series[DualTypes],
+    i_date: datetime,
+    i_lag: int,
+    i_method: str,
+) -> DualTypes | NoInput:  # type: ignore[type-var]
+    """
+    Get an index fixing from a Series for a reference date.
+
+    Parameters
+    ----------
+    ser : Series
+        A Series of index fixings indexed by monotonically increasing unique dates.
+    i_date : datetime
+        The reference date for the index fixing.
+    i_lag: int
+        The monthly index lag applicable to the reference date
+    i_method: str in {"curve", "daily", "monthly"}
+        The type of index method to use for the index fixing
+    """
+    if i_method == "curve":
+        # use traditional discount factor from Index base to determine index value.
+        # Need an exact date from the series
+        if i_date > ser.index[-1]:
+            return NoInput(0)
+        else:
+            try:
+                return ser.loc[i_date]
+            except KeyError:
+                raise ValueError(
+                    f"The Series provided for `index_fixings` does not contain the date {i_date}.\n"
+                    "For inflation indexes the values associated for a month should be assigned"
+                    "to the first day of that month."
+                )
+    elif i_method == "monthly":
+        date_ = add_tenor(i_date, f"-{i_lag}M", "none", NoInput(0), 1)
+        return _index_from_series(date_, 0, "curve")
+    else: # i_method == "daily":
+        n = monthrange(i_date.year, i_date.month)[1]
+        date_som = datetime(i_date.year, i_date.month, 1)
+        date_sonm = add_tenor(i_date, "1M", "none", NoInput(0), 1)
+        m1 = _index_from_series(date_som, 0, "monthly")
+        m2 = _index_from_series(date_sonm, 0, "monthly")
+        return m1 + (i_date.day - 1) / n * (m2 - m1)
+
+
+    val: DualTypes | None = IndexMixin._index_value(
+        i_fixings=ser,
+        i_method=self.index_method,
+        i_lag=self.index_lag,
+        i_date=end,
+        i_curve=NoInput(0),  # ! NoInput returned for periods beyond Series end.
+    )
+    if val is None:
+        _: DualTypes | NoInput = NoInput(0)
+    else:
+        _ = val
+    return _
