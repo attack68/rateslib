@@ -1681,9 +1681,10 @@ class TestIndexFixedRateBond:
             index_lag=3,
             index_method="daily",
         )
-        result = gilt._npv_local(index_curve, curve, dt(2010, 11, 27), dt(2010, 11, 25))
-        expected = 109.229489312983 * 2.0  # npv should match associated test
-        assert abs(result - expected) < 1e-6
+        with pytest.warns(UserWarning):
+            result = gilt._npv_local(index_curve, curve, dt(2010, 11, 27), dt(2010, 11, 25))
+            expected = 109.229489312983 * 2.0  # npv should match associated test
+            assert abs(result - expected) < 1e-6
 
     def test_index_base_forecast(self, curve) -> None:
         i_curve = Curve(

@@ -1557,6 +1557,16 @@ class TestCompositeCurve:
         assert cc.index_base == base[0]
         assert cc.index_lag == lag[0]
 
+    def test_index_curves_attributes_warns(self):
+        ic1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
+        ic2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
+        cc = CompositeCurve([ic1, ic2])
+
+        with pytest.warns(UserWarning):
+            result = cc.index_value(dt(1999, 1, 1), 3)
+            expected = 0.0
+            assert abs(result - expected) < 1e-5
+
     def test_index_curves_attributes(self) -> None:
         ic1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
         ic2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
@@ -1566,10 +1576,6 @@ class TestCompositeCurve:
 
         result = cc.index_value(dt(2022, 1, 31), 3, interpolation="monthly")
         expected = 101.1
-        assert abs(result - expected) < 1e-5
-
-        result = cc.index_value(dt(1999, 1, 1), 3)
-        expected = 0.0
         assert abs(result - expected) < 1e-5
 
         result = cc.index_value(dt(2022, 1, 1), 3)
