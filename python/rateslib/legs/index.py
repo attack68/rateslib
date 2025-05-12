@@ -22,35 +22,6 @@ class _IndexLegMixin:
     periods: list[IndexFixedPeriod | IndexCashflow | Cashflow]
     index_lag: int
 
-    # def _set_index_fixings_on_periods(self):
-    #     """
-    #     Re-organises the fixings input to list structure for each period.
-    #     Requires a ``schedule`` object and ``float_args``.
-    #     """
-    #     if self.index_fixings is None:
-    #         pass  # do nothing
-    #     elif isinstance(self.index_fixings, Series):
-    #         for period in self.periods:
-    #             period.index_fixings = IndexMixin._index_value(
-    #                 i_method=self.index_method,
-    #                 i_lag=self.index_lag,
-    #                 i_curve=None,
-    #                 i_date=period.end,
-    #                 i_fixings=self.index_fixings,
-    #             )
-    #     elif isinstance(self.index_fixings, list):
-    #         for i in range(len(self.index_fixings)):
-    #             self.periods[i].index_fixings = self.index_fixings[i]
-    #     else:  # index_fixings is float
-    #         if type(self) is ZeroFixedLeg:
-    #             self.periods[0].index_fixings = self.index_fixings
-    #             self.periods[1].index_fixings = self.index_fixings
-    #         elif type(self) is IndexFixedLegExchange and self.inital_exchange is False:
-    #             self.periods[0].index_fixings = self.index_fixings
-    #         else:
-    #             self.periods[0].index_fixings = self.index_fixings
-    #         # TODO index_fixings as a list cannot handle amortization. Use a Series.
-
     @property
     def index_fixings(self) -> DualTypes | list[DualTypes] | Series[DualTypes] | NoInput:  # type: ignore[type-var]
         return self._index_fixings
@@ -60,6 +31,17 @@ class _IndexLegMixin:
         self,
         value: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput,  # type: ignore[type-var]
     ) -> None:
+
+        # validate a Series input
+        if isinstance(value, Series):
+            if not value.index.is_monotonic_increasing:
+                if value.index.is_monotonic_decreasing:
+                    value = value[::-1]
+                else:
+                    raise ValueError("`index_fixings` must be monotonic increasing.")
+            elif not value.index.is_unique:
+                raise ValueError("`index_fixings` must be unique index values.")
+
         self._index_fixings: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput = value  # type: ignore[type-var]
 
         def _index_from_series(ser: Series[DualTypes], end: datetime) -> DualTypes | NoInput:  # type: ignore[type-var]

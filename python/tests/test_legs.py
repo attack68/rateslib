@@ -1772,6 +1772,33 @@ class TestIndexFixedLeg:
         assert leg.periods[4].index_fixings == NoInput(0)
         assert leg.periods[5].index_fixings == NoInput(0)
 
+    @pytest.mark.parametrize("index_fixings", [
+        Series([1,2,3], index=[dt(2000, 1, 1), dt(1999, 1, 1), dt(2001, 1, 1)]),
+        Series([1, 2, 3], index=[dt(2000, 1, 1), dt(2000, 1, 1), dt(2001, 1, 1)])
+    ])
+    def test_index_as_series_invalid(self, index_fixings):
+        with pytest.raises(ValueError, match="`index_fixings` must be"):
+            IndexFixedLeg(
+                effective=dt(2022, 1, 1),
+                termination=dt(2022, 10, 1),
+                frequency="Q",
+                index_base=NoInput(0),
+                index_fixings=index_fixings,
+            )
+
+    def test_index_reverse_monotonic_decreasing_series(self):
+        s = Series([1, 2, 3], index=[dt(2000, 1, 1), dt(1999, 1, 1), dt(1998, 1, 1)])
+        assert s.index.is_monotonic_decreasing
+        leg = IndexFixedLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 10, 1),
+            frequency="Q",
+            index_base=NoInput(0),
+            index_fixings=s,
+        )
+        assert leg.index_fixings.index.is_monotonic_increasing
+
+
 
 class TestFloatLegExchangeMtm:
     @pytest.mark.parametrize(
