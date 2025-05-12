@@ -2868,6 +2868,35 @@ class TestIndexFixedPeriod:
         expected_npv = -1e6 * 0.04 * 0.25 * result * 0.99 / 100.0
         assert abs(npv - expected_npv) < 1e-5
 
+    def test_cashflows_available_with_series_fixings(self):
+        RPI = DataFrame([
+            [dt(2024, 2, 1), 381.0],
+            [dt(2024, 3, 1), 383.0],
+            [dt(2024, 4, 1), 385.0],
+            [dt(2024, 5, 1), 386.4],
+            [dt(2024, 6, 1), 387.3],
+            [dt(2024, 7, 1), 387.5],
+            [dt(2024, 8, 1), 389.9],
+            [dt(2024, 9, 1), 388.6],
+            [dt(2024, 10, 1), 390.7],
+            [dt(2024, 11, 1), 390.9],
+            [dt(2024, 12, 1), 392.1],
+            [dt(2025, 1, 1), 391.7],
+            [dt(2025, 2, 1), 394.0],
+            [dt(2025, 3, 1), 395.3]
+        ], columns=["month", "rate"]).set_index("month")["rate"]
+        period = IndexFixedPeriod(
+            start=dt(2024, 11, 27),
+            end=dt(2025, 5, 27),
+            fixed_rate=2.0,
+            index_lag=3,
+            index_fixings=RPI,
+            index_base=101.0,
+            frequency="S",
+            payment=dt(2025, 5, 27),
+        )
+        result = period.cashflows()
+
 
 class TestIndexCashflow:
     def test_cashflow_analytic_delta(self, curve) -> None:

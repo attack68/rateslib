@@ -8,7 +8,7 @@ import numpy as np
 from pandas import Series
 
 from rateslib import defaults
-from rateslib.calendars import _get_eom
+from rateslib.calendars import _get_eom, add_tenor
 from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_maybe_from_curve
 from rateslib.default import NoInput
 from rateslib.dual.utils import _dual_float
@@ -141,11 +141,17 @@ class IndexMixin(metaclass=ABCMeta):
                     return None
                 return i_curve.index_value(i_date, i_lag, i_method)
             elif isinstance(i_fixings, Series):
+                # fixings as a Series are assumed to be given with a zero `index_lag`, so date
+                # adjustments must take place.
+
                 if i_method == "daily":
-                    adj_date = i_date
+                    # then the latest required fixing that will be needed is start of next month
+                    # minus the index lag.
+                    required_date = add_tenor(i_date, f"-{i_lag-1}M", "none", NoInput(0), 1)
                     unavailable_date: datetime = i_fixings.index[-1]  # type: ignore[attr-defined]
-                else:
-                    adj_date = datetime(i_date.year, i_date.month, 1)
+                else:  # i_method == "monthly"
+                    # then the latest required fixing will be the start of the lagged month
+                    required_date = add_tenor(i_date, f"-{i_lag}M", "none", NoInput(0), 1)
                     _: datetime = i_fixings.index[-1]  # type: ignore[attr-defined]
                     unavailable_date = _get_eom(_.month, _.year)
 
@@ -505,3 +511,36 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
         """
         return 0.0
+
+
+def _validate_index_fixings(
+    index_fixings: DualTypes | Series[DualTypes] | NoInput,
+    i_date: datetime,
+    i_lag: int,
+    i_method: str,
+) -> DualTypes | NoInput:
+    """Ensure that ``index_fixings`` are sorted if a Series and determine a proper value if
+    it can be determined from a Series.
+
+    Parameters
+    ----------
+    index_fixings : Series, DualTypes or NoInput
+        If a Series then is **assumed** to have an index which is monotonic increasing in datetime.
+    i_date: datetime
+        The reference date for the Index fixing.
+    i_lag: int
+        The index lag applied to this reference date.
+    i_method: str in {"daily", "monthly"}
+        The type of index interpolation that is applied to the Period.
+    """
+    if isinstance(index_fixings, Series):
+        if i_method == "daily":
+
+        elif i_method == "monthly":
+
+        else:
+            raise ValueError("ìndex_method`")
+    else:
+        return index_fixings
+
+
