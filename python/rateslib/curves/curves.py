@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import warnings
 from collections.abc import Callable
+from calendar import monthrange
 from datetime import datetime, timedelta
 from math import comb, floor
 from typing import TYPE_CHECKING, Any, TypeAlias
@@ -1010,7 +1011,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         else:  # tenor < self.node_dates[0]
             return new_curve.translate(self.node_dates[0])
 
-    def index_value(self, date: datetime, index_lag: int, interpolation: str = "daily") -> DualTypes:
+    def index_value(self, date: datetime, index_lag: int, interpolation: str = "curve") -> DualTypes:
         """
         Calculate the accrued value of the index from the ``index_base``.
 
@@ -1020,7 +1021,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             The date for which the index value will be returned.
         index_lag : int
             The number of months by which to lag the index when determining the value.
-        interpolation : str in {"monthly", "daily"}
+        interpolation : str in {"curve", "monthly", "daily"}
             The method for returning the index value. Monthly returns the index value
             for the start of the month and daily returns a value based on the
             interpolation between nodes (which is recommended *"linear_index*) for
@@ -1029,6 +1030,39 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         Returns
         -------
         None, float, Dual, Dual2
+
+        Notes
+        ------
+        The interpolation methods function as follows:
+
+        - **"curve"**: will raise if the requested ``index_lag`` does not match the lag attributed
+          to the *Curve*. In the case the ``index_lag`` matches, then the *index value* for any
+          date is derived via the implied interpolation for the discount factors of the *Curve*.
+
+          .. math::
+
+             I_v(m) = \\frac{I_b}{v(m)}
+
+        - **"monthly"**: For any date, *m*, uses the *"curve"* method having adjusted *m* in two
+          ways. Firstly it deducts a number of months equal to :math:`L - L_c`, where *L* is
+          the given ``index_lag`` and :math:`L_c` is the *index lag* of the *Curve*. And the day
+          of the month is set to 1.
+
+          .. math::
+
+             &I^{monthly}_v(m) = I_v(m_adj) \\\\
+             &\\text{where,} \\\\
+             &m_adj = Date(Year(m), Month(m) - L + L_c, 1) \\\\
+
+        - **"daily"**: For any date, *m*, with a given ``index_lag`` performs calendar day
+          interpolation on surrounding *"monthly"* values.
+
+          .. math::
+
+             &I^{daily}_v(m) = I^{monthly}_v(m) + \\frac{Day(m) - 1}{n} \\left ( I^{monthly}_v(m_+) - I^{monthly}_v(m) \\right ) \\\\
+             &\\text{where,} \\\\
+             &m_+ = \\text{Any date in the month following, }m
+             &n = \\text{Calendar days in, } Month(m)
 
         Examples
         --------
@@ -1055,36 +1089,36 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                 "Curve must be initialised with an `index_base` value to derive `index_value`."
             )
 
-        if interpolation.lower() not in ["monthly", "daily"]:
-            raise ValueError("`interpolation` for `index_value` must be in {'daily', 'monthly'}.")
-
-        lag_time = index_lag - self.index_lag
-        # if lag time is positive then must interrogate the curve for dates that many number of
-        # months earlier than expected.
-        if lag_time == 0:
-            if interpolation.lower() == "monthly":
-                date_ = datetime(date.year, date.month, 1)
-            elif interpolation.lower() == "daily":
-                date_ = date
-
-            if date_ < self.node_dates[0]:
+        lag_months = index_lag - self.index_lag
+        if interpolation.lower() == "curve":
+            if lag_months != 0:
+                raise ValueError(
+                    "'curve' interpolation can only be used with `index_value` when the Curve "
+                    "`index_lag` matches the input `index_lag`."
+                )
+            # use traditional discount factor from Index base to determine index value.
+            if date < self.node_dates[0]:
                 return 0.0
                 # return zero for index dates in the past
                 # the proper way for instruments to deal with this is to supply i_fixings
-            elif date_ == self.node_dates[0]:
+            elif date == self.node_dates[0]:
                 return self.index_base
             else:
-                return self.index_base * 1.0 / self[date_]
-
+                return self.index_base * 1.0 / self[date]
+        elif interpolation.lower() == "monthly":
+            date_ = add_tenor(date, f"-{lag_months}M", "none", NoInput(0), 1)
+            return self.index_value(date_, self.index_lag, "curve")
+        elif interpolation.lower() == "daily":
+            n = monthrange(date.year, date.month)[1]
+            date_som = datetime(date.year, date.month, 1)
+            date_sonm = add_tenor(date, "1M", "none", NoInput(0), 1)
+            m1 = self.index_value(date_som, index_lag, "monthly")
+            m2 = self.index_value(date_sonm, index_lag, "monthly")
+            return m1 + (date.day - 1)/n * (m2 - m1)
         else:
-            if interpolation.lower() == "monthly":
-                # adjust the date by the appropriate number of months and recalculate
-                date_ = add_tenor(date, f"-{lag_time}m", "none", NoInput(0), 1)
-                return self.index_value(date_, self.index_lag, interpolation)
-            else: #  interpolation.lower() == "daily":
-                # TODO: this does not match months with 31 days versus those with 30 or 28
-                date_ = add_tenor(date, f"-{lag_time}m", "none", NoInput(0), date.day)
-                return self.index_value(date_, self.index_lag, interpolation)
+            raise ValueError(
+                "`interpolation` for `index_value` must be in {'curve', 'daily', 'monthly'}."
+            )
 
     # Plotting
 
