@@ -864,7 +864,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             ad=self.ad,
             index_base=NoInput(0)
             if isinstance(self.index_base, NoInput)
-            else self.index_value(start, self.index_lag, "daily"),
+            else self.index_value(start, self.index_lag, "curve"),
             index_lag=self.index_lag,
         )
         return new_curve
@@ -1138,7 +1138,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         comparators: list[Curve] | NoInput = NoInput(0),
         difference: bool = False,
         labels: list[str] | NoInput = NoInput(0),
-        interpolation: str = "daily",
+        interpolation: str = "curve",
     ) -> PlotOutput:
         """
         Plot given index values on a  curve.
@@ -1163,7 +1163,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         labels : list[str]
             A list of strings associated with the plot and comparators. Must be same
             length as number of plots.
-        interpolation : str in {"daily", "monthly"}
+        interpolation : str in {"curve", "daily", "monthly"}
             The type of index interpolation method to use.
 
         Returns
