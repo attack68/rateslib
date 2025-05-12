@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 import warnings
-from collections.abc import Callable
 from calendar import monthrange
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from math import comb, floor
 from typing import TYPE_CHECKING, Any, TypeAlias
@@ -1011,7 +1011,9 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         else:  # tenor < self.node_dates[0]
             return new_curve.translate(self.node_dates[0])
 
-    def index_value(self, date: datetime, index_lag: int, interpolation: str = "curve") -> DualTypes:
+    def index_value(
+        self, date: datetime, index_lag: int, interpolation: str = "curve"
+    ) -> DualTypes:
         """
         Calculate the accrued value of the index from the ``index_base``.
 
@@ -1083,7 +1085,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
            )
            index_curve.rate(dt(2021, 9, 6), "1d")
            index_curve.index_value(dt(2021, 9, 7), 0)
-        """
+        """  # noqa: E501
         if isinstance(self.index_base, NoInput):
             raise ValueError(
                 "Curve must be initialised with an `index_base` value to derive `index_value`."
@@ -1102,8 +1104,8 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                     "The date queried on the Curve for an `ìndex_value` is prior to the "
                     "initial node on the Curve.\nThis is returned as zero and likely "
                     f"causes downstream calculation error.\ndate queried: {date}"
-                    "Either providing `index_fixings` to the object or extend the Curve backwards."
-                    , UserWarning
+                    "Either providing `index_fixings` to the object or extend the Curve backwards.",
+                    UserWarning,
                 )
                 return 0.0
                 # return zero for index dates in the past
@@ -1121,7 +1123,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             date_sonm = add_tenor(date, "1M", "none", NoInput(0), 1)
             m1 = self.index_value(date_som, index_lag, "monthly")
             m2 = self.index_value(date_sonm, index_lag, "monthly")
-            return m1 + (date.day - 1)/n * (m2 - m1)
+            return m1 + (date.day - 1) / n * (m2 - m1)
         else:
             raise ValueError(
                 "`interpolation` for `index_value` must be in {'curve', 'daily', 'monthly'}."
@@ -1203,7 +1205,8 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             y = []
             for comparator in comparators:
                 diff = [
-                    comparator.index_value(_, self.index_lag, interpolation) - rates[i] for i, _ in enumerate(x)
+                    comparator.index_value(_, self.index_lag, interpolation) - rates[i]
+                    for i, _ in enumerate(x)
                 ]
                 y.append(diff)
         return plot([x] * len(y), y, labels)

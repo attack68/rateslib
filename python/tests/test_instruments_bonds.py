@@ -1727,14 +1727,14 @@ class TestIndexFixedRateBond:
             fixed_rate=8.0,
             settle=0,
             index_base=50.0,
-            index_lag=3
+            index_lag=3,
         )
         curve = Curve({dt(1998, 12, 9): 1.0, dt(2015, 12, 7): 0.50})
         i_curve = Curve(
             {dt(1998, 12, 1): 1.0, dt(2015, 12, 7): 1.0},
             index_base=100.0,
             interpolation="linear_index",
-            index_lag=3
+            index_lag=3,
         )
         clean_price = gilt.rate([i_curve, curve], metric="clean_price")
         index_clean_price = gilt.rate([i_curve, curve], metric="index_clean_price")

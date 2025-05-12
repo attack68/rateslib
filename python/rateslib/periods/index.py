@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from pandas import Series
 
-from rateslib import add_tenor, defaults
+from rateslib import defaults
 from rateslib.calendars import _get_eom
 from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_maybe_from_curve
 from rateslib.default import NoInput
