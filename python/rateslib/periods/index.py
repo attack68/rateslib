@@ -27,9 +27,9 @@ class IndexMixin(metaclass=ABCMeta):
 
     index_base: DualTypes_
     index_method: str
-    index_fixings: DualTypes | Series[DualTypes] | NoInput  # type: ignore[type-var]
+    index_fixings: DualTypes | NoInput
     index_lag: int
-    index_only: bool = False
+    index_only: bool = False  # parameter to deduct real notional from cashflow
     payment: datetime
     end: datetime
     currency: str
@@ -100,7 +100,7 @@ class IndexMixin(metaclass=ABCMeta):
 
     @staticmethod
     def _index_value(
-        i_fixings: DualTypes | Series[DualTypes] | NoInput,  # type: ignore[type-var]
+        i_fixings: DualTypes | NoInput,
         i_date: datetime | NoInput,
         i_curve: CurveOption_,
         i_lag: int,
@@ -126,7 +126,7 @@ class IndexMixin(metaclass=ABCMeta):
             )
 
         if isinstance(i_date, NoInput):
-            if not isinstance(i_fixings, Series | NoInput):
+            if not isinstance(i_fixings, NoInput):
                 # i_fixings is a given value, probably aligned with an ``index_base``
                 return i_fixings
             else:
@@ -185,7 +185,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
         If a datetime indexed ``Series`` will use the
         fixings that are available in that object, using linear interpolation if
         necessary.
-    index_method : str, optional
+    index_method : str, in {'daily', 'monthly', 'curve'}, optional
         Whether the indexing uses a daily measure for settlement or the most recently
         monthly data taken from the first day of month. Defined by default.
     index_lag : int, optional
@@ -259,8 +259,8 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
             defaults.index_method if isinstance(index_method, NoInput) else index_method.lower()
         )
         self.index_lag = defaults.index_lag if isinstance(index_lag, NoInput) else index_lag
-        if self.index_method not in ["daily", "monthly"]:
-            raise ValueError("`index_method` must be in {'daily', 'monthly'}.")
+        if self.index_method not in ["daily", "monthly", "curve"]:
+            raise ValueError("`index_method` must be in {'daily', 'monthly', 'curve'}.")
         super(IndexMixin, self).__init__(*args, **kwargs)
 
     def analytic_delta(
@@ -356,12 +356,10 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         Required positional args to :class:`Cashflow`.
     index_base : float, optional
         The base index to determine the cashflow. Required but may be set after initialisation.
-    index_fixings : float, or Series, optional
+    index_fixings : float, optional
         If a float scalar, will be applied as the index fixing for the whole
-        period. If a datetime indexed ``Series`` will use the
-        fixings that are available in that object, and derive the rest from the
-        ``curve``.
-    index_method : str
+        period, otherwise derived from a ``curve`` at pricing.
+    index_method : str in {'daily', 'monthly', 'curve'}, optional
         Whether the indexing uses a daily measure for settlement or the most recently
         monthly data taken from the first day of month. Defined by default.
     index_lag : int
@@ -424,7 +422,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         self,
         *args: Any,
         index_base: DualTypes | NoInput,
-        index_fixings: DualTypes | Series[DualTypes] | NoInput = NoInput(0),  # type: ignore[type-var]
+        index_fixings: DualTypes | NoInput = NoInput(0),
         index_method: str | NoInput = NoInput(0),
         index_lag: int | NoInput = NoInput(0),
         index_only: bool = False,
