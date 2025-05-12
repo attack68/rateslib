@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -100,24 +99,6 @@ class IndexMixin(metaclass=ABCMeta):
             return numerator / denominator, numerator, denominator
 
     @staticmethod
-    def _index_value_from_curve(
-        i_date: datetime,
-        i_curve: Curve_,
-        i_lag: int,
-        i_method: str,
-    ) -> DualTypes | None:
-        if isinstance(i_curve, NoInput):
-            return None
-        elif i_lag != i_curve.index_lag:
-            warnings.warn(
-                f"The `index_lag` of the Period ({i_lag}) does not match "
-                f"the `index_lag` of the Curve ({i_curve.index_lag}): returning None."
-            )
-            return None  # TODO decide if RolledCurve to correct index lag be attempted
-        else:
-            return i_curve.index_value(i_date, i_lag, i_method)
-
-    @staticmethod
     def _index_value(
         i_fixings: DualTypes | Series[DualTypes] | NoInput,  # type: ignore[type-var]
         i_date: datetime | NoInput,
@@ -155,7 +136,10 @@ class IndexMixin(metaclass=ABCMeta):
                 )  # pragma: no cover
         else:
             if isinstance(i_fixings, NoInput):
-                return IndexMixin._index_value_from_curve(i_date, i_curve, i_lag, i_method)
+                # forecast from curve if available
+                if isinstance(i_curve, NoInput):
+                    return None
+                return i_curve.index_value(i_date, i_lag, i_method)
             elif isinstance(i_fixings, Series):
                 if i_method == "daily":
                     adj_date = i_date
@@ -169,11 +153,7 @@ class IndexMixin(metaclass=ABCMeta):
                     if isinstance(i_curve, NoInput):
                         return None  # NoInput(0)
                     else:
-                        return IndexMixin._index_value_from_curve(i_date, i_curve, i_lag, i_method)
-                    # raise ValueError(
-                    #     "`index_fixings` cannot forecast the index value. "
-                    #     f"There are no fixings available after date: {unavailable_date}"
-                    # )
+                        return i_curve.index_value(i_date, i_lag, i_method)
                 else:
                     try:
                         ret: DualTypes | None = i_fixings[adj_date]  # type: ignore[index]

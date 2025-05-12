@@ -2832,10 +2832,9 @@ class TestIndexFixedPeriod:
         with pytest.raises(ValueError, match="Curve must be initialised with an `index_base`"):
             _, result, _ = index_period.index_ratio(composite_curve)
 
-    @pytest.mark.skip(reason="test driven development")
     @pytest.mark.parametrize(
         ("method", "expected"),
-        [("daily", 201.00502512562812), ("monthly", 200.98317675333183)],
+        [("daily", 201.00573790940518), ("monthly", 200.9836416123169)],
     )
     def test_index_lag_on_period_zero_curve(self, method, expected):
         # test if a period can calculate the correct value by referencing a curve with
@@ -2844,14 +2843,15 @@ class TestIndexFixedPeriod:
             start=dt(2022, 1, 3),
             end=dt(2022, 4, 3),
             payment=dt(2022, 4, 3),
-            notional=1e9,
-            convention="Act360",
+            notional=1e6,
+            convention="30360",
             termination=dt(2022, 4, 3),
             frequency="Q",
             fixed_rate=4.00,
             currency="usd",
             index_base=100.0,
             index_method=method,
+            index_lag=3,
         )
         index_curve = Curve(
             nodes={dt(2021, 10, 1): 1.0, dt(2022, 1, 3): 0.995},
@@ -2859,8 +2859,14 @@ class TestIndexFixedPeriod:
             interpolation="linear_index",
             index_lag=0,
         )
+        discount_curve = Curve(
+            nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.99},
+        )
         _, result, _ = index_period.index_ratio(index_curve)
+        npv = index_period.npv(index_curve, discount_curve)
         assert abs(result - expected) < 1e-8
+        expected_npv = -1e6 * 0.04 * 0.25 * result * 0.99 / 100.0
+        assert abs(npv - expected_npv) < 1e-5
 
 
 class TestIndexCashflow:

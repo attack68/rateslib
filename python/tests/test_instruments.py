@@ -1809,8 +1809,9 @@ class TestZCIS:
             curves=[curve, curve, i_curve, curve],
             leg2_index_lag=3,
         )
-        with pytest.raises(ValueError, match="Forecasting the `index_base`"):
-            zcis.rate()
+        with pytest.raises(ValueError, match="Forecasting the `index_base`"):  # noqa: SIM117
+            with pytest.warns(UserWarning):
+                zcis.rate()
 
 
 class TestValue:
