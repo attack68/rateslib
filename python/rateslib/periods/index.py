@@ -4,11 +4,7 @@ from abc import ABCMeta, abstractmethod
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-import numpy as np
-from pandas import Series
-
 from rateslib import defaults
-from rateslib.calendars import _get_eom
 from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_maybe_from_curve
 from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
@@ -475,7 +471,6 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
         """
         return 0.0
-
 
 
 def _validate_index_method_and_lag(index_method: str, index_lag: int) -> tuple[str, int]:

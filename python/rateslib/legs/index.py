@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 from calendar import monthrange
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from pandas import Series
-
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor
 from rateslib.default import NoInput, _drb
 from rateslib.legs.base import BaseLeg, _FixedLegMixin
-from rateslib.periods import Cashflow, IndexCashflow, IndexFixedPeriod, IndexMixin
+from rateslib.periods import Cashflow, IndexCashflow, IndexFixedPeriod
 from rateslib.periods.index import _validate_index_method_and_lag
 from rateslib.scheduling import Schedule
 
@@ -36,7 +35,6 @@ class _IndexLegMixin:
         self,
         value: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput,  # type: ignore[type-var]
     ) -> None:
-
         # validate a Series input
         if isinstance(value, Series):
             if not value.index.is_monotonic_increasing:
@@ -58,7 +56,9 @@ class _IndexLegMixin:
         elif isinstance(value, Series):
             for p in [_ for _ in self.periods if type(_) is not Cashflow]:
                 date_: datetime = p.end if type(p) is IndexFixedPeriod else p.payment
-                p.index_fixings = _index_from_series(value, date_, self.index_lag, self.index_method)
+                p.index_fixings = _index_from_series(
+                    value, date_, self.index_lag, self.index_method
+                )
         elif isinstance(value, list):
             for i, p in enumerate([_ for _ in self.periods if type(_) is not Cashflow]):
                 p.index_fixings = _index_from_list(value, i)
@@ -74,17 +74,19 @@ class _IndexLegMixin:
     @index_base.setter
     def index_base(self, value: DualTypes | Series[DualTypes] | NoInput) -> None:  # type: ignore[type-var]
         if isinstance(value, Series):
-            _: DualTypes | None = IndexMixin._index_value(
-                i_fixings=value,
-                i_method=self.index_method,
-                i_lag=self.index_lag,
-                i_date=self.schedule.effective,
-                i_curve=NoInput(0),  # not required because i_fixings is Series
+            # validate a Series input
+            if isinstance(value, Series):
+                if not value.index.is_monotonic_increasing:
+                    if value.index.is_monotonic_decreasing:
+                        value = value[::-1]
+                    else:
+                        raise ValueError("`index_base` as Series must be monotonic increasing.")
+                elif not value.index.is_unique:
+                    raise ValueError("`index_base` as Series must be unique index values.")
+
+            ret = _index_from_series(
+                value, self.schedule.effective, self.index_lag, self.index_method
             )
-            if _ is None:
-                ret: DualTypes | NoInput = NoInput(0)
-            else:
-                ret = _
         else:
             ret = value
         self._index_base = ret
@@ -176,8 +178,7 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
         **kwargs: Any,
     ) -> None:
         self.index_method, self.index_lag = _validate_index_method_and_lag(
-            _drb(defaults.index_method, index_method),
-            _drb(defaults.index_lag, index_lag)
+            _drb(defaults.index_method, index_method), _drb(defaults.index_lag, index_lag)
         )
         super().__init__(*args, **kwargs)
         self.index_fixings = index_fixings  # set index fixings after periods init
@@ -358,8 +359,7 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
     ) -> None:
         self._fixed_rate = fixed_rate
         self.index_method, self.index_lag = _validate_index_method_and_lag(
-            _drb(defaults.index_method, index_method),
-            _drb(defaults.index_lag, index_lag)
+            _drb(defaults.index_method, index_method), _drb(defaults.index_lag, index_lag)
         )
         super().__init__(*args, **kwargs)
         self.index_fixings = index_fixings  # set index fixings after periods init
@@ -512,18 +512,22 @@ def _index_from_series(
                 return ser[i_date]
             except KeyError:
                 raise ValueError(
-                    f"The Series given for `index_fixings` does not contain the date: {i_date}.\n"
-                    "For inflation indexes the values associated for a month should be assigned"
+                    f"The Series given for `index_fixings` requires, but does not contain, "
+                    f"the value for date: {i_date}.\n"
+                    "For inflation indexes using 'monthly' or 'daily' `index_method` the "
+                    "values associated for a month should be assigned "
                     "to the first day of that month."
                 )
     elif i_method == "monthly":
         date_ = add_tenor(i_date, f"-{i_lag}M", "none", NoInput(0), 1)
         return _index_from_series(ser, date_, 0, "curve")
-    else: # i_method == "daily":
+    else:  # i_method == "daily":
         n = monthrange(i_date.year, i_date.month)[1]
         date_som = datetime(i_date.year, i_date.month, 1)
         date_sonm = add_tenor(i_date, "1M", "none", NoInput(0), 1)
         m1 = _index_from_series(ser, date_som, i_lag, "monthly")
+        if i_date == date_som:
+            return m1
         m2 = _index_from_series(ser, date_sonm, i_lag, "monthly")
         if isinstance(m2, NoInput):
             # then the period is 'future' based, and the fixing is not yet available.
