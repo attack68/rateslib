@@ -10,6 +10,7 @@ from rateslib.calendars import add_tenor
 from rateslib.default import NoInput, _drb
 from rateslib.legs.base import BaseLeg, _FixedLegMixin
 from rateslib.periods import Cashflow, IndexCashflow, IndexFixedPeriod, IndexMixin
+from rateslib.periods.index import _validate_index_method_and_lag
 from rateslib.scheduling import Schedule
 
 if TYPE_CHECKING:
@@ -55,7 +56,7 @@ class _IndexLegMixin:
         elif isinstance(value, Series):
             for p in [_ for _ in self.periods if type(_) is not Cashflow]:
                 date_: datetime = p.end if type(p) is IndexFixedPeriod else p.payment
-                p.index_fixings = _index_from_series(value, date_)
+                p.index_fixings = _index_from_series(value, date_, self.index_lag, self.index_method)
         elif isinstance(value, list):
             for i, p in enumerate([_ for _ in self.periods if type(_) is not Cashflow]):
                 p.index_fixings = _index_from_list(value, i)
@@ -474,15 +475,6 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
         return super().analytic_delta(*args, **kwargs)
 
 
-def _validate_index_method_and_lag(index_method: str, index_lag: int) -> tuple[str, int]:
-    lower_method = index_method.lower()
-    if lower_method not in ["daily", "monthly", "curve"]:
-        raise ValueError("`index_method` must be in {'daily', 'monthly', 'curve'}.")
-    if index_lag != 0 and lower_method == "curve":
-        raise ValueError("`index_lag` must be zero when using `index_method`='curve'.")
-    return lower_method, index_lag
-
-
 def _index_from_series(
     ser: Series[DualTypes],
     i_date: datetime,
@@ -490,7 +482,7 @@ def _index_from_series(
     i_method: str,
 ) -> DualTypes | NoInput:  # type: ignore[type-var]
     """
-    Get an index fixing from a Series for a reference date.
+    Get an index fixing for a reference date from a Series of index values with zero lag.
 
     Parameters
     ----------
@@ -504,39 +496,29 @@ def _index_from_series(
         The type of index method to use for the index fixing
     """
     if i_method == "curve":
-        # Need an exact date from the series
+        # need an exact date from the series
         if i_date > ser.index[-1]:
+            # then the period is 'future' based, and the fixing is not yet available.
             return NoInput(0)
         else:
             try:
-                return ser.loc[i_date]
+                return ser[i_date]
             except KeyError:
                 raise ValueError(
-                    f"The Series provided for `index_fixings` does not contain the date {i_date}.\n"
+                    f"The Series given for `index_fixings` does not contain the date: {i_date}.\n"
                     "For inflation indexes the values associated for a month should be assigned"
                     "to the first day of that month."
                 )
     elif i_method == "monthly":
         date_ = add_tenor(i_date, f"-{i_lag}M", "none", NoInput(0), 1)
-        return _index_from_series(date_, 0, "curve")
+        return _index_from_series(ser, date_, 0, "curve")
     else: # i_method == "daily":
         n = monthrange(i_date.year, i_date.month)[1]
         date_som = datetime(i_date.year, i_date.month, 1)
         date_sonm = add_tenor(i_date, "1M", "none", NoInput(0), 1)
-        m1 = _index_from_series(date_som, 0, "monthly")
-        m2 = _index_from_series(date_sonm, 0, "monthly")
+        m1 = _index_from_series(ser, date_som, i_lag, "monthly")
+        m2 = _index_from_series(ser, date_sonm, i_lag, "monthly")
+        if isinstance(m2, NoInput):
+            # then the period is 'future' based, and the fixing is not yet available.
+            return NoInput(0)
         return m1 + (i_date.day - 1) / n * (m2 - m1)
-
-
-    val: DualTypes | None = IndexMixin._index_value(
-        i_fixings=ser,
-        i_method=self.index_method,
-        i_lag=self.index_lag,
-        i_date=end,
-        i_curve=NoInput(0),  # ! NoInput returned for periods beyond Series end.
-    )
-    if val is None:
-        _: DualTypes | NoInput = NoInput(0)
-    else:
-        _ = val
-    return _

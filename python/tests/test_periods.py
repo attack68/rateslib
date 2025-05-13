@@ -2587,14 +2587,14 @@ class TestIndexFixedPeriod:
             fixed_rate=4.00,
             currency="usd",
             index_base=100.0,
-            index_lag=3,
+            index_lag=0,
             index_method=method,
         )
         index_curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
             index_base=200.0,
             interpolation="linear_index",
-            index_lag=3,
+            index_lag=0,
         )
         result = index_period.real_cashflow
         expected = -1e7 * ((dt(2022, 4, 1) - dt(2022, 1, 1)) / timedelta(days=360)) * 4
@@ -2602,7 +2602,7 @@ class TestIndexFixedPeriod:
 
         result = index_period.cashflow(index_curve)
         assert abs(result + 20100502.512562) < 1e-6
-        expected = expected * index_curve.index_value(dt(2022, 4, 3), 3) / 100.0
+        expected = expected * index_curve.index_value(dt(2022, 4, 3), 0) / 100.0
         assert abs(result - expected) < 1e-8
 
     def test_period_analytic_delta(self, fxr, curve) -> None:

@@ -38,6 +38,19 @@ email contact, see `rateslib <https://rateslib.com>`_.
        (`802 <https://github.com/attack68/rateslib/pull/802>`_)
        (`803 <https://github.com/attack68/rateslib/pull/803>`_)
    * - Instruments
+     - :red:`Major Breaking Change!` The way ``index_fixings`` are treated when given as a *Series*
+       now enforces that the data is provided with an ``index_lag`` of **zero** months, i.e.
+       providing actual data. This is more convenient for handling *Instruments* with different
+       ``index_lag`` and creates less functional risk. Calculations now allow *Curves*,
+       *Instruments* and *Series* all to have different ``index_lag`` whilst ensuring correct
+       calculations.
+       (`807 <https://github.com/attack68/rateslib/pull/807>`_)
+   * - Periods
+     - :red:`Major Breaking Change!` ``index_fixings`` must now be supplied to a
+       :class:`~rateslib.periods.IndexFixedPeriod` as either a specific numeric value or *NoInput*.
+       *Series* input is still available only on the *Leg* equivalent.
+       (`807 <https://github.com/attack68/rateslib/pull/807>`_)
+   * - Instruments
      - Add bond calculation convention to support *'30U360'* accrued, and a new bond ``spec``
        *'us_corp'* and *'us_muni'* to support generic US corporate and municipal bonds.
        (`785 <https://github.com/attack68/rateslib/pull/785>`_)

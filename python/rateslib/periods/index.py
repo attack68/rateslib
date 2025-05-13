@@ -10,7 +10,7 @@ from pandas import Series
 from rateslib import defaults
 from rateslib.calendars import _get_eom
 from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_maybe_from_curve
-from rateslib.default import NoInput
+from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
 from rateslib.periods.cashflow import Cashflow
 from rateslib.periods.rates import FixedPeriod
@@ -251,16 +251,12 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
         index_lag: int | NoInput = NoInput(0),
         **kwargs: Any,
     ) -> None:
-        # if index_base is None:
-        #     raise ValueError("`index_base` cannot be None.")
+        self.index_method, self.index_lag = _validate_index_method_and_lag(
+            _drb(defaults.index_method, index_method),
+            _drb(defaults.index_lag, index_lag),
+        )
         self.index_base = index_base
         self.index_fixings = index_fixings
-        self.index_method = (
-            defaults.index_method if isinstance(index_method, NoInput) else index_method.lower()
-        )
-        self.index_lag = defaults.index_lag if isinstance(index_lag, NoInput) else index_lag
-        if self.index_method not in ["daily", "monthly", "curve"]:
-            raise ValueError("`index_method` must be in {'daily', 'monthly', 'curve'}.")
         super(IndexMixin, self).__init__(*args, **kwargs)
 
     def analytic_delta(
@@ -429,12 +425,12 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         end: datetime | NoInput = NoInput(0),
         **kwargs: Any,
     ) -> None:
+        self.index_method, self.index_lag = _validate_index_method_and_lag(
+            _drb(defaults.index_method, index_method),
+            _drb(defaults.index_lag, index_lag),
+        )
         self.index_base = index_base
         self.index_fixings = index_fixings
-        self.index_method = (
-            defaults.index_method if isinstance(index_method, NoInput) else index_method.lower()
-        )
-        self.index_lag = defaults.index_lag if isinstance(index_lag, NoInput) else index_lag
         self.index_only = index_only
         super(IndexMixin, self).__init__(*args, **kwargs)
         self.end = self.payment if isinstance(end, NoInput) else end
@@ -479,3 +475,13 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
         """
         return 0.0
+
+
+
+def _validate_index_method_and_lag(index_method: str, index_lag: int) -> tuple[str, int]:
+    lower_method = index_method.lower()
+    if lower_method not in ["daily", "monthly", "curve"]:
+        raise ValueError("`index_method` must be in {'daily', 'monthly', 'curve'}.")
+    if index_lag != 0 and lower_method == "curve":
+        raise ValueError("`index_lag` must be zero when using `index_method`='curve'.")
+    return lower_method, index_lag

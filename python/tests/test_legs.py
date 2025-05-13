@@ -2345,8 +2345,8 @@ def test_mtm_leg_exchange_metrics(type_, expected, kw) -> None:
 )
 def test_set_index_fixings_series_leg_types(klass, kwargs, expected) -> None:
     index_fixings = Series(
-        [100.0, 200.0, 300, 399.0, 401.0],
-        index=[dt(2022, 1, 1), dt(2022, 5, 1), dt(2022, 8, 1), dt(2022, 10, 31), dt(2022, 11, 2)],
+        [100.0, 200.0, 300, 400.0, 500.0],
+        index=[dt(2022, 1, 1), dt(2022, 2, 1), dt(2022, 5, 1), dt(2022, 8, 1), dt(2022, 11, 1)],
     )
     obj = klass(
         effective=dt(2022, 2, 5),
