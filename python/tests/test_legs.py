@@ -1438,7 +1438,7 @@ class TestIndexFixedLegExchange:
         "i_fixings",
         [
             NoInput(0),
-            [210, 220, 230],
+            # [210, 220, 230], # list not supported in v2.0
             210,
             Series(
                 [210, 220, 230],
@@ -1582,7 +1582,7 @@ class TestIndexFixedLeg:
         ("i_fixings", "meth"),
         [
             (NoInput(0), "daily"),
-            ([210, 220, 230], "daily"),
+            # ([210, 220, 230], "daily"),  # list unsupported in v2.0
             (210, "daily"),
             (
                 Series(
@@ -1768,6 +1768,7 @@ class TestIndexFixedLeg:
                 initial_exchange=True,
             )
 
+    @pytest.mark.skip(reason="fixings as list removed in v2.0")
     def test_index_fixings_as_list(self) -> None:
         leg = IndexFixedLeg(
             effective=dt(2022, 1, 1),
@@ -1784,6 +1785,7 @@ class TestIndexFixedLeg:
         assert leg.periods[1].index_fixings == 200.0
         assert leg.periods[2].index_fixings == NoInput(0)
 
+    @pytest.mark.skip(reason="fixings as list removed in v2.0")
     def test_index_fixings_as_list_final_exchange(self) -> None:
         leg = IndexFixedLeg(
             effective=dt(2022, 1, 1),
@@ -2398,6 +2400,7 @@ def test_set_index_fixings_series_leg_types(klass, kwargs, expected) -> None:
         assert period.index_fixings == expected[i]
 
 
+@pytest.mark.skip(reason="fixings as a list removed in v2.0")
 @pytest.mark.parametrize(
     ("klass", "kwargs", "expected"),
     [
