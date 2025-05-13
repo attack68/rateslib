@@ -2390,8 +2390,8 @@ class TestIndexValue:
         assert abs(result - expected) < 1e-9
 
     @pytest.mark.parametrize("method", ["curve", "daily", "monthly"])
-    def test_none_return(self, method):
-        assert index_value(0, method, NoInput(0), dt(2000, 1, 1), NoInput(0)) is None
+    def test_no_input_return(self, method):
+        assert isinstance(index_value(0, method, NoInput(0), dt(2000, 1, 1), NoInput(0)), NoInput)
 
     @pytest.mark.parametrize("method", ["curve", "daily", "monthly"])
     def test_fixings_type_raises(self, method):
