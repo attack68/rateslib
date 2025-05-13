@@ -504,7 +504,6 @@ def _index_from_series(
         The type of index method to use for the index fixing
     """
     if i_method == "curve":
-        # use traditional discount factor from Index base to determine index value.
         # Need an exact date from the series
         if i_date > ser.index[-1]:
             return NoInput(0)
