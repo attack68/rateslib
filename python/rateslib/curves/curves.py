@@ -3478,6 +3478,7 @@ def index_value(
             f"{type(index_fixings)} was given."
         )
 
+
 def _index_value_from_mixed_series_fixings_and_curve(
     index_lag: int,
     index_method: str,
@@ -3539,7 +3540,6 @@ def _index_value_from_mixed_series_fixings_and_curve(
             # curve has not been provided to forecast it
             return NoInput(0)
         return m1 + (index_date.day - 1) / n * (m2 - m1)
-
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
