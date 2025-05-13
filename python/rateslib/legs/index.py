@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 from calendar import monthrange
+from datetime import datetime
 
 from pandas import Series
+
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor
@@ -14,7 +16,7 @@ from rateslib.periods.index import _validate_index_method_and_lag
 from rateslib.scheduling import Schedule
 
 if TYPE_CHECKING:
-    from rateslib.typing import NPV, Any, Curve_, DataFrame, DualTypes, DualTypes_, datetime
+    from rateslib.typing import NPV, Any, Curve_, DataFrame, DualTypes, DualTypes_
 
 
 class _IndexLegMixin:

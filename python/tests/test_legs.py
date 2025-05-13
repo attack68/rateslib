@@ -1456,9 +1456,11 @@ class TestIndexFixedLegExchange:
             notional=40e6,
             fixed_rate=5.0,
             index_base=200.0,
+            index_lag=0,
             index_fixings=i_fixings,
             initial_exchange=False,
             final_exchange=True,
+            index_method="curve",
         )
         index_curve = Curve(
             nodes={
@@ -1469,6 +1471,7 @@ class TestIndexFixedLegExchange:
             },
             index_base=200.0,
             interpolation="linear_index",
+            index_lag=0,
         )
         disc_curve = Curve({dt(2022, 3, 15): 1.0, dt(2022, 12, 15): 1.0})
         flows = leg.cashflows(curve=index_curve, disc_curve=disc_curve)
