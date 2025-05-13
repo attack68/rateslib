@@ -1558,6 +1558,21 @@ class TestIndexFixedLegExchange:
         expected = -999971.65702
         assert abs(result - expected) < 1e-4
 
+    def test_index_lag_on_periods(self):
+        index_leg_exch = IndexFixedLeg(
+            dt(2022, 1, 1),
+            "6M",
+            "Q",
+            notional=1000000,
+            amortization=200000,
+            index_base=100.0,
+            fixed_rate=1.0,
+            final_exchange=True,
+            index_lag=4,
+        )
+        for period in index_leg_exch.periods:
+            assert period.index_lag == 4
+
 
 class TestIndexFixedLeg:
     @pytest.mark.parametrize(
