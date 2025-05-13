@@ -3441,7 +3441,7 @@ def index_value(
            index=[dt(2001, 3, 1), dt(2001, 4, 1), dt(2001, 5, 1), dt(2001, 6, 1)]
        )
 
-       index_values(
+       index_value(
            index_lag=3,
            index_method="daily",
            index_fixings=rpi_series,
