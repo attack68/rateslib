@@ -1611,7 +1611,7 @@ class TestIndexFixedRateBond:
         ("i_fixings", "expected"),
         [
             (NoInput(0), 1.161227269),
-            (Series([90, 290], index=[dt(2022, 4, 1), dt(2022, 4, 29)]), 2.00),
+            (Series([90, 290], index=[dt(2022, 1, 1), dt(2022, 2, 1)]), 2.00),
         ],
     )
     def test_index_ratio(self, i_fixings, expected) -> None:
@@ -1632,6 +1632,7 @@ class TestIndexFixedRateBond:
             index_base=95.0,
             index_fixings=i_fixings,
             index_method="daily",
+            index_lag=3,
         )
         result = bond.index_ratio(settlement=dt(2022, 4, 15), curve=i_curve)
         assert abs(result - expected) < 1e-5
