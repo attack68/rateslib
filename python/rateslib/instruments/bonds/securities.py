@@ -1748,13 +1748,6 @@ class IndexFixedRateBond(FixedRateBond):
         -------
         float, Dual, Dual2, Variable
         """
-        if not isinstance(self.leg1.index_fixings, NoInput) and not isinstance(
-            self.leg1.index_fixings,
-            Series,
-        ):
-            raise ValueError(
-                "Must provide `index_fixings` as a Series for inter-period settlement.",
-            )
         # TODO: this indexing of periods assumes no amortization
         index_val: DualTypes = index_value(  # type: ignore[assignment]
             index_fixings=self.leg1.index_fixings,

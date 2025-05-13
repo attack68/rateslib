@@ -3497,7 +3497,12 @@ def index_value(
                     )
         elif index_method == "monthly":
             date_ = add_tenor(index_date, f"-{index_lag}M", "none", NoInput(0), 1)
-            return index_value(0, "curve", index_fixings, date_, index_curve)
+            value_from_fixings = index_value(0, "curve", index_fixings, date_, NoInput(0))
+            value_from_curve = index_value(index_lag, "curve", NoInput(0), index_date, index_curve)
+            if isinstance(value_from_fixings, NoInput):
+                return value_from_curve
+            else:
+                return value_from_fixings
         else:  # i_method == "daily":
             n = monthrange(index_date.year, index_date.month)[1]
             date_som = datetime(index_date.year, index_date.month, 1)
