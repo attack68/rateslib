@@ -37,6 +37,11 @@ email contact, see `rateslib <https://rateslib.com>`_.
        determination of cashflows given different ``index_lag`` specifications.
        (`802 <https://github.com/attack68/rateslib/pull/802>`_)
        (`803 <https://github.com/attack68/rateslib/pull/803>`_)
+   * - Curves
+     - Add new method :meth:`~rateslib.curves.index_value` to determine an *index value* from a
+       variety of sources including known fixings and/or a *Curve* if data from both those sources
+       may need to be combined.
+       (`809 <https://github.com/attack68/rateslib/pull/809>`_)
    * - Instruments
      - Add bond calculation convention to support *'30U360'* accrued, and a new bond ``spec``
        *'us_corp'* and *'us_muni'* to support generic US corporate and municipal bonds.
