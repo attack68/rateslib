@@ -2,9 +2,9 @@ from datetime import datetime as dt
 from math import exp, log
 
 import numpy as np
-from pandas import Series
 import pytest
 from matplotlib import pyplot as plt
+from pandas import Series
 from rateslib import default_context
 from rateslib.calendars import get_calendar
 from rateslib.curves import (
@@ -13,8 +13,8 @@ from rateslib.curves import (
     LineCurve,
     MultiCsaCurve,
     index_left,
-    interpolate,
     index_value,
+    interpolate,
 )
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, gradient
@@ -2341,16 +2341,15 @@ class TestStateAndCache:
 
 
 class TestIndexValue:
-
     def test_dict_raise(self):
         with pytest.raises(
             NotImplementedError, match="`index_curve` cannot currently be supplied as dict"
         ):
-            index_value(0, "-",NoInput(0),0, {"a": 0, "b": 0})
+            index_value(0, "-", NoInput(0), 0, {"a": 0, "b": 0})
 
     def test_return_index_fixings_directly(self):
-        assert index_value(0, "-",2.5, NoInput(0), NoInput(0)) == 2.5
-        assert index_value(0, "-", Dual(2, ['a'], []), NoInput(0), NoInput(0)) == Dual(2, ['a'], [])
+        assert index_value(0, "-", 2.5, NoInput(0), NoInput(0)) == 2.5
+        assert index_value(0, "-", Dual(2, ["a"], []), NoInput(0), NoInput(0)) == Dual(2, ["a"], [])
 
     @pytest.mark.parametrize("method", ["curve", "daily"])
     def test_forecast_from_curve_no_fixings(self, method):
@@ -2373,8 +2372,8 @@ class TestIndexValue:
             index_lag=0,
             interpolation="linear_index",
         )
-        result1 = index_value(0, "curve",NoInput(0), dt(2000, 1, 15),  curve)
-        result2 = index_value(0, "daily",NoInput(0), dt(2000, 1, 15),  curve)
+        result1 = index_value(0, "curve", NoInput(0), dt(2000, 1, 15), curve)
+        result2 = index_value(0, "daily", NoInput(0), dt(2000, 1, 15), curve)
         assert abs(result1 - result2) < 1e-9
 
     @pytest.mark.parametrize("date", [dt(2000, 2, 1), dt(2000, 2, 27)])
@@ -2386,39 +2385,36 @@ class TestIndexValue:
             index_lag=0,
             interpolation="linear_index",
         )
-        result = index_value(0, "monthly", NoInput(0), date,  curve)
+        result = index_value(0, "monthly", NoInput(0), date, curve)
         expected = 100.0 / curve[dt(2000, 2, 1)]
         assert abs(result - expected) < 1e-9
 
     @pytest.mark.parametrize("method", ["curve", "daily", "monthly"])
-    def test_none_return(self, method):
-        assert index_value(0, method, NoInput(0), dt(2000, 1, 1),  NoInput(0)) is None
+    def test_no_input_return(self, method):
+        assert isinstance(index_value(0, method, NoInput(0), dt(2000, 1, 1), NoInput(0)), NoInput)
 
     @pytest.mark.parametrize("method", ["curve", "daily", "monthly"])
     def test_fixings_type_raises(self, method):
         with pytest.raises(TypeError, match="`index_fixings` must be of type: Serie"):
-            index_value(0, method, [1,2], dt(2000, 1, 1),  NoInput(0))
+            index_value(0, method, [1, 2], dt(2000, 1, 1), NoInput(0))
 
     def test_no_index_date_raises(self):
         with pytest.raises(ValueError, match="Must supply an `index_date` from whic"):
-            index_value(0, "curve", NoInput(0), NoInput(0),  NoInput(0))
+            index_value(0, "curve", NoInput(0), NoInput(0), NoInput(0))
 
     def test_non_zero_index_lag_with_curve_method_raises(self):
         ser = Series([1.0], index=[dt(2000, 1, 1)])
         with pytest.raises(ValueError, match="`index_lag` must be zero when using a 'curve' `inde"):
-            index_value(4, "curve", ser, dt(2000, 1, 2),  NoInput(0))
+            index_value(4, "curve", ser, dt(2000, 1, 2), NoInput(0))
 
     def test_documentation_uk_dmo_replication(self):
         # this is an example in the index value documentation
         rpi_series = Series(
             [172.2, 173.1, 174.2, 174.4],
-            index=[dt(2001, 3, 1), dt(2001, 4, 1), dt(2001, 5, 1), dt(2001, 6, 1)]
+            index=[dt(2001, 3, 1), dt(2001, 4, 1), dt(2001, 5, 1), dt(2001, 6, 1)],
         )
         result = index_value(
-            index_lag=3,
-            index_method="daily",
-            index_fixings=rpi_series,
-            index_date=dt(2001, 7, 20)
+            index_lag=3, index_method="daily", index_fixings=rpi_series, index_date=dt(2001, 7, 20)
         )
         expected = 173.77419
         assert abs(result - expected) < 5e-6

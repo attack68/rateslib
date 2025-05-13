@@ -37,6 +37,11 @@ email contact, see `rateslib <https://rateslib.com>`_.
        determination of cashflows given different ``index_lag`` specifications.
        (`802 <https://github.com/attack68/rateslib/pull/802>`_)
        (`803 <https://github.com/attack68/rateslib/pull/803>`_)
+   * - Curves
+     - Add new method :meth:`~rateslib.curves.index_value` to determine an *index value* from a
+       variety of sources including known fixings and/or a *Curve* if data from both those sources
+       may need to be combined.
+       (`809 <https://github.com/attack68/rateslib/pull/809>`_)
    * - Instruments
      - :red:`Major Breaking Change!` The way ``index_fixings`` are treated when given as a *Series*
        now enforces that the data is provided with an ``index_lag`` of **zero** months, i.e.

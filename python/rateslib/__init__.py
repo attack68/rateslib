@@ -66,6 +66,7 @@ from rateslib.curves import (
     MultiCsaCurve,
     ProxyCurve,
     index_left,
+    index_value,
     interpolate,
     index_value,
 )

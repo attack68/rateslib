@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING, Any, TypeAlias
 from uuid import uuid4
 
 import numpy as np
-from pytz import UTC
 from pandas import Series
+from pytz import UTC
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
@@ -49,11 +49,11 @@ if TYPE_CHECKING:
         Arr1dObj,
         CalInput,
         CalTypes,
+        CurveOption_,
         FXForwards,
         Number,
-        str_,
-        CurveOption_,
         datetime_,
+        str_,
     )
 DualTypes: TypeAlias = (
     "Dual | Dual2 | Variable | float"  # required for non-cyclic import on _WithCache
@@ -3382,7 +3382,7 @@ def index_left(
 def index_value(
     index_lag: int,
     index_method: str,
-    index_fixings: DualTypes | Series[DualTypes] | NoInput = NoInput(0),
+    index_fixings: DualTypes | Series[DualTypes] | NoInput = NoInput(0),  # type: ignore[type-var]
     index_date: datetime_ = NoInput(0),
     index_curve: CurveOption_ = NoInput(0),
 ) -> DualTypes | NoInput:
@@ -3431,7 +3431,7 @@ def index_value(
 
     This calculation is replicated in *rateslib* in the following way:
 
-    .. ipython::
+    .. ipython:: python
 
        from rateslib import index_value
        from pandas import Series
@@ -3441,7 +3441,7 @@ def index_value(
            index=[dt(2001, 3, 1), dt(2001, 4, 1), dt(2001, 5, 1), dt(2001, 6, 1)]
        )
 
-       index_values(
+       index_value(
            index_lag=3,
            index_method="daily",
            index_fixings=rpi_series,
@@ -3460,8 +3460,7 @@ def index_value(
 
     if isinstance(index_date, NoInput):
         raise ValueError(
-            "Must supply an `index_date` from which to forecast if `index_fixings` "
-            "is not a value."
+            "Must supply an `index_date` from which to forecast if `index_fixings` is not a value."
         )
 
     if isinstance(index_fixings, NoInput):
@@ -3477,13 +3476,13 @@ def index_value(
                     "Got `index_lag`: {index_lag}."
                 )
             # need an exact date from the series
-            if index_date > index_fixings.index[-1]:
+            if len(index_fixings.index) == 0 or index_date > index_fixings.index[-1]:  # type: ignore[attr-defined]
                 # then the period is 'future' based, and the fixing is not yet available.
                 # attempt to return from curve
                 return index_value(index_lag, index_method, NoInput(0), index_date, index_curve)
             else:
                 try:
-                    return index_fixings[index_date]
+                    return index_fixings[index_date]  # type: ignore[no-any-return, index]
                 except KeyError:
                     raise ValueError(
                         f"The Series given for `index_fixings` requires, but does not contain, "
@@ -3502,8 +3501,8 @@ def index_value(
             m1 = index_value(index_lag, "monthly", index_fixings, date_som, index_curve)
             if index_date == date_som:
                 return m1
-            m2 =index_value(index_lag, "monthly", index_fixings, date_sonm, index_curve)
-            if isinstance(m2, NoInput):
+            m2 = index_value(index_lag, "monthly", index_fixings, date_sonm, index_curve)
+            if isinstance(m2, NoInput) or isinstance(m1, NoInput):
                 # then the period is 'future' based, and the fixing is not yet available, or a
                 # curve has not been provided to forecast it
                 return NoInput(0)
