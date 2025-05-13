@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-from calendar import monthrange
 from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pandas import Series
 
 from rateslib import defaults
-from rateslib.calendars import add_tenor
 from rateslib.curves import index_value
 from rateslib.default import NoInput, _drb
 from rateslib.legs.base import BaseLeg, _FixedLegMixin
@@ -36,16 +34,8 @@ class _IndexLegMixin:
         self,
         value: DualTypes | Series[DualTypes] | NoInput,  # type: ignore[type-var]
     ) -> None:
-        # validate a Series input
         if isinstance(value, Series):
-            if not value.index.is_monotonic_increasing:
-                if value.index.is_monotonic_decreasing:
-                    value = value[::-1]
-                else:
-                    raise ValueError("`index_fixings` must be monotonic increasing.")
-            elif not value.index.is_unique:
-                raise ValueError("`index_fixings` must be unique index values.")
-
+            value = _validate_index_fixings_as_series(value)
         self._index_fixings: DualTypes | Series[DualTypes] | NoInput = value  # type: ignore[type-var]
 
         if isinstance(value, NoInput):
@@ -69,16 +59,7 @@ class _IndexLegMixin:
     @index_base.setter
     def index_base(self, value: DualTypes | Series[DualTypes] | NoInput) -> None:  # type: ignore[type-var]
         if isinstance(value, Series):
-            # validate a Series input
-            if isinstance(value, Series):
-                if not value.index.is_monotonic_increasing:
-                    if value.index.is_monotonic_decreasing:
-                        value = value[::-1]
-                    else:
-                        raise ValueError("`index_base` as Series must be monotonic increasing.")
-                elif not value.index.is_unique:
-                    raise ValueError("`index_base` as Series must be unique index values.")
-
+            value = _validate_index_fixings_as_series(value)
             ret = index_value(
                 self.index_lag, self.index_method, value, self.schedule.effective, NoInput(0)
             )
@@ -92,6 +73,17 @@ class _IndexLegMixin:
 
     # def _regular_period(self, *args: Any, **kwargs: Any) -> Period:  # type: ignore[empty-body]
     #     pass  # pragma: no cover
+
+
+def _validate_index_fixings_as_series(value: Series[DualTypes]) -> Series[DualTypes]:
+    if not value.index.is_monotonic_increasing:
+        if value.index.is_monotonic_decreasing:
+            value = value[::-1]
+        else:
+            raise ValueError("`index_fixings` as Series must be monotonic increasing.")
+    elif not value.index.is_unique:
+        raise ValueError("`index_fixings` as Series must be unique index values.")
+    return value
 
 
 class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
