@@ -6,8 +6,8 @@ from rateslib.curves.curves import (
     ProxyCurve,
     average_rate,
     index_left,
-    interpolate,
     index_value,
+    interpolate,
 )
 
 __all__ = (
@@ -19,5 +19,5 @@ __all__ = (
     "average_rate",
     "index_left",
     "interpolate",
-    "index_value"
+    "index_value",
 )
