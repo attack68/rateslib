@@ -2434,8 +2434,20 @@ class TestIndexValue:
         result = index_value(4, "daily", rpi, date, curve)
         assert abs(result - expected) < 1e-9
 
-    def test_keyerror_for_series_using_curve_method(self):
+    def test_mixed_forecast_value_fixings_with_curve2(self):
         rpi = Series([100.0], index=[dt(2000, 1, 1)])
+        curve = Curve(
+            nodes={dt(2000, 2, 1): 1.0, dt(2000, 5, 1): 0.99}, index_base=110.0, index_lag=1
+        )
+
+        date = dt(2000, 5, 15)
+        rpi_2 = 110 * 1.0 / curve[dt(2000, 3, 1)]
+        expected = 100.0 + (14 / 31) * (rpi_2 - 100.0)
+        result = index_value(4, "daily", rpi, date, curve)
+        assert abs(result - expected) < 1e-9
+
+    def test_keyerror_for_series_using_curve_method(self):
+        rpi = Series([9.0, 8.0], index=[dt(1999, 1, 1), dt(2000, 1, 1)])
         with pytest.raises(ValueError, match="The Series given for `index_fixings` requires, but "):
             index_value(0, "curve", rpi, dt(1999, 12, 31), NoInput(0))
 
@@ -2446,3 +2458,13 @@ class TestIndexValue:
     def test_daily_method_returns_noinput_if_data_unavailable(self):
         rpi = Series([100.0], index=[dt(2000, 1, 1)])
         assert isinstance(index_value(0, "daily", rpi, dt(2000, 1, 2), NoInput(0)), NoInput)
+
+    def test_curve_method_from_curve_with_non_zero_index_lag(self):
+        curve = Curve(
+            nodes={dt(2000, 1, 1): 1.0, dt(2000, 2, 1): 0.99},
+            index_base=100.0,
+            index_lag=1,
+        )
+        result = index_value(1, "curve", NoInput(0), dt(2000, 1, 15), curve)
+        expected = 100.0 / curve[dt(2000, 1, 15)]
+        assert abs(result - expected) < 1e-9

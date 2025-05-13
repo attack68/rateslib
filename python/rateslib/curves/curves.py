@@ -3469,58 +3469,77 @@ def index_value(
             return NoInput(0)
         return index_curve.index_value(index_date, index_lag, index_method)
     elif isinstance(index_fixings, Series):
-        if index_method == "curve":
-            if index_lag != 0:
-                raise ValueError(
-                    "`index_lag` must be zero when using a 'curve' `index_method`.\n"
-                    "Got `index_lag`: {index_lag}."
-                )
-            # need an exact date from the series
-            if len(index_fixings.index) == 0 or index_date > index_fixings.index[-1]:  # type: ignore[attr-defined]
-                # then the period is 'future' based, and the fixing is not yet available.
-                # attempt to return from curve
-                return index_value(index_lag, index_method, NoInput(0), index_date, index_curve)
-            elif index_date < index_fixings.index[0]:
-                # then the period is possibly 'historical', and the fixing may not be required
-                # attempt to return from curve or yield NoInput
-                return index_value(index_lag, index_method, NoInput(0), index_date, index_curve)
-            else:
-                try:
-                    return index_fixings[index_date]  # type: ignore[no-any-return, index]
-                except KeyError:
-                    raise ValueError(
-                        f"The Series given for `index_fixings` requires, but does not contain, "
-                        f"the value for date: {index_date}.\n"
-                        "For inflation indexes using 'monthly' or 'daily' `index_method` the "
-                        "values associated for a month should be assigned "
-                        "to the first day of that month."
-                    )
-        elif index_method == "monthly":
-            date_ = add_tenor(index_date, f"-{index_lag}M", "none", NoInput(0), 1)
-            value_from_fixings = index_value(0, "curve", index_fixings, date_, NoInput(0))
-            value_from_curve = index_value(index_lag, "curve", NoInput(0), index_date, index_curve)
-            if isinstance(value_from_fixings, NoInput):
-                return value_from_curve
-            else:
-                return value_from_fixings
-        else:  # i_method == "daily":
-            n = monthrange(index_date.year, index_date.month)[1]
-            date_som = datetime(index_date.year, index_date.month, 1)
-            date_sonm = add_tenor(index_date, "1M", "none", NoInput(0), 1)
-            m1 = index_value(index_lag, "monthly", index_fixings, date_som, index_curve)
-            if index_date == date_som:
-                return m1
-            m2 = index_value(index_lag, "monthly", index_fixings, date_sonm, index_curve)
-            if isinstance(m2, NoInput) or isinstance(m1, NoInput):
-                # then the period is 'future' based, and the fixing is not yet available, or a
-                # curve has not been provided to forecast it
-                return NoInput(0)
-            return m1 + (index_date.day - 1) / n * (m2 - m1)
+        return _index_value_from_mixed_series_fixings_and_curve(
+            index_lag, index_method, index_fixings, index_date, index_curve
+        )
     else:
         raise TypeError(
             "`index_fixings` must be of type: Series, DualTypes or NoInput.\n"
             f"{type(index_fixings)} was given."
         )
+
+def _index_value_from_mixed_series_fixings_and_curve(
+    index_lag: int,
+    index_method: str,
+    index_fixings: Series[DualTypes],
+    index_date: datetime,
+    index_curve: Curve | NoInput,
+):
+    """
+    Iterate through possibilities assuming a Curve and fixings as series exists.
+    """
+    if index_method == "curve":
+        if index_lag != 0:
+            raise ValueError(
+                "`index_lag` must be zero when using a 'curve' `index_method`.\n"
+                "Got `index_lag`: {index_lag}."
+            )
+        # need an exact date from the series
+        if len(index_fixings.index) == 0 or index_date > index_fixings.index[-1]:  # type: ignore[attr-defined]
+            # then the period is 'future' based, and the fixing is not yet available.
+            # attempt to return from curve
+            return index_value(index_lag, index_method, NoInput(0), index_date, index_curve)
+        elif index_date < index_fixings.index[0]:
+            # then the period is possibly 'historical', and the fixing may not be required
+            # attempt to return from curve or yield NoInput
+            return index_value(index_lag, index_method, NoInput(0), index_date, index_curve)
+        else:
+            try:
+                return index_fixings[index_date]  # type: ignore[no-any-return, index]
+            except KeyError:
+                raise ValueError(
+                    f"The Series given for `index_fixings` requires, but does not contain, "
+                    f"the value for date: {index_date}.\n"
+                    "For inflation indexes using 'monthly' or 'daily' `index_method` the "
+                    "values associated for a month should be assigned "
+                    "to the first day of that month."
+                )
+    elif index_method == "monthly":
+        date_ = add_tenor(index_date, f"-{index_lag}M", "none", NoInput(0), 1)
+        # a monthly value can only be derived from one source.
+        # make separate determinations to avoid the issue of mis-matching index lags
+        value_from_fixings = index_value(0, "curve", index_fixings, date_, NoInput(0))
+        if not isinstance(value_from_fixings, NoInput):
+            return value_from_fixings
+        else:
+            value_from_curve = index_value(
+                index_lag, "monthly", NoInput(0), index_date, index_curve
+            )
+            return value_from_curve
+    else:  # i_method == "daily":
+        n = monthrange(index_date.year, index_date.month)[1]
+        date_som = datetime(index_date.year, index_date.month, 1)
+        date_sonm = add_tenor(index_date, "1M", "none", NoInput(0), 1)
+        m1 = index_value(index_lag, "monthly", index_fixings, date_som, index_curve)
+        if index_date == date_som:
+            return m1
+        m2 = index_value(index_lag, "monthly", index_fixings, date_sonm, index_curve)
+        if isinstance(m2, NoInput) or isinstance(m1, NoInput):
+            # then the period is 'future' based, and the fixing is not yet available, or a
+            # curve has not been provided to forecast it
+            return NoInput(0)
+        return m1 + (index_date.day - 1) / n * (m2 - m1)
+
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
