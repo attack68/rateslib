@@ -68,7 +68,6 @@ from rateslib.curves import (
     index_left,
     index_value,
     interpolate,
-    index_value,
 )
 from rateslib.dual import Dual, Dual2, Variable, dual_exp, dual_log, dual_solve, gradient
 from rateslib.fx import FXForwards, FXRates
