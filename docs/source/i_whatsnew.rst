@@ -100,6 +100,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
        evaluate the volatility on each *SabrSmile*. Now the relevant *Smile* expiry is used as the
        entry to the SABR function before interpolating for the given expiry.
        (`757 <https://github.com/attack68/rateslib/pull/757>`_)
+   * - Bug
+     - ``index_lag`` is now correctly passed to *Index* type *Period* construction during a
+       *Leg* initialization.
+       (`808 <https://github.com/attack68/rateslib/pull/808>`_)
 
 1.8.0 (22nd April 2025)
 ****************************
