@@ -437,6 +437,8 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
                 if isinstance(self.index_fixings, list)
                 else self.index_fixings,
                 index_method=self.index_method,
+                index_lag=self.index_lag,
+                index_only=False,
             )
 
         self._exchange_periods: tuple[IndexCashflow | None, IndexCashflow | None] = tuple(periods_)  # type: ignore[assignment]
@@ -458,6 +460,8 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
                     if isinstance(self.index_fixings, list)
                     else self.index_fixings,
                     index_method=self.index_method,
+                    index_lag=self.index_lag,
+                    index_only=False,
                 )
                 for i in range(self.schedule.n_periods - 1)
             ]
@@ -484,6 +488,7 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
                     index_fixings=self.index_fixings[i]
                     if isinstance(self.index_fixings, list)
                     else self.index_fixings,
+                    index_lag=self.index_lag,
                 )
                 for i, period in enumerate(self.schedule.table.to_dict(orient="index").values())
             ]
