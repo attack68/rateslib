@@ -3431,7 +3431,7 @@ def index_value(
 
     This calculation is replicated in *rateslib* in the following way:
 
-    .. ipython::
+    .. ipython:: python
 
        from rateslib import index_value
        from pandas import Series
