@@ -67,6 +67,7 @@ from rateslib.curves import (
     ProxyCurve,
     index_left,
     interpolate,
+    index_value,
 )
 from rateslib.dual import Dual, Dual2, Variable, dual_exp, dual_log, dual_solve, gradient
 from rateslib.fx import FXForwards, FXRates
@@ -192,6 +193,7 @@ __all__ = [
     "ProxyCurve",
     "interpolate",
     "index_left",
+    "index_value",
     # fx_volatility.py
     "FXDeltaVolSmile",
     "FXDeltaVolSurface",

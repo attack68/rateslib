@@ -7,6 +7,7 @@ from rateslib.curves.curves import (
     average_rate,
     index_left,
     interpolate,
+    index_value,
 )
 
 __all__ = (
@@ -18,4 +19,5 @@ __all__ = (
     "average_rate",
     "index_left",
     "interpolate",
+    "index_value"
 )
