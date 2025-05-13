@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from rateslib import defaults
+from rateslib.curves import index_value
 from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_maybe_from_curve
 from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
@@ -75,69 +76,24 @@ class IndexMixin(metaclass=ABCMeta):
         """
         # IndexCashflow has no start
         i_date_base: datetime | NoInput = getattr(self, "start", NoInput(0))
-        denominator = self._index_value(
-            i_fixings=self.index_base,
-            i_date=i_date_base,
-            i_curve=curve,
-            i_lag=self.index_lag,
-            i_method=self.index_method,
+        denominator = index_value(
+            index_fixings=self.index_base,
+            index_date=i_date_base,
+            index_curve=curve,
+            index_lag=self.index_lag,
+            index_method=self.index_method,
         )
-        numerator = self._index_value(
-            i_fixings=self.index_fixings,
-            i_date=self.end,
-            i_curve=curve,
-            i_lag=self.index_lag,
-            i_method=self.index_method,
+        numerator = index_value(
+            index_fixings=self.index_fixings,
+            index_date=self.end,
+            index_curve=curve,
+            index_lag=self.index_lag,
+            index_method=self.index_method,
         )
-        if numerator is None or denominator is None:
+        if isinstance(numerator, NoInput) or isinstance(denominator, NoInput):
             return None, numerator, denominator
         else:
             return numerator / denominator, numerator, denominator
-
-    @staticmethod
-    def _index_value(
-        i_fixings: DualTypes | NoInput,
-        i_date: datetime | NoInput,
-        i_curve: CurveOption_,
-        i_lag: int,
-        i_method: str,
-    ) -> DualTypes | None:
-        """
-        Project an index rate, or lookup from provided fixings, for a given date.
-
-        If ``index_fixings`` are set on the period this will be used instead of
-        the ``curve``.
-
-        Parameters
-        ----------
-        curve : Curve
-
-        Returns
-        -------
-        float, Dual, Dual2, Variable or None
-        """
-        if isinstance(i_curve, dict):
-            raise NotImplementedError(
-                "`i_curve` cannot currently be supplied as dict. Use a Curve type or NoInput(0)."
-            )
-
-        if isinstance(i_date, NoInput):
-            if not isinstance(i_fixings, NoInput):
-                # i_fixings is a given value, probably aligned with an ``index_base``
-                return i_fixings
-            else:
-                # internal method so this line should never be hit
-                raise ValueError(
-                    "Must supply an `i_date` from which to forecast."
-                )  # pragma: no cover
-        else:
-            if isinstance(i_fixings, NoInput):
-                # forecast from curve if available
-                if isinstance(i_curve, NoInput):
-                    return None
-                return i_curve.index_value(i_date, i_lag, i_method)
-            else:
-                return i_fixings
 
     def npv(
         self,

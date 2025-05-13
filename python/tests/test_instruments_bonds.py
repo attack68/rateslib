@@ -1611,7 +1611,7 @@ class TestIndexFixedRateBond:
         ("i_fixings", "expected"),
         [
             (NoInput(0), 1.161227269),
-            (Series([90, 290], index=[dt(2022, 1, 1), dt(2022, 2, 1)]), 2.00),
+            (Series([90.0, 290], index=[dt(2021, 10, 1), dt(2021, 11, 1)]), 2.00),
         ],
     )
     def test_index_ratio(self, i_fixings, expected) -> None:

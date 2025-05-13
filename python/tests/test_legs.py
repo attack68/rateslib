@@ -1441,7 +1441,7 @@ class TestIndexFixedLegExchange:
             # [210, 220, 230], # list not supported in v2.0
             210,
             Series(
-                [210, 220, 230],
+                [210.0, 220.0, 230.0],
                 index=[dt(2022, 6, 15), dt(2022, 9, 15), dt(2022, 12, 15)],
             ),
         ],
@@ -1586,7 +1586,7 @@ class TestIndexFixedLeg:
             (210, "daily"),
             (
                 Series(
-                    [210, 210, 220, 220, 230, 230],
+                    [210.0, 210, 220, 220, 230, 230],
                     index=[
                         dt(2022, 6, 1),
                         dt(2022, 7, 1),
@@ -1600,7 +1600,7 @@ class TestIndexFixedLeg:
             ),
             (
                 Series(
-                    [210, 220, 230],
+                    [210.0, 220, 230],
                     index=[dt(2022, 6, 1), dt(2022, 9, 1), dt(2022, 12, 1)],
                 ),
                 "monthly",
@@ -1658,7 +1658,7 @@ class TestIndexFixedLeg:
     @pytest.mark.parametrize(("meth", "exp"), [("daily", 230.0), ("monthly", 227.91208)])
     def test_missing_fixings(self, meth, exp) -> None:
         i_fixings = Series(
-            [210, 210, 220, 220],
+            [210.0, 210, 220, 220],
             index=[dt(2022, 6, 1), dt(2022, 7, 1), dt(2022, 9, 1), dt(2022, 10, 1)],
         )
         leg = IndexFixedLeg(
@@ -1814,7 +1814,7 @@ class TestIndexFixedLeg:
         ],
     )
     def test_index_as_series_invalid(self, index_fixings):
-        with pytest.raises(ValueError, match="`index_fixings` must be"):
+        with pytest.raises(ValueError, match="`index_fixings` as Series must be"):
             IndexFixedLeg(
                 effective=dt(2022, 1, 1),
                 termination=dt(2022, 10, 1),

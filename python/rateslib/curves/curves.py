@@ -3449,7 +3449,7 @@ def index_value(
        )
 
     """
-    if isinstance(index_fixings, float | Dual | Dual2 | Variable):
+    if isinstance(index_fixings, int | float | Dual | Dual2 | Variable):
         # i_fixings is a given value, probably aligned with an ``index_base``: return directly
         return index_fixings
 
@@ -3479,6 +3479,10 @@ def index_value(
             if len(index_fixings.index) == 0 or index_date > index_fixings.index[-1]:  # type: ignore[attr-defined]
                 # then the period is 'future' based, and the fixing is not yet available.
                 # attempt to return from curve
+                return index_value(index_lag, index_method, NoInput(0), index_date, index_curve)
+            elif index_date < index_fixings.index[0]:
+                # then the period is possibly 'historical', and the fixing may not be required
+                # attempt to return from curve or yield NoInput
                 return index_value(index_lag, index_method, NoInput(0), index_date, index_curve)
             else:
                 try:
