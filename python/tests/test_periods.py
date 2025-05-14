@@ -2572,6 +2572,39 @@ class TestIndexFixedPeriod:
         expected = expected * index_curve.index_value(dt(2022, 4, 3), 3) / 100.0
         assert abs(result - expected) < 1e-8
 
+    @pytest.mark.parametrize("method", ["daily", "curve"])
+    def test_period_curve_interp_method(self, method) -> None:
+        # both these methods of interpolation should give the same result with the way
+        # the curve and period are configured.
+        index_period = IndexFixedPeriod(
+            start=dt(2022, 1, 3),
+            end=dt(2022, 4, 3),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 3),
+            frequency="Q",
+            fixed_rate=4.00,
+            currency="usd",
+            index_base=100.0,
+            index_lag=0,
+            index_method=method,
+        )
+        index_curve = Curve(
+            nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
+            index_base=200.0,
+            interpolation="linear_index",
+            index_lag=0,
+        )
+        result = index_period.real_cashflow
+        expected = -1e7 * ((dt(2022, 4, 1) - dt(2022, 1, 1)) / timedelta(days=360)) * 4
+        assert abs(result - expected) < 1e-8
+
+        result = index_period.cashflow(index_curve)
+        assert abs(result + 20100502.512562) < 1e-6
+        expected = expected * index_curve.index_value(dt(2022, 4, 3), 0) / 100.0
+        assert abs(result - expected) < 1e-8
+
     def test_period_analytic_delta(self, fxr, curve) -> None:
         index_curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
@@ -2596,10 +2629,28 @@ class TestIndexFixedPeriod:
         result = fixed_period.analytic_delta(index_curve, curve, fxr, "nok")
         assert abs(result - 247444.78172244584 * 300.0 / 200.0) < 1e-7
 
+    @pytest.mark.parametrize(("fixings", "method"), [(300.0, "daily")])
+    def test_period_fixings_float(self, fixings, method, curve) -> None:
+        fixed_period = IndexFixedPeriod(
+            start=dt(2022, 1, 3),
+            end=dt(2022, 4, 3),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 3),
+            frequency="Q",
+            currency="usd",
+            index_base=200.0,
+            index_fixings=fixings,
+            index_method=method,
+        )
+        result = fixed_period.analytic_delta(None, curve)
+        assert abs(result - 24744.478172244584 * 300.0 / 200.0) < 1e-7
+
+    @pytest.mark.skip(reason="`index_fixings` as Series removed for Period in 2.0")
     @pytest.mark.parametrize(
         ("fixings", "method"),
         [
-            (300.0, "daily"),
             (
                 Series([1.0, 300, 5], index=[dt(2022, 4, 2), dt(2022, 4, 3), dt(2022, 4, 4)]),
                 "daily",
@@ -2760,25 +2811,7 @@ class TestIndexFixedPeriod:
         with pytest.raises(ValueError, match="Curve must be initialised with an `index_base`"):
             i_period.index_ratio(curve)
 
-    # TEST REDUNDANT: function was changed to fallback to forecast from curve
-    # def test_cannot_forecast_from_fixings(self):
-    #     i_fixings = Series([100], index=[dt(2021, 1, 1)])
-    #     i_period = IndexFixedPeriod(
-    #         start=dt(2022, 1, 1),
-    #         end=dt(2022, 2, 1),
-    #         payment=dt(2022, 2, 1),
-    #         frequency="M",
-    #         index_base=100.0,
-    #         index_fixings=i_fixings,
-    #     )
-    #     curve = IndexCurve(
-    #         {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
-    #         index_lag=3,
-    #         index_base=100.0
-    #     )
-    #     with pytest.raises(ValueError, match="`index_fixings` cannot forecast the"):
-    #         i_period.index_ratio(curve)
-
+    @pytest.mark.skip(reason="`index_fixings` as Series removed for Period in 2.0")
     def test_index_fixings_linear_interp(self) -> None:
         i_fixings = Series([173.1, 174.2], index=[dt(2001, 7, 1), dt(2001, 8, 1)])
         result = IndexMixin._index_value(

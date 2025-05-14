@@ -4,6 +4,7 @@ from math import exp, log
 import numpy as np
 import pytest
 from matplotlib import pyplot as plt
+from pandas import Series
 from rateslib import default_context
 from rateslib.calendars import get_calendar
 from rateslib.curves import (
@@ -12,6 +13,7 @@ from rateslib.curves import (
     LineCurve,
     MultiCsaCurve,
     index_left,
+    index_value,
     interpolate,
 )
 from rateslib.default import NoInput
@@ -2336,3 +2338,199 @@ class TestStateAndCache:
             assert dt(2022, 3, 1) in curve._cache
             assert dt(2022, 4, 1) in curve._cache
             assert dt(2022, 5, 1) in curve._cache
+
+
+class TestIndexValue:
+    def test_dict_raise(self):
+        with pytest.raises(
+            NotImplementedError, match="`index_curve` cannot currently be supplied as dict"
+        ):
+            index_value(0, "-", NoInput(0), 0, {"a": 0, "b": 0})
+
+    def test_return_index_fixings_directly(self):
+        assert index_value(0, "-", 2.5, NoInput(0), NoInput(0)) == 2.5
+        assert index_value(0, "-", Dual(2, ["a"], []), NoInput(0), NoInput(0)) == Dual(2, ["a"], [])
+
+    @pytest.mark.parametrize("method", ["curve", "daily"])
+    def test_forecast_from_curve_no_fixings(self, method):
+        # these methods should be identical when using "linear_index" interpolation directly on the
+        # curve and parametrising the curve nodes with the start of month dates. See next test.
+        curve = Curve(
+            {dt(2000, 1, 1): 1.0, dt(2000, 2, 1): 0.99},
+            index_base=100.0,
+            index_lag=0,
+            interpolation="linear_index",
+        )
+        result = index_value(0, method, NoInput(0), dt(2000, 1, 15), curve)
+        expected = 100.0 / curve[dt(2000, 1, 15)]
+        assert abs(result - expected) < 1e-9
+
+    def test_forecast_from_curve_no_fixings_methods_identical(self):
+        curve = Curve(
+            {dt(2000, 1, 1): 1.0, dt(2000, 2, 1): 0.99},
+            index_base=100.0,
+            index_lag=0,
+            interpolation="linear_index",
+        )
+        result1 = index_value(0, "curve", NoInput(0), dt(2000, 1, 15), curve)
+        result2 = index_value(0, "daily", NoInput(0), dt(2000, 1, 15), curve)
+        assert abs(result1 - result2) < 1e-9
+
+    @pytest.mark.parametrize("date", [dt(2000, 2, 1), dt(2000, 2, 27)])
+    def test_forecast_from_curve_no_fixings_monthly(self, date):
+        # monthly interpolation should only require the date of 1st Feb from the curve
+        curve = Curve(
+            {dt(2000, 1, 1): 1.0, dt(2000, 2, 1): 0.99},
+            index_base=100.0,
+            index_lag=0,
+            interpolation="linear_index",
+        )
+        result = index_value(0, "monthly", NoInput(0), date, curve)
+        expected = 100.0 / curve[dt(2000, 2, 1)]
+        assert abs(result - expected) < 1e-9
+
+    @pytest.mark.parametrize("method", ["curve", "daily", "monthly"])
+    def test_no_input_return(self, method):
+        assert isinstance(index_value(0, method, NoInput(0), dt(2000, 1, 1), NoInput(0)), NoInput)
+
+    @pytest.mark.parametrize("method", ["curve", "daily", "monthly"])
+    def test_fixings_type_raises(self, method):
+        with pytest.raises(TypeError, match="`index_fixings` must be of type: Serie"):
+            index_value(0, method, [1, 2], dt(2000, 1, 1), NoInput(0))
+
+    def test_no_index_date_raises(self):
+        with pytest.raises(ValueError, match="Must supply an `index_date` from whic"):
+            index_value(0, "curve", NoInput(0), NoInput(0), NoInput(0))
+
+    def test_non_zero_index_lag_with_curve_method_raises(self):
+        ser = Series([1.0], index=[dt(2000, 1, 1)])
+        with pytest.raises(ValueError, match="`index_lag` must be zero when using a 'curve' `inde"):
+            index_value(4, "curve", ser, dt(2000, 1, 1), NoInput(0))
+
+    def test_documentation_uk_dmo_replication(self):
+        # this is an example in the index value documentation
+        rpi_series = Series(
+            [172.2, 173.1, 174.2, 174.4],
+            index=[dt(2001, 3, 1), dt(2001, 4, 1), dt(2001, 5, 1), dt(2001, 6, 1)],
+        )
+        result = index_value(
+            index_lag=3, index_method="daily", index_fixings=rpi_series, index_date=dt(2001, 7, 20)
+        )
+        expected = 173.77419
+        assert abs(result - expected) < 5e-6
+
+    def test_no_input_return_if_future_based(self):
+        # the requested date is beyond the ability of the fixings curve
+        rpi_series = Series([172.2, 173.1], index=[dt(2001, 3, 1), dt(2001, 4, 1)])
+        assert isinstance(index_value(0, "curve", rpi_series, dt(2001, 4, 2)), NoInput)
+        assert not isinstance(index_value(0, "curve", rpi_series, dt(2001, 4, 1)), NoInput)
+
+    def test_mixed_forecast_value_fixings_with_curve(self):
+        rpi = Series([100.0], index=[dt(2000, 1, 1)])
+        curve = Curve({dt(2000, 1, 1): 1.0, dt(2000, 4, 1): 0.99}, index_base=110.0, index_lag=0)
+        date = dt(2000, 5, 15)
+        rpi_2 = 110 * 1.0 / curve[dt(2000, 2, 1)]
+        expected = 100.0 + (14 / 31) * (rpi_2 - 100.0)
+        result = index_value(4, "daily", rpi, date, curve)
+        assert abs(result - expected) < 1e-9
+
+    def test_mixed_forecast_value_fixings_with_curve2(self):
+        rpi = Series([100.0], index=[dt(2000, 1, 1)])
+        curve = Curve(
+            nodes={dt(2000, 2, 1): 1.0, dt(2000, 5, 1): 0.99}, index_base=110.0, index_lag=1
+        )
+
+        date = dt(2000, 5, 15)
+        rpi_2 = 110 * 1.0 / curve[dt(2000, 3, 1)]
+        expected = 100.0 + (14 / 31) * (rpi_2 - 100.0)
+        result = index_value(4, "daily", rpi, date, curve)
+        assert abs(result - expected) < 1e-9
+
+    def test_keyerror_for_series_using_curve_method(self):
+        rpi = Series([9.0, 8.0], index=[dt(1999, 1, 1), dt(2000, 1, 1)])
+        with pytest.raises(ValueError, match="The Series given for `index_fixings` requires, but "):
+            index_value(0, "curve", rpi, dt(1999, 12, 31), NoInput(0))
+
+    def test_daily_method_returns_directly_if_date_som(self):
+        rpi = Series([100.0], index=[dt(2000, 1, 1)])
+        assert index_value(0, "daily", rpi, dt(2000, 1, 1), NoInput(0)) == 100.0
+
+    def test_daily_method_returns_noinput_if_data_unavailable(self):
+        rpi = Series([100.0], index=[dt(2000, 1, 1)])
+        assert isinstance(index_value(0, "daily", rpi, dt(2000, 1, 2), NoInput(0)), NoInput)
+
+    def test_curve_method_from_curve_with_non_zero_index_lag(self):
+        curve = Curve(
+            nodes={dt(2000, 1, 1): 1.0, dt(2000, 2, 1): 0.99},
+            index_base=100.0,
+            index_lag=1,
+        )
+        result = index_value(1, "curve", NoInput(0), dt(2000, 1, 15), curve)
+        expected = 100.0 / curve[dt(2000, 1, 15)]
+        assert abs(result - expected) < 1e-9
+
+    @pytest.mark.parametrize(
+        ("curve", "exp"),
+        [
+            (NoInput(0), NoInput(0)),
+            (
+                Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.99}, index_base=100.0, index_lag=0),
+                100.0,
+            ),
+        ],
+    )
+    def test_series_len_zero(self, curve, exp):
+        s = Series(data=[], index=[])
+        result = index_value(0, "curve", s, dt(2000, 1, 1), curve)
+        assert result == exp
+
+    def test_series_and_curve_aligns_with_som_date(self):
+        # the relevant value can be directly matched on the Series
+        s = Series(data=[100.0], index=[dt(2000, 1, 1)])
+        c = Curve({dt(2001, 1, 1): 1.0, dt(2002, 1, 1): 0.99}, index_base=100.0, index_lag=2)
+        result = index_value(1, "daily", s, dt(2000, 2, 1), c)
+        assert result == 100.0
+
+    def test_mixed_series_and_curve(self):
+        # the relevant value can be directly matched on the Series
+        s = Series(
+            data=[100.0, 200.0, 300.0], index=[dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 3, 1)]
+        )
+        c = Curve({dt(2001, 1, 1): 1.0, dt(2002, 1, 1): 0.99}, index_base=100.0, index_lag=2)
+        result = index_value(0, "curve", s, dt(2000, 2, 1), c)
+        assert result == 200.0
+
+    def test_mixed_series_and_curve_inside_range_raises(self):
+        s = Series(
+            data=[100.0, 200.0, 300.0], index=[dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 3, 1)]
+        )
+        c = Curve({dt(2001, 1, 1): 1.0, dt(2002, 1, 1): 0.99}, index_base=100.0, index_lag=2)
+        with pytest.raises(ValueError, match="The Series given for `index_fixings` requires, but"):
+            index_value(0, "curve", s, dt(2000, 2, 15), c)
+
+    def test_mixed_series_and_curve_inside_range_reverts_to_curve_due_to_lag(self):
+        s = Series(
+            data=[100.0, 200.0, 300.0], index=[dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 3, 1)]
+        )
+        c = Curve({dt(2001, 1, 1): 1.0, dt(2002, 1, 1): 0.99}, index_base=100.0, index_lag=1)
+        with pytest.warns(UserWarning):
+            # this warning exists when a curve returns 0.0 and the date is prior to curve start
+            index_value(1, "curve", s, dt(2000, 2, 15), c)
+
+    def test_mixed_series_and_curve_outside_range(self):
+        s = Series(
+            data=[100.0, 200.0, 300.0], index=[dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 3, 1)]
+        )
+        c = Curve({dt(2001, 1, 1): 1.0, dt(2002, 1, 1): 0.99}, index_base=100.0, index_lag=2)
+        with pytest.raises(ValueError, match="The Series given for `index_fixings` requires, but"):
+            index_value(0, "curve", s, dt(2000, 2, 15), c)
+
+    def test_mixed_series_and_curve_raises_on_lag(self):
+        s = Series(
+            data=[100.0, 200.0, 300.0], index=[dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 3, 1)]
+        )
+        c = Curve({dt(2001, 1, 1): 1.0, dt(2002, 1, 1): 0.99}, index_base=100.0, index_lag=2)
+        with pytest.raises(
+            ValueError, match="`index_lag` must be zero when using a 'curve' `index"
+        ):
+            index_value(1, "curve", s, dt(2000, 2, 1), c)

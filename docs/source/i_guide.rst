@@ -593,7 +593,7 @@ Securities and bonds
              fixed_rate=0.125,
              index_base=262.250270,
              index_lag=3,
-             index_fixings=[265.0],
+             index_fixings=265.0,
              spec="us_gb",
          )
          ifrb.price(ytm=1.397926, settlement=dt(2025, 2, 4))

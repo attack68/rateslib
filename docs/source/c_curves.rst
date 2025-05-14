@@ -34,6 +34,7 @@ and :ref:`dual<dual-doc>`.
    rateslib.curves.MultiCsaCurve
    rateslib.curves.interpolate
    rateslib.curves.index_left
+   rateslib.curves.index_value
 
 Each fundamental curve type has ``rate()``, ``plot()``, ``shift()``, ``roll()``,
 ``translate()``, ``update`` and ``update_node`` methods. A :class:`~rateslib.curves.Curve`
