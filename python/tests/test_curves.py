@@ -2405,7 +2405,7 @@ class TestIndexValue:
     def test_non_zero_index_lag_with_curve_method_raises(self):
         ser = Series([1.0], index=[dt(2000, 1, 1)])
         with pytest.raises(ValueError, match="`index_lag` must be zero when using a 'curve' `inde"):
-            index_value(4, "curve", ser, dt(2000, 1, 2), NoInput(0))
+            index_value(4, "curve", ser, dt(2000, 1, 1), NoInput(0))
 
     def test_documentation_uk_dmo_replication(self):
         # this is an example in the index value documentation

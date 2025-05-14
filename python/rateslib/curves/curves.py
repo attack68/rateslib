@@ -3482,32 +3482,34 @@ def index_value(
 def _index_value_from_mixed_series_fixings_and_curve(
     index_lag: int,
     index_method: str,
-    index_fixings: Series[DualTypes],
+    index_fixings: Series[DualTypes],  # type: ignore[type-var]
     index_date: datetime,
     index_curve: Curve | NoInput,
-):
+) -> DualTypes | NoInput:
     """
     Iterate through possibilities assuming a Curve and fixings as series exists.
+
+    For returning a value from the Series the ``index_lag`` must be zero.
+    If the lag is not zero then a Curve method will be used instead which will omit the Series.
     """
     if index_method == "curve":
-        if index_lag != 0:
-            raise ValueError(
-                "`index_lag` must be zero when using a 'curve' `index_method`.\n"
-                "Got `index_lag`: {index_lag}."
-            )
-        # need an exact date from the series
-        if len(index_fixings.index) == 0 or index_date > index_fixings.index[-1]:  # type: ignore[attr-defined]
-            # then the period is 'future' based, and the fixing is not yet available.
-            # attempt to return from curve
+        if index_date in index_fixings.index:
+            # simplest case returns Series value if all checks pass.
+            if index_lag == 0:
+                return index_fixings.loc[index_date]
+            else:
+                raise ValueError(
+                    "`index_lag` must be zero when using a 'curve' `index_method`.\n"
+                    f"`index_date`: {index_date}, is in Series but got `index_lag`: {index_lag}."
+                )
+        elif len(index_fixings.index) == 0:
             return index_value(index_lag, index_method, NoInput(0), index_date, index_curve)
-        elif index_date < index_fixings.index[0]:
-            # then the period is possibly 'historical', and the fixing may not be required
-            # attempt to return from curve or yield NoInput
-            return index_value(index_lag, index_method, NoInput(0), index_date, index_curve)
-        else:
-            try:
-                return index_fixings[index_date]  # type: ignore[no-any-return, index]
-            except KeyError:
+        elif index_lag == 0:
+            # to return values from a Series the index lag must be zero. When it is zero if
+            # index date is outside the range then curve methods will be used. Otherwise errors.
+            if index_date < index_fixings.index[0] or index_date > index_fixings.index[-1]:
+                return index_value(index_lag, index_method, NoInput(0), index_date, index_curve)
+            else:
                 raise ValueError(
                     f"The Series given for `index_fixings` requires, but does not contain, "
                     f"the value for date: {index_date}.\n"
@@ -3515,6 +3517,8 @@ def _index_value_from_mixed_series_fixings_and_curve(
                     "values associated for a month should be assigned "
                     "to the first day of that month."
                 )
+        else:
+            return index_value(index_lag, index_method, NoInput(0), index_date, index_curve)
     elif index_method == "monthly":
         date_ = add_tenor(index_date, f"-{index_lag}M", "none", NoInput(0), 1)
         # a monthly value can only be derived from one source.

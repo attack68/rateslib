@@ -75,7 +75,7 @@ class _IndexLegMixin:
     #     pass  # pragma: no cover
 
 
-def _validate_index_fixings_as_series(value: Series[DualTypes]) -> Series[DualTypes]:
+def _validate_index_fixings_as_series(value: Series[DualTypes]) -> Series[DualTypes]:  # type: ignore[type-var]
     if not value.index.is_monotonic_increasing:
         if value.index.is_monotonic_decreasing:
             value = value[::-1]
@@ -391,9 +391,7 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
                 stub_type="Exchange",
                 rate=NoInput(0),
                 index_base=self.index_base,
-                index_fixings=self.index_fixings[-1]
-                if isinstance(self.index_fixings, list)
-                else self.index_fixings,
+                index_fixings=self.index_fixings,
                 index_method=self.index_method,
                 index_lag=self.index_lag,
                 index_only=False,

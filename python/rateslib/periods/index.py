@@ -76,21 +76,23 @@ class IndexMixin(metaclass=ABCMeta):
         """
         # IndexCashflow has no start
         i_date_base: datetime | NoInput = getattr(self, "start", NoInput(0))
-        denominator = index_value(
+        denominator_ = index_value(
             index_fixings=self.index_base,
             index_date=i_date_base,
             index_curve=curve,
             index_lag=self.index_lag,
             index_method=self.index_method,
         )
-        numerator = index_value(
+        numerator_ = index_value(
             index_fixings=self.index_fixings,
             index_date=self.end,
             index_curve=curve,
             index_lag=self.index_lag,
             index_method=self.index_method,
         )
-        if isinstance(numerator, NoInput) or isinstance(denominator, NoInput):
+        numerator = _drb(None, numerator_)
+        denominator = _drb(None, denominator_)
+        if numerator is None or denominator is None:
             return None, numerator, denominator
         else:
             return numerator / denominator, numerator, denominator
