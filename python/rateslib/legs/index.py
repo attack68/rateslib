@@ -14,7 +14,7 @@ from rateslib.periods.index import _validate_index_method_and_lag
 from rateslib.scheduling import Schedule
 
 if TYPE_CHECKING:
-    from rateslib.typing import NPV, Any, Curve_, DataFrame, DualTypes, DualTypes_
+    from rateslib.typing import NPV, Any, Curve_, DataFrame, DualTypes, DualTypes_, int_, str_
 
 
 class _IndexLegMixin:
@@ -334,10 +334,10 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
         self,
         *args: Any,
         index_base: DualTypes,
-        index_fixings: DualTypes | Series[DualTypes] | NoInput = NoInput(0),  # type: ignore[type-var]
-        index_method: str | NoInput = NoInput(0),
-        index_lag: int | NoInput = NoInput(0),
-        fixed_rate: DualTypes | NoInput = NoInput(0),
+        index_fixings: DualTypes_ | Series[DualTypes] = NoInput(0),  # type: ignore[type-var]
+        index_method: str_ = NoInput(0),
+        index_lag: int_ = NoInput(0),
+        fixed_rate: DualTypes_ = NoInput(0),
         **kwargs: Any,
     ) -> None:
         self._fixed_rate = fixed_rate
@@ -345,7 +345,9 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
             _drb(defaults.index_method, index_method), _drb(defaults.index_lag, index_lag)
         )
         super().__init__(*args, **kwargs)
-        self.index_fixings = index_fixings  # set index fixings after periods init
+        self.index_fixings: DualTypes_ | Series[DualTypes] = (  # type: ignore[type-var]
+            index_fixings  # set index fixings after periods init
+        )
         self.index_base = index_base  # set after periods initialised
 
     def _set_exchange_periods(self) -> None:
@@ -390,8 +392,8 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
                 currency=self.currency,
                 stub_type="Exchange",
                 rate=NoInput(0),
-                index_base=self.index_base,
-                index_fixings=self.index_fixings,
+                index_base=NoInput(0),  # set during init
+                index_fixings=NoInput(0),  # set during init
                 index_method=self.index_method,
                 index_lag=self.index_lag,
                 index_only=False,
@@ -411,10 +413,8 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
                     currency=self.currency,
                     stub_type="Amortization",
                     rate=NoInput(0),
-                    index_base=self.index_base,
-                    index_fixings=self.index_fixings[i]
-                    if isinstance(self.index_fixings, list)
-                    else self.index_fixings,
+                    index_base=NoInput(0),  # set during init
+                    index_fixings=NoInput(0),  # set during init
                     index_method=self.index_method,
                     index_lag=self.index_lag,
                     index_only=False,
@@ -439,11 +439,9 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
                     stub=period[defaults.headers["stub_type"]] == "Stub",
                     roll=self.schedule.roll,
                     calendar=self.schedule.calendar,
-                    index_base=self.index_base,
                     index_method=self.index_method,
-                    index_fixings=self.index_fixings[i]
-                    if isinstance(self.index_fixings, list)
-                    else self.index_fixings,
+                    index_base=NoInput(0),  # set during init
+                    index_fixings=NoInput(0),  # set during init
                     index_lag=self.index_lag,
                 )
                 for i, period in enumerate(self.schedule.table.to_dict(orient="index").values())

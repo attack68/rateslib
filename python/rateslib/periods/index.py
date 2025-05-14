@@ -4,6 +4,8 @@ from abc import ABCMeta, abstractmethod
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from pandas import Series
+
 from rateslib import defaults
 from rateslib.curves import index_value
 from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_maybe_from_curve
@@ -137,8 +139,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
         If a float scalar, will be applied as the index fixing for the settlement, or
         payment, date.
         If a datetime indexed ``Series`` will use the
-        fixings that are available in that object, using linear interpolation if
-        necessary.
+        fixings that are available in that object, under the appropriate ``index_method``.
     index_method : str, in {'daily', 'monthly', 'curve'}, optional
         Whether the indexing uses a daily measure for settlement or the most recently
         monthly data taken from the first day of month. Defined by default.
@@ -200,18 +201,22 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
         self,
         *args: Any,
         index_base: DualTypes | NoInput = NoInput(0),
-        index_fixings: DualTypes | NoInput = NoInput(0),
+        index_fixings: DualTypes | Series[DualTypes] | NoInput = NoInput(0),  # type: ignore[type-var]
         index_method: str | NoInput = NoInput(0),
         index_lag: int | NoInput = NoInput(0),
         **kwargs: Any,
     ) -> None:
+        super(IndexMixin, self).__init__(*args, **kwargs)
         self.index_method, self.index_lag = _validate_index_method_and_lag(
             _drb(defaults.index_method, index_method),
             _drb(defaults.index_lag, index_lag),
         )
-        self.index_base = index_base
-        self.index_fixings = index_fixings
-        super(IndexMixin, self).__init__(*args, **kwargs)
+        self.index_base = _index_series_to_value(
+            self.start, self.index_lag, self.index_method, index_base
+        )
+        self.index_fixings = _index_series_to_value(
+            self.end, self.index_lag, self.index_method, index_fixings
+        )
 
     def analytic_delta(
         self,
@@ -306,9 +311,11 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         Required positional args to :class:`Cashflow`.
     index_base : float, optional
         The base index to determine the cashflow. Required but may be set after initialisation.
-    index_fixings : float, optional
-        If a float scalar, will be applied as the index fixing for the whole
-        period, otherwise derived from a ``curve`` at pricing.
+    index_fixings : float, or Series, optional
+        If a float scalar, will be applied as the index fixing for the settlement, or
+        payment, date.
+        If a datetime indexed ``Series`` will use the
+        fixings that are available in that object, under the appropriate ``index_method``.
     index_method : str in {'daily', 'monthly', 'curve'}, optional
         Whether the indexing uses a daily measure for settlement or the most recently
         monthly data taken from the first day of month. Defined by default.
@@ -371,23 +378,25 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
     def __init__(
         self,
         *args: Any,
-        index_base: DualTypes | NoInput,
-        index_fixings: DualTypes | NoInput = NoInput(0),
+        index_base: DualTypes_,
+        index_fixings: DualTypes_ | Series[DualTypes] = NoInput(0),  # type: ignore[type-var]
         index_method: str | NoInput = NoInput(0),
         index_lag: int | NoInput = NoInput(0),
         index_only: bool = False,
         end: datetime | NoInput = NoInput(0),
         **kwargs: Any,
     ) -> None:
+        super(IndexMixin, self).__init__(*args, **kwargs)
+        self.end = self.payment if isinstance(end, NoInput) else end
         self.index_method, self.index_lag = _validate_index_method_and_lag(
             _drb(defaults.index_method, index_method),
             _drb(defaults.index_lag, index_lag),
         )
         self.index_base = index_base
-        self.index_fixings = index_fixings
+        self.index_fixings = _index_series_to_value(
+            self.end, self.index_lag, self.index_method, index_fixings
+        )
         self.index_only = index_only
-        super(IndexMixin, self).__init__(*args, **kwargs)
-        self.end = self.payment if isinstance(end, NoInput) else end
 
     @property
     def real_cashflow(self) -> DualTypes:
@@ -438,3 +447,16 @@ def _validate_index_method_and_lag(index_method: str, index_lag: int) -> tuple[s
     if index_lag != 0 and lower_method == "curve":
         raise ValueError("`index_lag` must be zero when using `index_method`='curve'.")
     return lower_method, index_lag
+
+
+def _index_series_to_value(
+    index_date: datetime,
+    index_lag: int,
+    index_method: str,
+    index_fixings: DualTypes_ | Series[DualTypes],  # type: ignore[type-var]
+) -> DualTypes_:
+    if isinstance(index_fixings, Series):
+        val = index_value(index_lag, index_method, index_fixings, index_date, NoInput(0))
+    else:
+        val = index_fixings
+    return val
