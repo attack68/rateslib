@@ -95,7 +95,7 @@ class Value(Metrics):
         self.curves = curves
         self.convention = _drb(defaults.convention, convention)
         self.metric = metric.lower()
-        self._rate_scalar = getattr(self._rate_scalars, self.metric, 1.0)
+        self._rate_scalar = self._rate_scalars.get(self.metric, 1.0)
 
     def rate(
         self,
