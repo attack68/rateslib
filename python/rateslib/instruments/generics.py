@@ -78,6 +78,12 @@ class Value(Metrics):
        curve[dt(2023, 1, 1)]
     """
 
+    _rate_scalars = {
+        "curve_value": 100.0,
+        "index_value": 100.0,
+        "cc_zero_rate": 1.0,
+    }
+
     def __init__(
         self,
         effective: datetime,
@@ -89,6 +95,7 @@ class Value(Metrics):
         self.curves = curves
         self.convention = _drb(defaults.convention, convention)
         self.metric = metric.lower()
+        self._rate_scalar = self._rate_scalars[self.metric]
 
     def rate(
         self,
