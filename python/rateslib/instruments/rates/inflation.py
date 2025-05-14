@@ -37,6 +37,9 @@ class ZCIS(BaseDerivative):
     :class:`~rateslib.legs.ZeroFixedLeg`
     and a :class:`~rateslib.legs.ZeroIndexLeg`.
 
+    For more information see the :ref:`Cookbook Article:<cookbook-doc>` *"Using Curves with an
+    Index and Inflation Instruments"*.
+
     Parameters
     ----------
     args : dict
@@ -262,6 +265,9 @@ class IIRS(BaseDerivative):
     """
     Create an indexed interest rate swap (IIRS) composing an
     :class:`~rateslib.legs.IndexFixedLeg` and a :class:`~rateslib.legs.FloatLeg`.
+
+    For more information see the :ref:`Cookbook Article:<cookbook-doc>` *"Using Curves with an
+    Index and Inflation Instruments"*.
 
     Parameters
     ----------

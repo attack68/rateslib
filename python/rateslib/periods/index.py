@@ -129,6 +129,9 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
     When used with an inflation index this defines a real coupon period with a
     cashflow adjusted upwards by the inflation index.
 
+    For more information see the :ref:`Cookbook Article:<cookbook-doc>` *"Using Curves with an
+    Index and Inflation Instruments"*.
+
     Parameters
     ----------
     args : dict
@@ -304,6 +307,9 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
 
     When used with an inflation index this defines a real redemption with a
     cashflow adjusted upwards by the inflation index.
+
+    For more information see the :ref:`Cookbook Article:<cookbook-doc>` *"Using Curves with an
+    Index and Inflation Instruments"*.
 
     Parameters
     ----------

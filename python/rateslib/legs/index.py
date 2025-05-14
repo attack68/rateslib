@@ -92,6 +92,9 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
     :class:`~rateslib.periods.IndexFixedPeriod` and
     a :class:`~rateslib.periods.Cashflow`.
 
+    For more information see the :ref:`Cookbook Article:<cookbook-doc>` *"Using Curves with an
+    Index and Inflation Instruments"*.
+
     Parameters
     ----------
     args : dict
@@ -255,6 +258,9 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
     """
     Create a leg of :class:`~rateslib.periods.IndexFixedPeriod` s and initial and
     final :class:`~rateslib.periods.IndexCashflow` s.
+
+    For more information see the :ref:`Cookbook Article:<cookbook-doc>` *"Using Curves with an
+    Index and Inflation Instruments"*.
 
     Parameters
     ----------
