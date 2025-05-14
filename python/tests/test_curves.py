@@ -2514,6 +2514,7 @@ class TestIndexValue:
         )
         c = Curve({dt(2001, 1, 1): 1.0, dt(2002, 1, 1): 0.99}, index_base=100.0, index_lag=1)
         with pytest.warns(UserWarning):
+            # this warning exists when a curve returns 0.0 and the date is prior to curve start
             index_value(1, "curve", s, dt(2000, 2, 15), c)
 
     def test_mixed_series_and_curve_outside_range(self):

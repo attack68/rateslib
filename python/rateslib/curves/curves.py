@@ -3548,6 +3548,8 @@ def _index_value_from_mixed_series_and_curve(
         if isinstance(m2, NoInput) or isinstance(m1, NoInput):
             # then the period is 'future' based, and the fixing is not yet available, or a
             # curve has not been provided to forecast it
+            # this line cannot be hit when a curve returns DualTypes and not a NoInput
+            # will raise a warning when the curve returns 0.0
             return NoInput(0)
         return m1 + (index_date.day - 1) / n * (m2 - m1)
 
