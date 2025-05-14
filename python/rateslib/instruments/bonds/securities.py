@@ -9,7 +9,7 @@ from pandas import DataFrame, Series
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
-from rateslib.curves import Curve, LineCurve, average_rate, index_left
+from rateslib.curves import Curve, LineCurve, average_rate, index_left, index_value
 from rateslib.curves._parsers import (
     _disc_required_maybe_from_curve,
     _validate_curve_is_not_dict,
@@ -38,7 +38,6 @@ from rateslib.instruments.utils import (
 from rateslib.legs import FixedLeg, FloatLeg, IndexFixedLeg
 from rateslib.periods import (
     FloatPeriod,
-    IndexMixin,
 )
 from rateslib.periods.utils import _maybe_local
 
@@ -1749,27 +1748,20 @@ class IndexFixedRateBond(FixedRateBond):
         -------
         float, Dual, Dual2, Variable
         """
-        if not isinstance(self.leg1.index_fixings, NoInput) and not isinstance(
-            self.leg1.index_fixings,
-            Series,
-        ):
-            raise ValueError(
-                "Must provide `index_fixings` as a Series for inter-period settlement.",
-            )
         # TODO: this indexing of periods assumes no amortization
-        index_val: DualTypes = IndexMixin._index_value(  # type: ignore[assignment]
-            i_fixings=self.leg1.index_fixings,
-            i_curve=curve,
-            i_lag=self.leg1.index_lag,
-            i_method=self.leg1.index_method,
-            i_date=settlement,
+        index_val: DualTypes = index_value(  # type: ignore[assignment]
+            index_fixings=self.leg1.index_fixings,
+            index_curve=curve,
+            index_lag=self.leg1.index_lag,
+            index_method=self.leg1.index_method,
+            index_date=settlement,
         )
-        index_base: DualTypes = IndexMixin._index_value(  # type: ignore[assignment]
-            i_fixings=self.index_base,
-            i_date=self.leg1.schedule.effective,
-            i_lag=self.leg1.index_lag,
-            i_method=self.leg1.index_method,
-            i_curve=curve,
+        index_base: DualTypes = index_value(  # type: ignore[assignment]
+            index_fixings=self.index_base,
+            index_date=self.leg1.schedule.effective,
+            index_lag=self.leg1.index_lag,
+            index_method=self.leg1.index_method,
+            index_curve=curve,
         )
         return index_val / index_base
 

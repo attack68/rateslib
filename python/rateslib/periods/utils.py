@@ -180,8 +180,8 @@ def _maybe_fx_converted(
     return value * fx_
 
 
-def _float_or_none(val: DualTypes | None) -> float | None:
-    if val is None:
+def _float_or_none(val: DualTypes | None | NoInput) -> float | None:
+    if val is None or isinstance(val, NoInput):
         return None
     else:
         return _dual_float(val)
