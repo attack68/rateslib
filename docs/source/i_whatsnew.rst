@@ -111,7 +111,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
    * - Bug
      - Scalars on the different ``metrics`` for a :class:`~rateslib.instruments.Value` are
        amended to better reflect the unit derivatives in *delta* and *gamma* calculations
-       (`808 <https://github.com/attack68/rateslib/pull/808>`_)
+       (`806 <https://github.com/attack68/rateslib/pull/806>`_)
 
 1.8.0 (22nd April 2025)
 ****************************
