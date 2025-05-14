@@ -2924,11 +2924,13 @@ class TestIndexFixedPeriod:
             fixed_rate=2.0,
             index_lag=3,
             index_fixings=RPI,
-            index_base=101.0,
+            index_base=RPI,
             frequency="S",
             payment=dt(2025, 5, 27),
         )
         result = period.cashflows()
+        assert result["Index Base"] == 389.9 + (388.6 - 389.9) * (27-1) / 30
+        assert result["Index Val"] == 394 + (395.3 - 394) * (27 - 1) / 31
 
 
 class TestIndexCashflow:

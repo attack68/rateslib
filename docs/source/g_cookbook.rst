@@ -41,6 +41,7 @@ into any one category.
     :titlesonly:
 
     z_bond_conventions.rst
+    z_index_bonds_and_fixings.ipynb
     z_stubs.rst
     z_fixings.rst
     z_historical_swap.ipynb
