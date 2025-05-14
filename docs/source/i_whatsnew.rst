@@ -50,6 +50,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
        *Instruments* and *Series* all to have different ``index_lag`` whilst ensuring correct
        calculations.
        (`807 <https://github.com/attack68/rateslib/pull/807>`_)
+   * - Legs
+     - :red:`Minor Breaking Change!` ``index_fixings`` can  no longer be set as a *list* on *Legs*.
+       Only a single value valid for the first period or a *Series* can be passed.
+       (`807 <https://github.com/attack68/rateslib/pull/807>`_)
    * - Instruments
      - Add bond calculation convention to support *'30U360'* accrued, and a new bond ``spec``
        *'us_corp'* and *'us_muni'* to support generic US corporate and municipal bonds.
