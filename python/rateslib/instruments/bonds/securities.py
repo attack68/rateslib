@@ -1601,6 +1601,9 @@ class IndexFixedRateBond(FixedRateBond):
     """
     Create an indexed fixed rate bond security.
 
+    For more information see the :ref:`Cookbook Article:<cookbook-doc>` *"Using Curves with an
+    Index and Inflation Instruments"*.
+
     Parameters
     ----------
     args : tuple
