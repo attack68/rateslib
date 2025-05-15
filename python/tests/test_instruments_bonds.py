@@ -51,14 +51,14 @@ class TestBondCalcMode:
             return 0.5
 
         my_calc = BondCalcMode(
-            settle_accrual_type=_my_acc,
-            ytm_accrual_type=_my_acc,
-            v1_type="compounding",
-            v2_type="regular",
-            v3_type="compounding",
-            c1_type="cashflow",
-            ci_type="cashflow",
-            cn_type="cashflow",
+            settle_accrual=_my_acc,
+            ytm_accrual=_my_acc,
+            v1="compounding",
+            v2="regular",
+            v3="compounding",
+            c1="cashflow",
+            ci="cashflow",
+            cn="cashflow",
         )
 
         bond = FixedRateBond(dt(2022, 1, 1), "2y", spec="de_gb", fixed_rate=2.0, calc_mode=my_calc)
@@ -82,14 +82,14 @@ class TestBondCalcMode:
             return 0.4
 
         my_calc = BondCalcMode(
-            settle_accrual_type="linear_days",
-            ytm_accrual_type=_my_acc,
-            v1_type="compounding_final_simple",
-            v2_type="regular",
-            v3_type="compounding",
-            c1_type="cashflow",
-            ci_type="cashflow",
-            cn_type="cashflow",
+            settle_accrual="linear_days",
+            ytm_accrual=_my_acc,
+            v1="compounding_final_simple",
+            v2="regular",
+            v3="compounding",
+            c1="cashflow",
+            ci="cashflow",
+            cn="cashflow",
         )
 
         bond = FixedRateBond(dt(2022, 1, 1), "2y", spec="de_gb", fixed_rate=2.0, calc_mode=my_calc)
@@ -109,14 +109,14 @@ class TestBondCalcMode:
             return 1 / (1 + 0.02)
 
         calc_mode = BondCalcMode(
-            settle_accrual_type=_my_acc,
-            ytm_accrual_type=_my_acc,
-            v1_type=_v,
-            v2_type=_v,
-            v3_type=_v,
-            c1_type="cashflow",
-            ci_type="cashflow",
-            cn_type="cashflow",
+            settle_accrual=_my_acc,
+            ytm_accrual=_my_acc,
+            v1=_v,
+            v2=_v,
+            v3=_v,
+            c1="cashflow",
+            ci="cashflow",
+            cn="cashflow",
         )
 
         bond = FixedRateBond(
@@ -949,14 +949,14 @@ class TestFixedRateBond:
             return v2 ** (r_u * f / 365)
 
         thai_cm = BondCalcMode(
-            settle_accrual_type="linear_days",
-            ytm_accrual_type="linear_days",
-            v1_type=_v1_thb_gb,
-            v2_type="regular",
-            v3_type=_v3_thb_gb,
-            c1_type="full_coupon",
-            ci_type="full_coupon",
-            cn_type="cashflow",
+            settle_accrual="linear_days",
+            ytm_accrual="linear_days",
+            v1=_v1_thb_gb,
+            v2="regular",
+            v3=_v3_thb_gb,
+            c1="full_coupon",
+            ci="full_coupon",
+            cn="cashflow",
         )
 
         b = FixedRateBond(
@@ -991,14 +991,14 @@ class TestFixedRateBond:
             return v2 ** (r_u * f / 365)
 
         thai_cm = BondCalcMode(
-            settle_accrual_type="linear_days",
-            ytm_accrual_type="linear_days",
-            v1_type=_v1_thb_gb,
-            v2_type="regular",
-            v3_type=_v3_thb_gb,
-            c1_type="cashflow",
-            ci_type="full_coupon",
-            cn_type="cashflow",
+            settle_accrual="linear_days",
+            ytm_accrual="linear_days",
+            v1=_v1_thb_gb,
+            v2="regular",
+            v3=_v3_thb_gb,
+            c1="cashflow",
+            ci="full_coupon",
+            cn="cashflow",
         )
 
         b = FixedRateBond(
@@ -1479,14 +1479,14 @@ class TestFixedRateBond:
 
     def test_custom_calc_mode(self):
         cm = BondCalcMode(
-            settle_accrual_type="linear_days",
-            ytm_accrual_type="linear_days",
-            v1_type="compounding",
-            v2_type="regular",
-            v3_type="compounding",
-            c1_type="cashflow",
-            ci_type="cashflow",
-            cn_type="cashflow",
+            settle_accrual="linear_days",
+            ytm_accrual="linear_days",
+            v1="compounding",
+            v2="regular",
+            v3="compounding",
+            c1="cashflow",
+            ci="cashflow",
+            cn="cashflow",
         )
         bond = FixedRateBond(
             effective=dt(2001, 1, 1),
@@ -1863,14 +1863,14 @@ class TestIndexFixedRateBond:
 
     def test_custom_calc_mode(self):
         cm = BondCalcMode(
-            settle_accrual_type="linear_days",
-            ytm_accrual_type="linear_days",
-            v1_type="compounding",
-            v2_type="regular",
-            v3_type="compounding",
-            c1_type="cashflow",
-            ci_type="cashflow",
-            cn_type="cashflow",
+            settle_accrual="linear_days",
+            ytm_accrual="linear_days",
+            v1="compounding",
+            v2="regular",
+            v3="compounding",
+            c1="cashflow",
+            ci="cashflow",
+            cn="cashflow",
         )
         bond = IndexFixedRateBond(
             effective=dt(2001, 1, 1),

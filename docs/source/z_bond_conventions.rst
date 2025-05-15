@@ -193,14 +193,14 @@ the official source.
 
    from rateslib.instruments import BondCalcMode
    thb_gb = BondCalcMode(
-       settle_accrual_type="linear_days",
-       ytm_accrual_type="linear_days",
-       v1_type=_v1_thb_gb,
-       v2_type="regular",
-       v3_type=_v3_thb_gb,
-       c1_type="full_coupon",
-       ci_type="full_coupon",
-       cn_type="cashflow",
+       settle_accrual="linear_days",
+       ytm_accrual="linear_days",
+       v1=_v1_thb_gb,
+       v2="regular",
+       v3=_v3_thb_gb,
+       c1="full_coupon",
+       ci="full_coupon",
+       cn="cashflow",
    )
    bond = FixedRateBond(
        effective=dt(1991, 1, 15),
