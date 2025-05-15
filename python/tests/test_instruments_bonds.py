@@ -45,6 +45,94 @@ def curve2():
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
+class TestBondCalcMode:
+    def test_custom_function(self):
+        def _my_acc(*args):
+            return 0.5
+
+        my_calc = BondCalcMode(
+            settle_accrual_type=_my_acc,
+            ytm_accrual_type=_my_acc,
+            v1_type="compounding",
+            v2_type="regular",
+            v3_type="compounding",
+            c1_type="cashflow",
+            ci_type="cashflow",
+            cn_type="cashflow",
+        )
+
+        bond = FixedRateBond(dt(2022, 1, 1), "2y", spec="de_gb", fixed_rate=2.0, calc_mode=my_calc)
+        de_bond = FixedRateBond(
+            dt(2022, 1, 1),
+            "2y",
+            spec="de_gb",
+            fixed_rate=2.0,
+        )
+
+        assert bond.accrued(dt(2022, 2, 4)) == 1.0  # 0.5 * 2.0
+        assert bond.accrued(dt(2022, 2, 4)) != de_bond.accrued(dt(2022, 2, 4))
+
+        assert bond.ytm(100.0, dt(2022, 2, 4)) != de_bond.ytm(100.0, dt(2022, 2, 4))
+
+        assert my_calc.kwargs["settle_accrual"] == "custom"
+        assert my_calc.kwargs["ytm_accrual"] == "custom"
+
+    def test_custom_function_affects_ytm(self):
+        def _my_acc(*args):
+            return 0.4
+
+        my_calc = BondCalcMode(
+            settle_accrual_type="linear_days",
+            ytm_accrual_type=_my_acc,
+            v1_type="compounding_final_simple",
+            v2_type="regular",
+            v3_type="compounding",
+            c1_type="cashflow",
+            ci_type="cashflow",
+            cn_type="cashflow",
+        )
+
+        bond = FixedRateBond(dt(2022, 1, 1), "2y", spec="de_gb", fixed_rate=2.0, calc_mode=my_calc)
+
+        v2 = 1 / (1 + 0.02)
+        v1 = v2 ** (1 - 0.4)
+        expected = 2 * v1 + 102 * v1 * v2 - 0.4 * 2
+        result = bond.price(ytm=2.00, settlement=dt(2022, 1, 1))
+
+        assert abs(result - expected) < 1e-10
+
+    def test_custom_ytm_disc_funcs(self):
+        def _my_acc(*args):
+            return 0.0
+
+        def _v(*args):
+            return 1 / (1 + 0.02)
+
+        calc_mode = BondCalcMode(
+            settle_accrual_type=_my_acc,
+            ytm_accrual_type=_my_acc,
+            v1_type=_v,
+            v2_type=_v,
+            v3_type=_v,
+            c1_type="cashflow",
+            ci_type="cashflow",
+            cn_type="cashflow",
+        )
+
+        bond = FixedRateBond(
+            effective=dt(2000, 1, 1),
+            termination="2y",
+            fixed_rate=2.00,
+            spec="de_gb",
+            calc_mode=calc_mode,
+        )
+
+        # custom funcs give the same clean price of 100 for any date
+        for date in [dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 11, 1), dt(2001, 6, 1)]:
+            result = bond.price(ytm=2.0, settlement=dt(2000, 1, 1))
+            assert abs(result - 100.0) < 1e-10
+
+
 class TestFixedRateBond:
     def test_metric_ytm_no_fx(self) -> None:
         # GH 193
@@ -344,6 +432,18 @@ class TestFixedRateBond:
         assert abs(accrued - acc) < 1e-6
         assert abs(result - exp) < 1e-5
 
+    def test_long_stub_first_cashflow(self):
+        # test against 31.B.ii.A356.Appendix.B.I.A Example Long First
+        note = FixedRateBond(
+            effective=dt(1990, 12, 3),
+            termination=dt(1996, 2, 15),
+            stub="longfront",
+            spec="us_gb",
+            fixed_rate=7.875,
+            notional=-7000,
+        )
+        assert abs(note.leg1.periods[0].cashflow - 386.474184670) < 5e-7
+
     # Swedish Government Bond Tests. Data from alternative systems.
 
     @pytest.mark.parametrize(
@@ -593,16 +693,12 @@ class TestFixedRateBond:
     @pytest.mark.parametrize(
         ("sett", "price", "exp_ytm", "exp_acc"),
         [
-            (dt(2024, 6, 14), 98.0, 4.73006, 0.526090),  # BBG BXT ticket data
-            (dt(2033, 3, 15), 99.65, 7.006149, 1.628730),  # BBG YAS Yield - Last coupon simple rate
-            (dt(2032, 11, 1), 99.00, 6.569126, 0.0),  # BBG YAS Yield - Annualised
-            # (dt(2032, 11, 2), 99.00, 6.464840, 0.01215),  # BBG YAS Yield-Last coupon simple rate
-            (dt(2033, 4, 29), 99.97, 9.623617, 2.175690),  # Test accrual upto adjusted payment date
+            (dt(2024, 6, 14), 98.0, 4.730058, 0.526090),
+            (dt(2026, 4, 14), 99.0, 4.617209, 1.993370),  # BBG BXT ticket data
         ],
     )
-    def test_it_gb(self, sett, price, exp_ytm, exp_acc) -> None:
-        # TODO: it is unclear how date modifications affect the pricing of BTPs require offical
-        # source docs.
+    def test_regular_it_gb(self, sett, price, exp_ytm, exp_acc) -> None:
+        # Values compared with BBG YA for "True Yield" and Accrued
         frb = FixedRateBond(  # ISIN IT0005518128
             effective=dt(2022, 11, 1),
             termination=dt(2033, 5, 1),
@@ -612,8 +708,82 @@ class TestFixedRateBond:
         result = frb.accrued(settlement=sett)
         assert abs(result - exp_acc) < 5e-6
 
+        result = frb.price(ytm=exp_ytm, settlement=sett)
         result = frb.ytm(price=price, settlement=sett)
-        assert abs(result - exp_ytm) < 3e-3
+        assert abs(result - exp_ytm) < 2e-4
+
+    @pytest.mark.parametrize(
+        ("sett", "ytm", "exp_price", "exp_acc"),
+        [
+            (dt(2032, 11, 1), 6.5, 98.96593464, 0.0),
+            (dt(2032, 11, 2), 6.5, 98.97099073, 0.01215),
+            (dt(2033, 3, 15), 6.5, 99.69805695, 1.628730),
+            (dt(2033, 4, 29), 6.5, 99.96938727, 2.175690),
+        ],
+    )
+    def test_regular_it_gb_final_simple_vs_excel(self, sett, ytm, exp_price, exp_acc) -> None:
+        # These values are not the same as for BBG YA.
+        # BBG YA can be replicated here if the number of days between payments
+        # in the last period 1/11/32 to 2/5/33 is 184 days and the pay_adj is 1/184 instead of
+        # 1/182. Problem is, the actual number of days between payments are 182.
+        frb = FixedRateBond(  # ISIN IT0005518128
+            effective=dt(2022, 11, 1),
+            termination=dt(2033, 5, 1),
+            fixed_rate=4.4,
+            spec="it_gb",
+        )
+
+        result = frb.accrued(settlement=sett)
+        assert abs(result - exp_acc) < 5e-6
+
+        result = frb.price(ytm=ytm, settlement=sett)
+        assert abs(result - exp_price) < 1e-6
+
+    @pytest.mark.parametrize(
+        ("sett", "ytm", "exp_price", "exp_acc"),
+        [
+            (dt(2032, 11, 1), 6.429702, 99.00, 0.0),  # BBG - Last coupon simple rate
+            (dt(2032, 11, 2), 6.439891, 99.00, 0.01215),  # BBG YAS Yield-Last coupon simple rate
+            (dt(2033, 3, 15), 6.862519, 99.65, 1.628730),  # BBG YAS Yield - Last coupon simple rate
+            (dt(2033, 4, 29), 6.450803, 99.97, 2.175690),  # Test accrual upto adjusted payment date
+        ],
+    )
+    def test_regular_it_gb_final_simple(self, sett, ytm, exp_price, exp_acc) -> None:
+        # Values compared with BBG YA for "True Yield" and Accrued
+        frb = FixedRateBond(  # ISIN IT0005518128
+            effective=dt(2022, 11, 1),
+            termination=dt(2033, 5, 1),
+            fixed_rate=4.4,
+            spec="it_gb",
+        )
+
+        result = frb.accrued(settlement=sett)
+        assert abs(result - exp_acc) < 5e-6
+
+        result = frb.price(ytm=ytm, settlement=sett)
+        assert abs(result - exp_price) < 3e-3
+
+    @pytest.mark.parametrize(
+        ("sett", "ytm", "exp_price", "exp_acc"),
+        [
+            (dt(2026, 12, 13), 6.5, 98.77226353, 0.0),
+            (dt(2027, 1, 11), 6.5, 98.95139167, 0.318681),
+        ],
+    )
+    def test_regular_it_gb_final_simple_vs_excel2(self, sett, ytm, exp_price, exp_acc) -> None:
+        # These values are not the same as for BBG YA, by small tolerance. See above > test1.
+        frb = FixedRateBond(  # ISIN IT0005547408
+            effective=dt(2023, 6, 13),
+            termination=dt(2027, 6, 13),
+            fixed_rate=4.00,
+            spec="it_gb",
+        )
+
+        result = frb.accrued(settlement=sett)
+        assert abs(result - exp_acc) < 5e-6
+
+        result = frb.price(ytm=ytm, settlement=sett)
+        assert abs(result - exp_price) < 1e-6
 
     ## Norwegian
 
@@ -697,6 +867,8 @@ class TestFixedRateBond:
     @pytest.mark.parametrize(
         ("settlement", "price", "exp_ytm", "exp_acc"),
         [
+            (dt(2018, 5, 30), 101.0, 3.728114, 0.32083333),
+            (dt(2018, 5, 31), 101.0, 3.728114, 0.32083333),
             (dt(2025, 5, 6), 101.0, 3.493237, 0.08555556),
             (dt(2028, 4, 3), 100.05, 3.077448, 1.65763889),
         ],
@@ -709,10 +881,147 @@ class TestFixedRateBond:
             fixed_rate=3.85,
             spec="us_corp",
         )
+        assert abs(b.leg1.periods[0].cashflow + 19036.1111) < 1e-4
         ytm = b.ytm(price, settlement)
         acc = b.accrued(settlement)
-        assert abs(ytm - exp_ytm) < 1e-6
         assert abs(acc - exp_acc) < 1e-8
+        assert abs(ytm - exp_ytm) < 1e-6
+
+    # US MUNI: Cali State
+
+    @pytest.mark.parametrize(
+        ("settlement", "price", "exp_ytm", "exp_acc"),
+        [
+            (dt(2025, 5, 12), 102.35, 2.879, 1.819444),
+            (dt(2025, 1, 31), 100.1, 4.923, 0.416667),
+            (dt(2026, 1, 1), 102.35, 0.293, 0.0),
+            (dt(2026, 5, 19), 100.10, 4.061, 1.916667),
+            (dt(2026, 6, 30), 100.10, -30.219, 2.486111),
+        ],
+    )
+    def test_cali_state_school(self, settlement, price, exp_ytm, exp_acc) -> None:
+        # LA Unif ISIN: US544647CW89, compared with BBG BXT.
+        b = FixedRateBond(
+            effective=dt(2020, 11, 10),
+            termination=dt(2026, 7, 1),
+            fixed_rate=5.0,
+            spec="us_muni",
+        )
+        ytm = b.ytm(price, settlement)
+        acc = b.accrued(settlement)
+        assert abs(ytm - exp_ytm) < 1e-3
+        assert abs(acc - exp_acc) < 1e-6
+
+    @pytest.mark.parametrize(
+        ("settlement", "price", "exp_ytm", "exp_acc"),
+        [
+            (dt(2025, 3, 31), 110.0, -3.441, 1.356800),
+            (dt(2025, 5, 12), 101.0, 3.662, 1.881600),
+            (dt(2025, 5, 30), 100.02, 4.586, 2.11200),
+            (dt(2025, 12, 15), 101.0, 2.582, 0.0),
+            (dt(2026, 3, 19), 101.0, 0.413, 1.203200),
+            (dt(2026, 6, 11), 100.02, 2.746, 2.2528),
+        ],
+    )
+    def test_new_jersey_transport(self, settlement, price, exp_ytm, exp_acc) -> None:
+        # NJ Transport ISIN: US64613CEZ77, compared with BBG BXT.
+        b = FixedRateBond(
+            effective=dt(2024, 10, 24),
+            termination=dt(2026, 6, 15),
+            fixed_rate=4.608,
+            spec="us_muni",
+        )
+        ytm = b.ytm(price, settlement)
+        acc = b.accrued(settlement)
+        assert abs(acc - exp_acc) < 1e-6
+        assert abs(ytm - exp_ytm) < 1e-3
+
+    # Customised Thai Government Bonds
+
+    def test_thai_example_a3(self):
+        # see file in _static/thai_standard_formula.pdf
+        def _v1_thb_gb(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx):
+            r_u = (obj.leg1.schedule.uschedule[acc_idx + 1] - settlement).days
+            return v2 ** (r_u * f / 365)
+
+        def _v3_thb_gb(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx):
+            r_u = (obj.leg1.schedule.uschedule[-1] - obj.leg1.schedule.uschedule[-2]).days
+            return v2 ** (r_u * f / 365)
+
+        thai_cm = BondCalcMode(
+            settle_accrual_type="linear_days",
+            ytm_accrual_type="linear_days",
+            v1_type=_v1_thb_gb,
+            v2_type="regular",
+            v3_type=_v3_thb_gb,
+            c1_type="full_coupon",
+            ci_type="full_coupon",
+            cn_type="cashflow",
+        )
+
+        b = FixedRateBond(
+            effective=dt(1993, 1, 15),
+            termination=dt(1996, 4, 30),
+            stub="shortback",
+            frequency="S",
+            fixed_rate=11.25,
+            convention="act365f",
+            modifier="none",
+            currency="thb",
+            calendar="bus",
+            calc_mode=thai_cm,
+        )
+
+        expected_acc = 4.86986301
+        expected_clean = 103.1099263
+        result_acc = b.accrued(settlement=dt(1994, 12, 20))
+        result_clean = b.price(ytm=8.75, settlement=dt(1994, 12, 20))
+
+        assert abs(result_acc - expected_acc) < 1e-8
+        assert abs(result_clean - expected_clean) < 1e-7
+
+    def test_thai_example_a3_exdiv(self):
+        # see file in _static/thai_standard_formula.pdf
+        def _v1_thb_gb(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx):
+            r_u = (obj.leg1.schedule.uschedule[acc_idx + 1] - settlement).days
+            return v2 ** (r_u * f / 365)
+
+        def _v3_thb_gb(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx):
+            r_u = (obj.leg1.schedule.uschedule[-1] - obj.leg1.schedule.uschedule[-2]).days
+            return v2 ** (r_u * f / 365)
+
+        thai_cm = BondCalcMode(
+            settle_accrual_type="linear_days",
+            ytm_accrual_type="linear_days",
+            v1_type=_v1_thb_gb,
+            v2_type="regular",
+            v3_type=_v3_thb_gb,
+            c1_type="cashflow",
+            ci_type="full_coupon",
+            cn_type="cashflow",
+        )
+
+        b = FixedRateBond(
+            effective=dt(1993, 1, 15),
+            termination=dt(1996, 4, 30),
+            stub="shortback",
+            frequency="S",
+            fixed_rate=11.25,
+            convention="act365f",
+            modifier="none",
+            currency="thb",
+            calendar="bus",
+            calc_mode=thai_cm,
+            ex_div=21,
+        )
+
+        result_acc = b.accrued(dt(1994, 12, 20))
+        expected_acc = -0.80136986
+        assert abs(result_acc - expected_acc) < 1e-8
+
+        result_clean = b.price(ytm=8.75, settlement=dt(1994, 12, 20))
+        expected_clean = 103.19036939
+        assert abs(result_clean - expected_clean) < 1e-8
 
     # General Method Coverage
 
@@ -1175,6 +1484,9 @@ class TestFixedRateBond:
             v1_type="compounding",
             v2_type="regular",
             v3_type="compounding",
+            c1_type="cashflow",
+            ci_type="cashflow",
+            cn_type="cashflow",
         )
         bond = FixedRateBond(
             effective=dt(2001, 1, 1),
@@ -1299,7 +1611,10 @@ class TestIndexFixedRateBond:
         ("i_fixings", "expected"),
         [
             (NoInput(0), 1.161227269),
-            (Series([90, 290], index=[dt(2022, 4, 1), dt(2022, 4, 29)]), 2.00),
+            (
+                Series([90.0, 290], index=[dt(2022, 1, 1), dt(2022, 2, 1)]),
+                (90 + 14 / 30 * 200) / 95,
+            ),
         ],
     )
     def test_index_ratio(self, i_fixings, expected) -> None:
@@ -1320,6 +1635,7 @@ class TestIndexFixedRateBond:
             index_base=95.0,
             index_fixings=i_fixings,
             index_method="daily",
+            index_lag=3,
         )
         result = bond.index_ratio(settlement=dt(2022, 4, 15), curve=i_curve)
         assert abs(result - expected) < 1e-5
@@ -1343,7 +1659,7 @@ class TestIndexFixedRateBond:
             index_fixings=[100.0, 200.0],
             index_method="daily",
         )
-        with pytest.raises(ValueError, match="Must provide `index_fixings` as a Seri"):
+        with pytest.raises(TypeError, match="`index_fixings` must be of type: Series, DualTy"):
             bond.index_ratio(settlement=dt(2022, 4, 15), curve=i_curve)
 
     def test_fixed_rate_bond_npv_private(self) -> None:
@@ -1369,9 +1685,10 @@ class TestIndexFixedRateBond:
             index_lag=3,
             index_method="daily",
         )
-        result = gilt._npv_local(index_curve, curve, dt(2010, 11, 27), dt(2010, 11, 25))
-        expected = 109.229489312983 * 2.0  # npv should match associated test
-        assert abs(result - expected) < 1e-6
+        with pytest.warns(UserWarning):
+            result = gilt._npv_local(index_curve, curve, dt(2010, 11, 27), dt(2010, 11, 25))
+            expected = 109.229489312983 * 2.0  # npv should match associated test
+            assert abs(result - expected) < 1e-6
 
     def test_index_base_forecast(self, curve) -> None:
         i_curve = Curve(
@@ -1414,12 +1731,14 @@ class TestIndexFixedRateBond:
             fixed_rate=8.0,
             settle=0,
             index_base=50.0,
+            index_lag=3,
         )
         curve = Curve({dt(1998, 12, 9): 1.0, dt(2015, 12, 7): 0.50})
         i_curve = Curve(
-            {dt(1998, 12, 9): 1.0, dt(2015, 12, 7): 1.0},
+            {dt(1998, 12, 1): 1.0, dt(2015, 12, 7): 1.0},
             index_base=100.0,
             interpolation="linear_index",
+            index_lag=3,
         )
         clean_price = gilt.rate([i_curve, curve], metric="clean_price")
         index_clean_price = gilt.rate([i_curve, curve], metric="index_clean_price")
@@ -1549,6 +1868,9 @@ class TestIndexFixedRateBond:
             v1_type="compounding",
             v2_type="regular",
             v3_type="compounding",
+            c1_type="cashflow",
+            ci_type="cashflow",
+            cn_type="cashflow",
         )
         bond = IndexFixedRateBond(
             effective=dt(2001, 1, 1),

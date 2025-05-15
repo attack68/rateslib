@@ -931,18 +931,19 @@ class Gradients:
 
 class Solver(Gradients, _WithState):
     """
-    A numerical solver to determine node values on multiple curves simultaneously.
+    A numerical solver to determine node values on multiple pricing objects simultaneously.
 
     Parameters
     ----------
     curves : sequence
-        Sequence of :class:`Curve` or :class:`FXDeltaVolSmile` objects where each *curve*
+        Sequence of :class:`Curve` or :class:`Smile` objects where each one
         has been individually configured for its node dates and interpolation structures,
-        and has a unique ``id``. Each *curve* will be dynamically updated by the Solver.
+        and has a unique ``id``. Each object will be dynamically updated/mutated by the Solver.
     surfaces : sequence
-        Sequence of :class:`FXDeltaVolSurface` objects where each *surface* has been configured
-        with a unique ``id``. Each *surface* will be dynamically updated. *Surfaces* are appended
-        to ``curves`` and just provide a distinct keyword for organisational distinction.
+        Sequence of :class:`Surface` objects where each *surface* has been configured
+        with a unique ``id``. Each *surface* will be dynamically updated/mutated.
+        Internally, *Surfaces* are appended to ``curves`` and provide nothing more than
+        organisational distinction.
     instruments : sequence
         Sequence of calibrating instrument specifications that will be used by
         the solver to determine the solved curves. See notes.
@@ -982,19 +983,42 @@ class Solver(Gradients, _WithState):
 
     Notes
     -----
-    Once initialised the ``Solver`` will numerically determine and set all of the
-    relevant node values on each *Curve* (or *Surface*) simultaneously by calling :meth:`iterate`.
+    Once initialized, the ``Solver`` will numerically determine and set, via mutation, all the
+    relevant node values on each *Curve*, *Smile*, or *Surface* simultaneously by
+    calling :meth:`iterate`. This mutation of those pricing objects will override any local AD
+    variables pre-configured by a user and use the *Solver's* own variable tags, for proper
+    *delta* and *gamma* management.
 
-    Each instrument provided to ``instruments`` must have its ``curves`` and ``metric``
-    preset at initialisation, and can then be used directly (as shown in some examples).
+    Each *Instrument* provided to ``instruments`` can have its pricing objects (i.e. ``curves``
+    and ``vol``) and ``metric`` preset at initialization, so that the
+    :meth:`~rateslib.instruments.Metrics.rate` method for each *Instrument* in scope is
+    well defined. As an example,
 
-    If the *Curves* and/or *metric* are not preset then the *Solver* ``instruments`` can be
+    .. code-block:: python
+
+       instruments=[
+           ...
+           FXCall([args], curves=[None, eur, None, usd], vol=smile, metric="vol"),
+           ...
+       ]
+
+    The ``fx`` argument used in the :meth:`~rateslib.instruments.Metrics.rate` call will
+    be passed directly to each *Instrument* from the *Solver's* ``fx`` argument, being
+    representative of a consistent *FXForwards* object for all *Instruments*.
+
+    If the pricing objects and/or *metric* are not preset then the *Solver* ``instruments`` can be
     given as a tuple where the second and third items are a tuple and dict representing positional
-    and keyword arguments passed to the *instrument's*
-    :meth:`~rateslib.instruments.FixedRateBond.rate`` method. Usually using the keyword arguments
+    and keyword arguments passed directly to the :meth:`~rateslib.instruments.Metrics.rate`
+    method. Usually using the keyword arguments, and using an empty positional arguments tuple,
     is more explicit. An example is:
 
-    - (FixedRateBond([args]), (), {"curves": bond_curve, "metric": "ytm"}),
+    .. code-block:: python
+
+       instruments=[
+           ...
+           (FixedRateBond([args]), (), {"curves": bond_curve, "metric": "ytm"}),
+           ...
+       ]
 
     Examples
     --------

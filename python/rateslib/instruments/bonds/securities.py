@@ -9,7 +9,7 @@ from pandas import DataFrame, Series
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
-from rateslib.curves import Curve, LineCurve, average_rate, index_left
+from rateslib.curves import Curve, LineCurve, average_rate, index_left, index_value
 from rateslib.curves._parsers import (
     _disc_required_maybe_from_curve,
     _validate_curve_is_not_dict,
@@ -38,11 +38,15 @@ from rateslib.instruments.utils import (
 from rateslib.legs import FixedLeg, FloatLeg, IndexFixedLeg
 from rateslib.periods import (
     FloatPeriod,
-    IndexMixin,
 )
 from rateslib.periods.utils import _maybe_local
 
 if TYPE_CHECKING:
+    from rateslib.instruments.bonds.conventions.accrued import AccrualFunction
+    from rateslib.instruments.bonds.conventions.discounting import (
+        CashflowFunction,
+        YtmDiscountFunction,
+    )
     from rateslib.typing import (
         FX_,
         NPV,
@@ -117,6 +121,7 @@ class BondMixin:
             curve_ = _validate_curve_not_no_input(_validate_curve_is_not_dict(curve))
             self.leg1.index_base = curve_.index_value(
                 self.leg1.schedule.effective,
+                self.leg1.index_lag,
                 self.leg1.index_method,
             )
 
@@ -165,9 +170,7 @@ class BondMixin:
         else:
             return settlement > ex_div_date
 
-    def _accrued(
-        self, settlement: datetime, func: Callable[[Any, datetime, int], DualTypes]
-    ) -> DualTypes:
+    def _accrued(self, settlement: datetime, func: AccrualFunction) -> DualTypes:
         """func is the specific accrued function associated with the bond ``calc_mode``"""
         acc_idx = self._period_index(settlement)
         frac = func(self, settlement, acc_idx)
@@ -247,7 +250,10 @@ class BondMixin:
                 f1=calc_mode_._v1,
                 f2=calc_mode_._v2,
                 f3=calc_mode_._v3,
-                accrual=calc_mode_._ytm_acc_frac_func,
+                c1=calc_mode_._c1,
+                ci=calc_mode_._ci,
+                cn=calc_mode_._cn,
+                accrual=calc_mode_._ytm_accrual,
                 curve=curve,
             )
         except KeyError:
@@ -258,10 +264,13 @@ class BondMixin:
         ytm: DualTypes,
         settlement: datetime,
         dirty: bool,
-        f1: Callable[..., DualTypes],
-        f2: Callable[..., DualTypes],
-        f3: Callable[..., DualTypes],
-        accrual: Callable[..., DualTypes],
+        f1: YtmDiscountFunction,
+        f2: YtmDiscountFunction,
+        f3: YtmDiscountFunction,
+        c1: CashflowFunction,
+        ci: CashflowFunction,
+        cn: CashflowFunction,
+        accrual: AccrualFunction,
         curve: CurveOption_,
     ) -> DualTypes:
         """
@@ -269,33 +278,50 @@ class BondMixin:
 
         Note: `curve` is only needed for FloatRate Periods on `_period_cashflow`
         """
-        f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
-        acc_idx = self._period_index(settlement)
+        f: int = 12 / defaults.frequency_months[self.leg1.schedule.frequency]  # type: ignore[assignment]
+        acc_idx: int = self._period_index(settlement)
+        _is_ex_div: bool = self.ex_div(settlement)
+        if settlement == self.leg1.schedule.uschedule[acc_idx + 1]:
+            # then settlement aligns with a cashflow: manually adjust to next period
+            _is_ex_div = False
+            acc_idx += 1
 
-        v2 = f2(self, ytm, f, settlement, acc_idx)
-        v1 = f1(self, ytm, f, settlement, acc_idx, v2, accrual)
-        v3 = f3(self, ytm, f, settlement, self.leg1.schedule.n_periods - 1, v2, accrual)
+        v2 = f2(self, ytm, f, settlement, acc_idx, None, accrual, -100000)
+        v1 = f1(self, ytm, f, settlement, acc_idx, v2, accrual, acc_idx)
+        v3 = f3(
+            self,
+            ytm,
+            f,
+            settlement,
+            self.leg1.schedule.n_periods - 1,
+            v2,
+            accrual,
+            self.leg1.schedule.n_periods - 1,
+        )
 
         # Sum up the coupon cashflows discounted by the calculated factors
         d: DualTypes = 0.0
-        for i, p_idx in enumerate(range(acc_idx, self.leg1.schedule.n_periods)):
-            if i == 0 and self.ex_div(settlement):
-                # no coupon cashflow is receiveable so no addition to the sum
+        n = self.leg1.schedule.n_periods
+        for i, p_idx in enumerate(range(acc_idx, n)):
+            if i == 0 and _is_ex_div:
+                # no coupon cashflow is received so no addition to the sum
                 continue
-            elif i == 0 and p_idx == (self.leg1.schedule.n_periods - 1):
-                # the last period is the first period so discounting handled only by v1
-                d += self._period_cashflow(self.leg1._regular_periods[p_idx], curve) * v1
+            elif i == 0:
+                # then this is the first period: c1 and v1 are used
+                cf1 = c1(self, ytm, f, acc_idx, p_idx, n, curve)
+                d += cf1 * v1
             elif p_idx == (self.leg1.schedule.n_periods - 1):
-                # this is last period, but it is not the first (i>0). Tag on v3 at end.
-                d += (
-                    self._period_cashflow(self.leg1._regular_periods[p_idx], curve)
-                    * v2 ** (i - 1)
-                    * v3
-                    * v1
-                )
+                # then this is last period, but it is not the first (i>0).
+                # cn and v3 are relevant, but v1 is also used, and if i > 1 then v2 is also used.
+                cfn = cn(self, ytm, f, acc_idx, p_idx, n, curve)
+                d += cfn * v2 ** (i - 1) * v3 * v1
             else:
-                # this is not the first and not the last period. Discount only with v1 and v2.
-                d += self._period_cashflow(self.leg1._regular_periods[p_idx], curve) * v2**i * v1
+                # this is not the first and not the last period.
+                # ci and v2i are relevant, but v1 is also required and v2 may also be used if i > 1.
+                # v2i allows for a per-period adjustment to the v2 discount factor, e.g. BTPs.
+                cfi = ci(self, ytm, f, acc_idx, p_idx, n, curve)
+                v2i = f2(self, ytm, f, settlement, acc_idx, v2, accrual, p_idx)
+                d += cfi * v2 ** (i - 1) * v2i * v1
 
         # Add the redemption payment discounted by relevant factors
         redemption: Cashflow | IndexCashflow = self.leg1._exchange_periods[1]  # type: ignore[assignment]
@@ -354,7 +380,7 @@ class BondMixin:
         convention_ = _drb(defaults.convention, convention)
         dcf_ = dcf(settlement, forward_settlement, convention_)
         if not dirty:
-            d_price = price + self._accrued(settlement, self.calc_mode._settle_acc_frac_func)
+            d_price = price + self._accrued(settlement, self.calc_mode._settle_accrual)
         else:
             d_price = price
         if self.leg1.amortization != 0:
@@ -401,9 +427,7 @@ class BondMixin:
         if dirty:
             return forward_price
         else:
-            return forward_price - self._accrued(
-                forward_settlement, self.calc_mode._settle_acc_frac_func
-            )
+            return forward_price - self._accrued(forward_settlement, self.calc_mode._settle_accrual)
 
     def repo_from_fwd(
         self,
@@ -445,10 +469,8 @@ class BondMixin:
         convention_ = _drb(defaults.convention, convention)
         # forward price from repo is linear in repo_rate so reverse calculate with AD
         if not dirty:
-            p_t = forward_price + self._accrued(
-                forward_settlement, self.calc_mode._settle_acc_frac_func
-            )
-            p_0 = price + self._accrued(settlement, self.calc_mode._settle_acc_frac_func)
+            p_t = forward_price + self._accrued(forward_settlement, self.calc_mode._settle_accrual)
+            p_0 = price + self._accrued(settlement, self.calc_mode._settle_accrual)
         else:
             p_t, p_0 = forward_price, price
 
@@ -972,7 +994,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         ex-dividend.
     settle : int
         The number of business days for regular settlement time, i.e, 1 is T+1.
-    calc_mode : str
+    calc_mode : str or BondCalcMode
         A calculation mode for dealing with bonds under different conventions. See notes.
     curves : CurveType, str or list of such, optional
         A single *Curve* or string id or a list of such.
@@ -997,158 +1019,12 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
 
     **Calculation Modes**
 
-    The ``calc_mode`` parameter allows the calculation for **yield-to-maturity** and **accrued interest**
-    to branch depending upon the particular convention of different bonds.
+    The ``calc_mode`` parameter allows the calculation for **yield-to-maturity** and
+    **accrued interest** to branch depending upon the particular convention of different bonds.
+    See the documentation for the :class:`~rateslib.instruments.BondCalcMode` class.
 
-    The following modes are currently available with a brief description of its particular
-    action:
-
-    - *"us_gb"*: US Treasury Bond Street convention  (deprecated alias *"ust"*)
-    - *"us_gb_tsy"*: US Treasury Bond Treasury convention. (deprecated alias *"ust_31bii"*)
-    - *"uk_gb"*: UK Gilt DMO method. (deprecated alias *"ukg"*)
-    - *"se_gb"*: Swedish Government Bond DMO convention. (deprecated alias *"sgb"*)
-    - *"ca_gb"*: Canadian Government Bond DMO convention. (deprecated alias *"cadgb"*)
-    - *"de_gb"*: German Government Bond (Bunds/Bobls) ICMA convention.
-    - *"fr_gb"*: French Government Bond (OAT) ICMA convention.
-    - *"it_gb"*: Italian Government Bond (BTP) ICMA convention.
-    - *"nl_gb"*: Dutch Government Bond ICMA convention.
-    - *"no_gb"*: Norwegian Government Bond DMO convention.
-
-    More details available in supplementary materials. The table below
-    outlines the *rateslib* price result relative to the calculation examples provided
-    from official sources.
-
-    .. ipython:: python
-       :suppress:
-
-       sgb = FixedRateBond(
-           effective=dt(2022, 3, 30), termination=dt(2039, 3, 30),
-           frequency="A", convention="ActActICMA", calc_mode="se_gb",
-           fixed_rate=3.5, calendar="stk"
-       )
-       s1c = sgb.price(ytm=2.261, settlement=dt(2023, 3, 15), dirty=False)
-       s1d = sgb.price(ytm=2.261, settlement=dt(2023, 3, 15), dirty=True)
-
-       uk1 = FixedRateBond(
-           effective=dt(1995, 1, 1), termination=dt(2015, 12, 7),
-           frequency="S", convention="ActActICMA", calc_mode="uk_gb",
-           fixed_rate=8.0, calendar="ldn", ex_div=7,
-       )
-       uk11c = uk1.price(ytm=4.445, settlement=dt(1999, 5, 24), dirty=False)
-       uk11d = uk1.price(ytm=4.445, settlement=dt(1999, 5, 24), dirty=True)
-       uk12c = uk1.price(ytm=4.445, settlement=dt(1999, 5, 26), dirty=False)
-       uk12d = uk1.price(ytm=4.445, settlement=dt(1999, 5, 26), dirty=True)
-       uk13c = uk1.price(ytm=4.445, settlement=dt(1999, 5, 27), dirty=False)
-       uk13d = uk1.price(ytm=4.445, settlement=dt(1999, 5, 27), dirty=True)
-       uk14c = uk1.price(ytm=4.445, settlement=dt(1999, 6, 7), dirty=False)
-       uk14d = uk1.price(ytm=4.445, settlement=dt(1999, 6, 7), dirty=True)
-
-       uk2 = FixedRateBond(
-           effective=dt(1998, 11, 26), termination=dt(2004, 11, 26),
-           frequency="S", convention="ActActICMA", calc_mode="uk_gb",
-           fixed_rate=6.75, calendar="ldn", ex_div=7,
-       )
-       uk21c = uk2.price(ytm=4.634, settlement=dt(1999, 5, 10), dirty=False)
-       uk21d = uk2.price(ytm=4.634, settlement=dt(1999, 5, 10), dirty=True)
-       uk22c = uk2.price(ytm=4.634, settlement=dt(1999, 5, 17), dirty=False)
-       uk22d = uk2.price(ytm=4.634, settlement=dt(1999, 5, 17), dirty=True)
-       uk23c = uk2.price(ytm=4.634, settlement=dt(1999, 5, 18), dirty=False)
-       uk23d = uk2.price(ytm=4.634, settlement=dt(1999, 5, 18), dirty=True)
-       uk24c = uk2.price(ytm=4.634, settlement=dt(1999, 5, 26), dirty=False)
-       uk24d = uk2.price(ytm=4.634, settlement=dt(1999, 5, 26), dirty=True)
-
-       usA = FixedRateBond(
-           effective=dt(1990, 5, 15), termination=dt(2020, 5, 15),
-           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
-           fixed_rate=8.75, calendar="nyc", ex_div=1, modifier="none",
-       )
-
-       usAc = usA.price(ytm=8.84, settlement=dt(1990, 5, 15), dirty=False)
-       usAd = usA.price(ytm=8.84, settlement=dt(1990, 5, 15), dirty=True)
-
-       usB = FixedRateBond(
-           effective=dt(1990, 4, 2), termination=dt(1992, 3, 31),
-           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
-           fixed_rate=8.5, calendar="nyc", ex_div=1, modifier="none",
-       )
-
-       usBc = usB.price(ytm=8.59, settlement=dt(1990, 4, 2), dirty=False)
-       usBd = usB.price(ytm=8.59, settlement=dt(1990, 4, 2), dirty=True)
-
-       usC = FixedRateBond(
-           effective=dt(1990, 3, 1), termination=dt(1995, 5, 15),
-           front_stub=dt(1990, 11, 15),
-           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
-           fixed_rate=8.5, calendar="nyc", ex_div=1, modifier="none",
-       )
-
-       usCc = usC.price(ytm=8.53, settlement=dt(1990, 3, 1), dirty=False)
-       usCd = usC.price(ytm=8.53, settlement=dt(1990, 3, 1), dirty=True)
-
-       usD = FixedRateBond(
-           effective=dt(1985, 11, 15), termination=dt(1995, 11, 15),
-           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
-           fixed_rate=9.5, calendar="nyc", ex_div=1, modifier="none",
-       )
-
-       usDc = usD.price(ytm=9.54, settlement=dt(1985, 11, 29), dirty=False)
-       usDd = usD.price(ytm=9.54, settlement=dt(1985, 11, 29), dirty=True)
-
-       usE = FixedRateBond(
-           effective=dt(1985, 7, 2), termination=dt(2005, 8, 15),
-           front_stub=dt(1986, 2, 15),
-           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
-           fixed_rate=10.75, calendar="nyc", ex_div=1, modifier="none",
-       )
-
-       usEc = usE.price(ytm=10.47, settlement=dt(1985, 11, 4), dirty=False)
-       usEd = usE.price(ytm=10.47, settlement=dt(1985, 11, 4), dirty=True)
-
-       usF = FixedRateBond(
-           effective=dt(1983, 5, 16), termination=dt(1991, 5, 15), roll=15,
-           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
-           fixed_rate=10.50, calendar="nyc", ex_div=1, modifier="none",
-       )
-
-       usFc = usF.price(ytm=10.53, settlement=dt(1983, 8, 15), dirty=False)
-       usFd = usF.price(ytm=10.53, settlement=dt(1983, 8, 15), dirty=True)
-
-       usG = FixedRateBond(
-           effective=dt(1988, 10, 15), termination=dt(1994, 12, 15),
-           front_stub=dt(1989, 6, 15),
-           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
-           fixed_rate=9.75, calendar="nyc", ex_div=1, modifier="none",
-       )
-
-       usGc = usG.price(ytm=9.79, settlement=dt(1988, 11, 15), dirty=False)
-       usGd = usG.price(ytm=9.79, settlement=dt(1988, 11, 15), dirty=True)
-
-       data = DataFrame(data=[
-               ["Riksgalden Website", "Nominal Bond", 116.514000, 119.868393, "se_gb", s1c, s1d],
-               ["UK DMO Website", "Ex 1, Scen 1", None, 145.012268, "uk_gb", uk11c, uk11d],
-               ["UK DMO Website", "Ex 1, Scen 2", None, 145.047301, "uk_gb", uk12c, uk12d],
-               ["UK DMO Website", "Ex 1, Scen 3", None, 141.070132, "uk_gb", uk13c, uk13d],
-               ["UK DMO Website", "Ex 1, Scen 4", None, 141.257676, "uk_gb", uk14c, uk14d],
-               ["UK DMO Website", "Ex 2, Scen 1", None, 113.315543, "uk_gb", uk21c, uk21d],
-               ["UK DMO Website", "Ex 2, Scen 2", None, 113.415969, "uk_gb", uk22c, uk22d],
-               ["UK DMO Website", "Ex 2, Scen 3", None, 110.058738, "uk_gb", uk23c, uk23d],
-               ["UK DMO Website", "Ex 2, Scen 4", None, 110.170218, "uk_gb", uk24c, uk24d],
-               ["Title-31 Subtitle-B II", "Ex A (reg)",99.057893, 99.057893, "us_gb_tsy", usAc, usAd],
-               ["Title-31 Subtitle-B II", "Ex B (stub)", 99.838183, 99.838183, "us_gb_tsy", usBc, usBd],
-               ["Title-31 Subtitle-B II", "Ex C (stub)", 99.805118, 99.805118, "us_gb_tsy", usCc, usCd],
-               ["Title-31 Subtitle-B II", "Ex D (reg)", 99.730918, 100.098321, "us_gb_tsy", usDc, usDd],
-               ["Title-31 Subtitle-B II", "Ex E (stub)", 102.214586, 105.887384, "us_gb_tsy", usEc, usEd],
-               ["Title-31 Subtitle-B II", "Ex F (stub)", 99.777074, 102.373541, "us_gb_tsy", usFc, usFd],
-               ["Title-31 Subtitle-B II", "Ex G (stub)", 99.738045, 100.563865, "us_gb_tsy", usGc, usGd],
-           ],
-           columns=["Source", "Example", "Expected clean", "Expected dirty", "Calc mode", "Rateslib clean", "Rateslib dirty"],
-       )
-
-    .. ipython:: python
-
-       from pandas import option_context
-       with option_context("display.float_format", lambda x: '%.6f' % x):
-           print(data)
+    Calculation modes that have been preconfigured, and are available, can be
+    found at :ref:`Securities Defaults <defaults-securities-input>`.
 
     Examples
     --------
@@ -1360,7 +1236,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
            \\text{Accrued} = \\text{Coupon} \\times \\frac{\\text{Settle - Last Coupon}}{\\text{Next Coupon - Last Coupon}}
 
         """  # noqa: E501
-        return self._accrued(settlement, self.calc_mode._settle_acc_frac_func)
+        return self._accrued(settlement, self.calc_mode._settle_accrual)
 
     def rate(
         self,
@@ -1725,6 +1601,9 @@ class IndexFixedRateBond(FixedRateBond):
     """
     Create an indexed fixed rate bond security.
 
+    For more information see the :ref:`Cookbook Article:<cookbook-doc>` *"Using Curves with an
+    Index and Inflation Instruments"*.
+
     Parameters
     ----------
     args : tuple
@@ -1872,27 +1751,20 @@ class IndexFixedRateBond(FixedRateBond):
         -------
         float, Dual, Dual2, Variable
         """
-        if not isinstance(self.leg1.index_fixings, NoInput) and not isinstance(
-            self.leg1.index_fixings,
-            Series,
-        ):
-            raise ValueError(
-                "Must provide `index_fixings` as a Series for inter-period settlement.",
-            )
         # TODO: this indexing of periods assumes no amortization
-        index_val: DualTypes = IndexMixin._index_value(  # type: ignore[assignment]
-            i_fixings=self.leg1.index_fixings,
-            i_curve=curve,
-            i_lag=self.leg1.index_lag,
-            i_method=self.leg1.index_method,
-            i_date=settlement,
+        index_val: DualTypes = index_value(  # type: ignore[assignment]
+            index_fixings=self.leg1.index_fixings,
+            index_curve=curve,
+            index_lag=self.leg1.index_lag,
+            index_method=self.leg1.index_method,
+            index_date=settlement,
         )
-        index_base: DualTypes = IndexMixin._index_value(  # type: ignore[assignment]
-            i_fixings=self.index_base,
-            i_date=self.leg1.schedule.effective,
-            i_lag=self.leg1.index_lag,
-            i_method=self.leg1.index_method,
-            i_curve=curve,
+        index_base: DualTypes = index_value(  # type: ignore[assignment]
+            index_fixings=self.index_base,
+            index_date=self.leg1.schedule.effective,
+            index_lag=self.leg1.index_lag,
+            index_method=self.leg1.index_method,
+            index_curve=curve,
         )
         return index_val / index_base
 
@@ -2270,7 +2142,7 @@ class Bill(FixedRateBond):
         -------
         float, Dual, or Dual2
         """
-        acc_frac = self.calc_mode._settle_acc_frac_func(self, settlement, 0)
+        acc_frac = self.calc_mode._settle_accrual(self, settlement, 0)
         dcf = (1 - acc_frac) * self.dcf
         return ((100 / price - 1) / dcf) * 100
 
@@ -2289,7 +2161,7 @@ class Bill(FixedRateBond):
         -------
         float, Dual, or Dual2
         """
-        acc_frac = self.calc_mode._settle_acc_frac_func(self, settlement, 0)
+        acc_frac = self.calc_mode._settle_accrual(self, settlement, 0)
         dcf = (1 - acc_frac) * self.dcf
         rate = ((1 - price / 100) / dcf) * 100
         return rate
@@ -2334,12 +2206,12 @@ class Bill(FixedRateBond):
         return price_func(rate, settlement)  # type: ignore[no-any-return]
 
     def _price_discount(self, rate: DualTypes, settlement: datetime) -> DualTypes:
-        acc_frac = self.calc_mode._settle_acc_frac_func(self, settlement, 0)
+        acc_frac = self.calc_mode._settle_accrual(self, settlement, 0)
         dcf = (1 - acc_frac) * self.dcf
         return 100 - rate * dcf
 
     def _price_simple(self, rate: DualTypes, settlement: datetime) -> DualTypes:
-        acc_frac = self.calc_mode._settle_acc_frac_func(self, settlement, 0)
+        acc_frac = self.calc_mode._settle_accrual(self, settlement, 0)
         dcf = (1 - acc_frac) * self.dcf
         return 100 / (1 + rate * dcf / 100)
 
@@ -2813,7 +2685,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         """  # noqa: E501
         if self.leg1.fixing_method == "ibor":
             acc_idx = self._period_index(settlement)
-            frac = self.calc_mode._settle_acc_frac_func(self, settlement, acc_idx)
+            frac = self.calc_mode._settle_accrual(self, settlement, acc_idx)
             if self.ex_div(settlement):
                 frac = frac - 1  # accrued is negative in ex-div period
 

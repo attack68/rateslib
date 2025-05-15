@@ -16,6 +16,17 @@ Get Started
 Installation
 ------------
 
+*Rateslib* can **only** be installed on a machine under the terms of its :ref:`licence <licence-doc>`
+
+.. raw:: html
+
+   <p>If you would like to install *rateslib* on a corporate machine without a licence extension,
+      for a trial period of time, please register your interest by sending an email
+      to
+      <span style="color:black; font-style: italic;font-weight: bold;">info@r<span class="spamoff">Stockholm Kungsgatan</span>ateslib.com</span>
+      , who will grant such a request.
+   </p>
+
 *Rateslib* can be installed directly from
 `PyPI <https://pypi.org/project/rateslib/#description>`_ using ``pip`` into your Python
 environment.
