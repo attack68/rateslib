@@ -272,6 +272,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
         """
         Return the pricing metric of the *FXOption*.
 
+        This priced according to the ``payment`` date of the *OptionPeriod*.
+
         Parameters
         ----------
         disc_curve: Curve
