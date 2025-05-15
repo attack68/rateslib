@@ -27,24 +27,24 @@ class BondCalcMode:
     
     Parameters
     ----------
-    settle_accrual_type: str or Callable
+    settle_accrual: str or Callable
         The calculation type for accrued interest for physical settlement. See notes.
-    ytm_accrual_type: str or Callable
+    ytm_accrual: str or Callable
         The calculation method for accrued interest used in the YTM formula. Often the same
         as above but not always (e.g. Canadian GBs). See notes.
-    v1_type: str or Callable
+    v1: str or Callable
         The calculation function that defines discounting of the first period of the YTM formula.
-    v2_type: str or Callable
+    v2: str or Callable
         The calculation function that defines discounting of the regular periods of the YTM formula.
-    v3_type: str or Callable
+    v3: str or Callable
         The calculation function that defines discounting of the last period of the YTM formula.
-    c1_type: str or Callable
+    c1: str or Callable
         The calculation function that determines the cashflow amount in the first period of the
         YTM formula.
-    ci_type: str or Callable
+    ci: str or Callable
         The calculation function that determines the cashflow amount in the interim periods of the
         YTM formula.
-    cn_type: str or Callable
+    cn: str or Callable
         The calculation function that determines the cashflow amount in the final period of the
         YTM formula.
 
@@ -95,7 +95,7 @@ class BondCalcMode:
 
     **Accrual Functions**
 
-    Accrual functions must be supplied to the ``settle_accrual_type`` and ``ytm_accrual_type``
+    Accrual functions must be supplied to the ``settle_accrual`` and ``ytm_accrual``
     arguments, and must output **accrual fractions**. The available values are:
 
     - ``linear_days``: A calendar day, linear proportion used in any period.
@@ -361,28 +361,19 @@ class BondCalcMode:
 
     def __init__(
         self,
-        settle_accrual_type: str | AccrualFunction,
-        ytm_accrual_type: str | AccrualFunction,
-        v1_type: str | YtmStubDiscountFunction,
-        v2_type: str | YtmDiscountFunction,
-        v3_type: str | YtmStubDiscountFunction,
-        c1_type: str | CashflowFunction,
-        ci_type: str | CashflowFunction,
-        cn_type: str | CashflowFunction,
+        settle_accrual: str | AccrualFunction,
+        ytm_accrual: str | AccrualFunction,
+        v1: str | YtmStubDiscountFunction,
+        v2: str | YtmDiscountFunction,
+        v3: str | YtmStubDiscountFunction,
+        c1: str | CashflowFunction,
+        ci: str | CashflowFunction,
+        cn: str | CashflowFunction,
     ):
         self._kwargs: dict[str, str] = {}
         for name, func, _map in zip(
             ["settle_accrual", "ytm_accrual", "v1", "v2", "v3", "c1", "ci", "cn"],
-            [
-                settle_accrual_type,
-                ytm_accrual_type,
-                v1_type,
-                v2_type,
-                v3_type,
-                c1_type,
-                ci_type,
-                cn_type,
-            ],
+            [settle_accrual, ytm_accrual, v1, v2, v3, c1, ci, cn],
             [
                 ACC_FRAC_FUNCS,
                 ACC_FRAC_FUNCS,
@@ -466,146 +457,146 @@ class BillCalcMode:
 
 UK_GB = BondCalcMode(
     # UK government bond conventions
-    settle_accrual_type="linear_days",
-    ytm_accrual_type="linear_days",
-    v1_type="compounding",
-    v2_type="regular",
-    v3_type="compounding",
-    c1_type="cashflow",
-    ci_type="cashflow",
-    cn_type="cashflow",
+    settle_accrual="linear_days",
+    ytm_accrual="linear_days",
+    v1="compounding",
+    v2="regular",
+    v3="compounding",
+    c1="cashflow",
+    ci="cashflow",
+    cn="cashflow",
 )
 
 US_GB = BondCalcMode(
     # US Treasury street convention
-    settle_accrual_type="linear_days_long_front_split",
-    ytm_accrual_type="linear_days_long_front_split",
-    v1_type="compounding",
-    v2_type="regular",
-    v3_type="compounding",
-    c1_type="cashflow",
-    ci_type="cashflow",
-    cn_type="cashflow",
+    settle_accrual="linear_days_long_front_split",
+    ytm_accrual="linear_days_long_front_split",
+    v1="compounding",
+    v2="regular",
+    v3="compounding",
+    c1="cashflow",
+    ci="cashflow",
+    cn="cashflow",
 )
 
 US_GB_TSY = BondCalcMode(
     # US Treasury treasury convention
-    settle_accrual_type="linear_days_long_front_split",
-    ytm_accrual_type="linear_days_long_front_split",
-    v1_type="simple_long_stub_compounding",
-    v2_type="regular",
-    v3_type="compounding",
-    c1_type="cashflow",
-    ci_type="cashflow",
-    cn_type="cashflow",
+    settle_accrual="linear_days_long_front_split",
+    ytm_accrual="linear_days_long_front_split",
+    v1="simple_long_stub_compounding",
+    v2="regular",
+    v3="compounding",
+    c1="cashflow",
+    ci="cashflow",
+    cn="cashflow",
 )
 
 US_CORP = BondCalcMode(
     # US Corporate bond street convention
-    settle_accrual_type="30u360_forward",
-    ytm_accrual_type="30u360_forward",
-    v1_type="compounding_final_simple",
-    v2_type="regular",
-    v3_type="compounding",
-    c1_type="cashflow",
-    ci_type="cashflow",
-    cn_type="cashflow",
+    settle_accrual="30u360_forward",
+    ytm_accrual="30u360_forward",
+    v1="compounding_final_simple",
+    v2="regular",
+    v3="compounding",
+    c1="cashflow",
+    ci="cashflow",
+    cn="cashflow",
 )
 
 US_MUNI = BondCalcMode(
     # US Corporate bond street convention
-    settle_accrual_type="30u360_forward",
-    ytm_accrual_type="30u360_forward",
-    v1_type="compounding_final_simple",
-    v2_type="regular",
-    v3_type="compounding",
-    c1_type="cashflow",
-    ci_type="cashflow",
-    cn_type="cashflow",
+    settle_accrual="30u360_forward",
+    ytm_accrual="30u360_forward",
+    v1="compounding_final_simple",
+    v2="regular",
+    v3="compounding",
+    c1="cashflow",
+    ci="cashflow",
+    cn="cashflow",
 )
 
 SE_GB = BondCalcMode(
     # Swedish government bonds
-    settle_accrual_type="30e360_backward",
-    ytm_accrual_type="30e360_backward",
-    v1_type="compounding_final_simple",
-    v2_type="regular",
-    v3_type="simple_30e360",
-    c1_type="cashflow",
-    ci_type="cashflow",
-    cn_type="cashflow",
+    settle_accrual="30e360_backward",
+    ytm_accrual="30e360_backward",
+    v1="compounding_final_simple",
+    v2="regular",
+    v3="simple_30e360",
+    c1="cashflow",
+    ci="cashflow",
+    cn="cashflow",
 )
 
 CA_GB = BondCalcMode(
     # Canadian government bonds
-    settle_accrual_type="act365f_1y",
-    ytm_accrual_type="linear_days",
-    v1_type="compounding",
-    v2_type="regular",
-    v3_type="simple_30e360",
-    c1_type="cashflow",
-    ci_type="cashflow",
-    cn_type="cashflow",
+    settle_accrual="act365f_1y",
+    ytm_accrual="linear_days",
+    v1="compounding",
+    v2="regular",
+    v3="simple_30e360",
+    c1="cashflow",
+    ci="cashflow",
+    cn="cashflow",
 )
 
 DE_GB = BondCalcMode(
     # German government bonds
-    settle_accrual_type="linear_days",
-    ytm_accrual_type="linear_days",
-    v1_type="compounding_final_simple",
-    v2_type="regular",
-    v3_type="compounding",
-    c1_type="cashflow",
-    ci_type="cashflow",
-    cn_type="cashflow",
+    settle_accrual="linear_days",
+    ytm_accrual="linear_days",
+    v1="compounding_final_simple",
+    v2="regular",
+    v3="compounding",
+    c1="cashflow",
+    ci="cashflow",
+    cn="cashflow",
 )
 
 FR_GB = BondCalcMode(
     # French OATs
-    settle_accrual_type="linear_days",
-    ytm_accrual_type="linear_days",
-    v1_type="compounding",
-    v2_type="regular",
-    v3_type="compounding",
-    c1_type="cashflow",
-    ci_type="cashflow",
-    cn_type="cashflow",
+    settle_accrual="linear_days",
+    ytm_accrual="linear_days",
+    v1="compounding",
+    v2="regular",
+    v3="compounding",
+    c1="cashflow",
+    ci="cashflow",
+    cn="cashflow",
 )
 
 IT_GB = BondCalcMode(
     # Italian GBs
-    settle_accrual_type="linear_days",
-    ytm_accrual_type="linear_days",
-    v1_type="compounding_final_simple_pay_adjust",
-    v2_type="annual_pay_adjust",
-    v3_type="compounding_pay_adjust",
-    c1_type="cashflow",
-    ci_type="cashflow",
-    cn_type="cashflow",
+    settle_accrual="linear_days",
+    ytm_accrual="linear_days",
+    v1="compounding_final_simple_pay_adjust",
+    v2="annual_pay_adjust",
+    v3="compounding_pay_adjust",
+    c1="cashflow",
+    ci="cashflow",
+    cn="cashflow",
 )
 
 NO_GB = BondCalcMode(
     # Norwegian GBs
-    settle_accrual_type="act365f_1y",
-    ytm_accrual_type="act365f_1y",
-    v1_type="compounding_stub_act365f",
-    v2_type="regular",
-    v3_type="compounding",
-    c1_type="cashflow",
-    ci_type="cashflow",
-    cn_type="cashflow",
+    settle_accrual="act365f_1y",
+    ytm_accrual="act365f_1y",
+    v1="compounding_stub_act365f",
+    v2="regular",
+    v3="compounding",
+    c1="cashflow",
+    ci="cashflow",
+    cn="cashflow",
 )
 
 NL_GB = BondCalcMode(
     # Dutch GBs
-    settle_accrual_type="linear_days_long_front_split",
-    ytm_accrual_type="linear_days_long_front_split",
-    v1_type="compounding_final_simple",
-    v2_type="regular",
-    v3_type="compounding",
-    c1_type="cashflow",
-    ci_type="cashflow",
-    cn_type="cashflow",
+    settle_accrual="linear_days_long_front_split",
+    ytm_accrual="linear_days_long_front_split",
+    v1="compounding_final_simple",
+    v2="regular",
+    v3="compounding",
+    c1="cashflow",
+    ci="cashflow",
+    cn="cashflow",
 )
 
 UK_GBB = BillCalcMode(
