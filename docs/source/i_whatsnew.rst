@@ -132,6 +132,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
      - Scalars on the different ``metrics`` for a :class:`~rateslib.instruments.Value` are
        amended to better reflect the unit derivatives in *delta* and *gamma* calculations
        (`806 <https://github.com/attack68/rateslib/pull/806>`_)
+   * - Bug
+     - Add discount factor scaling to separate the difference of *'spot'* versus *'forward'*
+       **sticky delta** calculation in *FXOption* greeks.
+       (`792 <https://github.com/attack68/rateslib/pull/792>`_)
 
 1.8.0 (22nd April 2025)
 ****************************
@@ -161,6 +165,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
        dict instead of being directly accessible on the object. This may affect existing code that relies on these
        attributes.
        (`700 <https://github.com/attack68/rateslib/pull/700>`_)
+   * - Instruments
+     - Add **sticky delta** calculation output to
+       :meth:`FXOption.analytic_greeks <rateslib.instruments.FXOption.analytic_greeks>`
+       (`749 <https://github.com/attack68/rateslib/pull/749>`_)
    * - FX Volatility
      - An :class:`~rateslib.fx_volatility.FXSabrSmile` is implemented in *beta* status.
        (`714 <https://github.com/attack68/rateslib/pull/714>`_)
