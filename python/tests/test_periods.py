@@ -4310,7 +4310,8 @@ class TestFXOption:
         assert result[defaults.headers["currency"]] == "USD"
         assert result[defaults.headers["type"]] == "FXCallPeriod"
 
-    def test_sticky_delta_delta_vol_smile_against_ad(self, fxfo) -> None:
+    @pytest.mark.parametrize("delta_type", ["spot", "forward"])
+    def test_sticky_delta_delta_vol_smile_against_ad(self, fxfo, delta_type) -> None:
         fxo = FXCallPeriod(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -4318,7 +4319,7 @@ class TestFXOption:
             payment=dt(2023, 6, 20),
             strike=1.101,
             notional=20e6,
-            delta_type="spot",
+            delta_type=delta_type,
         )
         vol_ = FXDeltaVolSmile(
             nodes={
@@ -4337,14 +4338,24 @@ class TestFXOption:
             base="usd",
             vol=vol_,
         )
-        # this is the actual derivative of vol with respect to spot via AD
-        expected = gradient(gks["__vol"], ["fx_eurusd"])[0]
-        # this is the reverse engineered part of the sticky delta
-        result = (
-            (gks["delta_sticky"] - gks["delta"])
-            * fxfo.curve("usd", "usd")[fxo.delivery]
-            / gks["vega"]
-        )
+
+        v_deli = fxfo.curve("usd", "usd")[fxo.delivery]
+        v_spot = fxfo.curve("usd", "usd")[dt(2023, 3, 20)]
+
+        # this is the actual derivative of vol with respect to either spot or forward via AD
+        if "spot" in delta_type:
+            z_v_0 = v_deli / v_spot
+            expected = gradient(gks["__vol"], ["fx_eurusd"])[0]
+        else:
+            z_v_0 = 1.0
+            w_deli = fxfo.curve("eur", "usd")[fxo.delivery]
+            w_spot = fxfo.curve("eur", "usd")[dt(2023, 3, 20)]
+            expected = (
+                gradient(gks["__vol"], ["fx_eurusd"])[0] * v_deli * w_spot / (v_spot * w_deli)
+            )
+
+        # this is the reverse engineered part of the sticky delta formula to get dsigma_dfspot
+        result = (gks["delta_sticky"] - gks["delta"]) * v_deli / (z_v_0 * gks["vega"])
         # delta is
         assert abs(result - expected) < 1e-3
 
@@ -4359,7 +4370,7 @@ class TestFXOption:
                     id="smile",
                     pair="eurusd",
                 ),
-                0.700643,
+                0.700594,
             ),
             (
                 FXSabrSurface(
@@ -4369,7 +4380,7 @@ class TestFXOption:
                     id="smile",
                     pair="eurusd",
                 ),
-                0.701242,
+                0.701191,
             ),
             (
                 FXDeltaVolSmile(
@@ -4379,7 +4390,7 @@ class TestFXOption:
                     delta_type="forward",
                     id="smile",
                 ),
-                0.704153,
+                0.704091,
             ),
         ],
     )
@@ -4438,3 +4449,40 @@ class TestFXOption:
 
         result = fxc.analytic_greeks(solver=solver)["delta_sticky"]
         assert abs(result - expected) < 1e-6
+
+    def test_sticky_delta_direct_from_ad(self, fxfo) -> None:
+        # this test will use AD to directly measure dP_dfs and compare that with the
+        # analytical derivation of sticky delta.
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.101,
+            notional=20e6,
+            delta_type="spot",
+        )
+        vol_ = FXDeltaVolSmile(
+            nodes={
+                0.25: 8.9,
+                0.5: 8.7,
+                0.75: 10.15,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="spot",
+        )
+        gks = fxo.analytic_greeks(
+            disc_curve=fxfo.curve("eur", "usd"),
+            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            base="usd",
+            vol=vol_,
+        )
+
+        P = 20e6 * gks["__bs76"]
+        dP_dfs = gradient(P, ["fx_eurusd"])[0]
+        v_spot = fxfo.curve("usd", "usd")[dt(2023, 3, 20)]
+        result = dP_dfs / (20e6 * v_spot)
+        expected = gks["delta_sticky"]
+        assert abs(result - expected) < 1e-8

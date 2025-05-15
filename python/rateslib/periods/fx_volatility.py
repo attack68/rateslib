@@ -272,6 +272,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
         """
         Return the pricing metric of the *FXOption*.
 
+        This is priced according to the ``payment`` date of the *OptionPeriod*.
+
         Parameters
         ----------
         disc_curve: Curve
@@ -742,7 +744,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         else:
             dvol_df = 0.0
 
-        return delta + vega / v_deli * dvol_df
+        return delta + vega / v_deli * z_v_0 * dvol_df
 
     @staticmethod
     def _analytic_vanna(
