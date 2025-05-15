@@ -119,8 +119,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
        (`782 <https://github.com/attack68/rateslib/pull/782>`_)
        (`783 <https://github.com/attack68/rateslib/pull/783>`_)
    * - Refactor
-     - The argument names for :class:`~rateslib.instruments.BondCalcMode` are changed to
+     - :red:`Minor Breaking Change!` The argument names for
+       :class:`~rateslib.instruments.BondCalcMode` are changed to
        drop the superfluous *'_type'* suffix.
+       (`812 <https://github.com/attack68/rateslib/pull/812>`_)
    * - Bug
      - The SABR functions are modified to handle ``expiry`` for an interpolated
        :class:`~rateslib.fx_volatility.FXSabrSurface`. Previously, the specific expiry was used to
@@ -139,6 +141,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
      - Add discount factor scaling to separate the difference of *'spot'* versus *'forward'*
        **sticky delta** calculation in *FXOption* greeks.
        (`792 <https://github.com/attack68/rateslib/pull/792>`_)
+   * - Bug
+     - Add :class:`~rateslib.instruments.BondCalcMode` and
+       :class:`~rateslib.instruments.BillCalcMode` to global *rateslib* namespace.
+       (`812 <https://github.com/attack68/rateslib/pull/812>`_)
 
 1.8.0 (22nd April 2025)
 ****************************
