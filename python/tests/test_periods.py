@@ -4350,7 +4350,9 @@ class TestFXOption:
             z_v_0 = 1.0
             w_deli = fxfo.curve("eur", "usd")[fxo.delivery]
             w_spot = fxfo.curve("eur", "usd")[dt(2023, 3, 20)]
-            expected = gradient(gks["__vol"], ["fx_eurusd"])[0] * v_deli * w_spot / (v_spot * w_deli)
+            expected = (
+                gradient(gks["__vol"], ["fx_eurusd"])[0] * v_deli * w_spot / (v_spot * w_deli)
+            )
 
         # this is the reverse engineered part of the sticky delta formula to get dsigma_dfspot
         result = (gks["delta_sticky"] - gks["delta"]) * v_deli / (z_v_0 * gks["vega"])
