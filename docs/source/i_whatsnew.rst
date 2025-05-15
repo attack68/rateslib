@@ -12,8 +12,28 @@ and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
 email contact, see `rateslib <https://rateslib.com>`_.
 
-2.0.0 (No release date)
-****************************
+2.0.0 (Coming soon! End of May?)
+*********************************
+
+.. container:: twocol
+
+   .. container:: leftside40
+
+      .. image:: _static/thumb_coding_2_1.png
+         :alt: Coding Interest Rates: FX, Swaps and Bonds
+         :target: https://www.amazon.com/dp/0995455554
+         :width: 145
+         :align: center
+
+   .. container:: rightside60
+
+      The publication to the left, *"Coding Interest Rates: FX, Swaps and Bonds 2"*
+      documents the API architecture and mathematical algorithms for its objects
+      upto and including the version two release of *rateslib*.
+
+.. raw:: html
+
+   <div class="clear" style="text-align: center; padding: 1em 0em 1em;"></div>
 
 .. list-table::
    :widths: 25 75
@@ -766,6 +786,26 @@ New *FX Volatility Products* are set to **beta** status, probably until version 
 
 1.0.0 (1st Feb 2024)
 **********************
+
+.. container:: twocol
+
+   .. container:: leftside40
+
+      .. image:: _static/thumb_coding_3.png
+         :alt: Coding Interest Rates: FX, Swaps and Bonds
+         :target: https://www.amazon.com/dp/0995455554
+         :width: 145
+         :align: center
+
+   .. container:: rightside60
+
+      The publication to the left, *"Coding Interest Rates: FX, Swaps and Bonds"*
+      documents the API architecture and mathematical algorithms for its objects
+      upto and including the version one release of *rateslib*.
+
+.. raw:: html
+
+   <div class="clear" style="text-align: center; padding: 1em 0em 1em;"></div>
 
 .. list-table::
    :widths: 25 75
