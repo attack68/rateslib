@@ -12,8 +12,28 @@ and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
 email contact, see `rateslib <https://rateslib.com>`_.
 
-2.0.0 (No release date)
-****************************
+2.0.0 (Coming soon! End of May?)
+*********************************
+
+.. container:: twocol
+
+   .. container:: leftside40
+
+      .. image:: _static/thumb_coding_2_1.png
+         :alt: Coding Interest Rates: FX, Swaps and Bonds
+         :target: https://www.amazon.com/dp/0995455554
+         :width: 145
+         :align: center
+
+   .. container:: rightside60
+
+      The publication to the left, *"Coding Interest Rates: FX, Swaps and Bonds 2"*
+      documents the API architecture and mathematical algorithms for its objects
+      upto and including the version two release of *rateslib*.
+
+.. raw:: html
+
+   <div class="clear" style="text-align: center; padding: 1em 0em 1em;"></div>
 
 .. list-table::
    :widths: 25 75
@@ -28,16 +48,54 @@ email contact, see `rateslib <https://rateslib.com>`_.
    * - Calendars
      - Added a new day count convention *'30U360'* to :meth:`~rateslib.calendars.dcf`.
        (`780 <https://github.com/attack68/rateslib/pull/780>`_)
+   * - Curves
+     - :red:`Minor Breaking Change!` The
+       :meth:`Curve.index_value() <rateslib.curves.Curve.index_value>` method is changed to
+       accept an ``index_lag`` argument which allows the determination of an *index value*
+       for a specific date defined with a given *lag* and *interpolation* method. Also
+       amended the way :class:`~rateslib.periods.IndexPeriod` will handle the
+       determination of cashflows given different ``index_lag`` specifications.
+       (`802 <https://github.com/attack68/rateslib/pull/802>`_)
+       (`803 <https://github.com/attack68/rateslib/pull/803>`_)
+   * - Curves
+     - Add new method :meth:`~rateslib.curves.index_value` to determine an *index value* from a
+       variety of sources including known fixings and/or a *Curve* if data from both those sources
+       may need to be combined.
+       (`809 <https://github.com/attack68/rateslib/pull/809>`_)
+   * - Instruments
+     - :red:`Major Breaking Change!` The way ``index_fixings`` are treated when given as a *Series*
+       now enforces that the data is provided with an ``index_lag`` of **zero** months, i.e.
+       providing actual data. This is more convenient for handling *Instruments* with different
+       ``index_lag`` and creates less functional risk. Calculations now allow *Curves*,
+       *Instruments* and *Series* all to have different ``index_lag`` whilst ensuring correct
+       calculations.
+       (`807 <https://github.com/attack68/rateslib/pull/807>`_)
+   * - Legs
+     - :red:`Minor Breaking Change!` ``index_fixings`` can  no longer be set as a *list* on *Legs*.
+       Only a single value valid for the first period or a *Series* can be passed.
+       (`807 <https://github.com/attack68/rateslib/pull/807>`_)
    * - Instruments
      - Add bond calculation convention to support *'30U360'* accrued, and a new bond ``spec``
-       *'us_corp'* to support generic US corporate bonds.
+       *'us_corp'* and *'us_muni'* to support generic US corporate and municipal bonds.
        (`785 <https://github.com/attack68/rateslib/pull/785>`_)
        (`786 <https://github.com/attack68/rateslib/pull/786>`_)
+       (`797 <https://github.com/attack68/rateslib/pull/797>`_)
    * - Instruments
-     - Extend :class:`~rateslib.instruments.bonds.BondCalcMode` to support custom accrual and
-       discount functions for calculations.
+     - Extend :class:`~rateslib.instruments.BondCalcMode` to support custom accrual,
+       discount and cashflow functions for calculations. Italian BTP default, *'it_gb'*, is
+       altered to now support delayed payments in the YTM formula.
        (`788 <https://github.com/attack68/rateslib/pull/788>`_)
        (`791 <https://github.com/attack68/rateslib/pull/791>`_)
+       (`793 <https://github.com/attack68/rateslib/pull/793>`_)
+       (`795 <https://github.com/attack68/rateslib/pull/795>`_)
+       (`794 <https://github.com/attack68/rateslib/pull/794>`_)
+   * - Documentation
+     - The documentation page for the :class:`~rateslib.instruments.BondCalcMode` has been
+       re-written to included all of the current formulae and structuring of bond accrual and
+       yield-to-maturity calculations.
+       (`790 <https://github.com/attack68/rateslib/pull/790>`_)
+       (`789 <https://github.com/attack68/rateslib/pull/789>`_)
+       (`794 <https://github.com/attack68/rateslib/pull/794>`_)
    * - Automatic Differentiation
      - Operator overloads added to allow dual number exponents, i.e. :math:`z^p`, where *z*,
        *p* are dual number types. This facilitates AD for the SABR function as well as other
@@ -66,6 +124,14 @@ email contact, see `rateslib <https://rateslib.com>`_.
        evaluate the volatility on each *SabrSmile*. Now the relevant *Smile* expiry is used as the
        entry to the SABR function before interpolating for the given expiry.
        (`757 <https://github.com/attack68/rateslib/pull/757>`_)
+   * - Bug
+     - ``index_lag`` is now correctly passed to *Index* type *Period* construction during a
+       *Leg* initialization.
+       (`808 <https://github.com/attack68/rateslib/pull/808>`_)
+   * - Bug
+     - Scalars on the different ``metrics`` for a :class:`~rateslib.instruments.Value` are
+       amended to better reflect the unit derivatives in *delta* and *gamma* calculations
+       (`806 <https://github.com/attack68/rateslib/pull/806>`_)
 
 1.8.0 (22nd April 2025)
 ****************************
@@ -720,6 +786,26 @@ New *FX Volatility Products* are set to **beta** status, probably until version 
 
 1.0.0 (1st Feb 2024)
 **********************
+
+.. container:: twocol
+
+   .. container:: leftside40
+
+      .. image:: _static/thumb_coding_3.png
+         :alt: Coding Interest Rates: FX, Swaps and Bonds
+         :target: https://www.amazon.com/dp/0995455554
+         :width: 145
+         :align: center
+
+   .. container:: rightside60
+
+      The publication to the left, *"Coding Interest Rates: FX, Swaps and Bonds"*
+      documents the API architecture and mathematical algorithms for its objects
+      upto and including the version one release of *rateslib*.
+
+.. raw:: html
+
+   <div class="clear" style="text-align: center; padding: 1em 0em 1em;"></div>
 
 .. list-table::
    :widths: 25 75

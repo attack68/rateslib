@@ -15,8 +15,9 @@ Solver
 ***********
 
 The ``rateslib.solver`` module includes a :class:`~rateslib.solver.Solver` class
-which iteratively solves for the parameters of :ref:`Curve <curves-doc>` objects, to
-fit the given market data of calibrating :ref:`Instruments <instruments-toc-doc>`.
+which iteratively solves for the parameters of pricings objects (*Curves*, *Smiles*,
+and *Surfaces*), to fit the given market data of
+calibrating :ref:`Instruments <instruments-toc-doc>`.
 
 This module relies on the utility module :ref:`dual<dual-doc>` for gradient based
 optimization.
@@ -38,7 +39,7 @@ where :math:`\mathbf{S}` are the known calibrating instrument rates,
 :math:`\mathbf{r}` are the determined instrument rates based on the solved parameters,
 :math:`\mathbf{v}`, and :math:`\mathbf{W}` is a diagonal matrix of weights.
 
-Each curve type has the following parameters:
+Each *Curve* type has the following parameters:
 
 .. list-table:: Parameters and hyper parameters of Curves and Solver interaction.
    :widths: 15 15 35 35
@@ -48,6 +49,12 @@ Each curve type has the following parameters:
      - Type
      - Summary
      - Affected by ``Solver``
+   * - ``nodes`` values
+     - **Parameters**
+     - The explicit values associated with node dates.
+     - | **Yes.**
+       | For :class:`~rateslib.curves.Curve` all parameters except the initial node value of 1.0 are varied.
+       | For :class:`~rateslib.curves.LineCurve` all parameters including the initial node value are varied.
    * - ``interpolation``
      - Hyper parameter
      - Equation or mechanism to determine intermediate values not defined explicitly
@@ -66,24 +73,42 @@ Each curve type has the following parameters:
      - Hyper parameters
      - Method used to control spline curves on the left and right boundaries.
      - No
+
+Each *Smile* type has the following parameters:
+
+.. list-table:: Parameters and hyper parameters of *Smiles* and Solver interaction.
+   :widths: 15 15 35 35
+   :header-rows: 1
+
+   * - Parameter
+     - Type
+     - Summary
+     - Affected by ``Solver``
    * - ``nodes`` values
      - **Parameters**
-     - The explicit values associated with node dates.
+     - The explicit values associated with node delta indexes or SABR indexes.
      - | **Yes.**
-       | For :class:`~rateslib.curves.Curve` all parameters except the initial node value of 1.0 is varied.
-       | For :class:`~rateslib.curves.LineCurve` all parameters including the initial node value is varied.
+       | For :class:`~rateslib.fx_volatility.FXDeltaVolSmile` node values are varied.
+       | For :class:`~rateslib.fx_volatility.FXSabrSmile` the parameters *"alpha"*, *"rho"*
+       and *"nu"* are varied whilst *"beta"* is held constant.
+   * - ``delta_type``
+     - Hyper parameter
+     - Only relevant to *DeltaVolSmile*
+     - No
 
+*Surfaces* are containers for multiple *Smiles* and the above is applied.
 
-Calibrating Curves
-******************
+Calibrating Pricing Objects
+****************************
 
-Thus, in order to calibrate or solve curves the hyper parameters must already
-be defined, so that ``nodes``, ``interpolation``, ``t`` and ``endpoints`` must all
-be configured. These will not be changed by the :class:`~rateslib.solver.Solver`.
+Thus, in order to calibrate, or solve, pricing objects the hyper parameters must already
+be defined. This will be true once the objects are initialized and passed to the
+:class:`~rateslib.solver.Solver`.
 The ``nodes`` values (the parameters) should be initialised with sensible values
-from which the
-optimizer will start. However, it is usually quite robust and should be able to solve
-from a variety of initialised node values.
+from which the optimizer will start. However, it is usually quite robust and should
+be able to solve from a variety of initialised node values. But in the case of failure,
+this is often due to poorly chosen starting values and a successful solution may still
+be obtained with initial values set closer to target.
 
 We define a simple :class:`~rateslib.curves.Curve` using default hyper parameters
 and only a few ``nodes``.
@@ -234,7 +259,7 @@ a *"levenberg_marquardt"* algorithm.
 
 There is an option to use a *"gauss_newton*" algorithm which is faster if the
 initial guess is reasonable. This should be used where possible, but this is a more
-unstable algorithm so is not set as the default.
+unstable algorithm (initial guesses more likely to lead to failure) so is not set as the default.
 
 For other debugging procedures the *"gradient_descent"* method is available although
 this is not recommended due to computational inefficiency.
@@ -250,7 +275,9 @@ greater priority than others. In the above examples this was of no relevance sin
 in all previous cases the minimum solution of zero was fully attainable.
 
 The following pathological example, where the same instruments are
-provided multiple times with different rates, shows the effect.
+provided multiple times with different rates, shows the effect. In the first case the
+lower rates are targeted more heavily, and in the second case the higher rates are targeted
+for the same *Instrument*.
 
 .. ipython:: python
 

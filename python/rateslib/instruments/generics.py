@@ -78,6 +78,12 @@ class Value(Metrics):
        curve[dt(2023, 1, 1)]
     """
 
+    _rate_scalars = {
+        "curve_value": 100.0,
+        "index_value": 100.0,
+        "cc_zero_rate": 1.0,
+    }
+
     def __init__(
         self,
         effective: datetime,
@@ -89,6 +95,7 @@ class Value(Metrics):
         self.curves = curves
         self.convention = _drb(defaults.convention, convention)
         self.metric = metric.lower()
+        self._rate_scalar = self._rate_scalars.get(self.metric, 1.0)
 
     def rate(
         self,
@@ -119,6 +126,14 @@ class Value(Metrics):
         -------
         float, Dual, Dual2
 
+        Notes
+        ------
+        The ``metric`` *"index_value"* will use a *"daily*" style interpolation to derive the
+        value for the ``effective`` date. If the objective is to set a monthly inflation value
+        during a curve calibration then the suggestion would be to define the ``effective`` date
+        of the :class:`~rateslib.instruments.Value` as the 1st of a given month, in which case
+        both interpolation methods give the same result.
+
         """
         curves_, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -141,7 +156,7 @@ class Value(Metrics):
             ret: DualTypes = (dual_log(curve_0[self.effective]) / -dcf_) * 100
             return ret
         elif metric == "index_value":
-            ret = curve_0.index_value(self.effective)
+            ret = curve_0.index_value(self.effective, curve_0.index_lag, "daily")
             return ret
         raise ValueError("`metric`must be in {'curve_value', 'cc_zero_rate', 'index_value'}.")
 

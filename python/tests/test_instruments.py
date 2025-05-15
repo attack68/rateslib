@@ -1456,10 +1456,10 @@ class TestIIRS:
             effective=dt(2022, 2, 1),
             termination="9M",
             frequency="Q",
-            index_base=Series([90, 110], index=[dt(2022, 1, 31), dt(2022, 2, 2)]),
-            index_fixings=[110, 115],
+            index_base=Series([100.0], index=[dt(2021, 11, 1)]),
+            index_fixings=Series([110.0, 115], index=[dt(2022, 2, 1), dt(2022, 5, 1)]),
             index_lag=3,
-            index_method="daily",
+            index_method="monthly",
             fixed_rate=1.0,
         )
         result = iirs.cashflows([i_curve, curve, curve, curve])
@@ -1809,8 +1809,9 @@ class TestZCIS:
             curves=[curve, curve, i_curve, curve],
             leg2_index_lag=3,
         )
-        with pytest.raises(ValueError, match="Forecasting the `index_base`"):
-            zcis.rate()
+        with pytest.raises(ValueError, match="Forecasting the `index_base`"):  # noqa: SIM117
+            with pytest.warns(UserWarning):
+                zcis.rate()
 
 
 class TestValue:

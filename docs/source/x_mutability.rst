@@ -19,14 +19,15 @@ to allow the types of mutations users will typically want to perform.
 Mutable by update
 ******************
 
-There are four key objects with *update* methods, and defined as being *mutable by update*.
+There are the following key objects with *update* methods, and defined as being *mutable by update*.
 
 - :class:`~rateslib.curves.Curve`
 - :class:`~rateslib.curves.LineCurve`
 - :class:`~rateslib.fx_volatility.FXDeltaVolSmile`
+- :class:`~rateslib.fx_volatility.FXSabrSmile`
 - :class:`~rateslib.fx.FXRates`
 
-The first three of these are designed to be directly mutated by a :class:`~rateslib.solver.Solver`.
+The first four of these are designed to be directly mutated by a :class:`~rateslib.solver.Solver`.
 This means that the *Solver* will overwrite the objects' values with its own updates.
 The *Solver's* updates will also utilise AD and the variables associated with the *Solver*,
 meaning it will destroy any user input *variables* when it runs an *iteration*.
@@ -50,6 +51,7 @@ for *mutable by update* objects, or in the case of the latter are derived from a
 - :class:`~rateslib.curves.CompositeCurve`
 - :class:`~rateslib.curves.MultiCsaCurve`
 - :class:`~rateslib.fx_volatility.FXDeltaVolSurface`
+- :class:`~rateslib.fx_volatility.FXSabrSurface`
 - :class:`~rateslib.fx.FXForwards`
 - :class:`~rateslib.curves.ProxyCurve`
 

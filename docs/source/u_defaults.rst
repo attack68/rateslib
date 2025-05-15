@@ -197,6 +197,8 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
 
 
+.. _defaults-securities-input:
+
 **Securities**
 
 .. list-table::
@@ -210,7 +212,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      - FloatRateNote
      - BondFuture
    * - USD
-     - :ref:`us_gb <spec-us-gb>`, :ref:`us_gb_tsy <spec-us-gb>`, :ref:`us_corp <spec-us-corp>`
+     - :ref:`us_gb <spec-us-gb>`, :ref:`us_gb_tsy <spec-us-gb>`, :ref:`us_corp <spec-us-corp>`, :ref:`us_muni <spec-us-muni>`
      - :ref:`us_gbb <spec-usd-gbb>`
      -
      -
