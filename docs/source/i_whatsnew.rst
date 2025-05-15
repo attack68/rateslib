@@ -118,6 +118,9 @@ email contact, see `rateslib <https://rateslib.com>`_.
        (`781 <https://github.com/attack68/rateslib/pull/781>`_)
        (`782 <https://github.com/attack68/rateslib/pull/782>`_)
        (`783 <https://github.com/attack68/rateslib/pull/783>`_)
+   * - Refactor
+     - The argument names for :class:`~rateslib.instruments.BondCalcMode` are changed to
+       drop the superfluous *'_type'* suffix.
    * - Bug
      - The SABR functions are modified to handle ``expiry`` for an interpolated
        :class:`~rateslib.fx_volatility.FXSabrSurface`. Previously, the specific expiry was used to
