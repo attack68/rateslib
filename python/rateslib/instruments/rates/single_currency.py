@@ -776,8 +776,8 @@ class ZCS(BaseDerivative):
     ----------
     args : dict
         Required positional args to :class:`BaseDerivative`.
-    fixed_rate : float or None
-        The fixed rate applied to the :class:`~rateslib.legs.ZeroFixedLeg`. If `None`
+    fixed_rate : float, optional
+        The fixed rate applied to the :class:`~rateslib.legs.ZeroFixedLeg`. If not given
         will be set to mid-market when curves are provided.
     leg2_float_spread : float, optional
         The spread applied to the :class:`~rateslib.legs.FloatLeg`. Can be set to
@@ -799,6 +799,10 @@ class ZCS(BaseDerivative):
         A parameter that is used for the various ``fixing_method`` s. See notes.
     kwargs : dict
         Required keyword arguments to :class:`BaseDerivative`.
+
+    Notes
+    -----
+    For individual pricing formulae see the separate *Leg* type class definitions.
 
     Examples
     --------
