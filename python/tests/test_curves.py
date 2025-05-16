@@ -1329,7 +1329,6 @@ class TestIndexCurve:
 
 
 class TestCompositeCurve:
-
     def test_long_1day_rate_captured(self):
         c1 = Curve({dt(2000, 1, 1): 1.0, dt(2030, 1, 1): 0.8, dt(2030, 1, 2): 0.7999})
         c2 = Curve({dt(2000, 1, 1): 1.0, dt(2030, 1, 1): 0.7, dt(2030, 1, 2): 0.6999})
@@ -1337,7 +1336,7 @@ class TestCompositeCurve:
         r2 = c2.rate(dt(2030, 1, 1), dt(2030, 1, 2))
         cc = CompositeCurve([c1, c2])
         result = cc.rate(dt(2030, 1, 1), dt(2030, 1, 2))
-        assert abs(result - r1 -r2) < 1e-10
+        assert abs(result - r1 - r2) < 1e-10
 
     def test_curve_df_based(self) -> None:
         curve1 = Curve(
