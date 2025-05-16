@@ -2482,7 +2482,6 @@ class CompositeCurve(Curve):
         effective: datetime,
         termination: datetime | str | NoInput = NoInput(0),
         modifier: str | NoInput = NoInput(1),
-        approximate: bool = True,
     ) -> DualTypes | None:
         """
         Calculate the composited rate on the curve.
@@ -2499,10 +2498,6 @@ class CompositeCurve(Curve):
         modifier : str, optional
             The day rule if determining the termination from tenor. If `False` is
             determined from the `Curve` modifier.
-        approximate : bool, optional
-            When compositing :class:`Curve` s, calculating many
-            individual rates is expensive. This uses an approximation typically with
-            error less than 1/100th of basis point. Not used if ``multi_csa`` is True.
 
         Returns
         -------
@@ -2525,39 +2520,21 @@ class CompositeCurve(Curve):
             elif isinstance(termination, str):
                 termination = add_tenor(effective, termination, modifier_, self.calendar)
 
-            d = _DCF1d[self.convention.upper()]
+            # using determined and cached discount factors
+            df_start = self.__getitem__(effective)
+            df_end = self.__getitem__(termination)
+            d = dcf(
+                effective,
+                termination,
+                self.convention,
+                NoInput(0),
+                NoInput(0),
+                NoInput(0),
+                NoInput(0),
+                self.calendar,
+            )
+            _ = (df_start / df_end - 1) * 100 / d
 
-            if approximate:
-                # using determined and cached discount factors
-                df_start = self.__getitem__(effective)
-                df_end = self.__getitem__(termination)
-                d = dcf(
-                    effective,
-                    termination,
-                    self.convention,
-                    NoInput(0),
-                    NoInput(0),
-                    NoInput(0),
-                    NoInput(0),
-                    self.calendar,
-                )
-                _ = (df_start / df_end - 1) * 100 / d
-
-            else:
-                _, dcf_ = 1.0, 0.0
-                date_ = effective
-                while date_ < termination:
-                    term_ = self.calendar.lag(date_, 1, False)  # add 1 bus day
-                    __: DualTypes = 0.0
-                    d_ = (term_ - date_).days * d
-                    dcf_ += d_
-                    for curve in self.curves:
-                        # if curve.rate returns None allow to raise dynamic error
-                        __ += curve.rate(date_, term_)  # type: ignore[operator]
-
-                    _ *= 1 + d_ * __ / 100
-                    date_ = term_
-                _ = 100 * (_ - 1) / dcf_
         else:
             raise TypeError(
                 f"Base curve type is unrecognised: {self._base_type}",
