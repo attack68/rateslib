@@ -156,6 +156,13 @@ email contact, see `rateslib <https://rateslib.com>`_.
      - Add :class:`~rateslib.instruments.BondCalcMode` and
        :class:`~rateslib.instruments.BillCalcMode` to global *rateslib* namespace.
        (`812 <https://github.com/attack68/rateslib/pull/812>`_)
+   * - Bug
+     - For *Curve* rate calculations the *Curve* ``calendar`` is now correctly passed to
+       the :meth:`~rateslib.calendars.dcf` method for day count fraction determination.
+       For almost all conventions this has no effect, but for "bus252", used in
+       Brazil, for example, the right number of business days is essential to the
+       calculation.
+       (`817 <https://github.com/attack68/rateslib/pull/817>`_)
 
 1.8.0 (22nd April 2025)
 ****************************

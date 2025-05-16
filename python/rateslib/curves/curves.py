@@ -487,7 +487,8 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             raise ZeroDivisionError(f"effective: {effective}, termination: {termination}")
 
         df_ratio = self[effective] / self[termination]
-        n_, d_ = (df_ratio - 1), dcf(effective, termination, self.convention)
+        n_ = df_ratio - 1.0
+        d_ = dcf(effective, termination, self.convention, calendar=self.calendar)
         _: DualTypes = n_ / d_ * 100
 
         if not isinstance(float_spread, NoInput) and abs(float_spread) > 1e-9:

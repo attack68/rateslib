@@ -6,7 +6,7 @@ import pytest
 from matplotlib import pyplot as plt
 from pandas import Series
 from rateslib import default_context
-from rateslib.calendars import get_calendar
+from rateslib.calendars import Cal, dcf, get_calendar
 from rateslib.curves import (
     CompositeCurve,
     Curve,
@@ -1238,6 +1238,55 @@ class TestCurve:
         )
         with pytest.raises(ValueError, match="Cannot translate spline knots for given"):
             curve.translate(dt(2022, 12, 15))
+
+    def test_calendar_passed_to_rate_dcf(self):
+        # Holidays on which no overnight DI rate is published
+        reserve_holidays = [
+            "2025-01-01",
+            "2025-03-03",
+            "2025-03-04",
+            "2025-04-18",
+            "2025-04-21",
+            "2025-05-01",
+            "2025-06-19",
+            "2025-09-07",
+            "2025-10-12",
+            "2025-11-02",
+            "2025-11-15",
+            "2025-11-20",
+            "2025-12-25",
+            "2026-01-01",
+            "2026-02-16",
+            "2026-02-17",
+            "2026-04-03",
+            "2026-04-21",
+            "2026-05-01",
+            "2026-06-04",
+            "2026-09-07",
+            "2026-10-12",
+            "2026-11-02",
+            "2026-11-15",
+            "2026-11-20",
+            "2026-12-25",
+        ]
+        bra = Cal(holidays=[dt.strptime(h, "%Y-%m-%d") for h in reserve_holidays], week_mask=[5, 6])
+
+        curve = Curve(
+            nodes={
+                dt(2025, 5, 15): 1.0,
+                dt(2026, 1, 2): 0.919218,
+            },
+            convention="bus252",
+            calendar=bra,
+        )
+        d = dcf(dt(2025, 5, 15), dt(2026, 1, 2), "bus252", calendar=bra)
+        expected = (1 + 0.14) ** -d
+        assert abs(expected - curve[dt(2026, 1, 2)]) < 5e-7
+
+        # period rate
+        result = curve.rate(dt(2025, 5, 15), dt(2026, 1, 2))
+        expected = (1 / 0.919218 - 1) * 100 / d
+        assert abs(expected - result) < 5e-7
 
 
 class TestLineCurve:
