@@ -2424,7 +2424,6 @@ class CompositeCurve(Curve):
         self.modifier = curves[0].modifier
         self._base_type = curves[0]._base_type
         if self._base_type == "dfs":
-            self.modifier = curves[0].modifier
             self.convention = curves[0].convention
             self.index_lag = curves[0].index_lag
             self.index_base = curves[0].index_base
@@ -2529,14 +2528,20 @@ class CompositeCurve(Curve):
             d = _DCF1d[self.convention.upper()]
 
             if approximate:
-                # calculates the geometric mean overnight rates in periods and adds
-                _, n = 0.0, (termination - effective).days
-                for curve_ in self.curves:
-                    # if curve.rate returns None allow this to raise dynamic TypeError
-                    r = curve_.rate(effective, termination)
-                    _ += ((1 + r * n * d / 100) ** (1 / n) - 1) / d  # type: ignore[operator]
-
-                _ = ((1 + d * _) ** n - 1) * 100 / (d * n)
+                # using determined and cached discount factors
+                df_start = self.__getitem__(effective)
+                df_end = self.__getitem__(termination)
+                d = dcf(
+                    effective,
+                    termination,
+                    self.convention,
+                    NoInput(0),
+                    NoInput(0),
+                    NoInput(0),
+                    NoInput(0),
+                    self.calendar,
+                )
+                _ = (df_start / df_end - 1) * 100 / d
 
             else:
                 _, dcf_ = 1.0, 0.0
