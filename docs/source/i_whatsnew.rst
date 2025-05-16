@@ -118,6 +118,11 @@ email contact, see `rateslib <https://rateslib.com>`_.
        (`781 <https://github.com/attack68/rateslib/pull/781>`_)
        (`782 <https://github.com/attack68/rateslib/pull/782>`_)
        (`783 <https://github.com/attack68/rateslib/pull/783>`_)
+   * - Performance
+     - Modify the :meth:`CompositeCurve.rate() <rateslib.curves.CompositeCurve.rate>` method
+       to use cached discount factor when compositing *Curve* types and using *approximate*
+       rates. This particularly improves performance for dual type calculations.
+       (`816 <https://github.com/attack68/rateslib/pull/816>`_)
    * - Refactor
      - :red:`Minor Breaking Change!` The argument names for
        :class:`~rateslib.instruments.BondCalcMode` are changed to
