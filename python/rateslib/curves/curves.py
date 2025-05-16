@@ -2389,23 +2389,6 @@ class CompositeCurve(Curve):
        fig, ax, line = curve.plot("1D", comparators=[curve1, curve2], labels=["Composite", "C1", "C2"])
        plt.show()
 
-    The :meth:`~rateslib.curves.CompositeCurve.rate` method of a :class:`CompositeCurve`
-    composed of :class:`Curve` s
-    accepts an ``approximate`` argument. When *True* by default it used a geometric mean
-    approximation to determine composite period rates.
-    Below we demonstrate this is more than 1000x faster and within 1e-8 of the true
-    value.
-
-    .. ipython:: python
-
-       curve.rate(dt(2022, 6, 1), "1y")
-       %timeit curve.rate(dt(2022, 6, 1), "1y")
-
-    .. ipython:: python
-
-       curve.rate(dt(2022, 6, 1), "1y", approximate=False)
-       %timeit curve.rate(dt(2022, 6, 1), "1y", approximate=False)
-
     """  # noqa: E501
 
     collateral = None
