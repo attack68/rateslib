@@ -800,6 +800,10 @@ class ZCS(BaseDerivative):
     kwargs : dict
         Required keyword arguments to :class:`BaseDerivative`.
 
+    Notes
+    -----
+    For individual pricing formulae see the separate *Leg* type class definitions.
+
     Examples
     --------
     Construct a curve to price the example.
