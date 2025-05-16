@@ -58,6 +58,12 @@ email contact, see `rateslib <https://rateslib.com>`_.
        (`802 <https://github.com/attack68/rateslib/pull/802>`_)
        (`803 <https://github.com/attack68/rateslib/pull/803>`_)
    * - Curves
+     - :red:`Minor Breaking Change!` The ``approximate`` argument is removed from the
+       :meth:`CompositeCurve.rate() <rateslib.curves.CompositeCurve.rate>` method to create a
+       more consistent *Curve* definition between O/N rates and discount factors and which is
+       more performant.
+       (`816 <https://github.com/attack68/rateslib/pull/816>`_)
+   * - Curves
      - Add new method :meth:`~rateslib.curves.index_value` to determine an *index value* from a
        variety of sources including known fixings and/or a *Curve* if data from both those sources
        may need to be combined.
@@ -118,6 +124,11 @@ email contact, see `rateslib <https://rateslib.com>`_.
        (`781 <https://github.com/attack68/rateslib/pull/781>`_)
        (`782 <https://github.com/attack68/rateslib/pull/782>`_)
        (`783 <https://github.com/attack68/rateslib/pull/783>`_)
+   * - Performance
+     - Modify the :meth:`CompositeCurve.rate() <rateslib.curves.CompositeCurve.rate>` method
+       to use cached discount factors when compositing *Curve* types.
+       This particularly improves performance for dual type calculations.
+       (`816 <https://github.com/attack68/rateslib/pull/816>`_)
    * - Refactor
      - :red:`Minor Breaking Change!` The argument names for
        :class:`~rateslib.instruments.BondCalcMode` are changed to
