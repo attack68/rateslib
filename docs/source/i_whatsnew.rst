@@ -162,7 +162,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
        For almost all conventions this has no effect, but for "bus252", used in
        Brazil, for example, the right number of business days is essential to the
        calculation.
-       (`812 <https://github.com/attack68/rateslib/pull/812>`_)
+       (`817 <https://github.com/attack68/rateslib/pull/817>`_)
 
 1.8.0 (22nd April 2025)
 ****************************
