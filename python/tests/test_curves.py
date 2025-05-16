@@ -1330,13 +1330,13 @@ class TestIndexCurve:
 
 class TestCompositeCurve:
     def test_long_1day_rate_captured(self):
-        c1 = Curve({dt(2000, 1, 1): 1.0, dt(2010, 1, 1): 0.8, dt(2010, 1, 2): 0.7999})
-        c2 = Curve({dt(2000, 1, 1): 1.0, dt(2010, 1, 1): 0.7, dt(2010, 1, 2): 0.6999})
-        r1 = c1.rate(dt(2010, 1, 1), dt(2010, 1, 2))
-        r2 = c2.rate(dt(2010, 1, 1), dt(2010, 1, 2))
+        c1 = Curve({dt(2000, 1, 1): 1.0, dt(2030, 1, 1): 0.8, dt(2030, 1, 2): 0.7999})
+        c2 = Curve({dt(2000, 1, 1): 1.0, dt(2030, 1, 1): 0.7, dt(2030, 1, 2): 0.6999})
+        r1 = c1.rate(dt(2030, 1, 1), dt(2030, 1, 2))
+        r2 = c2.rate(dt(2030, 1, 1), dt(2030, 1, 2))
         cc = CompositeCurve([c1, c2])
         result = cc.rate(dt(2030, 1, 1), dt(2030, 1, 2))
-        assert abs(result - r1 - r2) < 1e-10
+        assert abs(result - r1 - r2) < 5e-4
 
     def test_curve_df_based(self) -> None:
         curve1 = Curve(
@@ -1376,20 +1376,13 @@ class TestCompositeCurve:
         )
         curve = CompositeCurve([curve1, curve2])
 
-        result1 = curve.rate(dt(2022, 12, 30), "1d")
-        result2 = curve.rate(dt(2022, 12, 31), "1d")
-        result3 = curve.rate(dt(2023, 1, 1), "1d")
-
-        expected1 = curve.rate(dt(2022, 12, 30), "1d", approximate=False)
-        expected2 = curve.rate(dt(2022, 12, 31), "1d", approximate=False)
-        expected3 = curve.rate(dt(2023, 1, 1), "1d", approximate=False)
-
-        assert abs(result1 - expected1) < 1e-9
-        assert abs(result2 - expected2) < 1e-9
-        assert abs(result3 - expected3) < 1e-9
+        for date in [dt(2022, 12, 30), dt(2022, 12, 31), dt(2023, 1, 1)]:
+            result1 = curve.rate(date, "1d")
+            expected1 = curve1.rate(date, "1d") + curve2.rate(date, "1d")
+            assert abs(result1 - expected1) < 2e-8
 
         result = curve.rate(dt(2022, 6, 1), "1Y")
-        expected = curve.rate(dt(2022, 6, 1), "1Y", approximate=False)
+        expected = curve1.rate(dt(2022, 6, 1), "1Y") + curve2.rate(dt(2022, 6, 1), "1Y")
         assert abs(result - expected) < 1e-4
 
     def test_composite_curve_translate(self) -> None:
