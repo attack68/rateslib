@@ -6,7 +6,7 @@ import pytest
 from matplotlib import pyplot as plt
 from pandas import Series
 from rateslib import default_context
-from rateslib.calendars import get_calendar, Cal, dcf
+from rateslib.calendars import Cal, dcf, get_calendar
 from rateslib.curves import (
     CompositeCurve,
     Curve,
@@ -1269,8 +1269,7 @@ class TestCurve:
             "2026-11-20",
             "2026-12-25",
         ]
-        bra = Cal(holidays=[dt.strptime(h, "%Y-%m-%d") for h in reserve_holidays],
-                               week_mask=[5, 6])
+        bra = Cal(holidays=[dt.strptime(h, "%Y-%m-%d") for h in reserve_holidays], week_mask=[5, 6])
 
         curve = Curve(
             nodes={
@@ -1281,12 +1280,12 @@ class TestCurve:
             calendar=bra,
         )
         d = dcf(dt(2025, 5, 15), dt(2026, 1, 2), "bus252", calendar=bra)
-        expected = (1 + 0.14)**-d
-        assert  abs(expected - curve[dt(2026, 1, 2)]) < 5e-7
+        expected = (1 + 0.14) ** -d
+        assert abs(expected - curve[dt(2026, 1, 2)]) < 5e-7
 
         # period rate
-        result = curve.rate( dt(2025, 5, 15), dt(2026, 1, 2))
-        expected = (1 / 0.919218 -1 ) * 100 / d
+        result = curve.rate(dt(2025, 5, 15), dt(2026, 1, 2))
+        expected = (1 / 0.919218 - 1) * 100 / d
         assert abs(expected - result) < 5e-7
 
 
