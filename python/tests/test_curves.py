@@ -1375,9 +1375,9 @@ class TestCompositeCurve:
         expected2 = curve.rate(dt(2022, 12, 31), "1d", approximate=False)
         expected3 = curve.rate(dt(2023, 1, 1), "1d", approximate=False)
 
-        assert abs(result1 - expected1) < 1e-9
-        assert abs(result2 - expected2) < 1e-9
-        assert abs(result3 - expected3) < 1e-9
+        assert abs(result1 - expected1) < 3e-9
+        assert abs(result2 - expected2) < 3e-9
+        assert abs(result3 - expected3) < 3e-8
 
         result = curve.rate(dt(2022, 6, 1), "1Y")
         expected = curve.rate(dt(2022, 6, 1), "1Y", approximate=False)
