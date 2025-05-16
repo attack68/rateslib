@@ -1378,7 +1378,7 @@ class TestCompositeCurve:
 
         for date in [dt(2022, 12, 30), dt(2022, 12, 31), dt(2023, 1, 1)]:
             result1 = curve.rate(date, "1d")
-            expected1 = curve1.rate(date, "1d") +  curve2.rate(date, "1d")
+            expected1 = curve1.rate(date, "1d") + curve2.rate(date, "1d")
             assert abs(result1 - expected1) < 2e-8
 
         result = curve.rate(dt(2022, 6, 1), "1Y")
