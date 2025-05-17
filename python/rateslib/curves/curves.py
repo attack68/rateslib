@@ -79,9 +79,8 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         The interpolation used in the non-spline section of the curve. That is the part
         of the curve between the first node in ``nodes`` and the first knot in ``t``.
         If a callable, this allows a user-defined interpolation scheme, and this must
-        have the signature ``method(date, nodes)``, where ``date`` is the datetime
-        whose DF will be returned and ``nodes`` is as above and is passed to the
-        callable.
+        have the signature ``method(date, curve)``, where ``date`` is the datetime
+        whose DF will be returned and ``curve`` is passed as ``self``.
     t : list[datetime], optional
         The knot locations for the B-spline log-cubic interpolation section of the
         curve. If *None* all interpolation will be done by the local method specified in
@@ -257,11 +256,20 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
     def __set_interpolation__(self, interpolation: str | InterpolationFunction | NoInput) -> None:
         if isinstance(interpolation, NoInput):
-            self.interpolation = INTERPOLATION[defaults.interpolation[type(self).__name__]]
+            self.interpolation = defaults.interpolation[type(self).__name__]
+            self._interpolation = INTERPOLATION[self.interpolation]
         elif isinstance(interpolation, str):
-            self.interpolation = INTERPOLATION[interpolation.lower()]
+            self.interpolation = interpolation.lower()
+            try:
+                self._interpolation = INTERPOLATION[self.interpolation]
+            except KeyError:
+                raise ValueError(
+                    f"Curve interpolation: '{self.interpolation}' not available.\n"
+                    f"Consult the documentation for available methods."
+                )
         else:
-            self.interpolation = interpolation
+            self.interpolation = "user_defined_callable"
+            self._interpolation = interpolation
 
     def __set_nodes__(self, nodes: dict[datetime, DualTypes]) -> None:
         self.nodes: dict[datetime, DualTypes] = nodes  # nodes.copy()
@@ -300,8 +308,11 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         if defaults.curve_caching and date in self._cache:
             return self._cache[date]
 
+        if date < self.node_dates[0]:
+            return 0.0
+
         if isinstance(self.t, NoInput) or date <= self.t[0]:
-            val = self.interpolation(date, self)
+            val = self._interpolation(date, self)
         else:
             date_posix = date.replace(tzinfo=UTC).timestamp()
             if date > self.t[-1]:
@@ -320,29 +331,6 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-    def _local_interp_(self, date: datetime) -> DualTypes:
-        date_posix: float = date.replace(tzinfo=UTC).timestamp()
-        if date_posix < self.node_dates_posix[0]:
-            return 0  # then date is in the past and DF is zero
-        l_index = index_left_f64(self.node_dates_posix, date_posix, None)
-        node_left_posix, node_right_posix = (
-            self.node_dates_posix[l_index],
-            self.node_dates_posix[l_index + 1],
-        )
-        node_left, node_right = self.node_dates[l_index], self.node_dates[l_index + 1]
-        return interpolate(
-            date_posix,
-            node_left_posix,
-            self.nodes[node_left],
-            node_right_posix,
-            self.nodes[node_right],
-            self.interpolation,  # type: ignore[arg-type]
-            self.node_dates_posix[0],
-        )
-
-    # def plot(self, *args, **kwargs):
-    #     return super().plot(*args, **kwargs)
 
     def rate(
         self,
@@ -1638,6 +1626,11 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         -------
         str
         """
+        if self.interpolation == "user_defined_callable":
+            raise NotImplementedError(
+                "Cannot serialize objects with user defined interpolation callables."
+            )
+
         if isinstance(self.t, NoInput):
             t = None
         else:

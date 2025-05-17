@@ -356,18 +356,17 @@ def test_curve_equality_spline_coeffs() -> None:
 
 def test_curve_interp_raises() -> None:
     interp = "BAD"
-    curve = Curve(
-        nodes={
-            dt(2022, 1, 1): 1.0,
-            dt(2022, 2, 1): 0.9,
-        },
-        id="curve",
-        interpolation=interp,
-    )
 
-    err = '`interpolation` must be in {"linear", "log_linear", "linear_index'
+    err = "Curve interpolation: 'bad' not ava"
     with pytest.raises(ValueError, match=err):
-        curve[dt(2022, 1, 15)]
+        curve = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 2, 1): 0.9,
+            },
+            id="curve",
+            interpolation=interp,
+        )
 
 
 def test_curve_sorted_nodes_raises() -> None:
@@ -380,13 +379,6 @@ def test_curve_sorted_nodes_raises() -> None:
             },
             id="curve",
         )
-
-
-def test_interp_raises() -> None:
-    interp = "linea"  # Wrongly spelled interpolation method
-    err = '`interpolation` must be in {"linear", "log_linear", "linear_index'
-    with pytest.raises(ValueError, match=err):
-        interpolate(1.5, 1, 5, 2, 10, interp)
 
 
 def test_curve_interp_case() -> None:
@@ -2314,8 +2306,8 @@ class TestStateAndCache:
             LineCurve(nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99}),
             Curve(
                 nodes={
-                    dt(2022, 1, 1): 1.0,
-                    dt(2023, 1, 1): 0.98,
+                    dt(2000, 1, 1): 1.0,
+                    dt(2002, 1, 1): 0.98,
                 },
                 index_base=200.0,
             ),
