@@ -14,7 +14,6 @@ from rateslib.curves import (
     MultiCsaCurve,
     index_left,
     index_value,
-    interpolate,
 )
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, gradient
