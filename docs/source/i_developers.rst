@@ -138,6 +138,8 @@ the package. The continuous integration (CI) checks on github perform 8 tasks:
 
   In order to generate inheritance diagrams you will need to **install graphviz**.
 
+.. _developer-plan:
+
 Development Plan
 ********************
 

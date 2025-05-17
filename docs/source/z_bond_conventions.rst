@@ -10,7 +10,7 @@
    import numpy as np
    from pandas import DataFrame, option_context
 
-Understanding and customising FixedRateBond conventions
+Understanding and Customising FixedRateBond Conventions
 ********************************************************
 
 There are hundreds of bond conventions in use across different sectors and geographies.

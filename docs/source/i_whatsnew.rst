@@ -6,8 +6,8 @@
 Release Notes
 **************
 
-The future development of *rateslib* is open to many avenues.
-Some possibilities are listed below. The author is very interested in any feedback
+The future development of *rateslib* is open to many avenues, see :ref:`the plan <developer-plan>`.
+The author is very interested in any feedback
 and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
 email contact, see `rateslib <https://rateslib.com>`_.
@@ -34,6 +34,15 @@ email contact, see `rateslib <https://rateslib.com>`_.
 .. raw:: html
 
    <div class="clear" style="text-align: center; padding: 1em 0em 1em;"></div>
+
+Some themes for this release involved:
+
+- extensive revisions to use *indexes*. The cookbook
+  article :ref:`'Using Curves with an Index and Inflation Instruments' <cookbook-doc>` outlines
+  best practice.
+- extensions to bond calculation modes to provide more flexibility. The cookbook article
+  :ref:`'Understanding and Customising FixedRateBond Conventions' <cookbook-doc>` outlines
+  best practice.
 
 .. list-table::
    :widths: 25 75
