@@ -183,7 +183,7 @@ def test_serialization(curve) -> None:
     expected = (
         '{"nodes": {"2022-03-01": 1.0, "2022-03-31": 0.99}, '
         '"interpolation": "linear", "t": null, "c": null, "id": "v", '
-        '"convention": "Act360", "endpoints": ["natural", "natural"], "modifier": "MF", '
+        '"convention": "act360", "endpoints": ["natural", "natural"], "modifier": "MF", '
         '"calendar": "{\\"NamedCal\\":{\\"name\\":\\"all\\"}}", "ad": 1, '
         '"index_base": null, "index_lag": 3}'
     )
@@ -1312,10 +1312,6 @@ class TestCurve:
         assert curve[dt(2000, 1, 5)] != curve2[dt(2000, 1, 5)]
         assert curve[dt(2000, 1, 10)] == curve2[dt(2000, 1, 10)]  #  half calendar and bus
         assert curve[dt(2000, 1, 13)] != curve2[dt(2000, 1, 13)]
-
-
-
-
 
 
 class TestLineCurve:

@@ -255,7 +255,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
     def __set_interpolation__(self, interpolation: str | InterpolationFunction | NoInput) -> None:
         if isinstance(interpolation, NoInput):
-            self.interpolation = defaults.interpolation[type(self).__name__]
+            interpolation = defaults.interpolation[type(self).__name__]
 
         if isinstance(interpolation, str):
             self.interpolation = interpolation.lower()
