@@ -77,6 +77,10 @@ The implied rates from the futures data are assumed to be 14%, 13.7% and 13.5%.
 Plotting
 ---------
 
+.. ipython:: python
+
+   curve.plot("1b")
+
 .. plot::
 
    from rateslib import *
@@ -119,3 +123,97 @@ Plotting
    plt.show()
    plt.close()
 
+This *Curve* demonstrate the traditional stepped interest rate structure. This is because the
+*'log_linear'* ``interpolation`` has been applied on a **business day basis** in accordance with
+the *'bus252'* ``convention`` and provided ``calendar``.
+
+As a demonstration of the difference in discount factors these can be plotted both for this
+`curve` and a conventional *Curve* with the same node values. Under a business day, and
+not calendar day, style the discount factors remain constant on a curve for a date which
+is **not** a business day.
+
+.. ipython:: python
+
+   conventional = Curve(
+       nodes={
+           dt(2025, 5, 15): 1.0,
+           dt(2025, 8, 1): curve[dt(2025, 8, 1)],
+           dt(2025, 11, 3): curve[dt(2025, 11, 3)],
+           dt(2026, 5, 1): curve[dt(2026, 5, 1)],
+       },
+       convention="act365f",
+       calendar=bra,
+       interpolation="log_linear"
+   )
+
+   fig, ax = plt.subplots(1, 1)
+   x, y1, y2 = [], [], []
+   for date in bra.cal_date_range(dt(2025, 5, 15), dt(2026, 6, 15)):
+       x.append(date)
+       y1.append(curve[date])
+       y2.append(conventional[date])
+
+   ax.plot(x, y1)
+   ax.plot(x, y2)
+
+.. plot::
+
+   from rateslib import *
+   import matplotlib.pyplot as plt
+
+   holidays = [
+       "2025-01-01", "2025-03-03", "2025-03-04", "2025-04-18", "2025-04-21", "2025-05-01",
+       "2025-06-19", "2025-09-07", "2025-10-12", "2025-11-02", "2025-11-15", "2025-11-20",
+       "2025-12-25", "2026-01-01", "2026-02-16", "2026-02-17", "2026-04-03", "2026-04-21",
+       "2026-05-01", "2026-06-04", "2026-09-07", "2026-10-12", "2026-11-02", "2026-11-15",
+       "2026-11-20", "2026-12-25",
+   ]
+   bra = Cal(holidays=[dt.strptime(_, "%Y-%m-%d") for _ in holidays], week_mask=[5, 6])
+
+   curve = Curve(
+       nodes={
+           dt(2025, 5, 15): 1.0,
+           dt(2025, 8, 1): 1.0,
+           dt(2025, 11, 3): 1.0,
+           dt(2026, 5, 1): 1.0,
+       },
+       convention="bus252",
+       calendar=bra,
+       interpolation="log_linear",
+       id="curve",
+   )
+
+   zcs_args = dict(frequency="A", calendar=bra, curves="curve", currency="brl", convention="bus252")
+   solver = Solver(
+       curves=[curve],
+       instruments=[
+           ZCS(dt(2025, 5, 15), dt(2025, 8, 1), **zcs_args),
+           ZCS(dt(2025, 5, 15), dt(2025, 11, 3), **zcs_args),
+           ZCS(dt(2025, 5, 15), dt(2026, 5, 1), **zcs_args),
+       ],
+       s=[14.0, 13.7, 13.5]
+   )
+
+   conventional = Curve(
+       nodes={
+           dt(2025, 5, 15): 1.0,
+           dt(2025, 8, 1): curve[dt(2025, 8, 1)],
+           dt(2025, 11, 3): curve[dt(2025, 11, 3)],
+           dt(2026, 5, 1): curve[dt(2026, 5, 1)],
+       },
+       convention="act365f",
+       calendar=bra,
+       interpolation="log_linear"
+   )
+
+   fig, ax = plt.subplots(1, 1)
+   x, y1, y2 = [], [], []
+   for date in bra.cal_date_range(dt(2025, 5, 15), dt(2025, 6, 15)):
+       x.append(date)
+       y1.append(curve[date])
+       y2.append(conventional[date])
+
+   ax.plot(x, y1)
+   ax.plot(x, y2)
+   plt.show()
+   plt.close()
