@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC
+from pytz import UTC
 from math import floor
 from typing import TYPE_CHECKING, Protocol
 
