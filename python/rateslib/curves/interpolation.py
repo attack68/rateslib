@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from pytz import UTC
 from math import floor
 from typing import TYPE_CHECKING, Protocol
+
+from pytz import UTC
 
 from rateslib.calendars import dcf
 from rateslib.dual import dual_exp, dual_log
