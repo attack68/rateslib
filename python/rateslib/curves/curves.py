@@ -1497,9 +1497,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     def update(
         self,
         nodes: dict[datetime, DualTypes] | NoInput = NoInput(0),
-        interpolation: str
-        | Callable[[datetime, dict[datetime, DualTypes]], DualTypes]
-        | NoInput = NoInput(0),
+        interpolation: str | InterpolationFunction | NoInput = NoInput(0),
         endpoints: str | tuple[str, str] | NoInput = NoInput(0),
     ) -> None:
         """
