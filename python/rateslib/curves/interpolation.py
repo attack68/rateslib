@@ -1,18 +1,104 @@
 from __future__ import annotations
 
 from math import floor
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
+
+from pytz import UTC
+
+from rateslib.calendars import dcf
+from rateslib.dual import dual_exp, dual_log
+from rateslib.rs import index_left_f64
 
 if TYPE_CHECKING:
     from rateslib.typing import Any, Curve, DualTypes, datetime
 
 
-def _generic_interpolation(
-    date: datetime,
-    nodes: dict[datetime, DualTypes],
-    curve: Curve,
-) -> DualTypes:
-    pass
+class InterpolationFunction(Protocol):
+    # Callable type for Interpolation Functions
+    def __call__(self, date: datetime, curve: Curve, *args: Any) -> DualTypes: ...
+
+
+def _linear(date: datetime, curve: Curve) -> DualTypes:
+    x, x_1, x_2, i = _get_posix(date, curve)
+    node_values = list(curve.nodes.values())
+    y_1, y_2 = node_values[i], node_values[i + 1]
+    return y_1 + (y_2 - y_1) * (x - x_1) / (x_2 - x_1)
+
+
+def _log_linear(date: datetime, curve: Curve) -> DualTypes:
+    x, x_1, x_2, i = _get_posix(date, curve)
+    node_values = list(curve.nodes.values())
+    y_1, y_2 = dual_log(node_values[i]), dual_log(node_values[i + 1])
+    return dual_exp(y_1 + (y_2 - y_1) * (x - x_1) / (x_2 - x_1))
+
+
+def _flat_forward(date: datetime, curve: Curve) -> DualTypes:
+    x, x_1, x_2, i = _get_posix(date, curve)
+    node_values = list(curve.nodes.values())
+    y_1, y_2 = node_values[i], node_values[i + 1]
+    if x >= x_2:
+        return y_2
+    return y_1
+
+
+def _flat_backward(date: datetime, curve: Curve) -> DualTypes:
+    x, x_1, x_2, i = _get_posix(date, curve)
+    node_values = list(curve.nodes.values())
+    y_1, y_2 = node_values[i], node_values[i + 1]
+    if x <= x_1:
+        return y_1
+    return y_2
+
+
+def _linear_zero_rate(date: datetime, curve: Curve) -> DualTypes:
+    # base time on DCF, which depends on the curve convention.
+    i = index_left(curve.node_dates, len(curve.node_dates), date)
+    nvs = list(curve.nodes.values())
+    nds = curve.node_dates
+
+    d_2 = dcf(nds[0], nds[i + 1], curve.convention, calendar=curve.calendar)
+    r_2 = -dual_log(nvs[i + 1]) / dcf(nds[0], nds[i + 1], curve.convention, calendar=curve.calendar)
+    if i == 0:
+        # first period must use flat backwards zero rate
+        d_m = dcf(nds[0], date, curve.convention, calendar=curve.calendar)
+        r_m = r_2
+    else:
+        d_1 = dcf(nds[0], nds[i], curve.convention, calendar=curve.calendar)
+        r_1 = -dual_log(nvs[i]) / d_1
+        d_m = dcf(nds[0], date, curve.convention, calendar=curve.calendar)
+        r_m = r_1 + (r_2 - r_1) * (d_m - d_1) / (d_2 - d_1)
+
+    return dual_exp(-r_m * d_m)
+
+
+def _linear_index(date: datetime, curve: Curve) -> DualTypes:
+    x, x_1, x_2, i = _get_posix(date, curve)
+    node_values = list(curve.nodes.values())
+    y_1, y_2 = node_values[i], node_values[i + 1]
+    return (1 / y_1 + (1 / y_2 - 1 / y_1) * (x - x_1) / (x_2 - x_1)) ** -1.0
+
+
+INTERPOLATION = {
+    "linear": _linear,
+    "log_linear": _log_linear,
+    "linear_zero_rate": _linear_zero_rate,
+    "linear_index": _linear_index,
+    "flat_forward": _flat_forward,
+    "flat_backward": _flat_backward,
+}
+
+
+def _get_posix(date: datetime, curve: Curve) -> tuple[float, float, float, int]:
+    """
+    Convert a datetime and curve_nodes to posix timestamps and return the index_left.
+    """
+    date_posix: float = date.replace(tzinfo=UTC).timestamp()
+    l_index = index_left_f64(curve.node_dates_posix, date_posix, None)
+    node_left_posix, node_right_posix = (
+        curve.node_dates_posix[l_index],
+        curve.node_dates_posix[l_index + 1],
+    )
+    return date_posix, node_left_posix, node_right_posix, l_index
 
 
 def index_left(

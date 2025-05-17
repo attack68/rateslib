@@ -64,6 +64,11 @@ email contact, see `rateslib <https://rateslib.com>`_.
        more performant.
        (`816 <https://github.com/attack68/rateslib/pull/816>`_)
    * - Curves
+     - :red:`Major Breaking Change!` The method :meth:`~rateslib.curves.interpolate` is
+       removed and user defined callables provided to a Curve ``interpolation`` method adopt a
+       new signature. Please review appropriate documentation and examples.
+       (`820 <https://github.com/attack68/rateslib/pull/820>`_)
+   * - Curves
      - Add new method :meth:`~rateslib.curves.index_value` to determine an *index value* from a
        variety of sources including known fixings and/or a *Curve* if data from both those sources
        may need to be combined.

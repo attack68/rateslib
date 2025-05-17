@@ -17,6 +17,7 @@ from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
 from rateslib.calendars.dcfs import _DCF1d
 from rateslib.calendars.rs import get_calendar
+from rateslib.curves.interpolation import INTERPOLATION, InterpolationFunction
 from rateslib.default import (
     NoInput,
     PlotOutput,
@@ -39,7 +40,7 @@ from rateslib.mutability import (
     _WithCache,
     _WithState,
 )
-from rateslib.rs import Modifier, index_left_f64
+from rateslib.rs import Modifier
 from rateslib.rs import from_json as from_json_rs
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
@@ -78,9 +79,8 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         The interpolation used in the non-spline section of the curve. That is the part
         of the curve between the first node in ``nodes`` and the first knot in ``t``.
         If a callable, this allows a user-defined interpolation scheme, and this must
-        have the signature ``method(date, nodes)``, where ``date`` is the datetime
-        whose DF will be returned and ``nodes`` is as above and is passed to the
-        callable.
+        have the signature ``method(date, curve)``, where ``date`` is the datetime
+        whose DF will be returned and ``curve`` is passed as ``self``.
     t : list[datetime], optional
         The knot locations for the B-spline log-cubic interpolation section of the
         curve. If *None* all interpolation will be done by the local method specified in
@@ -200,9 +200,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         self,
         nodes: dict[datetime, DualTypes],
         *,
-        interpolation: str
-        | Callable[[datetime, dict[datetime, DualTypes]], DualTypes]
-        | NoInput = NoInput(0),
+        interpolation: str | InterpolationFunction | NoInput = NoInput(0),
         t: list[datetime] | NoInput = NoInput(0),
         c: list[float] | NoInput = NoInput(0),
         endpoints: str | tuple[str, str] | NoInput = NoInput(0),
@@ -217,11 +215,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     ) -> None:
         self.id: str = _drb(uuid4().hex[:5], id)  # 1 in a million clash
 
-        interpolation_: str | Callable[[datetime, dict[datetime, DualTypes]], DualTypes] = _drb(
-            defaults.interpolation[type(self).__name__], interpolation
-        )
-        self.__set_interpolation__(interpolation_)
-
+        self.__set_interpolation__(interpolation)
         self.__set_nodes__(nodes)
 
         # Parameters for the rate derivation
@@ -260,16 +254,22 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     def ad(self) -> int:
         return self._ad
 
-    def __set_interpolation__(
-        self,
-        interpolation: str | Callable[[datetime, dict[datetime, DualTypes]], DualTypes],
-    ) -> None:
-        if isinstance(interpolation, str):
-            self.interpolation: str | Callable[[datetime, dict[datetime, DualTypes]], DualTypes] = (
-                interpolation.lower()
-            )
+    def __set_interpolation__(self, interpolation: str | InterpolationFunction | NoInput) -> None:
+        if isinstance(interpolation, NoInput):
+            self.interpolation = defaults.interpolation[type(self).__name__]
+            self._interpolation = INTERPOLATION[self.interpolation]
+        elif isinstance(interpolation, str):
+            self.interpolation = interpolation.lower()
+            try:
+                self._interpolation = INTERPOLATION[self.interpolation]
+            except KeyError:
+                raise ValueError(
+                    f"Curve interpolation: '{self.interpolation}' not available.\n"
+                    f"Consult the documentation for available methods."
+                )
         else:
-            self.interpolation = interpolation
+            self.interpolation = "user_defined_callable"
+            self._interpolation = interpolation
 
     def __set_nodes__(self, nodes: dict[datetime, DualTypes]) -> None:
         self.nodes: dict[datetime, DualTypes] = nodes  # nodes.copy()
@@ -308,11 +308,11 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         if defaults.curve_caching and date in self._cache:
             return self._cache[date]
 
+        if date < self.node_dates[0]:
+            return 0.0
+
         if isinstance(self.t, NoInput) or date <= self.t[0]:
-            if callable(self.interpolation):
-                val: DualTypes = self.interpolation(date, self.nodes.copy())
-            else:
-                val = self._local_interp_(date)
+            val = self._interpolation(date, self)
         else:
             date_posix = date.replace(tzinfo=UTC).timestamp()
             if date > self.t[-1]:
@@ -331,29 +331,6 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-    def _local_interp_(self, date: datetime) -> DualTypes:
-        date_posix: float = date.replace(tzinfo=UTC).timestamp()
-        if date_posix < self.node_dates_posix[0]:
-            return 0  # then date is in the past and DF is zero
-        l_index = index_left_f64(self.node_dates_posix, date_posix, None)
-        node_left_posix, node_right_posix = (
-            self.node_dates_posix[l_index],
-            self.node_dates_posix[l_index + 1],
-        )
-        node_left, node_right = self.node_dates[l_index], self.node_dates[l_index + 1]
-        return interpolate(
-            date_posix,
-            node_left_posix,
-            self.nodes[node_left],
-            node_right_posix,
-            self.nodes[node_right],
-            self.interpolation,  # type: ignore[arg-type]
-            self.node_dates_posix[0],
-        )
-
-    # def plot(self, *args, **kwargs):
-    #     return super().plot(*args, **kwargs)
 
     def rate(
         self,
@@ -1520,9 +1497,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     def update(
         self,
         nodes: dict[datetime, DualTypes] | NoInput = NoInput(0),
-        interpolation: str
-        | Callable[[datetime, dict[datetime, DualTypes]], DualTypes]
-        | NoInput = NoInput(0),
+        interpolation: str | InterpolationFunction | NoInput = NoInput(0),
         endpoints: str | tuple[str, str] | NoInput = NoInput(0),
     ) -> None:
         """
@@ -1649,6 +1624,11 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         -------
         str
         """
+        if self.interpolation == "user_defined_callable":
+            raise NotImplementedError(
+                "Cannot serialize objects with user defined interpolation callables."
+            )
+
         if isinstance(self.t, NoInput):
             t = None
         else:
@@ -3159,97 +3139,6 @@ def average_rate(
     n: int = (termination - effective).days
     _: Number = ((1 + n * d * rate / 100) ** (1 / n) - 1) / d
     return _ * 100, d, n
-
-
-def interpolate(
-    x: DualTypes,
-    x_1: DualTypes,
-    y_1: DualTypes,
-    x_2: DualTypes,
-    y_2: DualTypes,
-    interpolation: str,
-    start: DualTypes | None = None,
-) -> DualTypes:
-    """
-    Perform local interpolation between two data points.
-
-    Parameters
-    ----------
-    x : Any with topology
-        The x-value for which the interpolated y-value is sought.
-    x_1 : same type as ``x``
-        The left bound for the local interpolation.
-    y_1 : float, Dual, Dual2
-        The value at the left bound.
-    x_2 : same type as ``x``
-        The right bound for the local interpolation.
-    y_2 : float, Dual, Dual2
-        The value at the right bound.
-    interpolation : str
-        The interpolation rule to use in *{"linear", "log_linear", "linear_zero_rate",
-        "flat_forward", "flat_backward"}*.
-    start : datetime
-        Used only if ``interpolation`` is *"linear_zero_rate"* to identify the start
-        date of a curve.
-
-    Returns
-    -------
-    float, Dual, Dual2
-
-    Notes
-    -----
-    If ``x`` is outside the region ``[x_1, x_2]`` this function will extrapolate
-    instead of interpolate using the same mathematical formula.
-
-    Examples
-    --------
-    .. ipython:: python
-
-       interpolate(50, 0, 10, 100, 50, "linear")
-       interpolate(dt(2000, 1, 6), dt(2000, 1, 1), 10, dt(2000, 1, 11), 50, "linear")
-    """
-    if interpolation == "linear":
-
-        def op(z: DualTypes) -> DualTypes:
-            return z
-
-    elif interpolation == "linear_index":
-
-        def op(z: DualTypes) -> DualTypes:
-            return 1 / z
-
-        y_1, y_2 = 1 / y_1, 1 / y_2
-    elif interpolation == "log_linear":
-        op, y_1, y_2 = dual_exp, dual_log(y_1), dual_log(y_2)  # type: ignore[assignment]
-    elif interpolation == "linear_zero_rate":
-        # convention not used here since we just determine linear rate interpolation
-        # 86400. scalar relates to using posix timestamp conversion
-        assert start is not None  # noqa: S101
-        y_2 = dual_log(y_2) / ((start - x_2) / (365.0 * 86400.0))
-        if start == x_1:
-            y_1 = y_2
-        else:
-            y_1 = dual_log(y_1) / ((start - x_1) / (365.0 * 86400.0))
-
-        def op(z: DualTypes) -> DualTypes:
-            return dual_exp((start - x) / (365.0 * 86400.0) * z)
-
-    elif interpolation == "flat_forward":
-        if x >= x_2:
-            return y_2
-        return y_1
-    elif interpolation == "flat_backward":
-        if x <= x_1:
-            return y_1
-        return y_2
-    else:
-        raise ValueError(
-            '`interpolation` must be in {"linear", "log_linear", "linear_index", '
-            '"linear_zero_rate", "flat_forward", "flat_backward"}, got: '
-            f"{interpolation}.",
-        )
-    ret = op(y_1 + (y_2 - y_1) * ((x - x_1) / (x_2 - x_1)))
-    return ret
 
 
 def index_value(

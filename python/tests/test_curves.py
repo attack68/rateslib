@@ -14,7 +14,6 @@ from rateslib.curves import (
     MultiCsaCurve,
     index_left,
     index_value,
-    interpolate,
 )
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, gradient
@@ -66,10 +65,18 @@ def index_curve():
 
 @pytest.mark.parametrize("method", ["flat_forward", "flat_backward"])
 def test_flat_interp(method) -> None:
-    assert interpolate(1, 1, 5, 2, 10, method) == 5
-    assert interpolate(2, 1, 5, 2, 10, method) == 10
-    assert interpolate(1.5, 1, 5, 2, 10, "flat_forward") == 5
-    assert interpolate(1.5, 1, 5, 2, 10, "flat_backward") == 10
+    curve = Curve(
+        {dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.9, dt(2002, 1, 1): 0.8},
+        interpolation=method,
+    )
+    assert curve[dt(2000, 1, 1)] == 1.0
+    assert curve[dt(2001, 1, 1)] == 0.9
+    assert curve[dt(2002, 1, 1)] == 0.8
+
+    if method == "flat_forward":
+        assert curve[dt(2000, 7, 1)] == 1.0
+    else:
+        assert curve[dt(2000, 7, 1)] == 0.9
 
 
 @pytest.mark.parametrize(("curve_style", "expected"), [("df", 0.995), ("line", 2.005)])
@@ -78,7 +85,9 @@ def test_linear_interp(curve_style, expected, curve, line_curve) -> None:
         obj = curve
     else:
         obj = line_curve
-    assert obj[dt(2022, 3, 16)] == Dual(expected, ["v0", "v1"], [0.5, 0.5])
+    result = obj[dt(2022, 3, 16)]
+    assert abs(result - Dual(expected, ["v1", "v0"], [0.5, 0.5])) < 1e-10
+    assert np.all(np.isclose(result.dual, np.array([0.5, 0.5])))
 
 
 def test_log_linear_interp() -> None:
@@ -106,7 +115,9 @@ def test_linear_zero_rate_interp() -> None:
 
 def test_line_curve_rate(line_curve) -> None:
     expected = Dual(2.005, ["v0", "v1"], [0.5, 0.5])
-    assert line_curve.rate(effective=dt(2022, 3, 16)) == expected
+    result = line_curve.rate(effective=dt(2022, 3, 16))
+    assert abs(result - expected) < 1e-10
+    assert np.all(np.isclose(result.dual, np.array([0.5, 0.5])))
 
 
 @pytest.mark.parametrize(
@@ -345,18 +356,17 @@ def test_curve_equality_spline_coeffs() -> None:
 
 def test_curve_interp_raises() -> None:
     interp = "BAD"
-    curve = Curve(
-        nodes={
-            dt(2022, 1, 1): 1.0,
-            dt(2022, 2, 1): 0.9,
-        },
-        id="curve",
-        interpolation=interp,
-    )
 
-    err = '`interpolation` must be in {"linear", "log_linear", "linear_index'
+    err = "Curve interpolation: 'bad' not ava"
     with pytest.raises(ValueError, match=err):
-        curve[dt(2022, 1, 15)]
+        Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 2, 1): 0.9,
+            },
+            id="curve",
+            interpolation=interp,
+        )
 
 
 def test_curve_sorted_nodes_raises() -> None:
@@ -369,13 +379,6 @@ def test_curve_sorted_nodes_raises() -> None:
             },
             id="curve",
         )
-
-
-def test_interp_raises() -> None:
-    interp = "linea"  # Wrongly spelled interpolation method
-    err = '`interpolation` must be in {"linear", "log_linear", "linear_index'
-    with pytest.raises(ValueError, match=err):
-        interpolate(1.5, 1, 5, 2, 10, interp)
 
 
 def test_curve_interp_case() -> None:
@@ -2303,8 +2306,8 @@ class TestStateAndCache:
             LineCurve(nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99}),
             Curve(
                 nodes={
-                    dt(2022, 1, 1): 1.0,
-                    dt(2023, 1, 1): 0.98,
+                    dt(2000, 1, 1): 1.0,
+                    dt(2002, 1, 1): 0.98,
                 },
                 index_base=200.0,
             ),

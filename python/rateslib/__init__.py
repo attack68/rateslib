@@ -67,7 +67,6 @@ from rateslib.curves import (
     ProxyCurve,
     index_left,
     index_value,
-    interpolate,
 )
 from rateslib.dual import Dual, Dual2, Variable, dual_exp, dual_log, dual_solve, gradient
 from rateslib.fx import FXForwards, FXRates
@@ -193,7 +192,6 @@ __all__ = [
     "MultiCsaCurve",
     "CompositeCurve",
     "ProxyCurve",
-    "interpolate",
     "index_left",
     "index_value",
     # fx_volatility.py
