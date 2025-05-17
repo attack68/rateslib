@@ -5,10 +5,10 @@ from rateslib.curves.curves import (
     MultiCsaCurve,
     ProxyCurve,
     average_rate,
-    index_left,
     index_value,
     interpolate,
 )
+from rateslib.curves.interpolation import index_left
 
 __all__ = (
     "CompositeCurve",
