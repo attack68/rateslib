@@ -18,6 +18,7 @@ into any one category.
     z_quantlib.rst
     z_curve_from_zero_rates.ipynb
     z_multicurveframework.rst
+    z_bus252_convention.rst
 
 **Credit Curve Building**
 
