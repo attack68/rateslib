@@ -69,9 +69,8 @@ email contact, see `rateslib <https://rateslib.com>`_.
        new signature. Please review appropriate documentation and examples.
        (`820 <https://github.com/attack68/rateslib/pull/820>`_)
    * - Curves
-     - The *'linear'* and *'log_linear'* ``interpolation`` methods of curves now automatically
-       adjust to business day interpolation when using a *'bus252'* ``convention`` on a
-       *Curve*.
+     - The *'linear'* and *'log_linear'* ``interpolation`` methods of a *Curve* now automatically
+       adjust to business day interpolation when using a *'bus252'* ``convention``.
        (`821 <https://github.com/attack68/rateslib/pull/821>`_)
    * - Curves
      - Add new method :meth:`~rateslib.curves.index_value` to determine an *index value* from a
