@@ -89,8 +89,7 @@ Each *Smile* type has the following parameters:
      - The explicit values associated with node delta indexes or SABR indexes.
      - | **Yes.**
        | For :class:`~rateslib.fx_volatility.FXDeltaVolSmile` node values are varied.
-       | For :class:`~rateslib.fx_volatility.FXSabrSmile` the parameters *"alpha"*, *"rho"*
-       and *"nu"* are varied whilst *"beta"* is held constant.
+       | For :class:`~rateslib.fx_volatility.FXSabrSmile` the parameters *"alpha"*, *"rho"* and *"nu"* are varied whilst *"beta"* is held constant.
    * - ``delta_type``
      - Hyper parameter
      - Only relevant to *DeltaVolSmile*
