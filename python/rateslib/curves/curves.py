@@ -214,14 +214,13 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         **kwargs,
     ) -> None:
         self.id: str = _drb(uuid4().hex[:5], id)  # 1 in a million clash
+        # Parameters for the rate derivation
+        self.convention: str = _drb(defaults.convention, convention).lower()
+        self.modifier: str = _drb(defaults.modifier, modifier).upper()
+        self.calendar: CalTypes = get_calendar(calendar)
 
         self.__set_interpolation__(interpolation)
         self.__set_nodes__(nodes)
-
-        # Parameters for the rate derivation
-        self.convention: str = _drb(defaults.convention, convention)
-        self.modifier: str = _drb(defaults.modifier, modifier).upper()
-        self.calendar: CalTypes = get_calendar(calendar)
 
         # Parameters for PPSpline
         endpoints_ = _drb((defaults.endpoints, defaults.endpoints), endpoints)
@@ -256,17 +255,20 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
     def __set_interpolation__(self, interpolation: str | InterpolationFunction | NoInput) -> None:
         if isinstance(interpolation, NoInput):
-            self.interpolation = defaults.interpolation[type(self).__name__]
-            self._interpolation = INTERPOLATION[self.interpolation]
-        elif isinstance(interpolation, str):
+            interpolation = defaults.interpolation[type(self).__name__]
+
+        if isinstance(interpolation, str):
             self.interpolation = interpolation.lower()
-            try:
-                self._interpolation = INTERPOLATION[self.interpolation]
-            except KeyError:
-                raise ValueError(
-                    f"Curve interpolation: '{self.interpolation}' not available.\n"
-                    f"Consult the documentation for available methods."
-                )
+            if self.interpolation + "_" + self.convention in INTERPOLATION:
+                self._interpolation = INTERPOLATION[self.interpolation + "_" + self.convention]
+            else:
+                try:
+                    self._interpolation = INTERPOLATION[self.interpolation]
+                except KeyError:
+                    raise ValueError(
+                        f"Curve interpolation: '{self.interpolation}' not available.\n"
+                        f"Consult the documentation for available methods."
+                    )
         else:
             self.interpolation = "user_defined_callable"
             self._interpolation = interpolation
@@ -1807,9 +1809,6 @@ class LineCurve(Curve):
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
-
-    # def plot(self, *args, **kwargs):
-    #     return super().plot(*args, **kwargs)
 
     def rate(
         self,
