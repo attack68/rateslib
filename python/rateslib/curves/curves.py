@@ -17,6 +17,7 @@ from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
 from rateslib.calendars.dcfs import _DCF1d
 from rateslib.calendars.rs import get_calendar
+from rateslib.curves.interpolation import INTERPOLATION, InterpolationFunction
 from rateslib.default import (
     NoInput,
     PlotOutput,
@@ -39,10 +40,9 @@ from rateslib.mutability import (
     _WithCache,
     _WithState,
 )
-from rateslib.rs import Modifier, index_left_f64
+from rateslib.rs import Modifier
 from rateslib.rs import from_json as from_json_rs
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
-from rateslib.curves.interpolation import INTERPOLATION, InterpolationFunction
 
 if TYPE_CHECKING:
     from rateslib.typing import (

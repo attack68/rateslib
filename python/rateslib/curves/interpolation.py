@@ -4,9 +4,9 @@ from datetime import UTC
 from math import floor
 from typing import TYPE_CHECKING, Protocol
 
+from rateslib.calendars import dcf
 from rateslib.dual import dual_exp, dual_log
 from rateslib.rs import index_left_f64
-from rateslib.calendars import dcf
 
 if TYPE_CHECKING:
     from rateslib.typing import Any, Curve, DualTypes, datetime
@@ -55,15 +55,15 @@ def _linear_zero_rate(date: datetime, curve: Curve) -> DualTypes:
     nvs = list(curve.nodes.values())
     nds = curve.node_dates
 
-    d_2 = dcf(nds[0], nds[i+1], curve.convention, calendar=curve.calendar)
-    r_2 = -dual_log(nvs[i+1]) / dcf(nds[0], nds[i+1], curve.convention, calendar=curve.calendar)
+    d_2 = dcf(nds[0], nds[i + 1], curve.convention, calendar=curve.calendar)
+    r_2 = -dual_log(nvs[i + 1]) / dcf(nds[0], nds[i + 1], curve.convention, calendar=curve.calendar)
     if i == 0:
         # first period must use flat backwards zero rate
         d_m = dcf(nds[0], date, curve.convention, calendar=curve.calendar)
         r_m = r_2
     else:
         d_1 = dcf(nds[0], nds[i], curve.convention, calendar=curve.calendar)
-        r_1 = - dual_log(nvs[i]) / d_1
+        r_1 = -dual_log(nvs[i]) / d_1
         d_m = dcf(nds[0], date, curve.convention, calendar=curve.calendar)
         r_m = r_1 + (r_2 - r_1) * (d_m - d_1) / (d_2 - d_1)
 
@@ -74,7 +74,7 @@ def _linear_index(date: datetime, curve: Curve) -> DualTypes:
     x, x_1, x_2, i = _get_posix(date, curve)
     node_values = list(curve.nodes.values())
     y_1, y_2 = node_values[i], node_values[i + 1]
-    return (1/y_1 + (1/y_2 - 1/y_1) * (x - x_1) / (x_2 - x_1)) ** -1.0
+    return (1 / y_1 + (1 / y_2 - 1 / y_1) * (x - x_1) / (x_2 - x_1)) ** -1.0
 
 
 INTERPOLATION = {

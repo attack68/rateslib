@@ -359,7 +359,7 @@ def test_curve_interp_raises() -> None:
 
     err = "Curve interpolation: 'bad' not ava"
     with pytest.raises(ValueError, match=err):
-        curve = Curve(
+        Curve(
             nodes={
                 dt(2022, 1, 1): 1.0,
                 dt(2022, 2, 1): 0.9,
