@@ -260,7 +260,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         if isinstance(interpolation, str):
             self.interpolation = interpolation.lower()
             if self.interpolation + "_" + self.convention in INTERPOLATION:
-                self._interpolation = INTERPOLATION[self.interpolation + self.convention]
+                self._interpolation = INTERPOLATION[self.interpolation + "_" + self.convention]
             else:
                 try:
                     self._interpolation = INTERPOLATION[self.interpolation]

@@ -29,7 +29,7 @@ def _linear_bus(date: datetime, curve: Curve) -> DualTypes:
     i = index_left(curve.node_dates, len(curve.node_dates), date)
     x_1, x_2 = curve.node_dates[i], curve.node_dates[i + 1]
     d_n = dcf(x_1, x_2, "bus252", calendar=curve.calendar)
-    d_m = dcf(x_2, date, "bus252", calendar=curve.calendar)
+    d_m = dcf(x_1, date, "bus252", calendar=curve.calendar)
     node_values = list(curve.nodes.values())
     y_1, y_2 = node_values[i], node_values[i + 1]
     return y_1 + (y_2 - y_1) * d_m / d_n
@@ -46,7 +46,7 @@ def _log_linear_bus(date: datetime, curve: Curve) -> DualTypes:
     i = index_left(curve.node_dates, len(curve.node_dates), date)
     x_1, x_2 = curve.node_dates[i], curve.node_dates[i + 1]
     d_n = dcf(x_1, x_2, "bus252", calendar=curve.calendar)
-    d_m = dcf(x_2, date, "bus252", calendar=curve.calendar)
+    d_m = dcf(x_1, date, "bus252", calendar=curve.calendar)
     node_values = list(curve.nodes.values())
     y_1, y_2 = dual_log(node_values[i]), dual_log(node_values[i + 1])
     return dual_exp(y_1 + (y_2 - y_1) * d_m / d_n)
@@ -102,7 +102,7 @@ INTERPOLATION = {
     "linear": _linear,
     "linear_bus252": _linear_bus,
     "log_linear": _log_linear,
-    "log_linear_bus": _log_linear_bus,
+    "log_linear_bus252": _log_linear_bus,
     "linear_zero_rate": _linear_zero_rate,
     "linear_index": _linear_index,
     "flat_forward": _flat_forward,

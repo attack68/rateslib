@@ -1291,6 +1291,32 @@ class TestCurve:
         expected = (1 / 0.919218 - 1) * 100 / d
         assert abs(expected - result) < 5e-7
 
+    @pytest.mark.parametrize("interpolation", ["linear", "log_linear"])
+    def test_linear_bus_interpolation(self, interpolation) -> None:
+        curve = Curve(
+            nodes={dt(2000, 1, 3): 1.0, dt(2000, 1, 17): 0.9},
+            calendar="bus",
+            convention="act365",
+            interpolation=interpolation,
+        )
+        curve2 = Curve(
+            nodes={dt(2000, 1, 3): 1.0, dt(2000, 1, 17): 0.9},
+            calendar="bus",
+            convention="bus252",
+            interpolation=interpolation,
+        )
+
+        assert curve[dt(2000, 1, 17)] == curve2[dt(2000, 1, 17)]
+        assert curve[dt(2000, 1, 3)] == curve2[dt(2000, 1, 3)]
+
+        assert curve[dt(2000, 1, 5)] != curve2[dt(2000, 1, 5)]
+        assert curve[dt(2000, 1, 10)] == curve2[dt(2000, 1, 10)]  #  half calendar and bus
+        assert curve[dt(2000, 1, 13)] != curve2[dt(2000, 1, 13)]
+
+
+
+
+
 
 class TestLineCurve:
     def test_repr(self):
