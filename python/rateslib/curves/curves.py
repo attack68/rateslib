@@ -308,13 +308,13 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         if defaults.curve_caching and date in self._cache:
             return self._cache[date]
 
-        date_posix = date.replace(tzinfo=UTC).timestamp()
         if isinstance(self.t, NoInput) or date <= self.t[0]:
             if callable(self.interpolation):
                 val: DualTypes = self.interpolation(date, self.nodes.copy())
             else:
-                val = self._local_interp_(date_posix)
+                val = self._local_interp_(date)
         else:
+            date_posix = date.replace(tzinfo=UTC).timestamp()
             if date > self.t[-1]:
                 warnings.warn(
                     "Evaluating points on a curve beyond the endpoint of the basic "
@@ -323,7 +323,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                     f"{self.t[-1].strftime('%Y-%m-%d')}",
                     UserWarning,
                 )
-            # self.spline cannot be None becuase self.t is given and it has been calibrated
+            # self.spline cannot be None because self.t is given and it has been calibrated
             val = self._op_exp(self.spline.ppev_single(date_posix))  # type: ignore[union-attr]
 
         return self._cached_value(date, val)
@@ -332,7 +332,8 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    def _local_interp_(self, date_posix: float) -> DualTypes:
+    def _local_interp_(self, date: datetime) -> DualTypes:
+        date_posix: float = date.replace(tzinfo=UTC).timestamp()
         if date_posix < self.node_dates_posix[0]:
             return 0  # then date is in the past and DF is zero
         l_index = index_left_f64(self.node_dates_posix, date_posix, None)
