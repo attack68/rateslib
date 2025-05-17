@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from datetime import UTC
 from math import floor
 from typing import TYPE_CHECKING
+
+from rateslib.dual import dual_exp, dual_log
+from rateslib.rs import index_left_f64
 
 if TYPE_CHECKING:
     from rateslib.typing import Any, Curve, DualTypes, datetime
@@ -13,6 +17,41 @@ def _generic_interpolation(
     curve: Curve,
 ) -> DualTypes:
     pass
+
+
+def _linear(
+    date: datetime,
+    nodes: dict[datetime, DualTypes],
+    curve: Curve,
+) -> DualTypes:
+    x, x_1, x_2, i = _get_posix(date, curve)
+    node_values = list(nodes.values())
+    y_1, y_2 = node_values[i], node_values[i + 1]
+    return y_1 + (y_2 - y_1) * (x - x_1) / (x_2 - x_1)
+
+
+def _log_linear(
+    date: datetime,
+    nodes: dict[datetime, DualTypes],
+    curve: Curve,
+) -> DualTypes:
+    x, x_1, x_2, i = _get_posix(date, curve)
+    node_values = list(nodes.values())
+    y_1, y_2 = dual_log(node_values[i]), dual_log(node_values[i + 1])
+    return dual_exp(y_1 + (y_2 - y_1) * (x - x_1) / (x_2 - x_1))
+
+
+def _get_posix(date: datetime, curve: Curve) -> tuple[float, float, float, int]:
+    """
+    Convert a datetime and curve_nodes to posix timestamps and return the index_left.
+    """
+    date_posix: float = date.replace(tzinfo=UTC).timestamp()
+    l_index = index_left_f64(curve.node_dates_posix, date_posix, None)
+    node_left_posix, node_right_posix = (
+        curve.node_dates_posix[l_index],
+        curve.node_dates_posix[l_index + 1],
+    )
+    return date_posix, node_left_posix, node_right_posix, l_index
 
 
 def index_left(
