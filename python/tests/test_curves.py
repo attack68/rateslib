@@ -1845,6 +1845,24 @@ class TestCompositeCurve:
         result = cc2.rate(dt(2022, 2, 15), "3m")
         assert abs(result - 4.933123726330553) < 1e-8
 
+    def test_composite_curve_of_composite_line_curve(self):
+        c1 = LineCurve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.98,
+            },
+        )
+        c2 = LineCurve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 30): 0.99,
+            }
+        )
+        cc1 = CompositeCurve([c1, c2])
+        cc2 = CompositeCurve([cc1, c1])
+        result = cc2.rate(dt(2022, 2, 15), "3m")
+        assert abs(result - 2.993926361170989) < 1e-8
+
 
 class TestMultiCsaCurve:
     def test_historic_rate_is_none(self) -> None:
