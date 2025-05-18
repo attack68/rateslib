@@ -50,137 +50,122 @@ Some themes for this release involved:
 
    * - Feature
      - Description
-   * - Calendars
-     - Added a new method :meth:`~rateslib.calendars.next_imm` to determine the next IMM date
-       from a given start date under different IMM methodologies.
-       (`773 <https://github.com/attack68/rateslib/pull/773>`_)
-   * - Calendars
-     - Added a new day count convention *'30U360'* to :meth:`~rateslib.calendars.dcf`.
-       (`780 <https://github.com/attack68/rateslib/pull/780>`_)
-   * - Curves
-     - :red:`Minor Breaking Change!` The
-       :meth:`Curve.index_value() <rateslib.curves.Curve.index_value>` method is changed to
-       accept an ``index_lag`` argument which allows the determination of an *index value*
-       for a specific date defined with a given *lag* and *interpolation* method. Also
-       amended the way :class:`~rateslib.periods.IndexPeriod` will handle the
-       determination of cashflows given different ``index_lag`` specifications.
-       (`802 <https://github.com/attack68/rateslib/pull/802>`_)
-       (`803 <https://github.com/attack68/rateslib/pull/803>`_)
-   * - Curves
-     - :red:`Minor Breaking Change!` The ``approximate`` argument is removed from the
-       :meth:`CompositeCurve.rate() <rateslib.curves.CompositeCurve.rate>` method to create a
-       more consistent *Curve* definition between O/N rates and discount factors and which is
-       more performant.
-       (`816 <https://github.com/attack68/rateslib/pull/816>`_)
-   * - Curves
-     - :red:`Major Breaking Change!` The method :meth:`~rateslib.curves.interpolate` is
-       removed and user defined callables provided to a Curve ``interpolation`` method adopt a
-       new signature. Please review appropriate documentation and examples.
-       (`820 <https://github.com/attack68/rateslib/pull/820>`_)
-   * - Curves
-     - The *'linear'* and *'log_linear'* ``interpolation`` methods of a *Curve* now automatically
-       adjust to business day interpolation when using a *'bus252'* ``convention``.
-       (`821 <https://github.com/attack68/rateslib/pull/821>`_)
-   * - Curves
-     - Add new method :meth:`~rateslib.curves.index_value` to determine an *index value* from a
-       variety of sources including known fixings and/or a *Curve* if data from both those sources
-       may need to be combined.
-       (`809 <https://github.com/attack68/rateslib/pull/809>`_)
-   * - Instruments
-     - :red:`Major Breaking Change!` The way ``index_fixings`` are treated when given as a *Series*
-       now enforces that the data is provided with an ``index_lag`` of **zero** months, i.e.
-       providing actual data. This is more convenient for handling *Instruments* with different
-       ``index_lag`` and creates less functional risk. Calculations now allow *Curves*,
-       *Instruments* and *Series* all to have different ``index_lag`` whilst ensuring correct
-       calculations.
-       (`807 <https://github.com/attack68/rateslib/pull/807>`_)
-   * - Legs
-     - :red:`Minor Breaking Change!` ``index_fixings`` can  no longer be set as a *list* on *Legs*.
-       Only a single value valid for the first period or a *Series* can be passed.
-       (`807 <https://github.com/attack68/rateslib/pull/807>`_)
-   * - Instruments
-     - Add bond calculation convention to support *'30U360'* accrued, and a new bond ``spec``
-       *'us_corp'* and *'us_muni'* to support generic US corporate and municipal bonds.
-       (`785 <https://github.com/attack68/rateslib/pull/785>`_)
-       (`786 <https://github.com/attack68/rateslib/pull/786>`_)
-       (`797 <https://github.com/attack68/rateslib/pull/797>`_)
-   * - Instruments
-     - Extend :class:`~rateslib.instruments.BondCalcMode` to support custom accrual,
-       discount and cashflow functions for calculations. Italian BTP default, *'it_gb'*, is
-       altered to now support delayed payments in the YTM formula.
-       (`788 <https://github.com/attack68/rateslib/pull/788>`_)
-       (`791 <https://github.com/attack68/rateslib/pull/791>`_)
-       (`793 <https://github.com/attack68/rateslib/pull/793>`_)
-       (`795 <https://github.com/attack68/rateslib/pull/795>`_)
-       (`794 <https://github.com/attack68/rateslib/pull/794>`_)
-   * - Documentation
-     - The documentation page for the :class:`~rateslib.instruments.BondCalcMode` has been
-       re-written to included all of the current formulae and structuring of bond accrual and
-       yield-to-maturity calculations.
-       (`790 <https://github.com/attack68/rateslib/pull/790>`_)
-       (`789 <https://github.com/attack68/rateslib/pull/789>`_)
-       (`794 <https://github.com/attack68/rateslib/pull/794>`_)
-   * - Automatic Differentiation
-     - Operator overloads added to allow dual number exponents, i.e. :math:`z^p`, where *z*,
-       *p* are dual number types. This facilitates AD for the SABR function as well as other
-       exotic functions.
-       (`767 <https://github.com/attack68/rateslib/pull/767>`_)
-       (`768 <https://github.com/attack68/rateslib/pull/768>`_)
-       (`769 <https://github.com/attack68/rateslib/pull/769>`_)
-   * - Automatic Differentiation
-     - Implement a new type of iterative root solver, :meth:`~rateslib.dual.ift_1dim`, that
-       solves a one-dimensional implicit function if its derivatives are not known but its inverse
-       function is analytical.
-       (`775 <https://github.com/attack68/rateslib/pull/775>`_)
-       (`776 <https://github.com/attack68/rateslib/pull/776>`_)
-       (`777 <https://github.com/attack68/rateslib/pull/777>`_)
-       (`778 <https://github.com/attack68/rateslib/pull/778>`_)
-   * - Performance
-     - Amend the iterative algorithm for YTM to widen the consecutive ytm search
-       interval, but require one function evaluation per iteration instead of two, and use
-       analytical formula instead of NumPy solve.
-       (`781 <https://github.com/attack68/rateslib/pull/781>`_)
-       (`782 <https://github.com/attack68/rateslib/pull/782>`_)
-       (`783 <https://github.com/attack68/rateslib/pull/783>`_)
-   * - Performance
-     - Modify the :meth:`CompositeCurve.rate() <rateslib.curves.CompositeCurve.rate>` method
-       to use cached discount factors when compositing *Curve* types.
-       This particularly improves performance for dual type calculations.
-       (`816 <https://github.com/attack68/rateslib/pull/816>`_)
-   * - Refactor
-     - :red:`Minor Breaking Change!` The argument names for
-       :class:`~rateslib.instruments.BondCalcMode` are changed to
-       drop the superfluous *'_type'* suffix.
-       (`812 <https://github.com/attack68/rateslib/pull/812>`_)
-   * - Bug
-     - The SABR functions are modified to handle ``expiry`` for an interpolated
-       :class:`~rateslib.fx_volatility.FXSabrSurface`. Previously, the specific expiry was used to
-       evaluate the volatility on each *SabrSmile*. Now the relevant *Smile* expiry is used as the
-       entry to the SABR function before interpolating for the given expiry.
-       (`757 <https://github.com/attack68/rateslib/pull/757>`_)
-   * - Bug
-     - ``index_lag`` is now correctly passed to *Index* type *Period* construction during a
-       *Leg* initialization.
-       (`808 <https://github.com/attack68/rateslib/pull/808>`_)
-   * - Bug
-     - Scalars on the different ``metrics`` for a :class:`~rateslib.instruments.Value` are
-       amended to better reflect the unit derivatives in *delta* and *gamma* calculations
-       (`806 <https://github.com/attack68/rateslib/pull/806>`_)
-   * - Bug
-     - Add discount factor scaling to separate the difference of *'spot'* versus *'forward'*
-       **sticky delta** calculation in *FXOption* greeks.
-       (`792 <https://github.com/attack68/rateslib/pull/792>`_)
-   * - Bug
-     - Add :class:`~rateslib.instruments.BondCalcMode` and
-       :class:`~rateslib.instruments.BillCalcMode` to global *rateslib* namespace.
-       (`812 <https://github.com/attack68/rateslib/pull/812>`_)
-   * - Bug
-     - For *Curve* rate calculations the *Curve* ``calendar`` is now correctly passed to
-       the :meth:`~rateslib.calendars.dcf` method for day count fraction determination.
-       For almost all conventions this has no effect, but for "bus252", used in
-       Brazil, for example, the right number of business days is essential to the
-       calculation.
-       (`817 <https://github.com/attack68/rateslib/pull/817>`_)
+   * - **Calendars**
+     - - Added a new method :meth:`~rateslib.calendars.next_imm` to determine the next IMM date
+         from a given start date under different IMM methodologies.
+         (`773 <https://github.com/attack68/rateslib/pull/773>`_)
+       - Added a new day count convention *'30U360'* to :meth:`~rateslib.calendars.dcf`.
+         (`780 <https://github.com/attack68/rateslib/pull/780>`_)
+   * - **Index Curves**, ``index_fixings`` **and** ``index_lag``
+     - - :red:`Minor Breaking Change!` The
+         :meth:`Curve.index_value() <rateslib.curves.Curve.index_value>` method is changed to
+         accept an ``index_lag`` argument which allows the determination of an *index value*
+         for a specific date defined with a given *lag* and *interpolation* method. Also
+         amended the way :class:`~rateslib.periods.IndexFixedPeriod` will handle the
+         determination of cashflows given different ``index_lag`` specifications.
+         (`802 <https://github.com/attack68/rateslib/pull/802>`_)
+         (`803 <https://github.com/attack68/rateslib/pull/803>`_)
+       - :red:`Major Breaking Change!` The way ``index_fixings`` are treated when given as a *Series*
+         now enforces that the data is provided with an ``index_lag`` of **zero** months, i.e.
+         providing actual data. This is more convenient for handling *Instruments* with different
+         ``index_lag`` and creates less functional risk. Calculations now allow *Curves*,
+         *Instruments* and *Series* all to have different ``index_lag`` whilst ensuring correct
+         calculations.
+         (`807 <https://github.com/attack68/rateslib/pull/807>`_)
+       - :red:`Minor Breaking Change!` ``index_fixings`` can  no longer be set as a *list* on *Legs*.
+         Only a single value valid for the first period or a *Series* can be passed.
+         (`807 <https://github.com/attack68/rateslib/pull/807>`_)
+       - Add new method :meth:`~rateslib.curves.index_value` to determine an *index value* from a
+         variety of sources including known fixings and/or a *Curve* if data from both those sources
+         may need to be combined.
+         (`809 <https://github.com/attack68/rateslib/pull/809>`_)
+   * - **Bond Calculations & Conventions**
+     - - Extend :class:`~rateslib.instruments.BondCalcMode` to support custom accrual,
+         discount and cashflow functions for calculations. Italian BTP default, *'it_gb'*, is
+         altered to now support delayed payments in the YTM formula.
+         (`788 <https://github.com/attack68/rateslib/pull/788>`_)
+         (`791 <https://github.com/attack68/rateslib/pull/791>`_)
+         (`793 <https://github.com/attack68/rateslib/pull/793>`_)
+         (`795 <https://github.com/attack68/rateslib/pull/795>`_)
+         (`794 <https://github.com/attack68/rateslib/pull/794>`_)
+       - Add bond calculation convention to support *'30U360'* accrued, and a new bond ``spec``
+         *'us_corp'* and *'us_muni'* to support generic US corporate and municipal bonds.
+         (`785 <https://github.com/attack68/rateslib/pull/785>`_)
+         (`786 <https://github.com/attack68/rateslib/pull/786>`_)
+         (`797 <https://github.com/attack68/rateslib/pull/797>`_)
+       - :red:`Minor Breaking Change!` The argument names for
+         :class:`~rateslib.instruments.BondCalcMode` are changed to
+         drop the superfluous *'_type'* suffix.
+         (`812 <https://github.com/attack68/rateslib/pull/812>`_)
+       - The documentation page for the :class:`~rateslib.instruments.BondCalcMode` has been
+         re-written to included all of the current formulae and structuring of bond accrual and
+         yield-to-maturity calculations.
+         (`790 <https://github.com/attack68/rateslib/pull/790>`_)
+         (`789 <https://github.com/attack68/rateslib/pull/789>`_)
+         (`794 <https://github.com/attack68/rateslib/pull/794>`_)
+   * - **Curves**
+     - - The *'linear'* and *'log_linear'* ``interpolation`` methods of a *Curve* now automatically
+         adjust to business day interpolation when using a *'bus252'* ``convention``.
+         (`821 <https://github.com/attack68/rateslib/pull/821>`_)
+   * - **Automatic Differentiation & Algorithms**
+     - - Operator overloads added to allow dual number exponents, i.e. :math:`z^p`, where *z*,
+         *p* are dual number types. This facilitates AD for the SABR function as well as other
+         exotic functions.
+         (`767 <https://github.com/attack68/rateslib/pull/767>`_)
+         (`768 <https://github.com/attack68/rateslib/pull/768>`_)
+         (`769 <https://github.com/attack68/rateslib/pull/769>`_)
+       - Implement a new type of iterative root solver, :meth:`~rateslib.dual.ift_1dim`, that
+         solves a one-dimensional implicit function if its derivatives are not known but its inverse
+         function is analytical.
+         (`775 <https://github.com/attack68/rateslib/pull/775>`_)
+         (`776 <https://github.com/attack68/rateslib/pull/776>`_)
+         (`777 <https://github.com/attack68/rateslib/pull/777>`_)
+         (`778 <https://github.com/attack68/rateslib/pull/778>`_)
+   * - **Performance**
+     - - Amend the iterative algorithm for YTM to widen the consecutive ytm search
+         interval, but require one function evaluation per iteration instead of two, and use
+         analytical formula instead of NumPy solve.
+         (`781 <https://github.com/attack68/rateslib/pull/781>`_)
+         (`782 <https://github.com/attack68/rateslib/pull/782>`_)
+         (`783 <https://github.com/attack68/rateslib/pull/783>`_)
+       - Modify the :meth:`CompositeCurve.rate() <rateslib.curves.CompositeCurve.rate>` method
+         to use cached discount factors when compositing *Curve* types.
+         This particularly improves performance for dual type calculations.
+         (`816 <https://github.com/attack68/rateslib/pull/816>`_)
+   * - **Bug Fixes**
+     - - The SABR functions are modified to handle ``expiry`` for an interpolated
+         :class:`~rateslib.fx_volatility.FXSabrSurface`. Previously, the specific expiry was used to
+         evaluate the volatility on each *SabrSmile*. Now the relevant *Smile* expiry is used as the
+         entry to the SABR function before interpolating for the given expiry.
+         (`757 <https://github.com/attack68/rateslib/pull/757>`_)
+       - ``index_lag`` is now correctly passed to *Index* type *Period* construction during a
+         *Leg* initialization.
+         (`808 <https://github.com/attack68/rateslib/pull/808>`_)
+       - Scalars on the different ``metrics`` for a :class:`~rateslib.instruments.Value` are
+         amended to better reflect the unit derivatives in *delta* and *gamma* calculations
+         (`806 <https://github.com/attack68/rateslib/pull/806>`_)
+       - Add discount factor scaling to separate the difference of *'spot'* versus *'forward'*
+         **sticky delta** calculation in *FXOption* greeks.
+         (`792 <https://github.com/attack68/rateslib/pull/792>`_)
+       - Add :class:`~rateslib.instruments.BondCalcMode` and
+         :class:`~rateslib.instruments.BillCalcMode` to global *rateslib* namespace.
+         (`812 <https://github.com/attack68/rateslib/pull/812>`_)
+       - For *Curve* rate calculations the *Curve* ``calendar`` is now correctly passed to
+         the :meth:`~rateslib.calendars.dcf` method for day count fraction determination.
+         For almost all conventions this has no effect, but for "bus252", used in
+         Brazil, for example, the right number of business days is essential to the
+         calculation.
+         (`817 <https://github.com/attack68/rateslib/pull/817>`_)
+   * - **Deprecations & Removals**
+     - - :red:`Major Breaking Change!` The method :meth:`~rateslib.curves.interpolate` is
+         removed and user defined callables provided to a Curve ``interpolation`` method adopt a
+         new signature. Please review appropriate documentation and examples.
+         (`820 <https://github.com/attack68/rateslib/pull/820>`_)
+       - :red:`Minor Breaking Change!` The ``approximate`` argument is removed from the
+         :meth:`CompositeCurve.rate() <rateslib.curves.CompositeCurve.rate>` method to create a
+         more consistent *Curve* definition between O/N rates and discount factors and which is
+         more performant.
+         (`816 <https://github.com/attack68/rateslib/pull/816>`_)
 
 1.8.0 (22nd April 2025)
 ****************************
