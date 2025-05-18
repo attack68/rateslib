@@ -2405,17 +2405,10 @@ class CompositeCurve(Curve):
         if type(self) is MultiCsaCurve and self.multi_csa_min_step > self.multi_csa_max_step:
             raise ValueError("`multi_csa_max_step` cannot be less than `min_step`.")
 
-        types = [type(_) for _ in self.curves]
-        if any(_ is CompositeCurve for _ in types):
-            raise NotImplementedError(
-                "Creating a CompositeCurve type containing sub CompositeCurve types is not "
-                "yet implemented.",
-            )
-
-        if not (
-            all(_ is Curve or _ is ProxyCurve for _ in types) or all(_ is LineCurve for _ in types)
-        ):
-            raise TypeError(f"`curves` must be a list of similar type curves, got {types}.")
+        types = [_._base_type for _ in self.curves]
+        if not all(_ == types[0] for _ in types):
+            # then at least one curve is value based and one is DF based
+            raise TypeError("CompositeCurve can only contain curves of the same type.")
 
         ini_dates = [_.node_dates[0] for _ in self.curves]
         if not all(_ == ini_dates[0] for _ in ini_dates[1:]):
@@ -2563,7 +2556,7 @@ class CompositeCurve(Curve):
             Set the id of the returned curve.
         composite: bool, optional
             If True will return a CompositeCurve that adds a flat curve to the existing curve.
-            This results in slower calculations but the curve will maintain a dynamic
+            This results in slower calculations, but the curve will maintain a dynamic
             association with the underlying curve and will change if the underlying curve changes.
         collateral: str, optional
             Designate a collateral tag for the curve which is used by other methods.
@@ -2572,13 +2565,6 @@ class CompositeCurve(Curve):
         -------
         CompositeCurve
         """
-        if composite:
-            # TODO (med) allow composite composite curves
-            raise ValueError(
-                "Creating a CompositeCurve containing sub CompositeCurves is not yet implemented.\n"
-                "Set `composite` to False.",
-            )
-
         curves: tuple[Curve, ...] = (self.curves[0].shift(spread=spread, composite=composite),)
         curves += self.curves[1:]
         _: CompositeCurve = CompositeCurve(curves=curves, id=id)
