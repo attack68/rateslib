@@ -42,7 +42,7 @@ from rateslib.mutability import (
 from rateslib.rs import index_left_f64
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, DualTypes, Number, datetime_, int_, str_
+    from rateslib.typing import CalInput, DualTypes, Number, Sequence, datetime_, int_, str_
 
 
 class _SabrNodes(NamedTuple):
@@ -404,8 +404,8 @@ class FXSabrSmile(_BaseSmile):
             dual_exp(0.5 * v_**2 * sq_t**2 - dual_inv_norm_cdf(0.05) * v_ * sq_t) * f_
         )
 
-        x = np.linspace(x_low, x_top, 301)
-        u = x / f_
+        x = np.linspace(x_low, x_top, 301, dtype=np.float64)
+        u: Sequence[float] = x / f_  # type: ignore[assignment]
         y: list[DualTypes] = [self.get_from_strike(_, f_)[1] for _ in x]
         if x_axis == "moneyness":
             return list(u), y
