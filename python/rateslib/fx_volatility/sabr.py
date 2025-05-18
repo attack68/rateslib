@@ -42,7 +42,7 @@ from rateslib.mutability import (
 from rateslib.rs import index_left_f64
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, DualTypes, Number, datetime_, int_, str_, Sequence
+    from rateslib.typing import CalInput, DualTypes, Number, Sequence, datetime_, int_, str_
 
 
 class _SabrNodes(NamedTuple):
