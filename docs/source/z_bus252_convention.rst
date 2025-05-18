@@ -125,7 +125,8 @@ Plotting
 
 This *Curve* demonstrate the traditional stepped interest rate structure. This is because the
 *'log_linear'* ``interpolation`` has been applied on a **business day basis** in accordance with
-the *'bus252'* ``convention`` and provided ``calendar``.
+the *'bus252'* ``convention`` and provided ``calendar``. But don't forget these are **simple**
+rates. We adjust these in the final plot on this page.
 
 As a demonstration of the difference in discount factors these can be plotted both for this
 `curve` and a conventional *Curve* with the same node values. Under a business day, and
@@ -215,5 +216,75 @@ is **not** a business day.
 
    ax.plot(x, y1)
    ax.plot(x, y2)
+   plt.show()
+   plt.close()
+
+The rates displayed in plots depend upon their definition and day count fractions. The DFs on
+both the `curve` and `conventional` *Curves* are **the same** but their O/N plots are
+quite different because of this. We can even convert the O/N rates to compounded rates manually
+as an additional comparison.
+
+.. ipython:: python
+
+   fig, ax, lines = curve.plot("1b", comparators=[conventional])
+   y2 = ((1 + lines[0]._y / 25200)**252 - 1) * 100
+   ax.plot( lines[0]._x, y2)
+   ax.legend(["Bus252", "Act365", "Bus252 Compounded"])
+
+.. plot::
+
+   from rateslib import *
+   import matplotlib.pyplot as plt
+
+   holidays = [
+       "2025-01-01", "2025-03-03", "2025-03-04", "2025-04-18", "2025-04-21", "2025-05-01",
+       "2025-06-19", "2025-09-07", "2025-10-12", "2025-11-02", "2025-11-15", "2025-11-20",
+       "2025-12-25", "2026-01-01", "2026-02-16", "2026-02-17", "2026-04-03", "2026-04-21",
+       "2026-05-01", "2026-06-04", "2026-09-07", "2026-10-12", "2026-11-02", "2026-11-15",
+       "2026-11-20", "2026-12-25",
+   ]
+   bra = Cal(holidays=[dt.strptime(_, "%Y-%m-%d") for _ in holidays], week_mask=[5, 6])
+
+   curve = Curve(
+       nodes={
+           dt(2025, 5, 15): 1.0,
+           dt(2025, 8, 1): 1.0,
+           dt(2025, 11, 3): 1.0,
+           dt(2026, 5, 1): 1.0,
+       },
+       convention="bus252",
+       calendar=bra,
+       interpolation="log_linear",
+       id="curve",
+   )
+
+   zcs_args = dict(frequency="A", calendar=bra, curves="curve", currency="brl", convention="bus252")
+   solver = Solver(
+       curves=[curve],
+       instruments=[
+           ZCS(dt(2025, 5, 15), dt(2025, 8, 1), **zcs_args),
+           ZCS(dt(2025, 5, 15), dt(2025, 11, 3), **zcs_args),
+           ZCS(dt(2025, 5, 15), dt(2026, 5, 1), **zcs_args),
+       ],
+       s=[14.0, 13.7, 13.5]
+   )
+
+   conventional = Curve(
+       nodes={
+           dt(2025, 5, 15): 1.0,
+           dt(2025, 8, 1): curve[dt(2025, 8, 1)],
+           dt(2025, 11, 3): curve[dt(2025, 11, 3)],
+           dt(2026, 5, 1): curve[dt(2026, 5, 1)],
+       },
+       convention="act365f",
+       calendar=bra,
+       interpolation="log_linear"
+   )
+
+   fig, ax, lines = curve.plot("1b", comparators=[conventional])
+   y2 = ((1 + lines[0]._y / 25200)**252 - 1)*100
+   ax.plot( lines[0]._x, y2)
+   ax.legend(["Bus252", "Act365", "Bus252 Compounded"])
+
    plt.show()
    plt.close()
