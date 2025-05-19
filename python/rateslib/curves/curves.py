@@ -502,6 +502,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         spread: DualTypes,
         id: str | NoInput = NoInput(0),  # noqa: A002
         collateral: str | NoInput = NoInput(0),
+        composite: bool = True,
     ) -> Curve:
         """
         Create a new curve by vertically adjusting the curve by a set number of basis
@@ -523,7 +524,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
         Returns
         -------
-        CompositeCurve
+        CompositeCurve or Self
 
         Notes
         -----
@@ -625,7 +626,28 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         _: CompositeCurve = CompositeCurve(curves=[self, shifted], id=id)
         _.collateral = _drb(None, collateral)
 
-        return _
+        if not composite:
+            if self._base_type == "dfs":
+                CurveClass = Curve
+                kwargs = dict(index_base=self.index_base, index_lag=self.index_lag)
+            else:
+                CurveClass = LineCurve
+                kwargs = {}
+
+            return CurveClass(
+                nodes={k: _[k] for k in self.nodes.keys()},
+                convention=self.convention,
+                calendar=self.calendar,
+                interpolation=self.interpolation,
+                t=self.t,
+                c=NoInput(0),  # call csolve on init
+                endpoints=self.spline_endpoints,
+                modifier=self.modifier,
+                ad=_.ad,
+                **kwargs,
+            )
+        else:
+            return _
 
     def _translate_nodes(self, start: datetime) -> dict[datetime, DualTypes]:
         scalar = 1 / self[start]
@@ -2281,7 +2303,7 @@ class CompositeCurve(Curve):
         attrs = [getattr(_, attr, None) for _ in self.curves]
         if not all(_ == attrs[0] for _ in attrs[1:]):
             raise ValueError(
-                f"Cannot composite curves with different attributes, got for '{attr}': {attrs},",
+                f"Cannot composite curves with different attributes, got for '{attr}': {[getattr(_, attr, None) for _ in self.curves]},",
             )
 
     @_validate_states
@@ -2468,9 +2490,7 @@ class CompositeCurve(Curve):
         """
         Change the node values on each curve to float, Dual or Dual2 based on input parameter.
         """
-        if order == getattr(self, "ad", None):
-            return None
-        elif order not in [0, 1, 2]:
+        if order not in [0, 1, 2]:
             raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
 
         self._ad = order
