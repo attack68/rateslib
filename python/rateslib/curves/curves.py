@@ -31,6 +31,7 @@ from rateslib.dual import (
     dual_exp,
     dual_log,
     set_order_convert,
+    set_order,
 )
 from rateslib.dual.utils import _dual_float
 from rateslib.mutability import (
@@ -501,7 +502,6 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         self,
         spread: DualTypes,
         id: str | NoInput = NoInput(0),  # noqa: A002
-        composite: bool = True,
         collateral: str | NoInput = NoInput(0),
     ) -> Curve:
         """
@@ -515,27 +515,23 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
         Parameters
         ----------
-        spread : float, Dual, Dual2
+        spread : float, Dual, Dual2, Variable
             The number of basis points added to the existing curve.
-
-            .. warning::
-
-               If ``composite`` is *True*, users must be aware that adding *Dual* or *Dual2*
-               spreads must be compatible with the AD order of *Self*, otherwise *TypeErrors*
-               may be raised. If in doubt, only use *float* spread values.
-
         id : str, optional
             Set the id of the returned curve.
-        composite: bool, optional
-            If True will return a CompositeCurve that adds a flat curve to the existing curve.
-            This results in slower calculations but the curve will maintain a dynamic
-            association with the underlying curve and will change if the underlying curve changes.
         collateral: str, optional
             Designate a collateral tag for the curve which is used by other methods.
 
         Returns
         -------
-        Curve, CompositeCurve
+        CompositeCurve
+
+        Notes
+        -----
+        The output :class:`~rateslib.curves.CompositeCurve` will have an AD order of the maximum
+        of the AD order of the input ``spread`` and of `Self`. That is, if the input ``spread`` is
+        a float (with AD order 0) and the input *Curve* is parametrised with *Dual* and has an AD
+        order of 1, then the result will have an AD order of 1.
 
         Examples
         --------
@@ -590,83 +586,38 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
            plt.show()
 
         """
-        if composite:
-            start, end = self.node_dates[0], self.node_dates[-1]
-            days = (end - start).days
-            d = _DCF1d[self.convention.upper()]
-            if type(self) is Curve or type(self) is ProxyCurve:
-                shifted = Curve(
-                    nodes={start: 1.0, end: 1.0 / (1 + d * spread / 10000) ** days},
-                    convention=self.convention,
-                    calendar=self.calendar,
-                    modifier=self.modifier,
-                    interpolation="log_linear",
-                    index_base=self.index_base,
-                    index_lag=NoInput(0),
-                )
-            elif type(self) is LineCurve:
-                shifted = LineCurve(
-                    nodes={start: spread / 100.0, end: spread / 100.0},
-                    convention=self.convention,
-                    calendar=self.calendar,
-                    modifier=self.modifier,
-                    interpolation="linear",
-                )
-            else:  # or type(self) is IndexCurve
-                shifted = Curve(
-                    nodes={start: 1.0, end: 1.0 / (1 + d * spread / 10000) ** days},
-                    convention=self.convention,
-                    calendar=self.calendar,
-                    modifier=self.modifier,
-                    interpolation="log_linear",
-                    index_base=self.index_base,
-                    index_lag=self.index_lag,
-                )
+        start, end = self.node_dates[0], self.node_dates[-1]
+        days = (end - start).days
+        d = _DCF1d[self.convention.upper()]
 
-            _: CompositeCurve = CompositeCurve(curves=[self, shifted], id=id)
-            _.collateral = _drb(None, collateral)
-            return _
+        if self._ad in [1, 2]:
+            spread_: DualTypes = set_order(spread, self._ad)
+        else:
+            spread_ = spread
 
-        else:  # use non-composite method, which is faster but does not preserve a dynamic spread.
-            # Make sure base curve ADorder matches the spread ADorder. Floats are universal
-            _ad = self.ad
-            if isinstance(spread, Dual):
-                self._set_ad_order(1)
-            elif isinstance(spread, Dual2):
-                self._set_ad_order(2)
-
-            v1v2: list[Number] = [1.0] * (self.n - 1)
-            n = [0] * (self.n - 1)
-            d = 1 / 365 if self.convention.upper() != "ACT360" else 1 / 360
-            v_new: list[Number] = [1.0] * (self.n)
-            for i, (k, v) in enumerate(self.nodes.items()):
-                if i == 0:
-                    continue
-                n[i - 1] = (k - self.node_dates[i - 1]).days
-                v1v2[i - 1] = (self.nodes[self.node_dates[i - 1]] / v) ** (1 / n[i - 1])
-                v_new[i] = v_new[i - 1] / (v1v2[i - 1] + d * spread / 10000) ** n[i - 1]
-
-            nodes = self.nodes.copy()
-            for i, (k, ___) in enumerate(nodes.items()):
-                nodes[k] = v_new[i]
-
-            __: Curve = type(self)(
-                nodes=nodes,
-                interpolation=self.interpolation,
-                t=self.t,
-                c=NoInput(0),
-                endpoints=self.spline_endpoints,
-                id=id or uuid4().hex[:5] + "_",  # 1 in a million clash,
+        if self._base_type == "dfs":
+            shifted = Curve(
+                nodes={start: 1.0, end: 1.0 / (1 + d * spread_ / 10000) ** days},
                 convention=self.convention,
-                modifier=self.modifier,
                 calendar=self.calendar,
-                ad=self.ad,
+                modifier=self.modifier,
+                interpolation="log_linear",
                 index_base=self.index_base,
                 index_lag=self.index_lag,
             )
-            __.collateral = _drb(None, collateral)
-            self._set_ad_order(_ad)
-            return __
+        else: # base type is values: LineCurve
+            shifted = LineCurve(
+                nodes={start: spread / 100.0, end: spread_ / 100.0},
+                convention=self.convention,
+                calendar=self.calendar,
+                modifier=self.modifier,
+                interpolation="linear",
+            )
+
+        _: CompositeCurve = CompositeCurve(curves=[self, shifted], id=id)
+        _.collateral = _drb(None, collateral)
+
+        return _
 
     def _translate_nodes(self, start: datetime) -> dict[datetime, DualTypes]:
         scalar = 1 / self[start]
@@ -1850,119 +1801,6 @@ class LineCurve(Curve):
             raise ValueError("`effective` before initial LineCurve date.")
         return self[effective]
 
-    def shift(
-        self,
-        spread: DualTypes,
-        id: str_ = NoInput(0),  # noqa: A002
-        composite: bool = True,
-        collateral: str_ = NoInput(0),
-    ) -> Curve:
-        """
-        Raise or lower the curve in parallel by a set number of basis points.
-
-        Parameters
-        ----------
-        spread : float, Dual, Dual2
-            The number of basis points added to the existing curve.
-
-            .. warning::
-
-               If ``composite`` is *True*, users must be aware that adding *Dual* or *Dual2*
-               spreads must be compatible with the AD order of *Self*, otherwise *TypeErrors*
-               may be raised. If in doubt, only use *float* spread values.
-
-        id : str, optional
-            Set the id of the returned curve.
-        composite: bool, optional
-            If True will return a CompositeCurve that adds a flat curve to the existing curve.
-            This results in slower calculations but the curve will maintain a dynamic
-            association with the underlying curve and will change if the underlying curve changes.
-        collateral: str, optional
-            Designate a collateral tag for the curve which is used by other methods.
-
-        Returns
-        -------
-        LineCurve
-
-        Examples
-        --------
-        .. ipython:: python
-
-           from rateslib.curves import LineCurve
-
-        .. ipython:: python
-
-           line_curve = LineCurve(
-               nodes = {
-                   dt(2022, 1, 1): 1.7,
-                   dt(2023, 1, 1): 1.65,
-                   dt(2024, 1, 1): 1.4,
-                   dt(2025, 1, 1): 1.3,
-                   dt(2026, 1, 1): 1.25,
-                   dt(2027, 1, 1): 1.35
-               },
-               t = [
-                   dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
-                   dt(2025, 1, 1),
-                   dt(2026, 1, 1),
-                   dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
-               ],
-           )
-           spread_curve = line_curve.shift(25)
-           line_curve.plot("1d", comparators=[spread_curve])
-
-        .. plot::
-
-           from rateslib.curves import *
-           import matplotlib.pyplot as plt
-           from datetime import datetime as dt
-           line_curve = LineCurve(
-               nodes = {
-                   dt(2022, 1, 1): 1.7,
-                   dt(2023, 1, 1): 1.65,
-                   dt(2024, 1, 1): 1.4,
-                   dt(2025, 1, 1): 1.3,
-                   dt(2026, 1, 1): 1.25,
-                   dt(2027, 1, 1): 1.35
-               },
-               t = [
-                   dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
-                   dt(2025, 1, 1),
-                   dt(2026, 1, 1),
-                   dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
-               ],
-           )
-           spread_curve = line_curve.shift(25)
-           fig, ax, line = line_curve.plot("1d", comparators=[spread_curve])
-           plt.show()
-
-        """
-        if composite:
-            return super().shift(spread, id, composite, collateral)
-
-        # Make sure base curve ADorder matches the spread ADorder. Floats are universal
-        _ad = self.ad
-        if isinstance(spread, Dual):
-            self._set_ad_order(1)
-        elif isinstance(spread, Dual2):
-            self._set_ad_order(2)
-
-        _: LineCurve = LineCurve(
-            nodes={k: v + spread / 100 for k, v in self.nodes.items()},
-            interpolation=self.interpolation,
-            t=self.t,
-            c=NoInput(0),
-            endpoints=self.spline_endpoints,
-            id=id,
-            convention=self.convention,
-            modifier=self.modifier,
-            calendar=self.calendar,
-            ad=self.ad,
-        )
-        _.collateral = _drb(None, collateral)
-        self._set_ad_order(_ad)
-        return _
-
     def _translate_nodes(self, start: datetime) -> dict[datetime, DualTypes]:
         new_nodes = self.nodes.copy()
 
@@ -2532,46 +2370,6 @@ class CompositeCurve(Curve):
             )  # pragma: no cover
 
     @_validate_states
-    def shift(
-        self,
-        spread: DualTypes,
-        id: str | NoInput = NoInput(0),  # noqa: A002
-        composite: bool = True,
-        collateral: str | NoInput = NoInput(0),
-    ) -> CompositeCurve:
-        """
-        Create a new curve by vertically adjusting the curve by a set number of basis
-        points.
-
-        This curve adjustment preserves the shape of the curve but moves it up or
-        down as a translation.
-        This method is suitable as a way to assess value changes of instruments when
-        a parallel move higher or lower in yields is predicted.
-
-        Parameters
-        ----------
-        spread : float, Dual, Dual2
-            The number of basis points added to the existing curve.
-        id : str, optional
-            Set the id of the returned curve.
-        composite: bool, optional
-            If True will return a CompositeCurve that adds a flat curve to the existing curve.
-            This results in slower calculations, but the curve will maintain a dynamic
-            association with the underlying curve and will change if the underlying curve changes.
-        collateral: str, optional
-            Designate a collateral tag for the curve which is used by other methods.
-
-        Returns
-        -------
-        CompositeCurve
-        """
-        curves: tuple[Curve, ...] = (self.curves[0].shift(spread=spread, composite=composite),)
-        curves += self.curves[1:]
-        _: CompositeCurve = CompositeCurve(curves=curves, id=id)
-        _.collateral = _drb(None, collateral)
-        return _
-
-    @_validate_states
     def translate(self, start: datetime, t: bool = False) -> CompositeCurve:
         """
         Create a new curve with an initial node date moved forward keeping all else
@@ -2890,57 +2688,6 @@ class MultiCsaCurve(CompositeCurve):
             multi_csa_max_step=self.multi_csa_max_step,
             multi_csa_min_step=self.multi_csa_min_step,
         )
-
-    @_validate_states
-    def shift(
-        self,
-        spread: DualTypes,
-        id: str | NoInput = NoInput(0),  # noqa: A002
-        composite: bool | NoInput = True,
-        collateral: str | NoInput = NoInput(0),
-    ) -> MultiCsaCurve:
-        """
-        Create a new curve by vertically adjusting the curve by a set number of basis
-        points.
-
-        This curve adjustment preserves the shape of the curve but moves it up or
-        down as a translation.
-        This method is suitable as a way to assess value changes of instruments when
-        a parallel move higher or lower in yields is predicted.
-
-        Parameters
-        ----------
-        spread : float, Dual, Dual2
-            The number of basis points added to the existing curve.
-        id : str, optional
-            Set the id of the returned curve.
-        composite: bool, optional
-            If True will return a CompositeCurve that adds a flat curve to the existing curve.
-            This results in slower calculations but the curve will maintain a dynamic
-            association with the underlying curve and will change if the underlying curve changes.
-        collateral: str, optional
-            Designate a collateral tag for the curve which is used by other methods.
-
-        Returns
-        -------
-        CompositeCurve
-        """
-        if composite:
-            # TODO (med) allow composite composite curves
-            raise ValueError(
-                "Creating a CompositeCurve containing sub CompositeCurves or MultiCsaCurves is "
-                "not yet implemented.\nSet `composite` to False.",
-            )
-
-        curves = tuple(_.shift(spread=spread, composite=composite) for _ in self.curves)
-        ret = MultiCsaCurve(
-            curves=curves,
-            id=id,
-            multi_csa_max_step=self.multi_csa_max_step,
-            multi_csa_min_step=self.multi_csa_min_step,
-        )
-        ret.collateral = _drb(None, collateral)
-        return ret
 
 
 # class HazardCurve(Curve):
