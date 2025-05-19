@@ -1859,6 +1859,14 @@ class TestCompositeCurve:
         result = cc2.rate(dt(2022, 2, 15), "3m")
         assert abs(result - 2.993926361170989) < 1e-8
 
+    def test_ad_order_is_max(self):
+        c1 = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.99})
+        c2 = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.99})
+        c2._set_ad_order(2)
+
+        assert CompositeCurve([c1, c2])._ad == 2
+        assert CompositeCurve([c2, c1])._ad == 2
+
 
 class TestMultiCsaCurve:
     def test_historic_rate_is_none(self) -> None:

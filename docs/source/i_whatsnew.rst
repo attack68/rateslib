@@ -159,6 +159,9 @@ Some themes for this release involved:
          Brazil, for example, the right number of business days is essential to the
          calculation.
          (`817 <https://github.com/attack68/rateslib/pull/817>`_)
+       - The AD order of a :class:`~rateslib.curves.CompositeCurve` is now determined from the
+         maximum AD order of its contained *Curves* and no longer the first *Curve* supplied.
+         (`829 <https://github.com/attack68/rateslib/pull/829>`_)
    * - **Deprecations & Removals**
      - - :red:`Major Breaking Change!` The method :meth:`~rateslib.curves.interpolate` is
          removed and user defined callables provided to a Curve ``interpolation`` method adopt a
