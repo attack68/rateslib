@@ -2394,7 +2394,7 @@ class CompositeCurve(Curve):
 
         # validate
         self._validate_curve_collection()
-        self._set_ad_order(self.curves[0].ad)  # also clears cache
+        self._set_ad_order(max(_._ad for _ in self.curves))  # also clears cache
         self._set_new_state()
 
     def _validate_curve_collection(self) -> None:
@@ -3056,7 +3056,7 @@ class ProxyCurve(Curve):
         self.node_dates = [self.fx_forwards.immediate, self.terminal]
 
     @property
-    def ad(self) -> int:
+    def _ad(self) -> int:  # type: ignore[override]
         return self.fx_forwards._ad
 
     @property
