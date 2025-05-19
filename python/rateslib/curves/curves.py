@@ -596,31 +596,25 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         days = (end - start).days
         d = _DCF1d[self.convention.upper()]
 
-        # if self._ad in [1, 2]:
-        #     spread_: DualTypes = set_order(spread, self._ad)
-        # else:
-        #     spread_ = spread
-        spread_ = spread
-
         if self._base_type == "dfs":
             shifted = Curve(
-                nodes={start: 1.0, end: 1.0 / (1 + d * spread_ / 10000) ** days},
+                nodes={start: 1.0, end: 1.0 / (1 + d * spread / 10000) ** days},
                 convention=self.convention,
                 calendar=self.calendar,
                 modifier=self.modifier,
                 interpolation="log_linear",
                 index_base=self.index_base,
                 index_lag=self.index_lag,
-                ad=_get_order_of(spread_),
+                ad=_get_order_of(spread),
             )
         else:  # base type is values: LineCurve
             shifted = LineCurve(
-                nodes={start: spread / 100.0, end: spread_ / 100.0},
+                nodes={start: spread / 100.0, end: spread / 100.0},
                 convention=self.convention,
                 calendar=self.calendar,
                 modifier=self.modifier,
                 interpolation="flat_forward",
-                ad=_get_order_of(spread_),
+                ad=_get_order_of(spread),
             )
 
         _: CompositeCurve = CompositeCurve(curves=[self, shifted], id=id)
