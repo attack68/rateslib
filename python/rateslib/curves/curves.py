@@ -629,7 +629,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                 kwargs = {}
 
             return CurveClass(
-                nodes={k: _[k] for k in self.nodes.keys()},
+                nodes={k: _[k] for k in self.nodes},
                 convention=self.convention,
                 calendar=self.calendar,
                 interpolation=self.interpolation,
@@ -2297,7 +2297,8 @@ class CompositeCurve(Curve):
         attrs = [getattr(_, attr, None) for _ in self.curves]
         if not all(_ == attrs[0] for _ in attrs[1:]):
             raise ValueError(
-                f"Cannot composite curves with different attributes, got for '{attr}': {[getattr(_, attr, None) for _ in self.curves]},",
+                f"Cannot composite curves with different attributes, got for "
+                f"'{attr}': {[getattr(_, attr, None) for _ in self.curves]},",
             )
 
     @_validate_states
