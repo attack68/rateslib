@@ -2394,7 +2394,7 @@ class CompositeCurve(Curve):
 
         # validate
         self._validate_curve_collection()
-        self._set_ad_order(self.curves[0].ad)  # also clears cache
+        self._set_ad_order(max(_._ad for _ in self.curves))  # also clears cache
         self._set_new_state()
 
     def _validate_curve_collection(self) -> None:
