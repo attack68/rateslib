@@ -33,7 +33,7 @@ from rateslib.dual import (
     set_order_convert,
     set_order,
 )
-from rateslib.dual.utils import _dual_float
+from rateslib.dual.utils import _dual_float, _get_order_of
 from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,
@@ -529,9 +529,15 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         Notes
         -----
         The output :class:`~rateslib.curves.CompositeCurve` will have an AD order of the maximum
-        of the AD order of the input ``spread`` and of `Self`. That is, if the input ``spread`` is
-        a float (with AD order 0) and the input *Curve* is parametrised with *Dual* and has an AD
+        of the AD order of the input ``spread`` and of `Self`.
+        That is, if the input ``spread`` is
+        a *float* (with AD order 0) and the input *Curve* is parametrised with *Dual* and has an AD
         order of 1, then the result will have an AD order of 1.
+
+        .. warning::
+
+           If ``spread`` is given as :class:`~rateslib.dual.Dual2` but the AD order of `Self`
+           is only 1, then `Self` will be upcast to use :class:`~rateslib.dual.Dual2` types.
 
         Examples
         --------
@@ -590,10 +596,11 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         days = (end - start).days
         d = _DCF1d[self.convention.upper()]
 
-        if self._ad in [1, 2]:
-            spread_: DualTypes = set_order(spread, self._ad)
-        else:
-            spread_ = spread
+        # if self._ad in [1, 2]:
+        #     spread_: DualTypes = set_order(spread, self._ad)
+        # else:
+        #     spread_ = spread
+        spread_ = spread
 
         if self._base_type == "dfs":
             shifted = Curve(
@@ -604,6 +611,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                 interpolation="log_linear",
                 index_base=self.index_base,
                 index_lag=self.index_lag,
+                ad=_get_order_of(spread_)
             )
         else: # base type is values: LineCurve
             shifted = LineCurve(
@@ -612,6 +620,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                 calendar=self.calendar,
                 modifier=self.modifier,
                 interpolation="linear",
+                ad=_get_order_of(spread_)
             )
 
         _: CompositeCurve = CompositeCurve(curves=[self, shifted], id=id)

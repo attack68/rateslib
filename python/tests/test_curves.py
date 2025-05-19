@@ -16,7 +16,8 @@ from rateslib.curves import (
     index_value,
 )
 from rateslib.default import NoInput
-from rateslib.dual import Dual, Dual2, gradient
+from rateslib.dual import Dual, Dual2, gradient, Variable
+from rateslib.dual.utils import _get_order_of
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments import IRS
 from rateslib.solver import Solver
@@ -619,6 +620,7 @@ def test_curve_shift_ad_order(ad_order) -> None:
 
 
 def test_curve_shift_association() -> None:
+    # test a dynamic shift association with curves, active after a Solver mutation
     args = (dt(2022, 2, 1), "1d")
     curve = Curve(
         nodes={dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.988},
@@ -628,15 +630,13 @@ def test_curve_shift_association() -> None:
         instruments=[IRS(dt(2022, 1, 1), "1Y", "A", curves=curve)],
         s=[2.0],
     )
-    base = curve.rate(*args)
-    ass_shifted_curve = curve.shift(100)
-    stat_shifted_curve = curve.shift(100)
-    assert abs(base - ass_shifted_curve.rate(*args) + 1.00) < 1e-5
-    assert abs(base - stat_shifted_curve.rate(*args) + 1.00) < 1e-5
+
+    shifted_curve = curve.shift(100)
+    assert abs(curve.rate(*args) - shifted_curve.rate(*args) + 1.00) < 1e-5
 
     solver.s = [3.0]
     solver.iterate()
-    assert abs(ass_shifted_curve.rate(*args) - stat_shifted_curve.rate(*args)) > 0.95
+    assert abs(curve.rate(*args) - shifted_curve.rate(*args) + 1.00) < 1e-5
 
 
 def test_curve_shift_dual_input() -> None:
@@ -682,7 +682,7 @@ def test_composite_curve_shift() -> None:
 
 
 @pytest.mark.parametrize("ad_order", [0, 1, 2])
-def test_linecurve_shift(ad_order, composite) -> None:
+def test_linecurve_shift(ad_order) -> None:
     curve = LineCurve(
         nodes={
             dt(2022, 1, 1): 1.0,
@@ -825,7 +825,8 @@ def test_indexcurve_shift_dual_input() -> None:
 
 @pytest.mark.parametrize("c_obj", ["c", "l", "i"])
 @pytest.mark.parametrize("ini_ad", [0, 1, 2])
-@pytest.mark.parametrize("spread", [Dual(1.0, ["z"], []), Dual2(1.0, ["z"], [], [])])
+@pytest.mark.parametrize("spread", [
+    1.0, Dual(1.0, ["z"], []), Dual2(1.0, ["z"], [], []), Variable(1.0, ["z"])])
 def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, spread):
     if c_obj == "c":
         c = curve
@@ -836,10 +837,8 @@ def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, sp
     c._set_ad_order(ini_ad)
     result = c.shift(spread)
 
-    if isinstance(spread, Dual):
-        assert result.ad == 1
-    else:
-        assert result.ad == 2
+    expected = max(_get_order_of(spread), ini_ad)
+    assert result._ad == expected
 
 
 @pytest.mark.parametrize(
