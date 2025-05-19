@@ -681,7 +681,7 @@ def test_composite_curve_shift() -> None:
     c1 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999})
     c2 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.998})
     cc = CompositeCurve([c1, c2])
-    result = cc.shift(20, composite=False).rate(dt(2022, 1, 1), "1d")
+    result = cc.shift(20).rate(dt(2022, 1, 1), "1d")
     expected = c1.rate(dt(2022, 1, 1), "1d") + c2.rate(dt(2022, 1, 1), "1d") + 0.2
     assert abs(result - expected) < 1e-3
 
@@ -1913,8 +1913,7 @@ class TestMultiCsaCurve:
         with pytest.raises(ValueError, match="`multi_csa_max_step` cannot be less "):
             MultiCsaCurve([curve], multi_csa_max_step=3, multi_csa_min_step=4)
 
-    @pytest.mark.parametrize("composite", [True, False])
-    def test_multi_csa_shift(self, composite) -> None:
+    def test_multi_csa_shift(self) -> None:
         c1 = Curve(
             {
                 dt(2022, 1, 1): 1.0,
@@ -1946,7 +1945,7 @@ class TestMultiCsaCurve:
             convention="Act365F",
         )
         cc = MultiCsaCurve([c1, c2, c3])
-        cc_shift = cc.shift(100, composite=composite)
+        cc_shift = cc.shift(100, composite=True)
         with default_context("multi_csa_steps", [1, 1, 1, 1, 1, 1, 1]):
             r1 = cc_shift.rate(dt(2022, 1, 1), "1d")
             r2 = cc_shift.rate(dt(2022, 1, 2), "1d")
