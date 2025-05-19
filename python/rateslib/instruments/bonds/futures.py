@@ -571,7 +571,7 @@ class BondFuture(Sensitivities):
             ],
         }
         for shift in shifts:
-            _curve = bcurve.shift(shift)
+            _curve = bcurve.shift(shift, composite=False)
             future_price = self.rate(curves=_curve, metric="future_price")
             data.update(
                 {

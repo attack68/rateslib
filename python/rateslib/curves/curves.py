@@ -2410,6 +2410,7 @@ class CompositeCurve(Curve):
         spread: DualTypes,
         id: str_ = NoInput(0),  # noqa: A002
         collateral: str_ = NoInput(0),
+        composite: bool = True,
     ) -> Curve:
         """
         Create a new curve by vertically adjusting the curve by a set number of basis
