@@ -756,7 +756,8 @@ def test_linecurve_shift_dual_input() -> None:
 
 
 @pytest.mark.parametrize("ad_order", [0, 1, 2])
-def test_indexcurve_shift(ad_order) -> None:
+@pytest.mark.parametrize("composite", [True, False])
+def test_indexcurve_shift(ad_order, composite) -> None:
     curve = Curve(
         nodes={
             dt(2022, 1, 1): 1.0,
@@ -782,7 +783,7 @@ def test_indexcurve_shift(ad_order) -> None:
         index_base=110.0,
         interpolation="log_linear",
     )
-    result_curve = curve.shift(25)
+    result_curve = curve.shift(25, composite=composite)
     diff = np.array(
         [
             result_curve.rate(_, "1D") - curve.rate(_, "1D") - 0.25
@@ -834,7 +835,8 @@ def test_indexcurve_shift_dual_input() -> None:
 @pytest.mark.parametrize(
     "spread", [1.0, Dual(1.0, ["z"], []), Dual2(1.0, ["z"], [], []), Variable(1.0, ["z"])]
 )
-def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, spread):
+@pytest.mark.parametrize("composite", [False, True])
+def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, spread, composite):
     if c_obj == "c":
         c = curve
     elif c_obj == "l":
@@ -848,7 +850,7 @@ def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, sp
             c.shift(spread)
         return None
 
-    result = c.shift(spread)
+    result = c.shift(spread, composite=composite)
     expected = max(_get_order_of(spread), ini_ad)
     assert result._ad == expected
 
