@@ -592,6 +592,104 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
            plt.show()
 
         """
+        return self._shift(spread, id, collateral, composite, False)
+
+    def _shift(
+        self,
+        spread: DualTypes,
+        id: str | NoInput = NoInput(0),  # noqa: A002
+        collateral: str | NoInput = NoInput(0),
+        composite: bool = True,
+        _no_validation: bool = False,
+    ) -> Curve:
+        """
+        Create a new curve by vertically adjusting the curve by a set number of basis
+        points.
+
+        This curve adjustment preserves the shape of the curve but moves it up or
+        down as a translation.
+        This method is suitable as a way to assess value changes of instruments when
+        a parallel move higher or lower in yields is predicted.
+
+        Parameters
+        ----------
+        spread : float, Dual, Dual2, Variable
+            The number of basis points added to the existing curve.
+        id : str, optional
+            Set the id of the returned curve.
+        collateral: str, optional
+            Designate a collateral tag for the curve which is used by other methods.
+
+        Returns
+        -------
+        CompositeCurve or Self
+
+        Notes
+        -----
+        The output :class:`~rateslib.curves.CompositeCurve` will have an AD order of the maximum
+        of the AD order of the input ``spread`` and of `Self`.
+        That is, if the input ``spread`` is
+        a *float* (with AD order 0) and the input *Curve* is parametrised with *Dual* and has an AD
+        order of 1, then the result will have an AD order of 1.
+
+        .. warning::
+
+           If ``spread`` is given as :class:`~rateslib.dual.Dual2` but the AD order of `Self`
+           is only 1, then `Self` will be upcast to use :class:`~rateslib.dual.Dual2` types.
+
+        Examples
+        --------
+        .. ipython:: python
+
+           from rateslib.curves import Curve
+
+        .. ipython:: python
+
+           curve = Curve(
+               nodes = {
+                   dt(2022, 1, 1): 1.0,
+                   dt(2023, 1, 1): 0.988,
+                   dt(2024, 1, 1): 0.975,
+                   dt(2025, 1, 1): 0.965,
+                   dt(2026, 1, 1): 0.955,
+                   dt(2027, 1, 1): 0.9475
+               },
+               t = [
+                   dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+                   dt(2025, 1, 1),
+                   dt(2026, 1, 1),
+                   dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+               ],
+           )
+           shifted_curve = curve.shift(25)
+           curve.plot("1d", comparators=[shifted_curve], labels=["orig", "shift"])
+
+        .. plot::
+
+           from rateslib.curves import *
+           import matplotlib.pyplot as plt
+           from datetime import datetime as dt
+           curve = Curve(
+               nodes = {
+                   dt(2022, 1, 1): 1.0,
+                   dt(2023, 1, 1): 0.988,
+                   dt(2024, 1, 1): 0.975,
+                   dt(2025, 1, 1): 0.965,
+                   dt(2026, 1, 1): 0.955,
+                   dt(2027, 1, 1): 0.9475
+               },
+               t = [
+                   dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+                   dt(2025, 1, 1),
+                   dt(2026, 1, 1),
+                   dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+               ],
+           )
+           spread_curve = curve.shift(25)
+           fig, ax, line = curve.plot("1d", comparators=[spread_curve], labels=["orig", "shift"])
+           plt.show()
+
+        """
         start, end = self.node_dates[0], self.node_dates[-1]
         days = (end - start).days
         d = _DCF1d[self.convention.upper()]
@@ -617,7 +715,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                 ad=_get_order_of(spread),
             )
 
-        _: CompositeCurve = CompositeCurve(curves=[self, shifted], id=id)
+        _: CompositeCurve = CompositeCurve(curves=[self, shifted], id=id, _no_validation=_no_validation)
         _.collateral = _drb(None, collateral)
 
         if not composite:
@@ -2241,6 +2339,7 @@ class CompositeCurve(Curve):
         self,
         curves: list[Curve] | tuple[Curve, ...],
         id: str | NoInput = NoInput(0),  # noqa: A002
+        _no_validation = False
     ) -> None:
         self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
 
@@ -2255,7 +2354,8 @@ class CompositeCurve(Curve):
             self.index_base = curves[0].index_base
 
         # validate
-        self._validate_curve_collection()
+        if not _no_validation:
+            self._validate_curve_collection()
         self._ad = max(_._ad for _ in self.curves)
         self._clear_cache()
         self._set_new_state()
@@ -2414,6 +2514,39 @@ class CompositeCurve(Curve):
         See :meth:`Curve.shift()<rateslib.curves.Curve.shift>`
         """
         return super().shift(spread, id, collateral)
+
+    @_validate_states
+    def shift(
+        self,
+        spread: DualTypes,
+        id: str_ = NoInput(0),  # noqa: A002
+        collateral: str_ = NoInput(0),
+        composite: bool = True,
+    ) -> Curve:
+        """
+        Create a new curve by vertically adjusting the curve by a set number of basis
+        points.
+
+        See :meth:`Curve.shift()<rateslib.curves.Curve.shift>`
+        """
+        return self._shift(spread, id, collateral, composite, False)
+
+    @_validate_states
+    def _shift(
+        self,
+        spread: DualTypes,
+        id: str_ = NoInput(0),  # noqa: A002
+        collateral: str_ = NoInput(0),
+        composite: bool = True,
+        _no_validation: bool = False
+    ) -> Curve:
+        """
+        Create a new curve by vertically adjusting the curve by a set number of basis
+        points.
+
+        See :meth:`Curve.shift()<rateslib.curves.Curve.shift>`
+        """
+        return super()._shift(spread, id, collateral, composite, _no_validation)
 
     @_validate_states
     def translate(self, start: datetime, t: bool = False) -> CompositeCurve:
