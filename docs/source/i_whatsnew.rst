@@ -107,6 +107,9 @@ Some themes for this release involved:
      - - The *'linear'* and *'log_linear'* ``interpolation`` methods of a *Curve* now automatically
          adjust to business day interpolation when using a *'bus252'* ``convention``.
          (`821 <https://github.com/attack68/rateslib/pull/821>`_)
+       - :class:`~rateslib.curves.CompositeCurve` can now be constructed
+         from other *CompositeCurves*.
+         (`826 <https://github.com/attack68/rateslib/pull/826>`_)
    * - **Automatic Differentiation & Algorithms**
      - - Operator overloads added to allow dual number exponents, i.e. :math:`z^p`, where *z*,
          *p* are dual number types. This facilitates AD for the SABR function as well as other
