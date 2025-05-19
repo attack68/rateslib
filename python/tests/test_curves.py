@@ -16,7 +16,7 @@ from rateslib.curves import (
     index_value,
 )
 from rateslib.default import NoInput
-from rateslib.dual import Dual, Dual2, gradient, Variable
+from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.dual.utils import _get_order_of
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments import IRS
@@ -825,8 +825,9 @@ def test_indexcurve_shift_dual_input() -> None:
 
 @pytest.mark.parametrize("c_obj", ["c", "l", "i"])
 @pytest.mark.parametrize("ini_ad", [0, 1, 2])
-@pytest.mark.parametrize("spread", [
-    1.0, Dual(1.0, ["z"], []), Dual2(1.0, ["z"], [], []), Variable(1.0, ["z"])])
+@pytest.mark.parametrize(
+    "spread", [1.0, Dual(1.0, ["z"], []), Dual2(1.0, ["z"], [], []), Variable(1.0, ["z"])]
+)
 def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, spread):
     if c_obj == "c":
         c = curve
@@ -835,8 +836,13 @@ def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, sp
     else:
         c = index_curve
     c._set_ad_order(ini_ad)
-    result = c.shift(spread)
 
+    if ini_ad + _get_order_of(spread) == 3:
+        with pytest.raises(TypeError, match="CompositeCurve cannot composite curves of AD order 1"):
+            c.shift(spread)
+        return None
+
+    result = c.shift(spread)
     expected = max(_get_order_of(spread), ini_ad)
     assert result._ad == expected
 

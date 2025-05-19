@@ -31,7 +31,6 @@ from rateslib.dual import (
     dual_exp,
     dual_log,
     set_order_convert,
-    set_order,
 )
 from rateslib.dual.utils import _dual_float, _get_order_of
 from rateslib.mutability import (
@@ -611,16 +610,16 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                 interpolation="log_linear",
                 index_base=self.index_base,
                 index_lag=self.index_lag,
-                ad=_get_order_of(spread_)
+                ad=_get_order_of(spread_),
             )
-        else: # base type is values: LineCurve
+        else:  # base type is values: LineCurve
             shifted = LineCurve(
                 nodes={start: spread / 100.0, end: spread_ / 100.0},
                 convention=self.convention,
                 calendar=self.calendar,
                 modifier=self.modifier,
-                interpolation="linear",
-                ad=_get_order_of(spread_)
+                interpolation="flat_forward",
+                ad=_get_order_of(spread_),
             )
 
         _: CompositeCurve = CompositeCurve(curves=[self, shifted], id=id)
@@ -2241,7 +2240,8 @@ class CompositeCurve(Curve):
 
         # validate
         self._validate_curve_collection()
-        self._set_ad_order(max(_._ad for _ in self.curves))  # also clears cache
+        self._ad = max(_._ad for _ in self.curves)
+        self._clear_cache()
         self._set_new_state()
 
     def _validate_curve_collection(self) -> None:
@@ -2268,9 +2268,13 @@ class CompositeCurve(Curve):
             self._check_init_attribute("modifier")
             self._check_init_attribute("convention")
 
-        # if types[0] is IndexCurve:
-        #     self._check_init_attribute("index_base")
-        #     self._check_init_attribute("index_lag")
+        _ad = [_._ad for _ in self.curves]
+        if 1 in _ad and 2 in _ad:
+            raise TypeError(
+                "CompositeCurve cannot composite curves of AD order 1 and 2.\n"
+                "Either downcast curves using `curve._set_ad_order(1)`.\n"
+                "Or upcast curves using `curve._set_ad_order(2)`.\n"
+            )
 
     def _check_init_attribute(self, attr: str) -> None:
         """Ensure attributes are the same across curve collection"""
@@ -2377,6 +2381,21 @@ class CompositeCurve(Curve):
             raise TypeError(
                 f"Base curve type is unrecognised: {self._base_type}",
             )  # pragma: no cover
+
+    @_validate_states
+    def shift(
+        self,
+        spread: DualTypes,
+        id: str_ = NoInput(0),  # noqa: A002
+        collateral: str_ = NoInput(0),
+    ) -> Curve:
+        """
+        Create a new curve by vertically adjusting the curve by a set number of basis
+        points.
+
+        See :meth:`Curve.shift()<rateslib.curves.Curve.shift>`
+        """
+        return super().shift(spread, id, collateral)
 
     @_validate_states
     def translate(self, start: datetime, t: bool = False) -> CompositeCurve:
