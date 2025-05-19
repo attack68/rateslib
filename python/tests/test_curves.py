@@ -622,7 +622,6 @@ def test_curve_shift_ad_order(ad_order, composite) -> None:
 
 def test_curve_shift_association() -> None:
     # test a dynamic shift association with curves, active after a Solver mutation
-    # test a dynamic shift association with curves, active after a Solver mutation
     args = (dt(2022, 2, 1), "1d")
     curve = Curve(
         nodes={dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.988},
@@ -668,7 +667,7 @@ def test_curve_shift_dual_input() -> None:
             dt(2027, 1, 1),
         ],
     )
-    result_curve = curve.shift(Dual(25, ["z"], []), composite=False)
+    result_curve = curve.shift(Dual(25, ["z"], []))
     diff = np.array(
         [
             result_curve.rate(_, "1D") - curve.rate(_, "1D") - 0.25
@@ -682,13 +681,14 @@ def test_composite_curve_shift() -> None:
     c1 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999})
     c2 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.998})
     cc = CompositeCurve([c1, c2])
-    result = cc.shift(20).rate(dt(2022, 1, 1), "1d")
+    result = cc.shift(20, composite=False).rate(dt(2022, 1, 1), "1d")
     expected = c1.rate(dt(2022, 1, 1), "1d") + c2.rate(dt(2022, 1, 1), "1d") + 0.2
     assert abs(result - expected) < 1e-3
 
 
 @pytest.mark.parametrize("ad_order", [0, 1, 2])
-def test_linecurve_shift(ad_order) -> None:
+@pytest.mark.parametrize("composite", [True, False])
+def test_linecurve_shift(ad_order, composite) -> None:
     curve = LineCurve(
         nodes={
             dt(2022, 1, 1): 1.0,
@@ -712,7 +712,7 @@ def test_linecurve_shift(ad_order) -> None:
         ],
         ad=ad_order,
     )
-    result_curve = curve.shift(25)
+    result_curve = curve.shift(25, composite=composite)
     diff = np.array(
         [
             result_curve[_] - curve[_] - 0.25
