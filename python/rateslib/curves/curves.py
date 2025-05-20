@@ -2939,7 +2939,7 @@ def average_rate(
     effective: datetime, termination: datetime, convention: str, rate: DualTypes
 ) -> tuple[Number, float, float]:
     """
-    Return the geometric, 1 calendar day, average rate for the rate in a period.
+    Return the geometric, 1-day, average simple rate for a given simple period rate.
 
     This is used for approximations usually in combination with floating periods.
 
@@ -2970,7 +2970,7 @@ def average_rate(
 
     - Business day basis (if ``convention`` is *'bus252'*), where :math:`n` is business days
       in period. *n* is approximated by a 252 business days per year rule and does not
-      calculate the exact number of business days from a given holiday calendar.
+      calculate the exact number of business days from any specific holiday calendar.
 
       .. math::
 
