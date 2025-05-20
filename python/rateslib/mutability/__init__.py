@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Generic, ParamSpec, TypeVar
 from rateslib import defaults
 
 if TYPE_CHECKING:
-    from rateslib.typing import Solver
+    pass
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -23,10 +23,10 @@ def _no_interior_validation(func: Callable[P, R]) -> Callable[P, R]:
 
     @wraps(func)
     def wrapper_no_interior_validation(*args: P.args, **kwargs: P.kwargs) -> R:
-        self: Solver = args[0]  # type: ignore[assignment]
-        self._do_not_validate = True
+        self = args[0]
+        self._do_not_validate = True  # type: ignore[attr-defined]
         result = func(*args, **kwargs)
-        self._do_not_validate = False
+        self._do_not_validate = False  # type: ignore[attr-defined]
         return result
 
     return wrapper_no_interior_validation

@@ -36,6 +36,7 @@ from rateslib.dual.utils import _dual_float, _get_order_of
 from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,
+    _no_interior_validation,
     _validate_states,
     _WithCache,
     _WithState,
@@ -2257,6 +2258,7 @@ class CompositeCurve(Curve):
 
     collateral = None
     _mutable_by_association = True
+    _do_not_validate = False
 
     def __init__(
         self,
@@ -2325,6 +2327,7 @@ class CompositeCurve(Curve):
             )
 
     @_validate_states
+    @_no_interior_validation
     def rate(  # type: ignore[override]
         self,
         effective: datetime,
@@ -2544,6 +2547,8 @@ class CompositeCurve(Curve):
     # Mutation
 
     def _validate_state(self) -> None:
+        if self._do_not_validate:
+            return None
         if self._state != self._get_composited_state():
             # If any of the associated curves have been mutated then the cache is invalidated
             self._clear_cache()
