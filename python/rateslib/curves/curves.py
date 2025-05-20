@@ -2258,7 +2258,7 @@ class CompositeCurve(Curve):
         self,
         curves: list[Curve] | tuple[Curve, ...],
         id: str_ = NoInput(0),  # noqa: A002
-        _no_validation: bool =False,
+        _no_validation: bool = False,
     ) -> None:
         self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
 
