@@ -12,9 +12,9 @@ from rateslib.curves import (
     Curve,
     LineCurve,
     MultiCsaCurve,
+    average_rate,
     index_left,
     index_value,
-    average_rate,
 )
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, gradient
@@ -1180,6 +1180,7 @@ def test_curve_zero_width_rate_raises(curve) -> None:
 def test_set_node_vector_updates_ad_attribute(curve) -> None:
     curve._set_node_vector([0.98], ad=2)
     assert curve.ad == 2
+
 
 @pytest.mark.parametrize("convention", ["act360", "30360", "act365f", "bus252"])
 def test_average_rate(convention):
