@@ -487,7 +487,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                 _ = (
                     (r_bar + float_spread / 100)
                     / n
-                    * (comb(n, 1) + comb(n, 2) * rd + comb(n, 3) * rd**2)
+                    * (comb(int(n), 1) + comb(int(n), 2) * rd + comb(int(n), 3) * rd**2)
                 )
                 return _
             else:
@@ -501,8 +501,8 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     def shift(
         self,
         spread: DualTypes,
-        id: str | NoInput = NoInput(0),  # noqa: A002
-        collateral: str | NoInput = NoInput(0),
+        id: str_ = NoInput(0),  # noqa: A002
+        collateral: str_ = NoInput(0),
         composite: bool = True,
     ) -> Curve:
         """
@@ -602,8 +602,8 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     def _shift(
         self,
         spread: DualTypes,
-        id: str | NoInput = NoInput(0),  # noqa: A002
-        collateral: str | NoInput = NoInput(0),
+        id: str_ = NoInput(0),  # noqa: A002
+        collateral: str_ = NoInput(0),
         composite: bool = True,
         _no_validation: bool = False,
     ) -> Curve:
@@ -613,12 +613,13 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         ``_no_validation`` is a performance enhancement to speed up a CompositeCurve init.
         """
         start, end = self.node_dates[0], self.node_dates[-1]
-        days = (end - start).days
-        d = _DCF1d[self.convention.upper()]
+
+        d, s = _DCF1d[self.convention.upper()]
+        n = (end - start).days
 
         if self._base_type == "dfs":
             shifted = Curve(
-                nodes={start: 1.0, end: 1.0 / (1 + d * spread / 10000) ** days},
+                nodes={start: 1.0, end: 1.0 / (1 + d * spread / 10000) ** n},
                 convention=self.convention,
                 calendar=self.calendar,
                 modifier=self.modifier,
@@ -2403,14 +2404,14 @@ class CompositeCurve(Curve):
                 return 1.0  # TODO (low:?) this is not variable but maybe should be tagged as "id0"?
             elif date < self.curves[0].node_dates[0]:
                 return 0.0  # Any DF in the past is set to zero consistent with behaviour on `Curve`
-            days = (date - self.curves[0].node_dates[0]).days
-            d = _DCF1d[self.convention.upper()]
 
+            d, s = _DCF1d[self.convention.upper()]
+            n = (date - self.curves[0].node_dates[0]).days * s
             total_rate: Number = 0.0
             for curve in self.curves:
-                avg_rate = ((1.0 / curve[date]) ** (1.0 / days) - 1) / d
+                avg_rate = ((1.0 / curve[date]) ** (1.0 / n) - 1) / d
                 total_rate += avg_rate
-            _: DualTypes = 1.0 / (1 + total_rate * d) ** days
+            _: DualTypes = 1.0 / (1 + total_rate * d) ** n
             return self._cached_value(date, _)
 
         elif self._base_type == "values":
@@ -2665,8 +2666,8 @@ class MultiCsaCurve(CompositeCurve):
         if isinstance(termination, str):
             termination = add_tenor(effective, termination, modifier_, self.calendar)
 
-        d = _DCF1d[self.convention.upper()]
-        n = (termination - effective).days
+        d, s = _DCF1d[self.convention.upper()]
+        n = (termination - effective).days * s
         # TODO (low:perf) when these discount factors are looked up the curve repeats
         # the lookup could be vectorised to return two values at once.
         df_num = self[effective]
@@ -2936,7 +2937,7 @@ class ProxyCurve(Curve):
 
 def average_rate(
     effective: datetime, termination: datetime, convention: str, rate: DualTypes
-) -> tuple[Number, float, int]:
+) -> tuple[Number, float, float]:
     """
     Return the geometric, 1 calendar day, average rate for the rate in a period.
 
@@ -2951,14 +2952,36 @@ def average_rate(
     convention : str
         The day count convention of the curve rate.
     rate : float, Dual, Dual2
-        The rate to decompose to average, in percentage terms, e.g. 0.04 = 4% rate.
+        The simple period rate to decompose to average, in percentage terms, e.g. 4.00 = 4% rate.
 
     Returns
     -------
-    tuple : The rate, the 1-day DCF, and the number of calendar days
+    tuple : The simple rate, the 1-day DCF, and the number of relevant days for the convention
+
+    Notes
+    -----
+    This method operates in one of two modes to determine the value, :math:`\\bar{r}`.
+
+    - Calendar day basis, where :math:`\\tilde{n}` is calendar days in period:
+
+      .. math::
+
+         1+\\tilde{n}\\bar{d}r = (1 + \\bar{d}\\bar{r})^{\\tilde{n}}
+
+    - Business day basis (if ``convention`` is *'bus252'*), where :math:`n` is business days
+      in period. *n* is approximated by a 252 business days per year rule and does not
+      calculate the exact number of business days from a given holiday calendar.
+
+      .. math::
+
+         1+n\\bar{d}r = (1 + \\bar{d}\\bar{r})^{n}
+
+    :math:`\\bar{d}`, the 1-day DCF is estimated from a ``convention``. For certain conventions,
+    e.g. *'act360'* and *'act365f'* this is explicit and exact, but for others, such as *'30360'*,
+    this function will likely be lesser used and less accurate.
     """
-    d: float = _DCF1d[convention.upper()]
-    n: int = (termination - effective).days
+    d, s = _DCF1d[convention.upper()]
+    n: float = (termination - effective).days * s
     _: Number = ((1 + n * d * rate / 100) ** (1 / n) - 1) / d
     return _ * 100, d, n
 

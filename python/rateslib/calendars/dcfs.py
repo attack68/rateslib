@@ -360,26 +360,29 @@ _DCF: dict[str, Callable[..., float]] = {
     "BUS252": _dcf_bus252,
 }
 
-_DCF1d = {
-    "ACT365F": 1.0 / 365,
-    "ACT365F+": 1.0 / 365,
-    "ACT360": 1.0 / 360,
-    "30360": 1.0 / 365.25,
-    "360360": 1.0 / 365.25,
-    "BONDBASIS": 1.0 / 365.25,
-    "30U360": 1.0 / 365.25,
-    "30E360": 1.0 / 365.25,
-    "EUROBONDBASIS": 1.0 / 365.25,
-    "30E360ISDA": 1.0 / 365.25,
-    "ACTACT": 1.0 / 365.25,
-    "ACTACTISDA": 1.0 / 365.25,
-    "ACTACTICMA": 1.0 / 365.25,
-    "ACTACTICMA_STUB365F": 1 / 365.25,
-    "ACTACTISMA": 1.0 / 365.25,
-    "ACTACTBOND": 1.0 / 365.25,
-    "1": 1.0 / 365.25,
-    "1+": 1.0 / 365.25,
-    "BUS252": 1.0 / 252,
+# DCF1d allows approximated 1-day rates to be determined.
+# The first element is the DCF for a 1day period estimated under the convention.
+# The second element is a scalar applied to calendar days to convert, e.g. for business days.
+_DCF1d: dict[str, tuple[float, float]] = {
+    "ACT365F": (1.0 / 365, 1.0),
+    "ACT365F+": (1.0 / 365, 1.0),
+    "ACT360": (1.0 / 360, 1.0),
+    "30360": (1.0 / 365.25, 1.0),
+    "360360": (1.0 / 365.25, 1.0),
+    "BONDBASIS": (1.0 / 365.25, 1.0),
+    "30U360": (1.0 / 365.25, 1.0),
+    "30E360": (1.0 / 365.25, 1.0),
+    "EUROBONDBASIS": (1.0 / 365.25, 1.0),
+    "30E360ISDA": (1.0 / 365.25, 1.0),
+    "ACTACT": (1.0 / 365.25, 1.0),
+    "ACTACTISDA": (1.0 / 365.25, 1.0),
+    "ACTACTICMA": (1.0 / 365.25, 1.0),
+    "ACTACTICMA_STUB365F": (1 / 365.25, 1.0),
+    "ACTACTISMA": (1.0 / 365.25, 1.0),
+    "ACTACTBOND": (1.0 / 365.25, 1.0),
+    "1": (1.0 / 365.25, 1.0),
+    "1+": (1.0 / 365.25, 1.0),
+    "BUS252": (1.0 / 252, 252 / 365.25),
 }
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

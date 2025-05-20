@@ -1269,8 +1269,8 @@ class FloatPeriod(BasePeriod):
             elif self.spread_compound_method == "isda_flat_compounding":
                 dr = d * r_bar / 100
                 drdri = (1 / n) * (
-                    ((1 / n) * (comb(n, 1) + comb(n, 2) * dr + comb(n, 3) * dr**2))
-                    + ((r_bar / 100 + z) / n) * (comb(n, 2) * d + 2 * comb(n, 3) * dr * d)
+                    ((1 / n) * (comb(int(n), 1) + comb(int(n), 2) * dr + comb(int(n), 3) * dr**2))
+                    + ((r_bar / 100 + z) / n) * (comb(int(n), 2) * d + 2 * comb(int(n), 3) * dr * d)
                 )
 
             v = _dual_float(disc_curve[self.payment])
@@ -1718,7 +1718,9 @@ class FloatPeriod(BasePeriod):
             b: DualTypes = Nvd * drdz
         elif self.spread_compound_method == "isda_flat_compounding":
             # d2rdz2 = 0.0
-            drdz = (1 + comb(n, 2) / n * r / 100 * d + comb(n, 3) / n * (r / 100 * d) ** 2) / 1e4
+            drdz = (
+                1 + comb(int(n), 2) / n * r / 100 * d + comb(int(n), 3) / n * (r / 100 * d) ** 2
+            ) / 1e4
             Nvd = -self.notional * disc_curve[self.payment] * self.dcf
             a, b = 0.0, Nvd * drdz
 
