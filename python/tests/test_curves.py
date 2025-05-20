@@ -16,7 +16,8 @@ from rateslib.curves import (
     index_value,
 )
 from rateslib.default import NoInput
-from rateslib.dual import Dual, Dual2, gradient
+from rateslib.dual import Dual, Dual2, Variable, gradient
+from rateslib.dual.utils import _get_order_of
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments import IRS
 from rateslib.solver import Solver
@@ -620,6 +621,7 @@ def test_curve_shift_ad_order(ad_order, composite) -> None:
 
 
 def test_curve_shift_association() -> None:
+    # test a dynamic shift association with curves, active after a Solver mutation
     args = (dt(2022, 2, 1), "1d")
     curve = Curve(
         nodes={dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.988},
@@ -637,6 +639,8 @@ def test_curve_shift_association() -> None:
 
     solver.s = [3.0]
     solver.iterate()
+    base = curve.rate(*args)
+    assert abs(base - ass_shifted_curve.rate(*args) + 1.00) < 1e-5
     assert abs(ass_shifted_curve.rate(*args) - stat_shifted_curve.rate(*args)) > 0.95
 
 
@@ -677,7 +681,7 @@ def test_composite_curve_shift() -> None:
     c1 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999})
     c2 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.998})
     cc = CompositeCurve([c1, c2])
-    result = cc.shift(20, composite=False).rate(dt(2022, 1, 1), "1d")
+    result = cc.shift(20).rate(dt(2022, 1, 1), "1d")
     expected = c1.rate(dt(2022, 1, 1), "1d") + c2.rate(dt(2022, 1, 1), "1d") + 0.2
     assert abs(result - expected) < 1e-3
 
@@ -828,8 +832,10 @@ def test_indexcurve_shift_dual_input() -> None:
 
 @pytest.mark.parametrize("c_obj", ["c", "l", "i"])
 @pytest.mark.parametrize("ini_ad", [0, 1, 2])
-@pytest.mark.parametrize("spread", [Dual(1.0, ["z"], []), Dual2(1.0, ["z"], [], [])])
-@pytest.mark.parametrize("composite", [False])
+@pytest.mark.parametrize(
+    "spread", [1.0, Dual(1.0, ["z"], []), Dual2(1.0, ["z"], [], []), Variable(1.0, ["z"])]
+)
+@pytest.mark.parametrize("composite", [False, True])
 def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, spread, composite):
     if c_obj == "c":
         c = curve
@@ -838,12 +844,15 @@ def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, sp
     else:
         c = index_curve
     c._set_ad_order(ini_ad)
-    result = c.shift(spread, composite=composite)
 
-    if isinstance(spread, Dual):
-        assert result.ad == 1
-    else:
-        assert result.ad == 2
+    if ini_ad + _get_order_of(spread) == 3:
+        with pytest.raises(TypeError, match="CompositeCurve cannot composite curves of AD order 1"):
+            c.shift(spread)
+        return None
+
+    result = c.shift(spread, composite=composite)
+    expected = max(_get_order_of(spread), ini_ad)
+    assert result._ad == expected
 
 
 @pytest.mark.parametrize(
@@ -1936,7 +1945,7 @@ class TestMultiCsaCurve:
             convention="Act365F",
         )
         cc = MultiCsaCurve([c1, c2, c3])
-        cc_shift = cc.shift(100, composite=False)
+        cc_shift = cc.shift(100, composite=True)
         with default_context("multi_csa_steps", [1, 1, 1, 1, 1, 1, 1]):
             r1 = cc_shift.rate(dt(2022, 1, 1), "1d")
             r2 = cc_shift.rate(dt(2022, 1, 2), "1d")

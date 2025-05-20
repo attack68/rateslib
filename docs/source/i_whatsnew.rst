@@ -110,6 +110,11 @@ Some themes for this release involved:
        - :class:`~rateslib.curves.CompositeCurve` can now be constructed
          from other *CompositeCurves*.
          (`826 <https://github.com/attack68/rateslib/pull/826>`_)
+       - The :meth:`Curve.shift() <rateslib.curves.Curve.shift>` method has its ``composite``
+         argument moved in the signature and the calculation to determine shifted *Curves* is now
+         more precise, albeit may impact slight performance degradations in bond OAS spread
+         calculations.
+         (`828 <https://github.com/attack68/rateslib/pull/828>`_)
    * - **Automatic Differentiation & Algorithms**
      - - Operator overloads added to allow dual number exponents, i.e. :math:`z^p`, where *z*,
          *p* are dual number types. This facilitates AD for the SABR function as well as other
