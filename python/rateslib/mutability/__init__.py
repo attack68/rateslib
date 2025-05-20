@@ -23,7 +23,7 @@ def _no_interior_validation(func: Callable[P, R]) -> Callable[P, R]:
 
     @wraps(func)
     def wrapper_no_interior_validation(*args: P.args, **kwargs: P.kwargs) -> R:
-        self: Solver = args[0]  # type: ignore[assignment]
+        self = args[0]  # type: ignore[assignment]
         self._do_not_validate = True
         result = func(*args, **kwargs)
         self._do_not_validate = False
