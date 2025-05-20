@@ -655,7 +655,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                 endpoints=self.spline_endpoints,
                 modifier=self.modifier,
                 ad=_.ad,
-                **kwargs,
+                **kwargs,  # type: ignore[arg-type]
             )
         else:
             return _
@@ -2257,8 +2257,8 @@ class CompositeCurve(Curve):
     def __init__(
         self,
         curves: list[Curve] | tuple[Curve, ...],
-        id: str | NoInput = NoInput(0),  # noqa: A002
-        _no_validation=False,
+        id: str_ = NoInput(0),  # noqa: A002
+        _no_validation: bool =False,
     ) -> None:
         self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
 
