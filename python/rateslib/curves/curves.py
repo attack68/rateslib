@@ -521,6 +521,10 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             Set the id of the returned curve.
         collateral: str, optional
             Designate a collateral tag for the curve which is used by other methods.
+        composite: bool, optional
+            If True will return a CompositeCurve that adds a flat curve to the existing curve.
+            This results in slower calculations but the curve will maintain a dynamic
+            association with the underlying curve and will change if the underlying curve changes.
 
         Returns
         -------
