@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Generic, ParamSpec, TypeVar
 from rateslib import defaults
 
 if TYPE_CHECKING:
-    from rateslib.typing import Solver
+    pass
 
 P = ParamSpec("P")
 R = TypeVar("R")
