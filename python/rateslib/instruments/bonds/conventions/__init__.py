@@ -599,6 +599,18 @@ NL_GB = BondCalcMode(
     cn="cashflow",
 )
 
+CH_GB = BondCalcMode(
+    # Swiss GBs
+    settle_accrual="30e360_backward",
+    ytm_accrual="30e360_backward",
+    v1="compounding",
+    v2="regular",
+    v3="compounding",
+    c1="cashflow",
+    ci="cashflow",
+    cn="cashflow",
+)
+
 UK_GBB = BillCalcMode(
     # UK T-bills
     price_type="simple",
@@ -626,6 +638,7 @@ BOND_MODE_MAP = {
     "de_gb": DE_GB,
     "fr_gb": FR_GB,
     "nl_gb": NL_GB,
+    "ch_gb": CH_GB,
     "no_gb": NO_GB,
     "se_gb": SE_GB,
     "us_gb_tsy": US_GB_TSY,
