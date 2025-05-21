@@ -2785,6 +2785,47 @@ class TestBondFuture:
         assert result[0] == exp
 
     @pytest.mark.parametrize(
+        ("effective", "maturity", "delivery", "coupon", "exp"),
+        [
+            # (dt(2019, 6, 26), dt(2034, 6, 26), dt(2025, 6, 10), 0.0, 0.591898),
+            # (dt(2006, 3, 8), dt(2036, 3, 8), dt(2025, 6, 10), 2.5, 0.729825),
+            # (dt(2021, 6, 23), dt(2035, 6, 23), dt(2025, 6, 10), 0.25, 0.576795),
+            (dt(2012, 6, 27), dt(2037, 6, 27), dt(2025, 6, 10), 1.25, 0.601767),
+        ],
+    )
+    def test_conversion_factors_eurex_chf_method_jun25(
+        self, effective, maturity, delivery, coupon, exp
+    ) -> None:
+        # The expected results are downloaded from the EUREX website
+        # regarding precalculated conversion factors.
+        # these should be exact due to specifically coded methods
+        bond1 = FixedRateBond(effective, maturity, fixed_rate=coupon, spec="ch_gb")
+        fut = BondFuture(basket=[bond1], delivery=delivery, spec="ch_gb_10y")
+        result = fut.cfs
+        assert result[0] == exp
+
+    @pytest.mark.parametrize(
+        ("effective", "maturity", "delivery", "coupon", "exp"),
+        [
+            (dt(2019, 1, 1), dt(2033, 4, 8), dt(2025, 3, 10), 3.5, 0.844755),
+            (dt(2019, 1, 1), dt(2034, 6, 26), dt(2025, 3, 10), 0.0, 0.583339),
+            (dt(2006, 1, 1), dt(2036, 3, 8), dt(2025, 3, 10), 2.5, 0.725400),
+            (dt(2021, 1, 1), dt(2035, 6, 23), dt(2025, 3, 10), 0.25, 0.569042),
+            (dt(2012, 1, 1), dt(2037, 6, 27), dt(2025, 3, 10), 1.25, 0.596009),
+        ],
+    )
+    def test_conversion_factors_eurex_chf_method_mar25(
+        self, effective, maturity, delivery, coupon, exp
+    ) -> None:
+        # The expected results are downloaded from the EUREX website
+        # regarding precalculated conversion factors.
+        # these should be exact due to specifically coded methods
+        bond1 = FixedRateBond(effective, maturity, fixed_rate=coupon, spec="ch_gb")
+        fut = BondFuture(basket=[bond1], delivery=delivery, spec="ch_gb_10y")
+        result = fut.cfs
+        assert result[0] == exp
+
+    @pytest.mark.parametrize(
         ("mat", "coupon", "exp"),
         [
             (dt(2032, 6, 7), 4.25, 1.0187757),

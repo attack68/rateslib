@@ -103,6 +103,9 @@ Some themes for this release involved:
          (`790 <https://github.com/attack68/rateslib/pull/790>`_)
          (`789 <https://github.com/attack68/rateslib/pull/789>`_)
          (`794 <https://github.com/attack68/rateslib/pull/794>`_)
+       - Add the ``spec`` *'ch_gb'* for Swiss government bonds and *'ch_gb_10y'* for EUREX
+         10Y Swiss government bond futures along with the appropriate conversion factor
+         calculations.
    * - **Curves**
      - - The *'linear'* and *'log_linear'* ``interpolation`` methods of a *Curve* now automatically
          adjust to business day interpolation when using a *'bus252'* ``convention``.
