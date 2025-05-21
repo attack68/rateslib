@@ -17,6 +17,7 @@ from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
 from rateslib.calendars.dcfs import _DCF1d
 from rateslib.calendars.rs import get_calendar
+from rateslib.curves._parsers import _get_rfr_curve_from_dict
 from rateslib.curves.interpolation import INTERPOLATION, InterpolationFunction
 from rateslib.default import (
     NoInput,
@@ -2961,6 +2962,107 @@ def average_rate(
     n: int = (termination - effective).days
     _: Number = ((1 + n * d * rate / 100) ** (1 / n) - 1) / d
     return _ * 100, d, n
+
+
+
+def rate_value(
+    effective: datetime,
+    termination: datetime | str_,
+    modifier: str_ = NoInput(0),
+    calendar: CalInput = NoInput(0),
+    convention: str_ = NoInput(0),
+    float_spread: float_ = NoInput(0),
+    spread_compound_method: str_ = NoInput(0),
+    fixing_method: str_ = NoInput(0),
+    method_param: int_ = NoInput(0),
+    fixings: list[DualTypes] = NoInput(0),
+    curve: CurveOption_ = NoInput(0)
+) -> DualTypes:
+
+    # must define default values.
+
+    # must validate calendar and modifier with curve values.
+
+    if "ibor" in fixing_method:
+        return _rate_ibor_value(
+            effective, termination, modifier, calendar, convention, float_spread, spread_compound_method, fixings, curve
+        )
+    elif "rfr" in fixing_method:
+        if isinstance(curve, dict):
+            curve_: Curve | NoInput = _get_rfr_curve_from_dict(curve)
+        else:
+            curve_ = curve
+        return _rate_rfr_value(curve_)
+    else:
+        raise ValueError(  # pragma: no cover
+            f"`fixing_method`: '{fixing_method}' not valid for a FloatPeriod."
+        )
+
+def _rate_ibor_value(
+    effective: datetime,
+    termination: datetime,
+    modifier: str,
+    calendar: CalTypes,
+    convention: str,
+    float_spread: DualTypes,
+    spread_compound_method: str,
+    method_param: int,
+    fixings: DualTypes | Series[DualTypes] | NoInput,
+    curve: CurveOption_,
+) -> DualTypes:
+    # function will try to forecast a rate without a `curve` when fixings are available.
+    if isinstance(fixings, float | Dual | Dual2 | Variable):
+        return fixings + float_spread / 100
+
+    elif isinstance(fixings, Series):
+        # check if we return published IBOR rate
+        fixing_date = calendar.lag(effective, -method_param, False)
+        try:
+            fixing: DualTypes = fixings[fixing_date] + float_spread / 100  # type: ignore[index]
+            return fixing
+        except KeyError:
+            warnings.warn(
+                "A FloatPeriod `fixing date` was not found in the given `fixings` Series.\n"
+                "Using the fallback method of forecasting the fixing from any given `curve`.",
+                UserWarning,
+            )
+            # fixing not available: use curve
+            pass
+
+    method = {
+        "dfs": self._rate_ibor_from_df_curve,
+        "values": self._rate_ibor_from_line_curve,
+    }
+    if isinstance(curve, NoInput):
+        raise ValueError(
+            "Must supply a `curve` to FloatPeriod.rate() for forecasting IBOR rates."
+        )
+    elif not isinstance(curve, dict):
+        # TODO (low); this doesnt type well because of floating _base_type attribute.
+        # consider wrapping to some NamedTuple record
+        return method[curve._base_type](curve)
+    else:
+        if not self.stub:
+            curve = _get_ibor_curve_from_dict(self.freq_months, curve)
+            return method[curve._base_type](curve)
+        else:
+            return self._rate_ibor_interpolated_ibor_from_dict(curve)
+
+    return None
+
+
+def _rate_ibor_value_from_df_curve(
+    effective: datetime,
+    termination: datetime | str,
+    float_spread: DualTypes,
+    curve: Curve, stub: bool
+) -> DualTypes:
+    if stub:
+        r = curve._rate_with_raise(effective, termination) + float_spread / 100
+    else:
+        r = curve._rate_with_raise(effective, f"{self.freq_months}m") + float_spread / 100
+    return r
+
 
 
 def index_value(

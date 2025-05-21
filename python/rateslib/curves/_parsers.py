@@ -252,3 +252,36 @@ def _disc_required_maybe_from_curve(curve: CurveOption_, disc_curve: CurveOption
             "A `disc_curve` is required to perform function."
         )
     return _
+
+
+def _maybe_get_rfr_curve_from_dict(curve: Curve | dict[str, Curve] | NoInput) -> Curve | NoInput:
+    if isinstance(curve, dict):
+        return _get_rfr_curve_from_dict(curve)
+    else:
+        return curve
+
+
+def _get_rfr_curve_from_dict(d: dict[str, Curve]) -> Curve:
+    for s in ["rfr", "RFR", "Rfr"]:
+        try:
+            ret: Curve = d[s]
+        except KeyError:
+            continue
+        else:
+            return ret
+    raise ValueError(
+        "A `curve` supplied as dict to an RFR based period must contain a key entry 'rfr'."
+    )
+
+
+def _get_ibor_curve_from_dict(months: int, d: dict[str, Curve]) -> Curve:
+    try:
+        return d[f"{months}m"]
+    except KeyError:
+        try:
+            return d[f"{months}M"]
+        except KeyError:
+            raise ValueError(
+                "If supplying `curve` as dict must provide a tenor mapping key and curve for"
+                f"the frequency of the given Period. The missing mapping is '{months}m'."
+            )
