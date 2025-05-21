@@ -1023,6 +1023,29 @@ class TestFixedRateBond:
         expected_clean = 103.19036939
         assert abs(result_clean - expected_clean) < 1e-8
 
+    # Swiss GB
+
+    @pytest.mark.parametrize(
+        ("ytm", "sett", "exp"),
+        [
+            (2.01111, dt(2025, 5, 23), [92.724231, 0.095833333]),
+            (2.01111, dt(2018, 5, 29), [90.369254, 0.120833333]),  # accrued DCF
+            (2.01111, dt(2018, 5, 30), [90.370093, 0.125000000]),  # accrued DCF
+            (2.01111, dt(2018, 5, 31), [90.370093, 0.125000000]),  # accrued DCF
+            (2.01111, dt(2018, 6, 1), [90.370931, 0.129166666]),
+            (2.01111, dt(2024, 4, 29), [92.343879, 1.49583333]),  # Ex div
+            (2.01111, dt(2024, 4, 30), [92.344903, 0.000000000]),  # Ex div
+            (2.01111, dt(2042, 4, 15), [99.978326, 1.43750000]),  # Final period
+        ],
+    )
+    def test_ch_gb(self, ytm, sett, exp):
+        # ISIN: CH0127181169
+        bond = FixedRateBond(dt(2012, 4, 30), dt(2042, 4, 30), fixed_rate=1.5, spec="ch_gb")
+        accrued = bond.accrued(sett)
+        assert abs(accrued - exp[1]) < 1e-8
+        price = bond.price(ytm=ytm, settlement=sett)
+        assert abs(price - exp[0]) < 1e-6
+
     # General Method Coverage
 
     def test_fixed_rate_bond_yield_domains(self) -> None:
