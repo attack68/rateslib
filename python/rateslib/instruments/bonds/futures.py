@@ -431,8 +431,28 @@ class BondFuture(Sensitivities):
         # TODO: This method is not AD safe: it uses "round" function which destroys derivatives
         # See EUREX specs
 
-        dd: datetime = self.kwargs["delivery"][1]  # type: ignore[index, assignment, misc]
-        n, f = _get_years_and_months(dd, bond.leg1.schedule.termination)
+        dd: datetime = self.kwargs["delivery"][1]
+        mat = bond.leg1.schedule.termination
+        # get full years and full months
+
+        n = mat.year - dd.year
+        f = (mat.month - dd.month)
+        if f < 0:
+            n = n - 1
+        f = f % 12
+
+        if mat.day < dd.day:
+            if f == 0:
+                n = n - 1
+                f = 11
+            else:
+                f = f - 1
+
+        if f == 0:
+            f = 12
+            n = n - 1
+        f = f / 12.0
+
         c = bond.fixed_rate
         not_: DualTypes = self.kwargs["coupon"]  # type: ignore[assignment]
 
