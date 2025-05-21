@@ -326,21 +326,28 @@ class BondFuture(Sensitivities):
             self._cfs = self._conversion_factors()
         return self._cfs
 
+    @property
+    def _cf_funcs(self):
+        return {
+            "ytm": self._cfs_ytm,
+            "ust_short": self._cfs_ust_short,
+            "ust_long": self._cfs_ust_long,
+            "eurex_eur": self._cfs_eurex_eur,
+            "eurex_chf": self._cfs_eurex_chf,
+        }
+
     def _conversion_factors(self) -> tuple[DualTypes, ...]:
         calc_mode: str = self.kwargs["calc_mode"].lower()  # type: ignore[union-attr]
+        basket: tuple[FixedRateBond, ...] = self.kwargs["basket"]  # type: ignore[assignment]
+        try:
+            return tuple(self._cf_funcs[calc_mode](bond) for bond in basket)
+        except KeyError:
+            raise ValueError("`calc_mode` must be in {'ytm', 'ust_short', 'ust_long'}")
+
+    def _cfs_ytm(self, bond: FixedRateBond) -> DualTypes:
         coupon: DualTypes = self.kwargs["coupon"]  # type: ignore[assignment]
         delivery: tuple[datetime, datetime] = self.kwargs["delivery"]  # type: ignore[assignment]
-        basket: tuple[FixedRateBond, ...] = self.kwargs["basket"]  # type: ignore[assignment]
-        if calc_mode == "ytm":
-            return tuple(bond.price(coupon, delivery[0]) / 100 for bond in basket)
-        elif calc_mode == "ust_short":
-            return tuple(self._cfs_ust(bond, True) for bond in basket)
-        elif calc_mode == "ust_long":
-            return tuple(self._cfs_ust(bond, False) for bond in basket)
-        elif calc_mode == "eurex_eur":
-            return tuple(self._cfs_eurex_eur(bond) for bond in basket)
-        else:
-            raise ValueError("`calc_mode` must be in {'ytm', 'ust_short', 'ust_long'}")
+        return bond.price(coupon, delivery[0]) / 100
 
     def _cfs_ust(self, bond: FixedRateBond, short: bool) -> float:
         # TODO: This method is not AD safe: it uses "round" function which destroys derivatives
@@ -381,6 +388,12 @@ class BondFuture(Sensitivities):
         _: float = round(factor, 4)
         return _
 
+    def _cfs_ust_short(self, bond: FixedRateBond) -> float:
+        return self._cfs_ust(bond, True)
+
+    def _cfs_ust_long(self, bond: FixedRateBond) -> float:
+        return self._cfs_ust(bond, False)
+
     def _cfs_eurex_eur(self, bond: FixedRateBond) -> float:
         # TODO: This method is not AD safe: it uses "round" function which destroys derivatives
         # See EUREX specs
@@ -412,6 +425,19 @@ class BondFuture(Sensitivities):
 
         cf = 1 / _**f * (c / 100.0 * d_i / act2 + c / not_ * (_ - 1 / _**n) + 1 / _**n)
         cf -= c / 100.0 * (d_i / act2 - d_e / act1)
+        return round(_dual_float(cf), 6)
+
+    def _cfs_eurex_chf(self, bond: FixedRateBond) -> float:
+        # TODO: This method is not AD safe: it uses "round" function which destroys derivatives
+        # See EUREX specs
+
+        dd: datetime = self.kwargs["delivery"][1]  # type: ignore[index, assignment, misc]
+        n, f = _get_years_and_months(dd, bond.leg1.schedule.termination)
+        c = bond.fixed_rate
+        not_: DualTypes = self.kwargs["coupon"]  # type: ignore[assignment]
+
+        v = 1.0 / (1.0 + not_ / 100.0)
+        cf = v**f * (c / not_ * (1.0 + not_ / 100.0 - v**n) + v**n) - c * (1 - f) / 100.0
         return round(_dual_float(cf), 6)
 
     def dlv(
