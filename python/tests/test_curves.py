@@ -1986,48 +1986,50 @@ class TestMultiCsaCurve:
         assert abs(r3 - 4.5) < 1e-3
         assert abs(r4 - 5.0) < 1e-3
 
-    def test_multi_csa(self) -> None:
-        c1 = Curve(
-            {
-                dt(2022, 1, 1): 1.0,
-                dt(2022, 1, 2): 0.99997260,  # 1%
-                dt(2022, 1, 3): 0.99991781,  # 2%
-                dt(2022, 1, 4): 0.99983564,  # 3%
-                dt(2022, 1, 5): 0.99972608,  # 4%
-            },
-            convention="Act365F",
-        )
-        c2 = Curve(
-            {
-                dt(2022, 1, 1): 1.0,
-                dt(2022, 1, 2): 0.99989042,  # 4%
-                dt(2022, 1, 3): 0.99980825,  # 3%
-                dt(2022, 1, 4): 0.99975347,  # 2%
-                dt(2022, 1, 5): 0.99972608,  # 1%
-            },
-            convention="Act365F",
-        )
-        c3 = Curve(
-            {
-                dt(2022, 1, 1): 1.0,
-                dt(2022, 1, 2): 0.99989042,  # 4%
-                dt(2022, 1, 3): 0.99979455,  # 3.5%
-                dt(2022, 1, 4): 0.99969869,  # 3.5%
-                dt(2022, 1, 5): 0.99958915,  # 4%
-            },
-            convention="Act365F",
-        )
-        cc = MultiCsaCurve([c1, c2, c3])
-        with default_context("multi_csa_steps", [1, 1, 1, 1, 1, 1, 1]):
-            r1 = cc.rate(dt(2022, 1, 1), "1d")
-            r2 = cc.rate(dt(2022, 1, 2), "1d")
-            r3 = cc.rate(dt(2022, 1, 3), "1d")
-            r4 = cc.rate(dt(2022, 1, 4), "1d")
+    @pytest.mark.parametrize("caching", [True, False])
+    def test_multi_csa(self, caching) -> None:
+        with default_context("curve_caching", caching):
+            c1 = Curve(
+                {
+                    dt(2022, 1, 1): 1.0,
+                    dt(2022, 1, 2): 0.99997260,  # 1%
+                    dt(2022, 1, 3): 0.99991781,  # 2%
+                    dt(2022, 1, 4): 0.99983564,  # 3%
+                    dt(2022, 1, 5): 0.99972608,  # 4%
+                },
+                convention="Act365F",
+            )
+            c2 = Curve(
+                {
+                    dt(2022, 1, 1): 1.0,
+                    dt(2022, 1, 2): 0.99989042,  # 4%
+                    dt(2022, 1, 3): 0.99980825,  # 3%
+                    dt(2022, 1, 4): 0.99975347,  # 2%
+                    dt(2022, 1, 5): 0.99972608,  # 1%
+                },
+                convention="Act365F",
+            )
+            c3 = Curve(
+                {
+                    dt(2022, 1, 1): 1.0,
+                    dt(2022, 1, 2): 0.99989042,  # 4%
+                    dt(2022, 1, 3): 0.99979455,  # 3.5%
+                    dt(2022, 1, 4): 0.99969869,  # 3.5%
+                    dt(2022, 1, 5): 0.99958915,  # 4%
+                },
+                convention="Act365F",
+            )
+            cc = MultiCsaCurve([c1, c2, c3])
+            with default_context("multi_csa_steps", [1, 1, 1, 1, 1, 1, 1]):
+                r1 = cc.rate(dt(2022, 1, 1), "1d")
+                r2 = cc.rate(dt(2022, 1, 2), "1d")
+                r3 = cc.rate(dt(2022, 1, 3), "1d")
+                r4 = cc.rate(dt(2022, 1, 4), "1d")
 
-        assert abs(r1 - 4.0) < 1e-3
-        assert abs(r2 - 3.5) < 1e-3
-        assert abs(r3 - 3.5) < 1e-3
-        assert abs(r4 - 4.0) < 1e-3
+            assert abs(r1 - 4.0) < 1e-3
+            assert abs(r2 - 3.5) < 1e-3
+            assert abs(r3 - 3.5) < 1e-3
+            assert abs(r4 - 4.0) < 1e-3
 
     def test_multi_csa_granularity(self) -> None:
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 0.9, dt(2072, 1, 1): 0.5})
