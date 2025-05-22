@@ -2638,6 +2638,7 @@ class MultiCsaCurve(CompositeCurve):
         super().__init__(curves, id)
 
     @_validate_states
+    @_no_interior_validation
     def rate(  # type: ignore[override]
         self,
         effective: datetime,
@@ -2681,33 +2682,46 @@ class MultiCsaCurve(CompositeCurve):
         return ret
 
     @_validate_states
+    @_no_interior_validation
     def __getitem__(self, date: datetime) -> DualTypes:
-        # will return a composited discount factor
-        if date == self.curves[0].node_dates[0]:
-            return 1.0  # TODO (low:?) this is not variable but maybe should be tagged as "id0"?
-        # days = (date - self.curves[0].node_dates[0]).days
-        # d = _DCF1d[self.convention.upper()]
+        # TODO: changing the multi_csa_step size should force a cache clear. This is a mutation.
 
-        # method uses the step and picks the highest (cheapest rate)
-        # in each period
-        _: DualTypes = 1.0
-        d1 = self.curves[0].node_dates[0]
+        # will return a composited discount factor
+        if defaults.curve_caching and date in self._cache:
+            return self._cache[date]
+
+        if date == self.node_dates[0]:
+            # this value is 1.0, but by multiplying capture AD versus initial nodes.
+            ret: DualTypes = prod(crv[date] for crv in self.curves)  # type: ignore[misc]
+            return ret
+        elif date < self.node_dates[0]:
+            return 0.0  # Any DF in the past is set to zero consistent with behaviour on `Curve`
 
         def _get_step(step: int) -> int:
             return min(max(step, self.multi_csa_min_step), self.multi_csa_max_step)
 
+        # method uses the step and picks the highest (cheapest rate) in each step
+        d1 = self.node_dates[0]
         d2 = d1 + timedelta(days=_get_step(defaults.multi_csa_steps[0]))
-        # cache stores looked up DF values to next loop, avoiding double calc
-        cache: dict[int, DualTypes] = dict.fromkeys(range(len(self.curves)), 1.0)
+
+        v: DualTypes = self.__getitem__(d1)
+        v_i_1_j: list[DualTypes] = [curve[d1] for curve in self.curves]
+        v_i_j: list[DualTypes] = [0.0 for curve in self.curves]
+
         k: int = 1
         while d2 < date:
-            min_ratio: DualTypes = 1e5
-            for i, curve in enumerate(self.curves):
-                d2_df = curve[d2]
-                ratio_ = d2_df / cache[i]
-                min_ratio = ratio_ if ratio_ < min_ratio else min_ratio
-                cache[i] = d2_df
-            _ *= min_ratio
+            if defaults.curve_caching and d2 in self._cache:
+                v = self._cache[d2]
+                v_i_1_j = [curve[d2] for curve in self.curves]
+            else:
+                min_ratio: DualTypes = 1e5
+                for j, curve in enumerate(self.curves):
+                    v_i_j[j] = curve[d2]
+                    ratio_ = v_i_j[j] / v_i_1_j[j]
+                    min_ratio = ratio_ if ratio_ < min_ratio else min_ratio
+                    v_i_1_j[j] = v_i_j[j]
+                v *= min_ratio
+
             try:
                 step = _get_step(defaults.multi_csa_steps[k])
             except IndexError:
@@ -2716,14 +2730,14 @@ class MultiCsaCurve(CompositeCurve):
 
         # finish the loop on the correct date
         if date == d1:
-            return self._cached_value(date, _)
+            return self._cached_value(date, v)
         else:
             min_ratio = 1e5
-            for i, curve in enumerate(self.curves):
-                ratio_ = curve[date] / cache[i]  # cache[i] = curve[d1]
+            for j, curve in enumerate(self.curves):
+                ratio_ = curve[date] / v_i_1_j[j]
                 min_ratio = ratio_ if ratio_ < min_ratio else min_ratio
-            _ *= min_ratio
-            return self._cached_value(date, _)
+            v *= min_ratio
+            return self._cached_value(date, v)
 
     @_validate_states
     # unnecessary because up-to-date objects are referred to directly
