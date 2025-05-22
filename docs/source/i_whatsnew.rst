@@ -120,6 +120,8 @@ Some themes for this release involved:
          (`828 <https://github.com/attack68/rateslib/pull/828>`_)
        - The :meth:`~rateslib.curves.average_rate` method now requires a ``dcf`` input.
          (`836 <https://github.com/attack68/rateslib/pull/836>`_)
+       - The caching of values of a :class:`~rateslib.curves.MultiCsaCurve` is improved and
+         extended (`842 <https://github.com/attack68/rateslib/pull/842>`_)
    * - **Automatic Differentiation & Algorithms**
      - - Operator overloads added to allow dual number exponents, i.e. :math:`z^p`, where *z*,
          *p* are dual number types. This facilitates AD for the SABR function as well as other
