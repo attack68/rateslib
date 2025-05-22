@@ -287,8 +287,8 @@ class TestFXDeltaVolSmile:
             },
             expiry=expiry,
             eval_date=anchor,
-            delta_type='forward',
-            id='test_vol',
+            delta_type="forward",
+            id="test_vol",
         )
 
         prior_c = test_smile.spline.c

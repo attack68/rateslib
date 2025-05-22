@@ -175,7 +175,7 @@ Some themes for this release involved:
          maximum AD order of its contained *Curves* and no longer the first *Curve* supplied.
          (`829 <https://github.com/attack68/rateslib/pull/829>`_)
        - The :meth:`FXDeltaVolSmile.update <rateslib.fx_volatility.FXDeltaVolSmile.update>`
-         method now update the spline interpolator after a *nodes* update.
+         method now updates the spline interpolator after a *nodes* update.
          (`844 <https://github.com/attack68/rateslib/pull/844>`_)
    * - **Deprecations & Removals**
      - - :red:`Major Breaking Change!` The method :meth:`~rateslib.curves.interpolate` is
