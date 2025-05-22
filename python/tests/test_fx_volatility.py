@@ -297,10 +297,7 @@ class TestFXDeltaVolSmile:
         test_smile.update(nodes_bump)
         after_c = test_smile.spline.c
 
-        # manually csolve prints updated spline coeffs, prints
-        # [6.198412698412696, 5.613378684807255, 4.443310657596375, 3.0283446712018125, 4.443310657596375, 5.613378684807257, 6.198412698412699]
-        test_smile.csolve()
-        print(test_smile.spline.c)
+        assert after_c != prior_c
 
 
 class TestFXDeltaVolSurface:
