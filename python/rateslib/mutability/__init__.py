@@ -24,7 +24,7 @@ def _no_interior_validation(func: Callable[P, R]) -> Callable[P, R]:
     @wraps(func)
     def wrapper_no_interior_validation(*args: P.args, **kwargs: P.kwargs) -> R:
         self = args[0]
-        if getattr(self, "_do_not_validate", False):
+        if self._do_not_validate:  # type: ignore[attr-defined]
             # make no changes: handle recursive no interior validations.
             result = func(*args, **kwargs)
         else:
