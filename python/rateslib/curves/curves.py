@@ -636,10 +636,10 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                 ad=_get_order_of(spread),
             )
 
-        _: CompositeCurve = CompositeCurve(
+        crv: CompositeCurve = CompositeCurve(
             curves=[self, shifted], id=id, _no_validation=_no_validation
         )
-        _.collateral = _drb(None, collateral)
+        crv.collateral = _drb(None, collateral)
 
         if not composite:
             if self._base_type == "dfs":
@@ -650,7 +650,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                 kwargs = {}
 
             return CurveClass(
-                nodes={k: _[k] for k in self.nodes},
+                nodes={k: crv[k] for k in self.nodes},
                 convention=self.convention,
                 calendar=self.calendar,
                 interpolation=self.interpolation,
@@ -658,11 +658,11 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                 c=NoInput(0),  # call csolve on init
                 endpoints=self.spline_endpoints,
                 modifier=self.modifier,
-                ad=_.ad,
+                ad=crv.ad,
                 **kwargs,  # type: ignore[arg-type]
             )
         else:
-            return _
+            return crv
 
     def _translate_nodes(self, start: datetime) -> dict[datetime, DualTypes]:
         scalar = 1 / self[start]
@@ -2407,15 +2407,15 @@ class CompositeCurve(Curve):
                 start=self.node_dates[0],
                 end=date,
                 convention=self.convention,
-                calendar=self.calendar
+                calendar=self.calendar,
             )
             _, d, n = average_rate(self.node_dates[0], date, self.convention, 0.0, dcf_)
             total_rate: Number = 0.0
             for curve in self.curves:
                 avg_rate = ((1.0 / curve[date]) ** (1.0 / n) - 1) / d
                 total_rate += avg_rate
-            _: DualTypes = 1.0 / (1 + total_rate * d) ** n
-            return self._cached_value(date, _)
+            ret: DualTypes = 1.0 / (1 + total_rate * d) ** n
+            return self._cached_value(date, ret)
 
         elif self._base_type == "values":
             # will return a composited rate
@@ -2675,8 +2675,8 @@ class MultiCsaCurve(CompositeCurve):
         # the lookup could be vectorised to return two values at once.
         df_num = self[effective]
         df_den = self[termination]
-        _: DualTypes = (df_num / df_den - 1) * 100 / (d * n)
-        return _
+        ret: DualTypes = (df_num / df_den - 1) * 100 / (d * n)
+        return ret
 
     @_validate_states
     def __getitem__(self, date: datetime) -> DualTypes:
