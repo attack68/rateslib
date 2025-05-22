@@ -1901,6 +1901,14 @@ class TestCompositeCurve:
         assert CompositeCurve([c1, c2])._ad == 2
         assert CompositeCurve([c2, c1])._ad == 2
 
+    def test_initial_df(self):
+        curve1 = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.99}, ad=1, id="v")
+        curve2 = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98}, ad=1, id="w")
+        cc = CompositeCurve([curve1, curve2])
+        result = cc[dt(2000, 1, 1)]
+        expected = Dual(1.0, ["v0", "v1", "w0", "w1"], [1.0, 0.0, 1.0, 0.0])
+        assert result == expected
+
 
 class TestMultiCsaCurve:
     def test_historic_rate_is_none(self) -> None:

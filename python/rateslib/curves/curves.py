@@ -5,7 +5,7 @@ import warnings
 from calendar import monthrange
 from collections.abc import Callable
 from datetime import datetime, timedelta
-from math import comb
+from math import comb, prod
 from typing import TYPE_CHECKING, Any, TypeAlias
 from uuid import uuid4
 
@@ -2399,7 +2399,8 @@ class CompositeCurve(Curve):
         if self._base_type == "dfs":
             # will return a composited discount factor
             if date == self.node_dates[0]:
-                return 1.0  # TODO (low:?) this is not variable but maybe should be tagged as "id0"?
+                # this value is 1.0, but by multiplying capture AD versus initial nodes.
+                return prod(crv[date] for crv in self.curves)
             elif date < self.node_dates[0]:
                 return 0.0  # Any DF in the past is set to zero consistent with behaviour on `Curve`
 
