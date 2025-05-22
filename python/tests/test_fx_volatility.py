@@ -271,6 +271,37 @@ class TestFXDeltaVolSmile:
         result = fxv[1.025]
         assert result == fxv[1.0]
 
+    def test_update_csolve(self):
+        import rateslib
+
+        anchor = rateslib.dt(2025, 5, 22)
+        expiry = rateslib.dt(2025, 6, 24)
+
+        test_smile = rateslib.FXDeltaVolSmile(
+            nodes={
+                0.1: 5,
+                0.25: 4,
+                0.5: 3,
+                0.75: 4,
+                0.9: 5,
+            },
+            expiry=expiry,
+            eval_date=anchor,
+            delta_type='forward',
+            id='test_vol',
+        )
+
+        prior_c = test_smile.spline.c
+        # update node
+        nodes_bump = {k: v + 0.5 for k, v in test_smile.nodes.items()}
+        test_smile.update(nodes_bump)
+        after_c = test_smile.spline.c
+
+        # manually csolve prints updated spline coeffs, prints
+        # [6.198412698412696, 5.613378684807255, 4.443310657596375, 3.0283446712018125, 4.443310657596375, 5.613378684807257, 6.198412698412699]
+        test_smile.csolve()
+        print(test_smile.spline.c)
+
 
 class TestFXDeltaVolSurface:
     def test_expiry_before_eval(self) -> None:
