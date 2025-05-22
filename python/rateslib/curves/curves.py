@@ -2400,7 +2400,8 @@ class CompositeCurve(Curve):
             # will return a composited discount factor
             if date == self.node_dates[0]:
                 # this value is 1.0, but by multiplying capture AD versus initial nodes.
-                return prod(crv[date] for crv in self.curves)
+                ret: DualTypes = prod(crv[date] for crv in self.curves) # type: ignore[misc]
+                return ret
             elif date < self.node_dates[0]:
                 return 0.0  # Any DF in the past is set to zero consistent with behaviour on `Curve`
 
@@ -2415,7 +2416,7 @@ class CompositeCurve(Curve):
             for curve in self.curves:
                 avg_rate = ((1.0 / curve[date]) ** (1.0 / n) - 1) / d
                 total_rate += avg_rate
-            ret: DualTypes = 1.0 / (1 + total_rate * d) ** n
+            ret = 1.0 / (1 + total_rate * d) ** n
             return self._cached_value(date, ret)
 
         elif self._base_type == "values":
