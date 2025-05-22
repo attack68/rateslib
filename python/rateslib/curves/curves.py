@@ -15,7 +15,6 @@ from pytz import UTC
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
-from rateslib.calendars.dcfs import _DCF1d
 from rateslib.calendars.rs import get_calendar
 from rateslib.curves.interpolation import INTERPOLATION, InterpolationFunction
 from rateslib.default import (
@@ -614,9 +613,8 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         """
         start, end = self.node_dates[0], self.node_dates[-1]
 
-        d, s = _DCF1d[self.convention.upper()]
-        n = (end - start).days
-
+        dcf_ = dcf(start, end, self.convention, calendar=self.calendar)
+        _, d, n = average_rate(start, end, self.convention, 0.0, dcf_)
         if self._base_type == "dfs":
             shifted = Curve(
                 nodes={start: 1.0, end: 1.0 / (1 + d * spread / 10000) ** n},
@@ -2355,7 +2353,7 @@ class CompositeCurve(Curve):
         -------
         Dual, Dual2 or float
         """
-        if effective < self.curves[0].node_dates[0]:  # Alternative solution to PR 172.
+        if effective < self.node_dates[0]:  # Alternative solution to PR 172.
             return None
 
         if self._base_type == "values":
@@ -2400,13 +2398,18 @@ class CompositeCurve(Curve):
             return self._cache[date]
         if self._base_type == "dfs":
             # will return a composited discount factor
-            if date == self.curves[0].node_dates[0]:
+            if date == self.node_dates[0]:
                 return 1.0  # TODO (low:?) this is not variable but maybe should be tagged as "id0"?
-            elif date < self.curves[0].node_dates[0]:
+            elif date < self.node_dates[0]:
                 return 0.0  # Any DF in the past is set to zero consistent with behaviour on `Curve`
 
-            d, s = _DCF1d[self.convention.upper()]
-            n = (date - self.curves[0].node_dates[0]).days * s
+            dcf_ = dcf(
+                start=self.node_dates[0],
+                end=date,
+                convention=self.convention,
+                calendar=self.calendar
+            )
+            _, d, n = average_rate(self.node_dates[0], date, self.convention, 0.0, dcf_)
             total_rate: Number = 0.0
             for curve in self.curves:
                 avg_rate = ((1.0 / curve[date]) ** (1.0 / n) - 1) / d
@@ -2666,8 +2669,8 @@ class MultiCsaCurve(CompositeCurve):
         if isinstance(termination, str):
             termination = add_tenor(effective, termination, modifier_, self.calendar)
 
-        d, s = _DCF1d[self.convention.upper()]
-        n = (termination - effective).days * s
+        dcf_ = dcf(effective, termination, self.convention, calendar=self.calendar)
+        _, d, n = average_rate(effective, termination, self.convention, 0.0, dcf_)
         # TODO (low:perf) when these discount factors are looked up the curve repeats
         # the lookup could be vectorised to return two values at once.
         df_num = self[effective]
