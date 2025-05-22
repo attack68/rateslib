@@ -2134,6 +2134,13 @@ class TestMultiCsaCurve:
         getattr(cc, method)(*args)
         assert dt(1980, 1, 1) not in cc._cache
 
+    def test_multi_csa_curve_add_to_cache(self):
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2052, 2, 1): 0.9})
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2052, 2, 1): 0.8})
+        cc = MultiCsaCurve([c1, c2])
+        cc[dt(2052, 2, 1)]
+        assert len(cc._cache) == 31
+
 
 class TestProxyCurve:
     def test_repr(self) -> None:

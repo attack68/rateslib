@@ -2721,6 +2721,7 @@ class MultiCsaCurve(CompositeCurve):
                     min_ratio = ratio_ if ratio_ < min_ratio else min_ratio
                     v_i_1_j[j] = v_i_j[j]
                 v *= min_ratio
+                self._cached_value(d2, v)
 
             try:
                 step = _get_step(defaults.multi_csa_steps[k])
