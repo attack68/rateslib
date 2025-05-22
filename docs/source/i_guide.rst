@@ -82,7 +82,8 @@ independently by providing basic inputs.
       An *Index Curve* is required by certain products, e.g.
       inflation linked bonds (:class:`~rateslib.instruments.IndexFixedRateBond`) or
       zero coupon inflation swaps (:class:`~rateslib.instruments.ZCIS`). Adding ``index_base``
-      and ``index_lag`` argument inputs extends a DF based *Curve* to work in these cases.
+      and ``index_lag`` argument inputs extends a DF based :class:`~rateslib.curves.Curve` to
+      work in these cases.
 
       .. ipython:: python
 
