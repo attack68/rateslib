@@ -473,15 +473,15 @@ class FXDeltaVolSmile(_BaseSmile):
     @_clear_cache_post
     def _set_ad_order(self, order: int) -> None:
         if order == getattr(self, "ad", None):
-            return None
+            pass
         elif order not in [0, 1, 2]:
             raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
-
-        self._ad = order
-        self.nodes = {
-            k: set_order_convert(v, order, [f"{self.id}{i}"])
-            for i, (k, v) in enumerate(self.nodes.items())
-        }
+        else:
+            self._ad = order
+            self.nodes = {
+                k: set_order_convert(v, order, [f"{self.id}{i}"])
+                for i, (k, v) in enumerate(self.nodes.items())
+            }
         self._csolve()
 
     @_new_state_post
