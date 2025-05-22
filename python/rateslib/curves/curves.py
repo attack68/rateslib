@@ -2400,7 +2400,7 @@ class CompositeCurve(Curve):
             # will return a composited discount factor
             if date == self.node_dates[0]:
                 # this value is 1.0, but by multiplying capture AD versus initial nodes.
-                ret: DualTypes = prod(crv[date] for crv in self.curves) # type: ignore[misc]
+                ret: DualTypes = prod(crv[date] for crv in self.curves)  # type: ignore[misc]
                 return ret
             elif date < self.node_dates[0]:
                 return 0.0  # Any DF in the past is set to zero consistent with behaviour on `Curve`
