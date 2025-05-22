@@ -118,6 +118,8 @@ Some themes for this release involved:
          more precise, albeit may impact slight performance degradations in bond OAS spread
          calculations.
          (`828 <https://github.com/attack68/rateslib/pull/828>`_)
+       - The :meth:`~rateslib.curves.average_rate` method now requires a ``dcf`` input.
+         (`836 <https://github.com/attack68/rateslib/pull/836>`_)
    * - **Automatic Differentiation & Algorithms**
      - - Operator overloads added to allow dual number exponents, i.e. :math:`z^p`, where *z*,
          *p* are dual number types. This facilitates AD for the SABR function as well as other

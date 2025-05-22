@@ -12,6 +12,7 @@ from rateslib.curves import (
     Curve,
     LineCurve,
     MultiCsaCurve,
+    average_rate,
     index_left,
     index_value,
 )
@@ -1179,6 +1180,26 @@ def test_curve_zero_width_rate_raises(curve) -> None:
 def test_set_node_vector_updates_ad_attribute(curve) -> None:
     curve._set_node_vector([0.98], ad=2)
     assert curve.ad == 2
+
+
+@pytest.mark.parametrize(
+    ("convention", "expected"),
+    [
+        ("act360", 4.3652192566314705),
+        ("30360", 4.372999441829487),
+        ("act365f", 4.372518793743008),
+        ("bus252", 4.354756779569957),
+    ],
+)
+def test_average_rate(convention, expected):
+    start = dt(2000, 1, 1)
+    end = dt(2006, 1, 1)
+    rate = 5.0
+    d = dcf(start, end, convention, calendar="bus")
+    result, d_, n_ = average_rate(start, end, convention, rate, d)
+
+    assert abs(result - expected) < 1e-12
+    assert abs((1 + d * rate / 100.0) - (1 + d_ * result / 100.0) ** n_) < 1e-12
 
 
 class TestCurve:
