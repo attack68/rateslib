@@ -416,7 +416,9 @@ class BondMixin:
                 accrued_coup = c_cashflow * (1 + dcf_ * repo_rate / 100)
                 total_rtn -= accrued_coup
             elif method.lower() == "compounded":
-                r_bar, d, _ = average_rate(settlement, forward_settlement, convention_, repo_rate)
+                r_bar, d, _ = average_rate(
+                    settlement, forward_settlement, convention_, repo_rate, dcf_
+                )
                 n = (forward_settlement - c_period.payment).days
                 accrued_coup = c_cashflow * (1 + d * r_bar / 100) ** n
                 total_rtn -= accrued_coup

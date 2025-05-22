@@ -1253,10 +1253,7 @@ class FloatPeriod(BasePeriod):
                 termination=obs_dates.iloc[-1],
             )
             r_bar, d, n = average_rate(
-                obs_dates.iloc[0],
-                obs_dates.iloc[-1],
-                curve_.convention,
-                rate,
+                obs_dates.iloc[0], obs_dates.iloc[-1], curve_.convention, rate, dcf_vals.sum()
             )
             # approximate sensitivity to each fixing
             z = self.float_spread / 10000
@@ -1707,7 +1704,7 @@ class FloatPeriod(BasePeriod):
             float_spread=0.0,
             spread_compound_method=self.spread_compound_method,
         )
-        r, d, n = average_rate(os, oe, fore_curve.convention, rate)
+        r, d, n = average_rate(os, oe, fore_curve.convention, rate, self.dcf)
         # approximate sensitivity to each fixing
         z = 0.0 if self.float_spread is None else self.float_spread
         if self.spread_compound_method == "isda_compounding":

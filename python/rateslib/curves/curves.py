@@ -477,12 +477,12 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                 return _ + float_spread / 100
             elif spread_compound_method == "isda_compounding":
                 # this provides an approximated rate
-                r_bar, d, n = average_rate(effective, termination, self.convention, _)
+                r_bar, d, n = average_rate(effective, termination, self.convention, _, d_)
                 _ = ((1 + (r_bar + float_spread / 100) / 100 * d) ** n - 1) / (n * d)
                 return 100 * _
             elif spread_compound_method == "isda_flat_compounding":
                 # this provides an approximated rate
-                r_bar, d, n = average_rate(effective, termination, self.convention, _)
+                r_bar, d, n = average_rate(effective, termination, self.convention, _, d_)
                 rd = r_bar / 100 * d
                 _ = (
                     (r_bar + float_spread / 100)
@@ -2936,7 +2936,11 @@ class ProxyCurve(Curve):
 
 
 def average_rate(
-    effective: datetime, termination: datetime, convention: str, rate: DualTypes
+    effective: datetime,
+    termination: datetime,
+    convention: str,
+    rate: DualTypes,
+    dcf: float,
 ) -> tuple[Number, float, float]:
     """
     Return the geometric, 1-day, average simple rate for a given simple period rate.
@@ -2953,6 +2957,8 @@ def average_rate(
         The day count convention of the curve rate.
     rate : float, Dual, Dual2
         The simple period rate to decompose to average, in percentage terms, e.g. 4.00 = 4% rate.
+    dcf : float
+        The day count fraction of the period used to determine daily DCF.
 
     Returns
     -------
@@ -2980,8 +2986,14 @@ def average_rate(
     e.g. *'act360'* and *'act365f'* this is explicit and exact, but for others, such as *'30360'*,
     this function will likely be lesser used and less accurate.
     """
-    d, s = _DCF1d[convention.upper()]
-    n: float = (termination - effective).days * s
+    if convention.upper() == "BUS252":
+        # business days are used
+        n: float = dcf * 252.0
+        d = 1.0 / 252.0
+    else:  # calendar day mode
+        n = (termination - effective).days
+        d = dcf / n
+
     _: Number = ((1 + n * d * rate / 100) ** (1 / n) - 1) / d
     return _ * 100, d, n
 
