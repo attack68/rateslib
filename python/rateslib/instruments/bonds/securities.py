@@ -1223,7 +1223,9 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         self.spec = spec
 
         self._fixed_rate = fixed_rate
-        self.leg1 = FixedLeg(**_get(self.kwargs, leg=1, filter=("ex_div", "settle", "calc_mode", "metric")))
+        self.leg1 = FixedLeg(
+            **_get(self.kwargs, leg=1, filter=("ex_div", "settle", "calc_mode", "metric"))
+        )
 
         if self.leg1.amortization != 0:
             # Note if amortization is added to FixedRateBonds must systematically
@@ -2523,7 +2525,9 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         self.spec = spec
 
         self._float_spread = float_spread
-        self.leg1 = FloatLeg(**_get(self.kwargs, leg=1, filter=("ex_div", "settle", "calc_mode", "metric")))
+        self.leg1 = FloatLeg(
+            **_get(self.kwargs, leg=1, filter=("ex_div", "settle", "calc_mode", "metric"))
+        )
 
         if "rfr" in self.leg1.fixing_method and self.kwargs["ex_div"] > (
             self.leg1.method_param + 1
