@@ -106,6 +106,14 @@ Some themes for this release involved:
        - Add the ``spec`` *'ch_gb'* for Swiss government bonds and *'ch_gb_10y'* for EUREX
          10Y Swiss government bond futures along with the appropriate conversion factor
          calculations.
+         (`834 <https://github.com/attack68/rateslib/pull/834>`_)
+         (`835 <https://github.com/attack68/rateslib/pull/835>`_)
+       - Add the initialisation argument ``metric`` to :class:`~rateslib.instruments.FixedRateBond`,
+         :class:`~rateslib.instruments.IndexFixedRateBond`, :class:`~rateslib.instruments.Bill`,
+         :class:`~rateslib.instruments.FloatRateNote`, for easier integration into a
+         :class:`~rateslib.solver.Solver`, and for use with a :class:`~rateslib.instruments.Spread`,
+         *Instrument*.
+         (`845 <https://github.com/attack68/rateslib/pull/845>`_)
    * - **Curves**
      - - The *'linear'* and *'log_linear'* ``interpolation`` methods of a *Curve* now automatically
          adjust to business day interpolation when using a *'bus252'* ``convention``.

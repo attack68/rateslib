@@ -1165,6 +1165,25 @@ class TestFixedRateBond:
         expected = gilt.ytm(clean_price, dt(1998, 12, 9), False)
         assert abs(result - expected) < 1e-8
 
+    def test_initialisation_rate_metric(self) -> None:
+        gilt = FixedRateBond(
+            effective=dt(1998, 12, 7),
+            termination=dt(2015, 12, 7),
+            frequency="S",
+            calendar="ldn",
+            currency="gbp",
+            convention="ActActICMA",
+            ex_div=7,
+            fixed_rate=8.0,
+            settle=0,
+            metric="ytm",
+        )
+        curve = Curve({dt(1998, 12, 9): 1.0, dt(2015, 12, 7): 0.50})
+        clean_price = gilt.rate(curve, metric="clean_price")
+        expected = gilt.ytm(price=clean_price, settlement=dt(1998, 12, 9))
+        result = gilt.rate(curve)  # default metric is "ytm"
+        assert abs(result - expected) < 1e-8
+
     def test_fixed_rate_bond_npv(self) -> None:
         gilt = FixedRateBond(
             effective=dt(1998, 12, 7),
@@ -1630,6 +1649,27 @@ class TestIndexFixedRateBond:
         with pytest.raises(ValueError, match="`metric` must be in"):
             gilt.rate(curve, metric="bad_metric")
 
+    def test_initialisation_rate_metric(self) -> None:
+        gilt = IndexFixedRateBond(
+            effective=dt(1998, 12, 7),
+            termination=dt(2015, 12, 7),
+            frequency="S",
+            calendar="ldn",
+            currency="gbp",
+            convention="ActActICMA",
+            ex_div=7,
+            fixed_rate=8.0,
+            settle=0,
+            index_base=100.0,
+            index_lag=3,
+            metric="ytm",
+        )
+        curve = Curve({dt(1998, 12, 9): 1.0, dt(2015, 12, 7): 0.50}, index_base=100.0, index_lag=3)
+        clean_price = gilt.rate(curve, metric="clean_price")
+        expected = gilt.ytm(price=clean_price, settlement=dt(1998, 12, 9))
+        result = gilt.rate(curve)  # default metric is "ytm"
+        assert abs(result - expected) < 1e-8
+
     @pytest.mark.parametrize(
         ("i_fixings", "expected"),
         [
@@ -1971,6 +2011,24 @@ class TestBill:
         result = bill.simple_rate(99.93777777777778, dt(2004, 1, 22))
         assert abs(result - expected) < 1e-6
 
+    def test_bill_initialised_rate_metric(self) -> None:
+        curve = Curve({dt(2004, 1, 22): 1.00, dt(2005, 1, 22): 0.992})
+
+        bill = Bill(
+            effective=dt(2004, 1, 22),
+            termination=dt(2004, 2, 19),
+            calendar="nyc",
+            currency="usd",
+            convention="Act360",
+            settle=0,
+            calc_mode="ustb",
+            metric="simple_rate",
+        )
+        price = bill.rate(curve, metric="price")
+        expected = bill.simple_rate(price, dt(2004, 1, 22))
+        result = bill.rate(curve)
+        assert abs(result - expected) < 1e-6
+
     def test_bill_rate(self) -> None:
         curve = Curve({dt(2004, 1, 22): 1.00, dt(2005, 1, 22): 0.992})
 
@@ -2263,6 +2321,35 @@ class TestFloatRateNote:
         disc_curve = curve.shift(spd)
 
         result = bond.rate(curves=[curve, disc_curve], metric=metric)
+        assert abs(result - exp) < 1e-8
+
+    @pytest.mark.parametrize(
+        ("metric", "spd", "exp"),
+        [
+            ("clean_price", 10.0, 99.99982764447981),  # compounding diff between shift
+            ("dirty_price", 10.0, 100.0165399732469),
+        ],
+    )
+    def test_initialised_rate_metric(self, metric, spd, exp) -> None:
+        fixings = Series(0.0, index=date_range(dt(2009, 12, 1), dt(2010, 3, 1)))
+        bond = FloatRateNote(
+            effective=dt(2007, 1, 1),
+            termination=dt(2017, 1, 1),
+            frequency="S",
+            convention="Act365f",
+            ex_div=3,
+            float_spread=spd,
+            fixing_method="rfr_observation_shift",
+            fixings=fixings,
+            method_param=5,
+            spread_compound_method="none_simple",
+            settle=2,
+            metric=metric,
+        )
+        curve = Curve({dt(2010, 3, 1): 1.0, dt(2017, 1, 1): 1.0}, convention="act365f")
+        disc_curve = curve.shift(spd)
+
+        result = bond.rate(curves=[curve, disc_curve])
         assert abs(result - exp) < 1e-8
 
     @pytest.mark.parametrize(
