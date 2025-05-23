@@ -2324,6 +2324,35 @@ class TestFloatRateNote:
         assert abs(result - exp) < 1e-8
 
     @pytest.mark.parametrize(
+        ("metric", "spd", "exp"),
+        [
+            ("clean_price", 10.0, 99.99982764447981),  # compounding diff between shift
+            ("dirty_price", 10.0, 100.0165399732469),
+        ],
+    )
+    def test_initialised_rate_metric(self, metric, spd, exp) -> None:
+        fixings = Series(0.0, index=date_range(dt(2009, 12, 1), dt(2010, 3, 1)))
+        bond = FloatRateNote(
+            effective=dt(2007, 1, 1),
+            termination=dt(2017, 1, 1),
+            frequency="S",
+            convention="Act365f",
+            ex_div=3,
+            float_spread=spd,
+            fixing_method="rfr_observation_shift",
+            fixings=fixings,
+            method_param=5,
+            spread_compound_method="none_simple",
+            settle=2,
+            metric=metric,
+        )
+        curve = Curve({dt(2010, 3, 1): 1.0, dt(2017, 1, 1): 1.0}, convention="act365f")
+        disc_curve = curve.shift(spd)
+
+        result = bond.rate(curves=[curve, disc_curve])
+        assert abs(result - exp) < 1e-8
+
+    @pytest.mark.parametrize(
         ("settlement", "expected"),
         [(dt(2010, 3, 3), 0.501369863013698), (dt(2010, 12, 30), -0.005479452054)],
     )
