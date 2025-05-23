@@ -1165,6 +1165,25 @@ class TestFixedRateBond:
         expected = gilt.ytm(clean_price, dt(1998, 12, 9), False)
         assert abs(result - expected) < 1e-8
 
+    def test_initialisation_rate_metric(self) -> None:
+        gilt = FixedRateBond(
+            effective=dt(1998, 12, 7),
+            termination=dt(2015, 12, 7),
+            frequency="S",
+            calendar="ldn",
+            currency="gbp",
+            convention="ActActICMA",
+            ex_div=7,
+            fixed_rate=8.0,
+            settle=0,
+            metric="ytm",
+        )
+        curve = Curve({dt(1998, 12, 9): 1.0, dt(2015, 12, 7): 0.50})
+        clean_price = gilt.rate(curve, metric="clean_price")
+        expected = gilt.ytm(price=clean_price, settlement=dt(1998, 12, 9))
+        result = gilt.rate(curve)  # default metric is "ytm"
+        assert abs(result - expected) < 1e-8
+
     def test_fixed_rate_bond_npv(self) -> None:
         gilt = FixedRateBond(
             effective=dt(1998, 12, 7),
@@ -1629,6 +1648,27 @@ class TestIndexFixedRateBond:
         curve = Curve({dt(1998, 12, 7): 1.0, dt(2015, 12, 7): 0.50})
         with pytest.raises(ValueError, match="`metric` must be in"):
             gilt.rate(curve, metric="bad_metric")
+
+    def test_initialisation_rate_metric(self) -> None:
+        gilt = IndexFixedRateBond(
+            effective=dt(1998, 12, 7),
+            termination=dt(2015, 12, 7),
+            frequency="S",
+            calendar="ldn",
+            currency="gbp",
+            convention="ActActICMA",
+            ex_div=7,
+            fixed_rate=8.0,
+            settle=0,
+            index_base=100.0,
+            index_lag=3,
+            metric="ytm",
+        )
+        curve = Curve({dt(1998, 12, 9): 1.0, dt(2015, 12, 7): 0.50}, index_base=100.0, index_lag=3)
+        clean_price = gilt.rate(curve, metric="clean_price")
+        expected = gilt.ytm(price=clean_price, settlement=dt(1998, 12, 9))
+        result = gilt.rate(curve)  # default metric is "ytm"
+        assert abs(result - expected) < 1e-8
 
     @pytest.mark.parametrize(
         ("i_fixings", "expected"),

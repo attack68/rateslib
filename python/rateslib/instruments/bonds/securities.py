@@ -1795,7 +1795,7 @@ class IndexFixedRateBond(FixedRateBond):
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-        metric: str = "clean_price",
+        metric: str_ = NoInput(0),
         forward_settlement: datetime_ = NoInput(0),
     ) -> DualTypes:
         """
