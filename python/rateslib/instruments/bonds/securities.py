@@ -1171,7 +1171,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         calc_mode: BondCalcMode | BillCalcMode | str_ = NoInput(0),
         curves: Curves_ = NoInput(0),
         spec: str_ = NoInput(0),
-        metric: str_ = "clean_price",
+        metric: str = "clean_price",
     ) -> None:
         self.kwargs = dict(
             effective=effective,
@@ -1923,6 +1923,8 @@ class Bill(FixedRateBond):
     spec : str, optional
         An identifier to pre-populate many field with conventional values. See
         :ref:`here<defaults-doc>` for more info and available values.
+    metric: str, optional
+        The pricing metric returned by the ``rate`` method of the *Instrument*.
 
     Examples
     --------
@@ -2112,7 +2114,7 @@ class Bill(FixedRateBond):
             The base currency to convert cashflows into (3-digit code), set by default.
             Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
         metric : str in {"price", "discount_rate", "ytm", "simple_rate"}
-            Metric returned by the method.
+            Metric returned by the method. Uses the *Instrument* default if not given.
 
         Returns
         -------
@@ -2407,6 +2409,8 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
     spec : str, optional
         An identifier to pre-populate many field with conventional values. See
         :ref:`here<defaults-doc>` for more info and available values.
+    metric: str, optional
+        The pricing metric returned by the ``rate`` method of the *Instrument*.
 
     Notes
     -----
@@ -2804,7 +2808,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
             Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
         metric : str, optional
             Metric returned by the method. Available options are {"clean_price",
-            "dirty_price", "spread", "ytm"}
+            "dirty_price", "spread", "ytm"}. Uses the *Instrument* default if not given.
         forward_settlement : datetime, optional
             The forward settlement date. If not give uses the discount *Curve* and the bond's
             ``settle`` attribute.}.
