@@ -1202,6 +1202,22 @@ def test_average_rate(convention, expected):
     assert abs((1 + d * rate / 100.0) - (1 + d_ * result / 100.0) ** n_) < 1e-12
 
 
+@pytest.mark.parametrize("curve", [Curve, LineCurve])
+def test_spline_interpolation_feature(curve):
+    t = [dt(2000, 1, 1)] * 4 + [dt(2001, 1, 1)] + [dt(2002, 1, 1)] * 4
+    original = curve(nodes={dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98, dt(2002, 1, 1): 0.975}, t=t)
+    feature = curve(
+        nodes={dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98, dt(2002, 1, 1): 0.975},
+        interpolation="spline",
+    )
+    assert feature.t == t
+    assert feature.spline.c == original.spline.c
+
+    assert feature[dt(2000, 1, 1)] == original[dt(2000, 1, 1)]
+    assert feature[dt(1999, 1, 1)] == original[dt(1999, 1, 1)]
+    assert feature[dt(2001, 5, 1)] == original[dt(2001, 5, 1)]
+
+
 class TestCurve:
     def test_repr(self):
         curve = Curve(

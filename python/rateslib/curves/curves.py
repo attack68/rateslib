@@ -219,14 +219,13 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         self.modifier: str = _drb(defaults.modifier, modifier).upper()
         self.calendar: CalTypes = get_calendar(calendar)
 
-        self.__set_interpolation__(interpolation)
         self.__set_nodes__(nodes)
+        self.t = t
+        self.__set_interpolation__(interpolation)
 
         # Parameters for PPSpline
         endpoints_ = _drb((defaults.endpoints, defaults.endpoints), endpoints)
         self.__set_endpoints__(endpoints_)
-
-        self.t = t
         self._c_input: bool = not isinstance(c, NoInput)
         if not isinstance(self.t, NoInput):
             self.t_posix: list[float] | None = [_.replace(tzinfo=UTC).timestamp() for _ in self.t]
@@ -259,7 +258,19 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
         if isinstance(interpolation, str):
             self.interpolation = interpolation.lower()
-            if self.interpolation + "_" + self.convention in INTERPOLATION:
+            if self.interpolation == "spline":
+                if isinstance(self.t, NoInput) or self.t is None:
+                    self.t = (
+                        [self.node_dates[0], self.node_dates[0], self.node_dates[0]]
+                        + self.node_dates
+                        + [self.node_dates[-1], self.node_dates[-1], self.node_dates[-1]]
+                    )
+                else:
+                    raise ValueError(
+                        "When defining 'spline' interpolation the argument `t` will be implied.\n"
+                        f"It should not be specified directly. Got: {self.t}"
+                    )
+            elif self.interpolation + "_" + self.convention in INTERPOLATION:
                 self._interpolation = INTERPOLATION[self.interpolation + "_" + self.convention]
             else:
                 try:
@@ -313,7 +324,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         if date < self.node_dates[0]:
             return 0.0
 
-        if isinstance(self.t, NoInput) or date <= self.t[0]:
+        if isinstance(self.t, NoInput) or date < self.t[0]:
             val = self._interpolation(date, self)
         else:
             date_posix = date.replace(tzinfo=UTC).timestamp()
