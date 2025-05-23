@@ -2011,6 +2011,24 @@ class TestBill:
         result = bill.simple_rate(99.93777777777778, dt(2004, 1, 22))
         assert abs(result - expected) < 1e-6
 
+    def test_bill_initialised_rate_metric(self) -> None:
+        curve = Curve({dt(2004, 1, 22): 1.00, dt(2005, 1, 22): 0.992})
+
+        bill = Bill(
+            effective=dt(2004, 1, 22),
+            termination=dt(2004, 2, 19),
+            calendar="nyc",
+            currency="usd",
+            convention="Act360",
+            settle=0,
+            calc_mode="ustb",
+            metric="simple_rate",
+        )
+        price = bill.rate(curve, metric="price")
+        expected = bill.simple_rate(price, dt(2004, 1, 22))
+        result = bill.rate(curve)
+        assert abs(result - expected) < 1e-6
+
     def test_bill_rate(self) -> None:
         curve = Curve({dt(2004, 1, 22): 1.00, dt(2005, 1, 22): 0.992})
 
