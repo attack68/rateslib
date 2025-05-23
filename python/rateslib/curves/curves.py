@@ -114,9 +114,9 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         Number of months of by which the index lags the date. For example if the initial
         curve node date is 1st Sep 2021 based on the inflation index published
         17th June 2023 then the lag is 3 months.
+
     Notes
     -----
-
     This curve type is **discount factor (DF)** based and is parametrised by a set of
     (date, DF) pairs set as ``nodes``. The initial node date of the curve is defined
     to be today and should **always** have a DF of precisely 1.0. The initial DF
@@ -128,6 +128,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
     - *"log_linear"* (default for this curve type)
     - *"linear_index"*
+    - *"spline"*
 
     And also the following which are not recommended for this curve type:
 
@@ -136,11 +137,17 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     - *"flat_forward"*,
     - *"flat_backward"*,
 
+    **Spline Interpolation**
+
     Global interpolation in the form of a **log-cubic** spline is also configurable
-    with the parameters ``t``, ``c`` and ``endpoints``. See
+    with the parameters ``t``, ``c`` and ``endpoints``. Setting an ``interpolation`` of *"spline"*
+    is syntactic sugar for automatically determining the most obvious
+    knot sequence ``t`` to use all specified *node dates*. See
     :ref:`splines<splines-doc>` for instruction of knot sequence calibration.
-    Values before the first knot in ``t`` will be determined through the local
-    interpolation method.
+
+    If the knot sequence is provided directly then any dates prior to the first knot date in ``t``
+    will be determined through the local interpolation method. This allows for
+    **mixed interpolation**.
 
     For defining rates by a given tenor, the ``modifier`` and ``calendar`` arguments
     will be used. For correct scaling of the rate a ``convention`` is attached to the
@@ -219,14 +226,13 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         self.modifier: str = _drb(defaults.modifier, modifier).upper()
         self.calendar: CalTypes = get_calendar(calendar)
 
-        self.__set_interpolation__(interpolation)
         self.__set_nodes__(nodes)
+        self.t = t
+        self.__set_interpolation__(interpolation)
 
         # Parameters for PPSpline
         endpoints_ = _drb((defaults.endpoints, defaults.endpoints), endpoints)
         self.__set_endpoints__(endpoints_)
-
-        self.t = t
         self._c_input: bool = not isinstance(c, NoInput)
         if not isinstance(self.t, NoInput):
             self.t_posix: list[float] | None = [_.replace(tzinfo=UTC).timestamp() for _ in self.t]
@@ -259,7 +265,19 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
         if isinstance(interpolation, str):
             self.interpolation = interpolation.lower()
-            if self.interpolation + "_" + self.convention in INTERPOLATION:
+            if self.interpolation == "spline":
+                if isinstance(self.t, NoInput) or self.t is None:
+                    self.t = (
+                        [self.node_dates[0], self.node_dates[0], self.node_dates[0]]
+                        + self.node_dates
+                        + [self.node_dates[-1], self.node_dates[-1], self.node_dates[-1]]
+                    )
+                else:
+                    raise ValueError(
+                        "When defining 'spline' interpolation the argument `t` will be implied.\n"
+                        f"It should not be specified directly. Got: {self.t}"
+                    )
+            elif self.interpolation + "_" + self.convention in INTERPOLATION:
                 self._interpolation = INTERPOLATION[self.interpolation + "_" + self.convention]
             else:
                 try:
@@ -313,7 +331,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         if date < self.node_dates[0]:
             return 0.0
 
-        if isinstance(self.t, NoInput) or date <= self.t[0]:
+        if isinstance(self.t, NoInput) or date < self.t[0]:
             val = self._interpolation(date, self)
         else:
             date_posix = date.replace(tzinfo=UTC).timestamp()
@@ -1733,6 +1751,7 @@ class LineCurve(Curve):
 
     - *"linear"* (default for this curve type)
     - *"log_linear"* (useful for values that exponential, e.g. stock indexes or GDP)
+    - *"spline"*
     - *"flat_forward"*, (useful for replicating a DF based log-linear type curve)
     - *"flat_backward"*,
 
@@ -1741,11 +1760,17 @@ class LineCurve(Curve):
     - *"linear_index"*
     - *"linear_zero_rate"*,
 
+    **Spline Interpolation**
+
     Global interpolation in the form of a **cubic** spline is also configurable
-    with the parameters ``t``, ``c`` and ``endpoints``. See
+    with the parameters ``t``, ``c`` and ``endpoints``. Setting an ``interpolation`` of *"spline"*
+    is syntactic sugar for automatically determining the most obvious
+    knot sequence ``t`` to use all specified *node dates*. See
     :ref:`splines<splines-doc>` for instruction of knot sequence calibration.
-    Values before the first knot in ``t`` will be determined through the local
-    interpolation method.
+
+    If the knot sequence is provided directly then any dates prior to the first knot date in ``t``
+    will be determined through the local interpolation method. This allows for
+    **mixed interpolation**.
 
     This curve type cannot return arbitrary tenor rates. It will only return a single
     value which is applicable to that date. It is recommended to review

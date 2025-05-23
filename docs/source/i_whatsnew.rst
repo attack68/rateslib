@@ -130,6 +130,9 @@ Some themes for this release involved:
          (`836 <https://github.com/attack68/rateslib/pull/836>`_)
        - The caching of values of a :class:`~rateslib.curves.MultiCsaCurve` is improved and
          extended (`842 <https://github.com/attack68/rateslib/pull/842>`_)
+       - Simple spline interpolation can now be automatically constructed by specifying
+         *"spline"* as the argument for ``interpolation``. See docs.
+         (`847 <https://github.com/attack68/rateslib/pull/847>`_)
    * - **Automatic Differentiation & Algorithms**
      - - Operator overloads added to allow dual number exponents, i.e. :math:`z^p`, where *z*,
          *p* are dual number types. This facilitates AD for the SABR function as well as other
