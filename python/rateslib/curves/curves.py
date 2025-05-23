@@ -165,7 +165,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
            dt(2025,1,1): 0.967,
            dt(2026,1,1): 0.956,
            dt(2027,1,1): 0.946,
-       },
+       }
        curve1 = Curve(nodes=nodes, interpolation="log_linear")
        curve2 = Curve(nodes=nodes, interpolation="spline")
        curve1.plot("1d", comparators=[curve2], labels=["log_linear", "log_cubic_spline"])
@@ -184,7 +184,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
            dt(2025,1,1): 0.967,
            dt(2026,1,1): 0.956,
            dt(2027,1,1): 0.946,
-       },
+       }
        curve1 = Curve(nodes=nodes, interpolation="log_linear")
        curve2 = Curve(nodes=nodes, interpolation="spline")
        fig, ax, line = curve1.plot("1d", comparators=[curve2], labels=["log_linear", "log_cubic_spline"])
