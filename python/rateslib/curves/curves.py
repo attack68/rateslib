@@ -177,7 +177,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
        from datetime import datetime as dt
        import numpy as np
 
-             nodes={
+       nodes={
            dt(2022,1,1): 1.0,  # <- initial DF should always be 1.0
            dt(2023,1,1): 0.99,
            dt(2024,1,1): 0.979,
