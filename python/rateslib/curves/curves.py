@@ -190,7 +190,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
        fig, ax, line = curve1.plot("1d", comparators=[curve2], labels=["log_linear", "log_cubic_spline"])
        plt.show()
        plt.close()
-    """ # noqa: E501
+    """  # noqa: E501
 
     _op_exp: Callable[[DualTypes], DualTypes] = staticmethod(
         dual_exp
@@ -1814,7 +1814,7 @@ class LineCurve(Curve):
        plt.show()
        plt.close()
 
-    """ # noqa: E501
+    """  # noqa: E501
 
     _op_exp = staticmethod(lambda x: x)  # LineCurve spline is not log based so no exponent needed
     _op_log: Callable[[DualTypes], DualTypes] = staticmethod(
