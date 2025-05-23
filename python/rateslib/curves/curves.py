@@ -158,18 +158,17 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
     .. ipython:: python
 
-       curve = Curve(
-           nodes={
-               dt(2022,1,1): 1.0,  # <- initial DF should always be 1.0
-               dt(2023,1,1): 0.99,
-               dt(2024,1,1): 0.979,
-               dt(2025,1,1): 0.967,
-               dt(2026,1,1): 0.956,
-               dt(2027,1,1): 0.946,
-           },
-           interpolation="log_linear",
-       )
-       curve.plot("1d")
+       nodes={
+           dt(2022,1,1): 1.0,  # <- initial DF should always be 1.0
+           dt(2023,1,1): 0.99,
+           dt(2024,1,1): 0.979,
+           dt(2025,1,1): 0.967,
+           dt(2026,1,1): 0.956,
+           dt(2027,1,1): 0.946,
+       }
+       curve1 = Curve(nodes=nodes, interpolation="log_linear")
+       curve2 = Curve(nodes=nodes, interpolation="spline")
+       curve1.plot("1d", comparators=[curve2], labels=["log_linear", "log_cubic_spline"])
 
     .. plot::
 
@@ -177,20 +176,21 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
        import matplotlib.pyplot as plt
        from datetime import datetime as dt
        import numpy as np
-       curve = Curve(
-           nodes={
-               dt(2022,1,1): 1.0,
-               dt(2023,1,1): 0.99,
-               dt(2024,1,1): 0.979,
-               dt(2025,1,1): 0.967,
-               dt(2026,1,1): 0.956,
-               dt(2027,1,1): 0.946,
-           },
-           interpolation="log_linear",
-       )
-       fig, ax, line = curve.plot("1D")
+
+       nodes={
+           dt(2022,1,1): 1.0,  # <- initial DF should always be 1.0
+           dt(2023,1,1): 0.99,
+           dt(2024,1,1): 0.979,
+           dt(2025,1,1): 0.967,
+           dt(2026,1,1): 0.956,
+           dt(2027,1,1): 0.946,
+       }
+       curve1 = Curve(nodes=nodes, interpolation="log_linear")
+       curve2 = Curve(nodes=nodes, interpolation="spline")
+       fig, ax, line = curve1.plot("1d", comparators=[curve2], labels=["log_linear", "log_cubic_spline"])
        plt.show()
-    """
+       plt.close()
+    """  # noqa: E501
 
     _op_exp: Callable[[DualTypes], DualTypes] = staticmethod(
         dual_exp
@@ -1782,18 +1782,17 @@ class LineCurve(Curve):
 
     .. ipython:: python
 
-       line_curve = LineCurve(
-           nodes={
-               dt(2022,1,1): 0.975,  # <- initial value is general
-               dt(2023,1,1): 1.10,
-               dt(2024,1,1): 1.22,
-               dt(2025,1,1): 1.14,
-               dt(2026,1,1): 1.03,
-               dt(2027,1,1): 1.03,
-           },
-           interpolation="linear",
-       )
-       line_curve.plot("1d")
+       nodes = {
+           dt(2022,1,1): 0.975,  # <- initial value is general
+           dt(2023,1,1): 1.10,
+           dt(2024,1,1): 1.22,
+           dt(2025,1,1): 1.14,
+           dt(2026,1,1): 1.03,
+           dt(2027,1,1): 1.03,
+       }
+       line_curve1 = LineCurve(nodes=nodes, interpolation="linear")
+       line_curve2 = LineCurve(nodes=nodes, interpolation="spline")
+       line_curve1.plot("1d", comparators=[line_curve2], labels=["linear", "cubic spline"])
 
     .. plot::
 
@@ -1801,21 +1800,21 @@ class LineCurve(Curve):
        import matplotlib.pyplot as plt
        from datetime import datetime as dt
        import numpy as np
-       line_curve = LineCurve(
-           nodes={
-               dt(2022,1,1): 0.975,  # <- initial value is general
-               dt(2023,1,1): 1.10,
-               dt(2024,1,1): 1.22,
-               dt(2025,1,1): 1.14,
-               dt(2026,1,1): 1.03,
-               dt(2027,1,1): 1.03,
-           },
-           interpolation="linear",
-       )
-       fig, ax, line = line_curve.plot("1D")
+       nodes = {
+           dt(2022,1,1): 0.975,  # <- initial value is general
+           dt(2023,1,1): 1.10,
+           dt(2024,1,1): 1.22,
+           dt(2025,1,1): 1.14,
+           dt(2026,1,1): 1.03,
+           dt(2027,1,1): 1.03,
+       }
+       line_curve1 = LineCurve(nodes=nodes, interpolation="linear")
+       line_curve2 = LineCurve(nodes=nodes, interpolation="spline")
+       fig, ax, line = line_curve1.plot("1d", comparators=[line_curve2], labels=["linear", "cubic spline"])
        plt.show()
+       plt.close()
 
-    """
+    """  # noqa: E501
 
     _op_exp = staticmethod(lambda x: x)  # LineCurve spline is not log based so no exponent needed
     _op_log: Callable[[DualTypes], DualTypes] = staticmethod(
