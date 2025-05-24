@@ -2979,6 +2979,92 @@ class ProxyCurve(Curve):
         raise NotImplementedError("Instances of ProxyCurve do not have solvable variables.")
 
 
+class _RolledCurve(Curve):
+
+    _mutable_by_association: bool = True
+
+    @_new_state_post
+    @_clear_cache_post
+    def __init__(self, curve: Curve, days: int):
+        self.curve = curve
+        self.days = days
+        for attr in ["calendar", "modifier", "convention", "_base_type"]:
+            setattr(self, attr, getattr(curve, attr))
+        self.is_calendar_days = self.curve.convention != "bus252"
+        if self.is_calendar_days:
+            self.roll_date = self.curve.node_dates[0] + timedelta(days=days)
+        else:
+            self.roll_date = self.calendar.lag(self.curve.node_dates[0], days, False)
+
+    def __getitem__(self, date: datetime) -> DualTypes:
+        if defaults.curve_caching and date in self._cache:
+            return self._cache[date]
+
+        if self._base_type == "dfs":
+            if date < self.curve.node_dates[0]:
+                return 0.0
+            elif self.days >= 0:
+                if date == self.curve.node_dates[0]:
+                    return self._cached_value(date, 1.0)
+                elif date >= self.roll_date:
+                    return self._cached_value(
+                        date,
+                        self._df_scaling(self.roll_date) * self.curve[date - timedelta(days=self.days)]
+                    )
+                else:
+                    return self._cached_value(date, self._df_scaling(date))
+            else: # self.days >= self.roll_date
+                return self._cached_value(
+                    date,
+                    self.curve[date - timedelta(days=self.days)] / self.curve[self.roll_date]
+                )
+        else:
+            if date < self.curve.node_dates[0]:
+                raise ValueError("`effective` before initial LineCurve date.")
+            elif self.days >= 0:
+                if date < self.roll_date:
+                    return self._cached_value(date, self.curve[self.curve.node_dates[0]])
+                else:
+                    return self._cached_value(date, self.curve[date - timedelta(days=self.days)])
+            else: # self.days >= self.roll_date
+                return self._cached_value(date, self.curve[date - timedelta(days=self.days)])
+
+    # @property
+    # def _alpha(self):
+    #     # alpha should be cleared when the cache is cleared
+    #     if self.__alpha is None:
+    #         self.__alpha = self._df_scaling(self.roll_date)
+    #     else:
+    #         return self.__alpha
+
+    def _df_scaling(self, date: datetime) -> DualTypes:
+        """
+        Return a DF in the period between initial node and roll_date using 1d average rate
+        """
+        ini_dt = self.curve.node_dates[0]
+        if self.is_calendar_days:
+            r: DualTypes = self.curve._rate_with_raise(ini_dt, "1D", "F")
+        else:
+            r = self.curve._rate_with_raise(ini_dt, "1B", "F")
+
+        dcf_ = dcf(ini_dt, date, self.convention, calendar=self.calendar)
+        _, d, n = average_rate(ini_dt, date, self.convention, 0.0, dcf_)
+        return 1.0 / (1 + d * r /100) ** n
+
+    # Mutation
+
+    def _validate_state(self) -> None:
+        if self._do_not_validate:
+            return None
+        if self._state != self._get_composited_state():
+            # If any of the associated curves have been mutated then the cache is invalidated
+            self._clear_cache()
+            self._set_new_state()
+
+    def _get_composited_state(self) -> int:
+        return self.curve._state
+
+
 def average_rate(
     effective: datetime,
     termination: datetime,
