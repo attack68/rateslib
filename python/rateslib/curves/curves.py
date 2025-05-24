@@ -2979,8 +2979,12 @@ class ProxyCurve(Curve):
         raise NotImplementedError("Instances of ProxyCurve do not have solvable variables.")
 
 
-class RolledCurve(Curve):
+class _RolledCurve(Curve):
 
+    _mutable_by_association: bool = True
+
+    @_new_state_post
+    @_clear_cache_post
     def __init__(self, curve: Curve, days: int):
         self.curve = curve
         self.days = days
@@ -3025,14 +3029,13 @@ class RolledCurve(Curve):
             else: # self.days >= self.roll_date
                 return self._cached_value(date, self.curve[date - timedelta(days=self.days)])
 
-
-    @property
-    def _alpha(self):
-        # alpha should be cleared when the cache is cleared
-        if self.__alpha is None:
-            self.__alpha = self._df_scaling(self.roll_date)
-        else:
-            return self.__alpha
+    # @property
+    # def _alpha(self):
+    #     # alpha should be cleared when the cache is cleared
+    #     if self.__alpha is None:
+    #         self.__alpha = self._df_scaling(self.roll_date)
+    #     else:
+    #         return self.__alpha
 
     def _df_scaling(self, date: datetime) -> DualTypes:
         """
@@ -3047,6 +3050,19 @@ class RolledCurve(Curve):
         dcf_ = dcf(ini_dt, date, self.convention, calendar=self.calendar)
         _, d, n = average_rate(ini_dt, date, self.convention, 0.0, dcf_)
         return 1.0 / (1 + d * r /100) ** n
+
+    # Mutation
+
+    def _validate_state(self) -> None:
+        if self._do_not_validate:
+            return None
+        if self._state != self._get_composited_state():
+            # If any of the associated curves have been mutated then the cache is invalidated
+            self._clear_cache()
+            self._set_new_state()
+
+    def _get_composited_state(self) -> int:
+        return self.curve._state
 
 
 def average_rate(

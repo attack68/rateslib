@@ -16,6 +16,7 @@ from rateslib.curves import (
     index_left,
     index_value,
 )
+from rateslib.curves.curves import _RolledCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.dual.utils import _get_order_of
@@ -2717,3 +2718,59 @@ class TestIndexValue:
             ValueError, match="`index_lag` must be zero when using a 'curve' `index"
         ):
             index_value(1, "curve", s, dt(2000, 2, 1), c)
+
+
+class TestRolledCurve:
+
+    @pytest.mark.parametrize("attr", [
+        "calendar",
+        "convention",
+        "modifier",
+        "_base_type",
+    ])
+    @pytest.mark.parametrize("dfs", [True, False])
+    def test_attributes(self, attr, dfs, curve, line_curve):
+        curve_ = curve if dfs else line_curve
+        r = _RolledCurve(curve_, days=10)
+        assert getattr(r, attr) == getattr(curve_, attr)
+
+    def test_get_item_positive_days_line(self, line_curve):
+        r = _RolledCurve(line_curve, days=10)
+        assert r[dt(2022, 3, 1)] == Dual(2.0, ["v0"], [1.0])
+        assert r[dt(2022, 3, 11)] == Dual(2.0, ["v0"], [1.0])
+        assert r[dt(2022, 3, 12)] == line_curve[dt(2022, 3, 2)]
+        assert r[dt(2022, 3, 31)] == line_curve[dt(2022, 3, 21)]
+
+    def test_get_item_negative_days_line(self, line_curve):
+        r = _RolledCurve(line_curve, days=-10)
+        assert r[dt(2022, 3, 1)] == line_curve[dt(2022, 3, 11)]
+        assert r[dt(2022, 3, 11)] == line_curve[dt(2022, 3, 21)]
+        assert r[dt(2022, 3, 31)] == line_curve[dt(2022, 4, 10)]
+
+    def test_get_item_positive_days_dfs(self, curve):
+        r = _RolledCurve(curve, days=10)
+        # pre node date
+        assert r[dt(2022, 2, 1)] == 0.0
+
+        # initial node date
+        assert r[dt(2022, 3, 1)] == 1.0
+
+        rate = (curve[dt(2022, 3, 1)] / curve[dt(2022, 3, 2)] - 1) * 36000
+        # interim date
+        result = r[dt(2022, 3, 6)]
+        expected = 1.0 / (1 + rate / 36000) ** 5
+        assert abs(result - expected) < 1e-12
+        assert np.all(np.isclose(result.dual, expected.dual))
+
+        # roll date
+        df_scale = 1.0 / (1 + rate / 36000) ** 10
+        result = r[dt(2022, 3, 11)]
+        expected = df_scale * curve[dt(2022, 3, 1)]
+        assert abs(result - expected) < 1e-12
+        assert np.all(np.isclose(result.dual, expected.dual))
+
+        # subsequent date
+        result = r[dt(2022, 3, 31)]
+        expected = df_scale * curve[dt(2022, 3, 21)]
+        assert abs(result - expected) < 1e-12
+        assert np.all(np.isclose(result.dual, expected.dual))
