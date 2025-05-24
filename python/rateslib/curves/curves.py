@@ -2979,6 +2979,44 @@ class ProxyCurve(Curve):
         raise NotImplementedError("Instances of ProxyCurve do not have solvable variables.")
 
 
+class RolledCurve(Curve):
+
+    def __init__(self, curve: Curve, days: int):
+        self.curve = curve
+        self.days = days
+        for attr in ["calendar", "modifier", "convention", "_base_type"]:
+            setattr(self, attr, getattr(curve, attr))
+        self.is_calendar_days = self.curve.convention != "bus252"
+        if self.is_calendar_days:
+            self.roll_date = self.curve.node_dates[0] + timedelta(days=days)
+        else:
+            self.roll_date = self.calendar.lag(self.curve.node_dates[0], days, False)
+
+
+    def __getitem__(self, date: datetime) -> DualTypes:
+        if defaults.curve_caching and date in self._cache:
+            return self._cache[date]
+
+    @property
+    def _alpha(self):
+        # alpha should be cleared when the cache is cleared
+        if self.__alpha is None:
+            if self.is_calendar_days:
+
+            else:
+                ini_dt = self.curve.node_dates[0]
+                nex_dt = self.calendar.lag(ini_dt, 1, False)
+                dcf_ = dcf(ini_dt, nex_dt, self.convention, self.calendar)
+                r = (self.curve[ini_dt] / self.curve[nex_dt] - 1.0) * 100.0 / dcf_
+                dcf_ = dcf(ini_dt, self.roll_date, self.convention, self.calendar)
+
+
+        else:
+            return self.__alpha
+
+
+
+
 def average_rate(
     effective: datetime,
     termination: datetime,
