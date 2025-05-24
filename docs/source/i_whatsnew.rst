@@ -126,6 +126,7 @@ Some themes for this release involved:
          more precise, albeit may impact slight performance degradations in bond OAS spread
          calculations.
          (`828 <https://github.com/attack68/rateslib/pull/828>`_)
+         (`849 <https://github.com/attack68/rateslib/pull/849>`_)
        - The :meth:`~rateslib.curves.average_rate` method now requires a ``dcf`` input.
          (`836 <https://github.com/attack68/rateslib/pull/836>`_)
        - The caching of values of a :class:`~rateslib.curves.MultiCsaCurve` is improved and
