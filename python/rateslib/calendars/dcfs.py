@@ -360,27 +360,6 @@ _DCF: dict[str, Callable[..., float]] = {
     "BUS252": _dcf_bus252,
 }
 
-_DCF1d = {
-    "ACT365F": 1.0 / 365,
-    "ACT365F+": 1.0 / 365,
-    "ACT360": 1.0 / 360,
-    "30360": 1.0 / 365.25,
-    "360360": 1.0 / 365.25,
-    "BONDBASIS": 1.0 / 365.25,
-    "30U360": 1.0 / 365.25,
-    "30E360": 1.0 / 365.25,
-    "EUROBONDBASIS": 1.0 / 365.25,
-    "30E360ISDA": 1.0 / 365.25,
-    "ACTACT": 1.0 / 365.25,
-    "ACTACTISDA": 1.0 / 365.25,
-    "ACTACTICMA": 1.0 / 365.25,
-    "ACTACTICMA_STUB365F": 1 / 365.25,
-    "ACTACTISMA": 1.0 / 365.25,
-    "ACTACTBOND": 1.0 / 365.25,
-    "1": 1.0 / 365.25,
-    "1+": 1.0 / 365.25,
-    "BUS252": 1.0 / 252,
-}
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

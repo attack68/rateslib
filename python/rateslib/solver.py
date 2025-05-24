@@ -1045,6 +1045,7 @@ class Solver(Gradients, _WithState):
         ini_lambda: tuple[float, float, float] | NoInput = NoInput(0),
         callback: Callable[[Solver, int, NDArray[Nobject]], None] | NoInput = NoInput(0),
     ) -> None:
+        self._do_not_validate_ = False
         self.callback = callback
         self.algorithm = _drb(defaults.algorithm, algorithm).lower()
         self.ini_lambda = _drb(defaults.ini_lambda, ini_lambda)
@@ -1180,7 +1181,7 @@ class Solver(Gradients, _WithState):
 
     @_do_not_validate.setter
     def _do_not_validate(self, value: bool) -> None:
-        self._do_not_validate_: bool = value
+        self._do_not_validate_ = value
         for solver in self.pre_solvers:
             solver._do_not_validate = value
 

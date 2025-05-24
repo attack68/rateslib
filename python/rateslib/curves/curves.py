@@ -5,7 +5,7 @@ import warnings
 from calendar import monthrange
 from collections.abc import Callable
 from datetime import datetime, timedelta
-from math import comb
+from math import comb, prod
 from typing import TYPE_CHECKING, Any, TypeAlias
 from uuid import uuid4
 
@@ -15,7 +15,6 @@ from pytz import UTC
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
-from rateslib.calendars.dcfs import _DCF1d
 from rateslib.calendars.rs import get_calendar
 from rateslib.curves.interpolation import INTERPOLATION, InterpolationFunction
 from rateslib.default import (
@@ -32,10 +31,11 @@ from rateslib.dual import (
     dual_log,
     set_order_convert,
 )
-from rateslib.dual.utils import _dual_float
+from rateslib.dual.utils import _dual_float, _get_order_of
 from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,
+    _no_interior_validation,
     _validate_states,
     _WithCache,
     _WithState,
@@ -114,9 +114,9 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         Number of months of by which the index lags the date. For example if the initial
         curve node date is 1st Sep 2021 based on the inflation index published
         17th June 2023 then the lag is 3 months.
+
     Notes
     -----
-
     This curve type is **discount factor (DF)** based and is parametrised by a set of
     (date, DF) pairs set as ``nodes``. The initial node date of the curve is defined
     to be today and should **always** have a DF of precisely 1.0. The initial DF
@@ -128,6 +128,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
     - *"log_linear"* (default for this curve type)
     - *"linear_index"*
+    - *"spline"*
 
     And also the following which are not recommended for this curve type:
 
@@ -136,11 +137,17 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     - *"flat_forward"*,
     - *"flat_backward"*,
 
+    **Spline Interpolation**
+
     Global interpolation in the form of a **log-cubic** spline is also configurable
-    with the parameters ``t``, ``c`` and ``endpoints``. See
+    with the parameters ``t``, ``c`` and ``endpoints``. Setting an ``interpolation`` of *"spline"*
+    is syntactic sugar for automatically determining the most obvious
+    knot sequence ``t`` to use all specified *node dates*. See
     :ref:`splines<splines-doc>` for instruction of knot sequence calibration.
-    Values before the first knot in ``t`` will be determined through the local
-    interpolation method.
+
+    If the knot sequence is provided directly then any dates prior to the first knot date in ``t``
+    will be determined through the local interpolation method. This allows for
+    **mixed interpolation**.
 
     For defining rates by a given tenor, the ``modifier`` and ``calendar`` arguments
     will be used. For correct scaling of the rate a ``convention`` is attached to the
@@ -151,18 +158,17 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
     .. ipython:: python
 
-       curve = Curve(
-           nodes={
-               dt(2022,1,1): 1.0,  # <- initial DF should always be 1.0
-               dt(2023,1,1): 0.99,
-               dt(2024,1,1): 0.979,
-               dt(2025,1,1): 0.967,
-               dt(2026,1,1): 0.956,
-               dt(2027,1,1): 0.946,
-           },
-           interpolation="log_linear",
-       )
-       curve.plot("1d")
+       nodes={
+           dt(2022,1,1): 1.0,  # <- initial DF should always be 1.0
+           dt(2023,1,1): 0.99,
+           dt(2024,1,1): 0.979,
+           dt(2025,1,1): 0.967,
+           dt(2026,1,1): 0.956,
+           dt(2027,1,1): 0.946,
+       }
+       curve1 = Curve(nodes=nodes, interpolation="log_linear")
+       curve2 = Curve(nodes=nodes, interpolation="spline")
+       curve1.plot("1d", comparators=[curve2], labels=["log_linear", "log_cubic_spline"])
 
     .. plot::
 
@@ -170,20 +176,21 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
        import matplotlib.pyplot as plt
        from datetime import datetime as dt
        import numpy as np
-       curve = Curve(
-           nodes={
-               dt(2022,1,1): 1.0,
-               dt(2023,1,1): 0.99,
-               dt(2024,1,1): 0.979,
-               dt(2025,1,1): 0.967,
-               dt(2026,1,1): 0.956,
-               dt(2027,1,1): 0.946,
-           },
-           interpolation="log_linear",
-       )
-       fig, ax, line = curve.plot("1D")
+
+       nodes={
+           dt(2022,1,1): 1.0,  # <- initial DF should always be 1.0
+           dt(2023,1,1): 0.99,
+           dt(2024,1,1): 0.979,
+           dt(2025,1,1): 0.967,
+           dt(2026,1,1): 0.956,
+           dt(2027,1,1): 0.946,
+       }
+       curve1 = Curve(nodes=nodes, interpolation="log_linear")
+       curve2 = Curve(nodes=nodes, interpolation="spline")
+       fig, ax, line = curve1.plot("1d", comparators=[curve2], labels=["log_linear", "log_cubic_spline"])
        plt.show()
-    """
+       plt.close()
+    """  # noqa: E501
 
     _op_exp: Callable[[DualTypes], DualTypes] = staticmethod(
         dual_exp
@@ -219,14 +226,13 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         self.modifier: str = _drb(defaults.modifier, modifier).upper()
         self.calendar: CalTypes = get_calendar(calendar)
 
-        self.__set_interpolation__(interpolation)
         self.__set_nodes__(nodes)
+        self.t = t
+        self.__set_interpolation__(interpolation)
 
         # Parameters for PPSpline
         endpoints_ = _drb((defaults.endpoints, defaults.endpoints), endpoints)
         self.__set_endpoints__(endpoints_)
-
-        self.t = t
         self._c_input: bool = not isinstance(c, NoInput)
         if not isinstance(self.t, NoInput):
             self.t_posix: list[float] | None = [_.replace(tzinfo=UTC).timestamp() for _ in self.t]
@@ -259,7 +265,19 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
         if isinstance(interpolation, str):
             self.interpolation = interpolation.lower()
-            if self.interpolation + "_" + self.convention in INTERPOLATION:
+            if self.interpolation == "spline":
+                if isinstance(self.t, NoInput) or self.t is None:
+                    self.t = (
+                        [self.node_dates[0], self.node_dates[0], self.node_dates[0]]
+                        + self.node_dates
+                        + [self.node_dates[-1], self.node_dates[-1], self.node_dates[-1]]
+                    )
+                else:
+                    raise ValueError(
+                        "When defining 'spline' interpolation the argument `t` will be implied.\n"
+                        f"It should not be specified directly. Got: {self.t}"
+                    )
+            elif self.interpolation + "_" + self.convention in INTERPOLATION:
                 self._interpolation = INTERPOLATION[self.interpolation + "_" + self.convention]
             else:
                 try:
@@ -313,7 +331,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         if date < self.node_dates[0]:
             return 0.0
 
-        if isinstance(self.t, NoInput) or date <= self.t[0]:
+        if isinstance(self.t, NoInput) or date < self.t[0]:
             val = self._interpolation(date, self)
         else:
             date_posix = date.replace(tzinfo=UTC).timestamp()
@@ -476,17 +494,17 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                 return _ + float_spread / 100
             elif spread_compound_method == "isda_compounding":
                 # this provides an approximated rate
-                r_bar, d, n = average_rate(effective, termination, self.convention, _)
+                r_bar, d, n = average_rate(effective, termination, self.convention, _, d_)
                 _ = ((1 + (r_bar + float_spread / 100) / 100 * d) ** n - 1) / (n * d)
                 return 100 * _
             elif spread_compound_method == "isda_flat_compounding":
                 # this provides an approximated rate
-                r_bar, d, n = average_rate(effective, termination, self.convention, _)
+                r_bar, d, n = average_rate(effective, termination, self.convention, _, d_)
                 rd = r_bar / 100 * d
                 _ = (
                     (r_bar + float_spread / 100)
                     / n
-                    * (comb(n, 1) + comb(n, 2) * rd + comb(n, 3) * rd**2)
+                    * (comb(int(n), 1) + comb(int(n), 2) * rd + comb(int(n), 3) * rd**2)
                 )
                 return _
             else:
@@ -500,9 +518,9 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     def shift(
         self,
         spread: DualTypes,
-        id: str | NoInput = NoInput(0),  # noqa: A002
+        id: str_ = NoInput(0),  # noqa: A002
+        collateral: str_ = NoInput(0),
         composite: bool = True,
-        collateral: str | NoInput = NoInput(0),
     ) -> Curve:
         """
         Create a new curve by vertically adjusting the curve by a set number of basis
@@ -515,27 +533,33 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
         Parameters
         ----------
-        spread : float, Dual, Dual2
+        spread : float, Dual, Dual2, Variable
             The number of basis points added to the existing curve.
-
-            .. warning::
-
-               If ``composite`` is *True*, users must be aware that adding *Dual* or *Dual2*
-               spreads must be compatible with the AD order of *Self*, otherwise *TypeErrors*
-               may be raised. If in doubt, only use *float* spread values.
-
         id : str, optional
             Set the id of the returned curve.
+        collateral: str, optional
+            Designate a collateral tag for the curve which is used by other methods.
         composite: bool, optional
             If True will return a CompositeCurve that adds a flat curve to the existing curve.
             This results in slower calculations but the curve will maintain a dynamic
             association with the underlying curve and will change if the underlying curve changes.
-        collateral: str, optional
-            Designate a collateral tag for the curve which is used by other methods.
 
         Returns
         -------
-        Curve, CompositeCurve
+        CompositeCurve or Self
+
+        Notes
+        -----
+        The output :class:`~rateslib.curves.CompositeCurve` will have an AD order of the maximum
+        of the AD order of the input ``spread`` and of `Self`.
+        That is, if the input ``spread`` is
+        a *float* (with AD order 0) and the input *Curve* is parametrised with *Dual* and has an AD
+        order of 1, then the result will have an AD order of 1.
+
+        .. warning::
+
+           If ``spread`` is given as :class:`~rateslib.dual.Dual2` but the AD order of `Self`
+           is only 1, then `Self` will be upcast to use :class:`~rateslib.dual.Dual2` types.
 
         Examples
         --------
@@ -590,83 +614,73 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
            plt.show()
 
         """
-        if composite:
-            start, end = self.node_dates[0], self.node_dates[-1]
-            days = (end - start).days
-            d = _DCF1d[self.convention.upper()]
-            if type(self) is Curve or type(self) is ProxyCurve:
-                shifted = Curve(
-                    nodes={start: 1.0, end: 1.0 / (1 + d * spread / 10000) ** days},
-                    convention=self.convention,
-                    calendar=self.calendar,
-                    modifier=self.modifier,
-                    interpolation="log_linear",
-                    index_base=self.index_base,
-                    index_lag=NoInput(0),
-                )
-            elif type(self) is LineCurve:
-                shifted = LineCurve(
-                    nodes={start: spread / 100.0, end: spread / 100.0},
-                    convention=self.convention,
-                    calendar=self.calendar,
-                    modifier=self.modifier,
-                    interpolation="linear",
-                )
-            else:  # or type(self) is IndexCurve
-                shifted = Curve(
-                    nodes={start: 1.0, end: 1.0 / (1 + d * spread / 10000) ** days},
-                    convention=self.convention,
-                    calendar=self.calendar,
-                    modifier=self.modifier,
-                    interpolation="log_linear",
-                    index_base=self.index_base,
-                    index_lag=self.index_lag,
-                )
+        return self._shift(spread, id, collateral, composite, False)
 
-            _: CompositeCurve = CompositeCurve(curves=[self, shifted], id=id)
-            _.collateral = _drb(None, collateral)
-            return _
+    def _shift(
+        self,
+        spread: DualTypes,
+        id: str_ = NoInput(0),  # noqa: A002
+        collateral: str_ = NoInput(0),
+        composite: bool = True,
+        _no_validation: bool = False,
+    ) -> Curve:
+        """
+        Executes the `Curve.shift` method.
 
-        else:  # use non-composite method, which is faster but does not preserve a dynamic spread.
-            # Make sure base curve ADorder matches the spread ADorder. Floats are universal
-            _ad = self.ad
-            if isinstance(spread, Dual):
-                self._set_ad_order(1)
-            elif isinstance(spread, Dual2):
-                self._set_ad_order(2)
+        ``_no_validation`` is a performance enhancement to speed up a CompositeCurve init.
+        """
+        start, end = self.node_dates[0], self.node_dates[-1]
 
-            v1v2: list[Number] = [1.0] * (self.n - 1)
-            n = [0] * (self.n - 1)
-            d = 1 / 365 if self.convention.upper() != "ACT360" else 1 / 360
-            v_new: list[Number] = [1.0] * (self.n)
-            for i, (k, v) in enumerate(self.nodes.items()):
-                if i == 0:
-                    continue
-                n[i - 1] = (k - self.node_dates[i - 1]).days
-                v1v2[i - 1] = (self.nodes[self.node_dates[i - 1]] / v) ** (1 / n[i - 1])
-                v_new[i] = v_new[i - 1] / (v1v2[i - 1] + d * spread / 10000) ** n[i - 1]
-
-            nodes = self.nodes.copy()
-            for i, (k, ___) in enumerate(nodes.items()):
-                nodes[k] = v_new[i]
-
-            __: Curve = type(self)(
-                nodes=nodes,
-                interpolation=self.interpolation,
-                t=self.t,
-                c=NoInput(0),
-                endpoints=self.spline_endpoints,
-                id=id or uuid4().hex[:5] + "_",  # 1 in a million clash,
+        dcf_ = dcf(start, end, self.convention, calendar=self.calendar)
+        _, d, n = average_rate(start, end, self.convention, 0.0, dcf_)
+        if self._base_type == "dfs":
+            shifted = Curve(
+                nodes={start: 1.0, end: 1.0 / (1 + d * spread / 10000) ** n},
                 convention=self.convention,
-                modifier=self.modifier,
                 calendar=self.calendar,
-                ad=self.ad,
+                modifier=self.modifier,
+                interpolation="log_linear",
                 index_base=self.index_base,
                 index_lag=self.index_lag,
+                ad=_get_order_of(spread),
             )
-            __.collateral = _drb(None, collateral)
-            self._set_ad_order(_ad)
-            return __
+        else:  # base type is values: LineCurve
+            shifted = LineCurve(
+                nodes={start: spread / 100.0, end: spread / 100.0},
+                convention=self.convention,
+                calendar=self.calendar,
+                modifier=self.modifier,
+                interpolation="flat_backward",
+                ad=_get_order_of(spread),
+            )
+
+        crv: CompositeCurve = CompositeCurve(
+            curves=[self, shifted], id=id, _no_validation=_no_validation
+        )
+        crv.collateral = _drb(None, collateral)
+
+        if not composite:
+            if self._base_type == "dfs":
+                CurveClass = Curve
+                kwargs = dict(index_base=self.index_base, index_lag=self.index_lag)
+            else:
+                CurveClass = LineCurve
+                kwargs = {}
+
+            return CurveClass(
+                nodes={k: crv[k] for k in self.nodes},
+                convention=self.convention,
+                calendar=self.calendar,
+                interpolation=self.interpolation,
+                t=self.t,
+                c=NoInput(0),  # call csolve on init
+                endpoints=self.spline_endpoints,
+                modifier=self.modifier,
+                ad=crv.ad,
+                **kwargs,  # type: ignore[arg-type]
+            )
+        else:
+            return crv
 
     def _translate_nodes(self, start: datetime) -> dict[datetime, DualTypes]:
         scalar = 1 / self[start]
@@ -1737,6 +1751,7 @@ class LineCurve(Curve):
 
     - *"linear"* (default for this curve type)
     - *"log_linear"* (useful for values that exponential, e.g. stock indexes or GDP)
+    - *"spline"*
     - *"flat_forward"*, (useful for replicating a DF based log-linear type curve)
     - *"flat_backward"*,
 
@@ -1745,11 +1760,17 @@ class LineCurve(Curve):
     - *"linear_index"*
     - *"linear_zero_rate"*,
 
+    **Spline Interpolation**
+
     Global interpolation in the form of a **cubic** spline is also configurable
-    with the parameters ``t``, ``c`` and ``endpoints``. See
+    with the parameters ``t``, ``c`` and ``endpoints``. Setting an ``interpolation`` of *"spline"*
+    is syntactic sugar for automatically determining the most obvious
+    knot sequence ``t`` to use all specified *node dates*. See
     :ref:`splines<splines-doc>` for instruction of knot sequence calibration.
-    Values before the first knot in ``t`` will be determined through the local
-    interpolation method.
+
+    If the knot sequence is provided directly then any dates prior to the first knot date in ``t``
+    will be determined through the local interpolation method. This allows for
+    **mixed interpolation**.
 
     This curve type cannot return arbitrary tenor rates. It will only return a single
     value which is applicable to that date. It is recommended to review
@@ -1761,18 +1782,17 @@ class LineCurve(Curve):
 
     .. ipython:: python
 
-       line_curve = LineCurve(
-           nodes={
-               dt(2022,1,1): 0.975,  # <- initial value is general
-               dt(2023,1,1): 1.10,
-               dt(2024,1,1): 1.22,
-               dt(2025,1,1): 1.14,
-               dt(2026,1,1): 1.03,
-               dt(2027,1,1): 1.03,
-           },
-           interpolation="linear",
-       )
-       line_curve.plot("1d")
+       nodes = {
+           dt(2022,1,1): 0.975,  # <- initial value is general
+           dt(2023,1,1): 1.10,
+           dt(2024,1,1): 1.22,
+           dt(2025,1,1): 1.14,
+           dt(2026,1,1): 1.03,
+           dt(2027,1,1): 1.03,
+       }
+       line_curve1 = LineCurve(nodes=nodes, interpolation="linear")
+       line_curve2 = LineCurve(nodes=nodes, interpolation="spline")
+       line_curve1.plot("1d", comparators=[line_curve2], labels=["linear", "cubic spline"])
 
     .. plot::
 
@@ -1780,21 +1800,21 @@ class LineCurve(Curve):
        import matplotlib.pyplot as plt
        from datetime import datetime as dt
        import numpy as np
-       line_curve = LineCurve(
-           nodes={
-               dt(2022,1,1): 0.975,  # <- initial value is general
-               dt(2023,1,1): 1.10,
-               dt(2024,1,1): 1.22,
-               dt(2025,1,1): 1.14,
-               dt(2026,1,1): 1.03,
-               dt(2027,1,1): 1.03,
-           },
-           interpolation="linear",
-       )
-       fig, ax, line = line_curve.plot("1D")
+       nodes = {
+           dt(2022,1,1): 0.975,  # <- initial value is general
+           dt(2023,1,1): 1.10,
+           dt(2024,1,1): 1.22,
+           dt(2025,1,1): 1.14,
+           dt(2026,1,1): 1.03,
+           dt(2027,1,1): 1.03,
+       }
+       line_curve1 = LineCurve(nodes=nodes, interpolation="linear")
+       line_curve2 = LineCurve(nodes=nodes, interpolation="spline")
+       fig, ax, line = line_curve1.plot("1d", comparators=[line_curve2], labels=["linear", "cubic spline"])
        plt.show()
+       plt.close()
 
-    """
+    """  # noqa: E501
 
     _op_exp = staticmethod(lambda x: x)  # LineCurve spline is not log based so no exponent needed
     _op_log: Callable[[DualTypes], DualTypes] = staticmethod(
@@ -1849,119 +1869,6 @@ class LineCurve(Curve):
         if effective < self.node_dates[0]:  # Alternative solution to PR 172.
             raise ValueError("`effective` before initial LineCurve date.")
         return self[effective]
-
-    def shift(
-        self,
-        spread: DualTypes,
-        id: str_ = NoInput(0),  # noqa: A002
-        composite: bool = True,
-        collateral: str_ = NoInput(0),
-    ) -> Curve:
-        """
-        Raise or lower the curve in parallel by a set number of basis points.
-
-        Parameters
-        ----------
-        spread : float, Dual, Dual2
-            The number of basis points added to the existing curve.
-
-            .. warning::
-
-               If ``composite`` is *True*, users must be aware that adding *Dual* or *Dual2*
-               spreads must be compatible with the AD order of *Self*, otherwise *TypeErrors*
-               may be raised. If in doubt, only use *float* spread values.
-
-        id : str, optional
-            Set the id of the returned curve.
-        composite: bool, optional
-            If True will return a CompositeCurve that adds a flat curve to the existing curve.
-            This results in slower calculations but the curve will maintain a dynamic
-            association with the underlying curve and will change if the underlying curve changes.
-        collateral: str, optional
-            Designate a collateral tag for the curve which is used by other methods.
-
-        Returns
-        -------
-        LineCurve
-
-        Examples
-        --------
-        .. ipython:: python
-
-           from rateslib.curves import LineCurve
-
-        .. ipython:: python
-
-           line_curve = LineCurve(
-               nodes = {
-                   dt(2022, 1, 1): 1.7,
-                   dt(2023, 1, 1): 1.65,
-                   dt(2024, 1, 1): 1.4,
-                   dt(2025, 1, 1): 1.3,
-                   dt(2026, 1, 1): 1.25,
-                   dt(2027, 1, 1): 1.35
-               },
-               t = [
-                   dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
-                   dt(2025, 1, 1),
-                   dt(2026, 1, 1),
-                   dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
-               ],
-           )
-           spread_curve = line_curve.shift(25)
-           line_curve.plot("1d", comparators=[spread_curve])
-
-        .. plot::
-
-           from rateslib.curves import *
-           import matplotlib.pyplot as plt
-           from datetime import datetime as dt
-           line_curve = LineCurve(
-               nodes = {
-                   dt(2022, 1, 1): 1.7,
-                   dt(2023, 1, 1): 1.65,
-                   dt(2024, 1, 1): 1.4,
-                   dt(2025, 1, 1): 1.3,
-                   dt(2026, 1, 1): 1.25,
-                   dt(2027, 1, 1): 1.35
-               },
-               t = [
-                   dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
-                   dt(2025, 1, 1),
-                   dt(2026, 1, 1),
-                   dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
-               ],
-           )
-           spread_curve = line_curve.shift(25)
-           fig, ax, line = line_curve.plot("1d", comparators=[spread_curve])
-           plt.show()
-
-        """
-        if composite:
-            return super().shift(spread, id, composite, collateral)
-
-        # Make sure base curve ADorder matches the spread ADorder. Floats are universal
-        _ad = self.ad
-        if isinstance(spread, Dual):
-            self._set_ad_order(1)
-        elif isinstance(spread, Dual2):
-            self._set_ad_order(2)
-
-        _: LineCurve = LineCurve(
-            nodes={k: v + spread / 100 for k, v in self.nodes.items()},
-            interpolation=self.interpolation,
-            t=self.t,
-            c=NoInput(0),
-            endpoints=self.spline_endpoints,
-            id=id,
-            convention=self.convention,
-            modifier=self.modifier,
-            calendar=self.calendar,
-            ad=self.ad,
-        )
-        _.collateral = _drb(None, collateral)
-        self._set_ad_order(_ad)
-        return _
 
     def _translate_nodes(self, start: datetime) -> dict[datetime, DualTypes]:
         new_nodes = self.nodes.copy()
@@ -2374,11 +2281,13 @@ class CompositeCurve(Curve):
 
     collateral = None
     _mutable_by_association = True
+    _do_not_validate = False
 
     def __init__(
         self,
         curves: list[Curve] | tuple[Curve, ...],
-        id: str | NoInput = NoInput(0),  # noqa: A002
+        id: str_ = NoInput(0),  # noqa: A002
+        _no_validation: bool = False,
     ) -> None:
         self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
 
@@ -2393,8 +2302,10 @@ class CompositeCurve(Curve):
             self.index_base = curves[0].index_base
 
         # validate
-        self._validate_curve_collection()
-        self._set_ad_order(self.curves[0].ad)  # also clears cache
+        if not _no_validation:
+            self._validate_curve_collection()
+        self._ad = max(_._ad for _ in self.curves)
+        self._clear_cache()
         self._set_new_state()
 
     def _validate_curve_collection(self) -> None:
@@ -2421,19 +2332,25 @@ class CompositeCurve(Curve):
             self._check_init_attribute("modifier")
             self._check_init_attribute("convention")
 
-        # if types[0] is IndexCurve:
-        #     self._check_init_attribute("index_base")
-        #     self._check_init_attribute("index_lag")
+        _ad = [_._ad for _ in self.curves]
+        if 1 in _ad and 2 in _ad:
+            raise TypeError(
+                "CompositeCurve cannot composite curves of AD order 1 and 2.\n"
+                "Either downcast curves using `curve._set_ad_order(1)`.\n"
+                "Or upcast curves using `curve._set_ad_order(2)`.\n"
+            )
 
     def _check_init_attribute(self, attr: str) -> None:
         """Ensure attributes are the same across curve collection"""
         attrs = [getattr(_, attr, None) for _ in self.curves]
         if not all(_ == attrs[0] for _ in attrs[1:]):
             raise ValueError(
-                f"Cannot composite curves with different attributes, got for '{attr}': {attrs},",
+                f"Cannot composite curves with different attributes, got for "
+                f"'{attr}': {[getattr(_, attr, None) for _ in self.curves]},",
             )
 
     @_validate_states
+    @_no_interior_validation
     def rate(  # type: ignore[override]
         self,
         effective: datetime,
@@ -2460,7 +2377,7 @@ class CompositeCurve(Curve):
         -------
         Dual, Dual2 or float
         """
-        if effective < self.curves[0].node_dates[0]:  # Alternative solution to PR 172.
+        if effective < self.node_dates[0]:  # Alternative solution to PR 172.
             return None
 
         if self._base_type == "values":
@@ -2505,19 +2422,26 @@ class CompositeCurve(Curve):
             return self._cache[date]
         if self._base_type == "dfs":
             # will return a composited discount factor
-            if date == self.curves[0].node_dates[0]:
-                return 1.0  # TODO (low:?) this is not variable but maybe should be tagged as "id0"?
-            elif date < self.curves[0].node_dates[0]:
+            if date == self.node_dates[0]:
+                # this value is 1.0, but by multiplying capture AD versus initial nodes.
+                ret: DualTypes = prod(crv[date] for crv in self.curves)  # type: ignore[misc]
+                return ret
+            elif date < self.node_dates[0]:
                 return 0.0  # Any DF in the past is set to zero consistent with behaviour on `Curve`
-            days = (date - self.curves[0].node_dates[0]).days
-            d = _DCF1d[self.convention.upper()]
 
+            dcf_ = dcf(
+                start=self.node_dates[0],
+                end=date,
+                convention=self.convention,
+                calendar=self.calendar,
+            )
+            _, d, n = average_rate(self.node_dates[0], date, self.convention, 0.0, dcf_)
             total_rate: Number = 0.0
             for curve in self.curves:
-                avg_rate = ((1.0 / curve[date]) ** (1.0 / days) - 1) / d
+                avg_rate = ((1.0 / curve[date]) ** (1.0 / n) - 1) / d
                 total_rate += avg_rate
-            _: DualTypes = 1.0 / (1 + total_rate * d) ** days
-            return self._cached_value(date, _)
+            ret = 1.0 / (1 + total_rate * d) ** n
+            return self._cached_value(date, ret)
 
         elif self._base_type == "values":
             # will return a composited rate
@@ -2531,45 +2455,39 @@ class CompositeCurve(Curve):
                 f"Base curve type is unrecognised: {self._base_type}",
             )  # pragma: no cover
 
-    @_validate_states
     def shift(
         self,
         spread: DualTypes,
-        id: str | NoInput = NoInput(0),  # noqa: A002
+        id: str_ = NoInput(0),  # noqa: A002
+        collateral: str_ = NoInput(0),
         composite: bool = True,
-        collateral: str | NoInput = NoInput(0),
-    ) -> CompositeCurve:
+    ) -> Curve:
         """
         Create a new curve by vertically adjusting the curve by a set number of basis
         points.
 
-        This curve adjustment preserves the shape of the curve but moves it up or
-        down as a translation.
-        This method is suitable as a way to assess value changes of instruments when
-        a parallel move higher or lower in yields is predicted.
-
-        Parameters
-        ----------
-        spread : float, Dual, Dual2
-            The number of basis points added to the existing curve.
-        id : str, optional
-            Set the id of the returned curve.
-        composite: bool, optional
-            If True will return a CompositeCurve that adds a flat curve to the existing curve.
-            This results in slower calculations, but the curve will maintain a dynamic
-            association with the underlying curve and will change if the underlying curve changes.
-        collateral: str, optional
-            Designate a collateral tag for the curve which is used by other methods.
-
-        Returns
-        -------
-        CompositeCurve
+        See :meth:`Curve.shift()<rateslib.curves.Curve.shift>`
         """
-        curves: tuple[Curve, ...] = (self.curves[0].shift(spread=spread, composite=composite),)
-        curves += self.curves[1:]
-        _: CompositeCurve = CompositeCurve(curves=curves, id=id)
-        _.collateral = _drb(None, collateral)
-        return _
+        if composite is False:
+            raise ValueError("`composite` must be set to `True` when shifting a CompositeCurve.")
+        return self._shift(spread, id, collateral, composite, False)
+
+    @_validate_states
+    def _shift(
+        self,
+        spread: DualTypes,
+        id: str_ = NoInput(0),  # noqa: A002
+        collateral: str_ = NoInput(0),
+        composite: bool = True,
+        _no_validation: bool = False,
+    ) -> Curve:
+        """
+        Create a new curve by vertically adjusting the curve by a set number of basis
+        points.
+
+        See :meth:`Curve.shift()<rateslib.curves.Curve.shift>`
+        """
+        return super()._shift(spread, id, collateral, composite, _no_validation)
 
     @_validate_states
     def translate(self, start: datetime, t: bool = False) -> CompositeCurve:
@@ -2642,9 +2560,7 @@ class CompositeCurve(Curve):
         """
         Change the node values on each curve to float, Dual or Dual2 based on input parameter.
         """
-        if order == getattr(self, "ad", None):
-            return None
-        elif order not in [0, 1, 2]:
+        if order not in [0, 1, 2]:
             raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
 
         self._ad = order
@@ -2661,6 +2577,8 @@ class CompositeCurve(Curve):
     # Mutation
 
     def _validate_state(self) -> None:
+        if self._do_not_validate:
+            return None
         if self._state != self._get_composited_state():
             # If any of the associated curves have been mutated then the cache is invalidated
             self._clear_cache()
@@ -2744,6 +2662,7 @@ class MultiCsaCurve(CompositeCurve):
         super().__init__(curves, id)
 
     @_validate_states
+    @_no_interior_validation
     def rate(  # type: ignore[override]
         self,
         effective: datetime,
@@ -2777,43 +2696,57 @@ class MultiCsaCurve(CompositeCurve):
         if isinstance(termination, str):
             termination = add_tenor(effective, termination, modifier_, self.calendar)
 
-        d = _DCF1d[self.convention.upper()]
-        n = (termination - effective).days
+        dcf_ = dcf(effective, termination, self.convention, calendar=self.calendar)
+        _, d, n = average_rate(effective, termination, self.convention, 0.0, dcf_)
         # TODO (low:perf) when these discount factors are looked up the curve repeats
         # the lookup could be vectorised to return two values at once.
         df_num = self[effective]
         df_den = self[termination]
-        _: DualTypes = (df_num / df_den - 1) * 100 / (d * n)
-        return _
+        ret: DualTypes = (df_num / df_den - 1) * 100 / (d * n)
+        return ret
 
     @_validate_states
+    @_no_interior_validation
     def __getitem__(self, date: datetime) -> DualTypes:
-        # will return a composited discount factor
-        if date == self.curves[0].node_dates[0]:
-            return 1.0  # TODO (low:?) this is not variable but maybe should be tagged as "id0"?
-        # days = (date - self.curves[0].node_dates[0]).days
-        # d = _DCF1d[self.convention.upper()]
+        # TODO: changing the multi_csa_step size should force a cache clear. This is a mutation.
 
-        # method uses the step and picks the highest (cheapest rate)
-        # in each period
-        _: DualTypes = 1.0
-        d1 = self.curves[0].node_dates[0]
+        # will return a composited discount factor
+        if defaults.curve_caching and date in self._cache:
+            return self._cache[date]
+
+        if date == self.node_dates[0]:
+            # this value is 1.0, but by multiplying capture AD versus initial nodes.
+            ret: DualTypes = prod(crv[date] for crv in self.curves)  # type: ignore[misc]
+            return ret
+        elif date < self.node_dates[0]:
+            return 0.0  # Any DF in the past is set to zero consistent with behaviour on `Curve`
 
         def _get_step(step: int) -> int:
             return min(max(step, self.multi_csa_min_step), self.multi_csa_max_step)
 
+        # method uses the step and picks the highest (cheapest rate) in each step
+        d1 = self.node_dates[0]
         d2 = d1 + timedelta(days=_get_step(defaults.multi_csa_steps[0]))
-        # cache stores looked up DF values to next loop, avoiding double calc
-        cache: dict[int, DualTypes] = dict.fromkeys(range(len(self.curves)), 1.0)
+
+        v: DualTypes = self.__getitem__(d1)
+        v_i_1_j: list[DualTypes] = [curve[d1] for curve in self.curves]
+        v_i_j: list[DualTypes] = [0.0 for curve in self.curves]
+
         k: int = 1
         while d2 < date:
-            min_ratio: DualTypes = 1e5
-            for i, curve in enumerate(self.curves):
-                d2_df = curve[d2]
-                ratio_ = d2_df / cache[i]
-                min_ratio = ratio_ if ratio_ < min_ratio else min_ratio
-                cache[i] = d2_df
-            _ *= min_ratio
+            if defaults.curve_caching and d2 in self._cache:
+                v = self._cache[d2]
+                v_i_1_j = [curve[d2] for curve in self.curves]
+            else:
+                min_ratio: DualTypes = 1e5
+                for j, curve in enumerate(self.curves):
+                    v_i_j[j] = curve[d2]
+                    ratio_ = v_i_j[j] / v_i_1_j[j]
+                    min_ratio = ratio_ if ratio_ < min_ratio else min_ratio
+                    v_i_1_j[j] = v_i_j[j]
+                v *= min_ratio
+                self._cached_value(d2, v)
+
             try:
                 step = _get_step(defaults.multi_csa_steps[k])
             except IndexError:
@@ -2822,14 +2755,14 @@ class MultiCsaCurve(CompositeCurve):
 
         # finish the loop on the correct date
         if date == d1:
-            return self._cached_value(date, _)
+            return self._cached_value(date, v)
         else:
             min_ratio = 1e5
-            for i, curve in enumerate(self.curves):
-                ratio_ = curve[date] / cache[i]  # cache[i] = curve[d1]
+            for j, curve in enumerate(self.curves):
+                ratio_ = curve[date] / v_i_1_j[j]
                 min_ratio = ratio_ if ratio_ < min_ratio else min_ratio
-            _ *= min_ratio
-            return self._cached_value(date, _)
+            v *= min_ratio
+            return self._cached_value(date, v)
 
     @_validate_states
     # unnecessary because up-to-date objects are referred to directly
@@ -2890,57 +2823,6 @@ class MultiCsaCurve(CompositeCurve):
             multi_csa_max_step=self.multi_csa_max_step,
             multi_csa_min_step=self.multi_csa_min_step,
         )
-
-    @_validate_states
-    def shift(
-        self,
-        spread: DualTypes,
-        id: str | NoInput = NoInput(0),  # noqa: A002
-        composite: bool | NoInput = True,
-        collateral: str | NoInput = NoInput(0),
-    ) -> MultiCsaCurve:
-        """
-        Create a new curve by vertically adjusting the curve by a set number of basis
-        points.
-
-        This curve adjustment preserves the shape of the curve but moves it up or
-        down as a translation.
-        This method is suitable as a way to assess value changes of instruments when
-        a parallel move higher or lower in yields is predicted.
-
-        Parameters
-        ----------
-        spread : float, Dual, Dual2
-            The number of basis points added to the existing curve.
-        id : str, optional
-            Set the id of the returned curve.
-        composite: bool, optional
-            If True will return a CompositeCurve that adds a flat curve to the existing curve.
-            This results in slower calculations but the curve will maintain a dynamic
-            association with the underlying curve and will change if the underlying curve changes.
-        collateral: str, optional
-            Designate a collateral tag for the curve which is used by other methods.
-
-        Returns
-        -------
-        CompositeCurve
-        """
-        if composite:
-            # TODO (med) allow composite composite curves
-            raise ValueError(
-                "Creating a CompositeCurve containing sub CompositeCurves or MultiCsaCurves is "
-                "not yet implemented.\nSet `composite` to False.",
-            )
-
-        curves = tuple(_.shift(spread=spread, composite=composite) for _ in self.curves)
-        ret = MultiCsaCurve(
-            curves=curves,
-            id=id,
-            multi_csa_max_step=self.multi_csa_max_step,
-            multi_csa_min_step=self.multi_csa_min_step,
-        )
-        ret.collateral = _drb(None, collateral)
-        return ret
 
 
 # class HazardCurve(Curve):
@@ -3056,7 +2938,7 @@ class ProxyCurve(Curve):
         self.node_dates = [self.fx_forwards.immediate, self.terminal]
 
     @property
-    def ad(self) -> int:
+    def _ad(self) -> int:  # type: ignore[override]
         return self.fx_forwards._ad
 
     @property
@@ -3098,10 +2980,14 @@ class ProxyCurve(Curve):
 
 
 def average_rate(
-    effective: datetime, termination: datetime, convention: str, rate: DualTypes
-) -> tuple[Number, float, int]:
+    effective: datetime,
+    termination: datetime,
+    convention: str,
+    rate: DualTypes,
+    dcf: float,
+) -> tuple[Number, float, float]:
     """
-    Return the geometric, 1 calendar day, average rate for the rate in a period.
+    Return the geometric, 1-day, average simple rate for a given simple period rate.
 
     This is used for approximations usually in combination with floating periods.
 
@@ -3114,14 +3000,44 @@ def average_rate(
     convention : str
         The day count convention of the curve rate.
     rate : float, Dual, Dual2
-        The rate to decompose to average, in percentage terms, e.g. 0.04 = 4% rate.
+        The simple period rate to decompose to average, in percentage terms, e.g. 4.00 = 4% rate.
+    dcf : float
+        The day count fraction of the period used to determine daily DCF.
 
     Returns
     -------
-    tuple : The rate, the 1-day DCF, and the number of calendar days
+    tuple : The simple rate, the 1-day DCF, and the number of relevant days for the convention
+
+    Notes
+    -----
+    This method operates in one of two modes to determine the value, :math:`\\bar{r}`.
+
+    - Calendar day basis, where :math:`\\tilde{n}` is calendar days in period:
+
+      .. math::
+
+         1+\\tilde{n}\\bar{d}r = (1 + \\bar{d}\\bar{r})^{\\tilde{n}}
+
+    - Business day basis (if ``convention`` is *'bus252'*), where :math:`n` is business days
+      in period. *n* is approximated by a 252 business days per year rule and does not
+      calculate the exact number of business days from any specific holiday calendar.
+
+      .. math::
+
+         1+n\\bar{d}r = (1 + \\bar{d}\\bar{r})^{n}
+
+    :math:`\\bar{d}`, the 1-day DCF is estimated from a ``convention``. For certain conventions,
+    e.g. *'act360'* and *'act365f'* this is explicit and exact, but for others, such as *'30360'*,
+    this function will likely be lesser used and less accurate.
     """
-    d: float = _DCF1d[convention.upper()]
-    n: int = (termination - effective).days
+    if convention.upper() == "BUS252":
+        # business days are used
+        n: float = dcf * 252.0
+        d = 1.0 / 252.0
+    else:  # calendar day mode
+        n = (termination - effective).days
+        d = dcf / n
+
     _: Number = ((1 + n * d * rate / 100) ** (1 / n) - 1) / d
     return _ * 100, d, n
 

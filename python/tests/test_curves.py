@@ -12,11 +12,13 @@ from rateslib.curves import (
     Curve,
     LineCurve,
     MultiCsaCurve,
+    average_rate,
     index_left,
     index_value,
 )
 from rateslib.default import NoInput
-from rateslib.dual import Dual, Dual2, gradient
+from rateslib.dual import Dual, Dual2, Variable, gradient
+from rateslib.dual.utils import _get_order_of
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments import IRS
 from rateslib.solver import Solver
@@ -620,6 +622,7 @@ def test_curve_shift_ad_order(ad_order, composite) -> None:
 
 
 def test_curve_shift_association() -> None:
+    # test a dynamic shift association with curves, active after a Solver mutation
     args = (dt(2022, 2, 1), "1d")
     curve = Curve(
         nodes={dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.988},
@@ -637,6 +640,8 @@ def test_curve_shift_association() -> None:
 
     solver.s = [3.0]
     solver.iterate()
+    base = curve.rate(*args)
+    assert abs(base - ass_shifted_curve.rate(*args) + 1.00) < 1e-5
     assert abs(ass_shifted_curve.rate(*args) - stat_shifted_curve.rate(*args)) > 0.95
 
 
@@ -677,7 +682,7 @@ def test_composite_curve_shift() -> None:
     c1 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999})
     c2 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.998})
     cc = CompositeCurve([c1, c2])
-    result = cc.shift(20, composite=False).rate(dt(2022, 1, 1), "1d")
+    result = cc.shift(20).rate(dt(2022, 1, 1), "1d")
     expected = c1.rate(dt(2022, 1, 1), "1d") + c2.rate(dt(2022, 1, 1), "1d") + 0.2
     assert abs(result - expected) < 1e-3
 
@@ -828,8 +833,10 @@ def test_indexcurve_shift_dual_input() -> None:
 
 @pytest.mark.parametrize("c_obj", ["c", "l", "i"])
 @pytest.mark.parametrize("ini_ad", [0, 1, 2])
-@pytest.mark.parametrize("spread", [Dual(1.0, ["z"], []), Dual2(1.0, ["z"], [], [])])
-@pytest.mark.parametrize("composite", [False])
+@pytest.mark.parametrize(
+    "spread", [1.0, Dual(1.0, ["z"], []), Dual2(1.0, ["z"], [], []), Variable(1.0, ["z"])]
+)
+@pytest.mark.parametrize("composite", [False, True])
 def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, spread, composite):
     if c_obj == "c":
         c = curve
@@ -838,12 +845,15 @@ def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, sp
     else:
         c = index_curve
     c._set_ad_order(ini_ad)
-    result = c.shift(spread, composite=composite)
 
-    if isinstance(spread, Dual):
-        assert result.ad == 1
-    else:
-        assert result.ad == 2
+    if ini_ad + _get_order_of(spread) == 3:
+        with pytest.raises(TypeError, match="CompositeCurve cannot composite curves of AD order 1"):
+            c.shift(spread)
+        return None
+
+    result = c.shift(spread, composite=composite)
+    expected = max(_get_order_of(spread), ini_ad)
+    assert result._ad == expected
 
 
 @pytest.mark.parametrize(
@@ -1170,6 +1180,42 @@ def test_curve_zero_width_rate_raises(curve) -> None:
 def test_set_node_vector_updates_ad_attribute(curve) -> None:
     curve._set_node_vector([0.98], ad=2)
     assert curve.ad == 2
+
+
+@pytest.mark.parametrize(
+    ("convention", "expected"),
+    [
+        ("act360", 4.3652192566314705),
+        ("30360", 4.372999441829487),
+        ("act365f", 4.372518793743008),
+        ("bus252", 4.354756779569957),
+    ],
+)
+def test_average_rate(convention, expected):
+    start = dt(2000, 1, 1)
+    end = dt(2006, 1, 1)
+    rate = 5.0
+    d = dcf(start, end, convention, calendar="bus")
+    result, d_, n_ = average_rate(start, end, convention, rate, d)
+
+    assert abs(result - expected) < 1e-12
+    assert abs((1 + d * rate / 100.0) - (1 + d_ * result / 100.0) ** n_) < 1e-12
+
+
+@pytest.mark.parametrize("curve", [Curve, LineCurve])
+def test_spline_interpolation_feature(curve):
+    t = [dt(2000, 1, 1)] * 4 + [dt(2001, 1, 1)] + [dt(2002, 1, 1)] * 4
+    original = curve(nodes={dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98, dt(2002, 1, 1): 0.975}, t=t)
+    feature = curve(
+        nodes={dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98, dt(2002, 1, 1): 0.975},
+        interpolation="spline",
+    )
+    assert feature.t == t
+    assert feature.spline.c == original.spline.c
+
+    assert feature[dt(2000, 1, 1)] == original[dt(2000, 1, 1)]
+    assert feature[dt(1999, 1, 1)] == original[dt(1999, 1, 1)]
+    assert feature[dt(2001, 5, 1)] == original[dt(2001, 5, 1)]
 
 
 class TestCurve:
@@ -1863,6 +1909,22 @@ class TestCompositeCurve:
         result = cc2.rate(dt(2022, 2, 15), "3m")
         assert abs(result - 2.993926361170989) < 1e-8
 
+    def test_ad_order_is_max(self):
+        c1 = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.99})
+        c2 = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.99})
+        c2._set_ad_order(2)
+
+        assert CompositeCurve([c1, c2])._ad == 2
+        assert CompositeCurve([c2, c1])._ad == 2
+
+    def test_initial_df(self):
+        curve1 = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.99}, ad=1, id="v")
+        curve2 = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98}, ad=1, id="w")
+        cc = CompositeCurve([curve1, curve2])
+        result = cc[dt(2000, 1, 1)]
+        expected = Dual(1.0, ["v0", "v1", "w0", "w1"], [1.0, 0.0, 1.0, 0.0])
+        assert result == expected
+
 
 class TestMultiCsaCurve:
     def test_historic_rate_is_none(self) -> None:
@@ -1928,7 +1990,7 @@ class TestMultiCsaCurve:
             convention="Act365F",
         )
         cc = MultiCsaCurve([c1, c2, c3])
-        cc_shift = cc.shift(100, composite=False)
+        cc_shift = cc.shift(100, composite=True)
         with default_context("multi_csa_steps", [1, 1, 1, 1, 1, 1, 1]):
             r1 = cc_shift.rate(dt(2022, 1, 1), "1d")
             r2 = cc_shift.rate(dt(2022, 1, 2), "1d")
@@ -1940,48 +2002,50 @@ class TestMultiCsaCurve:
         assert abs(r3 - 4.5) < 1e-3
         assert abs(r4 - 5.0) < 1e-3
 
-    def test_multi_csa(self) -> None:
-        c1 = Curve(
-            {
-                dt(2022, 1, 1): 1.0,
-                dt(2022, 1, 2): 0.99997260,  # 1%
-                dt(2022, 1, 3): 0.99991781,  # 2%
-                dt(2022, 1, 4): 0.99983564,  # 3%
-                dt(2022, 1, 5): 0.99972608,  # 4%
-            },
-            convention="Act365F",
-        )
-        c2 = Curve(
-            {
-                dt(2022, 1, 1): 1.0,
-                dt(2022, 1, 2): 0.99989042,  # 4%
-                dt(2022, 1, 3): 0.99980825,  # 3%
-                dt(2022, 1, 4): 0.99975347,  # 2%
-                dt(2022, 1, 5): 0.99972608,  # 1%
-            },
-            convention="Act365F",
-        )
-        c3 = Curve(
-            {
-                dt(2022, 1, 1): 1.0,
-                dt(2022, 1, 2): 0.99989042,  # 4%
-                dt(2022, 1, 3): 0.99979455,  # 3.5%
-                dt(2022, 1, 4): 0.99969869,  # 3.5%
-                dt(2022, 1, 5): 0.99958915,  # 4%
-            },
-            convention="Act365F",
-        )
-        cc = MultiCsaCurve([c1, c2, c3])
-        with default_context("multi_csa_steps", [1, 1, 1, 1, 1, 1, 1]):
-            r1 = cc.rate(dt(2022, 1, 1), "1d")
-            r2 = cc.rate(dt(2022, 1, 2), "1d")
-            r3 = cc.rate(dt(2022, 1, 3), "1d")
-            r4 = cc.rate(dt(2022, 1, 4), "1d")
+    @pytest.mark.parametrize("caching", [True, False])
+    def test_multi_csa(self, caching) -> None:
+        with default_context("curve_caching", caching):
+            c1 = Curve(
+                {
+                    dt(2022, 1, 1): 1.0,
+                    dt(2022, 1, 2): 0.99997260,  # 1%
+                    dt(2022, 1, 3): 0.99991781,  # 2%
+                    dt(2022, 1, 4): 0.99983564,  # 3%
+                    dt(2022, 1, 5): 0.99972608,  # 4%
+                },
+                convention="Act365F",
+            )
+            c2 = Curve(
+                {
+                    dt(2022, 1, 1): 1.0,
+                    dt(2022, 1, 2): 0.99989042,  # 4%
+                    dt(2022, 1, 3): 0.99980825,  # 3%
+                    dt(2022, 1, 4): 0.99975347,  # 2%
+                    dt(2022, 1, 5): 0.99972608,  # 1%
+                },
+                convention="Act365F",
+            )
+            c3 = Curve(
+                {
+                    dt(2022, 1, 1): 1.0,
+                    dt(2022, 1, 2): 0.99989042,  # 4%
+                    dt(2022, 1, 3): 0.99979455,  # 3.5%
+                    dt(2022, 1, 4): 0.99969869,  # 3.5%
+                    dt(2022, 1, 5): 0.99958915,  # 4%
+                },
+                convention="Act365F",
+            )
+            cc = MultiCsaCurve([c1, c2, c3])
+            with default_context("multi_csa_steps", [1, 1, 1, 1, 1, 1, 1]):
+                r1 = cc.rate(dt(2022, 1, 1), "1d")
+                r2 = cc.rate(dt(2022, 1, 2), "1d")
+                r3 = cc.rate(dt(2022, 1, 3), "1d")
+                r4 = cc.rate(dt(2022, 1, 4), "1d")
 
-        assert abs(r1 - 4.0) < 1e-3
-        assert abs(r2 - 3.5) < 1e-3
-        assert abs(r3 - 3.5) < 1e-3
-        assert abs(r4 - 4.0) < 1e-3
+            assert abs(r1 - 4.0) < 1e-3
+            assert abs(r2 - 3.5) < 1e-3
+            assert abs(r3 - 3.5) < 1e-3
+            assert abs(r4 - 4.0) < 1e-3
 
     def test_multi_csa_granularity(self) -> None:
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 0.9, dt(2072, 1, 1): 0.5})
@@ -2085,6 +2149,13 @@ class TestMultiCsaCurve:
         c1._set_node_vector([0.99], 0)
         getattr(cc, method)(*args)
         assert dt(1980, 1, 1) not in cc._cache
+
+    def test_multi_csa_curve_add_to_cache(self):
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2052, 2, 1): 0.9})
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2052, 2, 1): 0.8})
+        cc = MultiCsaCurve([c1, c2])
+        cc[dt(2052, 2, 1)]
+        assert len(cc._cache) == 31
 
 
 class TestProxyCurve:

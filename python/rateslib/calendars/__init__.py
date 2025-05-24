@@ -67,7 +67,7 @@ def dcf(
         Used by `"ACTACTICMA", "ACTACTISMA", "ACTACTBOND", "ACTACTICMA_STUB365F"` to project
         regular periods when calculating stubs.
     calendar: str, Calendar, optional
-        Currently unused.
+        Required for `"BUS252"` to count business days in period.
 
     Returns
     --------

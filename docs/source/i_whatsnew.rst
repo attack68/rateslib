@@ -103,6 +103,17 @@ Some themes for this release involved:
          (`790 <https://github.com/attack68/rateslib/pull/790>`_)
          (`789 <https://github.com/attack68/rateslib/pull/789>`_)
          (`794 <https://github.com/attack68/rateslib/pull/794>`_)
+       - Add the ``spec`` *'ch_gb'* for Swiss government bonds and *'ch_gb_10y'* for EUREX
+         10Y Swiss government bond futures along with the appropriate conversion factor
+         calculations.
+         (`834 <https://github.com/attack68/rateslib/pull/834>`_)
+         (`835 <https://github.com/attack68/rateslib/pull/835>`_)
+       - Add the initialisation argument ``metric`` to :class:`~rateslib.instruments.FixedRateBond`,
+         :class:`~rateslib.instruments.IndexFixedRateBond`, :class:`~rateslib.instruments.Bill`,
+         :class:`~rateslib.instruments.FloatRateNote`, for easier integration into a
+         :class:`~rateslib.solver.Solver`, and for use with a :class:`~rateslib.instruments.Spread`,
+         *Instrument*.
+         (`845 <https://github.com/attack68/rateslib/pull/845>`_)
    * - **Curves**
      - - The *'linear'* and *'log_linear'* ``interpolation`` methods of a *Curve* now automatically
          adjust to business day interpolation when using a *'bus252'* ``convention``.
@@ -110,6 +121,19 @@ Some themes for this release involved:
        - :class:`~rateslib.curves.CompositeCurve` can now be constructed
          from other *CompositeCurves*.
          (`826 <https://github.com/attack68/rateslib/pull/826>`_)
+       - The :meth:`Curve.shift() <rateslib.curves.Curve.shift>` method has its ``composite``
+         argument moved in the signature and the calculation to determine shifted *Curves* is now
+         more precise, albeit may impact slight performance degradations in bond OAS spread
+         calculations.
+         (`828 <https://github.com/attack68/rateslib/pull/828>`_)
+         (`849 <https://github.com/attack68/rateslib/pull/849>`_)
+       - The :meth:`~rateslib.curves.average_rate` method now requires a ``dcf`` input.
+         (`836 <https://github.com/attack68/rateslib/pull/836>`_)
+       - The caching of values of a :class:`~rateslib.curves.MultiCsaCurve` is improved and
+         extended (`842 <https://github.com/attack68/rateslib/pull/842>`_)
+       - Simple spline interpolation can now be automatically constructed by specifying
+         *"spline"* as the argument for ``interpolation``. See docs.
+         (`847 <https://github.com/attack68/rateslib/pull/847>`_)
    * - **Automatic Differentiation & Algorithms**
      - - Operator overloads added to allow dual number exponents, i.e. :math:`z^p`, where *z*,
          *p* are dual number types. This facilitates AD for the SABR function as well as other
@@ -159,6 +183,12 @@ Some themes for this release involved:
          Brazil, for example, the right number of business days is essential to the
          calculation.
          (`817 <https://github.com/attack68/rateslib/pull/817>`_)
+       - The AD order of a :class:`~rateslib.curves.CompositeCurve` is now determined from the
+         maximum AD order of its contained *Curves* and no longer the first *Curve* supplied.
+         (`829 <https://github.com/attack68/rateslib/pull/829>`_)
+       - The :meth:`FXDeltaVolSmile.update <rateslib.fx_volatility.FXDeltaVolSmile.update>`
+         method now updates the spline interpolator after a *nodes* update.
+         (`844 <https://github.com/attack68/rateslib/pull/844>`_)
    * - **Deprecations & Removals**
      - - :red:`Major Breaking Change!` The method :meth:`~rateslib.curves.interpolate` is
          removed and user defined callables provided to a Curve ``interpolation`` method adopt a

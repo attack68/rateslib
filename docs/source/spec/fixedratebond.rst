@@ -119,6 +119,24 @@ Street convention is used, except when the bond is in the final coupon period si
    NL_GB.kwargs
    FixedRateBond(dt(2000, 1, 1), "10y", spec="nl_gb", fixed_rate=2.5).kwargs
 
+CHF
+********
+
+.. _spec-ch-gb:
+
+Government Bonds
+-----------------
+
+Calculations performed with ICMA convention.
+
+
+.. ipython:: python
+
+   defaults.spec["ch_gb"]
+   from rateslib.instruments.bonds.conventions import CH_GB
+   CH_GB.kwargs
+   FixedRateBond(dt(2000, 1, 1), "10y", spec="ch_gb", fixed_rate=2.5).kwargs
+
 GBP
 ********
 

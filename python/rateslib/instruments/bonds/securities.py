@@ -416,7 +416,9 @@ class BondMixin:
                 accrued_coup = c_cashflow * (1 + dcf_ * repo_rate / 100)
                 total_rtn -= accrued_coup
             elif method.lower() == "compounded":
-                r_bar, d, _ = average_rate(settlement, forward_settlement, convention_, repo_rate)
+                r_bar, d, _ = average_rate(
+                    settlement, forward_settlement, convention_, repo_rate, dcf_
+                )
                 n = (forward_settlement - c_period.payment).days
                 accrued_coup = c_cashflow * (1 + d * r_bar / 100) ** n
                 total_rtn -= accrued_coup
@@ -852,9 +854,13 @@ class BondMixin:
                 curve._set_ad_order(order)
 
         # attach "z_spread" sensitivity to an AD order 1 curve.
-        disc_curve_ = disc_curve.shift(Dual(0.0, ["z_spread"], []), composite=False)
+        disc_curve_ = disc_curve._shift(
+            Dual(0.0, ["z_spread"], []),
+            composite=False,
+            _no_validation=True,
+        )
         curve_ = _copy_curve(curve)
-        _set_ad_order_of_forecasting_curve(curve_, 1)
+        _set_ad_order_of_forecasting_curve(curve_, 0)
 
         # find a first order approximation of z, z_hat, using a Dual approach:
         npv_price: Dual | Dual2 = self.rate(curves=[curve_, disc_curve_], metric=metric)  # type: ignore[assignment]
@@ -863,8 +869,11 @@ class BondMixin:
         z_hat: float = -c / b
 
         # shift the curve to the first order approximation and fine tune with 2nd order approxim.
-        disc_curve_ = disc_curve.shift(Dual2(z_hat, ["z_spread"], [], []), composite=False)
-        _set_ad_order_of_forecasting_curve(curve_, 2)
+        disc_curve_ = disc_curve._shift(
+            Dual2(z_hat, ["z_spread"], [], []),
+            composite=False,
+            _no_validation=True,
+        )
         npv_price = self.rate(curves=[curve_, disc_curve_], metric=metric)  # type: ignore[assignment]
         coeffs: tuple[float, float, float] = (
             0.5 * gradient(npv_price, ["z_spread"], 2)[0][0],
@@ -874,7 +883,11 @@ class BondMixin:
         z_hat2: float = quadratic_eqn(*coeffs, x0=-c / b)["g"]
 
         # perform one final approximation albeit the additional price calculation slows calc time
-        disc_curve_ = disc_curve.shift(z_hat + z_hat2, composite=False)
+        disc_curve_ = disc_curve._shift(
+            z_hat + z_hat2,
+            composite=False,
+            _no_validation=True,
+        )
         disc_curve_._set_ad_order(0)
         _set_ad_order_of_forecasting_curve(curve_, 0)
         npv_price_: float = self.rate(curves=[curve_, disc_curve_], metric=metric)  # type: ignore[assignment]
@@ -1006,6 +1019,8 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
     spec : str, optional
         An identifier to pre-populate many field with conventional values. See
         :ref:`here<defaults-doc>` for more info and available values.
+    metric: str, optional
+        The pricing metric returned by the ``rate`` method of the *Instrument*.
 
     Attributes
     ----------
@@ -1156,6 +1171,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         calc_mode: BondCalcMode | BillCalcMode | str_ = NoInput(0),
         curves: Curves_ = NoInput(0),
         spec: str_ = NoInput(0),
+        metric: str = "clean_price",
     ) -> None:
         self.kwargs = dict(
             effective=effective,
@@ -1179,6 +1195,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
             ex_div=ex_div,
             settle=settle,
             calc_mode=calc_mode,
+            metric=metric,
         )
         self.kwargs = _push(spec, self.kwargs)
 
@@ -1206,7 +1223,9 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         self.spec = spec
 
         self._fixed_rate = fixed_rate
-        self.leg1 = FixedLeg(**_get(self.kwargs, leg=1, filter=("ex_div", "settle", "calc_mode")))
+        self.leg1 = FixedLeg(
+            **_get(self.kwargs, leg=1, filter=("ex_div", "settle", "calc_mode", "metric"))
+        )
 
         if self.leg1.amortization != 0:
             # Note if amortization is added to FixedRateBonds must systematically
@@ -1244,7 +1263,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-        metric: str = "clean_price",
+        metric: str_ = NoInput(0),
         forward_settlement: datetime_ = NoInput(0),
     ) -> DualTypes:
         """
@@ -1268,7 +1287,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
             Not used by *FixedRateBond* rate. Output is in local currency.
         metric : str, optional
             Metric returned by the method. Available options are {"clean_price",
-            "dirty_price", "ytm"}
+            "dirty_price", "ytm"}. Uses the *Instrument* default if not given.
         forward_settlement : datetime, optional
             The forward settlement date. If not given the settlement date is inferred from the
             discount *Curve* and the ``settle`` attribute.
@@ -1286,7 +1305,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
             self.leg1.currency,
         )
         curves_1 = _validate_curve_not_no_input(curves_[1])
-        metric = metric.lower()
+        metric = _drb(self.kwargs["metric"], metric).lower()
         if metric in ["clean_price", "dirty_price", "ytm"]:
             if isinstance(forward_settlement, NoInput):
                 settlement = self.leg1.schedule.calendar.lag(
@@ -1671,6 +1690,7 @@ class IndexFixedRateBond(FixedRateBond):
         calc_mode: str_ | BondCalcMode = NoInput(0),
         curves: Curves_ = NoInput(0),
         spec: str_ = NoInput(0),
+        metric: str = "clean_price",
     ):
         self.kwargs = dict(
             effective=effective,
@@ -1698,6 +1718,7 @@ class IndexFixedRateBond(FixedRateBond):
             index_method=index_method,
             index_lag=index_lag,
             index_fixings=index_fixings,
+            metric=metric,
         )
         self.kwargs = _push(spec, self.kwargs)
 
@@ -1728,7 +1749,7 @@ class IndexFixedRateBond(FixedRateBond):
         self._index_base = index_base  # type: ignore[assignment]
 
         self.leg1 = IndexFixedLeg(
-            **_get(self.kwargs, leg=1, filter=("ex_div", "settle", "calc_mode")),
+            **_get(self.kwargs, leg=1, filter=("ex_div", "settle", "calc_mode", "metric")),
         )
         if self.leg1.amortization != 0:
             # Note if amortization is added to IndexFixedRateBonds must systematically
@@ -1774,7 +1795,7 @@ class IndexFixedRateBond(FixedRateBond):
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-        metric: str = "clean_price",
+        metric: str_ = NoInput(0),
         forward_settlement: datetime_ = NoInput(0),
     ) -> DualTypes:
         """
@@ -1821,7 +1842,7 @@ class IndexFixedRateBond(FixedRateBond):
             self.leg1.currency,
         )
         curves_1 = _validate_curve_not_no_input(curves_[1])
-        metric = metric.lower()
+        metric = _drb(self.kwargs["metric"], metric).lower()
         if metric in [
             "clean_price",
             "dirty_price",
@@ -1904,6 +1925,8 @@ class Bill(FixedRateBond):
     spec : str, optional
         An identifier to pre-populate many field with conventional values. See
         :ref:`here<defaults-doc>` for more info and available values.
+    metric: str, optional
+        The pricing metric returned by the ``rate`` method of the *Instrument*.
 
     Examples
     --------
@@ -2022,6 +2045,7 @@ class Bill(FixedRateBond):
         calc_mode: BillCalcMode | str_ = NoInput(0),
         curves: Curves_ = NoInput(0),
         spec: str_ = NoInput(0),
+        metric: str = "price",
     ):
         super().__init__(
             effective=effective,
@@ -2045,6 +2069,7 @@ class Bill(FixedRateBond):
             curves=curves,
             calc_mode=calc_mode,
             spec=spec,
+            metric=metric,
         )
         self.kwargs["frequency"] = _drb(
             self.calc_mode._ytm_clone_kwargs["frequency"],
@@ -2065,7 +2090,7 @@ class Bill(FixedRateBond):
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-        metric: str = "price",
+        metric: str_ = NoInput(0),
     ) -> DualTypes:
         """
         Return various pricing metrics of the security calculated from
@@ -2091,7 +2116,7 @@ class Bill(FixedRateBond):
             The base currency to convert cashflows into (3-digit code), set by default.
             Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
         metric : str in {"price", "discount_rate", "ytm", "simple_rate"}
-            Metric returned by the method.
+            Metric returned by the method. Uses the *Instrument* default if not given.
 
         Returns
         -------
@@ -2117,6 +2142,7 @@ class Bill(FixedRateBond):
             * 100
             / (-self.leg1.notional * curves_1[settlement])
         )
+        metric = _drb(self.kwargs["metric"], metric).lower()
         if metric in ["price", "clean_price", "dirty_price"]:
             return price
         elif metric == "discount_rate":
@@ -2385,6 +2411,8 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
     spec : str, optional
         An identifier to pre-populate many field with conventional values. See
         :ref:`here<defaults-doc>` for more info and available values.
+    metric: str, optional
+        The pricing metric returned by the ``rate`` method of the *Instrument*.
 
     Notes
     -----
@@ -2437,6 +2465,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         calc_mode: str_ = NoInput(0),
         curves: Curves_ = NoInput(0),
         spec: str_ = NoInput(0),
+        metric: str = "clean_price",
     ):
         self.kwargs = dict(
             effective=effective,
@@ -2464,6 +2493,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
             ex_div=ex_div,
             settle=settle,
             calc_mode=calc_mode,
+            metric=metric,
         )
         self.kwargs = _push(spec, self.kwargs)
 
@@ -2495,7 +2525,9 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         self.spec = spec
 
         self._float_spread = float_spread
-        self.leg1 = FloatLeg(**_get(self.kwargs, leg=1, filter=("ex_div", "settle", "calc_mode")))
+        self.leg1 = FloatLeg(
+            **_get(self.kwargs, leg=1, filter=("ex_div", "settle", "calc_mode", "metric"))
+        )
 
         if "rfr" in self.leg1.fixing_method and self.kwargs["ex_div"] > (
             self.leg1.method_param + 1
@@ -2752,7 +2784,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-        metric: str = "clean_price",
+        metric: str_ = NoInput(0),
         forward_settlement: datetime_ = NoInput(0),
     ) -> DualTypes:
         """
@@ -2780,7 +2812,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
             Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
         metric : str, optional
             Metric returned by the method. Available options are {"clean_price",
-            "dirty_price", "spread", "ytm"}
+            "dirty_price", "spread", "ytm"}. Uses the *Instrument* default if not given.
         forward_settlement : datetime, optional
             The forward settlement date. If not give uses the discount *Curve* and the bond's
             ``settle`` attribute.}.
@@ -2798,8 +2830,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
             base,
             self.leg1.currency,
         )
-
-        metric = metric.lower()
+        metric = _drb(self.kwargs["metric"], metric).lower()
         if metric in ["clean_price", "dirty_price", "spread", "ytm"]:
             curves_1 = _validate_curve_not_no_input(curves_[1])
             if isinstance(forward_settlement, NoInput):
