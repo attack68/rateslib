@@ -650,7 +650,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                 convention=self.convention,
                 calendar=self.calendar,
                 modifier=self.modifier,
-                interpolation="flat_forward",
+                interpolation="flat_backward",
                 ad=_get_order_of(spread),
             )
 
