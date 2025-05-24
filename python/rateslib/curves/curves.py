@@ -2992,29 +2992,61 @@ class RolledCurve(Curve):
         else:
             self.roll_date = self.calendar.lag(self.curve.node_dates[0], days, False)
 
-
     def __getitem__(self, date: datetime) -> DualTypes:
         if defaults.curve_caching and date in self._cache:
             return self._cache[date]
+
+        if self._base_type == "dfs":
+            if date < self.curve.node_dates[0]:
+                return 0.0
+            elif self.days >= 0:
+                if date == self.curve.node_dates[0]:
+                    return self._cached_value(date, 1.0)
+                elif date >= self.roll_date:
+                    return self._cached_value(
+                        date,
+                        self._df_scaling(self.roll_date) * self.curve[date - timedelta(days=self.days)]
+                    )
+                else:
+                    return self._cached_value(date, self._df_scaling(date))
+            else: # self.days >= self.roll_date
+                return self._cached_value(
+                    date,
+                    self.curve[date - timedelta(days=self.days)] / self.curve[self.roll_date]
+                )
+        else:
+            if date < self.curve.node_dates[0]:
+                raise ValueError("`effective` before initial LineCurve date.")
+            elif self.days >= 0:
+                if date < self.roll_date:
+                    return self._cached_value(date, self.curve[self.curve.node_dates[0]])
+                else:
+                    return self._cached_value(date, self.curve[date - timedelta(days=self.days)])
+            else: # self.days >= self.roll_date
+                return self._cached_value(date, self.curve[date - timedelta(days=self.days)])
+
 
     @property
     def _alpha(self):
         # alpha should be cleared when the cache is cleared
         if self.__alpha is None:
-            if self.is_calendar_days:
-
-            else:
-                ini_dt = self.curve.node_dates[0]
-                nex_dt = self.calendar.lag(ini_dt, 1, False)
-                dcf_ = dcf(ini_dt, nex_dt, self.convention, self.calendar)
-                r = (self.curve[ini_dt] / self.curve[nex_dt] - 1.0) * 100.0 / dcf_
-                dcf_ = dcf(ini_dt, self.roll_date, self.convention, self.calendar)
-
-
+            self.__alpha = self._df_scaling(self.roll_date)
         else:
             return self.__alpha
 
+    def _df_scaling(self, date: datetime) -> DualTypes:
+        """
+        Return a DF in the period between initial node and roll_date using 1d average rate
+        """
+        ini_dt = self.curve.node_dates[0]
+        if self.is_calendar_days:
+            r: DualTypes = self.curve._rate_with_raise(ini_dt, "1D", "F")
+        else:
+            r = self.curve._rate_with_raise(ini_dt, "1B", "F")
 
+        dcf_ = dcf(ini_dt, date, self.convention, calendar=self.calendar)
+        _, d, n = average_rate(ini_dt, date, self.convention, 0.0, dcf_)
+        return 1.0 / (1 + d * r /100) ** n
 
 
 def average_rate(
