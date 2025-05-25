@@ -2737,6 +2737,7 @@ class TestRolledCurve:
     def test_get_item_positive_days_line(self, line_curve):
         r = _RolledCurve(line_curve, days=10)
         assert r[dt(2022, 3, 1)] == Dual(2.0, ["v0"], [1.0])
+        assert r[dt(2022, 3, 5)] == Dual(2.0, ["v0"], [1.0])
         assert r[dt(2022, 3, 11)] == Dual(2.0, ["v0"], [1.0])
         assert r[dt(2022, 3, 12)] == line_curve[dt(2022, 3, 2)]
         assert r[dt(2022, 3, 31)] == line_curve[dt(2022, 3, 21)]
@@ -2774,3 +2775,33 @@ class TestRolledCurve:
         expected = df_scale * curve[dt(2022, 3, 21)]
         assert abs(result - expected) < 1e-12
         assert np.all(np.isclose(result.dual, expected.dual))
+
+    def test_get_item_negative_days_dfs(self, curve):
+        r = _RolledCurve(curve, days=-10)
+        # pre node date
+        assert r[dt(2022, 2, 1)] == 0.0
+
+        # initial node date
+        assert r[dt(2022, 3, 1)] == 1.0
+
+        # any other date
+        result = r[dt(2022, 3, 6)]
+        expected = curve[dt(2022, 3, 16)] / curve[dt(2022, 3, 11)]
+        assert abs(result - expected) < 1e-12
+        assert np.all(np.isclose(result.dual, expected.dual))
+
+    @pytest.mark.parametrize(("method", "args"), [
+        ("__getitem__", (dt(2022, 3, 5),)),
+    ])
+    @pytest.mark.parametrize("dfs", [True, False])
+    def test_state_change(self, curve, line_curve, method, args, dfs):
+        curve_ = curve if dfs else line_curve
+        r = _RolledCurve(curve_, days=10)
+        prior = r._state
+        curve_.update_node(dt(2022, 3, 31), 0.999)
+        after = r._state
+        assert prior == after  # no state change method is called
+
+        _ = getattr(r, method)(*args)
+        after = r._state
+        assert prior != after

@@ -1662,6 +1662,7 @@ class TestIndexFixedRateBond:
             settle=0,
             index_base=100.0,
             index_lag=3,
+            index_fixings=Series(data=[100.0], index=[dt(1998, 9, 1)]),
             metric="ytm",
         )
         curve = Curve({dt(1998, 12, 9): 1.0, dt(2015, 12, 7): 0.50}, index_base=100.0, index_lag=3)

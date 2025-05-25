@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from math import comb, prod
 from typing import TYPE_CHECKING, Any, TypeAlias
 from uuid import uuid4
+from functools import cached_property
 
 import numpy as np
 from pandas import Series
@@ -2980,6 +2981,27 @@ class ProxyCurve(Curve):
 
 
 class _RolledCurve(Curve):
+    """
+    An object used to determine rolled values from an underlying *Curve*.
+
+    Parameters
+    ----------
+    curve: Curve
+        Any underlying *Curve* object of any type that yields values or discount factors.
+    days: int
+        The number of *calendar days* to roll the curve. A positive number will roll the *Curve*
+        forward and forward fill the interim dates. Forward rolling is the traditional
+        direction for trade analysis.
+
+    Returns
+    -------
+    _RolledCurve
+
+    Notes
+    -----
+    The returned object is an internal class which inherits methods from
+    :class:`~rateslib.curves.Curve`.
+    """
 
     _mutable_by_association: bool = True
 
@@ -2990,52 +3012,66 @@ class _RolledCurve(Curve):
         self.days = days
         for attr in ["calendar", "modifier", "convention", "_base_type"]:
             setattr(self, attr, getattr(curve, attr))
-        self.is_calendar_days = self.curve.convention != "bus252"
-        if self.is_calendar_days:
-            self.roll_date = self.curve.node_dates[0] + timedelta(days=days)
-        else:
-            self.roll_date = self.calendar.lag(self.curve.node_dates[0], days, False)
+        self.roll_date = self.curve.node_dates[0] + timedelta(days=days)
+        self.is_calendar_days = self.convention.lower() == "bus252"
 
+    @_validate_states
     def __getitem__(self, date: datetime) -> DualTypes:
         if defaults.curve_caching and date in self._cache:
             return self._cache[date]
 
         if self._base_type == "dfs":
-            if date < self.curve.node_dates[0]:
-                return 0.0
-            elif self.days >= 0:
-                if date == self.curve.node_dates[0]:
-                    return self._cached_value(date, 1.0)
-                elif date >= self.roll_date:
-                    return self._cached_value(
-                        date,
-                        self._df_scaling(self.roll_date) * self.curve[date - timedelta(days=self.days)]
-                    )
-                else:
-                    return self._cached_value(date, self._df_scaling(date))
-            else: # self.days >= self.roll_date
+            return self.__getitem_dfs(date)
+        else:
+            return self.__getitem_values(date)
+
+    def _rate_with_raise(
+        self,
+        effective: datetime,
+        termination: datetime | str | NoInput,
+        modifier: str | NoInput = NoInput(1),
+        float_spread: float | NoInput = NoInput(0),
+        spread_compound_method: str | NoInput = NoInput(0),
+    ) -> DualTypes:
+        if self.curve.
+
+
+    def __getitem_values(self, date: datetime) -> DualTypes:
+        """getitem method for curves with a values '_base_type'. """
+        if date < self.curve.node_dates[0]:
+            raise ValueError("`effective` before initial LineCurve date.")
+        elif self.days >= 0:
+            if date < self.roll_date:
+                return self._cached_value(date, self.curve[self.curve.node_dates[0]])
+            else:
+                return self._cached_value(date, self.curve[date - timedelta(days=self.days)])
+        else:  # self.days >= self.roll_date
+            return self._cached_value(date, self.curve[date - timedelta(days=self.days)])
+
+    def __getitem_dfs(self, date: datetime) -> DualTypes:
+        """getitem method for curves with a discount factors '_base_type'. """
+        if date < self.curve.node_dates[0]:
+            return 0.0
+        elif date == self.curve.node_dates[0]:
+            return self._cached_value(date, 1.0)
+        elif self.days >= 0:
+            if date >= self.roll_date:
                 return self._cached_value(
                     date,
-                    self.curve[date - timedelta(days=self.days)] / self.curve[self.roll_date]
+                    self._alpha * self.curve[date - timedelta(days=self.days)]
                 )
-        else:
-            if date < self.curve.node_dates[0]:
-                raise ValueError("`effective` before initial LineCurve date.")
-            elif self.days >= 0:
-                if date < self.roll_date:
-                    return self._cached_value(date, self.curve[self.curve.node_dates[0]])
-                else:
-                    return self._cached_value(date, self.curve[date - timedelta(days=self.days)])
-            else: # self.days >= self.roll_date
-                return self._cached_value(date, self.curve[date - timedelta(days=self.days)])
+            else: # node_dates[0] < date < roll_date
+                return self._cached_value(date, self._df_scaling(date))
+        else:  # self.days >= self.roll_date
+            return self._cached_value(
+                date,
+                self.curve[date - timedelta(days=self.days)] / self.curve[self.curve.node_dates[0] - timedelta(days=self.days)]
+            )
 
-    # @property
-    # def _alpha(self):
-    #     # alpha should be cleared when the cache is cleared
-    #     if self.__alpha is None:
-    #         self.__alpha = self._df_scaling(self.roll_date)
-    #     else:
-    #         return self.__alpha
+    @cached_property
+    def _alpha(self):
+        # alpha should be cleared when the cache is cleared
+        return self._df_scaling(self.roll_date)
 
     def _df_scaling(self, date: datetime) -> DualTypes:
         """
@@ -3063,6 +3099,10 @@ class _RolledCurve(Curve):
 
     def _get_composited_state(self) -> int:
         return self.curve._state
+
+    def _clear_cache(self) -> None:
+        super()._clear_cache()
+        self.__dict__.pop('_alpha', None)  # clear the cached property
 
 
 def average_rate(
