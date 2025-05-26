@@ -8,7 +8,7 @@ from uuid import uuid4
 from rateslib import defaults
 from rateslib.calendars import _get_modifier, get_calendar  # type: ignore[attr-defined]
 from rateslib.calendars.dcfs import _get_convention
-from rateslib.default import NoInput, _drb
+from rateslib.default import NoInput, _drb, _make_py_json
 from rateslib.dual.utils import _get_adorder
 from rateslib.rs import (
     ADOrder,
@@ -101,7 +101,7 @@ class CurveRs:
             return NullInterpolator()
 
     def to_json(self) -> str:
-        return '{"Py":' + self.obj.to_json() + "}"
+        return _make_py_json(self.obj.to_json(), "CurveRs")
 
     @classmethod
     def __init_from_obj__(cls, obj: CurveObj) -> CurveRs:

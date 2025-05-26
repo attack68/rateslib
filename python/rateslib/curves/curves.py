@@ -74,6 +74,13 @@ class _CurveMeta(NamedTuple):
     index_lag: int
     collateral: str | None
 
+    def to_json(self):
+        pass
+
+    @classmethod
+    def from_json(cls):
+        pass
+
 
 class Curve(_WithState, _WithCache[datetime, DualTypes]):
     """
