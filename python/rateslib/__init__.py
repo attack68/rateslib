@@ -103,7 +103,7 @@ from rateslib.instruments import (
     Value,
     VolValue,
 )
-from rateslib.json import from_json
+from rateslib.serialization import from_json
 from rateslib.legs import (
     CreditPremiumLeg,
     CreditProtectionLeg,

@@ -32,7 +32,6 @@ from rateslib.dual import (
     set_order_convert,
 )
 from rateslib.dual.utils import _dual_float, _get_order_of
-from rateslib.json_utils import _obj_to_json
 from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,
@@ -76,6 +75,8 @@ class _CurveMeta(NamedTuple):
     collateral: str | None
 
     def _to_json(self) -> str:
+        from rateslib.serialization.utils import _obj_to_json
+
         obj = dict(
             PyNative=dict(
                 _CurveMeta=dict(
@@ -92,7 +93,7 @@ class _CurveMeta(NamedTuple):
 
     @classmethod
     def _from_json(cls, loaded_json: dict[str, Any]) -> _CurveMeta:
-        from rateslib.json import from_json
+        from rateslib.serialization import from_json
 
         return _CurveMeta(
             convention=loaded_json["convention"],

@@ -17,7 +17,7 @@ from rateslib.curves.rs import (
 )
 from rateslib.dual import Dual2
 from rateslib.dual.utils import ADOrder, _get_adorder
-from rateslib.json import from_json
+from rateslib.serialization import from_json
 from rateslib.rs import Convention
 
 
