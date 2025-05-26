@@ -711,7 +711,7 @@ class TestFloatPeriod:
             notional=-1000000,
         )
         _d = period._rfr_get_individual_fixings_data(
-            rfr_curve.calendar, rfr_curve.convention, rfr_curve
+            rfr_curve.meta.calendar, rfr_curve.meta.convention, rfr_curve
         )
         rate, table = period._rfr_fixings_array(
             d=_d,
@@ -735,7 +735,7 @@ class TestFloatPeriod:
         with pytest.raises(NotImplementedError, match="`fixing_method`"):
             period._rfr_fixings_array(
                 period._rfr_get_individual_fixings_data(
-                    rfr_curve.calendar, rfr_curve.convention, rfr_curve
+                    rfr_curve.meta.calendar, rfr_curve.meta.convention, rfr_curve
                 ),
                 rfr_curve,
             )
