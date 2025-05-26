@@ -792,7 +792,7 @@ def test_indexcurve_shift(ad_order, composite) -> None:
         ],
     )
     assert np.all(np.abs(diff) < 1e-7)
-    assert result_curve.index_base == curve.index_base
+    assert result_curve.meta.index_base == curve.meta.index_base
 
 
 def test_indexcurve_shift_dual_input() -> None:
@@ -828,7 +828,7 @@ def test_indexcurve_shift_dual_input() -> None:
         ],
     )
     assert np.all(np.abs(diff) < 1e-7)
-    assert result_curve.index_base == curve.index_base
+    assert result_curve.meta.index_base == curve.meta.index_base
 
 
 @pytest.mark.parametrize("c_obj", ["c", "l", "i"])
@@ -1005,8 +1005,8 @@ def test_curve_translate(crv, t, tol) -> None:
         ],
     )
     assert np.all(np.abs(diff) < tol)
-    if not isinstance(result_curve.index_base, NoInput):
-        assert result_curve.index_base == crv.index_value(dt(2023, 1, 1), crv.index_lag)
+    if not isinstance(result_curve.meta.index_base, NoInput):
+        assert result_curve.meta.index_base == crv.index_value(dt(2023, 1, 1), crv.meta.index_lag)
 
 
 @pytest.mark.parametrize(
@@ -1164,7 +1164,7 @@ def test_index_curve_roll() -> None:
     )
     assert np.all(np.abs(result - expected) < 1e-7)
     assert np.all(np.abs(result2 - expected) < 1e-7)
-    assert rolled_curve.index_base == crv.index_base
+    assert rolled_curve.meta.index_base == crv.meta.index_base
 
 
 def test_curve_translate_raises(curve) -> None:
@@ -1678,8 +1678,8 @@ class TestCompositeCurve:
             index_base=base[1],
         )
         cc = CompositeCurve([ic1, ic2])
-        assert cc.index_base == base[0]
-        assert cc.index_lag == lag[0]
+        assert cc.meta.index_base == base[0]
+        assert cc.meta.index_lag == lag[0]
 
     def test_index_curves_attributes_warns(self):
         ic1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
@@ -1695,8 +1695,8 @@ class TestCompositeCurve:
         ic1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
         ic2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
         cc = CompositeCurve([ic1, ic2])
-        assert cc.index_lag == 3
-        assert cc.index_base == 101.1
+        assert cc.meta.index_lag == 3
+        assert cc.meta.index_base == 101.1
 
         result = cc.index_value(dt(2022, 1, 31), 3, interpolation="monthly")
         expected = 101.1

@@ -585,11 +585,11 @@ class FloatPeriod(BasePeriod):
             )
         else:
             if isinstance(curve, dict):
-                cal_ = list(curve.values())[0].calendar
-                conv_ = list(curve.values())[0].convention
+                cal_ = list(curve.values())[0].meta.calendar
+                conv_ = list(curve.values())[0].meta.convention
             else:
-                cal_ = curve.calendar
-                conv_ = curve.convention
+                cal_ = curve.meta.calendar
+                conv_ = curve.meta.convention
         return cal_, conv_
 
     def rate(self, curve: CurveOption_ = NoInput(0)) -> DualTypes:
@@ -682,14 +682,16 @@ class FloatPeriod(BasePeriod):
         return r
 
     def _rate_ibor_from_line_curve(self, curve: Curve) -> DualTypes:
-        fixing_date = curve.calendar.lag(self.start, -self.method_param, False)
+        fixing_date = curve.meta.calendar.lag(self.start, -self.method_param, False)
         return curve[fixing_date] + self.float_spread / 100
 
     def _rate_ibor_interpolated_ibor_from_dict(self, curve: dict[str, Curve]) -> DualTypes:
         """
         Get the rate on all available curves in dict and then determine the ones to interpolate.
         """
-        calendar = next(iter(curve.values())).calendar  # note: ASSUMES all curve calendars are same
+        calendar = next(
+            iter(curve.values())
+        ).meta.calendar  # note: ASSUMES all curve calendars are same
         fixing_date = add_tenor(self.start, f"-{self.method_param}B", "NONE", calendar)
 
         def _rate(c: Curve, tenor: str) -> DualTypes:
@@ -765,8 +767,8 @@ class FloatPeriod(BasePeriod):
         elif self.fixing_method == "rfr_payment_delay" and not self._is_inefficient:
             return curve._rate_with_raise(self.start, self.end) + self.float_spread / 100
         elif self.fixing_method == "rfr_observation_shift" and not self._is_inefficient:
-            start = curve.calendar.lag(self.start, -self.method_param, settlement=False)
-            end = curve.calendar.lag(self.end, -self.method_param, settlement=False)
+            start = curve.meta.calendar.lag(self.start, -self.method_param, settlement=False)
+            end = curve.meta.calendar.lag(self.end, -self.method_param, settlement=False)
             return curve._rate_with_raise(start, end) + self.float_spread / 100
             # TODO: (low:perf) semi-efficient method for lockout under certain conditions
         else:
@@ -1215,7 +1217,7 @@ class FloatPeriod(BasePeriod):
             curve_: Curve = _maybe_get_rfr_curve_from_dict(curve)  # type: ignore[assignment]
             # Depending upon method get the observation dates and dcf dates
             obs_dates, dcf_dates, dcf_vals, obs_vals = self._get_method_dcf_markers(
-                curve_.calendar, curve_.convention, True
+                curve_.meta.calendar, curve_.meta.convention, True
             )
 
             if not isinstance(right, NoInput) and obs_dates[0] > right:
@@ -1253,7 +1255,7 @@ class FloatPeriod(BasePeriod):
                 termination=obs_dates.iloc[-1],
             )
             r_bar, d, n = average_rate(
-                obs_dates.iloc[0], obs_dates.iloc[-1], curve_.convention, rate, dcf_vals.sum()
+                obs_dates.iloc[0], obs_dates.iloc[-1], curve_.meta.convention, rate, dcf_vals.sum()
             )
             # approximate sensitivity to each fixing
             z = self.float_spread / 10000
@@ -1350,7 +1352,7 @@ class FloatPeriod(BasePeriod):
         right: datetime | NoInput,
         risk: DualTypes | NoInput = NoInput(0),
     ) -> DataFrame:
-        calendar = curve.calendar
+        calendar = curve.meta.calendar
         fixing_dt = calendar.lag(self.start, -self.method_param, False)
         if not isinstance(right, NoInput) and fixing_dt > right:
             # fixing not in scope, perform no calculations
@@ -1364,8 +1366,8 @@ class FloatPeriod(BasePeriod):
                 },
             ).set_index("obs_dates")
         else:
-            reg_end_dt = add_tenor(self.start, tenor, curve.modifier, calendar)
-            reg_dcf = dcf(self.start, reg_end_dt, curve.convention, reg_end_dt)
+            reg_end_dt = add_tenor(self.start, tenor, curve.meta.modifier, calendar)
+            reg_dcf = dcf(self.start, reg_end_dt, curve.meta.convention, reg_end_dt)
 
             if not isinstance(self.fixings, NoInput) or fixing_dt < curve.node_dates[0]:
                 # then fixing is set so return zero exposure.
@@ -1407,7 +1409,9 @@ class FloatPeriod(BasePeriod):
         right: datetime | NoInput,
         risk: DualTypes | NoInput = NoInput(0),
     ) -> DataFrame:
-        calendar = next(iter(curve.values())).calendar  # note: ASSUMES all curve calendars are same
+        calendar = next(
+            iter(curve.values())
+        ).meta.calendar  # note: ASSUMES all curve calendars are same
         values = {add_tenor(self.start, k, "MF", calendar): k for k, v in curve.items()}
         values = dict(sorted(values.items()))
         reg_end_dts = list(values.keys())
@@ -1697,14 +1701,14 @@ class FloatPeriod(BasePeriod):
         """
         For use in the Leg._spread calculation get the 'a' and 'b' coefficients
         """
-        os, oe, _, _ = self._get_method_dcf_endpoints(fore_curve.calendar)
+        os, oe, _, _ = self._get_method_dcf_endpoints(fore_curve.meta.calendar)
         rate = fore_curve._rate_with_raise(
             effective=os,
             termination=oe,
             float_spread=0.0,
             spread_compound_method=self.spread_compound_method,
         )
-        r, d, n = average_rate(os, oe, fore_curve.convention, rate, self.dcf)
+        r, d, n = average_rate(os, oe, fore_curve.meta.convention, rate, self.dcf)
         # approximate sensitivity to each fixing
         z = 0.0 if self.float_spread is None else self.float_spread
         if self.spread_compound_method == "isda_compounding":

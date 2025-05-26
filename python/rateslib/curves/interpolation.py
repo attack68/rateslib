@@ -28,8 +28,8 @@ def _linear(date: datetime, curve: Curve) -> DualTypes:
 def _linear_bus(date: datetime, curve: Curve) -> DualTypes:
     i = index_left(curve.node_dates, len(curve.node_dates), date)
     x_1, x_2 = curve.node_dates[i], curve.node_dates[i + 1]
-    d_n = dcf(x_1, x_2, "bus252", calendar=curve.calendar)
-    d_m = dcf(x_1, date, "bus252", calendar=curve.calendar)
+    d_n = dcf(x_1, x_2, "bus252", calendar=curve.meta.calendar)
+    d_m = dcf(x_1, date, "bus252", calendar=curve.meta.calendar)
     node_values = list(curve.nodes.values())
     y_1, y_2 = node_values[i], node_values[i + 1]
     return y_1 + (y_2 - y_1) * d_m / d_n
@@ -45,8 +45,8 @@ def _log_linear(date: datetime, curve: Curve) -> DualTypes:
 def _log_linear_bus(date: datetime, curve: Curve) -> DualTypes:
     i = index_left(curve.node_dates, len(curve.node_dates), date)
     x_1, x_2 = curve.node_dates[i], curve.node_dates[i + 1]
-    d_n = dcf(x_1, x_2, "bus252", calendar=curve.calendar)
-    d_m = dcf(x_1, date, "bus252", calendar=curve.calendar)
+    d_n = dcf(x_1, x_2, "bus252", calendar=curve.meta.calendar)
+    d_m = dcf(x_1, date, "bus252", calendar=curve.meta.calendar)
     node_values = list(curve.nodes.values())
     y_1, y_2 = dual_log(node_values[i]), dual_log(node_values[i + 1])
     return dual_exp(y_1 + (y_2 - y_1) * d_m / d_n)
@@ -76,16 +76,18 @@ def _linear_zero_rate(date: datetime, curve: Curve) -> DualTypes:
     nvs = list(curve.nodes.values())
     nds = curve.node_dates
 
-    d_2 = dcf(nds[0], nds[i + 1], curve.convention, calendar=curve.calendar)
-    r_2 = -dual_log(nvs[i + 1]) / dcf(nds[0], nds[i + 1], curve.convention, calendar=curve.calendar)
+    d_2 = dcf(nds[0], nds[i + 1], curve.meta.convention, calendar=curve.meta.calendar)
+    r_2 = -dual_log(nvs[i + 1]) / dcf(
+        nds[0], nds[i + 1], curve.meta.convention, calendar=curve.meta.calendar
+    )
     if i == 0:
         # first period must use flat backwards zero rate
-        d_m = dcf(nds[0], date, curve.convention, calendar=curve.calendar)
+        d_m = dcf(nds[0], date, curve.meta.convention, calendar=curve.meta.calendar)
         r_m = r_2
     else:
-        d_1 = dcf(nds[0], nds[i], curve.convention, calendar=curve.calendar)
+        d_1 = dcf(nds[0], nds[i], curve.meta.convention, calendar=curve.meta.calendar)
         r_1 = -dual_log(nvs[i]) / d_1
-        d_m = dcf(nds[0], date, curve.convention, calendar=curve.calendar)
+        d_m = dcf(nds[0], date, curve.meta.convention, calendar=curve.meta.calendar)
         r_m = r_1 + (r_2 - r_1) * (d_m - d_1) / (d_2 - d_1)
 
     return dual_exp(-r_m * d_m)
