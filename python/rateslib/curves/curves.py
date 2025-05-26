@@ -32,6 +32,7 @@ from rateslib.dual import (
     set_order_convert,
 )
 from rateslib.dual.utils import _dual_float, _get_order_of
+from rateslib.json_utils import _dualtypes_to_json
 from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,
@@ -74,12 +75,33 @@ class _CurveMeta(NamedTuple):
     index_lag: int
     collateral: str | None
 
-    def to_json(self):
-        pass
+    def _to_json(self) -> str:
+        obj = dict(
+            PyNative=dict(
+                _CurveMeta=dict(
+                    calendar=self.calendar.to_json(),
+                    convention=self.convention,
+                    modifier=self.modifier,
+                    index_base=_dualtypes_to_json(self.index_base),
+                    index_lag=self.index_lag,
+                    collateral=self.collateral,
+                )
+            )
+        )
+        return json.dumps(obj)
 
     @classmethod
-    def from_json(cls):
-        pass
+    def _from_json(cls, loaded_json: dict[str, Any]) -> _CurveMeta:
+        from rateslib.json import from_json
+
+        return _CurveMeta(
+            convention=loaded_json["convention"],
+            modifier=loaded_json["modifier"],
+            index_lag=loaded_json["index_lag"],
+            collateral=loaded_json["collateral"],
+            index_base=from_json(loaded_json["index_base"]),
+            calendar=from_json(loaded_json["calendar"]),
+        )
 
 
 class Curve(_WithState, _WithCache[datetime, DualTypes]):

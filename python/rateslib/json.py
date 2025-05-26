@@ -1,21 +1,34 @@
 from __future__ import annotations
 
-# globals namespace
-from typing import Any, TYPE_CHECKING
-from json import loads, dumps
+from json import dumps, loads
 
+# globals namespace
+from typing import TYPE_CHECKING, Any
+
+from rateslib.curves.curves import _CurveMeta
 from rateslib.curves.rs import CurveRs
-from rateslib.dual import Dual, Dual2
-from rateslib.dual.utils import _to_number
+from rateslib.default import NoInput
 from rateslib.fx import FXRates
 from rateslib.rs import from_json as from_json_rs
 
 if TYPE_CHECKING:
-    from rateslib.typing import DualTypes, Number
+    pass
 
 NAMES_RsPy = {  # this is a mapping of native Rust obj names to Py obj names
     "FXRates": FXRates,
     "Curve": CurveRs,
+}
+
+
+class NoInputFromJson:
+    @classmethod
+    def _from_json(cls, val) -> NoInput:
+        return NoInput(val)
+
+
+NAMES_Py = {  # this is a mapping of native Python object classes
+    "_CurveMeta": _CurveMeta,
+    "NoInput": NoInputFromJson,
 }
 
 
@@ -32,27 +45,24 @@ def from_json(json: str) -> Any:
     -------
     Object
     """
-    try:
-        return from_json_rs(json)
-    except ValueError:
-        # then object is not serialised from Serde in Rust
-        if json[:15] == '{"PyWrapped":{"':
+    obj = loads(json)
+    if isinstance(obj, dict):
+        if "PyWrapped" in obj:
             # then object is a Rust struct wrapped by a Python class.
             # determine the Python class name and reconstruct the Python class from the Rust struct.
-            class_name, parsed_json = json[15 : json[15:].find('"') + 15], json[13:-1]
+            class_name = next(iter(obj["PyWrapped"].keys()))
+            restructured_json = dumps(obj["PyWrapped"])
             # objs = globals()
             class_obj = NAMES_RsPy[class_name]
-            return class_obj.__init_from_obj__(obj=from_json_rs(parsed_json))  # type: ignore[attr-defined]
-
-        # else use native Python json
-        return loads(json)
-
-
-# Dualtypes handles case of rust wrapped Dual/Dual2 datatype intermixed with float.
-
-def _dualtypes_to_json(val: DualTypes) -> str:
-    val_: Number = _to_number(val)
-    if isinstance(val_, Dual | Dual2):
-        return val_.to_json()
+            return class_obj.__init_from_obj__(obj=from_json_rs(restructured_json))  # type: ignore[attr-defined]
+        elif "PyNative" in obj:
+            class_name = next(iter(obj["PyNative"].keys()))
+            class_obj = NAMES_Py[class_name]
+            return class_obj._from_json(obj["PyNative"][class_name])
+        else:
+            # the dict may have been a native Rust object, try loading directly
+            # this will raise if all combination exhausted
+            return from_json_rs(json)
     else:
-        return dumps(val_)
+        # object is a native Python element
+        return obj
