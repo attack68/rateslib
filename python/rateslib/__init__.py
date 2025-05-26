@@ -103,7 +103,6 @@ from rateslib.instruments import (
     Value,
     VolValue,
 )
-from rateslib.serialization import from_json
 from rateslib.legs import (
     CreditPremiumLeg,
     CreditProtectionLeg,
@@ -130,6 +129,7 @@ from rateslib.periods import (
     NonDeliverableCashflow,
 )
 from rateslib.scheduling import Schedule
+from rateslib.serialization import from_json
 from rateslib.solver import Solver
 from rateslib.splines import (
     PPSpline,
