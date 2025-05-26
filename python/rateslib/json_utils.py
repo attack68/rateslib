@@ -8,7 +8,7 @@ from rateslib.dual import Dual, Dual2, Variable
 from rateslib.dual.utils import _to_number
 
 if TYPE_CHECKING:
-    from rateslib import Any, DualTypes, Number
+    from rateslib.typing import Any, DualTypes, Number
 
 
 # Dualtypes handles case of rust wrapped Dual/Dual2 datatype intermixed with float.
@@ -33,6 +33,6 @@ def _obj_to_json(val: Any) -> str:
         return _dualtypes_to_json(val)
     else:
         try:
-            return val.to_json()
+            return val.to_json()  # type: ignore[no-any-return]
         except AttributeError:
             return dumps(val)

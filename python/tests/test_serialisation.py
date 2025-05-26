@@ -13,6 +13,7 @@ from rateslib.json import from_json
         100.0,
         Dual(100.0, ["v"], []),
         Dual2(100.0, ["v"], [], []),
+        NoInput(0),
     ],
 )
 @pytest.mark.parametrize("collateral", [None, "usd"])

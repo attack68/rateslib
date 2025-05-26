@@ -32,7 +32,7 @@ from rateslib.dual import (
     set_order_convert,
 )
 from rateslib.dual.utils import _dual_float, _get_order_of
-from rateslib.json_utils import _dualtypes_to_json
+from rateslib.json_utils import _obj_to_json
 from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,
@@ -82,7 +82,7 @@ class _CurveMeta(NamedTuple):
                     calendar=self.calendar.to_json(),
                     convention=self.convention,
                     modifier=self.modifier,
-                    index_base=_dualtypes_to_json(self.index_base),
+                    index_base=_obj_to_json(self.index_base),
                     index_lag=self.index_lag,
                     collateral=self.collateral,
                 )

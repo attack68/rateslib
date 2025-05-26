@@ -22,7 +22,7 @@ NAMES_RsPy = {  # this is a mapping of native Rust obj names to Py obj names
 
 class NoInputFromJson:
     @classmethod
-    def _from_json(cls, val) -> NoInput:
+    def _from_json(cls, val: int) -> NoInput:
         return NoInput(val)
 
 
@@ -58,7 +58,7 @@ def from_json(json: str) -> Any:
         elif "PyNative" in obj:
             class_name = next(iter(obj["PyNative"].keys()))
             class_obj = NAMES_Py[class_name]
-            return class_obj._from_json(obj["PyNative"][class_name])
+            return class_obj._from_json(obj["PyNative"][class_name])  # type: ignore[attr-defined]
         else:
             # the dict may have been a native Rust object, try loading directly
             # this will raise if all combination exhausted
