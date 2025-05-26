@@ -72,6 +72,7 @@ class _CurveMeta(NamedTuple):
     modifier: str
     index_base: DualTypes | NoInput
     index_lag: int
+    collateral: str | None
 
 
 class Curve(_WithState, _WithCache[datetime, DualTypes]):
@@ -123,6 +124,9 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         Number of months of by which the index lags the date. For example if the initial
         curve node date is 1st Sep 2021 based on the inflation index published
         17th June 2023 then the lag is 3 months.
+    collateral : str
+        A currency identifier to denote the collateral currency against which the discount factors
+        for this *Curve* are measured.
 
     Notes
     -----
@@ -209,7 +213,6 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     )  # Curve is DF based: spline is applied over log
     _ini_solve: int = 1  # Curve is assumed to have initial DF node at 1.0 as constraint
     _base_type: str = "dfs"
-    collateral: str | None = None
     meta: _CurveMeta
 
     @_new_state_post
@@ -228,6 +231,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         ad: int = 0,
         index_base: DualTypes | NoInput = NoInput(0),
         index_lag: int | NoInput = NoInput(0),
+        collateral: str = NoInput(0),
         **kwargs,
     ) -> None:
         self.id: str = _drb(uuid4().hex[:5], id)  # 1 in a million clash
@@ -239,6 +243,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             _drb(defaults.modifier, modifier).upper(),
             index_base,
             _drb(defaults.index_lag, index_lag),
+            _drb(None, collateral),
         )
 
         self.__set_nodes__(nodes)
@@ -1728,15 +1733,6 @@ class LineCurve(Curve):
         right endpoint.
     id : str, optional, set by Default
         The unique identifier to distinguish between curves in a multi-curve framework.
-    convention : str, optional,
-        This argument is **not used** by :class:`LineCurve`. It is included for
-        signature consistency with :class:`Curve`.
-    modifier : str, optional
-        This argument is **not used** by :class:`LineCurve`. It is included for
-        signature consistency with :class:`Curve`.
-    calendar : calendar or str, optional
-        This argument is **not used** by :class:`LineCurve`. It is included for
-        signature consistency with :class:`Curve`.
     ad : int in {0, 1, 2}, optional
         Sets the automatic differentiation order. Defines whether to convert node
         values to float, :class:`Dual` or :class:`Dual2`. It is advised against
@@ -1744,6 +1740,9 @@ class LineCurve(Curve):
 
     Notes
     -----
+    The arguments, ``modifier``, ``index_base``, ``index_lag``, ``calendar``, ``convention``,
+    ``collateral`` available on 
+    :class:`~rateslib.curves.Curve` are not used by, or relevant for, a :class:`LineCurve`.
 
     This curve type is **value** based and it is parametrised by a set of
     (date, value) pairs set as ``nodes``. The initial node date of the curve is defined
@@ -2291,7 +2290,6 @@ class CompositeCurve(Curve):
 
     """  # noqa: E501
 
-    collateral = None
     _mutable_by_association = True
     _do_not_validate = False
 
@@ -2311,6 +2309,7 @@ class CompositeCurve(Curve):
             curves[0].meta.modifier,
             curves[0].meta.index_base,
             curves[0].meta.index_lag,
+            curves[0].meta.collateral,
         )
         self._base_type = curves[0]._base_type
 
@@ -2344,6 +2343,7 @@ class CompositeCurve(Curve):
         if self._base_type == "dfs":
             self._check_meta_attribute("modifier")
             self._check_meta_attribute("convention")
+            # self._check_meta_attribute("collateral")  # not used due to inconsistent labelling
 
         _ad = [_._ad for _ in self.curves]
         if 1 in _ad and 2 in _ad:
@@ -2914,7 +2914,6 @@ class ProxyCurve(Curve):
     ):
         self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
-        self.collateral = coll_ccy
         self.fx_forwards = fx_forwards
         self.cash_currency = cash_ccy
         self.cash_pair = f"{cash_ccy}{cash_ccy}"
@@ -2931,6 +2930,7 @@ class ProxyCurve(Curve):
             _drb(self.fx_forwards.fx_curves[self.cash_pair].meta.modifier, modifier).upper(),
             NoInput(0),  # index meta not relevant for ProxyCurve
             0,
+            coll_ccy
         )
         self.node_dates = [self.fx_forwards.immediate, self.terminal]
 
