@@ -4,8 +4,8 @@ import pytest
 from pandas import Index
 from rateslib import defaults
 from rateslib.calendars import _get_modifier, get_calendar
-from rateslib.serialization import from_json
 from rateslib.rs import Cal, Modifier, NamedCal, RollDay, UnionCal
+from rateslib.serialization import from_json
 
 
 class TestRollDay:
