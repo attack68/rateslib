@@ -320,7 +320,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
                 npv = _dual_float(self.npv(curve, disc_curve_))  # type: ignore[arg-type]
                 npv_fx = npv * _dual_float(fx)
                 df = _dual_float(disc_curve_[self.schedule.pschedule[-1]])
-                collateral = disc_curve_.collateral
+                collateral = disc_curve_.meta.collateral
             else:
                 npv, npv_fx, df, collateral = None, None, None, None
 
@@ -493,7 +493,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
             npv = _dual_float(self.npv(curve, disc_curve_))  # type: ignore[arg-type]
             npv_fx = npv * _dual_float(fx_)
             df = _dual_float(disc_curve_[self.schedule.pschedule[-1]])
-            collateral = disc_curve_.collateral
+            collateral = disc_curve_.meta.collateral
 
         seq = [
             {

@@ -149,7 +149,7 @@ class Cashflow:
             npv_: DualTypes = self.npv(curve, disc_curve_)  # type: ignore[assignment]
             npv = _dual_float(npv_)
             npv_fx = npv * _dual_float(fx_)
-            df, collateral = _dual_float(disc_curve_[self.payment]), disc_curve_.collateral
+            df, collateral = _dual_float(disc_curve_[self.payment]), disc_curve_.meta.collateral
 
         try:
             cashflow_ = _dual_float(self.cashflow)
@@ -378,7 +378,7 @@ class NonDeliverableCashflow:
             npv = _dual_float(npv_)
 
             npv_fx = npv * _dual_float(imm_fx_to_base)
-            df, collateral = _dual_float(disc_curve_[self.payment]), disc_curve_.collateral
+            df, collateral = _dual_float(disc_curve_[self.payment]), disc_curve_.meta.collateral
             cashflow = _dual_float(self.cashflow(fx))
             if isinstance(self.fx_fixing, NoInput):
                 fx_ = _validate_fx_as_forwards(fx)

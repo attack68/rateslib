@@ -223,7 +223,7 @@ class BasePeriod(metaclass=ABCMeta):
             collateral: str | None = None
         else:
             df = _dual_float(disc_curve_[self.payment])
-            collateral = disc_curve_.collateral
+            collateral = disc_curve_.meta.collateral
 
         return {
             defaults.headers["type"]: type(self).__name__,

@@ -4710,7 +4710,7 @@ def test_fx_settlements_table(inst, expected) -> None:
         s=[5.0, 2.5, -10],
         fx=fxf,
     )
-    assert eureur.collateral == "eur"  # collateral tags populated by FXForwards
+    assert eureur.meta.collateral == "eur"  # collateral tags populated by FXForwards
 
     pf = Portfolio([inst])
     result = pf.cashflows_table(solver=solver)

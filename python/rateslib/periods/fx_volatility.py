@@ -153,7 +153,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         dict
         """
         fx_, base = _get_fx_and_base(self.currency, fx, base)
-        df, collateral = _dual_float(disc_curve_ccy2[self.payment]), disc_curve_ccy2.collateral
+        df, collateral = _dual_float(disc_curve_ccy2[self.payment]), disc_curve_ccy2.meta.collateral
         npv_: dict[str, DualTypes] = self.npv(
             disc_curve, disc_curve_ccy2, fx, base, local=True, vol=vol
         )  # type: ignore[assignment]
