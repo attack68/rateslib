@@ -214,7 +214,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
 
         self.terminal: datetime = datetime(2200, 1, 1)
         for flag, (k, curve) in enumerate(self.fx_curves.items()):
-            curve.collateral = k[3:6]  # label curves with collateral
+            curve.meta = curve.meta._replace(collateral=k[3:6])  # label curves with collateral
 
             if flag == 0:
                 self.immediate: datetime = curve.node_dates[0]
@@ -847,9 +847,9 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
             curves = []
             for coll in collateral:
                 curves.append(self.curve(cashflow, coll, convention, modifier, calendar))
-            _ = MultiCsaCurve(curves=curves, id=id)
-            _.collateral = ",".join([__.lower() for __ in collateral])
-            return _
+            curve = MultiCsaCurve(curves=curves, id=id)
+            curve.meta = curve.meta._replace(collateral=",".join([__.lower() for __ in collateral]))
+            return curve
 
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
         pair = f"{cash_ccy}{coll_ccy}"

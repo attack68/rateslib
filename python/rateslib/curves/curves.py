@@ -231,7 +231,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         ad: int = 0,
         index_base: DualTypes | NoInput = NoInput(0),
         index_lag: int | NoInput = NoInput(0),
-        collateral: str = NoInput(0),
+        collateral: str_ = NoInput(0),
         **kwargs,
     ) -> None:
         self.id: str = _drb(uuid4().hex[:5], id)  # 1 in a million clash
@@ -674,7 +674,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         crv: CompositeCurve = CompositeCurve(
             curves=[self, shifted], id=id, _no_validation=_no_validation
         )
-        crv.collateral = _drb(None, collateral)
+        crv.meta = crv.meta._replace(collateral=_drb(None, collateral))
 
         if not composite:
             if self._base_type == "dfs":
@@ -1733,6 +1733,18 @@ class LineCurve(Curve):
         right endpoint.
     id : str, optional, set by Default
         The unique identifier to distinguish between curves in a multi-curve framework.
+        convention : str, optional, set by Default
+        The convention of the curve for determining rates. Please see
+        :meth:`dcf()<rateslib.calendars.dcf>` for all available options.
+    convention : str, optional, set by Default
+        The convention of the curve for determining rates. Please see
+        :meth:`dcf()<rateslib.calendars.dcf>` for all available options.
+    modifier : str, optional
+        The modification rule, in {"F", "MF", "P", "MP"}, for determining rates when input as
+        a tenor, e.g. "3M".
+    calendar : calendar or str, optional
+        The holiday calendar object to use. If str, looks up named calendar from
+        static data. Used for determining rates.
     ad : int in {0, 1, 2}, optional
         Sets the automatic differentiation order. Defines whether to convert node
         values to float, :class:`Dual` or :class:`Dual2`. It is advised against
@@ -1740,8 +1752,7 @@ class LineCurve(Curve):
 
     Notes
     -----
-    The arguments, ``modifier``, ``index_base``, ``index_lag``, ``calendar``, ``convention``,
-    ``collateral`` available on 
+    The arguments ``index_base``, ``index_lag``, and ``collateral`` available on
     :class:`~rateslib.curves.Curve` are not used by, or relevant for, a :class:`LineCurve`.
 
     This curve type is **value** based and it is parametrised by a set of
@@ -2930,7 +2941,7 @@ class ProxyCurve(Curve):
             _drb(self.fx_forwards.fx_curves[self.cash_pair].meta.modifier, modifier).upper(),
             NoInput(0),  # index meta not relevant for ProxyCurve
             0,
-            coll_ccy
+            coll_ccy,
         )
         self.node_dates = [self.fx_forwards.immediate, self.terminal]
 
