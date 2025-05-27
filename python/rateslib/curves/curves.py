@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from math import comb, prod
 from typing import TYPE_CHECKING, Any, TypeAlias
 from uuid import uuid4
+import pickle
 
 import numpy as np
 from pandas import Series
@@ -1576,7 +1577,10 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         -------
         Curve or LineCurve
         """
-        return self.from_json(self.to_json())
+        return pickle.loads(pickle.dumps(self, -1))
+
+        # from rateslib.serialization import from_json
+        # return from_json(self.to_json())
 
 
 class LineCurve(Curve):
