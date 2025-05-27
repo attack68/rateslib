@@ -297,7 +297,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             if self._base_type == _CurveType.dfs:
                 val = dual_exp(self.interpolator.spline.spline.ppev_single(date_posix))  # type: ignore[union-attr]
             else:  #  self._base_type == _CurveType.values:
-                val = self.interpolator.spline.spline.ppev_single(date_posix)   # type: ignore[union-attr]
+                val = self.interpolator.spline.spline.ppev_single(date_posix)  # type: ignore[union-attr]
 
         return self._cached_value(date, val)
 
