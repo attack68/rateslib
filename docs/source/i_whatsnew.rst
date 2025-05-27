@@ -141,6 +141,11 @@ Some themes for this release involved:
          (`853 <https://github.com/attack68/rateslib/pull/853>`_)
          (`854 <https://github.com/attack68/rateslib/pull/854>`_)
          (`855 <https://github.com/attack68/rateslib/pull/855>`_)
+       - :red:`Minor Breaking Change!` The argument ``c`` for spline coefficients is no longer
+         available in the initialisation of a *Curve* class. This value is determined
+         automatically to maintain consistency between supplied node values and solved spline
+         coefficients.
+         (`859 <https://github.com/attack68/rateslib/pull/859>`_)
    * - **Automatic Differentiation & Algorithms**
      - - Operator overloads added to allow dual number exponents, i.e. :math:`z^p`, where *z*,
          *p* are dual number types. This facilitates AD for the SABR function as well as other

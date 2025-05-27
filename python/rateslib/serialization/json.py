@@ -5,7 +5,7 @@ from json import dumps, loads
 # globals namespace
 from typing import TYPE_CHECKING, Any
 
-from rateslib.curves.curves import _CurveMeta
+from rateslib.curves.utils import _CurveMeta, _CurveSpline
 from rateslib.curves.rs import CurveRs
 from rateslib.default import NoInput
 from rateslib.fx import FXRates
@@ -20,11 +20,11 @@ NAMES_RsPy: dict[str, Any] = {  # this is a mapping of native Rust obj names to 
 }
 
 
-NAMES_Py: dict[
-    str, Any
-] = {  # this is a mapping of native Python object classes with a _from_json() method
+NAMES_Py: dict[str, Any] = {  # a mapping of native Python classes with a _from_json() method
     "_CurveMeta": _CurveMeta,
+    "_CurveSpline": _CurveSpline,
 }
+
 
 ENUMS_Py: dict[str, Any] = {
     "NoInput": NoInput,

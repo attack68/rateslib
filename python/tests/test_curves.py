@@ -16,7 +16,7 @@ from rateslib.curves import (
     index_left,
     index_value,
 )
-from rateslib.curves.curves import _CurveSpline
+from rateslib.curves.utils import _CurveSpline
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.dual.utils import _get_order_of
@@ -2735,7 +2735,7 @@ class TestCurveSpline:
 
         assert a == b
 
-    @pytest.mark.parametrize("differ", ["t", "c", "end"])
+    @pytest.mark.parametrize("differ", ["t", "end"])
     def test_inequality(self, differ):
         t = [
             dt(2000, 1, 1), dt(2000, 1, 1), dt(2000, 1, 1), dt(2000, 1, 1),
@@ -2747,18 +2747,14 @@ class TestCurveSpline:
             dt(2001, 1, 1), dt(2001, 7, 1),
             dt(2002, 1, 1), dt(2002, 1, 1), dt(2002, 1, 1), dt(2002, 1, 1),
         ]
-        c = [1.,1.,1.,1.,1.,1.]
-        c_diff = [1.,1.,1.,1.,1.,2.]
         end = ("natural", "natural")
         end_diff = ("natural", "not-a-knot")
 
-        a = _CurveSpline(t=t, c=c, endpoints=end)
+        a = _CurveSpline(t=t, endpoints=end)
         if differ == "t":
-            b = _CurveSpline(t=t_diff, c=c, endpoints=end)
-        elif differ == "c":
-            b = _CurveSpline(t=t, c=c_diff, endpoints=end)
+            b = _CurveSpline(t=t_diff, endpoints=end)
         else:
-            b = _CurveSpline(t=t, c=c, endpoints=end_diff)
+            b = _CurveSpline(t=t, endpoints=end_diff)
 
         assert a != b
         assert a != 10.0

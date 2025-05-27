@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 class InterpolationFunction(Protocol):
     # Callable type for Interpolation Functions
-    def __call__(self, date: datetime, curve: Curve, *args: Any) -> DualTypes: ...
+    def __call__(self, date: datetime, curve: Curve) -> DualTypes: ...
 
 
 def _linear(date: datetime, curve: Curve) -> DualTypes:
@@ -100,7 +100,7 @@ def _linear_index(date: datetime, curve: Curve) -> DualTypes:
     return (1 / y_1 + (1 / y_2 - 1 / y_1) * (x - x_1) / (x_2 - x_1)) ** -1.0
 
 
-INTERPOLATION = {
+INTERPOLATION: dict[str, InterpolationFunction] = {
     "linear": _linear,
     "linear_bus252": _linear_bus,
     "log_linear": _log_linear,
