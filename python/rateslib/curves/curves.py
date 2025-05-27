@@ -116,6 +116,28 @@ class _CurveMeta(NamedTuple):
         )
 
 
+class _CurveSpline:
+
+    t: list[datetime]
+    t_posix: list[float]
+    spline: PPSplineF64 | PPSplineDual | PPSplineDual2 | None
+    endpoints: tuple[str, str]
+
+    def __init__(self, t: list[datetime], c: list[float] | NoInput, endpoints: tuple[str, str]) -> None:
+        self.t = t
+        self.t_posix = [_.replace(tzinfo=UTC).timestamp() for _ in self.t]
+        self.endpoints = endpoints
+
+        if not isinstance(c, NoInput):
+            self.spline = PPSplineF64(k=4, t=self.t_posix, c=c)
+        else:
+            self.spline = None  # will be set in later in csolve
+            if len(self.t) < 10 and "not_a_knot" in self.endpoints:
+                raise ValueError(
+                    "`endpoints` cannot be 'not_a_knot' with only 1 interior breakpoint",
+                )
+
+
 class Curve(_WithState, _WithCache[datetime, DualTypes]):
     """
     Curve based on DF parametrisation at given node dates with interpolation.
@@ -312,6 +334,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             self.t_posix = None
             self.spline = None
 
+        self.spline_interpolator = _CurveSpline(t=self.t, c=c, endpoints=self.spline_endpoints)
         self._set_ad_order(order=ad)  # will also clear and initialise the cache
 
     @property
