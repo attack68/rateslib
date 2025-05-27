@@ -973,7 +973,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
         These new objects can be accessed from the attributes of the ``FXForwards``
         instance.
         """
-        from rateslib.json import from_json
+        from rateslib.serialization import from_json
 
         serial = json.loads(fx_forwards)
 

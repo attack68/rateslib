@@ -2,8 +2,8 @@ from datetime import datetime as dt
 
 import pytest
 from rateslib.fx import FXRates
-from rateslib.json import from_json
 from rateslib.rs import Ccy, Dual, Dual2, FXRate
+from rateslib.serialization import from_json
 
 
 def test_ccy_creation() -> None:

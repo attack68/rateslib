@@ -3,7 +3,8 @@ from rateslib.calendars import get_calendar
 from rateslib.curves.curves import _CurveMeta
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable
-from rateslib.json import from_json
+from rateslib.serialization import from_json
+from rateslib.serialization.utils import _enum_to_json
 
 
 @pytest.mark.parametrize("calendar", [get_calendar("tgt"), get_calendar(NoInput(0))])
@@ -29,3 +30,11 @@ def test_curvemeta_json_round_trip(calendar, index_base, collateral):
     json_text = obj._to_json()
     round_trip = from_json(json_text)
     assert round_trip == obj
+
+
+@pytest.mark.parametrize("value", [-1, 0, 1])
+def test_no_input_round_trip(value):
+    obj = NoInput(value)
+    json = _enum_to_json(obj)
+    result = from_json(json)
+    assert result == obj

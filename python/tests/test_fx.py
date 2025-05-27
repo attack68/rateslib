@@ -15,7 +15,7 @@ from rateslib.fx import (
     forward_fx,
 )
 from rateslib.fx.fx_forwards import _recursive_pair_population
-from rateslib.json import from_json
+from rateslib.serialization import from_json
 
 
 class TestStateAndCache:

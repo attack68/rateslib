@@ -14,22 +14,29 @@ from rateslib.rs import from_json as from_json_rs
 if TYPE_CHECKING:
     pass
 
-NAMES_RsPy = {  # this is a mapping of native Rust obj names to Py obj names
+NAMES_RsPy: dict[str, Any] = {  # this is a mapping of native Rust obj names to Py obj names
     "FXRates": FXRates,
     "Curve": CurveRs,
 }
 
 
-class NoInputFromJson:
-    @classmethod
-    def _from_json(cls, val: int) -> NoInput:
-        return NoInput(val)
-
-
-NAMES_Py = {  # this is a mapping of native Python object classes
+NAMES_Py: dict[
+    str, Any
+] = {  # this is a mapping of native Python object classes with a _from_json() method
     "_CurveMeta": _CurveMeta,
-    "NoInput": NoInputFromJson,
 }
+
+ENUMS_Py: dict[str, Any] = {
+    "NoInput": NoInput,
+}
+
+
+def _pynative_from_json(name: str, json: dict[str, Any] | str) -> Any:
+    if name in NAMES_Py:
+        return NAMES_Py[name]._from_json(json)
+    else:
+        # is an Enum
+        return ENUMS_Py[name](json)
 
 
 def from_json(json: str) -> Any:
@@ -54,11 +61,12 @@ def from_json(json: str) -> Any:
             restructured_json = dumps(obj["PyWrapped"])
             # objs = globals()
             class_obj = NAMES_RsPy[class_name]
-            return class_obj.__init_from_obj__(obj=from_json_rs(restructured_json))  # type: ignore[attr-defined]
+            return class_obj.__init_from_obj__(obj=from_json_rs(restructured_json))
         elif "PyNative" in obj:
+            # PyNative are objects that are constructed only in Python but do not serialize directly
+            # and so are tagged with a serialization flag.
             class_name = next(iter(obj["PyNative"].keys()))
-            class_obj = NAMES_Py[class_name]
-            return class_obj._from_json(obj["PyNative"][class_name])  # type: ignore[attr-defined]
+            return _pynative_from_json(name=class_name, json=obj["PyNative"][class_name])
         else:
             # the dict may have been a native Rust object, try loading directly
             # this will raise if all combination exhausted

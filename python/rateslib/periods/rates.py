@@ -11,6 +11,7 @@ from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf, get_calendar
 from rateslib.curves import Curve, average_rate, index_left
 from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_maybe_from_curve
+from rateslib.curves.curves import _CurveType
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.dual.utils import _dual_float
@@ -656,8 +657,8 @@ class FloatPeriod(BasePeriod):
             raise ValueError("`fixings` cannot be supplied as list, under 'ibor' `fixing_method`.")
 
         method = {
-            "dfs": self._rate_ibor_from_df_curve,
-            "values": self._rate_ibor_from_line_curve,
+            _CurveType.dfs: self._rate_ibor_from_df_curve,
+            _CurveType.values: self._rate_ibor_from_line_curve,
         }
         if isinstance(curve, NoInput):
             raise ValueError(
@@ -695,7 +696,7 @@ class FloatPeriod(BasePeriod):
         fixing_date = add_tenor(self.start, f"-{self.method_param}B", "NONE", calendar)
 
         def _rate(c: Curve, tenor: str) -> DualTypes:
-            if c._base_type == "dfs":
+            if c._base_type == _CurveType.dfs:
                 return c._rate_with_raise(self.start, tenor)
             else:  # values
                 return c._rate_with_raise(fixing_date, tenor)  # tenor is not used on LineCurve
@@ -747,11 +748,10 @@ class FloatPeriod(BasePeriod):
             # try to calculate rate purely from the fixings
             return self._rfr_rate_from_individual_fixings(curve)
         else:
-            method = {
-                "dfs": self._rate_rfr_from_df_curve,
-                "values": self._rate_rfr_from_line_curve,
-            }
-            return method[curve._base_type](curve)
+            if curve._base_type == _CurveType.dfs:
+                return self._rate_rfr_from_df_curve(curve)
+            else:  # curve._base_type == _CurveType.values:
+                return self._rate_rfr_from_line_curve(curve)
 
     def _rate_rfr_from_df_curve(self, curve: Curve) -> DualTypes:
         if isinstance(curve, NoInput):
