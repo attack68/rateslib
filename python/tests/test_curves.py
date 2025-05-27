@@ -1211,8 +1211,8 @@ def test_spline_interpolation_feature(curve):
         nodes={dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98, dt(2002, 1, 1): 0.975},
         interpolation="spline",
     )
-    assert feature.t == t
-    assert feature.spline.c == original.spline.c
+    assert feature.interpolator.spline.t == t
+    assert feature.interpolator.spline.spline.c == original.interpolator.spline.spline.c
 
     assert feature[dt(2000, 1, 1)] == original[dt(2000, 1, 1)]
     assert feature[dt(1999, 1, 1)] == original[dt(1999, 1, 1)]
@@ -2730,8 +2730,8 @@ class TestCurveSpline:
             dt(2001, 1 ,1), dt(2001, 6, 1),
             dt(2002, 1, 1), dt(2002, 1, 1), dt(2002, 1, 1), dt(2002, 1, 1),
         ]
-        a = _CurveSpline(t=t, c=c, endpoints=endpoints)
-        b = _CurveSpline(t=t, c=c, endpoints=endpoints)
+        a = _CurveSpline(t=t, endpoints=endpoints)
+        b = _CurveSpline(t=t, endpoints=endpoints)
 
         assert a == b
 

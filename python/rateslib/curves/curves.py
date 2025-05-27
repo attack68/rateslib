@@ -141,7 +141,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     **Spline Interpolation**
 
     Global interpolation in the form of a **log-cubic** spline is also configurable
-    with the parameters ``t``, ``c`` and ``endpoints``. Setting an ``interpolation`` of *"spline"*
+    with the parameters ``t``, and ``endpoints``. Setting an ``interpolation`` of *"spline"*
     is syntactic sugar for automatically determining the most obvious
     knot sequence ``t`` to use all specified *node dates*. See
     :ref:`splines<splines-doc>` for instruction of knot sequence calibration.
@@ -193,12 +193,6 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
        plt.close()
     """  # noqa: E501
 
-    _op_exp: Callable[[DualTypes], DualTypes] = staticmethod(
-        dual_exp
-    )  # Curve is DF based: log-cubic spline is exp'ed
-    _op_log: Callable[[DualTypes], DualTypes] = staticmethod(
-        dual_log
-    )  # Curve is DF based: spline is applied over log
     _ini_solve: int = 1  # Curve is assumed to have initial DF node at 1.0 as constraint
     _base_type = _CurveType.dfs
 
@@ -304,8 +298,10 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                     f"{self.interpolator.spline.t[-1].strftime('%Y-%m-%d')}",
                     UserWarning,
                 )
-            # self.spline cannot be None because self.t is given and it has been calibrated
-            val = self._op_exp(self.interpolator.spline.spline.ppev_single(date_posix))  # type: ignore[union-attr]
+            if self._base_type == _CurveType.dfs:
+                val = dual_exp(self.interpolator.spline.spline.ppev_single(date_posix))
+            else: #  self._base_type == _CurveType.values:
+                val = self.interpolator.spline.spline.ppev_single(date_posix)
 
         return self._cached_value(date, val)
 
@@ -1365,7 +1361,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         Uses the ``spline_endpoints`` attribute on the class to determine the solving
         method.
         """
-        self.interpolator.spline._csolve(self._base_type, self.nodes, self._ad)
+        self.interpolator._csolve(self._base_type, self.nodes, self._ad)
 
     @_new_state_post
     @_clear_cache_post
@@ -1426,8 +1422,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                     *DualArgs[1:],
                 )
         self._ad = ad
-        if not self.interpolator.spline is None:
-            self.interpolator.spline.csolve(self._base_type, self.nodes, self._ad)
+        self.interpolator._csolve(self._base_type, self.nodes, self._ad)
 
     @_new_state_post
     @_clear_cache_post
@@ -1477,7 +1472,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         if not isinstance(endpoints, NoInput):
             self.__set_endpoints__(endpoints)
 
-        self._csolve()
+        self.interpolator._csolve(self._base_type, self.nodes, self._ad)
 
     @_new_state_post
     @_clear_cache_post
@@ -1512,7 +1507,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             raise KeyError("`key` is not in *Curve* ``nodes``.")
         self.nodes[key] = value
 
-        self._csolve()
+        self.interpolator._csolve(self._base_type, self.nodes, self._ad)
 
     # Solver interaction
 
@@ -1621,10 +1616,6 @@ class LineCurve(Curve):
         The knot locations for the B-spline cubic interpolation section of the
         curve. If *None* all interpolation will be done by the method specified in
         ``interpolation``.
-    c : list[float], optional
-        The B-spline coefficients used to define the log-cubic spline. If not given,
-        which is the expected case, uses :meth:`csolve` to calculate these
-        automatically.
     endpoints : str or list, optional
         The left and right endpoint constraint for the spline solution. Valid values are
         in {"natural", "not_a_knot"}. If a list, supply the left endpoint then the
@@ -1683,7 +1674,7 @@ class LineCurve(Curve):
     **Spline Interpolation**
 
     Global interpolation in the form of a **cubic** spline is also configurable
-    with the parameters ``t``, ``c`` and ``endpoints``. Setting an ``interpolation`` of *"spline"*
+    with the parameters ``t``, and ``endpoints``. Setting an ``interpolation`` of *"spline"*
     is syntactic sugar for automatically determining the most obvious
     knot sequence ``t`` to use all specified *node dates*. See
     :ref:`splines<splines-doc>` for instruction of knot sequence calibration.
@@ -1736,10 +1727,6 @@ class LineCurve(Curve):
 
     """  # noqa: E501
 
-    _op_exp = staticmethod(lambda x: x)  # LineCurve spline is not log based so no exponent needed
-    _op_log: Callable[[DualTypes], DualTypes] = staticmethod(
-        lambda x: x
-    )  # LineCurve spline is not log based so no log needed
     _ini_solve = 0  # No constraint placed on initial node in Solver
     _base_type = _CurveType.values
 

@@ -4,14 +4,16 @@ from enum import Enum
 from typing import NamedTuple, TYPE_CHECKING
 import json
 from pytz import UTC
+from datetime import datetime
 
 from rateslib import defaults
 from rateslib.curves.interpolation import InterpolationFunction, INTERPOLATION
 from rateslib.default import NoInput
 from rateslib.dual import dual_log, set_order_convert
+from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
-    from rateslib.typing import DualTypes_, CalTypes, Any, datetime, str_, PPSplineF64, PPSplineDual, PPSplineDual2, DualTypes
+    from rateslib.typing import DualTypes_, CalTypes, Any, datetime, str_, DualTypes
 
 
 class _CurveType(Enum):
@@ -93,7 +95,7 @@ class _CurveSpline:
         # Left side constraint
         if self.endpoints[0].lower() == "natural":
             tau_posix.insert(0, t_posix[0])
-            y.insert(0, set_order_convert(0.0, self.ad, None))
+            y.insert(0, set_order_convert(0.0, ad, None))
             left_n = 2
         elif self.endpoints[0].lower() == "not_a_knot":
             t_posix.pop(4)
@@ -106,7 +108,7 @@ class _CurveSpline:
         # Right side constraint
         if self.endpoints[1].lower() == "natural":
             tau_posix.append(self.t_posix[-1])
-            y.append(set_order_convert(0, self.ad, None))
+            y.append(set_order_convert(0, ad, None))
             right_n = 2
         elif self.endpoints[1].lower() == "not_a_knot":
             t_posix.pop(-5)
