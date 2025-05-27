@@ -5,6 +5,7 @@ import warnings
 from calendar import monthrange
 from collections.abc import Callable
 from datetime import datetime, timedelta
+from enum import Enum
 from math import comb, prod
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeAlias
 from uuid import uuid4
@@ -64,6 +65,16 @@ DualTypes: TypeAlias = (
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+
+class _CurveType(Enum):
+    """
+    Enumerable type to define the difference between discount factor based Curves and
+    values base Curves.
+    """
+
+    dfs = 0
+    values = 1
 
 
 class _CurveMeta(NamedTuple):
@@ -242,7 +253,8 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         dual_log
     )  # Curve is DF based: spline is applied over log
     _ini_solve: int = 1  # Curve is assumed to have initial DF node at 1.0 as constraint
-    _base_type: str = "dfs"
+    _base_type = _CurveType.dfs
+
     meta: _CurveMeta
 
     @_new_state_post
@@ -268,12 +280,12 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
         # Parameters for the rate/values derivation
         self.meta = _CurveMeta(
-            get_calendar(calendar),
-            _drb(defaults.convention, convention).lower(),
-            _drb(defaults.modifier, modifier).upper(),
-            index_base,
-            _drb(defaults.index_lag, index_lag),
-            _drb(None, collateral),
+            calendar=get_calendar(calendar),
+            convention=_drb(defaults.convention, convention).lower(),
+            modifier=_drb(defaults.modifier, modifier).upper(),
+            index_base=index_base,
+            index_lag=_drb(defaults.index_lag, index_lag),
+            collateral=_drb(None, collateral),
         )
 
         self.__set_nodes__(nodes)
@@ -680,7 +692,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
         dcf_ = dcf(start, end, self.meta.convention, calendar=self.meta.calendar)
         _, d, n = average_rate(start, end, self.meta.convention, 0.0, dcf_)
-        if self._base_type == "dfs":
+        if self._base_type == _CurveType.dfs:
             shifted = Curve(
                 nodes={start: 1.0, end: 1.0 / (1 + d * spread / 10000) ** n},
                 convention=self.meta.convention,
@@ -707,7 +719,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         crv.meta = crv.meta._replace(collateral=_drb(None, collateral))
 
         if not composite:
-            if self._base_type == "dfs":
+            if self._base_type == _CurveType.dfs:
                 CurveClass = Curve
                 kwargs = dict(index_base=self.meta.index_base, index_lag=self.meta.index_lag)
             else:
@@ -1873,7 +1885,7 @@ class LineCurve(Curve):
         lambda x: x
     )  # LineCurve spline is not log based so no log needed
     _ini_solve = 0  # No constraint placed on initial node in Solver
-    _base_type = "values"
+    _base_type = _CurveType.values
 
     def __init__(
         self,
@@ -2381,7 +2393,7 @@ class CompositeCurve(Curve):
         if type(self) is not MultiCsaCurve:  # for multi_csa DF curve do not check calendars
             self._check_meta_attribute("calendar")
 
-        if self._base_type == "dfs":
+        if self._base_type == _CurveType.dfs:
             self._check_meta_attribute("modifier")
             self._check_meta_attribute("convention")
             # self._check_meta_attribute("collateral")  # not used due to inconsistent labelling
@@ -2434,13 +2446,13 @@ class CompositeCurve(Curve):
         if effective < self.node_dates[0]:  # Alternative solution to PR 172.
             return None
 
-        if self._base_type == "values":
+        if self._base_type == _CurveType.values:
             _: DualTypes = 0.0
             for i in range(len(self.curves)):
                 # let regular TypeErrors be raised if curve.rate returns None
                 _ += self.curves[i].rate(effective, termination, modifier)  # type: ignore[operator]
             return _
-        elif self._base_type == "dfs":
+        else:  #  self._base_type == "dfs":
             modifier_ = _drb(self.meta.modifier, modifier)
 
             if isinstance(termination, NoInput):
@@ -2463,18 +2475,13 @@ class CompositeCurve(Curve):
             )
             _ = (df_start / df_end - 1) * 100 / d
 
-        else:
-            raise TypeError(
-                f"Base curve type is unrecognised: {self._base_type}",
-            )  # pragma: no cover
-
         return _
 
     @_validate_states
     def __getitem__(self, date: datetime) -> DualTypes:
         if defaults.curve_caching and date in self._cache:
             return self._cache[date]
-        if self._base_type == "dfs":
+        if self._base_type == _CurveType.dfs:
             # will return a composited discount factor
             if date == self.node_dates[0]:
                 # this value is 1.0, but by multiplying capture AD versus initial nodes.
@@ -2497,17 +2504,12 @@ class CompositeCurve(Curve):
             ret = 1.0 / (1 + total_rate * d) ** n
             return self._cached_value(date, ret)
 
-        elif self._base_type == "values":
+        else:  # self._base_type == _CurveType.values:
             # will return a composited rate
             _ = 0.0
             for curve in self.curves:
                 _ += curve[date]
             return self._cached_value(date, _)
-
-        else:
-            raise TypeError(
-                f"Base curve type is unrecognised: {self._base_type}",
-            )  # pragma: no cover
 
     def shift(
         self,
@@ -2941,7 +2943,7 @@ class ProxyCurve(Curve):
     the given :class:`FXForwards` instance.
     """
 
-    _base_type = "dfs"
+    _base_type = _CurveType.dfs
 
     def __init__(
         self,

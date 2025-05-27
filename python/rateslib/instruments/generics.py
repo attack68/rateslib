@@ -11,6 +11,7 @@ from rateslib import defaults
 from rateslib.calendars import dcf
 from rateslib.curves import Curve
 from rateslib.curves._parsers import _validate_curve_is_not_dict, _validate_curve_not_no_input
+from rateslib.curves.curves import _CurveType
 from rateslib.default import NoInput, _drb
 from rateslib.dual import dual_log
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
@@ -148,7 +149,7 @@ class Value(Metrics):
         if metric == "curve_value":
             return curve_0[self.effective]
         elif metric == "cc_zero_rate":
-            if curve_0._base_type != "dfs":
+            if curve_0._base_type != _CurveType.dfs:
                 raise TypeError(
                     "`curve` used with `metric`='cc_zero_rate' must be discount factor based.",
                 )
