@@ -185,7 +185,7 @@ def test_curve_equality_type_differ(curve, line_curve) -> None:
 def test_serialization(curve) -> None:
     expected = (
         '{"nodes": {"2022-03-01": 1.0, "2022-03-31": 0.99}, '
-        '"interpolation": "linear", "t": null, "c": null, "id": "v", '
+        '"interpolation": "linear", "t": null, "id": "v", '
         '"convention": "act360", "endpoints": null, "modifier": "MF", '
         '"calendar": "{\\"NamedCal\\":{\\"name\\":\\"all\\"}}", "ad": 1, '
         '"index_base": null, "index_lag": 3}'
@@ -353,8 +353,9 @@ def test_curve_equality_spline_coeffs() -> None:
             dt(2022, 7, 4),
         ],
     )
-    curve2.nodes[dt(2022, 7, 4)] = 0.96  # set a specific node without recalc spline
     assert curve2 != curve  # should detect on curve2.spline.c
+    curve2.nodes[dt(2022, 7, 4)] = 0.96  # set a specific node without recalc spline
+    assert curve2 == curve  # spline.c will be resolved on calculation to the same values
 
 
 def test_curve_interp_raises() -> None:
@@ -2721,14 +2722,20 @@ class TestIndexValue:
 
 
 class TestCurveSpline:
-
     @pytest.mark.parametrize("endpoints", [("natural", "natural"), ("not-a-knot", "natural")])
-    @pytest.mark.parametrize("c", [NoInput(0), [1.,1.,1.,1.,1.,1.]])
+    @pytest.mark.parametrize("c", [NoInput(0), [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]])
     def test_equality(self, endpoints, c):
         t = [
-            dt(2000, 1, 1), dt(2000, 1, 1), dt(2000, 1, 1), dt(2000, 1, 1),
-            dt(2001, 1 ,1), dt(2001, 6, 1),
-            dt(2002, 1, 1), dt(2002, 1, 1), dt(2002, 1, 1), dt(2002, 1, 1),
+            dt(2000, 1, 1),
+            dt(2000, 1, 1),
+            dt(2000, 1, 1),
+            dt(2000, 1, 1),
+            dt(2001, 1, 1),
+            dt(2001, 6, 1),
+            dt(2002, 1, 1),
+            dt(2002, 1, 1),
+            dt(2002, 1, 1),
+            dt(2002, 1, 1),
         ]
         a = _CurveSpline(t=t, endpoints=endpoints)
         b = _CurveSpline(t=t, endpoints=endpoints)
@@ -2738,14 +2745,28 @@ class TestCurveSpline:
     @pytest.mark.parametrize("differ", ["t", "end"])
     def test_inequality(self, differ):
         t = [
-            dt(2000, 1, 1), dt(2000, 1, 1), dt(2000, 1, 1), dt(2000, 1, 1),
-            dt(2001, 1 ,1), dt(2001, 6, 1),
-            dt(2002, 1, 1), dt(2002, 1, 1), dt(2002, 1, 1), dt(2002, 1, 1),
+            dt(2000, 1, 1),
+            dt(2000, 1, 1),
+            dt(2000, 1, 1),
+            dt(2000, 1, 1),
+            dt(2001, 1, 1),
+            dt(2001, 6, 1),
+            dt(2002, 1, 1),
+            dt(2002, 1, 1),
+            dt(2002, 1, 1),
+            dt(2002, 1, 1),
         ]
         t_diff = [
-            dt(2000, 1, 1), dt(2000, 1, 1), dt(2000, 1, 1), dt(2000, 1, 1),
-            dt(2001, 1, 1), dt(2001, 7, 1),
-            dt(2002, 1, 1), dt(2002, 1, 1), dt(2002, 1, 1), dt(2002, 1, 1),
+            dt(2000, 1, 1),
+            dt(2000, 1, 1),
+            dt(2000, 1, 1),
+            dt(2000, 1, 1),
+            dt(2001, 1, 1),
+            dt(2001, 7, 1),
+            dt(2002, 1, 1),
+            dt(2002, 1, 1),
+            dt(2002, 1, 1),
+            dt(2002, 1, 1),
         ]
         end = ("natural", "natural")
         end_diff = ("natural", "not-a-knot")

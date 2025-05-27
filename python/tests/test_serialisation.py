@@ -1,8 +1,8 @@
-import pytest
 from datetime import datetime as dt
 
+import pytest
 from rateslib.calendars import get_calendar
-from rateslib.curves.utils import _CurveMeta, _CurveSpline, _CurveInterpolator, _CurveType
+from rateslib.curves.utils import _CurveInterpolator, _CurveMeta, _CurveSpline, _CurveType
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.serialization import from_json
@@ -39,6 +39,7 @@ def test_curvespline_json_round_trip():
     json_text = obj.to_json()
     round_trip = from_json(json_text)
     assert round_trip == obj
+
 
 @pytest.mark.parametrize("local", ["linear", "spline"])
 @pytest.mark.parametrize("t", [NoInput(0), [dt(2000, 1, 1), dt(2002, 1, 1)]])

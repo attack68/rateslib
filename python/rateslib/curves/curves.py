@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import warnings
 from calendar import monthrange
-from collections.abc import Callable
 from datetime import datetime, timedelta
 from math import comb, prod
 from typing import TYPE_CHECKING, Any, TypeAlias
@@ -17,7 +16,7 @@ from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
 from rateslib.calendars.rs import get_calendar
 from rateslib.curves.interpolation import InterpolationFunction
-from rateslib.curves.utils import _CurveType, _CurveMeta, _CurveInterpolator
+from rateslib.curves.utils import _CurveInterpolator, _CurveMeta, _CurveType
 from rateslib.default import (
     NoInput,
     PlotOutput,
@@ -29,7 +28,6 @@ from rateslib.dual import (
     Dual2,
     Variable,
     dual_exp,
-    dual_log,
     set_order_convert,
 )
 from rateslib.dual.utils import _dual_float, _get_order_of
@@ -43,14 +41,12 @@ from rateslib.mutability import (
 )
 from rateslib.rs import Modifier
 from rateslib.rs import from_json as from_json_rs
-from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
     from rateslib.typing import (
         Arr1dF64,
         Arr1dObj,
         CalInput,
-        CalTypes,
         CurveOption_,
         FXForwards,
         Number,
@@ -299,9 +295,9 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                     UserWarning,
                 )
             if self._base_type == _CurveType.dfs:
-                val = dual_exp(self.interpolator.spline.spline.ppev_single(date_posix))
-            else: #  self._base_type == _CurveType.values:
-                val = self.interpolator.spline.spline.ppev_single(date_posix)
+                val = dual_exp(self.interpolator.spline.spline.ppev_single(date_posix))  # type: ignore[union-attr]
+            else:  #  self._base_type == _CurveType.values:
+                val = self.interpolator.spline.spline.ppev_single(date_posix)   # type: ignore[union-attr]
 
         return self._cached_value(date, val)
 
@@ -945,8 +941,10 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
         days = (tenor - self.node_dates[0]).days
         new_nodes = self._roll_nodes(tenor, days)
-        if not self.interpolator.spline is None:
-            new_t: list[datetime] | NoInput = [_ + timedelta(days=days) for _ in self.interpolator.spline.t]
+        if self.interpolator.spline is not None:
+            new_t: list[datetime] | NoInput = [
+                _ + timedelta(days=days) for _ in self.interpolator.spline.t
+            ]
             new_endpoints: tuple[str, str] | NoInput = self.interpolator.spline.endpoints
         else:
             new_t = NoInput(0)
@@ -1429,8 +1427,6 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     def update(
         self,
         nodes: dict[datetime, DualTypes] | NoInput = NoInput(0),
-        interpolation: str | InterpolationFunction | NoInput = NoInput(0),
-        endpoints: str | tuple[str, str] | NoInput = NoInput(0),
     ) -> None:
         """
         Update a curve with new, manually input values.
@@ -1442,10 +1438,6 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         ----------
         nodes: dict[datetime, DualTypes], optional
             New nodes to assign to the curve.
-        interpolation: str or Callable, optional
-            Interpolation method to use.
-        endpoints: str or tuple[str, str], optional
-            Endpoint constraints to apply to spline interpolation.
 
         Returns
         -------
@@ -1465,12 +1457,6 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         """
         if not isinstance(nodes, NoInput):
             self.__set_nodes__(nodes)
-
-        if not isinstance(interpolation, NoInput):
-            self.__set_interpolation__(interpolation)
-
-        if not isinstance(endpoints, NoInput):
-            self.__set_endpoints__(endpoints)
 
         self.interpolator._csolve(self._base_type, self.nodes, self._ad)
 
@@ -1572,7 +1558,9 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             "t": t,
             "id": self.id,
             "convention": self.meta.convention,
-            "endpoints": None if self.interpolator.spline is None else self.interpolator.spline.endpoints,
+            "endpoints": None
+            if self.interpolator.spline is None
+            else self.interpolator.spline.endpoints,
             "modifier": self.meta.modifier,
             "calendar": self.meta.calendar.to_json(),
             "ad": self.ad,

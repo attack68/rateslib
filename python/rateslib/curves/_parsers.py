@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, TypeVar
 
 from rateslib import defaults
 from rateslib.curves import MultiCsaCurve, ProxyCurve
-from rateslib.curves.curves import _CurveType
+from rateslib.curves.utils import _CurveType
 from rateslib.default import NoInput
 
 if TYPE_CHECKING:

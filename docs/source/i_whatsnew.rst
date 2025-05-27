@@ -146,6 +146,10 @@ Some themes for this release involved:
          automatically to maintain consistency between supplied node values and solved spline
          coefficients.
          (`859 <https://github.com/attack68/rateslib/pull/859>`_)
+       - :red:`Minor Breaking Change!` The arguments ``interpolation`` and ``endpoints`` are
+         removed from the :meth:`Curve.update() <rateslib.curves.Curve.update>` method to
+         avoid unnecessarily complication mutations.
+         (`859 <https://github.com/attack68/rateslib/pull/859>`_)
    * - **Automatic Differentiation & Algorithms**
      - - Operator overloads added to allow dual number exponents, i.e. :math:`z^p`, where *z*,
          *p* are dual number types. This facilitates AD for the SABR function as well as other

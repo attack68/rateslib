@@ -1,19 +1,21 @@
 from __future__ import annotations
 
-from enum import Enum
-from typing import NamedTuple, TYPE_CHECKING
 import json
-from pytz import UTC
 from datetime import datetime
+from enum import Enum
+from typing import TYPE_CHECKING, NamedTuple
+
+from pytz import UTC
 
 from rateslib import defaults
-from rateslib.curves.interpolation import InterpolationFunction, INTERPOLATION
+from rateslib.curves.interpolation import INTERPOLATION, InterpolationFunction
 from rateslib.default import NoInput
 from rateslib.dual import dual_log, set_order_convert
+from rateslib.dual.utils import _to_number
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
-    from rateslib.typing import DualTypes_, CalTypes, Any, str_, DualTypes
+    from rateslib.typing import Any, CalTypes, DualTypes, DualTypes_, str_
 
 
 class _CurveType(Enum):
@@ -90,7 +92,7 @@ class _CurveSpline:
             y = [dual_log(v) for k, v in nodes.items() if k >= self.t[0]]
         else:
             # use values directly
-            y = [v for k, v in nodes.items() if k >= self.t[0]]
+            y = [_to_number(v) for k, v in nodes.items() if k >= self.t[0]]
 
         # Left side constraint
         if self.endpoints[0].lower() == "natural":
@@ -153,14 +155,10 @@ class _CurveSpline:
         if not isinstance(other, _CurveSpline):
             return False
         else:
-            return all(iter([
-                self.t == other.t,
-                self.endpoints == other.endpoints
-            ]))
+            return all(iter([self.t == other.t, self.endpoints == other.endpoints]))
 
 
 class _CurveInterpolator:
-
     local_name: str
     local_func: InterpolationFunction
     convention: str
@@ -184,7 +182,7 @@ class _CurveInterpolator:
 
         self.convention = convention
         if isinstance(local, NoInput):
-           local = defaults.interpolation[curve_type.name]
+            local = defaults.interpolation[curve_type.name]
 
         if isinstance(local, str):
             self.local_name = local.lower()
@@ -228,15 +226,14 @@ class _CurveInterpolator:
         self.spline._csolve(curve_type, nodes, ad)
 
     def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, _CurveInterpolator):
-            return False
-        elif self.local_name == "user_defined_callable" and self.local_func != other.local_func:
+        if (
+            not isinstance(other, _CurveInterpolator)
+            or self.local_name == "user_defined_callable"
+            and self.local_func != other.local_func
+        ):
             return False
 
-        return all(iter([
-            self.local_name == other.local_name,
-            self.spline == other.spline
-        ]))
+        return all(iter([self.local_name == other.local_name, self.spline == other.spline]))
 
     def to_json(self) -> str:
         from rateslib.serialization.utils import _obj_to_json
@@ -259,17 +256,17 @@ class _CurveInterpolator:
         spl = from_json(loaded_json["spline"])
 
         if loaded_json["local"] == "spline":
-            t=NoInput(0)
-            node_dates=spl.t[3:-3]
+            t = NoInput(0)
+            node_dates = spl.t[3:-3]
         else:
-            t=NoInput(0) if spl is None else spl.t
-            node_dates=NoInput(0)
+            t = NoInput(0) if spl is None else spl.t
+            node_dates = NoInput(0)
 
         return _CurveInterpolator(
             local=loaded_json["local"],
             t=t,
-            endpoints=NoInput(0) if spl is None else spl.endpoints,
+            endpoints=NoInput(0) if spl is None else spl.endpoints,  # type: ignore[arg-type]
             node_dates=node_dates,
             convention=loaded_json["convention"],
-            curve_type=NoInput(0),
+            curve_type=NoInput(0),  # type: ignore[arg-type]
         )
