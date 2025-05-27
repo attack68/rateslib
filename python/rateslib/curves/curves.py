@@ -116,6 +116,29 @@ class _CurveMeta(NamedTuple):
         )
 
 
+class _CurveSpline:
+    t: list[datetime]
+    t_posix: list[float]
+    spline: PPSplineF64 | PPSplineDual | PPSplineDual2 | None
+    endpoints: tuple[str, str]
+
+    def __init__(
+        self, t: list[datetime], c: list[float] | NoInput, endpoints: tuple[str, str]
+    ) -> None:
+        self.t = t
+        self.t_posix = [_.replace(tzinfo=UTC).timestamp() for _ in self.t]
+        self.endpoints = endpoints
+
+        if not isinstance(c, NoInput):
+            self.spline = PPSplineF64(k=4, t=self.t_posix, c=c)
+        else:
+            self.spline = None  # will be set in later in csolve
+            if len(self.t) < 10 and "not_a_knot" in self.endpoints:
+                raise ValueError(
+                    "`endpoints` cannot be 'not_a_knot' with only 1 interior breakpoint",
+                )
+
+
 class Curve(_WithState, _WithCache[datetime, DualTypes]):
     """
     Curve based on DF parametrisation at given node dates with interpolation.
@@ -308,9 +331,13 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                 raise ValueError(
                     "`endpoints` cannot be 'not_a_knot' with only 1 interior breakpoint",
                 )
+            self._spline_interpolator: _CurveSpline | None = _CurveSpline(
+                t=self.t, c=c, endpoints=self.spline_endpoints
+            )
         else:
             self.t_posix = None
             self.spline = None
+            self._spline_interpolator = None
 
         self._set_ad_order(order=ad)  # will also clear and initialise the cache
 
@@ -1466,13 +1493,13 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             return None
 
         # attributes relating to splines will then exist
-        t_posix = self.t_posix.copy()  # type: ignore[union-attr]
+        t_posix = self._spline_interpolator.t_posix.copy()  # type: ignore[union-attr]
         tau_posix = [k.replace(tzinfo=UTC).timestamp() for k in self.nodes if k >= self.t[0]]
         y = [self._op_log(v) for k, v in self.nodes.items() if k >= self.t[0]]
 
         # Left side constraint
         if self.spline_endpoints[0].lower() == "natural":
-            tau_posix.insert(0, self.t_posix[0])  # type: ignore[index]
+            tau_posix.insert(0, t_posix[0])
             y.insert(0, set_order_convert(0.0, self.ad, None))
             left_n = 2
         elif self.spline_endpoints[0].lower() == "not_a_knot":
