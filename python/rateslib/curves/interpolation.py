@@ -100,6 +100,14 @@ def _linear_index(date: datetime, curve: Curve) -> DualTypes:
     return (1 / y_1 + (1 / y_2 - 1 / y_1) * (x - x_1) / (x_2 - x_1)) ** -1.0
 
 
+def _runtime_error(date: datetime, curve: Curve) -> DualTypes:
+    """Spline interpolation is performed by a PPSpline over the whole nodes domain."""
+    raise RuntimeError(
+        "An `interpolation` mode of 'spline' should never call this function.\n"
+        "The configured knot sequence `t` for the PPSpline should cover the entire `nodes` domain."
+    )
+
+
 INTERPOLATION: dict[str, InterpolationFunction] = {
     "linear": _linear,
     "linear_bus252": _linear_bus,
@@ -109,6 +117,7 @@ INTERPOLATION: dict[str, InterpolationFunction] = {
     "linear_index": _linear_index,
     "flat_forward": _flat_forward,
     "flat_backward": _flat_backward,
+    "spline": _runtime_error,
 }
 
 

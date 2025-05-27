@@ -13,7 +13,7 @@ from rateslib.dual import dual_log, set_order_convert
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
-    from rateslib.typing import DualTypes_, CalTypes, Any, datetime, str_, DualTypes
+    from rateslib.typing import DualTypes_, CalTypes, Any, str_, DualTypes
 
 
 class _CurveType(Enum):
@@ -34,7 +34,7 @@ class _CurveMeta(NamedTuple):
     index_lag: int
     collateral: str | None
 
-    def _to_json(self) -> str:
+    def to_json(self) -> str:
         from rateslib.serialization.utils import _obj_to_json
 
         obj = dict(
@@ -128,7 +128,7 @@ class _CurveSpline:
 
         self.spline.csolve(tau_posix, y, left_n, right_n, False)  # type: ignore[attr-defined]
 
-    def _to_json(self) -> str:
+    def to_json(self) -> str:
         obj = dict(
             PyNative=dict(
                 _CurveSpline=dict(
@@ -145,7 +145,6 @@ class _CurveSpline:
             t=[datetime.strptime(_, "%Y-%m-%d") for _ in loaded_json["t"]],
             endpoints=tuple(loaded_json["endpoints"]),
         )
-
 
     def __eq__(self, other: Any) -> bool:
         """CurveSplines are considered equal if their knot sequence and endpoints are equivalent.
@@ -164,6 +163,7 @@ class _CurveInterpolator:
 
     local_name: str
     local_func: InterpolationFunction
+    convention: str
     spline: _CurveSpline | None
 
     def __init__(
@@ -172,7 +172,7 @@ class _CurveInterpolator:
         t: list[datetime] | NoInput,
         endpoints: tuple[str, str],
         node_dates: list[datetime],
-        meta: _CurveMeta,
+        convention: str,
         curve_type: _CurveType,
     ) -> None:
         if not isinstance(t, NoInput) and local == "spline":
@@ -182,6 +182,7 @@ class _CurveInterpolator:
                 f"It should not be specified directly. Got: {t}"
             )
 
+        self.convention = convention
         if isinstance(local, NoInput):
            local = defaults.interpolation[curve_type.name]
 
@@ -194,8 +195,9 @@ class _CurveInterpolator:
                     + node_dates
                     + [node_dates[-1], node_dates[-1], node_dates[-1]]
                 )
-            elif self.local_name + "_" + meta.convention in INTERPOLATION:
-                self.local_func = INTERPOLATION[self.local_name + "_" + meta.convention]
+
+            if self.local_name + "_" + convention in INTERPOLATION:
+                self.local_func = INTERPOLATION[self.local_name + "_" + convention]
             else:
                 try:
                     self.local_func = INTERPOLATION[self.local_name]
@@ -224,3 +226,50 @@ class _CurveInterpolator:
         if self.spline is None:
             return None
         self.spline._csolve(curve_type, nodes, ad)
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, _CurveInterpolator):
+            return False
+        elif self.local_name == "user_defined_callable" and self.local_func != other.local_func:
+            return False
+
+        return all(iter([
+            self.local_name == other.local_name,
+            self.spline == other.spline
+        ]))
+
+    def to_json(self) -> str:
+        from rateslib.serialization.utils import _obj_to_json
+
+        obj = dict(
+            PyNative=dict(
+                _CurveInterpolator=dict(
+                    local=self.local_name,
+                    spline=_obj_to_json(self.spline),
+                    convention=self.convention,
+                )
+            )
+        )
+        return json.dumps(obj)
+
+    @classmethod
+    def _from_json(cls, loaded_json: dict[str, Any]) -> _CurveInterpolator:
+        from rateslib.serialization import from_json
+
+        spl = from_json(loaded_json["spline"])
+
+        if loaded_json["local"] == "spline":
+            t=NoInput(0)
+            node_dates=spl.t[3:-3]
+        else:
+            t=NoInput(0) if spl is None else spl.t
+            node_dates=NoInput(0)
+
+        return _CurveInterpolator(
+            local=loaded_json["local"],
+            t=t,
+            endpoints=NoInput(0) if spl is None else spl.endpoints,
+            node_dates=node_dates,
+            convention=loaded_json["convention"],
+            curve_type=NoInput(0),
+        )

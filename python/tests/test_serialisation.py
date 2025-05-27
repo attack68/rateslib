@@ -2,7 +2,7 @@ import pytest
 from datetime import datetime as dt
 
 from rateslib.calendars import get_calendar
-from rateslib.curves.utils import _CurveMeta, _CurveSpline
+from rateslib.curves.utils import _CurveMeta, _CurveSpline, _CurveInterpolator, _CurveType
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.serialization import from_json
@@ -29,14 +29,34 @@ def test_curvemeta_json_round_trip(calendar, index_base, collateral):
         index_lag=1,
         collateral=collateral,
     )
-    json_text = obj._to_json()
+    json_text = obj.to_json()
     round_trip = from_json(json_text)
     assert round_trip == obj
 
 
 def test_curvespline_json_round_trip():
     obj = _CurveSpline(t=[dt(2000, 1, 1), dt(2002, 1, 1)], endpoints=("natural", "natural"))
-    json_text = obj._to_json()
+    json_text = obj.to_json()
+    round_trip = from_json(json_text)
+    assert round_trip == obj
+
+@pytest.mark.parametrize("local", ["linear", "spline"])
+@pytest.mark.parametrize("t", [NoInput(0), [dt(2000, 1, 1), dt(2002, 1, 1)]])
+def test_curveinterpolator_json_round_trip(local, t):
+    if not isinstance(t, NoInput) and local == "spline":
+        with pytest.raises(ValueError, match="When defining 'spline' interpola"):
+            _CurveInterpolator(local, t, None, None, None, None)
+        return None
+
+    obj = _CurveInterpolator(
+        local=local,
+        t=t,
+        endpoints=("natural", "natural"),
+        node_dates=[dt(2000, 1, 1), dt(2002, 1, 1)],
+        convention="act365f",
+        curve_type=_CurveType.dfs,
+    )
+    json_text = obj.to_json()
     round_trip = from_json(json_text)
     assert round_trip == obj
 

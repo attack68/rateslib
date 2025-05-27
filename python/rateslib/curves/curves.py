@@ -236,7 +236,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             t=t,
             endpoints=self.__set_endpoints__(_drb(defaults.endpoints, endpoints)),
             node_dates=self.node_dates,
-            meta=self.meta,
+            convention=self.meta.convention,
             curve_type=self._base_type,
         )
 
