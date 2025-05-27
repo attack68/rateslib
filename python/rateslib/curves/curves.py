@@ -138,19 +138,20 @@ class _CurveSpline:
                     "`endpoints` cannot be 'not_a_knot' with only 1 interior breakpoint",
                 )
 
-
-class _CurveSpline:
-
-    t: list[datetime]
-    t_posix: list[float]
-    endpoints
+    def __eq__(self, other):
+        if not isinstance(other, _CurveSpline):
+            return False
+        else:
+            return all(iter([
+                self.t == other.t, self.spline == other.spline, self.endpoints == other.endpoints
+            ]))
 
 
 class _CurveInterpolator:
 
     local_name: str
     local_func: InterpolationFunction
-    spline: _CurveSpline
+    spline: _CurveSpline | None
 
     def __init__(
         self,
@@ -162,27 +163,25 @@ class _CurveInterpolator:
         meta: _CurveMeta,
         curve_type: _CurveType,
     ) -> None:
-        self.t = t
-        self.endpoints = endpoints
-        self.c = c
+        if not isinstance(t, NoInput) and local == "spline":
+            raise ValueError(
+                "When defining 'spline' interpolation, the argument `t` will be "
+                "automatically generated.\n"
+                f"It should not be specified directly. Got: {t}"
+            )
 
         if isinstance(local, NoInput):
-           self.local_name  = defaults.interpolation[curve_type]
-        elif isinstance(local, str):
+           local = defaults.interpolation[curve_type.name]
+
+        if isinstance(local, str):
             self.local_name = local.lower()
             if self.local_name == "spline":
-                if isinstance(t, NoInput):
-                    self.t = (
-                        [node_dates[0], node_dates[0], node_dates[0]]
-                        + node_dates
-                        + [node_dates[-1], node_dates[-1], node_dates[-1]]
-                    )
-                else:
-                    raise ValueError(
-                        "When defining 'spline' interpolation, the argument `t` will be "
-                        "automatically generated.\n"
-                        f"It should not be specified directly. Got: {t}"
-                    )
+                # then refactor t
+                t = (
+                    [node_dates[0], node_dates[0], node_dates[0]]
+                    + node_dates
+                    + [node_dates[-1], node_dates[-1], node_dates[-1]]
+                )
             elif self.local_name + "_" + meta.convention in INTERPOLATION:
                 self.local_func = INTERPOLATION[self.local_name + "_" + meta.convention]
             else:
@@ -194,25 +193,19 @@ class _CurveInterpolator:
                         f"Consult the documentation for available methods."
                     )
         else:
-            self.local = "user_defined_callable"
+            self.local_name = "user_defined_callable"
             self.local_func = local
 
-        if not isinstance(self.t, NoInput):
-            self.t_posix: list[float] | None = [_.replace(tzinfo=UTC).timestamp() for _ in self.t]
-            if not isinstance(c, NoInput):
-                self.spline: PPSplineF64 | PPSplineDual | PPSplineDual2 | None = PPSplineF64(
-                    4, self.t_posix, c
-                )
-            else:
-                self.spline = None  # will be set in csolve if self.t is present
-            if len(self.t) < 10 and "not_a_knot" in self.spline_endpoints:
-                raise ValueError(
-                    "`endpoints` cannot be 'not_a_knot' with only 1 interior breakpoint",
-                )
-        else:
-            self.t_posix = None
+        if isinstance(t, NoInput):
             self.spline = None
+        else:
+            self.spline = _CurveSpline(t, c, endpoints)
 
+    @property
+    def local(self) -> str | InterpolationFunction:
+        if self.local_name == "user_defined_callable":
+            return self.local_func
+        return self.local_name
 
 
 class Curve(_WithState, _WithCache[datetime, DualTypes]):
@@ -446,20 +439,20 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         if date < self.node_dates[0]:
             return 0.0
 
-        if isinstance(self.t, NoInput) or date < self.t[0]:
-            val = self._interpolation(date, self)
+        if self.interpolator.spline is None or date < self.interpolator.spline.t[0]:
+            val = self.interpolator.local_func(date, self)
         else:
             date_posix = date.replace(tzinfo=UTC).timestamp()
-            if date > self.t[-1]:
+            if date > self.interpolator.spline.t[-1]:
                 warnings.warn(
                     "Evaluating points on a curve beyond the endpoint of the basic "
                     "spline interval is undefined.\n"
                     f"date: {date.strftime('%Y-%m-%d')}, spline end: "
-                    f"{self.t[-1].strftime('%Y-%m-%d')}",
+                    f"{self.interpolator.spline.t[-1].strftime('%Y-%m-%d')}",
                     UserWarning,
                 )
             # self.spline cannot be None because self.t is given and it has been calibrated
-            val = self._op_exp(self.spline.ppev_single(date_posix))  # type: ignore[union-attr]
+            val = self._op_exp(self.interpolator.spline.spline.ppev_single(date_posix))  # type: ignore[union-attr]
 
         return self._cached_value(date, val)
 
@@ -782,14 +775,15 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                 CurveClass = LineCurve
                 kwargs = {}
 
+            spl = self.interpolator.spline
             return CurveClass(
                 nodes={k: crv[k] for k in self.nodes},
                 convention=self.meta.convention,
                 calendar=self.meta.calendar,
-                interpolation=self.interpolation,
-                t=self.t,
+                interpolation=self.interpolator.local,
+                t=NoInput(0) if spl is None else spl.t,
                 c=NoInput(0),  # call csolve on init
-                endpoints=self.spline_endpoints,
+                endpoints=NoInput(0) if spl is None else spl.endpoints,
                 modifier=self.meta.modifier,
                 ad=crv.ad,
                 **kwargs,  # type: ignore[arg-type]
@@ -948,10 +942,12 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         new_nodes: dict[datetime, DualTypes] = self._translate_nodes(start)
 
         # re-organise the t-knot sequence
-        if isinstance(self.t, NoInput):
+        if self.interpolator.spline is None:
             new_t: list[datetime] | NoInput = NoInput(0)
+            new_endpoints = NoInput(0)
         else:
-            new_t = self.t.copy()
+            new_t = self.interpolator.spline.t.copy()
+            new_endpoints = self.interpolator.spline.endpoints
 
             if start <= new_t[0]:
                 pass  # do nothing to t
@@ -966,10 +962,10 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
         new_curve = type(self)(
             nodes=new_nodes,
-            interpolation=self.interpolation,
+            interpolation=self.interpolator.local,
             t=new_t,
             c=NoInput(0),
-            endpoints=self.spline_endpoints,
+            endpoints=new_endpoints,
             modifier=self.meta.modifier,
             calendar=self.meta.calendar,
             convention=self.meta.convention,
@@ -1100,17 +1096,19 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
         days = (tenor - self.node_dates[0]).days
         new_nodes = self._roll_nodes(tenor, days)
-        if not isinstance(self.t, NoInput):
-            new_t: list[datetime] | NoInput = [_ + timedelta(days=days) for _ in self.t]
+        if not self.interpolator.spline is None:
+            new_t: list[datetime] | NoInput = [_ + timedelta(days=days) for _ in self.interpolator.spline.t]
+            new_endpoints = self.interpolator.spline.endpoints
         else:
             new_t = NoInput(0)
+            new_endpoints = NoInput(0)
 
         new_curve = type(self)(
             nodes=new_nodes,
-            interpolation=self.interpolation,
+            interpolation=self.interpolator.local,
             t=new_t,
             c=NoInput(0),
-            endpoints=self.spline_endpoints,
+            endpoints=new_endpoints,
             modifier=self.meta.modifier,
             calendar=self.meta.calendar,
             convention=self.meta.convention,
@@ -1518,49 +1516,50 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
     # All calling methods will clear the cache and/or set new state after `_csolve`
     def _csolve(self) -> None:
-        if isinstance(self.t, NoInput) or self._c_input:
+        if self.interpolator.spline is None: # or self.c_input:
             return None
+        spl = self.interpolator.spline
 
         # attributes relating to splines will then exist
-        t_posix = self._spline_interpolator.t_posix.copy()  # type: ignore[union-attr]
-        tau_posix = [k.replace(tzinfo=UTC).timestamp() for k in self.nodes if k >= self.t[0]]
-        y = [self._op_log(v) for k, v in self.nodes.items() if k >= self.t[0]]
+        t_posix = spl.t_posix.copy()  # type: ignore[union-attr]
+        tau_posix = [k.replace(tzinfo=UTC).timestamp() for k in self.nodes if k >= spl.t[0]]
+        y = [self._op_log(v) for k, v in self.nodes.items() if k >= spl.t[0]]
 
         # Left side constraint
-        if self.spline_endpoints[0].lower() == "natural":
+        if spl.endpoints[0].lower() == "natural":
             tau_posix.insert(0, t_posix[0])
             y.insert(0, set_order_convert(0.0, self.ad, None))
             left_n = 2
-        elif self.spline_endpoints[0].lower() == "not_a_knot":
+        elif spl.endpoints[0].lower() == "not_a_knot":
             t_posix.pop(4)
             left_n = 0
         else:
             raise NotImplementedError(
-                f"Endpoint method '{self.spline_endpoints[0]}' not implemented.",
+                f"Endpoint method '{spl.endpoints[0]}' not implemented.",
             )
 
         # Right side constraint
-        if self.spline_endpoints[1].lower() == "natural":
-            tau_posix.append(self.t_posix[-1])  # type: ignore[index]
+        if spl.endpoints[1].lower() == "natural":
+            tau_posix.append(spl.t_posix[-1])  # type: ignore[index]
             y.append(set_order_convert(0, self.ad, None))
             right_n = 2
-        elif self.spline_endpoints[1].lower() == "not_a_knot":
+        elif spl.endpoints[1].lower() == "not_a_knot":
             t_posix.pop(-5)
             right_n = 0
         else:
             raise NotImplementedError(
-                f"Endpoint method '{self.spline_endpoints[0]}' not implemented.",
+                f"Endpoint method '{spl.endpoints[0]}' not implemented.",
             )
 
         # Get the Spline class by data types
         if self.ad == 0:
-            self.spline = PPSplineF64(4, t_posix, None)
+            spl.spline = PPSplineF64(4, t_posix, None)
         elif self.ad == 1:
-            self.spline = PPSplineDual(4, t_posix, None)
+            spl.spline = PPSplineDual(4, t_posix, None)
         else:
-            self.spline = PPSplineDual2(4, t_posix, None)
+            spl.spline = PPSplineDual2(4, t_posix, None)
 
-        self.spline.csolve(tau_posix, y, left_n, right_n, False)  # type: ignore[attr-defined]
+        spl.spline.csolve(tau_posix, y, left_n, right_n, False)  # type: ignore[attr-defined]
 
     @_new_state_post
     @_clear_cache_post
@@ -1755,29 +1754,27 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         -------
         str
         """
-        if self.interpolation == "user_defined_callable":
+        if self.interpolator.local_name == "user_defined_callable":
             raise NotImplementedError(
                 "Cannot serialize objects with user defined interpolation callables."
             )
 
-        if isinstance(self.t, NoInput):
+        c_ = None
+        if self.interpolator.spline is None:
             t = None
         else:
-            t = [t.strftime("%Y-%m-%d") for t in self.t]
-
-        if self._c_input and self.spline is not None:
-            c_ = self.spline.c
-        else:
-            c_ = None
+            t = [t.strftime("%Y-%m-%d") for t in self.interpolator.spline.t]
+            if self._c_input:
+                c_ = self.interpolator.spline.spline.c
 
         container: dict[str, Any] = {
             "nodes": {dt.strftime("%Y-%m-%d"): v.real for dt, v in self.nodes.items()},
-            "interpolation": self.interpolation if isinstance(self.interpolation, str) else None,
+            "interpolation": self.interpolator.local,
             "t": t,
             "c": c_,
             "id": self.id,
             "convention": self.meta.convention,
-            "endpoints": self.spline_endpoints,
+            "endpoints": None if self.interpolator.spline is None else self.interpolator.spline.endpoints,
             "modifier": self.meta.modifier,
             "calendar": self.meta.calendar.to_json(),
             "ad": self.ad,

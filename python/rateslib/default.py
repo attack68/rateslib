@@ -187,9 +187,8 @@ class Defaults:
         # Curves
 
         self.interpolation = {
-            "Curve": "log_linear",
-            "LineCurve": "linear",
-            "IndexCurve": "linear_index",
+            "dfs": "log_linear",
+            "values": "linear",
         }
         self.endpoints = "natural"
         # fmt: off
