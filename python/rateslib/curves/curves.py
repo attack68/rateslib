@@ -104,6 +104,58 @@ class _CurveMeta(NamedTuple):
         )
 
 
+class _CurveInterpolator:
+
+    local_name: str
+    local_func: InterpolationFunction
+    t: list[datetime] | None
+    c: list[DualTypes] | None
+    endpoints: tuple[str]
+
+    def __init__(
+        self,
+        local: str_ | InterpolationFunction,
+        curve_type: str,
+        t: list[datetime] | NoInput,
+        c: list[float] | NoInput,
+        endpoints: tuple[str, str],
+        node_dates: list[datetime],
+        curve_meta: _CurveMeta,
+    ) -> None:
+
+        if isinstance(local, NoInput):
+           self.local_name  = defaults.interpolation[curve_type]
+
+        if isinstance(local, str):
+            self.local_name = local.lower()
+            if self.local_name == "spline":
+                if isinstance(t, NoInput):
+                    self.t = (
+                        [node_dates[0], node_dates[0], node_dates[0]]
+                        + node_dates
+                        + [node_dates[-1], node_dates[-1], node_dates[-1]]
+                    )
+                else:
+                    raise ValueError(
+                        "When defining 'spline' interpolation, the argument `t` will be "
+                        "automatically generated.\n"
+                        f"It should not be specified directly. Got: {t}"
+                    )
+            elif self.interpolation + "_" + self.meta.convention in INTERPOLATION:
+                self._interpolation = INTERPOLATION[self.interpolation + "_" + self.meta.convention]
+            else:
+                try:
+                    self._interpolation = INTERPOLATION[self.interpolation]
+                except KeyError:
+                    raise ValueError(
+                        f"Curve interpolation: '{self.interpolation}' not available.\n"
+                        f"Consult the documentation for available methods."
+                    )
+        else:
+            self.interpolation = "user_defined_callable"
+            self._interpolation = interpolation
+
+
 class Curve(_WithState, _WithCache[datetime, DualTypes]):
     """
     Curve based on DF parametrisation at given node dates with interpolation.
