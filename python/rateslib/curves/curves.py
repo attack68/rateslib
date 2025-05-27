@@ -116,29 +116,36 @@ class _CurveMeta(NamedTuple):
         )
 
 
+class _CurveSpline:
+
+    t: list[datetime]
+    t_posix: list[float]
+    endpoints
+
+
 class _CurveInterpolator:
 
     local_name: str
     local_func: InterpolationFunction
-    t: list[datetime] | None
-    c: list[DualTypes] | None
-    endpoints: tuple[str]
+    spline: _CurveSpline
 
     def __init__(
         self,
         local: str_ | InterpolationFunction,
-        curve_type: str,
         t: list[datetime] | NoInput,
         c: list[float] | NoInput,
         endpoints: tuple[str, str],
         node_dates: list[datetime],
-        curve_meta: _CurveMeta,
+        meta: _CurveMeta,
+        curve_type: _CurveType,
     ) -> None:
+        self.t = t
+        self.endpoints = endpoints
+        self.c = c
 
         if isinstance(local, NoInput):
            self.local_name  = defaults.interpolation[curve_type]
-
-        if isinstance(local, str):
+        elif isinstance(local, str):
             self.local_name = local.lower()
             if self.local_name == "spline":
                 if isinstance(t, NoInput):
@@ -153,19 +160,36 @@ class _CurveInterpolator:
                         "automatically generated.\n"
                         f"It should not be specified directly. Got: {t}"
                     )
-            elif self.interpolation + "_" + self.meta.convention in INTERPOLATION:
-                self._interpolation = INTERPOLATION[self.interpolation + "_" + self.meta.convention]
+            elif self.local_name + "_" + meta.convention in INTERPOLATION:
+                self.local_func = INTERPOLATION[self.local_name + "_" + meta.convention]
             else:
                 try:
-                    self._interpolation = INTERPOLATION[self.interpolation]
+                    self.local_func = INTERPOLATION[self.local_name]
                 except KeyError:
                     raise ValueError(
-                        f"Curve interpolation: '{self.interpolation}' not available.\n"
+                        f"Curve interpolation: '{self.local_name}' not available.\n"
                         f"Consult the documentation for available methods."
                     )
         else:
-            self.interpolation = "user_defined_callable"
-            self._interpolation = interpolation
+            self.local = "user_defined_callable"
+            self.local_func = local
+
+        if not isinstance(self.t, NoInput):
+            self.t_posix: list[float] | None = [_.replace(tzinfo=UTC).timestamp() for _ in self.t]
+            if not isinstance(c, NoInput):
+                self.spline: PPSplineF64 | PPSplineDual | PPSplineDual2 | None = PPSplineF64(
+                    4, self.t_posix, c
+                )
+            else:
+                self.spline = None  # will be set in csolve if self.t is present
+            if len(self.t) < 10 and "not_a_knot" in self.spline_endpoints:
+                raise ValueError(
+                    "`endpoints` cannot be 'not_a_knot' with only 1 interior breakpoint",
+                )
+        else:
+            self.t_posix = None
+            self.spline = None
+
 
 
 class Curve(_WithState, _WithCache[datetime, DualTypes]):
@@ -308,6 +332,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     _base_type = _CurveType.dfs
 
     meta: _CurveMeta
+    interpolator: _CurveInterpolator
 
     @_new_state_post
     def __init__(  # type: ignore[no-untyped-def]
@@ -341,66 +366,22 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         )
 
         self.__set_nodes__(nodes)
-        self.t = t
-        self.__set_interpolation__(interpolation)
 
-        # Parameters for PPSpline
-        endpoints_ = _drb((defaults.endpoints, defaults.endpoints), endpoints)
-        self.__set_endpoints__(endpoints_)
-        self._c_input: bool = not isinstance(c, NoInput)
-        if not isinstance(self.t, NoInput):
-            self.t_posix: list[float] | None = [_.replace(tzinfo=UTC).timestamp() for _ in self.t]
-            if not isinstance(c, NoInput):
-                self.spline: PPSplineF64 | PPSplineDual | PPSplineDual2 | None = PPSplineF64(
-                    4, self.t_posix, c
-                )
-            else:
-                self.spline = None  # will be set in csolve if self.t is present
-            if len(self.t) < 10 and "not_a_knot" in self.spline_endpoints:
-                raise ValueError(
-                    "`endpoints` cannot be 'not_a_knot' with only 1 interior breakpoint",
-                )
-        else:
-            self.t_posix = None
-            self.spline = None
+        self.interpolator = _CurveInterpolator(
+            local=interpolation,
+            t=t,
+            c=c,
+            endpoints=self.__set_endpoints__(_drb(defaults.endpoints, endpoints)),
+            node_dates=self.node_dates,
+            meta=self.meta,
+            curve_type=self._base_type,
+        )
 
         self._set_ad_order(order=ad)  # will also clear and initialise the cache
 
     @property
     def ad(self) -> int:
         return self._ad
-
-    def __set_interpolation__(self, interpolation: str | InterpolationFunction | NoInput) -> None:
-        if isinstance(interpolation, NoInput):
-            interpolation = defaults.interpolation[type(self).__name__]
-
-        if isinstance(interpolation, str):
-            self.interpolation = interpolation.lower()
-            if self.interpolation == "spline":
-                if isinstance(self.t, NoInput) or self.t is None:
-                    self.t = (
-                        [self.node_dates[0], self.node_dates[0], self.node_dates[0]]
-                        + self.node_dates
-                        + [self.node_dates[-1], self.node_dates[-1], self.node_dates[-1]]
-                    )
-                else:
-                    raise ValueError(
-                        "When defining 'spline' interpolation the argument `t` will be implied.\n"
-                        f"It should not be specified directly. Got: {self.t}"
-                    )
-            elif self.interpolation + "_" + self.meta.convention in INTERPOLATION:
-                self._interpolation = INTERPOLATION[self.interpolation + "_" + self.meta.convention]
-            else:
-                try:
-                    self._interpolation = INTERPOLATION[self.interpolation]
-                except KeyError:
-                    raise ValueError(
-                        f"Curve interpolation: '{self.interpolation}' not available.\n"
-                        f"Consult the documentation for available methods."
-                    )
-        else:
-            self.interpolation = "user_defined_callable"
-            self._interpolation = interpolation
 
     def __set_nodes__(self, nodes: dict[datetime, DualTypes]) -> None:
         self.nodes: dict[datetime, DualTypes] = nodes  # nodes.copy()
@@ -417,11 +398,11 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                     "use: `dict(sorted(nodes.items()))`",
                 )
 
-    def __set_endpoints__(self, endpoints: str | tuple[str, str]) -> None:
+    def __set_endpoints__(self, endpoints: str | tuple[str, str]) -> tuple[str, str]:
         if isinstance(endpoints, str):
-            self.spline_endpoints = (endpoints.lower(), endpoints.lower())
+            return (endpoints.lower(), endpoints.lower())
         else:
-            self.spline_endpoints = (endpoints[0].lower(), endpoints[1].lower())
+            return (endpoints[0].lower(), endpoints[1].lower())
 
     def __eq__(self, other: Any) -> bool:
         """Test two curves are identical"""
