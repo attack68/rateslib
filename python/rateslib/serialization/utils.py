@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from enum import Enum
 from json import dumps
 from typing import TYPE_CHECKING
 
@@ -22,13 +23,13 @@ def _dualtypes_to_json(val: DualTypes) -> str:
         return dumps(val_)
 
 
-def _noinput_to_json(val: NoInput) -> str:
-    return f'{{"PyNative":{{"NoInput":{val.value}}}}}'
+def _enum_to_json(val: Enum) -> str:
+    return f'{{"PyNative":{{"{type(val).__name__}":{val.value}}}}}'
 
 
 def _obj_to_json(val: Any) -> str:
     if isinstance(val, NoInput):
-        return _noinput_to_json(val)
+        return _enum_to_json(val)
     elif isinstance(val, Dual | Dual2 | Variable):
         return _dualtypes_to_json(val)
     else:
