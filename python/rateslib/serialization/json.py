@@ -6,6 +6,7 @@ from json import dumps, loads
 from typing import TYPE_CHECKING, Any
 
 from rateslib.curves.rs import CurveRs
+from rateslib.curves import Curve
 from rateslib.curves.utils import _CurveInterpolator, _CurveMeta, _CurveSpline
 from rateslib.default import NoInput
 from rateslib.fx import FXRates
@@ -24,6 +25,7 @@ NAMES_Py: dict[str, Any] = {  # a mapping of native Python classes with a _from_
     "_CurveMeta": _CurveMeta,
     "_CurveSpline": _CurveSpline,
     "_CurveInterpolator": _CurveInterpolator,
+    "Curve": Curve,
 }
 
 
