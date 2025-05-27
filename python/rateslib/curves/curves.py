@@ -117,13 +117,14 @@ class _CurveMeta(NamedTuple):
 
 
 class _CurveSpline:
-
     t: list[datetime]
     t_posix: list[float]
     spline: PPSplineF64 | PPSplineDual | PPSplineDual2 | None
     endpoints: tuple[str, str]
 
-    def __init__(self, t: list[datetime], c: list[float] | NoInput, endpoints: tuple[str, str]) -> None:
+    def __init__(
+        self, t: list[datetime], c: list[float] | NoInput, endpoints: tuple[str, str]
+    ) -> None:
         self.t = t
         self.t_posix = [_.replace(tzinfo=UTC).timestamp() for _ in self.t]
         self.endpoints = endpoints
