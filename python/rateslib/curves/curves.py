@@ -331,11 +331,14 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                 raise ValueError(
                     "`endpoints` cannot be 'not_a_knot' with only 1 interior breakpoint",
                 )
+            self._spline_interpolator: _CurveSpline | None = _CurveSpline(
+                t=self.t, c=c, endpoints=self.spline_endpoints
+            )
         else:
             self.t_posix = None
             self.spline = None
+            self._spline_interpolator = None
 
-        self.spline_interpolator = _CurveSpline(t=self.t, c=c, endpoints=self.spline_endpoints)
         self._set_ad_order(order=ad)  # will also clear and initialise the cache
 
     @property
@@ -1490,13 +1493,13 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             return None
 
         # attributes relating to splines will then exist
-        t_posix = self.t_posix.copy()  # type: ignore[union-attr]
+        t_posix = self._spline_interpolator.t_posix.copy()  # type: ignore[union-attr]
         tau_posix = [k.replace(tzinfo=UTC).timestamp() for k in self.nodes if k >= self.t[0]]
         y = [self._op_log(v) for k, v in self.nodes.items() if k >= self.t[0]]
 
         # Left side constraint
         if self.spline_endpoints[0].lower() == "natural":
-            tau_posix.insert(0, self.t_posix[0])  # type: ignore[index]
+            tau_posix.insert(0, t_posix[0])
             y.insert(0, set_order_convert(0.0, self.ad, None))
             left_n = 2
         elif self.spline_endpoints[0].lower() == "not_a_knot":
