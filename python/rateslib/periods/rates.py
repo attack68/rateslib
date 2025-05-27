@@ -11,7 +11,7 @@ from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf, get_calendar
 from rateslib.curves import Curve, average_rate, index_left
 from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_maybe_from_curve
-from rateslib.curves.curves import _CurveType
+from rateslib.curves.utils import _CurveType
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.dual.utils import _dual_float

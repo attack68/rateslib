@@ -3,11 +3,9 @@ from __future__ import annotations
 import json
 import warnings
 from calendar import monthrange
-from collections.abc import Callable
 from datetime import datetime, timedelta
-from enum import Enum
 from math import comb, prod
-from typing import TYPE_CHECKING, Any, NamedTuple, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias
 from uuid import uuid4
 
 import numpy as np
@@ -17,7 +15,8 @@ from pytz import UTC
 from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
 from rateslib.calendars.rs import get_calendar
-from rateslib.curves.interpolation import INTERPOLATION, InterpolationFunction
+from rateslib.curves.interpolation import InterpolationFunction
+from rateslib.curves.utils import _CurveInterpolator, _CurveMeta, _CurveType
 from rateslib.default import (
     NoInput,
     PlotOutput,
@@ -29,7 +28,6 @@ from rateslib.dual import (
     Dual2,
     Variable,
     dual_exp,
-    dual_log,
     set_order_convert,
 )
 from rateslib.dual.utils import _dual_float, _get_order_of
@@ -43,14 +41,12 @@ from rateslib.mutability import (
 )
 from rateslib.rs import Modifier
 from rateslib.rs import from_json as from_json_rs
-from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
     from rateslib.typing import (
         Arr1dF64,
         Arr1dObj,
         CalInput,
-        CalTypes,
         CurveOption_,
         FXForwards,
         Number,
@@ -65,78 +61,6 @@ DualTypes: TypeAlias = (
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-
-class _CurveType(Enum):
-    """
-    Enumerable type to define the difference between discount factor based Curves and
-    values base Curves.
-    """
-
-    dfs = 0
-    values = 1
-
-
-class _CurveMeta(NamedTuple):
-    calendar: CalTypes
-    convention: str
-    modifier: str
-    index_base: DualTypes | NoInput
-    index_lag: int
-    collateral: str | None
-
-    def _to_json(self) -> str:
-        from rateslib.serialization.utils import _obj_to_json
-
-        obj = dict(
-            PyNative=dict(
-                _CurveMeta=dict(
-                    calendar=self.calendar.to_json(),
-                    convention=self.convention,
-                    modifier=self.modifier,
-                    index_base=_obj_to_json(self.index_base),
-                    index_lag=self.index_lag,
-                    collateral=self.collateral,
-                )
-            )
-        )
-        return json.dumps(obj)
-
-    @classmethod
-    def _from_json(cls, loaded_json: dict[str, Any]) -> _CurveMeta:
-        from rateslib.serialization import from_json
-
-        return _CurveMeta(
-            convention=loaded_json["convention"],
-            modifier=loaded_json["modifier"],
-            index_lag=loaded_json["index_lag"],
-            collateral=loaded_json["collateral"],
-            index_base=from_json(loaded_json["index_base"]),
-            calendar=from_json(loaded_json["calendar"]),
-        )
-
-
-class _CurveSpline:
-    t: list[datetime]
-    t_posix: list[float]
-    spline: PPSplineF64 | PPSplineDual | PPSplineDual2 | None
-    endpoints: tuple[str, str]
-
-    def __init__(
-        self, t: list[datetime], c: list[float] | NoInput, endpoints: tuple[str, str]
-    ) -> None:
-        self.t = t
-        self.t_posix = [_.replace(tzinfo=UTC).timestamp() for _ in self.t]
-        self.endpoints = endpoints
-
-        if not isinstance(c, NoInput):
-            self.spline = PPSplineF64(k=4, t=self.t_posix, c=c)
-        else:
-            self.spline = None  # will be set in later in csolve
-            if len(self.t) < 10 and "not_a_knot" in self.endpoints:
-                raise ValueError(
-                    "`endpoints` cannot be 'not_a_knot' with only 1 interior breakpoint",
-                )
 
 
 class Curve(_WithState, _WithCache[datetime, DualTypes]):
@@ -158,10 +82,6 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         The knot locations for the B-spline log-cubic interpolation section of the
         curve. If *None* all interpolation will be done by the local method specified in
         ``interpolation``.
-    c : list[float], optional
-        The B-spline coefficients used to define the log-cubic spline. If not given,
-        which is the expected case, uses :meth:`csolve` to calculate these
-        automatically.
     endpoints : 2-tuple of str, optional
         The left and then right endpoint constraint for the spline solution. Valid values are
         in {"natural", "not_a_knot"}.
@@ -217,7 +137,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     **Spline Interpolation**
 
     Global interpolation in the form of a **log-cubic** spline is also configurable
-    with the parameters ``t``, ``c`` and ``endpoints``. Setting an ``interpolation`` of *"spline"*
+    with the parameters ``t``, and ``endpoints``. Setting an ``interpolation`` of *"spline"*
     is syntactic sugar for automatically determining the most obvious
     knot sequence ``t`` to use all specified *node dates*. See
     :ref:`splines<splines-doc>` for instruction of knot sequence calibration.
@@ -269,16 +189,11 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
        plt.close()
     """  # noqa: E501
 
-    _op_exp: Callable[[DualTypes], DualTypes] = staticmethod(
-        dual_exp
-    )  # Curve is DF based: log-cubic spline is exp'ed
-    _op_log: Callable[[DualTypes], DualTypes] = staticmethod(
-        dual_log
-    )  # Curve is DF based: spline is applied over log
     _ini_solve: int = 1  # Curve is assumed to have initial DF node at 1.0 as constraint
     _base_type = _CurveType.dfs
 
     meta: _CurveMeta
+    interpolator: _CurveInterpolator
 
     @_new_state_post
     def __init__(  # type: ignore[no-untyped-def]
@@ -287,7 +202,6 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         *,
         interpolation: str | InterpolationFunction | NoInput = NoInput(0),
         t: list[datetime] | NoInput = NoInput(0),
-        c: list[float] | NoInput = NoInput(0),
         endpoints: str | tuple[str, str] | NoInput = NoInput(0),
         id: str | NoInput = NoInput(0),  # noqa: A002
         convention: str | NoInput = NoInput(0),
@@ -312,70 +226,21 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         )
 
         self.__set_nodes__(nodes)
-        self.t = t
-        self.__set_interpolation__(interpolation)
 
-        # Parameters for PPSpline
-        endpoints_ = _drb((defaults.endpoints, defaults.endpoints), endpoints)
-        self.__set_endpoints__(endpoints_)
-        self._c_input: bool = not isinstance(c, NoInput)
-        if not isinstance(self.t, NoInput):
-            self.t_posix: list[float] | None = [_.replace(tzinfo=UTC).timestamp() for _ in self.t]
-            if not isinstance(c, NoInput):
-                self.spline: PPSplineF64 | PPSplineDual | PPSplineDual2 | None = PPSplineF64(
-                    4, self.t_posix, c
-                )
-            else:
-                self.spline = None  # will be set in csolve if self.t is present
-            if len(self.t) < 10 and "not_a_knot" in self.spline_endpoints:
-                raise ValueError(
-                    "`endpoints` cannot be 'not_a_knot' with only 1 interior breakpoint",
-                )
-            self._spline_interpolator: _CurveSpline | None = _CurveSpline(
-                t=self.t, c=c, endpoints=self.spline_endpoints
-            )
-        else:
-            self.t_posix = None
-            self.spline = None
-            self._spline_interpolator = None
+        self.interpolator = _CurveInterpolator(
+            local=interpolation,
+            t=t,
+            endpoints=self.__set_endpoints__(_drb(defaults.endpoints, endpoints)),
+            node_dates=self.node_dates,
+            convention=self.meta.convention,
+            curve_type=self._base_type,
+        )
 
         self._set_ad_order(order=ad)  # will also clear and initialise the cache
 
     @property
     def ad(self) -> int:
         return self._ad
-
-    def __set_interpolation__(self, interpolation: str | InterpolationFunction | NoInput) -> None:
-        if isinstance(interpolation, NoInput):
-            interpolation = defaults.interpolation[type(self).__name__]
-
-        if isinstance(interpolation, str):
-            self.interpolation = interpolation.lower()
-            if self.interpolation == "spline":
-                if isinstance(self.t, NoInput) or self.t is None:
-                    self.t = (
-                        [self.node_dates[0], self.node_dates[0], self.node_dates[0]]
-                        + self.node_dates
-                        + [self.node_dates[-1], self.node_dates[-1], self.node_dates[-1]]
-                    )
-                else:
-                    raise ValueError(
-                        "When defining 'spline' interpolation the argument `t` will be implied.\n"
-                        f"It should not be specified directly. Got: {self.t}"
-                    )
-            elif self.interpolation + "_" + self.meta.convention in INTERPOLATION:
-                self._interpolation = INTERPOLATION[self.interpolation + "_" + self.meta.convention]
-            else:
-                try:
-                    self._interpolation = INTERPOLATION[self.interpolation]
-                except KeyError:
-                    raise ValueError(
-                        f"Curve interpolation: '{self.interpolation}' not available.\n"
-                        f"Consult the documentation for available methods."
-                    )
-        else:
-            self.interpolation = "user_defined_callable"
-            self._interpolation = interpolation
 
     def __set_nodes__(self, nodes: dict[datetime, DualTypes]) -> None:
         self.nodes: dict[datetime, DualTypes] = nodes  # nodes.copy()
@@ -392,11 +257,11 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                     "use: `dict(sorted(nodes.items()))`",
                 )
 
-    def __set_endpoints__(self, endpoints: str | tuple[str, str]) -> None:
+    def __set_endpoints__(self, endpoints: str | tuple[str, str]) -> tuple[str, str]:
         if isinstance(endpoints, str):
-            self.spline_endpoints = (endpoints.lower(), endpoints.lower())
+            return (endpoints.lower(), endpoints.lower())
         else:
-            self.spline_endpoints = (endpoints[0].lower(), endpoints[1].lower())
+            return (endpoints[0].lower(), endpoints[1].lower())
 
     def __eq__(self, other: Any) -> bool:
         """Test two curves are identical"""
@@ -417,20 +282,22 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         if date < self.node_dates[0]:
             return 0.0
 
-        if isinstance(self.t, NoInput) or date < self.t[0]:
-            val = self._interpolation(date, self)
+        if self.interpolator.spline is None or date < self.interpolator.spline.t[0]:
+            val = self.interpolator.local_func(date, self)
         else:
             date_posix = date.replace(tzinfo=UTC).timestamp()
-            if date > self.t[-1]:
+            if date > self.interpolator.spline.t[-1]:
                 warnings.warn(
                     "Evaluating points on a curve beyond the endpoint of the basic "
                     "spline interval is undefined.\n"
                     f"date: {date.strftime('%Y-%m-%d')}, spline end: "
-                    f"{self.t[-1].strftime('%Y-%m-%d')}",
+                    f"{self.interpolator.spline.t[-1].strftime('%Y-%m-%d')}",
                     UserWarning,
                 )
-            # self.spline cannot be None because self.t is given and it has been calibrated
-            val = self._op_exp(self.spline.ppev_single(date_posix))  # type: ignore[union-attr]
+            if self._base_type == _CurveType.dfs:
+                val = dual_exp(self.interpolator.spline.spline.ppev_single(date_posix))  # type: ignore[union-attr]
+            else:  #  self._base_type == _CurveType.values:
+                val = self.interpolator.spline.spline.ppev_single(date_posix)  # type: ignore[union-attr]
 
         return self._cached_value(date, val)
 
@@ -753,14 +620,15 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                 CurveClass = LineCurve
                 kwargs = {}
 
+            spl = self.interpolator.spline
             return CurveClass(
                 nodes={k: crv[k] for k in self.nodes},
                 convention=self.meta.convention,
                 calendar=self.meta.calendar,
-                interpolation=self.interpolation,
-                t=self.t,
+                interpolation=self.interpolator.local,
+                t=NoInput(0) if spl is None else spl.t,
                 c=NoInput(0),  # call csolve on init
-                endpoints=self.spline_endpoints,
+                endpoints=NoInput(0) if spl is None else spl.endpoints,
                 modifier=self.meta.modifier,
                 ad=crv.ad,
                 **kwargs,  # type: ignore[arg-type]
@@ -919,10 +787,12 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         new_nodes: dict[datetime, DualTypes] = self._translate_nodes(start)
 
         # re-organise the t-knot sequence
-        if isinstance(self.t, NoInput):
+        if self.interpolator.spline is None:
             new_t: list[datetime] | NoInput = NoInput(0)
+            new_endpoints: tuple[str, str] | NoInput = NoInput(0)
         else:
-            new_t = self.t.copy()
+            new_t = self.interpolator.spline.t.copy()
+            new_endpoints = self.interpolator.spline.endpoints
 
             if start <= new_t[0]:
                 pass  # do nothing to t
@@ -937,10 +807,10 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
         new_curve = type(self)(
             nodes=new_nodes,
-            interpolation=self.interpolation,
+            interpolation=self.interpolator.local,
             t=new_t,
             c=NoInput(0),
-            endpoints=self.spline_endpoints,
+            endpoints=new_endpoints,
             modifier=self.meta.modifier,
             calendar=self.meta.calendar,
             convention=self.meta.convention,
@@ -1071,17 +941,21 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
         days = (tenor - self.node_dates[0]).days
         new_nodes = self._roll_nodes(tenor, days)
-        if not isinstance(self.t, NoInput):
-            new_t: list[datetime] | NoInput = [_ + timedelta(days=days) for _ in self.t]
+        if self.interpolator.spline is not None:
+            new_t: list[datetime] | NoInput = [
+                _ + timedelta(days=days) for _ in self.interpolator.spline.t
+            ]
+            new_endpoints: tuple[str, str] | NoInput = self.interpolator.spline.endpoints
         else:
             new_t = NoInput(0)
+            new_endpoints = NoInput(0)
 
         new_curve = type(self)(
             nodes=new_nodes,
-            interpolation=self.interpolation,
+            interpolation=self.interpolator.local,
             t=new_t,
             c=NoInput(0),
-            endpoints=self.spline_endpoints,
+            endpoints=new_endpoints,
             modifier=self.meta.modifier,
             calendar=self.meta.calendar,
             convention=self.meta.convention,
@@ -1485,53 +1359,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         Uses the ``spline_endpoints`` attribute on the class to determine the solving
         method.
         """
-        self._csolve()
-
-    # All calling methods will clear the cache and/or set new state after `_csolve`
-    def _csolve(self) -> None:
-        if isinstance(self.t, NoInput) or self._c_input:
-            return None
-
-        # attributes relating to splines will then exist
-        t_posix = self._spline_interpolator.t_posix.copy()  # type: ignore[union-attr]
-        tau_posix = [k.replace(tzinfo=UTC).timestamp() for k in self.nodes if k >= self.t[0]]
-        y = [self._op_log(v) for k, v in self.nodes.items() if k >= self.t[0]]
-
-        # Left side constraint
-        if self.spline_endpoints[0].lower() == "natural":
-            tau_posix.insert(0, t_posix[0])
-            y.insert(0, set_order_convert(0.0, self.ad, None))
-            left_n = 2
-        elif self.spline_endpoints[0].lower() == "not_a_knot":
-            t_posix.pop(4)
-            left_n = 0
-        else:
-            raise NotImplementedError(
-                f"Endpoint method '{self.spline_endpoints[0]}' not implemented.",
-            )
-
-        # Right side constraint
-        if self.spline_endpoints[1].lower() == "natural":
-            tau_posix.append(self.t_posix[-1])  # type: ignore[index]
-            y.append(set_order_convert(0, self.ad, None))
-            right_n = 2
-        elif self.spline_endpoints[1].lower() == "not_a_knot":
-            t_posix.pop(-5)
-            right_n = 0
-        else:
-            raise NotImplementedError(
-                f"Endpoint method '{self.spline_endpoints[0]}' not implemented.",
-            )
-
-        # Get the Spline class by data types
-        if self.ad == 0:
-            self.spline = PPSplineF64(4, t_posix, None)
-        elif self.ad == 1:
-            self.spline = PPSplineDual(4, t_posix, None)
-        else:
-            self.spline = PPSplineDual2(4, t_posix, None)
-
-        self.spline.csolve(tau_posix, y, left_n, right_n, False)  # type: ignore[attr-defined]
+        self.interpolator._csolve(self._base_type, self.nodes, self._ad)
 
     @_new_state_post
     @_clear_cache_post
@@ -1554,7 +1382,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             k: set_order_convert(v, order, [f"{self.id}{i}"])
             for i, (k, v) in enumerate(self.nodes.items())
         }
-        self._csolve()
+        self.interpolator._csolve(self._base_type, self.nodes, self._ad)
 
     def _set_node_vector_direct(self, vector: list[DualTypes], ad: int) -> None:
         if ad == 0:
@@ -1592,15 +1420,13 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                     *DualArgs[1:],
                 )
         self._ad = ad
-        self._csolve()
+        self.interpolator._csolve(self._base_type, self.nodes, self._ad)
 
     @_new_state_post
     @_clear_cache_post
     def update(
         self,
         nodes: dict[datetime, DualTypes] | NoInput = NoInput(0),
-        interpolation: str | InterpolationFunction | NoInput = NoInput(0),
-        endpoints: str | tuple[str, str] | NoInput = NoInput(0),
     ) -> None:
         """
         Update a curve with new, manually input values.
@@ -1612,10 +1438,6 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         ----------
         nodes: dict[datetime, DualTypes], optional
             New nodes to assign to the curve.
-        interpolation: str or Callable, optional
-            Interpolation method to use.
-        endpoints: str or tuple[str, str], optional
-            Endpoint constraints to apply to spline interpolation.
 
         Returns
         -------
@@ -1636,13 +1458,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         if not isinstance(nodes, NoInput):
             self.__set_nodes__(nodes)
 
-        if not isinstance(interpolation, NoInput):
-            self.__set_interpolation__(interpolation)
-
-        if not isinstance(endpoints, NoInput):
-            self.__set_endpoints__(endpoints)
-
-        self._csolve()
+        self.interpolator._csolve(self._base_type, self.nodes, self._ad)
 
     @_new_state_post
     @_clear_cache_post
@@ -1677,7 +1493,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             raise KeyError("`key` is not in *Curve* ``nodes``.")
         self.nodes[key] = value
 
-        self._csolve()
+        self.interpolator._csolve(self._base_type, self.nodes, self._ad)
 
     # Solver interaction
 
@@ -1726,29 +1542,25 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         -------
         str
         """
-        if self.interpolation == "user_defined_callable":
+        if self.interpolator.local_name == "user_defined_callable":
             raise NotImplementedError(
                 "Cannot serialize objects with user defined interpolation callables."
             )
 
-        if isinstance(self.t, NoInput):
+        if self.interpolator.spline is None:
             t = None
         else:
-            t = [t.strftime("%Y-%m-%d") for t in self.t]
-
-        if self._c_input and self.spline is not None:
-            c_ = self.spline.c
-        else:
-            c_ = None
+            t = [t.strftime("%Y-%m-%d") for t in self.interpolator.spline.t]
 
         container: dict[str, Any] = {
             "nodes": {dt.strftime("%Y-%m-%d"): v.real for dt, v in self.nodes.items()},
-            "interpolation": self.interpolation if isinstance(self.interpolation, str) else None,
+            "interpolation": self.interpolator.local,
             "t": t,
-            "c": c_,
             "id": self.id,
             "convention": self.meta.convention,
-            "endpoints": self.spline_endpoints,
+            "endpoints": None
+            if self.interpolator.spline is None
+            else self.interpolator.spline.endpoints,
             "modifier": self.meta.modifier,
             "calendar": self.meta.calendar.to_json(),
             "ad": self.ad,
@@ -1792,10 +1604,6 @@ class LineCurve(Curve):
         The knot locations for the B-spline cubic interpolation section of the
         curve. If *None* all interpolation will be done by the method specified in
         ``interpolation``.
-    c : list[float], optional
-        The B-spline coefficients used to define the log-cubic spline. If not given,
-        which is the expected case, uses :meth:`csolve` to calculate these
-        automatically.
     endpoints : str or list, optional
         The left and right endpoint constraint for the spline solution. Valid values are
         in {"natural", "not_a_knot"}. If a list, supply the left endpoint then the
@@ -1854,7 +1662,7 @@ class LineCurve(Curve):
     **Spline Interpolation**
 
     Global interpolation in the form of a **cubic** spline is also configurable
-    with the parameters ``t``, ``c`` and ``endpoints``. Setting an ``interpolation`` of *"spline"*
+    with the parameters ``t``, and ``endpoints``. Setting an ``interpolation`` of *"spline"*
     is syntactic sugar for automatically determining the most obvious
     knot sequence ``t`` to use all specified *node dates*. See
     :ref:`splines<splines-doc>` for instruction of knot sequence calibration.
@@ -1907,10 +1715,6 @@ class LineCurve(Curve):
 
     """  # noqa: E501
 
-    _op_exp = staticmethod(lambda x: x)  # LineCurve spline is not log based so no exponent needed
-    _op_log: Callable[[DualTypes], DualTypes] = staticmethod(
-        lambda x: x
-    )  # LineCurve spline is not log based so no log needed
     _ini_solve = 0  # No constraint placed on initial node in Solver
     _base_type = _CurveType.values
 

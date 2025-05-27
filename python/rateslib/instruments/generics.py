@@ -11,7 +11,7 @@ from rateslib import defaults
 from rateslib.calendars import dcf
 from rateslib.curves import Curve
 from rateslib.curves._parsers import _validate_curve_is_not_dict, _validate_curve_not_no_input
-from rateslib.curves.curves import _CurveType
+from rateslib.curves.utils import _CurveType
 from rateslib.default import NoInput, _drb
 from rateslib.dual import dual_log
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
@@ -808,7 +808,7 @@ class Portfolio(Sensitivities, Metrics):
         DataFrame
         """
         df_result = DataFrame(
-            index=DatetimeIndex([], name="obs_dates", freq=None),
+            index=DatetimeIndex([], name="obs_dates"),
         )
         for inst in self.instruments:
             try:

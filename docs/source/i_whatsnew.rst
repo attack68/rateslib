@@ -140,6 +140,16 @@ Some themes for this release involved:
          **attribute** associated with any *Curve* type.
          (`853 <https://github.com/attack68/rateslib/pull/853>`_)
          (`854 <https://github.com/attack68/rateslib/pull/854>`_)
+         (`855 <https://github.com/attack68/rateslib/pull/855>`_)
+       - :red:`Minor Breaking Change!` The argument ``c`` for spline coefficients is no longer
+         available in the initialisation of a *Curve* class. This value is determined
+         automatically to maintain consistency between supplied node values and solved spline
+         coefficients.
+         (`859 <https://github.com/attack68/rateslib/pull/859>`_)
+       - :red:`Minor Breaking Change!` The arguments ``interpolation`` and ``endpoints`` are
+         removed from the :meth:`Curve.update() <rateslib.curves.Curve.update>` method to
+         avoid unnecessarily complication mutations.
+         (`859 <https://github.com/attack68/rateslib/pull/859>`_)
    * - **Automatic Differentiation & Algorithms**
      - - Operator overloads added to allow dual number exponents, i.e. :math:`z^p`, where *z*,
          *p* are dual number types. This facilitates AD for the SABR function as well as other
@@ -165,6 +175,11 @@ Some themes for this release involved:
          to use cached discount factors when compositing *Curve* types.
          This particularly improves performance for dual type calculations.
          (`816 <https://github.com/attack68/rateslib/pull/816>`_)
+   * - **Serialisation**
+     - - Python wrapped Rust objects are now serialised with the identifier *'PyWrapped'* to
+         distinguish between serialised, native Python objects which use the *'PyNative'*
+         identifier. The *NoInput* type is also now handled in serialisation of objects.
+         (`855 <https://github.com/attack68/rateslib/pull/855>`_)
    * - **Bug Fixes**
      - - The SABR functions are modified to handle ``expiry`` for an interpolated
          :class:`~rateslib.fx_volatility.FXSabrSurface`. Previously, the specific expiry was used to
