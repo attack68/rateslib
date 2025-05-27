@@ -808,7 +808,7 @@ class Portfolio(Sensitivities, Metrics):
         DataFrame
         """
         df_result = DataFrame(
-            index=DatetimeIndex([], name="obs_dates", freq=None),
+            index=DatetimeIndex([], name="obs_dates"),
         )
         for inst in self.instruments:
             try:

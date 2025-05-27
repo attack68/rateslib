@@ -1217,7 +1217,7 @@ class XCS(BaseDerivative):
             )
         except AttributeError:
             df1 = DataFrame(
-                index=DatetimeIndex([], name="obs_dates", freq=None),
+                index=DatetimeIndex([], name="obs_dates"),
             )
 
         try:
@@ -1231,7 +1231,7 @@ class XCS(BaseDerivative):
             )
         except AttributeError:
             df2 = DataFrame(
-                index=DatetimeIndex([], name="obs_dates", freq=None),
+                index=DatetimeIndex([], name="obs_dates"),
             )
 
         return _composit_fixings_table(df1, df2)
