@@ -41,7 +41,7 @@ transparent and provides a defined data structure.
 The key method used for this purpose is:
 
 .. autosummary::
-   rateslib.json.from_json
+   rateslib.serialization.from_json
 
 Objects in Scope
 ******************
