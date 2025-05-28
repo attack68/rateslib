@@ -211,10 +211,10 @@ class _CurveInterpolator:
     A container for data relating to interpolating the `nodes` of a *Curve*.
     """
 
-    local_name: str
-    local_func: InterpolationFunction
-    convention: str
-    spline: _CurveSpline | None
+    _local_name: str
+    _local_func: InterpolationFunction
+    _convention: str
+    _spline: _CurveSpline | None
 
     def __init__(
         self,
@@ -232,12 +232,12 @@ class _CurveInterpolator:
                 f"It should not be specified directly. Got: {t}"
             )
 
-        self.convention = convention
+        self._convention = convention
         if isinstance(local, NoInput):
             local = defaults.interpolation[curve_type.name]
 
         if isinstance(local, str):
-            self.local_name = local.lower()
+            self._local_name = local.lower()
             if self.local_name == "spline":
                 # then refactor t
                 t = (
@@ -246,30 +246,51 @@ class _CurveInterpolator:
                     + [node_dates[-1], node_dates[-1], node_dates[-1]]
                 )
 
-            if self.local_name + "_" + convention in INTERPOLATION:
-                self.local_func = INTERPOLATION[self.local_name + "_" + convention]
+            if self._local_name + "_" + convention in INTERPOLATION:
+                self._local_func = INTERPOLATION[self.local_name + "_" + convention]
             else:
                 try:
-                    self.local_func = INTERPOLATION[self.local_name]
+                    self._local_func = INTERPOLATION[self.local_name]
                 except KeyError:
                     raise ValueError(
                         f"Curve interpolation: '{self.local_name}' not available.\n"
                         f"Consult the documentation for available methods."
                     )
         else:
-            self.local_name = "user_defined_callable"
-            self.local_func = local
+            self._local_name = "user_defined_callable"
+            self._local_func = local
 
         if isinstance(t, NoInput):
-            self.spline = None
+            self._spline = None
         else:
-            self.spline = _CurveSpline(t, endpoints)
+            self._spline = _CurveSpline(t, endpoints)
 
     @property
     def local(self) -> str | InterpolationFunction:
+        """The local interpolation name or function, if user defined."""
         if self.local_name == "user_defined_callable":
             return self.local_func
         return self.local_name
+
+    @property
+    def local_name(self) -> str:
+        """The str name of the local interpolation function."""
+        return self._local_name
+
+    @property
+    def local_func(self) -> InterpolationFunction:
+        """The callable used for local interpolation"""
+        return self._local_func
+
+    @property
+    def spline(self) -> _CurveSpline | None:
+        """The :class:`~rateslib.curves.utils._CurveSpline` used for PPSpline interpolation."""
+        return self._spline
+
+    @property
+    def convention(self) -> str:
+        """The day count convention used to adjust interpolation functions."""
+        return self._convention
 
     # All calling methods should clear the cache and/or set new state after `_csolve`
     def _csolve(self, curve_type: _CurveType, nodes: dict[datetime, DualTypes], ad: int) -> None:
