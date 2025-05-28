@@ -131,11 +131,11 @@ The discount factors for each *Curve* are stated as below:
 .. ipython:: python
 
    df = DataFrame(
-       index=[_ for _ in log_linear_curve.nodes.keys()],
+       index=[_ for _ in log_linear_curve.nodes.keys],
        data={
-           "log-linear": [float(_) for _ in log_linear_curve.nodes.values()],
-           "log-cubic": [float(_) for _ in log_cubic_curve.nodes.values()],
-           "mixed": [float(_) for _ in mixed_curve.nodes.values()],
+           "log-linear": [float(_) for _ in log_linear_curve.nodes.values],
+           "log-cubic": [float(_) for _ in log_cubic_curve.nodes.values],
+           "mixed": [float(_) for _ in mixed_curve.nodes.values],
        }
    )
    with option_context("display.float_format", lambda x: '%.6f' % x):

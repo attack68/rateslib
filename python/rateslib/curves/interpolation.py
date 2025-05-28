@@ -26,8 +26,8 @@ def _linear(date: datetime, curve: Curve) -> DualTypes:
 
 
 def _linear_bus(date: datetime, curve: Curve) -> DualTypes:
-    i = index_left(curve.nodes.node_keys, curve.nodes.n, date)
-    x_1, x_2 = curve.nodes.node_keys[i], curve.nodes.node_keys[i + 1]
+    i = index_left(curve.nodes.keys, curve.nodes.n, date)
+    x_1, x_2 = curve.nodes.keys[i], curve.nodes.keys[i + 1]
     d_n = dcf(x_1, x_2, "bus252", calendar=curve.meta.calendar)
     d_m = dcf(x_1, date, "bus252", calendar=curve.meta.calendar)
     node_values = list(curve.nodes.nodes.values())
@@ -43,8 +43,8 @@ def _log_linear(date: datetime, curve: Curve) -> DualTypes:
 
 
 def _log_linear_bus(date: datetime, curve: Curve) -> DualTypes:
-    i = index_left(curve.nodes.node_keys, curve.nodes.n, date)
-    x_1, x_2 = curve.nodes.node_keys[i], curve.nodes.node_keys[i + 1]
+    i = index_left(curve.nodes.keys, curve.nodes.n, date)
+    x_1, x_2 = curve.nodes.keys[i], curve.nodes.keys[i + 1]
     d_n = dcf(x_1, x_2, "bus252", calendar=curve.meta.calendar)
     d_m = dcf(x_1, date, "bus252", calendar=curve.meta.calendar)
     node_values = list(curve.nodes.nodes.values())
@@ -72,9 +72,9 @@ def _flat_backward(date: datetime, curve: Curve) -> DualTypes:
 
 def _linear_zero_rate(date: datetime, curve: Curve) -> DualTypes:
     # base time on DCF, which depends on the curve convention.
-    i = index_left(curve.nodes.node_keys, curve.nodes.n, date)
+    i = index_left(curve.nodes.keys, curve.nodes.n, date)
     nvs = list(curve.nodes.nodes.values())
-    nds = curve.nodes.node_keys
+    nds = curve.nodes.keys
 
     d_2 = dcf(nds[0], nds[i + 1], curve.meta.convention, calendar=curve.meta.calendar)
     r_2 = -dual_log(nvs[i + 1]) / dcf(
@@ -126,10 +126,10 @@ def _get_posix(date: datetime, curve: Curve) -> tuple[float, float, float, int]:
     Convert a datetime and curve_nodes to posix timestamps and return the index_left.
     """
     date_posix: float = date.replace(tzinfo=UTC).timestamp()
-    l_index = index_left_f64(curve.nodes.node_dates_posix, date_posix, None)
+    l_index = index_left_f64(curve.nodes.posix_keys, date_posix, None)
     node_left_posix, node_right_posix = (
-        curve.nodes.node_dates_posix[l_index],
-        curve.nodes.node_dates_posix[l_index + 1],
+        curve.nodes.posix_keys[l_index],
+        curve.nodes.posix_keys[l_index + 1],
     )
     return date_posix, node_left_posix, node_right_posix, l_index
 

@@ -217,13 +217,13 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
             curve._meta = curve._meta._replace(collateral=k[3:6])  # label curves with collateral
 
             if flag == 0:
-                self.immediate: datetime = curve.nodes.node_keys[0]
-            elif self.immediate != curve.nodes.node_keys[0]:
+                self.immediate: datetime = curve.nodes.keys[0]
+            elif self.immediate != curve.nodes.keys[0]:
                 raise ValueError("`fx_curves` do not have the same initial date.")
             if isinstance(curve, LineCurve):
                 raise TypeError("`fx_curves` must be DF based, not type LineCurve.")
-            if curve.nodes.node_keys[-1] < self.terminal:
-                self.terminal = curve.nodes.node_keys[-1]
+            if curve.nodes.final < self.terminal:
+                self.terminal = curve.nodes.final
 
     def _calculate_immediate_rates(self, base: str | NoInput, init: bool) -> None:
         if not isinstance(self.fx_rates, list):
@@ -773,7 +773,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
         """
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
         cash_idx, coll_idx = self.currencies[cash_ccy], self.currencies[coll_ccy]
-        end = self.fx_curves[f"{coll_ccy}{coll_ccy}"].nodes.final_node
+        end = self.fx_curves[f"{coll_ccy}{coll_ccy}"].nodes.final
         days = (end - self.immediate).days
         nodes = {
             k: (
@@ -1120,7 +1120,7 @@ def forward_fx(
     """  # noqa: E501
     if date == fx_settlement:  # noqa: SIM114
         return fx_rate  # noqa: SIM114
-    elif date == curve_domestic.nodes.initial_node and isinstance(fx_settlement, NoInput):  # noqa: SIM114
+    elif date == curve_domestic.nodes.initial and isinstance(fx_settlement, NoInput):  # noqa: SIM114
         return fx_rate  # noqa: SIM114
 
     _: DualTypes = curve_domestic[date] / curve_foreign[date]

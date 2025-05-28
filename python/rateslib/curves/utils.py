@@ -124,7 +124,7 @@ class _CurveSpline:
     # All calling methods should clear the cache and/or set new state after `_csolve`
     def _csolve(self, curve_type: _CurveType, nodes: _CurveNodes, ad: int) -> None:
         t_posix = self.t_posix.copy()
-        tau_posix = [k.replace(tzinfo=UTC).timestamp() for k in nodes.node_keys if k >= self.t[0]]
+        tau_posix = [k.replace(tzinfo=UTC).timestamp() for k in nodes.keys if k >= self.t[0]]
         if curve_type == _CurveType.dfs:
             # then use log
             y = [dual_log(v) for k, v in nodes.nodes.items() if k >= self.t[0]]
@@ -363,7 +363,7 @@ class _CurveNodes:
     def __init__(self, nodes: dict[datetime, DualTypes]):
         self._nodes = nodes
         for idx in range(1, self.n):
-            if self.node_keys[idx - 1] >= self.node_keys[idx]:
+            if self.keys[idx - 1] >= self.keys[idx]:
                 raise ValueError(
                     "Curve node dates are not sorted or contain duplicates.\n"
                     "To sort directly use: `dict(sorted(nodes.items()))`",
@@ -380,27 +380,31 @@ class _CurveNodes:
         return self._nodes
 
     @cached_property
-    def node_keys(self) -> list[datetime]:
+    def keys(self) -> list[datetime]:
         return list(self._nodes.keys())
 
-    @property
-    def node_dates(self) -> list[datetime]:
-        return self.node_keys
+    @cached_property
+    def values(self) -> list[DualTypes]:
+        return list(self._nodes.values())
+
+    # @property
+    # def node_dates(self) -> list[datetime]:
+    #     return self.keys
 
     @cached_property
     def n(self) -> int:
-        return len(self.node_keys)
+        return len(self.keys)
 
     @cached_property
-    def node_dates_posix(self) -> list[float]:
-        return [_.replace(tzinfo=UTC).timestamp() for _ in self.node_keys]
+    def posix_keys(self) -> list[float]:
+        return [_.replace(tzinfo=UTC).timestamp() for _ in self.keys]
 
     @property
-    def initial_node(self) -> datetime:
-        """ "The first node key associated with the *Curve* nodes."""
-        return self.node_keys[0]
+    def initial(self) -> datetime:
+        """The first node key associated with the *Curve* nodes."""
+        return self.keys[0]
 
     @property
-    def final_node(self) -> datetime:
-        """ "The last node key associated with the *Curve* nodes."""
-        return self.node_keys[-1]
+    def final(self) -> datetime:
+        """The last node key associated with the *Curve* nodes."""
+        return self.keys[-1]

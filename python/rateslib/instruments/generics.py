@@ -153,7 +153,7 @@ class Value(Metrics):
                 raise TypeError(
                     "`curve` used with `metric`='cc_zero_rate' must be discount factor based.",
                 )
-            dcf_ = dcf(curve_0.nodes.initial_node, self.effective, self.convention)
+            dcf_ = dcf(curve_0.nodes.initial, self.effective, self.convention)
             ret: DualTypes = (dual_log(curve_0[self.effective]) / -dcf_) * 100
             return ret
         elif metric == "index_value":

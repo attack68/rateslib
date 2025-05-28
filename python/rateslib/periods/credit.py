@@ -149,9 +149,9 @@ class CreditPremiumPeriod(BasePeriod):
             v_end = disc_curve_[self.end]
             n = _dual_float((self.end - self.start).days)
 
-            if self.start < curve_.nodes.initial_node:
+            if self.start < curve_.nodes.initial:
                 # then mid-period valuation
-                r: float = _dual_float((curve_.nodes.initial_node - self.start).days)
+                r: float = _dual_float((curve_.nodes.initial - self.start).days)
                 q_start: DualTypes = 1.0
                 _v_start: DualTypes = 1.0
             else:
@@ -193,9 +193,9 @@ class CreditPremiumPeriod(BasePeriod):
             v_end = disc_curve_[self.end]
             n = _dual_float((self.end - self.start).days)
 
-            if self.start < curve_.nodes.initial_node:
+            if self.start < curve_.nodes.initial:
                 # then mid-period valuation
-                r: float = _dual_float((curve_.nodes.initial_node - self.start).days)
+                r: float = _dual_float((curve_.nodes.initial - self.start).days)
                 q_start: DualTypes = 1.0
                 _v_start: DualTypes = 1.0
             else:
@@ -331,8 +331,8 @@ class CreditProtectionPeriod(BasePeriod):
         """
         curve_, disc_curve_ = _validate_credit_curves(curve, disc_curve)
 
-        if self.start < curve_.nodes.initial_node:
-            s2 = curve_.nodes.initial_node
+        if self.start < curve_.nodes.initial:
+            s2 = curve_.nodes.initial
         else:
             s2 = self.start
 

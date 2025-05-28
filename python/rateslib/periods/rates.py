@@ -538,7 +538,7 @@ class FloatPeriod(BasePeriod):
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
         disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
-        if self.payment < disc_curve_.nodes.node_keys[0]:
+        if self.payment < disc_curve_.nodes.initial:
             if local:
                 return {self.currency: 0.0}
             else:
@@ -757,7 +757,7 @@ class FloatPeriod(BasePeriod):
         if isinstance(curve, NoInput):
             # then attempt to get rate from fixings
             return self._rfr_rate_from_individual_fixings(curve)
-        elif self.start < curve.nodes.node_keys[0]:
+        elif self.start < curve.nodes.initial:
             # then likely fixing are required and curve does not have available data
             return self._rfr_rate_from_individual_fixings(curve)
         elif curve.nodes.n == 0:
@@ -957,7 +957,7 @@ class FloatPeriod(BasePeriod):
             # rates = Series({
             #     k: v
             #     if notna(v)
-            #     else (curve.rate(k, "1b", "F") if k >= curve.nodes.initial_node else None)
+            #     else (curve.rate(k, "1b", "F") if k >= curve.nodes.initial else None)
             #     for k, v in rates.items()
             # })
 
@@ -1169,7 +1169,7 @@ class FloatPeriod(BasePeriod):
             elif _d["rates"].isna().any():
                 if (
                     isinstance(curve_, NoInput)
-                    or not _d["obs_dates"].iloc[-1] <= curve_.nodes.initial_node
+                    or not _d["obs_dates"].iloc[-1] <= curve_.nodes.initial
                 ):
                     raise ValueError(
                         "RFRs could not be calculated, have you missed providing `fixings` or "
@@ -1369,7 +1369,7 @@ class FloatPeriod(BasePeriod):
             reg_end_dt = add_tenor(self.start, tenor, curve.meta.modifier, calendar)
             reg_dcf = dcf(self.start, reg_end_dt, curve.meta.convention, reg_end_dt)
 
-            if not isinstance(self.fixings, NoInput) or fixing_dt < curve.nodes.initial_node:
+            if not isinstance(self.fixings, NoInput) or fixing_dt < curve.nodes.initial:
                 # then fixing is set so return zero exposure.
                 _rate = NA if isinstance(self.fixings, NoInput) else _dual_float(self.rate(curve))
                 df = DataFrame(
