@@ -74,8 +74,8 @@ class _CurveMeta(NamedTuple):
 
 class _CurveSpline:
     """
-    A container for data relating to constructing a PPSpline and interpolating the `nodes` of
-    a *Curve*.
+    A container for data relating to interpolating the `nodes` of
+    a *Curve* using a cubic PPSpline.
     """
 
     t: list[datetime]
@@ -169,6 +169,10 @@ class _CurveSpline:
 
 
 class _CurveInterpolator:
+    """
+    A container for data relating to interpolating the `nodes` of a *Curve*.
+    """
+
     local_name: str
     local_func: InterpolationFunction
     convention: str
