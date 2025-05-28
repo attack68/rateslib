@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import json
+import pickle
 import warnings
 from calendar import monthrange
 from datetime import datetime, timedelta
 from math import comb, prod
 from typing import TYPE_CHECKING, Any, TypeAlias
 from uuid import uuid4
-import pickle
 
 import numpy as np
 from pandas import Series
@@ -41,7 +41,6 @@ from rateslib.mutability import (
     _WithState,
 )
 from rateslib.rs import Modifier
-from rateslib.rs import from_json as from_json_rs
 
 if TYPE_CHECKING:
     from rateslib.typing import (
@@ -1509,7 +1508,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     # Serialization
 
     @classmethod
-    def _from_json(cls, loaded_json: dict[str, Any]) -> Curve:  # type: ignore[no-untyped-def]
+    def _from_json(cls, loaded_json: dict[str, Any]) -> Curve:
         """
         Reconstitute a curve from JSON.
 
@@ -1530,10 +1529,8 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
         if interpolator.local_name == "spline":
             t = NoInput(0)
-            node_dates = spl.t[3:-3]
         else:
             t = NoInput(0) if spl is None else spl.t
-            node_dates = NoInput(0)
 
         endpoints = spl.endpoints if spl is not None else NoInput(0)
 
@@ -1577,7 +1574,8 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         -------
         Curve or LineCurve
         """
-        return pickle.loads(pickle.dumps(self, -1))
+        ret: Curve = pickle.loads(pickle.dumps(self, -1))  # noqa: S301
+        return ret
 
         # from rateslib.serialization import from_json
         # return from_json(self.to_json())
@@ -2489,7 +2487,7 @@ class CompositeCurve(Curve):
         """Not implemented on CompositeCurve types."""
         raise NotImplementedError("CompositeCurve types do not provide serialization methods.")
 
-    def from_json(self, *args: Any, **kwargs: Any) -> None:  # type: ignore[override]
+    def from_json(self, *args: Any, **kwargs: Any) -> None:
         """Not implemented on CompositeCurve types."""
         raise NotImplementedError("CompositeCurve types do not provide update methods.")
 

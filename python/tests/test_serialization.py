@@ -113,14 +113,24 @@ def index_curve():
 
 
 class TestCurve:
-
     def test_serialization(self, curve) -> None:
         expected = (
-            '{"nodes": {"2022-03-01": 1.0, "2022-03-31": 0.99}, '
-            '"interpolation": "linear", "t": null, "id": "v", '
-            '"convention": "act360", "endpoints": null, "modifier": "MF", '
-            '"calendar": "{\\"NamedCal\\":{\\"name\\":\\"all\\"}}", "ad": 1, '
-            '"index_base": null, "index_lag": 3}'
+            '{"PyNative": '
+            '{"Curve": '
+            '{"meta": "{\\"PyNative\\": '
+            '{\\"_CurveMeta\\": '
+            '{\\"calendar\\": '
+            '\\"{\\\\\\"NamedCal\\\\\\":{\\\\\\"name\\\\\\":\\\\\\"all\\\\\\"}}\\", '
+            '\\"convention\\": \\"act360\\", \\"modifier\\": \\"MF\\", '
+            '\\"index_base\\": '
+            '\\"{\\\\\\"PyNative\\\\\\":{\\\\\\"NoInput\\\\\\":0}}\\", '
+            '\\"index_lag\\": 3, '
+            '\\"collateral\\": null}}}", '
+            '"interpolator": '
+            '"{\\"PyNative\\": {\\"_CurveInterpolator\\": '
+            '{\\"local\\": \\"linear\\", \\"spline\\": \\"null\\", '
+            '\\"convention\\": \\"act360\\"}}}", '
+            '"id": "v", "ad": 1, "nodes": {"2022-03-01": 1.0, "2022-03-31": 0.99}}}}'
         )
         result = curve.to_json()
         assert result == expected
@@ -164,7 +174,7 @@ class TestCurve:
         )
 
         serial = curve.to_json()
-        constructed = Curve.from_json(serial)
+        constructed = from_json(serial)
         assert constructed == curve
 
     def test_serialization_curve_str_calendar(self) -> None:
@@ -181,7 +191,7 @@ class TestCurve:
             ad=1,
         )
         serial = curve.to_json()
-        constructed = Curve.from_json(serial)
+        constructed = from_json(serial)
         assert constructed == curve
 
     def test_serialization_curve_custom_calendar(self) -> None:
@@ -199,5 +209,5 @@ class TestCurve:
             ad=1,
         )
         serial = curve.to_json()
-        constructed = Curve.from_json(serial)
+        constructed = from_json(serial)
         assert constructed == curve
