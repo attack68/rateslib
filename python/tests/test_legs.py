@@ -766,8 +766,8 @@ class TestZeroFloatLeg:
 
     def test_ibor_stub_fixings_table(self, curve) -> None:
         curve2 = curve.copy()
-        curve2.id = "3mIBOR"
-        curve.id = "1mIBOR"
+        curve2._id = "3mIBOR"
+        curve._id = "1mIBOR"
         zfl = ZeroFloatLeg(
             effective=dt(2022, 1, 1),
             termination=dt(2022, 9, 1),
@@ -789,8 +789,8 @@ class TestZeroFloatLeg:
     )
     def test_ibor_fixings_table_after_known_fixings(self, curve, fixings) -> None:
         curve2 = curve.copy()
-        curve2.id = "3mIBOR"
-        curve.id = "1mIBOR"
+        curve2._id = "3mIBOR"
+        curve._id = "1mIBOR"
         zfl = ZeroFloatLeg(
             effective=dt(2021, 7, 1),
             termination=dt(2022, 9, 1),
