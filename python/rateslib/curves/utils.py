@@ -190,7 +190,6 @@ class _CurveSpline:
 
     @classmethod
     def _from_json(cls, loaded_json: dict[str, Any]) -> _CurveSpline:
-
         return _CurveSpline(
             t=[datetime.strptime(_, "%Y-%m-%d") for _ in loaded_json["t"]],
             endpoints=tuple(loaded_json["endpoints"]),

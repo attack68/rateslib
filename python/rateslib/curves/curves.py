@@ -192,6 +192,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     _ini_solve: int = 1  # Curve is assumed to have initial DF node at 1.0 as constraint
     _base_type = _CurveType.dfs
 
+    _ad: int
     _id: str
     _meta: _CurveMeta
     _interpolator: _CurveInterpolator
@@ -250,13 +251,13 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         return self._meta
 
     @property
-    def id(self):
+    def id(self) -> str:
         """A str identifier to name the *Curve* used in
         :class:`~rateslib.solver.Solver` mappings."""
         return self._id
 
     @property
-    def interpolator(self):
+    def interpolator(self) -> _CurveInterpolator:
         """A *CurveInterpolator* object containing data and functions to interpolate the `nodes`."""
         return self._interpolator
 
