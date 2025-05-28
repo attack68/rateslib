@@ -20,8 +20,8 @@ if TYPE_CHECKING:
 
 class _CurveType(Enum):
     """
-    Enumerable type to define the difference between discount factor based Curves and
-    values base Curves.
+    Enumerable type to define the difference between discount factor based *Curves* and
+    values based *Curves*.
     """
 
     dfs = 0
@@ -29,6 +29,10 @@ class _CurveType(Enum):
 
 
 class _CurveMeta(NamedTuple):
+    """
+    An immutable container of meta data associated with a *Curve* used to derive, dates, rates
+    and values.
+    """
     calendar: CalTypes
     convention: str
     modifier: str
@@ -68,6 +72,10 @@ class _CurveMeta(NamedTuple):
 
 
 class _CurveSpline:
+    """
+    A container for data relating to constructing a PPSpline and interpolating the `nodes` of
+    a *Curve*.
+    """
     t: list[datetime]
     t_posix: list[float]
     spline: PPSplineF64 | PPSplineDual | PPSplineDual2 | None
