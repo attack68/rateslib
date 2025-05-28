@@ -13,7 +13,7 @@ from rateslib.fx import FXRates
 from rateslib.rs import from_json as from_json_rs
 
 if TYPE_CHECKING:
-    pass
+    pass  # pragma: no cover
 
 NAMES_RsPy: dict[str, Any] = {  # this is a mapping of native Rust obj names to Py obj names
     "FXRates": FXRates,

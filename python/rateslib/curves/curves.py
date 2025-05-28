@@ -1430,7 +1430,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         nodes: dict[datetime, DualTypes] | NoInput = NoInput(0),
     ) -> None:
         """
-        Update a curve with new, manually input values.
+        Update a curves nodes with new, manually input values.
 
         For arguments see :class:`~rateslib.curves.curves.Curve`. Any value not given will not
         change the underlying *Curve*.

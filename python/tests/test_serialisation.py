@@ -125,18 +125,17 @@ class TestCurve:
         result = curve.to_json()
         assert result == expected
 
-    def test_serialization_round_trip(self, curve, line_curve, index_curve) -> None:
-        serial = curve.to_json()
+    @pytest.mark.parametrize("c", ["curve", "line_curve", "index_curve"])
+    def test_serialization_round_trip(self, c, curve, line_curve, index_curve) -> None:
+        if c == "curve":
+            obj = curve
+        elif c == "line_curve":
+            obj = line_curve
+        elif c == "index_curve":
+            obj = index_curve
+        serial = obj.to_json()
         constructed = from_json(serial)
-        assert constructed == curve
-
-        serial = line_curve.to_json()
-        constructed = from_json(serial)
-        assert constructed == line_curve
-
-        serial = index_curve.to_json()
-        constructed = from_json(serial)
-        assert constructed == index_curve
+        assert constructed == obj
 
     def test_serialization_round_trip_spline(self) -> None:
         curve = Curve(

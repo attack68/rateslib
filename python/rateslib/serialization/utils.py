@@ -9,7 +9,7 @@ from rateslib.dual import Dual, Dual2, Variable
 from rateslib.dual.utils import _to_number
 
 if TYPE_CHECKING:
-    from rateslib.typing import Any, DualTypes, Number
+    from rateslib.typing import Any, DualTypes, Number  # pragma: no cover
 
 
 # Dualtypes handles case of rust wrapped Dual/Dual2 datatype intermixed with float.
