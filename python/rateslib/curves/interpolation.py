@@ -10,7 +10,7 @@ from rateslib.dual import dual_exp, dual_log
 from rateslib.rs import index_left_f64
 
 if TYPE_CHECKING:
-    from rateslib.typing import Any, Curve, DualTypes, datetime
+    from rateslib.typing import Any, Curve, DualTypes, datetime  # pragma: no cover
 
 
 class InterpolationFunction(Protocol):
@@ -102,7 +102,7 @@ def _linear_index(date: datetime, curve: Curve) -> DualTypes:
 
 def _runtime_error(date: datetime, curve: Curve) -> DualTypes:
     """Spline interpolation is performed by a PPSpline over the whole nodes domain."""
-    raise RuntimeError(
+    raise RuntimeError(  # pragma: no cover
         "An `interpolation` mode of 'spline' should never call this function.\n"
         "The configured knot sequence `t` for the PPSpline should cover the entire `nodes` domain."
     )

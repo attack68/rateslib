@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import pickle
 import warnings
 from calendar import monthrange
 from datetime import datetime, timedelta
@@ -40,7 +41,6 @@ from rateslib.mutability import (
     _WithState,
 )
 from rateslib.rs import Modifier
-from rateslib.rs import from_json as from_json_rs
 
 if TYPE_CHECKING:
     from rateslib.typing import (
@@ -1429,7 +1429,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         nodes: dict[datetime, DualTypes] | NoInput = NoInput(0),
     ) -> None:
         """
-        Update a curve with new, manually input values.
+        Update a curves nodes with new, manually input values.
 
         For arguments see :class:`~rateslib.curves.curves.Curve`. Any value not given will not
         change the underlying *Curve*.
@@ -1508,7 +1508,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     # Serialization
 
     @classmethod
-    def from_json(cls, curve: str, **kwargs) -> Curve:  # type: ignore[no-untyped-def]
+    def _from_json(cls, loaded_json: dict[str, Any]) -> Curve:
         """
         Reconstitute a curve from JSON.
 
@@ -1521,54 +1521,47 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         -------
         Curve or LineCurve
         """
-        serial = json.loads(curve)
+        from rateslib.serialization import from_json
 
-        serial["nodes"] = {
-            datetime.strptime(dt, "%Y-%m-%d"): v for dt, v in serial["nodes"].items()
-        }
-        serial["calendar"] = from_json_rs(serial["calendar"])
+        meta = from_json(loaded_json["meta"])
+        interpolator = from_json(loaded_json["interpolator"])
+        spl = interpolator.spline
 
-        if serial["t"] is not None:
-            serial["t"] = [datetime.strptime(t, "%Y-%m-%d") for t in serial["t"]]
+        if interpolator.local_name == "spline":
+            t = NoInput(0)
+        else:
+            t = NoInput(0) if spl is None else spl.t
 
-        serial = {k: v for k, v in serial.items() if v is not None}
-        return cls(**{**serial, **kwargs})
+        endpoints = spl.endpoints if spl is not None else NoInput(0)
+
+        return cls(
+            nodes={datetime.strptime(d, "%Y-%m-%d"): v for d, v in loaded_json["nodes"].items()},
+            interpolation=interpolator.local_name,
+            t=t,
+            endpoints=endpoints,
+            id=loaded_json["id"],
+            convention=meta.convention,
+            modifier=meta.modifier,
+            calendar=meta.calendar,
+            ad=loaded_json["ad"],
+            index_base=meta.index_base,
+            index_lag=meta.index_lag,
+            collateral=meta.collateral,
+        )
 
     def to_json(self) -> str:
-        """
-        Convert the parameters of the curve to JSON format.
-
-        Returns
-        -------
-        str
-        """
-        if self.interpolator.local_name == "user_defined_callable":
-            raise NotImplementedError(
-                "Cannot serialize objects with user defined interpolation callables."
-            )
-
-        if self.interpolator.spline is None:
-            t = None
-        else:
-            t = [t.strftime("%Y-%m-%d") for t in self.interpolator.spline.t]
-
-        container: dict[str, Any] = {
-            "nodes": {dt.strftime("%Y-%m-%d"): v.real for dt, v in self.nodes.items()},
-            "interpolation": self.interpolator.local,
-            "t": t,
-            "id": self.id,
-            "convention": self.meta.convention,
-            "endpoints": None
-            if self.interpolator.spline is None
-            else self.interpolator.spline.endpoints,
-            "modifier": self.meta.modifier,
-            "calendar": self.meta.calendar.to_json(),
-            "ad": self.ad,
-            "index_base": _drb(None, self.meta.index_base),
-            "index_lag": self.meta.index_lag,
-        }
-
-        return json.dumps(container, default=str)
+        obj = dict(
+            PyNative={
+                f"{type(self).__name__}": dict(
+                    meta=self.meta.to_json(),
+                    interpolator=self.interpolator.to_json(),
+                    id=self.id,
+                    ad=self._ad,
+                    nodes={dt.strftime("%Y-%m-%d"): v.real for dt, v in self.nodes.items()},
+                )
+            }
+        )
+        return json.dumps(obj)
 
     def __repr__(self) -> str:
         return f"<rl.{type(self).__name__}:{self.id} at {hex(id(self))}>"
@@ -1581,7 +1574,11 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         -------
         Curve or LineCurve
         """
-        return self.from_json(self.to_json())
+        ret: Curve = pickle.loads(pickle.dumps(self, -1))  # noqa: S301
+        return ret
+
+        # from rateslib.serialization import from_json
+        # return from_json(self.to_json())
 
 
 class LineCurve(Curve):
@@ -2490,7 +2487,7 @@ class CompositeCurve(Curve):
         """Not implemented on CompositeCurve types."""
         raise NotImplementedError("CompositeCurve types do not provide serialization methods.")
 
-    def from_json(self, *args: Any, **kwargs: Any) -> None:  # type: ignore[override]
+    def from_json(self, *args: Any, **kwargs: Any) -> None:
         """Not implemented on CompositeCurve types."""
         raise NotImplementedError("CompositeCurve types do not provide update methods.")
 

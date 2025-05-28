@@ -982,7 +982,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
         else:
             fx_rates = from_json(serial["fx_rates"])
 
-        fx_curves = {k: Curve.from_json(v) for k, v in serial["fx_curves"].items()}
+        fx_curves = {k: from_json(v) for k, v in serial["fx_curves"].items()}
         base = serial["base"]
         return FXForwards(fx_rates, fx_curves, base)
 
