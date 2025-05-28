@@ -57,6 +57,10 @@ class _SabrNodes(NamedTuple):
             raise KeyError(f"SabrNodes only permit 4 parameters of which '{item}' is not one.")
         return getattr(self, item)
 
+    @property
+    def n(self) -> int:
+        return 4
+
 
 class FXSabrSmile(_BaseSmile):
     r"""
