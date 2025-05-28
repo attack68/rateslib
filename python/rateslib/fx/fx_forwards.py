@@ -848,7 +848,9 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
             for coll in collateral:
                 curves.append(self.curve(cashflow, coll, convention, modifier, calendar))
             curve = MultiCsaCurve(curves=curves, id=id)
-            curve._meta = curve._meta._replace(collateral=",".join([__.lower() for __ in collateral]))
+            curve._meta = curve._meta._replace(
+                collateral=",".join([__.lower() for __ in collateral])
+            )
             return curve
 
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()

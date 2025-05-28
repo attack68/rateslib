@@ -33,6 +33,7 @@ class _CurveMeta(NamedTuple):
     An immutable container of meta data associated with a *Curve* used to derive, dates, rates
     and values.
     """
+
     calendar: CalTypes
     convention: str
     modifier: str
@@ -76,6 +77,7 @@ class _CurveSpline:
     A container for data relating to constructing a PPSpline and interpolating the `nodes` of
     a *Curve*.
     """
+
     t: list[datetime]
     t_posix: list[float]
     spline: PPSplineF64 | PPSplineDual | PPSplineDual2 | None
