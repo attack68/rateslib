@@ -178,7 +178,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
             defaults.headers["pair"]: self.pair,
             defaults.headers["notional"]: _dual_float(self.notional),
             defaults.headers["expiry"]: self.expiry,
-            defaults.headers["t_e"]: _dual_float(self._t_to_expiry(disc_curve_ccy2.nodes.initial_node)),
+            defaults.headers["t_e"]: _dual_float(
+                self._t_to_expiry(disc_curve_ccy2.nodes.initial_node)
+            ),
             defaults.headers["delivery"]: self.delivery,
             defaults.headers["rate"]: fx_forward,
             defaults.headers["strike"]: self.strike,

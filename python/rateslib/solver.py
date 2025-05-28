@@ -1600,7 +1600,7 @@ class Solver(Gradients, _WithState):
         for curve in self.curves.values():
             # this was amended in PR126 as performance improvement to keep consistent `vars`
             # and was restructured in PR## to decouple methods to accomodate vol surfaces
-            n_vars = curve.nodes.n - curve._ini_solve
+            n_vars = curve.n - curve._ini_solve
             curve._set_node_vector(v_new[var_counter : var_counter + n_vars], self._ad)  # type: ignore[arg-type]
             var_counter += n_vars
 

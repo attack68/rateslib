@@ -292,7 +292,7 @@ class _CurveInterpolator:
         return self._convention
 
     # All calling methods should clear the cache and/or set new state after `_csolve`
-    def _csolve(self, curve_type: _CurveType, nodes: dict[datetime, DualTypes], ad: int) -> None:
+    def _csolve(self, curve_type: _CurveType, nodes: _CurveNodes, ad: int) -> None:
         if self.spline is None:
             return None
         self.spline._csolve(curve_type, nodes, ad)
@@ -369,7 +369,7 @@ class _CurveNodes:
                     "To sort directly use: `dict(sorted(nodes.items()))`",
                 )
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         if not isinstance(other, _CurveNodes):
             return False
         else:
@@ -397,10 +397,10 @@ class _CurveNodes:
 
     @property
     def initial_node(self) -> datetime:
-        """"The first node key associated with the *Curve* nodes."""
+        """ "The first node key associated with the *Curve* nodes."""
         return self.node_keys[0]
 
     @property
     def final_node(self) -> datetime:
-        """"The last node key associated with the *Curve* nodes."""
+        """ "The last node key associated with the *Curve* nodes."""
         return self.node_keys[-1]

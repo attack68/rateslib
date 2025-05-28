@@ -17,7 +17,7 @@ from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
 from rateslib.calendars.rs import get_calendar
 from rateslib.curves.interpolation import InterpolationFunction
-from rateslib.curves.utils import _CurveInterpolator, _CurveMeta, _CurveType, _CurveNodes
+from rateslib.curves.utils import _CurveInterpolator, _CurveMeta, _CurveNodes, _CurveType
 from rateslib.default import (
     NoInput,
     PlotOutput,
@@ -257,6 +257,10 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     def nodes(self) -> _CurveNodes:
         """An instance of :class:`~rateslib.curves._CurveNodes`."""
         return self._nodes
+
+    @property
+    def n(self) -> int:
+        return self.nodes.n
 
     @property
     def interpolator(self) -> _CurveInterpolator:
@@ -1382,7 +1386,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
 
         self._ad = order
-        nodes_ = {
+        nodes_: dict[datetime, DualTypes] = {
             k: set_order_convert(v, order, [f"{self.id}{i}"])
             for i, (k, v) in enumerate(self.nodes.nodes.items())
         }
@@ -2207,7 +2211,7 @@ class CompositeCurve(Curve):
         self.curves = tuple(curves)
 
         # TODO why does a CompositeCurve require node_dates?
-        nodes_proxy = {k: 0.0 for k in self.curves[0].nodes.node_keys}
+        nodes_proxy: dict[datetime, DualTypes] = dict.fromkeys(self.curves[0].nodes.node_keys, 0.0)
         self._nodes = _CurveNodes(nodes_proxy)
         self._meta = _CurveMeta(
             curves[0].meta.calendar,

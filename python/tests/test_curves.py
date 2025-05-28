@@ -16,7 +16,7 @@ from rateslib.curves import (
     index_left,
     index_value,
 )
-from rateslib.curves.utils import _CurveSpline, _CurveNodes
+from rateslib.curves.utils import _CurveNodes, _CurveSpline
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.dual.utils import _get_order_of
