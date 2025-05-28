@@ -560,7 +560,7 @@ class BondMixin:
         initial_idx = index_left(
             self.leg1.schedule.aschedule,
             self.leg1.schedule.n_periods + 1,
-            disc_curve.node_dates[0],
+            disc_curve.nodes.initial_node,
         )
         settle_idx = index_left(
             self.leg1.schedule.aschedule,
@@ -645,7 +645,7 @@ class BondMixin:
         )
         curves_1 = _validate_curve_not_no_input(curves_[1])
         settlement = self.leg1.schedule.calendar.lag(
-            curves_1.node_dates[0],
+            curves_1.nodes.initial_node,
             self.kwargs["settle"],
             True,
         )
@@ -666,7 +666,7 @@ class BondMixin:
         """
         disc_curve_ = _disc_required_maybe_from_curve(curve, disc_curve)
         settlement = self.leg1.schedule.calendar.lag(
-            disc_curve_.node_dates[0],
+            disc_curve_.nodes.initial_node,
             self.kwargs["settle"],
             True,
         )
@@ -739,7 +739,7 @@ class BondMixin:
                 settlement_ = self.leg1.schedule.effective
             else:
                 settlement_ = self.leg1.schedule.calendar.lag(
-                    curves_[1].node_dates[0],
+                    curves_[1].nodes.initial_node,
                     self.kwargs["settle"],
                     True,
                 )
@@ -1309,7 +1309,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         if metric in ["clean_price", "dirty_price", "ytm"]:
             if isinstance(forward_settlement, NoInput):
                 settlement = self.leg1.schedule.calendar.lag(
-                    curves_1.node_dates[0],
+                    curves_1.nodes.initial_node,
                     self.kwargs["settle"],
                     True,
                 )
@@ -1852,7 +1852,7 @@ class IndexFixedRateBond(FixedRateBond):
         ]:
             if isinstance(forward_settlement, NoInput):
                 settlement = self.leg1.schedule.calendar.lag(
-                    curves_1.node_dates[0],
+                    curves_1.nodes.initial_node,
                     self.kwargs["settle"],
                     True,
                 )
@@ -2132,7 +2132,7 @@ class Bill(FixedRateBond):
         )
         curves_1 = _validate_curve_not_no_input(curves_[1])
         settlement = self.leg1.schedule.calendar.lag(
-            curves_1.node_dates[0],
+            curves_1.nodes.initial_node,
             self.kwargs["settle"],
             True,
         )
@@ -2835,7 +2835,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
             curves_1 = _validate_curve_not_no_input(curves_[1])
             if isinstance(forward_settlement, NoInput):
                 settlement = self.leg1.schedule.calendar.lag(
-                    curves_1.node_dates[0],  # discount curve
+                    curves_1.nodes.initial_node,  # discount curve
                     self.kwargs["settle"],
                     True,
                 )
