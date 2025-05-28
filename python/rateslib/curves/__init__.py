@@ -8,6 +8,7 @@ from rateslib.curves.curves import (
     index_value,
 )
 from rateslib.curves.interpolation import index_left
+from rateslib.curves.utils import _CurveType, _CurveMeta, _CurveInterpolator, _CurveSpline
 
 __all__ = (
     "CompositeCurve",
@@ -18,4 +19,8 @@ __all__ = (
     "average_rate",
     "index_left",
     "index_value",
+    "_CurveMeta",
+    "_CurveType",
+    "_CurveSpline",
+    "_CurveInterpolator",
 )

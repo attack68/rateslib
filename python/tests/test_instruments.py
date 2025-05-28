@@ -4112,8 +4112,8 @@ class TestPortfolio:
         assert pf.__repr__() == expected
 
     def test_fixings_table(self, curve, curve2):
-        curve.id = "c1"
-        curve2.id = "c2"
+        curve._id = "c1"
+        curve2._id = "c2"
         irs1 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=3e6)
         irs2 = IRS(dt(2022, 1, 23), "6m", spec="eur_irs6", curves=curve2, notional=1e6)
         irs3 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=-2e6)
