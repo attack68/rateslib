@@ -43,6 +43,15 @@ class _CurveMeta(NamedTuple):
     collateral: str | None
 
     def to_json(self) -> str:
+        """
+        Serialize this object to JSON format.
+
+        The object can be deserialized using the :meth:`~rateslib.serialization.from_json` method.
+
+        Returns
+        -------
+        str
+        """
         from rateslib.serialization.utils import _obj_to_json
 
         obj = dict(
@@ -160,6 +169,15 @@ class _CurveSpline:
         self._spline.csolve(tau_posix, y, left_n, right_n, False)  # type: ignore[attr-defined]
 
     def to_json(self) -> str:
+        """
+        Serialize this object to JSON format.
+
+        The object can be deserialized using the :meth:`~rateslib.serialization.from_json` method.
+
+        Returns
+        -------
+        str
+        """
         obj = dict(
             PyNative=dict(
                 _CurveSpline=dict(
@@ -172,6 +190,7 @@ class _CurveSpline:
 
     @classmethod
     def _from_json(cls, loaded_json: dict[str, Any]) -> _CurveSpline:
+
         return _CurveSpline(
             t=[datetime.strptime(_, "%Y-%m-%d") for _ in loaded_json["t"]],
             endpoints=tuple(loaded_json["endpoints"]),
@@ -269,6 +288,15 @@ class _CurveInterpolator:
         return all(iter([self.local_name == other.local_name, self.spline == other.spline]))
 
     def to_json(self) -> str:
+        """
+        Serialize this object to JSON format.
+
+        The object can be deserialized using the :meth:`~rateslib.serialization.from_json` method.
+
+        Returns
+        -------
+        str
+        """
         from rateslib.serialization.utils import _obj_to_json
 
         obj = dict(
