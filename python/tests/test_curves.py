@@ -16,7 +16,7 @@ from rateslib.curves import (
     index_left,
     index_value,
 )
-from rateslib.curves.utils import _CurveSpline
+from rateslib.curves.utils import _CurveSpline, _CurveNodes
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.dual.utils import _get_order_of
@@ -195,17 +195,16 @@ def test_copy_curve(curve, line_curve) -> None:
 @pytest.mark.parametrize(
     ("attr", "val"),
     [
-        ("nodes", {dt(2022, 3, 1): 1.00}),
-        ("interpolation", "log_linear"),
+        ("_nodes", _CurveNodes({dt(2000, 1, 1): 1.0})),
+        ("_interpolator", "some_value"),
         ("_id", "x"),
         ("_ad", 0),
-        ("convention", "actact"),
-        ("t", [dt(2022, 1, 1)]),
-        ("calendar_type", "bad"),
+        ("_meta", "some_value"),
     ],
 )
 def test_curve_equality_checks(attr, val, curve) -> None:
     copied_curve = curve.copy()
+    assert copied_curve == curve
     setattr(copied_curve, attr, val)
     assert copied_curve != curve
 
@@ -260,7 +259,7 @@ def test_curve_equality_spline_coeffs() -> None:
         ],
     )
     assert curve2 != curve  # should detect on curve2.spline.c
-    curve2.nodes[dt(2022, 7, 4)] = 0.96  # set a specific node without recalc spline
+    curve2.update_node(dt(2022, 7, 4), 0.96)
     assert curve2 == curve  # spline.c will be resolved on calculation to the same values
 
 
@@ -1142,17 +1141,19 @@ class TestCurve:
 
     def test_cache_clear_and_defaults(self):
         curve = Curve({dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99})
-        v1 = curve[dt(2001, 1, 1)]
-        curve.nodes[dt(2002, 1, 1)] = 0.98
-        # cache not cleared
-        assert curve[dt(2001, 1, 1)] == v1
+        curve[dt(2001, 1, 1)]
+        assert len(curve._cache) == 1
         curve._clear_cache()
-        # cache cleared so value will need to be re-calced
+        assert len(curve._cache) == 0
+        v1 = curve[dt(2001, 1, 1)]
+        curve.update_node(dt(2002, 1, 1), 0.98)
+        # cache cleared by function
+        assert len(curve._cache) == 0
         v2 = curve[dt(2001, 1, 1)]
         assert v2 != v1
 
         with default_context("curve_caching", False):
-            curve.nodes[dt(2002, 1, 1)] = 0.90
+            curve.nodes.nodes[dt(2002, 1, 1)] = 0.90
             # no clear cache required, but value will re-calc anyway
             assert curve[dt(2001, 1, 1)] != v2
 

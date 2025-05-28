@@ -773,7 +773,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
         """
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
         cash_idx, coll_idx = self.currencies[cash_ccy], self.currencies[coll_ccy]
-        end = list(self.fx_curves[f"{coll_ccy}{coll_ccy}"].nodes.keys())[-1]
+        end = self.fx_curves[f"{coll_ccy}{coll_ccy}"].nodes.final_node
         days = (end - self.immediate).days
         nodes = {
             k: (

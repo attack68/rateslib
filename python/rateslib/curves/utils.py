@@ -369,6 +369,12 @@ class _CurveNodes:
                     "To sort directly use: `dict(sorted(nodes.items()))`",
                 )
 
+    def __eq__(self, other):
+        if not isinstance(other, _CurveNodes):
+            return False
+        else:
+            return self._nodes == other._nodes
+
     @property
     def nodes(self) -> dict[datetime, DualTypes]:
         return self._nodes
