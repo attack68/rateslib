@@ -648,7 +648,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
         # re-organise the nodes on the new curve
         del new_nodes[self.nodes.initial_node]
-        flag, i = (start >= self.nodes.initial_node), 1
+        flag, i = (start >= self.nodes.node_keys[1]), 1
         while flag:
             del new_nodes[self.nodes.node_keys[i]]
             flag, i = (start >= self.nodes.node_keys[i + 1]), i + 1
