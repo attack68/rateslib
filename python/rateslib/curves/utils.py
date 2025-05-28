@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from enum import Enum
+from functools import cached_property
 from typing import TYPE_CHECKING, NamedTuple
 
 from pytz import UTC
@@ -78,20 +79,38 @@ class _CurveSpline:
     a *Curve* using a cubic PPSpline.
     """
 
-    t: list[datetime]
-    t_posix: list[float]
-    spline: PPSplineF64 | PPSplineDual | PPSplineDual2 | None
-    endpoints: tuple[str, str]
+    _t: list[datetime]
+    _spline: PPSplineF64 | PPSplineDual | PPSplineDual2 | None
+    _endpoints: tuple[str, str]
 
     def __init__(self, t: list[datetime], endpoints: tuple[str, str]) -> None:
-        self.t = t
-        self.t_posix = [_.replace(tzinfo=UTC).timestamp() for _ in self.t]
-        self.endpoints = endpoints
-        self.spline = None  # will be set in later in csolve
-        if len(self.t) < 10 and "not_a_knot" in self.endpoints:
+        self._t = t
+        self._endpoints = endpoints
+        self._spline = None  # will be set in later in csolve
+        if len(self._t) < 10 and "not_a_knot" in self.endpoints:
             raise ValueError(
                 "`endpoints` cannot be 'not_a_knot' with only 1 interior breakpoint",
             )
+
+    @property
+    def t(self) -> list[datetime]:
+        """The knot sequence of the PPSpline."""
+        return self._t
+
+    @cached_property
+    def t_posix(self) -> list[float]:
+        """The knot sequence of the PPSpline converted to float unix timestamps."""
+        return [_.replace(tzinfo=UTC).timestamp() for _ in self.t]
+
+    @property
+    def spline(self) -> PPSplineF64 | PPSplineDual | PPSplineDual2 | None:
+        """PPSpline object used for calculations."""
+        return self._spline
+
+    @property
+    def endpoints(self) -> tuple[str, str]:
+        """The endpoints method used to determine the spline coefficients."""
+        return self._endpoints
 
     # All calling methods should clear the cache and/or set new state after `_csolve`
     def _csolve(self, curve_type: _CurveType, nodes: dict[datetime, DualTypes], ad: int) -> None:
@@ -132,13 +151,13 @@ class _CurveSpline:
 
         # Get the Spline class by data types
         if ad == 0:
-            self.spline = PPSplineF64(4, t_posix, None)
+            self._spline = PPSplineF64(4, t_posix, None)
         elif ad == 1:
-            self.spline = PPSplineDual(4, t_posix, None)
+            self._spline = PPSplineDual(4, t_posix, None)
         else:
-            self.spline = PPSplineDual2(4, t_posix, None)
+            self._spline = PPSplineDual2(4, t_posix, None)
 
-        self.spline.csolve(tau_posix, y, left_n, right_n, False)  # type: ignore[attr-defined]
+        self._spline.csolve(tau_posix, y, left_n, right_n, False)  # type: ignore[attr-defined]
 
     def to_json(self) -> str:
         obj = dict(
