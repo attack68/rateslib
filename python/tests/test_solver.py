@@ -272,10 +272,10 @@ def test_basic_solver(algo) -> None:
         algorithm=algo,
     )
     assert float(solver.g) < 1e-9
-    assert curve.nodes[dt(2022, 1, 1)] == Dual(1.0, ["v0"], [1])
+    assert curve.nodes.nodes[dt(2022, 1, 1)] == Dual(1.0, ["v0"], [1])
     expected = [1, 0.9899250357528555, 0.9680433953206192, 0.9407188354823821]
-    for i, key in enumerate(curve.nodes.keys()):
-        assert abs(float(curve.nodes[key]) - expected[i]) < 1e-6
+    for i, key in enumerate(curve.nodes.nodes.keys()):
+        assert abs(float(curve.nodes.nodes[key]) - expected[i]) < 1e-6
 
 
 def test_solver_repr():
@@ -330,10 +330,10 @@ def test_solver_reiterate(algo) -> None:
     solver.iterate()
 
     # now check that a reiteration has resolved the curve
-    assert curve.nodes[dt(2022, 1, 1)] == Dual(1.0, ["v0"], [1])
+    assert curve.nodes.nodes[dt(2022, 1, 1)] == Dual(1.0, ["v0"], [1])
     expected = [1, 0.9899250357528555, 0.9680433953206192, 0.9407188354823821]
-    for i, key in enumerate(curve.nodes.keys()):
-        assert abs(float(curve.nodes[key]) - expected[i]) < 1e-6
+    for i, key in enumerate(curve.nodes.nodes.keys()):
+        assert abs(float(curve.nodes.nodes[key]) - expected[i]) < 1e-6
 
 
 @pytest.mark.parametrize("algo", ["gauss_newton", "levenberg_marquardt", "gradient_descent"])
@@ -359,8 +359,8 @@ def test_basic_solver_line_curve(algo) -> None:
         algorithm=algo,
     )
     assert float(solver.g) < 1e-9
-    for i, key in enumerate(curve.nodes.keys()):
-        assert abs(float(curve.nodes[key]) - s[i]) < 1e-5
+    for i, key in enumerate(curve.nodes.nodes.keys()):
+        assert abs(float(curve.nodes.nodes[key]) - s[i]) < 1e-5
 
 
 def test_basic_spline_solver() -> None:
@@ -398,10 +398,10 @@ def test_basic_spline_solver() -> None:
         algorithm="gauss_newton",
     )
     assert float(solver.g) < 1e-12
-    assert spline_curve.nodes[dt(2022, 1, 1)] == Dual(1.0, ["v0"], [1])
+    assert spline_curve.nodes.nodes[dt(2022, 1, 1)] == Dual(1.0, ["v0"], [1])
     expected = [1, 0.98992503575307, 0.9680377261843034, 0.9407048036486593]
-    for i, key in enumerate(spline_curve.nodes.keys()):
-        assert abs(float(spline_curve.nodes[key]) - expected[i]) < 1e-11
+    for i, key in enumerate(spline_curve.nodes.nodes.keys()):
+        assert abs(float(spline_curve.nodes.nodes[key]) - expected[i]) < 1e-11
 
 
 def test_large_spline_solver() -> None:
@@ -489,10 +489,10 @@ def test_basic_solver_weights() -> None:
             func_tol=0.00085,
         )
     assert float(solver.g) < 0.00085
-    assert curve.nodes[dt(2022, 1, 1)] == Dual(1.0, ["v0"], [1])
+    assert curve.nodes.nodes[dt(2022, 1, 1)] == Dual(1.0, ["v0"], [1])
     expected = [1, 0.9899250357528555, 0.9680433953206192, 0.9407188354823821]
-    for i, key in enumerate(curve.nodes.keys()):
-        assert abs(float(curve.nodes[key]) - expected[i]) < 1e-6
+    for i, key in enumerate(curve.nodes.nodes.keys()):
+        assert abs(float(curve.nodes.nodes[key]) - expected[i]) < 1e-6
 
     solver = Solver(
         curves=[curve],

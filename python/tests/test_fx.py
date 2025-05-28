@@ -894,8 +894,7 @@ def test_proxy_curves_update_with_underlying() -> None:
 
     proxy_curve = fxf.curve("cad", "eur")
     prev_value = proxy_curve[dt(2022, 10, 1)]
-    fxf.fx_curves["eureur"].nodes[dt(2022, 10, 1)] = 0.90
-    fxf.fx_curves["eureur"]._clear_cache()
+    fxf.fx_curves["eureur"].update_node(dt(2022, 10, 1), 0.90)
     new_value = proxy_curve[dt(2022, 10, 1)]
 
     assert prev_value != new_value
@@ -920,7 +919,7 @@ def test_full_curves(usdusd, eureur, usdeur) -> None:
     )
     curve = fxf._full_curve("usd", "nok")
     assert type(curve) is Curve
-    assert len(curve.nodes) == 10  # constructed with DF on every date
+    assert curve.nodes.n == 10  # constructed with DF on every date
 
 
 def test_rate_dynamic_path_calculation() -> None:

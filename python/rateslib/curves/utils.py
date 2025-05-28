@@ -122,15 +122,15 @@ class _CurveSpline:
         return self._endpoints
 
     # All calling methods should clear the cache and/or set new state after `_csolve`
-    def _csolve(self, curve_type: _CurveType, nodes: dict[datetime, DualTypes], ad: int) -> None:
+    def _csolve(self, curve_type: _CurveType, nodes: _CurveNodes, ad: int) -> None:
         t_posix = self.t_posix.copy()
-        tau_posix = [k.replace(tzinfo=UTC).timestamp() for k in nodes if k >= self.t[0]]
+        tau_posix = [k.replace(tzinfo=UTC).timestamp() for k in nodes.keys if k >= self.t[0]]
         if curve_type == _CurveType.dfs:
             # then use log
-            y = [dual_log(v) for k, v in nodes.items() if k >= self.t[0]]
+            y = [dual_log(v) for k, v in nodes.nodes.items() if k >= self.t[0]]
         else:
             # use values directly
-            y = [_to_number(v) for k, v in nodes.items() if k >= self.t[0]]
+            y = [_to_number(v) for k, v in nodes.nodes.items() if k >= self.t[0]]
 
         # Left side constraint
         if self.endpoints[0].lower() == "natural":
@@ -292,7 +292,7 @@ class _CurveInterpolator:
         return self._convention
 
     # All calling methods should clear the cache and/or set new state after `_csolve`
-    def _csolve(self, curve_type: _CurveType, nodes: dict[datetime, DualTypes], ad: int) -> None:
+    def _csolve(self, curve_type: _CurveType, nodes: _CurveNodes, ad: int) -> None:
         if self.spline is None:
             return None
         self.spline._csolve(curve_type, nodes, ad)
@@ -351,3 +351,60 @@ class _CurveInterpolator:
             convention=loaded_json["convention"],
             curve_type=NoInput(0),  # type: ignore[arg-type]
         )
+
+
+class _CurveNodes:
+    """
+    A container for the pricing parameters of a *Curve*
+    """
+
+    _nodes: dict[datetime, DualTypes]
+
+    def __init__(self, nodes: dict[datetime, DualTypes]):
+        self._nodes = nodes
+        for idx in range(1, self.n):
+            if self.keys[idx - 1] >= self.keys[idx]:
+                raise ValueError(
+                    "Curve node dates are not sorted or contain duplicates.\n"
+                    "To sort directly use: `dict(sorted(nodes.items()))`",
+                )
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, _CurveNodes):
+            return False
+        else:
+            return self._nodes == other._nodes
+
+    @property
+    def nodes(self) -> dict[datetime, DualTypes]:
+        return self._nodes
+
+    @cached_property
+    def keys(self) -> list[datetime]:
+        return list(self._nodes.keys())
+
+    @cached_property
+    def values(self) -> list[DualTypes]:
+        return list(self._nodes.values())
+
+    # @property
+    # def node_dates(self) -> list[datetime]:
+    #     return self.keys
+
+    @cached_property
+    def n(self) -> int:
+        return len(self.keys)
+
+    @cached_property
+    def posix_keys(self) -> list[float]:
+        return [_.replace(tzinfo=UTC).timestamp() for _ in self.keys]
+
+    @property
+    def initial(self) -> datetime:
+        """The first node key associated with the *Curve* nodes."""
+        return self.keys[0]
+
+    @property
+    def final(self) -> datetime:
+        """The last node key associated with the *Curve* nodes."""
+        return self.keys[-1]

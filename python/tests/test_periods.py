@@ -3776,7 +3776,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd")[fxo.delivery],
             fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
             fxfo.rate("eurusd", dt(2023, 6, 20)),
-            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
+            fxo._t_to_expiry(fxfo.curve("usd", "usd").nodes.initial),
         )[2]
         expected = exp_k
         assert abs(result - expected) < 1e-8
@@ -3873,7 +3873,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
             fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
             fxfo.rate("eurusd", dt(2023, 6, 20)),
-            fxo._t_to_expiry(fxfo.curve("eur", "usd").node_dates[0]),
+            fxo._t_to_expiry(fxfo.curve("eur", "usd").nodes.initial),
         )
 
         fxo.strike = result[2]
@@ -3933,7 +3933,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
             fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
             fxfo.rate("eurusd", dt(2023, 6, 20)),
-            fxo._t_to_expiry(fxfo.curve("eur", "usd").node_dates[0]),
+            fxo._t_to_expiry(fxfo.curve("eur", "usd").nodes.initial),
         )
 
         fxo.strike = result[2]
@@ -3990,7 +3990,7 @@ class TestFXOption:
                 fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
                 fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
                 fxfo.rate("eurusd", dt(2023, 6, 20)),
-                fxo._t_to_expiry(fxfo.curve("eur", "usd").node_dates[0]),
+                fxo._t_to_expiry(fxfo.curve("eur", "usd").nodes.initial),
             )
 
     @pytest.mark.parametrize("delta_type", ["forward", "spot"])

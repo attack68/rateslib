@@ -319,7 +319,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
         if isinstance(vol_, FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile | FXSabrSurface):
             eval_date = vol_.eval_date
         else:
-            eval_date = curves_3.node_dates[0]
+            eval_date = curves_3.nodes.initial
             self._pricing.vol = vol_  # Not a vol model so set directly
         self._pricing.t_e = self._option_periods[0]._t_to_expiry(eval_date)
 

@@ -178,7 +178,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             defaults.headers["pair"]: self.pair,
             defaults.headers["notional"]: _dual_float(self.notional),
             defaults.headers["expiry"]: self.expiry,
-            defaults.headers["t_e"]: _dual_float(self._t_to_expiry(disc_curve_ccy2.node_dates[0])),
+            defaults.headers["t_e"]: _dual_float(self._t_to_expiry(disc_curve_ccy2.nodes.initial)),
             defaults.headers["delivery"]: self.delivery,
             defaults.headers["rate"]: fx_forward,
             defaults.headers["strike"]: self.strike,
@@ -225,7 +225,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         -------
         float, Dual, Dual2 or dict of such.
         """
-        if self.payment < disc_curve_ccy2.node_dates[0]:
+        if self.payment < disc_curve_ccy2.nodes.initial:
             # payment date is in the past avoid issues with fixings or rates
             return _maybe_local(0.0, local, self.currency, NoInput(0), NoInput(0))
 
@@ -250,7 +250,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             value = _black76(
                 F=fx.rate(self.pair, self.delivery),
                 K=self.strike,
-                t_e=self._t_to_expiry(disc_curve_ccy2.node_dates[0]),
+                t_e=self._t_to_expiry(disc_curve_ccy2.nodes.initial),
                 v1=NoInput(0),  # not required: disc_curve[self.expiry],
                 v2=disc_curve_ccy2[self.delivery],
                 vol=vol_ / 100.0,
@@ -365,7 +365,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         # convert to immediate pips form
         imm_premium = premium * disc_curve_ccy2[self.payment]
 
-        t_e = self._t_to_expiry(disc_curve_ccy2.node_dates[0])
+        t_e = self._t_to_expiry(disc_curve_ccy2.nodes.initial)
         v2 = disc_curve_ccy2[self.delivery]
         f_d = fx.rate(self.pair, self.delivery)
 
@@ -505,7 +505,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         f_d = fx.rate(self.pair, self.delivery)
         f_t = fx.rate(self.pair, spot)
         u = self.strike / f_d
-        sqrt_t = self._t_to_expiry(disc_curve.node_dates[0]) ** 0.5
+        sqrt_t = self._t_to_expiry(disc_curve.nodes.initial) ** 0.5
 
         eta_0, z_w_0, z_u_0 = _delta_type_constants(self.delta_type, w_deli / w_spot, u)
 
