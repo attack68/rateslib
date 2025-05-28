@@ -192,8 +192,10 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     _ini_solve: int = 1  # Curve is assumed to have initial DF node at 1.0 as constraint
     _base_type = _CurveType.dfs
 
-    meta: _CurveMeta
-    interpolator: _CurveInterpolator
+    _ad: int
+    _id: str
+    _meta: _CurveMeta
+    _interpolator: _CurveInterpolator
 
     @_new_state_post
     def __init__(  # type: ignore[no-untyped-def]
@@ -213,10 +215,10 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         collateral: str_ = NoInput(0),
         **kwargs,
     ) -> None:
-        self.id: str = _drb(uuid4().hex[:5], id)  # 1 in a million clash
+        self._id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
 
         # Parameters for the rate/values derivation
-        self.meta = _CurveMeta(
+        self._meta = _CurveMeta(
             calendar=get_calendar(calendar),
             convention=_drb(defaults.convention, convention).lower(),
             modifier=_drb(defaults.modifier, modifier).upper(),
@@ -227,7 +229,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
         self.__set_nodes__(nodes)
 
-        self.interpolator = _CurveInterpolator(
+        self._interpolator = _CurveInterpolator(
             local=interpolation,
             t=t,
             endpoints=self.__set_endpoints__(_drb(defaults.endpoints, endpoints)),
@@ -240,7 +242,24 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
     @property
     def ad(self) -> int:
+        """Int in {0,1,2} describing the AD order associated with the *Curve*."""
         return self._ad
+
+    @property
+    def meta(self) -> _CurveMeta:
+        """A *CurveMeta* object containing meta data associated with the *Curve*."""
+        return self._meta
+
+    @property
+    def id(self) -> str:
+        """A str identifier to name the *Curve* used in
+        :class:`~rateslib.solver.Solver` mappings."""
+        return self._id
+
+    @property
+    def interpolator(self) -> _CurveInterpolator:
+        """A *CurveInterpolator* object containing data and functions to interpolate the `nodes`."""
+        return self._interpolator
 
     def __set_nodes__(self, nodes: dict[datetime, DualTypes]) -> None:
         self.nodes: dict[datetime, DualTypes] = nodes  # nodes.copy()
@@ -610,7 +629,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         crv: CompositeCurve = CompositeCurve(
             curves=[self, shifted], id=id, _no_validation=_no_validation
         )
-        crv.meta = crv.meta._replace(collateral=_drb(None, collateral))
+        crv._meta = crv._meta._replace(collateral=_drb(None, collateral))
 
         if not composite:
             if self._base_type == _CurveType.dfs:
@@ -1550,6 +1569,20 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         )
 
     def to_json(self) -> str:
+        """
+        Serialize this object to JSON format.
+
+        The object can be deserialized using the :meth:`~rateslib.serialization.from_json` method.
+
+        Returns
+        -------
+        str
+
+        Notes
+        -----
+        Some *Curves* will **not** be serializable, for example those that possess user defined
+        interpolation functions.
+        """
         obj = dict(
             PyNative={
                 f"{type(self).__name__}": dict(
@@ -2180,11 +2213,11 @@ class CompositeCurve(Curve):
         id: str_ = NoInput(0),  # noqa: A002
         _no_validation: bool = False,
     ) -> None:
-        self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
+        self._id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
         self.curves = tuple(curves)
         self.node_dates = self.curves[0].node_dates
 
-        self.meta = _CurveMeta(
+        self._meta = _CurveMeta(
             curves[0].meta.calendar,
             curves[0].meta.convention,
             curves[0].meta.modifier,
@@ -2783,7 +2816,7 @@ class ProxyCurve(Curve):
         calendar: CalInput = NoInput(1),  # inherits from existing curve objects
         id: str_ = NoInput(0),  # noqa: A002
     ):
-        self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
+        self._id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
         self.fx_forwards = fx_forwards
         self.cash_currency = cash_ccy
@@ -2795,7 +2828,7 @@ class ProxyCurve(Curve):
         self.pair = f"{cash_ccy}{coll_ccy}"
         self.terminal = list(self.fx_forwards.fx_curves[self.cash_pair].nodes.keys())[-1]
 
-        self.meta = _CurveMeta(
+        self._meta = _CurveMeta(
             get_calendar(_drb(self.fx_forwards.fx_curves[self.cash_pair].meta.calendar, calendar)),
             _drb(self.fx_forwards.fx_curves[self.cash_pair].meta.convention, convention).lower(),
             _drb(self.fx_forwards.fx_curves[self.cash_pair].meta.modifier, modifier).upper(),

@@ -1073,7 +1073,7 @@ def test_solver_float_rate_bond() -> None:
         id="credit",
     )
     f_c = d_c.copy()
-    f_c.id = "rfr"
+    f_c._id = "rfr"
     instruments = [
         (
             FloatRateNote(

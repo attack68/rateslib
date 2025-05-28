@@ -3369,8 +3369,8 @@ class TestXCS:
     @pytest.mark.parametrize("fixed2", [True, False])
     @pytest.mark.parametrize("mtm", [True, False])
     def test_fixings_table(self, curve, curve2, fixed1, fixed2, mtm):
-        curve.id = "c1"
-        curve2.id = "c2"
+        curve._id = "c1"
+        curve2._id = "c2"
         fxf = FXForwards(
             FXRates({"eurusd": 1.1}, settlement=dt(2022, 1, 3)),
             {"usdusd": curve, "eurusd": curve2, "eureur": curve2},
@@ -4112,8 +4112,8 @@ class TestPortfolio:
         assert pf.__repr__() == expected
 
     def test_fixings_table(self, curve, curve2):
-        curve.id = "c1"
-        curve2.id = "c2"
+        curve._id = "c1"
+        curve2._id = "c2"
         irs1 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=3e6)
         irs2 = IRS(dt(2022, 1, 23), "6m", spec="eur_irs6", curves=curve2, notional=1e6)
         irs3 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=-2e6)
@@ -4212,8 +4212,8 @@ class TestFly:
         assert expected == spd.__repr__()
 
     def test_fixings_table(self, curve, curve2):
-        curve.id = "c1"
-        curve2.id = "c2"
+        curve._id = "c1"
+        curve2._id = "c2"
         irs1 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=3e6)
         irs2 = IRS(dt(2022, 1, 23), "6m", spec="eur_irs6", curves=curve2, notional=1e6)
         irs3 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=-2e6)
@@ -4290,8 +4290,8 @@ class TestSpread:
         assert expected == fly.__repr__()
 
     def test_fixings_table(self, curve, curve2):
-        curve.id = "c1"
-        curve2.id = "c2"
+        curve._id = "c1"
+        curve2._id = "c2"
         irs1 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=3e6)
         irs2 = IRS(dt(2022, 1, 23), "6m", spec="eur_irs6", curves=curve2, notional=1e6)
         irs3 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=-2e6)

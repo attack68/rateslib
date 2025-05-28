@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from enum import Enum
+from functools import cached_property
 from typing import TYPE_CHECKING, NamedTuple
 
 from pytz import UTC
@@ -20,8 +21,8 @@ if TYPE_CHECKING:
 
 class _CurveType(Enum):
     """
-    Enumerable type to define the difference between discount factor based Curves and
-    values base Curves.
+    Enumerable type to define the difference between discount factor based *Curves* and
+    values based *Curves*.
     """
 
     dfs = 0
@@ -29,6 +30,11 @@ class _CurveType(Enum):
 
 
 class _CurveMeta(NamedTuple):
+    """
+    An immutable container of meta data associated with a *Curve* used to derive, dates, rates
+    and values.
+    """
+
     calendar: CalTypes
     convention: str
     modifier: str
@@ -37,6 +43,15 @@ class _CurveMeta(NamedTuple):
     collateral: str | None
 
     def to_json(self) -> str:
+        """
+        Serialize this object to JSON format.
+
+        The object can be deserialized using the :meth:`~rateslib.serialization.from_json` method.
+
+        Returns
+        -------
+        str
+        """
         from rateslib.serialization.utils import _obj_to_json
 
         obj = dict(
@@ -68,20 +83,43 @@ class _CurveMeta(NamedTuple):
 
 
 class _CurveSpline:
-    t: list[datetime]
-    t_posix: list[float]
-    spline: PPSplineF64 | PPSplineDual | PPSplineDual2 | None
-    endpoints: tuple[str, str]
+    """
+    A container for data relating to interpolating the `nodes` of
+    a *Curve* using a cubic PPSpline.
+    """
+
+    _t: list[datetime]
+    _spline: PPSplineF64 | PPSplineDual | PPSplineDual2 | None
+    _endpoints: tuple[str, str]
 
     def __init__(self, t: list[datetime], endpoints: tuple[str, str]) -> None:
-        self.t = t
-        self.t_posix = [_.replace(tzinfo=UTC).timestamp() for _ in self.t]
-        self.endpoints = endpoints
-        self.spline = None  # will be set in later in csolve
-        if len(self.t) < 10 and "not_a_knot" in self.endpoints:
+        self._t = t
+        self._endpoints = endpoints
+        self._spline = None  # will be set in later in csolve
+        if len(self._t) < 10 and "not_a_knot" in self.endpoints:
             raise ValueError(
                 "`endpoints` cannot be 'not_a_knot' with only 1 interior breakpoint",
             )
+
+    @property
+    def t(self) -> list[datetime]:
+        """The knot sequence of the PPSpline."""
+        return self._t
+
+    @cached_property
+    def t_posix(self) -> list[float]:
+        """The knot sequence of the PPSpline converted to float unix timestamps."""
+        return [_.replace(tzinfo=UTC).timestamp() for _ in self.t]
+
+    @property
+    def spline(self) -> PPSplineF64 | PPSplineDual | PPSplineDual2 | None:
+        """PPSpline object used for calculations."""
+        return self._spline
+
+    @property
+    def endpoints(self) -> tuple[str, str]:
+        """The endpoints method used to determine the spline coefficients."""
+        return self._endpoints
 
     # All calling methods should clear the cache and/or set new state after `_csolve`
     def _csolve(self, curve_type: _CurveType, nodes: dict[datetime, DualTypes], ad: int) -> None:
@@ -122,15 +160,24 @@ class _CurveSpline:
 
         # Get the Spline class by data types
         if ad == 0:
-            self.spline = PPSplineF64(4, t_posix, None)
+            self._spline = PPSplineF64(4, t_posix, None)
         elif ad == 1:
-            self.spline = PPSplineDual(4, t_posix, None)
+            self._spline = PPSplineDual(4, t_posix, None)
         else:
-            self.spline = PPSplineDual2(4, t_posix, None)
+            self._spline = PPSplineDual2(4, t_posix, None)
 
-        self.spline.csolve(tau_posix, y, left_n, right_n, False)  # type: ignore[attr-defined]
+        self._spline.csolve(tau_posix, y, left_n, right_n, False)  # type: ignore[attr-defined]
 
     def to_json(self) -> str:
+        """
+        Serialize this object to JSON format.
+
+        The object can be deserialized using the :meth:`~rateslib.serialization.from_json` method.
+
+        Returns
+        -------
+        str
+        """
         obj = dict(
             PyNative=dict(
                 _CurveSpline=dict(
@@ -159,10 +206,14 @@ class _CurveSpline:
 
 
 class _CurveInterpolator:
-    local_name: str
-    local_func: InterpolationFunction
-    convention: str
-    spline: _CurveSpline | None
+    """
+    A container for data relating to interpolating the `nodes` of a *Curve*.
+    """
+
+    _local_name: str
+    _local_func: InterpolationFunction
+    _convention: str
+    _spline: _CurveSpline | None
 
     def __init__(
         self,
@@ -180,12 +231,12 @@ class _CurveInterpolator:
                 f"It should not be specified directly. Got: {t}"
             )
 
-        self.convention = convention
+        self._convention = convention
         if isinstance(local, NoInput):
             local = defaults.interpolation[curve_type.name]
 
         if isinstance(local, str):
-            self.local_name = local.lower()
+            self._local_name = local.lower()
             if self.local_name == "spline":
                 # then refactor t
                 t = (
@@ -194,30 +245,51 @@ class _CurveInterpolator:
                     + [node_dates[-1], node_dates[-1], node_dates[-1]]
                 )
 
-            if self.local_name + "_" + convention in INTERPOLATION:
-                self.local_func = INTERPOLATION[self.local_name + "_" + convention]
+            if self._local_name + "_" + convention in INTERPOLATION:
+                self._local_func = INTERPOLATION[self.local_name + "_" + convention]
             else:
                 try:
-                    self.local_func = INTERPOLATION[self.local_name]
+                    self._local_func = INTERPOLATION[self.local_name]
                 except KeyError:
                     raise ValueError(
                         f"Curve interpolation: '{self.local_name}' not available.\n"
                         f"Consult the documentation for available methods."
                     )
         else:
-            self.local_name = "user_defined_callable"
-            self.local_func = local
+            self._local_name = "user_defined_callable"
+            self._local_func = local
 
         if isinstance(t, NoInput):
-            self.spline = None
+            self._spline = None
         else:
-            self.spline = _CurveSpline(t, endpoints)
+            self._spline = _CurveSpline(t, endpoints)
 
     @property
     def local(self) -> str | InterpolationFunction:
+        """The local interpolation name or function, if user defined."""
         if self.local_name == "user_defined_callable":
             return self.local_func
         return self.local_name
+
+    @property
+    def local_name(self) -> str:
+        """The str name of the local interpolation function."""
+        return self._local_name
+
+    @property
+    def local_func(self) -> InterpolationFunction:
+        """The callable used for local interpolation"""
+        return self._local_func
+
+    @property
+    def spline(self) -> _CurveSpline | None:
+        """The :class:`~rateslib.curves.utils._CurveSpline` used for PPSpline interpolation."""
+        return self._spline
+
+    @property
+    def convention(self) -> str:
+        """The day count convention used to adjust interpolation functions."""
+        return self._convention
 
     # All calling methods should clear the cache and/or set new state after `_csolve`
     def _csolve(self, curve_type: _CurveType, nodes: dict[datetime, DualTypes], ad: int) -> None:
@@ -236,6 +308,15 @@ class _CurveInterpolator:
         return all(iter([self.local_name == other.local_name, self.spline == other.spline]))
 
     def to_json(self) -> str:
+        """
+        Serialize this object to JSON format.
+
+        The object can be deserialized using the :meth:`~rateslib.serialization.from_json` method.
+
+        Returns
+        -------
+        str
+        """
         from rateslib.serialization.utils import _obj_to_json
 
         obj = dict(

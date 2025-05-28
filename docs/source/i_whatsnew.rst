@@ -180,7 +180,7 @@ Some themes for this release involved:
          distinguish between serialised, native Python objects which use the *'PyNative'*
          identifier. The *NoInput* type is also now handled in serialization of objects.
          (`855 <https://github.com/attack68/rateslib/pull/855>`_)
-     - - :red:`Major Breaking Change!` JSON serialization of :class:`~rateslib.curves.Curve` and
+       - :red:`Major Breaking Change!` JSON serialization of :class:`~rateslib.curves.Curve` and
          :class:`~rateslib.curves.LineCurve` is refactored to suit the modification of the
          new *Curve* attributes structure.
          (`860 <https://github.com/attack68/rateslib/pull/860>`_)
