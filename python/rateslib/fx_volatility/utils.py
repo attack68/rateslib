@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, TypeAlias
 
 from pandas import Series
 from pytz import UTC
+from rateslib import PPSplineF64
 
 from rateslib.calendars import get_calendar
 from rateslib.default import (
@@ -41,6 +42,7 @@ class _FXDeltaVolSmileMeta:
     expiry: datetime
     plot_x_axis: str
     delta_type: str
+    plot_upper_bound: float
 
     @cached_property
     def t_expiry(self) -> float:
@@ -99,6 +101,9 @@ class _FXSabrSurfaceMeta:
 @dataclass(frozen=True)
 class _FXDeltaVolNodes:
     nodes: dict[float, DualTypes]
+    delta_type: str
+    spline: PPSplineF64 | PPSplineDual | PPSplineDual2
+    plot_upper_bound: float
 
     @cached_property
     def keys(self) -> list[float]:

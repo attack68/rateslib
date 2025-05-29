@@ -39,7 +39,7 @@ from rateslib.fx_volatility.utils import (
     _moneyness_from_delta_closed_form,
     _t_var_interp,
     _validate_delta_type,
-    _validate_weights,
+    _validate_weights, _FXSabrSurfaceMeta,
 )
 from rateslib.mutability import (
     _clear_cache_post,
@@ -104,6 +104,7 @@ class FXDeltaVolSmile(_BaseSmile):
     _ini_solve = 0  # All node values are solvable
     _default_plot_x_axis = "delta"
     _meta: _FXDeltaVolSmileMeta
+    _id: str
 
     @_new_state_post
     def __init__(
@@ -115,7 +116,7 @@ class FXDeltaVolSmile(_BaseSmile):
         id: str | NoInput = NoInput(0),  # noqa: A002
         ad: int = 0,
     ):
-        self.id: str = (
+        self._id: str = (
             uuid4().hex[:5] + "_" if isinstance(id, NoInput) else id
         )  # 1 in a million clash
 
@@ -129,7 +130,14 @@ class FXDeltaVolSmile(_BaseSmile):
         self.__set_nodes__(nodes, ad)
 
     @property
+    def id(self) -> str:
+        """A str identifier to name the *Smile* used in
+        :class:`~rateslib.solver.Solver` mappings."""
+        return self._id
+
+    @property
     def meta(self) -> _FXDeltaVolSmileMeta:
+        """An instance of :class:`~rateslib.fx_volatility.utils._FXDeltaVolSmileMeta`."""
         return self._meta
 
     def __getitem__(self, item: DualTypes) -> DualTypes:
@@ -357,6 +365,20 @@ class FXDeltaVolSmile(_BaseSmile):
                 return ([_ * _dual_float(f) for _ in x_as_u], vols)  # type: ignore[misc, return-value]
             return (x_as_u, vols)  # type: ignore[return-value]
         return (x, vols)  # type: ignore[return-value]
+
+    def __set_plot_upper_bound(
+        self,
+        nodes: dict[float, DualTypes],
+        delta_type: str,
+        eval_date: datetime,
+        expiry: datetime
+    ) -> float:
+        if "_pa" in delta_type:
+            vol_estimate = _dual_float(list(self.nodes.values())[-1]) / 100.0
+            t_expiry_sqrt = ((expiry - eval_date).days / 365.0) ** 0.5
+
+        else:
+            return 1.0
 
     # Mutation
 
@@ -646,6 +668,8 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
 
     _ini_solve = 0
     _mutable_by_association = True
+    _id: str
+    _meta: _FXDeltaVolSurfaceMeta
 
     def __init__(
         self,
@@ -703,7 +727,14 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         self._set_new_state()
 
     @property
+    def id(self) -> str:
+        """A str identifier to name the *Surface* used in
+        :class:`~rateslib.solver.Solver` mappings."""
+        return self._id
+
+    @property
     def meta(self) -> _FXDeltaVolSurfaceMeta:
+        """An instance of :class:`~rateslib.fx_volatility.utils._FXDeltaVolSurfaceMeta`."""
         return self._meta
 
     @property
