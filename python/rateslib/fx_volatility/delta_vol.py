@@ -344,7 +344,7 @@ class FXDeltaVolSmile(_BaseSmile):
                         "`f` (ATM-forward FX rate) is required by `FXDeltaVolSmile.plot` "
                         "to convert 'moneyness' to 'strike'."
                     )
-                return ([_ * _dual_float(f) for _ in x_as_u], vols)  # type: ignore[return-value]
+                return ([_ * _dual_float(f) for _ in x_as_u], vols)  # type: ignore[misc, return-value]
             return (x_as_u, vols)  # type: ignore[return-value]
         return (x, vols)  # type: ignore[return-value]
 
@@ -886,7 +886,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
 
     def plot(self) -> PlotOutput:
         plot_upper_bound = max([_.plot_upper_bound for _ in self.smiles])
-        deltas = np.linspace(0.0, plot_upper_bound, 20)
+        deltas = np.linspace(0.0, plot_upper_bound, 20)  # type: ignore[arg-type]
         vols = np.array([[_._get_index(d, NoInput(0)) for d in deltas] for _ in self.smiles])
         expiries = [(_ - self.eval_posix) / (365 * 24 * 60 * 60.0) for _ in self.expiries_posix]
         return plot3d(deltas, expiries, vols)  # type: ignore[arg-type, return-value]

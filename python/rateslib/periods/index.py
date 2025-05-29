@@ -122,7 +122,7 @@ class IndexMixin(metaclass=ABCMeta):
         return _maybe_local(value, local, self.currency, fx, base)
 
 
-class IndexFixedPeriod(IndexMixin, FixedPeriod):
+class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
     """
     Create a period defined with a real rate adjusted by an index.
 
@@ -462,7 +462,7 @@ def _index_series_to_value(
     index_fixings: DualTypes_ | Series[DualTypes],  # type: ignore[type-var]
 ) -> DualTypes_:
     if isinstance(index_fixings, Series):
-        val = index_value(index_lag, index_method, index_fixings, index_date, NoInput(0))
+        val = index_value(index_lag, index_method, index_fixings, index_date, NoInput(0))  # type: ignore[arg-type]
     else:
         val = index_fixings
     return val

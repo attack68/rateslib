@@ -166,7 +166,7 @@ class _CurveSpline:
         else:
             self._spline = PPSplineDual2(4, t_posix, None)
 
-        self._spline.csolve(tau_posix, y, left_n, right_n, False)  # type: ignore[attr-defined]
+        self._spline.csolve(tau_posix, y, left_n, right_n, False)  # type: ignore[arg-type]
 
     def to_json(self) -> str:
         """

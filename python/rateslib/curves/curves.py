@@ -2341,7 +2341,7 @@ class CompositeCurve(Curve):
             # will return a composited discount factor
             if date == self.nodes.initial:
                 # this value is 1.0, but by multiplying capture AD versus initial nodes.
-                ret: DualTypes = prod(crv[date] for crv in self.curves)  # type: ignore[misc]
+                ret: DualTypes = prod(crv[date] for crv in self.curves)
                 return ret
             elif date < self.nodes.initial:
                 return 0.0  # Any DF in the past is set to zero consistent with behaviour on `Curve`
@@ -2628,7 +2628,7 @@ class MultiCsaCurve(CompositeCurve):
 
         if date == self.nodes.initial:
             # this value is 1.0, but by multiplying capture AD versus initial nodes.
-            ret: DualTypes = prod(crv[date] for crv in self.curves)  # type: ignore[misc]
+            ret: DualTypes = prod(crv[date] for crv in self.curves)
             return ret
         elif date < self.nodes.initial:
             return 0.0  # Any DF in the past is set to zero consistent with behaviour on `Curve`
@@ -3033,12 +3033,16 @@ def index_value(
             return _index_value_from_series_no_curve(
                 index_lag,
                 index_method,
-                index_fixings,
+                index_fixings,  # type: ignore[arg-type]
                 index_date,
             )
         else:
             return _index_value_from_mixed_series_and_curve(
-                index_lag, index_method, index_fixings, index_date, index_curve
+                index_lag,
+                index_method,
+                index_fixings,  # type: ignore[arg-type]
+                index_date,
+                index_curve,
             )
     else:
         raise TypeError(

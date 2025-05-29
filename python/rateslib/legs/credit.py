@@ -254,7 +254,8 @@ class CreditProtectionLeg(BaseLeg):
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
         """
         _ = (period.analytic_rec_risk(*args, **kwargs) for period in self.periods)
-        return sum(_)
+        ret: DualTypes = sum(_)
+        return ret
 
     def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
