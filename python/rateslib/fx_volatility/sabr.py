@@ -29,6 +29,8 @@ from rateslib.fx import FXForwards
 from rateslib.fx_volatility.base import _BaseSmile
 from rateslib.fx_volatility.utils import (
     _d_sabr_d_k_or_f,
+    _FXSabrSmileMeta,
+    _FXSabrSurfaceMeta,
     _t_var_interp_d_sabr_d_k_or_f,
     _validate_weights,
 )
@@ -124,7 +126,7 @@ class FXSabrSmile(_BaseSmile):
 
     _ini_solve = 1
     n = 4
-    _default_plot_x_axis = "strike"
+    _meta: _FXSabrSmileMeta
 
     @_new_state_post
     def __init__(
@@ -141,6 +143,8 @@ class FXSabrSmile(_BaseSmile):
         self.id: str = (
             uuid4().hex[:5] + "_" if isinstance(id, NoInput) else id
         )  # 1 in a million clash
+
+        self._meta = _FXSabrSmileMeta(eval_date=eval_date, expiry=expiry, plot_x_axis="strike")
 
         self.eval_date: datetime = eval_date
         self.expiry: datetime = expiry
@@ -165,6 +169,10 @@ class FXSabrSmile(_BaseSmile):
         )
 
         self._set_ad_order(ad)
+
+    @property
+    def meta(self) -> _FXSabrSmileMeta:
+        return self._meta
 
     def get_from_strike(
         self,
@@ -523,6 +531,10 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         self.id: str = (
             uuid4().hex[:5] + "_" if isinstance(id, NoInput) else id
         )  # 1 in a million clash
+
+        self._meta = _FXSabrSurfaceMeta(
+            eval_date=eval_date,
+        )
 
         self.expiries: list[datetime] = expiries
         self.expiries_posix: list[float] = [

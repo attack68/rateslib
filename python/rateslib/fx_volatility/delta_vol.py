@@ -118,7 +118,7 @@ class FXDeltaVolSmile(_BaseSmile):
         self.id: str = (
             uuid4().hex[:5] + "_" if isinstance(id, NoInput) else id
         )  # 1 in a million clash
-        self.eval_date: datetime = eval_date
+        # self.eval_date: datetime = eval_date
         self.expiry: datetime = expiry
         self.t_expiry: float = (expiry - eval_date).days / 365.0
         self.t_expiry_sqrt: float = self.t_expiry**0.5
@@ -132,6 +132,10 @@ class FXDeltaVolSmile(_BaseSmile):
         )
 
         self.__set_nodes__(nodes, ad)
+
+    @property
+    def meta(self) -> _FXDeltaVolSmileMeta:
+        return self._meta
 
     def __getitem__(self, item: DualTypes) -> DualTypes:
         """
@@ -665,6 +669,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         self.delta_indexes: list[float] = delta_indexes
 
         self._meta = _FXDeltaVolSurfaceMeta(
+            eval_date=eval_date,
             delta_type=_validate_delta_type(delta_type),
             plot_x_axis="delta",
         )
@@ -701,6 +706,10 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
 
         self._set_ad_order(ad)  # includes csolve on each smile
         self._set_new_state()
+
+    @property
+    def meta(self) -> _FXDeltaVolSurfaceMeta:
+        return self._meta
 
     @property
     def ad(self) -> int:
