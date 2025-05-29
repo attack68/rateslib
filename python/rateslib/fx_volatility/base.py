@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, NoReturn, TypeAlias
 
 from rateslib.default import NoInput, PlotOutput, _drb, plot
 from rateslib.dual import Dual, Dual2, Variable
+from rateslib.fx_volatility.utils import _FXDeltaVolSmileMeta, _FXSabrSmileMeta
 from rateslib.mutability import _WithCache, _WithState
 
 if TYPE_CHECKING:
@@ -15,6 +16,7 @@ DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined cause
 class _BaseSmile(_WithState, _WithCache[float, DualTypes]):
     _ad: int
     _default_plot_x_axis: str
+    _meta: _FXDeltaVolSmileMeta | _FXSabrSmileMeta
 
     @property
     def ad(self) -> int:

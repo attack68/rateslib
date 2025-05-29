@@ -39,6 +39,7 @@ from rateslib.fx_volatility.utils import (
     _t_var_interp,
     _validate_delta_type,
     _validate_weights,
+_FXDeltaVolSmileMeta, _FXDeltaVolSurfaceMeta
 )
 from rateslib.mutability import (
     _clear_cache_post,
@@ -52,20 +53,6 @@ from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
 
 if TYPE_CHECKING:
     from rateslib.typing import DualTypes, Sequence  # pragma: no cover
-
-
-@dataclass(frozen=True)
-class _FXDeltaVolSmileMeta:
-    delta_type: str
-    eval_date: datetime
-    expiry: datetime
-    plot_x_axis: str
-
-
-@dataclass(frozen=True)
-class _FXDeltaVolSurfaceMeta:
-    delta_type: str
-    plot_x_axis: str
 
 
 class FXDeltaVolSmile(_BaseSmile):
