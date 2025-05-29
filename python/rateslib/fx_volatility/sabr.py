@@ -29,6 +29,7 @@ from rateslib.fx import FXForwards
 from rateslib.fx_volatility.base import _BaseSmile
 from rateslib.fx_volatility.utils import (
     _d_sabr_d_k_or_f,
+    _FXSmileMeta,
     _t_var_interp_d_sabr_d_k_or_f,
     _validate_weights,
 )
@@ -124,7 +125,6 @@ class FXSabrSmile(_BaseSmile):
 
     _ini_solve = 1
     n = 4
-    _default_plot_x_axis = "strike"
 
     @_new_state_post
     def __init__(
@@ -162,6 +162,16 @@ class FXSabrSmile(_BaseSmile):
             beta=nodes["beta"],  # type: ignore[arg-type]
             rho=_to_number(nodes["rho"]),
             nu=_to_number(nodes["nu"]),
+        )
+
+        self._meta = _FXSmileMeta(
+            expiry=expiry,
+            eval_date=eval_date,
+            delta_type=None,
+            calendar=get_calendar(calendar),
+            pair=_drb(None, pair),
+            delivery_lag=_drb(defaults.fx_delivery_lag, delivery_lag),
+            plot_x_axis="strike",
         )
 
         self._set_ad_order(ad)

@@ -34,6 +34,7 @@ from rateslib.fx_volatility.base import _BaseSmile
 from rateslib.fx_volatility.utils import (
     _d_plus_min_u,
     _delta_type_constants,
+    _FXSmileMeta,
     _moneyness_from_delta_closed_form,
     _t_var_interp,
     _validate_delta_type,
@@ -100,7 +101,6 @@ class FXDeltaVolSmile(_BaseSmile):
     """
 
     _ini_solve = 0  # All node values are solvable
-    _default_plot_x_axis = "delta"
 
     @_new_state_post
     def __init__(
@@ -120,6 +120,16 @@ class FXDeltaVolSmile(_BaseSmile):
         self.t_expiry: float = (expiry - eval_date).days / 365.0
         self.t_expiry_sqrt: float = self.t_expiry**0.5
         self.delta_type: str = _validate_delta_type(delta_type)
+
+        self._meta = _FXSmileMeta(
+            expiry=expiry,
+            eval_date=eval_date,
+            delta_type=_validate_delta_type(delta_type),
+            calendar=None,
+            pair=None,
+            delivery_lag=None,
+            plot_x_axis="delta",
+        )
 
         self.__set_nodes__(nodes, ad)
 

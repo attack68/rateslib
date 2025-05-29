@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, NoReturn, TypeAlias
 
 from rateslib.default import NoInput, PlotOutput, _drb, plot
 from rateslib.dual import Dual, Dual2, Variable
+from rateslib.fx_volatility.utils import _FXSmileMeta
 from rateslib.mutability import _WithCache, _WithState
 
 if TYPE_CHECKING:
@@ -14,11 +15,15 @@ DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined cause
 
 class _BaseSmile(_WithState, _WithCache[float, DualTypes]):
     _ad: int
-    _default_plot_x_axis: str
+    _meta: _FXSmileMeta
 
     @property
     def ad(self) -> int:
         return self._ad
+
+    @property
+    def meta(self) -> _FXSmileMeta:
+        return self._meta
 
     def __iter__(self) -> NoReturn:
         raise TypeError("`Smile` types are not iterable.")
@@ -63,7 +68,7 @@ class _BaseSmile(_WithState, _WithCache[float, DualTypes]):
         comparators = _drb([], comparators)
         labels = _drb([], labels)
 
-        x_axis_: str = _drb(self._default_plot_x_axis, x_axis)
+        x_axis_: str = _drb(self._meta.plot_x_axis, x_axis)
 
         x_, y_ = self._plot(x_axis_, f)  # type: ignore[attr-defined]
 

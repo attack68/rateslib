@@ -1,7 +1,9 @@
 from __future__ import annotations  # type hinting
 
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from datetime import datetime as dt
+from functools import cached_property
 from typing import TYPE_CHECKING, TypeAlias
 
 from pandas import Series
@@ -26,11 +28,31 @@ from rateslib.rs import _sabr_x1 as _rs_sabr_x1
 from rateslib.rs import _sabr_x2 as _rs_sabr_x2
 
 if TYPE_CHECKING:
-    from rateslib.typing import Number
+    from rateslib.typing import CalTypes, Number
 
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
 
 TERMINAL_DATE = dt(2100, 1, 1)
+
+
+@dataclass(frozen=True)
+class _FXSmileMeta:
+    expiry: datetime
+    eval_date: datetime
+    delta_type: str | None
+    calendar: CalTypes | None
+    pair: str | None
+    delivery_lag: int | None
+    plot_x_axis: str
+
+    @cached_property
+    def t_expiry(self) -> float:
+        return (self.expiry - self.eval_date).days / 365.0
+
+    @cached_property
+    def t_expiry_sqrt(self) -> float:
+        ret: float = self.t_expiry**0.5
+        return ret
 
 
 def _validate_delta_type(delta_type: str) -> str:
