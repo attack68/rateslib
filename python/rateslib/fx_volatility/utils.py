@@ -1,9 +1,9 @@
 from __future__ import annotations  # type hinting
 
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from datetime import datetime as dt
 from typing import TYPE_CHECKING, TypeAlias
-from dataclasses import dataclass
 
 from pandas import Series
 from pytz import UTC

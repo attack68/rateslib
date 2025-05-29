@@ -1,7 +1,6 @@
 from __future__ import annotations  # type hinting
 
 import warnings
-from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import uuid4
@@ -35,11 +34,12 @@ from rateslib.fx_volatility.base import _BaseSmile
 from rateslib.fx_volatility.utils import (
     _d_plus_min_u,
     _delta_type_constants,
+    _FXDeltaVolSmileMeta,
+    _FXDeltaVolSurfaceMeta,
     _moneyness_from_delta_closed_form,
     _t_var_interp,
     _validate_delta_type,
     _validate_weights,
-_FXDeltaVolSmileMeta, _FXDeltaVolSurfaceMeta
 )
 from rateslib.mutability import (
     _clear_cache_post,
