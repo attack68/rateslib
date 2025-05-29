@@ -65,7 +65,7 @@ class _BaseSmile(_WithState, _WithCache[float, DualTypes]):
         comparators = _drb([], comparators)
         labels = _drb([], labels)
 
-        x_axis_: str = _drb(self._default_plot_x_axis, x_axis)
+        x_axis_: str = _drb(self._meta.plot_x_axis, x_axis)
 
         x_, y_ = self._plot(x_axis_, f)  # type: ignore[attr-defined]
 

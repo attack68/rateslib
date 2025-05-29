@@ -3,6 +3,7 @@ from __future__ import annotations  # type hinting
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from datetime import datetime as dt
+from functools import cached_property
 from typing import TYPE_CHECKING, TypeAlias
 
 from pandas import Series
@@ -36,22 +37,42 @@ TERMINAL_DATE = dt(2100, 1, 1)
 
 @dataclass(frozen=True)
 class _FXDeltaVolSmileMeta:
-    delta_type: str
     eval_date: datetime
     expiry: datetime
     plot_x_axis: str
+    delta_type: str
 
 
 @dataclass(frozen=True)
 class _FXDeltaVolSurfaceMeta:
+    eval_date: datetime
     delta_type: str
     plot_x_axis: str
 
 
 @dataclass(frozen=True)
 class _FXSabrSmileMeta:
-    delta_type: str
+    eval_date: datetime
+    expiry: datetime
     plot_x_axis: str
+
+
+@dataclass(frozen=True)
+class _FXSabrSurfaceMeta:
+    eval_date: datetime
+
+
+@dataclass(frozen=True)
+class _FXDeltaVolNodes:
+    nodes: dict[float, DualTypes]
+
+    @cached_property
+    def keys(self) -> list[float]:
+        return list(self.nodes.keys())
+
+    @cached_property
+    def values(self) -> list[DualTypes]:
+        return list(self.nodes.values())
 
 
 def _validate_delta_type(delta_type: str) -> str:

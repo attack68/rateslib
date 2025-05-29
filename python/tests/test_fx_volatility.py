@@ -344,7 +344,7 @@ class TestFXDeltaVolSurface:
         assert result.nodes == expected.nodes
         assert result.expiry == expected.expiry
         assert result._meta.delta_type == expected._meta.delta_type
-        assert result.eval_date == expected.eval_date
+        assert result._meta.eval_date == expected._meta.eval_date
 
     def test_smile_end_no_interp(self) -> None:
         fxvs = FXDeltaVolSurface(
@@ -364,7 +364,7 @@ class TestFXDeltaVolSurface:
         assert result.nodes == expected.nodes
         assert result.expiry == expected.expiry
         assert result._meta.delta_type == expected._meta.delta_type
-        assert result.eval_date == expected.eval_date
+        assert result._meta.eval_date == expected._meta.eval_date
 
     def test_smile_tot_var_lin_interp(self) -> None:
         # See Foreign Exchange Option Pricing: Iain Clarke Table 4.5
@@ -386,7 +386,7 @@ class TestFXDeltaVolSurface:
             assert abs(v1 - v2) < 0.0001
         assert result.expiry == expected.expiry
         assert result._meta.delta_type == expected._meta.delta_type
-        assert result.eval_date == expected.eval_date
+        assert result._meta.eval_date == expected._meta.eval_date
 
     def test_smile_from_exact_expiry(self) -> None:
         fxvs = FXDeltaVolSurface(
@@ -409,7 +409,7 @@ class TestFXDeltaVolSurface:
             assert abs(v1 - v2) < 0.0001
         assert result.expiry == expected.expiry
         assert result._meta.delta_type == expected._meta.delta_type
-        assert result.eval_date == expected.eval_date
+        assert result._meta.eval_date == expected._meta.eval_date
         assert result.id == expected.id
 
     def test_get_vol_from_strike(self) -> None:
