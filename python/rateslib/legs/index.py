@@ -35,22 +35,26 @@ class _IndexLegMixin:
         value: DualTypes | Series[DualTypes] | NoInput,  # type: ignore[type-var]
     ) -> None:
         if isinstance(value, Series):
-            value = _validate_index_fixings_as_series(value)
+            value = _validate_index_fixings_as_series(value)  # type: ignore[arg-type]
         self._index_fixings: DualTypes | Series[DualTypes] | NoInput = value  # type: ignore[type-var]
 
         if isinstance(value, NoInput):
             for p in [_ for _ in self.periods if type(_) is not Cashflow]:
-                p.index_fixings = NoInput(0)
+                p.index_fixings = NoInput(0)  # type: ignore[union-attr]
         elif isinstance(value, Series):
             for p in [_ for _ in self.periods if type(_) is not Cashflow]:
                 date_: datetime = p.end if type(p) is IndexFixedPeriod else p.payment
-                p.index_fixings = index_value(
-                    self.index_lag, self.index_method, value, date_, NoInput(0)
+                p.index_fixings = index_value(  # type: ignore[union-attr]
+                    self.index_lag,
+                    self.index_method,
+                    value,  # type: ignore[arg-type]
+                    date_,
+                    NoInput(0),
                 )
         else:
             self.periods[0].index_fixings = value  # type: ignore[union-attr]
             for p in [_ for _ in self.periods[1:] if type(_) is not Cashflow]:
-                p.index_fixings = NoInput(0)
+                p.index_fixings = NoInput(0)  # type: ignore[union-attr]
 
     @property
     def index_base(self) -> DualTypes_:
@@ -59,7 +63,7 @@ class _IndexLegMixin:
     @index_base.setter
     def index_base(self, value: DualTypes | Series[DualTypes] | NoInput) -> None:  # type: ignore[type-var]
         if isinstance(value, Series):
-            value = _validate_index_fixings_as_series(value)
+            value = _validate_index_fixings_as_series(value)  # type: ignore[arg-type]
             ret = index_value(
                 self.index_lag, self.index_method, value, self.schedule.effective, NoInput(0)
             )
@@ -171,7 +175,7 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
         super().__init__(*args, **kwargs)
         self.index_fixings = index_fixings  # set index fixings after periods init
         # set after periods initialised
-        self.index_base = index_base  # type: ignore[assignment]
+        self.index_base = index_base
 
     def _regular_period(  # type: ignore[empty-body]
         self,

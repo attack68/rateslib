@@ -643,7 +643,7 @@ class FloatPeriod(BasePeriod):
             cal_, _ = self._maybe_get_cal_and_conv_from_curve(curve)
             fixing_date = cal_.lag(self.start, -self.method_param, False)
             try:
-                fixing: DualTypes = self.fixings[fixing_date] + self.float_spread / 100  # type: ignore[index]
+                fixing: DualTypes = self.fixings[fixing_date] + self.float_spread / 100
                 return fixing
             except KeyError:
                 warnings.warn(
@@ -885,12 +885,12 @@ class FloatPeriod(BasePeriod):
             if isinstance(self.fixings, list):
                 rates.iloc[: len(self.fixings)] = self.fixings
             elif isinstance(self.fixings, Series):
-                if not self.fixings.index.is_monotonic_increasing:  # type: ignore[attr-defined]
+                if not self.fixings.index.is_monotonic_increasing:
                     raise ValueError(
                         "`fixings` as a Series must have a monotonically increasing datetimeindex.",
                     )
                 # [-2] is used because the last rfr fixing is 1 day before the end
-                fixing_rates = self.fixings.loc[obs_dates.iloc[0] : obs_dates.iloc[-2]]  # type: ignore[attr-defined, misc]
+                fixing_rates = self.fixings.loc[obs_dates.iloc[0] : obs_dates.iloc[-2]]  # type: ignore[misc]
 
                 try:
                     rates.loc[fixing_rates.index] = fixing_rates

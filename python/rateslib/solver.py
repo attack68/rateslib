@@ -422,7 +422,7 @@ class Gradients:
         # FX sensitivity requires reverting through all pre-solvers rates.
         _ = -np.tensordot(self.grad_f_f_rT_pre(fx_vars), self.grad_s_vT_pre, (2, 0))
         _ -= np.tensordot(self.grad_f_rT_pre(fx_vars), self.grad_f_s_vT_pre(fx_vars), (1, 1))
-        grad_f_f_vT: NDArray[Nf64] = _
+        grad_f_f_vT: NDArray[Nf64] = _  # type: ignore[assignment]
         return grad_f_f_vT
 
     def grad_f_vT_pre(self, fx_vars: Sequence[str]) -> NDArray[Nf64]:
@@ -462,7 +462,8 @@ class Gradients:
         """
         grad_f_f = gradient(f, fx_vars)
         grad_f_f += np.matmul(self.grad_f_vT_pre(fx_vars), gradient(f, self.pre_variables))
-        return grad_f_f
+        ret: NDArray[Nf64] = grad_f_f
+        return ret
 
     @property
     def grad_s_vT_pre(self) -> NDArray[Nf64]:
@@ -609,7 +610,7 @@ class Gradients:
         __ = np.tensordot(__, grad_f_vT, (1, 1))
 
         grad_f_fT_f = _ + __
-        return grad_f_fT_f  # type: ignore[no-any-return]
+        return grad_f_fT_f
 
     # grad_v_v_f: calculated within grad_s_vT_fixed_point_iteration
 
@@ -648,7 +649,8 @@ class Gradients:
         """  # noqa: E501
         grad_f_P = gradient(npv, fx_vars)
         grad_f_P += np.matmul(self.grad_f_vT_pre(fx_vars), gradient(npv, self.pre_variables))
-        return grad_f_P
+        ret: NDArray[Nf64] = grad_f_P
+        return ret
 
     def grad_s_Pbase(
         self, npv: Dual | Dual2 | Variable, grad_s_P: NDArray[Nf64], f: Dual | Dual2 | Variable
@@ -1512,7 +1514,7 @@ class Solver(Gradients, _WithState):
             A = np.matmul(self.J, np.matmul(self.W, self.J.transpose()))
             A += self.lambd * np.eye(self.n)
             b = -0.5 * gradient(self.g, self.variables)[:, np.newaxis]
-            delta = np.linalg.solve(A, b)[:, 0]  # type: ignore[assignment]
+            delta = np.linalg.solve(A, b)[:, 0]
             v_1 = self.v + delta
         # elif algorithm == "gradient_descent_final":
         #     _ = np.matmul(self.Jkm, np.matmul(self.W, self.x[:, np.newaxis]))

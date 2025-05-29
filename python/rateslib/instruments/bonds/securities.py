@@ -1524,7 +1524,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         # TODO: method is not AD safe: returns float
         ytm_: float = _dual_float(ytm)
         _ = self.price(Dual2(ytm_, ["_ytm__§"], [], []), settlement)
-        return gradient(_, ["_ytm__§"], 2)[0][0]  # type: ignore[no-any-return]
+        return gradient(_, ["_ytm__§"], 2)[0][0]  # type: ignore[no-any-return, arg-type]
 
     def price(self, ytm: DualTypes, settlement: datetime, dirty: bool = False) -> DualTypes:
         """
@@ -2588,9 +2588,9 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
                 # Try to revert back to using the last fixing as forward projection.
                 try:
                     if isinstance(pseudo_period.fixings, Series):
-                        last_fixing = pseudo_period.fixings.iloc[-1]  # type: ignore[attr-defined]
+                        last_fixing = pseudo_period.fixings.iloc[-1]
                     else:
-                        last_fixing = pseudo_period.fixings[-1]  # type: ignore[index]
+                        last_fixing = pseudo_period.fixings[-1]  # type: ignore[index, assignment]
                     warnings.warn(
                         "A `Curve` was not supplied. Residual required fixings not yet "
                         "published are forecast from the last known fixing.",
