@@ -1538,6 +1538,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
         meta = from_json(loaded_json["meta"])
         interpolator = from_json(loaded_json["interpolator"])
+        nodes = from_json(loaded_json["nodes"])
         spl = interpolator.spline
 
         if interpolator.local_name == "spline":
@@ -1545,13 +1546,11 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         else:
             t = NoInput(0) if spl is None else spl.t
 
-        endpoints = spl.endpoints if spl is not None else NoInput(0)
-
         return cls(
-            nodes={datetime.strptime(d, "%Y-%m-%d"): v for d, v in loaded_json["nodes"].items()},
+            nodes=nodes.nodes,
             interpolation=interpolator.local_name,
             t=t,
-            endpoints=endpoints,
+            endpoints=spl.endpoints if spl is not None else NoInput(0),
             id=loaded_json["id"],
             convention=meta.convention,
             modifier=meta.modifier,
@@ -1580,11 +1579,11 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         obj = dict(
             PyNative={
                 f"{type(self).__name__}": dict(
-                    meta=self.meta.to_json(),
-                    interpolator=self.interpolator.to_json(),
-                    id=self.id,
+                    meta=self._meta.to_json(),
+                    interpolator=self._interpolator.to_json(),
+                    id=self._id,
                     ad=self._ad,
-                    nodes={dt.strftime("%Y-%m-%d"): v.real for dt, v in self.nodes.nodes.items()},
+                    nodes=self._nodes.to_json(),
                 )
             }
         )
