@@ -146,7 +146,6 @@ class FXSabrSmile(_BaseSmile):
 
         self._meta = _FXSabrSmileMeta(eval_date=eval_date, expiry=expiry, plot_x_axis="strike")
 
-        self.eval_date: datetime = eval_date
         self.expiry: datetime = expiry
         self.t_expiry: float = (expiry - eval_date).days / 365.0
         self.t_expiry_sqrt: float = self.t_expiry**0.5
@@ -258,7 +257,7 @@ class FXSabrSmile(_BaseSmile):
         derivative: int
             For with respect to `k` use 1, or `f` use 2.
         """
-        t_e = (expiry - self.eval_date).days / 365.0
+        t_e = (expiry - self._meta.eval_date).days / 365.0
         if isinstance(f, FXForwards):
             f__: DualTypes = f.rate(self.pair, self.delivery)  # type: ignore[arg-type]
         else:
@@ -544,8 +543,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
             if self.expiries[idx - 1] >= self.expiries[idx]:
                 raise ValueError("Surface `expiries` are not sorted or contain duplicates.\n")
 
-        self.eval_date: datetime = eval_date
-        self.eval_posix: float = self.eval_date.replace(tzinfo=UTC).timestamp()
+        self.eval_posix: float = self._meta.eval_date.replace(tzinfo=UTC).timestamp()
 
         self.delivery_lag = _drb(defaults.fx_delivery_lag, delivery_lag)
         self.calendar = get_calendar(calendar)
@@ -556,7 +554,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
             FXSabrSmile(
                 nodes=dict(zip(["alpha", "beta", "rho", "nu"], node_values_[i, :], strict=True)),
                 expiry=expiry,
-                eval_date=self.eval_date,
+                eval_date=self._meta.eval_date,
                 delivery_lag=delivery_lag,
                 calendar=calendar,
                 pair=pair,
@@ -682,7 +680,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                     "rho": self.smiles[e_idx + 1].nodes.rho,
                     "nu": self.smiles[e_idx + 1].nodes.nu,
                 },
-                eval_date=self.eval_date,
+                eval_date=self._meta.eval_date,
                 expiry=expiry,
                 ad=self.ad,
                 pair=self.pair,
@@ -691,7 +689,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                 id=self.smiles[e_idx + 1].id + "_ext",
             )
             return smile._d_sabr_d_k_or_f(k, f, expiry, as_float, derivative)
-        elif expiry <= self.eval_date:
+        elif expiry <= self._meta.eval_date:
             raise ValueError("`expiry` before the `eval_date` of the Surface is invalid.")
         elif expiry_posix < self.expiries_posix[0]:
             # expiry is before the expiry of the first known Smile.

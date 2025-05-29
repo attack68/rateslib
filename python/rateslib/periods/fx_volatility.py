@@ -865,13 +865,12 @@ class FXOptionPeriod(metaclass=ABCMeta):
         vol: FXSabrSmile | FXSabrSurface,
     ) -> tuple[DualTypes | None, DualTypes, DualTypes]:
         """Get vol and strike from ATM delta specification under a SABR model."""
-        t_e = (self.expiry - vol.eval_date).days / 365.0
+        t_e = (self.expiry - vol._meta.eval_date).days / 365.0
         if isinstance(f, FXForwards):
             f_d: DualTypes = f.rate(self.pair, self.delivery)
             # _ad = _set_ad_order_objects([0], [f])  # GH755
         else:
-            # TODO: mypy should narrow the type of f, but it does not
-            f_d = f  # type: ignore[assignment]
+            f_d = f
 
         def root1d(
             k: DualTypes, f_d: DualTypes, fx: DualTypes | FXForwards, as_float: bool
@@ -889,7 +888,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         if isinstance(vol, FXSabrSmile):
             alpha = vol.nodes.alpha
         else:  # FXSabrSurface
-            vol_: FXSabrSurface = vol  # type: ignore[assignment]
+            vol_: FXSabrSurface = vol
             expiry_posix = self.expiry.replace(tzinfo=UTC).timestamp()
             e_idx = index_left_f64(vol_.expiries_posix, expiry_posix)
             alpha = vol_.smiles[e_idx].nodes.alpha
@@ -1075,14 +1074,13 @@ class FXOptionPeriod(metaclass=ABCMeta):
         f: DualTypes | FXForwards,
     ) -> tuple[DualTypes | None, DualTypes, DualTypes]:
         eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, 0.0)  # u: unused
-        t_e = (self.expiry - vol.eval_date).days / 365.0
+        t_e = (self.expiry - vol._meta.eval_date).days / 365.0
         sqrt_t = t_e**0.5
         if isinstance(f, FXForwards):
             f_d: DualTypes = f.rate(self.pair, self.delivery)
             # _ad = _set_ad_order_objects([0], [f])  # GH755
         else:
-            # TODO: mypy should narrow type of f, but does not
-            f_d = f  # type: ignore[assignment]
+            f_d = f
 
         def root1d(
             k: DualTypes,
@@ -1121,7 +1119,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         if isinstance(vol, FXSabrSmile):
             alpha = vol.nodes.alpha
         else:  # FXSabrSurface
-            vol_: FXSabrSurface = vol  # type: ignore[assignment]
+            vol_: FXSabrSurface = vol
             expiry_posix = self.expiry.replace(tzinfo=UTC).timestamp()
             e_idx = index_left_f64(vol_.expiries_posix, expiry_posix)
             alpha = vol_.smiles[e_idx].nodes.alpha

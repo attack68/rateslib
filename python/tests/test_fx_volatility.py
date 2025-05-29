@@ -342,7 +342,7 @@ class TestFXDeltaVolSurface:
             delta_type="forward",
         )
         assert result.nodes == expected.nodes
-        assert result.expiry == expected.expiry
+        assert result._meta.expiry == expected._meta.expiry
         assert result._meta.delta_type == expected._meta.delta_type
         assert result._meta.eval_date == expected._meta.eval_date
 
@@ -362,7 +362,7 @@ class TestFXDeltaVolSurface:
             delta_type="forward",
         )
         assert result.nodes == expected.nodes
-        assert result.expiry == expected.expiry
+        assert result._meta.expiry == expected._meta.expiry
         assert result._meta.delta_type == expected._meta.delta_type
         assert result._meta.eval_date == expected._meta.eval_date
 
@@ -384,7 +384,7 @@ class TestFXDeltaVolSurface:
         )
         for (k1, v1), (k2, v2) in zip(result.nodes.items(), expected.nodes.items()):
             assert abs(v1 - v2) < 0.0001
-        assert result.expiry == expected.expiry
+        assert result._meta.expiry == expected._meta.expiry
         assert result._meta.delta_type == expected._meta.delta_type
         assert result._meta.eval_date == expected._meta.eval_date
 
@@ -407,7 +407,7 @@ class TestFXDeltaVolSurface:
         result = fxvs.get_smile(dt(2024, 1, 1))
         for (k1, v1), (k2, v2) in zip(result.nodes.items(), expected.nodes.items()):
             assert abs(v1 - v2) < 0.0001
-        assert result.expiry == expected.expiry
+        assert result._meta.expiry == expected._meta.expiry
         assert result._meta.delta_type == expected._meta.delta_type
         assert result._meta.eval_date == expected._meta.eval_date
         assert result.id == expected.id

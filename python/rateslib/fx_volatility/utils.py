@@ -42,6 +42,17 @@ class _FXDeltaVolSmileMeta:
     plot_x_axis: str
     delta_type: str
 
+    @cached_property
+    def t_expiry(self) -> float:
+        """Calendar days from eval to expiry divided by 365."""
+        return (self.expiry - self.eval_date).days / 365.0
+
+    @cached_property
+    def t_expiry_sqrt(self) -> float:
+        """Square root of ``t_expiry``."""
+        ret: float = self.t_expiry**0.5
+        return ret
+
 
 @dataclass(frozen=True)
 class _FXDeltaVolSurfaceMeta:
@@ -55,6 +66,17 @@ class _FXSabrSmileMeta:
     eval_date: datetime
     expiry: datetime
     plot_x_axis: str
+
+    @cached_property
+    def t_expiry(self) -> float:
+        """Calendar days from eval to expiry divided by 365."""
+        return (self.expiry - self.eval_date).days / 365.0
+
+    @cached_property
+    def t_expiry_sqrt(self) -> float:
+        """Square root of ``t_expiry``."""
+        ret: float = self.t_expiry**0.5
+        return ret
 
 
 @dataclass(frozen=True)
