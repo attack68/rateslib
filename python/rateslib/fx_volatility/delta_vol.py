@@ -4,6 +4,8 @@ import warnings
 from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import uuid4
+from functools import cached_property
+from dataclasses import dataclass
 
 import numpy as np
 from pandas import Series
@@ -34,7 +36,7 @@ from rateslib.fx_volatility.base import _BaseSmile
 from rateslib.fx_volatility.utils import (
     _d_plus_min_u,
     _delta_type_constants,
-    _FXSmileMeta,
+    _FXDeltaVolMeta,
     _moneyness_from_delta_closed_form,
     _t_var_interp,
     _validate_delta_type,
@@ -52,6 +54,66 @@ from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
 
 if TYPE_CHECKING:
     from rateslib.typing import DualTypes, Sequence
+
+
+@dataclass(frozen=True, init=False)
+class _FXDeltaVolNodes:
+
+    eval_date: datetime
+    expiry: datetime
+    nodes: dict[float, DualTypes]
+
+    def __init__(
+        self,
+        eval_date: datetime,
+        expiry: datetime,
+        nodes: dict[float, DualTypes],
+        delta_type: str,
+        t_expiry: float
+    ):
+        object.__setattr__(self, "eval_date", eval_date)
+        object.__setattr__(self, "expiry", expiry)
+        object.__setattr__(self, "nodes", nodes)
+
+        if "_pa" in delta_type:
+            vol = self.values[-1] / 100.0
+            upper_bound = dual_exp(
+                vol * self.meta.t_expiry_sqrt * (3.75 - 0.5 * vol * self.meta.t_expiry_sqrt),
+            )
+            self.plot_upper_bound = dual_exp(
+                vol * self.meta.t_expiry_sqrt * (3.25 - 0.5 * vol * self.meta.t_expiry_sqrt),
+            )
+            self._right_n = 1  # right hand spline endpoint will be constrained by derivative
+        else:
+            upper_bound = 1.0
+            self.plot_upper_bound = 1.0
+            self._right_n = 2  # right hand spline endpoint will be constrained by derivative
+
+        if self.n in [1, 2]:
+            self.t = [0.0] * 4 + [_dual_float(upper_bound)] * 4
+        else:
+            self.t = [0.0] * 4 + self.node_keys[1:-1] + [_dual_float(upper_bound)] * 4
+
+    @cached_property
+    def keys(self):
+        return list(self.nodes.keys())
+
+    @cached_property
+    def values(self):
+        return list(self.nodes.values())
+
+    @property
+    def n(self) -> int:
+        return len(self.keys)
+
+    @cached_property
+    def t_expiry(self) -> float:
+        return (self.expiry - self.eval_date).days / 365.0
+
+    @cached_property
+    def t_expiry_sqrt(self) -> float:
+        ret: float = self.t_expiry**0.5
+        return ret
 
 
 class FXDeltaVolSmile(_BaseSmile):
@@ -116,13 +178,8 @@ class FXDeltaVolSmile(_BaseSmile):
             uuid4().hex[:5] + "_" if isinstance(id, NoInput) else id
         )  # 1 in a million clash
 
-        self._meta = _FXSmileMeta(
-            expiry=expiry,
-            eval_date=eval_date,
+        self._meta = _FXDeltaVolMeta(
             delta_type=_validate_delta_type(delta_type),
-            calendar=None,
-            pair=None,
-            delivery_lag=None,
             plot_x_axis="delta",
         )
 
@@ -357,28 +414,6 @@ class FXDeltaVolSmile(_BaseSmile):
 
     def __set_nodes__(self, nodes: dict[float, DualTypes], ad: int) -> None:
         # self.ad = None
-
-        self.nodes = nodes
-        self.node_keys = list(self.nodes.keys())
-        self.n = len(self.node_keys)
-        if "_pa" in self.meta.delta_type:
-            vol = list(self.nodes.values())[-1] / 100.0
-            upper_bound = dual_exp(
-                vol * self.meta.t_expiry_sqrt * (3.75 - 0.5 * vol * self.meta.t_expiry_sqrt),
-            )
-            self.plot_upper_bound = dual_exp(
-                vol * self.meta.t_expiry_sqrt * (3.25 - 0.5 * vol * self.meta.t_expiry_sqrt),
-            )
-            self._right_n = 1  # right hand spline endpoint will be constrained by derivative
-        else:
-            upper_bound = 1.0
-            self.plot_upper_bound = 1.0
-            self._right_n = 2  # right hand spline endpoint will be constrained by derivative
-
-        if self.n in [1, 2]:
-            self.t = [0.0] * 4 + [_dual_float(upper_bound)] * 4
-        else:
-            self.t = [0.0] * 4 + self.node_keys[1:-1] + [_dual_float(upper_bound)] * 4
 
         self._set_ad_order(ad)  # includes _csolve()
 

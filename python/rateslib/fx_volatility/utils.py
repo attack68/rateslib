@@ -36,23 +36,18 @@ TERMINAL_DATE = dt(2100, 1, 1)
 
 
 @dataclass(frozen=True)
-class _FXSmileMeta:
-    expiry: datetime
-    eval_date: datetime
-    delta_type: str | None
-    calendar: CalTypes | None
-    pair: str | None
-    delivery_lag: int | None
+class _FXDeltaVolMeta:
+    delta_type: str
     plot_x_axis: str
 
-    @cached_property
-    def t_expiry(self) -> float:
-        return (self.expiry - self.eval_date).days / 365.0
 
-    @cached_property
-    def t_expiry_sqrt(self) -> float:
-        ret: float = self.t_expiry**0.5
-        return ret
+@dataclass(frozen=True)
+class _FXSabrMeta:
+    calendar: CalTypes
+    pair: str | None
+    delivery_lag: int
+    delivery: datetime
+    plot_x_axis: str
 
 
 def _validate_delta_type(delta_type: str) -> str:

@@ -20,6 +20,7 @@ from rateslib.fx_volatility import FXDeltaVolSmile as FXDeltaVolSmile
 from rateslib.fx_volatility import FXDeltaVolSurface as FXDeltaVolSurface
 from rateslib.fx_volatility import FXSabrSmile as FXSabrSmile
 from rateslib.fx_volatility import FXSabrSurface as FXSabrSurface
+from rateslib.fx_volatility.utils import _FXSabrMeta, _FXDeltaVolMeta
 from rateslib.instruments import CDS as CDS
 from rateslib.instruments import FRA as FRA
 from rateslib.instruments import IIRS as IIRS

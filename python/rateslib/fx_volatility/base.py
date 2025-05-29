@@ -8,14 +8,14 @@ from rateslib.fx_volatility.utils import _FXSmileMeta
 from rateslib.mutability import _WithCache, _WithState
 
 if TYPE_CHECKING:
-    from rateslib.typing import FXForwards
+    from rateslib.typing import FXForwards, _FXSabrMeta, _FXDeltaVolMeta
 
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
 
 
 class _BaseSmile(_WithState, _WithCache[float, DualTypes]):
     _ad: int
-    _meta: _FXSmileMeta
+    _meta: _FXSabrMeta | _FXDeltaVolMeta
 
     @property
     def ad(self) -> int:

@@ -1,8 +1,10 @@
 from __future__ import annotations  # type hinting
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING
 from uuid import uuid4
+from dataclasses import dataclass
+from functools import cached_property
 
 import numpy as np
 from pandas import Series
@@ -29,7 +31,7 @@ from rateslib.fx import FXForwards
 from rateslib.fx_volatility.base import _BaseSmile
 from rateslib.fx_volatility.utils import (
     _d_sabr_d_k_or_f,
-    _FXSmileMeta,
+    _FXSabrMeta,
     _t_var_interp_d_sabr_d_k_or_f,
     _validate_weights,
 )
@@ -43,14 +45,17 @@ from rateslib.mutability import (
 from rateslib.rs import index_left_f64
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, DualTypes, Number, Sequence, datetime_, int_, str_
+    from rateslib.typing import CalInput, DualTypes, Number, Sequence, datetime_, int_, str_, CalTypes, Any
 
 
-class _SabrNodes(NamedTuple):
+@dataclass(frozen=True)
+class _FXSabrNodes:
     alpha: Number
     beta: float | Variable
     rho: Number
     nu: Number
+    eval_date: datetime
+    expiry: datetime
 
     def __getitem__(self, item: str) -> Any:  # type: ignore[override]
         # Syntactic sugar. Should be avoided in production code. Use _SabrNodes.item instead.
@@ -61,6 +66,15 @@ class _SabrNodes(NamedTuple):
     @property
     def n(self) -> int:
         return 4
+
+    @cached_property
+    def t_expiry(self) -> float:
+        return (self.expiry - self.eval_date).days / 365.0
+
+    @cached_property
+    def t_expiry_sqrt(self) -> float:
+        ret: float = self.t_expiry**0.5
+        return ret
 
 
 class FXSabrSmile(_BaseSmile):
@@ -124,6 +138,7 @@ class FXSabrSmile(_BaseSmile):
     """
 
     _ini_solve = 1
+    _meta: _FXSabrMeta
     n = 4
 
     @_new_state_post
@@ -138,40 +153,31 @@ class FXSabrSmile(_BaseSmile):
         id: str | NoInput = NoInput(0),  # noqa: A002
         ad: int = 0,
     ):
-        self.id: str = (
+        self._id: str = (
             uuid4().hex[:5] + "_" if isinstance(id, NoInput) else id
         )  # 1 in a million clash
 
-        self.eval_date: datetime = eval_date
-        self.expiry: datetime = expiry
-        self.t_expiry: float = (expiry - eval_date).days / 365.0
-        self.t_expiry_sqrt: float = self.t_expiry**0.5
-
-        self.delivery_lag = _drb(defaults.fx_delivery_lag, delivery_lag)
-        self.calendar = get_calendar(calendar)
-        self.delivery = get_calendar(calendar).lag(self.expiry, self.delivery_lag, True)
-        self.pair = pair
+        cal_: CalTypes = get_calendar(calendar)
+        self._meta = _FXSabrMeta(
+            calendar=cal_,
+            pair=pair,
+            delivery_lag=delivery_lag,
+            delivery=cal_.lag(expiry, self.delivery_lag, True),
+            plot_x_axis = "strike",
+        )
 
         for _ in ["alpha", "beta", "rho", "nu"]:
             if _ not in nodes:
                 raise ValueError(
                     f"'{_}' is a required SABR parameter that must be included in ``nodes``"
                 )
-        self.nodes: _SabrNodes = _SabrNodes(
+        self.nodes: _FXSabrNodes = _FXSabrNodes(
             alpha=_to_number(nodes["alpha"]),
             beta=nodes["beta"],  # type: ignore[arg-type]
             rho=_to_number(nodes["rho"]),
             nu=_to_number(nodes["nu"]),
-        )
-
-        self._meta = _FXSmileMeta(
             expiry=expiry,
             eval_date=eval_date,
-            delta_type=None,
-            calendar=get_calendar(calendar),
-            pair=_drb(None, pair),
-            delivery_lag=_drb(defaults.fx_delivery_lag, delivery_lag),
-            plot_x_axis="strike",
         )
 
         self._set_ad_order(ad)
@@ -307,7 +313,7 @@ class FXSabrSmile(_BaseSmile):
         base_obj = DualType(0.0, [f"{self.id}{i}" for i in range(3)], *DualArgs)
         ident = np.eye(3)
 
-        self.nodes = _SabrNodes(
+        self.nodes = _FXSabrNodes(
             beta=self.nodes.beta,
             alpha=DualType.vars_from(
                 base_obj,  # type: ignore[arg-type]
@@ -344,7 +350,7 @@ class FXSabrSmile(_BaseSmile):
 
         self._ad = order
 
-        self.nodes = _SabrNodes(
+        self.nodes = _FXSabrNodes(
             beta=self.nodes.beta,
             alpha=set_order_convert(self.nodes.alpha, order, [f"{self.id}0"]),
             rho=set_order_convert(self.nodes.rho, order, [f"{self.id}1"]),
@@ -385,7 +391,7 @@ class FXSabrSmile(_BaseSmile):
             raise KeyError("`key` is not in ``nodes``.")
         kwargs = {_: getattr(self.nodes, _) for _ in params if _ != key}
         kwargs.update({key: value})
-        self.nodes = _SabrNodes(**kwargs)
+        self.nodes = _FXSabrNodes(**kwargs)
         self._set_ad_order(self.ad)
 
     # Plotting
