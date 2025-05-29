@@ -512,7 +512,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         if isinstance(vol, NoInput):
             raise ValueError("`vol` must be a number quantity or Smile or Surface.")
         elif isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
-            eta_1, z_w_1, __ = _delta_type_constants(vol.delta_type, w_deli / w_spot, u)
+            eta_1, z_w_1, __ = _delta_type_constants(vol._meta.delta_type, w_deli / w_spot, u)
             res: tuple[DualTypes, DualTypes, DualTypes] = vol.get_from_strike(
                 k=self.strike,
                 f=f_d,
@@ -730,7 +730,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             # d sigma / d delta_idx
             _B = evaluate(smile.spline, delta_idx, 1) / 100.0  # type: ignore[arg-type]
 
-            if "pa" in vol.delta_type:
+            if "pa" in vol._meta.delta_type:
                 # then smile is adjusted:
                 ddelta_idx_df_d: DualTypes = -delta_idx / f_d  # type: ignore[operator]
             else:

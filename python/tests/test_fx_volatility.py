@@ -191,6 +191,20 @@ class TestFXDeltaVolSmile:
         result = fxvs.get(0.5, delta_type, 1.0, 0.99 / 0.991)
         assert abs(result - exp) < 1e-6
 
+    @pytest.mark.parametrize(
+        ("delta_type", "exp"), [("spot_pa", 10.000085036853598), ("forward_pa", 10.0)]
+    )
+    def test_get_from_similar_delta_pa(self, delta_type, exp) -> None:
+        fxvs = FXDeltaVolSmile(
+            nodes={0.25: 11.0, 0.5: 10.0, 0.75: 11.0},
+            delta_type="forward_pa",
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            id="vol",
+        )
+        result = fxvs.get(-0.5, delta_type, -1.0, 0.99 / 0.991)
+        assert abs(result - exp) < 1e-6
+
     def test_get_from_unsimilar_delta2(self):
         # GH 730
         fdvs = FXDeltaVolSmile(
@@ -329,7 +343,7 @@ class TestFXDeltaVolSurface:
         )
         assert result.nodes == expected.nodes
         assert result.expiry == expected.expiry
-        assert result.delta_type == expected.delta_type
+        assert result._meta.delta_type == expected._meta.delta_type
         assert result.eval_date == expected.eval_date
 
     def test_smile_end_no_interp(self) -> None:
@@ -349,7 +363,7 @@ class TestFXDeltaVolSurface:
         )
         assert result.nodes == expected.nodes
         assert result.expiry == expected.expiry
-        assert result.delta_type == expected.delta_type
+        assert result._meta.delta_type == expected._meta.delta_type
         assert result.eval_date == expected.eval_date
 
     def test_smile_tot_var_lin_interp(self) -> None:
@@ -371,7 +385,7 @@ class TestFXDeltaVolSurface:
         for (k1, v1), (k2, v2) in zip(result.nodes.items(), expected.nodes.items()):
             assert abs(v1 - v2) < 0.0001
         assert result.expiry == expected.expiry
-        assert result.delta_type == expected.delta_type
+        assert result._meta.delta_type == expected._meta.delta_type
         assert result.eval_date == expected.eval_date
 
     def test_smile_from_exact_expiry(self) -> None:
@@ -394,7 +408,7 @@ class TestFXDeltaVolSurface:
         for (k1, v1), (k2, v2) in zip(result.nodes.items(), expected.nodes.items()):
             assert abs(v1 - v2) < 0.0001
         assert result.expiry == expected.expiry
-        assert result.delta_type == expected.delta_type
+        assert result._meta.delta_type == expected._meta.delta_type
         assert result.eval_date == expected.eval_date
         assert result.id == expected.id
 
