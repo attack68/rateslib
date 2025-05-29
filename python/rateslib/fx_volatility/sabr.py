@@ -144,17 +144,17 @@ class FXSabrSmile(_BaseSmile):
             uuid4().hex[:5] + "_" if isinstance(id, NoInput) else id
         )  # 1 in a million clash
 
-        self._meta = _FXSabrSmileMeta(eval_date=eval_date, expiry=expiry, plot_x_axis="strike")
-
-        self.eval_date: datetime = eval_date
-        self.expiry: datetime = expiry
-        self.t_expiry: float = (expiry - eval_date).days / 365.0
-        self.t_expiry_sqrt: float = self.t_expiry**0.5
-
-        self.delivery_lag = _drb(defaults.fx_delivery_lag, delivery_lag)
-        self.calendar = get_calendar(calendar)
-        self.delivery = get_calendar(calendar).lag(self.expiry, self.delivery_lag, True)
-        self.pair = pair
+        delivery_lag_ = _drb(defaults.fx_delivery_lag, delivery_lag)
+        cal_ = get_calendar(calendar)
+        self._meta = _FXSabrSmileMeta(
+            eval_date=eval_date,
+            expiry=expiry,
+            plot_x_axis="strike",
+            calendar=cal_,
+            delivery_lag=delivery_lag_,
+            delivery=cal_.lag(expiry, delivery_lag_, True),
+            pair=_drb(None, pair),
+        )
 
         for _ in ["alpha", "beta", "rho", "nu"]:
             if _ not in nodes:
@@ -211,20 +211,20 @@ class FXSabrSmile(_BaseSmile):
         concept of a `delta index` the first element returned is always zero and can be
         effectively ignored.
         """
-        expiry = _drb(self.expiry, expiry)
-        if self.expiry != expiry:
+        expiry = _drb(self._meta.expiry, expiry)
+        if self._meta.expiry != expiry:
             raise ValueError(
                 "`expiry` of VolSmile and OptionPeriod do not match: calculation aborted "
                 "due to potential pricing errors.",
             )
 
         if isinstance(f, FXForwards):
-            if isinstance(self.pair, NoInput):
+            if self._meta.pair is None:
                 raise ValueError(
                     "`FXSabrSmile` must be specified with a `pair` argument to use "
                     "`FXForwards` objects for forecasting ATM-forward FX rates."
                 )
-            f_: DualTypes = f.rate(self.pair, self.delivery)
+            f_: DualTypes = f.rate(self._meta.pair, self._meta.delivery)
         elif isinstance(f, float | Dual | Dual2 | Variable):
             f_ = f
         else:
@@ -233,7 +233,7 @@ class FXSabrSmile(_BaseSmile):
         vol_ = _d_sabr_d_k_or_f(
             _to_number(k),
             _to_number(f_),
-            self.t_expiry,
+            self._meta.t_expiry,
             self.nodes.alpha,
             self.nodes.beta,
             self.nodes.rho,
@@ -258,11 +258,11 @@ class FXSabrSmile(_BaseSmile):
         derivative: int
             For with respect to `k` use 1, or `f` use 2.
         """
-        t_e = (expiry - self.eval_date).days / 365.0
+        t_e = (expiry - self._meta.eval_date).days / 365.0
         if isinstance(f, FXForwards):
-            f__: DualTypes = f.rate(self.pair, self.delivery)  # type: ignore[arg-type]
+            f__: DualTypes = f.rate(self._meta.pair, self._meta.delivery)
         else:
-            f__ = f
+            f__ = f  # type: ignore[assignment]
 
         if as_float:
             k_: Number = _dual_float(k)
@@ -396,19 +396,19 @@ class FXSabrSmile(_BaseSmile):
         if isinstance(f, NoInput):
             raise ValueError("`f` (ATM-forward FX rate) is required by `FXSabrSmile.plot`.")
         elif isinstance(f, FXForwards):
-            if isinstance(self.pair, NoInput):
+            if self._meta.pair is None:
                 raise ValueError(
                     "`FXSabrSmile` must be specified with a `pair` argument to use "
                     "`FXForwards` objects for forecasting ATM-forward FX rates."
                 )
-            f_: float = _dual_float(f.rate(self.pair, self.delivery))
+            f_: float = _dual_float(f.rate(self._meta.pair, self._meta.delivery))
         elif isinstance(f, float | Dual | Dual2 | Variable):
             f_ = _dual_float(f)
         else:
             raise ValueError("`f` (ATM-forward FX rate) must be a value or FXForwards object.")
 
         v_ = _dual_float(self.get_from_strike(f_, f_)[1]) / 100.0
-        sq_t = self.t_expiry_sqrt
+        sq_t = self._meta.t_expiry_sqrt
         x_low = _dual_float(
             dual_exp(0.5 * v_**2 * sq_t**2 - dual_inv_norm_cdf(0.95) * v_ * sq_t) * f_
         )
@@ -426,7 +426,7 @@ class FXSabrSmile(_BaseSmile):
             # z_u = 1.0  #  delta type is assumed to be 'unadjusted' for SabrSmile
             eta_1 = 0.5  # for same reason
 
-            sq_t = self.t_expiry_sqrt
+            sq_t = self._meta.t_expiry_sqrt
             dn = [
                 -dual_log(u_) * 100.0 / (s_ * sq_t) + eta_1 * s_ * sq_t / 100.0
                 for u_, s_ in zip(u, y, strict=True)
@@ -534,6 +534,9 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
 
         self._meta = _FXSabrSurfaceMeta(
             eval_date=eval_date,
+            pair=_drb(None, pair),
+            calendar=get_calendar(calendar),
+            delivery_lag=_drb(defaults.fx_delivery_lag, delivery_lag),
         )
 
         self.expiries: list[datetime] = expiries
@@ -544,19 +547,12 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
             if self.expiries[idx - 1] >= self.expiries[idx]:
                 raise ValueError("Surface `expiries` are not sorted or contain duplicates.\n")
 
-        self.eval_date: datetime = eval_date
-        self.eval_posix: float = self.eval_date.replace(tzinfo=UTC).timestamp()
-
-        self.delivery_lag = _drb(defaults.fx_delivery_lag, delivery_lag)
-        self.calendar = get_calendar(calendar)
-        self.pair = pair
-
         node_values_: np.ndarray[tuple[int, ...], np.dtype[np.object_]] = np.asarray(node_values)
         self.smiles = [
             FXSabrSmile(
                 nodes=dict(zip(["alpha", "beta", "rho", "nu"], node_values_[i, :], strict=True)),
                 expiry=expiry,
-                eval_date=self.eval_date,
+                eval_date=self._meta.eval_date,
                 delivery_lag=delivery_lag,
                 calendar=calendar,
                 pair=pair,
@@ -682,23 +678,27 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                     "rho": self.smiles[e_idx + 1].nodes.rho,
                     "nu": self.smiles[e_idx + 1].nodes.nu,
                 },
-                eval_date=self.eval_date,
+                eval_date=self._meta.eval_date,
                 expiry=expiry,
                 ad=self.ad,
-                pair=self.pair,
-                delivery_lag=self.delivery_lag,
-                calendar=self.calendar,
+                pair=NoInput(0) if self._meta.pair is None else self._meta.pair,
+                delivery_lag=self._meta.delivery_lag,
+                calendar=self._meta.calendar,
                 id=self.smiles[e_idx + 1].id + "_ext",
             )
             return smile._d_sabr_d_k_or_f(k, f, expiry, as_float, derivative)
-        elif expiry <= self.eval_date:
+        elif expiry <= self._meta.eval_date:
             raise ValueError("`expiry` before the `eval_date` of the Surface is invalid.")
         elif expiry_posix < self.expiries_posix[0]:
             # expiry is before the expiry of the first known Smile.
             # calculate the vol as if it were for expiry on the first Smile and then use
             # temporal interpolation (including weights) to obtain an adjusted volatility.
             vol_, dvol_k_or_f = self.smiles[0]._d_sabr_d_k_or_f(
-                k=k, f=f, expiry=self.smiles[0].expiry, as_float=as_float, derivative=derivative
+                k=k,
+                f=f,
+                expiry=self.smiles[0]._meta.expiry,
+                as_float=as_float,
+                derivative=derivative,
             )
             return _t_var_interp_d_sabr_d_k_or_f(
                 expiries=self.expiries,
@@ -706,7 +706,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                 expiry=expiry,
                 expiry_posix=expiry_posix,
                 expiry_index=e_idx,
-                eval_posix=self.eval_posix,
+                eval_posix=self._meta.eval_posix,
                 weights_cum=self.weights_cum,
                 vol1=vol_,
                 dvol1_dk=dvol_k_or_f,  # type: ignore[arg-type]
@@ -726,10 +726,10 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                     "dynamic ATM-forward rates for temporally-interpolated SABR volatility."
                 )
             lvol, d_lvol_dk_or_f = ls._d_sabr_d_k_or_f(
-                k=k, f=f, expiry=ls.expiry, as_float=as_float, derivative=derivative
+                k=k, f=f, expiry=ls._meta.expiry, as_float=as_float, derivative=derivative
             )
             rvol, d_rvol_dk_or_f = rs._d_sabr_d_k_or_f(
-                k=k, f=f, expiry=rs.expiry, as_float=as_float, derivative=derivative
+                k=k, f=f, expiry=rs._meta.expiry, as_float=as_float, derivative=derivative
             )
             return _t_var_interp_d_sabr_d_k_or_f(
                 expiries=self.expiries,
@@ -737,7 +737,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                 expiry=expiry,
                 expiry_posix=expiry_posix,
                 expiry_index=e_idx,
-                eval_posix=self.eval_posix,
+                eval_posix=self._meta.eval_posix,
                 weights_cum=self.weights_cum,
                 vol1=lvol,
                 dvol1_dk=d_lvol_dk_or_f,  # type: ignore[arg-type]

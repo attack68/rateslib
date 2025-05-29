@@ -118,11 +118,6 @@ class FXDeltaVolSmile(_BaseSmile):
         self.id: str = (
             uuid4().hex[:5] + "_" if isinstance(id, NoInput) else id
         )  # 1 in a million clash
-        # self.eval_date: datetime = eval_date
-        self.expiry: datetime = expiry
-        self.t_expiry: float = (expiry - eval_date).days / 365.0
-        self.t_expiry_sqrt: float = self.t_expiry**0.5
-        # self.delta_type: str = _validate_delta_type(delta_type)
 
         self._meta = _FXDeltaVolSmileMeta(
             expiry=expiry,
@@ -210,7 +205,7 @@ class FXDeltaVolSmile(_BaseSmile):
                 delta_type,
                 self._meta.delta_type,
                 self,
-                self.t_expiry,
+                self._meta.t_expiry,
                 z_w,
                 phi,
             )
@@ -218,7 +213,7 @@ class FXDeltaVolSmile(_BaseSmile):
             return self[delta_idx]
         else:  # delta adjustment types are different, use 2-d solver.
             u, delta_idx = _moneyness_from_delta_two_dimensional(
-                delta, delta_type, self, self.t_expiry, z_w, phi
+                delta, delta_type, self, self._meta.t_expiry, z_w, phi
             )
             return self[delta_idx]
 
@@ -259,8 +254,8 @@ class FXDeltaVolSmile(_BaseSmile):
         volatility attributed to the delta at that point. Recall that the delta index is the
         negated put option delta for the given strike ``k``.
         """
-        expiry = _drb(self.expiry, expiry)
-        if self.expiry != expiry:
+        expiry = _drb(self._meta.expiry, expiry)
+        if self._meta.expiry != expiry:
             raise ValueError(
                 "`expiry` of VolSmile and OptionPeriod do not match: calculation aborted "
                 "due to potential pricing errors.",
@@ -303,14 +298,14 @@ class FXDeltaVolSmile(_BaseSmile):
         # an approximated delta at close to the base of the smile.
         avg_vol = _dual_float(list(self.nodes.values())[int(self.n / 2)]) / 100.0
         d_plus_min = -dual_log(_dual_float(u)) / (
-            avg_vol * _dual_float(self.t_expiry_sqrt)
-        ) + eta * avg_vol * _dual_float(self.t_expiry_sqrt)
+            avg_vol * _dual_float(self._meta.t_expiry_sqrt)
+        ) + eta * avg_vol * _dual_float(self._meta.t_expiry_sqrt)
         delta_0 = -_dual_float(z_u) * _dual_float(z_w) * dual_norm_cdf(-d_plus_min)
 
         solver_result = newton_1dim(
             root,
             delta_0,
-            args=(u, self.t_expiry_sqrt, z_u, z_w),
+            args=(u, self._meta.t_expiry_sqrt, z_u, z_w),
             pre_args=(0,),
             final_args=(1,),
             conv_tol=1e-13,
@@ -348,7 +343,7 @@ class FXDeltaVolSmile(_BaseSmile):
 
             x = x[40:-40]
             vols = vols[40:-40]
-            sq_t = self.t_expiry_sqrt
+            sq_t = self._meta.t_expiry_sqrt
             x_as_u: list[DualTypes] = [
                 dual_exp(_s / 100.0 * sq_t * (dual_inv_norm_cdf(_D) + 0.5 * _s / 100.0 * sq_t))  # type: ignore[operator]
                 for (_D, _s) in zip(x, vols, strict=True)
@@ -374,10 +369,10 @@ class FXDeltaVolSmile(_BaseSmile):
         if "_pa" in self._meta.delta_type:
             vol = list(self.nodes.values())[-1] / 100.0
             upper_bound = dual_exp(
-                vol * self.t_expiry_sqrt * (3.75 - 0.5 * vol * self.t_expiry_sqrt),
+                vol * self._meta.t_expiry_sqrt * (3.75 - 0.5 * vol * self._meta.t_expiry_sqrt),
             )
             self.plot_upper_bound = dual_exp(
-                vol * self.t_expiry_sqrt * (3.25 - 0.5 * vol * self.t_expiry_sqrt),
+                vol * self._meta.t_expiry_sqrt * (3.25 - 0.5 * vol * self._meta.t_expiry_sqrt),
             )
             self._right_n = 1  # right hand spline endpoint will be constrained by derivative
         else:

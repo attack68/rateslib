@@ -28,7 +28,7 @@ from rateslib.rs import _sabr_x1 as _rs_sabr_x1
 from rateslib.rs import _sabr_x2 as _rs_sabr_x2
 
 if TYPE_CHECKING:
-    from rateslib.typing import Number
+    from rateslib.typing import CalTypes, Number
 
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
 
@@ -42,6 +42,17 @@ class _FXDeltaVolSmileMeta:
     plot_x_axis: str
     delta_type: str
 
+    @cached_property
+    def t_expiry(self) -> float:
+        """Calendar days from eval to expiry divided by 365."""
+        return (self.expiry - self.eval_date).days / 365.0
+
+    @cached_property
+    def t_expiry_sqrt(self) -> float:
+        """Square root of ``t_expiry``."""
+        ret: float = self.t_expiry**0.5
+        return ret
+
 
 @dataclass(frozen=True)
 class _FXDeltaVolSurfaceMeta:
@@ -54,12 +65,35 @@ class _FXDeltaVolSurfaceMeta:
 class _FXSabrSmileMeta:
     eval_date: datetime
     expiry: datetime
+    pair: str | None
+    calendar: CalTypes
+    delivery: datetime
+    delivery_lag: int
     plot_x_axis: str
+
+    @cached_property
+    def t_expiry(self) -> float:
+        """Calendar days from eval to expiry divided by 365."""
+        return (self.expiry - self.eval_date).days / 365.0
+
+    @cached_property
+    def t_expiry_sqrt(self) -> float:
+        """Square root of ``t_expiry``."""
+        ret: float = self.t_expiry**0.5
+        return ret
 
 
 @dataclass(frozen=True)
 class _FXSabrSurfaceMeta:
     eval_date: datetime
+    pair: str | None
+    calendar: CalTypes
+    delivery_lag: int
+
+    @cached_property
+    def eval_posix(self) -> float:
+        """The unix timestamp of the ``eval_date``."""
+        return self.eval_date.replace(tzinfo=UTC).timestamp()
 
 
 @dataclass(frozen=True)
