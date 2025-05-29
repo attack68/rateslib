@@ -419,7 +419,6 @@ class _CurveNodes:
         -------
         str
         """
-        from rateslib.serialization.utils import _obj_to_json
 
         obj = dict(
             PyNative=dict(
