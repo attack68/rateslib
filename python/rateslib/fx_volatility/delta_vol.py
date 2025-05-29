@@ -34,6 +34,8 @@ from rateslib.fx_volatility.base import _BaseSmile
 from rateslib.fx_volatility.utils import (
     _d_plus_min_u,
     _delta_type_constants,
+    _FXDeltaVolSmileMeta,
+    _FXDeltaVolSurfaceMeta,
     _moneyness_from_delta_closed_form,
     _t_var_interp,
     _validate_delta_type,
@@ -50,7 +52,7 @@ from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
 
 if TYPE_CHECKING:
-    from rateslib.typing import DualTypes, Sequence
+    from rateslib.typing import DualTypes, Sequence  # pragma: no cover
 
 
 class FXDeltaVolSmile(_BaseSmile):
@@ -101,6 +103,7 @@ class FXDeltaVolSmile(_BaseSmile):
 
     _ini_solve = 0  # All node values are solvable
     _default_plot_x_axis = "delta"
+    _meta: _FXDeltaVolSmileMeta
 
     @_new_state_post
     def __init__(
@@ -119,7 +122,14 @@ class FXDeltaVolSmile(_BaseSmile):
         self.expiry: datetime = expiry
         self.t_expiry: float = (expiry - eval_date).days / 365.0
         self.t_expiry_sqrt: float = self.t_expiry**0.5
-        self.delta_type: str = _validate_delta_type(delta_type)
+        # self.delta_type: str = _validate_delta_type(delta_type)
+
+        self._meta = _FXDeltaVolSmileMeta(
+            expiry=expiry,
+            eval_date=eval_date,
+            delta_type=_validate_delta_type(delta_type),
+            plot_x_axis="delta",
+        )
 
         self.__set_nodes__(nodes, ad)
 
@@ -184,7 +194,7 @@ class FXDeltaVolSmile(_BaseSmile):
         DualTypes
         """
         eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, 0.0)  # u: unused
-        eta_1, z_w_1, _ = _delta_type_constants(self.delta_type, z_w, 0.0)  # u: unused
+        eta_1, z_w_1, _ = _delta_type_constants(self._meta.delta_type, z_w, 0.0)  # u: unused
         # then delta types are both unadjusted, used closed form.
         if eta_0 == eta_1 and eta_0 == 0.5:
             d_i: DualTypes = (-z_w_1 / z_w_0) * (delta - 0.5 * z_w_0 * (phi + 1.0))
@@ -194,7 +204,7 @@ class FXDeltaVolSmile(_BaseSmile):
             u = _moneyness_from_delta_one_dimensional(
                 delta,
                 delta_type,
-                self.delta_type,
+                self._meta.delta_type,
                 self,
                 self.t_expiry,
                 z_w,
@@ -258,7 +268,7 @@ class FXDeltaVolSmile(_BaseSmile):
             if isinstance(w_deli, NoInput) or isinstance(w_spot, NoInput)
             else w_deli / w_spot
         )
-        eta, z_w, z_u = _delta_type_constants(self.delta_type, w, u)
+        eta, z_w, z_u = _delta_type_constants(self._meta.delta_type, w, u)
 
         # Variables are passed to these functions so that iteration can take place using float
         # which is faster and then a final iteration at the fixed point can be included with Dual
@@ -323,11 +333,12 @@ class FXDeltaVolSmile(_BaseSmile):
         x: list[float] = list(np.linspace(_dual_float(self.plot_upper_bound), self.t[0], 301))
         vols: list[float] | list[Dual] | list[Dual2] = self.spline.ppev(x)
         if x_axis in ["moneyness", "strike"]:
-            if self.delta_type != "forward":
+            if self._meta.delta_type != "forward":
                 warnings.warn(
                     "FXDeltaVolSmile.plot() approximates 'moneyness' and 'strike' using the "
                     "convention that the Smile has a `delta_type` of 'forward'.\nThe Smile "
-                    f"has type: '{self.delta_type}' so this is likely to lead to inexact plots.",
+                    f"has type: '{self._meta.delta_type}' so this is likely to lead to inexact "
+                    f"plots.",
                     UserWarning,
                 )
 
@@ -356,7 +367,7 @@ class FXDeltaVolSmile(_BaseSmile):
         self.nodes = nodes
         self.node_keys = list(self.nodes.keys())
         self.n = len(self.node_keys)
-        if "_pa" in self.delta_type:
+        if "_pa" in self._meta.delta_type:
             vol = list(self.nodes.values())[-1] / 100.0
             upper_bound = dual_exp(
                 vol * self.t_expiry_sqrt * (3.75 - 0.5 * vol * self.t_expiry_sqrt),
@@ -652,7 +663,12 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
             uuid4().hex[:5] + "_" if isinstance(id, NoInput) else id
         )  # 1 in a million clash
         self.delta_indexes: list[float] = delta_indexes
-        self.delta_type: str = _validate_delta_type(delta_type)
+
+        self._meta = _FXDeltaVolSurfaceMeta(
+            delta_type=_validate_delta_type(delta_type),
+            plot_x_axis="delta",
+        )
+        # self.delta_type: str = _validate_delta_type(delta_type)
 
         self.expiries: list[datetime] = expiries
         self.expiries_posix: list[float] = [
@@ -671,7 +687,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
                 nodes=dict(zip(self.delta_indexes, node_values_[i, :], strict=False)),
                 expiry=expiry,
                 eval_date=self.eval_date,
-                delta_type=self.delta_type,
+                delta_type=self._meta.delta_type,
                 id=f"{self.id}_{i}_",
             )
             for i, expiry in enumerate(self.expiries)
@@ -773,7 +789,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
                 eval_date=self.eval_date,
                 expiry=expiry,
                 ad=self.ad,
-                delta_type=self.delta_type,
+                delta_type=self._meta.delta_type,
                 id=self.smiles[e_idx + 1].id + "_ext",
             )
         elif expiry <= self.eval_date:
@@ -801,7 +817,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
                 eval_date=self.eval_date,
                 expiry=expiry,
                 ad=self.ad,
-                delta_type=self.delta_type,
+                delta_type=self._meta.delta_type,
                 id=self.smiles[0].id + "_ext",
             )
         else:
@@ -830,7 +846,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
                 eval_date=self.eval_date,
                 expiry=expiry,
                 ad=self.ad,
-                delta_type=self.delta_type,
+                delta_type=self._meta.delta_type,
                 id=ls.id + "_" + rs.id + "_intp",
             )
 
@@ -1107,7 +1123,7 @@ def _moneyness_from_atm_delta_two_dimensional(
     root_solver = newton_ndim(
         root2d,
         [g00, abs(g01)],
-        args=(delta_type, vol.delta_type, phi, t_e**0.5, z_w),
+        args=(delta_type, vol._meta.delta_type, phi, t_e**0.5, z_w),
         pre_args=(0,),
         final_args=(1,),
         raise_on_fail=True,
@@ -1187,7 +1203,7 @@ def _moneyness_from_delta_two_dimensional(
         root_solver = newton_ndim(
             root2d,
             [g00, abs(g01)],
-            args=(delta, delta_type, vol.delta_type, phi, t_e**0.5, z_w),
+            args=(delta, delta_type, vol._meta.delta_type, phi, t_e**0.5, z_w),
             pre_args=(0,),
             final_args=(1,),
             raise_on_fail=False,
@@ -1276,7 +1292,7 @@ def _moneyness_from_delta_three_dimensional(
 
     if isinstance(vol, FXDeltaVolSmile):
         avg_vol: DualTypes = _dual_float(list(vol.nodes.values())[int(vol.n / 2)])
-        vol_delta_type = vol.delta_type
+        vol_delta_type = vol._meta.delta_type
     else:
         avg_vol = vol
         vol_delta_type = delta_type

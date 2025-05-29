@@ -141,6 +141,9 @@ Some themes for this release involved:
          (`853 <https://github.com/attack68/rateslib/pull/853>`_)
          (`854 <https://github.com/attack68/rateslib/pull/854>`_)
          (`855 <https://github.com/attack68/rateslib/pull/855>`_)
+       - :red:`Major Breaking Change!` The **attributes** on *FXVol* pricing objects are
+         reorganised into ``attributes``.
+         (`867 <https://github.com/attack68/rateslib/pull/867>`_)
        - :red:`Minor Breaking Change!` The argument ``c`` for spline coefficients is no longer
          available in the initialisation of a *Curve* class. This value is determined
          automatically to maintain consistency between supplied node values and solved spline

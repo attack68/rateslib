@@ -1,5 +1,6 @@
 from __future__ import annotations  # type hinting
 
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from datetime import datetime as dt
 from typing import TYPE_CHECKING, TypeAlias
@@ -31,6 +32,26 @@ if TYPE_CHECKING:
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
 
 TERMINAL_DATE = dt(2100, 1, 1)
+
+
+@dataclass(frozen=True)
+class _FXDeltaVolSmileMeta:
+    delta_type: str
+    eval_date: datetime
+    expiry: datetime
+    plot_x_axis: str
+
+
+@dataclass(frozen=True)
+class _FXDeltaVolSurfaceMeta:
+    delta_type: str
+    plot_x_axis: str
+
+
+@dataclass(frozen=True)
+class _FXSabrSmileMeta:
+    delta_type: str
+    plot_x_axis: str
 
 
 def _validate_delta_type(delta_type: str) -> str:
