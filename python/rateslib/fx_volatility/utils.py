@@ -28,7 +28,7 @@ from rateslib.rs import _sabr_x1 as _rs_sabr_x1
 from rateslib.rs import _sabr_x2 as _rs_sabr_x2
 
 if TYPE_CHECKING:
-    from rateslib.typing import Number
+    from rateslib.typing import CalTypes, Number
 
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
 
@@ -65,6 +65,10 @@ class _FXDeltaVolSurfaceMeta:
 class _FXSabrSmileMeta:
     eval_date: datetime
     expiry: datetime
+    pair: str | None
+    calendar: CalTypes
+    delivery: datetime
+    delivery_lag: int
     plot_x_axis: str
 
     @cached_property
@@ -82,6 +86,14 @@ class _FXSabrSmileMeta:
 @dataclass(frozen=True)
 class _FXSabrSurfaceMeta:
     eval_date: datetime
+    pair: str | None
+    calendar: CalTypes
+    delivery_lag: int
+
+    @cached_property
+    def eval_posix(self) -> float:
+        """The unix timestamp of the ``eval_date``."""
+        return self.eval_date.replace(tzinfo=UTC).timestamp()
 
 
 @dataclass(frozen=True)
