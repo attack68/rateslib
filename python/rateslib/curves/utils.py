@@ -408,3 +408,29 @@ class _CurveNodes:
     def final(self) -> datetime:
         """The last node key associated with the *Curve* nodes."""
         return self.keys[-1]
+
+    def to_json(self) -> str:
+        """
+        Serialize this object to JSON format.
+
+        The object can be deserialized using the :meth:`~rateslib.serialization.from_json` method.
+
+        Returns
+        -------
+        str
+        """
+
+        obj = dict(
+            PyNative=dict(
+                _CurveNodes=dict(
+                    nodes={dt.strftime("%Y-%m-%d"): v.real for dt, v in self._nodes.items()},
+                )
+            )
+        )
+        return json.dumps(obj)
+
+    @classmethod
+    def _from_json(cls, loaded_json: dict[str, Any]) -> _CurveNodes:
+        return _CurveNodes(
+            nodes={datetime.strptime(d, "%Y-%m-%d"): v for d, v in loaded_json["nodes"].items()}
+        )
