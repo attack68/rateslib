@@ -321,7 +321,7 @@ class TestFXDeltaVolSmile:
             id="vol",
             expiry=dt(2023, 6, 16),
         )
-        assert abs(smile[0.5] -10.0) < 1e-14
+        assert abs(smile[0.5] - 10.0) < 1e-14
 
 
 class TestFXDeltaVolSurface:
@@ -352,9 +352,9 @@ class TestFXDeltaVolSurface:
             delta_type="forward",
         )
         assert result.nodes == expected.nodes
-        assert result._meta.expiry == expected._meta.expiry
-        assert result._meta.delta_type == expected._meta.delta_type
-        assert result._meta.eval_date == expected._meta.eval_date
+        assert result.meta.expiry == expected.meta.expiry
+        assert result.meta.delta_type == expected.meta.delta_type
+        assert result.meta.eval_date == expected.meta.eval_date
 
     def test_smile_end_no_interp(self) -> None:
         fxvs = FXDeltaVolSurface(
@@ -372,9 +372,9 @@ class TestFXDeltaVolSurface:
             delta_type="forward",
         )
         assert result.nodes == expected.nodes
-        assert result._meta.expiry == expected._meta.expiry
-        assert result._meta.delta_type == expected._meta.delta_type
-        assert result._meta.eval_date == expected._meta.eval_date
+        assert result.meta.expiry == expected.meta.expiry
+        assert result.meta.delta_type == expected.meta.delta_type
+        assert result.meta.eval_date == expected.meta.eval_date
 
     def test_smile_tot_var_lin_interp(self) -> None:
         # See Foreign Exchange Option Pricing: Iain Clarke Table 4.5
@@ -394,9 +394,9 @@ class TestFXDeltaVolSurface:
         )
         for (k1, v1), (k2, v2) in zip(result.nodes.items(), expected.nodes.items()):
             assert abs(v1 - v2) < 0.0001
-        assert result._meta.expiry == expected._meta.expiry
-        assert result._meta.delta_type == expected._meta.delta_type
-        assert result._meta.eval_date == expected._meta.eval_date
+        assert result.meta.expiry == expected.meta.expiry
+        assert result.meta.delta_type == expected.meta.delta_type
+        assert result.meta.eval_date == expected.meta.eval_date
 
     def test_smile_from_exact_expiry(self) -> None:
         fxvs = FXDeltaVolSurface(
@@ -417,9 +417,9 @@ class TestFXDeltaVolSurface:
         result = fxvs.get_smile(dt(2024, 1, 1))
         for (k1, v1), (k2, v2) in zip(result.nodes.items(), expected.nodes.items()):
             assert abs(v1 - v2) < 0.0001
-        assert result._meta.expiry == expected._meta.expiry
-        assert result._meta.delta_type == expected._meta.delta_type
-        assert result._meta.eval_date == expected._meta.eval_date
+        assert result.meta.expiry == expected.meta.expiry
+        assert result.meta.delta_type == expected.meta.delta_type
+        assert result.meta.eval_date == expected.meta.eval_date
         assert result.id == expected.id
 
     def test_get_vol_from_strike(self) -> None:

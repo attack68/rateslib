@@ -254,7 +254,7 @@ def _get_vol_delta_type(vol: FXVolOption_, default_delta_type: str) -> str:
     if not isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
         return default_delta_type
     else:
-        return vol._meta.delta_type
+        return vol.meta.delta_type
 
 
 def _validate_credit_curves(curve: CurveOption_, disc_curve: CurveOption_) -> tuple[Curve, Curve]:
