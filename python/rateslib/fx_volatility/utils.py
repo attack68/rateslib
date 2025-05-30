@@ -23,7 +23,7 @@ from rateslib.dual import (
     dual_log,
     dual_norm_cdf,
 )
-from rateslib.dual.utils import _to_number
+from rateslib.dual.utils import _to_number, _dual_float
 from rateslib.rs import _sabr_x0 as _rs_sabr_x0
 from rateslib.rs import _sabr_x1 as _rs_sabr_x1
 from rateslib.rs import _sabr_x2 as _rs_sabr_x2
@@ -98,12 +98,36 @@ class _FXSabrSurfaceMeta:
         return self.eval_date.replace(tzinfo=UTC).timestamp()
 
 
-@dataclass(frozen=True)
-class _FXDeltaVolNodes:
+class _FXDeltaVolSmileNodes:
     nodes: dict[float, DualTypes]
-    delta_type: str
+    meta: _FXDeltaVolSmileMeta
     spline: PPSplineF64 | PPSplineDual | PPSplineDual2
     plot_upper_bound: float
+
+    def __init__(self, nodes: dict[float, DualTypes], meta: _FXDeltaVolSmileMeta) -> None:
+        object.__setattr__(self, "nodes", nodes)
+        object.__setattr__(self, "meta", meta)
+
+        if "_pa" in self.meta.delta_type:
+            vol: float = _dual_float(self.values[-1]) / 100.0
+            upper_bound: float = dual_exp(
+                vol * self.meta.t_expiry_sqrt * (3.75 - 0.5 * vol * self.meta.t_expiry_sqrt),
+            )
+            plot_upper_bound: float = dual_exp(
+                vol * self.meta.t_expiry_sqrt * (3.25 - 0.5 * vol * self.meta.t_expiry_sqrt),
+            )
+            right_bound: int = 1
+        else:
+            upper_bound = 1.0
+            plot_upper_bound = 1.0
+            right_bound = 2
+
+        if self.n in [1, 2]:
+            t = [0.0] * 4 + [upper_bound] * 4
+        else:
+            t = [0.0] * 4 + self.keys[1:-1] + [upper_bound] * 4
+
+        self.
 
     @cached_property
     def keys(self) -> list[float]:
@@ -112,6 +136,10 @@ class _FXDeltaVolNodes:
     @cached_property
     def values(self) -> list[DualTypes]:
         return list(self.nodes.values())
+
+    @property
+    def n(self) -> int:
+        return len(self.keys)
 
 
 def _validate_delta_type(delta_type: str) -> str:
