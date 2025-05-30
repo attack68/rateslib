@@ -22,9 +22,9 @@ from rateslib.fx_volatility import (
     FXSabrSmile,
     FXSabrSurface,
 )
-from rateslib.fx_volatility.sabr import _SabrNodes
 from rateslib.fx_volatility.utils import (
     _d_sabr_d_k_or_f,
+    _FXSabrSmileNodes,
     _validate_delta_type,
 )
 
@@ -649,7 +649,9 @@ class TestFXSabrSmile:
             in_ = {"k": k, "f": f, "alpha": a, "rho": p, "nu": v}
             in_[key1] += inc1
 
-            fxss.nodes = _SabrNodes(alpha=in_["alpha"], beta=1.0, rho=in_["rho"], nu=in_["nu"])
+            fxss._nodes = _FXSabrSmileNodes(
+                _alpha=in_["alpha"], _beta=1.0, _rho=in_["rho"], _nu=in_["nu"]
+            )
             _ = (
                 fxss._d_sabr_d_k_or_f(
                     Dual2(in_["k"], ["k"], [], []),
@@ -662,7 +664,7 @@ class TestFXSabrSmile:
             )
 
             # reset
-            fxss.nodes = _SabrNodes(alpha=a, beta=1.0, rho=p, nu=v)
+            fxss._nodes = _FXSabrSmileNodes(_alpha=a, _beta=1.0, _rho=p, _nu=v)
             return _
 
         for key in ["k", "f", "alpha", "rho", "nu"]:
@@ -692,9 +694,9 @@ class TestFXSabrSmile:
             ad=2,
         )
 
-        a = fxss.nodes["alpha"]
-        p = fxss.nodes["rho"]
-        v = fxss.nodes["nu"]
+        a = fxss.nodes.alpha
+        p = fxss.nodes.rho
+        v = fxss.nodes.nu
 
         # F_0,T is stated in section 3.5.4 as 1.3395
         base = fxss.get_from_strike(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []))[1]
@@ -704,7 +706,9 @@ class TestFXSabrSmile:
             in_[key1] += inc1
             in_[key2] += inc2
 
-            fxss.nodes = _SabrNodes(alpha=in_["alpha"], beta=1.0, rho=in_["rho"], nu=in_["nu"])
+            fxss._nodes = _FXSabrSmileNodes(
+                _alpha=in_["alpha"], _beta=1.0, _rho=in_["rho"], _nu=in_["nu"]
+            )
             _ = (
                 fxss._d_sabr_d_k_or_f(
                     Dual2(in_["k"], ["k"], [], []),
@@ -717,7 +721,7 @@ class TestFXSabrSmile:
             )
 
             # reset
-            fxss.nodes = _SabrNodes(alpha=a, beta=1.0, rho=p, nu=v)
+            fxss._nodes = _FXSabrSmileNodes(_alpha=a, _beta=1.0, _rho=p, _nu=v)
             return _
 
         v_map = {"k": "k", "f": "f", "alpha": "v0", "rho": "v1", "nu": "v2"}
@@ -751,9 +755,9 @@ class TestFXSabrSmile:
             ad=2,
         )
 
-        a = fxss.nodes["alpha"]
-        p = fxss.nodes["rho"]
-        v = fxss.nodes["nu"]
+        a = fxss.nodes.alpha
+        p = fxss.nodes.rho
+        v = fxss.nodes.nu
 
         # F_0,T is stated in section 3.5.4 as 1.3395
         base = fxss.get_from_strike(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []))[1]
@@ -762,7 +766,9 @@ class TestFXSabrSmile:
             in_ = {"k": k, "f": f, "alpha": a, "rho": p, "nu": v}
             in_[key1] += inc1
 
-            fxss.nodes = _SabrNodes(alpha=in_["alpha"], beta=1.0, rho=in_["rho"], nu=in_["nu"])
+            fxss._nodes = _FXSabrSmileNodes(
+                _alpha=in_["alpha"], _beta=1.0, _rho=in_["rho"], _nu=in_["nu"]
+            )
             _ = (
                 fxss._d_sabr_d_k_or_f(
                     Dual2(in_["k"], ["k"], [], []),
@@ -775,7 +781,7 @@ class TestFXSabrSmile:
             )
 
             # reset
-            fxss.nodes = _SabrNodes(alpha=a, beta=1.0, rho=p, nu=v)
+            fxss._nodes = _FXSabrSmileNodes(_alpha=a, _beta=1.0, _rho=p, _nu=v)
             return _
 
         v_map = {"k": "k", "f": "f", "alpha": "v0", "rho": "v1", "nu": "v2"}
@@ -1017,7 +1023,9 @@ class TestFXSabrSmile:
             in_ = {"k": k, "f": f, "alpha": a, "rho": p, "nu": v}
             in_[key1] += inc1
 
-            fxss.nodes = _SabrNodes(alpha=in_["alpha"], beta=1.0, rho=in_["rho"], nu=in_["nu"])
+            fxss._nodes = _FXSabrSmileNodes(
+                _alpha=in_["alpha"], _beta=1.0, _rho=in_["rho"], _nu=in_["nu"]
+            )
             _ = fxss._d_sabr_d_k_or_f(
                 Dual2(in_["k"], ["k"], [], []),
                 Dual2(in_["f"], ["f"], [], []),
@@ -1027,7 +1035,7 @@ class TestFXSabrSmile:
             )[1]
 
             # reset
-            fxss.nodes = _SabrNodes(alpha=a, beta=1.0, rho=p, nu=v)
+            fxss._nodes = _FXSabrSmileNodes(_alpha=a, _beta=1.0, _rho=p, _nu=v)
             return _
 
         for key in ["k", "f", "alpha", "rho", "nu"]:
@@ -1071,7 +1079,9 @@ class TestFXSabrSmile:
             in_[key1] += inc1
             in_[key2] += inc2
 
-            fxss.nodes = _SabrNodes(alpha=in_["alpha"], beta=1.0, rho=in_["rho"], nu=in_["nu"])
+            fxss._nodes = _FXSabrSmileNodes(
+                _alpha=in_["alpha"], _beta=1.0, _rho=in_["rho"], _nu=in_["nu"]
+            )
             _ = fxss._d_sabr_d_k_or_f(
                 Dual2(in_["k"], ["k"], [], []),
                 Dual2(in_["f"], ["f"], [], []),
@@ -1081,7 +1091,7 @@ class TestFXSabrSmile:
             )[1]
 
             # reset
-            fxss.nodes = _SabrNodes(alpha=a, beta=1.0, rho=p, nu=v)
+            fxss._nodes = _FXSabrSmileNodes(_alpha=a, _beta=1.0, _rho=p, _nu=v)
             return _
 
         v_map = {"k": "k", "f": "f", "alpha": "v0", "rho": "v1", "nu": "v2"}
@@ -1140,7 +1150,7 @@ class TestFXSabrSmile:
                 Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []), dt(2002, 1, 1), False, 1
             )[1]
 
-            fxss.nodes = _SabrNodes(alpha=a, beta=1.0, rho=p, nu=v)
+            fxss._nodes = _FXSabrSmileNodes(_alpha=a, _beta=1.0, _rho=p, _nu=v)
             return _
 
         v_map = {"k": "k", "f": "f", "alpha": "v0", "rho": "v1", "nu": "v2"}

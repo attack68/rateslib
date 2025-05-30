@@ -242,7 +242,7 @@ class _CurveSpline:
 
 class _CurveInterpolator:
     """
-    A container for data relating to interpolating the `nodes` of a *Curve*.
+    A container for data relating to interpolating the `nodes` of a :class:`~rateslib.curves.Curve`.
     """
 
     _local_name: str
@@ -391,7 +391,7 @@ class _CurveInterpolator:
 @dataclass(frozen=True)
 class _CurveNodes:
     """
-    An immutable container for the pricing parameters of a *Curve*.
+    An immutable container for the pricing parameters of a :class:`~rateslib.curves.Curve`.
     """
 
     _nodes: dict[datetime, DualTypes]

@@ -213,6 +213,11 @@ class _FXSabrSurfaceMeta:
 
 
 class _FXDeltaVolSmileNodes:
+    """
+    A container for data relating to interpolating the `nodes` of a
+    :class:`~rateslib.fx_volatility.FXDeltaVolSmile`.
+    """
+
     _nodes: dict[float, DualTypes]
     _meta: _FXDeltaVolSmileMeta
     _spline: _FXDeltaVolSpline
@@ -284,10 +289,47 @@ class _FXDeltaVolSmileNodes:
         return self._spline
 
 
+@dataclass(frozen=True)
+class _FXSabrSmileNodes:
+    """
+    A container for data relating to the SABR parameters of a
+    :class:`~rateslib.fx_volatility.FXSabrSmile`.
+    """
+
+    _alpha: Number
+    _beta: float | Variable
+    _rho: Number
+    _nu: Number
+
+    @property
+    def alpha(self) -> Number:
+        """The :math:`\\alpha` parameter of the SABR function."""
+        return self._alpha
+
+    @property
+    def beta(self) -> float | Variable:
+        """The :math:`\\beta` parameter of the SABR function."""
+        return self._beta
+
+    @property
+    def rho(self) -> Number:
+        """The :math:`\\rho` parameter of the SABR function."""
+        return self._rho
+
+    @property
+    def nu(self) -> Number:
+        """The :math:`\\nu` parameter of the SABR function."""
+        return self._nu
+
+    @property
+    def n(self) -> int:
+        return 4
+
+
 class _FXDeltaVolSpline:
     """
     A container for data relating to interpolating the `nodes` of
-    a *Curve* using a cubic PPSpline.
+    a :class:`~rateslib.fx_volatility.FXDeltaVolSmile` using a cubic PPSpline.
     """
 
     _t: list[float]
@@ -344,6 +386,8 @@ class _FXDeltaVolSpline:
         ----------
         nodes: _FXDeltaVolSmileNodes
             Required information for constructing a PPSpline.
+        ad: int
+            The AD order of the constructed PPSPline.
 
         Returns
         -------

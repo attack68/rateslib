@@ -1,7 +1,7 @@
 from __future__ import annotations  # type hinting
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import numpy as np
@@ -30,6 +30,7 @@ from rateslib.fx_volatility.base import _BaseSmile
 from rateslib.fx_volatility.utils import (
     _d_sabr_d_k_or_f,
     _FXSabrSmileMeta,
+    _FXSabrSmileNodes,
     _FXSabrSurfaceMeta,
     _t_var_interp_d_sabr_d_k_or_f,
     _validate_weights,
@@ -45,23 +46,6 @@ from rateslib.rs import index_left_f64
 
 if TYPE_CHECKING:
     from rateslib.typing import CalInput, DualTypes, Number, Sequence, datetime_, int_, str_
-
-
-class _SabrNodes(NamedTuple):
-    alpha: Number
-    beta: float | Variable
-    rho: Number
-    nu: Number
-
-    def __getitem__(self, item: str) -> Any:  # type: ignore[override]
-        # Syntactic sugar. Should be avoided in production code. Use _SabrNodes.item instead.
-        if item not in ["alpha", "beta", "rho", "nu"]:
-            raise KeyError(f"SabrNodes only permit 4 parameters of which '{item}' is not one.")
-        return getattr(self, item)
-
-    @property
-    def n(self) -> int:
-        return 4
 
 
 class FXSabrSmile(_BaseSmile):
@@ -162,11 +146,11 @@ class FXSabrSmile(_BaseSmile):
                 raise ValueError(
                     f"'{_}' is a required SABR parameter that must be included in ``nodes``"
                 )
-        self.nodes: _SabrNodes = _SabrNodes(
-            alpha=_to_number(nodes["alpha"]),
-            beta=nodes["beta"],  # type: ignore[arg-type]
-            rho=_to_number(nodes["rho"]),
-            nu=_to_number(nodes["nu"]),
+        self._nodes: _FXSabrSmileNodes = _FXSabrSmileNodes(
+            _alpha=_to_number(nodes["alpha"]),
+            _beta=nodes["beta"],  # type: ignore[arg-type]
+            _rho=_to_number(nodes["rho"]),
+            _nu=_to_number(nodes["nu"]),
         )
 
         self._set_ad_order(ad)
@@ -181,6 +165,11 @@ class FXSabrSmile(_BaseSmile):
     def meta(self) -> _FXSabrSmileMeta:  # type: ignore[override]
         """An instance of :class:`~rateslib.fx_volatility.utils._FXSabrSmileMeta`."""
         return self._meta
+
+    @property
+    def nodes(self) -> _FXSabrSmileNodes:
+        """An instance of :class:`~rateslib.fx_volatility.utils._FXSabrSmileNodes`."""
+        return self._nodes
 
     def get_from_strike(
         self,
@@ -313,23 +302,23 @@ class FXSabrSmile(_BaseSmile):
         base_obj = DualType(0.0, [f"{self.id}{i}" for i in range(3)], *DualArgs)
         ident = np.eye(3)
 
-        self.nodes = _SabrNodes(
-            beta=self.nodes.beta,
-            alpha=DualType.vars_from(
+        self._nodes = _FXSabrSmileNodes(
+            _beta=self.nodes.beta,
+            _alpha=DualType.vars_from(
                 base_obj,  # type: ignore[arg-type]
                 vector[0].real,
                 base_obj.vars,
                 ident[0, :].tolist(),
                 *DualArgs[1:],
             ),
-            rho=DualType.vars_from(
+            _rho=DualType.vars_from(
                 base_obj,  # type: ignore[arg-type]
                 vector[1].real,
                 base_obj.vars,
                 ident[1, :].tolist(),
                 *DualArgs[1:],
             ),
-            nu=DualType.vars_from(
+            _nu=DualType.vars_from(
                 base_obj,  # type: ignore[arg-type]
                 vector[2].real,
                 base_obj.vars,
@@ -350,11 +339,11 @@ class FXSabrSmile(_BaseSmile):
 
         self._ad = order
 
-        self.nodes = _SabrNodes(
-            beta=self.nodes.beta,
-            alpha=set_order_convert(self.nodes.alpha, order, [f"{self.id}0"]),
-            rho=set_order_convert(self.nodes.rho, order, [f"{self.id}1"]),
-            nu=set_order_convert(self.nodes.nu, order, [f"{self.id}2"]),
+        self._nodes = _FXSabrSmileNodes(
+            _beta=self.nodes.beta,
+            _alpha=set_order_convert(self.nodes.alpha, order, [f"{self.id}0"]),
+            _rho=set_order_convert(self.nodes.rho, order, [f"{self.id}1"]),
+            _nu=set_order_convert(self.nodes.nu, order, [f"{self.id}2"]),
         )
 
     @_new_state_post
@@ -389,9 +378,9 @@ class FXSabrSmile(_BaseSmile):
         params = ["alpha", "beta", "rho", "nu"]
         if key not in params:
             raise KeyError("`key` is not in ``nodes``.")
-        kwargs = {_: getattr(self.nodes, _) for _ in params if _ != key}
-        kwargs.update({key: value})
-        self.nodes = _SabrNodes(**kwargs)
+        kwargs = {f"_{_}": getattr(self.nodes, _) for _ in params if _ != key}
+        kwargs.update({f"_{key}": value})
+        self._nodes = _FXSabrSmileNodes(**kwargs)
         self._set_ad_order(self.ad)
 
     # Plotting
