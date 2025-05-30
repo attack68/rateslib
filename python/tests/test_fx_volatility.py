@@ -102,8 +102,7 @@ class TestFXDeltaVolSmile:
         )
         put_vol = fxvs.get_from_strike(**kwargs)
 
-        fxvs.nodes[idx] = Dual(val + 0.0000001, [var], [])
-        fxvs.csolve()
+        fxvs.update_node(idx, Dual(val + 0.0000001, [var], []))
         put_vol_plus = fxvs.get_from_strike(**kwargs)
 
         finite_diff = (put_vol_plus[1] - put_vol[1]) * 10000000.0
@@ -142,24 +141,20 @@ class TestFXDeltaVolSmile:
         )
         pv00 = fxvs.get_from_strike(**kwargs)
 
-        fxvs.nodes[cross[0][2]] = Dual2(cross[0][1] + 0.00001, [cross[0][0]], [], [])
-        fxvs.nodes[cross[1][2]] = Dual2(cross[1][1] + 0.00001, [cross[1][0]], [], [])
-        fxvs.csolve()
+        fxvs.update_node(cross[0][2],Dual2(cross[0][1] + 0.00001, [cross[0][0]], [], []))
+        fxvs.update_node(cross[1][2],Dual2(cross[1][1] + 0.00001, [cross[1][0]], [], []))
         pv11 = fxvs.get_from_strike(**kwargs)
 
-        fxvs.nodes[cross[0][2]] = Dual2(cross[0][1] + 0.00001, [cross[0][0]], [], [])
-        fxvs.nodes[cross[1][2]] = Dual2(cross[1][1] - 0.00001, [cross[1][0]], [], [])
-        fxvs.csolve()
+        fxvs.update_node(cross[0][2],Dual2(cross[0][1] + 0.00001, [cross[0][0]], [], []))
+        fxvs.update_node(cross[1][2],Dual2(cross[1][1] - 0.00001, [cross[1][0]], [], []))
         pv1_1 = fxvs.get_from_strike(**kwargs)
 
-        fxvs.nodes[cross[0][2]] = Dual2(cross[0][1] - 0.00001, [cross[0][0]], [], [])
-        fxvs.nodes[cross[1][2]] = Dual2(cross[1][1] - 0.00001, [cross[1][0]], [], [])
-        fxvs.csolve()
+        fxvs.update_node(cross[0][2],Dual2(cross[0][1] - 0.00001, [cross[0][0]], [], []))
+        fxvs.update_node(cross[1][2],Dual2(cross[1][1] - 0.00001, [cross[1][0]], [], []))
         pv_1_1 = fxvs.get_from_strike(**kwargs)
 
-        fxvs.nodes[cross[0][2]] = Dual2(cross[0][1] - 0.00001, [cross[0][0]], [], [])
-        fxvs.nodes[cross[1][2]] = Dual2(cross[1][1] + 0.00001, [cross[1][0]], [], [])
-        fxvs.csolve()
+        fxvs.update_node(cross[0][2],Dual2(cross[0][1] - 0.00001, [cross[0][0]], [], []))
+        fxvs.update_node(cross[1][2],Dual2(cross[1][1] + 0.00001, [cross[1][0]], [], []))
         pv_11 = fxvs.get_from_strike(**kwargs)
 
         finite_diff = (pv11[1] + pv_1_1[1] - pv1_1[1] - pv_11[1]) * 1e10 / 4.0
@@ -305,11 +300,11 @@ class TestFXDeltaVolSmile:
             id="test_vol",
         )
 
-        prior_c = test_smile.spline.c
+        prior_c = test_smile.nodes.spline.spline.c
         # update node
-        nodes_bump = {k: v + 0.5 for k, v in test_smile.nodes.items()}
+        nodes_bump = {k: v + 0.5 for k, v in test_smile.nodes.nodes.items()}
         test_smile.update(nodes_bump)
-        after_c = test_smile.spline.c
+        after_c = test_smile.nodes.spline.spline.c
 
         assert after_c != prior_c
 

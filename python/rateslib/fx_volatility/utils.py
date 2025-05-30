@@ -187,17 +187,6 @@ class _FXDeltaVolSpline:
         """PPSpline object used for calculations."""
         return self._spline
 
-    def _csolve_n1(
-        self, nodes: _FXDeltaVolSmileNodes, ad: int
-    ) -> tuple[list[float], list[DualTypes], int, int]:
-        """Solve a spline with only one node value by repeating the value, and
-        creating a flat line."""
-        tau = [0.1, 0.2, 0.3, 0.4]
-        y = nodes.values * 4
-        left_n = 0
-        right_n = 0
-        return tau, y, left_n, right_n
-
     def _csolve_n_other(
         self, nodes: _FXDeltaVolSmileNodes, ad: int
     ) -> tuple[list[float], list[DualTypes], int, int]:
@@ -239,19 +228,20 @@ class _FXDeltaVolSpline:
         -------
         None
         """
+        if ad == 0:
+            Spline: type[PPSplineF64] | type[PPSplineDual] | type[PPSplineDual2] = PPSplineF64
+        elif ad == 1:
+            Spline = PPSplineDual
+        else:
+            Spline = PPSplineDual2
+
         if nodes.n == 1:
-            tau, y, left_n, right_n = self._csolve_n1(nodes, ad)
+            # one node defines a flat line, all spline coefficients are the equivalent value.
+            self._spline = Spline(4, self.t, nodes.values * 4)
         else:
             tau, y, left_n, right_n = self._csolve_n_other(nodes, ad)
-
-        if ad == 0:
-            self._spline = PPSplineF64(4, self.t, None)
-        elif ad == 1:
-            self._spline = PPSplineDual(4, self.t, None)
-        else:
-            self._spline = PPSplineDual2(4, self.t, None)
-
-        self._spline.csolve(tau, y, left_n, right_n, False)  # type: ignore[arg-type]
+            self._spline = Spline(4, self.t, None)
+            self._spline.csolve(tau, y, left_n, right_n, False)  # type: ignore[arg-type]
 
     def to_json(self) -> str:
         """
