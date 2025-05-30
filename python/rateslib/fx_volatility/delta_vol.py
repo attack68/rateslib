@@ -141,7 +141,7 @@ class FXDeltaVolSmile(_BaseSmile):
         return self._id
 
     @property
-    def meta(self) -> _FXDeltaVolSmileMeta:
+    def meta(self) -> _FXDeltaVolSmileMeta:  # type: ignore[override]
         """An instance of :class:`~rateslib.fx_volatility.utils._FXDeltaVolSmileMeta`."""
         return self._nodes._meta
 
