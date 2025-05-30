@@ -52,10 +52,6 @@ class FXSabrSmile(_BaseSmile):
     r"""
     Create an *FX Volatility Smile* at a given expiry indexed by strike using SABR parameters.
 
-    .. warning::
-
-       This class is in beta status.
-
     Parameters
     ----------
     nodes: dict[str, float]
@@ -105,6 +101,10 @@ class FXSabrSmile(_BaseSmile):
     The arguments ``delivery_lag``, ``calendar`` and ``pair`` are only required if using an
     :class:`~rateslib.fx.FXForwards` object to forecast ATM-forward FX rates for pricing. If
     the forward rates are supplied directly as numeric values these arguments are not required.
+
+    Examples
+    --------
+    See :ref:`Constructing a Smile <c-fx-smile-constructing-doc>`.
 
     """
 

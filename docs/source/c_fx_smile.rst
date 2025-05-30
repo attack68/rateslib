@@ -124,6 +124,8 @@ An example of an *FXDeltaVolSmile* is shown below.
          plt.show()
          plt.close()
 
+.. _c-fx-smile-constructing-doc:
+
 Constructing a Smile
 *********************
 
