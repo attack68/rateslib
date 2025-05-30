@@ -55,6 +55,13 @@ start and end of all knot sequences and there is only ever one repeated interior
 that none of the *rateslib* pricing objects, by default, allow discontinuous derivatives at interior
 breakpoints.
 
+c
+-
+
+**c** are the spline coefficients. Most frequently these will be calculated automatically
+using :meth:`~rateslib.splines.PPSplineF64.csolve`, but can also be supplied directly. The
+number of required values equals the dimension of the pp-spline, *n=len(t)-k*.
+
 Endpoint Constraints
 **********************
 Endpoint constraints are often imposed, either automatically in *rateslib* pricing objects,
@@ -297,8 +304,7 @@ solve the linear system, involving the spline collocation matrix,
    plt.show()
 
 In this case, omitting the continuity conditions at the interior breakpoint, 2, creates
-quite a problem. For the purpose of using this module within the :class:`Curve` class
-we always use full continuity at the interior breakpoints. If we remove two dimensions
+quite a problem. If we remove two dimensions
 of the spline (to yield dimension 6) by imposing further continuity of derivative
 and second derivative at :math:`\xi=2` (and 2 data sites to match the new spline
 dimension and yield a square linear system),
