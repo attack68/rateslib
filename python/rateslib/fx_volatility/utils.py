@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, TypeAlias
 
 from pandas import Series
 from pytz import UTC
-from rateslib import PPSplineF64
 
 from rateslib.calendars import get_calendar
 from rateslib.default import (
@@ -24,6 +23,7 @@ from rateslib.dual import (
     dual_norm_cdf,
 )
 from rateslib.dual.utils import _to_number, _dual_float
+from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 from rateslib.rs import _sabr_x0 as _rs_sabr_x0
 from rateslib.rs import _sabr_x1 as _rs_sabr_x1
 from rateslib.rs import _sabr_x2 as _rs_sabr_x2
@@ -127,7 +127,7 @@ class _FXDeltaVolSmileNodes:
         else:
             t = [0.0] * 4 + self.keys[1:-1] + [upper_bound] * 4
 
-        self.
+        pass
 
     @cached_property
     def keys(self) -> list[float]:
@@ -140,6 +140,178 @@ class _FXDeltaVolSmileNodes:
     @property
     def n(self) -> int:
         return len(self.keys)
+
+
+class _FXDeltaVolSpline:
+    """
+    A container for data relating to interpolating the `nodes` of
+    a *Curve* using a cubic PPSpline.
+    """
+
+    _t: list[datetime]
+    _spline: PPSplineF64 | PPSplineDual | PPSplineDual2 | None
+    _endpoints: tuple[str, str]
+
+    def __init__(self, t: list[datetime], endpoints: tuple[str, str]) -> None:
+        self._t = t
+        self._endpoints = endpoints
+        self._spline = None  # will be set in later in csolve
+        if len(self._t) < 10 and "not_a_knot" in self.endpoints:
+            raise ValueError(
+                "`endpoints` cannot be 'not_a_knot' with only 1 interior breakpoint",
+            )
+
+    @property
+    def t(self) -> list[datetime]:
+        """The knot sequence of the PPSpline."""
+        return self._t
+
+    @cached_property
+    def t_posix(self) -> list[float]:
+        """The knot sequence of the PPSpline converted to float unix timestamps."""
+        return [_.replace(tzinfo=UTC).timestamp() for _ in self.t]
+
+    @property
+    def spline(self) -> PPSplineF64 | PPSplineDual | PPSplineDual2 | None:
+        """PPSpline object used for calculations."""
+        return self._spline
+
+    @property
+    def endpoints(self) -> tuple[str, str]:
+        """The endpoints method used to determine the spline coefficients."""
+        return self._endpoints
+
+    # All calling methods should clear the cache and/or set new state after `_csolve`
+    def _csolve(self, curve_type: _CurveType, nodes: _CurveNodes, ad: int) -> None:
+        t_posix = self.t_posix.copy()
+        tau_posix = [k.replace(tzinfo=UTC).timestamp() for k in nodes.keys if k >= self.t[0]]
+        if curve_type == _CurveType.dfs:
+            # then use log
+            y = [dual_log(v) for k, v in nodes.nodes.items() if k >= self.t[0]]
+        else:
+            # use values directly
+            y = [_to_number(v) for k, v in nodes.nodes.items() if k >= self.t[0]]
+
+        # Left side constraint
+        if self.endpoints[0].lower() == "natural":
+            tau_posix.insert(0, t_posix[0])
+            y.insert(0, set_order_convert(0.0, ad, None))
+            left_n = 2
+        elif self.endpoints[0].lower() == "not_a_knot":
+            t_posix.pop(4)
+            left_n = 0
+        else:
+            raise NotImplementedError(
+                f"Endpoint method '{self.endpoints[0]}' not implemented.",
+            )
+
+        # Right side constraint
+        if self.endpoints[1].lower() == "natural":
+            tau_posix.append(self.t_posix[-1])
+            y.append(set_order_convert(0, ad, None))
+            right_n = 2
+        elif self.endpoints[1].lower() == "not_a_knot":
+            t_posix.pop(-5)
+            right_n = 0
+        else:
+            raise NotImplementedError(
+                f"Endpoint method '{self.endpoints[0]}' not implemented.",
+            )
+
+        # Get the Spline class by data types
+        if ad == 0:
+            self._spline = PPSplineF64(4, t_posix, None)
+        elif ad == 1:
+            self._spline = PPSplineDual(4, t_posix, None)
+        else:
+            self._spline = PPSplineDual2(4, t_posix, None)
+
+        self._spline.csolve(tau_posix, y, left_n, right_n, False)  # type: ignore[arg-type]
+
+    def _csolve_n1(self, nodes: _FXDeltaVolSmileNodes) -> tuple[list[float], list[DualTypes], int, int]:
+        """Solve a spline with only one node value by repeating the value"""
+
+        # create a straight line by converting from one to two nodes with the first at tau=0.
+        tau = nodes.keys.copy()
+        tau.insert(0, self.t[0])
+        y = nodes.values * 2
+
+        # Left side constraint
+        tau.insert(0, self.t[0])
+        y.insert(0, set_order_convert(0.0, self.ad, None))
+        left_n = 2
+
+        tau.append(self.t[-1])
+        y.append(set_order_convert(0.0, self.ad, None))
+        right_n = self._right_n
+        return tau, y, left_n, right_n
+
+    def _csolve_n_other(self) -> tuple[list[float], list[DualTypes], int, int]:
+        tau = list(self.nodes.keys())
+        y = list(self.nodes.values())
+
+        # Left side constraint
+        tau.insert(0, self.t[0])
+        y.insert(0, set_order_convert(0.0, self.ad, None))
+        left_n = 2
+
+        tau.append(self.t[-1])
+        y.append(set_order_convert(0.0, self.ad, None))
+        right_n = self._right_n
+        return tau, y, left_n, right_n
+
+    def _csolve(self) -> None:
+        # Get the Spline classs by data types
+        if self.ad == 0:
+            Spline: type[PPSplineF64] | type[PPSplineDual] | type[PPSplineDual2] = PPSplineF64
+        elif self.ad == 1:
+            Spline = PPSplineDual
+        else:
+            Spline = PPSplineDual2
+
+        if self.n == 1:
+            tau, y, left_n, right_n = self._csolve_n1()
+        else:
+            tau, y, left_n, right_n = self._csolve_n_other()
+
+        self.spline: PPSplineF64 | PPSplineDual | PPSplineDual2 = Spline(4, self.t, None)
+        self.spline.csolve(tau, y, left_n, right_n, False)  # type: ignore[arg-type]
+
+    def to_json(self) -> str:
+        """
+        Serialize this object to JSON format.
+
+        The object can be deserialized using the :meth:`~rateslib.serialization.from_json` method.
+
+        Returns
+        -------
+        str
+        """
+        obj = dict(
+            PyNative=dict(
+                _CurveSpline=dict(
+                    t=[_.strftime("%Y-%m-%d") for _ in self.t],
+                    endpoints=self.endpoints,
+                )
+            )
+        )
+        return json.dumps(obj)
+
+    @classmethod
+    def _from_json(cls, loaded_json: dict[str, Any]) -> _CurveSpline:
+        return _CurveSpline(
+            t=[datetime.strptime(_, "%Y-%m-%d") for _ in loaded_json["t"]],
+            endpoints=tuple(loaded_json["endpoints"]),
+        )
+
+    def __eq__(self, other: Any) -> bool:
+        """CurveSplines are considered equal if their knot sequence and endpoints are equivalent.
+        For the same nodes this will resolve to give the same spline coefficients.
+        """
+        if not isinstance(other, _CurveSpline):
+            return False
+        else:
+            return all(iter([self.t == other.t, self.endpoints == other.endpoints]))
 
 
 def _validate_delta_type(delta_type: str) -> str:
