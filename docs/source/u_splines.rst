@@ -12,13 +12,13 @@
 Piecewise Polynomial Splines
 ****************************
 
-Th ``rateslib.splines`` module implements the library's own piecewise polynomial
-splines of generic order
-such that we can include it within our :class:`~rateslib.curves.Curve` class
-for log-cubic discount
-factor interpolation. It does this using b-splines, and various named splines are compatible
+The ``rateslib.splines`` module implements the library's own piecewise polynomial
+splines of generic order. It does this using b-splines, and various named splines are compatible
 with :class:`~rateslib.dual.Dual`
 and :class:`~rateslib.dual.Dual2` data types for automatic differentiation.
+
+Splines are used by the pricing objects, :class:`~rateslib.curves.Curve`,
+:class:`~rateslib.curves.LineCurve` and :class:`~rateslib.fx_volatility.FXDeltaVolSmile`.
 
 The calculations are based on the material provided in
 `A Practical Guide to Splines  by Carl de Boor
@@ -29,10 +29,169 @@ The calculations are based on the material provided in
    rateslib.splines.PPSplineDual
    rateslib.splines.PPSplineDual2
 
-For legacy reasons `PPSpline` is now an alias for `PPSplineF64` which allows only float-64 (x,y) values.
+Parameters
+**********
 
-Introduction
-************
+k
+-
+
+**k** is the order of the spline. The *rateslib* pricing objects mentioned above that utilise
+pp-splines are all cubic, which is of order, *k=4*.
+
+t
+-
+
+**t** is the knot sequence which implicitly defines the break sequence and interior continuity
+conditions of the pp-spline. According to the Curry and Schoenberg Theorem a knot sequence
+should be constructed as follows;
+
+- the first *k* knots should be identical and equal the left side of the spline interval.
+- the last *k* knots should be identical and equal the right side of the spline interval.
+- interior knots will equal the interior break points and be repeated as many times as one
+  wishes to remove a derivative continuity condition (see examples below).
+
+For all of the *rateslib* pricing objects, the auto-generated splines have 4 repeated knots at the
+start and end of all knot sequences and there is only ever one repeated interior knot, implying
+that none of the *rateslib* pricing objects, by default, allow discontinuous derivatives at interior
+breakpoints.
+
+Endpoint Constraints
+**********************
+Endpoint constraints are often imposed, either automatically in *rateslib* pricing objects,
+or occasionally users have freedom to choose suitable parameter options.
+
+Using the generic PPSPline objects various end point constraints can be generated
+via this implementation:
+
+- **Natural spline**: this enforces second order derivative equal to zero at the
+  endpoints. This is most useful for splines of order 4 (cubic) and higher.
+- **Prescribed second derivative**: this enforces second order derivative of given
+  values at the endpoints. Also useful for order 4 and higher.
+- **Clamped spline**: this enforces first order derivative of a given value at the
+  endpoints. This is useful for order 3 and higher.
+- **Not-a-knot**: this enforces third order derivative continuity at the 2nd and
+  penultimate breakpoints. This is most often used with order 4 splines.
+- **Function value**: this enforces the spline to take specific values at the
+  endpoints and the rest of the spline is determined by data site and function values.
+  This can be used with any order spline.
+- **Mixed constraints**: this allows combinations of the above methods at each end.
+
+Suppose we wish to generate between the points (0,0), (1,0), (3,2), (4,2), as
+demonstrated in this :download:`spline note<api/_static/spline_note_cs_tau.pdf>` published
+by the school of computer science at Tel Aviv University, then  we can generate the
+following splines using this library in the following way:
+
+Natural Spline
+--------------
+.. ipython:: python
+
+   t = [0, 0, 0, 0, 1, 3, 4, 4, 4, 4]
+   spline = PPSplineF64(k=4, t=t)
+   tau = np.array([0, 0, 1, 3, 4, 4])
+   val = np.array([0, 0, 0, 2, 2, 0])
+   spline.csolve(tau, val, 2, 2, False)
+
+Second derivative values of zero have been added to the data sites, :math:`\tau`.
+The :meth:`csolve` function is set to use second derivatives.
+
+Prescribed Second Derivatives
+-----------------------------
+.. ipython:: python
+
+   t = [0, 0, 0, 0, 1, 3, 4, 4, 4, 4]
+   spline = PPSplineF64(k=4, t=t)
+   tau = np.array([0, 0, 1, 3, 4, 4])
+   val = np.array([1, 0, 0, 2, 2, -1])
+   spline.csolve(tau, val, 2, 2, False)
+
+Here, second derivative values of specific values 1 and -1 have been set.
+
+Clamped Spline
+-----------------------------
+.. ipython:: python
+
+   t = [0, 0, 0, 0, 1, 3, 4, 4, 4, 4]
+   spline = PPSplineF64(k=4, t=t)
+   tau = np.array([0, 0, 1, 3, 4, 4])
+   val = np.array([0, 0, 0, 2, 2, 0])
+   spline.csolve(tau, val, 1, 1, False)
+
+In this case first derivative values of zero have been set and the :meth:`csolve`
+function updated.
+
+Not-a-Knot Spline
+-----------------------------
+.. ipython:: python
+
+   t = [0, 0, 0, 0, 4, 4, 4, 4]
+   spline = PPSplineF64(k=4, t=t)
+   tau = np.array([0, 1, 3, 4])
+   val = np.array([0, 0, 2, 2])
+   spline.csolve(tau, val, 0, 0, False)
+
+Note that the removal of the interior breakpoints (as implied by the name) has
+been required here in the knot sequence, *t*.
+
+The not-a-knot spline also demonstrate the pure **function value** spline since
+:meth:`csolve` uses function values at the endpoints.
+
+Mixed Spline
+--------------
+.. ipython:: python
+
+   t = [0, 0, 0, 0, 3, 4, 4, 4, 4]
+   spline = PPSplineF64(k=4, t=t)
+   tau = np.array([0, 1, 3, 4, 4])
+   val = np.array([0, 0, 2, 2, 0])
+   spline.csolve(tau, val, 0, 1, False)
+
+**Mixed splines** can be generated by combining, e.g. the above combines not-a-knot left
+side with a clamped right side.
+
+.. plot::
+
+   from rateslib.splines import *
+   import matplotlib.pyplot as plt
+   from datetime import datetime as dt
+   import numpy as np
+   x = np.linspace(0, 4, 76)
+   t = [0, 0, 0, 0, 3, 4, 4, 4, 4]
+   spline = PPSplineF64(k=4, t=t)
+   tau = np.array([0, 1, 3, 4, 4])
+   val = np.array([0, 0, 2, 2, 0])
+   spline.csolve(tau, val, 0, 1, False)
+   t = [0, 0, 0, 0, 1, 3, 4, 4, 4, 4]
+   nspline = PPSplineF64(k=4, t=t)
+   tau = np.array([0, 0, 1, 3, 4, 4])
+   val = np.array([0, 0, 0, 2, 2, 0])
+   nspline.csolve(tau, val, 2, 2, False)
+   t = [0, 0, 0, 0, 4, 4, 4, 4]
+   nkspline = PPSplineF64(k=4, t=t)
+   tau = np.array([0, 1, 3, 4])
+   val = np.array([0, 0, 2, 2])
+   nkspline.csolve(tau, val, 0, 0, False)
+   t = [0, 0, 0, 0, 1, 3, 4, 4, 4, 4]
+   cspline = PPSplineF64(k=4, t=t)
+   tau = np.array([0, 0, 1, 3, 4, 4])
+   val = np.array([0, 0, 0, 2, 2, 0])
+   cspline.csolve(tau, val, 1, 1, False)
+   t = [0, 0, 0, 0, 1, 3, 4, 4, 4, 4]
+   pspline = PPSplineF64(k=4, t=t)
+   tau = np.array([0, 0, 1, 3, 4, 4])
+   val = np.array([1.0, 0, 0, 2, 2, -1.0])
+   pspline.csolve(tau, val, 2, 2, False)
+   fig, ax = plt.subplots(1,1)
+   ax.scatter([0,1,3,4], [0,0,2,2], label="Values")
+   ax.plot(x, spline.ppev(x), label="Mixed")
+   ax.plot(x, nspline.ppev(x), label="Natural")
+   ax.plot(x, nkspline.ppev(x), label="Not-a-Knot")
+   ax.plot(x, cspline.ppev(x), label="Clamped")
+   ax.plot(x, pspline.ppev(x), label="Prescribed 2nd")
+   ax.legend()
+   plt.show()
+
+Introduction to Theory
+**********************
 
 A spline function is one which is composed of a sum of other polynomial functions.
 In this case, the spline function, :math:`\$(x)`, is a linear sum of b-splines.
@@ -240,137 +399,6 @@ spline is somewhat constrained by its limiting degrees of freedom.
    ax.plot(x, np.sin(3*x))
    ax.scatter(tau, np.sin(3*tau))
    ax.plot(x, spline.ppev(x))
-   plt.show()
-
-Endpoint Constraints
-**********************
-The various end point constraints can be generated in this implementation:
-
-- **Natural spline**: this enforces second order derivative equal to zero at the
-  endpoints. This is most useful for splines of order 4 (cubic) and higher.
-- **Prescribed second derivative**: this enforces second order derivative of given
-  values at the endpoints. Also useful for order 4 and higher.
-- **Clamped spline**: this enforces first order derivative of a given value at the
-  endpoints. This is useful for order 3 and higher.
-- **Not-a-knot**: this enforces third order derivative continuity at the 2nd and
-  penultimate breakpoints. This is most often used with order 4 splines.
-- **Function value**: this enforces the spline to take specific values at the
-  endpoints and the rest of the spline is determined by data site and function values.
-  This can be used with any order spline.
-- **Mixed constraints**: this allows combinations of the above methods at each end.
-
-Suppose we wish to generate between the points (0,0), (1,0), (3,2), (4,2), as
-demonstrated in this :download:`spline note<api/_static/spline_note_cs_tau.pdf>` published
-by the school of computer science at Tel Aviv University, then  we can generate the
-following splines using this library in the following way:
-
-Natural Spline
---------------
-.. ipython:: python
-
-   t = [0, 0, 0, 0, 1, 3, 4, 4, 4, 4]
-   spline = PPSplineF64(k=4, t=t)
-   tau = np.array([0, 0, 1, 3, 4, 4])
-   val = np.array([0, 0, 0, 2, 2, 0])
-   spline.csolve(tau, val, 2, 2, False)
-
-Second derivative values of zero have been added to the data sites, :math:`\tau`.
-The :meth:`csolve` function is set to use second derivatives.
-
-Prescribed Second Derivatives
------------------------------
-.. ipython:: python
-
-   t = [0, 0, 0, 0, 1, 3, 4, 4, 4, 4]
-   spline = PPSplineF64(k=4, t=t)
-   tau = np.array([0, 0, 1, 3, 4, 4])
-   val = np.array([1, 0, 0, 2, 2, -1])
-   spline.csolve(tau, val, 2, 2, False)
-
-Here, second derivative values of specific values 1 and -1 have been set.
-
-Clamped Spline
------------------------------
-.. ipython:: python
-
-   t = [0, 0, 0, 0, 1, 3, 4, 4, 4, 4]
-   spline = PPSplineF64(k=4, t=t)
-   tau = np.array([0, 0, 1, 3, 4, 4])
-   val = np.array([0, 0, 0, 2, 2, 0])
-   spline.csolve(tau, val, 1, 1, False)
-
-In this case first derivative values of zero have been set and the :meth:`csolve`
-function updated.
-
-Not-a-Knot Spline
------------------------------
-.. ipython:: python
-
-   t = [0, 0, 0, 0, 4, 4, 4, 4]
-   spline = PPSplineF64(k=4, t=t)
-   tau = np.array([0, 1, 3, 4])
-   val = np.array([0, 0, 2, 2])
-   spline.csolve(tau, val, 0, 0, False)
-
-Note that the removal of the interior breakpoints (as implied by the name) has
-been required here in the knot sequence, *t*.
-
-The not-a-knot spline also demonstrate the pure **function value** spline since
-:meth:`csolve` uses function values at the endpoints.
-
-Mixed Spline
---------------
-.. ipython:: python
-
-   t = [0, 0, 0, 0, 3, 4, 4, 4, 4]
-   spline = PPSplineF64(k=4, t=t)
-   tau = np.array([0, 1, 3, 4, 4])
-   val = np.array([0, 0, 2, 2, 0])
-   spline.csolve(tau, val, 0, 1, False)
-
-**Mixed splines** can be generated by combining, e.g. the above combines not-a-knot left
-side with a clamped right side.
-
-.. plot::
-
-   from rateslib.splines import *
-   import matplotlib.pyplot as plt
-   from datetime import datetime as dt
-   import numpy as np
-   x = np.linspace(0, 4, 76)
-   t = [0, 0, 0, 0, 3, 4, 4, 4, 4]
-   spline = PPSplineF64(k=4, t=t)
-   tau = np.array([0, 1, 3, 4, 4])
-   val = np.array([0, 0, 2, 2, 0])
-   spline.csolve(tau, val, 0, 1, False)
-   t = [0, 0, 0, 0, 1, 3, 4, 4, 4, 4]
-   nspline = PPSplineF64(k=4, t=t)
-   tau = np.array([0, 0, 1, 3, 4, 4])
-   val = np.array([0, 0, 0, 2, 2, 0])
-   nspline.csolve(tau, val, 2, 2, False)
-   t = [0, 0, 0, 0, 4, 4, 4, 4]
-   nkspline = PPSplineF64(k=4, t=t)
-   tau = np.array([0, 1, 3, 4])
-   val = np.array([0, 0, 2, 2])
-   nkspline.csolve(tau, val, 0, 0, False)
-   t = [0, 0, 0, 0, 1, 3, 4, 4, 4, 4]
-   cspline = PPSplineF64(k=4, t=t)
-   tau = np.array([0, 0, 1, 3, 4, 4])
-   val = np.array([0, 0, 0, 2, 2, 0])
-   cspline.csolve(tau, val, 1, 1, False)
-   t = [0, 0, 0, 0, 1, 3, 4, 4, 4, 4]
-   pspline = PPSplineF64(k=4, t=t)
-   tau = np.array([0, 0, 1, 3, 4, 4])
-   val = np.array([1.0, 0, 0, 2, 2, -1.0])
-   pspline.csolve(tau, val, 2, 2, False)
-   fig, ax = plt.subplots(1,1)
-   ax.scatter([0,1,3,4], [0,0,2,2], label="Values")
-   ax.plot(x, spline.ppev(x), label="Mixed")
-   ax.plot(x, nspline.ppev(x), label="Natural")
-   ax.plot(x, nkspline.ppev(x), label="Not-a-Knot")
-   ax.plot(x, cspline.ppev(x), label="Clamped")
-   ax.plot(x, pspline.ppev(x), label="Prescribed 2nd")
-   ax.legend()
    plt.show()
 
 Application to Discount Factors
