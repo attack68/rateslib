@@ -35,8 +35,8 @@ from rateslib.fx_volatility.utils import (
     _d_plus_min_u,
     _delta_type_constants,
     _FXDeltaVolSmileMeta,
-    _FXDeltaVolSurfaceMeta,
     _FXDeltaVolSmileNodes,
+    _FXDeltaVolSurfaceMeta,
     _moneyness_from_delta_closed_form,
     _t_var_interp,
     _validate_delta_type,
@@ -104,9 +104,9 @@ class FXDeltaVolSmile(_BaseSmile):
 
     _ini_solve = 0  # All node values are solvable
     _default_plot_x_axis = "delta"
-    _meta: _FXDeltaVolSmileMeta
     _nodes: _FXDeltaVolSmileNodes
     _id: str
+    _ad: int
 
     @_new_state_post
     def __init__(
@@ -129,10 +129,10 @@ class FXDeltaVolSmile(_BaseSmile):
                 delta_type=_validate_delta_type(delta_type),
                 plot_x_axis="delta",
             ),
-            nodes=nodes
+            nodes=nodes,
         )
 
-        self.__set_nodes__(nodes, ad)
+        self._set_ad_order(ad)  # includes _csolve()
 
     @property
     def id(self) -> str:
@@ -144,6 +144,10 @@ class FXDeltaVolSmile(_BaseSmile):
     def meta(self) -> _FXDeltaVolSmileMeta:
         """An instance of :class:`~rateslib.fx_volatility.utils._FXDeltaVolSmileMeta`."""
         return self._nodes._meta
+
+    @property
+    def nodes(self) -> _FXDeltaVolSmileNodes:
+        return self._nodes
 
     def __getitem__(self, item: DualTypes) -> DualTypes:
         """
@@ -373,100 +377,6 @@ class FXDeltaVolSmile(_BaseSmile):
 
     # Mutation
 
-    def __set_nodes__(self, nodes: dict[float, DualTypes], ad: int) -> None:
-        # self.ad = None
-
-        self.nodes = nodes
-        self.node_keys = list(self.nodes.keys())
-        self.n = len(self.node_keys)
-        if "_pa" in self.meta.delta_type:
-            vol = list(self.nodes.values())[-1] / 100.0
-            upper_bound = dual_exp(
-                vol * self.meta.t_expiry_sqrt * (3.75 - 0.5 * vol * self.meta.t_expiry_sqrt),
-            )
-            self.plot_upper_bound = dual_exp(
-                vol * self.meta.t_expiry_sqrt * (3.25 - 0.5 * vol * self.meta.t_expiry_sqrt),
-            )
-            self._right_n = 1  # right hand spline endpoint will be constrained by derivative
-        else:
-            upper_bound = 1.0
-            self.plot_upper_bound = 1.0
-            self._right_n = 2  # right hand spline endpoint will be constrained by derivative
-
-        if self.n in [1, 2]:
-            self.t = [0.0] * 4 + [_dual_float(upper_bound)] * 4
-        else:
-            self.t = [0.0] * 4 + self.node_keys[1:-1] + [_dual_float(upper_bound)] * 4
-
-        self._set_ad_order(ad)  # includes _csolve()
-
-    def _csolve_n1(self) -> tuple[list[float], list[DualTypes], int, int]:
-        # create a straight line by converting from one to two nodes with the first at tau=0.
-        tau = list(self.nodes.keys())
-        tau.insert(0, self.t[0])
-        y = list(self.nodes.values()) * 2
-
-        # Left side constraint
-        tau.insert(0, self.t[0])
-        y.insert(0, set_order_convert(0.0, self.ad, None))
-        left_n = 2
-
-        tau.append(self.t[-1])
-        y.append(set_order_convert(0.0, self.ad, None))
-        right_n = self._right_n
-        return tau, y, left_n, right_n
-
-    def _csolve_n_other(self) -> tuple[list[float], list[DualTypes], int, int]:
-        tau = list(self.nodes.keys())
-        y = list(self.nodes.values())
-
-        # Left side constraint
-        tau.insert(0, self.t[0])
-        y.insert(0, set_order_convert(0.0, self.ad, None))
-        left_n = 2
-
-        tau.append(self.t[-1])
-        y.append(set_order_convert(0.0, self.ad, None))
-        right_n = self._right_n
-        return tau, y, left_n, right_n
-
-    def _csolve(self) -> None:
-        # Get the Spline classs by data types
-        if self.ad == 0:
-            Spline: type[PPSplineF64] | type[PPSplineDual] | type[PPSplineDual2] = PPSplineF64
-        elif self.ad == 1:
-            Spline = PPSplineDual
-        else:
-            Spline = PPSplineDual2
-
-        if self.n == 1:
-            tau, y, left_n, right_n = self._csolve_n1()
-        else:
-            tau, y, left_n, right_n = self._csolve_n_other()
-
-        self.spline: PPSplineF64 | PPSplineDual | PPSplineDual2 = Spline(4, self.t, None)
-        self.spline.csolve(tau, y, left_n, right_n, False)  # type: ignore[arg-type]
-
-    @_new_state_post
-    @_clear_cache_post
-    def csolve(self) -> None:
-        """
-        Solves **and sets** the coefficients, ``c``, of the :class:`PPSpline`.
-
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-        Only impacts curves which have a knot sequence, ``t``, and a ``PPSpline``.
-        Only solves if ``c`` not given at curve initialisation.
-
-        Uses the ``spline_endpoints`` attribute on the class to determine the solving
-        method.
-        """
-        self._csolve()
-
     @_new_state_post
     @_clear_cache_post
     def _set_node_vector(
@@ -491,7 +401,7 @@ class FXDeltaVolSmile(_BaseSmile):
                 ident[i, :].tolist(),
                 *DualArgs[1:],
             )
-        self._csolve()
+        self.nodes.spline.csolve(self.nodes, self.ad)
 
     @_clear_cache_post
     def _set_ad_order(self, order: int) -> None:
