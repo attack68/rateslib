@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, NamedTuple
-from dataclasses import dataclass
 
 from pytz import UTC
 
@@ -362,7 +362,7 @@ class _CurveNodes:
 
     _nodes: dict[datetime, DualTypes]
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         for idx in range(1, self.n):
             if self.keys[idx - 1] >= self.keys[idx]:
                 raise ValueError(
