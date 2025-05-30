@@ -357,7 +357,7 @@ class _CurveInterpolator:
 @dataclass(frozen=True)
 class _CurveNodes:
     """
-    A container for the pricing parameters of a *Curve*
+    An immutable container for the pricing parameters of a *Curve*.
     """
 
     _nodes: dict[datetime, DualTypes]
