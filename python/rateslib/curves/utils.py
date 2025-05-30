@@ -146,7 +146,9 @@ class _CurveSpline:
 
     @property
     def spline(self) -> PPSplineF64 | PPSplineDual | PPSplineDual2 | None:
-        """PPSpline object used for calculations."""
+        """An instance of :class:`~rateslib.splines.PPSplineF64`,
+        :class:`~rateslib.splines.PPSplineDual` or :class:`~rateslib.splines.PPSplineDual2`.
+        """
         return self._spline
 
     @property
@@ -404,22 +406,27 @@ class _CurveNodes:
 
     @property
     def nodes(self) -> dict[datetime, DualTypes]:
+        """The initial nodes dict passed for construction of this class."""
         return self._nodes
 
     @cached_property
     def keys(self) -> list[datetime]:
+        """A list of datetime keys in ``nodes``."""
         return list(self._nodes.keys())
 
     @cached_property
     def values(self) -> list[DualTypes]:
+        """A list of values in ``nodes``."""
         return list(self._nodes.values())
 
     @property
     def n(self) -> int:
+        """Number of parameters contained in ``nodes``."""
         return len(self.keys)
 
     @cached_property
     def posix_keys(self) -> list[float]:
+        """A list of the ``keys`` converted to unix timestamps."""
         return [_.replace(tzinfo=UTC).timestamp() for _ in self.keys]
 
     @property

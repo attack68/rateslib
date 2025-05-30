@@ -126,7 +126,6 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
     - *"log_linear"* (default for this curve type)
     - *"linear_index"*
-    - *"spline"*
 
     And also the following which are not recommended for this curve type:
 
@@ -145,7 +144,8 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
     If the knot sequence is provided directly then any dates prior to the first knot date in ``t``
     will be determined through the local interpolation method. This allows for
-    **mixed interpolation**.
+    **mixed interpolation**, permitting the most common form of a stepped curve followed by a
+    smooth curve at some boundary.
 
     For defining rates by a given tenor, the ``modifier`` and ``calendar`` arguments
     will be used. For correct scaling of the rate a ``convention`` is attached to the

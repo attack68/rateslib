@@ -368,5 +368,10 @@ These values can also be set:
    irs.leg1.convention  # <- uses new default value
    irs.leg1.currency  # <- uses new default value
 
+.. ipython:: python
+
    defaults.reset_defaults()  # <- reverse the changes.
+
+.. ipython:: python
+
    defaults.base_currency
