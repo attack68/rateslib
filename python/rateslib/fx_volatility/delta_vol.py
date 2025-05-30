@@ -350,7 +350,9 @@ class FXDeltaVolSmile(_BaseSmile):
         x_axis: str,
         f: DualTypes | NoInput,
     ) -> tuple[list[float], list[DualTypes]]:
-        x: list[float] = list(np.linspace(_dual_float(self.plot_upper_bound), self.t[0], 301))
+        x: list[float] = list(
+            np.linspace(_dual_float(self.nodes.plot_upper_bound), self.nodes.spline.t[0], 301)
+        )
         vols: list[float] | list[Dual] | list[Dual2] = self.nodes.spline.spline.ppev(x)
         if x_axis in ["moneyness", "strike"]:
             if self.meta.delta_type != "forward":
@@ -859,8 +861,8 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         return self.get_smile(expiry)[delta_index]
 
     def plot(self) -> PlotOutput:
-        plot_upper_bound = max([_.plot_upper_bound for _ in self.smiles])
-        deltas = np.linspace(0.0, plot_upper_bound, 20)  # type: ignore[arg-type]
+        plot_upper_bound = max([_.nodes.plot_upper_bound for _ in self.smiles])
+        deltas = np.linspace(0.0, plot_upper_bound, 20)
         vols = np.array([[_._get_index(d, NoInput(0)) for d in deltas] for _ in self.smiles])
         expiries = [(_ - self.eval_posix) / (365 * 24 * 60 * 60.0) for _ in self.expiries_posix]
         return plot3d(deltas, expiries, vols)  # type: ignore[arg-type, return-value]

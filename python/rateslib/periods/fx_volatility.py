@@ -870,7 +870,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
             f_d: DualTypes = f.rate(self.pair, self.delivery)
             # _ad = _set_ad_order_objects([0], [f])  # GH755
         else:
-            f_d = f
+            # TODO: mypy should auto detect this
+            f_d = f  # type: ignore[assignment]
 
         def root1d(
             k: DualTypes, f_d: DualTypes, fx: DualTypes | FXForwards, as_float: bool
@@ -888,7 +889,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
         if isinstance(vol, FXSabrSmile):
             alpha = vol.nodes.alpha
         else:  # FXSabrSurface
-            vol_: FXSabrSurface = vol
+            # mypy should auto detect this
+            vol_: FXSabrSurface = vol  # type: ignore[assignment]
             expiry_posix = self.expiry.replace(tzinfo=UTC).timestamp()
             e_idx = index_left_f64(vol_.expiries_posix, expiry_posix)
             alpha = vol_.smiles[e_idx].nodes.alpha
@@ -1080,7 +1082,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
             f_d: DualTypes = f.rate(self.pair, self.delivery)
             # _ad = _set_ad_order_objects([0], [f])  # GH755
         else:
-            f_d = f
+            # mypy should auto detect this
+            f_d = f  # type: ignore[assignment]
 
         def root1d(
             k: DualTypes,
@@ -1119,7 +1122,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
         if isinstance(vol, FXSabrSmile):
             alpha = vol.nodes.alpha
         else:  # FXSabrSurface
-            vol_: FXSabrSurface = vol
+            # mypy should auto detect this
+            vol_: FXSabrSurface = vol  # type: ignore[assignment]
             expiry_posix = self.expiry.replace(tzinfo=UTC).timestamp()
             e_idx = index_left_f64(vol_.expiries_posix, expiry_posix)
             alpha = vol_.smiles[e_idx].nodes.alpha

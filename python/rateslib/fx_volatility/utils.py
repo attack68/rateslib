@@ -101,16 +101,18 @@ class _FXSabrSurfaceMeta:
 class _FXDeltaVolSmileNodes:
     _nodes: dict[float, DualTypes]
     _meta: _FXDeltaVolSmileMeta
-    _spline: PPSplineF64 | PPSplineDual | PPSplineDual2
+    _spline: _FXDeltaVolSpline
 
     def __init__(self, nodes: dict[float, DualTypes], meta: _FXDeltaVolSmileMeta) -> None:
         self._nodes = nodes
         self._meta = meta
 
         if "_pa" in self.meta.delta_type:
-            vol: float = _dual_float(self.values[-1]) / 100.0
-            upper_bound: float = dual_exp(
-                vol * self.meta.t_expiry_sqrt * (3.75 - 0.5 * vol * self.meta.t_expiry_sqrt),
+            vol: DualTypes = self.values[-1] / 100.0
+            upper_bound: float = _dual_float(
+                dual_exp(
+                    vol * self.meta.t_expiry_sqrt * (3.75 - 0.5 * vol * self.meta.t_expiry_sqrt),
+                )
             )
         else:
             upper_bound = 1.0
@@ -139,12 +141,12 @@ class _FXDeltaVolSmileNodes:
             return 1.0
 
     @property
-    def meta(self):
+    def meta(self) -> _FXDeltaVolSmileMeta:
         """An instance of :class:`~rateslib.fx_volatility.utils._FXDeltaVolSmileMeta`."""
         return self._meta
 
     @property
-    def nodes(self):
+    def nodes(self) -> dict[float, DualTypes]:
         return self._nodes
 
     @cached_property
@@ -160,7 +162,7 @@ class _FXDeltaVolSmileNodes:
         return len(self.keys)
 
     @property
-    def spline(self):
+    def spline(self) -> _FXDeltaVolSpline:
         return self._spline
 
 
@@ -171,11 +173,11 @@ class _FXDeltaVolSpline:
     """
 
     _t: list[float]
-    _spline: PPSplineF64 | PPSplineDual | PPSplineDual2 | None
+    _spline: PPSplineF64 | PPSplineDual | PPSplineDual2
 
     def __init__(self, t: list[float]) -> None:
         self._t = t
-        self._spline = None  # will be called later during csolve
+        self._spline = PPSplineF64(4, [0.0] * 5, None)  # placeholder: csolve will reengineer
 
     @property
     def t(self) -> list[float]:
@@ -183,7 +185,7 @@ class _FXDeltaVolSpline:
         return self._t
 
     @property
-    def spline(self) -> PPSplineF64 | PPSplineDual | PPSplineDual2 | None:
+    def spline(self) -> PPSplineF64 | PPSplineDual | PPSplineDual2:
         """PPSpline object used for calculations."""
         return self._spline
 
@@ -237,7 +239,7 @@ class _FXDeltaVolSpline:
 
         if nodes.n == 1:
             # one node defines a flat line, all spline coefficients are the equivalent value.
-            self._spline = Spline(4, self.t, nodes.values * 4)
+            self._spline = Spline(4, self.t, nodes.values * 4)  # type: ignore[arg-type]
         else:
             tau, y, left_n, right_n = self._csolve_n_other(nodes, ad)
             self._spline = Spline(4, self.t, None)
@@ -256,7 +258,7 @@ class _FXDeltaVolSpline:
         obj = dict(
             PyNative=dict(
                 _FXDeltaVolSpline=dict(
-                    t=[_.strftime("%Y-%m-%d") for _ in self.t],
+                    t=self.t,
                 )
             )
         )
@@ -265,7 +267,7 @@ class _FXDeltaVolSpline:
     @classmethod
     def _from_json(cls, loaded_json: dict[str, Any]) -> _FXDeltaVolSpline:
         return _FXDeltaVolSpline(
-            t=[datetime.strptime(_, "%Y-%m-%d") for _ in loaded_json["t"]],
+            t=loaded_json["t"],
         )
 
     def __eq__(self, other: Any) -> bool:
