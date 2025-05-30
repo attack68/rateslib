@@ -144,7 +144,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
     If the knot sequence is provided directly then any dates prior to the first knot date in ``t``
     will be determined through the local interpolation method. This allows for
-    **mixed interpolation**, permitting the most common form of a stepped curve followed by a 
+    **mixed interpolation**, permitting the most common form of a stepped curve followed by a
     smooth curve at some boundary.
 
     For defining rates by a given tenor, the ``modifier`` and ``calendar`` arguments
