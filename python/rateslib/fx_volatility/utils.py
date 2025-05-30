@@ -21,6 +21,7 @@ from rateslib.dual import (
     dual_inv_norm_cdf,
     dual_log,
     dual_norm_cdf,
+    set_order_convert,
 )
 from rateslib.dual.utils import _to_number, _dual_float
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
@@ -148,18 +149,12 @@ class _FXDeltaVolSpline:
     a *Curve* using a cubic PPSpline.
     """
 
-    _t: list[datetime]
+    _t: list[float]
     _spline: PPSplineF64 | PPSplineDual | PPSplineDual2 | None
-    _endpoints: tuple[str, str]
 
-    def __init__(self, t: list[datetime], endpoints: tuple[str, str]) -> None:
+    def __init__(self, t: list[float]) -> None:
         self._t = t
-        self._endpoints = endpoints
         self._spline = None  # will be set in later in csolve
-        if len(self._t) < 10 and "not_a_knot" in self.endpoints:
-            raise ValueError(
-                "`endpoints` cannot be 'not_a_knot' with only 1 interior breakpoint",
-            )
 
     @property
     def t(self) -> list[datetime]:
@@ -176,84 +171,23 @@ class _FXDeltaVolSpline:
         """PPSpline object used for calculations."""
         return self._spline
 
-    @property
-    def endpoints(self) -> tuple[str, str]:
-        """The endpoints method used to determine the spline coefficients."""
-        return self._endpoints
-
-    # All calling methods should clear the cache and/or set new state after `_csolve`
-    def _csolve(self, curve_type: _CurveType, nodes: _CurveNodes, ad: int) -> None:
-        t_posix = self.t_posix.copy()
-        tau_posix = [k.replace(tzinfo=UTC).timestamp() for k in nodes.keys if k >= self.t[0]]
-        if curve_type == _CurveType.dfs:
-            # then use log
-            y = [dual_log(v) for k, v in nodes.nodes.items() if k >= self.t[0]]
-        else:
-            # use values directly
-            y = [_to_number(v) for k, v in nodes.nodes.items() if k >= self.t[0]]
-
-        # Left side constraint
-        if self.endpoints[0].lower() == "natural":
-            tau_posix.insert(0, t_posix[0])
-            y.insert(0, set_order_convert(0.0, ad, None))
-            left_n = 2
-        elif self.endpoints[0].lower() == "not_a_knot":
-            t_posix.pop(4)
-            left_n = 0
-        else:
-            raise NotImplementedError(
-                f"Endpoint method '{self.endpoints[0]}' not implemented.",
-            )
-
-        # Right side constraint
-        if self.endpoints[1].lower() == "natural":
-            tau_posix.append(self.t_posix[-1])
-            y.append(set_order_convert(0, ad, None))
-            right_n = 2
-        elif self.endpoints[1].lower() == "not_a_knot":
-            t_posix.pop(-5)
-            right_n = 0
-        else:
-            raise NotImplementedError(
-                f"Endpoint method '{self.endpoints[0]}' not implemented.",
-            )
-
-        # Get the Spline class by data types
-        if ad == 0:
-            self._spline = PPSplineF64(4, t_posix, None)
-        elif ad == 1:
-            self._spline = PPSplineDual(4, t_posix, None)
-        else:
-            self._spline = PPSplineDual2(4, t_posix, None)
-
-        self._spline.csolve(tau_posix, y, left_n, right_n, False)  # type: ignore[arg-type]
-
-    def _csolve_n1(self, nodes: _FXDeltaVolSmileNodes) -> tuple[list[float], list[DualTypes], int, int]:
-        """Solve a spline with only one node value by repeating the value"""
-
-        # create a straight line by converting from one to two nodes with the first at tau=0.
-        tau = nodes.keys.copy()
-        tau.insert(0, self.t[0])
-        y = nodes.values * 2
-
-        # Left side constraint
-        tau.insert(0, self.t[0])
-        y.insert(0, set_order_convert(0.0, self.ad, None))
-        left_n = 2
-
-        tau.append(self.t[-1])
-        y.append(set_order_convert(0.0, self.ad, None))
-        right_n = self._right_n
+    def _csolve_n1(self, nodes: _FXDeltaVolSmileNodes, ad: int) -> tuple[list[float], list[DualTypes], int, int]:
+        """Solve a spline with only one node value by repeating the value, and
+        creating a flat line."""
+        tau = [0.1, 0.2, 0.3, 0.4]
+        y = nodes.values * 4
+        left_n = 0
+        right_n = 0
         return tau, y, left_n, right_n
 
-    def _csolve_n_other(self) -> tuple[list[float], list[DualTypes], int, int]:
-        tau = list(self.nodes.keys())
-        y = list(self.nodes.values())
+    def _csolve_n_other(self, nodes: _FXDeltaVolSmileNodes, ad: int) -> tuple[list[float], list[DualTypes], int, int]:
+        tau = nodes.keys.copy()
+        y = nodes.values.copy()
 
         # Left side constraint
         tau.insert(0, self.t[0])
-        y.insert(0, set_order_convert(0.0, self.ad, None))
-        left_n = 2
+        y.insert(0, set_order_convert(0.0, ad, None))
+        left_n = 2  # natural spline
 
         tau.append(self.t[-1])
         y.append(set_order_convert(0.0, self.ad, None))

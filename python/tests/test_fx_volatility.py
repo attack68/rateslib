@@ -321,7 +321,7 @@ class TestFXDeltaVolSmile:
             id="vol",
             expiry=dt(2023, 6, 16),
         )
-        assert smile[0.5] == 10.0
+        assert abs(smile[0.5] -10.0) < 1e-14
 
 
 class TestFXDeltaVolSurface:
