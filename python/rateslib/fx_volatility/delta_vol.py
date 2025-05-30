@@ -464,7 +464,7 @@ class FXDeltaVolSmile(_BaseSmile):
         else:
             ad_ = 0
 
-        nodes: dict[float, DualTypes] = {
+        nodes = {
             k: set_order_convert(v, ad_, [f"{self.id}{i}"])
             for i, (k, v) in enumerate(nodes.items())
         }
