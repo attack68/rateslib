@@ -242,7 +242,7 @@ class _CurveSpline:
 
 class _CurveInterpolator:
     """
-    A container for data relating to interpolating the `nodes` of a *Curve*.
+    A container for data relating to interpolating the `nodes` of a :class:`~rateslib.curves.Curve`.
     """
 
     _local_name: str
