@@ -214,6 +214,7 @@ class _FXDeltaVolSmileNodes:
 
     @cached_property
     def values(self) -> list[DualTypes]:
+        """A list of the delta index values in ``nodes``."""
         return list(self.nodes.values())
 
     @property
@@ -222,6 +223,7 @@ class _FXDeltaVolSmileNodes:
 
     @property
     def spline(self) -> _FXDeltaVolSpline:
+        """An instance of :class:`~rateslib.fx_volatility.utils._FXDeltaVolSpline`."""
         return self._spline
 
 
