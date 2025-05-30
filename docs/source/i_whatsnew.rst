@@ -141,6 +141,7 @@ Some themes for this release involved:
          (`853 <https://github.com/attack68/rateslib/pull/853>`_)
          (`854 <https://github.com/attack68/rateslib/pull/854>`_)
          (`855 <https://github.com/attack68/rateslib/pull/855>`_)
+         (`873 <https://github.com/attack68/rateslib/pull/873>`_)
        - :red:`Major Breaking Change!` The **attributes** on *FXVol* pricing objects are
          reorganised into ``attributes``.
          (`867 <https://github.com/attack68/rateslib/pull/867>`_)
