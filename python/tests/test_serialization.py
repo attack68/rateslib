@@ -29,12 +29,12 @@ from rateslib.serialization.utils import _enum_to_json
 @pytest.mark.parametrize("collateral", [None, "usd"])
 def test_curvemeta_json_round_trip(calendar, index_base, collateral):
     obj = _CurveMeta(
-        calendar=calendar,
-        convention="act365f",
-        modifier="MF",
-        index_base=index_base,
-        index_lag=1,
-        collateral=collateral,
+        _calendar=calendar,
+        _convention="act365f",
+        _modifier="MF",
+        _index_base=index_base,
+        _index_lag=1,
+        _collateral=collateral,
     )
     json_text = obj.to_json()
     round_trip = from_json(json_text)
