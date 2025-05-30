@@ -127,6 +127,7 @@ class FXSabrSmile(_BaseSmile):
     _ini_solve = 1
     n = 4
     _meta: _FXSabrSmileMeta
+    _id: str
 
     @_new_state_post
     def __init__(
@@ -140,7 +141,7 @@ class FXSabrSmile(_BaseSmile):
         id: str | NoInput = NoInput(0),  # noqa: A002
         ad: int = 0,
     ):
-        self.id: str = (
+        self._id: str = (
             uuid4().hex[:5] + "_" if isinstance(id, NoInput) else id
         )  # 1 in a million clash
 
@@ -171,7 +172,14 @@ class FXSabrSmile(_BaseSmile):
         self._set_ad_order(ad)
 
     @property
-    def meta(self) -> _FXSabrSmileMeta:
+    def id(self) -> str:
+        """A str identifier to name the *Smile* used in
+        :class:`~rateslib.solver.Solver` mappings."""
+        return self._id
+
+    @property
+    def meta(self) -> _FXSabrSmileMeta:  # type: ignore[override]
+        """An instance of :class:`~rateslib.fx_volatility.utils._FXSabrSmileMeta`."""
         return self._meta
 
     def get_from_strike(
@@ -515,6 +523,8 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
     smiles: list[FXSabrSmile]
     _ini_solve = 0
     _mutable_by_association = True
+    _meta: _FXSabrSurfaceMeta
+    _id: str
 
     def __init__(
         self,
@@ -528,7 +538,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         id: str | NoInput = NoInput(0),  # noqa: A002
         ad: int = 0,
     ):
-        self.id: str = (
+        self._id: str = (
             uuid4().hex[:5] + "_" if isinstance(id, NoInput) else id
         )  # 1 in a million clash
 
@@ -569,6 +579,17 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
 
         self._set_ad_order(ad)  # includes csolve on each smile
         self._set_new_state()
+
+    @property
+    def id(self) -> str:
+        """A str identifier to name the *Surface* used in
+        :class:`~rateslib.solver.Solver` mappings."""
+        return self._id
+
+    @property
+    def meta(self) -> _FXSabrSurfaceMeta:
+        """An instance of :class:`~rateslib.fx_volatility.utils._FXSabrSurfaceMeta`."""
+        return self._meta
 
     @property
     def ad(self) -> int:

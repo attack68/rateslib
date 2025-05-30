@@ -102,8 +102,7 @@ class TestFXDeltaVolSmile:
         )
         put_vol = fxvs.get_from_strike(**kwargs)
 
-        fxvs.nodes[idx] = Dual(val + 0.0000001, [var], [])
-        fxvs.csolve()
+        fxvs.update_node(idx, Dual(val + 0.0000001, [var], []))
         put_vol_plus = fxvs.get_from_strike(**kwargs)
 
         finite_diff = (put_vol_plus[1] - put_vol[1]) * 10000000.0
@@ -142,24 +141,20 @@ class TestFXDeltaVolSmile:
         )
         pv00 = fxvs.get_from_strike(**kwargs)
 
-        fxvs.nodes[cross[0][2]] = Dual2(cross[0][1] + 0.00001, [cross[0][0]], [], [])
-        fxvs.nodes[cross[1][2]] = Dual2(cross[1][1] + 0.00001, [cross[1][0]], [], [])
-        fxvs.csolve()
+        fxvs.update_node(cross[0][2], Dual2(cross[0][1] + 0.00001, [cross[0][0]], [], []))
+        fxvs.update_node(cross[1][2], Dual2(cross[1][1] + 0.00001, [cross[1][0]], [], []))
         pv11 = fxvs.get_from_strike(**kwargs)
 
-        fxvs.nodes[cross[0][2]] = Dual2(cross[0][1] + 0.00001, [cross[0][0]], [], [])
-        fxvs.nodes[cross[1][2]] = Dual2(cross[1][1] - 0.00001, [cross[1][0]], [], [])
-        fxvs.csolve()
+        fxvs.update_node(cross[0][2], Dual2(cross[0][1] + 0.00001, [cross[0][0]], [], []))
+        fxvs.update_node(cross[1][2], Dual2(cross[1][1] - 0.00001, [cross[1][0]], [], []))
         pv1_1 = fxvs.get_from_strike(**kwargs)
 
-        fxvs.nodes[cross[0][2]] = Dual2(cross[0][1] - 0.00001, [cross[0][0]], [], [])
-        fxvs.nodes[cross[1][2]] = Dual2(cross[1][1] - 0.00001, [cross[1][0]], [], [])
-        fxvs.csolve()
+        fxvs.update_node(cross[0][2], Dual2(cross[0][1] - 0.00001, [cross[0][0]], [], []))
+        fxvs.update_node(cross[1][2], Dual2(cross[1][1] - 0.00001, [cross[1][0]], [], []))
         pv_1_1 = fxvs.get_from_strike(**kwargs)
 
-        fxvs.nodes[cross[0][2]] = Dual2(cross[0][1] - 0.00001, [cross[0][0]], [], [])
-        fxvs.nodes[cross[1][2]] = Dual2(cross[1][1] + 0.00001, [cross[1][0]], [], [])
-        fxvs.csolve()
+        fxvs.update_node(cross[0][2], Dual2(cross[0][1] - 0.00001, [cross[0][0]], [], []))
+        fxvs.update_node(cross[1][2], Dual2(cross[1][1] + 0.00001, [cross[1][0]], [], []))
         pv_11 = fxvs.get_from_strike(**kwargs)
 
         finite_diff = (pv11[1] + pv_1_1[1] - pv1_1[1] - pv_11[1]) * 1e10 / 4.0
@@ -233,7 +228,7 @@ class TestFXDeltaVolSmile:
             ad=1,
         )
         assert fxvs._set_ad_order(1) is None
-        assert fxvs.nodes[0.25] == Dual(10.0, ["vol0"], [])
+        assert fxvs.nodes.nodes[0.25] == Dual(10.0, ["vol0"], [])
 
     def test_set_ad_order_raises(self) -> None:
         fxvs = FXDeltaVolSmile(
@@ -264,7 +259,7 @@ class TestFXDeltaVolSmile:
             eval_date=dt(2023, 3, 16),
             expiry=dt(2023, 6, 16),
         )
-        with pytest.raises(KeyError, match=r"`key` is not in Curve ``nodes``"):
+        with pytest.raises(KeyError, match=r"`key`: '0.4' is not in Curve ``nodes``"):
             fxvs.update_node(0.4, 10.0)
 
         fxvs.update_node(0.5, 12.0)
@@ -305,13 +300,23 @@ class TestFXDeltaVolSmile:
             id="test_vol",
         )
 
-        prior_c = test_smile.spline.c
+        prior_c = test_smile.nodes.spline.spline.c
         # update node
-        nodes_bump = {k: v + 0.5 for k, v in test_smile.nodes.items()}
+        nodes_bump = {k: v + 0.5 for k, v in test_smile.nodes.nodes.items()}
         test_smile.update(nodes_bump)
-        after_c = test_smile.spline.c
+        after_c = test_smile.nodes.spline.spline.c
 
         assert after_c != prior_c
+
+    def test_flat_smile_with_zero_delta_index_input(self):
+        smile = FXDeltaVolSmile(
+            nodes={0.0: 10.0},
+            delta_type="forward",
+            eval_date=dt(2023, 3, 16),
+            id="vol",
+            expiry=dt(2023, 6, 16),
+        )
+        assert abs(smile[0.5] - 10.0) < 1e-14
 
 
 class TestFXDeltaVolSurface:
@@ -342,9 +347,9 @@ class TestFXDeltaVolSurface:
             delta_type="forward",
         )
         assert result.nodes == expected.nodes
-        assert result._meta.expiry == expected._meta.expiry
-        assert result._meta.delta_type == expected._meta.delta_type
-        assert result._meta.eval_date == expected._meta.eval_date
+        assert result.meta.expiry == expected.meta.expiry
+        assert result.meta.delta_type == expected.meta.delta_type
+        assert result.meta.eval_date == expected.meta.eval_date
 
     def test_smile_end_no_interp(self) -> None:
         fxvs = FXDeltaVolSurface(
@@ -362,9 +367,9 @@ class TestFXDeltaVolSurface:
             delta_type="forward",
         )
         assert result.nodes == expected.nodes
-        assert result._meta.expiry == expected._meta.expiry
-        assert result._meta.delta_type == expected._meta.delta_type
-        assert result._meta.eval_date == expected._meta.eval_date
+        assert result.meta.expiry == expected.meta.expiry
+        assert result.meta.delta_type == expected.meta.delta_type
+        assert result.meta.eval_date == expected.meta.eval_date
 
     def test_smile_tot_var_lin_interp(self) -> None:
         # See Foreign Exchange Option Pricing: Iain Clarke Table 4.5
@@ -382,11 +387,11 @@ class TestFXDeltaVolSurface:
             expiry=dt(2024, 7, 1),
             delta_type="forward",
         )
-        for (k1, v1), (k2, v2) in zip(result.nodes.items(), expected.nodes.items()):
+        for v1, v2 in zip(result.nodes.values, expected.nodes.values):
             assert abs(v1 - v2) < 0.0001
-        assert result._meta.expiry == expected._meta.expiry
-        assert result._meta.delta_type == expected._meta.delta_type
-        assert result._meta.eval_date == expected._meta.eval_date
+        assert result.meta.expiry == expected.meta.expiry
+        assert result.meta.delta_type == expected.meta.delta_type
+        assert result.meta.eval_date == expected.meta.eval_date
 
     def test_smile_from_exact_expiry(self) -> None:
         fxvs = FXDeltaVolSurface(
@@ -405,11 +410,11 @@ class TestFXDeltaVolSurface:
             id="surf_0_",
         )
         result = fxvs.get_smile(dt(2024, 1, 1))
-        for (k1, v1), (k2, v2) in zip(result.nodes.items(), expected.nodes.items()):
+        for v1, v2 in zip(result.nodes.values, expected.nodes.values):
             assert abs(v1 - v2) < 0.0001
-        assert result._meta.expiry == expected._meta.expiry
-        assert result._meta.delta_type == expected._meta.delta_type
-        assert result._meta.eval_date == expected._meta.eval_date
+        assert result.meta.expiry == expected.meta.expiry
+        assert result.meta.delta_type == expected.meta.delta_type
+        assert result.meta.eval_date == expected.meta.eval_date
         assert result.id == expected.id
 
     def test_get_vol_from_strike(self) -> None:
@@ -450,9 +455,9 @@ class TestFXDeltaVolSurface:
         )
         vec = np.array([3, 2, 4, 5, 4, 6])
         fxvs._set_node_vector(vec, 1)
-        for v1, v2 in zip(vec[:3], fxvs.smiles[0].nodes.values()):
+        for v1, v2 in zip(vec[:3], fxvs.smiles[0].nodes.values):
             assert abs(v1 - v2) < 1e-10
-        for v1, v2 in zip(vec[3:], fxvs.smiles[1].nodes.values()):
+        for v1, v2 in zip(vec[3:], fxvs.smiles[1].nodes.values):
             assert abs(v1 - v2) < 1e-10
 
     def test_expiries_unsorted(self) -> None:
@@ -566,7 +571,7 @@ class TestFXDeltaVolSurface:
 
         for i, date in enumerate(cal.cal_date_range(dt(2024, 2, 10), dt(2024, 3, 9))):
             smile = fxvs_weights.get_smile(date)
-            assert abs(smile.nodes[0.5] - expected[i]) < 5e-3
+            assert abs(smile.nodes.nodes[0.5] - expected[i]) < 5e-3
 
     def test_cache_clear_and_defaults(self):
         fxvs = FXDeltaVolSurface(
@@ -1948,7 +1953,6 @@ class TestStateAndCache:
             ("_set_node_vector", ([0.99, 0.98, 0.99], 1)),
             ("update_node", (0.25, 0.98)),
             ("update", ({0.25: 10.0, 0.5: 10.0, 0.75: 10.1},)),
-            ("csolve", tuple()),
         ],
     )
     def test_method_changes_state(self, curve, method, args):

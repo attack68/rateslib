@@ -1,8 +1,8 @@
 from __future__ import annotations  # type hinting
 
+import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from datetime import datetime as dt
 from functools import cached_property
 from typing import TYPE_CHECKING, TypeAlias
 
@@ -21,18 +21,20 @@ from rateslib.dual import (
     dual_inv_norm_cdf,
     dual_log,
     dual_norm_cdf,
+    set_order_convert,
 )
-from rateslib.dual.utils import _to_number
+from rateslib.dual.utils import _dual_float, _to_number
 from rateslib.rs import _sabr_x0 as _rs_sabr_x0
 from rateslib.rs import _sabr_x1 as _rs_sabr_x1
 from rateslib.rs import _sabr_x2 as _rs_sabr_x2
+from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalTypes, Number
+    from rateslib.typing import Any, CalTypes, Number
 
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
 
-TERMINAL_DATE = dt(2100, 1, 1)
+TERMINAL_DATE = datetime(2100, 1, 1)
 
 
 @dataclass(frozen=True)
@@ -96,9 +98,56 @@ class _FXSabrSurfaceMeta:
         return self.eval_date.replace(tzinfo=UTC).timestamp()
 
 
-@dataclass(frozen=True)
-class _FXDeltaVolNodes:
-    nodes: dict[float, DualTypes]
+class _FXDeltaVolSmileNodes:
+    _nodes: dict[float, DualTypes]
+    _meta: _FXDeltaVolSmileMeta
+    _spline: _FXDeltaVolSpline
+
+    def __init__(self, nodes: dict[float, DualTypes], meta: _FXDeltaVolSmileMeta) -> None:
+        self._nodes = nodes
+        self._meta = meta
+
+        if "_pa" in self.meta.delta_type:
+            vol: DualTypes = self.values[-1] / 100.0
+            upper_bound: float = _dual_float(
+                dual_exp(
+                    vol * self.meta.t_expiry_sqrt * (3.75 - 0.5 * vol * self.meta.t_expiry_sqrt),
+                )
+            )
+        else:
+            upper_bound = 1.0
+
+        if self.n in [1, 2]:
+            t = [0.0] * 4 + [upper_bound] * 4
+        else:
+            t = [0.0] * 4 + self.keys[1:-1] + [upper_bound] * 4
+        self._spline = _FXDeltaVolSpline(t=t)
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, _FXDeltaVolSmileNodes):
+            return False
+        return self._nodes == other._nodes and self._meta == other._meta
+
+    @property
+    def plot_upper_bound(self) -> float:
+        """The right side delta index bound used in a *'delta' x-axis* plot."""
+        if "_pa" in self.meta.delta_type:
+            # upper_bound      = exp(vol * t_expiry_sqrt * (3.75 - 0.5 * vol * t_expiry_sqrt)
+            # plot_upper_bound = exp(vol * t_expiry_sqrt * (3.25 - 0.5 * vol * t_expiry_sqrt)
+            return (
+                self.spline.t[-1] - _dual_float(self.values[-1]) * self.meta.t_expiry_sqrt / 200.0
+            )
+        else:
+            return 1.0
+
+    @property
+    def meta(self) -> _FXDeltaVolSmileMeta:
+        """An instance of :class:`~rateslib.fx_volatility.utils._FXDeltaVolSmileMeta`."""
+        return self._meta
+
+    @property
+    def nodes(self) -> dict[float, DualTypes]:
+        return self._nodes
 
     @cached_property
     def keys(self) -> list[float]:
@@ -107,6 +156,128 @@ class _FXDeltaVolNodes:
     @cached_property
     def values(self) -> list[DualTypes]:
         return list(self.nodes.values())
+
+    @property
+    def n(self) -> int:
+        return len(self.keys)
+
+    @property
+    def spline(self) -> _FXDeltaVolSpline:
+        return self._spline
+
+
+class _FXDeltaVolSpline:
+    """
+    A container for data relating to interpolating the `nodes` of
+    a *Curve* using a cubic PPSpline.
+    """
+
+    _t: list[float]
+    _spline: PPSplineF64 | PPSplineDual | PPSplineDual2
+
+    def __init__(self, t: list[float]) -> None:
+        self._t = t
+        self._spline = PPSplineF64(4, [0.0] * 5, None)  # placeholder: csolve will reengineer
+
+    @property
+    def t(self) -> list[float]:
+        """The knot sequence of the PPSpline."""
+        return self._t
+
+    @property
+    def spline(self) -> PPSplineF64 | PPSplineDual | PPSplineDual2:
+        """PPSpline object used for calculations."""
+        return self._spline
+
+    def _csolve_n_other(
+        self, nodes: _FXDeltaVolSmileNodes, ad: int
+    ) -> tuple[list[float], list[DualTypes], int, int]:
+        """
+        Solve a spline with more than one node value.
+        Premium adjusted delta types have an unbounded right side delta index so a derivative of
+        0 is applied to the spline as a boundary condition.
+        Premium unadjusted delta types have a right side delta index approximately equal to 1.0.
+        Use a natural spline boundary condition here.
+        """
+        tau = nodes.keys.copy()
+        y = nodes.values.copy()
+
+        # left side constraint
+        tau.insert(0, self.t[0])
+        y.insert(0, set_order_convert(0.0, ad, None))
+        left_n = 2  # natural spline
+
+        # right side constraint
+        tau.append(self.t[-1])
+        y.append(set_order_convert(0.0, ad, None))
+        if "_pa" in nodes.meta.delta_type:
+            right_n = 1  # 1st derivative at zero
+        else:
+            right_n = 2  # natural spline
+        return tau, y, left_n, right_n
+
+    def csolve(self, nodes: _FXDeltaVolSmileNodes, ad: int) -> None:
+        """
+        Construct a spline of appropriate AD order and solve the spline coefficients for the
+        given ``nodes``.
+
+        Parameters
+        ----------
+        nodes: _FXDeltaVolSmileNodes
+            Required information for constructing a PPSpline.
+
+        Returns
+        -------
+        None
+        """
+        if ad == 0:
+            Spline: type[PPSplineF64] | type[PPSplineDual] | type[PPSplineDual2] = PPSplineF64
+        elif ad == 1:
+            Spline = PPSplineDual
+        else:
+            Spline = PPSplineDual2
+
+        if nodes.n == 1:
+            # one node defines a flat line, all spline coefficients are the equivalent value.
+            self._spline = Spline(4, self.t, nodes.values * 4)  # type: ignore[arg-type]
+        else:
+            tau, y, left_n, right_n = self._csolve_n_other(nodes, ad)
+            self._spline = Spline(4, self.t, None)
+            self._spline.csolve(tau, y, left_n, right_n, False)  # type: ignore[arg-type]
+
+    def to_json(self) -> str:
+        """
+        Serialize this object to JSON format.
+
+        The object can be deserialized using the :meth:`~rateslib.serialization.from_json` method.
+
+        Returns
+        -------
+        str
+        """
+        obj = dict(
+            PyNative=dict(
+                _FXDeltaVolSpline=dict(
+                    t=self.t,
+                )
+            )
+        )
+        return json.dumps(obj)
+
+    @classmethod
+    def _from_json(cls, loaded_json: dict[str, Any]) -> _FXDeltaVolSpline:
+        return _FXDeltaVolSpline(
+            t=loaded_json["t"],
+        )
+
+    def __eq__(self, other: Any) -> bool:
+        """CurveSplines are considered equal if their knot sequence and endpoints are equivalent.
+        For the same nodes this will resolve to give the same spline coefficients.
+        """
+        if not isinstance(other, _FXDeltaVolSpline):
+            return False
+        else:
+            return self.t == other.t
 
 
 def _validate_delta_type(delta_type: str) -> str:

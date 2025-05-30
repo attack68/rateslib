@@ -845,8 +845,8 @@ class FXStrangle(FXOptionStrat, FXOption):
         if isinstance(
             vol_[0], FXDeltaVolSurface | FXDeltaVolSmile
         ):  # multiple Vol objects cannot be used, will derive conventions from the first one found.
-            eta1 = -0.5 if "_pa" in vol_[0]._meta.delta_type else 0.5
-            z_w_1 = 1.0 if "forward" in vol_[0]._meta.delta_type else w_deli / w_spot
+            eta1 = -0.5 if "_pa" in vol_[0].meta.delta_type else 0.5
+            z_w_1 = 1.0 if "forward" in vol_[0].meta.delta_type else w_deli / w_spot
             fzw1zw0 = f_0 * z_w_1 / z_w_0
 
         # Determine the initial guess for Newton type iterations
@@ -1040,7 +1040,7 @@ def _d_c_mkt_d_sigma_hat(
             if isinstance(vol, FXDeltaVolSurface):
                 vol = vol.get_smile(expiry)
 
-            dvol_ddeltaidx = evaluate(vol.spline, sg["_delta_index"], 1) * 0.01
+            dvol_ddeltaidx = evaluate(vol.nodes.spline.spline, sg["_delta_index"], 1) * 0.01
 
             ddeltaidx_dvol1 = sg["gamma"] * fzw1zw0
             if eta1 < 0:  # type: ignore[operator]

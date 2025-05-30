@@ -147,6 +147,7 @@ Some themes for this release involved:
          (`867 <https://github.com/attack68/rateslib/pull/867>`_)
          (`869 <https://github.com/attack68/rateslib/pull/869>`_)
          (`871 <https://github.com/attack68/rateslib/pull/871>`_)
+         (`872 <https://github.com/attack68/rateslib/pull/872>`_)
        - :red:`Minor Breaking Change!` The argument ``c`` for spline coefficients is no longer
          available in the initialisation of a *Curve* class. This value is determined
          automatically to maintain consistency between supplied node values and solved spline
@@ -156,6 +157,9 @@ Some themes for this release involved:
          removed from the :meth:`Curve.update() <rateslib.curves.Curve.update>` method to
          avoid unnecessarily complicated mutations. Create new instances instead.
          (`859 <https://github.com/attack68/rateslib/pull/859>`_)
+       - The method :meth:`~rateslib.fx_volatility.FXDeltaVolSmile.csolve` is removed due to
+         never being required to be called by a user directly.
+         (`872 <https://github.com/attack68/rateslib/pull/872>`_)
    * - **Automatic Differentiation & Algorithms**
      - - Operator overloads added to allow dual number exponents, i.e. :math:`z^p`, where *z*,
          *p* are dual number types. This facilitates AD for the SABR function as well as other

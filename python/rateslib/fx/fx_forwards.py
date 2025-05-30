@@ -794,7 +794,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
     def curve(
         self,
         cashflow: str,
-        collateral: str,
+        collateral: str | list[str] | tuple[str, ...],
         convention: str | NoInput = NoInput(1),  # will inherit from available curve
         modifier: str | NoInput = NoInput(1),  # will inherit from available curve
         calendar: CalInput = NoInput(1),  # will inherit from available curve

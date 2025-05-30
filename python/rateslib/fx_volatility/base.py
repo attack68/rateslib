@@ -16,7 +16,7 @@ DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined cause
 class _BaseSmile(_WithState, _WithCache[float, DualTypes]):
     _ad: int
     _default_plot_x_axis: str
-    _meta: _FXDeltaVolSmileMeta | _FXSabrSmileMeta
+    meta: _FXDeltaVolSmileMeta | _FXSabrSmileMeta
 
     @property
     def ad(self) -> int:
@@ -65,7 +65,7 @@ class _BaseSmile(_WithState, _WithCache[float, DualTypes]):
         comparators = _drb([], comparators)
         labels = _drb([], labels)
 
-        x_axis_: str = _drb(self._meta.plot_x_axis, x_axis)
+        x_axis_: str = _drb(self.meta.plot_x_axis, x_axis)
 
         x_, y_ = self._plot(x_axis_, f)  # type: ignore[attr-defined]
 
