@@ -7,6 +7,7 @@ from rateslib.fx_volatility.utils import (
     _FXDeltaVolSpline,
     _FXDeltaVolSurfaceMeta,
     _FXSabrSmileMeta,
+    _FXSabrSmileNodes,
     _FXSabrSurfaceMeta,
 )
 
@@ -22,6 +23,7 @@ __all__ = [
     "_FXDeltaVolSmileNodes",
     "_FXSabrSmileMeta",
     "_FXSabrSurfaceMeta",
+    "_FXSabrSmileNodes",
 ]
 
 FXVols = FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile | FXSabrSurface
