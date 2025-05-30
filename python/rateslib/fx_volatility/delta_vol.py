@@ -149,6 +149,10 @@ class FXDeltaVolSmile(_BaseSmile):
     def nodes(self) -> _FXDeltaVolSmileNodes:
         return self._nodes
 
+    @property
+    def n(self) -> int:
+        return self.nodes.n
+
     def __getitem__(self, item: DualTypes) -> DualTypes:
         """
         Get a value from the DeltaVolSmile given an item which is a delta_index.
@@ -462,7 +466,7 @@ class FXDeltaVolSmile(_BaseSmile):
 
         nodes: dict[float, DualTypes] = {
             k: set_order_convert(v, ad_, [f"{self.id}{i}"])
-            for i, (k, v) in enumerate(self.nodes.nodes.items())
+            for i, (k, v) in enumerate(nodes.items())
         }
         self._ad = ad_
         self._update_nodes_and_csolve(nodes)
@@ -502,10 +506,9 @@ class FXDeltaVolSmile(_BaseSmile):
            supplied values are consistent with the AD order of the object.
         """
         nodes: dict[float, DualTypes] = self.nodes.nodes.copy()
-        try:
-            nodes[key] = value
-        except KeyError:
+        if key not in nodes:
             raise KeyError(f"`key`: '{key}' is not in Curve ``nodes``.")
+        nodes[key] = value
         self._update_nodes_and_csolve(nodes)
 
     # Serialization
@@ -689,7 +692,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
 
     def _get_node_vector(self) -> np.ndarray[tuple[int, ...], np.dtype[np.object_]]:
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""
-        return np.array([list(_.nodes.values()) for _ in self.smiles]).ravel()
+        return np.array([_.nodes.values for _ in self.smiles]).ravel()
 
     def _get_node_vars(self) -> tuple[str, ...]:
         """Get the variable names of elements updated by a Solver"""

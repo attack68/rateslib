@@ -6,6 +6,7 @@ from datetime import datetime as dt
 
 def test_fxsmile_update_node():
     # update node does not validate the AD order of the supplied value
+    # this should probably return a more helpful error message
     fxs = FXDeltaVolSmile(
         eval_date=dt(2000, 1 ,1),
         expiry=dt(2000, 12, 1),
@@ -13,5 +14,5 @@ def test_fxsmile_update_node():
         delta_type="forward",
     )
     fxs._set_ad_order(2)
-
-    fxs.update_node(0.1, Dual(2.0, ["x"], []))
+    with pytest.raises(TypeError):
+        fxs.update_node(0.1, Dual(2.0, ["x"], []))

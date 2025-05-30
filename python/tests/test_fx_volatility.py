@@ -228,7 +228,7 @@ class TestFXDeltaVolSmile:
             ad=1,
         )
         assert fxvs._set_ad_order(1) is None
-        assert fxvs.nodes[0.25] == Dual(10.0, ["vol0"], [])
+        assert fxvs.nodes.nodes[0.25] == Dual(10.0, ["vol0"], [])
 
     def test_set_ad_order_raises(self) -> None:
         fxvs = FXDeltaVolSmile(
@@ -259,7 +259,7 @@ class TestFXDeltaVolSmile:
             eval_date=dt(2023, 3, 16),
             expiry=dt(2023, 6, 16),
         )
-        with pytest.raises(KeyError, match=r"`key` is not in Curve ``nodes``"):
+        with pytest.raises(KeyError, match=r"`key`: '0.4' is not in Curve ``nodes``"):
             fxvs.update_node(0.4, 10.0)
 
         fxvs.update_node(0.5, 12.0)
