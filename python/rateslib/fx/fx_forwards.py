@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import warnings
+from dataclasses import replace
 from datetime import datetime, timedelta
 from itertools import combinations, product
 from typing import TYPE_CHECKING, Any, TypeAlias
@@ -214,7 +215,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
 
         self.terminal: datetime = datetime(2200, 1, 1)
         for flag, (k, curve) in enumerate(self.fx_curves.items()):
-            curve._meta = curve._meta._replace(collateral=k[3:6])  # label curves with collateral
+            curve._meta = replace(curve._meta, _collateral=k[3:6])  # label curves with collateral
 
             if flag == 0:
                 self.immediate: datetime = curve.nodes.keys[0]
@@ -848,9 +849,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
             for coll in collateral:
                 curves.append(self.curve(cashflow, coll, convention, modifier, calendar))
             curve = MultiCsaCurve(curves=curves, id=id)
-            curve._meta = curve._meta._replace(
-                collateral=",".join([__.lower() for __ in collateral])
-            )
+            curve._meta = replace(curve.meta, _collateral=",".join([_.lower() for _ in collateral]))
             return curve
 
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()

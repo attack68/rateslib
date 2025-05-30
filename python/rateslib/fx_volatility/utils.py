@@ -39,6 +39,11 @@ TERMINAL_DATE = datetime(2100, 1, 1)
 
 @dataclass(frozen=True)
 class _FXDeltaVolSmileMeta:
+    """
+    An immutable container of meta data associated with a
+    :class:`~rateslib.fx_volatility.FXDeltaVolSmile` used to make calculations.
+    """
+
     _eval_date: datetime
     _expiry: datetime
     _plot_x_axis: str
@@ -79,13 +84,40 @@ class _FXDeltaVolSmileMeta:
 
 @dataclass(frozen=True)
 class _FXDeltaVolSurfaceMeta:
-    eval_date: datetime
-    delta_type: str
-    plot_x_axis: str
+    """
+    An immutable container of meta data associated with a
+    :class:`~rateslib.fx_volatility.FXDeltaVolSurface` used to make calculations.
+    """
+
+    _eval_date: datetime
+    _delta_type: str
+    _plot_x_axis: str
+
+    @property
+    def eval_date(self) -> datetime:
+        """Evaluation date of the *Surface*."""
+        return self._eval_date
+
+    @property
+    def delta_type(self) -> str:
+        """The delta type of the delta indexes associated with the ``nodes`` of each
+        cross-sectional *Smile*."""
+        return self._delta_type
+
+    @property
+    def plot_x_axis(self) -> str:
+        """The default ``x_axis`` parameter passed to
+        :meth:`~rateslib.fx_volatility._BaseSmile.plot`"""
+        return self._plot_x_axis
 
 
 @dataclass(frozen=True)
 class _FXSabrSmileMeta:
+    """
+    An immutable container of meta data associated with a
+    :class:`~rateslib.fx_volatility.FXSabrSmile` used to make calculations.
+    """
+
     _eval_date: datetime
     _expiry: datetime
     _pair: str | None
@@ -122,7 +154,7 @@ class _FXSabrSmileMeta:
 
     @property
     def calendar(self) -> CalTypes:
-        """Settlemnet calendar used to determine ``delivery`` from ``expiry``."""
+        """Settlement calendar used to determine ``delivery`` from ``expiry``."""
         return self._calendar
 
     @property
@@ -144,15 +176,40 @@ class _FXSabrSmileMeta:
 
 @dataclass(frozen=True)
 class _FXSabrSurfaceMeta:
-    eval_date: datetime
-    pair: str | None
-    calendar: CalTypes
-    delivery_lag: int
+    """
+    An immutable container of meta data associated with a
+    :class:`~rateslib.fx_volatility.FXSabrSurface` used to make calculations.
+    """
+
+    _eval_date: datetime
+    _pair: str | None
+    _calendar: CalTypes
+    _delivery_lag: int
 
     @cached_property
     def eval_posix(self) -> float:
         """The unix timestamp of the ``eval_date``."""
         return self.eval_date.replace(tzinfo=UTC).timestamp()
+
+    @property
+    def delivery_lag(self) -> int:
+        """Business day settlement lag between ``expiry`` and ``delivery``."""
+        return self._delivery_lag
+
+    @property
+    def eval_date(self) -> datetime:
+        """Evaluation date of the *Surface*."""
+        return self._eval_date
+
+    @property
+    def pair(self) -> str | None:
+        """FX pair against which options priced by this *Surface* settle against."""
+        return self._pair
+
+    @property
+    def calendar(self) -> CalTypes:
+        """Settlement calendar used to determine ``delivery`` from ``expiry``."""
+        return self._calendar
 
 
 class _FXDeltaVolSmileNodes:

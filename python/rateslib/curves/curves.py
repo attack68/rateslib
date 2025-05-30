@@ -4,6 +4,7 @@ import json
 import pickle
 import warnings
 from calendar import monthrange
+from dataclasses import replace
 from datetime import datetime, timedelta
 from math import comb, prod
 from typing import TYPE_CHECKING, Any, TypeAlias
@@ -219,12 +220,12 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
         # Parameters for the rate/values derivation
         self._meta = _CurveMeta(
-            calendar=get_calendar(calendar),
-            convention=_drb(defaults.convention, convention).lower(),
-            modifier=_drb(defaults.modifier, modifier).upper(),
-            index_base=index_base,
-            index_lag=_drb(defaults.index_lag, index_lag),
-            collateral=_drb(None, collateral),
+            _calendar=get_calendar(calendar),
+            _convention=_drb(defaults.convention, convention).lower(),
+            _modifier=_drb(defaults.modifier, modifier).upper(),
+            _index_base=index_base,
+            _index_lag=_drb(defaults.index_lag, index_lag),
+            _collateral=_drb(None, collateral),
         )
         self._nodes = _CurveNodes(nodes)
         self._interpolator = _CurveInterpolator(
@@ -620,7 +621,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         crv: CompositeCurve = CompositeCurve(
             curves=[self, shifted], id=id, _no_validation=_no_validation
         )
-        crv._meta = crv._meta._replace(collateral=_drb(None, collateral))
+        crv._meta = replace(crv._meta, _collateral=_drb(None, collateral))
 
         if not composite:
             if self._base_type == _CurveType.dfs:

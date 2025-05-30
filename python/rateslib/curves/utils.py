@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING
 
 from pytz import UTC
 
@@ -30,18 +30,50 @@ class _CurveType(Enum):
     values = 1
 
 
-class _CurveMeta(NamedTuple):
+@dataclass(frozen=True)
+class _CurveMeta:
     """
-    An immutable container of meta data associated with a *Curve* used to derive, dates, rates
-    and values.
+    An immutable container of meta data associated with a
+    :class:`~rateslib.curves.Curve` used to make calculations.
     """
 
-    calendar: CalTypes
-    convention: str
-    modifier: str
-    index_base: DualTypes_
-    index_lag: int
-    collateral: str | None
+    _calendar: CalTypes
+    _convention: str
+    _modifier: str
+    _index_base: DualTypes_
+    _index_lag: int
+    _collateral: str | None
+
+    @property
+    def calendar(self) -> CalTypes:
+        """Settlement calendar used to determine fixing dates and tenor end dates."""
+        return self._calendar
+
+    @property
+    def convention(self) -> str:
+        """Day count convention for determining rates and interpolation."""
+        return self._convention
+
+    @property
+    def modifier(self) -> str:
+        """Modification rule for adjusting non-business tenor end dates."""
+        return self._modifier
+
+    @property
+    def index_base(self) -> DualTypes_:
+        """The index value associated with the initial node date of the *Curve*."""
+        return self._index_base
+
+    @property
+    def index_lag(self) -> int:
+        """The number of months by which curve nodes are lagged to determine index values."""
+        return self._index_lag
+
+    @property
+    def collateral(self) -> str | None:
+        """The currency(ies) identified as being the collateral choice for DFs associated with
+        the *Curve*."""
+        return self._collateral
 
     def to_json(self) -> str:
         """
@@ -74,12 +106,12 @@ class _CurveMeta(NamedTuple):
         from rateslib.serialization import from_json
 
         return _CurveMeta(
-            convention=loaded_json["convention"],
-            modifier=loaded_json["modifier"],
-            index_lag=loaded_json["index_lag"],
-            collateral=loaded_json["collateral"],
-            index_base=from_json(loaded_json["index_base"]),
-            calendar=from_json(loaded_json["calendar"]),
+            _convention=loaded_json["convention"],
+            _modifier=loaded_json["modifier"],
+            _index_lag=loaded_json["index_lag"],
+            _collateral=loaded_json["collateral"],
+            _index_base=from_json(loaded_json["index_base"]),
+            _calendar=from_json(loaded_json["calendar"]),
         )
 
 

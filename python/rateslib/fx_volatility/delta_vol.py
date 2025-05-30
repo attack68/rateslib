@@ -614,9 +614,9 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         self.delta_indexes: list[float] = delta_indexes
 
         self._meta = _FXDeltaVolSurfaceMeta(
-            eval_date=eval_date,
-            delta_type=_validate_delta_type(delta_type),
-            plot_x_axis="delta",
+            _eval_date=eval_date,
+            _delta_type=_validate_delta_type(delta_type),
+            _plot_x_axis="delta",
         )
         # self.delta_type: str = _validate_delta_type(delta_type)
 

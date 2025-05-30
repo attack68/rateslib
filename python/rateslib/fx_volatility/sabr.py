@@ -543,10 +543,10 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         )  # 1 in a million clash
 
         self._meta = _FXSabrSurfaceMeta(
-            eval_date=eval_date,
-            pair=_drb(None, pair),
-            calendar=get_calendar(calendar),
-            delivery_lag=_drb(defaults.fx_delivery_lag, delivery_lag),
+            _eval_date=eval_date,
+            _pair=_drb(None, pair),
+            _calendar=get_calendar(calendar),
+            _delivery_lag=_drb(defaults.fx_delivery_lag, delivery_lag),
         )
 
         self.expiries: list[datetime] = expiries
