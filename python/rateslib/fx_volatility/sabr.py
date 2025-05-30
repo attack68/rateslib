@@ -178,7 +178,7 @@ class FXSabrSmile(_BaseSmile):
         return self._id
 
     @property
-    def meta(self) -> _FXSabrSmileMeta:
+    def meta(self) -> _FXSabrSmileMeta:  # type: ignore[override]
         """An instance of :class:`~rateslib.fx_volatility.utils._FXSabrSmileMeta`."""
         return self._meta
 
