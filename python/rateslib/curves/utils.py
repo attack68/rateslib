@@ -32,8 +32,8 @@ class _CurveType(Enum):
 
 class _CurveMeta(NamedTuple):
     """
-    An immutable container of meta data associated with a *Curve* used to derive, dates, rates
-    and values.
+    An immutable container of meta data associated with a
+    :class:`~rateslib.curves.Curve` used to make calculations.
     """
 
     calendar: CalTypes
