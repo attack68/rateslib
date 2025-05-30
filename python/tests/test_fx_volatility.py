@@ -392,7 +392,7 @@ class TestFXDeltaVolSurface:
             expiry=dt(2024, 7, 1),
             delta_type="forward",
         )
-        for (k1, v1), (k2, v2) in zip(result.nodes.items(), expected.nodes.items()):
+        for v1, v2 in zip(result.nodes.values, expected.nodes.values):
             assert abs(v1 - v2) < 0.0001
         assert result.meta.expiry == expected.meta.expiry
         assert result.meta.delta_type == expected.meta.delta_type
@@ -415,7 +415,7 @@ class TestFXDeltaVolSurface:
             id="surf_0_",
         )
         result = fxvs.get_smile(dt(2024, 1, 1))
-        for (k1, v1), (k2, v2) in zip(result.nodes.items(), expected.nodes.items()):
+        for v1, v2 in zip(result.nodes.values, expected.nodes.values):
             assert abs(v1 - v2) < 0.0001
         assert result.meta.expiry == expected.meta.expiry
         assert result.meta.delta_type == expected.meta.delta_type
@@ -460,9 +460,9 @@ class TestFXDeltaVolSurface:
         )
         vec = np.array([3, 2, 4, 5, 4, 6])
         fxvs._set_node_vector(vec, 1)
-        for v1, v2 in zip(vec[:3], fxvs.smiles[0].nodes.values()):
+        for v1, v2 in zip(vec[:3], fxvs.smiles[0].nodes.values):
             assert abs(v1 - v2) < 1e-10
-        for v1, v2 in zip(vec[3:], fxvs.smiles[1].nodes.values()):
+        for v1, v2 in zip(vec[3:], fxvs.smiles[1].nodes.values):
             assert abs(v1 - v2) < 1e-10
 
     def test_expiries_unsorted(self) -> None:
@@ -576,7 +576,7 @@ class TestFXDeltaVolSurface:
 
         for i, date in enumerate(cal.cal_date_range(dt(2024, 2, 10), dt(2024, 3, 9))):
             smile = fxvs_weights.get_smile(date)
-            assert abs(smile.nodes[0.5] - expected[i]) < 5e-3
+            assert abs(smile.nodes.nodes[0.5] - expected[i]) < 5e-3
 
     def test_cache_clear_and_defaults(self):
         fxvs = FXDeltaVolSurface(
@@ -1958,7 +1958,6 @@ class TestStateAndCache:
             ("_set_node_vector", ([0.99, 0.98, 0.99], 1)),
             ("update_node", (0.25, 0.98)),
             ("update", ({0.25: 10.0, 0.5: 10.0, 0.75: 10.1},)),
-            ("csolve", tuple()),
         ],
     )
     def test_method_changes_state(self, curve, method, args):

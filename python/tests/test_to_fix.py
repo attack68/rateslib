@@ -1,0 +1,17 @@
+import pytest
+
+from rateslib.fx_volatility import FXDeltaVolSmile
+from rateslib.dual import Dual
+from datetime import datetime as dt
+
+def test_fxsmile_update_node():
+    # update node does not validate the AD order of the supplied value
+    fxs = FXDeltaVolSmile(
+        eval_date=dt(2000, 1 ,1),
+        expiry=dt(2000, 12, 1),
+        nodes={0.1: 1, 0.2: 2},
+        delta_type="forward",
+    )
+    fxs._set_ad_order(2)
+
+    fxs.update_node(0.1, Dual(2.0, ["x"], []))

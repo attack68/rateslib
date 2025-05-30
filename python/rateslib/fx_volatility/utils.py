@@ -99,9 +99,9 @@ class _FXSabrSurfaceMeta:
 
 
 class _FXDeltaVolSmileNodes:
-    nodes: dict[float, DualTypes]
-    meta: _FXDeltaVolSmileMeta
-    spline: PPSplineF64 | PPSplineDual | PPSplineDual2
+    _nodes: dict[float, DualTypes]
+    _meta: _FXDeltaVolSmileMeta
+    _spline: PPSplineF64 | PPSplineDual | PPSplineDual2
 
     def __init__(self, nodes: dict[float, DualTypes], meta: _FXDeltaVolSmileMeta) -> None:
         self._nodes = nodes
@@ -120,6 +120,11 @@ class _FXDeltaVolSmileNodes:
         else:
             t = [0.0] * 4 + self.keys[1:-1] + [upper_bound] * 4
         self._spline = _FXDeltaVolSpline(t=t)
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, _FXDeltaVolSmileNodes):
+            return False
+        return self._nodes == other._nodes and self._meta == other._meta
 
     @property
     def plot_upper_bound(self) -> float:
@@ -153,6 +158,10 @@ class _FXDeltaVolSmileNodes:
     @property
     def n(self) -> int:
         return len(self.keys)
+
+    @property
+    def spline(self):
+        return self._spline
 
 
 class _FXDeltaVolSpline:

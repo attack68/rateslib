@@ -728,7 +728,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             else:
                 smile = vol
             # d sigma / d delta_idx
-            _B = evaluate(smile.spline, delta_idx, 1) / 100.0  # type: ignore[arg-type]
+            _B = evaluate(smile.nodes.spline.spline, delta_idx, 1) / 100.0  # type: ignore[arg-type]
 
             if "pa" in vol.meta.delta_type:
                 # then smile is adjusted:

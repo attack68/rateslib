@@ -1040,7 +1040,7 @@ def _d_c_mkt_d_sigma_hat(
             if isinstance(vol, FXDeltaVolSurface):
                 vol = vol.get_smile(expiry)
 
-            dvol_ddeltaidx = evaluate(vol.spline, sg["_delta_index"], 1) * 0.01
+            dvol_ddeltaidx = evaluate(vol.nodes.spline.spline, sg["_delta_index"], 1) * 0.01
 
             ddeltaidx_dvol1 = sg["gamma"] * fzw1zw0
             if eta1 < 0:  # type: ignore[operator]
