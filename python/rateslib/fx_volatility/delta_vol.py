@@ -50,7 +50,7 @@ from rateslib.mutability import (
     _WithState,
 )
 from rateslib.rs import index_left_f64
-from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64, evaluate
+from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
     from rateslib.typing import DualTypes, Sequence  # pragma: no cover
@@ -470,7 +470,6 @@ class FXDeltaVolSmile(_BaseSmile):
         }
         self._ad = ad_
         self._update_nodes_and_csolve(nodes)
-
 
     @_new_state_post
     @_clear_cache_post
