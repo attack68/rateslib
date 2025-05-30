@@ -5,6 +5,7 @@ from datetime import datetime
 from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, NamedTuple
+from dataclasses import dataclass
 
 from pytz import UTC
 
@@ -353,6 +354,7 @@ class _CurveInterpolator:
         )
 
 
+@dataclass(frozen=True)
 class _CurveNodes:
     """
     A container for the pricing parameters of a *Curve*
@@ -360,20 +362,13 @@ class _CurveNodes:
 
     _nodes: dict[datetime, DualTypes]
 
-    def __init__(self, nodes: dict[datetime, DualTypes]):
-        self._nodes = nodes
+    def __post_init__(self):
         for idx in range(1, self.n):
             if self.keys[idx - 1] >= self.keys[idx]:
                 raise ValueError(
                     "Curve node dates are not sorted or contain duplicates.\n"
                     "To sort directly use: `dict(sorted(nodes.items()))`",
                 )
-
-    def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, _CurveNodes):
-            return False
-        else:
-            return self._nodes == other._nodes
 
     @property
     def nodes(self) -> dict[datetime, DualTypes]:
@@ -387,11 +382,7 @@ class _CurveNodes:
     def values(self) -> list[DualTypes]:
         return list(self._nodes.values())
 
-    # @property
-    # def node_dates(self) -> list[datetime]:
-    #     return self.keys
-
-    @cached_property
+    @property
     def n(self) -> int:
         return len(self.keys)
 
@@ -423,7 +414,7 @@ class _CurveNodes:
         obj = dict(
             PyNative=dict(
                 _CurveNodes=dict(
-                    nodes={dt.strftime("%Y-%m-%d"): v.real for dt, v in self._nodes.items()},
+                    _nodes={dt.strftime("%Y-%m-%d"): v.real for dt, v in self._nodes.items()},
                 )
             )
         )
@@ -432,5 +423,5 @@ class _CurveNodes:
     @classmethod
     def _from_json(cls, loaded_json: dict[str, Any]) -> _CurveNodes:
         return _CurveNodes(
-            nodes={datetime.strptime(d, "%Y-%m-%d"): v for d, v in loaded_json["nodes"].items()}
+            _nodes={datetime.strptime(d, "%Y-%m-%d"): v for d, v in loaded_json["_nodes"].items()}
         )
