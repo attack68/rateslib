@@ -156,6 +156,7 @@ FX Volatility
 ==============
 
 .. automodapi:: rateslib.fx_volatility
+   :inherited-members:
    :no-heading:
    :no-inheritance-diagram:
 

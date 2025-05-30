@@ -20,6 +20,7 @@ class _BaseSmile(_WithState, _WithCache[float, DualTypes]):
 
     @property
     def ad(self) -> int:
+        """Int in {0,1,2} describing the AD order associated with the *Curve*."""
         return self._ad
 
     def __iter__(self) -> NoReturn:

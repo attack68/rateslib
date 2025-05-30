@@ -124,10 +124,10 @@ class FXDeltaVolSmile(_BaseSmile):
 
         self._nodes = _FXDeltaVolSmileNodes(
             meta=_FXDeltaVolSmileMeta(
-                expiry=expiry,
-                eval_date=eval_date,
-                delta_type=_validate_delta_type(delta_type),
-                plot_x_axis="delta",
+                _expiry=expiry,
+                _eval_date=eval_date,
+                _delta_type=_validate_delta_type(delta_type),
+                _plot_x_axis="delta",
             ),
             nodes=nodes,
         )
@@ -147,6 +147,7 @@ class FXDeltaVolSmile(_BaseSmile):
 
     @property
     def nodes(self) -> _FXDeltaVolSmileNodes:
+        """An instance of :class:`~rateslib.fx_volatility.utils._FXDeltaVolSmileNodes`."""
         return self._nodes
 
     @property

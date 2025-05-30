@@ -148,13 +148,13 @@ class FXSabrSmile(_BaseSmile):
         delivery_lag_ = _drb(defaults.fx_delivery_lag, delivery_lag)
         cal_ = get_calendar(calendar)
         self._meta = _FXSabrSmileMeta(
-            eval_date=eval_date,
-            expiry=expiry,
-            plot_x_axis="strike",
-            calendar=cal_,
-            delivery_lag=delivery_lag_,
-            delivery=cal_.lag(expiry, delivery_lag_, True),
-            pair=_drb(None, pair),
+            _eval_date=eval_date,
+            _expiry=expiry,
+            _plot_x_axis="strike",
+            _calendar=cal_,
+            _delivery_lag=delivery_lag_,
+            _delivery=cal_.lag(expiry, delivery_lag_, True),
+            _pair=_drb(None, pair),
         )
 
         for _ in ["alpha", "beta", "rho", "nu"]:
