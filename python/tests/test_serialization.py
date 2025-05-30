@@ -145,7 +145,7 @@ class TestCurve:
             '\\"convention\\": \\"act360\\"}}}", '
             '"id": "v", "ad": 1, '
             '"nodes": "{\\"PyNative\\": {\\"_CurveNodes\\": '
-            '{\\"nodes\\": {\\"2022-03-01\\": 1.0, \\"2022-03-31\\": 0.99}}}}"}}}'
+            '{\\"_nodes\\": {\\"2022-03-01\\": 1.0, \\"2022-03-31\\": 0.99}}}}"}}}'
         )
         result = curve.to_json()
         assert result == expected
