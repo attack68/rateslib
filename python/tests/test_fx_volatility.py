@@ -313,6 +313,16 @@ class TestFXDeltaVolSmile:
 
         assert after_c != prior_c
 
+    def test_flat_smile_with_zero_delta_index_input(self):
+        smile = FXDeltaVolSmile(
+            nodes={0.0: 10.0},
+            delta_type="forward",
+            eval_date=dt(2023, 3, 16),
+            id="vol",
+            expiry=dt(2023, 6, 16),
+        )
+        assert smile[0.5] == 10.0
+
 
 class TestFXDeltaVolSurface:
     def test_expiry_before_eval(self) -> None:
