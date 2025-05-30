@@ -23,7 +23,7 @@ from rateslib.dual import (
     dual_log,
     dual_norm_cdf,
 )
-from rateslib.dual.utils import _to_number
+from rateslib.dual.utils import _to_number, _dual_float
 from rateslib.rs import _sabr_x0 as _rs_sabr_x0
 from rateslib.rs import _sabr_x1 as _rs_sabr_x1
 from rateslib.rs import _sabr_x2 as _rs_sabr_x2
@@ -98,12 +98,30 @@ class _FXSabrSurfaceMeta:
         return self.eval_date.replace(tzinfo=UTC).timestamp()
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class _FXDeltaVolNodes:
     nodes: dict[float, DualTypes]
     delta_type: str
     spline: PPSplineF64 | PPSplineDual | PPSplineDual2
     plot_upper_bound: float
+
+    def __init__(
+        self,
+        nodes: dict[float, DualTypes],
+        delta_type: str,
+    ) -> None:
+        object.__setattr__(self, "nodes", nodes)
+        object.__setattr__(self, "delta_type", "delta")
+        if "_pa" in self.delta_type:
+            vol_estimate = _dual_float(list(self.nodes.values())[-1]) / 100.0
+            upper_bound = dual_exp(
+                vol * self._meta.t_expiry_sqrt * (3.75 - 0.5 * vol * self._meta.t_expiry_sqrt),
+            )
+            self.plot_upper_bound = dual_exp(
+                vol * self._meta.t_expiry_sqrt * (3.25 - 0.5 * vol * self._meta.t_expiry_sqrt),
+            )
+            self._right_n = 1
+
 
     @cached_property
     def keys(self) -> list[float]:
