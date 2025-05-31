@@ -349,11 +349,6 @@ class _FXDeltaVolSurfaceMeta:
         return self._plot_x_axis
 
 
-class _FXDeltaVolSurfaceNodes:
-    def __init__(self, nodes: _FXDeltaVolSurfaceMeta) -> None:
-        pass
-
-
 @dataclass(frozen=True)
 class _FXSabrSmileMeta:
     """
