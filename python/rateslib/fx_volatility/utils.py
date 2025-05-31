@@ -82,136 +82,6 @@ class _FXDeltaVolSmileMeta:
         return ret
 
 
-@dataclass(frozen=True)
-class _FXDeltaVolSurfaceMeta:
-    """
-    An immutable container of meta data associated with a
-    :class:`~rateslib.fx_volatility.FXDeltaVolSurface` used to make calculations.
-    """
-
-    _eval_date: datetime
-    _delta_type: str
-    _plot_x_axis: str
-
-    @property
-    def eval_date(self) -> datetime:
-        """Evaluation date of the *Surface*."""
-        return self._eval_date
-
-    @property
-    def delta_type(self) -> str:
-        """The delta type of the delta indexes associated with the ``nodes`` of each
-        cross-sectional *Smile*."""
-        return self._delta_type
-
-    @property
-    def plot_x_axis(self) -> str:
-        """The default ``x_axis`` parameter passed to
-        :meth:`~rateslib.fx_volatility._BaseSmile.plot`"""
-        return self._plot_x_axis
-
-
-@dataclass(frozen=True)
-class _FXSabrSmileMeta:
-    """
-    An immutable container of meta data associated with a
-    :class:`~rateslib.fx_volatility.FXSabrSmile` used to make calculations.
-    """
-
-    _eval_date: datetime
-    _expiry: datetime
-    _pair: str | None
-    _calendar: CalTypes
-    _delivery: datetime
-    _delivery_lag: int
-    _plot_x_axis: str
-
-    @property
-    def eval_date(self) -> datetime:
-        """Evaluation date of the *Smile*."""
-        return self._eval_date
-
-    @property
-    def expiry(self) -> datetime:
-        """Expiry date of the options priced by this *Smile*"""
-        return self._expiry
-
-    @property
-    def delivery(self) -> datetime:
-        """Delivery date of the forward FX rate applicable to options priced by this *Smile*"""
-        return self._delivery
-
-    @property
-    def delivery_lag(self) -> int:
-        """Business day settlement lag between ``expiry`` and ``delivery``."""
-        return self._delivery_lag
-
-    @property
-    def plot_x_axis(self) -> str:
-        """The default ``x_axis`` parameter passed to
-        :meth:`~rateslib.fx_volatility._BaseSmile.plot`"""
-        return self._plot_x_axis
-
-    @property
-    def calendar(self) -> CalTypes:
-        """Settlement calendar used to determine ``delivery`` from ``expiry``."""
-        return self._calendar
-
-    @property
-    def pair(self) -> str | None:
-        """FX pair against which options priced by this *Smile* settle against."""
-        return self._pair
-
-    @cached_property
-    def t_expiry(self) -> float:
-        """Calendar days from eval to expiry divided by 365."""
-        return (self.expiry - self.eval_date).days / 365.0
-
-    @cached_property
-    def t_expiry_sqrt(self) -> float:
-        """Square root of ``t_expiry``."""
-        ret: float = self.t_expiry**0.5
-        return ret
-
-
-@dataclass(frozen=True)
-class _FXSabrSurfaceMeta:
-    """
-    An immutable container of meta data associated with a
-    :class:`~rateslib.fx_volatility.FXSabrSurface` used to make calculations.
-    """
-
-    _eval_date: datetime
-    _pair: str | None
-    _calendar: CalTypes
-    _delivery_lag: int
-
-    @cached_property
-    def eval_posix(self) -> float:
-        """The unix timestamp of the ``eval_date``."""
-        return self.eval_date.replace(tzinfo=UTC).timestamp()
-
-    @property
-    def delivery_lag(self) -> int:
-        """Business day settlement lag between ``expiry`` and ``delivery``."""
-        return self._delivery_lag
-
-    @property
-    def eval_date(self) -> datetime:
-        """Evaluation date of the *Surface*."""
-        return self._eval_date
-
-    @property
-    def pair(self) -> str | None:
-        """FX pair against which options priced by this *Surface* settle against."""
-        return self._pair
-
-    @property
-    def calendar(self) -> CalTypes:
-        """Settlement calendar used to determine ``delivery`` from ``expiry``."""
-        return self._calendar
-
-
 class _FXDeltaVolSmileNodes:
     """
     A container for data relating to interpolating the `nodes` of a
@@ -287,43 +157,6 @@ class _FXDeltaVolSmileNodes:
     def spline(self) -> _FXDeltaVolSpline:
         """An instance of :class:`~rateslib.fx_volatility.utils._FXDeltaVolSpline`."""
         return self._spline
-
-
-@dataclass(frozen=True)
-class _FXSabrSmileNodes:
-    """
-    A container for data relating to the SABR parameters of a
-    :class:`~rateslib.fx_volatility.FXSabrSmile`.
-    """
-
-    _alpha: Number
-    _beta: float | Variable
-    _rho: Number
-    _nu: Number
-
-    @property
-    def alpha(self) -> Number:
-        """The :math:`\\alpha` parameter of the SABR function."""
-        return self._alpha
-
-    @property
-    def beta(self) -> float | Variable:
-        """The :math:`\\beta` parameter of the SABR function."""
-        return self._beta
-
-    @property
-    def rho(self) -> Number:
-        """The :math:`\\rho` parameter of the SABR function."""
-        return self._rho
-
-    @property
-    def nu(self) -> Number:
-        """The :math:`\\nu` parameter of the SABR function."""
-        return self._nu
-
-    @property
-    def n(self) -> int:
-        return 4
 
 
 class _FXDeltaVolSpline:
@@ -443,6 +276,208 @@ class _FXDeltaVolSpline:
             return self.t == other.t
 
 
+@dataclass(frozen=True)
+class _FXDeltaVolSurfaceMeta:
+    """
+    An immutable container of meta data associated with a
+    :class:`~rateslib.fx_volatility.FXDeltaVolSurface` used to make calculations.
+    """
+
+    _eval_date: datetime
+    _delta_type: str
+    _plot_x_axis: str
+    _weights: Series[float] | None
+
+    @property
+    def weights(self) -> Series[float] | None:
+        """Weights used for temporal volatility interpolation."""
+        return self._weights
+
+    @cached_property
+    def weights_cum(self) -> Series[float] | None:
+        """Weight adjusted time to expiry (in calendar days) per date for temporal volatility
+        interpolation."""
+        if self.weights is None:
+            return None
+        else:
+            return self.weights.cumsum()
+
+    @property
+    def eval_date(self) -> datetime:
+        """Evaluation date of the *Surface*."""
+        return self._eval_date
+
+    @property
+    def delta_type(self) -> str:
+        """The delta type of the delta indexes associated with the ``nodes`` of each
+        cross-sectional *Smile*."""
+        return self._delta_type
+
+    @property
+    def plot_x_axis(self) -> str:
+        """The default ``x_axis`` parameter passed to
+        :meth:`~rateslib.fx_volatility._BaseSmile.plot`"""
+        return self._plot_x_axis
+
+
+class _FXDeltaVolSurfceNodes:
+    def __init__(self, nodes: _FXDeltaVolSurfaceMeta) -> None:
+        pass
+
+
+@dataclass(frozen=True)
+class _FXSabrSmileMeta:
+    """
+    An immutable container of meta data associated with a
+    :class:`~rateslib.fx_volatility.FXSabrSmile` used to make calculations.
+    """
+
+    _eval_date: datetime
+    _expiry: datetime
+    _pair: str | None
+    _calendar: CalTypes
+    _delivery: datetime
+    _delivery_lag: int
+    _plot_x_axis: str
+
+    @property
+    def eval_date(self) -> datetime:
+        """Evaluation date of the *Smile*."""
+        return self._eval_date
+
+    @property
+    def expiry(self) -> datetime:
+        """Expiry date of the options priced by this *Smile*"""
+        return self._expiry
+
+    @property
+    def delivery(self) -> datetime:
+        """Delivery date of the forward FX rate applicable to options priced by this *Smile*"""
+        return self._delivery
+
+    @property
+    def delivery_lag(self) -> int:
+        """Business day settlement lag between ``expiry`` and ``delivery``."""
+        return self._delivery_lag
+
+    @property
+    def plot_x_axis(self) -> str:
+        """The default ``x_axis`` parameter passed to
+        :meth:`~rateslib.fx_volatility._BaseSmile.plot`"""
+        return self._plot_x_axis
+
+    @property
+    def calendar(self) -> CalTypes:
+        """Settlement calendar used to determine ``delivery`` from ``expiry``."""
+        return self._calendar
+
+    @property
+    def pair(self) -> str | None:
+        """FX pair against which options priced by this *Smile* settle against."""
+        return self._pair
+
+    @cached_property
+    def t_expiry(self) -> float:
+        """Calendar days from eval to expiry divided by 365."""
+        return (self.expiry - self.eval_date).days / 365.0
+
+    @cached_property
+    def t_expiry_sqrt(self) -> float:
+        """Square root of ``t_expiry``."""
+        ret: float = self.t_expiry**0.5
+        return ret
+
+
+@dataclass(frozen=True)
+class _FXSabrSmileNodes:
+    """
+    A container for data relating to the SABR parameters of a
+    :class:`~rateslib.fx_volatility.FXSabrSmile`.
+    """
+
+    _alpha: Number
+    _beta: float | Variable
+    _rho: Number
+    _nu: Number
+
+    @property
+    def alpha(self) -> Number:
+        """The :math:`\\alpha` parameter of the SABR function."""
+        return self._alpha
+
+    @property
+    def beta(self) -> float | Variable:
+        """The :math:`\\beta` parameter of the SABR function."""
+        return self._beta
+
+    @property
+    def rho(self) -> Number:
+        """The :math:`\\rho` parameter of the SABR function."""
+        return self._rho
+
+    @property
+    def nu(self) -> Number:
+        """The :math:`\\nu` parameter of the SABR function."""
+        return self._nu
+
+    @property
+    def n(self) -> int:
+        return 4
+
+
+@dataclass(frozen=True)
+class _FXSabrSurfaceMeta:
+    """
+    An immutable container of meta data associated with a
+    :class:`~rateslib.fx_volatility.FXSabrSurface` used to make calculations.
+    """
+
+    _eval_date: datetime
+    _pair: str | None
+    _calendar: CalTypes
+    _delivery_lag: int
+    _weights: Series[float] | None
+
+    @property
+    def weights(self) -> Series[float] | None:
+        """Weights used for temporal volatility interpolation."""
+        return self._weights
+
+    @cached_property
+    def weights_cum(self) -> Series[float] | None:
+        """Weight adjusted time to expiry (in calendar days) per date for temporal volatility
+        interpolation."""
+        if self.weights is None:
+            return None
+        else:
+            return self.weights.cumsum()
+
+    @cached_property
+    def eval_posix(self) -> float:
+        """The unix timestamp of the ``eval_date``."""
+        return self.eval_date.replace(tzinfo=UTC).timestamp()
+
+    @property
+    def delivery_lag(self) -> int:
+        """Business day settlement lag between ``expiry`` and ``delivery``."""
+        return self._delivery_lag
+
+    @property
+    def eval_date(self) -> datetime:
+        """Evaluation date of the *Surface*."""
+        return self._eval_date
+
+    @property
+    def pair(self) -> str | None:
+        """FX pair against which options priced by this *Surface* settle against."""
+        return self._pair
+
+    @property
+    def calendar(self) -> CalTypes:
+        """Settlement calendar used to determine ``delivery`` from ``expiry``."""
+        return self._calendar
+
+
 def _validate_delta_type(delta_type: str) -> str:
     if delta_type.lower() not in ["spot", "spot_pa", "forward", "forward_pa"]:
         raise ValueError("`delta_type` must be in {'spot', 'spot_pa', 'forward', 'forward_pa'}.")
@@ -453,9 +488,9 @@ def _validate_weights(
     weights: Series[float] | NoInput,
     eval_date: datetime,
     expiries: list[datetime],
-) -> Series[float] | NoInput:
+) -> Series[float] | None:
     if isinstance(weights, NoInput):
-        return weights
+        return None
 
     w: Series[float] = Series(
         1.0, index=get_calendar("all").cal_date_range(eval_date, TERMINAL_DATE)
@@ -483,7 +518,7 @@ def _t_var_interp(
     expiry_posix: float,
     expiry_index: int,
     eval_posix: float,
-    weights_cum: Series[float] | NoInput,
+    weights_cum: Series[float] | None,
     vol1: DualTypes,
     vol2: DualTypes,
     bounds_flag: int,
@@ -544,7 +579,7 @@ def _t_var_interp_d_sabr_d_k_or_f(
     expiry_posix: float,
     expiry_index: int,
     eval_posix: float,
-    weights_cum: Series[float] | NoInput,
+    weights_cum: Series[float] | None,
     vol1: DualTypes,
     dvol1_dk: DualTypes,
     vol2: DualTypes,
@@ -552,7 +587,7 @@ def _t_var_interp_d_sabr_d_k_or_f(
     bounds_flag: int,
     derivative: bool,
 ) -> tuple[DualTypes, DualTypes | None]:
-    if isinstance(weights_cum, NoInput):  # weights must also be NoInput
+    if weights_cum is None:  # weights must also be NoInput
         if bounds_flag == 0:
             t1 = expiries_posix[expiry_index] - eval_posix
             t2 = expiries_posix[expiry_index + 1] - eval_posix
