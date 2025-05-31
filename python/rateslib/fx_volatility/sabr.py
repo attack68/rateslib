@@ -33,7 +33,7 @@ from rateslib.fx_volatility.utils import (
     _FXSabrSmileNodes,
     _FXSabrSurfaceMeta,
     _t_var_interp_d_sabr_d_k_or_f,
-    _validate_weights,
+    _validate_weights, _FXDeltaVolSmileNodes,
 )
 from rateslib.mutability import (
     _clear_cache_post,
@@ -109,9 +109,9 @@ class FXSabrSmile(_BaseSmile):
     """
 
     _ini_solve = 1
-    n = 4
     _meta: _FXSabrSmileMeta
     _id: str
+    _nodes: _FXSabrSmileNodes
 
     @_new_state_post
     def __init__(
@@ -154,6 +154,11 @@ class FXSabrSmile(_BaseSmile):
         )
 
         self._set_ad_order(ad)
+
+    @property
+    def _n(self) -> int:
+        """The number of pricing parameters in ``nodes``."""
+        return self.nodes.n
 
     @property
     def id(self) -> str:
@@ -560,10 +565,14 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
             )
             for i, expiry in enumerate(self.expiries)
         ]
-        self.n: int = len(self.expiries) * 3  # alpha, beta, rho
 
         self._set_ad_order(ad)  # includes csolve on each smile
         self._set_new_state()
+
+    @property
+    def _n(self) -> int:
+        """Number of pricing parameters of the *Surface*."""
+        return len(self.expiries) * 3  # alpha, beta, rho
 
     @property
     def id(self) -> str:
@@ -578,6 +587,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
 
     @property
     def ad(self) -> int:
+        """Int in {0,1,2} describing the AD order associated with the *Surface*."""
         return self._ad
 
     @property

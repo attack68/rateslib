@@ -260,7 +260,8 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         return self._nodes
 
     @property
-    def n(self) -> int:
+    def _n(self) -> int:
+        """The number of pricing parameters of the *Curve*."""
         return self.nodes.n
 
     @property

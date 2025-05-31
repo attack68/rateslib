@@ -44,6 +44,9 @@ if TYPE_CHECKING:
         DualTypes,
         FXDeltaVolSmile,
         FXDeltaVolSurface,
+        FXSabrSmile,
+        FXSabrSurface,
+        FXVolObj,
         Sequence,
         SupportsRate,
         Variable,
@@ -1031,8 +1034,8 @@ class Solver(Gradients, _WithState):
 
     def __init__(
         self,
-        curves: Sequence[Curve | FXDeltaVolSmile] = (),
-        surfaces: Sequence[FXDeltaVolSurface] = (),
+        curves: Sequence[Curve | FXDeltaVolSmile | FXSabrSmile] = (),
+        surfaces: Sequence[FXDeltaVolSurface | FXSabrSurface] = (),
         instruments: Sequence[SupportsRate] = (),
         s: Sequence[DualTypes] = (),
         weights: Sequence[float] | NoInput = NoInput(0),
@@ -1107,13 +1110,13 @@ class Solver(Gradients, _WithState):
         self.n = len(self.variables)
 
         # aggregate and organise variables and labels including pre_solvers
-        self.pre_curves: dict[str, Curve | FXDeltaVolSmile | FXDeltaVolSurface] = {}
+        self.pre_curves: dict[str, Curve | FXVolObj] = {}
         self.pre_variables: tuple[str, ...] = ()
         self.pre_instrument_labels: tuple[tuple[str, str], ...] = ()
         self.pre_instruments: tuple[tuple[SupportsRate, tuple[Any, ...], dict[str, Any]], ...] = ()
         self.pre_rate_scalars = []
         self.pre_m, self.pre_n = self.m, self.n
-        curve_collection: list[Curve | FXDeltaVolSmile | FXDeltaVolSurface] = []
+        curve_collection: list[Curve | FXVolObj] = []
         for pre_solver in self.pre_solvers:
             self.pre_variables += pre_solver.pre_variables
             self.pre_instrument_labels += pre_solver.pre_instrument_labels
@@ -1602,7 +1605,7 @@ class Solver(Gradients, _WithState):
         for curve in self.curves.values():
             # this was amended in PR126 as performance improvement to keep consistent `vars`
             # and was restructured in PR## to decouple methods to accomodate vol surfaces
-            n_vars = curve.n - curve._ini_solve
+            n_vars = curve._n - curve._ini_solve
             curve._set_node_vector(v_new[var_counter : var_counter + n_vars], self._ad)  # type: ignore[arg-type]
             var_counter += n_vars
 
