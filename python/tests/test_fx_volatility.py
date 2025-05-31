@@ -479,16 +479,18 @@ class TestFXDeltaVolSurface:
             delta_type="forward",
             weights=Series(2.0, index=[dt(2024, 1, 5), dt(2024, 1, 12), dt(2024, 2, 5)]),
         )
-        assert fxvs.weights.loc[dt(2023, 12, 15)] == 1.0
-        assert fxvs.weights.loc[dt(2024, 1, 4)] == 0.9393939393939394
-        assert fxvs.weights.loc[dt(2024, 1, 5)] == 1.878787878787879
-        assert fxvs.weights.loc[dt(2024, 2, 2)] == 0.9666666666666667
-        assert fxvs.weights.loc[dt(2024, 2, 5)] == 1.9333333333333333
-        assert fxvs.weights.loc[dt(2027, 12, 15)] == 1.0
+        assert fxvs.meta.weights.loc[dt(2023, 12, 15)] == 1.0
+        assert fxvs.meta.weights.loc[dt(2024, 1, 4)] == 0.9393939393939394
+        assert fxvs.meta.weights.loc[dt(2024, 1, 5)] == 1.878787878787879
+        assert fxvs.meta.weights.loc[dt(2024, 2, 2)] == 0.9666666666666667
+        assert fxvs.meta.weights.loc[dt(2024, 2, 5)] == 1.9333333333333333
+        assert fxvs.meta.weights.loc[dt(2027, 12, 15)] == 1.0
 
         # test that the sum of weights to each expiry node is as expected.
         for e in fxvs.expiries:
-            assert abs(fxvs.weights[fxvs.eval_date : e].sum() - (e - fxvs.eval_date).days) < 1e-13
+            assert (
+                abs(fxvs.meta.weights[fxvs.eval_date : e].sum() - (e - fxvs.eval_date).days) < 1e-13
+            )
 
     @pytest.mark.parametrize("scalar", [1.0, 0.5])
     def test_weights_get_vol(self, scalar) -> None:
@@ -511,7 +513,7 @@ class TestFXDeltaVolSurface:
         kwargs = dict(k=1.03, f=1.03, w_deli=0.99, w_spot=0.999, expiry=dt(2023, 2, 3))
         result = fxvs.get_from_strike(**kwargs)
         result2 = fxvs_weights.get_from_strike(**kwargs)
-        w = fxvs_weights.weights
+        w = fxvs_weights.meta.weights
 
         expected = result[1] * (w[: dt(2023, 2, 3)].sum() / 33.0) ** 0.5
         # This result is not exact because the shape of the spline changes

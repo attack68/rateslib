@@ -617,6 +617,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
             _eval_date=eval_date,
             _delta_type=_validate_delta_type(delta_type),
             _plot_x_axis="delta",
+            _weights=_validate_weights(weights, eval_date, expiries),
         )
         # self.delta_type: str = _validate_delta_type(delta_type)
 
@@ -643,11 +644,6 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
             for i, expiry in enumerate(self.expiries)
         ]
         self.n: int = len(self.expiries) * len(self.delta_indexes)
-
-        self.weights = _validate_weights(weights, eval_date, expiries)
-        self.weights_cum = (
-            NoInput(0) if isinstance(self.weights, NoInput) else self.weights.cumsum()
-        )
 
         self._set_ad_order(ad)  # includes csolve on each smile
         self._set_new_state()
@@ -738,7 +734,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
                         expiry_posix=expiry_posix,
                         expiry_index=e_idx,
                         eval_posix=self.eval_posix,
-                        weights_cum=self.weights_cum,
+                        weights_cum=self.meta.weights_cum,
                         vol1=vol1,
                         vol2=vol1,
                         bounds_flag=1,
@@ -766,7 +762,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
                         expiry_posix=expiry_posix,
                         expiry_index=e_idx,
                         eval_posix=self.eval_posix,
-                        weights_cum=self.weights_cum,
+                        weights_cum=self.meta.weights_cum,
                         vol1=vol1,
                         vol2=vol1,
                         bounds_flag=-1,
@@ -792,7 +788,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
                         expiry_posix=expiry_posix,
                         expiry_index=e_idx,
                         eval_posix=self.eval_posix,
-                        weights_cum=self.weights_cum,
+                        weights_cum=self.meta.weights_cum,
                         vol1=vol1,
                         vol2=vol2,
                         bounds_flag=0,

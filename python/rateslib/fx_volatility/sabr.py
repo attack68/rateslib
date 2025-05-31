@@ -536,6 +536,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
             _pair=_drb(None, pair),
             _calendar=get_calendar(calendar),
             _delivery_lag=_drb(defaults.fx_delivery_lag, delivery_lag),
+            _weights=_validate_weights(weights, eval_date, expiries),
         )
 
         self.expiries: list[datetime] = expiries
@@ -560,11 +561,6 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
             for i, expiry in enumerate(self.expiries)
         ]
         self.n: int = len(self.expiries) * 3  # alpha, beta, rho
-
-        self.weights = _validate_weights(weights, eval_date, expiries)
-        self.weights_cum = (
-            NoInput(0) if isinstance(self.weights, NoInput) else self.weights.cumsum()
-        )
 
         self._set_ad_order(ad)  # includes csolve on each smile
         self._set_new_state()
@@ -717,7 +713,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                 expiry_posix=expiry_posix,
                 expiry_index=e_idx,
                 eval_posix=self._meta.eval_posix,
-                weights_cum=self.weights_cum,
+                weights_cum=self.meta.weights_cum,
                 vol1=vol_,
                 dvol1_dk=dvol_k_or_f,  # type: ignore[arg-type]
                 vol2=vol_,
@@ -748,7 +744,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                 expiry_posix=expiry_posix,
                 expiry_index=e_idx,
                 eval_posix=self._meta.eval_posix,
-                weights_cum=self.weights_cum,
+                weights_cum=self.meta.weights_cum,
                 vol1=lvol,
                 dvol1_dk=d_lvol_dk_or_f,  # type: ignore[arg-type]
                 vol2=rvol,
