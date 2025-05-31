@@ -308,6 +308,11 @@ class _FXDeltaVolSurfaceMeta:
         return self._eval_date
 
     @property
+    def eval_posix(self) -> float:
+        """The unix timestamp of the ``eval_date``."""
+        return self.eval_date.replace(tzinfo=UTC).timestamp()
+
+    @property
     def delta_type(self) -> str:
         """The delta type of the delta indexes associated with the ``nodes`` of each
         cross-sectional *Smile*."""
@@ -320,7 +325,7 @@ class _FXDeltaVolSurfaceMeta:
         return self._plot_x_axis
 
 
-class _FXDeltaVolSurfceNodes:
+class _FXDeltaVolSurfaceNodes:
     def __init__(self, nodes: _FXDeltaVolSurfaceMeta) -> None:
         pass
 
