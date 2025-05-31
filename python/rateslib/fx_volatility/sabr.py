@@ -509,11 +509,11 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
 
     """
 
-    smiles: list[FXSabrSmile]
     _ini_solve = 0
     _mutable_by_association = True
     _meta: _FXSabrSurfaceMeta
     _id: str
+    _smiles: list[FXSabrSmile]
 
     def __init__(
         self,
@@ -548,7 +548,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                 raise ValueError("Surface `expiries` are not sorted or contain duplicates.\n")
 
         node_values_: np.ndarray[tuple[int, ...], np.dtype[np.object_]] = np.asarray(node_values)
-        self.smiles = [
+        self._smiles = [
             FXSabrSmile(
                 nodes=dict(zip(["alpha", "beta", "rho", "nu"], node_values_[i, :], strict=True)),
                 expiry=expiry,
@@ -579,6 +579,11 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
     @property
     def ad(self) -> int:
         return self._ad
+
+    @property
+    def smiles(self) -> list[FXSabrSmile]:
+        """A list of cross-sectional :class:`FXSabrSmile` instances."""
+        return self._smiles
 
     def _get_composited_state(self) -> int:
         return hash(sum(smile._state for smile in self.smiles))

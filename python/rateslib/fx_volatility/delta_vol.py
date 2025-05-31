@@ -596,6 +596,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
     _mutable_by_association = True
     _id: str
     _meta: _FXDeltaVolSurfaceMeta
+    _smiles: list[FXDeltaVolSmile]
 
     def __init__(
         self,
