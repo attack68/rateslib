@@ -596,6 +596,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
     _mutable_by_association = True
     _id: str
     _meta: _FXDeltaVolSurfaceMeta
+    _smiles: list[FXDeltaVolSmile]
 
     def __init__(
         self,
@@ -633,7 +634,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         self.eval_posix: float = self.eval_date.replace(tzinfo=UTC).timestamp()
 
         node_values_: np.ndarray[tuple[int, ...], np.dtype[np.object_]] = np.asarray(node_values)
-        self.smiles = [
+        self._smiles = [
             FXDeltaVolSmile(
                 nodes=dict(zip(self.delta_indexes, node_values_[i, :], strict=False)),
                 expiry=expiry,
@@ -662,6 +663,11 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
     @property
     def ad(self) -> int:
         return self._ad
+
+    @property
+    def smiles(self) -> list[FXDeltaVolSmile]:
+        """A list of cross-sectional :class:`FXDeltaVolSmile` instances."""
+        return self._smiles
 
     def _get_composited_state(self) -> int:
         return hash(sum(smile._state for smile in self.smiles))
