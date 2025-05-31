@@ -151,7 +151,8 @@ class FXDeltaVolSmile(_BaseSmile):
         return self._nodes
 
     @property
-    def n(self) -> int:
+    def _n(self) -> int:
+        """The number of parameters of the *Surface*."""
         return self.nodes.n
 
     def __getitem__(self, item: DualTypes) -> DualTypes:
@@ -633,10 +634,14 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
             )
             for i, expiry in enumerate(self.meta.expiries)
         ]
-        self.n: int = len(self.meta.expiries) * len(self.meta.delta_indexes)
 
         self._set_ad_order(ad)  # includes csolve on each smile
         self._set_new_state()
+
+    @property
+    def _n(self) -> int:
+        """The number of pricing parameters of the *Surface*."""
+        return len(self.meta.expiries) * len(self.meta.delta_indexes)
 
     @property
     def id(self) -> str:
@@ -651,6 +656,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
 
     @property
     def ad(self) -> int:
+        """Int in {0,1,2} describing the AD order associated with the *Surface*."""
         return self._ad
 
     @property
@@ -691,7 +697,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         """Get the variable names of elements updated by a Solver"""
         vars_: tuple[str, ...] = ()
         for smile in self.smiles:
-            vars_ += tuple(f"{smile.id}{i}" for i in range(smile.n))
+            vars_ += tuple(f"{smile.id}{i}" for i in range(smile._n))
         return vars_
 
     @_validate_states

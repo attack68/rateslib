@@ -151,6 +151,7 @@ class _FXDeltaVolSmileNodes:
 
     @property
     def n(self) -> int:
+        """The number of pricing parameters in ``nodees``."""
         return len(self.keys)
 
     @property
@@ -363,6 +364,11 @@ class _FXSabrSmileMeta:
     _delivery: datetime
     _delivery_lag: int
     _plot_x_axis: str
+
+    @property
+    def n(self) -> int:
+        """The number of pricing parameters."""
+        return 4
 
     @property
     def eval_date(self) -> datetime:
