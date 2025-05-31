@@ -140,6 +140,7 @@ class Defaults:
         self.convention = "ACT360"
         self.notional = 1.0e6
         self.index_lag = 3
+        self.index_lag_curve = 0
         self.index_method = "daily"
         self.payment_lag = 2
         self.payment_lag_exchange = 0

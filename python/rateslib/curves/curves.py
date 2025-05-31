@@ -108,7 +108,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     index_lag : int, optional
         Number of months of by which the index lags the date. For example if the initial
         curve node date is 1st Sep 2021 based on the inflation index published
-        17th June 2023 then the lag is 3 months.
+        17th June 2023 then the lag is 3 months. Best practice is to use 0 months.
     collateral : str
         A currency identifier to denote the collateral currency against which the discount factors
         for this *Curve* are measured.
@@ -224,7 +224,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             _convention=_drb(defaults.convention, convention).lower(),
             _modifier=_drb(defaults.modifier, modifier).upper(),
             _index_base=index_base,
-            _index_lag=_drb(defaults.index_lag, index_lag),
+            _index_lag=_drb(defaults.index_lag_curve, index_lag),
             _collateral=_drb(None, collateral),
         )
         self._nodes = _CurveNodes(nodes)
