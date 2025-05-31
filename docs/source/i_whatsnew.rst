@@ -150,6 +150,7 @@ Some themes for this release involved:
          (`872 <https://github.com/attack68/rateslib/pull/872>`_)
          (`880 <https://github.com/attack68/rateslib/pull/880>`_)
          (`881 <https://github.com/attack68/rateslib/pull/881>`_)
+         (`882 <https://github.com/attack68/rateslib/pull/882>`_)
        - :red:`Minor Breaking Change!` The argument ``c`` for spline coefficients is no longer
          available in the initialisation of a *Curve* class. This value is determined
          automatically to maintain consistency between supplied node values and solved spline
