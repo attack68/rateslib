@@ -487,9 +487,13 @@ class TestFXDeltaVolSurface:
         assert fxvs.meta.weights.loc[dt(2027, 12, 15)] == 1.0
 
         # test that the sum of weights to each expiry node is as expected.
-        for e in fxvs.expiries:
+        for e in fxvs.meta.expiries:
             assert (
-                abs(fxvs.meta.weights[fxvs.eval_date : e].sum() - (e - fxvs.eval_date).days) < 1e-13
+                abs(
+                    fxvs.meta.weights[fxvs.meta.eval_date : e].sum()
+                    - (e - fxvs.meta.eval_date).days
+                )
+                < 1e-13
             )
 
     @pytest.mark.parametrize("scalar", [1.0, 0.5])

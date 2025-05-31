@@ -287,6 +287,30 @@ class _FXDeltaVolSurfaceMeta:
     _delta_type: str
     _plot_x_axis: str
     _weights: Series[float] | None
+    _delta_indexes: list[float]
+    _expiries: list[datetime]
+
+    def __post_init__(self) -> None:
+        for idx in range(1, len(self.expiries)):
+            if self.expiries[idx - 1] >= self.expiries[idx]:
+                raise ValueError("Surface `expiries` are not sorted or contain duplicates.\n")
+
+    @property
+    def delta_indexes(self) -> list[float]:
+        """A list of delta indexes associated with each cross-sectional
+        :class:`~rateslib.fx_volatility.FXDeltaVolSmile`."""
+        return self._delta_indexes
+
+    @property
+    def expiries(self) -> list[datetime]:
+        """A list of the expiries of each cross-sectional
+        :class:`~rateslib.fx_volatility.FXDeltaVolSmile`."""
+        return self._expiries
+
+    @cached_property
+    def expiries_posix(self) -> list[float]:
+        """A list of the unix timestamps of each date in ``expiries``."""
+        return [_.replace(tzinfo=UTC).timestamp() for _ in self.expiries]
 
     @property
     def weights(self) -> Series[float] | None:
@@ -308,6 +332,11 @@ class _FXDeltaVolSurfaceMeta:
         return self._eval_date
 
     @property
+    def eval_posix(self) -> float:
+        """The unix timestamp of the ``eval_date``."""
+        return self.eval_date.replace(tzinfo=UTC).timestamp()
+
+    @property
     def delta_type(self) -> str:
         """The delta type of the delta indexes associated with the ``nodes`` of each
         cross-sectional *Smile*."""
@@ -318,11 +347,6 @@ class _FXDeltaVolSurfaceMeta:
         """The default ``x_axis`` parameter passed to
         :meth:`~rateslib.fx_volatility._BaseSmile.plot`"""
         return self._plot_x_axis
-
-
-class _FXDeltaVolSurfceNodes:
-    def __init__(self, nodes: _FXDeltaVolSurfaceMeta) -> None:
-        pass
 
 
 @dataclass(frozen=True)
