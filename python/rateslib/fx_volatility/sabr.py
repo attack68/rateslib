@@ -33,7 +33,7 @@ from rateslib.fx_volatility.utils import (
     _FXSabrSmileNodes,
     _FXSabrSurfaceMeta,
     _t_var_interp_d_sabr_d_k_or_f,
-    _validate_weights, _FXDeltaVolSmileNodes,
+    _validate_weights,
 )
 from rateslib.mutability import (
     _clear_cache_post,

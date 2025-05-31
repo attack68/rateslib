@@ -643,7 +643,6 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         """The number of pricing parameters of the *Surface*."""
         return len(self.meta.expiries) * len(self.meta.delta_indexes)
 
-
     @property
     def id(self) -> str:
         """A str identifier to name the *Surface* used in
