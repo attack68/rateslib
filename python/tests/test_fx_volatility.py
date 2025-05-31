@@ -487,7 +487,7 @@ class TestFXDeltaVolSurface:
         assert fxvs.meta.weights.loc[dt(2027, 12, 15)] == 1.0
 
         # test that the sum of weights to each expiry node is as expected.
-        for e in fxvs.expiries:
+        for e in fxvs.meta.expiries:
             assert (
                 abs(
                     fxvs.meta.weights[fxvs.meta.eval_date : e].sum()

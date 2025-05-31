@@ -612,36 +612,28 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         self._id: str = (
             uuid4().hex[:5] + "_" if isinstance(id, NoInput) else id
         )  # 1 in a million clash
-        self.delta_indexes: list[float] = delta_indexes
 
         self._meta = _FXDeltaVolSurfaceMeta(
             _eval_date=eval_date,
             _delta_type=_validate_delta_type(delta_type),
             _plot_x_axis="delta",
             _weights=_validate_weights(weights, eval_date, expiries),
+            _delta_indexes=delta_indexes,
+            _expiries=expiries,
         )
-        # self.delta_type: str = _validate_delta_type(delta_type)
-
-        self.expiries: list[datetime] = expiries
-        self.expiries_posix: list[float] = [
-            _.replace(tzinfo=UTC).timestamp() for _ in self.expiries
-        ]
-        for idx in range(1, len(self.expiries)):
-            if self.expiries[idx - 1] >= self.expiries[idx]:
-                raise ValueError("Surface `expiries` are not sorted or contain duplicates.\n")
 
         node_values_: np.ndarray[tuple[int, ...], np.dtype[np.object_]] = np.asarray(node_values)
         self._smiles = [
             FXDeltaVolSmile(
-                nodes=dict(zip(self.delta_indexes, node_values_[i, :], strict=False)),
+                nodes=dict(zip(self.meta.delta_indexes, node_values_[i, :], strict=False)),
                 expiry=expiry,
                 eval_date=self.meta.eval_date,
                 delta_type=self.meta.delta_type,
                 id=f"{self.id}_{i}_",
             )
-            for i, expiry in enumerate(self.expiries)
+            for i, expiry in enumerate(self.meta.expiries)
         ]
-        self.n: int = len(self.expiries) * len(self.delta_indexes)
+        self.n: int = len(self.meta.expiries) * len(self.meta.delta_indexes)
 
         self._set_ad_order(ad)  # includes csolve on each smile
         self._set_new_state()
@@ -686,7 +678,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
     def _set_node_vector(
         self, vector: np.ndarray[tuple[int, ...], np.dtype[np.object_]], ad: int
     ) -> None:
-        m = len(self.delta_indexes)
+        m = len(self.meta.delta_indexes)
         for i in range(int(len(vector) / m)):
             # smiles are indexed by expiry, shortest first
             self.smiles[i]._set_node_vector(vector[i * m : i * m + m], ad)
@@ -720,19 +712,19 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
             return self._cache[expiry]
 
         expiry_posix = expiry.replace(tzinfo=UTC).timestamp()
-        e_idx = index_left_f64(self.expiries_posix, expiry_posix)
-        if expiry == self.expiries[0]:
+        e_idx = index_left_f64(self.meta.expiries_posix, expiry_posix)
+        if expiry == self.meta.expiries[0]:
             smile = self.smiles[0]
-        elif abs(expiry_posix - self.expiries_posix[e_idx + 1]) < 1e-10:
+        elif abs(expiry_posix - self.meta.expiries_posix[e_idx + 1]) < 1e-10:
             # expiry aligns with a known smile
             smile = self.smiles[e_idx + 1]
-        elif expiry_posix > self.expiries_posix[-1]:
+        elif expiry_posix > self.meta.expiries_posix[-1]:
             # use the data from the last smile
             smile = FXDeltaVolSmile(
                 nodes={
                     k: _t_var_interp(
-                        expiries=self.expiries,
-                        expiries_posix=self.expiries_posix,
+                        expiries=self.meta.expiries,
+                        expiries_posix=self.meta.expiries_posix,
                         expiry=expiry,
                         expiry_posix=expiry_posix,
                         expiry_index=e_idx,
@@ -743,7 +735,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
                         bounds_flag=1,
                     )
                     for k, vol1 in zip(
-                        self.delta_indexes, self.smiles[e_idx + 1].nodes.values, strict=False
+                        self.meta.delta_indexes, self.smiles[e_idx + 1].nodes.values, strict=False
                     )
                 },
                 eval_date=self.meta.eval_date,
@@ -754,13 +746,13 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
             )
         elif expiry <= self.meta.eval_date:
             raise ValueError("`expiry` before the `eval_date` of the Surface is invalid.")
-        elif expiry_posix < self.expiries_posix[0]:
+        elif expiry_posix < self.meta.expiries_posix[0]:
             # use the data from the first smile
             smile = FXDeltaVolSmile(
                 nodes={
                     k: _t_var_interp(
-                        expiries=self.expiries,
-                        expiries_posix=self.expiries_posix,
+                        expiries=self.meta.expiries,
+                        expiries_posix=self.meta.expiries_posix,
                         expiry=expiry,
                         expiry_posix=expiry_posix,
                         expiry_index=e_idx,
@@ -771,7 +763,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
                         bounds_flag=-1,
                     )
                     for k, vol1 in zip(
-                        self.delta_indexes, self.smiles[0].nodes.values, strict=False
+                        self.meta.delta_indexes, self.smiles[0].nodes.values, strict=False
                     )
                 },
                 eval_date=self.meta.eval_date,
@@ -785,8 +777,8 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
             smile = FXDeltaVolSmile(
                 nodes={
                     k: _t_var_interp(
-                        expiries=self.expiries,
-                        expiries_posix=self.expiries_posix,
+                        expiries=self.meta.expiries,
+                        expiries_posix=self.meta.expiries_posix,
                         expiry=expiry,
                         expiry_posix=expiry_posix,
                         expiry_index=e_idx,
@@ -797,7 +789,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
                         bounds_flag=0,
                     )
                     for k, vol1, vol2 in zip(
-                        self.delta_indexes,
+                        self.meta.delta_indexes,
                         ls.nodes.values,
                         rs.nodes.values,
                         strict=False,
@@ -865,7 +857,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         deltas = np.linspace(0.0, plot_upper_bound, 20)
         vols = np.array([[_._get_index(d, NoInput(0)) for d in deltas] for _ in self.smiles])
         expiries = [
-            (_ - self.meta.eval_posix) / (365 * 24 * 60 * 60.0) for _ in self.expiries_posix
+            (_ - self.meta.eval_posix) / (365 * 24 * 60 * 60.0) for _ in self.meta.expiries_posix
         ]
         return plot3d(deltas, expiries, vols)  # type: ignore[arg-type, return-value]
 
