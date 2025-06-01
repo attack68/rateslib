@@ -20,7 +20,7 @@ Installation
 
 .. raw:: html
 
-   <p>If you would like to install *rateslib* on a corporate machine without a licence extension,
+   <p>If you would like to install rateslib on a corporate machine without a licence extension,
       for a trial period of time, please register your interest by sending an email
       to
       <span style="color:black; font-style: italic;font-weight: bold;">info@r<span class="spamoff">Stockholm Kungsgatan</span>ateslib.com</span>
