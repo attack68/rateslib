@@ -1885,6 +1885,7 @@ class TestIndexFixedRateBond:
             nodes={dt(2000, 1, 1): 1.0, dt(2010, 1, 1): 0.95},
             index_base=100.0,
             interpolation="linear_index",
+            index_lag=3,
         )
         fxf = FXForwards(
             fx_rates=FXRates({"gbpusd": 1.25}, settlement=dt(2000, 1, 1)),

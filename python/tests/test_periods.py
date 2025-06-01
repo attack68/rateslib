@@ -2540,6 +2540,7 @@ class TestIndexFixedPeriod:
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
             index_base=200.0,
             interpolation="linear_index",
+            index_lag=3,
         )
         _, result, _ = index_period.index_ratio(index_curve)
         assert abs(result - expected) < 1e-8
@@ -2703,11 +2704,13 @@ class TestIndexFixedPeriod:
             fixed_rate=4.00,
             currency="usd",
             index_base=100.0,
+            index_lag=3,
         )
         index_curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
             index_base=200.0,
             interpolation="linear_index",
+            index_lag=3,
         )
         result = index_period.npv(index_curve, curve)
         expected = -19895057.826930363
