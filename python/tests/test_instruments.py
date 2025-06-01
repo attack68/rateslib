@@ -697,6 +697,7 @@ class TestNullPricing:
             id="eu_cpi",
             index_base=100.0,
             interpolation="linear_index",
+            index_lag=3,
         )
         fxf = FXForwards(
             FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
@@ -747,6 +748,7 @@ class TestNullPricing:
             id="eu_cpi",
             index_base=100.0,
             interpolation="linear_index",
+            index_lag=3,
         )
         fxf = FXForwards(
             FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
@@ -797,6 +799,7 @@ class TestNullPricing:
             id="eu_cpi",
             index_base=100.0,
             interpolation="linear_index",
+            index_lag=3,
         )
         fxf = FXForwards(
             FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
@@ -856,6 +859,7 @@ class TestNullPricing:
             id="eu_cpi",
             index_base=100.0,
             interpolation="linear_index",
+            index_lag=3,
         )
         fxf = FXForwards(
             FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
@@ -907,6 +911,7 @@ class TestNullPricing:
             id="eu_cpi",
             index_base=100.0,
             interpolation="linear_index",
+            index_lag=3,
         )
         fxf = FXForwards(
             FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
@@ -1778,6 +1783,7 @@ class TestZCIS:
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_base=200.0,
             interpolation="linear_index",
+            index_lag=3,
         )
         zcis = ZCIS(
             effective=dt(2022, 1, 1),
@@ -3929,6 +3935,7 @@ class TestPricingMechanism:
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_base=100.0,
             interpolation="linear_index",
+            index_lag=3,
         )
         ob = IIRS(dt(2022, 1, 28), "6m", "Q", curves=[i_curve, curve, curve, curve])
         ob.rate()
@@ -3990,6 +3997,7 @@ class TestPricingMechanism:
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_base=100.0,
             interpolation="linear_index",
+            index_lag=3,
         )
         ob = ZCIS(dt(2022, 1, 28), "6m", "S", curves=[curve, curve, i_curve, curve])
         ob.rate()

@@ -92,6 +92,7 @@ def curve():
             dt(2022, 3, 31): 0.99,
         },
         interpolation="linear",
+        index_lag=3,
         id="v",
         convention="Act360",
         ad=1,
@@ -122,6 +123,7 @@ def index_curve():
         id="v",
         ad=1,
         index_base=110.0,
+        index_lag=3,
     )
 
 

@@ -1006,6 +1006,7 @@ class TestZeroIndexLeg:
                 dt(2023, 1, 1): 0.97,
             },
             index_base=100.0,
+            index_lag=3,
             interpolation="linear_index",
         )
         zil = ZeroIndexLeg(
@@ -1052,6 +1053,7 @@ class TestZeroIndexLeg:
                 dt(2023, 1, 1): 0.97,
             },
             index_base=100.0,
+            index_lag=3,
             interpolation="linear_index",
         )
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.97})
@@ -1545,6 +1547,7 @@ class TestIndexFixedLegExchange:
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_base=100.0,
             interpolation="linear_index",
+            index_lag=3,
         )
         index_leg_exch = IndexFixedLeg(
             dt(2022, 1, 1),
@@ -1556,6 +1559,7 @@ class TestIndexFixedLegExchange:
             initial_exchange=False,
             fixed_rate=1.0,
             final_exchange=True,
+            index_lag=3,
         )
         result = index_leg_exch.npv(index_curve, curve)
         expected = -999971.65702

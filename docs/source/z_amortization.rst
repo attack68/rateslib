@@ -128,19 +128,21 @@ will also be indexed by the index.
        notional=10e6,
        index_base=100.0,
        amortization=0.5e6,    # 0.5mm reduction per period
+       index_lag=0,
    )
    il.cashflows(icurve, curve)[["Type", "Acc Start", "Notional"]]
 
 .. ipython:: python
 
    il = IndexFixedLeg(
-       effective=dt(2000, 1, 1),
+       effective=dt(2000, 4, 1),
        termination="1y",
        frequency="Q",
        notional=10e6,
        index_base=100.0,
        final_exchange=True,
        amortization=1e6,    # 1mm reduction per period
+       index_lag=3,
    )
    il.cashflows(icurve, curve)[["Type", "Period", "Acc Start", "Payment", "Ccy", "Notional", "Index Ratio", "Index Val"]]
 

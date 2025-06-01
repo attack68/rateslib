@@ -1525,7 +1525,7 @@ class TestCompositeCurve:
     )
     def test_composite_curve_precheck_cache(self, method, args) -> None:
         # test precache_check on shift
-        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}, index_base=100.0)
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}, index_base=100.0, index_lag=3)
         c2 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.998})
         cc = CompositeCurve([c1, c2])
         cc._cache[dt(1980, 1, 1)] = 100.0

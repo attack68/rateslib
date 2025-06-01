@@ -21,7 +21,8 @@ Clone the repository and navigate to the directory.
 
 **2) Setup Python and Rust**
 
-It is recommended to **install Python 3.13 and Rust 1.80**.
+It is recommended to **install Python 3.13 and Rust 1.87**. The minimum Python is, officially,
+**3.10** and the minimum Rust toolchain is probably (untested) **1.80**.
 
 Create and activate a virtual Python environment, as below
 (or the equivalent for Windows).
