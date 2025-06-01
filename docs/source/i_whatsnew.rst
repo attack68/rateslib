@@ -118,6 +118,9 @@ Some themes for this release involved:
      - - The *'linear'* and *'log_linear'* ``interpolation`` methods of a *Curve* now automatically
          adjust to business day interpolation when using a *'bus252'* ``convention``.
          (`821 <https://github.com/attack68/rateslib/pull/821>`_)
+       - An attribute ``credit_discretization`` is added to the ``meta`` of a
+         :class:`~rateslib.curves.Curve` to replace the removed, equivalent argument of a
+         :class:`~rateslib.periods.CreditProtectionPeriod`.
        - :red:`Minor Breaking Change!` The default ``index_lag`` for a
          :class:``~rateslib.curves.Curve` is set to zero.
          See the default setting ``index_lag_curve``.

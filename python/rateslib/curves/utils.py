@@ -43,6 +43,7 @@ class _CurveMeta:
     _index_base: DualTypes_
     _index_lag: int
     _collateral: str | None
+    _credit_discretization: int
 
     @property
     def calendar(self) -> CalTypes:
@@ -75,6 +76,11 @@ class _CurveMeta:
         the *Curve*."""
         return self._collateral
 
+    @property
+    def credit_discretization(self) -> int:
+        """A parameter for numerically solving the integral for a *Credit Protection Period*."""
+        return self._credit_discretization
+
     def to_json(self) -> str:
         """
         Serialize this object to JSON format.
@@ -96,6 +102,7 @@ class _CurveMeta:
                     index_base=_obj_to_json(self.index_base),
                     index_lag=self.index_lag,
                     collateral=self.collateral,
+                    credit_discretization=self.credit_discretization,
                 )
             )
         )
@@ -112,6 +119,7 @@ class _CurveMeta:
             _collateral=loaded_json["collateral"],
             _index_base=from_json(loaded_json["index_base"]),
             _calendar=from_json(loaded_json["calendar"]),
+            _credit_discretization=loaded_json["credit_discretization"],
         )
 
 
