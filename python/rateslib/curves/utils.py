@@ -44,6 +44,7 @@ class _CurveMeta:
     _index_lag: int
     _collateral: str | None
     _credit_discretization: int
+    _credit_recovery_rate: DualTypes_
 
     @property
     def calendar(self) -> CalTypes:
@@ -80,6 +81,11 @@ class _CurveMeta:
     def credit_discretization(self) -> int:
         """A parameter for numerically solving the integral for a *Credit Protection Period*."""
         return self._credit_discretization
+
+    @property
+    def credit_recovery_rate(self) -> DualTypes_:
+        """The recovery rate applied to *Credit Protection Period* cashflows."""
+        return self._index_base
 
     def to_json(self) -> str:
         """

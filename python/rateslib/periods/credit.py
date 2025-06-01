@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 from typing import TYPE_CHECKING
+from dataclasses import replace
 
 from rateslib import defaults
 from rateslib.default import NoInput, _drb
@@ -296,12 +297,8 @@ class CreditProtectionPeriod(BasePeriod):
     def __init__(
         self,
         *args: Any,
-        recovery_rate: DualTypes | NoInput = NoInput(0),
         **kwargs: Any,
     ) -> None:
-        self.recovery_rate: DualTypes = _drb(defaults.cds_recovery_rate, recovery_rate)
-        if self.recovery_rate < 0.0 and self.recovery_rate > 1.0:
-            raise ValueError("`recovery_rate` value must be in [0.0, 1.0]")
         super().__init__(*args, **kwargs)
 
     @property
@@ -380,12 +377,13 @@ class CreditProtectionPeriod(BasePeriod):
             npv = _dual_float(npv_)
             npv_fx = npv * _dual_float(fx)
             survival = _dual_float(curve[self.end])
+            rec = _dual_float(curve.meta.credit_recovery_rate)
         else:
-            npv, npv_fx, survival = None, None, None
+            rec, npv, npv_fx, survival = None, None, None, None
 
         return {
             **super().cashflows(curve, disc_curve, fx, base),
-            defaults.headers["recovery"]: _dual_float(self.recovery_rate),
+            defaults.headers["recovery"]: rec,
             defaults.headers["survival"]: survival,
             defaults.headers["cashflow"]: _dual_float(self.cashflow),
             defaults.headers["npv"]: npv,
@@ -410,12 +408,13 @@ class CreditProtectionPeriod(BasePeriod):
         -------
         float
         """
-        rr = self.recovery_rate
-        if isinstance(rr, Dual | Dual2 | Variable):
-            self.recovery_rate = Variable(rr.real, ["__recovery_rate__"])
-        else:
-            self.recovery_rate = Variable(_dual_float(rr), ["__recovery_rate__"])
-        pv: Dual | Dual2 | Variable = self.npv(curve, disc_curve, fx, base, False)  # type: ignore[assignment]
-        self.recovery_rate = rr
-        _: float = _dual_float(gradient(pv, ["__recovery_rate__"], order=1)[0])
+        haz_curve = curve.copy()
+        haz_curve._meta = replace(
+            curve.meta,
+            credit_recovery_rate=Variable(
+                _dual_float(curve.meta.credit_recovery_rate), ["__rec_rate__"], []
+            )
+        )
+        pv: Dual | Dual2 | Variable = self.npv(haz_curve, disc_curve, fx, base, False)  # type: ignore[assignment]
+        _: float = _dual_float(gradient(pv, ["__rec_rate__"], order=1)[0])
         return _ * 0.01

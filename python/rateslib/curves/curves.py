@@ -54,6 +54,7 @@ if TYPE_CHECKING:
         datetime_,
         int_,
         str_,
+        float_,
     )
 DualTypes: TypeAlias = (
     "Dual | Dual2 | Variable | float"  # required for non-cyclic import on _WithCache
@@ -219,6 +220,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         index_lag: int | NoInput = NoInput(0),
         collateral: str_ = NoInput(0),
         credit_discretization: int_ = NoInput(0),
+        credit_recovery_rate: Variable | float_ = NoInput(0),
         **kwargs,
     ) -> None:
         self._id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
@@ -234,6 +236,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             _credit_discretization=_drb(
                 defaults.cds_protection_discretization, credit_discretization
             ),
+            _credit_recovery_rate=credit_recovery_rate,
         )
         self._nodes = _CurveNodes(nodes)
         self._interpolator = _CurveInterpolator(
