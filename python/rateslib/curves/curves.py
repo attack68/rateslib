@@ -52,6 +52,7 @@ if TYPE_CHECKING:
         FXForwards,
         Number,
         datetime_,
+        int_,
         str_,
     )
 DualTypes: TypeAlias = (
@@ -112,6 +113,9 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     collateral : str
         A currency identifier to denote the collateral currency against which the discount factors
         for this *Curve* are measured.
+    credit_discretization : int
+        A parameter for numerically solving the integral for credit protection legs and default
+        events. Expressed in calendar days. Only used by *Curves* functioning as *hazard Curves*.
 
     Notes
     -----
@@ -214,6 +218,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         index_base: DualTypes | NoInput = NoInput(0),
         index_lag: int | NoInput = NoInput(0),
         collateral: str_ = NoInput(0),
+        credit_discretization: int_ = NoInput(0),
         **kwargs,
     ) -> None:
         self._id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
@@ -226,6 +231,9 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             _index_base=index_base,
             _index_lag=_drb(defaults.index_lag_curve, index_lag),
             _collateral=_drb(None, collateral),
+            _credit_discretization=_drb(
+                defaults.cds_protection_discretization, credit_discretization
+            ),
         )
         self._nodes = _CurveNodes(nodes)
         self._interpolator = _CurveInterpolator(
@@ -2221,6 +2229,7 @@ class CompositeCurve(Curve):
             curves[0].meta.index_base,
             curves[0].meta.index_lag,
             curves[0].meta.collateral,
+            curves[0].meta.credit_discretization,
         )
         self._base_type = curves[0]._base_type
 
@@ -2832,6 +2841,7 @@ class ProxyCurve(Curve):
             NoInput(0),  # index meta not relevant for ProxyCurve
             0,
             coll_ccy,
+            defaults.cds_protection_discretization,  # credit discretization irrelevant for PxyCv.
         )
         # CurveNodes attached for date attribution
         self._nodes = _CurveNodes({self.fx_forwards.immediate: 0.0, self.terminal: 0.0})

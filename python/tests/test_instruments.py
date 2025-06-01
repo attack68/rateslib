@@ -2967,6 +2967,7 @@ class TestCDS:
             convention="act365f",
             calendar="all",
             id="credit",
+            credit_discretization=5,
         )
         cc_sv = Solver(
             curves=[credit_curve],
@@ -3000,7 +3001,6 @@ class TestCDS:
             frequency="q",
             fixed_rate=1.50,
             curves=["credit", "ibor"],
-            discretization=5,
             calendar="nyc",
         )
         c1, c2, solver = self.okane_curve()

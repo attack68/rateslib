@@ -262,9 +262,6 @@ class CreditProtectionPeriod(BasePeriod):
         Required positional args to :class:`BasePeriod`.
     recovery_rate : float, Dual, Dual2, optional
         The assumed recovery rate that defines payment on credit default. Set by ``defaults``.
-    discretization : int, optional
-        The number of days to discretize the numerical integration over possible credit defaults.
-        Set by ``defaults``.
     kwargs : dict
         Required keyword arguments to :class:`BasePeriod`.
 
@@ -300,13 +297,11 @@ class CreditProtectionPeriod(BasePeriod):
         self,
         *args: Any,
         recovery_rate: DualTypes | NoInput = NoInput(0),
-        discretization: int | NoInput = NoInput(0),
         **kwargs: Any,
     ) -> None:
         self.recovery_rate: DualTypes = _drb(defaults.cds_recovery_rate, recovery_rate)
         if self.recovery_rate < 0.0 and self.recovery_rate > 1.0:
             raise ValueError("`recovery_rate` value must be in [0.0, 1.0]")
-        self.discretization: int = _drb(defaults.cds_protection_discretization, discretization)
         super().__init__(*args, **kwargs)
 
     @property
@@ -330,6 +325,7 @@ class CreditProtectionPeriod(BasePeriod):
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
         curve_, disc_curve_ = _validate_credit_curves(curve, disc_curve)
+        discretization = curve_.meta.credit_discretization
 
         if self.start < curve_.nodes.initial:
             s2 = curve_.nodes.initial
@@ -341,7 +337,7 @@ class CreditProtectionPeriod(BasePeriod):
         v2: DualTypes = disc_curve_[s2]
         while s2 < self.end:
             q1, v1 = q2, v2
-            s2 = s2 + timedelta(days=self.discretization)
+            s2 = s2 + timedelta(days=discretization)
             if s2 > self.end:
                 s2 = self.end
             q2, v2 = curve_[s2], disc_curve_[s2]

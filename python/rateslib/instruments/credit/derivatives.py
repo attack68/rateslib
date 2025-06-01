@@ -36,9 +36,6 @@ class CDS(BaseDerivative):
     recovery_rate : float, Dual, Dual2, optional
         The assumed recovery rate on the protection leg that defines payment on
         credit default. Set by ``defaults``.
-    discretization : int, optional
-        The number of days to discretize the numerical integration over possible credit defaults,
-        for the protection leg. Set by ``defaults``.
     kwargs : dict
         Required keyword arguments to :class:`BaseDerivative`.
     """
@@ -55,7 +52,6 @@ class CDS(BaseDerivative):
         fixed_rate: float | NoInput = NoInput(0),
         premium_accrued: bool | NoInput = NoInput(0),
         recovery_rate: DualTypes | NoInput = NoInput(0),
-        discretization: int | NoInput = NoInput(0),
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
@@ -68,7 +64,6 @@ class CDS(BaseDerivative):
             fixed_rate=fixed_rate,
             premium_accrued=premium_accrued,
             leg2_recovery_rate=recovery_rate,
-            leg2_discretization=discretization,
         )
         self.kwargs = _update_not_noinput(self.kwargs, cds_specific)
 
@@ -76,7 +71,6 @@ class CDS(BaseDerivative):
         default_kwargs = dict(
             premium_accrued=defaults.cds_premium_accrued,
             leg2_recovery_rate=defaults.cds_recovery_rate,
-            leg2_discretization=defaults.cds_protection_discretization,
         )
         self.kwargs = _update_with_defaults(self.kwargs, default_kwargs)
 

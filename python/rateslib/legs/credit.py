@@ -176,9 +176,6 @@ class CreditProtectionLeg(BaseLeg):
         Required positional args to :class:`BaseLeg`.
     recovery_rate : float, Dual, Dual2, optional
         The assumed recovery rate that defines payment on credit default. Set by ``defaults``.
-    discretization : int, optional
-        The number of days to discretize the numerical integration over possible credit defaults.
-        Set by ``defaults``.
     kwargs : dict
         Required keyword arguments to :class:`BaseLeg`.
 
@@ -225,11 +222,9 @@ class CreditProtectionLeg(BaseLeg):
         self,
         *args: Any,
         recovery_rate: DualTypes | NoInput = NoInput(0),
-        discretization: int | NoInput = NoInput(0),
         **kwargs: Any,
     ) -> None:
         self._recovery_rate: DualTypes = _drb(defaults.cds_recovery_rate, recovery_rate)
-        self.discretization: int = _drb(defaults.cds_protection_discretization, discretization)
         super().__init__(*args, **kwargs)
         if self.initial_exchange or self.final_exchange:
             raise ValueError(
@@ -289,7 +284,6 @@ class CreditProtectionLeg(BaseLeg):
     ) -> CreditProtectionPeriod:
         return CreditProtectionPeriod(
             recovery_rate=self.recovery_rate,
-            discretization=self.discretization,
             start=start,
             end=end,
             payment=payment,

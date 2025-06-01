@@ -1,9 +1,9 @@
 import re
+from dataclasses import replace
 from datetime import datetime as dt
 from datetime import timedelta
 from sys import prefix
 
-import numpy as np
 import pytest
 from pandas import NA, DataFrame, Index, MultiIndex, Series, date_range
 from pandas.testing import assert_frame_equal
@@ -2407,18 +2407,13 @@ class TestCreditProtectionPeriod:
             payment=dt(2022, 4, 1),
             notional=1e9,
             frequency="Q",
-            discretization=1,
         )
-        p2 = CreditProtectionPeriod(
-            start=dt(2022, 1, 1),
-            end=dt(2022, 4, 1),
-            payment=dt(2022, 4, 1),
-            notional=1e9,
-            frequency="Q",
-            discretization=31,
-        )
-        r1 = p1.npv(hazard_curve, curve)
-        r2 = p2.npv(hazard_curve, curve)
+        h1 = hazard_curve.copy()
+        h2 = hazard_curve.copy()
+        h1._meta = replace(h1.meta, _credit_discretization=1)
+        h2._meta = replace(h2.meta, _credit_discretization=31)
+        r1 = p1.npv(h1, curve)
+        r2 = p1.npv(h2, curve)
         assert 0.1 < abs(r1 - r2) < 1.0  # very similar result but not identical
 
     def test_mid_period(self, hazard_curve, curve):
