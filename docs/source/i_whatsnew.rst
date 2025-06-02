@@ -244,6 +244,7 @@ Some themes for this release involved:
          :class:`~rateslib.instruments.CDS`.
          (`885 <https://github.com/attack68/rateslib/pull/885>`_)
          (`889 <https://github.com/attack68/rateslib/pull/889>`_)
+         (`890 <https://github.com/attack68/rateslib/pull/890>`_)
        - :red:`Major Breaking Change!` The method :meth:`~rateslib.curves.interpolate` is
          removed and user defined callables provided to a Curve ``interpolation`` method adopt a
          new signature. Please review appropriate documentation and examples.
