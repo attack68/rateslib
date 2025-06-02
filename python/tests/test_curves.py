@@ -2165,6 +2165,7 @@ class TestProxyCurve:
         with pytest.raises(NotImplementedError):
             curve.update("h", 100.0)
 
+
 class TestPlotCurve:
     def test_plot_curve(self, curve) -> None:
         fig, ax, lines = curve.plot("1d")
