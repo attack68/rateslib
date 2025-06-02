@@ -52,6 +52,7 @@ if TYPE_CHECKING:
         FXForwards,
         Number,
         datetime_,
+        float_,
         int_,
         str_,
     )
@@ -219,6 +220,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         index_lag: int | NoInput = NoInput(0),
         collateral: str_ = NoInput(0),
         credit_discretization: int_ = NoInput(0),
+        credit_recovery_rate: Variable | float_ = NoInput(0),
         **kwargs,
     ) -> None:
         self._id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
@@ -234,6 +236,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             _credit_discretization=_drb(
                 defaults.cds_protection_discretization, credit_discretization
             ),
+            _credit_recovery_rate=_drb(defaults.cds_recovery_rate, credit_recovery_rate),
         )
         self._nodes = _CurveNodes(nodes)
         self._interpolator = _CurveInterpolator(
@@ -1590,6 +1593,8 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             index_base=meta.index_base,
             index_lag=meta.index_lag,
             collateral=meta.collateral,
+            credit_discretization=meta.credit_discretization,
+            credit_recovery_rate=meta.credit_recovery_rate,
         )
 
     def to_json(self) -> str:
@@ -2251,6 +2256,7 @@ class CompositeCurve(Curve):
             curves[0].meta.index_lag,
             curves[0].meta.collateral,
             curves[0].meta.credit_discretization,
+            curves[0].meta.credit_recovery_rate,
         )
         self._base_type = curves[0]._base_type
 
@@ -2866,7 +2872,8 @@ class ProxyCurve(Curve):
             NoInput(0),  # index meta not relevant for ProxyCurve
             0,
             coll_ccy,
-            defaults.cds_protection_discretization,  # credit discretization irrelevant for PxyCv.
+            100,  # credit elements irrelevant for a PxyCv
+            1.0,  # credit elements irrelevant for a PxyCv
         )
         # CurveNodes attached for date attribution
         self._nodes = _CurveNodes({self.fx_forwards.immediate: 0.0, self.terminal: 0.0})

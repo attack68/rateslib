@@ -1385,15 +1385,13 @@ class TestCreditProtectionLeg:
             payment_lag=2,
             notional=1e7,
             frequency="Q",
-            recovery_rate=0.4,
         )
         result = leg.analytic_rec_risk(hazard_curve, curve)
 
         pv0 = leg.npv(hazard_curve, curve)
-        leg.recovery_rate = 0.41
+        hazard_curve.update_meta("credit_recovery_rate", 0.41)
         pv1 = leg.npv(hazard_curve, curve)
         expected = pv1 - pv0
-
         assert abs(result - expected) < 1e-7
 
     @pytest.mark.parametrize(("premium_accrued"), [True, False])

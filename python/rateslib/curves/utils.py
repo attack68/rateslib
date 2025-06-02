@@ -17,7 +17,14 @@ from rateslib.dual.utils import _to_number
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
-    from rateslib.typing import Any, CalTypes, DualTypes, DualTypes_, str_  # pragma: no cover
+    from rateslib.typing import (
+        Any,
+        CalTypes,
+        DualTypes,
+        DualTypes_,
+        Variable,
+        str_,
+    )  # pragma: no cover
 
 
 class _CurveType(Enum):
@@ -44,6 +51,7 @@ class _CurveMeta:
     _index_lag: int
     _collateral: str | None
     _credit_discretization: int
+    _credit_recovery_rate: float | Variable
 
     @property
     def calendar(self) -> CalTypes:
@@ -81,6 +89,11 @@ class _CurveMeta:
         """A parameter for numerically solving the integral for a *Credit Protection Period*."""
         return self._credit_discretization
 
+    @property
+    def credit_recovery_rate(self) -> float | Variable:
+        """The recovery rate applied to *Credit Protection Period* cashflows."""
+        return self._credit_recovery_rate
+
     def to_json(self) -> str:
         """
         Serialize this object to JSON format.
@@ -103,6 +116,7 @@ class _CurveMeta:
                     index_lag=self.index_lag,
                     collateral=self.collateral,
                     credit_discretization=self.credit_discretization,
+                    credit_recovery_rate=_obj_to_json(self.credit_recovery_rate),
                 )
             )
         )
@@ -120,6 +134,7 @@ class _CurveMeta:
             _index_base=from_json(loaded_json["index_base"]),
             _calendar=from_json(loaded_json["calendar"]),
             _credit_discretization=loaded_json["credit_discretization"],
+            _credit_recovery_rate=from_json(loaded_json["credit_recovery_rate"]),
         )
 
 
