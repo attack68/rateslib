@@ -30,8 +30,6 @@ def _enum_to_json(val: Enum) -> str:
 def _obj_to_json(val: Any) -> str:
     if isinstance(val, NoInput):
         return _enum_to_json(val)
-    elif isinstance(val, Dual | Dual2 | Variable):
-        return _dualtypes_to_json(val)
     else:
         try:
             return val.to_json()  # type: ignore[no-any-return]

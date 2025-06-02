@@ -1385,11 +1385,13 @@ class TestCreditProtectionLeg:
             payment_lag=2,
             notional=1e7,
             frequency="Q",
-            recovery_rate=0.4,
         )
         result = leg.analytic_rec_risk(hazard_curve, curve)
 
         pv0 = leg.npv(hazard_curve, curve)
+
+        h2 = hazard_curve.copy()
+        h2._meta = replace(h2.meta, _credit_recovery_rate=0.41)
         leg.recovery_rate = 0.41
         pv1 = leg.npv(hazard_curve, curve)
         expected = pv1 - pv0

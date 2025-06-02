@@ -36,6 +36,7 @@ def test_curvemeta_json_round_trip(calendar, index_base, collateral):
         _index_lag=1,
         _collateral=collateral,
         _credit_discretization=20,
+        _credit_recovery_rate=Variable(2.5, ["x"])
     )
     json_text = obj.to_json()
     round_trip = from_json(json_text)

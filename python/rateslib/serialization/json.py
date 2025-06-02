@@ -9,6 +9,7 @@ from rateslib.curves import Curve, LineCurve
 from rateslib.curves.rs import CurveRs
 from rateslib.curves.utils import _CurveInterpolator, _CurveMeta, _CurveNodes, _CurveSpline
 from rateslib.default import NoInput
+from rateslib.dual import Variable
 from rateslib.fx import FXRates
 from rateslib.rs import from_json as from_json_rs
 
@@ -28,6 +29,7 @@ NAMES_Py: dict[str, Any] = {  # a mapping of native Python classes with a _from_
     "_CurveNodes": _CurveNodes,
     "Curve": Curve,
     "LineCurve": LineCurve,
+    "Variable": Variable,
 }
 
 

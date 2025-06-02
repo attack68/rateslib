@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
+import json
 
 import numpy as np
 
@@ -69,6 +70,36 @@ class Variable:
             raise TypeError(
                 f"`Variable` can only be converted with `order` in [1, 2], got order: {order}."
             )
+
+    def to_json(self) -> str:
+        """
+        Serialize this object to JSON format.
+
+        The object can be deserialized using the :meth:`~rateslib.serialization.from_json` method.
+
+        Returns
+        -------
+        str
+        """
+        obj = dict(
+            PyNative=dict(
+                Variable=dict(
+                    real=self.real,
+                    vars=self.vars,
+                    dual=[_ for _ in self.dual],
+                )
+            )
+        )
+        return json.dumps(obj)
+
+    @classmethod
+    def _from_json(cls, loaded_json: dict[str, Any]) -> Variable:
+        return Variable(
+            real=loaded_json["real"],
+            vars=loaded_json["vars"],
+            dual=loaded_json["dual"],
+        )
+
 
     def to_dual(self) -> Dual:
         return Dual(self.real, vars=self.vars, dual=self.dual)

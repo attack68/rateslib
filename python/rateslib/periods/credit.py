@@ -26,6 +26,7 @@ if TYPE_CHECKING:
         DualTypes_,
         datetime,
         str_,
+        Curve
     )
 
 
@@ -301,13 +302,12 @@ class CreditProtectionPeriod(BasePeriod):
     ) -> None:
         super().__init__(*args, **kwargs)
 
-    @property
-    def cashflow(self) -> DualTypes:
+    def cashflow(self, curve: Curve) -> DualTypes:
         """
         float, Dual or Dual2 : The calculated protection amount determined from notional
         and recovery rate.
         """
-        return -self.notional * (1 - self.recovery_rate)
+        return -self.notional * (1 - curve.meta.credit_recovery_rate)
 
     def npv(
         self,
@@ -341,7 +341,7 @@ class CreditProtectionPeriod(BasePeriod):
             value += 0.5 * (v1 + v2) * (q1 - q2)
             # value += v2 * (q1 - q2)
 
-        value *= self.cashflow
+        value *= self.cashflow(curve_)
         return _maybe_local(value, local, self.currency, fx, base)
 
     def analytic_delta(
@@ -378,14 +378,15 @@ class CreditProtectionPeriod(BasePeriod):
             npv_fx = npv * _dual_float(fx)
             survival = _dual_float(curve[self.end])
             rec = _dual_float(curve.meta.credit_recovery_rate)
+            cashf = _dual_float(self.cashflow(curve))
         else:
-            rec, npv, npv_fx, survival = None, None, None, None
+            rec, npv, npv_fx, survival, cashf = None, None, None, None, None
 
         return {
             **super().cashflows(curve, disc_curve, fx, base),
             defaults.headers["recovery"]: rec,
             defaults.headers["survival"]: survival,
-            defaults.headers["cashflow"]: _dual_float(self.cashflow),
+            defaults.headers["cashflow"]: cashf,
             defaults.headers["npv"]: npv,
             defaults.headers["fx"]: _dual_float(fx),
             defaults.headers["npv_fx"]: npv_fx,
@@ -411,7 +412,7 @@ class CreditProtectionPeriod(BasePeriod):
         haz_curve = curve.copy()
         haz_curve._meta = replace(
             curve.meta,
-            credit_recovery_rate=Variable(
+            _credit_recovery_rate=Variable(
                 _dual_float(curve.meta.credit_recovery_rate), ["__rec_rate__"], []
             )
         )
