@@ -1523,6 +1523,27 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         self._nodes = _CurveNodes(nodes_)
         self.interpolator._csolve(self._base_type, self.nodes, self._ad)
 
+    # @_new_state_post  # meta update does not require cache and state change
+    # @_clear_cache_post
+    def update_meta(self, key: datetime, value: Any) -> None:
+        """
+        Update a single meta value on the *Curve*.
+
+        Parameters
+        ----------
+        key: datetime
+            The meta descriptor to update. Must be a documented attribute of
+            :class:`~rateslib.curves.utils._CurveMeta`.
+        value: Any
+            Value to update on the *Curve*.
+
+        Returns
+        -------
+        None
+        """
+        _key = f"_{key}"
+        self._meta = replace(self._meta, **{_key: value})
+
     # Solver interaction
 
     def _get_node_vector(self) -> np.ndarray[tuple[int, ...], np.dtype[Any]]:
@@ -2530,6 +2551,10 @@ class CompositeCurve(Curve):
         """Not implemented on CompositeCurve types."""
         raise NotImplementedError("CompositeCurve types do not provide update methods.")
 
+    def update_meta(self, key: datetime, value: DualTypes) -> None:
+        """Not implemented on CompositeCurve types."""
+        raise NotImplementedError("CompositeCurve types do not provide update methods.")
+
     def to_json(self, *args: Any, **kwargs: Any) -> None:  # type: ignore[override]
         """Not implemented on CompositeCurve types."""
         raise NotImplementedError("CompositeCurve types do not provide serialization methods.")
@@ -2895,6 +2920,20 @@ class ProxyCurve(Curve):
 
     def _get_node_vector(self) -> Arr1dF64 | Arr1dObj:  # pragma: no cover
         raise NotImplementedError("Instances of ProxyCurve do not have solvable variables.")
+
+    # Not Implemented
+
+    def update(self, *args: Any, **kwargs: Any) -> None:
+        """Not implemented on ProxyCurve types."""
+        raise NotImplementedError("ProxyCurve types do not provide update methods.")
+
+    def update_node(self, *args: Any, **kwargs: Any) -> None:
+        """Not implemented on ProxyCurve types."""
+        raise NotImplementedError("ProxyCurve types do not provide update methods.")
+
+    def update_meta(self, key: datetime, value: DualTypes) -> None:
+        """Not implemented on ProxyCurve types."""
+        raise NotImplementedError("ProxyCurve types do not provide update methods.")
 
 
 def average_rate(

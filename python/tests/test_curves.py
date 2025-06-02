@@ -1268,6 +1268,10 @@ class TestCurve:
         assert curve[dt(2000, 1, 10)] == curve2[dt(2000, 1, 10)]  #  half calendar and bus
         assert curve[dt(2000, 1, 13)] != curve2[dt(2000, 1, 13)]
 
+    def test_update_meta(self, curve):
+        curve.update_meta("credit_discretization", 101)
+        assert curve.meta.credit_discretization == 101
+
 
 class TestLineCurve:
     def test_repr(self):
@@ -1834,6 +1838,13 @@ class TestCompositeCurve:
         expected = Dual(1.0, ["v0", "v1", "w0", "w1"], [1.0, 0.0, 1.0, 0.0])
         assert result == expected
 
+    def test_update_meta(self):
+        ic1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
+        ic2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
+        cc = CompositeCurve([ic1, ic2])
+        with pytest.raises(NotImplementedError):
+            cc.update_meta("h", 100.0)
+
 
 class TestMultiCsaCurve:
     def test_historic_rate_is_none(self) -> None:
@@ -2132,6 +2143,27 @@ class TestProxyCurve:
         fxf.curve("eur", "eur")._set_node_vector([0.6], 1)
         state3 = curve._state
         assert state3 != state2  # becuase calling _state has validated and updated
+
+    def test_update(self):
+        fxr1 = FXRates({"usdeur": 0.95}, dt(2022, 1, 3))
+        fxr2 = FXRates({"usdcad": 1.1}, dt(2022, 1, 2))
+        fxf = FXForwards(
+            [fxr1, fxr2],
+            {
+                "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 10, 1): 0.95}),
+                "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 10, 1): 1.0}),
+                "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 10, 1): 0.99}),
+                "cadusd": Curve({dt(2022, 1, 1): 1.00, dt(2022, 10, 1): 0.97}),
+                "cadcad": Curve({dt(2022, 1, 1): 1.00, dt(2022, 10, 1): 0.969}),
+            },
+        )
+        curve = fxf.curve("cad", "eur")
+        with pytest.raises(NotImplementedError):
+            curve.update_meta("h", 100.0)
+        with pytest.raises(NotImplementedError):
+            curve.update_node("h", 100.0)
+        with pytest.raises(NotImplementedError):
+            curve.update("h", 100.0)
 
 
 class TestPlotCurve:
