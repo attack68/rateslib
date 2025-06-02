@@ -2982,7 +2982,6 @@ class TestCDS:
                     payment_lag=0,
                     curves=["credit", "ibor"],
                     fixed_rate=4.00,
-                    recovery_rate=0.4,
                     premium_accrued=True,
                     calendar="nyc",
                 )
