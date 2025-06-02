@@ -281,10 +281,10 @@ change in ``recovery_rate`` here.
    hazard_curve_copy.update_meta("credit_recovery_rate", Variable(0.4, ["RR"]))
    cds.exo_delta(curves=[hazard_curve_copy, disc_curve], solver=pfizer_sv, vars=["RR"], vars_scalar=[1/100.0])
 
-But this isn't really the value we want to capture. In fact we want to capture to change in NPV
+But this isn't really the value we want to capture. In fact we want to capture the change in NPV
 when the recovery rate of **all** Pfizer CDSs (including those that are calibrating the curves)
 have a different recovery rate, i.e. when the ``recovery_rate`` on the original
-``hazard_curve`` is updated. This is the same process, except this time we inject to the
+``hazard_curve`` is updated. This is the same process, except this time we inject the
 sensitivity to the *Solver's* mapped curve directly and re-iterate.
 
 .. ipython:: python
