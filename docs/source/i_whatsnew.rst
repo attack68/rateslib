@@ -123,6 +123,7 @@ Some themes for this release involved:
          :class:`~rateslib.periods.CreditProtectionPeriod`.
        - Add :meth:`~rateslib.curves.Curve.update_meta` method to update values of *Curve* meta
          data.
+         (`887 <https://github.com/attack68/rateslib/pull/887>`_)
        - :red:`Minor Breaking Change!` The default ``index_lag`` for a
          :class:``~rateslib.curves.Curve` is set to zero.
          See the default setting ``index_lag_curve``.
