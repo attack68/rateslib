@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import json
 import math
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
-import json
 
 import numpy as np
 
@@ -86,7 +86,7 @@ class Variable:
                 Variable=dict(
                     real=self.real,
                     vars=self.vars,
-                    dual=[_ for _ in self.dual],
+                    dual=list(self.dual),
                 )
             )
         )
@@ -99,7 +99,6 @@ class Variable:
             vars=loaded_json["vars"],
             dual=loaded_json["dual"],
         )
-
 
     def to_dual(self) -> Dual:
         return Dual(self.real, vars=self.vars, dual=self.dual)

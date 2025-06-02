@@ -5,7 +5,7 @@ from json import dumps
 from typing import TYPE_CHECKING
 
 from rateslib.default import NoInput
-from rateslib.dual import Dual, Dual2, Variable
+from rateslib.dual import Dual, Dual2
 from rateslib.dual.utils import _to_number
 
 if TYPE_CHECKING:

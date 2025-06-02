@@ -2339,7 +2339,7 @@ class TestCreditProtectionPeriod:
             currency="usd",
         )
 
-        cashflow = -period.notional * (1 - period.recovery_rate)
+        cashflow = -period.notional * (1 - hazard_curve.meta.credit_recovery_rate)
         expected = {
             defaults.headers["type"]: "CreditProtectionPeriod",
             defaults.headers["stub_type"]: "Regular",
@@ -2377,7 +2377,7 @@ class TestCreditProtectionPeriod:
             frequency="Q",
             currency="usd",
         )
-        cashflow = -period.notional * (1 - period.recovery_rate)
+        cashflow = None
         expected = {
             defaults.headers["type"]: "CreditProtectionPeriod",
             defaults.headers["stub_type"]: "Regular",
@@ -2389,7 +2389,7 @@ class TestCreditProtectionPeriod:
             defaults.headers["convention"]: "Act360",
             defaults.headers["dcf"]: period.dcf,
             defaults.headers["df"]: None,
-            defaults.headers["recovery"]: 0.4,
+            defaults.headers["recovery"]: None,
             defaults.headers["survival"]: None,
             defaults.headers["npv"]: None,
             defaults.headers["cashflow"]: cashflow,
@@ -2435,15 +2435,13 @@ class TestCreditProtectionPeriod:
             payment=dt(2022, 1, 4),
             notional=1e9,
             frequency="Q",
-            recovery_rate=0.40,
         )
 
+        result = period.analytic_rec_risk(hazard_curve, curve)
         p1 = period.npv(hazard_curve, curve)
-        period.recovery_rate = 0.41
+        hazard_curve.update_meta("credit_recovery_rate", 0.41)
         p2 = period.npv(hazard_curve, curve)
         expected = p2 - p1
-
-        result = period.analytic_rec_risk(hazard_curve, curve)
         assert abs(result - expected) < 1e-9
 
 

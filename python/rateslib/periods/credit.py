@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import timedelta
 from typing import TYPE_CHECKING
-from dataclasses import replace
 
 from rateslib import defaults
 from rateslib.default import NoInput, _drb
@@ -20,13 +20,13 @@ if TYPE_CHECKING:
     from rateslib.typing import (
         FX_,
         Any,
+        Curve,
         Curve_,
         CurveOption_,
         DualTypes,
         DualTypes_,
         datetime,
         str_,
-        Curve
     )
 
 
@@ -409,13 +409,14 @@ class CreditProtectionPeriod(BasePeriod):
         -------
         float
         """
-        haz_curve = curve.copy()
+        curve_, disc_curve_ = _validate_credit_curves(curve, disc_curve)
+        haz_curve = curve_.copy()
         haz_curve._meta = replace(
-            curve.meta,
+            curve_.meta,
             _credit_recovery_rate=Variable(
-                _dual_float(curve.meta.credit_recovery_rate), ["__rec_rate__"], []
-            )
+                _dual_float(curve_.meta.credit_recovery_rate), ["__rec_rate__"], []
+            ),
         )
-        pv: Dual | Dual2 | Variable = self.npv(haz_curve, disc_curve, fx, base, False)  # type: ignore[assignment]
+        pv: Dual | Dual2 | Variable = self.npv(haz_curve, disc_curve_, fx, base, False)  # type: ignore[assignment]
         _: float = _dual_float(gradient(pv, ["__rec_rate__"], order=1)[0])
         return _ * 0.01

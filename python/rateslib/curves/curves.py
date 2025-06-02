@@ -52,9 +52,9 @@ if TYPE_CHECKING:
         FXForwards,
         Number,
         datetime_,
+        float_,
         int_,
         str_,
-        float_,
     )
 DualTypes: TypeAlias = (
     "Dual | Dual2 | Variable | float"  # required for non-cyclic import on _WithCache
@@ -236,9 +236,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             _credit_discretization=_drb(
                 defaults.cds_protection_discretization, credit_discretization
             ),
-            _credit_recovery_rate=_drb(
-                defaults.cds_recovery_rate, credit_recovery_rate
-            ),
+            _credit_recovery_rate=_drb(defaults.cds_recovery_rate, credit_recovery_rate),
         )
         self._nodes = _CurveNodes(nodes)
         self._interpolator = _CurveInterpolator(
@@ -2258,7 +2256,7 @@ class CompositeCurve(Curve):
             curves[0].meta.index_lag,
             curves[0].meta.collateral,
             curves[0].meta.credit_discretization,
-            curves[0].meta.credit_recovery_rate
+            curves[0].meta.credit_recovery_rate,
         )
         self._base_type = curves[0]._base_type
 
