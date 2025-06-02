@@ -446,10 +446,6 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
 
     See also the :ref:`FX Vol Surfaces section in the user guide <c-fx-smile-doc>`.
 
-    .. warning::
-
-       This class is in beta status.
-
     Parameters
     ----------
     expiries: list[datetime]
