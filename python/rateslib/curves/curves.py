@@ -1520,7 +1520,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
 
     # @_new_state_post  # meta update does not require cache and state change
     # @_clear_cache_post
-    def update_meta(self, key: datetime, value: DualTypes) -> None:
+    def update_meta(self, key: datetime, value: Any) -> None:
         """
         Update a single meta value on the *Curve*.
 
