@@ -121,6 +121,8 @@ Some themes for this release involved:
        - An attribute ``credit_discretization`` is added to the ``meta`` of a
          :class:`~rateslib.curves.Curve` to replace the removed, equivalent argument of a
          :class:`~rateslib.periods.CreditProtectionPeriod`.
+       - Add :meth:`~rateslib.curves.Curve.update_meta` method to update values of *Curve* meta
+         data.
        - :red:`Minor Breaking Change!` The default ``index_lag`` for a
          :class:``~rateslib.curves.Curve` is set to zero.
          See the default setting ``index_lag_curve``.
