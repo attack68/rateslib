@@ -1521,8 +1521,8 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         self._nodes = _CurveNodes(nodes_)
         self.interpolator._csolve(self._base_type, self.nodes, self._ad)
 
-    # @_new_state_post  # meta update does not require cache and state change
-    # @_clear_cache_post
+    @_new_state_post
+    @_clear_cache_post
     def update_meta(self, key: datetime, value: Any) -> None:
         """
         Update a single meta value on the *Curve*.

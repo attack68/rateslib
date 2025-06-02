@@ -238,7 +238,14 @@ Some themes for this release involved:
          method now updates the spline interpolator after a *nodes* update.
          (`844 <https://github.com/attack68/rateslib/pull/844>`_)
    * - **Deprecations & Removals**
-     - - :red:`Major Breaking Change!` The method :meth:`~rateslib.curves.interpolate` is
+     - - :red:`Major Breaking Change!` The arguments ``recovery_rate`` and ``discretization`` are
+         removed from the :class:`~rateslib.periods.CreditProtectionPeriod`, and the associated
+         downstream objects :class:`~rateslib.legs.CreditProtectionLeg`,
+         :class:`~rateslib.instruments.CDS`.
+         (`885 <https://github.com/attack68/rateslib/pull/885>`_)
+         (`889 <https://github.com/attack68/rateslib/pull/889>`_)
+         (`890 <https://github.com/attack68/rateslib/pull/890>`_)
+       - :red:`Major Breaking Change!` The method :meth:`~rateslib.curves.interpolate` is
          removed and user defined callables provided to a Curve ``interpolation`` method adopt a
          new signature. Please review appropriate documentation and examples.
          (`820 <https://github.com/attack68/rateslib/pull/820>`_)

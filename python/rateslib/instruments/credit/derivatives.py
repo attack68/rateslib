@@ -33,9 +33,6 @@ class CDS(BaseDerivative):
         Entered in percentage points, e.g. 50bps is 0.50.
     premium_accrued : bool, optional
         Whether the premium is accrued within the period to default.
-    recovery_rate : float, Dual, Dual2, optional
-        The assumed recovery rate on the protection leg that defines payment on
-        credit default. Set by ``defaults``.
     kwargs : dict
         Required keyword arguments to :class:`BaseDerivative`.
     """
@@ -51,7 +48,6 @@ class CDS(BaseDerivative):
         *args: Any,
         fixed_rate: float | NoInput = NoInput(0),
         premium_accrued: bool | NoInput = NoInput(0),
-        recovery_rate: DualTypes | NoInput = NoInput(0),
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
@@ -63,14 +59,12 @@ class CDS(BaseDerivative):
             leg2_frequency="Z",  # CDS protection is only ever one payoff
             fixed_rate=fixed_rate,
             premium_accrued=premium_accrued,
-            leg2_recovery_rate=recovery_rate,
         )
         self.kwargs = _update_not_noinput(self.kwargs, cds_specific)
 
         # set defaults for missing values
         default_kwargs = dict(
             premium_accrued=defaults.cds_premium_accrued,
-            leg2_recovery_rate=defaults.cds_recovery_rate,
         )
         self.kwargs = _update_with_defaults(self.kwargs, default_kwargs)
 
