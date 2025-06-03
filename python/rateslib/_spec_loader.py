@@ -94,27 +94,6 @@ if DEVELOPMENT:
 
     INSTRUMENT_SPECS = {k: _get_kwargs(k) for k in df.columns[4:]}
 
-    # add some aliases
-
-    INSTRUMENT_SPECS = {
-        **INSTRUMENT_SPECS,
-        "sofr": INSTRUMENT_SPECS["usd_irs"],
-        "ust": INSTRUMENT_SPECS["us_gb"],
-        "ustb": INSTRUMENT_SPECS["us_gbb"],
-        "ukt": INSTRUMENT_SPECS["uk_gb"],
-        "gilt": INSTRUMENT_SPECS["uk_gb"],
-        "cadgb": INSTRUMENT_SPECS["ca_gb"],
-        "sgb": INSTRUMENT_SPECS["se_gb"],
-        "sgbb": INSTRUMENT_SPECS["se_gbb"],
-        "ukti": INSTRUMENT_SPECS["gbp_gbi"],
-        "sofr3mf": INSTRUMENT_SPECS["usd_stir"],
-        "sofr1mf": INSTRUMENT_SPECS["usd_stir1"],
-        "sonia3mf": INSTRUMENT_SPECS["gbp_stir"],
-        "estr1mf": INSTRUMENT_SPECS["eur_stir1"],
-        "estr3mf": INSTRUMENT_SPECS["eur_stir"],
-        "euribor3mf": INSTRUMENT_SPECS["eur_stir3"],
-    }
-
 else:
     # This is output from a development version and hard coded before a release for performance.
     INSTRUMENT_SPECS = {

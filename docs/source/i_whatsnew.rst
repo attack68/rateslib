@@ -254,6 +254,8 @@ Some themes for this release involved:
          more consistent *Curve* definition between O/N rates and discount factors and which is
          more performant.
          (`816 <https://github.com/attack68/rateslib/pull/816>`_)
+       - All of the older default ``spec`` **aliases** have been removed. There is now only a
+         single version of a particular ``spec``, which is as described in documentation.
 
 1.8.0 (22nd April 2025)
 ****************************
