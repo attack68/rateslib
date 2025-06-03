@@ -1482,7 +1482,9 @@ class TestFixedRateBond:
         assert abs(result - price) < tol
 
     def test_cashflows_no_curve(self) -> None:
-        gilt = FixedRateBond(effective=dt(2001, 1, 1), termination="1Y", spec="uk_gb", fixed_rate=5.0)
+        gilt = FixedRateBond(
+            effective=dt(2001, 1, 1), termination="1Y", spec="uk_gb", fixed_rate=5.0
+        )
         result = gilt.cashflows()  # no curve argument is passed to cashflows
         assert isinstance(result, DataFrame)
 
@@ -3254,7 +3256,11 @@ class TestBondFuture:
             data=[
                 [
                     FixedRateBond(
-                        dt(2022, 1, 1), dt(2039, 8, 15), fixed_rate=4.5, spec="us_gb", curves="bcurve"
+                        dt(2022, 1, 1),
+                        dt(2039, 8, 15),
+                        fixed_rate=4.5,
+                        spec="us_gb",
+                        curves="bcurve",
                     ),
                     98.6641,
                 ],
