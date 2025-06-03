@@ -21,9 +21,9 @@ if TYPE_CHECKING:
         Any,
         CalTypes,
         DualTypes,
-        DualTypes_,
         Variable,
         str_,
+        float_
     )  # pragma: no cover
 
 
@@ -47,7 +47,7 @@ class _CurveMeta:
     _calendar: CalTypes
     _convention: str
     _modifier: str
-    _index_base: DualTypes_
+    _index_base: float_ | Variable
     _index_lag: int
     _collateral: str | None
     _credit_discretization: int
@@ -69,7 +69,7 @@ class _CurveMeta:
         return self._modifier
 
     @property
-    def index_base(self) -> DualTypes_:
+    def index_base(self) -> Variable | float_:
         """The index value associated with the initial node date of the *Curve*."""
         return self._index_base
 
