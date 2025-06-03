@@ -17,8 +17,6 @@ EUR
 ESTR 3m
 ----------
 
-Aliases: **"estr3mf"**.
-
 .. ipython:: python
 
    defaults.spec["eur_stir"]
@@ -28,8 +26,6 @@ Aliases: **"estr3mf"**.
 
 ESTR 1m Averaged
 ------------------
-
-Aliases: **"estr1mf"**.
 
 .. ipython:: python
 
@@ -41,8 +37,6 @@ Aliases: **"estr1mf"**.
 Euribor 3m
 -----------
 
-Aliases: **"euribor3mf"**.
-
 .. ipython:: python
 
    defaults.spec["eur_stir3"]
@@ -51,8 +45,6 @@ Aliases: **"euribor3mf"**.
 
 GBP
 **********
-
-Aliases: **"sonia3mf"**.
 
 .. _spec-gbp-stir:
 
@@ -68,8 +60,6 @@ SONIA 3m
 USD
 *******
 
-Aliases: **"sofr3mf"**.
-
 .. _spec-usd-stir:
 
 SOFR 3m
@@ -84,8 +74,6 @@ SOFR 3m
 
 SOFR 1m Averaged
 -----------------
-
-Aliases: **"sofr1mf"**.
 
 .. ipython:: python
 

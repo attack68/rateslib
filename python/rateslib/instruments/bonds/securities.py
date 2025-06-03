@@ -2320,10 +2320,10 @@ class Bill(FixedRateBond):
 
         .. ipython:: python
 
-           bill = Bill(effective=dt(2024, 2, 29), termination=dt(2024, 8, 29), spec="ustb")
+           bill = Bill(effective=dt(2024, 2, 29), termination=dt(2024, 8, 29), spec="us_gbb")
            bill.duration(settlement=dt(2024, 5, 30), ytm=5.2525, metric="duration")
 
-           bill = Bill(effective=dt(2024, 2, 29), termination=dt(2024, 8, 29), spec="ustb", frequency="A")
+           bill = Bill(effective=dt(2024, 2, 29), termination=dt(2024, 8, 29), spec="us_gbb", frequency="A")
            bill.duration(settlement=dt(2024, 5, 30), ytm=5.2525, metric="duration")
 
         """  # noqa: E501

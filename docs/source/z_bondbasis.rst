@@ -23,7 +23,7 @@ will serve as the CTD bond, and a CME 10Y Note Future.
        termination=dt(2024, 8, 15),
        fixed_rate=2.375,
        notional=-1e6,
-       spec="ust",
+       spec="us_gb",
        curves="bcurve",
    )
    usbf = BondFuture(

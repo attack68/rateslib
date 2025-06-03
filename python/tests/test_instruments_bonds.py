@@ -142,11 +142,11 @@ class TestFixedRateBond:
             fx_rates=FXRates({"gbpusd": 1.25}, settlement=dt(2000, 1, 1)),
             fx_curves={"gbpgbp": gbp, "usdusd": usd, "gbpusd": gbp},
         )
-        expected = FixedRateBond(dt(2000, 1, 1), "10y", spec="ukt", fixed_rate=2.0).rate(
+        expected = FixedRateBond(dt(2000, 1, 1), "10y", spec="uk_gb", fixed_rate=2.0).rate(
             curves=gbp,
             metric="ytm",
         )
-        result = FixedRateBond(dt(2000, 1, 1), "10y", spec="ukt", fixed_rate=2.0).rate(
+        result = FixedRateBond(dt(2000, 1, 1), "10y", spec="uk_gb", fixed_rate=2.0).rate(
             curves=gbp,
             metric="ytm",
             fx=fxf,
@@ -158,7 +158,7 @@ class TestFixedRateBond:
             effective=dt(2022, 1, 1),
             termination=dt(2023, 1, 1),
             fixed_rate=5.0,
-            spec="cadgb",
+            spec="ca_gb",
         )
         assert abs(bond.accrued(dt(2022, 4, 15)) - 1.42465753) < 1e-8
 
@@ -166,7 +166,7 @@ class TestFixedRateBond:
             effective=dt(2022, 1, 1),
             termination=dt(2023, 1, 1),
             fixed_rate=5.0,
-            spec="gilt",
+            spec="uk_gb",
         )
         assert abs(bond.accrued(dt(2022, 4, 15)) - 1.43646409) < 1e-8
 
@@ -425,7 +425,7 @@ class TestFixedRateBond:
             effective=dt(2023, 8, 15),
             termination=dt(2033, 8, 15),
             fixed_rate=3.875,
-            spec="ust",
+            spec="us_gb",
         )
         result = bond.price(ytm=4, settlement=s)
         accrued = bond.accrued(settlement=s)
@@ -1482,7 +1482,9 @@ class TestFixedRateBond:
         assert abs(result - price) < tol
 
     def test_cashflows_no_curve(self) -> None:
-        gilt = FixedRateBond(effective=dt(2001, 1, 1), termination="1Y", spec="ukt", fixed_rate=5.0)
+        gilt = FixedRateBond(
+            effective=dt(2001, 1, 1), termination="1Y", spec="uk_gb", fixed_rate=5.0
+        )
         result = gilt.cashflows()  # no curve argument is passed to cashflows
         assert isinstance(result, DataFrame)
 
@@ -1895,14 +1897,14 @@ class TestIndexFixedRateBond:
             dt(2000, 1, 1),
             "5y",
             index_base=100.5,
-            spec="ukti",
+            spec="uk_gbi",
             fixed_rate=1.0,
         ).rate(curves=[gbpi, gbp], metric="clean_price")
         result2 = IndexFixedRateBond(
             dt(2000, 1, 1),
             "5y",
             index_base=100.5,
-            spec="ukti",
+            spec="uk_gbi",
             fixed_rate=1.0,
         ).rate(curves=[gbpi, gbp], metric="clean_price", fx=fxf)
         assert result == result2
@@ -2106,7 +2108,7 @@ class TestBill:
         bill = Bill(
             effective=dt(2023, 3, 15),
             termination=dt(2024, 3, 20),
-            spec="sgbb",
+            spec="se_gbb",
         )
         result = bill.price(3.498, settlement=dt(2023, 3, 15))
         expected = 96.520547
@@ -2116,13 +2118,13 @@ class TestBill:
         assert abs(ytm - 3.5546338) < 1e-5
 
     def test_text_example(self) -> None:
-        bill = Bill(effective=dt(2023, 5, 17), termination=dt(2023, 9, 26), spec="ustb")
+        bill = Bill(effective=dt(2023, 5, 17), termination=dt(2023, 9, 26), spec="us_gbb")
         result = bill.ytm(99.75, settlement=dt(2023, 9, 7))
         bond = FixedRateBond(
             effective=dt(2023, 3, 26),
             termination=dt(2023, 9, 26),
             fixed_rate=0.0,
-            spec="ust",
+            spec="us_gb",
         )
         expected = bond.ytm(99.75, settlement=dt(2023, 9, 7))
         assert abs(result - expected) < 1e-14
@@ -2135,7 +2137,7 @@ class TestBill:
         bill = Bill(
             effective=dt(1998, 12, 7),
             termination=dt(1999, 10, 7),
-            spec="ustb",
+            spec="us_gbb",
         )
         curve = Curve({dt(1998, 12, 7): 1.0, dt(2015, 12, 7): 0.75})
         # result = bill.rate(curve, metric="price") # = 98.605
@@ -2151,8 +2153,8 @@ class TestBill:
             fx_rates=FXRates({"gbpusd": 1.25}, settlement=dt(2000, 1, 1)),
             fx_curves={"gbpgbp": gbp, "usdusd": usd, "gbpusd": gbp},
         )
-        result = Bill(dt(2000, 1, 1), "3m", spec="ustb").rate(curves=gbp, metric="discount_rate")
-        result2 = Bill(dt(2000, 1, 1), "3m", spec="ustb").rate(
+        result = Bill(dt(2000, 1, 1), "3m", spec="us_gbb").rate(curves=gbp, metric="discount_rate")
+        result2 = Bill(dt(2000, 1, 1), "3m", spec="us_gbb").rate(
             curves=gbp,
             metric="discount_rate",
             fx=fxf,
@@ -2160,15 +2162,15 @@ class TestBill:
         assert result == result2
 
     def test_duration(self) -> None:
-        b = Bill(dt(2000, 1, 1), "6m", frequency="A", spec="ustb")
+        b = Bill(dt(2000, 1, 1), "6m", frequency="A", spec="us_gbb")
         result = b.duration(ytm=5.0, settlement=dt(2000, 1, 10), metric="duration")
         assert result == 0.5170058346378255
 
-        b = Bill(dt(2000, 1, 1), "6m", spec="ustb")
+        b = Bill(dt(2000, 1, 1), "6m", spec="us_gbb")
         result = b.duration(ytm=5.0, settlement=dt(2000, 1, 10), metric="duration")
         assert result == 0.5046961719083534
 
-        b = Bill(dt(2000, 1, 1), "6m", frequency="Q", spec="ustb")
+        b = Bill(dt(2000, 1, 1), "6m", frequency="Q", spec="us_gbb")
         result = b.duration(ytm=5.0, settlement=dt(2000, 1, 10), metric="duration")
         assert result == 0.4985413405436174
 
@@ -2957,7 +2959,7 @@ class TestBondFuture:
         # this test allows for an error in the cf < 1e-6.
         kwargs = dict(
             effective=dt(2005, 1, 1),
-            spec="ust",
+            spec="us_gb",
         )
         bond1 = FixedRateBond(termination=mat, fixed_rate=coupon, **kwargs)
 
@@ -3254,7 +3256,11 @@ class TestBondFuture:
             data=[
                 [
                     FixedRateBond(
-                        dt(2022, 1, 1), dt(2039, 8, 15), fixed_rate=4.5, spec="ust", curves="bcurve"
+                        dt(2022, 1, 1),
+                        dt(2039, 8, 15),
+                        fixed_rate=4.5,
+                        spec="us_gb",
+                        curves="bcurve",
                     ),
                     98.6641,
                 ],
@@ -3263,7 +3269,7 @@ class TestBondFuture:
                         dt(2022, 1, 1),
                         dt(2040, 2, 15),
                         fixed_rate=4.625,
-                        spec="ust",
+                        spec="us_gb",
                         curves="bcurve",
                     ),
                     99.8203,
@@ -3273,7 +3279,7 @@ class TestBondFuture:
                         dt(2022, 1, 1),
                         dt(2041, 2, 15),
                         fixed_rate=4.75,
-                        spec="ust",
+                        spec="us_gb",
                         curves="bcurve",
                     ),
                     100.7734,
@@ -3283,7 +3289,7 @@ class TestBondFuture:
                         dt(2022, 1, 1),
                         dt(2040, 5, 15),
                         fixed_rate=4.375,
-                        spec="ust",
+                        spec="us_gb",
                         curves="bcurve",
                     ),
                     96.6953,
@@ -3293,7 +3299,7 @@ class TestBondFuture:
                         dt(2022, 1, 1),
                         dt(2042, 11, 15),
                         fixed_rate=4.00,
-                        spec="ust",
+                        spec="us_gb",
                         curves="bcurve",
                     ),
                     90.4766,

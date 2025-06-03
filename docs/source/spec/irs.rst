@@ -17,8 +17,6 @@ USD
 SOFR
 -----
 
-Aliases: **"sofr"**.
-
 .. ipython:: python
 
    defaults.spec["usd_irs"]

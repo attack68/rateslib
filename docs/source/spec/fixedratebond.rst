@@ -15,8 +15,6 @@ USD
 Government Bonds
 ------------------
 
-Aliases: **"ust"**
-
 Uses Street convention. Similar to *"uk_gb"* except long stub periods have linear
 proportioning only in the segregated short stub part.
 
@@ -145,11 +143,8 @@ GBP
 Government Bonds
 -----------------
 
-Aliases: **"ukt"** and **"gilt"**
-
 Calculations performed with the DMO method. Accrued is on ActAct linearly proportioned basis.
 Yield is compounded in all periods including any front and back stubs.
-
 
 .. ipython:: python
 
@@ -166,8 +161,6 @@ SEK
 
 Government Bonds
 -----------------
-
-Aliases: **"sgb"**
 
 Calculation performed with Swedish DMO method, using 30e360 for accrued calculations and for back stubs.
 
@@ -203,8 +196,6 @@ CAD
 
 Government Bonds
 ------------------
-
-Aliases **"cadgb"**
 
 Canadian government bond convention. Accrued is calculated using an ACT365F
 convention. Yield calculations are still derived with linearly proportioned compounded
