@@ -202,6 +202,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     _id: str
     _meta: _CurveMeta
     _interpolator: _CurveInterpolator
+    _nodes: _CurveNodes
 
     @_new_state_post
     def __init__(  # type: ignore[no-untyped-def]
@@ -216,7 +217,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         modifier: str | NoInput = NoInput(0),
         calendar: CalInput = NoInput(0),
         ad: int = 0,
-        index_base: DualTypes | NoInput = NoInput(0),
+        index_base: Variable | float_ = NoInput(0),
         index_lag: int | NoInput = NoInput(0),
         collateral: str_ = NoInput(0),
         credit_discretization: int_ = NoInput(0),
@@ -840,7 +841,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             ad=self.ad,
             index_base=NoInput(0)
             if isinstance(self.meta.index_base, NoInput)
-            else self.index_value(start, self.meta.index_lag, "curve"),
+            else _dual_float(self.index_value(start, self.meta.index_lag, "curve")),
             index_lag=self.meta.index_lag,
         )
         return new_curve
