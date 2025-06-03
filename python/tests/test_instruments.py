@@ -4481,7 +4481,7 @@ class TestSpec:
         bond = FixedRateBond(
             effective=dt(2022, 1, 1),
             termination="1Y",
-            spec="ust",
+            spec="us_gb",
             calc_mode="ust_31bii",
             fixed_rate=2.0,
         )
@@ -4497,7 +4497,7 @@ class TestSpec:
         bond = IndexFixedRateBond(
             effective=dt(2022, 1, 1),
             termination="1Y",
-            spec="ukti",
+            spec="uk_gbi",
             calc_mode="ust",
             fixed_rate=2.0,
         )
