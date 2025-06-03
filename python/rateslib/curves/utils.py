@@ -17,14 +17,7 @@ from rateslib.dual.utils import _to_number
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
-        Any,
-        CalTypes,
-        DualTypes,
-        Variable,
-        str_,
-        float_
-    )  # pragma: no cover
+    from rateslib.typing import Any, CalTypes, DualTypes, Variable, float_, str_  # pragma: no cover
 
 
 class _CurveType(Enum):

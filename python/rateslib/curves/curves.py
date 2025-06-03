@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import pickle
 import warnings
-from abc import ABCMeta
 from calendar import monthrange
 from dataclasses import replace
 from datetime import datetime, timedelta
