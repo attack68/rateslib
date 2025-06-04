@@ -43,6 +43,13 @@ Some themes for this release involved:
 - extensions to bond calculation modes to provide more flexibility. The cookbook article
   :ref:`'Understanding and Customising FixedRateBond Conventions' <cookbook-doc>` outlines
   best practice.
+- restructuring all pricing objects types' (:class:`~rateslib.curves.Curve`,
+  :class:`~rateslib.curves.LineCurve`, :class:`~rateslib.fx_volatility.FXDeltaVolSmile`,
+  :class:`~rateslib.fx_volatility.FXSabrSmile`) **attributes** to improve mutability safeguards,
+  documentation and consistent type signatures. This also extends to pricing containers, such as
+  (:class:`~rateslib.curves.ProxyCurve`, :class:`~rateslib.curves.CompositeCurve`,
+  :class:`~rateslib.curves.MultiCsaCurve`, :class:`~rateslib.fx_volatility.FXDeltaVolSurace`,
+  :class:`~rateslib.fx_volatility.FXSabrSurface`)
 
 .. list-table::
    :widths: 25 75
@@ -50,14 +57,15 @@ Some themes for this release involved:
 
    * - Feature
      - Description
-   * - **Calendars**
-     - - Added a new method :meth:`~rateslib.calendars.next_imm` to determine the next IMM date
-         from a given start date under different IMM methodologies.
-         (`773 <https://github.com/attack68/rateslib/pull/773>`_)
-       - Added a new day count convention *'30U360'* to :meth:`~rateslib.calendars.dcf`.
-         (`780 <https://github.com/attack68/rateslib/pull/780>`_)
    * - **Index Curves**, ``index_fixings`` **and** ``index_lag``
-     - - :red:`Minor Breaking Change!` The
+     - - :red:`Major Breaking Change!` The way ``index_fixings`` are treated when given as a *Series*
+         now enforces that the data is provided with an ``index_lag`` of **zero** months, i.e.
+         providing *actual* data. This is more convenient for handling *Instruments* with different
+         ``index_lag`` and creates less functional risk. Calculations now allow *Curves*,
+         *Instruments* and *Series* all to have different ``index_lag`` whilst ensuring correct
+         calculations.
+         (`807 <https://github.com/attack68/rateslib/pull/807>`_)
+       - :red:`Minor Breaking Change!` The
          :meth:`Curve.index_value() <rateslib.curves.Curve.index_value>` method is changed to
          accept an ``index_lag`` argument which allows the determination of an *index value*
          for a specific date defined with a given *lag* and *interpolation* method. Also
@@ -65,13 +73,6 @@ Some themes for this release involved:
          determination of cashflows given different ``index_lag`` specifications.
          (`802 <https://github.com/attack68/rateslib/pull/802>`_)
          (`803 <https://github.com/attack68/rateslib/pull/803>`_)
-       - :red:`Major Breaking Change!` The way ``index_fixings`` are treated when given as a *Series*
-         now enforces that the data is provided with an ``index_lag`` of **zero** months, i.e.
-         providing actual data. This is more convenient for handling *Instruments* with different
-         ``index_lag`` and creates less functional risk. Calculations now allow *Curves*,
-         *Instruments* and *Series* all to have different ``index_lag`` whilst ensuring correct
-         calculations.
-         (`807 <https://github.com/attack68/rateslib/pull/807>`_)
        - :red:`Minor Breaking Change!` ``index_fixings`` can  no longer be set as a *list* on *Legs*.
          Only a single value valid for the first period or a *Series* can be passed.
          (`807 <https://github.com/attack68/rateslib/pull/807>`_)
@@ -80,7 +81,11 @@ Some themes for this release involved:
          may need to be combined.
          (`809 <https://github.com/attack68/rateslib/pull/809>`_)
    * - **Bond Calculations & Conventions**
-     - - Extend :class:`~rateslib.instruments.BondCalcMode` to support custom accrual,
+     - - :red:`Minor Breaking Change!` The argument names for
+         :class:`~rateslib.instruments.BondCalcMode` are changed to
+         drop the superfluous *'_type'* suffix.
+         (`812 <https://github.com/attack68/rateslib/pull/812>`_)
+       - Extend :class:`~rateslib.instruments.BondCalcMode` to support custom accrual,
          discount and cashflow functions for calculations. Italian BTP default, *'it_gb'*, is
          altered to now support delayed payments in the YTM formula.
          (`788 <https://github.com/attack68/rateslib/pull/788>`_)
@@ -93,10 +98,6 @@ Some themes for this release involved:
          (`785 <https://github.com/attack68/rateslib/pull/785>`_)
          (`786 <https://github.com/attack68/rateslib/pull/786>`_)
          (`797 <https://github.com/attack68/rateslib/pull/797>`_)
-       - :red:`Minor Breaking Change!` The argument names for
-         :class:`~rateslib.instruments.BondCalcMode` are changed to
-         drop the superfluous *'_type'* suffix.
-         (`812 <https://github.com/attack68/rateslib/pull/812>`_)
        - The documentation page for the :class:`~rateslib.instruments.BondCalcMode` has been
          re-written to included all of the current formulae and structuring of bond accrual and
          yield-to-maturity calculations.
@@ -114,8 +115,46 @@ Some themes for this release involved:
          :class:`~rateslib.solver.Solver`, and for use with a :class:`~rateslib.instruments.Spread`,
          *Instrument*.
          (`845 <https://github.com/attack68/rateslib/pull/845>`_)
-   * - **Curves**
-     - - The *'linear'* and *'log_linear'* ``interpolation`` methods of a *Curve* now automatically
+   * - **Calendars**
+     - - Added a new method :meth:`~rateslib.calendars.next_imm` to determine the next IMM date
+         from a given start date under different IMM methodologies.
+         (`773 <https://github.com/attack68/rateslib/pull/773>`_)
+       - Added a new day count convention *'30U360'* to :meth:`~rateslib.calendars.dcf`.
+         (`780 <https://github.com/attack68/rateslib/pull/780>`_)
+   * - **Pricing Objects: Curves, Smiles & Surfaces**
+     - - :red:`Major Breaking Change!` The **attributes** associated with *Curves*, such as
+         ``calendar``, ``convention``, ``collateral``, ``modifier``, ``index_base``, ``index_lag``
+         ``nodes``, ``spline`` etc. have been migrated into data containers available as new
+         **attributes** associated with any *Curve* type. In particular, see the objects:
+         :class:`~rateslib.curves.utils._CurveMeta`,
+         :class:`~rateslib.curves.utils._CurveInterpolator`,
+         :class:`~rateslib.curves.utils._CurveNodes`,
+         (`853 <https://github.com/attack68/rateslib/pull/853>`_)
+         (`854 <https://github.com/attack68/rateslib/pull/854>`_)
+         (`855 <https://github.com/attack68/rateslib/pull/855>`_)
+         (`873 <https://github.com/attack68/rateslib/pull/873>`_)
+       - :red:`Major Breaking Change!` The **attributes** associated with *FXVol* pricing objects
+         are also organised into data containers available as new **attributes**. In particular,
+         see the objects:
+         :class:`~rateslib.fx_volatility.utils._FXDeltaVolSmileNodes`
+         :class:`~rateslib.fx_volatility.utils._FXDeltaVolSmileMeta`
+         :class:`~rateslib.fx_volatility.utils._FXDeltaVolSurfaceMeta`
+         :class:`~rateslib.fx_volatility.utils._FXSabrSmileNodes`
+         :class:`~rateslib.fx_volatility.utils._FXSabrSmileMeta`
+         :class:`~rateslib.fx_volatility.utils._FXSabrSurfaceMeta`
+         (`867 <https://github.com/attack68/rateslib/pull/867>`_)
+         (`869 <https://github.com/attack68/rateslib/pull/869>`_)
+         (`871 <https://github.com/attack68/rateslib/pull/871>`_)
+         (`872 <https://github.com/attack68/rateslib/pull/872>`_)
+         (`880 <https://github.com/attack68/rateslib/pull/880>`_)
+         (`881 <https://github.com/attack68/rateslib/pull/881>`_)
+         (`882 <https://github.com/attack68/rateslib/pull/882>`_)
+       - :red:`Minor Breaking Change!` Additional **attributes** of a
+         :class:`~rateslib.curves.ProxyCurve`
+         have been restructured into a :class:`~rateslib.curves.utils._ProxyCurveInterpolator`
+         class, to be consistent with the other attribute changes on *Curves*.
+         (`900 <https://github.com/attack68/rateslib/pull/900>`_)
+       - The *'linear'* and *'log_linear'* ``interpolation`` methods of a *Curve* now automatically
          adjust to business day interpolation when using a *'bus252'* ``convention``.
          (`821 <https://github.com/attack68/rateslib/pull/821>`_)
        - An attribute ``credit_discretization`` is added to the ``meta`` of a
@@ -144,27 +183,6 @@ Some themes for this release involved:
        - Simple spline interpolation can now be automatically constructed by specifying
          *"spline"* as the argument for ``interpolation``. See docs.
          (`847 <https://github.com/attack68/rateslib/pull/847>`_)
-       - :red:`Major Breaking Change!` The **attributes** ``calendar``, ``convention``,
-         ``collateral``, ``modifier``, ``index_base`` and
-         ``index_lag`` have been migrated into a `NamedTuple` container now available as a ``meta``
-         **attribute** associated with any *Curve* type.
-         (`853 <https://github.com/attack68/rateslib/pull/853>`_)
-         (`854 <https://github.com/attack68/rateslib/pull/854>`_)
-         (`855 <https://github.com/attack68/rateslib/pull/855>`_)
-         (`873 <https://github.com/attack68/rateslib/pull/873>`_)
-       - :red:`Minor Breaking Change!` Many **attributes** of a :class:`~rateslib.curves.ProxyCurve`
-         have been restructured into a :class:`~rateslib.curves.utils._ProxyCurveInterpolator`
-         class, to be consistent with the other attribute changes on *Curves*.
-         (`900 <https://github.com/attack68/rateslib/pull/900>`_)
-       - :red:`Major Breaking Change!` The **attributes** on *FXVol* pricing objects are
-         reorganised into ``attributes``.
-         (`867 <https://github.com/attack68/rateslib/pull/867>`_)
-         (`869 <https://github.com/attack68/rateslib/pull/869>`_)
-         (`871 <https://github.com/attack68/rateslib/pull/871>`_)
-         (`872 <https://github.com/attack68/rateslib/pull/872>`_)
-         (`880 <https://github.com/attack68/rateslib/pull/880>`_)
-         (`881 <https://github.com/attack68/rateslib/pull/881>`_)
-         (`882 <https://github.com/attack68/rateslib/pull/882>`_)
        - :red:`Minor Breaking Change!` The argument ``c`` for spline coefficients is no longer
          available in the initialisation of a *Curve* class. This value is determined
          automatically to maintain consistency between supplied node values and solved spline
@@ -172,7 +190,7 @@ Some themes for this release involved:
          (`859 <https://github.com/attack68/rateslib/pull/859>`_)
        - :red:`Minor Breaking Change!` The arguments ``interpolation`` and ``endpoints`` are
          removed from the :meth:`Curve.update() <rateslib.curves.Curve.update>` method to
-         avoid unnecessarily complicated mutations. Create new instances instead.
+         avoid unnecessarily complicated mutations. Create new *Curve* instances instead.
          (`859 <https://github.com/attack68/rateslib/pull/859>`_)
        - The method :meth:`~rateslib.fx_volatility.FXDeltaVolSmile.csolve` is removed due to
          never being required to be called by a user directly.
