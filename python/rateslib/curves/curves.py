@@ -2897,41 +2897,61 @@ class ProxyCurve(Curve):
         _3: DualTypes = self.fx_forwards.fx_curves[self.coll_pair][date]
         return _1 / _2 * _3
 
+    # Not Implemented
+
+    def plot_index(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover  # type: ignore
+        """Not implemented on *ProxyCurve* types."""
+        raise NotImplementedError("ProxyCurve types are not index curves.")
+
+    def csolve(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover  # type: ignore
+        """Not implemented on *ProxyCurve* types."""
+        raise NotImplementedError("ProxyCurve types are associations without parameters.")
+
+    def index_value(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover  # type: ignore
+        """Not implemented on *ProxyCurve* types."""
+        raise NotImplementedError("ProxyCurve types are not index curves with an `index base` attribute.")
+
+    def translate(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover  # type: ignore
+        """Not implemented on *ProxyCurve* types."""
+        raise NotImplementedError("ProxyCurve types currently provide no translate operation.")
+
+    def roll(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover  # type: ignore
+        """Not implemented on *ProxyCurve* types."""
+        raise NotImplementedError("ProxyCurve types currently provide no roll operation.")
+
     def to_json(self) -> str:  # pragma: no cover  # type: ignore
-        """
-        Not implemented for :class:`~rateslib.fx.ProxyCurve` s.
-        :return:
-        """
-        raise NotImplementedError("`to_json` not available on proxy curve.")
+        """Not implemented on *ProxyCurve* types."""
+        raise NotImplementedError("ProxyCurve types are associations that cannot be serialized.")
 
     @classmethod
     def from_json(cls, curve: str, **kwargs: Any) -> Curve:  # pragma: no cover  # type: ignore
-        """
-        Not implemented for :class:`~rateslib.fx.ProxyCurve` s.
-        """
-        raise NotImplementedError("`from_json` not available on proxy curve.")
+        """Not implemented on *ProxyCurve* types."""
+        raise NotImplementedError("ProxyCurve types are associations that cannot be serialized.")
 
     def _set_ad_order(self, order: int) -> None:  # pragma: no cover
-        """
-        Not implemented for :class:`~rateslib.fx.ProxyCurve` s.
-        """
-        raise NotImplementedError("`set_ad_order` not available on proxy curve.")
+        """Not implemented on *ProxyCurve* types."""
+        raise NotImplementedError(
+            "ProxyCurve types derive their AD order from their parent FXForwards."
+        )
 
     def _get_node_vector(self) -> Arr1dF64 | Arr1dObj:  # pragma: no cover
+        """Not implemented on *ProxyCurve* types."""
         raise NotImplementedError("Instances of ProxyCurve do not have solvable variables.")
 
-    # Not Implemented
+    def copy(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover
+        """Not implemented on *ProxyCurve* types."""
+        raise NotImplementedError("ProxyCurve types are associations that cannot be copied.")
 
-    def update(self, *args: Any, **kwargs: Any) -> None:
-        """Not implemented on ProxyCurve types."""
+    def update(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover
+        """Not implemented on *ProxyCurve* types."""
         raise NotImplementedError("ProxyCurve types do not provide update methods.")
 
-    def update_node(self, *args: Any, **kwargs: Any) -> None:
-        """Not implemented on ProxyCurve types."""
+    def update_node(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover
+        """Not implemented on *ProxyCurve* types."""
         raise NotImplementedError("ProxyCurve types do not provide update methods.")
 
     def update_meta(self, key: datetime, value: DualTypes) -> None:
-        """Not implemented on ProxyCurve types."""
+        """Not implemented on *ProxyCurve* types."""
         raise NotImplementedError("ProxyCurve types do not provide update methods.")
 
 
