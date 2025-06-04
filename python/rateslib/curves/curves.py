@@ -2940,7 +2940,7 @@ class ProxyCurve(Curve):
         """Not implemented on *ProxyCurve* types."""
         raise NotImplementedError("Instances of ProxyCurve do not have solvable variables.")
 
-    def copy(self, *args: Any, **kwargs: Any) -> None:   # type: ignore[override] # pragma: no cover
+    def copy(self, *args: Any, **kwargs: Any) -> None:  # type: ignore[override] # pragma: no cover
         """Not implemented on *ProxyCurve* types."""
         raise NotImplementedError("ProxyCurve types are associations that cannot be copied.")
 
