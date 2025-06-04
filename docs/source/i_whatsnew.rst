@@ -173,6 +173,10 @@ Some themes for this release involved:
        - The method :meth:`~rateslib.fx_volatility.FXDeltaVolSmile.csolve` is removed due to
          never being required to be called by a user directly.
          (`872 <https://github.com/attack68/rateslib/pull/872>`_)
+       - A :class:`~rateslib.curves.ProxyCurve` is now returned from a cached object attributed
+         to an :class:`~rateslib.fx.FXForwards` class and not as an isolated object instance,
+         when calling :meth:`FXForwards.curve() <rateslib.fx.FXForwards.curve>`.
+         (`899 <https://github.com/attack68/rateslib/pull/899>`_)
    * - **Automatic Differentiation & Algorithms**
      - - Operator overloads added to allow dual number exponents, i.e. :math:`z^p`, where *z*,
          *p* are dual number types. This facilitates AD for the SABR function as well as other
