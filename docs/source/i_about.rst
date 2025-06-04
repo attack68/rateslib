@@ -37,7 +37,7 @@ explained in `Coding Interest Rates: FX, Swaps and Bonds <https://www.amazon.com
 
    .. container:: leftside40
 
-      .. image:: _static/thumb_coding_3.png
+      .. image:: _static/thumb_coding_2_1.png
          :alt: Coding Interest Rates: FX, Swaps and Bonds
          :target: https://www.amazon.com/dp/0995455554
          :width: 145
