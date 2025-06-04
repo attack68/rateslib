@@ -114,6 +114,8 @@ independently by providing basic inputs.
                  dt(2023, 1, 1): 0.995
              },
              id="pfizer_hazard",
+             credit_recovery_rate=0.4,
+             credit_discretization=23,
          )
 
 

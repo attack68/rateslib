@@ -123,6 +123,8 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     credit_discretization : int
         A parameter for numerically solving the integral for credit protection legs and default
         events. Expressed in calendar days. Only used by *Curves* functioning as *hazard Curves*.
+    credit_recovery_rate : Variable | float
+        A parameter used in pricing credit protection legs and default events.
 
     Notes
     -----
