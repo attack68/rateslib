@@ -17,7 +17,15 @@ from rateslib.dual.utils import _to_number
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
-    from rateslib.typing import Any, CalTypes, DualTypes, Variable, float_, str_  # pragma: no cover
+    from rateslib.typing import (
+        Any,
+        CalTypes,
+        DualTypes,
+        FXForwards,
+        Variable,
+        float_,
+        str_,
+    )  # pragma: no cover
 
 
 class _CurveType(Enum):
@@ -402,6 +410,59 @@ class _CurveInterpolator:
             convention=loaded_json["convention"],
             curve_type=NoInput(0),  # type: ignore[arg-type]
         )
+
+
+@dataclass(frozen=True)
+class _ProxyCurveInterpolator:
+    """
+    A container for data relating to deriving the DFs of a :class:`~rateslib.curves.ProxyCurve`
+    from other :class:`~rateslib.curves.Curve` objects and :class:`~rateslib.fx.FXForwards`.
+    """
+
+    _fx_forwards: FXForwards
+    _cash: str
+    _collateral: str
+
+    @property
+    def fx_forwards(self) -> FXForwards:
+        """The :class:`~rateslib.fx.FXForwards` object containing :class:`~rateslib.fx.FXRates`
+        and :class:`~rateslib.curves.Curve` objects."""
+        return self._fx_forwards
+
+    @property
+    def cash(self) -> str:
+        """The currency of the cashflows."""
+        return self._cash
+
+    @property
+    def collateral(self) -> str:
+        """The currency of the collateral assuming PAI."""
+        return self._collateral
+
+    @property
+    def pair(self) -> str:
+        """A pair of currencies representing the cashflow and collateral."""
+        return self.cash + self.collateral
+
+    @property
+    def cash_index(self) -> int:
+        """The index of the cash currency in the :class:`~rateslib.fx.FXForwards` object."""
+        return self.fx_forwards.currencies[self.cash]
+
+    @property
+    def collateral_index(self) -> int:
+        """The index of the collateral currency in the :class:`~rateslib.fx.FXForwards` object."""
+        return self.fx_forwards.currencies[self.collateral]
+
+    @property
+    def cash_pair(self) -> str:
+        """A pair constructed from the cash currency"""
+        return self.cash + self.cash
+
+    @property
+    def collateral_pair(self) -> str:
+        """A pair constructed from the collateral currency"""
+        return self.collateral + self.collateral
 
 
 @dataclass(frozen=True)

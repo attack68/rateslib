@@ -18,7 +18,13 @@ from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
 from rateslib.calendars.rs import get_calendar
 from rateslib.curves.interpolation import InterpolationFunction
-from rateslib.curves.utils import _CurveInterpolator, _CurveMeta, _CurveNodes, _CurveType
+from rateslib.curves.utils import (
+    _CurveInterpolator,
+    _CurveMeta,
+    _CurveNodes,
+    _CurveType,
+    _ProxyCurveInterpolator,
+)
 from rateslib.default import (
     NoInput,
     PlotOutput,
@@ -2843,6 +2849,9 @@ class ProxyCurve(Curve):
     """
 
     _base_type = _CurveType.dfs
+    _interpolator: _ProxyCurveInterpolator  # type: ignore[assignment]
+    _nodes: _CurveNodes
+    _meta: _CurveMeta
 
     def __init__(
         self,
@@ -2855,46 +2864,58 @@ class ProxyCurve(Curve):
         id: str_ = NoInput(0),  # noqa: A002
     ):
         self._id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
-        cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
-        self.fx_forwards = fx_forwards
-        self.cash_currency = cash_ccy
-        self.cash_pair = f"{cash_ccy}{cash_ccy}"
-        self.cash_idx = self.fx_forwards.currencies[cash_ccy]
-        self.coll_currency = coll_ccy
-        self.coll_pair = f"{coll_ccy}{coll_ccy}"
-        self.coll_idx = self.fx_forwards.currencies[coll_ccy]
-        self.pair = f"{cash_ccy}{coll_ccy}"
-        self.terminal = self.fx_forwards.fx_curves[self.cash_pair].nodes.final
+
+        self._interpolator = _ProxyCurveInterpolator(
+            _fx_forwards=fx_forwards, _cash=cashflow.lower(), _collateral=collateral.lower()
+        )
 
         self._meta = _CurveMeta(
-            get_calendar(_drb(self.fx_forwards.fx_curves[self.cash_pair].meta.calendar, calendar)),
-            _drb(self.fx_forwards.fx_curves[self.cash_pair].meta.convention, convention).lower(),
-            _drb(self.fx_forwards.fx_curves[self.cash_pair].meta.modifier, modifier).upper(),
+            get_calendar(
+                _drb(fx_forwards.fx_curves[self.interpolator.cash_pair].meta.calendar, calendar)
+            ),
+            _drb(
+                fx_forwards.fx_curves[self.interpolator.cash_pair].meta.convention, convention
+            ).lower(),
+            _drb(
+                fx_forwards.fx_curves[self.interpolator.cash_pair].meta.modifier, modifier
+            ).upper(),
             NoInput(0),  # index meta not relevant for ProxyCurve
             0,
-            coll_ccy,
+            self.interpolator.collateral,
             100,  # credit elements irrelevant for a PxyCv
             1.0,  # credit elements irrelevant for a PxyCv
         )
         # CurveNodes attached for date attribution
-        self._nodes = _CurveNodes({self.fx_forwards.immediate: 0.0, self.terminal: 0.0})
+        self._nodes = _CurveNodes(
+            {
+                fx_forwards.immediate: 0.0,
+                fx_forwards.fx_curves[self.interpolator.cash_pair].nodes.final: 0.0,
+            }
+        )
 
     @property
     def _ad(self) -> int:  # type: ignore[override]
-        return self.fx_forwards._ad
+        return self.interpolator.fx_forwards._ad
+
+    @property
+    def interpolator(self) -> _ProxyCurveInterpolator:  # type: ignore[override]
+        """An instance of :class:`~rateslib.curves.utils._ProxyCurveInterpolator`."""
+        return self._interpolator
 
     @property
     def _state(self) -> int:  # type: ignore[override]
         # ProxyCurve is directly associated with its FXForwards object
-        self.fx_forwards._validate_state()
-        return self.fx_forwards._state
+        self.interpolator.fx_forwards._validate_state()
+        return self.interpolator.fx_forwards._state
 
     def __getitem__(self, date: datetime) -> DualTypes:
-        _1: DualTypes = self.fx_forwards.rate(self.pair, date)
-        _2: DualTypes = self.fx_forwards.fx_rates_immediate._fx_array_el(
-            self.cash_idx, self.coll_idx
+        _1: DualTypes = self.interpolator.fx_forwards.rate(self.interpolator.pair, date)
+        _2: DualTypes = self.interpolator.fx_forwards.fx_rates_immediate._fx_array_el(
+            self.interpolator.cash_index, self.interpolator.collateral_index
         )
-        _3: DualTypes = self.fx_forwards.fx_curves[self.coll_pair][date]
+        _3: DualTypes = self.interpolator.fx_forwards.fx_curves[self.interpolator.collateral_pair][
+            date
+        ]
         return _1 / _2 * _3
 
     # Not Implemented
