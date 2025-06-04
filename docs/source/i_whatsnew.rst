@@ -115,7 +115,7 @@ Some themes for this release involved:
          :class:`~rateslib.solver.Solver`, and for use with a :class:`~rateslib.instruments.Spread`,
          *Instrument*.
          (`845 <https://github.com/attack68/rateslib/pull/845>`_)
-     * - **Calendars**
+   * - **Calendars**
      - - Added a new method :meth:`~rateslib.calendars.next_imm` to determine the next IMM date
          from a given start date under different IMM methodologies.
          (`773 <https://github.com/attack68/rateslib/pull/773>`_)
