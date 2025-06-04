@@ -152,6 +152,10 @@ Some themes for this release involved:
          (`854 <https://github.com/attack68/rateslib/pull/854>`_)
          (`855 <https://github.com/attack68/rateslib/pull/855>`_)
          (`873 <https://github.com/attack68/rateslib/pull/873>`_)
+       - :red:`Minor Breaking Change!` Many **attributes** of a :class:`~rateslib.curves.ProxyCurve`
+         have been restructured into a :class:`~rateslib.curves.utils._ProxyCurveInterpolator`
+         class, to be consistent with the other attribute changes on *Curves*.
+         (`900 <https://github.com/attack68/rateslib/pull/900>`_)
        - :red:`Major Breaking Change!` The **attributes** on *FXVol* pricing objects are
          reorganised into ``attributes``.
          (`867 <https://github.com/attack68/rateslib/pull/867>`_)
