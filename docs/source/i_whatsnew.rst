@@ -12,7 +12,7 @@ and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
 email contact, see `rateslib <https://rateslib.com>`_.
 
-2.0.0 (Coming soon! End of May?)
+2.0.0 (4th June 2025)
 *********************************
 
 .. container:: twocol
