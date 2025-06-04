@@ -2899,34 +2899,34 @@ class ProxyCurve(Curve):
 
     # Not Implemented
 
-    def plot_index(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover  # type: ignore
+    def plot_index(self, *args: Any, **kwargs: Any) -> None:  # type: ignore[override] # pragma: no cover
         """Not implemented on *ProxyCurve* types."""
         raise NotImplementedError("ProxyCurve types are not index curves.")
 
-    def csolve(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover  # type: ignore
+    def csolve(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover
         """Not implemented on *ProxyCurve* types."""
         raise NotImplementedError("ProxyCurve types are associations without parameters.")
 
-    def index_value(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover  # type: ignore
+    def index_value(self, *args: Any, **kwargs: Any) -> None:  # type: ignore[override] # pragma: no cover
         """Not implemented on *ProxyCurve* types."""
         raise NotImplementedError(
             "ProxyCurve types are not index curves with an `index base` attribute."
         )
 
-    def translate(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover  # type: ignore
+    def translate(self, *args: Any, **kwargs: Any) -> None:  # type: ignore[override] # pragma: no cover
         """Not implemented on *ProxyCurve* types."""
         raise NotImplementedError("ProxyCurve types currently provide no translate operation.")
 
-    def roll(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover  # type: ignore
+    def roll(self, *args: Any, **kwargs: Any) -> None:  # type: ignore[override] # pragma: no cover
         """Not implemented on *ProxyCurve* types."""
         raise NotImplementedError("ProxyCurve types currently provide no roll operation.")
 
-    def to_json(self) -> str:  # pragma: no cover  # type: ignore
+    def to_json(self) -> str:  # pragma: no cover
         """Not implemented on *ProxyCurve* types."""
         raise NotImplementedError("ProxyCurve types are associations that cannot be serialized.")
 
     @classmethod
-    def from_json(cls, curve: str, **kwargs: Any) -> Curve:  # pragma: no cover  # type: ignore
+    def from_json(cls, curve: str, **kwargs: Any) -> Curve:  # pragma: no cover
         """Not implemented on *ProxyCurve* types."""
         raise NotImplementedError("ProxyCurve types are associations that cannot be serialized.")
 
@@ -2940,7 +2940,7 @@ class ProxyCurve(Curve):
         """Not implemented on *ProxyCurve* types."""
         raise NotImplementedError("Instances of ProxyCurve do not have solvable variables.")
 
-    def copy(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover
+    def copy(self, *args: Any, **kwargs: Any) -> None:   # type: ignore[override] # pragma: no cover
         """Not implemented on *ProxyCurve* types."""
         raise NotImplementedError("ProxyCurve types are associations that cannot be copied.")
 
@@ -2952,7 +2952,7 @@ class ProxyCurve(Curve):
         """Not implemented on *ProxyCurve* types."""
         raise NotImplementedError("ProxyCurve types do not provide update methods.")
 
-    def update_meta(self, key: datetime, value: DualTypes) -> None:
+    def update_meta(self, key: datetime, value: DualTypes) -> None:  # pragma: no cover
         """Not implemented on *ProxyCurve* types."""
         raise NotImplementedError("ProxyCurve types do not provide update methods.")
 
