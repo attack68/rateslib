@@ -1556,6 +1556,21 @@ class TestFXForwards:
             ("gbpeur", dt(2022, 1, 11)): 1.1428571428571426,
         }
 
+    def test_proxy_curve_cache(self):
+        fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
+        fxf = FXForwards(
+            fx_rates=[fxr1],  # FXRates as list
+            fx_curves={
+                "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "usdeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            },
+        )
+        c = fxf.curve("eur", "usd")
+        assert "eurusd" in fxf.fx_proxy_curves
+        c2 = fxf.curve("eur", "usd")
+        assert id(c) == id(c2)
+
 
 def test_recursive_pair_population1():
     arr = np.array(
