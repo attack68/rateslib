@@ -14,6 +14,7 @@ from rateslib.curves.utils import (
     _CurveNodes,
     _CurveSpline,
     _CurveType,
+    _ProxyCurveInterpolator,
 )
 
 __all__ = (
@@ -30,4 +31,5 @@ __all__ = (
     "_CurveSpline",
     "_CurveInterpolator",
     "_CurveNodes",
+    "_ProxyCurveInterpolator",
 )
