@@ -2909,7 +2909,9 @@ class ProxyCurve(Curve):
 
     def index_value(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover  # type: ignore
         """Not implemented on *ProxyCurve* types."""
-        raise NotImplementedError("ProxyCurve types are not index curves with an `index base` attribute.")
+        raise NotImplementedError(
+            "ProxyCurve types are not index curves with an `index base` attribute."
+        )
 
     def translate(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover  # type: ignore
         """Not implemented on *ProxyCurve* types."""
