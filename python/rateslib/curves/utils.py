@@ -415,7 +415,8 @@ class _CurveInterpolator:
 @dataclass(frozen=True)
 class _ProxyCurveInterpolator:
     """
-    A container for data relating to deriving the DFs of a :class:`~rateslib.curves.ProxyCurve`.
+    A container for data relating to deriving the DFs of a :class:`~rateslib.curves.ProxyCurve`
+    from other :class:`~rateslib.curves.Curve` objects and :class:`~rateslib.fx.FXForwards`.
     """
 
     _fx_forwards: FXForwards

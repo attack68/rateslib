@@ -2849,7 +2849,9 @@ class ProxyCurve(Curve):
     """
 
     _base_type = _CurveType.dfs
-    _interpolator: _ProxyCurveInterpolator
+    _interpolator: _ProxyCurveInterpolator  # type: ignore[assignment]
+    _nodes: _CurveNodes
+    _meta: _CurveMeta
 
     def __init__(
         self,
@@ -2896,7 +2898,7 @@ class ProxyCurve(Curve):
         return self.interpolator.fx_forwards._ad
 
     @property
-    def interpolator(self) -> _ProxyCurveInterpolator:
+    def interpolator(self) -> _ProxyCurveInterpolator:  # type: ignore[override]
         """An instance of :class:`~rateslib.curves.utils._ProxyCurveInterpolator`."""
         return self._interpolator
 
