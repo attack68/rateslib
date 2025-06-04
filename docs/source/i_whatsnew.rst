@@ -48,7 +48,7 @@ Some themes for this release involved:
   :class:`~rateslib.fx_volatility.FXSabrSmile`) **attributes** to improve mutability safeguards,
   documentation and consistent type signatures. This also extends to pricing containers, such as
   (:class:`~rateslib.curves.ProxyCurve`, :class:`~rateslib.curves.CompositeCurve`,
-  :class:`~rateslib.curves.MultiCsaCurve`, :class:`~rateslib.fx_volatility.FXDeltaVolSurace`,
+  :class:`~rateslib.curves.MultiCsaCurve`, :class:`~rateslib.fx_volatility.FXDeltaVolSurface`,
   :class:`~rateslib.fx_volatility.FXSabrSurface`)
 
 .. list-table::
@@ -157,8 +157,9 @@ Some themes for this release involved:
        - The *'linear'* and *'log_linear'* ``interpolation`` methods of a *Curve* now automatically
          adjust to business day interpolation when using a *'bus252'* ``convention``.
          (`821 <https://github.com/attack68/rateslib/pull/821>`_)
-       - An attribute ``credit_discretization`` is added to the ``meta`` of a
-         :class:`~rateslib.curves.Curve` to replace the removed, equivalent argument of a
+       - The attributes ``credit_discretization`` and ``credit_recovery_rate`` are
+         added to the ``meta`` of a :class:`~rateslib.curves.Curve` to replace the **removed**,
+         equivalent arguments of a
          :class:`~rateslib.periods.CreditProtectionPeriod`.
        - Add :meth:`~rateslib.curves.Curve.update_meta` method to update values of *Curve* meta
          data.
