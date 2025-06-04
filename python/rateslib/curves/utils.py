@@ -21,10 +21,10 @@ if TYPE_CHECKING:
         Any,
         CalTypes,
         DualTypes,
+        FXForwards,
         Variable,
         float_,
         str_,
-        FXForwards,
     )  # pragma: no cover
 
 
