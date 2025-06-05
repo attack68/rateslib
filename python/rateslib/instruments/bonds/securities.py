@@ -143,8 +143,6 @@ class BondMixin:
         By default uses the UK DMO convention of returning *False* if ``settlement``
         **is on or before** the ex-div date.
 
-        Some ``calc_mode`` options return *True* if ``settlement`` **is on** the ex-div date.
-
         Ex-div dates are determined as measured by the number of ``ex_div`` business days prior
         to the unadjusted coupon end date.
 
@@ -152,8 +150,11 @@ class BondMixin:
         classified as ex-dividend and not receive that coupon.
 
         With an ``ex_div`` of 0, a ``settlement`` that occurs on the coupon payment date will
-        **not** be classified as ex-dividend and will receive that coupon (in the default
-        calculation mode).
+        **not** be classified as ex-dividend and will receive that coupon.
+
+        Most bonds under this convention have a ``ex_div`` parameter of *1*. They **will** still
+        receive the coupon if they settle *1* business day before the coupon end date, and **will
+        not** receive the coupon if they settle on or after the coupon end date.
         """
         prev_a_idx = index_left(
             self.leg1.schedule.uschedule,
@@ -1003,8 +1004,8 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         to `None` and designated
         later, perhaps after a mid-market rate for all periods has been calculated.
     ex_div : int
-        The number of days prior to a cashflow during which the bond is considered
-        ex-dividend.
+        The number of business days prior to a cashflow which determines the last settlement date
+        for which a coupon payment is still receivable. See :meth:`BondMixin.ex_div`.
     settle : int
         The number of business days for regular settlement time, i.e, 1 is T+1.
     calc_mode : str or BondCalcMode
@@ -2395,8 +2396,8 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
     method_param : int, optional
         A parameter that is used for the various ``fixing_method`` s. See notes.
     ex_div : int
-        The number of days prior to a cashflow during which the bond is considered
-        ex-dividend.
+        The number of business days prior to a cashflow which determines the last settlement date
+        for which a coupon payment is still receivable. See :meth:`BondMixin.ex_div`.
     settle : int
         The number of business days for regular settlement time, i.e, 1 is T+1.
     calc_mode : str
