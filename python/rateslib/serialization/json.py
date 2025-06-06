@@ -46,7 +46,7 @@ def _pynative_from_json(name: str, json: dict[str, Any] | str) -> Any:
         return ENUMS_Py[name](json)
 
 
-def from_json(json: str) -> Any:
+def from_json(json: str | list[str]) -> Any:
     """
     Create an object from JSON string.
 
@@ -59,25 +59,30 @@ def from_json(json: str) -> Any:
     -------
     Object
     """
-    obj = loads(json)
-    if isinstance(obj, dict):
-        if "PyWrapped" in obj:
-            # then object is a Rust struct wrapped by a Python class.
-            # determine the Python class name and reconstruct the Python class from the Rust struct.
-            class_name = next(iter(obj["PyWrapped"].keys()))
-            restructured_json = dumps(obj["PyWrapped"])
-            # objs = globals()
-            class_obj = NAMES_RsPy[class_name]
-            return class_obj.__init_from_obj__(obj=from_json_rs(restructured_json))
-        elif "PyNative" in obj:
-            # PyNative are objects that are constructed only in Python but do not serialize directly
-            # and so are tagged with a serialization flag.
-            class_name = next(iter(obj["PyNative"].keys()))
-            return _pynative_from_json(name=class_name, json=obj["PyNative"][class_name])
-        else:
-            # the dict may have been a native Rust object, try loading directly
-            # this will raise if all combination exhausted
-            return from_json_rs(json)
+    if isinstance(json, list):
+        return [from_json(_) for _ in json]
     else:
-        # object is a native Python element
-        return obj
+        obj = loads(json)
+        if isinstance(obj, dict):
+            if "PyWrapped" in obj:
+                # then object is a Rust struct wrapped by a Python class.
+                # determine the Python class and reconstruct the Python class from the Rust struct.
+                class_name = next(iter(obj["PyWrapped"].keys()))
+                restructured_json = dumps(obj["PyWrapped"])
+                # objs = globals()
+                class_obj = NAMES_RsPy[class_name]
+                return class_obj.__init_from_obj__(obj=from_json_rs(restructured_json))
+            elif "PyNative" in obj:
+                # PyNative are objs that are constructed only in Python do not serialize directly
+                # and so are tagged with a serialization flag.
+                class_name = next(iter(obj["PyNative"].keys()))
+                return _pynative_from_json(name=class_name, json=obj["PyNative"][class_name])
+            else:
+                # the dict may have been a native Rust object, try loading directly
+                # this will raise if all combination exhausted
+                return from_json_rs(json)
+        elif isinstance(obj, list):
+            return [from_json(_) for _ in obj]
+        else:
+            # object is a native Python element
+            return obj

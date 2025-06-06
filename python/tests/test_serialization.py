@@ -37,6 +37,7 @@ def test_curvemeta_json_round_trip(calendar, index_base, collateral):
         _collateral=collateral,
         _credit_discretization=20,
         _credit_recovery_rate=Variable(2.5, ["x"]),
+        _composite_scalars=[1.0, Variable(2.0, ["x"])],
     )
     json_text = obj.to_json()
     round_trip = from_json(json_text)
@@ -143,7 +144,7 @@ class TestCurve:
             '\\"{\\\\\\"PyNative\\\\\\":{\\\\\\"NoInput\\\\\\":0}}\\", '
             '\\"index_lag\\": 3, '
             '\\"collateral\\": null, \\"credit_discretization\\": 23, '
-            '\\"credit_recovery_rate\\": \\"0.4\\"}}}", '
+            '\\"credit_recovery_rate\\": \\"0.4\\", \\"composite_scalars\\": []}}}", '
             '"interpolator": '
             '"{\\"PyNative\\": {\\"_CurveInterpolator\\": '
             '{\\"local\\": \\"linear\\", \\"spline\\": \\"null\\", '
