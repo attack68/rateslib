@@ -21,7 +21,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
 
       .. image:: _static/thumb_coding_2_1.png
          :alt: Coding Interest Rates: FX, Swaps and Bonds
-         :target: https://www.amazon.com/dp/0995455554
+         :target: https://www.amazon.com/dp/0995455562
          :width: 145
          :align: center
 

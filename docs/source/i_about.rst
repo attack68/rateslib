@@ -31,7 +31,7 @@ with industry professionals and identified gaps in features and products. There 
 focus on performance enhancement and documentation improvement.
 
 The algorithms and mathematical code developments of *rateslib* are all characterised and
-explained in `Coding Interest Rates: FX, Swaps and Bonds <https://www.amazon.com/dp/0995455554>`_.
+explained in `Coding Interest Rates: FX, Swaps and Bonds <https://www.amazon.com/dp/0995455562>`_.
 
 .. container:: twocol
 
@@ -39,7 +39,7 @@ explained in `Coding Interest Rates: FX, Swaps and Bonds <https://www.amazon.com
 
       .. image:: _static/thumb_coding_2_1.png
          :alt: Coding Interest Rates: FX, Swaps and Bonds
-         :target: https://www.amazon.com/dp/0995455554
+         :target: https://www.amazon.com/dp/0995455562
          :width: 145
          :align: center
 
