@@ -272,7 +272,7 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
         Required positional args to :class:`BaseLeg`.
     index_base : float or None, optional
         The base index to determine the cashflow.
-    index_fixings : float, list or Series, optional
+    index_fixings : float, or Series, optional
         If a float scalar, will be applied as the index fixing for the first period.
         If a datetime indexed ``Series``, will use the fixings that are available
         in that object for relevant periods, and derive the rest from the ``curve``.
