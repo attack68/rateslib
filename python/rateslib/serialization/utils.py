@@ -35,3 +35,7 @@ def _obj_to_json(val: Any) -> str:
             return val.to_json()  # type: ignore[no-any-return]
         except AttributeError:
             return dumps(val)
+
+
+def _list_to_json(val: list[Any]) -> list[str]:
+    return [_obj_to_json(_) for _ in val]

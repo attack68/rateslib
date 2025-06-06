@@ -53,6 +53,7 @@ class _CurveMeta:
     _collateral: str | None
     _credit_discretization: int
     _credit_recovery_rate: float | Variable
+    _composite_scalars: list[float | Variable]
 
     @property
     def calendar(self) -> CalTypes:
@@ -95,6 +96,12 @@ class _CurveMeta:
         """The recovery rate applied to *Credit Protection Period* cashflows."""
         return self._credit_recovery_rate
 
+    @property
+    def composite_scalars(self) -> list[float | Variable]:
+        """A list of multipliers for rate composition, only used by
+        :class:`~rateslib.curves.CompositeCurve`"""
+        return self._composite_scalars
+
     def to_json(self) -> str:
         """
         Serialize this object to JSON format.
@@ -105,7 +112,7 @@ class _CurveMeta:
         -------
         str
         """
-        from rateslib.serialization.utils import _obj_to_json
+        from rateslib.serialization.utils import _list_to_json, _obj_to_json
 
         obj = dict(
             PyNative=dict(
@@ -118,6 +125,7 @@ class _CurveMeta:
                     collateral=self.collateral,
                     credit_discretization=self.credit_discretization,
                     credit_recovery_rate=_obj_to_json(self.credit_recovery_rate),
+                    composite_scalars=_list_to_json(self.composite_scalars),
                 )
             )
         )
@@ -136,6 +144,7 @@ class _CurveMeta:
             _calendar=from_json(loaded_json["calendar"]),
             _credit_discretization=loaded_json["credit_discretization"],
             _credit_recovery_rate=from_json(loaded_json["credit_recovery_rate"]),
+            _composite_scalars=from_json(loaded_json["composite_scalars"]),
         )
 
 

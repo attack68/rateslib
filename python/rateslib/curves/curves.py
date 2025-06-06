@@ -246,6 +246,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                 defaults.cds_protection_discretization, credit_discretization
             ),
             _credit_recovery_rate=_drb(defaults.cds_recovery_rate, credit_recovery_rate),
+            _composite_scalars=[],
         )
         self._nodes = _CurveNodes(nodes)
         self._interpolator = _CurveInterpolator(
@@ -2249,6 +2250,7 @@ class CompositeCurve(Curve):
         self,
         curves: list[Curve] | tuple[Curve, ...],
         id: str_ = NoInput(0),  # noqa: A002
+        scalars: list[float | Variable] | NoInput = NoInput(0),
         _no_validation: bool = False,
     ) -> None:
         self._id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
@@ -2258,14 +2260,15 @@ class CompositeCurve(Curve):
         nodes_proxy: dict[datetime, DualTypes] = dict.fromkeys(self.curves[0].nodes.keys, 0.0)
         self._nodes = _CurveNodes(nodes_proxy)
         self._meta = _CurveMeta(
-            curves[0].meta.calendar,
-            curves[0].meta.convention,
-            curves[0].meta.modifier,
-            curves[0].meta.index_base,
-            curves[0].meta.index_lag,
-            curves[0].meta.collateral,
-            curves[0].meta.credit_discretization,
-            curves[0].meta.credit_recovery_rate,
+            _calendar=curves[0].meta.calendar,
+            _convention=curves[0].meta.convention,
+            _modifier=curves[0].meta.modifier,
+            _index_base=curves[0].meta.index_base,
+            _index_lag=curves[0].meta.index_lag,
+            _collateral=curves[0].meta.collateral,
+            _credit_discretization=curves[0].meta.credit_discretization,
+            _credit_recovery_rate=curves[0].meta.credit_recovery_rate,
+            _composite_scalars=_drb([1.0] * len(self.curves), scalars),
         )
         self._base_type = curves[0]._base_type
 
@@ -2872,20 +2875,21 @@ class ProxyCurve(Curve):
         )
 
         self._meta = _CurveMeta(
-            get_calendar(
+            _calendar=get_calendar(
                 _drb(fx_forwards.fx_curves[self.interpolator.cash_pair].meta.calendar, calendar)
             ),
-            _drb(
+            _convention=_drb(
                 fx_forwards.fx_curves[self.interpolator.cash_pair].meta.convention, convention
             ).lower(),
-            _drb(
+            _modifier=_drb(
                 fx_forwards.fx_curves[self.interpolator.cash_pair].meta.modifier, modifier
             ).upper(),
-            NoInput(0),  # index meta not relevant for ProxyCurve
-            0,
-            self.interpolator.collateral,
-            100,  # credit elements irrelevant for a PxyCv
-            1.0,  # credit elements irrelevant for a PxyCv
+            _index_base=NoInput(0),  # index meta not relevant for ProxyCurve
+            _index_lag=0,
+            _collateral=self.interpolator.collateral,
+            _credit_discretization=100,  # credit elements irrelevant for a PxyCv
+            _credit_recovery_rate=1.0,  # credit elements irrelevant for a PxyCv
+            _composite_scalars=[],
         )
         # CurveNodes attached for date attribution
         self._nodes = _CurveNodes(
