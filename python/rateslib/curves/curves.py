@@ -19,6 +19,7 @@ from rateslib.calendars import add_tenor, dcf
 from rateslib.calendars.rs import get_calendar
 from rateslib.curves.interpolation import InterpolationFunction
 from rateslib.curves.utils import (
+    _CreditImpliedType,
     _CurveInterpolator,
     _CurveMeta,
     _CurveNodes,
@@ -2978,6 +2979,39 @@ class ProxyCurve(Curve):
     def update_meta(self, key: datetime, value: DualTypes) -> None:  # pragma: no cover
         """Not implemented on *ProxyCurve* types."""
         raise NotImplementedError("ProxyCurve types do not provide update methods.")
+
+
+class CreditImpliedCurve(CompositeCurve):
+    def __init__(
+        self,
+        risk_free: Curve | NoInput = NoInput(0),
+        credit: Curve | NoInput = NoInput(0),
+        hazard: Curve | NoInput = NoInput(0),
+        id: str_ = NoInput(0),  # noqa: A002
+    ) -> None:
+        if sum([isinstance(_, NoInput) for _ in [risk_free, credit, hazard]]) != 1:
+            raise ValueError(
+                "One, and only one, curve must be NoInput in order to be a CreditImpliedCurve."
+            )
+        elif isinstance(risk_free, NoInput):
+            self._implied = _CreditImpliedType.risk_free
+            super().__init__(curves=[hazard, credit], id=id)  # type: ignore[list-item]
+        elif isinstance(credit, NoInput):
+            self._implied = _CreditImpliedType.credit
+            super().__init__(curves=[hazard, risk_free], id=id)  # type: ignore[list-item]
+        else:
+            self._implied = _CreditImpliedType.hazard
+            super().__init__(curves=[credit, risk_free], id=id)
+
+    @property
+    def _composite_scalars(self) -> list[float | Variable]:
+        rr = self.curves[0].meta.credit_recovery_rate
+        if self._implied == _CreditImpliedType.credit:
+            return [rr, 1.0]
+        elif self._implied == _CreditImpliedType.hazard:
+            return [1.0 / rr, -1.0 / rr]  #  type: ignore[list-item]
+        else:
+            return [-rr, 1.0]
 
 
 def average_rate(

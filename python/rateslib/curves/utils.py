@@ -38,6 +38,17 @@ class _CurveType(Enum):
     values = 1
 
 
+class _CreditImpliedType(Enum):
+    """
+    Enumerable type to define which calculation is performed on a
+    :class:`~rateslib.curves.CreditImpliedCurve`.
+    """
+
+    credit = 0
+    hazard = 1
+    risk_free = 2
+
+
 @dataclass(frozen=True)
 class _CurveMeta:
     """

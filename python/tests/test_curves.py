@@ -16,6 +16,7 @@ from rateslib.curves import (
     index_left,
     index_value,
 )
+from rateslib.curves.curves import CreditImpliedCurve
 from rateslib.curves.utils import _CurveNodes, _CurveSpline
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, gradient
@@ -2718,3 +2719,51 @@ class TestCurveSpline:
 
         assert a != b
         assert a != 10.0
+
+
+class Test_CreditImpliedCurve:
+    def test_credit_implied_rates(self):
+        risk_free = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98})
+        hazard = Curve(
+            nodes={dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.95},
+            credit_recovery_rate=Variable(0.4, ["RR"]),
+        )
+        implied = CreditImpliedCurve(risk_free=risk_free, hazard=hazard, id="my-id")
+        assert implied.id == "my-id"
+
+        rate1 = risk_free.rate(dt(2000, 2, 1), "1b")
+        rate2 = hazard.rate(dt(2000, 2, 1), "1b")
+
+        result = implied.rate(dt(2000, 2, 1), "1b")
+        approximate = rate1 + rate2 * 0.4
+        assert abs(result - approximate) < 1e-9
+
+    def test_risk_free_rates(self):
+        credit = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98})
+        hazard = Curve(
+            nodes={dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.95},
+            credit_recovery_rate=Variable(0.4, ["RR"]),
+        )
+        implied = CreditImpliedCurve(credit=credit, hazard=hazard)
+
+        rate1 = credit.rate(dt(2000, 2, 1), "1b")
+        rate2 = hazard.rate(dt(2000, 2, 1), "1b")
+
+        result = implied.rate(dt(2000, 2, 1), "1b")
+        approximate = rate1 - rate2 * 0.4
+        assert abs(result - approximate) < 1e-9
+
+    def test_hazard_rates(self):
+        risk_free = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98})
+        credit = Curve(
+            nodes={dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.95},
+            credit_recovery_rate=Variable(0.4, ["RR"]),
+        )
+        implied = CreditImpliedCurve(credit=credit, risk_free=risk_free)
+
+        rate1 = credit.rate(dt(2000, 2, 1), "1b")
+        rate2 = risk_free.rate(dt(2000, 2, 1), "1b")
+
+        result = implied.rate(dt(2000, 2, 1), "1b")
+        approximate = (rate1 - rate2) / 0.4
+        assert abs(result - approximate) < 1e-9
