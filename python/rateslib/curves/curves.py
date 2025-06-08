@@ -2318,6 +2318,10 @@ class CompositeCurve(Curve):
                 f"'{attr}': {[getattr(_.meta, attr, None) for _ in self.curves]},",
             )
 
+    @property
+    def _composite_scalars(self) -> list[float | Variable]:
+        return [1.0] * len(self.curves)
+
     @_validate_states
     @_no_interior_validation
     def rate(  # type: ignore[override]
@@ -2350,11 +2354,7 @@ class CompositeCurve(Curve):
             return None
 
         if self._base_type == _CurveType.values:
-            _: DualTypes = 0.0
-            for i in range(len(self.curves)):
-                # let regular TypeErrors be raised if curve.rate returns None
-                _ += self.curves[i].rate(effective, termination, modifier)  # type: ignore[operator]
-            return _
+            return self.__getitem__(effective)
         else:  #  self._base_type == "dfs":
             modifier_ = _drb(self.meta.modifier, modifier)
 
@@ -2401,17 +2401,17 @@ class CompositeCurve(Curve):
             )
             _, d, n = average_rate(self.nodes.initial, date, self.meta.convention, 0.0, dcf_)
             total_rate: Number = 0.0
-            for curve in self.curves:
+            for scalar, curve in zip(self._composite_scalars, self.curves):
                 avg_rate = ((1.0 / curve[date]) ** (1.0 / n) - 1) / d
-                total_rate += avg_rate
+                total_rate += avg_rate * scalar
             ret = 1.0 / (1 + total_rate * d) ** n
             return self._cached_value(date, ret)
 
         else:  # self._base_type == _CurveType.values:
             # will return a composited rate
             _ = 0.0
-            for curve in self.curves:
-                _ += curve[date]
+            for scalar, curve in zip(self._composite_scalars, self.curves):
+                _ += curve[date] * scalar
             return self._cached_value(date, _)
 
     def shift(
