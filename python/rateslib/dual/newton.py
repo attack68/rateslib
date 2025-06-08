@@ -317,12 +317,12 @@ def newton_ndim(
 
     if ad > 0:
         i += 1
-        g1 = g0_ - dual_solve(f1, f0[:, None], allow_lsq=False, types=(DualType, DualType))[:, 0]  # type: ignore[arg-type]
+        g1 = g0_ - dual_solve(f1, f0[:, None], allow_lsq=False, types=(DualType, DualType))[:, 0]
     if ad == 2:
         f0, f1 = f(*(g1, *args, *final_args))  # type: ignore[call-arg]
         f1, f0 = np.array(f1), np.array(f0)
         i += 1
-        g1 = g1 - dual_solve(f1, f0[:, None], allow_lsq=False, types=(DualType, DualType))[:, 0]  # type: ignore[arg-type]
+        g1 = g1 - dual_solve(f1, f0[:, None], allow_lsq=False, types=(DualType, DualType))[:, 0]
 
     return _solver_result(state, i, g1, time() - t0, log=False, algo="newton_ndim")
 
