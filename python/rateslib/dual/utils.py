@@ -357,9 +357,9 @@ def dual_solve(
     if types == (float, float):
         # Use basic Numpy LinAlg
         if allow_lsq:
-            return np.linalg.lstsq(A, b, rcond=None)[0]
+            return np.linalg.lstsq(A, b, rcond=None)[0]  # type: ignore[arg-type]
         else:
-            return np.linalg.solve(A, b)
+            return np.linalg.solve(A, b)  # type: ignore[arg-type]
 
     # Move to Rust implementation
     if types in [(Dual, float), (Dual2, float)]:

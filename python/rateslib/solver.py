@@ -1532,7 +1532,7 @@ class Solver(Gradients, _WithState):
                 A = np.matmul(self.J, np.matmul(self.W, self.J.transpose()))
                 b = -np.matmul(np.matmul(self.J, self.W), self.x[:, np.newaxis])
 
-            delta = dual_solve(A, b)[:, 0]
+            delta = dual_solve(A, b)[:, 0]  # type: ignore[assignment]
             v_1 = self.v + delta
         else:
             raise NotImplementedError(f"`algorithm`: {algorithm} (spelled correctly?)")
