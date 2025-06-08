@@ -2403,7 +2403,7 @@ class CompositeCurve(Curve):
             total_rate: Number = 0.0
             for curve in self.curves:
                 avg_rate = ((1.0 / curve[date]) ** (1.0 / n) - 1) / d
-                total_rate += avg_rate * scalar  # type: ignore[assignment]
+                total_rate += avg_rate
             ret = 1.0 / (1 + total_rate * d) ** n
             return self._cached_value(date, ret)
 
