@@ -1197,7 +1197,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             y = np.where(x < k, __, _) * self.notional
         else:  # put
             y = np.where(x > k, __, _) * self.notional
-        return x, y  # type: ignore[return-value]
+        return x, y
 
 
 class FXCallPeriod(FXOptionPeriod):
