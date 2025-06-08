@@ -2767,3 +2767,31 @@ class Test_CreditImpliedCurve:
         result = implied.rate(dt(2000, 2, 1), "1b")
         approximate = (rate1 - rate2) / 0.4
         assert abs(result - approximate) < 1e-9
+
+    def test_round_trip_hazard(self):
+        risk_free = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98})
+        credit = Curve(
+            nodes={dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.95},
+            credit_recovery_rate=Variable(0.4, ["RR"]),
+        )
+        implied = CreditImpliedCurve(credit=credit, risk_free=risk_free)
+        credit_implied = CreditImpliedCurve(hazard=implied, risk_free=risk_free)
+
+        rate1 = credit.rate(dt(2000, 2, 1), "1b")
+        rate2 = credit_implied.rate(dt(2000, 2, 1), "1b")
+
+        assert abs(rate1 - rate2) < 1e-9
+
+    def test_round_trip_credit(self):
+        risk_free = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98})
+        hazard = Curve(
+            nodes={dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.95},
+            credit_recovery_rate=Variable(0.4, ["RR"]),
+        )
+        implied = CreditImpliedCurve(hazard=hazard, risk_free=risk_free)
+        hazard_implied = CreditImpliedCurve(credit=implied, risk_free=risk_free)
+
+        rate1 = hazard.rate(dt(2000, 2, 1), "1b")
+        rate2 = hazard_implied.rate(dt(2000, 2, 1), "1b")
+
+        assert abs(rate1 - rate2) < 1e-9
