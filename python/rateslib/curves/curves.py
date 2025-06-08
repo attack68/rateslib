@@ -2401,7 +2401,7 @@ class CompositeCurve(Curve):
             )
             _, d, n = average_rate(self.nodes.initial, date, self.meta.convention, 0.0, dcf_)
             total_rate: Number = 0.0
-            for scalar, curve in zip(self._composite_scalars, self.curves):
+            for scalar, curve in zip(self._composite_scalars, self.curves, strict=False):
                 avg_rate = ((1.0 / curve[date]) ** (1.0 / n) - 1) / d
                 total_rate += avg_rate * scalar
             ret = 1.0 / (1 + total_rate * d) ** n
@@ -2410,7 +2410,7 @@ class CompositeCurve(Curve):
         else:  # self._base_type == _CurveType.values:
             # will return a composited rate
             _ = 0.0
-            for scalar, curve in zip(self._composite_scalars, self.curves):
+            for scalar, curve in zip(self._composite_scalars, self.curves, strict=False):
                 _ += curve[date] * scalar
             return self._cached_value(date, _)
 
