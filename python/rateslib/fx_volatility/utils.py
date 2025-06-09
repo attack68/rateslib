@@ -927,7 +927,7 @@ def _sabr_X2(
     return _rs_sabr_x2(k, f, t, a, b, p, v, derivative)
 
 
-def _surface_index_left(expiries_posix, expiry_posix) -> tuple[int, int]:
+def _surface_index_left(expiries_posix: list[float], expiry_posix: float) -> tuple[int, int]:
     """use `index_left_f64` to derive left and right index,
     but exclude surfaces with only one expiry."""
     if len(expiries_posix) == 1:

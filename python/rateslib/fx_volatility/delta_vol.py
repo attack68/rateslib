@@ -38,10 +38,10 @@ from rateslib.fx_volatility.utils import (
     _FXDeltaVolSmileNodes,
     _FXDeltaVolSurfaceMeta,
     _moneyness_from_delta_closed_form,
+    _surface_index_left,
     _t_var_interp,
     _validate_delta_type,
     _validate_weights,
-    _surface_index_left,
 )
 from rateslib.mutability import (
     _clear_cache_post,
