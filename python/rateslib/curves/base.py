@@ -3,6 +3,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from math import comb
 from typing import TYPE_CHECKING
+from datetime import timedelta, datetime
+from calendar import monthrange
+import warnings
 
 from rateslib.calendars import add_tenor, dcf
 from rateslib.curves.utils import (
@@ -12,10 +15,11 @@ from rateslib.curves.utils import (
     _CurveType,
     average_rate,
 )
-from rateslib.default import NoInput, _drb
+from rateslib.default import NoInput, _drb, plot, PlotOutput
+from rateslib.rs import Modifier
 
 if TYPE_CHECKING:
-    from rateslib.typing import Any, DualTypes, datetime
+    from rateslib.typing import Any, DualTypes
 
 
 class BaseCurve(ABC):
@@ -64,13 +68,13 @@ class BaseCurve(ABC):
         """An instance of :class:`~rateslib.curves._CurveInterpolator`."""
         return self._interpolator
 
+    # Rate Calculation
+
     def rate(
         self,
         effective: datetime,
         termination: datetime | str | NoInput,
         modifier: str | NoInput = NoInput(1),
-        # calendar: CalInput = NoInput(0),
-        # convention: Optional[str] = None,
         float_spread: float | NoInput = NoInput(0),
         spread_compound_method: str | NoInput = NoInput(0),
     ) -> DualTypes | None:
@@ -196,7 +200,7 @@ class BaseCurve(ABC):
     ) -> DualTypes:
         if effective < self.nodes.initial:  # Alternative solution to PR 172.
             raise ValueError("`effective` before initial LineCurve date.")
-        return self[effective]
+        return self.__getitem__(effective)
 
     def _rate_with_raise_dfs(
         self,
@@ -223,7 +227,7 @@ class BaseCurve(ABC):
         if termination == effective:
             raise ZeroDivisionError(f"effective: {effective}, termination: {termination}")
 
-        df_ratio = self[effective] / self[termination]
+        df_ratio = self.__getitem__(effective) / self.__getitem__(termination)
         n_ = df_ratio - 1.0
         d_ = dcf(effective, termination, self.meta.convention, calendar=self.meta.calendar)
         _: DualTypes = n_ / d_ * 100
@@ -253,6 +257,356 @@ class BaseCurve(ABC):
                 )
 
         return _
+
+    # Index Calculations
+
+    def index_value(
+        self, date: datetime, index_lag: int, interpolation: str = "curve"
+    ) -> DualTypes:
+        """
+        Calculate the accrued value of the index from the ``index_base``.
+
+        This method will raise if performed on a *'values'* type *Curve*.
+        
+        Parameters
+        ----------
+        date : datetime
+            The date for which the index value will be returned.
+        index_lag : int
+            The number of months by which to lag the index when determining the value.
+        interpolation : str in {"curve", "monthly", "daily"}
+            The method for returning the index value. Monthly returns the index value
+            for the start of the month and daily returns a value based on the
+            interpolation between nodes (which is recommended *"linear_index*) for
+            :class:`InflationCurve`.
+
+        Returns
+        -------
+        None, float, Dual, Dual2
+
+        Notes
+        ------
+        The interpolation methods function as follows:
+
+        - **"curve"**: will raise if the requested ``index_lag`` does not match the lag attributed
+          to the *Curve*. In the case the ``index_lag`` matches, then the *index value* for any
+          date is derived via the implied interpolation for the discount factors of the *Curve*.
+
+          .. math::
+
+             I_v(m) = \\frac{I_b}{v(m)}
+
+        - **"monthly"**: For any date, *m*, uses the *"curve"* method having adjusted *m* in two
+          ways. Firstly it deducts a number of months equal to :math:`L - L_c`, where *L* is
+          the given ``index_lag`` and :math:`L_c` is the *index lag* of the *Curve*. And the day
+          of the month is set to 1.
+
+          .. math::
+
+             &I^{monthly}_v(m) = I_v(m_adj) \\\\
+             &\\text{where,} \\\\
+             &m_adj = Date(Year(m), Month(m) - L + L_c, 1) \\\\
+
+        - **"daily"**: For any date, *m*, with a given ``index_lag`` performs calendar day
+          interpolation on surrounding *"monthly"* values.
+
+          .. math::
+
+             &I^{daily}_v(m) = I^{monthly}_v(m) + \\frac{Day(m) - 1}{n} \\left ( I^{monthly}_v(m_+) - I^{monthly}_v(m) \\right ) \\\\
+             &\\text{where,} \\\\
+             &m_+ = \\text{Any date in the month following, }m
+             &n = \\text{Calendar days in, } Month(m)
+
+        Examples
+        --------
+        The SWESTR rate, for reference value date 6th Sep 2021, was published as
+        2.375% and the RFR index for that date was 100.73350964. Below we calculate
+        the value that was published for the RFR index on 7th Sep 2021 by the Riksbank.
+
+        .. ipython:: python
+
+           index_curve = Curve(
+               nodes={
+                   dt(2021, 9, 6): 1.0,
+                   dt(2021, 9, 7): 1 / (1 + 2.375/36000)
+               },
+               index_base=100.73350964,
+               convention="Act360",
+               index_lag=0,
+           )
+           index_curve.rate(dt(2021, 9, 6), "1d")
+           index_curve.index_value(dt(2021, 9, 7), 0)
+        """  # noqa: E501
+        if self._base_type == _CurveType.values:
+            raise TypeError(
+                "A 'values' type Curve cannot be used to forecast index values."
+            )
+
+        if isinstance(self.meta.index_base, NoInput):
+            raise ValueError(
+                "Curve must be initialised with an `index_base` value to derive `index_value`."
+            )
+
+        lag_months = index_lag - self.meta.index_lag
+        if interpolation.lower() == "curve":
+            if lag_months != 0:
+                raise ValueError(
+                    "'curve' interpolation can only be used with `index_value` when the Curve "
+                    "`index_lag` matches the input `index_lag`."
+                )
+            # use traditional discount factor from Index base to determine index value.
+            if date < self.nodes.initial:
+                warnings.warn(
+                    "The date queried on the Curve for an `ìndex_value` is prior to the "
+                    "initial node on the Curve.\nThis is returned as zero and likely "
+                    f"causes downstream calculation error.\ndate queried: {date}"
+                    "Either providing `index_fixings` to the object or extend the Curve backwards.",
+                    UserWarning,
+                )
+                return 0.0
+                # return zero for index dates in the past
+                # the proper way for instruments to deal with this is to supply i_fixings
+            elif date == self.nodes.initial:
+                return self.meta.index_base
+            else:
+                return self.meta.index_base * 1.0 / self.__getitem__(date)
+        elif interpolation.lower() == "monthly":
+            date_ = add_tenor(date, f"-{lag_months}M", "none", NoInput(0), 1)
+            return self.index_value(date_, self.meta.index_lag, "curve")
+        elif interpolation.lower() == "daily":
+            n = monthrange(date.year, date.month)[1]
+            date_som = datetime(date.year, date.month, 1)
+            date_sonm = add_tenor(date, "1M", "none", NoInput(0), 1)
+            m1 = self.index_value(date_som, index_lag, "monthly")
+            m2 = self.index_value(date_sonm, index_lag, "monthly")
+            return m1 + (date.day - 1) / n * (m2 - m1)
+        else:
+            raise ValueError(
+                "`interpolation` for `index_value` must be in {'curve', 'daily', 'monthly'}."
+            )
+
+    # Rate Plotting
+
+    def plot(
+        self,
+        tenor: str,
+        right: datetime | str | NoInput = NoInput(0),
+        left: datetime | str | NoInput = NoInput(0),
+        comparators: list[BaseCurve] | NoInput = NoInput(0),
+        difference: bool = False,
+        labels: list[str] | NoInput = NoInput(0),
+    ) -> PlotOutput:
+        """
+        Plot given forward tenor rates from the curve. See notes.
+
+        Parameters
+        ----------
+        tenor : str
+            The tenor of the forward rates to plot, e.g. "1D", "3M".
+        right : datetime or str, optional
+            The right bound of the graph. If given as str should be a tenor format
+            defining a point measured from the initial node date of the curve.
+            Defaults to the final node of the curve minus the ``tenor``.
+        left : datetime or str, optional
+            The left bound of the graph. If given as str should be a tenor format
+            defining a point measured from the initial node date of the curve.
+            Defaults to the initial node of the curve.
+        comparators: list[Curve]
+            A list of curves which to include on the same plot as comparators.
+        difference : bool
+            Whether to plot as comparator minus base curve or outright curve levels in
+            plot. Default is `False`.
+        labels : list[str]
+            A list of strings associated with the plot and comparators. Must be same
+            length as number of plots.
+
+        Returns
+        -------
+        (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
+
+        Notes
+        ------
+        This function plots single-period, **simple interest** curve rates, which are defined as:
+
+        .. math::
+
+           1 + r d = \\frac{v_{start}}{v_{end}}
+
+        where *d* is the day count fraction determined using the ``convention`` associated
+        with the *Curve*.
+
+        This function does **not** plot swap rates,
+        which is impossible since the *Curve* object contains no information regarding the
+        parameters of the *'swap'* (e.g. its *frequency* or its *convention* etc.).
+        If ``tenors`` longer than one year are sought results may start to deviate from those
+        one might expect. See `Issue 246 <https://github.com/attack68/rateslib/issues/246>`_.
+
+        """
+        comparators_: list[BaseCurve] = _drb([], comparators)
+        labels = _drb([], labels)
+        upper_tenor = tenor.upper()
+        x, y = self._plot_rates(upper_tenor, left, right)
+        y_ = [y] if not difference else []
+        for _, comparator in enumerate(comparators_):
+            if difference:
+                y_.append(
+                    [
+                        self._plot_diff(_x, tenor, _y, comparator)
+                        for _x, _y in zip(x, y, strict=False)
+                    ]
+                )
+            else:
+                pm_ = comparator._plot_modifier(tenor)
+                y_.append([comparator._plot_rate(_x, tenor, pm_) for _x in x])
+
+        return plot([x] * len(y_), y_, labels)
+
+    def _plot_diff(
+        self, date: datetime, tenor: str, rate: DualTypes | None, comparator: BaseCurve
+    ) -> DualTypes | None:
+        if rate is None:
+            return None
+        rate2 = comparator._plot_rate(date, tenor, comparator._plot_modifier(tenor))
+        if rate2 is None:
+            return None
+        return rate2 - rate
+
+    def _plot_modifier(self, upper_tenor: str) -> str:
+        """If tenor is in days do not allow modified for plot purposes"""
+        if "B" in upper_tenor or "D" in upper_tenor or "W" in upper_tenor:
+            if "F" in self.meta.modifier:
+                return "F"
+            elif "P" in self.meta.modifier:
+                return "P"
+        return self.meta.modifier
+
+    def _plot_rates(
+        self,
+        upper_tenor: str,
+        left: datetime | str | NoInput,
+        right: datetime | str | NoInput,
+    ) -> tuple[list[datetime], list[DualTypes | None]]:
+        if isinstance(left, NoInput):
+            left_: datetime = self.nodes.initial
+        elif isinstance(left, str):
+            left_ = add_tenor(self.nodes.initial, left, "F", self.meta.calendar)
+        elif isinstance(left, datetime):
+            left_ = left
+        else:
+            raise ValueError("`left` must be supplied as datetime or tenor string.")
+
+        if isinstance(right, NoInput):
+            # pre-adjust the end date to enforce business date.
+            right_: datetime = add_tenor(
+                self.meta.calendar.roll(self.nodes.final, Modifier.P, False),
+                "-" + upper_tenor,
+                "P",
+                self.meta.calendar,
+            )
+        elif isinstance(right, str):
+            right_ = add_tenor(self.nodes.initial, right, "P", NoInput(0))
+        elif isinstance(right, datetime):
+            right_ = right
+        else:
+            raise ValueError("`right` must be supplied as datetime or tenor string.")
+
+        dates = self.meta.calendar.cal_date_range(start=left_, end=right_)
+        rates = [self._plot_rate(_, upper_tenor, self._plot_modifier(upper_tenor)) for _ in dates]
+        return dates, rates
+
+    def _plot_rate(
+        self,
+        effective: datetime,
+        termination: str,
+        modifier: str,
+    ) -> DualTypes | None:
+        try:
+            rate = self.rate(effective, termination, modifier)
+        except ValueError:
+            return None
+        return rate
+
+    # Index Plotting
+
+    def plot_index(
+        self,
+        right: datetime | str | NoInput = NoInput(0),
+        left: datetime | str | NoInput = NoInput(0),
+        comparators: list[BaseCurve] | NoInput = NoInput(0),
+        difference: bool = False,
+        labels: list[str] | NoInput = NoInput(0),
+        interpolation: str = "curve",
+    ) -> PlotOutput:
+        """
+        Plot given index values on a *Curve*.
+
+        Parameters
+        ----------
+        right : datetime or str, optional
+            The right bound of the graph. If given as str should be a tenor format
+            defining a point measured from the initial node date of the curve.
+            Defaults to the final node of the curve minus the ``tenor``.
+        left : datetime or str, optional
+            The left bound of the graph. If given as str should be a tenor format
+            defining a point measured from the initial node date of the curve.
+            Defaults to the initial node of the curve.
+        comparators: list[Curve]
+            A list of curves which to include on the same plot as comparators.
+        difference : bool
+            Whether to plot as comparator minus base curve or outright curve levels in
+            plot. Default is `False`.
+        labels : list[str]
+            A list of strings associated with the plot and comparators. Must be same
+            length as number of plots.
+        interpolation : str in {"curve", "daily", "monthly"}
+            The type of index interpolation method to use.
+
+        Returns
+        -------
+        (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
+
+        """
+        comparators = _drb([], comparators)
+        labels = _drb([], labels)
+        if left is NoInput.blank:
+            left_: datetime = self.nodes.initial
+        elif isinstance(left, str):
+            left_ = add_tenor(self.nodes.initial, left, "NONE", NoInput(0))
+        elif isinstance(left, datetime):
+            left_ = left
+        else:
+            raise ValueError("`left` must be supplied as datetime or tenor string.")
+
+        if right is NoInput.blank:
+            right_: datetime = self.nodes.final
+        elif isinstance(right, str):
+            right_ = add_tenor(self.nodes.initial, right, "NONE", NoInput(0))
+        elif isinstance(right, datetime):
+            right_ = right
+        else:
+            raise ValueError("`right` must be supplied as datetime or tenor string.")
+
+        points: int = (right_ - left_).days + 1
+        x = [left_ + timedelta(days=i) for i in range(points)]
+        rates = [self.index_value(_, self.meta.index_lag, interpolation) for _ in x]
+        if not difference:
+            y = [rates]
+            if not isinstance(comparators, NoInput) and len(comparators) > 0:
+                for comparator in comparators:
+                    y.append([comparator.index_value(_, self.meta.index_lag) for _ in x])
+        elif difference and (isinstance(comparators, NoInput) or len(comparators) == 0):
+            raise ValueError("If `difference` is True must supply at least one `comparators`.")
+        else:
+            y = []
+            for comparator in comparators:
+                diff = [
+                    comparator.index_value(_, self.meta.index_lag, interpolation) - rates[i]
+                    for i, _ in enumerate(x)
+                ]
+                y.append(diff)
+        return plot([x] * len(y), y, labels)
+
+    # Dunder operators
 
     def __eq__(self, other: Any) -> bool:
         """Test two curves are identical"""
