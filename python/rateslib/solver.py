@@ -13,6 +13,7 @@ from pandas.errors import PerformanceWarning
 
 from rateslib import defaults
 from rateslib.curves import CompositeCurve, Curve, MultiCsaCurve, ProxyCurve
+from rateslib.curves.base import _BaseCurve
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, dual_solve, gradient
 from rateslib.dual.newton import _solver_result
@@ -1348,7 +1349,7 @@ class Solver(Gradients, _WithState):
     @_validate_states
     def _get_pre_curve(self, obj: str) -> Curve:
         ret: Curve | FXVols = self.pre_curves[obj]
-        if isinstance(ret, Curve):
+        if isinstance(ret, _BaseCurve):
             return ret  # type: ignore[no-any-return]
         else:
             raise ValueError(

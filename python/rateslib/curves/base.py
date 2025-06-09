@@ -1,42 +1,53 @@
 from __future__ import annotations
 
+import pickle
+import warnings
 from abc import ABC, abstractmethod
-from math import comb
-from typing import TYPE_CHECKING, TypeAlias
-from datetime import timedelta, datetime
 from calendar import monthrange
 from dataclasses import replace
-import warnings
+from datetime import datetime, timedelta
+from math import comb
+from typing import TYPE_CHECKING, TypeAlias
+from uuid import uuid4
+
 import numpy as np
 from pytz import UTC
-from uuid import uuid4
-import pickle
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf, get_calendar
 from rateslib.curves.utils import (
+    InterpolationFunction,
     _CurveInterpolator,
     _CurveMeta,
     _CurveNodes,
     _CurveType,
     average_rate,
-    InterpolationFunction,
 )
-from rateslib.default import NoInput, _drb, plot, PlotOutput
-from rateslib.dual import Dual, Dual2, dual_exp, Variable, set_order_convert
+from rateslib.default import NoInput, PlotOutput, _drb, plot
+from rateslib.dual import Dual, Dual2, Variable, dual_exp, set_order_convert
 from rateslib.dual.utils import _dual_float
-from rateslib.mutability import _new_state_post, _clear_cache_post, _WithState, _WithCache
+from rateslib.mutability import _clear_cache_post, _new_state_post, _WithCache, _WithState
 from rateslib.rs import Modifier
 
 if TYPE_CHECKING:
-    from rateslib.typing import Any, DualTypes, float_, int_, str_, CalInput
+    from rateslib.typing import Any, CalInput, DualTypes, float_, int_, str_
 
 DualTypes: TypeAlias = (
     "Dual | Dual2 | Variable | float"  # required for non-cyclic import on _WithCache
 )
 
 
-class BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
+class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
+    """
+    An ABC defining the base methods of a *Curve*.
+
+    Provided the `__getitem__` method is defined for a discount factor (DF) based,
+    or values based curve, all methods of this class are inheritable.
+
+    In certain cases the `_base_type` will prevent some methods from calculating and
+    will raise `TypeError`.
+    """
+
     _ad: int
     _id: str
     _base_type: _CurveType
@@ -305,7 +316,7 @@ class BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
         Calculate the accrued value of the index from the ``index_base``.
 
         This method will raise if performed on a *'values'* type *Curve*.
-        
+
         Parameters
         ----------
         date : datetime
@@ -430,7 +441,7 @@ class BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
         tenor: str,
         right: datetime | str | NoInput = NoInput(0),
         left: datetime | str | NoInput = NoInput(0),
-        comparators: list[BaseCurve] | NoInput = NoInput(0),
+        comparators: list[_BaseCurve] | NoInput = NoInput(0),
         difference: bool = False,
         labels: list[str] | NoInput = NoInput(0),
     ) -> PlotOutput:
@@ -480,7 +491,7 @@ class BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
         one might expect. See `Issue 246 <https://github.com/attack68/rateslib/issues/246>`_.
 
         """
-        comparators_: list[BaseCurve] = _drb([], comparators)
+        comparators_: list[_BaseCurve] = _drb([], comparators)
         labels = _drb([], labels)
         upper_tenor = tenor.upper()
         x, y = self._plot_rates(upper_tenor, left, right)
@@ -500,7 +511,7 @@ class BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
         return plot([x] * len(y_), y_, labels)
 
     def _plot_diff(
-        self, date: datetime, tenor: str, rate: DualTypes | None, comparator: BaseCurve
+        self, date: datetime, tenor: str, rate: DualTypes | None, comparator: _BaseCurve
     ) -> DualTypes | None:
         if rate is None:
             return None
@@ -570,7 +581,7 @@ class BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
         self,
         right: datetime | str | NoInput = NoInput(0),
         left: datetime | str | NoInput = NoInput(0),
-        comparators: list[BaseCurve] | NoInput = NoInput(0),
+        comparators: list[_BaseCurve] | NoInput = NoInput(0),
         difference: bool = False,
         labels: list[str] | NoInput = NoInput(0),
         interpolation: str = "curve",
@@ -661,7 +672,7 @@ class BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
     def __repr__(self) -> str:
         return f"<rl.{type(self).__name__}:{self._id} at {hex(id(self))}>"
 
-    def copy(self) -> BaseCurve:
+    def copy(self) -> _BaseCurve:
         """
         Create an identical copy of the curve object.
 
@@ -669,26 +680,24 @@ class BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
         -------
         Curve or LineCurve
         """
-        ret: BaseCurve = pickle.loads(pickle.dumps(self, -1))  # noqa: S301
+        ret: _BaseCurve = pickle.loads(pickle.dumps(self, -1))  # noqa: S301
         return ret
 
         # from rateslib.serialization import from_json
         # return from_json(self.to_json())
 
 
-class _CurveMutation:
+class _CurveMutation(_BaseCurve):
     """
-    Only the *Pricing Objects* :class:`~rateslib.curves.Curves` and `~rateslib.curves.LineCurve`
-    inherit the mutable methods.
+    This class defines the methods for *Curve Pricing Objects*, i.e.
+    the :class:`~rateslib.curves.Curve` and `~rateslib.curves.LineCurve`.
+
+    It permits initialization, configuration of nodes and meta data and
+    mutability when interacting with a :class:`~rateslib.solver.Solver`, when
+    getting and setting nodes, as well as user update methods.
     """
 
-    _base_type: _CurveType
-    _interpolator: _CurveInterpolator
-    _nodes: _CurveNodes
-    _ad: int
-    _meta: _CurveMeta
     _ini_solve: int
-    _id: str
 
     @_new_state_post
     def __init__(  # type: ignore[no-untyped-def]
