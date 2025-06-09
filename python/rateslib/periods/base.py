@@ -15,7 +15,7 @@ if TYPE_CHECKING:
         FX_,
         Any,
         CalInput,
-        Curve,
+        _BaseCurve,
         _BaseCurve_,
         CurveOption_,
         DualTypes,
@@ -172,7 +172,7 @@ class BasePeriod(metaclass=ABCMeta):
            period.analytic_delta(curve, curve, fxr)
            period.analytic_delta(curve, curve, fxr, "gbp")
         """  # noqa: E501
-        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve = _disc_required_maybe_from_curve(curve, disc_curve)
         fx_, _ = _get_fx_and_base(self.currency, fx, base)
         ret: DualTypes = fx_ * self.notional * self.dcf * disc_curve_[self.payment] / 10000
         return ret
@@ -217,7 +217,7 @@ class BasePeriod(metaclass=ABCMeta):
 
            period.cashflows(curve, curve, fxr)
         """
-        disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve_ = _disc_maybe_from_curve(curve, disc_curve)
         if isinstance(disc_curve_, NoInput):
             df: float | None = None
             collateral: str | None = None

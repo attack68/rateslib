@@ -19,7 +19,7 @@ if TYPE_CHECKING:
         FX_,
         NPV,
         Any,
-        Curve,
+        _BaseCurve,
         _BaseCurve_,
         CurveOption_,
         DualTypes,
@@ -124,7 +124,7 @@ class Cashflow:
         See
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
-        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve = _disc_required_maybe_from_curve(curve, disc_curve)
         value: DualTypes = self.cashflow * disc_curve_[self.payment]
         return _maybe_local(value, local, self.currency, fx, base)
 
@@ -140,7 +140,7 @@ class Cashflow:
         See
         :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
         """
-        disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve_ = _disc_maybe_from_curve(curve, disc_curve)
         fx_, _ = _get_fx_and_base(self.currency, fx, base)
 
         if isinstance(disc_curve_, NoInput):
@@ -320,7 +320,7 @@ class NonDeliverableCashflow:
         See
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
-        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve = _disc_required_maybe_from_curve(curve, disc_curve)
         disc_cashflow = self.cashflow(fx) * disc_curve_[self.payment]
         return _maybe_local(disc_cashflow, local, self.settlement_currency, fx, base)
 

@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from rateslib.typing import (
         FX_,
         Any,
-        Curve,
+        _BaseCurve,
         _BaseCurve_,
         CurveOption_,
         DualTypes,
@@ -267,7 +267,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
 
     def npv(
         self,
-        curve: Curve,
+        curve: _BaseCurve,
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),

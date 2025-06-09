@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 from pandas import DataFrame
 
 from rateslib import defaults
-from rateslib.curves import Curve
 from rateslib.curves._parsers import _disc_required_maybe_from_curve
 from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
@@ -35,6 +34,7 @@ if TYPE_CHECKING:
     from rateslib.typing import (
         FX_,
         NPV,
+        _BaseCurve,
         CurveOption_,
         Curves_,
         DualTypes,
@@ -1595,7 +1595,7 @@ class FRA(BaseDerivative):
 
         For arguments see :meth:`~rateslib.periods.BasePeriod.analytic_delta`.
         """
-        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve = _disc_required_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.leg1.currency, fx, base)
         rate = self.rate([curve])
         dcf = self._fixed_period.dcf

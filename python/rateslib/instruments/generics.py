@@ -9,7 +9,6 @@ from pandas import DataFrame, DatetimeIndex, concat
 
 from rateslib import defaults
 from rateslib.calendars import dcf
-from rateslib.curves import Curve
 from rateslib.curves._parsers import _validate_curve_is_not_dict, _validate_curve_not_no_input
 from rateslib.curves.utils import _CurveType
 from rateslib.default import NoInput, _drb
@@ -29,6 +28,7 @@ if TYPE_CHECKING:
         FX_,
         NPV,
         Any,
+        _BaseCurve,
         Curves_,
         DualTypes,
         FXVol_,
@@ -145,7 +145,7 @@ class Value(Metrics):
             "_",
         )
         metric = _drb(self.metric, metric).lower()
-        curve_0: Curve = _validate_curve_not_no_input(_validate_curve_is_not_dict(curves_[0]))
+        curve_0: _BaseCurve = _validate_curve_not_no_input(_validate_curve_is_not_dict(curves_[0]))
         if metric == "curve_value":
             return curve_0[self.effective]
         elif metric == "cc_zero_rate":

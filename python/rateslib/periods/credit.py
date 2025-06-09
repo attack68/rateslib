@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from rateslib.typing import (
         FX_,
         Any,
-        Curve,
+        _BaseCurve,
         _BaseCurve_,
         CurveOption_,
         DualTypes,
@@ -302,7 +302,7 @@ class CreditProtectionPeriod(BasePeriod):
     ) -> None:
         super().__init__(*args, **kwargs)
 
-    def cashflow(self, curve: Curve) -> DualTypes:
+    def cashflow(self, curve: _BaseCurve) -> DualTypes:
         """
         float, Dual or Dual2 : The calculated protection amount determined from notional
         and recovery rate.

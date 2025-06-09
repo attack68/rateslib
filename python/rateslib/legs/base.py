@@ -26,7 +26,7 @@ if TYPE_CHECKING:
         NPV,
         Any,
         CalInput,
-        Curve,
+        _BaseCurve,
         CurveOption_,
         DualTypes,
         DualTypes_,
@@ -612,8 +612,8 @@ class _FloatLegMixin:
     def _spread_isda_approximated_rate(
         self,
         target_npv: DualTypes,
-        fore_curve: Curve,  # TODO: use CurveOption_ and handle dict[str, Curve]
-        disc_curve: Curve,  # TODO: use CurveOption_ and handle dict[str, Curve]
+        fore_curve: _BaseCurve,  # TODO: use CurveOption_ and handle dict[str, Curve]
+        disc_curve: _BaseCurve,  # TODO: use CurveOption_ and handle dict[str, Curve]
     ) -> DualTypes:
         """
         Use approximated derivatives through geometric averaged 1day rates to derive the
@@ -663,7 +663,7 @@ class _FloatLegMixin:
             if isinstance(period, FloatPeriod):
                 period.float_spread = _
 
-    # def fixings_table(self, curve: Curve):
+    # def fixings_table(self, curve: _BaseCurve):
     #     """
     #     Return a DataFrame of fixing exposures on a :class:`~rateslib.legs.FloatLeg`.
     #

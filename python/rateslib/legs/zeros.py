@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from rateslib.typing import (
         FX_,
         Any,
-        Curve,
+        _BaseCurve,
         _BaseCurve_,
         CurveOption_,
         DualTypes,
@@ -193,7 +193,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         For arguments see
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
         """
-        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve = _disc_required_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.currency, fx, base)
         value = (
             self.rate(curve)
@@ -239,7 +239,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         -------
         DataFrame
         """
-        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve = _disc_required_maybe_from_curve(curve, disc_curve)
 
         if self.fixing_method == "ibor":
             dfs = []
@@ -269,8 +269,8 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
 
     def analytic_delta(
         self,
-        curve: Curve | NoInput = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
+        curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
@@ -280,7 +280,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         For arguments see
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
         """
-        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve = _disc_required_maybe_from_curve(curve, disc_curve)
         fx_, base = _get_fx_and_base(self.currency, fx, base)
 
         float_periods: list[FloatPeriod] = [_ for _ in self.periods if isinstance(_, FloatPeriod)]
@@ -308,7 +308,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         For arguments see
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
         """
-        disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve_ = _disc_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
         if isinstance(curve, NoInput):
@@ -474,7 +474,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
     def cashflows(
         self,
         curve: CurveOption_ = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:
@@ -484,7 +484,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
         For arguments see
         :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`.
         """
-        disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve_ = _disc_maybe_from_curve(curve, disc_curve)
         fx_, base = _get_fx_and_base(self.currency, fx, base)
         rate = self.fixed_rate
         cashflow = self.periods[0].cashflow
@@ -522,8 +522,8 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
 
     def analytic_delta(
         self,
-        curve: Curve | NoInput = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
+        curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
@@ -533,7 +533,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
         For arguments see
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
         """
-        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve = _disc_required_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.currency, fx, base)
         if isinstance(self.fixed_rate, NoInput):
             raise ValueError("Must have `fixed_rate` on ZeroFixedLeg for analytic delta.")
