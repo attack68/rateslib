@@ -30,6 +30,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
      - - Flat *FXVolSurfaces*, parametrised by a **single** expiry and/or a **single** node value
          are now functional.
          (`913 <https://github.com/attack68/rateslib/pull/913>`_)
+         (`915 <https://github.com/attack68/rateslib/pull/915>`_)
 
 2.0.0 (4th June 2025)
 *********************************
