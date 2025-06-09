@@ -21,6 +21,11 @@ email contact, see `rateslib <https://rateslib.com>`_.
 
    * - Feature
      - Description
+   * - **Refactors**
+     - - The ``expiries`` attribute is moved to ``meta`` on an
+         :class:`~rateslib.fx_volatility.FXSabrSurface` to be consistent with an
+         :class:`~rateslib.fx_volatility.FXDeltaVolSurface`.
+         (`914 <https://github.com/attack68/rateslib/pull/914>`_)
    * - **Regressions**
      - - Flat *FXVolSurfaces*, parametrised by a **single** expiry and/or a **single** node value
          are now functional.

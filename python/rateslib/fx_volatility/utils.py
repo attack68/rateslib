@@ -467,6 +467,12 @@ class _FXSabrSurfaceMeta:
     _calendar: CalTypes
     _delivery_lag: int
     _weights: Series[float] | None
+    _expiries: list[datetime]
+
+    def __post_init__(self) -> None:
+        for idx in range(1, len(self.expiries)):
+            if self.expiries[idx - 1] >= self.expiries[idx]:
+                raise ValueError("Surface `expiries` are not sorted or contain duplicates.\n")
 
     @property
     def weights(self) -> Series[float] | None:
@@ -481,6 +487,17 @@ class _FXSabrSurfaceMeta:
             return None
         else:
             return self.weights.cumsum()
+
+    @property
+    def expiries(self) -> list[datetime]:
+        """A list of the expiries of each cross-sectional
+        :class:`~rateslib.fx_volatility.FXSabrSmile`."""
+        return self._expiries
+
+    @cached_property
+    def expiries_posix(self) -> list[float]:
+        """A list of the unix timestamps of each date in ``expiries``."""
+        return [_.replace(tzinfo=UTC).timestamp() for _ in self.expiries]
 
     @cached_property
     def eval_posix(self) -> float:
