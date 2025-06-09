@@ -12,6 +12,20 @@ and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
 email contact, see `rateslib <https://rateslib.com>`_.
 
+2.0.1 (Not released)
+***************************
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - **Regressions**
+     - - Flat *FXVolSurfaces*, parametrised by a **single** expiry and/or a **single** node value
+         are now functional.
+         (`913 <https://github.com/attack68/rateslib/pull/913>`_)
+
 2.0.0 (4th June 2025)
 *********************************
 
