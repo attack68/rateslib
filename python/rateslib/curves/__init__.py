@@ -4,7 +4,6 @@ from rateslib.curves.curves import (
     LineCurve,
     MultiCsaCurve,
     ProxyCurve,
-    average_rate,
     index_value,
 )
 from rateslib.curves.interpolation import index_left
@@ -15,6 +14,7 @@ from rateslib.curves.utils import (
     _CurveSpline,
     _CurveType,
     _ProxyCurveInterpolator,
+    average_rate,
 )
 
 __all__ = (
