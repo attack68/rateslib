@@ -34,6 +34,7 @@ from rateslib.fx_volatility.utils import (
     _FXSabrSurfaceMeta,
     _t_var_interp_d_sabr_d_k_or_f,
     _validate_weights,
+    _surface_index_left,
 )
 from rateslib.mutability import (
     _clear_cache_post,
@@ -42,7 +43,6 @@ from rateslib.mutability import (
     _WithCache,
     _WithState,
 )
-from rateslib.rs import index_left_f64
 
 if TYPE_CHECKING:
     from rateslib.typing import CalInput, DualTypes, Number, Sequence, datetime_, int_, str_
@@ -670,11 +670,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         derivative: int,
     ) -> tuple[DualTypes, DualTypes | None]:
         expiry_posix = expiry.replace(tzinfo=UTC).timestamp()
-        if len(self.meta.expiries_posix) == 1:
-            e_idx, e_next_idx = 0, 0
-        else:
-            e_idx = index_left_f64(self.meta.expiries_posix, expiry_posix)
-            e_next_idx = e_idx + 1
+        e_idx, e_next_idx = _surface_index_left(self.meta.expiries_posix, expiry_posix)
 
         if expiry == self.meta.expiries[0]:
             # expiry matches the expiry on the first Smile, call that method directly.

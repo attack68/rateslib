@@ -41,6 +41,7 @@ from rateslib.fx_volatility.utils import (
     _t_var_interp,
     _validate_delta_type,
     _validate_weights,
+    _surface_index_left,
 )
 from rateslib.mutability import (
     _clear_cache_post,
@@ -49,7 +50,6 @@ from rateslib.mutability import (
     _WithCache,
     _WithState,
 )
-from rateslib.rs import index_left_f64
 from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
@@ -718,11 +718,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
             return self._cache[expiry]
 
         expiry_posix = expiry.replace(tzinfo=UTC).timestamp()
-        if len(self.meta.expiries_posix) == 1:
-            e_idx, e_next_idx = 0, 0
-        else:
-            e_idx = index_left_f64(self.meta.expiries_posix, expiry_posix)
-            e_next_idx = e_idx + 1
+        e_idx, e_next_idx = _surface_index_left(self.meta.expiries_posix, expiry_posix)
 
         if expiry == self.meta.expiries[0]:
             smile = self.smiles[0]
