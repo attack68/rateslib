@@ -1974,7 +1974,6 @@ class TestFXSabrSurface:
         assert abs(result[1] - 10.0) < 1e-13
 
 
-
 class TestStateAndCache:
     @pytest.mark.parametrize(
         "curve",

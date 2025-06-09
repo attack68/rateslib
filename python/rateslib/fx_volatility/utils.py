@@ -27,8 +27,8 @@ from rateslib.dual.utils import _dual_float, _to_number
 from rateslib.rs import _sabr_x0 as _rs_sabr_x0
 from rateslib.rs import _sabr_x1 as _rs_sabr_x1
 from rateslib.rs import _sabr_x2 as _rs_sabr_x2
-from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 from rateslib.rs import index_left_f64
+from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
     from rateslib.typing import Any, CalTypes, Number
@@ -936,4 +936,3 @@ def _surface_index_left(expiries_posix, expiry_posix) -> tuple[int, int]:
         e_idx = index_left_f64(expiries_posix, expiry_posix)
         e_next_idx = e_idx + 1
         return e_idx, e_next_idx
-
