@@ -598,6 +598,23 @@ class TestFXDeltaVolSurface:
             # no clear cache required, but value will re-calc anyway
             assert dt(2024, 7, 1) not in fxvs._cache
 
+    @pytest.mark.parametrize("smile_expiry", [dt(2026, 5, 1), dt(2026, 6, 9), dt(2026, 7, 1)])
+    def test_flat_surface_and_get_smile_one_expiry(self, smile_expiry):
+        # gh 911
+        anchor = dt(2025, 6, 9)
+        expiry = dt(2026, 6, 9)
+
+        surf = FXDeltaVolSurface(
+            eval_date=anchor,
+            expiries=[expiry],
+            delta_indexes=[0.5],
+            node_values=[[10]],
+            delta_type="forward",
+        )
+
+        smile = surf.get_smile(smile_expiry)
+        assert abs(smile[0.3] - 10.0) < 1e-13
+
 
 class TestFXSabrSmile:
     @pytest.mark.parametrize(
@@ -1918,6 +1935,21 @@ class TestFXSabrSurface:
         # calling get from strike will validate
         fxss.get_from_strike(1.1, 1.1, dt(2023, 7, 15))
         assert fxss._state == fxss._get_composited_state()
+
+    @pytest.mark.parametrize("smile_expiry", [dt(2026, 5, 1), dt(2026, 6, 9), dt(2026, 7, 1)])
+    def test_flat_surface_and_get_smile_one_expiry(self, smile_expiry):
+        # gh 911
+        anchor = dt(2025, 6, 9)
+        expiry = dt(2026, 6, 9)
+
+        surf = FXSabrSurface(
+            eval_date=anchor,
+            expiries=[expiry],
+            node_values=[[0.10, 1.0, 0.0, 0.0]],
+        )
+
+        result = surf.get_from_strike(1.0, 1.10, smile_expiry)[1]
+        assert abs(result - 10.0) < 1e-13
 
 
 class TestStateAndCache:

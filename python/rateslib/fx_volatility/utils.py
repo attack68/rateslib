@@ -547,6 +547,7 @@ def _t_var_interp(
     expiry: datetime,
     expiry_posix: float,
     expiry_index: int,
+    expiry_next_index: int,
     eval_posix: float,
     weights_cum: Series[float] | None,
     vol1: DualTypes,
@@ -569,6 +570,11 @@ def _t_var_interp(
         The target expiry to be interpolated.
     expiry_posix: float
         The pre-calculated posix timestamp for expiry.
+    expiry_index: int
+        The integer index of the expiries period in which the expiry falls.
+    expiry_next_index: int
+        Will be expiry_index + 1, unless the surface only has one expiry, in which case it will
+        equal the expiry_index.
     eval_posix: float
          The pre-calculated posix timestamp for eval date of the *Surface*
     weights_cum: Series[float] or NoInput
@@ -591,6 +597,7 @@ def _t_var_interp(
         expiry,
         expiry_posix,
         expiry_index,
+        expiry_next_index,
         eval_posix,
         weights_cum,
         vol1,
@@ -608,6 +615,7 @@ def _t_var_interp_d_sabr_d_k_or_f(
     expiry: datetime,
     expiry_posix: float,
     expiry_index: int,
+    expiry_next_index: int,
     eval_posix: float,
     weights_cum: Series[float] | None,
     vol1: DualTypes,
@@ -620,14 +628,14 @@ def _t_var_interp_d_sabr_d_k_or_f(
     if weights_cum is None:  # weights must also be NoInput
         if bounds_flag == 0:
             t1 = expiries_posix[expiry_index] - eval_posix
-            t2 = expiries_posix[expiry_index + 1] - eval_posix
+            t2 = expiries_posix[expiry_next_index] - eval_posix
         elif bounds_flag == -1:
             # left side extrapolation
             t1 = 0.0
             t2 = expiries_posix[expiry_index] - eval_posix
         else:  # bounds_flag == 1:
             # right side extrapolation
-            t1 = expiries_posix[expiry_index + 1] - eval_posix
+            t1 = expiries_posix[expiry_next_index] - eval_posix
             t2 = TERMINAL_DATE.replace(tzinfo=UTC).timestamp() - eval_posix
 
         t_hat = expiry_posix - eval_posix
@@ -635,14 +643,14 @@ def _t_var_interp_d_sabr_d_k_or_f(
     else:
         if bounds_flag == 0:
             t1 = weights_cum[expiries[expiry_index]]
-            t2 = weights_cum[expiries[expiry_index + 1]]
+            t2 = weights_cum[expiries[expiry_next_index]]
         elif bounds_flag == -1:
             # left side extrapolation
             t1 = 0.0
             t2 = weights_cum[expiries[expiry_index]]
         else:  # bounds_flag == 1:
             # right side extrapolation
-            t1 = weights_cum[expiries[expiry_index + 1]]
+            t1 = weights_cum[expiries[expiry_next_index]]
             t2 = weights_cum[TERMINAL_DATE]
 
         t_hat = weights_cum[expiry]  # number of vol weighted calendar days
