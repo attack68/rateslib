@@ -31,6 +31,7 @@ from rateslib.fx_volatility.utils import (
     _delta_type_constants,
     _moneyness_from_atm_delta_closed_form,
     _moneyness_from_delta_closed_form,
+    _surface_index_left,
 )
 from rateslib.periods.utils import (
     _get_fx_and_base,
@@ -39,7 +40,6 @@ from rateslib.periods.utils import (
     _get_vol_smile_or_value,
     _maybe_local,
 )
-from rateslib.rs import index_left_f64
 from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
@@ -892,7 +892,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             # mypy should auto detect this
             vol_: FXSabrSurface = vol  # type: ignore[assignment]
             expiry_posix = self.expiry.replace(tzinfo=UTC).timestamp()
-            e_idx = index_left_f64(vol_.meta.expiries_posix, expiry_posix)
+            e_idx, _ = _surface_index_left(vol_.meta.expiries_posix, expiry_posix)
             alpha = vol_.smiles[e_idx].nodes.alpha
 
         root_solver = newton_1dim(
@@ -1125,7 +1125,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             # mypy should auto detect this
             vol_: FXSabrSurface = vol  # type: ignore[assignment]
             expiry_posix = self.expiry.replace(tzinfo=UTC).timestamp()
-            e_idx = index_left_f64(vol_.meta.expiries_posix, expiry_posix)
+            e_idx, _ = _surface_index_left(vol_.meta.expiries_posix, expiry_posix)
             alpha = vol_.smiles[e_idx].nodes.alpha
 
         g0 = _moneyness_from_delta_closed_form(g01, alpha * 100.0, t_e, z_w_0, self.phi) * f_d

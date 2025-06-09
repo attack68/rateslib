@@ -27,6 +27,7 @@ from rateslib.dual.utils import _dual_float, _to_number
 from rateslib.rs import _sabr_x0 as _rs_sabr_x0
 from rateslib.rs import _sabr_x1 as _rs_sabr_x1
 from rateslib.rs import _sabr_x2 as _rs_sabr_x2
+from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
@@ -924,3 +925,14 @@ def _sabr_X2(
     If ``derivative`` = 2 also returns dX2/df, calculated using sympy.
     """
     return _rs_sabr_x2(k, f, t, a, b, p, v, derivative)
+
+
+def _surface_index_left(expiries_posix: list[float], expiry_posix: float) -> tuple[int, int]:
+    """use `index_left_f64` to derive left and right index,
+    but exclude surfaces with only one expiry."""
+    if len(expiries_posix) == 1:
+        return 0, 0
+    else:
+        e_idx = index_left_f64(expiries_posix, expiry_posix)
+        e_next_idx = e_idx + 1
+        return e_idx, e_next_idx

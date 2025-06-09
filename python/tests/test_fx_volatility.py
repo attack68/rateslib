@@ -27,6 +27,7 @@ from rateslib.fx_volatility.utils import (
     _FXSabrSmileNodes,
     _validate_delta_type,
 )
+from rateslib.periods.fx_volatility import FXCallPeriod
 
 
 @pytest.fixture
@@ -1950,6 +1951,27 @@ class TestFXSabrSurface:
 
         result = surf.get_from_strike(1.0, 1.10, smile_expiry)[1]
         assert abs(result - 10.0) < 1e-13
+
+    @pytest.mark.parametrize("option_expiry", [dt(2026, 5, 1), dt(2026, 6, 9), dt(2026, 7, 1)])
+    def test_flat_surface_option_strike_delta(self, option_expiry):
+        surf = FXSabrSurface(
+            eval_date=dt(2025, 6, 9),
+            expiries=[dt(2026, 6, 9)],
+            node_values=[[0.10, 1.0, 0.0, 0.0]],
+        )
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=option_expiry,
+            delivery=option_expiry,
+            payment=option_expiry,
+            strike=NoInput(0),
+            delta_type="forward",
+        )
+        result = fxo._index_vol_and_strike_from_delta_sabr(0.25, "forward", surf, 1, 1.10)
+        assert abs(result[1] - 10.0) < 1e-13
+
+        result = fxo._index_vol_and_strike_from_atm_sabr(1.10, 0.50, surf)
+        assert abs(result[1] - 10.0) < 1e-13
 
 
 class TestStateAndCache:
