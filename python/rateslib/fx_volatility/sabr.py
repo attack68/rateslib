@@ -627,7 +627,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
             vars_ += tuple(f"{smile.id}{i}" for i in range(3))
         return vars_
 
-    # @_validate_states: not required becuase state is validated by interior function
+    # @_validate_states: not required because state is validated by interior function
     def get_from_strike(
         self,
         k: DualTypes,
@@ -677,23 +677,27 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         derivative: int,
     ) -> tuple[DualTypes, DualTypes | None]:
         expiry_posix = expiry.replace(tzinfo=UTC).timestamp()
-        e_idx = index_left_f64(self.expiries_posix, expiry_posix)
+        if len(self.expiries_posix) == 1:
+            e_idx, e_next_idx = 0, 0
+        else:
+            e_idx = index_left_f64(self.expiries_posix, expiry_posix)
+            e_next_idx = e_idx + 1
 
         if expiry == self.expiries[0]:
             # expiry matches the expiry on the first Smile, call that method directly.
             return self.smiles[0]._d_sabr_d_k_or_f(k, f, expiry, as_float, derivative)
-        elif abs(expiry_posix - self.expiries_posix[e_idx + 1]) < 1e-10:
+        elif abs(expiry_posix - self.expiries_posix[e_next_idx]) < 1e-10:
             # expiry matches an expiry of a known Smile (not the first), call method directly.
-            return self.smiles[e_idx + 1]._d_sabr_d_k_or_f(k, f, expiry, as_float, derivative)
+            return self.smiles[e_next_idx]._d_sabr_d_k_or_f(k, f, expiry, as_float, derivative)
         elif expiry_posix > self.expiries_posix[-1]:
             # expiry is beyond that of the last known Smile. Construct a new Smile at the expiry
             # by using the SABR parameters of the final Smile. (allows for ATM-forward calculation)
             smile = FXSabrSmile(
                 nodes={
-                    "alpha": self.smiles[e_idx + 1].nodes.alpha,
-                    "beta": self.smiles[e_idx + 1].nodes.beta,
-                    "rho": self.smiles[e_idx + 1].nodes.rho,
-                    "nu": self.smiles[e_idx + 1].nodes.nu,
+                    "alpha": self.smiles[e_next_idx].nodes.alpha,
+                    "beta": self.smiles[e_next_idx].nodes.beta,
+                    "rho": self.smiles[e_next_idx].nodes.rho,
+                    "nu": self.smiles[e_next_idx].nodes.nu,
                 },
                 eval_date=self._meta.eval_date,
                 expiry=expiry,
@@ -701,7 +705,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                 pair=NoInput(0) if self._meta.pair is None else self._meta.pair,
                 delivery_lag=self._meta.delivery_lag,
                 calendar=self._meta.calendar,
-                id=self.smiles[e_idx + 1].id + "_ext",
+                id=self.smiles[e_next_idx].id + "_ext",
             )
             return smile._d_sabr_d_k_or_f(k, f, expiry, as_float, derivative)
         elif expiry <= self._meta.eval_date:
@@ -723,6 +727,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                 expiry=expiry,
                 expiry_posix=expiry_posix,
                 expiry_index=e_idx,
+                expiry_next_index=e_next_idx,
                 eval_posix=self._meta.eval_posix,
                 weights_cum=self.meta.weights_cum,
                 vol1=vol_,
@@ -736,7 +741,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
             # expiry is sandwiched between two known Smile expiries.
             # Calculate the vol for strike on either of these Smiles and then interpolate
             # for the correct expiry, including weights.
-            ls, rs = self.smiles[e_idx], self.smiles[e_idx + 1]  # left_smile, right_smile
+            ls, rs = self.smiles[e_idx], self.smiles[e_next_idx]  # left_smile, right_smile
             if not isinstance(f, FXForwards):
                 raise ValueError(
                     "`f` must be supplied as `FXForwards` in order to calculate"
@@ -754,6 +759,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                 expiry=expiry,
                 expiry_posix=expiry_posix,
                 expiry_index=e_idx,
+                expiry_next_index=e_next_idx,
                 eval_posix=self._meta.eval_posix,
                 weights_cum=self.meta.weights_cum,
                 vol1=lvol,
