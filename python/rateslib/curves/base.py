@@ -46,7 +46,8 @@ class BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
 
     @abstractmethod
     def __getitem__(self, date: datetime) -> DualTypes:
-        """The get item method for any *Curve* type will allow the inheritance of the below
+        """
+        The get item method for any *Curve* type will allow the inheritance of the below
         methods.
         """
         if defaults.curve_caching and date in self._cache:
@@ -675,7 +676,11 @@ class BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
         # return from_json(self.to_json())
 
 
-class CurveMutation:
+class _CurveMutation:
+    """
+    Only the *Pricing Objects* :class:`~rateslib.curves.Curves` and `~rateslib.curves.LineCurve`
+    inherit the mutable methods.
+    """
 
     _base_type: _CurveType
     _interpolator: _CurveInterpolator
