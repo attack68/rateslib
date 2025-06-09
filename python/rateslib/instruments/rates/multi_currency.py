@@ -46,7 +46,7 @@ if TYPE_CHECKING:
         NPV,
         Any,
         CalInput,
-        Curve_,
+        _BaseCurve_,
         Curves_,
         DualTypes,
         DualTypes_,
@@ -1443,7 +1443,7 @@ class FXSwap(XCS):
                     "Cannot initialise FXSwap with `split_notional` but without `fx_fixings`",
                 )
 
-    def _set_split_notional(self, curve: Curve_ = NoInput(0), at_init: bool = False) -> None:
+    def _set_split_notional(self, curve: _BaseCurve_ = NoInput(0), at_init: bool = False) -> None:
         """
         Will set the fixed rate, if not zero, for leg1, given the provided split notional or the
         forecast split notional calculated from a curve.

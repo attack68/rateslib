@@ -64,6 +64,7 @@ class CurveOperations:
     _nodes: _CurveNodes
     _meta: _CurveMeta
     _interpolator: _CurveInterpolator
+    _ad: int
 
     def shift(
         self,
@@ -388,7 +389,7 @@ class CurveOperations:
                     "Cannot translate spline knots for given `start`, review the docs.",
                 )
 
-        new_curve = type(self)(
+        new_curve = type(self)(  # type: ignore[call-arg]
             nodes=new_nodes,
             interpolation=self._interpolator.local,
             t=new_t,
@@ -400,7 +401,7 @@ class CurveOperations:
             ad=self.ad,
             index_base=NoInput(0)
             if isinstance(self._meta.index_base, NoInput)
-            else _dual_float(self.index_value(start, self.meta.index_lag, "curve")),
+            else _dual_float(self.index_value(start, self._meta.index_lag, "curve")),
             index_lag=self._meta.index_lag,
         )
         return new_curve
@@ -504,7 +505,7 @@ class CurveOperations:
             new_t = NoInput(0)
             new_endpoints = NoInput(0)
 
-        new_curve = type(self)(
+        new_curve = type(self)(  # type: ignore[call-arg]
             nodes=new_nodes,
             interpolation=self._interpolator.local,
             t=new_t,

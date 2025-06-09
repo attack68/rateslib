@@ -16,7 +16,7 @@ if TYPE_CHECKING:
         Any,
         CalInput,
         Curve,
-        Curve_,
+        _BaseCurve_,
         CurveOption_,
         DualTypes,
         datetime,
@@ -181,7 +181,7 @@ class BasePeriod(metaclass=ABCMeta):
     def cashflows(
         self,
         curve: CurveOption_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
     ) -> dict[str, Any]:

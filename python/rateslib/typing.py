@@ -115,25 +115,25 @@ int_: TypeAlias = "int | NoInput"
 datetime_: TypeAlias = "datetime | NoInput"
 float_: TypeAlias = "float | NoInput"
 
-from rateslib.curves import Curve as Curve  # noqa: E402
+from rateslib.curves.base import _BaseCurve as _BaseCurve  # noqa: E402
 
-Curve_: TypeAlias = "Curve | NoInput"
-CurveDict: TypeAlias = "dict[str, Curve | str] | dict[str, Curve] | dict[str, str]"
+_BaseCurve_: TypeAlias = "_BaseCurve | NoInput"
+CurveDict: TypeAlias = "dict[str, _BaseCurve | str] | dict[str, _BaseCurve] | dict[str, str]"
 
-CurveOrId: TypeAlias = "Curve | str"
+CurveOrId: TypeAlias = "_BaseCurve | str"
 CurveOrId_: TypeAlias = "CurveOrId | NoInput"
 
 CurveInput: TypeAlias = "CurveOrId | CurveDict"
 CurveInput_: TypeAlias = "CurveInput | NoInput"
 
-CurveOption: TypeAlias = "Curve | dict[str, Curve]"
+CurveOption: TypeAlias = "_BaseCurve | dict[str, _BaseCurve]"
 CurveOption_: TypeAlias = "CurveOption | NoInput"
 
 Curves: TypeAlias = "CurveOrId | CurveDict | Sequence[CurveOrId | CurveDict]"
 Curves_: TypeAlias = "CurveOrId_ | CurveDict | Sequence[CurveOrId_ | CurveDict]"
 
 Curves_Tuple: TypeAlias = "tuple[CurveOption_, CurveOption_, CurveOption_, CurveOption_]"
-Curves_DiscTuple: TypeAlias = "tuple[CurveOption_, Curve_, CurveOption_, Curve_]"
+Curves_DiscTuple: TypeAlias = "tuple[CurveOption_, _BaseCurve_, CurveOption_, _BaseCurve_]"
 
 FXVolObj: TypeAlias = "FXDeltaVolSurface | FXDeltaVolSmile | FXSabrSmile | FXSabrSurface"
 

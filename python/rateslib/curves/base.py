@@ -30,7 +30,7 @@ from rateslib.mutability import _clear_cache_post, _new_state_post, _WithCache, 
 from rateslib.rs import Modifier
 
 if TYPE_CHECKING:
-    from rateslib.typing import Any, CalInput, DualTypes, float_, int_, str_
+    from rateslib.typing import Any, CalInput, float_, int_, str_
 
 DualTypes: TypeAlias = (
     "Dual | Dual2 | Variable | float"  # required for non-cyclic import on _WithCache

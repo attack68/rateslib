@@ -20,7 +20,7 @@ if TYPE_CHECKING:
         FX_,
         Any,
         Curve,
-        Curve_,
+        _BaseCurve_,
         CurveOption_,
         DualTypes,
         DualTypes_,
@@ -268,7 +268,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
     def npv(
         self,
         curve: Curve,
-        disc_curve: Curve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
@@ -281,8 +281,8 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
 
     def cashflows(
         self,
-        curve: Curve_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:
@@ -294,8 +294,8 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
 
     def analytic_delta(
         self,
-        curve: Curve_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
@@ -455,7 +455,7 @@ class FloatLegMtm(_FloatLegMixin, BaseLegMtm):
     def fixings_table(
         self,
         curve: CurveOption_,
-        disc_curve: Curve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         approximate: bool = False,

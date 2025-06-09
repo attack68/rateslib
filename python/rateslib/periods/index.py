@@ -16,7 +16,7 @@ from rateslib.periods.rates import FixedPeriod
 from rateslib.periods.utils import _float_or_none, _get_fx_and_base, _maybe_local
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX_, Any, Curve, Curve_, CurveOption_, DualTypes, DualTypes_, str_
+    from rateslib.typing import FX_, Any, Curve, _BaseCurve_, CurveOption_, DualTypes, DualTypes_, str_
 
 
 class IndexMixin(metaclass=ABCMeta):
@@ -101,8 +101,8 @@ class IndexMixin(metaclass=ABCMeta):
 
     def npv(
         self,
-        curve: Curve_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
@@ -257,8 +257,8 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
 
     def cashflows(
         self,
-        curve: Curve_ = NoInput(0),  # type: ignore[override]
-        disc_curve: Curve_ = NoInput(0),
+        curve: _BaseCurve_ = NoInput(0),  # type: ignore[override]
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
     ) -> dict[str, Any]:
@@ -411,7 +411,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
     def cashflows(
         self,
         curve: CurveOption_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
     ) -> dict[str, Any]:

@@ -19,7 +19,7 @@ if TYPE_CHECKING:
         FX_,
         Any,
         Curve,
-        Curve_,
+        _BaseCurve_,
         CurveOption_,
         DualTypes,
         DualTypes_,
@@ -298,7 +298,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
     def cashflows(
         self,
         curve: CurveOption_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:

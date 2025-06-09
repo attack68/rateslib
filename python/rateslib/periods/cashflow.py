@@ -20,7 +20,7 @@ if TYPE_CHECKING:
         NPV,
         Any,
         Curve,
-        Curve_,
+        _BaseCurve_,
         CurveOption_,
         DualTypes,
         DualTypes_,
@@ -114,7 +114,7 @@ class Cashflow:
     def npv(
         self,
         curve: CurveOption_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
@@ -131,7 +131,7 @@ class Cashflow:
     def cashflows(
         self,
         curve: CurveOption_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
     ) -> dict[str, Any]:
@@ -188,8 +188,8 @@ class Cashflow:
 
     def analytic_delta(
         self,
-        curve: Curve_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
     ) -> DualTypes:
@@ -295,8 +295,8 @@ class NonDeliverableCashflow:
 
     def analytic_delta(
         self,
-        curve: Curve_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
     ) -> DualTypes:
@@ -310,7 +310,7 @@ class NonDeliverableCashflow:
     def npv(
         self,
         curve: CurveOption_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
@@ -354,7 +354,7 @@ class NonDeliverableCashflow:
     def cashflows(
         self,
         curve: CurveOption_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
     ) -> dict[str, Any]:
@@ -363,7 +363,7 @@ class NonDeliverableCashflow:
         See
         :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
         """
-        disc_curve_: Curve_ = _disc_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve_ = _disc_maybe_from_curve(curve, disc_curve)
         imm_fx_to_base, _ = _get_fx_and_base(self.settlement_currency, fx, base)
 
         if isinstance(disc_curve_, NoInput) or not isinstance(fx, FXForwards):

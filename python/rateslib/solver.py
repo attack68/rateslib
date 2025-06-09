@@ -1350,7 +1350,7 @@ class Solver(Gradients, _WithState):
     def _get_pre_curve(self, obj: str) -> Curve:
         ret: Curve | FXVols = self.pre_curves[obj]
         if isinstance(ret, _BaseCurve):
-            return ret  # type: ignore[no-any-return]
+            return ret
         else:
             raise ValueError(
                 f"A type of `Curve` object was sought with id:'{obj}' from Solver but another "
