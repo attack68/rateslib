@@ -1311,6 +1311,7 @@ class CompositeCurve(_WithOperations, _BaseCurve):
         return _
 
     @_validate_states
+    @_no_interior_validation
     def __getitem__(self, date: datetime) -> DualTypes:
         if defaults.curve_caching and date in self._cache:
             return self._cache[date]
@@ -1344,18 +1345,6 @@ class CompositeCurve(_WithOperations, _BaseCurve):
                 _ += curve[date]
             return self._cached_value(date, _)
 
-    @_validate_states
-    def index_value(
-        self, date: datetime, index_lag: int, interpolation: str = "curve"
-    ) -> DualTypes:
-        """
-        Calculate the accrued value of the index from the ``index_base``, which is taken
-        as ``index_base`` of the *first* composited curve given.
-
-        See :meth:`Curve.index_value()<rateslib.curves.Curve.index_value>`
-        """
-        return super().index_value(date, index_lag, interpolation)
-
     # Solver interaction
 
     @_clear_cache_post
@@ -1386,10 +1375,6 @@ class CompositeCurve(_WithOperations, _BaseCurve):
 
     def _get_composited_state(self) -> int:
         return hash(sum(curve._state for curve in self.curves))
-
-    # Serialization
-
-    # Overloads
 
 
 class MultiCsaCurve(CompositeCurve):
