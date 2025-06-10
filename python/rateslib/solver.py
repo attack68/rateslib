@@ -235,7 +235,7 @@ class Gradients:
             self.s[i] -= ds
 
         # ensure exact symmetry (maybe redundant)
-        grad_s_s_vT = (grad_s_s_vT + np.swapaxes(grad_s_s_vT, 0, 1)) / 2  # type: ignore[assignment]
+        grad_s_s_vT = (grad_s_s_vT + np.swapaxes(grad_s_s_vT, 0, 1)) / 2
         self.iterate()
         return grad_s_s_vT
 
@@ -1532,7 +1532,7 @@ class Solver(Gradients, _WithState):
                 A = np.matmul(self.J, np.matmul(self.W, self.J.transpose()))
                 b = -np.matmul(np.matmul(self.J, self.W), self.x[:, np.newaxis])
 
-            delta = dual_solve(A, b)[:, 0]  # type: ignore[arg-type, assignment]
+            delta = dual_solve(A, b)[:, 0]  # type: ignore[assignment]
             v_1 = self.v + delta
         else:
             raise NotImplementedError(f"`algorithm`: {algorithm} (spelled correctly?)")

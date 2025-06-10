@@ -209,7 +209,7 @@ def gradient(
         elif isinstance(dual, Dual):  # and keep_manifold:
             raise TypeError("Dual type cannot perform `keep_manifold`.")
         _ = dual.grad1_manifold(dual.vars if vars is None else vars)
-        return np.asarray(_)  # type: ignore[return-value]
+        return np.asarray(_)
 
     elif order == 2:
         if isinstance(dual, Variable):
@@ -218,7 +218,7 @@ def gradient(
             raise TypeError("Dual type cannot derive second order automatic derivatives.")
 
         if vars is None:
-            return 2.0 * dual.dual2  #  type: ignore[return-value]
+            return 2.0 * dual.dual2
         else:
             return dual.grad2(vars)
     else:
@@ -357,9 +357,9 @@ def dual_solve(
     if types == (float, float):
         # Use basic Numpy LinAlg
         if allow_lsq:
-            return np.linalg.lstsq(A, b, rcond=None)[0]  # type: ignore[arg-type,return-value]
+            return np.linalg.lstsq(A, b, rcond=None)[0]  # type: ignore[arg-type]
         else:
-            return np.linalg.solve(A, b)  # type: ignore[arg-type,return-value]
+            return np.linalg.solve(A, b)  # type: ignore[arg-type]
 
     # Move to Rust implementation
     if types in [(Dual, float), (Dual2, float)]:
@@ -376,13 +376,13 @@ def dual_solve(
     b_ = b_[:, 0].tolist()
 
     if types == (Dual, Dual):
-        return np.array(_dsolve1(a_, b_, allow_lsq))[:, None]  # type: ignore[return-value]
+        return np.array(_dsolve1(a_, b_, allow_lsq))[:, None]
     elif types == (Dual2, Dual2):
-        return np.array(_dsolve2(a_, b_, allow_lsq))[:, None]  # type: ignore[return-value]
+        return np.array(_dsolve2(a_, b_, allow_lsq))[:, None]
     elif types == (float, Dual):
-        return np.array(_fdsolve1(A_, b_, allow_lsq))[:, None]  # type: ignore[return-value]
+        return np.array(_fdsolve1(A_, b_, allow_lsq))[:, None]
     elif types == (float, Dual2):
-        return np.array(_fdsolve2(A_, b_, allow_lsq))[:, None]  # type: ignore[return-value]
+        return np.array(_fdsolve2(A_, b_, allow_lsq))[:, None]
     else:
         raise TypeError(
             "Provided `types` argument are not permitted. Must be a 2-tuple with "

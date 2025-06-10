@@ -38,6 +38,7 @@ from rateslib.fx_volatility.utils import (
     _FXDeltaVolSmileNodes,
     _FXDeltaVolSurfaceMeta,
     _moneyness_from_delta_closed_form,
+    _surface_index_left,
     _t_var_interp,
     _validate_delta_type,
     _validate_weights,
@@ -49,7 +50,6 @@ from rateslib.mutability import (
     _WithCache,
     _WithState,
 )
-from rateslib.rs import index_left_f64
 from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
@@ -718,10 +718,11 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
             return self._cache[expiry]
 
         expiry_posix = expiry.replace(tzinfo=UTC).timestamp()
-        e_idx = index_left_f64(self.meta.expiries_posix, expiry_posix)
+        e_idx, e_next_idx = _surface_index_left(self.meta.expiries_posix, expiry_posix)
+
         if expiry == self.meta.expiries[0]:
             smile = self.smiles[0]
-        elif abs(expiry_posix - self.meta.expiries_posix[e_idx + 1]) < 1e-10:
+        elif abs(expiry_posix - self.meta.expiries_posix[e_next_idx]) < 1e-10:
             # expiry aligns with a known smile
             smile = self.smiles[e_idx + 1]
         elif expiry_posix > self.meta.expiries_posix[-1]:
@@ -734,6 +735,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
                         expiry=expiry,
                         expiry_posix=expiry_posix,
                         expiry_index=e_idx,
+                        expiry_next_index=e_next_idx,
                         eval_posix=self.meta.eval_posix,
                         weights_cum=self.meta.weights_cum,
                         vol1=vol1,
@@ -741,14 +743,14 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
                         bounds_flag=1,
                     )
                     for k, vol1 in zip(
-                        self.meta.delta_indexes, self.smiles[e_idx + 1].nodes.values, strict=False
+                        self.meta.delta_indexes, self.smiles[e_next_idx].nodes.values, strict=False
                     )
                 },
                 eval_date=self.meta.eval_date,
                 expiry=expiry,
                 ad=self.ad,
                 delta_type=self.meta.delta_type,
-                id=self.smiles[e_idx + 1].id + "_ext",
+                id=self.smiles[e_next_idx].id + "_ext",
             )
         elif expiry <= self.meta.eval_date:
             raise ValueError("`expiry` before the `eval_date` of the Surface is invalid.")
@@ -762,6 +764,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
                         expiry=expiry,
                         expiry_posix=expiry_posix,
                         expiry_index=e_idx,
+                        expiry_next_index=e_next_idx,
                         eval_posix=self.meta.eval_posix,
                         weights_cum=self.meta.weights_cum,
                         vol1=vol1,
@@ -779,7 +782,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
                 id=self.smiles[0].id + "_ext",
             )
         else:
-            ls, rs = self.smiles[e_idx], self.smiles[e_idx + 1]  # left_smile, right_smile
+            ls, rs = self.smiles[e_idx], self.smiles[e_next_idx]  # left_smile, right_smile
             smile = FXDeltaVolSmile(
                 nodes={
                     k: _t_var_interp(
@@ -788,6 +791,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
                         expiry=expiry,
                         expiry_posix=expiry_posix,
                         expiry_index=e_idx,
+                        expiry_next_index=e_next_idx,
                         eval_posix=self.meta.eval_posix,
                         weights_cum=self.meta.weights_cum,
                         vol1=vol1,

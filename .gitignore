@@ -9,6 +9,8 @@ __pycache__/
 # Rust extensions
 src/bin
 
+config.toml
+
 # Distribution / packaging
 .Python
 local_resources/
