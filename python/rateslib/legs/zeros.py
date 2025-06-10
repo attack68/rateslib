@@ -18,13 +18,13 @@ if TYPE_CHECKING:
     from rateslib.typing import (
         FX_,
         Any,
-        _BaseCurve,
-        _BaseCurve_,
         CurveOption_,
         DualTypes,
         DualTypes_,
         FixingsRates_,
         Schedule,
+        _BaseCurve,
+        _BaseCurve_,
         datetime,
     )
 

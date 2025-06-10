@@ -46,12 +46,12 @@ if TYPE_CHECKING:
     from rateslib.typing import (
         FX_,
         Any,
-        _BaseCurve,
         DualTypes,
         DualTypes_,
         FXVolOption,
         FXVolOption_,
         Number,
+        _BaseCurve,
         datetime,
         str_,
     )

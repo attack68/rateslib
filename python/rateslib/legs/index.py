@@ -14,7 +14,7 @@ from rateslib.periods.index import _validate_index_method_and_lag
 from rateslib.scheduling import Schedule
 
 if TYPE_CHECKING:
-    from rateslib.typing import NPV, Any, _BaseCurve_, DataFrame, DualTypes, DualTypes_, int_, str_
+    from rateslib.typing import NPV, Any, DataFrame, DualTypes, DualTypes_, _BaseCurve_, int_, str_
 
 
 class _IndexLegMixin:

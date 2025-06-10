@@ -11,8 +11,6 @@ from rateslib.default import NoInput
 
 if TYPE_CHECKING:
     from rateslib.typing import (
-        _BaseCurve,
-        _BaseCurve_,
         CurveInput,
         CurveInput_,
         CurveOption,
@@ -22,6 +20,8 @@ if TYPE_CHECKING:
         Curves_DiscTuple,
         Curves_Tuple,
         Solver,
+        _BaseCurve,
+        _BaseCurve_,
     )
 
 
@@ -158,7 +158,12 @@ def _get_curves_maybe_from_solver(
     if isinstance(curves, str) or not isinstance(curves, Sequence):  # Sequence can be str!
         # convert isolated value input to list
         curves_as_list: list[
-            _BaseCurve | dict[str, str | _BaseCurve] | dict[str, str] | dict[str, _BaseCurve] | NoInput | str
+            _BaseCurve
+            | dict[str, str | _BaseCurve]
+            | dict[str, str]
+            | dict[str, _BaseCurve]
+            | NoInput
+            | str
         ] = [curves]
     else:
         curves_as_list = list(curves)

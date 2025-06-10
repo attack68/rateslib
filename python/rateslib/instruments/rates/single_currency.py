@@ -34,7 +34,6 @@ if TYPE_CHECKING:
     from rateslib.typing import (
         FX_,
         NPV,
-        _BaseCurve,
         CurveOption_,
         Curves_,
         DualTypes,
@@ -42,6 +41,7 @@ if TYPE_CHECKING:
         FixingsRates_,
         FloatPeriod,
         Solver_,
+        _BaseCurve,
     )
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

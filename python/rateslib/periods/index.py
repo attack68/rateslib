@@ -16,7 +16,16 @@ from rateslib.periods.rates import FixedPeriod
 from rateslib.periods.utils import _float_or_none, _get_fx_and_base, _maybe_local
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX_, Any, _BaseCurve, _BaseCurve_, CurveOption_, DualTypes, DualTypes_, str_
+    from rateslib.typing import (
+        FX_,
+        Any,
+        CurveOption_,
+        DualTypes,
+        DualTypes_,
+        _BaseCurve,
+        _BaseCurve_,
+        str_,
+    )
 
 
 class IndexMixin(metaclass=ABCMeta):

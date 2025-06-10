@@ -19,11 +19,11 @@ if TYPE_CHECKING:
         FX_,
         NPV,
         Any,
-        _BaseCurve,
-        _BaseCurve_,
         CurveOption_,
         DualTypes,
         DualTypes_,
+        _BaseCurve,
+        _BaseCurve_,
         datetime,
         str_,
     )

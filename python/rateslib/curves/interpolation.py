@@ -10,7 +10,7 @@ from rateslib.dual import dual_exp, dual_log
 from rateslib.rs import index_left_f64
 
 if TYPE_CHECKING:
-    from rateslib.typing import Any, _BaseCurve, DualTypes, datetime  # pragma: no cover
+    from rateslib.typing import Any, DualTypes, _BaseCurve, datetime  # pragma: no cover
 
 
 class InterpolationFunction(Protocol):

@@ -54,7 +54,6 @@ if TYPE_CHECKING:
         CalInput,
         Callable,
         Cashflow,
-        _BaseCurve_,
         CurveOption,
         CurveOption_,
         Curves_,
@@ -66,6 +65,8 @@ if TYPE_CHECKING:
         IndexFixedPeriod,
         Number,
         Solver_,
+        _BaseCurve,
+        _BaseCurve_,
         bool_,
         datetime_,
         int_,
@@ -512,7 +513,7 @@ class BondMixin:
     def _npv_local(
         self,
         curve: CurveOption_,
-        disc_curve: Curve,
+        disc_curve: _BaseCurve,
         settlement: datetime,
         projection: datetime_,
     ) -> DualTypes:
@@ -817,7 +818,7 @@ class BondMixin:
         )
 
     def _oaspread_algorithm(
-        self, curve: CurveOption_, disc_curve: Curve, metric: str, price: float
+        self, curve: CurveOption_, disc_curve: _BaseCurve, metric: str, price: float
     ) -> float:
         """
         Perform the algorithm as specified in "Coding Interest Rates" to derive an OAS spread
@@ -901,7 +902,7 @@ class BondMixin:
 
     # TODO: unit tests for the oaspread_newton algo, and derive the analytics to keep this AD safe
     def _oaspread_newton_algorithm(
-        self, curve: CurveOption_, disc_curve: Curve, metric: str, price: float
+        self, curve: CurveOption_, disc_curve: _BaseCurve, metric: str, price: float
     ) -> DualTypes:
         """
         NOT FULLY CHECKED or TESTED: DO NOT USE

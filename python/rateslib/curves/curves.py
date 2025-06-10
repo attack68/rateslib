@@ -13,7 +13,7 @@ from pandas import Series
 from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
 from rateslib.calendars.rs import get_calendar
-from rateslib.curves.base import _CurveMutation, _BaseCurve
+from rateslib.curves.base import _BaseCurve, _CurveMutation
 from rateslib.curves.utils import (
     _CurveInterpolator,
     _CurveMeta,
@@ -58,8 +58,8 @@ DualTypes: TypeAlias = (
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-class CurveOperations:
 
+class CurveOperations:
     _base_type: _CurveType
     _nodes: _CurveNodes
     _meta: _CurveMeta
@@ -709,8 +709,6 @@ class Curve(CurveOperations, _CurveMutation):
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-
 
     # Serialization
 

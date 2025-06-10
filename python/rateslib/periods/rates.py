@@ -9,9 +9,9 @@ from pandas import NA, DataFrame, Index, MultiIndex, Series, concat, isna, notna
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf, get_calendar
-from rateslib.curves.base import _BaseCurve
-from rateslib.curves import Curve, average_rate, index_left
+from rateslib.curves import average_rate, index_left
 from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_maybe_from_curve
+from rateslib.curves.base import _BaseCurve
 from rateslib.curves.utils import _CurveType
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, Variable, gradient
@@ -34,11 +34,11 @@ if TYPE_CHECKING:
         FX_,
         Any,
         CalTypes,
-        _BaseCurve_,
         CurveOption_,
         DualTypes,
         DualTypes_,
         Number,
+        _BaseCurve_,
         datetime,
         datetime_,
         str_,

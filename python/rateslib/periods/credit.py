@@ -20,11 +20,11 @@ if TYPE_CHECKING:
     from rateslib.typing import (
         FX_,
         Any,
-        _BaseCurve,
-        _BaseCurve_,
         CurveOption_,
         DualTypes,
         DualTypes_,
+        _BaseCurve,
+        _BaseCurve_,
         datetime,
         str_,
     )

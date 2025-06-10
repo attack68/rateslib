@@ -4,8 +4,8 @@ import warnings
 from typing import TYPE_CHECKING
 
 from rateslib import defaults
-from rateslib.curves.base import _BaseCurve
 from rateslib.curves._parsers import _validate_obj_not_no_input
+from rateslib.curves.base import _BaseCurve
 from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
 from rateslib.fx import FXForwards, FXRates
@@ -14,11 +14,11 @@ from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
 if TYPE_CHECKING:
     from rateslib.typing import (
         FX_,
-        _BaseCurve,
         CurveOption_,
         DataFrame,
         DualTypes,
         FXVolOption_,
+        _BaseCurve,
         datetime,
         datetime_,
         str_,
@@ -200,7 +200,9 @@ def _get_ibor_curve_from_dict(months: int, d: dict[str, _BaseCurve]) -> _BaseCur
             )
 
 
-def _maybe_get_rfr_curve_from_dict(curve: _BaseCurve | dict[str, _BaseCurve] | NoInput) -> _BaseCurve | NoInput:
+def _maybe_get_rfr_curve_from_dict(
+    curve: _BaseCurve | dict[str, _BaseCurve] | NoInput,
+) -> _BaseCurve | NoInput:
     if isinstance(curve, dict):
         return _get_rfr_curve_from_dict(curve)
     else:
@@ -257,7 +259,9 @@ def _get_vol_delta_type(vol: FXVolOption_, default_delta_type: str) -> str:
         return vol.meta.delta_type
 
 
-def _validate_credit_curves(curve: CurveOption_, disc_curve: CurveOption_) -> tuple[_BaseCurve, _BaseCurve]:
+def _validate_credit_curves(
+    curve: CurveOption_, disc_curve: CurveOption_
+) -> tuple[_BaseCurve, _BaseCurve]:
     # used by Credit type Periods to narrow inputs
     if not isinstance(curve, _BaseCurve):
         raise TypeError(

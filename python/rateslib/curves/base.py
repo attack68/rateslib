@@ -387,9 +387,7 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
            index_curve.index_value(dt(2021, 9, 7), 0)
         """  # noqa: E501
         if self._base_type == _CurveType.values:
-            raise TypeError(
-                "A 'values' type Curve cannot be used to forecast index values."
-            )
+            raise TypeError("A 'values' type Curve cannot be used to forecast index values.")
 
         if isinstance(self.meta.index_base, NoInput):
             raise ValueError(
@@ -736,11 +734,11 @@ class _CurveMutation(_BaseCurve):
         )
         self._nodes = _CurveNodes(nodes)
 
-        endpoints = _drb(defaults.endpoints, endpoints)
-        if isinstance(endpoints, str):
-            endpoints_: tuple[str, str] = (endpoints.lower(), endpoints.lower())
+        temp: str | tuple[str, str] = _drb(defaults.endpoints, endpoints)
+        if isinstance(temp, str):
+            endpoints_: tuple[str, str] = (temp.lower(), temp.lower())
         else:
-            endpoints_ = (endpoints[0].lower(), endpoints[1].lower())
+            endpoints_ = (temp[0].lower(), temp[1].lower())
 
         self._interpolator = _CurveInterpolator(
             local=interpolation,
