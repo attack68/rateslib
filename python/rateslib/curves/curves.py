@@ -76,7 +76,7 @@ class _ShiftedCurve(_BaseCurve):
 
     _obj: _BaseCurve
 
-    def __init(
+    def __init__(
         self,
         curve: _BaseCurve,
         shift: float | Variable,
@@ -141,6 +141,63 @@ class _ShiftedCurve(_BaseCurve):
         return self._obj._base_type
 
 
+class _TranslatedCurve(_BaseCurve):
+    """A class which wraps a :class:`~rateslib.curves.CompositeCurve` designed to produce the
+    required vertical basis points shift of the underlying ``curve``, according to *rateslib's*
+    vector space metric.
+
+    Parameters
+    ----------
+    curve: _BaseCurve
+        Any *BaseCurve* type.
+    translation_date: datetime
+        The date which acts as the new initial node date
+    id: str, optional
+        Identifier used for :class:`~rateslib.solver.Solver` mappings.
+    """
+
+    _obj: _BaseCurve
+
+    def __init(
+        self,
+        curve: _BaseCurve,
+        translation_date: datetime,
+        id: str_ = NoInput(0),
+    ) -> None:
+        id_ = _drb(curve.id + "_translated_" + f"{translation_date.strftime('yy_mm_dd')}", id)
+        self._obj = curve
+
+    def __getitem__(self, date: datetime) -> DualTypes:
+        return self._obj.__getitem__(date)
+
+    def _set_ad_order(self, ad: int):
+        return self._obj._set_ad_order(ad)
+
+    @property
+    def _ad(self) -> int:
+        return self._obj._ad
+
+    @property
+    def _meta(self) -> _CurveMeta:
+        return self._obj._meta
+
+    @property
+    def _id(self) -> str:
+        return self._obj._id
+
+    @property
+    def _nodes(self) -> _CurveNodes:
+        return self._obj._nodes
+
+    @property
+    def _interpolator(self) -> _CurveInterpolator:
+        return self._obj._interpolator
+
+    @property
+    def _base_type(self) -> _CurveType:
+        return self._obj._base_type
+
+
 class CurveOperations:
     _base_type: _CurveType
     _nodes: _CurveNodes
@@ -148,12 +205,13 @@ class CurveOperations:
     _interpolator: _CurveInterpolator
     _ad: int
 
+    # Operations
+
+    @_validate_states
     def shift(
         self,
-        spread: DualTypes,
+        spread: float | Variable,
         id: str_ = NoInput(0),  # noqa: A002
-        collateral: str_ = NoInput(0),
-        composite: bool = True,
     ) -> _BaseCurve:
         """
         Create a new curve by vertically adjusting the curve by a set number of basis
@@ -170,16 +228,10 @@ class CurveOperations:
             The number of basis points added to the existing curve.
         id : str, optional
             Set the id of the returned curve.
-        collateral: str, optional
-            Designate a collateral tag for the curve which is used by other methods.
-        composite: bool, optional
-            If True will return a CompositeCurve that adds a flat curve to the existing curve.
-            This results in slower calculations but the curve will maintain a dynamic
-            association with the underlying curve and will change if the underlying curve changes.
 
         Returns
         -------
-        CompositeCurve or Self
+        _ShiftedCurve
 
         Notes
         -----
@@ -247,74 +299,7 @@ class CurveOperations:
            plt.show()
 
         """
-        return self._shift(spread, id, collateral, composite, False)
-
-    def _shift(
-        self,
-        spread: DualTypes,
-        id: str_ = NoInput(0),  # noqa: A002
-        collateral: str_ = NoInput(0),
-        composite: bool = True,
-        _no_validation: bool = False,
-    ) -> _BaseCurve:
-        """
-        Executes the `Curve.shift` method.
-
-        ``_no_validation`` is a performance enhancement to speed up a CompositeCurve init.
-        """
-        start, end = self._nodes.initial, self._nodes.final
-
-        dcf_ = dcf(start, end, self._meta.convention, calendar=self._meta.calendar)
-        _, d, n = average_rate(start, end, self._meta.convention, 0.0, dcf_)
-        if self._base_type == _CurveType.dfs:
-            shifted = Curve(
-                nodes={start: 1.0, end: 1.0 / (1 + d * spread / 10000) ** n},
-                convention=self._meta.convention,
-                calendar=self._meta.calendar,
-                modifier=self._meta.modifier,
-                interpolation="log_linear",
-                index_base=self._meta.index_base,
-                index_lag=self._meta.index_lag,
-                ad=_get_order_of(spread),
-            )
-        else:  # base type is values: LineCurve
-            shifted = LineCurve(
-                nodes={start: spread / 100.0, end: spread / 100.0},
-                convention=self._meta.convention,
-                calendar=self._meta.calendar,
-                modifier=self._meta.modifier,
-                interpolation="flat_backward",
-                ad=_get_order_of(spread),
-            )
-
-        crv: CompositeCurve = CompositeCurve(
-            curves=[self, shifted], id=id, _no_validation=_no_validation
-        )
-        crv._meta = replace(crv._meta, _collateral=_drb(None, collateral))
-
-        if not composite:
-            if self._base_type == _CurveType.dfs:
-                CurveClass = Curve
-                kwargs = dict(index_base=self._meta.index_base, index_lag=self._meta.index_lag)
-            else:
-                CurveClass = LineCurve
-                kwargs = {}
-
-            spl = self._interpolator.spline
-            return CurveClass(
-                nodes={k: crv[k] for k in self._nodes.nodes},
-                convention=self._meta.convention,
-                calendar=self._meta.calendar,
-                interpolation=self._interpolator.local,
-                t=NoInput(0) if spl is None else spl.t,
-                c=NoInput(0),  # call csolve on init
-                endpoints=NoInput(0) if spl is None else spl.endpoints,
-                modifier=self._meta.modifier,
-                ad=crv.ad,
-                **kwargs,
-            )
-        else:
-            return crv
+        return _ShiftedCurve(curve=self, shift=spread)
 
     def translate(self, start: datetime, t: bool = False) -> Curve:
         """
@@ -1586,40 +1571,6 @@ class CompositeCurve(CurveOperations, _BaseCurve):
             for curve in self.curves:
                 _ += curve[date]
             return self._cached_value(date, _)
-
-    def shift(
-        self,
-        spread: DualTypes,
-        id: str_ = NoInput(0),  # noqa: A002
-        collateral: str_ = NoInput(0),
-        composite: bool = True,
-    ) -> Curve:
-        """
-        Create a new curve by vertically adjusting the curve by a set number of basis
-        points.
-
-        See :meth:`Curve.shift()<rateslib.curves.Curve.shift>`
-        """
-        if composite is False:
-            raise ValueError("`composite` must be set to `True` when shifting a CompositeCurve.")
-        return self._shift(spread, id, collateral, composite, False)
-
-    @_validate_states
-    def _shift(
-        self,
-        spread: DualTypes,
-        id: str_ = NoInput(0),  # noqa: A002
-        collateral: str_ = NoInput(0),
-        composite: bool = True,
-        _no_validation: bool = False,
-    ) -> Curve:
-        """
-        Create a new curve by vertically adjusting the curve by a set number of basis
-        points.
-
-        See :meth:`Curve.shift()<rateslib.curves.Curve.shift>`
-        """
-        return super()._shift(spread, id, collateral, composite, _no_validation)
 
     @_validate_states
     def translate(self, start: datetime, t: bool = False) -> CompositeCurve:

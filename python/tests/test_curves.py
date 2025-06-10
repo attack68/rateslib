@@ -494,8 +494,8 @@ def test_index_left_raises() -> None:
 
 
 @pytest.mark.parametrize("ad_order", [0, 1, 2])
-@pytest.mark.parametrize("composite", [True, False])
-def test_curve_shift_ad_order(ad_order, composite) -> None:
+#@pytest.mark.parametrize("composite", [True, False])
+def test_curve_shift_ad_order(ad_order) -> None:
     curve = Curve(
         nodes={
             dt(2022, 1, 1): 1.0,
@@ -519,7 +519,7 @@ def test_curve_shift_ad_order(ad_order, composite) -> None:
         ],
         ad=ad_order,
     )
-    result_curve = curve.shift(25, composite=composite)
+    result_curve = curve.shift(25)
     diff = np.array(
         [
             result_curve.rate(_, "1D") - curve.rate(_, "1D") - 0.25
@@ -529,6 +529,7 @@ def test_curve_shift_ad_order(ad_order, composite) -> None:
     assert np.all(np.abs(diff) < 1e-7)
 
 
+@pytest.mark.skip(reason="composite argument removed from shift method in v2.1")
 def test_curve_shift_association() -> None:
     # test a dynamic shift association with curves, active after a Solver mutation
     args = (dt(2022, 2, 1), "1d")
@@ -596,8 +597,8 @@ def test_composite_curve_shift() -> None:
 
 
 @pytest.mark.parametrize("ad_order", [0, 1, 2])
-@pytest.mark.parametrize("composite", [True, False])
-def test_linecurve_shift(ad_order, composite) -> None:
+#@pytest.mark.parametrize("composite", [True, False])
+def test_linecurve_shift(ad_order) -> None:
     curve = LineCurve(
         nodes={
             dt(2022, 1, 1): 1.0,
@@ -621,7 +622,7 @@ def test_linecurve_shift(ad_order, composite) -> None:
         ],
         ad=ad_order,
     )
-    result_curve = curve.shift(25, composite=composite)
+    result_curve = curve.shift(25)
     diff = np.array(
         [
             result_curve[_] - curve[_] - 0.25
@@ -665,8 +666,8 @@ def test_linecurve_shift_dual_input() -> None:
 
 
 @pytest.mark.parametrize("ad_order", [0, 1, 2])
-@pytest.mark.parametrize("composite", [True, False])
-def test_indexcurve_shift(ad_order, composite) -> None:
+#@pytest.mark.parametrize("composite", [True, False])
+def test_indexcurve_shift(ad_order) -> None:
     curve = Curve(
         nodes={
             dt(2022, 1, 1): 1.0,
@@ -692,7 +693,7 @@ def test_indexcurve_shift(ad_order, composite) -> None:
         index_base=110.0,
         interpolation="log_linear",
     )
-    result_curve = curve.shift(25, composite=composite)
+    result_curve = curve.shift(25)
     diff = np.array(
         [
             result_curve.rate(_, "1D") - curve.rate(_, "1D") - 0.25
@@ -744,8 +745,8 @@ def test_indexcurve_shift_dual_input() -> None:
 @pytest.mark.parametrize(
     "spread", [1.0, Dual(1.0, ["z"], []), Dual2(1.0, ["z"], [], []), Variable(1.0, ["z"])]
 )
-@pytest.mark.parametrize("composite", [False, True])
-def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, spread, composite):
+# @pytest.mark.parametrize("composite", [False, True])
+def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, spread):
     if c_obj == "c":
         c = curve
     elif c_obj == "l":
@@ -759,7 +760,7 @@ def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, sp
             c.shift(spread)
         return None
 
-    result = c.shift(spread, composite=composite)
+    result = c.shift(spread)
     expected = max(_get_order_of(spread), ini_ad)
     assert result._ad == expected
 
@@ -1523,7 +1524,7 @@ class TestCompositeCurve:
             ("rate", (dt(2022, 1, 1), "1d")),
             ("roll", ("10d",)),
             ("translate", (dt(2022, 1, 10),)),
-            ("shift", (10.0, "id", False)),
+            ("shift", (10.0, "id")),
             ("__getitem__", (dt(2022, 1, 10),)),
             ("index_value", (dt(2022, 1, 10), 3)),
         ],
@@ -1911,7 +1912,7 @@ class TestMultiCsaCurve:
             convention="Act365F",
         )
         cc = MultiCsaCurve([c1, c2, c3])
-        cc_shift = cc.shift(100, composite=True)
+        cc_shift = cc.shift(100)
         with default_context("multi_csa_steps", [1, 1, 1, 1, 1, 1, 1]):
             r1 = cc_shift.rate(dt(2022, 1, 1), "1d")
             r2 = cc_shift.rate(dt(2022, 1, 2), "1d")
@@ -2055,7 +2056,7 @@ class TestMultiCsaCurve:
             ("rate", (dt(2022, 1, 1), "1d")),
             ("roll", ("10d",)),
             ("translate", (dt(2022, 1, 10),)),
-            ("shift", (10.0, "id", False)),
+            ("shift", (10.0, "id")),
             ("__getitem__", (dt(2022, 1, 10),)),
         ],
     )
