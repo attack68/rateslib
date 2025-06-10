@@ -1,9 +1,17 @@
+from rateslib.curves.base import (
+    _BaseCurve,
+    _CurveMutation,
+)
 from rateslib.curves.curves import (
     CompositeCurve,
     Curve,
     LineCurve,
     MultiCsaCurve,
     ProxyCurve,
+    _RolledCurve,
+    _ShiftedCurve,
+    _TranslatedCurve,
+    _WithOperations,
     index_value,
 )
 from rateslib.curves.interpolation import index_left
@@ -32,4 +40,10 @@ __all__ = (
     "_CurveInterpolator",
     "_CurveNodes",
     "_ProxyCurveInterpolator",
+    "_RolledCurve",
+    "_ShiftedCurve",
+    "_TranslatedCurve",
+    "_WithOperations",
+    "_BaseCurve",
+    "_CurveMutation"
 )

@@ -75,13 +75,9 @@ class _WithOperations(ABC):
         id: str_ = NoInput(0),  # noqa: A002
     ) -> _ShiftedCurve:
         """
-        Create a new curve by vertically adjusting the curve by a set number of basis
-        points.
+        Create a :class:`~rateslib.curves._ShiftedCurve`: moving *Self* vertically in rate space.
 
-        This curve adjustment preserves the shape of the curve but moves it up or
-        down as a translation.
-        This method is suitable as a way to assess value changes of instruments when
-        a parallel move higher or lower in yields is predicted.
+        For examples see the documentation for :class:`~rateslib.curves._ShiftedCurve`.
 
         Parameters
         ----------
@@ -93,71 +89,6 @@ class _WithOperations(ABC):
         Returns
         -------
         _ShiftedCurve
-
-        Notes
-        -----
-        The output :class:`~rateslib.curves.CompositeCurve` will have an AD order of the maximum
-        of the AD order of the input ``spread`` and of `Self`.
-        That is, if the input ``spread`` is
-        a *float* (with AD order 0) and the input *Curve* is parametrised with *Dual* and has an AD
-        order of 1, then the result will have an AD order of 1.
-
-        .. warning::
-
-           If ``spread`` is given as :class:`~rateslib.dual.Dual2` but the AD order of `Self`
-           is only 1, then `Self` will be upcast to use :class:`~rateslib.dual.Dual2` types.
-
-        Examples
-        --------
-        .. ipython:: python
-
-           from rateslib.curves import Curve
-
-        .. ipython:: python
-
-           curve = Curve(
-               nodes = {
-                   dt(2022, 1, 1): 1.0,
-                   dt(2023, 1, 1): 0.988,
-                   dt(2024, 1, 1): 0.975,
-                   dt(2025, 1, 1): 0.965,
-                   dt(2026, 1, 1): 0.955,
-                   dt(2027, 1, 1): 0.9475
-               },
-               t = [
-                   dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
-                   dt(2025, 1, 1),
-                   dt(2026, 1, 1),
-                   dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
-               ],
-           )
-           shifted_curve = curve.shift(25)
-           curve.plot("1d", comparators=[shifted_curve], labels=["orig", "shift"])
-
-        .. plot::
-
-           from rateslib.curves import *
-           import matplotlib.pyplot as plt
-           from datetime import datetime as dt
-           curve = Curve(
-               nodes = {
-                   dt(2022, 1, 1): 1.0,
-                   dt(2023, 1, 1): 0.988,
-                   dt(2024, 1, 1): 0.975,
-                   dt(2025, 1, 1): 0.965,
-                   dt(2026, 1, 1): 0.955,
-                   dt(2027, 1, 1): 0.9475
-               },
-               t = [
-                   dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
-                   dt(2025, 1, 1),
-                   dt(2026, 1, 1),
-                   dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
-               ],
-           )
-           spread_curve = curve.shift(25)
-           fig, ax, line = curve.plot("1d", comparators=[spread_curve], labels=["orig", "shift"])
-           plt.show()
 
         """
         _: _BaseCurve = self  # type: ignore[assignment]
@@ -178,9 +109,6 @@ class _WithOperations(ABC):
         start : datetime
             The new initial node date for the curve, must be in the domain:
             (node_date[0], node_date[1]]
-        t : bool
-            Set to *True* if the initial knots of the knot sequence should be
-            translated forward.
 
         Returns
         -------
@@ -243,56 +171,6 @@ class _WithOperations(ABC):
            fig, ax, line = curve.plot("1d", comparators=[translated_curve], labels=["orig", "translated"], left=dt(2022, 12, 1))
            plt.show()
            plt.close()
-
-        .. ipython:: python
-
-           curve.nodes
-           translated_curve.nodes
-
-        When a curve has a log-cubic spline the knot dates can be preserved or
-        translated with the ``t`` argument. Preserving the knot dates preserves the
-        interpolation of the curve. A knot sequence for a mixed curve which begins
-        after ``start`` will not be affected in either case.
-
-        .. ipython:: python
-
-           curve = Curve(
-               nodes={
-                   dt(2022, 1, 1): 1.0,
-                   dt(2022, 2, 1): 0.999,
-                   dt(2022, 3, 1): 0.9978,
-                   dt(2022, 4, 1): 0.9963,
-                   dt(2022, 5, 1): 0.9940
-               },
-               t = [dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1),
-                    dt(2022, 2, 1), dt(2022, 3, 1), dt(2022, 4, 1),
-                    dt(2022, 5, 1), dt(2022, 5, 1), dt(2022, 5, 1), dt(2022, 5, 1)]
-           )
-           translated_curve = curve.translate(dt(2022, 1, 15))
-           translated_curve2 = curve.translate(dt(2022, 1, 15), t=True)
-           curve.plot("1d", left=dt(2022, 1, 15), comparators=[translated_curve, translated_curve2], labels=["orig", "translated", "translated2"])
-
-        .. plot::
-
-           from rateslib.curves import *
-           import matplotlib.pyplot as plt
-           from datetime import datetime as dt
-           curve = Curve(
-               nodes={
-                   dt(2022, 1, 1): 1.0,
-                   dt(2022, 2, 1): 0.999,
-                   dt(2022, 3, 1): 0.9978,
-                   dt(2022, 4, 1): 0.9963,
-                   dt(2022, 5, 1): 0.9940
-               },
-               t = [dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1),
-                    dt(2022, 2, 1), dt(2022, 3, 1), dt(2022, 4, 1),
-                    dt(2022, 5, 1), dt(2022, 5, 1), dt(2022, 5, 1), dt(2022, 5, 1)]
-           )
-           translated = curve.translate(dt(2022, 1, 15))
-           translated2 = curve.translate(dt(2022, 1, 15), t=True)
-           fig, ax, line = curve.plot("1d", left=dt(2022, 1, 15), comparators=[translated, translated2], labels=["orig", "translated", "translated2"])
-           plt.show()
 
         """  # noqa: E501
         _: _BaseCurve = self  # type: ignore[assignment]
@@ -391,9 +269,9 @@ class _WithOperations(ABC):
 
 
 class _ShiftedCurve(_WithOperations, _BaseCurve):
-    """A class which wraps a :class:`~rateslib.curves.CompositeCurve` designed to produce the
-    required vertical basis points shift of the underlying ``curve``, according to *rateslib's*
-    vector space metric.
+    """
+    Create a new :class:`~rateslib.curves._BaseCurve` type by compositing an input with
+    another flat curve of a set number of basis points.
 
     Parameters
     ----------
@@ -403,6 +281,82 @@ class _ShiftedCurve(_WithOperations, _BaseCurve):
         The amount by which to shift the curve.
     id: str, optional
         Identifier used for :class:`~rateslib.solver.Solver` mappings.
+
+    Returns
+    -------
+    _ShiftedCurve
+
+    Notes
+    -----
+    For **values** based curves this will add the ``shift`` to every output *rate* generated
+    by ``curve``.
+
+    For **discount factor** based curves this will add the ``shift`` as a geometric 1-day average
+    rate to the input ``curve``, in accordance with *rateslib*'s definition of curve metric spaces.
+
+    This implies that the *shape* of the ``curve`` is preserved but it undergoes a vertical
+    translation in rate space. This class works by wrapping a
+    :class:`~rateslib.curves.CompositeCurve` and designing the spread curve according to these
+    definitions.
+
+    The **ad order** will be the maximum order of ``curve`` and ``spread``. The usual `TypeError`
+    will be raised if mixing of :class:`~rateslib.dual.Dual` and :class:`~rateslib.dual.Dual2`
+    is attempted.
+
+    Examples
+    --------
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.curves import Curve
+
+    .. ipython:: python
+
+       curve = Curve(
+           nodes = {
+               dt(2022, 1, 1): 1.0,
+               dt(2023, 1, 1): 0.988,
+               dt(2024, 1, 1): 0.975,
+               dt(2025, 1, 1): 0.965,
+               dt(2026, 1, 1): 0.955,
+               dt(2027, 1, 1): 0.9475
+           },
+           t = [
+               dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+               dt(2025, 1, 1),
+               dt(2026, 1, 1),
+               dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+           ],
+       )
+       shifted_curve = curve.shift(25)
+       curve.plot("1d", comparators=[shifted_curve], labels=["orig", "shift"])
+
+    .. plot::
+
+       from rateslib.curves import *
+       import matplotlib.pyplot as plt
+       from datetime import datetime as dt
+       curve = Curve(
+           nodes = {
+               dt(2022, 1, 1): 1.0,
+               dt(2023, 1, 1): 0.988,
+               dt(2024, 1, 1): 0.975,
+               dt(2025, 1, 1): 0.965,
+               dt(2026, 1, 1): 0.955,
+               dt(2027, 1, 1): 0.9475
+           },
+           t = [
+               dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+               dt(2025, 1, 1),
+               dt(2026, 1, 1),
+               dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+           ],
+       )
+       spread_curve = curve.shift(25)
+       fig, ax, line = curve.plot("1d", comparators=[spread_curve], labels=["orig", "shift"])
+       plt.show()
+       plt.close()
     """
 
     _obj: _BaseCurve
