@@ -59,6 +59,88 @@ DualTypes: TypeAlias = (
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
+class _ShiftedCurve(_BaseCurve):
+    """A class which wraps a :class:`~rateslib.curves.CompositeCurve` designed to produce the
+    required vertical basis points shift of the underlying ``curve``, according to *rateslib's*
+    vector space metric.
+
+    Parameters
+    ----------
+    curve: _BaseCurve
+        Any *BaseCurve* type.
+    shift: float | Variable
+        The amount by which to shift the curve.
+    id: str, optional
+        Identifier used for :class:`~rateslib.solver.Solver` mappings.
+    """
+
+    _obj: _BaseCurve
+
+    def __init(
+        self,
+        curve: _BaseCurve,
+        shift: float | Variable,
+        id: str_ = NoInput(0),
+    ) -> None:
+        start, end = curve._nodes.initial, curve._nodes.final
+
+        if curve._base_type == _CurveType.dfs:
+            dcf_ = dcf(start, end, curve._meta.convention, calendar=curve._meta.calendar)
+            _, d, n = average_rate(start, end, curve._meta.convention, 0.0, dcf_)
+            shifted = Curve(
+                nodes={start: 1.0, end: 1.0 / (1 + d * shift / 10000) ** n},
+                convention=curve._meta.convention,
+                calendar=curve._meta.calendar,
+                modifier=curve._meta.modifier,
+                interpolation="log_linear",
+                index_base=curve._meta.index_base,
+                index_lag=curve._meta.index_lag,
+                ad=_get_order_of(shift),
+            )
+        else:  # base type is values: LineCurve
+            shifted = LineCurve(
+                nodes={start: shift / 100.0, end: shift / 100.0},
+                convention=curve._meta.convention,
+                calendar=curve._meta.calendar,
+                modifier=curve._meta.modifier,
+                interpolation="flat_backward",
+                ad=_get_order_of(shift),
+            )
+
+        id_ = _drb(curve.id + "_shift_" + f"{_dual_float(shift):.1f}", id)
+        self._obj = CompositeCurve(curves=[curve, shifted], id=id_)
+
+    def __getitem__(self, date: datetime) -> DualTypes:
+        return self._obj.__getitem__(date)
+
+    def _set_ad_order(self, ad: int):
+        return self._obj._set_ad_order(ad)
+
+    @property
+    def _ad(self) -> int:
+        return self._obj._ad
+
+    @property
+    def _meta(self) -> _CurveMeta:
+        return self._obj._meta
+
+    @property
+    def _id(self) -> str:
+        return self._obj._id
+
+    @property
+    def _nodes(self) -> _CurveNodes:
+        return self._obj._nodes
+
+    @property
+    def _interpolator(self) -> _CurveInterpolator:
+        return self._obj._interpolator
+
+    @property
+    def _base_type(self) -> _CurveType:
+        return self._obj._base_type
+
+
 class CurveOperations:
     _base_type: _CurveType
     _nodes: _CurveNodes
@@ -229,7 +311,7 @@ class CurveOperations:
                 endpoints=NoInput(0) if spl is None else spl.endpoints,
                 modifier=self._meta.modifier,
                 ad=crv.ad,
-                **kwargs,  # type: ignore[arg-type]
+                **kwargs,
             )
         else:
             return crv
@@ -1338,7 +1420,7 @@ class CompositeCurve(CurveOperations, _BaseCurve):
 
     def __init__(
         self,
-        curves: list[Curve] | tuple[Curve, ...],
+        curves: list[_BaseCurve] | tuple[_BaseCurve, ...],
         id: str_ = NoInput(0),  # noqa: A002
         _no_validation: bool = False,
     ) -> None:
@@ -1675,7 +1757,7 @@ class MultiCsaCurve(CompositeCurve):
 
     def __init__(
         self,
-        curves: list[Curve] | tuple[Curve, ...],
+        curves: list[_BaseCurve] | tuple[_BaseCurve, ...],
         id: str | NoInput = NoInput(0),  # noqa: A002
         multi_csa_min_step: int = 1,
         multi_csa_max_step: int = 1825,

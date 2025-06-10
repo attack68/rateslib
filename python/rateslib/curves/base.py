@@ -86,6 +86,10 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
 
         return self._cached_value(date, val)
 
+    @abstractmethod
+    def _set_ad_order(self, ad: int) -> None:
+        ...
+
     @property
     def ad(self) -> int:
         """Int in {0,1,2} describing the AD order associated with the *Curve*."""
