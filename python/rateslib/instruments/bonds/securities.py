@@ -54,7 +54,6 @@ if TYPE_CHECKING:
         CalInput,
         Callable,
         Cashflow,
-        Curve_,
         CurveOption,
         CurveOption_,
         Curves_,
@@ -66,6 +65,8 @@ if TYPE_CHECKING:
         IndexFixedPeriod,
         Number,
         Solver_,
+        _BaseCurve,
+        _BaseCurve_,
         bool_,
         datetime_,
         int_,
@@ -512,7 +513,7 @@ class BondMixin:
     def _npv_local(
         self,
         curve: CurveOption_,
-        disc_curve: Curve,
+        disc_curve: _BaseCurve,
         settlement: datetime,
         projection: datetime_,
     ) -> DualTypes:
@@ -656,7 +657,7 @@ class BondMixin:
     def analytic_delta(
         self,
         curve: CurveOption_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
     ) -> DualTypes:
@@ -817,7 +818,7 @@ class BondMixin:
         )
 
     def _oaspread_algorithm(
-        self, curve: CurveOption_, disc_curve: Curve, metric: str, price: float
+        self, curve: CurveOption_, disc_curve: _BaseCurve, metric: str, price: float
     ) -> float:
         """
         Perform the algorithm as specified in "Coding Interest Rates" to derive an OAS spread
@@ -901,7 +902,7 @@ class BondMixin:
 
     # TODO: unit tests for the oaspread_newton algo, and derive the analytics to keep this AD safe
     def _oaspread_newton_algorithm(
-        self, curve: CurveOption_, disc_curve: Curve, metric: str, price: float
+        self, curve: CurveOption_, disc_curve: _BaseCurve, metric: str, price: float
     ) -> DualTypes:
         """
         NOT FULLY CHECKED or TESTED: DO NOT USE
@@ -1145,7 +1146,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
     fixed_rate: DualTypes
     leg1: FixedLeg
 
-    def _period_cashflow(self, period: Cashflow | FixedPeriod, curve: Curve_) -> DualTypes:  # type: ignore[override]
+    def _period_cashflow(self, period: Cashflow | FixedPeriod, curve: _BaseCurve_) -> DualTypes:  # type: ignore[override]
         """Nominal fixed rate bonds use the known "cashflow" attribute on the *Period*."""
         return period.cashflow  # type: ignore[return-value]  # FixedRate on bond cannot be NoInput
 
@@ -1758,7 +1759,7 @@ class IndexFixedRateBond(FixedRateBond):
             # self.notional which is currently assumed to be a fixed quantity
             raise NotImplementedError("`amortization` for IndexFixedRateBond must be zero.")
 
-    def index_ratio(self, settlement: datetime, curve: Curve_) -> DualTypes:
+    def index_ratio(self, settlement: datetime, curve: _BaseCurve_) -> DualTypes:
         """
         Return the index ratio assigned to an *IndexFixedRateBond* for a given settlement.
 
@@ -2545,7 +2546,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
             # self.notional which is currently assumed to be a fixed quantity
             raise NotImplementedError("`amortization` for FloatRateNote must be zero.")
 
-    def _period_cashflow(self, period: Cashflow | FloatPeriod, curve: Curve_) -> DualTypes:  # type: ignore[override]
+    def _period_cashflow(self, period: Cashflow | FloatPeriod, curve: _BaseCurve_) -> DualTypes:  # type: ignore[override]
         """FloatRateNotes must forecast cashflows with a *Curve* on the *Period*."""
         if isinstance(period, FloatPeriod):
             _: DualTypes = period.cashflow(curve)  # type: ignore[assignment]

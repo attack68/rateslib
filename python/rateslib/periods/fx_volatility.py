@@ -46,12 +46,12 @@ if TYPE_CHECKING:
     from rateslib.typing import (
         FX_,
         Any,
-        Curve,
         DualTypes,
         DualTypes_,
         FXVolOption,
         FXVolOption_,
         Number,
+        _BaseCurve,
         datetime,
         str_,
     )
@@ -123,8 +123,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
     def cashflows(
         self,
-        disc_curve: Curve,
-        disc_curve_ccy2: Curve,
+        disc_curve: _BaseCurve,
+        disc_curve_ccy2: _BaseCurve,
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
@@ -196,8 +196,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
     def npv(
         self,
-        disc_curve: Curve,
-        disc_curve_ccy2: Curve,
+        disc_curve: _BaseCurve,
+        disc_curve_ccy2: _BaseCurve,
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
@@ -262,8 +262,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
     def rate(
         self,
-        disc_curve: Curve,
-        disc_curve_ccy2: Curve,
+        disc_curve: _BaseCurve,
+        disc_curve_ccy2: _BaseCurve,
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         vol: FXVolOption_ = NoInput(0),
@@ -326,8 +326,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
     def implied_vol(
         self,
-        disc_curve: Curve,
-        disc_curve_ccy2: Curve,
+        disc_curve: _BaseCurve,
+        disc_curve_ccy2: _BaseCurve,
         fx: FXForwards,
         premium: DualTypes,
         metric: str | NoInput = NoInput(0),
@@ -384,8 +384,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
     def analytic_greeks(
         self,
-        disc_curve: Curve,
-        disc_curve_ccy2: Curve,
+        disc_curve: _BaseCurve,
+        disc_curve_ccy2: _BaseCurve,
         fx: FXForwards,
         base: str_ = NoInput(0),
         vol: FXVolOption_ = NoInput(0),
@@ -474,8 +474,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
     def _analytic_greeks(
         self,
-        disc_curve: Curve,
-        disc_curve_ccy2: Curve,
+        disc_curve: _BaseCurve,
+        disc_curve_ccy2: _BaseCurve,
         fx: FXForwards,
         base: str_ = NoInput(0),
         vol: FXVolOption_ = NoInput(0),
@@ -1147,7 +1147,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         self,
         vol: FXVolOption_,
         fx: FXForwards,
-        disc_curve: Curve,
+        disc_curve: _BaseCurve,
     ) -> DualTypes:
         """Return a volatility for the option from a given Smile."""
         # FXOption can have a `strike` that is NoInput, however this internal function should
