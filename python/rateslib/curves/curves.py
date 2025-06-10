@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import json
+from abc import ABC
 from calendar import monthrange
 from dataclasses import replace
 from datetime import datetime, timedelta
 from math import prod
 from typing import TYPE_CHECKING, Any, TypeAlias
 from uuid import uuid4
-from abc import ABC
 
 from pandas import Series
 
@@ -60,245 +60,6 @@ DualTypes: TypeAlias = (
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class _ShiftedCurve(_BaseCurve):
-    """A class which wraps a :class:`~rateslib.curves.CompositeCurve` designed to produce the
-    required vertical basis points shift of the underlying ``curve``, according to *rateslib's*
-    vector space metric.
-
-    Parameters
-    ----------
-    curve: _BaseCurve
-        Any *BaseCurve* type.
-    shift: float | Variable
-        The amount by which to shift the curve.
-    id: str, optional
-        Identifier used for :class:`~rateslib.solver.Solver` mappings.
-    """
-
-    _obj: _BaseCurve
-
-    def __init__(
-        self,
-        curve: _BaseCurve,
-        shift: float | Variable,
-        id: str_ = NoInput(0),  # noqa: A002
-    ) -> None:
-        start, end = curve._nodes.initial, curve._nodes.final
-
-        if curve._base_type == _CurveType.dfs:
-            dcf_ = dcf(start, end, curve._meta.convention, calendar=curve._meta.calendar)
-            _, d, n = average_rate(start, end, curve._meta.convention, 0.0, dcf_)
-            shifted: _BaseCurve = Curve(
-                nodes={start: 1.0, end: 1.0 / (1 + d * shift / 10000) ** n},
-                convention=curve._meta.convention,
-                calendar=curve._meta.calendar,
-                modifier=curve._meta.modifier,
-                interpolation="log_linear",
-                index_base=curve._meta.index_base,
-                index_lag=curve._meta.index_lag,
-                ad=_get_order_of(shift),
-            )
-        else:  # base type is values: LineCurve
-            shifted = LineCurve(
-                nodes={start: shift / 100.0, end: shift / 100.0},
-                convention=curve._meta.convention,
-                calendar=curve._meta.calendar,
-                modifier=curve._meta.modifier,
-                interpolation="flat_backward",
-                ad=_get_order_of(shift),
-            )
-
-        id_ = _drb(curve.id + "_shift_" + f"{_dual_float(shift):.1f}", id)
-
-        if shifted._ad + curve._ad == 3:
-            raise TypeError(
-                "Cannot create a _ShiftedCurve with mixed AD orders.\n"
-                f"`curve` has AD order: {curve.ad}\n"
-                f"`shift` has AD order: {shifted.ad}"
-            )
-        self._obj = CompositeCurve(curves=[curve, shifted], id=id_, _no_validation=True)
-
-    def __getitem__(self, date: datetime) -> DualTypes:
-        return self._obj.__getitem__(date)
-
-    def _set_ad_order(self, ad: int) -> None:
-        return self._obj._set_ad_order(ad)
-
-    @property
-    def _ad(self) -> int:  # type: ignore[override]
-        return self._obj._ad
-
-    @property
-    def _meta(self) -> _CurveMeta:  # type: ignore[override]
-        return self._obj._meta
-
-    @property
-    def _id(self) -> str:  # type: ignore[override]
-        return self._obj._id
-
-    @property
-    def _nodes(self) -> _CurveNodes:  # type: ignore[override]
-        return self._obj._nodes
-
-    @property
-    def _interpolator(self) -> _CurveInterpolator:  # type: ignore[override]
-        return self._obj._interpolator
-
-    @property
-    def _base_type(self) -> _CurveType:  # type: ignore[override]
-        return self._obj._base_type
-
-
-class _TranslatedCurve(_BaseCurve):
-    """A class which wraps the underlying curve and returns identical rates but which acts as if the
-    initial node date is moved forward in time.
-
-    This is mostly used by discount factor (DF) based curves whose DFs are adjusted to have a
-    value of 1.0 on the requested start date.
-
-    Parameters
-    ----------
-    curve: _BaseCurve
-        Any *BaseCurve* type.
-    start: datetime
-        The date which acts as the new initial node date. Must be later than the initial node
-        date of ``curve``.
-    id: str, optional
-        Identifier used for :class:`~rateslib.solver.Solver` mappings.
-    """
-
-    _obj: _BaseCurve
-
-    def __init__(
-        self,
-        curve: _BaseCurve,
-        start: datetime,
-        id: str_ = NoInput(0),  # noqa: A002
-    ) -> None:
-        if start < curve.nodes.initial:
-            raise ValueError("Cannot translate into the past.")
-        self._id = _drb(curve.id + "_translated_" + f"{start.strftime('yy_mm_dd')}", id)
-        self._nodes = _CurveNodes(_nodes={start: 0.0, curve.nodes.final: 0.0})
-        self._obj = curve
-
-    def __getitem__(self, date: datetime) -> DualTypes:
-        if date < self.nodes.initial:
-            return 0.0
-        elif self._base_type == _CurveType.dfs:
-            return self._obj.__getitem__(date) / self._obj.__getitem__(self.nodes.initial)
-        else:  # _CurveType.values
-            return self._obj.__getitem__(date)
-
-    def _set_ad_order(self, ad: int) -> None:
-        return self._obj._set_ad_order(ad)
-
-    @property
-    def _ad(self) -> int:  # type: ignore[override]
-        return self._obj._ad
-
-    @property
-    def _interpolator(self) -> _CurveInterpolator:  # type: ignore[override]
-        return self._obj._interpolator
-
-    @property
-    def _meta(self) -> _CurveMeta:  # type: ignore[override]
-        if self._base_type == _CurveType.dfs and not isinstance(self._obj.meta.index_base, NoInput):
-            return replace(
-                self._obj.meta,
-                _index_base=self._obj.index_value(self.nodes.initial, self._obj.meta.index_lag),
-            )
-        else:
-            return self._obj._meta
-
-    @property
-    def _base_type(self) -> _CurveType:  # type: ignore[override]
-        return self._obj._base_type
-
-
-class _RolledCurve(_BaseCurve):
-    """A class which wraps the underlying curve and returns rates which are rolled in time,
-    measured by a set number of calendar days.
-
-    Parameters
-    ----------
-    curve: _BaseCurve
-        Any *BaseCurve* type.
-    start: datetime
-        The date which acts as the new initial node date. Must be later than the initial node
-        date of ``curve``.
-    id: str, optional
-        Identifier used for :class:`~rateslib.solver.Solver` mappings.
-    """
-
-    _obj: _BaseCurve
-    _roll_days: int
-
-    def __init__(
-        self,
-        curve: _BaseCurve,
-        roll_days: int,
-        id: str_ = NoInput(0),  # noqa: A002
-    ) -> None:
-        self._roll_days = roll_days
-        self._id = _drb(curve.id + "_rolled_" + f"{roll_days}", id)
-        self._obj = curve
-
-    def __getitem__(self, date: datetime) -> DualTypes:
-        if date < self.nodes.initial:
-            return 0.0
-
-        boundary = self.nodes.initial + timedelta(days=self._roll_days)
-        if self._base_type == _CurveType.dfs:
-            if self._roll_days <= 0:
-                # boundary is irrelevant
-                scalar_date = self._obj.nodes.initial + timedelta(days=-self._roll_days)
-                return self._obj.__getitem__(date - timedelta(days=self._roll_days)) / self._obj.__getitem__(scalar_date)
-            else:
-                next_day = add_tenor(self.nodes.initial, "1b", "F", self._obj.meta.calendar)
-                on_rate = self._obj.rate(self.nodes.initial, next_day)
-                dcf_ = dcf(self.nodes.initial, next_day, self._obj.meta.convention, calendar=self._obj.meta.calendar)
-                r_, d_, n_ = average_rate(self.nodes.initial, next_day, self._obj.meta.convention, on_rate, dcf_)
-                if self.nodes.initial <= date < boundary:
-                    # must project forward
-                    return 1.0 / (1 + r_ * d_ / 100.0) ** (date - self.nodes.initial).days
-                else: # boundary <= date:
-                    scalar = (1.0 + d_ * r_ / 100) ** self._roll_days
-                    return self._obj.__getitem__(date - timedelta(days=self._roll_days)) / scalar
-        else: # _CurveType.values
-            if self.nodes.initial <= date < boundary:
-                return self._obj.__getitem__(self.nodes.initial)
-            else: # boundary <= date:
-                return self._obj.__getitem__(date - timedelta(days=self._roll_days))
-
-    def _set_ad_order(self, ad: int) -> None:
-        return self._obj._set_ad_order(ad)
-
-    @property
-    def roll_days(self) -> int:
-        """The number of calendar days by which rates are rolled on the underlying curve."""
-        return self._roll_days
-
-    @property
-    def _ad(self) -> int:  # type: ignore[override]
-        return self._obj._ad
-
-    @property
-    def _interpolator(self) -> _CurveInterpolator:  # type: ignore[override]
-        return self._obj._interpolator
-
-    @property
-    def _meta(self) -> _CurveMeta:  # type: ignore[override]
-        return self._obj._meta
-
-    @property
-    def _nodes(self) -> _CurveNodes:  # type: ignore[override]
-        return self._obj._nodes
-
-    @property
-    def _base_type(self) -> _CurveType:  # type: ignore[override]
-        return self._obj._base_type
-
-
 class _WithOperations(ABC):
     _base_type: _CurveType
     _nodes: _CurveNodes
@@ -311,9 +72,9 @@ class _WithOperations(ABC):
     @_validate_states
     def shift(
         self,
-        spread: float | Variable,
+        spread: DualTypes,
         id: str_ = NoInput(0),  # noqa: A002
-    ) -> _BaseCurve:
+    ) -> _ShiftedCurve:
         """
         Create a new curve by vertically adjusting the curve by a set number of basis
         points.
@@ -400,7 +161,7 @@ class _WithOperations(ABC):
            plt.show()
 
         """
-        _: _BaseCurve = self
+        _: _BaseCurve = self  # type: ignore[assignment]
         return _ShiftedCurve(curve=_, shift=spread, id=id)
 
     @_validate_states
@@ -535,7 +296,7 @@ class _WithOperations(ABC):
            plt.show()
 
         """  # noqa: E501
-        _: _BaseCurve = self
+        _: _BaseCurve = self  # type: ignore[assignment]
         return _TranslatedCurve(curve=_, start=start, id=id)
 
     @_validate_states
@@ -626,8 +387,256 @@ class _WithOperations(ABC):
         else:
             tenor_ = tenor
         roll_days = (tenor_ - self._nodes.initial).days
-        _: _BaseCurve = self
+        _: _BaseCurve = self  # type: ignore[assignment]
         return _RolledCurve(curve=_, roll_days=roll_days)
+
+
+class _ShiftedCurve(_WithOperations, _BaseCurve):
+    """A class which wraps a :class:`~rateslib.curves.CompositeCurve` designed to produce the
+    required vertical basis points shift of the underlying ``curve``, according to *rateslib's*
+    vector space metric.
+
+    Parameters
+    ----------
+    curve: _BaseCurve
+        Any *BaseCurve* type.
+    shift: float | Variable
+        The amount by which to shift the curve.
+    id: str, optional
+        Identifier used for :class:`~rateslib.solver.Solver` mappings.
+    """
+
+    _obj: _BaseCurve
+
+    def __init__(
+        self,
+        curve: _BaseCurve,
+        shift: DualTypes,
+        id: str_ = NoInput(0),  # noqa: A002
+    ) -> None:
+        start, end = curve._nodes.initial, curve._nodes.final
+
+        if curve._base_type == _CurveType.dfs:
+            dcf_ = dcf(start, end, curve._meta.convention, calendar=curve._meta.calendar)
+            _, d, n = average_rate(start, end, curve._meta.convention, 0.0, dcf_)
+            shifted: _BaseCurve = Curve(
+                nodes={start: 1.0, end: 1.0 / (1 + d * shift / 10000) ** n},
+                convention=curve._meta.convention,
+                calendar=curve._meta.calendar,
+                modifier=curve._meta.modifier,
+                interpolation="log_linear",
+                index_base=curve._meta.index_base,
+                index_lag=curve._meta.index_lag,
+                ad=_get_order_of(shift),
+            )
+        else:  # base type is values: LineCurve
+            shifted = LineCurve(
+                nodes={start: shift / 100.0, end: shift / 100.0},
+                convention=curve._meta.convention,
+                calendar=curve._meta.calendar,
+                modifier=curve._meta.modifier,
+                interpolation="flat_backward",
+                ad=_get_order_of(shift),
+            )
+
+        id_ = _drb(curve.id + "_shift_" + f"{_dual_float(shift):.1f}", id)
+
+        if shifted._ad + curve._ad == 3:
+            raise TypeError(
+                "Cannot create a _ShiftedCurve with mixed AD orders.\n"
+                f"`curve` has AD order: {curve.ad}\n"
+                f"`shift` has AD order: {shifted.ad}"
+            )
+        self._obj = CompositeCurve(curves=[curve, shifted], id=id_, _no_validation=True)
+
+    def __getitem__(self, date: datetime) -> DualTypes:
+        return self._obj.__getitem__(date)
+
+    def _set_ad_order(self, ad: int) -> None:
+        return self._obj._set_ad_order(ad)
+
+    @property
+    def _ad(self) -> int:  # type: ignore[override]
+        return self._obj._ad
+
+    @property
+    def _meta(self) -> _CurveMeta:  # type: ignore[override]
+        return self._obj._meta
+
+    @property
+    def _id(self) -> str:  # type: ignore[override]
+        return self._obj._id
+
+    @property
+    def _nodes(self) -> _CurveNodes:  # type: ignore[override]
+        return self._obj._nodes
+
+    @property
+    def _interpolator(self) -> _CurveInterpolator:  # type: ignore[override]
+        return self._obj._interpolator
+
+    @property
+    def _base_type(self) -> _CurveType:  # type: ignore[override]
+        return self._obj._base_type
+
+
+class _TranslatedCurve(_WithOperations, _BaseCurve):
+    """A class which wraps the underlying curve and returns identical rates but which acts as if the
+    initial node date is moved forward in time.
+
+    This is mostly used by discount factor (DF) based curves whose DFs are adjusted to have a
+    value of 1.0 on the requested start date.
+
+    Parameters
+    ----------
+    curve: _BaseCurve
+        Any *BaseCurve* type.
+    start: datetime
+        The date which acts as the new initial node date. Must be later than the initial node
+        date of ``curve``.
+    id: str, optional
+        Identifier used for :class:`~rateslib.solver.Solver` mappings.
+    """
+
+    _obj: _BaseCurve
+
+    def __init__(
+        self,
+        curve: _BaseCurve,
+        start: datetime,
+        id: str_ = NoInput(0),  # noqa: A002
+    ) -> None:
+        if start < curve.nodes.initial:
+            raise ValueError("Cannot translate into the past.")
+        self._id = _drb(curve.id + "_translated_" + f"{start.strftime('yy_mm_dd')}", id)
+        self._nodes = _CurveNodes(_nodes={start: 0.0, curve.nodes.final: 0.0})
+        self._obj = curve
+
+    def __getitem__(self, date: datetime) -> DualTypes:
+        if date < self.nodes.initial:
+            return 0.0
+        elif self._base_type == _CurveType.dfs:
+            return self._obj.__getitem__(date) / self._obj.__getitem__(self.nodes.initial)
+        else:  # _CurveType.values
+            return self._obj.__getitem__(date)
+
+    def _set_ad_order(self, ad: int) -> None:
+        return self._obj._set_ad_order(ad)
+
+    @property
+    def _ad(self) -> int:  # type: ignore[override]
+        return self._obj._ad
+
+    @property
+    def _interpolator(self) -> _CurveInterpolator:  # type: ignore[override]
+        return self._obj._interpolator
+
+    @property
+    def _meta(self) -> _CurveMeta:  # type: ignore[override]
+        if self._base_type == _CurveType.dfs and not isinstance(self._obj.meta.index_base, NoInput):
+            return replace(
+                self._obj.meta,
+                _index_base=self._obj.index_value(self.nodes.initial, self._obj.meta.index_lag),  # type: ignore[arg-type]
+            )
+        else:
+            return self._obj._meta
+
+    @property
+    def _base_type(self) -> _CurveType:  # type: ignore[override]
+        return self._obj._base_type
+
+
+class _RolledCurve(_WithOperations, _BaseCurve):
+    """A class which wraps the underlying curve and returns rates which are rolled in time,
+    measured by a set number of calendar days.
+
+    Parameters
+    ----------
+    curve: _BaseCurve
+        Any *BaseCurve* type.
+    start: datetime
+        The date which acts as the new initial node date. Must be later than the initial node
+        date of ``curve``.
+    id: str, optional
+        Identifier used for :class:`~rateslib.solver.Solver` mappings.
+    """
+
+    _obj: _BaseCurve
+    _roll_days: int
+
+    def __init__(
+        self,
+        curve: _BaseCurve,
+        roll_days: int,
+        id: str_ = NoInput(0),  # noqa: A002
+    ) -> None:
+        self._roll_days = roll_days
+        self._id = _drb(curve.id + "_rolled_" + f"{roll_days}", id)
+        self._obj = curve
+
+    def __getitem__(self, date: datetime) -> DualTypes:
+        if date < self.nodes.initial:
+            return 0.0
+
+        boundary = self.nodes.initial + timedelta(days=self._roll_days)
+        if self._base_type == _CurveType.dfs:
+            if self._roll_days <= 0:
+                # boundary is irrelevant
+                scalar_date = self._obj.nodes.initial + timedelta(days=-self._roll_days)
+                return self._obj.__getitem__(
+                    date - timedelta(days=self._roll_days)
+                ) / self._obj.__getitem__(scalar_date)
+            else:
+                next_day = add_tenor(self.nodes.initial, "1b", "F", self._obj.meta.calendar)
+                on_rate = self._obj._rate_with_raise(self.nodes.initial, next_day)
+                dcf_ = dcf(
+                    self.nodes.initial,
+                    next_day,
+                    self._obj.meta.convention,
+                    calendar=self._obj.meta.calendar,
+                )
+                r_, d_, n_ = average_rate(
+                    self.nodes.initial, next_day, self._obj.meta.convention, on_rate, dcf_
+                )
+                if self.nodes.initial <= date < boundary:
+                    # must project forward
+                    return 1.0 / (1 + r_ * d_ / 100.0) ** (date - self.nodes.initial).days
+                else:  # boundary <= date:
+                    scalar = (1.0 + d_ * r_ / 100) ** self._roll_days
+                    return self._obj.__getitem__(date - timedelta(days=self._roll_days)) / scalar
+        else:  # _CurveType.values
+            if self.nodes.initial <= date < boundary:
+                return self._obj.__getitem__(self.nodes.initial)
+            else:  # boundary <= date:
+                return self._obj.__getitem__(date - timedelta(days=self._roll_days))
+
+    def _set_ad_order(self, ad: int) -> None:
+        return self._obj._set_ad_order(ad)
+
+    @property
+    def roll_days(self) -> int:
+        """The number of calendar days by which rates are rolled on the underlying curve."""
+        return self._roll_days
+
+    @property
+    def _ad(self) -> int:  # type: ignore[override]
+        return self._obj._ad
+
+    @property
+    def _interpolator(self) -> _CurveInterpolator:  # type: ignore[override]
+        return self._obj._interpolator
+
+    @property
+    def _meta(self) -> _CurveMeta:  # type: ignore[override]
+        return self._obj._meta
+
+    @property
+    def _nodes(self) -> _CurveNodes:  # type: ignore[override]
+        return self._obj._nodes
+
+    @property
+    def _base_type(self) -> _CurveType:  # type: ignore[override]
+        return self._obj._base_type
 
 
 class Curve(_WithOperations, _CurveMutation):

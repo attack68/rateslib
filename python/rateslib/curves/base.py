@@ -16,13 +16,13 @@ from pytz import UTC
 from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf, get_calendar
 from rateslib.curves.utils import (
-    InterpolationFunction,
     _CurveInterpolator,
     _CurveMeta,
     _CurveNodes,
     _CurveType,
     average_rate,
 )
+from rateslib.curves.interpolation import InterpolationFunction
 from rateslib.default import NoInput, PlotOutput, _drb, plot
 from rateslib.dual import Dual, Dual2, Variable, dual_exp, set_order_convert
 from rateslib.dual.utils import _dual_float
@@ -30,7 +30,16 @@ from rateslib.mutability import _clear_cache_post, _new_state_post, _WithCache, 
 from rateslib.rs import Modifier
 
 if TYPE_CHECKING:
-    from rateslib.typing import Any, CalInput, float_, int_, str_
+    from rateslib.typing import (
+        Any,
+        CalInput,
+        _RolledCurve,
+        _ShiftedCurve,
+        _TranslatedCurve,
+        float_,
+        int_,
+        str_,
+    )
 
 DualTypes: TypeAlias = (
     "Dual | Dual2 | Variable | float"  # required for non-cyclic import on _WithCache
@@ -88,6 +97,24 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
 
     @abstractmethod
     def _set_ad_order(self, ad: int) -> None: ...
+
+    # _WithOperations
+
+    @abstractmethod
+    def shift(
+        self,
+        spread: DualTypes,
+        id: str_ = NoInput(0),  # noqa: A002
+    ) -> _ShiftedCurve: ...
+
+    @abstractmethod
+    def translate(self, start: datetime, id: str_ = NoInput(0)) -> _TranslatedCurve:  # noqa: A002
+        ...
+
+    @abstractmethod
+    def roll(self, tenor: datetime | str) -> _RolledCurve: ...
+
+    # Properties
 
     @property
     def ad(self) -> int:
@@ -251,7 +278,12 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
         **kwargs: Any,
     ) -> DualTypes:
         if effective < self.nodes.initial:  # Alternative solution to PR 172.
-            raise ValueError("`effective` before initial LineCurve date.")
+            raise ValueError(
+                "`effective` date for rate period is before the initial node date of the Curve.\n"
+                "If you are trying to calculate a rate for an historical FloatPeriod have you "
+                "neglected to supply appropriate `fixings`?\n"
+                "See Documentation > Cookbook > Working with Fixings."
+            )
         return self.__getitem__(effective)
 
     def _rate_with_raise_dfs(

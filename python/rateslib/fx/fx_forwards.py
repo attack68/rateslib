@@ -969,7 +969,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
         container = {
             "base": self.base,
             "fx_rates": fx_rates,
-            "fx_curves": {k: v.to_json() for k, v in self.fx_curves.items()},
+            "fx_curves": {k: v.to_json() for k, v in self.fx_curves.items()},  # type: ignore[attr-defined]
         }
         return json.dumps(container, default=str)
 

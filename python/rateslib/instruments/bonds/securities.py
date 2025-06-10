@@ -930,7 +930,7 @@ class BondMixin:
             else:
                 z_ = z + Dual(0.0, ["__z_spd__§"], [])
 
-            shifted_curve = disc_curve.shift(z_, composite=False)
+            shifted_curve = disc_curve.shift(z_)
             P_iter: Dual | Dual2 = self.rate(curves=[curve_, shifted_curve], metric=metric)  # type: ignore[assignment]
             f_0 = P_tgt - P_iter
             f_1 = -gradient(P_iter, vars=["__z_spd__§"], order=1)[0]
