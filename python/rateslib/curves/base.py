@@ -51,7 +51,7 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
     An ABC defining the base methods of a *Curve*.
 
     Provided the `__getitem__` method is defined for a discount factor (DF) based,
-    or values based curve, all methods of this class are inheritable.
+    or values based curve, all methods of this class are provided directly.
 
     In certain cases the `_base_type` will prevent some methods from calculating and
     will raise `TypeError`.
@@ -63,6 +63,8 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
     _meta: _CurveMeta
     _nodes: _CurveNodes
     _interpolator: _CurveInterpolator
+
+    # Required methods
 
     @abstractmethod
     def __getitem__(self, date: datetime) -> DualTypes:
@@ -711,7 +713,7 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
 
         Returns
         -------
-        Curve or LineCurve
+        Self
         """
         ret: _BaseCurve = pickle.loads(pickle.dumps(self, -1))  # noqa: S301
         return ret
