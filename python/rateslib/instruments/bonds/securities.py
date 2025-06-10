@@ -856,11 +856,7 @@ class BondMixin:
                 curve._set_ad_order(order)
 
         # attach "z_spread" sensitivity to an AD order 1 curve.
-        disc_curve_ = disc_curve._shift(
-            Dual(0.0, ["z_spread"], []),
-            composite=False,
-            _no_validation=True,
-        )
+        disc_curve_ = disc_curve.shift(Dual(0.0, ["z_spread"], []))
         curve_ = _copy_curve(curve)
         _set_ad_order_of_forecasting_curve(curve_, 0)
 
@@ -871,11 +867,7 @@ class BondMixin:
         z_hat: float = -c / b
 
         # shift the curve to the first order approximation and fine tune with 2nd order approxim.
-        disc_curve_ = disc_curve._shift(
-            Dual2(z_hat, ["z_spread"], [], []),
-            composite=False,
-            _no_validation=True,
-        )
+        disc_curve_ = disc_curve.shift(Dual2(z_hat, ["z_spread"], [], []))
         npv_price = self.rate(curves=[curve_, disc_curve_], metric=metric)  # type: ignore[assignment]
         coeffs: tuple[float, float, float] = (
             0.5 * gradient(npv_price, ["z_spread"], 2)[0][0],
@@ -885,11 +877,7 @@ class BondMixin:
         z_hat2: float = quadratic_eqn(*coeffs, x0=-c / b)["g"]
 
         # perform one final approximation albeit the additional price calculation slows calc time
-        disc_curve_ = disc_curve._shift(
-            z_hat + z_hat2,
-            composite=False,
-            _no_validation=True,
-        )
+        disc_curve_ = disc_curve.shift(z_hat + z_hat2)
         disc_curve_._set_ad_order(0)
         _set_ad_order_of_forecasting_curve(curve_, 0)
         npv_price_: float = self.rate(curves=[curve_, disc_curve_], metric=metric)  # type: ignore[assignment]
@@ -942,7 +930,7 @@ class BondMixin:
             else:
                 z_ = z + Dual(0.0, ["__z_spd__§"], [])
 
-            shifted_curve = disc_curve.shift(z_, composite=False)
+            shifted_curve = disc_curve.shift(z_)
             P_iter: Dual | Dual2 = self.rate(curves=[curve_, shifted_curve], metric=metric)  # type: ignore[assignment]
             f_0 = P_tgt - P_iter
             f_1 = -gradient(P_iter, vars=["__z_spd__§"], order=1)[0]

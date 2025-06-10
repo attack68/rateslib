@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import pickle
 import warnings
 from abc import ABC, abstractmethod
@@ -15,8 +16,8 @@ from pytz import UTC
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf, get_calendar
+from rateslib.curves.interpolation import InterpolationFunction
 from rateslib.curves.utils import (
-    InterpolationFunction,
     _CurveInterpolator,
     _CurveMeta,
     _CurveNodes,
@@ -30,7 +31,16 @@ from rateslib.mutability import _clear_cache_post, _new_state_post, _WithCache, 
 from rateslib.rs import Modifier
 
 if TYPE_CHECKING:
-    from rateslib.typing import Any, CalInput, float_, int_, str_
+    from rateslib.typing import (
+        Any,
+        CalInput,
+        _RolledCurve,
+        _ShiftedCurve,
+        _TranslatedCurve,
+        float_,
+        int_,
+        str_,
+    )
 
 DualTypes: TypeAlias = (
     "Dual | Dual2 | Variable | float"  # required for non-cyclic import on _WithCache
@@ -42,7 +52,7 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
     An ABC defining the base methods of a *Curve*.
 
     Provided the `__getitem__` method is defined for a discount factor (DF) based,
-    or values based curve, all methods of this class are inheritable.
+    or values based curve, all methods of this class are provided directly.
 
     In certain cases the `_base_type` will prevent some methods from calculating and
     will raise `TypeError`.
@@ -54,6 +64,8 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
     _meta: _CurveMeta
     _nodes: _CurveNodes
     _interpolator: _CurveInterpolator
+
+    # Required methods
 
     @abstractmethod
     def __getitem__(self, date: datetime) -> DualTypes:
@@ -85,6 +97,27 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
                 val = self.interpolator.spline.spline.ppev_single(date_posix)  # type: ignore[union-attr]
 
         return self._cached_value(date, val)
+
+    @abstractmethod
+    def _set_ad_order(self, ad: int) -> None: ...
+
+    # _WithOperations
+
+    @abstractmethod
+    def shift(
+        self,
+        spread: DualTypes,
+        id: str_ = NoInput(0),  # noqa: A002
+    ) -> _ShiftedCurve: ...
+
+    @abstractmethod
+    def translate(self, start: datetime, id: str_ = NoInput(0)) -> _TranslatedCurve:  # noqa: A002
+        ...
+
+    @abstractmethod
+    def roll(self, tenor: datetime | str) -> _RolledCurve: ...
+
+    # Properties
 
     @property
     def ad(self) -> int:
@@ -248,7 +281,12 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
         **kwargs: Any,
     ) -> DualTypes:
         if effective < self.nodes.initial:  # Alternative solution to PR 172.
-            raise ValueError("`effective` before initial LineCurve date.")
+            raise ValueError(
+                "`effective` date for rate period is before the initial node date of the Curve.\n"
+                "If you are trying to calculate a rate for an historical FloatPeriod have you "
+                "neglected to supply appropriate `fixings`?\n"
+                "See Documentation > Cookbook > Working with Fixings."
+            )
         return self.__getitem__(effective)
 
     def _rate_with_raise_dfs(
@@ -676,7 +714,7 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
 
         Returns
         -------
-        Curve or LineCurve
+        Self
         """
         ret: _BaseCurve = pickle.loads(pickle.dumps(self, -1))  # noqa: S301
         return ret
@@ -941,3 +979,76 @@ class _CurveMutation(_BaseCurve):
         self._ad = ad
         self._nodes = _CurveNodes(nodes_)
         self._interpolator._csolve(self._base_type, self._nodes, self._ad)
+
+    # Serialization
+
+    @classmethod
+    def _from_json(cls, loaded_json: dict[str, Any]) -> _BaseCurve:
+        """
+        Reconstitute a curve from JSON.
+
+        Parameters
+        ----------
+        curve : str
+            The JSON string representation of the curve.
+
+        Returns
+        -------
+        Curve or LineCurve
+        """
+        from rateslib.serialization import from_json
+
+        meta = from_json(loaded_json["meta"])
+        interpolator = from_json(loaded_json["interpolator"])
+        nodes = from_json(loaded_json["nodes"])
+        spl = interpolator.spline
+
+        if interpolator.local_name == "spline":
+            t = NoInput(0)
+        else:
+            t = NoInput(0) if spl is None else spl.t
+
+        return cls(
+            nodes=nodes.nodes,
+            interpolation=interpolator.local_name,
+            t=t,
+            endpoints=spl.endpoints if spl is not None else NoInput(0),
+            id=loaded_json["id"],
+            convention=meta.convention,
+            modifier=meta.modifier,
+            calendar=meta.calendar,
+            ad=loaded_json["ad"],
+            index_base=meta.index_base,
+            index_lag=meta.index_lag,
+            collateral=meta.collateral,
+            credit_discretization=meta.credit_discretization,
+            credit_recovery_rate=meta.credit_recovery_rate,
+        )
+
+    def to_json(self) -> str:
+        """
+        Serialize this object to JSON format.
+
+        The object can be deserialized using the :meth:`~rateslib.serialization.from_json` method.
+
+        Returns
+        -------
+        str
+
+        Notes
+        -----
+        Some *Curves* will **not** be serializable, for example those that possess user defined
+        interpolation functions.
+        """
+        obj = dict(
+            PyNative={
+                f"{type(self).__name__}": dict(
+                    meta=self._meta.to_json(),
+                    interpolator=self._interpolator.to_json(),
+                    id=self._id,
+                    ad=self._ad,
+                    nodes=self._nodes.to_json(),
+                )
+            }
+        )
+        return json.dumps(obj)

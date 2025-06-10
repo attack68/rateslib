@@ -12,6 +12,10 @@ import numpy as np
 from pandas import DataFrame as DataFrame
 from pandas import Series as Series
 
+from rateslib.curves.base import _BaseCurve as _BaseCurve
+from rateslib.curves.curves import _RolledCurve as _RolledCurve
+from rateslib.curves.curves import _ShiftedCurve as _ShiftedCurve
+from rateslib.curves.curves import _TranslatedCurve as _TranslatedCurve
 from rateslib.default import NoInput as NoInput
 from rateslib.dual.variable import Variable as Variable
 from rateslib.fx import FXForwards as FXForwards
@@ -114,8 +118,6 @@ bool_: TypeAlias = "bool | NoInput"
 int_: TypeAlias = "int | NoInput"
 datetime_: TypeAlias = "datetime | NoInput"
 float_: TypeAlias = "float | NoInput"
-
-from rateslib.curves.base import _BaseCurve as _BaseCurve  # noqa: E402
 
 _BaseCurve_: TypeAlias = "_BaseCurve | NoInput"
 CurveDict: TypeAlias = "dict[str, _BaseCurve | str] | dict[str, _BaseCurve] | dict[str, str]"

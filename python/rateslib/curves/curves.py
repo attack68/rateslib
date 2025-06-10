@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import json
+from abc import ABC
 from calendar import monthrange
 from dataclasses import replace
 from datetime import datetime, timedelta
@@ -59,20 +59,21 @@ DualTypes: TypeAlias = (
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class CurveOperations:
+class _WithOperations(ABC):
     _base_type: _CurveType
     _nodes: _CurveNodes
     _meta: _CurveMeta
     _interpolator: _CurveInterpolator
     _ad: int
 
+    # Operations
+
+    @_validate_states
     def shift(
         self,
         spread: DualTypes,
         id: str_ = NoInput(0),  # noqa: A002
-        collateral: str_ = NoInput(0),
-        composite: bool = True,
-    ) -> _BaseCurve:
+    ) -> _ShiftedCurve:
         """
         Create a new curve by vertically adjusting the curve by a set number of basis
         points.
@@ -88,16 +89,10 @@ class CurveOperations:
             The number of basis points added to the existing curve.
         id : str, optional
             Set the id of the returned curve.
-        collateral: str, optional
-            Designate a collateral tag for the curve which is used by other methods.
-        composite: bool, optional
-            If True will return a CompositeCurve that adds a flat curve to the existing curve.
-            This results in slower calculations but the curve will maintain a dynamic
-            association with the underlying curve and will change if the underlying curve changes.
 
         Returns
         -------
-        CompositeCurve or Self
+        _ShiftedCurve
 
         Notes
         -----
@@ -165,76 +160,11 @@ class CurveOperations:
            plt.show()
 
         """
-        return self._shift(spread, id, collateral, composite, False)
+        _: _BaseCurve = self  # type: ignore[assignment]
+        return _ShiftedCurve(curve=_, shift=spread, id=id)
 
-    def _shift(
-        self,
-        spread: DualTypes,
-        id: str_ = NoInput(0),  # noqa: A002
-        collateral: str_ = NoInput(0),
-        composite: bool = True,
-        _no_validation: bool = False,
-    ) -> _BaseCurve:
-        """
-        Executes the `Curve.shift` method.
-
-        ``_no_validation`` is a performance enhancement to speed up a CompositeCurve init.
-        """
-        start, end = self._nodes.initial, self._nodes.final
-
-        dcf_ = dcf(start, end, self._meta.convention, calendar=self._meta.calendar)
-        _, d, n = average_rate(start, end, self._meta.convention, 0.0, dcf_)
-        if self._base_type == _CurveType.dfs:
-            shifted = Curve(
-                nodes={start: 1.0, end: 1.0 / (1 + d * spread / 10000) ** n},
-                convention=self._meta.convention,
-                calendar=self._meta.calendar,
-                modifier=self._meta.modifier,
-                interpolation="log_linear",
-                index_base=self._meta.index_base,
-                index_lag=self._meta.index_lag,
-                ad=_get_order_of(spread),
-            )
-        else:  # base type is values: LineCurve
-            shifted = LineCurve(
-                nodes={start: spread / 100.0, end: spread / 100.0},
-                convention=self._meta.convention,
-                calendar=self._meta.calendar,
-                modifier=self._meta.modifier,
-                interpolation="flat_backward",
-                ad=_get_order_of(spread),
-            )
-
-        crv: CompositeCurve = CompositeCurve(
-            curves=[self, shifted], id=id, _no_validation=_no_validation
-        )
-        crv._meta = replace(crv._meta, _collateral=_drb(None, collateral))
-
-        if not composite:
-            if self._base_type == _CurveType.dfs:
-                CurveClass = Curve
-                kwargs = dict(index_base=self._meta.index_base, index_lag=self._meta.index_lag)
-            else:
-                CurveClass = LineCurve
-                kwargs = {}
-
-            spl = self._interpolator.spline
-            return CurveClass(
-                nodes={k: crv[k] for k in self._nodes.nodes},
-                convention=self._meta.convention,
-                calendar=self._meta.calendar,
-                interpolation=self._interpolator.local,
-                t=NoInput(0) if spl is None else spl.t,
-                c=NoInput(0),  # call csolve on init
-                endpoints=NoInput(0) if spl is None else spl.endpoints,
-                modifier=self._meta.modifier,
-                ad=crv.ad,
-                **kwargs,  # type: ignore[arg-type]
-            )
-        else:
-            return crv
-
-    def translate(self, start: datetime, t: bool = False) -> Curve:
+    @_validate_states
+    def translate(self, start: datetime, id: str_ = NoInput(0)) -> _TranslatedCurve:  # noqa: A002
         """
         Create a new curve with an initial node date moved forward keeping all else
         constant.
@@ -365,48 +295,11 @@ class CurveOperations:
            plt.show()
 
         """  # noqa: E501
-        if start <= self._nodes.initial:
-            raise ValueError("Cannot translate into the past. Review the docs.")
+        _: _BaseCurve = self  # type: ignore[assignment]
+        return _TranslatedCurve(curve=_, start=start, id=id)
 
-        new_nodes: dict[datetime, DualTypes] = self._translate_nodes(start)
-
-        # re-organise the t-knot sequence
-        if self._interpolator.spline is None:
-            new_t: list[datetime] | NoInput = NoInput(0)
-            new_endpoints: tuple[str, str] | NoInput = NoInput(0)
-        else:
-            new_t = self._interpolator.spline.t.copy()
-            new_endpoints = self._interpolator.spline.endpoints
-
-            if start <= new_t[0]:
-                pass  # do nothing to t
-            elif new_t[0] < start < new_t[4]:
-                if t:
-                    for i in range(4):
-                        new_t[i] = start  # adjust left side of t to start
-            elif new_t[4] <= start:
-                raise ValueError(
-                    "Cannot translate spline knots for given `start`, review the docs.",
-                )
-
-        new_curve = type(self)(  # type: ignore[call-arg]
-            nodes=new_nodes,
-            interpolation=self._interpolator.local,
-            t=new_t,
-            endpoints=new_endpoints,
-            modifier=self._meta.modifier,
-            calendar=self._meta.calendar,
-            convention=self._meta.convention,
-            id=NoInput(0),
-            ad=self.ad,
-            index_base=NoInput(0)
-            if isinstance(self._meta.index_base, NoInput)
-            else _dual_float(self.index_value(start, self._meta.index_lag, "curve")),
-            index_lag=self._meta.index_lag,
-        )
-        return new_curve
-
-    def roll(self, tenor: datetime | str) -> Curve:
+    @_validate_states
+    def roll(self, tenor: datetime | str) -> _RolledCurve:
         """
         Create a new curve with its shape translated in time but an identical initial
         node date.
@@ -489,42 +382,263 @@ class CurveOperations:
 
         """  # noqa: E501
         if isinstance(tenor, str):
-            tenor = add_tenor(self._nodes.initial, tenor, "NONE", NoInput(0))
-
-        if tenor == self._nodes.initial:
-            return self.copy()
-
-        days = (tenor - self._nodes.initial).days
-        new_nodes = self._roll_nodes(tenor, days)
-        if self._interpolator.spline is not None:
-            new_t: list[datetime] | NoInput = [
-                _ + timedelta(days=days) for _ in self._interpolator.spline.t
-            ]
-            new_endpoints: tuple[str, str] | NoInput = self._interpolator.spline.endpoints
+            tenor_ = add_tenor(self._nodes.initial, tenor, "NONE", NoInput(0))
         else:
-            new_t = NoInput(0)
-            new_endpoints = NoInput(0)
-
-        new_curve = type(self)(  # type: ignore[call-arg]
-            nodes=new_nodes,
-            interpolation=self._interpolator.local,
-            t=new_t,
-            endpoints=new_endpoints,
-            modifier=self._meta.modifier,
-            calendar=self._meta.calendar,
-            convention=self._meta.convention,
-            id=NoInput(0),
-            ad=self._ad,
-            index_base=self._meta.index_base,
-            index_lag=self._meta.index_lag,
-        )
-        if tenor > self._nodes.initial:
-            return new_curve
-        else:  # tenor < self.nodes.initial
-            return new_curve.translate(self._nodes.initial)
+            tenor_ = tenor
+        roll_days = (tenor_ - self._nodes.initial).days
+        _: _BaseCurve = self  # type: ignore[assignment]
+        return _RolledCurve(curve=_, roll_days=roll_days)
 
 
-class Curve(CurveOperations, _CurveMutation):
+class _ShiftedCurve(_WithOperations, _BaseCurve):
+    """A class which wraps a :class:`~rateslib.curves.CompositeCurve` designed to produce the
+    required vertical basis points shift of the underlying ``curve``, according to *rateslib's*
+    vector space metric.
+
+    Parameters
+    ----------
+    curve: _BaseCurve
+        Any *BaseCurve* type.
+    shift: float | Variable
+        The amount by which to shift the curve.
+    id: str, optional
+        Identifier used for :class:`~rateslib.solver.Solver` mappings.
+    """
+
+    _obj: _BaseCurve
+
+    def __init__(
+        self,
+        curve: _BaseCurve,
+        shift: DualTypes,
+        id: str_ = NoInput(0),  # noqa: A002
+    ) -> None:
+        start, end = curve._nodes.initial, curve._nodes.final
+
+        if curve._base_type == _CurveType.dfs:
+            dcf_ = dcf(start, end, curve._meta.convention, calendar=curve._meta.calendar)
+            _, d, n = average_rate(start, end, curve._meta.convention, 0.0, dcf_)
+            shifted: _BaseCurve = Curve(
+                nodes={start: 1.0, end: 1.0 / (1 + d * shift / 10000) ** n},
+                convention=curve._meta.convention,
+                calendar=curve._meta.calendar,
+                modifier=curve._meta.modifier,
+                interpolation="log_linear",
+                index_base=curve._meta.index_base,
+                index_lag=curve._meta.index_lag,
+                ad=_get_order_of(shift),
+            )
+        else:  # base type is values: LineCurve
+            shifted = LineCurve(
+                nodes={start: shift / 100.0, end: shift / 100.0},
+                convention=curve._meta.convention,
+                calendar=curve._meta.calendar,
+                modifier=curve._meta.modifier,
+                interpolation="flat_backward",
+                ad=_get_order_of(shift),
+            )
+
+        id_ = _drb(curve.id + "_shift_" + f"{_dual_float(shift):.1f}", id)
+
+        if shifted._ad + curve._ad == 3:
+            raise TypeError(
+                "Cannot create a _ShiftedCurve with mixed AD orders.\n"
+                f"`curve` has AD order: {curve.ad}\n"
+                f"`shift` has AD order: {shifted.ad}"
+            )
+        self._obj = CompositeCurve(curves=[curve, shifted], id=id_, _no_validation=True)
+
+    def __getitem__(self, date: datetime) -> DualTypes:
+        return self._obj.__getitem__(date)
+
+    def _set_ad_order(self, ad: int) -> None:
+        return self._obj._set_ad_order(ad)
+
+    @property
+    def _ad(self) -> int:  # type: ignore[override]
+        return self._obj._ad
+
+    @property
+    def _meta(self) -> _CurveMeta:  # type: ignore[override]
+        return self._obj._meta
+
+    @property
+    def _id(self) -> str:  # type: ignore[override]
+        return self._obj._id
+
+    @property
+    def _nodes(self) -> _CurveNodes:  # type: ignore[override]
+        return self._obj._nodes
+
+    @property
+    def _interpolator(self) -> _CurveInterpolator:  # type: ignore[override]
+        return self._obj._interpolator
+
+    @property
+    def _base_type(self) -> _CurveType:  # type: ignore[override]
+        return self._obj._base_type
+
+
+class _TranslatedCurve(_WithOperations, _BaseCurve):
+    """A class which wraps the underlying curve and returns identical rates but which acts as if the
+    initial node date is moved forward in time.
+
+    This is mostly used by discount factor (DF) based curves whose DFs are adjusted to have a
+    value of 1.0 on the requested start date.
+
+    Parameters
+    ----------
+    curve: _BaseCurve
+        Any *BaseCurve* type.
+    start: datetime
+        The date which acts as the new initial node date. Must be later than the initial node
+        date of ``curve``.
+    id: str, optional
+        Identifier used for :class:`~rateslib.solver.Solver` mappings.
+    """
+
+    _obj: _BaseCurve
+
+    def __init__(
+        self,
+        curve: _BaseCurve,
+        start: datetime,
+        id: str_ = NoInput(0),  # noqa: A002
+    ) -> None:
+        if start < curve.nodes.initial:
+            raise ValueError("Cannot translate into the past.")
+        self._id = _drb(curve.id + "_translated_" + f"{start.strftime('yy_mm_dd')}", id)
+        self._nodes = _CurveNodes(_nodes={start: 0.0, curve.nodes.final: 0.0})
+        self._obj = curve
+
+    def __getitem__(self, date: datetime) -> DualTypes:
+        if date < self.nodes.initial:
+            return 0.0
+        elif self._base_type == _CurveType.dfs:
+            return self._obj.__getitem__(date) / self._obj.__getitem__(self.nodes.initial)
+        else:  # _CurveType.values
+            return self._obj.__getitem__(date)
+
+    def _set_ad_order(self, ad: int) -> None:
+        return self._obj._set_ad_order(ad)
+
+    @property
+    def _ad(self) -> int:  # type: ignore[override]
+        return self._obj._ad
+
+    @property
+    def _interpolator(self) -> _CurveInterpolator:  # type: ignore[override]
+        return self._obj._interpolator
+
+    @property
+    def _meta(self) -> _CurveMeta:  # type: ignore[override]
+        if self._base_type == _CurveType.dfs and not isinstance(self._obj.meta.index_base, NoInput):
+            return replace(
+                self._obj.meta,
+                _index_base=self._obj.index_value(self.nodes.initial, self._obj.meta.index_lag),  # type: ignore[arg-type]
+            )
+        else:
+            return self._obj._meta
+
+    @property
+    def _base_type(self) -> _CurveType:  # type: ignore[override]
+        return self._obj._base_type
+
+
+class _RolledCurve(_WithOperations, _BaseCurve):
+    """A class which wraps the underlying curve and returns rates which are rolled in time,
+    measured by a set number of calendar days.
+
+    Parameters
+    ----------
+    curve: _BaseCurve
+        Any *BaseCurve* type.
+    start: datetime
+        The date which acts as the new initial node date. Must be later than the initial node
+        date of ``curve``.
+    id: str, optional
+        Identifier used for :class:`~rateslib.solver.Solver` mappings.
+    """
+
+    _obj: _BaseCurve
+    _roll_days: int
+
+    def __init__(
+        self,
+        curve: _BaseCurve,
+        roll_days: int,
+        id: str_ = NoInput(0),  # noqa: A002
+    ) -> None:
+        self._roll_days = roll_days
+        self._id = _drb(curve.id + "_rolled_" + f"{roll_days}", id)
+        self._obj = curve
+
+    def __getitem__(self, date: datetime) -> DualTypes:
+        if date < self.nodes.initial:
+            return 0.0
+
+        boundary = self.nodes.initial + timedelta(days=self._roll_days)
+        if self._base_type == _CurveType.dfs:
+            if self._roll_days <= 0:
+                # boundary is irrelevant
+                scalar_date = self._obj.nodes.initial + timedelta(days=-self._roll_days)
+                return self._obj.__getitem__(
+                    date - timedelta(days=self._roll_days)
+                ) / self._obj.__getitem__(scalar_date)
+            else:
+                next_day = add_tenor(self.nodes.initial, "1b", "F", self._obj.meta.calendar)
+                on_rate = self._obj._rate_with_raise(self.nodes.initial, next_day)
+                dcf_ = dcf(
+                    self.nodes.initial,
+                    next_day,
+                    self._obj.meta.convention,
+                    calendar=self._obj.meta.calendar,
+                )
+                r_, d_, n_ = average_rate(
+                    self.nodes.initial, next_day, self._obj.meta.convention, on_rate, dcf_
+                )
+                if self.nodes.initial <= date < boundary:
+                    # must project forward
+                    return 1.0 / (1 + r_ * d_ / 100.0) ** (date - self.nodes.initial).days
+                else:  # boundary <= date:
+                    scalar = (1.0 + d_ * r_ / 100) ** self._roll_days
+                    return self._obj.__getitem__(date - timedelta(days=self._roll_days)) / scalar
+        else:  # _CurveType.values
+            if self.nodes.initial <= date < boundary:
+                return self._obj.__getitem__(self.nodes.initial)
+            else:  # boundary <= date:
+                return self._obj.__getitem__(date - timedelta(days=self._roll_days))
+
+    def _set_ad_order(self, ad: int) -> None:
+        return self._obj._set_ad_order(ad)
+
+    @property
+    def roll_days(self) -> int:
+        """The number of calendar days by which rates are rolled on the underlying curve."""
+        return self._roll_days
+
+    @property
+    def _ad(self) -> int:  # type: ignore[override]
+        return self._obj._ad
+
+    @property
+    def _interpolator(self) -> _CurveInterpolator:  # type: ignore[override]
+        return self._obj._interpolator
+
+    @property
+    def _meta(self) -> _CurveMeta:  # type: ignore[override]
+        return self._obj._meta
+
+    @property
+    def _nodes(self) -> _CurveNodes:  # type: ignore[override]
+        return self._obj._nodes
+
+    @property
+    def _base_type(self) -> _CurveType:  # type: ignore[override]
+        return self._obj._base_type
+
+
+class Curve(_WithOperations, _CurveMutation):
     """
     Curve based on DF parametrisation at given node dates with interpolation.
 
@@ -668,123 +782,8 @@ class Curve(CurveOperations, _CurveMutation):
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-    def _translate_nodes(self, start: datetime) -> dict[datetime, DualTypes]:
-        scalar = 1 / self[start]
-        new_nodes = {k: scalar * v for k, v in self.nodes.nodes.items()}
 
-        # re-organise the nodes on the new curve
-        del new_nodes[self.nodes.initial]
-        flag, i = (start >= self.nodes.keys[1]), 1
-        while flag:
-            del new_nodes[self.nodes.keys[i]]
-            flag, i = (start >= self.nodes.keys[i + 1]), i + 1
-
-        new_nodes = {start: 1.0, **new_nodes}
-        return new_nodes
-
-    def _roll_nodes(self, tenor: datetime, days: int) -> dict[datetime, DualTypes]:
-        """
-        Roll nodes by adding days to each one and scaling DF values.
-
-        Parameters
-        ----------
-        tenor : datetime
-            The intended roll datetime
-        days : int
-            The number of days between ``tenor`` and initial curve node date.
-
-        Returns
-        -------
-        dict
-        """
-        # let regular TypeErrors raise if curve.rate is None
-        on_rate = self.rate(self.nodes.initial, "1d", "NONE")
-        d = 1 / 365 if self.meta.convention.upper() != "ACT360" else 1 / 360
-        scalar = 1 / ((1 + on_rate * d / 100) ** days)  # type: ignore[operator]
-        new_nodes = {k + timedelta(days=days): v * scalar for k, v in self.nodes.nodes.items()}
-        if tenor > self.nodes.initial:
-            new_nodes = {self.nodes.initial: 1.0, **new_nodes}
-        return new_nodes
-
-    # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-    # Commercial use of this code, and/or copying and redistribution is prohibited.
-    # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-    # Serialization
-
-    @classmethod
-    def _from_json(cls, loaded_json: dict[str, Any]) -> Curve:
-        """
-        Reconstitute a curve from JSON.
-
-        Parameters
-        ----------
-        curve : str
-            The JSON string representation of the curve.
-
-        Returns
-        -------
-        Curve or LineCurve
-        """
-        from rateslib.serialization import from_json
-
-        meta = from_json(loaded_json["meta"])
-        interpolator = from_json(loaded_json["interpolator"])
-        nodes = from_json(loaded_json["nodes"])
-        spl = interpolator.spline
-
-        if interpolator.local_name == "spline":
-            t = NoInput(0)
-        else:
-            t = NoInput(0) if spl is None else spl.t
-
-        return cls(
-            nodes=nodes.nodes,
-            interpolation=interpolator.local_name,
-            t=t,
-            endpoints=spl.endpoints if spl is not None else NoInput(0),
-            id=loaded_json["id"],
-            convention=meta.convention,
-            modifier=meta.modifier,
-            calendar=meta.calendar,
-            ad=loaded_json["ad"],
-            index_base=meta.index_base,
-            index_lag=meta.index_lag,
-            collateral=meta.collateral,
-            credit_discretization=meta.credit_discretization,
-            credit_recovery_rate=meta.credit_recovery_rate,
-        )
-
-    def to_json(self) -> str:
-        """
-        Serialize this object to JSON format.
-
-        The object can be deserialized using the :meth:`~rateslib.serialization.from_json` method.
-
-        Returns
-        -------
-        str
-
-        Notes
-        -----
-        Some *Curves* will **not** be serializable, for example those that possess user defined
-        interpolation functions.
-        """
-        obj = dict(
-            PyNative={
-                f"{type(self).__name__}": dict(
-                    meta=self._meta.to_json(),
-                    interpolator=self._interpolator.to_json(),
-                    id=self._id,
-                    ad=self._ad,
-                    nodes=self._nodes.to_json(),
-                )
-            }
-        )
-        return json.dumps(obj)
-
-
-class LineCurve(CurveOperations, _CurveMutation):
+class LineCurve(_WithOperations, _CurveMutation):
     """
     Curve based on value parametrisation at given node dates with interpolation.
 
@@ -924,242 +923,8 @@ class LineCurve(CurveOperations, _CurveMutation):
     def __getitem__(self, date: datetime) -> DualTypes:
         return super().__getitem__(date)
 
-    def _translate_nodes(self, start: datetime) -> dict[datetime, DualTypes]:
-        new_nodes = self.nodes.nodes.copy()
 
-        # re-organise the nodes on the new curve
-        del new_nodes[self.nodes.initial]
-        flag, i = (start >= self.nodes.keys[1]), 1
-        while flag:
-            del new_nodes[self.nodes.keys[i]]
-            flag, i = (start >= self.nodes.keys[i + 1]), i + 1
-
-        new_nodes = {start: self[start], **new_nodes}
-        return new_nodes
-
-    # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-    # Commercial use of this code, and/or copying and redistribution is prohibited.
-    # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-    def translate(self, start: datetime, t: bool = False) -> Curve:
-        """
-        Create a new curve with an initial node date moved forward keeping all else
-        constant.
-
-        This curve adjustment preserves forward curve expectations as time evolves.
-        This method is suitable as a way to create a subsequent *opening* curve from a
-        previous day's *closing* curve.
-
-        Parameters
-        ----------
-        start : datetime
-            The new initial node date for the curve, must be in the domain:
-            (node_date[0], node_date[1]]
-        t : bool
-            Set to *True* if the initial knots of the knot sequence should be
-            translated forward.
-
-        Returns
-        -------
-        Curve
-
-        Examples
-        ---------
-        The basic use of this function translates a curve forward in time and the
-        plot demonstrates its rates are exactly the same as initially forecast.
-
-        .. ipython:: python
-
-           line_curve = LineCurve(
-               nodes = {
-                   dt(2022, 1, 1): 1.7,
-                   dt(2023, 1, 1): 1.65,
-                   dt(2024, 1, 1): 1.4,
-                   dt(2025, 1, 1): 1.3,
-                   dt(2026, 1, 1): 1.25,
-                   dt(2027, 1, 1): 1.35
-               },
-               t = [
-                   dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
-                   dt(2025, 1, 1),
-                   dt(2026, 1, 1),
-                   dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
-               ],
-           )
-           translated_curve = line_curve.translate(dt(2022, 12, 1))
-           line_curve.plot("1d", comparators=[translated_curve], left=dt(2022, 12, 1))
-
-        .. plot::
-
-           from rateslib.curves import *
-           import matplotlib.pyplot as plt
-           from datetime import datetime as dt
-           line_curve = LineCurve(
-               nodes = {
-                   dt(2022, 1, 1): 1.7,
-                   dt(2023, 1, 1): 1.65,
-                   dt(2024, 1, 1): 1.4,
-                   dt(2025, 1, 1): 1.3,
-                   dt(2026, 1, 1): 1.25,
-                   dt(2027, 1, 1): 1.35
-               },
-               t = [
-                   dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
-                   dt(2025, 1, 1),
-                   dt(2026, 1, 1),
-                   dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
-               ],
-           )
-           translated_curve = line_curve.translate(dt(2022, 12, 1))
-           fig, ax, line = line_curve.plot("1d", comparators=[translated_curve], labels=["orig", "translated"], left=dt(2022, 12,1))
-           plt.show()
-           plt.close()
-
-        .. ipython:: python
-
-           line_curve.nodes
-           translated_curve.nodes
-
-        When a line curve has a cubic spline the knot dates can be preserved or
-        translated with the ``t`` argument. Preserving the knot dates preserves the
-        interpolation of the curve. A knot sequence for a mixed curve which begins
-        after ``start`` will not be affected in either case.
-
-        .. ipython:: python
-
-           curve = LineCurve(
-               nodes={
-                   dt(2022, 1, 1): 1.5,
-                   dt(2022, 2, 1): 1.6,
-                   dt(2022, 3, 1): 1.4,
-                   dt(2022, 4, 1): 1.2,
-                   dt(2022, 5, 1): 1.1,
-               },
-               t = [dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1),
-                    dt(2022, 2, 1), dt(2022, 3, 1), dt(2022, 4, 1),
-                    dt(2022, 5, 1), dt(2022, 5, 1), dt(2022, 5, 1), dt(2022, 5, 1)]
-           )
-           translated_curve = curve.translate(dt(2022, 1, 15))
-           translated_curve2 = curve.translate(dt(2022, 1, 15), t=True)
-           curve.plot("1d", left=dt(2022, 1, 15), comparators=[translated_curve, translated_curve2], labels=["orig", "translated", "translated2"])
-
-        .. plot::
-
-           from rateslib.curves import *
-           import matplotlib.pyplot as plt
-           from datetime import datetime as dt
-           curve = LineCurve(
-               nodes={
-                   dt(2022, 1, 1): 1.5,
-                   dt(2022, 2, 1): 1.6,
-                   dt(2022, 3, 1): 1.4,
-                   dt(2022, 4, 1): 1.2,
-                   dt(2022, 5, 1): 1.1,
-               },
-               t = [dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1),
-                    dt(2022, 2, 1), dt(2022, 3, 1), dt(2022, 4, 1),
-                    dt(2022, 5, 1), dt(2022, 5, 1), dt(2022, 5, 1), dt(2022, 5, 1)]
-           )
-           translated = curve.translate(dt(2022, 1, 15))
-           translated2 = curve.translate(dt(2022, 1, 15), t=True)
-           fig, ax, line = curve.plot("1d", left=dt(2022, 1, 15), comparators=[translated, translated2], labels=["orig", "translated", "translated2"])
-           plt.show()
-
-        """  # noqa: E501
-        return super().translate(start, t)
-
-    def _roll_nodes(self, tenor: datetime, days: int) -> dict[datetime, DualTypes]:
-        new_nodes = {k + timedelta(days=days): v for k, v in self.nodes.nodes.items()}
-        if tenor > self.nodes.initial:
-            new_nodes = {self.nodes.initial: self[self.nodes.initial], **new_nodes}
-        return new_nodes
-
-    def roll(self, tenor: datetime | str) -> Curve:
-        """
-        Create a new curve with its shape translated in time
-
-        This curve adjustment is a simulation of a future state of the market where
-        forward rates are assumed to have moved so that the present day's curve shape
-        is reflected in the future (or the past). This is often used in trade
-        strategy analysis.
-
-        Parameters
-        ----------
-        tenor : datetime or str
-            The date or tenor by which to roll the curve. If a tenor, as str, will
-            derive the datetime as measured from the initial node date. If supplying a
-            negative tenor, or a past datetime, there is a limit to how far back the
-            curve can be rolled - it will first roll backwards and then attempt to
-            :meth:`translate` forward to maintain the initial node date.
-
-        Returns
-        -------
-        Curve
-
-        Examples
-        ---------
-        The basic use of this function translates a curve forward in time and the
-        plot demonstrates its rates are exactly the same as initially forecast.
-
-        .. ipython:: python
-
-           line_curve = LineCurve(
-               nodes = {
-                   dt(2022, 1, 1): 1.7,
-                   dt(2023, 1, 1): 1.65,
-                   dt(2024, 1, 1): 1.4,
-                   dt(2025, 1, 1): 1.3,
-                   dt(2026, 1, 1): 1.25,
-                   dt(2027, 1, 1): 1.35
-               },
-               t = [
-                   dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
-                   dt(2025, 1, 1),
-                   dt(2026, 1, 1),
-                   dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
-               ],
-           )
-           rolled_curve = line_curve.roll("6m")
-           rolled_curve2 = line_curve.roll("-6m")
-           line_curve.plot(
-               "1d",
-               comparators=[rolled_curve, rolled_curve2],
-               labels=["orig", "rolled", "rolled2"],
-               right=dt(2026, 7, 1)
-           )
-
-        .. plot::
-
-           from rateslib.curves import *
-           import matplotlib.pyplot as plt
-           from datetime import datetime as dt
-           line_curve = LineCurve(
-               nodes = {
-                   dt(2022, 1, 1): 1.7,
-                   dt(2023, 1, 1): 1.65,
-                   dt(2024, 1, 1): 1.4,
-                   dt(2025, 1, 1): 1.3,
-                   dt(2026, 1, 1): 1.25,
-                   dt(2027, 1, 1): 1.35
-               },
-               t = [
-                   dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
-                   dt(2025, 1, 1),
-                   dt(2026, 1, 1),
-                   dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
-               ],
-           )
-           rolled_curve = line_curve.roll("6m")
-           rolled_curve2 = line_curve.roll("-6m")
-           fig, ax, line = line_curve.plot("1d", comparators=[rolled_curve, rolled_curve2], labels=["orig", "rolled", "rolled2"], right=dt(2026,6,30))
-           plt.show()
-           plt.close()
-
-        """  # noqa: E501
-        return super().roll(tenor)
-
-
-class CompositeCurve(CurveOperations, _BaseCurve):
+class CompositeCurve(_WithOperations, _BaseCurve):
     """
     A dynamic composition of a sequence of other curves.
 
@@ -1338,7 +1103,7 @@ class CompositeCurve(CurveOperations, _BaseCurve):
 
     def __init__(
         self,
-        curves: list[Curve] | tuple[Curve, ...],
+        curves: list[_BaseCurve] | tuple[_BaseCurve, ...],
         id: str_ = NoInput(0),  # noqa: A002
         _no_validation: bool = False,
     ) -> None:
@@ -1411,67 +1176,6 @@ class CompositeCurve(CurveOperations, _BaseCurve):
 
     @_validate_states
     @_no_interior_validation
-    def rate(  # type: ignore[override]
-        self,
-        effective: datetime,
-        termination: datetime | str | NoInput = NoInput(0),
-        modifier: str | NoInput = NoInput(1),
-    ) -> DualTypes | None:
-        """
-        Calculate the composited rate on the curve.
-
-        If rates are sought for dates prior to the initial node of the curve `None`
-        will be returned.
-
-        Parameters
-        ----------
-        effective : datetime
-            The start date of the period for which to calculate the rate.
-        termination : datetime or str
-            The end date of the period for which to calculate the rate.
-        modifier : str, optional
-            The day rule if determining the termination from tenor. If `False` is
-            determined from the `Curve` modifier.
-
-        Returns
-        -------
-        Dual, Dual2 or float
-        """
-        if effective < self.nodes.initial:  # Alternative solution to PR 172.
-            return None
-
-        if self._base_type == _CurveType.values:
-            _: DualTypes = 0.0
-            for i in range(len(self.curves)):
-                # let regular TypeErrors be raised if curve.rate returns None
-                _ += self.curves[i].rate(effective, termination, modifier)  # type: ignore[operator]
-            return _
-        else:  #  self._base_type == "dfs":
-            modifier_ = _drb(self.meta.modifier, modifier)
-
-            if isinstance(termination, NoInput):
-                raise ValueError("`termination` must be give for rate of DF based Curve.")
-            elif isinstance(termination, str):
-                termination = add_tenor(effective, termination, modifier_, self.meta.calendar)
-
-            # using determined and cached discount factors
-            df_start = self.__getitem__(effective)
-            df_end = self.__getitem__(termination)
-            d = dcf(
-                effective,
-                termination,
-                self.meta.convention,
-                NoInput(0),
-                NoInput(0),
-                NoInput(0),
-                NoInput(0),
-                self.meta.calendar,
-            )
-            _ = (df_start / df_end - 1) * 100 / d
-
-        return _
-
-    @_validate_states
     def __getitem__(self, date: datetime) -> DualTypes:
         if defaults.curve_caching and date in self._cache:
             return self._cache[date]
@@ -1505,104 +1209,6 @@ class CompositeCurve(CurveOperations, _BaseCurve):
                 _ += curve[date]
             return self._cached_value(date, _)
 
-    def shift(
-        self,
-        spread: DualTypes,
-        id: str_ = NoInput(0),  # noqa: A002
-        collateral: str_ = NoInput(0),
-        composite: bool = True,
-    ) -> Curve:
-        """
-        Create a new curve by vertically adjusting the curve by a set number of basis
-        points.
-
-        See :meth:`Curve.shift()<rateslib.curves.Curve.shift>`
-        """
-        if composite is False:
-            raise ValueError("`composite` must be set to `True` when shifting a CompositeCurve.")
-        return self._shift(spread, id, collateral, composite, False)
-
-    @_validate_states
-    def _shift(
-        self,
-        spread: DualTypes,
-        id: str_ = NoInput(0),  # noqa: A002
-        collateral: str_ = NoInput(0),
-        composite: bool = True,
-        _no_validation: bool = False,
-    ) -> Curve:
-        """
-        Create a new curve by vertically adjusting the curve by a set number of basis
-        points.
-
-        See :meth:`Curve.shift()<rateslib.curves.Curve.shift>`
-        """
-        return super()._shift(spread, id, collateral, composite, _no_validation)
-
-    @_validate_states
-    def translate(self, start: datetime, t: bool = False) -> CompositeCurve:
-        """
-        Create a new curve with an initial node date moved forward keeping all else
-        constant.
-
-        This curve adjustment preserves forward curve expectations as time evolves.
-        This method is suitable as a way to create a subsequent *opening* curve from a
-        previous day's *closing* curve.
-
-        Parameters
-        ----------
-        start : datetime
-            The new initial node date for the curve, must be in the domain:
-            (node_date[0], node_date[1]]
-        t : bool
-            Set to *True* if the initial knots of the knot sequence should be
-            translated forward.
-
-        Returns
-        -------
-        CompositeCurve
-        """
-        # cache check unnecessary since translate is constructed from up-to-date objects directly
-        return CompositeCurve(curves=[curve.translate(start, t) for curve in self.curves])
-
-    @_validate_states
-    def roll(self, tenor: datetime | str) -> CompositeCurve:
-        """
-        Create a new curve with its shape translated in time
-
-        This curve adjustment is a simulation of a future state of the market where
-        forward rates are assumed to have moved so that the present day's curve shape
-        is reflected in the future (or the past). This is often used in trade
-        strategy analysis.
-
-        Parameters
-        ----------
-        tenor : datetime or str
-            The date or tenor by which to roll the curve. If a tenor, as str, will
-            derive the datetime as measured from the initial node date. If supplying a
-            negative tenor, or a past datetime, there is a limit to how far back the
-            curve can be rolled - it will first roll backwards and then attempt to
-            :meth:`translate` forward to maintain the initial node date.
-
-        Returns
-        -------
-        CompositeCurve
-        """
-        # cache check unnecessary since roll is constructed from up-to-date objects directly
-        return CompositeCurve(curves=[curve.roll(tenor) for curve in self.curves])
-
-    @_validate_states
-    def index_value(
-        self, date: datetime, index_lag: int, interpolation: str = "curve"
-    ) -> DualTypes:
-        """
-        Calculate the accrued value of the index from the ``index_base``, which is taken
-        as ``index_base`` of the *first* composited curve given.
-
-        See :meth:`Curve.index_value()<rateslib.curves.Curve.index_value>`
-        """
-        return super().index_value(date, index_lag, interpolation)
-
     # Solver interaction
 
     @_clear_cache_post
@@ -1633,10 +1239,6 @@ class CompositeCurve(CurveOperations, _BaseCurve):
 
     def _get_composited_state(self) -> int:
         return hash(sum(curve._state for curve in self.curves))
-
-    # Serialization
-
-    # Overloads
 
 
 class MultiCsaCurve(CompositeCurve):
@@ -1675,7 +1277,7 @@ class MultiCsaCurve(CompositeCurve):
 
     def __init__(
         self,
-        curves: list[Curve] | tuple[Curve, ...],
+        curves: list[_BaseCurve] | tuple[_BaseCurve, ...],
         id: str | NoInput = NoInput(0),  # noqa: A002
         multi_csa_min_step: int = 1,
         multi_csa_max_step: int = 1825,
@@ -1786,66 +1388,6 @@ class MultiCsaCurve(CompositeCurve):
                 min_ratio = ratio_ if ratio_ < min_ratio else min_ratio
             v *= min_ratio
             return self._cached_value(date, v)
-
-    @_validate_states
-    # unnecessary because up-to-date objects are referred to directly
-    def translate(self, start: datetime, t: bool = False) -> MultiCsaCurve:
-        """
-        Create a new curve with an initial node date moved forward keeping all else
-        constant.
-
-        This curve adjustment preserves forward curve expectations as time evolves.
-        This method is suitable as a way to create a subsequent *opening* curve from a
-        previous day's *closing* curve.
-
-        Parameters
-        ----------
-        start : datetime
-            The new initial node date for the curve, must be in the domain:
-            (node_date[0], node_date[1]]
-        t : bool
-            Set to *True* if the initial knots of the knot sequence should be
-            translated forward.
-
-        Returns
-        -------
-        MultiCsaCurve
-        """
-        return MultiCsaCurve(
-            curves=[curve.translate(start, t) for curve in self.curves],
-            multi_csa_max_step=self.multi_csa_max_step,
-            multi_csa_min_step=self.multi_csa_min_step,
-        )
-
-    @_validate_states
-    # unnecessary because up-to-date objects are referred to directly
-    def roll(self, tenor: datetime | str) -> MultiCsaCurve:
-        """
-        Create a new curve with its shape translated in time
-
-        This curve adjustment is a simulation of a future state of the market where
-        forward rates are assumed to have moved so that the present day's curve shape
-        is reflected in the future (or the past). This is often used in trade
-        strategy analysis.
-
-        Parameters
-        ----------
-        tenor : datetime or str
-            The date or tenor by which to roll the curve. If a tenor, as str, will
-            derive the datetime as measured from the initial node date. If supplying a
-            negative tenor, or a past datetime, there is a limit to how far back the
-            curve can be rolled - it will first roll backwards and then attempt to
-            :meth:`translate` forward to maintain the initial node date.
-
-        Returns
-        -------
-        MultiCsaCurve
-        """
-        return MultiCsaCurve(
-            curves=[curve.roll(tenor) for curve in self.curves],
-            multi_csa_max_step=self.multi_csa_max_step,
-            multi_csa_min_step=self.multi_csa_min_step,
-        )
 
 
 # class HazardCurve(Curve):
@@ -1995,14 +1537,6 @@ class ProxyCurve(Curve):
         raise NotImplementedError(
             "ProxyCurve types are not index curves with an `index base` attribute."
         )
-
-    def translate(self, *args: Any, **kwargs: Any) -> None:  # type: ignore[override] # pragma: no cover
-        """Not implemented on *ProxyCurve* types."""
-        raise NotImplementedError("ProxyCurve types currently provide no translate operation.")
-
-    def roll(self, *args: Any, **kwargs: Any) -> None:  # type: ignore[override] # pragma: no cover
-        """Not implemented on *ProxyCurve* types."""
-        raise NotImplementedError("ProxyCurve types currently provide no roll operation.")
 
     def to_json(self) -> str:  # pragma: no cover
         """Not implemented on *ProxyCurve* types."""
@@ -2157,7 +1691,7 @@ def _index_value_from_mixed_series_and_curve(
     index_method: str,
     index_fixings: Series[DualTypes],  # type: ignore[type-var]
     index_date: datetime,
-    index_curve: Curve,
+    index_curve: _BaseCurve,
 ) -> DualTypes | NoInput:
     """
     Iterate through possibilities assuming a Curve and fixings as series exists.
