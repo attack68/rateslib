@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from math import comb
 from typing import TYPE_CHECKING, TypeAlias
 from uuid import uuid4
+import json
 
 import numpy as np
 from pytz import UTC
@@ -978,3 +979,76 @@ class _CurveMutation(_BaseCurve):
         self._ad = ad
         self._nodes = _CurveNodes(nodes_)
         self._interpolator._csolve(self._base_type, self._nodes, self._ad)
+
+    # Serialization
+
+    @classmethod
+    def _from_json(cls, loaded_json: dict[str, Any]) -> _BaseCurve:
+        """
+        Reconstitute a curve from JSON.
+
+        Parameters
+        ----------
+        curve : str
+            The JSON string representation of the curve.
+
+        Returns
+        -------
+        Curve or LineCurve
+        """
+        from rateslib.serialization import from_json
+
+        meta = from_json(loaded_json["meta"])
+        interpolator = from_json(loaded_json["interpolator"])
+        nodes = from_json(loaded_json["nodes"])
+        spl = interpolator.spline
+
+        if interpolator.local_name == "spline":
+            t = NoInput(0)
+        else:
+            t = NoInput(0) if spl is None else spl.t
+
+        return cls(
+            nodes=nodes.nodes,
+            interpolation=interpolator.local_name,
+            t=t,
+            endpoints=spl.endpoints if spl is not None else NoInput(0),
+            id=loaded_json["id"],
+            convention=meta.convention,
+            modifier=meta.modifier,
+            calendar=meta.calendar,
+            ad=loaded_json["ad"],
+            index_base=meta.index_base,
+            index_lag=meta.index_lag,
+            collateral=meta.collateral,
+            credit_discretization=meta.credit_discretization,
+            credit_recovery_rate=meta.credit_recovery_rate,
+        )
+
+    def to_json(self) -> str:
+        """
+        Serialize this object to JSON format.
+
+        The object can be deserialized using the :meth:`~rateslib.serialization.from_json` method.
+
+        Returns
+        -------
+        str
+
+        Notes
+        -----
+        Some *Curves* will **not** be serializable, for example those that possess user defined
+        interpolation functions.
+        """
+        obj = dict(
+            PyNative={
+                f"{type(self).__name__}": dict(
+                    meta=self._meta.to_json(),
+                    interpolator=self._interpolator.to_json(),
+                    id=self._id,
+                    ad=self._ad,
+                    nodes=self._nodes.to_json(),
+                )
+            }
+        )
+        return json.dumps(obj)
