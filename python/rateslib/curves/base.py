@@ -87,8 +87,7 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
         return self._cached_value(date, val)
 
     @abstractmethod
-    def _set_ad_order(self, ad: int) -> None:
-        ...
+    def _set_ad_order(self, ad: int) -> None: ...
 
     @property
     def ad(self) -> int:

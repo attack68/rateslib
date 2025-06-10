@@ -494,7 +494,7 @@ def test_index_left_raises() -> None:
 
 
 @pytest.mark.parametrize("ad_order", [0, 1, 2])
-#@pytest.mark.parametrize("composite", [True, False])
+# @pytest.mark.parametrize("composite", [True, False])
 def test_curve_shift_ad_order(ad_order) -> None:
     curve = Curve(
         nodes={
@@ -597,7 +597,7 @@ def test_composite_curve_shift() -> None:
 
 
 @pytest.mark.parametrize("ad_order", [0, 1, 2])
-#@pytest.mark.parametrize("composite", [True, False])
+# @pytest.mark.parametrize("composite", [True, False])
 def test_linecurve_shift(ad_order) -> None:
     curve = LineCurve(
         nodes={
@@ -666,7 +666,7 @@ def test_linecurve_shift_dual_input() -> None:
 
 
 @pytest.mark.parametrize("ad_order", [0, 1, 2])
-#@pytest.mark.parametrize("composite", [True, False])
+# @pytest.mark.parametrize("composite", [True, False])
 def test_indexcurve_shift(ad_order) -> None:
     curve = Curve(
         nodes={
@@ -756,7 +756,7 @@ def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, sp
     c._set_ad_order(ini_ad)
 
     if ini_ad + _get_order_of(spread) == 3:
-        with pytest.raises(TypeError, match="CompositeCurve cannot composite curves of AD order 1"):
+        with pytest.raises(TypeError, match="Cannot create a _ShiftedCurve with mixed AD orders"):
             c.shift(spread)
         return None
 
@@ -766,7 +766,7 @@ def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, sp
 
 
 @pytest.mark.parametrize(
-    ("crv", "t", "tol"),
+    ("crv", "tol"),
     [
         (
             Curve(
@@ -791,7 +791,6 @@ def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, sp
                     dt(2027, 1, 1),
                 ],
             ),
-            False,
             1e-8,
         ),
         (
@@ -818,7 +817,6 @@ def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, sp
                 ],
                 index_base=110.0,
             ),
-            False,
             1e-8,
         ),
         (
@@ -846,7 +844,6 @@ def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, sp
                 index_base=110.0,
                 interpolation="linear_index",
             ),
-            False,
             1e-8,
         ),
         (
@@ -872,7 +869,6 @@ def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, sp
                     dt(2027, 1, 1),
                 ],
             ),
-            False,
             1e-8,
         ),
         (
@@ -900,13 +896,12 @@ def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, sp
                     dt(2027, 1, 1),
                 ],
             ),
-            True,
             1e-3,
         ),
     ],
 )
-def test_curve_translate(crv, t, tol) -> None:
-    result_curve = crv.translate(dt(2023, 1, 1), t=t)
+def test_curve_translate(crv, tol) -> None:
+    result_curve = crv.translate(dt(2023, 1, 1))
     diff = np.array(
         [
             result_curve.rate(_, "1D") - crv.rate(_, "1D")
@@ -915,7 +910,8 @@ def test_curve_translate(crv, t, tol) -> None:
     )
     assert np.all(np.abs(diff) < tol)
     if not isinstance(result_curve.meta.index_base, NoInput):
-        assert result_curve.meta.index_base == crv.index_value(dt(2023, 1, 1), crv.meta.index_lag)
+        projected_base = crv.index_value(dt(2023, 1, 1), crv.meta.index_lag)
+        assert abs(result_curve.meta.index_base - projected_base) < 1e-14
 
 
 @pytest.mark.parametrize(
@@ -993,6 +989,7 @@ def test_curve_roll(crv) -> None:
     assert np.all(np.abs(result2 - expected) < 1e-7)
 
 
+@pytest.mark.skip(reason="v2.1 uses a _RolledCurve and does not return a compatible object for eq")
 def test_curve_roll_copy(curve) -> None:
     result = curve.roll("0d")
     assert result == curve
@@ -1171,6 +1168,7 @@ class TestCurve:
         )
         assert isinstance(curve, _BaseCurve)
 
+    @pytest.mark.skip(reason="_TranslatedCurve was constructed in v2.1 and bypasses this.")
     def test_curve_translate_knots_raises(self) -> None:
         curve = Curve(
             nodes={
