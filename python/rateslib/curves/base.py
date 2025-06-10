@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import pickle
 import warnings
 from abc import ABC, abstractmethod
@@ -9,13 +10,13 @@ from datetime import datetime, timedelta
 from math import comb
 from typing import TYPE_CHECKING, TypeAlias
 from uuid import uuid4
-import json
 
 import numpy as np
 from pytz import UTC
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf, get_calendar
+from rateslib.curves.interpolation import InterpolationFunction
 from rateslib.curves.utils import (
     _CurveInterpolator,
     _CurveMeta,
@@ -23,7 +24,6 @@ from rateslib.curves.utils import (
     _CurveType,
     average_rate,
 )
-from rateslib.curves.interpolation import InterpolationFunction
 from rateslib.default import NoInput, PlotOutput, _drb, plot
 from rateslib.dual import Dual, Dual2, Variable, dual_exp, set_order_convert
 from rateslib.dual.utils import _dual_float
