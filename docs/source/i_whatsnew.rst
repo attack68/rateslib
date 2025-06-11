@@ -12,7 +12,34 @@ and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
 email contact, see `rateslib <https://rateslib.com>`_.
 
-2.0.1 (Not released)
+2.1.0 (Not released)
+***************************
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - **Pricing objects: Curves**
+     - - :red:`Minor Breaking Change!`
+         The classes :class:`~rateslib.curves._TranslatedCurve`,
+         :class:`~rateslib.curves._RolledCurve` and
+         :class:`~rateslib.curves._ShiftedCurve` are constructed as new objects
+         to better handle the
+         :meth:`~rateslib.curves._BaseCurve.translate`
+         :meth:`~rateslib.curves._BaseCurve.roll`, and :meth:`~rateslib.curves._BaseCurve.shift`
+         methods for curves.
+         (`916 <https://github.com/attack68/rateslib/pull/916>`_)
+         (`917 <https://github.com/attack68/rateslib/pull/917>`_)
+         (`919 <https://github.com/attack68/rateslib/pull/919>`_)
+       - :red:`Minor Breaking Change!`
+         The ``composite`` argument for the :meth:`~rateslib.curves._BaseCurve.shift`
+         method is removed, forcing shifted curves to always be dynamically dependent upon their
+         underlying ``curve``.
+         (`917 <https://github.com/attack68/rateslib/pull/917>`_)
+
+2.0.1 (10th June 2025)
 ***************************
 
 .. list-table::
