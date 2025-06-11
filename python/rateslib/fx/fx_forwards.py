@@ -224,8 +224,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
 
         self.terminal: datetime = datetime(2200, 1, 1)
         for flag, (k, curve) in enumerate(self.fx_curves.items()):
-
-            try: # to label curve meta with collateral
+            try:  # to label curve meta with collateral
                 curve._meta = replace(curve._meta, _collateral=k[3:6])
             except AttributeError:
                 if curve._meta.collateral is not None and curve._meta.collateral != k[3:6]:
@@ -235,7 +234,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
                         f"clash has been detected.\n "
                         f"Curve.meta.collateral: '{curve._meta.collateral}'\n"
                         f"Actual collateral: '{k[3:6]}'",
-                        UserWarning
+                        UserWarning,
                     )
                 else:
                     # collateral is None so ignore, or it is correct anyway so pass
