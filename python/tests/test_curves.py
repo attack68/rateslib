@@ -1284,6 +1284,7 @@ class TestCurve:
         with pytest.raises(KeyError, match="`key` is not in"):
             curve.update_node(dt(2000, 1, 1), 1.0)
 
+
 class TestLineCurve:
     def test_repr(self):
         curve = LineCurve(
@@ -1313,7 +1314,6 @@ class TestLineCurve:
     def test_index_values_raises(self, line_curve):
         with pytest.raises(TypeError, match="A 'values' type Curve cannot"):
             line_curve.index_value(dt(2022, 3, 3), index_lag=0)
-
 
 
 class TestIndexCurve:
