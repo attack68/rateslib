@@ -31,6 +31,7 @@ from rateslib.fx_volatility.utils import (
     _delta_type_constants,
     _moneyness_from_atm_delta_closed_form,
     _moneyness_from_delta_closed_form,
+    _surface_index_left,
 )
 from rateslib.periods.utils import (
     _get_fx_and_base,
@@ -39,19 +40,18 @@ from rateslib.periods.utils import (
     _get_vol_smile_or_value,
     _maybe_local,
 )
-from rateslib.rs import index_left_f64
 from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
     from rateslib.typing import (
         FX_,
         Any,
-        Curve,
         DualTypes,
         DualTypes_,
         FXVolOption,
         FXVolOption_,
         Number,
+        _BaseCurve,
         datetime,
         str_,
     )
@@ -123,8 +123,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
     def cashflows(
         self,
-        disc_curve: Curve,
-        disc_curve_ccy2: Curve,
+        disc_curve: _BaseCurve,
+        disc_curve_ccy2: _BaseCurve,
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
@@ -196,8 +196,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
     def npv(
         self,
-        disc_curve: Curve,
-        disc_curve_ccy2: Curve,
+        disc_curve: _BaseCurve,
+        disc_curve_ccy2: _BaseCurve,
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
@@ -262,8 +262,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
     def rate(
         self,
-        disc_curve: Curve,
-        disc_curve_ccy2: Curve,
+        disc_curve: _BaseCurve,
+        disc_curve_ccy2: _BaseCurve,
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         vol: FXVolOption_ = NoInput(0),
@@ -326,8 +326,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
     def implied_vol(
         self,
-        disc_curve: Curve,
-        disc_curve_ccy2: Curve,
+        disc_curve: _BaseCurve,
+        disc_curve_ccy2: _BaseCurve,
         fx: FXForwards,
         premium: DualTypes,
         metric: str | NoInput = NoInput(0),
@@ -384,8 +384,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
     def analytic_greeks(
         self,
-        disc_curve: Curve,
-        disc_curve_ccy2: Curve,
+        disc_curve: _BaseCurve,
+        disc_curve_ccy2: _BaseCurve,
         fx: FXForwards,
         base: str_ = NoInput(0),
         vol: FXVolOption_ = NoInput(0),
@@ -474,8 +474,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
     def _analytic_greeks(
         self,
-        disc_curve: Curve,
-        disc_curve_ccy2: Curve,
+        disc_curve: _BaseCurve,
+        disc_curve_ccy2: _BaseCurve,
         fx: FXForwards,
         base: str_ = NoInput(0),
         vol: FXVolOption_ = NoInput(0),
@@ -892,7 +892,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             # mypy should auto detect this
             vol_: FXSabrSurface = vol  # type: ignore[assignment]
             expiry_posix = self.expiry.replace(tzinfo=UTC).timestamp()
-            e_idx = index_left_f64(vol_.expiries_posix, expiry_posix)
+            e_idx, _ = _surface_index_left(vol_.meta.expiries_posix, expiry_posix)
             alpha = vol_.smiles[e_idx].nodes.alpha
 
         root_solver = newton_1dim(
@@ -1125,7 +1125,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             # mypy should auto detect this
             vol_: FXSabrSurface = vol  # type: ignore[assignment]
             expiry_posix = self.expiry.replace(tzinfo=UTC).timestamp()
-            e_idx = index_left_f64(vol_.expiries_posix, expiry_posix)
+            e_idx, _ = _surface_index_left(vol_.meta.expiries_posix, expiry_posix)
             alpha = vol_.smiles[e_idx].nodes.alpha
 
         g0 = _moneyness_from_delta_closed_form(g01, alpha * 100.0, t_e, z_w_0, self.phi) * f_d
@@ -1147,7 +1147,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         self,
         vol: FXVolOption_,
         fx: FXForwards,
-        disc_curve: Curve,
+        disc_curve: _BaseCurve,
     ) -> DualTypes:
         """Return a volatility for the option from a given Smile."""
         # FXOption can have a `strike` that is NoInput, however this internal function should

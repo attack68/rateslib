@@ -1446,7 +1446,7 @@ class TestFixedRateBond:
         curve = Curve({dt(2010, 11, 25): 1.0, dt(2015, 12, 7): 0.75})
         # result = gilt.npv(curve) = 113.22198344812742
         result = gilt.oaspread(curve, price=price)
-        curve_z = curve.shift(result, composite=False)
+        curve_z = curve.shift(result)
         result = gilt.rate(curve_z, metric="clean_price")
         assert abs(result - price) < tol
 
@@ -1477,7 +1477,7 @@ class TestFixedRateBond:
         curve = Curve({dt(1999, 11, 25): 1.0, dt(2015, 12, 7): 0.85})
         # result = gilt.npv(curve) = 113.22198344812742
         result = gilt.oaspread(curve, price=price)
-        curve_z = curve.shift(result, composite=False)
+        curve_z = curve.shift(result)
         result = gilt.rate(curve_z, metric="clean_price")
         assert abs(result - price) < tol
 
@@ -2142,7 +2142,7 @@ class TestBill:
         curve = Curve({dt(1998, 12, 7): 1.0, dt(2015, 12, 7): 0.75})
         # result = bill.rate(curve, metric="price") # = 98.605
         result = bill.oaspread(curve, price=price)
-        curve_z = curve.shift(result, composite=False)
+        curve_z = curve.shift(result)
         result = bill.rate(curve_z, metric="clean_price")
         assert abs(result - price) < tol
 
@@ -2598,7 +2598,7 @@ class TestFloatRateNote:
         curve = Curve({dt(1998, 12, 7): 1.0, dt(2015, 12, 7): 0.75})
         # result = bond.rate(curve, metric="clean_price") = 99.999999999999953
         result = bond.oaspread(curve, price=price)
-        curve_z = curve.shift(result, composite=False)
+        curve_z = curve.shift(result)
         result = bond.rate([curve, curve_z], metric="clean_price")
         assert abs(result - price) < tol
 

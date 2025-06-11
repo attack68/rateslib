@@ -10,22 +10,22 @@ from rateslib.dual import dual_exp, dual_log
 from rateslib.rs import index_left_f64
 
 if TYPE_CHECKING:
-    from rateslib.typing import Any, Curve, DualTypes, datetime  # pragma: no cover
+    from rateslib.typing import Any, DualTypes, _BaseCurve, datetime  # pragma: no cover
 
 
 class InterpolationFunction(Protocol):
     # Callable type for Interpolation Functions
-    def __call__(self, date: datetime, curve: Curve) -> DualTypes: ...
+    def __call__(self, date: datetime, curve: _BaseCurve) -> DualTypes: ...
 
 
-def _linear(date: datetime, curve: Curve) -> DualTypes:
+def _linear(date: datetime, curve: _BaseCurve) -> DualTypes:
     x, x_1, x_2, i = _get_posix(date, curve)
     node_values = list(curve.nodes.nodes.values())
     y_1, y_2 = node_values[i], node_values[i + 1]
     return y_1 + (y_2 - y_1) * (x - x_1) / (x_2 - x_1)
 
 
-def _linear_bus(date: datetime, curve: Curve) -> DualTypes:
+def _linear_bus(date: datetime, curve: _BaseCurve) -> DualTypes:
     i = index_left(curve.nodes.keys, curve.nodes.n, date)
     x_1, x_2 = curve.nodes.keys[i], curve.nodes.keys[i + 1]
     d_n = dcf(x_1, x_2, "bus252", calendar=curve.meta.calendar)
@@ -35,14 +35,14 @@ def _linear_bus(date: datetime, curve: Curve) -> DualTypes:
     return y_1 + (y_2 - y_1) * d_m / d_n
 
 
-def _log_linear(date: datetime, curve: Curve) -> DualTypes:
+def _log_linear(date: datetime, curve: _BaseCurve) -> DualTypes:
     x, x_1, x_2, i = _get_posix(date, curve)
     node_values = list(curve.nodes.nodes.values())
     y_1, y_2 = dual_log(node_values[i]), dual_log(node_values[i + 1])
     return dual_exp(y_1 + (y_2 - y_1) * (x - x_1) / (x_2 - x_1))
 
 
-def _log_linear_bus(date: datetime, curve: Curve) -> DualTypes:
+def _log_linear_bus(date: datetime, curve: _BaseCurve) -> DualTypes:
     i = index_left(curve.nodes.keys, curve.nodes.n, date)
     x_1, x_2 = curve.nodes.keys[i], curve.nodes.keys[i + 1]
     d_n = dcf(x_1, x_2, "bus252", calendar=curve.meta.calendar)
@@ -52,7 +52,7 @@ def _log_linear_bus(date: datetime, curve: Curve) -> DualTypes:
     return dual_exp(y_1 + (y_2 - y_1) * d_m / d_n)
 
 
-def _flat_forward(date: datetime, curve: Curve) -> DualTypes:
+def _flat_forward(date: datetime, curve: _BaseCurve) -> DualTypes:
     x, x_1, x_2, i = _get_posix(date, curve)
     node_values = list(curve.nodes.nodes.values())
     y_1, y_2 = node_values[i], node_values[i + 1]
@@ -61,7 +61,7 @@ def _flat_forward(date: datetime, curve: Curve) -> DualTypes:
     return y_1
 
 
-def _flat_backward(date: datetime, curve: Curve) -> DualTypes:
+def _flat_backward(date: datetime, curve: _BaseCurve) -> DualTypes:
     x, x_1, x_2, i = _get_posix(date, curve)
     node_values = list(curve.nodes.nodes.values())
     y_1, y_2 = node_values[i], node_values[i + 1]
@@ -70,7 +70,7 @@ def _flat_backward(date: datetime, curve: Curve) -> DualTypes:
     return y_2
 
 
-def _linear_zero_rate(date: datetime, curve: Curve) -> DualTypes:
+def _linear_zero_rate(date: datetime, curve: _BaseCurve) -> DualTypes:
     # base time on DCF, which depends on the curve convention.
     i = index_left(curve.nodes.keys, curve.nodes.n, date)
     nvs = list(curve.nodes.nodes.values())
@@ -93,14 +93,14 @@ def _linear_zero_rate(date: datetime, curve: Curve) -> DualTypes:
     return dual_exp(-r_m * d_m)
 
 
-def _linear_index(date: datetime, curve: Curve) -> DualTypes:
+def _linear_index(date: datetime, curve: _BaseCurve) -> DualTypes:
     x, x_1, x_2, i = _get_posix(date, curve)
     node_values = list(curve.nodes.nodes.values())
     y_1, y_2 = node_values[i], node_values[i + 1]
     return (1 / y_1 + (1 / y_2 - 1 / y_1) * (x - x_1) / (x_2 - x_1)) ** -1.0
 
 
-def _runtime_error(date: datetime, curve: Curve) -> DualTypes:
+def _runtime_error(date: datetime, curve: _BaseCurve) -> DualTypes:
     """Spline interpolation is performed by a PPSpline over the whole nodes domain."""
     raise RuntimeError(  # pragma: no cover
         "An `interpolation` mode of 'spline' should never call this function.\n"
@@ -121,7 +121,7 @@ INTERPOLATION: dict[str, InterpolationFunction] = {
 }
 
 
-def _get_posix(date: datetime, curve: Curve) -> tuple[float, float, float, int]:
+def _get_posix(date: datetime, curve: _BaseCurve) -> tuple[float, float, float, int]:
     """
     Convert a datetime and curve_nodes to posix timestamps and return the index_left.
     """

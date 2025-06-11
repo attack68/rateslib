@@ -54,7 +54,6 @@ if TYPE_CHECKING:
         CalInput,
         Callable,
         Cashflow,
-        Curve_,
         CurveOption,
         CurveOption_,
         Curves_,
@@ -66,6 +65,8 @@ if TYPE_CHECKING:
         IndexFixedPeriod,
         Number,
         Solver_,
+        _BaseCurve,
+        _BaseCurve_,
         bool_,
         datetime_,
         int_,
@@ -512,7 +513,7 @@ class BondMixin:
     def _npv_local(
         self,
         curve: CurveOption_,
-        disc_curve: Curve,
+        disc_curve: _BaseCurve,
         settlement: datetime,
         projection: datetime_,
     ) -> DualTypes:
@@ -656,7 +657,7 @@ class BondMixin:
     def analytic_delta(
         self,
         curve: CurveOption_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
     ) -> DualTypes:
@@ -817,7 +818,7 @@ class BondMixin:
         )
 
     def _oaspread_algorithm(
-        self, curve: CurveOption_, disc_curve: Curve, metric: str, price: float
+        self, curve: CurveOption_, disc_curve: _BaseCurve, metric: str, price: float
     ) -> float:
         """
         Perform the algorithm as specified in "Coding Interest Rates" to derive an OAS spread
@@ -855,11 +856,7 @@ class BondMixin:
                 curve._set_ad_order(order)
 
         # attach "z_spread" sensitivity to an AD order 1 curve.
-        disc_curve_ = disc_curve._shift(
-            Dual(0.0, ["z_spread"], []),
-            composite=False,
-            _no_validation=True,
-        )
+        disc_curve_ = disc_curve.shift(Dual(0.0, ["z_spread"], []))
         curve_ = _copy_curve(curve)
         _set_ad_order_of_forecasting_curve(curve_, 0)
 
@@ -870,11 +867,7 @@ class BondMixin:
         z_hat: float = -c / b
 
         # shift the curve to the first order approximation and fine tune with 2nd order approxim.
-        disc_curve_ = disc_curve._shift(
-            Dual2(z_hat, ["z_spread"], [], []),
-            composite=False,
-            _no_validation=True,
-        )
+        disc_curve_ = disc_curve.shift(Dual2(z_hat, ["z_spread"], [], []))
         npv_price = self.rate(curves=[curve_, disc_curve_], metric=metric)  # type: ignore[assignment]
         coeffs: tuple[float, float, float] = (
             0.5 * gradient(npv_price, ["z_spread"], 2)[0][0],
@@ -884,11 +877,7 @@ class BondMixin:
         z_hat2: float = quadratic_eqn(*coeffs, x0=-c / b)["g"]
 
         # perform one final approximation albeit the additional price calculation slows calc time
-        disc_curve_ = disc_curve._shift(
-            z_hat + z_hat2,
-            composite=False,
-            _no_validation=True,
-        )
+        disc_curve_ = disc_curve.shift(z_hat + z_hat2)
         disc_curve_._set_ad_order(0)
         _set_ad_order_of_forecasting_curve(curve_, 0)
         npv_price_: float = self.rate(curves=[curve_, disc_curve_], metric=metric)  # type: ignore[assignment]
@@ -901,7 +890,7 @@ class BondMixin:
 
     # TODO: unit tests for the oaspread_newton algo, and derive the analytics to keep this AD safe
     def _oaspread_newton_algorithm(
-        self, curve: CurveOption_, disc_curve: Curve, metric: str, price: float
+        self, curve: CurveOption_, disc_curve: _BaseCurve, metric: str, price: float
     ) -> DualTypes:
         """
         NOT FULLY CHECKED or TESTED: DO NOT USE
@@ -941,7 +930,7 @@ class BondMixin:
             else:
                 z_ = z + Dual(0.0, ["__z_spd__§"], [])
 
-            shifted_curve = disc_curve.shift(z_, composite=False)
+            shifted_curve = disc_curve.shift(z_)
             P_iter: Dual | Dual2 = self.rate(curves=[curve_, shifted_curve], metric=metric)  # type: ignore[assignment]
             f_0 = P_tgt - P_iter
             f_1 = -gradient(P_iter, vars=["__z_spd__§"], order=1)[0]
@@ -1145,7 +1134,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
     fixed_rate: DualTypes
     leg1: FixedLeg
 
-    def _period_cashflow(self, period: Cashflow | FixedPeriod, curve: Curve_) -> DualTypes:  # type: ignore[override]
+    def _period_cashflow(self, period: Cashflow | FixedPeriod, curve: _BaseCurve_) -> DualTypes:  # type: ignore[override]
         """Nominal fixed rate bonds use the known "cashflow" attribute on the *Period*."""
         return period.cashflow  # type: ignore[return-value]  # FixedRate on bond cannot be NoInput
 
@@ -1758,7 +1747,7 @@ class IndexFixedRateBond(FixedRateBond):
             # self.notional which is currently assumed to be a fixed quantity
             raise NotImplementedError("`amortization` for IndexFixedRateBond must be zero.")
 
-    def index_ratio(self, settlement: datetime, curve: Curve_) -> DualTypes:
+    def index_ratio(self, settlement: datetime, curve: _BaseCurve_) -> DualTypes:
         """
         Return the index ratio assigned to an *IndexFixedRateBond* for a given settlement.
 
@@ -2545,7 +2534,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
             # self.notional which is currently assumed to be a fixed quantity
             raise NotImplementedError("`amortization` for FloatRateNote must be zero.")
 
-    def _period_cashflow(self, period: Cashflow | FloatPeriod, curve: Curve_) -> DualTypes:  # type: ignore[override]
+    def _period_cashflow(self, period: Cashflow | FloatPeriod, curve: _BaseCurve_) -> DualTypes:  # type: ignore[override]
         """FloatRateNotes must forecast cashflows with a *Curve* on the *Period*."""
         if isinstance(period, FloatPeriod):
             _: DualTypes = period.cashflow(curve)  # type: ignore[assignment]

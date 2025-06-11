@@ -27,6 +27,7 @@ from rateslib.fx_volatility.utils import (
     _FXSabrSmileNodes,
     _validate_delta_type,
 )
+from rateslib.periods.fx_volatility import FXCallPeriod
 
 
 @pytest.fixture
@@ -597,6 +598,23 @@ class TestFXDeltaVolSurface:
             fxvs.get_smile(dt(2024, 7, 1))
             # no clear cache required, but value will re-calc anyway
             assert dt(2024, 7, 1) not in fxvs._cache
+
+    @pytest.mark.parametrize("smile_expiry", [dt(2026, 5, 1), dt(2026, 6, 9), dt(2026, 7, 1)])
+    def test_flat_surface_and_get_smile_one_expiry(self, smile_expiry):
+        # gh 911
+        anchor = dt(2025, 6, 9)
+        expiry = dt(2026, 6, 9)
+
+        surf = FXDeltaVolSurface(
+            eval_date=anchor,
+            expiries=[expiry],
+            delta_indexes=[0.5],
+            node_values=[[10]],
+            delta_type="forward",
+        )
+
+        smile = surf.get_smile(smile_expiry)
+        assert abs(smile[0.3] - 10.0) < 1e-13
 
 
 class TestFXSabrSmile:
@@ -1918,6 +1936,42 @@ class TestFXSabrSurface:
         # calling get from strike will validate
         fxss.get_from_strike(1.1, 1.1, dt(2023, 7, 15))
         assert fxss._state == fxss._get_composited_state()
+
+    @pytest.mark.parametrize("smile_expiry", [dt(2026, 5, 1), dt(2026, 6, 9), dt(2026, 7, 1)])
+    def test_flat_surface_and_get_smile_one_expiry(self, smile_expiry):
+        # gh 911
+        anchor = dt(2025, 6, 9)
+        expiry = dt(2026, 6, 9)
+
+        surf = FXSabrSurface(
+            eval_date=anchor,
+            expiries=[expiry],
+            node_values=[[0.10, 1.0, 0.0, 0.0]],
+        )
+
+        result = surf.get_from_strike(1.0, 1.10, smile_expiry)[1]
+        assert abs(result - 10.0) < 1e-13
+
+    @pytest.mark.parametrize("option_expiry", [dt(2026, 5, 1), dt(2026, 6, 9), dt(2026, 7, 1)])
+    def test_flat_surface_option_strike_delta(self, option_expiry):
+        surf = FXSabrSurface(
+            eval_date=dt(2025, 6, 9),
+            expiries=[dt(2026, 6, 9)],
+            node_values=[[0.10, 1.0, 0.0, 0.0]],
+        )
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=option_expiry,
+            delivery=option_expiry,
+            payment=option_expiry,
+            strike=NoInput(0),
+            delta_type="forward",
+        )
+        result = fxo._index_vol_and_strike_from_delta_sabr(0.25, "forward", surf, 1, 1.10)
+        assert abs(result[1] - 10.0) < 1e-13
+
+        result = fxo._index_vol_and_strike_from_atm_sabr(1.10, 0.50, surf)
+        assert abs(result[1] - 10.0) < 1e-13
 
 
 class TestStateAndCache:
