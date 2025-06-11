@@ -465,7 +465,7 @@ Pricing Containers
 ********************
 
 Other objects that are available, that are constructed via manipulations of the base *Pricing
-Objects* are the so called *Pricing Containers*.
+Objects* (or other *Pricing Containers*) are the so called *Pricing Containers*.
 
 The main user curve classes are listed below:
 
