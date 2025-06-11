@@ -744,7 +744,7 @@ class Curve(_WithOperations, _WithMutation, _BaseCurve):  # type: ignore[misc]
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class LineCurve(_WithOperations, _WithMutation, _BaseCurve):   # type: ignore[misc]
+class LineCurve(_WithOperations, _WithMutation, _BaseCurve):  # type: ignore[misc]
     """
     Curve based on value parametrisation at given node dates with interpolation.
 
