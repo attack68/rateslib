@@ -1604,6 +1604,21 @@ class TestFXForwards:
         result = pc[dt(2000, 1, 15)]
         assert abs(result - 0.998843) < 1e-6
 
+    def test_creation_operations_curve(self):
+        c1 = Curve({dt(2000, 1, 2): 1.0, dt(2001, 1, 1): 0.98})
+        c2 = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.99})
+        rc = c1.roll("3d")
+        sc = c1.shift(10.0)
+        tc = c2.translate(dt(2000, 1, 2))
+        fxr = FXRates({"eurusd": 1.5}, settlement=dt(2000, 1, 2))
+        fxf = FXForwards(
+            fx_rates=fxr,
+            fx_curves={"eureur": rc, "eurusd": sc, "usdusd": tc},
+        )
+        pc = fxf.curve("usd", "eur")
+        result = pc[dt(2000, 1, 15)]
+        assert abs(result - 0.999679) < 1e-6
+
 
 def test_recursive_pair_population1():
     arr = np.array(
