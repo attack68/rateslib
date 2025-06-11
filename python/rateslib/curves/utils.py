@@ -22,6 +22,7 @@ if TYPE_CHECKING:
         CalTypes,
         DualTypes,
         FXForwards,
+        Number,
         Variable,
         float_,
         str_,
@@ -541,3 +542,66 @@ class _CurveNodes:
         return _CurveNodes(
             _nodes={datetime.strptime(d, "%Y-%m-%d"): v for d, v in loaded_json["_nodes"].items()}
         )
+
+
+def average_rate(
+    effective: datetime,
+    termination: datetime,
+    convention: str,
+    rate: DualTypes,
+    dcf: float,
+) -> tuple[Number, float, float]:
+    """
+    Return the geometric, 1-day, average simple rate for a given simple period rate.
+
+    This is used for approximations usually in combination with floating periods.
+
+    Parameters
+    ----------
+    effective : datetime
+        The effective date of the rate.
+    termination : datetime
+        The termination date of the rate.
+    convention : str
+        The day count convention of the curve rate.
+    rate : float, Dual, Dual2
+        The simple period rate to decompose to average, in percentage terms, e.g. 4.00 = 4% rate.
+    dcf : float
+        The day count fraction of the period used to determine daily DCF.
+
+    Returns
+    -------
+    tuple : The simple rate, the 1-day DCF, and the number of relevant days for the convention
+
+    Notes
+    -----
+    This method operates in one of two modes to determine the value, :math:`\\bar{r}`.
+
+    - Calendar day basis, where :math:`\\tilde{n}` is calendar days in period:
+
+      .. math::
+
+         1+\\tilde{n}\\bar{d}r = (1 + \\bar{d}\\bar{r})^{\\tilde{n}}
+
+    - Business day basis (if ``convention`` is *'bus252'*), where :math:`n` is business days
+      in period. *n* is approximated by a 252 business days per year rule and does not
+      calculate the exact number of business days from any specific holiday calendar.
+
+      .. math::
+
+         1+n\\bar{d}r = (1 + \\bar{d}\\bar{r})^{n}
+
+    :math:`\\bar{d}`, the 1-day DCF is estimated from a ``convention``. For certain conventions,
+    e.g. *'act360'* and *'act365f'* this is explicit and exact, but for others, such as *'30360'*,
+    this function will likely be lesser used and less accurate.
+    """
+    if convention.upper() == "BUS252":
+        # business days are used
+        n: float = dcf * 252.0
+        d = 1.0 / 252.0
+    else:  # calendar day mode
+        n = (termination - effective).days
+        d = dcf / n
+
+    _: Number = ((1 + n * d * rate / 100) ** (1 / n) - 1) / d
+    return _ * 100, d, n

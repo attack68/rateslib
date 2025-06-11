@@ -23,7 +23,6 @@ if TYPE_CHECKING:
         FX_,
         NPV,
         Any,
-        Curve,
         Curves_,
         DualTypes,
         DualTypes_,
@@ -34,6 +33,7 @@ if TYPE_CHECKING:
         FXVolStrat_,
         ListFXVol_,
         Solver_,
+        _BaseCurve,
         datetime,
         str_,
     )
@@ -827,8 +827,8 @@ class FXStrangle(FXOptionStrat, FXOption):
         # type assignment, instead of using assert
         vol_0: FXVolOption = vol_[0]  # type: ignore[assignment]
         vol_1: FXVolOption = vol_[1]  # type: ignore[assignment]
-        curves_1: Curve = _validate_obj_not_no_input(curves_[1], "curves_[1]")
-        curves_3: Curve = _validate_obj_not_no_input(curves_[3], "curves_[3]")
+        curves_1: _BaseCurve = _validate_obj_not_no_input(curves_[1], "curves_[1]")
+        curves_3: _BaseCurve = _validate_obj_not_no_input(curves_[3], "curves_[3]")
         fxf: FXForwards = _validate_fx_as_forwards(fx_)
 
         # Get initial data from objects in their native AD order

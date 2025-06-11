@@ -27,6 +27,7 @@ from rateslib.dual.utils import _dual_float, _to_number
 from rateslib.rs import _sabr_x0 as _rs_sabr_x0
 from rateslib.rs import _sabr_x1 as _rs_sabr_x1
 from rateslib.rs import _sabr_x2 as _rs_sabr_x2
+from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
@@ -467,6 +468,12 @@ class _FXSabrSurfaceMeta:
     _calendar: CalTypes
     _delivery_lag: int
     _weights: Series[float] | None
+    _expiries: list[datetime]
+
+    def __post_init__(self) -> None:
+        for idx in range(1, len(self.expiries)):
+            if self.expiries[idx - 1] >= self.expiries[idx]:
+                raise ValueError("Surface `expiries` are not sorted or contain duplicates.\n")
 
     @property
     def weights(self) -> Series[float] | None:
@@ -481,6 +488,17 @@ class _FXSabrSurfaceMeta:
             return None
         else:
             return self.weights.cumsum()
+
+    @property
+    def expiries(self) -> list[datetime]:
+        """A list of the expiries of each cross-sectional
+        :class:`~rateslib.fx_volatility.FXSabrSmile`."""
+        return self._expiries
+
+    @cached_property
+    def expiries_posix(self) -> list[float]:
+        """A list of the unix timestamps of each date in ``expiries``."""
+        return [_.replace(tzinfo=UTC).timestamp() for _ in self.expiries]
 
     @cached_property
     def eval_posix(self) -> float:
@@ -547,6 +565,7 @@ def _t_var_interp(
     expiry: datetime,
     expiry_posix: float,
     expiry_index: int,
+    expiry_next_index: int,
     eval_posix: float,
     weights_cum: Series[float] | None,
     vol1: DualTypes,
@@ -569,6 +588,11 @@ def _t_var_interp(
         The target expiry to be interpolated.
     expiry_posix: float
         The pre-calculated posix timestamp for expiry.
+    expiry_index: int
+        The integer index of the expiries period in which the expiry falls.
+    expiry_next_index: int
+        Will be expiry_index + 1, unless the surface only has one expiry, in which case it will
+        equal the expiry_index.
     eval_posix: float
          The pre-calculated posix timestamp for eval date of the *Surface*
     weights_cum: Series[float] or NoInput
@@ -591,6 +615,7 @@ def _t_var_interp(
         expiry,
         expiry_posix,
         expiry_index,
+        expiry_next_index,
         eval_posix,
         weights_cum,
         vol1,
@@ -608,6 +633,7 @@ def _t_var_interp_d_sabr_d_k_or_f(
     expiry: datetime,
     expiry_posix: float,
     expiry_index: int,
+    expiry_next_index: int,
     eval_posix: float,
     weights_cum: Series[float] | None,
     vol1: DualTypes,
@@ -620,14 +646,14 @@ def _t_var_interp_d_sabr_d_k_or_f(
     if weights_cum is None:  # weights must also be NoInput
         if bounds_flag == 0:
             t1 = expiries_posix[expiry_index] - eval_posix
-            t2 = expiries_posix[expiry_index + 1] - eval_posix
+            t2 = expiries_posix[expiry_next_index] - eval_posix
         elif bounds_flag == -1:
             # left side extrapolation
             t1 = 0.0
             t2 = expiries_posix[expiry_index] - eval_posix
         else:  # bounds_flag == 1:
             # right side extrapolation
-            t1 = expiries_posix[expiry_index + 1] - eval_posix
+            t1 = expiries_posix[expiry_next_index] - eval_posix
             t2 = TERMINAL_DATE.replace(tzinfo=UTC).timestamp() - eval_posix
 
         t_hat = expiry_posix - eval_posix
@@ -635,14 +661,14 @@ def _t_var_interp_d_sabr_d_k_or_f(
     else:
         if bounds_flag == 0:
             t1 = weights_cum[expiries[expiry_index]]
-            t2 = weights_cum[expiries[expiry_index + 1]]
+            t2 = weights_cum[expiries[expiry_next_index]]
         elif bounds_flag == -1:
             # left side extrapolation
             t1 = 0.0
             t2 = weights_cum[expiries[expiry_index]]
         else:  # bounds_flag == 1:
             # right side extrapolation
-            t1 = weights_cum[expiries[expiry_index + 1]]
+            t1 = weights_cum[expiries[expiry_next_index]]
             t2 = weights_cum[TERMINAL_DATE]
 
         t_hat = weights_cum[expiry]  # number of vol weighted calendar days
@@ -899,3 +925,14 @@ def _sabr_X2(
     If ``derivative`` = 2 also returns dX2/df, calculated using sympy.
     """
     return _rs_sabr_x2(k, f, t, a, b, p, v, derivative)
+
+
+def _surface_index_left(expiries_posix: list[float], expiry_posix: float) -> tuple[int, int]:
+    """use `index_left_f64` to derive left and right index,
+    but exclude surfaces with only one expiry."""
+    if len(expiries_posix) == 1:
+        return 0, 0
+    else:
+        e_idx = index_left_f64(expiries_posix, expiry_posix)
+        e_next_idx = e_idx + 1
+        return e_idx, e_next_idx

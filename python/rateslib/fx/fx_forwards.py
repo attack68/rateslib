@@ -12,7 +12,8 @@ from pandas import DataFrame, Series
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor
-from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
+from rateslib.curves import Curve, MultiCsaCurve, ProxyCurve
+from rateslib.curves.utils import _CurveType
 from rateslib.default import NoInput, PlotOutput, _drb, plot
 from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.fx.fx_rates import FXRates
@@ -25,7 +26,7 @@ from rateslib.mutability import (
 )
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, Number, datetime_
+    from rateslib.typing import CalInput, Number, _BaseCurve, datetime_
 DualTypes: TypeAlias = (
     "Dual | Dual2 | Variable | float"  # required for non-cyclic import on _WithCache
 )
@@ -190,7 +191,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
     def __init__(
         self,
         fx_rates: FXRates | list[FXRates],
-        fx_curves: dict[str, Curve],
+        fx_curves: dict[str, _BaseCurve],
         base: str | NoInput = NoInput(0),
     ) -> None:
         self._ad = 1
@@ -218,18 +219,32 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
         if self._state != self._get_composited_state():
             self.update()
 
-    def _validate_fx_curves(self, fx_curves: dict[str, Curve]) -> None:
-        self.fx_curves: dict[str, Curve] = {k.lower(): v for k, v in fx_curves.items()}
+    def _validate_fx_curves(self, fx_curves: dict[str, _BaseCurve]) -> None:
+        self.fx_curves: dict[str, _BaseCurve] = {k.lower(): v for k, v in fx_curves.items()}
 
         self.terminal: datetime = datetime(2200, 1, 1)
         for flag, (k, curve) in enumerate(self.fx_curves.items()):
-            curve._meta = replace(curve._meta, _collateral=k[3:6])  # label curves with collateral
+            try:  # to label curve meta with collateral
+                curve._meta = replace(curve._meta, _collateral=k[3:6])
+            except AttributeError:
+                if curve._meta.collateral is not None and curve._meta.collateral != k[3:6]:
+                    warnings.warn(
+                        "Constructing an FXForwards with curve operation objects is possible.\n"
+                        "However, these objects reference other curve meta data, and a collateral "
+                        f"clash has been detected.\n "
+                        f"Curve.meta.collateral: '{curve._meta.collateral}'\n"
+                        f"Actual collateral: '{k[3:6]}'",
+                        UserWarning,
+                    )
+                else:
+                    # collateral is None so ignore, or it is correct anyway so pass
+                    pass
 
             if flag == 0:
                 self.immediate: datetime = curve.nodes.keys[0]
             elif self.immediate != curve.nodes.keys[0]:
                 raise ValueError("`fx_curves` do not have the same initial date.")
-            if isinstance(curve, LineCurve):
+            if curve._base_type == _CurveType.values:
                 raise TypeError("`fx_curves` must be DF based, not type LineCurve.")
             if curve.nodes.final < self.terminal:
                 self.terminal = curve.nodes.final
@@ -369,8 +384,8 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
 
     @staticmethod
     def _get_curves_for_currencies(
-        fx_curves: dict[str, Curve], currencies: list[str]
-    ) -> dict[str, Curve]:
+        fx_curves: dict[str, _BaseCurve], currencies: list[str]
+    ) -> dict[str, _BaseCurve]:
         """produces a complete subset of fx curves given a list of currencies"""
         ps = product(currencies, currencies)
         ret = {p[0] + p[1]: fx_curves[p[0] + p[1]] for p in ps if p[0] + p[1] in fx_curves}
@@ -754,7 +769,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
         return (fx1 - fx0) * 10000
 
     @_validate_states
-    def _full_curve(self, cashflow: str, collateral: str) -> Curve:
+    def _full_curve(self, cashflow: str, collateral: str) -> _BaseCurve:
         """
         Calculate a cash collateral curve.
 
@@ -792,7 +807,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
             )
             for k in [self.immediate + timedelta(days=i) for i in range(days + 1)]
         }
-        c_: Curve = Curve(nodes)
+        c_: _BaseCurve = Curve(nodes)
         return c_
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -808,7 +823,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
         modifier: str | NoInput = NoInput(1),  # will inherit from available curve
         calendar: CalInput = NoInput(1),  # will inherit from available curve
         id: str | NoInput = NoInput(0),  # noqa: A002
-    ) -> Curve:
+    ) -> _BaseCurve:
         """
         Return a cash collateral *Curve*.
 
@@ -968,7 +983,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
         container = {
             "base": self.base,
             "fx_rates": fx_rates,
-            "fx_curves": {k: v.to_json() for k, v in self.fx_curves.items()},
+            "fx_curves": {k: v.to_json() for k, v in self.fx_curves.items()},  # type: ignore[attr-defined]
         }
         return json.dumps(container, default=str)
 
@@ -1057,8 +1072,8 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
 
 def forward_fx(
     date: datetime,
-    curve_domestic: Curve,
-    curve_foreign: Curve,
+    curve_domestic: _BaseCurve,
+    curve_foreign: _BaseCurve,
     fx_rate: DualTypes,
     fx_settlement: datetime | NoInput = NoInput(0),
 ) -> DualTypes:
@@ -1150,7 +1165,7 @@ def forward_fx(
 
 
 def _get_curves_indicator_array(
-    q: int, currencies: dict[str, int], fx_curves: dict[str, Curve]
+    q: int, currencies: dict[str, int], fx_curves: dict[str, _BaseCurve]
 ) -> np.ndarray[tuple[int, int], np.dtype[np.int_]]:
     """
     Constructs an indicator array identifying which cash-collateral curves are available in the

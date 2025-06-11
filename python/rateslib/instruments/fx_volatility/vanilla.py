@@ -9,7 +9,6 @@ from pandas import DataFrame
 
 from rateslib import FXDeltaVolSmile, FXDeltaVolSurface, defaults
 from rateslib.calendars import _get_fx_expiry_and_delivery, get_calendar
-from rateslib.curves import Curve
 from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.default import NoInput, PlotOutput, _drb, plot
 from rateslib.dual.utils import _dual_float
@@ -41,6 +40,7 @@ if TYPE_CHECKING:
         FXVol_,
         FXVolOption_,
         Solver_,
+        _BaseCurve,
         bool_,
         datetime_,
         float_,
@@ -304,8 +304,8 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
         fx_ = _validate_fx_as_forwards(fx)
         # vol_: FXVolOption = _validate_obj_not_no_input(vol, "vol")  # type: ignore[assignment]
         vol_ = vol
-        curves_3: Curve = _validate_obj_not_no_input(curves[3], "curves[3]")
-        curves_1: Curve = _validate_obj_not_no_input(curves[1], "curves[1]")
+        curves_3: _BaseCurve = _validate_obj_not_no_input(curves[3], "curves[3]")
+        curves_1: _BaseCurve = _validate_obj_not_no_input(curves[1], "curves[1]")
 
         self._pricing = _PricingMetrics(
             vol=None,
@@ -391,7 +391,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
     def _set_premium(self, curves: Curves_DiscTuple, fx: FX_ = NoInput(0)) -> None:
         if isinstance(self.kwargs["premium"], NoInput):
             # then set the CashFlow to mid-market
-            curves_3: Curve = _validate_obj_not_no_input(curves[3], "curves[3]")
+            curves_3: _BaseCurve = _validate_obj_not_no_input(curves[3], "curves[3]")
             try:
                 npv: DualTypes = self._option_periods[0].npv(  # type: ignore[assignment]
                     _validate_obj_not_no_input(curves[1], "curves[1]"),

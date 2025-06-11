@@ -32,6 +32,7 @@ from rateslib.fx_volatility.utils import (
     _FXSabrSmileMeta,
     _FXSabrSmileNodes,
     _FXSabrSurfaceMeta,
+    _surface_index_left,
     _t_var_interp_d_sabr_d_k_or_f,
     _validate_weights,
 )
@@ -42,7 +43,6 @@ from rateslib.mutability import (
     _WithCache,
     _WithState,
 )
-from rateslib.rs import index_left_f64
 
 if TYPE_CHECKING:
     from rateslib.typing import CalInput, DualTypes, Number, Sequence, datetime_, int_, str_
@@ -538,15 +538,8 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
             _calendar=get_calendar(calendar),
             _delivery_lag=_drb(defaults.fx_delivery_lag, delivery_lag),
             _weights=_validate_weights(weights, eval_date, expiries),
+            _expiries=expiries,
         )
-
-        self.expiries: list[datetime] = expiries
-        self.expiries_posix: list[float] = [
-            _.replace(tzinfo=UTC).timestamp() for _ in self.expiries
-        ]
-        for idx in range(1, len(self.expiries)):
-            if self.expiries[idx - 1] >= self.expiries[idx]:
-                raise ValueError("Surface `expiries` are not sorted or contain duplicates.\n")
 
         node_values_: np.ndarray[tuple[int, ...], np.dtype[np.object_]] = np.asarray(node_values)
         self._smiles = [
@@ -559,7 +552,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                 pair=pair,
                 id=f"{self.id}_{i}_",
             )
-            for i, expiry in enumerate(self.expiries)
+            for i, expiry in enumerate(self.meta.expiries)
         ]
 
         self._set_ad_order(ad)  # includes csolve on each smile
@@ -568,7 +561,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
     @property
     def _n(self) -> int:
         """Number of pricing parameters of the *Surface*."""
-        return len(self.expiries) * 3  # alpha, beta, rho
+        return len(self.meta.expiries) * 3  # alpha, beta, rho
 
     @property
     def id(self) -> str:
@@ -627,7 +620,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
             vars_ += tuple(f"{smile.id}{i}" for i in range(3))
         return vars_
 
-    # @_validate_states: not required becuase state is validated by interior function
+    # @_validate_states: not required because state is validated by interior function
     def get_from_strike(
         self,
         k: DualTypes,
@@ -677,23 +670,23 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         derivative: int,
     ) -> tuple[DualTypes, DualTypes | None]:
         expiry_posix = expiry.replace(tzinfo=UTC).timestamp()
-        e_idx = index_left_f64(self.expiries_posix, expiry_posix)
+        e_idx, e_next_idx = _surface_index_left(self.meta.expiries_posix, expiry_posix)
 
-        if expiry == self.expiries[0]:
+        if expiry == self.meta.expiries[0]:
             # expiry matches the expiry on the first Smile, call that method directly.
             return self.smiles[0]._d_sabr_d_k_or_f(k, f, expiry, as_float, derivative)
-        elif abs(expiry_posix - self.expiries_posix[e_idx + 1]) < 1e-10:
+        elif abs(expiry_posix - self.meta.expiries_posix[e_next_idx]) < 1e-10:
             # expiry matches an expiry of a known Smile (not the first), call method directly.
-            return self.smiles[e_idx + 1]._d_sabr_d_k_or_f(k, f, expiry, as_float, derivative)
-        elif expiry_posix > self.expiries_posix[-1]:
+            return self.smiles[e_next_idx]._d_sabr_d_k_or_f(k, f, expiry, as_float, derivative)
+        elif expiry_posix > self.meta.expiries_posix[-1]:
             # expiry is beyond that of the last known Smile. Construct a new Smile at the expiry
             # by using the SABR parameters of the final Smile. (allows for ATM-forward calculation)
             smile = FXSabrSmile(
                 nodes={
-                    "alpha": self.smiles[e_idx + 1].nodes.alpha,
-                    "beta": self.smiles[e_idx + 1].nodes.beta,
-                    "rho": self.smiles[e_idx + 1].nodes.rho,
-                    "nu": self.smiles[e_idx + 1].nodes.nu,
+                    "alpha": self.smiles[e_next_idx].nodes.alpha,
+                    "beta": self.smiles[e_next_idx].nodes.beta,
+                    "rho": self.smiles[e_next_idx].nodes.rho,
+                    "nu": self.smiles[e_next_idx].nodes.nu,
                 },
                 eval_date=self._meta.eval_date,
                 expiry=expiry,
@@ -701,12 +694,12 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                 pair=NoInput(0) if self._meta.pair is None else self._meta.pair,
                 delivery_lag=self._meta.delivery_lag,
                 calendar=self._meta.calendar,
-                id=self.smiles[e_idx + 1].id + "_ext",
+                id=self.smiles[e_next_idx].id + "_ext",
             )
             return smile._d_sabr_d_k_or_f(k, f, expiry, as_float, derivative)
         elif expiry <= self._meta.eval_date:
             raise ValueError("`expiry` before the `eval_date` of the Surface is invalid.")
-        elif expiry_posix < self.expiries_posix[0]:
+        elif expiry_posix < self.meta.expiries_posix[0]:
             # expiry is before the expiry of the first known Smile.
             # calculate the vol as if it were for expiry on the first Smile and then use
             # temporal interpolation (including weights) to obtain an adjusted volatility.
@@ -718,11 +711,12 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                 derivative=derivative,
             )
             return _t_var_interp_d_sabr_d_k_or_f(
-                expiries=self.expiries,
-                expiries_posix=self.expiries_posix,
+                expiries=self.meta.expiries,
+                expiries_posix=self.meta.expiries_posix,
                 expiry=expiry,
                 expiry_posix=expiry_posix,
                 expiry_index=e_idx,
+                expiry_next_index=e_next_idx,
                 eval_posix=self._meta.eval_posix,
                 weights_cum=self.meta.weights_cum,
                 vol1=vol_,
@@ -736,7 +730,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
             # expiry is sandwiched between two known Smile expiries.
             # Calculate the vol for strike on either of these Smiles and then interpolate
             # for the correct expiry, including weights.
-            ls, rs = self.smiles[e_idx], self.smiles[e_idx + 1]  # left_smile, right_smile
+            ls, rs = self.smiles[e_idx], self.smiles[e_next_idx]  # left_smile, right_smile
             if not isinstance(f, FXForwards):
                 raise ValueError(
                     "`f` must be supplied as `FXForwards` in order to calculate"
@@ -749,11 +743,12 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
                 k=k, f=f, expiry=rs._meta.expiry, as_float=as_float, derivative=derivative
             )
             return _t_var_interp_d_sabr_d_k_or_f(
-                expiries=self.expiries,
-                expiries_posix=self.expiries_posix,
+                expiries=self.meta.expiries,
+                expiries_posix=self.meta.expiries_posix,
                 expiry=expiry,
                 expiry_posix=expiry_posix,
                 expiry_index=e_idx,
+                expiry_next_index=e_next_idx,
                 eval_posix=self._meta.eval_posix,
                 weights_cum=self.meta.weights_cum,
                 vol1=lvol,

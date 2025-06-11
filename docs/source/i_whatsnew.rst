@@ -12,6 +12,58 @@ and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
 email contact, see `rateslib <https://rateslib.com>`_.
 
+2.1.0 (Not released)
+***************************
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - **Pricing objects: Curves**
+     - - :red:`Minor Breaking Change!`
+         The classes :class:`~rateslib.curves._TranslatedCurve`,
+         :class:`~rateslib.curves._RolledCurve` and
+         :class:`~rateslib.curves._ShiftedCurve` are constructed as new objects
+         to better handle the
+         :meth:`~rateslib.curves._BaseCurve.translate`
+         :meth:`~rateslib.curves._BaseCurve.roll`, and :meth:`~rateslib.curves._BaseCurve.shift`
+         methods for curves.
+         (`916 <https://github.com/attack68/rateslib/pull/916>`_)
+         (`917 <https://github.com/attack68/rateslib/pull/917>`_)
+         (`919 <https://github.com/attack68/rateslib/pull/919>`_)
+       - :red:`Minor Breaking Change!`
+         The ``composite`` argument for the :meth:`~rateslib.curves._BaseCurve.shift`
+         method is removed, forcing shifted curves to always be dynamically dependent upon their
+         underlying ``curve``.
+         (`917 <https://github.com/attack68/rateslib/pull/917>`_)
+       - :red:`Minor Breaking Change!` ``multi_csa_max_step`` and ``multi_csa_min_step`` are
+         moved from the arguments of a :class:`~rateslib.curves.MultiCsaCurve` to the
+         ``defaults`` object.
+         (`922 <https://github.com/attack68/rateslib/pull/922>`_)
+
+
+2.0.1 (10th June 2025)
+***************************
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - **Refactors**
+     - - The ``expiries`` attribute is moved to ``meta`` on an
+         :class:`~rateslib.fx_volatility.FXSabrSurface` to be consistent with an
+         :class:`~rateslib.fx_volatility.FXDeltaVolSurface`.
+         (`914 <https://github.com/attack68/rateslib/pull/914>`_)
+   * - **Regressions**
+     - - Flat *FXVolSurfaces*, parametrised by a **single** expiry and/or a **single** node value
+         are now functional.
+         (`913 <https://github.com/attack68/rateslib/pull/913>`_)
+         (`915 <https://github.com/attack68/rateslib/pull/915>`_)
+
 2.0.0 (4th June 2025)
 *********************************
 
