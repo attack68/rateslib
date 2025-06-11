@@ -108,14 +108,67 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
         self,
         spread: DualTypes,
         id: str_ = NoInput(0),  # noqa: A002
-    ) -> _ShiftedCurve: ...
+    ) -> _ShiftedCurve:
+        """
+        Create a :class:`~rateslib.curves._ShiftedCurve`: moving *Self* vertically in rate space.
 
-    @abstractmethod
-    def translate(self, start: datetime, id: str_ = NoInput(0)) -> _TranslatedCurve:  # noqa: A002
+        For examples see the documentation for :class:`~rateslib.curves._ShiftedCurve`.
+
+        Parameters
+        ----------
+        spread : float, Dual, Dual2, Variable
+            The number of basis points added to the existing curve.
+        id : str, optional
+            Set the id of the returned curve.
+
+        Returns
+        -------
+        _ShiftedCurve
+        """
         ...
 
     @abstractmethod
-    def roll(self, tenor: datetime | str) -> _RolledCurve: ...
+    def translate(self, start: datetime, id: str_ = NoInput(0)) -> _TranslatedCurve:  # noqa: A002
+        """
+        Create a :class:`~rateslib.curves._TranslatedCurve`: maintaining an identical rate space,
+        but moving the initial node date forwards in time.
+
+        For examples see the documentation for :class:`~rateslib.curves._TranslatedCurve`.
+
+        Parameters
+        ----------
+        start : datetime
+            The new initial node date for the curve. Must be after the original initial node date.
+        id : str, optional
+            Set the id of the returned curve.
+
+        Returns
+        -------
+        _TranslatedCurve
+        """  # noqa: E501
+        ...
+
+    @abstractmethod
+    def roll(self, tenor: datetime | str) -> _RolledCurve:
+        """
+        Create a :class:`~rateslib.curves._RolledCurve`: translating the rate space of *Self* in
+        time.
+
+        For examples see the documentation for :class:`~rateslib.curves._RolledCurve`.
+
+        Parameters
+        ----------
+        tenor : datetime, str or int
+            The measure of time by which to translate the curve through time.
+        id : str, optional
+            Set the id of the returned curve.
+
+        Returns
+        -------
+        _RolledCurve
+
+        """  # noqa: E501
+        ...
 
     # Properties
 
@@ -723,14 +776,15 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
         # return from_json(self.to_json())
 
 
-class _CurveMutation(_BaseCurve):
+class _WithMutation(_BaseCurve):
     """
-    This class defines the methods for *Curve Pricing Objects*, i.e.
+    This class is designed as a mixin for the methods for *Curve Pricing Objects*, i.e.
     the :class:`~rateslib.curves.Curve` and `~rateslib.curves.LineCurve`.
 
-    It permits initialization, configuration of nodes and meta data and
+    It permits initialization, configuration of ``nodes`` and ``meta`` and
     mutability when interacting with a :class:`~rateslib.solver.Solver`, when
-    getting and setting nodes, as well as user update methods.
+    getting and setting nodes, as well as user update methods, spline interpolation solving and
+    state validation.
     """
 
     _ini_solve: int

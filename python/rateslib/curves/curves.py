@@ -13,7 +13,7 @@ from pandas import Series
 from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
 from rateslib.calendars.rs import get_calendar
-from rateslib.curves.base import _BaseCurve, _CurveMutation
+from rateslib.curves.base import _BaseCurve, _WithMutation
 from rateslib.curves.utils import (
     _CurveInterpolator,
     _CurveMeta,
@@ -117,7 +117,7 @@ class _WithOperations(ABC):
         return _TranslatedCurve(curve=_, start=start, id=id)
 
     @_validate_states
-    def roll(self, tenor: datetime | str, id: str_ = NoInput(0)) -> _RolledCurve:
+    def roll(self, tenor: datetime | str, id: str_ = NoInput(0)) -> _RolledCurve:  # noqa: A002
         """
         Create a :class:`~rateslib.curves._RolledCurve`: translating the rate space of *Self* in
         time.
@@ -388,7 +388,7 @@ class _TranslatedCurve(_WithOperations, _BaseCurve):
        fig, ax, line = curve.plot("1d", comparators=[translated_curve], labels=["orig", "translated"], left=dt(2022, 12, 1))
        plt.show()
        plt.close()
-    """
+    """  # noqa: E501
 
     _obj: _BaseCurve
 
@@ -519,7 +519,7 @@ class _RolledCurve(_WithOperations, _BaseCurve):
        fig, ax, line = curve.plot("1d", comparators=[rolled_curve, rolled_curve2], labels=["orig", "6m roll", "-6m roll"], right=dt(2026,6,30))
        plt.show()
        plt.close()
-    """
+    """  # noqa: E501
 
     _obj: _BaseCurve
     _roll_days: int
@@ -599,7 +599,7 @@ class _RolledCurve(_WithOperations, _BaseCurve):
         return self._obj._base_type
 
 
-class Curve(_WithOperations, _CurveMutation):
+class Curve(_WithOperations, _WithMutation):
     """
     Curve based on DF parametrisation at given node dates with interpolation.
 
@@ -744,7 +744,7 @@ class Curve(_WithOperations, _CurveMutation):
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class LineCurve(_WithOperations, _CurveMutation):
+class LineCurve(_WithOperations, _WithMutation):
     """
     Curve based on value parametrisation at given node dates with interpolation.
 
