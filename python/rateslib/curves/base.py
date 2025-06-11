@@ -31,7 +31,7 @@ from rateslib.mutability import _clear_cache_post, _new_state_post, _WithCache, 
 from rateslib.rs import Modifier
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.typing import (  # pragma: no cover
         Any,
         CalInput,
         _RolledCurve,
@@ -112,7 +112,7 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
 
     @abstractmethod
     def translate(self, start: datetime, id: str_ = NoInput(0)) -> _TranslatedCurve:  # noqa: A002
-        ...
+        ...  # pragma: no cover
 
     @abstractmethod
     def roll(self, tenor: datetime | str) -> _RolledCurve: ...
@@ -249,7 +249,7 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
             )
         except ZeroDivisionError as e:
             if "effective:" not in str(e):
-                return None
+                return None  # TODO (low): is this an unreachable line?
             raise e
         except ValueError as e:
             if "`effective` date for rate period is before" in str(e):
@@ -548,7 +548,7 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
 
     def _plot_diff(
         self, date: datetime, tenor: str, rate: DualTypes | None, comparator: _BaseCurve
-    ) -> DualTypes | None:
+    ) -> DualTypes | None:  # pragma: no cover
         if rate is None:
             return None
         rate2 = comparator._plot_rate(date, tenor, comparator._plot_modifier(tenor))
@@ -561,7 +561,7 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
         if "B" in upper_tenor or "D" in upper_tenor or "W" in upper_tenor:
             if "F" in self.meta.modifier:
                 return "F"
-            elif "P" in self.meta.modifier:
+            elif "P" in self.meta.modifier:  # pragma: no cover
                 return "P"
         return self.meta.modifier
 

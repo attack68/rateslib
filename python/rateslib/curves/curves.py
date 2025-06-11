@@ -39,7 +39,7 @@ from rateslib.mutability import (
 )
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.typing import (  # pragma: no cover
         Arr1dF64,
         Arr1dObj,
         CalInput,
