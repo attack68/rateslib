@@ -13,7 +13,7 @@ from pandas import Series
 from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
 from rateslib.calendars.rs import get_calendar
-from rateslib.curves.base import _BaseCurve, _CurveMutation
+from rateslib.curves.base import _BaseCurve, _WithMutation
 from rateslib.curves.utils import (
     _CurveInterpolator,
     _CurveMeta,
@@ -75,13 +75,9 @@ class _WithOperations(ABC):
         id: str_ = NoInput(0),  # noqa: A002
     ) -> _ShiftedCurve:
         """
-        Create a new curve by vertically adjusting the curve by a set number of basis
-        points.
+        Create a :class:`~rateslib.curves._ShiftedCurve`: moving *Self* vertically in rate space.
 
-        This curve adjustment preserves the shape of the curve but moves it up or
-        down as a translation.
-        This method is suitable as a way to assess value changes of instruments when
-        a parallel move higher or lower in yields is predicted.
+        For examples see the documentation for :class:`~rateslib.curves._ShiftedCurve`.
 
         Parameters
         ----------
@@ -94,71 +90,6 @@ class _WithOperations(ABC):
         -------
         _ShiftedCurve
 
-        Notes
-        -----
-        The output :class:`~rateslib.curves.CompositeCurve` will have an AD order of the maximum
-        of the AD order of the input ``spread`` and of `Self`.
-        That is, if the input ``spread`` is
-        a *float* (with AD order 0) and the input *Curve* is parametrised with *Dual* and has an AD
-        order of 1, then the result will have an AD order of 1.
-
-        .. warning::
-
-           If ``spread`` is given as :class:`~rateslib.dual.Dual2` but the AD order of `Self`
-           is only 1, then `Self` will be upcast to use :class:`~rateslib.dual.Dual2` types.
-
-        Examples
-        --------
-        .. ipython:: python
-
-           from rateslib.curves import Curve
-
-        .. ipython:: python
-
-           curve = Curve(
-               nodes = {
-                   dt(2022, 1, 1): 1.0,
-                   dt(2023, 1, 1): 0.988,
-                   dt(2024, 1, 1): 0.975,
-                   dt(2025, 1, 1): 0.965,
-                   dt(2026, 1, 1): 0.955,
-                   dt(2027, 1, 1): 0.9475
-               },
-               t = [
-                   dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
-                   dt(2025, 1, 1),
-                   dt(2026, 1, 1),
-                   dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
-               ],
-           )
-           shifted_curve = curve.shift(25)
-           curve.plot("1d", comparators=[shifted_curve], labels=["orig", "shift"])
-
-        .. plot::
-
-           from rateslib.curves import *
-           import matplotlib.pyplot as plt
-           from datetime import datetime as dt
-           curve = Curve(
-               nodes = {
-                   dt(2022, 1, 1): 1.0,
-                   dt(2023, 1, 1): 0.988,
-                   dt(2024, 1, 1): 0.975,
-                   dt(2025, 1, 1): 0.965,
-                   dt(2026, 1, 1): 0.955,
-                   dt(2027, 1, 1): 0.9475
-               },
-               t = [
-                   dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
-                   dt(2025, 1, 1),
-                   dt(2026, 1, 1),
-                   dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
-               ],
-           )
-           spread_curve = curve.shift(25)
-           fig, ax, line = curve.plot("1d", comparators=[spread_curve], labels=["orig", "shift"])
-           plt.show()
-
         """
         _: _BaseCurve = self  # type: ignore[assignment]
         return _ShiftedCurve(curve=_, shift=spread, id=id)
@@ -166,234 +97,62 @@ class _WithOperations(ABC):
     @_validate_states
     def translate(self, start: datetime, id: str_ = NoInput(0)) -> _TranslatedCurve:  # noqa: A002
         """
-        Create a new curve with an initial node date moved forward keeping all else
-        constant.
+        Create a :class:`~rateslib.curves._TranslatedCurve`: maintaining an identical rate space,
+        but moving the initial node date forwards in time.
 
-        This curve adjustment preserves forward curve expectations as time evolves.
-        This method is suitable as a way to create a subsequent *opening* curve from a
-        previous day's *closing* curve.
+        For examples see the documentation for :class:`~rateslib.curves._TranslatedCurve`.
 
         Parameters
         ----------
         start : datetime
-            The new initial node date for the curve, must be in the domain:
-            (node_date[0], node_date[1]]
-        t : bool
-            Set to *True* if the initial knots of the knot sequence should be
-            translated forward.
+            The new initial node date for the curve. Must be after the original initial node date.
+        id : str, optional
+            Set the id of the returned curve.
 
         Returns
         -------
-        Curve
-
-        Examples
-        ---------
-        The basic use of this function translates a curve forward in time and the
-        plot demonstrates its rates are exactly the same as initially forecast.
-
-        .. ipython:: python
-
-           curve = Curve(
-               nodes = {
-                   dt(2022, 1, 1): 1.0,
-                   dt(2023, 1, 1): 0.988,
-                   dt(2024, 1, 1): 0.975,
-                   dt(2025, 1, 1): 0.965,
-                   dt(2026, 1, 1): 0.955,
-                   dt(2027, 1, 1): 0.9475
-               },
-               t = [
-                   dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
-                   dt(2025, 1, 1),
-                   dt(2026, 1, 1),
-                   dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
-               ],
-           )
-           translated_curve = curve.translate(dt(2022, 12, 1))
-           curve.plot(
-               "1d",
-               comparators=[translated_curve],
-               labels=["orig", "translated"],
-               left=dt(2022, 12, 1),
-           )
-
-        .. plot::
-
-           from rateslib.curves import *
-           import matplotlib.pyplot as plt
-           from datetime import datetime as dt
-           curve = Curve(
-               nodes = {
-                   dt(2022, 1, 1): 1.0,
-                   dt(2023, 1, 1): 0.988,
-                   dt(2024, 1, 1): 0.975,
-                   dt(2025, 1, 1): 0.965,
-                   dt(2026, 1, 1): 0.955,
-                   dt(2027, 1, 1): 0.9475
-               },
-               t = [
-                   dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
-                   dt(2025, 1, 1),
-                   dt(2026, 1, 1),
-                   dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
-               ],
-               interpolation="log_linear",
-           )
-           translated_curve = curve.translate(dt(2022, 12, 1))
-           fig, ax, line = curve.plot("1d", comparators=[translated_curve], labels=["orig", "translated"], left=dt(2022, 12, 1))
-           plt.show()
-           plt.close()
-
-        .. ipython:: python
-
-           curve.nodes
-           translated_curve.nodes
-
-        When a curve has a log-cubic spline the knot dates can be preserved or
-        translated with the ``t`` argument. Preserving the knot dates preserves the
-        interpolation of the curve. A knot sequence for a mixed curve which begins
-        after ``start`` will not be affected in either case.
-
-        .. ipython:: python
-
-           curve = Curve(
-               nodes={
-                   dt(2022, 1, 1): 1.0,
-                   dt(2022, 2, 1): 0.999,
-                   dt(2022, 3, 1): 0.9978,
-                   dt(2022, 4, 1): 0.9963,
-                   dt(2022, 5, 1): 0.9940
-               },
-               t = [dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1),
-                    dt(2022, 2, 1), dt(2022, 3, 1), dt(2022, 4, 1),
-                    dt(2022, 5, 1), dt(2022, 5, 1), dt(2022, 5, 1), dt(2022, 5, 1)]
-           )
-           translated_curve = curve.translate(dt(2022, 1, 15))
-           translated_curve2 = curve.translate(dt(2022, 1, 15), t=True)
-           curve.plot("1d", left=dt(2022, 1, 15), comparators=[translated_curve, translated_curve2], labels=["orig", "translated", "translated2"])
-
-        .. plot::
-
-           from rateslib.curves import *
-           import matplotlib.pyplot as plt
-           from datetime import datetime as dt
-           curve = Curve(
-               nodes={
-                   dt(2022, 1, 1): 1.0,
-                   dt(2022, 2, 1): 0.999,
-                   dt(2022, 3, 1): 0.9978,
-                   dt(2022, 4, 1): 0.9963,
-                   dt(2022, 5, 1): 0.9940
-               },
-               t = [dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1),
-                    dt(2022, 2, 1), dt(2022, 3, 1), dt(2022, 4, 1),
-                    dt(2022, 5, 1), dt(2022, 5, 1), dt(2022, 5, 1), dt(2022, 5, 1)]
-           )
-           translated = curve.translate(dt(2022, 1, 15))
-           translated2 = curve.translate(dt(2022, 1, 15), t=True)
-           fig, ax, line = curve.plot("1d", left=dt(2022, 1, 15), comparators=[translated, translated2], labels=["orig", "translated", "translated2"])
-           plt.show()
-
+        _TranslatedCurve
         """  # noqa: E501
         _: _BaseCurve = self  # type: ignore[assignment]
         return _TranslatedCurve(curve=_, start=start, id=id)
 
     @_validate_states
-    def roll(self, tenor: datetime | str) -> _RolledCurve:
+    def roll(self, tenor: datetime | str, id: str_ = NoInput(0)) -> _RolledCurve:  # noqa: A002
         """
-        Create a new curve with its shape translated in time but an identical initial
-        node date.
+        Create a :class:`~rateslib.curves._RolledCurve`: translating the rate space of *Self* in
+        time.
 
-        This curve adjustment is a simulation of a future state of the market where
-        forward rates are assumed to have moved so that the present day's curve shape
-        is reflected in the future (or the past). This is often used in trade
-        strategy analysis.
+        For examples see the documentation for :class:`~rateslib.curves._RolledCurve`.
 
         Parameters
         ----------
-        tenor : datetime or str
-            The date or tenor by which to roll the curve. If a tenor, as str, will
-            derive the datetime as measured from the initial node date. If supplying a
-            negative tenor, or a past datetime, there is a limit to how far back the
-            curve can be rolled - it will first roll backwards and then attempt to
-            :meth:`translate` forward to maintain the initial node date.
+        tenor : datetime, str or int
+            The measure of time by which to translate the curve through time.
+        id : str, optional
+            Set the id of the returned curve.
 
         Returns
         -------
-        Curve
-
-        Examples
-        ---------
-        The basic use of this function translates a curve forward in time and the
-        plot demonstrates its rates are exactly the same as initially forecast.
-
-        .. ipython:: python
-
-           curve = Curve(
-               nodes = {
-                   dt(2022, 1, 1): 1.0,
-                   dt(2023, 1, 1): 0.988,
-                   dt(2024, 1, 1): 0.975,
-                   dt(2025, 1, 1): 0.965,
-                   dt(2026, 1, 1): 0.955,
-                   dt(2027, 1, 1): 0.9475
-               },
-               t = [
-                   dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
-                   dt(2025, 1, 1),
-                   dt(2026, 1, 1),
-                   dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
-               ],
-           )
-           rolled_curve = curve.roll("6m")
-           rolled_curve2 = curve.roll("-6m")
-           curve.plot(
-               "1d",
-               comparators=[rolled_curve, rolled_curve2],
-               labels=["orig", "rolled", "rolled2"],
-               right=dt(2026, 6, 30),
-           )
-
-        .. plot::
-
-           from rateslib.curves import *
-           import matplotlib.pyplot as plt
-           from datetime import datetime as dt
-           curve = Curve(
-               nodes = {
-                   dt(2022, 1, 1): 1.0,
-                   dt(2023, 1, 1): 0.988,
-                   dt(2024, 1, 1): 0.975,
-                   dt(2025, 1, 1): 0.965,
-                   dt(2026, 1, 1): 0.955,
-                   dt(2027, 1, 1): 0.9475
-               },
-               t = [
-                   dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
-                   dt(2025, 1, 1),
-                   dt(2026, 1, 1),
-                   dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
-               ],
-           )
-           rolled_curve = curve.roll("6m")
-           rolled_curve2 = curve.roll("-6m")
-           fig, ax, line = curve.plot("1d", comparators=[rolled_curve, rolled_curve2], labels=["orig", "rolled", "rolled2"], right=dt(2026,6,30))
-           plt.show()
+        _RolledCurve
 
         """  # noqa: E501
         if isinstance(tenor, str):
             tenor_ = add_tenor(self._nodes.initial, tenor, "NONE", NoInput(0))
         else:
             tenor_ = tenor
-        roll_days = (tenor_ - self._nodes.initial).days
+
+        if isinstance(tenor_, int):
+            roll_days: int = tenor_
+        else:
+            roll_days = (tenor_ - self._nodes.initial).days
         _: _BaseCurve = self  # type: ignore[assignment]
-        return _RolledCurve(curve=_, roll_days=roll_days)
+        return _RolledCurve(curve=_, roll_days=roll_days, id=id)
 
 
 class _ShiftedCurve(_WithOperations, _BaseCurve):
-    """A class which wraps a :class:`~rateslib.curves.CompositeCurve` designed to produce the
-    required vertical basis points shift of the underlying ``curve``, according to *rateslib's*
-    vector space metric.
+    """
+    Create a new :class:`~rateslib.curves._BaseCurve` type by compositing an input with
+    another flat curve of a set number of basis points.
 
     Parameters
     ----------
@@ -403,6 +162,78 @@ class _ShiftedCurve(_WithOperations, _BaseCurve):
         The amount by which to shift the curve.
     id: str, optional
         Identifier used for :class:`~rateslib.solver.Solver` mappings.
+
+    Notes
+    -----
+    For **values** based curves this will add the ``shift`` to every output *rate* generated
+    by ``curve``.
+
+    For **discount factor** based curves this will add the ``shift`` as a geometric 1-day average
+    rate to the input ``curve``, in accordance with *rateslib*'s definition of curve metric spaces.
+
+    This implies that the *shape* of the ``curve`` is preserved but it undergoes a vertical
+    translation in rate space. This class works by wrapping a
+    :class:`~rateslib.curves.CompositeCurve` and designing the spread curve according to these
+    definitions.
+
+    The **ad order** will be the maximum order of ``curve`` and ``spread``. The usual `TypeError`
+    will be raised if mixing of :class:`~rateslib.dual.Dual` and :class:`~rateslib.dual.Dual2`
+    is attempted.
+
+    Examples
+    --------
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.curves import Curve
+
+    .. ipython:: python
+
+       curve = Curve(
+           nodes = {
+               dt(2022, 1, 1): 1.0,
+               dt(2023, 1, 1): 0.988,
+               dt(2024, 1, 1): 0.975,
+               dt(2025, 1, 1): 0.965,
+               dt(2026, 1, 1): 0.955,
+               dt(2027, 1, 1): 0.9475
+           },
+           t = [
+               dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+               dt(2025, 1, 1),
+               dt(2026, 1, 1),
+               dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+           ],
+       )
+       shifted_curve = curve.shift(25)
+       curve.plot("1d", comparators=[shifted_curve], labels=["orig", "shift"])
+
+    .. plot::
+
+       from rateslib.curves import *
+       import matplotlib.pyplot as plt
+       from datetime import datetime as dt
+       curve = Curve(
+           nodes = {
+               dt(2022, 1, 1): 1.0,
+               dt(2023, 1, 1): 0.988,
+               dt(2024, 1, 1): 0.975,
+               dt(2025, 1, 1): 0.965,
+               dt(2026, 1, 1): 0.955,
+               dt(2027, 1, 1): 0.9475
+           },
+           t = [
+               dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+               dt(2025, 1, 1),
+               dt(2026, 1, 1),
+               dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+           ],
+       )
+       spread_curve = curve.shift(25)
+       fig, ax, line = curve.plot("1d", comparators=[spread_curve], labels=["orig", "shift"])
+       plt.show()
+       plt.close()
     """
 
     _obj: _BaseCurve
@@ -480,22 +311,84 @@ class _ShiftedCurve(_WithOperations, _BaseCurve):
 
 
 class _TranslatedCurve(_WithOperations, _BaseCurve):
-    """A class which wraps the underlying curve and returns identical rates but which acts as if the
-    initial node date is moved forward in time.
+    """
+    Create a new :class:`~rateslib.curves._BaseCurve` type by maintaining the rate space of an
+    input curve but shifting the initial node date forwards in time.
 
-    This is mostly used by discount factor (DF) based curves whose DFs are adjusted to have a
-    value of 1.0 on the requested start date.
+    A class which wraps the underlying curve and returns rates and/or discount factors which are
+    impacted by a change to initial node date. This is mostly used by discount factor (DF) based
+    curves whose DFs are adjusted to have a value of 1.0 on the requested start date.
 
     Parameters
     ----------
     curve: _BaseCurve
         Any *BaseCurve* type.
     start: datetime
-        The date which acts as the new initial node date. Must be later than the initial node
-        date of ``curve``.
+        The new initial node date for the curve. Must be after the initial node date of the input
+        ``curve``.
     id: str, optional
         Identifier used for :class:`~rateslib.solver.Solver` mappings.
-    """
+
+    Examples
+    ---------
+    .. ipython:: python
+
+       curve = Curve(
+           nodes = {
+               dt(2022, 1, 1): 1.0,
+               dt(2023, 1, 1): 0.988,
+               dt(2024, 1, 1): 0.975,
+               dt(2025, 1, 1): 0.965,
+               dt(2026, 1, 1): 0.955,
+               dt(2027, 1, 1): 0.9475
+           },
+           t = [
+               dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+               dt(2025, 1, 1),
+               dt(2026, 1, 1),
+               dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+           ],
+       )
+       translated_curve = curve.translate(dt(2022, 12, 1))
+
+       # Discount factors
+       curve[dt(2022, 12, 1)]
+       translated_curve[dt(2022, 12, 1)]
+
+       curve.plot(
+           "1d",
+           comparators=[translated_curve],
+           labels=["orig", "translated"],
+           left=dt(2022, 12, 1),
+       )
+
+    .. plot::
+
+       from rateslib.curves import *
+       import matplotlib.pyplot as plt
+       from datetime import datetime as dt
+       curve = Curve(
+           nodes = {
+               dt(2022, 1, 1): 1.0,
+               dt(2023, 1, 1): 0.988,
+               dt(2024, 1, 1): 0.975,
+               dt(2025, 1, 1): 0.965,
+               dt(2026, 1, 1): 0.955,
+               dt(2027, 1, 1): 0.9475
+           },
+           t = [
+               dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+               dt(2025, 1, 1),
+               dt(2026, 1, 1),
+               dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+           ],
+           interpolation="log_linear",
+       )
+       translated_curve = curve.translate(dt(2022, 12, 1))
+       fig, ax, line = curve.plot("1d", comparators=[translated_curve], labels=["orig", "translated"], left=dt(2022, 12, 1))
+       plt.show()
+       plt.close()
+    """  # noqa: E501
 
     _obj: _BaseCurve
 
@@ -546,19 +439,87 @@ class _TranslatedCurve(_WithOperations, _BaseCurve):
 
 
 class _RolledCurve(_WithOperations, _BaseCurve):
-    """A class which wraps the underlying curve and returns rates which are rolled in time,
+    """
+    Create a new :class:`~rateslib.curves._BaseCurve` type by translating the rate space of an
+    input curve horizontally in time.
+
+    A class which wraps the underlying curve and returns rates which are rolled in time,
     measured by a set number of calendar days.
 
     Parameters
     ----------
     curve: _BaseCurve
         Any *BaseCurve* type.
-    start: datetime
-        The date which acts as the new initial node date. Must be later than the initial node
-        date of ``curve``.
+    roll_days: int
+        The number of calendar days by which to translate the curve's rate space.
     id: str, optional
         Identifier used for :class:`~rateslib.solver.Solver` mappings.
-    """
+
+    Notes
+    -----
+    A positive number of ``roll_days`` will shift the ``curve`` rate space to the right.
+    This is the traditional direction for measuring *roll down* on a trade strategy.
+
+    The gap between the initial node date and the roll date (if ``roll_days`` is positive) is
+    determined by forward filling the first rate on a **values** based curve, or forward filling
+    the first overnight rate on a **discount factor** based curve.
+
+    Examples
+    ---------
+    .. ipython:: python
+
+       curve = Curve(
+           nodes = {
+               dt(2022, 1, 1): 1.0,
+               dt(2023, 1, 1): 0.988,
+               dt(2024, 1, 1): 0.975,
+               dt(2025, 1, 1): 0.965,
+               dt(2026, 1, 1): 0.955,
+               dt(2027, 1, 1): 0.9475
+           },
+           t = [
+               dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+               dt(2025, 1, 1),
+               dt(2026, 1, 1),
+               dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+           ],
+       )
+       rolled_curve = curve.roll("6m")
+       rolled_curve2 = curve.roll("-6m")
+       curve.plot(
+           "1d",
+           comparators=[rolled_curve, rolled_curve2],
+           labels=["orig", "6m roll", "-6m roll"],
+           right=dt(2026, 6, 30),
+       )
+
+    .. plot::
+
+       from rateslib.curves import *
+       import matplotlib.pyplot as plt
+       from datetime import datetime as dt
+       curve = Curve(
+           nodes = {
+               dt(2022, 1, 1): 1.0,
+               dt(2023, 1, 1): 0.988,
+               dt(2024, 1, 1): 0.975,
+               dt(2025, 1, 1): 0.965,
+               dt(2026, 1, 1): 0.955,
+               dt(2027, 1, 1): 0.9475
+           },
+           t = [
+               dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+               dt(2025, 1, 1),
+               dt(2026, 1, 1),
+               dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+           ],
+       )
+       rolled_curve = curve.roll("6m")
+       rolled_curve2 = curve.roll("-6m")
+       fig, ax, line = curve.plot("1d", comparators=[rolled_curve, rolled_curve2], labels=["orig", "6m roll", "-6m roll"], right=dt(2026,6,30))
+       plt.show()
+       plt.close()
+    """  # noqa: E501
 
     _obj: _BaseCurve
     _roll_days: int
@@ -638,7 +599,7 @@ class _RolledCurve(_WithOperations, _BaseCurve):
         return self._obj._base_type
 
 
-class Curve(_WithOperations, _CurveMutation):
+class Curve(_WithOperations, _WithMutation, _BaseCurve):  # type: ignore[misc]
     """
     Curve based on DF parametrisation at given node dates with interpolation.
 
@@ -783,7 +744,7 @@ class Curve(_WithOperations, _CurveMutation):
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class LineCurve(_WithOperations, _CurveMutation):
+class LineCurve(_WithOperations, _WithMutation, _BaseCurve):  # type: ignore[misc]
     """
     Curve based on value parametrisation at given node dates with interpolation.
 

@@ -13,91 +13,70 @@
 Curves
 ***********
 
-The ``rateslib.curves`` module allows the fundamental :class:`~rateslib.curves.Curve` or
-:class:`~rateslib.curves.LineCurve` class
-to be defined with parameters.
-These curve objects are slightly different in what they
-represent and how they operate.
-
-This module relies on the ultility modules :ref:`splines<splines-doc>`
-and :ref:`dual<dual-doc>`.
-
-.. inheritance-diagram:: rateslib.curves.Curve rateslib.curves.LineCurve rateslib.curves.CompositeCurve rateslib.curves.MultiCsaCurve rateslib.curves.ProxyCurve
-   :top-classes: rateslib.curves.Curve
+.. inheritance-diagram:: rateslib.curves.Curve rateslib.curves.LineCurve rateslib.curves.CompositeCurve rateslib.curves.MultiCsaCurve rateslib.curves.ProxyCurve rateslib.curves._BaseCurve rateslib.curves._WithMutation
    :parts: 1
+
+The ``rateslib.curves`` module allows flexible and powerful curve objects to be created, which
+can then, also, be calibrated by a :class:`~rateslib.solver.Solver` and market instruments.
+
+*Rateslib* makes a distinction between two fundamentally different
+:class:`~rateslib.curves._CurveType`. One is **values** based and one is **discount factor (DF)**
+based.
+
+The fundamental object is the :class:`~rateslib.curves._BaseCurve` abstract base class. All
+curve types in *rateslib* inherit this class and provide its methods and operations. All that is
+required for an object to inherit a :class:`~rateslib.curves._BaseCurve` is that it provides
+a :meth:`~rateslib.curves._BaseCurve.__getitem__` method.
+
+The methods available to *any* :class:`~rateslib.curves._BaseCurve`, based on its
+specified binary :class:`~rateslib.curves._CurveType` classification are described below:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 34 33 33
+
+   * - Operation
+     - **_CurveType.values**
+     - **_CurveType.dfs**
+   * - `__getitem__(date)`
+     - Must return rates.
+     - Must return DFs (or survival probabilities implying hazard rates).
+   * - :meth:`~rateslib.curves._BaseCurve.rate`
+     - Returns just the rate associated with ``effective``.
+     - Returns rates with more features; can imply rates of different tenors or add ``float_spread``
+       under different compounding methods, derived from DFs.
+   * - :meth:`~rateslib.curves._BaseCurve.plot`
+     - Creates a *(date, rate)* plot.
+     - Creates a *(date, rate)* plot with the additional features as above.
+   * - :meth:`~rateslib.curves._BaseCurve.shift`
+     - Add a ``spread`` to the *rate*.
+     - Add a ``spread`` to the overnight rates implied by the curve.
+   * - :meth:`~rateslib.curves._BaseCurve.roll`
+     - Translate the rate space in time.
+     - Translate the rate space in time.
+   * - :meth:`~rateslib.curves._BaseCurve.translate`
+     - Translate **only** the initial node date forward in time.
+     - Translate **only** the initial node date forward in time.
+   * - :meth:`~rateslib.curves._BaseCurve.index_value`
+     - *Not available*.
+     - Returns index values provided the :class:`~rateslib.curves._CurveMeta` contains an
+       ``index_base`` value.
+   * - :meth:`~rateslib.curves._BaseCurve.plot_index`
+     - *Not available*.
+     - Creates a *(date, index_value)* plot provided the above requirements.
+
+The **two main** user curve classes are listed below:
 
 .. autosummary::
    rateslib.curves.Curve
    rateslib.curves.LineCurve
-   rateslib.curves.CompositeCurve
-   rateslib.curves.ProxyCurve
-   rateslib.curves.MultiCsaCurve
-   rateslib.curves.index_left
-   rateslib.curves.index_value
 
-Each fundamental curve type has ``rate()``, ``plot()``, ``shift()``, ``roll()``,
-``translate()``, ``update`` and ``update_node`` methods. A :class:`~rateslib.curves.Curve`
-with included ``index_base`` and
-``index_lag`` can also calculate future ``index_value()`` and ``plot_index()``.
-
-.. autosummary::
-   rateslib.curves.Curve.rate
-   rateslib.curves.Curve.plot
-   rateslib.curves.Curve.shift
-   rateslib.curves.Curve.roll
-   rateslib.curves.Curve.translate
-   rateslib.curves.Curve.update
-   rateslib.curves.Curve.update_node
-   rateslib.curves.LineCurve.rate
-   rateslib.curves.LineCurve.plot
-   rateslib.curves.LineCurve.shift
-   rateslib.curves.LineCurve.roll
-   rateslib.curves.LineCurve.translate
-   rateslib.curves.LineCurve.update
-   rateslib.curves.LineCurve.update_node
-   rateslib.curves.Curve.index_value
-   rateslib.curves.Curve.plot_index
-
-The main parameter that must be supplied to either type of curve is its ``nodes``. This
-provides the curve with its degrees of freedom and represents a dict indexed by
-datetimes, each with a given value. In the case of a :class:`~rateslib.curves.Curve`
-these values are discount factors (DFs) or, for credit purposes, survival probabilities,
-and in the case of a :class:`~rateslib.curves.LineCurve`
-these are specific values, usually rates associated with that curve.
-
-Curve
-*******
-
-A :class:`~rateslib.curves.Curve` can only be used for **interest rates** (or credit
-**hazard rates**). It is a more specialised
-object because of the way it is **defined by discount factors (DFs)** (or survival probabilities).
-These DFs maintain an inherent interpolation technique, which is often log-linear or log-cubic
-spline. These are generally the most efficient
-type of curve, and most easily parametrised, when working with compounded RFR rates.
-The initial node on a :class:`~rateslib.curves.Curve` should always have value 1.0,
-and it will not
-be varied by a :class:`~rateslib.solver.Solver`. :class:`~rateslib.curves.Curve` s must
-be used with
-:class:`~rateslib.fx.FXForwards` since FX forwards calculation rely on the existence
-of DFs.
-
-LineCurves
-***********
-
-A :class:`~rateslib.curves.LineCurve` is a more general object which can be
-used to represent other forms of **datetime indexed values**. The values maintain
-interpolation
-techniques where the most common are likely to be linear and splines. These are
-generally quite inefficient, and more difficult to parametrise, when dealing with RFR
-rates, but may be superior when dealing with legacy IBOR rates or inflation etc.
-The initial node on a :class:`~rateslib.curves.LineCurve` can take any value and it will
-be varied by a :class:`~rateslib.solver.Solver`.
 
 Introduction
 ************
 
 To create a simple curve, with localised interpolation, minimal configuration is
-required.
+required, only the ``nodes`` are required.
 
 .. ipython:: python
    :okwarning:
@@ -144,32 +123,28 @@ from this initial node, e.g. the regular settlement date of securities.
 This is the also the reason the initial discount factor should also
 be exactly 1.0 on a :class:`~rateslib.curves.Curve`.
 
-The only exception to this is when building a *Curve* used to forecast index vales, such
-as inflation forecasts, it may be practical to start the curve using the most recent
+The only exception to this is when building a curve used to forecast values, such as *index values*
+and inflation prints, it may be practical to start the curve using the most recent
 inflation print which is usually assigned to the start of the month,
 thus this may be before *today*.
 
 Get Item
 --------
 
-``Curves`` have a get item method so that DFs from a :class:`~rateslib.curves.Curve`
-or values from a :class:`~rateslib.curves.LineCurve` can easily be extracted
-under the curve's specified interpolation scheme.
+As mentioned, any :class:`~rateslib.curves._BaseCurve` type has a
+:meth:`~rateslib.curves._BaseCurve.__getitem__` method appropriate to its
+:class:`~rateslib.curves._CurveType`.
 
 .. note::
 
-   :class:`~rateslib.curves.Curve` DFs (and
-   :class:`~rateslib.curves.LineCurve` values), before the curve's initial node
-   date return
+   DFs (and values) before the curve's initial node date return
    **zero**, in order to value historical cashflows at zero.
 
 .. warning::
 
-   :class:`~rateslib.curves.Curve` DFs, and
-   :class:`~rateslib.curves.LineCurve` values, after the curve's final node date will
-   return a value that is an **extrapolation**.
-   This may not be a sensible or well constrained value depending upon the
-   interpolation.
+   DFs and values after the curve's final node date will return a value that is
+   an **extrapolation**. This may not be a sensible or well constrained value depending upon the
+   interpolation method.
 
 .. ipython:: python
    :okwarning:
@@ -188,9 +163,8 @@ under the curve's specified interpolation scheme.
 Visualization
 **************
 
-Visualization methods are also available via
-:meth:`Curve.plot()<rateslib.curves.Curve.plot>` and
-:meth:`LineCurve.plot()<rateslib.curves.LineCurve.plot>`. This allows the easy
+Visualization methods, of rates, are also available via
+:meth:`_BaseCurve.plot()<rateslib.curves._BaseCurve.plot>`. This allows the easy
 inspection of curves directly. Below we demonstrate a plot highlighting the
 differences between our parametrised :class:`~rateslib.curves.Curve`
 and :class:`~rateslib.curves.LineCurve`.
@@ -237,52 +211,39 @@ and :class:`~rateslib.curves.LineCurve`.
    fig, ax, line = curve.plot("1D", comparators=[linecurve], labels=["Curve", "LineCurve"])
    plt.show()
 
-
 Interpolation
 *************
 
-The available basic local interpolation options are:
+*Rateslib* treats curve interpolation in two ways;
 
-- *"linear"*: this is most suitable, and the default,
-  for :class:`~rateslib.curves.LineCurve`. Linear interpolation for DF based curves
-  usually produces spurious underlying curves.
-- *"log_linear"*: this is most suitable, and the default,
-  for :class:`~rateslib.curves.Curve`. It produces overnight rates that are constant
-  between ``nodes``. This is not usually suitable
-  for :class:`~rateslib.curves.LineCurve`.
-- *"linear_zero_rate"*:  this is a legacy option for linearly interpolating
-  continuously compounded zero rates, and is only suitable for
-  :class:`~rateslib.curves.Curve`, but it is not recommended and tends also to
-  produce spurious underlying curves.
-- *"flat_forward"*: this is only suitable for :class:`~rateslib.curves.LineCurve`, and
-  it maintains the previous value between ``nodes``. It will produce a stepped curve
-  similar to a :class:`~rateslib.curves.Curve` with *"log_linear"* interpolation.
-- *"flat_backward"*: same as above but in reverse.
+- it allows a :class:`~rateslib.curves._CurveSpline` with defined **knot sequence** for
+  interpolating ``nodes`` with a cubic :class:`PPSpline <rateslib.splines.PPSplineF64>`.
+- it allows **local interpolation** which uses some function to derive a result from only the
+  immediately neighbouring ``nodes`` to the input *date*.
+
+If a **spline** is specified and *date* falls between its **knots** it will take precedence.
+Otherwise, if the *date* falls outside of the **knots** or if a spline is not specified then
+**local interpolation** functions are used.
+
+The available local interpolation options are described in the documentation for each curve class,
+and also in supplementary materials, generally they allow the commonly used
+*"linear"*, *"log_linear"*, *"flat_forward"* varieties as well as others.
+
+``interpolation`` can also be specified as a **user defined function**, which allows more
+flexibility than just local interpolation if required. See
+class documentation for required argument signature.
 
 .. ipython:: python
-   :okwarning:
 
-   linecurve.interpolation = "flat_forward"
-   curve.plot("1D", comparators=[linecurve], labels=["Curve", "LineCurve"])
+   def linear_with_randomness(date, curve):
+       from rateslib.curves.interpolation import index_left
+       from random import random
+       i = index_left(curve.nodes.keys, curve.nodes.n, date)
+       x_1, x_2 = curve.nodes.keys[i], curve.nodes.keys[i + 1]
+       y_1, y_2 = curve.nodes.values[i], curve.nodes.values[i + 1]
+       return (random() -0.5) * 0.05 + y_1 + (y_2 - y_1) * (date - x_1) / (x_2 - x_1)
 
-.. plot::
-
-   from rateslib.curves import *
-   import matplotlib.pyplot as plt
-   from rateslib import dt
-   import numpy as np
-   curve = Curve(
-       nodes={
-           dt(2022,1,1): 1.0,
-           dt(2023,1,1): 0.99,
-           dt(2024,1,1): 0.979,
-           dt(2025,1,1): 0.967,
-           dt(2026,1,1): 0.956,
-           dt(2027,1,1): 0.946,
-       },
-       interpolation="log_linear",
-   )
-   linecurve = LineCurve(
+   random_lc = LineCurve(
        nodes={
            dt(2022,1,1): 0.975,  # <- initial value is general
            dt(2023,1,1): 1.10,
@@ -291,31 +252,9 @@ The available basic local interpolation options are:
            dt(2026,1,1): 1.03,
            dt(2027,1,1): 1.03,
        },
-       interpolation="flat_forward",
+       interpolation=linear_with_randomness,
    )
-   # curve_lin = Curve(nodes=curve.nodes, interpolation="linear")
-   # curve_zero = Curve(nodes=curve.nodes, interpolation="linear_zero_rate")
-   fig, ax, line = curve.plot("1D", comparators=[linecurve], labels=["Curve", "LineCurve"])
-   plt.show()
-
-
-``interpolation`` can also be specified as a **user defined function**. It must
-have the argument signature *(date, nodes)* where ``nodes`` are passed internally as
-those copied from the curve.
-
-.. ipython:: python
-
-   from rateslib.curves import index_left
-   def flat_backward(x, nodes):
-       """Project the rightmost node value as opposed to leftmost."""
-       node_dates = [key for key in nodes.keys()]
-       if x < node_dates[0]:
-           return 0  # then date is in the past and DF is zero
-       l_index = index_left(node_dates, len(node_dates), x)
-       return nodes[node_dates[l_index + 1]]
-
-   linecurve.interpolation = flat_backward
-   curve.plot("1D", comparators=[linecurve], labels=["Curve", "LineCurve"])
+   random_lc.plot("1D", comparators=[linecurve], labels=["Random", "LineCurve"])
 
 .. plot::
 
@@ -324,17 +263,6 @@ those copied from the curve.
    from rateslib import dt
    import numpy as np
 
-   curve = Curve(
-       nodes={
-           dt(2022, 1, 1): 1.0,
-           dt(2023, 1, 1): 0.99,
-           dt(2024, 1, 1): 0.979,
-           dt(2025, 1, 1): 0.967,
-           dt(2026, 1, 1): 0.956,
-           dt(2027, 1, 1): 0.946,
-       },
-       interpolation="log_linear",
-   )
    linecurve = LineCurve(
        nodes={
            dt(2022, 1, 1): 0.975,  # <- initial value is general
@@ -344,37 +272,44 @@ those copied from the curve.
            dt(2026, 1, 1): 1.03,
            dt(2027, 1, 1): 1.03,
        },
-       interpolation="flat_forward",
+       interpolation="linear",
    )
 
-   # curve_lin = Curve(nodes=curve.nodes, interpolation="linear")
-   # curve_zero = Curve(nodes=curve.nodes, interpolation="linear_zero_rate")
-   def flat_backward(x, nodes):
-       node_dates = list(nodes.keys())
-       if x < node_dates[0]:
-           return 0  # then date is in the past and DF is zero
-       l_index = index_left(node_dates, len(node_dates), x)
-       return nodes[node_dates[l_index + 1]]
+   def linear_with_randomness(date, curve):
+       from rateslib.curves.interpolation import index_left
+       from random import random
+       i = index_left(curve.nodes.keys, curve.nodes.n, date)
+       x_1, x_2 = curve.nodes.keys[i], curve.nodes.keys[i + 1]
+       y_1, y_2 = curve.nodes.values[i], curve.nodes.values[i + 1]
+       return (random() -0.5) * 0.05 + y_1 + (y_2 - y_1) * (date - x_1) / (x_2 - x_1)
 
-   linecurve.interpolation = flat_backward
-   fig, ax, line = curve.plot("1D", comparators=[linecurve], labels=["Curve", "LineCurve"])
+   random_lc = LineCurve(
+       nodes={
+           dt(2022,1,1): 0.975,  # <- initial value is general
+           dt(2023,1,1): 1.10,
+           dt(2024,1,1): 1.22,
+           dt(2025,1,1): 1.14,
+           dt(2026,1,1): 1.03,
+           dt(2027,1,1): 1.03,
+       },
+       interpolation=linear_with_randomness,
+   )
+   fig, ax, line = random_lc.plot("1D", comparators=[linecurve], labels=["Random", "LineCurve"])
    plt.show()
+   plt.close()
+
 
 Spline Interpolation
-*********************
+---------------------
 
-There is also an option to interpolate with a cubic polynomial spline.
+**Splines** can be automatically created by adding ``interpolation="spline"`` to the initialization
+of a curve. This will define a default **knot sequence** that encompasses the whole of the
+``nodes`` domain. **DF** based curves' splines will interpolate over the logarithm of DFs, whilst
+**values** based curves' splines interpolate directly over those values.
 
-If applying spline interpolation to a :class:`~rateslib.curves.Curve` then it is
-applied logarithmically resulting in a log-cubic spline over DFs.
-
-If it is applied to a :class:`~rateslib.curves.LineCurve` then it results in a
-standard cubic spline over values.
-
-In order to instruct this mode of interpolation a **knot sequence** is required
-as the ``t`` argument. This is a list of datetimes and follows the
-appropriate mathematical convention for such sequences
-(see :ref:`pp splines<splines-doc>`).
+Greater customisation is achieved by directly supplying the **knot sequence** as the ``t``
+argument to a curve initialization. This is a list of datetimes and follows the
+appropriate mathematical convention for such sequences (see :ref:`pp splines<splines-doc>`).
 
 Mixed Interpolation
 -------------------
@@ -515,3 +450,36 @@ reference value date of 3rd Jan.
        leg2_method_param=2
    )
    irs.rate(ibor_curve)
+
+
+Mutable Pricing Objects
+*************************
+
+The only curves with parameters that are mutated and solved by a :class:`~rateslib.solver.Solver`
+are :class:`~rateslib.curves.Curve` and :class:`~rateslib.curves.LineCurve`. These are
+classed as *Pricing Objects*.
+
+These curves inherit the :class:`~rateslib.curves._WithMutation` mixin.
+
+Pricing Containers
+********************
+
+Other objects that are available, that are constructed via manipulations of the base *Pricing
+Objects* (or other *Pricing Containers*) are the so called *Pricing Containers*.
+
+The main user curve classes are listed below:
+
+.. autosummary::
+   rateslib.curves.CompositeCurve
+   rateslib.curves.MultiCsaCurve
+   rateslib.curves.ProxyCurve
+
+These objects allow complex curve features and scenarios to be modelled in a recognisable and
+easily parametrised format.
+
+The following *Pricing Containers* are also created as the result of certain operations:
+
+.. autosummary::
+   rateslib.curves._ShiftedCurve
+   rateslib.curves._RolledCurve
+   rateslib.curves._TranslatedCurve
