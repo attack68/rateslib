@@ -1272,6 +1272,17 @@ class TestCurve:
         curve.update_meta("credit_discretization", 101)
         assert curve.meta.credit_discretization == 101
 
+    def test_no_termination(self, curve):
+        with pytest.raises(ValueError, match="`termination` must be supplied"):
+            curve.rate(dt(2022, 3, 2))
+
+    def test_index_value_lag_mismatch(self, index_curve):
+        with pytest.raises(ValueError, match="'curve' interpolation can only be used"):
+            index_curve.index_value(dt(2022, 3, 4), index_lag=22, interpolation="curve")
+
+    def test_update_node_raises(self, curve):
+        with pytest.raises(KeyError, match="`key` is not in"):
+            curve.update_node(dt(2000, 1, 1), 1.0)
 
 class TestLineCurve:
     def test_repr(self):
@@ -1298,6 +1309,11 @@ class TestLineCurve:
             id="libor1m",
         )
         assert isinstance(curve, _BaseCurve)
+
+    def test_index_values_raises(self, line_curve):
+        with pytest.raises(TypeError, match="A 'values' type Curve cannot"):
+            line_curve.index_value(dt(2022, 3, 3), index_lag=0)
+
 
 
 class TestIndexCurve:
