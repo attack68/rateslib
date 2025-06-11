@@ -38,6 +38,11 @@ email contact, see `rateslib <https://rateslib.com>`_.
          method is removed, forcing shifted curves to always be dynamically dependent upon their
          underlying ``curve``.
          (`917 <https://github.com/attack68/rateslib/pull/917>`_)
+       - :red:`Minor Breaking Change!` ``multi_csa_max_step`` and ``multi_csa_min_step`` are
+         moved from the arguments of a :class:`~rateslib.curves.MultiCsaCurve` to the
+         ``defaults`` object.
+         (`922 <https://github.com/attack68/rateslib/pull/922>`_)
+
 
 2.0.1 (10th June 2025)
 ***************************

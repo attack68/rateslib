@@ -1071,19 +1071,9 @@ class CompositeCurve(_WithOperations, _BaseCurve):
         self._id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
         self.curves = tuple(curves)
 
-        # TODO why does a CompositeCurve require node_dates?
         nodes_proxy: dict[datetime, DualTypes] = dict.fromkeys(self.curves[0].nodes.keys, 0.0)
         self._nodes = _CurveNodes(nodes_proxy)
-        self._meta = _CurveMeta(
-            curves[0].meta.calendar,
-            curves[0].meta.convention,
-            curves[0].meta.modifier,
-            curves[0].meta.index_base,
-            curves[0].meta.index_lag,
-            curves[0].meta.collateral,
-            curves[0].meta.credit_discretization,
-            curves[0].meta.credit_recovery_rate,
-        )
+        self._meta = replace(curves[0].meta)
         self._base_type = curves[0]._base_type
 
         # validate
@@ -1097,9 +1087,6 @@ class CompositeCurve(_WithOperations, _BaseCurve):
         """Perform checks to ensure CompositeCurve can exist"""
         if type(self) is MultiCsaCurve and isinstance(self.curves[0], LineCurve):
             raise TypeError("Multi-CSA curves must be of type `Curve`.")
-
-        if type(self) is MultiCsaCurve and self.multi_csa_min_step > self.multi_csa_max_step:
-            raise ValueError("`multi_csa_max_step` cannot be less than `min_step`.")
 
         types = [_._base_type for _ in self.curves]
         if not all(_ == types[0] for _ in types):
@@ -1240,56 +1227,8 @@ class MultiCsaCurve(CompositeCurve):
         self,
         curves: list[_BaseCurve] | tuple[_BaseCurve, ...],
         id: str | NoInput = NoInput(0),  # noqa: A002
-        multi_csa_min_step: int = 1,
-        multi_csa_max_step: int = 1825,
     ) -> None:
-        self.multi_csa_min_step = max(1, multi_csa_min_step)
-        self.multi_csa_max_step = min(1825, multi_csa_max_step)
         super().__init__(curves, id)
-
-    @_validate_states
-    @_no_interior_validation
-    def rate(  # type: ignore[override]
-        self,
-        effective: datetime,
-        termination: datetime | str,
-        modifier: str | NoInput = NoInput(1),
-    ) -> DualTypes | None:
-        """
-        Calculate the cheapest-to-deliver (CTD) rate on the curve.
-
-        If rates are sought for dates prior to the initial node of the curve `None`
-        will be returned.
-
-        Parameters
-        ----------
-        effective : datetime
-            The start date of the period for which to calculate the rate.
-        termination : datetime or str
-            The end date of the period for which to calculate the rate.
-        modifier : str, optional
-            The day rule if determining the termination from tenor. If `False` is
-            determined from the `Curve` modifier.
-
-        Returns
-        -------
-        Dual, Dual2 or float
-        """
-        if effective < self.curves[0].nodes.initial:  # Alternative solution to PR 172.
-            return None
-
-        modifier_ = self.meta.modifier if isinstance(modifier, NoInput) else modifier
-        if isinstance(termination, str):
-            termination = add_tenor(effective, termination, modifier_, self.meta.calendar)
-
-        dcf_ = dcf(effective, termination, self.meta.convention, calendar=self.meta.calendar)
-        _, d, n = average_rate(effective, termination, self.meta.convention, 0.0, dcf_)
-        # TODO (low:perf) when these discount factors are looked up the curve repeats
-        # the lookup could be vectorised to return two values at once.
-        df_num = self[effective]
-        df_den = self[termination]
-        ret: DualTypes = (df_num / df_den - 1) * 100 / (d * n)
-        return ret
 
     @_validate_states
     @_no_interior_validation
@@ -1308,7 +1247,9 @@ class MultiCsaCurve(CompositeCurve):
             return 0.0  # Any DF in the past is set to zero consistent with behaviour on `Curve`
 
         def _get_step(step: int) -> int:
-            return min(max(step, self.multi_csa_min_step), self.multi_csa_max_step)
+            mins = defaults.multi_csa_min_step
+            maxs = defaults.multi_csa_max_step
+            return min(max(step, mins), maxs)
 
         # method uses the step and picks the highest (cheapest rate) in each step
         d1 = self.nodes.initial
@@ -1336,7 +1277,7 @@ class MultiCsaCurve(CompositeCurve):
             try:
                 step = _get_step(defaults.multi_csa_steps[k])
             except IndexError:
-                step = self.multi_csa_max_step
+                step = defaults.multi_csa_max_step
             d1, d2, k = d2, d2 + timedelta(days=step), k + 1
 
         # finish the loop on the correct date
