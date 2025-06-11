@@ -26,8 +26,7 @@ based.
 The fundamental object is the :class:`~rateslib.curves._BaseCurve` abstract base class. All
 curve types in *rateslib* inherit this class and provide its methods and operations. All that is
 required for an object to inherit a :class:`~rateslib.curves._BaseCurve` is that it provides
-a :meth:`~rateslib.curves._BaseCurve.__getitem__` method, which for **values** based curves returns
-a rate for a given date, and for **DF** based curves returns a DF for a given date.
+a :meth:`~rateslib.curves._BaseCurve.__getitem__` method.
 
 The methods available to *any* :class:`~rateslib.curves._BaseCurve`, based on its
 specified binary :class:`~rateslib.curves._CurveType` classification are described below:
@@ -66,13 +65,12 @@ specified binary :class:`~rateslib.curves._CurveType` classification are describ
      - *Not available*.
      - Creates a *(date, index_value)* plot provided the above requirements.
 
-The **two main** curve classes are described, briefly, below:
+The **two main** user curve classes are listed below:
 
-- :class:`~rateslib.curves.Curve`: This is **DF based**, and is the most frequently used curve type
-  by users of *rateslib*. The initial node must always have value 1.0, and it will not
-  be varied by a :class:`~rateslib.solver.Solver`.
-- :class:`~rateslib.curves.LineCurve`, which is **values based**. It can take any value on all of
-  its nodes and all may be varied by a :class:`~rateslib.solver.Solver`.
+.. autosummary::
+   rateslib.curves.Curve
+   rateslib.curves.LineCurve
+
 
 Introduction
 ************
@@ -452,3 +450,36 @@ reference value date of 3rd Jan.
        leg2_method_param=2
    )
    irs.rate(ibor_curve)
+
+
+Mutable Pricing Objects
+*************************
+
+The only curves with parameters that are mutated and solved by a :class:`~rateslib.solver.Solver`
+are :class:`~rateslib.curves.Curve` and :class:`~rateslib.curves.LineCurve`. These are
+classed as *Pricing Objects*.
+
+These curves inherit the :class:`~rateslib.curves._WithMutation` mixin.
+
+Pricing Containers
+********************
+
+Other objects that are available, that are constructed via manipulations of the base *Pricing
+Objects* are the so called *Pricing Containers*.
+
+The main user curve classes are listed below:
+
+.. autosummary::
+   rateslib.curves.CompositeCurve
+   rateslib.curves.MultiCsaCurve
+   rateslib.curves.ProxyCurve
+
+These objects allow complex curve features and scenarios to be modelled in a recognisable and
+easily parametrised format.
+
+The following *Pricing Containers* are also created as the result of certain operations:
+
+.. autosummary::
+   rateslib.curves._ShiftedCurve
+   rateslib.curves._RolledCurve
+   rateslib.curves._TranslatedCurve

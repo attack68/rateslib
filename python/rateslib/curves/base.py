@@ -99,7 +99,7 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
         return self._cached_value(date, val)
 
     @abstractmethod
-    def _set_ad_order(self, ad: int) -> None: ...
+    def _set_ad_order(self, order: int) -> None: ...
 
     # _WithOperations
 
@@ -776,10 +776,10 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
         # return from_json(self.to_json())
 
 
-class _WithMutation(_BaseCurve):
+class _WithMutation:
     """
     This class is designed as a mixin for the methods for *Curve Pricing Objects*, i.e.
-    the :class:`~rateslib.curves.Curve` and `~rateslib.curves.LineCurve`.
+    the :class:`~rateslib.curves.Curve` and :class:`~rateslib.curves.LineCurve`.
 
     It permits initialization, configuration of ``nodes`` and ``meta`` and
     mutability when interacting with a :class:`~rateslib.solver.Solver`, when
@@ -788,6 +788,12 @@ class _WithMutation(_BaseCurve):
     """
 
     _ini_solve: int
+    _base_type: _CurveType
+    _nodes: _CurveNodes
+    _interpolator: _CurveInterpolator
+    _ad: int
+    _meta: _CurveMeta
+    _id: str
 
     @_new_state_post
     def __init__(  # type: ignore[no-untyped-def]
@@ -1062,7 +1068,7 @@ class _WithMutation(_BaseCurve):
         else:
             t = NoInput(0) if spl is None else spl.t
 
-        return cls(
+        _: _BaseCurve = cls(  # type: ignore[assignment]
             nodes=nodes.nodes,
             interpolation=interpolator.local_name,
             t=t,
@@ -1078,6 +1084,7 @@ class _WithMutation(_BaseCurve):
             credit_discretization=meta.credit_discretization,
             credit_recovery_rate=meta.credit_recovery_rate,
         )
+        return _
 
     def to_json(self) -> str:
         """

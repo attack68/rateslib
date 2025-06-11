@@ -599,7 +599,7 @@ class _RolledCurve(_WithOperations, _BaseCurve):
         return self._obj._base_type
 
 
-class Curve(_WithOperations, _WithMutation):
+class Curve(_WithOperations, _WithMutation, _BaseCurve):  # type: ignore[misc]
     """
     Curve based on DF parametrisation at given node dates with interpolation.
 
@@ -744,7 +744,7 @@ class Curve(_WithOperations, _WithMutation):
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class LineCurve(_WithOperations, _WithMutation):
+class LineCurve(_WithOperations, _WithMutation, _BaseCurve):   # type: ignore[misc]
     """
     Curve based on value parametrisation at given node dates with interpolation.
 
