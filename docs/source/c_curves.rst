@@ -14,6 +14,7 @@ Curves
 ***********
 
 .. inheritance-diagram:: rateslib.curves.Curve rateslib.curves.LineCurve rateslib.curves.CompositeCurve rateslib.curves.MultiCsaCurve rateslib.curves.ProxyCurve rateslib.curves._BaseCurve rateslib.curves._WithMutation
+   :private-bases:
    :parts: 1
 
 The ``rateslib.curves`` module allows flexible and powerful curve objects to be created, which
