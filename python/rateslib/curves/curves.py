@@ -1071,19 +1071,9 @@ class CompositeCurve(_WithOperations, _BaseCurve):
         self._id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
         self.curves = tuple(curves)
 
-        # TODO why does a CompositeCurve require node_dates?
         nodes_proxy: dict[datetime, DualTypes] = dict.fromkeys(self.curves[0].nodes.keys, 0.0)
         self._nodes = _CurveNodes(nodes_proxy)
-        self._meta = _CurveMeta(
-            curves[0].meta.calendar,
-            curves[0].meta.convention,
-            curves[0].meta.modifier,
-            curves[0].meta.index_base,
-            curves[0].meta.index_lag,
-            curves[0].meta.collateral,
-            curves[0].meta.credit_discretization,
-            curves[0].meta.credit_recovery_rate,
-        )
+        self._meta = replace(curves[0].meta)
         self._base_type = curves[0]._base_type
 
         # validate
