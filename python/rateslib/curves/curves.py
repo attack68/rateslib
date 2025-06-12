@@ -1077,6 +1077,7 @@ class CompositeCurve(_WithOperations, _BaseCurve):
 
     _mutable_by_association = True
     _do_not_validate = False
+    _composite_scalars: list[float | Variable]
 
     def __init__(
         self,
@@ -1095,6 +1096,7 @@ class CompositeCurve(_WithOperations, _BaseCurve):
         # validate
         if not _no_validation:
             self._validate_curve_collection()
+        self._composite_scalars = [1.0] * len(self.curves)
         self._ad = max(_._ad for _ in self.curves)
         self._clear_cache()
         self._set_new_state()
@@ -1137,10 +1139,6 @@ class CompositeCurve(_WithOperations, _BaseCurve):
                 f"Cannot composite curves with different attributes, got for "
                 f"'{attr}': {[getattr(_.meta, attr, None) for _ in self.curves]},",
             )
-
-    @property
-    def _composite_scalars(self) -> list[float | Variable]:
-        return [1.0] * len(self.curves)
 
     @_validate_states
     @_no_interior_validation
@@ -1496,7 +1494,7 @@ class ProxyCurve(Curve):
         raise NotImplementedError("ProxyCurve types do not provide update methods.")
 
 
-class CreditImpliedCurve(CompositeCurve):
+class CreditImpliedCurve(_WithOperations, _BaseCurve):
     """
     Imply a curve from credit components.
 
@@ -1522,6 +1520,10 @@ class CreditImpliedCurve(CompositeCurve):
 
     """
 
+    _mutable_by_association = True
+    _do_not_validate = False
+    _obj: CompositeCurve
+
     def __init__(
         self,
         risk_free: Curve | NoInput = NoInput(0),
@@ -1533,25 +1535,53 @@ class CreditImpliedCurve(CompositeCurve):
             raise ValueError(
                 "One, and only one, curve must be NoInput in order to be a CreditImpliedCurve."
             )
-        elif isinstance(risk_free, NoInput):
+        elif not isinstance(hazard, NoInput) and not isinstance(credit, NoInput):
             self._implied = _CreditImpliedType.risk_free
-            super().__init__(curves=[hazard, credit], id=id)  # type: ignore[list-item]
-        elif isinstance(credit, NoInput):
+            self._obj = CompositeCurve(curves=[hazard, credit], id=id)
+        elif not isinstance(hazard, NoInput) and not isinstance(risk_free, NoInput):
             self._implied = _CreditImpliedType.credit
-            super().__init__(curves=[hazard, risk_free], id=id)  # type: ignore[list-item]
-        else:
+            self._obj = CompositeCurve(curves=[hazard, risk_free], id=id)
+        else:  # not isinstance(credit, NoInput) and not isinstance(risk_free, NoInput):
             self._implied = _CreditImpliedType.hazard
-            super().__init__(curves=[credit, risk_free], id=id)
+            self._obj = CompositeCurve(curves=[credit, risk_free], id=id)
+        self._meta = replace(self._obj._meta)
 
-    @property
+    def __getitem__(self, date: datetime) -> DualTypes:
+        return super().__getitem__(date)
+
     def _composite_scalars(self) -> list[float | Variable]:
-        rr = self.curves[0].meta.credit_recovery_rate
+        rr = self.meta.credit_recovery_rate
         if self._implied == _CreditImpliedType.credit:
             return [rr, 1.0]
         elif self._implied == _CreditImpliedType.hazard:
             return [1.0 / rr, -1.0 / rr]  #  type: ignore[list-item]
         else:
             return [-rr, 1.0]
+
+    def _get_composited_state(self) -> int:
+        # return the state of the CompositeCurve
+        return self._obj._state
+
+    def _validate_state(self) -> None:
+        """Used by 'mutable by association' objects to evaluate if their own record of
+        associated objects states matches the current state of those objects.
+
+        Mutable by update objects have no concept of state validation, they simply maintain
+        a *state* id.
+        """
+        if self._do_not_validate:
+            return None
+        if self._state != self._get_composited_state():
+            self._meta = replace(
+                self._obj._meta,
+                _collateral=self._meta.collateral,
+                _credit_recovery_rate=self._obj._meta.credit_recovery_rate,
+                _credit_discretization=self._obj._meta.credit_discretization,
+            )
+            self._obj._composite_scalars = self._composite_scalars()
+
+            self._clear_cache()  # CreditImpliedCurve has no cache but future proofing here
+            self._set_new_state()
 
 
 def index_value(

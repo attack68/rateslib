@@ -1862,6 +1862,16 @@ class TestCompositeCurve:
         with pytest.raises(AttributeError, match="'CompositeCurve' object has no attribute 'updat"):
             cc.update_meta("h", 100.0)
 
+    def test_update_meta_changes_state(self):
+        ic1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
+        ic2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
+        cc = CompositeCurve([ic1, ic2])
+        before = cc._state
+        cc.update_meta("credit_recovery_rate", 0.3)
+        after = cc._state
+        assert before != after
+
+
 
 class TestMultiCsaCurve:
     def test_historic_rate_is_none(self) -> None:
