@@ -34,9 +34,9 @@ from rateslib.dual import (
 from rateslib.dual.utils import _dual_float, _get_order_of
 from rateslib.mutability import (
     _clear_cache_post,
+    _new_state_post,
     _no_interior_validation,
     _validate_states,
-    _new_state_post,
 )
 
 if TYPE_CHECKING:
