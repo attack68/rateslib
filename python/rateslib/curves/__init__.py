@@ -4,6 +4,7 @@ from rateslib.curves.base import (
 )
 from rateslib.curves.curves import (
     CompositeCurve,
+    CreditImpliedCurve,
     Curve,
     LineCurve,
     MultiCsaCurve,
@@ -31,6 +32,7 @@ __all__ = (
     "LineCurve",
     "MultiCsaCurve",
     "ProxyCurve",
+    "CreditImpliedCurve",
     "average_rate",
     "index_left",
     "index_value",

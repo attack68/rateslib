@@ -15,6 +15,7 @@ from rateslib.calendars import add_tenor, dcf
 from rateslib.calendars.rs import get_calendar
 from rateslib.curves.base import _BaseCurve, _WithMutation
 from rateslib.curves.utils import (
+    _CreditImpliedType,
     _CurveInterpolator,
     _CurveMeta,
     _CurveNodes,
@@ -287,6 +288,11 @@ class _ShiftedCurve(_WithOperations, _BaseCurve):
         return self._obj._set_ad_order(ad)
 
     @property
+    def obj(self) -> _BaseCurve:
+        """The wrapped :class:`~rateslib.curves.CompositeCurve` that performs calculations."""
+        return self._obj
+
+    @property
     def _ad(self) -> int:  # type: ignore[override]
         return self._obj._ad
 
@@ -415,6 +421,11 @@ class _TranslatedCurve(_WithOperations, _BaseCurve):
 
     def _set_ad_order(self, ad: int) -> None:
         return self._obj._set_ad_order(ad)
+
+    @property
+    def obj(self) -> _BaseCurve:
+        """The wrapped :class:`~rateslib.curves._BaseCurve` object that performs calculations."""
+        return self._obj
 
     @property
     def _ad(self) -> int:  # type: ignore[override]
@@ -573,6 +584,11 @@ class _RolledCurve(_WithOperations, _BaseCurve):
 
     def _set_ad_order(self, ad: int) -> None:
         return self._obj._set_ad_order(ad)
+
+    @property
+    def obj(self) -> _BaseCurve:
+        """The wrapped :class:`~rateslib.curves._BaseCurve` object that performs calculations."""
+        return self._obj
 
     @property
     def roll_days(self) -> int:
@@ -1062,6 +1078,7 @@ class CompositeCurve(_WithOperations, _BaseCurve):
 
     _mutable_by_association = True
     _do_not_validate = False
+    _composite_scalars: list[float | Dual | Dual2 | Variable]
 
     @_new_state_post
     @_clear_cache_post
@@ -1082,7 +1099,7 @@ class CompositeCurve(_WithOperations, _BaseCurve):
         # validate
         if not _no_validation:
             self._validate_curve_collection()
-
+        self._composite_scalars = [1.0] * len(self.curves)
         self._ad = max(_._ad for _ in self.curves)
 
     @property
@@ -1128,10 +1145,6 @@ class CompositeCurve(_WithOperations, _BaseCurve):
                 f"Cannot composite curves with different attributes, got for "
                 f"'{attr}': {[getattr(_.meta, attr, None) for _ in self.curves]},",
             )
-
-    @property
-    def _composite_scalars(self) -> list[float | Variable]:
-        return [1.0] * len(self.curves)
 
     @_validate_states
     @_no_interior_validation
@@ -1199,7 +1212,8 @@ class CompositeCurve(_WithOperations, _BaseCurve):
             self._set_new_state()
 
     def _get_composited_state(self) -> int:
-        return hash(sum(curve._state for curve in self.curves))
+        _: int = hash(sum(curve._state for curve in self.curves))
+        return _
 
 
 class MultiCsaCurve(CompositeCurve):
@@ -1303,26 +1317,6 @@ class MultiCsaCurve(CompositeCurve):
                 min_ratio = ratio_ if ratio_ < min_ratio else min_ratio
             v *= min_ratio
             return self._cached_value(date, v)
-
-
-# class HazardCurve(Curve):
-#     """
-#     A subclass of :class:`~rateslib.curves.Curve` with additional methods for
-#     credit default calculations.
-#
-#     Parameters
-#     ----------
-#     args : tuple
-#         Position arguments required by :class:`Curve`.
-#     kwargs : dict
-#         Keyword arguments required by :class:`Curve`.
-#     """
-#
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#
-#     def survival_rate(self, date: datetime):
-#         return self[date]
 
 
 class ProxyCurve(Curve):
@@ -1487,6 +1481,204 @@ class ProxyCurve(Curve):
     def update_meta(self, key: datetime, value: DualTypes) -> None:  # pragma: no cover
         """Not implemented on *ProxyCurve* types."""
         raise NotImplementedError("ProxyCurve types do not provide update methods.")
+
+
+class CreditImpliedCurve(_WithOperations, _BaseCurve):
+    """
+    Imply a curve from credit components.
+
+    .. warning::
+
+       This class is in **beta** status as of v2.1.0
+
+    Parameters
+    ----------
+    risk_free: _BaseCurve, optional
+        The known risk free curve. If not given will be the implied curve.
+    credit: _BaseCurve, optional
+        The known credit curve.  If not given will be the implied curve.
+    hazard: _BaseCurve, optional
+        The known hazard curve. If not given will be the implied curve.
+
+    Notes
+    -----
+    A *risk free*, *credit* or *hazard* curve will be implied from the other known, provided
+    curves.
+
+    This class is a wrapper for a :class:`~rateslib.curves.CompositeCurve` where the two known
+    curves are added and multiplied by the appropriate recovery rate, obtained from the
+    :class:`~rateslib.curves._CurveMeta` (either from the
+    ``hazard`` curve or the ``credit`` curve in that order of precedence) to derive the third.
+
+    In traditional papers, such as *Duffie and Singleton (1999)*, the *credit* DF is expressed
+    relative to a *risk free* and *hazard* process. I.e.
+
+    .. math::
+
+       exp \\left ( \\int_0^T -r_f(t) - (1-R)\\lambda(t) .dt \\right ) = exp \\left ( \\int_0^T -r_c(t) .dt \\right )
+
+    where :math:`r_f` is the instantaneous risk free rate, :math:`r_c` the instantaneous credit rate
+    and :math:`\\lambda` the hazard intensity process.
+
+    In an approximation *rateslib* converts these to discrete overnight rate equivalents and implies
+    the curves as follows under rate vector addition:
+
+    - **Credit curve rates**: :math:`r_f(t) + (1-R)\\lambda(t)`
+    - **Hazard curve rates**: :math:`\\frac{r_c(t) - r_f(t)}{1-R}`
+    - **Risk free rates**: :math:`r_c(t) - (1-R)\\lambda(t)`
+
+    Example
+    -------
+    Given the following **risk free** curve and **hazard** curve, a **credit** curve is implied.
+
+    .. ipython:: python
+
+       from rateslib.curves import CreditImpliedCurve
+
+       risk_free = Curve(
+           nodes={dt(2000, 1, 1): 1.0, dt(2000, 9, 1): 0.98, dt(2001, 4, 1): 0.95, dt(2002, 1, 1): 0.92},
+           interpolation="spline",
+       )
+       hazard = Curve(
+           nodes={dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98, dt(2002, 1, 1): 0.95},
+           credit_recovery_rate=0.25,
+       )
+       credit = CreditImpliedCurve(risk_free=risk_free, hazard=hazard)
+       risk_free.plot("1b", comparators=[hazard, credit], labels=["risk free", "hazard", "credit"])
+
+    .. plot::
+
+       from rateslib.curves import *
+       import matplotlib.pyplot as plt
+       from datetime import datetime as dt
+       risk_free = Curve({dt(2000, 1, 1): 1.0, dt(2000, 9, 1): 0.98, dt(2001, 4, 1): 0.95, dt(2002, 1, 1): 0.92}, interpolation="spline")
+       hazard = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98, dt(2002, 1, 1): 0.95}, credit_recovery_rate=0.25)
+       credit = CreditImpliedCurve(risk_free=risk_free, hazard=hazard)
+       fig, ax, line = risk_free.plot("1b", comparators=[hazard, credit], labels=["risk free", "hazard", "credit"])
+       plt.show()
+       plt.close()
+
+    These associations are dynamic so changes to any of the curves will naturally update the
+    :class:`~rateslib.curves.CreditImpliedCurve`.
+
+    .. ipython:: python
+
+       hazard.update_meta("credit_recovery_rate", 0.90)
+       risk_free.plot("1b", comparators=[hazard, credit], labels=["risk free", "hazard", "credit"])
+
+    .. plot::
+
+       from rateslib.curves import *
+       import matplotlib.pyplot as plt
+       from datetime import datetime as dt
+       risk_free = Curve({dt(2000, 1, 1): 1.0, dt(2000, 9, 1): 0.98, dt(2001, 4, 1): 0.95, dt(2002, 1, 1): 0.92}, interpolation="spline")
+       hazard = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98, dt(2002, 1, 1): 0.95}, credit_recovery_rate=0.25)
+       credit = CreditImpliedCurve(risk_free=risk_free, hazard=hazard)
+       hazard.update_meta("credit_recovery_rate", 0.90)
+       fig, ax, line = risk_free.plot("1b", comparators=[hazard, credit], labels=["risk free", "hazard", "credit"])
+       plt.show()
+       plt.close()
+
+    """  # noqa: E501
+
+    _mutable_by_association = True
+    _do_not_validate = False
+    _obj: CompositeCurve
+
+    @_new_state_post
+    @_clear_cache_post
+    def __init__(
+        self,
+        risk_free: Curve | NoInput = NoInput(0),
+        credit: Curve | NoInput = NoInput(0),
+        hazard: Curve | NoInput = NoInput(0),
+        id: str_ = NoInput(0),  # noqa: A002
+    ) -> None:
+        if sum([isinstance(_, NoInput) for _ in [risk_free, credit, hazard]]) != 1:
+            raise ValueError(
+                "One, and only one, curve must be NoInput in order to be a CreditImpliedCurve."
+            )
+        elif not isinstance(hazard, NoInput) and not isinstance(credit, NoInput):
+            self._implied = _CreditImpliedType.risk_free
+            self._obj = CompositeCurve(curves=[hazard, credit], id=id)
+        elif not isinstance(hazard, NoInput) and not isinstance(risk_free, NoInput):
+            self._implied = _CreditImpliedType.credit
+            self._obj = CompositeCurve(curves=[hazard, risk_free], id=id)
+        else:  # not isinstance(credit, NoInput) and not isinstance(risk_free, NoInput):
+            self._implied = _CreditImpliedType.hazard
+            self._obj = CompositeCurve(curves=[credit, risk_free], id=id)  # type: ignore[list-item]
+        self._meta = replace(self._obj.meta)
+
+    @_validate_states
+    @_no_interior_validation
+    def __getitem__(self, date: datetime) -> DualTypes:
+        self.obj._composite_scalars = self._composite_scalars()
+        return self.obj.__getitem__(date)
+
+    def _set_ad_order(self, order: int) -> None:
+        return self.obj._set_ad_order(order)
+
+    @property
+    def obj(self) -> CompositeCurve:
+        """The wrapped :class:`~rateslib.curves.CompositeCurve` for making calculations."""
+        return self._obj
+
+    @property
+    @_validate_states  # this ensures that the _meta attribute is updated if the curve state changes
+    def meta(self) -> _CurveMeta:
+        """An instance of :class:`~rateslib.curves._CurveMeta`."""
+        return self._meta
+
+    @property
+    def _id(self) -> str:  # type: ignore[override]
+        return self.obj.id
+
+    @property
+    def _nodes(self) -> _CurveNodes:  # type: ignore[override]
+        return self.obj.nodes
+
+    @property
+    def _ad(self) -> int:  # type: ignore[override]
+        return self.obj.ad
+
+    @property
+    def _base_type(self) -> _CurveType:  # type: ignore[override]
+        return self.obj._base_type
+
+    def _composite_scalars(self) -> list[float | Dual | Dual2 | Variable]:
+        lr = 1.0 - self.meta.credit_recovery_rate
+        if self._implied == _CreditImpliedType.credit:
+            return [lr, 1.0]
+        elif self._implied == _CreditImpliedType.hazard:
+            return [1.0 / lr, -1.0 / lr]
+        else:
+            return [-lr, 1.0]
+
+    def _get_composited_state(self) -> int:
+        # return the state of the CompositeCurve
+        return self._obj._state
+
+    def _validate_state(self) -> None:
+        """Used by 'mutable by association' objects to evaluate if their own record of
+        associated objects states matches the current state of those objects.
+
+        Mutable by update objects have no concept of state validation, they simply maintain
+        a *state* id.
+        """
+        if self._do_not_validate:
+            return None
+
+        self.obj._validate_state()  # validate the obj state in case one its sub components changed
+        if self._state != self._get_composited_state():
+            self._clear_cache()  # CreditImpliedCurve has no cache but future proofing here
+            self._set_new_state()
+            self._meta = replace(
+                self._obj.meta,
+                _collateral=self._meta.collateral,
+                _credit_recovery_rate=self._obj._meta.credit_recovery_rate,
+                _credit_discretization=self._obj._meta.credit_discretization,
+            )
+            self._obj._composite_scalars = self._composite_scalars()
 
 
 def index_value(
