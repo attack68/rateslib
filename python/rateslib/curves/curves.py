@@ -1087,7 +1087,7 @@ class CompositeCurve(_WithOperations, _BaseCurve):
 
     @property
     @_validate_states  # this ensures that the _meta attribute is updated if the curve state changes
-    def meta(self):
+    def meta(self) -> _CurveMeta:
         return self._meta
 
     def _validate_curve_collection(self) -> None:
