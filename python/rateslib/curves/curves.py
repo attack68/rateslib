@@ -1482,6 +1482,31 @@ class ProxyCurve(Curve):
 
 
 class CreditImpliedCurve(CompositeCurve):
+    """
+    Imply a curve from credit components.
+
+    .. warning::
+
+       This class is in **beta** status as of v2.1.0
+
+    Parameters
+    ----------
+    risk_free: _BaseCurve, optional
+        The known risk free curve. If not given will be the implied curve.
+    credit: _BaseCurve, optional
+        The known credit curve.  If not given will be the implied curve.
+    hazard: _BaseCurve, optional
+        The known hazard curve. If not given will be the implied curve.
+
+    Notes
+    -----
+    This class is a wrapper for a :class:`~rateslib.curves.CompositeCurve` where the two known
+    curves are added and multiplied by the appropriate recovery rate obtained from the
+    :class:`~rateslib.curves._CurveMeta`, either from the
+    ``hazard`` curve or the ``credit`` curve in that order of precedence.
+
+    """
+
     def __init__(
         self,
         risk_free: Curve | NoInput = NoInput(0),

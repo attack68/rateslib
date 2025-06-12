@@ -16,8 +16,8 @@ from rateslib.curves import (
     index_left,
     index_value,
 )
-from rateslib.curves.curves import CreditImpliedCurve
 from rateslib.curves.base import _BaseCurve
+from rateslib.curves.curves import CreditImpliedCurve
 from rateslib.curves.utils import _CurveNodes, _CurveSpline
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, gradient
