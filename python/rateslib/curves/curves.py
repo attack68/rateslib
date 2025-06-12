@@ -34,6 +34,7 @@ from rateslib.dual import (
 from rateslib.dual.utils import _dual_float, _get_order_of
 from rateslib.mutability import (
     _clear_cache_post,
+    _new_state_post,
     _no_interior_validation,
     _validate_states,
 )
@@ -247,24 +248,24 @@ class _ShiftedCurve(_WithOperations, _BaseCurve):
         start, end = curve._nodes.initial, curve._nodes.final
 
         if curve._base_type == _CurveType.dfs:
-            dcf_ = dcf(start, end, curve._meta.convention, calendar=curve._meta.calendar)
-            _, d, n = average_rate(start, end, curve._meta.convention, 0.0, dcf_)
+            dcf_ = dcf(start, end, curve.meta.convention, calendar=curve.meta.calendar)
+            _, d, n = average_rate(start, end, curve.meta.convention, 0.0, dcf_)
             shifted: _BaseCurve = Curve(
                 nodes={start: 1.0, end: 1.0 / (1 + d * shift / 10000) ** n},
-                convention=curve._meta.convention,
-                calendar=curve._meta.calendar,
-                modifier=curve._meta.modifier,
+                convention=curve.meta.convention,
+                calendar=curve.meta.calendar,
+                modifier=curve.meta.modifier,
                 interpolation="log_linear",
-                index_base=curve._meta.index_base,
-                index_lag=curve._meta.index_lag,
+                index_base=curve.meta.index_base,
+                index_lag=curve.meta.index_lag,
                 ad=_get_order_of(shift),
             )
         else:  # base type is values: LineCurve
             shifted = LineCurve(
                 nodes={start: shift / 100.0, end: shift / 100.0},
-                convention=curve._meta.convention,
-                calendar=curve._meta.calendar,
-                modifier=curve._meta.modifier,
+                convention=curve.meta.convention,
+                calendar=curve.meta.calendar,
+                modifier=curve.meta.modifier,
                 interpolation="flat_backward",
                 ad=_get_order_of(shift),
             )
@@ -291,7 +292,7 @@ class _ShiftedCurve(_WithOperations, _BaseCurve):
 
     @property
     def _meta(self) -> _CurveMeta:  # type: ignore[override]
-        return self._obj._meta
+        return self._obj.meta
 
     @property
     def _id(self) -> str:  # type: ignore[override]
@@ -431,7 +432,7 @@ class _TranslatedCurve(_WithOperations, _BaseCurve):
                 _index_base=self._obj.index_value(self.nodes.initial, self._obj.meta.index_lag),  # type: ignore[arg-type]
             )
         else:
-            return self._obj._meta
+            return self._obj.meta
 
     @property
     def _base_type(self) -> _CurveType:  # type: ignore[override]
@@ -588,7 +589,7 @@ class _RolledCurve(_WithOperations, _BaseCurve):
 
     @property
     def _meta(self) -> _CurveMeta:  # type: ignore[override]
-        return self._obj._meta
+        return self._obj.meta
 
     @property
     def _nodes(self) -> _CurveNodes:  # type: ignore[override]
@@ -1062,6 +1063,8 @@ class CompositeCurve(_WithOperations, _BaseCurve):
     _mutable_by_association = True
     _do_not_validate = False
 
+    @_new_state_post
+    @_clear_cache_post
     def __init__(
         self,
         curves: list[_BaseCurve] | tuple[_BaseCurve, ...],
@@ -1073,15 +1076,19 @@ class CompositeCurve(_WithOperations, _BaseCurve):
 
         nodes_proxy: dict[datetime, DualTypes] = dict.fromkeys(self.curves[0].nodes.keys, 0.0)
         self._nodes = _CurveNodes(nodes_proxy)
-        self._meta = replace(curves[0].meta)
         self._base_type = curves[0]._base_type
+        self._meta = replace(self.curves[0].meta)
 
         # validate
         if not _no_validation:
             self._validate_curve_collection()
+
         self._ad = max(_._ad for _ in self.curves)
-        self._clear_cache()
-        self._set_new_state()
+
+    @property
+    @_validate_states  # this ensures that the _meta attribute is updated if the curve state changes
+    def meta(self) -> _CurveMeta:
+        return self._meta
 
     def _validate_curve_collection(self) -> None:
         """Perform checks to ensure CompositeCurve can exist"""
@@ -1185,6 +1192,8 @@ class CompositeCurve(_WithOperations, _BaseCurve):
         if self._do_not_validate:
             return None
         if self._state != self._get_composited_state():
+            # re-reference meta preserving own collateral status
+            self._meta = replace(self.curves[0].meta, _collateral=self._meta.collateral)
             # If any of the associated curves have been mutated then the cache is invalidated
             self._clear_cache()
             self._set_new_state()
