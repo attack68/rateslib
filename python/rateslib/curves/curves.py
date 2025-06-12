@@ -1212,7 +1212,8 @@ class CompositeCurve(_WithOperations, _BaseCurve):
             self._set_new_state()
 
     def _get_composited_state(self) -> int:
-        return hash(sum(curve._state for curve in self.curves))
+        _: int = hash(sum(curve._state for curve in self.curves))
+        return _
 
 
 class MultiCsaCurve(CompositeCurve):
@@ -1559,7 +1560,7 @@ class CreditImpliedCurve(_WithOperations, _BaseCurve):
 
     These associations are dynamic so changes to any of the curves will naturally update the
     :class:`~rateslib.curves.CreditImpliedCurve`.
-    
+
     .. ipython:: python
 
        hazard.update_meta("credit_recovery_rate", 0.90)
@@ -1608,6 +1609,8 @@ class CreditImpliedCurve(_WithOperations, _BaseCurve):
             self._obj = CompositeCurve(curves=[credit, risk_free], id=id)  # type: ignore[list-item]
         self._meta = replace(self._obj.meta)
 
+    @_validate_states
+    @_no_interior_validation
     def __getitem__(self, date: datetime) -> DualTypes:
         self.obj._composite_scalars = self._composite_scalars()
         return self.obj.__getitem__(date)
@@ -1664,7 +1667,11 @@ class CreditImpliedCurve(_WithOperations, _BaseCurve):
         """
         if self._do_not_validate:
             return None
+
+        self.obj._validate_state()  # validate the obj state in case one its sub components changed
         if self._state != self._get_composited_state():
+            self._clear_cache()  # CreditImpliedCurve has no cache but future proofing here
+            self._set_new_state()
             self._meta = replace(
                 self._obj.meta,
                 _collateral=self._meta.collateral,
@@ -1672,9 +1679,6 @@ class CreditImpliedCurve(_WithOperations, _BaseCurve):
                 _credit_discretization=self._obj._meta.credit_discretization,
             )
             self._obj._composite_scalars = self._composite_scalars()
-
-            self._clear_cache()  # CreditImpliedCurve has no cache but future proofing here
-            self._set_new_state()
 
 
 def index_value(

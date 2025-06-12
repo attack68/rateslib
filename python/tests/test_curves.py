@@ -2758,7 +2758,7 @@ class Test_CreditImpliedCurve:
         rate2 = hazard.rate(dt(2000, 2, 1), "1b")
 
         result = implied.rate(dt(2000, 2, 1), "1b")
-        approximate = rate1 + rate2 * (1-0.4)
+        approximate = rate1 + rate2 * (1 - 0.4)
         assert abs(result - approximate) < 1e-9
 
     def test_risk_free_rates(self):
@@ -2773,7 +2773,7 @@ class Test_CreditImpliedCurve:
         rate2 = hazard.rate(dt(2000, 2, 1), "1b")
 
         result = implied.rate(dt(2000, 2, 1), "1b")
-        approximate = rate1 - rate2 * (1-0.4)
+        approximate = rate1 - rate2 * (1 - 0.4)
         assert abs(result - approximate) < 1e-9
 
     def test_hazard_rates(self):
@@ -2788,7 +2788,7 @@ class Test_CreditImpliedCurve:
         rate2 = risk_free.rate(dt(2000, 2, 1), "1b")
 
         result = implied.rate(dt(2000, 2, 1), "1b")
-        approximate = (rate1 - rate2) / (1-0.4)
+        approximate = (rate1 - rate2) / (1 - 0.4)
         assert abs(result - approximate) < 1e-9
 
     def test_round_trip_hazard(self):
@@ -2821,9 +2821,26 @@ class Test_CreditImpliedCurve:
 
     def test_meta_dynacism(self):
         risk_free = Curve(
-            {dt(2000, 1, 1): 1.0, dt(2000, 9, 1): 0.98, dt(2001, 4, 1): 0.95, dt(2002, 1, 1): 0.92},
-            interpolation="spline")
-        hazard = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98, dt(2002, 1, 1): 0.95},
-                       credit_recovery_rate=0.25)
+            {dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98},
+        )
+        hazard = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98}, credit_recovery_rate=0.25)
+        credit = CreditImpliedCurve(risk_free=risk_free, hazard=hazard)
+        result = credit.rate(dt(2000, 1, 10), "10b")
+        expected = 2.0 + 2.0 * 0.75
+        assert abs(result - expected) < 3e-2
+
+        hazard.update_meta("credit_recovery_rate", 0.90)
+        result = credit.rate(dt(2000, 1, 10), "10b")
+        expected = 2.0 + 2.0 * 0.1
+        assert abs(result - expected) < 2e-2
+
+    def test_meta_dynacism2(self):
+        risk_free = Curve(
+            {dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98},
+        )
+        hazard = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98}, credit_recovery_rate=0.25)
         credit = CreditImpliedCurve(risk_free=risk_free, hazard=hazard)
         hazard.update_meta("credit_recovery_rate", 0.90)
+        result = credit.meta.credit_recovery_rate
+        expected = 0.90
+        assert abs(result - expected) < 1e-12
