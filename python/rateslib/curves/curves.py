@@ -287,6 +287,11 @@ class _ShiftedCurve(_WithOperations, _BaseCurve):
         return self._obj._set_ad_order(ad)
 
     @property
+    def obj(self):
+        """The wrapped :class:`~rateslib.curves.CompositeCurve` that performs calculations."""
+        return self._obj
+
+    @property
     def _ad(self) -> int:  # type: ignore[override]
         return self._obj._ad
 
@@ -415,6 +420,11 @@ class _TranslatedCurve(_WithOperations, _BaseCurve):
 
     def _set_ad_order(self, ad: int) -> None:
         return self._obj._set_ad_order(ad)
+
+    @property
+    def obj(self):
+        """The wrapped :class:`~rateslib.curves._BaseCurve` object that performs calculations."""
+        return self._obj
 
     @property
     def _ad(self) -> int:  # type: ignore[override]
@@ -573,6 +583,11 @@ class _RolledCurve(_WithOperations, _BaseCurve):
 
     def _set_ad_order(self, ad: int) -> None:
         return self._obj._set_ad_order(ad)
+
+    @property
+    def obj(self):
+        """The wrapped :class:`~rateslib.curves._BaseCurve` object that performs calculations."""
+        return self._obj
 
     @property
     def roll_days(self) -> int:
