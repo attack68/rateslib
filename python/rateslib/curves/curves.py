@@ -1122,6 +1122,10 @@ class CompositeCurve(_WithOperations, _BaseCurve):
                 f"'{attr}': {[getattr(_.meta, attr, None) for _ in self.curves]},",
             )
 
+    @property
+    def _composite_scalars(self) -> list[float | Variable]:
+        return [1.0] * len(self.curves)
+
     @_validate_states
     @_no_interior_validation
     def __getitem__(self, date: datetime) -> DualTypes:
@@ -1144,17 +1148,17 @@ class CompositeCurve(_WithOperations, _BaseCurve):
             )
             _, d, n = average_rate(self.nodes.initial, date, self.meta.convention, 0.0, dcf_)
             total_rate: Number = 0.0
-            for curve in self.curves:
+            for scalar, curve in zip(self._composite_scalars, self.curves, strict=False):
                 avg_rate = ((1.0 / curve[date]) ** (1.0 / n) - 1) / d
-                total_rate += avg_rate
+                total_rate += avg_rate * scalar  # type: ignore[assignment]
             ret = 1.0 / (1 + total_rate * d) ** n
             return self._cached_value(date, ret)
 
         else:  # self._base_type == _CurveType.values:
             # will return a composited rate
             _ = 0.0
-            for curve in self.curves:
-                _ += curve[date]
+            for scalar, curve in zip(self._composite_scalars, self.curves, strict=False):
+                _ += curve[date] * scalar
             return self._cached_value(date, _)
 
     # Solver interaction
