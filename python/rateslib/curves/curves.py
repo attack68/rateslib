@@ -1078,7 +1078,7 @@ class CompositeCurve(_WithOperations, _BaseCurve):
 
     _mutable_by_association = True
     _do_not_validate = False
-    _composite_scalars: list[float | Variable]
+    _composite_scalars: list[float | Dual | Dual2 | Variable]
 
     @_new_state_post
     @_clear_cache_post
@@ -1579,7 +1579,7 @@ class CreditImpliedCurve(_WithOperations, _BaseCurve):
        plt.show()
        plt.close()
 
-    """  # noqa:
+    """  # noqa: E501
 
     _mutable_by_association = True
     _do_not_validate = False
@@ -1645,12 +1645,12 @@ class CreditImpliedCurve(_WithOperations, _BaseCurve):
     def _base_type(self) -> _CurveType:  # type: ignore[override]
         return self.obj._base_type
 
-    def _composite_scalars(self) -> list[float | Variable]:
+    def _composite_scalars(self) -> list[float | Dual | Dual2 | Variable]:
         lr = 1.0 - self.meta.credit_recovery_rate
         if self._implied == _CreditImpliedType.credit:
             return [lr, 1.0]
         elif self._implied == _CreditImpliedType.hazard:
-            return [1.0 / lr, -1.0 / lr]  #  type: ignore[list-item]
+            return [1.0 / lr, -1.0 / lr]
         else:
             return [-lr, 1.0]
 
