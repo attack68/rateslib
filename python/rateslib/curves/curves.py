@@ -1501,12 +1501,63 @@ class CreditImpliedCurve(_WithOperations, _BaseCurve):
 
     Notes
     -----
-    This class is a wrapper for a :class:`~rateslib.curves.CompositeCurve` where the two known
-    curves are added and multiplied by the appropriate recovery rate obtained from the
-    :class:`~rateslib.curves._CurveMeta`, either from the
-    ``hazard`` curve or the ``credit`` curve in that order of precedence.
+    A *risk free*, *credit* or *hazard* curve will be implied from the other known, provided
+    curves.
 
-    """
+    This class is a wrapper for a :class:`~rateslib.curves.CompositeCurve` where the two known
+    curves are added and multiplied by the appropriate recovery rate, obtained from the
+    :class:`~rateslib.curves._CurveMeta` (either from the
+    ``hazard`` curve or the ``credit`` curve in that order of precedence) to derive the third.
+
+    In traditional papers, such as *Duffie and Singleton (1999)*, the *credit* DF is expressed
+    relative to a *risk free* and *hazard* process. I.e.
+
+    .. math::
+
+       exp \\left ( \\int_0^T -r_f(t) - (1-R)\\lambda(t) .dt \\right ) = exp \\left ( \\int_0^T -r_c(t) .dt \\right )
+
+    where :math:`r_f` is the instantaneous risk free rate, :math:`r_c` the instantaneous credit rate
+    and :math:`\\lambda` the hazard intensity process.
+
+    In an approximation *rateslib* converts these to discrete overnight rate equivalents and implies
+    the curves as follows under rate vector addition:
+
+    - **Credit curve rates**: :math:`r_f(t) + (1-R)\\lambda(t)`
+    - **Hazard curve rates**: :math:`\\frac{r_c(t) - r_f(t)}{1-R}`
+    - **Risk free rates**: :math:`r_c(t) - (1-R)\\lambda(t)`
+
+    Example
+    -------
+    Given the following **risk free** curve and **hazard** curve, a **credit** curve is implied.
+
+    .. ipython:: python
+
+       from rateslib.curves import CreditImpliedCurve
+
+       risk_free = Curve(
+           nodes={dt(2000, 1, 1): 1.0, dt(2000, 9, 1): 0.98, dt(2001, 4, 1): 0.95, dt(2002, 1, 1): 0.92},
+           interpolation="spline",
+       )
+       hazard = Curve(
+           nodes={dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98, dt(2002, 1, 1): 0.95},
+           credit_recovery_rate=0.25,
+       )
+       credit = CreditImpliedCurve(risk_free=risk_free, hazard=hazard)
+       risk_free.plot("1b", comparators=[hazard, credit], labels=["risk free", "hazard", "credit"])
+
+    .. plot::
+
+       from rateslib.curves import *
+       import matplotlib.pyplot as plt
+       from datetime import datetime as dt
+       risk_free = Curve({dt(2000, 1, 1): 1.0, dt(2000, 9, 1): 0.98, dt(2001, 4, 1): 0.95, dt(2002, 1, 1): 0.92}, interpolation="spline")
+       hazard = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98, dt(2002, 1, 1): 0.95}, credit_recovery_rate=0.25)
+       credit = CreditImpliedCurve(risk_free=risk_free, hazard=hazard)
+       fig, ax, line = risk_free.plot("1b", comparators=[hazard, credit], labels=["risk free", "hazard", "credit"])
+       plt.show()
+       plt.close()
+
+    """  # noqa:
 
     _mutable_by_association = True
     _do_not_validate = False
@@ -1551,6 +1602,7 @@ class CreditImpliedCurve(_WithOperations, _BaseCurve):
     @property
     @_validate_states  # this ensures that the _meta attribute is updated if the curve state changes
     def meta(self) -> _CurveMeta:
+        """An instance of :class:`~rateslib.curves._CurveMeta`."""
         return self._meta
 
     @property
@@ -1570,13 +1622,13 @@ class CreditImpliedCurve(_WithOperations, _BaseCurve):
         return self.obj._base_type
 
     def _composite_scalars(self) -> list[float | Variable]:
-        rr = self.meta.credit_recovery_rate
+        lr = 1.0 - self.meta.credit_recovery_rate
         if self._implied == _CreditImpliedType.credit:
-            return [rr, 1.0]
+            return [lr, 1.0]
         elif self._implied == _CreditImpliedType.hazard:
-            return [1.0 / rr, -1.0 / rr]  #  type: ignore[list-item]
+            return [1.0 / lr, -1.0 / lr]  #  type: ignore[list-item]
         else:
-            return [-rr, 1.0]
+            return [-lr, 1.0]
 
     def _get_composited_state(self) -> int:
         # return the state of the CompositeCurve

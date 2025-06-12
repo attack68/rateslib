@@ -2758,7 +2758,7 @@ class Test_CreditImpliedCurve:
         rate2 = hazard.rate(dt(2000, 2, 1), "1b")
 
         result = implied.rate(dt(2000, 2, 1), "1b")
-        approximate = rate1 + rate2 * 0.4
+        approximate = rate1 + rate2 * (1-0.4)
         assert abs(result - approximate) < 1e-9
 
     def test_risk_free_rates(self):
@@ -2773,7 +2773,7 @@ class Test_CreditImpliedCurve:
         rate2 = hazard.rate(dt(2000, 2, 1), "1b")
 
         result = implied.rate(dt(2000, 2, 1), "1b")
-        approximate = rate1 - rate2 * 0.4
+        approximate = rate1 - rate2 * (1-0.4)
         assert abs(result - approximate) < 1e-9
 
     def test_hazard_rates(self):
@@ -2788,7 +2788,7 @@ class Test_CreditImpliedCurve:
         rate2 = risk_free.rate(dt(2000, 2, 1), "1b")
 
         result = implied.rate(dt(2000, 2, 1), "1b")
-        approximate = (rate1 - rate2) / 0.4
+        approximate = (rate1 - rate2) / (1-0.4)
         assert abs(result - approximate) < 1e-9
 
     def test_round_trip_hazard(self):
