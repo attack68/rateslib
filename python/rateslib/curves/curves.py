@@ -1318,26 +1318,6 @@ class MultiCsaCurve(CompositeCurve):
             return self._cached_value(date, v)
 
 
-# class HazardCurve(Curve):
-#     """
-#     A subclass of :class:`~rateslib.curves.Curve` with additional methods for
-#     credit default calculations.
-#
-#     Parameters
-#     ----------
-#     args : tuple
-#         Position arguments required by :class:`Curve`.
-#     kwargs : dict
-#         Keyword arguments required by :class:`Curve`.
-#     """
-#
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#
-#     def survival_rate(self, date: datetime):
-#         return self[date]
-
-
 class ProxyCurve(Curve):
     """
     A subclass of :class:`~rateslib.curves.Curve` which returns dynamic DFs based on
@@ -1532,6 +1512,8 @@ class CreditImpliedCurve(_WithOperations, _BaseCurve):
     _do_not_validate = False
     _obj: CompositeCurve
 
+    @_new_state_post
+    @_clear_cache_post
     def __init__(
         self,
         risk_free: Curve | NoInput = NoInput(0),
@@ -1552,10 +1534,40 @@ class CreditImpliedCurve(_WithOperations, _BaseCurve):
         else:  # not isinstance(credit, NoInput) and not isinstance(risk_free, NoInput):
             self._implied = _CreditImpliedType.hazard
             self._obj = CompositeCurve(curves=[credit, risk_free], id=id)
-        self._meta = replace(self._obj._meta)
+        self._meta = replace(self._obj.meta)
 
     def __getitem__(self, date: datetime) -> DualTypes:
-        return super().__getitem__(date)
+        self.obj._composite_scalars = self._composite_scalars()
+        return self.obj.__getitem__(date)
+
+    def _set_ad_order(self, order: int) -> None:
+        return self.obj._set_ad_order(order)
+
+    @property
+    def obj(self) -> CompositeCurve:
+        """The wrapped :class:`~rateslib.curves.CompositeCurve` for making calculations."""
+        return self._obj
+
+    @property
+    @_validate_states  # this ensures that the _meta attribute is updated if the curve state changes
+    def meta(self) -> _CurveMeta:
+        return self._meta
+
+    @property
+    def _id(self) -> str:
+        return self.obj.id
+
+    @property
+    def _nodes(self) -> _CurveNodes:
+        return self.obj.nodes
+
+    @property
+    def _ad(self) -> int:
+        return self.obj.ad
+
+    @property
+    def _base_type(self) -> _CurveType:
+        return self.obj._base_type
 
     def _composite_scalars(self) -> list[float | Variable]:
         rr = self.meta.credit_recovery_rate
@@ -1581,7 +1593,7 @@ class CreditImpliedCurve(_WithOperations, _BaseCurve):
             return None
         if self._state != self._get_composited_state():
             self._meta = replace(
-                self._obj._meta,
+                self._obj.meta,
                 _collateral=self._meta.collateral,
                 _credit_recovery_rate=self._obj._meta.credit_recovery_rate,
                 _credit_discretization=self._obj._meta.credit_discretization,
