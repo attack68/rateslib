@@ -2818,3 +2818,12 @@ class Test_CreditImpliedCurve:
         rate2 = hazard_implied.rate(dt(2000, 2, 1), "1b")
 
         assert abs(rate1 - rate2) < 1e-9
+
+    def test_meta_dynacism(self):
+        risk_free = Curve(
+            {dt(2000, 1, 1): 1.0, dt(2000, 9, 1): 0.98, dt(2001, 4, 1): 0.95, dt(2002, 1, 1): 0.92},
+            interpolation="spline")
+        hazard = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98, dt(2002, 1, 1): 0.95},
+                       credit_recovery_rate=0.25)
+        credit = CreditImpliedCurve(risk_free=risk_free, hazard=hazard)
+        hazard.update_meta("credit_recovery_rate", 0.90)

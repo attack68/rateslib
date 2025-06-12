@@ -1557,6 +1557,27 @@ class CreditImpliedCurve(_WithOperations, _BaseCurve):
        plt.show()
        plt.close()
 
+    These associations are dynamic so changes to any of the curves will naturally update the
+    :class:`~rateslib.curves.CreditImpliedCurve`.
+    
+    .. ipython:: python
+
+       hazard.update_meta("credit_recovery_rate", 0.90)
+       risk_free.plot("1b", comparators=[hazard, credit], labels=["risk free", "hazard", "credit"])
+
+    .. plot::
+
+       from rateslib.curves import *
+       import matplotlib.pyplot as plt
+       from datetime import datetime as dt
+       risk_free = Curve({dt(2000, 1, 1): 1.0, dt(2000, 9, 1): 0.98, dt(2001, 4, 1): 0.95, dt(2002, 1, 1): 0.92}, interpolation="spline")
+       hazard = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98, dt(2002, 1, 1): 0.95}, credit_recovery_rate=0.25)
+       credit = CreditImpliedCurve(risk_free=risk_free, hazard=hazard)
+       hazard.update_meta("credit_recovery_rate", 0.90)
+       fig, ax, line = risk_free.plot("1b", comparators=[hazard, credit], labels=["risk free", "hazard", "credit"])
+       plt.show()
+       plt.close()
+
     """  # noqa:
 
     _mutable_by_association = True
