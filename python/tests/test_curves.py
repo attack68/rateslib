@@ -1855,22 +1855,22 @@ class TestCompositeCurve:
         expected = Dual(1.0, ["v0", "v1", "w0", "w1"], [1.0, 0.0, 1.0, 0.0])
         assert result == expected
 
-    def test_update_meta(self):
+    def test_update_meta_raises(self):
         ic1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
         ic2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
         cc = CompositeCurve([ic1, ic2])
         with pytest.raises(AttributeError, match="'CompositeCurve' object has no attribute 'updat"):
             cc.update_meta("h", 100.0)
 
-    def test_update_meta_changes_state(self):
+    def test_update_meta(self):
         ic1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
         ic2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
         cc = CompositeCurve([ic1, ic2])
-        before = cc._state
-        cc.update_meta("credit_recovery_rate", 0.3)
-        after = cc._state
+        before = cc.meta.credit_recovery_rate
+        ic1.update_meta("credit_recovery_rate", 0.88)
+        after = cc.meta.credit_recovery_rate
         assert before != after
-
+        assert after == 0.88
 
 
 class TestMultiCsaCurve:
