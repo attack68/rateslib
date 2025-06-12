@@ -288,7 +288,7 @@ class _ShiftedCurve(_WithOperations, _BaseCurve):
         return self._obj._set_ad_order(ad)
 
     @property
-    def obj(self):
+    def obj(self) -> _BaseCurve:
         """The wrapped :class:`~rateslib.curves.CompositeCurve` that performs calculations."""
         return self._obj
 
@@ -423,7 +423,7 @@ class _TranslatedCurve(_WithOperations, _BaseCurve):
         return self._obj._set_ad_order(ad)
 
     @property
-    def obj(self):
+    def obj(self) -> _BaseCurve:
         """The wrapped :class:`~rateslib.curves._BaseCurve` object that performs calculations."""
         return self._obj
 
@@ -586,7 +586,7 @@ class _RolledCurve(_WithOperations, _BaseCurve):
         return self._obj._set_ad_order(ad)
 
     @property
-    def obj(self):
+    def obj(self) -> _BaseCurve:
         """The wrapped :class:`~rateslib.curves._BaseCurve` object that performs calculations."""
         return self._obj
 
@@ -1533,7 +1533,7 @@ class CreditImpliedCurve(_WithOperations, _BaseCurve):
             self._obj = CompositeCurve(curves=[hazard, risk_free], id=id)
         else:  # not isinstance(credit, NoInput) and not isinstance(risk_free, NoInput):
             self._implied = _CreditImpliedType.hazard
-            self._obj = CompositeCurve(curves=[credit, risk_free], id=id)
+            self._obj = CompositeCurve(curves=[credit, risk_free], id=id)  # type: ignore[list-item]
         self._meta = replace(self._obj.meta)
 
     def __getitem__(self, date: datetime) -> DualTypes:
@@ -1554,19 +1554,19 @@ class CreditImpliedCurve(_WithOperations, _BaseCurve):
         return self._meta
 
     @property
-    def _id(self) -> str:
+    def _id(self) -> str:  # type: ignore[override]
         return self.obj.id
 
     @property
-    def _nodes(self) -> _CurveNodes:
+    def _nodes(self) -> _CurveNodes:  # type: ignore[override]
         return self.obj.nodes
 
     @property
-    def _ad(self) -> int:
+    def _ad(self) -> int:  # type: ignore[override]
         return self.obj.ad
 
     @property
-    def _base_type(self) -> _CurveType:
+    def _base_type(self) -> _CurveType:  # type: ignore[override]
         return self.obj._base_type
 
     def _composite_scalars(self) -> list[float | Variable]:
