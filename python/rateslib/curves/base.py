@@ -58,8 +58,6 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
     will raise `TypeError`.
     """
 
-    _ad: int
-    _base_type: _CurveType
     _meta: _CurveMeta
     _nodes: _CurveNodes
     _interpolator: _CurveInterpolator
@@ -70,6 +68,16 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
     @abstractmethod
     def _id(self) -> str:
         return uuid4().hex[:5]
+
+    @property
+    @abstractmethod
+    def _ad(self) -> int:
+        ...
+
+    @property
+    @abstractmethod
+    def _base_type(self) -> _CurveType:
+        ...
 
     # Required methods
 

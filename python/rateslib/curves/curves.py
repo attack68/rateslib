@@ -756,11 +756,12 @@ class Curve(_WithMutation, _WithOperations, _BaseCurve):  # type: ignore[misc]
     """  # noqa: E501
 
     _ini_solve: int = 1  # Curve is assumed to have initial DF node at 1.0 as constraint
-    _base_type = _CurveType.dfs
 
     # abcs - set by init
 
     _id: str = None  # type: ignore[assignment]
+    _ad: int = None  # type: ignore[assignment]
+    _base_type: _CurveType = _CurveType.dfs
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -905,11 +906,12 @@ class LineCurve(_WithMutation, _WithOperations, _BaseCurve):  # type: ignore[mis
     """  # noqa: E501
 
     _ini_solve = 0  # No constraint placed on initial node in Solver
-    _base_type = _CurveType.values
 
     # abcs - set by init
 
     _id: str = None  # type: ignore[assignment]
+    _ad: int = None  # type: ignore[assignment]
+    _base_type: _CurveType = _CurveType.values
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -1099,6 +1101,8 @@ class CompositeCurve(_WithOperations, _BaseCurve):
     # abcs - set by init
 
     _id: str = None  # type: ignore[assignment]
+    _ad: int = None  # type: ignore[assignment]
+    _base_type: _CurveType = None  # type: ignore[assignment]
 
     @_new_state_post
     @_clear_cache_post
