@@ -71,13 +71,11 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
 
     @property
     @abstractmethod
-    def _ad(self) -> int:
-        ...
+    def _ad(self) -> int: ...
 
     @property
     @abstractmethod
-    def _base_type(self) -> _CurveType:
-        ...
+    def _base_type(self) -> _CurveType: ...
 
     # Required methods
 
