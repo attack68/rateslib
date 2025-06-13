@@ -1108,7 +1108,7 @@ class CompositeCurve(_WithOperations, _BaseCurve):
         id: str_ = NoInput(0),  # noqa: A002
         _no_validation: bool = False,
     ) -> None:
-        self._id = _drb(super()._id, id)  # 1 in a million clash
+        self._id = _drb(super()._id, id)
         self.curves = tuple(curves)
 
         nodes_proxy: dict[datetime, DualTypes] = dict.fromkeys(self.curves[0].nodes.keys, 0.0)
