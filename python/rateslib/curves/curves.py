@@ -301,7 +301,7 @@ class _ShiftedCurve(_WithOperations, _BaseCurve):
         return self._obj.meta
 
     @property
-    def _id(self) -> str:  # type: ignore[override]
+    def _id(self) -> str:
         return self._obj._id
 
     @property
@@ -398,6 +398,10 @@ class _TranslatedCurve(_WithOperations, _BaseCurve):
     """  # noqa: E501
 
     _obj: _BaseCurve
+
+    # abcs
+
+    _id: str = None  # type: ignore[assignment]
 
     def __init__(
         self,
@@ -536,6 +540,10 @@ class _RolledCurve(_WithOperations, _BaseCurve):
     _obj: _BaseCurve
     _roll_days: int
 
+    # abcs
+
+    _id: str = None  # type: ignore[assignment]
+
     def __init__(
         self,
         curve: _BaseCurve,
@@ -616,7 +624,7 @@ class _RolledCurve(_WithOperations, _BaseCurve):
         return self._obj._base_type
 
 
-class Curve(_WithOperations, _WithMutation, _BaseCurve):  # type: ignore[misc]
+class Curve(_WithMutation, _WithOperations, _BaseCurve):  # type: ignore[misc]
     """
     Curve based on DF parametrisation at given node dates with interpolation.
 
@@ -750,6 +758,10 @@ class Curve(_WithOperations, _WithMutation, _BaseCurve):  # type: ignore[misc]
     _ini_solve: int = 1  # Curve is assumed to have initial DF node at 1.0 as constraint
     _base_type = _CurveType.dfs
 
+    # abcs - set by init
+
+    _id: str = None  # type: ignore[assignment]
+
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 
@@ -761,7 +773,7 @@ class Curve(_WithOperations, _WithMutation, _BaseCurve):  # type: ignore[misc]
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class LineCurve(_WithOperations, _WithMutation, _BaseCurve):  # type: ignore[misc]
+class LineCurve(_WithMutation, _WithOperations, _BaseCurve):  # type: ignore[misc]
     """
     Curve based on value parametrisation at given node dates with interpolation.
 
@@ -894,6 +906,10 @@ class LineCurve(_WithOperations, _WithMutation, _BaseCurve):  # type: ignore[mis
 
     _ini_solve = 0  # No constraint placed on initial node in Solver
     _base_type = _CurveType.values
+
+    # abcs - set by init
+
+    _id: str = None  # type: ignore[assignment]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -1080,6 +1096,10 @@ class CompositeCurve(_WithOperations, _BaseCurve):
     _do_not_validate = False
     _composite_scalars: list[float | Dual | Dual2 | Variable]
 
+    # abcs - set by init
+
+    _id: str = None  # type: ignore[assignment]
+
     @_new_state_post
     @_clear_cache_post
     def __init__(
@@ -1088,7 +1108,7 @@ class CompositeCurve(_WithOperations, _BaseCurve):
         id: str_ = NoInput(0),  # noqa: A002
         _no_validation: bool = False,
     ) -> None:
-        self._id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
+        self._id = _drb(super()._id, id)  # 1 in a million clash
         self.curves = tuple(curves)
 
         nodes_proxy: dict[datetime, DualTypes] = dict.fromkeys(self.curves[0].nodes.keys, 0.0)
@@ -1630,7 +1650,7 @@ class CreditImpliedCurve(_WithOperations, _BaseCurve):
         return self._meta
 
     @property
-    def _id(self) -> str:  # type: ignore[override]
+    def _id(self) -> str:
         return self.obj.id
 
     @property

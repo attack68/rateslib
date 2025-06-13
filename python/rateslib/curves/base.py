@@ -59,11 +59,17 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
     """
 
     _ad: int
-    _id: str
     _base_type: _CurveType
     _meta: _CurveMeta
     _nodes: _CurveNodes
     _interpolator: _CurveInterpolator
+
+    # Required properties
+
+    @property
+    @abstractmethod
+    def _id(self) -> str:
+        return uuid4().hex[:5]
 
     # Required methods
 
