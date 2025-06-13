@@ -759,9 +759,10 @@ class Curve(_WithMutation, _WithOperations, _BaseCurve):  # type: ignore[misc]
 
     # abcs - set by init
 
+    _base_type: _CurveType = _CurveType.dfs
     _id: str = None  # type: ignore[assignment]
     _ad: int = None  # type: ignore[assignment]
-    _base_type: _CurveType = _CurveType.dfs
+    _meta: _CurveMeta = None  # type: ignore[assignment]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -909,9 +910,10 @@ class LineCurve(_WithMutation, _WithOperations, _BaseCurve):  # type: ignore[mis
 
     # abcs - set by init
 
+    _base_type: _CurveType = _CurveType.values
     _id: str = None  # type: ignore[assignment]
     _ad: int = None  # type: ignore[assignment]
-    _base_type: _CurveType = _CurveType.values
+    _meta: _CurveMeta = None  # type: ignore[assignment]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -1100,9 +1102,10 @@ class CompositeCurve(_WithOperations, _BaseCurve):
 
     # abcs - set by init
 
+    _base_type: _CurveType = None  # type: ignore[assignment]
     _id: str = None  # type: ignore[assignment]
     _ad: int = None  # type: ignore[assignment]
-    _base_type: _CurveType = None  # type: ignore[assignment]
+    _meta: _CurveMeta = None # type: ignore[assignment]
 
     @_new_state_post
     @_clear_cache_post
@@ -1609,6 +1612,22 @@ class CreditImpliedCurve(_WithOperations, _BaseCurve):
     _do_not_validate = False
     _obj: CompositeCurve
 
+    # abcs
+
+    _meta: _CurveMeta = None # type: ignore[assignment]
+
+    @property
+    def _base_type(self) -> _CurveType:  # type: ignore[override]
+        return self.obj._base_type
+
+    @property
+    def _id(self) -> str:
+        return self.obj.id
+
+    @property
+    def _ad(self) -> int:  # type: ignore[override]
+        return self.obj.ad
+
     @_new_state_post
     @_clear_cache_post
     def __init__(
@@ -1654,20 +1673,8 @@ class CreditImpliedCurve(_WithOperations, _BaseCurve):
         return self._meta
 
     @property
-    def _id(self) -> str:
-        return self.obj.id
-
-    @property
     def _nodes(self) -> _CurveNodes:  # type: ignore[override]
         return self.obj.nodes
-
-    @property
-    def _ad(self) -> int:  # type: ignore[override]
-        return self.obj.ad
-
-    @property
-    def _base_type(self) -> _CurveType:  # type: ignore[override]
-        return self.obj._base_type
 
     def _composite_scalars(self) -> list[float | Dual | Dual2 | Variable]:
         lr = 1.0 - self.meta.credit_recovery_rate

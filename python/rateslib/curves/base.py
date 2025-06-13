@@ -66,6 +66,20 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
 
     @property
     @abstractmethod
+    def _meta(self) -> _CurveMeta:
+        return _CurveMeta(
+            _calendar=get_calendar(NoInput(0)),
+            _collateral=None,
+            _convention=defaults.convention.lower(),
+            _credit_discretization=defaults.cds_protection_discretization,
+            _credit_recovery_rate=defaults.cds_recovery_rate,
+            _index_base=NoInput(0),
+            _index_lag=defaults.index_lag_curve,
+            _modifier=defaults.modifier,
+        )
+
+    @property
+    @abstractmethod
     def _id(self) -> str:
         return uuid4().hex[:5]
 
