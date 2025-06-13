@@ -58,8 +58,6 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
     will raise `TypeError`.
     """
 
-    _meta: _CurveMeta
-    _nodes: _CurveNodes
     _interpolator: _CurveInterpolator
 
     # Required properties
@@ -77,6 +75,11 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
             _index_lag=defaults.index_lag_curve,
             _modifier=defaults.modifier,
         )
+
+    @property
+    @abstractmethod
+    def _nodes(self) -> _CurveNodes:
+        ...
 
     @property
     @abstractmethod

@@ -294,27 +294,27 @@ class _ShiftedCurve(_WithOperations, _BaseCurve):
 
     @property
     def _ad(self) -> int:  # type: ignore[override]
-        return self._obj._ad
+        return self.obj.ad
 
     @property
     def _meta(self) -> _CurveMeta:  # type: ignore[override]
-        return self._obj.meta
+        return self.obj.meta
 
     @property
     def _id(self) -> str:
-        return self._obj._id
+        return self.obj.id
 
     @property
     def _nodes(self) -> _CurveNodes:  # type: ignore[override]
-        return self._obj._nodes
+        return self.obj.nodes
 
     @property
     def _interpolator(self) -> _CurveInterpolator:  # type: ignore[override]
-        return self._obj._interpolator
+        return self.obj.interpolator
 
     @property
     def _base_type(self) -> _CurveType:  # type: ignore[override]
-        return self._obj._base_type
+        return self.obj._base_type
 
 
 class _TranslatedCurve(_WithOperations, _BaseCurve):
@@ -402,6 +402,7 @@ class _TranslatedCurve(_WithOperations, _BaseCurve):
     # abcs
 
     _id: str = None  # type: ignore[assignment]
+    _nodes: _CurveNodes = None # type: ignore[assignment]
 
     def __init__(
         self,
@@ -433,25 +434,25 @@ class _TranslatedCurve(_WithOperations, _BaseCurve):
 
     @property
     def _ad(self) -> int:  # type: ignore[override]
-        return self._obj._ad
+        return self.obj.ad
 
     @property
     def _interpolator(self) -> _CurveInterpolator:  # type: ignore[override]
-        return self._obj._interpolator
+        return self.obj.interpolator
 
     @property
     def _meta(self) -> _CurveMeta:  # type: ignore[override]
-        if self._base_type == _CurveType.dfs and not isinstance(self._obj.meta.index_base, NoInput):
+        if self._base_type == _CurveType.dfs and not isinstance(self.obj.meta.index_base, NoInput):
             return replace(
-                self._obj.meta,
-                _index_base=self._obj.index_value(self.nodes.initial, self._obj.meta.index_lag),  # type: ignore[arg-type]
+                self.obj.meta,
+                _index_base=self.obj.index_value(self.nodes.initial, self.obj.meta.index_lag),  # type: ignore[arg-type]
             )
         else:
-            return self._obj.meta
+            return self.obj.meta
 
     @property
     def _base_type(self) -> _CurveType:  # type: ignore[override]
-        return self._obj._base_type
+        return self.obj._base_type
 
 
 class _RolledCurve(_WithOperations, _BaseCurve):
@@ -763,6 +764,7 @@ class Curve(_WithMutation, _WithOperations, _BaseCurve):  # type: ignore[misc]
     _id: str = None  # type: ignore[assignment]
     _ad: int = None  # type: ignore[assignment]
     _meta: _CurveMeta = None  # type: ignore[assignment]
+    _nodes: _CurveNodes = None # type: ignore[assignment]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -914,6 +916,7 @@ class LineCurve(_WithMutation, _WithOperations, _BaseCurve):  # type: ignore[mis
     _id: str = None  # type: ignore[assignment]
     _ad: int = None  # type: ignore[assignment]
     _meta: _CurveMeta = None  # type: ignore[assignment]
+    _nodes: _CurveNodes = None # type: ignore[assignment]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -1106,6 +1109,7 @@ class CompositeCurve(_WithOperations, _BaseCurve):
     _id: str = None  # type: ignore[assignment]
     _ad: int = None  # type: ignore[assignment]
     _meta: _CurveMeta = None # type: ignore[assignment]
+    _nodes: _CurveNodes = None # type: ignore[assignment]
 
     @_new_state_post
     @_clear_cache_post
@@ -1673,7 +1677,7 @@ class CreditImpliedCurve(_WithOperations, _BaseCurve):
         return self._meta
 
     @property
-    def _nodes(self) -> _CurveNodes:  # type: ignore[override]
+    def _nodes(self) -> _CurveNodes:
         return self.obj.nodes
 
     def _composite_scalars(self) -> list[float | Dual | Dual2 | Variable]:
