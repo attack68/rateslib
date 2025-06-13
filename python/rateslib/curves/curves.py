@@ -765,6 +765,7 @@ class Curve(_WithMutation, _WithOperations, _BaseCurve):  # type: ignore[misc]
     _ad: int = None  # type: ignore[assignment]
     _meta: _CurveMeta = None  # type: ignore[assignment]
     _nodes: _CurveNodes = None # type: ignore[assignment]
+    _interpolator: _CurveInterpolator = None # type: ignore[assignment]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -917,6 +918,7 @@ class LineCurve(_WithMutation, _WithOperations, _BaseCurve):  # type: ignore[mis
     _ad: int = None  # type: ignore[assignment]
     _meta: _CurveMeta = None  # type: ignore[assignment]
     _nodes: _CurveNodes = None # type: ignore[assignment]
+    _interpolator: _CurveInterpolator = None # type: ignore[assignment]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -1110,6 +1112,7 @@ class CompositeCurve(_WithOperations, _BaseCurve):
     _ad: int = None  # type: ignore[assignment]
     _meta: _CurveMeta = None # type: ignore[assignment]
     _nodes: _CurveNodes = None # type: ignore[assignment]
+    _interpolator: _CurveInterpolator = None # type: ignore[assignment]
 
     @_new_state_post
     @_clear_cache_post
@@ -1619,6 +1622,7 @@ class CreditImpliedCurve(_WithOperations, _BaseCurve):
     # abcs
 
     _meta: _CurveMeta = None # type: ignore[assignment]
+    _interpolator: _CurveInterpolator = None # type: ignore[assignment]
 
     @property
     def _base_type(self) -> _CurveType:  # type: ignore[override]

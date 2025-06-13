@@ -58,8 +58,6 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
     will raise `TypeError`.
     """
 
-    _interpolator: _CurveInterpolator
-
     # Required properties
 
     @property
@@ -74,6 +72,20 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
             _index_base=NoInput(0),
             _index_lag=defaults.index_lag_curve,
             _modifier=defaults.modifier,
+        )
+
+    @property
+    @abstractmethod
+    def _interpolator(self) -> _CurveInterpolator:
+        # create a default CurveInterpolator that is functionless
+        # this is a placeholder obj that cannot be used for interpolation
+        return _CurveInterpolator(
+            local="log_linear",
+            t=NoInput(0),
+            endpoints=("natural", "natural"),
+            node_dates=[],
+            convention=defaults.convention.lower(),
+            curve_type=_CurveType.dfs
         )
 
     @property
