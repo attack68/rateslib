@@ -42,6 +42,25 @@ class TestStateAndCache:
         new = fxr.rate("eurgbp")
         assert new != original
 
+    @pytest.mark.parametrize(("meth", "args"), [
+        ("update", ([{"eurusd": 1.0}],)),
+        ("_set_ad_order", (2,))
+    ])
+    def test_fxforwards_cache_clearing(self, meth, args):
+        fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
+        fxf = FXForwards(
+            fx_rates=[fxr1],  # FXRates as list
+            fx_curves={
+                "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "usdeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            },
+        )
+        fxf._cache[(dt(2000, 1, 1), "eurusd")] = 100.0
+        getattr(fxf, meth)(*args)
+        assert fxf._cache == {}
+
+
 
 @pytest.mark.parametrize(
     "fx_rates",
