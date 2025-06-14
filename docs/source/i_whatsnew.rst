@@ -45,7 +45,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
        - The arguments ``calendar``, ``convention`` and ``modifier`` are removed from a
          :class:`~rateslib.curves.ProxyCurve`. These meta items are inherited from the cashflow
          curve in the existing :class:`~rateslib.fx.FXForwards` object.
-         (`922 <https://github.com/attack68/rateslib/pull/922>`_)
+         (`925 <https://github.com/attack68/rateslib/pull/925>`_)
        - A new :class:`~rateslib.curves.CreditImpliedCurve` class is available, in beta, to imply
          a *risk free*, *hazard*, or *credit* curve from combinations of the other two in
          combination with an expressed recovery rate.
