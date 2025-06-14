@@ -6,13 +6,11 @@ from dataclasses import replace
 from datetime import datetime, timedelta
 from math import prod
 from typing import TYPE_CHECKING, Any, TypeAlias
-from uuid import uuid4
 
 from pandas import Series
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
-from rateslib.calendars.rs import get_calendar
 from rateslib.curves.base import _BaseCurve, _WithMutation
 from rateslib.curves.utils import (
     _CreditImpliedType,
@@ -42,9 +40,6 @@ from rateslib.mutability import (
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
-        Arr1dF64,
-        Arr1dObj,
-        CalInput,
         CurveOption_,
         FXForwards,
         Number,
@@ -402,7 +397,7 @@ class _TranslatedCurve(_WithOperations, _BaseCurve):
     # abcs
 
     _id: str = None  # type: ignore[assignment]
-    _nodes: _CurveNodes = None # type: ignore[assignment]
+    _nodes: _CurveNodes = None  # type: ignore[assignment]
 
     def __init__(
         self,
@@ -764,8 +759,8 @@ class Curve(_WithMutation, _WithOperations, _BaseCurve):  # type: ignore[misc]
     _id: str = None  # type: ignore[assignment]
     _ad: int = None  # type: ignore[assignment]
     _meta: _CurveMeta = None  # type: ignore[assignment]
-    _nodes: _CurveNodes = None # type: ignore[assignment]
-    _interpolator: _CurveInterpolator = None # type: ignore[assignment]
+    _nodes: _CurveNodes = None  # type: ignore[assignment]
+    _interpolator: _CurveInterpolator = None  # type: ignore[assignment]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -917,8 +912,8 @@ class LineCurve(_WithMutation, _WithOperations, _BaseCurve):  # type: ignore[mis
     _id: str = None  # type: ignore[assignment]
     _ad: int = None  # type: ignore[assignment]
     _meta: _CurveMeta = None  # type: ignore[assignment]
-    _nodes: _CurveNodes = None # type: ignore[assignment]
-    _interpolator: _CurveInterpolator = None # type: ignore[assignment]
+    _nodes: _CurveNodes = None  # type: ignore[assignment]
+    _interpolator: _CurveInterpolator = None  # type: ignore[assignment]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -1110,9 +1105,9 @@ class CompositeCurve(_WithOperations, _BaseCurve):
     _base_type: _CurveType = None  # type: ignore[assignment]
     _id: str = None  # type: ignore[assignment]
     _ad: int = None  # type: ignore[assignment]
-    _meta: _CurveMeta = None # type: ignore[assignment]
-    _nodes: _CurveNodes = None # type: ignore[assignment]
-    _interpolator: _CurveInterpolator = None # type: ignore[assignment]
+    _meta: _CurveMeta = None  # type: ignore[assignment]
+    _nodes: _CurveNodes = None  # type: ignore[assignment]
+    _interpolator: _CurveInterpolator = None  # type: ignore[assignment]
 
     @_new_state_post
     @_clear_cache_post
@@ -1353,9 +1348,9 @@ class MultiCsaCurve(CompositeCurve):
             return self._cached_value(date, v)
 
 
-class ProxyCurve(Curve):
+class ProxyCurve(_WithOperations, _BaseCurve):
     """
-    A subclass of :class:`~rateslib.curves.Curve` which returns dynamic DFs based on
+    A curve which returns dynamic DFs based on
     other curves related via :class:`~rateslib.fx.FXForwards` parity.
 
     Parameters
@@ -1368,16 +1363,6 @@ class ProxyCurve(Curve):
     fx_forwards : FXForwards
         The :class:`~rateslib.fx.FXForwards` object which contains the relating
         FX information and the available :class:`~rateslib.curves.Curve` s.
-    convention : str
-        The day count convention used for calculating rates. If `None` defaults
-        to the convention in the local cashflow currency.
-    modifier : str, optional
-        The modification rule, in {"F", "MF", "P", "MP"}, for determining rates.
-        If `False` will default to the modifier in the local cashflow currency.
-    calendar : calendar or str, optional
-        The holiday calendar object to use. If str, lookups named calendar
-        from static data. Used for determining rates. If `False` will
-        default to the calendar in the local cashflow currency.
     id : str, optional, set by Default
         The unique identifier to distinguish between curves in a multi-curve framework.
 
@@ -1395,50 +1380,16 @@ class ProxyCurve(Curve):
     the given :class:`FXForwards` instance.
     """
 
-    _base_type = _CurveType.dfs
-    _interpolator: _ProxyCurveInterpolator  # type: ignore[assignment]
-    _nodes: _CurveNodes
-    _meta: _CurveMeta
+    _mutable_by_association = True
+    _do_not_validate = False
 
-    def __init__(
-        self,
-        cashflow: str,
-        collateral: str,
-        fx_forwards: FXForwards,
-        convention: str_ = NoInput(1),  # inherits from existing curve objects
-        modifier: str_ = NoInput(1),  # inherits from existing curve objects
-        calendar: CalInput = NoInput(1),  # inherits from existing curve objects
-        id: str_ = NoInput(0),  # noqa: A002
-    ):
-        self._id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
+    # abcs
 
-        self._interpolator = _ProxyCurveInterpolator(
-            _fx_forwards=fx_forwards, _cash=cashflow.lower(), _collateral=collateral.lower()
-        )
-
-        self._meta = _CurveMeta(
-            get_calendar(
-                _drb(fx_forwards.fx_curves[self.interpolator.cash_pair].meta.calendar, calendar)
-            ),
-            _drb(
-                fx_forwards.fx_curves[self.interpolator.cash_pair].meta.convention, convention
-            ).lower(),
-            _drb(
-                fx_forwards.fx_curves[self.interpolator.cash_pair].meta.modifier, modifier
-            ).upper(),
-            NoInput(0),  # index meta not relevant for ProxyCurve
-            0,
-            self.interpolator.collateral,
-            100,  # credit elements irrelevant for a PxyCv
-            1.0,  # credit elements irrelevant for a PxyCv
-        )
-        # CurveNodes attached for date attribution
-        self._nodes = _CurveNodes(
-            {
-                fx_forwards.immediate: 0.0,
-                fx_forwards.fx_curves[self.interpolator.cash_pair].nodes.final: 0.0,
-            }
-        )
+    _base_type: _CurveType = None  # type: ignore[assignment]
+    _interpolator: _ProxyCurveInterpolator = None  # type: ignore[assignment]
+    _nodes: _CurveNodes = None  # type: ignore[assignment]
+    _meta: _CurveMeta = None  # type: ignore[assignment]
+    _id: str = None  # type: ignore[assignment]
 
     @property
     def _ad(self) -> int:  # type: ignore[override]
@@ -1450,11 +1401,38 @@ class ProxyCurve(Curve):
         return self._interpolator
 
     @property
-    def _state(self) -> int:  # type: ignore[override]
-        # ProxyCurve is directly associated with its FXForwards object
-        self.interpolator.fx_forwards._validate_state()
-        return self.interpolator.fx_forwards._state
+    @_validate_states  # this ensures that the _meta attribute is updated if the curve state changes
+    def meta(self) -> _CurveMeta:
+        return self._meta
 
+    @_new_state_post
+    @_clear_cache_post
+    def __init__(
+        self,
+        cashflow: str,
+        collateral: str,
+        fx_forwards: FXForwards,
+        id: str_ = NoInput(0),  # noqa: A002
+    ):
+        self._interpolator = _ProxyCurveInterpolator(
+            _fx_forwards=fx_forwards, _cash=cashflow.lower(), _collateral=collateral.lower()
+        )
+        self._id = _drb(super()._id, id)
+        self._base_type = fx_forwards.fx_curves[self.interpolator.cash_pair]._base_type
+        self._meta = replace(
+            self.interpolator.fx_forwards.fx_curves[self.interpolator.cash_pair].meta,
+            _collateral=collateral.lower(),
+        )
+        # CurveNodes attached for date attribution
+        self._nodes = _CurveNodes(
+            {
+                fx_forwards.immediate: 0.0,
+                fx_forwards.fx_curves[self.interpolator.cash_pair].nodes.final: 0.0,
+            }
+        )
+
+    @_validate_states
+    @_no_interior_validation
     def __getitem__(self, date: datetime) -> DualTypes:
         _1: DualTypes = self.interpolator.fx_forwards.rate(self.interpolator.pair, date)
         _2: DualTypes = self.interpolator.fx_forwards.fx_rates_immediate._fx_array_el(
@@ -1465,56 +1443,29 @@ class ProxyCurve(Curve):
         ]
         return _1 / _2 * _3
 
-    # Not Implemented
+    def _set_ad_order(self, order: int) -> None:
+        return self.interpolator.fx_forwards._set_ad_order(order)
 
-    def plot_index(self, *args: Any, **kwargs: Any) -> None:  # type: ignore[override] # pragma: no cover
-        """Not implemented on *ProxyCurve* types."""
-        raise NotImplementedError("ProxyCurve types are not index curves.")
+    def _validate_state(self) -> None:
+        """Used by 'mutable by association' objects to evaluate if their own record of
+        associated objects states matches the current state of those objects.
 
-    def csolve(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover
-        """Not implemented on *ProxyCurve* types."""
-        raise NotImplementedError("ProxyCurve types are associations without parameters.")
+        Mutable by update objects have no concept of state validation, they simply maintain
+        a *state* id.
+        """
+        self.interpolator.fx_forwards._validate_state()  # validate the state of sub-object
+        if self._state != self._get_composited_state():
+            # re-reference meta preserving own collateral status
+            self._meta = replace(
+                self.interpolator.fx_forwards.fx_curves[self.interpolator.cash_pair].meta,
+                _collateral=self._meta.collateral,
+            )
+            # If any of the associated curves have been mutated then the cache is invalidated
+            self._clear_cache()
+            self._set_new_state()
 
-    def index_value(self, *args: Any, **kwargs: Any) -> None:  # type: ignore[override] # pragma: no cover
-        """Not implemented on *ProxyCurve* types."""
-        raise NotImplementedError(
-            "ProxyCurve types are not index curves with an `index base` attribute."
-        )
-
-    def to_json(self) -> str:  # pragma: no cover
-        """Not implemented on *ProxyCurve* types."""
-        raise NotImplementedError("ProxyCurve types are associations that cannot be serialized.")
-
-    @classmethod
-    def from_json(cls, curve: str, **kwargs: Any) -> Curve:  # pragma: no cover
-        """Not implemented on *ProxyCurve* types."""
-        raise NotImplementedError("ProxyCurve types are associations that cannot be serialized.")
-
-    def _set_ad_order(self, order: int) -> None:  # pragma: no cover
-        """Not implemented on *ProxyCurve* types."""
-        raise NotImplementedError(
-            "ProxyCurve types derive their AD order from their parent FXForwards."
-        )
-
-    def _get_node_vector(self) -> Arr1dF64 | Arr1dObj:  # pragma: no cover
-        """Not implemented on *ProxyCurve* types."""
-        raise NotImplementedError("Instances of ProxyCurve do not have solvable variables.")
-
-    def copy(self, *args: Any, **kwargs: Any) -> None:  # type: ignore[override] # pragma: no cover
-        """Not implemented on *ProxyCurve* types."""
-        raise NotImplementedError("ProxyCurve types are associations that cannot be copied.")
-
-    def update(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover
-        """Not implemented on *ProxyCurve* types."""
-        raise NotImplementedError("ProxyCurve types do not provide update methods.")
-
-    def update_node(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover
-        """Not implemented on *ProxyCurve* types."""
-        raise NotImplementedError("ProxyCurve types do not provide update methods.")
-
-    def update_meta(self, key: datetime, value: DualTypes) -> None:  # pragma: no cover
-        """Not implemented on *ProxyCurve* types."""
-        raise NotImplementedError("ProxyCurve types do not provide update methods.")
+    def _get_composited_state(self) -> int:
+        return self.interpolator.fx_forwards._state
 
 
 class CreditImpliedCurve(_WithOperations, _BaseCurve):
@@ -1621,8 +1572,8 @@ class CreditImpliedCurve(_WithOperations, _BaseCurve):
 
     # abcs
 
-    _meta: _CurveMeta = None # type: ignore[assignment]
-    _interpolator: _CurveInterpolator = None # type: ignore[assignment]
+    _meta: _CurveMeta = None  # type: ignore[assignment]
+    _interpolator: _CurveInterpolator = None  # type: ignore[assignment]
 
     @property
     def _base_type(self) -> _CurveType:  # type: ignore[override]
@@ -1681,7 +1632,7 @@ class CreditImpliedCurve(_WithOperations, _BaseCurve):
         return self._meta
 
     @property
-    def _nodes(self) -> _CurveNodes:
+    def _nodes(self) -> _CurveNodes:  # type: ignore[override]
         return self.obj.nodes
 
     def _composite_scalars(self) -> list[float | Dual | Dual2 | Variable]:

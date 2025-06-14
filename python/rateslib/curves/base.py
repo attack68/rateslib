@@ -85,13 +85,12 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
             endpoints=("natural", "natural"),
             node_dates=[],
             convention=defaults.convention.lower(),
-            curve_type=_CurveType.dfs
+            curve_type=_CurveType.dfs,
         )
 
     @property
     @abstractmethod
-    def _nodes(self) -> _CurveNodes:
-        ...
+    def _nodes(self) -> _CurveNodes: ...
 
     @property
     @abstractmethod

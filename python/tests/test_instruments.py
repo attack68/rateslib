@@ -5267,7 +5267,7 @@ class TestFXOptions:
             premium=100000.0,
         )
         result = fxo.rate(
-            curves=[None, fxfo.curve("eur", "usd", None, fxfo.curve("usd", "usd"))],
+            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
             vol=vol_,
             fx=fxfo,
             metric="vol",
