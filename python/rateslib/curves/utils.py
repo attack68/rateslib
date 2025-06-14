@@ -50,10 +50,10 @@ class _CreditImpliedType(Enum):
     risk_free = 2
 
 
-@dataclass(frozen=True)
+@dataclass
 class _CurveMeta:
     """
-    An immutable container of meta data associated with a
+    A container of meta data associated with a
     :class:`~rateslib.curves.Curve` used to make calculations.
     """
 

@@ -282,10 +282,10 @@ class _ShiftedCurve(_WithOperations, _BaseCurve):
         self._obj = CompositeCurve(curves=[curve, shifted], id=id_, _no_validation=True)
 
     def __getitem__(self, date: datetime) -> DualTypes:
-        return self._obj.__getitem__(date)
+        return self.obj.__getitem__(date)
 
     def _set_ad_order(self, ad: int) -> None:
-        return self._obj._set_ad_order(ad)
+        return self.obj._set_ad_order(ad)
 
     @property
     def obj(self) -> _BaseCurve:
@@ -420,12 +420,12 @@ class _TranslatedCurve(_WithOperations, _BaseCurve):
         if date < self.nodes.initial:
             return 0.0
         elif self._base_type == _CurveType.dfs:
-            return self._obj.__getitem__(date) / self._obj.__getitem__(self.nodes.initial)
+            return self.obj.__getitem__(date) / self.obj.__getitem__(self.nodes.initial)
         else:  # _CurveType.values
-            return self._obj.__getitem__(date)
+            return self.obj.__getitem__(date)
 
     def _set_ad_order(self, ad: int) -> None:
-        return self._obj._set_ad_order(ad)
+        return self.obj._set_ad_order(ad)
 
     @property
     def obj(self) -> _BaseCurve:
@@ -563,36 +563,36 @@ class _RolledCurve(_WithOperations, _BaseCurve):
         if self._base_type == _CurveType.dfs:
             if self._roll_days <= 0:
                 # boundary is irrelevant
-                scalar_date = self._obj.nodes.initial + timedelta(days=-self._roll_days)
-                return self._obj.__getitem__(
+                scalar_date = self.obj.nodes.initial + timedelta(days=-self._roll_days)
+                return self.obj.__getitem__(
                     date - timedelta(days=self._roll_days)
-                ) / self._obj.__getitem__(scalar_date)
+                ) / self.obj.__getitem__(scalar_date)
             else:
-                next_day = add_tenor(self.nodes.initial, "1b", "F", self._obj.meta.calendar)
-                on_rate = self._obj._rate_with_raise(self.nodes.initial, next_day)
+                next_day = add_tenor(self.nodes.initial, "1b", "F", self.obj.meta.calendar)
+                on_rate = self.obj._rate_with_raise(self.nodes.initial, next_day)
                 dcf_ = dcf(
                     self.nodes.initial,
                     next_day,
-                    self._obj.meta.convention,
-                    calendar=self._obj.meta.calendar,
+                    self.obj.meta.convention,
+                    calendar=self.obj.meta.calendar,
                 )
                 r_, d_, n_ = average_rate(
-                    self.nodes.initial, next_day, self._obj.meta.convention, on_rate, dcf_
+                    self.nodes.initial, next_day, self.obj.meta.convention, on_rate, dcf_
                 )
                 if self.nodes.initial <= date < boundary:
                     # must project forward
                     return 1.0 / (1 + r_ * d_ / 100.0) ** (date - self.nodes.initial).days
                 else:  # boundary <= date:
                     scalar = (1.0 + d_ * r_ / 100) ** self._roll_days
-                    return self._obj.__getitem__(date - timedelta(days=self._roll_days)) / scalar
+                    return self.obj.__getitem__(date - timedelta(days=self._roll_days)) / scalar
         else:  # _CurveType.values
             if self.nodes.initial <= date < boundary:
-                return self._obj.__getitem__(self.nodes.initial)
+                return self.obj.__getitem__(self.nodes.initial)
             else:  # boundary <= date:
-                return self._obj.__getitem__(date - timedelta(days=self._roll_days))
+                return self.obj.__getitem__(date - timedelta(days=self._roll_days))
 
-    def _set_ad_order(self, ad: int) -> None:
-        return self._obj._set_ad_order(ad)
+    def _set_ad_order(self, order: int) -> None:
+        return self.obj._set_ad_order(order)
 
     @property
     def obj(self) -> _BaseCurve:
@@ -606,23 +606,23 @@ class _RolledCurve(_WithOperations, _BaseCurve):
 
     @property
     def _ad(self) -> int:  # type: ignore[override]
-        return self._obj._ad
+        return self.obj.ad
 
     @property
     def _interpolator(self) -> _CurveInterpolator:  # type: ignore[override]
-        return self._obj._interpolator
+        return self.obj.interpolator
 
     @property
     def _meta(self) -> _CurveMeta:  # type: ignore[override]
-        return self._obj.meta
+        return self.obj.meta
 
     @property
     def _nodes(self) -> _CurveNodes:  # type: ignore[override]
-        return self._obj._nodes
+        return self.obj.nodes
 
     @property
     def _base_type(self) -> _CurveType:  # type: ignore[override]
-        return self._obj._base_type
+        return self.obj._base_type
 
 
 class Curve(_WithMutation, _WithOperations, _BaseCurve):  # type: ignore[misc]
