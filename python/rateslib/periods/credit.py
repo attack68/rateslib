@@ -411,7 +411,7 @@ class CreditProtectionPeriod(BasePeriod):
         """
         curve_, disc_curve_ = _validate_credit_curves(curve, disc_curve)
         haz_curve = curve_.copy()
-        haz_curve._meta = replace(
+        haz_curve._meta = replace(  # type: ignore[misc]
             curve_.meta,
             _credit_recovery_rate=Variable(
                 _dual_float(curve_.meta.credit_recovery_rate), ["__rec_rate__"], []

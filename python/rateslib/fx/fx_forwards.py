@@ -26,7 +26,7 @@ from rateslib.mutability import (
 )
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, Number, _BaseCurve, datetime_
+    from rateslib.typing import Number, _BaseCurve, datetime_
 DualTypes: TypeAlias = (
     "Dual | Dual2 | Variable | float"  # required for non-cyclic import on _WithCache
 )
@@ -225,7 +225,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
         self.terminal: datetime = datetime(2200, 1, 1)
         for flag, (k, curve) in enumerate(self.fx_curves.items()):
             try:  # to label curve meta with collateral
-                curve._meta = replace(curve._meta, _collateral=k[3:6])
+                curve._meta = replace(curve._meta, _collateral=k[3:6])  # type: ignore[misc]
             except AttributeError:
                 if curve._meta.collateral is not None and curve._meta.collateral != k[3:6]:
                     warnings.warn(
@@ -819,9 +819,6 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
         self,
         cashflow: str,
         collateral: str | list[str] | tuple[str, ...],
-        convention: str | NoInput = NoInput(1),  # will inherit from available curve
-        modifier: str | NoInput = NoInput(1),  # will inherit from available curve
-        calendar: CalInput = NoInput(1),  # will inherit from available curve
         id: str | NoInput = NoInput(0),  # noqa: A002
     ) -> _BaseCurve:
         """
@@ -834,16 +831,6 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
         collateral : str, or list/tuple of such
             The currency of the CSA against which cashflows are collateralised (3-digit
             code). If a list or tuple will return a CompositeCurve in multi-CSA mode.
-        convention : str
-            The day count convention used for calculating rates. If `None` defaults
-            to the convention in the local cashflow currency.
-        modifier : str, optional
-            The modification rule, in {"F", "MF", "P", "MP"}, for determining rates.
-            If `False` will default to the modifier in the local cashflow currency.
-        calendar : calendar or str, optional
-            The holiday calendar object to use. If str, lookups named calendar
-            from static data. Used for determining rates. If `False` will
-            default to the calendar in the local cashflow currency.
         id : str, optional
             The identifier attached to any constructed :class:`~rateslib.fx.ProxyCurve`.
 
@@ -854,29 +841,29 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
         Notes
         -----
         If the :class:`~rateslib.curves.Curve` already exists within the attribute
-        ``fx_curves`` that *Curve* will be returned.
+        ``fx_curves`` that *Curve* will be returned directly.
 
         If a :class:`~rateslib.curves.ProxyCurve` already exists with the attribute
         ``fx_proxy_curves`` that *Curve* will be returned.
 
-        Otherwise, creates and returns a ``ProxyCurve`` which determines rates
+        Otherwise, creates and returns a :class:`~rateslib.curves.ProxyCurve` which determines rates
         and DFs via the chaining method and the below formula,
 
         .. math::
 
            w_{dom:for,i} = \\frac{f_{DOMFOR,i}}{F_{DOMFOR,0}} v_{for:for,i}
 
-        The returned curve contains contrived methods to calculate rates and DFs
-        from the combination of curves and FX rates that are available within
-        the given :class:`FXForwards` instance.
-
         For multiple collateral currencies returns a :class:`~rateslib.curves.MultiCsaCurve`.
+
+        The :class:`~rateslib.curves._CurveMeta` inherits values from the local cash
+        :class:`~rateslib.curves.Curve`, and the ``collateral`` value is set as the defined
+        collateral currency.
         """
         if isinstance(collateral, list | tuple):
             # TODO add this curve to fx_proxy_curves and lexsort the collateral
             curves = []
             for coll in collateral:
-                curves.append(self.curve(cashflow, coll, convention, modifier, calendar))
+                curves.append(self.curve(cashflow, coll))
             curve = MultiCsaCurve(curves=curves, id=id)
             curve._meta = replace(curve.meta, _collateral=",".join([_.lower() for _ in collateral]))
             return curve
@@ -889,13 +876,10 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
         elif pair in self._fx_proxy_curves:
             return self._fx_proxy_curves[pair]
         else:
-            curve_ = ProxyCurve(
+            curve_: ProxyCurve = ProxyCurve(
                 cashflow=cash_ccy,
                 collateral=coll_ccy,
                 fx_forwards=self,
-                convention=convention,
-                modifier=modifier,
-                calendar=calendar,
                 id=id,
             )
             self._fx_proxy_curves[pair] = curve_

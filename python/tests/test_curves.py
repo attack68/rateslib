@@ -2121,7 +2121,7 @@ class TestProxyCurve:
         assert curve.__repr__() == expected
         assert isinstance(curve.id, str)
 
-    def test_typing_as_curve(self):
+    def test_typing_as_basecurve(self):
         fxr1 = FXRates({"usdeur": 0.95}, dt(2022, 1, 3))
         fxr2 = FXRates({"usdcad": 1.1}, dt(2022, 1, 2))
         fxf = FXForwards(
@@ -2135,7 +2135,7 @@ class TestProxyCurve:
             },
         )
         curve = fxf.curve("cad", "eur")
-        assert isinstance(curve, Curve)
+        assert isinstance(curve, _BaseCurve)
 
     def test_cache_is_validated_on_getitem_and_lookup(self):
         fxr1 = FXRates({"usdeur": 0.95}, dt(2022, 1, 3))
@@ -2158,7 +2158,6 @@ class TestProxyCurve:
 
         state1 = fxf._state
         # performing an action on the proxy curve will validate and update states
-        # even calling _state on the ProxyCurve will validate and update states
         curve[dt(2022, 1, 9)]
         state2 = fxf._state
         assert state1 != state2
@@ -2166,7 +2165,7 @@ class TestProxyCurve:
         fxr1.update({"usdeur": 10.0})
         fxf.curve("eur", "eur")._set_node_vector([0.6], 1)
         state3 = curve._state
-        assert state3 != state2  # becuase calling _state has validated and updated
+        assert state3 == state2  # becuase no method validation has yet occurred
 
     def test_update(self):
         fxr1 = FXRates({"usdeur": 0.95}, dt(2022, 1, 3))
@@ -2182,11 +2181,11 @@ class TestProxyCurve:
             },
         )
         curve = fxf.curve("cad", "eur")
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(AttributeError):
             curve.update_meta("h", 100.0)
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(AttributeError):
             curve.update_node("h", 100.0)
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(AttributeError):
             curve.update("h", 100.0)
 
 
@@ -2844,3 +2843,35 @@ class Test_CreditImpliedCurve:
         result = credit.meta.credit_recovery_rate
         expected = 0.90
         assert abs(result - expected) < 1e-12
+
+
+class TestMeta:
+    def test_meta_mutation(self, curve, line_curve):
+        # test all the rateslib curve types metas can be mutated
+
+        curves = [curve, line_curve]
+        dependent_curves = []
+
+        dependent_curves.append(CompositeCurve([curve, curve]))
+        dependent_curves.append(curve.shift(10))
+        dependent_curves.append(curve.roll("10d"))
+        dependent_curves.append(curve.translate(dt(2022, 3, 14)))
+        dependent_curves.append(MultiCsaCurve([curve, curve]))
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.10}, dt(2022, 3, 1)),
+            {"eureur": curve, "eurusd": curve, "usdusd": curve},
+        )
+        dependent_curves.append(fxf.curve("usd", "eur"))
+        dependent_curves.append(CreditImpliedCurve(risk_free=curve, hazard=curve))
+
+        for c in dependent_curves + curves:
+            from random import random
+
+            x = int(random() * 100.0)
+            c.meta._credit_discretization = x
+            assert c.meta.credit_discretization == x
+
+        curve.update_meta("credit_recovery_rate", 500.0)
+        for c in dependent_curves:
+            print(c)
+            assert c.meta.credit_recovery_rate == 500.0

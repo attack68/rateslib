@@ -58,12 +58,52 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
     will raise `TypeError`.
     """
 
-    _ad: int
-    _id: str
-    _base_type: _CurveType
-    _meta: _CurveMeta
-    _nodes: _CurveNodes
-    _interpolator: _CurveInterpolator
+    # Required properties
+
+    @property
+    @abstractmethod
+    def _meta(self) -> _CurveMeta:
+        return _CurveMeta(
+            _calendar=get_calendar(NoInput(0)),
+            _collateral=None,
+            _convention=defaults.convention.lower(),
+            _credit_discretization=defaults.cds_protection_discretization,
+            _credit_recovery_rate=defaults.cds_recovery_rate,
+            _index_base=NoInput(0),
+            _index_lag=defaults.index_lag_curve,
+            _modifier=defaults.modifier,
+        )
+
+    @property
+    @abstractmethod
+    def _interpolator(self) -> _CurveInterpolator:
+        # create a default CurveInterpolator that is functionless
+        # this is a placeholder obj that cannot be used for interpolation
+        return _CurveInterpolator(
+            local="log_linear",
+            t=NoInput(0),
+            endpoints=("natural", "natural"),
+            node_dates=[],
+            convention=defaults.convention.lower(),
+            curve_type=_CurveType.dfs,
+        )
+
+    @property
+    @abstractmethod
+    def _nodes(self) -> _CurveNodes: ...
+
+    @property
+    @abstractmethod
+    def _id(self) -> str:
+        return uuid4().hex[:5]
+
+    @property
+    @abstractmethod
+    def _ad(self) -> int: ...
+
+    @property
+    @abstractmethod
+    def _base_type(self) -> _CurveType: ...
 
     # Required methods
 
