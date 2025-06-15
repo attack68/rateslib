@@ -1,6 +1,6 @@
 from rateslib.curves.base import (
     _BaseCurve,
-    _WithMutation,
+    _WithMutability,
 )
 from rateslib.curves.curves import (
     CompositeCurve,
@@ -47,5 +47,5 @@ __all__ = (
     "_TranslatedCurve",
     "_WithOperations",
     "_BaseCurve",
-    "_WithMutation",
+    "_WithMutability",
 )
