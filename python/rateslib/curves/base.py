@@ -52,10 +52,15 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
     An ABC defining the base methods of a *Curve*.
 
     Provided the `__getitem__` method is defined for a discount factor (DF) based,
-    or values based curve, all methods of this class are provided directly.
+    or values based curve, all methods of this class are provided directly. To automatically
+    provide some of the necessary abstract operations the class
+    :class:`~rateslib.curves._WithOperations` can, and is likely to always be, inherited.
 
     In certain cases the `_base_type` will prevent some methods from calculating and
     will raise `TypeError`.
+
+    To use this class to build custom user type classes see
+    `Cookbook: Building Custom Curves (Nelson-Siegel) <../z_basecurve.html>`_
     """
 
     # Required properties
