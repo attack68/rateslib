@@ -14,7 +14,7 @@
    from pandas import DataFrame
 
 *********************************
-FX Vol Surfaces
+FX Vol Smiles & Surfaces
 *********************************
 
 The ``rateslib.fx_volatility`` module includes classes for *Smiles* and *Surfaces*

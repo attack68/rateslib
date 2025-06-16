@@ -253,7 +253,7 @@ calibrated.
 Algorithms
 ***********
 
-In the ``defaults`` settings of ``rateslib``, :class:`~rateslib.solver.Solver` uses
+In the ``defaults`` settings of *rateslib*, :class:`~rateslib.solver.Solver` uses
 a *"levenberg_marquardt"* algorithm.
 
 There is an option to use a *"gauss_newton*" algorithm which is faster if the
@@ -263,7 +263,7 @@ unstable algorithm (initial guesses more likely to lead to failure) so is not se
 For other debugging procedures the *"gradient_descent"* method is available although
 this is not recommended due to computational inefficiency.
 
-Details on these algorithms are provided in the ``rateslib``
+Details on these algorithms are provided in the *rateslib*
 :ref:`supplementary materials<about-doc>`.
 
 Weights
@@ -532,18 +532,19 @@ is to be expected.
    solver_with_error.error
 
 
-Composite, Proxy and Multi-CSA Curves
+Pricing Container Objects
 ****************************************
 
-:class:`~rateslib.curves.CompositeCurve`, :class:`~rateslib.curves.ProxyCurve` and
-:class:`~rateslib.curves.MultiCsaCurve` do not
+:class:`~rateslib.curves.CompositeCurve`, :class:`~rateslib.curves.ProxyCurve`,
+:class:`~rateslib.curves.MultiCsaCurve`, and :class:`~rateslib.curves.CreditImpliedCurve` are
+examples of **pricing container objects** that do not
 have their own parameters. These rely on the parameters from other fundamental curves.
 It is possible to create a *Solver* defined with *Instruments* that reference these
-complex curves as pricing curves with the *Solver* updating the underlying
-parameters of the fundamental curves.
+composite objects as pricing curves with the *Solver* updating the underlying
+parameters of the fundamental curves that support them.
 
 This does not require much additional configuration, it simply requires ensuring
-all necessary curves are documented.
+all necessary curves are documented, and known by the :class:`~rateslib.solver.Solver`.
 
 Below we will calculate a EUR IRS defined by a *CompositeCurve* and a *Curve*,
 a USD IRS defined just by a *Curve*, and then create an :class:`~rateslib.fx.FXForwards`
