@@ -473,6 +473,7 @@ The main user curve classes are listed below:
 .. autosummary::
    rateslib.curves.CompositeCurve
    rateslib.curves.MultiCsaCurve
+   rateslib.curves.CreditImpliedCurve
    rateslib.curves.ProxyCurve
 
 These objects allow complex curve features and scenarios to be modelled in a recognisable and
