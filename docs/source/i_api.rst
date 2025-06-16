@@ -142,8 +142,10 @@ Curves
 Class Inheritance Diagram
 --------------------------
 
-.. automod-diagram:: rateslib.curves
+.. inheritance-diagram:: rateslib.curves.Curve rateslib.curves.LineCurve rateslib.curves.CompositeCurve rateslib.curves.MultiCsaCurve rateslib.curves.ProxyCurve rateslib.curves._BaseCurve rateslib.curves._WithMutability rateslib.curves.CreditImpliedCurve
+   :private-bases:
    :parts: 1
+
 
 FX
 ===

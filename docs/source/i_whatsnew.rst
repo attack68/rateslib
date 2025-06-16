@@ -17,7 +17,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
 
 This release focused on restructuring curves in order to provide a system for user implemented
 custom curves, which can directly inherit all of the native functionality of *rateslib*. An
-example can be seen in the :ref:`Cookbook - Building Custom Curves (Nelson-Siegel)`.
+example can be seen in the `Cookbook: Building Custom Curves (Nelson-Siegel) <z_basecurve.html>`_
 
 .. list-table::
    :widths: 25 75
@@ -105,12 +105,12 @@ example can be seen in the :ref:`Cookbook - Building Custom Curves (Nelson-Siege
 
 Some themes for this release involved:
 
-- extensive revisions to use *indexes*. The cookbook
-  article :ref:`'Using Curves with an Index and Inflation Instruments' <cookbook-doc>` outlines
-  best practice.
-- extensions to bond calculation modes to provide more flexibility. The cookbook article
-  :ref:`'Understanding and Customising FixedRateBond Conventions' <cookbook-doc>` outlines
-  best practice.
+- extensive revisions to use *indexes*.
+  `Cookbook: Using Curves with an Index and Inflation Instruments <z_index_bonds_and_fixings.html>`_
+  outlines best practice.
+- extensions to bond calculation modes to provide more flexibility.
+  `Cookbook: Understanding and Customising FixedRateBond Conventions <z_bond_conventions.html>`_
+  outlines best practice.
 - restructuring all pricing objects types' (:class:`~rateslib.curves.Curve`,
   :class:`~rateslib.curves.LineCurve`, :class:`~rateslib.fx_volatility.FXDeltaVolSmile`,
   :class:`~rateslib.fx_volatility.FXSabrSmile`) **attributes** to improve mutability safeguards,
