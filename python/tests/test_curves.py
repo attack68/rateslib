@@ -1899,7 +1899,7 @@ class TestMultiCsaCurve:
         assert cc.rate(dt(2021, 3, 4), "1b", "f") is None
 
     def test_multi_raises(self, line_curve, curve) -> None:
-        with pytest.raises(TypeError, match="Multi-CSA curves must"):
+        with pytest.raises(TypeError, match="MultiCsaCurve must use discount factors"):
             MultiCsaCurve([line_curve])
 
     def test_multi_csa_shift(self) -> None:

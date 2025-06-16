@@ -890,7 +890,7 @@ def test_generate_multi_csa_curve() -> None:
         },
     )
     c1 = fxf.curve("cad", ["cad", "usd", "eur"])
-    assert isinstance(c1, CompositeCurve)
+    assert isinstance(c1, MultiCsaCurve)
 
 
 def test_proxy_curves_update_with_underlying() -> None:

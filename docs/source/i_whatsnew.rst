@@ -15,6 +15,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
 2.1.0 (Not released)
 ***************************
 
+This release focused on restructuring curves in order to provide a system for user implemented
+custom curves, which can directly inherit all of the native functionality of *rateslib*. An
+example can be seen in the :ref:`Cookbook - Building Custom Curves (Nelson-Siegel)`.
+
 .. list-table::
    :widths: 25 75
    :header-rows: 1
@@ -42,10 +46,15 @@ email contact, see `rateslib <https://rateslib.com>`_.
          moved from the arguments of a :class:`~rateslib.curves.MultiCsaCurve` to the
          ``defaults`` object.
          (`922 <https://github.com/attack68/rateslib/pull/922>`_)
-       - The arguments ``calendar``, ``convention`` and ``modifier`` are removed from a
+       - :red:`Minor Breaking Change!` The arguments ``calendar``, ``convention`` and ``modifier``
+         are removed from a
          :class:`~rateslib.curves.ProxyCurve`. These meta items are inherited from the cashflow
          curve in the existing :class:`~rateslib.fx.FXForwards` object.
          (`925 <https://github.com/attack68/rateslib/pull/925>`_)
+       - :red:`Minor Breaking Change!` A :class:`~rateslib.curves.MultiCsaCurve` no longer
+         inherits a :class:`~rateslib.curves.CompositeCurve`, it forms a curve in its own right
+         using the :class:`~rateslib.curves._BaseCurve` class.
+         (`930 <https://github.com/attack68/rateslib/pull/930>`_)
        - A new :class:`~rateslib.curves.CreditImpliedCurve` class is available, in beta, to imply
          a *risk free*, *hazard*, or *credit* curve from combinations of the other two in
          combination with an expressed recovery rate.

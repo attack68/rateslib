@@ -1128,9 +1128,10 @@ class CompositeCurve(_WithOperations, _BaseCurve):
         self._base_type = curves[0]._base_type
         self._meta = replace(self.curves[0].meta)
 
-        # validate
-        if not _no_validation:
-            self._validate_curve_collection()
+        if _no_validation:
+            pass
+        else:
+            _validate_composited_curve_collection(self, self.curves, False)
         self._composite_scalars = [1.0] * len(self.curves)
         self._ad = max(_._ad for _ in self.curves)
 
@@ -1138,45 +1139,6 @@ class CompositeCurve(_WithOperations, _BaseCurve):
     @_validate_states  # this ensures that the _meta attribute is updated if the curve state changes
     def meta(self) -> _CurveMeta:
         return self._meta
-
-    def _validate_curve_collection(self) -> None:
-        """Perform checks to ensure CompositeCurve can exist"""
-        if type(self) is MultiCsaCurve and isinstance(self.curves[0], LineCurve):
-            raise TypeError("Multi-CSA curves must be of type `Curve`.")
-
-        types = [_._base_type for _ in self.curves]
-        if not all(_ == types[0] for _ in types):
-            # then at least one curve is value based and one is DF based
-            raise TypeError("CompositeCurve can only contain curves of the same type.")
-
-        ini_dates = [_.nodes.initial for _ in self.curves]
-        if not all(_ == ini_dates[0] for _ in ini_dates[1:]):
-            raise ValueError(f"`curves` must share the same initial node date, got {ini_dates}")
-
-        if type(self) is not MultiCsaCurve:  # for multi_csa DF curve do not check calendars
-            self._check_meta_attribute("calendar")
-
-        if self._base_type == _CurveType.dfs:
-            self._check_meta_attribute("modifier")
-            self._check_meta_attribute("convention")
-            # self._check_meta_attribute("collateral")  # not used due to inconsistent labelling
-
-        _ad = [_._ad for _ in self.curves]
-        if 1 in _ad and 2 in _ad:
-            raise TypeError(
-                "CompositeCurve cannot composite curves of AD order 1 and 2.\n"
-                "Either downcast curves using `curve._set_ad_order(1)`.\n"
-                "Or upcast curves using `curve._set_ad_order(2)`.\n"
-            )
-
-    def _check_meta_attribute(self, attr: str) -> None:
-        """Ensure attributes are the same across curve collection"""
-        attrs = [getattr(_.meta, attr, None) for _ in self.curves]
-        if not all(_ == attrs[0] for _ in attrs[1:]):
-            raise ValueError(
-                f"Cannot composite curves with different attributes, got for "
-                f"'{attr}': {[getattr(_.meta, attr, None) for _ in self.curves]},",
-            )
 
     @_validate_states
     @_no_interior_validation
@@ -1225,10 +1187,6 @@ class CompositeCurve(_WithOperations, _BaseCurve):
 
         self._ad = order
         for curve in self.curves:
-            if type(curve) is ProxyCurve:
-                continue
-                # raise TypeError("Cannot directly set the ad of ProxyCurve. Set the FXForwards.")
-                # TODO: decide if setting the AD of the associated FXForwards is viable
             curve._set_ad_order(order)
 
     # Mutation
@@ -1248,7 +1206,7 @@ class CompositeCurve(_WithOperations, _BaseCurve):
         return _
 
 
-class MultiCsaCurve(CompositeCurve):
+class MultiCsaCurve(_WithOperations, _BaseCurve):
     """
     A dynamic composition of a sequence of other curves.
 
@@ -1282,12 +1240,38 @@ class MultiCsaCurve(CompositeCurve):
     determining the *rate* by selecting the curve within the collection with the highest rate.
     """
 
+    _mutable_by_association = True
+    _do_not_validate = False
+
+    # abcs - set by init
+
+    _base_type: _CurveType = None  # type: ignore[assignment]
+    _id: str = None  # type: ignore[assignment]
+    _ad: int = None  # type: ignore[assignment]
+    _meta: _CurveMeta = None  # type: ignore[assignment]
+    _nodes: _CurveNodes = None  # type: ignore[assignment]
+    _interpolator: _CurveInterpolator = None  # type: ignore[assignment]
+
+    @property
+    @_validate_states  # this ensures that the _meta attribute is updated if the curve state changes
+    def meta(self) -> _CurveMeta:
+        return self._meta
+
+    @_new_state_post
+    @_clear_cache_post
     def __init__(
         self,
         curves: list[_BaseCurve] | tuple[_BaseCurve, ...],
         id: str | NoInput = NoInput(0),  # noqa: A002
     ) -> None:
-        super().__init__(curves, id)
+        self._id = _drb(super()._id, id)
+        self.curves = tuple(curves)
+        nodes_proxy: dict[datetime, DualTypes] = dict.fromkeys(self.curves[0].nodes.keys, 0.0)
+        self._nodes = _CurveNodes(nodes_proxy)
+        self._base_type = curves[0]._base_type
+        self._meta = replace(self.curves[0].meta)
+        _validate_composited_curve_collection(self, self.curves, True)
+        self._ad = max(_._ad for _ in self.curves)
 
     @_validate_states
     @_no_interior_validation
@@ -1349,6 +1333,81 @@ class MultiCsaCurve(CompositeCurve):
                 min_ratio = ratio_ if ratio_ < min_ratio else min_ratio
             v *= min_ratio
             return self._cached_value(date, v)
+
+    # Solver interaction
+
+    @_clear_cache_post
+    def _set_ad_order(self, order: int) -> None:
+        """
+        Change the node values on each curve to float, Dual or Dual2 based on input parameter.
+        """
+        if order not in [0, 1, 2]:
+            raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
+
+        self._ad = order
+        for curve in self.curves:
+            curve._set_ad_order(order)
+
+    # Mutation
+
+    def _validate_state(self) -> None:
+        if self._do_not_validate:
+            return None
+        if self._state != self._get_composited_state():
+            # re-reference meta preserving own collateral status
+            self._meta = replace(self.curves[0].meta, _collateral=self._meta.collateral)
+            # If any of the associated curves have been mutated then the cache is invalidated
+            self._clear_cache()
+            self._set_new_state()
+
+    def _get_composited_state(self) -> int:
+        _: int = hash(sum(curve._state for curve in self.curves))
+        return _
+
+
+def _validate_composited_curve_collection(
+    obj: _BaseCurve, curves: tuple[_BaseCurve, ...], force_dfs: bool
+) -> None:
+    """Perform checks to ensure CompositeCurve can exist"""
+    _base_type = curves[0]._base_type
+
+    if force_dfs and _base_type != _CurveType.dfs:
+        raise TypeError(f"{type(obj).__name__} must use discount factors, i.e have _CurveType.dfs.")
+
+    if not all(_._base_type == _base_type for _ in curves):
+        # then at least one curve is value based and one is DF based
+        raise TypeError(f"{type(obj).__name__} can only contain curves of the same type.")
+
+    ini_dates = [_.nodes.initial for _ in curves]
+    if not all(_ == ini_dates[0] for _ in ini_dates[1:]):
+        raise ValueError(f"`curves` must share the same initial node date, got {ini_dates}")
+
+    # if type(self) is not MultiCsaCurve:  # for multi_csa DF curve do not check calendars
+    #     self._check_meta_attribute("calendar")
+
+    if _base_type == _CurveType.dfs:
+        _check_meta_attribute(curves, "modifier")
+        _check_meta_attribute(curves, "convention")
+        _check_meta_attribute(curves, "calendar")
+        # self._check_meta_attribute("collateral")  # not used due to inconsistent labelling
+
+    _ad = [_._ad for _ in curves]
+    if 1 in _ad and 2 in _ad:
+        raise TypeError(
+            f"{type(obj).__name__} cannot composite curves of AD order 1 and 2.\n"
+            "Either downcast curves using `curve._set_ad_order(1)`.\n"
+            "Or upcast curves using `curve._set_ad_order(2)`.\n"
+        )
+
+
+def _check_meta_attribute(curves: tuple[_BaseCurve, ...], attr: str) -> None:
+    """Ensure attributes are the same across curve collection"""
+    attrs = [getattr(_.meta, attr, None) for _ in curves]
+    if not all(_ == attrs[0] for _ in attrs[1:]):
+        raise ValueError(
+            f"Cannot composite curves with different attributes, got for "
+            f"'{attr}': {[getattr(_.meta, attr, None) for _ in curves]},",
+        )
 
 
 class ProxyCurve(_WithOperations, _BaseCurve):
