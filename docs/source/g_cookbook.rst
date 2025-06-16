@@ -19,7 +19,7 @@ into any one category.
     z_curve_from_zero_rates.ipynb
     z_multicurveframework.rst
     z_bus252_convention.rst
-    z_basecurve.rst
+    z_basecurve.ipynb
 
 **Credit Curve Building**
 

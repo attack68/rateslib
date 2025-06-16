@@ -57,6 +57,9 @@ DualTypes: TypeAlias = (
 
 
 class _WithOperations(ABC):
+    """Provides automatic implementation of the curve operations required on a
+    :class:`~rateslib.curves._BaseCurve`."""
+
     _base_type: _CurveType
     _nodes: _CurveNodes
     _meta: _CurveMeta
