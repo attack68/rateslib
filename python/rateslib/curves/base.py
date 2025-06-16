@@ -816,7 +816,7 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
         # return from_json(self.to_json())
 
 
-class _WithMutation:
+class _WithMutability:
     """
     This class is designed as a mixin for the methods for *Curve Pricing Objects*, i.e.
     the :class:`~rateslib.curves.Curve` and :class:`~rateslib.curves.LineCurve`.

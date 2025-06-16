@@ -11,7 +11,7 @@ from pandas import Series
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
-from rateslib.curves.base import _BaseCurve, _WithMutation
+from rateslib.curves.base import _BaseCurve, _WithMutability
 from rateslib.curves.utils import (
     _CreditImpliedType,
     _CurveInterpolator,
@@ -57,6 +57,9 @@ DualTypes: TypeAlias = (
 
 
 class _WithOperations(ABC):
+    """Provides automatic implementation of the curve operations required on a
+    :class:`~rateslib.curves._BaseCurve`."""
+
     _base_type: _CurveType
     _nodes: _CurveNodes
     _meta: _CurveMeta
@@ -620,7 +623,7 @@ class _RolledCurve(_WithOperations, _BaseCurve):
         return self.obj._base_type
 
 
-class Curve(_WithMutation, _WithOperations, _BaseCurve):  # type: ignore[misc]
+class Curve(_WithMutability, _WithOperations, _BaseCurve):  # type: ignore[misc]
     """
     Curve based on DF parametrisation at given node dates with interpolation.
 
@@ -773,7 +776,7 @@ class Curve(_WithMutation, _WithOperations, _BaseCurve):  # type: ignore[misc]
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class LineCurve(_WithMutation, _WithOperations, _BaseCurve):  # type: ignore[misc]
+class LineCurve(_WithMutability, _WithOperations, _BaseCurve):  # type: ignore[misc]
     """
     Curve based on value parametrisation at given node dates with interpolation.
 

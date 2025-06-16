@@ -13,7 +13,7 @@
 Curves
 ***********
 
-.. inheritance-diagram:: rateslib.curves.Curve rateslib.curves.LineCurve rateslib.curves.CompositeCurve rateslib.curves.MultiCsaCurve rateslib.curves.ProxyCurve rateslib.curves._BaseCurve rateslib.curves._WithMutation rateslib.curves.CreditImpliedCurve
+.. inheritance-diagram:: rateslib.curves.Curve rateslib.curves.LineCurve rateslib.curves.CompositeCurve rateslib.curves.MultiCsaCurve rateslib.curves.ProxyCurve rateslib.curves._BaseCurve rateslib.curves._WithMutability rateslib.curves.CreditImpliedCurve
    :private-bases:
    :parts: 1
 
@@ -460,7 +460,7 @@ The only curves with parameters that are mutated and solved by a :class:`~ratesl
 are :class:`~rateslib.curves.Curve` and :class:`~rateslib.curves.LineCurve`. These are
 classed as *Pricing Objects*.
 
-These curves inherit the :class:`~rateslib.curves._WithMutation` mixin.
+These curves inherit the :class:`~rateslib.curves._WithMutability` mixin.
 
 Pricing Containers
 ********************
