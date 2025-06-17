@@ -1,4 +1,4 @@
-use crate::calendars::{is_leap_year, CalType, Modifier, RollDay};
+use crate::calendars::{is_leap_year, Cal, CalType, DateRoll, Modifier, RollDay};
 use chrono::prelude::*;
 use pyo3::pyclass;
 
@@ -71,6 +71,25 @@ impl Frequency {
     pub fn is_divisible(&self, start: &NaiveDateTime, end: &NaiveDateTime) -> bool {
         let months = end.month() - start.month();
         (months % self.months()) == 0_u32
+    }
+
+    /// Calculate the next unadjusted period date in a schedule given a valid `ueffective` date.
+    ///
+    /// Note `ueffective` should be valid relative to the roll. If unsure, call
+    /// ``roll.validate_date(&ueffective)``.
+    pub fn next_period(&self, ueffective: &NaiveDateTime, roll: &RollDay) -> NaiveDateTime {
+        let cal = Cal::new(vec![], vec![]);
+        match self {
+            Frequency::Monthly => cal.add_months(ueffective, 1, &Modifier::Act, roll, true),
+            Frequency::BiMonthly => cal.add_months(ueffective, 2, &Modifier::Act, roll, true),
+            Frequency::Quarterly => cal.add_months(ueffective, 3, &Modifier::Act, roll, true),
+            Frequency::TriAnnually => cal.add_months(ueffective, 4, &Modifier::Act, roll, true),
+            Frequency::SemiAnnually => cal.add_months(ueffective, 6, &Modifier::Act, roll, true),
+            Frequency::Annually => cal.add_months(ueffective, 12, &Modifier::Act, roll, true),
+            Frequency::Zero => {
+                panic!("`next_period` is undefined for Frequency::Zero.")
+            }
+        }
     }
 }
 
@@ -371,6 +390,63 @@ mod tests {
                     .get_rollday_from_eom_categories(&RollDayCategory::from_date(&option.1), true)
                     .unwrap()
             );
+        }
+    }
+
+    #[test]
+    fn test_get_next_period() {
+        let options: Vec<(Frequency, NaiveDateTime, RollDay, NaiveDateTime)> = vec![
+            (
+                Frequency::Monthly,
+                ndt(2022, 7, 30),
+                RollDay::Unspecified {},
+                ndt(2022, 8, 30),
+            ),
+            (
+                Frequency::BiMonthly,
+                ndt(2022, 7, 30),
+                RollDay::Unspecified {},
+                ndt(2022, 9, 30),
+            ),
+            (
+                Frequency::Quarterly,
+                ndt(2022, 7, 30),
+                RollDay::Unspecified {},
+                ndt(2022, 10, 30),
+            ),
+            (
+                Frequency::TriAnnually,
+                ndt(2022, 7, 30),
+                RollDay::Unspecified {},
+                ndt(2022, 11, 30),
+            ),
+            (
+                Frequency::SemiAnnually,
+                ndt(2022, 7, 30),
+                RollDay::Unspecified {},
+                ndt(2023, 1, 30),
+            ),
+            (
+                Frequency::Annually,
+                ndt(2022, 7, 30),
+                RollDay::Unspecified {},
+                ndt(2023, 7, 30),
+            ),
+            (
+                Frequency::Monthly,
+                ndt(2022, 6, 30),
+                RollDay::EoM {},
+                ndt(2022, 7, 31),
+            ),
+            (
+                Frequency::Monthly,
+                ndt(2022, 6, 15),
+                RollDay::IMM {},
+                ndt(2022, 7, 20),
+            ),
+        ];
+        for option in options.iter() {
+            assert_eq!(option.3, option.0.next_period(&option.1, &option.2));
         }
     }
 }
