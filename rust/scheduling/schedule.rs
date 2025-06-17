@@ -102,7 +102,7 @@ fn get_uschedule(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::ndt;
+    use crate::calendars::{ndt, Cal};
 
     //     fn fixture_hol_cal() -> Cal {
     //         let hols = vec![ndt(2015, 9, 5), ndt(2015, 9, 7)]; // Saturday and Monday
@@ -160,10 +160,15 @@ mod tests {
             ndt(2000, 1, 1),
             ndt(2000, 12, 15),
             Frequency::Months{number: 3, roll: RollDay::Unspecified{}},
-            ndt(2000, 3, 15),
+            Some(ndt(2000, 3, 15)),
             None,
-            Cal::
-
-        )
+            Modifier::ModF,
+            CalType::Cal(Cal::new(vec![], vec![])),
+            1,
+        ).unwrap();
+        let uschedule = vec![ndt(2000, 1, 1), ndt(2000, 3, 15), ndt(2000, 6, 15), ndt(2000, 9, 15), ndt(2000, 12, 15)];
+        let pschedule = vec![ndt(2000, 1, 2), ndt(2000, 3, 16), ndt(2000, 6, 16), ndt(2000, 9, 16), ndt(2000, 12, 16)];
+        assert_eq!(uschedule, s.uschedule);
+        assert_eq!(pschedule, s.pschedule);
     }
 }
