@@ -10,6 +10,7 @@ from pandas import Series
 from pytz import UTC
 
 from rateslib import defaults
+from rateslib.calendars import get_calendar
 from rateslib.default import (
     NoInput,
     PlotOutput,
@@ -34,9 +35,9 @@ from rateslib.fx_volatility.base import _BaseSmile
 from rateslib.fx_volatility.utils import (
     _d_plus_min_u,
     _delta_type_constants,
-    _FXDeltaVolSmileMeta,
     _FXDeltaVolSmileNodes,
     _FXDeltaVolSurfaceMeta,
+    _FXSmileMeta,
     _moneyness_from_delta_closed_form,
     _surface_index_left,
     _t_var_interp,
@@ -123,11 +124,15 @@ class FXDeltaVolSmile(_BaseSmile):
         )  # 1 in a million clash
 
         self._nodes = _FXDeltaVolSmileNodes(
-            meta=_FXDeltaVolSmileMeta(
+            meta=_FXSmileMeta(
                 _expiry=expiry,
                 _eval_date=eval_date,
                 _delta_type=_validate_delta_type(delta_type),
                 _plot_x_axis="delta",
+                _pair=None,
+                _delivery=get_calendar(NoInput(0)).lag(expiry, defaults.fx_delivery_lag, True),
+                _delivery_lag=defaults.fx_delivery_lag,
+                _calendar=get_calendar(NoInput(0)),
             ),
             nodes=nodes,
         )
@@ -141,9 +146,9 @@ class FXDeltaVolSmile(_BaseSmile):
         return self._id
 
     @property
-    def meta(self) -> _FXDeltaVolSmileMeta:  # type: ignore[override]
+    def meta(self) -> _FXSmileMeta:  # type: ignore[override]
         """An instance of :class:`~rateslib.fx_volatility.utils._FXDeltaVolSmileMeta`."""
-        return self._nodes._meta
+        return self.nodes.meta
 
     @property
     def nodes(self) -> _FXDeltaVolSmileNodes:

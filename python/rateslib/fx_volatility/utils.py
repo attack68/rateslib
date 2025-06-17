@@ -38,6 +38,70 @@ DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined cause
 TERMINAL_DATE = datetime(2100, 1, 1)
 
 
+@dataclass
+class _FXSmileMeta:
+    _eval_date: datetime
+    _expiry: datetime
+    _plot_x_axis: str
+    _delta_type: str
+    _pair: str | None
+    _calendar: CalTypes
+    _delivery: datetime
+    _delivery_lag: int
+
+    @property
+    def eval_date(self) -> datetime:
+        """Evaluation date of the *Smile*."""
+        return self._eval_date
+
+    @property
+    def expiry(self) -> datetime:
+        """Expiry date of the options priced by this *Smile*"""
+        return self._expiry
+
+    @property
+    def plot_x_axis(self) -> str:
+        """The default ``x_axis`` parameter passed to
+        :meth:`~rateslib.fx_volatility._BaseSmile.plot`"""
+        return self._plot_x_axis
+
+    @property
+    def delta_type(self) -> str:
+        """The delta type of the delta indexes associated with the ``nodes`` of the *Smile*."""
+        return self._delta_type
+
+    @property
+    def calendar(self) -> CalTypes:
+        """Settlement calendar used to determine ``delivery`` from ``expiry``."""
+        return self._calendar
+
+    @property
+    def pair(self) -> str | None:
+        """FX pair against which options priced by this *Smile* settle against."""
+        return self._pair
+
+    @cached_property
+    def t_expiry(self) -> float:
+        """Calendar days from eval to expiry divided by 365."""
+        return (self._expiry - self._eval_date).days / 365.0
+
+    @cached_property
+    def t_expiry_sqrt(self) -> float:
+        """Square root of ``t_expiry``."""
+        ret: float = self.t_expiry**0.5
+        return ret
+
+    @property
+    def delivery(self) -> datetime:
+        """Delivery date of the forward FX rate applicable to options priced by this *Smile*"""
+        return self._delivery
+
+    @property
+    def delivery_lag(self) -> int:
+        """Business day settlement lag between ``expiry`` and ``delivery``."""
+        return self._delivery_lag
+
+
 @dataclass(frozen=True)
 class _FXDeltaVolSmileMeta:
     """
@@ -90,10 +154,10 @@ class _FXDeltaVolSmileNodes:
     """
 
     _nodes: dict[float, DualTypes]
-    _meta: _FXDeltaVolSmileMeta
+    _meta: _FXSmileMeta
     _spline: _FXDeltaVolSpline
 
-    def __init__(self, nodes: dict[float, DualTypes], meta: _FXDeltaVolSmileMeta) -> None:
+    def __init__(self, nodes: dict[float, DualTypes], meta: _FXSmileMeta) -> None:
         self._nodes = nodes
         self._meta = meta
 
@@ -131,7 +195,7 @@ class _FXDeltaVolSmileNodes:
             return 1.0
 
     @property
-    def meta(self) -> _FXDeltaVolSmileMeta:
+    def meta(self) -> _FXSmileMeta:
         """An instance of :class:`~rateslib.fx_volatility.utils._FXDeltaVolSmileMeta`."""
         return self._meta
 

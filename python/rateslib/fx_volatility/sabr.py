@@ -29,9 +29,9 @@ from rateslib.fx import FXForwards
 from rateslib.fx_volatility.base import _BaseSmile
 from rateslib.fx_volatility.utils import (
     _d_sabr_d_k_or_f,
-    _FXSabrSmileMeta,
     _FXSabrSmileNodes,
     _FXSabrSurfaceMeta,
+    _FXSmileMeta,
     _surface_index_left,
     _t_var_interp_d_sabr_d_k_or_f,
     _validate_weights,
@@ -109,7 +109,7 @@ class FXSabrSmile(_BaseSmile):
     """
 
     _ini_solve = 1
-    _meta: _FXSabrSmileMeta
+    _meta: _FXSmileMeta
     _id: str
     _nodes: _FXSabrSmileNodes
 
@@ -131,7 +131,7 @@ class FXSabrSmile(_BaseSmile):
 
         delivery_lag_ = _drb(defaults.fx_delivery_lag, delivery_lag)
         cal_ = get_calendar(calendar)
-        self._meta = _FXSabrSmileMeta(
+        self._meta = _FXSmileMeta(
             _eval_date=eval_date,
             _expiry=expiry,
             _plot_x_axis="strike",
@@ -139,6 +139,7 @@ class FXSabrSmile(_BaseSmile):
             _delivery_lag=delivery_lag_,
             _delivery=cal_.lag(expiry, delivery_lag_, True),
             _pair=_drb(None, pair),
+            _delta_type="not_available",
         )
 
         for _ in ["alpha", "beta", "rho", "nu"]:
@@ -167,7 +168,7 @@ class FXSabrSmile(_BaseSmile):
         return self._id
 
     @property
-    def meta(self) -> _FXSabrSmileMeta:  # type: ignore[override]
+    def meta(self) -> _FXSmileMeta:  # type: ignore[override]
         """An instance of :class:`~rateslib.fx_volatility.utils._FXSabrSmileMeta`."""
         return self._meta
 
