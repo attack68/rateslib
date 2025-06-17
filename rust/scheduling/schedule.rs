@@ -1,20 +1,26 @@
-use crate::calendars::{is_leap_year, CalType, Modifier, RollDay};
+use crate::calendars::{is_leap_year, CalType, Modifier, RollDay, DateRoll};
 use crate::scheduling::enums::{Frequency, Stub};
 use chrono::prelude::*;
-use pyo3::exceptions::PyValueError;
+// use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
-use std::cmp::{Ordering, PartialEq};
+
+// use std::cmp::{Ordering, PartialEq};
+// use std::fmt;
+
+// #[derive(Debug, Clone)]
+// struct ScheduleError {
+//     message: String
+// }
 
 pub struct Schedule {
     ueffective: NaiveDateTime,
     utermination: NaiveDateTime,
     frequency: Frequency,
-    roll: RollDay,
     front_stub: Option<NaiveDateTime>,
     back_stub: Option<NaiveDateTime>,
     modifier: Modifier,
     calendar: CalType,
-    payment_lag: i8,
+    payment_lag: i32,
 
     // created data objects
     uschedule: Vec<NaiveDateTime>,
@@ -22,47 +28,75 @@ pub struct Schedule {
     pschedule: Vec<NaiveDateTime>,
 }
 
-// impl Schedule {
-//     pub fn try_new(
-//         effective: NaiveDateTime,
-//         termination: NaiveDateTime,
-//         frequency: Frequency,
-//         stub: Stub,
-//         front_stub: Option<NaiveDateTime>,
-//         back_stub: Option<NaiveDateTime>,
-//         roll: Option<RollDay>,
-//         eom: bool,
-//         modifier: Modifier,
-//         calendar: CalType,
-//         payment_lag: i8,
-//     ) -> Result<Self, PyErr> {
-//         Ok()
-//     }
-// }
+impl Schedule {
+    /// Try to generate a Schedule with direct inputs and no inference using unadjusted dates.
+    pub fn try_new_unadjusted(
+        ueffective: NaiveDateTime,
+        utermination: NaiveDateTime,
+        frequency: Frequency,
+        front_stub: Option<NaiveDateTime>,
+        back_stub: Option<NaiveDateTime>,
+        modifier: Modifier,
+        calendar: CalType,
+        payment_lag: i32,
+    ) -> Result<Self, PyErr> {
+        let (regular_start, regular_end) = match (front_stub, back_stub) {
+            (None, None) => (ueffective, utermination),
+            (Some(v), None) =>  (v, utermination),
+            (None, Some(v)) =>  (ueffective, v),
+            (Some(v), Some(w)) => (v, w)
+        };
 
-pub(crate) fn regular_unadjusted_schedule(
-    ueffective: &NaiveDateTime,
-    utermination: &NaiveDateTime,
-    frequency: &Frequency,
-    roll: &RollDay,
-) -> Vec<NaiveDateTime> {
-    // validation tests
-    if roll.validate_date(&ueffective).is_some() {
-        panic!("`ueffective` is not valid.")
-    }
-    if roll.validate_date(&utermination).is_some() {
-        panic!("`utermination` is not valid.")
-    }
-    if !frequency.is_divisible(&ueffective, &utermination) {
-        panic!("`frequency` is not valid on dates.")
-    }
+        // test when the determined regular period is actually a regular period under Frequency
+        let _ = frequency.try_regular(&regular_start, &regular_end)?;
 
-    let mut ret: Vec<NaiveDateTime> = vec![ueffective.clone()];
-    while ret.last().unwrap() < utermination {
-        ret.push(frequency.next_period(ret.last().unwrap(), roll));
+        let uschedule = get_uschedule(ueffective, utermination, frequency, front_stub, back_stub);
+        Ok(Self {
+            ueffective,
+            utermination,
+            frequency,
+            front_stub,
+            back_stub,
+            modifier,
+            calendar: calendar.clone(),
+            payment_lag,
+            uschedule: uschedule.clone(),
+            aschedule: uschedule.iter().map(|dt| calendar.roll(&dt, &modifier, false)).collect(),
+            pschedule: uschedule.iter().map(|dt| calendar.lag(&dt, payment_lag, true)).collect(),
+        })
     }
-    ret
 }
+
+/// Get unadjusted schedule dates assuming all inputs are correct and pre-validated.
+fn get_uschedule(
+    ueffective: NaiveDateTime,
+    utermination: NaiveDateTime,
+    frequency: Frequency,
+    front_stub: Option<NaiveDateTime>,
+    back_stub: Option<NaiveDateTime>,
+) -> Vec<NaiveDateTime> {
+    let mut uschedule: Vec<NaiveDateTime> = vec![];
+    match (front_stub, back_stub) {
+        (None, None) => {
+            uschedule.extend(frequency.regular_uschedule(ueffective, utermination));
+        },
+        (Some(v), None) => {
+            uschedule.push(ueffective);
+            uschedule.extend(frequency.regular_uschedule(v, utermination));
+        },
+        (None, Some(v)) => {
+            uschedule.extend(frequency.regular_uschedule(ueffective, v));
+            uschedule.push(utermination);
+        },
+        (Some(v), Some(w)) => {
+            uschedule.push(ueffective);
+            uschedule.extend(frequency.regular_uschedule(v, w));
+            uschedule.push(utermination);
+        },
+    }
+    uschedule
+}
+
 
 // UNIT TESTS
 #[cfg(test)]
@@ -76,12 +110,13 @@ mod tests {
     //     }
 
     #[test]
-    fn test_regular_unadjusted_schedule() {
-        let result = regular_unadjusted_schedule(
-            &ndt(2000, 1, 1),
-            &ndt(2001, 1, 1),
-            &Frequency::Quarterly,
-            &RollDay::SoM {},
+    fn test_get_uschedule() {
+        let result = get_uschedule(
+            ndt(2000, 1, 1),
+            ndt(2001, 1, 1),
+            Frequency::Months{number: 3, roll: RollDay::SoM{}},
+            None,
+            None,
         );
         assert_eq!(
             result,
@@ -96,13 +131,14 @@ mod tests {
     }
 
     #[test]
-    fn test_regular_unadjusted_schedule_imm() {
+    fn test_get_uschedule_imm() {
         // test the example given in Coding Interest Rates
-        let result = regular_unadjusted_schedule(
-            &ndt(2023, 3, 15),
-            &ndt(2023, 9, 20),
-            &Frequency::Monthly,
-            &RollDay::IMM {},
+        let result = get_uschedule(
+            ndt(2023, 3, 15),
+            ndt(2023, 9, 20),
+            Frequency::Months{number: 1, roll: RollDay::IMM{}},
+            None,
+            None
         );
         assert_eq!(
             result,
@@ -116,5 +152,18 @@ mod tests {
                 ndt(2023, 9, 20)
             ]
         );
+    }
+
+    #[test]
+    fn test_try_new_unadjusted() {
+        let s = Schedule::try_new_unadjusted(
+            ndt(2000, 1, 1),
+            ndt(2000, 12, 15),
+            Frequency::Months{number: 3, roll: RollDay::Unspecified{}},
+            ndt(2000, 3, 15),
+            None,
+            Cal::
+
+        )
     }
 }

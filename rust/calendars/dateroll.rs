@@ -223,11 +223,11 @@ pub trait DateRoll {
     ///
     /// *Note*: if the given `date` is a non-business date adding or subtracting 1 business
     /// day is equivalent to the rolling forwards or backwards, respectively.
-    fn lag(&self, date: &NaiveDateTime, days: i8, settlement: bool) -> NaiveDateTime {
+    fn lag(&self, date: &NaiveDateTime, days: i32, settlement: bool) -> NaiveDateTime {
         if self.is_bus_day(date) {
             return self.add_bus_days(date, days, settlement).unwrap();
         }
-        match days.cmp(&0_i8) {
+        match days.cmp(&0_i32) {
             Ordering::Equal => self.roll_forward_bus_day(date),
             Ordering::Less => self
                 .add_bus_days(&self.roll_backward_bus_day(date), days + 1, settlement)
@@ -247,7 +247,7 @@ pub trait DateRoll {
     fn add_days(
         &self,
         date: &NaiveDateTime,
-        days: i8,
+        days: i32,
         modifier: &Modifier,
         settlement: bool,
     ) -> NaiveDateTime
@@ -270,7 +270,7 @@ pub trait DateRoll {
     fn add_bus_days(
         &self,
         date: &NaiveDateTime,
-        days: i8,
+        days: i32,
         settlement: bool,
     ) -> Result<NaiveDateTime, PyErr> {
         if self.is_non_bus_day(date) {
@@ -279,7 +279,7 @@ pub trait DateRoll {
             ));
         }
         let mut new_date = *date;
-        let mut counter: i8 = 0;
+        let mut counter: i32 = 0;
         if days < 0 {
             // then we subtract business days
             while counter > days {

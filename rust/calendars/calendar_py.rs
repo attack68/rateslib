@@ -225,7 +225,7 @@ impl Cal {
     fn add_days_py(
         &self,
         date: NaiveDateTime,
-        days: i8,
+        days: i32,
         modifier: Modifier,
         settlement: bool,
     ) -> PyResult<NaiveDateTime> {
@@ -262,7 +262,7 @@ impl Cal {
     fn add_bus_days_py(
         &self,
         date: NaiveDateTime,
-        days: i8,
+        days: i32,
         settlement: bool,
     ) -> PyResult<NaiveDateTime> {
         self.add_bus_days(&date, days, settlement)
@@ -353,7 +353,7 @@ impl Cal {
     /// Adding (or subtracting) further business days adopts the
     /// :meth:`~rateslib.calendars.Cal.add_bus_days` approach with a valid result.
     #[pyo3(name = "lag")]
-    fn lag_py(&self, date: NaiveDateTime, days: i8, settlement: bool) -> NaiveDateTime {
+    fn lag_py(&self, date: NaiveDateTime, days: i32, settlement: bool) -> NaiveDateTime {
         self.lag(&date, days, settlement)
     }
 
@@ -512,7 +512,7 @@ impl UnionCal {
     fn add_days_py(
         &self,
         date: NaiveDateTime,
-        days: i8,
+        days: i32,
         modifier: Modifier,
         settlement: bool,
     ) -> PyResult<NaiveDateTime> {
@@ -526,7 +526,7 @@ impl UnionCal {
     fn add_bus_days_py(
         &self,
         date: NaiveDateTime,
-        days: i8,
+        days: i32,
         settlement: bool,
     ) -> PyResult<NaiveDateTime> {
         self.add_bus_days(&date, days, settlement)
@@ -564,7 +564,7 @@ impl UnionCal {
     ///
     /// See :meth:`Cal.lag <rateslib.calendars.Cal.lag>`.
     #[pyo3(name = "lag")]
-    fn lag_py(&self, date: NaiveDateTime, days: i8, settlement: bool) -> NaiveDateTime {
+    fn lag_py(&self, date: NaiveDateTime, days: i32, settlement: bool) -> NaiveDateTime {
         self.lag(&date, days, settlement)
     }
 
@@ -690,7 +690,7 @@ impl NamedCal {
     fn add_days_py(
         &self,
         date: NaiveDateTime,
-        days: i8,
+        days: i32,
         modifier: Modifier,
         settlement: bool,
     ) -> PyResult<NaiveDateTime> {
@@ -704,7 +704,7 @@ impl NamedCal {
     fn add_bus_days_py(
         &self,
         date: NaiveDateTime,
-        days: i8,
+        days: i32,
         settlement: bool,
     ) -> PyResult<NaiveDateTime> {
         self.add_bus_days(&date, days, settlement)
@@ -742,7 +742,7 @@ impl NamedCal {
     ///
     /// See :meth:`Cal.lag <rateslib.calendars.Cal.lag>`.
     #[pyo3(name = "lag")]
-    fn lag_py(&self, date: NaiveDateTime, days: i8, settlement: bool) -> NaiveDateTime {
+    fn lag_py(&self, date: NaiveDateTime, days: i32, settlement: bool) -> NaiveDateTime {
         self.lag(&date, days, settlement)
     }
 
