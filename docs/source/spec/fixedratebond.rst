@@ -15,8 +15,6 @@ USD
 Government Bonds
 ------------------
 
-Aliases: **"ust"**
-
 Uses Street convention. Similar to *"uk_gb"* except long stub periods have linear
 proportioning only in the segregated short stub part.
 
@@ -35,6 +33,30 @@ US Treasury convention. Reprices examples in federal documents: Section 31-B-ii)
    from rateslib.instruments.bonds.conventions import US_GB_TSY
    US_GB_TSY.kwargs
    FixedRateBond(dt(2000, 1, 1), "10y", spec="us_gb_tsy", fixed_rate=2.5).kwargs
+
+.. _spec-us-corp:
+
+Corporate Bonds
+----------------
+
+.. ipython:: python
+
+   defaults.spec["us_corp"]
+   from rateslib.instruments.bonds.conventions import US_CORP
+   US_CORP.kwargs
+   FixedRateBond(dt(2000, 1, 1), "10y", spec="us_corp", fixed_rate=2.5).kwargs
+
+.. _spec-us-muni:
+
+Municipal Bonds
+-----------------
+
+.. ipython:: python
+
+   defaults.spec["us_muni"]
+   from rateslib.instruments.bonds.conventions import US_MUNI
+   US_MUNI.kwargs
+   FixedRateBond(dt(2000, 1, 1), "10y", spec="us_muni", fixed_rate=2.5).kwargs
 
 EUR
 ********
@@ -95,6 +117,24 @@ Street convention is used, except when the bond is in the final coupon period si
    NL_GB.kwargs
    FixedRateBond(dt(2000, 1, 1), "10y", spec="nl_gb", fixed_rate=2.5).kwargs
 
+CHF
+********
+
+.. _spec-ch-gb:
+
+Government Bonds
+-----------------
+
+Calculations performed with ICMA convention.
+
+
+.. ipython:: python
+
+   defaults.spec["ch_gb"]
+   from rateslib.instruments.bonds.conventions import CH_GB
+   CH_GB.kwargs
+   FixedRateBond(dt(2000, 1, 1), "10y", spec="ch_gb", fixed_rate=2.5).kwargs
+
 GBP
 ********
 
@@ -103,11 +143,8 @@ GBP
 Government Bonds
 -----------------
 
-Aliases: **"ukt"** and **"gilt"**
-
 Calculations performed with the DMO method. Accrued is on ActAct linearly proportioned basis.
 Yield is compounded in all periods including any front and back stubs.
-
 
 .. ipython:: python
 
@@ -124,8 +161,6 @@ SEK
 
 Government Bonds
 -----------------
-
-Aliases: **"sgb"**
 
 Calculation performed with Swedish DMO method, using 30e360 for accrued calculations and for back stubs.
 
@@ -162,11 +197,9 @@ CAD
 Government Bonds
 ------------------
 
-Aliases **"cadgb"**
-
 Canadian government bond convention. Accrued is calculated using an ACT365F
 convention. Yield calculations are still derived with linearly proportioned compounded
-coupons.
+coupons. **Note** this is not the appropriate convention for monthly-pay securities.
 
 .. ipython:: python
 

@@ -12,7 +12,16 @@ from rateslib.dual.variable import FLOATS, INTS, Variable
 from rateslib.rs import ADOrder, Dual, Dual2, _dsolve1, _dsolve2, _fdsolve1, _fdsolve2
 
 if TYPE_CHECKING:
-    from rateslib.typing import Arr1dF64, Arr1dObj, Arr2dF64, Arr2dObj, DualTypes, Number, Sequence
+    from rateslib.typing import (
+        Any,
+        Arr1dF64,
+        Arr1dObj,
+        Arr2dF64,
+        Arr2dObj,
+        DualTypes,
+        Number,
+        Sequence,
+    )
 
 Dual.__doc__ = "Dual number data type to perform first derivative automatic differentiation."
 Dual2.__doc__ = "Dual number data type to perform second derivative automatic differentiation."
@@ -56,44 +65,66 @@ def _get_order_of(val: DualTypes) -> int:
     return ad_order
 
 
-def set_order(val: DualTypes, order: int) -> DualTypes:
+def _to_number(val: DualTypes) -> Number:
+    """Convert a DualType to a Number Type by casting a Variable to the required global AD order."""
+    if isinstance(val, Variable):
+        return set_order(val, defaults._global_ad_order)
+    return val
+
+
+def set_order(val: DualTypes, order: int) -> Number:
     """
-    Changes the order of a :class:`Dual` or :class:`Dual2` and a sets a :class:`Variable`
-    leaving floats and ints unchanged.
+    Changes the order of a :class:`Dual` or :class:`Dual2` and a sets a :class:`Variable`.
 
     Parameters
     ----------
-    val : float, int, Dual or Dual2
+    val : float, Dual, Dual2, Variable
         The value to convert the order of.
     order : int in [0, 1, 2]
         The AD order to convert to. If ``val`` is float or int 0 will be used.
 
     Returns
     -------
-    float, int, Dual or Dual2
-    """
-    if order == 2 and isinstance(val, Dual | Variable):
-        return val.to_dual2()
-    elif order == 1 and isinstance(val, Dual2 | Variable):
-        return val.to_dual()
-    elif order == 0:
-        return _dual_float(val)
+    float, Dual or Dual2
 
-    # otherwise:
-    #  - val is a Float or an Int
-    #  - val is a Dual and order == 1 OR val is Dual2 and order == 2
-    return val
+    Notes
+    ------
+    **floats** are not affected by this function. There is no benefit to converting
+    one of these types to a dual number type with no tagged variable sensitivity.
+
+    If ``order`` is **zero**, all objects are converted to float.
+
+    If ``order`` is **one**, *Dual2* are converted to *Dual* by dropping second order gradients.
+
+    If ``order`` is **two**, *Dual* are converted to *DUal2* by setting second order gradients to
+    default zero values.
+    """
+    if order == 0:
+        return _dual_float(val)
+    elif order == 1:
+        if isinstance(val, Dual):
+            return val
+        elif isinstance(val, Dual2 | Variable):
+            return val.to_dual()
+        return val  # as float
+    else:  # order == 2
+        if isinstance(val, Dual2):
+            return val
+        elif isinstance(val, Dual | Variable):
+            return val.to_dual2()
+        return val  # as float
 
 
 def set_order_convert(
     val: DualTypes, order: int, tag: list[str] | None, vars_from: Dual | Dual2 | None = None
-) -> DualTypes:
+) -> Number:
     """
-    Convert a float, :class:`Dual` or :class:`Dual2` type to a specified alternate type.
+    Convert a float, :class:`Dual` or :class:`Dual2` type to a specified alternate type with
+    tagged variables.
 
     Parameters
     ----------
-    val : float, Dual or Dual2
+    val : float, Dual, Dual2, Variable
         The value to convert.
     order : int
         The AD order to convert the value to if necessary.
@@ -106,6 +137,14 @@ def set_order_convert(
     Returns
     -------
     float, Dual, Dual2
+
+    Notes
+    -----
+    This function is used for AD variable management.
+
+    ``tag`` and ``vars_from`` are only used when floats are upcast and the variables need to be
+    specifically define.
+
     """
     if isinstance(val, FLOATS | INTS):
         _ = [] if tag is None else tag
@@ -170,7 +209,7 @@ def gradient(
         elif isinstance(dual, Dual):  # and keep_manifold:
             raise TypeError("Dual type cannot perform `keep_manifold`.")
         _ = dual.grad1_manifold(dual.vars if vars is None else vars)
-        return np.asarray(_)  # type: ignore[return-value]
+        return np.asarray(_)
 
     elif order == 2:
         if isinstance(dual, Variable):
@@ -179,7 +218,7 @@ def gradient(
             raise TypeError("Dual type cannot derive second order automatic derivatives.")
 
         if vars is None:
-            return 2.0 * dual.dual2  #  type: ignore[return-value]
+            return 2.0 * dual.dual2
         else:
             return dual.grad2(vars)
     else:
@@ -318,9 +357,9 @@ def dual_solve(
     if types == (float, float):
         # Use basic Numpy LinAlg
         if allow_lsq:
-            return np.linalg.lstsq(A, b, rcond=None)[0]  # type: ignore[arg-type,return-value]
+            return np.linalg.lstsq(A, b, rcond=None)[0]  # type: ignore[arg-type]
         else:
-            return np.linalg.solve(A, b)  # type: ignore[arg-type,return-value]
+            return np.linalg.solve(A, b)  # type: ignore[arg-type]
 
     # Move to Rust implementation
     if types in [(Dual, float), (Dual2, float)]:
@@ -337,13 +376,13 @@ def dual_solve(
     b_ = b_[:, 0].tolist()
 
     if types == (Dual, Dual):
-        return np.array(_dsolve1(a_, b_, allow_lsq))[:, None]  # type: ignore[return-value]
+        return np.array(_dsolve1(a_, b_, allow_lsq))[:, None]
     elif types == (Dual2, Dual2):
-        return np.array(_dsolve2(a_, b_, allow_lsq))[:, None]  # type: ignore[return-value]
+        return np.array(_dsolve2(a_, b_, allow_lsq))[:, None]
     elif types == (float, Dual):
-        return np.array(_fdsolve1(A_, b_, allow_lsq))[:, None]  # type: ignore[return-value]
+        return np.array(_fdsolve1(A_, b_, allow_lsq))[:, None]
     elif types == (float, Dual2):
-        return np.array(_fdsolve2(A_, b_, allow_lsq))[:, None]  # type: ignore[return-value]
+        return np.array(_fdsolve2(A_, b_, allow_lsq))[:, None]
     else:
         raise TypeError(
             "Provided `types` argument are not permitted. Must be a 2-tuple with "
@@ -361,3 +400,48 @@ def _get_adorder(order: int) -> ADOrder:
         return ADOrder.Two
     else:
         raise ValueError("Order for AD can only be in {0,1,2}")
+
+
+def _set_ad_order_objects(order: list[int] | dict[int, int], objs: list[Any]) -> dict[int, int]:
+    """
+    Set the order on multiple Objects, returning their previous order indexed my memory id.
+
+    Parameters
+    ----------
+    order: list[int] or dict[int,int]
+        A list of orders to set the objects to. If a dict indexed my memory id.
+    objs: list[Any]
+        A list of objects to convert the AD orders of.
+
+    Returns
+    -------
+    dict[int]
+
+    Notes
+    -----
+    If an Object does not have a `_set_ad_order` method then
+    it will simply be passed and return 0 for its associated
+    previous AD order.
+    """
+    # this function catches duplicate objects that are identical by memory id
+    if isinstance(order, list) and len(order) != len(objs):
+        raise ValueError("`order` and `objs` must have the same length")
+
+    original_order: dict[int, int] = {}
+    for i, obj in enumerate(objs):
+        if id(obj) in original_order:
+            continue  # object has already been parsed
+
+        _ad = getattr(obj, "_ad", None)
+        if _ad is None:
+            # object cannot be set_ad_order
+            continue
+
+        if isinstance(order, dict):
+            obj._set_ad_order(order[id(obj)])
+            original_order[id(obj)] = _ad
+        else:  # isinstance(order, list)
+            obj._set_ad_order(order[i])
+            original_order[id(obj)] = _ad
+
+    return original_order

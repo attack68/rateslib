@@ -140,6 +140,7 @@ class Defaults:
         self.convention = "ACT360"
         self.notional = 1.0e6
         self.index_lag = 3
+        self.index_lag_curve = 0
         self.index_method = "daily"
         self.payment_lag = 2
         self.payment_lag_exchange = 0
@@ -187,9 +188,8 @@ class Defaults:
         # Curves
 
         self.interpolation = {
-            "Curve": "log_linear",
-            "LineCurve": "linear",
-            "IndexCurve": "linear_index",
+            "dfs": "log_linear",
+            "values": "linear",
         }
         self.endpoints = "natural"
         # fmt: off
@@ -199,6 +199,8 @@ class Defaults:
            1808, 1821, 1824, 1825,
         ]
         # fmt: on
+        self.multi_csa_min_step: int = 1
+        self.multi_csa_max_step: int = 1825
         self.curve_caching = True
         self.curve_caching_max = 1000
 
@@ -381,19 +383,21 @@ Miscellaneous:\n
         return _
 
 
-def plot(x: list[Any], y: list[list[Any]], labels: list[str] | NoInput = NoInput(0)) -> PlotOutput:
+def plot(
+    x: list[list[Any]], y: list[list[Any]], labels: list[str] | NoInput = NoInput(0)
+) -> PlotOutput:
     labels = _drb([], labels)
     fig, ax = plt.subplots(1, 1)
     lines = []
-    for _y in y:
-        (line,) = ax.plot(x, _y)
+    for _x, _y in zip(x, y, strict=True):
+        (line,) = ax.plot(_x, _y)
         lines.append(line)
     if not isinstance(labels, NoInput) and len(labels) == len(lines):
         ax.legend(lines, labels)
 
     ax.grid(True)
 
-    if isinstance(x[0], datetime):
+    if isinstance(x[0][0], datetime):
         years = mdates.YearLocator()  # type: ignore[no-untyped-call]
         months = mdates.MonthLocator()  # type: ignore[no-untyped-call]
         yearsFmt = mdates.DateFormatter("%Y")  # type: ignore[no-untyped-call]
@@ -427,4 +431,4 @@ def _drb(default: Any, possible_ni: Any | NoInput) -> Any:
 
 def _make_py_json(json: str, class_name: str) -> str:
     """Modifies the output JSON output for Rust structs wrapped by Python classes."""
-    return '{"Py":' + json + "}"
+    return '{"PyWrapped":' + json + "}"

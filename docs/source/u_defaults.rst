@@ -197,6 +197,8 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
 
 
+.. _defaults-securities-input:
+
 **Securities**
 
 .. list-table::
@@ -210,7 +212,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      - FloatRateNote
      - BondFuture
    * - USD
-     - :ref:`us_gb <spec-us-gb>`, :ref:`us_gb_tsy <spec-us-gb>`
+     - :ref:`us_gb <spec-us-gb>`, :ref:`us_gb_tsy <spec-us-gb>`, :ref:`us_corp <spec-us-corp>`, :ref:`us_muni <spec-us-muni>`
      - :ref:`us_gbb <spec-usd-gbb>`
      -
      -
@@ -228,11 +230,11 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
      -
    * - CHF
+     - :ref:`ch_gb <spec-ch-gb>`
      -
      -
      -
-     -
-     -
+     - :ref:`ch_gb_10y <spec-ch-gb-10y>`
    * - SEK
      - :ref:`se_gb <spec-se-gb>`
      - :ref:`se_gbb <spec-se-gbb>`
@@ -366,5 +368,10 @@ These values can also be set:
    irs.leg1.convention  # <- uses new default value
    irs.leg1.currency  # <- uses new default value
 
+.. ipython:: python
+
    defaults.reset_defaults()  # <- reverse the changes.
+
+.. ipython:: python
+
    defaults.base_currency

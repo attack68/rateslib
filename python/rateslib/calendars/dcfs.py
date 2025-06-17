@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from rateslib.calendars.rs import _get_modifier, _get_rollday, get_calendar
 from rateslib.default import NoInput
-from rateslib.rs import Convention
+from rateslib.rs import Convention, RollDay
 
 if TYPE_CHECKING:
     from rateslib.typing import Any, CalInput, Callable
@@ -32,6 +32,13 @@ CONVENTIONS_MAP: dict[str, Convention] = {
     "1+": Convention.OnePlus,
     "BUS252": Convention.Bus252,
 }
+
+
+def _is_end_feb(date: datetime) -> bool:
+    if date.month == 2:
+        _, end_feb = calendar_mod.monthrange(date.year, 2)
+        return date.day == end_feb
+    return False
 
 
 def _get_convention(convention: str) -> Convention:
@@ -68,6 +75,45 @@ def _dcf_30360(start: datetime, end: datetime, *args: Any) -> float:
     return y + m + (de - ds) / 360.0
 
 
+def _dcf_30u360(
+    start: datetime,
+    end: datetime,
+    termination: datetime | NoInput,
+    frequency_months: int | NoInput,
+    stub: bool | NoInput,
+    roll: str | int | NoInput,
+    calendar: CalInput,
+) -> float:
+    """
+    Date adjustment rules (more than one may take effect; apply them in order, and if a date is
+    changed in one rule the changed value is used in the following rules):
+
+    - If the investment is EOM and (Date1 is the last day of February) and (Date2 is the last day
+      of February), then change D2 to 30.
+    - If the investment is EOM and (Date1 is the last day of February), then change D1 to 30.
+    - If D2 is 31 and D1 is 30 or 31, then change D2 to 30.
+    - If D1 is 31, then change D1 to 30.
+
+    """
+    roll_day = _get_rollday(roll)
+    _is_eom = roll_day == RollDay.EoM() or roll_day == RollDay.Int(31)
+
+    ds, de = start.day, end.day
+    if _is_eom and _is_end_feb(start):
+        ds = 30
+        if _is_end_feb(end):
+            de = 30
+
+    if ds == 31:
+        ds = 30
+
+    if de == 31 and ds == 30:
+        de = 30
+
+    y, m = end.year - start.year, (end.month - start.month) / 12.0
+    return y + m + (de - ds) / 360.0
+
+
 def _dcf_30e360(start: datetime, end: datetime, *args: Any) -> float:
     ds, de = min(30, start.day), min(30, end.day)
     y, m = end.year - start.year, (end.month - start.month) / 12.0
@@ -82,12 +128,6 @@ def _dcf_30e360isda(
 ) -> float:
     if isinstance(termination, NoInput):
         raise ValueError("`termination` must be supplied with specified `convention`.")
-
-    def _is_end_feb(date: datetime) -> bool:
-        if date.month == 2:
-            _, end_feb = calendar_mod.monthrange(date.year, 2)
-            return date.day == end_feb
-        return False
 
     ds = 30 if (start.day == 31 or _is_end_feb(start)) else start.day
     de = 30 if (end.day == 31 or (_is_end_feb(end) and end != termination)) else end.day
@@ -305,6 +345,7 @@ _DCF: dict[str, Callable[..., float]] = {
     "30360": _dcf_30360,
     "360360": _dcf_30360,
     "BONDBASIS": _dcf_30360,
+    "30U360": _dcf_30u360,
     "30E360": _dcf_30e360,
     "EUROBONDBASIS": _dcf_30e360,
     "30E360ISDA": _dcf_30e360isda,
@@ -319,26 +360,6 @@ _DCF: dict[str, Callable[..., float]] = {
     "BUS252": _dcf_bus252,
 }
 
-_DCF1d = {
-    "ACT365F": 1.0 / 365,
-    "ACT365F+": 1.0 / 365,
-    "ACT360": 1.0 / 360,
-    "30360": 1.0 / 365.25,
-    "360360": 1.0 / 365.25,
-    "BONDBASIS": 1.0 / 365.25,
-    "30E360": 1.0 / 365.25,
-    "EUROBONDBASIS": 1.0 / 365.25,
-    "30E360ISDA": 1.0 / 365.25,
-    "ACTACT": 1.0 / 365.25,
-    "ACTACTISDA": 1.0 / 365.25,
-    "ACTACTICMA": 1.0 / 365.25,
-    "ACTACTICMA_STUB365F": 1 / 365.25,
-    "ACTACTISMA": 1.0 / 365.25,
-    "ACTACTBOND": 1.0 / 365.25,
-    "1": 1.0 / 365.25,
-    "1+": 1.0 / 365.25,
-    "BUS252": 1.0 / 252,
-}
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

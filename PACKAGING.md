@@ -50,7 +50,7 @@ On the new release branch *1.3.x*:
 Rust Checks:
 
 - Run `cargo test --lib` to check consistency.
-- Ensure the Cargo.toml file has active abi3-py39 default features.
+- Ensure the Cargo.toml file has active abi3-py310 default features.
 - Endure the [dev-dependencies] and [bench] sections in Cargo.toml are commented out.
 - Consider pinning requirements versions (and/or development versions) or make a comment on the
   precise version that was used to build the package. That way future devs can rebuild a package

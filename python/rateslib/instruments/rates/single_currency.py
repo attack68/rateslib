@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 from pandas import DataFrame
 
 from rateslib import defaults
-from rateslib.curves import Curve
 from rateslib.curves._parsers import _disc_required_maybe_from_curve
 from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
@@ -42,6 +41,7 @@ if TYPE_CHECKING:
         FixingsRates_,
         FloatPeriod,
         Solver_,
+        _BaseCurve,
     )
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -776,8 +776,8 @@ class ZCS(BaseDerivative):
     ----------
     args : dict
         Required positional args to :class:`BaseDerivative`.
-    fixed_rate : float or None
-        The fixed rate applied to the :class:`~rateslib.legs.ZeroFixedLeg`. If `None`
+    fixed_rate : float, optional
+        The fixed rate applied to the :class:`~rateslib.legs.ZeroFixedLeg`. If not given
         will be set to mid-market when curves are provided.
     leg2_float_spread : float, optional
         The spread applied to the :class:`~rateslib.legs.FloatLeg`. Can be set to
@@ -799,6 +799,10 @@ class ZCS(BaseDerivative):
         A parameter that is used for the various ``fixing_method`` s. See notes.
     kwargs : dict
         Required keyword arguments to :class:`BaseDerivative`.
+
+    Notes
+    -----
+    For individual pricing formulae see the separate *Leg* type class definitions.
 
     Examples
     --------
@@ -1591,7 +1595,7 @@ class FRA(BaseDerivative):
 
         For arguments see :meth:`~rateslib.periods.BasePeriod.analytic_delta`.
         """
-        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve = _disc_required_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.leg1.currency, fx, base)
         rate = self.rate([curve])
         dcf = self._fixed_period.dcf

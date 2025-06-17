@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Generic, ParamSpec, TypeVar
 from rateslib import defaults
 
 if TYPE_CHECKING:
-    from rateslib.typing import Solver
+    pass
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -22,14 +22,19 @@ def _no_interior_validation(func: Callable[P, R]) -> Callable[P, R]:
     """
 
     @wraps(func)
-    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-        self: Solver = args[0]  # type: ignore[assignment]
-        self._do_not_validate = True
-        result = func(*args, **kwargs)
-        self._do_not_validate = False
+    def wrapper_no_interior_validation(*args: P.args, **kwargs: P.kwargs) -> R:
+        self = args[0]
+        if self._do_not_validate:  # type: ignore[attr-defined]
+            # make no changes: handle recursive no interior validations.
+            result = func(*args, **kwargs)
+        else:
+            # set to no further validation and reset at end of method
+            self._do_not_validate = True  # type: ignore[attr-defined]
+            result = func(*args, **kwargs)
+            self._do_not_validate = False  # type: ignore[attr-defined]
         return result
 
-    return wrapper
+    return wrapper_no_interior_validation
 
 
 def _validate_states(func: Callable[P, R]) -> Callable[P, R]:
@@ -40,12 +45,12 @@ def _validate_states(func: Callable[P, R]) -> Callable[P, R]:
     """
 
     @wraps(func)
-    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+    def wrapper_validate_states(*args: P.args, **kwargs: P.kwargs) -> R:
         self = args[0]
         self._validate_state()  # type: ignore[attr-defined]
         return func(*args, **kwargs)
 
-    return wrapper
+    return wrapper_validate_states
 
 
 def _clear_cache_post(func: Callable[P, R]) -> Callable[P, R]:
@@ -55,13 +60,13 @@ def _clear_cache_post(func: Callable[P, R]) -> Callable[P, R]:
     """
 
     @wraps(func)
-    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+    def wrapper_clear_cache(*args: P.args, **kwargs: P.kwargs) -> R:
         self = args[0]
         result = func(*args, **kwargs)
         self._clear_cache()  # type: ignore[attr-defined]
         return result
 
-    return wrapper
+    return wrapper_clear_cache
 
 
 def _new_state_post(func: Callable[P, R]) -> Callable[P, R]:
@@ -71,13 +76,13 @@ def _new_state_post(func: Callable[P, R]) -> Callable[P, R]:
     """
 
     @wraps(func)
-    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+    def wrapper_new_state(*args: P.args, **kwargs: P.kwargs) -> R:
         self = args[0]
         result = func(*args, **kwargs)
         self._set_new_state()  # type: ignore[attr-defined]
         return result
 
-    return wrapper
+    return wrapper_new_state
 
 
 class _WithState:
@@ -93,7 +98,8 @@ class _WithState:
     """
 
     _state: int = 0
-    _mutable_by_association = False
+    _mutable_by_association: bool = False
+    _do_not_validate: bool = False
 
     def _set_new_state(self) -> None:
         """Set the state_id of a superclass. Some objects which are 'mutable by association'

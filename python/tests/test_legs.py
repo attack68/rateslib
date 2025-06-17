@@ -766,8 +766,8 @@ class TestZeroFloatLeg:
 
     def test_ibor_stub_fixings_table(self, curve) -> None:
         curve2 = curve.copy()
-        curve2.id = "3mIBOR"
-        curve.id = "1mIBOR"
+        curve2._id = "3mIBOR"
+        curve._id = "1mIBOR"
         zfl = ZeroFloatLeg(
             effective=dt(2022, 1, 1),
             termination=dt(2022, 9, 1),
@@ -789,8 +789,8 @@ class TestZeroFloatLeg:
     )
     def test_ibor_fixings_table_after_known_fixings(self, curve, fixings) -> None:
         curve2 = curve.copy()
-        curve2.id = "3mIBOR"
-        curve.id = "1mIBOR"
+        curve2._id = "3mIBOR"
+        curve._id = "1mIBOR"
         zfl = ZeroFloatLeg(
             effective=dt(2021, 7, 1),
             termination=dt(2022, 9, 1),
@@ -1006,6 +1006,7 @@ class TestZeroIndexLeg:
                 dt(2023, 1, 1): 0.97,
             },
             index_base=100.0,
+            index_lag=3,
             interpolation="linear_index",
         )
         zil = ZeroIndexLeg(
@@ -1052,6 +1053,7 @@ class TestZeroIndexLeg:
                 dt(2023, 1, 1): 0.97,
             },
             index_base=100.0,
+            index_lag=3,
             interpolation="linear_index",
         )
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.97})
@@ -1383,15 +1385,13 @@ class TestCreditProtectionLeg:
             payment_lag=2,
             notional=1e7,
             frequency="Q",
-            recovery_rate=0.4,
         )
         result = leg.analytic_rec_risk(hazard_curve, curve)
 
         pv0 = leg.npv(hazard_curve, curve)
-        leg.recovery_rate = 0.41
+        hazard_curve.update_meta("credit_recovery_rate", 0.41)
         pv1 = leg.npv(hazard_curve, curve)
         expected = pv1 - pv0
-
         assert abs(result - expected) < 1e-7
 
     @pytest.mark.parametrize(("premium_accrued"), [True, False])
@@ -1438,10 +1438,10 @@ class TestIndexFixedLegExchange:
         "i_fixings",
         [
             NoInput(0),
-            [210, 220, 230],
+            # [210, 220, 230], # list not supported in v2.0
             210,
             Series(
-                [210, 220, 230],
+                [210.0, 220.0, 230.0],
                 index=[dt(2022, 6, 15), dt(2022, 9, 15), dt(2022, 12, 15)],
             ),
         ],
@@ -1456,9 +1456,11 @@ class TestIndexFixedLegExchange:
             notional=40e6,
             fixed_rate=5.0,
             index_base=200.0,
+            index_lag=0,
             index_fixings=i_fixings,
             initial_exchange=False,
             final_exchange=True,
+            index_method="curve",
         )
         index_curve = Curve(
             nodes={
@@ -1469,6 +1471,7 @@ class TestIndexFixedLegExchange:
             },
             index_base=200.0,
             interpolation="linear_index",
+            index_lag=0,
         )
         disc_curve = Curve({dt(2022, 3, 15): 1.0, dt(2022, 12, 15): 1.0})
         flows = leg.cashflows(curve=index_curve, disc_curve=disc_curve)
@@ -1542,6 +1545,7 @@ class TestIndexFixedLegExchange:
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_base=100.0,
             interpolation="linear_index",
+            index_lag=3,
         )
         index_leg_exch = IndexFixedLeg(
             dt(2022, 1, 1),
@@ -1553,10 +1557,26 @@ class TestIndexFixedLegExchange:
             initial_exchange=False,
             fixed_rate=1.0,
             final_exchange=True,
+            index_lag=3,
         )
         result = index_leg_exch.npv(index_curve, curve)
         expected = -999971.65702
         assert abs(result - expected) < 1e-4
+
+    def test_index_lag_on_periods(self):
+        index_leg_exch = IndexFixedLeg(
+            dt(2022, 1, 1),
+            "6M",
+            "Q",
+            notional=1000000,
+            amortization=200000,
+            index_base=100.0,
+            fixed_rate=1.0,
+            final_exchange=True,
+            index_lag=4,
+        )
+        for period in index_leg_exch.periods:
+            assert period.index_lag == 4
 
 
 class TestIndexFixedLeg:
@@ -1564,18 +1584,25 @@ class TestIndexFixedLeg:
         ("i_fixings", "meth"),
         [
             (NoInput(0), "daily"),
-            ([210, 220, 230], "daily"),
+            # ([210, 220, 230], "daily"),  # list unsupported in v2.0
             (210, "daily"),
             (
                 Series(
-                    [210, 220, 230],
-                    index=[dt(2022, 6, 15), dt(2022, 9, 15), dt(2022, 12, 15)],
+                    [210.0, 210, 220, 220, 230, 230],
+                    index=[
+                        dt(2022, 6, 1),
+                        dt(2022, 7, 1),
+                        dt(2022, 9, 1),
+                        dt(2022, 10, 1),
+                        dt(2022, 12, 1),
+                        dt(2023, 1, 1),
+                    ],
                 ),
                 "daily",
             ),
             (
                 Series(
-                    [210, 220, 230],
+                    [210.0, 220, 230],
                     index=[dt(2022, 6, 1), dt(2022, 9, 1), dt(2022, 12, 1)],
                 ),
                 "monthly",
@@ -1594,6 +1621,7 @@ class TestIndexFixedLeg:
             index_base=200.0,
             index_fixings=i_fixings,
             index_method=meth,
+            index_lag=0,
         )
         index_curve = Curve(
             nodes={
@@ -1604,6 +1632,7 @@ class TestIndexFixedLeg:
             },
             index_base=200.0,
             interpolation="linear_index",
+            index_lag=0,
         )
         disc_curve = Curve({dt(2022, 3, 15): 1.0, dt(2022, 12, 15): 1.0})
         flows = leg.cashflows(curve=index_curve, disc_curve=disc_curve)
@@ -1631,8 +1660,8 @@ class TestIndexFixedLeg:
     @pytest.mark.parametrize(("meth", "exp"), [("daily", 230.0), ("monthly", 227.91208)])
     def test_missing_fixings(self, meth, exp) -> None:
         i_fixings = Series(
-            [210, 220],
-            index=[dt(2022, 6, 20), dt(2022, 9, 20)],
+            [210.0, 210, 220, 220],
+            index=[dt(2022, 6, 1), dt(2022, 7, 1), dt(2022, 9, 1), dt(2022, 10, 1)],
         )
         leg = IndexFixedLeg(
             effective=dt(2022, 3, 20),
@@ -1645,6 +1674,7 @@ class TestIndexFixedLeg:
             index_base=200.0,
             index_fixings=i_fixings,
             index_method=meth,
+            index_lag=0,
         )
         index_curve = Curve(
             nodes={
@@ -1655,6 +1685,7 @@ class TestIndexFixedLeg:
             },
             index_base=200.0,
             interpolation="linear_index",
+            index_lag=0,
         )
         cashflows = leg.cashflows(index_curve)
         result = cashflows.iloc[2]["Index Val"]
@@ -1681,18 +1712,20 @@ class TestIndexFixedLeg:
         "i_base",
         [
             200.0,
-            Series([199.0, 201.0], index=[dt(2021, 12, 31), dt(2022, 1, 2)]),
+            Series([199.0, 201.0], index=[dt(2022, 4, 1), dt(2022, 5, 1)]),
         ],
     )
     def test_set_index_base(self, curve, i_base) -> None:
         leg = IndexFixedLeg(
-            effective=dt(2022, 1, 1),
-            termination=dt(2022, 6, 1),
+            effective=dt(2022, 4, 16),
+            termination=dt(2022, 5, 1),
             payment_lag=2,
             notional=-1e9,
             convention="Act360",
             frequency="Q",
             index_base=None,
+            index_method="daily",
+            index_lag=0,
         )
         assert leg.index_base is None
         assert leg.periods[0].index_base is None
@@ -1704,7 +1737,7 @@ class TestIndexFixedLeg:
     @pytest.mark.parametrize(
         ("i_base", "exp"),
         [
-            (Series([199.0, 201.0], index=[dt(2021, 12, 31), dt(2022, 1, 2)]), 200.0),
+            (Series([199.0, 200.0], index=[dt(2021, 12, 31), dt(2022, 1, 1)]), 200.0),
             (Series([1.0, 2.0], index=[dt(2000, 1, 1), dt(2000, 12, 1)]), NoInput(0)),
             (NoInput(0), NoInput(0)),
             (110.0, 110.0),
@@ -1719,6 +1752,7 @@ class TestIndexFixedLeg:
             convention="Act360",
             frequency="Q",
             index_base=i_base,
+            index_lag=0,
         )
         assert leg.index_base == exp
 
@@ -1736,6 +1770,7 @@ class TestIndexFixedLeg:
                 initial_exchange=True,
             )
 
+    @pytest.mark.skip(reason="fixings as list removed in v2.0")
     def test_index_fixings_as_list(self) -> None:
         leg = IndexFixedLeg(
             effective=dt(2022, 1, 1),
@@ -1752,6 +1787,7 @@ class TestIndexFixedLeg:
         assert leg.periods[1].index_fixings == 200.0
         assert leg.periods[2].index_fixings == NoInput(0)
 
+    @pytest.mark.skip(reason="fixings as list removed in v2.0")
     def test_index_fixings_as_list_final_exchange(self) -> None:
         leg = IndexFixedLeg(
             effective=dt(2022, 1, 1),
@@ -1771,6 +1807,35 @@ class TestIndexFixedLeg:
         assert leg.periods[3].index_fixings == 199.0
         assert leg.periods[4].index_fixings == NoInput(0)
         assert leg.periods[5].index_fixings == NoInput(0)
+
+    @pytest.mark.parametrize(
+        "index_fixings",
+        [
+            Series([1, 2, 3], index=[dt(2000, 1, 1), dt(1999, 1, 1), dt(2001, 1, 1)]),
+            Series([1, 2, 3], index=[dt(2000, 1, 1), dt(2000, 1, 1), dt(2001, 1, 1)]),
+        ],
+    )
+    def test_index_as_series_invalid(self, index_fixings):
+        with pytest.raises(ValueError, match="`index_fixings` as Series must be"):
+            IndexFixedLeg(
+                effective=dt(2022, 1, 1),
+                termination=dt(2022, 10, 1),
+                frequency="Q",
+                index_base=NoInput(0),
+                index_fixings=index_fixings,
+            )
+
+    def test_index_reverse_monotonic_decreasing_series(self):
+        s = Series([1, 2, 3], index=[dt(2000, 1, 1), dt(1999, 1, 1), dt(1998, 1, 1)])
+        assert s.index.is_monotonic_decreasing
+        leg = IndexFixedLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 10, 1),
+            frequency="Q",
+            index_base=NoInput(0),
+            index_fixings=s,
+        )
+        assert leg.index_fixings.index.is_monotonic_increasing
 
 
 class TestFloatLegExchangeMtm:
@@ -2318,8 +2383,8 @@ def test_mtm_leg_exchange_metrics(type_, expected, kw) -> None:
 )
 def test_set_index_fixings_series_leg_types(klass, kwargs, expected) -> None:
     index_fixings = Series(
-        [100.0, 200.0, 300, 399.0, 401.0],
-        index=[dt(2022, 1, 1), dt(2022, 5, 1), dt(2022, 8, 1), dt(2022, 10, 31), dt(2022, 11, 2)],
+        [100.0, 200.0, 300, 400.0, 500.0],
+        index=[dt(2022, 1, 1), dt(2022, 2, 1), dt(2022, 5, 1), dt(2022, 8, 1), dt(2022, 11, 1)],
     )
     obj = klass(
         effective=dt(2022, 2, 5),
@@ -2337,6 +2402,7 @@ def test_set_index_fixings_series_leg_types(klass, kwargs, expected) -> None:
         assert period.index_fixings == expected[i]
 
 
+@pytest.mark.skip(reason="fixings as a list removed in v2.0")
 @pytest.mark.parametrize(
     ("klass", "kwargs", "expected"),
     [

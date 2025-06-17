@@ -15,6 +15,24 @@ differentiation (AD). The implementation style here is known as *forward mode*, 
 opposed to *reverse mode* (otherwise called *automatic adjoint differentiation* or
 *back propagation*).
 
+.. container:: twocol
+
+   .. container:: leftside40
+
+      .. image:: _static/thumb_coding_2_1.png
+         :alt: Coding Interest Rates: FX, Swaps and Bonds
+         :target: https://www.amazon.com/dp/0995455562
+         :width: 145
+         :align: center
+
+   .. container:: rightside60
+
+      The mathematics and theory used to implement *rateslib's* AD is documented thoroughly in
+      the companion book *Coding Interest Rates: FX, Swaps and Bonds*.
+
+.. raw:: html
+
+   <div class="clear"></div>
 
 Summary
 *******
@@ -38,11 +56,14 @@ Methods
    rateslib.dual.dual_solve
    rateslib.dual.newton_1dim
    rateslib.dual.newton_ndim
+   rateslib.dual.ift_1dim
    rateslib.dual.quadratic_eqn
 
 
 Example
 *******
+
+Below, a standard Python function is created and is called with standard *floats*.
 
 First Derivatives
 -----------------
@@ -60,8 +81,8 @@ First Derivatives
 
    func(2, 1, 2)
 
-For extracting only first derivatives it is more efficient
-to use :class:`~rateslib.dual.Dual`:
+For extracting first derivatives, or gradients, we can depend on the *rateslib*
+:class:`~rateslib.dual.Dual` datatypes and its operator overloading:
 
 .. math::
 
@@ -71,94 +92,83 @@ to use :class:`~rateslib.dual.Dual`:
 
 .. ipython:: python
 
-   x, y, z = Dual(2, ["x"], []), Dual(1, ["y"], []), Dual(2, ["z"], [])
-   func(x, y, z)
-   gradient(func(x, y, z), ["x", "y", "z"])
+   x = Dual(2, ["x"], [])
+   y = Dual(1, ["y"], [])
+   z = Dual(2, ["z"], [])
+
+   value = func(x, y, z)
+   value.real
+   gradient(value, ["x", "y", "z"])
 
 Second Derivatives
 ------------------
 
-For extracting second derivatives we must use :class:`~rateslib.dual.Dual2`:
+For extracting second derivatives we must use the :class:`~rateslib.dual.Dual2` datatype:
 
 .. ipython:: python
 
-    x, y, z = Dual2(2, ["x"], [], []), Dual2(1, ["y"], [], []), Dual2(2, ["z"], [], [])
-    func(x, y, z)
-    gradient(func(x, y, z), ["x", "y", "z"])
-    gradient(func(x, y, z), ["x", "y"], order=2)
+    x = Dual2(2, ["x"], [], [])
+    y = Dual2(1, ["y"], [], [])
+    z = Dual2(2, ["z"], [], [])
 
-The ``keep_manifold`` argument is also exclusively available
-for :class:`~rateslib.dual.Dual2`. When
-extracting a first order gradient from a :class:`~rateslib.dual.Dual2` this is
-will use information about
-second order and transfer it to first order thus representing a linear manifold
-of the gradient. This is useful for allowing composited automatic calculation of
-second order gradients. For example
-consider the following functions, :math:`g(x)=x^2` and :math:`h(y)=y^2`, evaluated at
-the points :math:`x=2` and :math:`y=4`. This creates the quadratic manifolds centered
-at those points expressed in the following :class:`~rateslib.dual.Dual2` numbers:
-
-.. ipython:: python
-
-    g = Dual2(4, ["x"], [4], [1])  # g(x=2)
-    h = Dual2(16, ["y"], [8], [1])  # h(y=4)
-
-If we wish to multiply these two functions and evaluate the second order derivatives
-at (2, 4) we can simply do,
-
-.. ipython:: python
-
-    gradient(g*h, order=2)
-
-And observe that, say, :math:`\frac{\partial (gh)}{\partial x \partial y} = 4xy|_{(2, 4)} = 32`,
-as shown in the above array.
-
-But, we can also use the product rule of differentiation to assert that,
-
-.. math::
-
-   d_{x\zeta}^2(gh) = d_x \left ( d_\zeta(g)h + gd_\zeta(h) \right ) \\\\
-   d_{y\zeta}^2(gh) = d_y \left ( d_\zeta(g)h + gd_\zeta(h) \right ) \\\\
-
-which we express in our dual language as,
-
-.. ipython:: python
-
-    gradient(g, ["x", "y"], keep_manifold=True) * h + g * gradient(h, ["x", "y"], keep_manifold=True)
-
-If the manifold is not maintained the product rule fails because information that is
-required to ultimately determine that desired second derivative is discarded.
-
-.. ipython:: python
-
-    gradient(g, ["x", "y"]) * h + g * gradient(h, ["x", "y"])
-
-More specifically,
-
-.. ipython:: python
-
-    gradient(g, ["x", "y"], keep_manifold=True)
-
-while,
-
-.. ipython:: python
-
-    gradient(g, ["x", "y"])
-
+    value = func(x, y, z)
+    value.real
+    value.dual
+    gradient(value, ["x", "y"], order=2)
 
 Implementation
 ***************
 
+.. ipython:: python
+
+   x = Dual(2.0, ["x"], [])
+   y = Dual(3.0, ["y"], [])
+
 Forward mode AD is implemented using operating overloading
 and custom compatible functions. The operations implemented are;
 
-  - addition (+),
+  - addition (+)
+
+    .. ipython:: python
+
+       x + y + 1.5
+
   - subtraction and negation (-),
+
+    .. ipython:: python
+
+       x - y - 1.5
+
   - multiplication (*),
+
+    .. ipython:: python
+
+       x * y * 1.5
+
   - division and inversion (/) (\*\*-1),
-  - n'th power where n is an integer or a float (\*\*n),
+
+    .. ipython:: python
+
+       x / y / 1.5
+
+  - dual and float type powers (\*\*),
+
+    .. ipython:: python
+
+       x ** y ** 1.5
+
   - exponential and logarithms (which require the specific methods below),
+
+    .. ipython:: python
+
+       dual_exp(x)
+       dual_log(y)
+
   - equality of dual numbers with integers and floats and with each other.
+
+    .. ipython:: python
+
+       x == y
 
 .. warning::
     :class:`~rateslib.dual.Dual` and :class:`~rateslib.dual.Dual2` are
@@ -267,3 +277,54 @@ will refer to this global state.
    dual_exp(x)
 
    defaults._global_ad_order = 1  # Reset
+
+Product Rule and ``keep_manifold``
+***********************************
+
+The ``keep_manifold`` argument is also exclusively available for :class:`~rateslib.dual.Dual2`.
+When extracting a first order gradient from a :class:`~rateslib.dual.Dual2` there is
+information available to also express the gradient of this gradient.
+
+Consider the function :math:`g(x)=x^2` at :math:`x=2`. This is the object:
+
+.. ipython:: python
+
+   g = Dual2(4.0, ["x"], [4.0], [1.0])
+
+The default, first order, ``gradient`` extraction will simply yield floating point values:
+
+.. ipython:: python
+
+   gradient(g, order=1)
+
+However, by directly requesting to ``keep_manifold`` then the output will yield a
+:class:`~rateslib.dual.Dual2` datatype of this information with the appropriate sensitivity of
+this gradient derived from second order.
+
+.. ipython:: python
+
+   gradient(g, order=1, keep_manifold=True)
+
+This is not used frequently within *rateslib* but its purpose is to preserve the chain rule,
+and allow two chained operations of the :meth:`~rateslib.dual.gradient` method.
+
+Consider the additional function :math:`h(y)=y^2`, evaluated at
+the point :math:`y=4`. This is the object:
+
+.. ipython:: python
+
+   h = Dual2(16.0, ["y"], [8.0], [1.0])
+
+It is natural to derive second order gradients of the product of these functions at the
+supposed points using:
+
+.. ipython:: python
+
+   gradient(g * h, order=2)
+
+Below demonstrates the dual application of the method to derive the same values.
+
+.. ipython:: python
+
+   gradient(gradient(g * h, keep_manifold=True)[0])
+   gradient(gradient(g * h, keep_manifold=True)[1])

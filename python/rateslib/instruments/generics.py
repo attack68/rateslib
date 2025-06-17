@@ -9,8 +9,8 @@ from pandas import DataFrame, DatetimeIndex, concat
 
 from rateslib import defaults
 from rateslib.calendars import dcf
-from rateslib.curves import Curve
 from rateslib.curves._parsers import _validate_curve_is_not_dict, _validate_curve_not_no_input
+from rateslib.curves.utils import _CurveType
 from rateslib.default import NoInput, _drb
 from rateslib.dual import dual_log
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
@@ -34,6 +34,7 @@ if TYPE_CHECKING:
         NoReturn,
         Solver_,
         SupportsMetrics,
+        _BaseCurve,
         datetime_,
         str_,
     )
@@ -78,6 +79,12 @@ class Value(Metrics):
        curve[dt(2023, 1, 1)]
     """
 
+    _rate_scalars = {
+        "curve_value": 100.0,
+        "index_value": 100.0,
+        "cc_zero_rate": 1.0,
+    }
+
     def __init__(
         self,
         effective: datetime,
@@ -89,6 +96,7 @@ class Value(Metrics):
         self.curves = curves
         self.convention = _drb(defaults.convention, convention)
         self.metric = metric.lower()
+        self._rate_scalar = self._rate_scalars.get(self.metric, 1.0)
 
     def rate(
         self,
@@ -119,6 +127,14 @@ class Value(Metrics):
         -------
         float, Dual, Dual2
 
+        Notes
+        ------
+        The ``metric`` *"index_value"* will use a *"daily*" style interpolation to derive the
+        value for the ``effective`` date. If the objective is to set a monthly inflation value
+        during a curve calibration then the suggestion would be to define the ``effective`` date
+        of the :class:`~rateslib.instruments.Value` as the 1st of a given month, in which case
+        both interpolation methods give the same result.
+
         """
         curves_, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
@@ -129,19 +145,19 @@ class Value(Metrics):
             "_",
         )
         metric = _drb(self.metric, metric).lower()
-        curve_0: Curve = _validate_curve_not_no_input(_validate_curve_is_not_dict(curves_[0]))
+        curve_0: _BaseCurve = _validate_curve_not_no_input(_validate_curve_is_not_dict(curves_[0]))
         if metric == "curve_value":
             return curve_0[self.effective]
         elif metric == "cc_zero_rate":
-            if curve_0._base_type != "dfs":
+            if curve_0._base_type != _CurveType.dfs:
                 raise TypeError(
                     "`curve` used with `metric`='cc_zero_rate' must be discount factor based.",
                 )
-            dcf_ = dcf(curve_0.node_dates[0], self.effective, self.convention)
+            dcf_ = dcf(curve_0.nodes.initial, self.effective, self.convention)
             ret: DualTypes = (dual_log(curve_0[self.effective]) / -dcf_) * 100
             return ret
         elif metric == "index_value":
-            ret = curve_0.index_value(self.effective)
+            ret = curve_0.index_value(self.effective, curve_0.meta.index_lag, "daily")
             return ret
         raise ValueError("`metric`must be in {'curve_value', 'cc_zero_rate', 'index_value'}.")
 
@@ -792,7 +808,7 @@ class Portfolio(Sensitivities, Metrics):
         DataFrame
         """
         df_result = DataFrame(
-            index=DatetimeIndex([], name="obs_dates", freq=None),
+            index=DatetimeIndex([], name="obs_dates"),
         )
         for inst in self.instruments:
             try:

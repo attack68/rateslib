@@ -82,7 +82,8 @@ independently by providing basic inputs.
       An *Index Curve* is required by certain products, e.g.
       inflation linked bonds (:class:`~rateslib.instruments.IndexFixedRateBond`) or
       zero coupon inflation swaps (:class:`~rateslib.instruments.ZCIS`). Adding ``index_base``
-      and ``index_lag`` argument inputs extends a DF based *Curve* to work in these cases.
+      and ``index_lag`` argument inputs extends a DF based :class:`~rateslib.curves.Curve` to
+      work in these cases.
 
       .. ipython:: python
 
@@ -113,6 +114,8 @@ independently by providing basic inputs.
                  dt(2023, 1, 1): 0.995
              },
              id="pfizer_hazard",
+             credit_recovery_rate=0.4,
+             credit_discretization=23,
          )
 
 
@@ -593,7 +596,7 @@ Securities and bonds
              fixed_rate=0.125,
              index_base=262.250270,
              index_lag=3,
-             index_fixings=[265.0],
+             index_fixings=265.0,
              spec="us_gb",
          )
          ifrb.price(ytm=1.397926, settlement=dt(2025, 2, 4))

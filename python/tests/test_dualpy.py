@@ -598,14 +598,6 @@ def test_downcast_vars() -> None:
     assert z.__downcast_vars__().vars == ("y", "z")
 
 
-@pytest.mark.parametrize(("base", "exponent"), [(1, 1), (1, 0), (0, 1), (0, 0)])
-def test_powers_bad_type(base, exponent, x_1, y_1) -> None:
-    base = x_1 if base else y_1
-    exponent = x_1 if exponent else y_1
-    with pytest.raises(TypeError):
-        base**exponent
-
-
 # Linalg dual_solve tests
 
 

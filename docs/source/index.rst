@@ -40,9 +40,10 @@ No-Derivatives 4.0 International Licence**. For more details see :ref:`here<lice
 
 .. raw:: html
 
-   <span style="font-size:1.5em;font-weight:bold;">Academic and at-home educational use:</span> <span style="color:green; font-size: 1.5em; font-weight:bold;">FREE to use and modify.</span><br>
    <span style="font-size:1.5em;font-weight:bold;">Commercial use:</span> <span style="color:red; font-size: 1.15em;">Not licensed for any use (funds, banks, etc,).</span>
-   <a class="purchase-btn" href="i_purchase.html">Purchase User Licences</a>
+   <a class="purchase-btn" href="i_purchase.html">Purchase Licence Extension</a><br>
+   <span style="font-size:1.5em;font-weight:bold;">Academic and at-home educational use:</span> <span style="color:green; font-size: 1.5em; font-weight:bold;">FREE to use and modify.</span>
+
 
 .. raw:: html
 

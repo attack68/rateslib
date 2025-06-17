@@ -55,14 +55,14 @@ the next 8 quarterly IMM 3M SOFR futures as of 2nd November 2023.
 .. ipython:: python
 
    instruments_stir = [
-       STIRFuture(dt(2023, 12, 20), dt(2024, 3, 20), spec="sofr3mf", curves="stir"),
-       STIRFuture(dt(2024, 3, 20), dt(2024, 6, 19), spec="sofr3mf", curves="stir"),
-       STIRFuture(dt(2024, 6, 19), dt(2024, 9, 18), spec="sofr3mf", curves="stir"),
-       STIRFuture(dt(2024, 9, 18), dt(2024, 12, 18), spec="sofr3mf", curves="stir"),
-       STIRFuture(dt(2024, 12, 18), dt(2025, 3, 19), spec="sofr3mf", curves="stir"),
-       STIRFuture(dt(2025, 3, 19), dt(2025, 6, 18), spec="sofr3mf", curves="stir"),
-       STIRFuture(dt(2025, 6, 18), dt(2025, 9, 17), spec="sofr3mf", curves="stir"),
-       STIRFuture(dt(2025, 9, 17), dt(2025, 12, 17), spec="sofr3mf", curves="stir"),
+       STIRFuture(dt(2023, 12, 20), dt(2024, 3, 20), spec="usd_stir", curves="stir"),
+       STIRFuture(dt(2024, 3, 20), dt(2024, 6, 19), spec="usd_stir", curves="stir"),
+       STIRFuture(dt(2024, 6, 19), dt(2024, 9, 18), spec="usd_stir", curves="stir"),
+       STIRFuture(dt(2024, 9, 18), dt(2024, 12, 18), spec="usd_stir", curves="stir"),
+       STIRFuture(dt(2024, 12, 18), dt(2025, 3, 19), spec="usd_stir", curves="stir"),
+       STIRFuture(dt(2025, 3, 19), dt(2025, 6, 18), spec="usd_stir", curves="stir"),
+       STIRFuture(dt(2025, 6, 18), dt(2025, 9, 17), spec="usd_stir", curves="stir"),
+       STIRFuture(dt(2025, 9, 17), dt(2025, 12, 17), spec="usd_stir", curves="stir"),
    ]
    stir_solver = Solver(
        curves=[curve_stir],
@@ -82,7 +82,7 @@ analysing the *delta* risk sensitivity.
 
 .. ipython:: python
 
-   stirf = STIRFuture(dt(2024, 9, 18), dt(2024, 12, 18), spec="sofr3mf", curves="stir", contracts=1000)
+   stirf = STIRFuture(dt(2024, 9, 18), dt(2024, 12, 18), spec="usd_stir", curves="stir", contracts=1000)
    stirf.delta(solver=stir_solver)
 
 Next consider paying an *IRS* as measured over the same dates in an equivalent contract notional

@@ -16,8 +16,6 @@ USD
 Government Bill
 ----------------
 
-Aliases: **"ustb"**
-
 .. ipython:: python
 
    defaults.spec["us_gbb"]
@@ -33,8 +31,6 @@ GBP
 Government Bill
 ----------------
 
-Aliases: **"uktb"**
-
 .. ipython:: python
 
    defaults.spec["uk_gbb"]
@@ -49,8 +45,6 @@ SEK
 
 Government Bill
 ----------------
-
-Aliases: **"sgbb"**
 
 .. ipython:: python
 

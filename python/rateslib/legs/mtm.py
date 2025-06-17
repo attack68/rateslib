@@ -19,14 +19,14 @@ if TYPE_CHECKING:
     from rateslib.typing import (
         FX_,
         Any,
-        Curve,
-        Curve_,
         CurveOption_,
         DualTypes,
         DualTypes_,
         FixingsFx_,
         FixingsRates_,
         Schedule,
+        _BaseCurve,
+        _BaseCurve_,
         datetime_,
         int_,
         str_,
@@ -90,7 +90,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
             raise ValueError("`amortization` cannot be supplied to a `FixedLegExchangeMtm` type.")
 
         # calls the fixings setter, will convert the input types to list
-        self.fx_fixings = fx_fixings  # type: ignore[assignment]
+        self.fx_fixings = fx_fixings
 
     @property
     def notional(self) -> DualTypes:
@@ -143,7 +143,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         elif isinstance(value, float | Dual | Dual2 | Variable):
             self._fx_fixings = [value]
         elif isinstance(value, Series):
-            self._fx_fixings = self._get_fx_fixings_from_series(value)
+            self._fx_fixings = self._get_fx_fixings_from_series(value)  # type: ignore[arg-type]
         elif isinstance(value, tuple):
             self._fx_fixings = [value[0]]
             self._fx_fixings.extend(self._get_fx_fixings_from_series(value[1], ini_period=1))
@@ -267,8 +267,8 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
 
     def npv(
         self,
-        curve: Curve,
-        disc_curve: Curve_ = NoInput(0),
+        curve: _BaseCurve,
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
@@ -281,8 +281,8 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
 
     def cashflows(
         self,
-        curve: Curve_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:
@@ -294,8 +294,8 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
 
     def analytic_delta(
         self,
-        curve: Curve_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
@@ -455,7 +455,7 @@ class FloatLegMtm(_FloatLegMixin, BaseLegMtm):
     def fixings_table(
         self,
         curve: CurveOption_,
-        disc_curve: Curve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         approximate: bool = False,

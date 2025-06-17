@@ -36,7 +36,7 @@ below so that it is easier later to build all the *Curves* with different interp
 
 .. ipython:: python
 
-   def curve_factory(t):
+   def curve_factory(interpolation, t):
        return Curve(
            nodes={
                dt(2022, 1, 1): 1.0,
@@ -56,6 +56,7 @@ below so that it is easier later to build all the *Curves* with different interp
            },
            convention="act365f",
            calendar="all",
+           interpolation=interpolation,
            t=t,
        )
 
@@ -110,13 +111,14 @@ the code and the setup.
 
 We will now build and solve the three *Curves* with the different types of interpolation to match
 the book's values.
-In order to add cubic spline interpolation we only need to add the *knot sequence* as the ``t`` parameter.
+In order to add log cubic spline interpolation we only need to add the *knot sequence* as the
+``t`` parameter.
 
 .. ipython:: python
 
-   log_linear_curve = curve_factory(t=NoInput(0))
-   log_cubic_curve = curve_factory(t=[dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 1, 1), dt(2022, 3, 15), dt(2022, 6, 15), dt(2022, 9, 21), dt(2022, 12, 21), dt(2023, 3, 15), dt(2023, 6, 21),dt(2023, 9, 20), dt(2023, 12, 20), dt(2024, 3, 15), dt(2025, 1, 1), dt(2027, 1, 1), dt(2029, 1, 1), dt(2032, 1, 1), dt(2032, 1, 1), dt(2032, 1, 1), dt(2032, 1, 1)])
-   mixed_curve = curve_factory(t=[dt(2024, 3, 15), dt(2024, 3, 15), dt(2024, 3, 15), dt(2024, 3, 15), dt(2025, 1, 1), dt(2027, 1, 1), dt(2029, 1, 1), dt(2032, 1, 1), dt(2032, 1, 1), dt(2032, 1, 1), dt(2032, 1, 1)])
+   log_linear_curve = curve_factory("log_linear", NoInput(0))
+   log_cubic_curve = curve_factory("spline", NoInput(0))
+   mixed_curve = curve_factory("log_linear", t=[dt(2024, 3, 15), dt(2024, 3, 15), dt(2024, 3, 15), dt(2024, 3, 15), dt(2025, 1, 1), dt(2027, 1, 1), dt(2029, 1, 1), dt(2032, 1, 1), dt(2032, 1, 1), dt(2032, 1, 1), dt(2032, 1, 1)])
 
 .. ipython:: python
 
@@ -129,11 +131,11 @@ The discount factors for each *Curve* are stated as below:
 .. ipython:: python
 
    df = DataFrame(
-       index=[_ for _ in log_linear_curve.nodes.keys()],
+       index=[_ for _ in log_linear_curve.nodes.keys],
        data={
-           "log-linear": [float(_) for _ in log_linear_curve.nodes.values()],
-           "log-cubic": [float(_) for _ in log_cubic_curve.nodes.values()],
-           "mixed": [float(_) for _ in mixed_curve.nodes.values()],
+           "log-linear": [float(_) for _ in log_linear_curve.nodes.values],
+           "log-cubic": [float(_) for _ in log_cubic_curve.nodes.values],
+           "mixed": [float(_) for _ in mixed_curve.nodes.values],
        }
    )
    with option_context("display.float_format", lambda x: '%.6f' % x):
@@ -148,4 +150,3 @@ The *Curves* are plotted.
 .. plot:: plot_py/ptirds.py
 
    The same graph as shown in Pricing and Trading Interest Rate Derivatives (Table 6.2)
-

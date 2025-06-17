@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from time import time
-from typing import TYPE_CHECKING, Any, ParamSpec
+from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
 
 import numpy as np
 
 from rateslib.dual.utils import _dual_float, dual_solve
+from rateslib.dual.variable import Variable
 from rateslib.rs import Dual, Dual2
 
 if TYPE_CHECKING:
@@ -22,6 +23,7 @@ STATE_MAP = {
     2: ["SUCCESS", "`func_tol` reached"],
     3: ["SUCCESS", "closed form valid"],
     -1: ["FAILURE", "`max_iter` breached"],
+    -2: ["FAILURE", "internal iteration function failure"],
 }
 
 
@@ -43,8 +45,12 @@ def _solver_result(
     }
 
 
-def _float_if_not_string(x: str | DualTypes) -> str | float:
-    if not isinstance(x, str):
+T = TypeVar("T")
+
+
+def _dual_float_or_unchanged(x: T | DualTypes) -> T | float:
+    """If x is a DualType convert it to float otherwise leave it as is"""
+    if isinstance(x, float | Dual | Dual2 | Variable):
         return _dual_float(x)
     return x
 
@@ -55,9 +61,9 @@ def newton_1dim(
     max_iter: int = 50,
     func_tol: float = 1e-14,
     conv_tol: float = 1e-9,
-    args: tuple[str | DualTypes, ...] = (),
-    pre_args: tuple[str | DualTypes, ...] = (),
-    final_args: tuple[str | DualTypes, ...] = (),
+    args: tuple[Any, ...] = (),
+    pre_args: tuple[Any, ...] = (),
+    final_args: tuple[Any, ...] = (),
     raise_on_fail: bool = True,
 ) -> dict[str, Any]:
     """
@@ -129,12 +135,12 @@ def newton_1dim(
     i = 0
 
     # First attempt solution using faster float calculations
-    float_args = tuple(_float_if_not_string(_) for _ in args)
+    float_args = tuple(_dual_float_or_unchanged(_) for _ in args)
     g0 = _dual_float(g0)
     state = -1
 
     while i < max_iter:
-        f0, f1 = f(*(g0, *float_args, *pre_args))  # type: ignore[call-arg, arg-type]
+        f0, f1 = f(*(g0, *float_args, *pre_args))  # type: ignore[call-arg]
         i += 1
         g1 = g0 - f0 / f1
         if abs(f0) < func_tol:
@@ -147,17 +153,20 @@ def newton_1dim(
 
     if i == max_iter:
         if raise_on_fail:
-            raise ValueError(f"`max_iter`: {max_iter} exceeded in 'newton_1dim' algorithm'.")
+            raise ValueError(
+                f"`max_iter`: {max_iter} exceeded in 'newton_1dim' algorithm'.\n"
+                f"Last iteration values:\nf0: {f0}\nf1: {f1}\ng0: {g0}"
+            )
         else:
             return _solver_result(-1, i, g1, time() - t0, log=True, algo="newton_1dim")
 
     # # Final iteration method to preserve AD
-    f0, f1 = f(*(g1, *args, *final_args))  # type: ignore[call-arg, arg-type]
+    f0, f1 = f(*(g1, *args, *final_args))  # type: ignore[call-arg]
     if isinstance(f0, Dual | Dual2) or isinstance(f1, Dual | Dual2):
         i += 1
         g1 = g1 - f0 / f1
     if isinstance(f0, Dual2) or isinstance(f1, Dual2):
-        f0, f1 = f(*(g1, *args, *final_args))  # type: ignore[call-arg, arg-type]
+        f0, f1 = f(*(g1, *args, *final_args))  # type: ignore[call-arg]
         i += 1
         g1 = g1 - f0 / f1
 
@@ -198,9 +207,9 @@ def newton_ndim(
     max_iter: int = 50,
     func_tol: float = 1e-14,
     conv_tol: float = 1e-9,
-    args: tuple[str | DualTypes, ...] = (),
-    pre_args: tuple[str | DualTypes, ...] = (),
-    final_args: tuple[str | DualTypes, ...] = (),
+    args: tuple[Any, ...] = (),
+    pre_args: tuple[Any, ...] = (),
+    final_args: tuple[Any, ...] = (),
     raise_on_fail: bool = True,
 ) -> dict[str, Any]:
     r"""
@@ -268,12 +277,12 @@ def newton_ndim(
     n = len(g0)
 
     # First attempt solution using faster float calculations
-    float_args = tuple(_float_if_not_string(_) for _ in args)
+    float_args = tuple(_dual_float_or_unchanged(_) for _ in args)
     g0_ = np.array([_dual_float(_) for _ in g0])
     state = -1
 
     while i < max_iter:
-        f0, f1 = f(*(g0_, *float_args, *pre_args))  # type: ignore[call-arg, arg-type]
+        f0, f1 = f(*(g0_, *float_args, *pre_args))  # type: ignore[call-arg]
         f0 = np.array(f0)[:, np.newaxis]
         f1 = np.array(f1)
 

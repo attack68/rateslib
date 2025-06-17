@@ -123,3 +123,15 @@ EUR
 
    defaults.spec["sp_gb_10y"]
    BondFuture(spec="sp_gb_10y", delivery=dt(2000, 3, 10)).kwargs
+
+CHF
+********
+
+.. _spec-ch-gb-10y:
+
+**CONF Futures**
+
+.. ipython:: python
+
+   defaults.spec["ch_gb_10y"]
+   BondFuture(spec="ch_gb_10y", delivery=dt(2000, 3, 10)).kwargs

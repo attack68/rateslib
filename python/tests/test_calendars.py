@@ -18,6 +18,7 @@ from rateslib.calendars import (
     dcf,
     get_calendar,
     get_imm,
+    next_imm,
 )
 from rateslib.calendars.dcfs import _dcf_actacticma
 from rateslib.curves import Curve
@@ -292,6 +293,7 @@ def test_is_eom_som(date, expected) -> None:
         (dt(2022, 1, 1), dt(2023, 1, 31), "1+", 1.0),
         (dt(2022, 1, 1), dt(2024, 2, 28), "1+", 2 + 1 / 12),
         (dt(2022, 1, 1), dt(2022, 4, 1), "BUS252", 0.35714285714285715),
+        (dt(2022, 1, 1), dt(2022, 4, 1), "30U360", 0.25),
     ],
 )
 def test_dcf(start, end, conv, expected) -> None:
@@ -443,6 +445,33 @@ def test_bus252(start, end, expected) -> None:
         [],
     )
     assert dcf(start, end, "BUS252", calendar=cal) == expected
+
+
+@pytest.mark.parametrize(
+    ("start", "end", "roll", "expected"),
+    [
+        (dt(2024, 2, 29), dt(2025, 2, 28), "eom", 1.00),
+        (dt(2024, 2, 29), dt(2025, 2, 28), 29, 0.99722222222222),
+        (dt(2024, 2, 28), dt(2025, 2, 28), "eom", 1.0),
+        (dt(2024, 2, 28), dt(2025, 2, 28), 28, 1.0),
+        (dt(2024, 2, 29), dt(2025, 2, 27), "eom", 0.99166666666666),
+        (dt(2024, 2, 29), dt(2025, 2, 27), 27, 0.99444444444444),
+        (dt(2024, 2, 28), dt(2025, 2, 27), "eom", 0.99722222222222),
+        (dt(2024, 2, 28), dt(2025, 2, 27), 27, 0.99722222222222),
+        (dt(2024, 9, 30), dt(2024, 12, 31), None, 0.25),
+        (dt(2024, 3, 31), dt(2024, 6, 30), None, 0.25),
+        (dt(2024, 3, 31), dt(2024, 12, 31), None, 0.75),
+        (dt(2024, 12, 1), dt(2024, 12, 31), None, 30 / 360),
+        (dt(2024, 11, 30), dt(2024, 12, 31), None, 30 / 360),
+        (dt(2024, 2, 29), dt(2024, 3, 31), 29, 32 / 360),
+        (dt(2024, 2, 29), dt(2024, 3, 31), "eom", 30 / 360),
+        (dt(2024, 2, 28), dt(2024, 3, 31), "eom", 33 / 360),
+        (dt(2025, 2, 28), dt(2025, 3, 31), "eom", 30 / 360),
+    ],
+)
+def test_30u360(start, end, roll, expected):
+    result = dcf(start, end, "30U360", roll=roll)
+    assert abs(result - expected) < 1e-10
 
 
 @pytest.mark.parametrize(
@@ -612,3 +641,34 @@ def test_get_calendar_from_defaults() -> None:
     defaults.calendars["custom"] = "my_object"
     assert get_calendar("custom") == "my_object"
     defaults.calendars.pop("custom")
+
+
+@pytest.mark.parametrize(
+    ("start", "method", "expected"),
+    [
+        (dt(2025, 1, 1), "imm", dt(2025, 3, 19)),
+        (dt(2025, 1, 1), "serial_imm", dt(2025, 1, 15)),
+        (dt(2025, 1, 1), "credit_imm", dt(2025, 3, 20)),
+        (dt(2025, 1, 1), "credit_imm_HU", dt(2025, 3, 20)),
+        (dt(2025, 1, 1), "credit_imm_MZ", dt(2025, 6, 20)),
+        (dt(2025, 1, 15), "serial_imm", dt(2025, 2, 19)),
+        (dt(2025, 3, 19), "imm", dt(2025, 6, 18)),
+        (dt(2025, 3, 20), "credit_imm", dt(2025, 6, 20)),
+        (dt(2025, 3, 20), "credit_imm_HU", dt(2025, 9, 20)),
+        (dt(2025, 3, 20), "credit_imm_MZ", dt(2025, 6, 20)),
+        (dt(2025, 9, 20), "credit_imm_HU", dt(2026, 3, 20)),
+        (dt(2025, 12, 1), "imm", dt(2025, 12, 17)),
+        (dt(2025, 12, 1), "serial_imm", dt(2025, 12, 17)),
+        (dt(2025, 12, 1), "credit_imm", dt(2025, 12, 20)),
+        (dt(2025, 12, 1), "credit_imm_HU", dt(2026, 3, 20)),
+        (dt(2025, 12, 1), "credit_imm_MZ", dt(2025, 12, 20)),
+        (dt(2025, 12, 17), "imm", dt(2026, 3, 18)),
+        (dt(2025, 12, 17), "serial_imm", dt(2026, 1, 21)),
+        (dt(2025, 12, 20), "credit_imm", dt(2026, 3, 20)),
+        (dt(2025, 12, 20), "credit_imm_HU", dt(2026, 3, 20)),
+        (dt(2025, 12, 20), "credit_imm_MZ", dt(2026, 6, 20)),
+    ],
+)
+def test_next_imm(start, method, expected):
+    result = next_imm(start, method)
+    assert result == expected

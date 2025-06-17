@@ -127,7 +127,7 @@ The next step is to create the *Instruments* and call the :class:`~rateslib.solv
       instruments=[rl.IRS(termination=_, **instr_args) for _ in data.keys()],
       s=[_ for _ in data.values()]
    )
-   curve.nodes
+   curve.nodes.nodes
 
 Finally the result beween the two libraries is summarized in the table below: 
 

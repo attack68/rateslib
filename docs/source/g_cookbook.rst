@@ -18,6 +18,8 @@ into any one category.
     z_quantlib.rst
     z_curve_from_zero_rates.ipynb
     z_multicurveframework.rst
+    z_bus252_convention.rst
+    z_basecurve.ipynb
 
 **Credit Curve Building**
 
@@ -31,14 +33,17 @@ into any one category.
 .. toctree::
     :titlesonly:
 
-    z_eurusd_surface.ipynb
+    z_fxvol_surface_construction.ipynb
     z_fxvol_temporal.ipynb
+    z_eurusd_surface.ipynb
 
 **Instrument Pricing**
 
 .. toctree::
     :titlesonly:
 
+    z_bond_conventions.rst
+    z_index_bonds_and_fixings.ipynb
     z_stubs.rst
     z_fixings.rst
     z_historical_swap.ipynb
@@ -54,5 +59,6 @@ into any one category.
     z_bondbasis.rst
     z_bondctd.rst
     z_exogenous.rst
+    z_exogenous_beta.ipynb
     z_fixings_exposures.rst
     z_multicsa.rst

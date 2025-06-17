@@ -12,13 +12,13 @@
 Piecewise Polynomial Splines
 ****************************
 
-Th ``rateslib.splines`` module implements the library's own piecewise polynomial
-splines of generic order
-such that we can include it within our :class:`~rateslib.curves.Curve` class
-for log-cubic discount
-factor interpolation. It does this using b-splines, and various named splines are compatible
+The ``rateslib.splines`` module implements the library's own piecewise polynomial
+splines of generic order. It does this using b-splines, and various named splines are compatible
 with :class:`~rateslib.dual.Dual`
 and :class:`~rateslib.dual.Dual2` data types for automatic differentiation.
+
+Splines are used by the pricing objects, :class:`~rateslib.curves.Curve`,
+:class:`~rateslib.curves.LineCurve` and :class:`~rateslib.fx_volatility.FXDeltaVolSmile`.
 
 The calculations are based on the material provided in
 `A Practical Guide to Splines  by Carl de Boor
@@ -29,222 +29,46 @@ The calculations are based on the material provided in
    rateslib.splines.PPSplineDual
    rateslib.splines.PPSplineDual2
 
-For legacy reasons `PPSpline` is now an alias for `PPSplineF64` which allows only float-64 (x,y) values.
+Parameters
+**********
 
-Introduction
-************
+k
+-
 
-A spline function is one which is composed of a sum of other polynomial functions.
-In this case, the spline function, :math:`\$(x)`, is a linear sum of b-splines.
+**k** is the order of the spline. The *rateslib* pricing objects mentioned above that utilise
+pp-splines are all cubic, which is of order, *k=4*.
 
-.. math::
+t
+-
 
-   \$(x) = \sum_{i=1}^n c_i B_{i, k, \mathbf{t}}(x)
+**t** is the knot sequence which implicitly defines the break sequence and interior continuity
+conditions of the pp-spline. According to the Curry and Schoenberg Theorem a knot sequence
+should be constructed as follows;
 
-Below we plot the 8 b-splines associated with the example knot sequence,
+- the first *k* knots should be identical and equal the left side of the spline interval.
+- the last *k* knots should be identical and equal the right side of the spline interval.
+- interior knots will equal the interior break points and be repeated as many times as one
+  wishes to remove a derivative continuity condition (see examples below).
 
-- **t**: [1,1,1,1,2,2,2,3,4,4,4,4]  (the knot sequence)
-- *k*: 4  (the order of the spline (cubic))
-- :math:`\mathbf{\xi}` : {1, 2, 3, 4} (the breakpoints sequence)
-- :math:`\mathbf{\nu}`: {1, 3}  (the number of interior continuity conditions)
-- *n*: 8 (the dimension of the spline, also degrees of freedom)
+For all of the *rateslib* pricing objects, the auto-generated splines have 4 repeated knots at the
+start and end of all knot sequences and there is only ever one repeated interior knot, implying
+that none of the *rateslib* pricing objects, by default, allow discontinuous derivatives at interior
+breakpoints.
 
-.. ipython:: python
+c
+-
 
-   t = [1,1,1,1,2,2,2,3,4,4,4,4]
-   spline = PPSplineF64(k=4, t=t)
-   x = np.linspace(1, 4, 76)
-   fig, ax = plt.subplots(1,1)
-   for i in range(spline.n):
-       ax.plot(x, spline.bsplev(x, i))
-
-.. plot::
-
-   from rateslib.splines import *
-   import matplotlib.pyplot as plt
-   from datetime import datetime as dt
-   import numpy as np
-   t = [1,1,1,1,2,2,2,3,4,4,4,4]
-   spline = PPSplineF64(k=4, t=t)
-   x = np.linspace(1, 4, 76)
-   fig, ax = plt.subplots(1,1)
-   for i in range(spline.n):
-       ax.plot(x, spline.bsplev(x, i))
-   plt.title("8 B-Splines corresponding to the given knot sequence")
-   plt.show()
-
-Suppose we now have a function, :math:`g(x)`, within the domain [1,4],
-eg :math:`g(x)=sin(3x)` and we
-sample 8 data sites, :math:`\mathbf{\tau}`, within the domain for the function value:
-
-.. ipython:: python
-
-   tau = np.array([1.1, 1.3, 1.9, 2.2, 2.5, 3.1, 3.5, 3.9])
-   fig, ax = plt.subplots(1,1)
-   ax.plot(x, np.sin(3*x))
-   ax.scatter(tau, np.sin(3*tau))
-
-.. plot::
-
-   from rateslib.splines import *
-   import matplotlib.pyplot as plt
-   from datetime import datetime as dt
-   import numpy as np
-   t = [1,1,1,1,2,2,2,3,4,4,4,4]
-   spline = PPSplineF64(k=4, t=t)
-   x = np.linspace(1, 4, 76)
-   tau = np.array([1.1, 1.3, 1.9, 2.2, 2.5, 3.1, 3.5, 3.9])
-   fig, ax = plt.subplots(1,1)
-   ax.plot(x, np.sin(3*x))
-   ax.scatter(tau, np.sin(3*tau))
-   plt.title("Function to approximate and some specific data sites")
-   plt.show()
-
-Our function, :math:`g(x)`, is to be approximated by our piecewise
-polynomial spline function. This means
-we need to derive the coefficients, :math:`\mathbf{c}`, which best approximate our
-function. Given our data sites and known values we
-solve the linear system, involving the spline collocation matrix,
-:math:`\mathbf{B}_{k, \mathbf{t}}(\mathbf{\tau})`,
-
-.. math::
-
-   \mathbf{B}_{k, \mathbf{t}}(\mathbf{\tau}) \mathbf{c} = g(\mathbf{\tau}), \quad \text{where} \quad [\mathbf{B}_{k, \mathbf{t}}(\mathbf{\tau})]_{j,i} = B_{i,k,\mathbf{t}}(\tau_j)
-
-.. ipython:: python
-
-   spline.csolve(tau, np.sin(3*tau), 0, 0, False)
-   fig, ax = plt.subplots(1,1)
-   ax.plot(x, np.sin(3*x))
-   ax.scatter(tau, np.sin(3*tau))
-   ax.plot(x, spline.ppev(x))
-
-.. plot::
-
-   from rateslib.splines import *
-   import matplotlib.pyplot as plt
-   from datetime import datetime as dt
-   import numpy as np
-   t = [1,1,1,1,2,2,2,3,4,4,4,4]
-   spline = PPSplineF64(k=4, t=t)
-   x = np.linspace(1, 4, 76)
-   tau = np.array([1.1, 1.3, 1.9, 2.2, 2.5, 3.1, 3.5, 3.9])
-   spline.csolve(tau, np.sin(3*tau), 0, 0, False)
-   fig, ax = plt.subplots(1,1)
-   ax.plot(x, np.sin(3*x))
-   ax.scatter(tau, np.sin(3*tau))
-   ax.plot(x, spline.ppev(x))
-   plt.title("Piecewise polynomial spline approximation of function through data sites")
-   plt.show()
-
-In this case, omitting the continuity conditions at the interior breakpoint, 2, creates
-quite a problem. For the purpose of using this module within the :class:`Curve` class
-we always use full continuity at the interior breakpoints. If we remove two dimensions
-of the spline (to yield dimension 6) by imposing further continuity of derivative
-and second derivative at :math:`\xi=2` (and 2 data sites to match the new spline
-dimension and yield a square linear system),
-then we obtain a more reasonable spline approximation of
-this function.
-
-.. ipython:: python
-
-   spline = PPSplineF64(k=4, t=[1,1,1,1,2,3,4,4,4,4])
-   tau = np.array([1.0, 1.7, 2.3, 2.9, 3.5, 4.0])
-   spline.csolve(tau, np.sin(3*tau), 0, 0, False)
-   fig, ax = plt.subplots(1,1)
-   ax.plot(x, np.sin(3*x))
-   ax.scatter(tau, np.sin(3*tau))
-   ax.plot(x, spline.ppev(x))
-
-.. plot::
-
-   from rateslib.splines import *
-   import matplotlib.pyplot as plt
-   from datetime import datetime as dt
-   import numpy as np
-   t = [1,1,1,1,2,3,4,4,4,4]
-   spline = PPSplineF64(k=4, t=t)
-   x = np.linspace(1, 4, 76)
-   tau = np.array([1.0, 1.7, 2.3, 2.9, 3.5, 4.0])
-   spline.csolve(tau, np.sin(3*tau), 0, 0, False)
-   fig, ax = plt.subplots(1,1)
-   ax.plot(x, np.sin(3*x))
-   ax.scatter(tau, np.sin(3*tau))
-   ax.plot(x, spline.ppev(x))
-   plt.show()
-
-The accuracy of the approximation in this case can be improved either by:
-
-- utilising better placed data sites,
-- increasing the dimension of the spline (and the associated
-  degrees of freedom) by inserting further interior breakpoints and increasing
-  the number of data sites,
-- keeping the dimension of the spline and increasing the number of data sites and
-  allowing those data sites to solve with error minimised under least squares.
-
-The below demonstrates increasing the spline dimension to 7 and adding a data site.
-
-.. ipython:: python
-
-   spline = PPSplineF64(k=4, t=[1,1,1,1,1.75,2.5,3.25,4,4,4,4])
-   tau = np.array([1.0, 1.5, 2.0, 2.5, 3, 3.5, 4.0])
-   spline.csolve(tau, np.sin(3*tau), 0, 0, False)
-   fig, ax = plt.subplots(1,1)
-   ax.plot(x, np.sin(3*x))
-   ax.scatter(tau, np.sin(3*tau))
-   ax.plot(x, spline.ppev(x))
-
-.. plot::
-
-   from rateslib.splines import *
-   import matplotlib.pyplot as plt
-   from datetime import datetime as dt
-   import numpy as np
-   t=[1,1,1,1,1.75,2.5,3.25,4,4,4,4]
-   spline = PPSplineF64(k=4, t=t)
-   x = np.linspace(1, 4, 76)
-   tau = np.array([1.0, 1.5, 2.0, 2.5, 3, 3.5, 4.0])
-   spline.csolve(tau, np.sin(3*tau), 0, 0, False)
-   fig, ax = plt.subplots(1,1)
-   ax.plot(x, np.sin(3*x))
-   ax.scatter(tau, np.sin(3*tau))
-   ax.plot(x, spline.ppev(x))
-   plt.show()
-
-Alternatively we demonstrate keeping the original spline dimension of 6 and adding more
-data sites and solving with least squares error. In this case the accuracy of the
-spline is somewhat constrained by its limiting degrees of freedom.
-
-.. ipython:: python
-
-   spline = PPSplineF64(k=4, t=[1,1,1,1,2,3,4,4,4,4])
-   tau = np.array([1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3, 3.25, 3.5, 3.75, 4.0])
-   spline.csolve(tau, np.sin(3*tau), 0, 0, allow_lsq=True)
-   fig, ax = plt.subplots(1,1)
-   ax.plot(x, np.sin(3*x))
-   ax.scatter(tau, np.sin(3*tau))
-   ax.plot(x, spline.ppev(x))
-
-.. plot::
-
-   from rateslib.splines import *
-   import matplotlib.pyplot as plt
-   from datetime import datetime as dt
-   import numpy as np
-   t=[1,1,1,1,2,3,4,4,4,4]
-   spline = PPSplineF64(k=4, t=t)
-   x = np.linspace(1, 4, 76)
-   tau = np.array([1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3, 3.25, 3.5, 3.75, 4.0])
-   spline.csolve(tau, np.sin(3*tau), 0, 0, allow_lsq=True)
-   fig, ax = plt.subplots(1,1)
-   ax.plot(x, np.sin(3*x))
-   ax.scatter(tau, np.sin(3*tau))
-   ax.plot(x, spline.ppev(x))
-   plt.show()
+**c** are the spline coefficients. Most frequently these will be calculated automatically
+using :meth:`~rateslib.splines.PPSplineF64.csolve`, but can also be supplied directly. The
+number of required values equals the dimension of the pp-spline, *n=len(t)-k*.
 
 Endpoint Constraints
 **********************
-The various end point constraints can be generated in this implementation:
+Endpoint constraints are often imposed, either automatically in *rateslib* pricing objects,
+or occasionally users have freedom to choose suitable parameter options.
+
+Using the generic PPSPline objects various end point constraints can be generated
+via this implementation:
 
 - **Natural spline**: this enforces second order derivative equal to zero at the
   endpoints. This is most useful for splines of order 4 (cubic) and higher.
@@ -260,7 +84,7 @@ The various end point constraints can be generated in this implementation:
 - **Mixed constraints**: this allows combinations of the above methods at each end.
 
 Suppose we wish to generate between the points (0,0), (1,0), (3,2), (4,2), as
-demonstrated in this :download:`spline note<_static/spline_note_cs_tau.pdf>` published
+demonstrated in this :download:`spline note<api/_static/spline_note_cs_tau.pdf>` published
 by the school of computer science at Tel Aviv University, then  we can generate the
 following splines using this library in the following way:
 
@@ -371,6 +195,216 @@ side with a clamped right side.
    ax.plot(x, cspline.ppev(x), label="Clamped")
    ax.plot(x, pspline.ppev(x), label="Prescribed 2nd")
    ax.legend()
+   plt.show()
+
+Introduction to Theory
+**********************
+
+A spline function is one which is composed of a sum of other polynomial functions.
+In this case, the spline function, :math:`\$(x)`, is a linear sum of b-splines.
+
+.. math::
+
+   \$(x) = \sum_{i=1}^n c_i B_{i, k, \mathbf{t}}(x)
+
+Below we plot the 8 b-splines associated with the example knot sequence,
+
+- **t**: [1,1,1,1,2,2,2,3,4,4,4,4]  (the knot sequence)
+- *k*: 4  (the order of the spline (cubic))
+- :math:`\mathbf{\xi}` : {1, 2, 3, 4} (the breakpoints sequence)
+- :math:`\mathbf{\nu}`: {1, 3}  (the number of interior continuity conditions)
+- *n*: 8 (the dimension of the spline, also degrees of freedom)
+
+.. ipython:: python
+
+   t = [1,1,1,1,2,2,2,3,4,4,4,4]
+   spline = PPSplineF64(k=4, t=t)
+   x = np.linspace(1, 4, 76)
+   fig, ax = plt.subplots(1,1)
+   for i in range(spline.n):
+       ax.plot(x, spline.bsplev(x, i))
+
+.. plot::
+
+   from rateslib.splines import *
+   import matplotlib.pyplot as plt
+   from datetime import datetime as dt
+   import numpy as np
+   t = [1,1,1,1,2,2,2,3,4,4,4,4]
+   spline = PPSplineF64(k=4, t=t)
+   x = np.linspace(1, 4, 76)
+   fig, ax = plt.subplots(1,1)
+   for i in range(spline.n):
+       ax.plot(x, spline.bsplev(x, i))
+   plt.title("8 B-Splines corresponding to the given knot sequence")
+   plt.show()
+
+Suppose we now have a function, :math:`g(x)`, within the domain [1,4],
+eg :math:`g(x)=sin(3x)` and we
+sample 8 data sites, :math:`\mathbf{\tau}`, within the domain for the function value:
+
+.. ipython:: python
+
+   tau = np.array([1.1, 1.3, 1.9, 2.2, 2.5, 3.1, 3.5, 3.9])
+   fig, ax = plt.subplots(1,1)
+   ax.plot(x, np.sin(3*x))
+   ax.scatter(tau, np.sin(3*tau))
+
+.. plot::
+
+   from rateslib.splines import *
+   import matplotlib.pyplot as plt
+   from datetime import datetime as dt
+   import numpy as np
+   t = [1,1,1,1,2,2,2,3,4,4,4,4]
+   spline = PPSplineF64(k=4, t=t)
+   x = np.linspace(1, 4, 76)
+   tau = np.array([1.1, 1.3, 1.9, 2.2, 2.5, 3.1, 3.5, 3.9])
+   fig, ax = plt.subplots(1,1)
+   ax.plot(x, np.sin(3*x))
+   ax.scatter(tau, np.sin(3*tau))
+   plt.title("Function to approximate and some specific data sites")
+   plt.show()
+
+Our function, :math:`g(x)`, is to be approximated by our piecewise
+polynomial spline function. This means
+we need to derive the coefficients, :math:`\mathbf{c}`, which best approximate our
+function. Given our data sites and known values we
+solve the linear system, involving the spline collocation matrix,
+:math:`\mathbf{B}_{k, \mathbf{t}}(\mathbf{\tau})`,
+
+.. math::
+
+   \mathbf{B}_{k, \mathbf{t}}(\mathbf{\tau}) \mathbf{c} = g(\mathbf{\tau}), \quad \text{where} \quad [\mathbf{B}_{k, \mathbf{t}}(\mathbf{\tau})]_{j,i} = B_{i,k,\mathbf{t}}(\tau_j)
+
+.. ipython:: python
+
+   spline.csolve(tau, np.sin(3*tau), 0, 0, False)
+   fig, ax = plt.subplots(1,1)
+   ax.plot(x, np.sin(3*x))
+   ax.scatter(tau, np.sin(3*tau))
+   ax.plot(x, spline.ppev(x))
+
+.. plot::
+
+   from rateslib.splines import *
+   import matplotlib.pyplot as plt
+   from datetime import datetime as dt
+   import numpy as np
+   t = [1,1,1,1,2,2,2,3,4,4,4,4]
+   spline = PPSplineF64(k=4, t=t)
+   x = np.linspace(1, 4, 76)
+   tau = np.array([1.1, 1.3, 1.9, 2.2, 2.5, 3.1, 3.5, 3.9])
+   spline.csolve(tau, np.sin(3*tau), 0, 0, False)
+   fig, ax = plt.subplots(1,1)
+   ax.plot(x, np.sin(3*x))
+   ax.scatter(tau, np.sin(3*tau))
+   ax.plot(x, spline.ppev(x))
+   plt.title("Piecewise polynomial spline approximation of function through data sites")
+   plt.show()
+
+In this case, omitting the continuity conditions at the interior breakpoint, 2, creates
+quite a problem. If we remove two dimensions
+of the spline (to yield dimension 6) by imposing further continuity of derivative
+and second derivative at :math:`\xi=2` (and 2 data sites to match the new spline
+dimension and yield a square linear system),
+then we obtain a more reasonable spline approximation of
+this function.
+
+.. ipython:: python
+
+   spline = PPSplineF64(k=4, t=[1,1,1,1,2,3,4,4,4,4])
+   tau = np.array([1.0, 1.7, 2.3, 2.9, 3.5, 4.0])
+   spline.csolve(tau, np.sin(3*tau), 0, 0, False)
+   fig, ax = plt.subplots(1,1)
+   ax.plot(x, np.sin(3*x))
+   ax.scatter(tau, np.sin(3*tau))
+   ax.plot(x, spline.ppev(x))
+
+.. plot::
+
+   from rateslib.splines import *
+   import matplotlib.pyplot as plt
+   from datetime import datetime as dt
+   import numpy as np
+   t = [1,1,1,1,2,3,4,4,4,4]
+   spline = PPSplineF64(k=4, t=t)
+   x = np.linspace(1, 4, 76)
+   tau = np.array([1.0, 1.7, 2.3, 2.9, 3.5, 4.0])
+   spline.csolve(tau, np.sin(3*tau), 0, 0, False)
+   fig, ax = plt.subplots(1,1)
+   ax.plot(x, np.sin(3*x))
+   ax.scatter(tau, np.sin(3*tau))
+   ax.plot(x, spline.ppev(x))
+   plt.show()
+
+The accuracy of the approximation in this case can be improved either by:
+
+- utilising better placed data sites,
+- increasing the dimension of the spline (and the associated
+  degrees of freedom) by inserting further interior breakpoints and increasing
+  the number of data sites,
+- keeping the dimension of the spline and increasing the number of data sites and
+  allowing those data sites to solve with error minimised under least squares.
+
+The below demonstrates increasing the spline dimension to 7 and adding a data site.
+
+.. ipython:: python
+
+   spline = PPSplineF64(k=4, t=[1,1,1,1,1.75,2.5,3.25,4,4,4,4])
+   tau = np.array([1.0, 1.5, 2.0, 2.5, 3, 3.5, 4.0])
+   spline.csolve(tau, np.sin(3*tau), 0, 0, False)
+   fig, ax = plt.subplots(1,1)
+   ax.plot(x, np.sin(3*x))
+   ax.scatter(tau, np.sin(3*tau))
+   ax.plot(x, spline.ppev(x))
+
+.. plot::
+
+   from rateslib.splines import *
+   import matplotlib.pyplot as plt
+   from datetime import datetime as dt
+   import numpy as np
+   t=[1,1,1,1,1.75,2.5,3.25,4,4,4,4]
+   spline = PPSplineF64(k=4, t=t)
+   x = np.linspace(1, 4, 76)
+   tau = np.array([1.0, 1.5, 2.0, 2.5, 3, 3.5, 4.0])
+   spline.csolve(tau, np.sin(3*tau), 0, 0, False)
+   fig, ax = plt.subplots(1,1)
+   ax.plot(x, np.sin(3*x))
+   ax.scatter(tau, np.sin(3*tau))
+   ax.plot(x, spline.ppev(x))
+   plt.show()
+
+Alternatively we demonstrate keeping the original spline dimension of 6 and adding more
+data sites and solving with least squares error. In this case the accuracy of the
+spline is somewhat constrained by its limiting degrees of freedom.
+
+.. ipython:: python
+
+   spline = PPSplineF64(k=4, t=[1,1,1,1,2,3,4,4,4,4])
+   tau = np.array([1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3, 3.25, 3.5, 3.75, 4.0])
+   spline.csolve(tau, np.sin(3*tau), 0, 0, allow_lsq=True)
+   fig, ax = plt.subplots(1,1)
+   ax.plot(x, np.sin(3*x))
+   ax.scatter(tau, np.sin(3*tau))
+   ax.plot(x, spline.ppev(x))
+
+.. plot::
+
+   from rateslib.splines import *
+   import matplotlib.pyplot as plt
+   from datetime import datetime as dt
+   import numpy as np
+   t=[1,1,1,1,2,3,4,4,4,4]
+   spline = PPSplineF64(k=4, t=t)
+   x = np.linspace(1, 4, 76)
+   tau = np.array([1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3, 3.25, 3.5, 3.75, 4.0])
+   spline.csolve(tau, np.sin(3*tau), 0, 0, allow_lsq=True)
+   fig, ax = plt.subplots(1,1)
+   ax.plot(x, np.sin(3*x))
+   ax.scatter(tau, np.sin(3*tau))
+   ax.plot(x, spline.ppev(x))
    plt.show()
 
 Application to Discount Factors

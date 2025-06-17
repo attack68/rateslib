@@ -26,12 +26,12 @@ if TYPE_CHECKING:
         NPV,
         Any,
         CalInput,
-        Curve,
         CurveOption_,
         DualTypes,
         DualTypes_,
         FixingsRates_,
         Period,
+        _BaseCurve,
         bool_,
         datetime,
         datetime_,
@@ -328,7 +328,8 @@ class BaseLeg(metaclass=ABCMeta):
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
         """
         _ = (period.analytic_delta(*args, **kwargs) for period in self.periods)
-        return sum(_)
+        ret: DualTypes = sum(_)
+        return ret
 
     def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
@@ -353,7 +354,8 @@ class BaseLeg(metaclass=ABCMeta):
             return {self.currency: sum(_)}
         else:
             _ = (period.npv(*args, **kwargs) for period in self.periods)
-            return sum(_)
+            ret: DualTypes = sum(_)
+            return ret
 
     # @property
     # def _is_linear(self) -> bool:
@@ -530,7 +532,7 @@ class _FloatLegMixin:
             fixings_: list[DualTypes | list[DualTypes] | Series[DualTypes] | NoInput] = []  # type: ignore[type-var]
         elif isinstance(fixings, Series):
             # oldest fixing at index 0: latest -1
-            sorted_fixings: Series[DualTypes] = fixings.sort_index()  # type: ignore[attr-defined, type-var]
+            sorted_fixings: Series[DualTypes] = fixings.sort_index()  # type: ignore[type-var, assignment]
             fixings_ = self._get_fixings_from_series(sorted_fixings)  # type: ignore[assignment]
         elif isinstance(fixings, tuple):
             fixings_ = [fixings[0]]
@@ -610,8 +612,8 @@ class _FloatLegMixin:
     def _spread_isda_approximated_rate(
         self,
         target_npv: DualTypes,
-        fore_curve: Curve,  # TODO: use CurveOption_ and handle dict[str, Curve]
-        disc_curve: Curve,  # TODO: use CurveOption_ and handle dict[str, Curve]
+        fore_curve: _BaseCurve,  # TODO: use CurveOption_ and handle dict[str, Curve]
+        disc_curve: _BaseCurve,  # TODO: use CurveOption_ and handle dict[str, Curve]
     ) -> DualTypes:
         """
         Use approximated derivatives through geometric averaged 1day rates to derive the
@@ -661,7 +663,7 @@ class _FloatLegMixin:
             if isinstance(period, FloatPeriod):
                 period.float_spread = _
 
-    # def fixings_table(self, curve: Curve):
+    # def fixings_table(self, curve: _BaseCurve):
     #     """
     #     Return a DataFrame of fixing exposures on a :class:`~rateslib.legs.FloatLeg`.
     #

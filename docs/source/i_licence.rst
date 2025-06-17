@@ -4,8 +4,33 @@
 Licence
 *******
 
-*Rateslib* is released under an **Amended Creative Commons Attribution, Non-Commercial,
+*Rateslib* is copyrightable IP and is released under an
+**Amended Creative Commons Attribution, Non-Commercial,
 No-Derivatives 4.0 International Licence**.
+
+.. raw:: html
+
+   <span style="font-size:1.5em;font-weight:bold;">Commercial Use:</span> <span style="color:red; font-size: 1.5em; font-weight:bold;">Not licensed.</span>
+   <a class="purchase-btn" href="i_purchase.html">Purchase Licence Extension</a>
+
+This use is defined as any use inside a corporate entity, such as a bank, fund, treasury,
+accountant, consultant, corporate, etc. To use *rateslib* for commercial use requires purchasing
+a :ref:`licence extension <purchase-doc>` on basis that is either per
+user or enterprise based.
+
+.. warning::
+
+   This means that you **cannot** (without a licence extension);
+
+   - Install it or import it to any corporate machine or corporate virtual environment.
+   - Use the library or code for any form of commercial or profit based activity.
+   - Copy or modify the code and use it in any derivative product or commercial activity,
+     such as in a trading application, API or other form of publication.
+   - Include this code, or package, as a **dependency** of any other package used within
+     a corporate entity.
+   - Use this code as a benchmark or as a validator for developing your own code
+     which will be used in a capacity by a corporate institution.
+
 
 .. raw:: html
 
@@ -22,28 +47,6 @@ No-Derivatives 4.0 International Licence**.
      and such that **end use is non-commercial** and in a non-profit function, and distributed
      with a copy of this licence.
 
-.. raw:: html
-
-   <span style="font-size:1.5em;font-weight:bold;">Commercial Use:</span> <span style="color:red; font-size: 1.5em; font-weight:bold;">Not licensed.</span>
-   <a class="purchase-btn" href="i_purchase.html">Purchase User Licences</a>
-
-This use is defined as any use inside a corporate entity, such as a bank, fund, treasury,
-accountant, consultant, corporate, etc. To use *rateslib* for commercial use requires purchasing
-a :ref:`licence extension <licence-extension>` on basis that is :ref:`per user <licence-user>`.
-
-
-.. warning::
-
-   This means that you **cannot** (without a licence extension);
-
-   - Install it or import it to any corporate machine or corporate virtual environment.
-   - Use the library or code for any form of commercial or profit based activity.
-   - Copy or modify the code and use it in any derivative product or commercial activity,
-     such as in a trading application, API or other form of publication.
-   - Include this code, or package, as a **dependency** of any other package used within
-     a corporate entity.
-   - Use this code as a benchmark or as a validator for developing your own code
-     which will be used in a capacity by a corporate institution.
 
 
 Attribution-NonCommercial-NoDerivatives 4.0 International (as Amended)

@@ -10,6 +10,7 @@ from rateslib.curves._parsers import _get_curves_maybe_from_solver, _validate_cu
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.fx import FXForwards, FXRates
+from rateslib.fx_volatility import FXSabrSmile, FXSabrSurface
 
 if TYPE_CHECKING:
     from rateslib.typing import (
@@ -157,7 +158,9 @@ def _get_fxvol_maybe_from_solver(vol_attr: FXVol_, vol: FXVol_, solver: Solver_)
         try:
             # it is a safeguard to load curves from solvers when a solver is
             # provided and multiple curves might have the same id
-            _: FXDeltaVolSmile | FXDeltaVolSurface = solver._get_pre_fxvol(vol_.id)
+            _: FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile | FXSabrSurface = (
+                solver._get_pre_fxvol(vol_.id)
+            )
             if id(_) != id(vol_):
                 raise ValueError(  # ignore: type[union-attr]
                     "A ``vol`` object has been supplied which has the same "
@@ -206,7 +209,7 @@ def _get_fxvol_curves_fx_and_base_maybe_from_solver(
     vol_ = _get_fxvol_maybe_from_solver(vol_attr, vol, solver)
     if isinstance(vol_, FXDeltaVolSmile | FXDeltaVolSurface):
         curves_1 = _validate_curve_not_no_input(curves_[1])
-        if vol_.eval_date != curves_1.node_dates[0]:
+        if vol_.meta.eval_date != curves_1.nodes.initial:
             raise ValueError(
                 "The `eval_date` on the FXDeltaVolSmile and the Curve do not align.\n"
                 "Aborting calculation to avoid pricing errors.",

@@ -60,7 +60,7 @@ do this is to create a baseline for measuring some financial sensitivity.
 Start with an innocuous example. Suppose we wanted to capture the sensitivity of the *IRS* above
 to its notional. The *notional* is just a linear scaling factor for an *IRS* (and many other
 instruments too) so the financial exposure for 1 unit of notional is just its *npv* divided by its
-5 million notional
+5 million notional.
 
 .. ipython:: python
 
@@ -79,7 +79,9 @@ But this can also be captured using :meth:`~rateslib.instruments.Sensitivities.e
        notional=Variable(5e6, ["N"]),  # <-- `notional` is assigned as a Variable: 'N'
        curves="curve",
    )
-   irs.exo_delta(solver=solver, vars=["N"])
+   data = irs.exo_delta(solver=solver, vars=["N"])
+   with option_context("display.float_format", lambda x: '%.6f' % x):
+       print(data)
 
 What about capturing the exposure to the ``fixed_rate``? This is already provided by the analytical
 function :meth:`~rateslib.instruments.IRS.analytic_delta` but it can be shown. Here, we scale
@@ -139,6 +141,9 @@ before performing calculations in *rateslib*.
 But if a user wants to inject dual sensitivity at an arbitrary point in the code it may not be
 possible for *rateslib* to know what to convert and this may break downstream calculations.
 
+The below example shows a user injecting a *Dual2* sensitivity directly and the calculations
+breaking becuase other variable are only in *Dual* mode.
+
 .. ipython:: python
 
    irs = IRS(
@@ -155,6 +160,7 @@ possible for *rateslib* to know what to convert and this may break downstream ca
        print(e)
 
 Using a :class:`~rateslib.dual.Variable`, instead, is designed to cover these user cases.
+A *Variable* will convert to the necessary type as and when the calculation requires.
 
 The Real Use Case
 -------------------
@@ -218,7 +224,23 @@ We will replicate all of the code from that page, some of the variables are dire
        calendar="all",
        convention="act365f",
        interpolation="log_linear",
+       credit_recovery_rate=0.4,
        id="pfizer"
+   )
+   pfizer_sv = Solver(
+       curves=[hazard_curve],
+       pre_solvers=[us_rates_sv],
+       instruments=[
+           CDS(
+               effective=cds_eff,
+               termination=_,
+               spec="us_ig_cds",
+               curves=["pfizer", "sofr"]
+           ) for _ in cds_mats
+       ],
+       s=cds_rates,
+       instrument_labels=cds_tenor,
+       id="pfizer_cds"
    )
 
 .. ipython:: python
@@ -226,33 +248,12 @@ We will replicate all of the code from that page, some of the variables are dire
    disc_curve  # the US SOFR discount curve created
    us_rates_sv  # the Solver calibrating the SOFR curve
    hazard_curve  # the Pfizer hazard curve
+   pfizer_sv  # the Solver calibrating the hazard curve
 
-Now, this time our calibrating *Instruments* will include sensitivity to the ``recovery_rate``
-which will be labelled as *"RR"*. This is an **exogenous** variable that we are directly
-injecting.
-
-.. ipython:: python
-
-   pfizer_sv = Solver(
-       curves=[hazard_curve],
-       pre_solvers=[us_rates_sv],
-       instruments=[
-           CDS(
-               effective=cds_eff,
-               termination=_,
-               spec="us_ig_cds",
-               recovery_rate=Variable(0.4, ["RR"]),  # <-- add exogenous variable exposure
-               curves=["pfizer", "sofr"]
-           ) for _ in cds_mats
-       ],
-       s=cds_rates,
-       instrument_labels=cds_tenor,
-       id="pfizer_cds"
-   )
-
-If we next create the same *CDS* to explore as the previous cookbook page and use
-:meth:`~rateslib.instruments.Sensitivities.exo_delta` we expect something close to 78.75, if
-Bloomberg is correct and if we are replicating a similar setup to their model.
+First we can demonstrate what happens when we inject sensitivity directly to a single
+*Instrument* calculation. The :meth:`~rateslib.instruments.CDS.analytic_rec_risk` is an
+analytic calculation that determines the change in value for a 1% change in recovery rate
+just for a single *CDS Instrument*
 
 .. ipython:: python
 
@@ -261,55 +262,62 @@ Bloomberg is correct and if we are replicating a similar setup to their model.
        termination=dt(2029, 12, 20),
        spec="us_ig_cds",
        curves=["pfizer", "sofr"],
-       recovery_rate=Variable(0.4, ["RR"]),  # <-- note the same "RR" variable
        notional=10e6,
    )
-   cds.rate(solver=pfizer_sv)
+   cds.analytic_rec_risk(hazard_curve, disc_curve)
+
+We can also obtain this value by copying a curve, injecting sensitivity, as an
+**exogenous variable** into it and evaluating with
+:meth:`~rateslib.instruments.Sensitivities.exo_delta`. This copied curve is independent from,
+and not mapped by, the *Solver* so none of the *Solver's* parameters are made sensitive to the
+change in ``recovery_rate`` here.
+
+.. ipython:: python
+
+   hazard_curve_copy = hazard_curve.copy()
+   # Set a new id to avoid Solver curve mapping errors
+   hazard_curve_copy._id = "something_else"
+   # Inject sensitivity to the recovery rate
+   hazard_curve_copy.update_meta("credit_recovery_rate", Variable(0.4, ["RR"]))
+   cds.exo_delta(curves=[hazard_curve_copy, disc_curve], solver=pfizer_sv, vars=["RR"], vars_scalar=[1/100.0])
+
+But this isn't really the value we want to capture. In fact we want to capture the change in NPV
+when the recovery rate of **all** Pfizer CDSs (including those that are calibrating the curves)
+have a different recovery rate, i.e. when the ``recovery_rate`` on the original
+``hazard_curve`` is updated. This is the same process, except this time we inject the
+sensitivity to the *Solver's* mapped curve directly and re-iterate.
+
+.. ipython:: python
+
+   # Update the Pfizer hazard curve to have exogenous exposure to "RR" variable
+   hazard_curve.update_meta("credit_recovery_rate", Variable(0.40, ["RR"]))
+   pfizer_sv.iterate()
+   cds.exo_delta(solver=pfizer_sv, vars=["RR"], vars_scalar=[1/100.0])
+
+This value is close to BBG's estimate of 78.75. But let's validate it by
+resorting (just this once!) to numerical differentiation and see what happens there:
+
+1) Record the initial values:
+
+.. ipython:: python
+
    base_npv = cds.npv(solver=pfizer_sv)
    base_npv
-   cds.exo_delta(vars=["RR"], vars_scalar=[0.01], solver=pfizer_sv)
 
-We can of course resort (just this once!) to numerical differentiation and see what happens there:
-
-1) Rebuild the solver with forward difference:
+2) Update the ``recovery_rate`` parameter and re-iterate the solver:
 
 .. ipython:: python
 
-   pfizer_sv = Solver(
-       curves=[hazard_curve],
-       pre_solvers=[us_rates_sv],
-       instruments=[
-           CDS(
-               effective=cds_eff,
-               termination=_,
-               spec="us_ig_cds",
-               recovery_rate=0.41,  # <-- increase RR by 0.01
-               curves=["pfizer", "sofr"]
-           ) for _ in cds_mats
-       ],
-       s=cds_rates,
-       instrument_labels=cds_tenor,
-       id="pfizer_cds"
-   )
-
-2) Recreate the CDS with forward difference:
-
-.. ipython:: python
-
-   cds = CDS(
-       effective=dt(2024, 9, 20),
-       termination=dt(2029, 12, 20),
-       spec="us_ig_cds",
-       curves=["pfizer", "sofr"],
-       recovery_rate=0.41,  # <-- increase the RR by 0.01
-       notional=10e6,
-   )
+   hazard_curve.update_meta("credit_recovery_rate", 0.41)
+   pfizer_sv.iterate()
 
 3) Revalue the NPV and compare it with the previous base value, scaling for 1% RR.
 
 .. ipython:: python
 
-   float((cds.npv(solver=pfizer_sv) - base_npv) * 1.0)
+   fwd_diff = cds.npv(solver=pfizer_sv)
+   float(fwd_diff - base_npv)
 
-Personally, I am inclined to trust *rateslib's* own figures here since there are calculated using
-AD and analytical maths and supported by a comparison to a forward difference method.
+Personally, I am inclined to trust *rateslib's* own figures here, rather than BBG, since these
+are calculated using AD and analytical maths and supported by a comparison to a forward
+difference method.

@@ -7,9 +7,9 @@ from pandas import DataFrame
 
 from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.default import NoInput, _drb
-from rateslib.dual import Dual, Dual2, Variable, dual_log
-from rateslib.dual.utils import _dual_float
-from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
+from rateslib.dual import Dual, Dual2, Variable, dual_log, newton_1dim
+from rateslib.dual.utils import _dual_float, _set_ad_order_objects
+from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments.fx_volatility.vanilla import FXCall, FXOption, FXPut
 from rateslib.instruments.utils import (
     _get_curves_fx_and_base_maybe_from_solver,
@@ -23,7 +23,6 @@ if TYPE_CHECKING:
         FX_,
         NPV,
         Any,
-        Curve,
         Curves_,
         DualTypes,
         DualTypes_,
@@ -34,6 +33,7 @@ if TYPE_CHECKING:
         FXVolStrat_,
         ListFXVol_,
         Solver_,
+        _BaseCurve,
         datetime,
         str_,
     )
@@ -103,17 +103,26 @@ class FXOptionStrat:
         If a sub-sequence, e.g BrokerFly is a strategy of strategies then this function will
         be repeatedly called within each strategy.
         """
+        ret: ListFXVol_ = []
         if isinstance(
             vol,
-            str | float | Dual | Dual2 | Variable | FXDeltaVolSurface | FXDeltaVolSmile | NoInput,
+            str
+            | float
+            | Dual
+            | Dual2
+            | Variable
+            | FXDeltaVolSurface
+            | FXDeltaVolSmile
+            | FXSabrSmile
+            | FXSabrSurface
+            | NoInput,
         ):
-            ret: ListFXVol_ = []
             for obj in self.periods:
                 if isinstance(obj, FXOptionStrat):
                     ret.append(obj._parse_vol_sequence(vol))
                 else:
                     ret.append(vol)
-            return ret
+
         elif isinstance(vol, Sequence):
             if len(vol) != len(self.periods):
                 raise ValueError(
@@ -121,14 +130,13 @@ class FXOptionStrat:
                     f"strategy elements: {len(self.periods)}"
                 )
             else:
-                ret = []
                 for obj, vol_ in zip(self.periods, vol, strict=True):
                     if isinstance(obj, FXOptionStrat):
                         ret.append(obj._parse_vol_sequence(vol_))
                     else:
                         assert isinstance(vol_, str) or not isinstance(vol_, Sequence)  # noqa: S101
                         ret.append(vol_)
-                return ret
+        return ret
 
     def _get_fxvol_maybe_from_solver_recursive(
         self, vol: FXVolStrat_, solver: Solver_
@@ -819,11 +827,11 @@ class FXStrangle(FXOptionStrat, FXOption):
         # type assignment, instead of using assert
         vol_0: FXVolOption = vol_[0]  # type: ignore[assignment]
         vol_1: FXVolOption = vol_[1]  # type: ignore[assignment]
-
-        # Get data from objects
-        curves_1: Curve = _validate_obj_not_no_input(curves_[1], "curves_[1]")
-        curves_3: Curve = _validate_obj_not_no_input(curves_[3], "curves_[3]")
+        curves_1: _BaseCurve = _validate_obj_not_no_input(curves_[1], "curves_[1]")
+        curves_3: _BaseCurve = _validate_obj_not_no_input(curves_[3], "curves_[3]")
         fxf: FXForwards = _validate_fx_as_forwards(fx_)
+
+        # Get initial data from objects in their native AD order
         spot: datetime = fxf.pairs_settlement[self.kwargs["pair"]]
         w_spot: DualTypes = curves_1[spot]
         w_deli: DualTypes = curves_1[self.kwargs["delivery"]]
@@ -833,107 +841,117 @@ class FXStrangle(FXOptionStrat, FXOption):
         f_0 = f_d if "forward" in self.kwargs["delta_type"] else f_t
 
         eta1 = None
+        fzw1zw0: DualTypes = 0.0
         if isinstance(
             vol_[0], FXDeltaVolSurface | FXDeltaVolSmile
         ):  # multiple Vol objects cannot be used, will derive conventions from the first one found.
-            eta1 = -0.5 if "_pa" in vol_[0].delta_type else 0.5
-            z_w_1 = 1.0 if "forward" in vol_[0].delta_type else w_deli / w_spot
+            eta1 = -0.5 if "_pa" in vol_[0].meta.delta_type else 0.5
+            z_w_1 = 1.0 if "forward" in vol_[0].meta.delta_type else w_deli / w_spot
             fzw1zw0 = f_0 * z_w_1 / z_w_0
 
-        # first start by evaluating the individual swaptions given their
-        # strikes with the smile - delta or fixed
+        # Determine the initial guess for Newton type iterations
+
+        _ad = _set_ad_order_objects([0] * 5, [vol_0, vol_1, curves_1, curves_3, fxf])
         gks: list[dict[str, Any]] = [
-            self.periods[0].analytic_greeks(curves, solver, fxf, base, vol_0),
-            self.periods[1].analytic_greeks(curves, solver, fxf, base, vol_1),
+            self.periods[0]._analytic_greeks_reduced(
+                curves=[NoInput(0), curves_1, NoInput(0), curves_3],
+                solver=NoInput(0),
+                fx=fxf,
+                base=base,
+                vol=vol_0,
+            ),
+            self.periods[1]._analytic_greeks_reduced(
+                curves=[NoInput(0), curves_1, NoInput(0), curves_3],
+                solver=NoInput(0),
+                fx=fxf,
+                base=base,
+                vol=vol_1,
+            ),
         ]
 
-        def d_wrt_sigma1(
-            period_index: int,
-            g: dict[str, Any],  # greeks
-            sg: dict[str, Any],  # smile_greeks
-            vol: FXVol,
-            eta1: float | None,
-        ) -> tuple[DualTypes, DualTypes]:
-            """
-            Obtain derivatives with respect to tgt vol.
+        g0: DualTypes = gks[0]["__vol"] * gks[0]["vega"] + gks[1]["__vol"] * gks[1]["vega"]
+        g0 /= gks[0]["vega"] + gks[1]["vega"]
 
-            This function was tested by adding AD to the tgt_vol as a variable e.g.:
-            tgt_vol = Dual(float(tgt_vol), ["tgt_vol"], [100.0]) # note scaled to 100
-            Then the options defined by fixed delta should not have a strike set to float, i.e.
-            self.periods[0].strike = float(self._pricing["k"]) ->
-            self.periods[0].strike = self._pricing["k"]
-            Then evaluate, for example: smile_greeks[i]["_delta_index"] with respect to "tgt_vol".
-            That value calculated with AD aligns with the analyical method here.
-
-            To speed up this function AD could be used, but it requires careful management of
-            whether the strike above is set to float or is left in AD format which has other
-            implications for the calculation of risk sensitivities.
-            """
-            fixed_delta = self._is_fixed_delta[period_index]
-            if not fixed_delta:
-                return g["vega"], 0.0
-            elif not isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
-                return (
-                    g["_kappa"] * g["_kega"] + g["vega"],
-                    sg["_kappa"] * g["_kega"],
-                )
-            else:
-                assert isinstance(eta1, float)  # noqa: S101 / becuase vol is Smile/Surface
-                if isinstance(vol, FXDeltaVolSurface):
-                    vol = vol.get_smile(self.kwargs["expiry"])
-                dvol_ddeltaidx = evaluate(vol.spline, sg["_delta_index"], 1) * 0.01
-                ddeltaidx_dvol1 = sg["gamma"] * fzw1zw0
-                if eta1 < 0:  # premium adjusted vol smile
-                    ddeltaidx_dvol1 += sg["_delta_index"]
-                ddeltaidx_dvol1 *= g["_kega"] / sg["__strike"]
-
-                _ = dual_log(sg["__strike"] / f_d) / sg["__vol"]
-                _ += eta1 * sg["__vol"] * sg["__sqrt_t"] ** 2
-                _ *= dvol_ddeltaidx * sg["gamma"] * fzw1zw0
-                ddeltaidx_dvol1 /= 1 + _
-
-                return (
-                    g["_kappa"] * g["_kega"] + g["vega"],
-                    sg["_kappa"] * g["_kega"] + sg["vega"] * dvol_ddeltaidx * ddeltaidx_dvol1,
-                )
-
-        tgt_vol: DualTypes = (
-            gks[0]["__vol"] * gks[0]["vega"] + gks[1]["__vol"] * gks[1]["vega"]
-        ) * 100.0
-        tgt_vol /= gks[0]["vega"] + gks[1]["vega"]
-        f0, iters = 100e6, 1
         put_op_period: FXOptionPeriod = self.periods[0]._option_periods[0]
         call_op_period: FXOptionPeriod = self.periods[1]._option_periods[0]
 
-        while abs(f0) > 1e-6 and iters < 10:
-            # Determine the strikes at the current tgt_vol
-            # Also determine the greeks of these options measure with tgt_vol
+        def root1d(
+            tgt_vol: DualTypes, fzw1zw0: DualTypes, as_float: bool
+        ) -> tuple[DualTypes, DualTypes]:
+            if not as_float:
+                # reset objects to their original order and perform final iterations
+                _set_ad_order_objects(_ad, [vol_0, vol_1, curves_1, curves_3, fxf])
+
+            # Determine the greeks of the options with the current tgt_vol iterate
             gks = [
-                self.periods[0].analytic_greeks(curves, solver, fxf, base, tgt_vol),
-                self.periods[1].analytic_greeks(curves, solver, fxf, base, tgt_vol),
+                self.periods[0]._analytic_greeks_reduced(
+                    curves=[NoInput(0), curves_1, NoInput(0), curves_3],
+                    solver=NoInput(0),
+                    fx=fxf,
+                    base=base,
+                    vol=tgt_vol * 100.0,
+                ),
+                self.periods[1]._analytic_greeks_reduced(
+                    curves=[NoInput(0), curves_1, NoInput(0), curves_3],
+                    solver=NoInput(0),
+                    fx=fxf,
+                    base=base,
+                    vol=tgt_vol * 100.0,
+                ),
             ]
+
             # Also determine the greeks of these options measured with the market smile vol.
             # (note the strikes have been set by previous call, call OptionPeriods direct
             # to avoid re-determination)
-            smile_gks = [
-                put_op_period.analytic_greeks(curves_1, curves_3, fxf, base_, vol_0),
-                call_op_period.analytic_greeks(curves_1, curves_3, fxf, base_, vol_1),
+            s_gks = [
+                put_op_period._analytic_greeks(
+                    curves_1, curves_3, fxf, base_, vol_0, _reduced=True
+                ),
+                call_op_period._analytic_greeks(
+                    curves_1, curves_3, fxf, base_, vol_1, _reduced=True
+                ),
             ]
 
             # The value of the root function is derived from the 4 previous calculated prices
-            f0 = (
-                smile_gks[0]["__bs76"]
-                + smile_gks[1]["__bs76"]
-                - gks[0]["__bs76"]
-                - gks[1]["__bs76"]
-            )
+            f0 = s_gks[0]["__bs76"] + s_gks[1]["__bs76"] - gks[0]["__bs76"] - gks[1]["__bs76"]
 
-            dc1_dvol1_0, dcmkt_dvol1_0 = d_wrt_sigma1(0, gks[0], smile_gks[0], vol_0, eta1)
-            dc1_dvol1_1, dcmkt_dvol1_1 = d_wrt_sigma1(1, gks[1], smile_gks[1], vol_1, eta1)
+            dc1_dvol1_0 = _d_c_hat_d_sigma_hat(gks[0], self._is_fixed_delta[0])
+            dcmkt_dvol1_0 = _d_c_mkt_d_sigma_hat(
+                gks[0],
+                s_gks[0],
+                self.kwargs["expiry"],
+                vol_0,
+                eta1,
+                self._is_fixed_delta[0],
+                fzw1zw0,
+                fxf,
+            )
+            dc1_dvol1_1 = _d_c_hat_d_sigma_hat(gks[1], self._is_fixed_delta[1])
+            dcmkt_dvol1_1 = _d_c_mkt_d_sigma_hat(
+                gks[1],
+                s_gks[1],
+                self.kwargs["expiry"],
+                vol_1,
+                eta1,
+                self._is_fixed_delta[1],
+                fzw1zw0,
+                fxf,
+            )
             f1 = dcmkt_dvol1_0 + dcmkt_dvol1_1 - dc1_dvol1_0 - dc1_dvol1_1
 
-            tgt_vol = tgt_vol - (f0 / f1) * 100.0  # Newton-Raphson step
-            iters += 1
+            return f0, f1
+
+        root_solver = newton_1dim(
+            root1d,
+            g0,
+            args=(fzw1zw0,),
+            pre_args=(True,),  # solve `as_float` in iterations
+            final_args=(False,),  # capture AD in final iterations
+            raise_on_fail=True,
+            max_iter=10,
+            func_tol=1e-6,
+        )
+        tgt_vol: DualTypes = root_solver["g"] * 100.0
 
         if record_greeks:  # this needs to be explicitly called since it degrades performance
             self._greeks["strangle"] = {
@@ -949,32 +967,115 @@ class FXStrangle(FXOptionStrat, FXOption):
 
         return tgt_vol
 
-    # def _single_vol_rate_known_strikes(
-    #     self,
-    #     imm_prem,
-    #     f_d,
-    #     t_e,
-    #     v_deli,
-    #     g0,
-    # ):
-    #     k1 = self.kwargs["strike"][0]
-    #     k2 = self.kwargs["strike"][1]
-    #     sqrt_t = t_e ** 0.5
-    #
-    #     def root(g, imm_prem, k1, k2, f_d, sqrt_t, v_deli):
-    #         vol_sqrt_t = g * sqrt_t
-    #         d_plus_1 = _d_plus_min(k1, f_d, vol_sqrt_t, 0.5)
-    #         d_min_1 = _d_plus_min(k1, f_d, vol_sqrt_t, -0.5)
-    #         d_plus_2 = _d_plus_min(k2, f_d, vol_sqrt_t, 0.5)
-    #         d_min_2 = _d_plus_min(k2, f_d, vol_sqrt_t, -0.5)
-    #         f0 = -(f_d * dual_norm_cdf(-d_plus_1) - k1 * dual_norm_cdf(-d_min_1))
-    #         f0 += (f_d * dual_norm_cdf(d_plus_2) - k2 * dual_norm_cdf(d_min_2))
-    #         f0 = f0 * v_deli - imm_prem
-    #         f1 = v_deli * f_d * sqrt_t * (dual_norm_pdf(-d_plus_1) + dual_norm_pdf(d_plus_2))
-    #         return f0, f1
-    #
-    #     result = newton_1dim(root, g0=g0, args=(imm_prem, k1, k2, f_d, sqrt_t, v_deli))
-    #     return result["g"]
+
+# Calculations related to Strange:single_vol
+
+
+def _d_c_hat_d_sigma_hat(
+    g: dict[str, Any],  # greeks
+    fixed_delta: bool,
+) -> DualTypes:
+    """
+    Return the total derivative of option priced with single vol with respect to single
+    vol.
+
+    Parameters
+    ----------
+    g: dict
+        The dict of greeks for the given option period measured against the tgt, single vol.
+    fixed_delta: bool
+        Whether the given FXOption is defined by fixed delta or an explicit strike.
+
+    Returns
+    -------
+    DualTypes
+    """
+    if not fixed_delta:
+        # kega is 0.0
+        return g["vega"]  # type: ignore[no-any-return]
+    else:
+        return g["_kappa"] * g["_kega"] + g["vega"]  # type: ignore[no-any-return]
+
+
+def _d_c_mkt_d_sigma_hat(
+    g: dict[str, Any],  # greeks
+    sg: dict[str, Any],  # smile_greeks
+    expiry: datetime,
+    vol: FXVol,
+    eta1: float | None,
+    fixed_delta: bool,
+    fzw1zw0: DualTypes | None,
+    fxf: FXForwards,
+) -> DualTypes:
+    """
+    Return the total derivative of option priced with mkt vol with respect to single
+    vol.
+
+    Parameters
+    ----------
+    g: dict
+        The dict of greeks for the given option period measured against the tgt, single vol.
+    sg: dict
+        The dict of greeks for the given option period measured against the smile.
+    expiry: datetime
+        The expiry of the Option.
+    vol: VolObj
+        The smile object.
+    eta1: float | None
+        The delta type of the Smile if available
+    fixed_delta: bool
+        Whether the option is defined by fixed delta or an explicit strike.
+    fxf: FXForwards,
+        Used by SabrSurface to forecast multiple forward rates for cross-sectional smiles before
+        interpolation.
+
+    Returns
+    -------
+    DualTypes
+    """
+    if not fixed_delta:
+        return 0.0  # kega is zero and the mkt vol has no sensitivity to vol_hat.
+    else:
+        if isinstance(vol, FXDeltaVolSurface | FXDeltaVolSmile):
+            if isinstance(vol, FXDeltaVolSurface):
+                vol = vol.get_smile(expiry)
+
+            dvol_ddeltaidx = evaluate(vol.nodes.spline.spline, sg["_delta_index"], 1) * 0.01
+
+            ddeltaidx_dvol1 = sg["gamma"] * fzw1zw0
+            if eta1 < 0:  # type: ignore[operator]
+                # premium adjusted vol smile
+                ddeltaidx_dvol1 += sg["_delta_index"]
+            ddeltaidx_dvol1 *= g["_kega"] / sg["__strike"]
+
+            _ = dual_log(sg["__strike"] / sg["__forward"]) / sg["__vol"]
+            _ += eta1 * sg["__vol"] * sg["__sqrt_t"] ** 2
+            _ *= dvol_ddeltaidx * sg["gamma"] * fzw1zw0
+            ddeltaidx_dvol1 /= 1 + _
+
+            dvol_dvol1: DualTypes = dvol_ddeltaidx * ddeltaidx_dvol1
+        elif isinstance(vol, FXSabrSmile):
+            dvol_dk = vol._d_sabr_d_k_or_f(
+                k=sg["__strike"],
+                f=sg["__forward"],
+                expiry=expiry,
+                as_float=False,
+                derivative=1,
+            )[1]
+            dvol_dvol1 = dvol_dk * g["_kega"]
+        elif isinstance(vol, FXSabrSurface):
+            dvol_dk = vol._d_sabr_d_k_or_f(
+                k=sg["__strike"],
+                f=fxf,
+                expiry=expiry,
+                as_float=False,
+                derivative=1,
+            )[1]
+            dvol_dvol1 = dvol_dk * g["_kega"]
+        else:
+            dvol_dvol1 = 0.0
+
+        return sg["_kappa"] * g["_kega"] + sg["vega"] * dvol_dvol1  # type: ignore[no-any-return]
 
 
 class FXBrokerFly(FXOptionStrat, FXOption):
@@ -1104,6 +1205,8 @@ class FXBrokerFly(FXOptionStrat, FXOption):
 
         Notional is set as a fixed quantity, collapsing any AD sensitivities in accordance
         with the general principle for determining risk sensitivities of unpriced instruments.
+
+        This is only applied if ``metric`` is a cash based quantity, {"pips_or_%", "premium"}
         """
         if isinstance(self.kwargs["notional"][1], NoInput) and metric in ["pips_or_%", "premium"]:
             self.periods[0]._rate(  # type: ignore[attr-defined]

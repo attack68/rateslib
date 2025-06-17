@@ -174,11 +174,6 @@ class CreditProtectionLeg(BaseLeg):
     ----------
     args : tuple
         Required positional args to :class:`BaseLeg`.
-    recovery_rate : float, Dual, Dual2, optional
-        The assumed recovery rate that defines payment on credit default. Set by ``defaults``.
-    discretization : int, optional
-        The number of days to discretize the numerical integration over possible credit defaults.
-        Set by ``defaults``.
     kwargs : dict
         Required keyword arguments to :class:`BaseLeg`.
 
@@ -212,7 +207,6 @@ class CreditProtectionLeg(BaseLeg):
        hazard_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995})
        protection_leg = CreditProtectionLeg(
            dt(2022, 1, 1), "9M", "Z",
-           recovery_rate=0.40,
            notional=1000000,
        )
        protection_leg.cashflows(hazard_curve, disc_curve)
@@ -225,11 +219,9 @@ class CreditProtectionLeg(BaseLeg):
         self,
         *args: Any,
         recovery_rate: DualTypes | NoInput = NoInput(0),
-        discretization: int | NoInput = NoInput(0),
         **kwargs: Any,
     ) -> None:
         self._recovery_rate: DualTypes = _drb(defaults.cds_recovery_rate, recovery_rate)
-        self.discretization: int = _drb(defaults.cds_protection_discretization, discretization)
         super().__init__(*args, **kwargs)
         if self.initial_exchange or self.final_exchange:
             raise ValueError(
@@ -254,7 +246,8 @@ class CreditProtectionLeg(BaseLeg):
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
         """
         _ = (period.analytic_rec_risk(*args, **kwargs) for period in self.periods)
-        return sum(_)
+        ret: DualTypes = sum(_)
+        return ret
 
     def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
@@ -287,8 +280,6 @@ class CreditProtectionLeg(BaseLeg):
         iterator: int,
     ) -> CreditProtectionPeriod:
         return CreditProtectionPeriod(
-            recovery_rate=self.recovery_rate,
-            discretization=self.discretization,
             start=start,
             end=end,
             payment=payment,
@@ -301,14 +292,3 @@ class CreditProtectionLeg(BaseLeg):
             roll=self.schedule.roll,
             calendar=self.schedule.calendar,
         )
-
-    @property
-    def recovery_rate(self) -> DualTypes:
-        return self._recovery_rate
-
-    @recovery_rate.setter
-    def recovery_rate(self, value: DualTypes) -> None:
-        self._recovery_rate = value
-        for _ in self.periods:
-            if isinstance(_, CreditProtectionPeriod):
-                _.recovery_rate = value

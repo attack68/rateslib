@@ -58,7 +58,7 @@ html_theme = 'pydata_sphinx_theme'
 html_static_path = ['_static']
 html_theme_options = {
   "external_links": [
-      {"name": "Supplemental", "url": "https://www.amazon.com/Pricing-Trading-Interest-Rate-Derivatives/dp/0995455538"},
+      {"name": "Supplemental", "url": "https://www.amazon.com/dp/0995455562"},
   ],
   "check_switcher": True,
   "switcher": {

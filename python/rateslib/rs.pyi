@@ -304,3 +304,33 @@ class Curve:
 def _get_convention_str(convention: Convention) -> str: ...
 def _get_modifier_str(modifier: Modifier) -> str: ...
 def index_left_f64(list_input: list[float], value: float, left_count: int | None = None) -> int: ...
+def _sabr_x0(
+    k: Number,
+    f: Number,
+    t: Number,
+    a: Number,
+    b: Number,
+    p: Number,
+    v: Number,
+    derivative: int = 0,
+) -> tuple[Number, Number | None]: ...
+def _sabr_x1(
+    k: Number,
+    f: Number,
+    t: Number,
+    a: Number,
+    b: Number,
+    p: Number,
+    v: Number,
+    derivative: int = 0,
+) -> tuple[Number, Number | None]: ...
+def _sabr_x2(
+    k: Number,
+    f: Number,
+    t: Number,
+    a: Number,
+    b: Number,
+    p: Number,
+    v: Number,
+    derivative: int = 0,
+) -> tuple[Number, Number | None]: ...

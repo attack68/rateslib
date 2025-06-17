@@ -21,7 +21,8 @@ Clone the repository and navigate to the directory.
 
 **2) Setup Python and Rust**
 
-It is recommended to **install Python 3.13 and Rust 1.80**.
+It is recommended to **install Python 3.13 and Rust 1.87**. The minimum Python is, officially,
+**3.10** and the minimum Rust toolchain is probably (untested) **1.80**.
 
 Create and activate a virtual Python environment, as below
 (or the equivalent for Windows).
@@ -138,6 +139,8 @@ the package. The continuous integration (CI) checks on github perform 8 tasks:
 
   In order to generate inheritance diagrams you will need to **install graphviz**.
 
+.. _developer-plan:
+
 Development Plan
 ********************
 
@@ -154,9 +157,17 @@ In no particular order...
        working towards stabilising a standalone crate for Rust for linear fixed income.
    * - Swaptions
      - Plan the design architecture and implementation for  *Swaptions* and *IRVolCube*
-   * - Credit Default Swaps
-     - Add a *CDS* *Instrument* and also think about *Curve* transformation methods for analysis
+   * - Credit Analysis
+     - Build *Curve* transformation methods for analysis
        between credit discount curves and hazard rates / survival curves.
+   * - Index Credit Default Swaps
+     - Implement CDS on basket indexes in addition to the single name CDS that already exist.
+   * - Callable bonds
+     - Add calculators for Callable bonds.
+   * - Amortising bonds and structures
+     - Extend the instruments specifications to allow custom schedules.
+   * - Bond future options
+     - Such as bund future options etc.
    * - Specifications for standard products
      - Extend the ``spec`` loader to cover wider range of *Instruments* particularly with respect
        to *Bond* calculations.

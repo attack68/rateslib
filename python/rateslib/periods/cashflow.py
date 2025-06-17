@@ -19,11 +19,11 @@ if TYPE_CHECKING:
         FX_,
         NPV,
         Any,
-        Curve,
-        Curve_,
         CurveOption_,
         DualTypes,
         DualTypes_,
+        _BaseCurve,
+        _BaseCurve_,
         datetime,
         str_,
     )
@@ -114,7 +114,7 @@ class Cashflow:
     def npv(
         self,
         curve: CurveOption_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
@@ -124,14 +124,14 @@ class Cashflow:
         See
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
-        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve = _disc_required_maybe_from_curve(curve, disc_curve)
         value: DualTypes = self.cashflow * disc_curve_[self.payment]
         return _maybe_local(value, local, self.currency, fx, base)
 
     def cashflows(
         self,
         curve: CurveOption_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
     ) -> dict[str, Any]:
@@ -140,7 +140,7 @@ class Cashflow:
         See
         :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
         """
-        disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve_ = _disc_maybe_from_curve(curve, disc_curve)
         fx_, _ = _get_fx_and_base(self.currency, fx, base)
 
         if isinstance(disc_curve_, NoInput):
@@ -149,7 +149,7 @@ class Cashflow:
             npv_: DualTypes = self.npv(curve, disc_curve_)  # type: ignore[assignment]
             npv = _dual_float(npv_)
             npv_fx = npv * _dual_float(fx_)
-            df, collateral = _dual_float(disc_curve_[self.payment]), disc_curve_.collateral
+            df, collateral = _dual_float(disc_curve_[self.payment]), disc_curve_.meta.collateral
 
         try:
             cashflow_ = _dual_float(self.cashflow)
@@ -188,8 +188,8 @@ class Cashflow:
 
     def analytic_delta(
         self,
-        curve: Curve_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
     ) -> DualTypes:
@@ -295,8 +295,8 @@ class NonDeliverableCashflow:
 
     def analytic_delta(
         self,
-        curve: Curve_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
     ) -> DualTypes:
@@ -310,7 +310,7 @@ class NonDeliverableCashflow:
     def npv(
         self,
         curve: CurveOption_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
@@ -320,7 +320,7 @@ class NonDeliverableCashflow:
         See
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
-        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve = _disc_required_maybe_from_curve(curve, disc_curve)
         disc_cashflow = self.cashflow(fx) * disc_curve_[self.payment]
         return _maybe_local(disc_cashflow, local, self.settlement_currency, fx, base)
 
@@ -354,7 +354,7 @@ class NonDeliverableCashflow:
     def cashflows(
         self,
         curve: CurveOption_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
     ) -> dict[str, Any]:
@@ -363,7 +363,7 @@ class NonDeliverableCashflow:
         See
         :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
         """
-        disc_curve_: Curve_ = _disc_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve_ = _disc_maybe_from_curve(curve, disc_curve)
         imm_fx_to_base, _ = _get_fx_and_base(self.settlement_currency, fx, base)
 
         if isinstance(disc_curve_, NoInput) or not isinstance(fx, FXForwards):
@@ -378,7 +378,7 @@ class NonDeliverableCashflow:
             npv = _dual_float(npv_)
 
             npv_fx = npv * _dual_float(imm_fx_to_base)
-            df, collateral = _dual_float(disc_curve_[self.payment]), disc_curve_.collateral
+            df, collateral = _dual_float(disc_curve_[self.payment]), disc_curve_.meta.collateral
             cashflow = _dual_float(self.cashflow(fx))
             if isinstance(self.fx_fixing, NoInput):
                 fx_ = _validate_fx_as_forwards(fx)
