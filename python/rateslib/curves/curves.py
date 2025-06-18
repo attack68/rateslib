@@ -625,7 +625,7 @@ class _RolledCurve(_WithOperations, _BaseCurve):
 
 class Curve(_WithMutability, _WithOperations, _BaseCurve):  # type: ignore[misc]
     """
-    A :class:`~rateslib.curves._BaseCurve` with DF parametrisation at given node dates with 
+    A :class:`~rateslib.curves._BaseCurve` with DF parametrisation at given node dates with
     interpolation.
 
     Parameters
@@ -779,7 +779,7 @@ class Curve(_WithMutability, _WithOperations, _BaseCurve):  # type: ignore[misc]
 
 class LineCurve(_WithMutability, _WithOperations, _BaseCurve):  # type: ignore[misc]
     """
-    A :class:`~rateslib.curves._BaseCurve` with value parametrisation at given node dates with 
+    A :class:`~rateslib.curves._BaseCurve` with value parametrisation at given node dates with
     interpolation.
 
     Parameters
