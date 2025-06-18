@@ -31,8 +31,8 @@ if TYPE_CHECKING:
 
 class _CurveType(Enum):
     """
-    Enumerable type to define the difference between discount factor based *Curves* and
-    values based *Curves*.
+    Enumerable type to define the difference between a discount factor (DF) based and
+    values based :class:`~rateslib.curves._BaseCurve`.
     """
 
     dfs = 0
@@ -54,7 +54,7 @@ class _CreditImpliedType(Enum):
 class _CurveMeta:
     """
     A container of meta data associated with a
-    :class:`~rateslib.curves.Curve` used to make calculations.
+    :class:`~rateslib.curves._BaseCurve` used to make calculations.
     """
 
     _calendar: CalTypes
@@ -153,8 +153,8 @@ class _CurveMeta:
 
 class _CurveSpline:
     """
-    A container for data relating to interpolating the `nodes` of
-    a *Curve* using a cubic PPSpline.
+    A container for data relating to interpolating :class:`~rateslib.curves._CurveNodes` using
+    a cubic PPSpline.
     """
 
     _t: list[datetime]
@@ -278,7 +278,7 @@ class _CurveSpline:
 
 class _CurveInterpolator:
     """
-    A container for data relating to interpolating the `nodes` of a :class:`~rateslib.curves.Curve`.
+    A container for data relating to interpolating :class:`~rateslib.curves._CurveNodes`.
     """
 
     _local_name: str
@@ -427,8 +427,8 @@ class _CurveInterpolator:
 @dataclass(frozen=True)
 class _ProxyCurveInterpolator:
     """
-    A container for data relating to deriving the DFs of a :class:`~rateslib.curves.ProxyCurve`
-    from other :class:`~rateslib.curves.Curve` objects and :class:`~rateslib.fx.FXForwards`.
+    A container for data relating to interpolating the DFs of a
+    :class:`~rateslib.curves.ProxyCurve`.
     """
 
     _fx_forwards: FXForwards
@@ -480,7 +480,7 @@ class _ProxyCurveInterpolator:
 @dataclass(frozen=True)
 class _CurveNodes:
     """
-    An immutable container for the pricing parameters of a :class:`~rateslib.curves.Curve`.
+    An immutable container for the pricing parameters of a :class:`~rateslib.curves._BaseCurve`.
     """
 
     _nodes: dict[datetime, DualTypes]
