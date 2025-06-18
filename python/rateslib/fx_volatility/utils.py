@@ -151,7 +151,7 @@ class _FXDeltaVolSmileNodes:
 
     @property
     def meta(self) -> _FXSmileMeta:
-        """An instance of :class:`~rateslib.fx_volatility.utils._FXDeltaVolSmileMeta`."""
+        """An instance of :class:`~rateslib.fx_volatility.utils._FXSmileMeta`."""
         return self._meta
 
     @property
@@ -171,7 +171,7 @@ class _FXDeltaVolSmileNodes:
 
     @property
     def n(self) -> int:
-        """The number of pricing parameters in ``nodees``."""
+        """The number of pricing parameters in ``nodes``."""
         return len(self.keys)
 
     @property
