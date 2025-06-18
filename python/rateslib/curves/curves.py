@@ -625,7 +625,8 @@ class _RolledCurve(_WithOperations, _BaseCurve):
 
 class Curve(_WithMutability, _WithOperations, _BaseCurve):  # type: ignore[misc]
     """
-    Curve based on DF parametrisation at given node dates with interpolation.
+    A :class:`~rateslib.curves._BaseCurve` with DF parametrisation at given node dates with 
+    interpolation.
 
     Parameters
     ----------
@@ -778,7 +779,8 @@ class Curve(_WithMutability, _WithOperations, _BaseCurve):  # type: ignore[misc]
 
 class LineCurve(_WithMutability, _WithOperations, _BaseCurve):  # type: ignore[misc]
     """
-    Curve based on value parametrisation at given node dates with interpolation.
+    A :class:`~rateslib.curves._BaseCurve` with value parametrisation at given node dates with 
+    interpolation.
 
     Parameters
     ----------
@@ -927,7 +929,7 @@ class LineCurve(_WithMutability, _WithOperations, _BaseCurve):  # type: ignore[m
 
 class CompositeCurve(_WithOperations, _BaseCurve):
     """
-    A dynamic composition of a sequence of other curves.
+    A dynamic composition of a sequence of other :class:`~rateslib.curves._BaseCurve`.
 
     .. note::
        Can only composite curves of the same type: :class:`Curve`
@@ -1208,7 +1210,7 @@ class CompositeCurve(_WithOperations, _BaseCurve):
 
 class MultiCsaCurve(_WithOperations, _BaseCurve):
     """
-    A dynamic composition of a sequence of other curves.
+    A dynamic composition of a sequence of other :class:`~rateslib.curves._BaseCurve`.
 
     .. note::
        Can only combine curves of the type: :class:`Curve`. Other curve parameters such as
@@ -1412,8 +1414,8 @@ def _check_meta_attribute(curves: tuple[_BaseCurve, ...], attr: str) -> None:
 
 class ProxyCurve(_WithOperations, _BaseCurve):
     """
-    A curve which returns dynamic DFs based on
-    other curves related via :class:`~rateslib.fx.FXForwards` parity.
+    A :class:`~rateslib.curves._BaseCurve` which returns dynamic DFs from an
+    :class:`~rateslib.fx.FXForwards` object and FX parity.
 
     Parameters
     ----------
@@ -1532,7 +1534,7 @@ class ProxyCurve(_WithOperations, _BaseCurve):
 
 class CreditImpliedCurve(_WithOperations, _BaseCurve):
     """
-    Imply a curve from credit components.
+    Imply a :class:`~rateslib.curves._BaseCurve` from credit components.
 
     .. warning::
 
