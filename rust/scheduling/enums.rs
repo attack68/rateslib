@@ -37,6 +37,8 @@ pub enum Stub {
 #[pyclass(module = "rateslib.rs", eq)]
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Frequency {
+    /// A set number of calendar days
+    Days { number: u32 },
     /// A set number of calendar weeks.
     Weeks { number: u32 },
     /// A set number of calendar months.
@@ -53,9 +55,24 @@ impl Frequency {
     pub fn next_period(&self, ueffective: &NaiveDateTime) -> NaiveDateTime {
         let cal = Cal::new(vec![], vec![]);
         match self {
+            Frequency::Days{ number: n } => cal.add_days(ueffective, *n as i32, &Modifier::Act, true),
             Frequency::Weeks{ number: n } => cal.add_days(ueffective, *n as i32 * 7, &Modifier::Act, true),
             Frequency::Months{ number: n, roll: r } => cal.add_months(ueffective, *n as i32, &Modifier::Act, r, true),
             Frequency::Zero{} => ndt(9999, 1, 1),
+        }
+    }
+
+    /// Calculate the previous unadjusted period date in a schedule given a valid `ueffective` date.
+    ///
+    /// Note `ueffective` should be valid relative to the roll. If unsure, call
+    /// ``roll.validate_date(&ueffective)``.
+    pub fn previous_period(&self, ueffective: &NaiveDateTime) -> NaiveDateTime {
+        let cal = Cal::new(vec![], vec![]);
+        match self {
+            Frequency::Days{ number: n } => cal.add_days(ueffective, -(*n as i32), &Modifier::Act, true),
+            Frequency::Weeks{ number: n } => cal.add_days(ueffective, -(*n as i32 * 7), &Modifier::Act, true),
+            Frequency::Months{ number: n, roll: r } => cal.add_months(ueffective, -(*n as i32), &Modifier::Act, r, true),
+            Frequency::Zero{} => ndt(1500, 1, 1),
         }
     }
 
@@ -429,6 +446,16 @@ mod tests {
                 Frequency::Months{number:1, roll: RollDay::IMM{}},
                 ndt(2022, 6, 15),
                 ndt(2022, 7, 20),
+            ),
+            (
+                Frequency::Days{number:5},
+                ndt(2022, 6, 15),
+                ndt(2022, 6, 20),
+            ),
+            (
+                Frequency::Weeks{number:2},
+                ndt(2022, 6, 15),
+                ndt(2022, 6, 29),
             ),
         ];
         for option in options.iter() {
