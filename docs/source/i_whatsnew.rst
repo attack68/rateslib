@@ -59,6 +59,10 @@ example can be seen in the `Cookbook: Building Custom Curves (Nelson-Siegel) <z_
          a *risk free*, *hazard*, or *credit* curve from combinations of the other two in
          combination with an expressed recovery rate.
          (`910 <https://github.com/attack68/rateslib/pull/910>`_)
+       - The smile meta classes :class:`~rateslib.fx_volatility._FXDeltaVolSmileMeta` and
+         :class:`~rateslib.fx_volatility._FXSabrSmileMeta` are consolidated into a single object
+         :class:`~rateslib.fx_volatility._FXSmileMeta`.
+         (`932 <https://github.com/attack68/rateslib/pull/932>`_)
 
 2.0.1 (10th June 2025)
 ***************************

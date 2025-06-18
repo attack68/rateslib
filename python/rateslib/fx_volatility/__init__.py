@@ -2,13 +2,12 @@ from rateslib.fx_volatility.base import _BaseSmile
 from rateslib.fx_volatility.delta_vol import FXDeltaVolSmile, FXDeltaVolSurface
 from rateslib.fx_volatility.sabr import FXSabrSmile, FXSabrSurface
 from rateslib.fx_volatility.utils import (
-    _FXDeltaVolSmileMeta,
     _FXDeltaVolSmileNodes,
     _FXDeltaVolSpline,
     _FXDeltaVolSurfaceMeta,
-    _FXSabrSmileMeta,
     _FXSabrSmileNodes,
     _FXSabrSurfaceMeta,
+    _FXSmileMeta,
 )
 
 __all__ = [
@@ -18,10 +17,9 @@ __all__ = [
     "FXDeltaVolSmile",
     "_BaseSmile",
     "_FXDeltaVolSurfaceMeta",
-    "_FXDeltaVolSmileMeta",
+    "_FXSmileMeta",
     "_FXDeltaVolSpline",
     "_FXDeltaVolSmileNodes",
-    "_FXSabrSmileMeta",
     "_FXSabrSurfaceMeta",
     "_FXSabrSmileNodes",
 ]
