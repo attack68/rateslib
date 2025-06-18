@@ -59,29 +59,20 @@ impl Frequency {
         }
     }
 
-    /// Determine if two dates fall within a regular schedule defined by
-    /// `Frequency` periods apart.
-    pub fn try_regular(&self, start: &NaiveDateTime, end: &NaiveDateTime) -> Result<(), PyErr> {
-        let mut date = start.clone();
-        while &date < end {
-            date = self.next_period(&date);
-        }
-        match &date == end {
-            true => Ok(()),
-            false => Err(PyValueError::new_err("Input dates to Frequency do not define a regular unadjusted schedule")),
-        }
-    }
-
-    /// Get a `uschedule` assuming all inputs are correct and pre-validated.
-    pub(crate) fn regular_uschedule(&self, regular_ustart: NaiveDateTime, regular_uend: NaiveDateTime) -> Vec<NaiveDateTime> {
+    /// Return a `uschedule` if the the dates satisfy constraints.
+    pub fn try_regular_uschedule(&self, regular_ustart: &NaiveDateTime, regular_uend: &NaiveDateTime) -> Result<Vec<NaiveDateTime>, PyErr> {
         let mut v: Vec<NaiveDateTime> = vec![];
-        let mut date = regular_ustart;
-        while date < regular_uend {
+        let mut date = *regular_ustart;
+        while date < *regular_uend {
             v.push(date);
             date = self.next_period(&date);
         }
-        v.push(regular_uend);
-        v
+        if date == *regular_uend {
+            v.push(*regular_uend);
+            Ok(v)
+        } else {
+            Err(PyValueError::new_err("Input dates to Frequency do not define a regular unadjusted schedule"))
+        }
     }
 
 }
@@ -268,22 +259,22 @@ mod tests {
         // test true
         let s1 = ndt(2022, 2, 2);
         let e1 = ndt(2022, 6, 2);
-        assert_eq!(true, Frequency::Months{number:2, roll: RollDay::Unspecified{}}.try_regular(&s1, &e1).is_ok());
+        assert_eq!(true, Frequency::Months{number:2, roll: RollDay::Unspecified{}}.try_regular_uschedule(&s1, &e1).is_ok());
 
         // test false
         let s2 = ndt(2022, 2, 2);
         let e2 = ndt(2022, 9, 6);
-        assert_eq!(true, Frequency::Months{number:3, roll: RollDay::Unspecified{}}.try_regular(&s2, &e2).is_err());
+        assert_eq!(true, Frequency::Months{number:3, roll: RollDay::Unspecified{}}.try_regular_uschedule(&s2, &e2).is_err());
 
         // test true
         let s2 = ndt(2023, 2, 1);
         let e2 = ndt(2023, 3, 15);
-        assert_eq!(true, Frequency::Weeks{number:3}.try_regular(&s2, &e2).is_ok());
+        assert_eq!(true, Frequency::Weeks{number:3}.try_regular_uschedule(&s2, &e2).is_ok());
 
         // test true
         let s2 = ndt(2023, 2, 1);
         let e2 = ndt(2023, 3, 16);
-        assert_eq!(true, Frequency::Weeks{number:3}.try_regular(&s2, &e2).is_err());
+        assert_eq!(true, Frequency::Weeks{number:3}.try_regular_uschedule(&s2, &e2).is_err());
     }
 
     #[test]

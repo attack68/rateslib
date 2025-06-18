@@ -1,5 +1,5 @@
-use crate::calendars::{is_leap_year, CalType, Modifier, RollDay, DateRoll};
-use crate::scheduling::enums::{Frequency, Stub};
+use crate::calendars::{CalType, Modifier, RollDay, DateRoll};
+use crate::scheduling::enums::{Frequency};
 use chrono::prelude::*;
 // use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
@@ -47,10 +47,9 @@ impl Schedule {
             (Some(v), Some(w)) => (v, w)
         };
 
-        // test when the determined regular period is actually a regular period under Frequency
-        let _ = frequency.try_regular(&regular_start, &regular_end)?;
-
-        let uschedule = get_uschedule(ueffective, utermination, frequency, front_stub, back_stub);
+        // test if the determined regular period is actually a regular period under Frequency
+        let regular_uschedule = frequency.try_regular_uschedule(&regular_start, &regular_end)?;
+        let uschedule = composite_uschedule(ueffective, utermination, front_stub, back_stub, regular_uschedule);
         Ok(Self {
             ueffective,
             utermination,
@@ -68,29 +67,29 @@ impl Schedule {
 }
 
 /// Get unadjusted schedule dates assuming all inputs are correct and pre-validated.
-fn get_uschedule(
+fn composite_uschedule(
     ueffective: NaiveDateTime,
     utermination: NaiveDateTime,
-    frequency: Frequency,
     front_stub: Option<NaiveDateTime>,
     back_stub: Option<NaiveDateTime>,
+    regular_uschedule: Vec<NaiveDateTime>,
 ) -> Vec<NaiveDateTime> {
     let mut uschedule: Vec<NaiveDateTime> = vec![];
     match (front_stub, back_stub) {
         (None, None) => {
-            uschedule.extend(frequency.regular_uschedule(ueffective, utermination));
+            uschedule.extend(regular_uschedule);
         },
-        (Some(v), None) => {
+        (Some(_v), None) => {
             uschedule.push(ueffective);
-            uschedule.extend(frequency.regular_uschedule(v, utermination));
+            uschedule.extend(regular_uschedule);
         },
-        (None, Some(v)) => {
-            uschedule.extend(frequency.regular_uschedule(ueffective, v));
+        (None, Some(_v)) => {
+            uschedule.extend(regular_uschedule);
             uschedule.push(utermination);
         },
-        (Some(v), Some(w)) => {
+        (Some(_v), Some(_w)) => {
             uschedule.push(ueffective);
-            uschedule.extend(frequency.regular_uschedule(v, w));
+            uschedule.extend(regular_uschedule);
             uschedule.push(utermination);
         },
     }
@@ -111,13 +110,10 @@ mod tests {
 
     #[test]
     fn test_get_uschedule() {
-        let result = get_uschedule(
-            ndt(2000, 1, 1),
-            ndt(2001, 1, 1),
-            Frequency::Months{number: 3, roll: RollDay::SoM{}},
-            None,
-            None,
-        );
+        let result = Frequency::Months{number: 3, roll: RollDay::SoM{}}.try_regular_uschedule(
+            &ndt(2000, 1, 1),
+            &ndt(2001, 1, 1),
+        ).unwrap();
         assert_eq!(
             result,
             vec![
@@ -133,13 +129,10 @@ mod tests {
     #[test]
     fn test_get_uschedule_imm() {
         // test the example given in Coding Interest Rates
-        let result = get_uschedule(
-            ndt(2023, 3, 15),
-            ndt(2023, 9, 20),
-            Frequency::Months{number: 1, roll: RollDay::IMM{}},
-            None,
-            None
-        );
+        let result = Frequency::Months{number: 1, roll: RollDay::IMM{}}.try_regular_uschedule(
+            &ndt(2023, 3, 15),
+            &ndt(2023, 9, 20),
+        ).unwrap();
         assert_eq!(
             result,
             vec![
