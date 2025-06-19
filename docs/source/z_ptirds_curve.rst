@@ -13,8 +13,7 @@
 Replicating the Single Currency Curve in Pricing and Trading Interest Rate Derivatives
 *******************************************************************************************
 
-The :ref:`Bloomberg SWPM Curve <cook-swpm-doc>` is obviously not the only way to build an interest
-rate curve. In `Pricing and Trading Interest Rate Derivatives: A Practical Guide to Swaps <https://www.amazon.com/Pricing-Trading-Interest-Rate-Derivatives/dp/0995455538>`_
+In `Pricing and Trading Interest Rate Derivatives: A Practical Guide to Swaps <https://www.amazon.com/Pricing-Trading-Interest-Rate-Derivatives/dp/0995455538>`_
 an example is given in *Chapter 6: Single Currency Curve Modelling* of a curve that uses IMM instruments.
 Different modes of interpolation are exemplified in the *Table 6.2*, and this page will show how to replicate
 those curves using *rateslib*.

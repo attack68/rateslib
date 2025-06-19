@@ -67,41 +67,30 @@ For the purpose of this user guide page, we create such a market below.
 Building and Pricing an Option
 ================================
 
-Typing `EURUSD Curncy OVML` into Bloomberg will bring up the Bloomberg currency options pricer for *Calls* and *Puts*.
-This can be replicated with *rateslib* native functionality via :class:`~rateslib.instruments.FXCall` and
-:class:`~rateslib.instruments.FXPut`.
+*Calls* and *Puts* can be replicated with *rateslib* native functionality
+via :class:`~rateslib.instruments.FXCall` and :class:`~rateslib.instruments.FXPut`.
 
-.. container:: twocol
+.. ipython:: python
 
-   .. container:: leftside40
-
-      .. ipython:: python
-
-         fxc = FXCall(
-             pair="eurusd",
-             expiry=dt(2023, 6, 16),
-             notional=20e6,
-             strike=1.101,
-             payment_lag=dt(2023, 3, 20),
-             delivery_lag=2,
-             calendar="tgt|fed",
-             modifier="mf",
-             premium_ccy="usd",
-             eval_date=NoInput(0),
-             option_fixing=NoInput(0),
-             premium=NoInput(0),
-             delta_type="forward",
-             curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd","usd")],
-             spec=NoInput(0),
-         )
-         fxc.rate(fx=fxf, vol=8.9)
-         fxc.analytic_greeks(vol=8.9, fx=fxf)
-
-   .. container:: rightside60
-
-      .. image:: _static/fx_opt_bbg_eurusd.png
-          :alt: Bloomberg EURUSD option pricer
-          :width: 400
+   fxc = FXCall(
+      pair="eurusd",
+      expiry=dt(2023, 6, 16),
+      notional=20e6,
+      strike=1.101,
+      payment_lag=dt(2023, 3, 20),
+      delivery_lag=2,
+      calendar="tgt|fed",
+      modifier="mf",
+      premium_ccy="usd",
+      eval_date=NoInput(0),
+      option_fixing=NoInput(0),
+      premium=NoInput(0),
+      delta_type="forward",
+      curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd","usd")],
+      spec=NoInput(0),
+   )
+   fxc.rate(fx=fxf, vol=8.9)
+   fxc.analytic_greeks(vol=8.9, fx=fxf)
 
 .. raw:: html
 
@@ -111,77 +100,6 @@ The *Call* option priced above is partly unpriced becuase the premium is not
 directly specified. This means that *rateslib* will always assert the premium
 to be mid-market, based on the prevailing *Curves*, *FXForwards* and *vol* parameters
 supplied.
-
-Changing some of the pricing parameters provides different prices. *Rateslib* is
-compared to Bloomberg's OVML.
-
-.. list-table::
-   :widths: 20 10 10 10 10 10 10 10 10
-   :header-rows: 3
-
-   * - Premium currency:
-     - usd
-     - usd
-     - usd
-     - usd
-     - eur
-     - eur
-     - eur
-     - eur
-   * - Premium date:
-     - 20/3/23
-     - 20/3/23
-     - 20/6/23
-     - 20/6/23
-     - 20/3/23
-     - 20/3/23
-     - 20/6/23
-     - 20/6/23
-   * - Delta type:
-     - Spot
-     - Forward
-     - Spot
-     - Forward
-     - Spot (pa)
-     - Forward (pa)
-     - Spot (pa)
-     - Forward (pa)
-   * - Option rate (*rateslib*):
-     - 69.3783
-     - 69.3783
-     - 70.2258
-     - 70.2258
-     - 0.65359
-     - 0.65359
-     - 0.65785
-     - 0.65785
-   * - Option rate (BBG):
-     - 69.378
-     - 69.378
-     - 70.226
-     - 70.226
-     - 0.6536
-     - 0.6536
-     - 0.6578
-     - 0.6578
-   * - Delta % (*rateslib*):
-     - 0.25012
-     - 0.25175
-     - 0.25012
-     - 0.25175
-     - 0.24359
-     - 0.24518
-     - 0.24359
-     - 0.24518
-   * - Delta % (BBG):
-     - 0.25012
-     - 0.25175
-     - 0.25013
-     - 0.25176
-     - 0.24359
-     - 0.24518
-     - 0.24355
-     - 0.24518
 
 Restrictions
 -------------

@@ -1,6 +1,7 @@
-use crate::calendars::{is_leap_year, CalType, Modifier, RollDay};
+use crate::calendars::{is_leap_year, Cal, DateRoll, Modifier, RollDay, ndt};
 use chrono::prelude::*;
-use pyo3::pyclass;
+use pyo3::{pyclass, PyErr};
+use pyo3::exceptions::PyValueError;
 
 // /// An indicator for valid or invalid schedules.
 // pub(crate) enum ValidateSchedule {
@@ -19,8 +20,8 @@ use pyo3::pyclass;
 // }
 
 /// A stub type indicator for date inference on one side of the schedule.
-#[pyclass(module = "rateslib.rs")]
-#[derive(Copy, Clone)]
+#[pyclass(module = "rateslib.rs", eq, eq_int)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum Stub {
     /// Short front stub inference.
     ShortFront,
@@ -33,45 +34,64 @@ pub enum Stub {
 }
 
 /// A schedule frequency.
-#[pyclass(module = "rateslib.rs")]
-#[derive(Copy, Clone)]
+#[pyclass(module = "rateslib.rs", eq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Frequency {
-    /// Periods every month.
-    Monthly,
-    /// Periods every two months.
-    BiMonthly,
-    /// Periods every three months.
-    Quarterly,
-    /// Periods every four months.
-    TriAnnually,
-    /// Periods every six months.
-    SemiAnnually,
-    /// Periods every twelve months.
-    Annually,
-    /// Only every a single period.
-    Zero,
+    /// A set number of calendar days
+    Days { number: u32 },
+    /// A set number of calendar weeks.
+    Weeks { number: u32 },
+    /// A set number of calendar months.
+    Months { number: u32, roll: RollDay },
+    /// Only ever a single period
+    Zero {},
 }
 
 impl Frequency {
-    /// Get the duration of a period in months associated with the `Frequency`.
-    pub fn months(&self) -> u32 {
+    /// Calculate the next unadjusted period date in a schedule given a valid `ueffective` date.
+    ///
+    /// Note `ueffective` should be valid relative to the roll. If unsure, call
+    /// ``roll.validate_date(&ueffective)``.
+    pub fn next_period(&self, ueffective: &NaiveDateTime) -> NaiveDateTime {
+        let cal = Cal::new(vec![], vec![]);
         match self {
-            Frequency::Monthly => 1_u32,
-            Frequency::BiMonthly => 2_u32,
-            Frequency::Quarterly => 3_u32,
-            Frequency::TriAnnually => 4_u32,
-            Frequency::SemiAnnually => 6_u32,
-            Frequency::Annually => 12_u32,
-            Frequency::Zero => 120000_u32, // 10,000 years.
+            Frequency::Days{ number: n } => cal.add_days(ueffective, *n as i32, &Modifier::Act, true),
+            Frequency::Weeks{ number: n } => cal.add_days(ueffective, *n as i32 * 7, &Modifier::Act, true),
+            Frequency::Months{ number: n, roll: r } => cal.add_months(ueffective, *n as i32, &Modifier::Act, r, true),
+            Frequency::Zero{} => ndt(9999, 1, 1),
         }
     }
 
-    /// Determine if two dates fall within months that are an integer number of
-    /// `Frequency` periods apart.
-    pub fn is_divisible(&self, start: &NaiveDateTime, end: &NaiveDateTime) -> bool {
-        let months = end.month() - start.month();
-        (months % self.months()) == 0_u32
+    /// Calculate the previous unadjusted period date in a schedule given a valid `ueffective` date.
+    ///
+    /// Note `ueffective` should be valid relative to the roll. If unsure, call
+    /// ``roll.validate_date(&ueffective)``.
+    pub fn previous_period(&self, ueffective: &NaiveDateTime) -> NaiveDateTime {
+        let cal = Cal::new(vec![], vec![]);
+        match self {
+            Frequency::Days{ number: n } => cal.add_days(ueffective, -(*n as i32), &Modifier::Act, true),
+            Frequency::Weeks{ number: n } => cal.add_days(ueffective, -(*n as i32 * 7), &Modifier::Act, true),
+            Frequency::Months{ number: n, roll: r } => cal.add_months(ueffective, -(*n as i32), &Modifier::Act, r, true),
+            Frequency::Zero{} => ndt(1500, 1, 1),
+        }
     }
+
+    /// Return a `uschedule` if the the dates satisfy constraints.
+    pub fn try_regular_uschedule(&self, regular_ustart: &NaiveDateTime, regular_uend: &NaiveDateTime) -> Result<Vec<NaiveDateTime>, PyErr> {
+        let mut v: Vec<NaiveDateTime> = vec![];
+        let mut date = *regular_ustart;
+        while date < *regular_uend {
+            v.push(date);
+            date = self.next_period(&date);
+        }
+        if date == *regular_uend {
+            v.push(*regular_uend);
+            Ok(v)
+        } else {
+            Err(PyValueError::new_err("Input dates to Frequency do not define a regular unadjusted schedule"))
+        }
+    }
+
 }
 
 /// Date categories to infer rolls on dates.
@@ -252,16 +272,26 @@ mod tests {
     //     }
 
     #[test]
-    fn test_is_divisible_months() {
+    fn test_try_regular_months() {
         // test true
         let s1 = ndt(2022, 2, 2);
-        let e1 = ndt(2022, 6, 6);
-        assert_eq!(true, Frequency::BiMonthly.is_divisible(&s1, &e1));
+        let e1 = ndt(2022, 6, 2);
+        assert_eq!(true, Frequency::Months{number:2, roll: RollDay::Unspecified{}}.try_regular_uschedule(&s1, &e1).is_ok());
 
         // test false
         let s2 = ndt(2022, 2, 2);
         let e2 = ndt(2022, 9, 6);
-        assert_eq!(false, Frequency::Quarterly.is_divisible(&s2, &e2));
+        assert_eq!(true, Frequency::Months{number:3, roll: RollDay::Unspecified{}}.try_regular_uschedule(&s2, &e2).is_err());
+
+        // test true
+        let s2 = ndt(2023, 2, 1);
+        let e2 = ndt(2023, 3, 15);
+        assert_eq!(true, Frequency::Weeks{number:3}.try_regular_uschedule(&s2, &e2).is_ok());
+
+        // test true
+        let s2 = ndt(2023, 2, 1);
+        let e2 = ndt(2023, 3, 16);
+        assert_eq!(true, Frequency::Weeks{number:3}.try_regular_uschedule(&s2, &e2).is_err());
     }
 
     #[test]
@@ -371,6 +401,65 @@ mod tests {
                     .get_rollday_from_eom_categories(&RollDayCategory::from_date(&option.1), true)
                     .unwrap()
             );
+        }
+    }
+
+    #[test]
+    fn test_get_next_period() {
+        let options: Vec<(Frequency, NaiveDateTime, NaiveDateTime)> = vec![
+            (
+                Frequency::Months{number:1, roll: RollDay::Unspecified{}},
+                ndt(2022, 7, 30),
+                ndt(2022, 8, 30),
+            ),
+            (
+                Frequency::Months{number:2, roll: RollDay::Unspecified{}},
+                ndt(2022, 7, 30),
+                ndt(2022, 9, 30),
+            ),
+            (
+                Frequency::Months{number:3, roll: RollDay::Unspecified{}},
+                ndt(2022, 7, 30),
+                ndt(2022, 10, 30),
+            ),
+            (
+                Frequency::Months{number:4, roll: RollDay::Unspecified{}},
+                ndt(2022, 7, 30),
+                ndt(2022, 11, 30),
+            ),
+            (
+                Frequency::Months{number:6, roll: RollDay::Unspecified{}},
+                ndt(2022, 7, 30),
+                ndt(2023, 1, 30),
+            ),
+            (
+                Frequency::Months{number:12, roll: RollDay::Unspecified{}},
+                ndt(2022, 7, 30),
+                ndt(2023, 7, 30),
+            ),
+            (
+                Frequency::Months{number:1, roll: RollDay::EoM {}},
+                ndt(2022, 6, 30),
+                ndt(2022, 7, 31),
+            ),
+            (
+                Frequency::Months{number:1, roll: RollDay::IMM{}},
+                ndt(2022, 6, 15),
+                ndt(2022, 7, 20),
+            ),
+            (
+                Frequency::Days{number:5},
+                ndt(2022, 6, 15),
+                ndt(2022, 6, 20),
+            ),
+            (
+                Frequency::Weeks{number:2},
+                ndt(2022, 6, 15),
+                ndt(2022, 6, 29),
+            ),
+        ];
+        for option in options.iter() {
+            assert_eq!(option.2, option.0.next_period(&option.1));
         }
     }
 }
