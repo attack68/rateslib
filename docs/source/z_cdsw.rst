@@ -14,10 +14,10 @@
    from pandas import DataFrame, option_context
    defaults.reset_defaults()
 
-Replicating a Pfizer Default Curve & CDS from Bloomberg's CDSW
+Replicating a Pfizer Default Curve & CDS
 *****************************************************************
 
-Some collected data at a point in time on Friday 4th Oct 2024 can be loaded into the CDSW function in Bloomberg
+Some collected data at a point in time on Friday 4th Oct 2024 can be loaded
 for the single security Pfizer US, with the intention of pricing and risking a 5Y Pfizer CDS.
 The raw data necessary to build the curves and replicate the pricing risk metrics is added to Python.
 (Some of the loaded CDS data is also shown in an image at the bottom of this page)
@@ -33,10 +33,6 @@ The raw data necessary to build the curves and replicate the pricing risk metric
    irs_rates = [4.8457, 4.7002, 4.5924, 4.3019, 3.8992, 3.5032, 3.3763, 3.3295, 3.3165, 3.3195, 3.3305, 3.3450, 3.3635, 3.3830, 3.4245]
    cds_tenor = ["6m", "12m", "2y", "3y", "4y", "5y", "7y", "10y"]
    cds_rates = [0.11011, 0.14189, 0.20750, 0.26859, 0.32862, 0.37861, 0.51068, 0.66891]
-
-.. image:: _static/cdsw_1.png
-   :alt: SOFR discount data
-   :width: 300
 
 Since the SOFR curve is a rates component, independent from the Pfizer credit component, we will build that,
 separately, first. This is no different to any of the other tutorials or examples constructing a basic
@@ -175,9 +171,7 @@ By definition, the probabilities of survival are calculable directly from the ha
    hazard_curve[dt(2034, 10, 4)]  # Probability Pfizer survives at least 10yr.
 
 Pricing and risk metrics are calculable within *rateslib's* natural framework. Let's build the traditional
-5Y Pfizer CDS and compare the numbers to Bloombergs calculator (these may not necessarily be exactly the same due to
-different hyper-parameter choices for the curves and any pricing rounding, including discretization choices for the
-numerical integrations of CDS protection and premium legs).
+5Y Pfizer CDS.
 
 .. ipython:: python
 
@@ -194,10 +188,6 @@ numerical integrations of CDS protection and premium legs).
    cds.accrued(dt(2024, 10, 7))  # this is 17 days of accrued
    cds.delta(solver=pfizer_sv).groupby("solver").sum()  # this compares to: "Spread DV01" and "IR DV01"
 
-.. image:: _static/cdsw_2.png
-   :alt: Pfizer CDS data
-   :width: 725
-
 Whe can also show the analytic risk if the recovery rate is increased by 1%. This is
 the PnL purely for this contract.
 
@@ -205,6 +195,6 @@ the PnL purely for this contract.
 
    cds.analytic_rec_risk(hazard_curve, disc_curve)
 
-This does not compare with Bloomberg's `Rec Risk (1%)` of 78.75. To understand and return this
+This does not compare with other systems `Rec Risk (1%)` of 78.75. To understand and return this
 value consider the follow up cookbook
 article :ref:`what are exogenous variables? <cook-exogenous-doc>`.

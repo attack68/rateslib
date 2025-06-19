@@ -50,11 +50,6 @@ Without constructing any *Curves* we can analyse this bond future with static da
    with option_context("display.float_format", lambda x: '%.6f' % x):
        print(df)
 
-A comparison with Bloomberg is shown below,
-
-.. image:: _static/bondbasis.png
-  :alt: Bloomberg DLV function
-
 Building a curve to reprice the *Instruments*
 ----------------------------------------------
 

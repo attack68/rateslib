@@ -169,8 +169,7 @@ to fully capture the nuances of these products across sectors and geographic reg
 capturing aspects like trading calendars, day count conventions, payment delays, etc. New
 specifications and calendars are continually being added as users enquire.
 
-A good example is a **US Treasury Bond**, replicated here with *rateslib* and the equivalent
-ticket in Bloomberg for reference point.
+A good example is a **US Treasury Bond**, replicated here with *rateslib*.
 
 .. ipython:: python
 
@@ -180,10 +179,6 @@ ticket in Bloomberg for reference point.
    )  # Create a US-Treasury bond
    ust.price(ytm=4.0, settlement=dt(2025, 2, 14))
    ust.duration(ytm=4.0, settlement=dt(2025, 2, 14), metric="risk")
-
-.. image:: _static/ust_10y.gif
-  :alt: US Treasury example using the FixedRateBond class
-  :width: 611
 
 
 *Minimal dependencies to other Python libraries*
