@@ -83,7 +83,7 @@ class BondFuture(Sensitivities):
     --------
     The :meth:`~rateslib.instruments.BondFuture.dlv` method is a summary method which
     displays many attributes simultaneously in a DataFrame.
-    This example replicates the Bloomberg screen print in the publication
+    This example replicates the screen print in the publication
     *The Futures Bond Basis: Second Edition (p77)* by Moorad Choudhry. To replicate
     that publication exactly no calendar has been provided. A more modern
     Bloomberg would probably consider the London business day calendar and

@@ -63,11 +63,6 @@ there were many more bonds available in this basket, but this group proved to be
    with option_context("display.float_format", lambda x: '%.6f' % x):
        print(dlv)
 
-Compared with the Bloomberg read out for the same data:
-
-.. image:: _static/usz3dlv.png
-  :alt: Bloomberg DLV function
-
 Analysing the CTD on Parallel Yield Changes
 ---------------------------------------------
 
@@ -356,9 +351,3 @@ This method replicates the above process for a sequence of provide parallel shif
        settlement=dt(2023, 11, 22),
        shifts=[-100, -50, 0, 50, 100]
    )
-
-This can be broadly compared with Bloomberg, except this page re-ordered some of the bonds, and is
-expressed in 32nds instead of decimals above.
-
-.. image:: _static/usz3ctd.png
-  :alt: Bloomberg CMS function
