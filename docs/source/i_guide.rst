@@ -272,10 +272,6 @@ these values are all expressed in the *Instrument's* local USD currency.
      </a>
    </div>
 
-If instead of this trivial, minimalist example you would like to see a real world
-example :ref:`replicating a Bloomberg SWPM function SOFR curve<cook-swpm-doc>` please
-click the link.
-
 
 Quick look at FX
 ==================
@@ -531,10 +527,6 @@ Securities and bonds
          fxb.duration(ytm=4.0, settlement=dt(2025, 2, 14), metric="modified")
          fxb.duration(ytm=4.0, settlement=dt(2025, 2, 14), metric="risk")
 
-      .. image:: _static/ust_10y.gif
-         :alt: US Treasury example using the FixedRateBond class
-         :width: 611
-
    .. tab:: FRN
 
       A :class:`~rateslib.instruments.FloatRateNote` can also be constructed. The below bond
@@ -580,10 +572,6 @@ Securities and bonds
          bill.ytm(price=99.0808021, settlement=dt(2025, 2, 4))
          bill.duration(ytm=4.18875, settlement=dt(2025, 2, 4), metric="risk")
          bill.price(rate=4.18875, settlement=dt(2025, 2, 4))
-
-      .. image:: _static/us_gbb.png
-         :alt: US Treasury example using the Bill class
-         :width: 303
 
    .. tab:: Inflation linked
 
