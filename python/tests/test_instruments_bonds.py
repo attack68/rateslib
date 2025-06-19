@@ -602,19 +602,19 @@ class TestFixedRateBond:
         assert abs(result - 100.00) < 1e-5
         assert abs(stub_cash + 7828.77) < 1e-2
 
-    ## German gov bonds comparison with BBG and official bundesbank publications.
+    ## German gov bonds comparison with official bundesbank publications.
 
     @pytest.mark.parametrize(
         ("sett", "price", "exp_ytm", "exp_acc"),
         [
-            (dt(2024, 1, 10), 105.0, 1.208836, 0.321311),  # BBG BXT ticket data
+            (dt(2024, 1, 10), 105.0, 1.208836, 0.321311),
             (
                 dt(2024, 6, 12),
                 97.180,
                 2.66368627,
                 1.204918,
             ),  # https://www.bundesbank.de/en/service/federal-securities/prices-and-yields
-            (dt(2022, 12, 20), 99.31, 2.208075, 0.350959),  # BBG BXT ticket data
+            (dt(2022, 12, 20), 99.31, 2.208075, 0.350959),
             # (dt(2022, 12, 20), 99.31, 2.20804175, 0.3452055),  # Bundesbank official data:
             # see link above (accrual is unexplained and does not match systems)
             (
@@ -670,9 +670,9 @@ class TestFixedRateBond:
     @pytest.mark.parametrize(
         ("sett", "price", "exp_ytm", "exp_acc"),
         [
-            (dt(2024, 6, 14), 101.0, 2.886581, 1.655738),  # BBG BXT ticket data
-            (dt(2033, 11, 25), 99.75, 3.258145, 0.0),  # YAS
-            (dt(2034, 6, 13), 101.0, 0.769200, 1.643836),  # BBG BXT ticket data
+            (dt(2024, 6, 14), 101.0, 2.886581, 1.655738),
+            (dt(2033, 11, 25), 99.75, 3.258145, 0.0),
+            (dt(2034, 6, 13), 101.0, 0.769200, 1.643836),
         ],
     )
     def test_fr_gb(self, sett, price, exp_ytm, exp_acc) -> None:
@@ -694,11 +694,10 @@ class TestFixedRateBond:
         ("sett", "price", "exp_ytm", "exp_acc"),
         [
             (dt(2024, 6, 14), 98.0, 4.730058, 0.526090),
-            (dt(2026, 4, 14), 99.0, 4.617209, 1.993370),  # BBG BXT ticket data
+            (dt(2026, 4, 14), 99.0, 4.617209, 1.993370),
         ],
     )
     def test_regular_it_gb(self, sett, price, exp_ytm, exp_acc) -> None:
-        # Values compared with BBG YA for "True Yield" and Accrued
         frb = FixedRateBond(  # ISIN IT0005518128
             effective=dt(2022, 11, 1),
             termination=dt(2033, 5, 1),
@@ -742,14 +741,13 @@ class TestFixedRateBond:
     @pytest.mark.parametrize(
         ("sett", "ytm", "exp_price", "exp_acc"),
         [
-            (dt(2032, 11, 1), 6.429702, 99.00, 0.0),  # BBG - Last coupon simple rate
-            (dt(2032, 11, 2), 6.439891, 99.00, 0.01215),  # BBG YAS Yield-Last coupon simple rate
-            (dt(2033, 3, 15), 6.862519, 99.65, 1.628730),  # BBG YAS Yield - Last coupon simple rate
+            (dt(2032, 11, 1), 6.429702, 99.00, 0.0),  # Last coupon simple rate
+            (dt(2032, 11, 2), 6.439891, 99.00, 0.01215),  # Last coupon simple rate
+            (dt(2033, 3, 15), 6.862519, 99.65, 1.628730),  # Last coupon simple rate
             (dt(2033, 4, 29), 6.450803, 99.97, 2.175690),  # Test accrual upto adjusted payment date
         ],
     )
     def test_regular_it_gb_final_simple(self, sett, ytm, exp_price, exp_acc) -> None:
-        # Values compared with BBG YA for "True Yield" and Accrued
         frb = FixedRateBond(  # ISIN IT0005518128
             effective=dt(2022, 11, 1),
             termination=dt(2033, 5, 1),
@@ -771,7 +769,6 @@ class TestFixedRateBond:
         ],
     )
     def test_regular_it_gb_final_simple_vs_excel2(self, sett, ytm, exp_price, exp_acc) -> None:
-        # These values are not the same as for BBG YA, by small tolerance. See above > test1.
         frb = FixedRateBond(  # ISIN IT0005547408
             effective=dt(2023, 6, 13),
             termination=dt(2027, 6, 13),
@@ -850,7 +847,7 @@ class TestFixedRateBond:
         ],
     )
     def test_bny_mellon(self, settlement, price, exp_ytm, exp_acc) -> None:
-        # BNY Mellon ISIN: US06406RAH03, compared with BBG BXT.
+        # BNY Mellon ISIN: US06406RAH03,
         b = FixedRateBond(
             effective=dt(2018, 4, 30),
             termination=dt(2028, 4, 28),
@@ -874,7 +871,7 @@ class TestFixedRateBond:
         ],
     )
     def test_bny_mellon_spec(self, settlement, price, exp_ytm, exp_acc) -> None:
-        # BNY Mellon ISIN: US06406RAH03, compared with BBG BXT.
+        # BNY Mellon ISIN: US06406RAH03,
         b = FixedRateBond(
             effective=dt(2018, 4, 30),
             termination=dt(2028, 4, 28),
@@ -900,7 +897,7 @@ class TestFixedRateBond:
         ],
     )
     def test_cali_state_school(self, settlement, price, exp_ytm, exp_acc) -> None:
-        # LA Unif ISIN: US544647CW89, compared with BBG BXT.
+        # LA Unif ISIN: US544647CW89,
         b = FixedRateBond(
             effective=dt(2020, 11, 10),
             termination=dt(2026, 7, 1),
@@ -924,7 +921,7 @@ class TestFixedRateBond:
         ],
     )
     def test_new_jersey_transport(self, settlement, price, exp_ytm, exp_acc) -> None:
-        # NJ Transport ISIN: US64613CEZ77, compared with BBG BXT.
+        # NJ Transport ISIN: US64613CEZ77,
         b = FixedRateBond(
             effective=dt(2024, 10, 24),
             termination=dt(2026, 6, 15),

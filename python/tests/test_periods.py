@@ -3371,8 +3371,8 @@ class TestFXOption:
         [
             (dt(2023, 3, 20), 1.101, 69.378, 138756.54, "spot", 0.250124),
             (dt(2023, 3, 20), 1.101, 69.378, 138756.54, "forward", 0.251754),
-            (dt(2023, 6, 20), 1.101, 70.226, 140451.53, "spot", 0.250124),  # BBG 0.250126
-            (dt(2023, 6, 20), 1.101, 70.226, 140451.53, "forward", 0.251754),  # BBG 0.251756
+            (dt(2023, 6, 20), 1.101, 70.226, 140451.53, "spot", 0.250124),
+            (dt(2023, 6, 20), 1.101, 70.226, 140451.53, "forward", 0.251754),
             (dt(2023, 6, 20), 1.10101922, 70.180, 140360.17, "spot", 0.250000),
         ],
     )
@@ -4021,7 +4021,7 @@ class TestFXOption:
         )
         denomn = (f_d2 - f_d) if "forward" in delta_type else (f_t2 - f_t)
         fwd_diff = -(base["delta"] - base_1["delta"]) / denomn
-        assert abs(base["gamma"] - fwd_diff) < 1e-5  # BBG validation gives 33775.78 $
+        assert abs(base["gamma"] - fwd_diff) < 1e-5
 
     def test_analytic_vega(self, fxfo) -> None:
         fxc = FXCallPeriod(
@@ -4039,7 +4039,7 @@ class TestFXOption:
             fx=fxfo,
             vol=8.9,
         )["vega"]
-        assert abs(result * 20e6 / 100 - 33757.945) < 1e-2  # BBG validation gives 33775.78 $
+        assert abs(result * 20e6 / 100 - 33757.945) < 1e-2
 
         p0 = fxc.npv(
             disc_curve=fxfo.curve("eur", "usd"),

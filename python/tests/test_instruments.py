@@ -4776,8 +4776,8 @@ class TestFXOptions:
         [
             (dt(2023, 3, 20), 1.101, 69.378, 138756.54, "spot", 0.250124),
             (dt(2023, 3, 20), 1.101, 69.378, 138756.54, "forward", 0.251754),
-            (dt(2023, 6, 20), 1.101, 70.226, 140451.53, "spot", 0.250124),  # BBG 0.250126
-            (dt(2023, 6, 20), 1.101, 70.226, 140451.53, "forward", 0.251754),  # BBG 0.251756
+            (dt(2023, 6, 20), 1.101, 70.226, 140451.53, "spot", 0.250124),
+            (dt(2023, 6, 20), 1.101, 70.226, 140451.53, "forward", 0.251754),
             (dt(2023, 6, 20), 1.10101922, 70.180, 140360.17, "spot", 0.250000),
         ],
     )
@@ -5134,7 +5134,7 @@ class TestFXOptions:
             vol=8.9,
         )["vega"]
         # see test_periods/test_analytic_vega
-        assert abs(result * 20e6 / 100 - 33757.945) < 1e-2  # BBG validation gives 33775.78 $
+        assert abs(result * 20e6 / 100 - 33757.945) < 1e-2
 
     def test_rate_vol_raises(self, fxfo) -> None:
         args = {
