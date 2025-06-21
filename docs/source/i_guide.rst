@@ -70,10 +70,6 @@ the generated cashflows.
 
    irs.cashflows(usd_curve)
 
-If instead of this trivial, minimalist example you would like to see a real world
-example :ref:`replicating a Bloomberg SWPM function SOFR curve<cook-swpm-doc>` please
-click the link.
-
 Quick look at FX
 ==================
 
@@ -198,10 +194,6 @@ risk calculations.
    fxb.duration(ytm=4.0, settlement=dt(2025, 2, 14), metric="duration")
    fxb.duration(ytm=4.0, settlement=dt(2025, 2, 14), metric="modified")
    fxb.duration(ytm=4.0, settlement=dt(2025, 2, 14), metric="risk")
-
-.. image:: _static/ust_10y.gif
-  :alt: US Treasury example using the FixedRateBond class
-  :width: 611
 
 .. toctree::
     :hidden:

@@ -261,20 +261,3 @@ Solver
    :skip: Series
    :skip: CompositeCurve
    :skip: ProxyCurve
-
-Cookbook
---------
-
-.. toctree::
-    :titlesonly:
-
-    z_swpm.rst
-    z_dependencychain.rst
-    z_turns.rst
-    z_stubs.rst
-    z_convexityrisk.rst
-    z_bondbasis.rst
-    z_bondctd.rst
-    z_fixings.rst
-    z_quantlib.rst
-
