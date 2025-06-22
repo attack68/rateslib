@@ -36,7 +36,9 @@ if DEVELOPMENT:
             # TODO (low): clean this up when setting a minimum pandas version at 2.1.0
             df[df["dtype"] == "bool"] = df[df["dtype"] == "bool"].map(_map_true_false)
         else:
-            df[df["dtype"] == "bool"] = df[df["dtype"] == "bool"].applymap(_map_true_false)
+            df[df["dtype"] == "bool"] = df[df["dtype"] == "bool"].applymap(
+                _map_true_false
+            )
         return df
 
     path = "data/__instrument_spec.csv"

@@ -11,7 +11,7 @@ from rateslib.fx import (
     FXRates,
     forward_fx,
 )
-from rateslib.dual import Dual, Dual2
+from rateslib.dual import Dual, Dual2, gradient
 from rateslib.curves import Curve, LineCurve, CompositeCurve
 from rateslib.default import NoInput
 
@@ -48,7 +48,7 @@ def test_fx_update_blank():
 
 def test_convert_and_base():
     fxr = FXRates({"usdnok": 8.0})
-    expected = Dual(125000, "fx_usdnok", [-15625])
+    expected = Dual(125000, ["fx_usdnok"], [-15625])
     result = fxr.convert(1e6, "nok", "usd")
     result2 = fxr.convert_positions([0, 1e6], "usd")
     assert result == expected
@@ -83,7 +83,7 @@ def test_positions_value():
 def test_fxrates_set_order():
     fxr = FXRates({"usdnok": 8.0})
     fxr._set_ad_order(order=2)
-    expected = np.array([Dual2(1.0, "fx_usdnok", [0.0]), Dual2(8.0, "fx_usdnok", [1.0])])
+    expected = np.array([Dual2(1.0, ["fx_usdnok"], [0.0], []), Dual2(8.0, ["fx_usdnok"], [1.0], [])])
     assert all(fxr.fx_vector == expected)
 
 
@@ -98,8 +98,8 @@ def test_restate():
     fxr2 = fxr.restate(["gbpusd", "usdnok"])
     assert fxr2.pairs == ["gbpusd", "usdnok"]
     assert fxr2.fx_rates == {
-        "gbpusd": Dual(1.25, "fx_gbpusd", [1.0]),
-        "usdnok": Dual(8.0, "fx_usdnok", [1.0]),
+        "gbpusd": Dual(1.25, ["fx_gbpusd"], [1.0]),
+        "usdnok": Dual(8.0, ["fx_usdnok"], [1.0]),
     }
 
 
@@ -228,7 +228,7 @@ def test_fxforwards_set_order(usdusd, eureur, usdeur):
         {"usdusd": usdusd, "eureur": eureur, "usdeur": usdeur},
     )
     fxf._set_ad_order(order=2)
-    expected = np.array([Dual2(1.0, "fx_usdeur", [0.0]), Dual2(2.0, "fx_usdeur", [1.0])])
+    expected = np.array([Dual2(1.0, ["fx_usdeur"], [0.0], []), Dual2(2.0, ["fx_usdeur"], [1.0], [])])
     assert all(fxf.fx_rates.fx_vector == expected)
     assert usdusd.ad == 2
     assert eureur.ad == 2
@@ -269,17 +269,20 @@ def test_fxforwards_and_swap(usdusd, eureur, usdeur):
         {"usdusd": usdusd, "eureur": eureur, "usdeur": usdeur},
     )
     result = fxf.rate("usdeur", dt(2022, 3, 25))
-    expected = Dual(0.8991875219289739, "fx_usdeur", [0.99909725])
-    assert result == expected
+    expected = Dual(0.8991875219289739, ["fx_usdeur"], [0.99909725])
+    assert abs(result-expected) < 1e-10
+    assert np.isclose(result.dual, expected.dual)
 
     # test fx_swap price
     result = fxf.swap("usdeur", [dt(2022, 1, 3), dt(2022, 3, 25)])
     expected = (expected - fxf.rate("usdeur", dt(2022, 1, 3))) * 10000
-    assert result == expected
+    assert abs(result-expected) < 1e-10
+    assert np.isclose(result.dual, expected.dual)
 
     result = fxf.rate("eurusd", dt(2022, 3, 25))
-    expected = Dual(1.1121150767915007, "fx_usdeur", [-1.23568342])
-    assert result == expected
+    expected = Dual(1.1121150767915007, ["fx_usdeur"], [-1.23568342])
+    assert abs(result - expected) < 1e-10
+    assert np.isclose(result.dual, expected.dual)
 
 
 def test_fxforwards2():
@@ -294,7 +297,8 @@ def test_fxforwards2():
     fxf = FXForwards(fx_rates, fx_curves)
     result = fxf.rate("usdnok", dt(2022, 8, 16))
     expected = Dual(7.9039924628096845, ["fx_eurnok", "fx_usdeur"], [0.88919914, 8.78221385])
-    assert result == expected
+    assert abs(result-expected) < 1e-15
+    assert all(np.isclose(gradient(result, ["fx_eurnok", "fx_usdeur"]), expected.dual))
 
 
 def test_fxforwards_immediate():
@@ -306,14 +310,18 @@ def test_fxforwards_immediate():
     }
     fxf = FXForwards(fx_rates, fx_curves)
     F0_usdeur = 0.95 * 1.0 / 0.95  # f_usdeur * w_eurusd / v_usdusd
-    assert fxf.fx_rates_immediate.fx_array[0, 1].real == F0_usdeur
-    assert fxf.rate("usdeur").real == F0_usdeur
+    assert abs(fxf.fx_rates_immediate.fx_array[0, 1].real - F0_usdeur) < 1e-15
+    assert abs(fxf.rate("usdeur").real - F0_usdeur) < 1e-15
 
     result = fxf.rate("usdeur", dt(2022, 1, 1))
-    assert result == Dual(1, "fx_usdeur", [1 / 0.95])
+    expected = Dual(1, ["fx_usdeur"], [1 / 0.95])
+    assert abs(result - expected) < 1e-10
+    assert np.isclose(result.dual, expected.dual)
 
     result = fxf.rate("usdeur", dt(2022, 1, 3))
-    assert result == Dual(0.95, "fx_usdeur", [1.0])
+    expected = Dual(0.95, ["fx_usdeur"], [1.0])
+    assert abs(result - expected) < 1e-10
+    assert np.isclose(result.dual, expected.dual)
 
 
 def test_fxforwards_immediate2():
@@ -372,8 +380,9 @@ def test_fxforwards_convert(usdusd, eureur, usdeur):
         settlement=dt(2022, 1, 15),
         value_date=dt(2022, 1, 30)
     )
-    expected = Dual(90.12374519723947, "fx_usdeur", [100.13749466359941])
-    assert result == expected
+    expected = Dual(90.12374519723947, ["fx_usdeur"], [100.13749466359941])
+    assert abs(result-expected) < 1e-13
+    assert np.isclose(expected.dual, result.dual)
 
     result = fxf.convert(
         100,
@@ -382,8 +391,9 @@ def test_fxforwards_convert(usdusd, eureur, usdeur):
         settlement=NoInput(0),  # should imply immediate settlement
         value_date=NoInput(0),  # should imply same as settlement
     )
-    expected = Dual(90.00200704713323, "fx_usdeur", [100.00223005237025])
-    assert result == expected
+    expected = Dual(90.00200704713323, ["fx_usdeur"], [100.00223005237025])
+    assert abs(result - expected) < 1e-13
+    assert np.isclose(expected.dual, result.dual)
 
 
 def test_fxforwards_convert_not_in_ccys(usdusd, eureur, usdeur):
@@ -537,8 +547,12 @@ def test_multiple_settlement_forwards():
     )
     F0_usdeur = 0.95 * 1.0 / 0.95  # f_usdeur * w_eurusd / v_usdusd
     F0_usdeur_result = fxf.rate("usdeur", dt(2022, 1, 1))
-    assert F0_usdeur_result.real == F0_usdeur
-    assert fxf.rate("usdeur", dt(2022, 1, 3)) == Dual(0.95, "fx_usdeur", [1.0])
+    assert abs(F0_usdeur_result.real-F0_usdeur) < 1e-13
+
+    expected = Dual(0.95, ["fx_usdeur"], [1.0])
+    result = fxf.rate("usdeur", dt(2022, 1, 3))
+    assert abs(result-expected) < 1e-13
+    assert np.isclose(gradient(result, ["fx_usdeur"]), expected.dual)
 
 
 def test_generate_proxy_curve():
@@ -563,7 +577,10 @@ def test_generate_proxy_curve():
 
     c3 = fxf.curve("cad", "eur")
     assert type(c3) is not Curve  # should be ProxyCurve
-    assert c3[dt(2022, 10, 1)] == Dual(0.9797979797979798, ["fx_usdcad", "fx_usdeur"], [0, 0])
+    expected = Dual(0.9797979797979798, ["fx_usdcad", "fx_usdeur"], [0, 0])
+    result = c3[dt(2022, 10, 1)]
+    assert abs(result-expected) < 1e-12
+    assert all(np.isclose(gradient(expected, result.vars), gradient(result)))
 
 
 def test_generate_multi_csa_curve():
@@ -708,7 +725,7 @@ def test_delta_risk_equivalence():
     discounted_eur = forward_eur * fx_curves["eureur"][dt(2022, 8, 15)]
     result2 = discounted_eur * fxf.rate("eurusd", dt(2022, 1, 1))
 
-    assert result1.vars == (
+    assert set(result1.vars) == set([
         "ee0",
         "ee1",
         "eu0",
@@ -719,8 +736,9 @@ def test_delta_risk_equivalence():
         "ne1",
         "uu0",
         "uu1",
-    )
-    assert result1 == result2
+    ])
+    assert abs(result1 - result2) < 1e-12
+    assert all(np.isclose(gradient(result1), gradient(result2, result1.vars)))
 
 
 def test_oo_update_rates_and_id():

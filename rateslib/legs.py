@@ -45,7 +45,7 @@ from rateslib.periods import (
     _disc_from_curve,
     _disc_maybe_from_curve,
 )
-from rateslib.dual import Dual, Dual2, set_order, DualTypes
+from rateslib.dual import Dual, Dual2, set_order, DualTypes, gradient
 from rateslib.fx import FXForwards, FXRates
 
 
@@ -415,8 +415,8 @@ class BaseLeg(metaclass=ABCMeta):
             fx._set_ad_order(2)
 
         npv = self.npv(fore_curve, disc_curve, fx, self.currency)
-        b = npv.gradient("spread_z", order=1)[0]
-        a = 0.5 * npv.gradient("spread_z", order=2)[0][0]
+        b = gradient(npv, "spread_z", order=1)[0]
+        a = 0.5 * gradient(npv, "spread_z", order=2)[0][0]
         c = -target_npv
 
         # Perform quadratic solution
@@ -668,7 +668,7 @@ class FloatLegMixin:
         if fixings is NoInput.blank:
             fixings_ = []
         elif isinstance(fixings, Series):
-            fixings_ = fixings.sort_index()
+            fixings_ = fixings.sort_index()  # oldest fixing at index 0: latest -1
             fixings_ = self._get_fixings_from_series(fixings_)
         elif isinstance(fixings, tuple):
             fixings_ = [fixings[0]] + self._get_fixings_from_series(fixings[1], 1)

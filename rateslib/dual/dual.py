@@ -13,6 +13,35 @@ INTS = (int, np.int8, np.int16, np.int32, np.int32, np.int64)
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
+def gradient(dual, vars: Optional[list[str]] = None, order: int = 1, keep_manifold: bool = False):
+    """
+    Return derivatives of a dual number.
+
+    Parameters
+    ----------
+    dual : Dual or Dual2
+        The dual variable from which to derive derivatives.
+    vars : str, tuple, list optional
+        Name of the variables which to return gradients for. If not given
+        defaults to all vars attributed to the instance.
+    order : {1, 2}
+        Whether to return the first or second derivative of the dual number.
+        Second order will raise if applied to a ``Dual`` and not ``Dual2`` instance.
+    keep_manifold : bool
+        If ``order`` is 1 and the type is ``Dual2`` one can return a ``Dual2``
+        where the ``dual2`` values are converted to ``dual`` values to represent
+        a first order manifold of the first derivative (and the ``dual2`` values
+        set to zero). Useful for propagation in iterations.
+
+    Returns
+    -------
+    float, ndarray, Dual2
+    """
+    if not isinstance(dual, (Dual, Dual2)):
+        raise TypeError("Must call `gradient` on dual-type variables")
+    return dual.grad(vars, order, keep_manifold)
+
+
 class DualBase(metaclass=ABCMeta):
     """
     Base class for dual number implementation.
@@ -90,7 +119,7 @@ class DualBase(metaclass=ABCMeta):
     def __upcast_vars__(self, new_vars: list[str]):
         pass  # pragma: no cover
 
-    def gradient(self, vars=None, order=1, keep_manifold=False):
+    def grad(self, vars=None, order=1, keep_manifold=False):
         """
         Return derivatives of a dual number.
 
@@ -176,12 +205,29 @@ class Dual2(DualBase):
             self.vars = tuple(vars)
         n = len(self.vars)
         self.real = real
-        self.dual = np.asarray(dual.copy()) if dual is not None else np.ones(n)
-        self.dual2 = np.asarray(dual2.copy()) if dual2 is not None else np.zeros((n, n))
+        if dual is None or len(dual) == 0:
+            self.dual: np.ndarray = np.ones(n)
+        else:
+            self.dual = np.asarray(dual.copy())
+
+        if isinstance(dual2, list):
+            if len(dual2) == 0:
+                self.dual2 = np.zeros((n, n))
+            elif len(dual2) == n**2:
+                self.dual2 = np.asarray(dual2).reshape((n, n))
+        elif dual2 is not None:
+            self.dual2 = np.asarray(dual2.copy())
+        else:
+            self.dual2 = np.zeros((n, n))
 
     def __repr__(self):
         name, final = "Dual2", ", [[...]]"
-        return f"<{name}: {self.real:,.6f}, {self.vars}, {self.dual}{final}>"
+        vars = ', '.join(self.vars[:3])
+        dual = ', '.join([f"{_:.1f}" for _ in self.dual[:3]])
+        if len(self.vars) > 3:
+            vars += ',...'
+            dual += ',...'
+        return f"<{name}: {self.real:,.6f}, ({vars}), [{dual}]{final}>"
 
     def __str__(self):
         output = f" val = {self.real:.8f}\n"
@@ -323,7 +369,8 @@ class Dual2(DualBase):
         n = len(new_vars)
         dual, dual2 = np.zeros(n), np.zeros((n, n))
         ix_ = list(map(lambda x: new_vars.index(x), self.vars))
-        dual[ix_], dual2[np.ix_(ix_, ix_)] = self.dual, self.dual2
+        dual[ix_] = self.dual,
+        dual2[np.ix_(ix_, ix_)] = self.dual2
         return Dual2(self.real, new_vars, dual, dual2)
 
     def __downcast_vars__(self):
@@ -338,9 +385,16 @@ class Dual2(DualBase):
         if order == 1:
             return Dual(self.real, self.vars, self.dual)
         if order == 2:
-            return Dual2(self.real, self.vars, self.dual, self.dual2)
+            return self
         if order == 0:
             return float(self)
+
+    @staticmethod
+    def vars_from(other, real, vars=(), dual=None, dual2=None):
+        if other.vars == vars:
+            return Dual2(real, vars, dual, dual2)
+        else:
+            return Dual2(real, vars, dual, dual2).__upcast_vars__(other.vars)
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -387,7 +441,10 @@ class Dual(DualBase):
         else:
             self.vars = tuple(vars)
         n = len(self.vars)
-        self.dual: np.ndarray = np.asarray(dual.copy()) if dual is not None else np.ones(n)
+        if dual is None or len(dual) == 0:
+            self.dual: np.ndarray = np.ones(n)
+        else:
+            self.dual = np.asarray(dual.copy())
 
     @property
     def dual2(self):
@@ -395,7 +452,12 @@ class Dual(DualBase):
 
     def __repr__(self):
         name, final = "Dual", ""
-        return f"<{name}: {self.real:,.6f}, {self.vars}, {self.dual}{final}>"
+        vars = ', '.join(self.vars[:3])
+        dual = ', '.join([f"{_:.1f}" for _ in self.dual[:3]])
+        if len(self.vars) > 3:
+            vars += ',...'
+            dual += ',...'
+        return f"<{name}: {self.real:,.6f}, ({vars}), [{dual}]{final}>"
 
     def __str__(self):
         output = f" val = {self.real:.8f}\n"
@@ -495,19 +557,27 @@ class Dual(DualBase):
         dual[ix_] = self.dual
         return Dual(self.real, new_vars, dual)
 
-    def __downcast_vars__(self):
+    def __downcast_vars__(self):  # pragma: no cover
         """removes variables where first order sensitivity is zero"""
+        # this function is not used within the library but left for backwards compat
         ix_ = np.where(~np.isclose(self.dual, 0, atol=PRECISION))[0]
         new_vars = tuple(self.vars[i] for i in ix_)
         return Dual(self.real, new_vars, self.dual[ix_])
 
     def _set_order(self, order):
         if order == 1:
-            return Dual(self.real, self.vars, self.dual)
+            return self
         if order == 2:
             return Dual2(self.real, self.vars, self.dual)
         if order == 0:
             return float(self)
+
+    @staticmethod
+    def vars_from(other, real, vars=(), dual=None):
+        if other.vars == vars:
+            return Dual(real, vars, dual)
+        else:
+            return Dual(real, vars, dual).__upcast_vars__(other.vars)
 
     # def __str__(self):
     #     output = f"    f = {self.real:.8f}\n"
@@ -711,10 +781,16 @@ def set_order(val, order):
     -------
     float, int, Dual or Dual2
     """
-    if isinstance(val, (*FLOATS, *INTS)):
-        return val
-    elif isinstance(val, (Dual, Dual2)):
-        return val._set_order(order)
+    if order == 2 and isinstance(val, Dual):
+        return Dual2(val.real, val.vars, val.dual.tolist(), [])
+    elif order == 1 and isinstance(val, Dual2):
+        return Dual(val.real, val.vars, val.dual.tolist())
+    elif order == 0:
+        return float(val)
+    # otherwise:
+    #  - val is a Float or an Int
+    #  - val is a Dual and order == 1 OR val is Dual2 and order == 2
+    return val
 
 
 def set_order_convert(val, order, tag):
@@ -727,27 +803,23 @@ def set_order_convert(val, order, tag):
         The value to convert.
     order : int
         The AD order to convert the value to if necessary.
-    tag : str
-        The variable name if upcasting a float to a Dual or Dual2
+    tag : list of str, optional
+        The variable name(s) if upcasting a float to a Dual or Dual2
 
     Returns
     -------
     float, Dual, Dual2
     """
     if isinstance(val, (*FLOATS, *INTS)):
+        _ = [] if tag is None else tag
         if order == 0:
             return val
         elif order == 1:
-            return Dual(val, tag)
+            return Dual(val, _, [])
         elif order == 2:
-            return Dual2(val, tag)
-    elif isinstance(val, (Dual, Dual2)):
-        if order == 0:
-            return float(val)
-        elif (order == 1 and isinstance(val, Dual)) or (order == 2 and isinstance(val, Dual2)):
-            return val
-        else:
-            return val._set_order(order)
+            return Dual2(val, _, [], [])
+    # else val is Dual or Dual2 so convert directly
+    return set_order(val, order)
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

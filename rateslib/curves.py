@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from pytz import UTC
 from typing import Optional, Union, Callable, Any
 from pandas.tseries.offsets import CustomBusinessDay
 from pandas.tseries.holiday import Holiday
@@ -19,7 +20,11 @@ import json
 from math import floor, comb
 from rateslib import defaults
 from rateslib.dual import Dual, dual_log, dual_exp, set_order_convert
-from rateslib.splines import PPSpline
+from rateslib.splines import (
+    PPSplineF64,
+    PPSplineDual,
+    PPSplineDual2
+)
 from rateslib.default import plot, NoInput
 from rateslib.calendars import (
     create_calendar,
@@ -309,6 +314,9 @@ class Curve(_Serialize):
         self.nodes = nodes  # nodes.copy()
         self.node_dates = list(self.nodes.keys())
         self.n = len(self.node_dates)
+        for idx in range(1, self.n):
+            if self.node_dates[idx-1] >= self.node_dates[idx]:
+                raise ValueError("Curve node dates are not sorted or contain duplicates. To sort directly use: `dict(sorted(nodes.items()))`")
         self.interpolation = (
             defaults.interpolation[type(self).__name__]
             if interpolation is NoInput.blank
@@ -335,12 +343,14 @@ class Curve(_Serialize):
         self.t = t
         self.c_init = False if c is NoInput.blank else True
         if t is not NoInput.blank:
-            self.spline = PPSpline(4, t, c)
+            self.t_posix = [_.replace(tzinfo=UTC).timestamp() for _ in t]
+            self.spline = PPSplineF64(4, self.t_posix, c)
             if len(self.t) < 10 and "not_a_knot" in self.spline_endpoints:
                 raise ValueError(
                     "`endpoints` cannot be 'not_a_knot' with only 1 interior breakpoint"
                 )
         else:
+            self.t_posix = None
             self.spline = None
 
         self._set_ad_order(order=ad)
@@ -358,7 +368,8 @@ class Curve(_Serialize):
                     f"date: {date.strftime('%Y-%m-%d')}, spline end: {self.t[-1].strftime('%Y-%m-%d')}",
                     UserWarning,
                 )
-            return self._op_exp(self.spline.ppev_single(date))
+            date_posix = date.replace(tzinfo=UTC).timestamp()
+            return self._op_exp(self.spline.ppev_single(date_posix))
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -482,14 +493,15 @@ class Curve(_Serialize):
         if isinstance(termination, str):
             termination = add_tenor(effective, termination, modifier, self.calendar)
         try:
-            df_ratio = self[effective] / self[termination]
+            n_, d_ = self[effective], self[termination]
+            df_ratio = n_ / d_
         except ZeroDivisionError:
             return None
 
-        try:
-            _ = (df_ratio - 1) / dcf(effective, termination, self.convention) * 100
-        except ZeroDivisionError:
+        if termination == effective:
             raise ZeroDivisionError(f"effective: {effective}, termination: {termination}")
+        n_, d_ = (df_ratio - 1), dcf(effective, termination, self.convention)
+        _ =  n_ / d_ * 100
 
         if float_spread is not None and abs(float_spread) > 1e-9:
             if spread_compound_method == "none_simple":
@@ -536,18 +548,25 @@ class Curve(_Serialize):
         if self.spline is None or self.c_init:
             return None
 
-        self.spline = PPSpline(4, self.t, None)
-        tau = [k for k in self.nodes.keys() if k >= self.t[0]]
+        # Get the Spline classs by data types
+        if self.ad == 0:
+            Spline = PPSplineF64
+        elif self.ad == 1:
+            Spline = PPSplineDual
+        else:
+            Spline = PPSplineDual2
+
+        t_posix = [_.replace(tzinfo=UTC).timestamp() for _ in self.t]
+        tau_posix = [k.replace(tzinfo=UTC).timestamp() for k in self.nodes.keys() if k >= self.t[0]]
         y = [self._op_log(v) for k, v in self.nodes.items() if k >= self.t[0]]
 
         # Left side constraint
         if self.spline_endpoints[0].lower() == "natural":
-            tau.insert(0, self.t[0])
-            y.insert(0, 0)
+            tau_posix.insert(0, self.t_posix[0])
+            y.insert(0, set_order_convert(0., self.ad, None))
             left_n = 2
         elif self.spline_endpoints[0].lower() == "not_a_knot":
-            self.spline.t.pop(4)
-            self.spline.n -= 1
+            t_posix.pop(4)
             left_n = 0
         else:
             raise NotImplementedError(
@@ -556,19 +575,19 @@ class Curve(_Serialize):
 
         # Right side constraint
         if self.spline_endpoints[1].lower() == "natural":
-            tau.append(self.t[-1])
-            y.append(0)
+            tau_posix.append(self.t_posix[-1])
+            y.append(set_order_convert(0, self.ad, None))
             right_n = 2
         elif self.spline_endpoints[1].lower() == "not_a_knot":
-            self.spline.t.pop(-5)
-            self.spline.n -= 1
+            t_posix.pop(-5)
             right_n = 0
         else:
             raise NotImplementedError(
                 f"Endpoint method '{self.spline_endpoints[0]}' not implemented."
             )
 
-        self.spline.csolve(np.array(tau), np.array(y), left_n, right_n)
+        self.spline = Spline(4, t_posix, None)
+        self.spline.csolve(np.array(tau_posix), np.array(y), left_n, right_n)
         return None
 
     def shift(

@@ -13,32 +13,33 @@ from rateslib.dual import (
     set_order,
     _plu_decomp,
     _pivot_matrix,
+    gradient,
 )
 
 
 @pytest.fixture()
 def x_1():
-    return Dual(1, vars=["v0", "v1"], dual=np.array([1, 2]))
+    return Dual(1, vars=["v0", "v1"], dual=[1, 2])
 
 
 @pytest.fixture()
 def x_2():
-    return Dual(2, vars=["v0", "v2"], dual=np.array([0, 3]))
+    return Dual(2, vars=["v0", "v2"], dual=[0, 3])
 
 
 @pytest.fixture()
 def y_1():
-    return Dual2(1, vars=["v0", "v1"], dual=np.array([1, 2]))
+    return Dual2(1, vars=["v0", "v1"], dual=[1, 2], dual2=[])
 
 
 @pytest.fixture()
 def y_2():
-    return Dual2(1, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=np.ones((2, 2)))
+    return Dual2(1, vars=["v0", "v1"], dual=[1, 2], dual2=[1.0, 1.0, 1.0, 1.0])
 
 
 @pytest.fixture()
 def y_3():
-    return Dual2(2, vars=["v0", "v2"], dual=np.array([0, 3]), dual2=np.ones((2, 2)))
+    return Dual2(2, vars=["v0", "v2"], dual=[0, 3], dual2=[1.0, 1.0, 1.0, 1.0])
 
 
 @pytest.fixture()
@@ -69,10 +70,10 @@ def b():
 
 
 def test_zero_init():
-    x = Dual(1, vars=["x"])
+    x = Dual(1, ["x"], [])
     assert np.all(x.dual == np.ones(1))
 
-    y = Dual2(1, vars=["x"])
+    y = Dual2(1, ["x"], [], [])
     assert np.all(y.dual == np.ones(1))
     assert np.all(y.dual2 == np.zeros((1, 1)))
 
@@ -88,6 +89,7 @@ def test_zero_init():
     ],
 )
 def test_no_type_crossing_on_ops(x_1, y_1, op):
+    # getattr(x_1, op)(y_1)
     with pytest.raises(TypeError):
         getattr(x_1, op)(y_1)
 
@@ -97,10 +99,10 @@ def test_no_type_crossing_on_ops(x_1, y_1, op):
 
 def test_dual_repr(x_1, y_2):
     result = x_1.__repr__()
-    assert result == "<Dual: 1.000000, ('v0', 'v1'), [1 2]>"
+    assert result == "<Dual: 1.000000, (v0, v1), [1.0, 2.0]>"
 
     result = y_2.__repr__()
-    assert result == "<Dual2: 1.000000, ('v0', 'v1'), [1 2], [[...]]>"
+    assert result == "<Dual2: 1.000000, (v0, v1), [1.0, 2.0], [[...]]>"
 
 
 def test_dual_str(x_1, y_2):
@@ -121,27 +123,27 @@ def test_dual_str(x_1, y_2):
 @pytest.mark.parametrize(
     "vars, expected",
     [
-        ("v0", 1.00),
+        (["v0"], 1.00),
         (["v1", "v0"], np.array([2.0, 1.0])),
     ],
 )
 def test_gradient_method(vars, expected, x_1, y_2):
-    result = x_1.gradient(vars)
+    result = gradient(x_1, vars)
     assert np.all(result == expected)
 
-    result = y_2.gradient(vars)
+    result = gradient(y_2, vars)
     assert np.all(result == expected)
 
 
 @pytest.mark.parametrize(
     "vars, expected",
     [
-        ("v0", 2.00),
+        (["v0"], 2.00),
         (["v1", "v0"], np.array([[2.0, 2.0], [2.0, 2.0]])),
     ],
 )
 def test_gradient_method2(vars, expected, y_2):
-    result = y_2.gradient(vars, 2)
+    result = gradient(y_2, vars, 2)
     assert np.all(result == expected)
 
 
@@ -154,61 +156,61 @@ def test_rdiv_raises(x_1, y_1):
 
 
 def test_neg(x_1, y_2):
-    assert -x_1 == Dual(-1, vars=["v0", "v1"], dual=-np.array([1, 2]))
-    assert -y_2 == Dual2(-1, vars=["v0", "v1"], dual=-np.array([1, 2]), dual2=-np.ones((2, 2)))
+    assert -x_1 == Dual(-1, ["v0", "v1"], [-1.0, -2.0])
+    assert -y_2 == Dual2(-1, ["v0", "v1"], [-1.0, -2.0], [-1.0, -1.0, -1.0, -1.0])
 
 
 def test_eq_ne(x_1, y_1, y_2):
     # non-matching types
-    assert 0 != Dual(0, "single_var")
-    assert 0 != Dual2(0, "single_var")
+    assert 0 != Dual(0, ["single_var"], [])
+    assert 0 != Dual2(0, ["single_var"], [], [])
     # ints
-    assert 2 == Dual(2)
-    assert 2 == Dual2(2)
+    assert 2 == Dual(2, [], [])
+    assert 2 == Dual2(2, [], [], [])
     # floats
-    assert 3.3 == Dual(3.3)
-    assert 3.3 == Dual2(3.3)
+    assert 3.3 == Dual(3.3, [], [])
+    assert 3.3 == Dual2(3.3, [], [], [])
     # no type crossing
     with pytest.raises(TypeError):
         assert x_1 != y_1
     # equality
-    assert x_1 == Dual(1, vars=["v0", "v1"], dual=np.array([1, 2]))
-    assert y_1 == Dual2(1, vars=["v0", "v1"], dual=np.array([1, 2]))
-    assert y_2 == Dual2(1, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=np.ones((2, 2)))
+    assert x_1 == Dual(1, ["v0", "v1"], [1, 2])
+    assert y_1 == Dual2(1, ["v0", "v1"], [1, 2], [])
+    assert y_2 == Dual2(1, ["v0", "v1"], [1, 2], [1.0, 1.0, 1.0, 1.0])
     # non-matching elements
-    assert x_1 != Dual(2, vars=["v0", "v1"], dual=np.array([1, 2]))
-    assert x_1 != Dual(1, vars=["v0", "v1"], dual=np.array([2, 2]))
-    assert x_1 != Dual(1, vars=["v2", "v1"], dual=np.array([1, 2]))
+    assert x_1 != Dual(2, ["v0", "v1"], [1, 2])
+    assert x_1 != Dual(1, ["v0", "v1"], [2, 2])
+    assert x_1 != Dual(1, ["v2", "v1"], [1, 2])
     # non-matching elements
-    assert y_1 != Dual2(2, vars=["v0", "v1"], dual=np.array([1, 2]))
-    assert y_1 != Dual2(1, vars=["v0", "v1"], dual=np.array([2, 2]))
-    assert y_1 != Dual2(1, vars=["v2", "v1"], dual=np.array([1, 2]))
+    assert y_1 != Dual2(2, ["v0", "v1"], [1, 2], [])
+    assert y_1 != Dual2(1, ["v0", "v1"], [2, 2], [])
+    assert y_1 != Dual2(1, ["v2", "v1"], [1, 2], [])
     # non-matching dual2
-    assert y_2 != Dual2(1, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=np.ones((2, 2)) * 2)
+    assert y_2 != Dual2(1, ["v0", "v1"], [1, 2], [2.0, 2.0, 2.0, 2.0])
 
 
 def test_lt():
-    assert Dual(1, "x") < Dual(2, "y")
-    assert Dual2(1, "z") < Dual2(2, "x")
-    assert Dual(1, "x") < 10
-    assert not Dual(1, "x") < 0
+    assert Dual(1, ["x"], []) < Dual(2, ["y"], [])
+    assert Dual2(1, ["z"], [], []) < Dual2(2, ["x"], [], [])
+    assert Dual(1, ["x"], []) < 10
+    assert not Dual(1, ["x"], []) < 0
 
 
 def test_lt_raises():
     with pytest.raises(TypeError, match="Cannot compare"):
-        assert Dual(1, "x") < Dual2(2, "y")
+        assert Dual(1, ["x"], []) < Dual2(2, ["y"], [], [])
 
 
 def test_gt():
-    assert Dual(2, "x") > Dual(1, "y")
-    assert Dual2(2, "z") > Dual2(1, "x")
-    assert Dual(1, "x") > 0
-    assert not Dual(1, "x") > 10
+    assert Dual(2, ["x"], []) > Dual(1, ["y"], [])
+    assert Dual2(2, ["z"], [], []) > Dual2(1, ["x"], [], [])
+    assert Dual(1, ["x"], []) > 0
+    assert not Dual(1, ["x"], []) > 10
 
 
 def test_gt_raises():
     with pytest.raises(TypeError, match="Cannot compare"):
-        assert Dual(2, "x") > Dual2(1, "y")
+        assert Dual(2, ["x"], []) > Dual2(1, ["y"], [], [])
 
 
 def test_dual2_abs_float(x_1, y_1, y_2):
@@ -223,8 +225,8 @@ def test_dual2_abs_float(x_1, y_1, y_2):
 @pytest.mark.parametrize("op", ["__add__", "__sub__", "__mul__", "__truediv__"])
 def test_dual2_immutable(y_1, y_2, op):
     _ = getattr(y_1, op)(y_2)
-    assert y_1 == Dual2(1, vars=["v0", "v1"], dual=np.array([1, 2]))
-    assert y_2 == Dual2(1, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=np.ones((2, 2)))
+    assert y_1 == Dual2(1, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=[])
+    assert y_2 == Dual2(1, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=[1., 1., 1., 1.])
 
 
 @pytest.mark.parametrize("op", ["__add__", "__sub__", "__mul__", "__truediv__"])
@@ -262,39 +264,19 @@ def test_op_inversions(x_1, x_2):
     [
         (
             "__add__",
-            Dual2(
-                3,
-                vars=["v0", "v1", "v2"],
-                dual=np.array([1, 2, 3]),
-                dual2=np.array([[2, 1, 1], [1, 1, 0], [1, 0, 1]]),
-            ),
+            Dual2(3, ["v0", "v1", "v2"], [1, 2, 3], [2, 1, 1, 1, 1, 0, 1, 0, 1])
         ),
         (
             "__sub__",
-            Dual2(
-                -1,
-                vars=["v0", "v1", "v2"],
-                dual=np.array([1, 2, -3]),
-                dual2=np.array([[0, 1, -1], [1, 1, 0], [-1, 0, -1]]),
-            ),
+            Dual2(-1, ["v0", "v1", "v2"], [1, 2, -3], [0, 1, -1, 1, 1, 0, -1, 0, -1])
         ),
         (
             "__mul__",
-            Dual2(
-                2,
-                vars=["v0", "v1", "v2"],
-                dual=np.array([2, 4, 3]),
-                dual2=np.array([[3, 2, 2.5], [2, 2, 3], [2.5, 3, 1]]),
-            ),
+            Dual2(2, ["v0", "v1", "v2"], [2, 4, 3], [3, 2, 2.5, 2, 2, 3, 2.5, 3, 1])
         ),
         (
             "__truediv__",
-            Dual2(
-                0.5,
-                vars=["v0", "v1", "v2"],
-                dual=np.array([0.5, 1.0, -0.75]),
-                dual2=np.array([[0.25, 0.5, -0.625], [0.5, 0.5, -0.75], [-0.625, -0.75, 0.875]]),
-            ),
+            Dual2(0.5, ["v0", "v1", "v2"], [0.5, 1.0, -0.75], [0.25, 0.5, -0.625, 0.5, 0.5, -0.75, -0.625, -0.75, 0.875])
         ),
     ],
 )
@@ -340,23 +322,19 @@ def test_left_op_with_float(x_1, op, expected):
     [
         (
             "__add__",
-            Dual2(1 + 2.5, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=np.ones((2, 2))),
+            Dual2(1 + 2.5, ["v0", "v1"], [1, 2], [1.0, 1.0, 1.0, 1.0])
         ),
         (
             "__sub__",
-            Dual2(1 - 2.5, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=np.ones((2, 2))),
+            Dual2(1 - 2.5, ["v0", "v1"], [1, 2], [1.0, 1.0, 1.0, 1.0]),
         ),
         (
             "__mul__",
-            Dual2(
-                1 * 2.5, vars=["v0", "v1"], dual=np.array([1, 2]) * 2.5, dual2=np.ones((2, 2)) * 2.5
-            ),
+            Dual2(1 * 2.5, ["v0", "v1"], [2.5, 5.0], [2.5, 2.5, 2.5, 2.5])
         ),
         (
             "__truediv__",
-            Dual2(
-                1 / 2.5, vars=["v0", "v1"], dual=np.array([1, 2]) / 2.5, dual2=np.ones((2, 2)) / 2.5
-            ),
+            Dual2(1 / 2.5, ["v0", "v1"], [1/2.5, 2/2.5], [1/2.5, 1/2.5, 1/2.5, 1/2.5])
         ),
     ],
 )
@@ -374,10 +352,10 @@ def test_right_op_with_float(x_1):
 
 def test_right_op_with_float2(y_2):
     assert 2.5 + y_2 == Dual2(
-        1 + 2.5, vars=["v0", "v1"], dual=np.array([1, 2]), dual2=np.ones((2, 2))
+        1 + 2.5, vars=["v0", "v1"], dual=[1., 2.], dual2=[1., 1., 1., 1.]
     )
     assert 2.5 - y_2 == Dual2(
-        2.5 - 1, vars=["v0", "v1"], dual=-np.array([1, 2]), dual2=-np.ones((2, 2))
+        2.5 - 1, vars=["v0", "v1"], dual=[-1., -2.], dual2=[-1., -1., -1., -1.]
     )
     assert 2.5 * y_2 == y_2 * 2.5
     assert 2.5 / y_2 == (y_2 / 2.5) ** -1
@@ -397,9 +375,9 @@ def test_dual2_second_derivatives():
 
     x_, y_, z_ = 3, 2, 1
 
-    x = Dual2(x_, vars=["x"], dual=np.array([1]))
-    y = Dual2(y_, vars=["y"], dual=np.array([1]))
-    z = Dual2(z_, vars=["z"], dual=np.array([1]))
+    x = Dual2(x_, vars=["x"], dual=[1], dual2=[])
+    y = Dual2(y_, vars=["y"], dual=[1], dual2=[])
+    z = Dual2(z_, vars=["z"], dual=[1], dual2=[])
 
     result = f(x, y, z)
     assert result.dual[0] == 4 * x_**3 * y_**2  # 432
@@ -425,24 +403,27 @@ def test_dual2_second_derivatives2():
 
     x_, y_, z_ = 3, 2, 1
 
-    x = Dual2(x_, vars=["x"], dual=np.array([1]))
-    y = Dual2(y_, vars=["y"], dual=np.array([1]))
-    z = Dual2(z_, vars=["z"], dual=np.array([1]))
+    x = Dual2(x_, vars=["x"], dual=[1], dual2=[])
+    y = Dual2(y_, vars=["y"], dual=[1], dual2=[])
+    z = Dual2(z_, vars=["z"], dual=[1], dual2=[])
 
     result = f(x, y, z)
-    assert result.dual[0] == math.exp(x_ / z_) / z_ + 1 / x_
-    assert result.dual[1] == 1 / y_
-    assert result.dual[2] == -x_ * math.exp(x_ / z_) / z_**2
+    xi = result.vars.index("x")
+    yi = result.vars.index("y")
+    zi = result.vars.index("z")
+    assert result.dual[xi] == math.exp(x_ / z_) / z_ + 1 / x_
+    assert result.dual[yi] == 1 / y_
+    assert result.dual[zi] == -x_ * math.exp(x_ / z_) / z_**2
 
-    assert result.dual2[0, 0] * 2 == math.exp(x_ / z_) / z_**2 - 1 / x_**2
-    assert result.dual2[0, 1] * 2 == 0
-    assert result.dual2[0, 2] * 2 == math.exp(x_ / z_) * (-1 / z_**2 - x_ / z_**3)
-    assert result.dual2[1, 0] * 2 == 0
-    assert result.dual2[1, 1] * 2 == -1 / y_**2
-    assert result.dual2[1, 2] * 2 == 0
-    assert result.dual2[2, 0] * 2 == math.exp(x_ / z_) * (-1 / z_**2 - x_ / z_**3)
-    assert result.dual2[2, 1] * 2 == 0
-    assert result.dual2[2, 2] * 2 == math.exp(x_ / z_) * (x_**2 / z_**4 + 2 * x_ / z_**3)
+    assert result.dual2[xi, xi] * 2 == math.exp(x_ / z_) / z_**2 - 1 / x_**2
+    assert result.dual2[xi, yi] * 2 == 0
+    assert result.dual2[xi, zi] * 2 == math.exp(x_ / z_) * (-1 / z_**2 - x_ / z_**3)
+    assert result.dual2[yi, xi] * 2 == 0
+    assert result.dual2[yi, yi] * 2 == -1 / y_**2
+    assert result.dual2[yi, zi] * 2 == 0
+    assert result.dual2[zi, xi] * 2 == math.exp(x_ / z_) * (-1 / z_**2 - x_ / z_**3)
+    assert result.dual2[zi, yi] * 2 == 0
+    assert result.dual2[zi, zi] * 2 == math.exp(x_ / z_) * (x_**2 / z_**4 + 2 * x_ / z_**3)
 
 
 def test_dual2_second_derivatives3():
@@ -453,26 +434,30 @@ def test_dual2_second_derivatives3():
     f_yy = -1/f^2 (x^3+1)^2 +1/f (0)
     """
     x_, y_ = 2, 1
-    x = Dual2(x_, vars=["x"], dual=np.array([1]))
-    y = Dual2(y_, vars=["y"], dual=np.array([1]))
+    x = Dual2(x_, vars=["x"], dual=[1], dual2=[])
+    y = Dual2(y_, vars=["y"], dual=[1], dual2=[])
 
     f = y * x**3 + y
     f_, fx_, fy_ = f.real, 3 * y_ * x_**2, x_**3 + 1
     fxx_, fxy_, fyy_ = 6 * x_ * y_, 3 * x_**2, 0
-    assert f.dual[0] == fx_
-    assert f.dual[1] == fy_
-    assert f.dual2[0, 0] * 2 == fxx_
-    assert f.dual2[0, 1] * 2 == fxy_
-    assert f.dual2[1, 1] * 2 == 0
+
+    xi = f.vars.index("x")
+    yi = f.vars.index("y")
+
+    assert f.dual[xi] == fx_
+    assert f.dual[yi] == fy_
+    assert f.dual2[xi, xi] * 2 == fxx_
+    assert f.dual2[xi, yi] * 2 == fxy_
+    assert f.dual2[yi, yi] * 2 == 0
 
     h = f.__log__()
     assert h.real == math.log(y_ * x_**3 + y_)
-    assert h.dual[0] == 1 / f_ * fx_
-    assert h.dual[1] == 1 / f_ * fy_
-    assert h.dual2[0, 0] * 2 == -1 / f_**2 * fx_**2 + 1 / f_ * fxx_
-    assert h.dual2[0, 1] * 2 == -1 / f_**2 * fx_ * fy_ + 1 / f_ * fxy_
-    assert h.dual2[1, 0] * 2 == -1 / f_**2 * fx_ * fy_ + 1 / f_ * fxy_
-    assert h.dual2[1, 1] * 2 == -1 / f_**2 * fy_**2 + 1 / f_ * fyy_
+    assert h.dual[xi] == 1 / f_ * fx_
+    assert h.dual[yi] == 1 / f_ * fy_
+    assert h.dual2[xi, xi] * 2 == -1 / f_**2 * fx_**2 + 1 / f_ * fxx_
+    assert h.dual2[xi, yi] * 2 == -1 / f_**2 * fx_ * fy_ + 1 / f_ * fxy_
+    assert h.dual2[yi, xi] * 2 == -1 / f_**2 * fx_ * fy_ + 1 / f_ * fxy_
+    assert h.dual2[yi, yi] * 2 == -1 / f_**2 * fy_**2 + 1 / f_ * fyy_
 
 
 @pytest.mark.parametrize(
@@ -487,8 +472,8 @@ def test_dual2_second_derivatives3():
     ],
 )
 def test_dual_power_1d(power, expected):
-    x = Dual(2, vars=["x"], dual=np.array([1]))
-    y = Dual2(2, vars=["x"], dual=np.array([1]))
+    x = Dual(2, vars=["x"], dual=[1])
+    y = Dual2(2, vars=["x"], dual=[1], dual2=[])
     f, g = x**power, y**power
     assert f.real == expected[0]
     assert f.dual[0] == expected[1]
@@ -499,40 +484,41 @@ def test_dual_power_1d(power, expected):
 
 
 def test_dual2_power2_1d():
-    x = Dual2(2, vars=["x"], dual=np.array([1]))
+    x = Dual2(2, vars=["x"], dual=[1], dual2=[])
     assert (x**2) * (x ** (-2)) == 1
     assert (x**5) * (x ** (-5)) == 1
-    assert (x**7.35) * (x ** (-7.35)) == 1
+    z = (x**7.35) * (x ** (-7.35))
+    assert abs(z - 1.0) < 1e-12
 
 
 def test_dual2_power_2d():
-    x = Dual2(2, vars=["x"], dual=np.array([1]))
-    y = Dual2(3, vars=["y"], dual=np.array([1]))
+    x = Dual2(2, vars=["x"], dual=[1], dual2=[])
+    y = Dual2(3, vars=["y"], dual=[1], dual2=[])
     f = (x**4 * y**3) ** 2
     assert f.dual2[0, 1] * 2 == 1492992
     assert f.dual2[1, 0] * 2 == 1492992
 
 
 def test_dual2_inv_specific():
-    z = Dual2(2, vars=["x", "y"], dual=np.array([2, 3]))
+    z = Dual2(2, vars=["x", "y"], dual=[2, 3], dual2=[])
     result = z**-1
     expected = Dual2(
         0.5,
         vars=["x", "y"],
-        dual=np.array([-0.5, -0.75]),
-        dual2=np.array([[0.5, 0.75], [0.75, 9 / 8]]),
+        dual=[-0.5, -0.75],
+        dual2=[0.5, 0.75, 0.75, 9 / 8],
     )
     assert result == expected
 
 
 def test_dual_truediv(x_1):
-    expected = Dual(1)
+    expected = Dual(1, [], [])
     result = x_1 / x_1
     assert result == expected
 
 
 def test_dual2_exp_1d():
-    x = Dual2(2, vars=["x"], dual=np.array([1]))
+    x = Dual2(2, vars=["x"], dual=[1], dual2=[])
     f = x.__exp__()
     assert f.real == math.exp(2)
     assert f.dual[0] == math.exp(2)
@@ -540,7 +526,7 @@ def test_dual2_exp_1d():
 
 
 def test_dual2_log_1d():
-    x = Dual2(2, vars=["x"], dual=np.array([1]))
+    x = Dual2(2, vars=["x"], dual=[1], dual2=[])
     f = x.__log__()
     assert f.real == math.log(2)
     assert f.dual[0] == 0.5
@@ -548,24 +534,24 @@ def test_dual2_log_1d():
 
 
 def test_dual2_log_exp():
-    x = Dual2(2, vars=["x"], dual=np.array([1]))
+    x = Dual2(2, vars=["x"], dual=[1], dual2=[])
     y = x.__log__()
     z = y.__exp__()
     assert x == z
 
 
 def test_combined_vars_sorted(y_3):
-    x = Dual2(2, vars=["a", "v0", "z"], dual=np.array([1, 1, 1]))
+    x = Dual2(2, vars=["a", "v0", "z"], dual=[1, 1, 1], dual2=[])
     result = x * y_3
-    assert result.vars == ("a", "v0", "v2", "z")
+    assert set(result.vars) == set(["a", "v0", "v2", "z"])
 
 
 @pytest.mark.parametrize(
     "x",
     [
         2,
-        Dual(2),
-        Dual2(2),
+        Dual(2, [], []),
+        Dual2(2, [], [], []),
     ],
 )
 def test_log(x):
@@ -578,16 +564,16 @@ def test_dual_log_base():
     result = dual_log(16, 2)
     assert result == 4
 
-    result = dual_log(Dual(16), 2)
-    assert result == Dual(4)
+    result = dual_log(Dual(16, [], []), 2)
+    assert result == Dual(4, [], [])
 
 
 @pytest.mark.parametrize(
     "x",
     [
         2,
-        Dual(2),
-        Dual2(2),
+        Dual(2, [], []),
+        Dual2(2, [], [], []),
     ],
 )
 def test_exp(x):
@@ -596,41 +582,23 @@ def test_exp(x):
     assert result == expected
 
 
+@pytest.mark.skip(reason="downcast vars is not used within the library, kept only for compat.")
 def test_downcast_vars():
-    w = Dual(
-        2,
-        vars=["x", "y", "z"],
-        dual=np.array([0, 1, 1]),
-    )
+    w = Dual(2, ["x", "y", "z"], [0, 1, 1])
     assert w.__downcast_vars__().vars == ("y", "z")
 
-    x = Dual2(
-        2,
-        vars=["x", "y", "z"],
-        dual=np.array([0, 1, 1]),
-        dual2=np.array([[0, 0, 0], [0, 0, 0], [0, 0, 1]]),
-    )
+    x = Dual2(2, ["x", "y", "z"], [0, 1, 0], [0, 0, 0, 0, 0, 0, 0, 0, 1])
     assert x.__downcast_vars__().vars == ("y", "z")
 
-    y = Dual2(
-        2,
-        vars=["x", "y", "z"],
-        dual=np.array([0, 0, 1]),
-        dual2=np.array([[0, 0, 0], [0, 0, 0], [0, 0, 1]]),
-    )
+    y = Dual2(2, ["x", "y", "z"], [0, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 1])
     assert y.__downcast_vars__().vars == ("z",)
 
-    z = Dual2(
-        2,
-        vars=["x", "y", "z"],
-        dual=np.array([0, 0, 1]),
-        dual2=np.array([[0, 0, 0], [0, 0, 1], [0, 1, 1]]),
-    )
+    z = Dual2(2, ["x", "y", "z"], [0, 0, 1], [0, 0, 0, 0, 0, 1, 0, 1, 1])
     assert z.__downcast_vars__().vars == ("y", "z")
 
 
 def test_gradient_of_non_present_vars(x_1):
-    result = x_1.gradient()
+    result = gradient(x_1)
     assert np.all(np.isclose(result, np.array([1, 2])))
 
 
@@ -649,7 +617,7 @@ def test_keep_manifold_gradient():
         dual=np.array([1, 2, 3]),
         dual2=np.array([[2, 3, 4], [3, 4, 5], [4, 5, 6]]),
     )
-    result = du2.gradient(["x", "z"], 1, keep_manifold=True)
+    result = gradient(du2, ["x", "z"], 1, keep_manifold=True)
     expected = np.array(
         [Dual2(1, ["x", "z"], np.array([4, 8])), Dual2(3, ["x", "z"], np.array([8, 12]))]
     )
@@ -658,15 +626,11 @@ def test_keep_manifold_gradient():
 
 
 def test_dual_set_order(x_1, y_1):
-    assert x_1._set_order(2) == y_1
-    assert y_1._set_order(1) == x_1
-    assert x_1._set_order(1) == x_1
-    assert y_1._set_order(2) == y_1
-
+    assert set_order(x_1, 1) == x_1
+    assert set_order(y_1, 2) == y_1
     assert set_order(1.0, 2) == 1.0
     assert set_order(x_1, 2) == y_1
     assert set_order(y_1, 1) == x_1
-
     assert set_order(x_1, 0) == 1.0
 
 
@@ -762,8 +726,11 @@ def test_solve_dual():
 
 
 def test_solve_dual2():
-    A = np.array([[Dual2(1), Dual2(0)], [Dual2(0), Dual2(1)]], dtype="object")
-    b = np.array([Dual2(2, ["x"], np.array([1])), Dual2(5, ["x", "y"], np.array([1, 1]))])[
+    A = np.array([
+        [Dual2(1, [], [], []), Dual2(0, [], [], [])],
+        [Dual2(0, [], [], []), Dual2(1, [], [], [])]
+    ], dtype="object")
+    b = np.array([Dual2(2, ["x"], [1], []), Dual2(5, ["x", "y"], [1, 1], [])])[
         :, np.newaxis
     ]
     x = dual_solve(A, b)
@@ -784,11 +751,15 @@ def test_sparse_solve(A_sparse):
 
 
 def test_multi_dim_solve():
-    A = np.array([[Dual(0.5), Dual(2, "y")], [Dual(2.5, "y"), Dual(4)]])
-    b = np.array([[Dual(6.5), Dual(9, "z")], [Dual(14.5, "y"), Dual(21, "z")]])
+    A = np.array([[Dual(0.5, [], []), Dual(2, ["y"], [])], [Dual(2.5, ["y"], []), Dual(4, [], [])]])
+    b = np.array([[Dual(6.5, [], []), Dual(9, ["z"], [])], [Dual(14.5, ["y"], []), Dual(21, ["z"], [])]])
 
-    result = dual_solve(A, b)
-    assert np.all(b == np.matmul(A, result))
+    x = dual_solve(A, b)
+    result = np.matmul(A, x).flatten()
+    expected = b.flatten()
+    for i in range(4):
+        assert abs(result[i]-expected[i]) < 1e-13
+        assert all(np.isclose(gradient(result[i], ["y", "z"]), gradient(expected[i], ["y", "z"])))
 
 
 # Test numpy compat
@@ -813,16 +784,16 @@ def test_numpy_equality(y_2):
 @pytest.mark.parametrize(
     "z",
     [
-        Dual(2.0, "y"),
-        Dual2(3.0, "x", np.array([1]), np.array([[2]])),
+        Dual(2.0, ["y"], []),
+        Dual2(3.0, ["x"], [1], [2]),
     ],
 )
 @pytest.mark.parametrize(
     "arg",
     [
         2.2,
-        Dual(3, "x"),
-        Dual2(3, "x", np.array([2]), np.array([[3]])),
+        Dual(3, ["x"], []),
+        Dual2(3, ["x"], [2], [3]),
     ],
 )
 @pytest.mark.parametrize(
@@ -855,8 +826,8 @@ def test_numpy_broadcast_ops_types(z, arg, op_str):
 @pytest.mark.parametrize(
     "z",
     [
-        Dual(2.0, "y"),
-        Dual2(3.0, "x", np.array([1]), np.array([[2]])),
+        Dual(2.0, ["y"], []),
+        Dual2(3.0, ["x"], [1], [2]),
     ],
 )
 def test_numpy_broadcast_pow_types(z):
@@ -901,8 +872,8 @@ def test_numpy_einsum_works(y_2, y_1):
 @pytest.mark.parametrize(
     "z",
     [
-        Dual(2.0, "y"),
-        Dual2(3.0, "x", np.array([1]), np.array([[2]])),
+        Dual(2.0, ["y"], []),
+        Dual2(3.0, ["x"], [1], [2]),
     ],
 )
 @pytest.mark.parametrize(

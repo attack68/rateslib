@@ -40,7 +40,7 @@ from rateslib.curves import (
     CompositeCurve,
     index_left,
 )
-from rateslib.dual import Dual, Dual2, DualTypes
+from rateslib.dual import Dual, Dual2, DualTypes, gradient
 from rateslib.fx import FXForwards, FXRates
 
 
@@ -859,9 +859,10 @@ class FloatPeriod(BasePeriod):
         elif isinstance(curve, Curve):
             _ = self.float_spread
             DualType = Dual if curve.ad in [0, 1] else Dual2
-            self.float_spread = DualType(float(_), "z_float_spread")
+            DualArgs = ([],) if curve.ad in [0, 1] else ([], [])
+            self.float_spread = DualType(float(_), ["z_float_spread"], *DualArgs)
             rate = self.rate(curve)
-            dr_dz = rate.gradient("z_float_spread")[0] * 100
+            dr_dz = gradient(rate, ["z_float_spread"])[0] * 100
             self.float_spread = _
         else:
             raise TypeError("`curve` must be supplied for given `spread_compound_method`")
@@ -918,7 +919,10 @@ class FloatPeriod(BasePeriod):
         if not isinstance(disc_curve_, Curve) or curve is NoInput.blank:
             raise TypeError("`curves` have not been supplied correctly.")
         if self.payment < disc_curve_.node_dates[0]:
-            return 0.0  # payment date is in the past avoid issues with fixings or rates
+            if local:
+                return {self.currency: 0.0}
+            else:
+                return 0.0  # payment date is in the past avoid issues with fixings or rates
         value = self.rate(curve) / 100 * self.dcf * disc_curve_[self.payment] * -self.notional
         if local:
             return {self.currency: value}
@@ -1454,7 +1458,7 @@ class FloatPeriod(BasePeriod):
 
         if fixing_exposure:
             rates_dual = Series(
-                [Dual(float(r), f"fixing_{i}") for i, (k, r) in enumerate(rates.items())],
+                [Dual(float(r), [f"fixing_{i}"], []) for i, (k, r) in enumerate(rates.items())],
                 index=rates.index,
             )
             if self.fixing_method in ["rfr_lockout", "rfr_lockout_avg"]:
@@ -1464,7 +1468,7 @@ class FloatPeriod(BasePeriod):
             else:
                 rate = self._isda_compounded_rate_with_spread(rates_dual, dcf_vals)
             notional_exposure = Series(
-                [rate.gradient(f"fixing_{i}")[0] for i in range(len(dcf_dates.index) - 1)]
+                [gradient(rate, [f"fixing_{i}"])[0] for i in range(len(dcf_dates.index) - 1)]
             ).astype(float)
             v = disc_curve[self.payment]
             mask = ~fixed.to_numpy()  # exclude fixings that are already fixed
@@ -2342,7 +2346,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
             defaults.headers["index_base"]: _float_or_none(index_base_),
             defaults.headers["index_value"]: _float_or_none(index_val_),
             defaults.headers["index_ratio"]: _float_or_none(index_ratio_),
-            defaults.headers["cashflow"]: self.cashflow(curve),
+            defaults.headers["cashflow"]: _float_or_none(self.cashflow(curve)),
         }
 
     def npv(self, *args, **kwargs):

@@ -28,17 +28,17 @@ class TestGradients:
 
         class SolverProxy(Gradients):
             variables = ["v1", "v2", "v3"]
-            r = [Dual(1.0, "v1"), Dual(3.0, ["v1", "v2", "v3"], [2.0, 1.0, -2.0])]
+            r = [Dual(1.0, ["v1"], []), Dual(3.0, ["v1", "v2", "v3"], [2.0, 1.0, -2.0])]
             _J = None
             instruments = [
-                [Inst(Dual2(1.0, "v1", [1.0], [[4.0]])), tuple(), {}],
+                [Inst(Dual2(1.0, ["v1"], [1.0], [4.0])), tuple(), {}],
                 [
                     Inst(
                         Dual2(
                             3.0,
                             ["v1", "v2", "v3"],
                             [2.0, 1.0, -2.0],
-                            [[-2.0, 1.0, 1.0], [1.0, -3.0, 2.0], [1.0, 2.0, -4.0]],
+                            [-2.0, 1.0, 1.0, 1.0, -3.0, 2.0, 1.0, 2.0, -4.0],
                         )
                     ),
                     tuple(),
@@ -127,7 +127,7 @@ def test_basic_solver(algo):
         algorithm=algo,
     )
     assert float(solver.g) < 1e-9
-    assert curve.nodes[dt(2022, 1, 1)] == Dual(1.0, "v0", [1])
+    assert curve.nodes[dt(2022, 1, 1)] == Dual(1.0, ["v0"], [1])
     expected = [1, 0.9899250357528555, 0.9680433953206192, 0.9407188354823821]
     for i, key in enumerate(curve.nodes.keys()):
         assert abs(float(curve.nodes[key]) - expected[i]) < 1e-6
@@ -163,7 +163,7 @@ def test_solver_reiterate(algo):
     solver.iterate()
 
     # now check that a reiteration has resolved the curve
-    assert curve.nodes[dt(2022, 1, 1)] == Dual(1.0, "v0", [1])
+    assert curve.nodes[dt(2022, 1, 1)] == Dual(1.0, ["v0"], [1])
     expected = [1, 0.9899250357528555, 0.9680433953206192, 0.9407188354823821]
     for i, key in enumerate(curve.nodes.keys()):
         assert abs(float(curve.nodes[key]) - expected[i]) < 1e-6
@@ -231,10 +231,48 @@ def test_basic_spline_solver():
         algorithm="gauss_newton",
     )
     assert float(solver.g) < 1e-12
-    assert spline_curve.nodes[dt(2022, 1, 1)] == Dual(1.0, "v0", [1])
+    assert spline_curve.nodes[dt(2022, 1, 1)] == Dual(1.0, ["v0"], [1])
     expected = [1, 0.98992503575307, 0.9680377261843034, 0.9407048036486593]
     for i, key in enumerate(spline_curve.nodes.keys()):
         assert abs(float(spline_curve.nodes[key]) - expected[i]) < 1e-11
+
+
+
+def test_large_spline_solver():
+    dates = [
+        dt(2000, 1, 3),
+        dt(2001, 1, 3),
+        dt(2002, 1, 3),
+        dt(2003, 1, 3),
+        dt(2004, 1, 3),
+        dt(2005, 1, 3),
+        dt(2006, 1, 3),
+        dt(2007, 1, 3),
+        dt(2008, 1, 3),
+        dt(2009, 1, 3),
+        dt(2010, 1, 3),
+        dt(2012, 1, 3),
+        dt(2015, 1, 3),
+        dt(2020, 1, 3),
+        dt(2025, 1, 3),
+        dt(2030, 1, 3),
+        dt(2035, 1, 3),
+        dt(2040, 1, 3),
+        dt(2050, 1, 3),
+    ]
+    curve = Curve(
+        nodes={_: 1.0 for _ in dates},
+        t=[dt(2000, 1, 3)] * 3 + dates[:-1] + [dt(2050, 1, 5)] * 4,
+        calendar="nyc",
+    )
+    solver = Solver(
+        curves=[curve],
+        instruments=[
+            IRS(dt(2000, 1, 3), _, spec="usd_irs", curves=curve) for _ in dates[1:]
+        ],
+        s=[1.0 + _ / 25 for _ in range(18)],
+    )
+    assert solver.result["status"] == "SUCCESS"
 
 
 def test_solver_raises_len():
@@ -287,7 +325,7 @@ def test_basic_solver_weights():
             func_tol=0.00085,
         )
     assert float(solver.g) < 0.00085
-    assert curve.nodes[dt(2022, 1, 1)] == Dual(1.0, "v0", [1])
+    assert curve.nodes[dt(2022, 1, 1)] == Dual(1.0, ["v0"], [1])
     expected = [1, 0.9899250357528555, 0.9680433953206192, 0.9407188354823821]
     for i, key in enumerate(curve.nodes.keys()):
         assert abs(float(curve.nodes[key]) - expected[i]) < 1e-6
@@ -586,6 +624,23 @@ def test_delta_gamma_calculation():
     eur_swap = IRS(dt(2032, 1, 1), "10Y", "A", notional=100e6, curves="estr_curve")
     assert 74430 < float(eur_swap.delta(NoInput(0), estr_solver).sum().iloc[0]) < 74432
     assert -229 < float(eur_swap.gamma(NoInput(0), estr_solver).sum().sum()) < -228
+
+
+def test_solver_delta_fx_noinput():
+    estr_curve = Curve(
+        {dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0}, id="estr_curve"
+    )
+    estr_instruments = [
+        (IRS(dt(2022, 1, 1), "10Y", "A"), (estr_curve,), {}),
+        (IRS(dt(2022, 1, 1), "20Y", "A"), (estr_curve,), {}),
+    ]
+    estr_solver = Solver(
+        [estr_curve], estr_instruments, [2.0, 1.5], id="estr", instrument_labels=["10Y", "20Y"]
+    )
+    eur_swap = IRS(dt(2032, 1, 1), "10Y", "A", notional=100e6, fixed_rate=2)
+    npv = eur_swap.npv(curves=estr_curve, solver=estr_solver, local=True)
+    result = estr_solver.delta(npv)
+    assert type(result) is DataFrame
 
 
 def test_solver_pre_solver_dependency_generates_same_gamma():

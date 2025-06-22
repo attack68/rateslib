@@ -17,7 +17,7 @@ from rateslib.curves import (
 from rateslib.default import NoInput
 from rateslib.fx import FXRates, FXForwards
 from rateslib import default_context
-from rateslib.dual import Dual, Dual2
+from rateslib.dual import Dual, Dual2, gradient
 from rateslib.calendars import get_calendar
 from rateslib.solver import Solver
 from rateslib.instruments import IRS
@@ -78,7 +78,7 @@ def test_linear_interp(curve_style, expected, curve, line_curve):
         obj = curve
     else:
         obj = line_curve
-    assert obj[dt(2022, 3, 16)] == Dual(expected, ["v0", "v1"], np.array([0.5, 0.5]))
+    assert obj[dt(2022, 3, 16)] == Dual(expected, ["v0", "v1"], [0.5, 0.5])
 
 
 def test_log_linear_interp():
@@ -93,7 +93,10 @@ def test_log_linear_interp():
         ad=1,
     )
     val = exp((log(1.00) + log(0.99)) / 2)
-    assert curve[dt(2022, 3, 16)] == Dual(val, ["v0", "v1"], np.array([0.49749372, 0.50251891]))
+    result = curve[dt(2022, 3, 16)]
+    expected = Dual(val, ["v0", "v1"], [0.49749372, 0.50251891])
+    assert abs(result - expected) < 1e-15
+    assert all(np.isclose(gradient(result, ["v0", "v1"]), expected.dual))
 
 
 def test_linear_zero_rate_interp():
@@ -102,7 +105,7 @@ def test_linear_zero_rate_interp():
 
 
 def test_line_curve_rate(line_curve):
-    expected = Dual(2.005, ["v0", "v1"], np.array([0.5, 0.5]))
+    expected = Dual(2.005, ["v0", "v1"], [0.5, 0.5])
     assert line_curve.rate(effective=dt(2022, 3, 16)) == expected
 
 
@@ -354,7 +357,17 @@ def test_curve_interp_raises():
     with pytest.raises(ValueError, match=err):
         curve[dt(2022, 1, 15)]
 
-
+def test_curve_sorted_nodes_raises():
+    err = 'Curve node dates are not sorted or contain duplicates.'
+    with pytest.raises(ValueError, match=err):
+        Curve(
+            nodes={
+                dt(2022, 2, 1): 0.9,
+                dt(2022, 1, 1): 1.0,
+            },
+            id='curve',
+        )
+        
 def test_interp_raises():
     interp = 'linea'  # Wrongly spelled interpolation method
     err = '`interpolation` must be in {"linear", "log_linear", "linear_index'
@@ -513,12 +526,12 @@ def test_set_ad_order_no_spline():
     assert curve.ad == 0
 
     curve._set_ad_order(1)
-    assert curve[dt(2022, 1, 1)] == Dual(1.0, "v0")
+    assert curve[dt(2022, 1, 1)] == Dual(1.0, ["v0"], [])
     assert curve.ad == 1
 
     old_id = id(curve.nodes)
     curve._set_ad_order(2)
-    assert curve[dt(2022, 1, 1)] == Dual2(1.0, "v0")
+    assert curve[dt(2022, 1, 1)] == Dual2(1.0, ["v0"], [], [])
     assert curve.ad == 2
     assert id(curve.nodes) != old_id  # new nodes object thus a new id
 
@@ -641,7 +654,7 @@ def test_curve_shift_dual_input():
             dt(2027, 1, 1),
         ],
     )
-    result_curve = curve.shift(Dual(25, "z"))
+    result_curve = curve.shift(Dual(25, ["z"], []))
     diff = np.array(
         [
             result_curve.rate(_, "1D") - curve.rate(_, "1D") - 0.25
@@ -719,7 +732,7 @@ def test_linecurve_shift_dual_input():
             dt(2027, 1, 1),
         ],
     )
-    result_curve = curve.shift(Dual(25, "z"))
+    result_curve = curve.shift(Dual(25, ["z"], []))
     diff = np.array(
         [
             result_curve[_] - curve[_] - 0.25
@@ -793,7 +806,7 @@ def test_indexcurve_shift_dual_input():
         index_base=110.0,
         interpolation="log_linear",
     )
-    result_curve = curve.shift(Dual(25, "z"))
+    result_curve = curve.shift(Dual(25, ["z"], []))
     diff = np.array(
         [
             result_curve.rate(_, "1D") - curve.rate(_, "1D") - 0.25

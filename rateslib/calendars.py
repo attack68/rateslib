@@ -1058,7 +1058,7 @@ def dcf(
 
 
 def _dcf_act365f(start: datetime, end: datetime, *args):
-    return (end - start) / timedelta(days=365)
+    return (end - start).days / 365.0
 
 
 def _dcf_act365fplus(start: datetime, end: datetime, *args):
@@ -1073,20 +1073,20 @@ def _dcf_act365fplus(start: datetime, end: datetime, *args):
 
 
 def _dcf_act360(start: datetime, end: datetime, *args):
-    return (end - start) / timedelta(days=360)
+    return (end - start).days / 360.0
 
 
 def _dcf_30360(start: datetime, end: datetime, *args):
     ds = min(30, start.day)
     de = min(ds, end.day) if ds == 30 else end.day
-    y, m = end.year - start.year, (end.month - start.month) / 12
-    return y + m + (de - ds) / 360
+    y, m = end.year - start.year, (end.month - start.month) / 12.0
+    return y + m + (de - ds) / 360.0
 
 
 def _dcf_30e360(start: datetime, end: datetime, *args):
     ds, de = min(30, start.day), min(30, end.day)
-    y, m = end.year - start.year, (end.month - start.month) / 12
-    return y + m + (de - ds) / 360
+    y, m = end.year - start.year, (end.month - start.month) / 12.0
+    return y + m + (de - ds) / 360.0
 
 
 def _dcf_30e360isda(start: datetime, end: datetime, termination: Union[datetime, NoInput], *args):
@@ -1101,8 +1101,8 @@ def _dcf_30e360isda(start: datetime, end: datetime, termination: Union[datetime,
 
     ds = 30 if (start.day == 31 or _is_end_feb(start)) else start.day
     de = 30 if (end.day == 31 or (_is_end_feb(end) and end != termination)) else end.day
-    y, m = end.year - start.year, (end.month - start.month) / 12
-    return y + m + (de - ds) / 360
+    y, m = end.year - start.year, (end.month - start.month) / 12.0
+    return y + m + (de - ds) / 360.0
 
 
 def _dcf_actactisda(start: datetime, end: datetime, *args):
@@ -1112,8 +1112,8 @@ def _dcf_actactisda(start: datetime, end: datetime, *args):
     start_date = datetime.combine(start, datetime.min.time())
     end_date = datetime.combine(end, datetime.min.time())
 
-    year_1_diff = 366 if calendar_mod.isleap(start_date.year) else 365
-    year_2_diff = 366 if calendar_mod.isleap(end_date.year) else 365
+    year_1_diff = 366.0 if calendar_mod.isleap(start_date.year) else 365.0
+    year_2_diff = 366.0 if calendar_mod.isleap(end_date.year) else 365.0
 
     total_sum: float = end.year - start.year - 1
     total_sum += (datetime(start.year + 1, 1, 1) - start_date).days / year_1_diff
@@ -1137,20 +1137,20 @@ def _dcf_actacticma(
     if stub is NoInput.blank:
         raise ValueError("`stub` must be supplied with specified `convention`.")
     if not stub:
-        return frequency_months / 12
+        return frequency_months / 12.0
     else:
         # roll is used here to roll a negative months forward eg, 30 sep minus 6M = 30/31 March.
         if end == termination:  # stub is a BACK stub:
             fwd_end = _add_months(start, frequency_months, "NONE", calendar, roll)
             fraction = 0.0
             if end > fwd_end:  # stub is LONG
-                fraction += 1
+                fraction += 1.0
                 fraction += (end - fwd_end) / (
                     _add_months(start, 2 * frequency_months, "NONE", calendar, roll) - fwd_end
                 )
             else:
                 fraction += (end - start) / (fwd_end - start)
-            return fraction * frequency_months / 12
+            return fraction * frequency_months / 12.0
         else:  # stub is a FRONT stub
             prev_start = _add_months(end, -frequency_months, "NONE", calendar, roll)
             fraction = 0
@@ -1186,7 +1186,7 @@ def _dcf_actacticma_stub365f(
     if stub is NoInput.blank:
         raise ValueError("`stub` must be supplied with specified `convention`.")
     if not stub:
-        return frequency_months / 12
+        return frequency_months / 12.0
     else:
         # roll is used here to roll a negative months forward eg, 30 sep minus 6M = 30/31 March.
         if end == termination:  # stub is a BACK stub:
@@ -1223,7 +1223,7 @@ def _dcf_1(*args):
 
 
 def _dcf_1plus(start: datetime, end: datetime, *args):
-    return end.year - start.year + (end.month - start.month) / 12
+    return end.year - start.year + (end.month - start.month) / 12.0
 
 
 _DCF = {
