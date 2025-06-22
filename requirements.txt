@@ -1,20 +1,21 @@
 # project
-jupyterlab==3.3.1
-numpy==1.23.5
-pandas==1.5.3
-scipy==1.9.3
-matplotlib==3.6.3
-
-# possible performance enhancements
-# numba==0.56.4
+numpy==1.26.1
+pandas==2.1.3
+matplotlib==3.8.1
 
 # development
-pytest==7.0.1
-sphinx==5.1.1  # for doc building
-sphinx-automodapi==0.14.1  # for doc building
-asv==0.5.1  # for performance test suite
-virtualenv==20.16.3  # requirement of asv
-black==22.8.0  # for code formatting
-mypy==0.982  # for type checking
-coverage==7.1.0  # for test and code monitoring
-pydata-sphinx-theme==0.12.0
+pytest==7.4.3
+coverage==7.3.2  # for test and code monitoring
+
+sphinx==7.2.6  # (5.1.1) # for doc building
+sphinx-automodapi==0.16.0  # (0.14.1) # for doc building
+pydata-sphinx-theme==0.14.3  # (0.12.0)
+
+black==23.11.0  # for code formatting
+flake8==6.1.0  # for code linting
+mypy==1.7.0  # for type checking
+
+jupyterlab==4.0.8
+
+# asv==0.5.1  # for performance test suite
+# virtualenv==20.16.3  # requirement of asv

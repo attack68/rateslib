@@ -8,6 +8,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
+local_resources/
 build/
 develop-eggs/
 dist/
@@ -25,6 +26,7 @@ share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+.pypirc
 MANIFEST
 
 # PyInstaller
@@ -101,15 +103,21 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
+benchmarks/
 # Environments
 .env
 .venv
 env/
 venv/
 venv11/
+venv11+/
+venv9/
 ENV/
 env.bak/
 venv.bak/
+venv312/
+venv313/
+venv311/
 
 # Spyder project settings
 .spyderproject
