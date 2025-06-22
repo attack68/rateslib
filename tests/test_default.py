@@ -2,10 +2,14 @@ import pytest
 from pandas import Series
 
 import context
-from rateslib import defaults, default_context
+from rateslib import defaults, default_context, __version__
 from rateslib.instruments import IRS
 from rateslib.curves import Curve
 from rateslib import dt
+
+
+def test_version():
+    assert __version__ == "1.2.3"
 
 
 @pytest.mark.parametrize("name", ["estr", "sonia", "sofr", "swestr", "nowa"])

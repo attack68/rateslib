@@ -36,11 +36,11 @@ from pandas.tseries.offsets import CustomBusinessDay
 from pandas import DataFrame, concat, Series, MultiIndex, isna
 
 from rateslib import defaults
-from rateslib.default import NoInput
-from rateslib.calendars import add_tenor, get_calendar, dcf, _get_years_and_months, _DCF1d
+from rateslib.calendars import add_tenor, get_calendar, dcf, _get_years_and_months
+from rateslib.default import NoInput, plot, _drb
 
-from rateslib.curves import Curve, index_left, LineCurve, CompositeCurve, IndexCurve, average_rate
-from rateslib.solver import Solver
+from rateslib.curves import Curve, index_left, LineCurve, IndexCurve, average_rate
+from rateslib.solver import Solver, quadratic_eqn
 from rateslib.periods import (
     Cashflow,
     FloatPeriod,
@@ -48,6 +48,8 @@ from rateslib.periods import (
     IndexMixin,
     _disc_from_curve,
     _disc_maybe_from_curve,
+    FXCallPeriod,
+    FXPutPeriod,
 )
 from rateslib.legs import (
     FixedLeg,
@@ -59,8 +61,15 @@ from rateslib.legs import (
     ZeroIndexLeg,
     IndexFixedLeg,
 )
-from rateslib.dual import Dual, Dual2, DualTypes, dual_log, gradient
+from rateslib.dual import (
+    Dual,
+    Dual2,
+    DualTypes,
+    dual_log,
+    gradient,
+)
 from rateslib.fx import FXForwards, FXRates, forward_fx
+from rateslib.fx_volatility import FXDeltaVolSmile, FXVolObj
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -118,6 +127,101 @@ def _get_curve_from_solver(curve, solver):
                 raise ValueError("`curve` must be in `solver`.")
 
 
+def _get_base_maybe_from_fx(
+    fx: Union[float, FXRates, FXForwards, NoInput],
+    base: Union[str, NoInput],
+    local_ccy: Union[str, NoInput],
+) -> Union[str, NoInput]:
+    if fx is NoInput.blank and base is NoInput.blank:
+        # base will not be inherited from a 2nd level inherited object, i.e.
+        # from solver.fx, to preserve single currency instruments being defaulted
+        # to their local currency.
+        base_ = local_ccy
+    elif isinstance(fx, (FXRates, FXForwards)) and base is NoInput.blank:
+        base_ = fx.base
+    else:
+        base_ = base
+    return base_
+
+
+def _get_fx_maybe_from_solver(
+    solver: Union[Solver, NoInput],
+    fx: Union[float, FXRates, FXForwards, NoInput],
+) -> Union[float, FXRates, FXForwards, NoInput]:
+    if fx is NoInput.blank:
+        if solver is NoInput.blank:
+            fx_ = NoInput(0)
+            # fx_ = 1.0
+        elif solver is not NoInput.blank:
+            if solver.fx is NoInput.blank:
+                fx_ = NoInput(0)
+                # fx_ = 1.0
+            else:
+                fx_ = solver.fx
+    else:
+        fx_ = fx
+        if (
+            solver is not NoInput.blank
+            and solver.fx is not NoInput.blank
+            and id(fx) != id(solver.fx)
+        ):
+            warnings.warn(
+                "Solver contains an `fx` attribute but an `fx` argument has been "
+                "supplied which will be used but is not the same. This can lead "
+                "to calculation inconsistencies, mathematically.",
+                UserWarning,
+            )
+
+    return fx_
+
+
+def _get_curves_maybe_from_solver(
+    curves_attr: Union[Curve, str, list, NoInput],
+    solver: Union[Solver, NoInput],
+    curves: Union[Curve, str, list, NoInput],
+) -> tuple:
+    if curves is NoInput.blank and curves_attr is NoInput.blank:
+        return (NoInput(0), NoInput(0), NoInput(0), NoInput(0))
+    elif curves is NoInput.blank:
+        curves = curves_attr
+
+    # if isinstance(curves, (Curve, str, dict)):  # All Curve types are sub-classes of Curve
+    if not isinstance(curves, (list, tuple)):
+        curves = [curves]
+
+    if solver is NoInput.blank:
+
+        def check_curve(curve):
+            if isinstance(curve, str):
+                raise ValueError("`curves` must contain Curve, not str, if `solver` not given.")
+            elif curve is None or curve is NoInput(0):
+                return NoInput(0)
+            elif isinstance(curve, dict):
+                return {k: check_curve(v) for k, v in curve.items()}
+            return curve
+
+        curves_ = tuple(check_curve(curve) for curve in curves)
+    else:
+        try:
+            curves_ = tuple(_get_curve_from_solver(curve, solver) for curve in curves)
+        except KeyError:
+            raise ValueError(
+                "`curves` must contain str curve `id` s existing in `solver` "
+                "(or its associated `pre_solvers`)"
+            )
+
+    if len(curves_) == 1:
+        curves_ *= 4
+    elif len(curves_) == 2:
+        curves_ *= 2
+    elif len(curves_) == 3:
+        curves_ += (curves_[1],)
+    elif len(curves_) > 4:
+        raise ValueError("Can only supply a maximum of 4 `curves`.")
+
+    return curves_
+
+
 def _get_curves_fx_and_base_maybe_from_solver(
     curves_attr: Optional[Union[Curve, str, list]],
     solver: Optional[Solver],
@@ -155,152 +259,81 @@ def _get_curves_fx_and_base_maybe_from_solver(
     If three curves are given the single discounting curve is used as the
     discounting curve for both legs.
     """
-
     # First process `base`.
-    if fx is NoInput.blank and base is NoInput.blank:
-        # base will not be inherited from a 2nd level inherited object, i.e.
-        # from solver.fx, to preserve single currency instruments being defaulted
-        # to their local currency.
-        base_ = local_ccy
-    elif isinstance(fx, (FXRates, FXForwards)) and base is NoInput.blank:
-        base_ = fx.base
-    else:
-        base_ = base
-
+    base_ = _get_base_maybe_from_fx(fx, base, local_ccy)
     # Second process `fx`
-    if fx is NoInput.blank:
-        if solver is NoInput.blank:
-            fx_ = NoInput(0)
-            # fx_ = 1.0
-        elif solver is not NoInput.blank:
-            if solver.fx is NoInput.blank:
-                fx_ = NoInput(0)
-                # fx_ = 1.0
-            else:
-                fx_ = solver.fx
-    else:
-        fx_ = fx
-        if (
-            solver is not NoInput.blank
-            and solver.fx is not NoInput.blank
-            and id(fx) != id(solver.fx)
-        ):
-            warnings.warn(
-                "Solver contains an `fx` attribute but an `fx` argument has been "
-                "supplied which will be used but is not the same. This can lead "
-                "to calculation inconsistencies, mathematically.",
-                UserWarning,
-            )
-
-    if curves is NoInput.blank and curves_attr is NoInput.blank:
-        return (NoInput(0), NoInput(0), NoInput(0), NoInput(0)), fx_, base_
-    elif curves is NoInput.blank:
-        curves = curves_attr
-
-    if isinstance(curves, (Curve, str, CompositeCurve, dict)):
-        curves = [curves]
-    if solver is NoInput.blank:
-
-        def check_curve(curve):
-            if isinstance(curve, str):
-                raise ValueError("`curves` must contain Curve, not str, if `solver` not given.")
-            elif curve is None or curve is NoInput(0):
-                return NoInput(0)
-            elif isinstance(curve, dict):
-                return {k: check_curve(v) for k, v in curve.items()}
-            return curve
-
-        curves_ = tuple(check_curve(curve) for curve in curves)
-    else:
-        try:
-            curves_ = tuple(_get_curve_from_solver(curve, solver) for curve in curves)
-        except KeyError:
-            raise ValueError(
-                "`curves` must contain str curve `id` s existing in `solver` "
-                "(or its associated `pre_solvers`)"
-            )
-
-    if len(curves_) == 1:
-        curves_ *= 4
-    elif len(curves_) == 2:
-        curves_ *= 2
-    elif len(curves_) == 3:
-        curves_ += (curves_[1],)
-    elif len(curves_) > 4:
-        raise ValueError("Can only supply a maximum of 4 `curves`.")
-
+    fx_ = _get_fx_maybe_from_solver(solver, fx)
+    # Third process `curves`
+    curves_ = _get_curves_maybe_from_solver(curves_attr, solver, curves)
     return curves_, fx_, base_
 
 
-# def _get_curves_and_fx_maybe_from_solver(
-#     solver: Optional[Solver],
-#     curves: Union[Curve, str, list],
-#     fx: Optional[Union[float, FXRates, FXForwards]],
-# ):
-#     """
-#     Parses the ``solver``, ``curves`` and ``fx`` arguments in combination.
-#
-#     Returns
-#     -------
-#     tuple : (leg1 forecasting, leg1 discounting, leg2 forecasting, leg2 discounting), fx
-#
-#     Notes
-#     -----
-#     If only one curve is given this is used as all four curves.
-#
-#     If two curves are given the forecasting curve is used as the forecasting
-#     curve on both legs and the discounting curve is used as the discounting
-#     curve for both legs.
-#
-#     If three curves are given the single discounting curve is used as the
-#     discounting curve for both legs.
-#     """
-#
-#     if fx is NoInput.blank:
-#         if solver is NoInput.blank:
-#             fx_ = None
-#             # fx_ = 1.0
-#         elif solver is not NoInput.blank:
-#             if solver.fx is NoInput.blank:
-#                 fx_ = None
-#                 # fx_ = 1.0
-#             else:
-#                 fx_ = solver.fx
-#     else:
-#         fx_ = fx
-#
-#     if curves is NoInput.blank:
-#         return (None, None, None, None), fx_
-#
-#     if isinstance(curves, (Curve, str)):
-#         curves = [curves]
-#     if solver is NoInput.blank:
-#         def check_curve(curve):
-#             if isinstance(curve, str):
-#                 raise ValueError(
-#                     "`curves` must contain Curve, not str, if `solver` not given."
-#                 )
-#             return curve
-#         curves_ = tuple(check_curve(curve) for curve in curves)
-#     else:
-#         try:
-#             curves_ = tuple(_get_curve_from_solver(curve, solver) for curve in curves)
-#         except KeyError:
-#             raise ValueError(
-#                 "`curves` must contain str curve `id` s existing in `solver` "
-#                 "(or its associated `pre_solvers`)"
-#             )
-#
-#     if len(curves_) == 1:
-#         curves_ *= 4
-#     elif len(curves_) == 2:
-#         curves_ *= 2
-#     elif len(curves_) == 3:
-#         curves_ += (curves_[1],)
-#     elif len(curves_) > 4:
-#         raise ValueError("Can only supply a maximum of 4 `curves`.")
-#
-#     return curves_, fx_
+def _get_vol_maybe_from_solver(
+    vol_attr: Union[DualTypes, str, FXDeltaVolSmile, NoInput],
+    vol: Union[DualTypes, str, FXDeltaVolSmile, NoInput],
+    solver: Union[Solver, NoInput],
+):
+    """
+    Try to retrieve a general vol input from a solver or the default vol object associated with instrument.
+
+    Parameters
+    ----------
+    vol_attr: DualTypes, str or FXDeltaVolSmile
+        The vol attribute associated with the object at initialisation.
+    vol: DualTypes, str of FXDeltaVolSMile
+        The specific vol argument supplied at price time. Will take precendence.
+    solver: Solver, optional
+        A solver object
+
+    Returns
+    -------
+    DualTypes, FXDeltaVolSmile or NoInput.blank
+    """
+    if vol is None:  # capture blank user input and reset
+        vol = NoInput(0)
+
+    if vol is NoInput.blank and vol_attr is NoInput.blank:
+        return NoInput(0)
+    elif vol is NoInput.blank:
+        vol = vol_attr
+
+    if solver is NoInput.blank:
+        if isinstance(vol, str):
+            raise ValueError(
+                "String `vol` ids require a `solver` to be mapped. No `solver` provided."
+            )
+        return vol
+    elif isinstance(vol, (float, Dual, Dual2)):
+        return vol
+    elif isinstance(vol, str):
+        return solver.pre_curves[vol]
+    else:  # vol is a Smile or Surface - check that it is in the Solver
+        try:
+            # it is a safeguard to load curves from solvers when a solver is
+            # provided and multiple curves might have the same id
+            _ = solver.pre_curves[vol.id]
+            if id(_) != id(vol):  # Python id() is a memory id, not a string label id.
+                raise ValueError(
+                    "A ``vol`` object has been supplied which has the same "
+                    f"`id` ('{vol.id}'),\nas one of those available as part of the "
+                    "Solver's collection but is not the same object.\n"
+                    "This is ambiguous and may lead to erroneous prices.\n"
+                )
+            return _
+        except AttributeError:
+            raise AttributeError(
+                "`vol` has no attribute `id`, likely it not a valid object, got: "
+                f"{vol}.\nSince a solver is provided have you missed labelling the `vol` "
+                f"of the instrument or supplying `vol` directly?"
+            )
+        except KeyError:
+            if defaults.curve_not_in_solver == "ignore":
+                return vol
+            elif defaults.curve_not_in_solver == "warn":
+                warnings.warn("`vol` not found in `solver`.", UserWarning)
+                return vol
+            else:
+                raise ValueError("`vol` must be in `solver`.")
 
 
 class Sensitivities:
@@ -316,6 +349,7 @@ class Sensitivities:
         fx: Union[FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
+        **kwargs,
     ):
         """
         Calculate delta risk of an *Instrument* against the calibrating instruments in a
@@ -353,7 +387,7 @@ class Sensitivities:
         """
         if solver is NoInput.blank:
             raise ValueError("`solver` is required for delta/gamma methods.")
-        npv = self.npv(curves, solver, fx, base, local=True)
+        npv = self.npv(curves, solver, fx, base, local=True, **kwargs)
         _, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             NoInput(0), solver, NoInput(0), fx, base, NoInput(0)
         )
@@ -368,6 +402,7 @@ class Sensitivities:
         fx: Union[FXRates, FXForwards, NoInput] = NoInput(0),
         base: Union[str, NoInput] = NoInput(0),
         local: bool = False,
+        **kwargs,
     ):
         """
         Calculate cross-gamma risk of an *Instrument* against the calibrating instruments of a
@@ -419,7 +454,7 @@ class Sensitivities:
         _ad1 = solver._ad
         solver._set_ad_order(2)
 
-        npv = self.npv(curves, solver, fx_, base_, local=True)
+        npv = self.npv(curves, solver, fx_, base_, local=True, **kwargs)
         grad_s_sT_P = solver.gamma(npv, base_, fx_)
 
         # reset original order
@@ -824,7 +859,7 @@ class Value(BaseMixin):
 
        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="v")
        instruments = [(Value(dt(2022, 11, 1)), (curve,), {})]
-       solver = Solver([curve], instruments, [0.99])
+       solver = Solver([curve], [], instruments, [0.99])
        curve[dt(2022, 1, 1)]
        curve[dt(2022, 11, 1)]
        curve[dt(2023, 1, 1)]
@@ -880,7 +915,9 @@ class Value(BaseMixin):
             return curves[0][self.effective]
         elif metric == "cc_zero_rate":
             if curves[0]._base_type != "dfs":
-                raise TypeError("`curve` used with `metric`='cc_zero_rate' must be discount factor based.")
+                raise TypeError(
+                    "`curve` used with `metric`='cc_zero_rate' must be discount factor based."
+                )
             dcf_ = dcf(curves[0].node_dates[0], self.effective, self.convention)
             _ = (dual_log(curves[0][self.effective]) / -dcf_) * 100
             return _
@@ -901,6 +938,119 @@ class Value(BaseMixin):
         raise NotImplementedError("`Value` instrument has no concept of analytic delta.")
 
 
+class VolValue(BaseMixin):
+    """
+    A null *Instrument* which can be used within a :class:`~rateslib.solver.Solver`
+    to directly parametrise a *Vol* node, via some calculated metric.
+
+    Parameters
+    ----------
+    index_value : float, Dual, Dual2
+        The value of some index to the *VolSmile* or *VolSurface*.
+    metric: str, optional
+        The default metric to return from the ``rate`` method.
+    vol: str, FXDeltaVolSmile, optional
+        The associated object from which to determine the ``rate``.
+
+    Examples
+    --------
+    The below :class:`~rateslib.fx_volatility.FXDeltaVolSmile` is solved directly
+    from calibrating volatility values.
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.fx_volatility import FXDeltaVolSmile
+       from rateslib.instruments import VolValue
+       from rateslib.solver import Solver
+
+    .. ipython:: python
+
+       smile = FXDeltaVolSmile(
+           nodes={0.25: 10.0, 0.5: 10.0, 0.75: 10.0},
+           eval_date=dt(2023, 3, 16),
+           expiry=dt(2023, 6, 16),
+           delta_type="forward",
+           id="VolSmile",
+       )
+       instruments = [
+           VolValue(0.25, vol="VolSmile"),
+           VolValue(0.5, vol="VolSmile"),
+           VolValue(0.75, vol=smile)
+       ]
+       solver = Solver(curves=[smile], instruments=instruments, s=[8.9, 7.8, 9.9])
+       smile[0.25]
+       smile[0.5]
+       smile[0.75]
+    """
+
+    def __init__(
+        self,
+        index_value: DualTypes,
+        # index_type: str = "delta",
+        # delta_type: str = NoInput(0),
+        metric: str = "vol",
+        vol: Union[NoInput, str, FXDeltaVolSmile] = NoInput(0),
+    ):
+        self.index_value = index_value
+        # self.index_type = index_type
+        # self.delta_type = delta_type
+        self.vol = vol
+        self.curves = NoInput(0)
+        self.metric = metric.lower()
+
+    def rate(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        vol: Union[DualTypes, FXDeltaVolSmile] = NoInput(0),
+        metric: str = "vol",
+    ):
+        """
+        Return a value derived from a *Curve*.
+
+        Parameters
+        ----------
+        curves : Curve, LineCurve, str or list of such
+            Uses only one *Curve*, the one given or the first in the list.
+        solver : Solver, optional
+            The numerical :class:`~rateslib.solver.Solver` that constructs
+            ``Curves`` from calibrating instruments.
+        fx : float, FXRates, FXForwards, optional
+            Not used.
+        base : str, optional
+            Not used.
+        metric: str in {"curve_value", "index_value", "cc_zero_rate"}, optional
+            Configures which type of value to return from the applicable *Curve*.
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        """
+        curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, "_"
+        )
+        vol = _get_vol_maybe_from_solver(self.vol, vol, solver)
+        metric = self.metric if metric is NoInput.blank else metric.lower()
+
+        if metric == "vol":
+            return vol[self.index_value]
+
+        raise ValueError("`metric` must be in {'vol'}.")
+
+    def npv(self, *args, **kwargs):
+        raise NotImplementedError("`VolValue` instrument has no concept of NPV.")
+
+    def cashflows(self, *args, **kwargs):
+        raise NotImplementedError("`VolValue` instrument has no concept of cashflows.")
+
+    def analytic_delta(self, *args, **kwargs):
+        raise NotImplementedError("`VolValue` instrument has no concept of analytic delta.")
+
+
 class FXExchange(Sensitivities, BaseMixin):
     """
     Create a simple exchange of two currencies.
@@ -909,49 +1059,38 @@ class FXExchange(Sensitivities, BaseMixin):
     ----------
     settlement : datetime
         The date of the currency exchange.
-    currency : str
-        The currency of the cashflow for which ``notional`` is applicable (3-digit code).
-    leg2_currency : str
-        The currency of the cashflow on the alternate *Leg*.
+    pair: str
+        The curreny pair of the exchange, e.g. "eurusd", using 3-digit iso codes.
     fx_rate : float, optional
         The FX rate used to derive the notional exchange on *Leg2*.
     notional : float
-        The cashflow amount for the initial currency.
+        The cashflow amount of the LHS currency.
     curves : Curve, LineCurve, str or list of such, optional
-        A single :class:`~rateslib.curves.Curve`,
-        :class:`~rateslib.curves.LineCurve` or id or a
-        list of such. A list defines the following curves in the order:
-
-        - Forecasting :class:`~rateslib.curves.Curve` or
-          :class:`~rateslib.curves.LineCurve` for ``leg1``.
-        - Discounting :class:`~rateslib.curves.Curve` for ``leg1``.
-        - Forecasting :class:`~rateslib.curves.Curve` or
-          :class:`~rateslib.curves.LineCurve` for ``leg2``.
-        - Discounting :class:`~rateslib.curves.Curve` for ``leg2``.
+        For *FXExchange* only discounting curves are required in each currency and not rate forecasting curves.
+        The signature should be: `[None, eur_curve, None, usd_curve]` for a "eurusd" pair.
     """
 
     def __init__(
         self,
         settlement: datetime,
-        currency: str,
-        leg2_currency: str,
+        pair: str,
         fx_rate: Union[float, NoInput] = NoInput(0),
         notional: Union[float, NoInput] = NoInput(0),
         curves: Union[list, str, Curve, NoInput] = NoInput(0),
     ):
         self.curves = curves
         self.settlement = settlement
-        self.pair = f"{currency.lower()}{leg2_currency.lower()}"
+        self.pair = pair.lower()
         self.leg1 = Cashflow(
-            notional=defaults.notional if notional is NoInput.blank else notional,
-            currency=currency.lower(),
+            notional=-defaults.notional if notional is NoInput.blank else -notional,
+            currency=self.pair[0:3],
             payment=settlement,
             stub_type="Exchange",
             rate=NoInput(0),
         )
         self.leg2 = Cashflow(
             notional=1.0,  # will be determined by setting fx_rate
-            currency=leg2_currency.lower(),
+            currency=self.pair[3:6],
             payment=settlement,
             stub_type="Exchange",
             rate=fx_rate,
@@ -1457,7 +1596,7 @@ class BondMixin:
         repo_rate: Union[float, Dual, Dual2],
         convention: Union[str, NoInput] = NoInput(0),
         dirty: bool = False,
-        method: str = "proceeds"
+        method: str = "proceeds",
     ):
         """
         Return a forward price implied by a given repo rate.
@@ -1909,15 +2048,16 @@ class BondMixin:
         curves[1]._set_ad_order(2)
         disc_curve = curves[1].shift(Dual2(z_hat, ["z_spread"], [], []), composite=False)
         npv_price = self.rate(curves=[curves[0], disc_curve], metric=metric)
-        a, b = (
+        a, b, c = (
             0.5 * gradient(npv_price, ["z_spread"], 2)[0][0],
             gradient(npv_price, ["z_spread"], 1)[0],
+            float(npv_price) - float(price),
         )
-        z_hat2 = _quadratic_equation(a, b, float(npv_price) - float(price))
+        z_hat2 = quadratic_eqn(a, b, c, x0=-c / b)["g"]
 
         # perform one final approximation albeit the additional price calculation slows calc time
         curves[1]._set_ad_order(0)
-        disc_curve = curves[1].shift(z_hat+z_hat2, composite=False)
+        disc_curve = curves[1].shift(z_hat + z_hat2, composite=False)
         npv_price = self.rate(curves=[curves[0], disc_curve], metric=metric)
         b = b + 2 * a * z_hat2  # forecast the new gradient
         c = float(npv_price) - float(price)
@@ -2506,7 +2646,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
                dirty=True
            )
            gilt.ytm(Dual(141.0701315, ["price", "a", "b"], [1, -0.5, 2]), dt(1999, 5, 27), True)
-           gilt.ytm(Dual2(141.0701315, ["price", "a", "b"], [1, -0.5, 2]), dt(1999, 5, 27), True)
+           gilt.ytm(Dual2(141.0701315, ["price", "a", "b"], [1, -0.5, 2], []), dt(1999, 5, 27), True)
 
         """
 
@@ -4306,11 +4446,11 @@ class BondFuture(Sensitivities):
         )
         unsorted_nodes = {
             today: 1.0,
-            **{_.leg1.schedule.termination: 1.0 for _ in self.basket}
+            **{_.leg1.schedule.termination: 1.0 for _ in self.basket},
         }
         bcurve = Curve(
             nodes=dict(sorted(unsorted_nodes.items(), key=lambda _: _[0])),
-            convention="act365f"  # use the most natural DCF without scaling
+            convention="act365f",  # use the most natural DCF without scaling
         )
         if dirty:
             metric = "dirty_price"
@@ -4434,13 +4574,18 @@ class BondFuture(Sensitivities):
 
         if dirty:
             net_basis_ = tuple(
-                bond.fwd_from_repo(prices[i], settlement, f_settlement, r_[i], convention, dirty=dirty)
-                - self.cfs[i] * future_price - bond.accrued(f_settlement)
+                bond.fwd_from_repo(
+                    prices[i], settlement, f_settlement, r_[i], convention, dirty=dirty
+                )
+                - self.cfs[i] * future_price
+                - bond.accrued(f_settlement)
                 for i, bond in enumerate(self.basket)
             )
         else:
             net_basis_ = tuple(
-                bond.fwd_from_repo(prices[i], settlement, f_settlement, r_[i], convention, dirty=dirty)
+                bond.fwd_from_repo(
+                    prices[i], settlement, f_settlement, r_[i], convention, dirty=dirty
+                )
                 - self.cfs[i] * future_price
                 for i, bond in enumerate(self.basket)
             )
@@ -7332,8 +7477,9 @@ class XCS(BaseDerivative):
         else:
             self.leg2_notional = self.leg1.notional * -fx_arg
             self.leg2.notional = self.leg2_notional
-            self.leg2_amortization = self.leg1.amortization * -fx_arg
-            self.leg2.amortization = self.leg2_amortization
+            if self.kwargs["amortization"] is not NoInput.blank:
+                self.leg2_amortization = self.leg1.amortization * -fx_arg
+                self.leg2.amortization = self.leg2_amortization
 
     @property
     def _is_unpriced(self):
@@ -7494,9 +7640,14 @@ class XCS(BaseDerivative):
         # Commercial use of this code, and/or copying and redistribution is prohibited.
         # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-        if not _is_float_tgt_leg and getattr(tgt_leg, "fixed_rate") is NoInput.blank:
-            # set the target fixed leg to a null fixed rate for calculation
-            tgt_leg.fixed_rate = 0.0
+        if not _is_float_tgt_leg:
+            tgt_leg_fixed_rate = getattr(tgt_leg, "fixed_rate")
+            if tgt_leg_fixed_rate is NoInput.blank:
+                # set the target fixed leg to a null fixed rate for calculation
+                tgt_leg.fixed_rate = 0.0
+            else:
+                # set the fixed rate to a float for calculation and no Dual Type crossing PR: XXX
+                tgt_leg.fixed_rate = float(tgt_leg_fixed_rate)
 
         self._set_fx_fixings(fx_)
         if self._is_mtm:
@@ -7560,6 +7711,10 @@ class FXSwap(XCS):
     ----------
     args : dict
         Required positional args to :class:`XCS`.
+    pair : str, optional
+        The FX pair, e.g. "eurusd" as 3-digit ISO codes. If not given, fallsback to the base implementation of
+        *XCS* which defines separate inputs as ``currency`` and ``leg2_currency``. If overspecified, ``pair`` will
+        dominate.
     fx_fixings : float, FXForwards or None
         The initial FX fixing where leg 1 is considered the domestic currency. For
         example for an ESTR/SOFR XCS in 100mm EUR notional a value of 1.10 for `fx0`
@@ -7666,10 +7821,9 @@ class FXSwap(XCS):
        fxs = FXSwap(
            effective=dt(2022, 1, 18),
            termination=dt(2022, 4, 19),
+           pair="usdeur",
            calendar="nyc",
-           currency="usd",
            notional=1000000,
-           leg2_currency="eur",
            curves=["usd", "usd", "eur", "eurusd"],
        )
 
@@ -7696,10 +7850,9 @@ class FXSwap(XCS):
        fxs = FXSwap(
            effective=dt(2022, 1, 18),
            termination=dt(2022, 4, 19),
+           pair="usdeur",
            calendar="nyc",
-           currency="usd",
            notional=1000000,
-           leg2_currency="eur",
            curves=["usd", "usd", "eur", "eurusd"],
            fx_fixings=0.90,
            split_notional=1001500,
@@ -7752,12 +7905,16 @@ class FXSwap(XCS):
         if not self._is_split:
             self._split_notional = self.kwargs["notional"]
             # fixed rate at zero remains
+
+        # a split notional is given by a user and then this is set and never updated.
         elif self.kwargs["split_notional"] is not NoInput.blank:
             if at_init:  # this will be run for one time only at initialisation
                 self._split_notional = self.kwargs["split_notional"]
                 self._set_leg1_fixed_rate()
             else:
                 return None
+
+        # else new pricing parameters will affect and unpriced split notional
         else:
             if at_init:
                 self._split_notional = None
@@ -7775,12 +7932,17 @@ class FXSwap(XCS):
     def __init__(
         self,
         *args,
+        pair: Union[str, NoInput] = NoInput(0),
         fx_fixings: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
         points: Union[float, NoInput] = NoInput(0),
         split_notional: Union[float, NoInput] = NoInput(0),
         **kwargs,
     ):
         self._parse_split_flag(fx_fixings, points, split_notional)
+        currencies = {}
+        if isinstance(pair, str):
+            # TODO for version 2.0 should look to deprecate 'currency' and 'leg2_currency' as allowable inputs.
+            currencies = {"currency": pair.lower()[0:3], "leg2_currency": pair.lower()[3:6]}
 
         kwargs_overrides = dict(  # specific args for FXSwap passed to the Base XCS
             fixed=True,
@@ -7792,7 +7954,7 @@ class FXSwap(XCS):
             leg2_fixed_rate=NoInput(0),
             fx_fixings=fx_fixings,
         )
-        super().__init__(*args, **{**kwargs, **kwargs_overrides})
+        super().__init__(*args, **{**kwargs, **kwargs_overrides, **currencies})
 
         self.kwargs["split_notional"] = split_notional
         self._set_split_notional(curve=None, at_init=True)
@@ -7902,6 +8064,1455 @@ class FXSwap(XCS):
             self._set_pricing_mid(curves, solver, fx)
         ret = super().cashflows(curves, solver, fx, base)
         return ret
+
+
+# FX Options
+
+
+class FXOption(Sensitivities, metaclass=ABCMeta):
+    """
+    Create an *FX Option*.
+
+    Parameters
+    ----------
+    pair: str
+        The currency pair for the FX rate which the option is settled. 3-digit code, e.g. "eurusd".
+    expiry: datetime, str
+        The expiry of the option.
+    notional: float
+        The amount in ccy1 (left side of `pair`) on which the option is based.
+    strike: float, Dual, Dual2, str in {"atm_forward", "atm_spot", "atm_delta", "[float]d"}
+        The strike value of the option.
+        If str there are four possibilities as above. If giving a specific delta should end
+        with a 'd' for delta e.g. "-25d". Put deltas should be input including negative sign.
+    eval_date: datetime, optional
+        The date from which to evaluate a string tenor expiry.
+    modifier : str, optional
+        The modification rule, in {"F", "MF", "P", "MP"} for date evaluation.
+    calendar : calendar or str, optional
+        The holiday calendar object to use. If str, looks up named calendar from
+        static data.
+    delivery_lag: int, optional
+        The number of business days after expiry that the physical settlement of the FX exchange occurs.
+    payment_lag: int or datetime, optional
+        The number of business days after expiry to pay premium. If a *datetime* is given this will
+        set the premium date explicitly.
+    premium: float
+        The amount paid for the option.
+    premium_ccy: str
+        The currency in which the premium is paid. Can *only* be one of the two currencies in `pair`.
+    option_fixing: float
+        The value determined at expiry to set the moneyness of the option.
+    delta_type: str in {"spot", "forward"}
+        When deriving strike from delta use the equation associated with spot or forward delta.
+        If premium currency is ccy1 (left side of `pair`) then this will produce **premium adjusted**
+        delta values. If the `premium_ccy` is ccy2 (right side of `pair`) then delta values are
+        **unadjusted**.
+    metric: str in {"pips_or_%", "vol", "premium"}, optional
+        The pricing metric returned by the ``rate`` method.
+    curves : Curve, LineCurve, str or list of such, optional
+        For *FXOptions* curves should be expressed as a list with the discount curves
+        entered either as *Curve* or str for discounting cashflows in the appropriate currency
+        with a consistent collateral on each side. E.g. *[None, "eurusd", None, "usdusd"]*.
+        Forecasting curves are not relevant.
+    spec : str, optional
+        An identifier to pre-populate many field with conventional values. See
+        :ref:`here<defaults-doc>` for more info and available values.
+
+    """
+
+    style = "european"
+    _pricing = None
+    _rate_scalar = 1.0
+
+    def __init__(
+        self,
+        pair: str,
+        expiry: Union[datetime, str],
+        notional: float = NoInput(0),
+        eval_date: Union[datetime, NoInput] = NoInput(0),
+        calendar: Union[CustomBusinessDay, str, NoInput] = NoInput(0),
+        modifier: Union[str, NoInput] = NoInput(0),
+        delivery_lag: Union[int, NoInput] = NoInput(0),
+        strike: Union[DualTypes, str, NoInput] = NoInput(0),
+        premium: Union[float, NoInput] = NoInput(0),
+        premium_ccy: Union[str, NoInput] = NoInput(0),
+        payment_lag: Union[str, datetime, NoInput] = NoInput(0),
+        option_fixing: Union[float, NoInput] = NoInput(0),
+        delta_type: Union[float, NoInput] = NoInput(0),
+        metric: Union[str, NoInput] = NoInput(0),
+        curves: Union[list, str, Curve, NoInput] = NoInput(0),
+        vol: Union[str, FXDeltaVolSmile, NoInput] = NoInput(0),
+        spec: Union[str, NoInput] = NoInput(0),
+    ):
+        self.kwargs = dict(
+            pair=pair,
+            expiry=expiry,
+            notional=notional,
+            strike=strike,
+            premium=premium,
+            premium_ccy=premium_ccy,
+            option_fixing=option_fixing,
+            payment_lag=payment_lag,
+            delivery_lag=delivery_lag,
+            calendar=calendar,
+            modifier=modifier,
+            delta_type=delta_type,
+            metric=metric,
+        )
+        self.kwargs = _push(spec, self.kwargs)
+
+        self.kwargs = _update_with_defaults(
+            self.kwargs,
+            {
+                "delta_type": defaults.fx_delta_type,
+                "notional": defaults.notional,
+                "modifier": defaults.modifier,
+                "metric": "pips_or_%",
+                "delivery_lag": defaults.fx_delivery_lag,
+                "payment_lag": defaults.payment_lag,
+                "premium_ccy": self.kwargs["pair"][3:],
+            },
+        )
+
+        if isinstance(self.kwargs["expiry"], str):
+            if not isinstance(eval_date, datetime):
+                raise ValueError("`expiry` as string tenor requires `eval_date`.")
+            self.kwargs["expiry"] = add_tenor(
+                eval_date,
+                self.kwargs["expiry"],
+                self.kwargs["modifier"],
+                self.kwargs["calendar"],
+                NoInput(0),
+            )
+
+        if isinstance(self.kwargs["delivery_lag"], datetime):
+            self.kwargs["delivery"] = self.kwargs["delivery_lag"]
+        else:
+            self.kwargs["delivery"] = add_tenor(
+                self.kwargs["expiry"],
+                f"{self.kwargs['delivery_lag']}b",
+                "F",
+                self.kwargs["calendar"],
+                NoInput(0),
+            )
+
+        if isinstance(self.kwargs["payment_lag"], datetime):
+            self.kwargs["payment"] = self.kwargs["payment_lag"]
+        else:
+            self.kwargs["payment"] = add_tenor(
+                self.kwargs["expiry"],
+                f"{self.kwargs['payment_lag']}b",
+                "F",
+                self.kwargs["calendar"],
+                NoInput(0),
+            )
+
+        if self.kwargs["premium_ccy"] not in [
+            self.kwargs["pair"][:3],
+            self.kwargs["pair"][3:],
+        ]:
+            raise ValueError(
+                f"`premium_ccy`: '{self.kwargs['premium_ccy']}' must be one of option "
+                f"currency pair: '{self.kwargs['pair']}'."
+            )
+        elif self.kwargs["premium_ccy"] == self.kwargs["pair"][3:]:
+            self.kwargs["metric_period"] = (
+                "pips" if self.kwargs["metric"] == "pips_or_%" else self.kwargs["metric"]
+            )
+            self.kwargs["delta_adjustment"] = ""
+        else:
+            self.kwargs["metric_period"] = (
+                "percent" if self.kwargs["metric"] == "pips_or_%" else self.kwargs["metric"]
+            )
+            self.kwargs["delta_adjustment"] = "_pa"
+
+        # nothing to inherit or negate.
+        # self.kwargs = _inherit_or_negate(self.kwargs)  # inherit or negate the complete arg list
+
+        self._validate_strike_and_premiums()
+
+        self.vol = vol
+        self.curves = curves
+        self.spec = spec
+
+    def _validate_strike_and_premiums(self):
+        if self.kwargs["strike"] is NoInput.blank:
+            raise ValueError("`strike` for FXOption must be set to numeric or string value.")
+        if isinstance(self.kwargs["strike"], str) and self.kwargs["premium"] is not NoInput.blank:
+            raise ValueError(
+                "FXOption with string delta as `strike` cannot be initialised with a known `premium`.\n"
+                "Either set `strike` as a defined numeric value, or remove the `premium`."
+            )
+
+    def _set_strike_and_vol(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        vol: float = NoInput(0),
+    ):
+        # If the strike for the option is not set directly it must be inferred
+        # and some of the pricing elements associated with this strike definition must
+        # be captured for use in subsequent formulae.
+
+        if fx is NoInput.blank:
+            raise ValueError(
+                "An FXForwards object for `fx` is required for FXOption pricing.\n"
+                "If this instrument is part of a Solver, have you omitted the `fx` input?"
+            )
+
+        self._pricing = {
+            "vol": vol,
+            "k": self.kwargs["strike"],
+            "delta_index": None,
+            "spot": fx.pairs_settlement[self.kwargs["pair"]],
+            "t_e": self.periods[0]._t_to_expiry(curves[3].node_dates[0]),
+            "f_d": fx.rate(self.kwargs["pair"], self.kwargs["delivery"]),
+        }
+        w_deli = curves[1][self.kwargs["delivery"]]
+        w_spot = curves[1][self._pricing["spot"]]
+
+        if isinstance(self.kwargs["strike"], str):
+            method = self.kwargs["strike"].lower()
+
+            if method == "atm_forward":
+                self._pricing["k"] = fx.rate(self.kwargs["pair"], self.kwargs["delivery"])
+
+            elif method == "atm_spot":
+                self._pricing["k"] = fx.rate(self.kwargs["pair"], self._pricing["spot"])
+
+            elif method == "atm_delta":
+                self._pricing["k"], self._pricing["delta_index"] = self.periods[
+                    0
+                ]._strike_and_index_from_atm(
+                    delta_type=self.periods[0].delta_type,
+                    vol=vol,
+                    w_deli=w_deli,
+                    w_spot=w_spot,
+                    f=self._pricing["f_d"],
+                    t_e=self._pricing["t_e"],
+                )
+
+            elif method[-1] == "d":  # representing delta
+                # then strike is commanded by delta
+                self._pricing["k"], self._pricing["delta_index"] = self.periods[
+                    0
+                ]._strike_and_index_from_delta(
+                    delta=float(self.kwargs["strike"][:-1]) / 100.0,
+                    delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
+                    vol=vol,
+                    w_deli=w_deli,
+                    w_spot=w_spot,
+                    f=self._pricing["f_d"],
+                    t_e=self._pricing["t_e"],
+                )
+
+            # TODO: this may affect solvers dependent upon sensitivity to vol for changing strikes.
+            # set the strike as a float without any sensitivity. Trade definition is a fixed quantity
+            # at this stage. Similar to setting a fixed rate as a float on an unpriced IRS for mid-market.
+            self.periods[0].strike = float(self._pricing["k"])
+
+        if isinstance(vol, FXVolObj):
+            if self._pricing["delta_index"] is None:
+                self._pricing["delta_index"], self._pricing["vol"], _ = vol.get_from_strike(
+                    k=self._pricing["k"],
+                    phi=self.periods[0].phi,
+                    f=self._pricing["f_d"],
+                    w_deli=w_deli,
+                    w_spot=w_spot,
+                    expiry=self.kwargs["expiry"]
+                )
+            else:
+                self._pricing["vol"] = vol._get_index(self._pricing["delta_index"], self.kwargs["expiry"])
+
+    def _set_premium(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+    ):
+        if self.kwargs["premium"] is NoInput.blank:
+            # then set the CashFlow to mid-market
+            try:
+                npv = self.periods[0].npv(curves[1], curves[3], fx, vol=self._pricing["vol"])
+            except AttributeError:
+                raise ValueError(
+                    "`premium` has not been configured for the specified FXOption.\nThis is "
+                    "normally determined at mid-market from the given `curves` and `vol` but "
+                    "in this case these values do not provide a valid calculation. "
+                    "If not required, initialise the "
+                    "FXOption with a `premium` of 0.0, and this will be avoided."
+                )
+            m_p = self.kwargs["payment"]
+            if self.kwargs["premium_ccy"] == self.kwargs["pair"][:3]:
+                premium = npv / (curves[3][m_p] * fx.rate("eurusd", m_p))
+            else:
+                premium = npv / curves[3][m_p]
+
+            self.periods[1].notional = float(premium)
+
+    def _get_vol_curves_fx_and_base_maybe_from_solver(self, solver, curves, fx, base, vol):
+        """
+        Parses the inputs including the instrument's attributes and also validates them
+        """
+        curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
+        )
+        vol = _get_vol_maybe_from_solver(self.vol, vol, solver)
+        if isinstance(vol, FXDeltaVolSmile) and vol.eval_date != curves[1].node_dates[0]:
+            raise ValueError(
+                "The `eval_date` on the FXDeltaVolSmile and the Curve do not align.\n"
+                "Aborting calculation to avoid pricing errors."
+            )
+        return curves, fx, base, vol
+
+    def rate(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        vol: Union[float, FXDeltaVolSmile, NoInput] = NoInput(0),
+        metric: Union[str, NoInput] = NoInput(0),
+    ):
+        """
+        Return various pricing metrics of the *FX Option*.
+
+        Parameters
+        ----------
+        curves : list of Curve
+            Curves for discounting cashflows. List follows the structure used by IRDs and
+            should be given as:
+            `[None, Curve for domestic ccy, None, Curve for foreign ccy]`
+        solver : Solver, optional
+            The numerical :class:`Solver` that constructs ``Curves`` from calibrating
+            instruments.
+        fx: FXForwards
+            The object to project the relevant forward and spot FX rates.
+        base: str, optional
+            Not used by `rate`.
+        vol: float, Dual, Dual2 or FXDeltaVolSmile
+            The volatility used in calculation.
+        metric: str in {"pips_or_%", "vol", "premium"}, optional
+            The pricing metric type to return. See notes.
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        Notes
+        -----
+        The available choices for the pricing ``metric`` that can be used are:
+
+        - *"pips_or_%"*: if the ``premium_ccy`` is the foreign (RHS) currency then *pips* will be returned, else
+          if the premium is the domestic (LHS) currency then % of notional will be returned.
+
+        - *"vol"*: the volatility used to price the option at that strike / delta is returned.
+
+        - *"premium"*: the monetary amount in ``premium_ccy`` payable at the payment date is returned.
+
+        If calculating the *rate* of an *FXOptionStrat* then the attributes ``rate_weight`` and ``rate_weight_vol``
+        will be used to combine the output for each individual *FXOption* within the strategy.
+
+        *FXStrangle* and *FXBrokerFly* have the additional ``metric`` *'single_vol'* which is a more complex and
+        integrated calculation.
+        """
+        curves, fx, _base, vol = self._get_vol_curves_fx_and_base_maybe_from_solver(
+            solver, curves, fx, base, vol
+        )
+        self._set_strike_and_vol(curves, fx, vol)
+        # self._set_premium(curves, fx)
+
+        metric = _drb(self.kwargs["metric"], metric)
+        if metric == "vol":
+            return self._pricing["vol"]
+
+        _ = self.periods[0].rate(curves[1], curves[3], fx, NoInput(0), False, self._pricing["vol"])
+        if metric == "premium":
+            if self.periods[0].metric == "pips":
+                _ *= self.periods[0].notional / 10000
+            else:  # == "percent"
+                _ *= self.periods[0].notional / 100
+        return _
+
+    def npv(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: float = NoInput(0),
+    ):
+        curves, fx, base, vol = self._get_vol_curves_fx_and_base_maybe_from_solver(
+            solver, curves, fx, base, vol
+        )
+        self._set_strike_and_vol(curves, fx, vol)
+        self._set_premium(curves, fx)
+
+        opt_npv = self.periods[0].npv(curves[1], curves[3], fx, base, local, vol)
+        if self.kwargs["premium_ccy"] == self.kwargs["pair"][:3]:
+            disc_curve = curves[1]
+        else:
+            disc_curve = curves[3]
+        prem_npv = self.periods[1].npv(NoInput(0), disc_curve, fx, base, local)
+        if local:
+            return {k: opt_npv.get(k, 0) + prem_npv.get(k, 0) for k in set(opt_npv) | set(prem_npv)}
+        else:
+            return opt_npv + prem_npv
+
+    def analytic_greeks(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: float = NoInput(0),
+    ):
+        """
+        Return various pricing metrics of the *FX Option*.
+
+        Parameters
+        ----------
+        curves : list of Curve
+            Curves for discounting cashflows. List follows the structure used by IRDs and
+            should be given as:
+            `[None, Curve for domestic ccy, None, Curve for foreign ccy]`
+        solver : Solver, optional
+            The numerical :class:`Solver` that constructs ``Curves`` from calibrating
+            instruments.
+        fx: FXForwards
+            The object to project the relevant forward and spot FX rates.
+        base: str, optional
+            Not used by `analytic_greeks`.
+        local: bool,
+            Not used by `analytic_greeks`.
+        vol: float, or FXDeltaVolSmile
+            The volatility used in calculation.
+
+        Returns
+        -------
+        float, Dual, Dual2
+        """
+        curves, fx, base, vol = self._get_vol_curves_fx_and_base_maybe_from_solver(
+            solver, curves, fx, base, vol
+        )
+        self._set_strike_and_vol(curves, fx, vol)
+        # self._set_premium(curves, fx)
+
+        return self.periods[0].analytic_greeks(
+            curves[1],
+            curves[3],
+            fx,
+            base,
+            local,
+            vol,
+            premium=NoInput(0),
+        )
+
+    def _plot_payoff(
+        self,
+        range: Union[list[float], NoInput] = NoInput(0),
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: float = NoInput(0),
+    ):
+        """
+        Mechanics to determine (x,y) coordinates for payoff at expiry plot.
+        """
+        curves, fx, base, vol = self._get_vol_curves_fx_and_base_maybe_from_solver(
+            solver, curves, fx, base, vol
+        )
+        self._set_strike_and_vol(curves, fx, vol)
+        # self._set_premium(curves, fx)
+
+        x, y = self.periods[0]._payoff_at_expiry(range)
+        return x, y
+
+    def plot_payoff(
+        self,
+        range: Union[list[float], NoInput] = NoInput(0),
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: float = NoInput(0),
+    ):
+        x, y = self._plot_payoff(range, curves, solver, fx, base, local, vol)
+        return plot(x, [y])
+
+
+class FXCall(FXOption):
+    """
+    Create an *FX Call* option.
+
+    For parameters see :class:`~rateslib.instruments.FXOption`.
+    """
+
+    style = "european"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.periods = [
+            FXCallPeriod(
+                pair=self.kwargs["pair"],
+                expiry=self.kwargs["expiry"],
+                delivery=self.kwargs["delivery"],
+                payment=self.kwargs["payment"],
+                strike=NoInput(0)
+                if isinstance(self.kwargs["strike"], str)
+                else self.kwargs["strike"],
+                notional=self.kwargs["notional"],
+                option_fixing=self.kwargs["option_fixing"],
+                delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
+                metric=self.kwargs["metric_period"],
+            ),
+            Cashflow(
+                notional=self.kwargs["premium"],
+                payment=self.kwargs["payment"],
+                currency=self.kwargs["premium_ccy"],
+                stub_type="Premium",
+            ),
+        ]
+
+
+class FXPut(FXOption):
+    """
+    Create an *FX Put* option.
+
+    For parameters see :class:`~rateslib.instruments.FXOption`.
+    """
+
+    style = "european"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.periods = [
+            FXPutPeriod(
+                pair=self.kwargs["pair"],
+                expiry=self.kwargs["expiry"],
+                delivery=self.kwargs["delivery"],
+                payment=self.kwargs["payment"],
+                strike=NoInput(0)
+                if isinstance(self.kwargs["strike"], str)
+                else self.kwargs["strike"],
+                notional=self.kwargs["notional"],
+                option_fixing=self.kwargs["option_fixing"],
+                delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
+                metric=self.kwargs["metric_period"],
+            ),
+            Cashflow(
+                notional=self.kwargs["premium"],
+                payment=self.kwargs["payment"],
+                currency=self.kwargs["premium_ccy"],
+                stub_type="Premium",
+            ),
+        ]
+
+
+class FXOptionStrat:
+    """
+    Create a custom option strategy composed of a list of :class:`~rateslib.instruments.FXOption`.
+
+    Parameters
+    ----------
+    options: list
+        The *FXOptions* which make up the strategy.
+    rate_weight: list
+        The multiplier for the *'pips_or_%'* metric that sums the options to a final *rate*.
+    rate_weight_vol: list
+        The multiplier for the *'vol'* metric that sums the options to a final *rate*.
+    """
+
+    _pricing = {}
+
+    def __init__(
+        self,
+        options: list[FXOption],
+        rate_weight: list[float],
+        rate_weight_vol: list[float],
+    ):
+        self.periods = options
+        self.rate_weight = rate_weight
+        self.rate_weight_vol = rate_weight_vol
+        if len(self.periods) != len(self.rate_weight) or len(self.periods) != len(
+            self.rate_weight_vol
+        ):
+            raise ValueError(
+                "`rate_weight` and `rate_weight_vol` must have same length as `options`."
+            )
+
+    def _vol_as_list(self, vol, solver):
+        """Standardise a vol input over the list of periods"""
+        if not isinstance(vol, (list, tuple)):
+            vol = [vol] * len(self.periods)
+        return [_get_vol_maybe_from_solver(self.vol, _, solver) for _ in vol]
+
+    def rate(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        vol: Union[list[float], float] = NoInput(0),
+        metric: Union[str, NoInput] = NoInput(0),  # "pips_or_%",
+    ):
+        """
+        Return the mid-market rate of an option strategy.
+
+        See :meth:`~rateslib.instruments.FXOption.rate`.
+        """
+        curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
+        )
+        vol = self._vol_as_list(vol, solver)
+
+        metric = metric if metric is not NoInput.blank else self.kwargs["metric"]
+        map_ = {
+            "pips_or_%": self.rate_weight,
+            "vol": self.rate_weight_vol,
+            "premium": [1.0] * len(self.periods),
+        }
+        weights = map_[metric]
+
+        _ = 0.0
+        for option, vol_, weight in zip(self.periods, vol, weights):
+            _ += option.rate(curves, solver, fx, base, vol_, metric) * weight
+        return _
+
+    def npv(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: Union[list[float], float] = NoInput(0),
+    ):
+        if not isinstance(vol, list):
+            vol = [vol] * len(self.periods)
+
+        results = [
+            option.npv(curves, solver, fx, base, local, vol_)
+            for (option, vol_) in zip(self.periods, vol)
+        ]
+
+        if local:
+            _ = DataFrame(results).fillna(0.0)
+            _ = _.sum()
+            _ = _.to_dict()
+        else:
+            _ = sum(results)
+        return _
+
+    def _plot_payoff(
+        self,
+        range: Union[list[float], NoInput] = NoInput(0),
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: Union[list[float], float] = NoInput(0),
+    ):
+        if not isinstance(vol, list):
+            vol = [vol] * len(self.periods)
+
+        y = None
+        for option, vol_ in zip(self.periods, vol):
+            x, y_ = option._plot_payoff(range, curves, solver, fx, base, local, vol_)
+            if y is None:
+                y = y_
+            else:
+                y += y_
+
+        return x, y
+
+    def _set_notionals(self, notional):
+        """Set the notionals on each option period. Mainly used by Brokerfly for vega neutral strangle and straddle."""
+        for option in self.periods:
+            option.periods[0].notional = notional
+
+    def analytic_greeks(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: float = NoInput(0),
+    ):
+        """
+        Return various pricing metrics of the *FX Option*.
+
+        Parameters
+        ----------
+        curves : list of Curve
+            Curves for discounting cashflows. List follows the structure used by IRDs and should be given as:
+            `[None, Curve for domestic ccy, None, Curve for foreign ccy]`
+        solver : Solver, optional
+            The numerical :class:`Solver` that constructs ``Curves`` from calibrating
+            instruments.
+        fx : float, FXRates, FXForwards, optional
+            The immediate settlement FX rate that will be used to convert values
+            into another currency. A given `float` is used directly. If giving a
+            ``FXRates`` or ``FXForwards`` object, converts from local currency
+            into ``base``.
+        base : str, optional
+            The base currency to convert cashflows into (3-digit code), set by default.
+            Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
+
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        Notes
+        ------
+
+        """
+
+        # implicitly call set_pricing_mid for unpriced parameters
+        # this is important for Strategies whose options are
+        # dependent upon each other, e.g. Strangle. (RR and Straddle do not have
+        # interdependent options)
+        self.rate(curves, solver, fx, base, vol)
+
+        curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
+        )
+        vol = self._vol_as_list(vol, solver)
+
+        gks = []
+        for option, _vol in zip(self.periods, vol):
+            # by calling on the OptionPeriod directly the strike is maintained from rate call.
+            gks.append(
+                option.periods[0].analytic_greeks(
+                    curves[1],
+                    curves[3],
+                    fx,
+                    base,
+                    local,
+                    _vol,
+                    option.kwargs["premium"],
+                )
+            )
+
+        _unit_attrs = ["delta", "gamma", "vega", "vomma", "vanna", "_kega", "_kappa", "__bs76"]
+        _ = {}
+        for attr in _unit_attrs:
+            _[attr] = sum(gk[attr] * self.rate_weight[i] for i, gk in enumerate(gks))
+
+        _notional_attrs = [
+            f"delta_{self.kwargs['pair'][:3]}",
+            f"gamma_{self.kwargs['pair'][:3]}_1%",
+            f"vega_{self.kwargs['pair'][3:]}",
+        ]
+        for attr in _notional_attrs:
+            _[attr] = sum(gk[attr] * self.rate_weight[i] for i, gk in enumerate(gks))
+
+        _.update(
+            {
+                "__class": "FXOptionStrat",
+                "__options": gks,
+                "__delta_type": gks[0]["__delta_type"],
+                "__notional": self.kwargs["notional"],
+            }
+        )
+        return _
+
+
+class FXRiskReversal(FXOptionStrat, FXOption):
+    """
+    Create an *FX Risk Reversal* option strategy.
+
+    For additional arguments see :class:`~rateslib.instruments.FXOption`.
+
+    Parameters
+    ----------
+    args: tuple
+        Positional arguments to :class:`~rateslib.instruments.FXOption`.
+    strike: 2-element sequence
+        The first element is applied to the lower strike put and the
+        second element applied to the higher strike call, e.g. `["-25d", "25d"]`.
+    premium: 2-element sequence, optional
+        The premiums associated with each option of the risk reversal.
+    metric: str, optional
+        The default metric to apply in the method :meth:`~rateslib.instruments.FXOptionStrat.rate`
+    kwargs: tuple
+        Keyword arguments to :class:`~rateslib.instruments.FXOption`.
+
+    Notes
+    -----
+    When supplying ``strike`` as a string delta the strike will be determined at price time from
+    the provided volatility.
+
+    Buying a *Risk Reversal* equates to selling a lower strike :class:`~rateslib.instruments.FXPut`
+    and buying a higher strike :class:`~rateslib.instruments.FXCall`.
+
+    This class is essentially an alias constructor for an
+    :class:`~rateslib.instruments.FXOptionStrat` where the number
+    of options and their definitions and nominals have been specifically set.
+    """
+
+    rate_weight = [-1.0, 1.0]
+    rate_weight_vol = [-1.0, 1.0]
+    _rate_scalar = 100.0
+
+    def __init__(
+        self,
+        *args,
+        strike=[NoInput(0), NoInput(0)],
+        premium=[NoInput(0), NoInput(0)],
+        metric: str = "vol",
+        **kwargs,
+    ):
+        super(FXOptionStrat, self).__init__(
+            *args,
+            strike=strike,
+            premium=premium,
+            **kwargs,
+        )
+        self.kwargs["metric"] = metric
+        self.periods = [
+            FXPut(
+                pair=self.kwargs["pair"],
+                expiry=self.kwargs["expiry"],
+                delivery_lag=self.kwargs["delivery"],
+                payment_lag=self.kwargs["payment"],
+                calendar=self.kwargs["calendar"],
+                modifier=self.kwargs["modifier"],
+                strike=self.kwargs["strike"][0],
+                notional=-self.kwargs["notional"],
+                option_fixing=self.kwargs["option_fixing"],
+                delta_type=self.kwargs["delta_type"],
+                premium=self.kwargs["premium"][0],
+                premium_ccy=self.kwargs["premium_ccy"],
+                curves=self.curves,
+                vol=self.vol,
+            ),
+            FXCall(
+                pair=self.kwargs["pair"],
+                expiry=self.kwargs["expiry"],
+                delivery_lag=self.kwargs["delivery"],
+                payment_lag=self.kwargs["payment"],
+                calendar=self.kwargs["calendar"],
+                modifier=self.kwargs["modifier"],
+                strike=self.kwargs["strike"][1],
+                notional=self.kwargs["notional"],
+                option_fixing=self.kwargs["option_fixing"],
+                delta_type=self.kwargs["delta_type"],
+                premium=self.kwargs["premium"][1],
+                premium_ccy=self.kwargs["premium_ccy"],
+                curves=self.curves,
+                vol=self.vol,
+            ),
+        ]
+
+    def _validate_strike_and_premiums(self):
+        """called as part of init, specific validation rules for straddle"""
+        if any(_ is NoInput.blank for _ in self.kwargs["strike"]):
+            raise ValueError(
+                "`strike` for FXRiskReversal must be set to list of 2 numeric or string values."
+            )
+        for k, p in zip(self.kwargs["strike"], self.kwargs["premium"]):
+            if isinstance(k, str) and p != NoInput.blank:
+                raise ValueError(
+                    "FXRiskReversal with string delta as `strike` cannot be initialised with a known `premium`.\n"
+                    "Either set `strike` as a defined numeric value, or remove the `premium`."
+                )
+
+
+class FXStraddle(FXOptionStrat, FXOption):
+    """
+    Create an *FX Straddle* option strategy.
+
+    For additional arguments see :class:`~rateslib.instruments.FXOption`.
+
+    Parameters
+    ----------
+    args: tuple
+        Positional arguments to :class:`~rateslib.instruments.FXOption`.
+    premium: 2-element sequence, optional
+        The premiums associated with each option of the straddle.
+    metric: str, optional
+        The default metric to apply in the method :meth:`~rateslib.instruments.FXOptionStrat.rate`
+    kwargs: tuple
+        Keyword arguments to :class:`~rateslib.instruments.FXOption`.
+
+    Notes
+    -----
+    When supplying ``strike`` as a string delta the strike will be determined at price time from
+    the provided volatility and FX forward market.
+
+    Buying a *Straddle* equates to buying an :class:`~rateslib.instruments.FXCall`
+    and an :class:`~rateslib.instruments.FXPut` at the same strike.
+
+    This class is essentially an alias constructor for an
+    :class:`~rateslib.instruments.FXOptionStrat` where the number
+    of options and their definitions and nominals have been specifically set.
+    """
+
+    rate_weight = [1.0, 1.0]
+    rate_weight_vol = [0.5, 0.5]
+    _rate_scalar = 100.0
+
+    def __init__(self, *args, premium=[NoInput(0), NoInput(0)], metric="vol", **kwargs):
+        super(FXOptionStrat, self).__init__(*args, premium=premium, **kwargs)
+        self.kwargs["metric"] = metric
+        self.periods = [
+            FXPut(
+                pair=self.kwargs["pair"],
+                expiry=self.kwargs["expiry"],
+                delivery_lag=self.kwargs["delivery"],
+                payment_lag=self.kwargs["payment"],
+                calendar=self.kwargs["calendar"],
+                modifier=self.kwargs["modifier"],
+                strike=self.kwargs["strike"],
+                notional=self.kwargs["notional"],
+                option_fixing=self.kwargs["option_fixing"],
+                delta_type=self.kwargs["delta_type"],
+                premium=self.kwargs["premium"][0],
+                premium_ccy=self.kwargs["premium_ccy"],
+                curves=self.curves,
+                vol=self.vol,
+            ),
+            FXCall(
+                pair=self.kwargs["pair"],
+                expiry=self.kwargs["expiry"],
+                delivery_lag=self.kwargs["delivery"],
+                payment_lag=self.kwargs["payment"],
+                calendar=self.kwargs["calendar"],
+                modifier=self.kwargs["modifier"],
+                strike=self.kwargs["strike"],
+                notional=self.kwargs["notional"],
+                option_fixing=self.kwargs["option_fixing"],
+                delta_type=self.kwargs["delta_type"],
+                premium=self.kwargs["premium"][1],
+                premium_ccy=self.kwargs["premium_ccy"],
+                curves=self.curves,
+                vol=self.vol,
+            ),
+        ]
+
+    def _validate_strike_and_premiums(self):
+        """called as part of init, specific validation rules for straddle"""
+        if self.kwargs["strike"] is NoInput.blank:
+            raise ValueError("`strike` for FXStraddle must be set to numeric or string value.")
+        if isinstance(self.kwargs["strike"], str) and self.kwargs["premium"] != [
+            NoInput.blank,
+            NoInput.blank,
+        ]:
+            raise ValueError(
+                "FXStraddle with string delta as `strike` cannot be initialised with a known `premium`.\n"
+                "Either set `strike` as a defined numeric value, or remove the `premium`."
+            )
+
+
+class FXStrangle(FXOptionStrat, FXOption):
+    """
+    Create an *FX Strangle* option strategy.
+
+    For additional arguments see :class:`~rateslib.instruments.FXOption`.
+
+    Parameters
+    ----------
+    args: tuple
+        Positional arguments to :class:`~rateslib.instruments.FXOption`.
+    strike: 2-element sequence
+        The first element is applied to the lower strike put and the
+        second element applied to the higher strike call, e.g. `["-25d", "25d"]`.
+    premium: 2-element sequence, optional
+        The premiums associated with each option of the strangle.
+    metric: str, optional
+        The default metric to apply in the method :meth:`~rateslib.instruments.FXOptionStrat.rate`
+    kwargs: tuple
+        Keyword arguments to :class:`~rateslib.instruments.FXOption`.
+
+    Notes
+    -----
+    When supplying ``strike`` as a string delta the strike will be determined at price time from
+    the provided volatility.
+
+    Buying a *Strangle* equates to buying a lower strike :class:`~rateslib.instruments.FXPut`
+    and buying a higher strike :class:`~rateslib.instruments.FXCall`.
+
+    This class is essentially an alias constructor for an
+    :class:`~rateslib.instruments.FXOptionStrat` where the number
+    of options and their definitions and nominals have been specifically set.
+
+    .. warning::
+
+       The default ``metric`` for an *FXStraddle* is *'single_vol'*, which requires an iterative algorithm to solve.
+       For defined strikes it is usually very accurate but for strikes defined by delta it
+       will return a solution within 0.1 pips. This means it is both slower than other instruments and inexact.
+
+    """
+
+    rate_weight = [1.0, 1.0]
+    rate_weight_vol = [0.5, 0.5]
+    _rate_scalar = 100.0
+
+    def __init__(
+        self,
+        *args,
+        strike=[NoInput(0), NoInput(0)],
+        premium=[NoInput(0), NoInput(0)],
+        metric="single_vol",
+        **kwargs,
+    ):
+        super(FXOptionStrat, self).__init__(*args, strike=strike, premium=premium, **kwargs)
+        self.kwargs["metric"] = metric
+        self._is_fixed_delta = [
+            isinstance(self.kwargs["strike"][0], str)
+            and self.kwargs["strike"][0][-1].lower() == "d"
+            and self.kwargs["strike"][0] != "atm_forward",
+            isinstance(self.kwargs["strike"][1], str)
+            and self.kwargs["strike"][1][-1].lower() == "d"
+            and self.kwargs["strike"][1] != "atm_forward",
+        ]
+        self.periods = [
+            FXPut(
+                pair=self.kwargs["pair"],
+                expiry=self.kwargs["expiry"],
+                delivery_lag=self.kwargs["delivery"],
+                payment_lag=self.kwargs["payment"],
+                calendar=self.kwargs["calendar"],
+                modifier=self.kwargs["modifier"],
+                strike=self.kwargs["strike"][0],
+                notional=self.kwargs["notional"],
+                option_fixing=self.kwargs["option_fixing"],
+                delta_type=self.kwargs["delta_type"],
+                premium=self.kwargs["premium"][0],
+                premium_ccy=self.kwargs["premium_ccy"],
+                curves=self.curves,
+                vol=self.vol,
+            ),
+            FXCall(
+                pair=self.kwargs["pair"],
+                expiry=self.kwargs["expiry"],
+                delivery_lag=self.kwargs["delivery"],
+                payment_lag=self.kwargs["payment"],
+                calendar=self.kwargs["calendar"],
+                modifier=self.kwargs["modifier"],
+                strike=self.kwargs["strike"][1],
+                notional=self.kwargs["notional"],
+                option_fixing=self.kwargs["option_fixing"],
+                delta_type=self.kwargs["delta_type"],
+                premium=self.kwargs["premium"][1],
+                premium_ccy=self.kwargs["premium_ccy"],
+                curves=self.curves,
+                vol=self.vol,
+            ),
+        ]
+
+    def _validate_strike_and_premiums(self):
+        """called as part of init, specific validation rules for strangle"""
+        if any(_ is NoInput.blank for _ in self.kwargs["strike"]):
+            raise ValueError(
+                "`strike` for FXStrangle must be set to list of 2 numeric or string values."
+            )
+        for k, p in zip(self.kwargs["strike"], self.kwargs["premium"]):
+            if isinstance(k, str) and p != NoInput.blank:
+                raise ValueError(
+                    "FXStrangle with string delta as `strike` cannot be initialised with a known `premium`.\n"
+                    "Either set `strike` as a defined numeric value, or remove the `premium`."
+                )
+
+    def rate(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        vol: Union[list[float], float] = NoInput(0),
+        metric: Union[str, NoInput] = NoInput(0),  # "pips_or_%",
+    ):
+        """
+        Returns the rate of the *FXStraddle* according to a pricing metric.
+
+        Notes
+        ------
+
+        .. warning::
+
+           The default ``metric`` for an *FXStraddle* is *'single_vol'*, which requires an iterative algorithm to solve.
+           For defined strikes it is usually very accurate but for strikes defined by delta it
+           will return a solution within 0.01 pips. This means it is both slower than other instruments and inexact.
+
+        For parameters see :meth:`~rateslib.instruments.FXOption.rate`.
+
+        The ``metric`` *'vol'* is not sensible to use with an *FXStraddle*, although it will return the arithmetic
+        average volatility across both options, *'single_vol'* is the more standardised choice.
+        """
+        return self._rate(curves, solver, fx, base, vol, metric)
+
+    def _rate(self, curves, solver, fx, base, vol, metric, record_greeks=False):
+        metric = _drb(self.kwargs["metric"], metric).lower()
+        if metric != "single_vol" and not any(self._is_fixed_delta):
+            # the strikes are explicitly defined and independent across options.
+            # can evaluate separately
+            return super().rate(curves, solver, fx, base, vol, metric)
+        else:
+            # must perform single vol evaluation to determine mkt convention strikes
+            single_vol = self._rate_single_vol(curves, solver, fx, base, vol, record_greeks)
+            if metric == "single_vol":
+                return single_vol
+            else:
+                # return the premiums using the single_vol as the volatility
+                return super().rate(curves, solver, fx, base, vol=single_vol, metric=metric)
+
+    def _rate_single_vol(self, curves, solver, fx, base, vol, record_greeks):
+        """
+        Solve the single vol rate metric for a strangle using iterative market convergence routine.
+        """
+        # Get curves and vol
+        curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
+            self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
+        )
+        vol = self._vol_as_list(vol, solver)
+
+        # first start by evaluating the individual swaptions given their strikes with the smile - delta or fixed
+        gks = [
+            self.periods[0].analytic_greeks(curves, solver, fx, base, vol=vol[0]),
+            self.periods[1].analytic_greeks(curves, solver, fx, base, vol=vol[1]),
+        ]
+
+        tgt_vol = (gks[0]["__vol"] * gks[0]["vega"] + gks[1]["__vol"] * gks[1]["vega"]) * 100.0
+        tgt_vol /= gks[0]["vega"] + gks[1]["vega"]
+        f0, iters = 100e6, 1
+        while abs(f0) > 1e-6 and iters < 10:
+            gks = [
+                self.periods[0].analytic_greeks(curves, solver, fx, base, vol=tgt_vol),
+                self.periods[1].analytic_greeks(curves, solver, fx, base, vol=tgt_vol),
+            ]
+            smile_gks = [  # note the strikes have been set at price time by previous call, call OptionPeriods direct
+                self.periods[0]
+                .periods[0]
+                .analytic_greeks(curves[1], curves[3], fx, base, vol=vol[0]),
+                self.periods[1]
+                .periods[0]
+                .analytic_greeks(curves[1], curves[3], fx, base, vol=vol[1]),
+            ]
+
+            # Apply ad hoc Newton 1d algorithm
+            f0 = (
+                smile_gks[0]["__bs76"]
+                + smile_gks[1]["__bs76"]
+                - gks[0]["__bs76"]
+                - gks[1]["__bs76"]
+            )
+
+            kega1 = gks[0]["_kega"] if self._is_fixed_delta[0] else 0.0
+            kega2 = gks[1]["_kega"] if self._is_fixed_delta[1] else 0.0
+            f1 = smile_gks[0]["_kappa"] * kega1 + smile_gks[1]["_kappa"] * kega2
+            f1 -= (
+                gks[0]["vega"]
+                + gks[1]["vega"]
+                + gks[0]["_kappa"] * kega1
+                + gks[1]["_kappa"] * kega2
+            )
+
+            tgt_vol = tgt_vol - (f0 / f1) * 100.0
+            iters += 1
+
+        if record_greeks:  # this needs to be explicitly called since it degrades performance
+            self._pricing["strangle_greeks"] = {
+                "single_vol": {
+                    "FXPut": self.periods[0].analytic_greeks(curves, solver, fx, base, vol=tgt_vol),
+                    "FXCall": self.periods[1].analytic_greeks(
+                        curves, solver, fx, base, vol=tgt_vol
+                    ),
+                },
+                "market_vol": {
+                    "FXPut": self.periods[0]
+                    .periods[0]
+                    .analytic_greeks(curves[1], curves[3], fx, base, vol=vol[0]),
+                    "FXCall": self.periods[1]
+                    .periods[0]
+                    .analytic_greeks(curves[1], curves[3], fx, base, vol=vol[1]),
+                },
+            }
+
+        return tgt_vol
+
+    # def _single_vol_rate_known_strikes(
+    #     self,
+    #     imm_prem,
+    #     f_d,
+    #     t_e,
+    #     v_deli,
+    #     g0,
+    # ):
+    #     k1 = self.kwargs["strike"][0]
+    #     k2 = self.kwargs["strike"][1]
+    #     sqrt_t = t_e ** 0.5
+    #
+    #     def root(g, imm_prem, k1, k2, f_d, sqrt_t, v_deli):
+    #         vol_sqrt_t = g * sqrt_t
+    #         d_plus_1 = _d_plus_min(k1, f_d, vol_sqrt_t, 0.5)
+    #         d_min_1 = _d_plus_min(k1, f_d, vol_sqrt_t, -0.5)
+    #         d_plus_2 = _d_plus_min(k2, f_d, vol_sqrt_t, 0.5)
+    #         d_min_2 = _d_plus_min(k2, f_d, vol_sqrt_t, -0.5)
+    #         f0 = -(f_d * dual_norm_cdf(-d_plus_1) - k1 * dual_norm_cdf(-d_min_1))
+    #         f0 += (f_d * dual_norm_cdf(d_plus_2) - k2 * dual_norm_cdf(d_min_2))
+    #         f0 = f0 * v_deli - imm_prem
+    #         f1 = v_deli * f_d * sqrt_t * (dual_norm_pdf(-d_plus_1) + dual_norm_pdf(d_plus_2))
+    #         return f0, f1
+    #
+    #     result = newton_1dim(root, g0=g0, args=(imm_prem, k1, k2, f_d, sqrt_t, v_deli))
+    #     return result["g"]
+
+
+class FXBrokerFly(FXOptionStrat, FXOption):
+    """
+    Create an *FX BrokerFly* option strategy.
+
+    For additional arguments see :class:`~rateslib.instruments.FXOption`.
+
+    Parameters
+    ----------
+    args: tuple
+        Positional arguments to :class:`~rateslib.instruments.FXOption`.
+    strike: 3-element sequence
+        The first element is applied to the lower strike put, the
+        second element to the straddle strike and the third element to the higher strike
+        call, e.g. `["-25d", "atm_delta", "25d"]`.
+    premium: 4-element sequence, optional
+        The premiums associated with each option of the strategy; lower strike put, straddle put,
+        straddle call, higher strike call.
+    metric: str, optional
+        The default metric to apply in the method :meth:`~rateslib.instruments.FXOptionStrat.rate`
+    kwargs: tuple
+        Keyword arguments to :class:`~rateslib.instruments.FXOption`.
+
+    Notes
+    -----
+    When supplying ``strike`` as a string delta the strike will be determined at price time from
+    the provided volatility.
+
+    Buying a *BrokerFly* equates to buying an :class:`~rateslib.instruments.FXStrangle` and
+    selling a :class:`~rateslib.instruments.FXStraddle`, where the convention is to set the
+    notional on the *Straddle* such that the entire strategy is *vega* neutral at inception.
+
+    .. warning::
+
+       The default ``metric`` for an *FXBrokerFly* is *'single_vol'*, which requires an iterative algorithm to solve.
+       For defined strikes it is usually very accurate but for strikes defined by delta it
+       will return a solution within 0.1 pips. This means it is both slower than other instruments and inexact.
+
+    """
+
+    rate_weight = [1.0, 1.0]
+    rate_weight_vol = [1.0, -1.0]
+    _rate_scalar = 100.0
+
+    def __init__(
+        self,
+        *args,
+        strike=[NoInput(0), NoInput(0), NoInput(0)],
+        premium=[NoInput(0), NoInput(0), NoInput(0), NoInput(0)],
+        notional=[NoInput(0), NoInput(0)],
+        metric="single_vol",
+        **kwargs,
+    ):
+        super(FXOptionStrat, self).__init__(
+            *args, premium=premium, strike=strike, notional=notional, **kwargs
+        )
+        self.kwargs["notional"][1] = (
+            NoInput(0) if self.kwargs["notional"][1] is None else self.kwargs["notional"][1]
+        )
+        self.kwargs["metric"] = metric
+        self.periods = [
+            FXStrangle(
+                pair=self.kwargs["pair"],
+                expiry=self.kwargs["expiry"],
+                delivery_lag=self.kwargs["delivery"],
+                payment_lag=self.kwargs["payment"],
+                calendar=self.kwargs["calendar"],
+                modifier=self.kwargs["modifier"],
+                strike=[self.kwargs["strike"][0], self.kwargs["strike"][2]],
+                notional=self.kwargs["notional"][0],
+                option_fixing=self.kwargs["option_fixing"],
+                delta_type=self.kwargs["delta_type"],
+                premium=[self.kwargs["premium"][0], self.kwargs["premium"][3]],
+                premium_ccy=self.kwargs["premium_ccy"],
+                metric=self.kwargs["metric"],
+                curves=self.curves,
+                vol=self.vol,
+            ),
+            FXStraddle(
+                pair=self.kwargs["pair"],
+                expiry=self.kwargs["expiry"],
+                delivery_lag=self.kwargs["delivery"],
+                payment_lag=self.kwargs["payment"],
+                calendar=self.kwargs["calendar"],
+                modifier=self.kwargs["modifier"],
+                strike=self.kwargs["strike"][1],
+                notional=self.kwargs["notional"][1],
+                option_fixing=self.kwargs["option_fixing"],
+                delta_type=self.kwargs["delta_type"],
+                premium=self.kwargs["premium"][1:3],
+                premium_ccy=self.kwargs["premium_ccy"],
+                metric="vol" if self.kwargs["metric"] == "single_vol" else self.kwargs["metric"],
+                curves=self.curves,
+                vol=self.vol,
+            ),
+        ]
+
+    def _maybe_set_vega_neutral_notional(self, curves, solver, fx, base, vol, metric):
+        if self.kwargs["notional"][1] is NoInput.blank and metric in ["pips_or_%", "premium"]:
+            self.periods[0]._rate(
+                curves, solver, fx, base, vol=vol[0], metric="single_vol", record_greeks=True
+            )
+            self._pricing["straddle_greeks"] = self.periods[1].analytic_greeks(
+                curves, solver, fx, base, vol=vol[1]
+            )
+            strangle_vega = self._pricing["strangle_greeks"]["market_vol"]["FXPut"]["vega"]
+            strangle_vega += self._pricing["strangle_greeks"]["market_vol"]["FXCall"]["vega"]
+            straddle_vega = self._pricing["straddle_greeks"]["vega"]
+            scalar = strangle_vega / straddle_vega
+            self.periods[1].kwargs["notional"] = float(
+                self.periods[0].periods[0].periods[0].notional * -scalar
+            )
+            self.periods[1]._set_notionals(self.periods[1].kwargs["notional"])
+            # BrokerFly -> Strangle -> FXPut -> FXPutPeriod
+
+    def rate(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[float, FXRates, FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        vol: Union[list[float], float] = NoInput(0),
+        metric: Union[str, NoInput] = NoInput(0),
+    ):
+        """
+        Return the mid-market rate of an option strategy.
+
+        Parameters
+        ----------
+        curves
+        solver
+        fx
+        base
+        vol
+        metric
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        Notes
+        -----
+
+        The different types of ``metric`` return different quotation conventions.
+
+        - *'single_vol'*: the default type for a :class:`~rateslib.instruments.FXStrangle`
+
+        - *'vol'*: sums the mid-market volatilities of each option multiplied by their respective ``rate_weight_vol``
+          parameter. For example this is the default pricing convention for
+          a :class:`~rateslib.instruments.FXRiskReversal` where the price is the vol of the call minus the vol of the
+          put and the ``rate_weight_vol`` parameters are [-1.0, 1.0].
+
+        - *'pips_or_%'*: sums the mid-market pips or percent price of each option multiplied by their respective
+          ``rate_weight`` parameter. For example for a :class:`~rateslib.instruments.FXStraddle` the total premium
+          is the sum of two premiums and the ``rate_weight`` parameters are [1.0, 1.0].
+        """
+        if not isinstance(vol, list):
+            vol = [[vol, vol], vol]
+        else:
+            vol = [
+                [vol[0], vol[2]],
+                vol[1],
+            ]  # restructure to pass to Strangle and Straddle separately
+
+        temp_metric = _drb(self.kwargs["metric"], metric)
+        self._maybe_set_vega_neutral_notional(curves, solver, fx, base, vol, temp_metric.lower())
+
+        if temp_metric == "pips_or_%":
+            straddle_scalar = (
+                self.periods[1].periods[0].periods[0].notional
+                / self.periods[0].periods[0].periods[0].notional
+            )
+            weights = [1.0, straddle_scalar]
+        elif temp_metric == "premium":
+            weights = self.rate_weight
+        else:
+            weights = self.rate_weight_vol
+        _ = 0.0
+        for option_strat, vol_, weight in zip(self.periods, vol, weights):
+            _ += option_strat.rate(curves, solver, fx, base, vol_, metric) * weight
+        return _
+
+    def analytic_greeks(
+        self,
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: float = NoInput(0),
+    ):
+        """ """
+        # implicitly call set_pricing_mid for unpriced parameters
+        self.rate(curves, solver, fx, base, vol, metric="pips_or_%")
+        # curves, fx, base = _get_curves_fx_and_base_maybe_from_solver(
+        #     self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
+        # )
+        if not isinstance(vol, list):
+            vol = [[vol, vol], vol]
+        else:
+            vol = [[vol[0], vol[2]], vol[1]]  # restructure for strangle / straddle
+
+        # TODO: this method can be optimised because it calculates greeks at multiple times within frames
+        g_grks = self.periods[0].analytic_greeks(curves, solver, fx, base, local, vol[0])
+        d_grks = self.periods[1].analytic_greeks(curves, solver, fx, base, local, vol[1])
+        sclr = abs(
+            self.periods[1].periods[0].periods[0].notional
+            / self.periods[0].periods[0].periods[0].notional
+        )
+
+        _unit_attrs = ["delta", "gamma", "vega", "vomma", "vanna", "_kega", "_kappa", "__bs76"]
+        _ = {}
+        for attr in _unit_attrs:
+            _[attr] = g_grks[attr] - sclr * d_grks[attr]
+
+        _notional_attrs = [
+            f"delta_{self.kwargs['pair'][:3]}",
+            f"gamma_{self.kwargs['pair'][:3]}_1%",
+            f"vega_{self.kwargs['pair'][3:]}",
+        ]
+        for attr in _notional_attrs:
+            _[attr] = g_grks[attr] - d_grks[attr]
+
+        _.update(
+            {
+                "__class": "FXOptionStrat",
+                "__strategies": {"FXStrangle": g_grks, "FXStraddle": d_grks},
+                "__delta_type": g_grks["__delta_type"],
+                "__notional": self.kwargs["notional"],
+            }
+        )
+        return _
+
+    def _plot_payoff(
+        self,
+        range: Union[list[float], NoInput] = NoInput(0),
+        curves: Union[Curve, str, list, NoInput] = NoInput(0),
+        solver: Union[Solver, NoInput] = NoInput(0),
+        fx: Union[FXForwards, NoInput] = NoInput(0),
+        base: Union[str, NoInput] = NoInput(0),
+        local: bool = False,
+        vol: Union[list[float], float] = NoInput(0),
+    ):
+        vol = self._vol_as_list(vol, solver)
+        self._maybe_set_vega_neutral_notional(curves, solver, fx, base, vol, metric="pips_or_%")
+        return super()._plot_payoff(range, curves, solver, fx, base, local, vol)
 
 
 # Generic Instruments
@@ -8059,10 +9670,6 @@ class Spread(Sensitivities):
         return super().gamma(*args, **kwargs)
 
 
-# class SpreadX:
-#     pass
-
-
 class Fly(Sensitivities):
     """
     A butterfly instrument which is, mechanically, the spread of two spread instruments.
@@ -8170,38 +9777,6 @@ class Fly(Sensitivities):
         For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
         """
         return super().gamma(*args, **kwargs)
-
-
-# class FlyX:
-#     """
-#     A butterly instrument which is the spread of two spread instruments
-#     """
-#     def __init__(self, instrument1, instrument2, instrument3):
-#         self.instrument1 = instrument1
-#         self.instrument2 = instrument2
-#         self.instrument3 = instrument3
-#
-#     def npv(self, *args, **kwargs):
-#         if len(args) == 0:
-#             args1 = (kwargs.get("curve1", None), kwargs.get("disc_curve1", None))
-#             args2 = (kwargs.get("curve2", None), kwargs.get("disc_curve2", None))
-#             args3 = (kwargs.get("curve3", None), kwargs.get("disc_curve3", None))
-#         else:
-#             args1 = args
-#             args2 = args
-#             args3 = args
-#         return self.instrument1.npv(*args1) + self.instrument2.npv(*args2) + self.instrument3.npv(*args3)
-#
-#     def rate(self, *args, **kwargs):
-#         if len(args) == 0:
-#             args1 = (kwargs.get("curve1", None), kwargs.get("disc_curve1", None))
-#             args2 = (kwargs.get("curve2", None), kwargs.get("disc_curve2", None))
-#             args3 = (kwargs.get("curve3", None), kwargs.get("disc_curve3", None))
-#         else:
-#             args1 = args
-#             args2 = args
-#             args3 = args
-#         return 2 * self.instrument2.rate(*args2) - self.instrument1.rate(*args1) - self.instrument3.rate(*args3)
 
 
 def _instrument_npv(instrument, *args, **kwargs):  # pragma: no cover
@@ -8432,94 +10007,6 @@ def _ytm_quadratic_converger2(f, y0, y1, y2, f0=None, f1=None, f2=None, tol=1e-9
         )  # pragma: no cover
 
 
-# def _brents(f, x0, x1, max_iter=50, tolerance=1e-9):  # pragma: no cover
-#     """
-#     Alternative yield converger as an alternative to ytm_converger
-#
-#     Unused currently within the library
-#     """
-#     fx0 = f(x0)
-#     fx1 = f(x1)
-#
-#     if float(fx0 * fx1) > 0:
-#         raise ValueError(
-#             "`brents` must initiate from function values with opposite signs."
-#         )
-#
-#     if abs(fx0) < abs(fx1):
-#         x0, x1 = x1, x0
-#         fx0, fx1 = fx1, fx0
-#
-#     x2, fx2 = x0, fx0
-#
-#     mflag = True
-#     steps_taken = 0
-#
-#     while steps_taken < max_iter and abs(x1 - x0) > tolerance:
-#         fx0 = f(x0)
-#         fx1 = f(x1)
-#         fx2 = f(x2)
-#
-#         if fx0 != fx2 and fx1 != fx2:
-#             L0 = (x0 * fx1 * fx2) / ((fx0 - fx1) * (fx0 - fx2))
-#             L1 = (x1 * fx0 * fx2) / ((fx1 - fx0) * (fx1 - fx2))
-#             L2 = (x2 * fx1 * fx0) / ((fx2 - fx0) * (fx2 - fx1))
-#             new = L0 + L1 + L2
-#
-#         else:
-#             new = x1 - ((fx1 * (x1 - x0)) / (fx1 - fx0))
-#
-#         if (
-#             (float(new) < float((3 * x0 + x1) / 4) or float(new) > float(x1))
-#             or (mflag is True and (abs(new - x1)) >= (abs(x1 - x2) / 2))
-#             or (mflag is False and (abs(new - x1)) >= (abs(x2 - d) / 2))
-#             or (mflag is True and (abs(x1 - x2)) < tolerance)
-#             or (mflag is False and (abs(x2 - d)) < tolerance)
-#         ):
-#             new = (x0 + x1) / 2
-#             mflag = True
-#
-#         else:
-#             mflag = False
-#
-#         fnew = f(new)
-#         d, x2 = x2, x1
-#
-#         if float(fx0 * fnew) < 0:
-#             x1 = new
-#         else:
-#             x0 = new
-#
-#         if abs(fx0) < abs(fx1):
-#             x0, x1 = x1, x0
-#
-#         steps_taken += 1
-#
-#     return x1, steps_taken
-
-
-def _quadratic_equation(a: float, b: float, c: float):
-    """
-    solver the equation ax^2 + bx + c = 0, via the quadratic formula.
-    """
-    # perform the quadratic solution
-    _1 = -c / b  # approximate linear solution: applicable for most situations.
-    discriminant = b**2 - 4 * a * c
-    if abs(a) > 1e-14:
-        _2a = (-b - discriminant**0.5) / (2 * a)
-        _2b = (-b + discriminant**0.5) / (2 * a)  # alt quadratic soln
-        if abs(_1 - _2a) < abs(_1 - _2b):
-            _ = _2a
-        else:
-            _ = _2b  # select quadratic soln
-    else:
-        # this is to avoid divide by zero errors and return an approximation
-        # also isda_flat_compounding has a=0
-        _ = _1
-
-    return _
-
-
 def _get(kwargs: dict, leg: int = 1, filter=[]):
     """
     A parser to return kwarg dicts for relevant legs.
@@ -8612,3 +10099,6 @@ def _upper(val: Union[str, NoInput]):
     if isinstance(val, str):
         return val.upper()
     return val
+
+
+

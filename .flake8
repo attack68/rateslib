@@ -1,0 +1,26 @@
+[flake8]
+exclude =
+    .git,
+    .github,
+    docs,
+    notebooks,
+    target,
+    venv9,
+    venv11,
+    scratch.py,
+    __pycache__,
+    docs/source/conf.py,
+    old,
+    build,
+    dist,
+    bench,
+    benchmarks
+max-line-length = 100
+extend-ignore = E203, W605, E501
+per-file-ignores =
+    rateslib/__init__.py:E402
+    tests/*:F401
+    rateslib/splines/__init__.py:F401
+    rateslib/splines/splinesrs.py:F401
+    rateslib/dual/__init__.py:E402
+    rateslib/dual/dualrs.py:F401

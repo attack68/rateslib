@@ -325,12 +325,12 @@ class Schedule:
             raise ValueError("`termination` must be after `effective`.")
 
         if frequency == "Z":
-            self.ueffective = None
-            self.utermination = None
-            self.stub = None
-            self.front_stub = None
-            self.back_stub = None
-            self.roll = None
+            self.ueffective = NoInput(0)
+            self.utermination = NoInput(0)
+            self.stub = NoInput(0)
+            self.front_stub = NoInput(0)
+            self.back_stub = NoInput(0)
+            self.roll = NoInput(0)
             self.uschedule = [self.effective, self.termination]
             self._attribute_schedules()
             return None
@@ -480,7 +480,7 @@ class Schedule:
                 self.ueffective = self.effective
                 self.utermination = parsed_args["utermination"]
                 self.front_stub = parsed_args["ueffective"]
-                self.back_stub = None
+                self.back_stub = NoInput(0)
                 self.roll = parsed_args["roll"]
 
     def _back_sided_stub_parsing(self, front_stub, back_stub, roll):
@@ -523,7 +523,7 @@ class Schedule:
             else:
                 self.ueffective = parsed_args["ueffective"]
                 self.utermination = self.termination
-                self.front_stub = None
+                self.front_stub = NoInput(0)
                 self.back_stub = parsed_args["utermination"]
                 self.roll = parsed_args["roll"]
 
@@ -535,9 +535,9 @@ class Schedule:
             for dt in self.aschedule
         ]
         self.stubs = [False] * (len(self.uschedule) - 1)
-        if self.front_stub is not None:
+        if self.front_stub is not NoInput(0):
             self.stubs[0] = True
-        if self.back_stub is not None:
+        if self.back_stub is not NoInput(0):
             self.stubs[-1] = True
 
     def __repr__(self):
@@ -968,7 +968,7 @@ def _infer_stub_date(
                 return True, {
                     "ueffective": parsed_args["ueffective"],
                     "utermination": termination,
-                    "front_stub": None,
+                    "front_stub": NoInput(0),
                     "back_stub": parsed_args["utermination"],
                     "roll": parsed_args["roll"],
                     "frequency": parsed_args["frequency"],
@@ -991,7 +991,7 @@ def _infer_stub_date(
                     "ueffective": effective,
                     "utermination": parsed_args["utermination"],
                     "front_stub": parsed_args["ueffective"],
-                    "back_stub": None,
+                    "back_stub": NoInput(0),
                     "roll": parsed_args["roll"],
                     "frequency": parsed_args["frequency"],
                     "eom": parsed_args["eom"],
@@ -1013,8 +1013,8 @@ def _infer_stub_date(
             return True, {
                 "ueffective": effective if not dead_front_stub else parsed_args["ueffective"],
                 "utermination": termination if not dead_back_stub else parsed_args["utermination"],
-                "front_stub": parsed_args["ueffective"] if not dead_front_stub else None,
-                "back_stub": parsed_args["utermination"] if not dead_back_stub else None,
+                "front_stub": parsed_args["ueffective"] if not dead_front_stub else NoInput(0),
+                "back_stub": parsed_args["utermination"] if not dead_back_stub else NoInput(0),
                 "roll": parsed_args["roll"],
                 "frequency": parsed_args["frequency"],
                 "eom": parsed_args["eom"],
@@ -1027,8 +1027,8 @@ def _infer_stub_date(
             return True, {
                 "ueffective": parsed_args["ueffective"],
                 "utermination": parsed_args["utermination"],
-                "front_stub": None,
-                "back_stub": None,
+                "front_stub": NoInput(0),
+                "back_stub": NoInput(0),
                 "roll": parsed_args["roll"],
                 "frequency": parsed_args["frequency"],
                 "eom": parsed_args["eom"],
@@ -1052,8 +1052,8 @@ def _infer_stub_date(
                 return True, {
                     "ueffective": effective if not dead_stub else parsed_args["ueffective"],
                     "utermination": parsed_args["utermination"],
-                    "front_stub": parsed_args["ueffective"] if not dead_stub else None,
-                    "back_stub": None,
+                    "front_stub": parsed_args["ueffective"] if not dead_stub else NoInput(0),
+                    "back_stub": NoInput(0),
                     "roll": parsed_args["roll"],
                     "frequency": parsed_args["frequency"],
                     "eom": parsed_args["eom"],
@@ -1066,8 +1066,8 @@ def _infer_stub_date(
             return True, {
                 "ueffective": parsed_args["ueffective"],
                 "utermination": parsed_args["utermination"],
-                "front_stub": None,
-                "back_stub": None,
+                "front_stub": NoInput(0),
+                "back_stub": NoInput(0),
                 "roll": parsed_args["roll"],
                 "frequency": parsed_args["frequency"],
                 "eom": parsed_args["eom"],
@@ -1091,8 +1091,8 @@ def _infer_stub_date(
                 return True, {
                     "ueffective": parsed_args["ueffective"],
                     "utermination": termination if not dead_stub else parsed_args["utermination"],
-                    "front_stub": None,
-                    "back_stub": parsed_args["utermination"] if not dead_stub else None,
+                    "front_stub": NoInput(0),
+                    "back_stub": parsed_args["utermination"] if not dead_stub else NoInput(0),
                     "roll": parsed_args["roll"],
                     "frequency": parsed_args["frequency"],
                     "eom": parsed_args["eom"],
@@ -1273,16 +1273,19 @@ def _generate_irregular_schedule_unadjusted(
     ------
     datetime
     """
-    if ufront_stub is None:
+    if ufront_stub is NoInput(0):
         yield from _generate_regular_schedule_unadjusted(
-            ueffective, uback_stub or utermination, frequency, roll
+            ueffective, utermination if uback_stub is NoInput.blank else uback_stub, frequency, roll
         )
     else:
         yield ueffective
         yield from _generate_regular_schedule_unadjusted(
-            ufront_stub, uback_stub or utermination, frequency, roll
+            ufront_stub,
+            utermination if uback_stub is NoInput.blank else uback_stub,
+            frequency,
+            roll,
         )
-    if uback_stub is not None:
+    if uback_stub is not NoInput(0):
         yield utermination
 
 

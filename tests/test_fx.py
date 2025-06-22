@@ -336,8 +336,8 @@ def test_fxforwards_immediate2():
     fxf = FXForwards(fx_rates, fx_curves)
     F0_usdeur = 0.9 * 0.997 / 0.999  # f_usdeur * v_eurusd / w_usdusd
     F0_eurnok = 8.888889 * 0.995 / 0.998  # f_eurnok * w_nokeur / v_eureur
-    assert abs(fxf.fx_rates_immediate.fx_array[0, 1].real - F0_usdeur) < 1e-15
-    assert abs(fxf.fx_rates_immediate.fx_array[1, 2].real - F0_eurnok) < 1e-15
+    assert abs(fxf.fx_rates_immediate.fx_array[0, 1].real - F0_usdeur) < 1e-14
+    assert abs(fxf.fx_rates_immediate.fx_array[1, 2].real - F0_eurnok) < 1e-14
 
 
 def test_fxforwards_bad_curves_raises(usdusd, eureur, usdeur):

@@ -1,6 +1,6 @@
 include rateslib/data/corra.csv
 include rateslib/data/estr.csv
-include rateslib/data/instrument_spec.csv
+include rateslib/data/__instrument_spec.csv
 include rateslib/data/nowa.csv
 include rateslib/data/sofr.csv
 include rateslib/data/sonia.csv

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Union
+from typing import Optional, Union, Callable
 from itertools import combinations
 from uuid import uuid4
 from time import time
@@ -836,9 +836,13 @@ class Solver(Gradients):
     Parameters
     ----------
     curves : sequence
-        Sequence of :class:`Curve` objects where each curve has been individually
-        configured for its node dates and interpolation structures, and has a unique
-        ``id``. Each :class:`Curve` will be dynamically updated by the Solver.
+        Sequence of :class:`Curve` or :class:`FXDeltaVolSmile` objects where each *curve*
+        has been individually configured for its node dates and interpolation structures,
+        and has a unique ``id``. Each *curve* will be dynamically updated by the Solver.
+    surfaces : sequence
+        Sequence of :class:`FXDeltaVolSurface` objects where each *surface* has been configured
+        with a unique ``id``. Each *surface* will be dynamically updated. *Surfaces* are appended
+        to ``curves`` and just provide a distinct keyword for organisational distinction.
     instruments : sequence
         Sequence of calibrating instrument specifications that will be used by
         the solver to determine the solved curves. See notes.
@@ -873,24 +877,29 @@ class Solver(Gradients):
         Parameters to control the Levenberg-Marquardt algorithm, defined as the
         initial lambda value, the scaling factor for a successful iteration and the
         scaling factor for an unsuccessful iteration. Defaults to (1000, 0.25, 2).
+    callback : callable, optional
+        Is called after each iteration. Used for debugging or optimisation.
 
     Notes
     -----
     Once initialised the ``Solver`` will numerically determine and set all of the
-    relevant DF node values on each curve simultaneously by calling :meth:`iterate`.
+    relevant DF node values on each *Curve* simultaneously by calling :meth:`iterate`.
 
-    Each instrument provided to ``instruments`` must be a tuple with the following
-    items:
+    Each instrument provided to ``instruments`` must have its ``curves`` and ``metric``
+    preset at initialisation, and can then be used directly (as shown in some examples).
 
-      - An instrument which is a class endowed with a :meth:`rate` method which
-        will return a mid-market rate as a :class:`Dual` number so derivatives can
-        be automatically determined.
-      - Positional arguments to be supplied to the :meth:`rate` method when determining
-        the mid-market rate.
-      - Keyword arguments to be supplied to the :meth:`rate` method when determining
-        the mid-market rate.
+    If the *Curves* and/or *metric* are not preset then the *Solver* ``instruments`` can be
+    given as a tuple where the second and third items are a tuple and dict representing positional
+    and keyword arguments passed to the *instrument's*
+    :meth:`~rateslib.instruments.FixedRateBond.rate`` method. Usually using the keyword arguments
+    is more explicit. An example is:
 
-    An example is `(IRS, (curve, disc_curve), {})`.
+    - (FixedRateBond([args]), (), {"curves": bond_curve, "metric": "ytm"}),
+
+    Examples
+    --------
+
+    See the documentation user guide :ref:`here <c-solver-doc>`.
 
     Attributes
     ----------
@@ -929,6 +938,7 @@ class Solver(Gradients):
     def __init__(
         self,
         curves: Union[list, tuple] = (),
+        surfaces: Union[list, tuple] = (),
         instruments: Union[tuple[tuple], list[tuple]] = (),
         s: list[float] = [],
         weights: Optional[list] = NoInput(0),
@@ -941,7 +951,9 @@ class Solver(Gradients):
         func_tol: float = 1e-11,
         conv_tol: float = 1e-14,
         ini_lambda: Union[tuple[float, float, float], NoInput] = NoInput(0),
+        callback: Union[Callable, NoInput] = NoInput(0),
     ) -> None:
+        self.callback = callback
         self.algorithm = defaults.algorithm if algorithm is NoInput.blank else algorithm
         if ini_lambda is NoInput.blank:
             self.ini_lambda = defaults.ini_lambda
@@ -981,17 +993,17 @@ class Solver(Gradients):
             self.weights = np.asarray(weights)
         self.W = np.diag(self.weights)
 
+        # `surfaces` are treated identically to `curves`. Introduced in PR
         self.curves = {
             curve.id: curve
-            for curve in curves
+            for curve in list(curves) + list(surfaces)
             if not type(curve) in [ProxyCurve, CompositeCurve, MultiCsaCurve]
             # Proxy and Composite curves have no parameters of their own
         }
         self.variables = ()
         for curve in self.curves.values():
             curve._set_ad_order(1)  # solver uses gradients in optimisation
-            curve_vars = tuple((f"{curve.id}{i}" for i in range(curve._ini_solve, curve.n)))
-            self.variables += curve_vars
+            self.variables += curve._get_node_vars()
         self.n = len(self.variables)
 
         # aggregate and organise variables and labels including pre_solvers
@@ -1149,10 +1161,7 @@ class Solver(Gradients):
         Depends on ``self.curves``.
         """
         if self._v is None:
-            _ = []
-            for id, curve in self.curves.items():
-                _.extend([v for v in list(curve.nodes.values())[curve._ini_solve :]])
-            self._v = np.array(_)
+            self._v = np.block([_._get_node_vector() for _ in self.curves.values()])
         return self._v
 
     @property
@@ -1267,7 +1276,13 @@ class Solver(Gradients):
             delta = np.linalg.solve(A, b)[:, 0]
             v_1 = self.v + delta
         elif algorithm == "levenberg_marquardt":
-            self.lambd *= self.ini_lambda[2] if self.g_prev < self.g.real else self.ini_lambda[1]
+            if self.g_list[-2] < self.g.real:
+                # reject previous iteration and rescale lambda:
+                self.lambd *= self.ini_lambda[2]
+                # self._update_curves_with_parameters(self.v_prev)
+            else:
+                self.lambd *= self.ini_lambda[1]
+            # self.lambd *= self.ini_lambda[2] if self.g_prev < self.g.real else self.ini_lambda[1]
             A = np.matmul(self.J, np.matmul(self.W, self.J.transpose()))
             A += self.lambd * np.eye(self.n)
             b = -0.5 * gradient(self.g, self.variables)[:, np.newaxis]
@@ -1315,86 +1330,50 @@ class Solver(Gradients):
         -------
         None
         """
-        DualType = Dual if self._ad == 1 else Dual2
-        DualArgs = ([],) if self._ad == 1 else ([], [])
-        self.g_prev, self.g_list, self.lambd = 1e10, [], self.ini_lambda[0]
+
+        # Initialise data and clear and caches
+        self.g_list, self.lambd = [1e10], self.ini_lambda[0]
         self._reset_properties_()
         self._update_fx()
         t0 = time()
+
+        # Begin iteration
         for i in range(self.max_iter):
-            g_val = self.g.real
-            self.g_list.append(g_val)
-            # condition is set to less than to avoid the case where a null update
-            # results in the same solution and this is erroneously categorised
-            # as a converged solution.
-            if self.g.real < self.g_prev and (self.g_prev - self.g.real) < self.conv_tol:
-                print(
-                    f"SUCCESS: `conv_tol` reached after {i} iterations "
-                    f"({self.algorithm}), `f_val`: {self.g.real}, "
-                    f"`time`: {time() - t0:.4f}s"
-                )
-                self.result = {
-                    "status": "SUCCESS",
-                    "state": 1,
-                    "g": self.g.real,
-                    "iterations": i,
-                    "time": time() - t0,
-                }
-                return None
+            self.g_list.append(self.g.real)
+            if self.g.real < self.g_list[i] and (self.g_list[i] - self.g.real) < self.conv_tol:
+                # condition is set to less than to avoid the case where a null update
+                # results in the same solution and this is erroneously categorised
+                # as a converged solution.
+                return self._solver_result(1, i, time() - t0)
             elif self.g.real < self.func_tol:
-                print(
-                    f"SUCCESS: `func_tol` reached after {i} iterations "
-                    f"({self.algorithm}) , `f_val`: {self.g.real}, "
-                    f"`time`: {time() - t0:.4f}s"
-                )
-                self.result = {
-                    "status": "SUCCESS",
-                    "state": 2,
-                    "g": self.g.real,
-                    "iterations": i,
-                    "time": time() - t0,
-                }
-                return None
-            self.g_prev = self.g.real
+                return self._solver_result(2, i, time() - t0)
+
+            # v_0 = self.v.copy()
             v_1 = self._update_step_(self.algorithm)
-            _ = 0
-            for id, curve in self.curves.items():
-                # this was amended in PR126 as performance improvement to keep consistent `vars`
-                d_vars = DualType(0.0, [f"{curve.id}{i}" for i in range(curve.n)], *DualArgs)
-                ident = np.eye(curve.n)
-                if curve._ini_solve == 1:
-                    curve.nodes[curve.node_dates[0]] = DualType.vars_from(
-                        d_vars,
-                        curve.nodes[curve.node_dates[0]].real,
-                        d_vars.vars,
-                        ident[0, :].tolist(),
-                        *DualArgs[1:]
-                    )
-                for i, k in enumerate(curve.node_dates[curve._ini_solve:]):
-                    curve.nodes[k] = DualType.vars_from(
-                        d_vars,
-                        v_1[_].real,
-                        d_vars.vars,
-                        ident[i + curve._ini_solve, :].tolist(),
-                        *DualArgs[1:]
-                    )
-                    _ += 1
-                curve.csolve()
-            self._reset_properties_()
-            self._update_fx()
-        print(
-            f"FAILURE: `max_iter` of {self.max_iter} iterations breached, "
-            f"`f_val`: {self.g.real}, `time`: {time() - t0:.4f}s"
-        )
-        self.result = {
-            "status": "FAILURE",
-            "state": -1,
-            "g": self.g.real,
-            "iterations": i,
-            "time": time() - t0,
-        }
+            # self.v_prev = v_0
+            self._update_curves_with_parameters(v_1)
+
+            if self.callback is not NoInput.blank:
+                self.callback(self, i, v_1)
+
+        return self._solver_result(-1, self.max_iter, time() - t0)
+
+    def _solver_result(self, state: int, i: int, time: float):
+        self.result = _solver_result(state, i, self.g.real, time, True, self.algorithm)
         return None
-        # raise ValueError(f"Max iterations reached, func: {self.f.real}")
+
+    def _update_curves_with_parameters(self, v_new):
+        """Populate the variable curves with the new values"""
+        var_counter = 0
+        for curve in self.curves.values():
+            # this was amended in PR126 as performance improvement to keep consistent `vars`
+            # and was restructured in PR## to decouple methods to accomodate vol surfaces
+            vars = curve.n - curve._ini_solve
+            curve._set_node_vector(v_new[var_counter : var_counter + vars], self._ad)
+            var_counter += vars
+
+        self._reset_properties_()
+        self._update_fx()
 
     def _set_ad_order(self, order):
         """Defines the node DF in terms of float, Dual or Dual2 for AD order calcs."""
@@ -1937,3 +1916,420 @@ class Solver(Gradients):
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+
+def _float_if_not_string(x):
+    if not isinstance(x, str):
+        return float(x)
+    return x
+
+
+def newton_1dim(
+    f,
+    g0,
+    max_iter=50,
+    func_tol=1e-14,
+    conv_tol=1e-9,
+    args=(),
+    pre_args=(),
+    final_args=(),
+    raise_on_fail=True,
+):
+    """
+    Use the Newton-Raphson algorithm to determine the root of a function searching **one** variable.
+
+    Solves the root equation :math:`f(g; s_i)=0` for *g*.
+
+    Parameters
+    ----------
+    f: callable
+        The function, *f*, to find the root of. Of the signature: `f(g, *args)`.
+        Must return a tuple where the second value is the derivative of *f* with respect to *g*.
+    g0: DualTypes
+        Initial guess of the root. Should be reasonable to avoid failure.
+    max_iter: int
+        The maximum number of iterations to try before exiting.
+    func_tol: float, optional
+        The absolute function tolerance to reach before exiting.
+    conv_tol: float, optional
+        The convergence tolerance for subsequent iterations of *g*.
+    args: tuple of float, Dual or Dual2
+        Additional arguments passed to ``f``.
+    pre_args: tuple
+        Additional arguments passed to ``f`` used only in the float solve section of
+        the algorithm.
+        Functions are called with the signature `f(g, *(*args[as float], *pre_args))`.
+    final_args: tuple of float, Dual, Dual2
+        Additional arguments passed to ``f`` in the final iteration of the algorithm
+        to capture AD sensitivities.
+        Functions are called with the signature `f(g, *(*args, *final_args))`.
+    raise_on_fail: bool, optional
+        If *False* will return a solver result dict with state and message indicating failure.
+
+    Returns
+    -------
+    dict
+
+    Examples
+    --------
+    Iteratively solve the equation: :math:`f(g, s) = g^2 - s = 0`.
+
+    .. ipython:: python
+
+       from rateslib.solver import newton_1dim
+
+       def f(g, s):
+           f0 = g**2 - s   # Function value
+           f1 = 2*g        # Analytical derivative is required
+           return f0, f1
+
+       s = Dual(2.0, ["s"], [])
+       newton_1dim(f, g0=1.0, args=(s,))
+    """
+    t0 = time()
+    i = 0
+
+    # First attempt solution using faster float calculations
+    float_args = tuple(_float_if_not_string(_) for _ in args)
+    g0 = float(g0)
+    state = -1
+
+    while i < max_iter:
+        f0, f1 = f(g0, *(*float_args, *pre_args))
+        i += 1
+        g1 = g0 - f0 / f1
+        if abs(f0) < func_tol:
+            state = 2
+            break
+        elif abs(g1 - g0) < conv_tol:
+            state = 1
+            break
+        g0 = g1
+
+    if i == max_iter:
+        if raise_on_fail:
+            raise ValueError(f"`max_iter`: {max_iter} exceeded in 'newton_1dim' algorithm'.")
+        else:
+            return _solver_result(-1, i, g1, time() - t0, log=True, algo="newton_1dim")
+
+    # # Final iteration method to preserve AD
+    f0, f1 = f(g1, *(*args, *final_args))
+    if isinstance(f0, (Dual, Dual2)) or isinstance(f1, (Dual, Dual2)):
+        i += 1
+        g1 = g1 - f0 / f1
+    if isinstance(f0, Dual2) or isinstance(f1, Dual2):
+        f0, f1 = f(g1, *(*args, *final_args))
+        i += 1
+        g1 = g1 - f0 / f1
+
+    # # Analytical approach to capture AD sensitivities
+    # f0, f1 = f(g1, *(*args, *final_args))
+    # if isinstance(f0, Dual):
+    #     g1 = Dual.vars_from(f0, float(g1), f0.vars, float(f1) ** -1 * -gradient(f0))
+    # if isinstance(f0, Dual2):
+    #     g1 = Dual2.vars_from(f0, float(g1), f0.vars, float(f1) ** -1 * -gradient(f0), [])
+    #     f02, f1 = f(g1, *(*args, *final_args))
+    #
+    #     #f0_beta = gradient(f0, order=1, vars=f0.vars, keep_manifold=True)
+    #
+    #     f0_gamma = gradient(f02, order=2)
+    #     f0_beta = gradient(f0, order=1)
+    #     # f1 = set_order_convert(g1, tag=[], order=2)
+    #     f1_gamma = gradient(f1, f0.vars, order=2)
+    #     f1_beta = gradient(f1, f0.vars, order=1)
+    #
+    #     g1_beta = -float(f1) ** -1 * f0_beta
+    #     g1_gamma = (
+    #         -float(f1)**-1 * f0_gamma +
+    #         float(f1)**-2 * (
+    #                 np.matmul(f0_beta[:, None], f1_beta[None, :]) +
+    #                 np.matmul(f1_beta[:, None], f0_beta[None, :]) +
+    #                 float(f0) * f1_gamma
+    #         ) -
+    #         2 * float(f1)**-3 * float(f0) * np.matmul(f1_beta[:, None], f1_beta[None, :])
+    #     )
+    #     g1 = Dual2.vars_from(f0, float(g1), f0.vars, g1_beta, g1_gamma.flatten())
+
+    return _solver_result(state, i, g1, time() - t0, log=False, algo="newton_1dim")
+
+
+def newton_ndim(
+    f,
+    g0,
+    max_iter=50,
+    func_tol=1e-14,
+    conv_tol=1e-9,
+    args=(),
+    pre_args=(),
+    final_args=(),
+    raise_on_fail=True,
+) -> dict:
+    """
+    Use the Newton-Raphson algorithm to determine the root of a function searching **many** variables.
+
+    Solves the *n* root equations :math:`f_i(g_1, \hdots, g_n; s_k)=0` for each :math:`g_j`.
+
+    Parameters
+    ----------
+    f: callable
+        The function, *f*, to find the root of. Of the signature: `f([g_1, .., g_n], *args)`.
+        Must return a tuple where the second value is the Jacobian of *f* with respect to *g*.
+    g0: Sequence of DualTypes
+        Initial guess of the root values. Should be reasonable to avoid failure.
+    max_iter: int
+        The maximum number of iterations to try before exiting.
+    func_tol: float, optional
+        The absolute function tolerance to reach before exiting.
+    conv_tol: float, optional
+        The convergence tolerance for subsequent iterations of *g*.
+    args: tuple of float, Dual or Dual2
+        Additional arguments passed to ``f``.
+    pre_args: tuple
+        Additional arguments passed to ``f`` only in the float solve section
+        of the algorithm.
+        Functions are called with the signature `f(g, *(*args[as float], *pre_args))`.
+    final_args: tuple of float, Dual, Dual2
+        Additional arguments passed to ``f`` in the final iteration of the algorithm
+        to capture AD sensitivities.
+        Functions are called with the signature `f(g, *(*args, *final_args))`.
+    raise_on_fail: bool, optional
+        If *False* will return a solver result dict with state and message indicating failure.
+
+    Returns
+    -------
+    dict
+
+    Examples
+    --------
+    Iteratively solve the equation system:
+
+    - :math:`f_0(\mathbf{g}, s) = g_1^2 + g_2^2 + s = 0`.
+    - :math:`f_1(\mathbf{g}, s) = g_1^2 - 2g_2^2 + s = 0`.
+
+    .. ipython:: python
+
+       from rateslib.solver import newton_ndim
+
+       def f(g, s):
+           # Function value
+           f0 = g[0] ** 2 + g[1] ** 2 + s
+           f1 = g[0] ** 2 - 2 * g[1]**2 - s
+           # Analytical derivative as Jacobian matrix is required
+           f00 = 2 * g[0]
+           f01 = 2 * g[1]
+           f10 = 2 * g[0]
+           f11 = -4 * g[1]
+           return [f0, f1], [[f00, f01], [f10, f11]]
+
+       s = Dual(-2.0, ["s"], [])
+       newton_ndim(f, g0=[1.0, 1.0], args=(s,))
+    """
+    t0 = time()
+    i = 0
+    n = len(g0)
+
+    # First attempt solution using faster float calculations
+    float_args = tuple(_float_if_not_string(_) for _ in args)
+    g0 = np.array([float(_) for _ in g0])
+    state = -1
+
+    while i < max_iter:
+        f0, f1 = f(g0, *(*float_args, *pre_args))
+        f0 = np.array(f0)[:, np.newaxis]
+        f1 = np.array(f1)
+
+        i += 1
+        g1 = g0 - np.matmul(np.linalg.inv(f1), f0)[:, 0]
+        if all(abs(_) < func_tol for _ in f0[:, 0]):
+            state = 2
+            break
+        elif all(abs(g1[_] - g0[_]) < conv_tol for _ in range(n)):
+            state = 1
+            break
+        g0 = g1
+
+    if i == max_iter:
+        if raise_on_fail:
+            raise ValueError(f"`max_iter`: {max_iter} exceeded in 'newton_ndim' algorithm'.")
+        else:
+            return _solver_result(-1, i, g1, time() - t0, log=True, algo="newton_ndim")
+
+    # Final iteration method to preserve AD
+    f0, f1 = f(g1, *(*args, *final_args))
+    f1, f0 = np.array(f1), np.array(f0)
+
+    # get AD type
+    ad = 0
+    if _is_any_dual(f0) or _is_any_dual(f1):
+        ad, DualType = 1, Dual
+    elif _is_any_dual2(f0) or _is_any_dual2(f1):
+        ad, DualType = 2, Dual2
+
+    if ad > 0:
+        i += 1
+        g1 = g0 - dual_solve(f1, f0[:, None], allow_lsq=False, types=(DualType, DualType))[:, 0]
+    if ad == 2:
+        f0, f1 = f(g1, *(*args, *final_args))
+        f1, f0 = np.array(f1), np.array(f0)
+        i += 1
+        g1 = g1 - dual_solve(f1, f0[:, None], allow_lsq=False, types=(DualType, DualType))[:, 0]
+
+    return _solver_result(state, i, g1, time() - t0, log=False, algo="newton_ndim")
+
+
+STATE_MAP = {
+    1: ["SUCCESS", "`conv_tol` reached"],
+    2: ["SUCCESS", "`func_tol` reached"],
+    3: ["SUCCESS", "closed form valid"],
+    -1: ["FAILURE", "`max_iter` breached"],
+}
+
+
+def _solver_result(state: int, i: int, func_val: float, time: float, log: bool, algo: str):
+    if log:
+        print(
+            f"{STATE_MAP[state][0]}: {STATE_MAP[state][1]} after {i} iterations "
+            f"({algo}), `f_val`: {func_val}, "
+            f"`time`: {time:.4f}s"
+        )
+    return {
+        "status": STATE_MAP[state][0],
+        "state": state,
+        "g": func_val,
+        "iterations": i,
+        "time": time,
+    }
+
+
+def _is_any_dual(arr):
+    return any([isinstance(_, Dual) for _ in arr.flatten()])
+
+
+def _is_any_dual2(arr):
+    return any([isinstance(_, Dual2) for _ in arr.flatten()])
+
+
+def quadratic_eqn(a, b, c, x0, raise_on_fail=True):
+    """
+    Solve the quadratic equation, :math:`ax^2 + bx +c = 0`, with error reporting.
+
+    Parameters
+    ----------
+    a: float, Dual Dual2
+        The *a* coefficient value.
+    b: float, Dual Dual2
+        The *b* coefficient value.
+    c: float, Dual Dual2
+        The *c* coefficient value.
+    x0: float
+        The expected solution to discriminate between two possible solutions.
+    raise_on_fail: bool, optional
+        Whether to raise if unsolved or return a solver result in failed state.
+
+    Returns
+    -------
+    dict
+
+    Notes
+    -----
+    If ``a`` is evaluated to be less that 1e-15 in absolute terms then it is treated as zero and the
+    equation is solved as a linear equation in ``b`` and ``c`` only.
+
+    Examples
+    --------
+    .. ipython:: python
+
+       from rateslib.solver import quadratic_eqn
+
+       quadratic_eqn(a=1.0, b=1.0, c=Dual(-6.0, ["c"], []), x0=-2.9)
+
+    """
+    discriminant = b**2 - 4 * a * c
+    if discriminant < 0.0:
+        if raise_on_fail:
+            raise ValueError("`quadratic_eqn` has failed to solve: discriminant is less than zero.")
+        else:
+            return _solver_result(
+                state=-1, i=0, func_val=1e308, time=0.0, log=True, algo="quadratic_eqn"
+            )
+
+    if abs(a) > 1e-15:  # machine tolerance on normal float64 is 2.22e-16
+        sqrt_d = discriminant**0.5
+        _1 = (-b + sqrt_d) / (2 * a)
+        _2 = (-b - sqrt_d) / (2 * a)
+        if abs(x0 - _1) < abs(x0 - _2):
+            return _solver_result(
+                state=3, i=1, func_val=_1, time=0.0, log=False, algo="quadratic_eqn"
+            )
+        else:
+            return _solver_result(
+                state=3, i=1, func_val=_2, time=0.0, log=False, algo="quadratic_eqn"
+            )
+    else:
+        # 'a' is considered too close to zero for the quadratic eqn, solve the linear eqn
+        # to avoid division by zero errors
+        return _solver_result(
+            state=3, i=1, func_val=-c / b, time=0.0, log=False, algo="quadratic_eqn->linear_eqn"
+        )
+
+
+# def _brents(f, x0, x1, max_iter=50, tolerance=1e-9):
+#     """
+#     Alternative root solver. Used for solving premium adjutsed option strikes from delta values.
+#     """
+#     fx0 = f(x0)
+#     fx1 = f(x1)
+#
+#     if float(fx0 * fx1) > 0:
+#         raise ValueError("`brents` must initiate from function values with opposite signs.")
+#
+#     if abs(fx0) < abs(fx1):
+#         x0, x1 = x1, x0
+#         fx0, fx1 = fx1, fx0
+#
+#     x2, fx2 = x0, fx0
+#
+#     mflag = True
+#     steps_taken = 0
+#
+#     while steps_taken < max_iter and abs(x1 - x0) > tolerance:
+#         fx0 = f(x0)
+#         fx1 = f(x1)
+#         fx2 = f(x2)
+#
+#         if fx0 != fx2 and fx1 != fx2:
+#             L0 = (x0 * fx1 * fx2) / ((fx0 - fx1) * (fx0 - fx2))
+#             L1 = (x1 * fx0 * fx2) / ((fx1 - fx0) * (fx1 - fx2))
+#             L2 = (x2 * fx1 * fx0) / ((fx2 - fx0) * (fx2 - fx1))
+#             new = L0 + L1 + L2
+#
+#         else:
+#             new = x1 - ((fx1 * (x1 - x0)) / (fx1 - fx0))
+#
+#         if (
+#             (float(new) < float((3 * x0 + x1) / 4) or float(new) > float(x1))
+#             or (mflag is True and (abs(new - x1)) >= (abs(x1 - x2) / 2))
+#             or (mflag is False and (abs(new - x1)) >= (abs(x2 - d) / 2))
+#             or (mflag is True and (abs(x1 - x2)) < tolerance)
+#             or (mflag is False and (abs(x2 - d)) < tolerance)
+#         ):
+#             new = (x0 + x1) / 2
+#             mflag = True
+#
+#         else:
+#             mflag = False
+#
+#         fnew = f(new)
+#         d, x2 = x2, x1
+#
+#         if float(fx0 * fnew) < 0:
+#             x1 = new
+#         else:
+#             x0 = new
+#
+#         if abs(fx0) < abs(fx1):
+#             x0, x1 = x1, x0
+#
+#         steps_taken += 1
+#
+#     return x1, steps_taken

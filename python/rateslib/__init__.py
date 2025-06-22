@@ -53,7 +53,14 @@ from rateslib.dual import Dual, Dual2, dual_log, dual_exp, dual_solve
 
 from rateslib.calendars import create_calendar, get_calendar, add_tenor, dcf
 
-from rateslib.splines import bsplev_single, bspldnev_single, PPSpline
+from rateslib.splines import (
+    bsplev_single,
+    bspldnev_single,
+    PPSpline,
+    PPSplineF64,
+    PPSplineDual,
+    PPSplineDual2,
+)
 
 from rateslib.scheduling import Schedule
 
@@ -66,6 +73,8 @@ from rateslib.curves import (
     CompositeCurve,
     ProxyCurve,
 )
+
+from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
 
 from rateslib.fx import (
     FXRates,
@@ -80,6 +89,8 @@ from rateslib.periods import (
     Cashflow,
     IndexFixedPeriod,
     IndexCashflow,
+    FXPutPeriod,
+    FXCallPeriod,
 )
 
 from rateslib.legs import (
@@ -96,6 +107,7 @@ from rateslib.legs import (
 
 from rateslib.instruments import (
     Value,
+    VolValue,
     Bill,
     FixedRateBond,
     IndexFixedRateBond,
@@ -114,6 +126,12 @@ from rateslib.instruments import (
     Spread,
     Fly,
     Portfolio,
+    FXCall,
+    FXPut,
+    FXRiskReversal,
+    FXStraddle,
+    FXStrangle,
+    FXBrokerFly,
 )
 
 # module level doc-string
@@ -145,6 +163,9 @@ __all__ = [
     "bsplev_single",
     "bspldnev_single",
     "PPSpline",
+    "PPSplineF64",
+    "PPSplineDual",
+    "PPSplineDual2",
     # calendars.py
     "create_calendar",
     "get_calendar",
@@ -160,6 +181,9 @@ __all__ = [
     "ProxyCurve",
     "interpolate",
     "index_left",
+    # fx_volatility.py
+    "FXDeltaVolSmile",
+    "FXDeltaVolSurface",
     # solver.py
     "Solver",
     # fx.py
@@ -171,6 +195,8 @@ __all__ = [
     "Cashflow",
     "IndexCashflow",
     "IndexFixedPeriod",
+    "FXCallPeriod",
+    "FXPutPeriod",
     # legs.py
     "FixedLeg",
     "FloatLeg",
@@ -188,6 +214,7 @@ __all__ = [
     "BondFuture",
     "FRA",
     "Value",
+    "VolValue",
     "Bill",
     "IRS",
     "STIRFuture",
@@ -201,4 +228,12 @@ __all__ = [
     "Spread",
     "Fly",
     "Portfolio",
+    "FXCall",
+    "FXPut",
+    "FXRiskReversal",
+    "FXStraddle",
+    "FXStrangle",
+    "FXBrokerFly",
 ]
+
+__version__ = "1.2.3"

@@ -9,6 +9,7 @@ coverage==7.3.2  # for test and code monitoring
 
 sphinx==7.2.6  # (5.1.1) # for doc building
 sphinx-automodapi==0.16.0  # (0.14.1) # for doc building
+sphinxcontrib-googleanalytics>=0.4,<1.0
 pydata-sphinx-theme==0.14.3  # (0.12.0)
 
 black==23.11.0  # for code formatting

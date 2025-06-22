@@ -156,16 +156,16 @@ class FXRates:
 
         # solve FX vector in linear system
         A = np.zeros((self.q, self.q), dtype="object")
-        b = np.ones(self.q, dtype="object")
         A[0, 0] = 1.0
+        b = np.zeros(self.q, dtype="object")
+        b[0] = 1.0
         for i, pair in enumerate(self.pairs):
             domestic_idx = self.currencies[pair[:3]]
             foreign_idx = self.currencies[pair[3:]]
             A[i + 1, domestic_idx] = -1.0
             A[i + 1, foreign_idx] = 1 / self.fx_rates[pair]
-            b[i + 1] = 0
         try:
-            x = dual_solve(A, b[:, np.newaxis])[:, 0]
+            x = dual_solve(A, b[:, np.newaxis], types=(Dual, Dual))[:, 0]  # TODO: (Dual, float)
         except ArithmeticError:
             return self._solve_error()
         if math.isnan(x[0].real):
@@ -370,7 +370,7 @@ class FXRates:
         .. ipython:: python
 
            fxr = FXRates({"usdnok": 8.0})
-           fxr.positions(Dual(125000, "fx_usdnok", np.array([-15625])), "usd")
+           fxr.positions(Dual(125000, ["fx_usdnok"], [-15625]), "usd")
            fxr.positions(100, base="nok")
 
         """

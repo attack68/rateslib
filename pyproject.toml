@@ -1,12 +1,24 @@
 # pyproject.toml
 
+#[build-system]
+#requires      = ["setuptools>=61.0.0", "wheel"]
+#build-backend = "setuptools.build_meta"
+
 [build-system]
-requires      = ["setuptools>=61.0.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[tool.maturin]
+module-name = "rateslib.rateslibrs"
+python-source = "python"
+bindings = "pyo3"
+compatibility = "linux"
+# rustc --print target-list
+# https://doc.rust-lang.org/rustc/platform-support.html
 
 [project]
 name = "rateslib"
-version = "1.1.1"
+version = "1.2.3"
 description = "A fixed income library for trading interest rates"
 readme = "README.md"
 authors = [{ name = "J H M Darbyshire"}]
@@ -18,13 +30,21 @@ dependencies = [
     "pandas>=1.4.1",
 ]
 requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.1",
     "jupyterlab>=3.3.1",
-    "sphinx>=5.1.1",
+    "sphinx>=7.1.0",
     "coverage>=7.1.0",
+    "sphinx-automodapi==0.16.0",
+    "sphinxcontrib-googleanalytics>=0.4,<1.0",
+    "pydata-sphinx-theme==0.14.3",
 ]
 
 [tool.setuptools]

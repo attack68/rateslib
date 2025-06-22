@@ -5,7 +5,7 @@ On "main":
 1) Update the whatsnew with the target release date.
 2) Add a new entry to the switcher.json in main:docs/source/static, pushing stable to next version.
 3) Change the badges.json file is there is anything to add, e.g. versions.
-4) Bump the "version" in pyproject.toml and check the dependencies.
+4) Bump the "version" in pyproject.toml, cargo.toml, and __init__ __version__ and check the dependencies.
 5) Checks should be OK in github actions but perform a local double check.
 
 Checks:
@@ -26,13 +26,27 @@ On "release branch":
    DEVELOPMENT to False.
 
 4) Commit and Push the branch.
+5) Run `cargo test --lib --no-default-features`
+6) Change the Cargo.toml file for abi3-py39 features, and comment out the benchmark code (otherwise source distribution will not run)
 
-Build:
+Pre Rust extension Build:
 $ pip install build twine
 $ python -m build
 $ twine check dist/*
 $ twine upload -r testpypi dist/*
-$ twine upload dist/*
+$ twine upload dist/*  [use __token__ as username and token is in env file]
+
+Rust Extension Build:
+Build:  https://doc.rust-lang.org/rustc/platform-support.html
+$ maturin build --release
+$ maturin build --release --sdist
+$ maturin build --release --target aarch64-apple-darwin
+$ maturin build --release --target x86_64-apple-darwin
+
+$ twine check dist/*
+$ twine upload -r testpypi dist/*
+$ twine upload dist/*  [use __token__ as username and token is in env file]
+
 
 check:
 $ pip install -i https://test.pypi.org/simple rateslib
@@ -40,6 +54,7 @@ $ pip install -i https://test.pypi.org/simple rateslib
 In Read-the-Docs admin console:
 
 1) Add a new branch for auto built docs.
+2) Checkout the "stable" tagging branch and update to the new version and force push. 
 
 In GITHUB:
 

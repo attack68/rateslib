@@ -57,21 +57,21 @@ def bsplev_single(x, i, k, t, org_k=None):
     to 1 there: :math:`B_{n,1,\\mathbf{t}}(t_{n+k})=1`.
     """
     # Short circuit (positivity and support property)
-    if x < t[i] or x > t[i+k]:
-        return 0.
+    if x < t[i] or x > t[i + k]:
+        return 0.0
 
     org_k = org_k or k  # original_k adds support for derivative recursion
     # Right side endpoint support
     if x == t[-1] and i >= (len(t) - org_k - 1):
-        return 1.
+        return 1.0
 
     # Recursion
     if k == 1:
         if t[i] <= x < t[i + 1]:
-            return 1.
-        return 0.
+            return 1.0
+        return 0.0
     else:
-        left, right = 0., 0.
+        left, right = 0.0, 0.0
         if t[i] != t[i + k - 1]:
             left = (x - t[i]) / (t[i + k - 1] - t[i]) * bsplev_single(x, i, k - 1, t)
         if t[i + 1] != t[i + k]:
@@ -239,12 +239,12 @@ class PPSpline:
         for attr in ["k", "n"]:
             if getattr(self, attr, None) != getattr(other, attr, None):
                 return False
-        if self.c is None and other.c is None:
-            return True
-        elif (self.c is None and other.c is not None) or (self.c is not None and other.c is None):
+        if self.c is None or other.c is None:
             return False
-        elif not all(self.c == other.c):
-            return False
+        else:
+            for i in range(len(self.c)):
+                if self.c[i] != other.c[i]:
+                    return False
         return True
 
     def bsplev(self, x, i, otypes=["float64"]):
@@ -333,7 +333,7 @@ class PPSpline:
             B_ji[-1, i] = bspldnev_single(tau[-1], i, self.k, self.t, right_n)
         return B_ji
 
-    def csolve(self, tau, y, left_n, right_n, allow_lsq=False):
+    def csolve(self, tau, y, left_n, right_n, allow_lsq=False, **kwargs):
         """
         Evaluates and sets the b-spline coefficients, `c`, that parametrise the pp.
 
@@ -356,6 +356,8 @@ class PPSpline:
             If the number of data sites is greater than the dimension of the pp spline
             this setting allows the coefficients to be solved as a least squares
             problem rather than raising dimensionality exceptions.
+        kwargs : dict
+            Additional keyword args passed to the `dual_solve` linear algebra function.
 
         Returns
         -------
@@ -387,7 +389,7 @@ class PPSpline:
             )
         y = np.asarray(y)
         B_ji = self.bsplmatrix(tau, left_n, right_n)
-        c = dual_solve(B_ji, y[:, np.newaxis], allow_lsq=allow_lsq)
+        c = dual_solve(B_ji, y[:, np.newaxis], allow_lsq=allow_lsq, **kwargs)
         self.c = c[:, 0]
         return None
 
@@ -418,9 +420,7 @@ class PPSpline:
 
            \\$(x) = \\sum_{i=1}^n c_i B_{(i,k,\\mathbf{t})}(x)
         """
-        _ = np.array([
-            bsplev_single(x, i, self.k, self.t) for i in range(self.n)
-        ])
+        _ = np.array([bsplev_single(x, i, self.k, self.t) for i in range(self.n)])
         return np.dot(_, self.c)
 
     def ppev(self, x):

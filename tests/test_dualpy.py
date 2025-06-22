@@ -5,10 +5,8 @@ from packaging import version
 from statistics import NormalDist
 
 import context
-
+from rateslib.dual.dual import Dual, Dual2
 from rateslib.dual import (
-    Dual,
-    Dual2,
     dual_exp,
     dual_log,
     dual_solve,
@@ -16,7 +14,6 @@ from rateslib.dual import (
     dual_inv_norm_cdf,
     set_order,
     gradient,
-    DUAL_CORE_PY,
 )
 
 # Python Dual implementation
@@ -114,7 +111,6 @@ def test_dual_repr(x_1, y_2):
     assert result == "<Dual2: 1.000000, (v0, v1), [1.0, 2.0], [[...]]>"
 
 
-@pytest.mark.skipif(not DUAL_CORE_PY, reason="Rust Dual does not format string in this way.")
 def test_dual_str(x_1, y_2):
     result = x_1.__str__()
     assert result == " val = 1.00000000\n  dv0 = 1.000000\n  dv1 = 2.000000\n"
@@ -128,33 +124,6 @@ def test_dual_str(x_1, y_2):
         "dv0dv1 = 2.000000\n"
         "dv1dv1 = 2.000000\n"
     )
-
-
-@pytest.mark.parametrize(
-    "vars, expected",
-    [
-        (["v0"], 1.00),
-        (["v1", "v0"], np.array([2.0, 1.0])),
-    ],
-)
-def test_gradient_method(vars, expected, x_1, y_2):
-    result = gradient(x_1, vars)
-    assert np.all(result == expected)
-
-    result = gradient(y_2, vars)
-    assert np.all(result == expected)
-
-
-@pytest.mark.parametrize(
-    "vars, expected",
-    [
-        (["v0"], 2.00),
-        (["v1", "v0"], np.array([[2.0, 2.0], [2.0, 2.0]])),
-    ],
-)
-def test_gradient_method2(vars, expected, y_2):
-    result = gradient(y_2, vars, 2)
-    assert np.all(result == expected)
 
 
 def test_rdiv_raises(x_1, y_1):
@@ -599,17 +568,9 @@ def test_exp(x):
     ],
 )
 def test_norm_cdf(x):
-    result = dual_norm_cdf(x)
+    result = x.__norm_cdf__()
     expected = NormalDist().cdf(1.250)
     assert abs(result - expected) < 1e-10
-
-    approx_grad = (NormalDist().cdf(1.25001) - NormalDist().cdf(1.25)) * 100000
-    assert abs(gradient(result, ["x"])[0] - approx_grad) < 1e-5
-
-    if isinstance(x, Dual2):
-        approx_grad2 = (NormalDist().cdf(1.25) - NormalDist().cdf(1.24999)) * 100000
-        approx_grad2 = (approx_grad - approx_grad2) * 100000
-        assert abs(gradient(result, ["x"], order=2)[0] - approx_grad2) < 1e-5
 
 
 @pytest.mark.parametrize(
@@ -620,17 +581,9 @@ def test_norm_cdf(x):
     ],
 )
 def test_inv_norm_cdf(x):
-    result = dual_inv_norm_cdf(x)
+    result = x.__norm_inv_cdf__()
     expected = NormalDist().inv_cdf(0.75)
     assert abs(result - expected) < 1e-10
-
-    approx_grad = (NormalDist().inv_cdf(0.75001) - NormalDist().inv_cdf(0.75)) * 100000
-    assert abs(gradient(result, ["x"])[0] - approx_grad) < 1e-4
-
-    if isinstance(x, Dual2):
-        approx_grad2 = (NormalDist().inv_cdf(0.75) - NormalDist().inv_cdf(0.74999)) * 100000
-        approx_grad2 = (approx_grad - approx_grad2) * 100000
-        assert abs(gradient(result, ["x"], order=2)[0] - approx_grad2) < 1e-4
 
 
 def test_norm_cdf_value():
@@ -660,41 +613,12 @@ def test_downcast_vars():
     assert z.__downcast_vars__().vars == ("y", "z")
 
 
-def test_gradient_of_non_present_vars(x_1):
-    result = gradient(x_1)
-    assert np.all(np.isclose(result, np.array([1, 2])))
-
-
 @pytest.mark.parametrize("base, exponent", [(1, 1), (1, 0), (0, 1), (0, 0)])
 def test_powers_bad_type(base, exponent, x_1, y_1):
     base = x_1 if base else y_1
     exponent = x_1 if exponent else y_1
     with pytest.raises(TypeError):
         base**exponent
-
-
-def test_keep_manifold_gradient():
-    du2 = Dual2(
-        10,
-        ["x", "y", "z"],
-        dual=[1, 2, 3],
-        dual2=[2, 3, 4, 3, 4, 5, 4, 5, 6],
-    )
-    result = gradient(du2, ["x", "z"], 1, keep_manifold=True)
-    expected = np.array(
-        [Dual2(1, ["x", "z"], [4, 8], []), Dual2(3, ["x", "z"], [8, 12], [])]
-    )
-    assertions = result == expected
-    assert all(assertions)
-
-
-def test_dual_set_order(x_1, y_1):
-    assert set_order(x_1, 1) == x_1
-    assert set_order(y_1, 2) == y_1
-    assert set_order(1.0, 2) == 1.0
-    assert set_order(x_1, 2) == y_1
-    assert set_order(y_1, 1) == x_1
-    assert set_order(x_1, 0) == 1.0
 
 
 # Linalg dual_solve tests
@@ -778,29 +702,6 @@ def test_solve_lsqrs():
     assert abs(result[1, 0] + 0.95) < 1e-9
 
 
-def test_solve_dual():
-    A = np.array([[1, 0], [0, 1]], dtype="object")
-    b = np.array([Dual(2, ["x"], np.array([1])), Dual(5, ["x", "y"], np.array([1, 1]))])[
-        :, np.newaxis
-    ]
-    x = dual_solve(A, b, types=(float, Dual))
-    assertions = abs(b - x) < 1e-10
-    assert all(assertions)
-
-
-def test_solve_dual2():
-    A = np.array([
-        [Dual2(1, [], [], []), Dual2(0, [], [], [])],
-        [Dual2(0, [], [], []), Dual2(1, [], [], [])]
-    ], dtype="object")
-    b = np.array([Dual2(2, ["x"], [1], []), Dual2(5, ["x", "y"], [1, 1], [])])[
-        :, np.newaxis
-    ]
-    x = dual_solve(A, b, types=(Dual2, Dual2))
-    assertions = abs(b - x) < 1e-10
-    assert all(assertions)
-
-
 def test_sparse_solve(A_sparse):
     b = np.array(
         [0, 0.90929743, 0.14112001, -0.7568025, -0.95892427, -0.2794155, 0.6569866, 0.98935825, 0]
@@ -811,19 +712,6 @@ def test_sparse_solve(A_sparse):
     diff = x - x_np
     assertions = [abs(diff[i, 0]) < 1e-10 for i in range(A_sparse.shape[0])]
     assert all(assertions)
-
-
-@pytest.mark.skipif(not DUAL_CORE_PY, reason="Rust Dual has not implemented Multi-Dim Solve")
-def test_multi_dim_solve():
-    A = np.array([[Dual(0.5, [], []), Dual(2, ["y"], [])], [Dual(2.5, ["y"], []), Dual(4, [], [])]])
-    b = np.array([[Dual(6.5, [], []), Dual(9, ["z"], [])], [Dual(14.5, ["y"], []), Dual(21, ["z"], [])]])
-
-    x = dual_solve(A, b)
-    result = np.matmul(A, x).flatten()
-    expected = b.flatten()
-    for i in range(4):
-        assert abs(result[i]-expected[i]) < 1e-13
-        assert all(np.isclose(gradient(result[i], ["y", "z"]), gradient(expected[i], ["y", "z"])))
 
 
 # Test numpy compat

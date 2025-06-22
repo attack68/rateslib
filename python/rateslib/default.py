@@ -17,6 +17,7 @@ class NoInput(Enum):
 
     See :ref:`default values <defaults-doc>`.
     """
+
     blank = 0
     inherit = 1
     negate = -1
@@ -144,6 +145,10 @@ class Defaults:
     }
     spread_compound_method = "none_simple"
     base_currency = "usd"
+
+    fx_delivery_lag = 2
+    fx_delta_type = "spot"
+    fx_option_metric = "pips"
 
     # Curves
 
@@ -291,12 +296,20 @@ def plot(x, y: list, labels=[]):
         lines.append(line)
     if labels and len(labels) == len(lines):
         ax.legend(lines, labels)
-    years = mdates.YearLocator()  # every year
-    months = mdates.MonthLocator()  # every month
-    yearsFmt = mdates.DateFormatter("%Y")
-    ax.xaxis.set_major_locator(years)
-    ax.xaxis.set_major_formatter(yearsFmt)
-    ax.xaxis.set_minor_locator(months)
+
     ax.grid(True)
-    fig.autofmt_xdate()
+
+    if isinstance(x[0], datetime):
+        years = mdates.YearLocator()  # every year
+        months = mdates.MonthLocator()  # every month
+        yearsFmt = mdates.DateFormatter("%Y")
+        ax.xaxis.set_major_locator(years)
+        ax.xaxis.set_major_formatter(yearsFmt)
+        ax.xaxis.set_minor_locator(months)
+        fig.autofmt_xdate()
     return fig, ax, lines
+
+
+def _drb(default, possible_blank):
+    """(D)efault (r)eplaces (b)lank"""
+    return default if possible_blank is NoInput.blank else possible_blank
