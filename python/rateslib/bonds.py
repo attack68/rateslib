@@ -1,6 +1,7 @@
 # This file contains bond convention outlines
+from __future__ import annotations
+
 from datetime import datetime
-from typing import Union
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
@@ -10,7 +11,6 @@ from rateslib.dual import DualTypes
 
 
 class _AccruedAndYTMMethods:
-
     def _period_index(self, settlement: datetime):
         """
         Get the coupon period index for that which the settlement date fall within.
@@ -23,7 +23,7 @@ class _AccruedAndYTMMethods:
         )
         return _
 
-    def _accrued_fraction(self, settlement: datetime, calc_mode: Union[str, NoInput], acc_idx: int):
+    def _accrued_fraction(self, settlement: datetime, calc_mode: str | NoInput, acc_idx: int):
         """
         Return the accrual fraction of period between last coupon and settlement and
         coupon period left index.
@@ -44,7 +44,8 @@ class _AccruedAndYTMMethods:
         Method: a linear proportion of actual days between start, settlement and end.
         Measures between unadjusted coupon dates.
 
-        This is a general method, used by many types of bonds, for example by UK Gilts, German Bunds.
+        This is a general method, used by many types of bonds, for example by UK Gilts,
+        German Bunds.
         """
         r = settlement - self.leg1.schedule.uschedule[acc_idx]
         s = self.leg1.schedule.uschedule[acc_idx + 1] - self.leg1.schedule.uschedule[acc_idx]
@@ -234,7 +235,8 @@ class _AccruedAndYTMMethods:
         """
         Use simple rates with a yield which matches the frequency of the coupon.
 
-        If the stub period is long, then discount the regular part of the stub with the regular discount param ``v``.
+        If the stub period is long, then discount the regular part of the stub with the regular
+        discount param ``v``.
         """
         acc_frac = accrual(settlement, acc_idx)
         if self.leg1.periods[acc_idx].stub:

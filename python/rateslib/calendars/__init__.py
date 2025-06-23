@@ -1,12 +1,16 @@
+from __future__ import annotations
+
 import calendar as calendar_mod
 from datetime import datetime
-from typing import Union
 
 from rateslib.calendars.dcfs import _DCF
 from rateslib.calendars.rs import (
     Cal,
     CalInput,
     CalTypes,
+    Modifier,
+    NamedCal,
+    RollDay,
     UnionCal,
     _get_modifier,
     _get_rollday,
@@ -18,18 +22,15 @@ from rateslib.default import NoInput
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-# TODO: edit the docs for create_calendar to link to `Cal` on deprecation
-# TODO: edit the example on create calendar, or move to `Cal`
-
 
 def dcf(
     start: datetime,
     end: datetime,
     convention: str,
-    termination: Union[datetime, NoInput] = NoInput(0),  # required for 30E360ISDA and ActActICMA
-    frequency_months: Union[int, NoInput] = NoInput(0),  # req. ActActICMA = ActActISMA = ActActBond
-    stub: Union[bool, NoInput] = NoInput(0),  # required for ActActICMA = ActActISMA = ActActBond
-    roll: Union[str, int, NoInput] = NoInput(0),  # required also for ActACtICMA = ...
+    termination: datetime | NoInput = NoInput(0),  # required for 30E360ISDA and ActActICMA
+    frequency_months: int | NoInput = NoInput(0),  # req. ActActICMA = ActActISMA = ActActBond
+    stub: bool | NoInput = NoInput(0),  # required for ActActICMA = ActActISMA = ActActBond
+    roll: str | int | NoInput = NoInput(0),  # required also for ActACtICMA = ...
     calendar: CalInput = NoInput(0),  # required for ActACtICMA = ActActISMA = ActActBond
 ) -> float:
     """
@@ -135,6 +136,7 @@ def dcf(
         )
 
 
+# TODO (deprecate): this function on 2.0.0
 def create_calendar(rules: list, week_mask: list[int] = []) -> Cal:
     """
     Create a calendar with specific business and holiday days defined.
@@ -163,8 +165,9 @@ def add_tenor(
     tenor: str,
     modifier: str,
     calendar: CalInput = NoInput(0),
-    roll: Union[str, int, NoInput] = NoInput(0),
+    roll: str | int | NoInput = NoInput(0),
     settlement: bool = False,
+    mod_days: bool = False,
 ) -> datetime:
     """
     Add a tenor to a given date under specific modification rules and holiday calendar.
@@ -193,13 +196,17 @@ def add_tenor(
     settlement : bool, optional
         Whether to enforce the settlement with an associated settlement calendar. If there is
         no associated settlement calendar this will have no effect.
+    mod_days : bool, optional
+        If *True* will apply modified rules to day type tenors as well as month and year tenors.
+        If *False* will convert "MF" to "F" and "MP" to "P" for day type tenors.
 
     Returns
     -------
     datetime
 
-    Examples
-    --------
+    Notes
+    ------
+
     .. ipython:: python
        :suppress:
 
@@ -219,29 +226,58 @@ def add_tenor(
        pd.set_option("display.max_columns", None)
        pd.set_option("display.width", 500)
 
+
+    Read more about the ``settlement`` argument in the :ref:`calendar user guide <cal-doc>`.
+
+    The ``mod_days`` argument is provided to avoid having to reconfigure *Instrument*
+    specifications when a *termination* may differ between months or years, and days or weeks.
+    Most *Instruments* will be defined by the typical modified following (*"MF"*) ``modifier``,
+    but this would prefer not to always apply.
+
+    .. ipython:: python
+
+       add_tenor(dt(2021, 1, 29), "1M", "MF", "bus")
+
+    while, the following will by default roll into a new month,
+
+    .. ipython:: python
+
+       add_tenor(dt(2021, 1, 22), "8d", "MF", "bus")
+
+    unless,
+
+    .. ipython:: python
+
+       add_tenor(dt(2021, 1, 22), "8d", "MF", "bus", mod_days=True)
+
+    Examples
+    --------
+
     .. ipython:: python
 
        add_tenor(dt(2022, 2, 28), "3M", "NONE")
        add_tenor(dt(2022, 12, 28), "4b", "F", get_calendar("ldn"))
        add_tenor(dt(2022, 12, 28), "4d", "F", get_calendar("ldn"))
-    """
+    """  # noqa: E501
     tenor = tenor.upper()
     cal_ = get_calendar(calendar)
     if "D" in tenor:
-        return cal_.add_days(start, int(tenor[:-1]), _get_modifier(modifier), settlement)
+        return cal_.add_days(start, int(tenor[:-1]), _get_modifier(modifier, mod_days), settlement)
     elif "B" in tenor:
         return cal_.add_bus_days(start, int(tenor[:-1]), settlement)
     elif "Y" in tenor:
         months = int(float(tenor[:-1]) * 12)
         return cal_.add_months(
-            start, months, _get_modifier(modifier), _get_rollday(roll), settlement
+            start, months, _get_modifier(modifier, True), _get_rollday(roll), settlement
         )
     elif "M" in tenor:
         return cal_.add_months(
-            start, int(tenor[:-1]), _get_modifier(modifier), _get_rollday(roll), settlement
+            start, int(tenor[:-1]), _get_modifier(modifier, True), _get_rollday(roll), settlement
         )
     elif "W" in tenor:
-        return cal_.add_days(start, int(tenor[:-1]) * 7, _get_modifier(modifier), settlement)
+        return cal_.add_days(
+            start, int(tenor[:-1]) * 7, _get_modifier(modifier, mod_days), settlement
+        )
     else:
         raise ValueError("`tenor` must identify frequency in {'B', 'D', 'W', 'M', 'Y'} e.g. '1Y'")
 
@@ -273,7 +309,7 @@ def _adjust_date(
     """
     cal_ = get_calendar(calendar)
     modifier = modifier.upper()
-    return cal_.roll(date, _get_modifier(modifier), settlement)
+    return cal_.roll(date, _get_modifier(modifier, True), settlement)
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -281,7 +317,7 @@ def _adjust_date(
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-def _get_roll(month: int, year: int, roll: Union[str, int]) -> datetime:
+def _get_roll(month: int, year: int, roll: str | int) -> datetime:
     if isinstance(roll, str):
         if roll == "eom":
             date = _get_eom(month, year)
@@ -414,3 +450,79 @@ def _is_som(date: datetime) -> bool:
     bool
     """
     return date.day == 1
+
+
+def _get_fx_expiry_and_delivery(
+    eval_date: NoInput | datetime,
+    expiry: str | datetime,
+    delivery_lag: int | datetime,
+    calendar: CalInput,
+    modifier: str | NoInput,
+    eom: bool,
+):
+    """
+    Determines the expiry and delivery date of an FX option using the following rules:
+
+    See Foreign Exchange Option Pricing by Iain Clark
+
+    Parameters
+    ----------
+    eval: datetime
+        The evalation date, which is today (if required)
+    expiry: str, datetime
+        The expiry date
+    delivery_lag: int, datetime
+        Number of days, e.g. spot = 2, or a specified datetime for FX settlement after expiry.
+    calendar: CalInput
+        The calendar used for date rolling. This function makes use of the `settlement` option
+        within calendars.
+    modifier: str
+        Date rule, expected to be "MF" for most FX rate tenors.
+    eom: bool
+        Whether end-of-month is preserved in tenor date determination.
+
+    Returns
+    -------
+    tuple of datetime
+    """
+    if isinstance(expiry, str):
+        if eval_date is NoInput.blank:
+            raise ValueError("`expiry` as string tenor requires `eval_date`.")
+        # then the expiry will be implied
+        e = expiry.upper()
+        if "M" in e or "Y" in e:
+            # method
+            if isinstance(delivery_lag, datetime):
+                raise ValueError(
+                    "Cannot determine FXOption expiry and delivery with given parameters.\n"
+                    "Supply a `delivery_lag` as integer business days and not a datetime, when "
+                    "using a string tenor `expiry`."
+                )
+            else:
+                spot = get_calendar(calendar).lag(eval_date, delivery_lag, True)
+                roll = "eom" if (eom and _is_eom(spot)) else spot.day
+                delivery = add_tenor(spot, expiry, modifier, calendar, roll, True)
+                expiry = get_calendar(calendar).add_bus_days(delivery, -delivery_lag, False)
+                return expiry, delivery
+        else:
+            expiry = add_tenor(eval_date, expiry, "F", calendar, NoInput(0), False)
+
+    if isinstance(delivery_lag, datetime):
+        return expiry, delivery_lag
+    else:
+        return expiry, get_calendar(calendar).lag(expiry, delivery_lag, True)
+
+
+__all__ = (
+    "add_tenor",
+    "Cal",
+    "CalInput",
+    "CalTypes",
+    "create_calendar",
+    "dcf",
+    "Modifier",
+    "NamedCal",
+    "RollDay",
+    "UnionCal",
+    "get_calendar",
+)

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 
 import pandas as pd
@@ -247,6 +249,44 @@ else:
             "calendar": "tyo",
             "payment_lag": 2,
             "currency": "jpy",
+            "convention": "act365f",
+            "leg2_spread_compound_method": "none_simple",
+            "leg2_fixing_method": "rfr_payment_delay",
+        },
+        "aud_irs6": {
+            "frequency": "s",
+            "stub": "shortfront",
+            "eom": True,
+            "modifier": "mf",
+            "calendar": "syd",
+            "payment_lag": 0,
+            "currency": "aud",
+            "convention": "act365f",
+            "leg2_spread_compound_method": "none_simple",
+            "leg2_fixing_method": "ibor",
+            "leg2_method_param": 2,
+        },
+        "aud_irs3": {
+            "frequency": "q",
+            "stub": "shortfront",
+            "eom": True,
+            "modifier": "mf",
+            "calendar": "syd",
+            "payment_lag": 0,
+            "currency": "aud",
+            "convention": "act365f",
+            "leg2_spread_compound_method": "none_simple",
+            "leg2_fixing_method": "ibor",
+            "leg2_method_param": 2,
+        },
+        "aud_irs": {
+            "frequency": "a",
+            "stub": "shortfront",
+            "eom": True,
+            "modifier": "mf",
+            "calendar": "syd",
+            "payment_lag": 2,
+            "currency": "aud",
             "convention": "act365f",
             "leg2_spread_compound_method": "none_simple",
             "leg2_fixing_method": "rfr_payment_delay",

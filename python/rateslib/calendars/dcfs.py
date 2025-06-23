@@ -1,10 +1,40 @@
+from __future__ import annotations
+
 import calendar as calendar_mod
 import warnings
 from datetime import datetime
-from typing import Union
 
 from rateslib.calendars.rs import CalInput, _get_modifier, _get_rollday, get_calendar
 from rateslib.default import NoInput
+from rateslib.rs import Convention
+
+CONVENTIONS_MAP = {
+    "ACT365F": Convention.Act365F,
+    "ACT365F+": Convention.Act365FPlus,
+    "ACT360": Convention.Act360,
+    "30360": Convention.Thirty360,
+    "360360": Convention.Thirty360,
+    "BONDBASIS": Convention.Thirty360,
+    "30E360": Convention.ThirtyE360,
+    "EUROBONDBASIS": Convention.ThirtyE360,
+    "30E360ISDA": Convention.Thirty360ISDA,
+    "ACTACT": Convention.ActActISDA,
+    "ACTACTISDA": Convention.ActActISDA,
+    "ACTACTICMA": Convention.ActActICMA,
+    "ACTACTICMA_STUB365F": "should panic",
+    "ACTACTISMA": Convention.ActActICMA,
+    "ACTACTBOND": Convention.ActActICMA,
+    "1": Convention.One,
+    "1+": Convention.OnePlus,
+    "BUS252": Convention.Bus252,
+}
+
+
+def _get_convention(convention: str) -> Convention:
+    try:
+        return CONVENTIONS_MAP[convention.upper()]
+    except KeyError:
+        raise ValueError(f"`convention`: {convention}, is not valid.")
 
 
 def _dcf_act365f(start: datetime, end: datetime, *args):
@@ -39,7 +69,7 @@ def _dcf_30e360(start: datetime, end: datetime, *args):
     return y + m + (de - ds) / 360.0
 
 
-def _dcf_30e360isda(start: datetime, end: datetime, termination: Union[datetime, NoInput], *args):
+def _dcf_30e360isda(start: datetime, end: datetime, termination: datetime | NoInput, *args):
     if termination is NoInput.blank:
         raise ValueError("`termination` must be supplied with specified `convention`.")
 
@@ -74,10 +104,10 @@ def _dcf_actactisda(start: datetime, end: datetime, *args):
 def _dcf_actacticma(
     start: datetime,
     end: datetime,
-    termination: Union[datetime, NoInput],
-    frequency_months: Union[int, NoInput],
-    stub: Union[bool, NoInput],
-    roll: Union[str, int, NoInput],
+    termination: datetime | NoInput,
+    frequency_months: int | NoInput,
+    stub: bool | NoInput,
+    roll: str | int | NoInput,
     calendar: CalInput,
 ):
     if frequency_months is NoInput.blank:
@@ -92,8 +122,9 @@ def _dcf_actacticma(
         # Perform stub and zero coupon calculation. Zero coupons handled with an Annual frequency.
         if frequency_months >= 13:
             warnings.warn(
-                "Using `convention` 'ActActICMA' with a Period having `frequency` 'Z' is undefined, and "
-                "should be avoided.\nFor calculation purposes here the `frequency` is set to 'A'.",
+                "Using `convention` 'ActActICMA' with a Period having `frequency` 'Z' is "
+                "undefined, and should be avoided.\n"
+                "For calculation purposes here the `frequency` is set to 'A'.",
                 UserWarning,
             )
             frequency_months = 12  # Will handle Z frequency as a stub period see GH:144
@@ -110,7 +141,7 @@ def _dcf_actacticma(
                 fwd_end_1 = cal_.add_months(
                     start,
                     (int(fraction) + 1) * frequency_months,
-                    _get_modifier("NONE"),
+                    _get_modifier("NONE", True),
                     _get_rollday(roll),
                     False,
                 )
@@ -127,7 +158,7 @@ def _dcf_actacticma(
                 prev_start_1 = cal_.add_months(
                     end,
                     -(int(fraction) + 1) * frequency_months,
-                    _get_modifier("NONE"),
+                    _get_modifier("NONE", True),
                     _get_rollday(roll),
                     False,
                 )
@@ -139,10 +170,10 @@ def _dcf_actacticma(
 def _dcf_actacticma_stub365f(
     start: datetime,
     end: datetime,
-    termination: Union[datetime, NoInput],
-    frequency_months: Union[int, NoInput],
-    stub: Union[bool, NoInput],
-    roll: Union[str, int, NoInput],
+    termination: datetime | NoInput,
+    frequency_months: int | NoInput,
+    stub: bool | NoInput,
+    roll: str | int | NoInput,
     calendar: CalInput,
 ):
     """
@@ -162,7 +193,7 @@ def _dcf_actacticma_stub365f(
         cal_ = get_calendar(calendar)
         if end == termination:  # stub is a BACK stub:
             fwd_end = cal_.add_months(
-                start, frequency_months, _get_modifier("NONE"), _get_rollday(roll), False
+                start, frequency_months, _get_modifier("NONE", True), _get_rollday(roll), False
             )
             r = (end - start).days
             s = (fwd_end - start).days
@@ -177,7 +208,7 @@ def _dcf_actacticma_stub365f(
 
         else:  # stub is a FRONT stub
             prev_start = cal_.add_months(
-                end, -frequency_months, _get_modifier("NONE"), _get_rollday(roll), False
+                end, -frequency_months, _get_modifier("NONE", True), _get_rollday(roll), False
             )
             r = (end - start).days
             s = (end - prev_start).days
@@ -204,10 +235,10 @@ def _dcf_1plus(start: datetime, end: datetime, *args):
 def _dcf_bus252(
     start: datetime,
     end: datetime,
-    termination: Union[datetime, NoInput],
-    frequency_months: Union[int, NoInput],
-    stub: Union[bool, NoInput],
-    roll: Union[str, int, NoInput],
+    termination: datetime | NoInput,
+    frequency_months: int | NoInput,
+    stub: bool | NoInput,
+    roll: str | int | NoInput,
     calendar: CalInput,
 ):
     """
@@ -226,8 +257,8 @@ def _dcf_bus252(
         return 0.0
 
     cal_ = get_calendar(calendar)
-    start_ = cal_.roll(start, _get_modifier("F"), False)
-    end_ = cal_.roll(end, _get_modifier("P"), False)
+    start_ = cal_.roll(start, _get_modifier("F", True), False)
+    end_ = cal_.roll(end, _get_modifier("P", True), False)
     subtract = -1.0 if end_ == end else 0.0
     if start_ == end_:
         if start_ > start and end_ < end:
@@ -237,7 +268,8 @@ def _dcf_bus252(
             # then the business start is permitted to the calculation until the non-business end
             return 1.0 / 252.0
         elif start_ > start:
-            # then the business end is not permitted to have occurred and non-business start does not count
+            # then the business end is not permitted to have occurred and non-business start
+            # does not count
             return 0.0
     elif start_ > end_:
         # there are no business days in between start and end

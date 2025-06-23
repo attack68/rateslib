@@ -49,7 +49,15 @@ class default_context(ContextDecorator):
                 setattr(defaults, pat, val)
 
 
-from rateslib.calendars import Cal, UnionCal, add_tenor, create_calendar, dcf, get_calendar
+from rateslib.calendars import (
+    Cal,
+    NamedCal,
+    UnionCal,
+    add_tenor,
+    create_calendar,
+    dcf,
+    get_calendar,
+)
 from rateslib.curves import (
     CompositeCurve,
     Curve,
@@ -59,7 +67,7 @@ from rateslib.curves import (
     index_left,
     interpolate,
 )
-from rateslib.dual import Dual, Dual2, dual_exp, dual_log, dual_solve
+from rateslib.dual import Dual, Dual2, dual_exp, dual_log, dual_solve, gradient
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
 from rateslib.instruments import (
@@ -148,6 +156,7 @@ __all__ = [
     "dual_log",
     "dual_exp",
     "dual_solve",
+    "gradient",
     # splines.py
     "bsplev_single",
     "bspldnev_single",
@@ -162,6 +171,7 @@ __all__ = [
     "dcf",
     "Cal",
     "UnionCal",
+    "NamedCal",
     # scheduling.py
     "Schedule",
     # curves.py
@@ -227,4 +237,4 @@ __all__ = [
     "FXBrokerFly",
 ]
 
-__version__ = "1.3.2"
+__version__ = "1.4.1"

@@ -1,14 +1,15 @@
 import warnings
 from datetime import datetime
-from typing import Union, Any
+from typing import Any, Union
 
 import numpy as np
 from pandas import DataFrame, Series
 
 from rateslib import defaults
-from rateslib.default import NoInput, _make_py_json, _drb
-from rateslib.dual import Dual, DualTypes, gradient, _get_adorder
-from rateslib.rs import FXRates as FXRatesObj, FXRate, Ccy
+from rateslib.default import NoInput, _drb, _make_py_json
+from rateslib.dual import Dual, DualTypes, _get_adorder, gradient
+from rateslib.rs import Ccy, FXRate
+from rateslib.rs import FXRates as FXRatesObj
 
 """
 .. ipython:: python
@@ -259,7 +260,7 @@ class FXRates:
         restated_fx_rates = FXRates(
             {pair: self.rate(pair) if keep_ad else self.rate(pair).real for pair in pairs},
             settlement=self.settlement,
-            base=self.base
+            base=self.base,
         )
         return restated_fx_rates
 
@@ -470,7 +471,7 @@ class FXRates:
         d_idx, f_idx = self.currencies[domestic], self.currencies[foreign]
         _ = np.zeros(self.q)
 
-        # f_val = -delta * float(self.fx_array[b_idx, d_idx]) * float(self.fx_array[d_idx, f_idx])**2
+        # f_val = -delta * float(self.fx_array[b_idx, d_idx]) * float(self.fx_array[d_idx,f_idx])**2
         # _[f_idx] = f_val
         # _[d_idx] = -f_val / float(self.fx_array[d_idx, f_idx])
         # return _
@@ -503,6 +504,7 @@ class FXRates:
 
     def to_json(self):
         return _make_py_json(self.obj.to_json(), "FXRates")
+
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import json
 import warnings
 from datetime import datetime, timedelta
 from itertools import product
-from typing import Optional, Union
 
 import numpy as np
 from pandas import DataFrame, Series
@@ -26,6 +27,7 @@ from rateslib.fx.fx_rates import FXRates
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
 
 class FXForwards:
     """
@@ -95,9 +97,9 @@ class FXForwards:
 
     def update(
         self,
-        fx_rates: Union[FXRates, list[FXRates], NoInput] = NoInput(0),
-        fx_curves: Union[dict, NoInput] = NoInput(0),
-        base: Union[str, NoInput] = NoInput(0),
+        fx_rates: FXRates | list[FXRates] | NoInput = NoInput(0),
+        fx_curves: dict | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
     ):
         """
         Update the FXForward object with the latest FX rates and FX curves values.
@@ -305,9 +307,9 @@ class FXForwards:
 
     def __init__(
         self,
-        fx_rates: Union[FXRates, list[FXRates]],
+        fx_rates: FXRates | list[FXRates],
         fx_curves: dict,
-        base: Union[str, NoInput] = NoInput(0),
+        base: str | NoInput = NoInput(0),
     ):
         self._ad = 1
         self.update(fx_rates, fx_curves, base)
@@ -459,10 +461,10 @@ class FXForwards:
     def rate(
         self,
         pair: str,
-        settlement: Union[datetime, NoInput] = NoInput(0),
-        path: Union[list[dict], NoInput] = NoInput(0),
+        settlement: datetime | NoInput = NoInput(0),
+        path: list[dict] | NoInput = NoInput(0),
         return_path: bool = False,
-    ) -> Union[DualTypes, tuple[DualTypes, list[dict]]]:
+    ) -> DualTypes | tuple[DualTypes, list[dict]]:
         """
         Return the fx forward rate for a currency pair.
 
@@ -504,9 +506,9 @@ class FXForwards:
 
            f_{DOMFOR, i} = f_{DOMALT, i} ...  f_{ALTFOR, i}
 
-        """
+        """  # noqa: E501
 
-        def _get_d_f_idx_and_path(pair, path: Optional[list[dict]]) -> tuple[int, int, list[dict]]:
+        def _get_d_f_idx_and_path(pair, path: list[dict] | None) -> tuple[int, int, list[dict]]:
             domestic, foreign = pair[:3].lower(), pair[3:].lower()
             d_idx: int = self.fx_rates_immediate.currencies[domestic]
             f_idx: int = self.fx_rates_immediate.currencies[foreign]
@@ -558,7 +560,7 @@ class FXForwards:
             return rate_, path
         return rate_
 
-    def positions(self, value, base: Union[str, NoInput] = NoInput(0), aggregate: bool = False):
+    def positions(self, value, base: str | NoInput = NoInput(0), aggregate: bool = False):
         """
         Convert a base value with FX rate sensitivities into an array of cash positions
         by settlement date.
@@ -637,10 +639,10 @@ class FXForwards:
         self,
         value: DualTypes,
         domestic: str,
-        foreign: Union[str, NoInput] = NoInput(0),
-        settlement: Union[datetime, NoInput] = NoInput(0),
-        value_date: Union[datetime, NoInput] = NoInput(0),
-        collateral: Union[str, NoInput] = NoInput(0),
+        foreign: str | NoInput = NoInput(0),
+        settlement: datetime | NoInput = NoInput(0),
+        value_date: datetime | NoInput = NoInput(0),
+        collateral: str | NoInput = NoInput(0),
         on_error: str = "ignore",
     ):
         """
@@ -724,8 +726,8 @@ class FXForwards:
 
     def convert_positions(
         self,
-        array: Union[np.ndarray, list, DataFrame, Series],
-        base: Union[str, NoInput] = NoInput(0),
+        array: np.ndarray | list | DataFrame | Series,
+        base: str | NoInput = NoInput(0),
     ):
         """
         Convert an input of currency cash positions into a single base currency value.
@@ -797,7 +799,7 @@ class FXForwards:
         self,
         pair: str,
         settlements: list[datetime],
-        path: Union[list[dict], NoInput] = NoInput(0),
+        path: list[dict] | NoInput = NoInput(0),
     ) -> DualTypes:
         """
         Return the FXSwap mid-market rate for the given currency pair.
@@ -871,10 +873,10 @@ class FXForwards:
         self,
         cashflow: str,
         collateral: str,
-        convention: Optional[str] = None,
-        modifier: Optional[Union[str, bool]] = False,
-        calendar: Optional[Union[CustomBusinessDay, str, bool]] = False,
-        id: Optional[str] = None,
+        convention: str | NoInput = NoInput(0),
+        modifier: str | bool = False,
+        calendar: CustomBusinessDay | str | bool = False,
+        id: str | NoInput = NoInput(0),
     ):
         """
         Return a cash collateral curve.
@@ -945,8 +947,8 @@ class FXForwards:
     def plot(
         self,
         pair: str,
-        right: Union[datetime, str, NoInput] = NoInput(0),
-        left: Union[datetime, str, NoInput] = NoInput(0),
+        right: datetime | str | NoInput = NoInput(0),
+        left: datetime | str | NoInput = NoInput(0),
         fx_swap: bool = False,
     ):
         """
@@ -1112,7 +1114,7 @@ def forward_fx(
     curve_domestic: Curve,
     curve_foreign: Curve,
     fx_rate: DualTypes,
-    fx_settlement: Union[datetime, NoInput] = NoInput(0),
+    fx_settlement: datetime | NoInput = NoInput(0),
 ) -> Dual:
     """
     Return a forward FX rate based on interest rate parity.
@@ -1187,7 +1189,7 @@ def forward_fx(
            "gbpusd": foreign_curve,
        })
        fxf.rate("usdgbp", dt(2022, 7, 1))
-    """
+    """  # noqa: E501
     if date == fx_settlement:
         return fx_rate
     elif date == curve_domestic.node_dates[0] and fx_settlement is NoInput.blank:

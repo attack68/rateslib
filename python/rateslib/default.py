@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 from datetime import datetime
 from enum import Enum
@@ -124,6 +126,7 @@ class Defaults:
             "Z": 1e8,
         }
         self.eom = False
+        self.eom_fx = True
 
         # Instrument parameterisation
 
@@ -192,7 +195,12 @@ class Defaults:
         self.ini_lambda = (1000.0, 0.25, 2.0)
 
         # bonds
-        self.calc_mode = "ukg"
+        self.calc_mode = {
+            "FixedRateBond": "uk_gb",
+            "FloatRateNote": "uk_gb",
+            "Bill": "us_gbb",
+            "IndexFixedRateBond": "uk_gb",
+        }
         self.settle = 1
         self.ex_div = 1
         self.calc_mode_futures = "ytm"
@@ -225,6 +233,14 @@ class Defaults:
             "index_ratio": "Index Ratio",
             "index_base": "Index Base",
             "collateral": "Collateral",
+            # Options headers
+            "pair": "Pair",
+            "expiry": "Expiry",
+            "t_e": "Time to Expiry",
+            "delivery": "Delivery",
+            "model": "Model",
+            "vol": "Vol",
+            "strike": "Strike",
         }
 
         # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -266,8 +282,9 @@ Scheduling:\n
     'stub_length', 
     'modifier', 
     'eom', 
+    'eom_fx',
     'eval_mode', 
-    'frequency_months'
+    'frequency_months',
 ]])}
 Instruments:\n
 {''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
@@ -338,7 +355,7 @@ def plot3d(x, y, z, labels=[]):
 
     X, Y = np.meshgrid(x, y)
     # Plot the surface.
-    surf = ax.plot_surface(X, Y, z, cmap=cm.coolwarm, linewidth=0, antialiased=False)
+    ax.plot_surface(X, Y, z, cmap=cm.coolwarm, linewidth=0, antialiased=False)
     return fig, ax, None
 
 
@@ -349,4 +366,4 @@ def _drb(default, possible_blank):
 
 def _make_py_json(json, class_name):
     """Modifies the output JSON output for Rust structs wrapped by Python classes."""
-    return f'{{"Py":' + json + "}"
+    return '{"Py":' + json + "}"
