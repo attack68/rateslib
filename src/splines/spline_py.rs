@@ -1,11 +1,9 @@
-use crate::splines::spline_f64::{PPSpline, bsplev_single_f64, bspldnev_single_f64};
-use crate::dual::dual1::Dual;
-use crate::dual::dual2::Dual2;
-use crate::dual::dual_py::{DualsOrF64};
+use crate::dual::dual::{Dual, Dual2, DualsOrF64};
+use crate::splines::spline_f64::{bspldnev_single_f64, bsplev_single_f64, PPSpline};
 use std::cmp::PartialEq;
 
-use pyo3::prelude::*;
 use pyo3::exceptions::PyTypeError;
+use pyo3::prelude::*;
 
 // use numpy::{PyArray1, ToPyArray, PyArrayMethods};
 // use ndarray::Array1;
@@ -13,13 +11,13 @@ use pyo3::exceptions::PyTypeError;
 macro_rules! create_interface {
     ($name: ident, $type: ident) => {
         #[pyclass]
-        pub struct $name {
+        pub(crate) struct $name {
             inner: PPSpline<$type>,
         }
         #[pymethods]
         impl $name {
             #[new]
-            pub fn new(k: usize, t: Vec<f64>, c: Option<Vec<$type>>) -> Self {
+            fn new(k: usize, t: Vec<f64>, c: Option<Vec<$type>>) -> Self {
                 Self {
                     inner: PPSpline::new(k, t, c),
                 }
@@ -48,7 +46,7 @@ macro_rules! create_interface {
                 }
             }
 
-            pub fn csolve(
+            fn csolve(
                 &mut self,
                 tau: Vec<f64>,
                 y: Vec<$type>,
@@ -59,7 +57,7 @@ macro_rules! create_interface {
                 self.inner.csolve(&tau, &y, left_n, right_n, allow_lsq)
             }
 
-            pub fn ppev_single(&self, x: DualsOrF64) -> PyResult<$type> {
+            fn ppev_single(&self, x: DualsOrF64) -> PyResult<$type> {
                 match x {
                     DualsOrF64::F64(f) => Ok(self.inner.ppdnev_single(&f, 0)),
                     DualsOrF64::Dual(_) => Err(PyTypeError::new_err(
@@ -70,7 +68,7 @@ macro_rules! create_interface {
                 }
             }
 
-            pub fn ppev_single_dual(&self, x: DualsOrF64) -> PyResult<Dual> {
+            fn ppev_single_dual(&self, x: DualsOrF64) -> PyResult<Dual> {
                 match x {
                     DualsOrF64::F64(f) => self.inner.ppdnev_single_dual(&Dual::new(f, vec![]), 0),
                     DualsOrF64::Dual(d) => self.inner.ppdnev_single_dual(&d, 0),
@@ -78,7 +76,7 @@ macro_rules! create_interface {
                 }
             }
 
-            pub fn ppev_single_dual2(&self, x: DualsOrF64) -> PyResult<Dual2> {
+            fn ppev_single_dual2(&self, x: DualsOrF64) -> PyResult<Dual2> {
                 match x {
                     DualsOrF64::F64(f) => self.inner.ppdnev_single_dual2(&Dual2::new(f, vec![]), 0),
                     DualsOrF64::Dual(_) => Err(PyTypeError::new_err("Cannot mix `Dual2` and `Dual` types, use `ppev_single_dual(x)`.")),
@@ -86,12 +84,12 @@ macro_rules! create_interface {
                 }
             }
 
-            pub fn ppev<'py>(&'py self, x: Vec<f64>) -> PyResult<Vec<$type>> {
+            fn ppev(&self, x: Vec<f64>) -> PyResult<Vec<$type>> {
                 let out: Vec<$type> = x.iter().map(|v| self.inner.ppdnev_single(&v, 0)).collect();
                 Ok(out)
             }
 
-            pub fn ppdnev_single(&self, x: DualsOrF64, m: usize) -> PyResult<$type> {
+            fn ppdnev_single(&self, x: DualsOrF64, m: usize) -> PyResult<$type> {
                 match x {
                     DualsOrF64::Dual(_) => Err(PyTypeError::new_err("Splines cannot be indexed with Duals use `float(x)`.")),
                     DualsOrF64::F64(f) => Ok(self.inner.ppdnev_single(&f, m)),
@@ -99,7 +97,7 @@ macro_rules! create_interface {
                 }
             }
 
-            pub fn ppdnev_single_dual(&self, x: DualsOrF64, m: usize) -> PyResult<Dual> {
+            fn ppdnev_single_dual(&self, x: DualsOrF64, m: usize) -> PyResult<Dual> {
                 match x {
                     DualsOrF64::F64(f) => self.inner.ppdnev_single_dual(&Dual::new(f, vec![]), m),
                     DualsOrF64::Dual(d) => self.inner.ppdnev_single_dual(&d, m),
@@ -107,7 +105,7 @@ macro_rules! create_interface {
                 }
             }
 
-            pub fn ppdnev_single_dual2(&self, x: DualsOrF64, m: usize) -> PyResult<Dual2> {
+            fn ppdnev_single_dual2(&self, x: DualsOrF64, m: usize) -> PyResult<Dual2> {
                 match x {
                     DualsOrF64::F64(f) => self.inner.ppdnev_single_dual2(&Dual2::new(f, vec![]), m),
                     DualsOrF64::Dual(_) => Err(PyTypeError::new_err("Cannot mix `Dual2` and `Dual` types, use `ppdnev_single_dual(x)`.")),
@@ -115,24 +113,24 @@ macro_rules! create_interface {
                 }
             }
 
-            pub fn ppdnev<'py>(&'py self, x: Vec<f64>, m: usize) -> PyResult<Vec<$type>> {
+            fn ppdnev(&self, x: Vec<f64>, m: usize) -> PyResult<Vec<$type>> {
                 let out: Vec<$type> = x.iter().map(|v| self.inner.ppdnev_single(&v, m)).collect();
                 Ok(out)
             }
 
-            pub fn bsplev<'py>(&'py self, x: Vec<f64>, i: usize) -> PyResult<Vec<f64>> {
+            fn bsplev(&self, x: Vec<f64>, i: usize) -> PyResult<Vec<f64>> {
                 Ok(self.inner.bspldnev(&x, &i, &0))
             }
 
-            pub fn bspldnev<'py>(&'py self, x: Vec<f64>, i: usize, m: usize) -> PyResult<Vec<f64>> {
+            fn bspldnev(&self, x: Vec<f64>, i: usize, m: usize) -> PyResult<Vec<f64>> {
                 Ok(self.inner.bspldnev(&x, &i, &m))
             }
 
-            pub fn __eq__(&self, other: &Self) -> PyResult<bool> {
+            fn __eq__(&self, other: &Self) -> PyResult<bool> {
                 Ok(self.inner.eq(&other.inner))
             }
 
-            pub fn __copy__(&self) -> Self {
+            fn __copy__(&self) -> Self {
                 $name { inner: self.inner.clone() }
             }
         }
@@ -143,13 +141,25 @@ create_interface!(PPSplineF64, f64);
 create_interface!(PPSplineDual, Dual);
 create_interface!(PPSplineDual2, Dual2);
 
-
 #[pyfunction]
-pub fn bsplev_single(x: f64, i: usize, k: usize, t: Vec<f64>, org_k: Option<usize>) -> PyResult<f64> {
+pub(crate) fn bsplev_single(
+    x: f64,
+    i: usize,
+    k: usize,
+    t: Vec<f64>,
+    org_k: Option<usize>,
+) -> PyResult<f64> {
     Ok(bsplev_single_f64(&x, i, &k, &t, org_k))
 }
 
 #[pyfunction]
-pub fn bspldnev_single(x: f64, i: usize, k: usize, t: Vec<f64>, m: usize, org_k: Option<usize>) -> PyResult<f64> {
+pub(crate) fn bspldnev_single(
+    x: f64,
+    i: usize,
+    k: usize,
+    t: Vec<f64>,
+    m: usize,
+    org_k: Option<usize>,
+) -> PyResult<f64> {
     Ok(bspldnev_single_f64(&x, i, &k, &t, m, org_k))
 }

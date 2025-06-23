@@ -1,10 +1,4 @@
-from rateslib.rateslibrs import (
-    PPSplineF64,
-    PPSplineDual,
-    PPSplineDual2,
-    bsplev_single,
-    bspldnev_single,
-)
+from rateslib.rs import PPSplineDual, PPSplineDual2, PPSplineF64, bspldnev_single, bsplev_single
 
 PPSplineF64.__doc__ = "Piecewise polynomial spline composed of float values on the x and y axes."
 PPSplineDual.__doc__ = "Piecewise polynomial spline composed of float values on the x-axis and Dual values on the y-axis."

@@ -20,56 +20,52 @@
    )
 """
 
-from abc import abstractmethod, ABCMeta
-from datetime import datetime, timedelta
-from typing import Optional, Union
 import abc
 import warnings
+from abc import ABCMeta, abstractmethod
+from datetime import datetime, timedelta
 from functools import partial
-
-# from math import sqrt
+from typing import Optional, Union
 
 import numpy as np
+from pandas import DataFrame, MultiIndex, Series, concat, isna
 
 # from scipy.optimize import brentq
 from pandas.tseries.offsets import CustomBusinessDay
-from pandas import DataFrame, concat, Series, MultiIndex, isna
 
 from rateslib import defaults
-from rateslib.calendars import add_tenor, get_calendar, dcf, _get_years_and_months
-from rateslib.default import NoInput, plot, _drb
-
-from rateslib.curves import Curve, index_left, LineCurve, IndexCurve, average_rate
-from rateslib.solver import Solver, quadratic_eqn
+from rateslib.bonds import _BondConventions
+from rateslib.calendars import _get_years_and_months, add_tenor, dcf, get_calendar
+from rateslib.curves import Curve, IndexCurve, LineCurve, average_rate, index_left
+from rateslib.default import NoInput, _drb, plot
+from rateslib.dual import Dual, Dual2, DualTypes, dual_log, gradient
+from rateslib.fx import FXForwards, FXRates, forward_fx
+from rateslib.fx_volatility import FXDeltaVolSmile, FXVolObj, FXDeltaVolSurface
+from rateslib.legs import (
+    FixedLeg,
+    FixedLegMtm,
+    FloatLeg,
+    FloatLegMtm,
+    IndexFixedLeg,
+    ZeroFixedLeg,
+    ZeroFloatLeg,
+    ZeroIndexLeg,
+)
 from rateslib.periods import (
     Cashflow,
     FloatPeriod,
-    _get_fx_and_base,
+    FXCallPeriod,
+    FXPutPeriod,
     IndexMixin,
     _disc_from_curve,
     _disc_maybe_from_curve,
-    FXCallPeriod,
-    FXPutPeriod,
+    _get_fx_and_base,
+    _maybe_local,
 )
-from rateslib.legs import (
-    FixedLeg,
-    FloatLeg,
-    FloatLegMtm,
-    FixedLegMtm,
-    ZeroFloatLeg,
-    ZeroFixedLeg,
-    ZeroIndexLeg,
-    IndexFixedLeg,
-)
-from rateslib.dual import (
-    Dual,
-    Dual2,
-    DualTypes,
-    dual_log,
-    gradient,
-)
-from rateslib.fx import FXForwards, FXRates, forward_fx
-from rateslib.fx_volatility import FXDeltaVolSmile, FXVolObj
+from rateslib.solver import Solver, quadratic_eqn
+from rateslib.splines import evaluate
+
+# from math import sqrt
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -1210,6 +1206,11 @@ class FXExchange(Sensitivities, BaseMixin):
         else:
             imm_fx = fx_
 
+        if imm_fx is NoInput.blank:
+            raise ValueError(
+                "`fx` must be supplied to price FXExchange object.\n"
+                "Note: it can be attached to and then gotten from a Solver."
+            )
         _ = forward_fx(self.settlement, curves[1], curves[3], imm_fx)
         return _
 
@@ -1229,11 +1230,15 @@ class FXExchange(Sensitivities, BaseMixin):
         """
         return super().gamma(*args, **kwargs)
 
+    def analytic_delta(self, *args, **kwargs):
+        raise NotImplementedError("`analytic_delta` for FXExchange not defined.")
+
 
 # Securities
 
 
-class BondMixin:
+class BondMixin(_BondConventions):
+
     def _set_base_index_if_none(self, curve: IndexCurve):
         if self._index_base_mixin and self.index_base is NoInput.blank:
             self.leg1.index_base = curve.index_value(
@@ -1275,145 +1280,22 @@ class BondMixin:
             len(self.leg1.schedule.uschedule),
             settlement,
         )
-        ex_div_date = add_tenor(
-            self.leg1.schedule.uschedule[prev_a_idx + 1],
-            f"{-self.kwargs['ex_div']}B",
-            NoInput(0),  # modifier not required for business day tenor
-            self.leg1.schedule.calendar,
+        ex_div_date = self.leg1.schedule.calendar.lag(
+            self.leg1.schedule.uschedule[prev_a_idx + 1], -self.kwargs["ex_div"], True
         )
         if self.calc_mode in []:  # currently no identified calc_modes
             return True if settlement >= ex_div_date else False  # pragma: no cover
         else:
             return True if settlement > ex_div_date else False
 
-    def _acc_index(self, settlement: datetime):
-        """
-        Get the coupon period index for that which the settlement date fall within.
-        Uses unadjusted dates.
-        """
-        _ = index_left(
-            self.leg1.schedule.uschedule,
-            len(self.leg1.schedule.uschedule),
-            settlement,
-        )
-        return _
-
-    def _accrued(self, settlement: datetime, calc_mode: Union[str, NoInput]):
-        acc_idx = self._acc_index(settlement)
-        frac = self._accrued_frac(settlement, calc_mode, acc_idx)
+    def _accrued(self, settlement: datetime, func: callable):
+        """func is the specific accrued function associated with the bond ``calc_mode``"""
+        acc_idx = self._period_index(settlement)
+        frac = func(settlement, acc_idx)
         if self.ex_div(settlement):
             frac = frac - 1  # accrued is negative in ex-div period
         _ = getattr(self.leg1.periods[acc_idx], self._ytm_attribute)
         return frac * _ / -self.leg1.notional * 100
-
-    def _accrued_frac(self, settlement: datetime, calc_mode: Union[str, NoInput], acc_idx: int):
-        """
-        Return the accrual fraction of period between last coupon and settlement and
-        coupon period left index.
-
-        Branches to a calculation based on the bond `calc_mode`.
-        """
-        acc_frac_funcs = {
-            NoInput(0): self._acc_lin_days,
-            "ukg": self._acc_lin_days,
-            "uktb": self._acc_lin_days,
-            "ust": self._acc_lin_days_long_split,
-            "ust_31bii": self._acc_lin_days_long_split,
-            "ustb": self._acc_lin_days,
-            "sgb": self._acc_30e360,
-            "sgbb": self._acc_lin_days,
-            "cadgb": self._acc_act365_1y_stub,
-            "cadgb-ytm": self._acc_lin_days,
-        }
-        try:
-            return acc_frac_funcs[calc_mode](settlement, acc_idx)
-        except KeyError:
-            raise ValueError(f"Cannot calculate for `calc_mode`: {calc_mode}")
-
-    def _acc_lin_days(self, settlement: datetime, acc_idx: int, *args):
-        """
-        Method uses a linear proportion of days between payments to allocate accrued interest.
-        Measures between unadjusted coupon dates.
-        This is a general method, used for example by [UK Gilts].
-        """
-        r = settlement - self.leg1.schedule.uschedule[acc_idx]
-        s = self.leg1.schedule.uschedule[acc_idx + 1] - self.leg1.schedule.uschedule[acc_idx]
-        return r / s
-
-    def _acc_lin_days_long_split(self, settlement: datetime, acc_idx: int, *args):
-        """
-        For long stub periods this splits the accrued interest into two components.
-        Otherwise, returns the regular linear proportion.
-        [Designed primarily for US Treasuries]
-        """
-        if self.leg1.periods[acc_idx].stub:
-            fm = defaults.frequency_months[self.leg1.schedule.frequency]
-            f = 12 / fm
-            if self.leg1.periods[acc_idx].dcf * f > 1:
-                # long stub
-                quasi_coupon = add_tenor(
-                    self.leg1.schedule.uschedule[acc_idx + 1],
-                    f"-{fm}M",
-                    "NONE",
-                    NoInput(0),
-                    self.leg1.schedule.roll,
-                )
-                quasi_start = add_tenor(
-                    quasi_coupon,
-                    f"-{fm}M",
-                    "NONE",
-                    NoInput(0),
-                    self.leg1.schedule.roll,
-                )
-                if settlement <= quasi_coupon:
-                    # then first part of long stub
-                    r = quasi_coupon - settlement
-                    s = quasi_coupon - quasi_start
-                    r_ = quasi_coupon - self.leg1.schedule.uschedule[acc_idx]
-                    _ = (r_ - r) / s
-                    return _ / (self.leg1.periods[acc_idx].dcf * f)
-                else:
-                    # then second part of long stub
-                    r = self.leg1.schedule.uschedule[acc_idx + 1] - settlement
-                    s = self.leg1.schedule.uschedule[acc_idx + 1] - quasi_coupon
-                    r_ = quasi_coupon - self.leg1.schedule.uschedule[acc_idx]
-                    s_ = quasi_coupon - quasi_start
-                    _ = r_ / s_ + (s - r) / s
-                    return _ / (self.leg1.periods[acc_idx].dcf * f)
-
-        return self._acc_lin_days(settlement, acc_idx, *args)
-
-    def _acc_30e360(self, settlement: datetime, acc_idx: int, *args):
-        """
-        Ignoring the convention on the leg uses "30E360" to determine the accrual fraction.
-        Measures between unadjusted date and settlement.
-        [Designed primarily for Swedish Government Bonds]
-        """
-        f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
-        _ = dcf(settlement, self.leg1.schedule.uschedule[acc_idx + 1], "30e360") * f
-        _ = 1 - _
-        return _
-
-    def _acc_act365_1y_stub(self, settlement: datetime, acc_idx: int, *args):
-        """
-        Ignoring the convention on the leg uses "Act365f" to determine the accrual fraction.
-        Measures between unadjusted date and settlement.
-        Special adjustment if number of days is greater than 365.
-        If the period is a stub reverts to a straight line interpolation
-        [this is primarily designed for Canadian Government Bonds]
-        """
-        if self.leg1.periods[acc_idx].stub:
-            return self._acc_lin_days(settlement, acc_idx)
-        f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
-        r = settlement - self.leg1.schedule.uschedule[acc_idx]
-        s = self.leg1.schedule.uschedule[acc_idx + 1] - self.leg1.schedule.uschedule[acc_idx]
-        if r == s:
-            _ = 1.0  # then settlement falls on the coupon date
-        elif r.days > 365.0 / f:
-            _ = 1.0 - ((s - r).days * f) / 365.0  # counts remaining days
-        else:
-            _ = f * r.days / 365.0
-        return _
 
     def _generic_ytm(
         self,
@@ -1423,17 +1305,17 @@ class BondMixin:
         f1: callable,
         f2: callable,
         f3: callable,
-        accrual_calc_mode: Union[str, NoInput],
+        accrual: callable,
     ):
         """
         Refer to supplementary material.
         """
         f = 12 / defaults.frequency_months[self.leg1.schedule.frequency]
-        acc_idx = self._acc_index(settlement)
+        acc_idx = self._period_index(settlement)
 
         v2 = f2(ytm, f, settlement, acc_idx)
-        v1 = f1(ytm, f, settlement, acc_idx, v2, accrual_calc_mode)
-        v3 = f3(ytm, f, settlement, self.leg1.schedule.n_periods - 1, v2)
+        v1 = f1(ytm, f, settlement, acc_idx, v2, accrual)
+        v3 = f3(ytm, f, settlement, self.leg1.schedule.n_periods - 1, v2, accrual)
 
         # Sum up the coupon cashflows discounted by the calculated factors
         d = 0
@@ -1442,125 +1324,29 @@ class BondMixin:
                 # no coupon cashflow is receiveable so no addition to the sum
                 continue
             elif i == 0 and p_idx == (self.leg1.schedule.n_periods - 1):
-                # the last period is the first period so discounting handled only by v1 at end
-                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute)
+                # the last period is the first period so discounting handled only by v1
+                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v1
             elif p_idx == (self.leg1.schedule.n_periods - 1):
                 # this is last period, but it is not the first (i>0). Tag on v3 at end.
-                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v2 ** (i - 1) * v3
+                d += (
+                    getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v2 ** (i - 1) * v3 * v1
+                )
             else:
                 # this is not the first and not the last period. Discount only with v1 and v2.
-                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v2**i
+                d += getattr(self.leg1.periods[p_idx], self._ytm_attribute) * v2**i * v1
 
         # Add the redemption payment discounted by relevant factors
-        if i == 0:  # only looped 1 period, no need for v2 and v3
-            d += getattr(self.leg1.periods[-1], self._ytm_attribute)
+        if i == 0:  # only looped 1 period, only use the last discount
+            d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v1
         elif i == 1:  # only looped 2 periods, no need for v2
-            d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v3
+            d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v3 * v1
         else:  # looped more than 2 periods, regular formula applied
-            d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v2 ** (i - 1) * v3
+            d += getattr(self.leg1.periods[-1], self._ytm_attribute) * v2 ** (i - 1) * v3 * v1
 
         # discount all by the first period factor and scaled to price
-        p = v1 * d / -self.leg1.notional * 100
+        p = d / -self.leg1.notional * 100
 
-        return p if dirty else p - self._accrued(settlement, accrual_calc_mode)
-
-    def _v2_(self, ytm: DualTypes, f: int, settlement: datetime, acc_idx: int, *args):
-        """
-        The default method for a single regular period discounted in the regular portion of bond.
-        Implies compounding at the same frequency as the coupons.
-        """
-        return 1 / (1 + ytm / (100 * f))
-
-    def _v2_1y_simple(self, ytm: DualTypes, f: int, settlement: datetime, acc_idx: int, *args):
-        """
-        The default method for a single regular period discounted in the regular portion of bond.
-        Implies compounding at the same frequency as the coupons.
-        """
-        return 1 / (1 + ytm / (100 * f))
-
-    def _v1_comp(
-        self,
-        ytm: DualTypes,
-        f: int,
-        settlement: datetime,
-        acc_idx: int,
-        v: DualTypes,
-        accrual_calc_mode: Union[str, NoInput],
-        *args,
-    ):
-        """
-        The initial period uses a compounding approach where the power is determined by the
-        accrual fraction under the specified accrual mode.
-        """
-        acc_frac = self._accrued_frac(settlement, accrual_calc_mode, acc_idx)
-        if self.leg1.periods[acc_idx].stub:
-            # is a stub so must account for discounting in a different way.
-            fd0 = self.leg1.periods[acc_idx].dcf * f * (1 - acc_frac)
-        else:
-            fd0 = 1 - acc_frac
-        return v**fd0
-
-    def _v1_simple(
-        self,
-        ytm: DualTypes,
-        f: int,
-        settlement: datetime,
-        acc_idx: int,
-        v: DualTypes,
-        accrual_calc_mode: Union[str, NoInput],
-        *args,
-    ):
-        """
-        The initial period discounts by a simple interest amount
-        """
-        acc_frac = self._accrued_frac(settlement, accrual_calc_mode, acc_idx)
-        if self.leg1.periods[acc_idx].stub:
-            # is a stub so must account for discounting in a different way.
-            fd0 = self.leg1.periods[acc_idx].dcf * f * (1 - acc_frac)
-        else:
-            fd0 = 1 - acc_frac
-
-        if fd0 > 1.0:
-            v_ = v * 1 / (1 + (fd0 - 1) * ytm / (100 * f))
-        else:
-            v_ = 1 / (1 + fd0 * ytm / (100 * f))
-
-        return v_
-
-    def _v3_dcf_comp(
-        self,
-        ytm: DualTypes,
-        f: int,
-        settlement: datetime,
-        acc_idx: int,
-        v: DualTypes,
-        *args,
-    ):
-        """
-        Final period uses a compounding approach where the power is determined by the DCF of that
-        period under the bond's specified convention.
-        """
-        if self.leg1.periods[acc_idx].stub:
-            # is a stub so must account for discounting in a different way.
-            fd0 = self.leg1.periods[acc_idx].dcf * f
-        else:
-            fd0 = 1
-        return v**fd0
-
-    def _v3_30e360_u_simple(
-        self,
-        ytm: DualTypes,
-        f: int,
-        settlement: datetime,
-        acc_idx: int,
-        v: DualTypes,
-        *args,
-    ):
-        """
-        The final period is discounted by a simple interest method under a 30E360 convention.
-        """
-        d_ = dcf(self.leg1.periods[acc_idx].start, self.leg1.periods[acc_idx].end, "30E360")
-        return 1 / (1 + d_ * ytm / 100)  # simple interest
+        return p if dirty else p - self._accrued(settlement, accrual)
 
     def _price_from_ytm(
         self,
@@ -1573,18 +1359,18 @@ class BondMixin:
         Loop through all future cashflows and discount them with ``ytm`` to achieve
         correct price.
         """
-        # fmt: off
-        price_from_ytm_funcs = {
-            NoInput(0): partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode=NoInput(0)),
-            "ukg": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="ukg"),
-            "ust": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="ust"),
-            "ust_31bii": partial(self._generic_ytm, f1=self._v1_simple, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="ust"),
-            "sgb": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_30e360_u_simple, accrual_calc_mode="sgb"),
-            "cadgb": partial(self._generic_ytm, f1=self._v1_comp, f2=self._v2_, f3=self._v3_dcf_comp, accrual_calc_mode="cadgb-ytm"),
-        }
-        # fmt: on
+        calc_mode = _drb("default", calc_mode)
         try:
-            return price_from_ytm_funcs[calc_mode](ytm, settlement, dirty)
+            method = getattr(self, f"_{calc_mode}")
+            accrual = method.get("ytm_accrual", method.get("accrual"))
+            func = partial(
+                self._generic_ytm,
+                f1=method["v1"],
+                f2=method["v2"],
+                f3=method["v3"],
+                accrual=accrual,
+            )
+            return func(ytm, settlement, dirty)
         except KeyError:
             raise ValueError(f"Cannot calculate with `calc_mode`: {calc_mode}")
 
@@ -1755,8 +1541,6 @@ class BondMixin:
         self,
         curve: Union[Curve, LineCurve],
         disc_curve: Curve,
-        fx: Union[float, FXRates, FXForwards, NoInput],
-        base: Union[str, NoInput],
         settlement: datetime,
         projection: datetime,
     ):
@@ -1798,7 +1582,7 @@ class BondMixin:
         initial node date of the ``disc_curve``.
         """
         self._set_base_index_if_none(curve)
-        npv = self.leg1.npv(curve, disc_curve, fx, base)
+        npv = self.leg1.npv(curve, disc_curve, NoInput(0), NoInput(0))
 
         # now must systematically deduct any cashflow between the initial node date
         # and the settlement date, including the cashflow after settlement if ex_div.
@@ -1815,11 +1599,11 @@ class BondMixin:
 
         for period_idx in range(initial_idx, settle_idx):
             # deduct coupon period
-            npv -= self.leg1.periods[period_idx].npv(curve, disc_curve, fx, base)
+            npv -= self.leg1.periods[period_idx].npv(curve, disc_curve, NoInput(0), NoInput(0))
 
         if self.ex_div(settlement):
             # deduct coupon after settlement which is also unpaid
-            npv -= self.leg1.periods[settle_idx].npv(curve, disc_curve, fx, base)
+            npv -= self.leg1.periods[settle_idx].npv(curve, disc_curve, NoInput(0), NoInput(0))
 
         if projection is NoInput.blank:
             return npv
@@ -1879,18 +1663,11 @@ class BondMixin:
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.leg1.currency
         )
-        settlement = add_tenor(
-            curves[1].node_dates[0],
-            f"{self.kwargs['settle']}B",
-            None,
-            self.leg1.schedule.calendar,
+        settlement = self.leg1.schedule.calendar.lag(
+            curves[1].node_dates[0], self.kwargs["settle"], True
         )
-        base_ = self.leg1.currency if local else base
-        npv = self._npv_local(curves[0], curves[1], fx_, base_, settlement, NoInput(0))
-        if local:
-            return {self.leg1.currency: npv}
-        else:
-            return npv
+        npv = self._npv_local(curves[0], curves[1], settlement, NoInput(0))
+        return _maybe_local(npv, local, self.leg1.currency, fx_, base_)
 
     def analytic_delta(
         self,
@@ -1905,11 +1682,10 @@ class BondMixin:
         For arguments see :meth:`~rateslib.periods.BasePeriod.analytic_delta`.
         """
         disc_curve_: Union[Curve, NoInput] = _disc_maybe_from_curve(curve, disc_curve)
-        settlement = add_tenor(
+        settlement = self.leg1.schedule.calendar.lag(
             disc_curve_.node_dates[0],
-            f"{self.kwargs['settle']}B",
-            None,
-            self.leg1.schedule.calendar,
+            self.kwargs["settle"],
+            True,
         )
         a_delta = self.leg1.analytic_delta(curve, disc_curve_, fx, base)
         if self.ex_div(settlement):
@@ -1970,11 +1746,10 @@ class BondMixin:
         if settlement is NoInput.blank and curves[1] is NoInput.blank:
             settlement = self.leg1.schedule.effective
         elif settlement is NoInput.blank:
-            settlement = add_tenor(
+            settlement = self.leg1.schedule.calendar.lag(
                 curves[1].node_dates[0],
-                f"{self.kwargs['settle']}B",
-                None,
-                self.leg1.schedule.calendar,
+                self.kwargs["settle"],
+                True,
             )
         cashflows = self.leg1.cashflows(curves[0], curves[1], fx_, base_)
         if self.ex_div(settlement):
@@ -2149,23 +1924,22 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
     **Calculation Modes**
 
-    The ``calc_mode`` parameter allows the calculation for yield-to-maturity and accrued interest
+    The ``calc_mode`` parameter allows the calculation for **yield-to-maturity** and **accrued interest**
     to branch depending upon the particular convention of different bonds.
 
     The following modes are currently available with a brief description of its particular
     action:
 
-    - "ukg": UK Gilt convention. Accrued is linearly proportioned, as are stub periods. Stub yields
-      are compounded.
-    - "ust": US Treasury street convention. Same as "ukg" except long stub periods have linear
-      proportioning only in the segregated short stub part.
-    - "ust_31bii": US Treasury convention that reprices examples in federal documents: Section
-      31-B-ii). Otherwise referred to as the 'Treasury' method.
-    - "sgb": Swedish government bond convention. Accrued ignores the convention and calculates
-      using 30e360, also for back stubs.
-    - "cadgb" Canadian government bond convention. Accrued is calculated using an ACT365F
-      convention. Yield calculations are still derived with linearly proportioned compounded
-      coupons.
+    - *"us_gb"*: US Treasury Bond Street convention  (deprecated alias *"ust"*)
+    - *"us_gb_tsy"*: US Treasury Bond Treasury convention. (deprecated alias *"ust_31bii"*)
+    - *"uk_gb"*: UK Gilt DMO method. (deprecated alias *"ukg"*)
+    - *"se_gb"*: Swedish Government Bond DMO convention. (deprecated alias *"sgb"*)
+    - *"ca_gb"*: Canadian Government Bond DMO convention. (deprecated alias *"cadgb"*)
+    - *"de_gb"*: German Government Bond (Bunds/Bobls) ICMA convention.
+    - *"fr_gb"*: French Government Bond (OAT) ICMA convention.
+    - *"it_gb"*: Italian Government Bond (BTP) ICMA convention.
+    - *"nl_gb"*: Dutch Government Bond ICMA convention.
+    - *"no_gb"*: Norwegian Government Bond DMO convention.
 
     More details available in supplementary materials. The table below
     outlines the *rateslib* price result relative to the calculation examples provided
@@ -2176,7 +1950,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
        sgb = FixedRateBond(
            effective=dt(2022, 3, 30), termination=dt(2039, 3, 30),
-           frequency="A", convention="ActActICMA", calc_mode="SGB",
+           frequency="A", convention="ActActICMA", calc_mode="se_gb",
            fixed_rate=3.5, calendar="stk"
        )
        s1c = sgb.price(ytm=2.261, settlement=dt(2023, 3, 15), dirty=False)
@@ -2184,7 +1958,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
        uk1 = FixedRateBond(
            effective=dt(1995, 1, 1), termination=dt(2015, 12, 7),
-           frequency="S", convention="ActActICMA", calc_mode="UKG",
+           frequency="S", convention="ActActICMA", calc_mode="uk_gb",
            fixed_rate=8.0, calendar="ldn", ex_div=7,
        )
        uk11c = uk1.price(ytm=4.445, settlement=dt(1999, 5, 24), dirty=False)
@@ -2198,7 +1972,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
        uk2 = FixedRateBond(
            effective=dt(1998, 11, 26), termination=dt(2004, 11, 26),
-           frequency="S", convention="ActActICMA", calc_mode="UKG",
+           frequency="S", convention="ActActICMA", calc_mode="uk_gb",
            fixed_rate=6.75, calendar="ldn", ex_div=7,
        )
        uk21c = uk2.price(ytm=4.634, settlement=dt(1999, 5, 10), dirty=False)
@@ -2212,7 +1986,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
        usA = FixedRateBond(
            effective=dt(1990, 5, 15), termination=dt(2020, 5, 15),
-           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
            fixed_rate=8.75, calendar="nyc", ex_div=1, modifier="none",
        )
 
@@ -2221,7 +1995,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
        usB = FixedRateBond(
            effective=dt(1990, 4, 2), termination=dt(1992, 3, 31),
-           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
            fixed_rate=8.5, calendar="nyc", ex_div=1, modifier="none",
        )
 
@@ -2231,7 +2005,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
        usC = FixedRateBond(
            effective=dt(1990, 3, 1), termination=dt(1995, 5, 15),
            front_stub=dt(1990, 11, 15),
-           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
            fixed_rate=8.5, calendar="nyc", ex_div=1, modifier="none",
        )
 
@@ -2240,7 +2014,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
        usD = FixedRateBond(
            effective=dt(1985, 11, 15), termination=dt(1995, 11, 15),
-           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
            fixed_rate=9.5, calendar="nyc", ex_div=1, modifier="none",
        )
 
@@ -2250,7 +2024,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
        usE = FixedRateBond(
            effective=dt(1985, 7, 2), termination=dt(2005, 8, 15),
            front_stub=dt(1986, 2, 15),
-           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
            fixed_rate=10.75, calendar="nyc", ex_div=1, modifier="none",
        )
 
@@ -2259,7 +2033,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
 
        usF = FixedRateBond(
            effective=dt(1983, 5, 16), termination=dt(1991, 5, 15), roll=15,
-           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
            fixed_rate=10.50, calendar="nyc", ex_div=1, modifier="none",
        )
 
@@ -2269,7 +2043,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
        usG = FixedRateBond(
            effective=dt(1988, 10, 15), termination=dt(1994, 12, 15),
            front_stub=dt(1989, 6, 15),
-           frequency="S", convention="ActActICMA", calc_mode="UST_31bii",
+           frequency="S", convention="ActActICMA", calc_mode="us_gb_tsy",
            fixed_rate=9.75, calendar="nyc", ex_div=1, modifier="none",
        )
 
@@ -2277,22 +2051,22 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
        usGd = usG.price(ytm=9.79, settlement=dt(1988, 11, 15), dirty=True)
 
        data = DataFrame(data=[
-               ["Riksgalden Website", "Nominal Bond", 116.514000, 119.868393, "sgb", s1c, s1d],
-               ["UK DMO Website", "Ex 1, Scen 1", None, 145.012268, "ukg", uk11c, uk11d],
-               ["UK DMO Website", "Ex 1, Scen 2", None, 145.047301, "ukg", uk12c, uk12d],
-               ["UK DMO Website", "Ex 1, Scen 3", None, 141.070132, "ukg", uk13c, uk13d],
-               ["UK DMO Website", "Ex 1, Scen 4", None, 141.257676, "ukg", uk14c, uk14d],
-               ["UK DMO Website", "Ex 2, Scen 1", None, 113.315543, "ukg", uk21c, uk21d],
-               ["UK DMO Website", "Ex 2, Scen 2", None, 113.415969, "ukg", uk22c, uk22d],
-               ["UK DMO Website", "Ex 2, Scen 3", None, 110.058738, "ukg", uk23c, uk23d],
-               ["UK DMO Website", "Ex 2, Scen 4", None, 110.170218, "ukg", uk24c, uk24d],
-               ["Title-31 Subtitle-B II", "Ex A (reg)",99.057893, 99.057893, "ust_31bii", usAc, usAd],
-               ["Title-31 Subtitle-B II", "Ex B (stub)", 99.838183, 99.838183, "ust_31bii", usBc, usBd],
-               ["Title-31 Subtitle-B II", "Ex C (stub)", 99.805118, 99.805118, "ust_31bii", usCc, usCd],
-               ["Title-31 Subtitle-B II", "Ex D (reg)", 99.730918, 100.098321, "ust_31bii", usDc, usDd],
-               ["Title-31 Subtitle-B II", "Ex E (stub)", 102.214586, 105.887384, "ust_31bii", usEc, usEd],
-               ["Title-31 Subtitle-B II", "Ex F (stub)", 99.777074, 102.373541, "ust_31bii", usFc, usFd],
-               ["Title-31 Subtitle-B II", "Ex G (stub)", 99.738045, 100.563865, "ust_31bii", usGc, usGd],
+               ["Riksgalden Website", "Nominal Bond", 116.514000, 119.868393, "se_gb", s1c, s1d],
+               ["UK DMO Website", "Ex 1, Scen 1", None, 145.012268, "uk_gb", uk11c, uk11d],
+               ["UK DMO Website", "Ex 1, Scen 2", None, 145.047301, "uk_gb", uk12c, uk12d],
+               ["UK DMO Website", "Ex 1, Scen 3", None, 141.070132, "uk_gb", uk13c, uk13d],
+               ["UK DMO Website", "Ex 1, Scen 4", None, 141.257676, "uk_gb", uk14c, uk14d],
+               ["UK DMO Website", "Ex 2, Scen 1", None, 113.315543, "uk_gb", uk21c, uk21d],
+               ["UK DMO Website", "Ex 2, Scen 2", None, 113.415969, "uk_gb", uk22c, uk22d],
+               ["UK DMO Website", "Ex 2, Scen 3", None, 110.058738, "uk_gb", uk23c, uk23d],
+               ["UK DMO Website", "Ex 2, Scen 4", None, 110.170218, "uk_gb", uk24c, uk24d],
+               ["Title-31 Subtitle-B II", "Ex A (reg)",99.057893, 99.057893, "us_gb_tsy", usAc, usAd],
+               ["Title-31 Subtitle-B II", "Ex B (stub)", 99.838183, 99.838183, "us_gb_tsy", usBc, usBd],
+               ["Title-31 Subtitle-B II", "Ex C (stub)", 99.805118, 99.805118, "us_gb_tsy", usCc, usCd],
+               ["Title-31 Subtitle-B II", "Ex D (reg)", 99.730918, 100.098321, "us_gb_tsy", usDc, usDd],
+               ["Title-31 Subtitle-B II", "Ex E (stub)", 102.214586, 105.887384, "us_gb_tsy", usEc, usEd],
+               ["Title-31 Subtitle-B II", "Ex F (stub)", 99.777074, 102.373541, "us_gb_tsy", usFc, usFd],
+               ["Title-31 Subtitle-B II", "Ex G (stub)", 99.738045, 100.563865, "us_gb_tsy", usGc, usGd],
            ],
            columns=["Source", "Example", "Expected clean", "Expected dirty", "Calc mode", "Rateslib clean", "Rateslib dirty"],
        )
@@ -2504,7 +2278,7 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
            \\text{Accrued} = \\text{Coupon} \\times \\frac{\\text{Settle - Last Coupon}}{\\text{Next Coupon - Last Coupon}}
 
         """
-        return self._accrued(settlement, self.calc_mode)
+        return self._accrued(settlement, getattr(self, f"_{self.calc_mode}")["accrual"])
 
     def rate(
         self,
@@ -2531,13 +2305,9 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
             The numerical :class:`Solver` that constructs ``Curves`` from calibrating
             instruments.
         fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            ``FXRates`` or ``FXForwards`` object, converts from local currency
-            into ``base``.
+            Not used by *FixedRateBond* rate. Output is in local currency.
         base : str, optional
-            The base currency to convert cashflows into (3-digit code), set by default.
-            Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
+            Not used by *FixedRateBond* rate. Output is in local currency.
         metric : str, optional
             Metric returned by the method. Available options are {"clean_price",
             "dirty_price", "ytm"}
@@ -2556,15 +2326,14 @@ class FixedRateBond(Sensitivities, BondMixin, BaseMixin):
         metric = metric.lower()
         if metric in ["clean_price", "dirty_price", "ytm"]:
             if forward_settlement is NoInput.blank:
-                settlement = add_tenor(
+                settlement = self.leg1.schedule.calendar.lag(
                     curves[1].node_dates[0],
-                    f"{self.kwargs['settle']}B",
-                    "none",
-                    self.leg1.schedule.calendar,
+                    self.kwargs["settle"],
+                    True,
                 )
             else:
                 settlement = forward_settlement
-            npv = self._npv_local(curves[0], curves[1], fx_, base_, settlement, settlement)
+            npv = self._npv_local(curves[0], curves[1], settlement, settlement)
             # scale price to par 100 (npv is already projected forward to settlement)
             dirty_price = npv * 100 / -self.leg1.notional
 
@@ -3092,15 +2861,14 @@ class IndexFixedRateBond(FixedRateBond):
             "index_dirty_price",
         ]:
             if forward_settlement is NoInput.blank:
-                settlement = add_tenor(
+                settlement = self.leg1.schedule.calendar.lag(
                     curves[1].node_dates[0],
-                    f"{self.kwargs['settle']}B",
-                    None,
-                    self.leg1.schedule.calendar,
+                    self.kwargs["settle"],
+                    True,
                 )
             else:
                 settlement = forward_settlement
-            npv = self._npv_local(curves[0], curves[1], fx_, base_, settlement, settlement)
+            npv = self._npv_local(curves[0], curves[1], settlement, settlement)
             # scale price to par 100 (npv is already projected forward to settlement)
             index_dirty_price = npv * 100 / -self.leg1.notional
             index_ratio = self.index_ratio(settlement, curves[0])
@@ -3152,11 +2920,7 @@ class Bill(FixedRateBond):
         See :meth:`~rateslib.calendars.dcf`.
     settle : int
         The number of business days for regular settlement time, i.e, 1 is T+1.
-        calc_mode : str in {"ukg", "ust", "sgb"}
-        A calculation mode for dealing with bonds that are in short stub or accrual
-        periods. All modes give the same value for YTM at issue date for regular
-        bonds but differ slightly for bonds with stubs or with accrued.
-    calc_mode : str in {"ukg", "ust", "sgb"}
+    calc_mode : str
         A calculation mode for dealing with bonds that are in short stub or accrual
         periods. All modes give the same value for YTM at issue date for regular
         bonds but differ slightly for bonds with stubs or with accrued.
@@ -3201,7 +2965,7 @@ class Bill(FixedRateBond):
            settle=1,
            notional=-1e6,  # negative notional receives fixed, i.e. buys a bill
            curves="bill_curve",
-           calc_mode="ustb",
+           calc_mode="us_gbb",
        )
        bill.ex_div(dt(2004, 1, 22))
        bill.price(rate=0.80, settlement=dt(2004, 1, 22))
@@ -3275,6 +3039,7 @@ class Bill(FixedRateBond):
         self,
         effective: Union[datetime, NoInput] = NoInput(0),
         termination: Union[datetime, str, NoInput] = NoInput(0),
+        frequency: Union[str, NoInput] = NoInput(0),
         modifier: Union[str, None, NoInput] = NoInput(0),
         calendar: Union[CustomBusinessDay, str, NoInput] = NoInput(0),
         payment_lag: Union[int, NoInput] = NoInput(0),
@@ -3309,6 +3074,7 @@ class Bill(FixedRateBond):
             calc_mode=calc_mode,
             spec=spec,
         )
+        self.kwargs["frequency"] = frequency
 
     @property
     def dcf(self):
@@ -3359,11 +3125,10 @@ class Bill(FixedRateBond):
         curves, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves, solver, curves, fx, base, self.leg1.currency
         )
-        settlement = add_tenor(
+        settlement = self.leg1.schedule.calendar.lag(
             curves[1].node_dates[0],
-            f"{self.kwargs['settle']}B",
-            None,
-            self.leg1.schedule.calendar,
+            self.kwargs["settle"],
+            True,
         )
         # scale price to par 100 and make a fwd adjustment according to curve
         price = (
@@ -3396,7 +3161,8 @@ class Bill(FixedRateBond):
         -------
         float, Dual, or Dual2
         """
-        dcf = (1 - self._accrued_frac(settlement, self.calc_mode, 0)) * self.dcf
+        acc_frac = getattr(self, f"_{self.calc_mode}")["accrual"](settlement, 0)
+        dcf = (1 - acc_frac) * self.dcf
         return ((100 / price - 1) / dcf) * 100
 
     def discount_rate(self, price: DualTypes, settlement: datetime) -> DualTypes:
@@ -3414,7 +3180,8 @@ class Bill(FixedRateBond):
         -------
         float, Dual, or Dual2
         """
-        dcf = (1 - self._accrued_frac(settlement, self.calc_mode, 0)) * self.dcf
+        acc_frac = getattr(self, f"_{self.calc_mode}")["accrual"](settlement, 0)
+        dcf = (1 - acc_frac) * self.dcf
         rate = ((1 - price / 100) / dcf) * 100
         return rate
 
@@ -3446,22 +3213,19 @@ class Bill(FixedRateBond):
         -------
         float, Dual, Dual2
         """
-        price_funcs = {
-            NoInput(0): self._price_discount,
-            "sgbb": self._price_simple,
-            "uktb": self._price_simple,
-            "ustb": self._price_discount,
-        }
         if not isinstance(calc_mode, str):
             calc_mode = self.calc_mode
-        return price_funcs[calc_mode](rate, settlement)
+        price_func = getattr(self, f"_{calc_mode}")["price_type"]
+        return price_func(rate, settlement)
 
     def _price_discount(self, rate: DualTypes, settlement: datetime):
-        dcf = (1 - self._accrued_frac(settlement, self.calc_mode, 0)) * self.dcf
+        acc_frac = getattr(self, f"_{self.calc_mode}")["accrual"](settlement, 0)
+        dcf = (1 - acc_frac) * self.dcf
         return 100 - rate * dcf
 
     def _price_simple(self, rate: DualTypes, settlement: datetime):
-        dcf = (1 - self._accrued_frac(settlement, self.calc_mode, 0)) * self.dcf
+        acc_frac = getattr(self, f"_{self.calc_mode}")["accrual"](settlement, 0)
+        dcf = (1 - acc_frac) * self.dcf
         return 100 / (1 + rate * dcf / 100)
 
     def ytm(
@@ -3495,18 +3259,18 @@ class Bill(FixedRateBond):
         This method calculates by constructing a :class:`~rateslib.instruments.FixedRateBond`
         with a regular 0% coupon measured from the termination date of the bill.
         """
-        spec_map = {
-            NoInput(0): "usd_gb",
-            "ustb": "usd_gb",
-            "uktb": "gbp_gb",
-            "sgbb": "sek_gb",
-        }
+
         if isinstance(calc_mode, str):
             calc_mode = calc_mode.lower()
         else:
             calc_mode = self.calc_mode
-        spec_kwargs = defaults.spec[spec_map[calc_mode]]
-        frequency_months = defaults.frequency_months[spec_kwargs["frequency"].upper()]
+
+        if self.kwargs["frequency"] is NoInput.blank:
+            freq = defaults.spec[getattr(self, f"_{calc_mode}")["ytm_clone"]]["frequency"]
+        else:
+            freq = self.kwargs["frequency"]
+
+        frequency_months = defaults.frequency_months[freq.upper()]
         quasi_start = self.leg1.schedule.termination
         while quasi_start > settlement:
             quasi_start = add_tenor(
@@ -3516,7 +3280,7 @@ class Bill(FixedRateBond):
             effective=quasi_start,
             termination=self.leg1.schedule.termination,
             fixed_rate=0.0,
-            spec=spec_map[calc_mode],
+            spec=getattr(self, f"_{calc_mode}")["ytm_clone"],
         )
         return equiv_bond.ytm(price, settlement)
 
@@ -3868,8 +3632,8 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
            frn.accrued(dt(2000, 6, 4))
         """
         if self.leg1.fixing_method == "ibor":
-            acc_idx = self._acc_index(settlement)
-            frac = self._accrued_frac(settlement, self.calc_mode, acc_idx)
+            acc_idx = self._period_index(settlement)
+            frac = getattr(self, f"_{self.calc_mode}")["accrual"](settlement, acc_idx)
             if self.ex_div(settlement):
                 frac = frac - 1  # accrued is negative in ex-div period
 
@@ -3975,15 +3739,12 @@ class FloatRateNote(Sensitivities, BondMixin, BaseMixin):
         metric = metric.lower()
         if metric in ["clean_price", "dirty_price", "spread"]:
             if forward_settlement is NoInput.blank:
-                settlement = add_tenor(
-                    curves[1].node_dates[0],
-                    f"{self.kwargs['settle']}B",
-                    None,
-                    self.leg1.schedule.calendar,
+                settlement = self.leg1.schedule.calendar.lag(
+                    curves[1].node_dates[0], self.kwargs["settle"], True
                 )
             else:
                 settlement = forward_settlement
-            npv = self._npv_local(curves[0], curves[1], fx_, base_, settlement, settlement)
+            npv = self._npv_local(curves[0], curves[1], settlement, settlement)
             # scale price to par 100 (npv is already projected forward to settlement)
             dirty_price = npv * 100 / -self.leg1.notional
 
@@ -4055,11 +3816,10 @@ class BondFuture(Sensitivities):
     --------
     The :meth:`~rateslib.instruments.BondFuture.dlv` method is a summary method which
     displays many attributes simultaneously in a DataFrame.
-    This example replicates the Bloomberg screen print in the publication
+    This example replicates the screen print in the publication
     *The Futures Bond Basis: Second Edition (p77)* by Moorad Choudhry. To replicate
-    that publication exactly no calendar has been provided. A more modern
-    Bloomberg would probably consider the London business day calendar and
-    this would affect the metrics of the third bond to a small degree (i.e.
+    that publication exactly no calendar has been provided. Using the London business day
+    calendar would affect the metrics of the third bond to a small degree (i.e.
     set `calendar="ldn"`)
 
     .. ipython:: python
@@ -4339,7 +4099,7 @@ class BondFuture(Sensitivities):
         dirty: bool = False,
     ):
         """
-        Return an aggregated DataFrame of metrics similar to the Bloomberg DLV function.
+        Return an aggregated DataFrame of DeLiVerable metrics.
 
         Parameters
         ----------
@@ -4438,11 +4198,10 @@ class BondFuture(Sensitivities):
         delivery = self.delivery[1] if delivery is NoInput.blank else delivery
 
         # build a curve for pricing
-        today = add_tenor(
+        today = self.basket[0].leg1.schedule.calendar.lag(
             settlement,
-            f"-{self.basket[0].kwargs['settle']}B",
-            None,
-            self.basket[0].leg1.schedule.calendar,
+            -self.basket[0].kwargs["settle"],
+            False,
         )
         unsorted_nodes = {
             today: 1.0,
@@ -8189,23 +7948,19 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         if isinstance(self.kwargs["delivery_lag"], datetime):
             self.kwargs["delivery"] = self.kwargs["delivery_lag"]
         else:
-            self.kwargs["delivery"] = add_tenor(
+            self.kwargs["delivery"] = get_calendar(self.kwargs["calendar"]).lag(
                 self.kwargs["expiry"],
-                f"{self.kwargs['delivery_lag']}b",
-                "F",
-                self.kwargs["calendar"],
-                NoInput(0),
+                self.kwargs["delivery_lag"],
+                True,
             )
 
         if isinstance(self.kwargs["payment_lag"], datetime):
             self.kwargs["payment"] = self.kwargs["payment_lag"]
         else:
-            self.kwargs["payment"] = add_tenor(
+            self.kwargs["payment"] = get_calendar(self.kwargs["calendar"]).lag(
                 self.kwargs["expiry"],
-                f"{self.kwargs['payment_lag']}b",
-                "F",
-                self.kwargs["calendar"],
-                NoInput(0),
+                self.kwargs["payment_lag"],
+                True,
             )
 
         if self.kwargs["premium_ccy"] not in [
@@ -8217,14 +7972,10 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                 f"currency pair: '{self.kwargs['pair']}'."
             )
         elif self.kwargs["premium_ccy"] == self.kwargs["pair"][3:]:
-            self.kwargs["metric_period"] = (
-                "pips" if self.kwargs["metric"] == "pips_or_%" else self.kwargs["metric"]
-            )
+            self.kwargs["metric_period"] = "pips"
             self.kwargs["delta_adjustment"] = ""
         else:
-            self.kwargs["metric_period"] = (
-                "percent" if self.kwargs["metric"] == "pips_or_%" else self.kwargs["metric"]
-            )
+            self.kwargs["metric_period"] = "percent"
             self.kwargs["delta_adjustment"] = "_pa"
 
         # nothing to inherit or negate.
@@ -8310,20 +8061,23 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             # TODO: this may affect solvers dependent upon sensitivity to vol for changing strikes.
             # set the strike as a float without any sensitivity. Trade definition is a fixed quantity
             # at this stage. Similar to setting a fixed rate as a float on an unpriced IRS for mid-market.
+
+            # self.periods[0].strike = self._pricing["k"]
             self.periods[0].strike = float(self._pricing["k"])
 
         if isinstance(vol, FXVolObj):
             if self._pricing["delta_index"] is None:
                 self._pricing["delta_index"], self._pricing["vol"], _ = vol.get_from_strike(
                     k=self._pricing["k"],
-                    phi=self.periods[0].phi,
                     f=self._pricing["f_d"],
                     w_deli=w_deli,
                     w_spot=w_spot,
-                    expiry=self.kwargs["expiry"]
+                    expiry=self.kwargs["expiry"],
                 )
             else:
-                self._pricing["vol"] = vol._get_index(self._pricing["delta_index"], self.kwargs["expiry"])
+                self._pricing["vol"] = vol._get_index(
+                    self._pricing["delta_index"], self.kwargs["expiry"]
+                )
 
     def _set_premium(
         self,
@@ -8423,7 +8177,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         # self._set_premium(curves, fx)
 
         metric = _drb(self.kwargs["metric"], metric)
-        if metric == "vol":
+        if metric in ["vol", "single_vol"]:
             return self._pricing["vol"]
 
         _ = self.periods[0].rate(curves[1], curves[3], fx, NoInput(0), False, self._pricing["vol"])
@@ -8563,9 +8317,9 @@ class FXCall(FXOption):
                 expiry=self.kwargs["expiry"],
                 delivery=self.kwargs["delivery"],
                 payment=self.kwargs["payment"],
-                strike=NoInput(0)
-                if isinstance(self.kwargs["strike"], str)
-                else self.kwargs["strike"],
+                strike=(
+                    NoInput(0) if isinstance(self.kwargs["strike"], str) else self.kwargs["strike"]
+                ),
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"],
                 delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
@@ -8597,9 +8351,9 @@ class FXPut(FXOption):
                 expiry=self.kwargs["expiry"],
                 delivery=self.kwargs["delivery"],
                 payment=self.kwargs["payment"],
-                strike=NoInput(0)
-                if isinstance(self.kwargs["strike"], str)
-                else self.kwargs["strike"],
+                strike=(
+                    NoInput(0) if isinstance(self.kwargs["strike"], str) else self.kwargs["strike"]
+                ),
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"],
                 delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
@@ -8676,6 +8430,7 @@ class FXOptionStrat:
             "pips_or_%": self.rate_weight,
             "vol": self.rate_weight_vol,
             "premium": [1.0] * len(self.periods),
+            "single_vol": self.rate_weight_vol,
         }
         weights = map_[metric]
 
@@ -9175,6 +8930,19 @@ class FXStrangle(FXOptionStrat, FXOption):
             self.curves, solver, curves, fx, base, self.kwargs["pair"][3:]
         )
         vol = self._vol_as_list(vol, solver)
+        vol = [_ if not isinstance(_, FXDeltaVolSurface) else _.get_smile(self.kwargs["expiry"]) for _ in vol]
+
+        spot = fx.pairs_settlement[self.kwargs["pair"]]
+        w_spot, v_spot = curves[1][spot], curves[3][spot]
+        w_deli, v_deli = curves[1][self.kwargs["delivery"]], curves[3][self.kwargs["delivery"]]
+        f_d, f_t = fx.rate(self.kwargs["pair"], self.kwargs["delivery"]), fx.rate(self.kwargs["pair"], spot)
+        z_w_0 = 1.0 if "forward" in self.kwargs["delta_type"] else w_deli / w_spot
+        f_0 = f_d if "forward" in self.kwargs["delta_type"] else f_t
+        eta1 = None
+        if isinstance(vol[0], FXVolObj):
+            eta1 = -0.5 if "_pa" in vol[0].delta_type else 0.5
+            z_w_1 = 1.0 if "forward" in vol[0].delta_type else w_deli / w_spot
+            fzw1zw0 = f_0 * z_w_1 / z_w_0
 
         # first start by evaluating the individual swaptions given their strikes with the smile - delta or fixed
         gks = [
@@ -9182,15 +8950,61 @@ class FXStrangle(FXOptionStrat, FXOption):
             self.periods[1].analytic_greeks(curves, solver, fx, base, vol=vol[1]),
         ]
 
+        def d_wrt_sigma1(period_index, greeks, smile_greeks, vol, eta1):
+            """
+            Obtain derivatives with respect to tgt vol.
+
+            This function was tested by adding AD to the tgt_vol as a variable e.g.:
+            tgt_vol = Dual(float(tgt_vol), ["tgt_vol"], [100.0]) # note scaled to 100
+            Then the options defined by fixed delta should not have a strike set to float, i.e.
+            self.periods[0].strike = float(self._pricing["k"]) -> self.periods[0].strike = self._pricing["k"]
+            Then evaluate, for example: smile_greeks[i]["_delta_index"] with respect to "tgt_vol".
+            That value calculated with AD aligns with the analyical method here.
+
+            To speed up this function AD could be used, but it requires careful management of whether the
+            strike above is set to float or is left in AD format which has other implications for the calculation
+            of risk sensitivities.
+            """
+            i, sg, g = period_index, smile_greeks, greeks
+            fixed_delta, vol = self._is_fixed_delta[i], vol[i]
+            if not fixed_delta:
+                return g[i]["vega"], 0.0
+            elif not isinstance(vol, FXVolObj):
+                return (
+                    g[i]["_kappa"] * g[i]["_kega"] + g[i]["vega"],
+                    sg[i]["_kappa"] * g[i]["_kega"]
+                )
+            else:
+
+                dvol_ddeltaidx = evaluate(vol.spline, sg[i]["_delta_index"], 1) * 0.01
+                ddeltaidx_dvol1 = sg[i]["gamma"] * fzw1zw0
+                if eta1 < 0:  # premium adjusted vol smile
+                    ddeltaidx_dvol1 += sg[i]["_delta_index"]
+                ddeltaidx_dvol1 *= g[i]["_kega"] / sg[i]["__strike"]
+
+                _ = dual_log(sg[i]["__strike"] / f_d) / sg[i]["__vol"]
+                _ += eta1 * sg[i]["__vol"] * sg[i]["__sqrt_t"] ** 2
+                _ *= dvol_ddeltaidx * sg[i]["gamma"] * fzw1zw0
+                ddeltaidx_dvol1 /= 1 + _
+
+                return (
+                    g[i]["_kappa"] * g[i]["_kega"] + g[i]["vega"],
+                    sg[i]["_kappa"] * g[i]["_kega"] + sg[i]["vega"] * dvol_ddeltaidx * ddeltaidx_dvol1
+                )
+
         tgt_vol = (gks[0]["__vol"] * gks[0]["vega"] + gks[1]["__vol"] * gks[1]["vega"]) * 100.0
         tgt_vol /= gks[0]["vega"] + gks[1]["vega"]
         f0, iters = 100e6, 1
         while abs(f0) > 1e-6 and iters < 10:
+            # Determine the strikes at the current tgt_vol
+            # Also determine the greeks of these options measure with tgt_vol
             gks = [
                 self.periods[0].analytic_greeks(curves, solver, fx, base, vol=tgt_vol),
                 self.periods[1].analytic_greeks(curves, solver, fx, base, vol=tgt_vol),
             ]
-            smile_gks = [  # note the strikes have been set at price time by previous call, call OptionPeriods direct
+            # Also determine the greeks of these options measured with the market smile vol.
+            # (note the strikes have been set by previous call, call OptionPeriods direct to avoid re-determination)
+            smile_gks = [
                 self.periods[0]
                 .periods[0]
                 .analytic_greeks(curves[1], curves[3], fx, base, vol=vol[0]),
@@ -9199,7 +9013,7 @@ class FXStrangle(FXOptionStrat, FXOption):
                 .analytic_greeks(curves[1], curves[3], fx, base, vol=vol[1]),
             ]
 
-            # Apply ad hoc Newton 1d algorithm
+            # The value of the root function is derived from the 4 previous calculated prices
             f0 = (
                 smile_gks[0]["__bs76"]
                 + smile_gks[1]["__bs76"]
@@ -9207,17 +9021,11 @@ class FXStrangle(FXOptionStrat, FXOption):
                 - gks[1]["__bs76"]
             )
 
-            kega1 = gks[0]["_kega"] if self._is_fixed_delta[0] else 0.0
-            kega2 = gks[1]["_kega"] if self._is_fixed_delta[1] else 0.0
-            f1 = smile_gks[0]["_kappa"] * kega1 + smile_gks[1]["_kappa"] * kega2
-            f1 -= (
-                gks[0]["vega"]
-                + gks[1]["vega"]
-                + gks[0]["_kappa"] * kega1
-                + gks[1]["_kappa"] * kega2
-            )
+            dc1_dvol1_0, dcmkt_dvol1_0 = d_wrt_sigma1(0, gks, smile_gks, vol, eta1)
+            dc1_dvol1_1, dcmkt_dvol1_1 = d_wrt_sigma1(1, gks, smile_gks, vol, eta1)
+            f1 = dcmkt_dvol1_0 + dcmkt_dvol1_1 - dc1_dvol1_0 - dc1_dvol1_1
 
-            tgt_vol = tgt_vol - (f0 / f1) * 100.0
+            tgt_vol = tgt_vol - (f0 / f1) * 100.0  # Newton-Raphson step
             iters += 1
 
         if record_greeks:  # this needs to be explicitly called since it degrades performance
@@ -9285,6 +9093,9 @@ class FXBrokerFly(FXOptionStrat, FXOption):
     premium: 4-element sequence, optional
         The premiums associated with each option of the strategy; lower strike put, straddle put,
         straddle call, higher strike call.
+    notional: 2-element sequence, optional
+        The first element is the notional associated with the *Strangle*. If the second element is *None*, it will
+        be implied in a vega neutral sense.
     metric: str, optional
         The default metric to apply in the method :meth:`~rateslib.instruments.FXOptionStrat.rate`
     kwargs: tuple
@@ -9838,8 +9649,8 @@ class Portfolio(Sensitivities):
                 curves=curves, solver=solver, fx=fx, base=base, local=local, **kwargs
             )
 
-        from multiprocessing import Pool
         from functools import partial
+        from multiprocessing import Pool
 
         func = partial(
             _instrument_npv,
@@ -10099,6 +9910,3 @@ def _upper(val: Union[str, NoInput]):
     if isinstance(val, str):
         return val.upper()
     return val
-
-
-

@@ -1,12 +1,11 @@
 import pytest
-from pandas.tseries.holiday import Holiday
 from datetime import datetime as dt
 
 import context
 from rateslib.default import NoInput
 from rateslib.calendars import (
+    Cal,
     create_calendar,
-    _is_holiday,
     dcf,
     get_calendar,
     add_tenor,
@@ -17,14 +16,16 @@ from rateslib.calendars import (
     _is_som,
     _get_imm,
     _get_years_and_months,
-    _dcf_actacticma,
 )
+from rateslib.calendars.dcfs import _dcf_actacticma
+from rateslib.curves import Curve
+from rateslib.instruments import IRS
+from rateslib import defaults
 
 
 @pytest.fixture
 def cal_():
-    rules = [Holiday("New Year", month=1, day=3)]
-    return create_calendar(rules=rules)
+    return Cal([dt(_, 1, 3) for _ in range(1970, 2200)], [5, 6])
 
 
 @pytest.mark.parametrize(
@@ -37,14 +38,15 @@ def cal_():
         (dt(2022, 1, 5), False),  # wed
     ],
 )
-def test_is_holiday(date, expected, cal_):
-    result = _is_holiday(date, cal_)
+def test_is_non_bus_day(date, expected, cal_):
+    result = cal_.is_non_bus_day(date)
     assert result == expected
 
 
-def test_is_holiday_raises():
-    with pytest.raises(ValueError):
-        _ = _is_holiday(dt(2022, 1, 1), None)
+def test_is_non_bus_day_raises():
+    obj = "not a cal object"
+    with pytest.raises(AttributeError):
+        obj._is_non_bus_day(dt(2022, 1, 1))
 
 
 @pytest.mark.parametrize(
@@ -61,29 +63,29 @@ def test_is_holiday_raises():
     ],
 )
 def test_cal_no_hols(date):
-    cal_no_hols = create_calendar([], "Mon Tue Wed Thu Fri Sat Sun")
-    assert not _is_holiday(date, cal_no_hols)
+    cal_no_hols = create_calendar([], [])
+    assert not cal_no_hols.is_non_bus_day(date)
 
 
 def test_named_cal():
     ldn_cal = get_calendar("ldn")
-    assert _is_holiday(dt(2022, 1, 1), ldn_cal)
-    assert not _is_holiday(dt(2022, 1, 5), ldn_cal)
+    assert ldn_cal.is_non_bus_day(dt(2022, 1, 1))
+    assert ldn_cal.is_bus_day(dt(2022, 1, 5))
 
 
 def test_multiple_named_cal():
     ldn_cal = get_calendar("ldn")
     stk_cal = get_calendar("stk")
 
-    assert _is_holiday(dt(2023, 1, 2), ldn_cal)
-    assert not _is_holiday(dt(2023, 1, 2), stk_cal)
+    assert ldn_cal.is_non_bus_day(dt(2023, 1, 2))
+    assert stk_cal.is_bus_day(dt(2023, 1, 2))
 
-    assert not _is_holiday(dt(2023, 1, 6), ldn_cal)
-    assert _is_holiday(dt(2023, 1, 6), stk_cal)
+    assert ldn_cal.is_bus_day(dt(2023, 1, 6))
+    assert stk_cal.is_non_bus_day(dt(2023, 1, 6))
 
     merged_cal = get_calendar("LDN,stk")
-    assert _is_holiday(dt(2023, 1, 2), merged_cal)
-    assert _is_holiday(dt(2023, 1, 6), merged_cal)
+    assert merged_cal.is_non_bus_day(dt(2023, 1, 2))
+    assert merged_cal.is_non_bus_day(dt(2023, 1, 6))
 
 
 def test_add_tenor_raises():
@@ -278,6 +280,7 @@ def test_is_eom_som(date, expected):
         (dt(2022, 1, 1), dt(2022, 1, 1), "ACTACT", 0.0),
         (dt(2022, 1, 1), dt(2023, 1, 31), "1+", 1.0),
         (dt(2022, 1, 1), dt(2024, 2, 28), "1+", 2 + 1 / 12),
+        (dt(2022, 1, 1), dt(2022, 4, 1), "BUS252", 0.35714285714285715),
     ],
 )
 def test_dcf(start, end, conv, expected):
@@ -394,6 +397,28 @@ def test_dcf_raises(conv, freq_m, term, stub):
         _ = dcf(dt(2022, 1, 1), dt(2022, 4, 1), conv, term, freq_m, stub)
 
 
+@pytest.mark.parametrize("start, end, expected", [
+    (dt(2000, 1, 1), dt(2000, 1, 4), 1.0 / 252.0),
+    (dt(2000, 1, 2), dt(2000, 1, 4), 1.0 / 252.0),
+    (dt(2000, 1, 2), dt(2000, 1, 5), 2.0 / 252.0),
+    (dt(2000, 1, 1), dt(2000, 1, 5), 2.0 / 252.0),
+    (dt(2000, 1, 3), dt(2000, 1, 5), 1.0 / 252.0),
+    (dt(2000, 1, 3), dt(2000, 1, 4), 0.0 / 252.0),
+    (dt(2000, 1, 4), dt(2000, 1, 5), 1.0 / 252.0),
+    (dt(2000, 1, 5), dt(2000, 1, 6), 0.0 / 252.0),
+    (dt(2000, 1, 5), dt(2000, 1, 5), 0.0 / 252.0),
+])
+def test_bus252(start, end, expected):
+    cal = Cal([
+        dt(2000, 1, 1),
+        dt(2000, 1, 3),
+        dt(2000, 1, 5),
+        dt(2000, 1, 6),
+
+    ], [])
+    assert dcf(start, end, "BUS252", calendar=cal) == expected
+
+
 @pytest.mark.parametrize(
     "d1, d2, exp",
     [
@@ -425,3 +450,73 @@ def test_act_act_icma_z_freq(s, e, t, exp):
     )
     assert abs(result-exp)<1e-6
 
+
+def test_calendar_aligns_with_fixings_tyo():
+    # using this test in a regular way, and with "-W error" for error on warn ensures that:
+    #  - Curve cal is a business  day and fixings cal has no fixing: is a warn
+    #  - Curve cal is not a business day and fixings cal has a fixing: errors
+    curve = Curve(
+        {dt(2015, 6, 10): 1.0, dt(2024, 6, 3): 1.0},
+        calendar="tyo",
+    )
+    fixings = defaults.fixings["jpy_rfr"]
+    irs = IRS(dt(2015, 6, 10), dt(2024, 6, 3), "A",
+                 leg2_fixings=fixings, calendar="tyo"
+    )
+    irs.rate(curve)
+
+
+def test_calendar_aligns_with_fixings_syd():
+    # using this test in a regular way, and with "-W error" for error on warn ensures that:
+    #  - Curve cal is a business  day and fixings cal has no fixing: is a warn
+    #  - Curve cal is not a business day and fixings cal has a fixing: errors
+    curve = Curve(
+        {dt(2015, 6, 10): 1.0, dt(2024, 6, 3): 1.0},
+        calendar="syd",
+    )
+    fixings = defaults.fixings["aud_rfr"]
+    irs = IRS(dt(2015, 6, 10), dt(2024, 6, 3), "A",
+                 leg2_fixings=fixings, calendar="syd"
+    )
+    irs.rate(curve)
+
+
+def test_book_example():
+    res = add_tenor(dt(2001, 9, 28), "-6M", modifier="MF", calendar="ldn")
+    assert res == dt(2001, 3, 28, 0, 0)
+    res = add_tenor(dt(2001, 9, 28), "-6M", modifier="MF", calendar="ldn", roll=31)
+    assert res == dt(2001, 3, 30, 0, 0)
+    res = add_tenor(dt(2001, 9, 28), "-6M", modifier="MF", calendar="ldn", roll=29)
+    assert res == dt(2001, 3, 29, 0, 0)
+
+
+def test_book_example2():
+    cal = get_calendar("tgt|nyc")
+    cal2 = get_calendar("tgt,nyc")
+    # 11th Nov 09 is a US holiday: test that the holiday is ignored in the settlement cal
+    result = cal.add_bus_days(dt(2009, 11, 10), 2, True)
+    result2 = cal2.add_bus_days(dt(2009, 11, 10), 2, True)
+    assert result == dt(2009, 11, 12)
+    assert result2 == dt(2009, 11, 13)
+
+    # test that the US settlement is honoured
+    result = cal.add_bus_days(dt(2009, 11, 9), 2, True)
+    result2 = cal.add_bus_days(dt(2009, 11, 9), 2, False)
+    assert result == dt(2009, 11, 12)
+    assert result2 == dt(2009, 11, 11)
+
+
+def test_pipe_vectors():
+    get_calendar("tgt,stk|nyc,osl")
+
+
+def test_pipe_raises():
+    with pytest.raises(ValueError, match="Pipe separator can only be used once"):
+        get_calendar("tgt|nyc|stk")
+
+
+def test_add_and_get_custom_calendar():
+    cal = Cal([dt(2023, 1, 2)], [5, 6])
+    defaults.calendars["custom"] = cal
+    result = get_calendar("custom")
+    assert result == cal

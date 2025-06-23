@@ -7,7 +7,8 @@ from pandas import DataFrame, Series, Index
 import numpy as np
 
 import context
-from rateslib.default import NoInput, Defaults
+from rateslib import defaults
+from rateslib.default import NoInput
 from rateslib.periods import (
     Cashflow,
     FixedPeriod,
@@ -175,23 +176,23 @@ class TestFloatPeriod:
         rate = None if curve is None else float(float_period.rate(curve))
         cashflow = None if rate is None else rate * -1e9 * float_period.dcf / 100
         expected = {
-            Defaults.headers["type"]: "FloatPeriod",
-            Defaults.headers["stub_type"]: "Regular",
-            Defaults.headers["a_acc_start"]: dt(2022, 1, 1),
-            Defaults.headers["a_acc_end"]: dt(2022, 4, 1),
-            Defaults.headers["payment"]: dt(2022, 4, 3),
-            Defaults.headers["notional"]: 1e9,
-            Defaults.headers["currency"]: "USD",
-            Defaults.headers["convention"]: "Act360",
-            Defaults.headers["dcf"]: float_period.dcf,
-            Defaults.headers["df"]: 0.9897791268897856 if crv else None,
-            Defaults.headers["rate"]: rate,
-            Defaults.headers["spread"]: 0 if spread is NoInput.blank else spread,
-            Defaults.headers["npv"]: -10096746.871171726 if crv else None,
-            Defaults.headers["cashflow"]: cashflow,
-            Defaults.headers["fx"]: fx,
-            Defaults.headers["npv_fx"]: -10096746.871171726 * fx if crv else None,
-            Defaults.headers["collateral"]: None,
+            defaults.headers["type"]: "FloatPeriod",
+            defaults.headers["stub_type"]: "Regular",
+            defaults.headers["a_acc_start"]: dt(2022, 1, 1),
+            defaults.headers["a_acc_end"]: dt(2022, 4, 1),
+            defaults.headers["payment"]: dt(2022, 4, 3),
+            defaults.headers["notional"]: 1e9,
+            defaults.headers["currency"]: "USD",
+            defaults.headers["convention"]: "Act360",
+            defaults.headers["dcf"]: float_period.dcf,
+            defaults.headers["df"]: 0.9897791268897856 if crv else None,
+            defaults.headers["rate"]: rate,
+            defaults.headers["spread"]: 0 if spread is NoInput.blank else spread,
+            defaults.headers["npv"]: -10096746.871171726 if crv else None,
+            defaults.headers["cashflow"]: cashflow,
+            defaults.headers["fx"]: fx,
+            defaults.headers["npv_fx"]: -10096746.871171726 * fx if crv else None,
+            defaults.headers["collateral"]: None,
         }
         if fx == 2.0:
             with pytest.warns(UserWarning):
@@ -1419,23 +1420,23 @@ class TestFixedPeriod:
 
         cashflow = None if rate is NoInput.blank else rate * -1e9 * fixed_period.dcf / 100
         expected = {
-            Defaults.headers["type"]: "FixedPeriod",
-            Defaults.headers["stub_type"]: "Regular",
-            Defaults.headers["a_acc_start"]: dt(2022, 1, 1),
-            Defaults.headers["a_acc_end"]: dt(2022, 4, 1),
-            Defaults.headers["payment"]: dt(2022, 4, 3),
-            Defaults.headers["notional"]: 1e9,
-            Defaults.headers["currency"]: "USD",
-            Defaults.headers["convention"]: "Act360",
-            Defaults.headers["dcf"]: fixed_period.dcf,
-            Defaults.headers["df"]: 0.9897791268897856 if crv else None,
-            Defaults.headers["rate"]: rate,
-            Defaults.headers["spread"]: None,
-            Defaults.headers["npv"]: -9897791.268897856 if crv else None,
-            Defaults.headers["cashflow"]: cashflow,
-            Defaults.headers["fx"]: fx,
-            Defaults.headers["npv_fx"]: -9897791.268897855 * fx if crv else None,
-            Defaults.headers["collateral"]: None,
+            defaults.headers["type"]: "FixedPeriod",
+            defaults.headers["stub_type"]: "Regular",
+            defaults.headers["a_acc_start"]: dt(2022, 1, 1),
+            defaults.headers["a_acc_end"]: dt(2022, 4, 1),
+            defaults.headers["payment"]: dt(2022, 4, 3),
+            defaults.headers["notional"]: 1e9,
+            defaults.headers["currency"]: "USD",
+            defaults.headers["convention"]: "Act360",
+            defaults.headers["dcf"]: fixed_period.dcf,
+            defaults.headers["df"]: 0.9897791268897856 if crv else None,
+            defaults.headers["rate"]: rate,
+            defaults.headers["spread"]: None,
+            defaults.headers["npv"]: -9897791.268897856 if crv else None,
+            defaults.headers["cashflow"]: cashflow,
+            defaults.headers["fx"]: fx,
+            defaults.headers["npv_fx"]: -9897791.268897855 * fx if crv else None,
+            defaults.headers["collateral"]: None,
         }
         if fx == 2.0:
             with pytest.warns(UserWarning):
@@ -1500,23 +1501,23 @@ class TestCashflow:
         cashflow = Cashflow(notional=1e9, payment=dt(2022, 4, 3))
         curve = curve if crv else NoInput(0)
         expected = {
-            Defaults.headers["type"]: "Cashflow",
-            Defaults.headers["stub_type"]: None,
-            Defaults.headers["a_acc_start"]: None,
-            Defaults.headers["a_acc_end"]: None,
-            Defaults.headers["payment"]: dt(2022, 4, 3),
-            Defaults.headers["currency"]: "USD",
-            Defaults.headers["notional"]: 1e9,
-            Defaults.headers["convention"]: None,
-            Defaults.headers["dcf"]: None,
-            Defaults.headers["df"]: 0.9897791268897856 if crv else None,
-            Defaults.headers["rate"]: None,
-            Defaults.headers["spread"]: None,
-            Defaults.headers["npv"]: -989779126.8897856 if crv else None,
-            Defaults.headers["cashflow"]: -1e9,
-            Defaults.headers["fx"]: fx,
-            Defaults.headers["npv_fx"]: -989779126.8897856 * fx if crv else None,
-            Defaults.headers["collateral"]: None,
+            defaults.headers["type"]: "Cashflow",
+            defaults.headers["stub_type"]: None,
+            defaults.headers["a_acc_start"]: None,
+            defaults.headers["a_acc_end"]: None,
+            defaults.headers["payment"]: dt(2022, 4, 3),
+            defaults.headers["currency"]: "USD",
+            defaults.headers["notional"]: 1e9,
+            defaults.headers["convention"]: None,
+            defaults.headers["dcf"]: None,
+            defaults.headers["df"]: 0.9897791268897856 if crv else None,
+            defaults.headers["rate"]: None,
+            defaults.headers["spread"]: None,
+            defaults.headers["npv"]: -989779126.8897856 if crv else None,
+            defaults.headers["cashflow"]: -1e9,
+            defaults.headers["fx"]: fx,
+            defaults.headers["npv_fx"]: -989779126.8897856 * fx if crv else None,
+            defaults.headers["collateral"]: None,
         }
         if fx == 2.0:
             with pytest.warns(UserWarning):
@@ -1749,7 +1750,7 @@ class TestIndexFixedPeriod:
             "NPV": -19795582.53779571 if curve_ else None,
             "FX Rate": 1.0,
             "NPV Ccy": -19795582.53779571 if curve_ else None,
-            Defaults.headers["collateral"]: None,
+            defaults.headers["collateral"]: None,
         }
         assert result == expected
 
@@ -1773,7 +1774,7 @@ class TestIndexFixedPeriod:
             index_base=100.0,
         )
         result = i_period.cashflows()
-        assert result[Defaults.headers["index_ratio"]] is None
+        assert result[defaults.headers["index_ratio"]] is None
 
     def test_bad_curve(self):
         i_period = IndexFixedPeriod(
@@ -1877,7 +1878,7 @@ class TestIndexCashflow:
             index_base=100.0,
         )
         result = i_period.cashflows()
-        assert result[Defaults.headers["index_ratio"]] is None
+        assert result[defaults.headers["index_ratio"]] is None
 
     def test_index_only(self, curve):
         cf = IndexCashflow(
@@ -1949,7 +1950,7 @@ def fxvs():
 
 class TestFXOption:
 
-    # Bloomberg tests replicate https://quant.stackexchange.com/a/77802/29443
+    #  https://quant.stackexchange.com/a/77802/29443
     @pytest.mark.parametrize("pay, k, exp_pts, exp_prem, dlty, exp_dl", [
         (dt(2023, 3, 20), 1.101, 69.378, 138756.54, "spot", 0.250124),
         (dt(2023, 3, 20), 1.101, 69.378, 138756.54, "forward", 0.251754),
@@ -2504,6 +2505,40 @@ class TestFXOption:
                 fxo._t_to_expiry(fxfo.curve("eur", "usd").node_dates[0]),
             )
 
+    @pytest.mark.parametrize("delta_type", ["forward", "spot"])
+    def test_analytic_gamma_fwd_diff(self, delta_type, fxfo):
+        # test not suitable for pa because of the assumption of a fixed premium amount
+        fxc = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 3, 16),
+            notional=20e6,
+            strike=1.101,
+            delta_type=delta_type,
+        )
+        base = fxc.analytic_greeks(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=8.9
+        )
+        f_d = fxfo.rate("eurusd", dt(2023, 6, 20))
+        f_t = fxfo.rate("eurusd", dt(2023, 3, 20))
+        fxfo.fx_rates.update({"eurusd": 1.0615001})
+        fxfo.update()
+        f_d2 = fxfo.rate("eurusd", dt(2023, 6, 20))
+        f_t2 = fxfo.rate("eurusd", dt(2023, 3, 20))
+        base_1 = fxc.analytic_greeks(
+            fxfo.curve("eur", "usd"),
+            fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            vol=8.9
+        )
+        denomn = (f_d2 - f_d) if "forward" in delta_type else (f_t2 - f_t)
+        fwd_diff = -(base["delta"] - base_1["delta"]) / denomn
+        assert abs(base["gamma"] - fwd_diff) < 1e-5
+
     def test_analytic_vega(self, fxfo):
         fxc = FXCallPeriod(
             pair="eurusd",
@@ -2520,7 +2555,7 @@ class TestFXOption:
             fx=fxfo,
             vol=8.9
         )["vega"]
-        assert abs(result * 20e6 / 100 - 33757.945) < 1e-2  # BBG validation gives 33775.78 $
+        assert abs(result * 20e6 / 100 - 33757.945) < 1e-2
 
         p0 = fxc.npv(
             disc_curve=fxfo.curve("eur", "usd"),
@@ -2553,7 +2588,6 @@ class TestFXOption:
             fx=fxfo,
             vol=8.9
         )["vomma"]
-        # assert abs(result * 20e6 / 100 - 33757.945) < 1e-2  # BBG validation gives 33775.78 $
 
         p0 = fxc.npv(
             disc_curve=fxfo.curve("eur", "usd"),

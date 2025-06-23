@@ -14,6 +14,7 @@ from rateslib.fx import (
 from rateslib.dual import Dual, Dual2, gradient
 from rateslib.curves import Curve, LineCurve, CompositeCurve
 from rateslib.default import NoInput
+from rateslib.json import from_json
 
 
 @pytest.mark.parametrize(
@@ -25,8 +26,14 @@ from rateslib.default import NoInput
     ],
 )
 def test_ill_constrained(fx_rates):
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="FX Array cannot be solved."):
         FXRates(fx_rates)
+
+
+def test_avoid_recursion_error():
+    pairs = ['jpymxp', 'usdnok', 'usdgbp', 'audmxp', 'gbpsek', 'eurnok', 'eursek']
+    with pytest.raises(ValueError, match="FX Array cannot be solved. There are degenerate"):
+        FXRates({k: 1.2 for k in pairs})
 
 
 def test_rates():
@@ -89,7 +96,7 @@ def test_fxrates_set_order():
 
 def test_update_raises():
     fxr = FXRates({"usdnok": 8.0})
-    with pytest.raises(ValueError, match="`fx_rates` must contain"):
+    with pytest.raises(ValueError, match="The given `fx_rates` pairs are not contained in the `FXRates` object."):
         fxr.update({"usdnok": 9.0, "gbpnok": 10.0})
 
 
@@ -97,10 +104,8 @@ def test_restate():
     fxr = FXRates({"usdnok": 8.0, "gbpnok": 10})
     fxr2 = fxr.restate(["gbpusd", "usdnok"])
     assert fxr2.pairs == ["gbpusd", "usdnok"]
-    assert fxr2.fx_rates == {
-        "gbpusd": Dual(1.25, ["fx_gbpusd"], [1.0]),
-        "usdnok": Dual(8.0, ["fx_usdnok"], [1.0]),
-    }
+    assert fxr2.rate("gbpusd") == Dual(1.25, ["fx_gbpusd"], [1.0])
+    assert fxr2.rate("usdnok") == Dual(8.0, ["fx_usdnok"], [1.0])
 
 
 def test_restate_return_self():
@@ -119,34 +124,34 @@ def test_rates_table():
 def test_fxrates_to_json():
     fxr = FXRates({"usdnok": 8.0, "eurusd": 1.05})
     result = fxr.to_json()
-    expected = '{"fx_rates": {"usdnok": 8.0, "eurusd": 1.05}, "settlement": null, "base": "usd"}'
+    expected = '{"Py":{"FXRates":{"fx_rates":[{"pair":[{"name":"usd"},{"name":"nok"}],"rate":{"F64":8.0},"settlement":null},{"pair":[{"name":"eur"},{"name":"usd"}],"rate":{"F64":1.05},"settlement":null}],"currencies":[{"name":"usd"},{"name":"nok"},{"name":"eur"}],"fx_array":{"Dual":{"v":1,"dim":[3,3],"data":[{"real":1.0,"vars":[],"dual":{"v":1,"dim":[0],"data":[]}},{"real":8.0,"vars":["fx_usdnok"],"dual":{"v":1,"dim":[1],"data":[1.0]}},{"real":0.9523809523809523,"vars":["fx_eurusd"],"dual":{"v":1,"dim":[1],"data":[-0.9070294784580498]}},{"real":0.125,"vars":["fx_usdnok"],"dual":{"v":1,"dim":[1],"data":[-0.015625]}},{"real":1.0,"vars":[],"dual":{"v":1,"dim":[0],"data":[]}},{"real":0.11904761904761904,"vars":["fx_usdnok","fx_eurusd"],"dual":{"v":1,"dim":[2],"data":[-0.01488095238095238,-0.11337868480725623]}},{"real":1.05,"vars":["fx_eurusd"],"dual":{"v":1,"dim":[1],"data":[1.0]}},{"real":8.4,"vars":["fx_usdnok","fx_eurusd"],"dual":{"v":1,"dim":[2],"data":[1.05,8.0]}},{"real":1.0,"vars":[],"dual":{"v":1,"dim":[0],"data":[]}}]}}}}}'
     assert result == expected
 
     fxr = FXRates({"usdnok": 8.0, "eurusd": 1.05}, dt(2022, 1, 3))
     result = fxr.to_json()
     expected = (
-        '{"fx_rates": {"usdnok": 8.0, "eurusd": 1.05}, "settlement": "2022-01-03", "base": "usd"}'
+        '{"Py":{"FXRates":{"fx_rates":[{"pair":[{"name":"usd"},{"name":"nok"}],"rate":{"F64":8.0},"settlement":"2022-01-03T00:00:00"},{"pair":[{"name":"eur"},{"name":"usd"}],"rate":{"F64":1.05},"settlement":"2022-01-03T00:00:00"}],"currencies":[{"name":"usd"},{"name":"nok"},{"name":"eur"}],"fx_array":{"Dual":{"v":1,"dim":[3,3],"data":[{"real":1.0,"vars":[],"dual":{"v":1,"dim":[0],"data":[]}},{"real":8.0,"vars":["fx_usdnok"],"dual":{"v":1,"dim":[1],"data":[1.0]}},{"real":0.9523809523809523,"vars":["fx_eurusd"],"dual":{"v":1,"dim":[1],"data":[-0.9070294784580498]}},{"real":0.125,"vars":["fx_usdnok"],"dual":{"v":1,"dim":[1],"data":[-0.015625]}},{"real":1.0,"vars":[],"dual":{"v":1,"dim":[0],"data":[]}},{"real":0.11904761904761904,"vars":["fx_usdnok","fx_eurusd"],"dual":{"v":1,"dim":[2],"data":[-0.01488095238095238,-0.11337868480725623]}},{"real":1.05,"vars":["fx_eurusd"],"dual":{"v":1,"dim":[1],"data":[1.0]}},{"real":8.4,"vars":["fx_usdnok","fx_eurusd"],"dual":{"v":1,"dim":[2],"data":[1.05,8.0]}},{"real":1.0,"vars":[],"dual":{"v":1,"dim":[0],"data":[]}}]}}}}}'
     )
     assert result == expected
 
 
 def test_from_json_and_equality():
     fxr1 = FXRates({"usdnok": 8.0, "eurusd": 1.05})
-    fxr2 = FXRates({"usdnok": 12.0, "eurusd": 1.10})
+    fxr2 = FXRates({"usdnok": 2.0, "eurusd": 4.0})
     assert fxr1 != fxr2
 
-    fxr2 = FXRates.from_json(
-        '{"fx_rates": {"usdnok": 8.0, "eurusd": 1.05}, "settlement": null, "base": "usd"}'
+    fxr3 = from_json(
+        '{"Py":{"FXRates":{"fx_rates":[{"pair":[{"name":"usd"},{"name":"nok"}],"rate":{"F64":2.0},"settlement":null},{"pair":[{"name":"eur"},{"name":"usd"}],"rate":{"F64":4.0},"settlement":null}],"currencies":[{"name":"usd"},{"name":"nok"},{"name":"eur"}],"fx_array":{"Dual":{"v":1,"dim":[3,3],"data":[{"real":1.0,"vars":[],"dual":{"v":1,"dim":[0],"data":[]}},{"real":2.0,"vars":["fx_usdnok"],"dual":{"v":1,"dim":[1],"data":[1.0]}},{"real":0.25,"vars":["fx_eurusd"],"dual":{"v":1,"dim":[1],"data":[-0.0625]}},{"real":0.5,"vars":["fx_usdnok"],"dual":{"v":1,"dim":[1],"data":[-0.25]}},{"real":1.0,"vars":[],"dual":{"v":1,"dim":[0],"data":[]}},{"real":0.125,"vars":["fx_usdnok","fx_eurusd"],"dual":{"v":1,"dim":[2],"data":[-0.0625,-0.03125]}},{"real":4.0,"vars":["fx_eurusd"],"dual":{"v":1,"dim":[1],"data":[1.0]}},{"real":8.0,"vars":["fx_usdnok","fx_eurusd"],"dual":{"v":1,"dim":[2],"data":[4.0,2.0]}},{"real":1.0,"vars":[],"dual":{"v":1,"dim":[0],"data":[]}}]}}}}}'
     )
-    assert fxr2 == fxr1
+    assert fxr2 == fxr3
 
-    fxr3 = FXRates({"usdnok": 8.0, "eurusd": 1.05}, base="NOK")
-    assert fxr1 != fxr3  # base is different
+    fxr4 = FXRates({"usdnok": 2.0, "eurusd": 4.0}, base="NOK")
+    assert fxr3 != fxr4  # base is different
 
 
 def test_copy():
     fxr1 = FXRates({"usdnok": 8.0, "eurusd": 1.05}, settlement=dt(2022, 1, 3))
-    fxr2 = fxr1.copy()
+    fxr2 = fxr1.__copy__()
     assert fxr1 == fxr2
     assert id(fxr1) != id(fxr2)
 
@@ -165,8 +170,36 @@ def test_set_ad_order():
     assert fxr.fx_vector[0] == 1.0
     assert fxr.fx_vector[1] == 10.0
 
-    with pytest.raises(ValueError, match="`order` can only be in"):
+    with pytest.raises(ValueError, match="Order for AD can only be in {0,1,2}"):
         fxr._set_ad_order("bad arg")
+
+
+def test_set_ad_order_second_order_gradients():
+    # test ensures that the FX Array is consecutively constructed passing correct second order gradients.
+    # Versions <1.3.0 failed to correctly handle this becuase they simply upcast the FX rates vector.
+    fxr = FXRates({"usdnok": 10.0, "eurnok": 8.0})
+
+    un = Dual2(10, ["fx_usdnok"], [], [])
+    en = Dual2(8.0, ["fx_eurnok"], [], [])
+    expected = un / en
+    row, col = fxr.currencies["usd"], fxr.currencies["eur"]
+
+    fxr._set_ad_order(2)
+    assert fxr._ad == 2
+    assert type(fxr.fx_vector[0]) is Dual2
+    assert type(fxr.fx_vector[1]) is Dual2
+    assert np.all(
+        np.isclose(
+            gradient(fxr.fx_array[row, col], ["fx_usdnok", "fx_eurnok"]),
+            gradient(expected, ["fx_usdnok", "fx_eurnok"])
+        )
+    )
+    assert np.all(
+        np.isclose(
+            gradient(fxr.fx_array[row, col], ["fx_usdnok", "fx_eurnok"], order=2),
+            gradient(expected, ["fx_usdnok", "fx_eurnok"], order=2)
+        )
+    )
 
 
 @pytest.fixture()
@@ -295,10 +328,31 @@ def test_fxforwards2():
         "nokeur": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.978}),
     }
     fxf = FXForwards(fx_rates, fx_curves)
-    result = fxf.rate("usdnok", dt(2022, 8, 16))
-    expected = Dual(7.9039924628096845, ["fx_eurnok", "fx_usdeur"], [0.88919914, 8.78221385])
-    assert abs(result-expected) < 1e-15
-    assert all(np.isclose(gradient(result, ["fx_eurnok", "fx_usdeur"]), expected.dual))
+
+    # First check the Immediate rates are correct:
+    d = dt(2022, 1, 3)
+    v, w = fxf.curve("usd", "usd"), fxf.curve("eur", "usd")
+    F_usdeur_exp = Dual(0.9, ["fx_usdeur"], []) * w[d] / v[d]
+    F_usdeur_res = fxf.rate("usdeur", dt(2022, 1, 1))
+    assert abs(F_usdeur_exp - F_usdeur_res) < 1e-14
+
+    # And the other
+    v2, w2 = fxf.curve("eur", "eur"), fxf.curve("nok", "eur")
+    F_eurnok_exp = Dual(8.888889, ["fx_eurnok"], []) * w2[d] / v2[d]
+    F_eurnok_res = fxf.rate("eurnok", dt(2022, 1, 1))
+    assert abs(F_eurnok_exp - F_eurnok_res) < 1e-14
+
+    # Now we will look to evaluate a cross forward rate
+    d = dt(2022, 8, 16)
+    f_usdnok_res = fxf.rate("usdnok", dt(2022, 8, 16))
+    f_usdnok_exp = F_usdeur_exp * F_eurnok_exp * v[d] * v2[d] / (w[d] * w2[d])
+
+    # expected = Dual(7.9039924628096845, ["fx_eurnok", "fx_usdeur"], [0.88919914, 8.78221385])
+    assert abs(f_usdnok_res - f_usdnok_exp) < 1e-14
+    assert all(np.isclose(
+        gradient(f_usdnok_res, ["fx_eurnok", "fx_usdeur"]),
+        gradient(f_usdnok_exp, ["fx_eurnok", "fx_usdeur"])
+    ))
 
 
 def test_fxforwards_immediate():
@@ -654,7 +708,7 @@ def test_rate_path_immediate(settlement):
     eurusd = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.9985})
     noknok = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.997})
     nokeur = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.9965})
-    fxr = FXRates({"usdnok": 8.0, "eurusd": 1.05}, settlement=dt(2022, 1, 3))
+    fxr = FXRates({"eurusd": 1.05, "usdnok": 8.0}, settlement=dt(2022, 1, 3), base="usd")
     fxf = FXForwards(
         fxr,
         {
@@ -901,9 +955,32 @@ def test_fxforwards_cyclic_system_fails():
 
 
 def test_fxforwards_cyclic_system_restructured():
+    # this system as reported in the book has two settlement dates but must be adjusted
+    # given the curve currency one-hot matrix
     fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
     fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2))
     fxr3 = FXRates({"gbpusd": 1.2}, settlement=dt(2022, 1, 3))
+    fxf = FXForwards(
+        fx_rates=[fxr1, fxr2, fxr3],
+        fx_curves={
+            "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "cadcad": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "usdeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "cadeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "gbpcad": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            "gbpgbp": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+        },
+    )
+    result = fxf.rate("eurcad", dt(2022, 2, 1))
+    expected = 1.05 * 1.10
+    assert abs(result - expected) < 1e-2
+
+
+def test_fxforwards_cyclic_system_restructured2():
+    fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3), base="eur")
+    fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2), base="cad")
+    fxr3 = FXRates({"gbpusd": 1.2}, settlement=dt(2022, 1, 3), base="gbp")
     fxf = FXForwards(
         fx_rates=[fxr1, fxr2, fxr3],
         fx_curves={
@@ -950,7 +1027,6 @@ def test_fxforwards_settlement_pairs():
         },
     )
     assert fxf.pairs_settlement["eurusd"] == dt(2022, 1, 3)
-
 
 
 def test_fxforwards_positions_when_immediate_aligns_with_settlement():
@@ -1008,7 +1084,7 @@ def test_forward_fx_immediate():
     result = forward_fx(dt(2022, 1, 1), d_curve, f_curve, 10.0, dt(2022, 1, 1))
     assert abs(result - 10.0) < 1e-6
 
-    result = forward_fx(dt(2022, 1, 1), d_curve, f_curve, 10.0, None)
+    result = forward_fx(dt(2022, 1, 1), d_curve, f_curve, 10.0)
     assert abs(result - 10.0) < 1e-6
 
 

@@ -6,7 +6,8 @@ from packaging import version
 import context
 
 from rateslib.dual import gradient, DUAL_CORE_PY, dual_solve
-from rateslib.dual.dualrs import Dual
+from rateslib.dual.dualrs import Dual, Dual2
+from rateslib.rs import from_json
 
 
 @pytest.fixture()
@@ -17,6 +18,19 @@ def x_1():
 @pytest.fixture()
 def x_2():
     return Dual(2, vars=["v0", "v2"], dual=[0, 3])
+
+
+def test_json_round_trip(x_2):
+    x2j = x_2.to_json()
+    x_22 = from_json(x2j)
+    assert x_2 == x_22
+
+
+def test_json_round_trip_dual2():
+    x_2 = Dual2(2.5, ["a", "bb"], [1.2, 3.4], [])
+    x2j = x_2.to_json()
+    x_22 = from_json(x2j)
+    assert x_2 == x_22
 
 
 def test_zero_init():

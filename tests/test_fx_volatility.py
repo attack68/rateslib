@@ -54,14 +54,12 @@ class TestFXDeltaVolSmile:
         )
         put_vol = fxvs.get_from_strike(
             k=k,
-            phi=-1.0,
             f=fxfo.rate("eurusd", dt(2023, 6, 20)),
             w_deli=fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
             w_spot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)]
         )
         call_vol = fxvs.get_from_strike(
             k=k,
-            phi=1.0,
             f=fxfo.rate("eurusd", dt(2023, 6, 20)),
             w_deli=fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
             w_spot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)]
@@ -89,7 +87,6 @@ class TestFXDeltaVolSmile:
         )
         args = (
             k,
-            -1.0,
             fxfo.rate("eurusd", dt(2023, 6, 20)),
             fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
             fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
@@ -127,7 +124,6 @@ class TestFXDeltaVolSmile:
         fxfo._set_ad_order(2)
         args = (
             k,
-            -1.0,
             fxfo.rate("eurusd", dt(2023, 6, 20)),
             fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
             fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
@@ -330,17 +326,6 @@ class TestFXDeltaVolSmile:
         with pytest.raises(ValueError, match="`order` can only be in"):
             fxvs._set_ad_order(10)
 
-    def test_call_to_put_delta_raises(self):
-        fxvs = FXDeltaVolSmile(
-            nodes={0.25: 10.0, 0.5: 10.0, 0.75: 11.0},
-            delta_type="forward",
-            eval_date=dt(2023, 3, 16),
-            expiry=dt(2023, 6, 16),
-            id="vol",
-        )
-        with pytest.raises(ValueError, match="`delta_type` must be in"):
-            fxvs._call_to_put_delta(0.5, "bad_type")
-
     def test_iter_raises(self):
         fxvs = FXDeltaVolSmile(
             nodes={0.5: 1.0},
@@ -350,13 +335,6 @@ class TestFXDeltaVolSmile:
         )
         with pytest.raises(TypeError, match="`FXDeltaVolSmile` is not iterable."):
             fxvs.__iter__()
-
-    # @pytest.mark.parametrize("smile_type, delta_type, exp", [
-    #     ("forward", "forward", 0.25),
-    #     ("forward", "spot", 0.25),
-    # ])
-    # def test_get(self, fxfo):
-    #     pass
 
 
 class TestFXDeltaVolSurface:
@@ -468,7 +446,7 @@ class TestFXDeltaVolSurface:
             delta_type="forward",
         )
         result = fxvs.get_from_strike(
-            1.05, 1.0, 1.03, 0.99, 0.999, dt(2024, 7, 1)
+            1.05, 1.03, 0.99, 0.999, dt(2024, 7, 1)
         )[1]
         # expected close to delta index of 0.5 i.e around 17.87% vol
         expected = 17.882603173
@@ -484,7 +462,7 @@ class TestFXDeltaVolSurface:
             delta_type="forward",
         )
         with pytest.raises(ValueError, match="`expiry` required to get cross-section"):
-            fxvs.get_from_strike(1.05, 1.0, 1.03, 0.99, 0.999)
+            fxvs.get_from_strike(1.05, 1.03, 0.99, 0.999)
 
     def test_set_node_vector(self):
         fxvs = FXDeltaVolSurface(

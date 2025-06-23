@@ -21,7 +21,6 @@ from rateslib.dual import Dual, Dual2, gradient
 from rateslib.calendars import get_calendar
 from rateslib.solver import Solver
 from rateslib.instruments import IRS
-from rateslib.rateslibrs import index_left_f64
 
 
 @pytest.fixture()
@@ -358,6 +357,7 @@ def test_curve_interp_raises():
     with pytest.raises(ValueError, match=err):
         curve[dt(2022, 1, 15)]
 
+
 def test_curve_sorted_nodes_raises():
     err = 'Curve node dates are not sorted or contain duplicates.'
     with pytest.raises(ValueError, match=err):
@@ -368,7 +368,8 @@ def test_curve_sorted_nodes_raises():
             },
             id='curve',
         )
-        
+
+
 def test_interp_raises():
     interp = 'linea'  # Wrongly spelled interpolation method
     err = '`interpolation` must be in {"linear", "log_linear", "linear_index'
@@ -1567,8 +1568,8 @@ class TestPlotCurve:
     def test_plot_curve_right(self, curve, right):
         fig, ax, lines = curve.plot("1d", right=right)
         result = lines[0].get_data()
-        assert result[0][-1] == dt(2022, 3, 2)
-        assert abs(result[1][-1].real - 12.008005336896055) < 1e-6
+        assert result[0][-1] == dt(2022, 3, 3)
+        assert abs(result[1][-1].real - 12.012012012015738) < 1e-6
         plt.close("all")
 
     def test_plot_curve_right_raise(self, curve):
@@ -1630,3 +1631,60 @@ class TestPlotCurve:
             i_curve.plot_index(left=2.0)
         with pytest.raises(ValueError, match="`right` must be supplied as"):
             i_curve.plot_index(right=2.0)
+
+    def test_composite_curve_plot(self):
+        curve1 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 12, 1): 0.95}, modifier="MF", calendar="bus")
+        curve2 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 12, 1): 0.97}, modifier="MF", calendar="bus")
+        cc = CompositeCurve(curves=[curve1, curve2])
+        cc.plot("1m")
+
+    def test_plot_a_rolled_spline_curve(self):
+        curve = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.988,
+                dt(2024, 1, 1): 0.975,
+                dt(2025, 1, 1): 0.965,
+                dt(2026, 1, 1): 0.955,
+                dt(2027, 1, 1): 0.9475
+            },
+            t=[
+                dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1), dt(2024, 1, 1),
+                dt(2025, 1, 1),
+                dt(2026, 1, 1),
+                dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1), dt(2027, 1, 1),
+            ],
+        )
+        rolled_curve = curve.roll("6m")
+        rolled_curve2 = curve.roll("-6m")
+        curve.plot(
+            "1d",
+            comparators=[rolled_curve, rolled_curve2],
+            labels=["orig", "rolled", "rolled2"],
+            right=dt(2026, 6, 30),
+        )
+        usd_curve = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 7, 1): 0.98,
+                dt(2023, 1, 1): 0.95
+            },
+            calendar="nyc",
+            id="sofr",
+        )
+        usd_args = dict(
+            effective=dt(2022, 1, 1),
+            spec="usd_irs",
+            curves="sofr"
+        )
+        solver = Solver(
+            curves=[usd_curve],
+            instruments=[
+                IRS(**usd_args, termination="6M"),
+                IRS(**usd_args, termination="1Y"),
+            ],
+            s=[4.35, 4.85],
+            instrument_labels=["6M", "1Y"],
+            id="us_rates"
+        )
+        usd_curve.plot("1b", labels=["SOFR o/n"])

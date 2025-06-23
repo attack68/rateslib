@@ -5,7 +5,7 @@ from pandas.testing import assert_frame_equal, assert_series_equal
 import numpy as np
 
 import context
-from rateslib import default_context
+from rateslib import default_context, defaults
 from rateslib.legs import (
     FixedLeg,
     FloatLeg,
@@ -21,7 +21,7 @@ from rateslib.legs import (
     Cashflow,
 )
 from rateslib.fx import FXRates, FXForwards
-from rateslib.default import Defaults, NoInput
+from rateslib.default import NoInput
 from rateslib.curves import Curve, IndexCurve
 
 
@@ -128,9 +128,9 @@ class TestFloatLeg:
         )
         result = float_leg.cashflows(curve)
         # test a couple of return elements
-        assert abs(result.loc[0, Defaults.headers["cashflow"]] + 6610305.76834) < 1e-4
-        assert abs(result.loc[1, Defaults.headers["df"]] - 0.98307) < 1e-4
-        assert abs(result.loc[1, Defaults.headers["notional"]] - 1e9) < 1e-7
+        assert abs(result.loc[0, defaults.headers["cashflow"]] + 6610305.76834) < 1e-4
+        assert abs(result.loc[1, defaults.headers["df"]] - 0.98307) < 1e-4
+        assert abs(result.loc[1, defaults.headers["notional"]] - 1e9) < 1e-7
 
     def test_float_leg_npv(self, curve):
         float_leg = FloatLeg(
@@ -454,8 +454,8 @@ class TestFloatLeg:
                         end=dt(2022, 3, 15),
                         payment=dt(2022, 3, 17),
                         frequency="Q",
-                        notional=Defaults.notional,
-                        convention=Defaults.convention,
+                        notional=defaults.notional,
+                        convention=defaults.convention,
                         termination=dt(2022, 6, 15),
                     ),
                     FloatPeriod(
@@ -463,8 +463,8 @@ class TestFloatLeg:
                         end=dt(2022, 6, 15),
                         payment=dt(2022, 6, 17),
                         frequency="Q",
-                        notional=Defaults.notional,
-                        convention=Defaults.convention,
+                        notional=defaults.notional,
+                        convention=defaults.convention,
                         termination=dt(2022, 6, 15),
                     ),
                 ],
@@ -641,8 +641,8 @@ class TestZeroFloatLeg:
             frequency="Q",
         )
         result = ftl.cashflows()
-        assert result.iloc[0].to_dict()[Defaults.headers["npv"]] is None
-        assert result.iloc[0].to_dict()[Defaults.headers["npv_fx"]] is None
+        assert result.iloc[0].to_dict()[defaults.headers["npv"]] is None
+        assert result.iloc[0].to_dict()[defaults.headers["npv_fx"]] is None
 
     def test_zero_float_leg_analytic_delta(self, curve):
         zfl = ZeroFloatLeg(
@@ -994,9 +994,9 @@ class TestFixedLeg:
         )
         result = fixed_leg.cashflows(curve)
         # test a couple of return elements
-        assert abs(result.loc[0, Defaults.headers["cashflow"]] - 6555555.55555) < 1e-4
-        assert abs(result.loc[1, Defaults.headers["df"]] - 0.98307) < 1e-4
-        assert abs(result.loc[1, Defaults.headers["notional"]] + 1e9) < 1e-7
+        assert abs(result.loc[0, defaults.headers["cashflow"]] - 6555555.55555) < 1e-4
+        assert abs(result.loc[1, defaults.headers["df"]] - 0.98307) < 1e-4
+        assert abs(result.loc[1, defaults.headers["notional"]] + 1e9) < 1e-7
 
     def test_fixed_leg_set_fixed(self, curve):
         fixed_leg = FixedLeg(

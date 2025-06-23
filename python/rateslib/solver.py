@@ -1,19 +1,20 @@
 from __future__ import annotations
 
-from typing import Optional, Union, Callable
-from itertools import combinations
-from uuid import uuid4
-from time import time
-import numpy as np
 import warnings
-from pandas import DataFrame, MultiIndex, concat, Series
+from itertools import combinations
+from time import time
+from typing import Callable, Optional, Union
+from uuid import uuid4
+
+import numpy as np
+from pandas import DataFrame, MultiIndex, Series, concat
+from pandas.errors import PerformanceWarning
 
 from rateslib import defaults
+from rateslib.curves import CompositeCurve, MultiCsaCurve, ProxyCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, dual_log, dual_solve, gradient
-from rateslib.curves import CompositeCurve, ProxyCurve, MultiCsaCurve
-from rateslib.fx import FXRates, FXForwards
-
+from rateslib.fx import FXForwards, FXRates
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -562,7 +563,7 @@ class Gradients:
         return grad_s_P
 
     def grad_f_Ploc(self, npv, fx_vars):
-        """
+        r"""
         1d array of derivatives of local currency PV with respect to FX rate variable,
         of size (len(fx_vars)).
 
@@ -1312,19 +1313,19 @@ class Solver(Gradients):
             self.fx.update()  # note: with no variables this does nothing.
 
     def iterate(self):
-        """
+        r"""
         Solve the DF node values and update all the ``curves``.
 
         This method uses a gradient based optimisation routine, to solve for all
-        the curve variables, :math:`\\mathbf{v}`, as follows,
+        the curve variables, :math:`\mathbf{v}`, as follows,
 
         .. math::
 
-           \\mathbf{v} = \\underset{\\mathbf{v}}{\\mathrm{argmin}} \;\; f(\\mathbf{v}) = \\underset{\\mathbf{v}}{\\mathrm{argmin}} \;\; (\\mathbf{r(v)} - \\mathbf{S})\\mathbf{W}(\\mathbf{r(v)} - \\mathbf{S})^\\mathbf{T}
+           \mathbf{v} = \underset{\mathbf{v}}{\mathrm{argmin}} \;\; f(\mathbf{v}) = \underset{\mathbf{v}}{\mathrm{argmin}} \;\; (\mathbf{r(v)} - \mathbf{S})\mathbf{W}(\mathbf{r(v)} - \mathbf{S})^\mathbf{T}
 
-        where :math:`\\mathbf{r}` are the mid-market rates of the calibrating
-        instruments, :math:`\\mathbf{S}` are the observed and target rates, and
-        :math:`\\mathbf{W}` is the diagonal array of weights.
+        where :math:`\mathbf{r}` are the mid-market rates of the calibrating
+        instruments, :math:`\mathbf{S}` are the observed and target rates, and
+        :math:`\mathbf{W}` is the diagonal array of weights.
 
         Returns
         -------
@@ -1734,7 +1735,10 @@ class Solver(Gradients):
                 ]
             )
             locator = key + (slice(None), slice(None), slice(None))
-            df.loc[locator, :] = array
+
+            with warnings.catch_warnings():
+                warnings.simplefilter(action='ignore', category=PerformanceWarning)
+                df.loc[locator, :] = array
 
         if base is not NoInput.blank:
             # sum over all the base rows to aggregate
@@ -2064,7 +2068,7 @@ def newton_ndim(
     final_args=(),
     raise_on_fail=True,
 ) -> dict:
-    """
+    r"""
     Use the Newton-Raphson algorithm to determine the root of a function searching **many** variables.
 
     Solves the *n* root equations :math:`f_i(g_1, \hdots, g_n; s_k)=0` for each :math:`g_j`.

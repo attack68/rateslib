@@ -26,8 +26,8 @@ On "release branch":
    DEVELOPMENT to False.
 
 4) Commit and Push the branch.
-5) Run `cargo test --lib --no-default-features`
-6) Change the Cargo.toml file for abi3-py39 features, and comment out the benchmark code (otherwise source distribution will not run)
+5) Run `cargo test --lib` for confirmation
+6) Ensure the Cargo.toml file for abi3-py39 features, and comment out the benchmark code (otherwise source distribution will not run)
 
 Pre Rust extension Build:
 $ pip install build twine

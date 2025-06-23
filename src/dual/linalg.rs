@@ -1,15 +1,31 @@
 //! Perform linear algebra operations on arrays containing generic data types.
 
+use itertools::Itertools;
 use ndarray::prelude::*;
 use ndarray::Zip;
-use num_traits::identities::{Zero};
-use num_traits::{Signed};
+use num_traits::identities::Zero;
+use num_traits::Signed;
 use std::cmp::PartialOrd;
 use std::iter::Sum;
 use std::ops::{Div, Mul, Sub};
-use itertools::Itertools;
 
 // Tensor ops
+
+/// Outer product of two 1d-arrays containing generic objects.
+pub fn douter11_<T>(a: &ArrayView1<T>, b: &ArrayView1<T>) -> Array2<T>
+where
+    for<'a> &'a T: Mul<&'a T, Output = T>,
+    T: Sum,
+{
+    Array1::from_vec(
+        a.iter()
+            .cartesian_product(b.iter())
+            .map(|(x, y)| x * y)
+            .collect(),
+    )
+    .into_shape((a.len(), b.len()))
+    .expect("Pre checked dimensions")
+}
 
 /// Inner product between two 1d-arrays.
 pub fn dmul11_<T>(a: &ArrayView1<T>, b: &ArrayView1<T>) -> T
@@ -40,13 +56,13 @@ where
     assert_eq!(a.len_of(Axis(1)), b.len_of(Axis(0)));
     Array1::<T>::from_vec(
         a.axis_iter(Axis(0))
-         .cartesian_product(b.axis_iter(Axis(1)))
-         .map(|(row, col)| dmul11_(&row, &col)).collect())
-         .into_shape((a.len_of(Axis(0)), b.len_of(Axis(1))))
-         .expect("Dim are pre-checked")
+            .cartesian_product(b.axis_iter(Axis(1)))
+            .map(|(row, col)| dmul11_(&row, &col))
+            .collect(),
+    )
+    .into_shape((a.len_of(Axis(0)), b.len_of(Axis(1))))
+    .expect("Dim are pre-checked")
 }
-
-
 
 // Linalg solver
 
@@ -75,8 +91,7 @@ where
 //     (vi.1 / n, vi.1 % n)
 // }
 
-pub(crate) fn row_swap<T>(p: &mut Array2<T>, j: &usize, kr: &usize)
-{
+pub(crate) fn row_swap<T>(p: &mut Array2<T>, j: &usize, kr: &usize) {
     let (mut pt, mut pb) = p.slice_mut(s![.., ..]).split_at(Axis(0), *kr);
     let (r1, r2) = (pt.row_mut(*j), pb.row_mut(0));
     Zip::from(r1).and(r2).for_each(std::mem::swap);
@@ -89,8 +104,7 @@ pub(crate) fn row_swap<T>(p: &mut Array2<T>, j: &usize, kr: &usize)
 //     Zip::from(c1).and(c2).for_each(std::mem::swap);
 // }
 
-pub(crate) fn el_swap<T>(p: &mut Array1<T>, j: &usize, k: &usize)
-{
+pub(crate) fn el_swap<T>(p: &mut Array1<T>, j: &usize, k: &usize) {
     let (mut pl, mut pr) = p.slice_mut(s![..]).split_at(Axis(0), *k);
     std::mem::swap(&mut pl[*j], &mut pr[0]);
 }
@@ -265,16 +279,15 @@ pub(crate) fn el_swap<T>(p: &mut Array1<T>, j: &usize, k: &usize)
 //     x
 // }
 
-
 fn dsolve_upper21_<T>(u: &ArrayView2<T>, b: &ArrayView1<T>) -> Array1<T>
 where
     T: Clone + Sum + Zero,
-    for<'a> &'a T: Sub<&'a T, Output = T> + Mul<&'a T, Output = T> + Div<&'a T, Output = T>
+    for<'a> &'a T: Sub<&'a T, Output = T> + Mul<&'a T, Output = T> + Div<&'a T, Output = T>,
 {
     let n: usize = u.len_of(Axis(0));
     let mut x: Array1<T> = Array::zeros(n);
     for i in (0..n).rev() {
-        let v = &b[i] - &dmul11_(&u.slice(s![i, (i+1)..]), &x.slice(s![(i+1)..]));
+        let v = &b[i] - &dmul11_(&u.slice(s![i, (i + 1)..]), &x.slice(s![(i + 1)..]));
         x[i] = &v / &u[[i, i]]
     }
     x
@@ -282,8 +295,8 @@ where
 
 fn dsolve21_<T>(a: &ArrayView2<T>, b: &ArrayView1<T>) -> Array1<T>
 where
-  T: PartialOrd + Signed + Clone + Zero + Sum,
- for <'a> &'a T: Sub<&'a T, Output = T> + Mul<&'a T, Output = T> + Div<&'a T, Output = T>
+    T: PartialOrd + Signed + Clone + Zero + Sum,
+    for<'a> &'a T: Sub<&'a T, Output = T> + Mul<&'a T, Output = T> + Div<&'a T, Output = T>,
 {
     assert!(a.is_square());
     let n = a.len_of(Axis(0));
@@ -301,10 +314,10 @@ where
             el_swap(&mut b_, &j, &k);
         }
         // perform reduction on subsequent rows below j
-        for l in (j+1)..n {
-            let scl = &a_[[l, j]] / &a_[[j,j]];
+        for l in (j + 1)..n {
+            let scl = &a_[[l, j]] / &a_[[j, j]];
             a_[[l, j]] = T::zero();
-            for m in (j+1)..n {
+            for m in (j + 1)..n {
                 a_[[l, m]] = &a_[[l, m]] - &(&scl * &a_[[j, m]]);
             }
             b_[l] = &b_[l] - &(&scl * &b_[j]);
@@ -312,7 +325,6 @@ where
     }
     dsolve_upper21_(&a_.view(), &b_.view())
 }
-
 
 // fn dsolve_upper_1d<T>(u: &ArrayView2<T>, b: &ArrayView1<T>) -> Array1<T>
 // where
@@ -345,8 +357,9 @@ where
 /// - `b` is a 1d-array.
 /// - `allow_lsq` can be set to `true` if the number of rows in `a` is greater than its number of columns.
 pub fn dsolve<T>(a: &ArrayView2<T>, b: &ArrayView1<T>, allow_lsq: bool) -> Array1<T>
-where T: PartialOrd + Signed + Clone + Sum + Zero,
- for <'a> &'a T: Sub<&'a T, Output = T> + Mul<&'a T, Output = T> + Div<&'a T, Output = T>
+where
+    T: PartialOrd + Signed + Clone + Sum + Zero,
+    for<'a> &'a T: Sub<&'a T, Output = T> + Mul<&'a T, Output = T> + Div<&'a T, Output = T>,
 {
     if allow_lsq {
         let a_ = dmul22_(&a.t(), a);
@@ -366,13 +379,13 @@ where T: PartialOrd + Signed + Clone + Sum + Zero,
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dual::dual1::{Dual, Vars};
+    use crate::dual::dual::{Dual, Vars};
     use std::sync::Arc;
 
-    fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
-        // used rather than equality for float numbers
-        (a - b).abs() < abs_tol.unwrap_or(1e-8)
-    }
+    // fn is_close(a: &f64, b: &f64, abs_tol: Option<f64>) -> bool {
+    //     // used rather than equality for float numbers
+    //     (a - b).abs() < abs_tol.unwrap_or(1e-8)
+    // }
 
     #[test]
     fn argabsmx_i32() {
@@ -382,13 +395,13 @@ mod tests {
         assert_eq!(result, expected);
     }
 
-//     #[test]
-//     fn argabsmx2_i32() {
-//         let a: Array2<i32> = arr2(&[[-1, 2, 100], [-5, -2000, 0], [0, 0, 0]]);
-//         let result = argabsmax2(a.view());
-//         let expected: (usize, usize) = (1, 1);
-//         assert_eq!(result, expected);
-//     }
+    //     #[test]
+    //     fn argabsmx2_i32() {
+    //         let a: Array2<i32> = arr2(&[[-1, 2, 100], [-5, -2000, 0], [0, 0, 0]]);
+    //         let result = argabsmax2(a.view());
+    //         let expected: (usize, usize) = (1, 1);
+    //         assert_eq!(result, expected);
+    //     }
 
     #[test]
     fn argabsmx_dual() {
@@ -401,51 +414,39 @@ mod tests {
         assert_eq!(result, expected);
     }
 
-//     #[test]
-//     fn lower_tri_dual() {
-//         let a = arr2(&[
-//             [
-//                 Dual::new(1.0, Vec::new()),
-//                 Dual::new(0.0, Vec::new()),
-//             ],
-//             [
-//                 Dual::new(2.0, Vec::new()),
-//                 Dual::new(1.0, Vec::new()),
-//             ],
-//         ]);
-//         let b = arr1(&[
-//             Dual::new(2.0, Vec::new()),
-//             Dual::new(5.0, Vec::new()),
-//         ]);
-//         let x = dsolve_lower21_(&a.view(), &b.view());
-//         let expected_x = arr1(&[
-//             Dual::new(2.0, Vec::new()),
-//             Dual::new(1.0, Vec::new()),
-//         ]);
-//         assert_eq!(x, expected_x);
-//     }
+    //     #[test]
+    //     fn lower_tri_dual() {
+    //         let a = arr2(&[
+    //             [
+    //                 Dual::new(1.0, Vec::new()),
+    //                 Dual::new(0.0, Vec::new()),
+    //             ],
+    //             [
+    //                 Dual::new(2.0, Vec::new()),
+    //                 Dual::new(1.0, Vec::new()),
+    //             ],
+    //         ]);
+    //         let b = arr1(&[
+    //             Dual::new(2.0, Vec::new()),
+    //             Dual::new(5.0, Vec::new()),
+    //         ]);
+    //         let x = dsolve_lower21_(&a.view(), &b.view());
+    //         let expected_x = arr1(&[
+    //             Dual::new(2.0, Vec::new()),
+    //             Dual::new(1.0, Vec::new()),
+    //         ]);
+    //         assert_eq!(x, expected_x);
+    //     }
 
     #[test]
     fn upper_tri_dual() {
         let a = arr2(&[
-            [
-                Dual::new(1.0, Vec::new()),
-                Dual::new(2.0, Vec::new()),
-            ],
-            [
-                Dual::new(0.0, Vec::new()),
-                Dual::new(1.0, Vec::new()),
-            ],
+            [Dual::new(1.0, Vec::new()), Dual::new(2.0, Vec::new())],
+            [Dual::new(0.0, Vec::new()), Dual::new(1.0, Vec::new())],
         ]);
-        let b = arr1(&[
-            Dual::new(2.0, Vec::new()),
-            Dual::new(5.0, Vec::new()),
-        ]);
+        let b = arr1(&[Dual::new(2.0, Vec::new()), Dual::new(5.0, Vec::new())]);
         let x = dsolve_upper21_(&a.view(), &b.view());
-        let expected_x = arr1(&[
-            Dual::new(-8.0, Vec::new()),
-            Dual::new(5.0, Vec::new()),
-        ]);
+        let expected_x = arr1(&[Dual::new(-8.0, Vec::new()), Dual::new(5.0, Vec::new())]);
         assert_eq!(x, expected_x);
     }
 

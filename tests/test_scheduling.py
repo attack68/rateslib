@@ -6,8 +6,9 @@ from pandas.testing import assert_index_equal
 from datetime import datetime as dt
 
 import context
-from rateslib.default import Defaults, NoInput
-from rateslib.calendars import create_calendar
+from rateslib import defaults
+from rateslib.default import NoInput
+from rateslib.calendars import create_calendar, Cal
 from rateslib.scheduling import (
     _check_unadjusted_regular_swap,
     _check_regular_swap,
@@ -29,8 +30,7 @@ from rateslib.scheduling import (
 
 @pytest.fixture
 def cal_():
-    rules = [Holiday("New Year", month=1, day=3)]
-    return create_calendar(rules=rules)
+    return Cal([dt(_, 1, 3) for _ in range(1970, 2200)], [5, 6])
 
 
 @pytest.mark.parametrize(
@@ -95,7 +95,7 @@ def test_get_unadjusted_roll(effective, termination, expected, expected2):
 def test_get_default_stub():
     assert "SHORTFRONT" == _get_default_stub("FRONT", "SHORTFRONTLONGBACK")
     assert "LONGBACK" == _get_default_stub("BACK", "SHORTFRONTLONGBACK")
-    assert f"{Defaults.stub_length}FRONT" == _get_default_stub("FRONT", "FRONTBACK")
+    assert f"{defaults.stub_length}FRONT" == _get_default_stub("FRONT", "FRONTBACK")
 
 
 @pytest.mark.parametrize(
@@ -257,12 +257,12 @@ def test_schedule_repr(cal_):
     expected = "freq: M,  stub: SHORTFRONT,  roll: 1,  pay lag: 1,  modifier: MF\n"
     df = DataFrame(
         {
-            Defaults.headers["stub_type"]: ["Regular", "Regular"],
-            Defaults.headers["u_acc_start"]: [dt(2022, 1, 1), dt(2022, 2, 1)],
-            Defaults.headers["u_acc_end"]: [dt(2022, 2, 1), dt(2022, 3, 1)],
-            Defaults.headers["a_acc_start"]: [dt(2022, 1, 4), dt(2022, 2, 1)],
-            Defaults.headers["a_acc_end"]: [dt(2022, 2, 1), dt(2022, 3, 1)],
-            Defaults.headers["payment"]: [dt(2022, 2, 2), dt(2022, 3, 2)],
+            defaults.headers["stub_type"]: ["Regular", "Regular"],
+            defaults.headers["u_acc_start"]: [dt(2022, 1, 1), dt(2022, 2, 1)],
+            defaults.headers["u_acc_end"]: [dt(2022, 2, 1), dt(2022, 3, 1)],
+            defaults.headers["a_acc_start"]: [dt(2022, 1, 4), dt(2022, 2, 1)],
+            defaults.headers["a_acc_end"]: [dt(2022, 2, 1), dt(2022, 3, 1)],
+            defaults.headers["payment"]: [dt(2022, 2, 2), dt(2022, 3, 2)],
         }
     )
     assert schedule.__repr__() == expected + df.__repr__()

@@ -17,51 +17,42 @@
        interpolation="log_linear",
    )
 """
-from abc import abstractmethod, ABCMeta
-from datetime import datetime
-from typing import Optional, Union
 import warnings
+from abc import ABCMeta, abstractmethod
+from datetime import datetime
 from math import comb, log
+from typing import Optional, Union
 
 import numpy as np
-
-# from pandas.tseries.offsets import CustomBusinessDay
-from pandas import DataFrame, date_range, Series, NA, isna, notna
+from pandas import NA, DataFrame, Series, isna, notna
 
 from rateslib import defaults
+from rateslib.calendars import CalInput, _get_eom, add_tenor, dcf
+from rateslib.curves import CompositeCurve, Curve, IndexCurve, LineCurve, average_rate, index_left
 from rateslib.default import NoInput
-from rateslib.calendars import add_tenor, dcf, _get_eom, _is_holiday, CalInput
-from rateslib.curves import (
-    Curve,
-    LineCurve,
-    IndexCurve,
-    average_rate,
-    CompositeCurve,
-    index_left,
-)
-from rateslib.fx_volatility import (
-    FXDeltaVolSmile,
-    FXDeltaVolSurface,
-    _black76,
-    _delta_type_constants,
-    _d_plus_min_u,
-    FXVols,
-    FXVolObj,
-)
-from rateslib.splines import evaluate
 from rateslib.dual import (
     Dual,
     Dual2,
     DualTypes,
+    dual_exp,
+    dual_inv_norm_cdf,
+    dual_log,
     dual_norm_cdf,
     dual_norm_pdf,
-    dual_exp,
-    dual_log,
-    dual_inv_norm_cdf,
     gradient,
 )
 from rateslib.fx import FXForwards, FXRates
-from rateslib.solver import newton_ndim, newton_1dim
+from rateslib.fx_volatility import (
+    FXDeltaVolSmile,
+    FXDeltaVolSurface,
+    FXVolObj,
+    FXVols,
+    _black76,
+    _d_plus_min_u,
+    _delta_type_constants,
+)
+from rateslib.solver import newton_1dim, newton_ndim
+from rateslib.splines import evaluate
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -1030,7 +1021,7 @@ class FloatPeriod(BasePeriod):
         Get the rate on all available curves in dict and then determine the ones to interpolate.
         """
         calendar = next(iter(curve.values())).calendar  # note: ASSUMES all curve calendars are same
-        fixing_date = add_tenor(self.start, f"-{self.method_param}B", NoInput(0), calendar)
+        fixing_date = add_tenor(self.start, f"-{self.method_param}B", "NONE", calendar)
 
         def _rate(c: Union[Curve, LineCurve, IndexCurve], tenor):
             if c._base_type == "dfs":
@@ -1104,8 +1095,8 @@ class FloatPeriod(BasePeriod):
         if self.fixing_method == "rfr_payment_delay" and not self._is_inefficient:
             return curve.rate(self.start, self.end) + self.float_spread / 100
         elif self.fixing_method == "rfr_observation_shift" and not self._is_inefficient:
-            start = add_tenor(self.start, f"-{self.method_param}b", "P", curve.calendar)
-            end = add_tenor(self.end, f"-{self.method_param}b", "P", curve.calendar)
+            start = curve.calendar.lag(self.start, -self.method_param, settlement=False)
+            end = curve.calendar.lag(self.end, -self.method_param, settlement=False)
             return curve.rate(start, end) + self.float_spread / 100
             # TODO: (low:perf) semi-efficient method for lockout under certain conditions
         else:
@@ -1673,8 +1664,8 @@ class FloatPeriod(BasePeriod):
             end_obs = add_tenor(self.end, f"-{self.method_param}b", "P", curve.calendar)
             start_dcf, end_dcf = start_obs, end_obs
         elif self.fixing_method in ["rfr_lookback", "rfr_lookback_avg"]:
-            start_obs = add_tenor(self.start, f"-{self.method_param}b", "P", curve.calendar)
-            end_obs = add_tenor(self.end, f"-{self.method_param}b", "P", curve.calendar)
+            start_obs = curve.calendar.lag(self.start, -self.method_param, settlement=False)
+            end_obs = curve.calendar.lag(self.end, -self.method_param, settlement=False)
             start_dcf, end_dcf = self.start, self.end
         else:
             raise NotImplementedError(
@@ -1688,21 +1679,26 @@ class FloatPeriod(BasePeriod):
             return start_obs, end_obs, start_dcf, end_dcf
 
         # dates of the fixing observation period
-        obs_dates = Series(date_range(start=start_obs, end=end_obs, freq=curve.calendar))
+        obs_dates = Series(curve.calendar.bus_date_range(start=start_obs, end=end_obs))
         # dates for the dcf weight for each observation towards the calculation
-        dcf_dates = Series(date_range(start=start_dcf, end=end_dcf, freq=curve.calendar))
-        if len(dcf_dates) != len(obs_dates):
-            # this might only be true with lookback when obs dates are adjusted
-            # but DCF dates are not, and if starting on holiday causes problems.
-            raise ValueError(
-                "RFR Observation and Accrual DCF dates do not align.\n"
-                "This is usually the result of a 'rfr_lookback' Period which does "
-                "not adhere to the holiday calendar of the `curve`.\n"
-                f"start date: {self.start.strftime('%d-%m-%Y')} is curve holiday? "
-                f"{_is_holiday(self.start, curve.calendar)}\n"
-                f"end date: {self.end.strftime('%d-%m-%Y')} is curve holiday? "
-                f"{_is_holiday(self.end, curve.calendar)}\n"
-            )
+        msg = (
+            "RFR Observation and Accrual DCF dates do not align.\n"
+            "This is usually the result of a 'rfr_lookback' Period which does "
+            "not adhere to the holiday calendar of the `curve`.\n"
+            f"start date: {self.start.strftime('%d-%m-%Y')} is curve holiday? "
+            f"{curve.calendar.is_non_bus_day(self.start)}\n"
+            f"end date: {self.end.strftime('%d-%m-%Y')} is curve holiday? "
+            f"{curve.calendar.is_non_bus_day(self.end)}\n"
+        )
+        try:
+            dcf_dates = Series(curve.calendar.bus_date_range(start=start_dcf, end=end_dcf))
+        except ValueError:
+            raise ValueError(msg)
+        else:
+            if len(dcf_dates) != len(obs_dates):
+                # this might only be true with lookback when obs dates are adjusted
+                # but DCF dates are not, and if starting on holiday causes problems.
+                raise ValueError(msg)
 
         return obs_dates, dcf_dates
 
@@ -2729,9 +2725,11 @@ class FXOptionPeriod(metaclass=ABCMeta):
         sqrt_t = self._t_to_expiry(disc_curve.node_dates[0]) ** 0.5
 
         if isinstance(vol, FXVolObj):
-            _, vol_, _ = vol.get_from_strike(self.strike, self.phi, f_d, w_deli, w_spot, self.expiry)
+            delta_idx, vol_, _ = vol.get_from_strike(
+                self.strike, f_d, w_deli, w_spot, self.expiry
+            )
         else:
-            vol_ = vol
+            delta_idx, vol_ = None, vol
         vol_ /= 100.0
         vol_sqrt_t = vol_ * sqrt_t
         eta, z_w, z_u = _delta_type_constants(self.delta_type, w_deli / w_spot, u)
@@ -2771,9 +2769,12 @@ class FXOptionPeriod(metaclass=ABCMeta):
         )
         _["_kappa"] = self._analytic_kappa(v_deli, self.phi, d_min)
 
+        _["_delta_index"] = delta_idx
         _["__delta_type"] = self.delta_type
         _["__vol"] = vol_
         _["__strike"] = self.strike
+        _["__forward"] = f_d
+        _["__sqrt_t"] = sqrt_t
         _["__bs76"] = self._analytic_bs76(self.phi, v_deli, f_d, d_plus, self.strike, d_min)
         _["__notional"] = self.notional
         if self.phi > 0:
@@ -3769,7 +3770,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             spot = fx.pairs_settlement[self.pair]
             f = fx.rate(self.pair, self.delivery)
             _, vol_, _ = vol.get_from_strike(
-                self.strike, self.phi, f, disc_curve[self.delivery], disc_curve[spot], self.expiry
+                self.strike, f, disc_curve[self.delivery], disc_curve[spot], self.expiry
             )
         else:
             vol_ = vol

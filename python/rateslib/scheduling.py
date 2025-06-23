@@ -1,26 +1,26 @@
-from typing import Optional, Union, Any
 import calendar as calendar_mod
-from itertools import product
 from collections.abc import Iterator
 from datetime import datetime, timedelta
+from itertools import product
+from typing import Any, Optional, Union
+
 from pandas import DataFrame
 from pandas.tseries.offsets import CustomBusinessDay
 
 from rateslib import defaults
-from rateslib.default import NoInput
 from rateslib.calendars import (
-    get_calendar,
-    _is_holiday,
-    _is_eom_cal,
-    add_tenor,
-    _add_months,
     _adjust_date,
+    _get_modifier,
+    _get_roll,
+    _get_rollday,
     _is_eom,
+    _is_eom_cal,
     _is_imm,
     _is_som,
-    _get_roll,
+    add_tenor,
+    get_calendar,
 )
-
+from rateslib.default import NoInput
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -531,8 +531,7 @@ class Schedule:
         """Attributes additional schedules according to date adjust and payment lag."""
         self.aschedule = [_adjust_date(dt, self.modifier, self.calendar) for dt in self.uschedule]
         self.pschedule = [
-            add_tenor(dt, f"{self.payment_lag}B", "NONE", self.calendar, NoInput(0))
-            for dt in self.aschedule
+            self.calendar.lag(dt, self.payment_lag, settlement=True) for dt in self.aschedule
         ]
         self.stubs = [False] * (len(self.uschedule) - 1)
         if self.front_stub is not NoInput(0):
@@ -887,16 +886,9 @@ def _is_invalid_very_short_stub(
     window.
     """
     # _ = date_range(start=date1, end=date2, freq=calendar)
-    if _is_holiday(date_to_modify, calendar):
-        date1_ = add_tenor(date_to_modify, "1b", modifier, calendar)
-    else:
-        date1_ = date_to_modify
-
-    if _is_holiday(date_fixed, calendar):
-        date2_ = add_tenor(date_fixed, "1b", modifier, calendar)
-    else:
-        date2_ = date_fixed
-
+    date1_ = calendar.roll(date_to_modify, _get_modifier(modifier), settlement=False)
+    date2_ = calendar.roll(date_fixed, _get_modifier(modifier), settlement=False)
+    # settlement calendar alignment is not enforced during schedule generation.
     if date1_ == date2_:
         return True  # date range created by stubs is too small and is invalid
     return False
@@ -1203,12 +1195,19 @@ def _get_unadjusted_short_stub_date(
         roll = "eom" if (eom and _is_eom(reg_side_dt)) else reg_side_dt.day
 
     frequency_months = defaults.frequency_months[frequency]
+    cal_ = get_calendar(NoInput(0))
 
     if _is_divisible_months(ueffective, utermination, frequency_months):
         if stub_side == "FRONT":
             comparison = _get_roll(ueffective.month, ueffective.year, roll)
             if ueffective.day > comparison.day:
-                _ = _add_months(ueffective, frequency_months * direction, "NONE", NoInput(0), roll)
+                _ = cal_.add_months(
+                    ueffective,
+                    frequency_months * direction,
+                    _get_modifier("NONE"),
+                    _get_rollday(roll),
+                    False,
+                )
                 _ = _get_roll(_.month, _.year, roll)
             else:
                 _ = ueffective
@@ -1217,8 +1216,12 @@ def _get_unadjusted_short_stub_date(
         else:  # stub_side == "BACK"
             comparison = _get_roll(utermination.month, utermination.year, roll)
             if utermination.day < comparison.day:
-                _ = _add_months(
-                    utermination, frequency_months * direction, "NONE", NoInput(0), roll
+                _ = cal_.add_months(
+                    utermination,
+                    frequency_months * direction,
+                    _get_modifier("NONE"),
+                    _get_rollday(roll),
+                    False,
                 )
                 _ = _get_roll(_.month, _.year, roll)
             else:
@@ -1227,8 +1230,12 @@ def _get_unadjusted_short_stub_date(
 
     else:
         for month_offset in range(1, 12):
-            stub_date = _add_months(
-                stub_side_dt, month_offset * direction, "NONE", NoInput(0), roll
+            stub_date = cal_.add_months(
+                stub_side_dt,
+                month_offset * direction,
+                _get_modifier("NONE"),
+                _get_rollday(roll),
+                False,
             )
             if _is_divisible_months(stub_date, reg_side_dt, frequency_months):
                 break
@@ -1322,8 +1329,15 @@ def _generate_regular_schedule_unadjusted(
     n_periods = _get_n_periods_in_regular(ueffective, utermination, frequency)
     _ = ueffective
     yield _
+    cal_ = get_calendar(NoInput(0))
     for i in range(int(n_periods)):
-        _ = _add_months(_, defaults.frequency_months[frequency], "NONE", NoInput(0), roll)
+        _ = cal_.add_months(
+            _,
+            defaults.frequency_months[frequency],
+            _get_modifier("NONE"),
+            _get_rollday(roll),
+            False,
+        )
         # _ = _get_roll(_.month, _.year, roll)
         yield _
 
@@ -1349,18 +1363,18 @@ def _get_unadjusted_date_alternatives(date: datetime, modifier: str, cal: Custom
     list : of valid unadjusted dates
     """
     unadj_dates = [date]
-    if _is_holiday(date, cal):
+    if cal.is_non_bus_day(date):
         return unadj_dates  # no other unadjusted date can adjust to a holiday.
     for days in range(1, 20):
         possible_unadjusted_date = date + timedelta(days=days)
-        if not _is_holiday(possible_unadjusted_date, cal):
-            break  # if not a holiday no later date will adjust back to date.
+        if cal.is_bus_day(possible_unadjusted_date):
+            break  # if a business day, no later date will adjust back to date.
         if date == _adjust_date(possible_unadjusted_date, modifier, cal):
             unadj_dates.append(possible_unadjusted_date)
     for days in range(1, 20):
         possible_unadjusted_date = date - timedelta(days=days)
-        if not _is_holiday(possible_unadjusted_date, cal):
-            break  # if not a holiday no previous date will adjust back to date.
+        if cal.is_bus_day(possible_unadjusted_date):
+            break  # if a business day, no previous date will adjust back to date.
         if date == _adjust_date(possible_unadjusted_date, modifier, cal):
             unadj_dates.append(possible_unadjusted_date)
     return unadj_dates

@@ -9,7 +9,7 @@ from rateslib import dt
 
 
 def test_version():
-    assert __version__ == "1.2.3"
+    assert __version__ == "1.3.2"
 
 
 @pytest.mark.parametrize("name", ["estr", "sonia", "sofr", "swestr", "nowa"])
@@ -26,9 +26,12 @@ def test_context_raises():
 def test_reset_defaults():
     defaults.modifier = "MP"
     assert defaults.modifier == "MP"
+    defaults.calendars["TEST"] = 10.0
+    assert defaults.calendars["TEST"] == 10.0
 
     defaults.reset_defaults()
     assert defaults.modifier == "MF"
+    assert "TEST" not in defaults.calendars
 
 
 def test_calendar_matches_fixings_corra():

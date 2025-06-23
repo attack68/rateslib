@@ -9,16 +9,26 @@ requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
 [tool.maturin]
-module-name = "rateslib.rateslibrs"
+module-name = "rateslib.rs"
 python-source = "python"
 bindings = "pyo3"
 compatibility = "linux"
+features = ["pyo3/extension-module"]
 # rustc --print target-list
 # https://doc.rust-lang.org/rustc/platform-support.html
 
+[tool.isort]
+profile = "black"
+line_length = 100
+src_paths = ["python", "tests"]
+
+[tool.black]
+line-length = 100
+target-version = ['py312']
+
 [project]
 name = "rateslib"
-version = "1.2.3"
+version = "1.3.2"
 description = "A fixed income library for trading interest rates"
 readme = "README.md"
 authors = [{ name = "J H M Darbyshire"}]
@@ -45,6 +55,8 @@ dev = [
     "sphinx-automodapi==0.16.0",
     "sphinxcontrib-googleanalytics>=0.4,<1.0",
     "pydata-sphinx-theme==0.14.3",
+    "nbsphinx==0.9.4",
+    "pickleshare==0.7.5",  # for doc building with IPython
 ]
 
 [tool.setuptools]
