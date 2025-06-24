@@ -169,7 +169,7 @@ to fully capture the nuances of these products across sectors and geographic reg
 capturing aspects like trading calendars, day count conventions, payment delays, etc. New
 specifications and calendars are continually being added as users enquire.
 
-A good example is a **US Treasury Bond**, replicated here with *rateslib*.
+A good example is a **US Treasury Bond**:
 
 .. ipython:: python
 
