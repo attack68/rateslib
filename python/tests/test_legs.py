@@ -10,20 +10,26 @@ from rateslib.default import NoInput
 from rateslib.dual import Dual
 from rateslib.fx import FXForwards, FXRates
 from rateslib.legs import (
-    Cashflow,
     CreditPremiumLeg,
     CreditProtectionLeg,
     CustomLeg,
     FixedLeg,
     FixedLegMtm,
-    FixedPeriod,
     FloatLeg,
     FloatLegMtm,
-    FloatPeriod,
     IndexFixedLeg,
     ZeroFixedLeg,
     ZeroFloatLeg,
     ZeroIndexLeg,
+)
+from rateslib.periods import (
+    Cashflow,
+    CreditPremiumPeriod,
+    CreditProtectionPeriod,
+    FixedPeriod,
+    FloatPeriod,
+    IndexCashflow,
+    IndexFixedPeriod,
 )
 
 
@@ -867,6 +873,36 @@ class TestZeroFixedLeg:
             rtol=1e-3,
         )
 
+    def test_zero_fixed_leg_cashflows_cal(self, curve) -> None:
+        # assert stated cashflows accrual dates are adjusted according to calendar
+        # GH561/562
+        zfl = ZeroFixedLeg(
+            effective=dt(2024, 12, 15),
+            termination="5y",
+            payment_lag=0,
+            notional=-1e8,
+            calendar="tgt",
+            modifier="mf",
+            convention="ActAct",
+            frequency="A",
+            fixed_rate=2.0,
+        )
+        result = zfl.cashflows(curve)
+        expected = DataFrame(
+            {
+                "Type": ["ZeroFixedLeg"],
+                "Acc Start": [dt(2024, 12, 16)],
+                "Acc End": [dt(2029, 12, 17)],
+                "DCF": [5.0],
+                "Rate": [2.0],
+            },
+        )
+        assert_frame_equal(
+            result[["Type", "Acc Start", "Acc End", "DCF", "Rate"]],
+            expected,
+            rtol=1e-3,
+        )
+
     def test_zero_fixed_leg_npv(self, curve) -> None:
         zfl = ZeroFixedLeg(
             effective=dt(2022, 1, 1),
@@ -946,8 +982,8 @@ class TestZeroFixedLeg:
             frequency="A",
             fixed_rate=NoInput(0),
         )
-        result = zfl.analytic_delta(curve)
-        assert result is None
+        with pytest.raises(ValueError, match="Must have `fixed_rate` on ZeroFixedLeg for analy"):
+            zfl.analytic_delta(curve)
 
 
 class TestZeroIndexLeg:
@@ -1309,6 +1345,21 @@ class TestCreditPremiumLeg:
         )
         result = leg.accrued(date)
         assert abs(result - exp) < 1e-6
+
+    @pytest.mark.parametrize("final", [True, False])
+    def test_exchanges_raises(self, final):
+        with pytest.raises(ValueError, match="`initial_exchange` and `final_exchange` cannot be"):
+            CreditPremiumLeg(
+                effective=dt(2022, 1, 1),
+                termination=dt(2022, 6, 1),
+                payment_lag=2,
+                notional=-1e9,
+                convention="ActActICMA",
+                frequency="Q",
+                fixed_rate=2.0,
+                initial_exchange=final,
+                final_exchange=not final,
+            )
 
 
 class TestCreditProtectionLeg:
@@ -1676,6 +1727,42 @@ class TestIndexFixedLeg:
                 initial_exchange=True,
             )
 
+    def test_index_fixings_as_list(self) -> None:
+        leg = IndexFixedLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 10, 1),
+            payment_lag=2,
+            convention="Act360",
+            frequency="Q",
+            notional=1e6,
+            amortization=250e3,
+            index_base=NoInput(0),
+            index_fixings=[100.0, 200.0],
+        )
+        assert leg.periods[0].index_fixings == 100.0
+        assert leg.periods[1].index_fixings == 200.0
+        assert leg.periods[2].index_fixings == NoInput(0)
+
+    def test_index_fixings_as_list_final_exchange(self) -> None:
+        leg = IndexFixedLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 10, 1),
+            payment_lag=2,
+            convention="Act360",
+            frequency="Q",
+            notional=1e6,
+            amortization=250e3,
+            index_base=NoInput(0),
+            index_fixings=[100.0, 100.0, 200.0, 199.0],
+            final_exchange=True,
+        )
+        assert leg.periods[0].index_fixings == 100.0
+        assert leg.periods[1].index_fixings == 100.0
+        assert leg.periods[2].index_fixings == 200.0
+        assert leg.periods[3].index_fixings == 199.0
+        assert leg.periods[4].index_fixings == NoInput(0)
+        assert leg.periods[5].index_fixings == NoInput(0)
+
 
 class TestFloatLegExchangeMtm:
     @pytest.mark.parametrize(
@@ -1884,6 +1971,70 @@ class TestFloatLegExchangeMtm:
 
 
 class TestCustomLeg:
+    @pytest.mark.parametrize(
+        "period",
+        [
+            FixedPeriod(
+                start=dt(2022, 1, 1),
+                end=dt(2023, 1, 1),
+                payment=dt(2023, 1, 9),
+                frequency="A",
+                fixed_rate=1.0,
+            ),
+            FloatPeriod(
+                start=dt(2022, 1, 1),
+                end=dt(2022, 4, 1),
+                payment=dt(2022, 4, 3),
+                notional=1e9,
+                convention="Act360",
+                termination=dt(2022, 4, 1),
+                frequency="Q",
+                float_spread=10.0,
+            ),
+            CreditPremiumPeriod(
+                start=dt(2022, 1, 1),
+                end=dt(2022, 4, 1),
+                payment=dt(2022, 4, 3),
+                notional=1e9,
+                convention="Act360",
+                termination=dt(2022, 4, 1),
+                frequency="Q",
+                fixed_rate=4.0,
+                currency="usd",
+            ),
+            CreditProtectionPeriod(
+                start=dt(2022, 1, 1),
+                end=dt(2022, 4, 1),
+                payment=dt(2022, 4, 3),
+                notional=1e9,
+                convention="Act360",
+                termination=dt(2022, 4, 1),
+                frequency="Q",
+                currency="usd",
+            ),
+            Cashflow(notional=1e9, payment=dt(2022, 4, 3)),
+            IndexFixedPeriod(
+                start=dt(2022, 1, 3),
+                end=dt(2022, 4, 3),
+                payment=dt(2022, 4, 3),
+                notional=1e9,
+                convention="Act360",
+                termination=dt(2022, 4, 3),
+                frequency="Q",
+                fixed_rate=4.00,
+                currency="usd",
+                index_base=100.0,
+            ),
+            IndexCashflow(
+                notional=200.0,
+                payment=dt(2022, 2, 1),
+                index_base=100.0,
+            ),
+        ],
+    )
+    def test_init(self, curve, period) -> None:
+        CustomLeg(periods=[period, period])
+
     def test_npv(self, curve) -> None:
         cl = CustomLeg(
             periods=[

@@ -1,4 +1,6 @@
 # globals namespace
+from typing import Any
+
 from rateslib.curves.rs import CurveRs
 from rateslib.fx import FXRates
 from rateslib.rs import from_json as from_json_rs
@@ -9,7 +11,7 @@ NAMES_RsPy = {  # this is a mapping of native Rust obj names to Py obj names
 }
 
 
-def from_json(json: str):
+def from_json(json: str) -> Any:
     """
     Create an object from JSON string.
 
@@ -26,5 +28,5 @@ def from_json(json: str):
         class_name, parsed_json = json[8 : json[8:].find('"') + 8], json[6:-1]
         # objs = globals()
         class_obj = NAMES_RsPy[class_name]
-        return class_obj.__init_from_obj__(obj=from_json_rs(parsed_json))
+        return class_obj.__init_from_obj__(obj=from_json_rs(parsed_json))  # type: ignore[attr-defined]
     return from_json_rs(json)

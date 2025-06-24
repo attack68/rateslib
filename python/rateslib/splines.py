@@ -1,8 +1,14 @@
 from __future__ import annotations
 
-from rateslib.dual import Dual, Dual2
+from typing import TYPE_CHECKING
+
+from rateslib import defaults
+from rateslib.dual import Dual, Dual2, Variable
 from rateslib.rs import PPSplineDual, PPSplineDual2, PPSplineF64, bspldnev_single, bsplev_single
 from rateslib.rs import PPSplineF64 as PPSpline
+
+if TYPE_CHECKING:
+    from rateslib.typing import DualTypes, Number
 
 # for legacy reasons allow a PPSpline class which allows only f64 datatypes.
 # TODO: (depr) remove this for version 2.0
@@ -16,9 +22,9 @@ PPSplineDual2.__doc__ = "Piecewise polynomial spline composed of float values on
 
 def evaluate(
     spline: PPSplineF64 | PPSplineDual | PPSplineDual2,
-    x: float | Dual | Dual2,
+    x: DualTypes,
     m: int = 0,
-) -> float | Dual | Dual2:
+) -> Number:
     """
     Evaluate a single x-axis data point, or a derivative value, on a *Spline*.
 
@@ -41,12 +47,22 @@ def evaluate(
     -------
     float, Dual, Dual2
     """
-    if isinstance(x, Dual):
-        return spline.ppdnev_single_dual(x, m)
-    elif isinstance(x, Dual2):
-        return spline.ppdnev_single_dual2(x, m)
+    if isinstance(x, Variable):
+        if isinstance(spline, PPSplineDual):
+            x_: float | Dual | Dual2 = x._to_dual_type(order=1)
+        elif isinstance(spline, PPSplineDual2):
+            x_ = x._to_dual_type(order=2)
+        else:
+            x_ = x._to_dual_type(order=defaults._global_ad_order)
     else:
-        return spline.ppdnev_single(x, m)
+        x_ = x
+
+    if isinstance(x_, Dual):
+        return spline.ppdnev_single_dual(x_, m)
+    elif isinstance(x_, Dual2):
+        return spline.ppdnev_single_dual2(x_, m)
+    else:
+        return spline.ppdnev_single(x_, m)
 
 
 __all__ = (
@@ -56,4 +72,5 @@ __all__ = (
     "PPSpline",
     "bspldnev_single",
     "bsplev_single",
+    "evaluate",
 )

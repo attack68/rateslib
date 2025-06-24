@@ -4,6 +4,7 @@
 pub mod all;
 pub mod bus;
 pub mod ldn;
+pub mod mum;
 pub mod nyc;
 pub mod osl;
 pub mod stk;
@@ -11,9 +12,8 @@ pub mod syd;
 pub mod tgt;
 pub mod tro;
 pub mod tyo;
-pub mod zur;
-
 pub mod wlg;
+pub mod zur;
 
 use crate::calendars::calendar::Cal;
 use chrono::NaiveDateTime;
@@ -36,6 +36,7 @@ fn get_weekmask_by_name(name: &str) -> Result<Vec<u8>, PyErr> {
         ("tyo", tyo::WEEKMASK),
         ("syd", syd::WEEKMASK),
         ("wlg", wlg::WEEKMASK),
+        ("mum", mum::WEEKMASK),
     ]);
     match hmap.get(name) {
         None => Err(PyValueError::new_err(format!(
@@ -61,6 +62,7 @@ fn get_holidays_by_name(name: &str) -> Result<Vec<NaiveDateTime>, PyErr> {
         ("tyo", tyo::HOLIDAYS),
         ("syd", syd::HOLIDAYS),
         ("wlg", wlg::HOLIDAYS),
+        ("mum", mum::HOLIDAYS),
     ]);
     match hmap.get(name) {
         None => Err(PyValueError::new_err(format!(
@@ -89,6 +91,7 @@ fn get_holidays_by_name(name: &str) -> Result<Vec<NaiveDateTime>, PyErr> {
 //         ("tyo", tyo::RULES),
 //         ("syd", syd::RULES),
 //         ("wlg", wlg::RULES),
+//         ("mum", mum::RULES),
 //     ]);
 //     match hmap.get(name) {
 //         None => Err(PyValueError::new_err(format!("'{}' is not found in list of existing calendars.", name))),
@@ -246,6 +249,14 @@ mod tests {
         let cal = get_calendar_by_name("wlg").unwrap();
         assert!(cal.is_holiday(
             &NaiveDateTime::parse_from_str("2034-07-07 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()
+        ));
+    }
+
+    #[test]
+    fn test_mum() {
+        let cal = get_calendar_by_name("mum").unwrap();
+        assert!(cal.is_holiday(
+            &NaiveDateTime::parse_from_str("2025-01-26 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap()
         ));
     }
 }

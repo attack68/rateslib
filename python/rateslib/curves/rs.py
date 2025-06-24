@@ -1,15 +1,17 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from rateslib import defaults
-from rateslib.calendars import CalInput, _get_modifier, get_calendar
+from rateslib.calendars import _get_modifier, get_calendar  # type: ignore[attr-defined]
 from rateslib.calendars.dcfs import _get_convention
 from rateslib.default import NoInput, _drb
-from rateslib.dual import ADOrder, _get_adorder
-from rateslib.rs import Curve as CurveObj  # noqa: F401
+from rateslib.dual.utils import _get_adorder
 from rateslib.rs import (
+    ADOrder,
     FlatBackwardInterpolator,
     FlatForwardInterpolator,
     LinearInterpolator,
@@ -19,22 +21,30 @@ from rateslib.rs import (
     _get_convention_str,
     _get_modifier_str,
 )
+from rateslib.rs import Curve as CurveObj  # noqa: F401
+
+if TYPE_CHECKING:
+    from rateslib.typing import CalInput, CurveInterpolator, DualTypes, Number
 
 
 class CurveRs:
     def __init__(
         self,
-        nodes: dict,
+        nodes: dict[datetime, Number],
         *,
-        interpolation: str | callable | NoInput = NoInput(0),
-        id: str | NoInput = NoInput(0),
+        interpolation: str
+        | Callable[[datetime, dict[datetime, DualTypes]], DualTypes]
+        | NoInput = NoInput(0),
+        id: str | NoInput = NoInput(0),  # noqa: A002
         convention: str | NoInput = NoInput(0),
         modifier: str | NoInput = NoInput(0),
         calendar: CalInput = NoInput(0),
         ad: int = 0,
         index_base: float | NoInput = NoInput(0),
     ):
-        self._py_interpolator = interpolation if callable(interpolation) else None
+        self._py_interpolator: Callable[[datetime, dict[datetime, DualTypes]], DualTypes] | None = (
+            interpolation if callable(interpolation) else None
+        )
 
         self.obj = CurveObj(
             nodes=nodes,
@@ -43,28 +53,28 @@ class CurveRs:
             id=_drb(uuid4().hex[:5] + "_", id),  # 1 in a million clash
             convention=_get_convention(_drb(defaults.convention, convention)),
             modifier=_get_modifier(_drb(defaults.modifier, modifier), True),
-            calendar=get_calendar(calendar, kind=False, named=True),
+            calendar=get_calendar(calendar, named=True),
             index_base=_drb(None, index_base),
         )
 
     @property
-    def id(self):
+    def id(self) -> str:
         return self.obj.id
 
     @property
-    def convention(self):
+    def convention(self) -> str:
         return _get_convention_str(self.obj.convention)
 
     @property
-    def modifier(self):
+    def modifier(self) -> str:
         return _get_modifier_str(self.obj.modifier)
 
     @property
-    def interpolation(self):
+    def interpolation(self) -> str:
         return self.obj.interpolation
 
     @property
-    def nodes(self):
+    def nodes(self) -> dict[datetime, Number]:
         return self.obj.nodes
 
     @property
@@ -76,12 +86,13 @@ class CurveRs:
             return 2
         return 0
 
-    def _set_ad_order(self, ad: int):
+    def _set_ad_order(self, ad: int) -> None:
         self.obj.set_ad_order(_get_adorder(ad))
-        return None
 
     @staticmethod
-    def _validate_interpolator(interpolation: str | callable | NoInput):
+    def _validate_interpolator(
+        interpolation: str | Callable[[datetime, dict[datetime, DualTypes]], DualTypes] | NoInput,
+    ) -> CurveInterpolator:
         if interpolation is NoInput.blank:
             return _get_interpolator(defaults.interpolation["Curve"])
         elif isinstance(interpolation, str):
@@ -89,11 +100,11 @@ class CurveRs:
         else:
             return NullInterpolator()
 
-    def to_json(self):
+    def to_json(self) -> str:
         return '{"Py":' + self.obj.to_json() + "}"
 
     @classmethod
-    def __init_from_obj__(cls, obj):
+    def __init_from_obj__(cls, obj: CurveObj) -> CurveRs:
         new = cls(
             nodes={datetime(2000, 1, 1): 1.0},
             interpolation="linear",
@@ -104,16 +115,16 @@ class CurveRs:
         new.obj = obj
         return new
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         if not isinstance(other, CurveRs):
             return False
         return self.obj.__eq__(other.obj)
 
-    def __getitem__(self, value: datetime):
+    def __getitem__(self, value: datetime) -> Number:
         return self.obj[value]
 
 
-def _get_interpolator(name: str):
+def _get_interpolator(name: str) -> CurveInterpolator:
     name_ = name.lower()
     if name_ == "log_linear":
         return LogLinearInterpolator()

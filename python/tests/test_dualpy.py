@@ -15,6 +15,7 @@ from rateslib.dual import (
     gradient,
     set_order,
 )
+from rateslib.dual.utils import _abs_float
 
 
 @pytest.fixture
@@ -180,9 +181,9 @@ def test_gt_raises() -> None:
 
 
 def test_dual2_abs_float(x_1, y_1, y_2) -> None:
-    assert abs(x_1) == 1
-    assert abs(y_1) == 1
-    assert abs(y_2) == 1
+    assert _abs_float(x_1) == 1
+    assert _abs_float(y_1) == 1
+    assert _abs_float(y_2) == 1
     assert float(x_1) == float(1)
     assert float(y_1) == float(1)
     assert float(y_2) == float(1)

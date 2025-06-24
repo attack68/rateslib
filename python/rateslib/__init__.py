@@ -2,7 +2,7 @@ __docformat__ = "restructuredtext"
 
 # Let users know if they're missing any of our hard dependencies
 _hard_dependencies = ("pandas", "matplotlib", "numpy")
-_missing_dependencies = []
+_missing_dependencies: list[str] = []
 
 for _dependency in _hard_dependencies:
     try:
@@ -31,11 +31,11 @@ class default_context(ContextDecorator):
     ...     pass
     """
 
-    def __init__(self, *args) -> None:
+    def __init__(self, *args) -> None:  # type: ignore[no-untyped-def]
         if len(args) % 2 != 0 or len(args) < 2:
             raise ValueError("Need to invoke as option_context(pat, val, [(pat, val), ...]).")
 
-        self.ops = list(zip(args[::2], args[1::2]))
+        self.ops = list(zip(args[::2], args[1::2], strict=False))
 
     def __enter__(self) -> None:
         self.undo = [(pat, getattr(defaults, pat, None)) for pat, _ in self.ops]
@@ -43,7 +43,7 @@ class default_context(ContextDecorator):
         for pat, val in self.ops:
             setattr(defaults, pat, val)
 
-    def __exit__(self, *args) -> None:
+    def __exit__(self, *args) -> None:  # type: ignore[no-untyped-def]
         if self.undo:
             for pat, val in self.undo:
                 setattr(defaults, pat, val)
@@ -143,7 +143,7 @@ fixed income instrument configuration and calculation.
 It aims to be the fundamental high-level building block for practical analysis of
 fixed income securities, derivatives, FX representation and curve construction
 in Python.
-"""
+"""  # noqa: A001
 
 # Use __all__ to let type checkers know what is part of the public API.
 # Rateslib is not (yet) a py.typed library: the public API is determined
@@ -244,4 +244,4 @@ __all__ = [
     "FXBrokerFly",
 ]
 
-__version__ = "1.6.0"
+__version__ = "1.7.0"

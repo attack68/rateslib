@@ -5,9 +5,10 @@ from sys import prefix
 
 import numpy as np
 import pytest
-from pandas import NA, DataFrame, Index, MultiIndex, Series
+from pandas import NA, DataFrame, Index, MultiIndex, Series, date_range
 from pandas.testing import assert_frame_equal
 from rateslib import defaults
+from rateslib.calendars import Cal
 from rateslib.curves import CompositeCurve, Curve, IndexCurve, LineCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual
@@ -24,6 +25,7 @@ from rateslib.periods import (
     IndexCashflow,
     IndexFixedPeriod,
     IndexMixin,
+    NonDeliverableCashflow,
 )
 
 
@@ -84,7 +86,7 @@ def line_curve():
 
 
 @pytest.mark.parametrize(
-    "object",
+    "obj",
     [
         FixedPeriod(dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 2, 1), frequency="m", fixed_rate=2.0),
         Cashflow(notional=1e6, payment=dt(2022, 1, 1), currency="usd"),
@@ -94,16 +96,22 @@ def line_curve():
         ),
         FloatPeriod(dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 2, 1), frequency="m"),
         FXCallPeriod(
-            pair="eurusd", expiry=dt(2000, 1, 1), delivery=dt(2000, 1, 1), payment=dt(2000, 1, 1)
+            pair="eurusd",
+            expiry=dt(2000, 1, 1),
+            delivery=dt(2000, 1, 1),
+            payment=dt(2000, 1, 1),
         ),
         FXPutPeriod(
-            pair="eurusd", expiry=dt(2000, 1, 1), delivery=dt(2000, 1, 1), payment=dt(2000, 1, 1)
+            pair="eurusd",
+            expiry=dt(2000, 1, 1),
+            delivery=dt(2000, 1, 1),
+            payment=dt(2000, 1, 1),
         ),
     ],
 )
-def test_repr(object):
-    result = object.__repr__()
-    expected = f"<rl.{type(object).__name__} at {hex(id(object))}>"
+def test_repr(obj):
+    result = obj.__repr__()
+    expected = f"<rl.{type(obj).__name__} at {hex(id(obj))}>"
     assert result == expected
 
 
@@ -272,7 +280,7 @@ class TestFloatPeriod:
         )
         period.spread_compound_method = "bad_vibes"
         with pytest.raises(ValueError, match="`spread_compound_method` must be in"):
-            period._rfr_isda_compounded_rate_with_spread(Series([1, 2]), Series([1, 1]))
+            period._rate_rfr_isda_compounded_with_spread(Series([1, 2]), Series([1, 1]))
 
     def test_rfr_lockout_too_few_dates(self, curve) -> None:
         period = FloatPeriod(
@@ -700,7 +708,9 @@ class TestFloatPeriod:
             convention="act365f",
             notional=-1000000,
         )
-        _d = period._rfr_get_individual_fixings_data(rfr_curve)
+        _d = period._rfr_get_individual_fixings_data(
+            rfr_curve.calendar, rfr_curve.convention, rfr_curve
+        )
         rate, table = period._rfr_fixings_array(
             d=_d,
             disc_curve=curve,
@@ -721,7 +731,12 @@ class TestFloatPeriod:
         )
         period.fixing_method = "bad_vibes"
         with pytest.raises(NotImplementedError, match="`fixing_method`"):
-            period._rfr_fixings_array(period._rfr_get_individual_fixings_data(rfr_curve), rfr_curve)
+            period._rfr_fixings_array(
+                period._rfr_get_individual_fixings_data(
+                    rfr_curve.calendar, rfr_curve.convention, rfr_curve
+                ),
+                rfr_curve,
+            )
 
     def test_rfr_fixings_array_raises2(self, line_curve) -> None:
         period = FloatPeriod(
@@ -733,10 +748,10 @@ class TestFloatPeriod:
             convention="act365f",
             notional=-1000000,
         )
-        with pytest.raises(ValueError, match="Must supply a discount factor based `disc_curve`."):
+        with pytest.raises(ValueError, match="`disc_curve` cannot be inferred from a non-DF"):
             period.fixings_table(curve=line_curve)
 
-        with pytest.raises(ValueError, match="Cannot infer `disc_curve` from a dict of curves."):
+        with pytest.raises(ValueError, match="`disc_curve` cannot be inferred from a dictionary"):
             period.fixings_table(curve={"1m": line_curve, "2m": line_curve})
 
     @pytest.mark.parametrize(
@@ -1125,6 +1140,64 @@ class TestFloatPeriod:
         # with pytest.warns(UserWarning):
         #     period.rate(curve)
 
+        with (
+            pytest.raises(ValueError, match="RFRs could not be calculated, have you missed"),
+            pytest.warns(UserWarning, match="`fixings` has missed a calendar value"),
+        ):
+            period.rate(curve)
+
+    def test_more_fixings_than_expected_by_calednar_raises(self):
+        # Create historical fixings spanning 5 days for a FloatPeriod.
+        # But set a Cal that does not expect all of these - one holdiay midweek.
+        # Observe the rate calculation.
+        fixings = Series(
+            data=[1.0, 2.0, 3.0, 4.0, 5.0],
+            index=[
+                dt(2023, 1, 23),
+                dt(2023, 1, 24),
+                dt(2023, 1, 25),
+                dt(2023, 1, 26),
+                dt(2023, 1, 27),
+            ],
+        )
+        cal = Cal(holidays=[dt(2023, 1, 25)], week_mask=[5, 6])
+        period = FloatPeriod(
+            start=dt(2023, 1, 23),
+            end=dt(2023, 1, 30),
+            payment=dt(2023, 1, 30),
+            frequency="Q",
+            fixing_method="rfr_payment_delay",
+            fixings=fixings,
+            convention="act365F",
+            calendar="bus",
+        )
+        curve = Curve({dt(2023, 1, 26): 1.0, dt(2025, 1, 26): 1.0}, calendar=cal)
+        msg = "The supplied `fixings` contain more fixings than were expected"
+        with pytest.raises(ValueError, match=msg):
+            period.rate(curve)
+
+    def test_fewer_fixings_than_expected_by_calendar_warns_and_fills(self):
+        # Create historical fixings spanning 4 days for a FloatPeriod, with mid-week holiday
+        # But set a Cal that expects 5 (the cal does not have the holiday)
+        # Observe the rate calculation.
+
+        # this tests performs a minimal version of test_period_historic_fixings_series_missing_warns
+        fixings = Series(
+            data=[1.0, 2.0, 4.0, 5.0],
+            index=[dt(2023, 1, 23), dt(2023, 1, 24), dt(2023, 1, 26), dt(2023, 1, 27)],
+        )
+        cal = Cal(holidays=[], week_mask=[5, 6])
+        period = FloatPeriod(
+            start=dt(2023, 1, 23),
+            end=dt(2023, 1, 30),
+            payment=dt(2023, 1, 30),
+            frequency="Q",
+            fixing_method="rfr_payment_delay",
+            fixings=fixings,
+            convention="act365F",
+            calendar="bus",
+        )
+        curve = Curve({dt(2023, 1, 29): 1.0, dt(2025, 1, 22): 1.0}, calendar=cal)
         with (
             pytest.raises(ValueError, match="RFRs could not be calculated, have you missed"),
             pytest.warns(UserWarning, match="`fixings` has missed a calendar value"),
@@ -1631,8 +1704,22 @@ class TestFloatPeriod:
             float_spread=0.0,
             stub=True,
         )
-        with pytest.raises(ValueError, match="Must supply a valid curve for forecasting"):
-            period.rate({"rfr": curve})
+        with pytest.raises(ValueError, match="A `curve` supplied as dict to an RFR based period m"):
+            period.rate({"bad_index": curve})
+
+    def test_rfr_period_curve_dict_allowed(self, curve) -> None:
+        period = FloatPeriod(
+            start=dt(2023, 2, 1),
+            end=dt(2023, 4, 1),
+            payment=dt(2023, 4, 1),
+            frequency="A",
+            fixing_method="rfr_payment_delay",
+            float_spread=0.0,
+            stub=True,
+        )
+        expected = 4.02664128485892
+        result = period.rate({"rfr": curve})
+        assert result == expected
 
     def test_ibor_stub_fixings_table(self) -> None:
         period = FloatPeriod(
@@ -1700,6 +1787,66 @@ class TestFloatPeriod:
         period = FloatPeriod(dt(2021, 1, 1), dt(2021, 4, 1), dt(2021, 4, 1), "Q")
         result = period.npv(curve, local=True)
         assert result == {"usd": 0.0}
+
+    @pytest.mark.parametrize(
+        "curve", [NoInput(0), LineCurve({dt(2000, 1, 1): 2.0, dt(2001, 1, 1): 2.0})]
+    )
+    @pytest.mark.parametrize("fixing_method", ["ibor", "rfr_payment_delay_avg"])
+    @pytest.mark.parametrize("fixings", [3.0, NoInput(0)])
+    def test_rate_optional_curve(self, fixings, fixing_method, curve) -> None:
+        # GH530. Allow forecasting rates without necessarily providing curve if unnecessary
+        period = FloatPeriod(
+            start=dt(2000, 1, 12),
+            end=dt(2000, 4, 12),
+            fixing_method=fixing_method,
+            frequency="q",
+            fixings=fixings,
+            payment=dt(2000, 4, 12),
+        )
+        if isinstance(curve, NoInput) and isinstance(fixings, NoInput):
+            # then no data to price
+            msg = "Must supply a `curve` to FloatPeriod.rate()"
+            with pytest.raises(ValueError, match=msg):
+                period.rate(curve)
+        elif isinstance(fixings, NoInput):
+            result = period.rate(curve)
+            assert abs(result - 2.0) < 1e-8  # uses curve
+        else:
+            result = period.rate(curve)
+            assert abs(result - 3.0) < 1e-8  # uses fixing
+
+    @pytest.mark.parametrize(
+        "fixings",
+        [
+            [2.0, 2.0, 2.0],  # some unknown
+            [2.0] * 31,  # exhaustive
+            Series(2.0, index=date_range(dt(2000, 1, 1), dt(2001, 1, 1))),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "curve", [NoInput(0), LineCurve({dt(2000, 1, 1): 2.0, dt(2001, 1, 1): 2.0})]
+    )
+    def test_rate_optional_curve_rfr(self, curve, fixings) -> None:
+        # GH530. Test RFR periods what happens when supply/not supply a Curve and fixings
+        # are either exhaustive/ not exhaustive
+        period = FloatPeriod(
+            start=dt(2000, 1, 1),
+            end=dt(2000, 2, 1),
+            fixing_method="rfr_payment_delay_avg",
+            frequency="m",
+            calendar="all",
+            fixings=fixings,
+            payment=dt(2000, 2, 1),
+        )
+
+        # When a curve is not supplied for RFR period currently it will still fail
+        # even if exhaustive fixings are available. There is currently no branching handling this.
+        if isinstance(curve, NoInput) and len(fixings) == 3:
+            with pytest.raises(ValueError, match="Must supply a `curve` to FloatPeriod.rate()"):
+                period.rate(curve)
+        else:
+            # it will conclude without fail, the exhaustive case is captured.
+            period.rate(curve)
 
 
 class TestFixedPeriod:
@@ -1824,6 +1971,20 @@ class TestFixedPeriod:
             match=re.escape("`curves` have not been supplied correctly."),
         ):
             fixed_period.npv()
+
+    def test_npv_no_fixed_rate(self, curve):
+        period = FixedPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            currency="usd",
+        )
+        with pytest.raises(TypeError, match="`fixed_rate` must be set on the Period"):
+            period.npv(curve)
 
 
 class TestCreditPremiumPeriod:
@@ -2588,7 +2749,7 @@ class TestIndexFixedPeriod:
             index_base=100.0,
         )
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99})
-        with pytest.raises(TypeError, match="`index_value` must be forecast from"):
+        with pytest.raises(ValueError, match="Curve must be initialised with an `index_base`"):
             i_period.index_ratio(curve)
 
     # TEST REDUNDANT: function was changed to fallback to forecast from curve
@@ -2659,7 +2820,7 @@ class TestIndexFixedPeriod:
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
         )
         composite_curve = CompositeCurve([curve])
-        with pytest.raises(TypeError, match="`index_value` must be forecast from"):
+        with pytest.raises(ValueError, match="Curve must be initialised with an `index_base`"):
             _, result, _ = index_period.index_ratio(composite_curve)
 
 
@@ -2712,6 +2873,167 @@ class TestIndexCashflow:
         cf = IndexCashflow(notional=1e6, payment=dt(2022, 7, 1), index_base=100)
         result = cf.cashflows(icurve, curve)
         assert isinstance(result["Cashflow"], float)
+
+
+class TestNonDeliverableCashflow:
+    @pytest.fixture(scope="class")
+    def fxf_ndf(self):
+        fxr = FXRates({"brlusd": 0.200}, settlement=dt(2025, 1, 23))
+        fxf = FXForwards(
+            fx_rates=fxr,
+            fx_curves={
+                "brlbrl": Curve({dt(2025, 1, 21): 1.0, dt(2026, 1, 23): 0.98}),
+                "usdusd": Curve({dt(2025, 1, 21): 1.0, dt(2026, 1, 23): 0.96}),
+                "brlusd": Curve({dt(2025, 1, 21): 1.0, dt(2026, 1, 23): 0.978}),
+            },
+        )
+        return fxf
+
+    def test_npv(self, fxf_ndf):
+        ndf = NonDeliverableCashflow(
+            notional=1e6,
+            reference_currency="brl",
+            settlement_currency="usd",
+            settlement=dt(2025, 6, 1),
+            fixing_date=dt(2025, 5, 29),
+            fx_rate=0.18,
+        )
+        result = ndf.npv(disc_curve=fxf_ndf.curve("usd", "usd"), fx=fxf_ndf)
+        expected = 1e6 * (0.20131018767289705 - 0.18) * 0.9855343095437953
+        assert abs(result - expected) < 1e-8
+
+    def test_npv_reversed(self, fxf_ndf):
+        ndf = NonDeliverableCashflow(
+            notional=1e6 * 0.18,
+            reference_currency="brl",
+            settlement_currency="usd",
+            settlement=dt(2025, 6, 1),
+            fixing_date=dt(2025, 5, 29),
+            fx_rate=1 / 0.18,
+            reversed=True,
+        )
+        result = ndf.npv(disc_curve=fxf_ndf.curve("usd", "usd"), fx=fxf_ndf)
+        expected = -1e6 * (0.20131018767289705 - 0.18) * 0.9855343095437953
+        assert abs(result - expected) < 1e-8
+
+    def test_npv_fixing(self, fxf_ndf):
+        ndf = NonDeliverableCashflow(
+            notional=1e6,
+            reference_currency="brl",
+            settlement_currency="usd",
+            settlement=dt(2025, 6, 1),
+            fixing_date=dt(2025, 5, 29),
+            fx_rate=0.18,
+            fx_fixing=0.25,
+        )
+        result = ndf.npv(disc_curve=fxf_ndf.curve("usd", "usd"), fx=fxf_ndf)
+        expected = 1e6 * (0.25 - 0.18) * 0.9855343095437953
+        assert abs(result - expected) < 1e-8
+
+    def test_rate_as_fixing(self, fxf_ndf):
+        ndf = NonDeliverableCashflow(
+            notional=1e6,
+            reference_currency="brl",
+            settlement_currency="usd",
+            settlement=dt(2025, 6, 1),
+            fixing_date=dt(2025, 5, 29),
+            fx_rate=0.18,
+            fx_fixing=0.25,
+        )
+        result = ndf.rate(fx=fxf_ndf)
+        expected = 0.25
+        assert abs(result - expected) < 1e-8
+
+    def test_rate(self, fxf_ndf):
+        ndf = NonDeliverableCashflow(
+            notional=1e6,
+            reference_currency="brl",
+            settlement_currency="usd",
+            settlement=dt(2025, 6, 1),
+            fixing_date=dt(2025, 5, 29),
+            fx_rate=0.18,
+        )
+        result = ndf.rate(fx=fxf_ndf)
+        expected = fxf_ndf.rate(ndf.pair, dt(2025, 6, 1))
+        assert abs(result - expected) < 1e-8
+
+    def test_cashflows_priced(self, fxf_ndf):
+        ndf = NonDeliverableCashflow(
+            notional=1e6,
+            reference_currency="brl",
+            settlement_currency="usd",
+            settlement=dt(2025, 6, 1),
+            fixing_date=dt(2025, 5, 29),
+            fx_rate=0.18,
+            fx_fixing=0.25,
+        )
+        result = ndf.cashflows(disc_curve=fxf_ndf.curve("usd", "usd"), fx=fxf_ndf)
+        expected = {
+            "Cashflow": 70000.0,
+            "Ccy": "USD",
+            "Collateral": "usd",
+            "DF": 0.9855343095437953,
+            "FX Rate": 1.0,
+            "Index Val": 0.25,
+            "NPV": 68987.40166806566,
+            "NPV Ccy": 68987.40166806566,
+            "Notional": 1000000.0,
+            "Payment": dt(2025, 6, 1, 0, 0),
+            "Period": "BRLUSD",
+            "Rate": 0.18,
+            "Type": "NonDeliverableCashflow",
+        }
+        assert result == expected
+
+    def test_cashflows_no_args(self):
+        ndf = NonDeliverableCashflow(
+            notional=1e6,
+            reference_currency="brl",
+            settlement_currency="usd",
+            settlement=dt(2025, 6, 1),
+            fixing_date=dt(2025, 5, 29),
+            fx_rate=0.18,
+        )
+        result = ndf.cashflows()
+        expected = {
+            "Cashflow": None,
+            "Ccy": "USD",
+            "Collateral": None,
+            "DF": None,
+            "FX Rate": 1.0,
+            "Index Val": None,
+            "NPV": None,
+            "NPV Ccy": None,
+            "Notional": 1000000.0,
+            "Payment": dt(2025, 6, 1, 0, 0),
+            "Period": "BRLUSD",
+            "Rate": 0.18,
+            "Type": "NonDeliverableCashflow",
+        }
+        assert result == expected
+
+    def test_analytic_delta(self):
+        ndf = NonDeliverableCashflow(
+            notional=1e6,
+            reference_currency="brl",
+            settlement_currency="usd",
+            settlement=dt(2025, 6, 1),
+            fixing_date=dt(2025, 5, 29),
+            fx_rate=0.18,
+            fx_fixing=0.25,
+        )
+        assert ndf.analytic_delta() == 0.0
+
+    def test_cashflow_raises(self, fxf_ndf):
+        ndf = NonDeliverableCashflow(
+            notional=1e6,
+            reference_currency="brl",
+            settlement_currency="usd",
+            settlement=dt(2025, 6, 1),
+            fixing_date=dt(2025, 5, 29),
+        )
+        with pytest.raises(TypeError, match="`fx_rate` must be set on the Period for an `npv`"):
+            ndf.cashflow(fxf_ndf)
 
 
 def test_base_period_dates_raise() -> None:
@@ -3194,7 +3516,7 @@ class TestFXOption:
             strike=1.101,
             notional=20e6,
         )
-        result = fxo._payoff_at_expiry(range=[1.07, 1.13])
+        result = fxo._payoff_at_expiry(rng=[1.07, 1.13])
         assert result[0][0] == 1.07
         assert result[0][-1] == 1.13
         assert result[1][0] == 0.0
@@ -3209,7 +3531,7 @@ class TestFXOption:
             strike=1.101,
             notional=20e6,
         )
-        result = fxo._payoff_at_expiry(range=[1.07, 1.13])
+        result = fxo._payoff_at_expiry(rng=[1.07, 1.13])
         assert result[0][0] == 1.07
         assert result[0][-1] == 1.13
         assert result[1][0] == (1.101 - 1.07) * 20e6

@@ -1,4 +1,5 @@
 from datetime import datetime as dt
+from random import choice, shuffle
 
 import numpy as np
 import pytest
@@ -14,6 +15,31 @@ from rateslib.fx import (
     forward_fx,
 )
 from rateslib.json import from_json
+
+
+class TestStateAndCache:
+    def test_method_state_chg(self):
+        fxr = FXRates({"eurusd": 1.0, "usdgbp": 1.0})
+        original = fxr._state
+
+        fxr.update({"eurusd": 2.0})
+        new = fxr._state
+        assert new != original
+
+    def test_method_does_not_chg_state(self):
+        fxr = FXRates({"eurusd": 1.0, "usdgbp": 1.0})
+        original = fxr._state
+
+        fxr._set_ad_order(2)
+        new = fxr._state
+        assert new == original
+
+    def test_cached_property_fxarray(self):
+        fxr = FXRates({"eurusd": 1.0, "usdgbp": 1.0})
+        original = fxr.rate("eurgbp")
+        fxr.update({"eurusd": 2.0})  # clear the FXarray cached property
+        new = fxr.rate("eurgbp")
+        assert new != original
 
 
 @pytest.mark.parametrize(
@@ -250,6 +276,18 @@ def eureur():
 @pytest.fixture
 def usdeur():
     nodes = {dt(2022, 1, 1): 1.00, dt(2022, 4, 1): 0.996}
+    return Curve(nodes=nodes, interpolation="log_linear")
+
+
+@pytest.fixture
+def cadcad():
+    nodes = {dt(2022, 1, 1): 1.00, dt(2022, 4, 1): 0.987}
+    return Curve(nodes=nodes, interpolation="log_linear")
+
+
+@pytest.fixture
+def cadcol():
+    nodes = {dt(2022, 1, 1): 1.00, dt(2022, 4, 1): 0.984}
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
@@ -654,6 +692,98 @@ def test_forwards_codependent_curve_raise(usdusd) -> None:
         )
 
 
+class TestFXForwardsBase:
+    # these tests will validate the base argument supplied to the FXForwards object
+    # in different framework type constructions
+
+    def test_single_system(self, usdusd, eureur):
+        # test that creating 2 currencies setting base as either yields the same FX rates.
+        fxr = FXRates({"eurusd": 200.0}, settlement=dt(2022, 1, 3))
+        fxf1 = FXForwards(fxr, {"eureur": eureur, "eurusd": eureur, "usdusd": usdusd}, base="usd")
+        fxf2 = FXForwards(fxr, {"eureur": eureur, "eurusd": eureur, "usdusd": usdusd}, base="eur")
+        res1 = fxf1.rate("eurusd", dt(2022, 3, 1))
+        res2 = fxf2.rate("eurusd", dt(2022, 3, 1))
+        assert res1 == res2
+
+    @pytest.mark.parametrize("base", ["usd", "eur", "cad", NoInput(0)])
+    @pytest.mark.parametrize("idx", [0, 1])
+    def test_multi_currency_system(self, base, idx, usdusd, eureur, cadcad, cadcol, usdeur):
+        ccys = ["usd", "eur", "cad"]
+        shuffle(ccys)
+        pairs = [f"{ccys[0]}{ccys[1]}", f"{ccys[idx]}{ccys[2]}"]
+        fxr = FXRates(dict(zip(pairs, [5.0, 15.0])), base=base, settlement=dt(2022, 1, 3))
+
+        shuffle(ccys)
+        curv_pairs = [f"{ccys[0]}{ccys[1]}", f"{ccys[idx]}{ccys[2]}"]
+        fxc = {
+            "eureur": eureur,
+            "cadcad": cadcad,
+            "usdusd": usdusd,
+            **dict(zip(curv_pairs, [cadcol, usdeur])),
+        }
+        fxf1 = FXForwards(fxr, fxc, base="usd")
+        fxf2 = FXForwards(fxr, fxc, base="eur")
+        fxf3 = FXForwards(fxr, fxc, base="cad")
+        fxf4 = FXForwards(fxr, fxc, base=NoInput(0))
+
+        shuffle(ccys)
+        r1 = fxf1.rate(f"{ccys[0]}{ccys[1]}", dt(2022, 2, 27))
+        r2 = fxf2.rate(f"{ccys[0]}{ccys[1]}", dt(2022, 2, 27))
+        r3 = fxf3.rate(f"{ccys[0]}{ccys[1]}", dt(2022, 2, 27))
+        r4 = fxf4.rate(f"{ccys[0]}{ccys[1]}", dt(2022, 2, 27))
+
+        assert r1 == r2
+        assert r1 == r3
+        assert r1 == r4
+
+    @pytest.mark.parametrize("base1", [NoInput(0), "usd", "cad"])
+    @pytest.mark.parametrize("base2", [NoInput(0), "eur", "usd"])
+    @pytest.mark.parametrize("pair1", ["cadusd", "usdcad"])
+    @pytest.mark.parametrize("pair2", ["usdeur", "eurusd"])
+    def test_separable_system(
+        self, usdusd, eureur, usdeur, cadcad, cadcol, base1, base2, pair1, pair2
+    ):
+        fxr1 = FXRates({pair1: 1.25}, settlement=dt(2022, 1, 3), base=base1)
+        fxr2 = FXRates({pair2: 2.0}, settlement=dt(2022, 1, 2), base=base2)
+
+        curves = {
+            "usdusd": usdusd,
+            "eureur": eureur,
+            "cadcad": cadcad,
+            "cadusd": cadcol,
+            "usdeur": usdeur,
+        }
+        fxf1 = FXForwards([fxr2, fxr1], curves, base="usd")
+        fxf2 = FXForwards([fxr2, fxr1], curves, base="eur")
+        fxf3 = FXForwards([fxr2, fxr1], curves, base="cad")
+
+        for pair in ["usdcad", "cadeur", "eurusd"]:
+            assert fxf1.rate(pair, dt(2022, 3, 20)) == fxf2.rate(pair, dt(2022, 3, 20))
+            assert fxf1.rate(pair, dt(2022, 3, 20)) == fxf3.rate(pair, dt(2022, 3, 20))
+
+    def test_dependent_acyclic_system(self, usdusd, eureur, usdeur, cadcad, cadcol):
+        pair = choice(["usdcad", "cadusd"])
+        pair2 = choice(["eurusd", "usdeur"])
+
+        fxr1 = FXRates({pair2: 1.25}, settlement=dt(2022, 1, 3))
+        fxr2 = FXRates({pair: 2.0}, settlement=dt(2022, 1, 2))
+
+        curves = {
+            "usdusd": usdusd,
+            "eureur": eureur,
+            "cadcad": cadcad,
+            "cadeur": cadcol,
+            "usdeur": usdeur,
+        }
+        fxf1 = FXForwards([fxr1, fxr2], curves, base="usd")
+        fxf2 = FXForwards([fxr1, fxr2], curves, base="eur")
+        fxf3 = FXForwards([fxr1, fxr2], curves, base="cad")
+
+        for pair in ["usdcad", "cadeur", "eurusd"]:
+            assert fxf1.rate(pair, dt(2022, 3, 20)) == fxf2.rate(pair, dt(2022, 3, 20))
+            assert fxf1.rate(pair, dt(2022, 3, 20)) == fxf3.rate(pair, dt(2022, 3, 20))
+
+
 def test_multiple_settlement_forwards() -> None:
     fxr1 = FXRates({"usdeur": 0.95}, dt(2022, 1, 3))
     fxr2 = FXRates({"usdcad": 1.1}, dt(2022, 1, 2))
@@ -743,7 +873,7 @@ def test_proxy_curves_update_with_underlying() -> None:
     proxy_curve = fxf.curve("cad", "eur")
     prev_value = proxy_curve[dt(2022, 10, 1)]
     fxf.fx_curves["eureur"].nodes[dt(2022, 10, 1)] = 0.90
-    fxf.fx_curves["eureur"].clear_cache()
+    fxf.fx_curves["eureur"]._clear_cache()
     new_value = proxy_curve[dt(2022, 10, 1)]
 
     assert prev_value != new_value
@@ -789,7 +919,7 @@ def test_rate_path_immediate(settlement) -> None:
             "nokeur": nokeur,
         },
     )
-    _, result = fxf.rate("nokusd", settlement, return_path=True)
+    _, result = fxf._rate_with_path("nokusd", settlement)
     expected = [{"col": 1}, {"col": 2}]
     assert result == expected
 
@@ -865,6 +995,14 @@ def test_delta_risk_equivalence() -> None:
     assert all(np.isclose(gradient(result1), gradient(result2, result1.vars)))
 
 
+def test_rates_update_empty_dict() -> None:
+    # test updating an FXRates with empty dict does nothing.
+    fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5})
+    fxr.update({})
+    assert float(fxr.rate("usdeur")) == 2.0
+    assert float(fxr.rate("usdgbp")) == 2.5
+
+
 def test_oo_update_rates_and_id() -> None:
     # Test the FXRates object can be updated with new FX Rates without creating new
     fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5})
@@ -873,6 +1011,30 @@ def test_oo_update_rates_and_id() -> None:
     fxr.update({"usdGBP": 3.0})
     assert fxr.rate("eurgbp") == Dual(1.5, ["fx_usdeur", "fx_usdgbp"], [-0.75, 0.5])
     assert id(fxr) == id_
+
+
+@pytest.mark.parametrize(
+    ("fx_rates", "err"),
+    [
+        ({"usdeur": 1.2}, "`fx_rates` must be a list of dicts"),
+        ([{"usdjpy": 100.5}, {"eursek": 3.0}], "The given `fx_rates` pairs are not contained"),
+        ([{"usdeur": 100.5}], "`fx_rates` must be a list of dicts with length"),
+    ],
+)
+def test_fx_forwards_update_list(fx_rates, err):
+    start, end = dt(2022, 1, 1), dt(2023, 1, 1)
+    fx_curves = {
+        "usdusd": Curve({start: 1.0, end: 0.96}, id="uu", ad=1),
+        "eureur": Curve({start: 1.0, end: 0.99}, id="ee", ad=1),
+        "eurusd": Curve({start: 1.0, end: 0.991}, id="eu", ad=1),
+        "noknok": Curve({start: 1.0, end: 0.98}, id="nn", ad=1),
+        "nokeur": Curve({start: 1.0, end: 0.978}, id="ne", ad=1),
+    }
+    fxr1 = FXRates({"usdeur": 0.9}, settlement=dt(2022, 1, 2))
+    fxr2 = FXRates({"eurnok": 8.888889}, settlement=dt(2022, 1, 3))
+    fxf = FXForwards([fxr1, fxr2], fx_curves)
+    with pytest.raises(ValueError, match=err):
+        fxf.update(fx_rates)
 
 
 def test_oo_update_forwards_rates() -> None:
@@ -892,6 +1054,35 @@ def test_oo_update_forwards_rates() -> None:
     fxf.update()
     updated_fwd = fxf.rate("usdnok", dt(2022, 7, 15))  # 8.797 = 1.0 * 8.888
     assert original_fwd != updated_fwd
+
+
+@pytest.mark.parametrize("curve_up", [True, False])
+@pytest.mark.parametrize("fxr_up", [True, False])
+def test_oo_update_forwards(curve_up, fxr_up) -> None:
+    # FXForwards.update() has dependencies to FXRates and Curve.
+    # If either is updated then the immediates FXRates should change
+    start, end = dt(2022, 1, 1), dt(2023, 1, 1)
+    curve = Curve({start: 1.0, end: 0.96}, id="uu", ad=1)
+    fx_curves = {
+        "usdusd": curve,
+        "eureur": Curve({start: 1.0, end: 0.99}, id="ee", ad=1),
+        "eurusd": Curve({start: 1.0, end: 0.991}, id="eu", ad=1),
+        "noknok": Curve({start: 1.0, end: 0.98}, id="nn", ad=1),
+        "nokeur": Curve({start: 1.0, end: 0.978}, id="ne", ad=1),
+    }
+    fx_rates1 = FXRates({"usdeur": 0.9}, dt(2022, 1, 2))
+    fx_rates2 = FXRates({"eurnok": 8.888889}, dt(2022, 1, 3))
+    fxf = FXForwards([fx_rates1, fx_rates2], fx_curves)
+    original_fwd = fxf.rate("usdnok", dt(2022, 7, 15))
+
+    if curve_up:
+        curve._set_node_vector([0.94], 1)
+    if fxr_up:
+        fx_rates1.update({"usdeur": 0.8})
+    fxf.update()
+    new_fwd = fxf.rate("usdnok", dt(2022, 7, 15))
+
+    assert (new_fwd != original_fwd) is (curve_up or fxr_up)
 
 
 def test_oo_update_forwards_rates_list() -> None:
@@ -934,8 +1125,7 @@ def test_oo_update_forwards_rates_equivalence() -> None:
     fx_rates1.update({"usdeur": 1.0})
     fxf1.update()
 
-    fxf2.update(FXRates({"usdeur": 1.0, "eurnok": 8.888889}, dt(2022, 1, 3)))
-
+    fxf2.update([{"usdeur": 1.0}])
     assert fxf1.rate("usdnok", dt(2022, 7, 15)) == fxf2.rate("usdnok", dt(2022, 7, 15))
 
 
@@ -1163,3 +1353,103 @@ def test_forward_fx_spot_equivalent() -> None:
     f_curve = Curve(nodes={dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.95})
     result = forward_fx(dt(2022, 7, 1), d_curve, f_curve, 10.102214, dt(2022, 4, 1))
     assert abs(result - 10.206626) < 1e-6
+
+
+class TestFXForwards:
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("rate", ("cadeur", dt(2022, 1, 12))),
+            ("convert", (100, "cad")),
+            ("positions", (100, "cad")),
+            ("convert_positions", ([100, -100, 100, -100],)),
+            ("swap", ("cadeur", [dt(2022, 1, 10), dt(2022, 1, 16)])),
+            ("to_json", tuple()),
+        ],
+    )
+    def test_hash_update_on_fxr_update(self, method, args):
+        # test validate cache works correctly on various methods after FXRates update
+        fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
+        fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2))
+        fxr3 = FXRates({"gbpusd": 1.2}, settlement=dt(2022, 1, 3))
+        fxf = FXForwards(
+            fx_rates=[fxr1, fxr2, fxr3],  # FXRates as list
+            fx_curves={
+                "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "cadcad": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "usdeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "cadeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "gbpcad": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "gbpgbp": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            },
+        )
+
+        before = fxf._state
+        getattr(fxf, method)(*args)
+        # no cache update is necessary
+        assert before == fxf._state
+
+        fxr1.update({"eurusd": 2.0})
+        getattr(fxf, method)(*args)
+        # cache update should have occurred
+        assert before != fxf._state
+
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("rate", ("cadeur", dt(2022, 1, 12))),
+            ("convert", (100, "cad")),
+            ("positions", (100, "cad")),
+            ("convert_positions", ([100, -100, 100, -100],)),
+            ("swap", ("cadeur", [dt(2022, 1, 10), dt(2022, 1, 16)])),
+            ("to_json", tuple()),
+        ],
+    )
+    def test_hash_update_on_curve_update(self, method, args):
+        # test validate cache works correctly on various methods after Curve update
+        fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
+        fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2))
+        fxr3 = FXRates({"gbpusd": 1.2}, settlement=dt(2022, 1, 3))
+        fxf = FXForwards(
+            fx_rates=[fxr1, fxr2, fxr3],  # FXRates as list
+            fx_curves={
+                "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "cadcad": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "usdeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "cadeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "gbpcad": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "gbpgbp": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            },
+        )
+
+        before = fxf._state
+        getattr(fxf, method)(*args)
+        # no cache update is necessary
+        assert before == fxf._state
+
+        fxf.curve("eur", "eur")._set_node_vector([0.998], 1)
+        getattr(fxf, method)(*args)
+        # cache update should have occurred
+        assert before != fxf._state
+
+    def test_update_does_nothing_with_same_hashes(self):
+        fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
+        fxf = FXForwards(
+            fx_rates=[fxr1],  # FXRates as list
+            fx_curves={
+                "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "usdeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            },
+        )
+        before = fxf._state
+        fxf.update()
+        after = fxf._state
+        assert before == after
+
+        before = fxf._state
+        fxf.update([{"eurusd": 2.0}])
+        after = fxf._state
+        assert before != after

@@ -34,7 +34,7 @@ $ coverage run -m pytest
 (Checking for uncaptured warnings - some of these may be known issues and can be ignored)
 $ pytest -W error
 
-- Check cargo.toml::[package][exclude] in case any folders or files need amending (including or exclduing). 
+- Check cargo.toml::[package][exclude] in case any folders or files need amending (including or excluding). 
 - Commit and merge any changes to *main* - this will temporarily break *ReadTheDocs* which will build from push. 
 - Create a new release branch, e.g. '1.3.x' and checkout.
 

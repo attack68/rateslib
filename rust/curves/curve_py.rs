@@ -19,7 +19,7 @@ use pyo3::types::PyBytes;
 use serde::{Deserialize, Serialize};
 
 /// Interpolation
-#[derive(Debug, Clone, PartialEq, FromPyObject, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, FromPyObject, Deserialize, Serialize, IntoPyObject)]
 pub(crate) enum CurveInterpolator {
     LogLinear(LogLinearInterpolator),
     Linear(LinearInterpolator),
@@ -29,24 +29,25 @@ pub(crate) enum CurveInterpolator {
     Null(NullInterpolator),
 }
 
-impl IntoPy<PyObject> for CurveInterpolator {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        macro_rules! into_py {
-            ($obj: ident) => {
-                Py::new(py, $obj).unwrap().to_object(py)
-            };
-        }
-
-        match self {
-            CurveInterpolator::LogLinear(i) => into_py!(i),
-            CurveInterpolator::Linear(i) => into_py!(i),
-            CurveInterpolator::LinearZeroRate(i) => into_py!(i),
-            CurveInterpolator::FlatForward(i) => into_py!(i),
-            CurveInterpolator::FlatBackward(i) => into_py!(i),
-            CurveInterpolator::Null(i) => into_py!(i),
-        }
-    }
-}
+// // removed upgrading to pyo3 0.23, see https://pyo3.rs/v0.23.0/migration#intopyobject-and-intopyobjectref-derive-macros
+// impl IntoPy<PyObject> for CurveInterpolator {
+//     fn into_py(self, py: Python<'_>) -> PyObject {
+//         macro_rules! into_py {
+//             ($obj: ident) => {
+//                 Py::new(py, $obj).unwrap().to_object(py)
+//             };
+//         }
+//
+//         match self {
+//             CurveInterpolator::LogLinear(i) => into_py!(i),
+//             CurveInterpolator::Linear(i) => into_py!(i),
+//             CurveInterpolator::LinearZeroRate(i) => into_py!(i),
+//             CurveInterpolator::FlatForward(i) => into_py!(i),
+//             CurveInterpolator::FlatBackward(i) => into_py!(i),
+//             CurveInterpolator::Null(i) => into_py!(i),
+//         }
+//     }
+// }
 
 impl CurveInterpolation for CurveInterpolator {
     fn interpolated_value(&self, nodes: &NodesTimestamp, date: &NaiveDateTime) -> Number {
@@ -178,7 +179,7 @@ impl Curve {
         Ok(())
     }
     pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+        Ok(PyBytes::new(py, &serialize(&self).unwrap()))
     }
     pub fn __getnewargs__(
         &self,

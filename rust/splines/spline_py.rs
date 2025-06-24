@@ -1,6 +1,6 @@
 //! Wrapper to export spline functionality to Python
 
-use crate::dual::{Dual, Dual2, Number, NumberPPSpline};
+use crate::dual::{Dual, Dual2, Number};
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
 use crate::splines::spline::{
@@ -380,7 +380,7 @@ macro_rules! create_interface {
                 left_n: usize,
                 right_n: usize
             ) -> PyResult<Bound<'py, PyArray2<f64>>> {
-                Ok(self.inner.bsplmatrix(&tau, left_n, right_n).to_pyarray_bound(py))
+                Ok(self.inner.bsplmatrix(&tau, left_n, right_n).to_pyarray(py))
             }
 
             fn __eq__(&self, other: &Self) -> PyResult<bool> {
@@ -407,15 +407,16 @@ create_interface!(PPSplineF64, f64);
 create_interface!(PPSplineDual, Dual);
 create_interface!(PPSplineDual2, Dual2);
 
-impl IntoPy<PyObject> for NumberPPSpline {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        match self {
-            NumberPPSpline::F64(s) => Py::new(py, s).unwrap().to_object(py),
-            NumberPPSpline::Dual(s) => Py::new(py, s).unwrap().to_object(py),
-            NumberPPSpline::Dual2(s) => Py::new(py, s).unwrap().to_object(py),
-        }
-    }
-}
+// // removed on upgrade to pyo3 0.23, see https://pyo3.rs/v0.23.0/migration#intopyobject-and-intopyobjectref-derive-macros
+// impl IntoPy<PyObject> for NumberPPSpline {
+//     fn into_py(self, py: Python<'_>) -> PyObject {
+//         match self {
+//             NumberPPSpline::F64(s) => Py::new(py, s).unwrap().to_object(py),
+//             NumberPPSpline::Dual(s) => Py::new(py, s).unwrap().to_object(py),
+//             NumberPPSpline::Dual2(s) => Py::new(py, s).unwrap().to_object(py),
+//         }
+//     }
+// }
 
 /// Calculate the value of an indexed b-spline at *x*.
 ///

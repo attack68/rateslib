@@ -172,7 +172,8 @@ def test_serialization(curve) -> None:
         '{"nodes": {"2022-03-01": 1.0, "2022-03-31": 0.99}, '
         '"interpolation": "linear", "t": null, "c": null, "id": "v", '
         '"convention": "Act360", "endpoints": ["natural", "natural"], "modifier": "MF", '
-        '"calendar_type": "null", "ad": 1, "calendar": null}'
+        '"calendar": "{\\"NamedCal\\":{\\"name\\":\\"all\\"}}", "ad": 1, '
+        '"index_base": null, "index_lag": 3}'
     )
     result = curve.to_json()
     assert result == expected
@@ -749,7 +750,7 @@ def test_linecurve_shift_dual_input() -> None:
 @pytest.mark.parametrize("ad_order", [0, 1, 2])
 @pytest.mark.parametrize("composite", [True, False])
 def test_indexcurve_shift(ad_order, composite) -> None:
-    curve = IndexCurve(
+    curve = Curve(
         nodes={
             dt(2022, 1, 1): 1.0,
             dt(2023, 1, 1): 0.988,
@@ -898,6 +899,34 @@ def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, sp
             1e-8,
         ),
         (
+            Curve(
+                nodes={
+                    dt(2022, 1, 1): 1.0,
+                    dt(2023, 1, 1): 0.988,
+                    dt(2024, 1, 1): 0.975,
+                    dt(2025, 1, 1): 0.965,
+                    dt(2026, 1, 1): 0.955,
+                    dt(2027, 1, 1): 0.9475,
+                },
+                t=[
+                    dt(2024, 1, 1),
+                    dt(2024, 1, 1),
+                    dt(2024, 1, 1),
+                    dt(2024, 1, 1),
+                    dt(2025, 1, 1),
+                    dt(2026, 1, 1),
+                    dt(2027, 1, 1),
+                    dt(2027, 1, 1),
+                    dt(2027, 1, 1),
+                    dt(2027, 1, 1),
+                ],
+                index_base=110.0,
+                interpolation="linear_index",
+            ),
+            False,
+            1e-8,
+        ),
+        (
             LineCurve(
                 nodes={
                     dt(2022, 1, 1): 1.7,
@@ -962,7 +991,7 @@ def test_curve_translate(crv, t, tol) -> None:
         ],
     )
     assert np.all(np.abs(diff) < tol)
-    if type(crv) is IndexCurve:
+    if not isinstance(result_curve.index_base, NoInput):
         assert result_curve.index_base == crv.index_value(dt(2023, 1, 1))
 
 
@@ -1154,7 +1183,7 @@ class TestCurve:
         curve.nodes[dt(2002, 1, 1)] = 0.98
         # cache not cleared
         assert curve[dt(2001, 1, 1)] == v1
-        curve.clear_cache()
+        curve._clear_cache()
         # cache cleared so value will need to be re-calced
         v2 = curve[dt(2001, 1, 1)]
         assert v2 != v1
@@ -1164,24 +1193,19 @@ class TestCurve:
             # no clear cache required, but value will re-calc anyway
             assert curve[dt(2001, 1, 1)] != v2
 
-
-class TestLineCurve:
-    def test_repr(self):
-        curve = LineCurve(
+    def test_typing_as_curve(self):
+        curve = Curve(
             nodes={
                 dt(2022, 1, 1): 1.0,
                 dt(2023, 1, 1): 0.98,
                 dt(2024, 1, 1): 0.965,
                 dt(2025, 1, 1): 0.955,
             },
-            id="libor1m",
+            id="sofr",
         )
-        expected = f"<rl.LineCurve:{curve.id} at {hex(id(curve))}>"
-        assert expected == curve.__repr__()
+        assert isinstance(curve, Curve)
 
-
-class TestIndexCurve:
-    def test_curve_translate_knots_raises(self, curve) -> None:
+    def test_curve_translate_knots_raises(self) -> None:
         curve = Curve(
             nodes={
                 dt(2022, 1, 1): 1.0,
@@ -1209,10 +1233,40 @@ class TestIndexCurve:
         with pytest.raises(ValueError, match="Cannot translate spline knots for given"):
             curve.translate(dt(2022, 12, 15))
 
+
+class TestLineCurve:
+    def test_repr(self):
+        curve = LineCurve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.98,
+                dt(2024, 1, 1): 0.965,
+                dt(2025, 1, 1): 0.955,
+            },
+            id="libor1m",
+        )
+        expected = f"<rl.LineCurve:{curve.id} at {hex(id(curve))}>"
+        assert expected == curve.__repr__()
+
+    def test_typing_as_curve(self):
+        curve = LineCurve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.98,
+                dt(2024, 1, 1): 0.965,
+                dt(2025, 1, 1): 0.955,
+            },
+            id="libor1m",
+        )
+        assert isinstance(curve, Curve)
+
+
+class TestIndexCurve:
     def test_curve_index_linear_daily_interp(self) -> None:
-        curve = IndexCurve(
+        curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 1, 5): 0.9999},
             index_base=200.0,
+            interpolation="linear_index",
         )
         result = curve.index_value(dt(2022, 1, 5))
         expected = 200.020002002
@@ -1227,13 +1281,13 @@ class TestIndexCurve:
             IndexCurve({dt(2022, 1, 1): 1.0})
 
     def test_index_value_raises(self) -> None:
-        curve = IndexCurve({dt(2022, 1, 1): 1.0}, index_base=100.0)
+        curve = Curve({dt(2022, 1, 1): 1.0}, index_base=100.0)
         with pytest.raises(ValueError, match="`interpolation` for `index_value`"):
             curve.index_value(dt(2022, 1, 1), interpolation="BAD")
 
     @pytest.mark.parametrize("ad", [0, 1, 2])
     def test_roll_preserves_ad(self, ad) -> None:
-        curve = IndexCurve(
+        curve = Curve(
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_base=100.0,
             index_lag=3,
@@ -1244,7 +1298,7 @@ class TestIndexCurve:
         assert new_curve.ad == curve.ad
 
     def test_historic_rate_is_none(self) -> None:
-        curve = IndexCurve(
+        curve = Curve(
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_base=100.0,
             index_lag=3,
@@ -1258,6 +1312,12 @@ class TestIndexCurve:
         )
         expected = f"<rl.IndexCurve:us_cpi at {hex(id(curve))}>"
         assert expected == curve.__repr__()
+
+    def test_typing_as_curve(self):
+        curve = IndexCurve(
+            nodes={dt(2022, 1, 1): 1.0, dt(2022, 1, 5): 0.9999}, index_base=200.0, id="us_cpi"
+        )
+        assert isinstance(curve, Curve)
 
 
 class TestCompositeCurve:
@@ -1413,6 +1473,29 @@ class TestCompositeCurve:
 
         assert np.all(np.abs(result - expected) < 1e-7)
 
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("rate", (dt(2022, 1, 1), "1d")),
+            ("roll", ("10d",)),
+            ("translate", (dt(2022, 1, 10),)),
+            ("shift", (10.0, "id", False)),
+            ("__getitem__", (dt(2022, 1, 10),)),
+            ("index_value", (dt(2022, 1, 10),)),
+        ],
+    )
+    def test_composite_curve_precheck_cache(self, method, args) -> None:
+        # test precache_check on shift
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}, index_base=100.0)
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.998})
+        cc = CompositeCurve([c1, c2])
+        cc._cache[dt(1980, 1, 1)] = 100.0
+
+        # mutate a curve to trigger cache id clear
+        c1._set_node_vector([0.99], 0)
+        getattr(cc, method)(*args)
+        assert dt(1980, 1, 1) not in cc._cache
+
     def test_isinstance_raises(self) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99})
         line_curve = LineCurve({dt(2022, 1, 1): 10.0, dt(2023, 1, 1): 12.0})
@@ -1451,21 +1534,22 @@ class TestCompositeCurve:
             CompositeCurve([c1, c2])
 
     @pytest.mark.parametrize(
-        ("lag", "base"), [([2, 3], [100.0, 100.0]), ([3, 3], [100.0, 100.001])]
+        ("lag", "base"), [([2, 3], [100.0, 99.0]), ([4, NoInput(0)], [100.0, NoInput(0)])]
     )
-    def test_index_curves_raises(self, lag, base) -> None:
-        ic1 = IndexCurve(
+    def test_index_curves_take_first_value(self, lag, base) -> None:
+        ic1 = Curve(
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_lag=lag[0],
             index_base=base[0],
         )
-        ic2 = IndexCurve(
+        ic2 = Curve(
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_lag=lag[1],
             index_base=base[1],
         )
-        with pytest.raises(ValueError, match="Cannot composite curves with different"):
-            CompositeCurve([ic1, ic2])
+        cc = CompositeCurve([ic1, ic2])
+        assert cc.index_base == base[0]
+        assert cc.index_lag == lag[0]
 
     def test_index_curves_attributes(self) -> None:
         ic1 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
@@ -1521,7 +1605,7 @@ class TestCompositeCurve:
 
     def test_composite_curve_no_index_value_raises(self, curve) -> None:
         cc = CompositeCurve([curve])
-        with pytest.raises(TypeError, match="`index_value` not available"):
+        with pytest.raises(ValueError, match="Curve must be initialised with an `index_base`"):
             cc.index_value(dt(2022, 1, 1))
 
     def test_historic_rate_is_none(self) -> None:
@@ -1588,6 +1672,70 @@ class TestCompositeCurve:
         expected = f"<rl.CompositeCurve:{curve.id} at {hex(id(curve))}>"
         assert expected == curve.__repr__()
         assert isinstance(curve.id, str)
+
+    def test_typing_as_curve(self):
+        curve1 = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.98,
+                dt(2024, 1, 1): 0.965,
+                dt(2025, 1, 1): 0.955,
+            },
+            t=[
+                dt(2023, 1, 1),
+                dt(2023, 1, 1),
+                dt(2023, 1, 1),
+                dt(2023, 1, 1),
+                dt(2024, 1, 1),
+                dt(2025, 1, 1),
+                dt(2025, 1, 1),
+                dt(2025, 1, 1),
+                dt(2025, 1, 1),
+            ],
+        )
+        curve2 = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 6, 30): 1.0,
+                dt(2022, 7, 1): 0.999992,
+                dt(2022, 12, 31): 0.999992,
+                dt(2023, 1, 1): 0.999984,
+                dt(2023, 6, 30): 0.999984,
+                dt(2023, 7, 1): 0.999976,
+                dt(2023, 12, 31): 0.999976,
+                dt(2024, 1, 1): 0.999968,
+                dt(2024, 6, 30): 0.999968,
+                dt(2024, 7, 1): 0.999960,
+                dt(2025, 1, 1): 0.999960,
+            },
+        )
+        curve = CompositeCurve([curve1, curve2])
+        assert isinstance(curve, Curve)
+
+    def test_cache(self):
+        curve1 = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2023, 1, 1): 0.98,
+            },
+        )
+        curve2 = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 6, 30): 1.0,
+                dt(2022, 7, 1): 0.999992,
+                dt(2022, 12, 31): 0.999992,
+                dt(2023, 1, 1): 0.999984,
+            },
+        )
+        curve = CompositeCurve([curve1, curve2])
+        curve[dt(2022, 3, 1)]
+        assert curve._cache == {dt(2022, 3, 1): 0.9967396833121631}
+
+        # update a curve
+        curve2.update_node(dt(2022, 6, 30), 0.95)
+        curve[dt(2022, 3, 1)]
+        assert curve._cache == {dt(2022, 3, 1): 0.9801226964242061}
 
 
 class TestMultiCsaCurve:
@@ -1756,6 +1904,62 @@ class TestMultiCsaCurve:
         assert expected == curve.__repr__()
         assert isinstance(curve.id, str)
 
+    def test_typing_as_curve(self):
+        c1 = Curve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 1, 2): 0.99997260,  # 1%
+                dt(2022, 1, 3): 0.99991781,  # 2%
+                dt(2022, 1, 4): 0.99983564,  # 3%
+                dt(2022, 1, 5): 0.99972608,  # 4%
+            },
+            convention="Act365F",
+        )
+        c2 = Curve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 1, 2): 0.99989042,  # 4%
+                dt(2022, 1, 3): 0.99980825,  # 3%
+                dt(2022, 1, 4): 0.99975347,  # 2%
+                dt(2022, 1, 5): 0.99972608,  # 1%
+            },
+            convention="Act365F",
+        )
+        c3 = Curve(
+            {
+                dt(2022, 1, 1): 1.0,
+                dt(2022, 1, 2): 0.99989042,  # 4%
+                dt(2022, 1, 3): 0.99979455,  # 3.5%
+                dt(2022, 1, 4): 0.99969869,  # 3.5%
+                dt(2022, 1, 5): 0.99958915,  # 4%
+            },
+            convention="Act365F",
+        )
+        curve = MultiCsaCurve([c1, c2, c3])
+        assert isinstance(curve, Curve)
+
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("rate", (dt(2022, 1, 1), "1d")),
+            ("roll", ("10d",)),
+            ("translate", (dt(2022, 1, 10),)),
+            ("shift", (10.0, "id", False)),
+            ("__getitem__", (dt(2022, 1, 10),)),
+        ],
+    )
+    def test_multi_csa_curve_precheck_cache(self, method, args) -> None:
+        # test precache_check on shift
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999})
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.998})
+        cc = MultiCsaCurve([c1, c2])
+        cc._cache[dt(1980, 1, 1)] = 100.0
+
+        # mutate a curve to trigger cache id clear
+        c1._set_node_vector([0.99], 0)
+        getattr(cc, method)(*args)
+        assert dt(1980, 1, 1) not in cc._cache
+
 
 class TestProxyCurve:
     def test_repr(self) -> None:
@@ -1775,6 +1979,53 @@ class TestProxyCurve:
         expected = f"<rl.ProxyCurve:{curve.id} at {hex(id(curve))}>"
         assert curve.__repr__() == expected
         assert isinstance(curve.id, str)
+
+    def test_typing_as_curve(self):
+        fxr1 = FXRates({"usdeur": 0.95}, dt(2022, 1, 3))
+        fxr2 = FXRates({"usdcad": 1.1}, dt(2022, 1, 2))
+        fxf = FXForwards(
+            [fxr1, fxr2],
+            {
+                "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 10, 1): 0.95}),
+                "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 10, 1): 1.0}),
+                "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 10, 1): 0.99}),
+                "cadusd": Curve({dt(2022, 1, 1): 1.00, dt(2022, 10, 1): 0.97}),
+                "cadcad": Curve({dt(2022, 1, 1): 1.00, dt(2022, 10, 1): 0.969}),
+            },
+        )
+        curve = fxf.curve("cad", "eur")
+        assert isinstance(curve, Curve)
+
+    def test_cache_is_validated_on_getitem_and_lookup(self):
+        fxr1 = FXRates({"usdeur": 0.95}, dt(2022, 1, 3))
+        fxr2 = FXRates({"usdcad": 1.1}, dt(2022, 1, 2))
+        fxf = FXForwards(
+            [fxr1, fxr2],
+            {
+                "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 10, 1): 0.95}),
+                "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 10, 1): 1.0}),
+                "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 10, 1): 0.99}),
+                "cadusd": Curve({dt(2022, 1, 1): 1.00, dt(2022, 10, 1): 0.97}),
+                "cadcad": Curve({dt(2022, 1, 1): 1.00, dt(2022, 10, 1): 0.969}),
+            },
+        )
+        curve = fxf.curve("cad", "eur")
+        assert curve._state == fxf._state
+
+        fxr1.update({"usdeur": 100000000.0})
+        fxf.curve("eur", "eur")._set_node_vector([0.5], 1)
+
+        state1 = fxf._state
+        # performing an action on the proxy curve will validate and update states
+        # even calling _state on the ProxyCurve will validate and update states
+        curve[dt(2022, 1, 9)]
+        state2 = fxf._state
+        assert state1 != state2
+
+        fxr1.update({"usdeur": 10.0})
+        fxf.curve("eur", "eur")._set_node_vector([0.6], 1)
+        state3 = curve._state
+        assert state3 != state2  # becuase calling _state has validated and updated
 
 
 class TestPlotCurve:
@@ -1927,3 +2178,149 @@ class TestPlotCurve:
             id="us_rates",
         )
         usd_curve.plot("1b", labels=["SOFR o/n"])
+
+
+class TestStateAndCache:
+    @pytest.mark.parametrize(
+        "curve",
+        [
+            Curve(nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99}),
+            LineCurve(nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99}),
+            IndexCurve(
+                nodes={
+                    dt(2022, 1, 1): 1.0,
+                    dt(2023, 1, 1): 0.98,
+                },
+                index_base=200.0,
+            ),
+        ],
+    )
+    @pytest.mark.parametrize(("method", "args"), [("_set_ad_order", (1,))])
+    def test_method_does_not_change_state(self, curve, method, args):
+        before = curve._state
+        getattr(curve, method)(*args)
+        after = curve._state
+        assert before == after
+
+    @pytest.mark.parametrize(
+        "curve",
+        [
+            Curve(nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99, dt(2003, 1, 1): 0.98}),
+            LineCurve(nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99}),
+            IndexCurve(
+                nodes={
+                    dt(2000, 1, 1): 1.0,
+                    dt(2002, 1, 1): 0.98,
+                },
+                index_base=200.0,
+            ),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("_set_node_vector", ([0.99, 0.98], 1)),
+            ("update_node", (dt(2002, 1, 1), 0.98)),
+            ("update", ({dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99},)),
+            ("csolve", tuple()),
+        ],
+    )
+    def test_method_changes_state(self, curve, method, args):
+        before = curve._state
+        getattr(curve, method)(*args)
+        after = curve._state
+        assert before != after
+
+    @pytest.mark.parametrize(
+        "curve",
+        [
+            Curve(nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99}),
+            LineCurve(nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99}),
+            IndexCurve(
+                nodes={
+                    dt(2022, 1, 1): 1.0,
+                    dt(2023, 1, 1): 0.98,
+                },
+                index_base=200.0,
+            ),
+        ],
+    )
+    def test_populate_cache(self, curve):
+        assert curve._cache == {}
+        curve[dt(2000, 5, 1)]
+        assert dt(2000, 5, 1) in curve._cache
+
+    @pytest.mark.parametrize(
+        "curve",
+        [
+            Curve(nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99, dt(2003, 1, 1): 0.98}),
+            LineCurve(nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99}),
+            IndexCurve(
+                nodes={
+                    dt(2000, 1, 1): 1.0,
+                    dt(2002, 1, 1): 0.98,
+                },
+                index_base=200.0,
+            ),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("_set_node_vector", ([0.99, 0.98], 1)),
+            ("update_node", (dt(2002, 1, 1), 0.98)),
+            ("update", ({dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99},)),
+            ("csolve", tuple()),
+            ("_set_ad_order", (1,)),
+        ],
+    )
+    def test_method_clears_cache(self, curve, method, args):
+        curve[dt(2000, 5, 1)]
+        assert dt(2000, 5, 1) in curve._cache
+        getattr(curve, method)(*args)
+        assert curve._cache == {}
+
+    @pytest.mark.parametrize("Klass", [CompositeCurve, MultiCsaCurve])
+    def test_composite_curve_validation_cache_clearing_and_state(self, Klass):
+        # test that a composite curve will validate and clear its cache
+        # and following that update its own state to its composited state
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.95})
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.90})
+        cc = Klass([c1, c2])
+        cc_state_pre = cc._state
+        # get a value and check the cache
+        cc_result_pre = cc[dt(2022, 6, 1)]
+        _ = cc[dt(2022, 6, 30)]
+        assert dt(2022, 6, 1) in cc._cache
+        assert dt(2022, 6, 30) in cc._cache
+
+        # update an underlying curve
+        c2.update_node(dt(2024, 1, 1), 0.85)
+        # check the cache is cleared when using a get using
+        cc_result_post = cc[dt(2022, 6, 1)]
+        assert cc_result_post < cc_result_pre
+        # check that the state of the composite curve has changed
+        cc_state_post = cc._state
+        assert cc_state_pre != cc_state_post
+        assert cc_state_post == cc._get_composited_state()
+        # check that the cache is correct
+        assert dt(2022, 6, 1) in cc._cache
+        assert dt(2022, 6, 30) not in cc._cache
+
+    def test_max_cache_size(self):
+        with default_context("curve_caching_max", 3):
+            curve = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.95})
+            assert curve._cache_len == 0
+            curve[dt(2022, 2, 1)]
+            assert curve._cache_len == 1
+            curve[dt(2022, 3, 1)]
+            assert curve._cache_len == 2
+            curve[dt(2022, 4, 1)]
+            assert curve._cache_len == 3
+            curve[dt(2022, 5, 1)]
+            assert curve._cache_len == 3
+
+            assert dt(2022, 2, 1) not in curve._cache
+            assert dt(2022, 3, 1) in curve._cache
+            assert dt(2022, 4, 1) in curve._cache
+            assert dt(2022, 5, 1) in curve._cache

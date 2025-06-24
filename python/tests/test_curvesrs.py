@@ -15,7 +15,8 @@ from rateslib.curves.rs import (
     _get_convention_str,
     _get_interpolator,
 )
-from rateslib.dual import ADOrder, Dual2, _get_adorder
+from rateslib.dual import Dual2
+from rateslib.dual.utils import ADOrder, _get_adorder
 from rateslib.json import from_json
 from rateslib.rs import Convention
 
@@ -117,8 +118,8 @@ def test_pickle_interpolator(name) -> None:
     import pickle
 
     obj = _get_interpolator(name)
-    bytes = pickle.dumps(obj)
-    pickle.loads(bytes)
+    bytes_ = pickle.dumps(obj)
+    pickle.loads(bytes_)
 
 
 def test_get_interpolation(curve) -> None:

@@ -3,14 +3,19 @@ from __future__ import annotations
 import os
 from datetime import datetime
 from enum import Enum
+from typing import Any
 
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas
 from packaging import version
-from pandas import read_csv
+from pandas import Series, read_csv
 
 from rateslib._spec_loader import INSTRUMENT_SPECS
-from rateslib.rs import get_named_calendar
+from rateslib.rs import Cal, NamedCal, UnionCal
+
+PlotOutput = tuple[plt.Figure, plt.Axes, list[plt.Line2D]]  # type: ignore[name-defined]
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -47,8 +52,8 @@ class Fixings:
     """
 
     @staticmethod
-    def _load_csv(dir, path):
-        target = os.path.join(dir, path)
+    def _load_csv(directory: str, path: str) -> Series[float]:
+        target = os.path.join(directory, path)
         if version.parse(pandas.__version__) < version.parse("2.0"):  # pragma: no cover
             # this is tested by the minimum version gitflow actions.
             # TODO (low:dependencies) remove when pandas min version is bumped to 2.0
@@ -61,7 +66,7 @@ class Fixings:
             df = read_csv(target, index_col=0, parse_dates=[0], date_format="%d-%m-%Y")
         return df["rate"].sort_index(ascending=True)
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: str) -> Series[float]:
         if item in self.loaded:
             return self.loaded[item]
 
@@ -80,9 +85,9 @@ class Fixings:
         self.loaded[item] = s
         return s
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.directory = os.path.dirname(os.path.abspath(__file__)) + "/data"
-        self.loaded = {}
+        self.loaded: dict[str, Series[float]] = {}
 
 
 class Defaults:
@@ -96,26 +101,27 @@ class Defaults:
 
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Scheduling
         self.stub = "SHORTFRONT"
         self.stub_length = "SHORT"
         self.eval_mode = "swaps_align"
         self.modifier = "MF"
-        self.calendars = {
-            "all": get_named_calendar("all"),
-            "bus": get_named_calendar("bus"),
-            "tgt": get_named_calendar("tgt"),
-            "ldn": get_named_calendar("ldn"),
-            "nyc": get_named_calendar("nyc"),
-            "fed": get_named_calendar("fed"),
-            "stk": get_named_calendar("stk"),
-            "osl": get_named_calendar("osl"),
-            "zur": get_named_calendar("zur"),
-            "tro": get_named_calendar("tro"),
-            "tyo": get_named_calendar("tyo"),
-            "syd": get_named_calendar("syd"),
-            "wlg": get_named_calendar("wlg"),
+        self.calendars: dict[str, NamedCal | UnionCal | Cal] = {
+            "all": NamedCal("all"),
+            "bus": NamedCal("bus"),
+            "tgt": NamedCal("tgt"),
+            "ldn": NamedCal("ldn"),
+            "nyc": NamedCal("nyc"),
+            "fed": NamedCal("fed"),
+            "stk": NamedCal("stk"),
+            "osl": NamedCal("osl"),
+            "zur": NamedCal("zur"),
+            "tro": NamedCal("tro"),
+            "tyo": NamedCal("tyo"),
+            "syd": NamedCal("syd"),
+            "wlg": NamedCal("wlg"),
+            "mum": NamedCal("mum"),
         }
         self.frequency_months = {
             "M": 1,
@@ -124,7 +130,7 @@ class Defaults:
             "T": 4,
             "S": 6,
             "A": 12,
-            "Z": 1e8,
+            "Z": 120000,  # corresponds to 10,000 years
         }
         self.eom = False
         self.eom_fx = True
@@ -153,6 +159,7 @@ class Defaults:
             "Bill": 0,
             "FRA": 0,
             "CDS": 0,
+            "NDF": 2,
         }
         self.fixing_method = "rfr_payment_delay"
         self.fixing_method_param = {
@@ -193,6 +200,7 @@ class Defaults:
         ]
         # fmt: on
         self.curve_caching = True
+        self.curve_caching_max = 1000
 
         # Solver
 
@@ -278,15 +286,15 @@ class Defaults:
         for attr in [_ for _ in dir(self) if _[:2] != "__"]:
             setattr(self, attr, getattr(base, attr))
 
-    def print(self):
+    def print(self) -> str:
         """
         Return a string representation of the current values in the defaults object.
         """
 
-        def _t_n(v):
+        def _t_n(v: str) -> str:  # teb-newline
             return f"\t{v}\n"
 
-        _ = f"""\
+        _: str = f"""\
 Scheduling:\n
 {
             "".join(
@@ -373,25 +381,22 @@ Miscellaneous:\n
         return _
 
 
-def plot(x, y: list, labels=NoInput(0)):
-    import matplotlib.dates as mdates  # type: ignore[import]
-    import matplotlib.pyplot as plt  # type: ignore[import]
-
+def plot(x: list[Any], y: list[list[Any]], labels: list[str] | NoInput = NoInput(0)) -> PlotOutput:
     labels = _drb([], labels)
     fig, ax = plt.subplots(1, 1)
     lines = []
     for _y in y:
         (line,) = ax.plot(x, _y)
         lines.append(line)
-    if labels and len(labels) == len(lines):
+    if not isinstance(labels, NoInput) and len(labels) == len(lines):
         ax.legend(lines, labels)
 
     ax.grid(True)
 
     if isinstance(x[0], datetime):
-        years = mdates.YearLocator()  # every year
-        months = mdates.MonthLocator()  # every month
-        yearsFmt = mdates.DateFormatter("%Y")
+        years = mdates.YearLocator()  # type: ignore[no-untyped-call]
+        months = mdates.MonthLocator()  # type: ignore[no-untyped-call]
+        yearsFmt = mdates.DateFormatter("%Y")  # type: ignore[no-untyped-call]
         ax.xaxis.set_major_locator(years)
         ax.xaxis.set_major_formatter(yearsFmt)
         ax.xaxis.set_minor_locator(months)
@@ -399,9 +404,11 @@ def plot(x, y: list, labels=NoInput(0)):
     return fig, ax, lines
 
 
-def plot3d(x, y, z, labels=None):
-    import matplotlib.pyplot as plt  # type: ignore[import]
-    from matplotlib import cm  # type: ignore[import]
+def plot3d(
+    x: list[Any], y: list[Any], z: np.ndarray[tuple[int, int], np.dtype[np.float64]]
+) -> tuple[plt.Figure, plt.Axes, None]:  # type: ignore[name-defined]
+    import matplotlib.pyplot as plt
+    from matplotlib import cm
 
     # import matplotlib.dates as mdates  # type: ignore[import]
 
@@ -409,15 +416,15 @@ def plot3d(x, y, z, labels=None):
 
     X, Y = np.meshgrid(x, y)
     # Plot the surface.
-    ax.plot_surface(X, Y, z, cmap=cm.coolwarm, linewidth=0, antialiased=False)
+    ax.plot_surface(X, Y, z, cmap=cm.coolwarm, linewidth=0, antialiased=False)  # type: ignore[attr-defined]
     return fig, ax, None
 
 
-def _drb(default, possible_blank):
+def _drb(default: Any, possible_ni: Any | NoInput) -> Any:
     """(D)efault (r)eplaces (b)lank"""
-    return default if possible_blank is NoInput.blank else possible_blank
+    return default if isinstance(possible_ni, NoInput) else possible_ni
 
 
-def _make_py_json(json, class_name):
+def _make_py_json(json: str, class_name: str) -> str:
     """Modifies the output JSON output for Rust structs wrapped by Python classes."""
     return '{"Py":' + json + "}"

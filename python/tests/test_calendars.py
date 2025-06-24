@@ -549,7 +549,7 @@ def test_add_and_get_custom_calendar() -> None:
 
 
 @pytest.mark.parametrize(
-    ("eval", "delivery", "expiry", "expected_expiry"),
+    ("evald", "delivery", "expiry", "expected_expiry"),
     [
         (dt(2024, 5, 2), 2, "2m", dt(2024, 7, 4)),
         (dt(2024, 4, 30), 2, "2m", dt(2024, 7, 1)),
@@ -557,9 +557,9 @@ def test_add_and_get_custom_calendar() -> None:
         (dt(2024, 5, 31), 2, "2w", dt(2024, 6, 14)),
     ],
 )
-def test_expiries_delivery(eval, delivery, expiry, expected_expiry) -> None:
+def test_expiries_delivery(evald, delivery, expiry, expected_expiry) -> None:
     result_expiry, _ = _get_fx_expiry_and_delivery(
-        eval,
+        evald,
         expiry,
         delivery,
         "tgt|fed",

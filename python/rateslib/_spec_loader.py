@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import os
+from typing import Any
 
 import pandas as pd
 from packaging import version
+from pandas import DataFrame
 
 DEVELOPMENT = False
 if DEVELOPMENT:
@@ -12,7 +14,7 @@ if DEVELOPMENT:
     # So when packaging output the INSTRUMENT_SPEC dict and paste into the non-development
     # section.
 
-    def _append_kwargs_name(df):
+    def _append_kwargs_name(df: DataFrame) -> DataFrame:
         """combine the columns leg and kwargs to produce library consistent kwargs for dicts"""
         prefix = df["leg"]
         prefix = prefix.where(prefix == "leg2", "")
@@ -20,10 +22,10 @@ if DEVELOPMENT:
         df["kwargs_name"] = prefix + df["kwarg"]
         return df.set_index("kwargs_name")
 
-    def _parse_bool(df):
+    def _parse_bool(df: DataFrame) -> DataFrame:
         """parse data input as bools to return True and False dtypes."""
 
-        def _map_true_false(v):
+        def _map_true_false(v: str) -> bool | None:
             try:
                 if v.upper() == "TRUE":
                     return True
@@ -39,7 +41,7 @@ if DEVELOPMENT:
             # TODO (low): clean this up when setting a minimum pandas version at 2.1.0
             df[df["dtype"] == "bool"] = df[df["dtype"] == "bool"].map(_map_true_false)
         else:
-            df[df["dtype"] == "bool"] = df[df["dtype"] == "bool"].applymap(_map_true_false)
+            df[df["dtype"] == "bool"] = df[df["dtype"] == "bool"].applymap(_map_true_false)  # type: ignore[operator]
         return df
 
     path = "data/__instrument_spec.csv"
@@ -57,19 +59,19 @@ if DEVELOPMENT:
         "int": int,
     }
 
-    def _map_dtype(v):
+    def _map_dtype(v: str) -> Any:
         try:
             return DTYPE_MAP[v]
         except KeyError:
             return v
 
-    def _map_str_int(v):
+    def _map_str_int(v: Any) -> Any:
         try:
             return int(v)
         except ValueError:
             return v
 
-    def _get_kwargs(spec):
+    def _get_kwargs(spec: str) -> dict[str, Any]:
         """From the legs DataFrame extract the relevant column and ensure dtypes are suitable."""
         # get values that are not null
         s = df_legs[spec]
@@ -1057,7 +1059,7 @@ else:
         },
         "usd_stir1": {
             "frequency": "m",
-            "roll": "imm",
+            "roll": "som",
             "eom": False,
             "modifier": "mf",
             "calendar": "nyc",
@@ -1087,7 +1089,7 @@ else:
         },
         "eur_stir1": {
             "frequency": "m",
-            "roll": "imm",
+            "roll": "som",
             "eom": False,
             "modifier": "mf",
             "calendar": "tgt",
@@ -1286,7 +1288,7 @@ else:
         },
         "sofr1mf": {
             "frequency": "m",
-            "roll": "imm",
+            "roll": "som",
             "eom": False,
             "modifier": "mf",
             "calendar": "nyc",
@@ -1316,7 +1318,7 @@ else:
         },
         "estr1mf": {
             "frequency": "m",
-            "roll": "imm",
+            "roll": "som",
             "eom": False,
             "modifier": "mf",
             "calendar": "tgt",

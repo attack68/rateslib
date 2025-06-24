@@ -15,7 +15,7 @@ features = ["pyo3/extension-module"]
 
 [project]
 name = "rateslib"
-version = "1.6.0"
+version = "1.7.0"
 description = "A fixed income library for trading interest rates"
 readme = "README.md"
 authors = [{ name = "J H M Darbyshire"}]
@@ -26,7 +26,7 @@ dependencies = [
     "matplotlib>=3.5.1,<4.0",
     "pandas>=1.4.1,<3.0",
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
@@ -40,6 +40,8 @@ dev = [
     "coverage>=7.6.1,<8.0",
     # style/linting
     "ruff>=0.6.3,<1.0",
+    "mypy>=1.13,<2.0",
+    "pandas-stubs>2.0,<3.0",
     # doc building
     "sphinx>=8.0,<9.0",
     "sphinx-automodapi>=0.16.0,<1.0",
@@ -85,13 +87,12 @@ exclude = [
     "build",
     "dist",
     "bench",
-    "benchmarks",
 ]
 # Same as Black.
 line-length = 100
 indent-width = 4
 # Assume Python 3.12
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.format]
 quote-style = "double"
@@ -100,6 +101,8 @@ docstring-code-format = false
 
 [tool.ruff.lint]
 select = [
+    # "ANN",  # flake8-annotations  -- Superceded by the use of mypy
+    # "COM",  # flake8-commas  -- conflicts with ruff format
     "E",  # pycodestyle
     "W",
     "F",  # Pyflakes
@@ -109,17 +112,17 @@ select = [
     "C4",  # flake8-comprehensions
     "S",  # flake8-bandit
     "PIE",  # flake8-pie
-    # "ANN",  # flake8-annotations  -- Requires work
-    # "A",  # flake8-builtins  -- Requires work
-    # "COM",  # flake8-commas  -- conflicts with ruff format
+    "A",  # flake8-builtins
     "Q",  # flake8-quotes
     "PT",  # flake8-pytest-style
-    # "C90",  # mccabe complexity  -- Requires work
+    "C90",  # mccabe complexity  -- Requires work
     "I",  # isort
     "N",  # pep8 naming
     # "RUF",  # -- Requires work
+    # "D", Pydocs -- requires work
 ]
 ignore = [
+    "A005",  # json and typing module name shadowing is allowed
     "PT011", # -- Requires work inputting match statements
     "PIE790",  # unnecessary pass
     "C408",  # unnecessary dict call
@@ -134,7 +137,32 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["E402", "N801"]
-"python/tests/*" = ["F401", "B", "N", "S", "ANN"]
+"typing.py" = ["E501"]
+"python/tests/*" = ["F401", "B", "N", "S", "ANN", "D"]
+"rust/*" = ["D"]
+
+[tool.ruff.lint.mccabe]
+# Flag errors (`C901`) whenever the complexity level exceeds 5.
+max-complexity = 14
+
+[tool.mypy]
+packages = [
+    "rateslib"
+]
+exclude = [
+    # "/instruments/bonds/securities.py",
+    # "/instruments/fx_volatility/strategies.py",
+    # "/instruments/generics.py",
+    # "/instruments/rates/inflation.py",
+    # "solver.py",
+]
+strict = true
+
+[tool.coverage.run]
+omit = [
+    "/typing.py",
+    # "python/tests/*"
+]
 
 [tool.isort]
 profile = "black"
@@ -143,4 +171,4 @@ src_paths = ["python"]
 
 [tool.black]
 line-length = 100
-target-version = ['py39']
+target-version = ['py310']

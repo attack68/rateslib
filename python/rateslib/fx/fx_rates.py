@@ -1,15 +1,31 @@
+from __future__ import annotations
+
 import warnings
 from datetime import datetime
-from typing import Any, Union
+from functools import cached_property
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from pandas import DataFrame, Series
 
 from rateslib import defaults
-from rateslib.default import NoInput, _drb, _make_py_json
-from rateslib.dual import Dual, DualTypes, _get_adorder, gradient
+from rateslib.default import (
+    NoInput,
+    _drb,
+    _make_py_json,
+)
+from rateslib.dual import Dual, gradient
+from rateslib.dual.utils import _get_adorder
+from rateslib.mutability import (
+    _clear_cache_post,
+    _new_state_post,
+    _WithState,
+)
 from rateslib.rs import Ccy, FXRate
 from rateslib.rs import FXRates as FXRatesObj
+
+if TYPE_CHECKING:
+    from rateslib.typing import Arr1dF64, Arr1dObj, Arr2dObj, DualTypes, Number
 
 """
 .. ipython:: python
@@ -26,14 +42,14 @@ from rateslib.rs import FXRates as FXRatesObj
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class FXRates:
+class FXRates(_WithState):
     """
     Object to store and calculate FX rates for a consistent settlement date.
 
     Parameters
     ----------
-    fx_rates : dict
-        Dict whose keys are 6-character domestic-foreign currency pairs, and whose
+    fx_rates : dict[str, float]
+        Dict whose keys are 6-character currency pairs, and whose
         values are the relevant rates.
     settlement : datetime, optional
         The settlement date for the FX rates.
@@ -48,9 +64,9 @@ class FXRates:
 
     .. note::
        When this class uses ``Dual`` numbers to represent sensitivities of values to
-       certain FX rates the variable names are called `"fx_domfor"` where `"dom"`
-       is a domestic currency and `"for"` is a foreign currency. See the examples
-       contained in class methods for clarification.
+       certain FX rates the variable names are called `"fx_cc1cc2"` where `"cc1"`
+       is left hand currency and `"cc2"` is the right hand currency in the currency pair.
+       See the examples contained in class methods for clarification.
 
     Examples
     --------
@@ -97,12 +113,15 @@ class FXRates:
     def __init__(
         self,
         fx_rates: dict[str, DualTypes],
-        settlement: Union[datetime, NoInput] = NoInput(0),
-        base: Union[str, NoInput] = NoInput(0),
+        settlement: datetime | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
     ):
-        settlement = _drb(None, settlement)
-        fx_rates_ = [FXRate(k[0:3], k[3:6], v, settlement) for k, v in fx_rates.items()]
-        if base is NoInput(0):
+        # Temporary declaration - will be overwritten
+        self.currencies: dict[str, int] = {}
+
+        settlement_: datetime | None = _drb(None, settlement)
+        fx_rates_ = [FXRate(k[0:3], k[3:6], v, settlement_) for k, v in fx_rates.items()]
+        if isinstance(base, NoInput):
             default_ccy = defaults.base_currency.lower()
             if any(default_ccy in k.lower() for k in fx_rates):
                 base_ = Ccy(defaults.base_currency)
@@ -112,9 +131,11 @@ class FXRates:
             base_ = Ccy(base)
         self.obj = FXRatesObj(fx_rates_, base_)
         self.__init_post_obj__()
+        self._clear_cache()
+        self._set_new_state()
 
     @classmethod
-    def __init_from_obj__(cls, obj):
+    def __init_from_obj__(cls, obj: FXRatesObj) -> FXRates:
         """Construct the class instance from a given rust object which is wrapped."""
         # create a default instance and overwrite it
         new = cls({"usdeur": 1.0}, datetime(2000, 1, 1))
@@ -122,80 +143,81 @@ class FXRates:
         new.__init_post_obj__()
         return new
 
-    def __init_post_obj__(self):
+    def __init_post_obj__(self) -> None:
         self.currencies = {ccy.name: i for (i, ccy) in enumerate(self.obj.currencies)}
-        self._fx_array = None
 
-    def __eq__(self, other: Any):
+    def __eq__(self, other: Any) -> bool:
         if isinstance(other, FXRates):
             return self.obj == other.obj
         return False
 
-    def __ne__(self, other):
+    def __ne__(self, other: Any) -> bool:
         return not self.__eq__(other)
 
-    def __copy__(self):
+    def __copy__(self) -> FXRates:
         obj = FXRates.__init_from_obj__(self.obj.__copy__())
         obj.__init_post_obj__()
         return obj
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if len(self.currencies_list) > 5:
             return (
-                f"<rl.FXRates:["
-                f"{','.join(self.currencies_list[:2])},+{len(self.currencies_list) - 2} "
-                f"others] at {hex(id(self))}>"
+                f"<rl.FXRates:[{','.join(self.currencies_list[:2])},"
+                f"+{len(self.currencies_list) - 2} others] at {hex(id(self))}>"
             )
         else:
             return f"<rl.FXRates:[{','.join(self.currencies_list)}] at {hex(id(self))}>"
 
-    @property
-    def fx_array(self):
-        if self._fx_array is None:
-            self._fx_array = np.array(self.obj.fx_array)
-        return self._fx_array
+    @cached_property
+    def fx_array(self) -> Arr2dObj:
+        # caching this prevents repetitive data transformations between Rust/Python
+        return np.array(self.obj.fx_array)  # type: ignore[return-value]
+
+    def _fx_array_el(self, i: int, j: int) -> Number:
+        # this is for typing since this numpy object array can only hold float | Dual | Dual2
+        return self.fx_array[i, j]  # type: ignore
 
     @property
-    def base(self):
+    def base(self) -> str:
         return self.obj.base.name
 
     @property
-    def settlement(self):
+    def settlement(self) -> datetime:
         return self.obj.fx_rates[0].settlement
 
     @property
-    def pairs(self):
+    def pairs(self) -> list[str]:
         return [fxr.pair for fxr in self.obj.fx_rates]
 
     @property
-    def fx_rates(self):
+    def fx_rates(self) -> dict[str, DualTypes]:
         return {fxr.pair: fxr.rate for fxr in self.obj.fx_rates}
 
     @property
-    def currencies_list(self):
+    def currencies_list(self) -> list[str]:
         return [ccy.name for ccy in self.obj.currencies]
 
     @property
-    def q(self):
+    def q(self) -> int:
         return len(self.obj.currencies)
 
     @property
-    def fx_vector(self):
-        return self.fx_array[0, :]
+    def fx_vector(self) -> Arr1dObj:
+        return self.fx_array[0, :]  # type: ignore[return-value]
 
     @property
-    def pairs_settlement(self):
+    def pairs_settlement(self) -> dict[str, datetime]:
         return dict.fromkeys(self.pairs, self.settlement)
 
     @property
-    def variables(self):
+    def variables(self) -> tuple[str, ...]:
         return tuple(f"fx_{pair}" for pair in self.pairs)
 
     @property
-    def _ad(self):
+    def _ad(self) -> int:
         return self.obj.ad
 
-    def rate(self, pair: str) -> DualTypes:
+    def rate(self, pair: str) -> Number:
         """
         Return a specified FX rate for a given currency pair.
 
@@ -217,9 +239,9 @@ class FXRates:
            fxr.rate("eurgbp")
         """
         domi, fori = self.currencies[pair[:3].lower()], self.currencies[pair[3:].lower()]
-        return self.fx_array[domi][fori]
+        return self._fx_array_el(domi, fori)
 
-    def restate(self, pairs: list[str], keep_ad: bool = False):
+    def restate(self, pairs: list[str], keep_ad: bool = False) -> FXRates:
         """
         Create a new :class:`FXRates` class using other (or fewer) currency pairs as majors.
 
@@ -264,7 +286,7 @@ class FXRates:
            fxr2 = fxr.restate({"eurusd", "gbpusd"})
            fxr2.rates_table()
         """
-        if set(pairs) == set(self.pairs) and keep_ad:
+        if pairs == self.pairs and keep_ad:
             return self.__copy__()  # no restate needed but return new instance
 
         restated_fx_rates = FXRates(
@@ -274,84 +296,13 @@ class FXRates:
         )
         return restated_fx_rates
 
-    def update(self, fx_rates: Union[dict, NoInput] = NoInput(0)) -> None:
-        """
-        Update all or some of the FX rates of the instance with new market data.
-
-        Parameters
-        ----------
-        fx_rates : dict, optional
-            Dict whose keys are 6-character domestic-foreign currency pairs and
-            which are present in FXRates.pairs, and whose
-            values are the relevant rates to update.
-
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-
-        .. warning::
-
-           *Rateslib* is an object-oriented library that uses complex associations. It
-           is **best practice** to create objects and any associations and then use the
-           ``update`` methods to push new market data to them. Recreating objects with
-           new data will break object-oriented associations and possibly lead to
-           undetected market data based pricing errors.
-
-        Suppose an *FXRates* class has been instantiated and resides in memory.
-
-        .. ipython:: python
-
-           fxr = FXRates({"eurusd": 1.05, "gbpusd": 1.25}, settlement=dt(2022, 1, 3), base="usd")
-           id(fxr)
-
-        This object may be linked to others, probably an :class:`~rateslib.fx.FXForwards` class.
-        It can be updated with some new market data. This will preserve its memory id and
-        association with other objects (however, any linked objects should also be updated to
-        cascade new calculations).
-
-        .. ipython:: python
-
-           linked_obj = fxr
-           fxr.update({"eurusd": 1.06})
-           id(fxr)  # <- SAME as above
-           linked_obj.rate("eurusd")
-
-        Do **not** do the following because overwriting a variable name will not eliminate the
-        previous object from memory. Linked objects will still refer to the previous *FXRates*
-        class still in memory.
-
-        .. ipython:: python
-
-           fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3), base="usd")
-           id(fxr)  # <- NEW memory id, linked objects still associated with old fxr in memory
-           linked_obj.rate("eurusd")  # will NOT return rate from the new `fxr` object
-
-        Examples
-        --------
-
-        .. ipython:: python
-
-           fxr = FXRates({"usdeur": 0.9, "eurnok": 8.5})
-           fxr.rate("usdnok")
-           fxr.update({"usdeur": 1.0})
-           fxr.rate("usdnok")
-        """
-        if fx_rates is NoInput.blank:
-            return None
-        fx_rates_ = [FXRate(k[0:3], k[3:6], v, self.settlement) for k, v in fx_rates.items()]
-        self.obj.update(fx_rates_)
-        self.__init_post_obj__()
-
     def convert(
         self,
-        value: Union[Dual, float],
+        value: DualTypes,
         domestic: str,
-        foreign: Union[str, NoInput] = NoInput(0),
+        foreign: str | NoInput = NoInput(0),
         on_error: str = "ignore",
-    ):
+    ) -> DualTypes | None:
         """
         Convert an amount of a domestic currency into a foreign currency.
 
@@ -382,7 +333,7 @@ class FXRates:
            fxr.convert(1000000, "nok", "inr")  # <- returns None, "inr" not in fxr.
 
         """
-        foreign = self.base if foreign is NoInput.blank else foreign.lower()
+        foreign = self.base if isinstance(foreign, NoInput) else foreign.lower()
         domestic = domestic.lower()
         for ccy in [domestic, foreign]:
             if ccy not in self.currencies:
@@ -398,13 +349,13 @@ class FXRates:
                     raise ValueError(f"'{ccy}' not in FXRates.currencies.")
 
         i, j = self.currencies[domestic.lower()], self.currencies[foreign.lower()]
-        return value * self.fx_array[i, j]
+        return value * self._fx_array_el(i, j)
 
     def convert_positions(
         self,
-        array: Union[np.ndarray, list],
-        base: Union[str, NoInput] = NoInput(0),
-    ):
+        array: Arr1dF64 | list[float],
+        base: str | NoInput = NoInput(0),
+    ) -> Number:
         """
         Convert an array of currency cash positions into a single base currency.
 
@@ -430,16 +381,16 @@ class FXRates:
            fxr.currencies
            fxr.convert_positions([0, 1000000], "usd")
         """
-        base = self.base if base is NoInput.blank else base.lower()
+        base = self.base if isinstance(base, NoInput) else base.lower()
         array_ = np.asarray(array)
         j = self.currencies[base]
-        return np.sum(array_ * self.fx_array[:, j])
+        return np.sum(array_ * self.fx_array[:, j])  # type: ignore[no-any-return]
 
     def positions(
         self,
-        value,
-        base: Union[str, NoInput] = NoInput(0),
-    ):
+        value: DualTypes,
+        base: str | NoInput = NoInput(0),
+    ) -> Series[float]:
         """
         Convert a base value with FX rate sensitivities into an array of cash positions.
 
@@ -464,33 +415,35 @@ class FXRates:
            fxr.positions(100, base="nok")
 
         """
-        if isinstance(value, (float, int)):
+        if isinstance(value, float | int):
             value = Dual(value, [], [])
-        base = self.base if base is NoInput.blank else base.lower()
-        _ = np.array([0 if ccy != base else float(value) for ccy in self.currencies_list])
+        base_: str = self.base if isinstance(base, NoInput) else base.lower()
+        _ = np.array([0 if ccy != base_ else value.real for ccy in self.currencies_list])
         for pair in value.vars:
             if pair[:3] == "fx_":
                 delta = gradient(value, [pair])[0]
-                _ += self._get_positions_from_delta(delta, pair[3:], base)
+                _ += self._get_positions_from_delta(delta, pair[3:], base_)
         return Series(_, index=self.currencies_list)
 
-    def _get_positions_from_delta(self, delta: float, pair: str, base: str):
+    def _get_positions_from_delta(
+        self, delta: float, pair: str, base: str
+    ) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
         """Return an array of cash positions determined from an FX pair delta risk."""
         b_idx = self.currencies[base]
         domestic, foreign = pair[:3], pair[3:]
         d_idx, f_idx = self.currencies[domestic], self.currencies[foreign]
-        _ = np.zeros(self.q)
+        _: np.ndarray[tuple[int], np.dtype[np.float64]] = np.zeros(self.q, dtype=np.float64)
 
         # f_val = -delta * float(self.fx_array[b_idx, d_idx]) * float(self.fx_array[d_idx,f_idx])**2
         # _[f_idx] = f_val
         # _[d_idx] = -f_val / float(self.fx_array[d_idx, f_idx])
         # return _
-        f_val = delta * float(self.fx_array[b_idx, f_idx])
+        f_val = delta * float(self._fx_array_el(b_idx, f_idx))
         _[d_idx] = f_val
-        _[f_idx] = -f_val / float(self.fx_array[f_idx, d_idx])
+        _[f_idx] = -f_val / float(self._fx_array_el(f_idx, d_idx))
         return _  # calculation is more efficient from a domestic pov than foreign
 
-    def rates_table(self):
+    def rates_table(self) -> DataFrame:
         """
         Return a DataFrame of all FX rates in the object.
 
@@ -504,15 +457,97 @@ class FXRates:
             columns=self.currencies_list,
         )
 
-    def _set_ad_order(self, order):
+    # Cache management
+
+    def _clear_cache(self) -> None:
+        """
+        Clear the cache ID so the fx_array can be fetched and cached from Rust object.
+        """
+        # the fx_array is a cached property.
+        self.__dict__.pop("fx_array", None)
+
+    # Mutation
+
+    @_new_state_post
+    @_clear_cache_post
+    def update(self, fx_rates: dict[str, float] | NoInput = NoInput(0)) -> None:
+        """
+        Update all or some of the FX rates of the instance with new market data.
+
+        Parameters
+        ----------
+        fx_rates : dict, optional
+            Dict whose keys are 6-character domestic-foreign currency pairs and
+            which are present in FXRates.pairs, and whose
+            values are the relevant rates to update. An empty dict will be ignored and
+            perform no update.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+
+        .. warning::
+
+           *Rateslib* is an object-oriented library that uses complex associations. Although
+           Python may not object to directly mutating attributes of an *FXRates* instance, this
+           should be avoided in *rateslib*. Only use official ``update`` methods to mutate the
+           values of an existing *FXRates* instance.
+           This class is labelled as a **mutable on update** object.
+
+        Suppose an *FXRates* class has been instantiated and resides in memory.
+
+        .. ipython:: python
+
+           fxr = FXRates({"eurusd": 1.05, "gbpusd": 1.25}, settlement=dt(2022, 1, 3), base="usd")
+           id(fxr)
+
+        This object may be linked to others, probably an :class:`~rateslib.fx.FXForwards` class.
+        It can be updated with some new market data. This will preserve its memory id and
+        association with other objects. Any :class:`~rateslib.fx.FXForwards` objects referencing
+        this will detect this change and will also lazily update via *rateslib's* state
+        management.
+
+        .. ipython:: python
+
+           linked_obj = fxr
+           fxr.update({"eurusd": 1.06})
+           id(fxr)  # <- SAME as above
+           linked_obj.rate("eurusd")
+
+        Examples
+        --------
+
+        .. ipython:: python
+
+           fxr = FXRates({"usdeur": 0.9, "eurnok": 8.5})
+           fxr.rate("usdnok")
+           fxr.update({"usdeur": 1.0})
+           fxr.rate("usdnok")
+        """
+        if isinstance(fx_rates, NoInput) or len(fx_rates) == 0:
+            return None
+        fx_rates_ = [FXRate(k[0:3], k[3:6], v, self.settlement) for k, v in fx_rates.items()]
+        self.obj.update(fx_rates_)
+
+    @_clear_cache_post
+    def _set_ad_order(self, order: int) -> None:
         """
         Change the node values to float, Dual or Dual2 based on input parameter.
         """
-
         self.obj.set_ad_order(_get_adorder(order))
-        self.__init_post_obj__()
 
-    def to_json(self):
+    # Serialization
+
+    def to_json(self) -> str:
+        """Return a JSON representation of the object.
+
+        Returns
+        -------
+        str
+        """
         return _make_py_json(self.obj.to_json(), "FXRates")
 
 

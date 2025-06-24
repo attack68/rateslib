@@ -1,5 +1,5 @@
 # baseline minimum requires for testing
-# Python 3.9
+# Python 3.10
 numpy==1.21.5
 pandas==1.4.1
 matplotlib==3.5.1

@@ -1,17 +1,17 @@
-from typing import Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from rateslib import defaults
 from rateslib.default import NoInput
 from rateslib.rs import Cal, Modifier, NamedCal, RollDay, UnionCal
 
-CalTypes = Union[Cal, UnionCal, NamedCal]
-CalInput = Union[CalTypes, str, NoInput]
-
-Modifier.__doc__ = "Enumerable type for modification rules."
-RollDay.__doc__ = "Enumerable type for roll day types."
+if TYPE_CHECKING:
+    from rateslib.typing import CalInput, CalTypes
 
 
-def _get_rollday(roll: Union[str, int, NoInput]) -> RollDay:
+def _get_rollday(roll: str | int | NoInput) -> RollDay:
+    """Convert a user str or int into a RollDay enum object."""
     if isinstance(roll, str):
         return {
             "EOM": RollDay.EoM(),
@@ -53,9 +53,8 @@ def _get_modifier(modifier: str, mod_days: bool) -> Modifier:
 
 def get_calendar(
     calendar: CalInput,
-    kind: bool = False,
     named: bool = True,
-) -> Union[CalTypes, tuple[CalTypes, str]]:
+) -> CalTypes:
     """
     Returns a calendar object either from an available set or a user defined input.
 
@@ -64,13 +63,12 @@ def get_calendar(
     calendar : str, Cal, UnionCal, NamedCal
         If `str`, then the calendar is returned from pre-calculated values.
         If a specific user defined calendar this is returned without modification.
-    kind : bool
-        If `True` will also return the kind of calculation from `"null", "named",
-        "custom"`.
     named : bool
-        If `True` will return a :class:`~rateslib.calendars.NamedCal` object, which is more
-        compactly serialized, otherwise will parse an input string and return a
-        :class:`~rateslib.calendars.Cal` or :class:`~rateslib.calendars.UnionCal` directly.
+        If the calendar is more complex than a pre-existing single name calendar, then
+        this argument determines if a :class:`~rateslib.calendars.NamedCal` object, which is more
+        compactly serialized but slower to create, or a :class:`~rateslib.calendars.UnionCal`
+        object, which is faster to create but with more verbose serialization is returned.
+        The default prioritises serialization.
 
     Returns
     -------
@@ -96,6 +94,7 @@ def get_calendar(
     - *"tyo"*: Tokyo for Japan's TONA.
     - *"syd"*: Sydney for Australia's AONIA.
     - *"wlg"*: Wellington for New Zealand's OCR and BKBM.
+    - *"mum"*: Mumbai for India's FBIL o/n rate.
 
     Combined calendars can be created with comma separated input, e.g. *"tgt,nyc"*. This would
     be the typical calendar assigned to a cross-currency derivative such as a EUR/USD
@@ -116,7 +115,7 @@ def get_calendar(
 
     .. ipython:: python
 
-       tgt_cal = get_calendar("tgt", named=False)
+       tgt_cal = get_calendar("tgt")
        tgt_cal.holidays[300:312]
        tgt_cal.add_bus_days(dt(2023, 1, 3), 5, True)
        type(tgt_cal)
@@ -125,43 +124,78 @@ def get_calendar(
 
     .. ipython:: python
 
-       tgt_and_nyc_cal = get_calendar("tgt,nyc")
+       tgt_and_nyc_cal = get_calendar("tgt,nyc", named=False)
        tgt_and_nyc_cal.holidays[300:312]
+       type(tgt_and_nyc_cal)
 
     """
-    # TODO: rename calendars or make a more generalist statement about their names.
-    if isinstance(calendar, str) and named:
-        try:
-            return _get_calendar_labelled(NamedCal(calendar), "object", kind)
-        except ValueError:
-            named = False  # try parsing with Python only
-
-    if calendar is NoInput.blank:
-        return _get_calendar_labelled(defaults.calendars["all"], "null", kind)
-    elif isinstance(calendar, str) and not named:
-        # parse the string in Python and return Rust objects directly
-        vectors = calendar.split("|")
-        if len(vectors) == 1:
-            calendars = vectors[0].lower().split(",")
-            if len(calendars) == 1:  # only one named calendar is found
-                return _get_calendar_labelled(defaults.calendars[calendars[0]], "named", kind)
-            else:
-                cals = [defaults.calendars[_] for _ in calendars]
-                return _get_calendar_labelled(UnionCal(cals, None), "named", kind)
-        elif len(vectors) == 2:
-            calendars = vectors[0].lower().split(",")
-            cals = [defaults.calendars[_] for _ in calendars]
-            settlement_calendars = vectors[1].lower().split(",")
-            sets = [defaults.calendars[_] for _ in settlement_calendars]
-            return _get_calendar_labelled(UnionCal(cals, sets), "named", kind)
-        else:
-            raise ValueError("Cannot use more than one pipe ('|') operator in `calendar`.")
+    if isinstance(calendar, str):
+        # parse the string in Python and return Rust Cal/UnionCal objects directly
+        return _parse_str_calendar(calendar, named)
+    elif isinstance(calendar, NoInput):
+        return defaults.calendars["all"]
     else:  # calendar is a Calendar object type
-        return _get_calendar_labelled(calendar, "custom", kind)
+        return calendar
 
 
-def _get_calendar_labelled(output, label, kind):
-    """Package the return for the get_calendar function"""
-    if kind:
-        return output, label
-    return output
+def _parse_str_calendar(calendar: str, named: bool) -> CalTypes:
+    """Parse the calendar string using Python and construct calendar objects."""
+    vectors = calendar.split("|")
+    if len(vectors) == 1:
+        return _parse_str_calendar_no_associated(vectors[0], named)
+    elif len(vectors) == 2:
+        return _parse_str_calendar_with_associated(vectors[0], vectors[1], named)
+    else:
+        raise ValueError("Cannot use more than one pipe ('|') operator in `calendar`.")
+
+
+def _parse_str_calendar_no_associated(calendar: str, named: bool) -> CalTypes:
+    calendars = calendar.lower().split(",")
+    if len(calendars) == 1:  # only one named calendar is found
+        return defaults.calendars[calendars[0]]  # lookup Hashmap
+    else:
+        # combined calendars are not yet predefined so this does not benefit from hashmap speed
+        if named:
+            return NamedCal(calendar)
+        else:
+            cals = [defaults.calendars[_] for _ in calendars]
+            cals_: list[Cal] = []
+            for cal in cals:
+                if isinstance(cal, Cal):
+                    cals_.append(cal)
+                elif isinstance(cal, NamedCal):
+                    cals_.extend(cal.union_cal.calendars)
+                else:
+                    cals_.extend(cal.calendars)
+            return UnionCal(cals_, None)
+
+
+def _parse_str_calendar_with_associated(
+    calendar: str, associated_calendar: str, named: bool
+) -> CalTypes:
+    if named:
+        return NamedCal(calendar + "|" + associated_calendar)
+    else:
+        calendars = calendar.lower().split(",")
+        cals = [defaults.calendars[_] for _ in calendars]
+        cals_ = []
+        for cal in cals:
+            if isinstance(cal, Cal):
+                cals_.append(cal)
+            elif isinstance(cal, NamedCal):
+                cals_.extend(cal.union_cal.calendars)
+            else:
+                cals_.extend(cal.calendars)
+
+        settlement_calendars = associated_calendar.lower().split(",")
+        sets = [defaults.calendars[_] for _ in settlement_calendars]
+        sets_: list[Cal] = []
+        for cal in sets:
+            if isinstance(cal, Cal):
+                sets_.append(cal)
+            elif isinstance(cal, NamedCal):
+                sets_.extend(cal.union_cal.calendars)
+            else:
+                sets_.extend(cal.calendars)
+
+        return UnionCal(cals_, sets_)

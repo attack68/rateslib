@@ -14,7 +14,21 @@ RULES = [
     Holiday("New Year's Day Holiday", month=1, day=1, observance=next_monday),
     Holiday("Good Friday", month=1, day=1, offset=[Easter(), Day(-2)]),
     Holiday("Easter Monday", month=1, day=1, offset=[Easter(), Day(1)]),
-    Holiday("UK Early May Bank Holiday", month=5, day=1, offset=DateOffset(weekday=MO(1))),
+    Holiday(
+        "UK Early May Bank Holiday Pre 2020",
+        month=5,
+        day=1,
+        offset=DateOffset(weekday=MO(1)),
+        end_date=datetime(2020, 1, 1),
+    ),
+    Holiday("UK Early May Bank Holiday Rearranged 2020", year=2020, month=5, day=8),
+    Holiday(
+        "UK Early May Bank Holiday Post 2020 ",
+        month=5,
+        day=1,
+        offset=DateOffset(weekday=MO(1)),
+        start_date=datetime(2021, 1, 1),
+    ),
     Holiday(
         "UK Spring Bank Holiday pre 2022",
         end_date=datetime(2022, 5, 1),

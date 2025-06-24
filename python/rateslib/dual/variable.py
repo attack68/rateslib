@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -8,9 +10,12 @@ from rateslib import defaults
 from rateslib.default import NoInput
 from rateslib.rs import Dual, Dual2
 
+if TYPE_CHECKING:
+    from rateslib.typing import Arr1dF64
+
 PRECISION = 1e-14
-FLOATS = (float, np.float16, np.float32, np.float64, np.longdouble)
-INTS = (int, np.int8, np.int16, np.int32, np.int32, np.int64)
+FLOATS = float | np.float16 | np.float32 | np.float64 | np.longdouble
+INTS = int | np.int8 | np.int16 | np.int32 | np.int32 | np.int64
 
 
 class Variable:
@@ -42,28 +47,36 @@ class Variable:
     def __init__(
         self,
         real: float,
-        vars: tuple[str, ...] = (),
-        dual: np.ndarray | NoInput = NoInput(0),
+        vars: Sequence[str] = (),  # noqa: A002
+        dual: list[float] | Arr1dF64 | NoInput = NoInput(0),
     ):
         self.real: float = float(real)
         self.vars: tuple[str, ...] = tuple(vars)
         n = len(self.vars)
-        if dual is NoInput.blank or len(dual) == 0:
-            self.dual: np.ndarray = np.ones(n)
+        if isinstance(dual, NoInput) or len(dual) == 0:
+            self.dual: Arr1dF64 = np.ones(n, dtype=np.float64)
         else:
-            self.dual = np.asarray(dual.copy())
+            self.dual = np.asarray(dual.copy())  # type: ignore[assignment]
 
-    def _to_dual_type(self, order):
+    def _to_dual_type(self, order: int) -> Dual | Dual2:
         if order == 1:
-            return Dual(self.real, vars=self.vars, dual=self.dual)
+            _: Dual | Dual2 = self.to_dual()
+            return _
         elif order == 2:
-            return Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[])
+            _ = self.to_dual2()
+            return _
         else:
             raise TypeError(
                 f"`Variable` can only be converted with `order` in [1, 2], got order: {order}."
             )
 
-    def __eq__(self, argument):
+    def to_dual(self) -> Dual:
+        return Dual(self.real, vars=self.vars, dual=self.dual)
+
+    def to_dual2(self) -> Dual2:
+        return Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[])
+
+    def __eq__(self, argument: Any) -> bool:
         """
         Compare an argument with a Variable for equality.
         This does not account for variable ordering.
@@ -74,19 +87,19 @@ class Variable:
             return self.__eq_coeffs__(argument, PRECISION)
         return False
 
-    def __lt__(self, other):
+    def __lt__(self, other: Any) -> bool:
         return self.real.__lt__(other)
 
-    def __le__(self, other):
+    def __le__(self, other: Any) -> bool:
         return self.real.__le__(other)
 
-    def __gt__(self, other):
+    def __gt__(self, other: Any) -> bool:
         return self.real.__gt__(other)
 
-    def __ge__(self, other):
+    def __ge__(self, other: Any) -> bool:
         return self.real.__ge__(other)
 
-    def __eq_coeffs__(self, argument, precision):
+    def __eq_coeffs__(self, argument: Dual | Dual2 | Variable, precision: float) -> bool:
         """Compare the coefficients of two dual array numbers for equality."""
         return not (
             not math.isclose(self.real, argument.real, abs_tol=precision)
@@ -99,74 +112,71 @@ class Variable:
     #  and https://github.com/PyO3/pyo3/discussions/3911
     #     return self.real
 
-    def __neg__(self):
+    def __abs__(self) -> float:
+        return abs(self.real)
+
+    def __neg__(self) -> Variable:
         return Variable(-self.real, vars=self.vars, dual=-self.dual)
 
-    def __add__(self, other):
+    def __add__(self, other: Dual | Dual2 | float | Variable) -> Dual | Dual2 | Variable:
         if isinstance(other, Variable):
             _1 = self._to_dual_type(defaults._global_ad_order)
             _2 = other._to_dual_type(defaults._global_ad_order)
             return _1.__add__(_2)
-        elif isinstance(other, (FLOATS, INTS)):
+        elif isinstance(other, FLOATS | INTS):
             return Variable(self.real + float(other), vars=self.vars, dual=self.dual)
         elif isinstance(other, Dual):
-            _ = Dual(self.real, vars=self.vars, dual=self.dual)
-            return _.__add__(other)
+            return Dual(self.real, vars=self.vars, dual=self.dual).__add__(other)
         elif isinstance(other, Dual2):
-            _ = Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[])
-            return _.__add__(other)
+            return Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[]).__add__(other)
         else:
             raise TypeError(f"No operation defined between `Variable` and type: `{type(other)}`")
 
-    def __radd__(self, other):
+    def __radd__(self, other: Dual | Dual2 | float | Variable) -> Dual | Dual2 | Variable:
         return self.__add__(other)
 
-    def __rsub__(self, other):
+    def __rsub__(self, other: Dual | Dual2 | float | Variable) -> Dual | Dual2 | Variable:
         return (self.__neg__()).__add__(other)
 
-    def __sub__(self, other):
+    def __sub__(self, other: Dual | Dual2 | float | Variable) -> Dual | Dual2 | Variable:
         return self.__add__(other.__neg__())
 
-    def __mul__(self, other):
+    def __mul__(self, other: Dual | Dual2 | float | Variable) -> Dual | Dual2 | Variable:
         if isinstance(other, Variable):
             _1 = self._to_dual_type(defaults._global_ad_order)
             _2 = other._to_dual_type(defaults._global_ad_order)
             return _1.__mul__(_2)
-        elif isinstance(other, (FLOATS, INTS)):
-            return Variable(self.real * float(other), vars=self.vars, dual=self.dual * float(other))
+        elif isinstance(other, FLOATS | INTS):
+            return Variable(self.real * float(other), vars=self.vars, dual=self.dual * float(other))  # type: ignore[arg-type]
         elif isinstance(other, Dual):
-            _ = Dual(self.real, vars=self.vars, dual=self.dual)
-            return _.__mul__(other)
+            return Dual(self.real, vars=self.vars, dual=self.dual).__mul__(other)
         elif isinstance(other, Dual2):
-            _ = Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[])
-            return _.__mul__(other)
+            return Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[]).__mul__(other)
         else:
             raise TypeError(f"No operation defined between `Variable` and type: `{type(other)}`")
 
-    def __rmul__(self, other):
+    def __rmul__(self, other: Dual | Dual2 | float | Variable) -> Dual | Dual2 | Variable:
         return self.__mul__(other)
 
-    def __truediv__(self, other):
+    def __truediv__(self, other: Dual | Dual2 | float | Variable) -> Dual | Dual2 | Variable:
         if isinstance(other, Variable):
             _1 = self._to_dual_type(defaults._global_ad_order)
             _2 = other._to_dual_type(defaults._global_ad_order)
             return _1.__truediv__(_2)
-        elif isinstance(other, (FLOATS, INTS)):
-            return Variable(self.real / float(other), vars=self.vars, dual=self.dual / float(other))
+        elif isinstance(other, FLOATS | INTS):
+            return Variable(self.real / float(other), vars=self.vars, dual=self.dual / float(other))  # type: ignore[arg-type]
         elif isinstance(other, Dual):
-            _ = Dual(self.real, vars=self.vars, dual=self.dual)
-            return _.__truediv__(other)
+            return Dual(self.real, vars=self.vars, dual=self.dual).__truediv__(other)
         elif isinstance(other, Dual2):
-            _ = Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[])
-            return _.__truediv__(other)
+            return Dual2(self.real, vars=self.vars, dual=self.dual, dual2=[]).__truediv__(other)
         else:
             raise TypeError(f"No operation defined between `Variable` and type: `{type(other)}`")
 
-    def __rtruediv__(self, other):
+    def __rtruediv__(self, other: Dual | Dual2 | float | Variable) -> Dual | Dual2 | Variable:
         if isinstance(other, Variable):
             # cannot reach this line
             raise TypeError("Impossible line execution - please report issue.")  # pragma: no cover
-        elif isinstance(other, (FLOATS, INTS)):
+        elif isinstance(other, FLOATS | INTS):
             _1 = Variable(other, ())
             return _1 / self
         elif isinstance(other, Dual):
@@ -178,27 +188,27 @@ class Variable:
         else:
             raise TypeError(f"No operation defined between `Variable` and type: `{type(other)}`")
 
-    def __exp__(self):
+    def __exp__(self) -> Dual | Dual2:
         _1 = self._to_dual_type(defaults._global_ad_order)
         return _1.__exp__()
 
-    def __log__(self):
+    def __log__(self) -> Dual | Dual2:
         _1 = self._to_dual_type(defaults._global_ad_order)
         return _1.__log__()
 
-    def __norm_cdf__(self):
+    def __norm_cdf__(self) -> Dual | Dual2:
         _1 = self._to_dual_type(defaults._global_ad_order)
         return _1.__norm_cdf__()
 
-    def __norm_inv_cdf__(self):
+    def __norm_inv_cdf__(self) -> Dual | Dual2:
         _1 = self._to_dual_type(defaults._global_ad_order)
         return _1.__norm_inv_cdf__()
 
-    def __pow__(self, exponent):
+    def __pow__(self, exponent: float | Dual | Dual2, modulo: int | None = None) -> Dual | Dual2:
         _1 = self._to_dual_type(defaults._global_ad_order)
-        return _1.__pow__(exponent)
+        return _1.__pow__(exponent, modulo)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         a = ", ".join(self.vars[:3])
         b = ", ".join([str(_) for _ in self.dual[:3]])
         if len(self.vars) > 3:

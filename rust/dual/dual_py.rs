@@ -7,7 +7,7 @@ use bincode::{deserialize, serialize};
 use num_traits::{Pow, Signed};
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyFloat};
+use pyo3::types::PyBytes; // , PyFloat};
 use std::sync::Arc;
 // use pyo3::types::PyFloat;
 use crate::json::json_py::DeserializedObj;
@@ -16,8 +16,8 @@ use numpy::{Element, PyArray1, PyArray2, PyArrayDescr, ToPyArray};
 
 unsafe impl Element for Dual {
     const IS_COPY: bool = false;
-    fn get_dtype_bound(py: Python<'_>) -> Bound<'_, PyArrayDescr> {
-        PyArrayDescr::object_bound(py)
+    fn get_dtype(py: Python<'_>) -> Bound<'_, PyArrayDescr> {
+        PyArrayDescr::object(py)
     }
 
     fn clone_ref(&self, _py: Python<'_>) -> Self {
@@ -26,8 +26,8 @@ unsafe impl Element for Dual {
 }
 unsafe impl Element for Dual2 {
     const IS_COPY: bool = false;
-    fn get_dtype_bound(py: Python<'_>) -> Bound<'_, PyArrayDescr> {
-        PyArrayDescr::object_bound(py)
+    fn get_dtype(py: Python<'_>) -> Bound<'_, PyArrayDescr> {
+        PyArrayDescr::object(py)
     }
 
     fn clone_ref(&self, _py: Python<'_>) -> Self {
@@ -35,15 +35,16 @@ unsafe impl Element for Dual2 {
     }
 }
 
-impl IntoPy<PyObject> for Number {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        match self {
-            Number::F64(f) => PyFloat::new_bound(py, f).to_object(py),
-            Number::Dual(d) => Py::new(py, d).unwrap().to_object(py),
-            Number::Dual2(d) => Py::new(py, d).unwrap().to_object(py),
-        }
-    }
-}
+// This was removed when upgrading to pyO3 0.23: see https://pyo3.rs/v0.23.0/migration#intopyobject-and-intopyobjectref-derive-macros
+// impl IntoPy<PyObject> for Number {
+//     fn into_py(self, py: Python<'_>) -> PyObject {
+//         match self {
+//             Number::F64(f) => PyFloat::new_bound(py, f).to_object(py),
+//             Number::Dual(d) => Py::new(py, d).unwrap().to_object(py),
+//             Number::Dual2(d) => Py::new(py, d).unwrap().to_object(py),
+//         }
+//     }
+// }
 
 // https://github.com/PyO3/pyo3/discussions/3911
 // #[derive(Debug, Clone, PartialEq, PartialOrd, FromPyObject)]
@@ -70,7 +71,7 @@ impl ADOrder {
         Ok(())
     }
     pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+        Ok(PyBytes::new(py, &serialize(&self).unwrap()))
     }
     pub fn __getnewargs__<'py>(&self) -> PyResult<(u8,)> {
         match self {
@@ -146,12 +147,12 @@ impl Dual {
     #[getter]
     #[pyo3(name = "dual")]
     fn dual_py<'py>(&'py self, py: Python<'py>) -> PyResult<Bound<'py, PyArray1<f64>>> {
-        Ok(self.dual().to_pyarray_bound(py))
+        Ok(self.dual().to_pyarray(py))
     }
 
     #[getter]
     #[pyo3(name = "dual2")]
-    fn dual2_py<'py>(&'py self, _py: Python<'py>) -> PyResult<&'py PyArray2<f64>> {
+    fn dual2_py<'py>(&'py self, _py: Python<'py>) -> PyResult<Bound<'py, PyArray2<f64>>> {
         Err(PyValueError::new_err(
             "`Dual` variable cannot possess `dual2` attribute.",
         ))
@@ -163,11 +164,15 @@ impl Dual {
         py: Python<'py>,
         vars: Vec<String>,
     ) -> PyResult<Bound<'py, PyArray1<f64>>> {
-        Ok(self.gradient1(vars).to_pyarray_bound(py))
+        Ok(self.gradient1(vars).to_pyarray(py))
     }
 
     #[pyo3(name = "grad2")]
-    fn grad2<'py>(&'py self, _py: Python<'py>, _vars: Vec<String>) -> PyResult<&'py PyArray2<f64>> {
+    fn grad2<'py>(
+        &'py self,
+        _py: Python<'py>,
+        _vars: Vec<String>,
+    ) -> PyResult<Bound<'py, PyArray2<f64>>> {
         Err(PyValueError::new_err(
             "Cannot evaluate second order derivative on a Dual.",
         ))
@@ -353,8 +358,8 @@ impl Dual {
         self.exp()
     }
 
-    fn __abs__(&self) -> f64 {
-        self.abs().real()
+    fn __abs__(&self) -> Self {
+        self.abs()
     }
 
     fn __log__(&self) -> Self {
@@ -393,7 +398,7 @@ impl Dual {
         Ok(())
     }
     pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+        Ok(PyBytes::new(py, &serialize(&self).unwrap()))
     }
     pub fn __getnewargs__(&self) -> PyResult<(f64, Vec<String>, Vec<f64>)> {
         Ok((
@@ -476,13 +481,13 @@ impl Dual2 {
     #[getter]
     #[pyo3(name = "dual")]
     fn dual_py<'py>(&'py self, py: Python<'py>) -> PyResult<Bound<'py, PyArray1<f64>>> {
-        Ok(self.dual.to_pyarray_bound(py))
+        Ok(self.dual.to_pyarray(py))
     }
 
     #[getter]
     #[pyo3(name = "dual2")]
     fn dual2_py<'py>(&'py self, py: Python<'py>) -> PyResult<Bound<'py, PyArray2<f64>>> {
-        Ok(self.dual2.to_pyarray_bound(py))
+        Ok(self.dual2.to_pyarray(py))
     }
 
     #[pyo3(name = "grad1")]
@@ -491,7 +496,7 @@ impl Dual2 {
         py: Python<'py>,
         vars: Vec<String>,
     ) -> PyResult<Bound<'py, PyArray1<f64>>> {
-        Ok(self.gradient1(vars).to_pyarray_bound(py))
+        Ok(self.gradient1(vars).to_pyarray(py))
     }
 
     #[pyo3(name = "grad2")]
@@ -500,7 +505,7 @@ impl Dual2 {
         py: Python<'py>,
         vars: Vec<String>,
     ) -> PyResult<Bound<'py, PyArray2<f64>>> {
-        Ok(self.gradient2(vars).to_pyarray_bound(py))
+        Ok(self.gradient2(vars).to_pyarray(py))
     }
 
     #[pyo3(name = "grad1_manifold")]
@@ -688,8 +693,8 @@ impl Dual2 {
         self.exp()
     }
 
-    fn __abs__(&self) -> f64 {
-        self.abs().real
+    fn __abs__(&self) -> Self {
+        self.abs()
     }
 
     fn __log__(&self) -> Self {
@@ -730,7 +735,7 @@ impl Dual2 {
         Ok(())
     }
     fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new_bound(py, &serialize(&self).unwrap()))
+        Ok(PyBytes::new(py, &serialize(&self).unwrap()))
     }
     fn __getnewargs__(&self) -> PyResult<(f64, Vec<String>, Vec<f64>, Vec<f64>)> {
         Ok((

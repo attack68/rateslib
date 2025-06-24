@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from rateslib import defaults
 from rateslib.instruments.bonds.conventions.accrued import ACC_FRAC_FUNCS
 from rateslib.instruments.bonds.conventions.discounting import V1_FUNCS, V2_FUNCS, V3_FUNCS
+
+if TYPE_CHECKING:
+    from rateslib.typing import Security
 
 
 class BondCalcMode:
@@ -80,6 +85,7 @@ class BondCalcMode:
        P &= v_1 \\left ( c_1 + 100 \\right ), \\quad n = 1 \\\\
        P &= v_1 \\left ( c_1 + v3(c_2 + 100) \\right ), \\quad n = 2 \\\\
        P &= v_1 \\left ( \\sum_{i=1}^{n-1} c_i v_2^{i-1} + c_nv_2^{n-2}v_3 + 100 v_2^{n-2}v_3 \\right ), \\quad n > 1  \\\\
+
     where,
 
     .. math::
@@ -137,7 +143,7 @@ class BondCalcMode:
         self._v2 = V2_FUNCS[v2_type.lower()]
         self._v3 = V3_FUNCS[v3_type.lower()]
 
-        self._kwargs: dict = {
+        self._kwargs: dict[str, str] = {
             "settle_accrual": settle_accrual_type,
             "ytm_accrual": ytm_accrual_type,
             "v1": v1_type,
@@ -146,7 +152,7 @@ class BondCalcMode:
         }
 
     @property
-    def kwargs(self) -> dict:
+    def kwargs(self) -> dict[str, str]:
         """String representation of the parameters for the calculation convention."""
         return self._kwargs
 
@@ -186,7 +192,7 @@ class BillCalcMode:
         # accrual type uses "linear days" by default. This correctly scales ACT365f and ACT360
         # DCF conventions and prepares for any non-standard DCFs.
         # currently no identified cases where anything else is needed. Revise as necessary.
-        ytm_clone_kwargs: dict | str,
+        ytm_clone_kwargs: dict[str, str] | str,
     ):
         self._price_type = price_type
         price_accrual_type = "linear_days"
@@ -195,14 +201,14 @@ class BillCalcMode:
             self._ytm_clone_kwargs = ytm_clone_kwargs
         else:
             self._ytm_clone_kwargs = defaults.spec[ytm_clone_kwargs]
-        self._kwargs = {
+        self._kwargs: dict[str, str] = {
             "price_type": price_type,
             "price_accrual_type": price_accrual_type,
             "ytm_clone": "Custom dict" if isinstance(ytm_clone_kwargs, dict) else ytm_clone_kwargs,
         }
 
     @property
-    def kwargs(self):
+    def kwargs(self) -> dict[str, str]:
         """String representation of the parameters for the calculation convention."""
         return self._kwargs
 
@@ -355,14 +361,15 @@ def _get_bond_calc_mode(calc_mode: str | BondCalcMode) -> BondCalcMode:
 
 
 def _get_calc_mode_for_class(
-    obj, calc_mode: str | BondCalcMode | BillCalcMode
+    obj: Security, calc_mode: str | BondCalcMode | BillCalcMode
 ) -> BondCalcMode | BillCalcMode:
     if isinstance(calc_mode, str):
-        map_ = {
+        map_: dict[str, dict[str, BondCalcMode] | dict[str, BillCalcMode]] = {
             "FixedRateBond": BOND_MODE_MAP,
             "Bill": BILL_MODE_MAP,
             "FloatRateNote": BOND_MODE_MAP,
             "IndexFixedRateBond": BOND_MODE_MAP,
         }
-        return map_[type(obj).__name__][calc_mode.lower()]
+        klass: str = type(obj).__name__
+        return map_[klass][calc_mode.lower()]
     return calc_mode
