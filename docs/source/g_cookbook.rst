@@ -12,7 +12,6 @@ into any one category.
     :titlesonly:
 
     z_ptirds_curve.rst
-    z_swpm.rst
     z_dependencychain.rst
     z_turns.rst
     z_quantlib.rst

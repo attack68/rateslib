@@ -571,10 +571,6 @@ Securities and bonds
          bill.duration(ytm=4.18875, settlement=dt(2025, 2, 4), metric="risk")
          bill.price(rate=4.18875, settlement=dt(2025, 2, 4))
 
-      .. image:: _static/us_gbb.png
-         :alt: US Treasury example using the Bill class
-         :width: 303
-
    .. tab:: Inflation linked
 
       Below we construct an :class:`~rateslib.instruments.IndexFixedRateBond`, using relevant
