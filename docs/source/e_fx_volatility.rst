@@ -67,8 +67,10 @@ For the purpose of this user guide page, we create such a market below.
 Building and Pricing an Option
 ================================
 
-*Calls* and *Puts* can be replicated with *rateslib* native functionality
-via :class:`~rateslib.instruments.FXCall` and :class:`~rateslib.instruments.FXPut`.
+*Calls* and *Puts* can be replicated with *rateslib* native
+functionality via :class:`~rateslib.instruments.FXCall` and
+:class:`~rateslib.instruments.FXPut`.
+
 
 .. ipython:: python
 
@@ -92,9 +94,6 @@ via :class:`~rateslib.instruments.FXCall` and :class:`~rateslib.instruments.FXPu
    fxc.rate(fx=fxf, vol=8.9)
    fxc.analytic_greeks(vol=8.9, fx=fxf)
 
-.. raw:: html
-
-   <div class="clear"></div>
 
 The *Call* option priced above is partly unpriced becuase the premium is not
 directly specified. This means that *rateslib* will always assert the premium

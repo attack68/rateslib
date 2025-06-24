@@ -85,9 +85,8 @@ class BondFuture(Sensitivities):
     displays many attributes simultaneously in a DataFrame.
     This example replicates the screen print in the publication
     *The Futures Bond Basis: Second Edition (p77)* by Moorad Choudhry. To replicate
-    that publication exactly no calendar has been provided. A more modern
-    Bloomberg would probably consider the London business day calendar and
-    this would affect the metrics of the third bond to a small degree (i.e.
+    that publication exactly no calendar has been provided. Using the London business day
+    calendar and would affect the metrics of the third bond to a small degree (i.e.
     set `calendar="ldn"`)
 
     .. ipython:: python
@@ -493,7 +492,7 @@ class BondFuture(Sensitivities):
         dirty: bool = False,
     ) -> DataFrame:
         """
-        Return an aggregated DataFrame of metrics similar to the Bloomberg DLV function.
+        Return an aggregated DataFrame of DeLiVerable metrics.
 
         Parameters
         ----------
