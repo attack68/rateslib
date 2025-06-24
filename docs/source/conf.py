@@ -62,7 +62,7 @@ html_theme_options = {
   ],
   "check_switcher": True,
   "switcher": {
-      "json_url": "https://rateslib.readthedocs.io/en/latest/_static/switcher.json",
+      "json_url": "https://rateslib.com/py/latest/_static/switcher.json",
       "version_match": release,
   },
   "navbar_start": ["navbar-logo"],
