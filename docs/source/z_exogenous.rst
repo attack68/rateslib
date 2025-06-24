@@ -168,7 +168,7 @@ The Real Use Case
 The use case that triggered the development of **exogenous** variables came with
 credit default swaps (:class:`~rateslib.instruments.CDS`). If you go through the
 :ref:`Replicating a Pfizer Default Curve and CDS <cook-cdsw-doc>` cookbook page, right at the
-very bottom is a calculated figure::
+very bottom is a considered value::
 
   Rec Risk (1%): 78.75
 
@@ -318,6 +318,5 @@ resorting (just this once!) to numerical differentiation and see what happens th
    fwd_diff = cds.npv(solver=pfizer_sv)
    float(fwd_diff - base_npv)
 
-Personally, I am inclined to trust *rateslib's* own figures here, since these
-are calculated using AD and analytical maths and supported by a comparison to a forward
-difference method.
+Personally, I am inclined to trust *rateslib's* own figures here since these are calculated using
+AD and analytical maths and supported by a comparison to a forward difference method.

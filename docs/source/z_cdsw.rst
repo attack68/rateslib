@@ -17,10 +17,8 @@
 Replicating a Pfizer Default Curve & CDS
 *****************************************************************
 
-Some collected data at a point in time on Friday 4th Oct 2024 can be loaded
-for the single security Pfizer US, with the intention of pricing and risking a 5Y Pfizer CDS.
-The raw data necessary to build the curves and replicate the pricing risk metrics is added to Python.
-(Some of the loaded CDS data is also shown in an image at the bottom of this page)
+The raw data necessary to build the curves and replicate the pricing of Pfizer CDS
+is added to Python.
 
 .. ipython:: python
    :suppress:
@@ -170,8 +168,8 @@ By definition, the probabilities of survival are calculable directly from the ha
    hazard_curve[dt(2029, 10, 4)]  # Probability Pfizer survives at least 5yr.
    hazard_curve[dt(2034, 10, 4)]  # Probability Pfizer survives at least 10yr.
 
-Pricing and risk metrics are calculable within *rateslib's* natural framework. Let's build the traditional
-5Y Pfizer CDS.
+Pricing and risk metrics are calculable within *rateslib's* natural framework.
+Let's build the traditional 5Y Pfizer CDS.
 
 .. ipython:: python
 
