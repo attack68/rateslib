@@ -3365,7 +3365,7 @@ def fxvs():
 
 
 class TestFXOption:
-    # Bloomberg tests replicate https://quant.stackexchange.com/a/77802/29443
+    # replicate https://quant.stackexchange.com/a/77802/29443
     @pytest.mark.parametrize(
         ("pay", "k", "exp_pts", "exp_prem", "dlty", "exp_dl"),
         [
@@ -3377,7 +3377,7 @@ class TestFXOption:
         ],
     )
     @pytest.mark.parametrize("smile", [False, True])
-    def test_premium_bbg_usd_pips(
+    def test_premium_big_usd_pips(
         self,
         fxfo,
         fxvs,
@@ -3435,7 +3435,7 @@ class TestFXOption:
         ],
     )
     @pytest.mark.parametrize("smile", [False, True])
-    def test_premium_bbg_eur_pc(self, fxfo, pay, k, exp_pts, exp_prem, dlty, exp_dl, smile) -> None:
+    def test_premium_big_eur_pc(self, fxfo, pay, k, exp_pts, exp_prem, dlty, exp_dl, smile) -> None:
         vol_ = (
             8.9
             if not smile
@@ -4072,7 +4072,6 @@ class TestFXOption:
             fx=fxfo,
             vol=8.9,
         )["vomma"]
-        # assert abs(result * 20e6 / 100 - 33757.945) < 1e-2  # BBG validation gives 33775.78 $
 
         p0 = fxc.npv(
             disc_curve=fxfo.curve("eur", "usd"),

@@ -796,7 +796,7 @@ class TestFixedRateBond:
                 99.9,
                 3.637518,
                 0.288014,
-            ),  # Mid stub period: BBG YAS does not price cashflows correctly
+            ),  # Mid stub period
         ],
     )
     def test_no_gb(self, set_, price, exp_ytm, exp_acc) -> None:

@@ -4770,7 +4770,7 @@ def fxfo():
 
 
 class TestFXOptions:
-    # Bloomberg tests replicate https://quant.stackexchange.com/a/77802/29443
+    # replicate https://quant.stackexchange.com/a/77802/29443
     @pytest.mark.parametrize(
         ("pay", "k", "exp_pts", "exp_prem", "dlty", "exp_dl"),
         [
@@ -4782,7 +4782,7 @@ class TestFXOptions:
         ],
     )
     @pytest.mark.parametrize("smile", [True, False])
-    def test_bbg_usd_pips(self, fxfo, pay, k, exp_pts, exp_prem, dlty, exp_dl, smile) -> None:
+    def test_big_usd_pips(self, fxfo, pay, k, exp_pts, exp_prem, dlty, exp_dl, smile) -> None:
         vol = FXDeltaVolSmile(
             {
                 0.75: 8.9,
@@ -4845,7 +4845,7 @@ class TestFXOptions:
             ),
         ],
     )
-    def test_premium_bbg_eur_pc(self, fxfo, pay, k, exp_pts, exp_prem, exp_dl, vol) -> None:
+    def test_premium_big_eur_pc(self, fxfo, pay, k, exp_pts, exp_prem, exp_dl, vol) -> None:
         fxo = FXCall(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -4892,7 +4892,7 @@ class TestFXOptions:
             ),
         ],
     )
-    def test_premium_bbg_eur_pc_spot(self, fxfo, pay, k, exp_pts, exp_prem, exp_dl, vol) -> None:
+    def test_premium_big_eur_pc_spot(self, fxfo, pay, k, exp_pts, exp_prem, exp_dl, vol) -> None:
         fxo = FXCall(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
