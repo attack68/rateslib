@@ -1,4 +1,5 @@
-use crate::dual::dual::{Dual, Dual2, Number, Vars, VarsRelationship};
+use crate::dual::dual::{Dual, Dual2, Vars, VarsRelationship};
+use crate::dual::enums::Number;
 
 /// Measures value equivalence of `Dual`.
 ///
@@ -85,6 +86,26 @@ impl PartialEq<Number> for Number {
                 panic!("Cannot mix dual types: Dual2 == Dual")
             }
             (Number::Dual2(d), Number::Dual2(d2)) => d == d2,
+        }
+    }
+}
+
+impl PartialEq<f64> for Number {
+    fn eq(&self, other: &f64) -> bool {
+        match self {
+            Number::F64(f) => f == other,
+            Number::Dual(d) => d == other,
+            Number::Dual2(d) => d == other,
+        }
+    }
+}
+
+impl PartialEq<Number> for f64 {
+    fn eq(&self, other: &Number) -> bool {
+        match other {
+            Number::F64(f) => f == self,
+            Number::Dual(d) => d == self,
+            Number::Dual2(d) => d == self,
         }
     }
 }
@@ -207,5 +228,12 @@ mod tests {
         let d2 = Number::Dual2(Dual2::new(2.5_f64, vec![]));
         let d = Number::Dual(Dual::new(2.5_f64, vec![]));
         assert_eq!(d2, d);
+    }
+
+    #[test]
+    fn test_enum_f64() {
+        let n = Number::Dual(Dual::new(2.0, vec![]));
+        assert!(n == 2.0);
+        assert!(2.0 == 2.0);
     }
 }

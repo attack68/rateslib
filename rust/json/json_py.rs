@@ -1,11 +1,16 @@
 //! Wrapper to allow de/serializable objects in Rust to be passed to/from Python using pyo3
 //! bindings.
+//!
+//! Any pyclass that is serializable is added as a DeserializedObj and then converted to JSON.
+//! Having been deserialized it is matched, unpacked and passed back to Python.
+//!
 
 use crate::calendars::{Cal, NamedCal, UnionCal};
 use crate::curves::curve_py::Curve;
 use crate::dual::{Dual, Dual2};
 use crate::fx::rates::FXRates;
 use crate::json::JSON;
+use crate::splines::{PPSplineDual, PPSplineDual2, PPSplineF64};
 use pyo3::conversion::ToPyObject;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -24,6 +29,9 @@ pub(crate) enum DeserializedObj {
     NamedCal(NamedCal),
     FXRates(FXRates),
     Curve(Curve),
+    PPSplineF64(PPSplineF64),
+    PPSplineDual(PPSplineDual),
+    PPSplineDual2(PPSplineDual2),
 }
 
 impl IntoPy<PyObject> for DeserializedObj {
@@ -36,6 +44,9 @@ impl IntoPy<PyObject> for DeserializedObj {
             DeserializedObj::NamedCal(v) => Py::new(py, v).unwrap().to_object(py),
             DeserializedObj::FXRates(v) => Py::new(py, v).unwrap().to_object(py),
             DeserializedObj::Curve(v) => Py::new(py, v).unwrap().to_object(py),
+            DeserializedObj::PPSplineF64(v) => Py::new(py, v).unwrap().to_object(py),
+            DeserializedObj::PPSplineDual(v) => Py::new(py, v).unwrap().to_object(py),
+            DeserializedObj::PPSplineDual2(v) => Py::new(py, v).unwrap().to_object(py),
         }
     }
 }

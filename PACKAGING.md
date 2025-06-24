@@ -29,6 +29,9 @@ On "release branch":
 5) Run `cargo test --lib` to check consistency
 6) Ensure the Cargo.toml file has active abi3-py39 features.
 7) Comment out the benchmark code and dev section code (otherwise source distribution will not run)
+8) Consider pinning requirements versions (and/or development versions) or make a comment on the
+   precise version that was used to build the package. That way future devs can rebuild a package
+   exactly. Possibly add a pip freeze file for record.
 
 pip install twine (if necessary)
 
@@ -68,3 +71,14 @@ To Make a New Release:
 4) Update the version test in test_default.py
 5) Add a new release table to the whats new doc page.
 6) Docs conf.py should record the release name version as "dev".
+7) spec loader dev flag should be True
+
+DOCS interactions:
+
+There should always be a /latest/ release named "dev" for rateslib and rateslib-excel.
+Each "dev" release can point to each other's hyperlinks on the /latest/ directory.
+For rateslib-excel the files it points towards at rateslib should be for a specific version. This is usually 
+configurable in the conf intersphinx section.
+The video tutorials in the rateslib-excel docs that are pointed to from rateslib can be the /latest/ files.
+
+

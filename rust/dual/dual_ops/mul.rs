@@ -1,4 +1,5 @@
-use crate::dual::dual::{Dual, Dual2, Number, Vars, VarsRelationship};
+use crate::dual::dual::{Dual, Dual2, Vars, VarsRelationship};
+use crate::dual::enums::Number;
 use crate::dual::linalg::fouter11_;
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
 use ndarray::Array2;
@@ -87,6 +88,15 @@ impl_op_ex!(*|a: &Number, b: &Number| -> Number {
             panic!("Cannot mix dual types: Dual2 * Dual")
         }
         (Number::Dual2(d), Number::Dual2(d2)) => Number::Dual2(d * d2),
+    }
+});
+
+// Mul for Number
+impl_op_ex_commutative!(*|a: &Number, b: &f64| -> Number {
+    match a {
+        Number::F64(f) => Number::F64(f * b),
+        Number::Dual(d) => Number::Dual(d * b),
+        Number::Dual2(d) => Number::Dual2(d * b),
     }
 });
 
@@ -204,5 +214,15 @@ mod tests {
         let d = Number::Dual2(Dual2::new(2.0, vec!["y".to_string()]));
         let d2 = Number::Dual(Dual::new(3.0, vec!["x".to_string()]));
         let _ = d * d2;
+    }
+
+    #[test]
+    fn test_enum_f64() {
+        let d = Number::Dual(Dual::new(3.0, vec!["x".to_string()]));
+        let res = 2.0_f64 * d;
+        assert_eq!(
+            res,
+            Number::Dual(Dual::new(3.0, vec!["x".to_string()]) * 2.0)
+        );
     }
 }

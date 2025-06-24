@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# Rust extensions
+src/bin
+
 # Distribution / packaging
 .Python
 local_resources/
@@ -108,16 +111,15 @@ benchmarks/
 .env
 .venv
 env/
-venv/
+venv*/
 venv11/
+venv311/
+venv312/
 venv11+/
 venv9/
 ENV/
 env.bak/
 venv.bak/
-venv312/
-venv313/
-venv311/
 
 # Spyder project settings
 .spyderproject
@@ -139,6 +141,14 @@ dmypy.json
 
 # scractch files
 scratch.py
+scratch1.py
+scratch2.py
+scratch3.py
+scratch4.py
+scratch5.py
+scratch6.py
 
 .idea/
 /*.ipynb
+Cargo.lock
+.devcontainer

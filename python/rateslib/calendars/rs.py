@@ -95,6 +95,7 @@ def get_calendar(
     - *"tro"*: Toronto for Canada's CORRA.
     - *"tyo"*: Tokyo for Japan's TONA.
     - *"syd"*: Sydney for Australia's AONIA.
+    - *"wlg"*: Wellington for New Zealand's OCR and BKBM.
 
     Combined calendars can be created with comma separated input, e.g. *"tgt,nyc"*. This would
     be the typical calendar assigned to a cross-currency derivative such as a EUR/USD

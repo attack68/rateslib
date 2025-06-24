@@ -1,4 +1,5 @@
-use crate::dual::dual::{ADOrder, Dual, Dual2, Number};
+use crate::dual::dual::{Dual, Dual2};
+use crate::dual::enums::{ADOrder, Number};
 use std::convert::From;
 
 /// Convert a `Number` of one `ADOrder` to another and consume the value.

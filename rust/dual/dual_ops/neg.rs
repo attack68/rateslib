@@ -1,4 +1,5 @@
-use crate::dual::dual::{Dual, Dual2, Number};
+use crate::dual::dual::{Dual, Dual2};
+use crate::dual::enums::Number;
 use auto_ops::impl_op;
 use std::sync::Arc;
 

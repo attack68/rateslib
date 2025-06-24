@@ -65,7 +65,7 @@ class Gradients:
         if self._J2 is None:
             if self._ad != 2:
                 raise ValueError(
-                    "Cannot perform second derivative calculations when ad mode is " f"{self._ad}."
+                    f"Cannot perform second derivative calculations when ad mode is {self._ad}.",
                 )
 
             rates = np.array([_[0].rate(*_[1], **_[2]) for _ in self.instruments])
@@ -232,7 +232,7 @@ class Gradients:
         if self._J2_pre is None:
             if self._ad != 2:
                 raise ValueError(
-                    "Cannot perform second derivative calculations when ad mode is " f"{self._ad}."
+                    f"Cannot perform second derivative calculations when ad mode is {self._ad}.",
                 )
 
             J2 = np.zeros(shape=(self.pre_n, self.pre_n, self.pre_m))
@@ -268,7 +268,7 @@ class Gradients:
         """  # noqa: E501
         # FX sensitivity requires reverting through all pre-solvers rates.
         all_gradients = np.array(
-            [gradient(rate, self.pre_variables + tuple(fx_vars), order=2) for rate in self.r_pre]
+            [gradient(rate, self.pre_variables + tuple(fx_vars), order=2) for rate in self.r_pre],
         ).swapaxes(0, 2)
 
         grad_f_v_rT = all_gradients[self.pre_n :, : self.pre_n, :]
@@ -290,7 +290,8 @@ class Gradients:
         """  # noqa: E501
         # FX sensitivity requires reverting through all pre-solvers rates.
         grad_f_f_rT = np.array([gradient(rate, fx_vars, order=2) for rate in self.r_pre]).swapaxes(
-            0, 2
+            0,
+            2,
         )
         return grad_f_f_rT
 
@@ -884,7 +885,7 @@ class Solver(Gradients):
     Notes
     -----
     Once initialised the ``Solver`` will numerically determine and set all of the
-    relevant DF node values on each *Curve* simultaneously by calling :meth:`iterate`.
+    relevant node values on each *Curve* (or *Surface*) simultaneously by calling :meth:`iterate`.
 
     Each instrument provided to ``instruments`` must have its ``curves`` and ``metric``
     preset at initialisation, and can then be used directly (as shown in some examples).
@@ -902,35 +903,6 @@ class Solver(Gradients):
 
     See the documentation user guide :ref:`here <c-solver-doc>`.
 
-    Attributes
-    ----------
-    curves : dict
-    instruments : sequence
-    weights : sequence
-    s : sequence
-    algorithm : str
-    fx : FXForwards
-    id : str
-    tol : float
-    max_iter : int
-    n : int
-        The total number of curve variables to solve for.
-    m : int
-        The total number of calibrating instruments provided to the Solver.
-    W : 2d array
-        A diagonal array constructed from ``weights``.
-    variables : list[str]
-        List of variable name tags used in extracting derivatives automatically.
-    instrument_labels : list[str]
-        List of calibrating instrument names for delta risk visualization.
-    pre_solvers : list
-    pre_variables : list[str]
-        List of variable name tags used in extracting derivatives automatically.
-    pre_m : int
-        The total number of calibrating instruments provided to the Solver including
-        those in pre-solvers
-    pre_n : int
-        The total number of curve variables solved for, including those in pre-solvers.
     """
 
     _grad_s_vT_method = "_grad_s_vT_final_iteration_analytical"
@@ -941,7 +913,7 @@ class Solver(Gradients):
         curves: list | tuple = (),
         surfaces: list | tuple = (),
         instruments: tuple[tuple] | list[tuple] = (),
-        s: list[float] = [],
+        s: tuple[float] | list[float] = (),
         weights: list | NoInput = NoInput(0),
         algorithm: str | NoInput = NoInput(0),
         fx: FXForwards | FXRates | NoInput = NoInput(0),
@@ -969,18 +941,23 @@ class Solver(Gradients):
         if len(set([self.id] + [p.id for p in self.pre_solvers])) < 1 + len(self.pre_solvers):
             raise ValueError(
                 "Solver `id`s must be unique when supplying `pre_solvers`, "
-                f"got ids: {[self.id] + [p.id for p in self.pre_solvers]}"
+                f"got ids: {[self.id] + [p.id for p in self.pre_solvers]}",
             )
 
         # validate `s` and `instruments` with a naive length comparison
         if len(s) != len(instruments):
-            raise ValueError("`instrument_rates` must be same length as `instruments`.")
+            raise ValueError(
+                f"`s: {len(s)}` (rates)  must be same length as `instruments: {len(instruments)}`."
+            )
         self.s = np.asarray(s)
 
         # validate `instrument_labels` if given is same length as `m`
         if instrument_labels is not NoInput.blank:
             if self.m != len(instrument_labels):
-                raise ValueError("`instrument_labels` must have length `instruments`.")
+                raise ValueError(
+                    f"`instrument_labels: {len(instrument_labels)}` must be same length as "
+                    f"`instruments: {len(instruments)}`."
+                )
             else:
                 self.instrument_labels = tuple(instrument_labels)
         else:
@@ -990,7 +967,10 @@ class Solver(Gradients):
             self.weights = np.ones(len(instruments))
         else:
             if len(weights) != self.m:
-                raise ValueError("`weights` must be same length as `instruments`.")
+                raise ValueError(
+                    f"`weights: {len(weights)}` must be same length as "
+                    f"`instruments: {len(instruments)}`."
+                )
             self.weights = np.asarray(weights)
         self.W = np.diag(self.weights)
 
@@ -1031,7 +1011,7 @@ class Solver(Gradients):
                 for curve in curves
                 if type(curve) in [ProxyCurve, CompositeCurve, MultiCsaCurve]
                 # Proxy and Composite curves added to the collection without variables
-            }
+            },
         )
         curve_collection.extend(curves)
         for curve1, curve2 in combinations(curve_collection, 2):
@@ -1039,7 +1019,7 @@ class Solver(Gradients):
                 raise ValueError(
                     "`curves` must each have their own unique `id`. If using "
                     "pre-solvers as part of a dependency chain a curve can only be "
-                    "specified as a variable in one solver."
+                    "specified as a variable in one solver.",
                 )
         self.pre_variables += self.variables
         self.pre_instrument_labels += tuple((self.id, lbl) for lbl in self.instrument_labels)
@@ -1054,7 +1034,7 @@ class Solver(Gradients):
 
         # TODO need to check curves associated with fx object and set order.
         # self._reset_properties_()  performed in iterate
-        self.result = {
+        self._result = {
             "status": "INITIALISED",
             "state": 0,
             "g": None,
@@ -1062,6 +1042,9 @@ class Solver(Gradients):
             "time": None,
         }
         self.iterate()
+
+    def __repr__(self):
+        return f"<rl.Solver:{self.id} at {hex(id(self))}>"
 
     def _parse_instrument(self, value):
         """
@@ -1102,7 +1085,7 @@ class Solver(Gradients):
                 raise ValueError(
                     "`Instrument` supplied to `Solver` as tuple must be a 3-tuple of "
                     "signature: (Instrument, positional args[tuple], keyword "
-                    "args[dict])."
+                    "args[dict]).",
                 )
             ret0, ret1, ret2 = value[0], tuple(), {"solver": self, "fx": self.fx}
             if not (value[1] is None or value[1] == ()):
@@ -1153,6 +1136,19 @@ class Solver(Gradients):
 
         # self._grad_v_v_f = None
         # self._Jkm = None  # keep manifold originally used for exploring J2 calc method
+
+    @property
+    def result(self):
+        """
+        Show statistics relevant to the last *Solver* iteration.
+
+        Valid *Solver* states are:
+
+        - 1: Success within tolerance of objective function close to zero.
+        - 2: Success within tolerance of successive iteration values.
+        - -1: Failed to satisfy tolerance after maximal allowed iteration.
+        """
+        return self._result
 
     @property
     def v(self):
@@ -1360,7 +1356,7 @@ class Solver(Gradients):
         return self._solver_result(-1, self.max_iter, time() - t0)
 
     def _solver_result(self, state: int, i: int, time: float):
-        self.result = _solver_result(state, i, self.g.real, time, True, self.algorithm)
+        self._result = _solver_result(state, i, self.g.real, time, True, self.algorithm)
         return None
 
     def _update_curves_with_parameters(self, v_new):
@@ -1472,7 +1468,9 @@ class Solver(Gradients):
                 f = fx.rate(f"{ccy}{base}")
                 container[("instruments", ccy, base)] = (
                     self.grad_s_Pbase(
-                        npv[ccy], container[("instruments", ccy, ccy)] / inst_scalar, f
+                        npv[ccy],
+                        container[("instruments", ccy, ccy)] / inst_scalar,
+                        f,
                     )
                     * inst_scalar
                 )
@@ -1487,7 +1485,8 @@ class Solver(Gradients):
             names=["type", "solver", "label"],
         )
         fx_idx = MultiIndex.from_tuples(
-            [("fx", "fx", f[3:]) for f in fx_vars], names=["type", "solver", "label"]
+            [("fx", "fx", f[3:]) for f in fx_vars],
+            names=["type", "solver", "label"],
         )
         indexes = {"instruments": inst_idx, "fx": fx_idx}
         r_idx = inst_idx.append(fx_idx)
@@ -1506,18 +1505,18 @@ class Solver(Gradients):
         if base is not NoInput.blank and self.fx is NoInput.blank and fx is NoInput.blank:
             raise ValueError(
                 "`base` is given but `fx` is not and Solver does not "
-                "contain an attached FXForwards object."
+                "contain an attached FXForwards object.",
             )
         elif fx is NoInput.blank:
             fx = self.fx
-        elif fx is not NoInput.blank and self.fx is not NoInput.blank:
-            if id(fx) != id(self.fx):
-                warnings.warn(
-                    "Solver contains an `fx` attribute but an `fx` argument has been "
-                    "supplied which is not the same. This can lead to risk sensitivity "
-                    "inconsistencies, mathematically.",
-                    UserWarning,
-                )
+        elif fx is not NoInput.blank and self.fx is not NoInput.blank and id(fx) != id(self.fx):
+            warnings.warn(
+                "Solver contains an `fx` attribute but an `fx` argument has been "
+                "supplied which is not the same. This can lead to risk sensitivity "
+                "inconsistencies, mathematically.",
+                UserWarning,
+            )
+
         if base is not NoInput.blank:
             base = base.lower()
         return base, fx
@@ -1662,16 +1661,18 @@ class Solver(Gradients):
         for ccy in npv:
             container[(ccy, ccy)] = {}
             container[(ccy, ccy)]["instruments", "instruments"] = self.grad_s_sT_Ploc(
-                npv[ccy]
+                npv[ccy],
             ) * np.matmul(inst_scalar[:, None], inst_scalar[None, :])
             container[(ccy, ccy)]["fx", "instruments"] = self.grad_f_sT_Ploc(
-                npv[ccy], fx_vars
+                npv[ccy],
+                fx_vars,
             ) * np.matmul(fx_scalar[:, None], inst_scalar[None, :])
             container[(ccy, ccy)]["instruments", "fx"] = container[(ccy, ccy)][
                 ("fx", "instruments")
             ].T
             container[(ccy, ccy)]["fx", "fx"] = self.grad_f_fT_Ploc(npv[ccy], fx_vars) * np.matmul(
-                fx_scalar[:, None], fx_scalar[None, :]
+                fx_scalar[:, None],
+                fx_scalar[None, :],
             )
 
             if base is not NoInput.blank and base != ccy:
@@ -1706,12 +1707,12 @@ class Solver(Gradients):
         currencies = list(npv.keys())
         local_keys = [(ccy, ccy) for ccy in currencies]
         base_keys = [] if base is NoInput.blank else [(ccy, base) for ccy in currencies]
-        all_keys = sorted(list(set(local_keys + base_keys)))
+        all_keys = sorted(set(local_keys + base_keys))
         inst_keys = [("instruments",) + label for label in self.pre_instrument_labels]
         fx_keys = [("fx", "fx", f[3:]) for f in fx_vars]
         idx_tuples = [c + _ for c in all_keys for _ in inst_keys + fx_keys]
         ridx = MultiIndex.from_tuples(
-            [key for key in idx_tuples],
+            list(idx_tuples),
             names=["local_ccy", "display_ccy", "type", "solver", "label"],
         )
         if base is not NoInput.blank:
@@ -1719,18 +1720,16 @@ class Solver(Gradients):
                 MultiIndex.from_tuples(
                     [("all", base) + _ for _ in inst_keys + fx_keys],
                     names=["local_ccy", "display_ccy", "type", "solver", "label"],
-                )
+                ),
             )
-        cidx = MultiIndex.from_tuples(
-            [_ for _ in inst_keys + fx_keys], names=["type", "solver", "label"]
-        )
+        cidx = MultiIndex.from_tuples(list(inst_keys + fx_keys), names=["type", "solver", "label"])
         df = DataFrame(None, index=ridx, columns=cidx)
         for key, d in container.items():
             array = np.block(
                 [
                     [d[("instruments", "instruments")], d[("instruments", "fx")]],
                     [d[("fx", "instruments")], d[("fx", "fx")]],
-                ]
+                ],
             )
             locator = key + (slice(None), slice(None), slice(None))
 
@@ -1810,9 +1809,9 @@ class Solver(Gradients):
         r_0 = self.r_pre
         r_1 = np.array(
             [
-                _[0].rate(*_[1], **{**_[2], **{"solver": solver, "fx": solver.fx}})
+                _[0].rate(*_[1], **{**_[2], "solver": solver, "fx": solver.fx})
                 for _ in self.pre_instruments
-            ]
+            ],
         )
         return DataFrame(
             (r_1 - r_0) * 100 / np.array(self.pre_rate_scalars),
@@ -1903,9 +1902,9 @@ class Solver(Gradients):
         # Get the instrument rates for self solver evaluated using the curves and links of other
         r = np.array(
             [
-                _[0].rate(*_[1], **{**_[2], **{"solver": solver, "fx": solver.fx}})
+                _[0].rate(*_[1], **{**_[2], "solver": solver, "fx": solver.fx})
                 for _ in self.pre_instruments
-            ]
+            ],
         )
         # Get the gradient of these rates with respect to the variable in other
         grad_v_rT = np.array([gradient(_, solver.pre_variables) for _ in r]).T
@@ -2193,7 +2192,7 @@ def _solver_result(state: int, i: int, func_val: float, time: float, log: bool, 
         print(
             f"{STATE_MAP[state][0]}: {STATE_MAP[state][1]} after {i} iterations "
             f"({algo}), `f_val`: {func_val}, "
-            f"`time`: {time:.4f}s"
+            f"`time`: {time:.4f}s",
         )
     return {
         "status": STATE_MAP[state][0],
@@ -2205,11 +2204,11 @@ def _solver_result(state: int, i: int, func_val: float, time: float, log: bool, 
 
 
 def _is_any_dual(arr):
-    return any([isinstance(_, Dual) for _ in arr.flatten()])
+    return any(isinstance(_, Dual) for _ in arr.flatten())
 
 
 def _is_any_dual2(arr):
-    return any([isinstance(_, Dual2) for _ in arr.flatten()])
+    return any(isinstance(_, Dual2) for _ in arr.flatten())
 
 
 def quadratic_eqn(a, b, c, x0, raise_on_fail=True):
@@ -2253,7 +2252,12 @@ def quadratic_eqn(a, b, c, x0, raise_on_fail=True):
             raise ValueError("`quadratic_eqn` has failed to solve: discriminant is less than zero.")
         else:
             return _solver_result(
-                state=-1, i=0, func_val=1e308, time=0.0, log=True, algo="quadratic_eqn"
+                state=-1,
+                i=0,
+                func_val=1e308,
+                time=0.0,
+                log=True,
+                algo="quadratic_eqn",
             )
 
     if abs(a) > 1e-15:  # machine tolerance on normal float64 is 2.22e-16
@@ -2262,17 +2266,32 @@ def quadratic_eqn(a, b, c, x0, raise_on_fail=True):
         _2 = (-b - sqrt_d) / (2 * a)
         if abs(x0 - _1) < abs(x0 - _2):
             return _solver_result(
-                state=3, i=1, func_val=_1, time=0.0, log=False, algo="quadratic_eqn"
+                state=3,
+                i=1,
+                func_val=_1,
+                time=0.0,
+                log=False,
+                algo="quadratic_eqn",
             )
         else:
             return _solver_result(
-                state=3, i=1, func_val=_2, time=0.0, log=False, algo="quadratic_eqn"
+                state=3,
+                i=1,
+                func_val=_2,
+                time=0.0,
+                log=False,
+                algo="quadratic_eqn",
             )
     else:
         # 'a' is considered too close to zero for the quadratic eqn, solve the linear eqn
         # to avoid division by zero errors
         return _solver_result(
-            state=3, i=1, func_val=-c / b, time=0.0, log=False, algo="quadratic_eqn->linear_eqn"
+            state=3,
+            i=1,
+            func_val=-c / b,
+            time=0.0,
+            log=False,
+            algo="quadratic_eqn->linear_eqn",
         )
 
 

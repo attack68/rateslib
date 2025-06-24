@@ -19,7 +19,7 @@ RULES = [
         day=1,
         offset=DateOffset(weekday=MO(3)),
     ),
-    Holiday("US President" "s Day", month=2, day=1, offset=DateOffset(weekday=MO(3))),
+    Holiday("US Presidents Day", month=2, day=1, offset=DateOffset(weekday=MO(3))),
     Holiday("Good Friday", month=1, day=1, offset=[Easter(), Day(-2)]),
     Holiday("US Memorial Day", month=5, day=31, offset=DateOffset(weekday=MO(-1))),
     Holiday(

@@ -24,7 +24,6 @@ from rateslib.rs import Convention
     "convention",
     [
         Convention.One,
-        Convention.One,
         Convention.OnePlus,
         Convention.Act365F,
         Convention.Act365FPlus,
@@ -37,13 +36,13 @@ from rateslib.rs import Convention
         Convention.Bus252,
     ],
 )
-def test_pickle_convention(convention):
+def test_pickle_convention(convention) -> None:
     import pickle
 
     assert convention == pickle.loads(pickle.dumps(convention))
 
 
-@pytest.fixture()
+@pytest.fixture
 def curve():
     return CurveObj(
         nodes={
@@ -59,7 +58,7 @@ def curve():
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def curvers():
     return CurveRs(
         nodes={
@@ -72,7 +71,7 @@ def curvers():
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def indexcurvers():
     return CurveObj(
         nodes={
@@ -90,7 +89,7 @@ def indexcurvers():
 
 
 @pytest.mark.parametrize(
-    "name, expected",
+    ("name", "expected"),
     [
         ("linear", LinearInterpolator),
         ("log_linear", LogLinearInterpolator),
@@ -99,7 +98,7 @@ def indexcurvers():
         ("flat_backward", FlatBackwardInterpolator),
     ],
 )
-def test_get_interpolator(name, expected):
+def test_get_interpolator(name, expected) -> None:
     result = _get_interpolator(name)
     assert type(result) is expected
 
@@ -114,7 +113,7 @@ def test_get_interpolator(name, expected):
         "flat_backward",
     ],
 )
-def test_pickle_interpolator(name):
+def test_pickle_interpolator(name) -> None:
     import pickle
 
     obj = _get_interpolator(name)
@@ -122,32 +121,32 @@ def test_pickle_interpolator(name):
     pickle.loads(bytes)
 
 
-def test_get_interpolation(curve):
+def test_get_interpolation(curve) -> None:
     result = curve.interpolation
     assert result == "linear"
 
 
-def test_get_modifier(curvers):
+def test_get_modifier(curvers) -> None:
     result = curvers.modifier
     assert result == "MF"
 
 
-def test_get_convention(curvers):
+def test_get_convention(curvers) -> None:
     result = curvers.convention
     assert result == "Act360"
 
 
-def test_get_ad(curvers):
+def test_get_ad(curvers) -> None:
     result = curvers.ad
     assert result == 1
 
 
-def test_get_interpolator_raises():
+def test_get_interpolator_raises() -> None:
     with pytest.raises(ValueError, match="Interpolator `name` is invalid"):
         _get_interpolator("bad")
 
 
-def test_get_item(curve, curvers):
+def test_get_item(curve, curvers) -> None:
     result = curve[dt(2022, 3, 16)]
     assert abs(result - 0.995) < 1e-14
 
@@ -157,7 +156,7 @@ def test_get_item(curve, curvers):
     assert abs(result - expected) < 1e-14
 
 
-def test_json_round_trip(curvers):
+def test_json_round_trip(curvers) -> None:
     json = curvers.to_json()
     curve2 = from_json(json)
     assert curvers == curve2
@@ -173,7 +172,7 @@ def test_json_round_trip(curvers):
         "flat_backward",
     ],
 )
-def test_interp_constructs(kind):
+def test_interp_constructs(kind) -> None:
     result = CurveRs(
         nodes={
             dt(2022, 3, 1): 1.00,
@@ -186,12 +185,12 @@ def test_interp_constructs(kind):
     assert isinstance(result, CurveRs)
 
 
-def test_index_value(indexcurvers):
+def test_index_value(indexcurvers) -> None:
     result = indexcurvers.index_value(dt(2022, 3, 31))
     assert abs(result - 100.0 / 0.99) < 1e-12
 
 
-def test_set_ad_order(curvers):
+def test_set_ad_order(curvers) -> None:
     curvers._set_ad_order(2)
     assert curvers.nodes == {
         dt(2022, 3, 1): Dual2(1.0, ["v0"], [], []),
@@ -199,7 +198,7 @@ def test_set_ad_order(curvers):
     }
 
 
-def test_pickle(curvers):
+def test_pickle(curvers) -> None:
     import pickle
 
     obj = pickle.dumps(curvers)

@@ -22,7 +22,7 @@ from rateslib import defaults
 from rateslib.calendars import CalInput, add_tenor, create_calendar, dcf, get_calendar
 from rateslib.calendars.dcfs import _DCF1d
 from rateslib.calendars.rs import Modifier
-from rateslib.default import NoInput, plot
+from rateslib.default import NoInput, _drb, plot
 from rateslib.dual import Dual, Dual2, DualTypes, dual_exp, dual_log, set_order_convert
 from rateslib.rs import index_left_f64
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
@@ -81,8 +81,8 @@ class _Serialize:
                     "calendar": {
                         "weekmask": list(self.calendar.week_mask),
                         "holidays": [d.strftime("%Y-%m-%d") for d in self.calendar.holidays],
-                    }
-                }
+                    },
+                },
             )
 
         return json.dumps(container, default=str)
@@ -111,7 +111,8 @@ class _Serialize:
             # must load and construct a custom holiday calendar from serial dates
             dates = [datetime.strptime(d, "%Y-%m-%d") for d in serial["calendar"]["holidays"]]
             serial["calendar"] = create_calendar(
-                rules=dates, week_mask=serial["calendar"]["weekmask"]
+                rules=dates,
+                week_mask=serial["calendar"]["weekmask"],
             )
 
         if serial["t"] is not None:
@@ -158,6 +159,9 @@ class _Serialize:
         }
         self.csolve()
         return None
+
+    def __repr__(self):
+        return f"<rl.{type(self).__name__}:{self.id} at {hex(id(self))}>"
 
 
 class Curve(_Serialize):
@@ -295,7 +299,7 @@ class Curve(_Serialize):
         ad: int = 0,
         **kwargs,
     ):
-        self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
+        self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
         self.nodes = nodes  # nodes.copy()
         self.node_keys = list(self.nodes.keys())
         self.node_dates = self.node_keys
@@ -305,7 +309,7 @@ class Curve(_Serialize):
             if self.node_dates[idx - 1] >= self.node_dates[idx]:
                 raise ValueError(
                     "Curve node dates are not sorted or contain duplicates. To sort directly "
-                    "use: `dict(sorted(nodes.items()))`"
+                    "use: `dict(sorted(nodes.items()))`",
                 )
         self.interpolation = (
             defaults.interpolation[type(self).__name__]
@@ -331,13 +335,13 @@ class Curve(_Serialize):
             self.spline_endpoints = [_.lower() for _ in endpoints]
 
         self.t = t
-        self.c_init = False if c is NoInput.blank else True
+        self.c_init = c is not NoInput.blank
         if t is not NoInput.blank:
             self.t_posix = [_.replace(tzinfo=UTC).timestamp() for _ in t]
             self.spline = PPSplineF64(4, self.t_posix, None if c is NoInput.blank else c)
             if len(self.t) < 10 and "not_a_knot" in self.spline_endpoints:
                 raise ValueError(
-                    "`endpoints` cannot be 'not_a_knot' with only 1 interior breakpoint"
+                    "`endpoints` cannot be 'not_a_knot' with only 1 interior breakpoint",
                 )
         else:
             self.t_posix = None
@@ -527,12 +531,12 @@ class Curve(_Serialize):
             else:
                 raise ValueError(
                     "Must supply a valid `spread_compound_method`, when `float_spread` "
-                    " is not `None`."
+                    " is not `None`.",
                 )
 
         return _
 
-    def csolve(self):
+    def csolve(self) -> None:
         """
         Solves **and sets** the coefficients, ``c``, of the :class:`PPSpline`.
 
@@ -560,7 +564,7 @@ class Curve(_Serialize):
             Spline = PPSplineDual2
 
         t_posix = self.t_posix.copy()
-        tau_posix = [k.replace(tzinfo=UTC).timestamp() for k in self.nodes.keys() if k >= self.t[0]]
+        tau_posix = [k.replace(tzinfo=UTC).timestamp() for k in self.nodes if k >= self.t[0]]
         y = [self._op_log(v) for k, v in self.nodes.items() if k >= self.t[0]]
 
         # Left side constraint
@@ -573,7 +577,7 @@ class Curve(_Serialize):
             left_n = 0
         else:
             raise NotImplementedError(
-                f"Endpoint method '{self.spline_endpoints[0]}' not implemented."
+                f"Endpoint method '{self.spline_endpoints[0]}' not implemented.",
             )
 
         # Right side constraint
@@ -586,7 +590,7 @@ class Curve(_Serialize):
             right_n = 0
         else:
             raise NotImplementedError(
-                f"Endpoint method '{self.spline_endpoints[0]}' not implemented."
+                f"Endpoint method '{self.spline_endpoints[0]}' not implemented.",
             )
 
         self.spline = Spline(4, t_posix, None)
@@ -913,7 +917,7 @@ class Curve(_Serialize):
                         new_t[i] = start  # adjust left side of t to start
             elif new_t[4] <= start:
                 raise ValueError(
-                    "Cannot translate spline knots for given `start`, review the docs."
+                    "Cannot translate spline knots for given `start`, review the docs.",
                 )
 
         kwargs = {}
@@ -1087,9 +1091,9 @@ class Curve(_Serialize):
         tenor: str,
         right: datetime | str | NoInput = NoInput(0),
         left: datetime | str | NoInput = NoInput(0),
-        comparators: list[Curve] = [],
+        comparators: list[Curve] | NoInput = NoInput(0),
         difference: bool = False,
-        labels: list[str] = [],
+        labels: list[str] | NoInput = NoInput(0),
     ):
         """
         Plot given forward tenor rates from the curve.
@@ -1119,6 +1123,8 @@ class Curve(_Serialize):
         -------
         (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
         """
+        comparators = _drb([], comparators)
+        labels = _drb([], labels)
         upper_tenor = tenor.upper()
         x, y = self._plot_rates(upper_tenor, left, right)
         y_ = [y] if not difference else []
@@ -1778,7 +1784,7 @@ class IndexCurve(Curve):
         self.index_base = index_base
         if self.index_base is NoInput.blank:
             raise ValueError("`index_base` must be given for IndexCurve.")
-        super().__init__(*args, **{**{"interpolation": "linear_index"}, **kwargs})
+        super().__init__(*args, **{"interpolation": "linear_index", **kwargs})
 
     def index_value(self, date: datetime, interpolation: str = "daily"):
         """
@@ -1836,9 +1842,9 @@ class IndexCurve(Curve):
         self,
         right: datetime | str | NoInput = NoInput(0),
         left: datetime | str | NoInput = NoInput(0),
-        comparators: list[Curve] = [],
+        comparators: list[Curve] | NoInput = NoInput(0),
         difference: bool = False,
-        labels: list[str] = [],
+        labels: list[str] | NoInput = NoInput(0),
     ):
         """
         Plot given forward tenor rates from the curve.
@@ -1868,6 +1874,8 @@ class IndexCurve(Curve):
         -------
         (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
         """
+        comparators = _drb([], comparators)
+        labels = _drb([], labels)
         if left is NoInput.blank:
             left_: datetime = self.node_dates[0]
         elif isinstance(left, str):
@@ -1923,6 +1931,11 @@ class CompositeCurve(IndexCurve):
     Composite two :class:`LineCurve` s. Here, simulating the effect of adding
     quarter-end turns to a cubic spline interpolator, which is otherwise difficult to
     mathematically derive.
+
+    .. ipython:: python
+       :suppress:
+
+       from datetime import datetime as dt
 
     .. ipython:: python
 
@@ -2095,7 +2108,7 @@ class CompositeCurve(IndexCurve):
         curves: list | tuple,
         id: str | NoInput = NoInput(0),
     ) -> None:
-        self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
+        self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
 
         self.curves = tuple(curves)
         self.node_dates = self.curves[0].node_dates
@@ -2121,21 +2134,21 @@ class CompositeCurve(IndexCurve):
             raise ValueError("`multi_csa_max_step` cannot be less than `min_step`.")
 
         types = [type(_) for _ in self.curves]
-        if any([_ is CompositeCurve for _ in types]):
+        if any(_ is CompositeCurve for _ in types):
             raise TypeError(
                 "Creating a CompositeCurve type containing sub CompositeCurve types is not "
-                "yet implemented."
+                "yet implemented.",
             )
 
         if not (
-            all([_ is Curve or _ is ProxyCurve for _ in types])
-            or all([_ is LineCurve for _ in types])
-            or all([_ is IndexCurve for _ in types])
+            all(_ is Curve or _ is ProxyCurve for _ in types)
+            or all(_ is LineCurve for _ in types)
+            or all(_ is IndexCurve for _ in types)
         ):
             raise TypeError(f"`curves` must be a list of similar type curves, got {types}.")
 
         ini_dates = [_.node_dates[0] for _ in self.curves]
-        if not all([_ == ini_dates[0] for _ in ini_dates[1:]]):
+        if not all(_ == ini_dates[0] for _ in ini_dates[1:]):
             raise ValueError(f"`curves` must share the same initial node date, got {ini_dates}")
 
         if type(self) is not MultiCsaCurve:  # for multi_csa DF curve do not check calendars
@@ -2152,9 +2165,9 @@ class CompositeCurve(IndexCurve):
     def _check_init_attribute(self, attr):
         """Ensure attributes are the same across curve collection"""
         attrs = [getattr(_, attr, None) for _ in self.curves]
-        if not all([_ == attrs[0] for _ in attrs[1:]]):
+        if not all(_ == attrs[0] for _ in attrs[1:]):
             raise ValueError(
-                f"Cannot composite curves with different attributes, got for '{attr}': {attrs},"
+                f"Cannot composite curves with different attributes, got for '{attr}': {attrs},",
             )
 
     def rate(
@@ -2193,7 +2206,7 @@ class CompositeCurve(IndexCurve):
 
         if self._base_type == "values":
             _ = 0.0
-            for i in range(0, len(self.curves)):
+            for i in range(len(self.curves)):
                 _ += self.curves[i].rate(effective, termination, modifier)
             return _
         elif self._base_type == "dfs":
@@ -2226,7 +2239,7 @@ class CompositeCurve(IndexCurve):
                 _ = 100 * (_ - 1) / dcf_
         else:
             raise TypeError(
-                f"Base curve type is unrecognised: {self._base_type}"
+                f"Base curve type is unrecognised: {self._base_type}",
             )  # pragma: no cover
 
         return _
@@ -2257,7 +2270,7 @@ class CompositeCurve(IndexCurve):
 
         else:
             raise TypeError(
-                f"Base curve type is unrecognised: {self._base_type}"
+                f"Base curve type is unrecognised: {self._base_type}",
             )  # pragma: no cover
 
     def shift(
@@ -2297,7 +2310,7 @@ class CompositeCurve(IndexCurve):
             # TODO (med) allow composite composite curves
             raise ValueError(
                 "Creating a CompositeCurve containing sub CompositeCurves is not yet implemented.\n"
-                "Set `composite` to False."
+                "Set `composite` to False.",
             )
 
         curves = (self.curves[0].shift(spread=spread, composite=composite),)
@@ -2467,7 +2480,7 @@ class MultiCsaCurve(CompositeCurve):
 
         d2 = d1 + timedelta(days=_get_step(defaults.multi_csa_steps[0]))
         # cache stores looked up DF values to next loop, avoiding double calc
-        cache, k = {i: 1.0 for i in range(len(self.curves))}, 1
+        cache, k = dict.fromkeys(range(len(self.curves)), 1.0), 1
         while d2 < date:
             min_ratio = 1e5
             for i, curve in enumerate(self.curves):
@@ -2586,7 +2599,7 @@ class MultiCsaCurve(CompositeCurve):
             # TODO (med) allow composite composite curves
             raise ValueError(
                 "Creating a CompositeCurve containing sub CompositeCurves or MultiCsaCurves is "
-                "not yet implemented.\nSet `composite` to False."
+                "not yet implemented.\nSet `composite` to False.",
             )
 
         curves = tuple(_.shift(spread=spread, composite=composite) for _ in self.curves)
@@ -2654,7 +2667,7 @@ class ProxyCurve(Curve):
         calendar: CalInput | bool | NoInput = False,
         id: str | NoInput = NoInput(0),
     ):
-        self.id = id or uuid4().hex[:5] + "_"  # 1 in a million clash
+        self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
         self.collateral = coll_ccy
         self._is_proxy = True
@@ -2667,7 +2680,11 @@ class ProxyCurve(Curve):
         self.coll_idx = self.fx_forwards.currencies[coll_ccy]
         self.pair = f"{cash_ccy}{coll_ccy}"
         self.path = self.fx_forwards._get_recursive_chain(
-            self.fx_forwards.transform, self.coll_idx, self.cash_idx
+            self.fx_forwards.transform,
+            self.coll_idx,
+            self.cash_idx,
+            [],
+            [],
         )[1]
         self.terminal = list(self.fx_forwards.fx_curves[self.cash_pair].nodes.keys())[-1]
 
@@ -2827,7 +2844,7 @@ def interpolate(x, x_1, y_1, x_2, y_2, interpolation, start=None):
         raise ValueError(
             '`interpolation` must be in {"linear", "log_linear", "linear_index", '
             '"linear_zero_rate", "flat_forward", "flat_backward"}, got: '
-            f"{interpolation}."
+            f"{interpolation}.",
         )
     ret = op(y_1 + (y_2 - y_1) * ((x - x_1) / (x_2 - x_1)))
     return ret

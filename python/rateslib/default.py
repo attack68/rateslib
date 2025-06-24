@@ -54,7 +54,7 @@ class Fixings:
             # TODO (low:dependencies) remove when pandas min version is bumped to 2.0
             df = read_csv(target)
             df["reference_date"] = df["reference_date"].map(
-                lambda x: datetime.strptime(x, "%d-%m-%Y")
+                lambda x: datetime.strptime(x, "%d-%m-%Y"),
             )
             df = df.set_index("reference_date")
         else:
@@ -74,7 +74,7 @@ class Fixings:
                 "Create a CSV file in the directory with the above name and the exact "
                 "template structure:\n###################\n"
                 "reference_date,rate\n26-08-2023,5.6152\n27-08-2023,5.6335\n##################\n"
-                "For further info see 'Working with Fixings' in the documentation cookbook."
+                "For further info see 'Working with Fixings' in the documentation cookbook.",
             )
 
         self.loaded[item] = s
@@ -115,6 +115,7 @@ class Defaults:
             "tro": get_named_calendar("tro"),
             "tyo": get_named_calendar("tyo"),
             "syd": get_named_calendar("syd"),
+            "wlg": get_named_calendar("wlg"),
         }
         self.frequency_months = {
             "M": 1,
@@ -252,7 +253,7 @@ class Defaults:
 
         self.spec = INSTRUMENT_SPECS
 
-    def reset_defaults(self):
+    def reset_defaults(self) -> None:
         """
         Revert defaults back to their initialisation status.
 
@@ -264,7 +265,7 @@ class Defaults:
            defaults.reset_defaults()
         """
         base = Defaults()
-        for attr in [_ for _ in dir(self) if "__" != _[:2]]:
+        for attr in [_ for _ in dir(self) if _[:2] != "__"]:
             setattr(self, attr, getattr(base, attr))
 
     def print(self):
@@ -277,53 +278,89 @@ class Defaults:
 
         _ = f"""\
 Scheduling:\n
-{''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
-    'stub', 
-    'stub_length', 
-    'modifier', 
-    'eom', 
-    'eom_fx',
-    'eval_mode', 
-    'frequency_months',
-]])}
+{
+            "".join(
+                [
+                    _t_n(f"{attribute}: {getattr(self, attribute)}")
+                    for attribute in [
+                        "stub",
+                        "stub_length",
+                        "modifier",
+                        "eom",
+                        "eom_fx",
+                        "eval_mode",
+                        "frequency_months",
+                    ]
+                ]
+            )
+        }
 Instruments:\n
-{''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
-    'convention', 
-    'payment_lag', 
-    'payment_lag_exchange', 
-    'payment_lag_specific', 
-    'notional', 
-    'fixing_method',
-    'fixing_method_param',
-    'spread_compound_method',
-    'base_currency',
-]])}
+{
+            "".join(
+                [
+                    _t_n(f"{attribute}: {getattr(self, attribute)}")
+                    for attribute in [
+                        "convention",
+                        "payment_lag",
+                        "payment_lag_exchange",
+                        "payment_lag_specific",
+                        "notional",
+                        "fixing_method",
+                        "fixing_method_param",
+                        "spread_compound_method",
+                        "base_currency",
+                    ]
+                ]
+            )
+        }
 Curves:\n
-{''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
-    'interpolation',
-    'endpoints',
-    'multi_csa_steps',        
-]])}
+{
+            "".join(
+                [
+                    _t_n(f"{attribute}: {getattr(self, attribute)}")
+                    for attribute in [
+                        "interpolation",
+                        "endpoints",
+                        "multi_csa_steps",
+                    ]
+                ]
+            )
+        }
 Solver:\n
-{''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
-    'algorithm',
-    'tag',
-    'curve_not_in_solver',         
-]])}
+{
+            "".join(
+                [
+                    _t_n(f"{attribute}: {getattr(self, attribute)}")
+                    for attribute in [
+                        "algorithm",
+                        "tag",
+                        "curve_not_in_solver",
+                    ]
+                ]
+            )
+        }
 Miscellaneous:\n
-{''.join([_t_n(f'{attribute}: {getattr(self, attribute)}') for attribute in [
-    'headers',
-    'no_fx_fixings_for_xcs',
-    'pool',         
-]])}
-"""
+{
+            "".join(
+                [
+                    _t_n(f"{attribute}: {getattr(self, attribute)}")
+                    for attribute in [
+                        "headers",
+                        "no_fx_fixings_for_xcs",
+                        "pool",
+                    ]
+                ]
+            )
+        }
+"""  # noqa: W291
         return _
 
 
-def plot(x, y: list, labels=[]):
+def plot(x, y: list, labels=NoInput(0)):
     import matplotlib.dates as mdates  # type: ignore[import]
     import matplotlib.pyplot as plt  # type: ignore[import]
 
+    labels = _drb([], labels)
     fig, ax = plt.subplots(1, 1)
     lines = []
     for _y in y:
@@ -345,7 +382,7 @@ def plot(x, y: list, labels=[]):
     return fig, ax, lines
 
 
-def plot3d(x, y, z, labels=[]):
+def plot3d(x, y, z, labels=None):
     import matplotlib.pyplot as plt  # type: ignore[import]
     from matplotlib import cm  # type: ignore[import]
 

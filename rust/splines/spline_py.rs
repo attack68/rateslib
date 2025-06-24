@@ -1,39 +1,19 @@
 //! Wrapper to export spline functionality to Python
 
-use crate::dual::{Dual, Dual2, Number};
-use crate::splines::spline::{bspldnev_single_f64, bsplev_single_f64, PPSpline};
+use crate::dual::{Dual, Dual2, Number, NumberPPSpline};
+use crate::json::json_py::DeserializedObj;
+use crate::json::JSON;
+use crate::splines::spline::{
+    bspldnev_single_f64, bsplev_single_f64, PPSpline, PPSplineDual, PPSplineDual2, PPSplineF64,
+};
 use std::cmp::PartialEq;
 
 use numpy::{PyArray2, ToPyArray};
-use pyo3::exceptions::PyTypeError;
+use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use serde::{Deserialize, Serialize};
-
-/// Container for the three core spline types; `f64`, `Dual` and `Dual2`
-#[derive(Clone, FromPyObject, Serialize, Deserialize)]
-pub enum Spline {
-    F64(PPSplineF64),
-    Dual(PPSplineDual),
-    Dual2(PPSplineDual2),
-}
-
-impl IntoPy<PyObject> for Spline {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        match self {
-            Spline::F64(s) => Py::new(py, s).unwrap().to_object(py),
-            Spline::Dual(s) => Py::new(py, s).unwrap().to_object(py),
-            Spline::Dual2(s) => Py::new(py, s).unwrap().to_object(py),
-        }
-    }
-}
 
 macro_rules! create_interface {
     ($name: ident, $type: ident) => {
-        #[pyclass(module = "rateslib.rs")]
-        #[derive(Clone, Deserialize, Serialize)]
-        pub(crate) struct $name {
-            inner: PPSpline<$type>,
-        }
         #[pymethods]
         impl $name {
             #[new]
@@ -409,6 +389,15 @@ macro_rules! create_interface {
             fn __copy__(&self) -> Self {
                 $name { inner: self.inner.clone() }
             }
+
+            // JSON
+            #[pyo3(name = "to_json")]
+            fn to_json_py(&self) -> PyResult<String> {
+                match DeserializedObj::$name(self.clone()).to_json() {
+                    Ok(v) => Ok(v),
+                    Err(_) => Err(PyValueError::new_err("Failed to serialize `PPSpline` to JSON.")),
+                }
+            }
         }
     };
 }
@@ -416,6 +405,16 @@ macro_rules! create_interface {
 create_interface!(PPSplineF64, f64);
 create_interface!(PPSplineDual, Dual);
 create_interface!(PPSplineDual2, Dual2);
+
+impl IntoPy<PyObject> for NumberPPSpline {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        match self {
+            NumberPPSpline::F64(s) => Py::new(py, s).unwrap().to_object(py),
+            NumberPPSpline::Dual(s) => Py::new(py, s).unwrap().to_object(py),
+            NumberPPSpline::Dual2(s) => Py::new(py, s).unwrap().to_object(py),
+        }
+    }
+}
 
 /// Calculate the value of an indexed b-spline at *x*.
 ///

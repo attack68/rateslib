@@ -16,7 +16,7 @@ from rateslib.calendars.rs import (
     _get_rollday,
     get_calendar,
 )
-from rateslib.default import NoInput
+from rateslib.default import NoInput, _drb
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -132,12 +132,12 @@ def dcf(
             "`convention` must be in {'Act365f', '1', '1+', 'Act360', "
             "'30360' '360360', 'BondBasis', '30E360', 'EuroBondBasis', "
             "'30E360ISDA', 'ActAct', 'ActActISDA', 'ActActICMA', "
-            "'ActActISMA', 'ActActBond'}"
+            "'ActActISMA', 'ActActBond'}",
         )
 
 
 # TODO (deprecate): this function on 2.0.0
-def create_calendar(rules: list, week_mask: list[int] = []) -> Cal:
+def create_calendar(rules: list, week_mask: list[int] | NoInput = NoInput(0)) -> Cal:
     """
     Create a calendar with specific business and holiday days defined.
 
@@ -156,7 +156,7 @@ def create_calendar(rules: list, week_mask: list[int] = []) -> Cal:
     --------
     Cal
     """
-    weekmask = [5, 6] if week_mask is None else week_mask
+    weekmask = _drb([5, 6], week_mask)
     return Cal(rules, weekmask)
 
 
@@ -268,18 +268,73 @@ def add_tenor(
     elif "Y" in tenor:
         months = int(float(tenor[:-1]) * 12)
         return cal_.add_months(
-            start, months, _get_modifier(modifier, True), _get_rollday(roll), settlement
+            start,
+            months,
+            _get_modifier(modifier, True),
+            _get_rollday(roll),
+            settlement,
         )
     elif "M" in tenor:
         return cal_.add_months(
-            start, int(tenor[:-1]), _get_modifier(modifier, True), _get_rollday(roll), settlement
+            start,
+            int(tenor[:-1]),
+            _get_modifier(modifier, True),
+            _get_rollday(roll),
+            settlement,
         )
     elif "W" in tenor:
         return cal_.add_days(
-            start, int(tenor[:-1]) * 7, _get_modifier(modifier, mod_days), settlement
+            start,
+            int(tenor[:-1]) * 7,
+            _get_modifier(modifier, mod_days),
+            settlement,
         )
     else:
         raise ValueError("`tenor` must identify frequency in {'B', 'D', 'W', 'M', 'Y'} e.g. '1Y'")
+
+
+MONTHS = {
+    "F": 1,
+    "G": 2,
+    "H": 3,
+    "J": 4,
+    "K": 5,
+    "M": 6,
+    "N": 7,
+    "Q": 8,
+    "U": 9,
+    "V": 10,
+    "X": 11,
+    "Z": 12,
+}
+
+
+def get_imm(
+    month: int | NoInput = NoInput(0),
+    year: int | NoInput = NoInput(0),
+    code: str | NoInput = NoInput(0),
+) -> datetime:
+    """
+    Return an IMM date for a specified month.
+
+    Parameters
+    ----------
+    month: int
+        The month of the year in which the IMM date falls.
+    year: int
+        The year in which the IMM date falls.
+    code: str
+        Identifier in the form of a one digit month code and 21st century year, e.g. "U29".
+        If code is given ``month`` and ``year`` are unused.
+
+    Returns
+    -------
+    datetime
+    """
+    if code is not NoInput.blank:
+        year = int(code[1:]) + 2000
+        month = MONTHS[code[0].upper()]
+    return _get_imm(month, year)
 
 
 def _adjust_date(
@@ -348,6 +403,11 @@ def _get_years_and_months(d1: datetime, d2: datetime) -> tuple[int, int]:
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+
+def _is_day_type_tenor(tenor: str) -> bool:
+    tenor_ = tenor.upper()
+    return "D" in tenor_ or "B" in tenor_ or "W" in tenor_
 
 
 def _is_imm(date: datetime, hmuz=False) -> bool:
@@ -496,7 +556,7 @@ def _get_fx_expiry_and_delivery(
                 raise ValueError(
                     "Cannot determine FXOption expiry and delivery with given parameters.\n"
                     "Supply a `delivery_lag` as integer business days and not a datetime, when "
-                    "using a string tenor `expiry`."
+                    "using a string tenor `expiry`.",
                 )
             else:
                 spot = get_calendar(calendar).lag(eval_date, delivery_lag, True)
@@ -525,4 +585,5 @@ __all__ = (
     "RollDay",
     "UnionCal",
     "get_calendar",
+    "get_imm",
 )

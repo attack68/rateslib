@@ -104,7 +104,7 @@ class FXRates:
         fx_rates_ = [FXRate(k[0:3], k[3:6], v, settlement) for k, v in fx_rates.items()]
         if base is NoInput(0):
             default_ccy = defaults.base_currency.lower()
-            if any([default_ccy in k.lower() for k in fx_rates.keys()]):
+            if any(default_ccy in k.lower() for k in fx_rates):
                 base_ = Ccy(defaults.base_currency)
             else:
                 base_ = None
@@ -138,6 +138,16 @@ class FXRates:
         obj = FXRates.__init_from_obj__(self.obj.__copy__())
         obj.__init_post_obj__()
         return obj
+
+    def __repr__(self):
+        if len(self.currencies_list) > 5:
+            return (
+                f"<rl.FXRates:["
+                f"{','.join(self.currencies_list[:2])},+{len(self.currencies_list) - 2} "
+                f"others] at {hex(id(self))}>"
+            )
+        else:
+            return f"<rl.FXRates:[{','.join(self.currencies_list)}] at {hex(id(self))}>"
 
     @property
     def fx_array(self):
@@ -175,7 +185,7 @@ class FXRates:
 
     @property
     def pairs_settlement(self):
-        return {k: self.settlement for k in self.pairs}
+        return dict.fromkeys(self.pairs, self.settlement)
 
     @property
     def variables(self):
@@ -264,7 +274,7 @@ class FXRates:
         )
         return restated_fx_rates
 
-    def update(self, fx_rates: Union[dict, NoInput] = NoInput(0)):
+    def update(self, fx_rates: Union[dict, NoInput] = NoInput(0)) -> None:
         """
         Update all or some of the FX rates of the instance with new market data.
 

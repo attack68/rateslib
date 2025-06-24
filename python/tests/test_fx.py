@@ -24,18 +24,18 @@ from rateslib.json import from_json
         {"eurusd": 1.0, "usdeur": 1.0, "seknok": 1.0},
     ],
 )
-def test_ill_constrained(fx_rates):
+def test_ill_constrained(fx_rates) -> None:
     with pytest.raises(ValueError, match="FX Array cannot be solved."):
         FXRates(fx_rates)
 
 
-def test_avoid_recursion_error():
+def test_avoid_recursion_error() -> None:
     pairs = ["jpymxp", "usdnok", "usdgbp", "audmxp", "gbpsek", "eurnok", "eursek"]
     with pytest.raises(ValueError, match="FX Array cannot be solved. There are degenerate"):
-        FXRates({k: 1.2 for k in pairs})
+        FXRates(dict.fromkeys(pairs, 1.2))
 
 
-def test_rates():
+def test_rates() -> None:
     fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5})
     assert fxr.currencies == {"usd": 0, "eur": 1, "gbp": 2}
     assert fxr.currencies_list == ["usd", "eur", "gbp"]
@@ -46,13 +46,34 @@ def test_rates():
     assert fxr.rate("eurgbp") == Dual(1.25, ["fx_usdeur", "fx_usdgbp"], [-0.625, 0.50])
 
 
-def test_fx_update_blank():
+def test_fxrates_pickle():
+    fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5}, settlement=dt(2002, 1, 1))
+    import pickle
+
+    pickled = pickle.dumps(fxr)
+    result = pickle.loads(pickled)
+    assert result == fxr
+
+
+def test_rates_repr():
+    fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5})
+    result = fxr.__repr__()
+    expected = f"<rl.FXRates:[usd,eur,gbp] at {hex(id(fxr))}>"
+    assert result == expected
+
+    fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5, "audcad": 2.6, "usdaud": 1.2, "cadjpy": 100})
+    result = fxr.__repr__()
+    expected = f"<rl.FXRates:[usd,eur,+4 others] at {hex(id(fxr))}>"
+    assert result == expected
+
+
+def test_fx_update_blank() -> None:
     fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5})
     result = fxr.update()
     assert result is None
 
 
-def test_convert_and_base():
+def test_convert_and_base() -> None:
     fxr = FXRates({"usdnok": 8.0})
     expected = Dual(125000, ["fx_usdnok"], [-15625])
     result = fxr.convert(1e6, "nok", "usd")
@@ -63,47 +84,48 @@ def test_convert_and_base():
     assert np.all(result3 == np.array([0, 1e6]))
 
 
-def test_convert_none():
+def test_convert_none() -> None:
     fxr = FXRates({"usdnok": 8.0})
     assert fxr.convert(1, "usd", "gbp") is None
 
 
-def test_convert_warn():
+def test_convert_warn() -> None:
     fxr = FXRates({"usdnok": 8.0})
     with pytest.warns(UserWarning):
         fxr.convert(1, "usd", "gbp", on_error="warn")
 
 
-def test_convert_error():
+def test_convert_error() -> None:
     fxr = FXRates({"usdnok": 8.0})
     with pytest.raises(ValueError):
         fxr.convert(1, "usd", "gbp", on_error="raise")
 
 
-def test_positions_value():
+def test_positions_value() -> None:
     fxr = FXRates({"usdnok": 8.0})
     result = fxr.positions(80, "nok")
     assert all(result == np.array([0, 80.0]))
 
 
-def test_fxrates_set_order():
+def test_fxrates_set_order() -> None:
     fxr = FXRates({"usdnok": 8.0})
     fxr._set_ad_order(order=2)
     expected = np.array(
-        [Dual2(1.0, ["fx_usdnok"], [0.0], []), Dual2(8.0, ["fx_usdnok"], [1.0], [])]
+        [Dual2(1.0, ["fx_usdnok"], [0.0], []), Dual2(8.0, ["fx_usdnok"], [1.0], [])],
     )
     assert all(fxr.fx_vector == expected)
 
 
-def test_update_raises():
+def test_update_raises() -> None:
     fxr = FXRates({"usdnok": 8.0})
     with pytest.raises(
-        ValueError, match="The given `fx_rates` pairs are not contained in the `FXRates` object."
+        ValueError,
+        match="The given `fx_rates` pairs are not contained in the `FXRates` object.",
     ):
         fxr.update({"usdnok": 9.0, "gbpnok": 10.0})
 
 
-def test_restate():
+def test_restate() -> None:
     fxr = FXRates({"usdnok": 8.0, "gbpnok": 10})
     fxr2 = fxr.restate(["gbpusd", "usdnok"])
     assert fxr2.pairs == ["gbpusd", "usdnok"]
@@ -111,20 +133,20 @@ def test_restate():
     assert fxr2.rate("usdnok") == Dual(8.0, ["fx_usdnok"], [1.0])
 
 
-def test_restate_return_self():
+def test_restate_return_self() -> None:
     # test a new object is always returned even if nothing is restated
     fxr = FXRates({"usdnok": 8.0, "gbpnok": 10})
     assert id(fxr) != id(fxr.restate(["gbpnok", "usdnok"], True))
 
 
-def test_rates_table():
+def test_rates_table() -> None:
     fxr = FXRates({"EURNOK": 10.0})
     result = fxr.rates_table()
     expected = DataFrame([[1.0, 10.0], [0.1, 1.0]], index=["eur", "nok"], columns=["eur", "nok"])
     assert_frame_equal(result, expected)
 
 
-def test_fxrates_to_json():
+def test_fxrates_to_json() -> None:
     fxr = FXRates({"usdnok": 8.0, "eurusd": 1.05})
     result = fxr.to_json()
     expected = (
@@ -146,13 +168,13 @@ def test_fxrates_to_json():
     assert result == expected
 
 
-def test_from_json_and_equality():
+def test_from_json_and_equality() -> None:
     fxr1 = FXRates({"usdnok": 8.0, "eurusd": 1.05})
     fxr2 = FXRates({"usdnok": 2.0, "eurusd": 4.0})
     assert fxr1 != fxr2
 
     fxr3 = from_json(
-        '{"Py":{"FXRates":{"fx_rates":[{"pair":[{"name":"usd"},{"name":"nok"}],"rate":{"F64":2.0},"settlement":null},{"pair":[{"name":"eur"},{"name":"usd"}],"rate":{"F64":4.0},"settlement":null}],"currencies":[{"name":"usd"},{"name":"nok"},{"name":"eur"}],"fx_array":{"Dual":{"v":1,"dim":[3,3],"data":[{"real":1.0,"vars":[],"dual":{"v":1,"dim":[0],"data":[]}},{"real":2.0,"vars":["fx_usdnok"],"dual":{"v":1,"dim":[1],"data":[1.0]}},{"real":0.25,"vars":["fx_eurusd"],"dual":{"v":1,"dim":[1],"data":[-0.0625]}},{"real":0.5,"vars":["fx_usdnok"],"dual":{"v":1,"dim":[1],"data":[-0.25]}},{"real":1.0,"vars":[],"dual":{"v":1,"dim":[0],"data":[]}},{"real":0.125,"vars":["fx_usdnok","fx_eurusd"],"dual":{"v":1,"dim":[2],"data":[-0.0625,-0.03125]}},{"real":4.0,"vars":["fx_eurusd"],"dual":{"v":1,"dim":[1],"data":[1.0]}},{"real":8.0,"vars":["fx_usdnok","fx_eurusd"],"dual":{"v":1,"dim":[2],"data":[4.0,2.0]}},{"real":1.0,"vars":[],"dual":{"v":1,"dim":[0],"data":[]}}]}}}}}'
+        '{"Py":{"FXRates":{"fx_rates":[{"pair":[{"name":"usd"},{"name":"nok"}],"rate":{"F64":2.0},"settlement":null},{"pair":[{"name":"eur"},{"name":"usd"}],"rate":{"F64":4.0},"settlement":null}],"currencies":[{"name":"usd"},{"name":"nok"},{"name":"eur"}],"fx_array":{"Dual":{"v":1,"dim":[3,3],"data":[{"real":1.0,"vars":[],"dual":{"v":1,"dim":[0],"data":[]}},{"real":2.0,"vars":["fx_usdnok"],"dual":{"v":1,"dim":[1],"data":[1.0]}},{"real":0.25,"vars":["fx_eurusd"],"dual":{"v":1,"dim":[1],"data":[-0.0625]}},{"real":0.5,"vars":["fx_usdnok"],"dual":{"v":1,"dim":[1],"data":[-0.25]}},{"real":1.0,"vars":[],"dual":{"v":1,"dim":[0],"data":[]}},{"real":0.125,"vars":["fx_usdnok","fx_eurusd"],"dual":{"v":1,"dim":[2],"data":[-0.0625,-0.03125]}},{"real":4.0,"vars":["fx_eurusd"],"dual":{"v":1,"dim":[1],"data":[1.0]}},{"real":8.0,"vars":["fx_usdnok","fx_eurusd"],"dual":{"v":1,"dim":[2],"data":[4.0,2.0]}},{"real":1.0,"vars":[],"dual":{"v":1,"dim":[0],"data":[]}}]}}}}}',
     )
     assert fxr2 == fxr3
 
@@ -160,14 +182,14 @@ def test_from_json_and_equality():
     assert fxr3 != fxr4  # base is different
 
 
-def test_copy():
+def test_copy() -> None:
     fxr1 = FXRates({"usdnok": 8.0, "eurusd": 1.05}, settlement=dt(2022, 1, 3))
     fxr2 = fxr1.__copy__()
     assert fxr1 == fxr2
     assert id(fxr1) != id(fxr2)
 
 
-def test_set_ad_order():
+def test_set_ad_order() -> None:
     fxr = FXRates({"usdnok": 10.0})
     fxr._set_ad_order(1)
 
@@ -185,7 +207,7 @@ def test_set_ad_order():
         fxr._set_ad_order("bad arg")
 
 
-def test_set_ad_order_second_order_gradients():
+def test_set_ad_order_second_order_gradients() -> None:
     # test ensures that FX Array is consecutively constructed passing correct 2nd order gradients.
     # Versions <1.3.0 failed to correctly handle this becuase they simply upcast FX rates vector.
     fxr = FXRates({"usdnok": 10.0, "eurnok": 8.0})
@@ -203,35 +225,74 @@ def test_set_ad_order_second_order_gradients():
         np.isclose(
             gradient(fxr.fx_array[row, col], ["fx_usdnok", "fx_eurnok"]),
             gradient(expected, ["fx_usdnok", "fx_eurnok"]),
-        )
+        ),
     )
     assert np.all(
         np.isclose(
             gradient(fxr.fx_array[row, col], ["fx_usdnok", "fx_eurnok"], order=2),
             gradient(expected, ["fx_usdnok", "fx_eurnok"], order=2),
-        )
+        ),
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def usdusd():
     nodes = {dt(2022, 1, 1): 1.00, dt(2022, 4, 1): 0.99}
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
-@pytest.fixture()
+@pytest.fixture
 def eureur():
     nodes = {dt(2022, 1, 1): 1.00, dt(2022, 4, 1): 0.997}
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
-@pytest.fixture()
+@pytest.fixture
 def usdeur():
     nodes = {dt(2022, 1, 1): 1.00, dt(2022, 4, 1): 0.996}
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
-def test_fxforwards_rates_unequal(usdusd, eureur, usdeur):
+def test_fxforwards_repr(usdusd, eureur, usdeur) -> None:
+    fxf = FXForwards(
+        FXRates({"usdeur": 2.0}, settlement=dt(2022, 1, 3)),
+        {"usdusd": usdusd, "eureur": eureur, "usdeur": usdeur},
+    )
+    result = fxf.__repr__()
+    expected = f"<rl.FXForwards:[usd,eur] at {hex(id(fxf))}>"
+    assert result == expected
+
+    fxf = FXForwards(
+        FXRates(
+            {
+                "usdeur": 2.0,
+                "usdgbp": 3.0,
+                "usdaud": 4.0,
+                "usdnok": 5.0,
+                "usdsek": 6.0,
+            },
+            settlement=dt(2022, 1, 3),
+        ),
+        {
+            "usdusd": usdusd,
+            "eureur": eureur,
+            "gbpgbp": usdusd,
+            "audaud": eureur,
+            "noknok": usdusd,
+            "seksek": eureur,
+            "usdeur": usdeur,
+            "usdaud": usdusd,
+            "eurnok": eureur,
+            "eursek": usdeur,
+            "eurgbp": usdusd,
+        },
+    )
+    result = fxf.__repr__()
+    expected = f"<rl.FXForwards:[usd,eur,+4 others] at {hex(id(fxf))}>"
+    assert result == expected
+
+
+def test_fxforwards_rates_unequal(usdusd, eureur, usdeur) -> None:
     fxf = FXForwards(
         FXRates({"usdeur": 2.0}, settlement=dt(2022, 1, 3)),
         {"usdusd": usdusd, "eureur": eureur, "usdeur": usdeur},
@@ -252,21 +313,21 @@ def test_fxforwards_rates_unequal(usdusd, eureur, usdeur):
     assert fxf2 != fxf
 
 
-def test_fxforwards_without_settlement_raise():
+def test_fxforwards_without_settlement_raise() -> None:
     fxr = FXRates({"usdeur": 1.0})
     crv = Curve({dt(2022, 1, 1): 1.0})
     with pytest.raises(ValueError, match="`fx_rates` as FXRates supplied to FXForwards must cont"):
         FXForwards(fx_rates=fxr, fx_curves={"usdusd": crv, "usdeur": crv, "eureur": crv})
 
 
-def test_fxforwards_set_order(usdusd, eureur, usdeur):
+def test_fxforwards_set_order(usdusd, eureur, usdeur) -> None:
     fxf = FXForwards(
         FXRates({"usdeur": 2.0}, settlement=dt(2022, 1, 3)),
         {"usdusd": usdusd, "eureur": eureur, "usdeur": usdeur},
     )
     fxf._set_ad_order(order=2)
     expected = np.array(
-        [Dual2(1.0, ["fx_usdeur"], [0.0], []), Dual2(2.0, ["fx_usdeur"], [1.0], [])]
+        [Dual2(1.0, ["fx_usdeur"], [0.0], []), Dual2(2.0, ["fx_usdeur"], [1.0], [])],
     )
     assert all(fxf.fx_rates.fx_vector == expected)
     assert usdusd.ad == 2
@@ -274,7 +335,7 @@ def test_fxforwards_set_order(usdusd, eureur, usdeur):
     assert usdeur.ad == 2
 
 
-def test_fxforwards_set_order_list(usdusd, eureur, usdeur):
+def test_fxforwards_set_order_list(usdusd, eureur, usdeur) -> None:
     fxf = FXForwards(
         [
             FXRates({"usdeur": 2.0}, settlement=dt(2022, 1, 3)),
@@ -302,7 +363,7 @@ def test_fxforwards_set_order_list(usdusd, eureur, usdeur):
     assert fxf.curve("usd", "gbp").ad == 2
 
 
-def test_fxforwards_and_swap(usdusd, eureur, usdeur):
+def test_fxforwards_and_swap(usdusd, eureur, usdeur) -> None:
     fxf = FXForwards(
         FXRates({"usdeur": 0.9}, settlement=dt(2022, 1, 3)),
         {"usdusd": usdusd, "eureur": eureur, "usdeur": usdeur},
@@ -324,7 +385,7 @@ def test_fxforwards_and_swap(usdusd, eureur, usdeur):
     assert np.isclose(result.dual, expected.dual)
 
 
-def test_fxforwards2():
+def test_fxforwards2() -> None:
     fx_rates = FXRates({"usdeur": 0.9, "eurnok": 8.888889}, dt(2022, 1, 3))
     fx_curves = {
         "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.96}),
@@ -359,11 +420,11 @@ def test_fxforwards2():
         np.isclose(
             gradient(f_usdnok_res, ["fx_eurnok", "fx_usdeur"]),
             gradient(f_usdnok_exp, ["fx_eurnok", "fx_usdeur"]),
-        )
+        ),
     )
 
 
-def test_fxforwards_immediate():
+def test_fxforwards_immediate() -> None:
     fx_rates = FXRates({"usdeur": 0.95}, dt(2022, 1, 3))
     fx_curves = {
         "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 3): 0.95}),
@@ -386,7 +447,7 @@ def test_fxforwards_immediate():
     assert np.isclose(result.dual, expected.dual)
 
 
-def test_fxforwards_immediate2():
+def test_fxforwards_immediate2() -> None:
     fx_rates = FXRates({"usdeur": 0.9, "eurnok": 8.888889}, dt(2022, 1, 3))
     fx_curves = {
         "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 3): 0.999}),
@@ -402,7 +463,7 @@ def test_fxforwards_immediate2():
     assert abs(fxf.fx_rates_immediate.fx_array[1, 2].real - F0_eurnok) < 1e-14
 
 
-def test_fxforwards_bad_curves_raises(usdusd, eureur, usdeur):
+def test_fxforwards_bad_curves_raises(usdusd, eureur, usdeur) -> None:
     bad_curve = Curve({dt(2000, 1, 1): 1.00, dt(2023, 1, 1): 0.99})
     with pytest.raises(ValueError, match="`fx_curves` do not have the same initial"):
         FXForwards(
@@ -430,13 +491,17 @@ def test_fxforwards_bad_curves_raises(usdusd, eureur, usdeur):
     #     )
 
 
-def test_fxforwards_convert(usdusd, eureur, usdeur):
+def test_fxforwards_convert(usdusd, eureur, usdeur) -> None:
     fxf = FXForwards(
         FXRates({"usdeur": 0.9}, settlement=dt(2022, 1, 3)),
         {"usdusd": usdusd, "eureur": eureur, "usdeur": usdeur},
     )
     result = fxf.convert(
-        100, domestic="usd", foreign="eur", settlement=dt(2022, 1, 15), value_date=dt(2022, 1, 30)
+        100,
+        domestic="usd",
+        foreign="eur",
+        settlement=dt(2022, 1, 15),
+        value_date=dt(2022, 1, 30),
     )
     expected = Dual(90.12374519723947, ["fx_usdeur"], [100.13749466359941])
     assert abs(result - expected) < 1e-13
@@ -454,7 +519,7 @@ def test_fxforwards_convert(usdusd, eureur, usdeur):
     assert np.isclose(expected.dual, result.dual)
 
 
-def test_fxforwards_convert_not_in_ccys(usdusd, eureur, usdeur):
+def test_fxforwards_convert_not_in_ccys(usdusd, eureur, usdeur) -> None:
     fxf = FXForwards(
         FXRates({"usdeur": 0.9}, settlement=dt(2022, 1, 3)),
         {"usdusd": usdusd, "eureur": eureur, "usdeur": usdeur},
@@ -492,14 +557,15 @@ def test_fxforwards_convert_not_in_ccys(usdusd, eureur, usdeur):
         assert result is None
 
 
-def test_fxforwards_position_not_dual(usdusd, eureur, usdeur):
+def test_fxforwards_position_not_dual(usdusd, eureur, usdeur) -> None:
     fxf = FXForwards(
         FXRates({"usdeur": 0.9}, settlement=dt(2022, 1, 3)),
         {"usdusd": usdusd, "eureur": eureur, "usdeur": usdeur},
     )
     result = fxf.positions(100)
     expected = DataFrame(
-        {dt(2022, 1, 1): [100.0, 0.0], dt(2022, 1, 3): [0.0, 0.0]}, index=["usd", "eur"]
+        {dt(2022, 1, 1): [100.0, 0.0], dt(2022, 1, 3): [0.0, 0.0]},
+        index=["usd", "eur"],
     )
     assert_frame_equal(result, expected)
 
@@ -512,36 +578,36 @@ def test_fxforwards_position_not_dual(usdusd, eureur, usdeur):
     assert_series_equal(result, expected)
 
 
-def test_recursive_chain():
+def test_recursive_chain() -> None:
     T = np.array([[1, 1], [0, 1]])
-    result = FXForwards._get_recursive_chain(T, 1, 0)
+    result = FXForwards._get_recursive_chain(T, 1, 0, [], [])
     expected = True, [{"col": 0}]
     assert result == expected
 
-    result = FXForwards._get_recursive_chain(T, 0, 1)
+    result = FXForwards._get_recursive_chain(T, 0, 1, [], [])
     expected = True, [{"row": 1}]
     assert result == expected
 
 
-def test_recursive_chain3():
+def test_recursive_chain3() -> None:
     T = np.array([[1, 1, 0], [0, 1, 1], [0, 0, 1]])
-    result = FXForwards._get_recursive_chain(T, 2, 0)
+    result = FXForwards._get_recursive_chain(T, 2, 0, [], [])
     expected = True, [{"col": 1}, {"col": 0}]
     assert result == expected
 
-    result = FXForwards._get_recursive_chain(T, 0, 2)
+    result = FXForwards._get_recursive_chain(T, 0, 2, [], [])
     expected = True, [{"row": 1}, {"row": 2}]
     assert result == expected
 
 
-def test_recursive_chain_interim_broken_path():
+def test_recursive_chain_interim_broken_path() -> None:
     T = np.array([[1, 1, 1, 0], [0, 1, 0, 0], [0, 0, 1, 1], [0, 0, 0, 1]])
-    result = FXForwards._get_recursive_chain(T, 0, 3)
+    result = FXForwards._get_recursive_chain(T, 0, 3, [], [])
     expected = True, [{"row": 2}, {"row": 3}]
     assert result == expected
 
 
-def test_multiple_currencies_number_raises(usdusd):
+def test_multiple_currencies_number_raises(usdusd) -> None:
     fxr1 = FXRates({"eurusd": 0.95}, settlement=dt(2022, 1, 3))
     fxr2 = FXRates({"gbpcad": 1.1}, settlement=dt(2022, 1, 2))
     with pytest.raises(ValueError, match="`fx_curves` is underspecified."):
@@ -559,7 +625,7 @@ def test_multiple_currencies_number_raises(usdusd):
         )
 
 
-def test_forwards_unexpected_curve_raise(usdusd):
+def test_forwards_unexpected_curve_raise(usdusd) -> None:
     fxr = FXRates({"eurusd": 0.95}, settlement=dt(2022, 1, 3))
     with pytest.raises(ValueError, match="`fx_curves` contains an unexpected currency"):
         FXForwards(
@@ -573,7 +639,7 @@ def test_forwards_unexpected_curve_raise(usdusd):
         )
 
 
-def test_forwards_codependent_curve_raise(usdusd):
+def test_forwards_codependent_curve_raise(usdusd) -> None:
     fxr = FXRates({"eurusd": 0.95, "usdnok": 10.0}, settlement=dt(2022, 1, 3))
     with pytest.raises(ValueError, match="`fx_curves` contains co-dependent rates"):
         FXForwards(
@@ -588,7 +654,7 @@ def test_forwards_codependent_curve_raise(usdusd):
         )
 
 
-def test_multiple_settlement_forwards():
+def test_multiple_settlement_forwards() -> None:
     fxr1 = FXRates({"usdeur": 0.95}, dt(2022, 1, 3))
     fxr2 = FXRates({"usdcad": 1.1}, dt(2022, 1, 2))
 
@@ -612,7 +678,7 @@ def test_multiple_settlement_forwards():
     assert np.isclose(gradient(result, ["fx_usdeur"]), expected.dual)
 
 
-def test_generate_proxy_curve():
+def test_generate_proxy_curve() -> None:
     fxr1 = FXRates({"usdeur": 0.95}, dt(2022, 1, 3))
     fxr2 = FXRates({"usdcad": 1.1}, dt(2022, 1, 2))
 
@@ -640,7 +706,7 @@ def test_generate_proxy_curve():
     assert all(np.isclose(gradient(expected, result.vars), gradient(result)))
 
 
-def test_generate_multi_csa_curve():
+def test_generate_multi_csa_curve() -> None:
     fxr1 = FXRates({"usdeur": 0.95}, dt(2022, 1, 3))
     fxr2 = FXRates({"usdcad": 1.1}, dt(2022, 1, 2))
 
@@ -658,7 +724,7 @@ def test_generate_multi_csa_curve():
     assert isinstance(c1, CompositeCurve)
 
 
-def test_proxy_curves_update_with_underlying():
+def test_proxy_curves_update_with_underlying() -> None:
     # Test ProxyCurves update after construction and underlying update
     fxr1 = FXRates({"usdeur": 0.95}, dt(2022, 1, 3))
     fxr2 = FXRates({"usdcad": 1.1}, dt(2022, 1, 2))
@@ -682,7 +748,7 @@ def test_proxy_curves_update_with_underlying():
     assert prev_value != new_value
 
 
-def test_full_curves(usdusd, eureur, usdeur):
+def test_full_curves(usdusd, eureur, usdeur) -> None:
     usdusd = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.999})
     eureur = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.998})
     eurusd = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.9985})
@@ -705,7 +771,7 @@ def test_full_curves(usdusd, eureur, usdeur):
 
 
 @pytest.mark.parametrize("settlement", [dt(2022, 1, 1), dt(2022, 1, 3), dt(2022, 1, 7)])
-def test_rate_path_immediate(settlement):
+def test_rate_path_immediate(settlement) -> None:
     usdusd = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.999})
     eureur = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.998})
     eurusd = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.9985})
@@ -743,7 +809,7 @@ def test_rate_path_immediate(settlement):
         "9d",
     ],
 )
-def test_fx_plot(left, right):
+def test_fx_plot(left, right) -> None:
     usdusd = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.999})
     eureur = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.998})
     eurusd = Curve({dt(2022, 1, 1): 1.0, dt(2022, 1, 10): 0.9985})
@@ -763,7 +829,7 @@ def test_fx_plot(left, right):
     plt.close("all")
 
 
-def test_delta_risk_equivalence():
+def test_delta_risk_equivalence() -> None:
     start, end = dt(2022, 1, 1), dt(2023, 1, 1)
     fx_curves = {
         "usdusd": Curve({start: 1.0, end: 0.96}, id="uu", ad=1),
@@ -782,25 +848,23 @@ def test_delta_risk_equivalence():
     discounted_eur = forward_eur * fx_curves["eureur"][dt(2022, 8, 15)]
     result2 = discounted_eur * fxf.rate("eurusd", dt(2022, 1, 1))
 
-    assert set(result1.vars) == set(
-        [
-            "ee0",
-            "ee1",
-            "eu0",
-            "eu1",
-            "fx_eurnok",
-            "fx_usdeur",
-            "ne0",
-            "ne1",
-            "uu0",
-            "uu1",
-        ]
-    )
+    assert set(result1.vars) == {
+        "ee0",
+        "ee1",
+        "eu0",
+        "eu1",
+        "fx_eurnok",
+        "fx_usdeur",
+        "ne0",
+        "ne1",
+        "uu0",
+        "uu1",
+    }
     assert abs(result1 - result2) < 1e-12
     assert all(np.isclose(gradient(result1), gradient(result2, result1.vars)))
 
 
-def test_oo_update_rates_and_id():
+def test_oo_update_rates_and_id() -> None:
     # Test the FXRates object can be updated with new FX Rates without creating new
     fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5})
     id_ = id(fxr)
@@ -810,7 +874,7 @@ def test_oo_update_rates_and_id():
     assert id(fxr) == id_
 
 
-def test_oo_update_forwards_rates():
+def test_oo_update_forwards_rates() -> None:
     # Test the FXForwards object update method will react to an update of FXRates
     start, end = dt(2022, 1, 1), dt(2023, 1, 1)
     fx_curves = {
@@ -829,7 +893,7 @@ def test_oo_update_forwards_rates():
     assert original_fwd != updated_fwd
 
 
-def test_oo_update_forwards_rates_list():
+def test_oo_update_forwards_rates_list() -> None:
     # Test the FXForwards object update method will react to an update of FXRates
     start, end = dt(2022, 1, 1), dt(2023, 1, 1)
     fx_curves = {
@@ -851,7 +915,7 @@ def test_oo_update_forwards_rates_list():
     assert original_fwd != updated_fwd
 
 
-def test_oo_update_forwards_rates_equivalence():
+def test_oo_update_forwards_rates_equivalence() -> None:
     # Test the FXForwards object update method is equivalent to an FXRates update
     start, end = dt(2022, 1, 1), dt(2023, 1, 1)
     fx_curves = {
@@ -883,7 +947,7 @@ def test_oo_update_forwards_rates_equivalence():
         ],
     ],
 )
-def test_fxforwards_to_json_round_trip(fxr, usdusd, eureur, usdeur):
+def test_fxforwards_to_json_round_trip(fxr, usdusd, eureur, usdeur) -> None:
     fxc = {"usdusd": usdusd, "eureur": eureur, "usdeur": usdeur}
     fxf = FXForwards(fxr, fxc)
 
@@ -896,7 +960,7 @@ def test_fxforwards_to_json_round_trip(fxr, usdusd, eureur, usdeur):
     assert fxf1 == fxf
 
 
-def test_bad_settlement_date(usdusd, usdeur, eureur):
+def test_bad_settlement_date(usdusd, usdeur, eureur) -> None:
     fxf = FXForwards(
         FXRates({"usdeur": 0.9}, settlement=dt(2022, 1, 3)),
         {"usdusd": usdusd, "eureur": eureur, "usdeur": usdeur},
@@ -905,7 +969,7 @@ def test_bad_settlement_date(usdusd, usdeur, eureur):
         fxf.rate("usdeur", dt(1999, 1, 1))  # < date before curves
 
 
-def test_fxforwards_separable_system():
+def test_fxforwards_separable_system() -> None:
     fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
     fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2))
     fxf = FXForwards(
@@ -923,7 +987,7 @@ def test_fxforwards_separable_system():
     assert abs(result - expected) < 1e-2
 
 
-def test_fxforwards_acyclic_system():
+def test_fxforwards_acyclic_system() -> None:
     fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
     fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2))
     fxf = FXForwards(
@@ -941,7 +1005,7 @@ def test_fxforwards_acyclic_system():
     assert abs(result - expected) < 1e-2
 
 
-def test_fxforwards_cyclic_system_fails():
+def test_fxforwards_cyclic_system_fails() -> None:
     fxr1 = FXRates({"eurusd": 1.05, "gbpusd": 1.2}, settlement=dt(2022, 1, 3))
     fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2))
     with pytest.raises(ValueError, match="`fx_curves` is underspecified."):
@@ -959,7 +1023,7 @@ def test_fxforwards_cyclic_system_fails():
         )
 
 
-def test_fxforwards_cyclic_system_restructured():
+def test_fxforwards_cyclic_system_restructured() -> None:
     # this system as reported in the book has two settlement dates but must be adjusted
     # given the curve currency one-hot matrix
     fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
@@ -982,7 +1046,7 @@ def test_fxforwards_cyclic_system_restructured():
     assert abs(result - expected) < 1e-2
 
 
-def test_fxforwards_cyclic_system_restructured2():
+def test_fxforwards_cyclic_system_restructured2() -> None:
     fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3), base="eur")
     fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2), base="cad")
     fxr3 = FXRates({"gbpusd": 1.2}, settlement=dt(2022, 1, 3), base="gbp")
@@ -1003,7 +1067,7 @@ def test_fxforwards_cyclic_system_restructured2():
     assert abs(result - expected) < 1e-2
 
 
-def test_fxforwards_settlement_pairs():
+def test_fxforwards_settlement_pairs() -> None:
     fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
     fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2))
     fxr3 = FXRates({"gbpusd": 1.2}, settlement=dt(2022, 1, 3))
@@ -1034,7 +1098,7 @@ def test_fxforwards_settlement_pairs():
     assert fxf.pairs_settlement["eurusd"] == dt(2022, 1, 3)
 
 
-def test_fxforwards_positions_when_immediate_aligns_with_settlement():
+def test_fxforwards_positions_when_immediate_aligns_with_settlement() -> None:
     fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 1))
     fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 1))
     fxf = FXForwards(
@@ -1057,7 +1121,7 @@ def test_fxforwards_positions_when_immediate_aligns_with_settlement():
     assert_frame_equal(result, expected)
 
 
-def test_fxforwards_positions_multiple_fx_rates():
+def test_fxforwards_positions_multiple_fx_rates() -> None:
     fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
     fxr2 = FXRates({"usdcad": 1.1}, settlement=dt(2022, 1, 2))
     fxf = FXForwards(
@@ -1080,7 +1144,7 @@ def test_fxforwards_positions_multiple_fx_rates():
     assert_frame_equal(result, expected)
 
 
-def test_forward_fx_immediate():
+def test_forward_fx_immediate() -> None:
     d_curve = Curve(nodes={dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, interpolation="log_linear")
     f_curve = Curve(nodes={dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.95})
     result = forward_fx(dt(2022, 4, 1), d_curve, f_curve, 10.0)
@@ -1093,7 +1157,7 @@ def test_forward_fx_immediate():
     assert abs(result - 10.0) < 1e-6
 
 
-def test_forward_fx_spot_equivalent():
+def test_forward_fx_spot_equivalent() -> None:
     d_curve = Curve(nodes={dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, interpolation="log_linear")
     f_curve = Curve(nodes={dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.95})
     result = forward_fx(dt(2022, 7, 1), d_curve, f_curve, 10.102214, dt(2022, 4, 1))

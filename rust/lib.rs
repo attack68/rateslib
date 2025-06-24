@@ -1,4 +1,7 @@
 //! This is the documentation for rateslib-rs
+//!
+//! <div class="warning">This library is in development. Only parts of *rateslib (Python)* have been ported
+//! successfully, completely and with sound documentation to Rust.</div>
 
 #![doc(html_favicon_url = "https://rateslib.readthedocs.io/en/stable/_static/favicon.ico")]
 // #![doc(html_logo_url = "https://rateslib.readthedocs.io/en/stable/_static/rateslib_logo2a.png")]
@@ -19,9 +22,8 @@ use dual::linalg_py::{dsolve1_py, dsolve2_py, fdsolve1_py, fdsolve2_py};
 use dual::{ADOrder, Dual, Dual2};
 
 pub mod splines;
-use splines::spline_py::{
-    bspldnev_single, bsplev_single, PPSplineDual, PPSplineDual2, PPSplineF64,
-};
+use splines::spline_py::{bspldnev_single, bsplev_single};
+use splines::{PPSplineDual, PPSplineDual2, PPSplineF64};
 
 pub mod curves;
 use curves::curve_py::Curve;

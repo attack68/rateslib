@@ -43,7 +43,7 @@ from rateslib.instruments import (
 from rateslib.solver import Solver
 
 
-@pytest.fixture()
+@pytest.fixture
 def curve():
     nodes = {
         dt(2022, 1, 1): 1.00,
@@ -55,7 +55,7 @@ def curve():
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
-@pytest.fixture()
+@pytest.fixture
 def curve2():
     nodes = {
         dt(2022, 1, 1): 1.00,
@@ -66,25 +66,25 @@ def curve2():
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
-@pytest.fixture()
+@pytest.fixture
 def usdusd():
     nodes = {dt(2022, 1, 1): 1.00, dt(2022, 4, 1): 0.99}
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
-@pytest.fixture()
+@pytest.fixture
 def eureur():
     nodes = {dt(2022, 1, 1): 1.00, dt(2022, 4, 1): 0.997}
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
-@pytest.fixture()
+@pytest.fixture
 def usdeur():
     nodes = {dt(2022, 1, 1): 1.00, dt(2022, 4, 1): 0.996}
     return Curve(nodes=nodes, interpolation="log_linear")
 
 
-@pytest.fixture()
+@pytest.fixture
 def simple_solver():
     curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0, dt(2024, 1, 1): 1.0}, id="curve")
     solver = Solver(
@@ -100,8 +100,68 @@ def simple_solver():
     return solver
 
 
+@pytest.mark.parametrize(
+    "inst",
+    [
+        IRS(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
+        STIRFuture(
+            dt(2022, 3, 16),
+            dt(2022, 6, 15),
+            "Q",
+            curves="eureur",
+            bp_value=25.0,
+            contracts=-1,
+        ),
+        FRA(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
+        SBS(
+            dt(2022, 7, 1),
+            "3M",
+            "A",
+            curves=["eureur", "eureur", "eurusd", "eureur"],
+            notional=-1e6,
+        ),
+        ZCS(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
+        ZCIS(dt(2022, 1, 1), "1Y", "A", curves=["usdusd", "usdusd", "eu_cpi", "usdusd"]),
+        IIRS(
+            dt(2022, 7, 1),
+            "3M",
+            "A",
+            curves=["eu_cpi", "eureur", "eureur", "eureur"],
+            notional=1e6,
+        ),
+        XCS(  # XCS - FloatFloat
+            dt(2022, 7, 1),
+            "3M",
+            "A",
+            currency="usd",
+            leg2_currency="eur",
+            curves=["usdusd", "usdusd", "eureur", "eurusd"],
+            notional=1e6,
+        ),
+        FXSwap(
+            dt(2022, 7, 1),
+            "3M",
+            currency="usd",
+            leg2_currency="eur",
+            curves=["usdusd", "usdusd", "eureur", "eureur"],
+            notional=-1e6,
+        ),
+        FXExchange(
+            settlement=dt(2022, 10, 1),
+            pair="eurusd",
+            curves=[None, "eureur", None, "usdusd"],
+            notional=-1e6 * 25 / 74.27,
+        ),
+    ],
+)
+def test_instrument_repr(inst):
+    result = inst.__repr__()
+    expected = f"<rl.{type(inst).__name__} at {hex(id(inst))}>"
+    assert result == expected
+
+
 class TestCurvesandSolver:
-    def test_get_curve_from_solver(self):
+    def test_get_curve_from_solver(self) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
         inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
         solver = Solver([curve], [], inst, [0.975])
@@ -118,14 +178,15 @@ class TestCurvesandSolver:
             result = _get_curve_from_solver(no_curve, solver)
             assert result == no_curve
 
-        with pytest.warns():
-            with default_context("curve_not_in_solver", "warn"):
-                result = _get_curve_from_solver(no_curve, solver)
-                assert result == no_curve
+        with pytest.warns(), default_context("curve_not_in_solver", "warn"):
+            result = _get_curve_from_solver(no_curve, solver)
+            assert result == no_curve
 
-        with pytest.raises(ValueError, match="`curve` must be in `solver`"):
-            with default_context("curve_not_in_solver", "raise"):
-                _get_curve_from_solver(no_curve, solver)
+        with (
+            pytest.raises(ValueError, match="`curve` must be in `solver`"),
+            default_context("curve_not_in_solver", "raise"),
+        ):
+            _get_curve_from_solver(no_curve, solver)
 
         with pytest.raises(AttributeError, match="`curve` has no attribute `id`, likely it not"):
             _get_curve_from_solver(100.0, solver)
@@ -134,7 +195,16 @@ class TestCurvesandSolver:
     @pytest.mark.parametrize("fxf", [True, False])
     @pytest.mark.parametrize("fx", [NoInput(0), 2.0])
     @pytest.mark.parametrize("crv", [True, False])
-    def test_get_curves_and_fx_from_solver(self, usdusd, usdeur, eureur, solver, fxf, fx, crv):
+    def test_get_curves_and_fx_from_solver(
+        self,
+        usdusd,
+        usdeur,
+        eureur,
+        solver,
+        fxf,
+        fx,
+        crv,
+    ) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
         inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
         fxfs = FXForwards(
@@ -152,11 +222,21 @@ class TestCurvesandSolver:
             with pytest.warns(UserWarning):
                 #  Solver contains an `fx` attribute but an `fx` argument has been supplied
                 crv_result, fx_result, _ = _get_curves_fx_and_base_maybe_from_solver(
-                    NoInput(0), solver, curve, fx, NoInput(0), "usd"
+                    NoInput(0),
+                    solver,
+                    curve,
+                    fx,
+                    NoInput(0),
+                    "usd",
                 )
         else:
             crv_result, fx_result, _ = _get_curves_fx_and_base_maybe_from_solver(
-                NoInput(0), solver, curve, fx, NoInput(0), "usd"
+                NoInput(0),
+                solver,
+                curve,
+                fx,
+                NoInput(0),
+                "usd",
             )
 
         # check the fx results. If fx is specified directly it is returned
@@ -191,13 +271,18 @@ class TestCurvesandSolver:
             ),
         ],
     )
-    def test_get_curves_fx_and_base_maybe_from_solver_object_types(self, obj):
+    def test_get_curves_fx_and_base_maybe_from_solver_object_types(self, obj) -> None:
         crv_result, _, _ = _get_curves_fx_and_base_maybe_from_solver(
-            obj, NoInput(0), NoInput(0), NoInput(0), NoInput(0), NoInput(0)
+            obj,
+            NoInput(0),
+            NoInput(0),
+            NoInput(0),
+            NoInput(0),
+            NoInput(0),
         )
         assert crv_result == (obj,) * 4
 
-    def test_get_curves_and_fx_from_solver_raises(self):
+    def test_get_curves_and_fx_from_solver_raises(self) -> None:
         from rateslib.solver import Solver
 
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
@@ -206,32 +291,52 @@ class TestCurvesandSolver:
 
         with pytest.raises(ValueError, match="`curves` must contain Curve, not str, if"):
             _get_curves_fx_and_base_maybe_from_solver(
-                NoInput(0), NoInput(0), "tagged", NoInput(0), NoInput(0), ""
+                NoInput(0),
+                NoInput(0),
+                "tagged",
+                NoInput(0),
+                NoInput(0),
+                "",
             )
 
         with pytest.raises(ValueError, match="`curves` must contain str curve `id` s"):
             _get_curves_fx_and_base_maybe_from_solver(
-                NoInput(0), solver, "bad_id", NoInput(0), NoInput(0), ""
+                NoInput(0),
+                solver,
+                "bad_id",
+                NoInput(0),
+                NoInput(0),
+                "",
             )
 
         with pytest.raises(ValueError, match="Can only supply a maximum of 4 `curves`"):
             _get_curves_fx_and_base_maybe_from_solver(
-                NoInput(0), solver, ["tagged"] * 5, NoInput(0), NoInput(0), ""
+                NoInput(0),
+                solver,
+                ["tagged"] * 5,
+                NoInput(0),
+                NoInput(0),
+                "",
             )
 
     @pytest.mark.parametrize("num", [1, 2, 3, 4])
-    def test_get_curves_from_solver_multiply(self, num):
+    def test_get_curves_from_solver_multiply(self, num) -> None:
         from rateslib.solver import Solver
 
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
         inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
         solver = Solver([curve], [], inst, [0.975])
         result, _, _ = _get_curves_fx_and_base_maybe_from_solver(
-            NoInput(0), solver, ["tagged"] * num, NoInput(0), NoInput(0), ""
+            NoInput(0),
+            solver,
+            ["tagged"] * num,
+            NoInput(0),
+            NoInput(0),
+            "",
         )
         assert result == (curve, curve, curve, curve)
 
-    def test_get_proxy_curve_from_solver(self, usdusd, usdeur, eureur):
+    def test_get_proxy_curve_from_solver(self, usdusd, usdeur, eureur) -> None:
         # TODO: check whether curves in fxf but not is solver should be allowed???
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
         inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
@@ -247,7 +352,7 @@ class TestCurvesandSolver:
         # because it is a proxy curve.
         irs.npv(curves=curve, solver=solver)
 
-    def test_ambiguous_curve_in_out_id_solver_raises(self):
+    def test_ambiguous_curve_in_out_id_solver_raises(self) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0}, id="cloned-id")
         curve2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="cloned-id")
         solver = Solver(
@@ -301,7 +406,7 @@ class TestSolverFXandBase:
 
     # ``base`` is explcit
 
-    def test_base_and_fx(self):
+    def test_base_and_fx(self) -> None:
         # calculable since base aligns with local currency
         result = self.irs.npv(fx=self.fxr, base="eur")
         expected = 330.4051154763001 / 1.1
@@ -315,7 +420,7 @@ class TestSolverFXandBase:
         with pytest.raises(KeyError, match="'usd'"):
             result = self.irs.npv(fx=FXRates({"eurgbp": 1.1}), base="eur")
 
-    def test_base_and_solverfx(self):
+    def test_base_and_solverfx(self) -> None:
         # should take fx from solver and calculated
         self.solver.fx = FXRates({"eurusd": 1.1})
         result = self.irs.npv(solver=self.solver, base="eur")
@@ -323,7 +428,7 @@ class TestSolverFXandBase:
         assert abs(result - expected) < 1e-4
         self.solver.fx = NoInput(0)
 
-    def test_base_and_fx_and_solverfx(self):
+    def test_base_and_fx_and_solverfx(self) -> None:
         # should take fx and ignore solver.fx
         fxr = FXRates({"eurusd": 1.2})
         self.solver.fx = fxr
@@ -341,7 +446,7 @@ class TestSolverFXandBase:
 
         self.solver.fx = NoInput(0)
 
-    def test_base_only(self):
+    def test_base_only(self) -> None:
         # calculable since base aligns with local currency
         result = self.irs.npv(base="usd")
         expected = 330.4051154763001
@@ -351,7 +456,7 @@ class TestSolverFXandBase:
         with pytest.raises(ValueError, match="`base` "):
             result = self.irs.npv(base="eur")
 
-    def test_base_solvernofx(self):
+    def test_base_solvernofx(self) -> None:
         # calculable since base aligns with local currency
         result = self.irs.npv(base="usd", solver=self.solver)
         expected = 330.4051154763001
@@ -363,19 +468,19 @@ class TestSolverFXandBase:
 
     # ``base`` is inferred
 
-    def test_no_args(self):
+    def test_no_args(self) -> None:
         # should result in a local NPV calculation
         result = self.irs.npv()
         expected = 330.4051154763001
         assert abs(result - expected) < 1e-4
 
-    def test_fx(self):
+    def test_fx(self) -> None:
         # should repeat the "_just_base" case.
         result = self.irs.npv(fx=self.fxr)
         expected = 330.4051154763001 / 1.25
         assert abs(result - expected) < 1e-4
 
-    def test_fx_solverfx(self):
+    def test_fx_solverfx(self) -> None:
         fxr = FXRates({"eurusd": 1.2}, base="eur")
         self.solver.fx = fxr
 
@@ -392,7 +497,7 @@ class TestSolverFXandBase:
 
         self.solver.fx = NoInput(0)
 
-    def test_solverfx(self):
+    def test_solverfx(self) -> None:
         fxr = FXRates({"eurusd": 1.2}, base="eur")
         self.solver.fx = fxr
 
@@ -412,7 +517,12 @@ class TestNullPricing:
         [
             IRS(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
             STIRFuture(
-                dt(2022, 3, 16), dt(2022, 6, 15), "Q", curves="eureur", bp_value=25.0, contracts=-1
+                dt(2022, 3, 16),
+                dt(2022, 6, 15),
+                "Q",
+                curves="eureur",
+                bp_value=25.0,
+                contracts=-1,
             ),
             FRA(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
             SBS(
@@ -553,7 +663,7 @@ class TestNullPricing:
             ),
         ],
     )
-    def test_null_priced_delta(self, inst):
+    def test_null_priced_delta(self, inst) -> None:
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
         c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
         c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.982}, id="eurusd")
@@ -588,7 +698,7 @@ class TestNullPricing:
         assert abs(result3) < 1e-3
 
     @pytest.mark.parametrize(
-        "inst, param",
+        ("inst", "param"),
         [
             (IRS(dt(2022, 7, 1), "3M", "A", curves="usdusd"), "fixed_rate"),
             (FRA(dt(2022, 7, 1), "3M", "Q", curves="usdusd"), "fixed_rate"),
@@ -615,7 +725,7 @@ class TestNullPricing:
             ),
         ],
     )
-    def test_null_priced_delta_round_trip_one_pricing_param(self, inst, param):
+    def test_null_priced_delta_round_trip_one_pricing_param(self, inst, param) -> None:
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
         c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
         c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.982}, id="eurusd")
@@ -647,7 +757,7 @@ class TestNullPricing:
         assert_frame_equal(unpriced_delta, priced_delta)
 
     @pytest.mark.parametrize(
-        "inst, param",
+        ("inst", "param"),
         [
             (
                 FXSwap(
@@ -661,7 +771,7 @@ class TestNullPricing:
             ),
         ],
     )
-    def test_null_priced_delta_round_trip_one_pricing_param_fx_fix(self, inst, param):
+    def test_null_priced_delta_round_trip_one_pricing_param_fx_fix(self, inst, param) -> None:
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
         c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
         c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.982}, id="eurusd")
@@ -695,14 +805,14 @@ class TestNullPricing:
 
 class TestIRS:
     @pytest.mark.parametrize(
-        "float_spread, fixed_rate, expected",
+        ("float_spread", "fixed_rate", "expected"),
         [
             (0, 4.03, 4.03637780),
             (3, 4.03, 4.06637780),
             (0, 5.10, 4.03637780),
         ],
     )
-    def test_irs_rate(self, curve, float_spread, fixed_rate, expected):
+    def test_irs_rate(self, curve, float_spread, fixed_rate, expected) -> None:
         # test the mid-market rate ignores the given fixed_rate and reacts to float_spread
         irs = IRS(
             effective=dt(2022, 1, 1),
@@ -719,7 +829,7 @@ class TestIRS:
         assert abs(result - expected) < 1e-7
 
     @pytest.mark.parametrize(
-        "float_spread, fixed_rate, expected",
+        ("float_spread", "fixed_rate", "expected"),
         [
             (0, 4.03, -0.63777963),
             (200, 4.03, -0.63777963),
@@ -727,7 +837,7 @@ class TestIRS:
             (0, 4.01, -2.63777963),
         ],
     )
-    def test_irs_spread_none_simple(self, curve, float_spread, fixed_rate, expected):
+    def test_irs_spread_none_simple(self, curve, float_spread, fixed_rate, expected) -> None:
         # test the mid-market float spread ignores the given float_spread and react to fixed
         irs = IRS(
             effective=dt(2022, 1, 1),
@@ -750,7 +860,7 @@ class TestIRS:
         assert abs(validate) < 1e-8
 
     @pytest.mark.parametrize(
-        "float_spread, fixed_rate, expected",
+        ("float_spread", "fixed_rate", "expected"),
         [
             (0, 4.03, -0.6322524949759807),  # note this is the closest solution
             (
@@ -762,7 +872,7 @@ class TestIRS:
             (0, 4.01, -2.61497625534),
         ],
     )
-    def test_irs_spread_isda_compound(self, curve, float_spread, fixed_rate, expected):
+    def test_irs_spread_isda_compound(self, curve, float_spread, fixed_rate, expected) -> None:
         # test the mid-market float spread ignores the given float_spread and react to fixed
         irs = IRS(
             effective=dt(2022, 1, 1),
@@ -785,7 +895,7 @@ class TestIRS:
         assert abs(validate) < 5e2
 
     @pytest.mark.parametrize(
-        "float_spread, fixed_rate, expected",
+        ("float_spread", "fixed_rate", "expected"),
         [
             (0, 4.03, -0.63500600),  # note this is the closest solution
             (
@@ -801,7 +911,7 @@ class TestIRS:
             (0, 4.01, -2.626308241),
         ],
     )
-    def test_irs_spread_isda_flat_compound(self, curve, float_spread, fixed_rate, expected):
+    def test_irs_spread_isda_flat_compound(self, curve, float_spread, fixed_rate, expected) -> None:
         # test the mid-market float spread ignores the given float_spread and react to fixed
         irs = IRS(
             effective=dt(2022, 1, 1),
@@ -823,7 +933,7 @@ class TestIRS:
         validate = irs.npv(curve)
         assert abs(validate) < 20
 
-    def test_irs_npv(self, curve):
+    def test_irs_npv(self, curve) -> None:
         irs = IRS(
             effective=dt(2022, 1, 1),
             termination=dt(2022, 6, 1),
@@ -840,7 +950,7 @@ class TestIRS:
         assert abs(result - expected) < 1e-9
         assert abs(result - 5704.13604352) < 1e-7
 
-    def test_irs_cashflows(self, curve):
+    def test_irs_cashflows(self, curve) -> None:
         irs = IRS(
             effective=dt(2022, 1, 1),
             termination=dt(2022, 6, 1),
@@ -856,7 +966,7 @@ class TestIRS:
         assert isinstance(result, DataFrame)
         assert result.index.nlevels == 2
 
-    def test_irs_npv_mid_mkt_zero(self, curve):
+    def test_irs_npv_mid_mkt_zero(self, curve) -> None:
         irs = IRS(
             effective=dt(2022, 1, 1),
             termination=dt(2022, 6, 1),
@@ -882,12 +992,12 @@ class TestIRS:
         irs.leg2_float_spread = NoInput(0)
         assert abs(irs.npv(curve)) < 1e-8
 
-    def test_sbs_float_spread_raises(self, curve):
+    def test_sbs_float_spread_raises(self, curve) -> None:
         irs = IRS(dt(2022, 1, 1), "9M", "Q")
         with pytest.raises(AttributeError, match="Cannot set `float_spread`"):
             irs.float_spread = 1.0
 
-    def test_index_base_raises(self):
+    def test_index_base_raises(self) -> None:
         irs = IRS(dt(2022, 1, 1), "9M", "Q")
         with pytest.raises(AttributeError, match="Cannot set `index_base`"):
             irs.index_base = 1.0
@@ -895,7 +1005,7 @@ class TestIRS:
         with pytest.raises(AttributeError, match="Cannot set `leg2_index_base`"):
             irs.leg2_index_base = 1.0
 
-    def test_irs_interpolated_stubs(self, curve):
+    def test_irs_interpolated_stubs(self, curve) -> None:
         curve6 = LineCurve({dt(2022, 1, 1): 4.0, dt(2023, 2, 1): 4.0})
         curve3 = LineCurve({dt(2022, 1, 1): 3.0, dt(2023, 2, 1): 3.0})
         curve1 = LineCurve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
@@ -913,7 +1023,7 @@ class TestIRS:
         assert (cashflows.loc[("leg2", 0), "Rate"] - 1.23729) < 1e-4
         assert (cashflows.loc[("leg2", 3), "Rate"] - 3.58696) < 1e-4
 
-    def test_irs_interpolated_stubs_solver(self):
+    def test_irs_interpolated_stubs_solver(self) -> None:
         curve6 = Curve({dt(2022, 1, 1): 4.0, dt(2023, 2, 1): 4.0}, id="6m")
         curve3 = Curve({dt(2022, 1, 1): 3.0, dt(2023, 2, 1): 3.0}, id="3m")
         solver = Solver(
@@ -937,7 +1047,7 @@ class TestIRS:
         cashflows = irs.cashflows(solver=solver)
         assert (cashflows.loc[("leg2", 0), "Rate"] - 3.93693) < 1e-4
 
-    def test_no_rfr_fixings_raises(self):
+    def test_no_rfr_fixings_raises(self) -> None:
         # GH 170
         T_irs = IRS(
             effective=dt(2020, 12, 15),
@@ -962,7 +1072,7 @@ class TestIRS:
         with pytest.raises(ValueError, match="RFRs could not be calculated, have you missed "):
             T_irs.npv(curves=par_curve)
 
-    def test_no_rfr_fixings_raises2(self):
+    def test_no_rfr_fixings_raises2(self) -> None:
         # GH 357
         sofr = Curve(
             id="sofr",
@@ -986,9 +1096,17 @@ class TestIRS:
         with pytest.raises(ValueError, match="RFRs could not be calculated, have you missed "):
             irs.npv()
 
+    def test_1b_tenor_swaps(self):
+        irs = IRS(dt(2024, 12, 30), "1b", spec="sek_irs")  # 31st is a holiday.
+        assert irs.leg1.schedule.uschedule == [dt(2024, 12, 30), dt(2025, 1, 2)]
+
+    def test_1d_tenor_swaps(self):
+        irs = IRS(dt(2024, 12, 30), "1d", spec="sek_irs")  # 31st is a holiday.
+        assert irs.leg1.schedule.uschedule == [dt(2024, 12, 30), dt(2025, 1, 2)]
+
 
 class TestIIRS:
-    def test_index_base_none_populated(self, curve):
+    def test_index_base_none_populated(self, curve) -> None:
         i_curve = IndexCurve(
             {dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.5, dt(2034, 1, 1): 0.4},
             index_lag=3,
@@ -1007,7 +1125,7 @@ class TestIIRS:
         for period in iirs.leg1.periods:
             assert period.index_base == 200.0
 
-    def test_iirs_npv_mid_mkt_zero(self, curve):
+    def test_iirs_npv_mid_mkt_zero(self, curve) -> None:
         i_curve = IndexCurve(
             {dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.5, dt(2034, 1, 1): 0.4},
             index_lag=3,
@@ -1038,9 +1156,11 @@ class TestIIRS:
         new_mid = float(iirs.rate([i_curve, curve]))
         assert abs(mid_fixed - new_mid) < 1e-6
 
-    def test_cashflows(self, curve):
+    def test_cashflows(self, curve) -> None:
         i_curve = IndexCurve(
-            {dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 0.99}, index_lag=3, index_base=100.0
+            {dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 0.99},
+            index_lag=3,
+            index_base=100.0,
         )
         iirs = IIRS(
             effective=dt(2022, 2, 1),
@@ -1061,7 +1181,7 @@ class TestIIRS:
                 "Type": ["IndexFixedPeriod"] * 3 + ["FloatPeriod"] * 3,
             },
             index=MultiIndex.from_tuples(
-                [("leg1", 0), ("leg1", 1), ("leg1", 2), ("leg2", 0), ("leg2", 1), ("leg2", 2)]
+                [("leg1", 0), ("leg1", 1), ("leg1", 2), ("leg2", 0), ("leg2", 1), ("leg2", 2)],
             ),
         )
         assert_frame_equal(
@@ -1070,7 +1190,7 @@ class TestIIRS:
             rtol=1e-3,
         )
 
-    def test_npv_no_index_base(self, curve):
+    def test_npv_no_index_base(self, curve) -> None:
         i_curve = IndexCurve(
             {dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.5, dt(2034, 1, 1): 0.4},
             index_lag=3,
@@ -1088,7 +1208,7 @@ class TestIIRS:
         expected = 19792.08369745
         assert abs(result - expected) < 1e-6
 
-    def test_cashflows_no_index_base(self, curve):
+    def test_cashflows_no_index_base(self, curve) -> None:
         i_curve = IndexCurve(
             {dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.5, dt(2034, 1, 1): 0.4},
             index_lag=3,
@@ -1108,7 +1228,7 @@ class TestIIRS:
 
 
 class TestSBS:
-    def test_sbs_npv(self, curve):
+    def test_sbs_npv(self, curve) -> None:
         sbs = SBS(dt(2022, 1, 1), "9M", "Q", float_spread=3.0)
         a_delta = sbs.analytic_delta(curve, curve, leg=1)
         npv = sbs.npv(curve)
@@ -1118,7 +1238,7 @@ class TestSBS:
         npv = sbs.npv(curve)
         assert abs(npv - 1.5 * a_delta) < 1e-9
 
-    def test_sbs_rate(self, curve):
+    def test_sbs_rate(self, curve) -> None:
         sbs = SBS(dt(2022, 1, 1), "9M", "Q", float_spread=3.0)
         result = sbs.rate([curve], leg=1)
         alias = sbs.spread([curve], leg=1)
@@ -1130,7 +1250,7 @@ class TestSBS:
         assert abs(result - 3.0) < 1e-8
         assert abs(alias - 3.0) < 1e-8
 
-    def test_sbs_cashflows(self, curve):
+    def test_sbs_cashflows(self, curve) -> None:
         sbs = SBS(dt(2022, 1, 1), "9M", "Q", float_spread=3.0)
         result = sbs.cashflows(curve)
         expected = DataFrame(
@@ -1146,7 +1266,7 @@ class TestSBS:
             expected,
         )
 
-    def test_sbs_fixed_rate_raises(self, curve):
+    def test_sbs_fixed_rate_raises(self, curve) -> None:
         sbs = SBS(dt(2022, 1, 1), "9M", "Q", float_spread=3.0)
         with pytest.raises(AttributeError, match="Cannot set `fixed_rate`"):
             sbs.fixed_rate = 1.0
@@ -1156,7 +1276,7 @@ class TestSBS:
 
 
 class TestFRA:
-    def test_fra_rate(self, curve):
+    def test_fra_rate(self, curve) -> None:
         # test the mid-market rate ignores the given fixed_rate and reacts to float_spread
         fra = FRA(
             effective=dt(2022, 1, 1),
@@ -1170,7 +1290,7 @@ class TestFRA:
         expected = 4.0590821964144
         assert abs(result - expected) < 1e-7
 
-    def test_fra_npv(self, curve):
+    def test_fra_npv(self, curve) -> None:
         fra = FRA(
             effective=dt(2022, 1, 1),
             termination="6m",
@@ -1186,7 +1306,7 @@ class TestFRA:
         assert abs(result - expected) < 1e-8
         assert abs(result - 118631.8350458332) < 1e-7
 
-    def test_fra_cashflows(self, curve):
+    def test_fra_cashflows(self, curve) -> None:
         fra = FRA(
             effective=dt(2022, 1, 1),
             termination=dt(2022, 7, 1),
@@ -1200,7 +1320,7 @@ class TestFRA:
         assert isinstance(result, DataFrame)
         assert result.index.nlevels == 1
 
-    def test_irs_npv_mid_mkt_zero(self, curve):
+    def test_irs_npv_mid_mkt_zero(self, curve) -> None:
         fra = FRA(
             effective=dt(2022, 1, 1),
             termination=dt(2022, 7, 1),
@@ -1218,8 +1338,8 @@ class TestFRA:
         fra.fixed_rate = NoInput(0)  # fixed rate set back to initial
         assert abs(fra.npv(curve)) < 1e-9
 
-    @pytest.mark.parametrize("eom, exp", [(True, dt(2021, 5, 31)), (False, dt(2021, 5, 26))])
-    def test_fra_roll_inferral(self, eom, exp):
+    @pytest.mark.parametrize(("eom", "exp"), [(True, dt(2021, 5, 31)), (False, dt(2021, 5, 26))])
+    def test_fra_roll_inferral(self, eom, exp) -> None:
         fra = FRA(
             effective=dt(2021, 2, 26),
             termination="3m",
@@ -1229,10 +1349,13 @@ class TestFRA:
         )
         assert fra.leg1.schedule.termination == exp
 
+    def test_imm_dated(self):
+        FRA(effective=dt(2024, 12, 18), termination=dt(2025, 3, 19), spec="sek_fra3", roll="imm")
+
 
 class TestZCS:
-    @pytest.mark.parametrize("freq, exp", [("Q", 3.529690979), ("S", 3.54526437721296)])
-    def test_zcs_rate(self, freq, exp):
+    @pytest.mark.parametrize(("freq", "exp"), [("Q", 3.529690979), ("S", 3.54526437721296)])
+    def test_zcs_rate(self, freq, exp) -> None:
         usd = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2027, 1, 1): 0.85, dt(2032, 1, 1): 0.70},
             id="usd",
@@ -1253,7 +1376,7 @@ class TestZCS:
         result = zcs.rate(usd)
         assert abs(result - exp) < 1e-7
 
-    def test_zcs_analytic_delta(self):
+    def test_zcs_analytic_delta(self) -> None:
         usd = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2027, 1, 1): 0.85, dt(2032, 1, 1): 0.70},
             id="usd",
@@ -1274,7 +1397,7 @@ class TestZCS:
         expected = 105226.66099084
         assert abs(result - expected) < 1e-7
 
-    def test_zcs_raise_frequency(self):
+    def test_zcs_raise_frequency(self) -> None:
         with pytest.raises(ValueError, match="`frequency` for a ZeroFixedLeg should not be 'Z'."):
             ZCS(
                 effective=dt(2022, 1, 5),
@@ -1286,7 +1409,7 @@ class TestZCS:
 
 
 class TestZCIS:
-    def test_leg2_index_base(self, curve):
+    def test_leg2_index_base(self, curve) -> None:
         i_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_base=200.0)
         zcis = ZCIS(
             effective=dt(2022, 1, 1),
@@ -1299,7 +1422,7 @@ class TestZCIS:
         result = zcis.rate(curves=[curve, curve, i_curve, curve])
         assert result > (prior + 100)
 
-    def test_solver_failure_unspecified_index_base(self, curve):
+    def test_solver_failure_unspecified_index_base(self, curve) -> None:
         # GH 349
         curve = Curve({dt(2022, 1, 15): 1.0, dt(2023, 1, 1): 0.98})
         i_curve = IndexCurve({dt(2022, 1, 15): 1.0, dt(2023, 1, 1): 0.99}, index_base=200.0)
@@ -1319,7 +1442,7 @@ class TestZCIS:
 
 
 class TestValue:
-    def test_npv_adelta_cashflows_raises(self):
+    def test_npv_adelta_cashflows_raises(self) -> None:
         value = Value(dt(2022, 1, 1))
         with pytest.raises(NotImplementedError):
             value.npv()
@@ -1330,28 +1453,30 @@ class TestValue:
         with pytest.raises(NotImplementedError):
             value.analytic_delta()
 
-    def test_cc_zero_rate(self, curve):
+    def test_cc_zero_rate(self, curve) -> None:
         v = Value(effective=dt(2022, 7, 1), convention="act365f", metric="cc_zero_rate")
         result = v.rate(curve)
         expected = 4.074026613753926
         assert result == expected
 
-    def test_index_value(self):
+    def test_index_value(self) -> None:
         curve = IndexCurve(
-            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995}, id="eu_cpi", index_base=100.0
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995},
+            id="eu_cpi",
+            index_base=100.0,
         )
         v = Value(effective=dt(2022, 7, 1), metric="index_value")
         result = v.rate(curve)
         expected = 100.24919116128588
         assert result == expected
 
-    def test_value_raise(self, curve):
+    def test_value_raise(self, curve) -> None:
         with pytest.raises(ValueError):
             Value(effective=dt(2022, 7, 1), metric="bad").rate(curve)
 
 
 class TestFXExchange:
-    def test_cashflows(self):
+    def test_cashflows(self) -> None:
         fxe = FXExchange(
             settlement=dt(2022, 10, 1),
             pair="eurusd",
@@ -1375,14 +1500,14 @@ class TestFXExchange:
         assert_frame_equal(result, expected, rtol=1e-6)
 
     @pytest.mark.parametrize(
-        "base, fx",
+        ("base", "fx"),
         [
             ("eur", 1.20),
             ("usd", 1.20),
             ("eur", FXRates({"eurusd": 1.20})),
         ],
     )
-    def test_npv_rate(self, curve, curve2, base, fx):
+    def test_npv_rate(self, curve, curve2, base, fx) -> None:
         fxe = FXExchange(
             settlement=dt(2022, 3, 1),
             pair="eurusd",
@@ -1391,15 +1516,23 @@ class TestFXExchange:
         if not isinstance(fx, FXRates):
             with pytest.warns(UserWarning):
                 result = fxe.npv(
-                    [NoInput(0), curve, NoInput(0), curve2], NoInput(0), fx, base, local=False
+                    [NoInput(0), curve, NoInput(0), curve2],
+                    NoInput(0),
+                    fx,
+                    base,
+                    local=False,
                 )
         else:
             result = fxe.npv(
-                [NoInput(0), curve, NoInput(0), curve2], NoInput(0), fx, base, local=False
+                [NoInput(0), curve, NoInput(0), curve2],
+                NoInput(0),
+                fx,
+                base,
+                local=False,
             )
         assert abs(result - 0.0) < 1e-8
 
-    def test_rate(self, curve, curve2):
+    def test_rate(self, curve, curve2) -> None:
         fxe = FXExchange(
             settlement=dt(2022, 3, 1),
             pair="eurusd",
@@ -1409,7 +1542,7 @@ class TestFXExchange:
         expected = 1.2080131682341035
         assert abs(result - expected) < 1e-7
 
-    def test_npv_fx_numeric(self, curve):
+    def test_npv_fx_numeric(self, curve) -> None:
         # This demonstrates the ambiguity and poor practice of
         # using numeric fx as pricing input, although it will return.
         fxe = FXExchange(
@@ -1427,7 +1560,7 @@ class TestFXExchange:
         # with pytest.raises(ValueError, match="Cannot calculate `npv`"):
         #     fxe.npv([curve] * 4, fx=2.0, base="bad")
 
-    def test_npv_no_fx_raises(self, curve):
+    def test_npv_no_fx_raises(self, curve) -> None:
         fxe = FXExchange(
             settlement=dt(2022, 3, 1),
             pair="eurusd",
@@ -1436,7 +1569,7 @@ class TestFXExchange:
         with pytest.raises(ValueError, match="Must have some FX info"):
             fxe.npv(curve)
 
-    def test_notional_direction(self, curve, curve2):
+    def test_notional_direction(self, curve, curve2) -> None:
         fx1 = FXExchange(notional=1e6, pair="eurusd", settlement=dt(2022, 1, 1), fx_rate=1.20)
         fx2 = FXExchange(notional=-1e6, pair="eurusd", settlement=dt(2022, 1, 1), fx_rate=1.30)
         pf = Portfolio([fx1, fx2])
@@ -1448,7 +1581,7 @@ class TestFXExchange:
         expected = 100000.0 / 1.30
         assert abs(result - expected) < 1e-8
 
-    def test_no_defined_analytic_delta(self):
+    def test_no_defined_analytic_delta(self) -> None:
         with pytest.raises(NotImplementedError):
             FXExchange(
                 settlement=dt(2022, 3, 1),
@@ -1456,7 +1589,7 @@ class TestFXExchange:
                 fx_rate=1.2080131682341035,
             ).analytic_delta()
 
-    def test_error_msg_for_no_fx(self):
+    def test_error_msg_for_no_fx(self) -> None:
         eur = Curve({dt(2024, 6, 20): 1.0, dt(2024, 9, 30): 1.0}, calendar="tgt")
         usd = Curve({dt(2024, 6, 20): 1.0, dt(2024, 9, 30): 1.0}, calendar="nyc")
         eurusd = Curve({dt(2024, 6, 20): 1.0, dt(2024, 9, 30): 1.0})
@@ -1467,7 +1600,9 @@ class TestFXExchange:
                     IRS(dt(2024, 6, 24), "3m", spec="eur_irs", curves=eur),
                     IRS(dt(2024, 6, 24), "3m", spec="usd_irs", curves=usd),
                     FXExchange(
-                        pair="eurusd", settlement=dt(2024, 9, 24), curves=[None, eurusd, None, usd]
+                        pair="eurusd",
+                        settlement=dt(2024, 9, 24),
+                        curves=[None, eurusd, None, usd],
                     ),
                 ],
                 s=[3.77, 5.51, 1.0775],
@@ -1506,7 +1641,7 @@ class TestFXExchange:
 
 
 class TestNonMtmXCS:
-    def test_nonmtmxcs_npv(self, curve, curve2):
+    def test_nonmtmxcs_npv(self, curve, curve2) -> None:
         fxf = FXForwards(
             FXRates({"eurusd": 1.1}, settlement=dt(2022, 1, 3)),
             {"usdusd": curve, "eurusd": curve2, "eureur": curve2},
@@ -1545,7 +1680,7 @@ class TestNonMtmXCS:
         npv = xcs.npv([curve2, curve2, curve, curve], NoInput(0), fxf)
         assert abs(npv) < 1e-9
 
-    def test_nonmtmxcs_fx_notional(self):
+    def test_nonmtmxcs_fx_notional(self) -> None:
         xcs = XCS(
             dt(2022, 2, 1),
             "8M",
@@ -1563,7 +1698,7 @@ class TestNonMtmXCS:
         assert xcs.leg2_notional == -2e6
 
     @pytest.mark.parametrize(
-        "float_spd, compound, expected",
+        ("float_spd", "compound", "expected"),
         [
             (10, "none_simple", 10.160794),
             (100, "none_simple", 101.60794),
@@ -1571,7 +1706,7 @@ class TestNonMtmXCS:
             (100, "isda_flat_compounding", 101.336040),
         ],
     )
-    def test_nonmtmxcs_spread(self, curve, curve2, float_spd, compound, expected):
+    def test_nonmtmxcs_spread(self, curve, curve2, float_spd, compound, expected) -> None:
         fxf = FXForwards(
             FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
@@ -1623,7 +1758,7 @@ class TestNonMtmXCS:
         result = xcs_reverse.rate([curve2, curve2, curve, curve], NoInput(0), fxf, 1)
         assert abs(result - expected) < 1e-4
 
-    def test_no_fx_raises(self, curve, curve2):
+    def test_no_fx_raises(self, curve, curve2) -> None:
         xcs = XCS(
             dt(2022, 2, 1),
             "8M",
@@ -1639,19 +1774,23 @@ class TestNonMtmXCS:
             float_spread=0.0,
         )
 
-        with pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"):
-            with default_context("no_fx_fixings_for_xcs", "raise"):
-                xcs.npv([curve, curve, curve2, curve2])
+        with (
+            pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"),
+            default_context("no_fx_fixings_for_xcs", "raise"),
+        ):
+            xcs.npv([curve, curve, curve2, curve2])
 
-        with pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"):
-            with default_context("no_fx_fixings_for_xcs", "raise"):
-                xcs.cashflows([curve, curve, curve2, curve2])
+        with (
+            pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"),
+            default_context("no_fx_fixings_for_xcs", "raise"),
+        ):
+            xcs.cashflows([curve, curve, curve2, curve2])
 
         # with pytest.warns():
         #     with default_context("no_fx_fixings_for_xcs", "warn"):
         #         xcs.npv([curve, curve, curve2, curve2])
 
-    def test_nonmtmxcs_cashflows(self, curve, curve2):
+    def test_nonmtmxcs_cashflows(self, curve, curve2) -> None:
         fxf = FXForwards(
             FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
@@ -1691,7 +1830,7 @@ class TestNonMtmXCS:
         )
 
     @pytest.mark.parametrize("fix", ["fxr", "fxf", "float", "dual", "dual2"])
-    def test_nonmtm_fx_fixing(self, curve, curve2, fix):
+    def test_nonmtm_fx_fixing(self, curve, curve2, fix) -> None:
         fxr = FXRates({"usdnok": 10}, settlement=dt(2022, 1, 1))
         fxf = FXForwards(fxr, {"usdusd": curve, "nokusd": curve2, "noknok": curve2})
         mapping = {
@@ -1717,7 +1856,7 @@ class TestNonMtmXCS:
         )
         assert abs(xcs.npv([curve, curve, curve2, curve2], fx=fxr)) < 1e-7
 
-    def test_is_priced(self, curve, curve2):
+    def test_is_priced(self, curve, curve2) -> None:
         fxf = FXForwards(
             FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
@@ -1739,7 +1878,7 @@ class TestNonMtmXCS:
         result = xcs.npv(curves=[curve2, curve2, curve, curve], fx=fxf)
         assert abs(result - 65.766356) < 1e-5
 
-    def test_no_fx_warns(self, curve, curve2):
+    def test_no_fx_warns(self, curve, curve2) -> None:
         xcs = XCS(
             dt(2022, 2, 1),
             "8M",
@@ -1754,11 +1893,10 @@ class TestNonMtmXCS:
             payment_lag_exchange=0,
             notional=10e6,
         )
-        with default_context("no_fx_fixings_for_xcs", "warn"):
-            with pytest.warns(UserWarning):
-                xcs.npv(curves=[curve2, curve2, curve, curve], local=True)
+        with default_context("no_fx_fixings_for_xcs", "warn"), pytest.warns(UserWarning):
+            xcs.npv(curves=[curve2, curve2, curve, curve], local=True)
 
-    def test_npv_fx_as_float_valid(self):
+    def test_npv_fx_as_float_valid(self) -> None:
         xcs = XCS(
             dt(2022, 2, 1),
             "8M",
@@ -1776,7 +1914,7 @@ class TestNonMtmXCS:
         result = xcs.npv(curves=curve, fx=10.0)
         assert abs(result) < 1e-6
 
-    def test_npv_fx_as_rates_valid(self):
+    def test_npv_fx_as_rates_valid(self) -> None:
         xcs = XCS(
             dt(2022, 2, 1),
             "8M",
@@ -1797,13 +1935,13 @@ class TestNonMtmXCS:
 
 class TestNonMtmFixedFloatXCS:
     @pytest.mark.parametrize(
-        "float_spd, compound, expected",
+        ("float_spd", "compound", "expected"),
         [
             (10, "none_simple", 6.70955968),
             (100, "isda_compounding", 7.62137047),
         ],
     )
-    def test_nonmtmfixxcs_rate_npv(self, curve, curve2, float_spd, compound, expected):
+    def test_nonmtmfixxcs_rate_npv(self, curve, curve2, float_spd, compound, expected) -> None:
         fxf = FXForwards(
             FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
@@ -1843,7 +1981,7 @@ class TestNonMtmFixedFloatXCS:
         validate = irs.rate(curve2)
         assert abs(result - validate) < 1e-2
 
-    def test_nonmtmfixxcs_fx_notional(self):
+    def test_nonmtmfixxcs_fx_notional(self) -> None:
         xcs = XCS(
             dt(2022, 2, 1),
             "8M",
@@ -1860,7 +1998,7 @@ class TestNonMtmFixedFloatXCS:
         )
         assert xcs.leg2_notional == -2e6
 
-    def test_nonmtmfixxcs_no_fx_raises(self, curve, curve2):
+    def test_nonmtmfixxcs_no_fx_raises(self, curve, curve2) -> None:
         xcs = XCS(
             dt(2022, 2, 1),
             "8M",
@@ -1875,15 +2013,19 @@ class TestNonMtmFixedFloatXCS:
             notional=10e6,
         )
 
-        with pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"):
-            with default_context("no_fx_fixings_for_xcs", "raise"):
-                xcs.npv([curve, curve, curve2, curve2])
+        with (
+            pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"),
+            default_context("no_fx_fixings_for_xcs", "raise"),
+        ):
+            xcs.npv([curve, curve, curve2, curve2])
 
-        with pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"):
-            with default_context("no_fx_fixings_for_xcs", "raise"):
-                xcs.cashflows([curve, curve, curve2, curve2])
+        with (
+            pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"),
+            default_context("no_fx_fixings_for_xcs", "raise"),
+        ):
+            xcs.cashflows([curve, curve, curve2, curve2])
 
-    def test_nonmtmfixxcs_cashflows(self, curve, curve2):
+    def test_nonmtmfixxcs_cashflows(self, curve, curve2) -> None:
         fxf = FXForwards(
             FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
@@ -1923,7 +2065,7 @@ class TestNonMtmFixedFloatXCS:
         )
 
     @pytest.mark.parametrize("fix", ["fxr", "fxf", "float", "dual", "dual2"])
-    def test_nonmtmfixxcs_fx_fixing(self, curve, curve2, fix):
+    def test_nonmtmfixxcs_fx_fixing(self, curve, curve2, fix) -> None:
         fxr = FXRates({"usdnok": 10}, settlement=dt(2022, 1, 1))
         fxf = FXForwards(fxr, {"usdusd": curve, "nokusd": curve2, "noknok": curve2})
         mapping = {
@@ -1950,7 +2092,7 @@ class TestNonMtmFixedFloatXCS:
         )
         assert abs(xcs.npv([curve2, curve2, curve, curve], fx=fxf)) < 1e-7
 
-    def test_nonmtmfixxcs_raises(self, curve, curve2):
+    def test_nonmtmfixxcs_raises(self, curve, curve2) -> None:
         fxf = FXForwards(
             FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
@@ -2045,7 +2187,7 @@ class TestNonMtmFixedFixedXCS:
     #     )
 
     @pytest.mark.parametrize("fix", ["fxr", "fxf", "float", "dual", "dual2"])
-    def test_nonmtmfixxcs_fx_fixing(self, curve, curve2, fix):
+    def test_nonmtmfixxcs_fx_fixing(self, curve, curve2, fix) -> None:
         fxr = FXRates({"usdnok": 10}, settlement=dt(2022, 1, 1))
         fxf = FXForwards(fxr, {"usdusd": curve, "nokusd": curve2, "noknok": curve2})
         mapping = {
@@ -2072,7 +2214,7 @@ class TestNonMtmFixedFixedXCS:
         )
         assert abs(xcs.npv([curve2, curve2, curve, curve], fx=fxr)) < 1e-7
 
-    def test_nonmtmfixfixxcs_raises(self, curve, curve2):
+    def test_nonmtmfixfixxcs_raises(self, curve, curve2) -> None:
         fxf = FXForwards(
             FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
@@ -2100,7 +2242,7 @@ class TestNonMtmFixedFixedXCS:
 
 
 class TestXCS:
-    def test_mtmxcs_npv(self, curve, curve2):
+    def test_mtmxcs_npv(self, curve, curve2) -> None:
         fxf = FXForwards(
             FXRates({"eurusd": 1.1}, settlement=dt(2022, 1, 3)),
             {"usdusd": curve, "eurusd": curve2, "eureur": curve2},
@@ -2119,7 +2261,7 @@ class TestXCS:
         npv = xcs.npv([curve2, curve2, curve, curve], NoInput(0), fxf)
         assert abs(npv) < 1e-9
 
-    def test_mtmxcs_cashflows(self, curve, curve2):
+    def test_mtmxcs_cashflows(self, curve, curve2) -> None:
         fxf = FXForwards(
             FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
@@ -2157,9 +2299,9 @@ class TestXCS:
         )
 
     @pytest.mark.skip(
-        reason="After merging all XCS to one class inputting `fx_fixings` as list was changed."
+        reason="After merging all XCS to one class inputting `fx_fixings` as list was changed.",
     )
-    def test_mtmxcs_fx_fixings_raises(self):
+    def test_mtmxcs_fx_fixings_raises(self) -> None:
         with pytest.raises(ValueError, match="`fx_fixings` for MTM XCS should"):
             _ = XCS(
                 dt(2022, 2, 1),
@@ -2210,7 +2352,7 @@ class TestXCS:
             )
 
     @pytest.mark.parametrize(
-        "float_spd, compound, expected",
+        ("float_spd", "compound", "expected"),
         [
             (10, "none_simple", 9.97839804),
             (100, "none_simple", 99.78398037),
@@ -2218,7 +2360,7 @@ class TestXCS:
             (100, "isda_flat_compounding", 99.621117),
         ],
     )
-    def test_mtmxcs_rate(self, float_spd, compound, expected, curve, curve2):
+    def test_mtmxcs_rate(self, float_spd, compound, expected, curve, curve2) -> None:
         fxf = FXForwards(
             FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
@@ -2248,7 +2390,7 @@ class TestXCS:
         result2 = xcs.rate([curve2, curve2, curve, curve], NoInput(0), fxf, 2)
         assert abs(result - result2) < 1e-3
 
-    def test_fx_fixings_2_tuple(self):
+    def test_fx_fixings_2_tuple(self) -> None:
         xcs = XCS(
             dt(2022, 2, 1),
             "8M",
@@ -2262,7 +2404,7 @@ class TestXCS:
         )
         assert xcs.leg2.fx_fixings == [1.25, 1.5, 1.75]
 
-    def test_initialisation_nonmtm_xcs_leg_notional_unused(self):
+    def test_initialisation_nonmtm_xcs_leg_notional_unused(self) -> None:
         xcs = XCS(
             effective=dt(2000, 1, 1),
             termination="1y",
@@ -2278,7 +2420,7 @@ class TestXCS:
 
 
 class TestFixedFloatXCS:
-    def test_mtmfixxcs_rate(self, curve, curve2):
+    def test_mtmfixxcs_rate(self, curve, curve2) -> None:
         fxf = FXForwards(
             FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
@@ -2305,7 +2447,7 @@ class TestFixedFloatXCS:
         assert abs(result - validate) < 1e-4
         # alias = xcs.spread([curve2, curve2, curve, curve], NoInput(0), fxf, 2)
 
-    def test_mtmfixxcs_rate_reversed(self, curve, curve2):
+    def test_mtmfixxcs_rate_reversed(self, curve, curve2) -> None:
         fxf = FXForwards(
             FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
@@ -2335,7 +2477,7 @@ class TestFixedFloatXCS:
 
 
 class TestFixedFixedXCS:
-    def test_mtmfixfixxcs_rate(self, curve, curve2):
+    def test_mtmfixfixxcs_rate(self, curve, curve2) -> None:
         fxf = FXForwards(
             FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
@@ -2375,7 +2517,7 @@ class TestFixedFixedXCS:
 
 
 class TestFXSwap:
-    def test_fxswap_rate(self, curve, curve2):
+    def test_fxswap_rate(self, curve, curve2) -> None:
         fxf = FXForwards(
             FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
@@ -2393,7 +2535,7 @@ class TestFXSwap:
         assert abs(result - expected) < 1e-10
         assert np.isclose(result.dual, expected.dual)
 
-    def test_fxswap_pair_arg(self, curve, curve2):
+    def test_fxswap_pair_arg(self, curve, curve2) -> None:
         fxf = FXForwards(
             FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
@@ -2410,7 +2552,7 @@ class TestFXSwap:
         assert abs(result - expected) < 1e-10
         assert np.isclose(result.dual, expected.dual)
 
-    def test_currency_arg_pair_overlap(self):
+    def test_currency_arg_pair_overlap(self) -> None:
         fxs = FXSwap(
             dt(2022, 2, 1),
             "8M",
@@ -2419,7 +2561,7 @@ class TestFXSwap:
         )
         assert fxs.leg1.currency == "usd"
 
-    def test_fxswap_npv(self, curve, curve2):
+    def test_fxswap_npv(self, curve, curve2) -> None:
         fxf = FXForwards(
             FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
@@ -2440,9 +2582,10 @@ class TestFXSwap:
         assert abs(fxs.npv([NoInput(0), curve, NoInput(0), curve2], NoInput(0), fxf)) < 1e-7
 
     @pytest.mark.parametrize(
-        "points, split_notional", [(100, 1e6), (NoInput(0), 1e6), (100, NoInput(0))]
+        ("points", "split_notional"),
+        [(100, 1e6), (NoInput(0), 1e6), (100, NoInput(0))],
     )
-    def test_fxswap_points_raises(self, points, split_notional):
+    def test_fxswap_points_raises(self, points, split_notional) -> None:
         if points is not NoInput(0):
             msg = "Cannot initialise FXSwap with `points` but without `fx_fixings`."
             with pytest.raises(ValueError, match=msg):
@@ -2470,7 +2613,7 @@ class TestFXSwap:
                     points=points,
                 )
 
-    def test_fxswap_points_warns(self):
+    def test_fxswap_points_warns(self) -> None:
         with pytest.warns(UserWarning):
             fxs = FXSwap(
                 dt(2022, 2, 1),
@@ -2497,7 +2640,7 @@ class TestFXSwap:
             assert fxs._is_split is True
 
     @pytest.mark.parametrize(
-        "fx_fixings, points, split_notional, expected",
+        ("fx_fixings", "points", "split_notional", "expected"),
         [
             (NoInput(0), NoInput(0), NoInput(0), Dual(0, ["fx_usdnok"], [-1712.833785])),
             (11.0, 1800.0, NoInput(0), Dual(-3734.617680, ["fx_usdnok"], [3027.88203904])),
@@ -2522,8 +2665,14 @@ class TestFXSwap:
         ],
     )
     def test_fxswap_parameter_combinations_off_mids_given(
-        self, curve, curve2, fx_fixings, points, split_notional, expected
-    ):
+        self,
+        curve,
+        curve2,
+        fx_fixings,
+        points,
+        split_notional,
+        expected,
+    ) -> None:
         # curve._set_ad_order(1)
         # curve2._set_ad_order(1)
         # risk sensitivity to curve is checked in:
@@ -2555,7 +2704,7 @@ class TestFXSwap:
         assert abs(result - expected) < 1e-6
         assert np.isclose(result.dual, expected.dual)
 
-    def test_rate_with_fixed_parameters(self, curve, curve2):
+    def test_rate_with_fixed_parameters(self, curve, curve2) -> None:
         fxf = FXForwards(
             FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
             {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
@@ -2591,7 +2740,7 @@ class TestFXSwap:
     #         fxs.npv([NoInput(0), curve, NoInput(0), fxf.curve("nok", "usd")], NoInput(0), fxf)
     #     assert abs(npv_nok-npv_usd) < 1e-7  # npvs are equivalent becasue xcs basis =0
 
-    def test_transition_from_dual_to_dual2(self, curve, curve2):
+    def test_transition_from_dual_to_dual2(self, curve, curve2) -> None:
         # Test added for BUG, see PR: XXX
         fxf = FXForwards(
             FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
@@ -2610,7 +2759,7 @@ class TestFXSwap:
         fxf._set_ad_order(2)
         fxs.npv(curves=[None, fxf.curve("usd", "usd"), None, fxf.curve("nok", "usd")], fx=fxf)
 
-    def test_transition_from_dual_to_dual2_rate(self, curve, curve2):
+    def test_transition_from_dual_to_dual2_rate(self, curve, curve2) -> None:
         # Test added for BUG, see PR: XXX
         fxf = FXForwards(
             FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
@@ -2631,7 +2780,7 @@ class TestFXSwap:
 
 
 class TestSTIRFuture:
-    def test_stir_rate(self, curve, curve2):
+    def test_stir_rate(self, curve, curve2) -> None:
         stir = STIRFuture(
             effective=dt(2022, 3, 16),
             termination=dt(2022, 6, 15),
@@ -2642,7 +2791,7 @@ class TestSTIRFuture:
         assert abs(100 - result - stir.rate(curve)) < 1e-8
         assert abs(result - expected) < 1e-8
 
-    def test_stir_no_gamma(self, curve):
+    def test_stir_no_gamma(self, curve) -> None:
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
         ins = [
             IRS(dt(2022, 3, 16), dt(2022, 6, 15), "Q", curves="usdusd"),
@@ -2666,7 +2815,7 @@ class TestSTIRFuture:
         result = stir.gamma(solver=solver).sum().sum()
         assert abs(result) < 1e-7
 
-    def test_stir_npv(self):
+    def test_stir_npv(self) -> None:
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
         # irs = IRS(dt(2022, 3, 16), dt(2022, 6, 15), "Q", curves="usdusd")
         stir = STIRFuture(
@@ -2680,7 +2829,7 @@ class TestSTIRFuture:
         expected = (99.5 - (100 - 0.99250894761)) * 2500 * -1.0
         assert abs(result - expected) < 1e-7
 
-    def test_stir_raises(self):
+    def test_stir_raises(self) -> None:
         c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
         # irs = IRS(dt(2022, 3, 16), dt(2022, 6, 15), "Q", curves="usdusd")
         stir = STIRFuture(
@@ -2693,7 +2842,7 @@ class TestSTIRFuture:
         with pytest.raises(ValueError, match="`metric` must be in"):
             stir.rate(curves=c1, metric="bad")
 
-    def test_analytic_delta(self):
+    def test_analytic_delta(self) -> None:
         stir = STIRFuture(
             effective=dt(2022, 3, 16),
             termination=dt(2022, 6, 15),
@@ -2708,18 +2857,18 @@ class TestSTIRFuture:
 
 
 class TestPricingMechanism:
-    def test_value(self, curve):
+    def test_value(self, curve) -> None:
         ob = Value(dt(2022, 1, 28), curves=curve)
         ob.rate()
 
-    def test_irs(self, curve):
+    def test_irs(self, curve) -> None:
         ob = IRS(dt(2022, 1, 28), "6m", "Q", curves=curve)
         ob.rate()
         ob.npv()
         ob.cashflows()
         ob.spread()
 
-    def test_iirs(self, curve):
+    def test_iirs(self, curve) -> None:
         i_curve = IndexCurve(
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_base=100.0,
@@ -2730,21 +2879,21 @@ class TestPricingMechanism:
         ob.cashflows()
         ob.spread()
 
-    def test_sbs(self, curve):
+    def test_sbs(self, curve) -> None:
         ob = SBS(dt(2022, 1, 28), "6m", "Q", curves=curve)
         ob.rate()
         ob.npv()
         ob.cashflows()
         ob.spread()
 
-    def test_fra(self, curve):
+    def test_fra(self, curve) -> None:
         ob = FRA(dt(2022, 1, 28), "6m", "S", curves=curve)
         ob.rate()
         ob.npv()
         ob.cashflows()
 
     @pytest.mark.parametrize(
-        "klass, kwargs",
+        ("klass", "kwargs"),
         [
             (XCS, {"fixed": False, "leg2_fixed": False, "leg2_mtm": False}),
             (XCS, {"fixed": True, "leg2_fixed": False, "leg2_mtm": False, "fixed_rate": 2.0}),
@@ -2755,7 +2904,7 @@ class TestPricingMechanism:
             (XCS, {"fixed": True, "leg2_fixed": True, "leg2_mtm": True, "fixed_rate": 2.0}),
         ],
     )
-    def test_allxcs(self, klass, kwargs, curve, curve2):
+    def test_allxcs(self, klass, kwargs, curve, curve2) -> None:
         ob = klass(
             dt(2022, 1, 28),
             "6m",
@@ -2773,13 +2922,13 @@ class TestPricingMechanism:
         ob.npv(fx=fxf)
         ob.cashflows(fx=fxf)
 
-    def test_zcs(self, curve):
+    def test_zcs(self, curve) -> None:
         ob = ZCS(dt(2022, 1, 28), "6m", "S", curves=curve)
         ob.rate()
         ob.npv()
         ob.cashflows()
 
-    def test_zcis(self, curve):
+    def test_zcis(self, curve) -> None:
         i_curve = IndexCurve(
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_base=100.0,
@@ -2793,7 +2942,7 @@ class TestPricingMechanism:
 
 
 class TestPortfolio:
-    def test_portfolio_npv(self, curve):
+    def test_portfolio_npv(self, curve) -> None:
         irs1 = IRS(dt(2022, 1, 1), "6m", "Q", fixed_rate=1.0, curves=curve)
         irs2 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=2.0, curves=curve)
         pf = Portfolio([irs1, irs2])
@@ -2802,14 +2951,14 @@ class TestPortfolio:
         pf = Portfolio([irs1] * 5)
         assert pf.npv(base="usd") == irs1.npv() * 5
 
-    def test_portoflio_npv_pool(self, curve):
+    def test_portoflio_npv_pool(self, curve) -> None:
         irs1 = IRS(dt(2022, 1, 1), "6m", "Q", fixed_rate=1.0, curves=curve)
         pf = Portfolio([irs1] * 5)
         with default_context("pool", 2):  # also test parallel processing
             result = pf.npv(base="usd")
             assert result == irs1.npv() * 5
 
-    def test_portfolio_npv_local(self, curve):
+    def test_portfolio_npv_local(self, curve) -> None:
         irs1 = IRS(dt(2022, 1, 1), "6m", "Q", fixed_rate=1.0, curves=curve, currency="usd")
         irs2 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=2.0, curves=curve, currency="eur")
         irs3 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=2.0, curves=curve, currency="usd")
@@ -2822,7 +2971,7 @@ class TestPortfolio:
         }
         assert result == expected
 
-    def test_portfolio_local_parallel(self, curve):
+    def test_portfolio_local_parallel(self, curve) -> None:
         irs1 = IRS(dt(2022, 1, 1), "6m", "Q", fixed_rate=1.0, curves=curve, currency="usd")
         irs2 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=2.0, curves=curve, currency="eur")
         irs3 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=2.0, curves=curve, currency="usd")
@@ -2836,7 +2985,7 @@ class TestPortfolio:
             result = pf.npv(local=True)
             assert result == expected
 
-    def test_portfolio_mixed_currencies(self):
+    def test_portfolio_mixed_currencies(self) -> None:
         ll_curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 5, 1): 1.0, dt(2022, 9, 3): 1.0},
             interpolation="log_linear",
@@ -2890,16 +3039,24 @@ class TestPortfolio:
         )
         pf = Portfolio([irs, irs2])
         result = pf.npv(solver=combined_solver, local=True)
-        assert "eur" in result and "usd" in result
+        assert "eur" in result
+        assert "usd" in result
 
         # the following should execute without warnings
         pf.delta(solver=combined_solver)
         pf.gamma(solver=combined_solver)
 
+    def test_repr(self, curve) -> None:
+        irs1 = IRS(dt(2022, 1, 1), "6m", "Q", fixed_rate=1.0, curves=curve)
+        irs2 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=2.0, curves=curve)
+        pf = Portfolio([irs1, irs2])
+        expected = f"<rl.Portfolio at {hex(id(pf))}>"
+        assert pf.__repr__() == expected
+
 
 class TestFly:
     @pytest.mark.parametrize("mechanism", [False, True])
-    def test_fly_npv(self, curve, mechanism):
+    def test_fly_npv(self, curve, mechanism) -> None:
         mechanism = curve if mechanism else NoInput(0)
         inverse = curve if mechanism is NoInput(0) else NoInput(0)
         irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0, curves=mechanism)
@@ -2909,7 +3066,7 @@ class TestFly:
         assert fly.npv(inverse) == irs1.npv(inverse) + irs2.npv(inverse) + irs3.npv(inverse)
 
     @pytest.mark.parametrize("mechanism", [False, True])
-    def test_fly_rate(self, curve, mechanism):
+    def test_fly_rate(self, curve, mechanism) -> None:
         mechanism = curve if mechanism else NoInput(0)
         inv = curve if mechanism is NoInput(0) else NoInput(0)
         irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0, curves=mechanism)
@@ -2918,14 +3075,14 @@ class TestFly:
         fly = Fly(irs1, irs2, irs3)
         assert fly.rate(inv) == (-irs1.rate(inv) + 2 * irs2.rate(inv) - irs3.rate(inv)) * 100.0
 
-    def test_fly_cashflows_executes(self, curve):
+    def test_fly_cashflows_executes(self, curve) -> None:
         irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0, curves=curve)
         irs2 = IRS(dt(2022, 1, 1), "4m", "Q", fixed_rate=2.0, curves=curve)
         irs3 = IRS(dt(2022, 1, 1), "5m", "Q", fixed_rate=1.0, curves=curve)
         fly = Fly(irs1, irs2, irs3)
         fly.cashflows()
 
-    def test_local_npv(self, curve):
+    def test_local_npv(self, curve) -> None:
         irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0, curves=curve, currency="eur")
         irs2 = IRS(dt(2022, 1, 1), "4m", "Q", fixed_rate=2.0, curves=curve, currency="usd")
         irs3 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0, curves=curve, currency="gbp")
@@ -2938,7 +3095,7 @@ class TestFly:
         }
         assert result == expected
 
-    def test_delta(self, simple_solver):
+    def test_delta(self, simple_solver) -> None:
         irs1 = IRS(dt(2022, 1, 1), "6m", "A", fixed_rate=1.0, notional=-3e6, curves="curve")
         irs2 = IRS(dt(2022, 1, 1), "1Y", "A", fixed_rate=2.0, notional=3e6, curves="curve")
         irs3 = IRS(dt(2022, 1, 1), "18m", "A", fixed_rate=1.0, notional=-1e6, curves="curve")
@@ -2947,7 +3104,7 @@ class TestFly:
         expected = np.array([[102.08919479], [-96.14488074]])
         assert np.all(np.isclose(result, expected))
 
-    def test_gamma(self, simple_solver):
+    def test_gamma(self, simple_solver) -> None:
         irs1 = IRS(dt(2022, 1, 1), "6m", "A", fixed_rate=1.0, notional=-3e6, curves="curve")
         irs2 = IRS(dt(2022, 1, 1), "1Y", "A", fixed_rate=2.0, notional=3e6, curves="curve")
         irs3 = IRS(dt(2022, 1, 1), "18m", "A", fixed_rate=1.0, notional=-1e6, curves="curve")
@@ -2956,10 +3113,17 @@ class TestFly:
         expected = np.array([[-0.02944899, 0.009254014565], [0.009254014565, 0.0094239781314]])
         assert np.all(np.isclose(result, expected))
 
+    def test_repr(self):
+        irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0)
+        irs2 = IRS(dt(2022, 1, 1), "4m", "Q", fixed_rate=2.0)
+        spd = Spread(irs1, irs2)
+        expected = f"<rl.Spread at {hex(id(spd))}>"
+        assert expected == spd.__repr__()
+
 
 class TestSpread:
     @pytest.mark.parametrize("mechanism", [False, True])
-    def test_spread_npv(self, curve, mechanism):
+    def test_spread_npv(self, curve, mechanism) -> None:
         mechanism = curve if mechanism else NoInput(0)
         inverse = curve if mechanism is NoInput(0) else NoInput(0)
         irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0, curves=mechanism)
@@ -2968,7 +3132,7 @@ class TestSpread:
         assert spd.npv(inverse) == irs1.npv(inverse) + irs2.npv(inverse)
 
     @pytest.mark.parametrize("mechanism", [False, True])
-    def test_spread_rate(self, curve, mechanism):
+    def test_spread_rate(self, curve, mechanism) -> None:
         mechanism = curve if mechanism else NoInput(0)
         inverse = curve if mechanism is NoInput(0) else NoInput(0)
         irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0, curves=mechanism)
@@ -2976,13 +3140,13 @@ class TestSpread:
         spd = Spread(irs1, irs2)
         assert spd.rate(inverse) == (-irs1.rate(inverse) + irs2.rate(inverse)) * 100.0
 
-    def test_spread_cashflows_executes(self, curve):
+    def test_spread_cashflows_executes(self, curve) -> None:
         irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0, curves=curve)
         irs2 = IRS(dt(2022, 1, 1), "4m", "Q", fixed_rate=2.0, curves=curve)
         spd = Spread(irs1, irs2)
         spd.cashflows()
 
-    def test_local_npv(self, curve):
+    def test_local_npv(self, curve) -> None:
         irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0, curves=curve, currency="eur")
         irs2 = IRS(dt(2022, 1, 1), "4m", "Q", fixed_rate=2.0, curves=curve, currency="usd")
         spd = Spread(irs1, irs2)
@@ -2993,9 +3157,17 @@ class TestSpread:
         }
         assert result == expected
 
+    def test_repr(self):
+        irs1 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=1.0)
+        irs2 = IRS(dt(2022, 1, 1), "4m", "Q", fixed_rate=2.0)
+        irs3 = IRS(dt(2022, 1, 1), "5m", "Q", fixed_rate=1.0)
+        fly = Fly(irs1, irs2, irs3)
+        expected = f"<rl.Fly at {hex(id(fly))}>"
+        assert expected == fly.__repr__()
+
 
 class TestSensitivities:
-    def test_sensitivity_raises(self):
+    def test_sensitivity_raises(self) -> None:
         irs = IRS(dt(2022, 1, 1), "6m", "Q")
         with pytest.raises(ValueError, match="`solver` is required"):
             irs.delta()
@@ -3005,7 +3177,7 @@ class TestSensitivities:
 
 
 class TestSpec:
-    def test_spec_overwrites(self):
+    def test_spec_overwrites(self) -> None:
         irs = IRS(
             effective=dt(2022, 1, 1),
             termination=dt(2024, 2, 26),
@@ -3055,7 +3227,7 @@ class TestSpec:
         )
         assert irs.kwargs == expected
 
-    def test_irs(self):
+    def test_irs(self) -> None:
         irs = IRS(
             effective=dt(2022, 1, 1),
             termination="1Y",
@@ -3068,7 +3240,7 @@ class TestSpec:
         assert irs.kwargs["currency"] == "usd"
         assert irs.kwargs["fixed_rate"] == 2.0
 
-    def test_stir(self):
+    def test_stir(self) -> None:
         irs = STIRFuture(
             effective=dt(2022, 3, 16),
             termination=dt(2022, 6, 15),
@@ -3080,7 +3252,7 @@ class TestSpec:
         assert irs.kwargs["currency"] == "usd"
         assert irs.kwargs["roll"] == "imm"
 
-    def test_sbs(self):
+    def test_sbs(self) -> None:
         inst = SBS(
             effective=dt(2022, 1, 1),
             termination="1Y",
@@ -3095,7 +3267,7 @@ class TestSpec:
         assert inst.kwargs["frequency"] == "A"
         assert inst.kwargs["leg2_frequency"] == "s"
 
-    def test_zcis(self):
+    def test_zcis(self) -> None:
         inst = ZCIS(
             effective=dt(2022, 1, 1),
             termination="1Y",
@@ -3109,7 +3281,7 @@ class TestSpec:
         assert inst.kwargs["leg2_index_method"] == "monthly"
         assert inst.kwargs["leg2_calendar"] == "nyc,tgt"
 
-    def test_zcs(self):
+    def test_zcs(self) -> None:
         inst = ZCS(
             effective=dt(2022, 1, 1),
             termination="5Y",
@@ -3125,7 +3297,7 @@ class TestSpec:
         assert inst.kwargs["fixed_rate"] == 3.0
         assert inst.kwargs["leg2_spread_compound_method"] == "none_simple"
 
-    def test_iirs(self):
+    def test_iirs(self) -> None:
         inst = IIRS(
             effective=dt(2022, 1, 1),
             termination="1Y",
@@ -3141,7 +3313,7 @@ class TestSpec:
         assert inst.kwargs["fixed_rate"] == 3.0
         assert inst.kwargs["leg2_spread_compound_method"] == "none_simple"
 
-    def test_fixedratebond(self):
+    def test_fixedratebond(self) -> None:
         bond = FixedRateBond(
             effective=dt(2022, 1, 1),
             termination="1Y",
@@ -3149,35 +3321,45 @@ class TestSpec:
             calc_mode="ust_31bii",
             fixed_rate=2.0,
         )
-        assert bond.calc_mode == "ust_31bii"
+        from rateslib.instruments.bonds import US_GB_TSY
+
+        assert bond.calc_mode.kwargs == US_GB_TSY.kwargs
         assert bond.kwargs["convention"] == "actacticma"
         assert bond.kwargs["currency"] == "usd"
         assert bond.kwargs["fixed_rate"] == 2.0
         assert bond.kwargs["ex_div"] == 1
 
-    def test_indexfixedratebond(self):
+    def test_indexfixedratebond(self) -> None:
         bond = IndexFixedRateBond(
-            effective=dt(2022, 1, 1), termination="1Y", spec="ukti", calc_mode="ust", fixed_rate=2.0
+            effective=dt(2022, 1, 1),
+            termination="1Y",
+            spec="ukti",
+            calc_mode="ust",
+            fixed_rate=2.0,
         )
-        assert bond.calc_mode == "ust"
+        from rateslib.instruments.bonds import US_GB
+
+        assert bond.calc_mode.kwargs == US_GB.kwargs
         assert bond.kwargs["convention"] == "actacticma"
         assert bond.kwargs["currency"] == "gbp"
         assert bond.kwargs["fixed_rate"] == 2.0
         assert bond.kwargs["ex_div"] == 7
 
-    def test_bill(self):
+    def test_bill(self) -> None:
         bill = Bill(
             effective=dt(2022, 1, 1),
             termination="3m",
             spec="us_gbb",
             convention="act365f",
         )
-        assert bill.calc_mode == "us_gbb"
+        from rateslib.instruments.bonds import US_GBB
+
+        assert bill.calc_mode.kwargs == US_GBB.kwargs
         assert bill.kwargs["convention"] == "act365f"
         assert bill.kwargs["currency"] == "usd"
         assert bill.kwargs["fixed_rate"] == 0.0
 
-    def test_fra(self):
+    def test_fra(self) -> None:
         fra = FRA(
             effective=dt(2022, 1, 1),
             termination="3m",
@@ -3193,7 +3375,7 @@ class TestSpec:
         assert fra.kwargs["leg2_payment_lag"] == 5
         assert fra.kwargs["leg2_modifier"] == "F"
 
-    def test_frn(self):
+    def test_frn(self) -> None:
         frn = FloatRateNote(
             effective=dt(2022, 1, 1),
             termination="3y",
@@ -3207,7 +3389,7 @@ class TestSpec:
         assert frn.kwargs["payment_lag"] == 5
         assert frn.kwargs["modifier"] == "mf"
 
-    def test_xcs(self):
+    def test_xcs(self) -> None:
         xcs = XCS(
             effective=dt(2022, 1, 1),
             termination="3y",
@@ -3225,7 +3407,7 @@ class TestSpec:
 
 
 @pytest.mark.parametrize(
-    "inst, expected",
+    ("inst", "expected"),
     [
         (
             IRS(dt(2022, 1, 1), "9M", "Q", currency="eur", curves=["eureur", "eur_eurusd"]),
@@ -3233,7 +3415,8 @@ class TestSpec:
                 [-0.21319, -0.00068, 0.21656],
                 index=Index([dt(2022, 4, 3), dt(2022, 7, 3), dt(2022, 10, 3)], name="payment"),
                 columns=MultiIndex.from_tuples(
-                    [("EUR", "usd,eur")], names=["local_ccy", "collateral_ccy"]
+                    [("EUR", "usd,eur")],
+                    names=["local_ccy", "collateral_ccy"],
                 ),
             ),
         ),
@@ -3250,7 +3433,8 @@ class TestSpec:
                 [-0.51899, -6260.7208, 6299.28759],
                 index=Index([dt(2022, 4, 3), dt(2022, 7, 3), dt(2022, 10, 3)], name="payment"),
                 columns=MultiIndex.from_tuples(
-                    [("EUR", "usd")], names=["local_ccy", "collateral_ccy"]
+                    [("EUR", "usd")],
+                    names=["local_ccy", "collateral_ccy"],
                 ),
             ),
         ),
@@ -3260,19 +3444,23 @@ class TestSpec:
                 [0.0],
                 index=Index([dt(2022, 1, 15)], name="payment"),
                 columns=MultiIndex.from_tuples(
-                    [("EUR", "eur")], names=["local_ccy", "collateral_ccy"]
+                    [("EUR", "eur")],
+                    names=["local_ccy", "collateral_ccy"],
                 ),
             ),
         ),
         (
             FXExchange(
-                dt(2022, 1, 15), pair="eurusd", curves=["eureur", "eureur", "usdusd", "usdeur"]
+                dt(2022, 1, 15),
+                pair="eurusd",
+                curves=["eureur", "eureur", "usdusd", "usdeur"],
             ),
             DataFrame(
                 [[1000000.0, -1101072.93429]],
                 index=Index([dt(2022, 1, 15)], name="payment"),
                 columns=MultiIndex.from_tuples(
-                    [("EUR", "eur"), ("USD", "eur")], names=["local_ccy", "collateral_ccy"]
+                    [("EUR", "eur"), ("USD", "eur")],
+                    names=["local_ccy", "collateral_ccy"],
                 ),
             ),
         ),
@@ -3308,7 +3496,8 @@ class TestSpec:
                     name="payment",
                 ),
                 columns=MultiIndex.from_tuples(
-                    [("EUR", "usd"), ("USD", "usd")], names=["local_ccy", "collateral_ccy"]
+                    [("EUR", "usd"), ("USD", "usd")],
+                    names=["local_ccy", "collateral_ccy"],
                 ),
             ),
         ),
@@ -3324,13 +3513,14 @@ class TestSpec:
                 [[1000000.0, -1100306.44592], [-1005943.73163, 1113805.13741]],
                 index=Index([dt(2022, 1, 5), dt(2022, 4, 5)], name="payment"),
                 columns=MultiIndex.from_tuples(
-                    [("EUR", "usd"), ("USD", "usd")], names=["local_ccy", "collateral_ccy"]
+                    [("EUR", "usd"), ("USD", "usd")],
+                    names=["local_ccy", "collateral_ccy"],
                 ),
             ),
         ),
     ],
 )
-def test_fx_settlements_table(inst, expected):
+def test_fx_settlements_table(inst, expected) -> None:
     usdusd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.95}, id="usdusd")
     eureur = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.975}, id="eureur")
     eurusd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.976}, id="eurusd")
@@ -3373,7 +3563,7 @@ def test_fx_settlements_table(inst, expected):
     assert_frame_equal(expected, result, atol=1e-4)
 
 
-def test_fx_settlements_table_no_fxf():
+def test_fx_settlements_table_no_fxf() -> None:
     solver = Solver(
         curves=[Curve({dt(2023, 8, 1): 1.0, dt(2024, 8, 1): 1.0}, id="usd")],
         instruments=[IRS(dt(2023, 8, 1), "1Y", "Q", curves="usd")],
@@ -3395,14 +3585,18 @@ def test_fx_settlements_table_no_fxf():
     assert abs(result.iloc[3, 0] - 69.49810) < 1e-5
 
 
-@pytest.fixture()
+@pytest.fixture
 def fxfo():
     # FXForwards for FX Options tests
     eureur = Curve(
-        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9851909811629752}, calendar="tgt", id="eureur"
+        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9851909811629752},
+        calendar="tgt",
+        id="eureur",
     )
     usdusd = Curve(
-        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.976009366603271}, calendar="nyc", id="usdusd"
+        {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.976009366603271},
+        calendar="nyc",
+        id="usdusd",
     )
     eurusd = Curve({dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.987092591908283}, id="eurusd")
     fxr = FXRates({"eurusd": 1.0615}, settlement=dt(2023, 3, 20))
@@ -3414,7 +3608,7 @@ def fxfo():
 class TestFXOptions:
     # replicate https://quant.stackexchange.com/a/77802/29443
     @pytest.mark.parametrize(
-        "pay, k, exp_pts, exp_prem, dlty, exp_dl",
+        ("pay", "k", "exp_pts", "exp_prem", "dlty", "exp_dl"),
         [
             (dt(2023, 3, 20), 1.101, 69.378, 138756.54, "spot", 0.250124),
             (dt(2023, 3, 20), 1.101, 69.378, 138756.54, "forward", 0.251754),
@@ -3424,7 +3618,7 @@ class TestFXOptions:
         ],
     )
     @pytest.mark.parametrize("smile", [True, False])
-    def test_big_usd_pips(self, fxfo, pay, k, exp_pts, exp_prem, dlty, exp_dl, smile):
+    def test_big_usd_pips(self, fxfo, pay, k, exp_pts, exp_prem, dlty, exp_dl, smile) -> None:
         vol = FXDeltaVolSmile(
             {
                 0.75: 8.9,
@@ -3464,7 +3658,7 @@ class TestFXOptions:
         assert abs(result - exp_prem) < 1e-2
 
     @pytest.mark.parametrize(
-        "pay, k, exp_pts, exp_prem, dlty, exp_dl",
+        ("pay", "k", "exp_pts", "exp_prem", "dlty", "exp_dl"),
         [
             (dt(2023, 3, 20), 1.101, 0.6536, 130717.44, "spot", 0.243588),
             (dt(2023, 3, 20), 1.101, 0.6536, 130717.44, "forward", 0.245175),
@@ -3473,7 +3667,7 @@ class TestFXOptions:
         ],
     )
     @pytest.mark.parametrize("smile", [False, True])
-    def test_premium_big_eur_pc(self, fxfo, pay, k, exp_pts, exp_prem, dlty, exp_dl, smile):
+    def test_premium_big_eur_pc(self, fxfo, pay, k, exp_pts, exp_prem, dlty, exp_dl, smile) -> None:
         vol_ = (
             8.9
             if not smile
@@ -3506,7 +3700,7 @@ class TestFXOptions:
         expected = exp_prem
         assert abs(result - expected) < 1e-1
 
-    def test_fx_call_npv_unpriced(self, fxfo):
+    def test_fx_call_npv_unpriced(self, fxfo) -> None:
         fxo = FXCall(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -3521,7 +3715,7 @@ class TestFXOptions:
         expected = 0.0
         assert abs(result - expected) < 1e-6
 
-    def test_fx_call_cashflows(self, fxfo):
+    def test_fx_call_cashflows(self, fxfo) -> None:
         fxo = FXCall(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -3537,7 +3731,7 @@ class TestFXOptions:
         assert result.loc[0, "Type"] == "FXCallPeriod"
         assert result.loc[1, "Type"] == "Cashflow"
 
-    def test_fx_call_cashflows_table(self, fxfo):
+    def test_fx_call_cashflows_table(self, fxfo) -> None:
         fxo = FXCall(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -3557,14 +3751,14 @@ class TestFXOptions:
         assert_frame_equal(result, expected)
 
     @pytest.mark.parametrize(
-        "ccy, exp_rate, exp_strike",
+        ("ccy", "exp_rate", "exp_strike"),
         [
             ("usd", 70.180131, 1.10101920113408469),
             ("eur", 0.680949, 1.099976),
         ],
     )
     @pytest.mark.parametrize("smile", [True, False])
-    def test_fx_call_rate_delta_strike(self, fxfo, ccy, exp_rate, exp_strike, smile):
+    def test_fx_call_rate_delta_strike(self, fxfo, ccy, exp_rate, exp_strike, smile) -> None:
         vol = FXDeltaVolSmile(
             {
                 0.75: 8.9,
@@ -3593,7 +3787,7 @@ class TestFXOptions:
         assert abs(result - expected) < 1e-6
         assert abs(fxo.periods[0].strike - exp_strike) < 1e-4
 
-    def test_fx_call_rate_expiry_tenor(self, fxfo):
+    def test_fx_call_rate_expiry_tenor(self, fxfo) -> None:
         fxo = FXCall(
             pair="eurusd",
             expiry="3m",
@@ -3611,7 +3805,7 @@ class TestFXOptions:
         expected = 70.180131
         assert abs(result - expected) < 1e-6
 
-    def test_fx_call_plot_payoff(self, fxfo):
+    def test_fx_call_plot_payoff(self, fxfo) -> None:
         fxc = FXCall(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -3630,7 +3824,7 @@ class TestFXOptions:
         assert y[0] == 0.0
         assert y[1000] == (1.12 - 1.101) * 20e6
 
-    def test_fx_put_rate(self, fxfo):
+    def test_fx_put_rate(self, fxfo) -> None:
         fxo = FXPut(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -3646,16 +3840,17 @@ class TestFXOptions:
         expected = 83.975596
         assert abs(result - expected) < 1e-6
 
-    def test_str_tenor_raises(self):
+    def test_str_tenor_raises(self) -> None:
         with pytest.raises(ValueError, match="`expiry` as string tenor requires `eval_date`"):
             FXCall(
                 pair="eurusd",
                 expiry="3m",
             )
 
-    def test_premium_ccy_raises(self):
+    def test_premium_ccy_raises(self) -> None:
         with pytest.raises(
-            ValueError, match="`premium_ccy`: 'chf' must be one of option currency pair"
+            ValueError,
+            match="`premium_ccy`: 'chf' must be one of option currency pair",
         ):
             FXCall(
                 pair="eurusd",
@@ -3665,7 +3860,7 @@ class TestFXOptions:
             )
 
     @pytest.mark.parametrize("dlty", [("forward")])
-    def test_call_put_parity_50d(self, fxfo, dlty):
+    def test_call_put_parity_50d(self, fxfo, dlty) -> None:
         fxp = FXPut(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -3694,7 +3889,7 @@ class TestFXOptions:
         assert abs(fxp.analytic_greeks(curves, fx=fxfo, vol=10.0)["delta"] + 0.5) < 1e-14
         assert abs(fxp.periods[0].strike - 1.068856) < 1e-6
 
-    def test_analytic_vega(self, fxfo):
+    def test_analytic_vega(self, fxfo) -> None:
         fxo = FXCall(
             pair="eurusd",
             expiry="3m",
@@ -3715,7 +3910,7 @@ class TestFXOptions:
         # see test_periods/test_analytic_vega
         assert abs(result * 20e6 / 100 - 33757.945) < 1e-2
 
-    def test_rate_vol_raises(self, fxfo):
+    def test_rate_vol_raises(self, fxfo) -> None:
         args = {
             "expiry": dt(2009, 6, 16),
             "pair": "eurusd",
@@ -3739,7 +3934,7 @@ class TestFXOptions:
     @pytest.mark.parametrize("dt_0", ["spot", "forward"])
     @pytest.mark.parametrize("dt_1", ["spot", "forward", "spot_pa", "forward_pa"])
     @pytest.mark.parametrize("smile", [True, False])
-    def test_atm_rates(self, fxfo, phi, prem_ccy, smile, dt_0, dt_1):
+    def test_atm_rates(self, fxfo, phi, prem_ccy, smile, dt_0, dt_1) -> None:
         FXOp = FXCall if phi > 0 else FXPut
         fxvs = FXDeltaVolSmile(
             {0.25: 10.15, 0.5: 7.8, 0.75: 8.9},
@@ -3768,7 +3963,7 @@ class TestFXOptions:
         assert abs(result["__strike"] - expected) < 1e-8
 
     @pytest.mark.parametrize("phi", [1.0, -1.0])
-    def test_traded_option_rate_vol(self, fxfo, phi):
+    def test_traded_option_rate_vol(self, fxfo, phi) -> None:
         FXOp = FXCall if phi > 0 else FXPut
         fxo = FXOp(
             pair="eurusd",
@@ -3796,7 +3991,7 @@ class TestFXOptions:
         expected = 8.899854
         assert abs(result - expected) < 1e-6
 
-    def test_option_strike_premium_validation(self):
+    def test_option_strike_premium_validation(self) -> None:
         with pytest.raises(ValueError, match="`strike` for FXOption must be set"):
             FXCall(
                 pair="eurusd",
@@ -3807,7 +4002,7 @@ class TestFXOptions:
             FXCall(pair="eurusd", expiry=dt(2023, 6, 16), strike="25d", premium=0.0)
 
     @pytest.mark.parametrize(
-        "notn, expected, phi",
+        ("notn", "expected", "phi"),
         [
             (1e6, [0.5, 500000], 1.0),
             (2e6, [0.5, 1000000], 1.0),
@@ -3817,7 +4012,7 @@ class TestFXOptions:
             (-2e6, [-0.5, -1000000], -1.0),
         ],
     )
-    def test_greeks_delta_direction(self, fxfo, notn, expected, phi):
+    def test_greeks_delta_direction(self, fxfo, notn, expected, phi) -> None:
         # test the delta and delta_eur are not impacted by a Buy or Sell. Delta is expressed
         # relative to a Buy.
         FXOp = FXCall if phi > 0 else FXPut
@@ -3847,7 +4042,7 @@ class TestFXOptions:
         assert abs(result["delta"] - expected[0]) < 1e-6
         assert abs(result["delta_eur"] - expected[1]) < 1e-6
 
-    def test_metric_and_period_metric_compatible(self):
+    def test_metric_and_period_metric_compatible(self) -> None:
         # ensure that vol and pips_or_% can be interchanged
 
         eur = Curve({dt(2024, 6, 20): 1.0, dt(2024, 9, 30): 1.0}, calendar="tgt")
@@ -3861,7 +4056,9 @@ class TestFXOptions:
                 IRS(dt(2024, 6, 24), "3m", spec="eur_irs", curves=eur),
                 IRS(dt(2024, 6, 24), "3m", spec="usd_irs", curves=usd),
                 FXExchange(
-                    pair="eurusd", settlement=dt(2024, 9, 24), curves=[None, eurusd, None, usd]
+                    pair="eurusd",
+                    settlement=dt(2024, 9, 24),
+                    curves=[None, eurusd, None, usd],
                 ),
             ],
             s=[3.77, 5.51, 1.0775],
@@ -3906,7 +4103,7 @@ class TestFXOptions:
         assert abs(result - expected) < 1e-6
 
     @pytest.mark.parametrize(
-        "eval, eom, expected",
+        ("eval", "eom", "expected"),
         [
             (
                 dt(2024, 4, 26),
@@ -3920,7 +4117,7 @@ class TestFXOptions:
             ),  # 2bd before 30th May (rolled from 30th April)
         ],
     )
-    def test_expiry_delivery_tenor_eom(self, eval, eom, expected):
+    def test_expiry_delivery_tenor_eom(self, eval, eom, expected) -> None:
         fxo = FXCall(
             pair="eurusd",
             expiry="1m",
@@ -3935,14 +4132,14 @@ class TestFXOptions:
 
 class TestRiskReversal:
     @pytest.mark.parametrize(
-        "metric, expected",
+        ("metric", "expected"),
         [
             ("pips_or_%", -13.795465),
             ("vol", -1.25),
             ("premium", -27590.930533),
         ],
     )
-    def test_risk_reversal_rate_metrics(self, fxfo, metric, expected):
+    def test_risk_reversal_rate_metrics(self, fxfo, metric, expected) -> None:
         fxo = FXRiskReversal(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -3958,7 +4155,7 @@ class TestRiskReversal:
         assert abs(result - expected) < 1e-6
 
     @pytest.mark.parametrize(
-        "prem, prem_ccy, local, exp",
+        ("prem", "prem_ccy", "local", "exp"),
         [
             ((NoInput(0), NoInput(0)), NoInput(0), False, 0.0),
             ((NoInput(0), NoInput(0)), "eur", False, 0.0),
@@ -3972,7 +4169,7 @@ class TestRiskReversal:
             ),
         ],
     )
-    def test_risk_reversal_npv(self, fxfo, prem, prem_ccy, local, exp):
+    def test_risk_reversal_npv(self, fxfo, prem, prem_ccy, local, exp) -> None:
         fxo = FXRiskReversal(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -3993,7 +4190,7 @@ class TestRiskReversal:
             for k in expected:
                 assert abs(result[k] - expected[k]) < 1e-3
 
-    def test_risk_reversal_plot(self, fxfo):
+    def test_risk_reversal_plot(self, fxfo) -> None:
         fxo = FXRiskReversal(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -4011,7 +4208,7 @@ class TestRiskReversal:
         assert abs(y[0] + (1.033 - 1.03) * 20e6) < 1e-5
         assert abs(y[1000] - (1.12 - 1.101) * 20e6) < 1e-5
 
-    def test_rr_strike_premium_validation(self):
+    def test_rr_strike_premium_validation(self) -> None:
         with pytest.raises(ValueError, match="`strike` for FXRiskReversal must be set"):
             FXRiskReversal(
                 pair="eurusd",
@@ -4027,14 +4224,14 @@ class TestRiskReversal:
             )
 
     @pytest.mark.parametrize(
-        "notn, expected_grks, expected_ccy",
+        ("notn", "expected_grks", "expected_ccy"),
         [
             (1e6, [0.5, -1.329654, -0.035843], [500000, -14194.192533, -358.428628]),
             (2e6, [0.5, -1.329654, -0.035843], [1000000, -28388.384, -716.8572]),
             (-2e6, [0.5, -1.329654, -0.035843], [1000000, -28388.384, -716.8572]),
         ],
     )
-    def test_greeks_delta_direction(self, fxfo, notn, expected_grks, expected_ccy):
+    def test_greeks_delta_direction(self, fxfo, notn, expected_grks, expected_ccy) -> None:
         # test the delta and delta_eur are not impacted by a Buy or Sell. Delta is expressed
         # relative to a Buy.
         fxo = FXRiskReversal(
@@ -4067,10 +4264,23 @@ class TestRiskReversal:
         assert abs(result["gamma_eur_1%"] - expected_ccy[1]) < 1e-2
         assert abs(result["vega_usd"] - expected_ccy[2]) < 1e-2
 
+    def test_repr(self):
+        fxo = FXRiskReversal(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            delivery_lag=2,
+            payment_lag=2,
+            calendar="tgt",
+            strike=[1.033, 1.101],
+        )
+        expected = f"<rl.FXRiskReversal at {hex(id(fxo))}>"
+        assert fxo.__repr__() == expected
+
 
 class TestFXStraddle:
     @pytest.mark.parametrize(
-        "dlty, strike, ccy, exp",
+        ("dlty", "strike", "ccy", "exp"),
         [
             # ("forward", ["50d", "-50d"], "usd", [1.068856203, 1.068856203]),
             # ("spot", ["50d", "-50d"], "usd", [1.06841799, 1.069294591]),
@@ -4087,7 +4297,7 @@ class TestFXStraddle:
         ],
     )
     @pytest.mark.parametrize("smile", [True, False])
-    def test_straddle_strikes(self, fxfo, dlty, strike, ccy, exp, smile):
+    def test_straddle_strikes(self, fxfo, dlty, strike, ccy, exp, smile) -> None:
         fxvs = FXDeltaVolSmile(
             nodes={0.5: 10.0},
             eval_date=dt(2023, 3, 16),
@@ -4114,14 +4324,14 @@ class TestFXStraddle:
         assert abs(put_k - exp[1]) < 1e-7
 
     @pytest.mark.parametrize(
-        "metric, expected",
+        ("metric", "expected"),
         [
             ("pips_or_%", 337.998151),
             ("vol", 7.9),
             ("premium", 675996.301147),
         ],
     )
-    def test_straddle_rate_metrics(self, fxfo, metric, expected):
+    def test_straddle_rate_metrics(self, fxfo, metric, expected) -> None:
         fxo = FXStraddle(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -4136,7 +4346,7 @@ class TestFXStraddle:
         result = fxo.rate(curves, fx=fxfo, vol=7.9, metric=metric)
         assert abs(result - expected) < 1e-6
 
-    def test_strad_strike_premium_validation(self):
+    def test_strad_strike_premium_validation(self) -> None:
         with pytest.raises(ValueError, match="`strike` for FXStraddle must be set"):
             FXStraddle(
                 pair="eurusd",
@@ -4152,14 +4362,14 @@ class TestFXStraddle:
             )
 
     @pytest.mark.parametrize(
-        "notn, expected_grks, expected_ccy",
+        ("notn", "expected_grks", "expected_ccy"),
         [
             (1e6, [0.0, 19.086488, 0.422238], [0, 203750.1688, 4222.379]),
             (2e6, [0.0, 19.086488, 0.422238], [0, 407500.336, 8444.758]),
             (-2e6, [0.0, 19.086488, 0.422238], [0, 407500.336, 8444.758]),
         ],
     )
-    def test_greeks_delta_direction(self, fxfo, notn, expected_grks, expected_ccy):
+    def test_greeks_delta_direction(self, fxfo, notn, expected_grks, expected_ccy) -> None:
         # test the delta and delta_eur are not impacted by a Buy or Sell. Delta is expressed
         # relative to a Buy.
         fxo = FXStraddle(
@@ -4192,10 +4402,23 @@ class TestFXStraddle:
         assert abs(result["gamma_eur_1%"] - expected_ccy[1]) < 1e-2
         assert abs(result["vega_usd"] - expected_ccy[2]) < 1e-2
 
+    def test_repr(self):
+        fxo = FXStraddle(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            delivery_lag=2,
+            payment_lag=2,
+            calendar="tgt",
+            strike=1.0,
+        )
+        expected = f"<rl.FXStraddle at {hex(id(fxo))}>"
+        assert expected == fxo.__repr__()
+
 
 class TestFXStrangle:
     @pytest.mark.parametrize(
-        "strike, ccy",
+        ("strike", "ccy"),
         [
             ([1.02, 1.10], "usd"),
             (["-20d", "20d"], "usd"),
@@ -4211,7 +4434,7 @@ class TestFXStrangle:
         ],
     )
     @pytest.mark.parametrize("delta_type", ["forward", "spot_pa"])
-    def test_strangle_rate(self, fxfo, delta_type, strike, ccy, smile):
+    def test_strangle_rate(self, fxfo, delta_type, strike, ccy, smile) -> None:
         # test pricing a straddle with vol 10.0 returns 10.0
         fxo = FXStrangle(
             pair="eurusd",
@@ -4264,7 +4487,7 @@ class TestFXStrangle:
         )
         assert abs(premium - premium_vol) < 5e-2
 
-    def test_strangle_rate_strike_str(self, fxfo):
+    def test_strangle_rate_strike_str(self, fxfo) -> None:
         # test pricing a strangle with delta as string that is not a delta percent should fail?
         fxo = FXStrangle(
             pair="eurusd",
@@ -4318,7 +4541,7 @@ class TestFXStrangle:
         )
         assert abs(premium - premium_vol) < 5e-2
 
-    def test_strangle_rate_ad(self, fxfo):
+    def test_strangle_rate_ad(self, fxfo) -> None:
         # test pricing a strangle with delta as string that is not a delta percent should fail?
         fxo = FXStrangle(
             pair="eurusd",
@@ -4370,7 +4593,7 @@ class TestFXStrangle:
             fwd_diff = (result2 - result) * 1000.0
             assert abs(fwd_diff - gradient(result, [f"vol{i}"])[0]) < 1e-4
 
-    def test_strangle_rate_ad2(self, fxfo):
+    def test_strangle_rate_ad2(self, fxfo) -> None:
         # test pricing a strangle with delta as string that is not a delta percent should fail?
         fxo = FXStrangle(
             pair="eurusd",
@@ -4442,7 +4665,7 @@ class TestFXStrangle:
             fwd_diff = (result_plus + result_min - 2 * result) * 1000000.0
             assert abs(fwd_diff - gradient(result, [f"vol{i}"], order=2)[0][0]) < 1e-4
 
-    def test_strangle_rate_2vols(self, fxfo):
+    def test_strangle_rate_2vols(self, fxfo) -> None:
         # test pricing a straddle with vol [8.0, 10.0] returns a valid value close to 9.0
         fxo = FXStrangle(
             pair="eurusd",
@@ -4484,7 +4707,7 @@ class TestFXStrangle:
         assert abs(premium - premium_vol) < 5e-2
 
     @pytest.mark.parametrize(
-        "notn, expected_grks, expected_ccy",
+        ("notn", "expected_grks", "expected_ccy"),
         [
             (1e6, [-0.026421, 10.217368, 0.294605], [-26421.408, 109071.429, 2946.046]),
             (2e6, [-0.026421, 10.217368, 0.294605], [-52842.816, 218142.858, 5892.092]),
@@ -4492,7 +4715,7 @@ class TestFXStrangle:
         ],
     )
     @pytest.mark.parametrize("strikes", [("-20d", "20d"), (1.0238746345527665, 1.1159199351325004)])
-    def test_greeks_delta_direction(self, fxfo, notn, expected_grks, expected_ccy, strikes):
+    def test_greeks_delta_direction(self, fxfo, notn, expected_grks, expected_ccy, strikes) -> None:
         # test the delta and delta_eur are not impacted by a Buy or Sell. Delta is expressed
         # relative to a Buy.
         fxo = FXStrangle(
@@ -4525,7 +4748,7 @@ class TestFXStrangle:
         assert abs(result["gamma_eur_1%"] - expected_ccy[1]) < 1e-1
         assert abs(result["vega_usd"] - expected_ccy[2]) < 1e-1
 
-    def test_strang_strike_premium_validation(self):
+    def test_strang_strike_premium_validation(self) -> None:
         with pytest.raises(ValueError, match="`strike` for FXStrangle must be set"):
             FXStrangle(
                 pair="eurusd",
@@ -4541,10 +4764,23 @@ class TestFXStrangle:
                 premium=[NoInput(0), 1.0],
             )
 
+    def test_repr(self):
+        fxo = FXStrangle(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery_lag=dt(2023, 6, 20),
+            payment_lag=dt(2023, 6, 20),
+            delta_type="forward",
+            premium_ccy="usd",
+            strike=[1.0, 1.1],
+        )
+        expected = f"<rl.FXStrangle at {hex(id(fxo))}>"
+        assert expected == fxo.__repr__()
+
 
 class TestFXBrokerFly:
     @pytest.mark.parametrize(
-        "strike, ccy",
+        ("strike", "ccy"),
         [
             ([1.024, 1.0683, 1.116], "usd"),
             (["-20d", "atm_delta", "20d"], "usd"),
@@ -4554,7 +4790,7 @@ class TestFXBrokerFly:
     )
     @pytest.mark.parametrize("smile", [True, False])
     @pytest.mark.parametrize("delta_type", ["forward", "spot_pa"])
-    def test_fxbf_rate(self, fxfo, delta_type, strike, ccy, smile):
+    def test_fxbf_rate(self, fxfo, delta_type, strike, ccy, smile) -> None:
         # test pricing a straddle with vol 10.0 returns 10.0
         fxo = FXBrokerFly(
             pair="eurusd",
@@ -4585,7 +4821,7 @@ class TestFXBrokerFly:
         assert abs(result - approx_expected) < 0.16
 
     @pytest.mark.parametrize(
-        "strike, ccy",
+        ("strike", "ccy"),
         [
             ([1.024, 1.0683, 1.116], "usd"),
             (["-20d", "atm_delta", "20d"], "usd"),
@@ -4594,7 +4830,7 @@ class TestFXBrokerFly:
         ],
     )
     @pytest.mark.parametrize("smile", [True])
-    def test_fxbf_rate_pips(self, fxfo, strike, ccy, smile):
+    def test_fxbf_rate_pips(self, fxfo, strike, ccy, smile) -> None:
         fxo = FXBrokerFly(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -4624,7 +4860,7 @@ class TestFXBrokerFly:
         assert abs(result - expected[0]) < expected[1]
 
     @pytest.mark.parametrize(
-        "strike, ccy",
+        ("strike", "ccy"),
         [
             ([1.024, 1.0683, 1.116], "usd"),
             (["-20d", "atm_delta", "20d"], "usd"),
@@ -4632,7 +4868,7 @@ class TestFXBrokerFly:
             (["-20d", "atm_delta", "20d"], "eur"),
         ],
     )
-    def test_fxbf_rate_premium(self, fxfo, strike, ccy):
+    def test_fxbf_rate_premium(self, fxfo, strike, ccy) -> None:
         fxo = FXBrokerFly(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -4660,7 +4896,7 @@ class TestFXBrokerFly:
         expected = (-221743, 100) if ccy == "usd" else (-210350, 800)
         assert abs(result - expected[0]) < expected[1]
 
-    def test_bf_rate_vols_list(self, fxfo):
+    def test_bf_rate_vols_list(self, fxfo) -> None:
         fxbf = FXBrokerFly(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -4690,7 +4926,7 @@ class TestFXBrokerFly:
         assert abs(result - expected) < 1e-6
 
     @pytest.mark.parametrize(
-        "notn, expected_grks, expected_ccy",
+        ("notn", "expected_grks", "expected_ccy"),
         [
             ([1e6, NoInput(0)], [-0.026421, -3.099693, 0.000000], [-26421.408, -33089.534, 0.000]),
             ([2e6, NoInput(0)], [-0.026421, -3.099693, 0.000000], [-52842.816, -66179.068, 0.000]),
@@ -4705,7 +4941,7 @@ class TestFXBrokerFly:
             (1.0238746345527665, 1.0683288279019205, 1.1159199351325004),
         ],
     )
-    def test_greeks_delta_direction(self, fxfo, notn, expected_grks, expected_ccy, strikes):
+    def test_greeks_delta_direction(self, fxfo, notn, expected_grks, expected_ccy, strikes) -> None:
         # test the delta and delta_eur are not impacted by a Buy or Sell. Delta is expressed
         # relative to a Buy.
         fxo = FXBrokerFly(
@@ -4738,7 +4974,7 @@ class TestFXBrokerFly:
         assert abs(result["gamma_eur_1%"] - expected_ccy[1]) < 1.5
         assert abs(result["vega_usd"] - expected_ccy[2]) < 1e-1
 
-    def test_single_vol_definition(self, fxfo):
+    def test_single_vol_definition(self, fxfo) -> None:
         # test the metric of the rate can be input as "single_vol" and a result returned.
         fxvs = FXDeltaVolSmile(
             nodes={
@@ -4765,9 +5001,22 @@ class TestFXBrokerFly:
         expected = 10.147423 - 7.90
         assert (result - expected) < 1e-6
 
+    def test_repr(self):
+        fxo = FXBrokerFly(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery_lag=dt(2023, 6, 20),
+            payment_lag=dt(2023, 6, 20),
+            delta_type="forward",
+            premium_ccy="usd",
+            strike=["-20d", "atm_delta", "20d"],
+        )
+        expected = f"<rl.FXBrokerFly at {hex(id(fxo))}>"
+        assert expected == fxo.__repr__()
+
 
 class TestVolValue:
-    def test_solver_passthrough(self):
+    def test_solver_passthrough(self) -> None:
         smile = FXDeltaVolSmile(
             nodes={0.25: 10.0, 0.5: 10.0, 0.75: 10.0},
             eval_date=dt(2023, 3, 16),
@@ -4785,7 +5034,12 @@ class TestVolValue:
         assert abs(smile[0.5] - 8.2) < 5e-7
         assert abs(smile[0.75] - 9.1) < 5e-7
 
-    def test_no_solver_vol_value(self):
+    def test_no_solver_vol_value(self) -> None:
         vv = VolValue(0.25, vol="string_id")
         with pytest.raises(ValueError, match="String `vol` ids require a `solver`"):
             vv.rate()
+
+    def test_repr(self):
+        v = VolValue(0.25)
+        expected = f"<rl.VolValue at {hex(id(v))}>"
+        assert v.__repr__() == expected

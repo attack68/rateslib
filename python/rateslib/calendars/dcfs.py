@@ -193,7 +193,11 @@ def _dcf_actacticma_stub365f(
         cal_ = get_calendar(calendar)
         if end == termination:  # stub is a BACK stub:
             fwd_end = cal_.add_months(
-                start, frequency_months, _get_modifier("NONE", True), _get_rollday(roll), False
+                start,
+                frequency_months,
+                _get_modifier("NONE", True),
+                _get_rollday(roll),
+                False,
             )
             r = (end - start).days
             s = (fwd_end - start).days
@@ -208,7 +212,11 @@ def _dcf_actacticma_stub365f(
 
         else:  # stub is a FRONT stub
             prev_start = cal_.add_months(
-                end, -frequency_months, _get_modifier("NONE", True), _get_rollday(roll), False
+                end,
+                -frequency_months,
+                _get_modifier("NONE", True),
+                _get_rollday(roll),
+                False,
             )
             r = (end - start).days
             s = (end - prev_start).days

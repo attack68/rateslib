@@ -5,22 +5,22 @@ from rateslib.curves import Curve
 from rateslib.instruments import IRS
 
 
-def test_version():
-    assert __version__ == "1.4.1"
+def test_version() -> None:
+    assert __version__ == "1.5.0"
 
 
 @pytest.mark.parametrize("name", ["estr", "sonia", "sofr", "swestr", "nowa"])
-def test_fixings(name):
+def test_fixings(name) -> None:
     result = defaults.fixings[name]
     assert isinstance(result, Series)
 
 
-def test_context_raises():
+def test_context_raises() -> None:
     with pytest.raises(ValueError, match="Need to invoke as "):
         default_context("only 1 arg")
 
 
-def test_reset_defaults():
+def test_reset_defaults() -> None:
     defaults.modifier = "MP"
     assert defaults.modifier == "MP"
     defaults.calendars["TEST"] = 10.0
@@ -31,7 +31,7 @@ def test_reset_defaults():
     assert "TEST" not in defaults.calendars
 
 
-def test_calendar_matches_fixings_corra():
+def test_calendar_matches_fixings_corra() -> None:
     # this should run without warnings or errors if the "tro" calendar matches the fixings.
     swap = IRS(
         effective=dt(2017, 1, 1),
@@ -45,6 +45,6 @@ def test_calendar_matches_fixings_corra():
     swap.npv(curves=curve)
 
 
-def test_fixings_raises_file_error():
+def test_fixings_raises_file_error() -> None:
     with pytest.raises(ValueError, match="Fixing data for the index "):
         defaults.fixings["nofile"]

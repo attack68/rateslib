@@ -98,10 +98,10 @@ class FXDeltaVolSmile:
         if "_pa" in self.delta_type:
             vol = list(self.nodes.values())[-1] / 100.0
             upper_bound = dual_exp(
-                vol * self.t_expiry_sqrt * (3.75 - 0.5 * vol * self.t_expiry_sqrt)
+                vol * self.t_expiry_sqrt * (3.75 - 0.5 * vol * self.t_expiry_sqrt),
             )
             self.plot_upper_bound = dual_exp(
-                vol * self.t_expiry_sqrt * (3.25 - 0.5 * vol * self.t_expiry_sqrt)
+                vol * self.t_expiry_sqrt * (3.25 - 0.5 * vol * self.t_expiry_sqrt),
             )
             self._right_n = 1  # right hand spline endpoint will be constrained by derivative
         else:
@@ -221,7 +221,7 @@ class FXDeltaVolSmile:
         if self.expiry != expiry:
             raise ValueError(
                 "`expiry` of VolSmile and OptionPeriod do not match: calculation aborted "
-                "due to potential pricing errors."
+                "due to potential pricing errors.",
             )
 
         u = k / f  # moneyness
@@ -403,7 +403,7 @@ class FXDeltaVolSmile:
         right_n = self._right_n
         return tau, y, left_n, right_n
 
-    def csolve(self):
+    def csolve(self) -> None:
         """
         Solves **and sets** the coefficients, ``c``, of the :class:`PPSpline`.
 
@@ -538,9 +538,9 @@ class FXDeltaVolSmile:
 
     def plot(
         self,
-        comparators: list[FXDeltaVolSmile] = [],
+        comparators: list[FXDeltaVolSmile] | NoInput = NoInput(0),
         difference: bool = False,
-        labels: list[str] = [],
+        labels: list[str] | NoInput = NoInput(0),
         x_axis: str = "delta",
     ):
         """
@@ -575,6 +575,8 @@ class FXDeltaVolSmile:
         (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
         """
         # reversed for intuitive strike direction
+        comparators = _drb([], comparators)
+        labels = _drb([], labels)
         x = np.linspace(self.plot_upper_bound, self.t[0], 301)
         vols = self.spline.ppev(x)
         if x_axis == "moneyness":
@@ -584,7 +586,7 @@ class FXDeltaVolSmile:
                     _2
                     * self.t_expiry_sqrt
                     / 100.0
-                    * (dual_inv_norm_cdf(_1) * _2 * self.t_expiry_sqrt * _2 / 100.0)
+                    * (dual_inv_norm_cdf(_1) * _2 * self.t_expiry_sqrt * _2 / 100.0),
                 )
                 for (_1, _2) in zip(x, vols)
             ]
@@ -707,7 +709,7 @@ class FXDeltaVolSurface:
         self.delta_type = _validate_delta_type(delta_type)
         self.smiles = [
             FXDeltaVolSmile(
-                nodes={k: v for k, v in zip(self.delta_indexes, node_values[i, :])},
+                nodes=dict(zip(self.delta_indexes, node_values[i, :])),
                 expiry=expiry,
                 eval_date=self.eval_date,
                 delta_type=self.delta_type,
@@ -821,7 +823,9 @@ class FXDeltaVolSurface:
                         bounds_flag=0,
                     )
                     for k, vol1, vol2 in zip(
-                        self.delta_indexes, ls.nodes.values(), rs.nodes.values()
+                        self.delta_indexes,
+                        ls.nodes.values(),
+                        rs.nodes.values(),
                     )
                 },
                 eval_date=self.eval_date,
