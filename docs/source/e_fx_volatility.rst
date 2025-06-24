@@ -71,7 +71,6 @@ Building and Pricing an Option
 functionality via :class:`~rateslib.instruments.FXCall` and
 :class:`~rateslib.instruments.FXPut`.
 
-
 .. ipython:: python
 
    fxc = FXCall(
