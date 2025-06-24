@@ -17,6 +17,7 @@ macro_rules! create_interface {
         #[pymethods]
         impl $name {
             #[new]
+            #[pyo3(signature = (k, t, c=None))]
             fn new(k: usize, t: Vec<f64>, c: Option<Vec<$type>>) -> Self {
                 Self {
                     inner: PPSpline::new(k, t, c),
@@ -41,7 +42,7 @@ macro_rules! create_interface {
             #[getter]
             fn c(&self) -> PyResult<Option<Vec<$type>>> {
                 match self.inner.c() {
-                    Some(val) => Ok(Some(val.clone().into_raw_vec())),
+                    Some(val) => Ok(Some(val.clone().into_raw_vec_and_offset().0)),
                     None => Ok(None)
                 }
             }
@@ -378,7 +379,7 @@ macro_rules! create_interface {
                 tau: Vec<f64>,
                 left_n: usize,
                 right_n: usize
-            ) -> PyResult<Bound<'_, PyArray2<f64>>> {
+            ) -> PyResult<Bound<'py, PyArray2<f64>>> {
                 Ok(self.inner.bsplmatrix(&tau, left_n, right_n).to_pyarray_bound(py))
             }
 
@@ -449,6 +450,7 @@ impl IntoPy<PyObject> for NumberPPSpline {
 /// For continuity on the right boundary the rightmost basic b-spline is also set equal
 /// to 1 there: :math:`B_{n,1,\mathbf{t}}(t_{n+k})=1`.
 #[pyfunction]
+#[pyo3(signature = (x, i, k, t, org_k=None))]
 pub(crate) fn bsplev_single(
     x: f64,
     i: usize,
@@ -526,6 +528,7 @@ pub(crate) fn bsplev_single(
 ///    ax.plot(x, spline.bspldnev(x, 3, 0))
 ///    plt.show()
 #[pyfunction]
+#[pyo3(signature = (x, i, k, t, m, org_k=None))]
 pub(crate) fn bspldnev_single(
     x: f64,
     i: usize,

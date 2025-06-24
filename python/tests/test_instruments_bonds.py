@@ -734,8 +734,8 @@ class TestFixedRateBond:
             ex_div=7,
             fixed_rate=8.0,
         )
-        price0 = gilt.price(4.445, dt(1999, 5, 27))
-        price1 = gilt.price(4.446, dt(1999, 5, 27))
+        price0 = gilt.price(4.445, dt(1999, 5, 27), dirty=True)
+        price1 = gilt.price(4.446, dt(1999, 5, 27), dirty=True)
         if metric == "risk":
             numeric = price0 - price1
         elif metric == "modified":
@@ -2113,7 +2113,7 @@ class TestFloatRateNote:
 
         # Case2: Some fixings are unknown and must be forecast by a curve.
         # None are supplied so a UserWarning is generated and they are forward filled.
-        with pytest.warns(UserWarning):
+        with pytest.warns(UserWarning, match="A `Curve` was not supplied."):
             result = frn.accrued(settlement=dt(2022, 1, 10))
             assert abs(result - 0.065770465) < 1e-6
 
@@ -2168,6 +2168,35 @@ class TestFloatRateNote:
         # Case8: bond settles a few days forward, no fixings are given and no curve. Must error.
         with pytest.raises(TypeError, match="`fixings` or `curve` are not available for"):
             frn_no_fixings.accrued(settlement=dt(2022, 1, 10))
+
+    def test_ibor_fixings_table_historical_before_curve(self, curve):
+        # see test FloatPeriod.test_ibor_fixings_table_historical_before_curve
+        bond = FloatRateNote(
+            effective=dt(2001, 11, 7),
+            termination=dt(2002, 8, 7),
+            frequency="q",
+            fixing_method="ibor",
+            fixings=[4.0],
+            curves=[curve],
+        )
+        result = bond.fixings_table()
+        assert isinstance(result, DataFrame)
+
+    def test_ibor_fixings_table_with_fixing(self, curve):
+        # see test FloatPeriod.test_ibor_fixings_table_historical_before_curve
+        bond = FloatRateNote(
+            effective=dt(2021, 11, 7),
+            termination=dt(2022, 8, 7),
+            frequency="q",
+            fixing_method="ibor",
+            fixings=[4.0],
+            curves=[curve],
+        )
+        result = bond.fixings_table()
+        assert isinstance(result, DataFrame)
+        assert result.iloc[0, 0] == 0.0
+        assert result.iloc[1, 0] == -1e6
+        assert result.iloc[2, 0] == -1e6
 
 
 class TestBondFuture:

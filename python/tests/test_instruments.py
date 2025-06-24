@@ -2,16 +2,17 @@ from datetime import datetime as dt
 
 import numpy as np
 import pytest
-from pandas import DataFrame, Index, MultiIndex, Series, date_range
+from pandas import DataFrame, Index, MultiIndex, Series, isna
 from pandas.testing import assert_frame_equal
-from rateslib import default_context, defaults
-from rateslib.calendars import dcf
+from rateslib import default_context
+from rateslib.calendars import add_tenor
 from rateslib.curves import CompositeCurve, Curve, IndexCurve, LineCurve, MultiCsaCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, dual_exp, gradient
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile
 from rateslib.instruments import (
+    CDS,
     FRA,
     IIRS,
     IRS,
@@ -37,6 +38,8 @@ from rateslib.instruments import (
     STIRFuture,
     Value,
     VolValue,
+)
+from rateslib.instruments.core import (
     _get_curve_from_solver,
     _get_curves_fx_and_base_maybe_from_solver,
 )
@@ -515,6 +518,9 @@ class TestNullPricing:
     @pytest.mark.parametrize(
         "inst",
         [
+            CDS(
+                dt(2022, 7, 1), "3M", "Q", curves=["eureur", "usdusd"], notional=1e6 * 25 / 14.91357
+            ),
             IRS(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
             STIRFuture(
                 dt(2022, 3, 16),
@@ -1104,6 +1110,16 @@ class TestIRS:
         irs = IRS(dt(2024, 12, 30), "1d", spec="sek_irs")  # 31st is a holiday.
         assert irs.leg1.schedule.uschedule == [dt(2024, 12, 30), dt(2025, 1, 2)]
 
+    def test_fixings_table(self, curve):
+        irs = IRS(dt(2022, 1, 15), "6m", spec="usd_irs", curves=curve)
+        result = irs.fixings_table()
+        assert isinstance(result, DataFrame)
+
+    def test_1d_instruments(self):
+        # GH484
+        with pytest.raises(ValueError, match="date, stub and roll inputs are invalid"):
+            IRS(dt(2025, 1, 1), "1d", spec="sek_irs")
+
 
 class TestIIRS:
     def test_index_base_none_populated(self, curve) -> None:
@@ -1226,6 +1242,11 @@ class TestIIRS:
         for i in range(4):
             assert result.iloc[i]["Index Base"] == 200.0
 
+    def test_fixings_table(self, curve):
+        iirs = IIRS(dt(2022, 1, 15), "6m", "Q", curves=curve)
+        result = iirs.fixings_table()
+        assert isinstance(result, DataFrame)
+
 
 class TestSBS:
     def test_sbs_npv(self, curve) -> None:
@@ -1273,6 +1294,28 @@ class TestSBS:
 
         with pytest.raises(AttributeError, match="Cannot set `leg2_fixed_rate`"):
             sbs.leg2_fixed_rate = 1.0
+
+    def test_fixings_table(self, curve):
+        inst = SBS(dt(2022, 1, 15), "6m", spec="usd_irs", curves=curve)
+        result = inst.fixings_table()
+        assert isinstance(result, DataFrame)
+
+    def test_fixings_table_3s1s(self, curve, curve2):
+        inst = SBS(
+            dt(2022, 1, 15),
+            "6m",
+            fixing_method="ibor",
+            method_param=0,
+            leg2_fixing_method="ibor",
+            leg2_method_param=1,
+            frequency="Q",
+            leg2_frequency="m",
+            curves=[curve, curve, curve2, curve],
+        )
+        result = inst.fixings_table()
+        assert isinstance(result, DataFrame)
+        assert len(result.columns) == 8
+        assert len(result.index) == 8
 
 
 class TestFRA:
@@ -1352,6 +1395,35 @@ class TestFRA:
     def test_imm_dated(self):
         FRA(effective=dt(2024, 12, 18), termination=dt(2025, 3, 19), spec="sek_fra3", roll="imm")
 
+    def test_fra_fixings_table(self, curve) -> None:
+        fra = FRA(
+            effective=dt(2022, 1, 1),
+            termination="6m",
+            payment_lag=2,
+            notional=1e9,
+            convention="Act360",
+            modifier="mf",
+            frequency="S",
+            fixed_rate=4.035,
+            curves=curve,
+        )
+        result = fra.fixings_table()
+        assert isinstance(result, DataFrame)
+
+    def test_imm_dated_fixings_table(self, curve):
+        # This is an IMM FRA: the DCF is different to standard tenor.
+        fra = FRA(
+            effective=dt(2024, 12, 18),
+            termination=dt(2025, 3, 19),
+            spec="sek_fra3",
+            roll="imm",
+            curves=curve,
+            notional=1e9,
+        )
+        result = fra.fixings_table()
+        assert isinstance(result, DataFrame)
+        assert abs(result.iloc[0, 0] - 1010998964) < 1
+
 
 class TestZCS:
     @pytest.mark.parametrize(("freq", "exp"), [("Q", 3.529690979), ("S", 3.54526437721296)])
@@ -1406,6 +1478,22 @@ class TestZCS:
                 frequency="Z",
                 fixed_rate=4.22566695954813,
             )
+
+    def test_fixings_table(self, curve):
+        zcs = ZCS(
+            effective=dt(2022, 1, 15),
+            termination="2y",
+            frequency="Q",
+            leg2_fixing_method="ibor",
+            leg2_method_param=0,
+            calendar="all",
+            convention="30e360",
+            curves=curve,
+        )
+        result = zcs.fixings_table()
+        assert isinstance(result, DataFrame)
+        for i in range(8):
+            abs(result.iloc[i, 2] - 24.678) < 1e-3
 
 
 class TestZCIS:
@@ -1911,7 +1999,9 @@ class TestNonMtmXCS:
             notional=10e6,
         )
         curve = Curve({dt(2022, 2, 1): 1.0, dt(2024, 2, 1): 0.9})
-        result = xcs.npv(curves=curve, fx=10.0)
+        # TODO(low) this returns a warning with "noknok" for one variety. Should be corrected.
+        with pytest.warns(UserWarning):
+            result = xcs.npv(curves=curve, fx=10.0)
         assert abs(result) < 1e-6
 
     def test_npv_fx_as_rates_valid(self) -> None:
@@ -2241,6 +2331,302 @@ class TestNonMtmFixedFixedXCS:
             xcs.leg2_float_spread = 2.0
 
 
+class TestCDS:
+    def okane_curve(self):
+        today = dt(2019, 8, 12)
+        spot = dt(2019, 8, 14)
+        tenors = [
+            "1b",
+            "1m",
+            "2m",
+            "3m",
+            "6m",
+            "12M",
+            "2y",
+            "3y",
+            "4y",
+            "5y",
+            "6y",
+            "7y",
+            "8y",
+            "9y",
+            "10y",
+        ]
+        ibor = Curve(
+            nodes={today: 1.0, **{add_tenor(spot, _, "mf", "nyc"): 1.0 for _ in tenors}},
+            convention="act360",
+            calendar="nyc",
+            id="ibor",
+        )
+        rates = [
+            2.2,
+            2.2009,
+            2.2138,
+            2.1810,
+            2.0503,
+            1.9930,
+            1.591,
+            1.499,
+            1.4725,
+            1.4664,
+            1.48,
+            1.4995,
+            1.5118,
+            1.5610,
+            1.6430,
+        ]
+        ib_sv = Solver(
+            curves=[ibor],
+            instruments=[
+                IRS(
+                    spot,
+                    _,
+                    leg2_fixing_method="ibor",
+                    leg2_method_param=2,
+                    calendar="nyc",
+                    payment_lag=0,
+                    convention="30e360",
+                    leg2_convention="act360",
+                    frequency="s",
+                    curves=ibor,
+                )
+                for _ in tenors
+            ],
+            s=rates,
+        )
+        cds_tenor = ["6m", "12m", "2y", "3y", "4y", "5y", "7y", "10y"]
+        credit_curve = Curve(
+            nodes={today: 1.0, **{add_tenor(today, _, "mf", "nyc"): 1.0 for _ in cds_tenor}},
+            convention="act365f",
+            calendar="all",
+            id="credit",
+        )
+        cc_sv = Solver(
+            curves=[credit_curve],
+            pre_solvers=[ib_sv],
+            instruments=[
+                CDS(
+                    today,
+                    add_tenor(dt(2019, 9, 20), _, "mf", "nyc"),
+                    front_stub=dt(2019, 9, 20),
+                    frequency="q",
+                    convention="act360",
+                    payment_lag=0,
+                    curves=["credit", "ibor"],
+                    fixed_rate=4.00,
+                    recovery_rate=0.4,
+                    premium_accrued=True,
+                    calendar="nyc",
+                )
+                for _ in cds_tenor
+            ],
+            s=[4.00, 4.00, 4.00, 4.00, 4.00, 4.00, 4.00, 4.00],
+        )
+        return credit_curve, ibor, cc_sv
+
+    def test_okane_values(self):
+        # These values are validated against finance Py. Not identical but within tolerance.
+        cds = CDS(
+            dt(2019, 8, 12),
+            dt(2029, 6, 20),
+            front_stub=dt(2019, 9, 20),
+            frequency="q",
+            fixed_rate=1.50,
+            curves=["credit", "ibor"],
+            discretization=5,
+            calendar="nyc",
+        )
+        c1, c2, solver = self.okane_curve()
+        result1 = cds.rate(solver=solver)
+        assert abs(result1 - 3.9999960) < 5e-5
+
+        result2 = cds.npv(solver=solver)
+        assert abs(result2 - 170739.5956) < 175
+
+        result3 = cds.leg1.npv(c1, c2)
+        assert abs(result3 + 104508.9265 - 2125) < 50
+
+        result4 = cds.leg2.npv(c1, c2)
+        assert abs(result4 - 273023.5221) < 110
+
+    def test_unpriced_npv(self, curve, curve2) -> None:
+        cds = CDS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            payment_lag=0,
+            currency="eur",
+        )
+
+        npv = cds.npv([curve2, curve], NoInput(0))
+        assert abs(npv) < 1e-9
+
+    def test_rate(self, curve, curve2) -> None:
+        hazard_curve = curve
+        disc_curve = curve2
+
+        cds = CDS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            payment_lag=0,
+            currency="eur",
+        )
+
+        rate = cds.rate([hazard_curve, disc_curve])
+        expected = 2.4164004881061285
+        assert abs(rate - expected) < 1e-7
+
+    def test_npv(self, curve, curve2) -> None:
+        hazard_curve = curve
+        disc_curve = curve2
+
+        cds = CDS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            payment_lag=0,
+            currency="eur",
+            fixed_rate=1.00,
+        )
+
+        npv = cds.npv([hazard_curve, disc_curve])
+        expected = 9075.835204292109  # uses cds_discretization = 23 as default
+        assert abs(npv - expected) < 1e-7
+
+    def test_analytic_delta(self, curve, curve2) -> None:
+        hazard_curve = curve
+        disc_curve = curve2
+
+        cds = CDS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            payment_lag=0,
+            currency="eur",
+        )
+
+        result = cds.analytic_delta(hazard_curve, disc_curve, leg=1)
+        expected = 64.07675851924779
+        assert abs(result - expected) < 1e-7
+
+        result = cds.analytic_delta(hazard_curve, disc_curve, leg=2)
+        expected = 0.0
+        assert abs(result - expected) < 1e-7
+
+    def test_cds_cashflows(self, curve, curve2) -> None:
+        hazard_curve = curve
+        disc_curve = curve2
+
+        cds = CDS(
+            dt(2022, 2, 1),
+            "8M",
+            "M",
+            payment_lag=0,
+            currency="eur",
+        )
+        result = cds.cashflows(curves=[hazard_curve, disc_curve])
+        assert isinstance(result, DataFrame)
+        assert result.index.nlevels == 2
+
+    def test_solver(self, curve2):
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="disc")
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 7, 1): 0.99, dt(2023, 1, 1): 0.98}, id="haz")
+
+        solver = Solver(
+            curves=[c2],
+            instruments=[
+                CDS(dt(2022, 1, 1), "6m", frequency="Q", curves=["haz", c1]),
+                CDS(dt(2022, 1, 1), "12m", frequency="Q", curves=["haz", c1]),
+            ],
+            s=[0.30, 0.40],
+            instrument_labels=["6m", "12m"],
+        )
+        inst = CDS(dt(2022, 7, 1), "3M", "Q", curves=["haz", c1], notional=1e6)
+        result = inst.delta(solver=solver)
+        assert abs(result.sum().iloc[0] - 25.294894375736) < 1e-6
+
+    def test_okane_paper(self):
+        # Figure 12 of Turnbull and O'Kane 2003 Valuation of CDS
+        usd_libor = Curve(
+            nodes={
+                dt(2003, 6, 19): 1.0,
+                dt(2003, 12, 23): 1.0,
+                dt(2004, 6, 23): 1.0,
+                dt(2005, 6, 23): 1.0,
+                dt(2006, 6, 23): 1.0,
+                dt(2007, 6, 23): 1.0,
+                dt(2008, 6, 23): 1.0,
+            },
+            convention="act360",
+            calendar="nyc",
+            id="libor",
+        )
+        args = dict(spec="eur_irs6", frequency="s", calendar="nyc", curves="libor", currency="usd")
+        solver = Solver(
+            curves=[usd_libor],
+            instruments=[
+                IRS(dt(2003, 6, 23), "6m", **args),
+                IRS(dt(2003, 6, 23), "1y", **args),
+                IRS(dt(2003, 6, 23), "2y", **args),
+                IRS(dt(2003, 6, 23), "3y", **args),
+                IRS(dt(2003, 6, 23), "4y", **args),
+                IRS(dt(2003, 6, 23), "5y", **args),
+            ],
+            s=[1.35, 1.43, 1.90, 2.47, 2.936, 3.311],
+        )
+        haz_curve = Curve(
+            nodes={
+                dt(2003, 6, 19): 1.0,
+                dt(2004, 6, 20): 1.0,
+                dt(2005, 6, 20): 1.0,
+                dt(2006, 6, 20): 1.0,
+                dt(2007, 6, 20): 1.0,
+                dt(2008, 6, 20): 1.0,
+            },
+            convention="act365f",
+            calendar="all",
+            id="hazard",
+        )
+        args = dict(
+            calendar="nyc", frequency="q", roll=20, curves=["hazard", "libor"], convention="act360"
+        )
+        solver = Solver(
+            curves=[haz_curve],
+            pre_solvers=[solver],
+            instruments=[
+                CDS(dt(2003, 6, 20), "1y", **args),
+                CDS(dt(2003, 6, 20), "2y", **args),
+                CDS(dt(2003, 6, 20), "3y", **args),
+                CDS(dt(2003, 6, 20), "4y", **args),
+                CDS(dt(2003, 6, 20), "5y", **args),
+            ],
+            s=[1.10, 1.20, 1.30, 1.40, 1.50],
+        )
+        cds = CDS(dt(2003, 6, 20), dt(2007, 9, 20), fixed_rate=2.00, notional=10e6, **args)
+        result = cds.rate(solver=solver)
+        assert abs(result - 1.427) < 0.0030
+
+        _table = cds.cashflows(solver=solver)
+        leg1_npv = cds.leg1.npv(haz_curve, usd_libor)
+        leg2_npv = cds.leg2.npv(haz_curve, usd_libor)
+        assert abs(leg1_npv + 781388) < 250
+        assert abs(leg2_npv - 557872) < 900
+
+        a_delta = cds.analytic_delta(haz_curve, usd_libor)
+        assert abs(a_delta - 3899) < 10
+
+        npv = cds.npv(solver=solver)
+        assert abs(npv + 223516) < 670
+
+    def test_accrued(self):
+        cds = CDS(
+            dt(2022, 1, 1), "6M", "Q", payment_lag=0, currency="eur", notional=1e9, fixed_rate=2.0
+        )
+        result = cds.accrued(dt(2022, 2, 1))
+        assert abs(result + 0.25 * 1e9 * 0.02 * 31 / 90) < 1e-6
+
+
 class TestXCS:
     def test_mtmxcs_npv(self, curve, curve2) -> None:
         fxf = FXForwards(
@@ -2417,6 +2803,48 @@ class TestXCS:
             leg2_mtm=False,
         )
         assert abs(xcs.leg2.notional + 100e6) < 1e-8  # not 20e6
+
+    @pytest.mark.parametrize("fixed1", [True, False])
+    @pytest.mark.parametrize("fixed2", [True, False])
+    @pytest.mark.parametrize("mtm", [True, False])
+    def test_fixings_table(self, curve, curve2, fixed1, fixed2, mtm):
+        curve.id = "c1"
+        curve2.id = "c2"
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.1}, settlement=dt(2022, 1, 3)),
+            {"usdusd": curve, "eurusd": curve2, "eureur": curve2},
+        )
+
+        xcs = XCS(
+            dt(2022, 2, 1),
+            "8M",
+            frequency="M",
+            payment_lag=0,
+            currency="eur",
+            leg2_currency="usd",
+            payment_lag_exchange=0,
+            fixed=fixed1,
+            leg2_fixed=fixed2,
+            leg2_mtm=mtm,
+            fixing_method="ibor",
+            leg2_fixing_method="ibor",
+        )
+        result = xcs.fixings_table(curves=[curve, curve, curve2, curve2], fx=fxf)
+        assert isinstance(result, DataFrame)
+
+    def test_initialisation_bug(self):
+        XCS(
+            dt(2000, 1, 7),
+            "9m",
+            spec="eurusd_xcs",
+            leg2_fixed=True,
+            leg2_mtm=False,
+            fixing_method="ibor",
+            method_param=2,
+            leg2_fixed_rate=2.4,
+        )
+
+        XCS(dt(2000, 1, 7), "9m", spec="eurusd_xcs", fixed=True, fixed_rate=3.0)
 
 
 class TestFixedFloatXCS:
@@ -2855,6 +3283,18 @@ class TestSTIRFuture:
         result = stir.analytic_delta()
         assert abs(result - expected) < 1e-10
 
+    def test_fixings_table(self, curve):
+        stir = STIRFuture(
+            effective=dt(2022, 3, 16),
+            termination="3m",
+            spec="eur_stir3",
+            contracts=100,
+            curves=curve,
+        )
+        result = stir.fixings_table()
+        assert isinstance(result, DataFrame)
+        assert result[f"{curve.id}", "risk"][dt(2022, 3, 14)] == -2500.0
+
 
 class TestPricingMechanism:
     def test_value(self, curve) -> None:
@@ -3053,6 +3493,39 @@ class TestPortfolio:
         expected = f"<rl.Portfolio at {hex(id(pf))}>"
         assert pf.__repr__() == expected
 
+    def test_fixings_table(self, curve, curve2):
+        curve.id = "c1"
+        curve2.id = "c2"
+        irs1 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=3e6)
+        irs2 = IRS(dt(2022, 1, 23), "6m", spec="eur_irs6", curves=curve2, notional=1e6)
+        irs3 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=-2e6)
+        pf = Portfolio([irs1, irs2, irs3])
+        result = pf.fixings_table()
+
+        # irs1 and irs3 are summed over curve c1 notional
+        assert abs(result["c1", "notional"][dt(2022, 1, 15)] - 1021994.16) < 1e-2
+        # irs1 and irs3 are summed over curve c1 risk
+        assert abs(result["c1", "risk"][dt(2022, 1, 15)] - 25.249) < 1e-2
+        # c1 has no exposure to 22nd Jan
+        assert isna(result["c1", "risk"][dt(2022, 1, 22)])
+        # c1 dcf is not summed
+        assert abs(result["c1", "dcf"][dt(2022, 1, 15)] - 0.25) < 1e-3
+
+        # irs2 is included
+        assert abs(result["c2", "notional"][dt(2022, 1, 22)] - 1005297.17) < 1e-2
+        # irs1 and irs3 are summed over curve c1 risk
+        assert abs(result["c2", "risk"][dt(2022, 1, 22)] - 48.773) < 1e-3
+        # c2 has no exposure to 15 Jan
+        assert isna(result["c2", "risk"][dt(2022, 1, 15)])
+        # c2 has DCF
+        assert abs(result["c2", "dcf"][dt(2022, 1, 22)] - 0.50277) < 1e-3
+
+    def test_fixings_table_null_inst(self, curve):
+        irs = IRS(dt(2022, 1, 15), "6m", spec="eur_irs3", curves=curve)
+        frb = FixedRateBond(dt(2022, 1, 1), "5y", "A", fixed_rate=2.0, curves=curve)
+        pf = Portfolio([irs, frb])
+        assert isinstance(pf.fixings_table(), DataFrame)
+
 
 class TestFly:
     @pytest.mark.parametrize("mechanism", [False, True])
@@ -3120,6 +3593,39 @@ class TestFly:
         expected = f"<rl.Spread at {hex(id(spd))}>"
         assert expected == spd.__repr__()
 
+    def test_fixings_table(self, curve, curve2):
+        curve.id = "c1"
+        curve2.id = "c2"
+        irs1 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=3e6)
+        irs2 = IRS(dt(2022, 1, 23), "6m", spec="eur_irs6", curves=curve2, notional=1e6)
+        irs3 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=-2e6)
+        fly = Fly(irs1, irs2, irs3)
+        result = fly.fixings_table()
+
+        # irs1 and irs3 are summed over curve c1 notional
+        assert abs(result["c1", "notional"][dt(2022, 1, 15)] - 1021994.16) < 1e-2
+        # irs1 and irs3 are summed over curve c1 risk
+        assert abs(result["c1", "risk"][dt(2022, 1, 15)] - 25.249) < 1e-2
+        # c1 has no exposure to 22nd Jan
+        assert isna(result["c1", "risk"][dt(2022, 1, 22)])
+        # c1 dcf is not summed
+        assert abs(result["c1", "dcf"][dt(2022, 1, 15)] - 0.25) < 1e-3
+
+        # irs2 is included
+        assert abs(result["c2", "notional"][dt(2022, 1, 22)] - 1005297.17) < 1e-2
+        # irs1 and irs3 are summed over curve c1 risk
+        assert abs(result["c2", "risk"][dt(2022, 1, 22)] - 48.773) < 1e-3
+        # c2 has no exposure to 15 Jan
+        assert isna(result["c2", "risk"][dt(2022, 1, 15)])
+        # c2 has DCF
+        assert abs(result["c2", "dcf"][dt(2022, 1, 22)] - 0.50277) < 1e-3
+
+    def test_fixings_table_null_inst(self, curve):
+        irs = IRS(dt(2022, 1, 15), "6m", spec="eur_irs3", curves=curve)
+        frb = FixedRateBond(dt(2022, 1, 1), "5y", "A", fixed_rate=2.0, curves=curve)
+        fly = Fly(irs, frb, irs)
+        assert isinstance(fly.fixings_table(), DataFrame)
+
 
 class TestSpread:
     @pytest.mark.parametrize("mechanism", [False, True])
@@ -3164,6 +3670,39 @@ class TestSpread:
         fly = Fly(irs1, irs2, irs3)
         expected = f"<rl.Fly at {hex(id(fly))}>"
         assert expected == fly.__repr__()
+
+    def test_fixings_table(self, curve, curve2):
+        curve.id = "c1"
+        curve2.id = "c2"
+        irs1 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=3e6)
+        irs2 = IRS(dt(2022, 1, 23), "6m", spec="eur_irs6", curves=curve2, notional=1e6)
+        irs3 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=-2e6)
+        spd = Spread(irs1, Spread(irs2, irs3))
+        result = spd.fixings_table()
+
+        # irs1 and irs3 are summed over curve c1 notional
+        assert abs(result["c1", "notional"][dt(2022, 1, 15)] - 1021994.16) < 1e-2
+        # irs1 and irs3 are summed over curve c1 risk
+        assert abs(result["c1", "risk"][dt(2022, 1, 15)] - 25.249) < 1e-2
+        # c1 has no exposure to 22nd Jan
+        assert isna(result["c1", "risk"][dt(2022, 1, 22)])
+        # c1 dcf is not summed
+        assert abs(result["c1", "dcf"][dt(2022, 1, 15)] - 0.25) < 1e-3
+
+        # irs2 is included
+        assert abs(result["c2", "notional"][dt(2022, 1, 22)] - 1005297.17) < 1e-2
+        # irs1 and irs3 are summed over curve c1 risk
+        assert abs(result["c2", "risk"][dt(2022, 1, 22)] - 48.773) < 1e-3
+        # c2 has no exposure to 15 Jan
+        assert isna(result["c2", "risk"][dt(2022, 1, 15)])
+        # c2 has DCF
+        assert abs(result["c2", "dcf"][dt(2022, 1, 22)] - 0.50277) < 1e-3
+
+    def test_fixings_table_null_inst(self, curve):
+        irs = IRS(dt(2022, 1, 15), "6m", spec="eur_irs3", curves=curve)
+        frb = FixedRateBond(dt(2022, 1, 1), "5y", "A", fixed_rate=2.0, curves=curve)
+        spd = Spread(irs, frb)
+        assert isinstance(spd.fixings_table(), DataFrame)
 
 
 class TestSensitivities:
@@ -3321,7 +3860,7 @@ class TestSpec:
             calc_mode="ust_31bii",
             fixed_rate=2.0,
         )
-        from rateslib.instruments.bonds import US_GB_TSY
+        from rateslib.instruments.bonds.conventions import US_GB_TSY
 
         assert bond.calc_mode.kwargs == US_GB_TSY.kwargs
         assert bond.kwargs["convention"] == "actacticma"
@@ -3337,7 +3876,7 @@ class TestSpec:
             calc_mode="ust",
             fixed_rate=2.0,
         )
-        from rateslib.instruments.bonds import US_GB
+        from rateslib.instruments.bonds.conventions import US_GB
 
         assert bond.calc_mode.kwargs == US_GB.kwargs
         assert bond.kwargs["convention"] == "actacticma"
@@ -3352,7 +3891,7 @@ class TestSpec:
             spec="us_gbb",
             convention="act365f",
         )
-        from rateslib.instruments.bonds import US_GBB
+        from rateslib.instruments.bonds.conventions import US_GBB
 
         assert bill.calc_mode.kwargs == US_GBB.kwargs
         assert bill.kwargs["convention"] == "act365f"

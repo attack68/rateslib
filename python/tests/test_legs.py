@@ -2,14 +2,17 @@ from datetime import datetime as dt
 
 import numpy as np
 import pytest
-from pandas import DataFrame, Index, Series, date_range
+from pandas import DataFrame, Index, MultiIndex, Series, date_range, isna
 from pandas.testing import assert_frame_equal, assert_series_equal
 from rateslib import default_context, defaults
 from rateslib.curves import Curve, IndexCurve
 from rateslib.default import NoInput
+from rateslib.dual import Dual
 from rateslib.fx import FXForwards, FXRates
 from rateslib.legs import (
     Cashflow,
+    CreditPremiumLeg,
+    CreditProtectionLeg,
     CustomLeg,
     FixedLeg,
     FixedLegMtm,
@@ -33,6 +36,17 @@ def curve():
         dt(2022, 10, 1): 0.97,
     }
     return Curve(nodes=nodes, interpolation="log_linear")
+
+
+@pytest.fixture
+def hazard_curve():
+    nodes = {
+        dt(2022, 1, 1): 1.00,
+        dt(2022, 4, 1): 0.999,
+        dt(2022, 7, 1): 0.997,
+        dt(2022, 10, 1): 0.991,
+    }
+    return Curve(nodes=nodes, interpolation="log_linear", id="hazard_fixture")
 
 
 @pytest.mark.parametrize(
@@ -268,10 +282,14 @@ class TestFloatLeg:
                     -999821.37380,
                     -999932.84380,
                 ],
+                "risk": [0.0, 0.0, 0.0, -0.26664737, -0.26664737],
                 "dcf": [0.0027777777777777778] * 5,
                 "rates": [1.19, 1.19, -8.81, 4.01364, 4.01364],
             },
         ).set_index("obs_dates")
+        expected.columns = MultiIndex.from_tuples(
+            [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"), (curve.id, "rates")]
+        )
         assert_frame_equal(result, expected, rtol=1e-5)
 
     def test_rfr_with_fixings_fixings_table_issue(self) -> None:
@@ -350,9 +368,9 @@ class TestFloatLeg:
             fixed_rate=3.922,
         )
         result = swap.leg2.fixings_table(curve)
-        assert result.loc[dt(2024, 1, 10), "notional"] == 0.0
-        assert abs(result.loc[dt(2024, 1, 11), "notional"] - 3006829846) < 1.0
-        assert abs(result.loc[dt(2023, 12, 20), "rates"] - 3.901) < 0.001
+        assert result.loc[dt(2024, 1, 10), (curve.id, "notional")] == 0.0
+        assert abs(result.loc[dt(2024, 1, 11), (curve.id, "notional")] - 3006829846) < 1.0
+        assert abs(result.loc[dt(2023, 12, 20), (curve.id, "rates")] - 3.901) < 0.001
 
     def test_float_leg_set_float_spread(self, curve) -> None:
         float_leg = FloatLeg(
@@ -610,18 +628,6 @@ class TestZeroFloatLeg:
         assert float_leg.float_spread == 2.0
         assert float_leg.periods[0].float_spread == 2.0
 
-    def test_zero_float_leg_amort_raise(self) -> None:
-        with pytest.raises(NotImplementedError, match="`ZeroFloatLeg` cannot accept"):
-            ZeroFloatLeg(
-                effective=dt(2022, 1, 1),
-                termination=dt(2022, 6, 1),
-                payment_lag=2,
-                notional=-1e9,
-                convention="Act360",
-                frequency="Q",
-                amortization=1,
-            )
-
     def test_zero_float_leg_dcf(self) -> None:
         ftl = ZeroFloatLeg(
             effective=dt(2022, 1, 1),
@@ -700,6 +706,114 @@ class TestZeroFloatLeg:
         result = ftl.cashflows()
         assert result.iloc[0].to_dict()[defaults.headers["npv"]] is None
         assert result.iloc[0].to_dict()[defaults.headers["npv_fx"]] is None
+
+    def test_amortization_raises(self) -> None:
+        with pytest.raises(ValueError, match="`ZeroFloatLeg` cannot be defined with `amortizati."):
+            ZeroFloatLeg(
+                effective=dt(2022, 1, 1),
+                termination=dt(2022, 6, 1),
+                payment_lag=2,
+                notional=-1e9,
+                convention="Act360",
+                frequency="Q",
+                amortization=1.0,
+            )
+
+    def test_rfr_fixings_table(self, curve) -> None:
+        zfl = ZeroFloatLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 10, 1),
+            payment_lag=0,
+            notional=-1e9,
+            convention="Act360",
+            frequency="Q",
+        )
+        # fl = FloatLeg(
+        #     effective=dt(2022, 1, 1),
+        #     termination=dt(2022, 10, 1),
+        #     payment_lag=0,
+        #     notional=-1e9,
+        #     convention="Act360",
+        #     frequency="Q",
+        # )
+        result = zfl.fixings_table(curve)
+        # compare = fl.fixings_table(curve)
+        for i in range(len(result.index)):
+            # consistent risk throught the compounded leg
+            assert abs(result.iloc[i, 1] - 277.75) < 1e-1
+
+    def test_ibor_fixings_table(self, curve) -> None:
+        zfl = ZeroFloatLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 10, 1),
+            payment_lag=0,
+            notional=-1e9,
+            convention="Act360",
+            frequency="Q",
+            fixing_method="ibor",
+            method_param=0,
+        )
+        result = zfl.fixings_table(curve)
+        assert abs(result.iloc[0, 0] - 1e9) < 1e-3
+        assert abs(result.iloc[1, 0] - 1010101010.10) < 1e-2
+        assert abs(result.iloc[2, 0] - 1020408163.26) < 1e-2
+
+    def test_ibor_stub_fixings_table(self, curve) -> None:
+        curve2 = curve.copy()
+        curve2.id = "3mIBOR"
+        curve.id = "1mIBOR"
+        zfl = ZeroFloatLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 9, 1),
+            payment_lag=0,
+            notional=-1e9,
+            convention="Act360",
+            frequency="Q",
+            fixing_method="ibor",
+            method_param=0,
+        )
+        result = zfl.fixings_table({"1m": curve, "3m": curve2}, disc_curve=curve)
+        assert abs(result.iloc[0, 0] - 996878112.103) < 1e-2
+        assert abs(result.iloc[0, 4] - 312189976.385) < 1e-2
+        assert isna(result.iloc[1, 0])
+        assert abs(result.iloc[2, 5] - 25294.7235) < 1e-3
+
+    @pytest.mark.parametrize(
+        "fixings", [[2.0, 2.5], Series([2.0, 2.5], index=[dt(2021, 7, 1), dt(2021, 10, 1)])]
+    )
+    def test_ibor_fixings_table_after_known_fixings(self, curve, fixings) -> None:
+        curve2 = curve.copy()
+        curve2.id = "3mIBOR"
+        curve.id = "1mIBOR"
+        zfl = ZeroFloatLeg(
+            effective=dt(2021, 7, 1),
+            termination=dt(2022, 9, 1),
+            payment_lag=0,
+            notional=-1e9,
+            convention="Act360",
+            frequency="Q",
+            fixing_method="ibor",
+            method_param=0,
+            stub="shortBack",
+            fixings=fixings,
+        )
+        result = zfl.fixings_table({"1m": curve, "3m": curve2}, disc_curve=curve)
+        assert abs(result.iloc[0, 0] - 0) < 1e-2
+        assert abs(result.iloc[1, 0] - 0) < 1e-2
+        assert isna(result.iloc[0, 4])
+        assert abs(result.iloc[4, 0] - 354684373.65) < 1e-2
+        assert abs(result.iloc[4, 5] - 8508.6111) < 1e-3
+
+    def test_frequency_raises(self) -> None:
+        with pytest.raises(ValueError, match="`frequency` for a ZeroFloatLeg should not be 'Z'"):
+            ZeroFloatLeg(
+                effective=dt(2022, 1, 1),
+                termination="5y",
+                payment_lag=0,
+                notional=-1e8,
+                convention="ActAct",
+                frequency="Z",
+            )
 
     def test_zero_float_leg_analytic_delta(self, curve) -> None:
         zfl = ZeroFloatLeg(
@@ -796,6 +910,31 @@ class TestZeroFixedLeg:
         )
         result = zfl._spread(13140821.29 * curve[dt(2027, 1, 1)], NoInput(0), curve)
         assert (result / 100 - 2.50) < 1e-3
+
+    def test_amortization_raises(self) -> None:
+        with pytest.raises(ValueError, match="`ZeroFixedLeg` cannot be defined with `amortizatio"):
+            ZeroFixedLeg(
+                effective=dt(2022, 1, 1),
+                termination="5y",
+                payment_lag=0,
+                notional=-1e8,
+                convention="ActAct",
+                frequency="A",
+                fixed_rate=NoInput(0),
+                amortization=1.0,
+            )
+
+    def test_frequency_raises(self) -> None:
+        with pytest.raises(ValueError, match="`frequency` for a ZeroFixedLeg should not be 'Z'"):
+            ZeroFixedLeg(
+                effective=dt(2022, 1, 1),
+                termination="5y",
+                payment_lag=0,
+                notional=-1e8,
+                convention="ActAct",
+                frequency="Z",
+                fixed_rate=NoInput(0),
+            )
 
     def test_analytic_delta_no_fixed_rate(self, curve) -> None:
         zfl = ZeroFixedLeg(
@@ -1015,10 +1154,14 @@ class TestFloatLegExchange:
         expected = DataFrame(
             {
                 "notional": [-1009872.33778, -1000000.00000],
+                "risk": [-0.2767869527597316, -0.27405055522733884],
                 "dcf": [0.002777777777777778, 0.002777777777777778],
                 "rates": [4.01655, 4.01655],
             },
             index=Index([dt(2022, 4, 30), dt(2022, 5, 1)], name="obs_dates"),
+        )
+        expected.columns = MultiIndex.from_tuples(
+            [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"), (curve.id, "rates")]
         )
         assert_frame_equal(result[dt(2022, 4, 30) : dt(2022, 5, 1)], expected)
 
@@ -1080,6 +1223,161 @@ class TestFixedLeg:
         fixed_leg.fixed_rate = 2.0
         assert fixed_leg.fixed_rate == 2.0
         assert fixed_leg.periods[0].fixed_rate == 2.0
+
+
+class TestCreditPremiumLeg:
+    @pytest.mark.parametrize(
+        ("premium_accrued", "exp"), [(True, 41357.455568685626), (False, 41330.94188109829)]
+    )
+    def test_premium_leg_analytic_delta(self, hazard_curve, curve, premium_accrued, exp) -> None:
+        leg = CreditPremiumLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=1e9,
+            convention="Act360",
+            frequency="Q",
+            premium_accrued=premium_accrued,
+        )
+        result = leg.analytic_delta(hazard_curve, curve)
+        assert abs(result - exp) < 1e-7
+
+    @pytest.mark.parametrize(("premium_accrued"), [True, False])
+    def test_premium_leg_npv(self, hazard_curve, curve, premium_accrued) -> None:
+        leg = CreditPremiumLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=1e9,
+            convention="Act360",
+            frequency="Q",
+            premium_accrued=premium_accrued,
+            fixed_rate=4.00,
+        )
+        result = leg.npv(hazard_curve, curve)
+        assert abs(result + 400 * leg.analytic_delta(hazard_curve, curve)) < 1e-7
+
+    def test_premium_leg_cashflows(self, hazard_curve, curve) -> None:
+        leg = CreditPremiumLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=-1e9,
+            convention="Act360",
+            frequency="Q",
+            fixed_rate=4.00,
+        )
+        result = leg.cashflows(hazard_curve, curve)
+        # test a couple of return elements
+        assert abs(result.loc[0, defaults.headers["cashflow"]] - 6555555.55555) < 1e-4
+        assert abs(result.loc[1, defaults.headers["df"]] - 0.98307) < 1e-4
+        assert abs(result.loc[1, defaults.headers["notional"]] + 1e9) < 1e-7
+
+    def test_premium_leg_set_fixed_rate(self, curve) -> None:
+        leg = CreditPremiumLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=-1e9,
+            convention="Act360",
+            frequency="Q",
+        )
+        assert leg.fixed_rate is NoInput(0)
+        assert leg.periods[0].fixed_rate is NoInput(0)
+
+        leg.fixed_rate = 2.0
+        assert leg.fixed_rate == 2.0
+        assert leg.periods[0].fixed_rate == 2.0
+
+    @pytest.mark.parametrize(
+        ("date", "exp"),
+        [
+            (dt(2022, 2, 1), 1e9 * 0.02 * 0.25 * 31 / 90),
+            (dt(2022, 3, 1), 0.0),
+            (dt(2022, 6, 1), 0.0),
+        ],
+    )
+    def test_premium_leg_accrued(self, date, exp):
+        leg = CreditPremiumLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=-1e9,
+            convention="ActActICMA",
+            frequency="Q",
+            fixed_rate=2.0,
+        )
+        result = leg.accrued(date)
+        assert abs(result - exp) < 1e-6
+
+
+class TestCreditProtectionLeg:
+    def test_leg_analytic_delta(self, hazard_curve, curve) -> None:
+        leg = CreditProtectionLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=1e9,
+            frequency="Q",
+        )
+        result = leg.analytic_delta(hazard_curve, curve)
+        assert abs(result) < 1e-7
+
+    def test_leg_analytic_rec_risk(self, hazard_curve, curve) -> None:
+        leg = CreditProtectionLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2027, 1, 1),
+            payment_lag=2,
+            notional=1e7,
+            frequency="Q",
+            recovery_rate=0.4,
+        )
+        result = leg.analytic_rec_risk(hazard_curve, curve)
+
+        pv0 = leg.npv(hazard_curve, curve)
+        leg.recovery_rate = 0.41
+        pv1 = leg.npv(hazard_curve, curve)
+        expected = pv1 - pv0
+
+        assert abs(result - expected) < 1e-7
+
+    @pytest.mark.parametrize(("premium_accrued"), [True, False])
+    def test_leg_npv(self, hazard_curve, curve, premium_accrued) -> None:
+        leg = CreditProtectionLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=1e9,
+            frequency="Z",
+        )
+        result = leg.npv(hazard_curve, curve)
+        expected = -1390922.0390295777  # with 1 cds_discretization this is -1390906.242843
+        assert abs(result - expected) < 1e-7
+
+    def test_leg_cashflows(self, hazard_curve, curve) -> None:
+        leg = CreditProtectionLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            notional=-1e9,
+            convention="Act360",
+            frequency="Q",
+        )
+        result = leg.cashflows(hazard_curve, curve)
+        # test a couple of return elements
+        assert abs(result.loc[0, defaults.headers["cashflow"]] - 600e6) < 1e-4
+        assert abs(result.loc[1, defaults.headers["df"]] - 0.98307) < 1e-4
+        assert abs(result.loc[1, defaults.headers["notional"]] + 1e9) < 1e-7
+
+    def test_leg_zero_sched(self):
+        leg = CreditProtectionLeg(
+            effective=dt(2022, 1, 1),
+            termination=dt(2024, 6, 1),
+            notional=-1e9,
+            convention="Act360",
+            frequency="Z",
+        )
+        assert len(leg.periods) == 1
+        assert leg.periods[0].end == dt(2024, 6, 1)
 
 
 class TestIndexFixedLegExchange:
@@ -1433,6 +1731,64 @@ class TestFloatLegExchangeMtm:
         assert type(float_leg_exch.periods[3]) is FloatPeriod
 
         assert float_leg_exch.periods[-1].notional == 10e6 * rate[1]
+
+    def test_float_leg_exchange_fixings_table(self) -> None:
+        float_leg_exch = FloatLegMtm(
+            effective=dt(2022, 1, 3),
+            termination=dt(2022, 7, 3),
+            frequency="Q",
+            notional=265,
+            float_spread=5.0,
+            currency="usd",
+            alt_currency="eur",
+            alt_notional=10e6,
+            payment_lag_exchange=3,
+            fixing_method="ibor",
+            method_param=0,
+        )
+        fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
+        fxf = FXForwards(
+            fxr,
+            {
+                "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.965}),
+                "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}),
+                "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.987}),
+            },
+        )
+
+        result = float_leg_exch.fixings_table(fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf)
+        assert isinstance(result, DataFrame)
+        assert isinstance(
+            result.iloc[0, 0], float
+        )  # Dual converted to float for fixings table display
+        assert abs(result.iloc[0, 0] + 10499895) < 1
+        assert abs(result.iloc[1, 0] + 10558419) < 1
+
+    def test_float_leg_exchange_fixings_table_rfr(self) -> None:
+        float_leg_exch = FloatLegMtm(
+            effective=dt(2022, 1, 3),
+            termination=dt(2022, 7, 3),
+            frequency="Q",
+            notional=265,
+            float_spread=5.0,
+            currency="usd",
+            alt_currency="eur",
+            alt_notional=10e6,
+            payment_lag_exchange=0,
+        )
+        fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
+        fxf = FXForwards(
+            fxr,
+            {
+                "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.965}),
+                "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}),
+                "eurusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.987}),
+            },
+        )
+
+        result = float_leg_exch.fixings_table(fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf)
+        assert isinstance(result, DataFrame)
+        assert isinstance(result.iloc[0, 0], float)  # Dual is converted to float for fixings table
 
     def test_mtm_leg_exchange_spread(self) -> None:
         leg = FloatLegMtm(

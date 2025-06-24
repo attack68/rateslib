@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from itertools import combinations
 from time import time
-from typing import Callable
+from typing import Any, Callable
 from uuid import uuid4
 
 import numpy as np
@@ -912,7 +912,7 @@ class Solver(Gradients):
         self,
         curves: list | tuple = (),
         surfaces: list | tuple = (),
-        instruments: tuple[tuple] | list[tuple] = (),
+        instruments: tuple[Any] | list[Any] = (),
         s: tuple[float] | list[float] = (),
         weights: list | NoInput = NoInput(0),
         algorithm: str | NoInput = NoInput(0),
@@ -1395,8 +1395,10 @@ class Solver(Gradients):
 
         Parameters
         ----------
-        npv : Dual,
-            The NPV of the instrument or composition of instruments to risk.
+        npv : dict,
+            The NPV (Dual) of the instrument or portfolio of instruments to risk.
+            Must be indexed by 3-digit currency
+            to discriminate between values expressed in different currencies.
         base : str, optional
             The currency (3-digit code) to report risk metrics in. If not given will
             default to the local currency of the cashflows.
@@ -1914,6 +1916,87 @@ class Solver(Gradients):
             index=solver.pre_instrument_labels,
         )
 
+    def exo_delta(
+        self,
+        npv,
+        vars: list[str],
+        vars_scalar: list[float] | NoInput = NoInput(0),
+        vars_labels: list[str] | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        fx=NoInput(0),
+    ) -> DataFrame:
+        """
+        Calculate risk sensitivity to user defined, exogenous variables in the
+        *Solver Instruments* and the ``npv``.
+
+        See :ref:`What are exogenous variables? <cook-exogenous-doc>` in the cookbook.
+
+        Parameters
+        -----------
+        npv : dict,
+            The NPV (Dual) of the instrument or portfolio of instruments to risk.
+            Must be indexed by 3-digit currency
+            to discriminate between values expressed in different currencies.
+        vars : list[str]
+            The variable tags which to determine sensitivities for.
+        vars_scalar : list[float], optional
+            Scaling factors for each variable, for example converting rates to basis point etc.
+            Defaults to ones.
+        vars_labels : list[str], optional
+            Alternative names to relabel variables in DataFrames.
+        base : str, optional
+            The currency (3-digit code) to report risk metrics in. If not given will
+            default to the local currency of the cashflows.
+        fx : FXRates, FXForwards, optional
+            The FX object to use to convert risk metrics. If needed but not given
+            will default to the ``fx`` object associated with the
+            :class:`~rateslib.solver.Solver`. It is not recommended to use this
+            argument with multi-currency instruments, see notes.
+
+        Returns
+        -------
+        DataFrame
+        """
+
+        base, fx = self._get_base_and_fx(base, fx)
+        if vars_scalar is NoInput.blank:
+            vars_scalar = [1.0] * len(vars)
+        if vars_labels is NoInput.blank:
+            vars_labels = vars
+
+        container = {}
+        for ccy in npv:
+            container[("exogenous", ccy, ccy)] = self.grad_f_Ploc(npv[ccy], vars) * vars_scalar
+
+            if base is not NoInput.blank and base != ccy:
+                # extend the derivatives
+                f = fx.rate(f"{ccy}{base}")
+                container[("exogenous", ccy, base)] = (
+                    self.grad_f_Pbase(
+                        npv[ccy], container[("exogenous", ccy, ccy)] / vars_scalar, f, vars
+                    )
+                    * vars_scalar
+                )
+
+        # construct the DataFrame from container with hierarchical indexes
+        exo_idx = MultiIndex.from_tuples(
+            [("exogenous",) + (self.id, label) for label in vars_labels],
+            names=["type", "solver", "label"],
+        )
+
+        indexes = {"exogenous": exo_idx}
+        r_idx = exo_idx
+        c_idx = MultiIndex.from_tuples([], names=["local_ccy", "display_ccy"])
+        df = DataFrame(None, index=r_idx, columns=c_idx)
+        for key, array in container.items():
+            df.loc[indexes[key[0]], (key[1], key[2])] = array
+
+        if base is not NoInput.blank:
+            df.loc[r_idx, ("all", base)] = df.loc[r_idx, (slice(None), base)].sum(axis=1)
+
+        sorted_cols = df.columns.sort_values()
+        return df.loc[:, sorted_cols].astype("float64")
+
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -1939,8 +2022,6 @@ def newton_1dim(
 ):
     """
     Use the Newton-Raphson algorithm to determine the root of a function searching **one** variable.
-
-    Solves the root equation :math:`f(g; s_i)=0` for *g*.
 
     Parameters
     ----------
@@ -1972,9 +2053,25 @@ def newton_1dim(
     -------
     dict
 
+    Notes
+    ------
+    Solves the root equation :math:`f(g; s_i)=0` for *g*. This method is AD-safe, meaning the
+    iteratively determined solution will preserve AD sensitivities, if the functions are suitable.
+    Functions which are not AD suitable, such as discontinuous functions or functions with
+    no derivative at given points, may yield spurious derivative results.
+
+    This method works by first solving in the domain of floats (which is typically faster
+    for most complex functions), and then performing final iterations in higher AD modes to
+    capture derivative sensitivities.
+
+    For special cases arguments can be passed separately to each of these modes using the
+    ``pre_args`` and ``final_args`` arguments, rather than generically supplying it to ``args``.
+
     Examples
     --------
-    Iteratively solve the equation: :math:`f(g, s) = g^2 - s = 0`.
+    Iteratively solve the equation: :math:`f(g, s) = g^2 - s = 0`. This has solution
+    :math:`g=\\pm \\sqrt{s}` and :math:`\\frac{dg}{ds} = \\frac{1}{2 \\sqrt{s}}`.
+    Thus for :math:`s=2` we expect the solution :code:`g=Dual(1.41.., ["s"], [0.35..])`.
 
     .. ipython:: python
 

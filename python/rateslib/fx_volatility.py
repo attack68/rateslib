@@ -9,6 +9,7 @@ import numpy as np
 from pandas import Series
 from pytz import UTC
 
+from rateslib import defaults
 from rateslib.calendars import get_calendar
 from rateslib.default import NoInput, _drb, plot, plot3d
 from rateslib.dual import (
@@ -32,6 +33,8 @@ TERMINAL_DATE = dt(2100, 1, 1)
 class FXDeltaVolSmile:
     r"""
     Create an *FX Volatility Smile* at a given expiry indexed by delta percent.
+
+    See also the :ref:`FX Vol Surfaces section in the user guide <c-fx-smile-doc>`.
 
     Parameters
     ----------
@@ -638,6 +641,8 @@ class FXDeltaVolSurface:
     Create an *FX Volatility Surface* parametrised by cross-sectional *Smiles* at different
     expiries.
 
+    See also the :ref:`FX Vol Surfaces section in the user guide <c-fx-smile-doc>`.
+
     Parameters
     ----------
     delta_indexes: list[float]
@@ -695,6 +700,7 @@ class FXDeltaVolSurface:
         id: str | NoInput = NoInput(0),
         ad: int = 0,
     ):
+        self.clear_cache()
         node_values = np.asarray(node_values)
         self.id = uuid4().hex[:5] + "_" if id is NoInput.blank else id  # 1 in a million clash
         self.eval_date = eval_date
@@ -724,12 +730,36 @@ class FXDeltaVolSurface:
 
         self._set_ad_order(ad)  # includes csolve on each smile
 
+    def clear_cache(self):
+        """
+        Clear the cache of cross-sectional *Smiles* on a *Surface* type.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        This should be used if any modification has been made to the *Surface*.
+        Users are advised against making direct modification to *Surface* classes once
+        constructed to avoid the issue of un-cleared caches returning erroneous values.
+        Alternatively set ``defaults.curve_caching`` to *False* to turn off global
+        caching in general.
+        """
+        self._cache = dict()
+
+    def _maybe_add_to_cache(self, date, val):
+        if defaults.curve_caching:
+            self._cache[date] = val
+
     def _set_ad_order(self, order: int):
+        self.clear_cache()
         self.ad = order
         for smile in self.smiles:
             smile._set_ad_order(order)
 
     def _set_node_vector(self, vector: np.array, ad: int):
+        self.clear_cache()
         m = len(self.delta_indexes)
         for i in range(int(len(vector) / m)):
             # smiles are indexed by expiry, shortest first
@@ -759,16 +789,19 @@ class FXDeltaVolSurface:
         -------
         FXDeltaVolSmile
         """
+        if defaults.curve_caching and expiry in self._cache:
+            return self._cache[expiry]
+
         expiry_posix = expiry.replace(tzinfo=UTC).timestamp()
         e_idx = index_left_f64(self.expiries_posix, expiry_posix)
         if expiry == self.expiries[0]:
-            return self.smiles[0]
+            smile = self.smiles[0]
         elif abs(expiry_posix - self.expiries_posix[e_idx + 1]) < 1e-10:
             # expiry aligns with a known smile
-            return self.smiles[e_idx + 1]
+            smile = self.smiles[e_idx + 1]
         elif expiry_posix > self.expiries_posix[-1]:
             # use the data from the last smile
-            _ = FXDeltaVolSmile(
+            smile = FXDeltaVolSmile(
                 nodes={
                     k: self._t_var_interp(
                         expiry_index=e_idx,
@@ -786,12 +819,11 @@ class FXDeltaVolSurface:
                 delta_type=self.delta_type,
                 id=self.smiles[e_idx + 1].id + "_ext",
             )
-            return _
         elif expiry <= self.eval_date:
             raise ValueError("`expiry` before the `eval_date` of the Surface is invalid.")
         elif expiry_posix < self.expiries_posix[0]:
             # use the data from the first smile
-            _ = FXDeltaVolSmile(
+            smile = FXDeltaVolSmile(
                 nodes={
                     k: self._t_var_interp(
                         expiry_index=e_idx,
@@ -809,10 +841,9 @@ class FXDeltaVolSurface:
                 delta_type=self.delta_type,
                 id=self.smiles[0].id + "_ext",
             )
-            return _
         else:
             ls, rs = self.smiles[e_idx], self.smiles[e_idx + 1]  # left_smile, right_smile
-            _ = FXDeltaVolSmile(
+            smile = FXDeltaVolSmile(
                 nodes={
                     k: self._t_var_interp(
                         expiry_index=e_idx,
@@ -834,7 +865,9 @@ class FXDeltaVolSurface:
                 delta_type=self.delta_type,
                 id=ls.id + "_" + rs.id + "_intp",
             )
-            return _
+
+        self._maybe_add_to_cache(expiry, smile)
+        return smile
 
     def _t_var_interp(self, expiry_index, expiry, expiry_posix, vol1, vol2, bounds_flag):
         """

@@ -57,20 +57,23 @@ from rateslib.calendars import (
     create_calendar,
     dcf,
     get_calendar,
+    get_imm,
 )
 from rateslib.curves import (
     CompositeCurve,
     Curve,
     IndexCurve,
     LineCurve,
+    MultiCsaCurve,
     ProxyCurve,
     index_left,
     interpolate,
 )
-from rateslib.dual import Dual, Dual2, dual_exp, dual_log, dual_solve, gradient
+from rateslib.dual import Dual, Dual2, Variable, dual_exp, dual_log, dual_solve, gradient
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
 from rateslib.instruments import (
+    CDS,
     FRA,
     IIRS,
     IRS,
@@ -153,6 +156,7 @@ __all__ = [
     # dual.py
     "Dual",
     "Dual2",
+    "Variable",
     "dual_log",
     "dual_exp",
     "dual_solve",
@@ -167,6 +171,7 @@ __all__ = [
     # calendars.py
     "create_calendar",
     "get_calendar",
+    "get_imm",
     "add_tenor",
     "dcf",
     "Cal",
@@ -178,6 +183,7 @@ __all__ = [
     "Curve",
     "LineCurve",
     "IndexCurve",
+    "MultiCsaCurve",
     "CompositeCurve",
     "ProxyCurve",
     "interpolate",
@@ -213,6 +219,7 @@ __all__ = [
     "IndexFixedRateBond",
     "FloatRateNote",
     "BondFuture",
+    "CDS",
     "FRA",
     "Value",
     "VolValue",
@@ -237,4 +244,4 @@ __all__ = [
     "FXBrokerFly",
 ]
 
-__version__ = "1.5.0"
+__version__ = "1.6.0"

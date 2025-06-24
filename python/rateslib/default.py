@@ -152,6 +152,7 @@ class Defaults:
             "FloatRateNote": 0,
             "Bill": 0,
             "FRA": 0,
+            "CDS": 0,
         }
         self.fixing_method = "rfr_payment_delay"
         self.fixing_method_param = {
@@ -172,6 +173,10 @@ class Defaults:
         self.fx_delta_type = "spot"
         self.fx_option_metric = "pips"
 
+        self.cds_premium_accrued = True
+        self.cds_recovery_rate = 0.40
+        self.cds_protection_discretization = 23
+
         # Curves
 
         self.interpolation = {
@@ -187,6 +192,7 @@ class Defaults:
            1808, 1821, 1824, 1825,
         ]
         # fmt: on
+        self.curve_caching = True
 
         # Solver
 
@@ -242,7 +248,11 @@ class Defaults:
             "model": "Model",
             "vol": "Vol",
             "strike": "Strike",
+            # CDS headers
+            "survival": "Survival",
+            "recovery": "Recovery",
         }
+        self._global_ad_order = 1
 
         # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
         # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -309,6 +319,12 @@ Instruments:\n
                         "fixing_method_param",
                         "spread_compound_method",
                         "base_currency",
+                        "fx_delivery_lag",
+                        "fx_delta_type",
+                        "fx_option_metric",
+                        "cds_premium_accrued",
+                        "cds_recovery_rate",
+                        "cds_protection_discretization",
                     ]
                 ]
             )
@@ -322,6 +338,7 @@ Curves:\n
                         "interpolation",
                         "endpoints",
                         "multi_csa_steps",
+                        "curve_caching",
                     ]
                 ]
             )

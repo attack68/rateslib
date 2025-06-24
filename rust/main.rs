@@ -25,27 +25,27 @@ fn main() {
 
     let now = SystemTime::now();
 
-    for i in 0..10000 {
+    for _i in 0..10000 {
         let _ = ops(&a0, &b0);
     }
     println!("{:.5?} time taken for f64", now.elapsed());
 
-    for i in 0..10000 {
+    for _i in 0..10000 {
         let _ = ops(&a3, &b3);
     }
     println!("{:.5?} time taken for Number F64 wrapper", now.elapsed());
 
-    for i in 0..10000 {
+    for _i in 0..10000 {
         let _ = ops(&a1, &b1);
     }
     println!("{:.5?} time taken for Dual", now.elapsed());
 
-    for i in 0..10000 {
+    for _i in 0..10000 {
         let _ = ops(&a2, &b2);
     }
     println!("{:.5?} time taken for Number Dual wrapper", now.elapsed());
 
-    for i in 0..10000 {
+    for _i in 0..10000 {
         let _ = ops(&a2, &a3);
     }
     println!(
@@ -53,7 +53,7 @@ fn main() {
         now.elapsed()
     );
 
-    for i in 0..10000 {
+    for _i in 0..10000 {
         let _ = ops2(a0, &a1);
     }
     println!("{:.5?} time taken for F64/Dual special func", now.elapsed());

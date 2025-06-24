@@ -152,6 +152,7 @@ class _Serialize:
         elif order not in [0, 1, 2]:
             raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
 
+        self.clear_cache()
         self.ad = order
         self.nodes = {
             k: set_order_convert(v, order, [f"{self.id}{i}"])
@@ -299,6 +300,7 @@ class Curve(_Serialize):
         ad: int = 0,
         **kwargs,
     ):
+        self.clear_cache()
         self.id = _drb(uuid4().hex[:5], id)  # 1 in a million clash
         self.nodes = nodes  # nodes.copy()
         self.node_keys = list(self.nodes.keys())
@@ -350,11 +352,15 @@ class Curve(_Serialize):
         self._set_ad_order(order=ad)
 
     def __getitem__(self, date: datetime):
+        if defaults.curve_caching and date in self._cache:
+            return self._cache[date]
+
         date_posix = date.replace(tzinfo=UTC).timestamp()
         if self.spline is None or date <= self.t[0]:
             if isinstance(self.interpolation, Callable):
-                return self.interpolation(date, self.nodes.copy())
-            return self._local_interp_(date_posix)
+                val = self.interpolation(date, self.nodes.copy())
+            else:
+                val = self._local_interp_(date_posix)
         else:
             if date > self.t[-1]:
                 warnings.warn(
@@ -364,7 +370,10 @@ class Curve(_Serialize):
                     f"{self.t[-1].strftime('%Y-%m-%d')}",
                     UserWarning,
                 )
-            return self._op_exp(self.spline.ppev_single(date_posix))
+            val = self._op_exp(self.spline.ppev_single(date_posix))
+
+        self._maybe_add_to_cache(date, val)
+        return val
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -536,6 +545,28 @@ class Curve(_Serialize):
 
         return _
 
+    def clear_cache(self):
+        """
+        Clear the cache of values on a *Curve* type.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        This should be used if any modification has been made to the *Curve*.
+        Users are advised against making direct modification to *Curve* classes once
+        constructed to avoid the issue of un-cleared caches returning erroneous values.
+
+        Alternatively the curve caching as a feature can be set to *False* in ``defaults``.
+        """
+        self._cache = dict()
+
+    def _maybe_add_to_cache(self, date, val):
+        if defaults.curve_caching:
+            self._cache[date] = val
+
     def csolve(self) -> None:
         """
         Solves **and sets** the coefficients, ``c``, of the :class:`PPSpline`.
@@ -599,7 +630,7 @@ class Curve(_Serialize):
 
     def shift(
         self,
-        spread: float,
+        spread: DualTypes,
         id: str | NoInput = NoInput(0),
         composite: bool = True,
         collateral: str | NoInput = NoInput(0),
@@ -617,6 +648,13 @@ class Curve(_Serialize):
         ----------
         spread : float, Dual, Dual2
             The number of basis points added to the existing curve.
+
+            .. warning::
+
+               If ``composite`` is *True*, users must be aware that adding *Dual* or *Dual2*
+               spreads must be compatible with the AD order of *Self*, otherwise *TypeErrors*
+               may be raised. If in doubt, only use *float* spread values.
+
         id : str, optional
             Set the id of the returned curve.
         composite: bool, optional
@@ -719,6 +757,13 @@ class Curve(_Serialize):
             return _
 
         else:  # use non-composite method, which is faster but does not preserve a dynamic spread.
+            # Make sure base curve ADorder matches the spread ADorder. Floats are universal
+            _ad = self.ad
+            if isinstance(spread, Dual):
+                self._set_ad_order(1)
+            elif isinstance(spread, Dual2):
+                self._set_ad_order(2)
+
             v1v2 = [1.0] * (self.n - 1)
             n = [0] * (self.n - 1)
             d = 1 / 365 if self.convention.upper() != "ACT360" else 1 / 360
@@ -751,6 +796,7 @@ class Curve(_Serialize):
                 **kwargs,
             )
             _.collateral = collateral
+            self._set_ad_order(_ad)
             return _
 
     def _translate_nodes(self, start: datetime):
@@ -1096,7 +1142,7 @@ class Curve(_Serialize):
         labels: list[str] | NoInput = NoInput(0),
     ):
         """
-        Plot given forward tenor rates from the curve.
+        Plot given forward tenor rates from the curve. See notes.
 
         Parameters
         ----------
@@ -1122,6 +1168,24 @@ class Curve(_Serialize):
         Returns
         -------
         (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
+
+        Notes
+        ------
+        This function plots single-period, **simple interest** curve rates, which are defined as:
+
+        .. math::
+
+           1 + r d = \\frac{v_{start}}{v_{end}}
+
+        where *d* is the day count fraction determined using the ``convention`` associated
+        with the *Curve*.
+
+        This function does **not** plot swap rates,
+        which is impossible since the *Curve* object contains no information regarding the
+        parameters of the *'swap'* (e.g. its *frequency* or its *convention* etc.).
+        If ``tenors`` longer than one year are sought results may start to deviate from those
+        one might expect. See `Issue 246 <https://github.com/attack68/rateslib/issues/246>`_.
+
         """
         comparators = _drb([], comparators)
         labels = _drb([], labels)
@@ -1224,6 +1288,8 @@ class Curve(_Serialize):
 
     def _set_node_vector(self, vector: list[DualTypes], ad):
         """Used to update curve values during a Solver iteration. ``ad`` in {1, 2}."""
+        self.clear_cache()
+
         DualType = Dual if ad == 1 else Dual2
         DualArgs = ([],) if ad == 1 else ([], [])
         base_obj = DualType(0.0, [f"{self.id}{i}" for i in range(self.n)], *DualArgs)
@@ -1437,6 +1503,13 @@ class LineCurve(Curve):
         ----------
         spread : float, Dual, Dual2
             The number of basis points added to the existing curve.
+
+            .. warning::
+
+               If ``composite`` is *True*, users must be aware that adding *Dual* or *Dual2*
+               spreads must be compatible with the AD order of *Self*, otherwise *TypeErrors*
+               may be raised. If in doubt, only use *float* spread values.
+
         id : str, optional
             Set the id of the returned curve.
         composite: bool, optional
@@ -1505,6 +1578,14 @@ class LineCurve(Curve):
         """
         if composite:
             return super().shift(spread, id, composite, collateral)
+
+        # Make sure base curve ADorder matches the spread ADorder. Floats are universal
+        _ad = self.ad
+        if isinstance(spread, Dual):
+            self._set_ad_order(1)
+        elif isinstance(spread, Dual2):
+            self._set_ad_order(2)
+
         _ = LineCurve(
             nodes={k: v + spread / 100 for k, v in self.nodes.items()},
             interpolation=self.interpolation,
@@ -1518,6 +1599,7 @@ class LineCurve(Curve):
             ad=self.ad,
         )
         _.collateral = collateral
+        self._set_ad_order(_ad)
         return _
 
     def _translate_nodes(self, start: datetime):
@@ -2611,6 +2693,26 @@ class MultiCsaCurve(CompositeCurve):
         )
         _.collateral = collateral
         return _
+
+
+# class HazardCurve(Curve):
+#     """
+#     A subclass of :class:`~rateslib.curves.Curve` with additional methods for
+#     credit default calculations.
+#
+#     Parameters
+#     ----------
+#     args : tuple
+#         Position arguments required by :class:`Curve`.
+#     kwargs : dict
+#         Keyword arguments required by :class:`Curve`.
+#     """
+#
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#
+#     def survival_rate(self, date: datetime):
+#         return self[date]
 
 
 class ProxyCurve(Curve):

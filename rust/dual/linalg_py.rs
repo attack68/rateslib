@@ -22,10 +22,10 @@ where
     let b_ = Array1::from_vec(b);
     let (r, c) = (a1.len() / b_.len(), b_.len());
     let a2 = a1
-        .into_shape((r, c))
+        .into_shape_with_order((r, c))
         .expect("Inputs `a` and `b` for dual solve were incorrect shapes");
     let out = dsolve(&a2.view(), &b_.view(), allow_lsq);
-    out.into_raw_vec()
+    out.into_raw_vec_and_offset().0
 }
 
 /// Wrapper to solve ax = b, when `a` and `b` contain `Dual` data types.
@@ -60,7 +60,7 @@ where
 {
     let b_ = Array1::from_vec(b);
     let out = fdsolve(&a.view(), &b_.view(), allow_lsq);
-    out.into_raw_vec()
+    out.into_raw_vec_and_offset().0
 }
 
 /// Wrapper to solve ax = b, when `b` contains `Dual` data types.

@@ -22,20 +22,21 @@ from __future__ import annotations
 
 import warnings
 from abc import ABCMeta, abstractmethod
-from datetime import datetime
+from datetime import datetime, timedelta
 from math import comb, log
 
 import numpy as np
-from pandas import NA, DataFrame, Series, isna, notna
+from pandas import NA, DataFrame, Index, MultiIndex, Series, concat, isna, notna
 
 from rateslib import defaults
 from rateslib.calendars import CalInput, _get_eom, add_tenor, dcf
 from rateslib.curves import CompositeCurve, Curve, IndexCurve, LineCurve, average_rate, index_left
-from rateslib.default import NoInput
+from rateslib.default import NoInput, _drb
 from rateslib.dual import (
     Dual,
     Dual2,
     DualTypes,
+    Variable,
     dual_exp,
     dual_inv_norm_cdf,
     dual_log,
@@ -936,6 +937,7 @@ class FloatPeriod(BasePeriod):
             else:
                 return 0.0  # payment date is in the past avoid issues with fixings or rates
         value = self.rate(curve) / 100 * self.dcf * disc_curve_[self.payment] * -self.notional
+
         return _maybe_local(value, local, self.currency, fx, base)
 
     def cashflow(self, curve: Curve | LineCurve | dict) -> None | DualTypes:
@@ -1014,12 +1016,325 @@ class FloatPeriod(BasePeriod):
                 return method[curve._base_type](curve)
             else:
                 if not self.stub:
-                    curve = curve[f"{self.freq_months}m"]
+                    curve = _get_ibor_curve_from_dict(self.freq_months, curve)
                     return method[curve._base_type](curve)
                 else:
                     return self._interpolated_ibor_from_curve_dict(curve)
         else:
             raise ValueError("`fixing_method` not valid for the FloatPeriod.")  # pragma: no cover
+
+    def fixings_table(
+        self,
+        curve: Curve | LineCurve | dict,
+        approximate: bool = False,
+        disc_curve: Curve = NoInput(0),
+        right: datetime | NoInput = NoInput(0),
+    ):
+        """
+        Return a DataFrame of fixing exposures.
+
+        Parameters
+        ----------
+        curve : Curve, LineCurve, IndexCurve dict of such
+            The forecast needed to calculate rates which affect compounding and
+            dependent notional exposure.
+        approximate : bool, optional
+            Perform a calculation that is broadly 10x faster but potentially loses
+            precision upto 0.1%.
+        disc_curve : Curve
+            A curve to make appropriate DF scalings. If *None* and ``curve`` contains
+            DFs that will be used instead, otherwise errors are raised.
+        right : datetime, optional
+            Ignore fixing risks beyond this date.
+
+        Returns
+        -------
+        DataFrame
+
+        Notes
+        -----
+        **IBOR** and **RFR** ``fixing_method`` have different representations under
+        this method.
+
+        For *"ibor"* based floating rates the fixing exposures are indexed by
+        **publication date** and not by reference value date. IBOR fixings tend to
+        occur either in advance, or the same day.
+
+        For *"rfr"* based floating rates the fixing exposures are indexed by the
+        **reference value date** and not by publication date. RFR fixings tend to
+        publish in arrears, usually at 9am the following business day. Central banks
+        tend to publish data aligning the fixing rate with the reference value date
+        and not by the publication date which is why this format is chosen. It also
+        has practical application when constructing curves.
+
+        Examples
+        --------
+        .. ipython:: python
+
+           rfr_curve = Curve(
+               nodes={dt(2022, 1, 1): 1.00, dt(2022, 1, 13): 0.9995},
+               calendar="bus",
+               id="rfr"
+           )
+
+        A regular `rfr_payment_delay` period.
+
+        .. ipython:: python
+
+           constants = {
+               "start": dt(2022, 1, 5),
+               "end": dt(2022, 1, 11),
+               "payment": dt(2022, 1, 11),
+               "frequency": "Q",
+               "notional": -1000000,
+               "currency": "gbp",
+           }
+           period = FloatPeriod(**{
+               **constants,
+               "fixing_method": "rfr_payment_delay"
+           })
+           period.fixings_table(rfr_curve)
+
+        A 2 business day `rfr_observation_shift` period. Notice how the above had
+        4 fixings spanning 6 calendar days, but the observation shift here attributes
+        4 fixings spanning 4 calendar days so the notional exposure to those dates
+        is increased by effectively 6/4.
+
+        .. ipython:: python
+
+           period = FloatPeriod(**{
+               **constants,
+               "fixing_method": "rfr_observation_shift",
+               "method_param": 2,
+            })
+           period.fixings_table(rfr_curve)
+
+        A 2 business day `rfr_lookback` period. Notice how the lookback period adjusts
+        the weightings on the 6th January fixing by 3, and thus increases the notional
+        exposure.
+
+        .. ipython:: python
+
+           period = FloatPeriod(**{
+               **constants,
+               "fixing_method": "rfr_lookback",
+               "method_param": 2,
+            })
+           period.fixings_table(rfr_curve)
+
+        A 2 business day `rfr_lockout` period. Notice how the exposure to the final
+        fixing which then spans multiple days is increased.
+
+        .. ipython:: python
+
+           period = FloatPeriod(**{
+               **constants,
+               "fixing_method": "rfr_lockout",
+               "method_param": 2,
+           })
+           period.fixings_table(rfr_curve)
+
+        An IBOR fixing table
+
+        .. ipython:: python
+
+            ibor_3m = Curve(
+               nodes={dt(2022, 1, 1): 1.00, dt(2023, 1, 1): 0.99},
+               calendar="bus",
+               id="ibor3m",
+           )
+           ibor_1m = Curve(
+               nodes={dt(2022, 1, 1): 1.00, dt(2023, 1, 1): 0.995},
+               calendar="bus",
+               id="ibor1m",
+           )
+           period = FloatPeriod(
+               start=dt(2022, 1, 5),
+               end=dt(2022, 3, 7),
+               payment=dt(2022, 3, 7),
+               frequency="Q",
+               notional=-1000000,
+               currency="gbp",
+               stub=True,
+               fixing_method="ibor",
+               method_param=2
+           )
+           period.fixings_table({"1m": ibor_1m, "3m": ibor_3m}, disc_curve=ibor_1m)
+        """
+        if disc_curve is NoInput.blank and isinstance(curve, dict):
+            raise ValueError("Cannot infer `disc_curve` from a dict of curves.")
+        elif disc_curve is NoInput.blank:
+            if curve._base_type == "dfs":
+                disc_curve = curve
+            else:
+                raise ValueError("Must supply a discount factor based `disc_curve`.")
+
+        if approximate:
+            if self.fixings is not NoInput.blank:
+                warnings.warn(
+                    "Cannot approximate a fixings table when some published fixings "
+                    f"are given within the period {self.start.strftime('%d-%b-%Y')}->"
+                    f"{self.end.strftime('%d-%b-%Y')}. Switching to exact mode for this "
+                    f"period.",
+                    UserWarning,
+                )
+            else:
+                try:
+                    return self._fixings_table_fast(curve, disc_curve, right=right)
+                except ValueError:
+                    # then probably a math domain error related to dates before the curve start
+                    warnings.warn(
+                        "Errored approximating a fixings table.\n Possibly this is due "
+                        f"to period dates: {self.start.strftime('%d-%b-%Y')}->"
+                        f"{self.end.strftime('%d-%b-%Y')},\n and the curve initial date: "
+                        f"{curve.node_dates[0].strftime('%d-%b-%Y')}. Switching to exact mode "
+                        f"for this period.",
+                        UserWarning,
+                    )
+                    return self.fixings_table(
+                        curve, approximate=False, disc_curve=disc_curve, right=right
+                    )
+
+        if "rfr" in self.fixing_method:
+            _d = self._rfr_get_individual_fixings_data(curve, allow_na=True)
+
+            if not isinstance(right, NoInput) and _d["obs_dates"][0] > right:
+                # then all fixings are out of scope, so perform no calculations
+                df = DataFrame(
+                    {
+                        "obs_dates": [],
+                        "notional": [],
+                        "risk": [],
+                        "dcf": [],
+                        "rates": [],
+                    },
+                ).set_index("obs_dates")
+            elif _d["rates"].isna().any() and not _d["obs_dates"].iloc[-1] <= curve.node_dates[0]:
+                raise ValueError(
+                    "RFRs could not be calculated, have you missed providing `fixings` or "
+                    "does the `Curve` begin after the start of a `FloatPeriod` including "
+                    "the `method_param` adjustment?\n"
+                    "For further info see: Documentation > Cookbook > Working with fixings.",
+                )
+            elif _d["rates"].isna().any():
+                # period exists before the curve and fixings are not supplied.
+                # Exposures are overwritten to zero.
+                df = DataFrame(
+                    {
+                        "obs_dates": _d["obs_dates"].iloc[:-1],
+                        "notional": [0.0] * len(_d["rates"]),
+                        "risk": [0.0] * len(_d["rates"]),
+                        "dcf": _d["dcf_vals"],
+                        "rates": _d["rates"].astype(float).reset_index(drop=True),
+                    },
+                ).set_index("obs_dates")
+            else:
+                rate, table = self._rfr_fixings_array(_d, disc_curve)
+                table = table.iloc[:-1]
+                df = table[["obs_dates", "notional", "risk", "dcf", "rates"]].set_index("obs_dates")
+
+            df.columns = MultiIndex.from_tuples(
+                [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"), (curve.id, "rates")]
+            )
+            return _trim_df_by_index(df, NoInput(0), right)
+        elif "ibor" in self.fixing_method:
+            return self._ibor_fixings_table(curve, disc_curve, right)
+
+    def _fixings_table_fast(
+        self, curve: Curve | LineCurve, disc_curve: Curve, right: NoInput | datetime
+    ):
+        """
+        Return a DataFrame of **approximate** fixing exposures.
+
+        For arguments see :meth:`~rateslib.periods.FloatPeriod.fixings_table`.
+        """
+        if "rfr" in self.fixing_method:
+            # Depending upon method get the observation dates and dcf dates
+            obs_dates, dcf_dates, dcf_vals, obs_vals = self._get_method_dcf_markers(curve, True)
+
+            if not isinstance(right, NoInput) and obs_dates[0] > right:
+                # then all fixings are out of scope, so perform no calculations
+                df = DataFrame(
+                    [],
+                    columns=MultiIndex.from_tuples(
+                        [
+                            (curve.id, "notional"),
+                            (curve.id, "risk"),
+                            (curve.id, "dcf"),
+                            (curve.id, "rates"),
+                        ]
+                    ),
+                    index=Index([], name="obs_dates", dtype=float),
+                )
+                return df
+            # approximate DFs
+            v_vals = Series(np.nan, index=obs_dates.iloc[1:])
+            v_vals.iloc[0] = log(float(disc_curve[obs_dates.iloc[1]]))
+            v_vals.iloc[-1] = log(float(disc_curve[obs_dates.iloc[-1]]))
+            v_vals = v_vals.interpolate(method="time")
+            v_vals = Series(np.exp(v_vals.to_numpy()), index=obs_vals.index)
+
+            scalar = dcf_vals.values / obs_vals.values
+            if self.fixing_method in ["rfr_lockout", "rfr_lockout_avg"]:
+                scalar[-self.method_param :] = 0.0
+                scalar[-(self.method_param + 1)] = (
+                    obs_vals.iloc[-(self.method_param + 1) :].sum()
+                    / obs_vals.iloc[-(self.method_param + 1)]
+                )
+            # perform an efficient rate approximation
+            rate = curve.rate(
+                effective=obs_dates.iloc[0],
+                termination=obs_dates.iloc[-1],
+            )
+            r_bar, d, n = average_rate(
+                obs_dates.iloc[0],
+                obs_dates.iloc[-1],
+                curve.convention,
+                rate,
+            )
+            # approximate sensitivity to each fixing
+            z = self.float_spread / 10000
+            if "avg" in self.fixing_method:
+                drdri = 1 / n
+            elif self.spread_compound_method == "none_simple":
+                drdri = (1 / n) * (1 + (r_bar / 100) * d) ** (n - 1)
+            elif self.spread_compound_method == "isda_compounding":
+                drdri = (1 / n) * (1 + (r_bar / 100 + z) * d) ** (n - 1)
+            elif self.spread_compound_method == "isda_flat_compounding":
+                dr = d * r_bar / 100
+                drdri = (1 / n) * (
+                    ((1 / n) * (comb(n, 1) + comb(n, 2) * dr + comb(n, 3) * dr**2))
+                    + ((r_bar / 100 + z) / n) * (comb(n, 2) * d + 2 * comb(n, 3) * dr * d)
+                )
+
+            v = float(disc_curve[self.payment])
+            notional_exposure = Series(
+                (-self.notional * self.dcf * float(drdri) * v / d * scalar) / v_vals,
+                index=obs_vals.index,
+            )
+
+            table = DataFrame(
+                {
+                    "obs_dates": obs_dates,
+                    "obs_dcf": obs_vals,
+                    "dcf_dates": dcf_dates,
+                    "dcf": dcf_vals,
+                    "notional": notional_exposure,
+                    "risk": notional_exposure * v_vals * obs_vals * 0.0001,
+                    "rates": Series(rate, index=obs_dates.index).astype(
+                        float,
+                    ),  # .apply(float, convert_dtype=float),
+                },
+            )
+
+            table = table.iloc[:-1]
+            df = table[["obs_dates", "notional", "risk", "dcf", "rates"]].set_index("obs_dates")
+            df.columns = MultiIndex.from_tuples(
+                [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"), (curve.id, "rates")]
+            )
+            return _trim_df_by_index(df, NoInput(0), right)
+        elif "ibor" in self.fixing_method:
+            return self._ibor_fixings_table(curve, disc_curve, right=right)
 
     def _interpolated_ibor_from_curve_dict(self, curve: dict):
         """
@@ -1093,10 +1408,129 @@ class FloatPeriod(BasePeriod):
 
         return curve[fixing_date] + self.float_spread / 100
 
+    def _ibor_fixings_table(self, curve, disc_curve, right, risk=None):
+        """
+        Calculate a fixings_table under an IBOR based methodology.
+
+        Parameters
+        ----------
+        curve: Curve or Dict
+            Dict may be relevant if the period is a stub.
+        risk: float, optional
+            This is the known financial exposure to the movement of the period IBOR fixing.
+            Expressed per 1 in percentage rate, i.e. risk per bp * 10000
+
+        Returns
+        -------
+        DataFrame
+        """
+        if isinstance(curve, dict) and self.stub:
+            # then must perform an interpolated calculation
+            return self._ibor_stub_fixings_table(curve, disc_curve, right, risk)
+        elif isinstance(curve, dict) and not self.stub:
+            # then extract the one relevant curve from dict
+            curve = _get_ibor_curve_from_dict(self.freq_months, curve)
+        return self._ibor_single_tenor_fixings_table(
+            curve, disc_curve, f"{self.freq_months}m", right, risk
+        )
+
+    def _ibor_single_tenor_fixings_table(self, curve, disc_curve, tenor, right, risk=None):
+        calendar = curve.calendar
+        fixing_dt = calendar.lag(self.start, -self.method_param, False)
+        if not isinstance(right, NoInput) and fixing_dt > right:
+            # fixing not in scope, perform no calculations
+            df = DataFrame(
+                {
+                    "obs_dates": [],
+                    "notional": [],
+                    "risk": [],
+                    "dcf": [],
+                    "rates": [],
+                },
+            ).set_index("obs_dates")
+        else:
+            reg_end_dt = add_tenor(self.start, tenor, curve.modifier, calendar)
+            reg_dcf = dcf(self.start, reg_end_dt, curve.convention, reg_end_dt)
+
+            if self.fixings is not NoInput.blank or fixing_dt < curve.node_dates[0]:
+                # then fixing is set so return zero exposure.
+                _rate = NA if self.fixings is NoInput.blank else float(self.rate(curve))
+                df = DataFrame(
+                    {
+                        "obs_dates": [fixing_dt],
+                        "notional": 0.0,
+                        "risk": 0.0,
+                        "dcf": [reg_dcf],
+                        "rates": [_rate],
+                    },
+                ).set_index("obs_dates")
+            else:
+                risk = (
+                    -self.notional * self.dcf * disc_curve[self.payment] if risk is None else risk
+                )
+                df = DataFrame(
+                    {
+                        "obs_dates": [fixing_dt],
+                        "notional": float(risk / (reg_dcf * disc_curve[reg_end_dt])),
+                        "risk": float(risk) * 0.0001,  # scale to bp
+                        "dcf": [reg_dcf],
+                        "rates": [self.rate(curve)],
+                    },
+                ).set_index("obs_dates")
+
+        df.columns = MultiIndex.from_tuples(
+            [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"), (curve.id, "rates")]
+        )
+        return df
+
+    def _ibor_stub_fixings_table(
+        self, curve: dict, disc_curve: Curve, right: datetime | NoInput, risk=None
+    ):
+        calendar = next(iter(curve.values())).calendar  # note: ASSUMES all curve calendars are same
+        values = {add_tenor(self.start, k, "MF", calendar): k for k, v in curve.items()}
+        values = dict(sorted(values.items()))
+        reg_end_dts = list(values.keys())
+
+        if self.end > reg_end_dts[-1]:
+            warnings.warn(
+                "Interpolated stub period has a length longer than the provided "
+                "IBOR curve tenors: using the longest IBOR value.",
+                UserWarning,
+            )
+            a1, a2 = 0.0, 1.0
+            i = len(reg_end_dts) - 2
+        elif self.end < reg_end_dts[0]:
+            warnings.warn(
+                "Interpolated stub period has a length shorter than the provided "
+                "IBOR curve tenors: using the shortest IBOR value.",
+                UserWarning,
+            )
+            a1, a2 = 1.0, 0.0
+            i = 0
+        else:
+            i = index_left(reg_end_dts, len(reg_end_dts), self.end)
+            a2 = (self.end - reg_end_dts[i]) / (reg_end_dts[i + 1] - reg_end_dts[i])
+            a1 = 1.0 - a2
+
+        risk = -self.notional * self.dcf * disc_curve[self.payment] if risk is None else risk
+        tenor1, tenor2 = list(values.values())[i], list(values.values())[i + 1]
+        df1 = self._ibor_single_tenor_fixings_table(
+            curve[tenor1], disc_curve, tenor1, right, risk * a1
+        )
+        # df1[(curve[tenor1].id, "notional")] = df1[(curve[tenor1].id, "notional")] * a1
+        # df1[(curve[tenor1].id, "risk")] = df1[(curve[tenor1].id, "risk")] * a1
+        df2 = self._ibor_single_tenor_fixings_table(
+            curve[tenor2], disc_curve, tenor2, right, risk * a2
+        )
+        # df2[(curve[tenor2].id, "notional")] = df2[(curve[tenor2].id, "notional")] * a2
+        # df2[(curve[tenor2].id, "risk")] = df2[(curve[tenor2].id, "risk")] * a2
+        df = concat([df1, df2], axis=1)
+        return df
+
     def _rfr_rate_from_df_curve(self, curve: Curve):
         # TODO zero len curve is generated by pseudo curve in FloatRateNote. This is bad construct
         if len(curve.node_dates) == 0 or self.start < curve.node_dates[0]:
-            return self._rfr_fixings_array(curve, fixing_exposure=False)[0]
+            return self._rfr_rate_from_individual_fixings(curve)
         if self.fixing_method == "rfr_payment_delay" and not self._is_inefficient:
             return curve.rate(self.start, self.end) + self.float_spread / 100
         elif self.fixing_method == "rfr_observation_shift" and not self._is_inefficient:
@@ -1107,12 +1541,12 @@ class FloatPeriod(BasePeriod):
         else:
             # return inefficient calculation
             # this is also the path for all averaging methods
-            return self._rfr_fixings_array(curve, fixing_exposure=False)[0]
+            return self._rfr_rate_from_individual_fixings(curve)
 
     def _rfr_rate_from_line_curve(self, curve: LineCurve):
-        return self._rfr_fixings_array(curve, fixing_exposure=False)[0]
+        return self._rfr_rate_from_individual_fixings(curve)
 
-    def _avg_rate_with_spread(self, rates, dcf_vals):
+    def _rfr_avg_rate_with_spread(self, rates, dcf_vals):
         """
         Calculate all in rate with float spread under averaging.
 
@@ -1135,7 +1569,7 @@ class FloatPeriod(BasePeriod):
         else:
             return (dcf_vals * rates).sum() / dcf_vals.sum() + self.float_spread / 100
 
-    def _isda_compounded_rate_with_spread(self, rates, dcf_vals):
+    def _rfr_isda_compounded_rate_with_spread(self, rates, dcf_vals):
         """
         Calculate all in rates with float spread under different compounding methods.
 
@@ -1176,217 +1610,13 @@ class FloatPeriod(BasePeriod):
                 "'isda_compounding', 'isda_flat_compounding'}.",
             )
 
-    def fixings_table(
-        self,
-        curve: Curve | LineCurve | dict,
-        approximate: bool = False,
-        disc_curve: Curve = NoInput(0),
-    ):
+    def _rfr_get_individual_fixings_data(self, curve, allow_na=False):
         """
-        Return a DataFrame of fixing exposures.
-
-        Parameters
-        ----------
-        curve : Curve, LineCurve, IndexCurve dict of such
-            The forecast needed to calculate rates which affect compounding and
-            dependent notional exposure.
-        approximate : bool, optional
-            Perform a calculation that is broadly 10x faster but potentially loses
-            precision upto 0.1%.
-        disc_curve : Curve
-            A curve to make appropriate DF scalings. If *None* and ``curve`` contains
-            DFs that will be used instead, otherwise errors are raised.
-
-        Returns
-        -------
-        DataFrame
-
-        Notes
-        -----
-        **IBOR** and **RFR** ``fixing_method`` have different representations under
-        this method.
-
-        For *"ibor"* based floating rates the fixing exposures are indexed by
-        **publication date** and not by reference value date. IBOR fixings tend to
-        occur either in advance, or the same day.
-
-        For *"rfr"* based floating rates the fixing exposures are indexed by the
-        **reference value date** and not by publication date. RFR fixings tend to
-        publish in arrears, usually at 9am the following business day. Central banks
-        tend to publish data aligning the fixing rate with the reference value date
-        and not by the publication date which is why this format is chosen. It also
-        has practical application when constructing curves.
-
-        Examples
-        --------
-        .. ipython:: python
-
-           rfr_curve = Curve(
-               nodes={dt(2022, 1, 1): 1.00, dt(2022, 1, 13): 0.9995},
-               calendar="bus"
-           )
-
-        A regular `rfr_payment_delay` period.
-
-        .. ipython:: python
-
-           constants = {
-               "start": dt(2022, 1, 5),
-               "end": dt(2022, 1, 11),
-               "payment": dt(2022, 1, 11),
-               "frequency": "Q",
-               "notional": -1000000,
-               "currency": "gbp",
-           }
-           period = FloatPeriod(**{
-               **constants,
-               "fixing_method": "rfr_payment_delay"
-           })
-           period.fixings_table(rfr_curve)
-
-        A 2 business day `rfr_observation_shift` period. Notice how the above had
-        4 fixings spanning 6 calendar days, but the observation shift here attributes
-        4 fixings spanning 4 calendar days so the notional exposure to those dates
-        is increased by effectively 6/4.
-
-        .. ipython:: python
-
-           period = FloatPeriod(**{
-               **constants,
-               "fixing_method": "rfr_observation_shift",
-               "method_param": 2,
-            })
-           period.fixings_table(rfr_curve)
-
-        A 2 business day `rfr_lookback` period. Notice how the lookback period adjusts
-        the weightings on the 6th January fixing by 3, and thus increases the notional
-        exposure.
-
-        .. ipython:: python
-
-           period = FloatPeriod(**{
-               **constants,
-               "fixing_method": "rfr_lookback",
-               "method_param": 2,
-            })
-           period.fixings_table(rfr_curve)
-
-        A 2 business day `rfr_lockout` period. Notice how the exposure to the final
-        fixing which then spans multiple days is increased.
-
-        .. ipython:: python
-
-           period = FloatPeriod(**{
-               **constants,
-               "fixing_method": "rfr_lockout",
-               "method_param": 2,
-            })
-           period.fixings_table(rfr_curve)
-
-        An IBOR fixing table
-
-        .. ipython:: python
-
-            ibor_curve = Curve(
-               nodes={dt(2022, 1, 1): 1.00, dt(2023, 1, 1): 0.99},
-               calendar="bus",
-           )
-           period = FloatPeriod(**{
-               **constants,
-               "fixing_method": "ibor",
-               "method_param": 2,
-            })
-           period.fixings_table(ibor_curve)
+        Gets relevant DCF values and populates all the individual RFR fixings either known or
+        from a curve, for latter calculations, either to derive a period rate or perform
+        fixings table analysis.
         """
-        if disc_curve is NoInput.blank and isinstance(curve, dict):
-            raise ValueError("Cannot infer `disc_curve` from a dict of curves.")
-        elif disc_curve is NoInput.blank and curve._base_type == "dfs":
-            disc_curve = curve
-
-        if approximate:
-            if self.fixings is not NoInput.blank:
-                warnings.warn(
-                    "Cannot approximate a fixings table when some published fixings "
-                    f"are given within the period {self.start.strftime('%d-%b-%Y')}->"
-                    f"{self.end.strftime('%d-%b-%Y')}. Switching to exact mode for this "
-                    f"period.",
-                    UserWarning,
-                )
-            else:
-                return self._fixings_table_fast(curve, disc_curve)
-
-        if "rfr" in self.fixing_method:
-            rate, table = self._rfr_fixings_array(
-                curve,
-                fixing_exposure=True,
-                disc_curve=disc_curve,
-            )
-            table = table.iloc[:-1]
-            return table[["obs_dates", "notional", "dcf", "rates"]].set_index("obs_dates")
-        elif "ibor" in self.fixing_method:
-            if isinstance(curve, dict):
-                calendar = next(iter(curve.values())).calendar
-            else:
-                calendar = curve.calendar
-            fixing_date = add_tenor(self.start, f"-{self.method_param}b", "P", calendar)
-            return DataFrame(
-                {
-                    "obs_dates": [fixing_date],
-                    "notional": -self.notional,
-                    "dcf": [None],
-                    "rates": [self.rate(curve)],
-                },
-            ).set_index("obs_dates")
-
-    def _rfr_fixings_array(
-        self,
-        curve: Curve | LineCurve,
-        fixing_exposure: bool = False,
-        disc_curve: Curve = None,
-    ):
-        """
-        Calculate the rate of a period via extraction and combination of every fixing.
-
-        This method of calculation is inefficient and used when either:
-
-        - known fixings needs to be combined with unknown fixings,
-        - the fixing_method is of a type that needs individual fixing data,
-        - the spread compound method is of a type that needs individual fixing data.
-
-        Parameters
-        ----------
-        curve : Curve or LineCurve
-            The forecasting curve used to extract the fixing data.
-        fixing_exposure : bool
-            Whether to calculate sensitivities to the fixings additionally.
-        fixing_exposure_approx : bool
-            Whether to use an approximation, if available, for fixing exposure calcs.
-
-        Returns
-        -------
-        tuple
-            The compounded rate, DataFrame of the calculation data.
-
-        Notes
-        -----
-        ``start_obs`` and ``end_obs`` define the observation period for fixing rates.
-        ``start_dcf`` and ``end_dcf`` define the period for day count fractions.
-        Unless *"lookback"* is used which mis-aligns the obs and dcf periods these
-        will be aligned.
-
-        The ``fixing_exposure_approx`` is available only for ``spread_compound_method``
-        that is either *"none_simple"* or *"isda_compounding"*.
-        """
-
-        obs_dates, dcf_dates = self._get_method_dcf_markers(curve)
-
-        dcf_vals = Series(
-            [  # calculate the dcf values from the dcf dates
-                dcf(dcf_dates[i], dcf_dates[i + 1], curve.convention)
-                for i in range(len(dcf_dates.index) - 1)
-            ],
-        )
-
+        obs_dates, dcf_dates, dcf_vals, obs_vals = self._get_method_dcf_markers(curve, True)
         rates = Series(NA, index=obs_dates[:-1])
         if self.fixings is not NoInput.blank:
             # then fixings will be a list or Series, scalars are already processed.
@@ -1432,10 +1662,10 @@ class FloatPeriod(BasePeriod):
                 raise TypeError(
                     "`fixings` should be of type scalar, None, list or Series.",
                 )  # pragma: no cover
-
         # reindex the rates series getting missing values from the curves
         # TODO (low) the next two lines could probably be vectorised and made more efficient.
-        fixed = ~isna(rates)
+        fixed = (~isna(rates)).to_numpy()
+        # before_curve = (obs_dates < curve.node_dates[0]).to_numpy()
         rates = Series({k: v if notna(v) else curve.rate(k, "1b", "F") for k, v in rates.items()})
         # Alternative solution to PR 172.
         # rates = Series({
@@ -1445,26 +1675,6 @@ class FloatPeriod(BasePeriod):
         #     for k, v in rates.items()
         # })
 
-        if fixing_exposure:
-            # need to calculate the dcfs associated with the rates (unshifted)
-            if self.fixing_method in [
-                "rfr_payment_delay",
-                "rfr_observation_shift",
-                "rfr_lockout",
-                "rfr_payment_delay_avg",
-                "rfr_observation_shift_avg",
-                "rfr_lockout_avg",
-            ]:  # for all these methods there is no shift
-                dcf_of_r = dcf_vals.copy()
-            elif self.fixing_method in ["rfr_lookback", "rfr_lookback_avg"]:
-                dcf_of_r = Series(
-                    [
-                        dcf(obs_dates[i], obs_dates[i + 1], curve.convention)
-                        for i in range(len(dcf_dates.index) - 1)
-                    ],
-                )
-            v_with_r = Series([disc_curve[obs_dates[i]] for i in range(1, len(dcf_dates.index))])
-
         if self.fixing_method in ["rfr_lockout", "rfr_lockout_avg"]:
             # adjust the final rates values of the lockout arrays according to param
             try:
@@ -1472,41 +1682,7 @@ class FloatPeriod(BasePeriod):
             except IndexError:
                 raise ValueError("period has too few dates for `rfr_lockout` param to function.")
 
-        if fixing_exposure:
-            rates_dual = Series(
-                [Dual(float(r), [f"fixing_{i}"], []) for i, (k, r) in enumerate(rates.items())],
-                index=rates.index,
-            )
-            if self.fixing_method in ["rfr_lockout", "rfr_lockout_avg"]:
-                rates_dual.iloc[-self.method_param :] = rates_dual.iloc[-self.method_param - 1]
-            if "avg" in self.fixing_method:
-                rate = self._avg_rate_with_spread(rates_dual, dcf_vals)
-            else:
-                rate = self._isda_compounded_rate_with_spread(rates_dual, dcf_vals)
-            notional_exposure = Series(
-                [gradient(rate, [f"fixing_{i}"])[0] for i in range(len(dcf_dates.index) - 1)],
-            ).astype(float)
-            v = disc_curve[self.payment]
-            mask = ~fixed.to_numpy()  # exclude fixings that are already fixed
-
-            notional_exposure[mask] *= -self.notional * (self.dcf / dcf_of_r[mask]) * float(v)
-            notional_exposure[mask] /= v_with_r[mask].astype(float)
-            # notional_exposure[mask] *=
-            #     (-self.notional * (self.dcf / dcf_of_r[mask]) * v / v_with_r[mask])
-            # notional_exposure[fixed.drop_index(drop=True)] = 0.0
-            notional_exposure[fixed.to_numpy()] = 0.0
-            extra_cols = {
-                "obs_dcf": dcf_of_r,
-                "notional": notional_exposure.astype(float),  # apply(float, convert_dtype=float),
-            }
-        else:
-            if "avg" in self.fixing_method:
-                rate = self._avg_rate_with_spread(rates, dcf_vals)
-            else:
-                rate = self._isda_compounded_rate_with_spread(rates, dcf_vals)
-            extra_cols = {}
-
-        if rates.isna().any():
+        if rates.isna().any() and not allow_na:
             raise ValueError(
                 "RFRs could not be calculated, have you missed providing `fixings` or "
                 "does the `Curve` begin after the start of a `FloatPeriod` including "
@@ -1514,112 +1690,104 @@ class FloatPeriod(BasePeriod):
                 "For further info see: Documentation > Cookbook > Working with fixings.",
             )
 
+        return {
+            "rates": rates,
+            "fixed": fixed,
+            "obs_dates": obs_dates,
+            "dcf_dates": dcf_dates,
+            "dcf_vals": dcf_vals,
+            "obs_vals": obs_vals,
+        }
+
+    def _rfr_rate_from_individual_fixings(self, curve):
+        data = self._rfr_get_individual_fixings_data(curve)
+        if "avg" in self.fixing_method:
+            rate = self._rfr_avg_rate_with_spread(data["rates"], data["dcf_vals"])
+        else:
+            rate = self._rfr_isda_compounded_rate_with_spread(data["rates"], data["dcf_vals"])
+        return rate
+
+    def _rfr_fixings_array(
+        self,
+        d: dict,
+        disc_curve: Curve,
+    ):
+        """
+        Calculate the rate of a period via extraction and combination of every fixing.
+
+        This method of calculation is inefficient and used when either:
+
+        - known fixings needs to be combined with unknown fixings,
+        - the fixing_method is of a type that needs individual fixing data,
+        - the spread compound method is of a type that needs individual fixing data.
+
+        Parameters
+        ----------
+        d: dict
+            Data passed from function `get_rfr_individual_fixing_data`.
+        disc_curve : Curve
+            The discount curve used in scaling factors and calculations.
+
+        Returns
+        -------
+        tuple
+            The compounded rate, DataFrame of the calculation data.
+
+        Notes
+        -----
+        ``start_obs`` and ``end_obs`` define the observation period for fixing rates.
+        ``start_dcf`` and ``end_dcf`` define the period for day count fractions.
+        Unless *"lookback"* is used which mis-aligns the obs and dcf periods these
+        will be aligned.
+
+        The ``fixing_exposure_approx`` is available only for ``spread_compound_method``
+        that is either *"none_simple"* or *"isda_compounding"*.
+        """
+        # then perform additional calculations to return fixings table
+        dcf_of_r = d["obs_vals"]  # these are the 1-d DCFs associated with each published fixing
+        v_with_r = Series(
+            [disc_curve[d["obs_dates"][i]] for i in range(1, len(d["dcf_dates"].index))]
+        )
+        # these are zero-lag discount factors associated with each published fixing
+        rates_dual = Series(
+            [Dual(float(r), [f"fixing_{i}"], []) for i, (k, r) in enumerate(d["rates"].items())],
+            index=d["rates"].index,
+        )
+        if self.fixing_method in ["rfr_lockout", "rfr_lockout_avg"]:
+            rates_dual.iloc[-self.method_param :] = rates_dual.iloc[-self.method_param - 1]
+        if "avg" in self.fixing_method:
+            rate = self._rfr_avg_rate_with_spread(rates_dual, d["dcf_vals"])
+        else:
+            rate = self._rfr_isda_compounded_rate_with_spread(rates_dual, d["dcf_vals"])
+
+        dr_drj = Series(
+            [gradient(rate, [f"fixing_{i}"])[0] for i in range(len(d["dcf_dates"].index) - 1)],
+        ).astype(float)
+        v = disc_curve[self.payment]
+
+        risk = -float(self.notional) * self.dcf * float(v) * dr_drj
+        risk[d["fixed"]] = 0.0
+
+        notional_exposure = Series(0.0, index=range(len(dr_drj.index)))
+        notional_exposure[~d["fixed"]] = risk[~d["fixed"]] / (
+            dcf_of_r[~d["fixed"]] * v_with_r[~d["fixed"]].astype(float)
+        )
+        extra_cols = {
+            "obs_dcf": dcf_of_r,
+            "notional": notional_exposure.astype(float),  # apply(float, convert_dtype=float),
+            "dr_drj": dr_drj,
+            "risk": risk * 0.0001,
+        }
+
         return rate, DataFrame(
             {
-                "obs_dates": obs_dates,
-                "dcf_dates": dcf_dates,
-                "dcf": dcf_vals,
-                "rates": rates.astype(float).reset_index(drop=True),
+                "obs_dates": d["obs_dates"],
+                "dcf_dates": d["dcf_dates"],
+                "dcf": d["dcf_vals"],
+                "rates": d["rates"].astype(float).reset_index(drop=True),
                 **extra_cols,
             },
         )
-
-    def _fixings_table_fast(self, curve: Curve | LineCurve, disc_curve: Curve):
-        """
-        Return a DataFrame of **approximate** fixing exposures.
-
-        For arguments see :meth:`~rateslib.periods.FloatPeriod.fixings_table`.
-        """
-        if "rfr" in self.fixing_method:
-            # Depending upon method get the observation dates and dcf dates
-            obs_dates, dcf_dates = self._get_method_dcf_markers(curve)
-
-            # TODO (low) this calculation could be vectorised by a 360 or 365 multiplier
-            dcf_vals = Series(
-                [  # calculate the dcf values from the dcf dates
-                    dcf(dcf_dates[i], dcf_dates[i + 1], curve.convention)
-                    for i in range(len(dcf_dates.index) - 1)
-                ],
-            )
-            obs_vals = Series(
-                [  # calculate the dcf values from the dcf dates
-                    dcf(obs_dates[i], obs_dates[i + 1], curve.convention)
-                    for i in range(len(obs_dates.index) - 1)
-                ],
-            )
-
-            # approximate DFs
-            v_vals = Series(np.nan, index=obs_dates.iloc[1:])
-            v_vals.iloc[0] = log(float(disc_curve[obs_dates.iloc[1]]))
-            v_vals.iloc[-1] = log(float(disc_curve[obs_dates.iloc[-1]]))
-            v_vals = v_vals.interpolate(method="time")
-            v_vals = Series(np.exp(v_vals.to_numpy()), index=obs_vals.index)
-
-            scalar = dcf_vals.values / obs_vals.values
-            if self.fixing_method in ["rfr_lockout", "rfr_lockout_avg"]:
-                scalar[-self.method_param :] = 0.0
-                scalar[-(self.method_param + 1)] = (
-                    obs_vals.iloc[-(self.method_param + 1) :].sum()
-                    / obs_vals.iloc[-(self.method_param + 1)]
-                )
-            # perform an efficient rate approximation
-            rate = curve.rate(
-                effective=obs_dates.iloc[0],
-                termination=obs_dates.iloc[-1],
-            )
-            r_bar, d, n = average_rate(
-                obs_dates.iloc[0],
-                obs_dates.iloc[-1],
-                curve.convention,
-                rate,
-            )
-            # approximate sensitivity to each fixing
-            z = self.float_spread / 10000
-            if "avg" in self.fixing_method:
-                drdri = 1 / n
-            elif self.spread_compound_method == "none_simple":
-                drdri = (1 / n) * (1 + (r_bar / 100) * d) ** (n - 1)
-            elif self.spread_compound_method == "isda_compounding":
-                drdri = (1 / n) * (1 + (r_bar / 100 + z) * d) ** (n - 1)
-            elif self.spread_compound_method == "isda_flat_compounding":
-                dr = d * r_bar / 100
-                drdri = (1 / n) * (
-                    ((1 / n) * (comb(n, 1) + comb(n, 2) * dr + comb(n, 3) * dr**2))
-                    + ((r_bar / 100 + z) / n) * (comb(n, 2) * d + 2 * comb(n, 3) * dr * d)
-                )
-
-            v = float(disc_curve[self.payment])
-            v_vals /= v
-            notional_exposure = Series(
-                (-self.notional * self.dcf * float(drdri) / d * scalar) / v_vals,
-                index=obs_vals.index,
-            )
-
-            table = DataFrame(
-                {
-                    "obs_dates": obs_dates,
-                    "obs_dcf": obs_vals,
-                    "dcf_dates": dcf_dates,
-                    "dcf": dcf_vals,
-                    "notional": notional_exposure,
-                    "rates": Series(rate, index=obs_dates.index).astype(
-                        float,
-                    ),  # .apply(float, convert_dtype=float),
-                },
-            )
-
-            table = table.iloc[:-1]
-            return table[["obs_dates", "notional", "dcf", "rates"]].set_index("obs_dates")
-        elif "ibor" in self.fixing_method:
-            fixing_date = add_tenor(self.start, f"-{self.method_param}b", "P", curve.calendar)
-            return DataFrame(
-                {
-                    "obs_dates": [fixing_date],
-                    "notional": -self.notional,
-                    "dcf": [None],
-                    "rates": [self.rate(curve)],
-                },
-            ).set_index("obs_dates")
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
     # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -1652,7 +1820,19 @@ class FloatPeriod(BasePeriod):
         # else fixing method in ["rfr_lookback", "rfr_lockout"]
         return True
 
-    def _get_method_dcf_markers(self, curve: Curve | LineCurve, endpoints=False):
+    def _get_method_dcf_endpoints(self, curve: Curve):
+        """
+        For RFR periods return the relevant DCF markers for different aspects of calculation.
+
+        `start_obs` and `end_obs` are the dates between which RFR fixings are observed.
+
+        `start_dcf` and `end_dcf` are the dates between which the DCFs for each observed fixing
+        are compounded or averaged with to determine the ultimate rate.
+
+        For all methods except 'lookback', these dates will align with each other.
+        For 'lookback' the observed RFRs are applied over different DCFs that do not naturally
+        align.
+        """
         # Depending upon method get the observation dates and dcf dates
         if self.fixing_method in [
             "rfr_payment_delay",
@@ -1680,12 +1860,23 @@ class FloatPeriod(BasePeriod):
                 "a suffix for averaging methods.",
             )
 
-        if endpoints:
-            # return just the edges without the computation of creating Series
-            return start_obs, end_obs, start_dcf, end_dcf
+        return start_obs, end_obs, start_dcf, end_dcf
 
+    def _get_method_dcf_markers(self, curve: Curve | LineCurve, exposure=False):
+        """
+        Use conventions from the given `curve` and the data attached to self to derive
+        relevant DCF calculations for the Period.
+
+        curve: Curve / The forecast curve with associated conventions.
+        exposure: bool / If needed for exposure generation additional values returned.
+        """
+        start_obs, end_obs, start_dcf, end_dcf = self._get_method_dcf_endpoints(curve)
         # dates of the fixing observation period
         obs_dates = Series(curve.calendar.bus_date_range(start=start_obs, end=end_obs))
+        # TODO (low) if start_obs and end_obs are not business days this may raise. But cases may
+        # arise if using unadjusted schedules. Then an improvement to use a `lag` adjustment
+        # may be needed but this also needs careful thought for consequences.
+
         # dates for the dcf weight for each observation towards the calculation
         msg = (
             "RFR Observation and Accrual DCF dates do not align.\n"
@@ -1706,13 +1897,43 @@ class FloatPeriod(BasePeriod):
                 # but DCF dates are not, and if starting on holiday causes problems.
                 raise ValueError(msg)
 
-        return obs_dates, dcf_dates
+        # TODO (low) this calculation could be vectorised by a 360 or 365 multiplier
+        dcf_vals = Series(
+            [  # calculate the dcf values from the dcf dates
+                dcf(dcf_dates[i], dcf_dates[i + 1], curve.convention)
+                for i in range(len(dcf_dates.index) - 1)
+            ],
+        )
+
+        obs_vals = None
+        if exposure:
+            # for calculating fixing notional exposure the DCF of the actual fixings is
+            # required for comparison
+            # need to calculate the dcfs associated with the rates (unshifted)
+            if self.fixing_method in [
+                "rfr_payment_delay",
+                "rfr_observation_shift",
+                "rfr_lockout",
+                "rfr_payment_delay_avg",
+                "rfr_observation_shift_avg",
+                "rfr_lockout_avg",
+            ]:  # for all these methods there is no shift
+                obs_vals = dcf_vals.copy()
+            elif self.fixing_method in ["rfr_lookback", "rfr_lookback_avg"]:
+                obs_vals = Series(
+                    [
+                        dcf(obs_dates[i], obs_dates[i + 1], curve.convention)
+                        for i in range(len(dcf_dates.index) - 1)
+                    ],
+                )
+
+        return obs_dates, dcf_dates, dcf_vals, obs_vals
 
     def _get_analytic_delta_quadratic_coeffs(self, fore_curve, disc_curve):
         """
         For use in the Leg._spread calculation get the 'a' and 'b' coefficients
         """
-        os, oe, _, _ = self._get_method_dcf_markers(fore_curve, True)
+        os, oe, _, _ = self._get_method_dcf_endpoints(fore_curve)
         rate = fore_curve.rate(
             effective=os,
             termination=oe,
@@ -1734,6 +1955,397 @@ class FloatPeriod(BasePeriod):
             a, b = 0.0, Nvd * drdz
 
         return a, b
+
+
+class CreditPremiumPeriod(BasePeriod):
+    """
+    Create a credit premium period defined by a credit spread.
+
+    Parameters
+    ----------
+    args : dict
+        Required positional args to :class:`BasePeriod`.
+    fixed_rate : float or None, optional
+        The rate applied to determine the cashflow. If `None`, can be set later,
+        typically after a mid-market rate for all periods has been calculated.
+        Entered in percentage points, e.g 50bps is 0.50.
+    premium_accrued : bool, optional
+        Whether the premium is accrued within the period to default.
+    kwargs : dict
+        Required keyword arguments to :class:`BasePeriod`.
+
+    Notes
+    -----
+    The ``cashflow`` is defined as follows;
+
+    .. math::
+
+       C = -NdS
+
+    The NPV of the full cashflow is defined as;
+
+    .. math::
+
+       P_c = Cv(m_{payment})Q(m_{end})
+
+    If ``premium_accrued`` is permitted then an additional component equivalent to the following
+    is calculated using an approximation of the inter-period default rate,
+
+    .. math::
+
+       P_a = Cv(m_{payment}) \\left ( Q(m_{start}) - Q(m_{end}) \\right ) \\frac{(n+r)}{2n}
+
+    where *r* is the number of days after the *start* that *today* is for an on-going period, zero otherwise, and
+    :math:`Q(m_{start})` is equal to one for an on-going period.
+
+    The :meth:`~rateslib.periods.BasePeriod.npv` is defined as;
+
+    .. math::
+
+       P = P_c + I_{pa} P_a
+
+    where :math:`I_{pa}` is an indicator function if the *Period* allows ``premium_accrued`` or not.
+
+    The :meth:`~rateslib.periods.BasePeriod.analytic_delta` is defined as;
+
+    .. math::
+
+       A = - \\frac{\\partial P}{\\partial S} = Ndv(m) \\left ( Q(m_{end}) + I_{pa} (Q(m_{start}) - Q(m_{end}) \\frac{(n+r)}{2n}  \\right )
+    """  # noqa: E501
+
+    def __init__(
+        self,
+        *args,
+        fixed_rate: float | NoInput = NoInput(0),
+        premium_accrued: bool | NoInput = NoInput(0),
+        **kwargs,
+    ):
+        self.premium_accrued = _drb(defaults.cds_premium_accrued, premium_accrued)
+        self.fixed_rate = fixed_rate
+        super().__init__(*args, **kwargs)
+
+    @property
+    def cashflow(self) -> float | None:
+        """
+        float, Dual or Dual2 : The calculated value from rate, dcf and notional.
+        """
+        if self.fixed_rate is NoInput.blank:
+            return None
+        else:
+            return -self.notional * self.dcf * self.fixed_rate * 0.01
+
+    def accrued(self, settlement: datetime):
+        """
+        Calculate the amount of premium accrued until a specific date within the *Period*.
+
+        Parameters
+        ----------
+        settlement: datetime
+            The date against which accrued is measured.
+
+        Returns
+        -------
+        float
+        """
+        if self.fixed_rate is NoInput.blank:
+            return None
+        else:
+            if settlement <= self.start or settlement >= self.end:
+                return 0.0
+            return self.cashflow * (settlement - self.start).days / (self.end - self.start).days
+
+    def npv(
+        self,
+        curve: Curve | NoInput = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        local: bool = False,
+    ) -> DualTypes | dict[str, DualTypes]:
+        """
+        Return the NPV of the *CreditPremiumPeriod*.
+        See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
+        """
+        if not isinstance(disc_curve, Curve) and disc_curve is NoInput.blank:
+            raise TypeError("`curves` have not been supplied correctly.")
+        if not isinstance(curve, Curve) and curve is NoInput.blank:
+            raise TypeError("`curves` have not been supplied correctly.")
+        if self.fixed_rate is NoInput.blank:
+            raise ValueError("`fixed_rate` must be set as a value to return a valid NPV.")
+        v_payment = disc_curve[self.payment]
+        q_end = curve[self.end]
+        _ = 0.0
+        if self.premium_accrued:
+            v_end = disc_curve[self.end]
+            n = float((self.end - self.start).days)
+
+            if self.start < curve.node_dates[0]:
+                # then mid-period valuation
+                r, q_start, _v_start = float((curve.node_dates[0] - self.start).days), 1.0, 1.0
+            else:
+                r, q_start, _v_start = 0.0, curve[self.start], disc_curve[self.start]
+
+            # method 1:
+            _ = 0.5 * (1 + r / n)
+            _ *= q_start - q_end
+            _ *= v_end
+
+            # # method 4 EXACT
+            # _ = 0.0
+            # for i in range(1, int(s)):
+            #     m_i, m_i2 = m_today + timedelta(days=i-1), m_today + timedelta(days=i)
+            #     _ += (
+            #     (i + r) / n * disc_curve[m_today + timedelta(days=i)] * (curve[m_i] - curve[m_i2])
+            #     )
+
+        return _maybe_local(self.cashflow * (q_end * v_payment + _), local, self.currency, fx, base)
+
+    def analytic_delta(
+        self,
+        curve: Curve | NoInput = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+    ) -> DualTypes:
+        """
+        Return the analytic delta of the *CreditPremiumPeriod*.
+        See
+        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
+        """
+        if not isinstance(disc_curve, Curve) and disc_curve is NoInput.blank:
+            raise TypeError("`curves` have not been supplied correctly.")
+        if not isinstance(curve, Curve) and curve is NoInput.blank:
+            raise TypeError("`curves` have not been supplied correctly.")
+
+        v_payment = disc_curve[self.payment]
+        q_end = curve[self.end]
+        _ = 0.0
+        if self.premium_accrued:
+            v_end = disc_curve[self.end]
+            n = float((self.end - self.start).days)
+
+            if self.start < curve.node_dates[0]:
+                # then mid-period valuation
+                r, q_start, _v_start = float((curve.node_dates[0] - self.start).days), 1.0, 1.0
+            else:
+                r, q_start, _v_start = 0.0, curve[self.start], disc_curve[self.start]
+
+            # method 1:
+            _ = 0.5 * (1 + r / n)
+            _ *= q_start - q_end
+            _ *= v_end
+
+        return _maybe_local(
+            0.0001 * self.notional * self.dcf * (q_end * v_payment + _),
+            False,
+            self.currency,
+            fx,
+            base,
+        )
+
+    def cashflows(
+        self,
+        curve: Curve | dict | NoInput = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+    ):
+        """
+        Return the cashflows of the *CreditPremiumPeriod*.
+        See
+        :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
+        """
+        fx, base = _get_fx_and_base(self.currency, fx, base)
+
+        if curve is not NoInput.blank and disc_curve is not NoInput.blank:
+            npv = float(self.npv(curve, disc_curve))
+            npv_fx = npv * float(fx)
+            survival = float(curve[self.end])
+        else:
+            npv, npv_fx, survival = None, None, None
+
+        return {
+            **super().cashflows(curve, disc_curve, fx, base),
+            defaults.headers["rate"]: float(self.fixed_rate),
+            defaults.headers["survival"]: survival,
+            defaults.headers["cashflow"]: float(self.cashflow),
+            defaults.headers["npv"]: npv,
+            defaults.headers["fx"]: float(fx),
+            defaults.headers["npv_fx"]: npv_fx,
+        }
+
+
+class CreditProtectionPeriod(BasePeriod):
+    """
+    Create a credit protection period defined by a recovery rate.
+
+    Parameters
+    ----------
+    args : dict
+        Required positional args to :class:`BasePeriod`.
+    recovery_rate : float, Dual, Dual2, optional
+        The assumed recovery rate that defines payment on credit default. Set by ``defaults``.
+    discretization : int, optional
+        The number of days to discretize the numerical integration over possible credit defaults.
+        Set by ``defaults``.
+    kwargs : dict
+        Required keyword arguments to :class:`BasePeriod`.
+
+    Notes
+    -----
+    The ``cashflow``, paid on a credit event, is defined as follows;
+
+    .. math::
+
+       C = -N(1-R)
+
+    where *R* is the recovery rate.
+
+    The :meth:`~rateslib.periods.BasePeriod.npv` is defined as a discretized sum of inter-period blocks whose
+    probability of default and protection payment sum to give an expected payment;
+
+    .. math::
+
+       j &= [n/discretization] \\\\
+       P &= C \\sum_{i=1}^{j} \\frac{1}{2} \\left ( v(m_{i-1}) + v_(m_{i}) \\right ) \\left ( Q(m_{i-1}) - Q(m_{i}) \\right ) \\\\
+
+    The *start* and *end* of the period are restricted by the *Curve* if the *Period* is current (i.e. *today* is
+    later than *start*)
+
+    The :meth:`~rateslib.periods.BasePeriod.analytic_delta` is defined as;
+
+    .. math::
+
+       A = 0
+    """  # noqa: E501
+
+    def __init__(
+        self,
+        *args,
+        recovery_rate: DualTypes | NoInput = NoInput(0),
+        discretization: int | NoInput = NoInput(0),
+        **kwargs,
+    ):
+        self.recovery_rate = _drb(defaults.cds_recovery_rate, recovery_rate)
+        if self.recovery_rate < 0.0 and self.recovery_rate > 1.0:
+            raise ValueError("`recovery_rate` value must be in [0.0, 1.0]")
+        self.discretization = _drb(defaults.cds_protection_discretization, discretization)
+        super().__init__(*args, **kwargs)
+
+    @property
+    def cashflow(self) -> DualTypes:
+        """
+        float, Dual or Dual2 : The calculated protection amount determined from notional
+        and recovery rate.
+        """
+        return -self.notional * (1 - self.recovery_rate)
+
+    def npv(
+        self,
+        curve: Curve | NoInput = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+        local: bool = False,
+    ) -> DualTypes | dict[str, DualTypes]:
+        """
+        Return the NPV of the *CreditProtectionPeriod*.
+        See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
+        """
+        if not isinstance(disc_curve, Curve) and disc_curve is NoInput.blank:
+            raise TypeError("`curves` have not been supplied correctly.")
+        if not isinstance(curve, Curve) and curve is NoInput.blank:
+            raise TypeError("`curves` have not been supplied correctly.")
+
+        if self.start < curve.node_dates[0]:
+            s2 = curve.node_dates[0]
+        else:
+            s2 = self.start
+
+        value, q2, v2 = 0.0, curve[s2], disc_curve[s2]
+        while s2 < self.end:
+            q1, v1 = q2, v2
+            s2 = s2 + timedelta(days=self.discretization)
+            if s2 > self.end:
+                s2 = self.end
+            q2, v2 = curve[s2], disc_curve[s2]
+            value += 0.5 * (v1 + v2) * (q1 - q2)
+            # value += v2 * (q1 - q2)
+
+        value *= self.cashflow
+        return _maybe_local(value, local, self.currency, fx, base)
+
+    def analytic_delta(
+        self,
+        curve: Curve | NoInput = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+    ) -> DualTypes:
+        """
+        Return the analytic delta of the *CreditProtectionPeriod*.
+        See
+        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
+        """
+        return 0.0
+
+    def cashflows(
+        self,
+        curve: Curve | dict | NoInput = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+    ):
+        """
+        Return the cashflows of the *CreditProtectionPeriod*.
+        See
+        :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
+        """
+        fx, base = _get_fx_and_base(self.currency, fx, base)
+
+        if curve is not NoInput.blank and disc_curve is not NoInput.blank:
+            npv = float(self.npv(curve, disc_curve))
+            npv_fx = npv * float(fx)
+            survival = float(curve[self.end])
+        else:
+            npv, npv_fx, survival = None, None, None
+
+        return {
+            **super().cashflows(curve, disc_curve, fx, base),
+            defaults.headers["recovery"]: float(self.recovery_rate),
+            defaults.headers["survival"]: survival,
+            defaults.headers["cashflow"]: float(self.cashflow),
+            defaults.headers["npv"]: npv,
+            defaults.headers["fx"]: float(fx),
+            defaults.headers["npv_fx"]: npv_fx,
+        }
+
+    def analytic_rec_risk(
+        self,
+        curve: Curve | NoInput = NoInput(0),
+        disc_curve: Curve | NoInput = NoInput(0),
+        fx: float | FXRates | FXForwards | NoInput = NoInput(0),
+        base: str | NoInput = NoInput(0),
+    ) -> float:
+        """
+        Calculate the exposure of the NPV to a change in recovery rate.
+
+        For parameters see
+        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
+
+        Returns
+        -------
+        float
+        """
+        rr = self.recovery_rate
+        if isinstance(rr, (Dual, Dual2, Variable)):
+            self.recovery_rate = Variable(rr.real, ["__recovery_rate__"])
+        else:
+            self.recovery_rate = Variable(float(rr), ["__recovery_rate__"])
+        pv = self.npv(curve, disc_curve, fx, base, False)
+        self.recovery_rate = rr
+        _ = float(gradient(pv, ["__recovery_rate__"], order=1)[0])
+        return _ * 0.01
 
 
 class Cashflow:
@@ -3565,6 +4177,35 @@ def _maybe_local(value, local, currency, fx, base):
     else:
         fx, _ = _get_fx_and_base(currency, fx, base)
         return value * fx
+
+
+def _get_ibor_curve_from_dict(months, d):
+    try:
+        return d[f"{months}m"]
+    except KeyError:
+        try:
+            return d[f"{months}M"]
+        except KeyError:
+            raise ValueError(
+                "If supplying `curve` as dict must provide a tenor mapping key and curve for"
+                f"the frequency of the given Period. The missing mapping is '{months}m'."
+            )
+
+
+def _trim_df_by_index(
+    df: DataFrame, left: datetime | NoInput, right: datetime | NoInput
+) -> DataFrame:
+    """
+    Used by fixings_tables to constrict the view to a left and right bound
+    """
+    if len(df.index) == 0 or isinstance(left, NoInput) and isinstance(right, NoInput):
+        return df
+    elif isinstance(left, NoInput):
+        return df[:right]
+    elif isinstance(right, NoInput):
+        return df[left:]
+    else:
+        return df[left:right]
 
 
 # def _validate_broad_delta_bounds(phi, delta, delta_type):

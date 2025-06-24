@@ -50,6 +50,7 @@ impl Ccy {
 #[pymethods]
 impl FXRate {
     #[new]
+    #[pyo3(signature = (lhs, rhs, rate, settlement=None))]
     fn new_py(
         lhs: &str,
         rhs: &str,
@@ -144,6 +145,7 @@ impl FXRates {
     //     FXRates::try_new(fx_rates_, settlement, base_)
     // }
     #[new]
+    #[pyo3(signature = (fx_rates, base=None))]
     fn new_py(fx_rates: Vec<FXRate>, base: Option<Ccy>) -> PyResult<Self> {
         FXRates::try_new(fx_rates, base)
     }

@@ -1,10 +1,11 @@
 import re
 from datetime import datetime as dt
 from datetime import timedelta
+from sys import prefix
 
 import numpy as np
 import pytest
-from pandas import DataFrame, Index, Series
+from pandas import NA, DataFrame, Index, MultiIndex, Series
 from pandas.testing import assert_frame_equal
 from rateslib import defaults
 from rateslib.curves import CompositeCurve, Curve, IndexCurve, LineCurve
@@ -14,6 +15,8 @@ from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, _d_plus_min_u
 from rateslib.periods import (
     Cashflow,
+    CreditPremiumPeriod,
+    CreditProtectionPeriod,
     FixedPeriod,
     FloatPeriod,
     FXCallPeriod,
@@ -32,7 +35,18 @@ def curve():
         dt(2022, 7, 1): 0.98,
         dt(2022, 10, 1): 0.97,
     }
-    return Curve(nodes=nodes, interpolation="log_linear")
+    return Curve(nodes=nodes, interpolation="log_linear", id="curve_fixture")
+
+
+@pytest.fixture
+def hazard_curve():
+    nodes = {
+        dt(2022, 1, 1): 1.00,
+        dt(2022, 4, 1): 0.999,
+        dt(2022, 7, 1): 0.997,
+        dt(2022, 10, 1): 0.991,
+    }
+    return Curve(nodes=nodes, interpolation="log_linear", id="hazard_fixture")
 
 
 @pytest.fixture
@@ -258,7 +272,7 @@ class TestFloatPeriod:
         )
         period.spread_compound_method = "bad_vibes"
         with pytest.raises(ValueError, match="`spread_compound_method` must be in"):
-            period._isda_compounded_rate_with_spread(Series([1, 2]), Series([1, 1]))
+            period._rfr_isda_compounded_rate_with_spread(Series([1, 2]), Series([1, 1]))
 
     def test_rfr_lockout_too_few_dates(self, curve) -> None:
         period = FloatPeriod(
@@ -686,9 +700,9 @@ class TestFloatPeriod:
             convention="act365f",
             notional=-1000000,
         )
+        _d = period._rfr_get_individual_fixings_data(rfr_curve)
         rate, table = period._rfr_fixings_array(
-            curve=rfr_curve,
-            fixing_exposure=True,
+            d=_d,
             disc_curve=curve,
         )
 
@@ -707,7 +721,23 @@ class TestFloatPeriod:
         )
         period.fixing_method = "bad_vibes"
         with pytest.raises(NotImplementedError, match="`fixing_method`"):
-            period._rfr_fixings_array(rfr_curve)
+            period._rfr_fixings_array(period._rfr_get_individual_fixings_data(rfr_curve), rfr_curve)
+
+    def test_rfr_fixings_array_raises2(self, line_curve) -> None:
+        period = FloatPeriod(
+            dt(2022, 1, 5),
+            dt(2022, 1, 11),
+            dt(2022, 1, 11),
+            "Q",
+            fixing_method="rfr_payment_delay",
+            convention="act365f",
+            notional=-1000000,
+        )
+        with pytest.raises(ValueError, match="Must supply a discount factor based `disc_curve`."):
+            period.fixings_table(curve=line_curve)
+
+        with pytest.raises(ValueError, match="Cannot infer `disc_curve` from a dict of curves."):
+            period.fixings_table(curve={"1m": line_curve, "2m": line_curve})
 
     @pytest.mark.parametrize(
         ("method", "param", "expected"),
@@ -735,7 +765,34 @@ class TestFloatPeriod:
             convention="act365f",
         )
         result = period.fixings_table(rfr_curve)
-        assert abs(result["notional"].iloc[0] - expected) < 1
+        assert abs(result[(rfr_curve.id, "notional")].iloc[0] - expected) < 1
+
+    @pytest.mark.parametrize(
+        ("method", "param", "expected"),
+        [
+            ("rfr_payment_delay", 0, 3.20040557),
+            ("rfr_lockout", 1, 3.80063892),
+            ("rfr_lookback", 1, 3.20040557),
+            ("rfr_observation_shift", 1, 4.00045001),
+        ],
+    )
+    def test_rfr_period_all_types_with_defined_fixings(self, method, param, expected):
+        # This is probably a redundant test but it came later after some refactoring and
+        # was double checked with manual calculation in Excel. Easy to do.
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2022, 3, 1): 1.0}, calendar="nyc")
+        period = FloatPeriod(
+            start=dt(2022, 1, 28),
+            end=dt(2022, 2, 2),
+            frequency="A",
+            payment=dt(2022, 1, 1),
+            fixing_method=method,
+            method_param=param,
+            convention="act360",
+            calendar="nyc",
+            fixings=[3.0, 5.0, 2.0],
+        )
+        result = period.rate(curve)
+        assert abs(result - expected) < 1e-8
 
     @pytest.mark.parametrize(
         ("method", "expected"),
@@ -777,7 +834,7 @@ class TestFloatPeriod:
         assert period._is_inefficient is False
         assert period.rate(line_curve) == 3.0
 
-    def test_ibor_fixing_table(self, line_curve) -> None:
+    def test_ibor_fixing_table(self, line_curve, curve) -> None:
         float_period = FloatPeriod(
             start=dt(2022, 1, 4),
             end=dt(2022, 4, 4),
@@ -785,14 +842,29 @@ class TestFloatPeriod:
             frequency="Q",
             fixing_method="ibor",
             method_param=2,
+            convention="act365f",
         )
-        result = float_period.fixings_table(line_curve)
+        result = float_period.fixings_table(line_curve, disc_curve=curve)
         expected = DataFrame(
-            {"obs_dates": [dt(2022, 1, 2)], "notional": [-1e6], "dcf": [None], "rates": [2.0]},
+            {
+                "obs_dates": [dt(2022, 1, 2)],
+                "notional": [-1e6],
+                "risk": [-24.402790080357686],
+                "dcf": [0.2465753424657534],
+                "rates": [2.0],
+            },
         ).set_index("obs_dates")
+        expected.columns = MultiIndex.from_tuples(
+            [
+                (line_curve.id, "notional"),
+                (line_curve.id, "risk"),
+                (line_curve.id, "dcf"),
+                (line_curve.id, "rates"),
+            ]
+        )
         assert_frame_equal(expected, result)
 
-    def test_ibor_fixing_table_fast(self, line_curve) -> None:
+    def test_ibor_fixing_table_right(self, line_curve, curve) -> None:
         float_period = FloatPeriod(
             start=dt(2022, 1, 4),
             end=dt(2022, 4, 4),
@@ -800,11 +872,56 @@ class TestFloatPeriod:
             frequency="Q",
             fixing_method="ibor",
             method_param=2,
+            convention="act365f",
         )
-        result = float_period.fixings_table(line_curve, approximate=True)
+        result = float_period.fixings_table(line_curve, disc_curve=curve, right=dt(2022, 1, 1))
         expected = DataFrame(
-            {"obs_dates": [dt(2022, 1, 2)], "notional": [-1e6], "dcf": [None], "rates": [2.0]},
+            {
+                "obs_dates": [],
+                "notional": [],
+                "risk": [],
+                "dcf": [],
+                "rates": [],
+            },
         ).set_index("obs_dates")
+        expected.columns = MultiIndex.from_tuples(
+            [
+                (line_curve.id, "notional"),
+                (line_curve.id, "risk"),
+                (line_curve.id, "dcf"),
+                (line_curve.id, "rates"),
+            ]
+        )
+        assert_frame_equal(expected, result)
+
+    def test_ibor_fixing_table_fast(self, line_curve, curve) -> None:
+        float_period = FloatPeriod(
+            start=dt(2022, 1, 4),
+            end=dt(2022, 4, 4),
+            payment=dt(2022, 4, 4),
+            frequency="Q",
+            fixing_method="ibor",
+            method_param=2,
+            convention="act365f",
+        )
+        result = float_period.fixings_table(line_curve, disc_curve=curve, approximate=True)
+        expected = DataFrame(
+            {
+                "obs_dates": [dt(2022, 1, 2)],
+                "notional": [-1e6],
+                "risk": [-24.402790080357686],
+                "dcf": [0.2465753424657534],
+                "rates": [2.0],
+            },
+        ).set_index("obs_dates")
+        expected.columns = MultiIndex.from_tuples(
+            [
+                (line_curve.id, "notional"),
+                (line_curve.id, "risk"),
+                (line_curve.id, "dcf"),
+                (line_curve.id, "rates"),
+            ]
+        )
         assert_frame_equal(expected, result)
 
     def test_ibor_fixings(self) -> None:
@@ -824,6 +941,56 @@ class TestFloatPeriod:
         )
         result = float_period.rate(curve)
         assert result == 2.801
+
+    @pytest.mark.parametrize("approx", [False, True])
+    def test_ibor_fixings_table_historical_before_curve(self, approx) -> None:
+        # fixing table should return a DataFrame with an unknown rate and zero exposure
+        # the fixing has occurred in the past but is unspecified.
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2025, 1, 1): 0.90}, calendar="bus")
+        float_period = FloatPeriod(
+            start=dt(2000, 2, 2),
+            end=dt(2000, 5, 2),
+            payment=dt(2000, 5, 2),
+            frequency="Q",
+            fixing_method="ibor",
+            method_param=0,
+        )
+        result = float_period.fixings_table(curve, approximate=approx)
+        expected = DataFrame(
+            data=[[0.0, 0.0, 0.25, NA]],
+            index=Index([dt(2000, 2, 2)], name="obs_dates"),
+            columns=MultiIndex.from_tuples(
+                [
+                    (curve.id, "notional"),
+                    (curve.id, "risk"),
+                    (curve.id, "dcf"),
+                    (curve.id, "rates"),
+                ],
+            ),
+        )
+        assert_frame_equal(expected, result)
+
+    @pytest.mark.parametrize("approx", [False, True])
+    def test_rfr_fixings_table_historical_before_curve(self, approx) -> None:
+        # fixing table should return a DataFrame with an unknown rate and zero exposure
+        # the fixing has occurred in the past but is unspecified.
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2025, 1, 1): 0.90}, calendar="bus")
+        float_period = FloatPeriod(
+            start=dt(2000, 2, 2),
+            end=dt(2000, 3, 2),
+            payment=dt(2000, 3, 2),
+            frequency="Q",
+            fixing_method="rfr_payment_delay",
+            method_param=0,
+        )
+        if approx:
+            with pytest.warns(UserWarning, match="Errored approximating a fixings table"):
+                result = float_period.fixings_table(curve, approximate=approx)
+        else:
+            result = float_period.fixings_table(curve, approximate=approx)
+        assert isinstance(result, DataFrame)
+        assert result.iloc[0, 0] == 0.0
+        assert result[f"{curve.id}", "notional"][dt(2000, 3, 1)] == 0.0
 
     def test_ibor_fixing_unavailable(self) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2025, 1, 1): 0.90}, calendar="bus")
@@ -958,7 +1125,10 @@ class TestFloatPeriod:
         # with pytest.warns(UserWarning):
         #     period.rate(curve)
 
-        with pytest.raises(ValueError, match="RFRs could not be calculated, have you missed"):
+        with (
+            pytest.raises(ValueError, match="RFRs could not be calculated, have you missed"),
+            pytest.warns(UserWarning, match="`fixings` has missed a calendar value"),
+        ):
             period.rate(curve)
 
     def test_fixing_with_float_spread_warning(self, curve) -> None:
@@ -1023,6 +1193,7 @@ class TestFloatPeriod:
                             -999821.37380,
                             -999932.84380,
                         ],
+                        "risk": [0.0, 0.0, 0.0, -0.26664737262, -0.26664737262],
                         "dcf": [0.0027777777777777778] * 5,
                         "rates": [1.19, 1.19, -8.81, 4.01364, 4.01364],
                     },
@@ -1046,6 +1217,7 @@ class TestFloatPeriod:
                             -999888.52252,
                             -1000000.00000,
                         ],
+                        "risk": [0.0, 0.0, 0.0, -0.26666528084917104, -0.26666528084917104],
                         "dcf": [0.0027777777777777778] * 5,
                         "rates": [1.19, 1.19, -8.81, 4.01364, 4.01364],
                     },
@@ -1054,6 +1226,9 @@ class TestFloatPeriod:
         ],
     )
     def test_rfr_fixings_table(self, curve, meth, exp) -> None:
+        exp.columns = MultiIndex.from_tuples(
+            [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"), (curve.id, "rates")]
+        )
         float_period = FloatPeriod(
             start=dt(2022, 12, 28),
             end=dt(2023, 1, 2),
@@ -1069,6 +1244,39 @@ class TestFloatPeriod:
         # assert values are unchanged even if curve can calculate derivatives
         result = float_period.fixings_table(curve)
         assert_frame_equal(result, exp)
+
+    @pytest.mark.parametrize(
+        ("right", "exp"),
+        [
+            (dt(2021, 1, 1), 0),
+            (dt(2022, 12, 31), 4),
+        ],
+    )
+    def test_rfr_fixings_table_right(self, curve, right, exp) -> None:
+        float_period = FloatPeriod(
+            start=dt(2022, 12, 28),
+            end=dt(2023, 1, 2),
+            payment=dt(2023, 1, 2),
+            frequency="M",
+            fixings=[1.19, 1.19, -8.81],
+            fixing_method="rfr_payment_delay",
+        )
+        result = float_period.fixings_table(curve, right=right)
+        assert isinstance(result, DataFrame)
+        assert len(result.index) == exp
+
+    def test_rfr_fixings_table_right_non_bus_day(self) -> None:
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2022, 11, 19): 0.98}, calendar="tgt")
+        float_period = FloatPeriod(
+            start=dt(2022, 2, 1),
+            end=dt(2022, 2, 28),
+            payment=dt(2022, 2, 28),
+            frequency="M",
+            fixing_method="rfr_payment_delay",
+        )
+        result = float_period.fixings_table(curve, right=dt(2022, 2, 13))
+        assert isinstance(result, DataFrame)
+        assert len(result.index) == 9
 
     @pytest.mark.parametrize(
         ("method", "param"),
@@ -1117,6 +1325,25 @@ class TestFloatPeriod:
         expected = float_period.fixings_table(crv)
         result = float_period.fixings_table(crv, approximate=True)
         assert_frame_equal(result, expected, rtol=1e-2)
+
+    @pytest.mark.parametrize(
+        "right",
+        [
+            dt(2022, 12, 31),
+            dt(2021, 1, 1),
+        ],
+    )
+    def test_rfr_fixings_table_fast_right(self, curve, right) -> None:
+        float_period = FloatPeriod(
+            start=dt(2022, 12, 28),
+            end=dt(2023, 1, 3),
+            payment=dt(2023, 1, 3),
+            frequency="M",
+            fixing_method="rfr_payment_delay",
+        )
+        expected = float_period.fixings_table(curve, right=right)
+        result = float_period.fixings_table(curve, approximate=True, right=right)
+        assert_frame_equal(result, expected, rtol=1e-2, check_dtype=False)
 
     @pytest.mark.parametrize(
         ("method", "param"),
@@ -1211,7 +1438,9 @@ class TestFloatPeriod:
         table = period.fixings_table(curve)
         period.float_spread = 200
         table2 = period.fixings_table(curve)
-        assert (table["notional"].iloc[0] == table2["notional"].iloc[0]) == exp
+        assert (
+            table[(curve.id, "notional")].iloc[0] == table2[(curve.id, "notional")].iloc[0]
+        ) == exp
 
     def test_custom_interp_rate_nan(self) -> None:
         float_period = FloatPeriod(
@@ -1419,10 +1648,51 @@ class TestFloatPeriod:
         curve3 = LineCurve({dt(2022, 1, 1): 3.0, dt(2023, 2, 1): 3.0})
         curve1 = LineCurve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
         result = period.fixings_table({"1M": curve1, "3m": curve3}, disc_curve=curve1)
+        assert isinstance(result, DataFrame)
+        assert abs(result.iloc[0, 0] + 1036300) < 1
+        assert abs(result.iloc[0, 4] + 336894) < 1
+        assert abs(result.iloc[0, 1] + 8.0601) < 1e-4
+        assert abs(result.iloc[0, 5] + 8.32877) < 1e-4
+
+    def test_ibor_stub_fixings_table_right(self) -> None:
+        period = FloatPeriod(
+            start=dt(2023, 2, 1),
+            end=dt(2023, 4, 1),
+            payment=dt(2023, 4, 1),
+            frequency="A",
+            fixing_method="ibor",
+            method_param=1,
+            float_spread=0.0,
+            stub=True,
+        )
+        curve3 = LineCurve({dt(2022, 1, 1): 3.0, dt(2023, 2, 1): 3.0})
+        curve1 = LineCurve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
+        result = period.fixings_table(
+            {"1M": curve1, "3m": curve3}, disc_curve=curve1, right=dt(2022, 1, 1)
+        )
+        assert isinstance(result, DataFrame)
+        assert len(result.index) == 0
+
+    def test_ibor_non_stub_fixings_table(self) -> None:
+        period = FloatPeriod(
+            start=dt(2023, 2, 1),
+            end=dt(2023, 5, 1),
+            payment=dt(2023, 5, 1),
+            frequency="q",
+            fixing_method="ibor",
+            method_param=1,
+            float_spread=0.0,
+        )
+        curve3 = LineCurve({dt(2022, 1, 1): 3.0, dt(2023, 2, 1): 3.0})
+        curve1 = LineCurve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
+        result = period.fixings_table({"1M": curve1, "3M": curve3}, disc_curve=curve1)
         expected = DataFrame(
-            data=[[-1e6, None, 2.01639]],
+            data=[[-1e6, -24.722222222222, 0.24722222222222223, 3.0]],
             index=Index([dt(2023, 1, 31)], name="obs_dates"),
-            columns=["notional", "dcf", "rates"],
+            columns=["notional", "risk", "dcf", "rates"],
+        )
+        expected.columns = MultiIndex.from_tuples(
+            [(curve3.id, "notional"), (curve3.id, "risk"), (curve3.id, "dcf"), (curve3.id, "rates")]
         )
         assert_frame_equal(result, expected)
 
@@ -1554,6 +1824,469 @@ class TestFixedPeriod:
             match=re.escape("`curves` have not been supplied correctly."),
         ):
             fixed_period.npv()
+
+
+class TestCreditPremiumPeriod:
+    @pytest.mark.parametrize(
+        ("accrued", "exp"), [(True, -9892843.47762896), (False, -9887893.477628957)]
+    )
+    def test_period_npv(self, hazard_curve, curve, fxr, accrued, exp) -> None:
+        premium_period = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            fixed_rate=4.0,
+            currency="usd",
+            premium_accrued=accrued,
+        )
+        result = premium_period.npv(hazard_curve, curve)
+        assert abs(result - exp) < 1e-7
+
+        result = premium_period.npv(hazard_curve, curve, fxr, "nok")
+        assert abs(result - exp * 10.0) < 1e-6
+
+    def test_period_npv_raises(self, curve, hazard_curve) -> None:
+        premium_period = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            fixed_rate=4.00,
+            currency="usd",
+        )
+        with pytest.raises(
+            TypeError,
+            match=re.escape("`curves` have not been supplied correctly."),
+        ):
+            premium_period.npv(hazard_curve)
+        with pytest.raises(
+            TypeError,
+            match=re.escape("`curves` have not been supplied correctly."),
+        ):
+            premium_period.npv(NoInput(0), curve)
+
+    def test_period_npv_no_spread_raises(self, curve, hazard_curve) -> None:
+        premium_period = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            currency="usd",
+        )
+        with pytest.raises(
+            ValueError,
+            match=re.escape("`fixed_rate` must be set as a value"),
+        ):
+            premium_period.npv(hazard_curve, curve)
+
+    @pytest.mark.parametrize(
+        ("accrued", "exp"), [(True, 24732.108694072398), (False, 24719.733694072398)]
+    )
+    def test_period_analytic_delta(self, hazard_curve, curve, fxr, accrued, exp) -> None:
+        premium_period = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            fixed_rate=4.00,
+            currency="usd",
+            premium_accrued=accrued,
+        )
+        result = premium_period.analytic_delta(hazard_curve, curve)
+        assert abs(result - exp) < 1e-7
+
+        result = premium_period.analytic_delta(hazard_curve, curve, fxr, "nok")
+        assert abs(result - exp * 10.0) < 1e-7
+
+    def test_period_analytic_delta_fxr_base(self, hazard_curve, curve, fxr) -> None:
+        premium_period = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            fixed_rate=4.00,
+            currency="usd",
+        )
+        fxr = FXRates({"usdnok": 10.0}, base="NOK")
+        result = premium_period.analytic_delta(hazard_curve, curve, fxr)
+        assert abs(result - 247321.086941) < 1e-6
+
+    def test_period_cashflows(self, hazard_curve, curve, fxr) -> None:
+        # also test the inputs to fx as float and as FXRates (10 is for
+        premium_period = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            fixed_rate=4.00,
+            currency="usd",
+        )
+
+        cashflow = 400 * -1e9 * premium_period.dcf / 10000
+        expected = {
+            defaults.headers["type"]: "CreditPremiumPeriod",
+            defaults.headers["stub_type"]: "Regular",
+            defaults.headers["a_acc_start"]: dt(2022, 1, 1),
+            defaults.headers["a_acc_end"]: dt(2022, 4, 1),
+            defaults.headers["payment"]: dt(2022, 4, 3),
+            defaults.headers["notional"]: 1e9,
+            defaults.headers["currency"]: "USD",
+            defaults.headers["convention"]: "Act360",
+            defaults.headers["dcf"]: premium_period.dcf,
+            defaults.headers["df"]: 0.9897791268897856,
+            defaults.headers["rate"]: 4.0,
+            defaults.headers["survival"]: 0.999,
+            defaults.headers["npv"]: -9892843.47762896,
+            defaults.headers["cashflow"]: cashflow,
+            defaults.headers["fx"]: 10.0,
+            defaults.headers["npv_fx"]: -9892843.47762896 * 10.0,
+            defaults.headers["collateral"]: None,
+        }
+        result = premium_period.cashflows(hazard_curve, curve, fx=fxr, base="nok")
+        assert result == expected
+
+    def test_period_cashflows_no_curves(self, fxr) -> None:
+        # also test the inputs to fx as float and as FXRates (10 is for
+        premium_period = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            fixed_rate=4.00,
+            currency="usd",
+        )
+
+        cashflow = 400 * -1e9 * premium_period.dcf / 10000
+        expected = {
+            defaults.headers["type"]: "CreditPremiumPeriod",
+            defaults.headers["stub_type"]: "Regular",
+            defaults.headers["a_acc_start"]: dt(2022, 1, 1),
+            defaults.headers["a_acc_end"]: dt(2022, 4, 1),
+            defaults.headers["payment"]: dt(2022, 4, 3),
+            defaults.headers["notional"]: 1e9,
+            defaults.headers["currency"]: "USD",
+            defaults.headers["convention"]: "Act360",
+            defaults.headers["dcf"]: premium_period.dcf,
+            defaults.headers["df"]: None,
+            defaults.headers["rate"]: 4.0,
+            defaults.headers["survival"]: None,
+            defaults.headers["npv"]: None,
+            defaults.headers["cashflow"]: cashflow,
+            defaults.headers["fx"]: 10.0,
+            defaults.headers["npv_fx"]: None,
+            defaults.headers["collateral"]: None,
+        }
+        result = premium_period.cashflows(fx=fxr, base="nok")
+        assert result == expected
+
+    def test_mid_period_accrued(self, hazard_curve, curve):
+        p1 = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="ActActICMA",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            fixed_rate=4.00,
+            currency="usd",
+        )
+        p2 = CreditPremiumPeriod(
+            start=dt(2021, 10, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="ActActICMA",
+            termination=dt(2022, 4, 1),
+            frequency="S",
+            fixed_rate=2.00,
+            currency="usd",
+        )
+        r1 = p1.npv(hazard_curve, curve)
+        r2 = p2.npv(hazard_curve, curve)
+
+        assert 2505 > r1 - r2 > 2500
+
+    def test_null_cashflow(self):
+        premium_period = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            currency="usd",
+        )
+        assert premium_period.cashflow is None
+
+    def test_no_accrued(self):
+        premium_period = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            currency="usd",
+        )
+        assert premium_period.accrued(dt(2022, 2, 1)) is None
+
+    def test_accrued_out_of_range(self):
+        premium_period = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            currency="usd",
+            fixed_rate=2.0,
+        )
+        assert premium_period.accrued(dt(2022, 9, 1)) == 0.0
+        assert premium_period.accrued(dt(2021, 9, 1)) == 0.0
+
+    def test_accrued(self):
+        premium_period = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="ActActICMA",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            currency="usd",
+            fixed_rate=2.0,
+        )
+        assert abs(premium_period.accrued(dt(2022, 2, 1)) - (-1e9 * 0.25 * 31 / 90 * 0.02)) < 1e-9
+
+
+class TestCreditProtectionPeriod:
+    def test_period_npv(self, hazard_curve, curve, fxr) -> None:
+        period = CreditProtectionPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            currency="usd",
+        )
+        period.discretization = 1
+        result = period.npv(hazard_curve, curve)  # discounted properly this is -596962.1422873045
+        assert abs(result - -596962.1422873045) < 34
+
+        period.discretization = 23
+        result = period.npv(hazard_curve, curve)
+        exp = -596995.7591843301
+        assert abs(result - exp) < 1e-7
+
+        result = period.npv(hazard_curve, curve, fxr, "nok")
+        assert abs(result - exp * 10.0) < 1e-6
+
+    def test_period_npv_raises(self, curve, hazard_curve) -> None:
+        period = CreditProtectionPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            currency="usd",
+        )
+        with pytest.raises(
+            TypeError,
+            match=re.escape("`curves` have not been supplied correctly."),
+        ):
+            period.npv(hazard_curve)
+        with pytest.raises(
+            TypeError,
+            match=re.escape("`curves` have not been supplied correctly."),
+        ):
+            period.npv(NoInput(0), curve)
+
+    def test_period_analytic_delta(self, hazard_curve, curve, fxr) -> None:
+        period = CreditProtectionPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            currency="usd",
+        )
+        result = period.analytic_delta(hazard_curve, curve)
+        assert abs(result - 0.0) < 1e-7
+
+        result = period.analytic_delta(hazard_curve, curve, fxr, "nok")
+        assert abs(result - 0.0 * 10.0) < 1e-7
+
+    def test_period_analytic_delta_fxr_base(self, hazard_curve, curve, fxr) -> None:
+        period = CreditProtectionPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            currency="usd",
+        )
+        fxr = FXRates({"usdnok": 10.0}, base="NOK")
+        result = period.analytic_delta(hazard_curve, curve, fxr)
+        assert abs(result - 0.0) < 1e-7
+
+    def test_period_cashflows(self, hazard_curve, curve, fxr) -> None:
+        # also test the inputs to fx as float and as FXRates (10 is for
+        period = CreditProtectionPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            currency="usd",
+        )
+
+        cashflow = -period.notional * (1 - period.recovery_rate)
+        expected = {
+            defaults.headers["type"]: "CreditProtectionPeriod",
+            defaults.headers["stub_type"]: "Regular",
+            defaults.headers["a_acc_start"]: dt(2022, 1, 1),
+            defaults.headers["a_acc_end"]: dt(2022, 4, 1),
+            defaults.headers["payment"]: dt(2022, 4, 3),
+            defaults.headers["notional"]: 1e9,
+            defaults.headers["currency"]: "USD",
+            defaults.headers["convention"]: "Act360",
+            defaults.headers["dcf"]: period.dcf,
+            defaults.headers["df"]: 0.9897791268897856,
+            defaults.headers["recovery"]: 0.4,
+            defaults.headers["survival"]: 0.999,
+            defaults.headers["npv"]: -596995.7591843301,
+            defaults.headers["cashflow"]: cashflow,
+            defaults.headers["fx"]: 10.0,
+            defaults.headers["npv_fx"]: -596995.7591843301 * 10.0,
+            defaults.headers["collateral"]: None,
+        }
+        result = period.cashflows(hazard_curve, curve, fx=fxr, base="nok")
+
+        for key in expected:
+            assert key in result
+            assert result[key] == expected[key] or abs(result[key] - expected[key]) < 1e-6
+
+    def test_period_cashflows_no_curves(self, fxr) -> None:
+        # also test the inputs to fx as float and as FXRates (10 is for
+        period = CreditProtectionPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency="Q",
+            currency="usd",
+        )
+        cashflow = -period.notional * (1 - period.recovery_rate)
+        expected = {
+            defaults.headers["type"]: "CreditProtectionPeriod",
+            defaults.headers["stub_type"]: "Regular",
+            defaults.headers["a_acc_start"]: dt(2022, 1, 1),
+            defaults.headers["a_acc_end"]: dt(2022, 4, 1),
+            defaults.headers["payment"]: dt(2022, 4, 3),
+            defaults.headers["notional"]: 1e9,
+            defaults.headers["currency"]: "USD",
+            defaults.headers["convention"]: "Act360",
+            defaults.headers["dcf"]: period.dcf,
+            defaults.headers["df"]: None,
+            defaults.headers["recovery"]: 0.4,
+            defaults.headers["survival"]: None,
+            defaults.headers["npv"]: None,
+            defaults.headers["cashflow"]: cashflow,
+            defaults.headers["fx"]: 10.0,
+            defaults.headers["npv_fx"]: None,
+            defaults.headers["collateral"]: None,
+        }
+        result = period.cashflows(fx=fxr, base="nok")
+        assert result == expected
+
+    def test_discretization_period(self, hazard_curve, curve):
+        p1 = CreditProtectionPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 1),
+            notional=1e9,
+            frequency="Q",
+            discretization=1,
+        )
+        p2 = CreditProtectionPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 1),
+            notional=1e9,
+            frequency="Q",
+            discretization=31,
+        )
+        r1 = p1.npv(hazard_curve, curve)
+        r2 = p2.npv(hazard_curve, curve)
+        assert 0.1 < abs(r1 - r2) < 1.0  # very similar result but not identical
+
+    def test_mid_period(self, hazard_curve, curve):
+        period = CreditProtectionPeriod(
+            start=dt(2021, 10, 4),
+            end=dt(2022, 1, 4),
+            payment=dt(2022, 1, 4),
+            notional=1e9,
+            frequency="Q",
+        )
+        r1 = period.npv(hazard_curve, curve)
+        exp = -20006.321837529074
+        assert abs(r1 - exp) < 1e-7
+
+    def test_recovery_risk(self, hazard_curve, curve):
+        period = CreditProtectionPeriod(
+            start=dt(2021, 10, 4),
+            end=dt(2022, 1, 4),
+            payment=dt(2022, 1, 4),
+            notional=1e9,
+            frequency="Q",
+            recovery_rate=0.40,
+        )
+
+        p1 = period.npv(hazard_curve, curve)
+        period.recovery_rate = 0.41
+        p2 = period.npv(hazard_curve, curve)
+        expected = p2 - p1
+
+        result = period.analytic_rec_risk(hazard_curve, curve)
+        assert abs(result - expected) < 1e-9
 
 
 class TestCashflow:

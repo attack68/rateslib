@@ -70,6 +70,7 @@ pub(crate) struct Curve {
 #[pymethods]
 impl Curve {
     #[new]
+    #[pyo3(signature = (nodes, interpolator, ad, id, convention, modifier, calendar, index_base=None))]
     fn new_py(
         nodes: IndexMap<NaiveDateTime, Number>,
         interpolator: CurveInterpolator,
