@@ -136,7 +136,7 @@ def dcf(
        dcf(dt(2000, 1, 1), dt(2000, 4, 3), "ActActICMA", dt(2010, 1, 1), 3, False)
        dcf(dt(2000, 1, 1), dt(2000, 4, 3), "ActActICMA", dt(2010, 1, 1), 3, True)
 
-    """
+    """  # noqa: E501
     convention = convention.upper()
     try:
         return _DCF[convention](start, end, termination, frequency_months, stub, roll, calendar)
