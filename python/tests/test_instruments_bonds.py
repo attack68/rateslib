@@ -6,7 +6,7 @@ from pandas import DataFrame, Series, date_range
 from pandas.testing import assert_frame_equal
 from rateslib import defaults
 from rateslib.calendars import dcf, get_calendar
-from rateslib.curves import Curve, IndexCurve, LineCurve
+from rateslib.curves import Curve, LineCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2
 from rateslib.fx import FXForwards, FXRates
@@ -1247,10 +1247,11 @@ class TestIndexFixedRateBond:
         ],
     )
     def test_index_ratio(self, i_fixings, expected) -> None:
-        i_curve = IndexCurve(
+        i_curve = Curve(
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_lag=3,
             index_base=110.0,
+            interpolation="linear_index",
         )
         bond = IndexFixedRateBond(
             dt(2022, 1, 1),
@@ -1268,10 +1269,11 @@ class TestIndexFixedRateBond:
         assert abs(result - expected) < 1e-5
 
     def test_index_ratio_raises_float_index_fixings(self) -> None:
-        i_curve = IndexCurve(
+        i_curve = Curve(
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_lag=3,
             index_base=110.0,
+            interpolation="linear_index",
         )
         bond = IndexFixedRateBond(
             dt(2022, 1, 1),
@@ -1291,7 +1293,11 @@ class TestIndexFixedRateBond:
     def test_fixed_rate_bond_npv_private(self) -> None:
         # this test shadows 'fixed_rate_bond_npv' but extends it for projection
         curve = Curve({dt(2004, 11, 25): 1.0, dt(2010, 11, 25): 1.0, dt(2015, 12, 7): 0.75})
-        index_curve = IndexCurve({dt(2004, 11, 25): 1.0, dt(2034, 1, 1): 1.0}, index_base=100.0)
+        index_curve = Curve(
+            {dt(2004, 11, 25): 1.0, dt(2034, 1, 1): 1.0},
+            index_base=100.0,
+            interpolation="linear_index",
+        )
         gilt = IndexFixedRateBond(
             effective=dt(1998, 12, 7),
             termination=dt(2015, 12, 7),
@@ -1312,10 +1318,11 @@ class TestIndexFixedRateBond:
         assert abs(result - expected) < 1e-6
 
     def test_index_base_forecast(self, curve) -> None:
-        i_curve = IndexCurve(
+        i_curve = Curve(
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_lag=3,
             index_base=95.0,
+            interpolation="linear_index",
         )
         bond = IndexFixedRateBond(
             dt(2022, 1, 1),
@@ -1353,7 +1360,11 @@ class TestIndexFixedRateBond:
             index_base=50.0,
         )
         curve = Curve({dt(1998, 12, 9): 1.0, dt(2015, 12, 7): 0.50})
-        i_curve = IndexCurve({dt(1998, 12, 9): 1.0, dt(2015, 12, 7): 1.0}, index_base=100.0)
+        i_curve = Curve(
+            {dt(1998, 12, 9): 1.0, dt(2015, 12, 7): 1.0},
+            index_base=100.0,
+            interpolation="linear_index",
+        )
         clean_price = gilt.rate([i_curve, curve], metric="clean_price")
         index_clean_price = gilt.rate([i_curve, curve], metric="index_clean_price")
         assert abs(index_clean_price * 0.5 - clean_price) < 1e-3
@@ -1432,7 +1443,11 @@ class TestIndexFixedRateBond:
     def test_rate_with_fx_is_same(self) -> None:
         usd = Curve(nodes={dt(2000, 1, 1): 1.0, dt(2005, 1, 1): 0.9, dt(2010, 1, 5): 0.8})
         gbp = Curve(nodes={dt(2000, 1, 1): 1.0, dt(2005, 1, 1): 0.9, dt(2010, 1, 5): 0.8})
-        gbpi = IndexCurve(nodes={dt(2000, 1, 1): 1.0, dt(2010, 1, 1): 0.95}, index_base=100.0)
+        gbpi = Curve(
+            nodes={dt(2000, 1, 1): 1.0, dt(2010, 1, 1): 0.95},
+            index_base=100.0,
+            interpolation="linear_index",
+        )
         fxf = FXForwards(
             fx_rates=FXRates({"gbpusd": 1.25}, settlement=dt(2000, 1, 1)),
             fx_curves={"gbpgbp": gbp, "usdusd": usd, "gbpusd": gbp},
@@ -2321,10 +2336,10 @@ class TestBondFuture:
             (dt(2023, 12, 11), dt(2033, 2, 15), 2.3, 0.744390),
         ],
     )
-    def test_conversion_factors_eurex_bund(self, delivery, mat, coupon, exp) -> None:
+    def test_conversion_factors_eurex_bund_ytm(self, delivery, mat, coupon, exp) -> None:
         # The expected results are downloaded from the EUREX website
         # regarding precalculated conversion factors.
-        # this test allows for an error in the cf < 1e-4.
+        # this test allows for an error in the cf < 1e-4, due to YTM method
         kwargs = dict(
             effective=dt(2020, 1, 1),
             stub="ShortFront",
@@ -2338,6 +2353,37 @@ class TestBondFuture:
         fut = BondFuture(delivery=delivery, coupon=6.0, basket=[bond1])
         result = fut.cfs
         assert abs(result[0] - exp) < 1e-4
+
+    @pytest.mark.parametrize(
+        ("delivery", "issue", "mat", "coupon", "exp"),
+        [
+            (dt(2023, 6, 12), dt(2022, 7, 1), dt(2032, 2, 15), 0.0, 0.603058),
+            (dt(2023, 6, 12), dt(2022, 7, 8), dt(2032, 8, 15), 1.7, 0.703125),
+            (dt(2023, 6, 12), dt(2023, 1, 13), dt(2033, 2, 15), 2.3, 0.733943),
+            (dt(2023, 9, 11), dt(2022, 7, 8), dt(2032, 8, 15), 1.7, 0.709321),
+            (dt(2023, 9, 11), dt(2023, 1, 13), dt(2033, 2, 15), 2.3, 0.739087),
+            (dt(2023, 12, 11), dt(2022, 7, 8), dt(2032, 8, 15), 1.7, 0.715464),
+            (dt(2023, 12, 11), dt(2023, 1, 13), dt(2033, 2, 15), 2.3, 0.744390),
+        ],
+    )
+    def test_conversion_factors_eurex_bund_method(self, delivery, issue, mat, coupon, exp) -> None:
+        # The expected results are downloaded from the EUREX website
+        # regarding precalculated conversion factors.
+        # these should be exact due to specifically coded methods
+        kwargs = dict(
+            effective=issue,
+            stub="LongFront",
+            frequency="A",
+            calendar="tgt",
+            currency="eur",
+            convention="ActActICMA",
+            modifier="none",
+        )
+        bond1 = FixedRateBond(termination=mat, fixed_rate=coupon, **kwargs)
+
+        fut = BondFuture(delivery=delivery, coupon=6.0, basket=[bond1], calc_mode="eurex_eur")
+        result = fut.cfs
+        assert result[0] == exp
 
     @pytest.mark.parametrize(
         ("mat", "coupon", "exp"),
@@ -2460,8 +2506,9 @@ class TestBondFuture:
         ]
         future = BondFuture(delivery=(dt(2000, 6, 1), dt(2000, 6, 30)), coupon=7.0, basket=bonds)
         prices = [102.732, 131.461, 107.877, 134.455]
+        basket = future.kwargs["basket"]
         dirty_prices = [
-            price + future.basket[i].accrued(dt(2000, 3, 16)) for i, price in enumerate(prices)
+            price + basket[i].accrued(dt(2000, 3, 16)) for i, price in enumerate(prices)
         ]
         result = future.gross_basis(112.98, dirty_prices, dt(2000, 3, 16), True)
         expected = future.gross_basis(112.98, prices, dt(2000, 3, 16), False)
@@ -2673,3 +2720,99 @@ class TestBondFuture:
         result = future.duration(112.98, delivery=delivery, metric="modified")[0]
         expected = 7.23419455163
         assert abs(result - expected) < 1e-3
+
+    def test_cms(self):
+        data = DataFrame(
+            data=[
+                [
+                    FixedRateBond(
+                        dt(2022, 1, 1), dt(2039, 8, 15), fixed_rate=4.5, spec="ust", curves="bcurve"
+                    ),
+                    98.6641,
+                ],
+                [
+                    FixedRateBond(
+                        dt(2022, 1, 1),
+                        dt(2040, 2, 15),
+                        fixed_rate=4.625,
+                        spec="ust",
+                        curves="bcurve",
+                    ),
+                    99.8203,
+                ],
+                [
+                    FixedRateBond(
+                        dt(2022, 1, 1),
+                        dt(2041, 2, 15),
+                        fixed_rate=4.75,
+                        spec="ust",
+                        curves="bcurve",
+                    ),
+                    100.7734,
+                ],
+                [
+                    FixedRateBond(
+                        dt(2022, 1, 1),
+                        dt(2040, 5, 15),
+                        fixed_rate=4.375,
+                        spec="ust",
+                        curves="bcurve",
+                    ),
+                    96.6953,
+                ],
+                [
+                    FixedRateBond(
+                        dt(2022, 1, 1),
+                        dt(2042, 11, 15),
+                        fixed_rate=4.00,
+                        spec="ust",
+                        curves="bcurve",
+                    ),
+                    90.4766,
+                ],
+            ],
+            columns=["bonds", "prices"],
+        )
+        usz3 = BondFuture(  # Construct the BondFuture Instrument
+            coupon=6.0,
+            delivery=(dt(2023, 12, 1), dt(2023, 12, 29)),
+            basket=data["bonds"],
+            nominal=100e3,
+            calendar="nyc",
+            currency="usd",
+            calc_mode="ust_long",
+        )
+        result = usz3.cms(prices=data["prices"], settlement=dt(2023, 11, 22), shifts=[-50, 0, 50])
+        expected = DataFrame(
+            data={
+                "Bond": [
+                    "4.500% 15-08-2039",
+                    "4.625% 15-02-2040",
+                    "4.750% 15-02-2041",
+                    "4.375% 15-05-2040",
+                    "4.000% 15-11-2042",
+                ],
+                -50: [
+                    0.0,
+                    0.10938764224876252,
+                    0.32693578691382186,
+                    0.24721845093496597,
+                    1.1960030963801813,
+                ],
+                0: [
+                    0.0,
+                    0.01148721023514554,
+                    0.016282194434154462,
+                    0.032902987886402,
+                    0.33598669301149187,
+                ],
+                50: [
+                    0.43066112621522734,
+                    0.3653207547713322,
+                    0.19632745772335625,
+                    0.27120849999053576,
+                    0.0,
+                ],
+            }
+        )
+        assert_frame_equal(result, expected)

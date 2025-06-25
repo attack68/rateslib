@@ -9,7 +9,6 @@ from rateslib.calendars import get_calendar
 from rateslib.curves import (
     CompositeCurve,
     Curve,
-    IndexCurve,
     LineCurve,
     MultiCsaCurve,
     index_left,
@@ -51,7 +50,7 @@ def line_curve():
 
 @pytest.fixture
 def index_curve():
-    return IndexCurve(
+    return Curve(
         nodes={
             dt(2022, 3, 1): 1.00,
             dt(2022, 3, 31): 0.999,
@@ -189,7 +188,7 @@ def test_serialization_round_trip(curve, line_curve, index_curve) -> None:
     assert constructed == line_curve
 
     serial = index_curve.to_json()
-    constructed = IndexCurve.from_json(serial)
+    constructed = Curve.from_json(serial)
     assert constructed == index_curve
 
 
@@ -277,7 +276,7 @@ def test_copy_curve(curve, line_curve) -> None:
         ("nodes", {dt(2022, 3, 1): 1.00}),
         ("interpolation", "log_linear"),
         ("id", "x"),
-        ("ad", 0),
+        ("_ad", 0),
         ("convention", "actact"),
         ("t", [dt(2022, 1, 1)]),
         ("calendar_type", "bad"),
@@ -787,7 +786,7 @@ def test_indexcurve_shift(ad_order, composite) -> None:
 
 
 def test_indexcurve_shift_dual_input() -> None:
-    curve = IndexCurve(
+    curve = Curve(
         nodes={
             dt(2022, 1, 1): 1.0,
             dt(2023, 1, 1): 0.988,
@@ -872,7 +871,7 @@ def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, sp
             1e-8,
         ),
         (
-            IndexCurve(
+            Curve(
                 nodes={
                     dt(2022, 1, 1): 1.0,
                     dt(2023, 1, 1): 0.988,
@@ -1103,7 +1102,7 @@ def test_curve_spline_warning() -> None:
 
 
 def test_index_curve_roll() -> None:
-    crv = IndexCurve(
+    crv = Curve(
         nodes={
             dt(2022, 1, 1): 1.0,
             dt(2023, 1, 1): 0.988,
@@ -1161,6 +1160,11 @@ def test_curve_translate_raises(curve) -> None:
 def test_curve_zero_width_rate_raises(curve) -> None:
     with pytest.raises(ZeroDivisionError, match="effective:"):
         curve.rate(dt(2022, 3, 10), dt(2022, 3, 10))
+
+
+def test_set_node_vector_updates_ad_attribute(curve) -> None:
+    curve._set_node_vector([0.98], ad=2)
+    assert curve.ad == 2
 
 
 class TestCurve:
@@ -1276,9 +1280,10 @@ class TestIndexCurve:
         expected = 200.010001001  # value is linearly interpolated between index values.
         assert abs(result - expected) < 1e-7
 
-    def test_indexcurve_raises(self) -> None:
-        with pytest.raises(ValueError, match="`index_base` must be given"):
-            IndexCurve({dt(2022, 1, 1): 1.0})
+    # SKIP: with deprecation of IndexCurve errors must be deferred to price time.
+    # def test_indexcurve_raises(self) -> None:
+    #     with pytest.raises(ValueError, match="`index_base` must be given"):
+    #         Curve({dt(2022, 1, 1): 1.0})
 
     def test_index_value_raises(self) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0}, index_base=100.0)
@@ -1307,14 +1312,14 @@ class TestIndexCurve:
         assert curve.rate(dt(2021, 3, 4), "1b", "f") is None
 
     def test_repr(self):
-        curve = IndexCurve(
+        curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 1, 5): 0.9999}, index_base=200.0, id="us_cpi"
         )
-        expected = f"<rl.IndexCurve:us_cpi at {hex(id(curve))}>"
+        expected = f"<rl.Curve:us_cpi at {hex(id(curve))}>"
         assert expected == curve.__repr__()
 
     def test_typing_as_curve(self):
-        curve = IndexCurve(
+        curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 1, 5): 0.9999}, index_base=200.0, id="us_cpi"
         )
         assert isinstance(curve, Curve)
@@ -1552,8 +1557,8 @@ class TestCompositeCurve:
         assert cc.index_lag == lag[0]
 
     def test_index_curves_attributes(self) -> None:
-        ic1 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
-        ic2 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
+        ic1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
+        ic2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
         cc = CompositeCurve([ic1, ic2])
         assert cc.index_lag == 3
         assert cc.index_base == 101.1
@@ -1571,8 +1576,8 @@ class TestCompositeCurve:
         assert abs(result - expected) < 1e-5
 
     def test_index_curves_interp_raises(self) -> None:
-        ic1 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
-        ic2 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
+        ic1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
+        ic2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
         cc = CompositeCurve([ic1, ic2])
         with pytest.raises(ValueError, match="`interpolation` for `index_value` must"):
             cc.index_value(dt(2022, 1, 31), interpolation="bad interp")
@@ -2089,7 +2094,7 @@ class TestPlotCurve:
     @pytest.mark.parametrize("left", [NoInput(0), dt(2022, 1, 1), "0d"])
     @pytest.mark.parametrize("right", [NoInput(0), dt(2022, 2, 1), "0d"])
     def test_plot_index(self, left, right) -> None:
-        i_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 1.0}, index_base=2.0)
+        i_curve = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 1.0}, index_base=2.0)
         fig, ax, lines = i_curve.plot_index(left=left, right=right)
         result = lines[0].get_data()
         assert result[0][0] == dt(2022, 1, 1)
@@ -2097,8 +2102,8 @@ class TestPlotCurve:
         plt.close("all")
 
     def test_plot_index_comparators(self) -> None:
-        i_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 1.0}, index_base=2.0)
-        i_curv2 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 1.0}, index_base=2.0)
+        i_curve = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 1.0}, index_base=2.0)
+        i_curv2 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 1.0}, index_base=2.0)
         fig, ax, lines = i_curve.plot_index(comparators=[i_curv2])
         assert len(lines) == 2
         res1 = lines[0].get_data()
@@ -2108,8 +2113,8 @@ class TestPlotCurve:
         plt.close("all")
 
     def test_plot_index_diff(self) -> None:
-        i_curv = IndexCurve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 1.0}, index_base=2.0)
-        i_curv2 = IndexCurve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 1.0}, index_base=2.0)
+        i_curv = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 1.0}, index_base=2.0)
+        i_curv2 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 1.0}, index_base=2.0)
         fig, ax, lines = i_curv.plot_index("1d", comparators=[i_curv2], difference=True)
         assert len(lines) == 1
         result = lines[0].get_data()
@@ -2118,7 +2123,7 @@ class TestPlotCurve:
         plt.close("all")
 
     def test_plot_index_raises(self) -> None:
-        i_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 1.0}, index_base=2.0)
+        i_curve = Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 1.0}, index_base=2.0)
         with pytest.raises(ValueError, match="`left` must be supplied as"):
             i_curve.plot_index(left=2.0)
         with pytest.raises(ValueError, match="`right` must be supplied as"):
@@ -2186,7 +2191,7 @@ class TestStateAndCache:
         [
             Curve(nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99}),
             LineCurve(nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99}),
-            IndexCurve(
+            Curve(
                 nodes={
                     dt(2022, 1, 1): 1.0,
                     dt(2023, 1, 1): 0.98,
@@ -2207,7 +2212,7 @@ class TestStateAndCache:
         [
             Curve(nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99, dt(2003, 1, 1): 0.98}),
             LineCurve(nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99}),
-            IndexCurve(
+            Curve(
                 nodes={
                     dt(2000, 1, 1): 1.0,
                     dt(2002, 1, 1): 0.98,
@@ -2236,7 +2241,7 @@ class TestStateAndCache:
         [
             Curve(nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99}),
             LineCurve(nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99}),
-            IndexCurve(
+            Curve(
                 nodes={
                     dt(2022, 1, 1): 1.0,
                     dt(2023, 1, 1): 0.98,
@@ -2255,7 +2260,7 @@ class TestStateAndCache:
         [
             Curve(nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99, dt(2003, 1, 1): 0.98}),
             LineCurve(nodes={dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.99}),
-            IndexCurve(
+            Curve(
                 nodes={
                     dt(2000, 1, 1): 1.0,
                     dt(2002, 1, 1): 0.98,

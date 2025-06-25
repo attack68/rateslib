@@ -131,6 +131,8 @@ def get_calendar(
     """
     if isinstance(calendar, str):
         # parse the string in Python and return Rust Cal/UnionCal objects directly
+        if calendar in defaults.calendars:
+            return defaults.calendars[calendar]
         return _parse_str_calendar(calendar, named)
     elif isinstance(calendar, NoInput):
         return defaults.calendars["all"]

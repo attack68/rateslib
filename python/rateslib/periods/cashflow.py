@@ -96,7 +96,8 @@ class Cashflow:
         stub_type: str_ = NoInput(0),
         rate: DualTypes_ = NoInput(0),
     ):
-        self.notional, self.payment = notional, payment
+        self.notional = notional
+        self.payment = payment
         self.currency = _drb(defaults.base_currency, currency).lower()
         self.stub_type = stub_type
         self._rate: DualTypes | NoInput = rate if isinstance(rate, NoInput) else _dual_float(rate)
@@ -207,22 +208,19 @@ class NonDeliverableCashflow:
     Parameters
     ----------
     notional : float, Dual, Dual2
-        The notional amount of the cashflow expressed in units of the ``reference_currency``,
-        unless ``reversed`` in which case in units of ``settlement_currency``.
-    reference_currency : str
-        The non-deliverable reference currency (3-digit code).
+        The notional amount of the cashflow expressed in units of the ``currency``,
+    currency : str
+        The non-deliverable reference currency (3-digit code), e.g. "brl".
+    payment : datetime
+        The settlement date of the exchange.
     settlement_currency : str
         The currency of the deliverable currency (3-digit code), e.g. "usd" or "eur".
-    settlement : datetime
-        The settlement date of the exchange.
     fixing_date: datetime
         The date on which the FX fixings will be recorded.
-    fx_rate: float, Dual, Dual2, optional
-        The pricing parameter of the period to record the entry level of the transaction.
-        The ``reference_currency`` should be the left hand side, e.g. BRLUSD, unless ``reversed``
-        in which case should be right hand side, e.g. USDBRL.
     fx_fixing: float, Dual, Dual2, optional
-        The FX fixing to determine the settlement amount, expressed in the same way as ``fx_rate``.
+        The FX fixing to determine the settlement amount. The reference ``currency`` should be
+        the left hand side, e.g. BRLUSD, unless ``reversed``
+        in which case should be right hand side, e.g. USDBRL.
     reversed: bool, optional
         If *True* reverses the FX rate, as shown above.
 
@@ -232,16 +230,16 @@ class NonDeliverableCashflow:
 
     .. math::
 
-       C = N (f_2 - f_1)
+       C = - N f
 
-    where :math:`f_1` is the ``fx_rate``, :math:`f_2` is the ``fx_fixing`` or market forecast
+    where :math:`f` is the ``fx_fixing`` (or derivable FX fixing if ``reversed``) or market forecast
     rate at settlement. This amount is expressed in units of ``settlement_currency``.
 
-    The :meth:`~rateslib.periods.BasePeriod.npv` is defined as;
+    The :meth:`~rateslib.periods.BasePeriod.npv` is defined in ``settlement_currency`` terms as;
 
     .. math::
 
-       P = Cv(m) = N (f_2 - f_1) v(m)
+       P = Cv(m) = - N f v(m)
 
     The :meth:`~rateslib.periods.BasePeriod.analytic_delta` is defined as;
 
@@ -255,21 +253,19 @@ class NonDeliverableCashflow:
 
        ndc = NonDeliverableCashflow(
            notional=10e6,  # <- this is BRL amount
-           reference_currency="brl",
+           currency="brl",
+           payment=dt(2025, 6, 1),
            settlement_currency="usd",
-           settlement=dt(2025, 6, 1),
-           fixing_date=dt(2025, 5, 29),
-           fx_rate=0.200,  # <- this is BRLUSD FX rate
+           fixing_date=dt(2025, 5, 29),  # <- for the BRLUSD FX rate
        )
        ndc.cashflows()
 
        ndc = NonDeliverableCashflow(
            notional=2e6,  # <- this is USD amount
-           reference_currency="brl",
+           currency="brl",
+           payment=dt(2025, 6, 1),
            settlement_currency="usd",
-           settlement=dt(2025, 6, 1),
-           fixing_date=dt(2025, 5, 29),
-           fx_rate=5.00,  # <- this is USDBRL FX rate
+           fixing_date=dt(2025, 5, 29),  # <- this is USDBRL FX rate
            reversed=True,
        )
        ndc.cashflows()
@@ -278,25 +274,23 @@ class NonDeliverableCashflow:
     def __init__(
         self,
         notional: DualTypes,
-        reference_currency: str,
+        currency: str,
+        payment: datetime,
         settlement_currency: str,
-        settlement: datetime,
         fixing_date: datetime,
-        fx_rate: DualTypes_ = NoInput(0),
         fx_fixing: DualTypes_ = NoInput(0),
         reversed: bool = False,  # noqa: A002
     ):
         self.notional = notional
-        self.settlement = settlement
+        self.payment = payment
         self.settlement_currency = settlement_currency.lower()
-        self.reference_currency = reference_currency.lower()
+        self.currency = currency.lower()
         self.reversed = reversed
         if reversed:
-            self.pair = f"{self.settlement_currency}{self.reference_currency}"
+            self.pair = f"{self.settlement_currency}{self.currency}"
         else:
-            self.pair = f"{self.reference_currency}{self.settlement_currency}"
+            self.pair = f"{self.currency}{self.settlement_currency}"
         self.fixing_date = fixing_date
-        self.fx_rate = fx_rate
         self.fx_fixing = fx_fixing
 
     def analytic_delta(
@@ -327,12 +321,12 @@ class NonDeliverableCashflow:
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
         disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
-        disc_cashflow = self.cashflow(fx) * disc_curve_[self.settlement]
+        disc_cashflow = self.cashflow(fx) * disc_curve_[self.payment]
         return _maybe_local(disc_cashflow, local, self.settlement_currency, fx, base)
 
     def cashflow(self, fx: FX_) -> DualTypes:
         """
-        Determine the cashflow amount, expressed in ``settlement_currency``.
+        Determine the cashflow amount, expressed in the ``settlement_currency``.
 
         Parameters
         ----------
@@ -346,21 +340,14 @@ class NonDeliverableCashflow:
 
         if isinstance(self.fx_fixing, NoInput):
             fx_ = _validate_fx_as_forwards(fx)
-            fx_fixing: DualTypes = fx_.rate(self.pair, self.settlement)
+            fx_fixing: DualTypes = fx_.rate(self.pair, self.payment)
         else:
             fx_fixing = self.fx_fixing
 
-        try:
-            d_value: DualTypes = self.notional * (fx_fixing - self.fx_rate)  # type: ignore[operator]
-        except TypeError as e:
-            # either fixed rate is None
-            if isinstance(self.fx_rate, NoInput):
-                raise TypeError("`fx_rate` must be set on the Period for an `npv`.")
-            else:
-                raise e
-
         if self.reversed:
-            d_value /= fx_fixing
+            d_value: DualTypes = -self.notional / fx_fixing
+        else:
+            d_value = -self.notional * fx_fixing
 
         return d_value
 
@@ -380,31 +367,37 @@ class NonDeliverableCashflow:
         imm_fx_to_base, _ = _get_fx_and_base(self.settlement_currency, fx, base)
 
         if isinstance(disc_curve_, NoInput) or not isinstance(fx, FXForwards):
-            npv, npv_fx, df, collateral, cashflow = None, None, None, None, None
-            index_val_ = None
+            npv = None
+            npv_fx = None
+            df = None
+            collateral = None
+            cashflow = None
+            rate = None
         else:
             npv_: DualTypes = self.npv(curve, disc_curve_, fx)  # type: ignore[assignment]
             npv = _dual_float(npv_)
-            index_val_ = self.rate(fx)
 
             npv_fx = npv * _dual_float(imm_fx_to_base)
-            df, collateral = _dual_float(disc_curve_[self.settlement]), disc_curve_.collateral
+            df, collateral = _dual_float(disc_curve_[self.payment]), disc_curve_.collateral
             cashflow = _dual_float(self.cashflow(fx))
+            if isinstance(self.fx_fixing, NoInput):
+                fx_ = _validate_fx_as_forwards(fx)
+                rate = fx_.rate(self.pair, self.payment)
+            else:
+                rate = self.fx_fixing
 
-        rate = _float_or_none(_drb(None, self.fx_rate))
         return {
             defaults.headers["type"]: type(self).__name__,
             defaults.headers["stub_type"]: f"{self.pair.upper()}",
             defaults.headers["currency"]: self.settlement_currency.upper(),
             # defaults.headers["a_acc_start"]: None,
             # defaults.headers["a_acc_end"]: None,
-            defaults.headers["payment"]: self.settlement,
+            defaults.headers["payment"]: self.payment,
             # defaults.headers["convention"]: None,
             # defaults.headers["dcf"]: None,
             defaults.headers["notional"]: _dual_float(self.notional),
             defaults.headers["df"]: df,
-            defaults.headers["rate"]: rate,
-            defaults.headers["index_value"]: _float_or_none(index_val_),
+            defaults.headers["rate"]: _float_or_none(rate),
             # defaults.headers["spread"]: None,
             defaults.headers["cashflow"]: cashflow,
             defaults.headers["npv"]: npv,
@@ -416,7 +409,7 @@ class NonDeliverableCashflow:
     def rate(self, fx: FX_) -> DualTypes:
         if isinstance(self.fx_fixing, NoInput):
             fx_ = _validate_fx_as_forwards(fx)
-            return fx_.rate(self.pair, self.settlement)
+            return fx_.rate(self.pair, self.payment)
         else:
             return self.fx_fixing
 

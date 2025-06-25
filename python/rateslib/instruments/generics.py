@@ -14,7 +14,7 @@ from rateslib.curves._parsers import _validate_curve_is_not_dict, _validate_curv
 from rateslib.default import NoInput, _drb
 from rateslib.dual import dual_log
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
-from rateslib.instruments.base import BaseMixin
+from rateslib.instruments.base import Metrics
 from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.instruments.utils import (
     _composit_fixings_table,
@@ -44,7 +44,7 @@ if TYPE_CHECKING:
 # Contact info at rateslib.com if this code is observed outside its intended sphere of use.
 
 
-class Value(BaseMixin):
+class Value(Metrics):
     """
     A null *Instrument* which can be used within a :class:`~rateslib.solver.Solver`
     to directly parametrise a *Curve* node, via some calculated value.
@@ -155,7 +155,7 @@ class Value(BaseMixin):
         raise NotImplementedError("`Value` instrument has no concept of analytic delta.")
 
 
-class VolValue(BaseMixin):
+class VolValue(Metrics):
     """
     A null *Instrument* which can be used within a :class:`~rateslib.solver.Solver`
     to directly parametrise a *Vol* node, via some calculated metric.
@@ -618,7 +618,7 @@ def _instrument_npv(
     return instrument.npv(*args, **kwargs)
 
 
-class Portfolio(Sensitivities):
+class Portfolio(Sensitivities, Metrics):
     """
     Create a collection of *Instruments* to group metrics
 
@@ -762,6 +762,16 @@ class Portfolio(Sensitivities):
         """
         return super().gamma(*args, **kwargs)
 
+    def exo_delta(self, *args: Any, **kwargs: Any) -> DataFrame:
+        """
+        Calculate the delta of the *Instrument* measured
+        against user defined :class:`~rateslib.dual.Variable`.
+
+        For arguments see
+        :meth:`Sensitivities.exo_delta()<rateslib.instruments.Sensitivities.exo_delta>`.
+        """
+        return super().exo_delta(*args, **kwargs)
+
     def fixings_table(
         self,
         curves: Curves_ = NoInput(0),
@@ -786,7 +796,7 @@ class Portfolio(Sensitivities):
         )
         for inst in self.instruments:
             try:
-                df = inst.fixings_table(
+                df = inst.fixings_table(  # type: ignore[attr-defined]
                     curves=curves,
                     solver=solver,
                     fx=fx,
@@ -798,3 +808,9 @@ class Portfolio(Sensitivities):
                 continue
             df_result = _composit_fixings_table(df_result, df)
         return df_result
+
+    def rate(self, *args: Any, **kwargs: Any) -> NoReturn:
+        raise NotImplementedError("`rate` is not defined for Portfolio.")
+
+    def analytic_delta(self, *args: Any, **kwargs: Any) -> NoReturn:
+        raise NotImplementedError("`analytic_delta` is not defined for Portfolio.")

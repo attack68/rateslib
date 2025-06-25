@@ -29,6 +29,7 @@ from rateslib.dual import (
     dual_log,
     set_order_convert,
 )
+from rateslib.dual.utils import _dual_float
 from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,
@@ -190,6 +191,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     _base_type: str = "dfs"
     collateral: str | None = None
 
+    @_new_state_post
     def __init__(  # type: ignore[no-untyped-def]
         self,
         nodes: dict[datetime, DualTypes],
@@ -249,7 +251,10 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         self.index_lag: int = _drb(defaults.index_lag, index_lag)
 
         self._set_ad_order(order=ad)  # will also clear and initialise the cache
-        self._set_new_state()
+
+    @property
+    def ad(self) -> int:
+        return self._ad
 
     def __set_interpolation__(
         self,
@@ -623,7 +628,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                     interpolation="linear",
                 )
             else:  # or type(self) is IndexCurve
-                shifted = IndexCurve(
+                shifted = Curve(
                     nodes={start: 1.0, end: 1.0 / (1 + d * spread / 10000) ** days},
                     convention=self.convention,
                     calendar=self.calendar,
@@ -1135,7 +1140,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
             for comparator in comparators:
                 diff = [comparator.index_value(_) - rates[i] for i, _ in enumerate(x)]
                 y.append(diff)
-        return plot(x, y, labels)
+        return plot([x] * len(y), y, labels)
 
     def plot(
         self,
@@ -1209,7 +1214,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
                 pm_ = comparator._plot_modifier(tenor)
                 y_.append([comparator._plot_rate(_x, tenor, pm_) for _x in x])
 
-        return plot(x, y_, labels)
+        return plot([x] * len(y_), y_, labels)
 
     def _plot_diff(
         self, date: datetime, tenor: str, rate: DualTypes | None, comparator: Curve
@@ -1306,7 +1311,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         points = (right - left).days
         x = [left + timedelta(days=i) for i in range(points)]
         rates = [forward_fx(_, self, curve_foreign, fx_rate, fx_settlement) for _ in x]
-        return plot(x, [rates])
+        return plot([x], [rates])
 
     # Mutation
     @_new_state_post
@@ -1379,33 +1384,7 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
     @_clear_cache_post
     def _set_node_vector(self, vector: list[DualTypes], ad: int) -> None:
         """Used to update curve values during a Solver iteration. ``ad`` in {1, 2}."""
-        DualType: type[Dual | Dual2] = Dual if ad == 1 else Dual2
-        DualArgs: tuple[list[float]] | tuple[list[float], list[float]] = (
-            ([],) if ad == 1 else ([], [])
-        )
-        base_obj = DualType(0.0, [f"{self.id}{i}" for i in range(self.n)], *DualArgs)
-        ident: np.ndarray[tuple[int, ...], np.dtype[np.float64]] = np.eye(self.n, dtype=np.float64)
-
-        if self._ini_solve == 1:
-            # then the first node on the Curve is not updated but
-            # set it as a dual type with consistent vars.
-            self.nodes[self.node_keys[0]] = DualType.vars_from(
-                base_obj,  # type: ignore[arg-type]
-                self.nodes[self.node_keys[0]].real,
-                base_obj.vars,
-                ident[0, :].tolist(),  # type: ignore[arg-type]
-                *DualArgs[1:],
-            )
-
-        for i, k in enumerate(self.node_keys[self._ini_solve :]):
-            self.nodes[k] = DualType.vars_from(
-                base_obj,  # type: ignore[arg-type]
-                vector[i].real,
-                base_obj.vars,
-                ident[i + self._ini_solve, :].tolist(),  # type: ignore[arg-type]
-                *DualArgs[1:],
-            )
-        self._csolve()
+        self._set_node_vector_direct(vector, ad)
 
     @_clear_cache_post
     def _set_ad_order(self, order: int) -> None:
@@ -1417,11 +1396,49 @@ class Curve(_WithState, _WithCache[datetime, DualTypes]):
         elif order not in [0, 1, 2]:
             raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
 
-        self.ad = order
+        self._ad = order
         self.nodes = {
             k: set_order_convert(v, order, [f"{self.id}{i}"])
             for i, (k, v) in enumerate(self.nodes.items())
         }
+        self._csolve()
+
+    def _set_node_vector_direct(self, vector: list[DualTypes], ad: int) -> None:
+        if ad == 0:
+            if self._ini_solve == 1 and len(self.node_keys) > 0:
+                self.nodes[self.node_keys[0]] = _dual_float(self.nodes[self.node_keys[0]])
+            for i, k in enumerate(self.node_keys[self._ini_solve :]):
+                self.nodes[k] = _dual_float(vector[i])
+        else:
+            DualType: type[Dual | Dual2] = Dual if ad == 1 else Dual2
+            DualArgs: tuple[list[float]] | tuple[list[float], list[float]] = (
+                ([],) if ad == 1 else ([], [])
+            )
+            base_obj = DualType(0.0, [f"{self.id}{i}" for i in range(self.n)], *DualArgs)
+            ident: np.ndarray[tuple[int, ...], np.dtype[np.float64]] = np.eye(
+                self.n, dtype=np.float64
+            )
+
+            if self._ini_solve == 1:
+                # then the first node on the Curve is not updated but
+                # set it as a dual type with consistent vars.
+                self.nodes[self.node_keys[0]] = DualType.vars_from(
+                    base_obj,  # type: ignore[arg-type]
+                    _dual_float(self.nodes[self.node_keys[0]]),
+                    base_obj.vars,
+                    ident[0, :].tolist(),
+                    *DualArgs[1:],
+                )
+
+            for i, k in enumerate(self.node_keys[self._ini_solve :]):
+                self.nodes[k] = DualType.vars_from(
+                    base_obj,  # type: ignore[arg-type]
+                    _dual_float(vector[i]),
+                    base_obj.vars,
+                    ident[i + self._ini_solve, :].tolist(),
+                    *DualArgs[1:],
+                )
+        self._ad = ad
         self._csolve()
 
     @_new_state_post
@@ -2128,25 +2145,6 @@ class LineCurve(Curve):
         return super().roll(tenor)
 
 
-class IndexCurve(Curve):
-    """
-    Deprecated. Use :class:`~rateslib.curves.Curve` with a valid ``index_base``.
-    """
-
-    def __init__(  # type: ignore[no-untyped-def]
-        self,
-        *args,
-        **kwargs,
-    ) -> None:
-        warnings.warn(
-            "`IndexCurve` is deprecated: use a `Curve` instead and the same arguments.",
-            DeprecationWarning,
-        )
-        super().__init__(*args, **{"interpolation": "linear_index", **kwargs})
-        if isinstance(self.index_base, NoInput):
-            raise ValueError("`index_base` must be given for IndexCurve.")
-
-
 class CompositeCurve(Curve):
     """
     A dynamic composition of a sequence of other curves.
@@ -2366,7 +2364,7 @@ class CompositeCurve(Curve):
 
     def _validate_curve_collection(self) -> None:
         """Perform checks to ensure CompositeCurve can exist"""
-        if type(self) is MultiCsaCurve and isinstance(self.curves[0], LineCurve | IndexCurve):
+        if type(self) is MultiCsaCurve and isinstance(self.curves[0], LineCurve):
             raise TypeError("Multi-CSA curves must be of type `Curve`.")
 
         if type(self) is MultiCsaCurve and self.multi_csa_min_step > self.multi_csa_max_step:
@@ -2380,9 +2378,7 @@ class CompositeCurve(Curve):
             )
 
         if not (
-            all(_ is Curve or _ is ProxyCurve for _ in types)
-            or all(_ is LineCurve for _ in types)
-            or all(_ is IndexCurve for _ in types)
+            all(_ is Curve or _ is ProxyCurve for _ in types) or all(_ is LineCurve for _ in types)
         ):
             raise TypeError(f"`curves` must be a list of similar type curves, got {types}.")
 
@@ -2645,7 +2641,7 @@ class CompositeCurve(Curve):
         elif order not in [0, 1, 2]:
             raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
 
-        self.ad = order
+        self._ad = order
         for curve in self.curves:
             if type(curve) is ProxyCurve:
                 continue
@@ -2703,6 +2699,11 @@ class MultiCsaCurve(CompositeCurve):
     .. note::
        Can only combine curves of the type: :class:`Curve`. Other curve parameters such as
        ``modifier``, and ``convention`` must also match.
+
+    .. warning::
+       Intrinsic *MultiCsaCurves*, by definition, are not natively AD safe, due to having
+       discontinuities and no available derivatives in certain cases. See
+       :ref:`discontinuous MultiCsaCurves <cook-multicsadisc-doc>`.
 
     Parameters
     ----------
@@ -3023,13 +3024,6 @@ class ProxyCurve(Curve):
         self.coll_pair = f"{coll_ccy}{coll_ccy}"
         self.coll_idx = self.fx_forwards.currencies[coll_ccy]
         self.pair = f"{cash_ccy}{coll_ccy}"
-        self.path = self.fx_forwards._get_recursive_chain(
-            self.fx_forwards.transform,
-            self.coll_idx,
-            self.cash_idx,
-            [],
-            [],
-        )[1]
         self.terminal = list(self.fx_forwards.fx_curves[self.cash_pair].nodes.keys())[-1]
 
         default_curve = Curve(
@@ -3056,7 +3050,7 @@ class ProxyCurve(Curve):
         self.node_dates = [self.fx_forwards.immediate, self.terminal]
 
     @property
-    def ad(self) -> int:  # type: ignore[override]
+    def ad(self) -> int:
         return self.fx_forwards._ad
 
     @property
@@ -3066,9 +3060,7 @@ class ProxyCurve(Curve):
         return self.fx_forwards._state
 
     def __getitem__(self, date: datetime) -> DualTypes:
-        self.fx_forwards._validate_state()  # manually handle cache check
-
-        _1: DualTypes = self.fx_forwards._rate_with_path(self.pair, date, path=self.path)[0]
+        _1: DualTypes = self.fx_forwards.rate(self.pair, date)
         _2: DualTypes = self.fx_forwards.fx_rates_immediate._fx_array_el(
             self.cash_idx, self.coll_idx
         )

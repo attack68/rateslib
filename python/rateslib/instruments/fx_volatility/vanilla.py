@@ -7,13 +7,14 @@ from typing import TYPE_CHECKING
 
 from pandas import DataFrame
 
-from rateslib import defaults
+from rateslib import FXDeltaVolSmile, FXDeltaVolSurface, defaults
 from rateslib.calendars import _get_fx_expiry_and_delivery, get_calendar
 from rateslib.curves import Curve
 from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.default import NoInput, PlotOutput, _drb, plot
 from rateslib.dual.utils import _dual_float
-from rateslib.fx_volatility import FXVolObj
+from rateslib.fx_volatility import FXSabrSmile, FXSabrSurface
+from rateslib.instruments.base import Metrics
 from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.instruments.utils import (
     _get_fxvol_curves_fx_and_base_maybe_from_solver,
@@ -24,6 +25,8 @@ from rateslib.periods import Cashflow, FXCallPeriod, FXPutPeriod
 from rateslib.periods.utils import _validate_fx_as_forwards
 
 if TYPE_CHECKING:
+    from typing import NoReturn
+
     import numpy as np
 
     from rateslib.typing import (
@@ -48,15 +51,17 @@ if TYPE_CHECKING:
 
 @dataclass
 class _PricingMetrics:
-    vol: FXVolOption_
-    k: DualTypes
+    """None elements are used as flags to indicate an element is not yet set."""
+
+    vol: FXVolOption_ | None
+    k: DualTypes | None
     delta_index: DualTypes | None
     spot: datetime
-    t_e: DualTypes
+    t_e: DualTypes | None
     f_d: DualTypes
 
 
-class FXOption(Sensitivities, metaclass=ABCMeta):
+class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
     """
     Create an *FX Option*.
 
@@ -74,6 +79,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         If str, there are four possibilities as above. If giving a specific delta should end
         with a 'd' for delta e.g. "-25d". Put deltas should be input including negative sign.
     eval_date: datetime, optional
+        Only required if ``expiry`` is given as string tenor.
         Should be entered as today (also called horizon) and **not** spot. Spot is derived
         from ``delivery_lag`` and ``calendar``.
     modifier : str, optional (defaults.modifier)
@@ -284,9 +290,17 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         fx: FX_,
         vol: FXVolOption_,
     ) -> None:
-        # If the strike for the option is not set directly it must be inferred
-        # and some of the pricing elements associated with this strike definition must
-        # be captured for use in subsequent formulae.
+        """
+        Set the strike, if necessary, and determine pricing metrics from the volatility objects.
+
+        The strike for the *OptionPeriod* is either; string or numeric.
+
+        If it is string, then a numeric strike must be determined with an associated vol.
+
+        If it is numeric then the volatility must be determined for the given strike.
+
+        Pricing elements are captured and cached so they can be used later by subsequent methods.
+        """
         fx_ = _validate_fx_as_forwards(fx)
         # vol_: FXVolOption = _validate_obj_not_no_input(vol, "vol")  # type: ignore[assignment]
         vol_ = vol
@@ -294,74 +308,85 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         curves_1: Curve = _validate_obj_not_no_input(curves[1], "curves[1]")
 
         self._pricing = _PricingMetrics(
-            vol=vol_,
-            k=self.kwargs["strike"],
+            vol=None,
+            k=None,
             delta_index=None,
             spot=fx_.pairs_settlement[self.kwargs["pair"]],
-            t_e=self._option_periods[0]._t_to_expiry(curves_3.node_dates[0]),
+            t_e=None,
             f_d=fx_.rate(self.kwargs["pair"], self.kwargs["delivery"]),
         )
+
+        if isinstance(vol_, FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile | FXSabrSurface):
+            eval_date = vol_.eval_date
+        else:
+            eval_date = curves_3.node_dates[0]
+            self._pricing.vol = vol_  # Not a vol model so set directly
+        self._pricing.t_e = self._option_periods[0]._t_to_expiry(eval_date)
 
         w_deli = curves_1[self.kwargs["delivery"]]
         w_spot = curves_1[self._pricing.spot]
 
-        if isinstance(self.kwargs["strike"], str):
-            method = self.kwargs["strike"].lower()
-
+        # determine if _PricingMetrics.k can be set directly to a numeric value
+        if isinstance(self.kwargs["strike"], str) and self.kwargs["strike"].lower() in [
+            "atm_forward",
+            "atm_spot",
+        ]:
+            # then strike can be set directly as a calculated value
+            method: str = self.kwargs["strike"].lower()
             if method == "atm_forward":
                 self._pricing.k = fx_.rate(self.kwargs["pair"], self.kwargs["delivery"])
-
             elif method == "atm_spot":
                 self._pricing.k = fx_.rate(self.kwargs["pair"], self._pricing.spot)
+        elif not isinstance(self.kwargs["strike"], str):
+            self._pricing.k = self.kwargs["strike"]
 
-            elif method == "atm_delta":
-                self._pricing.k, self._pricing.delta_index = self._option_periods[
-                    0
-                ]._strike_and_index_from_atm(
-                    delta_type=self._option_periods[0].delta_type,
-                    vol=_validate_obj_not_no_input(vol_, "vol"),  # type: ignore[arg-type]
+        if self._pricing.k is not None:
+            if self._pricing.vol is None:
+                # vol is only None if vol_ is a VolObj so can be safely type ignored
+                # then an explicit strike is set so determine the vol from strike, set and return.
+                self._pricing.delta_index, self._pricing.vol, _ = vol_.get_from_strike(  # type: ignore[union-attr]
+                    k=self._pricing.k,
+                    f=self._pricing.f_d if not isinstance(vol_, FXSabrSurface) else fx_,  # type: ignore[arg-type]
+                    expiry=self.kwargs["expiry"],
                     w_deli=w_deli,
                     w_spot=w_spot,
-                    f=self._pricing.f_d,
-                    t_e=self._pricing.t_e,
+                )
+        else:
+            # will determine the strike from % delta or ATM-delta string
+            method = self.kwargs["strike"].lower()
+            if method == "atm_delta":
+                self._pricing.delta_index, self._pricing.vol, self._pricing.k = (
+                    self._option_periods[0]._index_vol_and_strike_from_atm(
+                        delta_type=self._option_periods[0].delta_type,
+                        vol=_validate_obj_not_no_input(vol_, "vol"),  # type: ignore[arg-type]
+                        w_deli=w_deli,
+                        w_spot=w_spot,
+                        f=fx_ if isinstance(vol_, FXSabrSurface) else self._pricing.f_d,
+                        t_e=self._pricing.t_e,
+                    )
                 )
 
             elif method[-1] == "d":  # representing delta
                 # then strike is commanded by delta
-                self._pricing.k, self._pricing.delta_index = self._option_periods[
-                    0
-                ]._strike_and_index_from_delta(
+                (
+                    self._pricing.delta_index,
+                    self._pricing.vol,
+                    self._pricing.k,
+                ) = self._option_periods[0]._index_vol_and_strike_from_delta(
                     delta=float(self.kwargs["strike"][:-1]) / 100.0,
                     delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
-                    vol=vol_,
+                    vol=_validate_obj_not_no_input(vol_, "vol"),  # type: ignore[arg-type]
                     w_deli=w_deli,
                     w_spot=w_spot,
-                    f=self._pricing.f_d,
+                    f=fx_ if isinstance(vol_, FXSabrSurface) else self._pricing.f_d,
                     t_e=self._pricing.t_e,
                 )
 
-            # TODO: this may affect solvers dependent upon sensitivity to vol for changing strikes.
-            # set the strike as a float without any sensitivity. Trade definition is a fixed
-            # quantity at this stage. Similar to setting a fixed rate as a float on an unpriced
-            # IRS for mid-market.
-
-            # self.periods[0].strike = self._pricing["k"]
-            self._option_periods[0].strike = _dual_float(self._pricing.k)
-
-        if isinstance(vol_, FXVolObj):
-            if self._pricing.delta_index is None:
-                self._pricing.delta_index, self._pricing.vol, _ = vol_.get_from_strike(
-                    k=self._pricing.k,
-                    f=self._pricing.f_d,
-                    w_deli=w_deli,
-                    w_spot=w_spot,
-                    expiry=self.kwargs["expiry"],
-                )
-            else:
-                self._pricing.vol = vol_._get_index(
-                    self._pricing.delta_index,
-                    self.kwargs["expiry"],
-                )
+        # _PricingMetrics.k is completely specified
+        assert self._pricing.k is not None  # noqa: S101
+        # Review section in book regarding Hyper-parameters and Solver interaction
+        self.periods[0].strike = self._pricing.k
+        # self._option_periods[0].strike = _dual_float(self._pricing.k)
 
     def _set_premium(self, curves: Curves_DiscTuple, fx: FX_ = NoInput(0)) -> None:
         if isinstance(self.kwargs["premium"], NoInput):
@@ -372,7 +397,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
                     _validate_obj_not_no_input(curves[1], "curves[1]"),
                     curves_3,
                     fx,
-                    vol=self._pricing.vol,
+                    vol=self._pricing.vol,  # type: ignore[arg-type]
                     local=False,
                 )
             except AttributeError:
@@ -458,6 +483,9 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             self.kwargs["pair"][3:],
         )
         self._set_strike_and_vol(curves_, fx_, vol_)
+
+        # Premium is not required for rate and also sets as float
+        # Review section: "Hyper-parameters and Solver interaction" before enabling.
         # self._set_premium(curves, fx)
 
         metric = _drb(self.kwargs["metric"], metric)
@@ -469,7 +497,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             disc_curve_ccy2=_validate_obj_not_no_input(curves_[3], "curve"),
             fx=fx_,
             base=NoInput(0),
-            vol=self._pricing.vol,
+            vol=self._pricing.vol,  # type: ignore[arg-type]
         )
         if metric == "premium":
             if self.periods[0].metric == "pips":
@@ -533,7 +561,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
             fx=fx_,
             base=base_,
             local=local,
-            vol=vol_,
+            vol=self._pricing.vol,  # type: ignore[arg-type]
         )
         if self.kwargs["premium_ccy"] == self.kwargs["pair"][:3]:
             disc_curve = curves_[1]
@@ -646,14 +674,55 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         self._set_strike_and_vol(curves_, fx_, vol_)
         # self._set_premium(curves, fx)
 
-        return self._option_periods[0].analytic_greeks(
+        return self._option_periods[0]._analytic_greeks(
             disc_curve=_validate_obj_not_no_input(curves_[1], "curves_[1]"),
             disc_curve_ccy2=_validate_obj_not_no_input(curves_[3], "curves_[3]"),
             fx=_validate_fx_as_forwards(fx_),
             base=base_,
             vol=vol_,
             premium=NoInput(0),
+            _reduced=False,
         )
+
+    def _analytic_greeks_reduced(
+        self,
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
+        vol: FXVol_ = NoInput(0),
+    ) -> dict[str, Any]:
+        """
+        Return various pricing metrics of the *FX Option*.
+        """
+        curves_, fx_, base_, vol_ = _get_fxvol_curves_fx_and_base_maybe_from_solver(
+            curves_attr=self.curves,
+            vol_attr=self.vol,
+            solver=solver,
+            curves=curves,
+            fx=fx,
+            base=base,
+            vol=vol,
+            local_ccy=self.kwargs["pair"][3:],
+        )
+        self._set_strike_and_vol(curves_, fx_, vol_)
+        # self._set_premium(curves, fx)
+
+        return self._option_periods[0]._analytic_greeks(
+            disc_curve=_validate_obj_not_no_input(curves_[1], "curves_[1]"),
+            disc_curve_ccy2=_validate_obj_not_no_input(curves_[3], "curves_[3]"),
+            fx=_validate_fx_as_forwards(fx_),
+            base=base_,
+            vol=self._pricing.vol,  # type: ignore[arg-type]
+            premium=NoInput(0),
+            _reduced=True,
+        )  # none of the reduced greeks need a VolObj - faster to reuse from _pricing.vol
+
+    def analytic_delta(self, *args: Any, leg: int = 1, **kwargs: Any) -> NoReturn:
+        """Not implemented for Option types.
+        Use :class:`~rateslib.instruments.FXOption.analytic_greeks`.
+        """
+        raise NotImplementedError("For Option types use `analytic_greeks`.")
 
     def _plot_payoff(
         self,
@@ -697,7 +766,7 @@ class FXOption(Sensitivities, metaclass=ABCMeta):
         vol: float_ = NoInput(0),
     ) -> PlotOutput:
         x, y = self._plot_payoff(range, curves, solver, fx, base, local, vol)
-        return plot(x, [y])  # type: ignore
+        return plot([x], [y])  # type: ignore
 
 
 class FXCall(FXOption):

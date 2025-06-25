@@ -935,3 +935,18 @@ def test_single_period_imm_roll():
         calendar="stk",
     )
     assert len(s.aschedule) == 2
+
+
+def test_deviate_from_effective_in_inference() -> None:
+    # 28th and 30th are both valid rolls for this schedule
+    # test that 30th is inferred since it deviates the least from effective input.
+    s = Schedule(
+        effective=dt(2024, 12, 30),
+        termination=dt(2025, 11, 28),
+        frequency="m",
+        eom=False,
+        calendar="bus",
+    )
+    assert s.ueffective == dt(2024, 12, 30)
+    assert s.utermination == dt(2025, 11, 30)
+    assert s.roll == 30

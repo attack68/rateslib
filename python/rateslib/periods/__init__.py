@@ -3,7 +3,7 @@ from rateslib.periods.cashflow import Cashflow, NonDeliverableCashflow
 from rateslib.periods.credit import CreditPremiumPeriod, CreditProtectionPeriod
 from rateslib.periods.fx_volatility import FXCallPeriod, FXOptionPeriod, FXPutPeriod
 from rateslib.periods.index import IndexCashflow, IndexFixedPeriod, IndexMixin
-from rateslib.periods.rates import FixedPeriod, FloatPeriod
+from rateslib.periods.rates import FixedPeriod, FloatPeriod, NonDeliverableFixedPeriod
 
 __all__ = [
     "BasePeriod",
@@ -17,6 +17,7 @@ __all__ = [
     "IndexCashflow",
     "IndexFixedPeriod",
     "FixedPeriod",
+    "NonDeliverableFixedPeriod",
     "FloatPeriod",
     "IndexMixin",
 ]

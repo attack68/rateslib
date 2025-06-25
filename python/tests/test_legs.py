@@ -5,7 +5,7 @@ import pytest
 from pandas import DataFrame, Index, MultiIndex, Series, date_range, isna
 from pandas.testing import assert_frame_equal, assert_series_equal
 from rateslib import default_context, defaults
-from rateslib.curves import Curve, IndexCurve
+from rateslib.curves import Curve
 from rateslib.default import NoInput
 from rateslib.dual import Dual
 from rateslib.fx import FXForwards, FXRates
@@ -1000,12 +1000,13 @@ class TestZeroIndexLeg:
         ],
     )
     def test_zero_index_cashflow(self, index_base, index_fixings, meth, exp) -> None:
-        index_curve = IndexCurve(
+        index_curve = Curve(
             {
                 dt(2022, 1, 1): 1.0,
                 dt(2023, 1, 1): 0.97,
             },
             index_base=100.0,
+            interpolation="linear_index",
         )
         zil = ZeroIndexLeg(
             effective=dt(2022, 1, 15),
@@ -1045,12 +1046,13 @@ class TestZeroIndexLeg:
         assert zil.analytic_delta() == 0.0
 
     def test_cashflows(self) -> None:
-        index_curve = IndexCurve(
+        index_curve = Curve(
             {
                 dt(2022, 1, 1): 1.0,
                 dt(2023, 1, 1): 0.97,
             },
             index_base=100.0,
+            interpolation="linear_index",
         )
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.97})
         zil = ZeroIndexLeg(
@@ -1458,7 +1460,7 @@ class TestIndexFixedLegExchange:
             initial_exchange=False,
             final_exchange=True,
         )
-        index_curve = IndexCurve(
+        index_curve = Curve(
             nodes={
                 dt(2022, 3, 15): 1.0,
                 dt(2022, 6, 15): 1.0 / 1.05,
@@ -1466,6 +1468,7 @@ class TestIndexFixedLegExchange:
                 dt(2022, 12, 15): 1.0 / 1.15,
             },
             index_base=200.0,
+            interpolation="linear_index",
         )
         disc_curve = Curve({dt(2022, 3, 15): 1.0, dt(2022, 12, 15): 1.0})
         flows = leg.cashflows(curve=index_curve, disc_curve=disc_curve)
@@ -1535,7 +1538,11 @@ class TestIndexFixedLegExchange:
 
     def test_npv(self) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
-        index_curve = IndexCurve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_base=100.0)
+        index_curve = Curve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
+            index_base=100.0,
+            interpolation="linear_index",
+        )
         index_leg_exch = IndexFixedLeg(
             dt(2022, 1, 1),
             "9M",
@@ -1588,7 +1595,7 @@ class TestIndexFixedLeg:
             index_fixings=i_fixings,
             index_method=meth,
         )
-        index_curve = IndexCurve(
+        index_curve = Curve(
             nodes={
                 dt(2022, 3, 15): 1.0,
                 dt(2022, 6, 15): 1.0 / 1.05,
@@ -1596,6 +1603,7 @@ class TestIndexFixedLeg:
                 dt(2022, 12, 15): 1.0 / 1.15,
             },
             index_base=200.0,
+            interpolation="linear_index",
         )
         disc_curve = Curve({dt(2022, 3, 15): 1.0, dt(2022, 12, 15): 1.0})
         flows = leg.cashflows(curve=index_curve, disc_curve=disc_curve)
@@ -1638,7 +1646,7 @@ class TestIndexFixedLeg:
             index_fixings=i_fixings,
             index_method=meth,
         )
-        index_curve = IndexCurve(
+        index_curve = Curve(
             nodes={
                 dt(2022, 3, 20): 1.0,
                 dt(2022, 6, 20): 1.0 / 1.05,
@@ -1646,6 +1654,7 @@ class TestIndexFixedLeg:
                 dt(2022, 12, 20): 1.0 / 1.15,
             },
             index_base=200.0,
+            interpolation="linear_index",
         )
         cashflows = leg.cashflows(index_curve)
         result = cashflows.iloc[2]["Index Val"]

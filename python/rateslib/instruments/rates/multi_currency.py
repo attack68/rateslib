@@ -13,7 +13,7 @@ from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.dual.utils import _dual_float
 from rateslib.fx import FXForwards, FXRates, forward_fx
-from rateslib.instruments.base import BaseDerivative, BaseMixin
+from rateslib.instruments.base import BaseDerivative, Metrics
 from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.instruments.utils import (
     _composit_fixings_table,
@@ -33,6 +33,7 @@ from rateslib.periods import (
     Cashflow,
     NonDeliverableCashflow,
 )
+from rateslib.periods.utils import _get_fx_fixings_from_non_fx_forwards, _maybe_local
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -59,7 +60,7 @@ if TYPE_CHECKING:
     )
 
 
-class FXExchange(Sensitivities, BaseMixin):
+class FXExchange(Sensitivities, Metrics):
     """
     Create a simple exchange of two currencies.
 
@@ -271,7 +272,7 @@ class FXExchange(Sensitivities, BaseMixin):
         raise NotImplementedError("`analytic_delta` for FXExchange not defined.")
 
 
-class NDF(Sensitivities):
+class NDF(Sensitivities, Metrics):
     """
     Create a non-deliverable forward (NDF).
 
@@ -282,7 +283,12 @@ class NDF(Sensitivities):
     pair: str
         The FX pair against which settlement takes place (2 x 3-digit code).
     notional: float, Variable, optional
-        The notional amount expressed in units of currency 1 of ``pair``.
+        The notional amount expressed in terms of buying units of the *reference currency*, and not
+        *settlement currency*.
+    currency: str, optional
+        The *settlement currency* of the contract. If not given is assumed to be currency 2 of the
+        ``pair``, e.g. USD in BRLUSD. Must be one of the currencies in ``pair``. The
+        *reference currency* is inferred as the other currency in the ``pair``.
     fx_rate: float, Variable, optional
         The agreed price on the NDF contact. May be omitted for unpriced contracts.
     fx_fixing: float, Variable, optional
@@ -295,11 +301,9 @@ class NDF(Sensitivities):
         Determines settlement if given as string tenor and fixing date from settlement.
     modifier: str, optional
         Date modifier for determining string tenor.
-    currency: str, optional
-        The settlement currency of the contract. If not given is assumed to be currency 2 of the
-        ``pair``, e.g. USD in BRLUSD. Must be one of the currencies in ``pair``.
     payment_lag: int, optional
         Number of business day until settlement delivery. Defaults to 2 (spot) if not given.
+        Used to derive the ``fx_fixing`` date and *spot* if using an ``eval_date``.
     eom: bool, optional
         Whether to allow end of month rolls to ``settlement`` as tenor.
     curves : Curve, str or list of such, optional
@@ -308,7 +312,49 @@ class NDF(Sensitivities):
     spec : str, optional
         An identifier to pre-populate many fields with conventional values. See
         :ref:`here<defaults-doc>` for more info and available values.
+
+    Examples
+    --------
+    This is a standard *non-deliverable forward* with the ``notional`` expressed in EUR
+    settling in USD.
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.instruments import NDF
+
+    .. ipython:: python
+
+       ndf = NDF(
+           settlement="3m",
+           pair="eurusd",  # <- EUR is the reference currency
+           currency="usd",  # <- USD is the settlement currency
+           notional=1e6,  # <- this is long 1mm EUR
+           eval_date=dt(2000, 7, 1),
+           calendar="tgt|fed",
+           modifier="mf",
+           payment_lag=2,
+           fx_rate=1.04166666,  # (=125/120) <- implies short 1.0416mm USD
+        )
+
+    This has the ``pair`` reversed but the notional is still expressed in EUR.
+
+    .. ipython:: python
+
+       ndf = NDF(
+           settlement="3m",
+           pair="usd",  # <- EUR is still reference currency
+           currency="usd",  # <- USD is the settlement currency
+           notional=1e6,  # <- this is long 1mm EUR
+           eval_date=dt(2000, 7, 1),
+           calendar="tgt|fed",
+           modifier="mf",
+           payment_lag=2,
+           fx_rate=0.96,  # (=120/125) <- implies short 1.0416mm USD
+        )
     """
+
+    periods: tuple[NonDeliverableCashflow, Cashflow]
 
     def __init__(
         self,
@@ -361,25 +407,70 @@ class NDF(Sensitivities):
 
         if self.kwargs["currency"] not in self.kwargs["pair"]:
             raise ValueError("`currency` must be one of the currencies in `pair`.")
+        reference_currency = (
+            self.kwargs["pair"][0:3]
+            if self.kwargs["pair"][0:3] != self.kwargs["currency"]
+            else self.kwargs["pair"][3:]
+        )
 
-        self.periods = [
+        self.periods = (
             NonDeliverableCashflow(
-                notional=self.kwargs["notional"],
-                reference_currency=self.kwargs["pair"][0:3]
-                if self.kwargs["pair"][0:3] != self.kwargs["currency"]
-                else self.kwargs["pair"][3:],
+                notional=-self.kwargs["notional"],
+                currency=reference_currency,
                 settlement_currency=self.kwargs["currency"],
-                settlement=self.kwargs["settlement"],
+                payment=self.kwargs["settlement"],
                 fixing_date=self.kwargs["calendar"].lag(
                     self.kwargs["settlement"], -self.kwargs["payment_lag"], False
                 ),  # a fixing date can be on a non-settlable date
-                fx_rate=self.kwargs["fx_rate"],
                 fx_fixing=self.kwargs["fx_fixing"],
                 reversed=self.kwargs["pair"][0:3] == self.kwargs["currency"],
-            )
-        ]
+            ),
+            Cashflow(
+                notional=0.0,  # will be set by set_cashflow_notional
+                currency=self.kwargs["currency"],
+                payment=self.kwargs["settlement"],
+                stub_type=self.kwargs["pair"].upper(),
+                rate=self.kwargs["fx_rate"],
+            ),
+        )
+        self._set_cashflow_notional(NoInput(0), init=True)
         self.curves = curves
         self.spec = spec
+
+    @property
+    def _unpriced(self) -> bool:
+        return isinstance(self.kwargs["fx_rate"], NoInput)
+
+    def _set_cashflow_notional(self, fx: FX_, init: bool) -> None:
+        """
+        Sets the notionals on the *Cashflow* types of the NDF.
+
+        Parameters
+        ----------
+        init: bool
+            Flag to indicate if the instance method is being run at initialisation, i.e. first time.
+        """
+        # set the notional based on direction of ``pair`` relative to the ``currency``.
+        if init:
+            if self._unpriced:
+                return None  # do nothing - wait for price time to set mid-market
+            else:
+                fx_rate: DualTypes = self.kwargs["fx_rate"]
+        else:
+            if self._unpriced:
+                if isinstance(fx, FXForwards):
+                    fx_rate = fx.rate(self.kwargs["pair"], self.kwargs["settlement"])
+                else:
+                    fx_rate = _get_fx_fixings_from_non_fx_forwards(0, 1)[0]
+                fx_rate = _dual_float(fx_rate)  # priced insts set parameters to float for risk.
+            else:
+                return None  # do nothing - already set at init using priced fx_rate
+
+        # set pricing notional
+        if self.kwargs["currency"] == self.kwargs["pair"][3:]:
+            self.periods[1].notional = self.kwargs["notional"] * fx_rate
+        else:
+            self.periods[1].notional = self.kwargs["notional"] / fx_rate
 
     def _set_pricing_mid(
         self,
@@ -387,9 +478,8 @@ class NDF(Sensitivities):
         solver: Solver_ = NoInput(0),
         fx: FX_ = NoInput(0),
     ) -> None:
-        if isinstance(self.kwargs["fx_rate"], NoInput):
-            mid_market_rate = self.rate(curves, solver, fx)
-            self.periods[0].fx_rate = _dual_float(mid_market_rate)
+        if self._unpriced:
+            self._set_cashflow_notional(fx, init=False)
 
     def rate(
         self,
@@ -449,9 +539,10 @@ class NDF(Sensitivities):
         )
         seq = [
             self.periods[0].cashflows(curves_[0], curves_[1], fx_, base_),
+            self.periods[1].cashflows(curves_[0], curves_[1], fx_, base_),
         ]
         _: DataFrame = DataFrame.from_records(seq)
-        _.index = MultiIndex.from_tuples([("leg1", 0)])
+        _.index = MultiIndex.from_tuples([("leg1", 0), ("leg1", 1)])
         return _
 
     def npv(
@@ -484,7 +575,6 @@ class NDF(Sensitivities):
         -------
         float, Dual, Dual2 or dict of such.
         """
-        self._set_pricing_mid(curves, solver, fx)
         curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,
             solver,
@@ -493,7 +583,10 @@ class NDF(Sensitivities):
             base,
             self.kwargs["currency"],
         )
-        return self.periods[0].npv(NoInput(0), curves_[1], fx_, base_, local)
+        self._set_pricing_mid(NoInput(0), NoInput(0), fx_)
+        _ = self.periods[0].npv(NoInput(0), curves_[1], fx_, self.kwargs["currency"], local=False)
+        _ += self.periods[1].npv(NoInput(0), curves_[1], fx_, self.kwargs["currency"], local=False)
+        return _maybe_local(_, local, self.kwargs["currency"], fx_, base_)
 
     def delta(self, *args: Any, **kwargs: Any) -> DataFrame:
         """
@@ -784,7 +877,7 @@ class XCS(BaseDerivative):
                 else:
                     if isinstance(fx, FXForwards):
                         # this is the correct pricing path
-                        fx_fixing = fx.rate(self.pair, self.leg2.periods[0].payment)
+                        fx_fixing = fx.rate(self.pair, self.leg2._exchange_periods[0].payment)  # type: ignore[union-attr]
                     elif isinstance(fx, FXRates):
                         # maybe used in debugging
                         fx_fixing = fx.rate(self.pair)
@@ -957,8 +1050,6 @@ class XCS(BaseDerivative):
         for calculation is the implied mid-market rate including the
         current ``float_spread`` parameter.
 
-        Examples
-        --------
         """
         curves_, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
             self.curves,

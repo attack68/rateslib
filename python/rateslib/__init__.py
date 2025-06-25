@@ -62,7 +62,6 @@ from rateslib.calendars import (
 from rateslib.curves import (
     CompositeCurve,
     Curve,
-    IndexCurve,
     LineCurve,
     MultiCsaCurve,
     ProxyCurve,
@@ -71,12 +70,13 @@ from rateslib.curves import (
 )
 from rateslib.dual import Dual, Dual2, Variable, dual_exp, dual_log, dual_solve, gradient
 from rateslib.fx import FXForwards, FXRates
-from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
+from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments import (
     CDS,
     FRA,
     IIRS,
     IRS,
+    NDF,
     SBS,
     XCS,
     ZCIS,
@@ -103,6 +103,8 @@ from rateslib.instruments import (
 )
 from rateslib.json import from_json
 from rateslib.legs import (
+    CreditPremiumLeg,
+    CreditProtectionLeg,
     CustomLeg,
     FixedLeg,
     FixedLegMtm,
@@ -115,12 +117,15 @@ from rateslib.legs import (
 )
 from rateslib.periods import (
     Cashflow,
+    CreditPremiumPeriod,
+    CreditProtectionPeriod,
     FixedPeriod,
     FloatPeriod,
     FXCallPeriod,
     FXPutPeriod,
     IndexCashflow,
     IndexFixedPeriod,
+    NonDeliverableCashflow,
 )
 from rateslib.scheduling import Schedule
 from rateslib.solver import Solver
@@ -182,7 +187,6 @@ __all__ = [
     # curves.py
     "Curve",
     "LineCurve",
-    "IndexCurve",
     "MultiCsaCurve",
     "CompositeCurve",
     "ProxyCurve",
@@ -191,6 +195,8 @@ __all__ = [
     # fx_volatility.py
     "FXDeltaVolSmile",
     "FXDeltaVolSurface",
+    "FXSabrSmile",
+    "FXSabrSurface",
     # solver.py
     "Solver",
     # fx.py
@@ -204,6 +210,9 @@ __all__ = [
     "IndexFixedPeriod",
     "FXCallPeriod",
     "FXPutPeriod",
+    "NonDeliverableCashflow",
+    "CreditPremiumPeriod",
+    "CreditProtectionPeriod",
     # legs.py
     "FixedLeg",
     "FloatLeg",
@@ -214,6 +223,8 @@ __all__ = [
     "IndexFixedLeg",
     "ZeroIndexLeg",
     "CustomLeg",
+    "CreditPremiumLeg",
+    "CreditProtectionLeg",
     # instruments.py
     "FixedRateBond",
     "IndexFixedRateBond",
@@ -225,6 +236,7 @@ __all__ = [
     "VolValue",
     "Bill",
     "IRS",
+    "NDF",
     "STIRFuture",
     "IIRS",
     "ZCS",
@@ -244,4 +256,4 @@ __all__ = [
     "FXBrokerFly",
 ]
 
-__version__ = "1.7.0"
+__version__ = "1.8.0"

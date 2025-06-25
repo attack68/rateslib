@@ -7,5 +7,3 @@ pub use crate::dual::linalg::linalg_dual::{dmul11_, dmul21_, dmul22_, douter11_,
 pub use crate::dual::linalg::linalg_f64::{
     dfmul21_, dfmul22_, fdmul11_, fdmul21_, fdmul22_, fdsolve, fouter11_,
 };
-
-pub(crate) use crate::dual::linalg::linalg_dual::argabsmax;

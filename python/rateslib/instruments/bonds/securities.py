@@ -19,7 +19,7 @@ from rateslib.curves._parsers import (
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, gradient, newton_1dim, quadratic_eqn
 from rateslib.dual.utils import _dual_float, _get_order_of
-from rateslib.instruments.base import BaseMixin
+from rateslib.instruments.base import Metrics
 from rateslib.instruments.bonds.conventions import (
     BILL_MODE_MAP,
     BOND_MODE_MAP,
@@ -951,7 +951,7 @@ class BondMixin:
         return _
 
 
-class FixedRateBond(Sensitivities, BondMixin, BaseMixin):  # type: ignore[misc]
+class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
     # TODO (mid) ensure calculations work for amortizing bonds.
     """
     Create a fixed rate bond security.
@@ -2472,7 +2472,7 @@ class Bill(FixedRateBond):
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-class FloatRateNote(Sensitivities, BondMixin, BaseMixin):  # type: ignore[misc]
+class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
     """
     Create a floating rate note (FRN) security.
 

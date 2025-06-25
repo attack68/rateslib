@@ -24,6 +24,7 @@ from rateslib.periods.utils import (
     _maybe_local,
     _trim_df_by_index,
     _validate_float_args,
+    _validate_fx_as_forwards,
 )
 
 if TYPE_CHECKING:
@@ -1722,3 +1723,206 @@ class FloatPeriod(BasePeriod):
             a, b = 0.0, Nvd * drdz
 
         return a, b
+
+
+class NonDeliverableFixedPeriod(FixedPeriod):
+    """
+    Create a *FixedPeriod* whose non-deliverable cashflow is converted to a ``settlement_currency``.
+
+    Parameters
+    ----------
+    args:
+        Positional arguments to :class:`~rateslib.periods.FixedPeriod`.
+    settlement_currency:
+        The currency used for settlement of the non-deliverable cashflow.
+    fx_fixing: float, Dual, Dual2, optional
+        The FX fixing to determine the settlement amount.
+        The ``currency`` should be the left hand side, and ``settlement_currency`` as RHS,
+        e.g. BRLUSD, unless ``reversed``, in which case it should be, e.g. USDBRL.
+    fx_fixing_date: datetime
+        Date on which the FX fixing for settlement is determined.
+    reversed: bool, optional
+        If *True* reverses the FX rate for settlement fixing, as shown above.
+
+    Notes
+    -----
+    The ``cashflow`` is defined as follows;
+
+    .. math::
+
+       C = -NdRf
+
+    where *f* is the FX rate at settlement to convert ``currency`` into ``settlement_currency``.
+
+    The :meth:`~rateslib.periods.BasePeriod.npv` is defined as;
+
+    .. math::
+
+       P = Cv = -NdRfv(m)
+
+    The :meth:`~rateslib.periods.BasePeriod.analytic_delta` is defined as;
+
+    .. math::
+
+       A = - \\frac{\\partial P}{\\partial R} = Ndfv(m)
+
+    Examples
+    --------
+    .. ipython:: python
+
+       fp = NonDeliverableFixedPeriod(
+           start=dt(2022, 2, 1),
+           end=dt(2022, 8, 1),
+           payment=dt(2022, 8, 2),
+           frequency="S",
+           notional=1e6,
+           currency="brl",
+           convention="30e360",
+           fixed_rate=5.0,
+           settlement_currency="usd",
+           fx_fixing=5.0,
+           fx_fixing_date=dt(2022, 7, 30),
+           reversed=True,
+       )
+       fp.cashflows(curve=Curve({dt(2022, 1, 1):1.0, dt(2022, 12, 31): 0.98}))
+    """
+
+    def __init__(
+        self,
+        *args: Any,
+        settlement_currency: str,
+        fx_fixing: DualTypes_ = NoInput(0),
+        fx_fixing_date: datetime_ = NoInput(0),
+        reversed: bool = False,  # noqa: A002
+        **kwargs: Any,
+    ) -> None:
+        self.settlement_currency = settlement_currency.lower()
+        self.fx_fixing = fx_fixing
+        self.fx_fixing_date = fx_fixing_date
+        self.reversed = reversed
+        super().__init__(*args, **kwargs)
+        if self.reversed:
+            self.pair = f"{self.settlement_currency}{self.currency}"
+        else:
+            self.pair = f"{self.currency}{self.settlement_currency}"
+
+    def _get_fx_fixing(self, fx: FX_) -> DualTypes:
+        if isinstance(self.fx_fixing, NoInput):
+            fx_ = _validate_fx_as_forwards(fx)
+            fx_fixing: DualTypes = fx_.rate(self.pair, self.payment)
+        else:
+            fx_fixing = self.fx_fixing
+        return fx_fixing
+
+    def cashflow(self, fx: FX_) -> DualTypes | None:  # type: ignore[override]
+        """
+        Determine the cashflow amount, expressed in the ``settlement_currency``.
+
+        Parameters
+        ----------
+        fx: FXForwards, optional
+            Required to forecast the FX rate at settlement, if an ``fx_fixing`` is not known.
+
+        Returns
+        -------
+        float, Dual, Dual2
+        """
+        if isinstance(self.fixed_rate, NoInput):
+            return None
+        else:
+            fx_fixing: DualTypes = self._get_fx_fixing(fx)
+
+            d_value: DualTypes = -self.notional * self.dcf * self.fixed_rate / 100
+            if self.reversed:
+                d_value /= fx_fixing
+            else:
+                d_value *= fx_fixing
+            return d_value
+
+    def analytic_delta(
+        self,
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: CurveOption_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
+    ) -> DualTypes:
+        """
+        Return the analytic delta of the *NonDeliverableFixedPeriod*.
+        See
+        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
+
+        Value is expressed in units of ``settlement_currency`` unless ``base`` is directly
+        specified.
+        """
+        reference_ccy_value = super().analytic_delta(
+            curve=curve, disc_curve=disc_curve, fx=NoInput(0), base=self.currency
+        )
+        fx_fixing: DualTypes = self._get_fx_fixing(fx)
+        if self.reversed:
+            settlement_ccy_value = reference_ccy_value / fx_fixing
+        else:
+            settlement_ccy_value = reference_ccy_value * fx_fixing
+        fx_, _ = _get_fx_and_base(self.settlement_currency, fx, base)
+        return settlement_ccy_value * fx_
+
+    def npv(
+        self,
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: CurveOption_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
+        local: bool = False,
+    ) -> dict[str, DualTypes] | DualTypes:
+        """
+        Return the NPV of the *NonDeliverableFixedPeriod*.
+        See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
+
+        Value is expressed in units of ``settlement_currency`` unless ``base`` is directly
+        specified.
+        """
+        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
+        try:
+            value: DualTypes = self.cashflow(fx) * disc_curve_[self.payment]  # type: ignore[operator]
+        except TypeError as e:
+            # either fixed rate is None
+            if isinstance(self.fixed_rate, NoInput):
+                raise TypeError("`fixed_rate` must be set on the Period for an `npv`.")
+            else:
+                raise e
+        return _maybe_local(value, local, self.settlement_currency, fx, base)
+
+    def cashflows(
+        self,
+        curve: CurveOption_ = NoInput(0),
+        disc_curve: Curve_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str | NoInput = NoInput(0),
+    ) -> dict[str, Any]:
+        """
+        Return the cashflows of the *FixedPeriod*.
+        See :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
+        """
+        disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
+        fx_, base_ = _get_fx_and_base(self.settlement_currency, fx, base)
+
+        if isinstance(disc_curve_, NoInput) or isinstance(self.fixed_rate, NoInput):
+            npv = None
+            npv_fx = None
+        else:
+            npv_dual: DualTypes = self.npv(curve, disc_curve_, fx=fx, local=False)  # type: ignore[assignment]
+            npv = _dual_float(npv_dual)
+            npv_fx = npv * _dual_float(fx_)
+
+        cashflow = _float_or_none(self.cashflow(fx))
+        return {
+            **BasePeriod.cashflows(self, curve, disc_curve_, fx_, base_),
+            defaults.headers["pair"]: self.pair,
+            defaults.headers["currency"]: self.settlement_currency,
+            defaults.headers["rate"]: self.fixed_rate,
+            defaults.headers["spread"]: None,
+            defaults.headers["cashflow"]: cashflow,
+            defaults.headers["index_value"]: _float_or_none(self._get_fx_fixing(fx)),
+            defaults.headers["npv"]: npv,
+            defaults.headers["fx"]: _dual_float(fx_),
+            defaults.headers["npv_fx"]: npv_fx,
+        }

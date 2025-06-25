@@ -368,3 +368,10 @@ def test_pickle(obj) -> None:
     pickled_obj = pickle.dumps(obj)
     reloaded = pickle.loads(pickled_obj)
     assert obj == reloaded
+
+
+def test_dual_powers_raise() -> None:
+    x = Dual(1.0, ["x"], [])
+    y = Dual(2.0, ["y"], [])
+    with pytest.raises(TypeError):
+        x**y

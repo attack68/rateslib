@@ -118,7 +118,7 @@ def _get_fx_and_base(
                 )
             fx_ = 1.0
         else:
-            if abs(fx - 1.0) < 1e-10:
+            if abs(fx - 1.0) < 1e-10:  # type: ignore[operator]
                 pass  # no warning when fx == 1.0
             else:
                 warnings.warn(
@@ -130,13 +130,13 @@ def _get_fx_and_base(
                     f"[fx=FXRates({{'{currency}{base}': {fx}}}), base='{base}'].",
                     UserWarning,
                 )
-            fx_ = fx
+            fx_ = fx  # type: ignore[assignment]
     else:  # base is None and fx is float or None.
         base_ = NoInput(0)
         if isinstance(fx, NoInput):
             fx_ = 1.0
         else:
-            if abs(fx - 1.0) < 1e-12:
+            if abs(fx - 1.0) < 1e-12:  # type: ignore[operator]
                 pass  # no warning when fx == 1.0
             else:
                 warnings.warn(
@@ -149,7 +149,7 @@ def _get_fx_and_base(
                     f"[fx=FXRates({{'{currency}bas': {fx}}}), base='bas'].",
                     UserWarning,
                 )
-            fx_ = fx
+            fx_ = fx  # type: ignore[assignment]
 
     return fx_, base_
 
@@ -275,21 +275,75 @@ def _validate_credit_curves(curve: CurveOption_, disc_curve: CurveOption_) -> tu
 def _validate_fx_as_forwards(fx: FX_) -> FXForwards:
     if isinstance(fx, NoInput):
         raise ValueError(
-            "An FXForwards object for `fx` is required for FXOption pricing.\n"
+            "An FXForwards object for `fx` is required for instrument pricing.\n"
             "If this instrument is part of a Solver, have you omitted the `fx` input?",
         )
     elif not isinstance(fx, FXForwards):
         raise ValueError(
-            "An FXForwards object for `fx` is required for FXOption prcing.\n"
+            "An FXForwards object for `fx` is required for instrument pricing.\n"
             f"The given type, '{type(fx).__name__}', cannot be used here."
         )
     else:
-        return fx
+        return fx  # type: ignore[no-any-return]
 
 
-# def _validate_broad_delta_bounds(phi, delta, delta_type):
-#     if phi < 0 and "_pa" in delta_type:
-#         assert delta <= 0.0
-#     elif phi < 0:
-#         assert -1.0 <= delta <= 0.0
-#     elif
+def _get_fx_fixings_from_non_fx_forwards(
+    n_given: int = 0, n_required: int = 1, given_fixings: list[DualTypes] | NoInput = NoInput(0)
+) -> list[DualTypes]:
+    """
+    Return a list of FX fixings for a multi-currency derivative in the event an FXForwards
+    object is **not** given.
+
+    This returns placeholder values but will not return real values for pricing and thus is
+    configured in `defaults` to warn to the user.
+
+    Parameters
+    ----------
+    n_given: int
+        The number of FX fixings already known (probably from input ``fx_fixings``).
+    n_required: int
+        The number of FX fixings required.
+    given_fixings: list[DualTypes] | NoInput
+        Existing fixings for previous periods, if known.
+
+    Returns
+    -------
+    list[DualTypes]
+    """
+    if defaults.no_fx_fixings_for_xcs.lower() == "raise":
+        raise ValueError(
+            "`fx` is required when `fx_fixings` are not pre-set and "
+            "if rateslib option `no_fx_fixings_for_xcs` is set to "
+            "'raise'.\nFurther info: You are trying to value a mark-to-market "
+            "leg on a multi-currency derivative.\nThese require FX fixings and if "
+            "those are not given then an FXForwards object should be provided which "
+            "will calculate the relevant FX rates."
+        )
+    else:
+        if n_given == 0:
+            if defaults.no_fx_fixings_for_xcs.lower() == "warn":
+                warnings.warn(
+                    "Using 1.0 for FX, no `fx` or `fx_fixing` given and "
+                    "the option `defaults.no_fx_fixings_for_xcs` is set to "
+                    "'warn'.\nFurther info: You are trying to value a mark-to-market "
+                    "leg on a multi-currency derivative.\nThese require FX fixings and if "
+                    "those are not given then an FXForwards object should be provided which "
+                    "will calculate the relevant FX rates.",
+                    UserWarning,
+                )
+            return [1.0] * n_required
+        else:
+            if defaults.no_fx_fixings_for_xcs.lower() == "warn":
+                warnings.warn(
+                    "Using final FX fixing given for missing periods, "
+                    "rateslib option `no_fx_fixings_for_xcs` is set to "
+                    "'warn'.\nFurther info: You are trying to value a mark-to-market "
+                    "leg on a multi-currency derivative.\nThese require FX fixings and if "
+                    "those are not given then an FXForwards object should be provided which "
+                    "will calculate the relevant FX rates.",
+                    UserWarning,
+                )
+            # some fixings are given
+            ret = given_fixings.copy()  # type: ignore[union-attr]
+            ret.extend([ret[-1]] * (n_required - n_given))
+            return ret

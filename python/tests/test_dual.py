@@ -18,7 +18,7 @@ from rateslib.dual import (
     gradient,
     set_order,
 )
-from rateslib.dual.utils import _abs_float
+from rateslib.dual.utils import _abs_float, _set_ad_order_objects
 
 DUAL_CORE_PY = False
 
@@ -101,6 +101,40 @@ def test_no_type_crossing_on_ops(x_1, y_1, op) -> None:
 
     with pytest.raises(TypeError):
         getattr(y_1, op)(x_1)
+
+
+def test_functions_of_two_duals_analytic_formula():
+    # test the analytic formula for determining the resultant dual number of a function of
+    # 2 dual numbers
+
+    a = Dual2(2.0, ["a"], [], [])
+    b = Dual2(3.0, ["b"], [], [])
+
+    # z and p contain 2nd order manifolds
+    z = a**2 * b  # = 12
+    p = b**2 * a  # = 18
+    p = Dual2.vars_from(z, p.real, p.vars, p.dual, np.ravel(p.dual2))
+
+    # f is the actual expected result, calculated using dual number arithmetic
+    expected = z**2 * p**3
+
+    # result is pieced together using the analytic formula
+    f_0 = 12**2 * 18**3
+    f_z = 2 * 12 * 18**3
+    f_p = 3 * 12**2 * 18**2
+    f_zz = 2 * 18**3
+    f_zp = 6 * 12 * 18**2
+    f_pp = 6 * 12**2 * 18
+
+    real = f_0
+    dual = z.dual * f_z + p.dual * f_p
+    dual2 = f_z * z.dual2 + f_p * p.dual2
+    dual2 += 0.5 * f_zz * np.outer(z.dual, z.dual)
+    dual2 += 0.5 * f_pp * np.outer(p.dual, p.dual)
+    dual2 += 0.5 * f_zp * (np.outer(z.dual, p.dual) + np.outer(p.dual, z.dual))
+    result = Dual2.vars_from(z, real, z.vars, dual, np.ravel(dual2))
+
+    assert result == expected
 
 
 def test_dual_repr(x_1, y_2) -> None:
@@ -712,6 +746,22 @@ def test_variable_set_order() -> None:
     assert isinstance(x_dual2, Dual2)
 
 
+def test_perturbation_confusion() -> None:
+    # https://www.bcl.hamilton.ie/~barak/papers/ifl2005.pdf
+
+    # Utilised tagged variables
+    x = Dual(1.0, ["x"], [])
+    y = Dual(1.0, ["y"], [])
+    result = gradient(x * gradient(x + y, ["y"]), ["x"])
+    assert result == 1.0
+
+    # Replicates untagged variables
+    x = Dual(1.0, ["x"], [])
+    y = Dual(1.0, ["x"], [])
+    result = gradient(x * gradient(x + y, ["x"]), ["x"])
+    assert result == 2.0
+
+
 # Linalg dual_solve tests
 
 
@@ -1128,3 +1178,30 @@ class TestVariable:
         assert abs(exp0 - result.iloc[0, 0]) < 1e-8
         assert abs(exp1 + result.iloc[1, 0]) < 1e-8
         assert abs(exp2 + result.iloc[2, 0]) < 1e-8
+
+
+def test_set_multiple_objects_order():
+    a = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}, id="a")
+    b = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}, id="b")
+    c = a
+
+    result = _set_ad_order_objects([2, 2, 0], [a, b, c])
+    assert a._ad == 2
+    assert b._ad == 2
+    assert c._ad == 2  # c is a!
+    expected = {
+        id(a): 0,
+        id(b): 0,
+    }
+    assert result == expected
+
+    _set_ad_order_objects(result, [a, b, c])
+    assert a._ad == 0
+    assert b._ad == 0
+    assert c._ad == 0  # c is a!
+
+
+def test_set_multiple_objects_order_raises():
+    a = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}, id="a")
+    with pytest.raises(ValueError):
+        _set_ad_order_objects([0], [a, a])

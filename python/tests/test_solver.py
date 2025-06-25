@@ -11,7 +11,7 @@ from rateslib.curves import CompositeCurve, Curve, LineCurve, MultiCsaCurve, ind
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, gradient, newton_1dim, newton_ndim
 from rateslib.fx import FXForwards, FXRates
-from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
+from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments import (
     IRS,
     XCS,
@@ -1906,6 +1906,19 @@ def test_newton_ndim_raises() -> None:
         newton_ndim(root, [0.5, 1.0], max_iter=5)
 
 
+def test_newton_solver_object_args():
+    def root(x, s):
+        return x**2 - s["some_obj"], 2 * x
+
+    x0 = Dual(1.0, ["x"], [])
+    s = {"some_obj": Dual(2.0, ["s"], [])}
+    result = newton_1dim(root, x0, args=(s,))
+
+    expected = 0.5 / 2.0**0.5
+    sensitivity = gradient(result["g"], ["s"])[0]
+    assert abs(expected - sensitivity) < 1e-9
+
+
 def test_solver_with_vol_smile() -> None:
     eureur = Curve(
         {dt(2023, 3, 16): 1.0, dt(2023, 9, 16): 0.9851909811629752},
@@ -2558,3 +2571,76 @@ class TestStateManagement:
         solver._do_not_validate = True
         result = irs.rate(solver=solver)
         assert abs(result - 0.989345) < 1e-5
+
+
+@pytest.mark.parametrize(
+    "obj",
+    [
+        Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}),
+        LineCurve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 2.0}),
+        FXRates({"eurusd": 1.0}),
+        FXForwards(
+            fx_curves={
+                "eureur": Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}),
+                "eurusd": Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}),
+                "usdusd": Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}),
+            },
+            fx_rates=FXRates({"eurusd": 1.0}, settlement=dt(2000, 1, 3)),
+        ),
+        FXSabrSmile(
+            nodes={
+                "alpha": 0.17431060,
+                "beta": 1.0,
+                "rho": -0.11268306,
+                "nu": 0.81694072,
+            },
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            id="vol",
+        ),
+        FXSabrSurface(
+            eval_date=dt(2024, 5, 28),
+            expiries=[dt(2025, 2, 2), dt(2025, 3, 3)],
+            node_values=[[0.05, 1.0, 0.01, 0.15]] * 2,
+            pair="eurusd",
+            delivery_lag=2,
+            calendar="tgt|fed",
+            id="eurusd_vol",
+        ),
+        FXDeltaVolSurface(
+            delta_indexes=[0.25, 0.5, 0.75],
+            expiries=[dt(2024, 1, 1), dt(2025, 1, 1)],
+            node_values=[[11, 10, 12], [8, 7, 9]],
+            eval_date=dt(2023, 1, 1),
+            delta_type="forward",
+            id="vol",
+        ),
+        FXDeltaVolSmile(
+            nodes={
+                0.25: 10.15,
+                0.5: 7.8,
+                0.75: 8.9,
+            },
+            delta_type="forward",
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            id="vol",
+            ad=1,
+        ),
+        MultiCsaCurve(
+            [
+                Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}),
+                Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}),
+            ]
+        ),
+        CompositeCurve(
+            [
+                Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}),
+                Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}),
+            ]
+        ),
+    ],
+)
+def test_objects_ad_attribute(obj):
+    result = getattr(obj, "_ad", None)
+    assert result is not None

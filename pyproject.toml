@@ -15,7 +15,7 @@ features = ["pyo3/extension-module"]
 
 [project]
 name = "rateslib"
-version = "1.7.0"
+version = "1.8.0"
 description = "A fixed income library for trading interest rates"
 readme = "README.md"
 authors = [{ name = "J H M Darbyshire"}]
@@ -43,7 +43,7 @@ dev = [
     "mypy>=1.13,<2.0",
     "pandas-stubs>2.0,<3.0",
     # doc building
-    "sphinx>=8.0,<9.0",
+    "sphinx>=8.0,<8.2",
     "sphinx-automodapi>=0.16.0,<1.0",
     "sphinxcontrib-googleanalytics>=0.4,<1.0",
     "sphinx-tabs>=3.4,<4.0",
@@ -146,10 +146,9 @@ ignore = [
 max-complexity = 14
 
 [tool.mypy]
-packages = [
-    "rateslib"
-]
+files = ["python/"]
 exclude = [
+    "python/tests"
     # "/instruments/bonds/securities.py",
     # "/instruments/fx_volatility/strategies.py",
     # "/instruments/generics.py",
@@ -157,6 +156,9 @@ exclude = [
     # "solver.py",
 ]
 strict = true
+#packages = [
+#    "rateslib"
+#]
 
 [tool.coverage.run]
 omit = [

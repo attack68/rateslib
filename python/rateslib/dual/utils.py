@@ -12,7 +12,16 @@ from rateslib.dual.variable import FLOATS, INTS, Variable
 from rateslib.rs import ADOrder, Dual, Dual2, _dsolve1, _dsolve2, _fdsolve1, _fdsolve2
 
 if TYPE_CHECKING:
-    from rateslib.typing import Arr1dF64, Arr1dObj, Arr2dF64, Arr2dObj, DualTypes, Number, Sequence
+    from rateslib.typing import (
+        Any,
+        Arr1dF64,
+        Arr1dObj,
+        Arr2dF64,
+        Arr2dObj,
+        DualTypes,
+        Number,
+        Sequence,
+    )
 
 Dual.__doc__ = "Dual number data type to perform first derivative automatic differentiation."
 Dual2.__doc__ = "Dual number data type to perform second derivative automatic differentiation."
@@ -54,6 +63,31 @@ def _get_order_of(val: DualTypes) -> int:
     else:
         ad_order = 0
     return ad_order
+
+
+def _cast_pair(val1: DualTypes, val2: DualTypes) -> tuple[DualTypes, DualTypes]:
+    """cast a pair of dual numbers into consistent values with ordered vars."""
+    order_pair = (_get_order_of(val1), _get_order_of(val2))
+    if order_pair == (0, 0):
+        return val1, val2
+    elif order_pair in [(0, 1), (1, 0), (1, 1)]:
+        base1: Dual = val1 + val2  # type: ignore[assignment]
+        _1: Dual = set_order_convert(val1, 1, None, None)  # type: ignore[assignment]
+        __1: Dual = set_order_convert(val2, 1, None, None)  # type: ignore[assignment]
+        return (
+            Dual.vars_from(base1, _1.real, _1.vars, _1.dual),
+            Dual.vars_from(base1, __1.real, __1.vars, __1.dual),
+        )
+    elif order_pair in [(0, 2), (2, 0), (2, 2)]:
+        base2: Dual2 = val1 + val2  # type: ignore[assignment]
+        _2: Dual2 = set_order_convert(val1, 2, None, None)  # type: ignore[assignment]
+        __2: Dual2 = set_order_convert(val2, 2, None, None)  # type: ignore[assignment]
+        return (
+            Dual2.vars_from(base2, _2.real, _2.vars, _2.dual, np.ravel(_2.dual2)),
+            Dual2.vars_from(base2, __2.real, __2.vars, __2.dual, np.ravel(__2.dual2)),
+        )
+    else:  # order_pair in [(1,2), (2,1)]:
+        raise TypeError("Cannot cast a Dual and Dual2 object to a consistent dual number.")
 
 
 def set_order(val: DualTypes, order: int) -> DualTypes:
@@ -361,3 +395,48 @@ def _get_adorder(order: int) -> ADOrder:
         return ADOrder.Two
     else:
         raise ValueError("Order for AD can only be in {0,1,2}")
+
+
+def _set_ad_order_objects(order: list[int] | dict[int, int], objs: list[Any]) -> dict[int, int]:
+    """
+    Set the order on multiple Objects, returning their previous order indexed my memory id.
+
+    Parameters
+    ----------
+    order: list[int] or dict[int,int]
+        A list of orders to set the objects to. If a dict indexed my memory id.
+    objs: list[Any]
+        A list of objects to convert the AD orders of.
+
+    Returns
+    -------
+    dict[int]
+
+    Notes
+    -----
+    If an Object does not have a `_set_ad_order` method then
+    it will simply be passed and return 0 for its associated
+    previous AD order.
+    """
+    # this function catches duplicate objects that are identical by memory id
+    if isinstance(order, list) and len(order) != len(objs):
+        raise ValueError("`order` and `objs` must have the same length")
+
+    original_order: dict[int, int] = {}
+    for i, obj in enumerate(objs):
+        if id(obj) in original_order:
+            continue  # object has already been parsed
+
+        _ad = getattr(obj, "_ad", None)
+        if _ad is None:
+            # object cannot be set_ad_order
+            continue
+
+        if isinstance(order, dict):
+            obj._set_ad_order(order[id(obj)])
+            original_order[id(obj)] = _ad
+        else:  # isinstance(order, list)
+            obj._set_ad_order(order[i])
+            original_order[id(obj)] = _ad
+
+    return original_order
