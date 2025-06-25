@@ -13,13 +13,13 @@
    </div>
 
    <div style="text-align: center">
-      <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Frateslib.readthedocs.io%2Fen%2Flatest%2F_static%2Fbadges.json&query=%24.python&label=Python&color=blue" alt="Python">
-      <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Frateslib.readthedocs.io%2Fen%2Flatest%2F_static%2Fbadges.json&query=%24.pypi&label=PyPi&color=blue" alt="PyPi">
-      <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Frateslib.readthedocs.io%2Fen%2Flatest%2F_static%2Fbadges.json&query=%24.conda&label=Conda&color=blue" alt="Conda">
-      <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Frateslib.readthedocs.io%2Fen%2Flatest%2F_static%2Fbadges.json&query=%24.licence&label=Licence&color=orange" alt="Licence">
-      <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Frateslib.readthedocs.io%2Fen%2Flatest%2F_static%2Fbadges.json&query=%24.status&label=Status&color=green" alt="Status">
-      <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Frateslib.readthedocs.io%2Fen%2Flatest%2F_static%2Fbadges.json&query=%24.coverage&label=Coverage&color=green" alt="Coverage">
-      <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Frateslib.readthedocs.io%2Fen%2Flatest%2F_static%2Fbadges.json&query=%24.style&label=Code%20Style&color=black" alt="Code Style">
+      <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Frateslib.com%2Fpy%2F%2Fen%2Flatest%2F_static%2Fbadges.json&query=%24.python&label=Python&color=blue" alt="Python">
+      <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Frateslib.com%2Fpy%2F%2Fen%2Flatest%2F_static%2Fbadges.json&query=%24.pypi&label=PyPi&color=blue" alt="PyPi">
+      <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Frateslib.com%2Fpy%2F%2Fen%2Flatest%2F_static%2Fbadges.json&query=%24.conda&label=Conda&color=blue" alt="Conda">
+      <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Frateslib.com%2Fpy%2F%2Fen%2Flatest%2F_static%2Fbadges.json&query=%24.licence&label=Licence&color=orange" alt="Licence">
+      <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Frateslib.com%2Fpy%2F%2Fen%2Flatest%2F_static%2Fbadges.json&query=%24.status&label=Status&color=green" alt="Status">
+      <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Frateslib.com%2Fpy%2F%2Fen%2Flatest%2F_static%2Fbadges.json&query=%24.coverage&label=Coverage&color=green" alt="Coverage">
+      <img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Frateslib.com%2Fpy%2F%2Fen%2Flatest%2F_static%2Fbadges.json&query=%24.style&label=Code%20Style&color=black" alt="Code Style">
    </div>
 
    <script async defer src="https://buttons.github.io/buttons.js"></script>
@@ -68,7 +68,7 @@ with Python.
      </div>
      <div class="flex-item-right">
        <a href="https://rateslib.com/excel/latest/">rateslib-excel</a> provides Excel bindings for the Python library, to users
-       with a <a href="https://rateslib.readthedocs.io/en/latest/i_licence.html" target="_blank">commercial licence extension</a>.
+       with a <a href="https://rateslib.com/py/en/latest/i_licence.html" target="_blank">commercial licence extension</a>.
      </div>
    </div>
    <div class="flex-container-line">

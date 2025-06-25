@@ -40,7 +40,7 @@ intersphinx_mapping = {
     "rateslibxl": ("https://rateslib.com/excel/latest/", None),
 }
 sphinx_tabs_disable_tab_closing = True
-googleanalytics_id = os.getenv("googleanalytics_id", "G-0000000000")
+googleanalytics_id = os.getenv("googleanalytics_id", "G-EZWM7R6FVH")
 googleanalytics_enabled = googleanalytics_id != "G-0000000000"
 numpydoc_show_class_members = False  # for sphinx automod according to docs
 exec_code_working_dir = '../..'
@@ -62,7 +62,7 @@ html_theme_options = {
   ],
   "check_switcher": True,
   "switcher": {
-      "json_url": "https://rateslib.com/py/latest/_static/switcher.json",
+      "json_url": "https://rateslib.com/py/en/latest/_static/switcher.json",
       "version_match": release,
   },
   "navbar_start": ["navbar-logo"],
