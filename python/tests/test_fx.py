@@ -15,7 +15,7 @@ from rateslib.fx import (
     forward_fx,
 )
 from rateslib.fx.fx_forwards import _recursive_pair_population
-from rateslib.json import from_json
+from rateslib.serialization import from_json
 
 
 class TestStateAndCache:
@@ -213,7 +213,7 @@ def test_fxrates_to_json() -> None:
     fxr = FXRates({"usdnok": 8.0, "eurusd": 1.05})
     result = fxr.to_json()
     expected = (
-        '{"Py":{"FXRates":{"fx_rates":['
+        '{"PyWrapped":{"FXRates":{"fx_rates":['
         '{"pair":[{"name":"usd"},{"name":"nok"}],"rate":{"F64":8.0},"settlement":null},'
         '{"pair":[{"name":"eur"},{"name":"usd"}],"rate":{"F64":1.05},"settlement":null}'
         '],"currencies":[{"name":"usd"},{"name":"nok"},{"name":"eur"}]}}}'
@@ -223,7 +223,7 @@ def test_fxrates_to_json() -> None:
     fxr = FXRates({"usdnok": 8.0, "eurusd": 1.05}, dt(2022, 1, 3))
     result = fxr.to_json()
     expected = (
-        '{"Py":{"FXRates":{"fx_rates":['
+        '{"PyWrapped":{"FXRates":{"fx_rates":['
         '{"pair":[{"name":"usd"},{"name":"nok"}],"rate":{"F64":8.0},"settlement":"2022-01-03T00:00:00"},'
         '{"pair":[{"name":"eur"},{"name":"usd"}],"rate":{"F64":1.05},"settlement":"2022-01-03T00:00:00"}'
         '],"currencies":[{"name":"usd"},{"name":"nok"},{"name":"eur"}]}}}'
@@ -237,7 +237,7 @@ def test_from_json_and_equality() -> None:
     assert fxr1 != fxr2
 
     fxr3 = from_json(
-        '{"Py":{"FXRates":{"fx_rates":[{"pair":[{"name":"usd"},{"name":"nok"}],"rate":{"F64":2.0},"settlement":null},{"pair":[{"name":"eur"},{"name":"usd"}],"rate":{"F64":4.0},"settlement":null}],"currencies":[{"name":"usd"},{"name":"nok"},{"name":"eur"}],"fx_array":{"Dual":{"v":1,"dim":[3,3],"data":[{"real":1.0,"vars":[],"dual":{"v":1,"dim":[0],"data":[]}},{"real":2.0,"vars":["fx_usdnok"],"dual":{"v":1,"dim":[1],"data":[1.0]}},{"real":0.25,"vars":["fx_eurusd"],"dual":{"v":1,"dim":[1],"data":[-0.0625]}},{"real":0.5,"vars":["fx_usdnok"],"dual":{"v":1,"dim":[1],"data":[-0.25]}},{"real":1.0,"vars":[],"dual":{"v":1,"dim":[0],"data":[]}},{"real":0.125,"vars":["fx_usdnok","fx_eurusd"],"dual":{"v":1,"dim":[2],"data":[-0.0625,-0.03125]}},{"real":4.0,"vars":["fx_eurusd"],"dual":{"v":1,"dim":[1],"data":[1.0]}},{"real":8.0,"vars":["fx_usdnok","fx_eurusd"],"dual":{"v":1,"dim":[2],"data":[4.0,2.0]}},{"real":1.0,"vars":[],"dual":{"v":1,"dim":[0],"data":[]}}]}}}}}',
+        '{"PyWrapped":{"FXRates":{"fx_rates":[{"pair":[{"name":"usd"},{"name":"nok"}],"rate":{"F64":2.0},"settlement":null},{"pair":[{"name":"eur"},{"name":"usd"}],"rate":{"F64":4.0},"settlement":null}],"currencies":[{"name":"usd"},{"name":"nok"},{"name":"eur"}],"fx_array":{"Dual":{"v":1,"dim":[3,3],"data":[{"real":1.0,"vars":[],"dual":{"v":1,"dim":[0],"data":[]}},{"real":2.0,"vars":["fx_usdnok"],"dual":{"v":1,"dim":[1],"data":[1.0]}},{"real":0.25,"vars":["fx_eurusd"],"dual":{"v":1,"dim":[1],"data":[-0.0625]}},{"real":0.5,"vars":["fx_usdnok"],"dual":{"v":1,"dim":[1],"data":[-0.25]}},{"real":1.0,"vars":[],"dual":{"v":1,"dim":[0],"data":[]}},{"real":0.125,"vars":["fx_usdnok","fx_eurusd"],"dual":{"v":1,"dim":[2],"data":[-0.0625,-0.03125]}},{"real":4.0,"vars":["fx_eurusd"],"dual":{"v":1,"dim":[1],"data":[1.0]}},{"real":8.0,"vars":["fx_usdnok","fx_eurusd"],"dual":{"v":1,"dim":[2],"data":[4.0,2.0]}},{"real":1.0,"vars":[],"dual":{"v":1,"dim":[0],"data":[]}}]}}}}}',
     )
     assert fxr2 == fxr3
 
@@ -894,8 +894,7 @@ def test_proxy_curves_update_with_underlying() -> None:
 
     proxy_curve = fxf.curve("cad", "eur")
     prev_value = proxy_curve[dt(2022, 10, 1)]
-    fxf.fx_curves["eureur"].nodes[dt(2022, 10, 1)] = 0.90
-    fxf.fx_curves["eureur"]._clear_cache()
+    fxf.fx_curves["eureur"].update_node(dt(2022, 10, 1), 0.90)
     new_value = proxy_curve[dt(2022, 10, 1)]
 
     assert prev_value != new_value
@@ -920,7 +919,7 @@ def test_full_curves(usdusd, eureur, usdeur) -> None:
     )
     curve = fxf._full_curve("usd", "nok")
     assert type(curve) is Curve
-    assert len(curve.nodes) == 10  # constructed with DF on every date
+    assert curve.nodes.n == 10  # constructed with DF on every date
 
 
 def test_rate_dynamic_path_calculation() -> None:
@@ -1556,6 +1555,21 @@ class TestFXForwards:
             ("cadeur", dt(2022, 1, 11)): 0.8658008658008657,
             ("gbpeur", dt(2022, 1, 11)): 1.1428571428571426,
         }
+
+    def test_proxy_curve_cache(self):
+        fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
+        fxf = FXForwards(
+            fx_rates=[fxr1],  # FXRates as list
+            fx_curves={
+                "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "usdeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            },
+        )
+        c = fxf.curve("eur", "usd")
+        assert "eurusd" in fxf.fx_proxy_curves
+        c2 = fxf.curve("eur", "usd")
+        assert id(c) == id(c2)
 
 
 def test_recursive_pair_population1():

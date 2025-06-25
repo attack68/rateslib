@@ -37,6 +37,9 @@ class ZCIS(BaseDerivative):
     :class:`~rateslib.legs.ZeroFixedLeg`
     and a :class:`~rateslib.legs.ZeroIndexLeg`.
 
+    For more information see the :ref:`Cookbook Article:<cookbook-doc>` *"Using Curves with an
+    Index and Inflation Instruments"*.
+
     Parameters
     ----------
     args : dict
@@ -241,6 +244,7 @@ class ZCIS(BaseDerivative):
             i_curve = _validate_curve_not_no_input(_validate_curve_is_not_dict(curves_[2]))
             forecast_value = i_curve.index_value(
                 self.leg2.schedule.effective,
+                self.leg2.index_lag,
                 self.leg2.index_method,
             )
             if abs(forecast_value) < 1e-13:
@@ -261,6 +265,9 @@ class IIRS(BaseDerivative):
     """
     Create an indexed interest rate swap (IIRS) composing an
     :class:`~rateslib.legs.IndexFixedLeg` and a :class:`~rateslib.legs.FloatLeg`.
+
+    For more information see the :ref:`Cookbook Article:<cookbook-doc>` *"Using Curves with an
+    Index and Inflation Instruments"*.
 
     Parameters
     ----------
@@ -466,6 +473,7 @@ class IIRS(BaseDerivative):
             i_curve = _validate_curve_not_no_input(_validate_curve_is_not_dict(curves_[0]))
             self.leg1.index_base = i_curve.index_value(
                 self.leg1.schedule.effective,
+                self.leg1.index_lag,
                 self.leg1.index_method,
             )
         if isinstance(self.fixed_rate, NoInput):
@@ -493,6 +501,7 @@ class IIRS(BaseDerivative):
             i_curve = _validate_curve_not_no_input(_validate_curve_is_not_dict(curves_[0]))
             self.leg1.index_base = i_curve.index_value(
                 self.leg1.schedule.effective,
+                self.leg1.index_lag,
                 self.leg1.index_method,
             )
         if isinstance(self.fixed_rate, NoInput):
@@ -549,6 +558,7 @@ class IIRS(BaseDerivative):
             i_curve = _validate_curve_not_no_input(_validate_curve_is_not_dict(curves_[0]))
             self.leg1.index_base = i_curve.index_value(
                 self.leg1.schedule.effective,
+                self.leg1.index_lag,
                 self.leg1.index_method,
             )
         leg2_npv: DualTypes = self.leg2.npv(curves_[2], curves_[3], local=False)  # type: ignore[assignment]

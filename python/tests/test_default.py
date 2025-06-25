@@ -6,7 +6,7 @@ from rateslib.instruments import IRS
 
 
 def test_version() -> None:
-    assert __version__ == "1.8.0"
+    assert __version__ == "2.0.1"
 
 
 @pytest.mark.parametrize("name", ["estr", "sonia", "sofr", "swestr", "nowa"])
@@ -22,12 +22,15 @@ def test_context_raises() -> None:
 
 def test_reset_defaults() -> None:
     defaults.modifier = "MP"
+    defaults.base_currency = "gbp"
     assert defaults.modifier == "MP"
+    assert defaults.base_currency == "gbp"
     defaults.calendars["TEST"] = 10.0
     assert defaults.calendars["TEST"] == 10.0
 
     defaults.reset_defaults()
     assert defaults.modifier == "MF"
+    assert defaults.base_currency == "usd"
     assert "TEST" not in defaults.calendars
 
 

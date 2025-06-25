@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Protocol
 
 from rateslib import defaults
 from rateslib.calendars import add_tenor, dcf
 from rateslib.default import NoInput
 
 if TYPE_CHECKING:
-    from rateslib.typing import Security
+    from rateslib.typing import Any, BondMixin, Security
 
 """
 All functions in this module are designed to take a Bond object and return the **fraction**
@@ -18,8 +18,15 @@ This fraction is used to assess the total accrued calculation at a subsequent st
 """
 
 
+class AccrualFunction(Protocol):
+    # Callable type for Accrual Functions
+    def __call__(
+        self, obj: Security | BondMixin, settlement: datetime, acc_idx: int, *args: Any
+    ) -> float: ...
+
+
 def _acc_linear_proportion_by_days(
-    obj: Security, settlement: datetime, acc_idx: int, *args: Any
+    obj: Security | BondMixin, settlement: datetime, acc_idx: int, *args: Any
 ) -> float:
     """
     Return the fraction of an accrual period between start and settlement.
@@ -30,13 +37,13 @@ def _acc_linear_proportion_by_days(
     This is a general method, used by many types of bonds, for example by UK Gilts,
     German Bunds.
     """
-    r = settlement - obj.leg1.schedule.uschedule[acc_idx]
-    s = obj.leg1.schedule.uschedule[acc_idx + 1] - obj.leg1.schedule.uschedule[acc_idx]
-    return r / s
+    r = (settlement - obj.leg1.schedule.uschedule[acc_idx]).days
+    s = (obj.leg1.schedule.uschedule[acc_idx + 1] - obj.leg1.schedule.uschedule[acc_idx]).days
+    return float(r / s)
 
 
 def _acc_linear_proportion_by_days_long_stub_split(
-    obj: Security,
+    obj: Security | BondMixin,
     settlement: datetime,
     acc_idx: int,
     *args: Any,
@@ -67,26 +74,27 @@ def _acc_linear_proportion_by_days_long_stub_split(
                 NoInput(0),
                 obj.leg1.schedule.roll,
             )
+
+            s_bar_u = (quasi_coupon - quasi_start).days
             if settlement <= quasi_coupon:
                 # then first part of long stub
-                r = quasi_coupon - settlement
-                s = quasi_coupon - quasi_start
-                r_ = quasi_coupon - obj.leg1.schedule.uschedule[acc_idx]
-                _: float = (r_ - r) / s
-                return _ / (obj.leg1.periods[acc_idx].dcf * f)  # type: ignore[union-attr]
+                r_bar_u = (settlement - obj.leg1.schedule.uschedule[acc_idx]).days
+                r_u = 0.0
+                s_u = 1.0
             else:
                 # then second part of long stub
-                r = obj.leg1.schedule.uschedule[acc_idx + 1] - settlement
-                s = obj.leg1.schedule.uschedule[acc_idx + 1] - quasi_coupon
-                r_ = quasi_coupon - obj.leg1.schedule.uschedule[acc_idx]
-                s_ = quasi_coupon - quasi_start
-                _ = r_ / s_ + (s - r) / s
-                return _ / (obj.leg1.periods[acc_idx].dcf * f)  # type: ignore[union-attr]
+                r_u = (settlement - quasi_coupon).days
+                s_u = (obj.leg1.schedule.uschedule[acc_idx + 1] - quasi_coupon).days
+                r_bar_u = (quasi_coupon - obj.leg1.schedule.uschedule[acc_idx]).days
+
+            return (r_bar_u / s_bar_u + r_u / s_u) / (obj.leg1.periods[acc_idx].dcf * f)  # type: ignore[union-attr]
 
     return _acc_linear_proportion_by_days(obj, settlement, acc_idx, *args)
 
 
-def _acc_30e360(obj: Security, settlement: datetime, acc_idx: int, *args: Any) -> float:
+def _acc_30e360_backward(
+    obj: Security | BondMixin, settlement: datetime, acc_idx: int, *args: Any
+) -> float:
     """
     Ignoring the convention on the leg uses "30E360" to determine the accrual fraction.
     Measures between unadjusted date and settlement.
@@ -102,8 +110,22 @@ def _acc_30e360(obj: Security, settlement: datetime, acc_idx: int, *args: Any) -
     return _
 
 
+def _acc_30u360_forward(
+    obj: Security | BondMixin, settlement: datetime, acc_idx: int, *args: Any
+) -> float:
+    """
+    Ignoring the convention on the leg uses "30U360" to determine the accrual fraction.
+    Measures between unadjusted dates and settlement.
+    [Designed primarily for US Corporate/Muni Bonds]
+    """
+    sch = obj.leg1.schedule
+    accrued = dcf(sch.uschedule[acc_idx], settlement, "30u360")
+    period = dcf(sch.uschedule[acc_idx], sch.uschedule[acc_idx + 1], "30u360")
+    return accrued / period
+
+
 def _acc_act365_with_1y_and_stub_adjustment(
-    obj: Security, settlement: datetime, acc_idx: int, *args: Any
+    obj: Security | BondMixin, settlement: datetime, acc_idx: int, *args: Any
 ) -> float:
     """
     Ignoring the convention on the leg uses "Act365f" to determine the accrual fraction.
@@ -119,16 +141,17 @@ def _acc_act365_with_1y_and_stub_adjustment(
     s = (obj.leg1.schedule.uschedule[acc_idx + 1] - obj.leg1.schedule.uschedule[acc_idx]).days
     if r == s:
         _: float = 1.0  # then settlement falls on the coupon date
-    elif r > 365.0 / f:
+    elif r >= 365.0 / f:
         _ = 1.0 - ((s - r) * f) / 365.0  # counts remaining days
     else:
         _ = f * r / 365.0
     return _
 
 
-ACC_FRAC_FUNCS = {
+ACC_FRAC_FUNCS: dict[str, AccrualFunction] = {
     "linear_days": _acc_linear_proportion_by_days,
     "linear_days_long_front_split": _acc_linear_proportion_by_days_long_stub_split,
-    "30e360": _acc_30e360,
+    "30e360_backward": _acc_30e360_backward,
+    "30u360_forward": _acc_30u360_forward,
     "act365f_1y": _acc_act365_with_1y_and_stub_adjustment,
 }

@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-import numpy as np
 from pandas import Series
 
 from rateslib import defaults
-from rateslib.calendars import _get_eom
+from rateslib.curves import index_value
 from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_maybe_from_curve
-from rateslib.default import NoInput
+from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
 from rateslib.periods.cashflow import Cashflow
 from rateslib.periods.rates import FixedPeriod
@@ -28,9 +26,9 @@ class IndexMixin(metaclass=ABCMeta):
 
     index_base: DualTypes_
     index_method: str
-    index_fixings: DualTypes | Series[DualTypes] | NoInput  # type: ignore[type-var]
+    index_fixings: DualTypes | NoInput
     index_lag: int
-    index_only: bool = False
+    index_only: bool = False  # parameter to deduct real notional from cashflow
     payment: datetime
     end: datetime
     currency: str
@@ -80,112 +78,26 @@ class IndexMixin(metaclass=ABCMeta):
         """
         # IndexCashflow has no start
         i_date_base: datetime | NoInput = getattr(self, "start", NoInput(0))
-        denominator = self._index_value(
-            i_fixings=self.index_base,
-            i_date=i_date_base,
-            i_curve=curve,
-            i_lag=self.index_lag,
-            i_method=self.index_method,
+        denominator_ = index_value(
+            index_fixings=self.index_base,
+            index_date=i_date_base,
+            index_curve=curve,
+            index_lag=self.index_lag,
+            index_method=self.index_method,
         )
-        numerator = self._index_value(
-            i_fixings=self.index_fixings,
-            i_date=self.end,
-            i_curve=curve,
-            i_lag=self.index_lag,
-            i_method=self.index_method,
+        numerator_ = index_value(
+            index_fixings=self.index_fixings,
+            index_date=self.end,
+            index_curve=curve,
+            index_lag=self.index_lag,
+            index_method=self.index_method,
         )
+        numerator = _drb(None, numerator_)
+        denominator = _drb(None, denominator_)
         if numerator is None or denominator is None:
             return None, numerator, denominator
         else:
             return numerator / denominator, numerator, denominator
-
-    @staticmethod
-    def _index_value_from_curve(
-        i_date: datetime,
-        i_curve: Curve_,
-        i_lag: int,
-        i_method: str,
-    ) -> DualTypes | None:
-        if isinstance(i_curve, NoInput):
-            return None
-        elif i_lag != i_curve.index_lag:
-            warnings.warn(
-                f"The `index_lag` of the Period ({i_lag}) does not match "
-                f"the `index_lag` of the Curve ({i_curve.index_lag}): returning None."
-            )
-            return None  # TODO decide if RolledCurve to correct index lag be attempted
-        else:
-            return i_curve.index_value(i_date, i_method)
-
-    @staticmethod
-    def _index_value(
-        i_fixings: DualTypes | Series[DualTypes] | NoInput,  # type: ignore[type-var]
-        i_date: datetime | NoInput,
-        i_curve: CurveOption_,
-        i_lag: int,
-        i_method: str,
-    ) -> DualTypes | None:
-        """
-        Project an index rate, or lookup from provided fixings, for a given date.
-
-        If ``index_fixings`` are set on the period this will be used instead of
-        the ``curve``.
-
-        Parameters
-        ----------
-        curve : Curve
-
-        Returns
-        -------
-        float, Dual, Dual2, Variable or None
-        """
-        if isinstance(i_curve, dict):
-            raise NotImplementedError(
-                "`i_curve` cannot currently be supplied as dict. Use a Curve type or NoInput(0)."
-            )
-
-        if isinstance(i_date, NoInput):
-            if not isinstance(i_fixings, Series | NoInput):
-                # i_fixings is a given value, probably aligned with an ``index_base``
-                return i_fixings
-            else:
-                # internal method so this line should never be hit
-                raise ValueError(
-                    "Must supply an `i_date` from which to forecast."
-                )  # pragma: no cover
-        else:
-            if isinstance(i_fixings, NoInput):
-                return IndexMixin._index_value_from_curve(i_date, i_curve, i_lag, i_method)
-            elif isinstance(i_fixings, Series):
-                if i_method == "daily":
-                    adj_date = i_date
-                    unavailable_date: datetime = i_fixings.index[-1]  # type: ignore[attr-defined]
-                else:
-                    adj_date = datetime(i_date.year, i_date.month, 1)
-                    _: datetime = i_fixings.index[-1]  # type: ignore[attr-defined]
-                    unavailable_date = _get_eom(_.month, _.year)
-
-                if i_date > unavailable_date:
-                    if isinstance(i_curve, NoInput):
-                        return None  # NoInput(0)
-                    else:
-                        return IndexMixin._index_value_from_curve(i_date, i_curve, i_lag, i_method)
-                    # raise ValueError(
-                    #     "`index_fixings` cannot forecast the index value. "
-                    #     f"There are no fixings available after date: {unavailable_date}"
-                    # )
-                else:
-                    try:
-                        ret: DualTypes | None = i_fixings[adj_date]  # type: ignore[index]
-                        return ret
-                    except KeyError:
-                        s = i_fixings.copy()  # type: ignore[attr-defined]
-                        s.loc[adj_date] = np.nan
-                        ret = s.sort_index().interpolate("time")[adj_date]
-                        return ret
-            else:
-                # i_fixings is a given value
-                return i_fixings
 
     def npv(
         self,
@@ -210,12 +122,15 @@ class IndexMixin(metaclass=ABCMeta):
         return _maybe_local(value, local, self.currency, fx, base)
 
 
-class IndexFixedPeriod(IndexMixin, FixedPeriod):
+class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
     """
     Create a period defined with a real rate adjusted by an index.
 
     When used with an inflation index this defines a real coupon period with a
     cashflow adjusted upwards by the inflation index.
+
+    For more information see the :ref:`Cookbook Article:<cookbook-doc>` *"Using Curves with an
+    Index and Inflation Instruments"*.
 
     Parameters
     ----------
@@ -227,9 +142,8 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
         If a float scalar, will be applied as the index fixing for the settlement, or
         payment, date.
         If a datetime indexed ``Series`` will use the
-        fixings that are available in that object, using linear interpolation if
-        necessary.
-    index_method : str, optional
+        fixings that are available in that object, under the appropriate ``index_method``.
+    index_method : str, in {'daily', 'monthly', 'curve'}, optional
         Whether the indexing uses a daily measure for settlement or the most recently
         monthly data taken from the first day of month. Defined by default.
     index_lag : int, optional
@@ -295,17 +209,17 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
         index_lag: int | NoInput = NoInput(0),
         **kwargs: Any,
     ) -> None:
-        # if index_base is None:
-        #     raise ValueError("`index_base` cannot be None.")
-        self.index_base = index_base
-        self.index_fixings = index_fixings
-        self.index_method = (
-            defaults.index_method if isinstance(index_method, NoInput) else index_method.lower()
-        )
-        self.index_lag = defaults.index_lag if isinstance(index_lag, NoInput) else index_lag
-        if self.index_method not in ["daily", "monthly"]:
-            raise ValueError("`index_method` must be in {'daily', 'monthly'}.")
         super(IndexMixin, self).__init__(*args, **kwargs)
+        self.index_method, self.index_lag = _validate_index_method_and_lag(
+            _drb(defaults.index_method, index_method),
+            _drb(defaults.index_lag, index_lag),
+        )
+        self.index_base = _index_series_to_value(
+            self.start, self.index_lag, self.index_method, index_base
+        )
+        self.index_fixings = _index_series_to_value(
+            self.end, self.index_lag, self.index_method, index_fixings
+        )
 
     def analytic_delta(
         self,
@@ -394,6 +308,9 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
     When used with an inflation index this defines a real redemption with a
     cashflow adjusted upwards by the inflation index.
 
+    For more information see the :ref:`Cookbook Article:<cookbook-doc>` *"Using Curves with an
+    Index and Inflation Instruments"*.
+
     Parameters
     ----------
     args : dict
@@ -401,11 +318,11 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
     index_base : float, optional
         The base index to determine the cashflow. Required but may be set after initialisation.
     index_fixings : float, or Series, optional
-        If a float scalar, will be applied as the index fixing for the whole
-        period. If a datetime indexed ``Series`` will use the
-        fixings that are available in that object, and derive the rest from the
-        ``curve``.
-    index_method : str
+        If a float scalar, will be applied as the index fixing for the settlement, or
+        payment, date.
+        If a datetime indexed ``Series`` will use the
+        fixings that are available in that object, under the appropriate ``index_method``.
+    index_method : str in {'daily', 'monthly', 'curve'}, optional
         Whether the indexing uses a daily measure for settlement or the most recently
         monthly data taken from the first day of month. Defined by default.
     index_lag : int
@@ -467,23 +384,25 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
     def __init__(
         self,
         *args: Any,
-        index_base: DualTypes | NoInput,
-        index_fixings: DualTypes | Series[DualTypes] | NoInput = NoInput(0),  # type: ignore[type-var]
+        index_base: DualTypes_,
+        index_fixings: DualTypes_ | Series[DualTypes] = NoInput(0),  # type: ignore[type-var]
         index_method: str | NoInput = NoInput(0),
         index_lag: int | NoInput = NoInput(0),
         index_only: bool = False,
         end: datetime | NoInput = NoInput(0),
         **kwargs: Any,
     ) -> None:
-        self.index_base = index_base
-        self.index_fixings = index_fixings
-        self.index_method = (
-            defaults.index_method if isinstance(index_method, NoInput) else index_method.lower()
-        )
-        self.index_lag = defaults.index_lag if isinstance(index_lag, NoInput) else index_lag
-        self.index_only = index_only
         super(IndexMixin, self).__init__(*args, **kwargs)
         self.end = self.payment if isinstance(end, NoInput) else end
+        self.index_method, self.index_lag = _validate_index_method_and_lag(
+            _drb(defaults.index_method, index_method),
+            _drb(defaults.index_lag, index_lag),
+        )
+        self.index_base = index_base
+        self.index_fixings = _index_series_to_value(
+            self.end, self.index_lag, self.index_method, index_fixings
+        )
+        self.index_only = index_only
 
     @property
     def real_cashflow(self) -> DualTypes:
@@ -525,3 +444,25 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
         """
         return 0.0
+
+
+def _validate_index_method_and_lag(index_method: str, index_lag: int) -> tuple[str, int]:
+    lower_method = index_method.lower()
+    if lower_method not in ["daily", "monthly", "curve"]:
+        raise ValueError("`index_method` must be in {'daily', 'monthly', 'curve'}.")
+    if index_lag != 0 and lower_method == "curve":
+        raise ValueError("`index_lag` must be zero when using `index_method`='curve'.")
+    return lower_method, index_lag
+
+
+def _index_series_to_value(
+    index_date: datetime,
+    index_lag: int,
+    index_method: str,
+    index_fixings: DualTypes_ | Series[DualTypes],  # type: ignore[type-var]
+) -> DualTypes_:
+    if isinstance(index_fixings, Series):
+        val = index_value(index_lag, index_method, index_fixings, index_date, NoInput(0))  # type: ignore[arg-type]
+    else:
+        val = index_fixings
+    return val

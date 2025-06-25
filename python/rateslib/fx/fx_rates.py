@@ -172,7 +172,7 @@ class FXRates(_WithState):
     def fx_array(self) -> Arr2dObj:
         """An array containing all of the FX pairs/crosses available on the object."""
         # caching this prevents repetitive data transformations between Rust/Python
-        return np.array(self.obj.fx_array)  # type: ignore[return-value]
+        return np.array(self.obj.fx_array)
 
     def _fx_array_el(self, i: int, j: int) -> Number:
         # this is for typing since this numpy object array can only hold float | Dual | Dual2
@@ -224,7 +224,7 @@ class FXRates(_WithState):
     @property
     def fx_vector(self) -> Arr1dObj:
         """A vector of currency FX rates all relative to the stated ``base`` currency."""
-        return self.fx_array[0, :]  # type: ignore[return-value]
+        return self.fx_array[0, :]
 
     @property
     def pairs_settlement(self) -> dict[str, datetime]:

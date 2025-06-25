@@ -209,7 +209,7 @@ def _get_fxvol_curves_fx_and_base_maybe_from_solver(
     vol_ = _get_fxvol_maybe_from_solver(vol_attr, vol, solver)
     if isinstance(vol_, FXDeltaVolSmile | FXDeltaVolSurface):
         curves_1 = _validate_curve_not_no_input(curves_[1])
-        if vol_.eval_date != curves_1.node_dates[0]:
+        if vol_.meta.eval_date != curves_1.nodes.initial:
             raise ValueError(
                 "The `eval_date` on the FXDeltaVolSmile and the Curve do not align.\n"
                 "Aborting calculation to avoid pricing errors.",

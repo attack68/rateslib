@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
@@ -19,6 +20,7 @@ if TYPE_CHECKING:
     from rateslib.typing import (
         FX_,
         Any,
+        Curve,
         Curve_,
         CurveOption_,
         DualTypes,
@@ -149,9 +151,9 @@ class CreditPremiumPeriod(BasePeriod):
             v_end = disc_curve_[self.end]
             n = _dual_float((self.end - self.start).days)
 
-            if self.start < curve_.node_dates[0]:
+            if self.start < curve_.nodes.initial:
                 # then mid-period valuation
-                r: float = _dual_float((curve_.node_dates[0] - self.start).days)
+                r: float = _dual_float((curve_.nodes.initial - self.start).days)
                 q_start: DualTypes = 1.0
                 _v_start: DualTypes = 1.0
             else:
@@ -193,9 +195,9 @@ class CreditPremiumPeriod(BasePeriod):
             v_end = disc_curve_[self.end]
             n = _dual_float((self.end - self.start).days)
 
-            if self.start < curve_.node_dates[0]:
+            if self.start < curve_.nodes.initial:
                 # then mid-period valuation
-                r: float = _dual_float((curve_.node_dates[0] - self.start).days)
+                r: float = _dual_float((curve_.nodes.initial - self.start).days)
                 q_start: DualTypes = 1.0
                 _v_start: DualTypes = 1.0
             else:
@@ -262,9 +264,6 @@ class CreditProtectionPeriod(BasePeriod):
         Required positional args to :class:`BasePeriod`.
     recovery_rate : float, Dual, Dual2, optional
         The assumed recovery rate that defines payment on credit default. Set by ``defaults``.
-    discretization : int, optional
-        The number of days to discretize the numerical integration over possible credit defaults.
-        Set by ``defaults``.
     kwargs : dict
         Required keyword arguments to :class:`BasePeriod`.
 
@@ -299,23 +298,16 @@ class CreditProtectionPeriod(BasePeriod):
     def __init__(
         self,
         *args: Any,
-        recovery_rate: DualTypes | NoInput = NoInput(0),
-        discretization: int | NoInput = NoInput(0),
         **kwargs: Any,
     ) -> None:
-        self.recovery_rate: DualTypes = _drb(defaults.cds_recovery_rate, recovery_rate)
-        if self.recovery_rate < 0.0 and self.recovery_rate > 1.0:
-            raise ValueError("`recovery_rate` value must be in [0.0, 1.0]")
-        self.discretization: int = _drb(defaults.cds_protection_discretization, discretization)
         super().__init__(*args, **kwargs)
 
-    @property
-    def cashflow(self) -> DualTypes:
+    def cashflow(self, curve: Curve) -> DualTypes:
         """
         float, Dual or Dual2 : The calculated protection amount determined from notional
         and recovery rate.
         """
-        return -self.notional * (1 - self.recovery_rate)
+        return -self.notional * (1 - curve.meta.credit_recovery_rate)
 
     def npv(
         self,
@@ -330,9 +322,10 @@ class CreditProtectionPeriod(BasePeriod):
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
         curve_, disc_curve_ = _validate_credit_curves(curve, disc_curve)
+        discretization = curve_.meta.credit_discretization
 
-        if self.start < curve_.node_dates[0]:
-            s2 = curve_.node_dates[0]
+        if self.start < curve_.nodes.initial:
+            s2 = curve_.nodes.initial
         else:
             s2 = self.start
 
@@ -341,14 +334,14 @@ class CreditProtectionPeriod(BasePeriod):
         v2: DualTypes = disc_curve_[s2]
         while s2 < self.end:
             q1, v1 = q2, v2
-            s2 = s2 + timedelta(days=self.discretization)
+            s2 = s2 + timedelta(days=discretization)
             if s2 > self.end:
                 s2 = self.end
             q2, v2 = curve_[s2], disc_curve_[s2]
             value += 0.5 * (v1 + v2) * (q1 - q2)
             # value += v2 * (q1 - q2)
 
-        value *= self.cashflow
+        value *= self.cashflow(curve_)
         return _maybe_local(value, local, self.currency, fx, base)
 
     def analytic_delta(
@@ -384,14 +377,16 @@ class CreditProtectionPeriod(BasePeriod):
             npv = _dual_float(npv_)
             npv_fx = npv * _dual_float(fx)
             survival = _dual_float(curve[self.end])
+            rec = _dual_float(curve.meta.credit_recovery_rate)
+            cashf = _dual_float(self.cashflow(curve))
         else:
-            npv, npv_fx, survival = None, None, None
+            rec, npv, npv_fx, survival, cashf = None, None, None, None, None
 
         return {
             **super().cashflows(curve, disc_curve, fx, base),
-            defaults.headers["recovery"]: _dual_float(self.recovery_rate),
+            defaults.headers["recovery"]: rec,
             defaults.headers["survival"]: survival,
-            defaults.headers["cashflow"]: _dual_float(self.cashflow),
+            defaults.headers["cashflow"]: cashf,
             defaults.headers["npv"]: npv,
             defaults.headers["fx"]: _dual_float(fx),
             defaults.headers["npv_fx"]: npv_fx,
@@ -414,12 +409,14 @@ class CreditProtectionPeriod(BasePeriod):
         -------
         float
         """
-        rr = self.recovery_rate
-        if isinstance(rr, Dual | Dual2 | Variable):
-            self.recovery_rate = Variable(rr.real, ["__recovery_rate__"])
-        else:
-            self.recovery_rate = Variable(_dual_float(rr), ["__recovery_rate__"])
-        pv: Dual | Dual2 | Variable = self.npv(curve, disc_curve, fx, base, False)  # type: ignore[assignment]
-        self.recovery_rate = rr
-        _: float = _dual_float(gradient(pv, ["__recovery_rate__"], order=1)[0])
+        curve_, disc_curve_ = _validate_credit_curves(curve, disc_curve)
+        haz_curve = curve_.copy()
+        haz_curve._meta = replace(
+            curve_.meta,
+            _credit_recovery_rate=Variable(
+                _dual_float(curve_.meta.credit_recovery_rate), ["__rec_rate__"], []
+            ),
+        )
+        pv: Dual | Dual2 | Variable = self.npv(haz_curve, disc_curve_, fx, base, False)  # type: ignore[assignment]
+        _: float = _dual_float(gradient(pv, ["__rec_rate__"], order=1)[0])
         return _ * 0.01

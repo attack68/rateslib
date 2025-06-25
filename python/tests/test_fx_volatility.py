@@ -21,11 +21,13 @@ from rateslib.fx_volatility import (
     FXDeltaVolSurface,
     FXSabrSmile,
     FXSabrSurface,
+)
+from rateslib.fx_volatility.utils import (
     _d_sabr_d_k_or_f,
-    _sabr,
+    _FXSabrSmileNodes,
     _validate_delta_type,
 )
-from rateslib.periods import FXPutPeriod
+from rateslib.periods.fx_volatility import FXCallPeriod
 
 
 @pytest.fixture
@@ -101,8 +103,7 @@ class TestFXDeltaVolSmile:
         )
         put_vol = fxvs.get_from_strike(**kwargs)
 
-        fxvs.nodes[idx] = Dual(val + 0.0000001, [var], [])
-        fxvs.csolve()
+        fxvs.update_node(idx, Dual(val + 0.0000001, [var], []))
         put_vol_plus = fxvs.get_from_strike(**kwargs)
 
         finite_diff = (put_vol_plus[1] - put_vol[1]) * 10000000.0
@@ -141,24 +142,20 @@ class TestFXDeltaVolSmile:
         )
         pv00 = fxvs.get_from_strike(**kwargs)
 
-        fxvs.nodes[cross[0][2]] = Dual2(cross[0][1] + 0.00001, [cross[0][0]], [], [])
-        fxvs.nodes[cross[1][2]] = Dual2(cross[1][1] + 0.00001, [cross[1][0]], [], [])
-        fxvs.csolve()
+        fxvs.update_node(cross[0][2], Dual2(cross[0][1] + 0.00001, [cross[0][0]], [], []))
+        fxvs.update_node(cross[1][2], Dual2(cross[1][1] + 0.00001, [cross[1][0]], [], []))
         pv11 = fxvs.get_from_strike(**kwargs)
 
-        fxvs.nodes[cross[0][2]] = Dual2(cross[0][1] + 0.00001, [cross[0][0]], [], [])
-        fxvs.nodes[cross[1][2]] = Dual2(cross[1][1] - 0.00001, [cross[1][0]], [], [])
-        fxvs.csolve()
+        fxvs.update_node(cross[0][2], Dual2(cross[0][1] + 0.00001, [cross[0][0]], [], []))
+        fxvs.update_node(cross[1][2], Dual2(cross[1][1] - 0.00001, [cross[1][0]], [], []))
         pv1_1 = fxvs.get_from_strike(**kwargs)
 
-        fxvs.nodes[cross[0][2]] = Dual2(cross[0][1] - 0.00001, [cross[0][0]], [], [])
-        fxvs.nodes[cross[1][2]] = Dual2(cross[1][1] - 0.00001, [cross[1][0]], [], [])
-        fxvs.csolve()
+        fxvs.update_node(cross[0][2], Dual2(cross[0][1] - 0.00001, [cross[0][0]], [], []))
+        fxvs.update_node(cross[1][2], Dual2(cross[1][1] - 0.00001, [cross[1][0]], [], []))
         pv_1_1 = fxvs.get_from_strike(**kwargs)
 
-        fxvs.nodes[cross[0][2]] = Dual2(cross[0][1] - 0.00001, [cross[0][0]], [], [])
-        fxvs.nodes[cross[1][2]] = Dual2(cross[1][1] + 0.00001, [cross[1][0]], [], [])
-        fxvs.csolve()
+        fxvs.update_node(cross[0][2], Dual2(cross[0][1] - 0.00001, [cross[0][0]], [], []))
+        fxvs.update_node(cross[1][2], Dual2(cross[1][1] + 0.00001, [cross[1][0]], [], []))
         pv_11 = fxvs.get_from_strike(**kwargs)
 
         finite_diff = (pv11[1] + pv_1_1[1] - pv1_1[1] - pv_11[1]) * 1e10 / 4.0
@@ -190,6 +187,20 @@ class TestFXDeltaVolSmile:
         result = fxvs.get(0.5, delta_type, 1.0, 0.99 / 0.991)
         assert abs(result - exp) < 1e-6
 
+    @pytest.mark.parametrize(
+        ("delta_type", "exp"), [("spot_pa", 10.000085036853598), ("forward_pa", 10.0)]
+    )
+    def test_get_from_similar_delta_pa(self, delta_type, exp) -> None:
+        fxvs = FXDeltaVolSmile(
+            nodes={0.25: 11.0, 0.5: 10.0, 0.75: 11.0},
+            delta_type="forward_pa",
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            id="vol",
+        )
+        result = fxvs.get(-0.5, delta_type, -1.0, 0.99 / 0.991)
+        assert abs(result - exp) < 1e-6
+
     def test_get_from_unsimilar_delta2(self):
         # GH 730
         fdvs = FXDeltaVolSmile(
@@ -218,7 +229,7 @@ class TestFXDeltaVolSmile:
             ad=1,
         )
         assert fxvs._set_ad_order(1) is None
-        assert fxvs.nodes[0.25] == Dual(10.0, ["vol0"], [])
+        assert fxvs.nodes.nodes[0.25] == Dual(10.0, ["vol0"], [])
 
     def test_set_ad_order_raises(self) -> None:
         fxvs = FXDeltaVolSmile(
@@ -239,7 +250,7 @@ class TestFXDeltaVolSmile:
             eval_date=dt(2023, 3, 16),
             expiry=dt(2023, 6, 16),
         )
-        with pytest.raises(TypeError, match="`FXDeltaVolSmile` is not iterable."):
+        with pytest.raises(TypeError, match="`Smile` types are not iterable."):
             fxvs.__iter__()
 
     def test_update_node(self):
@@ -249,7 +260,7 @@ class TestFXDeltaVolSmile:
             eval_date=dt(2023, 3, 16),
             expiry=dt(2023, 6, 16),
         )
-        with pytest.raises(KeyError, match=r"`key` is not in Curve ``nodes``"):
+        with pytest.raises(KeyError, match=r"`key`: '0.4' is not in Curve ``nodes``"):
             fxvs.update_node(0.4, 10.0)
 
         fxvs.update_node(0.5, 12.0)
@@ -269,6 +280,44 @@ class TestFXDeltaVolSmile:
         )
         result = fxv[1.025]
         assert result == fxv[1.0]
+
+    def test_update_csolve(self):
+        import rateslib
+
+        anchor = rateslib.dt(2025, 5, 22)
+        expiry = rateslib.dt(2025, 6, 24)
+
+        test_smile = rateslib.FXDeltaVolSmile(
+            nodes={
+                0.1: 5,
+                0.25: 4,
+                0.5: 3,
+                0.75: 4,
+                0.9: 5,
+            },
+            expiry=expiry,
+            eval_date=anchor,
+            delta_type="forward",
+            id="test_vol",
+        )
+
+        prior_c = test_smile.nodes.spline.spline.c
+        # update node
+        nodes_bump = {k: v + 0.5 for k, v in test_smile.nodes.nodes.items()}
+        test_smile.update(nodes_bump)
+        after_c = test_smile.nodes.spline.spline.c
+
+        assert after_c != prior_c
+
+    def test_flat_smile_with_zero_delta_index_input(self):
+        smile = FXDeltaVolSmile(
+            nodes={0.0: 10.0},
+            delta_type="forward",
+            eval_date=dt(2023, 3, 16),
+            id="vol",
+            expiry=dt(2023, 6, 16),
+        )
+        assert abs(smile[0.5] - 10.0) < 1e-14
 
 
 class TestFXDeltaVolSurface:
@@ -299,9 +348,9 @@ class TestFXDeltaVolSurface:
             delta_type="forward",
         )
         assert result.nodes == expected.nodes
-        assert result.expiry == expected.expiry
-        assert result.delta_type == expected.delta_type
-        assert result.eval_date == expected.eval_date
+        assert result.meta.expiry == expected.meta.expiry
+        assert result.meta.delta_type == expected.meta.delta_type
+        assert result.meta.eval_date == expected.meta.eval_date
 
     def test_smile_end_no_interp(self) -> None:
         fxvs = FXDeltaVolSurface(
@@ -319,9 +368,9 @@ class TestFXDeltaVolSurface:
             delta_type="forward",
         )
         assert result.nodes == expected.nodes
-        assert result.expiry == expected.expiry
-        assert result.delta_type == expected.delta_type
-        assert result.eval_date == expected.eval_date
+        assert result.meta.expiry == expected.meta.expiry
+        assert result.meta.delta_type == expected.meta.delta_type
+        assert result.meta.eval_date == expected.meta.eval_date
 
     def test_smile_tot_var_lin_interp(self) -> None:
         # See Foreign Exchange Option Pricing: Iain Clarke Table 4.5
@@ -339,11 +388,11 @@ class TestFXDeltaVolSurface:
             expiry=dt(2024, 7, 1),
             delta_type="forward",
         )
-        for (k1, v1), (k2, v2) in zip(result.nodes.items(), expected.nodes.items()):
+        for v1, v2 in zip(result.nodes.values, expected.nodes.values):
             assert abs(v1 - v2) < 0.0001
-        assert result.expiry == expected.expiry
-        assert result.delta_type == expected.delta_type
-        assert result.eval_date == expected.eval_date
+        assert result.meta.expiry == expected.meta.expiry
+        assert result.meta.delta_type == expected.meta.delta_type
+        assert result.meta.eval_date == expected.meta.eval_date
 
     def test_smile_from_exact_expiry(self) -> None:
         fxvs = FXDeltaVolSurface(
@@ -362,11 +411,11 @@ class TestFXDeltaVolSurface:
             id="surf_0_",
         )
         result = fxvs.get_smile(dt(2024, 1, 1))
-        for (k1, v1), (k2, v2) in zip(result.nodes.items(), expected.nodes.items()):
+        for v1, v2 in zip(result.nodes.values, expected.nodes.values):
             assert abs(v1 - v2) < 0.0001
-        assert result.expiry == expected.expiry
-        assert result.delta_type == expected.delta_type
-        assert result.eval_date == expected.eval_date
+        assert result.meta.expiry == expected.meta.expiry
+        assert result.meta.delta_type == expected.meta.delta_type
+        assert result.meta.eval_date == expected.meta.eval_date
         assert result.id == expected.id
 
     def test_get_vol_from_strike(self) -> None:
@@ -407,9 +456,9 @@ class TestFXDeltaVolSurface:
         )
         vec = np.array([3, 2, 4, 5, 4, 6])
         fxvs._set_node_vector(vec, 1)
-        for v1, v2 in zip(vec[:3], fxvs.smiles[0].nodes.values()):
+        for v1, v2 in zip(vec[:3], fxvs.smiles[0].nodes.values):
             assert abs(v1 - v2) < 1e-10
-        for v1, v2 in zip(vec[3:], fxvs.smiles[1].nodes.values()):
+        for v1, v2 in zip(vec[3:], fxvs.smiles[1].nodes.values):
             assert abs(v1 - v2) < 1e-10
 
     def test_expiries_unsorted(self) -> None:
@@ -431,16 +480,22 @@ class TestFXDeltaVolSurface:
             delta_type="forward",
             weights=Series(2.0, index=[dt(2024, 1, 5), dt(2024, 1, 12), dt(2024, 2, 5)]),
         )
-        assert fxvs.weights.loc[dt(2023, 12, 15)] == 1.0
-        assert fxvs.weights.loc[dt(2024, 1, 4)] == 0.9393939393939394
-        assert fxvs.weights.loc[dt(2024, 1, 5)] == 1.878787878787879
-        assert fxvs.weights.loc[dt(2024, 2, 2)] == 0.9666666666666667
-        assert fxvs.weights.loc[dt(2024, 2, 5)] == 1.9333333333333333
-        assert fxvs.weights.loc[dt(2027, 12, 15)] == 1.0
+        assert fxvs.meta.weights.loc[dt(2023, 12, 15)] == 1.0
+        assert fxvs.meta.weights.loc[dt(2024, 1, 4)] == 0.9393939393939394
+        assert fxvs.meta.weights.loc[dt(2024, 1, 5)] == 1.878787878787879
+        assert fxvs.meta.weights.loc[dt(2024, 2, 2)] == 0.9666666666666667
+        assert fxvs.meta.weights.loc[dt(2024, 2, 5)] == 1.9333333333333333
+        assert fxvs.meta.weights.loc[dt(2027, 12, 15)] == 1.0
 
         # test that the sum of weights to each expiry node is as expected.
-        for e in fxvs.expiries:
-            assert abs(fxvs.weights[fxvs.eval_date : e].sum() - (e - fxvs.eval_date).days) < 1e-13
+        for e in fxvs.meta.expiries:
+            assert (
+                abs(
+                    fxvs.meta.weights[fxvs.meta.eval_date : e].sum()
+                    - (e - fxvs.meta.eval_date).days
+                )
+                < 1e-13
+            )
 
     @pytest.mark.parametrize("scalar", [1.0, 0.5])
     def test_weights_get_vol(self, scalar) -> None:
@@ -463,7 +518,7 @@ class TestFXDeltaVolSurface:
         kwargs = dict(k=1.03, f=1.03, w_deli=0.99, w_spot=0.999, expiry=dt(2023, 2, 3))
         result = fxvs.get_from_strike(**kwargs)
         result2 = fxvs_weights.get_from_strike(**kwargs)
-        w = fxvs_weights.weights
+        w = fxvs_weights.meta.weights
 
         expected = result[1] * (w[: dt(2023, 2, 3)].sum() / 33.0) ** 0.5
         # This result is not exact because the shape of the spline changes
@@ -523,7 +578,7 @@ class TestFXDeltaVolSurface:
 
         for i, date in enumerate(cal.cal_date_range(dt(2024, 2, 10), dt(2024, 3, 9))):
             smile = fxvs_weights.get_smile(date)
-            assert abs(smile.nodes[0.5] - expected[i]) < 5e-3
+            assert abs(smile.nodes.nodes[0.5] - expected[i]) < 5e-3
 
     def test_cache_clear_and_defaults(self):
         fxvs = FXDeltaVolSurface(
@@ -543,6 +598,23 @@ class TestFXDeltaVolSurface:
             fxvs.get_smile(dt(2024, 7, 1))
             # no clear cache required, but value will re-calc anyway
             assert dt(2024, 7, 1) not in fxvs._cache
+
+    @pytest.mark.parametrize("smile_expiry", [dt(2026, 5, 1), dt(2026, 6, 9), dt(2026, 7, 1)])
+    def test_flat_surface_and_get_smile_one_expiry(self, smile_expiry):
+        # gh 911
+        anchor = dt(2025, 6, 9)
+        expiry = dt(2026, 6, 9)
+
+        surf = FXDeltaVolSurface(
+            eval_date=anchor,
+            expiries=[expiry],
+            delta_indexes=[0.5],
+            node_values=[[10]],
+            delta_type="forward",
+        )
+
+        smile = surf.get_smile(smile_expiry)
+        assert abs(smile[0.3] - 10.0) < 1e-13
 
 
 class TestFXSabrSmile:
@@ -593,24 +665,37 @@ class TestFXSabrSmile:
         # F_0,T is stated in section 3.5.4 as 1.3395
         base = fxss.get_from_strike(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []))[1]
 
-        # k
-        _up = fxss.get_from_strike(Dual2(k + 1e-5, ["k"], [], []), Dual2(f, ["f"], [], []))[1]
-        _dw = fxss.get_from_strike(Dual2(k - 1e-5, ["k"], [], []), Dual2(f, ["f"], [], []))[1]
-        assert abs((_up - _dw) / 2e-5 - gradient(base, ["k"])[0]) < 1e-5
+        a = fxss.nodes.alpha
+        p = fxss.nodes.rho
+        v = fxss.nodes.nu
 
-        # f
-        _up = fxss.get_from_strike(Dual2(k, ["k"], [], []), Dual2(f + 1e-5, ["f"], [], []))[1]
-        _dw = fxss.get_from_strike(Dual2(k, ["k"], [], []), Dual2(f - 1e-5, ["f"], [], []))[1]
-        assert abs((_up - _dw) / 2e-5 - gradient(base, ["f"])[0]) < 1e-5
+        def inc_(key1, inc1):
+            in_ = {"k": k, "f": f, "alpha": a, "rho": p, "nu": v}
+            in_[key1] += inc1
 
-        # SABR params
-        for i, key in enumerate(["alpha", "rho", "nu"]):
-            fxss.nodes[key] = fxss.nodes[key] + 1e-5
-            _up = fxss.get_from_strike(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []))[1]
-            fxss.nodes[key] = fxss.nodes[key] - 2e-5
-            _dw = fxss.get_from_strike(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []))[1]
-            fxss.nodes[key] = fxss.nodes[key] + 1e-5
-            assert abs((_up - _dw) / 2e-5 - gradient(base, [f"vol{i}"])[0]) < 1e-5
+            fxss._nodes = _FXSabrSmileNodes(
+                _alpha=in_["alpha"], _beta=1.0, _rho=in_["rho"], _nu=in_["nu"]
+            )
+            _ = (
+                fxss._d_sabr_d_k_or_f(
+                    Dual2(in_["k"], ["k"], [], []),
+                    Dual2(in_["f"], ["f"], [], []),
+                    dt(2002, 1, 1),
+                    False,
+                    1,
+                )[0]
+                * 100.0
+            )
+
+            # reset
+            fxss._nodes = _FXSabrSmileNodes(_alpha=a, _beta=1.0, _rho=p, _nu=v)
+            return _
+
+        for key in ["k", "f", "alpha", "rho", "nu"]:
+            map_ = {"k": "k", "f": "f", "alpha": "vol0", "rho": "vol1", "nu": "vol2"}
+            up_ = inc_(key, 1e-5)
+            dw_ = inc_(key, -1e-5)
+            assert abs((up_ - dw_) / 2e-5 - gradient(base, [map_[key]])[0]) < 1e-5
 
     @pytest.mark.parametrize(
         ("k", "f"), [(1.34, 1.34), (1.33, 1.35), (1.35, 1.33), (1.3399, 1.34), (1.34, 1.3401)]
@@ -633,36 +718,34 @@ class TestFXSabrSmile:
             ad=2,
         )
 
-        a = fxss.nodes["alpha"]
-        p = fxss.nodes["rho"]
-        v = fxss.nodes["nu"]
+        a = fxss.nodes.alpha
+        p = fxss.nodes.rho
+        v = fxss.nodes.nu
 
         # F_0,T is stated in section 3.5.4 as 1.3395
         base = fxss.get_from_strike(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []))[1]
 
         def inc_(key1, key2, inc1, inc2):
-            k_ = k
-            f_ = f
-            if key1 == "k":
-                k_ = k + inc1
-            elif key1 == "f":
-                f_ = f + inc1
-            else:
-                fxss.nodes[key1] = fxss.nodes[key1] + inc1
+            in_ = {"k": k, "f": f, "alpha": a, "rho": p, "nu": v}
+            in_[key1] += inc1
+            in_[key2] += inc2
 
-            if key2 == "k":
-                k_ = k + inc2
-            elif key2 == "f":
-                f_ = f + inc2
-            else:
-                fxss.nodes[key2] = fxss.nodes[key2] + inc2
+            fxss._nodes = _FXSabrSmileNodes(
+                _alpha=in_["alpha"], _beta=1.0, _rho=in_["rho"], _nu=in_["nu"]
+            )
+            _ = (
+                fxss._d_sabr_d_k_or_f(
+                    Dual2(in_["k"], ["k"], [], []),
+                    Dual2(in_["f"], ["f"], [], []),
+                    dt(2002, 1, 1),
+                    False,
+                    1,
+                )[0]
+                * 100.0
+            )
 
-            _ = fxss.get_from_strike(Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []))[1]
-
-            fxss.nodes["alpha"] = a
-            fxss.nodes["rho"] = p
-            fxss.nodes["nu"] = v
-
+            # reset
+            fxss._nodes = _FXSabrSmileNodes(_alpha=a, _beta=1.0, _rho=p, _nu=v)
             return _
 
         v_map = {"k": "k", "f": "f", "alpha": "v0", "rho": "v1", "nu": "v2"}
@@ -696,29 +779,33 @@ class TestFXSabrSmile:
             ad=2,
         )
 
-        a = fxss.nodes["alpha"]
-        p = fxss.nodes["rho"]
-        v = fxss.nodes["nu"]
+        a = fxss.nodes.alpha
+        p = fxss.nodes.rho
+        v = fxss.nodes.nu
 
         # F_0,T is stated in section 3.5.4 as 1.3395
         base = fxss.get_from_strike(Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []))[1]
 
         def inc_(key1, inc1):
-            k_ = k
-            f_ = f
-            if key1 == "k":
-                k_ = k + inc1
-            elif key1 == "f":
-                f_ = f + inc1
-            else:
-                fxss.nodes[key1] = fxss.nodes[key1] + inc1
+            in_ = {"k": k, "f": f, "alpha": a, "rho": p, "nu": v}
+            in_[key1] += inc1
 
-            _ = fxss.get_from_strike(Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []))[1]
+            fxss._nodes = _FXSabrSmileNodes(
+                _alpha=in_["alpha"], _beta=1.0, _rho=in_["rho"], _nu=in_["nu"]
+            )
+            _ = (
+                fxss._d_sabr_d_k_or_f(
+                    Dual2(in_["k"], ["k"], [], []),
+                    Dual2(in_["f"], ["f"], [], []),
+                    dt(2002, 1, 1),
+                    False,
+                    1,
+                )[0]
+                * 100.0
+            )
 
-            fxss.nodes["alpha"] = a
-            fxss.nodes["rho"] = p
-            fxss.nodes["nu"] = v
-
+            # reset
+            fxss._nodes = _FXSabrSmileNodes(_alpha=a, _beta=1.0, _rho=p, _nu=v)
             return _
 
         v_map = {"k": "k", "f": "f", "alpha": "v0", "rho": "v1", "nu": "v2"}
@@ -952,42 +1039,34 @@ class TestFXSabrSmile:
             Dual2(k, ["k"], [1.0], []), Dual2(f, ["f"], [1.0], []), t, False, 1
         )[1]
 
-        # k
-        _up = fxss._d_sabr_d_k_or_f(
-            Dual2(k + 1e-4, ["k"], [], []), Dual2(f, ["f"], [], []), t, False, 1
-        )[1]
-        _dw = fxss._d_sabr_d_k_or_f(
-            Dual2(k - 1e-4, ["k"], [], []), Dual2(f, ["f"], [], []), t, False, 1
-        )[1]
-        result = gradient(base, ["k"])[0]
-        expected = (_up - _dw) / 2e-4
-        assert abs(result - expected) < 1e-5
+        a = fxss.nodes.alpha
+        p = fxss.nodes.rho
+        v = fxss.nodes.nu
 
-        # f
-        _up = fxss._d_sabr_d_k_or_f(
-            Dual2(k, ["k"], [], []), Dual2(f + 1e-4, ["f"], [], []), t, False, 1
-        )[1]
-        _dw = fxss._d_sabr_d_k_or_f(
-            Dual2(k, ["k"], [], []), Dual2(f - 1e-4, ["f"], [], []), t, False, 1
-        )[1]
-        result = gradient(base, ["f"])[0]
-        expected = (_up - _dw) / 2e-4
-        assert abs(result - expected) < 1e-5
+        def inc_(key1, inc1):
+            in_ = {"k": k, "f": f, "alpha": a, "rho": p, "nu": v}
+            in_[key1] += inc1
 
-        # SABR params
-        for i, key in enumerate(["alpha", "rho", "nu"]):
-            fxss.nodes[key] = fxss.nodes[key] + 1e-5
-            _up = fxss._d_sabr_d_k_or_f(
-                Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), t, False, 1
+            fxss._nodes = _FXSabrSmileNodes(
+                _alpha=in_["alpha"], _beta=1.0, _rho=in_["rho"], _nu=in_["nu"]
+            )
+            _ = fxss._d_sabr_d_k_or_f(
+                Dual2(in_["k"], ["k"], [], []),
+                Dual2(in_["f"], ["f"], [], []),
+                dt(2002, 1, 1),
+                False,
+                1,
             )[1]
-            fxss.nodes[key] = fxss.nodes[key] - 2e-5
-            _dw = fxss._d_sabr_d_k_or_f(
-                Dual2(k, ["k"], [], []), Dual2(f, ["f"], [], []), t, False, 1
-            )[1]
-            fxss.nodes[key] = fxss.nodes[key] + 1e-5
-            result = gradient(base, [f"vol{i}"])[0]
-            expected = (_up - _dw) / 2e-5
-            assert abs(result - expected) < 1e-5
+
+            # reset
+            fxss._nodes = _FXSabrSmileNodes(_alpha=a, _beta=1.0, _rho=p, _nu=v)
+            return _
+
+        for key in ["k", "f", "alpha", "rho", "nu"]:
+            map_ = {"k": "k", "f": "f", "alpha": "vol0", "rho": "vol1", "nu": "vol2"}
+            up_ = inc_(key, 1e-5)
+            dw_ = inc_(key, -1e-5)
+            assert abs((up_ - dw_) / 2e-5 - gradient(base, [map_[key]])[0]) < 2e-3
 
     @pytest.mark.parametrize(
         ("k", "f"), [(1.34, 1.34), (1.33, 1.35), (1.35, 1.33), (1.3395, 1.34), (1.34, 1.3405)]
@@ -1010,9 +1089,9 @@ class TestFXSabrSmile:
             ad=2,
         )
 
-        a = fxss.nodes["alpha"]
-        p = fxss.nodes["rho"]
-        v = fxss.nodes["nu"]
+        a = fxss.nodes.alpha
+        p = fxss.nodes.rho
+        v = fxss.nodes.nu
 
         # F_0,T is stated in section 3.5.4 as 1.3395
         base = fxss._d_sabr_d_k_or_f(
@@ -1020,30 +1099,23 @@ class TestFXSabrSmile:
         )[1]
 
         def inc_(key1, key2, inc1, inc2):
-            k_ = k
-            f_ = f
-            if key1 == "k":
-                k_ = k + inc1
-            elif key1 == "f":
-                f_ = f + inc1
-            else:
-                fxss.nodes[key1] = fxss.nodes[key1] + inc1
+            in_ = {"k": k, "f": f, "alpha": a, "rho": p, "nu": v}
+            in_[key1] += inc1
+            in_[key2] += inc2
 
-            if key2 == "k":
-                k_ = k + inc2
-            elif key2 == "f":
-                f_ = f + inc2
-            else:
-                fxss.nodes[key2] = fxss.nodes[key2] + inc2
-
+            fxss._nodes = _FXSabrSmileNodes(
+                _alpha=in_["alpha"], _beta=1.0, _rho=in_["rho"], _nu=in_["nu"]
+            )
             _ = fxss._d_sabr_d_k_or_f(
-                Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []), dt(2002, 1, 1), False, 1
+                Dual2(in_["k"], ["k"], [], []),
+                Dual2(in_["f"], ["f"], [], []),
+                dt(2002, 1, 1),
+                False,
+                1,
             )[1]
 
-            fxss.nodes["alpha"] = a
-            fxss.nodes["rho"] = p
-            fxss.nodes["nu"] = v
-
+            # reset
+            fxss._nodes = _FXSabrSmileNodes(_alpha=a, _beta=1.0, _rho=p, _nu=v)
             return _
 
         v_map = {"k": "k", "f": "f", "alpha": "v0", "rho": "v1", "nu": "v2"}
@@ -1078,9 +1150,9 @@ class TestFXSabrSmile:
             ad=2,
         )
 
-        a = fxss.nodes["alpha"]
-        p = fxss.nodes["rho"]
-        v = fxss.nodes["nu"]
+        a = fxss.nodes.alpha
+        p = fxss.nodes.rho
+        v = fxss.nodes.nu
 
         # F_0,T is stated in section 3.5.4 as 1.3395
         base = fxss._d_sabr_d_k_or_f(
@@ -1095,16 +1167,14 @@ class TestFXSabrSmile:
             elif key1 == "f":
                 f_ = f + inc1
             else:
-                fxss.nodes[key1] = fxss.nodes[key1] + inc1
+                fxss.update_node(key1, getattr(fxss.nodes, key1) + inc1)
+                # fxss.nodes[key1] = fxss.nodes[key1] + inc1
 
             _ = fxss._d_sabr_d_k_or_f(
                 Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []), dt(2002, 1, 1), False, 1
             )[1]
 
-            fxss.nodes["alpha"] = a
-            fxss.nodes["rho"] = p
-            fxss.nodes["nu"] = v
-
+            fxss._nodes = _FXSabrSmileNodes(_alpha=a, _beta=1.0, _rho=p, _nu=v)
             return _
 
         v_map = {"k": "k", "f": "f", "alpha": "v0", "rho": "v1", "nu": "v2"}
@@ -1350,6 +1420,61 @@ class TestFXSabrSmile:
             delta_type="spot",
         )
         fc.delta(solver=dv_solver)
+
+    @pytest.mark.parametrize("a", [0.02, 0.06])
+    @pytest.mark.parametrize("b", [0.0, 0.4, 0.65, 1.0])
+    @pytest.mark.parametrize("p", [-0.1, 0.1])
+    @pytest.mark.parametrize("v", [0.05, 0.15])
+    @pytest.mark.parametrize("k", [1.05, 1.25, 1.6])
+    def test_sabr_function_values(self, a, b, p, v, k):
+        fxs = FXSabrSmile(
+            nodes={"alpha": a, "beta": b, "rho": p, "nu": v},
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            ad=0,
+        )
+
+        # this code is taken from PySabr, another library implementing SABR.
+        # it is used as a benchmark
+        def _x(rho, z):
+            """Return function x used in Hagan's 2002 SABR lognormal vol expansion."""
+            a = (1 - 2 * rho * z + z**2) ** 0.5 + z - rho
+            b = 1 - rho
+            return np.log(a / b)
+
+        def lognormal_vol(k, f, t, alpha, beta, rho, volvol):
+            """
+            Hagan's 2002 SABR lognormal vol expansion.
+
+            The strike k can be a scalar or an array, the function will return an array
+            of lognormal vols.
+            """
+            # Negative strikes or forwards
+            if k <= 0 or f <= 0:
+                return 0.0
+            eps = 1e-07
+            logfk = np.log(f / k)
+            fkbeta = (f * k) ** (1 - beta)
+            a = (1 - beta) ** 2 * alpha**2 / (24 * fkbeta)
+            b = 0.25 * rho * beta * volvol * alpha / fkbeta**0.5
+            c = (2 - 3 * rho**2) * volvol**2 / 24
+            d = fkbeta**0.5
+            v = (1 - beta) ** 2 * logfk**2 / 24
+            w = (1 - beta) ** 4 * logfk**4 / 1920
+            z = volvol * fkbeta**0.5 * logfk / alpha
+            # if |z| > eps
+            if abs(z) > eps:
+                vz = alpha * z * (1 + (a + b + c) * t) / (d * (1 + v + w) * _x(rho, z))
+                return vz
+            # if |z| <= eps
+            else:
+                v0 = alpha * (1 + (a + b + c) * t) / (d * (1 + v + w))
+                return v0
+
+        expected = lognormal_vol(k, 1.25, 1.0, a, b, p, v)
+        result = fxs.get_from_strike(k, 1.25)[1] / 100.0
+
+        assert abs(result - expected) < 1e-4
 
 
 class TestFXSabrSurface:
@@ -1734,6 +1859,120 @@ class TestFXSabrSurface:
         assert abs(expected_fwd_diff - result) < 1e-3
         assert abs(expected_ad - result) < 1e-3
 
+    @pytest.mark.parametrize(
+        ("k", "expiry", "expected"),
+        [
+            (1.10, dt(2023, 4, 15), 5.011351023668074),
+            (1.10, dt(2023, 6, 28), 5.011351023668074),
+            (1.10, dt(2023, 7, 15), 5.333915841859923),
+            (1.10, dt(2023, 9, 28), 6.021827601466909),
+            (1.10, dt(2023, 10, 28), 6.022252380963102),
+        ],
+    )
+    def test_get_from_strike(self, fxfo, k, expiry, expected):
+        # test different branches for expiry
+        surface = FXSabrSurface(
+            eval_date=dt(2023, 3, 16),
+            expiries=[dt(2023, 6, 28), dt(2023, 9, 28)],
+            node_values=[
+                [0.05, 1.0, 0.01, 0.15],
+                [0.06, 1.0, 0.02, 0.20],
+            ],
+            pair="eurusd",
+            delivery_lag=2,
+            calendar="tgt|fed",
+            id="eurusd_vol",
+        )
+        result = surface.get_from_strike(k, fxfo, expiry)
+        assert result[0] == 0.0
+        assert abs(result[1] - expected) < 1e-14
+        assert result[2] == k
+
+    def test_variables_on_extrapolated_sabr_smiles_before(self, fxfo):
+        # assert that vars on extrapolated smiles reference the underlying smiles vars
+        fxss = FXSabrSurface(
+            eval_date=dt(2023, 3, 16),
+            expiries=[dt(2023, 7, 15), dt(2023, 9, 15)],
+            node_values=[[0.05, 1.0, 0.01, 0.15]] * 2,
+            pair="eurusd",
+            delivery_lag=2,
+            calendar="tgt|fed",
+            id="v",
+            ad=1,
+        )
+        result = fxss.get_from_strike(1.10, fxfo, dt(2023, 4, 14))[1]
+        assert result.vars == ["v_0_0", "v_0_1", "v_0_2", "fx_eurusd"]
+
+    def test_variables_on_extrapolated_sabr_smiles_after(self, fxfo):
+        # assert that vars on extrapolated smiles reference the underlying smiles vars
+        fxss = FXSabrSurface(
+            eval_date=dt(2023, 3, 16),
+            expiries=[dt(2023, 7, 15), dt(2023, 9, 15)],
+            node_values=[[0.05, 1.0, 0.01, 0.15]] * 2,
+            pair="eurusd",
+            delivery_lag=2,
+            calendar="tgt|fed",
+            id="v",
+            ad=1,
+        )
+        result = fxss.get_from_strike(1.10, fxfo, dt(2024, 4, 14))[1]
+        assert result.vars == ["v_1_0", "v_1_1", "v_1_2", "fx_eurusd"]
+
+    def test_update_state(self):
+        fxss = FXSabrSurface(
+            eval_date=dt(2023, 3, 16),
+            expiries=[dt(2023, 7, 15), dt(2023, 9, 15)],
+            node_values=[[0.05, 1.0, 0.01, 0.15]] * 2,
+            pair="eurusd",
+            delivery_lag=2,
+            calendar="tgt|fed",
+            id="v",
+            ad=1,
+        )
+        state_ = fxss._state
+        fxss.smiles[1].update_node("alpha", 0.06)
+        assert state_ != fxss._get_composited_state()
+
+        # calling get from strike will validate
+        fxss.get_from_strike(1.1, 1.1, dt(2023, 7, 15))
+        assert fxss._state == fxss._get_composited_state()
+
+    @pytest.mark.parametrize("smile_expiry", [dt(2026, 5, 1), dt(2026, 6, 9), dt(2026, 7, 1)])
+    def test_flat_surface_and_get_smile_one_expiry(self, smile_expiry):
+        # gh 911
+        anchor = dt(2025, 6, 9)
+        expiry = dt(2026, 6, 9)
+
+        surf = FXSabrSurface(
+            eval_date=anchor,
+            expiries=[expiry],
+            node_values=[[0.10, 1.0, 0.0, 0.0]],
+        )
+
+        result = surf.get_from_strike(1.0, 1.10, smile_expiry)[1]
+        assert abs(result - 10.0) < 1e-13
+
+    @pytest.mark.parametrize("option_expiry", [dt(2026, 5, 1), dt(2026, 6, 9), dt(2026, 7, 1)])
+    def test_flat_surface_option_strike_delta(self, option_expiry):
+        surf = FXSabrSurface(
+            eval_date=dt(2025, 6, 9),
+            expiries=[dt(2026, 6, 9)],
+            node_values=[[0.10, 1.0, 0.0, 0.0]],
+        )
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=option_expiry,
+            delivery=option_expiry,
+            payment=option_expiry,
+            strike=NoInput(0),
+            delta_type="forward",
+        )
+        result = fxo._index_vol_and_strike_from_delta_sabr(0.25, "forward", surf, 1, 1.10)
+        assert abs(result[1] - 10.0) < 1e-13
+
+        result = fxo._index_vol_and_strike_from_atm_sabr(1.10, 0.50, surf)
+        assert abs(result[1] - 10.0) < 1e-13
+
 
 class TestStateAndCache:
     @pytest.mark.parametrize(
@@ -1784,7 +2023,6 @@ class TestStateAndCache:
             ("_set_node_vector", ([0.99, 0.98, 0.99], 1)),
             ("update_node", (0.25, 0.98)),
             ("update", ({0.25: 10.0, 0.5: 10.0, 0.75: 10.1},)),
-            ("csolve", tuple()),
         ],
     )
     def test_method_changes_state(self, curve, method, args):

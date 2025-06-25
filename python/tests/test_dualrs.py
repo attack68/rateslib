@@ -3,7 +3,7 @@ import math
 import numpy as np
 import pytest
 from packaging import version
-from rateslib.dual import Dual, Dual2, dual_solve, gradient
+from rateslib.dual import Dual, Dual2, dual_exp, dual_log, dual_solve, gradient
 from rateslib.rs import ADOrder, from_json
 
 DUAL_CORE_PY = False
@@ -370,8 +370,97 @@ def test_pickle(obj) -> None:
     assert obj == reloaded
 
 
-def test_dual_powers_raise() -> None:
-    x = Dual(1.0, ["x"], [])
-    y = Dual(2.0, ["y"], [])
-    with pytest.raises(TypeError):
-        x**y
+@pytest.mark.parametrize("z", [2.0, Dual(2.0, ["z"], [])])
+@pytest.mark.parametrize("p", [2.0, Dual(2.0, ["p"], [])])
+def test_dual_powers_finite_diff(z, p):
+    if isinstance(z, float) and isinstance(p, float):
+        return None  # float power not in scope
+
+    result = z**p
+
+    if isinstance(z, Dual):
+        # Finite diff test
+        z_diff = ((z + 0.00001) ** p - result) / 0.00001
+        assert abs(gradient(result, ["z"])[0] - z_diff) < 1e-4
+
+    if isinstance(p, Dual):
+        # Finite diff test
+        p_diff = (z ** (p + 0.00001) - result) / 0.00001
+        assert abs(gradient(result, ["p"])[0] - p_diff) < 1e-4
+
+
+def test_dual_powers_operators() -> None:
+    z = Dual(2.3, ["x", "y", "z"], [1.0, 2.0, 3.0])
+    p = Dual(4.4, ["x", "y", "p"], [2.0, 3.0, 4.0])
+    result = z**p
+    expected = dual_exp(p * dual_log(z))
+    assert abs(result - expected) < 1e-12
+    assert np.all(
+        np.isclose(gradient(result, ["x", "y", "z", "p"]), gradient(expected, ["x", "y", "z", "p"]))
+    )
+
+
+@pytest.mark.parametrize("z", [2.0, Dual2(2.0, ["z"], [], [])])
+@pytest.mark.parametrize("p", [2.0, Dual2(2.0, ["p"], [], [])])
+def test_dual2_powers_finite_diff_first_order(z, p):
+    if isinstance(z, float) and isinstance(p, float):
+        return None  # float power not in scope
+
+    result = z**p
+
+    if isinstance(z, Dual2):
+        # Finite diff test
+        z_diff = ((z + 0.00001) ** p - result) / 0.00001
+        assert abs(gradient(result, ["z"])[0] - z_diff) < 1e-4
+
+    if isinstance(p, Dual2):
+        # Finite diff test
+        p_diff = (z ** (p + 0.00001) - result) / 0.00001
+        assert abs(gradient(result, ["p"])[0] - p_diff) < 1e-4
+
+
+@pytest.mark.parametrize("z", [2.0, Dual2(2.0, ["z"], [], [])])
+@pytest.mark.parametrize("p", [2.0, Dual2(2.0, ["p"], [], [])])
+def test_dual2_powers_finite_diff_second_order(z, p):
+    if isinstance(z, float) and isinstance(p, float):
+        return None  # float power not in scope
+
+    result = z**p
+
+    vars_ = (isinstance(z, Dual2), isinstance(p, Dual2))
+    if vars_[0]:
+        z_up = (z + 0.00001) ** p
+        z_dw = (z - 0.00001) ** p
+        diff = (z_up + z_dw - 2 * result) / 1e-10
+        assert abs(gradient(result, ["z"], order=2)[0][0] - diff) < 1e-4
+
+    if vars_[1]:
+        p_up = z ** (p + 0.00001)
+        p_dw = z ** (p - 0.00001)
+        diff = (p_up + p_dw - 2 * result) / 1e-10
+        assert abs(gradient(result, ["p"], order=2)[0][0] - diff) < 1e-4
+
+    if vars_[1] and vars_[0]:
+        upup = (z + 0.00001) ** (p + 0.00001)
+        dwdw = (z - 0.00001) ** (p - 0.00001)
+        updw = (z + 0.00001) ** (p - 0.00001)
+        dwup = (z - 0.00001) ** (p + 0.00001)
+        diff = (upup + dwdw - updw - dwup) / 4e-10
+        assert abs(gradient(result, ["z", "p"], order=2)[0, 1] - diff) < 1e-4
+
+
+def test_dual2_powers_operators() -> None:
+    z = Dual2(2.3, ["x", "y", "z"], [1.0, 2.0, 3.0], [1, 2, 3, 4, 5, 6, 7, 8, 9])
+    p = Dual2(4.4, ["x", "y", "p"], [2.0, 3.0, 4.0], [2, 3, 4, 5, 2, 3, 4, 3, 4])
+    result = z**p
+    expected = dual_exp(p * dual_log(z))
+    assert abs(result - expected) < 1e-12
+    assert np.all(
+        np.isclose(gradient(result, ["x", "y", "z", "p"]), gradient(expected, ["x", "y", "z", "p"]))
+    )
+    assert np.all(
+        np.isclose(
+            gradient(result, ["x", "y", "z", "p"], order=2),
+            gradient(expected, ["x", "y", "z", "p"], order=2),
+        )
+    )

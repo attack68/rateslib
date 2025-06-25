@@ -66,7 +66,7 @@ from rateslib.curves import (
     MultiCsaCurve,
     ProxyCurve,
     index_left,
-    interpolate,
+    index_value,
 )
 from rateslib.dual import Dual, Dual2, Variable, dual_exp, dual_log, dual_solve, gradient
 from rateslib.fx import FXForwards, FXRates
@@ -82,6 +82,8 @@ from rateslib.instruments import (
     ZCIS,
     ZCS,
     Bill,
+    BillCalcMode,
+    BondCalcMode,
     BondFuture,
     FixedRateBond,
     FloatRateNote,
@@ -101,7 +103,6 @@ from rateslib.instruments import (
     Value,
     VolValue,
 )
-from rateslib.json import from_json
 from rateslib.legs import (
     CreditPremiumLeg,
     CreditProtectionLeg,
@@ -128,6 +129,7 @@ from rateslib.periods import (
     NonDeliverableCashflow,
 )
 from rateslib.scheduling import Schedule
+from rateslib.serialization import from_json
 from rateslib.solver import Solver
 from rateslib.splines import (
     PPSpline,
@@ -190,8 +192,8 @@ __all__ = [
     "MultiCsaCurve",
     "CompositeCurve",
     "ProxyCurve",
-    "interpolate",
     "index_left",
+    "index_value",
     # fx_volatility.py
     "FXDeltaVolSmile",
     "FXDeltaVolSurface",
@@ -230,11 +232,13 @@ __all__ = [
     "IndexFixedRateBond",
     "FloatRateNote",
     "BondFuture",
+    "BondCalcMode",
     "CDS",
     "FRA",
     "Value",
     "VolValue",
     "Bill",
+    "BillCalcMode",
     "IRS",
     "NDF",
     "STIRFuture",
@@ -256,4 +260,4 @@ __all__ = [
     "FXBrokerFly",
 ]
 
-__version__ = "1.8.0"
+__version__ = "2.0.1"

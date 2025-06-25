@@ -1,5 +1,6 @@
 import warnings
 from datetime import datetime as dt
+from math import exp
 
 import numpy as np
 import pytest
@@ -9,7 +10,7 @@ from pandas.testing import assert_frame_equal, assert_series_equal
 from rateslib import default_context
 from rateslib.curves import CompositeCurve, Curve, LineCurve, MultiCsaCurve, index_left
 from rateslib.default import NoInput
-from rateslib.dual import Dual, Dual2, gradient, newton_1dim, newton_ndim
+from rateslib.dual import Dual, Dual2, gradient, ift_1dim, newton_1dim, newton_ndim
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments import (
@@ -26,6 +27,138 @@ from rateslib.instruments import (
     Value,
 )
 from rateslib.solver import Gradients, Solver
+
+
+class TestIFTSolver:
+    @pytest.mark.parametrize("args", [(2.0, 3.0), (-2.0, -1.0)])
+    def test_failed_state(self, args):
+        def s(x):
+            return x
+
+        result = ift_1dim(s, 1.0, "bisection", args, raise_on_fail=False)
+        assert result["state"] == -2
+
+    def test_failed_state_raises(self):
+        def s(x):
+            return x
+
+        with pytest.raises(ValueError, match="The internal iterative function `h` has reported"):
+            ift_1dim(s, 1.0, "bisection", (2.0, 3.0), raise_on_fail=True)
+
+    def test_solution_func_tol_state(self):
+        def s(x):
+            return x**2
+
+        result = ift_1dim(s, 9.0, "bisection", (1.0, 5.0), func_tol=1e-10)
+        # function should perform 2 iterations and arrive at 3.0
+        assert result["state"] == 2
+        assert result["g"] == 3.0
+
+    def test_solution_conv_tol_state(self):
+        def s(x):
+            return x**2
+
+        result = ift_1dim(s, 9.0, "bisection", (1.15, 5.0), conv_tol=1e-5)
+        # function should perform many bisections iterations and arrive close to 3.0 with conv_tol
+        assert result["state"] == 1
+        assert result["iterations"] > 16
+        assert abs(result["g"] - 3.0) < 1e-5
+
+    def test_solution_max_iter_state(self):
+        def s(x):
+            return x**2
+
+        result = ift_1dim(
+            s, 9.0, "bisection", (1.15, 5.0), conv_tol=1e-5, max_iter=5, raise_on_fail=False
+        )
+        # function should perform many bisections iterations and arrive close to 3.0 with conv_tol
+        assert result["state"] == -1
+
+    def test_dual_returns(self):
+        def s(x):
+            return 3.0 / (1 + x / 100.0) + (100.0 + 3.0) / (1 + x / 100.0) ** 2
+
+        result = ift_1dim(s, Dual(101.0, ["s"], []), "bisection", (2.0, 4.0), conv_tol=1e-5)
+
+        # ds_dx = -3 / (1+g)**2 - 2*(103) / (1+g)**3
+        g = result["g"]
+        ds_dx = -3.0 / (1.0 + g / 100.0) ** 2 - 2.0 * (103.0) / (1.0 + g / 100.0) ** 3
+        dg_ds_analytic = 1 / ds_dx * 100.0
+        dg_ds_ad = gradient(g, ["s"])[0]
+
+        assert abs(dg_ds_ad - dg_ds_analytic) < 1e-10
+
+    def test_dual2_returns(self):
+        # second part of dual returns
+        def s(x):
+            return 3.0 / (1 + x / 100.0) + (100.0 + 3.0) / (1 + x / 100.0) ** 2
+
+        result = ift_1dim(s, Dual2(101.0, ["s"], [], []), "bisection", (2.0, 4.0), conv_tol=1e-5)
+
+        # d2s_dx2 = 2.3 / (1+g)**3 + 6*(103) / (1+g)**4
+        g = result["g"]
+        ds_dx = -3.0 / (1.0 + g / 100.0) ** 2 - 2.0 * (103.0) / (1.0 + g / 100.0) ** 3
+        d2s_dx2 = 6.0 / (1.0 + g / 100.0) ** 3 + 6.0 * (103.0) / (1.0 + g / 100.0) ** 4
+
+        d2g_ds2_analytic = -100 * d2s_dx2 / ds_dx**3
+        d2g_ds2_ad = gradient(g, ["s"], order=2)[0][0]
+
+        assert abs(d2g_ds2_ad - d2g_ds2_analytic) < 1e-10
+
+    def test_dekker(self):
+        def s(x):
+            return exp(x) + x**2
+
+        s_tgt = s(2.0)
+        result = ift_1dim(s, s_tgt, "modified_dekker", (1.15, 5.0), conv_tol=1e-12)
+        assert result["g"] == 2.0
+        assert result["iterations"] < 12
+
+        result2 = ift_1dim(s, s_tgt, "bisection", (1.15, 5.0), conv_tol=1e-12)
+        assert result["time"] <= result2["time"]
+
+    def test_dekker_conv_tol(self):
+        def s(x):
+            return exp(x) + x**2
+
+        s_tgt = s(2.0)
+        result = ift_1dim(s, s_tgt, "modified_dekker", (1.15, 5.0), conv_tol=1e-3)
+        assert result["state"] == 1
+
+    def test_brent(self):
+        def s(x):
+            return exp(x) + x**2
+
+        s_tgt = s(2.0)
+        result = ift_1dim(s, s_tgt, "modified_brent", (1.15, 5.0), conv_tol=1e-12)
+        assert result["g"] == 2.0
+        assert result["iterations"] < 12
+
+        # result2 = ift_1dim(s, s_tgt, "bisection", (1.15, 5.0), conv_tol=1e-12)
+        # assert result["time"] <= result2["time"]
+
+    def test_brent_conv_tol(self):
+        def s(x):
+            return exp(x) + x**2
+
+        s_tgt = s(2.0)
+        result = ift_1dim(s, s_tgt, "modified_brent", (1.15, 5.0), conv_tol=1e-3)
+        assert result["state"] == 1
+
+    def test_another_func(self):
+        def s(g):
+            from math import cos
+
+            return cos(g) + g**3 + 2 * g**2 - 1.2
+
+        s_tgt = s(-1.5)  # close to zero, 3 roots in [-4.0, 2.0]
+        r_bi = ift_1dim(s, s_tgt, "bisection", (-4.0, 2.0))
+        r_dk = ift_1dim(s, s_tgt, "modified_dekker", (-4.0, 2.0))
+        r_br = ift_1dim(s, s_tgt, "modified_brent", (-4.0, 2.0))
+
+        assert r_bi["status"] == "SUCCESS"
+        assert r_dk["status"] == "SUCCESS"
+        assert r_br["status"] == "SUCCESS"
 
 
 class TestGradients:
@@ -139,10 +272,10 @@ def test_basic_solver(algo) -> None:
         algorithm=algo,
     )
     assert float(solver.g) < 1e-9
-    assert curve.nodes[dt(2022, 1, 1)] == Dual(1.0, ["v0"], [1])
+    assert curve.nodes.nodes[dt(2022, 1, 1)] == Dual(1.0, ["v0"], [1])
     expected = [1, 0.9899250357528555, 0.9680433953206192, 0.9407188354823821]
-    for i, key in enumerate(curve.nodes.keys()):
-        assert abs(float(curve.nodes[key]) - expected[i]) < 1e-6
+    for i, key in enumerate(curve.nodes.nodes.keys()):
+        assert abs(float(curve.nodes.nodes[key]) - expected[i]) < 1e-6
 
 
 def test_solver_repr():
@@ -197,10 +330,10 @@ def test_solver_reiterate(algo) -> None:
     solver.iterate()
 
     # now check that a reiteration has resolved the curve
-    assert curve.nodes[dt(2022, 1, 1)] == Dual(1.0, ["v0"], [1])
+    assert curve.nodes.nodes[dt(2022, 1, 1)] == Dual(1.0, ["v0"], [1])
     expected = [1, 0.9899250357528555, 0.9680433953206192, 0.9407188354823821]
-    for i, key in enumerate(curve.nodes.keys()):
-        assert abs(float(curve.nodes[key]) - expected[i]) < 1e-6
+    for i, key in enumerate(curve.nodes.nodes.keys()):
+        assert abs(float(curve.nodes.nodes[key]) - expected[i]) < 1e-6
 
 
 @pytest.mark.parametrize("algo", ["gauss_newton", "levenberg_marquardt", "gradient_descent"])
@@ -226,8 +359,8 @@ def test_basic_solver_line_curve(algo) -> None:
         algorithm=algo,
     )
     assert float(solver.g) < 1e-9
-    for i, key in enumerate(curve.nodes.keys()):
-        assert abs(float(curve.nodes[key]) - s[i]) < 1e-5
+    for i, key in enumerate(curve.nodes.nodes.keys()):
+        assert abs(float(curve.nodes.nodes[key]) - s[i]) < 1e-5
 
 
 def test_basic_spline_solver() -> None:
@@ -265,10 +398,10 @@ def test_basic_spline_solver() -> None:
         algorithm="gauss_newton",
     )
     assert float(solver.g) < 1e-12
-    assert spline_curve.nodes[dt(2022, 1, 1)] == Dual(1.0, ["v0"], [1])
+    assert spline_curve.nodes.nodes[dt(2022, 1, 1)] == Dual(1.0, ["v0"], [1])
     expected = [1, 0.98992503575307, 0.9680377261843034, 0.9407048036486593]
-    for i, key in enumerate(spline_curve.nodes.keys()):
-        assert abs(float(spline_curve.nodes[key]) - expected[i]) < 1e-11
+    for i, key in enumerate(spline_curve.nodes.nodes.keys()):
+        assert abs(float(spline_curve.nodes.nodes[key]) - expected[i]) < 1e-11
 
 
 def test_large_spline_solver() -> None:
@@ -356,10 +489,10 @@ def test_basic_solver_weights() -> None:
             func_tol=0.00085,
         )
     assert float(solver.g) < 0.00085
-    assert curve.nodes[dt(2022, 1, 1)] == Dual(1.0, ["v0"], [1])
+    assert curve.nodes.nodes[dt(2022, 1, 1)] == Dual(1.0, ["v0"], [1])
     expected = [1, 0.9899250357528555, 0.9680433953206192, 0.9407188354823821]
-    for i, key in enumerate(curve.nodes.keys()):
-        assert abs(float(curve.nodes[key]) - expected[i]) < 1e-6
+    for i, key in enumerate(curve.nodes.nodes.keys()):
+        assert abs(float(curve.nodes.nodes[key]) - expected[i]) < 1e-6
 
     solver = Solver(
         curves=[curve],
@@ -940,7 +1073,7 @@ def test_solver_float_rate_bond() -> None:
         id="credit",
     )
     f_c = d_c.copy()
-    f_c.id = "rfr"
+    f_c._id = "rfr"
     instruments = [
         (
             FloatRateNote(

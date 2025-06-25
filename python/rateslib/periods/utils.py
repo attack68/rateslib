@@ -180,8 +180,8 @@ def _maybe_fx_converted(
     return value * fx_
 
 
-def _float_or_none(val: DualTypes | None) -> float | None:
-    if val is None:
+def _float_or_none(val: DualTypes | None | NoInput) -> float | None:
+    if val is None or isinstance(val, NoInput):
         return None
     else:
         return _dual_float(val)
@@ -254,7 +254,7 @@ def _get_vol_delta_type(vol: FXVolOption_, default_delta_type: str) -> str:
     if not isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
         return default_delta_type
     else:
-        return vol.delta_type
+        return vol.meta.delta_type
 
 
 def _validate_credit_curves(curve: CurveOption_, disc_curve: CurveOption_) -> tuple[Curve, Curve]:

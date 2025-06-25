@@ -1,9 +1,9 @@
 import re
+from dataclasses import replace
 from datetime import datetime as dt
 from datetime import timedelta
 from sys import prefix
 
-import numpy as np
 import pytest
 from pandas import NA, DataFrame, Index, MultiIndex, Series, date_range
 from pandas.testing import assert_frame_equal
@@ -13,7 +13,8 @@ from rateslib.curves import CompositeCurve, Curve, LineCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual, gradient
 from rateslib.fx import FXForwards, FXRates
-from rateslib.fx_volatility import FXDeltaVolSmile, FXSabrSmile, FXSabrSurface, _d_plus_min_u
+from rateslib.fx_volatility import FXDeltaVolSmile, FXSabrSmile, FXSabrSurface
+from rateslib.fx_volatility.utils import _d_plus_min_u
 from rateslib.periods import (
     Cashflow,
     CreditPremiumPeriod,
@@ -710,7 +711,7 @@ class TestFloatPeriod:
             notional=-1000000,
         )
         _d = period._rfr_get_individual_fixings_data(
-            rfr_curve.calendar, rfr_curve.convention, rfr_curve
+            rfr_curve.meta.calendar, rfr_curve.meta.convention, rfr_curve
         )
         rate, table = period._rfr_fixings_array(
             d=_d,
@@ -734,7 +735,7 @@ class TestFloatPeriod:
         with pytest.raises(NotImplementedError, match="`fixing_method`"):
             period._rfr_fixings_array(
                 period._rfr_get_individual_fixings_data(
-                    rfr_curve.calendar, rfr_curve.convention, rfr_curve
+                    rfr_curve.meta.calendar, rfr_curve.meta.convention, rfr_curve
                 ),
                 rfr_curve,
             )
@@ -2338,7 +2339,7 @@ class TestCreditProtectionPeriod:
             currency="usd",
         )
 
-        cashflow = -period.notional * (1 - period.recovery_rate)
+        cashflow = -period.notional * (1 - hazard_curve.meta.credit_recovery_rate)
         expected = {
             defaults.headers["type"]: "CreditProtectionPeriod",
             defaults.headers["stub_type"]: "Regular",
@@ -2376,7 +2377,7 @@ class TestCreditProtectionPeriod:
             frequency="Q",
             currency="usd",
         )
-        cashflow = -period.notional * (1 - period.recovery_rate)
+        cashflow = None
         expected = {
             defaults.headers["type"]: "CreditProtectionPeriod",
             defaults.headers["stub_type"]: "Regular",
@@ -2388,7 +2389,7 @@ class TestCreditProtectionPeriod:
             defaults.headers["convention"]: "Act360",
             defaults.headers["dcf"]: period.dcf,
             defaults.headers["df"]: None,
-            defaults.headers["recovery"]: 0.4,
+            defaults.headers["recovery"]: None,
             defaults.headers["survival"]: None,
             defaults.headers["npv"]: None,
             defaults.headers["cashflow"]: cashflow,
@@ -2406,18 +2407,13 @@ class TestCreditProtectionPeriod:
             payment=dt(2022, 4, 1),
             notional=1e9,
             frequency="Q",
-            discretization=1,
         )
-        p2 = CreditProtectionPeriod(
-            start=dt(2022, 1, 1),
-            end=dt(2022, 4, 1),
-            payment=dt(2022, 4, 1),
-            notional=1e9,
-            frequency="Q",
-            discretization=31,
-        )
-        r1 = p1.npv(hazard_curve, curve)
-        r2 = p2.npv(hazard_curve, curve)
+        h1 = hazard_curve.copy()
+        h2 = hazard_curve.copy()
+        h1._meta = replace(h1.meta, _credit_discretization=1)
+        h2._meta = replace(h2.meta, _credit_discretization=31)
+        r1 = p1.npv(h1, curve)
+        r2 = p1.npv(h2, curve)
         assert 0.1 < abs(r1 - r2) < 1.0  # very similar result but not identical
 
     def test_mid_period(self, hazard_curve, curve):
@@ -2439,15 +2435,13 @@ class TestCreditProtectionPeriod:
             payment=dt(2022, 1, 4),
             notional=1e9,
             frequency="Q",
-            recovery_rate=0.40,
         )
 
+        result = period.analytic_rec_risk(hazard_curve, curve)
         p1 = period.npv(hazard_curve, curve)
-        period.recovery_rate = 0.41
+        hazard_curve.update_meta("credit_recovery_rate", 0.41)
         p2 = period.npv(hazard_curve, curve)
         expected = p2 - p1
-
-        result = period.analytic_rec_risk(hazard_curve, curve)
         assert abs(result - expected) < 1e-9
 
 
@@ -2539,6 +2533,7 @@ class TestIndexFixedPeriod:
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
             index_base=200.0,
             interpolation="linear_index",
+            index_lag=3,
         )
         _, result, _ = index_period.index_ratio(index_curve)
         assert abs(result - expected) < 1e-8
@@ -2555,18 +2550,53 @@ class TestIndexFixedPeriod:
             fixed_rate=4.00,
             currency="usd",
             index_base=100.0,
+            index_lag=3,
         )
         index_curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
             index_base=200.0,
             interpolation="linear_index",
+            index_lag=3,
         )
         result = index_period.real_cashflow
         expected = -1e7 * ((dt(2022, 4, 1) - dt(2022, 1, 1)) / timedelta(days=360)) * 4
         assert abs(result - expected) < 1e-8
 
         result = index_period.cashflow(index_curve)
-        expected = expected * index_curve.index_value(dt(2022, 4, 3)) / 100.0
+        expected = expected * index_curve.index_value(dt(2022, 4, 3), 3) / 100.0
+        assert abs(result - expected) < 1e-8
+
+    @pytest.mark.parametrize("method", ["daily", "curve"])
+    def test_period_curve_interp_method(self, method) -> None:
+        # both these methods of interpolation should give the same result with the way
+        # the curve and period are configured.
+        index_period = IndexFixedPeriod(
+            start=dt(2022, 1, 3),
+            end=dt(2022, 4, 3),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 3),
+            frequency="Q",
+            fixed_rate=4.00,
+            currency="usd",
+            index_base=100.0,
+            index_lag=0,
+            index_method=method,
+        )
+        index_curve = Curve(
+            nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
+            index_base=200.0,
+            interpolation="linear_index",
+            index_lag=0,
+        )
+        result = index_period.real_cashflow
+        expected = -1e7 * ((dt(2022, 4, 1) - dt(2022, 1, 1)) / timedelta(days=360)) * 4
+        assert abs(result - expected) < 1e-8
+
+        result = index_period.cashflow(index_curve)
+        assert abs(result + 20100502.512562) < 1e-6
+        expected = expected * index_curve.index_value(dt(2022, 4, 3), 0) / 100.0
         assert abs(result - expected) < 1e-8
 
     def test_period_analytic_delta(self, fxr, curve) -> None:
@@ -2593,10 +2623,28 @@ class TestIndexFixedPeriod:
         result = fixed_period.analytic_delta(index_curve, curve, fxr, "nok")
         assert abs(result - 247444.78172244584 * 300.0 / 200.0) < 1e-7
 
+    @pytest.mark.parametrize(("fixings", "method"), [(300.0, "daily")])
+    def test_period_fixings_float(self, fixings, method, curve) -> None:
+        fixed_period = IndexFixedPeriod(
+            start=dt(2022, 1, 3),
+            end=dt(2022, 4, 3),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 3),
+            frequency="Q",
+            currency="usd",
+            index_base=200.0,
+            index_fixings=fixings,
+            index_method=method,
+        )
+        result = fixed_period.analytic_delta(None, curve)
+        assert abs(result - 24744.478172244584 * 300.0 / 200.0) < 1e-7
+
+    @pytest.mark.skip(reason="`index_fixings` as Series removed for Period in 2.0")
     @pytest.mark.parametrize(
         ("fixings", "method"),
         [
-            (300.0, "daily"),
             (
                 Series([1.0, 300, 5], index=[dt(2022, 4, 2), dt(2022, 4, 3), dt(2022, 4, 4)]),
                 "daily",
@@ -2649,11 +2697,13 @@ class TestIndexFixedPeriod:
             fixed_rate=4.00,
             currency="usd",
             index_base=100.0,
+            index_lag=3,
         )
         index_curve = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.995},
             index_base=200.0,
             interpolation="linear_index",
+            index_lag=3,
         )
         result = index_period.npv(index_curve, curve)
         expected = -19895057.826930363
@@ -2757,25 +2807,7 @@ class TestIndexFixedPeriod:
         with pytest.raises(ValueError, match="Curve must be initialised with an `index_base`"):
             i_period.index_ratio(curve)
 
-    # TEST REDUNDANT: function was changed to fallback to forecast from curve
-    # def test_cannot_forecast_from_fixings(self):
-    #     i_fixings = Series([100], index=[dt(2021, 1, 1)])
-    #     i_period = IndexFixedPeriod(
-    #         start=dt(2022, 1, 1),
-    #         end=dt(2022, 2, 1),
-    #         payment=dt(2022, 2, 1),
-    #         frequency="M",
-    #         index_base=100.0,
-    #         index_fixings=i_fixings,
-    #     )
-    #     curve = IndexCurve(
-    #         {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
-    #         index_lag=3,
-    #         index_base=100.0
-    #     )
-    #     with pytest.raises(ValueError, match="`index_fixings` cannot forecast the"):
-    #         i_period.index_ratio(curve)
-
+    @pytest.mark.skip(reason="`index_fixings` as Series removed for Period in 2.0")
     def test_index_fixings_linear_interp(self) -> None:
         i_fixings = Series([173.1, 174.2], index=[dt(2001, 7, 1), dt(2001, 8, 1)])
         result = IndexMixin._index_value(
@@ -2828,6 +2860,76 @@ class TestIndexFixedPeriod:
         composite_curve = CompositeCurve([curve])
         with pytest.raises(ValueError, match="Curve must be initialised with an `index_base`"):
             _, result, _ = index_period.index_ratio(composite_curve)
+
+    @pytest.mark.parametrize(
+        ("method", "expected"),
+        [("daily", 201.00573790940518), ("monthly", 200.9836416123169)],
+    )
+    def test_index_lag_on_period_zero_curve(self, method, expected):
+        # test if a period can calculate the correct value by referencing a curve with
+        # zero index lag.
+        index_period = IndexFixedPeriod(
+            start=dt(2022, 1, 3),
+            end=dt(2022, 4, 3),
+            payment=dt(2022, 4, 3),
+            notional=1e6,
+            convention="30360",
+            termination=dt(2022, 4, 3),
+            frequency="Q",
+            fixed_rate=4.00,
+            currency="usd",
+            index_base=100.0,
+            index_method=method,
+            index_lag=3,
+        )
+        index_curve = Curve(
+            nodes={dt(2021, 10, 1): 1.0, dt(2022, 1, 3): 0.995},
+            index_base=200.0,
+            interpolation="linear_index",
+            index_lag=0,
+        )
+        discount_curve = Curve(
+            nodes={dt(2022, 1, 1): 1.0, dt(2022, 4, 3): 0.99},
+        )
+        _, result, _ = index_period.index_ratio(index_curve)
+        npv = index_period.npv(index_curve, discount_curve)
+        assert abs(result - expected) < 1e-8
+        expected_npv = -1e6 * 0.04 * 0.25 * result * 0.99 / 100.0
+        assert abs(npv - expected_npv) < 1e-5
+
+    def test_cashflows_available_with_series_fixings(self):
+        RPI = DataFrame(
+            [
+                [dt(2024, 2, 1), 381.0],
+                [dt(2024, 3, 1), 383.0],
+                [dt(2024, 4, 1), 385.0],
+                [dt(2024, 5, 1), 386.4],
+                [dt(2024, 6, 1), 387.3],
+                [dt(2024, 7, 1), 387.5],
+                [dt(2024, 8, 1), 389.9],
+                [dt(2024, 9, 1), 388.6],
+                [dt(2024, 10, 1), 390.7],
+                [dt(2024, 11, 1), 390.9],
+                [dt(2024, 12, 1), 392.1],
+                [dt(2025, 1, 1), 391.7],
+                [dt(2025, 2, 1), 394.0],
+                [dt(2025, 3, 1), 395.3],
+            ],
+            columns=["month", "rate"],
+        ).set_index("month")["rate"]
+        period = IndexFixedPeriod(
+            start=dt(2024, 11, 27),
+            end=dt(2025, 5, 27),
+            fixed_rate=2.0,
+            index_lag=3,
+            index_fixings=RPI,
+            index_base=RPI,
+            frequency="S",
+            payment=dt(2025, 5, 27),
+        )
+        result = period.cashflows()
+        assert result["Index Base"] == 389.9 + (388.6 - 389.9) * (27 - 1) / 30
+        assert result["Index Val"] == 394 + (395.3 - 394) * (27 - 1) / 31
 
 
 class TestIndexCashflow:
@@ -3670,7 +3772,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd")[fxo.delivery],
             fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
             fxfo.rate("eurusd", dt(2023, 6, 20)),
-            fxo._t_to_expiry(fxfo.curve("usd", "usd").node_dates[0]),
+            fxo._t_to_expiry(fxfo.curve("usd", "usd").nodes.initial),
         )[2]
         expected = exp_k
         assert abs(result - expected) < 1e-8
@@ -3767,7 +3869,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
             fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
             fxfo.rate("eurusd", dt(2023, 6, 20)),
-            fxo._t_to_expiry(fxfo.curve("eur", "usd").node_dates[0]),
+            fxo._t_to_expiry(fxfo.curve("eur", "usd").nodes.initial),
         )
 
         fxo.strike = result[2]
@@ -3827,7 +3929,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
             fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
             fxfo.rate("eurusd", dt(2023, 6, 20)),
-            fxo._t_to_expiry(fxfo.curve("eur", "usd").node_dates[0]),
+            fxo._t_to_expiry(fxfo.curve("eur", "usd").nodes.initial),
         )
 
         fxo.strike = result[2]
@@ -3884,7 +3986,7 @@ class TestFXOption:
                 fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
                 fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
                 fxfo.rate("eurusd", dt(2023, 6, 20)),
-                fxo._t_to_expiry(fxfo.curve("eur", "usd").node_dates[0]),
+                fxo._t_to_expiry(fxfo.curve("eur", "usd").nodes.initial),
             )
 
     @pytest.mark.parametrize("delta_type", ["forward", "spot"])
@@ -4203,7 +4305,8 @@ class TestFXOption:
         assert result[defaults.headers["currency"]] == "USD"
         assert result[defaults.headers["type"]] == "FXCallPeriod"
 
-    def test_sticky_delta_delta_vol_smile_against_ad(self, fxfo) -> None:
+    @pytest.mark.parametrize("delta_type", ["spot", "forward"])
+    def test_sticky_delta_delta_vol_smile_against_ad(self, fxfo, delta_type) -> None:
         fxo = FXCallPeriod(
             pair="eurusd",
             expiry=dt(2023, 6, 16),
@@ -4211,7 +4314,7 @@ class TestFXOption:
             payment=dt(2023, 6, 20),
             strike=1.101,
             notional=20e6,
-            delta_type="spot",
+            delta_type=delta_type,
         )
         vol_ = FXDeltaVolSmile(
             nodes={
@@ -4230,14 +4333,24 @@ class TestFXOption:
             base="usd",
             vol=vol_,
         )
-        # this is the actual derivative of vol with respect to spot via AD
-        expected = gradient(gks["__vol"], ["fx_eurusd"])[0]
-        # this is the reverse engineered part of the sticky delta
-        result = (
-            (gks["delta_sticky"] - gks["delta"])
-            * fxfo.curve("usd", "usd")[fxo.delivery]
-            / gks["vega"]
-        )
+
+        v_deli = fxfo.curve("usd", "usd")[fxo.delivery]
+        v_spot = fxfo.curve("usd", "usd")[dt(2023, 3, 20)]
+
+        # this is the actual derivative of vol with respect to either spot or forward via AD
+        if "spot" in delta_type:
+            z_v_0 = v_deli / v_spot
+            expected = gradient(gks["__vol"], ["fx_eurusd"])[0]
+        else:
+            z_v_0 = 1.0
+            w_deli = fxfo.curve("eur", "usd")[fxo.delivery]
+            w_spot = fxfo.curve("eur", "usd")[dt(2023, 3, 20)]
+            expected = (
+                gradient(gks["__vol"], ["fx_eurusd"])[0] * v_deli * w_spot / (v_spot * w_deli)
+            )
+
+        # this is the reverse engineered part of the sticky delta formula to get dsigma_dfspot
+        result = (gks["delta_sticky"] - gks["delta"]) * v_deli / (z_v_0 * gks["vega"])
         # delta is
         assert abs(result - expected) < 1e-3
 
@@ -4252,7 +4365,7 @@ class TestFXOption:
                     id="smile",
                     pair="eurusd",
                 ),
-                0.700643,
+                0.700594,
             ),
             (
                 FXSabrSurface(
@@ -4262,7 +4375,7 @@ class TestFXOption:
                     id="smile",
                     pair="eurusd",
                 ),
-                0.701090,
+                0.701191,
             ),
             (
                 FXDeltaVolSmile(
@@ -4272,7 +4385,7 @@ class TestFXOption:
                     delta_type="forward",
                     id="smile",
                 ),
-                0.704153,
+                0.704091,
             ),
         ],
     )
@@ -4331,3 +4444,40 @@ class TestFXOption:
 
         result = fxc.analytic_greeks(solver=solver)["delta_sticky"]
         assert abs(result - expected) < 1e-6
+
+    def test_sticky_delta_direct_from_ad(self, fxfo) -> None:
+        # this test will use AD to directly measure dP_dfs and compare that with the
+        # analytical derivation of sticky delta.
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.101,
+            notional=20e6,
+            delta_type="spot",
+        )
+        vol_ = FXDeltaVolSmile(
+            nodes={
+                0.25: 8.9,
+                0.5: 8.7,
+                0.75: 10.15,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="spot",
+        )
+        gks = fxo.analytic_greeks(
+            disc_curve=fxfo.curve("eur", "usd"),
+            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            base="usd",
+            vol=vol_,
+        )
+
+        P = 20e6 * gks["__bs76"]
+        dP_dfs = gradient(P, ["fx_eurusd"])[0]
+        v_spot = fxfo.curve("usd", "usd")[dt(2023, 3, 20)]
+        result = dP_dfs / (20e6 * v_spot)
+        expected = gks["delta_sticky"]
+        assert abs(result - expected) < 1e-8

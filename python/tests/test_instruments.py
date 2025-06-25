@@ -697,6 +697,7 @@ class TestNullPricing:
             id="eu_cpi",
             index_base=100.0,
             interpolation="linear_index",
+            index_lag=3,
         )
         fxf = FXForwards(
             FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
@@ -747,6 +748,7 @@ class TestNullPricing:
             id="eu_cpi",
             index_base=100.0,
             interpolation="linear_index",
+            index_lag=3,
         )
         fxf = FXForwards(
             FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
@@ -797,6 +799,7 @@ class TestNullPricing:
             id="eu_cpi",
             index_base=100.0,
             interpolation="linear_index",
+            index_lag=3,
         )
         fxf = FXForwards(
             FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
@@ -856,6 +859,7 @@ class TestNullPricing:
             id="eu_cpi",
             index_base=100.0,
             interpolation="linear_index",
+            index_lag=3,
         )
         fxf = FXForwards(
             FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
@@ -907,6 +911,7 @@ class TestNullPricing:
             id="eu_cpi",
             index_base=100.0,
             interpolation="linear_index",
+            index_lag=3,
         )
         fxf = FXForwards(
             FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
@@ -1456,10 +1461,10 @@ class TestIIRS:
             effective=dt(2022, 2, 1),
             termination="9M",
             frequency="Q",
-            index_base=Series([90, 110], index=[dt(2022, 1, 31), dt(2022, 2, 2)]),
-            index_fixings=[110, 115],
+            index_base=Series([100.0], index=[dt(2021, 11, 1)]),
+            index_fixings=Series([110.0, 115], index=[dt(2022, 2, 1), dt(2022, 5, 1)]),
             index_lag=3,
-            index_method="daily",
+            index_method="monthly",
             fixed_rate=1.0,
         )
         result = iirs.cashflows([i_curve, curve, curve, curve])
@@ -1778,6 +1783,7 @@ class TestZCIS:
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_base=200.0,
             interpolation="linear_index",
+            index_lag=3,
         )
         zcis = ZCIS(
             effective=dt(2022, 1, 1),
@@ -1809,8 +1815,9 @@ class TestZCIS:
             curves=[curve, curve, i_curve, curve],
             leg2_index_lag=3,
         )
-        with pytest.raises(ValueError, match="Forecasting the `index_base`"):
-            zcis.rate()
+        with pytest.raises(ValueError, match="Forecasting the `index_base`"):  # noqa: SIM117
+            with pytest.warns(UserWarning):
+                zcis.rate()
 
 
 class TestValue:
@@ -2960,6 +2967,7 @@ class TestCDS:
             convention="act365f",
             calendar="all",
             id="credit",
+            credit_discretization=5,
         )
         cc_sv = Solver(
             curves=[credit_curve],
@@ -2974,7 +2982,6 @@ class TestCDS:
                     payment_lag=0,
                     curves=["credit", "ibor"],
                     fixed_rate=4.00,
-                    recovery_rate=0.4,
                     premium_accrued=True,
                     calendar="nyc",
                 )
@@ -2993,7 +3000,6 @@ class TestCDS:
             frequency="q",
             fixed_rate=1.50,
             curves=["credit", "ibor"],
-            discretization=5,
             calendar="nyc",
         )
         c1, c2, solver = self.okane_curve()
@@ -3368,8 +3374,8 @@ class TestXCS:
     @pytest.mark.parametrize("fixed2", [True, False])
     @pytest.mark.parametrize("mtm", [True, False])
     def test_fixings_table(self, curve, curve2, fixed1, fixed2, mtm):
-        curve.id = "c1"
-        curve2.id = "c2"
+        curve._id = "c1"
+        curve2._id = "c2"
         fxf = FXForwards(
             FXRates({"eurusd": 1.1}, settlement=dt(2022, 1, 3)),
             {"usdusd": curve, "eurusd": curve2, "eureur": curve2},
@@ -3928,6 +3934,7 @@ class TestPricingMechanism:
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_base=100.0,
             interpolation="linear_index",
+            index_lag=3,
         )
         ob = IIRS(dt(2022, 1, 28), "6m", "Q", curves=[i_curve, curve, curve, curve])
         ob.rate()
@@ -3989,6 +3996,7 @@ class TestPricingMechanism:
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_base=100.0,
             interpolation="linear_index",
+            index_lag=3,
         )
         ob = ZCIS(dt(2022, 1, 28), "6m", "S", curves=[curve, curve, i_curve, curve])
         ob.rate()
@@ -4111,8 +4119,8 @@ class TestPortfolio:
         assert pf.__repr__() == expected
 
     def test_fixings_table(self, curve, curve2):
-        curve.id = "c1"
-        curve2.id = "c2"
+        curve._id = "c1"
+        curve2._id = "c2"
         irs1 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=3e6)
         irs2 = IRS(dt(2022, 1, 23), "6m", spec="eur_irs6", curves=curve2, notional=1e6)
         irs3 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=-2e6)
@@ -4211,8 +4219,8 @@ class TestFly:
         assert expected == spd.__repr__()
 
     def test_fixings_table(self, curve, curve2):
-        curve.id = "c1"
-        curve2.id = "c2"
+        curve._id = "c1"
+        curve2._id = "c2"
         irs1 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=3e6)
         irs2 = IRS(dt(2022, 1, 23), "6m", spec="eur_irs6", curves=curve2, notional=1e6)
         irs3 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=-2e6)
@@ -4289,8 +4297,8 @@ class TestSpread:
         assert expected == fly.__repr__()
 
     def test_fixings_table(self, curve, curve2):
-        curve.id = "c1"
-        curve2.id = "c2"
+        curve._id = "c1"
+        curve2._id = "c2"
         irs1 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=3e6)
         irs2 = IRS(dt(2022, 1, 23), "6m", spec="eur_irs6", curves=curve2, notional=1e6)
         irs3 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=-2e6)
@@ -4473,7 +4481,7 @@ class TestSpec:
         bond = FixedRateBond(
             effective=dt(2022, 1, 1),
             termination="1Y",
-            spec="ust",
+            spec="us_gb",
             calc_mode="ust_31bii",
             fixed_rate=2.0,
         )
@@ -4489,7 +4497,7 @@ class TestSpec:
         bond = IndexFixedRateBond(
             effective=dt(2022, 1, 1),
             termination="1Y",
-            spec="ukti",
+            spec="uk_gbi",
             calc_mode="ust",
             fixed_rate=2.0,
         )
@@ -4709,7 +4717,7 @@ def test_fx_settlements_table(inst, expected) -> None:
         s=[5.0, 2.5, -10],
         fx=fxf,
     )
-    assert eureur.collateral == "eur"  # collateral tags populated by FXForwards
+    assert eureur.meta.collateral == "eur"  # collateral tags populated by FXForwards
 
     pf = Portfolio([inst])
     result = pf.cashflows_table(solver=solver)
@@ -5177,7 +5185,7 @@ class TestFXOptions:
 
         f_d = fxfo.rate("eurusd", dt(2023, 6, 20))
         eta = 0.5 if prem_ccy == "usd" else -0.5
-        expected = f_d * dual_exp(result["__vol"] ** 2 * fxvs.t_expiry * eta)
+        expected = f_d * dual_exp(result["__vol"] ** 2 * fxvs.meta.t_expiry * eta)
         assert abs(result["__strike"] - expected) < 1e-8
 
     @pytest.mark.parametrize("phi", [-1.0, 1.0])
@@ -5206,7 +5214,7 @@ class TestFXOptions:
 
         f_d = fxfo.rate("eurusd", dt(2023, 6, 20))
         eta = 0.5 if prem_ccy == "usd" else -0.5
-        expected = f_d * dual_exp(result["__vol"] ** 2 * vol.t_expiry * eta)
+        expected = f_d * dual_exp(result["__vol"] ** 2 * vol.meta.t_expiry * eta)
         assert abs(result["__strike"] - expected) < 1e-8
 
     @pytest.mark.parametrize("phi", [1.0, -1.0])

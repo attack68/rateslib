@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, TypeVar
 
 from rateslib import defaults
 from rateslib.curves import MultiCsaCurve, ProxyCurve
+from rateslib.curves.utils import _CurveType
 from rateslib.default import NoInput
 
 if TYPE_CHECKING:
@@ -233,7 +234,7 @@ def _disc_maybe_from_curve(curve: CurveOption_, disc_curve: Curve_) -> Curve_:
             raise ValueError("`disc_curve` cannot be inferred from a dictionary of curves.")
         elif isinstance(curve, NoInput):
             return NoInput(0)
-        elif curve._base_type == "values":
+        elif curve._base_type == _CurveType.values:
             raise ValueError("`disc_curve` cannot be inferred from a non-DF based curve.")
         _: Curve | NoInput = curve
     else:

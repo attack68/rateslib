@@ -585,7 +585,7 @@ class NDF(Sensitivities, Metrics):
         )
         self._set_pricing_mid(NoInput(0), NoInput(0), fx_)
         _ = self.periods[0].npv(NoInput(0), curves_[1], fx_, self.kwargs["currency"], local=False)
-        _ += self.periods[1].npv(NoInput(0), curves_[1], fx_, self.kwargs["currency"], local=False)
+        _ += self.periods[1].npv(NoInput(0), curves_[1], fx_, self.kwargs["currency"], local=False)  # type: ignore[operator]
         return _maybe_local(_, local, self.kwargs["currency"], fx_, base_)
 
     def delta(self, *args: Any, **kwargs: Any) -> DataFrame:
@@ -825,7 +825,7 @@ class XCS(BaseDerivative):
             # Users passing float will be, possibly ignorantly, unaffected.
             if isinstance(fx_fixings, FXForwards):
                 self.fx_fixings = _dual_float(
-                    fx_fixings.rate(self.pair, self.leg2._exchange_periods[0].payment)
+                    fx_fixings.rate(self.pair, self.leg2._exchange_periods[0].payment)  # type: ignore[union-attr]
                 )
             elif isinstance(fx_fixings, FXRates):
                 self.fx_fixings = _dual_float(fx_fixings.rate(self.pair))
@@ -915,7 +915,7 @@ class XCS(BaseDerivative):
         self.leg2.notional = self.leg2_notional
         if not isinstance(self.kwargs["amortization"], NoInput):
             self.leg2_amortization = self.leg1.amortization * -fx
-            self.leg2.amortization = self.leg2_amortization
+            self.leg2.amortization = self.leg2_amortization  # type: ignore[assignment]
 
     @property
     def _is_unpriced(self) -> bool:
@@ -1217,7 +1217,7 @@ class XCS(BaseDerivative):
             )
         except AttributeError:
             df1 = DataFrame(
-                index=DatetimeIndex([], name="obs_dates", freq=None),
+                index=DatetimeIndex([], name="obs_dates"),
             )
 
         try:
@@ -1231,7 +1231,7 @@ class XCS(BaseDerivative):
             )
         except AttributeError:
             df2 = DataFrame(
-                index=DatetimeIndex([], name="obs_dates", freq=None),
+                index=DatetimeIndex([], name="obs_dates"),
             )
 
         return _composit_fixings_table(df1, df2)

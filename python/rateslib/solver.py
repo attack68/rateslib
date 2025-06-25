@@ -44,6 +44,9 @@ if TYPE_CHECKING:
         DualTypes,
         FXDeltaVolSmile,
         FXDeltaVolSurface,
+        FXSabrSmile,
+        FXSabrSurface,
+        FXVolObj,
         Sequence,
         SupportsRate,
         Variable,
@@ -232,7 +235,7 @@ class Gradients:
             self.s[i] -= ds
 
         # ensure exact symmetry (maybe redundant)
-        grad_s_s_vT = (grad_s_s_vT + np.swapaxes(grad_s_s_vT, 0, 1)) / 2  # type: ignore[assignment]
+        grad_s_s_vT = (grad_s_s_vT + np.swapaxes(grad_s_s_vT, 0, 1)) / 2
         self.iterate()
         return grad_s_s_vT
 
@@ -422,7 +425,7 @@ class Gradients:
         # FX sensitivity requires reverting through all pre-solvers rates.
         _ = -np.tensordot(self.grad_f_f_rT_pre(fx_vars), self.grad_s_vT_pre, (2, 0))
         _ -= np.tensordot(self.grad_f_rT_pre(fx_vars), self.grad_f_s_vT_pre(fx_vars), (1, 1))
-        grad_f_f_vT: NDArray[Nf64] = _
+        grad_f_f_vT: NDArray[Nf64] = _  # type: ignore[assignment]
         return grad_f_f_vT
 
     def grad_f_vT_pre(self, fx_vars: Sequence[str]) -> NDArray[Nf64]:
@@ -462,7 +465,8 @@ class Gradients:
         """
         grad_f_f = gradient(f, fx_vars)
         grad_f_f += np.matmul(self.grad_f_vT_pre(fx_vars), gradient(f, self.pre_variables))
-        return grad_f_f
+        ret: NDArray[Nf64] = grad_f_f
+        return ret
 
     @property
     def grad_s_vT_pre(self) -> NDArray[Nf64]:
@@ -609,7 +613,7 @@ class Gradients:
         __ = np.tensordot(__, grad_f_vT, (1, 1))
 
         grad_f_fT_f = _ + __
-        return grad_f_fT_f  # type: ignore[no-any-return]
+        return grad_f_fT_f
 
     # grad_v_v_f: calculated within grad_s_vT_fixed_point_iteration
 
@@ -648,7 +652,8 @@ class Gradients:
         """  # noqa: E501
         grad_f_P = gradient(npv, fx_vars)
         grad_f_P += np.matmul(self.grad_f_vT_pre(fx_vars), gradient(npv, self.pre_variables))
-        return grad_f_P
+        ret: NDArray[Nf64] = grad_f_P
+        return ret
 
     def grad_s_Pbase(
         self, npv: Dual | Dual2 | Variable, grad_s_P: NDArray[Nf64], f: Dual | Dual2 | Variable
@@ -931,18 +936,19 @@ class Gradients:
 
 class Solver(Gradients, _WithState):
     """
-    A numerical solver to determine node values on multiple curves simultaneously.
+    A numerical solver to determine node values on multiple pricing objects simultaneously.
 
     Parameters
     ----------
     curves : sequence
-        Sequence of :class:`Curve` or :class:`FXDeltaVolSmile` objects where each *curve*
+        Sequence of :class:`Curve` or :class:`Smile` objects where each one
         has been individually configured for its node dates and interpolation structures,
-        and has a unique ``id``. Each *curve* will be dynamically updated by the Solver.
+        and has a unique ``id``. Each object will be dynamically updated/mutated by the Solver.
     surfaces : sequence
-        Sequence of :class:`FXDeltaVolSurface` objects where each *surface* has been configured
-        with a unique ``id``. Each *surface* will be dynamically updated. *Surfaces* are appended
-        to ``curves`` and just provide a distinct keyword for organisational distinction.
+        Sequence of :class:`Surface` objects where each *surface* has been configured
+        with a unique ``id``. Each *surface* will be dynamically updated/mutated.
+        Internally, *Surfaces* are appended to ``curves`` and provide nothing more than
+        organisational distinction.
     instruments : sequence
         Sequence of calibrating instrument specifications that will be used by
         the solver to determine the solved curves. See notes.
@@ -982,19 +988,42 @@ class Solver(Gradients, _WithState):
 
     Notes
     -----
-    Once initialised the ``Solver`` will numerically determine and set all of the
-    relevant node values on each *Curve* (or *Surface*) simultaneously by calling :meth:`iterate`.
+    Once initialized, the ``Solver`` will numerically determine and set, via mutation, all the
+    relevant node values on each *Curve*, *Smile*, or *Surface* simultaneously by
+    calling :meth:`iterate`. This mutation of those pricing objects will override any local AD
+    variables pre-configured by a user and use the *Solver's* own variable tags, for proper
+    *delta* and *gamma* management.
 
-    Each instrument provided to ``instruments`` must have its ``curves`` and ``metric``
-    preset at initialisation, and can then be used directly (as shown in some examples).
+    Each *Instrument* provided to ``instruments`` can have its pricing objects (i.e. ``curves``
+    and ``vol``) and ``metric`` preset at initialization, so that the
+    :meth:`~rateslib.instruments.Metrics.rate` method for each *Instrument* in scope is
+    well defined. As an example,
 
-    If the *Curves* and/or *metric* are not preset then the *Solver* ``instruments`` can be
+    .. code-block:: python
+
+       instruments=[
+           ...
+           FXCall([args], curves=[None, eur, None, usd], vol=smile, metric="vol"),
+           ...
+       ]
+
+    The ``fx`` argument used in the :meth:`~rateslib.instruments.Metrics.rate` call will
+    be passed directly to each *Instrument* from the *Solver's* ``fx`` argument, being
+    representative of a consistent *FXForwards* object for all *Instruments*.
+
+    If the pricing objects and/or *metric* are not preset then the *Solver* ``instruments`` can be
     given as a tuple where the second and third items are a tuple and dict representing positional
-    and keyword arguments passed to the *instrument's*
-    :meth:`~rateslib.instruments.FixedRateBond.rate`` method. Usually using the keyword arguments
+    and keyword arguments passed directly to the :meth:`~rateslib.instruments.Metrics.rate`
+    method. Usually using the keyword arguments, and using an empty positional arguments tuple,
     is more explicit. An example is:
 
-    - (FixedRateBond([args]), (), {"curves": bond_curve, "metric": "ytm"}),
+    .. code-block:: python
+
+       instruments=[
+           ...
+           (FixedRateBond([args]), (), {"curves": bond_curve, "metric": "ytm"}),
+           ...
+       ]
 
     Examples
     --------
@@ -1005,8 +1034,8 @@ class Solver(Gradients, _WithState):
 
     def __init__(
         self,
-        curves: Sequence[Curve | FXDeltaVolSmile] = (),
-        surfaces: Sequence[FXDeltaVolSurface] = (),
+        curves: Sequence[Curve | FXDeltaVolSmile | FXSabrSmile] = (),
+        surfaces: Sequence[FXDeltaVolSurface | FXSabrSurface] = (),
         instruments: Sequence[SupportsRate] = (),
         s: Sequence[DualTypes] = (),
         weights: Sequence[float] | NoInput = NoInput(0),
@@ -1021,6 +1050,7 @@ class Solver(Gradients, _WithState):
         ini_lambda: tuple[float, float, float] | NoInput = NoInput(0),
         callback: Callable[[Solver, int, NDArray[Nobject]], None] | NoInput = NoInput(0),
     ) -> None:
+        self._do_not_validate_ = False
         self.callback = callback
         self.algorithm = _drb(defaults.algorithm, algorithm).lower()
         self.ini_lambda = _drb(defaults.ini_lambda, ini_lambda)
@@ -1080,13 +1110,13 @@ class Solver(Gradients, _WithState):
         self.n = len(self.variables)
 
         # aggregate and organise variables and labels including pre_solvers
-        self.pre_curves: dict[str, Curve | FXDeltaVolSmile | FXDeltaVolSurface] = {}
+        self.pre_curves: dict[str, Curve | FXVolObj] = {}
         self.pre_variables: tuple[str, ...] = ()
         self.pre_instrument_labels: tuple[tuple[str, str], ...] = ()
         self.pre_instruments: tuple[tuple[SupportsRate, tuple[Any, ...], dict[str, Any]], ...] = ()
         self.pre_rate_scalars = []
         self.pre_m, self.pre_n = self.m, self.n
-        curve_collection: list[Curve | FXDeltaVolSmile | FXDeltaVolSurface] = []
+        curve_collection: list[Curve | FXVolObj] = []
         for pre_solver in self.pre_solvers:
             self.pre_variables += pre_solver.pre_variables
             self.pre_instrument_labels += pre_solver.pre_instrument_labels
@@ -1156,7 +1186,7 @@ class Solver(Gradients, _WithState):
 
     @_do_not_validate.setter
     def _do_not_validate(self, value: bool) -> None:
-        self._do_not_validate_: bool = value
+        self._do_not_validate_ = value
         for solver in self.pre_solvers:
             solver._do_not_validate = value
 
@@ -1487,7 +1517,7 @@ class Solver(Gradients, _WithState):
             A = np.matmul(self.J, np.matmul(self.W, self.J.transpose()))
             A += self.lambd * np.eye(self.n)
             b = -0.5 * gradient(self.g, self.variables)[:, np.newaxis]
-            delta = np.linalg.solve(A, b)[:, 0]  # type: ignore[assignment]
+            delta = np.linalg.solve(A, b)[:, 0]
             v_1 = self.v + delta
         # elif algorithm == "gradient_descent_final":
         #     _ = np.matmul(self.Jkm, np.matmul(self.W, self.x[:, np.newaxis]))
@@ -1502,7 +1532,7 @@ class Solver(Gradients, _WithState):
                 A = np.matmul(self.J, np.matmul(self.W, self.J.transpose()))
                 b = -np.matmul(np.matmul(self.J, self.W), self.x[:, np.newaxis])
 
-            delta = dual_solve(A, b)[:, 0]  # type: ignore[arg-type, assignment]
+            delta = dual_solve(A, b)[:, 0]  # type: ignore[assignment]
             v_1 = self.v + delta
         else:
             raise NotImplementedError(f"`algorithm`: {algorithm} (spelled correctly?)")
@@ -1575,7 +1605,7 @@ class Solver(Gradients, _WithState):
         for curve in self.curves.values():
             # this was amended in PR126 as performance improvement to keep consistent `vars`
             # and was restructured in PR## to decouple methods to accomodate vol surfaces
-            n_vars = curve.n - curve._ini_solve
+            n_vars = curve._n - curve._ini_solve
             curve._set_node_vector(v_new[var_counter : var_counter + n_vars], self._ad)  # type: ignore[arg-type]
             var_counter += n_vars
 
@@ -2264,65 +2294,3 @@ class Solver(Gradients, _WithState):
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-
-# def _brents(f, x0, x1, max_iter=50, tolerance=1e-9):
-#     """
-#     Alternative root solver. Used for solving premium adjutsed option strikes from delta values.
-#     """
-#     fx0 = f(x0)
-#     fx1 = f(x1)
-#
-#     if float(fx0 * fx1) > 0:
-#         raise ValueError("`brents` must initiate from function values with opposite signs.")
-#
-#     if abs(fx0) < abs(fx1):
-#         x0, x1 = x1, x0
-#         fx0, fx1 = fx1, fx0
-#
-#     x2, fx2 = x0, fx0
-#
-#     mflag = True
-#     steps_taken = 0
-#
-#     while steps_taken < max_iter and abs(x1 - x0) > tolerance:
-#         fx0 = f(x0)
-#         fx1 = f(x1)
-#         fx2 = f(x2)
-#
-#         if fx0 != fx2 and fx1 != fx2:
-#             L0 = (x0 * fx1 * fx2) / ((fx0 - fx1) * (fx0 - fx2))
-#             L1 = (x1 * fx0 * fx2) / ((fx1 - fx0) * (fx1 - fx2))
-#             L2 = (x2 * fx1 * fx0) / ((fx2 - fx0) * (fx2 - fx1))
-#             new = L0 + L1 + L2
-#
-#         else:
-#             new = x1 - ((fx1 * (x1 - x0)) / (fx1 - fx0))
-#
-#         if (
-#             (float(new) < float((3 * x0 + x1) / 4) or float(new) > float(x1))
-#             or (mflag is True and (abs(new - x1)) >= (abs(x1 - x2) / 2))
-#             or (mflag is False and (abs(new - x1)) >= (abs(x2 - d) / 2))
-#             or (mflag is True and (abs(x1 - x2)) < tolerance)
-#             or (mflag is False and (abs(x2 - d)) < tolerance)
-#         ):
-#             new = (x0 + x1) / 2
-#             mflag = True
-#
-#         else:
-#             mflag = False
-#
-#         fnew = f(new)
-#         d, x2 = x2, x1
-#
-#         if float(fx0 * fnew) < 0:
-#             x1 = new
-#         else:
-#             x0 = new
-#
-#         if abs(fx0) < abs(fx1):
-#             x0, x1 = x1, x0
-#
-#         steps_taken += 1
-#
-#     return x1, steps_taken

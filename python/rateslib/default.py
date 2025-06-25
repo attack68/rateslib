@@ -140,6 +140,7 @@ class Defaults:
         self.convention = "ACT360"
         self.notional = 1.0e6
         self.index_lag = 3
+        self.index_lag_curve = 0
         self.index_method = "daily"
         self.payment_lag = 2
         self.payment_lag_exchange = 0
@@ -187,9 +188,8 @@ class Defaults:
         # Curves
 
         self.interpolation = {
-            "Curve": "log_linear",
-            "LineCurve": "linear",
-            "IndexCurve": "linear_index",
+            "dfs": "log_linear",
+            "values": "linear",
         }
         self.endpoints = "natural"
         # fmt: off
@@ -429,4 +429,4 @@ def _drb(default: Any, possible_ni: Any | NoInput) -> Any:
 
 def _make_py_json(json: str, class_name: str) -> str:
     """Modifies the output JSON output for Rust structs wrapped by Python classes."""
-    return '{"Py":' + json + "}"
+    return '{"PyWrapped":' + json + "}"

@@ -708,7 +708,7 @@ def test_gradient_of_non_present_vars(x_1) -> None:
     assert np.all(np.isclose(result, np.array([1, 2])))
 
 
-@pytest.mark.parametrize(("base", "exponent"), [(1, 1), (1, 0), (0, 1), (0, 0)])
+@pytest.mark.parametrize(("base", "exponent"), [(0, 1), (1, 0)])
 def test_powers_bad_type(base, exponent, x_1, y_1) -> None:
     base = x_1 if base else y_1
     exponent = x_1 if exponent else y_1

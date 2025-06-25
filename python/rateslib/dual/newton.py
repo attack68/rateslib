@@ -23,6 +23,7 @@ STATE_MAP = {
     2: ["SUCCESS", "`func_tol` reached"],
     3: ["SUCCESS", "closed form valid"],
     -1: ["FAILURE", "`max_iter` breached"],
+    -2: ["FAILURE", "internal iteration function failure"],
 }
 
 

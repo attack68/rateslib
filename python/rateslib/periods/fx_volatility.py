@@ -18,15 +18,20 @@ from rateslib.fx_volatility import (
     FXDeltaVolSurface,
     FXSabrSmile,
     FXSabrSurface,
+)
+from rateslib.fx_volatility.delta_vol import (
+    _moneyness_from_atm_delta_one_dimensional,
+    _moneyness_from_atm_delta_two_dimensional,
+    _moneyness_from_delta_one_dimensional,
+    _moneyness_from_delta_two_dimensional,
+)
+from rateslib.fx_volatility.utils import (
     _black76,
     _d_plus_min_u,
     _delta_type_constants,
     _moneyness_from_atm_delta_closed_form,
-    _moneyness_from_atm_delta_one_dimensional,
-    _moneyness_from_atm_delta_two_dimensional,
     _moneyness_from_delta_closed_form,
-    _moneyness_from_delta_one_dimensional,
-    _moneyness_from_delta_two_dimensional,
+    _surface_index_left,
 )
 from rateslib.periods.utils import (
     _get_fx_and_base,
@@ -35,7 +40,6 @@ from rateslib.periods.utils import (
     _get_vol_smile_or_value,
     _maybe_local,
 )
-from rateslib.rs import index_left_f64
 from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
@@ -149,7 +153,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         dict
         """
         fx_, base = _get_fx_and_base(self.currency, fx, base)
-        df, collateral = _dual_float(disc_curve_ccy2[self.payment]), disc_curve_ccy2.collateral
+        df, collateral = _dual_float(disc_curve_ccy2[self.payment]), disc_curve_ccy2.meta.collateral
         npv_: dict[str, DualTypes] = self.npv(
             disc_curve, disc_curve_ccy2, fx, base, local=True, vol=vol
         )  # type: ignore[assignment]
@@ -174,7 +178,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             defaults.headers["pair"]: self.pair,
             defaults.headers["notional"]: _dual_float(self.notional),
             defaults.headers["expiry"]: self.expiry,
-            defaults.headers["t_e"]: _dual_float(self._t_to_expiry(disc_curve_ccy2.node_dates[0])),
+            defaults.headers["t_e"]: _dual_float(self._t_to_expiry(disc_curve_ccy2.nodes.initial)),
             defaults.headers["delivery"]: self.delivery,
             defaults.headers["rate"]: fx_forward,
             defaults.headers["strike"]: self.strike,
@@ -221,7 +225,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         -------
         float, Dual, Dual2 or dict of such.
         """
-        if self.payment < disc_curve_ccy2.node_dates[0]:
+        if self.payment < disc_curve_ccy2.nodes.initial:
             # payment date is in the past avoid issues with fixings or rates
             return _maybe_local(0.0, local, self.currency, NoInput(0), NoInput(0))
 
@@ -246,7 +250,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             value = _black76(
                 F=fx.rate(self.pair, self.delivery),
                 K=self.strike,
-                t_e=self._t_to_expiry(disc_curve_ccy2.node_dates[0]),
+                t_e=self._t_to_expiry(disc_curve_ccy2.nodes.initial),
                 v1=NoInput(0),  # not required: disc_curve[self.expiry],
                 v2=disc_curve_ccy2[self.delivery],
                 vol=vol_ / 100.0,
@@ -267,6 +271,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
     ) -> DualTypes:
         """
         Return the pricing metric of the *FXOption*.
+
+        This is priced according to the ``payment`` date of the *OptionPeriod*.
 
         Parameters
         ----------
@@ -359,7 +365,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         # convert to immediate pips form
         imm_premium = premium * disc_curve_ccy2[self.payment]
 
-        t_e = self._t_to_expiry(disc_curve_ccy2.node_dates[0])
+        t_e = self._t_to_expiry(disc_curve_ccy2.nodes.initial)
         v2 = disc_curve_ccy2[self.delivery]
         f_d = fx.rate(self.pair, self.delivery)
 
@@ -499,14 +505,14 @@ class FXOptionPeriod(metaclass=ABCMeta):
         f_d = fx.rate(self.pair, self.delivery)
         f_t = fx.rate(self.pair, spot)
         u = self.strike / f_d
-        sqrt_t = self._t_to_expiry(disc_curve.node_dates[0]) ** 0.5
+        sqrt_t = self._t_to_expiry(disc_curve.nodes.initial) ** 0.5
 
         eta_0, z_w_0, z_u_0 = _delta_type_constants(self.delta_type, w_deli / w_spot, u)
 
         if isinstance(vol, NoInput):
             raise ValueError("`vol` must be a number quantity or Smile or Surface.")
         elif isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
-            eta_1, z_w_1, __ = _delta_type_constants(vol.delta_type, w_deli / w_spot, u)
+            eta_1, z_w_1, __ = _delta_type_constants(vol.meta.delta_type, w_deli / w_spot, u)
             res: tuple[DualTypes, DualTypes, DualTypes] = vol.get_from_strike(
                 k=self.strike,
                 f=f_d,
@@ -699,8 +705,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
         k: DualTypes,
         fxf: FXForwards,
     ) -> DualTypes:
+        dvol_df: DualTypes
         if isinstance(vol, FXSabrSmile):
-            _, dvol_df = vol._d_sabr_d_k_or_f(
+            _, dvol_df = vol._d_sabr_d_k_or_f(  # type: ignore[assignment]
                 k=k,
                 f=f_d,
                 expiry=expiry,
@@ -708,7 +715,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 derivative=2,  # with respect to f
             )
         elif isinstance(vol, FXSabrSurface):
-            _, dvol_df = vol._d_sabr_d_k_or_f(
+            _, dvol_df = vol._d_sabr_d_k_or_f(  # type: ignore[assignment]
                 k=k,
                 f=fxf,  # use FXForwards to derive multiple rates
                 expiry=expiry,
@@ -721,9 +728,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
             else:
                 smile = vol
             # d sigma / d delta_idx
-            _B = evaluate(smile.spline, delta_idx, 1) / 100.0  # type: ignore[arg-type]
+            _B = evaluate(smile.nodes.spline.spline, delta_idx, 1) / 100.0  # type: ignore[arg-type]
 
-            if "pa" in vol.delta_type:
+            if "pa" in vol.meta.delta_type:
                 # then smile is adjusted:
                 ddelta_idx_df_d: DualTypes = -delta_idx / f_d  # type: ignore[operator]
             else:
@@ -737,7 +744,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         else:
             dvol_df = 0.0
 
-        return delta + vega / v_deli * dvol_df
+        return delta + vega / v_deli * z_v_0 * dvol_df
 
     @staticmethod
     def _analytic_vanna(
@@ -815,8 +822,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
             The relevant discount factor at delivery.
         w_spot: DualTypes
             The relevant discount factor at spot.
-        f: DualTypes
-            The forward FX rate for delivery.
+        f: DualTypes, FXForwards
+            The forward FX rate for delivery. FXForwards is used when a SabrSurface is present.
         t_e: DualTypes
             The time to expiry
 
@@ -836,15 +843,15 @@ class FXOptionPeriod(metaclass=ABCMeta):
         if isinstance(vol, FXSabrSmile | FXSabrSurface):
             return self._index_vol_and_strike_from_atm_sabr(f, eta_0, vol)
         else:  # DualTypes | FXDeltaVolSmile | FXDeltaVolSurface
-            assert not isinstance(f, FXForwards)  # noqa: S101
-            # TODO mypy errors here: the assertion should narrow the type of f, but does not
+            f_: DualTypes = f  # type: ignore[assignment]
+            vol_: DualTypes | FXDeltaVolSmile | FXDeltaVolSurface = vol  # type: ignore[assignment]
             return self._index_vol_and_strike_from_atm_dv(
-                f,  # type:ignore[arg-type]
+                f_,
                 eta_0,
                 eta_1,
                 z_w_0,
                 z_w_1,
-                vol,
+                vol_,
                 t_e,
                 delta_type,
                 vol_delta_type,
@@ -858,12 +865,12 @@ class FXOptionPeriod(metaclass=ABCMeta):
         vol: FXSabrSmile | FXSabrSurface,
     ) -> tuple[DualTypes | None, DualTypes, DualTypes]:
         """Get vol and strike from ATM delta specification under a SABR model."""
-        t_e = (self.expiry - vol.eval_date).days / 365.0
+        t_e = (self.expiry - vol.meta.eval_date).days / 365.0
         if isinstance(f, FXForwards):
             f_d: DualTypes = f.rate(self.pair, self.delivery)
             # _ad = _set_ad_order_objects([0], [f])  # GH755
         else:
-            # TODO: mypy should narrow the type of f, but it does not
+            # TODO: mypy should auto detect this
             f_d = f  # type: ignore[assignment]
 
         def root1d(
@@ -871,7 +878,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
         ) -> tuple[DualTypes, DualTypes]:
             # if not as_float and isinstance(fx, FXForwards):
             #     _set_ad_order_objects(_ad, [fx])
-            sigma, dsigma_dk = vol._d_sabr_d_k_or_f(
+            dsigma_dk: Number
+            sigma, dsigma_dk = vol._d_sabr_d_k_or_f(  # type: ignore[assignment]
                 k=k, f=fx, expiry=self.expiry, as_float=as_float, derivative=1
             )
             f0 = -dual_log(k / f_d) + eta_0 * sigma**2 * t_e
@@ -879,11 +887,13 @@ class FXOptionPeriod(metaclass=ABCMeta):
             return f0, f1
 
         if isinstance(vol, FXSabrSmile):
-            alpha = vol.nodes["alpha"]
+            alpha = vol.nodes.alpha
         else:  # FXSabrSurface
+            # mypy should auto detect this
+            vol_: FXSabrSurface = vol  # type: ignore[assignment]
             expiry_posix = self.expiry.replace(tzinfo=UTC).timestamp()
-            e_idx = index_left_f64(vol.expiries_posix, expiry_posix)
-            alpha = vol.smiles[e_idx].nodes["alpha"]
+            e_idx, _ = _surface_index_left(vol_.meta.expiries_posix, expiry_posix)
+            alpha = vol_.smiles[e_idx].nodes.alpha
 
         root_solver = newton_1dim(
             root1d,
@@ -995,12 +1005,12 @@ class FXOptionPeriod(metaclass=ABCMeta):
         if isinstance(vol, FXSabrSmile | FXSabrSurface):
             return self._index_vol_and_strike_from_delta_sabr(delta, delta_type, vol, z_w, f)
         else:  # DualTypes | FXDeltaVolSmile | FXDeltaVolSurface
-            assert not isinstance(f, FXDeltaVolSurface)  # noqa: S101
-            # TODO: f not type narrowed by assert, mypy error
+            f_: DualTypes = f  # type: ignore[assignment]
+            vol_: DualTypes | FXDeltaVolSmile = vol  # type: ignore[assignment]
             return self._index_vol_and_strike_from_delta_dv(
-                f,  # type: ignore[arg-type]
+                f_,
                 delta,
-                vol,
+                vol_,
                 t_e,
                 delta_type,
                 vol_delta_type,
@@ -1066,13 +1076,13 @@ class FXOptionPeriod(metaclass=ABCMeta):
         f: DualTypes | FXForwards,
     ) -> tuple[DualTypes | None, DualTypes, DualTypes]:
         eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, 0.0)  # u: unused
-        t_e = (self.expiry - vol.eval_date).days / 365.0
+        t_e = (self.expiry - vol.meta.eval_date).days / 365.0
         sqrt_t = t_e**0.5
         if isinstance(f, FXForwards):
             f_d: DualTypes = f.rate(self.pair, self.delivery)
             # _ad = _set_ad_order_objects([0], [f])  # GH755
         else:
-            # TODO: mypy should narrow type of f, but does not
+            # mypy should auto detect this
             f_d = f  # type: ignore[assignment]
 
         def root1d(
@@ -1110,11 +1120,13 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         g01 = delta if self.phi > 0 else max(delta, -0.75)
         if isinstance(vol, FXSabrSmile):
-            alpha = vol.nodes["alpha"]
+            alpha = vol.nodes.alpha
         else:  # FXSabrSurface
+            # mypy should auto detect this
+            vol_: FXSabrSurface = vol  # type: ignore[assignment]
             expiry_posix = self.expiry.replace(tzinfo=UTC).timestamp()
-            e_idx = index_left_f64(vol.expiries_posix, expiry_posix)
-            alpha = vol.smiles[e_idx].nodes["alpha"]
+            e_idx, _ = _surface_index_left(vol_.meta.expiries_posix, expiry_posix)
+            alpha = vol_.smiles[e_idx].nodes.alpha
 
         g0 = _moneyness_from_delta_closed_form(g01, alpha * 100.0, t_e, z_w_0, self.phi) * f_d
 
@@ -1185,7 +1197,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
             y = np.where(x < k, __, _) * self.notional
         else:  # put
             y = np.where(x > k, __, _) * self.notional
-        return x, y  # type: ignore[return-value]
+        return x, y
 
 
 class FXCallPeriod(FXOptionPeriod):

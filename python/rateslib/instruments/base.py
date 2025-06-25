@@ -504,9 +504,9 @@ class BaseDerivative(Sensitivities, Metrics, metaclass=ABCMeta):
     ----------
     kwargs: dict[str, Any]
         A record of the input arguments to the *Instrument*.
-    curves: Curves_
+    curves: Curves
         Curves associated with the *Instrument* used in pricing methods.
-    spec: str_
+    spec: str
         The default configuration used to populate arguments.
     """
 

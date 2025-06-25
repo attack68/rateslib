@@ -47,6 +47,7 @@ from rateslib.instruments import Spread as Spread
 from rateslib.instruments import STIRFuture as STIRFuture
 from rateslib.instruments import Value as Value
 from rateslib.instruments import VolValue as VolValue
+from rateslib.instruments.bonds import BondMixin as BondMixin
 from rateslib.legs import CreditPremiumLeg as CreditPremiumLeg
 from rateslib.legs import CreditProtectionLeg as CreditProtectionLeg
 from rateslib.legs import FixedLeg as FixedLeg
@@ -78,6 +79,9 @@ from rateslib.rs import (
 )
 from rateslib.rs import Dual as Dual
 from rateslib.rs import Dual2 as Dual2
+from rateslib.rs import PPSplineDual as PPSplineDual
+from rateslib.rs import PPSplineDual2 as PPSplineDual2
+from rateslib.rs import PPSplineF64 as PPSplineF64
 from rateslib.scheduling import Schedule as Schedule
 from rateslib.solver import Solver as Solver
 

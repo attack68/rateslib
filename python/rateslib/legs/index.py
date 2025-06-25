@@ -1,55 +1,29 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pandas import Series
 
 from rateslib import defaults
+from rateslib.curves import index_value
 from rateslib.default import NoInput, _drb
 from rateslib.legs.base import BaseLeg, _FixedLegMixin
-from rateslib.periods import Cashflow, IndexCashflow, IndexFixedPeriod, IndexMixin
+from rateslib.periods import Cashflow, IndexCashflow, IndexFixedPeriod
+from rateslib.periods.index import _validate_index_method_and_lag
 from rateslib.scheduling import Schedule
 
 if TYPE_CHECKING:
-    from rateslib.typing import NPV, Any, Curve_, DataFrame, DualTypes, DualTypes_, datetime
+    from rateslib.typing import NPV, Any, Curve_, DataFrame, DualTypes, DualTypes_, int_, str_
 
 
 class _IndexLegMixin:
     schedule: Schedule
     index_method: str
-    _index_fixings: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput = NoInput(0)  # type: ignore[type-var]
+    _index_fixings: DualTypes | Series[DualTypes] | NoInput = NoInput(0)  # type: ignore[type-var]
     _index_base: DualTypes_ = NoInput(0)
     periods: list[IndexFixedPeriod | IndexCashflow | Cashflow]
     index_lag: int
-
-    # def _set_index_fixings_on_periods(self):
-    #     """
-    #     Re-organises the fixings input to list structure for each period.
-    #     Requires a ``schedule`` object and ``float_args``.
-    #     """
-    #     if self.index_fixings is None:
-    #         pass  # do nothing
-    #     elif isinstance(self.index_fixings, Series):
-    #         for period in self.periods:
-    #             period.index_fixings = IndexMixin._index_value(
-    #                 i_method=self.index_method,
-    #                 i_lag=self.index_lag,
-    #                 i_curve=None,
-    #                 i_date=period.end,
-    #                 i_fixings=self.index_fixings,
-    #             )
-    #     elif isinstance(self.index_fixings, list):
-    #         for i in range(len(self.index_fixings)):
-    #             self.periods[i].index_fixings = self.index_fixings[i]
-    #     else:  # index_fixings is float
-    #         if type(self) is ZeroFixedLeg:
-    #             self.periods[0].index_fixings = self.index_fixings
-    #             self.periods[1].index_fixings = self.index_fixings
-    #         elif type(self) is IndexFixedLegExchange and self.inital_exchange is False:
-    #             self.periods[0].index_fixings = self.index_fixings
-    #         else:
-    #             self.periods[0].index_fixings = self.index_fixings
-    #         # TODO index_fixings as a list cannot handle amortization. Use a Series.
 
     @property
     def index_fixings(self) -> DualTypes | list[DualTypes] | Series[DualTypes] | NoInput:  # type: ignore[type-var]
@@ -58,41 +32,29 @@ class _IndexLegMixin:
     @index_fixings.setter
     def index_fixings(
         self,
-        value: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput,  # type: ignore[type-var]
+        value: DualTypes | Series[DualTypes] | NoInput,  # type: ignore[type-var]
     ) -> None:
-        self._index_fixings: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput = value  # type: ignore[type-var]
-
-        def _index_from_series(ser: Series[DualTypes], end: datetime) -> DualTypes | NoInput:  # type: ignore[type-var]
-            val: DualTypes | None = IndexMixin._index_value(
-                i_fixings=ser,
-                i_method=self.index_method,
-                i_lag=self.index_lag,
-                i_date=end,
-                i_curve=NoInput(0),  # ! NoInput returned for periods beyond Series end.
-            )
-            if val is None:
-                _: DualTypes | NoInput = NoInput(0)
-            else:
-                _ = val
-            return _
-
-        def _index_from_list(ls: list[DualTypes], i: int) -> DualTypes_:
-            return NoInput(0) if i >= len(ls) else ls[i]
+        if isinstance(value, Series):
+            value = _validate_index_fixings_as_series(value)  # type: ignore[arg-type]
+        self._index_fixings: DualTypes | Series[DualTypes] | NoInput = value  # type: ignore[type-var]
 
         if isinstance(value, NoInput):
             for p in [_ for _ in self.periods if type(_) is not Cashflow]:
-                p.index_fixings = NoInput(0)
+                p.index_fixings = NoInput(0)  # type: ignore[union-attr]
         elif isinstance(value, Series):
             for p in [_ for _ in self.periods if type(_) is not Cashflow]:
                 date_: datetime = p.end if type(p) is IndexFixedPeriod else p.payment
-                p.index_fixings = _index_from_series(value, date_)
-        elif isinstance(value, list):
-            for i, p in enumerate([_ for _ in self.periods if type(_) is not Cashflow]):
-                p.index_fixings = _index_from_list(value, i)
+                p.index_fixings = index_value(  # type: ignore[union-attr]
+                    self.index_lag,
+                    self.index_method,
+                    value,  # type: ignore[arg-type]
+                    date_,
+                    NoInput(0),
+                )
         else:
             self.periods[0].index_fixings = value  # type: ignore[union-attr]
             for p in [_ for _ in self.periods[1:] if type(_) is not Cashflow]:
-                p.index_fixings = NoInput(0)
+                p.index_fixings = NoInput(0)  # type: ignore[union-attr]
 
     @property
     def index_base(self) -> DualTypes_:
@@ -101,17 +63,10 @@ class _IndexLegMixin:
     @index_base.setter
     def index_base(self, value: DualTypes | Series[DualTypes] | NoInput) -> None:  # type: ignore[type-var]
         if isinstance(value, Series):
-            _: DualTypes | None = IndexMixin._index_value(
-                i_fixings=value,
-                i_method=self.index_method,
-                i_lag=self.index_lag,
-                i_date=self.schedule.effective,
-                i_curve=NoInput(0),  # not required because i_fixings is Series
+            value = _validate_index_fixings_as_series(value)  # type: ignore[arg-type]
+            ret = index_value(
+                self.index_lag, self.index_method, value, self.schedule.effective, NoInput(0)
             )
-            if _ is None:
-                ret: DualTypes | NoInput = NoInput(0)
-            else:
-                ret = _
         else:
             ret = value
         self._index_base = ret
@@ -124,11 +79,25 @@ class _IndexLegMixin:
     #     pass  # pragma: no cover
 
 
+def _validate_index_fixings_as_series(value: Series[DualTypes]) -> Series[DualTypes]:  # type: ignore[type-var]
+    if not value.index.is_monotonic_increasing:
+        if value.index.is_monotonic_decreasing:
+            value = value[::-1]
+        else:
+            raise ValueError("`index_fixings` as Series must be monotonic increasing.")
+    elif not value.index.is_unique:
+        raise ValueError("`index_fixings` as Series must be unique index values.")
+    return value
+
+
 class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
     """
     Create a zero coupon index leg composed of a single
     :class:`~rateslib.periods.IndexFixedPeriod` and
     a :class:`~rateslib.periods.Cashflow`.
+
+    For more information see the :ref:`Cookbook Article:<cookbook-doc>` *"Using Curves with an
+    Index and Inflation Instruments"*.
 
     Parameters
     ----------
@@ -139,8 +108,6 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
     index_fixings : float, or Series, optional
         If a float scalar, will be applied as the index fixing for the first
         period.
-        If a list of *n* fixings will be used as the index fixings for the first *n*
-        periods.
         If a datetime indexed ``Series`` will use the fixings that are available in
         that object, and derive the rest from the ``curve``.
     index_method : str
@@ -197,17 +164,18 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
         self,
         *args: Any,
         index_base: DualTypes | Series[DualTypes] | NoInput = NoInput(0),  # type: ignore[type-var]
-        index_fixings: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput = NoInput(0),  # type: ignore[type-var]
+        index_fixings: DualTypes | Series[DualTypes] | NoInput = NoInput(0),  # type: ignore[type-var]
         index_method: str | NoInput = NoInput(0),
         index_lag: int | NoInput = NoInput(0),
         **kwargs: Any,
     ) -> None:
-        self.index_method = _drb(defaults.index_method, index_method).lower()
-        self.index_lag = _drb(defaults.index_lag, index_lag)
+        self.index_method, self.index_lag = _validate_index_method_and_lag(
+            _drb(defaults.index_method, index_method), _drb(defaults.index_lag, index_lag)
+        )
         super().__init__(*args, **kwargs)
         self.index_fixings = index_fixings  # set index fixings after periods init
         # set after periods initialised
-        self.index_base = index_base  # type: ignore[assignment]
+        self.index_base = index_base
 
     def _regular_period(  # type: ignore[empty-body]
         self,
@@ -295,18 +263,19 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
     Create a leg of :class:`~rateslib.periods.IndexFixedPeriod` s and initial and
     final :class:`~rateslib.periods.IndexCashflow` s.
 
+    For more information see the :ref:`Cookbook Article:<cookbook-doc>` *"Using Curves with an
+    Index and Inflation Instruments"*.
+
     Parameters
     ----------
     args : dict
         Required positional args to :class:`BaseLeg`.
     index_base : float or None, optional
         The base index to determine the cashflow.
-    index_fixings : float, list or Series, optional
+    index_fixings : float, or Series, optional
         If a float scalar, will be applied as the index fixing for the first period.
         If a datetime indexed ``Series``, will use the fixings that are available
         in that object for relevant periods, and derive the rest from the ``curve``.
-        If a list, will apply those values as the fixings for the first set of periods
-        and derive the rest from the ``curve``.
     index_method : str
         Whether the indexing uses a daily measure for settlement or the most recently
         monthly data taken from the first day of month.
@@ -375,19 +344,20 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
         self,
         *args: Any,
         index_base: DualTypes,
-        index_fixings: DualTypes | list[DualTypes] | Series[DualTypes] | NoInput = NoInput(0),  # type: ignore[type-var]
-        index_method: str | NoInput = NoInput(0),
-        index_lag: int | NoInput = NoInput(0),
-        fixed_rate: DualTypes | NoInput = NoInput(0),
+        index_fixings: DualTypes_ | Series[DualTypes] = NoInput(0),  # type: ignore[type-var]
+        index_method: str_ = NoInput(0),
+        index_lag: int_ = NoInput(0),
+        fixed_rate: DualTypes_ = NoInput(0),
         **kwargs: Any,
     ) -> None:
         self._fixed_rate = fixed_rate
-        self.index_lag: int = _drb(defaults.index_lag, index_lag)
-        self.index_method = _drb(defaults.index_method, index_method).lower()
-        if self.index_method not in ["daily", "monthly"]:
-            raise ValueError("`index_method` must be in {'daily', 'monthly'}.")
+        self.index_method, self.index_lag = _validate_index_method_and_lag(
+            _drb(defaults.index_method, index_method), _drb(defaults.index_lag, index_lag)
+        )
         super().__init__(*args, **kwargs)
-        self.index_fixings = index_fixings  # set index fixings after periods init
+        self.index_fixings: DualTypes_ | Series[DualTypes] = (  # type: ignore[type-var]
+            index_fixings  # set index fixings after periods init
+        )
         self.index_base = index_base  # set after periods initialised
 
     def _set_exchange_periods(self) -> None:
@@ -432,11 +402,11 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
                 currency=self.currency,
                 stub_type="Exchange",
                 rate=NoInput(0),
-                index_base=self.index_base,
-                index_fixings=self.index_fixings[-1]
-                if isinstance(self.index_fixings, list)
-                else self.index_fixings,
+                index_base=NoInput(0),  # set during init
+                index_fixings=NoInput(0),  # set during init
                 index_method=self.index_method,
+                index_lag=self.index_lag,
+                index_only=False,
             )
 
         self._exchange_periods: tuple[IndexCashflow | None, IndexCashflow | None] = tuple(periods_)  # type: ignore[assignment]
@@ -453,11 +423,11 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
                     currency=self.currency,
                     stub_type="Amortization",
                     rate=NoInput(0),
-                    index_base=self.index_base,
-                    index_fixings=self.index_fixings[i]
-                    if isinstance(self.index_fixings, list)
-                    else self.index_fixings,
+                    index_base=NoInput(0),  # set during init
+                    index_fixings=NoInput(0),  # set during init
                     index_method=self.index_method,
+                    index_lag=self.index_lag,
+                    index_only=False,
                 )
                 for i in range(self.schedule.n_periods - 1)
             ]
@@ -479,11 +449,10 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
                     stub=period[defaults.headers["stub_type"]] == "Stub",
                     roll=self.schedule.roll,
                     calendar=self.schedule.calendar,
-                    index_base=self.index_base,
                     index_method=self.index_method,
-                    index_fixings=self.index_fixings[i]
-                    if isinstance(self.index_fixings, list)
-                    else self.index_fixings,
+                    index_base=NoInput(0),  # set during init
+                    index_fixings=NoInput(0),  # set during init
+                    index_lag=self.index_lag,
                 )
                 for i, period in enumerate(self.schedule.table.to_dict(orient="index").values())
             ]

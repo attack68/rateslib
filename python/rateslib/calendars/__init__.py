@@ -67,7 +67,7 @@ def dcf(
         Used by `"ACTACTICMA", "ACTACTISMA", "ACTACTBOND", "ACTACTICMA_STUB365F"` to project
         regular periods when calculating stubs.
     calendar: str, Calendar, optional
-        Currently unused.
+        Required for `"BUS252"` to count business days in period.
 
     Returns
     --------
@@ -93,7 +93,18 @@ def dcf(
       and start and end dates are converted under the rule:
 
       * start day is minimum of (30, start day),
-      * end day is minimum of (30, start day) only if start day was adjusted.
+      * end day is minimum of (30, end day) if start day >= 30.
+
+    - `"30U360"`: Months are treated as having 30 days and start and end dates are converted
+      under the following rules in order:
+
+      * If the ``roll`` is EoM and ``start`` is end-Feb then:
+
+         - start day is 30.
+         - end day is 30 ``end`` is also end-Feb.
+
+      * If start day is 30 or 31 then it is converted to 30.
+      * End day is converted to 30 if it is 31 and start day is 30.
 
     - `"30360ISDA"`: Months are treated as having 30 days and start and end dates are
       converted under the rule:
@@ -112,7 +123,7 @@ def dcf(
       included whilst `end` is excluded.
 
     Further information can be found in the
-    :download:`2006 ISDA definitions <_static/2006_isda_definitions.pdf>` and
+    :download:`2006 ISDA definitions <https://www.rbccm.com/assets/rbccm/docs/legal/doddfrank/Documents/ISDALibrary/2006%20ISDA%20Definitions.pdf>` and
     :download:`2006 ISDA 30360 example <_static/30360isda_2006_example.xls>`.
 
     Examples
@@ -125,14 +136,14 @@ def dcf(
        dcf(dt(2000, 1, 1), dt(2000, 4, 3), "ActActICMA", dt(2010, 1, 1), 3, False)
        dcf(dt(2000, 1, 1), dt(2000, 4, 3), "ActActICMA", dt(2010, 1, 1), 3, True)
 
-    """
+    """  # noqa: E501
     convention = convention.upper()
     try:
         return _DCF[convention](start, end, termination, frequency_months, stub, roll, calendar)
     except KeyError:
         raise ValueError(
             "`convention` must be in {'Act365f', '1', '1+', 'Act360', "
-            "'30360' '360360', 'BondBasis', '30E360', 'EuroBondBasis', "
+            "'30360' '360360', 'BondBasis', '30U360', '30E360', 'EuroBondBasis', "
             "'30E360ISDA', 'ActAct', 'ActActISDA', 'ActActICMA', "
             "'ActActISMA', 'ActActBond'}",
         )
@@ -214,7 +225,7 @@ def add_tenor(
 
        from rateslib.calendars import add_tenor, get_calendar, create_calendar, dcf
        from rateslib.scheduling import Schedule
-       from rateslib.curves import Curve, LineCurve, interpolate, index_left
+       from rateslib.curves import Curve, LineCurve, index_left
        from rateslib.dual import Dual, Dual2
        from rateslib.periods import FixedPeriod, FloatPeriod, Cashflow, IndexFixedPeriod, IndexCashflow, NonDeliverableCashflow, NonDeliverableFixedPeriod
        from rateslib.legs import FixedLeg, FloatLeg, CustomLeg, FloatLegMtm, FixedLegMtm, IndexFixedLeg, ZeroFixedLeg, ZeroFloatLeg, ZeroIndexLeg
@@ -310,6 +321,72 @@ MONTHS = {
     "X": 11,
     "Z": 12,
 }
+
+NEXT_IMM_MAP = {
+    1: [3, 1, 3, 3, 6],
+    2: [3, 2, 3, 3, 6],
+    3: [3, 3, 3, 3, 6],
+    4: [6, 4, 6, 9, 6],
+    5: [6, 5, 6, 9, 6],
+    6: [6, 6, 6, 9, 6],
+    7: [9, 7, 9, 9, 12],
+    8: [9, 8, 9, 9, 12],
+    9: [9, 9, 9, 9, 12],
+    10: [12, 10, 12, 3, 12],
+    11: [12, 11, 12, 3, 12],
+    12: [12, 12, 12, 3, 12],
+}
+
+
+def next_imm(start: datetime, method: str = "imm") -> datetime:
+    """Return the next IMM date *after* the given start date.
+
+    Parameters
+    ----------
+    start : datetime
+        The date from which to determine the next IMM.
+    method : str in {"imm", "serial_imm", "credit_imm", "credit_imm_HU", "credit_imm_MZ"}
+        A calculation identifier. See notes
+
+    Returns
+    -------
+    datetime
+
+    Notes
+    -----
+    Default *'imm'* returns the third Wednesday in any month of March, June, September or December.
+
+    *'serial_imm'* returns the third Wednesday in any month of the year.
+
+    *'credit_imm'* returns the 20th of the month in March, June, September or December.
+
+    *'credit_imm_HU'* returns the 20th of the month in March or September, facilitating CDSs that
+    rolls on a 6-month basis.
+
+    *'credit_imm_MZ'* returns the 20th of the month in June and December.
+    """
+    month, year = start.month, start.year
+    candidate1 = _next_imm_from_som(month, year, method)
+    if start < candidate1:  # then the first detected next_imm is valid
+        return candidate1
+    else:
+        if month == 12:
+            candidate2 = _next_imm_from_som(1, year + 1, method)
+        else:
+            candidate2 = _next_imm_from_som(month + 1, year, method)
+        return candidate2
+
+
+def _next_imm_from_som(month: int, year: int, method: str = "imm") -> datetime:
+    """Get the next IMM date after the 1st day of the given month and year."""
+    _idx = {"imm": 0, "serial_imm": 1, "credit_imm": 2, "credit_imm_HU": 3, "credit_imm_MZ": 4}
+    required_month = NEXT_IMM_MAP[month][_idx[method]]
+    required_year = year if required_month >= month else year + 1
+
+    if method == "imm" or method == "serial_imm":
+        return get_imm(required_month, required_year)
+    else:
+        return datetime(required_year, required_month, 20)
 
 
 def get_imm(
@@ -604,4 +681,5 @@ __all__ = (
     "UnionCal",
     "get_calendar",
     "get_imm",
+    "next_imm",
 )
