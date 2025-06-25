@@ -32,7 +32,7 @@ describes their construction.
 The following *Legs* are provided, click on the links for a full description of each
 *Leg* type:
 
-.. inheritance-diagram:: rateslib.legs
+.. inheritance-diagram::   rateslib.legs.BaseLeg rateslib.legs.BaseLegMtm rateslib.legs.FixedLeg rateslib.legs.FloatLeg rateslib.legs.IndexFixedLeg rateslib.legs.ZeroFloatLeg rateslib.legs.ZeroFixedLeg rateslib.legs.ZeroIndexLeg rateslib.legs.FixedLegMtm rateslib.legs.FloatLegMtm rateslib.legs.CreditProtectionLeg rateslib.legs.CreditPremiumLeg rateslib.legs.CustomLeg
    :private-bases:
    :parts: 1
 
