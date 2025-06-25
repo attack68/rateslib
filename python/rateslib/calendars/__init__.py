@@ -123,7 +123,7 @@ def dcf(
       included whilst `end` is excluded.
 
     Further information can be found in the
-    :download:`2006 ISDA definitions <_static/2006_isda_definitions.pdf>` and
+    :download:`2006 ISDA definitions <https://www.rbccm.com/assets/rbccm/docs/legal/doddfrank/Documents/ISDALibrary/2006%20ISDA%20Definitions.pdf>` and
     :download:`2006 ISDA 30360 example <_static/30360isda_2006_example.xls>`.
 
     Examples
