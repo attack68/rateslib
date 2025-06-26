@@ -2,8 +2,8 @@
 
 use crate::dual::{ADOrder, Number, NumberArray2};
 use crate::fx::rates::{Ccy, FXRate, FXRates};
-use bincode::serde::{decode_from_slice, encode_to_vec};
 use bincode::config::legacy;
+use bincode::serde::{decode_from_slice, encode_to_vec};
 use chrono::prelude::*;
 use ndarray::Axis;
 use pyo3::prelude::*;

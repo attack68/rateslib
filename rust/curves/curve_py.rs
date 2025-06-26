@@ -10,8 +10,8 @@ use crate::curves::{
 use crate::dual::{get_variable_tags, set_order, ADOrder, Dual, Dual2, Number};
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
-use bincode::serde::{decode_from_slice, encode_to_vec};
 use bincode::config::legacy;
+use bincode::serde::{decode_from_slice, encode_to_vec};
 use chrono::NaiveDateTime;
 use indexmap::IndexMap;
 use pyo3::exceptions::PyValueError;

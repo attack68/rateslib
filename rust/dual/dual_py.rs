@@ -3,8 +3,8 @@
 use crate::dual::dual::{Dual, Dual2, Gradient1, Gradient2, Vars};
 use crate::dual::dual_ops::math_funcs::MathFuncs;
 use crate::dual::enums::{ADOrder, Number};
-use bincode::serde::{decode_from_slice, encode_to_vec};
 use bincode::config::legacy;
+use bincode::serde::{decode_from_slice, encode_to_vec};
 use num_traits::{Pow, Signed};
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;

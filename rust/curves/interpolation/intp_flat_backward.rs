@@ -1,8 +1,8 @@
 use crate::curves::nodes::NodesTimestamp;
 use crate::curves::CurveInterpolation;
 use crate::dual::Number;
-use bincode::serde::{decode_from_slice, encode_to_vec};
 use bincode::config::legacy;
+use bincode::serde::{decode_from_slice, encode_to_vec};
 use chrono::NaiveDateTime;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyTuple};
