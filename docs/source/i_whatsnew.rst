@@ -63,6 +63,11 @@ example can be seen in the `Cookbook: Building Custom Curves (Nelson-Siegel) <z_
          :class:`~rateslib.fx_volatility._FXSabrSmileMeta` are consolidated into a single object
          :class:`~rateslib.fx_volatility._FXSmileMeta`.
          (`932 <https://github.com/attack68/rateslib/pull/932>`_)
+   * - **Developers**
+     - - (rust package) PyO3 0.23 -> 0.25  (`d-4 <https://github.com/attack68/rateslib-dev/pull/4>`_)
+       - (rust package) Rust-Numpy 0.23 -> 0.25  (`d-4 <https://github.com/attack68/rateslib-dev/pull/4>`_)
+       - (rust package) Bincode 1.3 -> 2.0  (`d-3 <https://github.com/attack68/rateslib-dev/pull/3>`_)
+
 
 2.0.1 (10th June 2025)
 ***************************
