@@ -32,10 +32,10 @@ chrono = { version = "0.4", features = ["serde"] }
 indexmap = { version = "2.7", features = ["serde"] }
 ndarray = { version = "0.16", features = ["serde"] }
 internment = {  version = "0.8", features = ["serde"] }
-pyo3 = "0.23"
+pyo3 = "0.25"
 num-traits = "0.2"
 auto_ops = "0.3"
-numpy = "0.23"
+numpy = "0.25"
 itertools = "0.14"
 statrs = "0.18"
 bincode = { version = "2.0", features = ["serde"] }
