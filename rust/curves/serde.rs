@@ -16,11 +16,11 @@ impl JSON for Curve {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::{ndt, Convention, Modifier, NamedCal};
+    use crate::calendars::{ndt, Convention, NamedCal};
     use crate::curves::curve_py::CurveInterpolator;
     use crate::curves::{
         FlatBackwardInterpolator, FlatForwardInterpolator, LinearInterpolator,
-        LinearZeroRateInterpolator, LogLinearInterpolator, Nodes,
+        LinearZeroRateInterpolator, LogLinearInterpolator, Modifier, Nodes,
     };
     use indexmap::IndexMap;
 

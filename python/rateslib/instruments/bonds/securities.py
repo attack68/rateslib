@@ -162,7 +162,7 @@ class BondMixin:
             len(self.leg1.schedule.uschedule),
             settlement,
         )
-        ex_div_date = self.leg1.schedule.calendar.lag(
+        ex_div_date = self.leg1.schedule.calendar.lag_bus_days(
             self.leg1.schedule.uschedule[prev_a_idx + 1],
             -self.kwargs["ex_div"],
             True,
@@ -646,7 +646,7 @@ class BondMixin:
             self.leg1.currency,
         )
         curves_1 = _validate_curve_not_no_input(curves_[1])
-        settlement = self.leg1.schedule.calendar.lag(
+        settlement = self.leg1.schedule.calendar.lag_bus_days(
             curves_1.nodes.initial,
             self.kwargs["settle"],
             True,
@@ -667,7 +667,7 @@ class BondMixin:
         For arguments see :meth:`~rateslib.periods.BasePeriod.analytic_delta`.
         """
         disc_curve_ = _disc_required_maybe_from_curve(curve, disc_curve)
-        settlement = self.leg1.schedule.calendar.lag(
+        settlement = self.leg1.schedule.calendar.lag_bus_days(
             disc_curve_.nodes.initial,
             self.kwargs["settle"],
             True,
@@ -740,7 +740,7 @@ class BondMixin:
             if isinstance(curves_[1], NoInput):
                 settlement_ = self.leg1.schedule.effective
             else:
-                settlement_ = self.leg1.schedule.calendar.lag(
+                settlement_ = self.leg1.schedule.calendar.lag_bus_days(
                     curves_[1].nodes.initial,
                     self.kwargs["settle"],
                     True,
@@ -1298,7 +1298,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         metric = _drb(self.kwargs["metric"], metric).lower()
         if metric in ["clean_price", "dirty_price", "ytm"]:
             if isinstance(forward_settlement, NoInput):
-                settlement = self.leg1.schedule.calendar.lag(
+                settlement = self.leg1.schedule.calendar.lag_bus_days(
                     curves_1.nodes.initial,
                     self.kwargs["settle"],
                     True,
@@ -1841,7 +1841,7 @@ class IndexFixedRateBond(FixedRateBond):
             "index_dirty_price",
         ]:
             if isinstance(forward_settlement, NoInput):
-                settlement = self.leg1.schedule.calendar.lag(
+                settlement = self.leg1.schedule.calendar.lag_bus_days(
                     curves_1.nodes.initial,
                     self.kwargs["settle"],
                     True,
@@ -2121,7 +2121,7 @@ class Bill(FixedRateBond):
             self.leg1.currency,
         )
         curves_1 = _validate_curve_not_no_input(curves_[1])
-        settlement = self.leg1.schedule.calendar.lag(
+        settlement = self.leg1.schedule.calendar.lag_bus_days(
             curves_1.nodes.initial,
             self.kwargs["settle"],
             True,
@@ -2824,7 +2824,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         if metric in ["clean_price", "dirty_price", "spread", "ytm"]:
             curves_1 = _validate_curve_not_no_input(curves_[1])
             if isinstance(forward_settlement, NoInput):
-                settlement = self.leg1.schedule.calendar.lag(
+                settlement = self.leg1.schedule.calendar.lag_bus_days(
                     curves_1.nodes.initial,  # discount curve
                     self.kwargs["settle"],
                     True,

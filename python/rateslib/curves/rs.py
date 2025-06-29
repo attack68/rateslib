@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from rateslib import defaults
-from rateslib.calendars import _get_modifier, get_calendar  # type: ignore[attr-defined]
+from rateslib.calendars import get_calendar
 from rateslib.calendars.dcfs import _get_convention
 from rateslib.default import NoInput, _drb, _make_py_json
 from rateslib.dual.utils import _get_adorder
@@ -17,6 +17,7 @@ from rateslib.rs import (
     LinearInterpolator,
     LinearZeroRateInterpolator,
     LogLinearInterpolator,
+    Modifier,
     NullInterpolator,
     _get_convention_str,
     _get_modifier_str,
@@ -52,7 +53,7 @@ class CurveRs:
             ad=_get_adorder(ad),
             id=_drb(uuid4().hex[:5] + "_", id),  # 1 in a million clash
             convention=_get_convention(_drb(defaults.convention, convention)),
-            modifier=_get_modifier(_drb(defaults.modifier, modifier), True),
+            modifier=Modifier.ModF,
             calendar=get_calendar(calendar, named=True),
             index_base=_drb(None, index_base),
         )

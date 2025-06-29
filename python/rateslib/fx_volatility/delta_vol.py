@@ -130,7 +130,9 @@ class FXDeltaVolSmile(_BaseSmile):
                 _delta_type=_validate_delta_type(delta_type),
                 _plot_x_axis="delta",
                 _pair=None,
-                _delivery=get_calendar(NoInput(0)).lag(expiry, defaults.fx_delivery_lag, True),
+                _delivery=get_calendar(NoInput(0)).lag_bus_days(
+                    expiry, defaults.fx_delivery_lag, True
+                ),
                 _delivery_lag=defaults.fx_delivery_lag,
                 _calendar=get_calendar(NoInput(0)),
             ),

@@ -5,9 +5,9 @@ import warnings
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from rateslib.calendars.rs import _get_modifier, _get_rollday, get_calendar
+from rateslib.calendars.rs import _get_rollday, get_calendar
 from rateslib.default import NoInput
-from rateslib.rs import Convention, RollDay
+from rateslib.rs import Adjuster, Convention, RollDay
 
 if TYPE_CHECKING:
     from rateslib.typing import Any, CalInput, Callable
@@ -193,9 +193,8 @@ def _dcf_actacticma(
                 fwd_end_1 = cal_.add_months(
                     start,
                     (int(fraction) + 1) * frequency_months,
-                    _get_modifier("NONE", True),
+                    Adjuster.Actual(),
                     _get_rollday(roll),
-                    False,
                 )
 
             fraction += (end - fwd_end_0) / (fwd_end_1 - fwd_end_0)
@@ -210,9 +209,8 @@ def _dcf_actacticma(
                 prev_start_1 = cal_.add_months(
                     end,
                     -(int(fraction) + 1) * frequency_months,
-                    _get_modifier("NONE", True),
+                    Adjuster.Actual(),
                     _get_rollday(roll),
-                    False,
                 )
 
             fraction += (prev_start_0 - start) / (prev_start_0 - prev_start_1)
@@ -247,9 +245,8 @@ def _dcf_actacticma_stub365f(
             fwd_end = cal_.add_months(
                 start,
                 frequency_months,
-                _get_modifier("NONE", True),
+                Adjuster.Actual(),
                 _get_rollday(roll),
-                False,
             )
             r = (end - start).days
             s = (fwd_end - start).days
@@ -266,9 +263,8 @@ def _dcf_actacticma_stub365f(
             prev_start = cal_.add_months(
                 end,
                 -frequency_months,
-                _get_modifier("NONE", True),
+                Adjuster.Actual(),
                 _get_rollday(roll),
-                False,
             )
             r = (end - start).days
             s = (end - prev_start).days
@@ -317,8 +313,8 @@ def _dcf_bus252(
         return 0.0
 
     cal_ = get_calendar(calendar)
-    start_ = cal_.roll(start, _get_modifier("F", True), False)
-    end_ = cal_.roll(end, _get_modifier("P", True), False)
+    start_ = cal_.roll(start, Adjuster.Following())
+    end_ = cal_.roll(end, Adjuster.Previous())
     subtract = -1.0 if end_ == end else 0.0
     if start_ == end_:
         if start_ > start and end_ < end:

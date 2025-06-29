@@ -3,8 +3,8 @@ from datetime import datetime as dt
 import pytest
 from pandas import Index
 from rateslib import defaults
-from rateslib.calendars import _get_modifier, get_calendar
-from rateslib.rs import Cal, Modifier, NamedCal, RollDay, UnionCal
+from rateslib.calendars import get_calendar
+from rateslib.rs import Adjuster, Cal, Modifier, NamedCal, RollDay, UnionCal
 from rateslib.serialization import from_json
 
 
@@ -72,19 +72,15 @@ class TestCal:
         assert simple_union.is_bus_day(dt(2015, 9, 8))
 
     @pytest.mark.parametrize("cal", ["basic", "union"])
-    def test_add_days(self, simple_cal, simple_union, cal) -> None:
+    def test_add_cal_days(self, simple_cal, simple_union, cal) -> None:
         cal = simple_cal if cal == "basic" else simple_union
         expected = dt(2015, 9, 8)
-        result = cal.add_days(dt(2015, 9, 4), 2, Modifier.F, True)
+        result = cal.add_cal_days(dt(2015, 9, 4), 2, Adjuster.FollowingSettle())
         assert result == expected
 
         expected = dt(2015, 9, 6)
-        result = cal.add_days(dt(2015, 9, 5), 1, Modifier.Act, True)
+        result = cal.add_cal_days(dt(2015, 9, 5), 1, Adjuster.Actual())
         assert result == expected
-
-    def test_get_modifier_raises(self, simple_cal, simple_union) -> None:
-        with pytest.raises(ValueError, match="`modifier` must be in {'F'"):
-            _get_modifier("bad", True)
 
     @pytest.mark.parametrize("cal", ["basic", "union"])
     @pytest.mark.parametrize(
@@ -117,7 +113,7 @@ class TestCal:
     )
     def test_add_months(self, cal, simple_cal, simple_union, start, months, expected) -> None:
         cal = simple_cal if cal == "basic" else simple_union
-        result = cal.add_months(start, months, Modifier.F, RollDay.Unspecified(), True)
+        result = cal.add_months(start, months, Adjuster.FollowingSettle(), RollDay.Unspecified())
         assert result == expected
 
     def test_pickle_cal(self, simple_cal) -> None:

@@ -4,10 +4,46 @@ from typing import TYPE_CHECKING
 
 from rateslib import defaults
 from rateslib.default import NoInput
-from rateslib.rs import Cal, Modifier, NamedCal, RollDay, UnionCal
+from rateslib.rs import Adjuster, Cal, NamedCal, RollDay, UnionCal
 
 if TYPE_CHECKING:
     from rateslib.typing import CalInput, CalTypes
+
+
+_A = {
+    "NONESETTLE": Adjuster.Actual(),
+    "NONE": Adjuster.Actual(),
+    "F": Adjuster.Following(),
+    "P": Adjuster.Previous(),
+    "MF": Adjuster.ModifiedFollowing(),
+    "MP": Adjuster.ModifiedPrevious(),
+    "FSETTLE": Adjuster.FollowingSettle(),
+    "PSETTLE": Adjuster.PreviousSettle(),
+    "MFSETTLE": Adjuster.ModifiedFollowingSettle(),
+    "MPSETTLE": Adjuster.ModifiedPreviousSettle(),
+}
+
+
+def _get_adjuster(adjuster: str | Adjuster) -> Adjuster:
+    if isinstance(adjuster, Adjuster):
+        return adjuster
+    else:
+        adjuster = adjuster.upper()
+        if adjuster[-1] == "B":
+            return Adjuster.BusDaysLagSettle(int(adjuster[:-1]))
+        elif adjuster[-1] == "D":
+            return Adjuster.CalDaysLagSettle(int(adjuster[:-1]))
+        else:
+            return _A[adjuster]
+
+
+def _convert_to_adjuster(modifier: str, settlement: bool, mod_days: bool) -> Adjuster:
+    modifier = modifier.upper()
+    if not mod_days and modifier[0] == "M":
+        modifier = modifier[1:]
+    if settlement:
+        modifier = modifier + "SETTLE"
+    return _get_adjuster(modifier)
 
 
 def _get_rollday(roll: str | int | NoInput) -> RollDay:
@@ -21,34 +57,6 @@ def _get_rollday(roll: str | int | NoInput) -> RollDay:
     elif isinstance(roll, int):
         return RollDay.Int(roll)
     return RollDay.Unspecified()
-
-
-_M_ALL = {
-    "F": Modifier.F,
-    "MF": Modifier.ModF,
-    "P": Modifier.P,
-    "MP": Modifier.ModP,
-    "NONE": Modifier.Act,
-}
-_M_EXCL_DAYS = {
-    "F": Modifier.F,
-    "MF": Modifier.F,
-    "P": Modifier.P,
-    "MP": Modifier.P,
-    "NONE": Modifier.Act,
-}
-
-
-def _get_modifier(modifier: str, mod_days: bool) -> Modifier:
-    if mod_days:
-        m = _M_ALL
-    else:
-        m = _M_EXCL_DAYS
-
-    try:
-        return m[modifier.upper()]
-    except KeyError:
-        raise ValueError("`modifier` must be in {'F', 'MF', 'P', 'MP', 'NONE'}.")
 
 
 def get_calendar(

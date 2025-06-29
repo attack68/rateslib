@@ -1,7 +1,8 @@
 //! Wrapper module to export to Python using pyo3 bindings.
 
+use crate::calendars::adjuster::{Adjuster, Adjustment};
 use crate::calendars::named::get_calendar_by_name;
-use crate::calendars::{Cal, CalType, Convention, DateRoll, Modifier, NamedCal, RollDay, UnionCal};
+use crate::calendars::{Cal, CalType, Convention, DateRoll, NamedCal, RollDay, UnionCal};
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
 use bincode::config::legacy;
@@ -77,47 +78,22 @@ impl Convention {
 }
 
 #[pymethods]
-impl Modifier {
-    // Pickling
-    #[new]
-    fn new_py(ad: u8) -> PyResult<Modifier> {
-        match ad {
-            0_u8 => Ok(Modifier::Act),
-            1_u8 => Ok(Modifier::F),
-            2_u8 => Ok(Modifier::ModF),
-            3_u8 => Ok(Modifier::P),
-            4_u8 => Ok(Modifier::ModP),
-            _ => Err(PyValueError::new_err(
-                "unreachable code on Convention pickle.",
-            )),
-        }
-    }
-    pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
-        *self = decode_from_slice(state.as_bytes(), legacy()).unwrap().0;
-        Ok(())
-    }
-    pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new(py, &encode_to_vec(&self, legacy()).unwrap()))
-    }
-    pub fn __getnewargs__<'py>(&self) -> PyResult<(u8,)> {
-        match self {
-            Modifier::Act => Ok((0_u8,)),
-            Modifier::F => Ok((1_u8,)),
-            Modifier::ModF => Ok((2_u8,)),
-            Modifier::P => Ok((3_u8,)),
-            Modifier::ModP => Ok((4_u8,)),
-        }
-    }
-}
-
-#[pyfunction]
-pub(crate) fn _get_modifier_str(modifier: Modifier) -> String {
-    match modifier {
-        Modifier::F => "F".to_string(),
-        Modifier::ModF => "MF".to_string(),
-        Modifier::P => "P".to_string(),
-        Modifier::ModP => "MP".to_string(),
-        Modifier::Act => "NONE".to_string(),
+impl Adjuster {
+    /// Return a `date` under a date adjustment rule.
+    ///
+    /// Parameters
+    /// ----------
+    /// date: datetime
+    ///     Date to adjust.
+    /// adjuster: Adjuster
+    ///     Defines the adjustment rule.
+    ///
+    /// Returns
+    /// -------
+    /// datetime
+    #[pyo3(name = "adjust")]
+    fn adjust_py(&self, date: NaiveDateTime, calendar: CalType) -> NaiveDateTime {
+        self.adjust(&date, &calendar)
     }
 }
 
@@ -214,23 +190,20 @@ impl Cal {
     ///     The original business date. Raise if a non-business date is given.
     /// days: int
     ///     The number of calendar days to add.
-    /// modifier: Modifier
-    ///     The rule to use to roll resultant non-business days.
-    /// settlement: bool
-    ///     Enforce an associated settlement calendar, if *True* and if one exists.
+    /// adjuster: Adjuster
+    ///     The date adjustment rule to use on the unadjusted result.
     ///
     /// Returns
     /// -------
     /// datetime
-    #[pyo3(name = "add_days")]
-    fn add_days_py(
+    #[pyo3(name = "add_cal_days")]
+    fn add_cal_days_py(
         &self,
         date: NaiveDateTime,
-        days: i8,
-        modifier: Modifier,
-        settlement: bool,
+        days: i32,
+        adjuster: Adjuster,
     ) -> PyResult<NaiveDateTime> {
-        Ok(self.add_days(&date, days, &modifier, settlement))
+        Ok(self.add_cal_days(&date, days, &adjuster))
     }
 
     /// Return a business date separated by `days` from an input business `date`.
@@ -263,7 +236,7 @@ impl Cal {
     fn add_bus_days_py(
         &self,
         date: NaiveDateTime,
-        days: i8,
+        days: i32,
         settlement: bool,
     ) -> PyResult<NaiveDateTime> {
         self.add_bus_days(&date, days, settlement)
@@ -277,22 +250,23 @@ impl Cal {
     ///     The original date to adjust.
     /// months: int
     ///     The number of months to add.
-    /// modifier: Modifier
-    ///     The rule to use to roll a resultant non-business day.
+    /// adjuster: Adjuster
+    ///     The date adjustment rule to apply to the unadjusted result.
     /// roll: RollDay
     ///     The day of the month to adjust to.
-    /// settlement: bool
-    ///     Enforce an associated settlement calendar, if *True* and if one exists.
+    ///
+    /// Returns
+    /// -------
+    /// datetime
     #[pyo3(name = "add_months")]
     fn add_months_py(
         &self,
         date: NaiveDateTime,
         months: i32,
-        modifier: Modifier,
+        adjuster: Adjuster,
         roll: RollDay,
-        settlement: bool,
     ) -> PyResult<NaiveDateTime> {
-        Ok(self.add_months(&date, months, &modifier, &roll, settlement))
+        Ok(self.add_months(&date, months, &adjuster, &roll))
     }
 
     /// Adjust a non-business date to a business date under a specific modification rule.
@@ -301,10 +275,8 @@ impl Cal {
     /// -----------
     /// date: datetime
     ///     The date to adjust.
-    /// modifier: Modifier
-    ///     The modification rule
-    /// settlement: bool
-    ///     Whether to enforce settlement against an associated settlement calendar.
+    /// adjuster: Adjuster
+    ///     The date adjustment rule to apply.
     ///
     /// Returns
     /// -------
@@ -314,13 +286,8 @@ impl Cal {
     /// -----
     /// An input date which is already a settleable, business date will be returned unchanged.
     #[pyo3(name = "roll")]
-    fn roll_py(
-        &self,
-        date: NaiveDateTime,
-        modifier: Modifier,
-        settlement: bool,
-    ) -> PyResult<NaiveDateTime> {
-        Ok(self.roll(&date, &modifier, settlement))
+    fn roll_py(&self, date: NaiveDateTime, adjuster: Adjuster) -> PyResult<NaiveDateTime> {
+        Ok(self.roll(&date, &adjuster))
     }
 
     /// Adjust a date by a number of business days, under lag rules.
@@ -353,9 +320,9 @@ impl Cal {
     ///
     /// Adding (or subtracting) further business days adopts the
     /// :meth:`~rateslib.calendars.Cal.add_bus_days` approach with a valid result.
-    #[pyo3(name = "lag")]
-    fn lag_py(&self, date: NaiveDateTime, days: i8, settlement: bool) -> NaiveDateTime {
-        self.lag(&date, days, settlement)
+    #[pyo3(name = "lag_bus_days")]
+    fn lag_bus_days_py(&self, date: NaiveDateTime, days: i32, settlement: bool) -> NaiveDateTime {
+        self.lag_bus_days(&date, days, settlement)
     }
 
     /// Return a list of business dates in a range.
@@ -509,15 +476,14 @@ impl UnionCal {
     /// Return a date separated by calendar days from input date, and rolled with a modifier.
     ///
     /// See :meth:`Cal.add_days <rateslib.calendars.Cal.add_days>`.
-    #[pyo3(name = "add_days")]
-    fn add_days_py(
+    #[pyo3(name = "add_cal_days")]
+    fn add_cal_days_py(
         &self,
         date: NaiveDateTime,
-        days: i8,
-        modifier: Modifier,
-        settlement: bool,
+        days: i32,
+        adjuster: Adjuster,
     ) -> PyResult<NaiveDateTime> {
-        Ok(self.add_days(&date, days, &modifier, settlement))
+        Ok(self.add_cal_days(&date, days, &adjuster))
     }
 
     /// Return a business date separated by `days` from an input business `date`.
@@ -527,7 +493,7 @@ impl UnionCal {
     fn add_bus_days_py(
         &self,
         date: NaiveDateTime,
-        days: i8,
+        days: i32,
         settlement: bool,
     ) -> PyResult<NaiveDateTime> {
         self.add_bus_days(&date, days, settlement)
@@ -541,32 +507,26 @@ impl UnionCal {
         &self,
         date: NaiveDateTime,
         months: i32,
-        modifier: Modifier,
+        adjuster: Adjuster,
         roll: RollDay,
-        settlement: bool,
     ) -> PyResult<NaiveDateTime> {
-        Ok(self.add_months(&date, months, &modifier, &roll, settlement))
+        Ok(self.add_months(&date, months, &adjuster, &roll))
     }
 
     /// Adjust a non-business date to a business date under a specific modification rule.
     ///
     /// See :meth:`Cal.roll <rateslib.calendars.Cal.roll>`.
     #[pyo3(name = "roll")]
-    fn roll_py(
-        &self,
-        date: NaiveDateTime,
-        modifier: Modifier,
-        settlement: bool,
-    ) -> PyResult<NaiveDateTime> {
-        Ok(self.roll(&date, &modifier, settlement))
+    fn roll_py(&self, date: NaiveDateTime, adjuster: Adjuster) -> PyResult<NaiveDateTime> {
+        Ok(self.roll(&date, &adjuster))
     }
 
     /// Adjust a date by a number of business days, under lag rules.
     ///
     /// See :meth:`Cal.lag <rateslib.calendars.Cal.lag>`.
-    #[pyo3(name = "lag")]
-    fn lag_py(&self, date: NaiveDateTime, days: i8, settlement: bool) -> NaiveDateTime {
-        self.lag(&date, days, settlement)
+    #[pyo3(name = "lag_bus_days")]
+    fn lag_bus_days_py(&self, date: NaiveDateTime, days: i32, settlement: bool) -> NaiveDateTime {
+        self.lag_bus_days(&date, days, settlement)
     }
 
     /// Return a list of business dates in a range.
@@ -687,15 +647,14 @@ impl NamedCal {
     /// Return a date separated by calendar days from input date, and rolled with a modifier.
     ///
     /// See :meth:`Cal.add_days <rateslib.calendars.Cal.add_days>`.
-    #[pyo3(name = "add_days")]
-    fn add_days_py(
+    #[pyo3(name = "add_cal_days")]
+    fn add_cal_days_py(
         &self,
         date: NaiveDateTime,
-        days: i8,
-        modifier: Modifier,
-        settlement: bool,
+        days: i32,
+        adjuster: Adjuster,
     ) -> PyResult<NaiveDateTime> {
-        Ok(self.add_days(&date, days, &modifier, settlement))
+        Ok(self.add_cal_days(&date, days, &adjuster))
     }
 
     /// Return a business date separated by `days` from an input business `date`.
@@ -705,7 +664,7 @@ impl NamedCal {
     fn add_bus_days_py(
         &self,
         date: NaiveDateTime,
-        days: i8,
+        days: i32,
         settlement: bool,
     ) -> PyResult<NaiveDateTime> {
         self.add_bus_days(&date, days, settlement)
@@ -719,32 +678,26 @@ impl NamedCal {
         &self,
         date: NaiveDateTime,
         months: i32,
-        modifier: Modifier,
+        adjuster: Adjuster,
         roll: RollDay,
-        settlement: bool,
     ) -> PyResult<NaiveDateTime> {
-        Ok(self.add_months(&date, months, &modifier, &roll, settlement))
+        Ok(self.add_months(&date, months, &adjuster, &roll))
     }
 
     /// Adjust a non-business date to a business date under a specific modification rule.
     ///
     /// See :meth:`Cal.roll <rateslib.calendars.Cal.roll>`.
     #[pyo3(name = "roll")]
-    fn roll_py(
-        &self,
-        date: NaiveDateTime,
-        modifier: Modifier,
-        settlement: bool,
-    ) -> PyResult<NaiveDateTime> {
-        Ok(self.roll(&date, &modifier, settlement))
+    fn roll_py(&self, date: NaiveDateTime, adjuster: Adjuster) -> PyResult<NaiveDateTime> {
+        Ok(self.roll(&date, &adjuster))
     }
 
     /// Adjust a date by a number of business days, under lag rules.
     ///
     /// See :meth:`Cal.lag <rateslib.calendars.Cal.lag>`.
-    #[pyo3(name = "lag")]
-    fn lag_py(&self, date: NaiveDateTime, days: i8, settlement: bool) -> NaiveDateTime {
-        self.lag(&date, days, settlement)
+    #[pyo3(name = "lag_bus_days")]
+    fn lag_bus_days_py(&self, date: NaiveDateTime, days: i32, settlement: bool) -> NaiveDateTime {
+        self.lag_bus_days(&date, days, settlement)
     }
 
     /// Return a list of business dates in a range.

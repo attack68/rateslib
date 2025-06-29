@@ -1,11 +1,12 @@
 //! Wrapper module to export Rust curve data types to Python using pyo3 bindings.
 
 use crate::calendars::CalType;
-use crate::calendars::{Convention, Modifier};
+use crate::calendars::Convention;
 use crate::curves::nodes::{Nodes, NodesTimestamp};
 use crate::curves::{
     CurveDF, CurveInterpolation, FlatBackwardInterpolator, FlatForwardInterpolator,
-    LinearInterpolator, LinearZeroRateInterpolator, LogLinearInterpolator, NullInterpolator,
+    LinearInterpolator, LinearZeroRateInterpolator, LogLinearInterpolator, Modifier,
+    NullInterpolator,
 };
 use crate::dual::{get_variable_tags, set_order, ADOrder, Dual, Dual2, Number};
 use crate::json::json_py::DeserializedObj;
@@ -245,5 +246,43 @@ fn nodes_into_order(mut nodes: IndexMap<NaiveDateTime, Number>, ad: ADOrder, id:
                 |(i, (k, v))| (k, Dual2::from(set_order(v, ad, vec![vars[i].clone()]))),
             )))
         }
+    }
+}
+
+#[pymethods]
+impl Modifier {
+    // Pickling
+    #[new]
+    fn new_py(ad: u8) -> PyResult<Modifier> {
+        match ad {
+            0_u8 => Ok(Modifier::Act),
+            1_u8 => Ok(Modifier::F),
+            2_u8 => Ok(Modifier::ModF),
+            3_u8 => Ok(Modifier::P),
+            4_u8 => Ok(Modifier::ModP),
+            _ => Err(PyValueError::new_err(
+                "unreachable code on Convention pickle.",
+            )),
+        }
+    }
+    pub fn __getnewargs__<'py>(&self) -> PyResult<(u8,)> {
+        match self {
+            Modifier::Act => Ok((0_u8,)),
+            Modifier::F => Ok((1_u8,)),
+            Modifier::ModF => Ok((2_u8,)),
+            Modifier::P => Ok((3_u8,)),
+            Modifier::ModP => Ok((4_u8,)),
+        }
+    }
+}
+
+#[pyfunction]
+pub(crate) fn _get_modifier_str(modifier: Modifier) -> String {
+    match modifier {
+        Modifier::F => "F".to_string(),
+        Modifier::ModF => "MF".to_string(),
+        Modifier::P => "P".to_string(),
+        Modifier::ModP => "MP".to_string(),
+        Modifier::Act => "NONE".to_string(),
     }
 }

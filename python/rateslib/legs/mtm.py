@@ -108,7 +108,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         last_fixing_date = ser.index[-1]
         fixings_list: list[DualTypes] = []
         for i in range(ini_period, self.schedule.n_periods):
-            required_date = self.schedule.calendar.lag(
+            required_date = self.schedule.calendar.lag_bus_days(
                 self.schedule.aschedule[i], self.payment_lag_exchange, True
             )
             if required_date > last_fixing_date:
@@ -181,7 +181,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
                 fx_fixings_.append(
                     fx.rate(
                         self.alt_currency + self.currency,
-                        self.schedule.calendar.lag(
+                        self.schedule.calendar.lag_bus_days(
                             self.schedule.aschedule[i],
                             self.payment_lag_exchange,
                             True,
@@ -205,7 +205,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
             [
                 Cashflow(
                     -self.notional,
-                    self.schedule.calendar.lag(
+                    self.schedule.calendar.lag_bus_days(
                         self.schedule.aschedule[0],
                         self.payment_lag_exchange,
                         True,
@@ -233,7 +233,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         mtm_flows = [
             Cashflow(
                 -notionals[i + 1] + notionals[i],
-                self.schedule.calendar.lag(
+                self.schedule.calendar.lag_bus_days(
                     self.schedule.aschedule[i + 1],
                     self.payment_lag_exchange,
                     True,
@@ -254,7 +254,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         self.periods.append(
             Cashflow(
                 notionals[-1],
-                self.schedule.calendar.lag(
+                self.schedule.calendar.lag_bus_days(
                     self.schedule.aschedule[-1],
                     self.payment_lag_exchange,
                     True,
