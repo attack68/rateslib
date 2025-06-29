@@ -242,7 +242,7 @@ class BaseLeg(metaclass=ABCMeta):
         if self.initial_exchange:
             periods_[0] = Cashflow(
                 notional=-self.notional,
-                payment=self.schedule.calendar.lag(
+                payment=self.schedule.calendar.lag_bus_days(
                     self.schedule.aschedule[0],
                     self.payment_lag_exchange,
                     True,
@@ -254,7 +254,7 @@ class BaseLeg(metaclass=ABCMeta):
         if self.final_exchange:
             periods_[1] = Cashflow(
                 notional=self.notional - self.amortization * (self.schedule.n_periods - 1),
-                payment=self.schedule.calendar.lag(
+                payment=self.schedule.calendar.lag_bus_days(
                     self.schedule.aschedule[-1],
                     self.payment_lag_exchange,
                     True,
@@ -273,7 +273,7 @@ class BaseLeg(metaclass=ABCMeta):
             periods_ = [
                 Cashflow(
                     notional=self.amortization,
-                    payment=self.schedule.calendar.lag(
+                    payment=self.schedule.calendar.lag_bus_days(
                         self.schedule.aschedule[i + 1],
                         self.payment_lag_exchange,
                         True,

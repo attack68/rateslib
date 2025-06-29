@@ -226,7 +226,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
         if isinstance(self.kwargs["payment_lag"], datetime):
             self.kwargs["payment"] = self.kwargs["payment_lag"]
         else:
-            self.kwargs["payment"] = get_calendar(self.kwargs["calendar"]).lag(
+            self.kwargs["payment"] = get_calendar(self.kwargs["calendar"]).lag_bus_days(
                 self.kwargs["expiry"],
                 self.kwargs["payment_lag"],
                 True,

@@ -419,7 +419,7 @@ class NDF(Sensitivities, Metrics):
                 currency=reference_currency,
                 settlement_currency=self.kwargs["currency"],
                 payment=self.kwargs["settlement"],
-                fixing_date=self.kwargs["calendar"].lag(
+                fixing_date=self.kwargs["calendar"].lag_bus_days(
                     self.kwargs["settlement"], -self.kwargs["payment_lag"], False
                 ),  # a fixing date can be on a non-settlable date
                 fx_fixing=self.kwargs["fx_fixing"],

@@ -101,14 +101,16 @@ pub use crate::calendars::named::get_calendar_by_name;
 
 mod dateroll;
 pub use crate::calendars::dateroll::{
-    get_eom, get_imm, get_roll, is_eom, is_imm, is_leap_year, DateRoll, Modifier, RollDay,
+    get_eom, get_imm, get_roll, is_eom, is_imm, is_leap_year, DateRoll, RollDay,
 };
 
 mod dcfs;
 pub use crate::calendars::dcfs::Convention;
 pub(crate) use crate::calendars::dcfs::_get_convention_str;
 
+mod adjuster;
+pub use crate::calendars::adjuster::{Adjuster, Adjustment};
+
 mod serde;
 
 pub(crate) mod calendar_py;
-pub(crate) use crate::calendars::calendar_py::_get_modifier_str;

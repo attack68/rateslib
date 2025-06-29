@@ -1,0 +1,67 @@
+use crate::calendars::DateRoll;
+use chrono::prelude::*;
+use pyo3::pyclass;
+
+/// Enum for specifying date adjustment rules with a calendar specification.
+#[pyclass(module = "rateslib.rs", eq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Adjuster {
+    /// Actual date without adjustment.
+    Actual {},
+    /// Following adjustment rule.
+    Following {},
+    /// Modified following adjustment rule.
+    ModifiedFollowing {},
+    /// Previous adjustment rule.
+    Previous {},
+    /// Modified previous adjustment rule.
+    ModifiedPrevious {},
+    /// Following adjustment rule, enforcing settlement calendar.
+    FollowingSettle {},
+    /// Modified following adjustment rule, enforcing settlement calendar.
+    ModifiedFollowingSettle {},
+    /// Previous adjustment rule, enforcing settlement calendar.
+    PreviousSettle {},
+    /// Modified previous adjustment rule, enforcing settlement calendar.
+    ModifiedPreviousSettle {},
+    /// A set number of business days, defined by a given calendar,
+    /// using calendar lag rules and enforcing settlement calendars.
+    BusDaysLagSettle { number: i32 },
+    /// A set number of calendar days enforcing settlement calendars, defined by a
+    /// given calendar.
+    CalDaysLagSettle { number: i32 },
+}
+
+pub trait Adjustment {
+    /// Adjust a date under an adjustment rule.
+    fn adjust<T: DateRoll>(&self, udate: &NaiveDateTime, calendar: &T) -> NaiveDateTime;
+}
+
+impl Adjustment for Adjuster {
+    fn adjust<T: DateRoll>(&self, udate: &NaiveDateTime, calendar: &T) -> NaiveDateTime {
+        match self {
+            Adjuster::Actual {} => *udate,
+            Adjuster::Following {} => calendar.roll_forward_bus_day(udate),
+            Adjuster::Previous {} => calendar.roll_backward_bus_day(udate),
+            Adjuster::ModifiedFollowing {} => calendar.roll_mod_forward_bus_day(udate),
+            Adjuster::ModifiedPrevious {} => calendar.roll_mod_backward_bus_day(udate),
+            Adjuster::FollowingSettle {} => calendar.roll_forward_settled_bus_day(udate),
+            Adjuster::PreviousSettle {} => calendar.roll_backward_settled_bus_day(udate),
+            Adjuster::ModifiedFollowingSettle {} => {
+                calendar.roll_forward_mod_settled_bus_day(udate)
+            }
+            Adjuster::ModifiedPreviousSettle {} => {
+                calendar.roll_backward_mod_settled_bus_day(udate)
+            }
+            Adjuster::BusDaysLagSettle { number: n } => calendar.lag_bus_days(udate, *n, true),
+            Adjuster::CalDaysLagSettle { number: n } => {
+                let adj = if *n < 0 {
+                    Adjuster::PreviousSettle {}
+                } else {
+                    Adjuster::FollowingSettle {}
+                };
+                calendar.add_cal_days(udate, *n, &adj)
+            }
+        }
+    }
+}

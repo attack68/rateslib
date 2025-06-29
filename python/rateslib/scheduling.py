@@ -12,7 +12,7 @@ from rateslib import defaults
 from rateslib.calendars import (  # type: ignore[attr-defined]
     _IS_ROLL,
     _adjust_date,
-    _get_modifier,
+    _convert_to_adjuster,
     _get_roll,
     _get_rollday,
     _is_day_type_tenor,
@@ -508,7 +508,8 @@ class Schedule:
         """Attributes additional schedules according to date adjust and payment lag."""
         self.aschedule = [_adjust_date(dt, self.modifier, self.calendar) for dt in self.uschedule]
         self.pschedule = [
-            self.calendar.lag(dt, self.payment_lag, settlement=True) for dt in self.aschedule
+            self.calendar.lag_bus_days(dt, self.payment_lag, settlement=True)
+            for dt in self.aschedule
         ]
         self.stubs = [False] * (len(self.uschedule) - 1)
         if self.front_stub is not NoInput(0):
@@ -878,8 +879,8 @@ def _is_invalid_very_short_stub(
     window.
     """
     # _ = date_range(start=date1, end=date2, freq=calendar)
-    date1_ = calendar.roll(date_to_modify, _get_modifier(modifier, True), settlement=False)
-    date2_ = calendar.roll(date_fixed, _get_modifier(modifier, True), settlement=False)
+    date1_ = calendar.roll(date_to_modify, _convert_to_adjuster(modifier, False, True))
+    date2_ = calendar.roll(date_fixed, _convert_to_adjuster(modifier, False, True))
     # settlement calendar alignment is not enforced during schedule generation.
     return date1_ == date2_  # True => date range created by stubs is too small and is invalid
 
@@ -1267,9 +1268,8 @@ def _get_unadjusted_short_stub_date(
                 _: datetime = cal_.add_months(
                     ueffective,
                     frequency_months * direction,
-                    _get_modifier("NONE", True),
+                    _convert_to_adjuster("NONE", False, True),
                     _get_rollday(roll),
-                    False,
                 )
                 _ = _get_roll(_.month, _.year, roll)
             else:
@@ -1282,9 +1282,8 @@ def _get_unadjusted_short_stub_date(
                 _ = cal_.add_months(
                     utermination,
                     frequency_months * direction,
-                    _get_modifier("NONE", True),
+                    _convert_to_adjuster("NONE", False, True),
                     _get_rollday(roll),
-                    False,
                 )
                 _ = _get_roll(_.month, _.year, roll)
             else:
@@ -1296,9 +1295,8 @@ def _get_unadjusted_short_stub_date(
             stub_date = cal_.add_months(
                 stub_side_dt,
                 month_offset * direction,
-                _get_modifier("NONE", True),
+                _convert_to_adjuster("NONE", False, True),
                 _get_rollday(roll),
-                False,
             )
             if _is_divisible_months(stub_date, reg_side_dt, frequency_months):
                 break
@@ -1403,9 +1401,8 @@ def _generate_regular_schedule_unadjusted(
         _ = cal_.add_months(
             _,
             defaults.frequency_months[frequency],
-            _get_modifier("NONE", True),
+            _convert_to_adjuster("NONE", False, True),
             _get_rollday(roll),
-            False,
         )
         # _ = _get_roll(_.month, _.year, roll)
         yield _
@@ -1440,13 +1437,20 @@ def _get_unadjusted_date_alternatives(
         possible_unadjusted_date = date + timedelta(days=days)
         if cal.is_bus_day(possible_unadjusted_date):
             break  # if a business day, no later date will adjust back to date.
-        if date == _adjust_date(possible_unadjusted_date, modifier, cal):
+        if date == _adjust_date(
+            date=possible_unadjusted_date, modifier=modifier, calendar=cal, settlement=False
+        ):
             unadj_dates.append(possible_unadjusted_date)
     for days in range(1, 20):
         possible_unadjusted_date = date - timedelta(days=days)
         if cal.is_bus_day(possible_unadjusted_date):
             break  # if a business day, no previous date will adjust back to date.
-        if date == _adjust_date(possible_unadjusted_date, modifier, cal):
+        if date == _adjust_date(
+            date=possible_unadjusted_date,
+            modifier=modifier,
+            calendar=cal,
+            settlement=False,
+        ):
             unadj_dates.append(possible_unadjusted_date)
     return unadj_dates
 
