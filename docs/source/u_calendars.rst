@@ -11,7 +11,7 @@ Calendars
 ************
 
 The ``rateslib.calendars`` module generates holiday calendars so that
-business days are well defined.
+business days are well defined, with additional objects for date manipulation.
 
 Summary
 *******
@@ -22,6 +22,7 @@ Classes
    rateslib.calendars.Cal
    rateslib.calendars.NamedCal
    rateslib.calendars.UnionCal
+   rateslib.calendars.Adjuster
 
 Methods
 -------

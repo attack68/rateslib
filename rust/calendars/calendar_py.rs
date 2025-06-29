@@ -85,8 +85,8 @@ impl Adjuster {
     /// ----------
     /// date: datetime
     ///     Date to adjust.
-    /// adjuster: Adjuster
-    ///     Defines the adjustment rule.
+    /// calendar: Cal, UnionCal or NamedCal
+    ///     The calendar to assist with date adjustment.
     ///
     /// Returns
     /// -------
@@ -230,7 +230,7 @@ impl Cal {
     ///
     /// .. seealso::
     ///
-    ///    :meth:`~rateslib.calendars.Cal.lag`: Add business days to inputs which are potentially
+    ///    :meth:`~rateslib.calendars.Cal.lag_bus_days`: Add business days to inputs which are potentially
     ///    non-business dates.
     #[pyo3(name = "add_bus_days")]
     fn add_bus_days_py(
@@ -307,9 +307,9 @@ impl Cal {
     ///
     /// Notes
     /// -----
-    /// ``lag`` and ``add_bus_days`` will return the same value if the input date is a business
-    /// date. If not a business date, ``add_bus_days`` will raise, while ``lag`` will follow
-    /// lag rules. ``lag`` should be used when the input date cannot be guaranteed to be a
+    /// ``lag_bus_days`` and ``add_bus_days`` will return the same value if the input date is a business
+    /// date. If not a business date, ``add_bus_days`` will raise, while ``lag_bus_days`` will follow
+    /// lag rules. ``lag_bus_days`` should be used when the input date cannot be guaranteed to be a
     /// business date.
     ///
     /// **Lag rules** define the addition of business days to a date that is a non-business date:
@@ -523,7 +523,7 @@ impl UnionCal {
 
     /// Adjust a date by a number of business days, under lag rules.
     ///
-    /// See :meth:`Cal.lag <rateslib.calendars.Cal.lag>`.
+    /// See :meth:`Cal.lag_bus_days <rateslib.calendars.Cal.lag_bus_days>`.
     #[pyo3(name = "lag_bus_days")]
     fn lag_bus_days_py(&self, date: NaiveDateTime, days: i32, settlement: bool) -> NaiveDateTime {
         self.lag_bus_days(&date, days, settlement)
@@ -694,7 +694,7 @@ impl NamedCal {
 
     /// Adjust a date by a number of business days, under lag rules.
     ///
-    /// See :meth:`Cal.lag <rateslib.calendars.Cal.lag>`.
+    /// See :meth:`Cal.lag_bus_days <rateslib.calendars.Cal.lag_bus_days>`.
     #[pyo3(name = "lag_bus_days")]
     fn lag_bus_days_py(&self, date: NaiveDateTime, days: i32, settlement: bool) -> NaiveDateTime {
         self.lag_bus_days(&date, days, settlement)

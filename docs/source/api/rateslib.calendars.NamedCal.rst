@@ -26,27 +26,27 @@ NamedCal
    .. autosummary::
 
       ~NamedCal.add_bus_days
-      ~NamedCal.add_days
+      ~NamedCal.add_cal_days
       ~NamedCal.add_months
       ~NamedCal.bus_date_range
       ~NamedCal.cal_date_range
       ~NamedCal.is_bus_day
       ~NamedCal.is_non_bus_day
       ~NamedCal.is_settlement
-      ~NamedCal.lag
+      ~NamedCal.lag_bus_days
       ~NamedCal.roll
       ~NamedCal.to_json
 
    .. rubric:: Methods Documentation
 
    .. automethod:: add_bus_days
-   .. automethod:: add_days
+   .. automethod:: add_cal_days
    .. automethod:: add_months
    .. automethod:: bus_date_range
    .. automethod:: cal_date_range
    .. automethod:: is_bus_day
    .. automethod:: is_non_bus_day
    .. automethod:: is_settlement
-   .. automethod:: lag
+   .. automethod:: lag_bus_days
    .. automethod:: roll
    .. automethod:: to_json

@@ -26,14 +26,14 @@ Cal
    .. autosummary::
 
       ~Cal.add_bus_days
-      ~Cal.add_days
+      ~Cal.add_cal_days
       ~Cal.add_months
       ~Cal.bus_date_range
       ~Cal.cal_date_range
       ~Cal.is_bus_day
       ~Cal.is_non_bus_day
       ~Cal.is_settlement
-      ~Cal.lag
+      ~Cal.lag_bus_days
       ~Cal.roll
       ~Cal.to_json
 
@@ -45,13 +45,13 @@ Cal
    .. rubric:: Methods Documentation
 
    .. automethod:: add_bus_days
-   .. automethod:: add_days
+   .. automethod:: add_cal_days
    .. automethod:: add_months
    .. automethod:: bus_date_range
    .. automethod:: cal_date_range
    .. automethod:: is_bus_day
    .. automethod:: is_non_bus_day
    .. automethod:: is_settlement
-   .. automethod:: lag
+   .. automethod:: lag_bus_days
    .. automethod:: roll
    .. automethod:: to_json

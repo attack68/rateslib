@@ -63,6 +63,17 @@ example can be seen in the `Cookbook: Building Custom Curves (Nelson-Siegel) <z_
          :class:`~rateslib.fx_volatility._FXSabrSmileMeta` are consolidated into a single object
          :class:`~rateslib.fx_volatility._FXSmileMeta`.
          (`932 <https://github.com/attack68/rateslib/pull/932>`_)
+   * - **Calendars**
+     - - :red:`Minor Breaking Change!` The :meth:`~rateslib.calendars.Cal.add_days` and
+         :meth:`~rateslib.calendars.Cal.lag`
+         methods are renamed :meth:`~rateslib.calendars.Cal.add_cal_days` and
+         :meth:`~rateslib.calendars.Cal.lag_bus_days`, respectively.
+         (`937 <https://github.com/attack68/rateslib/pull/937>`_)
+       - :red:`Minor Breaking Change!` The enum :class:`~rateslib.calendars.Modifier` is
+         removed and replaced by the
+         :class:`~rateslib.calendars.Adjuster` which is a more generalised object for date
+         adjustments, and which allows the method :meth:`~rateslib.calendars.Adjuster.adjust`.
+         (`937 <https://github.com/attack68/rateslib/pull/937>`_)
    * - **Developers**
      - - (rust package) PyO3 0.23 -> 0.25  (`d-4 <https://github.com/attack68/rateslib-dev/pull/4>`_)
        - (rust package) Rust-Numpy 0.23 -> 0.25  (`d-4 <https://github.com/attack68/rateslib-dev/pull/4>`_)

@@ -23,6 +23,7 @@ Classes
 -------
 .. autosummary::
    rateslib.scheduling.Schedule
+   rateslib.calendars.Adjuster
 
 Methods
 -------
