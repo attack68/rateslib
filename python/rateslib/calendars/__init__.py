@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING
 
 from rateslib.calendars.dcfs import _DCF
 from rateslib.calendars.rs import (
-    _get_modifier,
+    _convert_to_adjuster,
     _get_rollday,
     get_calendar,
 )
 from rateslib.default import NoInput, _drb
-from rateslib.rs import Cal, Modifier, NamedCal, RollDay, UnionCal
+from rateslib.rs import Adjuster, Cal, NamedCal, RollDay, UnionCal
 
 if TYPE_CHECKING:
     from rateslib.typing import CalInput, bool_, datetime_, int_, str_
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-Modifier.__doc__ = "Enumerable type for modification rules."
+Adjuster.__doc__ = "Enumerable type for date adjustment rules."
 RollDay.__doc__ = "Enumerable type for roll day types."
 
 
@@ -276,7 +276,11 @@ def add_tenor(
     tenor = tenor.upper()
     cal_ = get_calendar(calendar)
     if "D" in tenor:
-        return cal_.add_days(start, int(tenor[:-1]), _get_modifier(modifier, mod_days), settlement)
+        return cal_.add_cal_days(
+            start,
+            int(tenor[:-1]),
+            _convert_to_adjuster(modifier, settlement, mod_days),
+        )
     elif "B" in tenor:
         return cal_.add_bus_days(start, int(tenor[:-1]), settlement)
     elif "Y" in tenor:
@@ -284,24 +288,21 @@ def add_tenor(
         return cal_.add_months(
             start,
             months,
-            _get_modifier(modifier, True),
+            _convert_to_adjuster(modifier, settlement, True),
             _get_rollday(roll),
-            settlement,
         )
     elif "M" in tenor:
         return cal_.add_months(
             start,
             int(tenor[:-1]),
-            _get_modifier(modifier, True),
+            _convert_to_adjuster(modifier, settlement, True),
             _get_rollday(roll),
-            settlement,
         )
     elif "W" in tenor:
-        return cal_.add_days(
+        return cal_.add_cal_days(
             start,
             int(tenor[:-1]) * 7,
-            _get_modifier(modifier, mod_days),
-            settlement,
+            _convert_to_adjuster(modifier, settlement, mod_days),
         )
     else:
         raise ValueError("`tenor` must identify frequency in {'B', 'D', 'W', 'M', 'Y'} e.g. '1Y'")
@@ -450,8 +451,7 @@ def _adjust_date(
     datetime
     """
     cal_ = get_calendar(calendar)
-    modifier = modifier.upper()
-    return cal_.roll(date, _get_modifier(modifier, True), settlement)
+    return _convert_to_adjuster(modifier, settlement, True).adjust(date, cal_)
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -646,7 +646,7 @@ def _get_fx_expiry_and_delivery(
                     "using a string tenor `expiry`.",
                 )
             else:
-                spot = get_calendar(calendar).lag(eval_date, delivery_lag, True)
+                spot = get_calendar(calendar).lag_bus_days(eval_date, delivery_lag, True)
                 roll = "eom" if (eom and _is_eom(spot)) else spot.day
                 delivery_: datetime = add_tenor(spot, expiry, modifier, calendar, roll, True)
                 expiry_ = get_calendar(calendar).add_bus_days(delivery_, -delivery_lag, False)
@@ -659,7 +659,7 @@ def _get_fx_expiry_and_delivery(
     if isinstance(delivery_lag, datetime):
         delivery_ = delivery_lag
     else:
-        delivery_ = get_calendar(calendar).lag(expiry_, delivery_lag, True)
+        delivery_ = get_calendar(calendar).lag_bus_days(expiry_, delivery_lag, True)
 
     return expiry_, delivery_
 
@@ -675,7 +675,6 @@ __all__ = (
     "Cal",
     "create_calendar",
     "dcf",
-    "Modifier",
     "NamedCal",
     "RollDay",
     "UnionCal",

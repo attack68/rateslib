@@ -17,7 +17,7 @@ from rateslib.instruments.utils import (
     _update_with_defaults,
 )
 from rateslib.periods.utils import _get_fx_and_base
-from rateslib.rs import Cal, Modifier, RollDay
+from rateslib.rs import Adjuster, Cal, RollDay
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
@@ -446,7 +446,7 @@ class BondFuture(Sensitivities):
         f = -1.0
         while _date < mat:
             f += 1
-            _date = cal.add_months(_date, 1, Modifier.Act, RollDay.Int(dd.day), False)
+            _date = cal.add_months(_date, 1, Adjuster.Actual(), RollDay.Int(dd.day))
             if f == 12:
                 f = 0
                 n += 1
@@ -602,7 +602,7 @@ class BondFuture(Sensitivities):
         delivery = _drb(self.kwargs["delivery"][1], delivery)  # type: ignore[index, misc]
 
         # build a curve for pricing
-        today = basket[0].leg1.schedule.calendar.lag(
+        today = basket[0].leg1.schedule.calendar.lag_bus_days(
             settlement,
             -basket[0].kwargs["settle"],
             False,

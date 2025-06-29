@@ -5,6 +5,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, FromPyObject, IntoPyObject, PyErr};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use std::convert::From;
 
 use crate::calendars::dateroll::DateRoll;
 use crate::calendars::named::get_calendar_by_name;
@@ -15,6 +16,24 @@ pub enum CalType {
     Cal(Cal),
     UnionCal(UnionCal),
     NamedCal(NamedCal),
+}
+
+impl From<Cal> for CalType {
+    fn from(item: Cal) -> Self {
+        CalType::Cal(item)
+    }
+}
+
+impl From<UnionCal> for CalType {
+    fn from(item: UnionCal) -> Self {
+        CalType::UnionCal(item)
+    }
+}
+
+impl From<NamedCal> for CalType {
+    fn from(item: NamedCal) -> Self {
+        CalType::NamedCal(item)
+    }
 }
 
 /// A business day calendar with a singular list of holidays.

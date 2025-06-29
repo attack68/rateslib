@@ -1,12 +1,12 @@
+use crate::calendars::Convention;
 use crate::calendars::DateRoll;
-use crate::calendars::{Convention, Modifier};
 use crate::curves::interpolation::utils::index_left;
 use crate::curves::nodes::{Nodes, NodesTimestamp};
 use crate::dual::{get_variable_tags, ADOrder, Dual, Dual2, Number};
 use chrono::NaiveDateTime;
 use indexmap::IndexMap;
 use pyo3::exceptions::PyValueError;
-use pyo3::PyErr;
+use pyo3::{pyclass, PyErr};
 use serde::{Deserialize, Serialize};
 use std::cmp::PartialEq;
 
@@ -20,6 +20,22 @@ pub struct CurveDF<T: CurveInterpolation, U: DateRoll> {
     pub(crate) modifier: Modifier,
     pub(crate) index_base: Option<f64>,
     pub(crate) calendar: U,
+}
+
+/// A rule to adjust a non-business day to a business day.
+#[pyclass(module = "rateslib.rs", eq, eq_int)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum Modifier {
+    /// Actual: date is unchanged, even if it is a non-business day.
+    Act,
+    /// Following: date is rolled to the next business day.
+    F,
+    /// Modified following: date is rolled to the next except if it changes month.
+    ModF,
+    /// Previous: date is rolled to the previous business day.
+    P,
+    /// Modified previous: date is rolled to the previous except if it changes month.
+    ModP,
 }
 
 /// Assigns methods for returning values from datetime indexed Curves.

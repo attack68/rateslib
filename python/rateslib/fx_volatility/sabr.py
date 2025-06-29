@@ -137,7 +137,7 @@ class FXSabrSmile(_BaseSmile):
             _plot_x_axis="strike",
             _calendar=cal_,
             _delivery_lag=delivery_lag_,
-            _delivery=cal_.lag(expiry, delivery_lag_, True),
+            _delivery=cal_.lag_bus_days(expiry, delivery_lag_, True),
             _pair=_drb(None, pair),
             _delta_type="not_available",
         )

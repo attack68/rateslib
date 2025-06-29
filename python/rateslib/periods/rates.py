@@ -642,7 +642,7 @@ class FloatPeriod(BasePeriod):
         elif isinstance(self.fixings, Series):
             # check if we return published IBOR rate
             cal_, _ = self._maybe_get_cal_and_conv_from_curve(curve)
-            fixing_date = cal_.lag(self.start, -self.method_param, False)
+            fixing_date = cal_.lag_bus_days(self.start, -self.method_param, False)
             try:
                 fixing: DualTypes = self.fixings[fixing_date] + self.float_spread / 100
                 return fixing
@@ -684,7 +684,7 @@ class FloatPeriod(BasePeriod):
         return r
 
     def _rate_ibor_from_line_curve(self, curve: _BaseCurve) -> DualTypes:
-        fixing_date = curve.meta.calendar.lag(self.start, -self.method_param, False)
+        fixing_date = curve.meta.calendar.lag_bus_days(self.start, -self.method_param, False)
         return curve[fixing_date] + self.float_spread / 100
 
     def _rate_ibor_interpolated_ibor_from_dict(self, curve: dict[str, _BaseCurve]) -> DualTypes:
@@ -768,8 +768,10 @@ class FloatPeriod(BasePeriod):
         elif self.fixing_method == "rfr_payment_delay" and not self._is_inefficient:
             return curve._rate_with_raise(self.start, self.end) + self.float_spread / 100
         elif self.fixing_method == "rfr_observation_shift" and not self._is_inefficient:
-            start = curve.meta.calendar.lag(self.start, -self.method_param, settlement=False)
-            end = curve.meta.calendar.lag(self.end, -self.method_param, settlement=False)
+            start = curve.meta.calendar.lag_bus_days(
+                self.start, -self.method_param, settlement=False
+            )
+            end = curve.meta.calendar.lag_bus_days(self.end, -self.method_param, settlement=False)
             return curve._rate_with_raise(start, end) + self.float_spread / 100
             # TODO: (low:perf) semi-efficient method for lockout under certain conditions
         else:
@@ -1354,7 +1356,7 @@ class FloatPeriod(BasePeriod):
         risk: DualTypes | NoInput = NoInput(0),
     ) -> DataFrame:
         calendar = curve.meta.calendar
-        fixing_dt = calendar.lag(self.start, -self.method_param, False)
+        fixing_dt = calendar.lag_bus_days(self.start, -self.method_param, False)
         if not isinstance(right, NoInput) and fixing_dt > right:
             # fixing not in scope, perform no calculations
             df = DataFrame(
@@ -1605,12 +1607,12 @@ class FloatPeriod(BasePeriod):
             "rfr_observation_shift",
             "rfr_observation_shift_avg",
         ]:
-            start_obs = calendar.lag(self.start, -self.method_param, settlement=False)
-            end_obs = calendar.lag(self.end, -self.method_param, settlement=False)
+            start_obs = calendar.lag_bus_days(self.start, -self.method_param, settlement=False)
+            end_obs = calendar.lag_bus_days(self.end, -self.method_param, settlement=False)
             start_dcf, end_dcf = start_obs, end_obs
         elif self.fixing_method in ["rfr_lookback", "rfr_lookback_avg"]:
-            start_obs = calendar.lag(self.start, -self.method_param, settlement=False)
-            end_obs = calendar.lag(self.end, -self.method_param, settlement=False)
+            start_obs = calendar.lag_bus_days(self.start, -self.method_param, settlement=False)
+            end_obs = calendar.lag_bus_days(self.end, -self.method_param, settlement=False)
             start_dcf, end_dcf = self.start, self.end
         else:
             raise NotImplementedError(

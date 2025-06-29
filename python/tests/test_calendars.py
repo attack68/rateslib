@@ -188,7 +188,7 @@ def test_adjust_date_cal() -> None:
 
 
 def test_adjust_date_raises() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(KeyError):
         _adjust_date(dt(2000, 1, 1), "BAD_STRING", NoInput(0))
 
 
