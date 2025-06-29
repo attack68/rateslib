@@ -4,7 +4,8 @@ use crate::calendars::named::get_calendar_by_name;
 use crate::calendars::{Cal, CalType, Convention, DateRoll, Modifier, NamedCal, RollDay, UnionCal};
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
-use bincode::{deserialize, serialize};
+use bincode::config::legacy;
+use bincode::serde::{decode_from_slice, encode_to_vec};
 use chrono::NaiveDateTime;
 use indexmap::set::IndexSet;
 use pyo3::exceptions::PyValueError;
@@ -52,11 +53,11 @@ impl Convention {
         }
     }
     pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
-        *self = deserialize(state.as_bytes()).unwrap();
+        *self = decode_from_slice(state.as_bytes(), legacy()).unwrap().0;
         Ok(())
     }
     pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new(py, &serialize(&self).unwrap()))
+        Ok(PyBytes::new(py, &encode_to_vec(&self, legacy()).unwrap()))
     }
     pub fn __getnewargs__<'py>(&self) -> PyResult<(u8,)> {
         match self {
@@ -92,11 +93,11 @@ impl Modifier {
         }
     }
     pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
-        *self = deserialize(state.as_bytes()).unwrap();
+        *self = decode_from_slice(state.as_bytes(), legacy()).unwrap().0;
         Ok(())
     }
     pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new(py, &serialize(&self).unwrap()))
+        Ok(PyBytes::new(py, &encode_to_vec(&self, legacy()).unwrap()))
     }
     pub fn __getnewargs__<'py>(&self) -> PyResult<(u8,)> {
         match self {
@@ -401,11 +402,11 @@ impl Cal {
 
     // Pickling
     fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
-        *self = deserialize(state.as_bytes()).unwrap();
+        *self = decode_from_slice(state.as_bytes(), legacy()).unwrap().0;
         Ok(())
     }
     fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new(py, &serialize(&self).unwrap()))
+        Ok(PyBytes::new(py, &encode_to_vec(&self, legacy()).unwrap()))
     }
     fn __getnewargs__(&self) -> PyResult<(Vec<NaiveDateTime>, Vec<u8>)> {
         Ok((
@@ -594,11 +595,11 @@ impl UnionCal {
 
     // Pickling
     pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
-        *self = deserialize(state.as_bytes()).unwrap();
+        *self = decode_from_slice(state.as_bytes(), legacy()).unwrap().0;
         Ok(())
     }
     pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new(py, &serialize(&self).unwrap()))
+        Ok(PyBytes::new(py, &encode_to_vec(&self, legacy()).unwrap()))
     }
     pub fn __getnewargs__(&self) -> PyResult<(Vec<Cal>, Option<Vec<Cal>>)> {
         Ok((self.calendars.clone(), self.settlement_calendars.clone()))
@@ -772,11 +773,11 @@ impl NamedCal {
 
     // Pickling
     pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
-        *self = deserialize(state.as_bytes()).unwrap();
+        *self = decode_from_slice(state.as_bytes(), legacy()).unwrap().0;
         Ok(())
     }
     pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new(py, &serialize(&self).unwrap()))
+        Ok(PyBytes::new(py, &encode_to_vec(&self, legacy()).unwrap()))
     }
     pub fn __getnewargs__(&self) -> PyResult<(String,)> {
         Ok((self.name.clone(),))

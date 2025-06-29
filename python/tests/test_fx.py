@@ -6,7 +6,7 @@ import pytest
 from matplotlib import pyplot as plt
 from pandas import DataFrame, Series
 from pandas.testing import assert_frame_equal, assert_series_equal
-from rateslib.curves import CompositeCurve, Curve, LineCurve
+from rateslib.curves import CompositeCurve, Curve, LineCurve, MultiCsaCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, gradient
 from rateslib.fx import (
@@ -41,6 +41,23 @@ class TestStateAndCache:
         fxr.update({"eurusd": 2.0})  # clear the FXarray cached property
         new = fxr.rate("eurgbp")
         assert new != original
+
+    @pytest.mark.parametrize(
+        ("meth", "args"), [("update", ([{"eurusd": 1.0}],)), ("_set_ad_order", (2,))]
+    )
+    def test_fxforwards_cache_clearing(self, meth, args):
+        fxr1 = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
+        fxf = FXForwards(
+            fx_rates=[fxr1],  # FXRates as list
+            fx_curves={
+                "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "eureur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+                "usdeur": Curve({dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.999}),
+            },
+        )
+        fxf._cache[(dt(2000, 1, 1), "eurusd")] = 100.0
+        getattr(fxf, meth)(*args)
+        assert fxf._cache == {}
 
 
 @pytest.mark.parametrize(
@@ -873,7 +890,7 @@ def test_generate_multi_csa_curve() -> None:
         },
     )
     c1 = fxf.curve("cad", ["cad", "usd", "eur"])
-    assert isinstance(c1, CompositeCurve)
+    assert isinstance(c1, MultiCsaCurve)
 
 
 def test_proxy_curves_update_with_underlying() -> None:
@@ -1570,6 +1587,54 @@ class TestFXForwards:
         assert "eurusd" in fxf.fx_proxy_curves
         c2 = fxf.curve("eur", "usd")
         assert id(c) == id(c2)
+
+    def test_creation_composite_curve(self):
+        c1 = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98})
+        c2 = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.99})
+        cc = CompositeCurve([c1, c2])
+        mc = MultiCsaCurve([c1, c2])
+        fxr = FXRates({"eurusd": 1.5}, settlement=dt(2000, 1, 1))
+        fxf = FXForwards(
+            fx_rates=fxr,
+            fx_curves={"eureur": mc, "eurusd": c2, "usdusd": cc},
+        )
+        pc = fxf.curve("usd", "eur")
+        result = pc[dt(2000, 1, 15)]
+        assert abs(result - 0.998456) < 1e-6
+
+    def test_creation_proxy_curve(self):
+        c1 = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98})
+        c2 = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.99})
+        cc = CompositeCurve([c1, c2])
+        mc = MultiCsaCurve([c1, c2])
+        fxr = FXRates({"eurusd": 1.5}, settlement=dt(2000, 1, 1))
+        fxf = FXForwards(
+            fx_rates=fxr,
+            fx_curves={"eureur": mc, "eurusd": c2, "usdusd": cc},
+        )
+        pc = fxf.curve("usd", "eur")
+        fxf2 = FXForwards(
+            fx_rates=fxr,
+            fx_curves={"eureur": pc, "eurusd": pc, "usdusd": cc},
+        )
+        pc = fxf2.curve("usd", "eur")
+        result = pc[dt(2000, 1, 15)]
+        assert abs(result - 0.998843) < 1e-6
+
+    def test_creation_operations_curve(self):
+        c1 = Curve({dt(2000, 1, 2): 1.0, dt(2001, 1, 1): 0.98})
+        c2 = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.99})
+        rc = c1.roll("3d")
+        sc = c1.shift(10.0)
+        tc = c2.translate(dt(2000, 1, 2))
+        fxr = FXRates({"eurusd": 1.5}, settlement=dt(2000, 1, 2))
+        fxf = FXForwards(
+            fx_rates=fxr,
+            fx_curves={"eureur": rc, "eurusd": sc, "usdusd": tc},
+        )
+        pc = fxf.curve("usd", "eur")
+        result = pc[dt(2000, 1, 15)]
+        assert abs(result - 0.999679) < 1e-6
 
 
 def test_recursive_pair_population1():

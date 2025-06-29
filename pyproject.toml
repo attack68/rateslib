@@ -15,7 +15,7 @@ features = ["pyo3/extension-module"]
 
 [project]
 name = "rateslib"
-version = "2.0.1"
+version = "2.1.0"
 description = "A fixed income library for trading interest rates"
 readme = "README.md"
 authors = [{ name = "J H M Darbyshire"}]
@@ -123,7 +123,7 @@ select = [
 ]
 ignore = [
     "A005",  # json and typing module name shadowing is allowed
-    "PT011", "PT030", "PT031",  # -- Requires work inputting match statements
+    "PT011", "PT030", "PT031", # -- Requires work inputting match statements
     "PIE790",  # unnecessary pass
     "C408",  # unnecessary dict call
     "N806", "N815", "N803", "N802",

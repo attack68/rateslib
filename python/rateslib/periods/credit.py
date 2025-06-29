@@ -20,11 +20,11 @@ if TYPE_CHECKING:
     from rateslib.typing import (
         FX_,
         Any,
-        Curve,
-        Curve_,
         CurveOption_,
         DualTypes,
         DualTypes_,
+        _BaseCurve,
+        _BaseCurve_,
         datetime,
         str_,
     )
@@ -219,8 +219,8 @@ class CreditPremiumPeriod(BasePeriod):
 
     def cashflows(
         self,
-        curve: Curve_ = NoInput(0),  # type: ignore[override]
-        disc_curve: Curve_ = NoInput(0),
+        curve: _BaseCurve_ = NoInput(0),  # type: ignore[override]
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
     ) -> dict[str, Any]:
@@ -302,7 +302,7 @@ class CreditProtectionPeriod(BasePeriod):
     ) -> None:
         super().__init__(*args, **kwargs)
 
-    def cashflow(self, curve: Curve) -> DualTypes:
+    def cashflow(self, curve: _BaseCurve) -> DualTypes:
         """
         float, Dual or Dual2 : The calculated protection amount determined from notional
         and recovery rate.
@@ -360,8 +360,8 @@ class CreditProtectionPeriod(BasePeriod):
 
     def cashflows(
         self,
-        curve: Curve_ = NoInput(0),  # type: ignore[override]
-        disc_curve: Curve_ = NoInput(0),
+        curve: _BaseCurve_ = NoInput(0),  # type: ignore[override]
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
     ) -> dict[str, Any]:
@@ -394,8 +394,8 @@ class CreditProtectionPeriod(BasePeriod):
 
     def analytic_rec_risk(
         self,
-        curve: Curve_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
     ) -> float:
@@ -411,7 +411,7 @@ class CreditProtectionPeriod(BasePeriod):
         """
         curve_, disc_curve_ = _validate_credit_curves(curve, disc_curve)
         haz_curve = curve_.copy()
-        haz_curve._meta = replace(
+        haz_curve._meta = replace(  # type: ignore[misc]
             curve_.meta,
             _credit_recovery_rate=Variable(
                 _dual_float(curve_.meta.credit_recovery_rate), ["__rec_rate__"], []

@@ -14,7 +14,7 @@ from rateslib.periods.index import _validate_index_method_and_lag
 from rateslib.scheduling import Schedule
 
 if TYPE_CHECKING:
-    from rateslib.typing import NPV, Any, Curve_, DataFrame, DualTypes, DualTypes_, int_, str_
+    from rateslib.typing import NPV, Any, DataFrame, DualTypes, DualTypes_, _BaseCurve_, int_, str_
 
 
 class _IndexLegMixin:
@@ -218,7 +218,7 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
             ),
         ]
 
-    def cashflow(self, curve: Curve_ = NoInput(0)) -> DualTypes:
+    def cashflow(self, curve: _BaseCurve_ = NoInput(0)) -> DualTypes:
         """Aggregate the cashflows on the *IndexFixedPeriod* and *Cashflow* period using a
         *Curve*."""
         _: DualTypes = self.periods[0].cashflow(curve) + self.periods[1].cashflow  # type: ignore[operator]

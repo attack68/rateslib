@@ -1,10 +1,18 @@
+from rateslib.curves.base import (
+    _BaseCurve,
+    _WithMutability,
+)
 from rateslib.curves.curves import (
     CompositeCurve,
+    CreditImpliedCurve,
     Curve,
     LineCurve,
     MultiCsaCurve,
     ProxyCurve,
-    average_rate,
+    _RolledCurve,
+    _ShiftedCurve,
+    _TranslatedCurve,
+    _WithOperations,
     index_value,
 )
 from rateslib.curves.interpolation import index_left
@@ -15,6 +23,7 @@ from rateslib.curves.utils import (
     _CurveSpline,
     _CurveType,
     _ProxyCurveInterpolator,
+    average_rate,
 )
 
 __all__ = (
@@ -23,6 +32,7 @@ __all__ = (
     "LineCurve",
     "MultiCsaCurve",
     "ProxyCurve",
+    "CreditImpliedCurve",
     "average_rate",
     "index_left",
     "index_value",
@@ -32,4 +42,10 @@ __all__ = (
     "_CurveInterpolator",
     "_CurveNodes",
     "_ProxyCurveInterpolator",
+    "_RolledCurve",
+    "_ShiftedCurve",
+    "_TranslatedCurve",
+    "_WithOperations",
+    "_BaseCurve",
+    "_WithMutability",
 )

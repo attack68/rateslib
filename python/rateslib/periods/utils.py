@@ -4,8 +4,8 @@ import warnings
 from typing import TYPE_CHECKING
 
 from rateslib import defaults
-from rateslib.curves import Curve
 from rateslib.curves._parsers import _validate_obj_not_no_input
+from rateslib.curves.base import _BaseCurve
 from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
 from rateslib.fx import FXForwards, FXRates
@@ -14,11 +14,11 @@ from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
 if TYPE_CHECKING:
     from rateslib.typing import (
         FX_,
-        Curve,
         CurveOption_,
         DataFrame,
         DualTypes,
         FXVolOption_,
+        _BaseCurve,
         datetime,
         datetime_,
         str_,
@@ -187,7 +187,7 @@ def _float_or_none(val: DualTypes | None | NoInput) -> float | None:
         return _dual_float(val)
 
 
-def _get_ibor_curve_from_dict(months: int, d: dict[str, Curve]) -> Curve:
+def _get_ibor_curve_from_dict(months: int, d: dict[str, _BaseCurve]) -> _BaseCurve:
     try:
         return d[f"{months}m"]
     except KeyError:
@@ -200,17 +200,19 @@ def _get_ibor_curve_from_dict(months: int, d: dict[str, Curve]) -> Curve:
             )
 
 
-def _maybe_get_rfr_curve_from_dict(curve: Curve | dict[str, Curve] | NoInput) -> Curve | NoInput:
+def _maybe_get_rfr_curve_from_dict(
+    curve: _BaseCurve | dict[str, _BaseCurve] | NoInput,
+) -> _BaseCurve | NoInput:
     if isinstance(curve, dict):
         return _get_rfr_curve_from_dict(curve)
     else:
         return curve
 
 
-def _get_rfr_curve_from_dict(d: dict[str, Curve]) -> Curve:
+def _get_rfr_curve_from_dict(d: dict[str, _BaseCurve]) -> _BaseCurve:
     for s in ["rfr", "RFR", "Rfr"]:
         try:
-            ret: Curve = d[s]
+            ret: _BaseCurve = d[s]
         except KeyError:
             continue
         else:
@@ -257,14 +259,16 @@ def _get_vol_delta_type(vol: FXVolOption_, default_delta_type: str) -> str:
         return vol.meta.delta_type
 
 
-def _validate_credit_curves(curve: CurveOption_, disc_curve: CurveOption_) -> tuple[Curve, Curve]:
+def _validate_credit_curves(
+    curve: CurveOption_, disc_curve: CurveOption_
+) -> tuple[_BaseCurve, _BaseCurve]:
     # used by Credit type Periods to narrow inputs
-    if not isinstance(curve, Curve):
+    if not isinstance(curve, _BaseCurve):
         raise TypeError(
             "`curves` have not been supplied correctly.\n"
             "`curve`for a CreditPremiumPeriod must be supplied as a Curve type."
         )
-    if not isinstance(disc_curve, Curve):
+    if not isinstance(disc_curve, _BaseCurve):
         raise TypeError(
             "`curves` have not been supplied correctly.\n"
             "`disc_curve` for a CreditPremiumPeriod must be supplied as a Curve type."

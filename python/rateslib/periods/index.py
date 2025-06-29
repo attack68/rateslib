@@ -16,7 +16,16 @@ from rateslib.periods.rates import FixedPeriod
 from rateslib.periods.utils import _float_or_none, _get_fx_and_base, _maybe_local
 
 if TYPE_CHECKING:
-    from rateslib.typing import FX_, Any, Curve, Curve_, CurveOption_, DualTypes, DualTypes_, str_
+    from rateslib.typing import (
+        FX_,
+        Any,
+        CurveOption_,
+        DualTypes,
+        DualTypes_,
+        _BaseCurve,
+        _BaseCurve_,
+        str_,
+    )
 
 
 class IndexMixin(metaclass=ABCMeta):
@@ -101,8 +110,8 @@ class IndexMixin(metaclass=ABCMeta):
 
     def npv(
         self,
-        curve: Curve_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
@@ -111,7 +120,7 @@ class IndexMixin(metaclass=ABCMeta):
         Return the cashflows of the *IndexPeriod*.
         See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
-        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve = _disc_required_maybe_from_curve(curve, disc_curve)
         cf_: DualTypes | None = self.cashflow(curve)
         if cf_ is None:
             raise ValueError(
@@ -257,8 +266,8 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
 
     def cashflows(
         self,
-        curve: Curve_ = NoInput(0),  # type: ignore[override]
-        disc_curve: Curve_ = NoInput(0),
+        curve: _BaseCurve_ = NoInput(0),  # type: ignore[override]
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
     ) -> dict[str, Any]:
@@ -266,7 +275,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
         Return the cashflows of the *IndexFixedPeriod*.
         See :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
         """
-        disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve_ = _disc_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
         if isinstance(disc_curve_, NoInput) or isinstance(self.fixed_rate, NoInput):
@@ -411,7 +420,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
     def cashflows(
         self,
         curve: CurveOption_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
     ) -> dict[str, Any]:

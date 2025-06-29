@@ -698,7 +698,6 @@ class TestFixedRateBond:
         ],
     )
     def test_regular_it_gb(self, sett, price, exp_ytm, exp_acc) -> None:
-        # Values compared with BBG YA for "True Yield" and Accrued
         frb = FixedRateBond(  # ISIN IT0005518128
             effective=dt(2022, 11, 1),
             termination=dt(2033, 5, 1),
@@ -742,14 +741,13 @@ class TestFixedRateBond:
     @pytest.mark.parametrize(
         ("sett", "ytm", "exp_price", "exp_acc"),
         [
-            (dt(2032, 11, 1), 6.429702, 99.00, 0.0),  # BBG - Last coupon simple rate
-            (dt(2032, 11, 2), 6.439891, 99.00, 0.01215),  # BBG YAS Yield-Last coupon simple rate
-            (dt(2033, 3, 15), 6.862519, 99.65, 1.628730),  # BBG YAS Yield - Last coupon simple rate
+            (dt(2032, 11, 1), 6.429702, 99.00, 0.0),  # Last coupon simple rate
+            (dt(2032, 11, 2), 6.439891, 99.00, 0.01215),  # Last coupon simple rate
+            (dt(2033, 3, 15), 6.862519, 99.65, 1.628730),  # Last coupon simple rate
             (dt(2033, 4, 29), 6.450803, 99.97, 2.175690),  # Test accrual upto adjusted payment date
         ],
     )
     def test_regular_it_gb_final_simple(self, sett, ytm, exp_price, exp_acc) -> None:
-        # Values compared with BBG YA for "True Yield" and Accrued
         frb = FixedRateBond(  # ISIN IT0005518128
             effective=dt(2022, 11, 1),
             termination=dt(2033, 5, 1),
@@ -771,7 +769,6 @@ class TestFixedRateBond:
         ],
     )
     def test_regular_it_gb_final_simple_vs_excel2(self, sett, ytm, exp_price, exp_acc) -> None:
-        # These values are not the same as for BBG YA, by small tolerance. See above > test1.
         frb = FixedRateBond(  # ISIN IT0005547408
             effective=dt(2023, 6, 13),
             termination=dt(2027, 6, 13),
@@ -850,7 +847,7 @@ class TestFixedRateBond:
         ],
     )
     def test_bny_mellon(self, settlement, price, exp_ytm, exp_acc) -> None:
-        # BNY Mellon ISIN: US06406RAH03, compared with BBG BXT.
+        # BNY Mellon ISIN: US06406RAH03,
         b = FixedRateBond(
             effective=dt(2018, 4, 30),
             termination=dt(2028, 4, 28),
@@ -874,7 +871,7 @@ class TestFixedRateBond:
         ],
     )
     def test_bny_mellon_spec(self, settlement, price, exp_ytm, exp_acc) -> None:
-        # BNY Mellon ISIN: US06406RAH03, compared with BBG BXT.
+        # BNY Mellon ISIN: US06406RAH03,
         b = FixedRateBond(
             effective=dt(2018, 4, 30),
             termination=dt(2028, 4, 28),
@@ -900,7 +897,7 @@ class TestFixedRateBond:
         ],
     )
     def test_cali_state_school(self, settlement, price, exp_ytm, exp_acc) -> None:
-        # LA Unif ISIN: US544647CW89, compared with BBG BXT.
+        # LA Unif ISIN: US544647CW89,
         b = FixedRateBond(
             effective=dt(2020, 11, 10),
             termination=dt(2026, 7, 1),
@@ -924,7 +921,7 @@ class TestFixedRateBond:
         ],
     )
     def test_new_jersey_transport(self, settlement, price, exp_ytm, exp_acc) -> None:
-        # NJ Transport ISIN: US64613CEZ77, compared with BBG BXT.
+        # NJ Transport ISIN: US64613CEZ77,
         b = FixedRateBond(
             effective=dt(2024, 10, 24),
             termination=dt(2026, 6, 15),
@@ -1446,7 +1443,7 @@ class TestFixedRateBond:
         curve = Curve({dt(2010, 11, 25): 1.0, dt(2015, 12, 7): 0.75})
         # result = gilt.npv(curve) = 113.22198344812742
         result = gilt.oaspread(curve, price=price)
-        curve_z = curve.shift(result, composite=False)
+        curve_z = curve.shift(result)
         result = gilt.rate(curve_z, metric="clean_price")
         assert abs(result - price) < tol
 
@@ -1477,7 +1474,7 @@ class TestFixedRateBond:
         curve = Curve({dt(1999, 11, 25): 1.0, dt(2015, 12, 7): 0.85})
         # result = gilt.npv(curve) = 113.22198344812742
         result = gilt.oaspread(curve, price=price)
-        curve_z = curve.shift(result, composite=False)
+        curve_z = curve.shift(result)
         result = gilt.rate(curve_z, metric="clean_price")
         assert abs(result - price) < tol
 
@@ -2142,7 +2139,7 @@ class TestBill:
         curve = Curve({dt(1998, 12, 7): 1.0, dt(2015, 12, 7): 0.75})
         # result = bill.rate(curve, metric="price") # = 98.605
         result = bill.oaspread(curve, price=price)
-        curve_z = curve.shift(result, composite=False)
+        curve_z = curve.shift(result)
         result = bill.rate(curve_z, metric="clean_price")
         assert abs(result - price) < tol
 
@@ -2598,7 +2595,7 @@ class TestFloatRateNote:
         curve = Curve({dt(1998, 12, 7): 1.0, dt(2015, 12, 7): 0.75})
         # result = bond.rate(curve, metric="clean_price") = 99.999999999999953
         result = bond.oaspread(curve, price=price)
-        curve_z = curve.shift(result, composite=False)
+        curve_z = curve.shift(result)
         result = bond.rate([curve, curve_z], metric="clean_price")
         assert abs(result - price) < tol
 
