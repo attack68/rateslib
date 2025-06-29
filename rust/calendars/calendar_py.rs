@@ -85,8 +85,8 @@ impl Adjuster {
     /// ----------
     /// date: datetime
     ///     Date to adjust.
-    /// adjuster: Adjuster
-    ///     Defines the adjustment rule.
+    /// calendar: Cal, UnionCal or NamedCal
+    ///     The calendar to assist with date adjustment.
     ///
     /// Returns
     /// -------
