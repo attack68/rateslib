@@ -672,6 +672,7 @@ _IS_ROLL: dict[str, Callable[..., bool]] = {
 
 __all__ = (
     "add_tenor",
+    "Adjuster",
     "Cal",
     "create_calendar",
     "dcf",
