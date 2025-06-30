@@ -111,6 +111,7 @@ pub(crate) use crate::calendars::dcfs::_get_convention_str;
 mod adjuster;
 pub use crate::calendars::adjuster::{Adjuster, Adjustment};
 
+mod py;
 mod serde;
 
 pub(crate) mod calendar_py;
