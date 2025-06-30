@@ -216,6 +216,12 @@ class TestCal:
         ncal = get_calendar("tgt")
         assert ncal.union_cal.settlement_calendars is None
 
+    def test_rolls(self, simple_cal):
+        dates = [dt(2015, 9, 4), dt(2015, 9, 5), dt(2015, 9, 6), dt(2015, 9, 7)]
+        result = simple_cal.rolls(dates, Adjuster.Following())
+        expected = [dt(2015, 9, 4), dt(2015, 9, 8), dt(2015, 9, 8), dt(2015, 9, 8)]
+        assert result == expected
+
 
 class TestUnionCal:
     def test_week_mask(self, multi_union) -> None:
@@ -270,3 +276,11 @@ def test_calendar_against_historical_fixings(datafile, calendar, known_exception
             errors += 1
 
     assert errors == 0
+
+
+class TestAdjuster:
+    def test_adjusts(self, simple_cal):
+        dates = [dt(2015, 9, 4), dt(2015, 9, 5), dt(2015, 9, 6), dt(2015, 9, 7)]
+        result = Adjuster.Following().adjusts(dates, simple_cal)
+        expected = [dt(2015, 9, 4), dt(2015, 9, 8), dt(2015, 9, 8), dt(2015, 9, 8)]
+        assert result == expected
