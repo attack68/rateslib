@@ -1,6 +1,6 @@
 //! Wrapper module to export to Python using pyo3 bindings.
 
-use crate::calendars::adjuster::{Adjuster, Adjustment};
+use crate::calendars::adjuster::Adjuster;
 use crate::calendars::named::get_calendar_by_name;
 use crate::calendars::{Cal, CalType, Convention, DateRoll, NamedCal, RollDay, UnionCal};
 use crate::json::json_py::DeserializedObj;
@@ -69,31 +69,11 @@ impl Convention {
             Convention::Act360 => Ok((4_u8,)),
             Convention::ThirtyE360 => Ok((5_u8,)),
             Convention::Thirty360 => Ok((6_u8,)),
-            Convention::Thirty360ISDA => Ok((6_u8,)),
+            Convention::Thirty360ISDA => Ok((7_u8,)),
             Convention::ActActISDA => Ok((8_u8,)),
             Convention::ActActICMA => Ok((9_u8,)),
             Convention::Bus252 => Ok((10_u8,)),
         }
-    }
-}
-
-#[pymethods]
-impl Adjuster {
-    /// Return a `date` under a date adjustment rule.
-    ///
-    /// Parameters
-    /// ----------
-    /// date: datetime
-    ///     Date to adjust.
-    /// calendar: Cal, UnionCal or NamedCal
-    ///     The calendar to assist with date adjustment.
-    ///
-    /// Returns
-    /// -------
-    /// datetime
-    #[pyo3(name = "adjust")]
-    fn adjust_py(&self, date: NaiveDateTime, calendar: CalType) -> NaiveDateTime {
-        self.adjust(&date, &calendar)
     }
 }
 
@@ -269,7 +249,7 @@ impl Cal {
         Ok(self.add_months(&date, months, &adjuster, &roll))
     }
 
-    /// Adjust a non-business date to a business date under a specific modification rule.
+    /// Adjust a date under a date adjustment rule.
     ///
     /// Parameters
     /// -----------
@@ -281,13 +261,30 @@ impl Cal {
     /// Returns
     /// -------
     /// datetime
-    ///
-    /// Notes
-    /// -----
-    /// An input date which is already a settleable, business date will be returned unchanged.
     #[pyo3(name = "roll")]
     fn roll_py(&self, date: NaiveDateTime, adjuster: Adjuster) -> PyResult<NaiveDateTime> {
         Ok(self.roll(&date, &adjuster))
+    }
+
+    /// Adjust a list of dates under a date adjustment rule.
+    ///
+    /// Parameters
+    /// -----------
+    /// dates: list[datetime]
+    ///     The dates to adjust.
+    /// adjuster: Adjuster
+    ///     The date adjustment rule to apply.
+    ///
+    /// Returns
+    /// -------
+    /// list[datetime]
+    #[pyo3(name = "rolls")]
+    fn rolls_py(
+        &self,
+        dates: Vec<NaiveDateTime>,
+        adjuster: Adjuster,
+    ) -> PyResult<Vec<NaiveDateTime>> {
+        Ok(self.rolls(&dates, &adjuster))
     }
 
     /// Adjust a date by a number of business days, under lag rules.
