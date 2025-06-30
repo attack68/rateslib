@@ -35,6 +35,10 @@ pub enum Adjuster {
 pub trait Adjustment {
     /// Adjust a date under an adjustment rule.
     fn adjust<T: DateRoll>(&self, udate: &NaiveDateTime, calendar: &T) -> NaiveDateTime;
+
+    /// Adjust a vector of dates under an adjustment rule;
+    fn adjusts<T: DateRoll>(&self, udates: &Vec<NaiveDateTime>, calendar: &T)
+        -> Vec<NaiveDateTime>;
 }
 
 impl Adjustment for Adjuster {
@@ -63,5 +67,51 @@ impl Adjustment for Adjuster {
                 calendar.add_cal_days(udate, *n, &adj)
             }
         }
+    }
+
+    fn adjusts<T: DateRoll>(
+        &self,
+        udates: &Vec<NaiveDateTime>,
+        calendar: &T,
+    ) -> Vec<NaiveDateTime> {
+        match self {
+            _ => udates
+                .iter()
+                .map(|udate| self.adjust(udate, calendar))
+                .collect(),
+        }
+    }
+}
+
+// UNIT TESTS
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::calendars::{ndt, Cal};
+
+    fn fixture_hol_cal() -> Cal {
+        let hols = vec![ndt(2015, 9, 5), ndt(2015, 9, 7)]; // Saturday and Monday
+        Cal::new(hols, vec![5, 6])
+    }
+
+    #[test]
+    fn test_adjusts() {
+        let cal = fixture_hol_cal();
+        let udates = vec![
+            ndt(2015, 9, 4),
+            ndt(2015, 9, 5),
+            ndt(2015, 9, 6),
+            ndt(2015, 9, 7),
+        ];
+        let result = Adjuster::Following {}.adjusts(&udates, &cal);
+        assert_eq!(
+            result,
+            vec![
+                ndt(2015, 9, 4),
+                ndt(2015, 9, 8),
+                ndt(2015, 9, 8),
+                ndt(2015, 9, 8)
+            ]
+        );
     }
 }

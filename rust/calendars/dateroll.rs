@@ -160,6 +160,18 @@ pub trait DateRoll {
         adjuster.adjust(date, self)
     }
 
+    /// Adjust a vector of dates under a date roll `modifier`, either to a business day
+    /// enforcing `settlement` or a business day that may not allow settlement.
+    ///
+    /// *Note*: if the `modifier` is *'Act'*, then a business day may not be returned and the `settlement` flag
+    /// is disregarded - it is ambiguous in this case whether to move forward or backward datewise.
+    fn rolls(&self, dates: &Vec<NaiveDateTime>, adjuster: &Adjuster) -> Vec<NaiveDateTime>
+    where
+        Self: Sized + DateRoll,
+    {
+        adjuster.adjusts(dates, self)
+    }
+
     /// Adjust a date by a number of business days, under lag rules.
     ///
     /// *Note*: if the number of business days is **zero** a non-business day will be rolled
@@ -752,5 +764,26 @@ mod tests {
     fn test_is_leap() {
         assert_eq!(true, is_leap_year(2024));
         assert_eq!(false, is_leap_year(2022));
+    }
+
+    #[test]
+    fn test_rolls() {
+        let cal = fixture_hol_cal();
+        let udates = vec![
+            ndt(2015, 9, 4),
+            ndt(2015, 9, 5),
+            ndt(2015, 9, 6),
+            ndt(2015, 9, 7),
+        ];
+        let result = cal.rolls(&udates, &Adjuster::Following {});
+        assert_eq!(
+            result,
+            vec![
+                ndt(2015, 9, 4),
+                ndt(2015, 9, 8),
+                ndt(2015, 9, 8),
+                ndt(2015, 9, 8)
+            ]
+        );
     }
 }
