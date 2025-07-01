@@ -879,8 +879,8 @@ def _is_invalid_very_short_stub(
     window.
     """
     # _ = date_range(start=date1, end=date2, freq=calendar)
-    date1_ = calendar.roll(date_to_modify, _convert_to_adjuster(modifier, False, True))
-    date2_ = calendar.roll(date_fixed, _convert_to_adjuster(modifier, False, True))
+    date1_ = calendar.adjust(date_to_modify, _convert_to_adjuster(modifier, False, True))
+    date2_ = calendar.adjust(date_fixed, _convert_to_adjuster(modifier, False, True))
     # settlement calendar alignment is not enforced during schedule generation.
     return date1_ == date2_  # True => date range created by stubs is too small and is invalid
 

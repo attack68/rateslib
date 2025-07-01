@@ -216,9 +216,9 @@ class TestCal:
         ncal = get_calendar("tgt")
         assert ncal.union_cal.settlement_calendars is None
 
-    def test_rolls(self, simple_cal):
+    def test_adjusts(self, simple_cal):
         dates = [dt(2015, 9, 4), dt(2015, 9, 5), dt(2015, 9, 6), dt(2015, 9, 7)]
-        result = simple_cal.rolls(dates, Adjuster.Following())
+        result = simple_cal.adjusts(dates, Adjuster.Following())
         expected = [dt(2015, 9, 4), dt(2015, 9, 8), dt(2015, 9, 8), dt(2015, 9, 8)]
         assert result == expected
 

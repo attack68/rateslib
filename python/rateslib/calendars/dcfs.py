@@ -313,8 +313,8 @@ def _dcf_bus252(
         return 0.0
 
     cal_ = get_calendar(calendar)
-    start_ = cal_.roll(start, Adjuster.Following())
-    end_ = cal_.roll(end, Adjuster.Previous())
+    start_ = cal_.adjust(start, Adjuster.Following())
+    end_ = cal_.adjust(end, Adjuster.Previous())
     subtract = -1.0 if end_ == end else 0.0
     if start_ == end_:
         if start_ > start and end_ < end:

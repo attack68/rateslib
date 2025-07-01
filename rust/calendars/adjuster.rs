@@ -41,6 +41,24 @@ pub trait Adjustment {
         -> Vec<NaiveDateTime>;
 }
 
+pub trait CalendarAdjustment {
+    /// Adjust a date under an adjustment rule.
+    fn adjust(&self, udate: &NaiveDateTime, adjuster: &Adjuster) -> NaiveDateTime
+    where
+        Self: Sized + DateRoll,
+    {
+        adjuster.adjust(udate, self)
+    }
+
+    /// Adjust a vector of dates under an adjustment rule;
+    fn adjusts(&self, udates: &Vec<NaiveDateTime>, adjuster: &Adjuster) -> Vec<NaiveDateTime>
+    where
+        Self: Sized + DateRoll,
+    {
+        adjuster.adjusts(udates, self)
+    }
+}
+
 impl Adjustment for Adjuster {
     fn adjust<T: DateRoll>(&self, udate: &NaiveDateTime, calendar: &T) -> NaiveDateTime {
         match self {

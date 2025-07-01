@@ -1,6 +1,6 @@
 //! Wrapper module to export to Python using pyo3 bindings.
 
-use crate::calendars::adjuster::Adjuster;
+use crate::calendars::adjuster::{Adjuster, CalendarAdjustment};
 use crate::calendars::named::get_calendar_by_name;
 use crate::calendars::{Cal, CalType, Convention, DateRoll, NamedCal, RollDay, UnionCal};
 use crate::json::json_py::DeserializedObj;
@@ -261,9 +261,9 @@ impl Cal {
     /// Returns
     /// -------
     /// datetime
-    #[pyo3(name = "roll")]
-    fn roll_py(&self, date: NaiveDateTime, adjuster: Adjuster) -> PyResult<NaiveDateTime> {
-        Ok(self.roll(&date, &adjuster))
+    #[pyo3(name = "adjust")]
+    fn adjust_py(&self, date: NaiveDateTime, adjuster: Adjuster) -> PyResult<NaiveDateTime> {
+        Ok(self.adjust(&date, &adjuster))
     }
 
     /// Adjust a list of dates under a date adjustment rule.
@@ -278,13 +278,13 @@ impl Cal {
     /// Returns
     /// -------
     /// list[datetime]
-    #[pyo3(name = "rolls")]
-    fn rolls_py(
+    #[pyo3(name = "adjusts")]
+    fn adjusts_py(
         &self,
         dates: Vec<NaiveDateTime>,
         adjuster: Adjuster,
     ) -> PyResult<Vec<NaiveDateTime>> {
-        Ok(self.rolls(&dates, &adjuster))
+        Ok(self.adjusts(&dates, &adjuster))
     }
 
     /// Adjust a date by a number of business days, under lag rules.
@@ -512,10 +512,10 @@ impl UnionCal {
 
     /// Adjust a non-business date to a business date under a specific modification rule.
     ///
-    /// See :meth:`Cal.roll <rateslib.calendars.Cal.roll>`.
-    #[pyo3(name = "roll")]
-    fn roll_py(&self, date: NaiveDateTime, adjuster: Adjuster) -> PyResult<NaiveDateTime> {
-        Ok(self.roll(&date, &adjuster))
+    /// See :meth:`Cal.adjust <rateslib.calendars.Cal.adjust>`.
+    #[pyo3(name = "adjust")]
+    fn adjust_py(&self, date: NaiveDateTime, adjuster: Adjuster) -> PyResult<NaiveDateTime> {
+        Ok(self.adjust(&date, &adjuster))
     }
 
     /// Adjust a date by a number of business days, under lag rules.
@@ -683,10 +683,10 @@ impl NamedCal {
 
     /// Adjust a non-business date to a business date under a specific modification rule.
     ///
-    /// See :meth:`Cal.roll <rateslib.calendars.Cal.roll>`.
-    #[pyo3(name = "roll")]
-    fn roll_py(&self, date: NaiveDateTime, adjuster: Adjuster) -> PyResult<NaiveDateTime> {
-        Ok(self.roll(&date, &adjuster))
+    /// See :meth:`Cal.adjust <rateslib.calendars.Cal.adjust>`.
+    #[pyo3(name = "adjust")]
+    fn adjust_py(&self, date: NaiveDateTime, adjuster: Adjuster) -> PyResult<NaiveDateTime> {
+        Ok(self.adjust(&date, &adjuster))
     }
 
     /// Adjust a date by a number of business days, under lag rules.
