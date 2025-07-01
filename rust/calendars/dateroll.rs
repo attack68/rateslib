@@ -1,44 +1,11 @@
 use chrono::prelude::*;
-use chrono::{Days, Weekday};
+use chrono::Days;
 use pyo3::exceptions::PyValueError;
-use pyo3::{pyclass, PyErr};
-use std::cmp::{Ordering, PartialEq};
+use pyo3::PyErr;
+use std::cmp::Ordering;
 
 use crate::calendars::adjuster::{Adjuster, Adjustment};
-use crate::calendars::calendar::ndt;
-
-/// A roll day.
-#[pyclass(module = "rateslib.rs", eq)]
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum RollDay {
-    /// Inherit the day of the input date as the roll.
-    Unspecified {},
-    /// A day of the month in [1, 31].
-    Int { day: u32 },
-    /// The last day of the month (semantically equivalent to 31).
-    EoM {},
-    /// The first day of the month (semantically equivalent to 1).
-    SoM {},
-    /// The third Wednesday of the month.
-    IMM {},
-}
-
-// impl RollDay {
-//     /// Validate whether a given date is a possible variant of the RollDay.
-//     ///
-//     /// Returns an error string if invalid or None if it is valid.
-//     pub(crate) fn validate_date(&self, date: &NaiveDateTime) -> Option<String> {
-//         match self {
-//             RollDay::Unspecified{} => None, // any date satisfies unspecified RollDay
-//             RollDay::Int{day: 31} | RollDay::Eom{} => {
-//
-//             }
-//             RollDay::IMM {} => if is_imm(date) { None } else {Some("`date` does not align with given `roll`.".to_string())},
-//             RollDay::Int {day: value} => if date.day() == *value {None} else {Some("`date` does not align with given `roll`.".to_string())}
-//             RollDay::SoM {} => if date.day() == 1 {None} else {Some("`date` does not align with given `roll`.".to_string())}
-//         }
-//     }
-// }
+use crate::calendars::rollday::{get_roll, RollDay};
 
 /// Used to control business day management and date rolling.
 pub trait DateRoll {
@@ -328,101 +295,15 @@ pub trait DateRoll {
     }
 }
 
-/// Return a specific roll date given the `month`, `year` and `roll`.
-pub fn get_roll(year: i32, month: u32, roll: &RollDay) -> Result<NaiveDateTime, PyErr> {
-    match roll {
-        RollDay::Int { day: val } => Ok(get_roll_by_day(year, month, *val)),
-        RollDay::EoM {} => Ok(get_roll_by_day(year, month, 31)),
-        RollDay::SoM {} => Ok(get_roll_by_day(year, month, 1)),
-        RollDay::IMM {} => Ok(get_imm(year, month)),
-        RollDay::Unspecified {} => Err(PyValueError::new_err("`roll` cannot be unspecified.")),
-    }
-}
-
-/// Return a specific roll date given the `month`, `year` and `roll`.
-fn get_roll_by_day(year: i32, month: u32, day: u32) -> NaiveDateTime {
-    let d = NaiveDate::from_ymd_opt(year, month, day);
-    match d {
-        Some(date) => NaiveDateTime::new(date, NaiveTime::from_hms_opt(0, 0, 0).unwrap()),
-        None => {
-            if day > 28 {
-                get_roll_by_day(year, month, day - 1)
-            } else {
-                panic!("Unexpected error in `get_roll_by_day`")
-            }
-        }
-    }
-}
-
-/// Return an IMM date (third Wednesday) for given month and year.
-pub fn get_imm(year: i32, month: u32) -> NaiveDateTime {
-    match ndt(year, month, 1).weekday() {
-        Weekday::Mon => ndt(year, month, 17),
-        Weekday::Tue => ndt(year, month, 16),
-        Weekday::Wed => ndt(year, month, 15),
-        Weekday::Thu => ndt(year, month, 21),
-        Weekday::Fri => ndt(year, month, 20),
-        Weekday::Sat => ndt(year, month, 19),
-        Weekday::Sun => ndt(year, month, 18),
-    }
-}
-
-/// Test whether a given date is an IMM (third Wednesday).
-pub fn is_imm(date: &NaiveDateTime) -> bool {
-    let imm = get_imm(date.year(), date.month());
-    *date == imm
-}
-
-/// Return an end of month date for given month and year.
-pub fn get_eom(year: i32, month: u32) -> NaiveDateTime {
-    let mut day = 31;
-    let mut date = NaiveDate::from_ymd_opt(year, month, day);
-    while date == None {
-        day = day - 1;
-        date = NaiveDate::from_ymd_opt(year, month, day);
-    }
-    date.unwrap().and_hms_opt(0, 0, 0).unwrap()
-}
-
-/// Test whether a given date is EoM.
-pub fn is_eom(date: &NaiveDateTime) -> bool {
-    let eom = get_eom(date.year(), date.month());
-    *date == eom
-}
-
-/// Return if a given year is a leap year.
-pub fn is_leap_year(year: i32) -> bool {
-    NaiveDate::from_ymd_opt(year, 2, 29).is_some()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::calendar::{Cal, UnionCal};
     use crate::calendars::named::get_calendar_by_name;
+    use crate::calendars::{ndt, Cal, UnionCal};
 
     fn fixture_hol_cal() -> Cal {
         let hols = vec![ndt(2015, 9, 5), ndt(2015, 9, 7)]; // Saturday and Monday
         Cal::new(hols, vec![5, 6])
-    }
-
-    #[test]
-    fn test_rollday_equality() {
-        let rd1 = RollDay::IMM {};
-        let rd2 = RollDay::IMM {};
-        assert_eq!(rd1, rd2);
-
-        let rd1 = RollDay::IMM {};
-        let rd2 = RollDay::EoM {};
-        assert_ne!(rd1, rd2);
-
-        let rd1 = RollDay::Int { day: 20 };
-        let rd2 = RollDay::Int { day: 20 };
-        assert_eq!(rd1, rd2);
-
-        let rd1 = RollDay::Int { day: 21 };
-        let rd2 = RollDay::Int { day: 9 };
-        assert_ne!(rd1, rd2);
     }
 
     #[test]
@@ -738,32 +619,6 @@ mod tests {
                 modi[i].1
             );
         }
-    }
-
-    #[test]
-    fn test_is_imm() {
-        assert_eq!(true, is_imm(&ndt(2025, 3, 19)));
-        assert_eq!(false, is_imm(&ndt(2025, 3, 18)));
-    }
-
-    #[test]
-    fn test_get_eom() {
-        assert_eq!(ndt(2022, 2, 28), get_eom(2022, 2));
-        assert_eq!(ndt(2024, 2, 29), get_eom(2024, 2));
-        assert_eq!(ndt(2022, 4, 30), get_eom(2022, 4));
-        assert_eq!(ndt(2022, 3, 31), get_eom(2022, 3));
-    }
-
-    #[test]
-    fn test_is_eom() {
-        assert_eq!(true, is_eom(&ndt(2025, 3, 31)));
-        assert_eq!(false, is_eom(&ndt(2025, 3, 30)));
-    }
-
-    #[test]
-    fn test_is_leap() {
-        assert_eq!(true, is_leap_year(2024));
-        assert_eq!(false, is_leap_year(2022));
     }
 
     #[test]
