@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::convert::From;
 
+use crate::calendars::adjuster::CalendarAdjustment;
 use crate::calendars::dateroll::DateRoll;
 use crate::calendars::named::get_calendar_by_name;
 
@@ -73,6 +74,22 @@ impl Cal {
     }
 }
 
+impl DateRoll for Cal {
+    fn is_weekday(&self, date: &NaiveDateTime) -> bool {
+        !self.week_mask.contains(&date.weekday())
+    }
+
+    fn is_holiday(&self, date: &NaiveDateTime) -> bool {
+        self.holidays.contains(date)
+    }
+
+    fn is_settlement(&self, _date: &NaiveDateTime) -> bool {
+        true
+    }
+}
+
+impl CalendarAdjustment for Cal {}
+
 /// A business day calendar which is the potential union of multiple calendars,
 /// with the additional constraint of also ensuring settlement compliance with one or more
 /// other calendars.
@@ -101,6 +118,24 @@ impl UnionCal {
         }
     }
 }
+
+impl DateRoll for UnionCal {
+    fn is_weekday(&self, date: &NaiveDateTime) -> bool {
+        self.calendars.iter().all(|cal| cal.is_weekday(date))
+    }
+
+    fn is_holiday(&self, date: &NaiveDateTime) -> bool {
+        self.calendars.iter().any(|cal| cal.is_holiday(date))
+    }
+
+    fn is_settlement(&self, date: &NaiveDateTime) -> bool {
+        self.settlement_calendars
+            .as_ref()
+            .map_or(true, |v| !v.iter().any(|cal| cal.is_non_bus_day(date)))
+    }
+}
+
+impl CalendarAdjustment for UnionCal {}
 
 /// A wrapper for a UnionCal struct specified by a string representation.
 ///
@@ -162,44 +197,6 @@ impl NamedCal {
     }
 }
 
-fn parse_cals(name: &str) -> Result<Vec<Cal>, PyErr> {
-    let mut cals: Vec<Cal> = Vec::new();
-    for cal in name.split(",") {
-        cals.push(get_calendar_by_name(cal)?)
-    }
-    Ok(cals)
-}
-
-impl DateRoll for Cal {
-    fn is_weekday(&self, date: &NaiveDateTime) -> bool {
-        !self.week_mask.contains(&date.weekday())
-    }
-
-    fn is_holiday(&self, date: &NaiveDateTime) -> bool {
-        self.holidays.contains(date)
-    }
-
-    fn is_settlement(&self, _date: &NaiveDateTime) -> bool {
-        true
-    }
-}
-
-impl DateRoll for UnionCal {
-    fn is_weekday(&self, date: &NaiveDateTime) -> bool {
-        self.calendars.iter().all(|cal| cal.is_weekday(date))
-    }
-
-    fn is_holiday(&self, date: &NaiveDateTime) -> bool {
-        self.calendars.iter().any(|cal| cal.is_holiday(date))
-    }
-
-    fn is_settlement(&self, date: &NaiveDateTime) -> bool {
-        self.settlement_calendars
-            .as_ref()
-            .map_or(true, |v| !v.iter().any(|cal| cal.is_non_bus_day(date)))
-    }
-}
-
 impl DateRoll for NamedCal {
     fn is_weekday(&self, date: &NaiveDateTime) -> bool {
         self.union_cal.is_weekday(date)
@@ -212,6 +209,16 @@ impl DateRoll for NamedCal {
     fn is_settlement(&self, date: &NaiveDateTime) -> bool {
         self.union_cal.is_settlement(date)
     }
+}
+
+impl CalendarAdjustment for NamedCal {}
+
+fn parse_cals(name: &str) -> Result<Vec<Cal>, PyErr> {
+    let mut cals: Vec<Cal> = Vec::new();
+    for cal in name.split(",") {
+        cals.push(get_calendar_by_name(cal)?)
+    }
+    Ok(cals)
 }
 
 impl DateRoll for CalType {
@@ -302,6 +309,7 @@ pub fn ndt(year: i32, month: u32, day: u32) -> NaiveDateTime {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::calendars::adjuster::Adjuster;
 
     fn fixture_hol_cal() -> Cal {
         let hols = vec![ndt(2015, 9, 5), ndt(2015, 9, 7)]; // Saturday and Monday
@@ -457,5 +465,22 @@ mod tests {
         let cal2 = fixture_hol_cal2();
         assert_ne!(cal2, ucal);
         assert_ne!(ucal, cal2);
+    }
+
+    #[test]
+    fn test_calendar_adjust() {
+        let cal = fixture_hol_cal();
+        let result = cal.adjust(&ndt(2015, 9, 5), &Adjuster::Following {});
+        assert_eq!(ndt(2015, 9, 8), result);
+    }
+
+    #[test]
+    fn test_calendar_adjusts() {
+        let cal = fixture_hol_cal();
+        let result = cal.adjusts(
+            &vec![ndt(2015, 9, 5), ndt(2015, 9, 6)],
+            &Adjuster::Following {},
+        );
+        assert_eq!(vec![ndt(2015, 9, 8), ndt(2015, 9, 8)], result);
     }
 }

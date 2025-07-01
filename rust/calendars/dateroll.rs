@@ -115,30 +115,6 @@ pub trait DateRoll {
         }
     }
 
-    /// Adjust a date under a date roll `modifier`, either to a business day enforcing `settlement` or a
-    /// business day that may not allow settlement.
-    ///
-    /// *Note*: if the `modifier` is *'Act'*, then a business day may not be returned and the `settlement` flag
-    /// is disregarded - it is ambiguous in this case whether to move forward or backward datewise.
-    fn roll(&self, date: &NaiveDateTime, adjuster: &Adjuster) -> NaiveDateTime
-    where
-        Self: Sized + DateRoll,
-    {
-        adjuster.adjust(date, self)
-    }
-
-    /// Adjust a vector of dates under a date roll `modifier`, either to a business day
-    /// enforcing `settlement` or a business day that may not allow settlement.
-    ///
-    /// *Note*: if the `modifier` is *'Act'*, then a business day may not be returned and the `settlement` flag
-    /// is disregarded - it is ambiguous in this case whether to move forward or backward datewise.
-    fn rolls(&self, dates: &Vec<NaiveDateTime>, adjuster: &Adjuster) -> Vec<NaiveDateTime>
-    where
-        Self: Sized + DateRoll,
-    {
-        adjuster.adjusts(dates, self)
-    }
-
     /// Adjust a date by a number of business days, under lag rules.
     ///
     /// *Note*: if the number of business days is **zero** a non-business day will be rolled
@@ -176,7 +152,7 @@ pub trait DateRoll {
         } else {
             *date + Days::new(u64::try_from(days).unwrap())
         };
-        self.roll(&new_date, adjuster)
+        adjuster.adjust(&new_date, self)
     }
 
     /// Add a given number of business days to a `date` with the result adjusted to a business day that may or may
@@ -258,7 +234,7 @@ pub trait DateRoll {
         // perform the date roll
         let new_date =
             get_roll(date.year() + yr_roll, new_month.try_into().unwrap(), &roll_).unwrap();
-        self.roll(&new_date, adjuster)
+        adjuster.adjust(&new_date, self)
     }
 
     /// Return a vector of business dates between a start and end, inclusive.
@@ -298,6 +274,7 @@ pub trait DateRoll {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::calendars::adjuster::CalendarAdjustment;
     use crate::calendars::named::get_calendar_by_name;
     use crate::calendars::{ndt, Cal, UnionCal};
 
@@ -630,7 +607,7 @@ mod tests {
             ndt(2015, 9, 6),
             ndt(2015, 9, 7),
         ];
-        let result = cal.rolls(&udates, &Adjuster::Following {});
+        let result = cal.adjusts(&udates, &Adjuster::Following {});
         assert_eq!(
             result,
             vec![

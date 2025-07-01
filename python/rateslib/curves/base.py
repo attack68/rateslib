@@ -681,7 +681,7 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
         if isinstance(right, NoInput):
             # pre-adjust the end date to enforce business date.
             right_: datetime = add_tenor(
-                self.meta.calendar.roll(self.nodes.final, Adjuster.Previous()),
+                self.meta.calendar.adjust(self.nodes.final, Adjuster.Previous()),
                 "-" + upper_tenor,
                 "P",
                 self.meta.calendar,
