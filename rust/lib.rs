@@ -35,7 +35,7 @@ use curves::{
 };
 
 pub mod calendars;
-use calendars::calendar_py::get_calendar_by_name_py;
+use calendars::py::calendar::get_calendar_by_name_py;
 use calendars::{Adjuster, Cal, Convention, NamedCal, RollDay, UnionCal, _get_convention_str};
 
 pub mod fx;

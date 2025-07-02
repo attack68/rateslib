@@ -112,7 +112,5 @@ pub use crate::calendars::adjuster::{Adjuster, Adjustment};
 mod rollday;
 pub use rollday::{get_eom, get_imm, get_roll, is_eom, is_imm, is_leap_year, RollDay};
 
-mod py;
+pub(crate) mod py;
 mod serde;
-
-pub(crate) mod calendar_py;
