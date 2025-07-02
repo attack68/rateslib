@@ -2,6 +2,7 @@
 
 use crate::calendars::adjuster::{Adjuster, CalendarAdjustment};
 use crate::calendars::named::get_calendar_by_name;
+use crate::calendars::py::adjuster::get_roll_adjuster_from_str;
 use crate::calendars::{Cal, CalType, Convention, DateRoll, NamedCal, RollDay, UnionCal};
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
@@ -247,6 +248,31 @@ impl Cal {
         roll: RollDay,
     ) -> PyResult<NaiveDateTime> {
         Ok(self.add_months(&date, months, &adjuster, &roll))
+    }
+
+    /// Roll a date under a simplified adjustment rule.
+    ///
+    /// Parameters
+    /// -----------
+    /// date: datetime
+    ///     The date to adjust.
+    /// modifier: str in {"F", "P", "MF", "MP", "Act"}
+    ///     The simplified date adjustment rule to apply
+    /// settlement: bool
+    ///     Whether to adhere to an additional settlement calendar.
+    ///
+    /// Returns
+    /// -------
+    /// datetime
+    #[pyo3(name = "roll")]
+    fn roll_py(
+        &self,
+        date: NaiveDateTime,
+        modifier: &str,
+        settlement: bool,
+    ) -> PyResult<NaiveDateTime> {
+        let adjuster = get_roll_adjuster_from_str((&modifier.to_lowercase(), settlement))?;
+        Ok(self.adjust(&date, &adjuster))
     }
 
     /// Adjust a date under a date adjustment rule.
@@ -518,6 +544,32 @@ impl UnionCal {
         Ok(self.adjust(&date, &adjuster))
     }
 
+    /// Adjust a list of dates under a date adjustment rule.
+    ///
+    /// See :meth:`Cal.adjusts <rateslib.calendars.Cal.adjusts>`.
+    #[pyo3(name = "adjusts")]
+    fn adjusts_py(
+        &self,
+        dates: Vec<NaiveDateTime>,
+        adjuster: Adjuster,
+    ) -> PyResult<Vec<NaiveDateTime>> {
+        Ok(self.adjusts(&dates, &adjuster))
+    }
+
+    /// Roll a date under a simplified adjustment rule.
+    ///
+    /// See :meth:`Cal.roll <rateslib.calendars.Cal.roll>`.
+    #[pyo3(name = "roll")]
+    fn roll_py(
+        &self,
+        date: NaiveDateTime,
+        modifier: &str,
+        settlement: bool,
+    ) -> PyResult<NaiveDateTime> {
+        let adjuster = get_roll_adjuster_from_str((&modifier.to_lowercase(), settlement))?;
+        Ok(self.adjust(&date, &adjuster))
+    }
+
     /// Adjust a date by a number of business days, under lag rules.
     ///
     /// See :meth:`Cal.lag_bus_days <rateslib.calendars.Cal.lag_bus_days>`.
@@ -686,6 +738,32 @@ impl NamedCal {
     /// See :meth:`Cal.adjust <rateslib.calendars.Cal.adjust>`.
     #[pyo3(name = "adjust")]
     fn adjust_py(&self, date: NaiveDateTime, adjuster: Adjuster) -> PyResult<NaiveDateTime> {
+        Ok(self.adjust(&date, &adjuster))
+    }
+
+    /// Adjust a list of dates under a date adjustment rule.
+    ///
+    /// See :meth:`Cal.adjusts <rateslib.calendars.Cal.adjusts>`.
+    #[pyo3(name = "adjusts")]
+    fn adjusts_py(
+        &self,
+        dates: Vec<NaiveDateTime>,
+        adjuster: Adjuster,
+    ) -> PyResult<Vec<NaiveDateTime>> {
+        Ok(self.adjusts(&dates, &adjuster))
+    }
+
+    /// Roll a date under a simplified adjustment rule.
+    ///
+    /// See :meth:`Cal.roll <rateslib.calendars.Cal.roll>`.
+    #[pyo3(name = "roll")]
+    fn roll_py(
+        &self,
+        date: NaiveDateTime,
+        modifier: &str,
+        settlement: bool,
+    ) -> PyResult<NaiveDateTime> {
+        let adjuster = get_roll_adjuster_from_str((&modifier.to_lowercase(), settlement))?;
         Ok(self.adjust(&date, &adjuster))
     }
 
