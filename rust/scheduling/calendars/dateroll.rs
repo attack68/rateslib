@@ -4,8 +4,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::PyErr;
 use std::cmp::Ordering;
 
-use crate::calendars::adjuster::{Adjuster, Adjustment};
-use crate::calendars::rollday::{get_roll, RollDay};
+use crate::scheduling::{get_roll, Adjuster, Adjustment, RollDay};
 
 /// Used to control business day management and date rolling.
 pub trait DateRoll {
@@ -274,9 +273,7 @@ pub trait DateRoll {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::adjuster::CalendarAdjustment;
-    use crate::calendars::named::get_calendar_by_name;
-    use crate::calendars::{ndt, Cal, UnionCal};
+    use crate::scheduling::{get_calendar_by_name, ndt, Cal, CalendarAdjustment, UnionCal};
 
     fn fixture_hol_cal() -> Cal {
         let hols = vec![ndt(2015, 9, 5), ndt(2015, 9, 7)]; // Saturday and Monday

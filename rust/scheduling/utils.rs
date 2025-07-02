@@ -1,4 +1,4 @@
-use crate::calendars::RollDay;
+use crate::scheduling::RollDay;
 use crate::scheduling::enums::{Frequency, RollDayCategory, ValidateSchedule};
 use chrono::prelude::*;
 
@@ -60,7 +60,7 @@ pub(crate) fn get_unadjusted_rollday(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::ndt;
+    use crate::scheduling::ndt;
 
     #[test]
     fn test_get_unadjusted_rollday() {

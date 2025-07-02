@@ -3,7 +3,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use std::cmp::PartialEq;
 
-use crate::calendars::ndt;
+use crate::scheduling::ndt;
 
 /// A roll day.
 #[pyclass(module = "rateslib.rs", eq)]

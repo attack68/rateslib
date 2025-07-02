@@ -48,8 +48,8 @@ impl CurveInterpolation for NullInterpolator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::ndt;
     use crate::curves::nodes::Nodes;
+    use crate::scheduling::ndt;
     use indexmap::IndexMap;
 
     fn nodes_timestamp_fixture() -> NodesTimestamp {

@@ -1,4 +1,4 @@
-use crate::calendars::DateRoll;
+use crate::scheduling::DateRoll;
 use chrono::prelude::*;
 use pyo3::pyclass;
 
@@ -105,7 +105,7 @@ impl Adjustment for Adjuster {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::{ndt, Cal};
+    use crate::scheduling::{ndt, Cal};
 
     fn fixture_hol_cal() -> Cal {
         let hols = vec![ndt(2015, 9, 5), ndt(2015, 9, 7)]; // Saturday and Monday
