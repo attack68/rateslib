@@ -1,13 +1,11 @@
 use chrono::prelude::*;
 use chrono::Weekday;
 use indexmap::set::IndexSet;
-use pyo3::exceptions::PyValueError;
-use pyo3::{pyclass, FromPyObject, IntoPyObject, PyErr};
+use pyo3::{pyclass};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use std::convert::From;
 
-use crate::scheduling::{DateRoll, UnionCal, NamedCal, ndt, get_calendar_by_name, CalendarAdjustment};
+use crate::scheduling::{DateRoll, UnionCal, NamedCal, ndt, CalendarAdjustment};
 
 /// A business day calendar with a singular list of holidays.
 ///
@@ -124,14 +122,6 @@ mod tests {
         assert!(cal.is_weekday(&no_hol)); //Thursday
         assert!(!cal.is_weekday(&saturday)); // Saturday
         assert!(!cal.is_weekday(&sunday)); // Sunday
-    }
-
-    fn fixture_hol_cal2() -> Cal {
-        let hols = vec![
-            NaiveDateTime::parse_from_str("2015-09-08 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap(),
-            NaiveDateTime::parse_from_str("2015-09-09 00:00:00", "%Y-%m-%d %H:%M:%S").unwrap(),
-        ];
-        Cal::new(hols, vec![5, 6])
     }
 
     #[test]

@@ -1,13 +1,8 @@
 use chrono::prelude::*;
-use chrono::Weekday;
-use indexmap::set::IndexSet;
-use pyo3::exceptions::PyValueError;
-use pyo3::{pyclass, FromPyObject, IntoPyObject, PyErr};
+use pyo3::{pyclass};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
-use std::convert::From;
 
-use crate::scheduling::{Cal, DateRoll, CalendarAdjustment, ndt, get_calendar_by_name};
+use crate::scheduling::{Cal, DateRoll, CalendarAdjustment, ndt};
 
 /// A business day calendar which is the potential union of multiple calendars,
 /// with the additional constraint of also ensuring settlement compliance with one or more
@@ -79,7 +74,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scheduling::adjuster::Adjuster;
 
     fn fixture_hol_cal() -> Cal {
         let hols = vec![ndt(2015, 9, 5), ndt(2015, 9, 7)]; // Saturday and Monday

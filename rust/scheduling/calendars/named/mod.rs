@@ -76,28 +76,28 @@ fn get_holidays_by_name(name: &str) -> Result<Vec<NaiveDateTime>, PyErr> {
     }
 }
 
-// fn get_rules_by_name(name: &str) -> Result<Vec<&str>, PyErr> {
-//     let hmap: HashMap<&str, &[&str]> = HashMap::from([
-//         ("all", all::RULES),
-//         ("bus", bus::RULES),
-//         ("nyc", nyc::RULES),
-//         ("fed", nyc::RULES),
-//         ("tgt", tgt::RULES),
-//         ("ldn", ldn::RULES),
-//         ("stk", stk::RULES),
-//         ("osl", osl::RULES),
-//         ("zur", zur::RULES),
-//         ("tro", tro::RULES),
-//         ("tyo", tyo::RULES),
-//         ("syd", syd::RULES),
-//         ("wlg", wlg::RULES),
-//         ("mum", mum::RULES),
-//     ]);
-//     match hmap.get(name) {
-//         None => Err(PyValueError::new_err(format!("'{}' is not found in list of existing calendars.", name))),
-//         Some(value) => Ok(value.to_vec())
-//     }
-// }
+fn get_rules_by_name(name: &str) -> Result<Vec<&str>, PyErr> {
+    let hmap: HashMap<&str, &[&str]> = HashMap::from([
+        ("all", all::RULES),
+        ("bus", bus::RULES),
+        ("nyc", nyc::RULES),
+        ("fed", nyc::RULES),
+        ("tgt", tgt::RULES),
+        ("ldn", ldn::RULES),
+        ("stk", stk::RULES),
+        ("osl", osl::RULES),
+        ("zur", zur::RULES),
+        ("tro", tro::RULES),
+        ("tyo", tyo::RULES),
+        ("syd", syd::RULES),
+        ("wlg", wlg::RULES),
+        ("mum", mum::RULES),
+    ]);
+    match hmap.get(name) {
+        None => Err(PyValueError::new_err(format!("'{}' is not found in list of existing calendars.", name))),
+        Some(value) => Ok(value.to_vec())
+    }
+}
 
 /// Return a static `Cal` specified by a named identifier.
 ///
@@ -135,11 +135,11 @@ mod tests {
         assert_eq!(result, vec![]);
     }
 
-    // #[test]
-    // fn test_get_rules() {
-    //     let result = get_rules_by_name("bus").unwrap();
-    //     assert_eq!(result, Vec::<&str>::new());
-    // }
+    #[test]
+    fn test_get_rules() {
+        let result = get_rules_by_name("bus").unwrap();
+        assert_eq!(result, Vec::<&str>::new());
+    }
 
     #[test]
     fn test_get_cal() {

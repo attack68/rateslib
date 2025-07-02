@@ -1,13 +1,9 @@
 use chrono::prelude::*;
-use chrono::Weekday;
-use indexmap::set::IndexSet;
-use pyo3::exceptions::PyValueError;
-use pyo3::{pyclass, FromPyObject, IntoPyObject, PyErr};
+use pyo3::{FromPyObject, IntoPyObject};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 use std::convert::From;
 
-use crate::scheduling::{Cal, UnionCal, NamedCal, DateRoll, CalendarAdjustment, get_calendar_by_name};
+use crate::scheduling::{Cal, UnionCal, NamedCal, DateRoll};
 
 /// Create a `NaiveDateTime` with default null time.
 ///
@@ -76,7 +72,6 @@ impl DateRoll for Calendar {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scheduling::adjuster::Adjuster;
 
     #[test]
     fn test_docstring() {

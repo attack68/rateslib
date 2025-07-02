@@ -1,11 +1,7 @@
 use chrono::prelude::*;
-use chrono::Weekday;
-use indexmap::set::IndexSet;
 use pyo3::exceptions::PyValueError;
-use pyo3::{pyclass, FromPyObject, IntoPyObject, PyErr};
+use pyo3::{pyclass, PyErr};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
-use std::convert::From;
 
 use crate::scheduling::{Cal, UnionCal, DateRoll, ndt};
 use crate::scheduling::adjuster::CalendarAdjustment;
@@ -110,7 +106,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scheduling::adjuster::Adjuster;
 
     #[test]
     fn test_named_cal() {
