@@ -222,11 +222,25 @@ class TestCal:
         expected = [dt(2015, 9, 4), dt(2015, 9, 8), dt(2015, 9, 8), dt(2015, 9, 8)]
         assert result == expected
 
+    def test_roll(self, simple_cal):
+        result = simple_cal.roll(dt(2015, 9, 5), "F", False)
+        assert result == dt(2015, 9, 8)
+
 
 class TestUnionCal:
     def test_week_mask(self, multi_union) -> None:
         result = multi_union.week_mask
         assert result == {5, 6}
+
+    def test_adjusts(self, simple_union):
+        dates = [dt(2015, 9, 4), dt(2015, 9, 5), dt(2015, 9, 6), dt(2015, 9, 7)]
+        result = simple_union.adjusts(dates, Adjuster.Following())
+        expected = [dt(2015, 9, 4), dt(2015, 9, 8), dt(2015, 9, 8), dt(2015, 9, 8)]
+        assert result == expected
+
+    def test_roll(self, simple_union):
+        result = simple_union.roll(dt(2015, 9, 5), "F", False)
+        assert result == dt(2015, 9, 8)
 
 
 class TestNamedCal:
@@ -240,6 +254,18 @@ class TestNamedCal:
         ncal = NamedCal("ldn,tgt|fed")
         assert ucal == ncal
         assert ncal == ucal
+
+    def test_adjusts(self):
+        ncal = NamedCal("fed")
+        dates = [dt(2015, 9, 4), dt(2015, 9, 5), dt(2015, 9, 6), dt(2015, 9, 7)]
+        result = ncal.adjusts(dates, Adjuster.Following())
+        expected = [dt(2015, 9, 4), dt(2015, 9, 8), dt(2015, 9, 8), dt(2015, 9, 8)]
+        assert result == expected
+
+    def test_roll(self):
+        ncal = NamedCal("fed")
+        result = ncal.roll(dt(2015, 9, 5), "F", False)
+        assert result == dt(2015, 9, 8)
 
 
 @pytest.mark.parametrize(
