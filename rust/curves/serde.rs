@@ -1,7 +1,7 @@
-use crate::calendars::DateRoll;
 use crate::curves::curve_py::Curve;
 use crate::curves::{CurveDF, CurveInterpolation};
 use crate::json::JSON;
+use crate::scheduling::DateRoll;
 use serde::{Deserialize, Serialize};
 
 impl<T, U> JSON for CurveDF<T, U>
@@ -16,12 +16,12 @@ impl JSON for Curve {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::{ndt, Convention, NamedCal};
     use crate::curves::curve_py::CurveInterpolator;
     use crate::curves::{
         FlatBackwardInterpolator, FlatForwardInterpolator, LinearInterpolator,
         LinearZeroRateInterpolator, LogLinearInterpolator, Modifier, Nodes,
     };
+    use crate::scheduling::{ndt, Convention, NamedCal};
     use indexmap::IndexMap;
 
     fn curve_fixture<T: CurveInterpolation>(interpolator: T) -> CurveDF<T, NamedCal> {

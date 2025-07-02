@@ -5,11 +5,11 @@
 //! Having been deserialized it is matched, unpacked and passed back to Python.
 //!
 
-use crate::calendars::{Cal, NamedCal, UnionCal};
 use crate::curves::curve_py::Curve;
 use crate::dual::{Dual, Dual2};
 use crate::fx::rates::FXRates;
 use crate::json::JSON;
+use crate::scheduling::{Cal, NamedCal, UnionCal};
 use crate::splines::{PPSplineDual, PPSplineDual2, PPSplineF64};
 // use pyo3::conversion::ToPyObject;
 use pyo3::exceptions::PyValueError;

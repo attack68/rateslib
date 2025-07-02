@@ -15,7 +15,7 @@ pub mod tyo;
 pub mod wlg;
 pub mod zur;
 
-use crate::calendars::calendar::Cal;
+use crate::scheduling::Cal;
 use chrono::NaiveDateTime;
 use pyo3::exceptions::PyValueError;
 use pyo3::PyErr;
@@ -94,8 +94,11 @@ fn get_holidays_by_name(name: &str) -> Result<Vec<NaiveDateTime>, PyErr> {
 //         ("mum", mum::RULES),
 //     ]);
 //     match hmap.get(name) {
-//         None => Err(PyValueError::new_err(format!("'{}' is not found in list of existing calendars.", name))),
-//         Some(value) => Ok(value.to_vec())
+//         None => Err(PyValueError::new_err(format!(
+//             "'{}' is not found in list of existing calendars.",
+//             name
+//         ))),
+//         Some(value) => Ok(value.to_vec()),
 //     }
 // }
 
@@ -121,7 +124,7 @@ pub fn get_calendar_by_name(name: &str) -> Result<Cal, PyErr> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::DateRoll;
+    use crate::scheduling::DateRoll;
 
     #[test]
     fn test_get_weekmask() {
@@ -135,11 +138,11 @@ mod tests {
         assert_eq!(result, vec![]);
     }
 
-    // #[test]
-    // fn test_get_rules() {
-    //     let result = get_rules_by_name("bus").unwrap();
-    //     assert_eq!(result, Vec::<&str>::new());
-    // }
+    #[test]
+    fn test_get_rules() {
+        let result = get_rules_by_name("bus").unwrap();
+        assert_eq!(result, Vec::<&str>::new());
+    }
 
     #[test]
     fn test_get_cal() {
