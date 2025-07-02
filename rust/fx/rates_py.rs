@@ -274,7 +274,7 @@ impl FXRates {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::ndt;
+    use crate::scheduling::ndt;
 
     #[test]
     fn fxrates_eq() {

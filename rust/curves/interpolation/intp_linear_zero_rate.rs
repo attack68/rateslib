@@ -65,7 +65,7 @@ impl CurveInterpolation for LinearZeroRateInterpolator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::ndt;
+    use crate::scheduling::ndt;
     use crate::curves::nodes::Nodes;
     use indexmap::IndexMap;
 

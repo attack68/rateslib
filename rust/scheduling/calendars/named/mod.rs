@@ -15,7 +15,7 @@ pub mod tyo;
 pub mod wlg;
 pub mod zur;
 
-use crate::calendars::calendar::Cal;
+use crate::scheduling::Cal;
 use chrono::NaiveDateTime;
 use pyo3::exceptions::PyValueError;
 use pyo3::PyErr;
@@ -121,7 +121,7 @@ pub fn get_calendar_by_name(name: &str) -> Result<Cal, PyErr> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::DateRoll;
+    use crate::scheduling::DateRoll;
 
     #[test]
     fn test_get_weekmask() {

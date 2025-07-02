@@ -1,5 +1,4 @@
-use crate::calendars::Convention;
-use crate::calendars::DateRoll;
+use crate::scheduling::{Convention, DateRoll};
 use crate::curves::interpolation::utils::index_left;
 use crate::curves::nodes::{Nodes, NodesTimestamp};
 use crate::dual::{get_variable_tags, ADOrder, Dual, Dual2, Number};
@@ -164,7 +163,7 @@ impl<T: CurveInterpolation, U: DateRoll> CurveDF<T, U> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::{ndt, Convention, NamedCal};
+    use crate::scheduling::{ndt, NamedCal};
     use crate::curves::LogLinearInterpolator;
     use indexmap::IndexMap;
 

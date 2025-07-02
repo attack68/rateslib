@@ -1,4 +1,4 @@
-// use crate::calendars::{is_leap_year, CalType, Modifier, RollDay};
+// use crate::scheduling::{is_leap_year, Calendar, Modifier, RollDay};
 // use chrono::prelude::*;
 // use pyo3::exceptions::PyValueError;
 // use pyo3::{pyclass, PyErr};
@@ -14,7 +14,7 @@
 //     back_stub: Option<NaiveDateTime>,
 //     roll: RollDay,
 //     modifier: Modifier,
-//     calendar: CalType,
+//     calendar: Calendar,
 //     payment_lag: i8,
 //
 //     // created data objects
@@ -34,7 +34,7 @@
 //         roll: Option<RollDay>,
 //         eom: bool,
 //         modifier: Modifier,
-//         calendar: CalType,
+//         calendar: Calendar,
 //         payment_lag: i8,
 //     ) -> Result<Self, PyErr> {
 //         OK()
@@ -45,7 +45,7 @@
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::ndt;
+    use crate::scheduling::ndt;
 
     //     fn fixture_hol_cal() -> Cal {
     //         let hols = vec![ndt(2015, 9, 5), ndt(2015, 9, 7)]; // Saturday and Monday

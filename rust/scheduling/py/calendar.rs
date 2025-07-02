@@ -1,9 +1,18 @@
 //! Wrapper module to export to Python using pyo3 bindings.
 
-use crate::calendars::adjuster::{Adjuster, CalendarAdjustment};
-use crate::calendars::named::get_calendar_by_name;
-use crate::calendars::py::adjuster::get_roll_adjuster_from_str;
-use crate::calendars::{Cal, CalType, Convention, DateRoll, NamedCal, RollDay, UnionCal};
+use crate::scheduling::{
+    Adjuster,
+    CalendarAdjustment,
+    get_calendar_by_name,
+    Cal,
+    Calendar,
+    Convention,
+    DateRoll,
+    NamedCal,
+    UnionCal,
+    RollDay,
+};
+use crate::scheduling::py::adjuster::get_roll_adjuster_from_str;
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
 use bincode::config::legacy;
@@ -16,7 +25,7 @@ use pyo3::types::PyBytes;
 use std::collections::HashSet;
 
 // // removed when upgrading to py03 0.23, see https://pyo3.rs/v0.23.0/migration#intopyobject-and-intopyobjectref-derive-macros
-// impl IntoPy<PyObject> for CalType {
+// impl IntoPy<PyObject> for Calendar {
 //     fn into_py(self, py: Python<'_>) -> PyObject {
 //         macro_rules! into_py {
 //             ($obj: ident) => {
@@ -25,9 +34,9 @@ use std::collections::HashSet;
 //         }
 //
 //         match self {
-//             CalType::Cal(i) => into_py!(i),
-//             CalType::UnionCal(i) => into_py!(i),
-//             CalType::NamedCal(i) => into_py!(i),
+//             Calendar::Cal(i) => into_py!(i),
+//             Calendar::UnionCal(i) => into_py!(i),
+//             Calendar::NamedCal(i) => into_py!(i),
 //         }
 //     }
 // }
@@ -424,11 +433,11 @@ impl Cal {
     }
 
     // Equality
-    fn __eq__(&self, other: CalType) -> bool {
+    fn __eq__(&self, other: Calendar) -> bool {
         match other {
-            CalType::UnionCal(c) => *self == c,
-            CalType::Cal(c) => *self == c,
-            CalType::NamedCal(c) => *self == c,
+            Calendar::UnionCal(c) => *self == c,
+            Calendar::Cal(c) => *self == c,
+            Calendar::NamedCal(c) => *self == c,
         }
     }
 }
@@ -631,11 +640,11 @@ impl UnionCal {
     }
 
     // Equality
-    fn __eq__(&self, other: CalType) -> bool {
+    fn __eq__(&self, other: Calendar) -> bool {
         match other {
-            CalType::UnionCal(c) => *self == c,
-            CalType::Cal(c) => *self == c,
-            CalType::NamedCal(c) => *self == c,
+            Calendar::UnionCal(c) => *self == c,
+            Calendar::Cal(c) => *self == c,
+            Calendar::NamedCal(c) => *self == c,
         }
     }
 }
@@ -828,11 +837,11 @@ impl NamedCal {
     }
 
     // Equality
-    fn __eq__(&self, other: CalType) -> bool {
+    fn __eq__(&self, other: Calendar) -> bool {
         match other {
-            CalType::UnionCal(c) => *self == c,
-            CalType::Cal(c) => *self == c,
-            CalType::NamedCal(c) => *self == c,
+            Calendar::UnionCal(c) => *self == c,
+            Calendar::Cal(c) => *self == c,
+            Calendar::NamedCal(c) => *self == c,
         }
     }
 }

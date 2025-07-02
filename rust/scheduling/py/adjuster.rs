@@ -1,7 +1,7 @@
 //! Wrapper module to export to Python using pyo3 bindings.
 
-use crate::calendars::adjuster::{Adjuster, Adjustment};
-use crate::calendars::CalType;
+use crate::scheduling::adjuster::{Adjuster, Adjustment};
+use crate::scheduling::Calendar;
 use chrono::NaiveDateTime;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -22,7 +22,7 @@ impl Adjuster {
     /// -------
     /// datetime
     #[pyo3(name = "adjust")]
-    fn adjust_py(&self, date: NaiveDateTime, calendar: CalType) -> NaiveDateTime {
+    fn adjust_py(&self, date: NaiveDateTime, calendar: Calendar) -> NaiveDateTime {
         self.adjust(&date, &calendar)
     }
 
@@ -39,7 +39,7 @@ impl Adjuster {
     /// -------
     /// list[datetime]
     #[pyo3(name = "adjusts")]
-    fn adjusts_py(&self, dates: Vec<NaiveDateTime>, calendar: CalType) -> Vec<NaiveDateTime> {
+    fn adjusts_py(&self, dates: Vec<NaiveDateTime>, calendar: Calendar) -> Vec<NaiveDateTime> {
         self.adjusts(&dates, &calendar)
     }
 }

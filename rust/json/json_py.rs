@@ -5,7 +5,7 @@
 //! Having been deserialized it is matched, unpacked and passed back to Python.
 //!
 
-use crate::calendars::{Cal, NamedCal, UnionCal};
+use crate::scheduling::{Cal, NamedCal, UnionCal};
 use crate::curves::curve_py::Curve;
 use crate::dual::{Dual, Dual2};
 use crate::fx::rates::FXRates;

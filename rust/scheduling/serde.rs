@@ -1,16 +1,16 @@
-use crate::calendars::calendar::{Cal, CalType, NamedCal, UnionCal};
+use crate::scheduling::{Cal, Calendar, NamedCal, UnionCal};
 use crate::json::JSON;
 
 impl JSON for Cal {}
 impl JSON for UnionCal {}
 impl JSON for NamedCal {}
 
-impl JSON for CalType {}
+impl JSON for Calendar {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::calendar::ndt;
+    use crate::scheduling::{ndt};
 
     #[test]
     fn test_cal_json() {
@@ -43,9 +43,9 @@ mod tests {
 
     #[test]
     fn test_cal_type_json() {
-        let cal = CalType::NamedCal(NamedCal::try_new("tgt,ldn|fed").unwrap());
+        let cal = Calendar::NamedCal(NamedCal::try_new("tgt,ldn|fed").unwrap());
         let js = cal.to_json().unwrap();
-        let cal2 = CalType::from_json(&js).unwrap();
+        let cal2 = Calendar::from_json(&js).unwrap();
         assert_eq!(cal, cal2);
     }
 }
