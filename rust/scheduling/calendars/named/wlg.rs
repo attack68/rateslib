@@ -1,19 +1,21 @@
 //! Define a Wellington business day calendar, aligned with NZD rate publication.
 
 pub const WEEKMASK: &[u8] = &[5, 6]; // Saturday and Sunday weekend
-pub const RULES: &[&str] = &[
-    "Jan 1 (New Year)",
-    "Jan 2 (Day after New Year)",
-    "Feb 6 (Waitangi)",
-    "Fri before Easter (Good Friday)",
-    "Mon after Easter (Easter Monday)",
-    "Apr 25 (Anzac)",
-    "Jun first Mon (Kings Bday)",
-    "Matariki",
-    "Oct last Mon (Labour)",
-    "Dec 25 (Christmas)",
-    "Dec 26 (Boxing Day)",
-];
+
+// pub const RULES: &[&str] = &[
+//     "Jan 1 (New Year)",
+//     "Jan 2 (Day after New Year)",
+//     "Feb 6 (Waitangi)",
+//     "Fri before Easter (Good Friday)",
+//     "Mon after Easter (Easter Monday)",
+//     "Apr 25 (Anzac)",
+//     "Jun first Mon (Kings Bday)",
+//     "Matariki",
+//     "Oct last Mon (Labour)",
+//     "Dec 25 (Christmas)",
+//     "Dec 26 (Boxing Day)",
+// ];
+
 pub const HOLIDAYS: &[&str] = &[
     "1970-01-01 00:00:00",
     "1970-01-02 00:00:00",

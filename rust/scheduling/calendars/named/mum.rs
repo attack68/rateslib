@@ -1,15 +1,17 @@
 //! Define a New York business day calendar, aligned with SOFR publication.
 
 pub const WEEKMASK: &[u8] = &[5, 6]; // Saturday and Sunday weekend
-pub const RULES: &[&str] = &[
-    "Jan 26 (Republic Day)",
-    "Fri before Easter (Easter Friday)",
-    "Apr 14 (Ambedkar Jayanti)",
-    "May 1 (May Day)",
-    "Aug 15 (Independence Day)",
-    "Oct 2 (Gandhi Jayanti)",
-    "Dec 25 (Christmas)",
-];
+
+// pub const RULES: &[&str] = &[
+//     "Jan 26 (Republic Day)",
+//     "Fri before Easter (Easter Friday)",
+//     "Apr 14 (Ambedkar Jayanti)",
+//     "May 1 (May Day)",
+//     "Aug 15 (Independence Day)",
+//     "Oct 2 (Gandhi Jayanti)",
+//     "Dec 25 (Christmas)",
+// ];
+
 pub const HOLIDAYS: &[&str] = &[
     "1970-01-26 00:00:00",
     "1970-03-27 00:00:00",

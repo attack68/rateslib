@@ -104,6 +104,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::scheduling::ndt;
 
     #[test]
     fn test_named_cal() {

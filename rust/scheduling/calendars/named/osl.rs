@@ -1,19 +1,21 @@
 //! Define an Oslo business day calendar, aligned with NOWA publication.
 
 pub const WEEKMASK: &[u8] = &[5, 6]; // Saturday and Sunday weekend
-pub const RULES: &[&str] = &[
-    "Jan 1 (New Year)",
-    "Thu before Easter (Maundy Thursday)",
-    "Fri before Easter (Good Friday)",
-    "Mon after Easter (Easter Monday)",
-    "May 1 (EU Labour)",
-    "May 17 (Constitution)",
-    "39 Days after Easter (Ascention)",
-    "50 Days after Easter (Whit Monday)",
-    "Dec 24 (Christmas Eve)",
-    "Dec 25 (Christmas)",
-    "Dec 26 (Boxing Day)",
-];
+
+// pub const RULES: &[&str] = &[
+//     "Jan 1 (New Year)",
+//     "Thu before Easter (Maundy Thursday)",
+//     "Fri before Easter (Good Friday)",
+//     "Mon after Easter (Easter Monday)",
+//     "May 1 (EU Labour)",
+//     "May 17 (Constitution)",
+//     "39 Days after Easter (Ascention)",
+//     "50 Days after Easter (Whit Monday)",
+//     "Dec 24 (Christmas Eve)",
+//     "Dec 25 (Christmas)",
+//     "Dec 26 (Boxing Day)",
+// ];
+
 pub const HOLIDAYS: &[&str] = &[
     "1970-01-01 00:00:00",
     "1970-03-26 00:00:00",
