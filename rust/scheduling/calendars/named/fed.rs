@@ -1,20 +1,22 @@
 //! Define a New York business day calendar, aligned with SOFR publication.
 
 pub const WEEKMASK: &[u8] = &[5, 6]; // Saturday and Sunday weekend
-pub const RULES: &[&str] = &[
-    "Jan 1: Sun->Mon (New Year)",
-    "Jan 3rd Mon (Martin Luther King Jr.)",
-    "Feb 3rd Mon (President's)",
-    "May last Mon (Memorial)",
-    "Jun 19: Sun->Mon (Juneteenth)",
-    "Jul 4: Sat->Fri, Sun->Mon (Independence)",
-    "Sep 1st Mon (Labour)",
-    "Oct 2nd Mon (Columbus)",
-    "Nov 11: Sun->Mon (Veteran's)",
-    "Nov 4th Thu (Thanksgiving)",
-    "Dec 25: Sat->Fri,Sun->Mon (Christmas)",
-    "Note: Special additional dates.",
-];
+
+// pub const RULES: &[&str] = &[
+//     "Jan 1: Sun->Mon (New Year)",
+//     "Jan 3rd Mon (Martin Luther King Jr.)",
+//     "Feb 3rd Mon (President's)",
+//     "May last Mon (Memorial)",
+//     "Jun 19: Sun->Mon (Juneteenth)",
+//     "Jul 4: Sat->Fri, Sun->Mon (Independence)",
+//     "Sep 1st Mon (Labour)",
+//     "Oct 2nd Mon (Columbus)",
+//     "Nov 11: Sun->Mon (Veteran's)",
+//     "Nov 4th Thu (Thanksgiving)",
+//     "Dec 25: Sat->Fri,Sun->Mon (Christmas)",
+//     "Note: Special additional dates.",
+// ];
+
 pub const HOLIDAYS: &[&str] = &[
     "1970-01-01 00:00:00",
     "1970-02-16 00:00:00",

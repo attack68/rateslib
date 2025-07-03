@@ -8,7 +8,7 @@
 //! one for some Tokyo holidays in 2017.
 //!
 //! ```rust
-//! # use rateslib::calendars::{Cal, ndt};
+//! # use rateslib::scheduling::{Cal, ndt};
 //! // UK Monday 1st May Bank Holiday
 //! let ldn = Cal::new(vec![ndt(2017, 5, 1)], vec![5, 6]);
 //! // Japan Constitution Memorial Day, Greenery Day, Children's Day
@@ -17,7 +17,7 @@
 //! These calendars are used to manipulate dates e.g.
 //!
 //! ```rust
-//! # use rateslib::calendars::{Cal, ndt, DateRoll};
+//! # use rateslib::scheduling::{Cal, ndt, DateRoll};
 //! # let ldn = Cal::new(vec![ndt(2017, 5, 1)], vec![5, 6]);
 //! let date = ndt(2017, 4, 28);  // Friday 28th April 2017
 //! let spot = ldn.add_bus_days(&date, 2, true).unwrap();
@@ -30,7 +30,7 @@
 //! For use with multi-currency products calendars often need to be combined.
 //!
 //! ```rust
-//! # use rateslib::calendars::{UnionCal, Cal, ndt, DateRoll};
+//! # use rateslib::scheduling::{UnionCal, Cal, ndt, DateRoll};
 //! # let ldn = Cal::new(vec![ndt(2017, 5, 1)], vec![5, 6]);
 //! # let tky = Cal::new(vec![ndt(2017, 5, 3), ndt(2017, 5, 4), ndt(2017, 5, 5)], vec![5, 6]);
 //! # let date = ndt(2017, 4, 28);  // Friday 28th April 2017
@@ -45,7 +45,7 @@
 //! This is also a union of calendars but it is enforced via the `settlement_calendars` field.
 //!
 //! ```rust
-//! # use rateslib::calendars::{UnionCal, Cal, ndt};
+//! # use rateslib::scheduling::{UnionCal, Cal, ndt};
 //! let tgt = Cal::new(vec![], vec![5, 6]);
 //! let nyc = Cal::new(vec![ndt(2023, 6, 19)], vec![5, 6]);  // Juneteenth Holiday
 //! let tgt__nyc = UnionCal::new(vec![tgt], vec![nyc].into());
@@ -55,7 +55,7 @@
 //! determination and allows Tuesday 20th June 2023 since the US holiday is on the Monday.
 //!
 //! ```rust
-//! # use rateslib::calendars::{UnionCal, Cal, ndt, DateRoll};
+//! # use rateslib::scheduling::{UnionCal, Cal, ndt, DateRoll};
 //! # let tgt = Cal::new(vec![], vec![5, 6]);
 //! # let nyc = Cal::new(vec![ndt(2023, 6, 19)], vec![5, 6]);  // Juneteenth Holiday
 //! # let tgt__nyc = UnionCal::new(vec![tgt], vec![nyc].into());
@@ -69,7 +69,7 @@
 //! when `settlement` is enforced over the US calendar.
 //!
 //! ```rust
-//! # use rateslib::calendars::{UnionCal, Cal, ndt, DateRoll};
+//! # use rateslib::scheduling::{UnionCal, Cal, ndt, DateRoll};
 //! # let tgt = Cal::new(vec![], vec![5, 6]);
 //! # let nyc = Cal::new(vec![ndt(2023, 6, 19)], vec![5, 6]);  // Juneteenth Holiday
 //! # let tgt__nyc = UnionCal::new(vec![tgt], vec![nyc].into());
@@ -83,7 +83,7 @@
 //! not a European holiday.
 //!
 //! ```rust
-//! # use rateslib::calendars::{UnionCal, Cal, ndt, DateRoll};
+//! # use rateslib::scheduling::{UnionCal, Cal, ndt, DateRoll};
 //! # let tgt = Cal::new(vec![], vec![5, 6]);
 //! # let nyc = Cal::new(vec![ndt(2023, 6, 19)], vec![5, 6]);  // Juneteenth Holiday
 //! # let tgt__nyc = UnionCal::new(vec![tgt], vec![nyc].into());
@@ -96,7 +96,6 @@
 mod adjuster;
 mod calendars;
 mod dcfs;
-mod enums;
 mod frequency;
 mod rollday;
 mod schedule;

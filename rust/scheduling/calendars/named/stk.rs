@@ -1,20 +1,22 @@
 //! Define a Stockholm business day calendar, aligned with SWESTR publication.
 
 pub const WEEKMASK: &[u8] = &[5, 6]; // Saturday and Sunday weekend
-pub const RULES: &[&str] = &[
-    "Jan 1 (New Year)",
-    "Jan 6 (Epiphany)",
-    "Fri before Easter (Good Friday)",
-    "Mon after Easter (Easter Monday)",
-    "May 1 (EU Labour)",
-    "39 Days after Easter (Ascention)",
-    "Jun 6 (National)",
-    "Fri before 25 Jun (Midsommar)",
-    "Dec 24 (Christmas Eve)",
-    "Dec 25 (Christmas)",
-    "Dec 26 (Boxing Day)",
-    "Dec 31 (New Year's Eve)",
-];
+
+// pub const RULES: &[&str] = &[
+//     "Jan 1 (New Year)",
+//     "Jan 6 (Epiphany)",
+//     "Fri before Easter (Good Friday)",
+//     "Mon after Easter (Easter Monday)",
+//     "May 1 (EU Labour)",
+//     "39 Days after Easter (Ascention)",
+//     "Jun 6 (National)",
+//     "Fri before 25 Jun (Midsommar)",
+//     "Dec 24 (Christmas Eve)",
+//     "Dec 25 (Christmas)",
+//     "Dec 26 (Boxing Day)",
+//     "Dec 31 (New Year's Eve)",
+// ];
+
 pub const HOLIDAYS: &[&str] = &[
     "1970-01-01 00:00:00",
     "1970-01-06 00:00:00",

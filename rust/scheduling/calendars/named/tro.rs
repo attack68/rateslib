@@ -1,20 +1,22 @@
 //! Define a Toronto business day calendar, aligned with CORRA publication.
 
 pub const WEEKMASK: &[u8] = &[5, 6]; // Saturday and Sunday weekend
-pub const RULES: &[&str] = &[
-    "Jan 1: Sat,Sun->Mon (New Year)",
-    "Feb 3rd Mon (Family)",
-    "Fri before Easter (Easter Friday)",
-    "Mon before May 24 (Victoria)",
-    "Jul 1: Sat,Sun->Mon (National)",
-    "Aug 1st Mon (Civic)",
-    "Sep 1st Mon (Labour)",
-    "Sep 30 (Truth and Reconciliation)",
-    "Oct 2nd Mon (Thanksgiving)",
-    "Nov 11: Sat,Sun->Mon (Remembrance)",
-    "Dec 25: Sat,Sun->Mon (Christmas)",
-    "Dec 26: Sat->Mon,Sun->Tue (Boxing Day)",
-];
+
+// pub const RULES: &[&str] = &[
+//     "Jan 1: Sat,Sun->Mon (New Year)",
+//     "Feb 3rd Mon (Family)",
+//     "Fri before Easter (Easter Friday)",
+//     "Mon before May 24 (Victoria)",
+//     "Jul 1: Sat,Sun->Mon (National)",
+//     "Aug 1st Mon (Civic)",
+//     "Sep 1st Mon (Labour)",
+//     "Sep 30 (Truth and Reconciliation)",
+//     "Oct 2nd Mon (Thanksgiving)",
+//     "Nov 11: Sat,Sun->Mon (Remembrance)",
+//     "Dec 25: Sat,Sun->Mon (Christmas)",
+//     "Dec 26: Sat->Mon,Sun->Tue (Boxing Day)",
+// ];
+
 pub const HOLIDAYS: &[&str] = &[
     "1970-01-01 00:00:00",
     "1970-03-27 00:00:00",
