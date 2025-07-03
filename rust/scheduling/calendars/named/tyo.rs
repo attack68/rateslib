@@ -1,29 +1,31 @@
 //! Define a Tokyo business day calendar, aligned with TONA publication.
 
 pub const WEEKMASK: &[u8] = &[5, 6]; // Saturday and Sunday weekend
-pub const RULES: &[&str] = &[
-    "Jan 1 (New Year)",
-    "Jan 2 (New Year)",
-    "Jan 3 (New Year)",
-    "Jan 2nd Mon (Coming-of-Age)",
-    "Feb 11: Sun->Mon (Foundation)",
-    "Feb 23: Sun->Mon (Emperor Naruhito Birthday est. 2020)",
-    "Mar 20/21: Sun->Mon (Vernal Equinox)",
-    "Apr 29: Sun->Mon (Showa)",
-    "May 3: Sun->Mon (Constitution)",
-    "May 4: Sun->Mon->Tue (Greenery)",
-    "May 5: Sun->Mon->Tue->Wed (Children)",
-    "Jul 3rd Mon (Marine)",
-    "Aug 11: Sun->Mon (Mountain est. 2016)",
-    "Sep 3rd Mon (Respect Aged)",
-    "Sep 22/23: Sun->Mon (Autumn Equinox)",
-    "Oct 2nd Mon (Sports)",
-    "Nov 3: Sun->Mon (Culture)",
-    "Nov 23: Sun->Mon (Labor Thanksgiving)",
-    "Dec 23: Sun->Mon (Emperor Akihito Birthday end. 2019)",
-    "Dec 31 (New Year)",
-    "Note: 2020 Olympics adjustments.",
-];
+
+// pub const RULES: &[&str] = &[
+//     "Jan 1 (New Year)",
+//     "Jan 2 (New Year)",
+//     "Jan 3 (New Year)",
+//     "Jan 2nd Mon (Coming-of-Age)",
+//     "Feb 11: Sun->Mon (Foundation)",
+//     "Feb 23: Sun->Mon (Emperor Naruhito Birthday est. 2020)",
+//     "Mar 20/21: Sun->Mon (Vernal Equinox)",
+//     "Apr 29: Sun->Mon (Showa)",
+//     "May 3: Sun->Mon (Constitution)",
+//     "May 4: Sun->Mon->Tue (Greenery)",
+//     "May 5: Sun->Mon->Tue->Wed (Children)",
+//     "Jul 3rd Mon (Marine)",
+//     "Aug 11: Sun->Mon (Mountain est. 2016)",
+//     "Sep 3rd Mon (Respect Aged)",
+//     "Sep 22/23: Sun->Mon (Autumn Equinox)",
+//     "Oct 2nd Mon (Sports)",
+//     "Nov 3: Sun->Mon (Culture)",
+//     "Nov 23: Sun->Mon (Labor Thanksgiving)",
+//     "Dec 23: Sun->Mon (Emperor Akihito Birthday end. 2019)",
+//     "Dec 31 (New Year)",
+//     "Note: 2020 Olympics adjustments.",
+// ];
+
 pub const HOLIDAYS: &[&str] = &[
     "1970-01-01 00:00:00",
     "1970-01-02 00:00:00",
