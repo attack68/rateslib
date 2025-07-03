@@ -1,16 +1,18 @@
 //! Define a Sydney business day calendar, aligned with AONIA publication.
 
 pub const WEEKMASK: &[u8] = &[5, 6]; // Saturday and Sunday weekend
-pub const RULES: &[&str] = &[
-    "Jan 1 (New Year)",
-    "Jan 26 (Australia)",
-    "Fri before Easter (Good Friday)",
-    "Mon after Easter (Easter Monday)",
-    "Apr 25 (Anzac)",
-    "Jun 2nd Mon (Kings Bday)",
-    "Dec 25 (Christmas)",
-    "Dec 26 (Boxing Day)",
-];
+
+// pub const RULES: &[&str] = &[
+//     "Jan 1 (New Year)",
+//     "Jan 26 (Australia)",
+//     "Fri before Easter (Good Friday)",
+//     "Mon after Easter (Easter Monday)",
+//     "Apr 25 (Anzac)",
+//     "Jun 2nd Mon (Kings Bday)",
+//     "Dec 25 (Christmas)",
+//     "Dec 26 (Boxing Day)",
+// ];
+
 pub const HOLIDAYS: &[&str] = &[
     "1970-01-01 00:00:00",
     "1970-01-26 00:00:00",

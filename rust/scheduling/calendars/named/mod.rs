@@ -109,7 +109,7 @@ fn get_holidays_by_name(name: &str) -> Result<Vec<NaiveDateTime>, PyErr> {
 /// # Examples
 ///
 /// ```rust
-/// # use rateslib::calendars::get_calendar_by_name;
+/// # use rateslib::scheduling::get_calendar_by_name;
 /// let ldn_cal = get_calendar_by_name("ldn").unwrap();
 /// ```
 pub fn get_calendar_by_name(name: &str) -> Result<Cal, PyErr> {
@@ -138,11 +138,11 @@ mod tests {
         assert_eq!(result, vec![]);
     }
 
-    #[test]
-    fn test_get_rules() {
-        let result = get_rules_by_name("bus").unwrap();
-        assert_eq!(result, Vec::<&str>::new());
-    }
+    //     #[test]
+    //     fn test_get_rules() {
+    //         let result = get_rules_by_name("bus").unwrap();
+    //         assert_eq!(result, Vec::<&str>::new());
+    //     }
 
     #[test]
     fn test_get_cal() {

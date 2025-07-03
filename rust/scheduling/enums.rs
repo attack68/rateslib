@@ -18,62 +18,6 @@ use pyo3::pyclass;
 //     },
 // }
 
-/// A stub type indicator for date inference on one side of the schedule.
-#[pyclass(module = "rateslib.rs")]
-#[derive(Copy, Clone)]
-pub enum Stub {
-    /// Short front stub inference.
-    ShortFront,
-    /// Long front stub inference.
-    LongFront,
-    /// Short back stub inference.
-    ShortBack,
-    /// Long back stub inference.
-    LongBack,
-}
-
-/// A schedule frequency.
-#[pyclass(module = "rateslib.rs")]
-#[derive(Copy, Clone)]
-pub enum Frequency {
-    /// Periods every month.
-    Monthly,
-    /// Periods every two months.
-    BiMonthly,
-    /// Periods every three months.
-    Quarterly,
-    /// Periods every four months.
-    TriAnnually,
-    /// Periods every six months.
-    SemiAnnually,
-    /// Periods every twelve months.
-    Annually,
-    /// Only every a single period.
-    Zero,
-}
-
-impl Frequency {
-    /// Get the duration of a period in months associated with the `Frequency`.
-    pub fn months(&self) -> u32 {
-        match self {
-            Frequency::Monthly => 1_u32,
-            Frequency::BiMonthly => 2_u32,
-            Frequency::Quarterly => 3_u32,
-            Frequency::TriAnnually => 4_u32,
-            Frequency::SemiAnnually => 6_u32,
-            Frequency::Annually => 12_u32,
-            Frequency::Zero => 120000_u32, // 10,000 years.
-        }
-    }
-
-    /// Determine if two dates fall within months that are an integer number of
-    /// `Frequency` periods apart.
-    pub fn is_divisible(&self, start: &NaiveDateTime, end: &NaiveDateTime) -> bool {
-        let months = end.month() - start.month();
-        (months % self.months()) == 0_u32
-    }
-}
-
 /// Date categories to infer rolls on dates.
 #[derive(Debug, PartialEq)]
 pub(crate) enum RollDayCategory {
