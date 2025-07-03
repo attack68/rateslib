@@ -615,4 +615,23 @@ mod tests {
             ]
         );
     }
+
+    #[test]
+    fn test_rollday_try_udate() {
+        let options: Vec<(RollDay, NaiveDateTime)> = vec![
+            (RollDay::Int { day: 15 }, ndt(2000, 3, 15)),
+            (RollDay::Int { day: 31 }, ndt(2000, 3, 31)),
+            (RollDay::Int { day: 31 }, ndt(2022, 2, 28)),
+            (RollDay::EoM {}, ndt(2000, 3, 31)),
+            (RollDay::EoM {}, ndt(2022, 2, 28)),
+            (RollDay::Int { day: 30 }, ndt(2024, 2, 29)),
+            (RollDay::Int { day: 30 }, ndt(2024, 2, 29)),
+            (RollDay::EoM {}, ndt(2024, 2, 29)),
+            (RollDay::EoM {}, ndt(2024, 2, 29)),
+            (RollDay::EoM {}, ndt(2024, 2, 29)),
+        ];
+        for option in options {
+            assert_eq!(false, option.0.try_udate(&option.1).is_err());
+        }
+    }
 }

@@ -8,8 +8,8 @@ from pandas.tseries.holiday import Holiday
 from rateslib import defaults
 from rateslib.calendars import Cal, create_calendar
 from rateslib.default import NoInput
-from rateslib.scheduling import (
-    Schedule,
+from rateslib.scheduling import Schedule
+from rateslib.scheduling.scheduling import (
     _check_regular_swap,
     _check_unadjusted_regular_swap,
     _generate_irregular_schedule_unadjusted,
