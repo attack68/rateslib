@@ -86,6 +86,7 @@ from rateslib.rs import Dual2 as Dual2
 from rateslib.rs import PPSplineDual as PPSplineDual
 from rateslib.rs import PPSplineDual2 as PPSplineDual2
 from rateslib.rs import PPSplineF64 as PPSplineF64
+from rateslib.rs import RollDay as RollDay
 from rateslib.scheduling import Schedule as Schedule
 from rateslib.solver import Solver as Solver
 

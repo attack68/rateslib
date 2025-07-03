@@ -1,3 +1,4 @@
 pub(crate) mod adjuster;
 pub(crate) mod calendar;
-mod frequency;
+pub(crate) mod frequency;
+pub(crate) mod schedule;
