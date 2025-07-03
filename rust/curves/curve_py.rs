@@ -1,7 +1,5 @@
 //! Wrapper module to export Rust curve data types to Python using pyo3 bindings.
 
-use crate::calendars::CalType;
-use crate::calendars::Convention;
 use crate::curves::nodes::{Nodes, NodesTimestamp};
 use crate::curves::{
     CurveDF, CurveInterpolation, FlatBackwardInterpolator, FlatForwardInterpolator,
@@ -11,6 +9,7 @@ use crate::curves::{
 use crate::dual::{get_variable_tags, set_order, ADOrder, Dual, Dual2, Number};
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
+use crate::scheduling::{Calendar, Convention};
 use bincode::config::legacy;
 use bincode::serde::{decode_from_slice, encode_to_vec};
 use chrono::NaiveDateTime;
@@ -67,7 +66,7 @@ impl CurveInterpolation for CurveInterpolator {
 #[pyclass(module = "rateslib.rs")]
 #[derive(Clone, Deserialize, Serialize)]
 pub(crate) struct Curve {
-    inner: CurveDF<CurveInterpolator, CalType>,
+    inner: CurveDF<CurveInterpolator, Calendar>,
 }
 
 #[pymethods]
@@ -81,7 +80,7 @@ impl Curve {
         id: String,
         convention: Convention,
         modifier: Modifier,
-        calendar: CalType,
+        calendar: Calendar,
         index_base: Option<f64>,
     ) -> PyResult<Self> {
         let nodes_ = nodes_into_order(nodes, ad, &id);
@@ -192,7 +191,7 @@ impl Curve {
         String,
         Convention,
         Modifier,
-        CalType,
+        Calendar,
         Option<f64>,
     )> {
         Ok((

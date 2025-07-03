@@ -1,4 +1,4 @@
-use crate::calendars::{ndt, Adjuster, Cal, CalType, DateRoll, RollDay};
+use crate::scheduling::{ndt, Adjuster, Cal, Calendar, DateRoll, RollDay};
 use chrono::prelude::*;
 use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
@@ -8,7 +8,7 @@ use pyo3::{pyclass, PyErr};
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frequency {
     /// A set number of business days, defined by a given calendar.
-    BusDays { number: u32, calendar: CalType },
+    BusDays { number: u32, calendar: Calendar },
     /// A set number of calendar days
     CalDays { number: u32 },
     /// A set number of calendar weeks.
@@ -185,7 +185,7 @@ impl Scheduling for Frequency {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::ndt;
+    use crate::scheduling::ndt;
 
     #[test]
     fn test_get_next() {
@@ -267,7 +267,7 @@ mod tests {
             (
                 Frequency::BusDays {
                     number: 5,
-                    calendar: CalType::Cal(Cal::new(vec![], vec![5, 6])),
+                    calendar: Calendar::Cal(Cal::new(vec![], vec![5, 6])),
                 },
                 ndt(2025, 6, 23),
                 ndt(2025, 6, 30),
