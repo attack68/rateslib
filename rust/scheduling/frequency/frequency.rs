@@ -21,14 +21,21 @@ pub enum Frequency {
 
 /// Used to define periods of financial instrument schedules.
 pub trait Scheduling {
-    /// Calculate the next unadjusted period date in a schedule from an unadjusted effective date.
-    fn try_next(&self, ueffective: &NaiveDateTime) -> Result<NaiveDateTime, PyErr>;
+    /// Calculate the next unadjusted period date in a schedule from an unadjusted start date.
+    fn try_unext(&self, udate: &NaiveDateTime) -> Result<NaiveDateTime, PyErr>;
 
-    /// Calculate the previous unadjusted period date in a schedule from an unadjusted effective date.
-    fn try_previous(&self, ueffective: &NaiveDateTime) -> Result<NaiveDateTime, PyErr>;
+    /// Calculate the previous unadjusted period date in a schedule from an unadjusted end date.
+    fn try_uprevious(&self, udate: &NaiveDateTime) -> Result<NaiveDateTime, PyErr>;
+
+    /// Return an unadjusted regular schedule if such a definition exists for the object.
+    fn try_uregular(
+        &self,
+        ueffective: &NaiveDateTime,
+        utermination: &NaiveDateTime,
+    ) -> Result<Vec<NaiveDateTime>, PyErr>;
 
     /// Return an unadjusted regular schedule if the given dates define such.
-    fn try_uregular(
+    fn try_uregular_from_unext(
         &self,
         ueffective: &NaiveDateTime,
         utermination: &NaiveDateTime,
@@ -37,7 +44,7 @@ pub trait Scheduling {
         let mut date = *ueffective;
         while date < *utermination {
             v.push(date);
-            date = self.try_next(&date)?;
+            date = self.try_unext(&date)?;
         }
         if date == *utermination {
             v.push(*utermination);
@@ -50,7 +57,7 @@ pub trait Scheduling {
     }
 
     /// Infer an unadjusted front stub date from unadjusted irregular schedule dates.
-    fn try_infer_front_stub(
+    fn try_infer_ufront_stub(
         &self,
         ueffective: &NaiveDateTime,
         utermination: &NaiveDateTime,
@@ -58,16 +65,16 @@ pub trait Scheduling {
     ) -> Result<NaiveDateTime, PyErr> {
         let mut date = *utermination;
         while date > *ueffective {
-            date = self.try_previous(&date)?;
+            date = self.try_uprevious(&date)?;
         }
         if date == *ueffective {
             Err(PyValueError::new_err("Input dates to Frequency define a regular unadjusted schedule, and do not require a stub date"))
         } else {
             if short {
-                date = self.try_next(&date)?;
+                date = self.try_unext(&date)?;
             } else {
-                date = self.try_next(&date)?;
-                date = self.try_next(&date)?;
+                date = self.try_unext(&date)?;
+                date = self.try_unext(&date)?;
             }
             if date >= *utermination {
                 Err(PyValueError::new_err(
@@ -80,7 +87,7 @@ pub trait Scheduling {
     }
 
     /// Infer an unadjusted back stub date from unadjusted irregular schedule dates.
-    fn try_infer_back_stub(
+    fn try_infer_uback_stub(
         &self,
         ueffective: &NaiveDateTime,
         utermination: &NaiveDateTime,
@@ -88,16 +95,16 @@ pub trait Scheduling {
     ) -> Result<NaiveDateTime, PyErr> {
         let mut date = *ueffective;
         while date < *utermination {
-            date = self.try_next(&date)?;
+            date = self.try_unext(&date)?;
         }
         if date == *utermination {
             Err(PyValueError::new_err("Input dates to Frequency define a regular unadjusted schedule, and do not require a stub date"))
         } else {
             if short {
-                date = self.try_previous(&date)?;
+                date = self.try_uprevious(&date)?;
             } else {
-                date = self.try_previous(&date)?;
-                date = self.try_previous(&date)?;
+                date = self.try_uprevious(&date)?;
+                date = self.try_uprevious(&date)?;
             }
             if date <= *ueffective {
                 Err(PyValueError::new_err(
@@ -138,45 +145,56 @@ impl Frequency {
 }
 
 impl Scheduling for Frequency {
-    fn try_next(&self, ueffective: &NaiveDateTime) -> Result<NaiveDateTime, PyErr> {
-        let _ = self.try_udate(ueffective)?;
+    fn try_unext(&self, udate: &NaiveDateTime) -> Result<NaiveDateTime, PyErr> {
+        let _ = self.try_udate(udate)?;
         let cal = Cal::new(vec![], vec![]);
         match self {
             Frequency::BusDays {
                 number: n,
                 calendar: c,
-            } => c.add_bus_days(ueffective, *n as i32, false),
+            } => c.add_bus_days(udate, *n as i32, false),
             Frequency::CalDays { number: n } => {
-                Ok(cal.add_cal_days(ueffective, *n as i32, &Adjuster::Actual {}))
+                Ok(cal.add_cal_days(udate, *n as i32, &Adjuster::Actual {}))
             }
             Frequency::Weeks { number: n } => {
-                Ok(cal.add_cal_days(ueffective, *n as i32 * 7, &Adjuster::Actual {}))
+                Ok(cal.add_cal_days(udate, *n as i32 * 7, &Adjuster::Actual {}))
             }
             Frequency::Months { number: n, roll: r } => {
-                Ok(cal.add_months(ueffective, *n as i32, &Adjuster::Actual {}, r))
+                Ok(cal.add_months(udate, *n as i32, &Adjuster::Actual {}, r))
             }
             Frequency::Zero {} => Ok(ndt(9999, 1, 1)),
         }
     }
 
-    fn try_previous(&self, ueffective: &NaiveDateTime) -> Result<NaiveDateTime, PyErr> {
-        let _ = self.try_udate(ueffective)?;
+    fn try_uprevious(&self, udate: &NaiveDateTime) -> Result<NaiveDateTime, PyErr> {
+        let _ = self.try_udate(udate)?;
         let cal = Cal::new(vec![], vec![]);
         match self {
             Frequency::BusDays {
                 number: n,
                 calendar: c,
-            } => c.add_bus_days(ueffective, -(*n as i32), false),
+            } => c.add_bus_days(udate, -(*n as i32), false),
             Frequency::CalDays { number: n } => {
-                Ok(cal.add_cal_days(ueffective, -(*n as i32), &Adjuster::Actual {}))
+                Ok(cal.add_cal_days(udate, -(*n as i32), &Adjuster::Actual {}))
             }
             Frequency::Weeks { number: n } => {
-                Ok(cal.add_cal_days(ueffective, -(*n as i32 * 7), &Adjuster::Actual {}))
+                Ok(cal.add_cal_days(udate, -(*n as i32 * 7), &Adjuster::Actual {}))
             }
             Frequency::Months { number: n, roll: r } => {
-                Ok(cal.add_months(ueffective, -(*n as i32), &Adjuster::Actual {}, r))
+                Ok(cal.add_months(udate, -(*n as i32), &Adjuster::Actual {}, r))
             }
             Frequency::Zero {} => Ok(ndt(1500, 1, 1)),
+        }
+    }
+
+    fn try_uregular(
+        &self,
+        ueffective: &NaiveDateTime,
+        utermination: &NaiveDateTime,
+    ) -> Result<Vec<NaiveDateTime>, PyErr> {
+        match self {
+            Frequency::Zero {} => Ok(vec![*ueffective, *utermination]),
+            _ => self.try_uregular_from_unext(ueffective, utermination),
         }
     }
 }
@@ -188,7 +206,7 @@ mod tests {
     use crate::scheduling::ndt;
 
     #[test]
-    fn test_get_next() {
+    fn test_try_scheduling() {
         let options: Vec<(Frequency, NaiveDateTime, NaiveDateTime)> = vec![
             (
                 Frequency::Months {
@@ -275,8 +293,8 @@ mod tests {
             (Frequency::Zero {}, ndt(1500, 1, 1), ndt(9999, 1, 1)),
         ];
         for option in options.iter() {
-            assert_eq!(option.2, option.0.try_next(&option.1).unwrap());
-            assert_eq!(option.1, option.0.try_previous(&option.2).unwrap());
+            assert_eq!(option.2, option.0.try_unext(&option.1).unwrap());
+            assert_eq!(option.1, option.0.try_uprevious(&option.2).unwrap());
         }
     }
 
@@ -324,7 +342,7 @@ mod tests {
     }
 
     #[test]
-    fn test_infer_front() {
+    fn test_infer_ufront() {
         let options: Vec<(Frequency, NaiveDateTime, NaiveDateTime, bool, NaiveDateTime)> = vec![
             (
                 Frequency::Months {
@@ -353,14 +371,14 @@ mod tests {
                 option.4,
                 option
                     .0
-                    .try_infer_front_stub(&option.1, &option.2, option.3)
+                    .try_infer_ufront_stub(&option.1, &option.2, option.3)
                     .unwrap()
             );
         }
     }
 
     #[test]
-    fn test_infer_front_err() {
+    fn test_infer_ufront_err() {
         let options: Vec<(Frequency, NaiveDateTime, NaiveDateTime, bool)> = vec![
             (
                 Frequency::Months {
@@ -391,14 +409,14 @@ mod tests {
         for option in options.iter() {
             let result = option
                 .0
-                .try_infer_front_stub(&option.1, &option.2, option.3)
+                .try_infer_ufront_stub(&option.1, &option.2, option.3)
                 .is_err();
             assert_eq!(true, result);
         }
     }
 
     #[test]
-    fn test_infer_back() {
+    fn test_infer_uback() {
         let options: Vec<(Frequency, NaiveDateTime, NaiveDateTime, bool, NaiveDateTime)> = vec![
             (
                 Frequency::Months {
@@ -427,14 +445,14 @@ mod tests {
                 option.4,
                 option
                     .0
-                    .try_infer_back_stub(&option.1, &option.2, option.3)
+                    .try_infer_uback_stub(&option.1, &option.2, option.3)
                     .unwrap()
             );
         }
     }
 
     #[test]
-    fn test_infer_back_err() {
+    fn test_infer_uback_err() {
         let options: Vec<(Frequency, NaiveDateTime, NaiveDateTime, bool)> = vec![
             (
                 Frequency::Months {
@@ -459,7 +477,7 @@ mod tests {
         for option in options.iter() {
             let result = option
                 .0
-                .try_infer_back_stub(&option.1, &option.2, option.3)
+                .try_infer_uback_stub(&option.1, &option.2, option.3)
                 .is_err();
             assert_eq!(true, result);
         }

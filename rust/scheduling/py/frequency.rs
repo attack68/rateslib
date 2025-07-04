@@ -16,9 +16,9 @@ impl Frequency {
     /// Returns
     /// -------
     /// datetime
-    #[pyo3(name = "next")]
-    fn next_py(&self, ueffective: NaiveDateTime) -> PyResult<NaiveDateTime> {
-        self.try_next(&ueffective)
+    #[pyo3(name = "unext")]
+    fn unext_py(&self, udate: NaiveDateTime) -> PyResult<NaiveDateTime> {
+        self.try_unext(&udate)
     }
 
     /// Return the previous unadjusted date under the schedule frequency.
@@ -32,9 +32,9 @@ impl Frequency {
     /// Returns
     /// -------
     /// datetime
-    #[pyo3(name = "previous")]
-    fn previous_py(&self, ueffective: NaiveDateTime) -> PyResult<NaiveDateTime> {
-        self.try_previous(&ueffective)
+    #[pyo3(name = "uprevious")]
+    fn uprevious_py(&self, udate: NaiveDateTime) -> PyResult<NaiveDateTime> {
+        self.try_uprevious(&udate)
     }
 
     /// Return a list of unadjusted regular schedule dates.
@@ -73,14 +73,14 @@ impl Frequency {
     /// Returns
     /// -------
     /// datetime
-    #[pyo3(name = "infer_front_stub")]
-    fn infer_front_stub_py(
+    #[pyo3(name = "infer_ufront_stub")]
+    fn infer_ufront_stub_py(
         &self,
         ueffective: NaiveDateTime,
         utermination: NaiveDateTime,
         short: bool,
     ) -> PyResult<NaiveDateTime> {
-        self.try_infer_front_stub(&ueffective, &utermination, short)
+        self.try_infer_ufront_stub(&ueffective, &utermination, short)
     }
 
     /// Infer an unadjusted back stub date from given schedule endpoints.
@@ -96,13 +96,13 @@ impl Frequency {
     /// Returns
     /// -------
     /// datetime
-    #[pyo3(name = "infer_back_stub")]
-    fn infer_back_stub_py(
+    #[pyo3(name = "infer_uback_stub")]
+    fn infer_uback_stub_py(
         &self,
         ueffective: NaiveDateTime,
         utermination: NaiveDateTime,
         short: bool,
     ) -> PyResult<NaiveDateTime> {
-        self.try_infer_back_stub(&ueffective, &utermination, short)
+        self.try_infer_uback_stub(&ueffective, &utermination, short)
     }
 }
