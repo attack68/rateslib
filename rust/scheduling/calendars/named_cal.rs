@@ -3,9 +3,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
 use serde::{Deserialize, Serialize};
 
-use crate::scheduling::adjuster::CalendarAdjustment;
-use crate::scheduling::calendars::named::get_calendar_by_name;
-use crate::scheduling::{Cal, DateRoll, UnionCal};
+use crate::scheduling::{get_calendar_by_name, Cal, CalendarAdjustment, DateRoll, UnionCal};
 
 /// A wrapper for a UnionCal struct specified by a string representation.
 ///

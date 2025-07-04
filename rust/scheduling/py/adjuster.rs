@@ -1,7 +1,6 @@
 //! Wrapper module to export to Python using pyo3 bindings.
 
-use crate::scheduling::adjuster::{Adjuster, Adjustment};
-use crate::scheduling::Calendar;
+use crate::scheduling::{Adjuster, Adjustment, Calendar};
 use chrono::NaiveDateTime;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;

@@ -93,23 +93,24 @@
 //! assert_eq!(spot, ndt(2023, 6, 19));
 //! ```
 
-mod adjuster;
 mod calendars;
 mod dcfs;
 mod frequency;
-mod rollday;
 mod schedule;
 
 mod serde;
 
 pub(crate) mod py;
 
-pub use crate::scheduling::{
-    adjuster::{Adjuster, Adjustment, CalendarAdjustment},
-    calendars::{get_calendar_by_name, ndt, Cal, Calendar, DateRoll, NamedCal, UnionCal},
-    dcfs::Convention,
-    frequency::Frequency,
-    rollday::{get_eom, get_imm, get_roll, is_eom, is_imm, is_leap_year, RollDay},
-};
-
 pub(crate) use crate::scheduling::dcfs::_get_convention_str;
+pub use crate::scheduling::{
+    calendars::{
+        get_calendar_by_name, ndt, Adjuster, Adjustment, Cal, Calendar, CalendarAdjustment,
+        DateRoll, NamedCal, UnionCal,
+    },
+    dcfs::Convention,
+    frequency::{
+        get_eom, get_imm, get_roll, is_eom, is_imm, is_leap_year, Frequency, RollDay, Scheduling,
+    },
+    schedule::{Schedule, StubInference},
+};
