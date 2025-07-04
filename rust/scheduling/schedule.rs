@@ -46,20 +46,6 @@ pub struct Schedule {
     pub pschedule: Vec<NaiveDateTime>,
 }
 
-fn match_interior_dates(
-    ueffective: &NaiveDateTime,
-    front_stub: Option<NaiveDateTime>,
-    back_stub: Option<NaiveDateTime>,
-    utermination: &NaiveDateTime,
-) -> (NaiveDateTime, NaiveDateTime) {
-    match (front_stub, back_stub) {
-        (None, None) => (*ueffective, *utermination),
-        (Some(v), None) => (v, *utermination),
-        (None, Some(v)) => (*ueffective, v),
-        (Some(v), Some(w)) => (v, w),
-    }
-}
-
 impl Schedule {
     /// Generate an unadjusted schedule with stub inference.
     ///
@@ -96,28 +82,7 @@ impl Schedule {
         }
 
         // validate inference is not blocked by user defined values.
-        match (ufront_stub, uback_stub, stub_inference) {
-            (Some(_v), Some(_w), Some(_f)) => {
-                return Err(PyValueError::new_err(
-                    "Cannot infer stubs if they are explicitly given.",
-                ))
-            }
-            (Some(_v), None, Some(val))
-                if matches!(val, StubInference::ShortFront | StubInference::LongFront) =>
-            {
-                return Err(PyValueError::new_err(
-                    "Cannot infer stubs if they are explicitly given.",
-                ))
-            }
-            (None, Some(_w), Some(val))
-                if matches!(val, StubInference::ShortBack | StubInference::LongBack) =>
-            {
-                return Err(PyValueError::new_err(
-                    "Cannot infer stubs if they are explicitly given.",
-                ))
-            }
-            _ => {}
-        }
+        let _ = validate_stub_dates_and_inference(&ufront_stub, &uback_stub, &stub_inference)?;
 
         let (interior_start, interior_end) =
             match_interior_dates(&ueffective, ufront_stub, uback_stub, &utermination);
@@ -139,20 +104,20 @@ impl Schedule {
         } else {
             let (ufront_stub_, uback_stub_) = match stub_inference.unwrap() {
                 StubInference::ShortFront => (
-                    Some(frequency.try_infer_front_stub(&interior_start, &interior_end, true)?),
+                    Some(frequency.try_infer_ufront_stub(&interior_start, &interior_end, true)?),
                     uback_stub,
                 ),
                 StubInference::LongFront => (
-                    Some(frequency.try_infer_front_stub(&interior_start, &interior_end, false)?),
+                    Some(frequency.try_infer_ufront_stub(&interior_start, &interior_end, false)?),
                     uback_stub,
                 ),
                 StubInference::ShortBack => (
                     ufront_stub,
-                    Some(frequency.try_infer_back_stub(&interior_start, &interior_end, true)?),
+                    Some(frequency.try_infer_uback_stub(&interior_start, &interior_end, true)?),
                 ),
                 StubInference::LongBack => (
                     ufront_stub,
-                    Some(frequency.try_infer_back_stub(&interior_start, &interior_end, false)?),
+                    Some(frequency.try_infer_uback_stub(&interior_start, &interior_end, false)?),
                 ),
             };
             return Self::try_new_uschedule(
@@ -249,6 +214,48 @@ impl Schedule {
 //     udates
 // }
 
+fn match_interior_dates(
+    ueffective: &NaiveDateTime,
+    ufront_stub: Option<NaiveDateTime>,
+    uback_stub: Option<NaiveDateTime>,
+    utermination: &NaiveDateTime,
+) -> (NaiveDateTime, NaiveDateTime) {
+    match (ufront_stub, uback_stub) {
+        (None, None) => (*ueffective, *utermination),
+        (Some(v), None) => (v, *utermination),
+        (None, Some(v)) => (*ueffective, v),
+        (Some(v), Some(w)) => (v, w),
+    }
+}
+
+/// Validate provided stubs do not conflict with the required [StubInference]
+fn validate_stub_dates_and_inference(
+    ufront_stub: &Option<NaiveDateTime>,
+    uback_stub: &Option<NaiveDateTime>,
+    stub_inference: &Option<StubInference>,
+) -> Result<(), PyErr> {
+    match (ufront_stub, uback_stub, stub_inference) {
+        (Some(_v), Some(_w), Some(_f)) => Err(PyValueError::new_err(
+            "Cannot infer stubs if they are explicitly given.",
+        )),
+        (Some(_v), None, Some(val))
+            if matches!(val, StubInference::ShortFront | StubInference::LongFront) =>
+        {
+            Err(PyValueError::new_err(
+                "Cannot infer stubs if they are explicitly given.",
+            ))
+        }
+        (None, Some(_w), Some(val))
+            if matches!(val, StubInference::ShortBack | StubInference::LongBack) =>
+        {
+            Err(PyValueError::new_err(
+                "Cannot infer stubs if they are explicitly given.",
+            ))
+        }
+        _ => Ok(()),
+    }
+}
+
 /// Get unadjusted schedule dates assuming all inputs are correct and pre-validated.
 fn composite_uschedule(
     ueffective: NaiveDateTime,
@@ -283,7 +290,7 @@ fn composite_uschedule(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scheduling::{ndt, Cal};
+    use crate::scheduling::{ndt, Cal, RollDay};
 
     //     fn fixture_hol_cal() -> Cal {
     //         let hols = vec![ndt(2015, 9, 5), ndt(2015, 9, 7)]; // Saturday and Monday
