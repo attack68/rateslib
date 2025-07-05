@@ -557,8 +557,10 @@ class BondMixin:
         self._set_base_index_if_none(curve)
         npv: DualTypes = self.leg1.npv(curve, disc_curve, NoInput(0), NoInput(0), local=False)  # type: ignore[assignment]
 
-        # now must systematically deduct any cashflow between the initial node date
+        # now must systematically deduct any cashflow between the curve initial node date
         # and the settlement date, including the cashflow after settlement if ex_div.
+        # also deduct the previous coupon period - which is only relevant if it ended on a
+        # holiday and the payment has rolled into scope (see gh dev 17)
         initial_idx = index_left(
             self.leg1.schedule.aschedule,
             self.leg1.schedule.n_periods + 1,
@@ -570,7 +572,9 @@ class BondMixin:
             settlement,
         )
 
-        for period_idx in range(initial_idx, settle_idx):
+        for period_idx in range(initial_idx - 1, settle_idx):
+            if period_idx < 0:
+                continue
             # deduct coupon period
             npv -= self.leg1.periods[period_idx].npv(  # type: ignore[operator]
                 curve, disc_curve, NoInput(0), NoInput(0), local=False
