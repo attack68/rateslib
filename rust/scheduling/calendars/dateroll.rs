@@ -4,7 +4,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::PyErr;
 use std::cmp::Ordering;
 
-use crate::scheduling::{get_roll, Adjuster, Adjustment, RollDay};
+use crate::scheduling::{Adjuster, Adjustment};
 
 /// Used to control business day management and date rolling.
 pub trait DateRoll {
@@ -195,47 +195,6 @@ pub trait DateRoll {
         }
     }
 
-    /// Add a given number of months to a `date`, factoring a `roll` day, with the result adjusted
-    /// to a business day that may or may not allow `settlement`.
-    fn add_months(
-        &self,
-        date: &NaiveDateTime,
-        months: i32,
-        adjuster: &Adjuster,
-        roll: &RollDay,
-    ) -> NaiveDateTime
-    where
-        Self: Sized,
-    {
-        // refactor roll day
-        let roll_ = match roll {
-            RollDay::Unspecified {} => RollDay::Int { day: date.day() },
-            _ => *roll,
-        };
-
-        // convert months to a set of years and remainder months
-        let mut yr_roll = (months.abs() / 12) * months.signum();
-        let rem_months = months - yr_roll * 12;
-
-        // determine the new month
-        let mut new_month = i32::try_from(date.month()).unwrap() + rem_months;
-        if new_month <= 0 {
-            yr_roll -= 1;
-            new_month = new_month.rem_euclid(12);
-        } else if new_month >= 13 {
-            yr_roll += 1;
-            new_month = new_month.rem_euclid(12);
-        }
-        if new_month == 0 {
-            new_month = 12;
-        }
-
-        // perform the date roll
-        let new_date =
-            get_roll(date.year() + yr_roll, new_month.try_into().unwrap(), &roll_).unwrap();
-        adjuster.adjust(&new_date, self)
-    }
-
     /// Return a vector of business dates between a start and end, inclusive.
     fn bus_date_range(
         &self,
@@ -273,7 +232,7 @@ pub trait DateRoll {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scheduling::{get_calendar_by_name, ndt, Cal, CalendarAdjustment, UnionCal};
+    use crate::scheduling::{ndt, Cal, CalendarAdjustment, UnionCal};
 
     fn fixture_hol_cal() -> Cal {
         let hols = vec![ndt(2015, 9, 5), ndt(2015, 9, 7)]; // Saturday and Monday
@@ -475,127 +434,6 @@ mod tests {
     }
 
     #[test]
-    fn test_add_37_months() {
-        let cal = get_calendar_by_name("all").unwrap();
-
-        let dates = vec![
-            (ndt(2000, 1, 1), ndt(2003, 2, 1)),
-            (ndt(2000, 2, 1), ndt(2003, 3, 1)),
-            (ndt(2000, 3, 1), ndt(2003, 4, 1)),
-            (ndt(2000, 4, 1), ndt(2003, 5, 1)),
-            (ndt(2000, 5, 1), ndt(2003, 6, 1)),
-            (ndt(2000, 6, 1), ndt(2003, 7, 1)),
-            (ndt(2000, 7, 1), ndt(2003, 8, 1)),
-            (ndt(2000, 8, 1), ndt(2003, 9, 1)),
-            (ndt(2000, 9, 1), ndt(2003, 10, 1)),
-            (ndt(2000, 10, 1), ndt(2003, 11, 1)),
-            (ndt(2000, 11, 1), ndt(2003, 12, 1)),
-            (ndt(2000, 12, 1), ndt(2004, 1, 1)),
-        ];
-        for i in 0..12 {
-            assert_eq!(
-                cal.add_months(
-                    &dates[i].0,
-                    37,
-                    &Adjuster::FollowingSettle {},
-                    &RollDay::Unspecified {},
-                ),
-                dates[i].1
-            )
-        }
-    }
-
-    #[test]
-    fn test_sub_37_months() {
-        let cal = get_calendar_by_name("all").unwrap();
-
-        let dates = vec![
-            (ndt(2000, 1, 1), ndt(1996, 12, 1)),
-            (ndt(2000, 2, 1), ndt(1997, 1, 1)),
-            (ndt(2000, 3, 1), ndt(1997, 2, 1)),
-            (ndt(2000, 4, 1), ndt(1997, 3, 1)),
-            (ndt(2000, 5, 1), ndt(1997, 4, 1)),
-            (ndt(2000, 6, 1), ndt(1997, 5, 1)),
-            (ndt(2000, 7, 1), ndt(1997, 6, 1)),
-            (ndt(2000, 8, 1), ndt(1997, 7, 1)),
-            (ndt(2000, 9, 1), ndt(1997, 8, 1)),
-            (ndt(2000, 10, 1), ndt(1997, 9, 1)),
-            (ndt(2000, 11, 1), ndt(1997, 10, 1)),
-            (ndt(2000, 12, 1), ndt(1997, 11, 1)),
-        ];
-        for i in 0..12 {
-            assert_eq!(
-                cal.add_months(
-                    &dates[i].0,
-                    -37,
-                    &Adjuster::FollowingSettle {},
-                    &RollDay::Unspecified {},
-                ),
-                dates[i].1
-            )
-        }
-    }
-
-    #[test]
-    fn test_add_months_roll() {
-        let cal = get_calendar_by_name("all").unwrap();
-        let roll = vec![
-            (RollDay::Unspecified {}, ndt(1996, 12, 7)),
-            (RollDay::Int { day: 21 }, ndt(1996, 12, 21)),
-            (RollDay::EoM {}, ndt(1996, 12, 31)),
-            (RollDay::SoM {}, ndt(1996, 12, 1)),
-            (RollDay::IMM {}, ndt(1996, 12, 18)),
-        ];
-        for i in 0..5 {
-            assert_eq!(
-                cal.add_months(
-                    &ndt(1998, 3, 7),
-                    -15,
-                    &Adjuster::FollowingSettle {},
-                    &roll[i].0
-                ),
-                roll[i].1
-            );
-        }
-    }
-
-    #[test]
-    fn test_add_months_modifier() {
-        let cal = get_calendar_by_name("bus").unwrap();
-        let modi = vec![
-            (Adjuster::Actual {}, ndt(2023, 9, 30)),          // Saturday
-            (Adjuster::FollowingSettle {}, ndt(2023, 10, 2)), // Monday
-            (Adjuster::ModifiedFollowingSettle {}, ndt(2023, 9, 29)), // Friday
-            (Adjuster::PreviousSettle {}, ndt(2023, 9, 29)),  // Friday
-            (Adjuster::ModifiedPreviousSettle {}, ndt(2023, 9, 29)), // Friday
-        ];
-        for i in 0..4 {
-            assert_eq!(
-                cal.add_months(&ndt(2023, 8, 31), 1, &modi[i].0, &RollDay::Unspecified {},),
-                modi[i].1
-            );
-        }
-    }
-
-    #[test]
-    fn test_add_months_modifier_p() {
-        let cal = get_calendar_by_name("bus").unwrap();
-        let modi = vec![
-            (Adjuster::Actual {}, ndt(2023, 7, 1)),          // Saturday
-            (Adjuster::FollowingSettle {}, ndt(2023, 7, 3)), // Monday
-            (Adjuster::ModifiedFollowingSettle {}, ndt(2023, 7, 3)), // Monday
-            (Adjuster::PreviousSettle {}, ndt(2023, 6, 30)), // Friday
-            (Adjuster::ModifiedPreviousSettle {}, ndt(2023, 7, 3)), // Monday
-        ];
-        for i in 0..4 {
-            assert_eq!(
-                cal.add_months(&ndt(2023, 8, 1), -1, &modi[i].0, &RollDay::Unspecified {},),
-                modi[i].1
-            );
-        }
-    }
-
-    #[test]
     fn test_rolls() {
         let cal = fixture_hol_cal();
         let udates = vec![
@@ -615,23 +453,5 @@ mod tests {
             ]
         );
     }
-
-    #[test]
-    fn test_rollday_try_udate() {
-        let options: Vec<(RollDay, NaiveDateTime)> = vec![
-            (RollDay::Int { day: 15 }, ndt(2000, 3, 15)),
-            (RollDay::Int { day: 31 }, ndt(2000, 3, 31)),
-            (RollDay::Int { day: 31 }, ndt(2022, 2, 28)),
-            (RollDay::EoM {}, ndt(2000, 3, 31)),
-            (RollDay::EoM {}, ndt(2022, 2, 28)),
-            (RollDay::Int { day: 30 }, ndt(2024, 2, 29)),
-            (RollDay::Int { day: 30 }, ndt(2024, 2, 29)),
-            (RollDay::EoM {}, ndt(2024, 2, 29)),
-            (RollDay::EoM {}, ndt(2024, 2, 29)),
-            (RollDay::EoM {}, ndt(2024, 2, 29)),
-        ];
-        for option in options {
-            assert_eq!(false, option.0.try_udate(&option.1).is_err());
-        }
-    }
+    
 }
