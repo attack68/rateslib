@@ -4,8 +4,8 @@ use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
 use crate::scheduling::py::adjuster::get_roll_adjuster_from_str;
 use crate::scheduling::{
-    get_calendar_by_name, Adjuster, Cal, Calendar, CalendarAdjustment, Convention, DateRoll,
-    NamedCal, RollDay, UnionCal,
+    get_calendar_by_name, Adjuster, Adjustment, Cal, Calendar, CalendarAdjustment, Convention,
+    DateRoll, NamedCal, RollDay, UnionCal,
 };
 use bincode::config::legacy;
 use bincode::serde::{decode_from_slice, encode_to_vec};
@@ -247,8 +247,8 @@ impl Cal {
         months: i32,
         adjuster: Adjuster,
         roll: RollDay,
-    ) -> PyResult<NaiveDateTime> {
-        Ok(self.add_months(&date, months, &adjuster, &roll))
+    ) -> NaiveDateTime {
+        adjuster.adjust(&roll.uadd(&date, months), self)
     }
 
     /// Roll a date under a simplified adjustment rule.
@@ -533,8 +533,8 @@ impl UnionCal {
         months: i32,
         adjuster: Adjuster,
         roll: RollDay,
-    ) -> PyResult<NaiveDateTime> {
-        Ok(self.add_months(&date, months, &adjuster, &roll))
+    ) -> NaiveDateTime {
+        adjuster.adjust(&roll.uadd(&date, months), self)
     }
 
     /// Adjust a non-business date to a business date under a specific modification rule.
@@ -730,8 +730,8 @@ impl NamedCal {
         months: i32,
         adjuster: Adjuster,
         roll: RollDay,
-    ) -> PyResult<NaiveDateTime> {
-        Ok(self.add_months(&date, months, &adjuster, &roll))
+    ) -> NaiveDateTime {
+        adjuster.adjust(&roll.uadd(&date, months), self)
     }
 
     /// Adjust a non-business date to a business date under a specific modification rule.
@@ -843,4 +843,152 @@ impl NamedCal {
 #[pyo3(name = "get_named_calendar")]
 pub fn get_calendar_by_name_py(name: &str) -> PyResult<Cal> {
     get_calendar_by_name(name)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::scheduling::{ndt};
+
+    #[test]
+    fn test_add_37_months() {
+        let cal = get_calendar_by_name("all").unwrap();
+
+        let dates = vec![
+            (ndt(2000, 1, 1), ndt(2003, 2, 1)),
+            (ndt(2000, 2, 1), ndt(2003, 3, 1)),
+            (ndt(2000, 3, 1), ndt(2003, 4, 1)),
+            (ndt(2000, 4, 1), ndt(2003, 5, 1)),
+            (ndt(2000, 5, 1), ndt(2003, 6, 1)),
+            (ndt(2000, 6, 1), ndt(2003, 7, 1)),
+            (ndt(2000, 7, 1), ndt(2003, 8, 1)),
+            (ndt(2000, 8, 1), ndt(2003, 9, 1)),
+            (ndt(2000, 9, 1), ndt(2003, 10, 1)),
+            (ndt(2000, 10, 1), ndt(2003, 11, 1)),
+            (ndt(2000, 11, 1), ndt(2003, 12, 1)),
+            (ndt(2000, 12, 1), ndt(2004, 1, 1)),
+        ];
+        for i in 0..12 {
+            assert_eq!(
+                cal.add_months_py(
+                    dates[i].0,
+                    37,
+                    Adjuster::FollowingSettle {},
+                    RollDay::Unspecified {},
+                ),
+                dates[i].1
+            )
+        }
+    }
+
+    #[test]
+    fn test_sub_37_months() {
+        let cal = get_calendar_by_name("all").unwrap();
+
+        let dates = vec![
+            (ndt(2000, 1, 1), ndt(1996, 12, 1)),
+            (ndt(2000, 2, 1), ndt(1997, 1, 1)),
+            (ndt(2000, 3, 1), ndt(1997, 2, 1)),
+            (ndt(2000, 4, 1), ndt(1997, 3, 1)),
+            (ndt(2000, 5, 1), ndt(1997, 4, 1)),
+            (ndt(2000, 6, 1), ndt(1997, 5, 1)),
+            (ndt(2000, 7, 1), ndt(1997, 6, 1)),
+            (ndt(2000, 8, 1), ndt(1997, 7, 1)),
+            (ndt(2000, 9, 1), ndt(1997, 8, 1)),
+            (ndt(2000, 10, 1), ndt(1997, 9, 1)),
+            (ndt(2000, 11, 1), ndt(1997, 10, 1)),
+            (ndt(2000, 12, 1), ndt(1997, 11, 1)),
+        ];
+        for i in 0..12 {
+            assert_eq!(
+                cal.add_months_py(
+                    dates[i].0,
+                    -37,
+                    Adjuster::FollowingSettle {},
+                    RollDay::Unspecified {},
+                ),
+                dates[i].1
+            )
+        }
+    }
+
+    #[test]
+    fn test_add_months_py_roll() {
+        let cal = get_calendar_by_name("all").unwrap();
+        let roll = vec![
+            (RollDay::Unspecified {}, ndt(1998, 3, 7), ndt(1996, 12, 7)),
+            (
+                RollDay::Int { day: 21 },
+                ndt(1998, 3, 21),
+                ndt(1996, 12, 21),
+            ),
+            (RollDay::EoM {}, ndt(1998, 3, 31), ndt(1996, 12, 31)),
+            (RollDay::SoM {}, ndt(1998, 3, 1), ndt(1996, 12, 1)),
+            (RollDay::IMM {}, ndt(1998, 3, 18), ndt(1996, 12, 18)),
+        ];
+        for i in 0..5 {
+            assert_eq!(
+                cal.add_months_py(roll[i].1, -15, Adjuster::FollowingSettle {}, roll[i].0),
+                roll[i].2
+            );
+        }
+    }
+
+    #[test]
+    fn test_add_months_roll_invalid_days() {
+        let cal = get_calendar_by_name("all").unwrap();
+        let roll = vec![
+            (RollDay::Int { day: 21 }, ndt(1996, 12, 21)),
+            (RollDay::EoM {}, ndt(1996, 12, 31)),
+            (RollDay::SoM {}, ndt(1996, 12, 1)),
+            (RollDay::IMM {}, ndt(1996, 12, 18)),
+        ];
+        for i in 0..4 {
+            assert_eq!(
+                roll[i].1,
+                cal.add_months_py(
+                    ndt(1998, 3, 7),
+                    -15,
+                    Adjuster::FollowingSettle {},
+                    roll[i].0
+                ),
+            );
+        }
+    }
+
+    #[test]
+    fn test_add_months_modifier() {
+        let cal = get_calendar_by_name("bus").unwrap();
+        let modi = vec![
+            (Adjuster::Actual {}, ndt(2023, 9, 30)),          // Saturday
+            (Adjuster::FollowingSettle {}, ndt(2023, 10, 2)), // Monday
+            (Adjuster::ModifiedFollowingSettle {}, ndt(2023, 9, 29)), // Friday
+            (Adjuster::PreviousSettle {}, ndt(2023, 9, 29)),  // Friday
+            (Adjuster::ModifiedPreviousSettle {}, ndt(2023, 9, 29)), // Friday
+        ];
+        for i in 0..4 {
+            assert_eq!(
+                cal.add_months_py(ndt(2023, 8, 31), 1, modi[i].0, RollDay::Unspecified {},),
+                modi[i].1
+            );
+        }
+    }
+
+    #[test]
+    fn test_add_months_modifier_p() {
+        let cal = get_calendar_by_name("bus").unwrap();
+        let modi = vec![
+            (Adjuster::Actual {}, ndt(2023, 7, 1)),          // Saturday
+            (Adjuster::FollowingSettle {}, ndt(2023, 7, 3)), // Monday
+            (Adjuster::ModifiedFollowingSettle {}, ndt(2023, 7, 3)), // Monday
+            (Adjuster::PreviousSettle {}, ndt(2023, 6, 30)), // Friday
+            (Adjuster::ModifiedPreviousSettle {}, ndt(2023, 7, 3)), // Monday
+        ];
+        for i in 0..4 {
+            assert_eq!(
+                cal.add_months_py(ndt(2023, 8, 1), -1, modi[i].0, RollDay::Unspecified {}),
+                modi[i].1
+            );
+        }
+    }
 }

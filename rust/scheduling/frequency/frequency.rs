@@ -159,9 +159,7 @@ impl Scheduling for Frequency {
             Frequency::Weeks { number: n } => {
                 Ok(cal.add_cal_days(udate, *n as i32 * 7, &Adjuster::Actual {}))
             }
-            Frequency::Months { number: n, roll: r } => {
-                Ok(cal.add_months(udate, *n as i32, &Adjuster::Actual {}, r))
-            }
+            Frequency::Months { number: n, roll: r } => Ok(r.uadd(udate, *n as i32)),
             Frequency::Zero {} => Ok(ndt(9999, 1, 1)),
         }
     }
@@ -180,9 +178,7 @@ impl Scheduling for Frequency {
             Frequency::Weeks { number: n } => {
                 Ok(cal.add_cal_days(udate, -(*n as i32 * 7), &Adjuster::Actual {}))
             }
-            Frequency::Months { number: n, roll: r } => {
-                Ok(cal.add_months(udate, -(*n as i32), &Adjuster::Actual {}, r))
-            }
+            Frequency::Months { number: n, roll: r } => Ok(r.uadd(udate, -(*n as i32))),
             Frequency::Zero {} => Ok(ndt(1500, 1, 1)),
         }
     }
