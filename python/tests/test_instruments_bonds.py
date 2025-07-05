@@ -1569,6 +1569,47 @@ class TestFixedRateBond:
         result = frb.ytm(price=173.80904334438674, settlement=dt(2000, 1, 20))
         assert abs(result + 1.3549202231746622) < 1e-10
 
+    def test_oas_coupon_on_non_bus_day(self):
+        # coupon falls on 30th Jun (sunday) and paid on 1st July. OAS spread now handles.
+        # dev gh 17
+        bond = FixedRateBond(dt(2023, 12, 31), "3y", fixed_rate=0.5, spec="us_gb")
+        curve = Curve({dt(2024, 6, 24): 1.0, dt(2028, 6, 25): 1.0})
+        for today in [
+            dt(2024, 6, 25),
+            dt(2024, 6, 26),
+            dt(2024, 6, 27),
+            dt(2024, 6, 28),
+            dt(2024, 6, 29),
+            dt(2024, 6, 30),
+            dt(2024, 7, 1),
+            dt(2024, 7, 2),
+            dt(2024, 7, 3),
+        ]:
+            curve_ = curve.translate(today)
+            assert 49.1 < bond.oaspread(curve_, price=100.0, dirty=False) < 49.2
+
+    def test_dirty_price_on_non_bus_day(self):
+        # coupon falls on 30th Jun (sunday) and paid on 1st July. OAS spread now handles.
+        # dev gh 17
+        bond = FixedRateBond(dt(2023, 12, 31), "3y", fixed_rate=0.5, spec="us_gb")
+        curve = Curve({dt(2024, 6, 24): 1.0, dt(2028, 6, 25): 1.0})
+        for today in [
+            dt(2024, 6, 25),
+            dt(2024, 6, 26),
+            dt(2024, 6, 27),
+            dt(2024, 6, 28),
+            dt(2024, 6, 29),
+            dt(2024, 6, 30),
+            dt(2024, 7, 1),
+            dt(2024, 7, 2),
+            dt(2024, 7, 3),
+        ]:
+            curve_ = curve.translate(today)
+            if today <= dt(2024, 6, 27):  # settlement Friday 28th June
+                assert bond.rate(curve_, metric="dirty_price") == 101.5
+            else:
+                assert bond.rate(curve_, metric="dirty_price") == 101.25
+
 
 class TestIndexFixedRateBond:
     def test_fixed_rate_bond_price(self) -> None:
