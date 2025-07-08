@@ -1610,6 +1610,28 @@ class TestFixedRateBond:
             else:
                 assert bond.rate(curve_, metric="dirty_price") == 101.25
 
+    @pytest.mark.parametrize(
+        "bond",
+        [
+            FixedRateBond(dt(2023, 12, 31), dt(2025, 12, 31), fixed_rate=4.25, spec="us_gb"),
+            FixedRateBond(
+                dt(2023, 12, 31), dt(2025, 12, 31), fixed_rate=4.25, spec="us_gb", modifier="F"
+            ),
+        ],
+    )
+    def test_npv_and_oas_with_adjusted_accrual_on_non_bus_day(self, bond):
+        curve = Curve({dt(2024, 6, 28): 1.0, dt(2026, 6, 30): 0.96})
+        result = (
+            bond.npv(curves=curve),
+            bond.oaspread(curves=curve, price=97.0),
+            bond.rate(curves=curve, metric="clean_price"),
+        )
+        for date in [dt(2024, 7, 1), dt(2024, 7, 2)]:
+            curve_ = curve.translate(date)
+            assert abs(bond.npv(curves=curve_) - result[0]) < 250.0
+            assert abs(bond.oaspread(curves=curve_, price=97.0) - result[1]) < 0.75
+            assert abs(bond.rate(curves=curve_, metric="clean_price") - result[2]) < 0.03
+
 
 class TestIndexFixedRateBond:
     def test_fixed_rate_bond_price(self) -> None:
