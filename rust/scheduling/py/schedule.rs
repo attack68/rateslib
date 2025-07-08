@@ -1,7 +1,29 @@
-use crate::scheduling::{Adjuster, Calendar, Frequency, Schedule, StubInference};
+use crate::scheduling::{
+    try_new_regular_from_adjusted, Adjuster, Calendar, Frequency, Schedule, StubInference,
+};
 
 use chrono::prelude::*;
 use pyo3::prelude::*;
+use pyo3::types::PyType;
+
+#[pyfunction]
+pub(crate) fn try_schedules(
+    effective: NaiveDateTime,
+    termination: NaiveDateTime,
+    frequency: Frequency,
+    calendar: Calendar,
+    accrual_adjuster: Adjuster,
+    payment_adjuster: Adjuster,
+) -> Result<Vec<Schedule>, PyErr> {
+    try_new_regular_from_adjusted(
+        effective,
+        termination,
+        frequency,
+        calendar,
+        accrual_adjuster,
+        payment_adjuster,
+    )
+}
 
 #[pymethods]
 impl Schedule {
@@ -28,6 +50,33 @@ impl Schedule {
             accrual_adjuster,
             payment_adjuster,
             stub_inference,
+        )
+    }
+
+    #[classmethod]
+    #[pyo3(name = "new", signature = (effective, termination, frequency, calendar, accrual_adjuster, payment_adjuster, eom, front_stub=None, back_stub=None))]
+    fn new_regular_py(
+        _cls: &Bound<'_, PyType>,
+        effective: NaiveDateTime,
+        termination: NaiveDateTime,
+        frequency: Frequency,
+        calendar: Calendar,
+        accrual_adjuster: Adjuster,
+        payment_adjuster: Adjuster,
+        eom: bool,
+        front_stub: Option<NaiveDateTime>,
+        back_stub: Option<NaiveDateTime>,
+    ) -> PyResult<Self> {
+        Schedule::try_new_schedule(
+            effective,
+            termination,
+            frequency,
+            front_stub,
+            back_stub,
+            calendar,
+            accrual_adjuster,
+            payment_adjuster,
+            eom,
         )
     }
 

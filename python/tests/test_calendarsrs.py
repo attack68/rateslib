@@ -12,13 +12,10 @@ class TestRollDay:
     @pytest.mark.parametrize(
         ("left", "right", "expected"),
         [
-            (RollDay.EoM(), RollDay.EoM(), True),
             (RollDay.IMM(), RollDay.IMM(), True),
-            (RollDay.SoM(), RollDay.SoM(), True),
-            (RollDay.Unspecified(), RollDay.Unspecified(), True),
             (RollDay.Int(20), RollDay.Int(20), True),
             (RollDay.Int(20), RollDay.Int(30), False),
-            (RollDay.Int(31), RollDay.EoM, False),
+            (RollDay.Int(31), RollDay.IMM(), False),
         ],
     )
     def test_equality(self, left, right, expected):
@@ -113,7 +110,7 @@ class TestCal:
     )
     def test_add_months(self, cal, simple_cal, simple_union, start, months, expected) -> None:
         cal = simple_cal if cal == "basic" else simple_union
-        result = cal.add_months(start, months, Adjuster.FollowingSettle(), RollDay.Unspecified())
+        result = cal.add_months(start, months, Adjuster.FollowingSettle(), None)
         assert result == expected
 
     def test_pickle_cal(self, simple_cal) -> None:

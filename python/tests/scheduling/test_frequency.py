@@ -88,7 +88,7 @@ def test_frequency_weeks(method, args, exp):
     ],
 )
 def test_frequency_months(method, args, exp):
-    f = Frequency.Months(1, RollDay.Unspecified())
+    f = Frequency.Months(1, None)
     result = getattr(f, method)(*args)
     assert result == exp
 

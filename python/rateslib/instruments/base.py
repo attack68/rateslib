@@ -431,7 +431,7 @@ class Metrics:
             ],
             dropna=False,
         )
-        _ = _.sum().unstack([0, 1]).droplevel(0, axis=1)  # type: ignore[arg-type]
+        _ = _.sum().unstack([0, 1]).droplevel(0, axis=1)
         _.columns.names = ["local_ccy", "collateral_ccy"]
         _.index.names = ["payment"]
         _ = _.sort_index(ascending=True, axis=0).infer_objects().fillna(0.0)

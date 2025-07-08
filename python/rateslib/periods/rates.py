@@ -1289,7 +1289,7 @@ class FloatPeriod(BasePeriod):
                     "dcf": dcf_vals,
                     "notional": notional_exposure,
                     "risk": notional_exposure * v_vals * obs_vals * 0.0001,
-                    "rates": Series(rate, index=obs_dates.index).astype(  # type: ignore[arg-type]
+                    "rates": Series(rate, index=obs_dates.index).astype(
                         float,
                     ),  # .apply(float, convert_dtype=float),
                 },
