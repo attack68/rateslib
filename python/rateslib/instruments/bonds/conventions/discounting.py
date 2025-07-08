@@ -237,7 +237,7 @@ def _v1_compounded_final_simple(
     """
     if acc_idx == obj.leg1.schedule.n_periods - 1:
         # or \
-        # settlement == self.leg1.schedule.uschedule[acc_idx + 1]:
+        # settlement == self.leg1.schedule.aschedule[acc_idx + 1]:
         # then settlement is in last period use simple interest.
         return _v1_simple(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
     else:
@@ -280,7 +280,7 @@ def _v1_comp_stub_act365f(
     if not obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
         return _v1_compounded(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
     else:
-        fd0 = dcf(settlement, obj.leg1.schedule.uschedule[acc_idx + 1], "Act365F")
+        fd0 = dcf(settlement, obj.leg1.schedule.aschedule[acc_idx + 1], "Act365F")
         return v2**fd0
 
 
@@ -486,6 +486,6 @@ C_FUNCS: dict[str, CashflowFunction] = {
 
 def _pay_adj(obj: Security | BondMixin, period_idx: int) -> float:
     sch = obj.leg1.schedule
-    pd = (sch.pschedule[period_idx + 1] - sch.uschedule[period_idx + 1]).days
+    pd = (sch.pschedule[period_idx + 1] - sch.aschedule[period_idx + 1]).days
     PD = (sch.pschedule[period_idx + 1] - sch.pschedule[period_idx]).days
     return pd / PD
