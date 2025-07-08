@@ -148,8 +148,8 @@ max-complexity = 14
 [tool.mypy]
 files = ["python/"]
 exclude = [
-    "python/tests"
-    # "/instruments/bonds/securities.py",
+    "python/tests",
+    "/scheduling/wrappers.py"
     # "/instruments/fx_volatility/strategies.py",
     # "/instruments/generics.py",
     # "/instruments/rates/inflation.py",

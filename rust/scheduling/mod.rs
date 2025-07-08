@@ -102,7 +102,6 @@ mod serde;
 
 pub(crate) mod py;
 
-pub(crate) use crate::scheduling::dcfs::_get_convention_str;
 pub use crate::scheduling::{
     calendars::{
         get_calendar_by_name, ndt, Adjuster, Adjustment, Cal, Calendar, CalendarAdjustment,
@@ -113,4 +112,7 @@ pub use crate::scheduling::{
         get_eom, get_imm, get_roll, is_eom, is_imm, is_leap_year, Frequency, RollDay, Scheduling,
     },
     schedule::{Schedule, StubInference},
+};
+pub(crate) use crate::scheduling::{
+    dcfs::_get_convention_str, frequency::get_unadjusteds, schedule::try_new_regular_from_adjusted,
 };

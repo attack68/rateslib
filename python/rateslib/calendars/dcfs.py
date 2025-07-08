@@ -96,7 +96,7 @@ def _dcf_30u360(
 
     """
     roll_day = _get_rollday(roll)
-    _is_eom = roll_day == RollDay.EoM() or roll_day == RollDay.Int(31)
+    _is_eom = roll_day == RollDay.Int(31)
 
     ds, de = start.day, end.day
     if _is_eom and _is_end_feb(start):
