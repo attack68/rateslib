@@ -599,6 +599,46 @@ def _is_som(date: datetime) -> bool:
     return date.day == 1
 
 
+def _get_2nd_friday(month: int, year: int) -> datetime:
+    """
+    Get the second Friday of the gien month and year.
+    This is the settlement date of ASX AUD 90D Bank Bill futures (BBSW 3M Futures).
+
+    Parameters
+    ----------
+    month : int
+        Month
+    year : int
+        Year
+
+    Returns
+    -------
+    datetime
+    """
+    map_ = {0: 12, 1: 11, 2: 10, 3: 9, 4: 8, 5: 14, 6: 13}
+    return datetime(year, month, map_[datetime(year, month, 1).weekday()])
+
+
+def _get_1st_wedneday_after_9th(month: int, year: int) -> datetime:
+    """
+    Get the first Wednesday after the 9th of a given month and year.
+    This is the settlement date of ASX NZD 90D Bank Bill futures (BKBM 3M Futures).
+
+    Parameters
+    ----------
+    month : int
+        Month
+    year : int
+        Year
+
+    Returns
+    -------
+    datetime
+    """
+    map_ = {0: 2, 1: 1, 2: 7, 3: 6, 4: 5, 5: 4, 6: 3}
+    return datetime(year, month, 9 + map_[datetime(year, month, 9).weekday()])
+
+
 def _get_fx_expiry_and_delivery(
     eval_date: datetime_,
     expiry: str | datetime,
