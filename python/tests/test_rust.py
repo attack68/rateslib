@@ -72,7 +72,7 @@ def test_uschedule(ueff, uterm, si, exp):
     s = Schedule(
         ueffective=ueff,
         utermination=uterm,
-        frequency=Frequency.Months(3, RollDay.SoM()),
+        frequency=Frequency.Months(3, RollDay.Int(1)),
         calendar=Cal([], [5, 6]),
         accrual_adjuster=Adjuster.ModifiedFollowing(),
         payment_adjuster=Adjuster.BusDaysLagSettle(2),

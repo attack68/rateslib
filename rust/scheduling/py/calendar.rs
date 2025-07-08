@@ -234,8 +234,8 @@ impl Cal {
     ///     The number of months to add.
     /// adjuster: Adjuster
     ///     The date adjustment rule to apply to the unadjusted result.
-    /// roll: RollDay
-    ///     The day of the month to adjust to.
+    /// roll: RollDay, optional
+    ///     The day of the month to adjust to. If not given adopts the calendar day of ``date``.
     ///
     /// Returns
     /// -------
@@ -246,9 +246,13 @@ impl Cal {
         date: NaiveDateTime,
         months: i32,
         adjuster: Adjuster,
-        roll: RollDay,
+        roll: Option<RollDay>,
     ) -> NaiveDateTime {
-        adjuster.adjust(&roll.uadd(&date, months), self)
+        let roll_ = match roll {
+            Some(val) => val,
+            None => RollDay::new_vec(&vec![date])[0],
+        };
+        adjuster.adjust(&roll_.uadd(&date, months), self)
     }
 
     /// Roll a date under a simplified adjustment rule.
@@ -532,9 +536,13 @@ impl UnionCal {
         date: NaiveDateTime,
         months: i32,
         adjuster: Adjuster,
-        roll: RollDay,
+        roll: Option<RollDay>,
     ) -> NaiveDateTime {
-        adjuster.adjust(&roll.uadd(&date, months), self)
+        let roll_ = match roll {
+            Some(val) => val,
+            None => RollDay::new_vec(&vec![date])[0],
+        };
+        adjuster.adjust(&roll_.uadd(&date, months), self)
     }
 
     /// Adjust a non-business date to a business date under a specific modification rule.
@@ -729,9 +737,13 @@ impl NamedCal {
         date: NaiveDateTime,
         months: i32,
         adjuster: Adjuster,
-        roll: RollDay,
+        roll: Option<RollDay>,
     ) -> NaiveDateTime {
-        adjuster.adjust(&roll.uadd(&date, months), self)
+        let roll_ = match roll {
+            Some(val) => val,
+            None => RollDay::new_vec(&vec![date])[0],
+        };
+        adjuster.adjust(&roll_.uadd(&date, months), self)
     }
 
     /// Adjust a non-business date to a business date under a specific modification rule.
@@ -848,7 +860,7 @@ pub fn get_calendar_by_name_py(name: &str) -> PyResult<Cal> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scheduling::{ndt};
+    use crate::scheduling::ndt;
 
     #[test]
     fn test_add_37_months() {
@@ -874,7 +886,7 @@ mod tests {
                     dates[i].0,
                     37,
                     Adjuster::FollowingSettle {},
-                    RollDay::Unspecified {},
+                    Some(RollDay::Int { day: 1 }),
                 ),
                 dates[i].1
             )
@@ -905,7 +917,7 @@ mod tests {
                     dates[i].0,
                     -37,
                     Adjuster::FollowingSettle {},
-                    RollDay::Unspecified {},
+                    Some(RollDay::Int { day: 1 }),
                 ),
                 dates[i].1
             )
@@ -916,19 +928,28 @@ mod tests {
     fn test_add_months_py_roll() {
         let cal = get_calendar_by_name("all").unwrap();
         let roll = vec![
-            (RollDay::Unspecified {}, ndt(1998, 3, 7), ndt(1996, 12, 7)),
+            (RollDay::Int { day: 7 }, ndt(1998, 3, 7), ndt(1996, 12, 7)),
             (
                 RollDay::Int { day: 21 },
                 ndt(1998, 3, 21),
                 ndt(1996, 12, 21),
             ),
-            (RollDay::EoM {}, ndt(1998, 3, 31), ndt(1996, 12, 31)),
-            (RollDay::SoM {}, ndt(1998, 3, 1), ndt(1996, 12, 1)),
+            (
+                RollDay::Int { day: 31 },
+                ndt(1998, 3, 31),
+                ndt(1996, 12, 31),
+            ),
+            (RollDay::Int { day: 1 }, ndt(1998, 3, 1), ndt(1996, 12, 1)),
             (RollDay::IMM {}, ndt(1998, 3, 18), ndt(1996, 12, 18)),
         ];
         for i in 0..5 {
             assert_eq!(
-                cal.add_months_py(roll[i].1, -15, Adjuster::FollowingSettle {}, roll[i].0),
+                cal.add_months_py(
+                    roll[i].1,
+                    -15,
+                    Adjuster::FollowingSettle {},
+                    Some(roll[i].0)
+                ),
                 roll[i].2
             );
         }
@@ -939,8 +960,8 @@ mod tests {
         let cal = get_calendar_by_name("all").unwrap();
         let roll = vec![
             (RollDay::Int { day: 21 }, ndt(1996, 12, 21)),
-            (RollDay::EoM {}, ndt(1996, 12, 31)),
-            (RollDay::SoM {}, ndt(1996, 12, 1)),
+            (RollDay::Int { day: 31 }, ndt(1996, 12, 31)),
+            (RollDay::Int { day: 1 }, ndt(1996, 12, 1)),
             (RollDay::IMM {}, ndt(1996, 12, 18)),
         ];
         for i in 0..4 {
@@ -950,7 +971,7 @@ mod tests {
                     ndt(1998, 3, 7),
                     -15,
                     Adjuster::FollowingSettle {},
-                    roll[i].0
+                    Some(roll[i].0),
                 ),
             );
         }
@@ -968,7 +989,12 @@ mod tests {
         ];
         for i in 0..4 {
             assert_eq!(
-                cal.add_months_py(ndt(2023, 8, 31), 1, modi[i].0, RollDay::Unspecified {},),
+                cal.add_months_py(
+                    ndt(2023, 8, 31),
+                    1,
+                    modi[i].0,
+                    Some(RollDay::Int { day: 31 })
+                ),
                 modi[i].1
             );
         }
@@ -986,7 +1012,12 @@ mod tests {
         ];
         for i in 0..4 {
             assert_eq!(
-                cal.add_months_py(ndt(2023, 8, 1), -1, modi[i].0, RollDay::Unspecified {}),
+                cal.add_months_py(
+                    ndt(2023, 8, 1),
+                    -1,
+                    modi[i].0,
+                    Some(RollDay::Int { day: 1 })
+                ),
                 modi[i].1
             );
         }

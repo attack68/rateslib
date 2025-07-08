@@ -14,7 +14,7 @@ pub enum Frequency {
     /// A set number of calendar weeks.
     Weeks { number: u32 },
     /// A set number of calendar months, with a defined roll day.
-    Months { number: u32, roll: RollDay },
+    Months { number: u32, roll: Option<RollDay> },
     /// Only ever a single period
     Zero {},
 }
@@ -138,7 +138,10 @@ impl Frequency {
             Frequency::Months {
                 number: _n,
                 roll: r,
-            } => Ok(r.try_udate(date)?),
+            } => match r {
+                Some(r) => r.try_udate(date),
+                None => Ok(*date),
+            },
             Frequency::Zero {} => Ok(*date),
         }
     }
@@ -159,7 +162,10 @@ impl Scheduling for Frequency {
             Frequency::Weeks { number: n } => {
                 Ok(cal.add_cal_days(udate, *n as i32 * 7, &Adjuster::Actual {}))
             }
-            Frequency::Months { number: n, roll: r } => Ok(r.uadd(udate, *n as i32)),
+            Frequency::Months { number: n, roll: r } => match r {
+                Some(r) => Ok(r.uadd(udate, *n as i32)),
+                None => Ok(RollDay::new_vec(&vec![*udate])[0].uadd(udate, *n as i32)),
+            },
             Frequency::Zero {} => Ok(ndt(9999, 1, 1)),
         }
     }
@@ -178,7 +184,10 @@ impl Scheduling for Frequency {
             Frequency::Weeks { number: n } => {
                 Ok(cal.add_cal_days(udate, -(*n as i32 * 7), &Adjuster::Actual {}))
             }
-            Frequency::Months { number: n, roll: r } => Ok(r.uadd(udate, -(*n as i32))),
+            Frequency::Months { number: n, roll: r } => match r {
+                Some(r) => Ok(r.uadd(udate, -(*n as i32))),
+                None => Ok(RollDay::new_vec(&vec![*udate])[0].uadd(udate, -(*n as i32))),
+            },
             Frequency::Zero {} => Ok(ndt(1500, 1, 1)),
         }
     }
@@ -207,7 +216,7 @@ mod tests {
             (
                 Frequency::Months {
                     number: 1,
-                    roll: RollDay::Unspecified {},
+                    roll: None,
                 },
                 ndt(2022, 7, 30),
                 ndt(2022, 8, 30),
@@ -215,7 +224,7 @@ mod tests {
             (
                 Frequency::Months {
                     number: 2,
-                    roll: RollDay::Unspecified {},
+                    roll: Some(RollDay::Int { day: 30 }),
                 },
                 ndt(2022, 7, 30),
                 ndt(2022, 9, 30),
@@ -223,7 +232,7 @@ mod tests {
             (
                 Frequency::Months {
                     number: 3,
-                    roll: RollDay::Unspecified {},
+                    roll: Some(RollDay::Int { day: 30 }),
                 },
                 ndt(2022, 7, 30),
                 ndt(2022, 10, 30),
@@ -231,7 +240,7 @@ mod tests {
             (
                 Frequency::Months {
                     number: 4,
-                    roll: RollDay::Unspecified {},
+                    roll: None,
                 },
                 ndt(2022, 7, 30),
                 ndt(2022, 11, 30),
@@ -239,7 +248,7 @@ mod tests {
             (
                 Frequency::Months {
                     number: 6,
-                    roll: RollDay::Unspecified {},
+                    roll: Some(RollDay::Int { day: 30 }),
                 },
                 ndt(2022, 7, 30),
                 ndt(2023, 1, 30),
@@ -247,7 +256,7 @@ mod tests {
             (
                 Frequency::Months {
                     number: 12,
-                    roll: RollDay::Unspecified {},
+                    roll: Some(RollDay::Int { day: 30 }),
                 },
                 ndt(2022, 7, 30),
                 ndt(2023, 7, 30),
@@ -255,7 +264,7 @@ mod tests {
             (
                 Frequency::Months {
                     number: 1,
-                    roll: RollDay::EoM {},
+                    roll: Some(RollDay::Int { day: 31 }),
                 },
                 ndt(2022, 6, 30),
                 ndt(2022, 7, 31),
@@ -263,7 +272,7 @@ mod tests {
             (
                 Frequency::Months {
                     number: 1,
-                    roll: RollDay::IMM {},
+                    roll: Some(RollDay::IMM {}),
                 },
                 ndt(2022, 6, 15),
                 ndt(2022, 7, 20),
@@ -299,7 +308,7 @@ mod tests {
         // test the example given in Coding Interest Rates
         let result = Frequency::Months {
             number: 1,
-            roll: RollDay::IMM {},
+            roll: Some(RollDay::IMM {}),
         }
         .try_uregular(&ndt(2023, 3, 15), &ndt(2023, 9, 20))
         .unwrap();
@@ -321,7 +330,7 @@ mod tests {
     fn test_get_uschedule() {
         let result = Frequency::Months {
             number: 3,
-            roll: RollDay::SoM {},
+            roll: Some(RollDay::Int { day: 1 }),
         }
         .try_uregular(&ndt(2000, 1, 1), &ndt(2001, 1, 1))
         .unwrap();
@@ -343,7 +352,7 @@ mod tests {
             (
                 Frequency::Months {
                     number: 1,
-                    roll: RollDay::Unspecified {},
+                    roll: Some(RollDay::Int { day: 15 }),
                 },
                 ndt(2022, 7, 30),
                 ndt(2022, 10, 15),
@@ -353,7 +362,7 @@ mod tests {
             (
                 Frequency::Months {
                     number: 1,
-                    roll: RollDay::Unspecified {},
+                    roll: None,
                 },
                 ndt(2022, 7, 30),
                 ndt(2022, 10, 15),
@@ -379,7 +388,7 @@ mod tests {
             (
                 Frequency::Months {
                     number: 1,
-                    roll: RollDay::Unspecified {},
+                    roll: Some(RollDay::Int { day: 15 }),
                 },
                 ndt(2022, 7, 30),
                 ndt(2022, 8, 15),
@@ -388,7 +397,7 @@ mod tests {
             (
                 Frequency::Months {
                     number: 1,
-                    roll: RollDay::Unspecified {},
+                    roll: None,
                 },
                 ndt(2022, 7, 30),
                 ndt(2022, 9, 15),
@@ -417,7 +426,7 @@ mod tests {
             (
                 Frequency::Months {
                     number: 1,
-                    roll: RollDay::Unspecified {},
+                    roll: Some(RollDay::Int { day: 30 }),
                 },
                 ndt(2022, 7, 30),
                 ndt(2022, 10, 15),
@@ -427,7 +436,7 @@ mod tests {
             (
                 Frequency::Months {
                     number: 1,
-                    roll: RollDay::Unspecified {},
+                    roll: Some(RollDay::Int { day: 30 }),
                 },
                 ndt(2022, 7, 30),
                 ndt(2022, 10, 15),
@@ -453,7 +462,7 @@ mod tests {
             (
                 Frequency::Months {
                     number: 1,
-                    roll: RollDay::Unspecified {},
+                    roll: Some(RollDay::Int { day: 30 }),
                 },
                 ndt(2022, 7, 30),
                 ndt(2022, 8, 15),
@@ -462,7 +471,7 @@ mod tests {
             (
                 Frequency::Months {
                     number: 1,
-                    roll: RollDay::Unspecified {},
+                    roll: Some(RollDay::Int { day: 30 }),
                 },
                 ndt(2022, 7, 30),
                 ndt(2022, 9, 15),

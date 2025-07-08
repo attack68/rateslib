@@ -1,5 +1,9 @@
-use crate::scheduling::{Adjuster, Adjustment, Calendar, Frequency, Scheduling};
+use crate::scheduling::{
+    get_unadjusteds, Adjuster, Adjustment, Calendar, Frequency, RollDay, Scheduling,
+};
 use chrono::prelude::*;
+use indexmap::IndexSet;
+use itertools::iproduct;
 // use chrono::Days;
 use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
@@ -85,13 +89,13 @@ impl Schedule {
         let _ = validate_stub_dates_and_inference(&ufront_stub, &uback_stub, &stub_inference)?;
 
         let (interior_start, interior_end) =
-            match_interior_dates(&ueffective, ufront_stub, uback_stub, &utermination);
+            match_interior_dates(&ueffective, &ufront_stub, &uback_stub, &utermination);
         if frequency
             .try_uregular(&interior_start, &interior_end)
             .is_ok()
         {
             // no inference is required
-            return Self::try_new_uschedule(
+            Self::try_new_uschedule(
                 ueffective,
                 utermination,
                 frequency,
@@ -100,7 +104,7 @@ impl Schedule {
                 calendar,
                 accrual_adjuster,
                 payment_adjuster,
-            );
+            )
         } else {
             let (ufront_stub_, uback_stub_) = match stub_inference.unwrap() {
                 StubInference::ShortFront => (
@@ -120,7 +124,7 @@ impl Schedule {
                     Some(frequency.try_infer_uback_stub(&interior_start, &interior_end, false)?),
                 ),
             };
-            return Self::try_new_uschedule(
+            Self::try_new_uschedule(
                 ueffective,
                 utermination,
                 frequency,
@@ -129,7 +133,7 @@ impl Schedule {
                 calendar,
                 accrual_adjuster,
                 payment_adjuster,
-            );
+            )
         }
     }
 
@@ -151,7 +155,7 @@ impl Schedule {
     //         Err(PyValueError::new_err("Not Yet Implemented"))
     //     }
 
-    /// Generate an unadjusted schedule.
+    /// Generate an [Schedule] from unadjusted dates.
     ///
     /// # Notes
     ///
@@ -168,12 +172,17 @@ impl Schedule {
         payment_adjuster: Adjuster,
     ) -> Result<Self, PyErr> {
         let (regular_start, regular_end) =
-            match_interior_dates(&ueffective, ufront_stub, uback_stub, &utermination);
+            match_interior_dates(&ueffective, &ufront_stub, &uback_stub, &utermination);
 
         // test if the determined regular period is actually a regular period under Frequency
         let uregular = frequency.try_uregular(&regular_start, &regular_end)?;
-        let uschedule =
-            composite_uschedule(ueffective, utermination, ufront_stub, uback_stub, uregular);
+        let uschedule = composite_uschedule(
+            &ueffective,
+            &utermination,
+            &ufront_stub,
+            &uback_stub,
+            &uregular,
+        );
         let aschedule: Vec<NaiveDateTime> = uschedule
             .iter()
             .map(|dt| accrual_adjuster.adjust(&dt, &calendar))
@@ -196,35 +205,149 @@ impl Schedule {
             pschedule,
         })
     }
+
+    /// Generate an [Schedule] from possibly adjusted dates.
+    ///
+    /// # Notes
+    ///
+    /// An unadjusted regular schedule, that aligns with [Frequency], must be able to be defined
+    /// between the relevant dates. If not an error is returned.
+    pub fn try_new_schedule(
+        effective: NaiveDateTime,
+        termination: NaiveDateTime,
+        frequency: Frequency,
+        front_stub: Option<NaiveDateTime>,
+        back_stub: Option<NaiveDateTime>,
+        calendar: Calendar,
+        accrual_adjuster: Adjuster,
+        payment_adjuster: Adjuster,
+        eom: bool,
+    ) -> Result<Schedule, PyErr> {
+        let (regular_start, regular_end) =
+            match_interior_dates(&effective, &front_stub, &back_stub, &termination);
+
+        let uschedules = try_new_regular_from_adjusted(
+            regular_start,
+            regular_end,
+            frequency,
+            calendar.clone(),
+            accrual_adjuster,
+            payment_adjuster,
+        )?;
+
+        let non_eom_s = uschedules[0].clone();
+        let s: Schedule = if eom {
+            let temp_s: Vec<Schedule> = uschedules
+                .into_iter()
+                .filter(|s| {
+                    matches!(
+                        s.frequency,
+                        Frequency::Months {
+                            number: _,
+                            roll: Some(RollDay::Int { day: 31 })
+                        }
+                    )
+                })
+                .collect();
+            if temp_s.len() >= 1 {
+                temp_s[0].clone()
+            } else {
+                non_eom_s
+            }
+        } else {
+            non_eom_s
+        };
+
+        let (e, t, fs, bs) = match (front_stub, back_stub) {
+            (None, None) => (s.ueffective, s.utermination, None, None),
+            (Some(_), None) => (effective, s.utermination, Some(s.ueffective), None),
+            (None, Some(_)) => (s.ueffective, termination, None, Some(s.utermination)),
+            (Some(_), Some(_)) => (
+                effective,
+                termination,
+                Some(s.ueffective),
+                Some(s.utermination),
+            ),
+        };
+        Schedule::try_new_uschedule(
+            e,
+            t,
+            s.frequency,
+            fs,
+            bs,
+            calendar.clone(),
+            accrual_adjuster,
+            payment_adjuster,
+        )
+    }
 }
 
-// /// Get unadjusted date alternatives for an associated adjusted date.
-// fn get_unadjusteds(date: &NaiveDateTime, adjuster: &Adjuster, calendar: &Calendar) -> Vec<NaiveDateTime> {
-//     let mut udates: Vec<NaiveDateTime> = vec![];
-//     let mut udate = *date;
-//     while adjuster.adjust(&udate, calendar) == *date {
-//         udates.push(udate);
-//         udate = udate - Days::new(1);
-//     }
-//     udate = *date + Days::new(1);
-//     while adjuster.adjust(&udate, calendar) == *date {
-//         udates.push(udate);
-//         udate = udate + Days::new(1);
-//     }
-//     udates
-// }
+pub(crate) fn try_new_regular_from_adjusted(
+    effective: NaiveDateTime,
+    termination: NaiveDateTime,
+    frequency: Frequency,
+    calendar: Calendar,
+    accrual_adjuster: Adjuster,
+    payment_adjuster: Adjuster,
+) -> Result<Vec<Schedule>, PyErr> {
+    let ueffectives: Vec<NaiveDateTime> = get_unadjusteds(&effective, &accrual_adjuster, &calendar);
+    let uterminations: Vec<NaiveDateTime> =
+        get_unadjusteds(&termination, &accrual_adjuster, &calendar);
+    let frequencies: Vec<Frequency> = match frequency {
+        Frequency::Months {
+            number: n,
+            roll: None,
+        } => {
+            // the roll is unspecified so get the intersection of all possible RollDay variants
+            // measured over ueffectives and uterminations (in that order) and yield Vec<Frequency>
+            let ie: IndexSet<RollDay> = IndexSet::from_iter(RollDay::new_vec(&ueffectives));
+            let it: IndexSet<RollDay> = IndexSet::from_iter(RollDay::new_vec(&uterminations));
+            ie.intersection(&it)
+                .map(|r| Frequency::Months {
+                    number: n,
+                    roll: Some(*r),
+                })
+                .collect()
+        }
+        _ => vec![frequency.clone()],
+    };
+    let alternatives: Vec<(NaiveDateTime, NaiveDateTime, Frequency)> =
+        iproduct!(ueffectives, uterminations, frequencies).collect();
+    let schedules: Vec<Schedule> = alternatives
+        .into_iter()
+        .map(|(e, t, f)| {
+            Schedule::try_new_uschedule(
+                e,
+                t,
+                f,
+                None,
+                None,
+                calendar.clone(),
+                accrual_adjuster,
+                payment_adjuster,
+            )
+        })
+        .filter_map(|s| s.ok())
+        .collect();
+    match schedules.len() {
+        0 => Err(PyValueError::new_err(
+            "No regular schedule is can be determined from inputs",
+        )),
+        _ => Ok(schedules),
+    }
+}
 
 fn match_interior_dates(
     ueffective: &NaiveDateTime,
-    ufront_stub: Option<NaiveDateTime>,
-    uback_stub: Option<NaiveDateTime>,
+    ufront_stub: &Option<NaiveDateTime>,
+    uback_stub: &Option<NaiveDateTime>,
     utermination: &NaiveDateTime,
 ) -> (NaiveDateTime, NaiveDateTime) {
     match (ufront_stub, uback_stub) {
         (None, None) => (*ueffective, *utermination),
-        (Some(v), None) => (v, *utermination),
-        (None, Some(v)) => (*ueffective, v),
-        (Some(v), Some(w)) => (v, w),
+        (Some(v), None) => (*v, *utermination),
+        (None, Some(v)) => (*ueffective, *v),
+        (Some(v), Some(w)) => (*v, *w),
     }
 }
 
@@ -258,29 +381,29 @@ fn validate_stub_dates_and_inference(
 
 /// Get unadjusted schedule dates assuming all inputs are correct and pre-validated.
 fn composite_uschedule(
-    ueffective: NaiveDateTime,
-    utermination: NaiveDateTime,
-    ufront_stub: Option<NaiveDateTime>,
-    uback_stub: Option<NaiveDateTime>,
-    regular_uschedule: Vec<NaiveDateTime>,
+    ueffective: &NaiveDateTime,
+    utermination: &NaiveDateTime,
+    ufront_stub: &Option<NaiveDateTime>,
+    uback_stub: &Option<NaiveDateTime>,
+    regular_uschedule: &Vec<NaiveDateTime>,
 ) -> Vec<NaiveDateTime> {
     let mut uschedule: Vec<NaiveDateTime> = vec![];
-    match (ufront_stub, uback_stub) {
+    match (*ufront_stub, *uback_stub) {
         (None, None) => {
             uschedule.extend(regular_uschedule);
         }
         (Some(_v), None) => {
-            uschedule.push(ueffective);
+            uschedule.push(*ueffective);
             uschedule.extend(regular_uschedule);
         }
         (None, Some(_v)) => {
             uschedule.extend(regular_uschedule);
-            uschedule.push(utermination);
+            uschedule.push(*utermination);
         }
         (Some(_v), Some(_w)) => {
-            uschedule.push(ueffective);
+            uschedule.push(*ueffective);
             uschedule.extend(regular_uschedule);
-            uschedule.push(utermination);
+            uschedule.push(*utermination);
         }
     }
     uschedule
@@ -392,7 +515,7 @@ mod tests {
             ndt(2000, 12, 15),
             Frequency::Months {
                 number: 3,
-                roll: RollDay::Unspecified {},
+                roll: Some(RollDay::Int { day: 15 }),
             },
             Some(ndt(2000, 3, 15)),
             None,
