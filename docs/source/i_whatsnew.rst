@@ -25,6 +25,9 @@ example can be seen in the `Cookbook: Building Custom Curves (Nelson-Siegel) <z_
 
    * - Feature
      - Description
+   * - **Instruments**
+     - - Add new AUD and NZD ``spec`` for IRDs. See :ref:`defaults <defaults-arg-input>`.
+       (`935 <https://github.com/attack68/rateslib/pull/935>`_)
    * - **Pricing objects: Curves**
      - - :red:`Minor Breaking Change!`
          The classes :class:`~rateslib.curves._TranslatedCurve`,

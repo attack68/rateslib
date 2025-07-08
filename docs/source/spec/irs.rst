@@ -224,10 +224,31 @@ BBSW 3m
 .. ipython:: python
 
    defaults.spec["aud_irs3"]
-   IRS(dt(2000, 1, 1), "10y", spec="aud_irs3").kwargs
+   IRS(dt(2000, 1, 1), "2y", spec="aud_irs3").kwargs
+
+.. _spec-aud-irs3-gt-3y:
+
+BBSW 3m with tenor greater than 3Y
+---------------------------------------
+
+.. ipython:: python
+
+   defaults.spec["aud_irs3_gt_3y"]
+   IRS(dt(2000, 1, 1), "10y", spec="aud_irs3_gt_3y").kwargs
 
 NZD
 *****
+
+.. _spec-nzd-irs:
+
+OCR
+-----
+
+.. ipython:: python
+
+   defaults.spec["nzd_irs"]
+   IRS(dt(2000, 1, 1), "10y", spec="nzd_irs").kwargs
+
 
 .. _spec-nzd-irs6:
 

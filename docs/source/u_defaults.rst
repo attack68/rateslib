@@ -158,10 +158,10 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
    * - AUD
      - :ref:`syd <spec-aud-syd>`
-     - :ref:`aud_irs <spec-aud-irs>`, :ref:`aud_irs3 <spec-aud-irs3>`, :ref:`aud_irs6 <spec-aud-irs6>`
+     - :ref:`aud_irs <spec-aud-irs>`, :ref:`aud_irs3 <spec-aud-irs3>`, :ref:`aud_irs3_gt_3y <spec-aud-irs3-gt-3y>`, :ref:`aud_irs6 <spec-aud-irs6>`
      - :ref:`audusd_xcs <spec-audusd-xcs>`, :ref:`audusd_xcs3 <spec-audusd-xcs3>`
      -
-     -
+     - :ref:`aud_sbs36 <spec-aud-sbs36>`, :ref:`aud_sbs31 <spec-aud-sbs31>`
      -
      -
      -
@@ -171,10 +171,10 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
    * - NZD
      - :ref:`wlg <spec-nzd-wlg>`
-     - :ref:`nzd_irs3 <spec-nzd-irs3>`, :ref:`nzd_irs6 <spec-nzd-irs6>`
+     - :ref:`nzd_irs <spec-nzd-irs>`, :ref:`nzd_irs3 <spec-nzd-irs3>`, :ref:`nzd_irs6 <spec-nzd-irs6>`
      - :ref:`nzdusd_xcs3 <spec-nzdusd-xcs3>`, :ref:`nzdaud_xcs3 <spec-nzdaud-xcs3>`
      -
-     -
+     - :ref:`nzd_sbs36 <spec-nzd-sbs36>`, :ref:`nzd_sbs31 <spec-nzd-sbs31>`
      -
      -
      -
