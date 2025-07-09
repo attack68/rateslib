@@ -8,7 +8,7 @@ from rateslib import defaults
 from rateslib.calendars import dcf, get_calendar
 from rateslib.curves import Curve, LineCurve
 from rateslib.default import NoInput
-from rateslib.dual import Dual, Dual2
+from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments import (
     IRS,
@@ -1425,7 +1425,7 @@ class TestFixedRateBond:
 
     @pytest.mark.parametrize(
         ("price", "tol"),
-        [(112.0, 1e-10), (104.0, 1e-10), (96.0, 1e-9), (91.0, 1e-7)],
+        [(112.0, 5e-7), (104.0, 1e-8), (96.0, 1e-7), (91.0, 1e-6)],
     )
     def test_oaspread(self, price, tol) -> None:
         gilt = FixedRateBond(
@@ -1450,12 +1450,12 @@ class TestFixedRateBond:
     @pytest.mark.parametrize(
         ("price", "tol"),
         [
-            (85, 1e-8),
-            (75, 1e-6),
-            (65, 1e-4),
-            (55, 1e-3),
-            (45, 1e-1),
-            (35, 0.20),
+            (85, 5e-8),
+            (75, 5e-8),
+            (65, 1e-7),
+            (55, 1e-7),
+            (45, 5e-8),
+            (35, 5e-8),
         ],
     )
     def test_oaspread_low_price(self, price, tol) -> None:
@@ -1477,6 +1477,48 @@ class TestFixedRateBond:
         curve_z = curve.shift(result)
         result = gilt.rate(curve_z, metric="clean_price")
         assert abs(result - price) < tol
+
+    def test_oas_spread_with_solver(self):
+        gilt = FixedRateBond(
+            effective=dt(1998, 12, 7),
+            termination=dt(2015, 12, 7),
+            spec="uk_gb",
+            fixed_rate=1.0,
+        )
+        curve = Curve({dt(1999, 11, 25): 1.0, dt(2015, 12, 7): 0.85})
+        Solver(
+            curves=[curve],
+            instruments=[IRS(dt(1999, 12, 8), "2y", spec="gbp_irs", curves=curve)],
+            s=[2.5],
+        )
+        # gilt.rate(curve, metric="dirty_price") = 80.52025551638633
+        result = gilt.oaspread(curve, price=95.00)
+        curve_z = curve.shift(result)
+        result = gilt.rate(curve_z, metric="clean_price")
+        assert abs(result - 95.00) < 1e-8
+
+    def test_oaspread_ift_fwddiff(self):
+        bond = FixedRateBond(dt(2000, 1, 1), "3Y", fixed_rate=2.5, spec="us_gb")
+        curve = Curve({dt(2000, 7, 1): 1.0, dt(2005, 7, 1): 0.80})
+        # Add AD variables to the curve without a Solver
+        curve._set_ad_order(1)
+
+        result = bond.oaspread(curves=curve, price=Variable(95.0, ["price"], []))
+        grad = gradient(result, ["price"])[0]
+
+        assert abs(bond.oaspread(curves=curve, price=95.01) - result - 0.01 * grad) < 1e-3
+        assert abs(bond.oaspread(curves=curve, price=94.99) - result + 0.01 * grad) < 1e-3
+
+    def test_oas_spread_metric(self):
+        gilt = FixedRateBond(dt(1998, 12, 7), dt(2015, 12, 7), spec="uk_gb", fixed_rate=1.0)
+        curve = Curve({dt(1999, 11, 3): 1.0, dt(2015, 12, 7): 0.85})
+        result1 = gilt.oaspread(curve, price=95.0, metric="clean_price")
+        result2 = gilt.oaspread(
+            curve, price=95.0 + gilt.accrued(dt(1999, 11, 4)), metric="dirty_price"
+        )
+        result3 = gilt.oaspread(curve, price=gilt.ytm(95.0, dt(1999, 11, 4)), metric="ytm")
+        assert abs(result1 - result2) < 1e-5
+        assert abs(result1 - result3) < 1e-5
 
     def test_cashflows_no_curve(self) -> None:
         gilt = FixedRateBond(
@@ -1586,7 +1628,7 @@ class TestFixedRateBond:
             dt(2024, 7, 3),
         ]:
             curve_ = curve.translate(today)
-            assert 49.1 < bond.oaspread(curve_, price=100.0, dirty=False) < 49.2
+            assert 49.1 < bond.oaspread(curve_, price=100.0) < 49.2
 
     def test_dirty_price_on_non_bus_day(self):
         # coupon falls on 30th Jun (sunday) and paid on 1st July. OAS spread now handles.
