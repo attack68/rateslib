@@ -258,3 +258,32 @@ def _disc_required_maybe_from_curve(curve: CurveOption_, disc_curve: CurveOption
             "A `disc_curve` is required to perform function."
         )
     return _
+
+
+def _maybe_set_ad_order(
+    curve: CurveOption_, order: int | dict[str, int | None] | None
+) -> int | dict[str, int | None] | None:
+    """method is used internally to set AD order and then later revert the curve to its original"""
+    if isinstance(curve, NoInput) or order is None:
+        return None  # do nothing
+    else:
+        if isinstance(curve, dict):
+            # method will return a dict of orders if a dict of curves is provided as input
+            if isinstance(order, dict):
+                return {
+                    k: _maybe_set_ad_order(v, order[k])  # type: ignore[misc]
+                    for k, v in curve.items()
+                }
+            else:
+                return {
+                    k: _maybe_set_ad_order(v, order)  # type: ignore[misc]
+                    for k, v in curve.items()
+                }
+        else:
+            try:
+                original_order = curve.ad
+                curve._set_ad_order(order)  # type: ignore[arg-type]
+            except AttributeError:
+                # Curve has no method (possibly a custom curve and not a subclass of _BaseCurve)
+                return None
+            return original_order

@@ -263,6 +263,8 @@ class Defaults:
             "recovery": "Recovery",
         }
         self._global_ad_order = 1
+        self.oaspread_func_tol = 1e-6
+        self.oaspread_conv_tol = 1e-8
 
         # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
         # Commercial use of this code, and/or copying and redistribution is prohibited.
