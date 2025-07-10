@@ -4,14 +4,13 @@
 name: Windows latest
 
 on:
-  push:
-    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+    types: [closed]
 
 jobs:
   build:
-
+    if: github.event.pull_request.merged == true
     runs-on: windows-latest
     strategy:
       fail-fast: false
