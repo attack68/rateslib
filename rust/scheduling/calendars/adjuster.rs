@@ -2,7 +2,7 @@ use crate::scheduling::DateRoll;
 use chrono::prelude::*;
 use pyo3::pyclass;
 
-/// Enum for specifying date adjustment rules with a calendar specification.
+/// A list of rules for performing date adjustment in combination with a [Calendar](crate::scheduling::Calendar).
 #[pyclass(module = "rateslib.rs", eq)]
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Adjuster {

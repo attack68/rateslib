@@ -446,7 +446,7 @@ class BondFuture(Sensitivities):
         f = -1.0
         while _date < mat:
             f += 1
-            _date = cal.add_months(_date, 1, Adjuster.Actual(), RollDay.Int(dd.day))
+            _date = cal.add_months(_date, 1, Adjuster.Actual(), RollDay.Day(dd.day))
             if f == 12:
                 f = 0
                 n += 1

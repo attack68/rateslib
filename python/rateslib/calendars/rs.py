@@ -50,12 +50,12 @@ def _get_rollday(roll: str | int | NoInput) -> RollDay | None:
     """Convert a user str or int into a RollDay enum object."""
     if isinstance(roll, str):
         return {
-            "EOM": RollDay.Int(31),
-            "SOM": RollDay.Int(1),
+            "EOM": RollDay.Day(31),
+            "SOM": RollDay.Day(1),
             "IMM": RollDay.IMM(),
         }[roll.upper()]
     elif isinstance(roll, int):
-        return RollDay.Int(roll)
+        return RollDay.Day(roll)
     return None
 
 
