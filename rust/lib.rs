@@ -84,7 +84,6 @@ fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Cal>()?;
     m.add_class::<UnionCal>()?;
     m.add_class::<NamedCal>()?;
-    m.add_class::<RollDay>()?;
     m.add_class::<Convention>()?;
     m.add_class::<Adjuster>()?;
     m.add_function(wrap_pyfunction!(get_calendar_by_name_py, m)?)?;
@@ -93,6 +92,7 @@ fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Scheduling
     m.add_class::<Frequency>()?;
+    m.add_class::<RollDay>()?;
     m.add_class::<StubInference>()?;
     m.add_class::<Schedule>()?;
 

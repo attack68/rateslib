@@ -7,42 +7,53 @@ use std::cmp::{Eq, PartialEq};
 
 use crate::scheduling::{ndt, Adjuster, Adjustment, Calendar};
 
-/// A roll day.
+/// A roll-day used with a [Frequency::Months](crate::scheduling::Frequency) variant.
 #[pyclass(module = "rateslib.rs", eq)]
 #[derive(Debug, Copy, Hash, Clone, PartialEq, Eq)]
 pub enum RollDay {
     /// A day of the month in [1, 31].
-    Int { day: u32 },
-    /// The third Wednesday of the month.
+    Day { day: u32 },
+    /// The third Wednesday of any month.
     IMM {},
 }
 
 impl RollDay {
-    /// Get all possible [RollDay] variants for one or more unadjusted dates.
+    /// Get all possible [RollDay] variants implied from one or more unadjusted dates.
     ///
     /// # Notes
-    /// Each date is analysed in turn. The order of [RollDay] construction for each date is
+    /// Each date is analysed in turn. The order of [RollDay] construction for each date is:
     ///
     /// - Get the integer roll-day of the date.
     /// - Get additional end-of-month related integer roll-days for short calendar months if necessary.
     /// - Get non-numeric roll-days if date aligns with those, ordered by the underlying enum order.
     ///
     /// When multiple dates are checked the results for a subsequent date is added to the prior
-    /// results under the [IndexSet.intersection] ordering rules
+    /// results under the [IndexSet.intersection] ordering rules.
     ///
     /// Any date will always return at least one [RollDay] and the first one will always be
     /// equivalent to an integer variant whose day equals the calendar day of the first date.
-    pub fn new_vec(udates: &Vec<NaiveDateTime>) -> Vec<Self> {
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use rateslib::scheduling::{RollDay, ndt};
+    /// let result = RollDay::vec_from(vec![ndt(2024, 2, 29), ndt(2024, 3, 20), ndt(2024, 3, 31)]);
+    /// // Vec<RollDay::Day{day: 29},
+    /// //     RollDay::Day{day: 30},
+    /// //     RollDay::Day{day: 31},
+    /// //     RollDay::Day{day: 20},
+    /// //     RollDay::IMM{}>
+    /// ```
+    pub fn vec_from(udates: &Vec<NaiveDateTime>) -> Vec<Self> {
         let mut set: IndexSet<RollDay> = IndexSet::new();
 
         for udate in udates {
             // numeric first
-            let mut v: Vec<Self> = vec![RollDay::Int { day: udate.day() }];
+            let mut v: Vec<Self> = vec![RollDay::Day { day: udate.day() }];
             // EoM check
             if is_eom(udate) {
                 let mut day = udate.day() + 1;
                 while day < 32 {
-                    v.push(RollDay::Int { day: day });
+                    v.push(RollDay::Day { day: day });
                     day = day + 1;
                 }
             }
@@ -56,39 +67,35 @@ impl RollDay {
         set.into_iter().collect()
     }
 
-    // /// Get all possible [RollDay] variants for an adjusted date.
-    // pub fn new_vec(date: &NaiveDateTime, adjuster: &Adjuster, calendar: &Calendar) -> Vec<Self> {
-    //     let udates = get_unadjusteds(date, adjuster, calendar);
-    //
-    //     let mut set: IndexSet<RollDay> = IndexSet::new();
-    //
-    //     for date in udates {
-    //         set.append(&mut IndexSet::<RollDay>::from_iter(RollDay::new_uvec(
-    //             &date,
-    //         )));
-    //     }
-    //     set.into_iter().collect()
-    // }
-
     /// Validate whether an unadjusted date is an allowed value under the [RollDay] definition.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use rateslib::scheduling::{RollDay, ndt};
+    /// let date = RollDay::Day{day:31}.try_udate(&ndt(2024, 2, 29));
+    /// assert!(date.is_ok());
+    ///
+    /// let date = RollDay::IMM{}.try_udate(&ndt(2024, 1, 1));
+    /// assert!(date.is_err());
+    /// ```
     pub fn try_udate(&self, udate: &NaiveDateTime) -> Result<NaiveDateTime, PyErr> {
         let msg = "`udate` does not align with given `roll`.".to_string();
         match self {
-            RollDay::Int { day: 31 } => {
+            RollDay::Day { day: 31 } => {
                 if is_eom(udate) {
                     Ok(*udate)
                 } else {
                     Err(PyValueError::new_err(msg))
                 }
             }
-            RollDay::Int { day: 30 } => {
+            RollDay::Day { day: 30 } => {
                 if (is_eom(udate) && udate.day() < 30) || udate.day() == 30 {
                     Ok(*udate)
                 } else {
                     Err(PyValueError::new_err(msg))
                 }
             }
-            RollDay::Int { day: 29 } => {
+            RollDay::Day { day: 29 } => {
                 if (is_eom(udate) && udate.day() < 29) || udate.day() == 29 {
                     Ok(*udate)
                 } else {
@@ -102,7 +109,7 @@ impl RollDay {
                     Err(PyValueError::new_err(msg))
                 }
             }
-            RollDay::Int { day: value } => {
+            RollDay::Day { day: value } => {
                 if udate.day() == *value {
                     Ok(*udate)
                 } else {
@@ -113,6 +120,32 @@ impl RollDay {
     }
 
     /// Add a given number of months to an unadjusted date under the [RollDay] definition.
+    ///
+    /// # Notes
+    /// This method will also check the given `udate` using [RollDay::try_udate].
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use rateslib::scheduling::{RollDay, ndt};
+    /// let date = RollDay::IMM{}.try_uadd(&ndt(2024, 3, 20), 3);
+    /// assert_eq!(ndt(2024, 6, 19), date.unwrap());
+    ///
+    /// let date = RollDay::Day{day:31}.try_uadd(&ndt(2024, 3, 15), 3);
+    /// assert!(date.is_err());
+    /// ```
+    pub fn try_uadd(&self, udate: &NaiveDateTime, months: i32) -> Result<NaiveDateTime, PyErr> {
+        let _ = self.try_udate(udate)?;
+        Ok(self.uadd(udate, months))
+    }
+
+    /// Add a given number of months to an unadjusted date under the [RollDay] definition.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use rateslib::scheduling::{RollDay, ndt};
+    /// let date = RollDay::Day{day:31}.uadd(&ndt(2024, 3, 15), 3);
+    /// assert_eq!(date, ndt(2024, 6, 30));
+    /// ```
     pub fn uadd(&self, udate: &NaiveDateTime, months: i32) -> NaiveDateTime {
         // convert months to a set of years and remainder months
         let mut yr_roll = (months.abs() / 12) * months.signum();
@@ -133,12 +166,6 @@ impl RollDay {
 
         // perform the date roll
         get_roll(udate.year() + yr_roll, new_month.try_into().unwrap(), self).unwrap()
-    }
-
-    /// Add a given number of months to an unadjusted date under the [RollDay] definition.
-    pub fn try_uadd(&self, udate: &NaiveDateTime, months: i32) -> Result<NaiveDateTime, PyErr> {
-        let _ = self.try_udate(udate)?;
-        Ok(self.uadd(udate, months))
     }
 }
 
@@ -218,7 +245,7 @@ pub fn is_leap_year(year: i32) -> bool {
 /// Return a specific roll date given the `month`, `year` and `roll`.
 pub fn get_roll(year: i32, month: u32, roll: &RollDay) -> Result<NaiveDateTime, PyErr> {
     match roll {
-        RollDay::Int { day: val } => Ok(get_roll_by_day(year, month, *val)),
+        RollDay::Day { day: val } => Ok(get_roll_by_day(year, month, *val)),
         RollDay::IMM {} => Ok(get_imm(year, month)),
     }
 }
@@ -254,15 +281,15 @@ mod tests {
         assert_eq!(rd1, rd2);
 
         let rd1 = RollDay::IMM {};
-        let rd2 = RollDay::Int { day: 21 };
+        let rd2 = RollDay::Day { day: 21 };
         assert_ne!(rd1, rd2);
 
-        let rd1 = RollDay::Int { day: 20 };
-        let rd2 = RollDay::Int { day: 20 };
+        let rd1 = RollDay::Day { day: 20 };
+        let rd2 = RollDay::Day { day: 20 };
         assert_eq!(rd1, rd2);
 
-        let rd1 = RollDay::Int { day: 21 };
-        let rd2 = RollDay::Int { day: 9 };
+        let rd1 = RollDay::Day { day: 21 };
+        let rd2 = RollDay::Day { day: 9 };
         assert_ne!(rd1, rd2);
     }
 
@@ -295,11 +322,11 @@ mod tests {
     #[test]
     fn test_rollday_try_udate() {
         let options: Vec<(RollDay, NaiveDateTime)> = vec![
-            (RollDay::Int { day: 15 }, ndt(2000, 3, 15)),
-            (RollDay::Int { day: 31 }, ndt(2000, 3, 31)),
-            (RollDay::Int { day: 31 }, ndt(2022, 2, 28)),
-            (RollDay::Int { day: 30 }, ndt(2024, 2, 29)),
-            (RollDay::Int { day: 31 }, ndt(2024, 2, 29)),
+            (RollDay::Day { day: 15 }, ndt(2000, 3, 15)),
+            (RollDay::Day { day: 31 }, ndt(2000, 3, 31)),
+            (RollDay::Day { day: 31 }, ndt(2022, 2, 28)),
+            (RollDay::Day { day: 30 }, ndt(2024, 2, 29)),
+            (RollDay::Day { day: 31 }, ndt(2024, 2, 29)),
         ];
         for option in options {
             assert_eq!(false, option.0.try_udate(&option.1).is_err());
@@ -332,84 +359,67 @@ mod tests {
     }
 
     #[test]
-    fn test_new_vec() {
+    fn test_vec_from() {
         let options: Vec<(Vec<NaiveDateTime>, Vec<RollDay>)> = vec![
             (
                 vec![ndt(2000, 2, 29)],
                 vec![
-                    RollDay::Int { day: 29 },
-                    RollDay::Int { day: 30 },
-                    RollDay::Int { day: 31 },
+                    RollDay::Day { day: 29 },
+                    RollDay::Day { day: 30 },
+                    RollDay::Day { day: 31 },
                 ],
             ),
-            (vec![ndt(2025, 11, 28)], vec![RollDay::Int { day: 28 }]),
+            (vec![ndt(2025, 11, 28)], vec![RollDay::Day { day: 28 }]),
             (
                 vec![ndt(2025, 3, 19)],
-                vec![RollDay::Int { day: 19 }, RollDay::IMM {}],
+                vec![RollDay::Day { day: 19 }, RollDay::IMM {}],
             ),
-            (vec![ndt(2025, 9, 15)], vec![RollDay::Int { day: 15 }]),
+            (vec![ndt(2025, 9, 15)], vec![RollDay::Day { day: 15 }]),
         ];
 
         for option in options {
-            let result = RollDay::new_vec(&option.0);
+            let result = RollDay::vec_from(&option.0);
             assert_eq!(result, option.1);
         }
     }
 
     #[test]
-    fn test_new_vec_multiple() {
+    fn test_vec_from_multiple() {
         let options: Vec<(Vec<NaiveDateTime>, Vec<RollDay>)> = vec![
             (
                 vec![ndt(2000, 2, 29)],
                 vec![
-                    RollDay::Int { day: 29 },
-                    RollDay::Int { day: 30 },
-                    RollDay::Int { day: 31 },
+                    RollDay::Day { day: 29 },
+                    RollDay::Day { day: 30 },
+                    RollDay::Day { day: 31 },
                 ],
             ),
             (
                 vec![ndt(2025, 11, 28), ndt(2025, 11, 29), ndt(2025, 11, 30)],
                 vec![
-                    RollDay::Int { day: 28 },
-                    RollDay::Int { day: 29 },
-                    RollDay::Int { day: 30 },
-                    RollDay::Int { day: 31 },
+                    RollDay::Day { day: 28 },
+                    RollDay::Day { day: 29 },
+                    RollDay::Day { day: 30 },
+                    RollDay::Day { day: 31 },
                 ],
             ),
             (
                 vec![ndt(2025, 3, 19)],
-                vec![RollDay::Int { day: 19 }, RollDay::IMM {}],
+                vec![RollDay::Day { day: 19 }, RollDay::IMM {}],
             ),
             (
                 vec![ndt(2025, 9, 15), ndt(2025, 9, 14), ndt(2025, 9, 13)],
                 vec![
-                    RollDay::Int { day: 15 },
-                    RollDay::Int { day: 14 },
-                    RollDay::Int { day: 13 },
+                    RollDay::Day { day: 15 },
+                    RollDay::Day { day: 14 },
+                    RollDay::Day { day: 13 },
                 ],
             ),
         ];
 
         for option in options {
-            let result = RollDay::new_vec(&option.0);
+            let result = RollDay::vec_from(&option.0);
             assert_eq!(result, option.1);
         }
     }
-
-    // #[test]
-    // fn test_specify() {
-    //     let options: Vec<(RollDay, NaiveDateTime, bool)> = vec![
-    //         (RollDay::Int { day: 15 }, ndt(2000, 3, 15), true),
-    //         (RollDay::Int { day: 15 }, ndt(2000, 3, 15), false),
-    //         (RollDay::Int { day: 31 }, ndt(2022, 2, 28), true),
-    //         (RollDay::Int { day: 28 }, ndt(2022, 2, 28), false),
-    //         (RollDay::Int { day: 31 }, ndt(2024, 2, 29), true),
-    //         (RollDay::Int { day: 28 }, ndt(2024, 2, 28), true),
-    //         (RollDay::Int { day: 29 }, ndt(2024, 2, 29), false),
-    //     ];
-    //     let x = RollDay::Unspecified{};
-    //     for option in options {
-    //         assert_eq!(x.specify(&option.1, option.2), option.0);
-    //     }
-    // }
 }

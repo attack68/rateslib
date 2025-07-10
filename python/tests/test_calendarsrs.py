@@ -13,9 +13,9 @@ class TestRollDay:
         ("left", "right", "expected"),
         [
             (RollDay.IMM(), RollDay.IMM(), True),
-            (RollDay.Int(20), RollDay.Int(20), True),
-            (RollDay.Int(20), RollDay.Int(30), False),
-            (RollDay.Int(31), RollDay.IMM(), False),
+            (RollDay.Day(20), RollDay.Day(20), True),
+            (RollDay.Day(20), RollDay.Day(30), False),
+            (RollDay.Day(31), RollDay.IMM(), False),
         ],
     )
     def test_equality(self, left, right, expected):

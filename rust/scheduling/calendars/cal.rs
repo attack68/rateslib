@@ -7,28 +7,27 @@ use std::collections::HashSet;
 
 use crate::scheduling::{ndt, CalendarAdjustment, DateRoll, NamedCal, UnionCal};
 
-/// A business day calendar with a singular list of holidays.
-///
-/// A business day calendar is formed of 2 components:
-///
-/// - `week_mask`: which defines the days of the week that are not general business days. In Western culture these
-///   are typically `[5, 6]` for Saturday and Sunday.
-/// - `holidays`: which defines specific dates that may be exceptions to the general working week, and cannot be
-///   business days.
-///
+/// A basic business day calendar containing holidays.
 #[pyclass(module = "rateslib.rs")]
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Cal {
-    pub(crate) holidays: IndexSet<NaiveDateTime>,
-    pub(crate) week_mask: HashSet<Weekday>,
+    /// A vector of specific dates that are defined as **non-business** days.
+    pub holidays: IndexSet<NaiveDateTime>,
+    /// A vector of days in the week that are defined as **non-business** days. E.g. `[5, 6]` for Saturday and Sunday.
+    pub week_mask: HashSet<Weekday>,
     // pub(crate) meta: Vec<String>,
 }
 
 impl Cal {
-    /// Create a calendar.
+    /// Create a [Cal].
     ///
-    /// `holidays` provide a vector of dates that cannot be business days. `week_mask` is a vector of days
-    /// (0=Mon,.., 6=Sun) that are excluded from the working week.
+    /// # Examples
+    /// ```rust
+    /// # use rateslib::scheduling::{Cal, ndt};
+    /// let ldn = Cal::new(vec![ndt(2017, 5, 1)], vec![5, 6]); // With May Bank Holiday
+    /// let spot = ldn.add_bus_days(&ndt(2017, 4, 28), 2, true);
+    /// assert_eq!(ndt(2017, 5, 3), spot.unwrap());
+    /// ```
     pub fn new(
         holidays: Vec<NaiveDateTime>,
         week_mask: Vec<u8>,

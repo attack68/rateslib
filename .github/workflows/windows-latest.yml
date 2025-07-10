@@ -17,7 +17,7 @@ jobs:
       matrix:
         python-version: ["3.13"]
     env:
-      MPLBACKEND: Agg  # https://github.com/orgs/community/discussions/26434
+      MPLBACKEND: Agg    # https://github.com/orgs/community/discussions/26434
 
     steps:
     - uses: actions/checkout@v4

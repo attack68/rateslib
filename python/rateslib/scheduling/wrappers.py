@@ -6,9 +6,9 @@ from stack_data.utils import cached_property
 
 from rateslib import defaults
 from rateslib.calendars import get_calendar
-from rateslib.calendars.rs import _get_rollday
+from rateslib.calendars.rs import _get_adjuster, _get_rollday
 from rateslib.default import NoInput, _drb
-from rateslib.rs import Adjuster, Frequency
+from rateslib.rs import Frequency, StubInference
 from rateslib.rs import Schedule as Schedule_rs
 from rateslib.scheduling.scheduling import _validate_effective, _validate_termination
 
@@ -34,7 +34,7 @@ def _get_frequency(frequency: str, roll: str | int_, calendar: CalInput) -> Freq
         return Frequency.BusDays(n_, get_calendar(calendar))
     elif frequency_ == "W":
         n_ = int(frequency[:-1])
-        return Frequency.Weeks(n_)
+        return Frequency.CalDays(n_ * 7)
     elif frequency_ == "M":
         return Frequency.Months(1, _get_rollday(roll))
     elif frequency_ == "B":
@@ -51,6 +51,33 @@ def _get_frequency(frequency: str, roll: str | int_, calendar: CalInput) -> Freq
         return Frequency.Zero()
     else:
         raise ValueError("Frequency can not be determined from input.")
+
+
+def _get_stub_inference(
+    stub: str, front_stub: datetime_, back_stub: datetime_
+) -> StubInference | None:
+    _map: dict[str, StubInference] = {
+        "SHORTFRONT": StubInference.ShortFront,
+        "LONGFRONT": StubInference.LongFront,
+        "SHORTBACK": StubInference.ShortBack,
+        "LONGBACK": StubInference.LongBack,
+    }
+    stub = stub.upper()
+    _ = {v: v in stub for v in _map}
+    if not isinstance(front_stub, NoInput):
+        # cannot infer front stubs, since it is explicitly provided
+        _["SHORTFRONT"] = False
+        _["LONGFRONT"] = False
+    if not isinstance(back_stub, NoInput):
+        # cannot infer back stubs, since it is explicitly provided
+        _["SHORTBACK"] = False
+        _["LONGBACK"] = False
+    ret: StubInference | None = None
+    for k, v in _.items():
+        if v:
+            ret = _map[k]
+            break
+    return ret
 
 
 class Schedule:
@@ -76,30 +103,31 @@ class Schedule:
         eval_mode: str_ = NoInput(0),
     ) -> None:
         eom_: bool = _drb(defaults.eom, eom)
+        stub: str = _drb(defaults.stub, stub)
         eval_mode_: str = _drb(defaults.eval_mode, eval_mode).lower()
         modifier_: str = _drb(defaults.modifier, modifier).upper()
-        # payment_lag_: int = _drb(defaults.payment_lag, payment_lag)
+        payment_lag_: int = _drb(defaults.payment_lag, payment_lag)
         calendar_: CalTypes = get_calendar(calendar)
-
         effective_: datetime = _validate_effective(
             effective, eval_mode_, eval_date, modifier_, calendar_, roll
         )
         termination_: datetime = _validate_termination(
             termination, effective_, modifier_, calendar_, roll, eom_
         )
-
-        ueffective: datetime = effective_
-        utermination: datetime = termination_
+        accrual_adjuster = _get_adjuster(modifier_)
+        payment_adjuster = _get_adjuster(f"{payment_lag_}B")
 
         self.obj = Schedule_rs(
-            ueffective=ueffective,
-            utermination=utermination,
+            effective=effective_,
+            termination=termination_,
             frequency=_get_frequency(frequency, roll, calendar_),
-            calendar=get_calendar(calendar),
-            accrual_adjuster=Adjuster.Actual(),
-            payment_adjuster=Adjuster.Actual(),
-            ufront_stub=_drb(None, front_stub),
-            uback_stub=_drb(None, back_stub),
+            calendar=calendar_,
+            accrual_adjuster=accrual_adjuster,
+            payment_adjuster=payment_adjuster,
+            front_stub=_drb(None, front_stub),
+            back_stub=_drb(None, back_stub),
+            eom=eom,
+            stub_inference=_get_stub_inference(stub, front_stub, back_stub),
         )
 
     @cached_property

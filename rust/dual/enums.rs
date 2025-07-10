@@ -48,7 +48,7 @@ pub enum NumberArray2 {
     Dual2(Array2<Dual2>),
 }
 
-/// Container for [PPSpline] definitive type variants.
+/// Container for [PPSpline](crate::splines::PPSpline) definitive type variants.
 #[derive(Clone, Serialize, Deserialize, PartialEq, IntoPyObject)]
 pub enum NumberPPSpline {
     F64(PPSplineF64),
@@ -58,7 +58,8 @@ pub enum NumberPPSpline {
 
 /// Generic trait indicating a function exists to map one [Number] to another.
 ///
-/// An example of this trait is used by certain [PPSpline] indicating that an x-value as
+/// An example of this trait is used by certain [PPSpline](crate::splines::PPSpline) indicating
+/// that an x-value as
 /// some [Number] can be mapped under spline interpolation to some y-value as another [Number].
 pub trait NumberMapping {
     fn mapped_value(&self, x: &Number) -> Result<Number, PyErr>;

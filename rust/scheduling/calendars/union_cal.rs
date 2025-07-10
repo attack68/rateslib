@@ -4,9 +4,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::scheduling::{ndt, Cal, CalendarAdjustment, DateRoll};
 
-/// A business day calendar which is the potential union of multiple calendars,
-/// with the additional constraint of also ensuring settlement compliance with one or more
-/// other calendars.
+/// A business day calendar which is the potential union of multiple calendars.
+///
+/// This calendar type allows the additional feature of also ensuring dates follow settlement
+/// compliance as measured according to other calendars.
 ///
 /// When the union of a business day calendar is observed the following are true:
 ///
@@ -20,11 +21,22 @@ use crate::scheduling::{ndt, Cal, CalendarAdjustment, DateRoll};
 #[pyclass(module = "rateslib.rs")]
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct UnionCal {
-    pub(crate) calendars: Vec<Cal>,
-    pub(crate) settlement_calendars: Option<Vec<Cal>>,
+    /// A vector of [Cal] used to determine **business** days.
+    pub calendars: Vec<Cal>,
+    /// A vector of [Cal] used to determine **settleable** days.
+    pub settlement_calendars: Option<Vec<Cal>>,
 }
 
 impl UnionCal {
+    /// Create a new [UnionCal].
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use rateslib::scheduling::{Cal, UnionCal, ndt};
+    /// let stk = Cal::new(vec![ndt(2025, 6, 20)], vec![5,6]);
+    /// let fed = Cal::new(vec![ndt(2025, 6, 19)], vec![5,6]);
+    /// let stk_pipe_fed = UnionCal::new(vec![stk], vec![fed]);
+    /// ```
     pub fn new(calendars: Vec<Cal>, settlement_calendars: Option<Vec<Cal>>) -> Self {
         UnionCal {
             calendars,
