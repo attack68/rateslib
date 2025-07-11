@@ -23,7 +23,7 @@ impl Cal {
     ///
     /// # Examples
     /// ```rust
-    /// # use rateslib::scheduling::{Cal, ndt};
+    /// # use rateslib::scheduling::{Cal, ndt, DateRoll};
     /// let ldn = Cal::new(vec![ndt(2017, 5, 1)], vec![5, 6]); // With May Bank Holiday
     /// let spot = ldn.add_bus_days(&ndt(2017, 4, 28), 2, true);
     /// assert_eq!(ndt(2017, 5, 3), spot.unwrap());

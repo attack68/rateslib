@@ -2,9 +2,7 @@ use crate::scheduling::{
     get_unadjusteds, Adjuster, Adjustment, Calendar, Frequency, RollDay, Scheduling,
 };
 use chrono::prelude::*;
-use indexmap::IndexSet;
 use itertools::{iproduct, Itertools};
-// use chrono::Days;
 use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
 
@@ -59,16 +57,17 @@ pub struct Schedule {
 }
 
 impl Schedule {
-    /// Create a [Schedule] from unadjusted dates.
+    /// Create a [Schedule] from defined unadjusted dates and a [Frequency].
     ///
     /// # Notes
     ///
     /// An unadjusted regular schedule, that aligns with [Frequency], must be defined between
-    /// the relevant dates. If not an error is returned.
+    /// the relevant dates. If not an error is returned. The [Frequency] must be well defined -
+    /// optional parameters, such as a missing [RollDay] will result in errors.
     ///
     /// This method uses [Scheduling::try_uregular](crate::scheduling::Scheduling::try_uregular)
     /// to ascertain if the provided dates define a regular schedule or not.
-    pub fn try_new_uschedule(
+    fn try_new_uschedule_defined(
         ueffective: NaiveDateTime,
         utermination: NaiveDateTime,
         frequency: Frequency,
@@ -78,11 +77,21 @@ impl Schedule {
         accrual_adjuster: Adjuster,
         payment_adjuster: Adjuster,
     ) -> Result<Self, PyErr> {
+        // evaluate the Options and get the start and end of regular schedule component
         let (regular_start, regular_end) =
             match_interior_dates(&ueffective, &ufront_stub, &uback_stub, &utermination);
 
-        // test if the determined regular period is actually a regular period under Frequency
-        let uregular = frequency.try_uregular(&regular_start, &regular_end)?;
+        // test for single period
+        let test_end = frequency.try_unext(&regular_start)?;
+        let uregular: Vec<NaiveDateTime>;
+        if test_end > regular_end && (ufront_stub.is_none() || uback_stub.is_none()) {
+            // then dont have two stub periods and the regular component is a single short period
+            uregular = vec![regular_start, regular_end];
+        } else {
+            // test if the determined regular period is actually a regular period under Frequency
+            uregular = frequency.try_uregular(&regular_start, &regular_end)?;
+        }
+
         let uschedule = composite_uschedule(
             &ueffective,
             &utermination,
@@ -120,6 +129,86 @@ impl Schedule {
         })
     }
 
+    /// Create a [Schedule] from unadjusted dates.
+    ///
+    /// # Notes
+    ///
+    /// An unadjusted regular schedule, that aligns with [Frequency], must be defined between
+    /// the relevant dates. If not an error is returned.
+    ///
+    /// This method uses [Scheduling::try_uregular](crate::scheduling::Scheduling::try_uregular)
+    /// to ascertain if the provided dates define a regular schedule or not.
+    pub fn try_new_uschedule(
+        ueffective: NaiveDateTime,
+        utermination: NaiveDateTime,
+        frequency: Frequency,
+        ufront_stub: Option<NaiveDateTime>,
+        uback_stub: Option<NaiveDateTime>,
+        calendar: Calendar,
+        accrual_adjuster: Adjuster,
+        payment_adjuster: Adjuster,
+        eom: bool,
+    ) -> Result<Self, PyErr> {
+        // evaluate the Options and get the start and end of regular schedule component
+        let (regular_start, regular_end) =
+            match_interior_dates(&ueffective, &ufront_stub, &uback_stub, &utermination);
+
+        // get all possible Frequency variants. this will often only be 1 element
+        let frequencies =
+            frequency.try_vec_from_intersection(&vec![regular_start], &vec![regular_end])?;
+
+        // find all possible schedules that are valid for frequencies
+        let uschedules: Vec<Schedule> = frequencies
+            .into_iter()
+            .map(|f| {
+                Schedule::try_new_uschedule_defined(
+                    ueffective,
+                    utermination,
+                    f,
+                    ufront_stub,
+                    uback_stub,
+                    calendar.clone(),
+                    accrual_adjuster,
+                    payment_adjuster,
+                )
+            })
+            .filter_map(|s| s.ok())
+            .collect();
+
+        // error if no valid schedules were found
+        if uschedules.len() == 0 {
+            return Err(PyValueError::new_err(
+                "No valid Schedules could be created with given udate combinations and Frequency.",
+            ));
+        }
+
+        // filter the found schedules. if `eom` then prefer the first schedule with RollDay::Day(31)
+        // else prefer the first found schedule.
+        let non_eom_s = uschedules[0].clone();
+        let s: Schedule = if eom {
+            let temp_s: Vec<Schedule> = uschedules
+                .into_iter()
+                .filter(|s| {
+                    matches!(
+                        s.frequency,
+                        Frequency::Months {
+                            number: _,
+                            roll: Some(RollDay::Day(31))
+                        }
+                    )
+                })
+                .collect();
+            if temp_s.len() >= 1 {
+                temp_s[0].clone()
+            } else {
+                non_eom_s
+            }
+        } else {
+            non_eom_s
+        };
+        Ok(s)
+    }
+
     /// Create an [Schedule] from unadjusted dates with specified [StubInference].
     ///
     /// # Notes
@@ -138,6 +227,7 @@ impl Schedule {
         calendar: Calendar,
         accrual_adjuster: Adjuster,
         payment_adjuster: Adjuster,
+        eom: bool,
         stub_inference: Option<StubInference>,
     ) -> Result<Self, PyErr> {
         // validate inference is not blocked by user defined values.
@@ -177,6 +267,7 @@ impl Schedule {
             calendar,
             accrual_adjuster,
             payment_adjuster,
+            eom,
         )
     }
 
@@ -198,203 +289,78 @@ impl Schedule {
         eom: bool,
         stub_inference: Option<StubInference>,
     ) -> Result<Schedule, PyErr> {
-        // Find all unadjusted combinations
-        let ueffectives: Vec<NaiveDateTime> = get_unadjusteds(&effective, &accrual_adjuster, &calendar);
-        let uterminations: Vec<NaiveDateTime> =
-            get_unadjusteds(&termination, &accrual_adjuster, &calendar);
-        
-        
-        
-        
-        // check if valid without inference
-        let s = Self::try_new_schedule(
-            effective,
-            termination,
-            frequency.clone(),
-            front_stub,
-            back_stub,
-            calendar.clone(),
-            accrual_adjuster,
-            payment_adjuster,
-            eom,
-        );
-        if stub_inference.is_none() || s.is_ok() {
-            return s;
-        }
-
-        // else rely on inference
-        let _ = validate_stub_dates_and_inference(&front_stub, &back_stub, &stub_inference)?;
-
-        let (interior_start, interior_end) =
-            match_interior_dates(&effective, &front_stub, &back_stub, &termination);
-
-        if stub_inference.is_none()
-            || try_new_regular_from_adjusted(
-                interior_start,
-                interior_end,
-                frequency.clone(),
-                calendar.clone(),
-                accrual_adjuster,
-                payment_adjuster,
-            )
-            .is_ok()
-        {
-            // then no inference is required.
-            Self::try_new_schedule(
-                effective,
-                termination,
-                frequency,
-                front_stub,
-                back_stub,
-                calendar,
-                accrual_adjuster,
-                payment_adjuster,
-                eom,
-            )
-        } else {
-            // then inference is required.
-            Self::try_new_schedule(
-                effective,
-                termination,
-                frequency,
-                front_stub,
-                back_stub,
-                calendar,
-                accrual_adjuster,
-                payment_adjuster,
-                eom,
-            )
-        }
-    }
-
-    /// Generate an [Schedule] from possibly adjusted dates.
-    ///
-    /// # Notes
-    ///
-    /// An unadjusted regular schedule, that aligns with [Frequency], must be able to be defined
-    /// between the relevant dates. If not an error is returned.
-    pub fn try_new_schedule(
-        effective: NaiveDateTime,
-        termination: NaiveDateTime,
-        frequency: Frequency,
-        front_stub: Option<NaiveDateTime>,
-        back_stub: Option<NaiveDateTime>,
-        calendar: Calendar,
-        accrual_adjuster: Adjuster,
-        payment_adjuster: Adjuster,
-        eom: bool,
-    ) -> Result<Schedule, PyErr> {
-        let (regular_start, regular_end) =
-            match_interior_dates(&effective, &front_stub, &back_stub, &termination);
-
-        let uschedules = try_new_regular_from_adjusted(
-            regular_start,
-            regular_end,
-            frequency,
-            calendar.clone(),
-            accrual_adjuster,
-            payment_adjuster,
-        )?;
-
-        let non_eom_s = uschedules[0].clone();
-        let s: Schedule = if eom {
-            let temp_s: Vec<Schedule> = uschedules
-                .into_iter()
-                .filter(|s| {
-                    matches!(
-                        s.frequency,
-                        Frequency::Months {
-                            number: _,
-                            roll: Some(RollDay::Day { day: 31 })
-                        }
-                    )
-                })
-                .collect();
-            if temp_s.len() >= 1 {
-                temp_s[0].clone()
-            } else {
-                non_eom_s
-            }
-        } else {
-            non_eom_s
-        };
-
-        let (e, t, fs, bs) = match (front_stub, back_stub) {
-            (None, None) => (s.ueffective, s.utermination, None, None),
-            (Some(_), None) => (effective, s.utermination, Some(s.ueffective), None),
-            (None, Some(_)) => (s.ueffective, termination, None, Some(s.utermination)),
-            (Some(_), Some(_)) => (
-                effective,
-                termination,
-                Some(s.ueffective),
-                Some(s.utermination),
+        // find all unadjusted combinations. only adjust the boundaries of the regular component.
+        let dates: (
+            Vec<NaiveDateTime>,
+            Vec<Option<NaiveDateTime>>,
+            Vec<Option<NaiveDateTime>>,
+            Vec<NaiveDateTime>,
+        ) = match (front_stub, back_stub) {
+            (None, None) => (
+                get_unadjusteds(&effective, &accrual_adjuster, &calendar),
+                vec![None],
+                vec![None],
+                get_unadjusteds(&termination, &accrual_adjuster, &calendar),
+            ),
+            (Some(d), None) => (
+                vec![effective],
+                get_unadjusteds(&d, &accrual_adjuster, &calendar)
+                    .into_iter()
+                    .map(Some)
+                    .collect(),
+                vec![None],
+                get_unadjusteds(&termination, &accrual_adjuster, &calendar),
+            ),
+            (None, Some(d)) => (
+                get_unadjusteds(&effective, &accrual_adjuster, &calendar),
+                vec![None],
+                get_unadjusteds(&d, &accrual_adjuster, &calendar)
+                    .into_iter()
+                    .map(Some)
+                    .collect(),
+                vec![termination],
+            ),
+            (Some(d), Some(d2)) => (
+                vec![effective],
+                get_unadjusteds(&d, &accrual_adjuster, &calendar)
+                    .into_iter()
+                    .map(Some)
+                    .collect(),
+                get_unadjusteds(&d2, &accrual_adjuster, &calendar)
+                    .into_iter()
+                    .map(Some)
+                    .collect(),
+                vec![termination],
             ),
         };
-        Schedule::try_new_uschedule(
-            e,
-            t,
-            s.frequency,
-            fs,
-            bs,
-            calendar.clone(),
-            accrual_adjuster,
-            payment_adjuster,
-        )
-    }
-}
 
-pub(crate) fn try_new_regular_from_adjusted(
-    effective: NaiveDateTime,
-    termination: NaiveDateTime,
-    frequency: Frequency,
-    calendar: Calendar,
-    accrual_adjuster: Adjuster,
-    payment_adjuster: Adjuster,
-) -> Result<Vec<Schedule>, PyErr> {
-    let ueffectives: Vec<NaiveDateTime> = get_unadjusteds(&effective, &accrual_adjuster, &calendar);
-    let uterminations: Vec<NaiveDateTime> =
-        get_unadjusteds(&termination, &accrual_adjuster, &calendar);
-    let frequencies: Vec<Frequency> = match frequency {
-        Frequency::Months {
-            number: n,
-            roll: None,
-        } => {
-            // the roll is unspecified so get the intersection of all possible RollDay variants
-            // measured over ueffectives and uterminations (in that order) and yield Vec<Frequency>
-            let ie: IndexSet<RollDay> = IndexSet::from_iter(RollDay::vec_from(&ueffectives));
-            let it: IndexSet<RollDay> = IndexSet::from_iter(RollDay::vec_from(&uterminations));
-            ie.intersection(&it)
-                .map(|r| Frequency::Months {
-                    number: n,
-                    roll: Some(*r),
-                })
-                .collect()
+        let combinations = iproduct!(dates.0, dates.1, dates.2, dates.3);
+        let schedules: Vec<Schedule> = combinations
+            .into_iter()
+            .map(|(e, fs, bs, t)| {
+                Schedule::try_new_uschedule_inferred(
+                    e,
+                    t,
+                    frequency.clone(),
+                    fs,
+                    bs,
+                    calendar.clone(),
+                    accrual_adjuster,
+                    payment_adjuster,
+                    eom,
+                    stub_inference,
+                )
+            })
+            .filter_map(|s| s.ok())
+            .collect();
+
+        if schedules.len() == 0 {
+            Err(PyValueError::new_err(
+                "A Schedule could not be generated from the parameter combinations.",
+            ))
+        } else {
+            Ok(schedules[0].clone())
         }
-        _ => vec![frequency.clone()],
-    };
-    let alternatives: Vec<(NaiveDateTime, NaiveDateTime, Frequency)> =
-        iproduct!(ueffectives, uterminations, frequencies).collect();
-    let schedules: Vec<Schedule> = alternatives
-        .into_iter()
-        .map(|(e, t, f)| {
-            Schedule::try_new_uschedule(
-                e,
-                t,
-                f,
-                None,
-                None,
-                calendar.clone(),
-                accrual_adjuster,
-                payment_adjuster,
-            )
-        })
-        .filter_map(|s| s.ok())
-        .collect();
-    match schedules.len() {
-        0 => Err(PyValueError::new_err(
-            "No regular schedule is can be determined from inputs",
-        )),
-        _ => Ok(schedules),
     }
 }
 
@@ -476,97 +442,132 @@ mod tests {
     use super::*;
     use crate::scheduling::{ndt, Cal, RollDay};
 
-    //     fn fixture_hol_cal() -> Cal {
-    //         let hols = vec![ndt(2015, 9, 5), ndt(2015, 9, 7)]; // Saturday and Monday
-    //         Cal::new(hols, vec![5, 6])
-    //     }
+    #[test]
+    fn test_new_uschedule_defined_err() {
+        // test that None RollDay produces errors even for a well defined schedule
+        let result = Schedule::try_new_uschedule_defined(
+            ndt(2000, 1, 1),
+            ndt(2001, 1, 1),
+            Frequency::Months {
+                number: 6,
+                roll: None,
+            },
+            None,
+            None,
+            Calendar::Cal(Cal::new(vec![], vec![5, 6])),
+            Adjuster::Actual {},
+            Adjuster::Actual {},
+        );
+        assert!(result.is_err())
+    }
 
     #[test]
-    fn test_try_new_uschedule_inferred_fails() {
-        // fails because stub dates are given as well as an inference enum
-        assert_eq!(
-            true,
-            Schedule::try_new_uschedule_inferred(
-                ndt(2000, 1, 1),
-                ndt(2000, 2, 1),
-                Frequency::CalDays { number: 100 },
-                Some(ndt(2000, 1, 10)),
-                Some(ndt(2000, 1, 16)),
-                Calendar::Cal(Cal::new(vec![], vec![])),
-                Adjuster::ModifiedFollowing {},
-                Adjuster::BusDaysLagSettle { number: 1 },
-                Some(StubInference::ShortBack)
-            )
-            .is_err()
+    fn test_new_uschedule_defined_ok() {
+        // test that the above test works for valid RollDay
+        let result = Schedule::try_new_uschedule_defined(
+            ndt(2000, 1, 1),
+            ndt(2001, 1, 1),
+            Frequency::Months {
+                number: 6,
+                roll: Some(RollDay::Day(1)),
+            },
+            None,
+            None,
+            Calendar::Cal(Cal::new(vec![], vec![5, 6])),
+            Adjuster::Actual {},
+            Adjuster::Actual {},
         );
+        assert_eq!(
+            result.unwrap(),
+            Schedule {
+                ueffective: ndt(2000, 1, 1),
+                utermination: ndt(2001, 1, 1),
+                frequency: Frequency::Months {
+                    number: 6,
+                    roll: Some(RollDay::Day(1))
+                },
+                ufront_stub: None,
+                uback_stub: None,
+                calendar: Calendar::Cal(Cal::new(vec![], vec![5, 6])),
+                accrual_adjuster: Adjuster::Actual {},
+                payment_adjuster: Adjuster::Actual {},
+                uschedule: vec![ndt(2000, 1, 1), ndt(2000, 7, 1), ndt(2001, 1, 1)],
+                aschedule: vec![ndt(2000, 1, 1), ndt(2000, 7, 1), ndt(2001, 1, 1)],
+                pschedule: vec![ndt(2000, 1, 1), ndt(2000, 7, 1), ndt(2001, 1, 1)],
+            }
+        )
+    }
 
-        // fails because stub date is given as well as an inference enum
-        assert_eq!(
-            true,
-            Schedule::try_new_uschedule_inferred(
-                ndt(2000, 1, 1),
-                ndt(2000, 2, 1),
-                Frequency::CalDays { number: 100 },
-                None,
-                Some(ndt(2000, 1, 16)),
-                Calendar::Cal(Cal::new(vec![], vec![])),
-                Adjuster::ModifiedFollowing {},
-                Adjuster::BusDaysLagSettle { number: 1 },
-                Some(StubInference::ShortBack)
-            )
-            .is_err()
+    #[test]
+    fn test_try_new_uschedule_dead_stubs() {
+        let s = Schedule::try_new_uschedule_defined(
+            ndt(2023, 1, 1),
+            ndt(2024, 1, 2),
+            Frequency::Months {
+                number: 6,
+                roll: Some(RollDay::Day(2)),
+            },
+            Some(ndt(2023, 1, 2)),
+            None,
+            Calendar::Cal(Cal::new(vec![], vec![5, 6])),
+            Adjuster::ModifiedFollowing {},
+            Adjuster::BusDaysLagSettle { number: 1 },
         );
+        assert!(s.is_err()); // 1st Jan is adjusted to 2nd Jan aligning with front stub
 
-        // fails because stub date is given as well as an inference enum
-        assert_eq!(
-            true,
-            Schedule::try_new_uschedule_inferred(
-                ndt(2000, 1, 1),
-                ndt(2000, 2, 1),
-                Frequency::CalDays { number: 100 },
-                None,
-                Some(ndt(2000, 1, 16)),
-                Calendar::Cal(Cal::new(vec![], vec![])),
-                Adjuster::ModifiedFollowing {},
-                Adjuster::BusDaysLagSettle { number: 1 },
-                Some(StubInference::LongBack)
-            )
-            .is_err()
+        let s = Schedule::try_new_uschedule_defined(
+            ndt(2022, 1, 1),
+            ndt(2023, 1, 2),
+            Frequency::Months {
+                number: 6,
+                roll: Some(RollDay::Day(1)),
+            },
+            None,
+            Some(ndt(2023, 1, 1)),
+            Calendar::Cal(Cal::new(vec![], vec![5, 6])),
+            Adjuster::ModifiedFollowing {},
+            Adjuster::BusDaysLagSettle { number: 1 },
         );
+        assert!(s.is_err()); // 1st Jan is adjusted to 2nd Jan aligning with front stub
+    }
 
-        // fails because stub date is given as well as an inference enum
-        assert_eq!(
-            true,
-            Schedule::try_new_uschedule_inferred(
-                ndt(2000, 1, 1),
-                ndt(2000, 2, 1),
-                Frequency::CalDays { number: 100 },
-                Some(ndt(2000, 1, 16)),
-                None,
-                Calendar::Cal(Cal::new(vec![], vec![])),
-                Adjuster::ModifiedFollowing {},
-                Adjuster::BusDaysLagSettle { number: 1 },
-                Some(StubInference::ShortFront)
-            )
-            .is_err()
-        );
+    #[test]
+    fn test_try_new_uschedule_defined_single_short_period() {
+        let s = Schedule::try_new_uschedule_defined(
+            ndt(2023, 1, 1),
+            ndt(2023, 4, 1),
+            Frequency::Months {
+                number: 6,
+                roll: Some(RollDay::Day(1)),
+            },
+            None,
+            None,
+            Calendar::Cal(Cal::new(vec![], vec![5, 6])),
+            Adjuster::ModifiedFollowing {},
+            Adjuster::BusDaysLagSettle { number: 1 },
+        )
+        .unwrap();
+        assert_eq!(s.uschedule, vec![ndt(2023, 1, 1), ndt(2023, 4, 1)]);
+    }
 
-        // fails because stub date is given as well as an inference enum
-        assert_eq!(
+    #[test]
+    fn test_try_new_uschedule_short_period() {
+        let s = Schedule::try_new_uschedule(
+            ndt(2022, 7, 1),
+            ndt(2022, 10, 1),
+            Frequency::Months {
+                number: 12,
+                roll: None,
+            },
+            None,
+            None,
+            Calendar::Cal(Cal::new(vec![], vec![5, 6])),
+            Adjuster::ModifiedFollowing {},
+            Adjuster::BusDaysLagSettle { number: 1 },
             true,
-            Schedule::try_new_uschedule_inferred(
-                ndt(2000, 1, 1),
-                ndt(2000, 2, 1),
-                Frequency::CalDays { number: 100 },
-                Some(ndt(2000, 1, 16)),
-                None,
-                Calendar::Cal(Cal::new(vec![], vec![])),
-                Adjuster::ModifiedFollowing {},
-                Adjuster::BusDaysLagSettle { number: 1 },
-                Some(StubInference::LongFront)
-            )
-            .is_err()
-        );
+        )
+        .unwrap();
+        assert_eq!(s.uschedule, vec![ndt(2022, 7, 1), ndt(2022, 10, 1)]);
     }
 
     #[test]
@@ -576,13 +577,14 @@ mod tests {
             ndt(2000, 12, 15),
             Frequency::Months {
                 number: 3,
-                roll: Some(RollDay::Day { day: 15 }),
+                roll: Some(RollDay::Day(15)),
             },
             Some(ndt(2000, 3, 15)),
             None,
             Calendar::Cal(Cal::new(vec![], vec![])),
             Adjuster::ModifiedFollowing {},
             Adjuster::BusDaysLagSettle { number: 1 },
+            true,
         )
         .unwrap();
         let uschedule = vec![
@@ -604,35 +606,167 @@ mod tests {
     }
 
     #[test]
-    fn test_try_new_uschedule_dead_stubs() {
+    fn test_try_new_uschedule_eom_parameter_selection() {
         let s = Schedule::try_new_uschedule(
-            ndt(2023, 1, 1),
-            ndt(2024, 1, 2),
+            ndt(2024, 2, 29),
+            ndt(2024, 11, 30),
             Frequency::Months {
-                number: 6,
-                roll: Some(RollDay::Day { day: 2 }),
+                number: 3,
+                roll: None,
             },
-            Some(ndt(2023, 1, 2)),
+            None,
             None,
             Calendar::Cal(Cal::new(vec![], vec![5, 6])),
             Adjuster::ModifiedFollowing {},
             Adjuster::BusDaysLagSettle { number: 1 },
+            true,
+        )
+        .unwrap();
+        assert_eq!(
+            s.frequency,
+            Frequency::Months {
+                number: 3,
+                roll: Some(RollDay::Day(31))
+            }
         );
-        assert!(s.is_err()); // 1st Jan is adjusted to 2nd Jan aligning with front stub
 
         let s = Schedule::try_new_uschedule(
-            ndt(2022, 1, 1),
-            ndt(2023, 1, 2),
+            ndt(2024, 2, 29),
+            ndt(2024, 11, 30),
             Frequency::Months {
-                number: 6,
-                roll: Some(RollDay::Day { day: 1 }),
+                number: 3,
+                roll: None,
             },
             None,
-            Some(ndt(2023, 1, 1)),
+            None,
             Calendar::Cal(Cal::new(vec![], vec![5, 6])),
             Adjuster::ModifiedFollowing {},
             Adjuster::BusDaysLagSettle { number: 1 },
+            false,
+        )
+        .unwrap();
+        assert_eq!(
+            s.frequency,
+            Frequency::Months {
+                number: 3,
+                roll: Some(RollDay::Day(30))
+            }
         );
-        assert!(s.is_err()); // 1st Jan is adjusted to 2nd Jan aligning with front stub
+
+        let s = Schedule::try_new_uschedule(
+            ndt(2024, 2, 29),
+            ndt(2024, 11, 29),
+            Frequency::Months {
+                number: 3,
+                roll: None,
+            },
+            None,
+            None,
+            Calendar::Cal(Cal::new(vec![], vec![5, 6])),
+            Adjuster::ModifiedFollowing {},
+            Adjuster::BusDaysLagSettle { number: 1 },
+            true,
+        )
+        .unwrap();
+        assert_eq!(
+            s.frequency,
+            Frequency::Months {
+                number: 3,
+                roll: Some(RollDay::Day(29))
+            }
+        );
+    }
+
+    #[test]
+    fn test_try_new_uschedule_inferred_fails() {
+        // fails because stub dates are given as well as an inference enum
+        assert_eq!(
+            true,
+            Schedule::try_new_uschedule_inferred(
+                ndt(2000, 1, 1),
+                ndt(2000, 2, 1),
+                Frequency::CalDays { number: 100 },
+                Some(ndt(2000, 1, 10)),
+                Some(ndt(2000, 1, 16)),
+                Calendar::Cal(Cal::new(vec![], vec![])),
+                Adjuster::ModifiedFollowing {},
+                Adjuster::BusDaysLagSettle { number: 1 },
+                true,
+                Some(StubInference::ShortBack)
+            )
+            .is_err()
+        );
+
+        // fails because stub date is given as well as an inference enum
+        assert_eq!(
+            true,
+            Schedule::try_new_uschedule_inferred(
+                ndt(2000, 1, 1),
+                ndt(2000, 2, 1),
+                Frequency::CalDays { number: 100 },
+                None,
+                Some(ndt(2000, 1, 16)),
+                Calendar::Cal(Cal::new(vec![], vec![])),
+                Adjuster::ModifiedFollowing {},
+                Adjuster::BusDaysLagSettle { number: 1 },
+                true,
+                Some(StubInference::ShortBack)
+            )
+            .is_err()
+        );
+
+        // fails because stub date is given as well as an inference enum
+        assert_eq!(
+            true,
+            Schedule::try_new_uschedule_inferred(
+                ndt(2000, 1, 1),
+                ndt(2000, 2, 1),
+                Frequency::CalDays { number: 100 },
+                None,
+                Some(ndt(2000, 1, 16)),
+                Calendar::Cal(Cal::new(vec![], vec![])),
+                Adjuster::ModifiedFollowing {},
+                Adjuster::BusDaysLagSettle { number: 1 },
+                true,
+                Some(StubInference::LongBack)
+            )
+            .is_err()
+        );
+
+        // fails because stub date is given as well as an inference enum
+        assert_eq!(
+            true,
+            Schedule::try_new_uschedule_inferred(
+                ndt(2000, 1, 1),
+                ndt(2000, 2, 1),
+                Frequency::CalDays { number: 100 },
+                Some(ndt(2000, 1, 16)),
+                None,
+                Calendar::Cal(Cal::new(vec![], vec![])),
+                Adjuster::ModifiedFollowing {},
+                Adjuster::BusDaysLagSettle { number: 1 },
+                true,
+                Some(StubInference::ShortFront)
+            )
+            .is_err()
+        );
+
+        // fails because stub date is given as well as an inference enum
+        assert_eq!(
+            true,
+            Schedule::try_new_uschedule_inferred(
+                ndt(2000, 1, 1),
+                ndt(2000, 2, 1),
+                Frequency::CalDays { number: 100 },
+                Some(ndt(2000, 1, 16)),
+                None,
+                Calendar::Cal(Cal::new(vec![], vec![])),
+                Adjuster::ModifiedFollowing {},
+                Adjuster::BusDaysLagSettle { number: 1 },
+                true,
+                Some(StubInference::LongFront)
+            )
+            .is_err()
+        );
     }
 }

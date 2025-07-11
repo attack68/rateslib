@@ -865,7 +865,7 @@ mod tests {
                     dates[i].0,
                     37,
                     Adjuster::FollowingSettle {},
-                    Some(RollDay::Day { day: 1 }),
+                    Some(RollDay::Day(1)),
                 ),
                 dates[i].1
             )
@@ -896,7 +896,7 @@ mod tests {
                     dates[i].0,
                     -37,
                     Adjuster::FollowingSettle {},
-                    Some(RollDay::Day { day: 1 }),
+                    Some(RollDay::Day(1)),
                 ),
                 dates[i].1
             )
@@ -907,19 +907,11 @@ mod tests {
     fn test_add_months_py_roll() {
         let cal = get_calendar_by_name("all").unwrap();
         let roll = vec![
-            (RollDay::Day { day: 7 }, ndt(1998, 3, 7), ndt(1996, 12, 7)),
-            (
-                RollDay::Day { day: 21 },
-                ndt(1998, 3, 21),
-                ndt(1996, 12, 21),
-            ),
-            (
-                RollDay::Day { day: 31 },
-                ndt(1998, 3, 31),
-                ndt(1996, 12, 31),
-            ),
-            (RollDay::Day { day: 1 }, ndt(1998, 3, 1), ndt(1996, 12, 1)),
-            (RollDay::IMM {}, ndt(1998, 3, 18), ndt(1996, 12, 18)),
+            (RollDay::Day(7), ndt(1998, 3, 7), ndt(1996, 12, 7)),
+            (RollDay::Day(21), ndt(1998, 3, 21), ndt(1996, 12, 21)),
+            (RollDay::Day(31), ndt(1998, 3, 31), ndt(1996, 12, 31)),
+            (RollDay::Day(1), ndt(1998, 3, 1), ndt(1996, 12, 1)),
+            (RollDay::IMM(), ndt(1998, 3, 18), ndt(1996, 12, 18)),
         ];
         for i in 0..5 {
             assert_eq!(
@@ -938,10 +930,10 @@ mod tests {
     fn test_add_months_roll_invalid_days() {
         let cal = get_calendar_by_name("all").unwrap();
         let roll = vec![
-            (RollDay::Day { day: 21 }, ndt(1996, 12, 21)),
-            (RollDay::Day { day: 31 }, ndt(1996, 12, 31)),
-            (RollDay::Day { day: 1 }, ndt(1996, 12, 1)),
-            (RollDay::IMM {}, ndt(1996, 12, 18)),
+            (RollDay::Day(21), ndt(1996, 12, 21)),
+            (RollDay::Day(31), ndt(1996, 12, 31)),
+            (RollDay::Day(1), ndt(1996, 12, 1)),
+            (RollDay::IMM(), ndt(1996, 12, 18)),
         ];
         for i in 0..4 {
             assert_eq!(
@@ -968,12 +960,7 @@ mod tests {
         ];
         for i in 0..4 {
             assert_eq!(
-                cal.add_months_py(
-                    ndt(2023, 8, 31),
-                    1,
-                    modi[i].0,
-                    Some(RollDay::Day { day: 31 })
-                ),
+                cal.add_months_py(ndt(2023, 8, 31), 1, modi[i].0, Some(RollDay::Day(31))),
                 modi[i].1
             );
         }
@@ -991,12 +978,7 @@ mod tests {
         ];
         for i in 0..4 {
             assert_eq!(
-                cal.add_months_py(
-                    ndt(2023, 8, 1),
-                    -1,
-                    modi[i].0,
-                    Some(RollDay::Day { day: 1 })
-                ),
+                cal.add_months_py(ndt(2023, 8, 1), -1, modi[i].0, Some(RollDay::Day(1))),
                 modi[i].1
             );
         }

@@ -114,5 +114,7 @@ pub use crate::scheduling::{
     schedule::{Schedule, StubInference},
 };
 pub(crate) use crate::scheduling::{
-    dcfs::_get_convention_str, frequency::get_unadjusteds, schedule::try_new_regular_from_adjusted,
+    dcfs::_get_convention_str,
+    frequency::get_unadjusteds,
+    // schedule::try_new_regular_from_adjusted,
 };
