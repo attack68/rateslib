@@ -1,62 +1,13 @@
-use crate::scheduling::{
-    try_new_regular_from_adjusted, Adjuster, Calendar, Frequency, Schedule, StubInference,
-};
+use crate::scheduling::{Adjuster, Calendar, Frequency, Schedule, StubInference};
 
 use chrono::prelude::*;
 use pyo3::prelude::*;
-use pyo3::types::PyType;
-
-#[pyfunction]
-pub(crate) fn try_schedules(
-    effective: NaiveDateTime,
-    termination: NaiveDateTime,
-    frequency: Frequency,
-    calendar: Calendar,
-    accrual_adjuster: Adjuster,
-    payment_adjuster: Adjuster,
-) -> Result<Vec<Schedule>, PyErr> {
-    try_new_regular_from_adjusted(
-        effective,
-        termination,
-        frequency,
-        calendar,
-        accrual_adjuster,
-        payment_adjuster,
-    )
-}
 
 #[pymethods]
 impl Schedule {
     #[new]
-    #[pyo3(signature = (ueffective, utermination, frequency, calendar, accrual_adjuster, payment_adjuster, ufront_stub=None, uback_stub=None, stub_inference=None))]
+    #[pyo3(signature = (effective, termination, frequency, calendar, accrual_adjuster, payment_adjuster, eom, front_stub=None, back_stub=None, stub_inference=None))]
     fn new_py(
-        ueffective: NaiveDateTime,
-        utermination: NaiveDateTime,
-        frequency: Frequency,
-        calendar: Calendar,
-        accrual_adjuster: Adjuster,
-        payment_adjuster: Adjuster,
-        ufront_stub: Option<NaiveDateTime>,
-        uback_stub: Option<NaiveDateTime>,
-        stub_inference: Option<StubInference>,
-    ) -> PyResult<Self> {
-        Schedule::try_new_uschedule_inferred(
-            ueffective,
-            utermination,
-            frequency,
-            ufront_stub,
-            uback_stub,
-            calendar,
-            accrual_adjuster,
-            payment_adjuster,
-            stub_inference,
-        )
-    }
-
-    #[classmethod]
-    #[pyo3(name = "new", signature = (effective, termination, frequency, calendar, accrual_adjuster, payment_adjuster, eom, front_stub=None, back_stub=None))]
-    fn new_regular_py(
-        _cls: &Bound<'_, PyType>,
         effective: NaiveDateTime,
         termination: NaiveDateTime,
         frequency: Frequency,
@@ -66,8 +17,9 @@ impl Schedule {
         eom: bool,
         front_stub: Option<NaiveDateTime>,
         back_stub: Option<NaiveDateTime>,
+        stub_inference: Option<StubInference>,
     ) -> PyResult<Self> {
-        Schedule::try_new_schedule(
+        Schedule::try_new_schedule_inferred(
             effective,
             termination,
             frequency,
@@ -77,6 +29,7 @@ impl Schedule {
             accrual_adjuster,
             payment_adjuster,
             eom,
+            stub_inference,
         )
     }
 

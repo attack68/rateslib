@@ -126,7 +126,7 @@ class Schedule:
             payment_adjuster=payment_adjuster,
             front_stub=_drb(None, front_stub),
             back_stub=_drb(None, back_stub),
-            eom=eom,
+            eom=eom_,
             stub_inference=_get_stub_inference(stub, front_stub, back_stub),
         )
 
