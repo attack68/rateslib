@@ -35,7 +35,7 @@ impl UnionCal {
     /// # use rateslib::scheduling::{Cal, UnionCal, ndt};
     /// let stk = Cal::new(vec![ndt(2025, 6, 20)], vec![5,6]);
     /// let fed = Cal::new(vec![ndt(2025, 6, 19)], vec![5,6]);
-    /// let stk_pipe_fed = UnionCal::new(vec![stk], vec![fed]);
+    /// let stk_pipe_fed = UnionCal::new(vec![stk], Some(vec![fed]));
     /// ```
     pub fn new(calendars: Vec<Cal>, settlement_calendars: Option<Vec<Cal>>) -> Self {
         UnionCal {
