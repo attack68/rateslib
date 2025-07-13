@@ -52,6 +52,28 @@ def test_frequency_bus_days(method, args, exp):
 @pytest.mark.parametrize(
     ("method", "args", "exp"),
     [
+        ("unext", (dt(2025, 1, 15),), dt(2025, 2, 15)),
+        ("uprevious", (dt(2025, 2, 15),), dt(2025, 1, 15)),
+        (
+            "uregular",
+            (dt(2025, 1, 15), dt(2025, 3, 15)),
+            [dt(2025, 1, 15), dt(2025, 2, 15), dt(2025, 3, 15)],
+        ),
+        ("infer_ustub", (dt(2025, 1, 1), dt(2025, 4, 15), True, True), dt(2025, 1, 15)),
+        ("infer_ustub", (dt(2025, 1, 1), dt(2025, 4, 15), False, True), dt(2025, 2, 15)),
+        ("infer_ustub", (dt(2025, 1, 15), dt(2025, 4, 1), True, False), dt(2025, 3, 15)),
+        ("infer_ustub", (dt(2025, 1, 15), dt(2025, 4, 1), False, False), dt(2025, 2, 15)),
+    ],
+)
+def test_frequency_months(method, args, exp):
+    f = Frequency.Months(1, RollDay.Day(15))
+    result = getattr(f, method)(*args)
+    assert result == exp
+
+
+@pytest.mark.parametrize(
+    ("method", "args", "exp"),
+    [
         ("unext", (dt(2025, 1, 1),), dt(2025, 2, 1)),
         ("uprevious", (dt(2025, 2, 1),), dt(2025, 1, 1)),
         (
@@ -65,10 +87,9 @@ def test_frequency_bus_days(method, args, exp):
         ("infer_ustub", (dt(2025, 1, 1), dt(2025, 4, 15), False, False), dt(2025, 3, 1)),
     ],
 )
-def test_frequency_months(method, args, exp):
-    f = Frequency.Months(1, None)
-    result = getattr(f, method)(*args)
-    assert result == exp
+def test_frequency_months_undefined(method, args, exp):
+    with pytest.raises(ValueError, match="`udate` cannot be validated since RollDay is None."):
+        getattr(Frequency.Months(1, None), method)(*args)
 
 
 @pytest.mark.parametrize(
@@ -88,5 +109,5 @@ def test_frequency_zero(method, args, exp):
 @pytest.mark.parametrize("front", [True, False])
 def test_frequency_zero_raise(front):
     f = Frequency.Zero()
-    with pytest.raises(ValueError, match="Dates are too close together to infer the desired stub"):
-        f.infer_ustub(dt(2000, 1, 1), dt(2001, 1, 1), True, front)
+    result = f.infer_ustub(dt(2000, 1, 1), dt(2001, 1, 1), True, front)
+    assert result is None

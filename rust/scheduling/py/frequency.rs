@@ -96,4 +96,27 @@ impl Frequency {
             self.try_infer_uback_stub(&ueffective, &utermination, short)
         }
     }
+
+    /// Check whether unadjusted dates define a stub period.
+    ///
+    /// Parameters
+    /// ----------
+    /// ustart: datetime
+    ///     The unadjusted start date of the period.
+    /// uend: datetime
+    ///     The unadjusted end date of the period.
+    /// front: bool
+    ///     Test for either a front or a back stub.
+    ///
+    /// Returns
+    /// -------
+    /// bool
+    #[pyo3(name = "is_stub")]
+    fn is_stub_py(&self, ustart: NaiveDateTime, uend: NaiveDateTime, front: bool) -> bool {
+        if front {
+            self.is_front_stub(&ustart, &uend)
+        } else {
+            self.is_back_stub(&ustart, &uend)
+        }
+    }
 }

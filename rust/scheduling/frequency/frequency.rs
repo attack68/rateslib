@@ -66,6 +66,96 @@ pub trait Scheduling {
         }
     }
 
+    /// Check if two given unadjusted dates define a **regular period** under a [Frequency].
+    ///
+    /// # Notes
+    /// This method tests if [Scheduling::try_uregular] has exactly two dates.
+    fn is_regular_period(&self, ueffective: &NaiveDateTime, utermination: &NaiveDateTime) -> bool {
+        let s = self.try_uregular(ueffective, utermination);
+        match s {
+            Ok(v) => v.len() == 2,
+            Err(_) => false,
+        }
+    }
+
+    /// Check if two given unadjusted dates define a **short front stub period** under a [Frequency].
+    ///
+    /// # Notes
+    /// This method tests if [Scheduling::try_uprevious] is before `ueffective`.
+    /// If dates are undeterminable this returns `false`.
+    fn is_short_front_stub(
+        &self,
+        ueffective: &NaiveDateTime,
+        utermination: &NaiveDateTime,
+    ) -> bool {
+        let quasi = self.try_uprevious(utermination);
+        match quasi {
+            Ok(date) => date < *ueffective,
+            Err(_) => false,
+        }
+    }
+
+    /// Check if two given unadjusted dates define a **long front stub period** under a [Frequency].
+    fn is_long_front_stub(&self, ueffective: &NaiveDateTime, utermination: &NaiveDateTime) -> bool {
+        let quasi = self.try_uprevious(utermination);
+        match quasi {
+            Ok(date) if *ueffective < date => {
+                let quasi_2 = self.try_uprevious(&date);
+                match quasi_2 {
+                    Ok(date) => date <= *ueffective, // for long stub equal to allowed
+                    Err(_) => false,
+                }
+            }
+            _ => false,
+        }
+    }
+
+    /// Check if two given unadjusted dates define a **short back stub period** under a [Frequency].
+    ///
+    /// # Notes
+    /// This method tests if [Scheduling::try_unext] is after `utermination`.
+    /// If dates are undeterminable this returns `false`.
+    fn is_short_back_stub(&self, ueffective: &NaiveDateTime, utermination: &NaiveDateTime) -> bool {
+        let quasi = self.try_unext(ueffective);
+        match quasi {
+            Ok(date) => *utermination < date,
+            Err(_) => false,
+        }
+    }
+
+    /// Check if two given unadjusted dates define a **long back stub period** under a [Frequency].
+    fn is_long_back_stub(&self, ueffective: &NaiveDateTime, utermination: &NaiveDateTime) -> bool {
+        let quasi = self.try_unext(ueffective);
+        match quasi {
+            Ok(date) if date < *utermination => {
+                let quasi_2 = self.try_unext(&date);
+                match quasi_2 {
+                    Ok(date) => *utermination <= date, // for long stub equal to allowed.
+                    Err(_) => false,
+                }
+            }
+            _ => false,
+        }
+    }
+
+    /// Check if two given unadjusted dates define any **front stub** under a [Frequency].
+    ///
+    /// # Notes
+    /// If dates are undeterminable this returns `false`.
+    fn is_front_stub(&self, ueffective: &NaiveDateTime, utermination: &NaiveDateTime) -> bool {
+        self.is_short_front_stub(ueffective, utermination)
+            || self.is_long_front_stub(ueffective, utermination)
+    }
+
+    /// Check if two given unadjusted dates define any **back stub** under a [Frequency].
+    ///
+    /// # Notes
+    /// If dates are undeterminable this returns `false`.
+    fn is_back_stub(&self, ueffective: &NaiveDateTime, utermination: &NaiveDateTime) -> bool {
+        self.is_short_back_stub(ueffective, utermination)
+            || self.is_long_back_stub(ueffective, utermination)
+    }
+
     /// Infer an unadjusted front stub date from unadjusted irregular schedule dates.
     ///
     /// # Notes
@@ -94,10 +184,10 @@ pub trait Scheduling {
                 date = self.try_unext(&date)?;
             }
             if date >= *utermination {
-                Err(PyValueError::new_err(
-                    "Dates are too close together to infer the desired stub",
-                ))
+                // then the dates are too close together to define a stub
+                Ok(None)
             } else {
+                // return the valid stub date
                 Ok(Some(date))
             }
         }
@@ -131,10 +221,10 @@ pub trait Scheduling {
                 date = self.try_uprevious(&date)?;
             }
             if date <= *ueffective {
-                Err(PyValueError::new_err(
-                    "Dates are too close together to infer the desired stub",
-                ))
+                // dates are too close together to define a stub.
+                Ok(None)
             } else {
+                // return the valid stub
                 Ok(Some(date))
             }
         }
@@ -145,6 +235,12 @@ impl Frequency {
     /// Validate if an unadjusted date aligns with the specified [Frequency] variant.
     ///
     /// # Notes
+    /// This method will return error in one of two cases:
+    /// - The `udate` does not align with the fully defined variant.
+    /// - The variant is not fully defined (e.g. a [`Months`](Frequency) variant is missing
+    ///   a [`RollDay`](RollDay)) and cannot make the determination.
+    ///
+    /// Therefore,
     /// - For a [CalDays](Frequency) variant or [Zero](Frequency) variant, any ``udate`` is valid.
     /// - For a [BusDays](Frequency) variant, ``udate`` must be a business day.
     /// - For a [Months](Frequency) variant, ``udate`` must align with the [RollDay]. If no [RollDay] is
@@ -225,7 +321,7 @@ impl Frequency {
                     .collect())
             }
             _ => {
-                // the Frequency is fully specified so return single element vector is
+                // the Frequency is fully specified so return single element vector if
                 // at least 1 udate is valid
                 for udate in udates {
                     if self.try_udate(udate).is_ok() {
@@ -239,44 +335,46 @@ impl Frequency {
         }
     }
 
-    /// Get a vector of possible, fully specified [Frequency] variants for pairs of unadjusted dates.
-    ///
-    /// # Notes
-    /// This method takes the intersection of results from [Frequency::try_vec_from] for each
-    /// element of each of the possible pairs of dates. If there are none possible this will
-    /// return error.
-    ///
-    /// # Examples
-    /// ```rust
-    /// # use rateslib::scheduling::{Frequency, ndt, RollDay};
-    /// let f = Frequency::Months{number: 3, roll: None};
-    /// let result = f.try_vec_from_intersection(&vec![ndt(2024, 2, 29)], &vec![ndt(2024, 6, 30)]);
-    /// assert_eq!(result.unwrap(), vec![
-    ///     Frequency::Months{number: 3, roll: Some(RollDay::Day(30))},
-    ///     Frequency::Months{number: 3, roll: Some(RollDay::Day(31))},
-    /// ]);
-    /// ```
-    pub fn try_vec_from_intersection(
-        &self,
-        ueffectives: &Vec<NaiveDateTime>,
-        uterminations: &Vec<NaiveDateTime>,
-    ) -> Result<Vec<Frequency>, PyErr> {
-        let mut uef = self.try_vec_from(ueffectives)?;
-        let uet = self.try_vec_from(uterminations)?;
-        for el in uet {
-            if !uef.iter().any(|f| *f == el) {
-                uef.push(el)
-            }
-        }
-
-        if uef.len() == 0 {
-            Err(PyValueError::new_err(
-                "No Frequency aligns with both ueffective and utermination.",
-            ))
-        } else {
-            Ok(uef.into_iter().collect())
-        }
-    }
+    //     /// Get a vector of possible, fully specified [Frequency] variants for pairs of unadjusted dates.
+    //     ///
+    //     /// # Notes
+    //     /// This method takes the intersection of results from [Frequency::try_vec_from] for each
+    //     /// element of each of the possible pairs of dates. If there are none possible this will
+    //     /// return error.
+    //     ///
+    //     /// # Examples
+    //     /// ```rust
+    //     /// # use rateslib::scheduling::{Frequency, ndt, RollDay};
+    //     /// let f = Frequency::Months{number: 3, roll: None};
+    //     /// let result = f.try_vec_from_intersection(&vec![ndt(2024, 2, 29)], &vec![ndt(2025, 2, 28)]);
+    //     /// assert_eq!(result.unwrap(), vec![
+    //     ///     Frequency::Months{number: 3, roll: Some(RollDay::Day(29))},
+    //     ///     Frequency::Months{number: 3, roll: Some(RollDay::Day(30))},
+    //     ///     Frequency::Months{number: 3, roll: Some(RollDay::Day(31))},
+    //     ///     Frequency::Months{number: 3, roll: Some(RollDay::Day(28))},
+    //     /// ]);
+    //     /// ```
+    //     pub fn try_vec_from_union(
+    //         &self,
+    //         ueffectives: &Vec<NaiveDateTime>,
+    //         uterminations: &Vec<NaiveDateTime>,
+    //     ) -> Result<Vec<Frequency>, PyErr> {
+    //         let mut uef = self.try_vec_from(ueffectives)?;
+    //         let uet = self.try_vec_from(uterminations)?;
+    //         for el in uet {
+    //             if !uef.iter().any(|f| *f == el) {
+    //                 uef.push(el)
+    //             }
+    //         }
+    //
+    //         if uef.len() == 0 {
+    //             Err(PyValueError::new_err(
+    //                 "No Frequency aligns with both ueffective and utermination.",
+    //             ))
+    //         } else {
+    //             Ok(uef.into_iter().collect())
+    //         }
+    //     }
 }
 
 impl Scheduling for Frequency {
@@ -418,6 +516,155 @@ mod tests {
         for option in options {
             assert!(option.0.try_udate(&option.1).is_err());
         }
+    }
+
+    #[test]
+    fn test_is_regular_period_ok() {
+        let options: Vec<(Frequency, NaiveDateTime, NaiveDateTime, bool)> = vec![
+            (
+                Frequency::CalDays { number: 5 },
+                ndt(2000, 1, 1),
+                ndt(2000, 1, 6),
+                true,
+            ),
+            (
+                Frequency::CalDays { number: 5 },
+                ndt(2000, 1, 1),
+                ndt(2000, 1, 5),
+                false,
+            ),
+            (
+                Frequency::Months {
+                    number: 5,
+                    roll: Some(RollDay::Day(1)),
+                },
+                ndt(2000, 1, 1),
+                ndt(2000, 6, 1),
+                true,
+            ),
+            (
+                Frequency::Months {
+                    number: 5,
+                    roll: Some(RollDay::Day(1)),
+                },
+                ndt(2000, 1, 1),
+                ndt(2000, 6, 5),
+                false,
+            ),
+        ];
+
+        for option in options {
+            let result = option.0.is_regular_period(&option.1, &option.2);
+            assert_eq!(result, option.3);
+        }
+    }
+
+    #[test]
+    fn test_is_short_front_stub() {
+        assert_eq!(
+            true,
+            Frequency::Months {
+                number: 1,
+                roll: Some(RollDay::Day(20))
+            }
+            .is_short_front_stub(&ndt(2000, 1, 1), &ndt(2000, 1, 20))
+        );
+        assert_eq!(
+            false,
+            Frequency::Months {
+                number: 1,
+                roll: Some(RollDay::Day(1))
+            }
+            .is_short_front_stub(&ndt(2000, 1, 1), &ndt(2000, 2, 1))
+        );
+        assert_eq!(
+            false,
+            Frequency::Months {
+                number: 1,
+                roll: None
+            }
+            .is_short_front_stub(&ndt(2000, 1, 1), &ndt(2000, 1, 15))
+        );
+    }
+
+    #[test]
+    fn test_is_long_front_stub() {
+        assert_eq!(
+            // is a valid long stub
+            true,
+            Frequency::Months {
+                number: 1,
+                roll: Some(RollDay::Day(20))
+            }
+            .is_long_front_stub(&ndt(2000, 1, 1), &ndt(2000, 2, 20))
+        );
+        assert_eq!(
+            // is a valid 2-regular period long stub
+            true,
+            Frequency::Months {
+                number: 1,
+                roll: Some(RollDay::Day(20))
+            }
+            .is_long_front_stub(&ndt(2000, 1, 20), &ndt(2000, 3, 20))
+        );
+        assert_eq!(
+            // is too short
+            false,
+            Frequency::Months {
+                number: 1,
+                roll: Some(RollDay::Day(20))
+            }
+            .is_long_front_stub(&ndt(2000, 1, 25), &ndt(2000, 2, 20))
+        );
+        assert_eq!(
+            // is too long
+            false,
+            Frequency::Months {
+                number: 1,
+                roll: Some(RollDay::Day(20))
+            }
+            .is_long_front_stub(&ndt(2000, 1, 15), &ndt(2000, 3, 20))
+        );
+    }
+
+    #[test]
+    fn test_is_long_back_stub() {
+        assert_eq!(
+            // is a valid long stub
+            true,
+            Frequency::Months {
+                number: 1,
+                roll: Some(RollDay::Day(20))
+            }
+            .is_long_back_stub(&ndt(2000, 1, 20), &ndt(2000, 2, 28))
+        );
+        assert_eq!(
+            // is a valid 2-regular period long stub
+            true,
+            Frequency::Months {
+                number: 1,
+                roll: Some(RollDay::Day(20))
+            }
+            .is_long_back_stub(&ndt(2000, 1, 20), &ndt(2000, 3, 20))
+        );
+        assert_eq!(
+            // is too short
+            false,
+            Frequency::Months {
+                number: 1,
+                roll: Some(RollDay::Day(20))
+            }
+            .is_long_back_stub(&ndt(2000, 1, 20), &ndt(2000, 2, 10))
+        );
+        assert_eq!(
+            // is too long
+            false,
+            Frequency::Months {
+                number: 1,
+                roll: Some(RollDay::Day(20))
+            }
+            .is_long_front_stub(&ndt(2000, 1, 20), &ndt(2000, 3, 30))
+        );
     }
 
     // #[test]
@@ -776,4 +1023,16 @@ mod tests {
             assert_eq!(true, option.0.try_vec_from(&option.1).is_err());
         }
     }
+
+    //     #[test]
+    //     fn test_try_vec_from_union() {
+    //         let f = Frequency::Months{number: 3, roll: None};
+    //         let result = f.try_vec_from_union(&vec![ndt(2024, 2, 29)], &vec![ndt(2025, 2, 28)]);
+    //         assert_eq!(result.unwrap(), vec![
+    //             Frequency::Months{number: 3, roll: Some(RollDay::Day(29))},
+    //             Frequency::Months{number: 3, roll: Some(RollDay::Day(30))},
+    //             Frequency::Months{number: 3, roll: Some(RollDay::Day(31))},
+    //             Frequency::Months{number: 3, roll: Some(RollDay::Day(28))},
+    //         ]);
+    //     }
 }
