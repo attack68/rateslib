@@ -38,11 +38,11 @@ impl RollDay {
     /// # use rateslib::scheduling::{RollDay, ndt};
     /// let result = RollDay::vec_from(&vec![ndt(2024, 2, 29), ndt(2024, 3, 20), ndt(2024, 3, 31)]);
     /// assert_eq!(result, vec![
-    ///     RollDay::Day{day: 29},
-    ///     RollDay::Day{day: 30},
-    ///     RollDay::Day{day: 31},
-    ///     RollDay::Day{day: 20},
-    ///     RollDay::IMM{},
+    ///     RollDay::Day(29),
+    ///     RollDay::Day(30),
+    ///     RollDay::Day(31),
+    ///     RollDay::Day(20),
+    ///     RollDay::IMM(),
     /// ]);
     /// ```
     pub fn vec_from(udates: &Vec<NaiveDateTime>) -> Vec<Self> {
@@ -74,10 +74,10 @@ impl RollDay {
     /// # Examples
     /// ```rust
     /// # use rateslib::scheduling::{RollDay, ndt};
-    /// let date = RollDay::Day{day:31}.try_udate(&ndt(2024, 2, 29));
+    /// let date = RollDay::Day(31).try_udate(&ndt(2024, 2, 29));
     /// assert!(date.is_ok());
     ///
-    /// let date = RollDay::IMM{}.try_udate(&ndt(2024, 1, 1));
+    /// let date = RollDay::IMM().try_udate(&ndt(2024, 1, 1));
     /// assert!(date.is_err());
     /// ```
     pub fn try_udate(&self, udate: &NaiveDateTime) -> Result<NaiveDateTime, PyErr> {
@@ -129,10 +129,10 @@ impl RollDay {
     /// # Examples
     /// ```rust
     /// # use rateslib::scheduling::{RollDay, ndt};
-    /// let date = RollDay::IMM{}.try_uadd(&ndt(2024, 3, 20), 3);
+    /// let date = RollDay::IMM().try_uadd(&ndt(2024, 3, 20), 3);
     /// assert_eq!(ndt(2024, 6, 19), date.unwrap());
     ///
-    /// let date = RollDay::Day{day:31}.try_uadd(&ndt(2024, 3, 15), 3);
+    /// let date = RollDay::Day(31).try_uadd(&ndt(2024, 3, 15), 3);
     /// assert!(date.is_err());
     /// ```
     pub fn try_uadd(&self, udate: &NaiveDateTime, months: i32) -> Result<NaiveDateTime, PyErr> {
@@ -145,7 +145,7 @@ impl RollDay {
     /// # Examples
     /// ```rust
     /// # use rateslib::scheduling::{RollDay, ndt};
-    /// let date = RollDay::Day{day:31}.uadd(&ndt(2024, 3, 15), 3);
+    /// let date = RollDay::Day(31).uadd(&ndt(2024, 3, 15), 3);
     /// assert_eq!(date, ndt(2024, 6, 30));
     /// ```
     pub fn uadd(&self, udate: &NaiveDateTime, months: i32) -> NaiveDateTime {

@@ -19,7 +19,7 @@ impl Schedule {
         back_stub: Option<NaiveDateTime>,
         stub_inference: Option<StubInference>,
     ) -> PyResult<Self> {
-        Schedule::try_new_schedule_inferred(
+        Schedule::try_new_schedule(
             effective,
             termination,
             frequency,
