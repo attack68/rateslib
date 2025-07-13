@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from pandas import DataFrame
 from stack_data.utils import cached_property
 
 from rateslib import defaults
@@ -141,3 +142,33 @@ class Schedule:
     @cached_property
     def pschedule(self) -> list[datetime]:
         return self.obj.pschedule
+
+    @cached_property
+    def table(self) -> DataFrame:
+        """
+        DataFrame : Rows of schedule dates and information.
+        """
+        df = DataFrame(
+            {
+                defaults.headers["stub_type"]: ["Stub" if _ else "Regular" for _ in self._stubs],
+                defaults.headers["u_acc_start"]: self.uschedule[:-1],
+                defaults.headers["u_acc_end"]: self.uschedule[1:],
+                defaults.headers["a_acc_start"]: self.aschedule[:-1],
+                defaults.headers["a_acc_end"]: self.aschedule[1:],
+                defaults.headers["payment"]: self.pschedule[1:],
+            },
+        )
+        return df
+
+    @cached_property
+    def _stubs(self) -> list[bool]:
+        front_stub = self.obj.frequency.is_stub(self.uschedule[0], self.uschedule[1], True)
+        back_stub = self.obj.frequency.is_stub(self.uschedule[-2], self.uschedule[-1], False)
+        if len(self.uschedule) == 2:  # single period
+            return [front_stub or back_stub]
+        else:
+            return [front_stub] + [False] * (len(self.uschedule) - 3) + [back_stub]
+
+    @cached_property
+    def n_periods(self) -> int:
+        return len(self.obj.uschedule) - 1
