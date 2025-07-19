@@ -1,15 +1,15 @@
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 from pandas import DataFrame
-from stack_data.utils import cached_property
 
 from rateslib import defaults
 from rateslib.calendars import get_calendar
 from rateslib.calendars.rs import _get_adjuster, _get_rollday
 from rateslib.default import NoInput, _drb
-from rateslib.rs import Frequency, StubInference
+from rateslib.rs import Frequency, RollDay, StubInference
 from rateslib.rs import Schedule as Schedule_rs
 from rateslib.scheduling.scheduling import _validate_effective, _validate_termination
 
@@ -18,7 +18,6 @@ if TYPE_CHECKING:
         Adjuster,
         CalInput,
         CalTypes,
-        RollDay,
         bool_,
         datetime,
         datetime_,
@@ -142,10 +141,20 @@ class Schedule:
         payment_lag_: int = _drb(defaults.payment_lag, payment_lag)
         calendar_: CalTypes = get_calendar(calendar)
         effective_: datetime = _validate_effective(
-            effective, eval_mode_, eval_date, modifier_, calendar_, roll
+            effective,
+            eval_mode_,
+            eval_date,
+            modifier_,
+            calendar_,
+            roll,  # type: ignore[arg-type]
         )
         termination_: datetime = _validate_termination(
-            termination, effective_, modifier_, calendar_, roll, eom_
+            termination,
+            effective_,
+            modifier_,
+            calendar_,
+            roll,  # type: ignore[arg-type]
+            eom_,
         )
         accrual_adjuster = _get_adjuster(modifier_)
         payment_adjuster = _get_adjuster(f"{payment_lag_}B")
@@ -226,10 +235,11 @@ class Schedule:
     @cached_property
     def roll(self) -> str | int | NoInput:
         if isinstance(self.obj.frequency, Frequency.Months):  # type: ignore[arg-type]
-            if self.obj.frequency.roll is None:  # type: ignore[attr-defined]
-                return NoInput(0)
+            # Frequency.Months on a valid Schedule will always have Some(RollDay).
+            if isinstance(self.obj.frequency.roll, RollDay.Day):  # type: ignore[attr-defined, arg-type]
+                return self.obj.frequency.roll._0  # type: ignore[attr-defined, no-any-return]
             else:
-                return self.obj.frequency.roll  # type: ignore[attr-defined]
+                return self.obj.frequency.roll.__str__()  # type: ignore[attr-defined, no-any-return]
         else:
             return NoInput(0)
 
@@ -242,8 +252,10 @@ class Schedule:
             stubs = ["Regular"] * self.n_periods
         else:
             us = self.uschedule
-            front_stub = ["Stub"] if self.frequency.is_stub(us[0], us[1], True) else ["Regular"]
-            back_stub = ["Stub"] if self.frequency.is_stub(us[-2], us[-1], False) else ["Regular"]
+            front_stub = ["Stub"] if self.frequency_obj.is_stub(us[0], us[1], True) else ["Regular"]
+            back_stub = (
+                ["Stub"] if self.frequency_obj.is_stub(us[-2], us[-1], False) else ["Regular"]
+            )
             if self.n_periods == 1:
                 stubs = ["Stub"] if front_stub or back_stub else ["Regular"]
             else:  # self.n_periods >= 2:
