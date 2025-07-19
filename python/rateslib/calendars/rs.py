@@ -46,9 +46,11 @@ def _convert_to_adjuster(modifier: str, settlement: bool, mod_days: bool) -> Adj
     return _get_adjuster(modifier)
 
 
-def _get_rollday(roll: str | int | NoInput) -> RollDay | None:
+def _get_rollday(roll: RollDay | str | int | NoInput) -> RollDay | None:
     """Convert a user str or int into a RollDay enum object."""
-    if isinstance(roll, str):
+    if isinstance(roll, RollDay):
+        return roll
+    elif isinstance(roll, str):
         return {
             "EOM": RollDay.Day(31),
             "SOM": RollDay.Day(1),

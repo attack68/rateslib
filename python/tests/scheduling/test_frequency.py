@@ -111,3 +111,25 @@ def test_frequency_zero_raise(front):
     f = Frequency.Zero()
     result = f.infer_ustub(dt(2000, 1, 1), dt(2001, 1, 1), True, front)
     assert result is None
+
+
+def test_equality():
+    f = Frequency.Zero()
+    assert f == Frequency.Zero()
+
+    f = Frequency.CalDays(10)
+    assert isinstance(f, Frequency.CalDays)
+    assert not isinstance(f, Frequency.BusDays)
+
+
+def test_rollday_equality():
+    assert RollDay.Day(15) == RollDay.Day(15)
+    assert RollDay.Day(15) != RollDay.Day(16)
+    assert RollDay.Day(15) != RollDay.IMM()
+    assert RollDay.IMM() == RollDay.IMM()
+
+
+def test_string():
+    assert Frequency.Zero().string() == "Z"
+    assert Frequency.CalDays(10).string() == "10D"
+    assert Frequency.Months(3, None).string() == "Q"

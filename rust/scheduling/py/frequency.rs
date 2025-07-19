@@ -1,6 +1,7 @@
 use crate::scheduling::frequency::{Frequency, Scheduling};
 
 use chrono::prelude::*;
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
 #[pymethods]
@@ -117,6 +118,53 @@ impl Frequency {
             self.is_front_stub(&ustart, &uend)
         } else {
             self.is_back_stub(&ustart, &uend)
+        }
+    }
+
+    /// Return a string representation of the Frequency.
+    ///
+    /// Returns
+    /// -------
+    /// str
+    #[pyo3(name = "string")]
+    fn string_py(&self) -> PyResult<String> {
+        match self {
+            Frequency::Zero {} => Ok("Z".to_string()),
+            Frequency::CalDays { number: n } => Ok(format!("{n}D")),
+            Frequency::BusDays {
+                number: n,
+                calendar: _,
+            } => Ok(format!("{n}B")),
+            Frequency::Months { number: 1, roll: _ } => Ok(format!("M")),
+            Frequency::Months { number: 2, roll: _ } => Ok(format!("B")),
+            Frequency::Months { number: 3, roll: _ } => Ok(format!("Q")),
+            Frequency::Months { number: 4, roll: _ } => Ok(format!("T")),
+            Frequency::Months { number: 6, roll: _ } => Ok(format!("S")),
+            Frequency::Months {
+                number: 12,
+                roll: _,
+            } => Ok(format!("A")),
+            _ => Err(PyValueError::new_err(
+                "No recognisable string represenation for Frequency.",
+            )),
+        }
+    }
+
+    fn __str__(&self) -> String {
+        match self {
+            Frequency::Zero {} => "Z".to_string(),
+            Frequency::CalDays { number: n } => format!("{n}D"),
+            Frequency::BusDays {
+                number: n,
+                calendar: _,
+            } => format!("{n}B"),
+            Frequency::Months { number: n, roll: r } => {
+                let x = match r {
+                    Some(v) => v.__str__(),
+                    None => "none".to_string(),
+                };
+                format!("{n}M (roll: {x})")
+            }
         }
     }
 }

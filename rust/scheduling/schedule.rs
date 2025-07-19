@@ -255,7 +255,7 @@ impl Schedule {
     }
 
     /// Check if a [Schedule] contains only regular periods.
-    fn is_regular(&self) -> bool {
+    pub fn is_regular(&self) -> bool {
         let ucheck = self
             .frequency
             .try_uregular(&self.ueffective, &self.utermination);
@@ -269,8 +269,8 @@ impl Schedule {
     /// Create an [Schedule] from unadjusted dates with specified [StubInference].
     ///
     /// # Notes
-    ///
-    /// If ``stub_inference`` is `None` then this method will revert to [Schedule::try_new_uschedule].
+    /// This method introduces the ``stub_inference`` argument.
+    /// If it is given as `None` then this method will revert to [Schedule::try_new_uschedule].
     /// If ``stub_inference`` is given but it conflicts with an explicit ``stub`` date given then
     /// an error will be returned.
     /// If ``stub_inference`` is given but a ``stub`` date is not required then a valid [Schedule]
@@ -287,7 +287,7 @@ impl Schedule {
         stub_inference: Option<StubInference>,
     ) -> Result<Self, PyErr> {
         // evaluate if schedule is valid as defined without stub inference
-        let s = Schedule::try_new_uschedule_defined(
+        let temp_schedule = Schedule::try_new_uschedule_defined(
             ueffective,
             utermination,
             frequency.clone(),
@@ -297,36 +297,79 @@ impl Schedule {
             accrual_adjuster,
             payment_adjuster,
         );
-        if s.is_ok() {
-            return s;
-        }
 
         // validate inference is not blocked by user defined values.
         let _ = validate_stub_dates_and_inference(&ufront_stub, &uback_stub, &stub_inference)?;
 
         let stubs: (Option<NaiveDateTime>, Option<NaiveDateTime>);
         if stub_inference.is_none() {
-            stubs = (ufront_stub, uback_stub);
+            return temp_schedule;
         } else {
             let (interior_start, interior_end) =
                 match_interior_dates(&ueffective, &ufront_stub, &uback_stub, &utermination);
             stubs = match stub_inference.unwrap() {
-                StubInference::ShortFront => (
-                    frequency.try_infer_ufront_stub(&interior_start, &interior_end, true)?,
-                    uback_stub,
-                ),
-                StubInference::LongFront => (
-                    frequency.try_infer_ufront_stub(&interior_start, &interior_end, false)?,
-                    uback_stub,
-                ),
-                StubInference::ShortBack => (
-                    ufront_stub,
-                    frequency.try_infer_uback_stub(&interior_start, &interior_end, true)?,
-                ),
-                StubInference::LongBack => (
-                    ufront_stub,
-                    frequency.try_infer_uback_stub(&interior_start, &interior_end, false)?,
-                ),
+                StubInference::ShortFront => {
+                    if temp_schedule.is_ok() {
+                        let test_schedule = temp_schedule.unwrap();
+                        if frequency.is_short_front_stub(
+                            &test_schedule.uschedule[0],
+                            &test_schedule.uschedule[1],
+                        ) {
+                            return Ok(test_schedule);
+                        } // already has a short front stub
+                    }
+                    (
+                        frequency.try_infer_ufront_stub(&interior_start, &interior_end, true)?,
+                        uback_stub,
+                    )
+                }
+                StubInference::LongFront => {
+                    if temp_schedule.is_ok() {
+                        let test_schedule = temp_schedule.unwrap();
+                        if frequency.is_long_front_stub(
+                            &test_schedule.uschedule[0],
+                            &test_schedule.uschedule[1],
+                        ) {
+                            return Ok(test_schedule);
+                        } // already has a long front stub
+                    }
+                    (
+                        frequency.try_infer_ufront_stub(&interior_start, &interior_end, false)?,
+                        uback_stub,
+                    )
+                }
+                StubInference::ShortBack => {
+                    if temp_schedule.is_ok() {
+                        let test_schedule = temp_schedule.unwrap();
+                        let n = test_schedule.uschedule.len();
+                        if frequency.is_short_back_stub(
+                            &test_schedule.uschedule[n - 1],
+                            &test_schedule.uschedule[n - 2],
+                        ) {
+                            return Ok(test_schedule);
+                        } // already has a short back stub
+                    }
+                    (
+                        ufront_stub,
+                        frequency.try_infer_uback_stub(&interior_start, &interior_end, true)?,
+                    )
+                }
+                StubInference::LongBack => {
+                    if temp_schedule.is_ok() {
+                        let test_schedule = temp_schedule.unwrap();
+                        let n = test_schedule.uschedule.len();
+                        if frequency.is_short_back_stub(
+                            &test_schedule.uschedule[n - 1],
+                            &test_schedule.uschedule[n - 2],
+                        ) {
+                            return Ok(test_schedule);
+                        } // already has a long back stub
+                    }
+                    (
+                        ufront_stub,
+                        frequency.try_infer_uback_stub(&interior_start, &interior_end, false)?,
+                    )
+                }
             }
         }
         Self::try_new_uschedule_defined(
@@ -502,7 +545,17 @@ impl Schedule {
                 "A Schedule could not be generated from the parameter combinations.",
             ))
         } else {
-            Ok(schedules[0].clone())
+            // filter regular schedules
+            let regulars: Vec<Schedule> = schedules
+                .iter()
+                .cloned()
+                .filter(|schedule| schedule.is_regular())
+                .collect();
+            if regulars.len() != 0 {
+                Ok(filter_schedules_by_eom(regulars, eom))
+            } else {
+                Ok(filter_schedules_by_eom(schedules, eom))
+            }
         }
     }
 }
@@ -1294,5 +1347,29 @@ mod tests {
         )
         .expect("regular");
         assert!(!s.is_regular());
+    }
+
+    #[test]
+    fn test_front_stub_inference() {
+        let s = Schedule::try_new_schedule(
+            ndt(2022, 1, 1),
+            ndt(2022, 6, 1),
+            Frequency::Months {
+                number: 3,
+                roll: None,
+            },
+            None,
+            None,
+            Calendar::Cal(Cal::new(vec![], vec![])),
+            Adjuster::ModifiedFollowing {},
+            Adjuster::BusDaysLagSettle { number: 2 },
+            false,
+            Some(StubInference::ShortFront),
+        )
+        .expect("schedule is valid");
+        assert_eq!(
+            s.uschedule,
+            vec![ndt(2022, 1, 1), ndt(2022, 3, 1), ndt(2022, 6, 1)]
+        );
     }
 }

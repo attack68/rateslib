@@ -24,7 +24,7 @@ from rateslib.calendars import (  # type: ignore[attr-defined]
 from rateslib.default import NoInput, _drb
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, CalTypes
+    from rateslib.typing import CalInput, CalTypes, int_
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -260,7 +260,7 @@ class Schedule:
         stub: str | NoInput = NoInput(0),
         front_stub: datetime | NoInput = NoInput(0),
         back_stub: datetime | NoInput = NoInput(0),
-        roll: str | int | NoInput = NoInput(0),
+        roll: str | int_ = NoInput(0),
         eom: bool | NoInput = NoInput(0),
         modifier: str | NoInput = NoInput(0),
         calendar: CalInput = NoInput(0),
