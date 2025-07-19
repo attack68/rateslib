@@ -88,10 +88,10 @@ def test_infer_stub_date(e, t, stub, exp_roll, exp_stub, cal_) -> None:
     )
     if "FRONT" in stub:
         assert result.ufront_stub == exp_stub
-        assert result.roll == RollDay.Day(exp_roll)
+        assert result.roll == exp_roll
     else:
         assert result.uback_stub == exp_stub
-        assert result.roll == RollDay.Day(exp_roll)
+        assert result.roll == exp_roll
 
 
 @pytest.mark.parametrize(
@@ -126,7 +126,7 @@ def test_infer_stub_date_no_inference_on_regular_dual(cal_) -> None:
         calendar=cal_,
     )
     assert result.ufront_stub is None
-    assert result.roll == RollDay.Day(26)
+    assert result.roll == 26
 
     result = Schedule(
         dt(2022, 2, 26),
@@ -138,7 +138,7 @@ def test_infer_stub_date_no_inference_on_regular_dual(cal_) -> None:
         calendar=cal_,
     )
     assert result.uback_stub is None
-    assert result.roll == RollDay.Day(26)
+    assert result.roll == 26
 
 
 @pytest.mark.parametrize(
@@ -167,7 +167,7 @@ def test_infer_stub_date_dual_sided(e, fs, t, stub, exp_roll, exp_stub, cal_) ->
     assert result.ueffective == e
     assert result.uback_stub == exp_stub
     assert result.utermination == t
-    assert result.roll == RollDay.Day(exp_roll)
+    assert result.roll == exp_roll
 
 
 @pytest.mark.parametrize(
@@ -183,7 +183,7 @@ def test_infer_stub_date_dual_sided2(e, bs, t, stub, exp_roll, exp_stub, cal_) -
     assert result.ufront_stub == exp_stub
     assert result.uback_stub == bs
     assert result.utermination == t
-    assert result.roll == RollDay.Day(exp_roll)
+    assert result.roll == exp_roll
 
 
 def test_infer_stub_date_dual_sided_invalid(cal_) -> None:
@@ -347,7 +347,7 @@ def test_check_regular_swap_mf(eff, term, roll, e_bool, e_ueff, e_uterm, e_roll,
     else:
         assert result.ueffective == e_ueff
         assert result.utermination == e_uterm
-        assert result.roll == RollDay.Day(e_roll)
+        assert result.roll == e_roll
 
 
 @pytest.mark.parametrize(
@@ -505,7 +505,7 @@ def test_get_unadjusted_stub_date_long(eff, term, freq, stub, eom, roll, expecte
             dt(2020, 8, 31),
             dt(2021, 2, 26),
             NoInput(0),
-            RollDay.Day(31),
+            31,
             dt(2020, 8, 31),
             dt(2021, 2, 28),
         ),
@@ -513,11 +513,11 @@ def test_get_unadjusted_stub_date_long(eff, term, freq, stub, eom, roll, expecte
             dt(2021, 2, 26),
             dt(2021, 8, 31),
             NoInput(0),
-            RollDay.Day(31),
+            31,
             dt(2021, 2, 28),
             dt(2021, 8, 31),
         ),
-        (dt(2021, 2, 26), dt(2021, 8, 30), 29, RollDay.Day(29), dt(2021, 2, 28), dt(2021, 8, 29)),
+        (dt(2021, 2, 26), dt(2021, 8, 30), 29, 29, dt(2021, 2, 28), dt(2021, 8, 29)),
     ],
 )
 def test_schedule_eom(e, t, r, exp_roll, exp_ue, exp_ut, cal_) -> None:
@@ -635,7 +635,7 @@ def test_get_unadjusted_long_stub_imm(ue, ut, exp) -> None:
 def test_get_unadjusted_short_stub_imm(ue, ut) -> None:
     result = Schedule(ue, ut, "Q", stub="SHORTFRONT", eom=False)
     assert result.is_regular()
-    assert result.roll == RollDay.IMM()
+    assert result.roll == "IMM"
 
 
 def test_dead_stubs() -> None:
@@ -723,7 +723,7 @@ def test_eval_mode(mode, end, roll) -> None:
         eval_date=dt(2023, 8, 17),
         eval_mode=mode,
     )
-    assert sch.roll == RollDay.Day(roll)
+    assert sch.roll == roll
     assert sch.utermination == end
 
 
@@ -759,15 +759,15 @@ def test_deviate_from_effective_in_inference() -> None:
     )
     assert s.ueffective == dt(2024, 12, 30)
     assert s.utermination == dt(2025, 11, 30)
-    assert s.roll == RollDay.Day(30)
+    assert s.roll == 30
 
 
 @pytest.mark.parametrize(
     ("f", "expected"),
     [
         (Frequency.CalDays(10), NoInput(0)),
-        (Frequency.Months(1, None), RollDay.Day(16)),
-        (Frequency.Months(1, RollDay.Day(16)), RollDay.Day(16)),
+        (Frequency.Months(1, None), 16),
+        (Frequency.Months(1, RollDay.Day(16)), 16),
     ],
 )
 def test_roll_property(f, expected) -> None:
