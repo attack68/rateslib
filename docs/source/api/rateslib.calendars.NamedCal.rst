@@ -34,6 +34,8 @@ NamedCal
       ~NamedCal.is_non_bus_day
       ~NamedCal.is_settlement
       ~NamedCal.lag_bus_days
+      ~NamedCal.adjust
+      ~NamedCal.adjusts
       ~NamedCal.roll
       ~NamedCal.to_json
 
@@ -48,5 +50,7 @@ NamedCal
    .. automethod:: is_non_bus_day
    .. automethod:: is_settlement
    .. automethod:: lag_bus_days
+   .. automethod:: adjust
+   .. automethod:: adjusts
    .. automethod:: roll
    .. automethod:: to_json

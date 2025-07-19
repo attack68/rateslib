@@ -26,8 +26,15 @@ example can be seen in the `Cookbook: Building Custom Curves (Nelson-Siegel) <z_
    * - Feature
      - Description
    * - **Instruments**
-     - - Add new AUD and NZD ``spec`` for IRDs. See :ref:`defaults <defaults-arg-input>`.
-       (`935 <https://github.com/attack68/rateslib/pull/935>`_)
+     - - :red:`Minor Breaking Change!` The :meth:`~rateslib.instruments.FixedRateBond.oaspread`
+         method's arguments are changed to
+         replace ``dirty`` with ``metric``, which provides more flexibility with regards to YTM
+         and inflation bonds, and ``func_tol`` and ``conv_tol`` are added to allow convergence
+         controls with the new OASpread algorithm. The new algorithm uses
+         :meth:`~rateslib.dual.ift_1dim` similar to :meth:`~rateslib.instruments.FixedRateBond.ytm`.
+         (`955 <https://github.com/attack68/rateslib/pull/955>`_)
+       - Add new AUD and NZD ``spec`` for IRDs. See :ref:`defaults <defaults-arg-input>`.
+         (`935 <https://github.com/attack68/rateslib/pull/935>`_)
    * - **Pricing objects: Curves**
      - - :red:`Minor Breaking Change!`
          The classes :class:`~rateslib.curves._TranslatedCurve`,
@@ -66,7 +73,7 @@ example can be seen in the `Cookbook: Building Custom Curves (Nelson-Siegel) <z_
          :class:`~rateslib.fx_volatility._FXSabrSmileMeta` are consolidated into a single object
          :class:`~rateslib.fx_volatility._FXSmileMeta`.
          (`932 <https://github.com/attack68/rateslib/pull/932>`_)
-   * - **Calendars**
+   * - **Calendars & Scheduling**
      - - :red:`Minor Breaking Change!` The :meth:`~rateslib.calendars.Cal.add_days` and
          :meth:`~rateslib.calendars.Cal.lag`
          methods are renamed :meth:`~rateslib.calendars.Cal.add_cal_days` and
@@ -77,6 +84,25 @@ example can be seen in the `Cookbook: Building Custom Curves (Nelson-Siegel) <z_
          :class:`~rateslib.calendars.Adjuster` which is a more generalised object for date
          adjustments, and which allows the method :meth:`~rateslib.calendars.Adjuster.adjust`.
          (`937 <https://github.com/attack68/rateslib/pull/937>`_)
+       - The methods :meth:`~rateslib.calendars.Cal.adjust` and
+         :meth:`~rateslib.calendars.Cal.adjusts` are added for calendar objects. These
+         provide a superset of date adjustment operations compared with
+         :meth:`~rateslib.calendars.Cal.roll`.
+         (`939 <https://github.com/attack68/rateslib/pull/939>`_)
+         (`940 <https://github.com/attack68/rateslib/pull/940>`_)
+         (`942 <https://github.com/attack68/rateslib/pull/942>`_)
+         (`943 <https://github.com/attack68/rateslib/pull/943>`_)
+       - A :class:`~rateslib.calendars.Frequency` enum is added for defining scheduling operations.
+         (`940 <https://github.com/attack68/rateslib/pull/941>`_)
+   * - **Bugs**
+     - - The *NPV* determination of a :class:`~rateslib.instruments.FixedRateBond` now correctly
+         accounts for cashflows of an historical coupon period, which have been rolled forward
+         to the *settlement* date due to a ``calendar`` or a ``modifier``. This corrects some
+         dependent methods, like
+         :meth:`~rateslib.instruments.FixedRateBond.oaspread` and
+         :meth:`~rateslib.instruments.FixedRateBond.rate`.
+         (`950 <https://github.com/attack68/rateslib/pull/950>`_)
+         (`954 <https://github.com/attack68/rateslib/pull/954>`_)
    * - **Developers**
      - - (rust package) PyO3 0.23 -> 0.25  (`d-4 <https://github.com/attack68/rateslib-dev/pull/4>`_)
        - (rust package) Rust-Numpy 0.23 -> 0.25  (`d-4 <https://github.com/attack68/rateslib-dev/pull/4>`_)

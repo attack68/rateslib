@@ -62,12 +62,6 @@ Scheduling
 .. automodapi:: rateslib.scheduling
    :no-heading:
    :no-inheritance-diagram:
-   :skip: DataFrame
-   :skip: Iterator
-   :skip: datetime
-   :skip: product
-   :skip: timedelta
-   :skip: NoInput
 
 Highlighted private functions
 -----------------------------

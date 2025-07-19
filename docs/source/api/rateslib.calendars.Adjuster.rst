@@ -26,7 +26,9 @@ Adjuster
    .. autosummary::
 
       ~Adjuster.adjust
+      ~Adjuster.adjusts
 
    .. rubric:: Methods Documentation
 
    .. automethod:: adjust
+   .. automethod:: adjusts

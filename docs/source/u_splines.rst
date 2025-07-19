@@ -4,6 +4,7 @@
    :suppress:
 
    from rateslib.splines import *
+   from datetime import timedelta
    import matplotlib.pyplot as plt
    from datetime import datetime as dt
    import numpy as np

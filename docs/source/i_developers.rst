@@ -8,7 +8,8 @@ Developers
 
 *Rateslib* is a project designed for Python built with Python and Rust.
 To actively develop it and submit pull requests (PRs) to the repo you will need
-to set up a development environment.
+to set up a development environment. Consistent developers may also request access
+to collaborate on the private development repository `rateslib-dev <https://github.com/attack68/rateslib-dev>`_.
 
 **1) Get the files**
 
@@ -126,14 +127,16 @@ the package. The continuous integration (CI) checks on github perform 8 tasks:
 
 - **Building Documentation**
 
+  Documentation is only available and built in the private development repository
+  `rateslib-dev <https://github.com/attack68/rateslib-dev>`_.
   The documentation is built with *Sphinx* and its extensions. To locally build
   the documentation to debug or visualise any changes before submission, run:
 
   .. code-block::
 
-   (venv) rateslib/>$ cd docs
-   (venv)     docs/>$ make clean
-   (venv)     docs/>$ make html
+   (venv) rateslib-dev/>$ cd docs
+   (venv)         docs/>$ make clean
+   (venv)         docs/>$ make html
 
   In order to build docs without error you will also need to **install pandoc**.
 
@@ -157,9 +160,6 @@ In no particular order...
        working towards stabilising a standalone crate for Rust for linear fixed income.
    * - Swaptions
      - Plan the design architecture and implementation for  *Swaptions* and *IRVolCube*
-   * - Credit Analysis
-     - Build *Curve* transformation methods for analysis
-       between credit discount curves and hazard rates / survival curves.
    * - Index Credit Default Swaps
      - Implement CDS on basket indexes in addition to the single name CDS that already exist.
    * - Callable bonds
@@ -183,6 +183,3 @@ In no particular order...
    * - Interactivity
      - Expand the available tutorials for interactivity, such as using Excel, Jupyterlite, or
        app packages, such as *Streamlit*, *Dash*, *Panel*.
-   * - Documentation
-     - Release v2 of "Coding Interest Rates" which contains all of the mathematics and architecture
-       changes since version 1.0.0.

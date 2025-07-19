@@ -5,7 +5,7 @@ Cal
 
 .. py:class:: Cal(holidays, week_mask)
 
-   A calendar object for making date roll adjustment calculations.
+   A calendar object for making date calculations.
 
    :param holidays: A list of dates that defines holidays.
    :type holidays: list of datetime
@@ -34,6 +34,8 @@ Cal
       ~Cal.is_non_bus_day
       ~Cal.is_settlement
       ~Cal.lag_bus_days
+      ~Cal.adjust
+      ~Cal.adjusts
       ~Cal.roll
       ~Cal.to_json
 
@@ -53,5 +55,7 @@ Cal
    .. automethod:: is_non_bus_day
    .. automethod:: is_settlement
    .. automethod:: lag_bus_days
+   .. automethod:: adjust
+   .. automethod:: adjusts
    .. automethod:: roll
    .. automethod:: to_json

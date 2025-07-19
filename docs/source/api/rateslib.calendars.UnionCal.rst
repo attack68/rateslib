@@ -5,7 +5,7 @@ UnionCal
 
 .. py:class:: UnionCal(calendars, settlement_calendars)
 
-   A calendar object for making date roll adjustment calculations, combining multiple calendars.
+   A calendar object for making date calculations, combining multiple calendars.
 
    See :ref:`User Guide: Calendars <settlement-cals>`.
 
@@ -36,6 +36,8 @@ UnionCal
       ~UnionCal.is_non_bus_day
       ~UnionCal.is_settlement
       ~UnionCal.lag_bus_days
+      ~UnionCal.adjust
+      ~UnionCal.adjusts
       ~UnionCal.roll
       ~UnionCal.to_json
 
@@ -50,5 +52,7 @@ UnionCal
    .. automethod:: is_non_bus_day
    .. automethod:: is_settlement
    .. automethod:: lag_bus_days
+   .. automethod:: adjust
+   .. automethod:: adjusts
    .. automethod:: roll
    .. automethod:: to_json
