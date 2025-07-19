@@ -41,6 +41,22 @@ impl Adjuster {
     fn adjusts_py(&self, dates: Vec<NaiveDateTime>, calendar: Calendar) -> Vec<NaiveDateTime> {
         self.adjusts(&dates, &calendar)
     }
+
+    fn __str__(&self) -> String {
+        match self {
+            Adjuster::Actual {} => "NONE".to_string(),
+            Adjuster::Following {} => "F".to_string(),
+            Adjuster::Previous {} => "P".to_string(),
+            Adjuster::ModifiedFollowing {} => "MF".to_string(),
+            Adjuster::ModifiedPrevious {} => "MP".to_string(),
+            Adjuster::FollowingSettle {} => "FSETTLE".to_string(),
+            Adjuster::PreviousSettle {} => "PSETTLE".to_string(),
+            Adjuster::ModifiedFollowingSettle {} => "MFSETTLE".to_string(),
+            Adjuster::ModifiedPreviousSettle {} => "FSETTLE".to_string(),
+            Adjuster::BusDaysLagSettle { number: n } => format!("{n}B"),
+            Adjuster::CalDaysLagSettle { number: n } => format!("{n}D"),
+        }
+    }
 }
 
 pub(crate) fn get_roll_adjuster_from_str(input: (&str, bool)) -> Result<Adjuster, PyErr> {

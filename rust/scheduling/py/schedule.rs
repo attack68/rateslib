@@ -33,6 +33,11 @@ impl Schedule {
         )
     }
 
+    #[pyo3(name = "is_regular")]
+    fn is_regular_py(&self) -> bool {
+        self.is_regular()
+    }
+
     #[getter]
     #[pyo3(name = "ueffective")]
     fn ueffective_py(&self) -> NaiveDateTime {
