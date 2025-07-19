@@ -138,10 +138,6 @@ pub trait DateRoll {
 
     /// Add a given number of calendar days to a `date` with the result adjusted to a business day that may or may not
     /// allow `settlement`.
-    ///
-    /// *Note*: When adding a positive number of days the only sensible modifiers are
-    /// `Modifier::F` or `Modifier::Act` and when subtracting business days one should
-    /// use `Modifier::P` or `Modifier::Act`.
     fn add_cal_days(&self, date: &NaiveDateTime, days: i32, adjuster: &Adjuster) -> NaiveDateTime
     where
         Self: Sized,

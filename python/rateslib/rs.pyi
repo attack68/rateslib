@@ -20,7 +20,11 @@ class _Scheduling:
         self, ueffective: datetime, utermination: datetime, short: bool, front: bool
     ) -> datetime: ...
 
-class Frequency(_Scheduling):
+class _FrequencyMixins:
+    def string(self) -> str: ...
+    def is_stub(self, ustart: datetime, uend: datetime, front: bool) -> bool: ...
+
+class Frequency(_Scheduling, _FrequencyMixins):
     @classmethod
     def CalDays(cls, number: int) -> Frequency: ...
     @classmethod
@@ -35,6 +39,34 @@ class StubInference:
     LongFront: StubInference
     ShortBack: StubInference
     LongBack: StubInference
+
+class Schedule:
+    ueffective: datetime
+    utermination: datetime
+    ufront_stub: datetime | None
+    uback_stub: datetime | None
+    frequency: Frequency
+    calendar: CalTypes
+    accrual_adjuster: Adjuster
+    payment_adjuster: Adjuster
+    uschedule: list[datetime]
+    aschedule: list[datetime]
+    pschedule: list[datetime]
+
+    def __init__(
+        self,
+        effective: datetime,
+        termination: datetime,
+        frequency: Frequency,
+        calendar: CalTypes,
+        accrual_adjuster: Adjuster,
+        payment_adjuster: Adjuster,
+        front_stub: datetime | None,
+        back_stub: datetime | None,
+        eom: bool,
+        stub_inference: StubInference | None,
+    ) -> None: ...
+    def is_regular(self) -> bool: ...
 
 class Convention:
     Act365F: Convention

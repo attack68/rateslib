@@ -23,6 +23,9 @@ pub enum Frequency {
 
 /// Used to define periods of financial instrument schedules.
 pub trait Scheduling {
+    /// Validate if an unadjusted date aligns with the object.
+    fn try_udate(&self, udate: &NaiveDateTime) -> Result<NaiveDateTime, PyErr>;
+
     /// Calculate the next unadjusted scheduling period date from an unadjusted base date.
     fn try_unext(&self, udate: &NaiveDateTime) -> Result<NaiveDateTime, PyErr>;
 
@@ -232,57 +235,6 @@ pub trait Scheduling {
 }
 
 impl Frequency {
-    /// Validate if an unadjusted date aligns with the specified [Frequency] variant.
-    ///
-    /// # Notes
-    /// This method will return error in one of two cases:
-    /// - The `udate` does not align with the fully defined variant.
-    /// - The variant is not fully defined (e.g. a [`Months`](Frequency) variant is missing
-    ///   a [`RollDay`](RollDay)) and cannot make the determination.
-    ///
-    /// Therefore,
-    /// - For a [CalDays](Frequency) variant or [Zero](Frequency) variant, any ``udate`` is valid.
-    /// - For a [BusDays](Frequency) variant, ``udate`` must be a business day.
-    /// - For a [Months](Frequency) variant, ``udate`` must align with the [RollDay]. If no [RollDay] is
-    ///   specified an error will always be returned.
-    ///
-    /// # Examples
-    /// ```rust
-    /// # use rateslib::scheduling::{Frequency, RollDay, ndt};
-    /// let result = Frequency::Months{number: 1, roll: Some(RollDay::IMM{})}.try_udate(&ndt(2025, 7, 16));
-    /// assert!(result.is_ok());
-    ///
-    /// let result = Frequency::Months{number: 1, roll: None}.try_udate(&ndt(2025, 7, 16));
-    /// assert!(result.is_err());
-    /// ```
-    pub fn try_udate(&self, udate: &NaiveDateTime) -> Result<NaiveDateTime, PyErr> {
-        match self {
-            Frequency::BusDays {
-                number: _n,
-                calendar: c,
-            } => {
-                if c.is_bus_day(udate) {
-                    Ok(*udate)
-                } else {
-                    Err(PyValueError::new_err(
-                        "`udate` is not a business day of the given calendar.",
-                    ))
-                }
-            }
-            Frequency::CalDays { number: _n } => Ok(*udate),
-            Frequency::Months {
-                number: _n,
-                roll: r,
-            } => match r {
-                Some(r) => r.try_udate(udate),
-                None => Err(PyValueError::new_err(
-                    "`udate` cannot be validated since RollDay is None.",
-                )),
-            },
-            Frequency::Zero {} => Ok(*udate),
-        }
-    }
-
     /// Get a vector of possible, fully specified [Frequency] variants for a series of unadjusted dates.
     ///
     /// # Notes
@@ -334,50 +286,60 @@ impl Frequency {
             }
         }
     }
-
-    //     /// Get a vector of possible, fully specified [Frequency] variants for pairs of unadjusted dates.
-    //     ///
-    //     /// # Notes
-    //     /// This method takes the intersection of results from [Frequency::try_vec_from] for each
-    //     /// element of each of the possible pairs of dates. If there are none possible this will
-    //     /// return error.
-    //     ///
-    //     /// # Examples
-    //     /// ```rust
-    //     /// # use rateslib::scheduling::{Frequency, ndt, RollDay};
-    //     /// let f = Frequency::Months{number: 3, roll: None};
-    //     /// let result = f.try_vec_from_intersection(&vec![ndt(2024, 2, 29)], &vec![ndt(2025, 2, 28)]);
-    //     /// assert_eq!(result.unwrap(), vec![
-    //     ///     Frequency::Months{number: 3, roll: Some(RollDay::Day(29))},
-    //     ///     Frequency::Months{number: 3, roll: Some(RollDay::Day(30))},
-    //     ///     Frequency::Months{number: 3, roll: Some(RollDay::Day(31))},
-    //     ///     Frequency::Months{number: 3, roll: Some(RollDay::Day(28))},
-    //     /// ]);
-    //     /// ```
-    //     pub fn try_vec_from_union(
-    //         &self,
-    //         ueffectives: &Vec<NaiveDateTime>,
-    //         uterminations: &Vec<NaiveDateTime>,
-    //     ) -> Result<Vec<Frequency>, PyErr> {
-    //         let mut uef = self.try_vec_from(ueffectives)?;
-    //         let uet = self.try_vec_from(uterminations)?;
-    //         for el in uet {
-    //             if !uef.iter().any(|f| *f == el) {
-    //                 uef.push(el)
-    //             }
-    //         }
-    //
-    //         if uef.len() == 0 {
-    //             Err(PyValueError::new_err(
-    //                 "No Frequency aligns with both ueffective and utermination.",
-    //             ))
-    //         } else {
-    //             Ok(uef.into_iter().collect())
-    //         }
-    //     }
 }
 
 impl Scheduling for Frequency {
+    /// Validate if an unadjusted date aligns with the specified [Frequency] variant.
+    ///
+    /// # Notes
+    /// This method will return error in one of two cases:
+    /// - The `udate` does not align with the fully defined variant.
+    /// - The variant is not fully defined (e.g. a [`Months`](Frequency) variant is missing
+    ///   a [`RollDay`](RollDay)) and cannot make the determination.
+    ///
+    /// Therefore,
+    /// - For a [CalDays](Frequency) variant or [Zero](Frequency) variant, any ``udate`` is valid.
+    /// - For a [BusDays](Frequency) variant, ``udate`` must be a business day.
+    /// - For a [Months](Frequency) variant, ``udate`` must align with the [RollDay]. If no [RollDay] is
+    ///   specified an error will always be returned.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use rateslib::scheduling::{Frequency, RollDay, ndt};
+    /// let result = Frequency::Months{number: 1, roll: Some(RollDay::IMM{})}.try_udate(&ndt(2025, 7, 16));
+    /// assert!(result.is_ok());
+    ///
+    /// let result = Frequency::Months{number: 1, roll: None}.try_udate(&ndt(2025, 7, 16));
+    /// assert!(result.is_err());
+    /// ```
+    fn try_udate(&self, udate: &NaiveDateTime) -> Result<NaiveDateTime, PyErr> {
+        match self {
+            Frequency::BusDays {
+                number: _n,
+                calendar: c,
+            } => {
+                if c.is_bus_day(udate) {
+                    Ok(*udate)
+                } else {
+                    Err(PyValueError::new_err(
+                        "`udate` is not a business day of the given calendar.",
+                    ))
+                }
+            }
+            Frequency::CalDays { number: _n } => Ok(*udate),
+            Frequency::Months {
+                number: _n,
+                roll: r,
+            } => match r {
+                Some(r) => r.try_udate(udate),
+                None => Err(PyValueError::new_err(
+                    "`udate` cannot be validated since RollDay is None.",
+                )),
+            },
+            Frequency::Zero {} => Ok(*udate),
+        }
+    }
+
     /// Calculate the next unadjusted scheduling period date from an unadjusted base date.
     ///
     /// # Notes

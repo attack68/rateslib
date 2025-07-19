@@ -85,6 +85,7 @@ def test_single_period_schedule():
         back_stub=None,
         stub_inference=None,
     )
+    assert s.uschedule == [dt(2025, 3, 19), dt(2025, 9, 19)]
 
 
 def test_single_period_schedule2():

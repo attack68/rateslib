@@ -70,6 +70,7 @@ from rateslib.periods import FXOptionPeriod as FXOptionPeriod
 from rateslib.periods import FXPutPeriod as FXPutPeriod
 from rateslib.periods import IndexCashflow as IndexCashflow
 from rateslib.periods import IndexFixedPeriod as IndexFixedPeriod
+from rateslib.rs import Adjuster as Adjuster
 from rateslib.rs import (
     Cal,
     FlatBackwardInterpolator,
