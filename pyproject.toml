@@ -149,7 +149,7 @@ max-complexity = 14
 files = ["python/"]
 exclude = [
     "python/tests",
-    "/scheduling/wrappers.py"
+    # "/scheduling/wrappers.py"
     # "/instruments/fx_volatility/strategies.py",
     # "/instruments/generics.py",
     # "/instruments/rates/inflation.py",
