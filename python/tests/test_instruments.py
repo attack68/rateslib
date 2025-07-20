@@ -1528,6 +1528,20 @@ class TestIIRS:
         result = iirs.fixings_table()
         assert isinstance(result, DataFrame)
 
+    def test_fixing_in_the_past(self):
+        # this test will also initialise `index_base` from the provided `index_fixings`
+        discount = Curve({dt(2025, 5, 15): 1.0, dt(2027, 5, 15): 0.96})
+        inflation = Curve(
+            {dt(2025, 4, 1): 1.0, dt(2027, 5, 1): 0.98}, index_base=100.0, index_lag=0
+        )
+        fixings = Series(
+            [97, 98, 99, 100.0],
+            index=[dt(2025, 1, 1), dt(2025, 2, 1), dt(2025, 3, 1), dt(2025, 4, 1)],
+        )
+        iirs = IIRS(dt(2025, 5, 15), "1y", "Q", index_fixings=fixings)
+        result = iirs.rate(curves=[inflation, discount])
+        assert abs(result - 0.938782232) < 1e-8
+
 
 class TestSBS:
     def test_sbs_npv(self, curve) -> None:
@@ -1818,6 +1832,20 @@ class TestZCIS:
         with pytest.raises(ValueError, match="Forecasting the `index_base`"):  # noqa: SIM117
             with pytest.warns(UserWarning):
                 zcis.rate()
+
+    def test_fixing_in_the_past(self):
+        # this test will also initialise `index_base` from the provided `index_fixings`
+        discount = Curve({dt(2025, 5, 15): 1.0, dt(2027, 5, 15): 0.96})
+        inflation = Curve(
+            {dt(2025, 4, 1): 1.0, dt(2027, 5, 1): 0.98}, index_base=100.0, index_lag=0
+        )
+        fixings = Series(
+            [97, 98, 99, 100.0],
+            index=[dt(2025, 1, 1), dt(2025, 2, 1), dt(2025, 3, 1), dt(2025, 4, 1)],
+        )
+        zcis = ZCIS(dt(2025, 5, 15), "1y", spec="eur_zcis", leg2_index_fixings=fixings)
+        result = zcis.rate(curves=[inflation, discount])
+        assert abs(result - 2.8742266148532813) < 1e-8
 
 
 class TestValue:

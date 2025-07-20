@@ -1738,7 +1738,7 @@ class CreditImpliedCurve(_WithOperations, _BaseCurve):
 def index_value(
     index_lag: int,
     index_method: str,
-    index_fixings: DualTypes | Series[DualTypes] | NoInput = NoInput(0),  # type: ignore[type-var]
+    index_fixings: Series[DualTypes] | DualTypes | NoInput = NoInput(0),  # type: ignore[type-var]
     index_date: datetime_ = NoInput(0),
     index_curve: CurveOption_ = NoInput(0),
 ) -> DualTypes | NoInput:
