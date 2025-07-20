@@ -305,7 +305,7 @@ impl Scheduling for Frequency {
     ///
     /// # Examples
     /// ```rust
-    /// # use rateslib::scheduling::{Frequency, RollDay, ndt};
+    /// # use rateslib::scheduling::{Frequency, RollDay, ndt, Scheduling};
     /// let result = Frequency::Months{number: 1, roll: Some(RollDay::IMM{})}.try_udate(&ndt(2025, 7, 16));
     /// assert!(result.is_ok());
     ///
