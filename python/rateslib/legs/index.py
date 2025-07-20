@@ -26,17 +26,17 @@ class _IndexLegMixin:
     index_lag: int
 
     @property
-    def index_fixings(self) -> DualTypes | list[DualTypes] | Series[DualTypes] | NoInput:  # type: ignore[type-var]
+    def index_fixings(self) -> Series[DualTypes] | DualTypes_:  # type: ignore[type-var]
         return self._index_fixings
 
     @index_fixings.setter
     def index_fixings(
         self,
-        value: DualTypes | Series[DualTypes] | NoInput,  # type: ignore[type-var]
+        value: Series[DualTypes] | DualTypes_,  # type: ignore[type-var]
     ) -> None:
         if isinstance(value, Series):
             value = _validate_index_fixings_as_series(value)  # type: ignore[arg-type]
-        self._index_fixings: DualTypes | Series[DualTypes] | NoInput = value  # type: ignore[type-var]
+        self._index_fixings: Series[DualTypes] | DualTypes_ = value  # type: ignore[type-var]
 
         if isinstance(value, NoInput):
             for p in [_ for _ in self.periods if type(_) is not Cashflow]:
@@ -163,8 +163,8 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
     def __init__(
         self,
         *args: Any,
-        index_base: DualTypes | Series[DualTypes] | NoInput = NoInput(0),  # type: ignore[type-var]
-        index_fixings: DualTypes | Series[DualTypes] | NoInput = NoInput(0),  # type: ignore[type-var]
+        index_base: Series[DualTypes] | DualTypes_ = NoInput(0),  # type: ignore[type-var]
+        index_fixings: Series[DualTypes] | DualTypes_ = NoInput(0),  # type: ignore[type-var]
         index_method: str | NoInput = NoInput(0),
         index_lag: int | NoInput = NoInput(0),
         **kwargs: Any,
@@ -344,7 +344,7 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
         self,
         *args: Any,
         index_base: DualTypes,
-        index_fixings: DualTypes_ | Series[DualTypes] = NoInput(0),  # type: ignore[type-var]
+        index_fixings: Series[DualTypes] | DualTypes_ = NoInput(0),  # type: ignore[type-var]
         index_method: str_ = NoInput(0),
         index_lag: int_ = NoInput(0),
         fixed_rate: DualTypes_ = NoInput(0),
