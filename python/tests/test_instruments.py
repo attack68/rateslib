@@ -1866,6 +1866,13 @@ class TestValue:
         expected = 4.074026613753926
         assert result == expected
 
+    def test_on_rate(self, curve) -> None:
+        c = Curve({dt(2000, 1, 1): 1.0, dt(2000, 7, 1): 1.0})
+        v = Value(effective=dt(2000, 2, 1), metric="o/n_rate")
+        result = v.rate(c)
+        expected = 0.0
+        assert abs(result - expected) < 1e-8
+
     def test_index_value(self) -> None:
         curve = Curve(
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995},
