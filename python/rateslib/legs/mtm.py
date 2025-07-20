@@ -143,7 +143,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         elif isinstance(value, float | Dual | Dual2 | Variable):
             self._fx_fixings = [value]
         elif isinstance(value, Series):
-            self._fx_fixings = self._get_fx_fixings_from_series(value)  # type: ignore[arg-type]
+            self._fx_fixings = self._get_fx_fixings_from_series(value)
         elif isinstance(value, tuple):
             self._fx_fixings = [value[0]]
             self._fx_fixings.extend(self._get_fx_fixings_from_series(value[1], ini_period=1))

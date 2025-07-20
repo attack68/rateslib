@@ -35,7 +35,7 @@ class _IndexLegMixin:
         value: Series[DualTypes] | DualTypes_,  # type: ignore[type-var]
     ) -> None:
         if isinstance(value, Series):
-            value = _validate_index_fixings_as_series(value)  # type: ignore[arg-type]
+            value = _validate_index_fixings_as_series(value)
         self._index_fixings: Series[DualTypes] | DualTypes_ = value  # type: ignore[type-var]
 
         if isinstance(value, NoInput):
@@ -47,7 +47,7 @@ class _IndexLegMixin:
                 p.index_fixings = index_value(  # type: ignore[union-attr]
                     self.index_lag,
                     self.index_method,
-                    value,  # type: ignore[arg-type]
+                    value,
                     date_,
                     NoInput(0),
                 )
@@ -63,7 +63,7 @@ class _IndexLegMixin:
     @index_base.setter
     def index_base(self, value: DualTypes | Series[DualTypes] | NoInput) -> None:  # type: ignore[type-var]
         if isinstance(value, Series):
-            value = _validate_index_fixings_as_series(value)  # type: ignore[arg-type]
+            value = _validate_index_fixings_as_series(value)
             ret = index_value(
                 self.index_lag, self.index_method, value, self.schedule.effective, NoInput(0)
             )

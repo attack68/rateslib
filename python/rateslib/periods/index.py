@@ -471,7 +471,7 @@ def _index_series_to_value(
     index_fixings: Series[DualTypes] | DualTypes | NoInput,  # type: ignore[type-var]
 ) -> DualTypes_:
     if isinstance(index_fixings, Series):
-        val = index_value(index_lag, index_method, index_fixings, index_date, NoInput(0))  # type: ignore[arg-type]
+        val = index_value(index_lag, index_method, index_fixings, index_date, NoInput(0))
     else:
         val = index_fixings
     return val

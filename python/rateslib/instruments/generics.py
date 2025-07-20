@@ -158,7 +158,7 @@ class Value(Metrics):
         elif metric == "index_value":
             ret = curve_0.index_value(self.effective, curve_0.meta.index_lag, "daily")
         elif metric == "o/n_rate":
-            ret = curve_0.rate(self.effective, "1D")
+            ret = curve_0.rate(self.effective, "1D")  # type: ignore[assignment]
         else:
             raise ValueError(
                 "`metric`must be in {'curve_value', 'cc_zero_rate', 'index_value', 'o/n_rate'}."
