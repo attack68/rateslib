@@ -2547,7 +2547,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
                     if isinstance(pseudo_period.fixings, Series):
                         last_fixing = pseudo_period.fixings.iloc[-1]
                     else:
-                        last_fixing = pseudo_period.fixings[-1]  # type: ignore[index, assignment]
+                        last_fixing = pseudo_period.fixings[-1]  # type: ignore[index]
                     warnings.warn(
                         "A `Curve` was not supplied. Residual required fixings not yet "
                         "published are forecast from the last known fixing.",
