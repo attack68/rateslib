@@ -1829,14 +1829,14 @@ def index_value(
             return _index_value_from_series_no_curve(
                 index_lag,
                 index_method,
-                index_fixings,  # type: ignore[arg-type]
+                index_fixings,
                 index_date,
             )
         else:
             return _index_value_from_mixed_series_and_curve(
                 index_lag,
                 index_method,
-                index_fixings,  # type: ignore[arg-type]
+                index_fixings,
                 index_date,
                 index_curve,
             )
