@@ -35,6 +35,9 @@ example can be seen in the `Cookbook: Building Custom Curves (Nelson-Siegel) <z_
          (`955 <https://github.com/attack68/rateslib/pull/955>`_)
        - Add new AUD and NZD ``spec`` for IRDs. See :ref:`defaults <defaults-arg-input>`.
          (`935 <https://github.com/attack68/rateslib/pull/935>`_)
+       - A :class:`~rateslib.instrument.Value` can now calculate an *"o/n_rate"* ``metric``
+         improving the simplicity of curve calibration using a :class:`~rateslib.solver.Solver`.
+         (`965 <https://github.com/attack68/rateslib/pull/965>`_)
    * - **Pricing objects: Curves**
      - - :red:`Minor Breaking Change!`
          The classes :class:`~rateslib.curves._TranslatedCurve`,
@@ -103,6 +106,14 @@ example can be seen in the `Cookbook: Building Custom Curves (Nelson-Siegel) <z_
          :meth:`~rateslib.instruments.FixedRateBond.rate`.
          (`950 <https://github.com/attack68/rateslib/pull/950>`_)
          (`954 <https://github.com/attack68/rateslib/pull/954>`_)
+       - The `index_base` parameter on a :class:`~rateslib.instruments.ZCIS` or
+         :class:`~rateslib.instruments.IIRS` can now be forecast from provided `index_fixings`.
+         (`963 <https://github.com/attack68/rateslib/pull/963>`_)
+       - A :class:`~rateslib.solver.Solver` now sets the AD order of all of its contained *Curves*
+         and `pre_solvers` eliminating *TypeErrors* when performing
+         :meth:`~rateslib.solver.Solver.gamma` in combination with
+         :class:`~rateslib.curves.CompositeCurve`.
+         (`964 <https://github.com/attack68/rateslib/pull/964>`_)
    * - **Developers**
      - - (rust package) PyO3 0.23 -> 0.25  (`d-4 <https://github.com/attack68/rateslib-dev/pull/4>`_)
        - (rust package) Rust-Numpy 0.23 -> 0.25  (`d-4 <https://github.com/attack68/rateslib-dev/pull/4>`_)
