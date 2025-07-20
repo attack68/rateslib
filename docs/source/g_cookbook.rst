@@ -44,6 +44,7 @@ into any one category.
 
     z_bond_conventions.rst
     z_index_bonds_and_fixings.ipynb
+    z_inflation_indexes.ipynb
     z_stubs.rst
     z_fixings.rst
     z_historical_swap.ipynb
