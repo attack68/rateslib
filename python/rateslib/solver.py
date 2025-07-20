@@ -1618,7 +1618,7 @@ class Solver(Gradients, _WithState):
         for pre_solver in self.pre_solvers:
             pre_solver._set_ad_order(order=order)
         self._ad = order
-        for _, curve in self.curves.items():
+        for _, curve in self.pre_curves.items():
             curve._set_ad_order(order)
         if not isinstance(self.fx, NoInput):
             self.fx._set_ad_order(order)
