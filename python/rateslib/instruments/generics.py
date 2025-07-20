@@ -61,7 +61,7 @@ class Value(Metrics):
         list of such. Only uses the first *Curve* in a list.
     convention : str, optional,
         Day count convention used with certain ``metric``.
-    metric : str in {"curve_value", "index_value", "cc_zero_rate"}, optional
+    metric : str in {"curve_value", "index_value", "cc_zero_rate", "o/n_rate"}, optional
         Configures which value to extract from the *Curve*.
 
     Examples
@@ -120,7 +120,7 @@ class Value(Metrics):
             Not used.
         base : str, optional
             Not used.
-        metric: str in {"curve_value", "index_value", "cc_zero_rate"}, optional
+        metric: str in {"curve_value", "index_value", "cc_zero_rate", "o/n_rate"}, optional
             Configures which type of value to return from the applicable *Curve*.
 
         Returns
@@ -147,19 +147,23 @@ class Value(Metrics):
         metric = _drb(self.metric, metric).lower()
         curve_0: _BaseCurve = _validate_curve_not_no_input(_validate_curve_is_not_dict(curves_[0]))
         if metric == "curve_value":
-            return curve_0[self.effective]
+            ret: DualTypes = curve_0[self.effective]
         elif metric == "cc_zero_rate":
             if curve_0._base_type != _CurveType.dfs:
                 raise TypeError(
                     "`curve` used with `metric`='cc_zero_rate' must be discount factor based.",
                 )
             dcf_ = dcf(curve_0.nodes.initial, self.effective, self.convention)
-            ret: DualTypes = (dual_log(curve_0[self.effective]) / -dcf_) * 100
-            return ret
+            ret = (dual_log(curve_0[self.effective]) / -dcf_) * 100
         elif metric == "index_value":
             ret = curve_0.index_value(self.effective, curve_0.meta.index_lag, "daily")
-            return ret
-        raise ValueError("`metric`must be in {'curve_value', 'cc_zero_rate', 'index_value'}.")
+        elif metric == "o/n_rate":
+            ret = curve_0.rate(self.effective, "1D")
+        else:
+            raise ValueError(
+                "`metric`must be in {'curve_value', 'cc_zero_rate', 'index_value', 'o/n_rate'}."
+            )
+        return ret
 
     def npv(self, *args: Any, **kwargs: Any) -> NoReturn:
         raise NotImplementedError("`Value` instrument has no concept of NPV.")
