@@ -2652,7 +2652,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
 
         .. ipython:: python
            :suppress:
-       
+
            from rateslib import FloatRateNote
            from pandas import date_range
 

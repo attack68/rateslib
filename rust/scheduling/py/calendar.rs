@@ -94,11 +94,13 @@ impl Cal {
         Ok(Cal::new(holidays, week_mask))
     }
 
+    /// A list of specifically provided non-business days.
     #[getter]
     fn holidays(&self) -> PyResult<Vec<NaiveDateTime>> {
         Ok(self.holidays.clone().into_iter().collect())
     }
 
+    /// A list of days in the week defined as weekends.
     #[getter]
     fn week_mask(&self) -> PyResult<HashSet<u8>> {
         Ok(HashSet::from_iter(
@@ -212,7 +214,7 @@ impl Cal {
     ///
     /// .. seealso::
     ///
-    ///    :meth:`~rateslib.calendars.Cal.lag_bus_days`: Add business days to inputs which are potentially
+    ///    :meth:`~rateslib.scheduling.Cal.lag_bus_days`: Add business days to inputs which are potentially
     ///    non-business dates.
     #[pyo3(name = "add_bus_days")]
     fn add_bus_days_py(
@@ -347,7 +349,7 @@ impl Cal {
     /// - Subtracting one day will roll the date **backwards** to the previous available business day.
     ///
     /// Adding (or subtracting) further business days adopts the
-    /// :meth:`~rateslib.calendars.Cal.add_bus_days` approach with a valid result.
+    /// :meth:`~rateslib.scheduling.Cal.add_bus_days` approach with a valid result.
     #[pyo3(name = "lag_bus_days")]
     fn lag_bus_days_py(&self, date: NaiveDateTime, days: i32, settlement: bool) -> NaiveDateTime {
         self.lag_bus_days(&date, days, settlement)
@@ -439,6 +441,7 @@ impl UnionCal {
         Ok(UnionCal::new(calendars, settlement_calendars))
     }
 
+    /// A list of specifically provided non-business days.
     #[getter]
     fn holidays(&self) -> PyResult<Vec<NaiveDateTime>> {
         let mut set = self.calendars.iter().fold(IndexSet::new(), |acc, x| {
@@ -448,6 +451,7 @@ impl UnionCal {
         Ok(Vec::from_iter(set))
     }
 
+    /// A list of days in the week defined as weekends.
     #[getter]
     fn week_mask(&self) -> PyResult<HashSet<u8>> {
         let mut s: HashSet<u8> = HashSet::new();
@@ -458,11 +462,13 @@ impl UnionCal {
         Ok(s)
     }
 
+    /// A list of :class:`~rateslib.scheduling.Cal` objects defining **business days**.
     #[getter]
     fn calendars(&self) -> Vec<Cal> {
         self.calendars.clone()
     }
 
+    /// A list of :class:`~rateslib.scheduling.Cal` objects defining **settleable days**.
     #[getter]
     fn settlement_calendars(&self) -> Option<Vec<Cal>> {
         self.settlement_calendars.clone()
@@ -470,7 +476,7 @@ impl UnionCal {
 
     /// Return whether the `date` is a business day.
     ///
-    /// See :meth:`Cal.is_bus_day <rateslib.calendars.Cal.is_bus_day>`.
+    /// See :meth:`Cal.is_bus_day <rateslib.scheduling.Cal.is_bus_day>`.
     #[pyo3(name = "is_bus_day")]
     fn is_bus_day_py(&self, date: NaiveDateTime) -> bool {
         self.is_bus_day(&date)
@@ -478,7 +484,7 @@ impl UnionCal {
 
     /// Return whether the `date` is **not** a business day.
     ///
-    /// See :meth:`Cal.is_non_bus_day <rateslib.calendars.Cal.is_non_bus_day>`.
+    /// See :meth:`Cal.is_non_bus_day <rateslib.scheduling.Cal.is_non_bus_day>`.
     #[pyo3(name = "is_non_bus_day")]
     fn is_non_bus_day_py(&self, date: NaiveDateTime) -> bool {
         self.is_non_bus_day(&date)
@@ -488,7 +494,7 @@ impl UnionCal {
     ///
     /// If no such associated settlement calendar exists this will return *True*.
     ///
-    /// See :meth:`Cal.is_settlement <rateslib.calendars.Cal.is_settlement>`.
+    /// See :meth:`Cal.is_settlement <rateslib.scheduling.Cal.is_settlement>`.
     #[pyo3(name = "is_settlement")]
     fn is_settlement_py(&self, date: NaiveDateTime) -> bool {
         self.is_settlement(&date)
@@ -496,7 +502,7 @@ impl UnionCal {
 
     /// Return a date separated by calendar days from input date, and rolled with a modifier.
     ///
-    /// See :meth:`Cal.add_days <rateslib.calendars.Cal.add_days>`.
+    /// See :meth:`Cal.add_cal_days <rateslib.scheduling.Cal.add_cal_days>`.
     #[pyo3(name = "add_cal_days")]
     fn add_cal_days_py(
         &self,
@@ -509,7 +515,7 @@ impl UnionCal {
 
     /// Return a business date separated by `days` from an input business `date`.
     ///
-    /// See :meth:`Cal.add_bus_days <rateslib.calendars.Cal.add_bus_days>`.
+    /// See :meth:`Cal.add_bus_days <rateslib.scheduling.Cal.add_bus_days>`.
     #[pyo3(name = "add_bus_days")]
     fn add_bus_days_py(
         &self,
@@ -522,7 +528,7 @@ impl UnionCal {
 
     /// Return a date separated by months from an input date, and rolled with a modifier.
     ///
-    /// See :meth:`Cal.add_months <rateslib.calendars.Cal.add_months>`.
+    /// See :meth:`Cal.add_months <rateslib.scheduling.Cal.add_months>`.
     #[pyo3(name = "add_months")]
     fn add_months_py(
         &self,
@@ -540,7 +546,7 @@ impl UnionCal {
 
     /// Adjust a non-business date to a business date under a specific modification rule.
     ///
-    /// See :meth:`Cal.adjust <rateslib.calendars.Cal.adjust>`.
+    /// See :meth:`Cal.adjust <rateslib.scheduling.Cal.adjust>`.
     #[pyo3(name = "adjust")]
     fn adjust_py(&self, date: NaiveDateTime, adjuster: Adjuster) -> PyResult<NaiveDateTime> {
         Ok(self.adjust(&date, &adjuster))
@@ -548,7 +554,7 @@ impl UnionCal {
 
     /// Adjust a list of dates under a date adjustment rule.
     ///
-    /// See :meth:`Cal.adjusts <rateslib.calendars.Cal.adjusts>`.
+    /// See :meth:`Cal.adjusts <rateslib.scheduling.Cal.adjusts>`.
     #[pyo3(name = "adjusts")]
     fn adjusts_py(
         &self,
@@ -560,7 +566,7 @@ impl UnionCal {
 
     /// Roll a date under a simplified adjustment rule.
     ///
-    /// See :meth:`Cal.roll <rateslib.calendars.Cal.roll>`.
+    /// See :meth:`Cal.roll <rateslib.scheduling.Cal.roll>`.
     #[pyo3(name = "roll")]
     fn roll_py(
         &self,
@@ -574,7 +580,7 @@ impl UnionCal {
 
     /// Adjust a date by a number of business days, under lag rules.
     ///
-    /// See :meth:`Cal.lag_bus_days <rateslib.calendars.Cal.lag_bus_days>`.
+    /// See :meth:`Cal.lag_bus_days <rateslib.scheduling.Cal.lag_bus_days>`.
     #[pyo3(name = "lag_bus_days")]
     fn lag_bus_days_py(&self, date: NaiveDateTime, days: i32, settlement: bool) -> NaiveDateTime {
         self.lag_bus_days(&date, days, settlement)
@@ -582,7 +588,7 @@ impl UnionCal {
 
     /// Return a list of business dates in a range.
     ///
-    /// See :meth:`Cal.bus_date_range <rateslib.calendars.Cal.bus_date_range>`.
+    /// See :meth:`Cal.bus_date_range <rateslib.scheduling.Cal.bus_date_range>`.
     #[pyo3(name = "bus_date_range")]
     fn bus_date_range_py(
         &self,
@@ -594,7 +600,7 @@ impl UnionCal {
 
     /// Return a list of calendar dates in a range.
     ///
-    /// See :meth:`Cal.cal_date_range <rateslib.calendars.Cal.cal_date_range>`.
+    /// See :meth:`Cal.cal_date_range <rateslib.scheduling.Cal.cal_date_range>`.
     #[pyo3(name = "cal_date_range")]
     fn cal_date_range_py(
         &self,
@@ -642,21 +648,25 @@ impl NamedCal {
         NamedCal::try_new(&name)
     }
 
+    /// A list of specifically provided non-business days.
     #[getter]
     fn holidays(&self) -> PyResult<Vec<NaiveDateTime>> {
         self.union_cal.holidays()
     }
 
+    /// A list of days in the week defined as weekends.
     #[getter]
     fn week_mask(&self) -> PyResult<HashSet<u8>> {
         self.union_cal.week_mask()
     }
 
+    /// The string identifier for this constructed calendar.
     #[getter]
     fn name(&self) -> String {
         self.name.clone()
     }
 
+    /// The wrapped :class:`~rateslib.scheduling.UnionCal` object.
     #[getter]
     fn union_cal(&self) -> UnionCal {
         self.union_cal.clone()
@@ -664,7 +674,7 @@ impl NamedCal {
 
     /// Return whether the `date` is a business day.
     ///
-    /// See :meth:`Cal.is_bus_day <rateslib.calendars.Cal.is_bus_day>`.
+    /// See :meth:`Cal.is_bus_day <rateslib.scheduling.Cal.is_bus_day>`.
     #[pyo3(name = "is_bus_day")]
     fn is_bus_day_py(&self, date: NaiveDateTime) -> bool {
         self.is_bus_day(&date)
@@ -672,7 +682,7 @@ impl NamedCal {
 
     /// Return whether the `date` is **not** a business day.
     ///
-    /// See :meth:`Cal.is_non_bus_day <rateslib.calendars.Cal.is_non_bus_day>`.
+    /// See :meth:`Cal.is_non_bus_day <rateslib.scheduling.Cal.is_non_bus_day>`.
     #[pyo3(name = "is_non_bus_day")]
     fn is_non_bus_day_py(&self, date: NaiveDateTime) -> bool {
         self.is_non_bus_day(&date)
@@ -682,7 +692,7 @@ impl NamedCal {
     ///
     /// If no such associated settlement calendar exists this will return *True*.
     ///
-    /// See :meth:`Cal.is_settlement <rateslib.calendars.Cal.is_settlement>`.
+    /// See :meth:`Cal.is_settlement <rateslib.scheduling.Cal.is_settlement>`.
     #[pyo3(name = "is_settlement")]
     fn is_settlement_py(&self, date: NaiveDateTime) -> bool {
         self.is_settlement(&date)
@@ -690,7 +700,7 @@ impl NamedCal {
 
     /// Return a date separated by calendar days from input date, and rolled with a modifier.
     ///
-    /// See :meth:`Cal.add_days <rateslib.calendars.Cal.add_days>`.
+    /// See :meth:`Cal.add_cal_days <rateslib.scheduling.Cal.add_cal_days>`.
     #[pyo3(name = "add_cal_days")]
     fn add_cal_days_py(
         &self,
@@ -703,7 +713,7 @@ impl NamedCal {
 
     /// Return a business date separated by `days` from an input business `date`.
     ///
-    /// See :meth:`Cal.add_bus_days <rateslib.calendars.Cal.add_bus_days>`.
+    /// See :meth:`Cal.add_bus_days <rateslib.scheduling.Cal.add_bus_days>`.
     #[pyo3(name = "add_bus_days")]
     fn add_bus_days_py(
         &self,
@@ -716,7 +726,7 @@ impl NamedCal {
 
     /// Return a date separated by months from an input date, and rolled with a modifier.
     ///
-    /// See :meth:`Cal.add_months <rateslib.calendars.Cal.add_months>`.
+    /// See :meth:`Cal.add_months <rateslib.scheduling.Cal.add_months>`.
     #[pyo3(name = "add_months")]
     fn add_months_py(
         &self,
@@ -734,7 +744,7 @@ impl NamedCal {
 
     /// Adjust a non-business date to a business date under a specific modification rule.
     ///
-    /// See :meth:`Cal.adjust <rateslib.calendars.Cal.adjust>`.
+    /// See :meth:`Cal.adjust <rateslib.scheduling.Cal.adjust>`.
     #[pyo3(name = "adjust")]
     fn adjust_py(&self, date: NaiveDateTime, adjuster: Adjuster) -> PyResult<NaiveDateTime> {
         Ok(self.adjust(&date, &adjuster))
@@ -742,7 +752,7 @@ impl NamedCal {
 
     /// Adjust a list of dates under a date adjustment rule.
     ///
-    /// See :meth:`Cal.adjusts <rateslib.calendars.Cal.adjusts>`.
+    /// See :meth:`Cal.adjusts <rateslib.scheduling.Cal.adjusts>`.
     #[pyo3(name = "adjusts")]
     fn adjusts_py(
         &self,
@@ -754,7 +764,7 @@ impl NamedCal {
 
     /// Roll a date under a simplified adjustment rule.
     ///
-    /// See :meth:`Cal.roll <rateslib.calendars.Cal.roll>`.
+    /// See :meth:`Cal.roll <rateslib.scheduling.Cal.roll>`.
     #[pyo3(name = "roll")]
     fn roll_py(
         &self,
@@ -768,7 +778,7 @@ impl NamedCal {
 
     /// Adjust a date by a number of business days, under lag rules.
     ///
-    /// See :meth:`Cal.lag_bus_days <rateslib.calendars.Cal.lag_bus_days>`.
+    /// See :meth:`Cal.lag_bus_days <rateslib.scheduling.Cal.lag_bus_days>`.
     #[pyo3(name = "lag_bus_days")]
     fn lag_bus_days_py(&self, date: NaiveDateTime, days: i32, settlement: bool) -> NaiveDateTime {
         self.lag_bus_days(&date, days, settlement)
@@ -776,7 +786,7 @@ impl NamedCal {
 
     /// Return a list of business dates in a range.
     ///
-    /// See :meth:`Cal.bus_date_range <rateslib.calendars.Cal.bus_date_range>`.
+    /// See :meth:`Cal.bus_date_range <rateslib.scheduling.Cal.bus_date_range>`.
     #[pyo3(name = "bus_date_range")]
     fn bus_date_range_py(
         &self,
@@ -788,7 +798,7 @@ impl NamedCal {
 
     /// Return a list of calendar dates in a range.
     ///
-    /// See :meth:`Cal.cal_date_range <rateslib.calendars.Cal.cal_date_range>`.
+    /// See :meth:`Cal.cal_date_range <rateslib.scheduling.Cal.cal_date_range>`.
     #[pyo3(name = "cal_date_range")]
     fn cal_date_range_py(
         &self,
