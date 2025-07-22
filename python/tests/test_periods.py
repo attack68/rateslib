@@ -8,7 +8,6 @@ import pytest
 from pandas import NA, DataFrame, Index, MultiIndex, Series, date_range
 from pandas.testing import assert_frame_equal
 from rateslib import defaults
-from rateslib.calendars import Cal
 from rateslib.curves import CompositeCurve, Curve, LineCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual, gradient
@@ -29,6 +28,7 @@ from rateslib.periods import (
     NonDeliverableCashflow,
     NonDeliverableFixedPeriod,
 )
+from rateslib.scheduling import Cal
 
 
 @pytest.fixture

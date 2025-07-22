@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING
 from pandas import DataFrame, Series
 
 from rateslib import defaults
-from rateslib.calendars import add_tenor, dcf
 from rateslib.curves import Curve, LineCurve, average_rate, index_left, index_value
 from rateslib.curves._parsers import (
     _disc_required_maybe_from_curve,
@@ -42,6 +41,7 @@ from rateslib.periods import (
     FloatPeriod,
 )
 from rateslib.periods.utils import _maybe_local
+from rateslib.scheduling import add_tenor, dcf
 
 if TYPE_CHECKING:
     from rateslib.instruments.bonds.conventions.accrued import AccrualFunction
@@ -954,7 +954,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         sign equal to that of notional if the notional is to reduce towards zero.
     convention: str, optional
         The day count convention applied to calculations of period accrual dates.
-        See :meth:`~rateslib.calendars.dcf`.
+        See :meth:`~rateslib.scheduling.dcf`.
     fixed_rate : float, optional
         The **coupon** rate applied to determine cashflows. Can be set
         to `None` and designated
@@ -1865,7 +1865,7 @@ class Bill(FixedRateBond):
         The currency of the leg (3-digit code).
     convention: str, optional
         The day count convention applied to calculations of period accrual dates.
-        See :meth:`~rateslib.calendars.dcf`.
+        See :meth:`~rateslib.scheduling.dcf`.
     settle : int
         The number of business days for regular settlement time, i.e, 1 is T+1.
     calc_mode : str, optional (defaults.calc_mode["Bill"])
@@ -2335,7 +2335,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         sign equal to that of notional if the notional is to reduce towards zero.
     convention: str, optional
         The day count convention applied to calculations of period accrual dates.
-        See :meth:`~rateslib.calendars.dcf`.
+        See :meth:`~rateslib.scheduling.dcf`.
     float_spread : float, optional
         The spread applied to determine cashflows. Can be set to `None` and designated
         later, perhaps after a mid-market spread for all periods has been calculated.

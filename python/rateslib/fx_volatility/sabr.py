@@ -9,7 +9,6 @@ from pandas import Series
 from pytz import UTC
 
 from rateslib import defaults
-from rateslib.calendars import get_calendar
 from rateslib.default import (
     NoInput,
     _drb,
@@ -43,6 +42,7 @@ from rateslib.mutability import (
     _WithCache,
     _WithState,
 )
+from rateslib.scheduling import get_calendar
 
 if TYPE_CHECKING:
     from rateslib.typing import CalInput, DualTypes, Number, Sequence, datetime_, int_, str_

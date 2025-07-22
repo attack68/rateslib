@@ -7,7 +7,6 @@ from matplotlib import pyplot as plt
 from pandas import DataFrame, Series
 from pandas.testing import assert_frame_equal, assert_series_equal
 from rateslib import default_context
-from rateslib.calendars import get_calendar
 from rateslib.curves import CompositeCurve, Curve, LineCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, gradient
@@ -28,6 +27,7 @@ from rateslib.fx_volatility.utils import (
     _validate_delta_type,
 )
 from rateslib.periods.fx_volatility import FXCallPeriod
+from rateslib.scheduling import get_calendar
 
 
 @pytest.fixture

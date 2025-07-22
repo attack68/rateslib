@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 from pandas import DataFrame, Series, concat
 
 from rateslib import defaults
-from rateslib.calendars import add_tenor
 from rateslib.default import NoInput, _drb
 from rateslib.periods import (
     Cashflow,
@@ -18,7 +17,7 @@ from rateslib.periods import (
     IndexCashflow,
     IndexFixedPeriod,
 )
-from rateslib.scheduling import Schedule
+from rateslib.scheduling import Schedule, add_tenor
 
 if TYPE_CHECKING:
     from rateslib.typing import (
@@ -75,7 +74,7 @@ class BaseLeg(metaclass=ABCMeta):
         The modification rule, in {"F", "MF", "P", "MP"}
     calendar : calendar or str, optional
         The holiday calendar object to use. If str, looks up named calendar from
-        static data. See :meth:`~rateslib.calendars.get_calendar`.
+        static data. See :meth:`~rateslib.scheduling.get_calendar`.
     payment_lag : int, optional
         The number of business days to lag payments by on regular accrual periods.
     notional : float, optional
@@ -87,7 +86,7 @@ class BaseLeg(metaclass=ABCMeta):
         sign equal to that of notional if the notional is to reduce towards zero.
     convention: str, optional
         The day count convention applied to calculations of period accrual dates.
-        See :meth:`~rateslib.calendars.dcf`.
+        See :meth:`~rateslib.scheduling.dcf`.
     payment_lag_exchange : int
         The number of business days by which to delay notional exchanges, aligned with
         the accrual schedule.

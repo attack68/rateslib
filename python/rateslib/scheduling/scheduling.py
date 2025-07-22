@@ -9,19 +9,17 @@ from typing import TYPE_CHECKING, NamedTuple
 from pandas import DataFrame
 
 from rateslib import defaults
-from rateslib.calendars import (  # type: ignore[attr-defined]
+from rateslib.default import NoInput, _drb
+from rateslib.scheduling.adjuster import _convert_to_adjuster
+from rateslib.scheduling.calendars import _adjust_date, _is_day_type_tenor, get_calendar
+from rateslib.scheduling.frequency import add_tenor
+from rateslib.scheduling.rollday import (
     _IS_ROLL,
-    _adjust_date,
-    _convert_to_adjuster,
     _get_roll,
     _get_rollday,
-    _is_day_type_tenor,
     _is_eom,
     _is_eom_cal,
-    add_tenor,
-    get_calendar,
 )
-from rateslib.default import NoInput, _drb
 
 if TYPE_CHECKING:
     from rateslib.typing import CalInput, CalTypes, int_
@@ -63,7 +61,7 @@ class Schedule:
         The modification rule, in {"NONE", "F", "MF", "P", "MP"}
     calendar : calendar or str, optional
         The holiday calendar object to use. If string will call
-        :meth:`~rateslib.calendars.get_calendar`.
+        :meth:`~rateslib.scheduling.get_calendar`.
     payment_lag: int, optional
         The number of business days to lag payments by.
     eval_date: datetime, optional

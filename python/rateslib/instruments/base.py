@@ -479,7 +479,7 @@ class BaseDerivative(Sensitivities, Metrics, metaclass=ABCMeta):
         sign equal to that of notional if the notional is to reduce towards zero.
     convention: str, optional
         The day count convention applied to calculations of period accrual dates.
-        See :meth:`~rateslib.calendars.dcf`.
+        See :meth:`~rateslib.scheduling.dcf`.
     leg2_kwargs: Any
         All ``leg2`` arguments can be similarly input as above, e.g. ``leg2_frequency``.
         If **not** given, any ``leg2``

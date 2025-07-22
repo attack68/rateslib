@@ -8,7 +8,6 @@ import numpy as np
 from pandas import NA, DataFrame, Index, MultiIndex, Series, concat, isna, notna
 
 from rateslib import defaults
-from rateslib.calendars import add_tenor, dcf, get_calendar
 from rateslib.curves import average_rate, index_left
 from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_maybe_from_curve
 from rateslib.curves.base import _BaseCurve
@@ -28,6 +27,7 @@ from rateslib.periods.utils import (
     _validate_float_args,
     _validate_fx_as_forwards,
 )
+from rateslib.scheduling import add_tenor, dcf, get_calendar
 
 if TYPE_CHECKING:
     from rateslib.typing import (

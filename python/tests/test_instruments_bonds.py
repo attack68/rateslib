@@ -5,7 +5,6 @@ import pytest
 from pandas import DataFrame, Series, date_range
 from pandas.testing import assert_frame_equal
 from rateslib import defaults
-from rateslib.calendars import dcf, get_calendar
 from rateslib.curves import Curve, LineCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, gradient
@@ -19,6 +18,7 @@ from rateslib.instruments import (
     IndexFixedRateBond,
 )
 from rateslib.instruments.bonds import BondCalcMode
+from rateslib.scheduling import dcf, get_calendar
 from rateslib.solver import Solver
 
 

@@ -6,7 +6,6 @@ import pytest
 from matplotlib import pyplot as plt
 from pandas import Series
 from rateslib import default_context
-from rateslib.calendars import Cal, dcf, get_calendar
 from rateslib.curves import (
     CompositeCurve,
     Curve,
@@ -24,6 +23,7 @@ from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.dual.utils import _get_order_of
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments import IRS
+from rateslib.scheduling import Cal, dcf, get_calendar
 from rateslib.solver import Solver
 
 

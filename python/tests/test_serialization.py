@@ -1,7 +1,6 @@
 from datetime import datetime as dt
 
 import pytest
-from rateslib.calendars import get_calendar
 from rateslib.curves import Curve, LineCurve
 from rateslib.curves.utils import (
     _CurveInterpolator,
@@ -12,6 +11,7 @@ from rateslib.curves.utils import (
 )
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable
+from rateslib.scheduling import get_calendar
 from rateslib.serialization import from_json
 from rateslib.serialization.utils import _enum_to_json
 

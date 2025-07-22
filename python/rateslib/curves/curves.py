@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Any, TypeAlias
 from pandas import Series
 
 from rateslib import defaults
-from rateslib.calendars import add_tenor, dcf
 from rateslib.curves.base import _BaseCurve, _WithMutability
 from rateslib.curves.utils import (
     _CreditImpliedType,
@@ -37,6 +36,7 @@ from rateslib.mutability import (
     _no_interior_validation,
     _validate_states,
 )
+from rateslib.scheduling import add_tenor, dcf
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
@@ -650,7 +650,7 @@ class Curve(_WithMutability, _WithOperations, _BaseCurve):  # type: ignore[misc]
         The unique identifier to distinguish between curves in a multicurve framework.
     convention : str, optional, set by Default
         The convention of the curve for determining rates. Please see
-        :meth:`dcf()<rateslib.calendars.dcf>` for all available options.
+        :meth:`dcf()<rateslib.scheduling.dcf>` for all available options.
     modifier : str, optional
         The modification rule, in {"F", "MF", "P", "MP"}, for determining rates when input as
         a tenor, e.g. "3M".
@@ -806,10 +806,10 @@ class LineCurve(_WithMutability, _WithOperations, _BaseCurve):  # type: ignore[m
         The unique identifier to distinguish between curves in a multi-curve framework.
         convention : str, optional, set by Default
         The convention of the curve for determining rates. Please see
-        :meth:`dcf()<rateslib.calendars.dcf>` for all available options.
+        :meth:`dcf()<rateslib.scheduling.dcf>` for all available options.
     convention : str, optional, set by Default
         The convention of the curve for determining rates. Please see
-        :meth:`dcf()<rateslib.calendars.dcf>` for all available options.
+        :meth:`dcf()<rateslib.scheduling.dcf>` for all available options.
     modifier : str, optional
         The modification rule, in {"F", "MF", "P", "MP"}, for determining rates when input as
         a tenor, e.g. "3M".

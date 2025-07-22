@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING
 from pandas import DataFrame
 
 from rateslib import FXDeltaVolSmile, FXDeltaVolSurface, defaults
-from rateslib.calendars import _get_fx_expiry_and_delivery, get_calendar
 from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.default import NoInput, PlotOutput, _drb, plot
 from rateslib.dual.utils import _dual_float
@@ -22,6 +21,8 @@ from rateslib.instruments.utils import (
 )
 from rateslib.periods import Cashflow, FXCallPeriod, FXPutPeriod
 from rateslib.periods.utils import _validate_fx_as_forwards
+from rateslib.scheduling import get_calendar
+from rateslib.scheduling.frequency import _get_fx_expiry_and_delivery
 
 if TYPE_CHECKING:
     from typing import NoReturn
