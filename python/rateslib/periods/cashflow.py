@@ -78,6 +78,11 @@ class Cashflow:
     Example
     -------
     .. ipython:: python
+       :suppress:
+
+       from rateslib import Cashflow
+
+    .. ipython:: python
 
        cf = Cashflow(
            notional=1e6,
@@ -249,6 +254,11 @@ class NonDeliverableCashflow:
 
     Example
     -------
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import NonDeliverableCashflow
+
     .. ipython:: python
 
        ndc = NonDeliverableCashflow(

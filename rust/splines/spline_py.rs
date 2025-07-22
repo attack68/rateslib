@@ -511,6 +511,11 @@ pub(crate) fn bsplev_single(
 /// is discontinuous at `x` = 2.0.
 ///
 /// .. ipython:: python
+///    :suppress:
+///
+///    from rateslib import bspldnev_single
+///
+/// .. ipython:: python
 ///
 ///    t = [1,1,1,1,2,2,2,3,4,4,4,4]
 ///    bspldnev_single(x=2.0, i=3, k=4, t=t, m=1)

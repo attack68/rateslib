@@ -117,6 +117,10 @@ def dcf(
 
     Examples
     --------
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import dcf
 
     .. ipython:: python
 

@@ -86,6 +86,11 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
     Examples
     --------
     .. ipython:: python
+       :suppress:
+
+       from rateslib import ZeroFloatLeg
+    
+    .. ipython:: python
 
        zfl = ZeroFloatLeg(
            effective=dt(2022, 1, 1),
@@ -390,6 +395,11 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
 
     Examples
     --------
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import ZeroFixedLeg
+
     .. ipython:: python
 
        zfl = ZeroFixedLeg(

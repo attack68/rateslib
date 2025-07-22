@@ -306,6 +306,11 @@ class IIRS(BaseDerivative):
     Construct a curve to price the example.
 
     .. ipython:: python
+       :suppress:
+
+       from rateslib import IIRS, ZCIS
+
+    .. ipython:: python
 
       usd = Curve(
           nodes={

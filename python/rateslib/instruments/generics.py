@@ -70,6 +70,11 @@ class Value(Metrics):
     from a calibrating DF value on 1st Nov 2022.
 
     .. ipython:: python
+       :suppress:
+
+       from rateslib import Value
+
+    .. ipython:: python
 
        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="v")
        instruments = [(Value(dt(2022, 11, 1)), (curve,), {})]
@@ -316,6 +321,11 @@ class Spread(Sensitivities):
     --------
     Creating a dynamic :class:`Spread` where the *Instruments* are dynamically priced,
     and each share the pricing arguments.
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import Spread
 
     .. ipython:: python
 
