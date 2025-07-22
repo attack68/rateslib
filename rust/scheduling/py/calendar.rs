@@ -94,11 +94,13 @@ impl Cal {
         Ok(Cal::new(holidays, week_mask))
     }
 
+    /// A list of specifically provided non-business days.
     #[getter]
     fn holidays(&self) -> PyResult<Vec<NaiveDateTime>> {
         Ok(self.holidays.clone().into_iter().collect())
     }
 
+    /// A list of days in the week defined as weekends.
     #[getter]
     fn week_mask(&self) -> PyResult<HashSet<u8>> {
         Ok(HashSet::from_iter(
@@ -439,6 +441,7 @@ impl UnionCal {
         Ok(UnionCal::new(calendars, settlement_calendars))
     }
 
+    /// A list of specifically provided non-business days.
     #[getter]
     fn holidays(&self) -> PyResult<Vec<NaiveDateTime>> {
         let mut set = self.calendars.iter().fold(IndexSet::new(), |acc, x| {
@@ -448,6 +451,7 @@ impl UnionCal {
         Ok(Vec::from_iter(set))
     }
 
+    /// A list of days in the week defined as weekends.
     #[getter]
     fn week_mask(&self) -> PyResult<HashSet<u8>> {
         let mut s: HashSet<u8> = HashSet::new();
@@ -458,11 +462,13 @@ impl UnionCal {
         Ok(s)
     }
 
+    /// A list of :class:`~rateslib.scheduling.Cal` objects defining **business days**.
     #[getter]
     fn calendars(&self) -> Vec<Cal> {
         self.calendars.clone()
     }
 
+    /// A list of :class:`~rateslib.scheduling.Cal` objects defining **settleable days**.
     #[getter]
     fn settlement_calendars(&self) -> Option<Vec<Cal>> {
         self.settlement_calendars.clone()
@@ -496,7 +502,7 @@ impl UnionCal {
 
     /// Return a date separated by calendar days from input date, and rolled with a modifier.
     ///
-    /// See :meth:`Cal.add_days <rateslib.scheduling.Cal.add_days>`.
+    /// See :meth:`Cal.add_cal_days <rateslib.scheduling.Cal.add_cal_days>`.
     #[pyo3(name = "add_cal_days")]
     fn add_cal_days_py(
         &self,
@@ -642,21 +648,25 @@ impl NamedCal {
         NamedCal::try_new(&name)
     }
 
+    /// A list of specifically provided non-business days.
     #[getter]
     fn holidays(&self) -> PyResult<Vec<NaiveDateTime>> {
         self.union_cal.holidays()
     }
 
+    /// A list of days in the week defined as weekends.
     #[getter]
     fn week_mask(&self) -> PyResult<HashSet<u8>> {
         self.union_cal.week_mask()
     }
 
+    /// The string identifier for this constructed calendar.
     #[getter]
     fn name(&self) -> String {
         self.name.clone()
     }
 
+    /// The wrapped :class:`~rateslib.scheduling.UnionCal` object.
     #[getter]
     fn union_cal(&self) -> UnionCal {
         self.union_cal.clone()
@@ -690,7 +700,7 @@ impl NamedCal {
 
     /// Return a date separated by calendar days from input date, and rolled with a modifier.
     ///
-    /// See :meth:`Cal.add_days <rateslib.scheduling.Cal.add_days>`.
+    /// See :meth:`Cal.add_cal_days <rateslib.scheduling.Cal.add_cal_days>`.
     #[pyo3(name = "add_cal_days")]
     fn add_cal_days_py(
         &self,
