@@ -89,7 +89,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
        :suppress:
 
        from rateslib import ZeroFloatLeg
-    
+
     .. ipython:: python
 
        zfl = ZeroFloatLeg(
