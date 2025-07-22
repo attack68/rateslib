@@ -121,6 +121,11 @@ class Schedule:
     - A 1Y1Y trade has effective, termination and roll of: Mon 19th Aug '24, Mon 18th Aug '25, 17.
 
     .. ipython:: python
+       :suppress:
+
+       from rateslib import Schedule
+
+    .. ipython:: python
 
        sch = Schedule(
            effective="1Y",

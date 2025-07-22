@@ -91,6 +91,11 @@ class BondFuture(Sensitivities):
     set `calendar="ldn"`)
 
     .. ipython:: python
+       :suppress:
+
+       from rateslib import BondFuture
+
+    .. ipython:: python
 
        kws = dict(
            frequency="S",

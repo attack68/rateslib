@@ -831,6 +831,11 @@ class BondMixin:
         --------
 
         .. ipython:: python
+           :suppress:
+
+           from rateslib import Variable
+
+        .. ipython:: python
 
            bond = FixedRateBond(dt(2000, 1, 1), "3Y", fixed_rate=2.5, spec="us_gb")
            curve = Curve({dt(2000, 7, 1): 1.0, dt(2005, 7, 1): 0.80})
@@ -1457,6 +1462,11 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         Examples
         --------
         .. ipython:: python
+           :suppress:
+
+           from rateslib import FixedRateBond
+
+        .. ipython:: python
 
            gilt = FixedRateBond(
                effective=dt(1998, 12, 7),
@@ -1902,6 +1912,11 @@ class Bill(FixedRateBond):
     :meth:`~rateslib.instruments.FixedRateBond.fwd_from_repo`
     :meth:`~rateslib.instruments.FixedRateBond.duration`,
     :meth:`~rateslib.instruments.FixedRateBond.convexity`.
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import Bill, Solver
 
     .. ipython:: python
 
@@ -2634,6 +2649,12 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         Examples
         --------
         An RFR based FRN where the fixings are known up to the end of period.
+
+        .. ipython:: python
+           :suppress:
+       
+           from rateslib import FloatRateNote
+           from pandas import date_range
 
         .. ipython:: python
 

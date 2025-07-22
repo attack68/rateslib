@@ -117,6 +117,7 @@ from rateslib.periods import (
     IndexCashflow,
     IndexFixedPeriod,
     NonDeliverableCashflow,
+    NonDeliverableFixedPeriod,
 )
 from rateslib.scheduling import (
     Cal,
@@ -211,6 +212,7 @@ __all__ = [
     "FXCallPeriod",
     "FXPutPeriod",
     "NonDeliverableCashflow",
+    "NonDeliverableFixedPeriod",
     "CreditPremiumPeriod",
     "CreditProtectionPeriod",
     # legs.py

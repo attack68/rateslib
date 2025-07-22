@@ -190,6 +190,11 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
     Examples
     --------
     .. ipython:: python
+       :suppress:
+
+       from rateslib import IndexFixedPeriod    
+    
+    .. ipython:: python
 
        ifp = IndexFixedPeriod(
            start=dt(2022, 2, 1),
@@ -374,6 +379,11 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
 
     Example
     -------
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import IndexCashflow
+
     .. ipython:: python
 
        icf = IndexCashflow(

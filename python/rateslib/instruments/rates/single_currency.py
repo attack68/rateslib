@@ -510,6 +510,11 @@ class STIRFuture(IRS):
     :meth:`~rateslib.instruments.STIRFuture.npv`,
 
     .. ipython:: python
+       :suppress:
+
+       from rateslib import STIRFuture
+
+    .. ipython:: python
 
        stir = STIRFuture(
             effective=dt(2022, 3, 16),
@@ -824,6 +829,11 @@ class ZCS(BaseDerivative):
     :meth:`~rateslib.instruments.ZCS.analytic_delta`, and
 
     .. ipython:: python
+       :suppress:
+
+       from rateslib import ZCS
+
+    .. ipython:: python
 
        zcs = ZCS(
            effective=dt(2022, 1, 1),
@@ -1121,6 +1131,11 @@ class SBS(BaseDerivative):
     Examples
     --------
     Construct curves to price the example.
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import SBS
 
     .. ipython:: python
 
@@ -1462,6 +1477,11 @@ class FRA(BaseDerivative):
     Examples
     --------
     Construct curves to price the example.
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import FRA
 
     .. ipython:: python
 
