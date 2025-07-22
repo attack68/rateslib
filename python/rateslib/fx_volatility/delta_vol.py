@@ -10,7 +10,6 @@ from pandas import Series
 from pytz import UTC
 
 from rateslib import defaults
-from rateslib.calendars import get_calendar
 from rateslib.default import (
     NoInput,
     PlotOutput,
@@ -51,6 +50,7 @@ from rateslib.mutability import (
     _WithCache,
     _WithState,
 )
+from rateslib.scheduling import get_calendar
 from rateslib.splines import evaluate
 
 if TYPE_CHECKING:

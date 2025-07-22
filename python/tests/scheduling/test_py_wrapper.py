@@ -6,9 +6,9 @@ from pandas import DataFrame, DatetimeIndex, date_range
 from pandas.testing import assert_index_equal
 from pandas.tseries.holiday import Holiday
 from rateslib import defaults
-from rateslib.calendars import Cal, create_calendar
 from rateslib.default import NoInput
 from rateslib.rs import Frequency, RollDay
+from rateslib.scheduling import Cal
 from rateslib.scheduling.wrappers import Schedule
 
 

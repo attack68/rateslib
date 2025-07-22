@@ -2,7 +2,6 @@ import math
 from datetime import datetime as dt
 
 import pytest
-from rateslib.calendars import get_calendar
 from rateslib.curves.rs import (
     CurveObj,
     CurveRs,
@@ -18,6 +17,7 @@ from rateslib.curves.rs import (
 from rateslib.dual import Dual2
 from rateslib.dual.utils import ADOrder, _get_adorder
 from rateslib.rs import Convention, Modifier
+from rateslib.scheduling import get_calendar
 from rateslib.serialization import from_json
 
 

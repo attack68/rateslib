@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Protocol
 from pandas import DataFrame
 
 from rateslib import defaults
-from rateslib.calendars import _get_years_and_months, add_tenor
 from rateslib.curves import Curve
 from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
@@ -18,6 +17,8 @@ from rateslib.instruments.utils import (
 )
 from rateslib.periods.utils import _get_fx_and_base
 from rateslib.rs import Adjuster, Cal, RollDay
+from rateslib.scheduling import add_tenor
+from rateslib.scheduling.calendars import _get_years_and_months
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:

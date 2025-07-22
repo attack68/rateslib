@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 from pandas import DataFrame, DatetimeIndex, MultiIndex
 
 from rateslib import defaults
-from rateslib.calendars import _get_fx_expiry_and_delivery, get_calendar
 from rateslib.curves._parsers import _validate_curve_not_no_input
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, Variable
@@ -34,6 +33,8 @@ from rateslib.periods import (
     NonDeliverableCashflow,
 )
 from rateslib.periods.utils import _get_fx_fixings_from_non_fx_forwards, _maybe_local
+from rateslib.scheduling import get_calendar
+from rateslib.scheduling.frequency import _get_fx_expiry_and_delivery
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
