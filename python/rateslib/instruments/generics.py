@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING
 from pandas import DataFrame, DatetimeIndex, concat
 
 from rateslib import defaults
-from rateslib.calendars import dcf
 from rateslib.curves._parsers import _validate_curve_is_not_dict, _validate_curve_not_no_input
 from rateslib.curves.utils import _CurveType
 from rateslib.default import NoInput, _drb
@@ -21,6 +20,7 @@ from rateslib.instruments.utils import (
     _get_curves_fx_and_base_maybe_from_solver,
     _get_fxvol_maybe_from_solver,
 )
+from rateslib.scheduling import dcf
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:

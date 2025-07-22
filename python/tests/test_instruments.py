@@ -5,7 +5,6 @@ import pytest
 from pandas import DataFrame, Index, MultiIndex, Series, isna
 from pandas.testing import assert_frame_equal
 from rateslib import default_context
-from rateslib.calendars import add_tenor
 from rateslib.curves import CompositeCurve, Curve, LineCurve, MultiCsaCurve
 from rateslib.curves._parsers import _map_curve_from_solver
 from rateslib.default import NoInput
@@ -44,6 +43,7 @@ from rateslib.instruments import (
 from rateslib.instruments.utils import (
     _get_curves_fx_and_base_maybe_from_solver,
 )
+from rateslib.scheduling import add_tenor
 from rateslib.solver import Solver
 
 

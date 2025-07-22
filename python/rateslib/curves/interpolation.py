@@ -5,9 +5,9 @@ from typing import TYPE_CHECKING, Protocol
 
 from pytz import UTC
 
-from rateslib.calendars import dcf
 from rateslib.dual import dual_exp, dual_log
 from rateslib.rs import index_left_f64
+from rateslib.scheduling import dcf
 
 if TYPE_CHECKING:
     from rateslib.typing import Any, DualTypes, _BaseCurve, datetime  # pragma: no cover

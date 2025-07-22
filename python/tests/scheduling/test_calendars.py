@@ -2,28 +2,21 @@ from datetime import datetime as dt
 
 import pytest
 from rateslib import defaults
-from rateslib.calendars import (
+from rateslib.curves import Curve
+from rateslib.default import NoInput
+from rateslib.instruments import IRS
+from rateslib.scheduling import (
     Cal,
-    _adjust_date,
-    _get_eom,
-    _get_fx_expiry_and_delivery,
-    _get_imm,
-    _get_years_and_months,
-    _is_day_type_tenor,
-    _is_eom,
-    _is_imm,
-    _is_som,
     add_tenor,
-    create_calendar,
     dcf,
     get_calendar,
     get_imm,
     next_imm,
 )
-from rateslib.calendars.dcfs import _dcf_actacticma
-from rateslib.curves import Curve
-from rateslib.default import NoInput
-from rateslib.instruments import IRS
+from rateslib.scheduling.calendars import _adjust_date, _get_years_and_months, _is_day_type_tenor
+from rateslib.scheduling.dcfs import _dcf_actacticma
+from rateslib.scheduling.frequency import _get_fx_expiry_and_delivery
+from rateslib.scheduling.rollday import _get_eom, _get_imm, _is_eom, _is_imm, _is_som
 
 
 @pytest.fixture
@@ -66,7 +59,7 @@ def test_is_non_bus_day_raises() -> None:
     ],
 )
 def test_cal_no_hols(date) -> None:
-    cal_no_hols = create_calendar([], [])
+    cal_no_hols = Cal([], [])
     assert not cal_no_hols.is_non_bus_day(date)
 
 

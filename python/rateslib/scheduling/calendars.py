@@ -4,61 +4,11 @@ from typing import TYPE_CHECKING
 
 from rateslib import defaults
 from rateslib.default import NoInput
-from rateslib.rs import Adjuster, Cal, NamedCal, RollDay, UnionCal
+from rateslib.rs import Cal, NamedCal, UnionCal
+from rateslib.scheduling.adjuster import _convert_to_adjuster
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, CalTypes
-
-
-_A = {
-    "NONESETTLE": Adjuster.Actual(),
-    "NONE": Adjuster.Actual(),
-    "F": Adjuster.Following(),
-    "P": Adjuster.Previous(),
-    "MF": Adjuster.ModifiedFollowing(),
-    "MP": Adjuster.ModifiedPrevious(),
-    "FSETTLE": Adjuster.FollowingSettle(),
-    "PSETTLE": Adjuster.PreviousSettle(),
-    "MFSETTLE": Adjuster.ModifiedFollowingSettle(),
-    "MPSETTLE": Adjuster.ModifiedPreviousSettle(),
-}
-
-
-def _get_adjuster(adjuster: str | Adjuster) -> Adjuster:
-    if isinstance(adjuster, Adjuster):
-        return adjuster
-    else:
-        adjuster = adjuster.upper()
-        if adjuster[-1] == "B":
-            return Adjuster.BusDaysLagSettle(int(adjuster[:-1]))
-        elif adjuster[-1] == "D":
-            return Adjuster.CalDaysLagSettle(int(adjuster[:-1]))
-        else:
-            return _A[adjuster]
-
-
-def _convert_to_adjuster(modifier: str, settlement: bool, mod_days: bool) -> Adjuster:
-    modifier = modifier.upper()
-    if not mod_days and modifier[0] == "M":
-        modifier = modifier[1:]
-    if settlement:
-        modifier = modifier + "SETTLE"
-    return _get_adjuster(modifier)
-
-
-def _get_rollday(roll: RollDay | str | int | NoInput) -> RollDay | None:
-    """Convert a user str or int into a RollDay enum object."""
-    if isinstance(roll, RollDay):
-        return roll
-    elif isinstance(roll, str):
-        return {
-            "EOM": RollDay.Day(31),
-            "SOM": RollDay.Day(1),
-            "IMM": RollDay.IMM(),
-        }[roll.upper()]
-    elif isinstance(roll, int):
-        return RollDay.Day(roll)
-    return None
+    from rateslib.typing import CalInput, CalTypes, datetime
 
 
 def get_calendar(
@@ -75,8 +25,8 @@ def get_calendar(
         If a specific user defined calendar this is returned without modification.
     named : bool
         If the calendar is more complex than a pre-existing single name calendar, then
-        this argument determines if a :class:`~rateslib.calendars.NamedCal` object, which is more
-        compactly serialized but slower to create, or a :class:`~rateslib.calendars.UnionCal`
+        this argument determines if a :class:`~rateslib.scheduling.NamedCal` object, which is more
+        compactly serialized but slower to create, or a :class:`~rateslib.scheduling.UnionCal`
         object, which is faster to create but with more verbose serialization is returned.
         The default prioritises serialization.
 
@@ -211,3 +161,49 @@ def _parse_str_calendar_with_associated(
                 sets_.extend(cal.calendars)
 
         return UnionCal(cals_, sets_)
+
+
+def _get_years_and_months(d1: datetime, d2: datetime) -> tuple[int, int]:
+    """
+    Get the whole number of years and months between two dates
+    """
+    years: int = d2.year - d1.year
+    if (d2.month == d1.month and d2.day < d1.day) or (d2.month < d1.month):
+        years -= 1
+
+    months: int = (d2.month - d1.month) % 12
+    return years, months
+
+
+def _adjust_date(
+    date: datetime,
+    modifier: str,
+    calendar: CalInput,
+    settlement: bool = True,
+) -> datetime:
+    """
+    Modify a date under specific rule.
+
+    Parameters
+    ----------
+    date : datetime
+        The date to be adjusted.
+    modifier : str
+        The modification rule, in {"NONE", "F", "MF", "P", "MP"}. If *'NONE'* returns date.
+    calendar : calendar, optional
+        The holiday calendar object to use. Required only if `modifier` is not *'NONE'*.
+        If not given a calendar is created where every day including weekends is valid.
+    settlement : bool
+        Whether to also enforce the associated settlement calendar.
+
+    Returns
+    -------
+    datetime
+    """
+    cal_ = get_calendar(calendar)
+    return _convert_to_adjuster(modifier, settlement, True).adjust(date, cal_)
+
+
+def _is_day_type_tenor(tenor: str) -> bool:
+    tenor_ = tenor.upper()
+    return "D" in tenor_ or "B" in tenor_ or "W" in tenor_

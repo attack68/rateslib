@@ -3,8 +3,8 @@ from datetime import datetime as dt
 import pytest
 from pandas import Index
 from rateslib import defaults
-from rateslib.calendars import get_calendar
 from rateslib.rs import Adjuster, Cal, Modifier, NamedCal, RollDay, UnionCal
+from rateslib.scheduling import get_calendar
 from rateslib.serialization import from_json
 
 

@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, TypeAlias
 from pandas import Series
 from pytz import UTC
 
-from rateslib.calendars import get_calendar
 from rateslib.default import (
     NoInput,
 )
@@ -28,6 +27,7 @@ from rateslib.rs import _sabr_x0 as _rs_sabr_x0
 from rateslib.rs import _sabr_x1 as _rs_sabr_x1
 from rateslib.rs import _sabr_x2 as _rs_sabr_x2
 from rateslib.rs import index_left_f64
+from rateslib.scheduling import get_calendar
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:

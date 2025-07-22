@@ -4,8 +4,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Protocol
 
 from rateslib import defaults
-from rateslib.calendars import add_tenor, dcf
 from rateslib.default import NoInput
+from rateslib.scheduling import add_tenor, dcf
 
 if TYPE_CHECKING:
     from rateslib.typing import Any, BondMixin, Security

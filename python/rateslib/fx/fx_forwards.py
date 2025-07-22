@@ -11,7 +11,6 @@ import numpy as np
 from pandas import DataFrame, Series
 
 from rateslib import defaults
-from rateslib.calendars import add_tenor
 from rateslib.curves import Curve, MultiCsaCurve, ProxyCurve
 from rateslib.curves.utils import _CurveType
 from rateslib.default import NoInput, PlotOutput, _drb, plot
@@ -24,6 +23,7 @@ from rateslib.mutability import (
     _WithCache,
     _WithState,
 )
+from rateslib.scheduling import add_tenor
 
 if TYPE_CHECKING:
     from rateslib.typing import Number, _BaseCurve, datetime_

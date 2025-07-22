@@ -15,7 +15,6 @@ import numpy as np
 from pytz import UTC
 
 from rateslib import defaults
-from rateslib.calendars import add_tenor, dcf, get_calendar
 from rateslib.curves.interpolation import InterpolationFunction
 from rateslib.curves.utils import (
     _CurveInterpolator,
@@ -28,7 +27,7 @@ from rateslib.default import NoInput, PlotOutput, _drb, plot
 from rateslib.dual import Dual, Dual2, Variable, dual_exp, set_order_convert
 from rateslib.dual.utils import _dual_float
 from rateslib.mutability import _clear_cache_post, _new_state_post, _WithCache, _WithState
-from rateslib.rs import Adjuster
+from rateslib.scheduling import Adjuster, add_tenor, dcf, get_calendar
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover

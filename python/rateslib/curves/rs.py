@@ -6,8 +6,6 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from rateslib import defaults
-from rateslib.calendars import get_calendar
-from rateslib.calendars.dcfs import _get_convention
 from rateslib.default import NoInput, _drb, _make_py_json
 from rateslib.dual.utils import _get_adorder
 from rateslib.rs import (
@@ -23,6 +21,8 @@ from rateslib.rs import (
     _get_modifier_str,
 )
 from rateslib.rs import Curve as CurveObj  # noqa: F401
+from rateslib.scheduling import get_calendar
+from rateslib.scheduling.dcfs import _get_convention
 
 if TYPE_CHECKING:
     from rateslib.typing import CalInput, CurveInterpolator, DualTypes, Number

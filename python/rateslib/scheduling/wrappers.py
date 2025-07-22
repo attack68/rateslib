@@ -6,11 +6,12 @@ from typing import TYPE_CHECKING
 from pandas import DataFrame
 
 from rateslib import defaults
-from rateslib.calendars import get_calendar
-from rateslib.calendars.rs import _get_adjuster, _get_rollday
 from rateslib.default import NoInput, _drb
 from rateslib.rs import Frequency, RollDay, StubInference
 from rateslib.rs import Schedule as Schedule_rs
+from rateslib.scheduling.adjuster import _get_adjuster
+from rateslib.scheduling.calendars import get_calendar
+from rateslib.scheduling.rollday import _get_rollday
 from rateslib.scheduling.scheduling import _validate_effective, _validate_termination
 
 if TYPE_CHECKING:

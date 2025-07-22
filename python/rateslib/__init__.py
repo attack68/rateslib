@@ -49,16 +49,6 @@ class default_context(ContextDecorator):
                 setattr(defaults, pat, val)
 
 
-from rateslib.calendars import (
-    Cal,
-    NamedCal,
-    UnionCal,
-    add_tenor,
-    create_calendar,
-    dcf,
-    get_calendar,
-    get_imm,
-)
 from rateslib.curves import (
     CompositeCurve,
     Curve,
@@ -128,7 +118,16 @@ from rateslib.periods import (
     IndexFixedPeriod,
     NonDeliverableCashflow,
 )
-from rateslib.scheduling import Schedule
+from rateslib.scheduling import (
+    Cal,
+    NamedCal,
+    Schedule,
+    UnionCal,
+    add_tenor,
+    dcf,
+    get_calendar,
+    get_imm,
+)
 from rateslib.serialization import from_json
 from rateslib.solver import Solver
 from rateslib.splines import (
@@ -176,7 +175,6 @@ __all__ = [
     "PPSplineDual",
     "PPSplineDual2",
     # calendars.py
-    "create_calendar",
     "get_calendar",
     "get_imm",
     "add_tenor",
