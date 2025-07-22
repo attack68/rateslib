@@ -192,8 +192,8 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
     .. ipython:: python
        :suppress:
 
-       from rateslib import IndexFixedPeriod    
-    
+       from rateslib import IndexFixedPeriod
+
     .. ipython:: python
 
        ifp = IndexFixedPeriod(

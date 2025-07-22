@@ -326,7 +326,7 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
        :suppress:
 
        from rateslib import IndexFixedLeg
-       
+
     .. ipython:: python
 
        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})

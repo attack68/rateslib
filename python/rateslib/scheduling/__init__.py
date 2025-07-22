@@ -23,15 +23,16 @@ week_mask: list[int]
 """
 
 UnionCal.__doc__ = """
-A calendar defined by a business day intersection of multiple :class:`~rateslib.scheduling.Cal` objects.
+A calendar defined by a business day intersection of multiple :class:`~rateslib.scheduling.Cal`
+objects.
 
 Parameters
 ----------
 calendars: list[Cal]
-    A list of :class:`~rateslib.scheduling.Cal` objects whose combination will define the 
+    A list of :class:`~rateslib.scheduling.Cal` objects whose combination will define the
     business and non-business days.
 settlement_calendars: list[Cal]
-    A list of :class:`~rateslib.scheduling.Cal` objects whose combination will define the 
+    A list of :class:`~rateslib.scheduling.Cal` objects whose combination will define the
     settleable and non-settleable days.
 """
 
@@ -45,16 +46,16 @@ name: str
     arguments of a :class:`~rateslib.scheduling.UnionCal`. The individual calendar names must
     pre-exist in the :ref:`defaults <defaults-arg-input>`. The pipe operator separates the two
     fields.
-    
+
 Examples
 --------
 .. ipython:: python
    :suppress:
-   
+
    from rateslib.scheduling import NamedCal
-   
+
 .. ipython:: python
-   
+
    named_cal = NamedCal("ldn,tgt|fed")
    assert len(named_cal.union_cal.calendars) == 2
    assert len(named_cal.union_cal.settlement_calendars) == 1

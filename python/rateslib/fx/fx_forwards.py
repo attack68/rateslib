@@ -1117,7 +1117,7 @@ def forward_fx(
 
     .. ipython:: python
        :suppress:
-       
+
        from rateslib.fx.fx_forwards import forward_fx
 
     .. ipython:: python
