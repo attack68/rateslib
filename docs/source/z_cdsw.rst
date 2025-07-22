@@ -5,7 +5,7 @@
 
    from rateslib.curves import *
    from rateslib.instruments import *
-   from rateslib.calendars import add_tenor
+   from rateslib.scheduling import add_tenor
    from rateslib.solver import Solver
    from rateslib import defaults
    import matplotlib.pyplot as plt

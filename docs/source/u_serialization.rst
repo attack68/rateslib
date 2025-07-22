@@ -5,7 +5,7 @@
 
    from rateslib import from_json
    from rateslib.dual import Dual, Dual2
-   from rateslib.calendars import Cal, UnionCal, NamedCal
+   from rateslib.scheduling import Cal, UnionCal, NamedCal
    from rateslib.fx import FXRates
    from rateslib.splines import PPSplineF64
    from datetime import datetime as dt

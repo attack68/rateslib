@@ -57,6 +57,11 @@ class FixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
     --------
 
     .. ipython:: python
+       :suppress:
+
+       from rateslib import FixedLeg
+
+    .. ipython:: python
 
        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
        fixed_leg_exch = FixedLeg(
@@ -171,6 +176,11 @@ class FloatLeg(_FloatLegMixin, BaseLeg):
     Examples
     --------
     Set the first fixing on an historic IBOR leg.
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import FloatLeg
 
     .. ipython:: python
 

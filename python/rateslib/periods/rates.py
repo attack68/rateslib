@@ -82,6 +82,11 @@ class FixedPeriod(BasePeriod):
     Examples
     --------
     .. ipython:: python
+       :suppress:
+
+       from rateslib import FixedPeriod
+
+    .. ipython:: python
 
        fp = FixedPeriod(
            start=dt(2022, 2, 1),
@@ -300,6 +305,11 @@ class FloatPeriod(BasePeriod):
     value dates by two business days. 3M EURIBOR was published on Thu-2-Mar-2023 as
     2.801%, which is applicable to the start date of Mon-6-Mar-2023 with value end
     date of Tue-6-Jun-2023.
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import FloatPeriod
 
     .. ipython:: python
 
@@ -1774,6 +1784,11 @@ class NonDeliverableFixedPeriod(FixedPeriod):
 
     Examples
     --------
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import NonDeliverableFixedPeriod
+
     .. ipython:: python
 
        fp = NonDeliverableFixedPeriod(

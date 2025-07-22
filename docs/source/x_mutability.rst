@@ -97,8 +97,8 @@ to ensure that erroneous results do not feed through.
 Immutables
 ***********
 
-Objects such as *Calendars* (:class:`~rateslib.calendars.Cal`,
-:class:`~rateslib.calendars.UnionCal`, :class:`~rateslib.calendars.NamedCal`) are considered
+Objects such as *Calendars* (:class:`~rateslib.scheduling.Cal`,
+:class:`~rateslib.scheduling.UnionCal`, :class:`~rateslib.scheduling.NamedCal`) are considered
 immutable, as well *Number* types (:class:`~rateslib.dual.Dual`, :class:`~rateslib.dual.Dual2`,
 :class:`~rateslib.dual.Variable`) and a :class:`~rateslib.scheduling.Schedule`.
 

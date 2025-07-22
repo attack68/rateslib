@@ -1,7 +1,7 @@
 UnionCal
 ==========
 
-.. currentmodule:: rateslib.calendars
+.. currentmodule:: rateslib.scheduling
 
 .. py:class:: UnionCal(calendars, settlement_calendars)
 
@@ -21,7 +21,7 @@ UnionCal
    .. autoattribute:: week_mask
 
    .. seealso::
-      :class:`~rateslib.calendars.Cal`: Base calendar object type.
+      :class:`~rateslib.scheduling.Cal`: Base calendar object type.
 
    .. rubric:: Methods Summary
 

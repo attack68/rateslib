@@ -103,7 +103,7 @@ The *rateslib* code below will replicate the *Curve* creation, but note the diff
 
 .. warning::
    Note that *rateslib* will determine the discount factors (DFs) based at the provided input node dates. *QuantLib*, which uses bootstrapping, sets these dates based on the maturity dates of the *Instruments* by default to ensure a sound bootstrapping routine.
-   Thus to replicate the result from *QuantLib*, the function :meth:`add_tenor()<rateslib.calendars.add_tenor>` is used to find
+   Thus to replicate the result from *QuantLib*, the function :meth:`add_tenor()<rateslib.scheduling.add_tenor>` is used to find
    the adjusted maturity dates for each *Instrument* and use those values as input to our *Curve*.
    
 The next step is to create the *Instruments* and call the :class:`~rateslib.solver.Solver`:

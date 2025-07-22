@@ -49,12 +49,6 @@ Defaults
    :skip: Series
    :skip: UnionCal
 
-Calendars
-==========
-
-.. automodapi:: rateslib.calendars
-   :no-heading:
-   :no-inheritance-diagram:
 
 Scheduling
 ===========

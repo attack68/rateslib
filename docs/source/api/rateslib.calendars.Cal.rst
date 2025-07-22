@@ -1,7 +1,7 @@
 Cal
 ==========
 
-.. currentmodule:: rateslib.calendars
+.. currentmodule:: rateslib.scheduling
 
 .. py:class:: Cal(holidays, week_mask)
 
@@ -19,7 +19,7 @@ Cal
    :ivar week_mask: list of int
 
    .. seealso::
-      :class:`~rateslib.calendars.UnionCal`: Calendar object designed to merge calendars under financial date rules.
+      :class:`~rateslib.scheduling.UnionCal`: Calendar object designed to merge calendars under financial date rules.
 
    .. rubric:: Methods Summary
 

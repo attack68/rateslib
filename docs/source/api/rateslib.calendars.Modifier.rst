@@ -1,7 +1,7 @@
 Modifier
 ==========
 
-.. currentmodule:: rateslib.calendars
+.. currentmodule:: rateslib.scheduling
 
 .. py:class:: Modifier
 

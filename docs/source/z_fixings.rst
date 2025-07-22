@@ -99,7 +99,7 @@ historical *FloatPeriods* in the absence of real data.
 .. ipython:: python
 
    from pandas import Series, date_range
-   from rateslib.calendars import get_calendar
+   from rateslib.scheduling import get_calendar
    nyc = get_calendar("nyc")
    fixings = Series(
        data=2.5,

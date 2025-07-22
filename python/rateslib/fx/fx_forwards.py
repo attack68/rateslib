@@ -699,6 +699,11 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
         --------
 
         .. ipython:: python
+           :suppress:
+
+           from pandas import DataFrame
+
+        .. ipython:: python
 
            fxr = FXRates({"usdnok": 8.0}, settlement=dt(2022, 1, 1))
            usdusd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99})
@@ -1109,6 +1114,11 @@ def forward_fx(
     Examples
     --------
     Using this function directly.
+
+    .. ipython:: python
+       :suppress:
+       
+       from rateslib.fx.fx_forwards import forward_fx
 
     .. ipython:: python
 

@@ -5,7 +5,7 @@
 
    from rateslib.curves import *
    from rateslib.instruments import *
-   from rateslib.calendars import get_imm
+   from rateslib.scheduling import get_imm
    import matplotlib.pyplot as plt
    from datetime import datetime as dt
    import numpy as np

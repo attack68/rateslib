@@ -1,7 +1,7 @@
 RollDay
 ==========
 
-.. currentmodule:: rateslib.calendars
+.. currentmodule:: rateslib.scheduling
 
 .. py:class:: RollDay
 

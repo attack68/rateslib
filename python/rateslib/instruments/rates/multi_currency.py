@@ -1345,6 +1345,11 @@ class FXSwap(XCS):
     objects.
 
     .. ipython:: python
+       :suppress:
+
+       from rateslib import FXSwap
+
+    .. ipython:: python
 
        usd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.95}, id="usd")
        eur = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.97}, id="eur")

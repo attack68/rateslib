@@ -3,7 +3,8 @@
 .. ipython:: python
    :suppress:
 
-   from rateslib import FixedRateBond, dt
+   from rateslib import *
+   from pandas import DataFrame, Series
 
 
 .. raw:: html

@@ -144,6 +144,11 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
     Examples
     --------
     .. ipython:: python
+       :suppress:
+
+       from rateslib import ZeroIndexLeg
+
+    .. ipython:: python
 
        index_curve = Curve({dt(2022, 1, 1): 1.0, dt(2027, 1, 1): 0.95}, index_base=100.0)
        zil = ZeroIndexLeg(
@@ -317,7 +322,11 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
 
     Examples
     --------
+    .. ipython:: python
+       :suppress:
 
+       from rateslib import IndexFixedLeg
+       
     .. ipython:: python
 
        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})

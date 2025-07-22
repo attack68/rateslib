@@ -1,11 +1,11 @@
 NamedCal
 ==========
 
-.. currentmodule:: rateslib.calendars
+.. currentmodule:: rateslib.scheduling
 
 .. py:class:: NamedCal(name)
 
-   A calendar wrapper of a :class:`~rateslib.calendars.UnionCal` created by a string name.
+   A calendar wrapper of a :class:`~rateslib.scheduling.UnionCal` created by a string name.
 
    See :ref:`User Guide: Calendars <settlement-cals>`.
 
@@ -18,8 +18,8 @@ NamedCal
    .. autoattribute:: union_cal
 
    .. seealso::
-      :class:`~rateslib.calendars.Cal`: Base calendar object type.
-      :class:`~rateslib.calendars.UnionCal`: Calendar object designed to merge calendars under financial date rules.
+      :class:`~rateslib.scheduling.Cal`: Base calendar object type.
+      :class:`~rateslib.scheduling.UnionCal`: Calendar object designed to merge calendars under financial date rules.
 
    .. rubric:: Methods Summary
 

@@ -77,25 +77,25 @@ example can be seen in the `Cookbook: Building Custom Curves (Nelson-Siegel) <z_
          :class:`~rateslib.fx_volatility._FXSmileMeta`.
          (`932 <https://github.com/attack68/rateslib/pull/932>`_)
    * - **Calendars & Scheduling**
-     - - :red:`Minor Breaking Change!` The :meth:`~rateslib.calendars.Cal.add_days` and
-         :meth:`~rateslib.calendars.Cal.lag`
-         methods are renamed :meth:`~rateslib.calendars.Cal.add_cal_days` and
-         :meth:`~rateslib.calendars.Cal.lag_bus_days`, respectively.
+     - - :red:`Minor Breaking Change!` The :meth:`~rateslib.scheduling.Cal.add_days` and
+         :meth:`~rateslib.scheduling.Cal.lag`
+         methods are renamed :meth:`~rateslib.scheduling.Cal.add_cal_days` and
+         :meth:`~rateslib.scheduling.Cal.lag_bus_days`, respectively.
          (`937 <https://github.com/attack68/rateslib/pull/937>`_)
-       - :red:`Minor Breaking Change!` The enum :class:`~rateslib.calendars.Modifier` is
+       - :red:`Minor Breaking Change!` The enum :class:`~rateslib.scheduling.Modifier` is
          removed and replaced by the
-         :class:`~rateslib.calendars.Adjuster` which is a more generalised object for date
-         adjustments, and which allows the method :meth:`~rateslib.calendars.Adjuster.adjust`.
+         :class:`~rateslib.scheduling.Adjuster` which is a more generalised object for date
+         adjustments, and which allows the method :meth:`~rateslib.scheduling.Adjuster.adjust`.
          (`937 <https://github.com/attack68/rateslib/pull/937>`_)
-       - The methods :meth:`~rateslib.calendars.Cal.adjust` and
-         :meth:`~rateslib.calendars.Cal.adjusts` are added for calendar objects. These
+       - The methods :meth:`~rateslib.scheduling.Cal.adjust` and
+         :meth:`~rateslib.scheduling.Cal.adjusts` are added for calendar objects. These
          provide a superset of date adjustment operations compared with
-         :meth:`~rateslib.calendars.Cal.roll`.
+         :meth:`~rateslib.scheduling.Cal.roll`.
          (`939 <https://github.com/attack68/rateslib/pull/939>`_)
          (`940 <https://github.com/attack68/rateslib/pull/940>`_)
          (`942 <https://github.com/attack68/rateslib/pull/942>`_)
          (`943 <https://github.com/attack68/rateslib/pull/943>`_)
-       - A :class:`~rateslib.calendars.Frequency` enum is added for defining scheduling operations.
+       - A :class:`~rateslib.scheduling.Frequency` enum is added for defining scheduling operations.
          (`940 <https://github.com/attack68/rateslib/pull/941>`_)
    * - **Bugs**
      - - The *NPV* determination of a :class:`~rateslib.instruments.FixedRateBond` now correctly
@@ -244,10 +244,10 @@ Some themes for this release involved:
          *Instrument*.
          (`845 <https://github.com/attack68/rateslib/pull/845>`_)
    * - **Calendars**
-     - - Added a new method :meth:`~rateslib.calendars.next_imm` to determine the next IMM date
+     - - Added a new method :meth:`~rateslib.scheduling.next_imm` to determine the next IMM date
          from a given start date under different IMM methodologies.
          (`773 <https://github.com/attack68/rateslib/pull/773>`_)
-       - Added a new day count convention *'30U360'* to :meth:`~rateslib.calendars.dcf`.
+       - Added a new day count convention *'30U360'* to :meth:`~rateslib.scheduling.dcf`.
          (`780 <https://github.com/attack68/rateslib/pull/780>`_)
    * - **Pricing Objects: Curves, Smiles & Surfaces**
      - - :red:`Major Breaking Change!` The **attributes** associated with *Curves*, such as
@@ -381,7 +381,7 @@ Some themes for this release involved:
          :class:`~rateslib.instruments.BillCalcMode` to global *rateslib* namespace.
          (`812 <https://github.com/attack68/rateslib/pull/812>`_)
        - For *Curve* rate calculations the *Curve* ``calendar`` is now correctly passed to
-         the :meth:`~rateslib.calendars.dcf` method for day count fraction determination.
+         the :meth:`~rateslib.scheduling.dcf` method for day count fraction determination.
          For almost all conventions this has no effect, but for "bus252", used in
          Brazil, for example, the right number of business days is essential to the
          calculation.
@@ -430,7 +430,7 @@ Some themes for this release involved:
        (`681 <https://github.com/attack68/rateslib/pull/681>`_)
    * - Calendars
      - Allow custom calendar additions to ``defaults.calendars`` and fast fetching with
-       :meth:`~rateslib.calendars.get_calendar`.
+       :meth:`~rateslib.scheduling.get_calendar`.
        (`684 <https://github.com/attack68/rateslib/pull/684>`_)
    * - Instruments
      - Add ``calc_mode`` *'eurex_eur'* for :class:`~rateslib.instruments.BondFuture`.
@@ -622,7 +622,7 @@ objects now have specific methods to allow *updates*.
        adjusted dual manifold gradients. The previous functionality returning only floats can be replicated
        using the internal method :meth:`rateslib.dual._abs_float`.
    * - Refactor
-     - :red:`Minor Breaking Change!` :meth:`~rateslib.calendars.get_calendar` has dropped the
+     - :red:`Minor Breaking Change!` :meth:`~rateslib.scheduling.get_calendar` has dropped the
        ``kind`` argument being only useful internally.
        (`524 <https://github.com/attack68/rateslib/pull/524>`_)
    * - Refactor
@@ -741,7 +741,7 @@ objects now have specific methods to allow *updates*.
      - **Python 3.13** *(with GIL)* is officially supported and tested.
        (`463 <https://github.com/attack68/rateslib/pull/463>`_)
    * - Bug
-     - :class:`~rateslib.curves.MultiCsaCurve` and :class:`~rateslib.calendars.get_imm` are now
+     - :class:`~rateslib.curves.MultiCsaCurve` and :class:`~rateslib.scheduling.get_imm` are now
        included in the main namespace.
        (`436 <https://github.com/attack68/rateslib/pull/436>`_)
        (`486 <https://github.com/attack68/rateslib/pull/486>`_)
@@ -785,7 +785,7 @@ objects now have specific methods to allow *updates*.
      - Add a *"wlg"* calendar for New Zealand *IRS*.
        (`363 <https://github.com/attack68/rateslib/pull/363>`_)
    * - Calendars
-     - Add a method, :meth:`~rateslib.calendars.get_imm`, to calculate IMM dates.
+     - Add a method, :meth:`~rateslib.scheduling.get_imm`, to calculate IMM dates.
        `(371) <https://github.com/attack68/rateslib/pull/371>`_
    * - Serialization
      - *PPSplines* are now serializable. Read more :ref:`here <serialization-doc>`.
@@ -850,10 +850,10 @@ objects now have specific methods to allow *updates*.
    * - Feature
      - Description
    * - Calendars
-     - :meth:`~rateslib.calendars.add_tenor` acquires the new optional argument ``mod_days`` which, by
+     - :meth:`~rateslib.scheduling.add_tenor` acquires the new optional argument ``mod_days`` which, by
        default, negates the modification rule for day type tenors and applies it only to month and year type tenors.
    * - Calendars
-     - Add :class:`~rateslib.calendars.NamedCal` for improved control of calendar serialization and loading.
+     - Add :class:`~rateslib.scheduling.NamedCal` for improved control of calendar serialization and loading.
    * - Instruments
      - Add a :meth:`~rateslib.instruments.FXOption.cashflows` method to generic :class:`~rateslib.instruments.FXOption`
        and also as a pre-requisite to :class:`~rateslib.periods.FXOptionPeriod`. This also allows the derivative
@@ -880,7 +880,7 @@ objects now have specific methods to allow *updates*.
    * - Bug
      - Expose :meth:`~rateslib.dual.gradient` as a method in the *rateslib* public API.
    * - Bug
-     - Expose :class:`~rateslib.calendars.NamedCal` as a class in the *rateslib* public API.
+     - Expose :class:`~rateslib.scheduling.NamedCal` as a class in the *rateslib* public API.
    * - Bug
      - :class:`~rateslib.instruments.IndexFixedRateBond` now correctly initialises when using a
        :class:`pandas.Series` as ``index_fixings`` argument.
@@ -910,19 +910,19 @@ objects now have specific methods to allow *updates*.
        Italian, Norwegian and Dutch government bonds.
    * - Calendars
      - The `pandas` holiday and calendar system has been removed in favour of a rust implementation for
-       calendar objects: :class:`~rateslib.calendars.Cal` and :class:`~rateslib.calendars.UnionCal`.
+       calendar objects: :class:`~rateslib.scheduling.Cal` and :class:`~rateslib.scheduling.UnionCal`.
    * - Calendars
      - :red:`Breaking Change!` The :meth:`~rateslib.calendars.create_calendar` methods is deprecated and
        modified to accept different input arguments.
    * - Calendars
      - Calendar string parsing has been enhanced to allow associated settlement calendars, and
-       automatic creation of a :class:`~rateslib.calendars.UnionCal` object. E.g. *"tgt,ldn|nyc"*.
+       automatic creation of a :class:`~rateslib.scheduling.UnionCal` object. E.g. *"tgt,ldn|nyc"*.
    * - Calendars
      - The Tokyo calendar *'tyo'* has been added to align with TONA publication. The FED calendar *'fed'* has also been
        added. The Sydney calendar *"syd"* has been added to align with AONIA publication.
    * - Calendars
-     - JSON serialisation/deserialisation of :class:`~rateslib.calendars.Cal`
-       and :class:`~rateslib.calendars.UnionCal` added for saving/loading from database or file.
+     - JSON serialisation/deserialisation of :class:`~rateslib.scheduling.Cal`
+       and :class:`~rateslib.scheduling.UnionCal` added for saving/loading from database or file.
    * - Calendars
      - The new DCF method *'Bus252'* is added to allow Brazilian type calculations.
    * - Dual
