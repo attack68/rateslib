@@ -6,7 +6,7 @@ use std::cmp::Ordering;
 
 use crate::scheduling::{Adjuster, Adjustment};
 
-/// Used to control business day management and date rolling.
+/// Simple date adjustment defining business, settleable and holidays and rolling.
 pub trait DateRoll {
     /// Returns whether the date is part of the general working week.
     fn is_weekday(&self, date: &NaiveDateTime) -> bool;

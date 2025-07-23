@@ -7,8 +7,9 @@ from pandas.testing import assert_index_equal
 from pandas.tseries.holiday import Holiday
 from rateslib import defaults
 from rateslib.default import NoInput
-from rateslib.scheduling import Cal, Schedule
+from rateslib.scheduling import Cal
 from rateslib.scheduling.scheduling import (
+    Schedule,
     _check_regular_swap,
     _check_unadjusted_regular_swap,
     _generate_irregular_schedule_unadjusted,

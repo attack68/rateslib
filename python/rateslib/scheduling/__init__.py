@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from rateslib.rs import Adjuster, Cal, NamedCal, RollDay, UnionCal
+from rateslib.rs import Adjuster, Cal, Frequency, NamedCal, RollDay, UnionCal
 
 # from rateslib.scheduling.wrappers import Schedule
 from rateslib.scheduling.calendars import get_calendar
@@ -10,7 +10,11 @@ from rateslib.scheduling.rollday import get_imm, next_imm
 from rateslib.scheduling.scheduling import Schedule, _check_regular_swap, _infer_stub_date
 
 RollDay.__doc__ = "Enumerable type for roll day types."
+
 Adjuster.__doc__ = "Enumerable type for date adjustment rules."
+
+Frequency.__doc__ = "Enumerable type for a scheduling frequency."
+
 Cal.__doc__ = """
 A business day calendar defined by weekends and a holiday list
 
@@ -67,6 +71,7 @@ __all__ = (
     "_check_regular_swap",
     "add_tenor",
     "Adjuster",
+    "Frequency",
     "Cal",
     "dcf",
     "NamedCal",

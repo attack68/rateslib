@@ -2,7 +2,7 @@ use crate::scheduling::DateRoll;
 use chrono::prelude::*;
 use pyo3::pyclass;
 
-/// A list of rules for performing date adjustment in combination with a [Calendar](crate::scheduling::Calendar).
+/// A list of rules for performing date adjustment.
 #[pyclass(module = "rateslib.rs", eq)]
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Adjuster {
@@ -32,6 +32,7 @@ pub enum Adjuster {
     CalDaysLagSettle { number: i32 },
 }
 
+/// Perform date adjustment according to calendar definitions, i.e. a known [`DateRoll`].
 pub trait Adjustment {
     /// Adjust a date under an adjustment rule.
     fn adjust<T: DateRoll>(&self, udate: &NaiveDateTime, calendar: &T) -> NaiveDateTime;
@@ -41,6 +42,7 @@ pub trait Adjustment {
         -> Vec<NaiveDateTime>;
 }
 
+/// Perform date adjustment according to adjustment rules, i.e. a given [`Adjuster`].
 pub trait CalendarAdjustment {
     /// Adjust a date under an adjustment rule.
     fn adjust(&self, udate: &NaiveDateTime, adjuster: &Adjuster) -> NaiveDateTime

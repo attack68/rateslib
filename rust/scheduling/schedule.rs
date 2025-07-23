@@ -6,7 +6,7 @@ use itertools::iproduct;
 use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
 
-/// A stub type indicator for date inference on one side of the schedule.
+/// An indicator used by [`Schedule::try_new_inferred`] to instruct its inference logic.
 #[pyclass(module = "rateslib.rs", eq, eq_int)]
 #[derive(Copy, Clone, PartialEq)]
 pub enum StubInference {
@@ -23,11 +23,11 @@ pub enum StubInference {
 /// A generic financial schedule with regular contiguous periods and, possibly, stubs.
 ///
 /// # Notes
-/// - A **regular** schedule has a [Frequency] that perfectly divides its ``ueffective`` and
+/// - A **regular** schedule has a [`Frequency`] that perfectly divides its ``ueffective`` and
 ///   ``utermination`` dates, and has no stub dates.
 /// - An **irregular** schedule has a ``ufront_stub`` and/or ``uback_stub`` dates defining periods
 ///   at the boundary of the schedule which are not a standard length of time defined by the
-///   [Frequency]. However, a regular schedule must exist between those interior dates.
+///   [`Frequency`]. However, a regular schedule must exist between those interior dates.
 #[pyclass(module = "rateslib.rs", eq)]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Schedule {
@@ -35,19 +35,18 @@ pub struct Schedule {
     pub ueffective: NaiveDateTime,
     /// The unadjusted end date of the schedule.
     pub utermination: NaiveDateTime,
-    /// The scheduling [Frequency] for regular periods.
+    /// The scheduling [`Frequency`] for regular periods.
     pub frequency: Frequency,
     /// The optional, unadjusted front stub date.
     pub ufront_stub: Option<NaiveDateTime>,
     /// The optional, unadjusted back stub date.
     pub uback_stub: Option<NaiveDateTime>,
-    /// The [Calendar] for accrual and payment date adjustment.
+    /// The [`Calendar`] for accrual and payment date adjustment.
     pub calendar: Calendar,
-    /// The [Adjuster] to adjust the unadjusted schedule dates to adjusted period accrual dates.
+    /// The [`Adjuster`] to adjust the unadjusted schedule dates to adjusted period accrual dates.
     pub accrual_adjuster: Adjuster,
-    /// The [Adjuster] to adjust the adjusted schedule dates to period payment dates.
+    /// The [`Adjuster`] to adjust the adjusted schedule dates to period payment dates.
     pub payment_adjuster: Adjuster,
-
     /// The vector of unadjusted period accrual dates.
     pub uschedule: Vec<NaiveDateTime>,
     /// The vector of adjusted period accrual dates.
@@ -140,14 +139,8 @@ fn validate_is_stub(
 }
 
 impl Schedule {
-    /// Create a [Schedule] from defined unadjusted dates and a [Frequency].
-    ///
-    /// # Notes
-    ///
-    /// An unadjusted regular schedule, that aligns with [Frequency], must be defined between
-    /// the relevant dates. If not an error is returned. The [Frequency] must be well defined -
-    /// optional parameters, such as a missing [RollDay] will result in errors.
-    fn try_new_uschedule_defined(
+    /// Create a [`Schedule`] from well defined unadjusted dates and a [`Frequency`].
+    pub fn try_new_defined(
         ueffective: NaiveDateTime,
         utermination: NaiveDateTime,
         frequency: Frequency,
@@ -254,19 +247,7 @@ impl Schedule {
         })
     }
 
-    /// Check if a [Schedule] contains only regular periods.
-    pub fn is_regular(&self) -> bool {
-        let ucheck = self
-            .frequency
-            .try_uregular(&self.ueffective, &self.utermination);
-        if ucheck.is_ok() {
-            ucheck.unwrap() == self.uschedule
-        } else {
-            false
-        }
-    }
-
-    /// Create an [Schedule] from unadjusted dates with specified [StubInference].
+    /// Create a [`Schedule`] from unadjusted dates with specified [`StubInference`].
     ///
     /// # Notes
     /// This method introduces the ``stub_inference`` argument.
@@ -275,7 +256,7 @@ impl Schedule {
     /// an error will be returned.
     /// If ``stub_inference`` is given but a ``stub`` date is not required then a valid [Schedule]
     /// is returned without an inferred stub.
-    fn try_new_uschedule_infer_stub(
+    fn try_new_infer_stub(
         ueffective: NaiveDateTime,
         utermination: NaiveDateTime,
         frequency: Frequency,
@@ -287,7 +268,7 @@ impl Schedule {
         stub_inference: Option<StubInference>,
     ) -> Result<Self, PyErr> {
         // evaluate if schedule is valid as defined without stub inference
-        let temp_schedule = Schedule::try_new_uschedule_defined(
+        let temp_schedule = Schedule::try_new_defined(
             ueffective,
             utermination,
             frequency.clone(),
@@ -372,7 +353,7 @@ impl Schedule {
                 }
             }
         }
-        Self::try_new_uschedule_defined(
+        Self::try_new_defined(
             ueffective,
             utermination,
             frequency,
@@ -384,7 +365,7 @@ impl Schedule {
         )
     }
 
-    /// Create a [Schedule] from unadjusted dates.
+    /// Create a [`Schedule`] from unadjusted dates.
     ///
     /// # Notes
     ///
@@ -416,7 +397,7 @@ impl Schedule {
         let uschedules: Vec<Schedule> = frequencies
             .into_iter()
             .filter_map(|f| {
-                Schedule::try_new_uschedule_infer_stub(
+                Schedule::try_new_infer_stub(
                     ueffective,
                     utermination,
                     f,
@@ -451,19 +432,26 @@ impl Schedule {
         }
     }
 
-    /// Generate a [Schedule].
+    /// Create a [`Schedule`] using inference if some of the parameters are not well defined.
     ///
     /// # Notes
-    /// This method uses inference, when inputs are not well defined.
-    /// - Adjusted dates are expanded to include their unadjusted counterparts under the `accrual_adjuster` and `calendar`.
-    ///   Only the dates at either side of the regular schedule component are expanded out.
-    /// - Stubs are
-    /// - The `frequency` may be expanded to all possible alternatives
+    /// If all parameters are well defined and dates are definitively known in their unadjusted
+    /// forms then the [`try_new_defined`](Schedule::try_new_defined) method
+    /// should be used instead.
     ///
-    ///
-    /// An unadjusted regular schedule, that aligns with [Frequency], must be able to be defined
-    /// between the relevant dates with appropriate stubs. If not an error is returned.
-    pub fn try_new_schedule(
+    /// This method provides the additional features below:
+    /// - **Unadjusted date inference**: if *adjusted* dates are given then a neighbourhood of
+    ///   dates will be sub-sampled to determine
+    ///   any possibilities for *unadjusted* dates defined by the `accrual_adjuster` and `calendar`.
+    ///   Only the dates at either side of the regular schedule component are explored. Stub date
+    ///   boundaries are used as provided.
+    /// - **Frequency inference**: any [`Frequency`](crate::scheduling::Frequency) that contains
+    ///   optional elements, e.g. no [`RollDay`],
+    ///   will be explored for all possible alternatives that results in the most likely schedule,
+    ///   guided by the `eom` parameter.
+    /// - **Stub date inference**: one-sided stub date inference can be attempted guided by
+    ///   the `stub_inference` parameter.
+    pub fn try_new_inferred(
         effective: NaiveDateTime,
         termination: NaiveDateTime,
         frequency: Frequency,
@@ -556,6 +544,18 @@ impl Schedule {
             } else {
                 Ok(filter_schedules_by_eom(schedules, eom))
             }
+        }
+    }
+
+    /// Check if a [`Schedule`] contains only regular periods, and no stub periods.
+    pub fn is_regular(&self) -> bool {
+        let ucheck = self
+            .frequency
+            .try_uregular(&self.ueffective, &self.utermination);
+        if ucheck.is_ok() {
+            ucheck.unwrap() == self.uschedule
+        } else {
+            false
         }
     }
 }
@@ -688,7 +688,7 @@ mod tests {
             ),
         ];
         for option in options {
-            let result = Schedule::try_new_uschedule_defined(
+            let result = Schedule::try_new_defined(
                 option.0,
                 option.1,
                 Frequency::Months {
@@ -726,7 +726,7 @@ mod tests {
             ),
         ];
         for option in options {
-            let result = Schedule::try_new_uschedule_defined(
+            let result = Schedule::try_new_defined(
                 option.0,
                 option.1,
                 option.2,
@@ -774,7 +774,7 @@ mod tests {
             ),
         ];
         for option in options {
-            let result = Schedule::try_new_uschedule_defined(
+            let result = Schedule::try_new_defined(
                 option.0,
                 option.2,
                 Frequency::Months {
@@ -862,7 +862,7 @@ mod tests {
             ),
         ];
         for option in options {
-            let result = Schedule::try_new_uschedule_defined(
+            let result = Schedule::try_new_defined(
                 option.0,
                 option.3,
                 Frequency::Months {
@@ -919,7 +919,7 @@ mod tests {
             ),
         ];
         for option in options {
-            let result = Schedule::try_new_uschedule_defined(
+            let result = Schedule::try_new_defined(
                 option.0,
                 option.3,
                 Frequency::Months {
@@ -997,7 +997,7 @@ mod tests {
             ),
         ];
         for option in options {
-            let result = Schedule::try_new_uschedule_defined(
+            let result = Schedule::try_new_defined(
                 option.0,
                 option.3,
                 Frequency::Months {
@@ -1028,7 +1028,7 @@ mod tests {
             ndt(2000, 4, 10),
         )];
         for option in options {
-            let result = Schedule::try_new_uschedule_defined(
+            let result = Schedule::try_new_defined(
                 option.0,
                 option.3,
                 Frequency::Months {
@@ -1048,7 +1048,7 @@ mod tests {
     #[test]
     fn test_new_uschedule_defined_err() {
         // test that None RollDay produces errors even for a well defined schedule
-        let result = Schedule::try_new_uschedule_defined(
+        let result = Schedule::try_new_defined(
             ndt(2000, 1, 1),
             ndt(2001, 1, 1),
             Frequency::Months {
@@ -1066,7 +1066,7 @@ mod tests {
 
     #[test]
     fn test_try_new_uschedule_dead_stubs() {
-        let s = Schedule::try_new_uschedule_defined(
+        let s = Schedule::try_new_defined(
             ndt(2023, 1, 1),
             ndt(2024, 1, 2),
             Frequency::Months {
@@ -1081,7 +1081,7 @@ mod tests {
         );
         assert!(s.is_err()); // 1st Jan is adjusted to 2nd Jan aligning with front stub
 
-        let s = Schedule::try_new_uschedule_defined(
+        let s = Schedule::try_new_defined(
             ndt(2022, 1, 1),
             ndt(2023, 1, 2),
             Frequency::Months {
@@ -1177,7 +1177,7 @@ mod tests {
         // fails because stub dates are given as well as an inference enum
         assert_eq!(
             true,
-            Schedule::try_new_uschedule_infer_stub(
+            Schedule::try_new_infer_stub(
                 ndt(2000, 1, 1),
                 ndt(2000, 2, 1),
                 Frequency::CalDays { number: 100 },
@@ -1194,7 +1194,7 @@ mod tests {
         // fails because stub date is given as well as an inference enum
         assert_eq!(
             true,
-            Schedule::try_new_uschedule_infer_stub(
+            Schedule::try_new_infer_stub(
                 ndt(2000, 1, 1),
                 ndt(2000, 2, 1),
                 Frequency::CalDays { number: 100 },
@@ -1211,7 +1211,7 @@ mod tests {
         // fails because stub date is given as well as an inference enum
         assert_eq!(
             true,
-            Schedule::try_new_uschedule_infer_stub(
+            Schedule::try_new_infer_stub(
                 ndt(2000, 1, 1),
                 ndt(2000, 2, 1),
                 Frequency::CalDays { number: 100 },
@@ -1228,7 +1228,7 @@ mod tests {
         // fails because stub date is given as well as an inference enum
         assert_eq!(
             true,
-            Schedule::try_new_uschedule_infer_stub(
+            Schedule::try_new_infer_stub(
                 ndt(2000, 1, 1),
                 ndt(2000, 2, 1),
                 Frequency::CalDays { number: 100 },
@@ -1245,7 +1245,7 @@ mod tests {
         // fails because stub date is given as well as an inference enum
         assert_eq!(
             true,
-            Schedule::try_new_uschedule_infer_stub(
+            Schedule::try_new_infer_stub(
                 ndt(2000, 1, 1),
                 ndt(2000, 2, 1),
                 Frequency::CalDays { number: 100 },
@@ -1351,7 +1351,7 @@ mod tests {
 
     #[test]
     fn test_front_stub_inference() {
-        let s = Schedule::try_new_schedule(
+        let s = Schedule::try_new_inferred(
             ndt(2022, 1, 1),
             ndt(2022, 6, 1),
             Frequency::Months {

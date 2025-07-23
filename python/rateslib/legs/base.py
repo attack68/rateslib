@@ -163,17 +163,17 @@ class BaseLeg(metaclass=ABCMeta):
         final_exchange: bool = False,
     ) -> None:
         self.schedule = Schedule(
-            effective,
-            termination,
-            frequency,
-            stub,
-            front_stub,
-            back_stub,
-            roll,
-            eom,
-            modifier,
-            calendar,
-            payment_lag,
+            effective=effective,
+            termination=termination,
+            frequency=frequency,
+            stub=stub,
+            front_stub=front_stub,
+            back_stub=back_stub,
+            roll=roll,
+            eom=eom,
+            modifier=modifier,
+            calendar=calendar,
+            payment_lag=payment_lag,
         )
         self.convention: str = _drb(defaults.convention, convention)
         self.currency: str = _drb(defaults.base_currency, currency).lower()
