@@ -774,3 +774,15 @@ def test_roll_property(f, expected) -> None:
     s = Schedule(dt(2000, 1, 16), dt(2001, 1, 16), f)
     result = s.roll
     assert result == expected
+
+
+def test_day_type_tenor() -> None:
+    # should convert MF to Following only
+    s = Schedule(
+        dt(2024, 12, 30),
+        "1d",
+        "A",
+        modifier="mf",
+        calendar="stk",
+    )
+    assert s.utermination == dt(2025, 1, 2)

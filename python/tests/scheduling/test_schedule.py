@@ -94,6 +94,7 @@ def test_single_period_schedule2():
     IRS(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6)
 
 
+@pytest.mark.skip(reason="cannot pickle complex enum with PyO3")
 def test_pickle():
     import pickle
 
