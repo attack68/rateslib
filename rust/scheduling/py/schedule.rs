@@ -19,7 +19,7 @@ impl Schedule {
         back_stub: Option<NaiveDateTime>,
         stub_inference: Option<StubInference>,
     ) -> PyResult<Self> {
-        Schedule::try_new_schedule(
+        Schedule::try_new_inferred(
             effective,
             termination,
             frequency,
@@ -102,5 +102,34 @@ impl Schedule {
     #[pyo3(name = "pschedule")]
     fn pschedule_py(&self) -> Vec<NaiveDateTime> {
         self.pschedule.clone()
+    }
+
+    // Pickling
+    fn __getnewargs__(
+        &self,
+    ) -> PyResult<(
+        NaiveDateTime,
+        NaiveDateTime,
+        Frequency,
+        Calendar,
+        Adjuster,
+        Adjuster,
+        bool,
+        Option<NaiveDateTime>,
+        Option<NaiveDateTime>,
+        Option<StubInference>,
+    )> {
+        Ok((
+            self.ueffective,
+            self.utermination,
+            self.frequency.clone(),
+            self.calendar.clone(),
+            self.accrual_adjuster,
+            self.payment_adjuster,
+            false,
+            self.ufront_stub,
+            self.uback_stub,
+            None,
+        ))
     }
 }

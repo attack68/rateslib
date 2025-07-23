@@ -19,14 +19,15 @@ pub struct Cal {
 }
 
 impl Cal {
-    /// Create a [Cal].
+    /// Create a [`Cal`].
     ///
     /// # Examples
     /// ```rust
     /// # use rateslib::scheduling::{Cal, ndt, DateRoll};
-    /// let ldn = Cal::new(vec![ndt(2017, 5, 1)], vec![5, 6]); // With May Bank Holiday
-    /// let spot = ldn.add_bus_days(&ndt(2017, 4, 28), 2, true);
-    /// assert_eq!(ndt(2017, 5, 3), spot.unwrap());
+    /// let cal = Cal::new(vec![ndt(2017, 5, 1)], vec![5, 6]); // With May Bank Holiday
+    /// let spot = cal.add_bus_days(&ndt(2017, 4, 28), 2, true);
+    /// # let spot = spot.unwrap();
+    /// assert_eq!(ndt(2017, 5, 3), spot);
     /// ```
     pub fn new(
         holidays: Vec<NaiveDateTime>,

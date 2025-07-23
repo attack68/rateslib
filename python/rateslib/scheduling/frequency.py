@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from rateslib.default import NoInput
+from rateslib.rs import Adjuster, Frequency, RollDay
 from rateslib.scheduling.adjuster import _convert_to_adjuster
 from rateslib.scheduling.calendars import get_calendar
 from rateslib.scheduling.rollday import _get_rollday, _is_eom
@@ -14,10 +15,10 @@ if TYPE_CHECKING:
 
 def add_tenor(
     start: datetime,
-    tenor: str,
-    modifier: str,
+    tenor: str | Frequency,
+    modifier: str | Adjuster,
     calendar: CalInput = NoInput(0),
-    roll: str | int_ = NoInput(0),
+    roll: str | int_ | RollDay = NoInput(0),
     settlement: bool = False,
     mod_days: bool = False,
 ) -> datetime:
@@ -34,23 +35,23 @@ def add_tenor(
     Parameters
     ----------
     start : datetime
-        The initial date to which to add the tenor.
-    tenor : str
+        The date to which to add the tenor.
+    tenor : str | Frequency
         The tenor to add, identified by calendar days, `"D"`, months, `"M"`,
         years, `"Y"` or business days, `"B"`, for example `"10Y"` or `"5B"`.
-    modifier : str, optional in {"NONE", "MF", "F", "MP", "P"}
+    modifier : str, optional in {"NONE", "MF", "F", "MP", "P"} | Adjuster
         The modification rule to apply if the tenor is calendar days, months or years.
     calendar : CustomBusinessDay or str, optional
         The calendar for use with business day adjustment and modification.
-    roll : str, int, optional
+    roll : str, int, RollDay, optional
         This is only required if the tenor is given in months or years. Ensures the tenor period
         associates with a schedule's roll day.
     settlement : bool, optional
-        Whether to enforce the settlement with an associated settlement calendar. If there is
-        no associated settlement calendar this will have no effect.
+        If ``modifier`` is string this determines whether to enforce the settlement
+        with an associated settlement calendar, if provided.
     mod_days : bool, optional
-        If *True* will apply modified rules to day type tenors as well as month and year tenors.
-        If *False* will convert "MF" to "F" and "MP" to "P" for day type tenors.
+        If ``modifier`` is string and ``tenor`` is a day variant setting this to *False*
+        will convert "MF" to "F" and "MP" to "P".
 
     Returns
     -------
@@ -104,39 +105,36 @@ def add_tenor(
        add_tenor(dt(2022, 12, 28), "4b", "F", get_calendar("ldn"))
        add_tenor(dt(2022, 12, 28), "4d", "F", get_calendar("ldn"))
     """  # noqa: E501
-    tenor = tenor.upper()
     cal_ = get_calendar(calendar)
-    if "D" in tenor:
-        return cal_.add_cal_days(
-            start,
-            int(tenor[:-1]),
-            _convert_to_adjuster(modifier, settlement, mod_days),
-        )
-    elif "B" in tenor:
-        return cal_.add_bus_days(start, int(tenor[:-1]), settlement)
-    elif "Y" in tenor:
-        months = int(float(tenor[:-1]) * 12)
-        return cal_.add_months(
-            start,
-            months,
-            _convert_to_adjuster(modifier, settlement, True),
-            _get_rollday(roll),
-        )
-    elif "M" in tenor:
-        return cal_.add_months(
-            start,
-            int(tenor[:-1]),
-            _convert_to_adjuster(modifier, settlement, True),
-            _get_rollday(roll),
-        )
-    elif "W" in tenor:
-        return cal_.add_cal_days(
-            start,
-            int(tenor[:-1]) * 7,
-            _convert_to_adjuster(modifier, settlement, mod_days),
-        )
+    if isinstance(tenor, Frequency):
+        frequency: Frequency = tenor
     else:
-        raise ValueError("`tenor` must identify frequency in {'B', 'D', 'W', 'M', 'Y'} e.g. '1Y'")
+        tenor = tenor.upper()
+        if "D" in tenor:
+            frequency = Frequency.CalDays(int(tenor[:-1]))
+        elif "W" in tenor:
+            frequency = Frequency.CalDays(int(tenor[:-1]) * 7)
+        elif "B" in tenor:
+            frequency = Frequency.BusDays(int(tenor[:-1]), cal_)
+        elif "Y" in tenor:
+            roll_ = _get_rollday(roll)
+            roll__ = RollDay.Day(start.day) if roll_ is None else roll_
+            frequency = Frequency.Months(int(float(tenor[:-1]) * 12), roll__)
+        elif "M" in tenor:
+            roll_ = _get_rollday(roll)
+            roll__ = RollDay.Day(start.day) if roll_ is None else roll_
+            frequency = Frequency.Months(int(float(tenor[:-1])), roll__)
+        else:
+            raise ValueError(
+                "`tenor` must identify frequency in {'B', 'D', 'W', 'M', 'Y'} e.g. '1Y'"
+            )
+
+    if isinstance(frequency, Frequency.Months | Frequency.Zero):
+        mod_days = True
+
+    next_date = frequency.next(start)
+    adjuster = _convert_to_adjuster(modifier, settlement, mod_days)
+    return adjuster.adjust(next_date, cal_)
 
 
 def _get_fx_expiry_and_delivery(

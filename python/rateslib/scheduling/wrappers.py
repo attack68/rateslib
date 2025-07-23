@@ -7,16 +7,15 @@ from pandas import DataFrame
 
 from rateslib import defaults
 from rateslib.default import NoInput, _drb
-from rateslib.rs import Frequency, RollDay, StubInference
+from rateslib.rs import Adjuster, Frequency, RollDay, StubInference
 from rateslib.rs import Schedule as Schedule_rs
 from rateslib.scheduling.adjuster import _get_adjuster
-from rateslib.scheduling.calendars import get_calendar
-from rateslib.scheduling.rollday import _get_rollday
-from rateslib.scheduling.scheduling import _validate_effective, _validate_termination
+from rateslib.scheduling.calendars import _is_day_type_tenor, get_calendar
+from rateslib.scheduling.frequency import add_tenor
+from rateslib.scheduling.rollday import _get_rollday, _is_eom_cal
 
 if TYPE_CHECKING:
     from rateslib.typing import (
-        Adjuster,
         CalInput,
         CalTypes,
         bool_,
@@ -110,6 +109,20 @@ def _get_stub_inference(
     return ret
 
 
+def _get_adjuster_from_modifier(modifier: Adjuster | str_) -> Adjuster:
+    if isinstance(modifier, Adjuster):
+        return modifier
+    modifier_: str = _drb(defaults.modifier, modifier).upper()
+    return _get_adjuster(modifier_)
+
+
+def _get_adjuster_from_lag(lag: Adjuster | int_) -> Adjuster:
+    if isinstance(lag, Adjuster):
+        return lag
+    lag_: int = _drb(defaults.payment_lag, lag)
+    return _get_adjuster(f"{lag_}B")
+
+
 class Schedule:
     _obj: Schedule_rs
 
@@ -129,36 +142,34 @@ class Schedule:
         back_stub: datetime_ = NoInput(0),
         roll: str | RollDay | int_ = NoInput(0),
         eom: bool_ = NoInput(0),
-        modifier: str_ = NoInput(0),
+        modifier: Adjuster | str_ = NoInput(0),
         calendar: CalInput = NoInput(0),
-        payment_lag: int_ = NoInput(0),
+        payment_lag: Adjuster | int_ = NoInput(0),
         eval_date: datetime_ = NoInput(0),
         eval_mode: str_ = NoInput(0),
     ) -> None:
         eom_: bool = _drb(defaults.eom, eom)
         stub_: str = _drb(defaults.stub, stub)
         eval_mode_: str = _drb(defaults.eval_mode, eval_mode).lower()
-        modifier_: str = _drb(defaults.modifier, modifier).upper()
-        payment_lag_: int = _drb(defaults.payment_lag, payment_lag)
+        accrual_adjuster = _get_adjuster_from_modifier(modifier)
+        payment_adjuster = _get_adjuster_from_lag(payment_lag)
         calendar_: CalTypes = get_calendar(calendar)
         effective_: datetime = _validate_effective(
             effective,
             eval_mode_,
             eval_date,
-            modifier_,
+            accrual_adjuster,
             calendar_,
-            roll,  # type: ignore[arg-type]
+            roll,
         )
         termination_: datetime = _validate_termination(
             termination,
             effective_,
-            modifier_,
+            accrual_adjuster,
             calendar_,
-            roll,  # type: ignore[arg-type]
+            roll,
             eom_,
         )
-        accrual_adjuster = _get_adjuster(modifier_)
-        payment_adjuster = _get_adjuster(f"{payment_lag_}B")
 
         self._obj = Schedule_rs(
             effective=effective_,
@@ -171,6 +182,39 @@ class Schedule:
             back_stub=_drb(None, back_stub),
             eom=eom_,
             stub_inference=_get_stub_inference(stub_, front_stub, back_stub),
+        )
+
+    def __getnewargs__(
+        self,
+    ) -> tuple[
+        datetime,
+        datetime,
+        Frequency,
+        NoInput,
+        datetime_,
+        datetime_,
+        NoInput,
+        NoInput,
+        Adjuster,
+        CalInput,
+        Adjuster,
+        NoInput,
+        NoInput,
+    ]:
+        return (
+            self.ueffective,
+            self.utermination,
+            self.frequency_obj,
+            NoInput(0),
+            NoInput(0) if self.ufront_stub is None else self.ufront_stub,
+            NoInput(0) if self.uback_stub is None else self.uback_stub,
+            NoInput(0),
+            NoInput(0),
+            self.accrual_adjuster,
+            self.calendar,
+            self.payment_adjuster,
+            NoInput(0),
+            NoInput(0),
         )
 
     @cached_property
@@ -193,9 +237,10 @@ class Schedule:
     def frequency_obj(self) -> Frequency:
         return self.obj.frequency
 
+    @property
     def modifier(self) -> Adjuster:
         # legacy alias for Adjuster
-        return self.obj.accrual_adjuster
+        return self.accrual_adjuster
 
     @cached_property
     def calendar(self) -> CalTypes:
@@ -235,12 +280,12 @@ class Schedule:
 
     @cached_property
     def roll(self) -> str | int | NoInput:
-        if isinstance(self.obj.frequency, Frequency.Months):  # type: ignore[arg-type]
+        if isinstance(self.obj.frequency, Frequency.Months):
             # Frequency.Months on a valid Schedule will always have Some(RollDay).
-            if isinstance(self.obj.frequency.roll, RollDay.Day):  # type: ignore[attr-defined, arg-type]
-                return self.obj.frequency.roll._0  # type: ignore[attr-defined, no-any-return]
+            if isinstance(self.obj.frequency.roll, RollDay.Day):
+                return self.obj.frequency.roll._0
             else:
-                return self.obj.frequency.roll.__str__()  # type: ignore[attr-defined, no-any-return]
+                return self.obj.frequency.roll.__str__()
         else:
             return NoInput(0)
 
@@ -249,24 +294,11 @@ class Schedule:
         """
         DataFrame : Rows of schedule dates and information.
         """
-        if self.is_regular():
-            stubs = ["Regular"] * self.n_periods
-        else:
-            us = self.uschedule
-            front_stub = ["Stub"] if self.frequency_obj.is_stub(us[0], us[1], True) else ["Regular"]
-            back_stub = (
-                ["Stub"] if self.frequency_obj.is_stub(us[-2], us[-1], False) else ["Regular"]
-            )
-            if self.n_periods == 1:
-                stubs = ["Stub"] if front_stub or back_stub else ["Regular"]
-            else:  # self.n_periods >= 2:
-                stubs = ["Stub"] if front_stub else ["Regular"]
-                stubs += ["Regular"] * (self.n_periods - 2)
-                stubs += ["Stub"] if back_stub else ["Regular"]
-
         df = DataFrame(
             {
-                defaults.headers["stub_type"]: stubs,
+                defaults.headers["stub_type"]: [
+                    "Stub" if stub else "Regular" for stub in self._stubs
+                ],
                 defaults.headers["u_acc_start"]: self.uschedule[:-1],
                 defaults.headers["u_acc_end"]: self.uschedule[1:],
                 defaults.headers["a_acc_start"]: self.aschedule[:-1],
@@ -302,3 +334,85 @@ class Schedule:
 
     def is_regular(self) -> bool:
         return self.obj.is_regular()
+
+
+def _validate_effective(
+    effective: datetime | str,
+    eval_mode: str,
+    eval_date: datetime | NoInput,
+    modifier: str | Adjuster,
+    calendar: CalTypes,
+    roll: int | str | RollDay | NoInput,
+) -> datetime:
+    """
+    Determine the effective date of a schedule if it is given in string form from
+    other parameters such as the eval date and the eval mode.
+    """
+    if isinstance(effective, str):
+        if isinstance(eval_date, NoInput):
+            raise ValueError(
+                "For `effective` given as string tenor, must also supply a base `eval_date`.",
+            )
+        if eval_mode == "swaps_align":
+            # effective date is calculated as unadjusted
+            return add_tenor(
+                eval_date,
+                effective,
+                "NONE",
+                NoInput(0),
+                roll,
+            )
+        else:  # eval_mode == "swaptions_align":
+            return add_tenor(
+                eval_date,
+                effective,
+                modifier,
+                calendar,
+                roll,
+            )
+    else:
+        return effective
+
+
+def _validate_termination(
+    termination: datetime | str,
+    effective: datetime,
+    modifier: str | Adjuster,
+    calendar: CalTypes,
+    roll: int | str | NoInput | RollDay,
+    eom: bool,
+) -> datetime:
+    """
+    Determine the termination date of a schedule if it is given in string form from
+    """
+    if isinstance(termination, str):
+        if _is_day_type_tenor(termination):
+            termination_: datetime = add_tenor(
+                start=effective,
+                tenor=termination,
+                modifier=modifier,
+                calendar=calendar,
+                roll=NoInput(0),
+                settlement=False,
+                mod_days=False,
+            )
+        else:
+            # if termination is string the end date is calculated as unadjusted, which will
+            # be used later according to roll inference rules, for monthly and yearly tenors.
+            if eom and isinstance(roll, NoInput) and _is_eom_cal(effective, calendar):
+                roll_: str | int | NoInput | RollDay = 31
+            else:
+                roll_ = roll
+            termination_ = add_tenor(
+                effective,
+                termination,
+                "NONE",
+                calendar,  # calendar is unused for NONE type modifier
+                roll_,
+            )
+    else:
+        termination_ = termination
+
+    if termination_ <= effective:
+        raise ValueError("Schedule `termination` must be after `effective`.")
+    return termination_

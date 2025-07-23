@@ -9,14 +9,14 @@ use pyo3::{pyclass, PyErr};
 pub enum Frequency {
     /// A set number of business days, defined by a [Calendar], which can only align with a
     /// business day as defined by that [Calendar].
-    BusDays { number: u32, calendar: Calendar },
+    BusDays { number: i32, calendar: Calendar },
     /// A set number of calendar days, which can align with any unadjusted date. To achieve a
     /// `Weeks` variant use an appropriate number of `CalDays`.
-    CalDays { number: u32 },
+    CalDays { number: i32 },
     /// A set number of calendar months, with a defined [RollDay]. This will align with any
     /// unadjusted date if no [RollDay] is specified, otherwise it must align with the [RollDay].
     /// To achieve a `Years` variant use an appropriate number of `Months`.
-    Months { number: u32, roll: Option<RollDay> },
+    Months { number: i32, roll: Option<RollDay> },
     /// Only ever defining one single period, and which can align with any unadjusted date.
     Zero {},
 }
@@ -26,11 +26,11 @@ pub trait Scheduling {
     /// Validate if an unadjusted date aligns with the object.
     fn try_udate(&self, udate: &NaiveDateTime) -> Result<NaiveDateTime, PyErr>;
 
-    /// Calculate the next unadjusted scheduling period date from an unadjusted base date.
-    fn try_unext(&self, udate: &NaiveDateTime) -> Result<NaiveDateTime, PyErr>;
+    /// Calculate the next unadjusted scheduling period date from an unchecked base date.
+    fn next(&self, date: &NaiveDateTime) -> NaiveDateTime;
 
-    /// Calculate the previous unadjusted scheduling period date from an unadjusted base date.
-    fn try_uprevious(&self, udate: &NaiveDateTime) -> Result<NaiveDateTime, PyErr>;
+    /// Calculate the previous unadjusted scheduling period date from an unchecked base date.
+    fn previous(&self, date: &NaiveDateTime) -> NaiveDateTime;
 
     /// Return a vector of unadjusted regular scheduling dates if it exists.
     ///
@@ -42,6 +42,24 @@ pub trait Scheduling {
         ueffective: &NaiveDateTime,
         utermination: &NaiveDateTime,
     ) -> Result<Vec<NaiveDateTime>, PyErr>;
+
+    /// Calculate the next unadjusted scheduling period date from an unadjusted base date.
+    ///     
+    /// # Notes
+    /// This method first checks that the `udate` is valid and returns an error if not.
+    fn try_unext(&self, udate: &NaiveDateTime) -> Result<NaiveDateTime, PyErr> {
+        let _ = self.try_udate(udate)?;
+        Ok(self.next(udate))
+    }
+
+    /// Calculate the previous unadjusted scheduling period date from an unadjusted base date.
+    ///
+    /// # Notes
+    /// This method first checks that the `udate` is valid and returns an error if not.
+    fn try_uprevious(&self, udate: &NaiveDateTime) -> Result<NaiveDateTime, PyErr> {
+        let _ = self.try_udate(udate)?;
+        Ok(self.previous(udate))
+    }
 
     /// Return a vector of unadjusted regular scheduling dates if it exists.
     ///
@@ -340,36 +358,30 @@ impl Scheduling for Frequency {
         }
     }
 
-    /// Calculate the next unadjusted scheduling period date from an unadjusted base date.
-    ///
-    /// # Notes
-    /// This method will first ensure ``udate`` is valid (see [Frequency::try_udate]).
-    /// Then it will perform the operation according to the variant parameters.
+    /// Calculate the next unadjusted scheduling period date from an unchecked base date.
     ///
     /// # Examples
     /// ```rust
     /// # use rateslib::scheduling::{Frequency, ndt, Scheduling, RollDay};
     /// let f = Frequency::Months{number: 3, roll: Some(RollDay::Day(29))};
-    /// let date = f.try_unext(&ndt(2024, 2, 29));
-    /// assert_eq!(ndt(2024, 5, 29), date.unwrap());
+    /// let date = f.next(&ndt(2024, 2, 15));
+    /// assert_eq!(ndt(2024, 5, 29), date);
     /// ```
-    fn try_unext(&self, udate: &NaiveDateTime) -> Result<NaiveDateTime, PyErr> {
-        let _ = self.try_udate(udate)?;
+    fn next(&self, date: &NaiveDateTime) -> NaiveDateTime {
         match self {
             Frequency::BusDays {
                 number: n,
                 calendar: c,
-            } => c.add_bus_days(udate, *n as i32, false),
+            } => c.lag_bus_days(date, *n, false),
             Frequency::CalDays { number: n } => {
                 let cal = Cal::new(vec![], vec![]);
-                Ok(cal.add_cal_days(udate, *n as i32, &Adjuster::Actual {}))
+                cal.add_cal_days(date, *n, &Adjuster::Actual {})
             }
             Frequency::Months { number: n, roll: r } => match r {
-                Some(r) => Ok(r.uadd(udate, *n as i32)),
-                // try_udate will raise
-                None => panic!["This line should be functionally unreachable - please report."],
+                Some(r) => r.uadd(date, *n),
+                None => RollDay::Day(date.day()).uadd(date, *n),
             },
-            Frequency::Zero {} => Ok(ndt(9999, 1, 1)),
+            Frequency::Zero {} => ndt(9999, 1, 1),
         }
     }
 
@@ -386,23 +398,21 @@ impl Scheduling for Frequency {
     /// let date = f.try_uprevious(&ndt(2024, 2, 29));
     /// assert_eq!(ndt(2023, 11, 29), date.unwrap());
     /// ```
-    fn try_uprevious(&self, udate: &NaiveDateTime) -> Result<NaiveDateTime, PyErr> {
-        let _ = self.try_udate(udate)?;
+    fn previous(&self, date: &NaiveDateTime) -> NaiveDateTime {
         match self {
             Frequency::BusDays {
                 number: n,
                 calendar: c,
-            } => c.add_bus_days(udate, -(*n as i32), false),
+            } => c.lag_bus_days(date, -(*n), false),
             Frequency::CalDays { number: n } => {
                 let cal = Cal::new(vec![], vec![]);
-                Ok(cal.add_cal_days(udate, -(*n as i32), &Adjuster::Actual {}))
+                cal.add_cal_days(date, -(*n), &Adjuster::Actual {})
             }
             Frequency::Months { number: n, roll: r } => match r {
-                Some(r) => Ok(r.uadd(udate, -(*n as i32))),
-                // try_vec_from cannot yield a Frequency::Months variant with no RollDay
-                None => panic!["This line should be functionally unreachable - please report."],
+                Some(r) => r.uadd(date, -(*n)),
+                None => RollDay::Day(date.day()).uadd(date, -(*n)),
             },
-            Frequency::Zero {} => Ok(ndt(1500, 1, 1)),
+            Frequency::Zero {} => ndt(1500, 1, 1),
         }
     }
 

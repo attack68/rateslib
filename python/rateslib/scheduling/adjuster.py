@@ -35,8 +35,10 @@ def _get_adjuster(adjuster: str | Adjuster) -> Adjuster:
             return _A[adjuster]
 
 
-def _convert_to_adjuster(modifier: str, settlement: bool, mod_days: bool) -> Adjuster:
+def _convert_to_adjuster(modifier: str | Adjuster, settlement: bool, mod_days: bool) -> Adjuster:
     """Convert a legacy `modifier` to an Adjuster with additional options."""
+    if isinstance(modifier, Adjuster):
+        return modifier
     modifier = modifier.upper()
     if not mod_days and modifier[0] == "M":
         modifier = modifier[1:]

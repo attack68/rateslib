@@ -574,7 +574,7 @@ class TestFixedRateBond:
             frequency="S",
             calc_mode="ca_gb",
             roll=1,
-            stub="FRONT",
+            stub="SHORTFRONT",
             ex_div=1,
         )
         result = bond.price(ytm=4.0, settlement=s)
@@ -592,7 +592,7 @@ class TestFixedRateBond:
             frequency="S",
             calc_mode="cadgb",
             roll=1,
-            stub="FRONT",
+            stub="SHORTFRONT",
             ex_div=1,
         )
         result = bond.price(ytm=2.249977, settlement=dt(2018, 10, 16))
@@ -1768,10 +1768,13 @@ class TestIndexFixedRateBond:
             index_lag=3,
             metric="ytm",
         )
-        curve = Curve({dt(1998, 12, 9): 1.0, dt(2015, 12, 7): 0.50}, index_base=100.0, index_lag=3)
-        clean_price = gilt.rate(curve, metric="clean_price")
+        disc_curve = Curve(
+            {dt(1998, 12, 9): 1.0, dt(2015, 12, 7): 0.50}, index_base=100.0, index_lag=3
+        )
+        curve = Curve({dt(1998, 12, 1): 1.0, dt(2015, 12, 7): 0.50}, index_base=100.0, index_lag=3)
+        clean_price = gilt.rate([curve, disc_curve], metric="clean_price")
         expected = gilt.ytm(price=clean_price, settlement=dt(1998, 12, 9))
-        result = gilt.rate(curve)  # default metric is "ytm"
+        result = gilt.rate([curve, disc_curve])  # default metric is "ytm"
         assert abs(result - expected) < 1e-8
 
     @pytest.mark.parametrize(
