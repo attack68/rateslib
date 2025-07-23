@@ -9,7 +9,7 @@ from rateslib import defaults
 from rateslib.default import NoInput, _drb
 from rateslib.rs import Adjuster, Frequency, RollDay, StubInference
 from rateslib.rs import Schedule as Schedule_rs
-from rateslib.scheduling.adjuster import _get_adjuster
+from rateslib.scheduling.adjuster import _convert_to_adjuster, _get_adjuster
 from rateslib.scheduling.calendars import _is_day_type_tenor, get_calendar
 from rateslib.scheduling.frequency import add_tenor
 from rateslib.scheduling.rollday import _get_rollday, _is_eom_cal
@@ -109,11 +109,20 @@ def _get_stub_inference(
     return ret
 
 
-def _get_adjuster_from_modifier(modifier: Adjuster | str_) -> Adjuster:
+def _get_adjuster_from_modifier(modifier: Adjuster | str_, mod_days: bool) -> Adjuster:
     if isinstance(modifier, Adjuster):
-        return modifier
+        return modifier  # use the adjuster as provided
     modifier_: str = _drb(defaults.modifier, modifier).upper()
-    return _get_adjuster(modifier_)
+    return _convert_to_adjuster(modifier_, settlement=False, mod_days=mod_days)
+
+
+def _should_mod_days(tenor: datetime | str) -> bool:
+    """Return whether a specified tenor should be subject to a `modifier`'s modification rule."""
+    if isinstance(tenor, str):
+        return not _is_day_type_tenor(tenor)
+    else:
+        # cannot infer any data to issue an overwrite
+        return True
 
 
 def _get_adjuster_from_lag(lag: Adjuster | int_) -> Adjuster:
@@ -151,9 +160,11 @@ class Schedule:
         eom_: bool = _drb(defaults.eom, eom)
         stub_: str = _drb(defaults.stub, stub)
         eval_mode_: str = _drb(defaults.eval_mode, eval_mode).lower()
-        accrual_adjuster = _get_adjuster_from_modifier(modifier)
-        payment_adjuster = _get_adjuster_from_lag(payment_lag)
         calendar_: CalTypes = get_calendar(calendar)
+        frequency_: Frequency = _get_frequency(frequency, roll, calendar_)
+        accrual_adjuster = _get_adjuster_from_modifier(modifier, _should_mod_days(termination))
+        payment_adjuster = _get_adjuster_from_lag(payment_lag)
+
         effective_: datetime = _validate_effective(
             effective,
             eval_mode_,
@@ -174,7 +185,7 @@ class Schedule:
         self._obj = Schedule_rs(
             effective=effective_,
             termination=termination_,
-            frequency=_get_frequency(frequency, roll, calendar_),
+            frequency=frequency_,
             calendar=calendar_,
             accrual_adjuster=accrual_adjuster,
             payment_adjuster=payment_adjuster,

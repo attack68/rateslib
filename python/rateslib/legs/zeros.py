@@ -433,13 +433,13 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
         self.periods = [
             FixedPeriod(
                 fixed_rate=NoInput(0),
-                start=self.schedule.effective,
-                end=self.schedule.termination,
+                start=self.schedule.aschedule[0],
+                end=self.schedule.aschedule[-1],
                 payment=self.schedule.pschedule[-1],
                 notional=self.notional,
                 currency=self.currency,
                 convention=self.convention,
-                termination=self.schedule.termination,
+                termination=self.schedule.aschedule[-1],
                 frequency=self.schedule.frequency,
                 stub=False,
                 roll=self.schedule.roll,
