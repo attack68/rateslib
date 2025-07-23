@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from rateslib.rs import Adjuster, Cal, Frequency, NamedCal, RollDay, UnionCal
+from rateslib.rs import Adjuster, Cal, Frequency, NamedCal, RollDay, StubInference, UnionCal
 from rateslib.scheduling.calendars import get_calendar
 from rateslib.scheduling.dcfs import dcf
 from rateslib.scheduling.frequency import add_tenor
@@ -68,6 +68,7 @@ __all__ = (
     "add_tenor",
     "Adjuster",
     "Frequency",
+    "StubInference",
     "Cal",
     "dcf",
     "NamedCal",

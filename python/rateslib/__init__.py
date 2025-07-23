@@ -120,9 +120,13 @@ from rateslib.periods import (
     NonDeliverableFixedPeriod,
 )
 from rateslib.scheduling import (
+    Adjuster,
     Cal,
+    Frequency,
     NamedCal,
+    RollDay,
     Schedule,
+    StubInference,
     UnionCal,
     add_tenor,
     dcf,
@@ -175,7 +179,7 @@ __all__ = [
     "PPSplineF64",
     "PPSplineDual",
     "PPSplineDual2",
-    # calendars.py
+    # scheduling.py
     "get_calendar",
     "get_imm",
     "add_tenor",
@@ -183,8 +187,11 @@ __all__ = [
     "Cal",
     "UnionCal",
     "NamedCal",
-    # scheduling.py
     "Schedule",
+    "Frequency",
+    "RollDay",
+    "Adjuster",
+    "StubInference",
     # curves.py
     "Curve",
     "LineCurve",
