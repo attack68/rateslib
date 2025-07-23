@@ -10,7 +10,7 @@
 Schedule
 ************
 
-The ``rateslib.scheduling`` module generates swap schedules.
+The ``rateslib.scheduling`` module generates common financial instrument schedules.
 Scheduling swaps is a surprisingly complex
 issue, especially when one wants to infer some necessary parameters from the given
 information. We will give examples of the basic :class:`~rateslib.scheduling.Schedule`
@@ -24,12 +24,6 @@ Classes
 .. autosummary::
    rateslib.scheduling.Schedule
    rateslib.scheduling.Adjuster
-
-Methods
--------
-.. autosummary::
-   rateslib.scheduling._check_regular_swap
-   rateslib.scheduling._infer_stub_date
 
 Scheduling Examples
 ********************

@@ -734,6 +734,22 @@ appropriate analysis, it is shown to calculate a 150x150 *Instrument* cross-gamm
 
     g_risk.rst
 
+Scheduling
+===========
+
+Necessary functionality is provided natively by *rateslib*. See:
+
+- :ref:`Holiday calendar types<cal-doc>`
+- :ref:`Schedule building<schedule-doc>`
+- :ref:`Day count fractions (DCFs)<dcf-doc>`
+
+.. toctree::
+    :hidden:
+    :maxdepth: 0
+    :titlesonly:
+
+    g_scheduling.rst
+
 Utilities
 ==========
 
@@ -743,8 +759,6 @@ sections.
 
 Specifically those utilities are:
 
-- :ref:`Holiday calendars and day count conventions<cal-doc>`
-- :ref:`Schedule building<schedule-doc>`
 - :ref:`Piecewise polynomial splines for curve interpolation<splines-doc>`
 - :ref:`Forward mode automatic differentiation (AD) and Dual numbers<dual-doc>`
 - :ref:`Defaults used for instrument specification<defaults-doc>`

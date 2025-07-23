@@ -31,6 +31,7 @@ extensions = [
     "sphinx_automodapi.automodapi",
     "nbsphinx",
     "sphinx.ext.intersphinx",
+    "sphinx.ext.extlinks",
     "sphinxcontrib.googleanalytics",
     "sphinx_tabs.tabs",
 ]
@@ -41,12 +42,14 @@ sphinx_tabs_disable_tab_closing = True
 googleanalytics_id = os.getenv("googleanalytics_id", "G-EZWM7R6FVH")
 googleanalytics_enabled = googleanalytics_id != "G-0000000000"
 numpydoc_show_class_members = False  # for sphinx automod according to docs
-exec_code_working_dir = '../..'
-
-templates_path = ['_templates']
-exclude_patterns = []
-
+# exec_code_working_dir = '../..'
 autodoc_typehints = "none"
+
+# Hyperlinks
+templates_path = ['_templates']
+extlinks = {
+    'rust': ('https://rateslib.com/rs/latest/rateslib/%s/index.html', 'rateslib-rs: %s'),
+}
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output

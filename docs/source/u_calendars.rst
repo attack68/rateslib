@@ -10,8 +10,10 @@
 Calendars
 ************
 
-The ``rateslib.scheduling`` module generates holiday calendars so that
-business days are well defined, with additional objects for date manipulation.
+Calendars allow *rateslib* to recognise the following types of date, and perform operations on them:
+
+- **Business** and non-business days.
+- **Settleable** days and **settleable business days**.
 
 Summary
 *******
@@ -63,8 +65,8 @@ See :ref:`default calendars <spec-defaults-calendars>`.
 **UnionCal**
 
 The :class:`~rateslib.scheduling.UnionCal` class allows combinations of :class:`~rateslib.scheduling.Cal`, to extend the
-business day mathematics. This is required for multi-currency instruments. A *UnionCal* can contain, and replicate,
-just one *Cal*.
+business day mathematics. This is required for multi-currency instruments. A :class:`~rateslib.scheduling.UnionCal` can contain, and replicate,
+just one :class:`~rateslib.scheduling.Cal`.
 
 .. ipython:: python
 
@@ -74,7 +76,8 @@ just one *Cal*.
    )
    union_cal.bus_date_range(start=dt(2023, 12, 18), end=dt(2024, 1, 5))
 
-**Calendar equivalence** checks that every business date and every potential settlement date are the same in both
+**Calendar equivalence** (which is not a particularly performant operation) checks that
+every business date and every potential settlement date are the same in both
 calendars. For example, in this case we have that:
 
 .. ipython:: python
@@ -85,13 +88,16 @@ and these two calendar objects will perform exactly the same date manipulation f
 
 **NamedCal**
 
-The :class:`~rateslib.scheduling.NamedCal` class is a wrapper for a *UnionCal*. It is a convenient object
-because it will construct holiday calendars directly from *rateslib's* pre-defined list of *Cals* using a
+The :class:`~rateslib.scheduling.NamedCal` class is a wrapper for a
+:class:`~rateslib.scheduling.UnionCal`. It is a convenient object
+because it will construct holiday calendars directly from *rateslib's* pre-defined list of
+e :class:`~rateslib.scheduling.Cal` objects using a
 **string parsing syntax**, which is suitable for multi-currency *Instruments*. This also
 improves *serialization* as shown below.
 
-*NamedCals* can only be used to load and combine the pre-compiled calendars. Custom calendars must be created
-with the *Cal* and/or *UnionCal* objects.
+The restriction is that a :class:`~rateslib.scheduling.NamedCal` can only be used to load and
+combine the pre-compiled calendars. Custom calendars must be created
+with the :class:`~rateslib.scheduling.Cal` and/or :class:`~rateslib.scheduling.UnionCal` objects.
 
 Loading existing calendars
 ***************************
@@ -112,41 +118,40 @@ directly using a *NamedCal* as follows:
 Alternatively, the :meth:`~rateslib.scheduling.get_calendar` method can be used (and is used internally)
 to parse the different options a user might provide. This is more flexible because it
 can return a calendar with no holidays on null input, or it can also load custom
-calendars that have been dynamically added to *rateslib's* ``defaults.calendars`` object, or it
-can also return *Cal* or *UnionCal* objects directly if preferred. This only has relevance for serialization.
+calendars that have been dynamically added to *rateslib's* ``defaults.calendars`` object.
 
 .. ipython:: python
 
-   cal = get_calendar("ldn", named=False)
-   type(cal)
-   named_cal = get_calendar("ldn", named=True)
-   type(named_cal)
-   cal == named_cal
+   union_cal = get_calendar("ldn,tgt|fed", named=False)
+   named_cal = get_calendar("ldn,tgt|fed", named=True)
+   union_cal == named_cal
 
 Serialization
 --------------
 
-The `cal` and `named_cal` calendars created above are equivalent with reference to dates, even though they are
-two different types. The difference is how these objects are serialized. `named_cal` will deserialize to the
-*"ldn"* calendar that is defined as of the current version (and which may be updated from version to version),
-whilst `cal` is statically defined for a list of dates (it will never change).
+The :class:`~rateslib.scheduling.UnionCal` and :class:`~rateslib.scheduling.NamedCal` calendars created
+above are equivalent with reference to dates, even though they are
+two different types. The difference is how these objects are serialized.
+:class:`~rateslib.scheduling.NamedCal` will deserialize to a string identifier
+that is defined as of the current version (and which may be updated from version to version),
+whilst :class:`~rateslib.scheduling.UnionCal` is statically defined for a list of dates (it will never change).
 
 .. ipython:: python
 
-   cal.to_json()
+   union_cal.to_json()
    named_cal.to_json()
 
 These JSON strings will deserialize directly into the types from which they were constructed.
 
 .. _settlement-cals:
 
-Calendar combinations
-**********************
+Calendar combinations and date functionality
+*********************************************
 
 Custom calendar combinations can be constructed with the :class:`~rateslib.scheduling.UnionCal`
-class. It requires a list of *Cal* objects to form the union of non-business dates,
-and another, secondary list, of associated ``settlement_calendars``, to validate
-calculated dates against.
+class. It requires a list of :class:`~rateslib.scheduling.NamedCal` objects to form the union of ``calendars``,
+defining **business days**,
+and another, secondary list, of associated ``settlement_calendars``, defining **settleable days**.
 
 Combined calendars can also be constructed automatically using **string parsing syntax**.
 Comma separation forms a union of calendars. For example the appropriate calendar
@@ -169,6 +174,7 @@ calendar here is defined after the pipe operator.
    tgt_nyc_settle.is_bus_day(dt(2009, 11, 11))
    tgt_nyc_settle.is_settlement(dt(2009, 11, 11))
 
+The date manipulation methods are all described in API for each class.
 
 Adding Custom Calendars to Defaults
 **************************************
@@ -196,16 +202,3 @@ now be freely used and would refer back to this object.
    :suppress:
 
    defaults.reset_defaults()
-
-Day count fractions (DCFs)
-**************************
-
-This module also contains a :meth:`~rateslib.scheduling.dcf` method for calculating
-day count fractions.
-Review the API documentation for specific calculation details. Current DCF conventions
-available are listed below:
-
-.. ipython:: python
-
-   from rateslib.scheduling.dcfs import _DCF
-   print(_DCF.keys())

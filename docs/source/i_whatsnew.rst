@@ -96,7 +96,7 @@ example can be seen in the `Cookbook: Building Custom Curves (Nelson-Siegel) <z_
          (`942 <https://github.com/attack68/rateslib/pull/942>`_)
          (`943 <https://github.com/attack68/rateslib/pull/943>`_)
        - A :class:`~rateslib.scheduling.Frequency` enum is added for defining scheduling operations.
-         (`940 <https://github.com/attack68/rateslib/pull/941>`_)
+         (`941 <https://github.com/attack68/rateslib/pull/941>`_)
    * - **Bugs**
      - - The *NPV* determination of a :class:`~rateslib.instruments.FixedRateBond` now correctly
          accounts for cashflows of an historical coupon period, which have been rolled forward
