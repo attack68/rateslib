@@ -76,6 +76,7 @@
 //! ### Example
 //! This example creates a new [`Schedule`] by inferring that it can be constructed as a **regular schedule**
 //! (one without stubs) if the [`RollDay`] is asserted to be the [`RollDay::IMM`](RollDay) variant.
+//! Without an *IMM* roll-day this schedule would be irregular with a short front stub.
 //! ```rust
 //! # use rateslib::scheduling::{Cal, ndt, Adjuster, Frequency, Schedule, RollDay, StubInference, Calendar};
 //! # let cal = Cal::new(vec![ndt(2017, 5, 1)], vec![5, 6]);

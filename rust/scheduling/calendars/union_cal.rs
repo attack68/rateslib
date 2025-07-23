@@ -6,18 +6,12 @@ use crate::scheduling::{ndt, Cal, CalendarAdjustment, DateRoll};
 
 /// A business day calendar which is the potential union of multiple calendars.
 ///
-/// This calendar type allows the additional feature of also ensuring dates follow settlement
-/// compliance as measured according to other calendars.
-///
-/// When the union of a business day calendar is observed the following are true:
-///
-/// - a weekday is such if it is a weekday in all calendars.
-/// - a holiday is such if it is a holiday in any calendar.
-/// - a business day is such if it is a business day in all calendars.
-///
-/// A business day is defined as allowing settlement relative to an associated calendar if:
-///
-/// - the date in question is also a business day in the associated settlement calendar.
+/// # Notes
+/// The following set definitions are observed by this object:
+/// - A **business day** is such if it is a *business day* in each one of the `calendars`.
+/// - A **settleable day** is such if it is a *business day* in each one of the
+///   `settlement_calendars`, otherwise every calendar day is a *settleable day*.
+/// - A **settleable business day** is both a *business day* and a *settleable day*.
 #[pyclass(module = "rateslib.rs")]
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct UnionCal {
@@ -28,14 +22,16 @@ pub struct UnionCal {
 }
 
 impl UnionCal {
-    /// Create a new [UnionCal].
+    /// Create a new [`UnionCal`].
     ///
     /// # Examples
     /// ```rust
-    /// # use rateslib::scheduling::{Cal, UnionCal, ndt};
+    /// # use rateslib::scheduling::{Cal, UnionCal, ndt, DateRoll};
     /// let stk = Cal::new(vec![ndt(2025, 6, 20)], vec![5,6]);
     /// let fed = Cal::new(vec![ndt(2025, 6, 19)], vec![5,6]);
     /// let stk_pipe_fed = UnionCal::new(vec![stk], Some(vec![fed]));
+    /// assert_eq!(true, stk_pipe_fed.is_bus_day(&ndt(2025, 6, 19)));
+    /// assert_eq!(false, stk_pipe_fed.is_settlement(&ndt(2025, 6, 19)));
     /// ```
     pub fn new(calendars: Vec<Cal>, settlement_calendars: Option<Vec<Cal>>) -> Self {
         UnionCal {
