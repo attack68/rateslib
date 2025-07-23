@@ -6,16 +6,13 @@ use serde::{Deserialize, Serialize};
 use crate::scheduling::{get_calendar_by_name, Cal, CalendarAdjustment, DateRoll, UnionCal};
 
 /// A wrapper for a UnionCal struct specified by a string representation.
-///
-/// This struct is designed for use when serialization of a calendar as part of an another composite
-/// struct seeks to be related to named calendar combinations and not an inefficient list of dates.
 #[pyclass(module = "rateslib.rs")]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(from = "NamedCalDataModel")]
 pub struct NamedCal {
-    pub(crate) name: String,
+    pub name: String,
     #[serde(skip)]
-    pub(crate) union_cal: UnionCal,
+    pub union_cal: UnionCal,
 }
 
 #[derive(Deserialize)]
@@ -30,11 +27,20 @@ impl std::convert::From<NamedCalDataModel> for NamedCal {
 }
 
 impl NamedCal {
-    /// Create a new named calendar.
+    /// Create a new [`NamedCal`].
     ///
-    /// `name` must be a string that contains named calendars separated by commas, additionally
-    /// separating business day calendars with associated settlement calendars by a pipe. A valid
-    /// example input is "tgt,ldn|fed".
+    /// # Notes
+    /// `name` must be a string that contains pre-defined calendars separated by commas, additionally
+    /// separating business day calendars with associated settlement calendars by a pipe operator.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use rateslib::scheduling::{NamedCal};
+    /// let named_cal = NamedCal::try_new("ldn,tgt|fed");
+    /// # let named_cal = named_cal.unwrap();
+    /// assert_eq!(named_cal.union_cal.calendars.len(), 2);
+    /// assert!(named_cal.union_cal.settlement_calendars.is_some());
+    /// ```
     pub fn try_new(name: &str) -> Result<Self, PyErr> {
         let name_ = name.to_lowercase();
         let parts: Vec<&str> = name_.split("|").collect();

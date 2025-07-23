@@ -7,15 +7,14 @@ use pyo3::{pyclass, PyErr};
 #[pyclass(module = "rateslib.rs", eq)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frequency {
-    /// A set number of business days, defined by a [Calendar], which can only align with a
-    /// business day as defined by that [Calendar].
+    /// A set number of business days, defined by a [`Calendar`], which can only align with a
+    /// business day as defined by that [`Calendar`].
     BusDays { number: i32, calendar: Calendar },
     /// A set number of calendar days, which can align with any unadjusted date. To achieve a
-    /// `Weeks` variant use an appropriate number of `CalDays`.
+    /// `Weeks` variant use an appropriate `number` of days.
     CalDays { number: i32 },
-    /// A set number of calendar months, with a defined [RollDay]. This will align with any
-    /// unadjusted date if no [RollDay] is specified, otherwise it must align with the [RollDay].
-    /// To achieve a `Years` variant use an appropriate number of `Months`.
+    /// A set number of calendar months, with a potential [`RollDay`].
+    /// To achieve a `Years` variant use an appropriate `number` of months.
     Months { number: i32, roll: Option<RollDay> },
     /// Only ever defining one single period, and which can align with any unadjusted date.
     Zero {},
@@ -23,20 +22,55 @@ pub enum Frequency {
 
 /// Used to define periods of financial instrument schedules.
 pub trait Scheduling {
-    /// Validate if an unadjusted date aligns with the object.
+    /// Validate if an unadjusted date aligns with the scheduling object.
     fn try_udate(&self, udate: &NaiveDateTime) -> Result<NaiveDateTime, PyErr>;
 
-    /// Calculate the next unadjusted scheduling period date from an unchecked base date.
+    /// Calculate the next unadjusted scheduling period date from a given `date`.
+    ///
+    /// <div class="warning">
+    ///
+    /// The input `date` is not checked to align with the scheduling object. This can lead to
+    /// to optically unexpected results (see examples). If a check on the date is required use the
+    /// [`try_unext`](Scheduling::try_unext) method instead.
+    ///
+    /// </div>
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use rateslib::scheduling::{Frequency, Scheduling, ndt, RollDay};
+    /// let f = Frequency::Months{number:1, roll: Some(RollDay::Day(1))};
+    /// let result = f.next(&ndt(2000, 1, 31));
+    /// assert_eq!(ndt(2000, 2, 1), result);
+    /// assert!(f.try_unext(&ndt(2000, 1, 31)).is_err());
+    /// ```
     fn next(&self, date: &NaiveDateTime) -> NaiveDateTime;
 
-    /// Calculate the previous unadjusted scheduling period date from an unchecked base date.
+    /// Calculate the previous unadjusted scheduling period date from a given `date`.
+    ///
+    /// <div class="warning">
+    ///
+    /// The input `date` is not checked to align with the scheduling object. This can lead to
+    /// to optically unexpected results (see examples). If a check on the date is required use the
+    /// [`try_uprevious`](Scheduling::try_uprevious) method instead.
+    ///
+    /// </div>
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use rateslib::scheduling::{Frequency, Scheduling, ndt, RollDay};
+    /// let f = Frequency::Months{number:1, roll: Some(RollDay::Day(31))};
+    /// let result = f.previous(&ndt(2000, 2, 1));
+    /// assert_eq!(ndt(2000, 1, 31), result);
+    /// assert!(f.try_uprevious(&ndt(2000, 2, 1)).is_err());
+    /// ```
     fn previous(&self, date: &NaiveDateTime) -> NaiveDateTime;
 
     /// Return a vector of unadjusted regular scheduling dates if it exists.
     ///
     /// # Notes
     /// In many standard cases this will simply use the provided method
-    /// [Scheduling::try_uregular_from_unext], but allows for custom implementations when required.
+    /// [`try_uregular_from_unext`](Scheduling::try_uregular_from_unext), but allows for custom
+    /// implementations when required.
     fn try_uregular(
         &self,
         ueffective: &NaiveDateTime,
@@ -64,7 +98,7 @@ pub trait Scheduling {
     /// Return a vector of unadjusted regular scheduling dates if it exists.
     ///
     /// # Notes
-    /// This method begins with ``ueffective`` and repeatedly applies [Scheduling::try_unext]
+    /// This method begins with ``ueffective`` and repeatedly applies [`try_unext`](Scheduling::try_unext)
     /// to derive all appropriate dates until ``utermination``.
     fn try_uregular_from_unext(
         &self,
@@ -87,10 +121,10 @@ pub trait Scheduling {
         }
     }
 
-    /// Check if two given unadjusted dates define a **regular period** under a [Frequency].
+    /// Check if two given unadjusted dates define a **regular period** under a scheduling object.
     ///
     /// # Notes
-    /// This method tests if [Scheduling::try_uregular] has exactly two dates.
+    /// This method tests if [`try_uregular`](Scheduling::try_uregular) has exactly two dates.
     fn is_regular_period(&self, ueffective: &NaiveDateTime, utermination: &NaiveDateTime) -> bool {
         let s = self.try_uregular(ueffective, utermination);
         match s {
@@ -99,10 +133,10 @@ pub trait Scheduling {
         }
     }
 
-    /// Check if two given unadjusted dates define a **short front stub period** under a [Frequency].
+    /// Check if two given unadjusted dates define a **short front stub period** under a scheduling object.
     ///
     /// # Notes
-    /// This method tests if [Scheduling::try_uprevious] is before `ueffective`.
+    /// This method tests if [`try_uprevious`](Scheduling::try_uprevious) is before `ueffective`.
     /// If dates are undeterminable this returns `false`.
     fn is_short_front_stub(
         &self,
@@ -116,7 +150,7 @@ pub trait Scheduling {
         }
     }
 
-    /// Check if two given unadjusted dates define a **long front stub period** under a [Frequency].
+    /// Check if two given unadjusted dates define a **long front stub period** under a scheduling object.
     fn is_long_front_stub(&self, ueffective: &NaiveDateTime, utermination: &NaiveDateTime) -> bool {
         let quasi = self.try_uprevious(utermination);
         match quasi {
@@ -131,7 +165,7 @@ pub trait Scheduling {
         }
     }
 
-    /// Check if two given unadjusted dates define a **short back stub period** under a [Frequency].
+    /// Check if two given unadjusted dates define a **short back stub period** under a scheduling object.
     ///
     /// # Notes
     /// This method tests if [Scheduling::try_unext] is after `utermination`.
@@ -144,7 +178,7 @@ pub trait Scheduling {
         }
     }
 
-    /// Check if two given unadjusted dates define a **long back stub period** under a [Frequency].
+    /// Check if two given unadjusted dates define a **long back stub period** under a scheduling object.
     fn is_long_back_stub(&self, ueffective: &NaiveDateTime, utermination: &NaiveDateTime) -> bool {
         let quasi = self.try_unext(ueffective);
         match quasi {
@@ -159,7 +193,7 @@ pub trait Scheduling {
         }
     }
 
-    /// Check if two given unadjusted dates define any **front stub** under a [Frequency].
+    /// Check if two given unadjusted dates define any **front stub** under a scheduling object.
     ///
     /// # Notes
     /// If dates are undeterminable this returns `false`.
@@ -168,7 +202,7 @@ pub trait Scheduling {
             || self.is_long_front_stub(ueffective, utermination)
     }
 
-    /// Check if two given unadjusted dates define any **back stub** under a [Frequency].
+    /// Check if two given unadjusted dates define any **back stub** under a scheduling object.
     ///
     /// # Notes
     /// If dates are undeterminable this returns `false`.
@@ -253,14 +287,14 @@ pub trait Scheduling {
 }
 
 impl Frequency {
-    /// Get a vector of possible, fully specified [Frequency] variants for a series of unadjusted dates.
+    /// Get a vector of possible, fully specified [`Frequency`] variants for a series of unadjusted dates.
     ///
     /// # Notes
-    /// This method exists primarily to resolve cases when the [RollDay] on a
-    /// [Months](Frequency) variant is `None`, and there are multiple possibilities. In this case
-    /// the method [RollDay::vec_from] is called internally.
+    /// This method exists primarily to resolve cases when the [`RollDay`] on a
+    /// [`Frequency::Months`](Frequency) variant is `None`, and there are multiple possibilities. In this case
+    /// the method [`RollDay::vec_from`] is called internally.
     ///
-    /// If the [Frequency] variant does not align with any of the provided unadjusted dates this
+    /// If the [`Frequency`] variant does not align with any of the provided unadjusted dates this
     /// will return an error.
     ///
     /// # Examples
@@ -358,15 +392,6 @@ impl Scheduling for Frequency {
         }
     }
 
-    /// Calculate the next unadjusted scheduling period date from an unchecked base date.
-    ///
-    /// # Examples
-    /// ```rust
-    /// # use rateslib::scheduling::{Frequency, ndt, Scheduling, RollDay};
-    /// let f = Frequency::Months{number: 3, roll: Some(RollDay::Day(29))};
-    /// let date = f.next(&ndt(2024, 2, 15));
-    /// assert_eq!(ndt(2024, 5, 29), date);
-    /// ```
     fn next(&self, date: &NaiveDateTime) -> NaiveDateTime {
         match self {
             Frequency::BusDays {
@@ -385,19 +410,6 @@ impl Scheduling for Frequency {
         }
     }
 
-    /// Calculate the previous unadjusted scheduling period date from an unadjusted base date.
-    ///
-    /// # Notes
-    /// This method will first ensure ``udate`` is valid (see [Frequency::try_udate]).
-    /// Then it will perform the operation according to the variant parameters.
-    ///
-    /// # Examples
-    /// ```rust
-    /// # use rateslib::scheduling::{Frequency, ndt, Scheduling, RollDay};
-    /// let f = Frequency::Months{number: 3, roll: Some(RollDay::Day(29))};
-    /// let date = f.try_uprevious(&ndt(2024, 2, 29));
-    /// assert_eq!(ndt(2023, 11, 29), date.unwrap());
-    /// ```
     fn previous(&self, date: &NaiveDateTime) -> NaiveDateTime {
         match self {
             Frequency::BusDays {
