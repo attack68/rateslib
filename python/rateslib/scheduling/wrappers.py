@@ -63,7 +63,7 @@ def _get_frequency(
 
 
 def _get_stub_inference(
-    stub: str, front_stub: datetime_, back_stub: datetime_
+    stub: str | StubInference, front_stub: datetime_, back_stub: datetime_
 ) -> StubInference | None:
     """
     Convert `stub` as string to a `StubInference` enum based on what stubs are intended to be
@@ -83,6 +83,9 @@ def _get_stub_inference(
     -------
     StubInference or None
     """
+    if isinstance(stub, StubInference):
+        return stub
+
     _map: dict[str, StubInference] = {
         "SHORTFRONT": StubInference.ShortFront,
         "LONGFRONT": StubInference.LongFront,
@@ -158,7 +161,7 @@ class Schedule:
         eval_mode: str_ = NoInput(0),
     ) -> None:
         eom_: bool = _drb(defaults.eom, eom)
-        stub_: str = _drb(defaults.stub, stub)
+        stub_: str | StubInference = _drb(defaults.stub, stub)
         eval_mode_: str = _drb(defaults.eval_mode, eval_mode).lower()
         calendar_: CalTypes = get_calendar(calendar)
         frequency_: Frequency = _get_frequency(frequency, roll, calendar_)
