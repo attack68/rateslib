@@ -9,12 +9,14 @@ from rateslib.scheduling.wrappers import Schedule
 
 RollDay.__doc__ = "Enumerable type for roll day types."
 
+StubInference.__doc__ = "Enumerable type for :class:`~rateslib.scheduling.Schedule` stub inference."
+
 Adjuster.__doc__ = "Enumerable type for date adjustment rules."
 
 Frequency.__doc__ = "Enumerable type for a scheduling frequency."
 
 Cal.__doc__ = """
-A business day calendar defined by weekends and a holiday list
+A business day calendar defined by weekends and a holiday list.
 
 Parameters
 ----------

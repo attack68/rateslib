@@ -83,7 +83,7 @@ def _get_stub_inference(
     -------
     StubInference or None
     """
-    if isinstance(stub, StubInference):
+    if isinstance(stub, StubInference) or stub is None:
         return stub
 
     _map: dict[str, StubInference] = {
@@ -136,6 +136,135 @@ def _get_adjuster_from_lag(lag: Adjuster | int_) -> Adjuster:
 
 
 class Schedule:
+    """
+    Generate a schedule of dates according to a regular pattern and calendar inference.
+
+    Parameters
+    ----------
+    effective : datetime, str
+        The unadjusted effective date. If given as adjusted, unadjusted alternatives may be
+        inferred. If given as string tenor will be calculated from ``eval_date`` and ``eval_mode``.
+    termination : datetime, str
+        The unadjusted termination date. If given as adjusted, unadjusted alternatives may be
+        inferred. If given as string tenor will be calculated from ``effective``.
+    frequency : Frequency, str in {"M", "B", "Q", "T", "S", "A", "Z"}
+        The frequency of the schedule.
+        If given as string will derive a :class:`~rateslib.scheduling.Frequency` aligning with:
+        M(onthly), B(i-monthly), T(hirdly), Q(uarterly), S(emi-annually), A(nnually), Z(ero-coupon),
+        with the :class:`~rateslib.scheduling.RollDay` as per ``roll``.
+    stub : StubInference, str in {"ShortFront", "LongFront", "ShortBack", "LongBack"}, optional
+        The stub type used if stub inference is required. If given as string will derive a
+        :class:`~rateslib.scheduling.StubInference`.
+    front_stub : datetime, optional
+        The unadjusted date for the start stub period. If given as adjusted, unadjusted
+        alternatives may be inferred.
+    back_stub : datetime, optional
+        The unadjusted date for the back stub period. If given as adjusted, unadjusted
+        alternatives may be inferred.
+        See notes for combining ``stub``, ``front_stub`` and ``back_stub``
+        and any automatic stub inference.
+    roll : RollDay, int in [1, 31], str in {"eom", "imm", "som"}, optional
+        The roll day of the schedule. If not given or not available in ``frequency`` will be
+        inferred for monthly frequency variants.
+    eom : bool, optional
+        Use an end of month preference rather than regular rolls for ``roll`` inference. Set by
+        default. Not required if ``roll`` is defined.
+    modifier : Adjuster, str in {"NONE", "F", "MF", "P", "MP"}, optional
+        The :class:`~rateslib.scheduling.Adjuster` used for adjusting unadjusted schedule dates
+        into adjusted dates. If given as string must define simple date rolling rules.
+    calendar : calendar, str, optional
+        The business day calendar object to use. If string will call
+        :meth:`~rateslib.scheduling.get_calendar`.
+    payment_lag: Adjuster, int, optional
+        The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
+        a payment date. If given as integer will define the number of business days to
+        lag payments by.
+    eval_date: datetime, optional
+        Only required if ``effective`` is given as a string tenor, to provide a point of reference.
+    eval_mode: str in {"swaps_align", "swaptions_align"}
+        The method for determining the ``effective`` and ``termination`` dates if both are provided
+        as string tenors. See notes.
+
+    Notes
+    -----
+    **Inference**
+
+    It is not necessary to rely on inference if inputs are defined directly. However three types
+    of inference will be performed otherwise:
+
+    - **Unadjusted date inference** if any dates including stubs are given as adjusted.
+    - **Frequency inference** if the ``frequency`` is missing properties, such as ``roll``.
+    - **Stub date inference** if a regular schedule cannot be defined without stubs one can be
+      unambiguously implied.
+
+    **Dates given as string tenor - The 1Y1Y problem**
+
+    When generating schedules implied from tenor ``effective`` and ``termination`` dates there
+    exist three theoretical ways of deriving these dates. Although, financial systems
+    typically implement one of only two practical methods for doing this. *Rateslib* offers **both**
+    of these configurable by setting the ``eval_mode`` argument to either *"swaps_align"* or
+    *"swaptions_align"*.
+
+    **Swaps Align**
+
+    When a EUR swap dealer trades a 1Y1Y swap he will hedge it in the interbank market with a 1Y and
+    a 2Y swap. 1Y and 2Y swaps have roll days that are generated from the same evaluation date.
+    For a perfect hedge the 1Y1Y swap should also have the same roll day and its periods should
+    align with the second half of the 2Y swap. To achieve this, the ``effective`` date is
+    calculated **unadjusted** and the ``termination`` date is derived from that unadjusted date.
+    Then under *rateslib* inferral rules this will produce the correct schedule.
+
+    For example, today is Tue 15th Aug '23 and spot is Thu 17th Aug '23:
+
+    - A 1Y trade has effective, termination and roll of: Tue 17th Aug '23, Mon 19th Aug '24, 17.
+    - A 2Y trade has effective, termination and roll of: Tue 17th Aug '23, Mon 18th Aug '25, 17.
+    - A 1Y1Y trade has effective, termination and roll of: Mon 19th Aug '24, Mon 18th Aug '25, 17.
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import Schedule
+
+    .. ipython:: python
+
+       sch = Schedule(
+           effective="1Y",
+           termination="1Y",
+           frequency="S",
+           calendar="tgt",
+           eval_date=dt(2023, 8, 17),
+           eval_mode="swaps_align",
+       )
+       print(sch)
+
+    **Swaptions Align**
+
+    When a swaptions dealer trades a 1Y1Y swaption, that trade will settle against the 1Y swap
+    evaluated as of the expiry date (in 1Y) against the swap ISDA fixing.
+    The delta exposure the swaption trader experiences is best hedged with a swap matching those
+    dates. This means that the effective date of the swap should be derived from an **adjusted**
+    date.
+
+    For example, today is Tue 15th Aug '23:
+
+    - A 1Y expiring swaption has an expiry on Thu 15th Aug '24.
+    - At expiry a spot starting 1Y swap has effective, termination, and roll of:
+      Mon 19th Aug '24, Tue 19th Aug '25, 19.
+
+    .. ipython:: python
+
+       sch = Schedule(
+           effective="1Y",
+           termination="1Y",
+           frequency="S",
+           calendar="tgt",
+           eval_date=dt(2023, 8, 17),
+           eval_mode="swaptions_align",
+       )
+       print(sch)
+
+    """
+
     _obj: Schedule_rs
 
     @property

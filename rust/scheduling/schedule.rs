@@ -194,7 +194,7 @@ impl Schedule {
             &accrual_adjuster,
             &calendar,
         )?;
-
+        
         let uschedule: Vec<NaiveDateTime>;
 
         match (ufront_stub, uback_stub) {
@@ -319,6 +319,7 @@ impl Schedule {
 
         let stubs: (Option<NaiveDateTime>, Option<NaiveDateTime>);
         if stub_inference.is_none() {
+            println!("never see this");
             return temp_schedule;
         } else {
             let (interior_start, interior_end) =
@@ -331,9 +332,12 @@ impl Schedule {
                             &test_schedule.uschedule[0],
                             &test_schedule.uschedule[1],
                         ) {
+                            println!("short stub in temp");
                             return Ok(test_schedule);
                         } // already has a short front stub
                     }
+                    println!("infer ufront stub");
+                    println!("{:?}", frequency);
                     (
                         frequency.try_infer_ufront_stub(&interior_start, &interior_end, true)?,
                         uback_stub,
@@ -346,9 +350,12 @@ impl Schedule {
                             &test_schedule.uschedule[0],
                             &test_schedule.uschedule[1],
                         ) {
+                            println!("long stub in temp");
                             return Ok(test_schedule);
                         } // already has a long front stub
                     }
+                    println!("infer ufront stub");
+                    println!("{:?}", frequency);
                     (
                         frequency.try_infer_ufront_stub(&interior_start, &interior_end, false)?,
                         uback_stub,
@@ -388,6 +395,7 @@ impl Schedule {
                 }
             }
         }
+        println!("{:?}", stubs);
         Self::try_new_defined(
             ueffective,
             utermination,
@@ -1406,5 +1414,26 @@ mod tests {
             s.uschedule,
             vec![ndt(2022, 1, 1), ndt(2022, 3, 1), ndt(2022, 6, 1)]
         );
+    }
+    
+    #[test]
+    fn test_single_stub_incorrect_length() {
+        let s = Schedule::try_new_inferred(
+            ndt(2022, 1, 1),
+            ndt(2022, 2, 15),
+            Frequency::Months {
+                number: 1,
+                roll: None,
+            },
+            None,
+            None,
+            Calendar::Cal(Cal::new(vec![], vec![])),
+            Adjuster::ModifiedFollowing {},
+            Adjuster::BusDaysLagSettle { number: 2 },
+            false,
+            None,
+        );
+        println!("{:?}", s.unwrap());
+        // assert!(s.is_err());
     }
 }
