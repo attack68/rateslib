@@ -3,7 +3,7 @@ use pyo3::{FromPyObject, IntoPyObject};
 use serde::{Deserialize, Serialize};
 use std::convert::From;
 
-use crate::scheduling::{Cal, DateRoll, NamedCal, UnionCal};
+use crate::scheduling::{Cal, CalendarAdjustment, DateRoll, NamedCal, UnionCal};
 
 /// Create a `NaiveDateTime` with default null time.
 ///
@@ -66,6 +66,8 @@ impl DateRoll for Calendar {
         }
     }
 }
+
+impl CalendarAdjustment for Calendar {}
 
 // UNIT TESTS
 #[cfg(test)]

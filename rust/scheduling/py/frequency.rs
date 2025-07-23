@@ -10,7 +10,22 @@ impl Frequency {
     ///
     /// Parameters
     /// ----------
-    /// ueffective: datetime
+    /// date: datetime
+    ///     Any unchecked date, which may or may not align with the `Frequency`.
+    ///
+    /// Returns
+    /// -------
+    /// datetime
+    #[pyo3(name = "next")]
+    fn next_py(&self, date: NaiveDateTime) -> NaiveDateTime {
+        self.next(&date)
+    }
+
+    /// Return the next unadjusted date under the schedule frequency.
+    ///
+    /// Parameters
+    /// ----------
+    /// udate: datetime
     ///     The unadjusted start date of the frequency period. If this is not a valid unadjusted
     ///     date aligned with the Frequency then it will raise.
     ///
@@ -26,7 +41,22 @@ impl Frequency {
     ///
     /// Parameters
     /// ----------
-    /// ueffective: datetime
+    /// date: datetime
+    ///     Any unchecked date, which may or may not align with the `Frequency`.
+    ///
+    /// Returns
+    /// -------
+    /// datetime
+    #[pyo3(name = "previous")]
+    fn previous_py(&self, date: NaiveDateTime) -> NaiveDateTime {
+        self.previous(&date)
+    }
+
+    /// Return the previous unadjusted date under the schedule frequency.
+    ///
+    /// Parameters
+    /// ----------
+    /// udate: datetime
     ///     The unadjusted end date of the frequency period. If this is not a valid unadjusted
     ///     date aligned with the Frequency then it will raise.
     ///

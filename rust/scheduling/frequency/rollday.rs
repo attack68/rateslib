@@ -7,7 +7,7 @@ use std::cmp::{Eq, PartialEq};
 
 use crate::scheduling::{ndt, Adjuster, Adjustment, Calendar};
 
-/// A roll-day used with a [Frequency::Months](crate::scheduling::Frequency) variant.
+/// A roll-day used with a [`Frequency::Months`](crate::scheduling::Frequency) variant.
 #[pyclass(module = "rateslib.rs", eq)]
 #[derive(Debug, Copy, Hash, Clone, PartialEq, Eq)]
 pub enum RollDay {
@@ -18,17 +18,17 @@ pub enum RollDay {
 }
 
 impl RollDay {
-    /// Get all possible [RollDay] variants implied from one or more unadjusted dates.
+    /// Get all possible [`RollDay`] variants implied from one or more unadjusted dates.
     ///
     /// # Notes
-    /// Each date is analysed in turn. The order of [RollDay] construction for each date is:
+    /// Each date is analysed in turn. The order of [`RollDay`] construction for each date is:
     ///
     /// - Get the integer roll-day of the date.
     /// - Get additional end-of-month related integer roll-days for short calendar months if necessary.
     /// - Get non-numeric roll-days if date aligns with those, ordered by the underlying enum order.
     ///
     /// When multiple dates are checked the results for a subsequent date is added to the prior
-    /// results under the [IndexSet.intersection] ordering rules.
+    /// results under the [`IndexSet.intersection`] ordering rules.
     ///
     /// Any date will always return at least one [RollDay] and the first one will always be
     /// equivalent to an integer variant whose day equals the calendar day of the first date.
@@ -69,7 +69,7 @@ impl RollDay {
         set.into_iter().collect()
     }
 
-    /// Validate whether an unadjusted date is an allowed value under the [RollDay] definition.
+    /// Validate whether an unadjusted date is an allowed value under the [`RollDay`] definition.
     ///
     /// # Examples
     /// ```rust
