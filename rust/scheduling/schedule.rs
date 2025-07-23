@@ -140,6 +140,41 @@ fn validate_is_stub(
 
 impl Schedule {
     /// Create a [`Schedule`] from well defined unadjusted dates and a [`Frequency`].
+    ///
+    /// # Notes
+    /// If provided arguments do not define a valid schedule pattern then an error is returned.
+    ///
+    /// # Examples
+    /// This is a valid schedule with a long back stub and regular monthly periods.
+    /// ```rust
+    /// # use rateslib::scheduling::{Schedule, ndt, Frequency, Adjuster, Calendar, Cal, RollDay};
+    /// let s = Schedule::try_new_defined(
+    ///     ndt(2024, 1, 3), ndt(2024, 4, 15),                  // ueffective, utermination
+    ///     Frequency::Months{number:1, roll: Some(RollDay::Day(3))}, // frequency
+    ///     None, Some(ndt(2024, 3, 3)),                        // ufront_stub, uback_stub
+    ///     Cal::new(vec![], vec![5,6]).into(),                 // calendar
+    ///     Adjuster::ModifiedFollowing{},                      // accrual_adjuster
+    ///     Adjuster::BusDaysLagSettle{number:3},               // payment_adjuster
+    /// );
+    /// # let s = s.unwrap();
+    /// assert_eq!(s.uschedule, vec![ndt(2024, 1, 3), ndt(2024, 2, 3), ndt(2024, 3, 3), ndt(2024, 4, 15)]);
+    /// assert_eq!(s.aschedule, vec![ndt(2024, 1, 3), ndt(2024, 2, 5), ndt(2024, 3, 4), ndt(2024, 4, 15)]);
+    /// assert_eq!(s.pschedule, vec![ndt(2024, 1, 8), ndt(2024, 2, 8), ndt(2024, 3, 7), ndt(2024, 4, 18)]);
+    /// ```
+    /// This is not a valid schedule since there are no defined stubs and the dates do not align
+    /// with the [RollDay].
+    /// ```rust
+    /// # use rateslib::scheduling::{Schedule, ndt, Frequency, Adjuster, Calendar, Cal, RollDay};
+    /// let s = Schedule::try_new_defined(
+    ///     ndt(2024, 1, 6), ndt(2024, 4, 6),                  // ueffective, utermination
+    ///     Frequency::Months{number:1, roll: Some(RollDay::Day(3))}, // frequency
+    ///     None, None,                                         // ufront_stub, uback_stub
+    ///     Cal::new(vec![], vec![5,6]).into(),                 // calendar
+    ///     Adjuster::ModifiedFollowing{},                      // accrual_adjuster
+    ///     Adjuster::BusDaysLagSettle{number:3},               // payment_adjuster
+    /// );
+    /// assert!(s.is_err());
+    /// ```
     pub fn try_new_defined(
         ueffective: NaiveDateTime,
         utermination: NaiveDateTime,
