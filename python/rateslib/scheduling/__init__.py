@@ -7,13 +7,63 @@ from rateslib.scheduling.frequency import add_tenor
 from rateslib.scheduling.rollday import get_imm, next_imm
 from rateslib.scheduling.wrappers import Schedule
 
-RollDay.__doc__ = "Enumerable type for roll days."
+Adjuster.__doc__ = """
+Enumerable type for date adjustment rules.
 
-StubInference.__doc__ = "Enumerable type for :class:`~rateslib.scheduling.Schedule` stub inference."
+.. rubric:: Variants
 
-Adjuster.__doc__ = "Enumerable type for date adjustment rules."
+.. ipython:: python
+   :suppress:
 
-Frequency.__doc__ = "Enumerable type for a scheduling frequency."
+   from rateslib.rs import Adjuster
+   variants = [item for item in Adjuster.__dict__ if \ 
+       "__" != item[:2] and \ 
+       item not in ['adjust', 'adjusts'] \
+   ]
+
+.. ipython:: python
+
+   variants   
+
+"""
+
+RollDay.__doc__ = """
+Enumerable type for roll days.
+
+.. rubric:: Variants
+
+.. ipython:: python
+   :suppress:
+
+   from rateslib.rs import RollDay
+   variants = ["Day(int)", "IMM()"]
+
+.. ipython:: python
+
+   variants   
+
+"""
+
+StubInference.__doc__ = """
+Enumerable type for :class:`~rateslib.scheduling.Schedule` stub inference.
+"""
+
+Frequency.__doc__ = """
+Enumerable type for a scheduling frequency.
+
+.. rubric:: Variants
+
+.. ipython:: python
+   :suppress:
+
+   from rateslib.rs import Frequency
+   variants = ["BusDays(int, calendar)", "CalDays(int)", "Months(int, rollday | None)", "Zero()"]
+
+.. ipython:: python
+
+   variants 
+
+"""
 
 Cal.__doc__ = """
 A business day calendar defined by weekends and a holiday list.
