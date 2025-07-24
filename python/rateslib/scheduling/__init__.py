@@ -16,14 +16,14 @@ Enumerable type for date adjustment rules.
    :suppress:
 
    from rateslib.rs import Adjuster
-   variants = [item for item in Adjuster.__dict__ if \ 
-       "__" != item[:2] and \ 
+   variants = [item for item in Adjuster.__dict__ if \\
+       "__" != item[:2] and \\
        item not in ['adjust', 'adjusts'] \
    ]
 
 .. ipython:: python
 
-   variants   
+   variants
 
 """
 
@@ -40,7 +40,7 @@ Enumerable type for roll days.
 
 .. ipython:: python
 
-   variants   
+   variants
 
 """
 
@@ -61,7 +61,7 @@ Enumerable type for a scheduling frequency.
 
 .. ipython:: python
 
-   variants 
+   variants
 
 """
 
