@@ -11,5 +11,4 @@ The modules below are utility modules that provide underlying functionality to t
 
     u_splines.rst
     u_dual.rst
-    u_defaults.rst
     u_serialization.rst

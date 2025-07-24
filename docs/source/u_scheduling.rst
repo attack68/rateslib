@@ -11,10 +11,51 @@ Schedule
 ************
 
 The ``rateslib.scheduling`` module generates common financial instrument schedules.
-Scheduling swaps is a surprisingly complex
+Scheduling is a surprisingly complex
 issue, especially when one wants to infer some necessary parameters from the given
-information. We will give examples of the basic :class:`~rateslib.scheduling.Schedule`
-s and further explain some of the more complicated inference patterns.
+information.
+
+The :class:`~rateslib.scheduling.Schedule` object has an **original** set of available input types,
+used since the initial version of *rateslib* and a **core** set of available input types which
+more closely align with the Rust re-implementation after version 2.0. These can be intermixed,
+but for demonstration purposes this page uses core inputs.
+
+.. tabs::
+
+   .. tab:: Original Inputs
+
+      The **original inputs** allow for a more UI friendly input for the most common schedules.
+
+      .. ipython:: python
+
+         s = Schedule(
+             dt(2000, 1, 15),
+             dt(2001, 1, 1),
+             "Q",
+             stub="ShortFront",
+             modifier="MF",
+             payment_lag=2,
+             calendar="tgt",
+         )
+         print(s)
+
+   .. tab:: Core Inputs
+
+      The **core inputs** utilise the Rust objects directly and may provide more flexibility.
+
+      .. ipython:: python
+
+         s = Schedule(
+             dt(2000, 1, 15),
+             dt(2001, 1, 1),
+             Frequency.Months(3, RollDay.Day(1)),
+             stub=StubInference.ShortFront,
+             modifier=Adjuster.ModifiedFollowing(),
+             payment_lag=Adjuster.BusDaysLagSettle(2),
+             calendar=NamedCal("tgt"),
+         )
+         print(s)
+
 
 Summary
 *******
@@ -23,145 +64,149 @@ Classes
 -------
 .. autosummary::
    rateslib.scheduling.Schedule
+   rateslib.scheduling.Frequency
+   rateslib.scheduling.RollDay
    rateslib.scheduling.Adjuster
+   rateslib.scheduling.StubInference
 
 Scheduling Examples
 ********************
 
-Regular Schedule
-----------------------
+The following scheduling patterns are possible to construct in *rateslib*.
 
-A regular schedule under a generic business day calendar. Note how this
-swap actually starts and end on the 1st of the month but the holiday adjusted
-effective and termination dates are actually the 3rd and 2nd.
+- A **regular schedule**, which does not contain any stub periods.
+- **Irregular schedules**, which consist of the following:
 
-.. ipython:: python
+  - A **single stub** period, be it a short or long stub.
+  - **Two stub** periods, combining any short and long varieties.
+  - A **front stub** and a **regular schedule**.
+  - A **regular schedule** and a **back stub**.
+  - A **front stub** and a **regular schedule** and a **back stub**.
 
-   schedule = Schedule(
-       effective=dt(2022,1,1),
-       termination=dt(2023,1,1),
-       frequency="S",
-       calendar="bus",
-       payment_lag=1
-   )
-   print(schedule)
 
-If the same schedule is created with the adjusted dates input as the effective and
-termination dates then a roll day is inferred, in this case as 2, creating a different
-schedule to the above.
+The below tabs give an example of each construction type. To minimise the complexity of these
+examples all dates are given in their *unadjusted* form, which is how they should be given to
+avoid any inference.
 
-.. ipython:: python
+.. tabs::
 
-   schedule = Schedule(
-       effective=dt(2022,1,3),
-       termination=dt(2023,1,2),
-       frequency="S",
-       calendar="bus",
-       payment_lag=1
-   )
-   print(schedule)
+   .. tab:: Regular
 
-The original schedule can be obtained by directly specifying the roll day and not
-relying on roll day inference.
+      The unadjusted ``effective`` and ``termination`` dates perfectly divide the ``frequency``.
+      In this instance any ``stub`` inference parameter is unused.
 
-.. ipython:: python
+      .. ipython:: python
 
-   schedule = Schedule(
-       effective=dt(2022,1,3),
-       termination=dt(2023,1,2),
-       frequency="S",
-       roll=1,
-       calendar="bus",
-       payment_lag=1
-   )
-   print(schedule)
+         s = Schedule(
+             dt(2000, 1, 1),
+             dt(2001, 1, 1),
+             Frequency.Months(3, RollDay.Day(1)),
+             stub=StubInference.ShortFront,
+         )
+         print(s)
 
-Defined Stubs
---------------
+   .. tab:: One Short Stub
 
-A schedule with specifically defined stubs.
+      The ``stub`` inference parameter is explicitly set to *None* here.
 
-.. ipython:: python
+      .. ipython:: python
 
-   schedule = Schedule(
-       effective=dt(2021,1,1),
-       termination=dt(2021,10,1),
-       frequency="Q",
-       front_stub=dt(2021, 2, 26),
-       back_stub=dt(2021, 8, 29),
-       calendar="bus",
-       payment_lag=1
-   )
-   print(schedule)
+         s = Schedule(
+             dt(2000, 1, 1),
+             dt(2000, 2, 15),
+             Frequency.Months(3, RollDay.Day(1)),
+             stub=None,
+         )
+         print(s)
 
-Note that the above schedule must have a **regular swap** defined between stub dates.
-In this case the roll, inferred as 29, allows this, and the unadjusted dates are then
-adjusted under the business day holiday calendar to the provided stubs. Schedules that
-cannot be inferred validly will raise.
+   .. tab:: One Long Stub
 
-Stub and roll generation can also be implied if the ``front_stub`` and/or ``back_stub``
-are blank. Only one side can be inferred however so with a dual sided stub at least
-one date must be given. In the following case *"FRONT"* suffices as the ``stub`` input
-since the specific date is given, but *"LONGBACK"* provides the necessary detail for
-inference. Without specifying roll here it would be inferred as 26, but an alternative,
-valid value can be forced. Invalid combinations (those that do not permit regular swaps
-between stub dates) raise errors.
+      The ``stub`` inference parameter is explicitly set to *None* here.
 
-.. ipython:: python
+      .. ipython:: python
 
-   schedule = Schedule(
-       effective=dt(2021, 1, 1),
-       termination=dt(2021, 10, 1),
-       frequency="Q",
-       front_stub=dt(2021, 2, 26),
-       stub="FRONTLONGBACK",
-       roll=30,
-       calendar="bus",
-       payment_lag=1
-   )
-   print(schedule)
+         s = Schedule(
+             dt(2000, 1, 1),
+             dt(2000, 5, 15),
+             Frequency.Months(3, RollDay.Day(1)),
+             stub=None,
+         )
+         print(s)
 
-.. ipython:: python
+   .. tab:: Two Stubs
 
-   try:
-       Schedule(
-           effective=dt(2021, 1, 1),
-           termination=dt(2021, 10, 1),
-           frequency="Q",
-           front_stub=dt(2021, 2, 26),
-           stub="FRONTLONGBACK",
-           roll=25,
-           calendar="bus",
-           payment_lag=1
-       )
-   except ValueError as e:
-       print(e)
+      Both the ``front_stub`` and ``back_stub`` dates must be equivalent. ``stub`` inference is set
+      to *None*.
 
-Simple Inference
------------------
+      .. ipython:: python
 
-One-sided stub inference can also be made if no stub dates are defined.
+         s = Schedule(
+             dt(2000, 1, 1),
+             dt(2000, 5, 15),
+             Frequency.Months(3, None),
+             front_stub=dt(2000, 1, 20),
+             back_stub=dt(2000, 1, 20),
+             stub=None,
+         )
+         print(s)
 
-.. ipython:: python
+   .. tab:: Front Stub
 
-   schedule = Schedule(
-       effective=dt(2021, 1, 1),
-       termination=dt(2021, 7, 15),
-       frequency="Q",
-       stub="SHORTFRONT",
-       calendar="bus",
-       payment_lag=1
-   )
-   print(schedule)
+      Set a ``front_stub`` and ensure the subsequent ``termination`` aligns with a regular schedule.
+      Or permit ``stub`` inference.
 
-.. ipython:: python
+      .. ipython:: python
 
-   schedule = Schedule(
-       effective=dt(2021, 1, 1),
-       termination=dt(2021, 7, 15),
-       frequency="Q",
-       stub="LONGBACK",
-       calendar="bus",
-       payment_lag=1
-   )
-   print(schedule)
+         s = Schedule(
+             dt(2000, 1, 1),
+             dt(2000, 11, 15),
+             Frequency.Months(3, None),
+             stub=StubInference.ShortFront,
+         )
+         print(s)
+
+   .. tab:: Back Stub
+
+      Set a ``back_stub`` and ensure the preliminary ``effective`` aligns with a regular schedule.
+      Or permit ``stub`` inference.
+
+      .. ipython:: python
+
+         s = Schedule(
+             dt(2000, 1, 1),
+             dt(2000, 11, 15),
+             Frequency.Months(3, None),
+             stub=StubInference.LongBack,
+         )
+         print(s)
+
+   .. tab:: All
+
+      Stub inference can only be applied to one side. Either supply both ``front_stub`` and
+      ``back_stub`` or supply one and permit ``stub`` inference on the remaining side.
+
+      .. ipython:: python
+
+         s = Schedule(
+             dt(2000, 1, 1),
+             dt(2000, 11, 15),
+             Frequency.Months(3, None),
+             front_stub=dt(2000, 1, 21),
+             stub=StubInference.ShortBack,
+         )
+         print(s)
+
+Construction elements
+***********************
+
+A :class:`~rateslib.scheduling.Schedule` in *rateslib* is characterised by three major attributes:
+
+- its **uschedule** which is a list of *unadjusted* dates defining its unambiguous skeletal
+  structure.
+- its **aschedule** which applies the ``modifier`` as an accrual :class:`~rateslib.scheduling.Adjuster`
+  to adjust the *unadjusted* dates into *adjusted accrual dates* for defining its accrual periods.
+- its **pschedule** which applies the ``payment_lag`` as a secondary :class:`~rateslib.scheduling.Adjuster`
+  to adjust each *accrual date* to determine a physical payment, or cashflow settlement, date.Adjuster
+
+All of the input arguments to a :class:`~rateslib.scheduling.Schedule` fit into the logic for
+yielding these three components.

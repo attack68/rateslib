@@ -15,9 +15,15 @@ email contact, see `rateslib <https://rateslib.com>`_.
 2.1.0 (Not released)
 ***************************
 
-This release focused on restructuring curves in order to provide a system for user implemented
+This release has restructured curves in order to provide a system for user implemented
 custom curves, which can directly inherit all of the native functionality of *rateslib*. An
 example can be seen in the `Cookbook: Building Custom Curves (Nelson-Siegel) <z_basecurve.html>`_
+
+It has also re-implemented its ``scheduling`` objects and ported them to Rust. The
+``rateslib.calendars`` module has been integrated into ``rateslib.scheduling``. Many migration
+issues are likely to be solved by changing the module name in code. **Note** that this
+has broken :class:`~rateslib.scheduling.Schedule` pickling and therefore the ability to use
+multi-processing. Solutions for this are being investigated for upcoming releases.
 
 .. list-table::
    :widths: 25 75
@@ -77,7 +83,15 @@ example can be seen in the `Cookbook: Building Custom Curves (Nelson-Siegel) <z_
          :class:`~rateslib.fx_volatility._FXSmileMeta`.
          (`932 <https://github.com/attack68/rateslib/pull/932>`_)
    * - **Calendars & Scheduling**
-     - - :red:`Minor Breaking Change!` The :meth:`~rateslib.scheduling.Cal.add_days` and
+     - - :red:`Minor Breaking Change!` The :class:`~rateslib.scheduling.Schedule` has been
+         re-implemented and ported to Rust. There should be minimal user facing issues but the
+         ``rateslib.calendars`` module has been integrated into ``rateslib.scheduling`` which
+         may in some cases require code import refactoring. (many PRs from #948 to #975)
+       - New enums :class:`~rateslib.scheduling.Frequency`,
+         :class:`~rateslib.scheduling.RollDay` and :class:`~rateslib.scheduling.StubInference` have
+         been introduced which can be used with the :class:`~rateslib.scheduling.Schedule`
+         object, in addition to the original arguments.
+       - :red:`Minor Breaking Change!` The :meth:`~rateslib.scheduling.Cal.add_days` and
          :meth:`~rateslib.scheduling.Cal.lag`
          methods are renamed :meth:`~rateslib.scheduling.Cal.add_cal_days` and
          :meth:`~rateslib.scheduling.Cal.lag_bus_days`, respectively.
@@ -109,6 +123,8 @@ example can be seen in the `Cookbook: Building Custom Curves (Nelson-Siegel) <z_
        - The `index_base` parameter on a :class:`~rateslib.instruments.ZCIS` or
          :class:`~rateslib.instruments.IIRS` can now be forecast from provided `index_fixings`.
          (`963 <https://github.com/attack68/rateslib/pull/963>`_)
+       - The :class:`~rateslib.periods.NonDeliverableFixedPeriod` is added to global namespace.
+         (`969 <https://github.com/attack68/rateslib/pull/969>`_)
        - A :class:`~rateslib.solver.Solver` now sets the AD order of all of its contained *Curves*
          and `pre_solvers` eliminating *TypeErrors* when performing
          :meth:`~rateslib.solver.Solver.gamma` in combination with

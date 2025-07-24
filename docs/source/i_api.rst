@@ -57,19 +57,6 @@ Scheduling
    :no-heading:
    :no-inheritance-diagram:
 
-Highlighted private functions
------------------------------
-
-.. autosummary::
-   _check_regular_swap
-   _infer_stub_date
-
-.. toctree::
-    :hidden:
-
-    api/rateslib.scheduling._check_regular_swap.rst
-    api/rateslib.scheduling._infer_stub_date.rst
-
 Piecewise Polynomial Splines
 =============================
 

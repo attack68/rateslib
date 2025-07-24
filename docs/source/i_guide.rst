@@ -405,6 +405,7 @@ Curve for EUR cashflows, collateralised in USD**, and similarly for other entrie
     :maxdepth: 0
     :titlesonly:
 
+    u_defaults.rst
     g_fx.rst
 
 More about instruments
