@@ -185,6 +185,52 @@ class Schedule:
         The method for determining the ``effective`` and ``termination`` dates if both are provided
         as string tenors. See notes.
 
+    Examples
+    --------
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import Schedule, RollDay, Frequency, StubInference, Adjuster, NamedCal, dt
+
+    .. tabs::
+
+       .. tab:: Original Inputs
+
+          The **original inputs** allow for a more UI friendly input for the most common schedules.
+
+          .. ipython:: python
+
+             s = Schedule(
+                 effective=dt(2024, 1, 3),
+                 termination=dt(2024, 11, 29),
+                 frequency="Q",
+                 stub="ShortFront",
+                 modifier="MF",
+                 payment_lag=2,
+                 calendar="tgt",
+                 eom=True,
+             )
+             print(s)
+
+       .. tab:: Core Inputs
+
+          The **core inputs** utilise the Rust objects directly and may provide more flexibility.
+
+          .. ipython:: python
+
+             s = Schedule(
+                 effective=dt(2024, 1, 3),
+                 termination=dt(2024, 11, 29),
+                 frequency=Frequency.Months(3, None),
+                 stub=StubInference.ShortFront,
+                 modifier=Adjuster.ModifiedFollowing(),
+                 payment_lag=Adjuster.BusDaysLagSettle(2),
+                 calendar=NamedCal("tgt"),
+                 eom=True,
+             )
+             print(s)
+
     Notes
     -----
     **Inference**
@@ -200,68 +246,62 @@ class Schedule:
     **Dates given as string tenor - The 1Y1Y problem**
 
     When generating schedules implied from tenor ``effective`` and ``termination`` dates there
-    exist three theoretical ways of deriving these dates. Although, financial systems
-    typically implement one of only two practical methods for doing this. *Rateslib* offers **both**
-    of these configurable by setting the ``eval_mode`` argument to either *"swaps_align"* or
-    *"swaptions_align"*.
+    exist different theoretical ways of deriving these dates. *Rateslib* offers two practical
+    methods for doing this, configurable by setting the ``eval_mode`` argument to either
+    *"swaps_align"* or *"swaptions_align"*.
 
-    **Swaps Align**
+    .. tabs::
 
-    When a EUR swap dealer trades a 1Y1Y swap he will hedge it in the interbank market with a 1Y and
-    a 2Y swap. 1Y and 2Y swaps have roll days that are generated from the same evaluation date.
-    For a perfect hedge the 1Y1Y swap should also have the same roll day and its periods should
-    align with the second half of the 2Y swap. To achieve this, the ``effective`` date is
-    calculated **unadjusted** and the ``termination`` date is derived from that unadjusted date.
-    Then under *rateslib* inferral rules this will produce the correct schedule.
+       .. tab:: 'swaps_align'
 
-    For example, today is Tue 15th Aug '23 and spot is Thu 17th Aug '23:
+          This method aligns dates with those implied by a sub-component of a par tenor swap.
+          E.g. a 1Y1Y schedule is expected to align with the second half of a 2Y par swap.
+          To achieve this, an *unadjusted* ``effective`` date is determined from ``eval_date`` and
+          an *unadjusted* ``termination`` date is derived from that ``effective`` date.
 
-    - A 1Y trade has effective, termination and roll of: Tue 17th Aug '23, Mon 19th Aug '24, 17.
-    - A 2Y trade has effective, termination and roll of: Tue 17th Aug '23, Mon 18th Aug '25, 17.
-    - A 1Y1Y trade has effective, termination and roll of: Mon 19th Aug '24, Mon 18th Aug '25, 17.
+          For example, today is Tue 15th Aug '23 and spot is Thu 17th Aug '23:
 
-    .. ipython:: python
-       :suppress:
+          - A 1Y has effective, termination and roll of: Tue 17th Aug '23, Mon 19th Aug '24, 17.
+          - A 2Y has effective, termination and roll of: Tue 17th Aug '23, Mon 18th Aug '25, 17.
+          - A 1Y1Y has effective, termination and roll of: Mon 19th Aug '24, Mon 18th Aug '25, 17.
 
-       from rateslib import Schedule
+          .. ipython:: python
 
-    .. ipython:: python
+             s = Schedule(
+                 effective="1Y",
+                 termination="1Y",
+                 frequency="S",
+                 calendar="tgt",
+                 eval_date=dt(2023, 8, 17),
+                 eval_mode="swaps_align",
+             )
+             print(s)
 
-       sch = Schedule(
-           effective="1Y",
-           termination="1Y",
-           frequency="S",
-           calendar="tgt",
-           eval_date=dt(2023, 8, 17),
-           eval_mode="swaps_align",
-       )
-       print(sch)
+       .. tab:: 'swaptions_align'
 
-    **Swaptions Align**
+          A 1Y1Y swaption at expiry is evaluated against the 1Y swap as measured per that expiry
+          date. To define this exactly requires more parameters, but this method replicates
+          the true swaption expiry instrument about 95% of the time. To achieve this, an
+          *adjusted* ``effective`` date is determined from the ``eval_date`` and ``modifier``, and
+          an *unadjusted* ``termination`` date is derived from the ``effective`` date.
 
-    When a swaptions dealer trades a 1Y1Y swaption, that trade will settle against the 1Y swap
-    evaluated as of the expiry date (in 1Y) against the swap ISDA fixing.
-    The delta exposure the swaption trader experiences is best hedged with a swap matching those
-    dates. This means that the effective date of the swap should be derived from an **adjusted**
-    date.
+          For example, today is Tue 15th Aug '23:
 
-    For example, today is Tue 15th Aug '23:
+          - A 1Y expiring swaption has an expiry on Thu 15th Aug '24.
+          - At expiry a spot starting 1Y swap has effective, termination, and roll of:
+            Mon 19th Aug '24, Tue 19th Aug '25, 19.
 
-    - A 1Y expiring swaption has an expiry on Thu 15th Aug '24.
-    - At expiry a spot starting 1Y swap has effective, termination, and roll of:
-      Mon 19th Aug '24, Tue 19th Aug '25, 19.
+          .. ipython:: python
 
-    .. ipython:: python
-
-       sch = Schedule(
-           effective="1Y",
-           termination="1Y",
-           frequency="S",
-           calendar="tgt",
-           eval_date=dt(2023, 8, 17),
-           eval_mode="swaptions_align",
-       )
-       print(sch)
+             s = Schedule(
+                 effective="1Y",
+                 termination="1Y",
+                 frequency="S",
+                 calendar="tgt",
+                 eval_date=dt(2023, 8, 17),
+                 eval_mode="swaptions_align",
+             )
+             print(s)
 
     """
 
@@ -269,7 +309,7 @@ class Schedule:
 
     @property
     def obj(self) -> Schedule_rs:
-        """A wrapped instance of Schedule_rs"""
+        """A wrapped instance of the Rust implemented :rust:`Schedule <scheduling>`."""
         return self._obj
 
     def __init__(
@@ -362,67 +402,90 @@ class Schedule:
 
     @cached_property
     def uschedule(self) -> list[datetime]:
+        """A list of the *unadjusted* schedule dates."""
         return self.obj.uschedule
 
     @cached_property
     def aschedule(self) -> list[datetime]:
+        """
+        A list of the *adjusted accrual* dates.
+
+        These are determined by applying the ``accrual_adjuster`` to ``uschedule``.
+        """
         return self.obj.aschedule
 
     @cached_property
     def pschedule(self) -> list[datetime]:
+        """
+        A list of the cashflow *payment* dates.
+
+        These are determined by applying the ``payment_adjuster`` to ``aschedule``.
+        """
         return self.obj.pschedule
 
     @cached_property
     def frequency(self) -> str:
+        """Original string representation of the :class:`~rateslib.scheduling.Frequency`."""
         return self.obj.frequency.string()
 
     @cached_property
     def frequency_obj(self) -> Frequency:
+        """The :class:`~rateslib.scheduling.Frequency` object determining the periods."""
         return self.obj.frequency
 
     @property
     def modifier(self) -> Adjuster:
-        # legacy alias for Adjuster
+        """Alias for the ``accrual_adjuster``."""
         return self.accrual_adjuster
 
     @cached_property
     def calendar(self) -> CalTypes:
+        """The calendar used for date adjustment by the ``accrual_adjuster`` and ``payment_adjuster``."""
         return self.obj.calendar
 
     @cached_property
     def accrual_adjuster(self) -> Adjuster:
+        """The :class:`~rateslib.scheduling.Adjuster` object used for accrual date adjustment."""
         return self.obj.accrual_adjuster
 
     @cached_property
     def payment_adjuster(self) -> Adjuster:
+        """The :class:`~rateslib.scheduling.Adjuster` object used for payment date adjustment."""
         return self.obj.payment_adjuster
 
     @cached_property
     def termination(self) -> datetime:
+        """The *adjusted* termination date of the schedule."""
         return self.obj.aschedule[-1]
 
     @cached_property
     def effective(self) -> datetime:
+        """The *adjusted* effective date of the schedule."""
         return self.obj.aschedule[0]
 
     @cached_property
     def utermination(self) -> datetime:
+        """The *unadjusted* termination date of the schedule."""
         return self.obj.uschedule[-1]
 
     @cached_property
     def ueffective(self) -> datetime:
+        """The *unadjusted* effective date of the schedule."""
         return self.obj.uschedule[0]
 
     @cached_property
     def ufront_stub(self) -> datetime | None:
+        """The *unadjusted* front stub date of the schedule."""
         return self.obj.ufront_stub
 
     @cached_property
     def uback_stub(self) -> datetime | None:
+        """The *unadjusted* back stub date of the schedule."""
         return self.obj.uback_stub
 
     @cached_property
     def roll(self) -> str | int | NoInput:
+        """The :class:`~rateslib.scheduling.RollDay` object associated with :class:`~rateslib.scheduling.Frequency`, if available."""
         if isinstance(self.obj.frequency, Frequency.Months):
             # Frequency.Months on a valid Schedule will always have Some(RollDay).
             if isinstance(self.obj.frequency.roll, RollDay.Day):
@@ -435,7 +498,7 @@ class Schedule:
     @cached_property
     def table(self) -> DataFrame:
         """
-        DataFrame : Rows of schedule dates and information.
+        A `DataFrame` of schedule dates and classification.
         """
         df = DataFrame(
             {
@@ -453,6 +516,7 @@ class Schedule:
 
     @cached_property
     def _stubs(self) -> list[bool]:
+        """A list of boolean flags indication whether periods are stubs (True) or regular (False)"""
         front_stub = self.obj.frequency.is_stub(self.uschedule[0], self.uschedule[1], True)
         back_stub = self.obj.frequency.is_stub(self.uschedule[-2], self.uschedule[-1], False)
         if len(self.uschedule) == 2:  # single period
@@ -462,6 +526,7 @@ class Schedule:
 
     @cached_property
     def n_periods(self) -> int:
+        """The number of periods contained in the schedule."""
         return len(self.obj.uschedule) - 1
 
     def __repr__(self) -> str:
@@ -476,6 +541,7 @@ class Schedule:
         return ret
 
     def is_regular(self) -> bool:
+        """Returns whether the schedule is composed only of regular periods (no stubs)."""
         return self.obj.is_regular()
 
 
