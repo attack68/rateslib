@@ -7,7 +7,7 @@ from rateslib.scheduling.frequency import add_tenor
 from rateslib.scheduling.rollday import get_imm, next_imm
 from rateslib.scheduling.wrappers import Schedule
 
-RollDay.__doc__ = "Enumerable type for roll day types."
+RollDay.__doc__ = "Enumerable type for roll days."
 
 StubInference.__doc__ = "Enumerable type for :class:`~rateslib.scheduling.Schedule` stub inference."
 
