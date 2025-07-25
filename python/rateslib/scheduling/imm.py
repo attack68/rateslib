@@ -24,6 +24,8 @@ _Imm: dict[str, Imm] = {
     "day20_hu": Imm.Day20_HU,
     "fri2_hmuz": Imm.Fri2_HMUZ,
     "fri2": Imm.Fri2,
+    "wed1_post9": Imm.Wed1_Post9,
+    "wed1_post9_hmuz": Imm.Wed1_Post9_HMUZ,
     "eom": Imm.Eom,
     "leap": Imm.Leap,
 }
