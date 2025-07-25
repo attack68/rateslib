@@ -16,7 +16,7 @@ from rateslib.scheduling import (
 from rateslib.scheduling.calendars import _adjust_date, _get_years_and_months, _is_day_type_tenor
 from rateslib.scheduling.dcfs import _dcf_actacticma
 from rateslib.scheduling.frequency import _get_fx_expiry_and_delivery
-from rateslib.scheduling.rollday import _get_eom, _get_imm, _is_eom, _is_imm, _is_som
+from rateslib.scheduling.rollday import _is_eom, _is_som
 
 
 @pytest.fixture
@@ -143,19 +143,6 @@ def test_add_tenor_special_cases(date, tenor, mod, roll, cal, expected) -> None:
 
 
 @pytest.mark.parametrize(
-    ("month", "year", "expected"),
-    [
-        (2, 2022, dt(2022, 2, 28)),
-        (2, 2024, dt(2024, 2, 29)),
-        (8, 2022, dt(2022, 8, 31)),
-    ],
-)
-def test_get_eom(month, year, expected) -> None:
-    result = _get_eom(month, year)
-    assert result == expected
-
-
-@pytest.mark.parametrize(
     ("date", "modifier", "expected"),
     [
         (dt(2022, 1, 3), "NONE", dt(2022, 1, 3)),
@@ -213,46 +200,6 @@ def test_modifiers_som(cal_, modifier, expected) -> None:
 def test_modifiers_eom(cal_, modifier, expected) -> None:
     result = add_tenor(dt(2020, 12, 31), "2M", modifier, cal_)
     assert result == expected
-
-
-@pytest.mark.parametrize(
-    ("date", "expected"),
-    [
-        (dt(2022, 3, 16), True),
-        (dt(2022, 6, 15), True),
-        (dt(2022, 9, 25), False),
-    ],
-)
-def test_is_imm(date, expected) -> None:
-    result = _is_imm(date)
-    assert result is expected
-
-
-def test_is_imm_hmuz() -> None:
-    result = _is_imm(dt(2022, 8, 17), hmuz=True)  # imm in Aug
-    assert not result
-    result = _is_imm(dt(2022, 8, 17), hmuz=False)  # imm in Aug
-    assert result
-
-
-@pytest.mark.parametrize(
-    ("month", "year", "expected"),
-    [
-        (3, 2022, dt(2022, 3, 16)),
-        (6, 2022, dt(2022, 6, 15)),
-        (9, 2022, dt(2022, 9, 21)),
-        (12, 2022, dt(2022, 12, 21)),
-    ],
-)
-def test_get_imm(month, year, expected) -> None:
-    result = _get_imm(month, year)
-    assert result == expected
-
-
-def test_get_imm_namespace():
-    from rateslib import get_imm as f
-
-    f(code="h24")
 
 
 @pytest.mark.parametrize(
