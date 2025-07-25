@@ -88,9 +88,14 @@ multi-processing. Solutions for this are being investigated for upcoming release
          ``rateslib.calendars`` module has been integrated into ``rateslib.scheduling`` which
          may in some cases require code import refactoring. (many PRs from #948 to #975)
        - New enums :class:`~rateslib.scheduling.Frequency`,
-         :class:`~rateslib.scheduling.RollDay` and :class:`~rateslib.scheduling.StubInference` have
-         been introduced which can be used with the :class:`~rateslib.scheduling.Schedule`
+         :class:`~rateslib.scheduling.RollDay`, :class:`~rateslib.scheduling.StubInference`
+         have been introduced which can be used with the :class:`~rateslib.scheduling.Schedule`
          object, in addition to the original arguments.
+       - The enum :class:`~rateslib.scheduling.Imm` is added to better handle special date
+         manipulation in the :meth:`~rateslib.schdeuling.next_imm` and
+         :meth:`~rateslib.schdeuling.get_imm` methods, whose ``method`` argument is changed to
+         ``definition`` which accepts this enum or string representation.
+         (`976 <https://github.com/attack68/rateslib/pull/976>`_)
        - :red:`Minor Breaking Change!` The :meth:`~rateslib.scheduling.Cal.add_days` and
          :meth:`~rateslib.scheduling.Cal.lag`
          methods are renamed :meth:`~rateslib.scheduling.Cal.add_cal_days` and
