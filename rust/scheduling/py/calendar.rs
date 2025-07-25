@@ -4,8 +4,8 @@ use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
 use crate::scheduling::py::adjuster::get_roll_adjuster_from_str;
 use crate::scheduling::{
-    get_calendar_by_name, Adjuster, Adjustment, Cal, Calendar, CalendarAdjustment, Convention,
-    DateRoll, NamedCal, RollDay, UnionCal,
+    Adjuster, Adjustment, Cal, Calendar, CalendarAdjustment, Convention, DateRoll, NamedCal,
+    RollDay, UnionCal,
 };
 use bincode::config::legacy;
 use bincode::serde::{decode_from_slice, encode_to_vec};
@@ -13,7 +13,7 @@ use chrono::NaiveDateTime;
 use indexmap::set::IndexSet;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::PyBytes;
+use pyo3::types::{PyBytes, PyType};
 use std::collections::HashSet;
 
 // // removed when upgrading to py03 0.23, see https://pyo3.rs/v0.23.0/migration#intopyobject-and-intopyobjectref-derive-macros
@@ -92,6 +92,21 @@ impl Cal {
     #[new]
     fn new_py(holidays: Vec<NaiveDateTime>, week_mask: Vec<u8>) -> PyResult<Self> {
         Ok(Cal::new(holidays, week_mask))
+    }
+
+    /// Create a new *Cal* object from simple string name.
+    /// Parameters
+    /// ----------
+    /// name: str
+    ///     The 3-digit name of the calendar to load. Must be pre-defined in the Rust core code.
+    ///
+    /// Returns
+    /// -------
+    /// Cal
+    #[classmethod]
+    #[pyo3(name = "from_name")]
+    fn from_name_py(_cls: &Bound<'_, PyType>, name: String) -> PyResult<Self> {
+        Cal::try_from_name(&name)
     }
 
     /// A list of specifically provided non-business days.
@@ -839,13 +854,6 @@ impl NamedCal {
     }
 }
 
-/// Return a calendar container from named identifier.
-#[pyfunction]
-#[pyo3(name = "get_named_calendar")]
-pub fn get_calendar_by_name_py(name: &str) -> PyResult<Cal> {
-    get_calendar_by_name(name)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -853,7 +861,7 @@ mod tests {
 
     #[test]
     fn test_add_37_months() {
-        let cal = get_calendar_by_name("all").unwrap();
+        let cal = Cal::try_from_name("all").unwrap();
 
         let dates = vec![
             (ndt(2000, 1, 1), ndt(2003, 2, 1)),
@@ -884,7 +892,7 @@ mod tests {
 
     #[test]
     fn test_sub_37_months() {
-        let cal = get_calendar_by_name("all").unwrap();
+        let cal = Cal::try_from_name("all").unwrap();
 
         let dates = vec![
             (ndt(2000, 1, 1), ndt(1996, 12, 1)),
@@ -915,7 +923,7 @@ mod tests {
 
     #[test]
     fn test_add_months_py_roll() {
-        let cal = get_calendar_by_name("all").unwrap();
+        let cal = Cal::try_from_name("all").unwrap();
         let roll = vec![
             (RollDay::Day(7), ndt(1998, 3, 7), ndt(1996, 12, 7)),
             (RollDay::Day(21), ndt(1998, 3, 21), ndt(1996, 12, 21)),
@@ -938,7 +946,7 @@ mod tests {
 
     #[test]
     fn test_add_months_roll_invalid_days() {
-        let cal = get_calendar_by_name("all").unwrap();
+        let cal = Cal::try_from_name("all").unwrap();
         let roll = vec![
             (RollDay::Day(21), ndt(1996, 12, 21)),
             (RollDay::Day(31), ndt(1996, 12, 31)),
@@ -960,7 +968,7 @@ mod tests {
 
     #[test]
     fn test_add_months_modifier() {
-        let cal = get_calendar_by_name("bus").unwrap();
+        let cal = Cal::try_from_name("bus").unwrap();
         let modi = vec![
             (Adjuster::Actual {}, ndt(2023, 9, 30)),          // Saturday
             (Adjuster::FollowingSettle {}, ndt(2023, 10, 2)), // Monday
@@ -978,7 +986,7 @@ mod tests {
 
     #[test]
     fn test_add_months_modifier_p() {
-        let cal = get_calendar_by_name("bus").unwrap();
+        let cal = Cal::try_from_name("bus").unwrap();
         let modi = vec![
             (Adjuster::Actual {}, ndt(2023, 7, 1)),          // Saturday
             (Adjuster::FollowingSettle {}, ndt(2023, 7, 3)), // Monday

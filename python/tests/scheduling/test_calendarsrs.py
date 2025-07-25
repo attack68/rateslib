@@ -60,6 +60,12 @@ class TestCal:
         cal = Cal([dt(2015, 9, 5), dt(2015, 9, 7)], [5, 6])
         UnionCal([cal], None)
 
+    def test_cal_from_name(self):
+        cal1 = Cal.from_name("ldn")
+        cal2 = NamedCal("ldn")
+        assert cal1 == cal2
+        assert type(cal1) is not type(cal2)
+
     def test_is_business_day(self, simple_cal, simple_union) -> None:
         assert not simple_cal.is_bus_day(dt(2015, 9, 7))  # Monday Holiday
         assert simple_cal.is_bus_day(dt(2015, 9, 8))  # Tuesday

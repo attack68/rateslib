@@ -11,13 +11,13 @@ use pyo3::{pyclass, PyErr};
 #[derive(Copy, Clone, PartialEq)]
 pub enum StubInference {
     /// Short front stub inference.
-    ShortFront,
+    ShortFront = 0,
     /// Long front stub inference.
-    LongFront,
+    LongFront = 1,
     /// Short back stub inference.
-    ShortBack,
+    ShortBack = 2,
     /// Long back stub inference.
-    LongBack,
+    LongBack = 3,
 }
 
 /// A generic financial schedule with regular contiguous periods and, possibly, stubs.

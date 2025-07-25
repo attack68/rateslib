@@ -440,7 +440,10 @@ class Schedule:
 
     @cached_property
     def calendar(self) -> CalTypes:
-        """The calendar used for date adjustment by the ``accrual_adjuster`` and ``payment_adjuster``."""
+        """
+        The calendar used for date adjustment by the ``accrual_adjuster`` and
+         ``payment_adjuster``.
+        """
         return self.obj.calendar
 
     @cached_property
@@ -485,7 +488,10 @@ class Schedule:
 
     @cached_property
     def roll(self) -> str | int | NoInput:
-        """The :class:`~rateslib.scheduling.RollDay` object associated with :class:`~rateslib.scheduling.Frequency`, if available."""
+        """
+        The :class:`~rateslib.scheduling.RollDay` object associated
+        with :class:`~rateslib.scheduling.Frequency`, if available.
+        """
         if isinstance(self.obj.frequency, Frequency.Months):
             # Frequency.Months on a valid Schedule will always have Some(RollDay).
             if isinstance(self.obj.frequency.roll, RollDay.Day):

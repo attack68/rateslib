@@ -55,8 +55,8 @@ dev = [
 
 [tool.pytest.ini_options]
 # pythonpath = [".", "python/rateslib"]
-minversion = "7.0"
-addopts = ""  # use -s to show print capture, use -q for quiet, use -v for verbose
+minversion = "8.0"
+addopts = "--ignore-glob=*_ignore.py"  # use -s to show print capture, use -q for quiet, use -v for verbose
 testpaths = [
     "python/tests",
 ]

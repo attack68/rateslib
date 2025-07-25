@@ -4,10 +4,10 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from rateslib.default import NoInput
-from rateslib.rs import Adjuster, Frequency, RollDay
+from rateslib.rs import Adjuster, Frequency, Imm, RollDay
 from rateslib.scheduling.adjuster import _convert_to_adjuster
 from rateslib.scheduling.calendars import get_calendar
-from rateslib.scheduling.rollday import _get_rollday, _is_eom
+from rateslib.scheduling.rollday import _get_rollday
 
 if TYPE_CHECKING:
     from rateslib.typing import CalInput, datetime_, int_
@@ -185,7 +185,7 @@ def _get_fx_expiry_and_delivery(
                 )
             else:
                 spot = get_calendar(calendar).lag_bus_days(eval_date, delivery_lag, True)
-                roll = "eom" if (eom and _is_eom(spot)) else spot.day
+                roll = "eom" if (eom and Imm.Eom.validate(spot)) else spot.day
                 delivery_: datetime = add_tenor(spot, expiry, modifier, calendar, roll, True)
                 expiry_ = get_calendar(calendar).add_bus_days(delivery_, -delivery_lag, False)
                 return expiry_, delivery_

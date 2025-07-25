@@ -3,7 +3,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
 use serde::{Deserialize, Serialize};
 
-use crate::scheduling::{get_calendar_by_name, Cal, CalendarAdjustment, DateRoll, UnionCal};
+use crate::scheduling::{Cal, CalendarAdjustment, DateRoll, UnionCal};
 
 /// A wrapper for a UnionCal struct specified by a string representation.
 #[pyclass(module = "rateslib.rs")]
@@ -90,7 +90,7 @@ impl CalendarAdjustment for NamedCal {}
 fn parse_cals(name: &str) -> Result<Vec<Cal>, PyErr> {
     let mut cals: Vec<Cal> = Vec::new();
     for cal in name.split(",") {
-        cals.push(get_calendar_by_name(cal)?)
+        cals.push(Cal::try_from_name(cal)?)
     }
     Ok(cals)
 }
