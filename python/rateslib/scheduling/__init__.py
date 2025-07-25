@@ -1,11 +1,22 @@
 from __future__ import annotations
 
-from rateslib.rs import Adjuster, Cal, Frequency, NamedCal, RollDay, StubInference, UnionCal
+from rateslib.rs import Adjuster, Cal, Frequency, Imm, NamedCal, RollDay, StubInference, UnionCal
 from rateslib.scheduling.calendars import get_calendar
 from rateslib.scheduling.dcfs import dcf
 from rateslib.scheduling.frequency import add_tenor
-from rateslib.scheduling.rollday import get_imm, next_imm
+from rateslib.scheduling.imm import get_imm, next_imm
 from rateslib.scheduling.wrappers import Schedule
+
+Imm.__doc__ = """
+Enumerable type for International Money-Market (IMM) date definitions.
+
+For further information on these descriptors see the Rust low level docs
+for :rust:`Imm <scheduling>`.
+"""
+
+StubInference.__doc__ = """
+Enumerable type for :class:`~rateslib.scheduling.Schedule` stub inference.
+"""
 
 Adjuster.__doc__ = """
 Enumerable type for date adjustment rules.
@@ -42,10 +53,6 @@ Enumerable type for roll days.
 
    variants
 
-"""
-
-StubInference.__doc__ = """
-Enumerable type for :class:`~rateslib.scheduling.Schedule` stub inference.
 """
 
 Frequency.__doc__ = """
@@ -121,6 +128,7 @@ __all__ = (
     "Adjuster",
     "Frequency",
     "StubInference",
+    "Imm",
     "Cal",
     "dcf",
     "NamedCal",

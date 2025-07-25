@@ -5,7 +5,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use std::cmp::{Eq, PartialEq};
 
-use crate::scheduling::{ndt, Adjuster, Adjustment, Calendar};
+use crate::scheduling::{Adjuster, Adjustment, Calendar, Imm};
 
 /// A roll-day used with a [`Frequency::Months`](crate::scheduling::Frequency) variant.
 #[pyclass(module = "rateslib.rs", eq)]
@@ -13,7 +13,7 @@ use crate::scheduling::{ndt, Adjuster, Adjustment, Calendar};
 pub enum RollDay {
     /// A day of the month in [1, 31].
     Day(u32),
-    /// The third Wednesday of any month.
+    /// The third Wednesday of any month (equivalent to [Imm::Wed3](crate::scheduling::Imm))
     IMM(),
 }
 
@@ -52,7 +52,7 @@ impl RollDay {
             // numeric first
             let mut v: Vec<Self> = vec![RollDay::Day(udate.day())];
             // EoM check
-            if is_eom(udate) {
+            if Imm::Eom.validate(udate) {
                 let mut day = udate.day() + 1;
                 while day < 32 {
                     v.push(RollDay::Day(day));
@@ -60,7 +60,7 @@ impl RollDay {
                 }
             }
             // IMM check
-            if is_imm(udate) {
+            if Imm::Wed3.validate(udate) {
                 v.push(RollDay::IMM())
             }
             // Intersect existing results
@@ -84,28 +84,28 @@ impl RollDay {
         let msg = "`udate` does not align with given `RollDay`.".to_string();
         match self {
             RollDay::Day(31) => {
-                if is_eom(udate) {
+                if Imm::Eom.validate(udate) {
                     Ok(*udate)
                 } else {
                     Err(PyValueError::new_err(msg))
                 }
             }
             RollDay::Day(30) => {
-                if (is_eom(udate) && udate.day() < 30) || udate.day() == 30 {
+                if (Imm::Eom.validate(udate) && udate.day() < 30) || udate.day() == 30 {
                     Ok(*udate)
                 } else {
                     Err(PyValueError::new_err(msg))
                 }
             }
             RollDay::Day(29) => {
-                if (is_eom(udate) && udate.day() < 29) || udate.day() == 29 {
+                if (Imm::Eom.validate(udate) && udate.day() < 29) || udate.day() == 29 {
                     Ok(*udate)
                 } else {
                     Err(PyValueError::new_err(msg))
                 }
             }
             RollDay::IMM() => {
-                if is_imm(udate) {
+                if Imm::Wed3.validate(udate) {
                     Ok(*udate)
                 } else {
                     Err(PyValueError::new_err(msg))
@@ -203,52 +203,11 @@ pub(crate) fn get_unadjusteds(
     udates
 }
 
-/// Return an IMM date (third Wednesday) for given month and year.
-pub fn get_imm(year: i32, month: u32) -> NaiveDateTime {
-    match ndt(year, month, 1).weekday() {
-        Weekday::Mon => ndt(year, month, 17),
-        Weekday::Tue => ndt(year, month, 16),
-        Weekday::Wed => ndt(year, month, 15),
-        Weekday::Thu => ndt(year, month, 21),
-        Weekday::Fri => ndt(year, month, 20),
-        Weekday::Sat => ndt(year, month, 19),
-        Weekday::Sun => ndt(year, month, 18),
-    }
-}
-
-/// Return an end of month date for given month and year.
-pub fn get_eom(year: i32, month: u32) -> NaiveDateTime {
-    let mut day = 31;
-    let mut date = NaiveDate::from_ymd_opt(year, month, day);
-    while date == None {
-        day = day - 1;
-        date = NaiveDate::from_ymd_opt(year, month, day);
-    }
-    date.unwrap().and_hms_opt(0, 0, 0).unwrap()
-}
-
-/// Test whether a given date is EoM.
-pub fn is_eom(date: &NaiveDateTime) -> bool {
-    let eom = get_eom(date.year(), date.month());
-    *date == eom
-}
-
-/// Test whether a given date is an IMM (third Wednesday).
-pub fn is_imm(date: &NaiveDateTime) -> bool {
-    let imm = get_imm(date.year(), date.month());
-    *date == imm
-}
-
-/// Test whether a given year is a leap year.
-pub fn is_leap_year(year: i32) -> bool {
-    NaiveDate::from_ymd_opt(year, 2, 29).is_some()
-}
-
 /// Return a specific roll date given the `month`, `year` and `roll`.
 pub fn get_roll(year: i32, month: u32, roll: &RollDay) -> Result<NaiveDateTime, PyErr> {
     match roll {
         RollDay::Day(value) => Ok(get_roll_by_day(year, month, *value)),
-        RollDay::IMM {} => Ok(get_imm(year, month)),
+        RollDay::IMM {} => Imm::Wed3.from_ym_opt(year, month),
     }
 }
 
@@ -270,10 +229,10 @@ fn get_roll_by_day(year: i32, month: u32, day: u32) -> NaiveDateTime {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scheduling::get_calendar_by_name;
+    use crate::scheduling::{ndt, Cal};
 
     fn fixture_bus_cal() -> Calendar {
-        Calendar::Cal(get_calendar_by_name("bus").unwrap())
+        Cal::try_from_name("bus").unwrap().into()
     }
 
     #[test]
@@ -293,32 +252,6 @@ mod tests {
         let rd1 = RollDay::Day(21);
         let rd2 = RollDay::Day(9);
         assert_ne!(rd1, rd2);
-    }
-
-    #[test]
-    fn test_is_imm() {
-        assert_eq!(true, is_imm(&ndt(2025, 3, 19)));
-        assert_eq!(false, is_imm(&ndt(2025, 3, 18)));
-    }
-
-    #[test]
-    fn test_get_eom() {
-        assert_eq!(ndt(2022, 2, 28), get_eom(2022, 2));
-        assert_eq!(ndt(2024, 2, 29), get_eom(2024, 2));
-        assert_eq!(ndt(2022, 4, 30), get_eom(2022, 4));
-        assert_eq!(ndt(2022, 3, 31), get_eom(2022, 3));
-    }
-
-    #[test]
-    fn test_is_eom() {
-        assert_eq!(true, is_eom(&ndt(2025, 3, 31)));
-        assert_eq!(false, is_eom(&ndt(2025, 3, 30)));
-    }
-
-    #[test]
-    fn test_is_leap() {
-        assert_eq!(true, is_leap_year(2024));
-        assert_eq!(false, is_leap_year(2022));
     }
 
     #[test]

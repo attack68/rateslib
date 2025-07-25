@@ -132,6 +132,7 @@ from rateslib.scheduling import (
     dcf,
     get_calendar,
     get_imm,
+    next_imm,
 )
 from rateslib.serialization import from_json
 from rateslib.solver import Solver
@@ -182,6 +183,7 @@ __all__ = [
     # scheduling.py
     "get_calendar",
     "get_imm",
+    "next_imm",
     "add_tenor",
     "dcf",
     "Cal",

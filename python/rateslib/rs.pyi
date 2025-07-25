@@ -12,6 +12,24 @@ class ADOrder:
     One: ADOrder
     Two: ADOrder
 
+class Imm:
+    Wed3_HMUZ: Imm
+    Wed3: Imm
+    Day20_HMUZ: Imm
+    Day20_HU: Imm
+    Day20_MZ: Imm
+    Day20: Imm
+    Fri2_HMUZ: Imm
+    Fri2: Imm
+    Wed1_Post9: Imm
+    Wed1_Post9_HMUZ: Imm
+    Eom: Imm
+    Leap: Imm
+
+    def next(self, date: datetime) -> datetime: ...
+    def validate(self, date: datetime) -> bool: ...
+    def get(self, year: int, month: int) -> datetime: ...
+
 class _Scheduling:
     def unext(self, udate: datetime) -> datetime: ...
     def next(self, date: datetime) -> datetime: ...
@@ -104,8 +122,6 @@ class RollDay:
 
     class IMM(RollDay): ...
 
-def get_named_calendar(name: str) -> Cal: ...
-
 class _Adjustment:
     def adjust(self, udate: datetime, calendar: CalTypes) -> datetime: ...
     def adjusts(self, udates: list[datetime], calendars: CalTypes) -> list[datetime]: ...
@@ -153,6 +169,8 @@ class _CalendarAdjustment:
 
 class Cal(_DateRoll, _CalendarAdjustment):
     def __init__(self, rules: list[datetime], week_mask: list[int]) -> None: ...
+    @classmethod
+    def from_name(cls, name: str) -> Cal: ...
 
 class UnionCal(_DateRoll, _CalendarAdjustment):
     calendars: list[Cal] = ...
