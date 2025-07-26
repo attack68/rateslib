@@ -1,11 +1,11 @@
 use crate::json::JSON;
-use crate::scheduling::{Cal, Calendar, NamedCal, UnionCal};
+use crate::scheduling::{Cal, Calendar, NamedCal, StubInference, UnionCal};
 
 impl JSON for Cal {}
 impl JSON for UnionCal {}
 impl JSON for NamedCal {}
-
 impl JSON for Calendar {}
+impl JSON for StubInference {}
 
 #[cfg(test)]
 mod tests {
@@ -47,5 +47,13 @@ mod tests {
         let js = cal.to_json().unwrap();
         let cal2 = Calendar::from_json(&js).unwrap();
         assert_eq!(cal, cal2);
+    }
+
+    #[test]
+    fn test_stub_inf_json() {
+        let si = StubInference::LongBack;
+        let js = si.to_json().unwrap();
+        let si2 = StubInference::from_json(&js).unwrap();
+        assert_eq!(si, si2);
     }
 }

@@ -15,7 +15,7 @@ from rateslib.dual.utils import (
     set_order_convert,
 )
 from rateslib.dual.variable import Variable
-from rateslib.rs import Dual, Dual2
+from rateslib.rs import ADOrder, Dual, Dual2
 
 Dual.__doc__ = "Dual number data type to perform first derivative automatic differentiation."
 Dual2.__doc__ = "Dual number data type to perform second derivative automatic differentiation."
@@ -25,6 +25,7 @@ Dual2.__doc__ = "Dual number data type to perform second derivative automatic di
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 __all__ = [
+    "ADOrder",
     "Dual",
     "Dual2",
     "Variable",

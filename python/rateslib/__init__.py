@@ -58,7 +58,7 @@ from rateslib.curves import (
     index_left,
     index_value,
 )
-from rateslib.dual import Dual, Dual2, Variable, dual_exp, dual_log, dual_solve, gradient
+from rateslib.dual import ADOrder, Dual, Dual2, Variable, dual_exp, dual_log, dual_solve, gradient
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments import (
@@ -123,6 +123,7 @@ from rateslib.scheduling import (
     Adjuster,
     Cal,
     Frequency,
+    Imm,
     NamedCal,
     RollDay,
     Schedule,
@@ -166,6 +167,7 @@ __all__ = [
     "NoInput",
     "from_json",
     # dual.py
+    "ADOrder",
     "Dual",
     "Dual2",
     "Variable",
@@ -194,6 +196,7 @@ __all__ = [
     "RollDay",
     "Adjuster",
     "StubInference",
+    "Imm",
     # curves.py
     "Curve",
     "LineCurve",
