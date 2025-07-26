@@ -4,16 +4,23 @@ import pytest
 from rateslib import (
     ADOrder,
     Cal,
+    CompositeCurve,
+    Curve,
     Dual,
     Dual2,
+    FXForwards,
     FXRates,
     Imm,
+    LineCurve,
+    MultiCsaCurve,
     NamedCal,
+    ProxyCurve,
     StubInference,
     UnionCal,
     Variable,
     dt,
 )
+from rateslib.curves import CreditImpliedCurve
 
 
 @pytest.mark.parametrize(
@@ -32,6 +39,40 @@ from rateslib import (
         # scheduling
         # fx
         FXRates({"eurusd": 1.0}, dt(2000, 1, 1)),
+        # curves
+        Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.98}),
+        LineCurve({dt(2000, 1, 1): 2.0, dt(2000, 1, 2): 3.0}),
+        CompositeCurve(
+            [
+                Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.98}),
+                Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.98}),
+            ]
+        ),
+        MultiCsaCurve(
+            [
+                Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.98}),
+                Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.98}),
+            ],
+        ),
+        CreditImpliedCurve(
+            Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.98}),
+            Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.98}),
+        ),
+        ProxyCurve(
+            "usd",
+            "eur",
+            FXForwards(
+                fx_rates=FXRates({"eurusd": 1.0}, dt(2000, 1, 1)),
+                fx_curves={
+                    "eureur": Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.98}),
+                    "eurusd": Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.98}),
+                    "usdusd": Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.98}),
+                },
+            ),
+        ),
+        Curve({dt(2000, 1, 1): 1.0, dt(2000, 7, 1): 0.98}).shift(10),
+        Curve({dt(2000, 1, 1): 1.0, dt(2000, 7, 1): 0.98}).roll("1m"),
+        Curve({dt(2000, 1, 1): 1.0, dt(2000, 7, 1): 0.98}).translate(dt(2000, 1, 15)),
     ],
 )
 def test_pickle_round_trip_obj_via_equality(obj):
