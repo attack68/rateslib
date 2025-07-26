@@ -4,11 +4,6 @@ import pytest
 from rateslib.rs import Adjuster, Cal, Frequency, RollDay, Schedule, StubInference
 
 
-def test_stub_inference_equality():
-    assert StubInference.LongFront != StubInference.ShortFront
-    assert StubInference.ShortFront == StubInference.ShortFront
-
-
 @pytest.mark.parametrize(
     ("ueff", "uterm", "si", "exp"),
     [

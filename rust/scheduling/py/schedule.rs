@@ -4,6 +4,24 @@ use chrono::prelude::*;
 use pyo3::prelude::*;
 
 #[pymethods]
+impl StubInference {
+    // Pickling
+    #[new]
+    fn new_py(item: usize) -> StubInference {
+        match item {
+            _ if item == StubInference::ShortFront as usize => StubInference::ShortFront,
+            _ if item == StubInference::ShortBack as usize => StubInference::ShortBack,
+            _ if item == StubInference::LongFront as usize => StubInference::LongFront,
+            _ if item == StubInference::LongBack as usize => StubInference::LongBack,
+            _ => panic!("Reportable issue: must map this enum variant for serialization."),
+        }
+    }
+    pub fn __getnewargs__<'py>(&self) -> PyResult<(usize,)> {
+        Ok((*self as usize,))
+    }
+}
+
+#[pymethods]
 impl Schedule {
     #[new]
     #[pyo3(signature = (effective, termination, frequency, calendar, accrual_adjuster, payment_adjuster, eom, front_stub=None, back_stub=None, stub_inference=None))]
