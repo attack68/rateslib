@@ -51,4 +51,27 @@ impl Imm {
     fn from_ym_opt_py(&self, year: i32, month: u32) -> PyResult<NaiveDateTime> {
         self.from_ym_opt(year, month)
     }
+
+    // Pickling
+    #[new]
+    fn new_py(item: usize) -> Imm {
+        match item {
+            _ if item == Imm::Wed3 as usize => Imm::Wed3,
+            _ if item == Imm::Wed3_HMUZ as usize => Imm::Wed3_HMUZ,
+            _ if item == Imm::Fri2 as usize => Imm::Fri2,
+            _ if item == Imm::Fri2_HMUZ as usize => Imm::Fri2_HMUZ,
+            _ if item == Imm::Day20 as usize => Imm::Day20,
+            _ if item == Imm::Day20_HU as usize => Imm::Day20_HU,
+            _ if item == Imm::Day20_MZ as usize => Imm::Day20_MZ,
+            _ if item == Imm::Day20_HMUZ as usize => Imm::Day20_HMUZ,
+            _ if item == Imm::Wed1_Post9 as usize => Imm::Wed1_Post9,
+            _ if item == Imm::Wed1_Post9_HMUZ as usize => Imm::Wed1_Post9_HMUZ,
+            _ if item == Imm::Eom as usize => Imm::Eom,
+            _ if item == Imm::Leap as usize => Imm::Leap,
+            _ => panic!("Reportable issue: must map this enum variant for serialization."),
+        }
+    }
+    pub fn __getnewargs__<'py>(&self) -> PyResult<(usize,)> {
+        Ok((*self as usize,))
+    }
 }

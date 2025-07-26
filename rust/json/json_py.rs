@@ -9,12 +9,12 @@ use crate::curves::curve_py::Curve;
 use crate::dual::{Dual, Dual2};
 use crate::fx::rates::FXRates;
 use crate::json::JSON;
-use crate::scheduling::{Cal, NamedCal, UnionCal};
+use crate::scheduling::{Cal, NamedCal, StubInference, UnionCal};
 use crate::splines::{PPSplineDual, PPSplineDual2, PPSplineF64};
-// use pyo3::conversion::ToPyObject;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
+// use pyo3::conversion::ToPyObject;
 
 /// Container for all of the Python exposed Rust objects which are deserializable.
 ///
@@ -32,6 +32,7 @@ pub(crate) enum DeserializedObj {
     PPSplineF64(PPSplineF64),
     PPSplineDual(PPSplineDual),
     PPSplineDual2(PPSplineDual2),
+    StubInference(StubInference),
 }
 
 // removed on upgrade to pyo3 0.23, see https://pyo3.rs/v0.23.0/migration#intopyobject-and-intopyobjectref-derive-macros
