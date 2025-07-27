@@ -4,8 +4,8 @@ import warnings
 from typing import TYPE_CHECKING
 
 from rateslib import defaults
+from rateslib.curves import _BaseCurve
 from rateslib.curves._parsers import _validate_obj_not_no_input
-from rateslib.curves.base import _BaseCurve
 from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
 from rateslib.fx import FXForwards, FXRates

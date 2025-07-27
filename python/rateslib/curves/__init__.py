@@ -1,7 +1,3 @@
-from rateslib.curves.base import (
-    _BaseCurve,
-    _WithMutability,
-)
 from rateslib.curves.curves import (
     CompositeCurve,
     CreditImpliedCurve,
@@ -12,6 +8,8 @@ from rateslib.curves.curves import (
     RolledCurve,
     ShiftedCurve,
     TranslatedCurve,
+    _BaseCurve,
+    _WithMutability,
     _WithOperations,
     index_value,
 )

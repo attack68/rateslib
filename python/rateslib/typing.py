@@ -12,10 +12,10 @@ import numpy as np
 from pandas import DataFrame as DataFrame
 from pandas import Series as Series
 
-from rateslib.curves.base import _BaseCurve as _BaseCurve
-from rateslib.curves.curves import RolledCurve as RolledCurve
-from rateslib.curves.curves import ShiftedCurve as ShiftedCurve
-from rateslib.curves.curves import TranslatedCurve as TranslatedCurve
+from rateslib.curves import RolledCurve as RolledCurve
+from rateslib.curves import ShiftedCurve as ShiftedCurve
+from rateslib.curves import TranslatedCurve as TranslatedCurve
+from rateslib.curves import _BaseCurve as _BaseCurve
 from rateslib.default import NoInput as NoInput
 from rateslib.dual.variable import Variable as Variable
 from rateslib.fx import FXForwards as FXForwards
