@@ -13,7 +13,7 @@
 Curves
 ***********
 
-.. inheritance-diagram:: rateslib.curves.Curve rateslib.curves.LineCurve rateslib.curves.CompositeCurve rateslib.curves.MultiCsaCurve rateslib.curves.ProxyCurve rateslib.curves._BaseCurve rateslib.curves._WithMutability rateslib.curves.CreditImpliedCurve
+.. inheritance-diagram:: rateslib.curves.Curve rateslib.curves.LineCurve rateslib.curves.CompositeCurve rateslib.curves.MultiCsaCurve rateslib.curves.ProxyCurve rateslib.curves._BaseCurve rateslib.curves._WithMutability rateslib.curves.CreditImpliedCurve rateslib.curves.TranslatedCurve rateslib.curves.RolledCurve rateslib.curves.ShiftedCurve
    :private-bases:
    :parts: 1
 
@@ -24,7 +24,8 @@ can then, also, be calibrated by a :class:`~rateslib.solver.Solver` and market i
 :class:`~rateslib.curves._CurveType`. One is **values** based and one is **discount factor (DF)**
 based.
 
-The fundamental object is the :class:`~rateslib.curves._BaseCurve` abstract base class. All
+The fundamental object is the :class:`~rateslib.curves._BaseCurve` abstract base class (which
+provides a generic object to allow users to implement their own `custom Curve <z_basecurve.html>`_). All
 curve types in *rateslib* inherit this class and provide its methods and operations. All that is
 required for an object to inherit a :class:`~rateslib.curves._BaseCurve` is that it provides
 a :meth:`~rateslib.curves._BaseCurve.__getitem__` method.
@@ -479,9 +480,11 @@ The main user curve classes are listed below:
 These objects allow complex curve features and scenarios to be modelled in a recognisable and
 easily parametrised format.
 
-The following *Pricing Containers* are also created as the result of certain operations:
+The following *Pricing Containers* are also created as the result of certain operations, which any
+:class:`~rateslib.curves._BaseCurve` can inherit using the :class:`~rateslib.curves._WithOperations`
+mixin.
 
 .. autosummary::
-   rateslib.curves._ShiftedCurve
-   rateslib.curves._RolledCurve
-   rateslib.curves._TranslatedCurve
+   rateslib.curves.ShiftedCurve
+   rateslib.curves.RolledCurve
+   rateslib.curves.TranslatedCurve

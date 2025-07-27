@@ -31,10 +31,17 @@ multiple objects.
    rateslib.curves.MultiCsaCurve
    rateslib.curves.CreditImpliedCurve
 
+And there are other containers which facilitate different types of curve *operations*.
+
+.. autosummary::
+   rateslib.curves.RolledCurve
+   rateslib.curves.ShiftCurve
+   rateslib.curves.TranslateCurve
+
 It is also possible for a user to construct **custom curve classes** and interact them with
 all of the established tools, in particular for pricing instruments and obtaining risk
-sensitivities. For an example of this see the
-:ref:`Cookbook Article: Building Custom Curves (Nelson-Siegel) <cookbook-doc>`.
+sensitivities. For an example of this see the cookbook article on
+`Building Custom Curves (Nelosn-Siegel) <z_basecurve.html>`_.
 
 Curves are required for pricing all *Instruments* in *rateslib*.
 
