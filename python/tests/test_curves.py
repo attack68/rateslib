@@ -757,7 +757,7 @@ def test_curve_shift_ad_orders(curve, line_curve, index_curve, c_obj, ini_ad, sp
     c._set_ad_order(ini_ad)
 
     if ini_ad + _get_order_of(spread) == 3:
-        with pytest.raises(TypeError, match="Cannot create a _ShiftedCurve with mixed AD orders"):
+        with pytest.raises(TypeError, match="Cannot create a ShiftedCurve with mixed AD orders"):
             c.shift(spread)
         return None
 
@@ -990,7 +990,7 @@ def test_curve_roll(crv) -> None:
     assert np.all(np.abs(result2 - expected) < 1e-7)
 
 
-@pytest.mark.skip(reason="v2.1 uses a _RolledCurve and does not return a compatible object for eq")
+@pytest.mark.skip(reason="v2.1 uses a RolledCurve and does not return a compatible object for eq")
 def test_curve_roll_copy(curve) -> None:
     result = curve.roll("0d")
     assert result == curve
@@ -1169,7 +1169,7 @@ class TestCurve:
         )
         assert isinstance(curve, _BaseCurve)
 
-    @pytest.mark.skip(reason="_TranslatedCurve was constructed in v2.1 and bypasses this.")
+    @pytest.mark.skip(reason="TranslatedCurve was constructed in v2.1 and bypasses this.")
     def test_curve_translate_knots_raises(self) -> None:
         curve = Curve(
             nodes={

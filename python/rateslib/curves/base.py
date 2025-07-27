@@ -33,9 +33,9 @@ if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
         Any,
         CalInput,
-        _RolledCurve,
-        _ShiftedCurve,
-        _TranslatedCurve,
+        RolledCurve,
+        ShiftedCurve,
+        TranslatedCurve,
         float_,
         int_,
         str_,
@@ -152,11 +152,11 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
         self,
         spread: DualTypes,
         id: str_ = NoInput(0),  # noqa: A002
-    ) -> _ShiftedCurve:
+    ) -> ShiftedCurve:
         """
-        Create a :class:`~rateslib.curves._ShiftedCurve`: moving *Self* vertically in rate space.
+        Create a :class:`~rateslib.curves.ShiftedCurve`: moving *Self* vertically in rate space.
 
-        For examples see the documentation for :class:`~rateslib.curves._ShiftedCurve`.
+        For examples see the documentation for :class:`~rateslib.curves.ShiftedCurve`.
 
         Parameters
         ----------
@@ -167,17 +167,17 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
 
         Returns
         -------
-        _ShiftedCurve
+        ShiftedCurve
         """
         ...
 
     @abstractmethod
-    def translate(self, start: datetime, id: str_ = NoInput(0)) -> _TranslatedCurve:  # noqa: A002
+    def translate(self, start: datetime, id: str_ = NoInput(0)) -> TranslatedCurve:  # noqa: A002
         """
-        Create a :class:`~rateslib.curves._TranslatedCurve`: maintaining an identical rate space,
+        Create a :class:`~rateslib.curves.TranslatedCurve`: maintaining an identical rate space,
         but moving the initial node date forwards in time.
 
-        For examples see the documentation for :class:`~rateslib.curves._TranslatedCurve`.
+        For examples see the documentation for :class:`~rateslib.curves.TranslatedCurve`.
 
         Parameters
         ----------
@@ -188,17 +188,17 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
 
         Returns
         -------
-        _TranslatedCurve
+        TranslatedCurve
         """  # noqa: E501
         ...  # pragma: no cover
 
     @abstractmethod
-    def roll(self, tenor: datetime | str) -> _RolledCurve:
+    def roll(self, tenor: datetime | str) -> RolledCurve:
         """
-        Create a :class:`~rateslib.curves._RolledCurve`: translating the rate space of *Self* in
+        Create a :class:`~rateslib.curves.RolledCurve`: translating the rate space of *Self* in
         time.
 
-        For examples see the documentation for :class:`~rateslib.curves._RolledCurve`.
+        For examples see the documentation for :class:`~rateslib.curves.RolledCurve`.
 
         Parameters
         ----------
@@ -209,7 +209,7 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], ABC):
 
         Returns
         -------
-        _RolledCurve
+        RolledCurve
 
         """  # noqa: E501
         ...

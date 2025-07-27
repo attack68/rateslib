@@ -13,9 +13,9 @@ from pandas import DataFrame as DataFrame
 from pandas import Series as Series
 
 from rateslib.curves.base import _BaseCurve as _BaseCurve
-from rateslib.curves.curves import _RolledCurve as _RolledCurve
-from rateslib.curves.curves import _ShiftedCurve as _ShiftedCurve
-from rateslib.curves.curves import _TranslatedCurve as _TranslatedCurve
+from rateslib.curves.curves import RolledCurve as RolledCurve
+from rateslib.curves.curves import ShiftedCurve as ShiftedCurve
+from rateslib.curves.curves import TranslatedCurve as TranslatedCurve
 from rateslib.default import NoInput as NoInput
 from rateslib.dual.variable import Variable as Variable
 from rateslib.fx import FXForwards as FXForwards
