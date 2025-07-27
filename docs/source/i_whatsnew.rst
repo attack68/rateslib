@@ -32,7 +32,10 @@ multi-processing. Solutions for this are being investigated for upcoming release
    * - Feature
      - Description
    * - **Instruments**
-     - - :red:`Minor Breaking Change!` The :meth:`~rateslib.instruments.FixedRateBond.oaspread`
+     - - :red:`Minor Breaking Change!` The default ``stub`` input for the **German government bonds**
+         ``spec`` (*'de_gb'*) is changed to *"LongFront"* to better match recent issuances.
+         (`982 <https://github.com/attack68/rateslib/pull/982>`_)
+       - :red:`Minor Breaking Change!` The :meth:`~rateslib.instruments.FixedRateBond.oaspread`
          method's arguments are changed to
          replace ``dirty`` with ``metric``, which provides more flexibility with regards to YTM
          and inflation bonds, and ``func_tol`` and ``conv_tol`` are added to allow convergence
