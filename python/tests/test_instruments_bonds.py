@@ -1674,14 +1674,17 @@ class TestFixedRateBond:
             assert abs(bond.oaspread(curves=curve_, price=97.0) - result[1]) < 0.75
             assert abs(bond.rate(curves=curve_, metric="clean_price") - result[2]) < 0.03
 
-    @pytest.mark.parametrize(("settlement", "forward_settlement", "expected"), [
-        (dt(2024, 6, 27), dt(2024, 6, 28), 100.002503),
-        (dt(2024, 6, 27), dt(2024, 6, 29), 100.005596),
-        (dt(2024, 6, 27), dt(2024, 6, 30), 100.007805),
-        (dt(2024, 6, 27), dt(2024, 7, 1), 100.010140),
-        (dt(2024, 6, 27), dt(2024, 7, 2), 100.012475),
-        (dt(2024, 6, 29), dt(2024, 7, 1), 100.004550),
-    ])
+    @pytest.mark.parametrize(
+        ("settlement", "forward_settlement", "expected"),
+        [
+            (dt(2024, 6, 27), dt(2024, 6, 28), 100.002503),
+            (dt(2024, 6, 27), dt(2024, 6, 29), 100.005596),
+            (dt(2024, 6, 27), dt(2024, 6, 30), 100.007805),
+            (dt(2024, 6, 27), dt(2024, 7, 1), 100.010140),
+            (dt(2024, 6, 27), dt(2024, 7, 2), 100.012475),
+            (dt(2024, 6, 29), dt(2024, 7, 1), 100.004550),
+        ],
+    )
     def test_fwd_from_repo_ex_div_and_holidays(self, settlement, forward_settlement, expected):
         bond = FixedRateBond(dt(2023, 12, 31), dt(2025, 12, 31), fixed_rate=4.25, spec="us_gb")
         result = bond.fwd_from_repo(
@@ -1693,14 +1696,17 @@ class TestFixedRateBond:
         )
         assert abs(result - expected) < 1e-6
 
-    @pytest.mark.parametrize(("settlement", "forward_settlement", "fwd_price"), [
-        (dt(2024, 6, 27), dt(2024, 6, 28), 100.002503),
-        (dt(2024, 6, 27), dt(2024, 6, 29), 100.005596),
-        (dt(2024, 6, 27), dt(2024, 6, 30), 100.007805),
-        (dt(2024, 6, 27), dt(2024, 7, 1), 100.010140),
-        (dt(2024, 6, 27), dt(2024, 7, 2), 100.012475),
-        (dt(2024, 6, 29), dt(2024, 7, 1), 100.004550),
-    ])
+    @pytest.mark.parametrize(
+        ("settlement", "forward_settlement", "fwd_price"),
+        [
+            (dt(2024, 6, 27), dt(2024, 6, 28), 100.002503),
+            (dt(2024, 6, 27), dt(2024, 6, 29), 100.005596),
+            (dt(2024, 6, 27), dt(2024, 6, 30), 100.007805),
+            (dt(2024, 6, 27), dt(2024, 7, 1), 100.010140),
+            (dt(2024, 6, 27), dt(2024, 7, 2), 100.012475),
+            (dt(2024, 6, 29), dt(2024, 7, 1), 100.004550),
+        ],
+    )
     def test_repo_from_fwd_ex_div_and_holidays(self, settlement, forward_settlement, fwd_price):
         bond = FixedRateBond(dt(2023, 12, 31), dt(2025, 12, 31), fixed_rate=4.25, spec="us_gb")
         result = bond.repo_from_fwd(
