@@ -71,7 +71,7 @@ impl Imm {
             _ => panic!("Reportable issue: must map this enum variant for serialization."),
         }
     }
-    pub fn __getnewargs__<'py>(&self) -> PyResult<(usize,)> {
+    fn __getnewargs__<'py>(&self) -> PyResult<(usize,)> {
         Ok((*self as usize,))
     }
 }
