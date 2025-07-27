@@ -667,8 +667,8 @@ class TestFixedRateBond:
 
     def test_long_stub(self):
         # DE000BU2Z056
-        bond = FixedRateBond(dt(2025, 7, 4), dt(2026, 8, 15), spec="de_gb", fixed_rate=2.60)
-        assert bond.leg1.schedule.aschedule[0:2] == [dt(2025, 7, 4), dt(2035, 8, 15)]
+        bond = FixedRateBond(dt(2025, 7, 4), dt(2035, 8, 15), spec="de_gb", fixed_rate=2.60)
+        assert bond.leg1.schedule.aschedule[0:2] == [dt(2025, 7, 4), dt(2026, 8, 15)]
 
     ## French OAT
 
