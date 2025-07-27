@@ -243,6 +243,9 @@ class Schedule:
     - **Stub date inference** if a regular schedule cannot be defined without stubs one can be
       unambiguously implied.
 
+    *Rateslib* always tries to infer *regular* schedules ahead of *irregular* schedules. Failing
+    that, it always tries to infer dates and rolls as close as possible to those given by a user.
+
     **Dates given as string tenor - The 1Y1Y problem**
 
     When generating schedules implied from tenor ``effective`` and ``termination`` dates there
