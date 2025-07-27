@@ -35,8 +35,8 @@ And there are other containers which facilitate different types of curve *operat
 
 .. autosummary::
    rateslib.curves.RolledCurve
-   rateslib.curves.ShiftCurve
-   rateslib.curves.TranslateCurve
+   rateslib.curves.ShiftedCurve
+   rateslib.curves.TranslatedCurve
 
 It is also possible for a user to construct **custom curve classes** and interact them with
 all of the established tools, in particular for pricing instruments and obtaining risk

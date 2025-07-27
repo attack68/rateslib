@@ -46,16 +46,18 @@ multi-processing. Solutions for this are being investigated for upcoming release
          (`965 <https://github.com/attack68/rateslib/pull/965>`_)
    * - **Pricing objects: Curves**
      - - :red:`Minor Breaking Change!`
-         The classes :class:`~rateslib.curves._TranslatedCurve`,
-         :class:`~rateslib.curves._RolledCurve` and
-         :class:`~rateslib.curves._ShiftedCurve` are constructed as new objects
+         The classes :class:`~rateslib.curves.TranslatedCurve`,
+         :class:`~rateslib.curves.RolledCurve` and
+         :class:`~rateslib.curves.ShiftedCurve` are constructed as new objects
          to better handle the
          :meth:`~rateslib.curves._BaseCurve.translate`
          :meth:`~rateslib.curves._BaseCurve.roll`, and :meth:`~rateslib.curves._BaseCurve.shift`
          methods for curves.
-         (`916 <https://github.com/attack68/rateslib/pull/916>`_)
-         (`917 <https://github.com/attack68/rateslib/pull/917>`_)
-         (`919 <https://github.com/attack68/rateslib/pull/919>`_)
+         (`916 <https://github.com/attack68/rateslib/pull/916>`_,
+         `917 <https://github.com/attack68/rateslib/pull/917>`_,
+         `919 <https://github.com/attack68/rateslib/pull/919>`_,
+         `980 <https://github.com/attack68/rateslib/pull/980>`_,
+         `981 <https://github.com/attack68/rateslib/pull/981>`_)
        - :red:`Minor Breaking Change!`
          The ``composite`` argument for the :meth:`~rateslib.curves._BaseCurve.shift`
          method is removed, forcing shifted curves to always be dynamically dependent upon their
@@ -110,10 +112,10 @@ multi-processing. Solutions for this are being investigated for upcoming release
          :meth:`~rateslib.scheduling.Cal.adjusts` are added for calendar objects. These
          provide a superset of date adjustment operations compared with
          :meth:`~rateslib.scheduling.Cal.roll`.
-         (`939 <https://github.com/attack68/rateslib/pull/939>`_)
-         (`940 <https://github.com/attack68/rateslib/pull/940>`_)
-         (`942 <https://github.com/attack68/rateslib/pull/942>`_)
-         (`943 <https://github.com/attack68/rateslib/pull/943>`_)
+         (`939 <https://github.com/attack68/rateslib/pull/939>`_,
+         `940 <https://github.com/attack68/rateslib/pull/940>`_,
+         `942 <https://github.com/attack68/rateslib/pull/942>`_,
+         `943 <https://github.com/attack68/rateslib/pull/943>`_)
        - A :class:`~rateslib.scheduling.Frequency` enum is added for defining scheduling operations.
          (`941 <https://github.com/attack68/rateslib/pull/941>`_)
    * - **Bugs**
@@ -123,8 +125,8 @@ multi-processing. Solutions for this are being investigated for upcoming release
          dependent methods, like
          :meth:`~rateslib.instruments.FixedRateBond.oaspread` and
          :meth:`~rateslib.instruments.FixedRateBond.rate`.
-         (`950 <https://github.com/attack68/rateslib/pull/950>`_)
-         (`954 <https://github.com/attack68/rateslib/pull/954>`_)
+         (`950 <https://github.com/attack68/rateslib/pull/950>`_,
+         `954 <https://github.com/attack68/rateslib/pull/954>`_)
        - The `index_base` parameter on a :class:`~rateslib.instruments.ZCIS` or
          :class:`~rateslib.instruments.IIRS` can now be forecast from provided `index_fixings`.
          (`963 <https://github.com/attack68/rateslib/pull/963>`_)
