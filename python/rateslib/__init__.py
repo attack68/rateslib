@@ -49,12 +49,6 @@ class default_context(ContextDecorator):
                 setattr(defaults, pat, val)
 
 
-import rateslib.rs
-
-# Patch the namespace for pyo3 pickling: see https://github.com/PyO3/pyo3/discussions/5226
-rateslib.rs.RollDay_Day = rateslib.rs.RollDay.Day  # type: ignore[attr-defined]
-rateslib.rs.RollDay_IMM = rateslib.rs.RollDay.IMM  # type: ignore[attr-defined]
-
 from rateslib.curves import (
     CompositeCurve,
     Curve,

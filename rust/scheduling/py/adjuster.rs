@@ -4,6 +4,7 @@ use crate::scheduling::{Adjuster, Adjustment, Calendar};
 use chrono::NaiveDateTime;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use pyo3::types::PyTuple;
 use std::collections::HashMap;
 
 /// Python wrapper for Adjuster to facilitate complex enum pickling.
@@ -33,6 +34,43 @@ pub(crate) enum PyAdjuster {
     #[pyo3(constructor = (number, _u8=10))]
     CalDaysLagSettle { number: i32, _u8: u8 },
 }
+
+/// Used for providing pickle support for PyAdjuster
+enum PyAdjusterNewArgs{
+    NoArgs(u8),
+    I32(i32, u8),
+}
+
+impl<'py> IntoPyObject<'py> for PyAdjusterNewArgs {
+    type Target = PyTuple;
+    type Output = Bound<'py, Self::Target>;
+    type Error = std::convert::Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        match self {
+            PyAdjusterNewArgs::NoArgs(x) => Ok((x,).into_pyobject(py).unwrap()),
+            PyAdjusterNewArgs::I32(x, y) => Ok((x, y).into_pyobject(py).unwrap()),
+        }
+    }
+}
+
+impl<'py> FromPyObject<'py> for PyAdjusterNewArgs {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let ext: PyResult<(u8,)> = ob.extract();
+        if ext.is_ok() {
+            let (x,) = ext.unwrap();
+            return Ok(PyAdjusterNewArgs::NoArgs(x))
+        }
+        let ext: PyResult<(i32, u8)> = ob.extract();
+        if ext.is_ok() {
+            let (x, y) = ext.unwrap();
+            return Ok(PyAdjusterNewArgs::I32(x, y))
+        }
+        Err(PyValueError::new_err("Undefined behaviour"))
+    }
+}
+
+
 
 impl From<Adjuster> for PyAdjuster {
     fn from(value: Adjuster) -> Self {
@@ -129,6 +167,40 @@ impl PyAdjuster {
             PyAdjuster::ModifiedPreviousSettle { _u8: _ } => "FSETTLE".to_string(),
             PyAdjuster::BusDaysLagSettle { number: n, _u8: _ } => format!("{n}B"),
             PyAdjuster::CalDaysLagSettle { number: n, _u8: _ } => format!("{n}D"),
+        }
+    }
+
+    fn __getnewargs__(&self) -> PyAdjusterNewArgs {
+        match self {
+            PyAdjuster::Actual { _u8: u } => PyAdjusterNewArgs::NoArgs(*u),
+            PyAdjuster::Following { _u8: u } => PyAdjusterNewArgs::NoArgs(*u),
+            PyAdjuster::Previous { _u8: u } => PyAdjusterNewArgs::NoArgs(*u),
+            PyAdjuster::ModifiedFollowing { _u8: u } => PyAdjusterNewArgs::NoArgs(*u),
+            PyAdjuster::ModifiedPrevious { _u8: u } => PyAdjusterNewArgs::NoArgs(*u),
+            PyAdjuster::FollowingSettle { _u8: u } => PyAdjusterNewArgs::NoArgs(*u),
+            PyAdjuster::PreviousSettle { _u8: u } => PyAdjusterNewArgs::NoArgs(*u),
+            PyAdjuster::ModifiedFollowingSettle { _u8: u } => PyAdjusterNewArgs::NoArgs(*u),
+            PyAdjuster::ModifiedPreviousSettle { _u8: u } => PyAdjusterNewArgs::NoArgs(*u),
+            PyAdjuster::BusDaysLagSettle { number: n, _u8: u } => PyAdjusterNewArgs::I32(*n, *u),
+            PyAdjuster::CalDaysLagSettle { number: n, _u8: u } => PyAdjusterNewArgs::I32(*n, *u),
+        }
+    }
+
+    #[new]
+    fn new_py(args: PyAdjusterNewArgs) -> PyAdjuster {
+        match args {
+            PyAdjusterNewArgs::NoArgs(0) => PyAdjuster::Actual { _u8: 0 }, 
+            PyAdjusterNewArgs::NoArgs(1) => PyAdjuster::Following { _u8: 1 },
+            PyAdjusterNewArgs::NoArgs(2) => PyAdjuster::Previous { _u8: 2 },
+            PyAdjusterNewArgs::NoArgs(3) => PyAdjuster::ModifiedFollowing { _u8: 3 },
+            PyAdjusterNewArgs::NoArgs(4) => PyAdjuster::ModifiedPrevious { _u8: 4 },
+            PyAdjusterNewArgs::NoArgs(5) => PyAdjuster::FollowingSettle { _u8: 5 },
+            PyAdjusterNewArgs::NoArgs(6) => PyAdjuster::PreviousSettle { _u8: 6 },
+            PyAdjusterNewArgs::NoArgs(7) => PyAdjuster::ModifiedFollowingSettle { _u8: 7 },
+            PyAdjusterNewArgs::NoArgs(8) => PyAdjuster::ModifiedPreviousSettle { _u8: 8 },
+            PyAdjusterNewArgs::I32(n, 9) => PyAdjuster::BusDaysLagSettle { number: n, _u8: 9 },
+            PyAdjusterNewArgs::I32(n, 10) => PyAdjuster::CalDaysLagSettle { number: n, _u8: 10 }, 
+            _ => panic!("Undefined behaviour.")
         }
     }
 }

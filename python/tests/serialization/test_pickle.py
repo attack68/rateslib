@@ -3,7 +3,6 @@ import pickle
 import pytest
 from rateslib import (
     ADOrder,
-    Cal,
     CompositeCurve,
     Curve,
     Dual,
@@ -15,13 +14,11 @@ from rateslib import (
     MultiCsaCurve,
     NamedCal,
     ProxyCurve,
-    RollDay,
-    StubInference,
-    UnionCal,
     Variable,
     dt,
 )
 from rateslib.curves import CreditImpliedCurve
+from rateslib.scheduling import Adjuster, Cal, RollDay, StubInference, UnionCal
 
 
 @pytest.mark.parametrize(
@@ -90,6 +87,7 @@ def test_pickle_round_trip_obj_via_equality(obj):
         (ADOrder.Zero, ADOrder.Zero, ADOrder.One),
         (RollDay.Day(21), RollDay.Day(21), RollDay.Day(16)),
         (RollDay.Day(21), RollDay.Day(21), RollDay.IMM),
+        (Adjuster.Actual(), Adjuster.Actual(), Adjuster.BusDaysLagSettle(5)),
     ],
 )
 def test_enum_equality(a1, a2, b1):
@@ -112,7 +110,21 @@ def test_simple_enum_pickle(enum, method_filter):
 
 @pytest.mark.parametrize(
     ("enum"),
-    [RollDay.Day(31), RollDay.IMM()],
+    [
+        RollDay.Day(31),
+        RollDay.IMM(),
+        Adjuster.Actual(),
+        Adjuster.Following(),
+        Adjuster.ModifiedFollowing(),
+        Adjuster.Previous(),
+        Adjuster.ModifiedPrevious(),
+        Adjuster.FollowingSettle(),
+        Adjuster.ModifiedFollowingSettle(),
+        Adjuster.PreviousSettle(),
+        Adjuster.ModifiedPreviousSettle(),
+        Adjuster.BusDaysLagSettle(4),
+        Adjuster.CalDaysLagSettle(2),
+    ],
 )
 def test_complex_enum_pickle(enum):
     pickled = pickle.dumps(enum)
