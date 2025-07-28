@@ -49,6 +49,12 @@ class default_context(ContextDecorator):
                 setattr(defaults, pat, val)
 
 
+import rateslib.rs
+
+# Patch the namespace for pyo3 pickling: see https://github.com/PyO3/pyo3/discussions/5226
+rateslib.rs.RollDay_Day = rateslib.rs.RollDay.Day  # type: ignore[attr-defined]
+rateslib.rs.RollDay_IMM = rateslib.rs.RollDay.IMM  # type: ignore[attr-defined]
+
 from rateslib.curves import (
     CompositeCurve,
     Curve,
@@ -158,9 +164,6 @@ fixed income securities, derivatives, FX representation and curve construction
 in Python.
 """  # noqa: A001
 
-# Use __all__ to let type checkers know what is part of the public API.
-# Rateslib is not (yet) a py.typed library: the public API is determined
-# based on the documentation.
 __all__ = [
     "dt",
     "defaults",
