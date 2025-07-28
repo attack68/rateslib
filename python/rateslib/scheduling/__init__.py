@@ -1,11 +1,28 @@
 from __future__ import annotations
 
+import rateslib.rs
 from rateslib.rs import Adjuster, Cal, Frequency, Imm, NamedCal, RollDay, StubInference, UnionCal
 from rateslib.scheduling.calendars import get_calendar
 from rateslib.scheduling.dcfs import dcf
 from rateslib.scheduling.frequency import add_tenor
 from rateslib.scheduling.imm import get_imm, next_imm
 from rateslib.scheduling.wrappers import Schedule
+
+# Patch the namespace for pyo3 pickling: see https://github.com/PyO3/pyo3/discussions/5226
+rateslib.rs.RollDay_Day = rateslib.rs.RollDay.Day  # type: ignore[attr-defined]
+rateslib.rs.RollDay_IMM = rateslib.rs.RollDay.IMM  # type: ignore[attr-defined]
+
+rateslib.rs.PyAdjuster_Actual = rateslib.rs.Adjuster.Actual  # type: ignore[attr-defined]
+rateslib.rs.PyAdjuster_Following = rateslib.rs.Adjuster.Following  # type: ignore[attr-defined]
+rateslib.rs.PyAdjuster_ModifiedFollowing = rateslib.rs.Adjuster.ModifiedFollowing   # type: ignore[attr-defined]
+rateslib.rs.PyAdjuster_Previous = rateslib.rs.Adjuster.Previous  # type: ignore[attr-defined]
+rateslib.rs.PyAdjuster_ModifiedPrevious = rateslib.rs.Adjuster.ModifiedPrevious  # type: ignore[attr-defined]
+rateslib.rs.PyAdjuster_FollowingSettle = rateslib.rs.Adjuster.FollowingSettle  # type: ignore[attr-defined]
+rateslib.rs.PyAdjuster_ModifiedFollowingSettle = rateslib.rs.Adjuster.ModifiedFollowingSettle  # type: ignore[attr-defined]
+rateslib.rs.PyAdjuster_PreviousSettle = rateslib.rs.Adjuster.PreviousSettle  # type: ignore[attr-defined]
+rateslib.rs.PyAdjuster_ModifiedPreviousSettle = rateslib.rs.Adjuster.ModifiedPreviousSettle  # type: ignore[attr-defined]
+rateslib.rs.PyAdjuster_BusDaysLagSettle = rateslib.rs.Adjuster.BusDaysLagSettle  # type: ignore[attr-defined]
+rateslib.rs.PyAdjuster_CalDaysLagSettle = rateslib.rs.Adjuster.CalDaysLagSettle  # type: ignore[attr-defined]
 
 Imm.__doc__ = """
 Enumerable type for International Money-Market (IMM) date definitions.
