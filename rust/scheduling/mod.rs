@@ -135,7 +135,7 @@ pub use crate::scheduling::{
         ndt, Adjuster, Adjustment, Cal, Calendar, CalendarAdjustment, DateRoll, NamedCal, UnionCal,
     },
     dcfs::Convention,
-    frequency::{get_roll, Frequency, Imm, RollDay, Scheduling},
+    frequency::{Frequency, Imm, RollDay, Scheduling},
     schedule::{Schedule, StubInference},
 };
 pub(crate) use crate::scheduling::{

@@ -14,7 +14,7 @@ rateslib.rs.RollDay_IMM = rateslib.rs.RollDay.IMM  # type: ignore[attr-defined]
 
 rateslib.rs.PyAdjuster_Actual = rateslib.rs.Adjuster.Actual  # type: ignore[attr-defined]
 rateslib.rs.PyAdjuster_Following = rateslib.rs.Adjuster.Following  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster_ModifiedFollowing = rateslib.rs.Adjuster.ModifiedFollowing   # type: ignore[attr-defined]
+rateslib.rs.PyAdjuster_ModifiedFollowing = rateslib.rs.Adjuster.ModifiedFollowing  # type: ignore[attr-defined]
 rateslib.rs.PyAdjuster_Previous = rateslib.rs.Adjuster.Previous  # type: ignore[attr-defined]
 rateslib.rs.PyAdjuster_ModifiedPrevious = rateslib.rs.Adjuster.ModifiedPrevious  # type: ignore[attr-defined]
 rateslib.rs.PyAdjuster_FollowingSettle = rateslib.rs.Adjuster.FollowingSettle  # type: ignore[attr-defined]
