@@ -139,7 +139,5 @@ pub use crate::scheduling::{
     schedule::{Schedule, StubInference},
 };
 pub(crate) use crate::scheduling::{
-    dcfs::_get_convention_str, 
-    frequency::get_unadjusteds,
-    py::PyAdjuster,
+    dcfs::_get_convention_str, frequency::get_unadjusteds, py::PyAdjuster,
 };

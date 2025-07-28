@@ -1,4 +1,4 @@
-use crate::scheduling::{Calendar, Frequency, Schedule, StubInference, PyAdjuster};
+use crate::scheduling::{Calendar, Frequency, PyAdjuster, Schedule, StubInference};
 
 use chrono::prelude::*;
 use pyo3::prelude::*;

@@ -5,7 +5,7 @@ use crate::json::JSON;
 use crate::scheduling::py::adjuster::get_roll_adjuster_from_str;
 use crate::scheduling::{
     Adjuster, Adjustment, Cal, Calendar, CalendarAdjustment, Convention, DateRoll, NamedCal,
-    RollDay, UnionCal, PyAdjuster,
+    PyAdjuster, RollDay, UnionCal,
 };
 use bincode::config::legacy;
 use bincode::serde::{decode_from_slice, encode_to_vec};
@@ -916,7 +916,7 @@ mod tests {
                 cal.add_months_py(
                     dates[i].0,
                     -37,
-                    Adjuster::FollowingSettle { }.into(),
+                    Adjuster::FollowingSettle {}.into(),
                     Some(RollDay::Day(1)),
                 ),
                 dates[i].1
@@ -981,7 +981,12 @@ mod tests {
         ];
         for i in 0..4 {
             assert_eq!(
-                cal.add_months_py(ndt(2023, 8, 31), 1, modi[i].0.into(), Some(RollDay::Day(31))),
+                cal.add_months_py(
+                    ndt(2023, 8, 31),
+                    1,
+                    modi[i].0.into(),
+                    Some(RollDay::Day(31))
+                ),
                 modi[i].1
             );
         }
