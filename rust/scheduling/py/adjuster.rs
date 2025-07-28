@@ -36,7 +36,7 @@ pub(crate) enum PyAdjuster {
 }
 
 /// Used for providing pickle support for PyAdjuster
-enum PyAdjusterNewArgs{
+enum PyAdjusterNewArgs {
     NoArgs(u8),
     I32(i32, u8),
 }
@@ -59,18 +59,16 @@ impl<'py> FromPyObject<'py> for PyAdjusterNewArgs {
         let ext: PyResult<(u8,)> = ob.extract();
         if ext.is_ok() {
             let (x,) = ext.unwrap();
-            return Ok(PyAdjusterNewArgs::NoArgs(x))
+            return Ok(PyAdjusterNewArgs::NoArgs(x));
         }
         let ext: PyResult<(i32, u8)> = ob.extract();
         if ext.is_ok() {
             let (x, y) = ext.unwrap();
-            return Ok(PyAdjusterNewArgs::I32(x, y))
+            return Ok(PyAdjusterNewArgs::I32(x, y));
         }
         Err(PyValueError::new_err("Undefined behaviour"))
     }
 }
-
-
 
 impl From<Adjuster> for PyAdjuster {
     fn from(value: Adjuster) -> Self {
@@ -189,7 +187,7 @@ impl PyAdjuster {
     #[new]
     fn new_py(args: PyAdjusterNewArgs) -> PyAdjuster {
         match args {
-            PyAdjusterNewArgs::NoArgs(0) => PyAdjuster::Actual { _u8: 0 }, 
+            PyAdjusterNewArgs::NoArgs(0) => PyAdjuster::Actual { _u8: 0 },
             PyAdjusterNewArgs::NoArgs(1) => PyAdjuster::Following { _u8: 1 },
             PyAdjusterNewArgs::NoArgs(2) => PyAdjuster::Previous { _u8: 2 },
             PyAdjusterNewArgs::NoArgs(3) => PyAdjuster::ModifiedFollowing { _u8: 3 },
@@ -199,8 +197,8 @@ impl PyAdjuster {
             PyAdjusterNewArgs::NoArgs(7) => PyAdjuster::ModifiedFollowingSettle { _u8: 7 },
             PyAdjusterNewArgs::NoArgs(8) => PyAdjuster::ModifiedPreviousSettle { _u8: 8 },
             PyAdjusterNewArgs::I32(n, 9) => PyAdjuster::BusDaysLagSettle { number: n, _u8: 9 },
-            PyAdjusterNewArgs::I32(n, 10) => PyAdjuster::CalDaysLagSettle { number: n, _u8: 10 }, 
-            _ => panic!("Undefined behaviour.")
+            PyAdjusterNewArgs::I32(n, 10) => PyAdjuster::CalDaysLagSettle { number: n, _u8: 10 },
+            _ => panic!("Undefined behaviour."),
         }
     }
 }
