@@ -15,6 +15,7 @@ from rateslib import (
     MultiCsaCurve,
     NamedCal,
     ProxyCurve,
+    RollDay,
     StubInference,
     UnionCal,
     Variable,
@@ -87,9 +88,11 @@ def test_pickle_round_trip_obj_via_equality(obj):
         (Imm.Eom, Imm.Eom, Imm.Leap),
         (StubInference.LongBack, StubInference.LongBack, StubInference.ShortFront),
         (ADOrder.Zero, ADOrder.Zero, ADOrder.One),
+        (RollDay.Day(21), RollDay.Day(21), RollDay.Day(16)),
+        (RollDay.Day(21), RollDay.Day(21), RollDay.IMM),
     ],
 )
-def test_simple_enum_equality(a1, a2, b1):
+def test_enum_equality(a1, a2, b1):
     assert a1 == a2
     assert a2 != b1
 
@@ -105,3 +108,13 @@ def test_simple_enum_pickle(enum, method_filter):
         pickled = pickle.dumps(obj)
         unpickled = pickle.loads(pickled)
         assert unpickled == enum.__dict__[v]
+
+
+@pytest.mark.parametrize(
+    ("enum"),
+    [RollDay.Day(31), RollDay.IMM()],
+)
+def test_complex_enum_pickle(enum):
+    pickled = pickle.dumps(enum)
+    unpickled = pickle.loads(pickled)
+    assert unpickled == enum
