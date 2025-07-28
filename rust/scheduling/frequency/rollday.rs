@@ -167,7 +167,24 @@ impl RollDay {
         }
 
         // perform the date roll
-        get_roll(udate.year() + yr_roll, new_month.try_into().unwrap(), self).unwrap()
+        self.try_from_ym(udate.year() + yr_roll, new_month.try_into().unwrap())
+            .unwrap()
+    }
+
+    /// Return a specific date given the `month`, `year` that aligns with the [RollDay].
+    ///     
+    /// # Examples
+    /// ```rust
+    /// # use rateslib::scheduling::{RollDay, ndt};
+    /// let date = RollDay::Day(31).try_from_ym(2024, 2);
+    /// # let date = date.unwrap();
+    /// assert_eq!(date, ndt(2024, 2, 29));
+    /// ```
+    pub fn try_from_ym(&self, year: i32, month: u32) -> Result<NaiveDateTime, PyErr> {
+        match self {
+            RollDay::Day(value) => Ok(get_roll_by_day(year, month, *value)),
+            RollDay::IMM {} => Imm::Wed3.from_ym_opt(year, month),
+        }
     }
 }
 
@@ -201,14 +218,6 @@ pub(crate) fn get_unadjusteds(
     }
 
     udates
-}
-
-/// Return a specific roll date given the `month`, `year` and `roll`.
-pub fn get_roll(year: i32, month: u32, roll: &RollDay) -> Result<NaiveDateTime, PyErr> {
-    match roll {
-        RollDay::Day(value) => Ok(get_roll_by_day(year, month, *value)),
-        RollDay::IMM {} => Imm::Wed3.from_ym_opt(year, month),
-    }
 }
 
 /// Return a specific roll date given the `month`, `year` and `roll`.
