@@ -1,9 +1,8 @@
 use crate::scheduling::DateRoll;
 use chrono::prelude::*;
-use pyo3::pyclass;
 
 /// A list of rules for performing date adjustment.
-#[pyclass(module = "rateslib.rs", eq)]
+// #[pyclass(module = "rateslib.rs", eq)]
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Adjuster {
     /// Actual date without adjustment.

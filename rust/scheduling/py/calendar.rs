@@ -5,7 +5,7 @@ use crate::json::JSON;
 use crate::scheduling::py::adjuster::get_roll_adjuster_from_str;
 use crate::scheduling::{
     Adjuster, Adjustment, Cal, Calendar, CalendarAdjustment, Convention, DateRoll, NamedCal,
-    RollDay, UnionCal,
+    RollDay, UnionCal, PyAdjuster,
 };
 use bincode::config::legacy;
 use bincode::serde::{decode_from_slice, encode_to_vec};
@@ -200,9 +200,9 @@ impl Cal {
         &self,
         date: NaiveDateTime,
         days: i32,
-        adjuster: Adjuster,
+        adjuster: PyAdjuster,
     ) -> PyResult<NaiveDateTime> {
-        Ok(self.add_cal_days(&date, days, &adjuster))
+        Ok(self.add_cal_days(&date, days, &adjuster.into()))
     }
 
     /// Return a business date separated by `days` from an input business `date`.
@@ -262,13 +262,14 @@ impl Cal {
         &self,
         date: NaiveDateTime,
         months: i32,
-        adjuster: Adjuster,
+        adjuster: PyAdjuster,
         roll: Option<RollDay>,
     ) -> NaiveDateTime {
         let roll_ = match roll {
             Some(val) => val,
             None => RollDay::vec_from(&vec![date])[0],
         };
+        let adjuster: Adjuster = adjuster.into();
         adjuster.adjust(&roll_.uadd(&date, months), self)
     }
 
@@ -310,8 +311,8 @@ impl Cal {
     /// -------
     /// datetime
     #[pyo3(name = "adjust")]
-    fn adjust_py(&self, date: NaiveDateTime, adjuster: Adjuster) -> PyResult<NaiveDateTime> {
-        Ok(self.adjust(&date, &adjuster))
+    fn adjust_py(&self, date: NaiveDateTime, adjuster: PyAdjuster) -> PyResult<NaiveDateTime> {
+        Ok(self.adjust(&date, &adjuster.into()))
     }
 
     /// Adjust a list of dates under a date adjustment rule.
@@ -330,9 +331,9 @@ impl Cal {
     fn adjusts_py(
         &self,
         dates: Vec<NaiveDateTime>,
-        adjuster: Adjuster,
+        adjuster: PyAdjuster,
     ) -> PyResult<Vec<NaiveDateTime>> {
-        Ok(self.adjusts(&dates, &adjuster))
+        Ok(self.adjusts(&dates, &adjuster.into()))
     }
 
     /// Adjust a date by a number of business days, under lag rules.
@@ -523,9 +524,9 @@ impl UnionCal {
         &self,
         date: NaiveDateTime,
         days: i32,
-        adjuster: Adjuster,
+        adjuster: PyAdjuster,
     ) -> PyResult<NaiveDateTime> {
-        Ok(self.add_cal_days(&date, days, &adjuster))
+        Ok(self.add_cal_days(&date, days, &adjuster.into()))
     }
 
     /// Return a business date separated by `days` from an input business `date`.
@@ -549,13 +550,14 @@ impl UnionCal {
         &self,
         date: NaiveDateTime,
         months: i32,
-        adjuster: Adjuster,
+        adjuster: PyAdjuster,
         roll: Option<RollDay>,
     ) -> NaiveDateTime {
         let roll_ = match roll {
             Some(val) => val,
             None => RollDay::vec_from(&vec![date])[0],
         };
+        let adjuster: Adjuster = adjuster.into();
         adjuster.adjust(&roll_.uadd(&date, months), self)
     }
 
@@ -563,8 +565,8 @@ impl UnionCal {
     ///
     /// See :meth:`Cal.adjust <rateslib.scheduling.Cal.adjust>`.
     #[pyo3(name = "adjust")]
-    fn adjust_py(&self, date: NaiveDateTime, adjuster: Adjuster) -> PyResult<NaiveDateTime> {
-        Ok(self.adjust(&date, &adjuster))
+    fn adjust_py(&self, date: NaiveDateTime, adjuster: PyAdjuster) -> PyResult<NaiveDateTime> {
+        Ok(self.adjust(&date, &adjuster.into()))
     }
 
     /// Adjust a list of dates under a date adjustment rule.
@@ -574,9 +576,9 @@ impl UnionCal {
     fn adjusts_py(
         &self,
         dates: Vec<NaiveDateTime>,
-        adjuster: Adjuster,
+        adjuster: PyAdjuster,
     ) -> PyResult<Vec<NaiveDateTime>> {
-        Ok(self.adjusts(&dates, &adjuster))
+        Ok(self.adjusts(&dates, &adjuster.into()))
     }
 
     /// Roll a date under a simplified adjustment rule.
@@ -721,9 +723,9 @@ impl NamedCal {
         &self,
         date: NaiveDateTime,
         days: i32,
-        adjuster: Adjuster,
+        adjuster: PyAdjuster,
     ) -> PyResult<NaiveDateTime> {
-        Ok(self.add_cal_days(&date, days, &adjuster))
+        Ok(self.add_cal_days(&date, days, &adjuster.into()))
     }
 
     /// Return a business date separated by `days` from an input business `date`.
@@ -747,13 +749,14 @@ impl NamedCal {
         &self,
         date: NaiveDateTime,
         months: i32,
-        adjuster: Adjuster,
+        adjuster: PyAdjuster,
         roll: Option<RollDay>,
     ) -> NaiveDateTime {
         let roll_ = match roll {
             Some(val) => val,
             None => RollDay::vec_from(&vec![date])[0],
         };
+        let adjuster: Adjuster = adjuster.into();
         adjuster.adjust(&roll_.uadd(&date, months), self)
     }
 
@@ -761,8 +764,8 @@ impl NamedCal {
     ///
     /// See :meth:`Cal.adjust <rateslib.scheduling.Cal.adjust>`.
     #[pyo3(name = "adjust")]
-    fn adjust_py(&self, date: NaiveDateTime, adjuster: Adjuster) -> PyResult<NaiveDateTime> {
-        Ok(self.adjust(&date, &adjuster))
+    fn adjust_py(&self, date: NaiveDateTime, adjuster: PyAdjuster) -> PyResult<NaiveDateTime> {
+        Ok(self.adjust(&date, &adjuster.into()))
     }
 
     /// Adjust a list of dates under a date adjustment rule.
@@ -772,9 +775,9 @@ impl NamedCal {
     fn adjusts_py(
         &self,
         dates: Vec<NaiveDateTime>,
-        adjuster: Adjuster,
+        adjuster: PyAdjuster,
     ) -> PyResult<Vec<NaiveDateTime>> {
-        Ok(self.adjusts(&dates, &adjuster))
+        Ok(self.adjusts(&dates, &adjuster.into()))
     }
 
     /// Roll a date under a simplified adjustment rule.
@@ -882,7 +885,7 @@ mod tests {
                 cal.add_months_py(
                     dates[i].0,
                     37,
-                    Adjuster::FollowingSettle {},
+                    Adjuster::FollowingSettle {}.into(),
                     Some(RollDay::Day(1)),
                 ),
                 dates[i].1
@@ -913,7 +916,7 @@ mod tests {
                 cal.add_months_py(
                     dates[i].0,
                     -37,
-                    Adjuster::FollowingSettle {},
+                    Adjuster::FollowingSettle { }.into(),
                     Some(RollDay::Day(1)),
                 ),
                 dates[i].1
@@ -936,7 +939,7 @@ mod tests {
                 cal.add_months_py(
                     roll[i].1,
                     -15,
-                    Adjuster::FollowingSettle {},
+                    Adjuster::FollowingSettle {}.into(),
                     Some(roll[i].0)
                 ),
                 roll[i].2
@@ -959,7 +962,7 @@ mod tests {
                 cal.add_months_py(
                     ndt(1998, 3, 7),
                     -15,
-                    Adjuster::FollowingSettle {},
+                    Adjuster::FollowingSettle {}.into(),
                     Some(roll[i].0),
                 ),
             );
@@ -978,7 +981,7 @@ mod tests {
         ];
         for i in 0..4 {
             assert_eq!(
-                cal.add_months_py(ndt(2023, 8, 31), 1, modi[i].0, Some(RollDay::Day(31))),
+                cal.add_months_py(ndt(2023, 8, 31), 1, modi[i].0.into(), Some(RollDay::Day(31))),
                 modi[i].1
             );
         }
@@ -996,7 +999,7 @@ mod tests {
         ];
         for i in 0..4 {
             assert_eq!(
-                cal.add_months_py(ndt(2023, 8, 1), -1, modi[i].0, Some(RollDay::Day(1))),
+                cal.add_months_py(ndt(2023, 8, 1), -1, modi[i].0.into(), Some(RollDay::Day(1))),
                 modi[i].1
             );
         }

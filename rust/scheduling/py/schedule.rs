@@ -1,4 +1,4 @@
-use crate::scheduling::{Adjuster, Calendar, Frequency, Schedule, StubInference};
+use crate::scheduling::{Calendar, Frequency, Schedule, StubInference, PyAdjuster};
 
 use chrono::prelude::*;
 use pyo3::prelude::*;
@@ -30,8 +30,8 @@ impl Schedule {
         termination: NaiveDateTime,
         frequency: Frequency,
         calendar: Calendar,
-        accrual_adjuster: Adjuster,
-        payment_adjuster: Adjuster,
+        accrual_adjuster: PyAdjuster,
+        payment_adjuster: PyAdjuster,
         eom: bool,
         front_stub: Option<NaiveDateTime>,
         back_stub: Option<NaiveDateTime>,
@@ -44,8 +44,8 @@ impl Schedule {
             front_stub,
             back_stub,
             calendar,
-            accrual_adjuster,
-            payment_adjuster,
+            accrual_adjuster.into(),
+            payment_adjuster.into(),
             eom,
             stub_inference,
         )
@@ -76,8 +76,8 @@ impl Schedule {
 
     #[getter]
     #[pyo3(name = "accrual_adjuster")]
-    fn accrual_adjuster_py(&self) -> Adjuster {
-        self.accrual_adjuster
+    fn accrual_adjuster_py(&self) -> PyAdjuster {
+        self.accrual_adjuster.into()
     }
 
     #[getter]
@@ -88,8 +88,8 @@ impl Schedule {
 
     #[getter]
     #[pyo3(name = "payment_adjuster")]
-    fn payment_adjuster_py(&self) -> Adjuster {
-        self.payment_adjuster
+    fn payment_adjuster_py(&self) -> PyAdjuster {
+        self.payment_adjuster.into()
     }
 
     #[getter]
@@ -130,8 +130,8 @@ impl Schedule {
         NaiveDateTime,
         Frequency,
         Calendar,
-        Adjuster,
-        Adjuster,
+        PyAdjuster,
+        PyAdjuster,
         bool,
         Option<NaiveDateTime>,
         Option<NaiveDateTime>,
@@ -142,8 +142,8 @@ impl Schedule {
             self.utermination,
             self.frequency.clone(),
             self.calendar.clone(),
-            self.accrual_adjuster,
-            self.payment_adjuster,
+            self.accrual_adjuster.into(),
+            self.payment_adjuster.into(),
             false,
             self.ufront_stub,
             self.uback_stub,
