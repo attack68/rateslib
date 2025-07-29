@@ -1,3 +1,4 @@
+use crate::json::{DeserializedObj, JSON};
 use crate::scheduling::calendars::Calendar;
 use crate::scheduling::frequency::{Frequency, RollDay, Scheduling};
 
@@ -267,6 +268,38 @@ impl Frequency {
             FrequencyNewArgs::CalDays(n) => Frequency::CalDays { number: n },
             FrequencyNewArgs::Months(n, r) => Frequency::Months { number: n, roll: r },
             FrequencyNewArgs::Zero() => Frequency::Zero {},
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        match self {
+            Frequency::Zero {} => format!("<rl: Frequency.Zero at {:p}>", self),
+            Frequency::CalDays { number: n } => {
+                format!("<rl: Frequency.CalDays({}) at {:p}>", n, self)
+            }
+            Frequency::BusDays {
+                number: n,
+                calendar: _,
+            } => format!("<rl: Frequency.BusDays({}, ...) at {:p}>", n, self),
+            Frequency::Months { number: n, roll: r } => match r {
+                Some(val) => format!("<rl: Frequency.Months({}, {:?}) at {:p}>", n, val, self),
+                None => format!("<rl: Frequency.Months({}, None) at {:p}>", n, self),
+            },
+        }
+    }
+
+    /// Return a JSON representation of the object.
+    ///
+    /// Returns
+    /// -------
+    /// str
+    #[pyo3(name = "to_json")]
+    fn to_json_py(&self) -> PyResult<String> {
+        match DeserializedObj::Frequency(self.clone()).to_json() {
+            Ok(v) => Ok(v),
+            Err(_) => Err(PyValueError::new_err(
+                "Failed to serialize `Frequency` to JSON.",
+            )),
         }
     }
 }
