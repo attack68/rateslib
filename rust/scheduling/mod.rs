@@ -53,7 +53,7 @@
 //! ```rust
 //! # use rateslib::scheduling::{Cal, ndt, Adjuster, CalendarAdjustment};
 //! # let cal = Cal::new(vec![ndt(2017, 5, 1)], vec![5, 6]);
-//! let adjuster = Adjuster::CalDaysLagSettle{number: 5};
+//! let adjuster = Adjuster::CalDaysLagSettle(5);
 //! assert_eq!(ndt(2017, 5, 2), cal.adjust(&ndt(2017, 4, 27), &adjuster));
 //! assert_eq!(ndt(2017, 5, 2), cal.adjust(&ndt(2017, 4, 24), &adjuster));
 //! ```
@@ -88,7 +88,7 @@
 //!    None,                                    // back_stub
 //!    Calendar::Cal(cal),                      // calendar
 //!    Adjuster::ModifiedFollowing{},           // accrual_adjuster
-//!    Adjuster::BusDaysLagSettle{number: 2},   // payment_adjuster
+//!    Adjuster::BusDaysLagSettle(2),           // payment_adjuster
 //!    false,                                   // eom
 //!    Some(StubInference::ShortFront),         // stub_inference
 //! );
@@ -111,7 +111,7 @@
 //!    None,                                    // back_stub
 //!    Calendar::Cal(cal),                      // calendar
 //!    Adjuster::ModifiedFollowing{},           // accrual_adjuster
-//!    Adjuster::BusDaysLagSettle{number: 2},   // payment_adjuster
+//!    Adjuster::BusDaysLagSettle(2),           // payment_adjuster
 //!    true,                                    // eom
 //!    Some(StubInference::ShortFront),         // stub_inference
 //! );
