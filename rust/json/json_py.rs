@@ -9,7 +9,7 @@ use crate::curves::curve_py::Curve;
 use crate::dual::{Dual, Dual2};
 use crate::fx::rates::FXRates;
 use crate::json::JSON;
-use crate::scheduling::{Cal, Imm, NamedCal, StubInference, UnionCal};
+use crate::scheduling::{Cal, Imm, NamedCal, RollDay, StubInference, UnionCal};
 use crate::splines::{PPSplineDual, PPSplineDual2, PPSplineF64};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -33,6 +33,7 @@ pub(crate) enum DeserializedObj {
     PPSplineDual2(PPSplineDual2),
     StubInference(StubInference),
     Imm(Imm),
+    RollDay(RollDay),
 }
 
 impl JSON for DeserializedObj {}

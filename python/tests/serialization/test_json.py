@@ -1,6 +1,6 @@
 import pytest
 from rateslib import Curve, Dual, Dual2, FXForwards, FXRates, dt, from_json
-from rateslib.scheduling import Imm, StubInference
+from rateslib.scheduling import Imm, RollDay, StubInference
 
 
 @pytest.mark.parametrize(
@@ -11,6 +11,8 @@ from rateslib.scheduling import Imm, StubInference
         FXRates({"usdnok": 8.0, "eurusd": 1.05}),
         Imm.Wed1_Post9_HMUZ,
         StubInference.LongFront,
+        RollDay.Day(31),
+        RollDay.IMM(),
     ],
 )
 def test_json_round_trip(obj) -> None:
