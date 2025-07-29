@@ -159,6 +159,7 @@ def test_simple_enum_pickle(enum, method_filter):
         Adjuster.BusDaysLagSettle(4),
         Adjuster.CalDaysLagSettle(2),
         Frequency.Months(4, RollDay.Day(2)),
+        Frequency.Months(4, None),
         Frequency.BusDays(2, NamedCal("tgt")),
         Frequency.Zero(),
         Frequency.CalDays(3),

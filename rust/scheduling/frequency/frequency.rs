@@ -2,10 +2,11 @@ use crate::scheduling::{ndt, Adjuster, Cal, Calendar, DateRoll, RollDay};
 use chrono::prelude::*;
 use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
+use serde::{Deserialize, Serialize};
 
 /// A frequency for generating unadjusted scheduling periods.
 #[pyclass(module = "rateslib.rs", eq)]
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Frequency {
     /// A set number of business days, defined by a [`Calendar`], which can only align with a
     /// business day as defined by that [`Calendar`].
