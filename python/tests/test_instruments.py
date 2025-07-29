@@ -4052,7 +4052,6 @@ class TestPortfolio:
         pf = Portfolio([irs1] * 5)
         assert pf.npv(base="usd") == irs1.npv() * 5
 
-    @pytest.mark.skip(reason="cannot pickle complex enum with PyO3")
     def test_portoflio_npv_pool(self, curve) -> None:
         irs1 = IRS(dt(2022, 1, 1), "6m", "Q", fixed_rate=1.0, curves=curve)
         pf = Portfolio([irs1] * 5)
@@ -4073,7 +4072,6 @@ class TestPortfolio:
         }
         assert result == expected
 
-    @pytest.mark.skip(reason="cannot pickle complex enum with PyO3")
     def test_portfolio_local_parallel(self, curve) -> None:
         irs1 = IRS(dt(2022, 1, 1), "6m", "Q", fixed_rate=1.0, curves=curve, currency="usd")
         irs2 = IRS(dt(2022, 1, 1), "3m", "Q", fixed_rate=2.0, curves=curve, currency="eur")
