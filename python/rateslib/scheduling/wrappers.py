@@ -16,6 +16,7 @@ from rateslib.scheduling.rollday import _get_rollday, _is_eom_cal
 
 if TYPE_CHECKING:
     from rateslib.typing import (
+        Any,
         CalInput,
         CalTypes,
         bool_,
@@ -321,7 +322,7 @@ class Schedule:
         termination: datetime | str,
         frequency: str | Frequency,
         *,
-        stub: str_ = NoInput(0),
+        stub: StubInference | str_ = NoInput(0),
         front_stub: datetime_ = NoInput(0),
         back_stub: datetime_ = NoInput(0),
         roll: str | RollDay | int_ = NoInput(0),
@@ -402,6 +403,12 @@ class Schedule:
             NoInput(0),
             NoInput(0),
         )
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, self.__class__):
+            return self._obj == other._obj
+        else:
+            return False
 
     @cached_property
     def uschedule(self) -> list[datetime]:

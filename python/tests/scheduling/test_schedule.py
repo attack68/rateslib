@@ -87,24 +87,3 @@ def test_single_period_schedule2():
     from rateslib import IRS
 
     IRS(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6)
-
-
-@pytest.mark.skip(reason="cannot pickle complex enum with PyO3")
-def test_pickle():
-    import pickle
-
-    s = Schedule(
-        effective=dt(2025, 3, 19),
-        termination=dt(2025, 9, 17),
-        frequency=Frequency.Months(3, None),
-        calendar=Cal([], [5, 6]),
-        accrual_adjuster=Adjuster.ModifiedFollowing(),
-        payment_adjuster=Adjuster.BusDaysLagSettle(2),
-        eom=True,
-        front_stub=None,
-        back_stub=None,
-        stub_inference=None,
-    )
-    pickled = pickle.dumps(s)
-    unpickled = pickle.loads(pickled)
-    assert s == unpickled
