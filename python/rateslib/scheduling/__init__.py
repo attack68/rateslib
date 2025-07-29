@@ -24,6 +24,11 @@ rateslib.rs.PyAdjuster_ModifiedPreviousSettle = rateslib.rs.Adjuster.ModifiedPre
 rateslib.rs.PyAdjuster_BusDaysLagSettle = rateslib.rs.Adjuster.BusDaysLagSettle  # type: ignore[attr-defined]
 rateslib.rs.PyAdjuster_CalDaysLagSettle = rateslib.rs.Adjuster.CalDaysLagSettle  # type: ignore[attr-defined]
 
+rateslib.rs.Frequency_CalDays = rateslib.rs.Frequency.CalDays  # type: ignore[attr-defined]
+rateslib.rs.Frequency_BusDays = rateslib.rs.Frequency.BusDays  # type: ignore[attr-defined]
+rateslib.rs.Frequency_Months = rateslib.rs.Frequency.Months  # type: ignore[attr-defined]
+rateslib.rs.Frequency_Zero = rateslib.rs.Frequency.Zero  # type: ignore[attr-defined]
+
 Imm.__doc__ = """
 Enumerable type for International Money-Market (IMM) date definitions.
 
