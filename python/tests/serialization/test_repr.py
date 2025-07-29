@@ -1,5 +1,5 @@
 import pytest
-from rateslib.scheduling import Imm, StubInference
+from rateslib.scheduling import Imm, RollDay, StubInference
 
 
 @pytest.mark.parametrize(
@@ -7,9 +7,11 @@ from rateslib.scheduling import Imm, StubInference
     [
         (Imm.Wed1_Post9_HMUZ, "Imm.Wed1_Post9_HMUZ"),
         (StubInference.ShortFront, "StubInference.ShortFront"),
+        (RollDay.Day(31), "RollDay.Day(31)"),
+        (RollDay.IMM(), "RollDay.IMM"),
     ],
 )
-def test_json_round_trip(obj, expected) -> None:
+def test_repr_strings(obj, expected) -> None:
     repr_ = obj.__repr__()
     assert f"<rl: {expected}" in repr_
 
