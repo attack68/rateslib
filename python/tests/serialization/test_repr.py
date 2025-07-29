@@ -1,5 +1,5 @@
 import pytest
-from rateslib.scheduling import Frequency, Imm, NamedCal, RollDay, StubInference
+from rateslib.scheduling import Adjuster, Frequency, Imm, NamedCal, RollDay, StubInference
 
 
 @pytest.mark.parametrize(
@@ -14,6 +14,8 @@ from rateslib.scheduling import Frequency, Imm, NamedCal, RollDay, StubInference
         (Frequency.BusDays(3, NamedCal("tgt")), "Frequency.BusDays(3, ...)"),
         (Frequency.Months(2, RollDay.Day(31)), "Frequency.Months(2, Day(31))"),
         (Frequency.Months(4, None), "Frequency.Months(4, None)"),
+        (Adjuster.ModifiedFollowing(), "Adjuster.ModifiedFollowing"),
+        (Adjuster.BusDaysLagSettle(4), "Adjuster.BusDaysLagSettle(4)"),
     ],
 )
 def test_repr_strings(obj, expected) -> None:

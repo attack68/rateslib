@@ -1,8 +1,9 @@
 use crate::scheduling::DateRoll;
 use chrono::prelude::*;
+use serde::{Deserialize, Serialize};
 
 /// A list of rules for performing date adjustment.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Adjuster {
     /// Actual date without adjustment.
     Actual {},
@@ -24,10 +25,10 @@ pub enum Adjuster {
     ModifiedPreviousSettle {},
     /// A set number of business days, defined by a given calendar,
     /// using calendar lag rules and enforcing settlement calendars.
-    BusDaysLagSettle { number: i32 },
+    BusDaysLagSettle(i32),
     /// A set number of calendar days enforcing settlement calendars, defined by a
     /// given calendar.
-    CalDaysLagSettle { number: i32 },
+    CalDaysLagSettle(i32),
 }
 
 /// Perform date adjustment according to calendar definitions, i.e. a known [`DateRoll`].
@@ -75,8 +76,8 @@ impl Adjustment for Adjuster {
             Adjuster::ModifiedPreviousSettle {} => {
                 calendar.roll_backward_mod_settled_bus_day(udate)
             }
-            Adjuster::BusDaysLagSettle { number: n } => calendar.lag_bus_days(udate, *n, true),
-            Adjuster::CalDaysLagSettle { number: n } => {
+            Adjuster::BusDaysLagSettle(n) => calendar.lag_bus_days(udate, *n, true),
+            Adjuster::CalDaysLagSettle(n) => {
                 let adj = if *n < 0 {
                     Adjuster::PreviousSettle {}
                 } else {

@@ -1,6 +1,6 @@
 import pytest
 from rateslib import Curve, Dual, Dual2, FXForwards, FXRates, dt, from_json
-from rateslib.scheduling import Frequency, Imm, NamedCal, RollDay, StubInference
+from rateslib.scheduling import Adjuster, Frequency, Imm, NamedCal, RollDay, StubInference
 
 
 @pytest.mark.parametrize(
@@ -18,6 +18,8 @@ from rateslib.scheduling import Frequency, Imm, NamedCal, RollDay, StubInference
         Frequency.BusDays(3, NamedCal("tgt")),
         Frequency.Months(4, None),
         Frequency.Months(3, RollDay.IMM()),
+        Adjuster.ModifiedFollowing(),
+        Adjuster.BusDaysLagSettle(2),
     ],
 )
 def test_json_round_trip(obj) -> None:
