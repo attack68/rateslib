@@ -22,7 +22,7 @@ impl StubInference {
         Ok((*self as usize,))
     }
     fn __repr__(&self) -> String {
-        format!("<rl: StubInference.{:?} at {:p}>", self, self)
+        format!("<rl.StubInference.{:?} at {:p}>", self, self)
     }
     // JSON
     /// Return a JSON representation of the object.
@@ -169,5 +169,24 @@ impl Schedule {
             self.uback_stub,
             None,
         ))
+    }
+
+    /// Return a JSON representation of the object.
+    ///
+    /// Returns
+    /// -------
+    /// str
+    #[pyo3(name = "to_json")]
+    fn to_json_py(&self) -> PyResult<String> {
+        match DeserializedObj::Schedule(self.clone()).to_json() {
+            Ok(v) => Ok(v),
+            Err(_) => Err(PyValueError::new_err(
+                "Failed to serialize `Schedule` to JSON.",
+            )),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("<rl.Schedule at {:p}>", self)
     }
 }

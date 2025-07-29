@@ -198,7 +198,7 @@ impl PyAdjuster {
 
     fn __repr__(&self) -> String {
         let adjuster: Adjuster = (*self).into();
-        format!("<rl: Adjuster.{:?} at {:p}>", adjuster, self)
+        format!("<rl.Adjuster.{:?} at {:p}>", adjuster, self)
     }
 
     /// Return a JSON representation of the object.

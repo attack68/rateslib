@@ -1,5 +1,6 @@
 import pytest
-from rateslib.scheduling import Adjuster, Frequency, Imm, NamedCal, RollDay, StubInference
+from rateslib import dt
+from rateslib.scheduling import Adjuster, Frequency, Imm, NamedCal, RollDay, Schedule, StubInference
 
 
 @pytest.mark.parametrize(
@@ -16,11 +17,12 @@ from rateslib.scheduling import Adjuster, Frequency, Imm, NamedCal, RollDay, Stu
         (Frequency.Months(4, None), "Frequency.Months(4, None)"),
         (Adjuster.ModifiedFollowing(), "Adjuster.ModifiedFollowing"),
         (Adjuster.BusDaysLagSettle(4), "Adjuster.BusDaysLagSettle(4)"),
+        (Schedule(dt(2000, 1, 1), dt(2001, 2, 1), "M"), "Schedule"),
     ],
 )
 def test_repr_strings(obj, expected) -> None:
     repr_ = obj.__repr__()
-    assert f"<rl: {expected}" in repr_
+    assert f"<rl.{expected} at" in repr_
 
 
 def test_unique_repr_simple_enum():
