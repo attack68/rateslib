@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from datetime import datetime
 from functools import cached_property
 from typing import TYPE_CHECKING
 
 from pandas import DataFrame
 
 from rateslib import defaults
-from rateslib.default import NoInput, _drb
+from rateslib.default import NoInput, _drb, _make_py_json
 from rateslib.rs import Adjuster, Frequency, RollDay, StubInference
 from rateslib.rs import Schedule as Schedule_rs
 from rateslib.scheduling.adjuster import _convert_to_adjuster, _get_adjuster
@@ -20,7 +21,6 @@ if TYPE_CHECKING:
         CalInput,
         CalTypes,
         bool_,
-        datetime,
         datetime_,
         int_,
         str_,
@@ -371,6 +371,14 @@ class Schedule:
             stub_inference=_get_stub_inference(stub_, front_stub, back_stub),
         )
 
+    @classmethod
+    def __init_from_obj__(cls, obj: Schedule_rs) -> Schedule:
+        """Construct the class instance from a given rust object which is wrapped."""
+        # create a default instance and overwrite it
+        new = cls(datetime(2000, 1, 1), datetime(2000, 2, 1), "M")
+        new._obj = obj
+        return new
+
     def __getnewargs__(
         self,
     ) -> tuple[
@@ -559,6 +567,15 @@ class Schedule:
     def is_regular(self) -> bool:
         """Returns whether the schedule is composed only of regular periods (no stubs)."""
         return self.obj.is_regular()
+
+    def to_json(self) -> str:
+        """Return a JSON representation of the object.
+
+        Returns
+        -------
+        str
+        """
+        return _make_py_json(self._obj.to_json(), "Schedule")
 
 
 def _validate_effective(

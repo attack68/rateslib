@@ -72,6 +72,6 @@ impl RollDay {
     }
 
     fn __repr__(&self) -> String {
-        format!("<rl: RollDay.{:?} at {:p}>", self, self)
+        format!("<rl.RollDay.{:?} at {:p}>", self, self)
     }
 }

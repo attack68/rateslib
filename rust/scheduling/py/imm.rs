@@ -92,6 +92,6 @@ impl Imm {
     }
 
     fn __repr__(&self) -> String {
-        format!("<rl: Imm.{:?} at {:p}>", self, self)
+        format!("<rl.Imm.{:?} at {:p}>", self, self)
     }
 }

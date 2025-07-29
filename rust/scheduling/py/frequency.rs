@@ -273,17 +273,17 @@ impl Frequency {
 
     fn __repr__(&self) -> String {
         match self {
-            Frequency::Zero {} => format!("<rl: Frequency.Zero at {:p}>", self),
+            Frequency::Zero {} => format!("<rl.Frequency.Zero at {:p}>", self),
             Frequency::CalDays { number: n } => {
-                format!("<rl: Frequency.CalDays({}) at {:p}>", n, self)
+                format!("<rl.Frequency.CalDays({}) at {:p}>", n, self)
             }
             Frequency::BusDays {
                 number: n,
                 calendar: _,
-            } => format!("<rl: Frequency.BusDays({}, ...) at {:p}>", n, self),
+            } => format!("<rl.Frequency.BusDays({}, ...) at {:p}>", n, self),
             Frequency::Months { number: n, roll: r } => match r {
-                Some(val) => format!("<rl: Frequency.Months({}, {:?}) at {:p}>", n, val, self),
-                None => format!("<rl: Frequency.Months({}, None) at {:p}>", n, self),
+                Some(val) => format!("<rl.Frequency.Months({}, {:?}) at {:p}>", n, val, self),
+                None => format!("<rl.Frequency.Months({}, None) at {:p}>", n, self),
             },
         }
     }

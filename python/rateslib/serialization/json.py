@@ -12,6 +12,7 @@ from rateslib.default import NoInput
 from rateslib.dual import Variable
 from rateslib.fx import FXRates
 from rateslib.rs import from_json as from_json_rs
+from rateslib.scheduling import Schedule
 
 if TYPE_CHECKING:
     pass  # pragma: no cover
@@ -19,6 +20,7 @@ if TYPE_CHECKING:
 NAMES_RsPy: dict[str, Any] = {  # this is a mapping of native Rust obj names to Py obj names
     "FXRates": FXRates,
     "Curve": CurveRs,
+    "Schedule": Schedule,
 }
 
 
