@@ -3,22 +3,25 @@ import pickle
 import pytest
 from rateslib import (
     ADOrder,
-    CompositeCurve,
-    Curve,
     Dual,
     Dual2,
     FXForwards,
     FXRates,
     Imm,
-    LineCurve,
-    MultiCsaCurve,
     NamedCal,
-    ProxyCurve,
     Variable,
     dt,
 )
-from rateslib.curves import CreditImpliedCurve
-from rateslib.scheduling import Adjuster, Cal, Frequency, RollDay, StubInference, UnionCal
+from rateslib.curves import (
+    CompositeCurve,
+    CreditImpliedCurve,
+    Curve,
+    LineCurve,
+    MultiCsaCurve,
+    ProxyCurve,
+)
+from rateslib.rs import Schedule as ScheduleRs
+from rateslib.scheduling import Adjuster, Cal, Frequency, RollDay, Schedule, StubInference, UnionCal
 
 
 @pytest.mark.parametrize(
@@ -71,6 +74,27 @@ from rateslib.scheduling import Adjuster, Cal, Frequency, RollDay, StubInference
         Curve({dt(2000, 1, 1): 1.0, dt(2000, 7, 1): 0.98}).shift(10),
         Curve({dt(2000, 1, 1): 1.0, dt(2000, 7, 1): 0.98}).roll("1m"),
         Curve({dt(2000, 1, 1): 1.0, dt(2000, 7, 1): 0.98}).translate(dt(2000, 1, 15)),
+        ScheduleRs(
+            effective=dt(2000, 1, 1),
+            termination=dt(2001, 1, 10),
+            frequency=Frequency.Months(6, RollDay.Day(1)),
+            calendar=NamedCal("tgt"),
+            accrual_adjuster=Adjuster.ModifiedFollowing(),
+            payment_adjuster=Adjuster.BusDaysLagSettle(2),
+            front_stub=None,
+            back_stub=None,
+            eom=False,
+            stub_inference=StubInference.ShortBack,
+        ),
+        Schedule(
+            effective=dt(2000, 1, 1),
+            termination=dt(2001, 1, 10),
+            frequency=Frequency.Months(6, RollDay.Day(1)),
+            calendar=NamedCal("tgt"),
+            modifier=Adjuster.ModifiedFollowing(),
+            payment_lag=Adjuster.BusDaysLagSettle(2),
+            stub=StubInference.ShortBack,
+        ),
     ],
 )
 def test_pickle_round_trip_obj_via_equality(obj):
