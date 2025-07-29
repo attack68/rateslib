@@ -1,15 +1,17 @@
 //! Wrapper module to export to Python using pyo3 bindings.
 
+use crate::json::{DeserializedObj, JSON};
 use crate::scheduling::{Adjuster, Adjustment, Calendar};
 use chrono::NaiveDateTime;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Python wrapper for Adjuster to facilitate complex enum pickling.
 #[pyclass(module = "rateslib.rs", name = "Adjuster", eq)]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub(crate) enum PyAdjuster {
     #[pyo3(constructor = (_u8=0))]
     Actual { _u8: u8 },
@@ -82,12 +84,8 @@ impl From<Adjuster> for PyAdjuster {
             Adjuster::ModifiedFollowingSettle {} => PyAdjuster::ModifiedFollowingSettle { _u8: 6 },
             Adjuster::PreviousSettle {} => PyAdjuster::PreviousSettle { _u8: 7 },
             Adjuster::ModifiedPreviousSettle {} => PyAdjuster::ModifiedPreviousSettle { _u8: 8 },
-            Adjuster::BusDaysLagSettle { number: n } => {
-                PyAdjuster::BusDaysLagSettle { number: n, _u8: 9 }
-            }
-            Adjuster::CalDaysLagSettle { number: n } => {
-                PyAdjuster::CalDaysLagSettle { number: n, _u8: 10 }
-            }
+            Adjuster::BusDaysLagSettle(n) => PyAdjuster::BusDaysLagSettle { number: n, _u8: 9 },
+            Adjuster::CalDaysLagSettle(n) => PyAdjuster::CalDaysLagSettle { number: n, _u8: 10 },
         }
     }
 }
@@ -104,12 +102,8 @@ impl From<PyAdjuster> for Adjuster {
             PyAdjuster::ModifiedFollowingSettle { _u8: _ } => Adjuster::ModifiedFollowingSettle {},
             PyAdjuster::PreviousSettle { _u8: _ } => Adjuster::PreviousSettle {},
             PyAdjuster::ModifiedPreviousSettle { _u8: _ } => Adjuster::ModifiedPreviousSettle {},
-            PyAdjuster::BusDaysLagSettle { number: n, _u8: _ } => {
-                Adjuster::BusDaysLagSettle { number: n }
-            }
-            PyAdjuster::CalDaysLagSettle { number: n, _u8: _ } => {
-                Adjuster::CalDaysLagSettle { number: n }
-            }
+            PyAdjuster::BusDaysLagSettle { number: n, _u8: _ } => Adjuster::BusDaysLagSettle(n),
+            PyAdjuster::CalDaysLagSettle { number: n, _u8: _ } => Adjuster::CalDaysLagSettle(n),
         }
     }
 }
@@ -199,6 +193,26 @@ impl PyAdjuster {
             PyAdjusterNewArgs::I32(n, 9) => PyAdjuster::BusDaysLagSettle { number: n, _u8: 9 },
             PyAdjusterNewArgs::I32(n, 10) => PyAdjuster::CalDaysLagSettle { number: n, _u8: 10 },
             _ => panic!("Undefined behaviour."),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        let adjuster: Adjuster = (*self).into();
+        format!("<rl: Adjuster.{:?} at {:p}>", adjuster, self)
+    }
+
+    /// Return a JSON representation of the object.
+    ///
+    /// Returns
+    /// -------
+    /// str
+    #[pyo3(name = "to_json")]
+    fn to_json_py(&self) -> PyResult<String> {
+        match DeserializedObj::PyAdjuster(self.clone()).to_json() {
+            Ok(v) => Ok(v),
+            Err(_) => Err(PyValueError::new_err(
+                "Failed to serialize `Adjuster` to JSON.",
+            )),
         }
     }
 }
