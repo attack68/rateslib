@@ -18,7 +18,7 @@ from rateslib import (
     dt,
 )
 from rateslib.curves import CreditImpliedCurve
-from rateslib.scheduling import Adjuster, Cal, RollDay, StubInference, UnionCal
+from rateslib.scheduling import Adjuster, Cal, Frequency, RollDay, StubInference, UnionCal
 
 
 @pytest.mark.parametrize(
@@ -88,6 +88,16 @@ def test_pickle_round_trip_obj_via_equality(obj):
         (RollDay.Day(21), RollDay.Day(21), RollDay.Day(16)),
         (RollDay.Day(21), RollDay.Day(21), RollDay.IMM),
         (Adjuster.Actual(), Adjuster.Actual(), Adjuster.BusDaysLagSettle(5)),
+        (
+            Frequency.Months(4, RollDay.Day(2)),
+            Frequency.Months(4, RollDay.Day(2)),
+            Frequency.CalDays(3),
+        ),
+        (
+            Frequency.Months(4, RollDay.Day(2)),
+            Frequency.Months(4, RollDay.Day(2)),
+            Frequency.Months(4, None),
+        ),
     ],
 )
 def test_enum_equality(a1, a2, b1):
@@ -124,6 +134,10 @@ def test_simple_enum_pickle(enum, method_filter):
         Adjuster.ModifiedPreviousSettle(),
         Adjuster.BusDaysLagSettle(4),
         Adjuster.CalDaysLagSettle(2),
+        Frequency.Months(4, RollDay.Day(2)),
+        Frequency.BusDays(2, NamedCal("tgt")),
+        Frequency.Zero(),
+        Frequency.CalDays(3),
     ],
 )
 def test_complex_enum_pickle(enum):

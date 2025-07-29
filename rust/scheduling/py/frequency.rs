@@ -1,8 +1,55 @@
-use crate::scheduling::frequency::{Frequency, Scheduling};
+use crate::scheduling::calendars::Calendar;
+use crate::scheduling::frequency::{Frequency, RollDay, Scheduling};
 
 use chrono::prelude::*;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use pyo3::types::PyTuple;
+
+enum FrequencyNewArgs {
+    CalDays(i32),
+    BusDays(i32, Calendar),
+    Months(i32, Option<RollDay>),
+    Zero(),
+}
+
+impl<'py> IntoPyObject<'py> for FrequencyNewArgs {
+    type Target = PyTuple;
+    type Output = Bound<'py, Self::Target>;
+    type Error = std::convert::Infallible;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        match self {
+            FrequencyNewArgs::CalDays(x) => Ok((x,).into_pyobject(py).unwrap()),
+            FrequencyNewArgs::BusDays(x, y) => Ok((x, y).into_pyobject(py).unwrap()),
+            FrequencyNewArgs::Months(x, y) => Ok((x, y).into_pyobject(py).unwrap()),
+            FrequencyNewArgs::Zero() => Ok(PyTuple::empty(py)),
+        }
+    }
+}
+
+impl<'py> FromPyObject<'py> for FrequencyNewArgs {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let ext: PyResult<(i32,)> = ob.extract();
+        if ext.is_ok() {
+            let (x,) = ext.unwrap();
+            return Ok(Self::CalDays(x));
+        }
+        let ext: PyResult<(i32, Calendar)> = ob.extract();
+        if ext.is_ok() {
+            let (x, y) = ext.unwrap();
+            return Ok(Self::BusDays(x, y));
+        }
+        let ext: PyResult<(i32, Option<RollDay>)> = ob.extract();
+        if ext.is_ok() {
+            let (x, y) = ext.unwrap();
+            Ok(Self::Months(x, y))
+        } else {
+            // must be empty tuple args
+            Ok(Self::Zero())
+        }
+    }
+}
 
 #[pymethods]
 impl Frequency {
@@ -195,6 +242,31 @@ impl Frequency {
                 };
                 format!("{n}M (roll: {x})")
             }
+        }
+    }
+
+    fn __getnewargs__(&self) -> FrequencyNewArgs {
+        match self {
+            Frequency::BusDays {
+                number: n,
+                calendar: c,
+            } => FrequencyNewArgs::BusDays(*n, c.clone()),
+            Frequency::CalDays { number: n } => FrequencyNewArgs::CalDays(*n),
+            Frequency::Months { number: n, roll: r } => FrequencyNewArgs::Months(*n, *r),
+            Frequency::Zero {} => FrequencyNewArgs::Zero(),
+        }
+    }
+
+    #[new]
+    fn new_py(args: FrequencyNewArgs) -> Frequency {
+        match args {
+            FrequencyNewArgs::BusDays(n, c) => Frequency::BusDays {
+                number: n,
+                calendar: c,
+            },
+            FrequencyNewArgs::CalDays(n) => Frequency::CalDays { number: n },
+            FrequencyNewArgs::Months(n, r) => Frequency::Months { number: n, roll: r },
+            FrequencyNewArgs::Zero() => Frequency::Zero {},
         }
     }
 }
