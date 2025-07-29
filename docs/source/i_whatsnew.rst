@@ -15,15 +15,18 @@ email contact, see `rateslib <https://rateslib.com>`_.
 2.1.0 (Not released)
 ***************************
 
-This release has restructured curves in order to provide a system for user implemented
-custom curves, which can directly inherit all of the native functionality of *rateslib*. An
-example can be seen in the `Cookbook: Building Custom Curves (Nelson-Siegel) <z_basecurve.html>`_
+This release has **restructured Curves** in order to provide a plug-in system to allow a user
+implemented custom *Curve*, which can directly inherit all of the native functionality of
+*rateslib*. An example can be seen in the cookbook article:
+`Building Custom Curves (Nelson-Siegel) <z_basecurve.html>`_.
+This has also completely revised the output of the :meth:`~rateslib.curves._BaseCurve.roll`,
+:meth:`~rateslib.curves._BaseCurve.shift`, and :meth:`~rateslib.curves._BaseCurve.translate` method to
+consistently yield a :class:`~rateslib.curves.RolledCurve`, :class:`~rateslib.curves.ShiftedCurve`,
+or :class:`~rateslib.curves.TranslatedCurve` respectively.
 
-It has also re-implemented its ``scheduling`` objects and ported them to Rust. The
+This release has also re-implemented the ``scheduling`` objects and ported them to Rust. The
 ``rateslib.calendars`` module has been integrated into ``rateslib.scheduling``. Many migration
-issues are likely to be solved by changing the module name in code. **Note** that this
-has broken :class:`~rateslib.scheduling.Schedule` pickling and therefore the ability to use
-multi-processing. Solutions for this are being investigated for upcoming releases.
+issues are likely to be solved by changing the module name in code.
 
 .. list-table::
    :widths: 25 75
