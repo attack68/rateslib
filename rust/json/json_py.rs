@@ -10,7 +10,7 @@ use crate::dual::{Dual, Dual2};
 use crate::fx::rates::FXRates;
 use crate::json::JSON;
 use crate::scheduling::{
-    Cal, Frequency, Imm, NamedCal, PyAdjuster, RollDay, StubInference, UnionCal,
+    Cal, Frequency, Imm, NamedCal, PyAdjuster, RollDay, Schedule, StubInference, UnionCal,
 };
 use crate::splines::{PPSplineDual, PPSplineDual2, PPSplineF64};
 use pyo3::exceptions::PyValueError;
@@ -38,6 +38,7 @@ pub(crate) enum DeserializedObj {
     RollDay(RollDay),
     Frequency(Frequency),
     PyAdjuster(PyAdjuster),
+    Schedule(Schedule),
 }
 
 impl JSON for DeserializedObj {}

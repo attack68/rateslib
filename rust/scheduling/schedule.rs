@@ -30,7 +30,8 @@ pub enum StubInference {
 ///   at the boundary of the schedule which are not a standard length of time defined by the
 ///   [`Frequency`]. However, a regular schedule must exist between those interior dates.
 #[pyclass(module = "rateslib.rs", eq)]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(from = "ScheduleDataModel")]
 pub struct Schedule {
     /// The unadjusted start date of the schedule.
     pub ueffective: NaiveDateTime,
@@ -49,11 +50,42 @@ pub struct Schedule {
     /// The [`Adjuster`] to adjust the adjusted schedule dates to period payment dates.
     pub payment_adjuster: Adjuster,
     /// The vector of unadjusted period accrual dates.
+    #[serde(skip)]
     pub uschedule: Vec<NaiveDateTime>,
     /// The vector of adjusted period accrual dates.
+    #[serde(skip)]
     pub aschedule: Vec<NaiveDateTime>,
     /// The vector of payment dates associated with the adjusted accrual dates.
+    #[serde(skip)]
     pub pschedule: Vec<NaiveDateTime>,
+}
+
+#[derive(Deserialize)]
+struct ScheduleDataModel {
+    ueffective: NaiveDateTime,
+    utermination: NaiveDateTime,
+    frequency: Frequency,
+    ufront_stub: Option<NaiveDateTime>,
+    uback_stub: Option<NaiveDateTime>,
+    calendar: Calendar,
+    accrual_adjuster: Adjuster,
+    payment_adjuster: Adjuster,
+}
+
+impl std::convert::From<ScheduleDataModel> for Schedule {
+    fn from(model: ScheduleDataModel) -> Self {
+        Self::try_new_defined(
+            model.ueffective,
+            model.utermination,
+            model.frequency,
+            model.ufront_stub,
+            model.uback_stub,
+            model.calendar,
+            model.accrual_adjuster,
+            model.payment_adjuster,
+        )
+        .expect("Data model for `Schedule` is corrupt or invalid.")
+    }
 }
 
 /// Check that right is greater than left if both Some, and that they do not create a 'dead stub'.

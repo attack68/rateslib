@@ -1,6 +1,7 @@
 import pytest
 from rateslib import Curve, Dual, Dual2, FXForwards, FXRates, dt, from_json
-from rateslib.scheduling import Adjuster, Frequency, Imm, NamedCal, RollDay, StubInference
+from rateslib.rs import Schedule as ScheduleRs
+from rateslib.scheduling import Adjuster, Frequency, Imm, NamedCal, RollDay, Schedule, StubInference
 
 
 @pytest.mark.parametrize(
@@ -20,6 +21,24 @@ from rateslib.scheduling import Adjuster, Frequency, Imm, NamedCal, RollDay, Stu
         Frequency.Months(3, RollDay.IMM()),
         Adjuster.ModifiedFollowing(),
         Adjuster.BusDaysLagSettle(2),
+        ScheduleRs(
+            effective=dt(2000, 1, 1),
+            termination=dt(2001, 1, 1),
+            frequency=Frequency.Months(6, None),
+            calendar=NamedCal("tgt"),
+            accrual_adjuster=Adjuster.Actual(),
+            payment_adjuster=Adjuster.BusDaysLagSettle(2),
+            front_stub=None,
+            back_stub=None,
+            eom=False,
+            stub_inference=None,
+        ),
+        Schedule(
+            effective=dt(2000, 1, 1),
+            termination=dt(2001, 1, 1),
+            frequency="S",
+            calendar="tgt",
+        ),
     ],
 )
 def test_json_round_trip(obj) -> None:
