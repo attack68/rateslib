@@ -16,23 +16,6 @@ use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyType};
 use std::collections::HashSet;
 
-// // removed when upgrading to py03 0.23, see https://pyo3.rs/v0.23.0/migration#intopyobject-and-intopyobjectref-derive-macros
-// impl IntoPy<PyObject> for Calendar {
-//     fn into_py(self, py: Python<'_>) -> PyObject {
-//         macro_rules! into_py {
-//             ($obj: ident) => {
-//                 Py::new(py, $obj).unwrap().to_object(py)
-//             };
-//         }
-//
-//         match self {
-//             Calendar::Cal(i) => into_py!(i),
-//             Calendar::UnionCal(i) => into_py!(i),
-//             Calendar::NamedCal(i) => into_py!(i),
-//         }
-//     }
-// }
-
 #[pymethods]
 impl Convention {
     // Pickling

@@ -4,13 +4,14 @@ use chrono::prelude::*;
 use chrono::Months;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::cmp::{Eq, PartialEq};
 
 use crate::scheduling::ndt;
 
 /// An IMM date definition.
 #[pyclass(module = "rateslib.rs", eq)]
-#[derive(Debug, Copy, Hash, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Hash, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Imm {
     /// 3rd Wednesday of March, June, September and December.
     ///

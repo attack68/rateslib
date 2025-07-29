@@ -1,6 +1,8 @@
+use crate::json::{DeserializedObj, JSON};
 use crate::scheduling::{Calendar, Frequency, PyAdjuster, Schedule, StubInference};
 
 use chrono::prelude::*;
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
 #[pymethods]
@@ -16,8 +18,26 @@ impl StubInference {
             _ => panic!("Reportable issue: must map this enum variant for serialization."),
         }
     }
-    pub fn __getnewargs__<'py>(&self) -> PyResult<(usize,)> {
+    fn __getnewargs__<'py>(&self) -> PyResult<(usize,)> {
         Ok((*self as usize,))
+    }
+    fn __repr__(&self) -> String {
+        format!("<rl: StubInference.{:?} at {:p}>", self, self)
+    }
+    // JSON
+    /// Return a JSON representation of the object.
+    ///
+    /// Returns
+    /// -------
+    /// str
+    #[pyo3(name = "to_json")]
+    fn to_json_py(&self) -> PyResult<String> {
+        match DeserializedObj::StubInference(self.clone()).to_json() {
+            Ok(v) => Ok(v),
+            Err(_) => Err(PyValueError::new_err(
+                "Failed to serialize `StubInference` to JSON.",
+            )),
+        }
     }
 }
 

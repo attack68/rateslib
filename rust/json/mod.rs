@@ -1,6 +1,7 @@
 //! Allows serialization and deserialization to JSON, with the ``serde`` crate.
 
-pub mod json_py;
+pub(crate) mod json_py;
+pub(crate) use crate::json::json_py::DeserializedObj;
 
 use serde::{Deserialize, Serialize};
 use serde_json;
