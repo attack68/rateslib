@@ -9,12 +9,11 @@ use crate::curves::curve_py::Curve;
 use crate::dual::{Dual, Dual2};
 use crate::fx::rates::FXRates;
 use crate::json::JSON;
-use crate::scheduling::{Cal, NamedCal, StubInference, UnionCal};
+use crate::scheduling::{Cal, Imm, NamedCal, StubInference, UnionCal};
 use crate::splines::{PPSplineDual, PPSplineDual2, PPSplineF64};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
-// use pyo3::conversion::ToPyObject;
 
 /// Container for all of the Python exposed Rust objects which are deserializable.
 ///
@@ -33,25 +32,8 @@ pub(crate) enum DeserializedObj {
     PPSplineDual(PPSplineDual),
     PPSplineDual2(PPSplineDual2),
     StubInference(StubInference),
+    Imm(Imm),
 }
-
-// removed on upgrade to pyo3 0.23, see https://pyo3.rs/v0.23.0/migration#intopyobject-and-intopyobjectref-derive-macros
-// impl IntoPy<PyObject> for DeserializedObj {
-//     fn into_py(self, py: Python<'_>) -> PyObject {
-//         match self {
-//             DeserializedObj::Dual(v) => Py::new(py, v).unwrap().to_object(py),
-//             DeserializedObj::Dual2(v) => Py::new(py, v).unwrap().to_object(py),
-//             DeserializedObj::Cal(v) => Py::new(py, v).unwrap().to_object(py),
-//             DeserializedObj::UnionCal(v) => Py::new(py, v).unwrap().to_object(py),
-//             DeserializedObj::NamedCal(v) => Py::new(py, v).unwrap().to_object(py),
-//             DeserializedObj::FXRates(v) => Py::new(py, v).unwrap().to_object(py),
-//             DeserializedObj::Curve(v) => Py::new(py, v).unwrap().to_object(py),
-//             DeserializedObj::PPSplineF64(v) => Py::new(py, v).unwrap().to_object(py),
-//             DeserializedObj::PPSplineDual(v) => Py::new(py, v).unwrap().to_object(py),
-//             DeserializedObj::PPSplineDual2(v) => Py::new(py, v).unwrap().to_object(py),
-//         }
-//     }
-// }
 
 impl JSON for DeserializedObj {}
 

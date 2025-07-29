@@ -1,6 +1,8 @@
+use crate::json::{DeserializedObj, JSON};
 use crate::scheduling::frequency::Imm;
 
 use chrono::prelude::*;
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
 #[pymethods]
@@ -52,6 +54,20 @@ impl Imm {
         self.from_ym_opt(year, month)
     }
 
+    // JSON
+    /// Return a JSON representation of the object.
+    ///
+    /// Returns
+    /// -------
+    /// str
+    #[pyo3(name = "to_json")]
+    fn to_json_py(&self) -> PyResult<String> {
+        match DeserializedObj::Imm(self.clone()).to_json() {
+            Ok(v) => Ok(v),
+            Err(_) => Err(PyValueError::new_err("Failed to serialize `Imm` to JSON.")),
+        }
+    }
+
     // Pickling
     #[new]
     fn new_py(item: usize) -> Imm {
@@ -73,5 +89,9 @@ impl Imm {
     }
     fn __getnewargs__<'py>(&self) -> PyResult<(usize,)> {
         Ok((*self as usize,))
+    }
+
+    fn __repr__(&self) -> String {
+        format!("<rl: Imm.{:?} at {:p}>", self, self)
     }
 }
