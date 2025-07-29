@@ -3,13 +3,14 @@ use chrono::Days;
 use indexmap::IndexSet;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::cmp::{Eq, PartialEq};
 
 use crate::scheduling::{Adjuster, Adjustment, Calendar, Imm};
 
 /// A roll-day used with a [`Frequency::Months`](crate::scheduling::Frequency) variant.
 #[pyclass(module = "rateslib.rs", eq)]
-#[derive(Debug, Copy, Hash, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Hash, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub enum RollDay {
     /// A day of the month in [1, 31].
     Day(u32),

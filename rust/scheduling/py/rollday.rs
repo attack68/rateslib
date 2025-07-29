@@ -1,4 +1,6 @@
+use crate::json::{DeserializedObj, JSON};
 use crate::scheduling::RollDay;
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 
@@ -52,5 +54,24 @@ impl RollDay {
             RollDayNewArgs::U32(n) => RollDay::Day(n),
             RollDayNewArgs::NoArgs() => RollDay::IMM(),
         }
+    }
+
+    /// Return a JSON representation of the object.
+    ///
+    /// Returns
+    /// -------
+    /// str
+    #[pyo3(name = "to_json")]
+    fn to_json_py(&self) -> PyResult<String> {
+        match DeserializedObj::RollDay(self.clone()).to_json() {
+            Ok(v) => Ok(v),
+            Err(_) => Err(PyValueError::new_err(
+                "Failed to serialize `RollDay` to JSON.",
+            )),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("<rl: RollDay.{:?} at {:p}>", self, self)
     }
 }
