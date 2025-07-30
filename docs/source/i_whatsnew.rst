@@ -50,6 +50,10 @@ issues are likely to be solved by changing the module name in code.
        - A :class:`~rateslib.instrument.Value` can now calculate an *"o/n_rate"* ``metric``
          improving the simplicity of curve calibration using a :class:`~rateslib.solver.Solver`.
          (`965 <https://github.com/attack68/rateslib/pull/965>`_)
+       - A :class:`~rateslib.instrument.CDS` schedule can now be constructed according to
+         ISDA standard examples where accrual periods are adjusted but not the last, using
+         ``modifier="Fex"`` using original inputs or ``Adjuster.FollowingExLast()`` in core inputs.
+         (`998 <https://github.com/attack68/rateslib/pull/998>`_)
    * - **Pricing objects: Curves**
      - - :red:`Minor Breaking Change!`
          The classes :class:`~rateslib.curves.TranslatedCurve`,
@@ -145,7 +149,7 @@ issues are likely to be solved by changing the module name in code.
          (`964 <https://github.com/attack68/rateslib/pull/964>`_)
        - Python pickling of :class:`~rateslib.splines.PPSplineF64`,
          :class:`~rateslib.splines.PPSplineDual`, :class:`~rateslib.splines.PPSplineDual2`
-         classes is now possible. (`996 <https://github.com/attack68/rateslib/pull/996>`_)
+         classes is now possible. (`997 <https://github.com/attack68/rateslib/pull/997>`_)
    * - **Developers**
      - - (rust package) PyO3 0.23 -> 0.25  (`d-4 <https://github.com/attack68/rateslib-dev/pull/4>`_)
        - (rust package) Rust-Numpy 0.23 -> 0.25  (`d-4 <https://github.com/attack68/rateslib-dev/pull/4>`_)
