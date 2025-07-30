@@ -231,7 +231,13 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], _WithOperations, A
                     "Evaluating points on a curve beyond the endpoint of the basic "
                     "spline interval is undefined.\n"
                     f"date: {date.strftime('%Y-%m-%d')}, spline end: "
-                    f"{self.interpolator.spline.t[-1].strftime('%Y-%m-%d')}",
+                    f"{self.interpolator.spline.t[-1].strftime('%Y-%m-%d')}\n"
+                    "This often occurs when a curve is constructed with a final node date "
+                    "that aligns with the maturity of an instrument with a payment lag.\nIn the "
+                    "case that the instrument has a payment lag (e.g. a SOFR swap or ESTR swap or "
+                    "bond terminating on a non-business day) then a cashflow will occur after the "
+                    "maturity of the instrument.\nThe solution is to ensure that the final node "
+                    "date of the curve is changed to be beyond that expected payment date.",
                     UserWarning,
                 )
             if self._base_type == _CurveType.dfs:
