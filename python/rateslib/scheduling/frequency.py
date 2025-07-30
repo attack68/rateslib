@@ -28,9 +28,7 @@ def add_tenor(
     .. warning::
 
        Note this function does not validate the ``roll`` input, but expects it to be correct.
-       This can be used to correctly replicate a schedule under a given roll day. For example
-       a modified 29th May +3M will default to 29th Aug, but can be made to match
-       31 Aug with *'eom'* *roll*, or 30th Aug with 30 *roll*.
+       That is this function acts on ``start`` as an *unchecked* date. See notes.
 
     Parameters
     ----------
@@ -72,6 +70,28 @@ def add_tenor(
        pd.set_option("display.max_columns", None)
        pd.set_option("display.width", 500)
 
+    This method is a convenience function for coordinating a :class:`~rateslib.scheduling.Frequency`
+    date manipulation and an :class:`~rateslib.scheduling.Adjuster`, from simple UI inputs.
+    For example the following:
+
+    .. ipython:: python
+
+       add_tenor(dt(2023, 9, 29), "-6m", "MF", NamedCal("bus"), 31)
+
+    is internally mapped to the following, where :meth:`~rateslib.scheduling.Frequency.next`
+    performs an *unchecked* date period determination:
+
+    .. ipython:: python
+
+       unadjusted_date = Frequency.Months(-6, RollDay.Day(31)).next(dt(2023, 9, 29))
+       Adjuster.ModifiedFollowing().adjust(unadjusted_date, NamedCal("bus"))
+
+    The allowed string inputs *{'B', 'D', 'W', 'M', 'Y'}* for **b**\ usiness days, calendar
+    **d**\ ays, **w**\ eeks, **m**\ onths and **y**\ ears are mapped to an appropriate
+    :class:`~rateslib.scheduling.Frequency` variant (potentially also mapping a
+    :class:`~rateslib.scheduling.RollDay`), and an appropriate
+    :class:`~rateslib.scheduling.Adjuster` is derived from the combination of the ``modifier``,
+    ``settlement`` and ``mod_days`` arguments.
 
     Read more about the ``settlement`` argument in the :ref:`calendar user guide <cal-doc>`.
 
@@ -90,7 +110,7 @@ def add_tenor(
 
        add_tenor(dt(2021, 1, 22), "8d", "MF", "bus")
 
-    unless,
+    unless day type frequencies are also specifically modified,
 
     .. ipython:: python
 
