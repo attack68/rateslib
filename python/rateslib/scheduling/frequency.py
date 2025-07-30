@@ -22,7 +22,7 @@ def add_tenor(
     settlement: bool = False,
     mod_days: bool = False,
 ) -> datetime:
-    """
+    r"""
     Add a tenor to a given date under specific modification rules and holiday calendar.
 
     .. warning::
