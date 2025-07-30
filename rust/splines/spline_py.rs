@@ -23,6 +23,10 @@ macro_rules! create_interface {
                     inner: PPSpline::new(k, t, c),
                 }
             }
+            
+            fn __getnewargs__(&self, _py: Python) -> PyResult<(usize, Vec<f64>, Option<Vec<$type>>)> {
+                Ok((self.k()?, self.t()?, self.c()?))
+            }
 
             #[getter]
             fn n(&self) -> PyResult<usize> {
@@ -391,6 +395,10 @@ macro_rules! create_interface {
                 $name { inner: self.inner.clone() }
             }
 
+            fn __repr__(&self) -> String {
+                format!("<rl.{} at {:p}>", stringify!($name) ,self)
+            }
+            
             // JSON
             #[pyo3(name = "to_json")]
             fn to_json_py(&self) -> PyResult<String> {
@@ -406,17 +414,6 @@ macro_rules! create_interface {
 create_interface!(PPSplineF64, f64);
 create_interface!(PPSplineDual, Dual);
 create_interface!(PPSplineDual2, Dual2);
-
-// // removed on upgrade to pyo3 0.23, see https://pyo3.rs/v0.23.0/migration#intopyobject-and-intopyobjectref-derive-macros
-// impl IntoPy<PyObject> for NumberPPSpline {
-//     fn into_py(self, py: Python<'_>) -> PyObject {
-//         match self {
-//             NumberPPSpline::F64(s) => Py::new(py, s).unwrap().to_object(py),
-//             NumberPPSpline::Dual(s) => Py::new(py, s).unwrap().to_object(py),
-//             NumberPPSpline::Dual2(s) => Py::new(py, s).unwrap().to_object(py),
-//         }
-//     }
-// }
 
 /// Calculate the value of an indexed b-spline at *x*.
 ///
