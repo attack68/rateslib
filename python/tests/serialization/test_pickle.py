@@ -22,6 +22,7 @@ from rateslib.curves import (
 )
 from rateslib.rs import Schedule as ScheduleRs
 from rateslib.scheduling import Adjuster, Cal, Frequency, RollDay, Schedule, StubInference, UnionCal
+from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2
 
 
 @pytest.mark.parametrize(
@@ -41,7 +42,7 @@ from rateslib.scheduling import Adjuster, Cal, Frequency, RollDay, Schedule, Stu
         # fx
         FXRates({"eurusd": 1.0}, dt(2000, 1, 1)),
         # curves
-        Curve({dt(2000, 1, 1): 1.0, dt(2000, 1, 2): 0.98}),
+        Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98, dt(2002, 1, 1): 0.96}, interpolation="spline"),
         LineCurve({dt(2000, 1, 1): 2.0, dt(2000, 1, 2): 3.0}),
         CompositeCurve(
             [
@@ -95,6 +96,9 @@ from rateslib.scheduling import Adjuster, Cal, Frequency, RollDay, Schedule, Stu
             payment_lag=Adjuster.BusDaysLagSettle(2),
             stub=StubInference.ShortBack,
         ),
+        PPSplineF64(3, [0,0,0,1,1,1], [0.1, 0.2, 0.3]),
+        PPSplineDual(3, [0,0,0,1,1,1], [Dual(0.1, [], []), Dual(0.2, [], []), Dual(0.3, [], [])]),
+        PPSplineDual2(3, [0,0,0,1,1,1], [Dual2(0.1, [], [], []), Dual2(0.2, [], [], []), Dual2(0.3, [], [], [])]),
     ],
 )
 def test_pickle_round_trip_obj_via_equality(obj):

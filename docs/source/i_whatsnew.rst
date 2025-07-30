@@ -143,6 +143,9 @@ issues are likely to be solved by changing the module name in code.
          :meth:`~rateslib.solver.Solver.gamma` in combination with
          :class:`~rateslib.curves.CompositeCurve`.
          (`964 <https://github.com/attack68/rateslib/pull/964>`_)
+       - Python pickling of :class:`~rateslib.splines.PPSplineF64`,
+         :class:`~rateslib.splines.PPSplineDual`, :class:`~rateslib.splines.PPSplineDual2`
+         classes is now possible. (`996 <https://github.com/attack68/rateslib/pull/996>`_)
    * - **Developers**
      - - (rust package) PyO3 0.23 -> 0.25  (`d-4 <https://github.com/attack68/rateslib-dev/pull/4>`_)
        - (rust package) Rust-Numpy 0.23 -> 0.25  (`d-4 <https://github.com/attack68/rateslib-dev/pull/4>`_)

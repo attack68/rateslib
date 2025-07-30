@@ -13,7 +13,7 @@ Calendars
 Calendars allow *rateslib* to recognise the following types of date, and perform operations on them:
 
 - **Business** and non-business days.
-- **Settleable** days and **settleable business days**.
+- **Settleable** days and **settleable business** days.
 
 Summary
 *******
@@ -25,6 +25,7 @@ Classes
    rateslib.scheduling.NamedCal
    rateslib.scheduling.UnionCal
    rateslib.scheduling.Adjuster
+   rateslib.scheduling.Imm
 
 Methods
 -------

@@ -193,6 +193,13 @@ Solver
    :skip: uuid4
    :skip: PerformanceWarning
 
+Serialization
+=============
+
+.. automodapi:: rateslib.serialization
+   :inherited-members:
+   :no-inheritance-diagram:
+
 Cookbook
 =========
 
