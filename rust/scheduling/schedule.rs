@@ -291,14 +291,8 @@ impl Schedule {
             }
         }
 
-        let aschedule: Vec<NaiveDateTime> = uschedule
-            .iter()
-            .map(|dt| accrual_adjuster.adjust(&dt, &calendar))
-            .collect();
-        let pschedule = aschedule
-            .iter()
-            .map(|dt| payment_adjuster.adjust(&dt, &calendar))
-            .collect();
+        let aschedule: Vec<NaiveDateTime> = accrual_adjuster.adjusts(&uschedule, &calendar);
+        let pschedule = payment_adjuster.adjusts(&aschedule, &calendar);
 
         Ok(Self {
             ueffective,

@@ -22,7 +22,7 @@ from rateslib.curves import (
 )
 from rateslib.rs import Schedule as ScheduleRs
 from rateslib.scheduling import Adjuster, Cal, Frequency, RollDay, Schedule, StubInference, UnionCal
-from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2
+from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 
 @pytest.mark.parametrize(
@@ -42,7 +42,10 @@ from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2
         # fx
         FXRates({"eurusd": 1.0}, dt(2000, 1, 1)),
         # curves
-        Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98, dt(2002, 1, 1): 0.96}, interpolation="spline"),
+        Curve(
+            {dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98, dt(2002, 1, 1): 0.96},
+            interpolation="spline",
+        ),
         LineCurve({dt(2000, 1, 1): 2.0, dt(2000, 1, 2): 3.0}),
         CompositeCurve(
             [
@@ -96,9 +99,15 @@ from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2
             payment_lag=Adjuster.BusDaysLagSettle(2),
             stub=StubInference.ShortBack,
         ),
-        PPSplineF64(3, [0,0,0,1,1,1], [0.1, 0.2, 0.3]),
-        PPSplineDual(3, [0,0,0,1,1,1], [Dual(0.1, [], []), Dual(0.2, [], []), Dual(0.3, [], [])]),
-        PPSplineDual2(3, [0,0,0,1,1,1], [Dual2(0.1, [], [], []), Dual2(0.2, [], [], []), Dual2(0.3, [], [], [])]),
+        PPSplineF64(3, [0, 0, 0, 1, 1, 1], [0.1, 0.2, 0.3]),
+        PPSplineDual(
+            3, [0, 0, 0, 1, 1, 1], [Dual(0.1, [], []), Dual(0.2, [], []), Dual(0.3, [], [])]
+        ),
+        PPSplineDual2(
+            3,
+            [0, 0, 0, 1, 1, 1],
+            [Dual2(0.1, [], [], []), Dual2(0.2, [], [], []), Dual2(0.3, [], [], [])],
+        ),
     ],
 )
 def test_pickle_round_trip_obj_via_equality(obj):
@@ -135,7 +144,7 @@ def test_enum_equality(a1, a2, b1):
 
 @pytest.mark.parametrize(
     ("enum", "method_filter"),
-    [(Imm, ["next", "get", "validate"]), (StubInference, []), (ADOrder, [])],
+    [(Imm, ["next", "get", "validate", "to_json"]), (StubInference, ["to_json"]), (ADOrder, [])],
 )
 def test_simple_enum_pickle(enum, method_filter):
     variants = [v for v in enum.__dict__ if "__" not in v and v not in method_filter]
@@ -162,6 +171,8 @@ def test_simple_enum_pickle(enum, method_filter):
         Adjuster.ModifiedPreviousSettle(),
         Adjuster.BusDaysLagSettle(4),
         Adjuster.CalDaysLagSettle(2),
+        Adjuster.FollowingExLast(),
+        Adjuster.FollowingExLastSettle(),
         Frequency.Months(4, RollDay.Day(2)),
         Frequency.Months(4, None),
         Frequency.BusDays(2, NamedCal("tgt")),

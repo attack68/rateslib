@@ -79,7 +79,7 @@ fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<LinearZeroRateInterpolator>()?;
     m.add_class::<NullInterpolator>()?;
 
-    // Calendars
+    // Scheduling
     m.add_class::<Cal>()?;
     m.add_class::<UnionCal>()?;
     m.add_class::<NamedCal>()?;
@@ -88,7 +88,6 @@ fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(_get_convention_str, m)?)?;
     m.add_function(wrap_pyfunction!(_get_modifier_str, m)?)?;
 
-    // Scheduling
     m.add_class::<Frequency>()?;
     m.add_class::<RollDay>()?;
     m.add_class::<Imm>()?;

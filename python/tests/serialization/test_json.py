@@ -2,7 +2,7 @@ import pytest
 from rateslib import Curve, Dual, Dual2, FXForwards, FXRates, dt, from_json
 from rateslib.rs import Schedule as ScheduleRs
 from rateslib.scheduling import Adjuster, Frequency, Imm, NamedCal, RollDay, Schedule, StubInference
-from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2
+from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 
 @pytest.mark.parametrize(
@@ -40,9 +40,15 @@ from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2
             frequency="S",
             calendar="tgt",
         ),
-        PPSplineF64(3, [0,0,0,1,1,1], [0.1, 0.2, 0.3]),
-        PPSplineDual(3, [0,0,0,1,1,1], [Dual(0.1, [], []), Dual(0.2, [], []), Dual(0.3, [], [])]),
-        PPSplineDual2(3, [0,0,0,1,1,1], [Dual2(0.1, [], [], []), Dual2(0.2, [], [], []), Dual2(0.3, [], [], [])]),
+        PPSplineF64(3, [0, 0, 0, 1, 1, 1], [0.1, 0.2, 0.3]),
+        PPSplineDual(
+            3, [0, 0, 0, 1, 1, 1], [Dual(0.1, [], []), Dual(0.2, [], []), Dual(0.3, [], [])]
+        ),
+        PPSplineDual2(
+            3,
+            [0, 0, 0, 1, 1, 1],
+            [Dual2(0.1, [], [], []), Dual2(0.2, [], [], []), Dual2(0.3, [], [], [])],
+        ),
     ],
 )
 def test_json_round_trip(obj) -> None:
