@@ -786,3 +786,35 @@ def test_day_type_tenor() -> None:
         calendar="stk",
     )
     assert s.utermination == dt(2025, 1, 2)
+
+
+def test_cds_standard_example() -> None:
+    # https://www.cdsmodel.com/documentation.html?# standard example
+    # use Adjuster.FollowingExLast to avoid adjusting the final accrual date.
+    s = Schedule(
+        dt(2008, 12, 20),
+        dt(2010, 3, 20),
+        "Q",
+        modifier="fex",
+        calendar="bus",
+        payment_lag=0,
+    )
+    expected = [
+        dt(2008, 12, 22),
+        dt(2009, 3, 20),
+        dt(2009, 6, 22),
+        dt(2009, 9, 21),
+        dt(2009, 12, 21),
+        dt(2010, 3, 20),
+    ]
+    assert s.aschedule == expected
+
+    expected = [
+        dt(2008, 12, 22),
+        dt(2009, 3, 20),
+        dt(2009, 6, 22),
+        dt(2009, 9, 21),
+        dt(2009, 12, 21),
+        dt(2010, 3, 22),
+    ]
+    assert s.pschedule == expected

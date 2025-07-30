@@ -35,6 +35,10 @@ pub(crate) enum PyAdjuster {
     BusDaysLagSettle { number: i32, _u8: u8 },
     #[pyo3(constructor = (number, _u8=10))]
     CalDaysLagSettle { number: i32, _u8: u8 },
+    #[pyo3(constructor = (_u8=11))]
+    FollowingExLast { _u8: u8 },
+    #[pyo3(constructor = (_u8=12))]
+    FollowingExLastSettle { _u8: u8 },
 }
 
 /// Used for providing pickle support for PyAdjuster
@@ -86,6 +90,8 @@ impl From<Adjuster> for PyAdjuster {
             Adjuster::ModifiedPreviousSettle {} => PyAdjuster::ModifiedPreviousSettle { _u8: 8 },
             Adjuster::BusDaysLagSettle(n) => PyAdjuster::BusDaysLagSettle { number: n, _u8: 9 },
             Adjuster::CalDaysLagSettle(n) => PyAdjuster::CalDaysLagSettle { number: n, _u8: 10 },
+            Adjuster::FollowingExLast {} => PyAdjuster::FollowingExLast { _u8: 11 },
+            Adjuster::FollowingExLastSettle {} => PyAdjuster::FollowingExLastSettle { _u8: 12 },
         }
     }
 }
@@ -104,6 +110,8 @@ impl From<PyAdjuster> for Adjuster {
             PyAdjuster::ModifiedPreviousSettle { _u8: _ } => Adjuster::ModifiedPreviousSettle {},
             PyAdjuster::BusDaysLagSettle { number: n, _u8: _ } => Adjuster::BusDaysLagSettle(n),
             PyAdjuster::CalDaysLagSettle { number: n, _u8: _ } => Adjuster::CalDaysLagSettle(n),
+            PyAdjuster::FollowingExLast { _u8: _ } => Adjuster::FollowingExLast {},
+            PyAdjuster::FollowingExLastSettle { _u8: _ } => Adjuster::FollowingExLastSettle {},
         }
     }
 }
@@ -159,6 +167,8 @@ impl PyAdjuster {
             PyAdjuster::ModifiedPreviousSettle { _u8: _ } => "FSETTLE".to_string(),
             PyAdjuster::BusDaysLagSettle { number: n, _u8: _ } => format!("{n}B"),
             PyAdjuster::CalDaysLagSettle { number: n, _u8: _ } => format!("{n}D"),
+            PyAdjuster::FollowingExLast { _u8: _ } => format!("FEX"),
+            PyAdjuster::FollowingExLastSettle { _u8: _ } => format!("FEXSETTLE"),
         }
     }
 
@@ -175,6 +185,8 @@ impl PyAdjuster {
             PyAdjuster::ModifiedPreviousSettle { _u8: u } => PyAdjusterNewArgs::NoArgs(*u),
             PyAdjuster::BusDaysLagSettle { number: n, _u8: u } => PyAdjusterNewArgs::I32(*n, *u),
             PyAdjuster::CalDaysLagSettle { number: n, _u8: u } => PyAdjusterNewArgs::I32(*n, *u),
+            PyAdjuster::FollowingExLast { _u8: u } => PyAdjusterNewArgs::NoArgs(*u),
+            PyAdjuster::FollowingExLastSettle { _u8: u } => PyAdjusterNewArgs::NoArgs(*u),
         }
     }
 
@@ -192,6 +204,8 @@ impl PyAdjuster {
             PyAdjusterNewArgs::NoArgs(8) => PyAdjuster::ModifiedPreviousSettle { _u8: 8 },
             PyAdjusterNewArgs::I32(n, 9) => PyAdjuster::BusDaysLagSettle { number: n, _u8: 9 },
             PyAdjusterNewArgs::I32(n, 10) => PyAdjuster::CalDaysLagSettle { number: n, _u8: 10 },
+            PyAdjusterNewArgs::NoArgs(11) => PyAdjuster::FollowingExLast { _u8: 11 },
+            PyAdjusterNewArgs::NoArgs(12) => PyAdjuster::FollowingExLastSettle { _u8: 12 },
             _ => panic!("Undefined behaviour."),
         }
     }
@@ -217,6 +231,7 @@ impl PyAdjuster {
     }
 }
 
+/// This function appears to be unused.
 pub(crate) fn get_roll_adjuster_from_str(input: (&str, bool)) -> Result<Adjuster, PyErr> {
     let hmap: HashMap<(&str, bool), Adjuster> = HashMap::from([
         (("act", true), Adjuster::Actual {}),
@@ -231,6 +246,8 @@ pub(crate) fn get_roll_adjuster_from_str(input: (&str, bool)) -> Result<Adjuster
         (("mf", false), Adjuster::ModifiedFollowing {}),
         (("p", false), Adjuster::Previous {}),
         (("mp", false), Adjuster::ModifiedPrevious {}),
+        (("fex", false), Adjuster::FollowingExLast {}),
+        (("fex", true), Adjuster::FollowingExLastSettle {}),
     ]);
     match hmap.get(&input) {
         None => Err(PyValueError::new_err(format!(
