@@ -1,7 +1,8 @@
 import pytest
 from rateslib import dt
 from rateslib.scheduling import Adjuster, Frequency, Imm, NamedCal, RollDay, Schedule, StubInference
-
+from rateslib.dual import Dual, Dual2
+from rateslib.splines import PPSplineF64, PPSplineDual, PPSplineDual2
 
 @pytest.mark.parametrize(
     ("obj", "expected"),
@@ -18,6 +19,9 @@ from rateslib.scheduling import Adjuster, Frequency, Imm, NamedCal, RollDay, Sch
         (Adjuster.ModifiedFollowing(), "Adjuster.ModifiedFollowing"),
         (Adjuster.BusDaysLagSettle(4), "Adjuster.BusDaysLagSettle(4)"),
         (Schedule(dt(2000, 1, 1), dt(2001, 2, 1), "M"), "Schedule"),
+        (PPSplineF64(3, [0,0,0,1,1,1], [0.1, 0.2, 0.3]), "PPSplineF64"),
+        (PPSplineDual(3, [0,0,0,1,1,1], [Dual(0.1, [], []), Dual(0.2, [], []), Dual(0.3, [], [])]), "PPSplineDual"),
+        (PPSplineDual2(3, [0,0,0,1,1,1], [Dual2(0.1, [], [], []), Dual2(0.2, [], [], []), Dual2(0.3, [], [], [])]), "PPSplineDual2"),
     ],
 )
 def test_repr_strings(obj, expected) -> None:
