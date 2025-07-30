@@ -2934,6 +2934,69 @@ class TestNonMtmFixedFixedXCS:
             xcs.leg2_float_spread = 2.0
 
 
+@pytest.fixture
+def isda_credit_curves_40rr_20quote():
+    # https://www.cdsmodel.com/rfr-test-grids.html?
+    # USD 22 June 2022
+
+    # from rateslib.scheduling import get_calendar
+    # trade = dt(2022, 6, 22)
+    # spot = get_calendar("nyc").add_bus_days(trade, 2, False)
+    # tenors = ["1m", "2m", "3m", "6m", "1y", "2y", "3y", "4y", "5y", "6y", "7y", "8y", "9y"]
+    # tenors += ["10y", "12y", "15y", "20y", "25y", "30y"]
+    # curve = Curve(
+    #     nodes={
+    #         trade: 1.0,
+    #         **{add_tenor(spot, _, "f", "nyc"): 1.0 for _ in tenors},
+    #     },
+    #     interpolation="log_linear",
+    # )
+    # solver = Solver(
+    #     curves=[curve],
+    #     instruments=[IRS(spot, _, spec="usd_irs", curves=curve) for _ in tenors],
+    #     s=[1.5088, 1.8228, 1.9729, 2.5640, 3.1620, 3.3169, 3.2441, 3.1771, 3.1371, 3.1131, 3.0951,
+    #        3.0841, 3.0811, 3.0871, 3.1061, 3.1201, 3.0601, 2.9381, 2.8221]
+    # )
+    #
+    # credit_curve = Curve(
+    #     nodes={trade: 1.0, dt(2055, 1, 1): 1.0}, credit_recovery_rate=0.4
+    # )
+    # solver2 = Solver(
+    #     curves=[credit_curve],
+    #     pre_solvers=[solver],
+    #     instruments=[
+    #         CDS(dt(2022, 6, 20), dt(2023, 6, 20), spec="us_ig_cds", curves=[credit_curve, curve])], #noqa: E501
+    #     s=[0.20]
+    # )
+
+    curve = Curve(
+        {
+            dt(2022, 6, 22, 0, 0): 1.0,
+            dt(2022, 7, 25, 0, 0): 0.9986187857823194,
+            dt(2022, 8, 24, 0, 0): 0.9968373705612348,
+            dt(2022, 9, 26, 0, 0): 0.994791605422867,
+            dt(2022, 12, 27, 0, 0): 0.9868431949407511,
+            dt(2023, 6, 26, 0, 0): 0.9686906539113461,
+            dt(2024, 6, 24, 0, 0): 0.9357773336285784,
+            dt(2025, 6, 24, 0, 0): 0.9073411683282268,
+            dt(2026, 6, 24, 0, 0): 0.8808780124060293,
+            dt(2027, 6, 24, 0, 0): 0.8551765951547667,
+            dt(2028, 6, 26, 0, 0): 0.8298749243478529,
+            dt(2029, 6, 25, 0, 0): 0.8056454824131845,
+            dt(2030, 6, 24, 0, 0): 0.7819517736960135,
+            dt(2031, 6, 24, 0, 0): 0.7584699996495646,
+            dt(2032, 6, 24, 0, 0): 0.7349334728363958,
+            dt(2034, 6, 26, 0, 0): 0.6890701260967745,
+            dt(2037, 6, 24, 0, 0): 0.62634116393611,
+            dt(2042, 6, 24, 0, 0): 0.5441094046550682,
+            dt(2047, 6, 24, 0, 0): 0.4864281755586489,
+            dt(2052, 6, 24, 0, 0): 0.4409891618081753,
+        }
+    )
+
+    return (None, curve)
+
+
 class TestCDS:
     def okane_curve(self):
         today = dt(2019, 8, 12)
@@ -3227,6 +3290,43 @@ class TestCDS:
         )
         result = cds.accrued(dt(2022, 2, 1))
         assert abs(result + 0.25 * 1e9 * 0.02 * 31 / 90) < 1e-6
+
+    @pytest.mark.parametrize(
+        ("cash", "tenor", "quote"),
+        [
+            (-79690.03, "1y", 0.20),
+            (-156453.96, "2y", 0.20),
+            (-230320.76, "3y", 0.20),
+            (-370875.32, "5y", 0.20),
+            (-502612.64, "7y", 0.20),
+            (-684299.75, "10y", 0.20),
+            (116199.85, "1y", 2.20),
+            (225715.34, "2y", 2.20),
+            (327602.22, "3y", 2.20),
+            (512001.20, "5y", 2.20),
+            (673570.58, "7y", 2.20),
+            (878545.53, "10y", 2.20),
+        ],
+    )
+    def test_standard_model_test_grid(self, cash, tenor, quote, isda_credit_curves_40rr_20quote):
+        # https://www.cdsmodel.com/rfr-test-grids.html?
+        # USD 22 June 2022
+        credit_curve, curve = isda_credit_curves_40rr_20quote
+
+        credit_curve = Curve({dt(2022, 6, 22): 1.0, dt(2052, 6, 30): 1.0}, credit_recovery_rate=0.4)
+        Solver(
+            curves=[credit_curve],
+            instruments=[
+                CDS(dt(2022, 6, 20), tenor, spec="us_ig_cds", curves=[credit_curve, curve])
+            ],
+            s=[quote],
+        )
+
+        cds = CDS(
+            dt(2022, 6, 20), tenor, spec="us_ig_cds", curves=[credit_curve, curve], notional=10e6
+        )
+        result = cds.npv()
+        assert abs(result - cash) < 875
 
 
 class TestXCS:
