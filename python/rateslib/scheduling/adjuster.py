@@ -18,6 +18,8 @@ _A = {  # Provides the map of all available string to Adjuster conversions.
     "PSETTLE": Adjuster.PreviousSettle(),
     "MFSETTLE": Adjuster.ModifiedFollowingSettle(),
     "MPSETTLE": Adjuster.ModifiedPreviousSettle(),
+    "FEX": Adjuster.FollowingExLast(),
+    "FEXSETTLE": Adjuster.FollowingExLastSettle(),
 }
 
 

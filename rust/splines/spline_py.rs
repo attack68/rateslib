@@ -23,7 +23,7 @@ macro_rules! create_interface {
                     inner: PPSpline::new(k, t, c),
                 }
             }
-            
+
             fn __getnewargs__(&self, _py: Python) -> PyResult<(usize, Vec<f64>, Option<Vec<$type>>)> {
                 Ok((self.k()?, self.t()?, self.c()?))
             }
@@ -398,7 +398,7 @@ macro_rules! create_interface {
             fn __repr__(&self) -> String {
                 format!("<rl.{} at {:p}>", stringify!($name) ,self)
             }
-            
+
             // JSON
             #[pyo3(name = "to_json")]
             fn to_json_py(&self) -> PyResult<String> {
