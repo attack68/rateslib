@@ -123,7 +123,7 @@ class CDS(BaseDerivative):
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
         """
-        Return the mid-market credit spread of the CDS.
+        Return the mid-market credit spread of the CDS in percentage points.
 
         Parameters
         ----------
