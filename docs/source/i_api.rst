@@ -97,14 +97,6 @@ Dual (for AD)
    :no-heading:
    :no-inheritance-diagram:
 
-.. toctree::
-    :maxdepth: 0
-    :titlesonly:
-    :hidden:
-
-    api/rateslib.dual.Dual.rst
-    api/rateslib.dual.Dual2.rst
-
 
 Curves
 =======
