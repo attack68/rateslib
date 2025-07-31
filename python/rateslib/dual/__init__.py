@@ -42,7 +42,7 @@ Examples
 .. ipython:: python
    :suppress:
 
-   from rateslib.dual import Dual, gradient 
+   from rateslib.dual import Dual, gradient
 
 .. ipython:: python
 
@@ -92,7 +92,7 @@ Examples
    x = Dual2(1.0, ["x"], [], [])
    y = Dual2(1.0, ["y"], [], [])
    gradient(func(x,y), ["x", "y"], order=2)
-   
+
 """  # noqa: E501
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
