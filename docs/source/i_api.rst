@@ -60,34 +60,9 @@ Scheduling
 Piecewise Polynomial Splines
 =============================
 
-Functions
-^^^^^^^^^
-
-.. autosummary::
-   ~rateslib.splines.bsplev_single
-   ~rateslib.splines.bspldnev_single
-   ~rateslib.splines.evaluate
-
-Classes
-^^^^^^^^
-
-.. autosummary::
-   ~rateslib.splines.PPSplineF64
-   ~rateslib.splines.PPSplineDual
-   ~rateslib.splines.PPSplineDual2
-
-
-.. toctree::
-    :maxdepth: 0
-    :titlesonly:
-    :hidden:
-
-    api/rateslib.splines.PPSplineF64.rst
-    api/rateslib.splines.PPSplineDual.rst
-    api/rateslib.splines.PPSplineDual2.rst
-    api/rateslib.splines.bsplev_single.rst
-    api/rateslib.splines.bspldnev_single.rst
-    api/rateslib.splines.evaluate.rst
+.. automodapi:: rateslib.splines
+   :no-heading:
+   :no-inheritance-diagram:
 
 
 Dual (for AD)

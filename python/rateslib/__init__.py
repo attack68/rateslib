@@ -138,7 +138,6 @@ from rateslib.scheduling import (
 from rateslib.serialization import from_json
 from rateslib.solver import Solver
 from rateslib.splines import (
-    PPSpline,
     PPSplineDual,
     PPSplineDual2,
     PPSplineF64,
@@ -175,7 +174,6 @@ __all__ = [
     # splines.py
     "bsplev_single",
     "bspldnev_single",
-    "PPSpline",
     "PPSplineF64",
     "PPSplineDual",
     "PPSplineDual2",
