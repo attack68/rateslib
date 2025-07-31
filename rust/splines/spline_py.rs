@@ -525,7 +525,7 @@ pub(crate) fn bsplev_single(
 ///    from datetime import datetime as dt
 ///    import numpy as np
 ///    t = [1,1,1,1,2,2,2,3,4,4,4,4]
-///    spline = PPSpline(k=4, t=t)
+///    spline = PPSplineF64(k=4, t=t)
 ///    x = np.linspace(1, 4, 76)
 ///    fix, ax = plt.subplots(1,1)
 ///    ax.plot(x, spline.bspldnev(x, 3, 0))
