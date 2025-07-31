@@ -58,6 +58,18 @@ Rust Checks:
 
 Build preparations (if not already installed):
 
+Doc Building:
+
+- Change `conf.py` for the new version and build: 
+$ cd docs
+$ make clean
+$ make html
+
+- Also build the Rust docs
+$ cargo doc --lib --no-deps
+
+Push the files to the website.
+
 $ pip install twine
 
 Rust Extension Build:
