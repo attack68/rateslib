@@ -3,13 +3,13 @@
 use crate::dual::dual::{Dual, Dual2, Gradient1, Gradient2, Vars};
 use crate::dual::dual_ops::math_funcs::MathFuncs;
 use crate::dual::enums::{ADOrder, Number};
+use crate::json::json_py::DeserializedObj;
+use crate::json::JSON;
 use num_traits::{Pow, Signed};
+use numpy::{Element, PyArray1, PyArray2, PyArrayDescr, ToPyArray};
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use std::sync::Arc;
-use crate::json::json_py::DeserializedObj;
-use crate::json::JSON;
-use numpy::{Element, PyArray1, PyArray2, PyArrayDescr, ToPyArray};
 
 unsafe impl Element for Dual {
     const IS_COPY: bool = false;
@@ -479,7 +479,6 @@ impl Dual2 {
         Ok(Vec::from_iter(self.vars.iter()))
     }
 
-
     /// First derivative information contained as coefficient of linear manifold.
     #[getter]
     #[pyo3(name = "dual")]
@@ -512,7 +511,6 @@ impl Dual2 {
     ) -> PyResult<Bound<'py, PyArray1<f64>>> {
         Ok(self.gradient1(vars).to_pyarray(py))
     }
-
 
     /// Return the second derivatives of Self.
     ///

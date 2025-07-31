@@ -4,10 +4,11 @@ from typing import TYPE_CHECKING
 
 from rateslib import defaults
 from rateslib.dual import Dual, Dual2, Variable
-from rateslib.rs import PPSplineF64, PPSplineDual, PPSplineDual2
+from rateslib.rs import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
-    from rateslib.typing import Number, DualTypes
+    from rateslib.typing import DualTypes, Number
+
 
 def evaluate(
     spline: PPSplineF64 | PPSplineDual | PPSplineDual2,
