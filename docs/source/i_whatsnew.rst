@@ -47,12 +47,13 @@ issues are likely to be solved by changing the module name in code.
          (`955 <https://github.com/attack68/rateslib/pull/955>`_)
        - Add new AUD and NZD ``spec`` for IRDs. See :ref:`defaults <defaults-arg-input>`.
          (`935 <https://github.com/attack68/rateslib/pull/935>`_)
-       - A :class:`~rateslib.instrument.Value` can now calculate an *"o/n_rate"* ``metric``
+       - A :class:`~rateslib.instruments.Value` can now calculate an *"o/n_rate"* ``metric``
          improving the simplicity of curve calibration using a :class:`~rateslib.solver.Solver`.
          (`965 <https://github.com/attack68/rateslib/pull/965>`_)
-       - A :class:`~rateslib.instrument.CDS` schedule can now be constructed according to
+       - A :class:`~rateslib.instruments.CDS` schedule can now be constructed according to
          ISDA standard examples where accrual periods are adjusted but not the last, using
-         ``modifier="Fex"`` using original inputs or ``Adjuster.FollowingExLast()`` in core inputs.
+         ``modifier="Fex"`` using original inputs or
+         :class:`~rateslib.scheduling.Adjuster.FollowingExLast()` in core inputs.
          (`998 <https://github.com/attack68/rateslib/pull/998>`_)
    * - **Pricing objects: Curves**
      - - :red:`Minor Breaking Change!`
@@ -104,8 +105,8 @@ issues are likely to be solved by changing the module name in code.
          have been introduced which can be used with the :class:`~rateslib.scheduling.Schedule`
          object, in addition to the original arguments.
        - The enum :class:`~rateslib.scheduling.Imm` is added to better handle special date
-         manipulation in the :meth:`~rateslib.schdeuling.next_imm` and
-         :meth:`~rateslib.schdeuling.get_imm` methods, whose ``method`` argument is changed to
+         manipulation in the :meth:`~rateslib.scheduling.next_imm` and
+         :meth:`~rateslib.scheduling.get_imm` methods, whose ``method`` argument is changed to
          ``definition`` which accepts this enum or string representation.
          (`976 <https://github.com/attack68/rateslib/pull/976>`_)
        - :red:`Minor Breaking Change!` The :meth:`~rateslib.scheduling.Cal.add_days` and

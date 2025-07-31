@@ -91,8 +91,8 @@ For what purpose would I use *rateslib*?
 - If you are new to fixed income and currencies and interested to learn about basic and advanced concepts with
   tools to explore the nuances of these markets, as a companion to various authored books.
 
-Which ``fixed income instruments`` does *rateslib* include?
-===========================================================
+Which ``fixed income`` and ``FX`` ``instruments`` does *rateslib* include?
+===========================================================================
 
 .. list-table::
    :widths: 20 20 20 20 20

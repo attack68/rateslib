@@ -117,7 +117,7 @@ Curves
 Class Inheritance Diagram
 --------------------------
 
-.. inheritance-diagram:: rateslib.curves.Curve rateslib.curves.LineCurve rateslib.curves.CompositeCurve rateslib.curves.MultiCsaCurve rateslib.curves.ProxyCurve rateslib.curves._BaseCurve rateslib.curves._WithMutability rateslib.curves.CreditImpliedCurve
+.. inheritance-diagram:: rateslib.curves.Curve rateslib.curves.LineCurve rateslib.curves.CompositeCurve rateslib.curves.MultiCsaCurve rateslib.curves.ProxyCurve rateslib.curves._BaseCurve rateslib.curves._WithMutability rateslib.curves.CreditImpliedCurve rateslib.curves.TranslatedCurve rateslib.curves.RolledCurve rateslib.curves.ShiftedCurve
    :private-bases:
    :parts: 1
 
@@ -193,12 +193,14 @@ Solver
    :skip: uuid4
    :skip: PerformanceWarning
 
+
 Serialization
-=============
+==============
 
 .. automodapi:: rateslib.serialization
    :inherited-members:
    :no-inheritance-diagram:
+
 
 Cookbook
 =========
