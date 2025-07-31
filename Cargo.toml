@@ -9,7 +9,9 @@ exclude = [
     "notebooks/*",
     ".readthedocs.yaml",
     "docs/*",
-    "PACKAGING.md"
+    "PACKAGING.md",
+    "PIP_FREEZE.txt",
+    "requirements-minimum.txt"
 ]
 
 [lib]
