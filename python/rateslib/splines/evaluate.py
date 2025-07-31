@@ -4,21 +4,10 @@ from typing import TYPE_CHECKING
 
 from rateslib import defaults
 from rateslib.dual import Dual, Dual2, Variable
-from rateslib.rs import PPSplineDual, PPSplineDual2, PPSplineF64, bspldnev_single, bsplev_single
-from rateslib.rs import PPSplineF64 as PPSpline
+from rateslib.rs import PPSplineF64, PPSplineDual, PPSplineDual2
 
 if TYPE_CHECKING:
-    from rateslib.typing import DualTypes, Number
-
-# for legacy reasons allow a PPSpline class which allows only f64 datatypes.
-# TODO: (depr) remove this for version 2.0
-
-# bspldnev_single.__doc__ = "Calculate the *m* th order derivative (from the right) of an indexed b-spline at *x*."  # noqa: E501
-# bsplev_single.__doc__ = "Calculate the value of an indexed b-spline at *x*."
-PPSplineF64.__doc__ = "Piecewise polynomial spline composed of float values on the x and y axes."
-PPSplineDual.__doc__ = "Piecewise polynomial spline composed of float values on the x-axis and Dual values on the y-axis."  # noqa: E501
-PPSplineDual2.__doc__ = "Piecewise polynomial spline composed of float values on the x-axis and Dual2 values on the y-axis."  # noqa: E501
-
+    from rateslib.typing import Number, DualTypes
 
 def evaluate(
     spline: PPSplineF64 | PPSplineDual | PPSplineDual2,
@@ -63,14 +52,3 @@ def evaluate(
         return spline.ppdnev_single_dual2(x_, m)
     else:
         return spline.ppdnev_single(x_, m)
-
-
-__all__ = (
-    "PPSplineDual",
-    "PPSplineDual2",
-    "PPSplineF64",
-    "PPSpline",
-    "bspldnev_single",
-    "bsplev_single",
-    "evaluate",
-)
