@@ -16,7 +16,6 @@ from rateslib.scheduling import (
 from rateslib.scheduling.calendars import _adjust_date, _get_years_and_months, _is_day_type_tenor
 from rateslib.scheduling.dcfs import _dcf_actacticma
 from rateslib.scheduling.frequency import _get_fx_expiry_and_delivery
-from rateslib.scheduling.rollday import _is_eom, _is_som
 
 
 @pytest.fixture
@@ -199,19 +198,6 @@ def test_modifiers_som(cal_, modifier, expected) -> None:
 )
 def test_modifiers_eom(cal_, modifier, expected) -> None:
     result = add_tenor(dt(2020, 12, 31), "2M", modifier, cal_)
-    assert result == expected
-
-
-@pytest.mark.parametrize(
-    ("date", "expected"),
-    [
-        (dt(2022, 1, 1), (True, False)),
-        (dt(2022, 2, 28), (False, True)),
-        (dt(2022, 2, 27), (False, False)),
-    ],
-)
-def test_is_eom_som(date, expected) -> None:
-    result = (_is_som(date), _is_eom(date))
     assert result == expected
 
 

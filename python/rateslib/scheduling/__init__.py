@@ -6,7 +6,7 @@ from rateslib.scheduling.calendars import get_calendar
 from rateslib.scheduling.dcfs import dcf
 from rateslib.scheduling.frequency import add_tenor
 from rateslib.scheduling.imm import get_imm, next_imm
-from rateslib.scheduling.wrappers import Schedule
+from rateslib.scheduling.schedule import Schedule
 
 # Patch the namespace for pyo3 pickling: see https://github.com/PyO3/pyo3/discussions/5226
 rateslib.rs.RollDay_Day = rateslib.rs.RollDay.Day  # type: ignore[attr-defined]
