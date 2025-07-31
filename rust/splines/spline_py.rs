@@ -28,21 +28,25 @@ macro_rules! create_interface {
                 Ok((self.k()?, self.t()?, self.c()?))
             }
 
+            /// The dimension of the pp spline.
             #[getter]
             fn n(&self) -> PyResult<usize> {
                 Ok(*self.inner.n())
             }
 
+            /// The order of the pp spline.
             #[getter]
             fn k(&self) -> PyResult<usize> {
                 Ok(*self.inner.k())
             }
 
+            /// The knot sequence of the pp spline, of length ``n+k``.
             #[getter]
             fn t(&self) -> PyResult<Vec<f64>> {
                 Ok(self.inner.t().clone())
             }
 
+            /// The spline coefficients of length ``n``.
             #[getter]
             fn c(&self) -> PyResult<Option<Vec<$type>>> {
                 match self.inner.c() {
@@ -399,7 +403,12 @@ macro_rules! create_interface {
                 format!("<rl.{} at {:p}>", stringify!($name) ,self)
             }
 
-            // JSON
+             // JSON
+            /// Return a JSON representation of the object.
+            ///
+            /// Returns
+            /// -------
+            /// str
             #[pyo3(name = "to_json")]
             fn to_json_py(&self) -> PyResult<String> {
                 match DeserializedObj::$name(self.clone()).to_json() {
