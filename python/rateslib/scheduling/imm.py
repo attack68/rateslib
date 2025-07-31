@@ -50,13 +50,33 @@ def next_imm(start: datetime, definition: str | Imm = Imm.Wed3_HMUZ) -> datetime
     The ``definition`` is typically input as an :class:`~rateslib.scheduling.Imm` enum.
     For simpler, and legacy cases, string input options are also available:
 
-    - 'imm': 3rd Wednesday in any month of March, June, September or December.
-    - 'serial_imm': 3rd Wednesday in any month of the year.
-    - 'credit_imm': 20th of the month in March, June, September or December.
-    - 'credit_imm_HU': 20th of the month in March or September, facilitating CDSs that
-       rolls on a 6-month basis.
-    - 'credit_imm_MZ': 20th of the month in June and December.
-    - String representations of all of the underlying enum variants.
+    - 'imm': :class:`~rateslib.scheduling.Imm.Wed3_HMUZ`,
+    - 'serial_imm': :class:`~rateslib.scheduling.Imm.Wed3`,
+    - 'credit_imm': :class:`~rateslib.scheduling.Imm.Day20_HMUZ`,
+    - 'credit_imm_HU': :class:`~rateslib.scheduling.Imm.Day20_HU`,
+    - 'credit_imm_MZ': :class:`~rateslib.scheduling.Imm.Day20_MZ`,
+    - String representations of all of the underlying enum variants, e.g. 'Wed3'.
+
+    Examples
+    --------
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import next_imm, Imm, dt
+
+    Get the next quarterly SOFR or ESTR futures date, defined by CME, EUREX, or ICE:
+
+    .. ipython:: python
+
+       next_imm(dt(2000, 1, 1), Imm.Wed3_HMUZ)
+
+    Get the next serial futures contract for a NZD bank bill defined by ASX:
+
+    .. ipython:: python
+
+       next_imm(dt(2000, 1, 1), "Wed1_Post9")
+
     """
     if isinstance(definition, str):
         imm_: Imm = _Imm[definition.lower()]
@@ -105,6 +125,27 @@ def get_imm(
     Returns
     -------
     datetime
+
+    Examples
+    --------
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import get_imm, Imm, dt
+
+    Get the quarterly SOFR or ESTR futures date, defined by CME, EUREX, or ICE:
+
+    .. ipython:: python
+
+       get_imm(3, 2022, definition=Imm.Wed3_HMUZ)
+       get_imm(code="H22", definition="Wed3")
+
+    Get a serial futures contract for a NZD bank bill defined by ASX:
+
+    .. ipython:: python
+
+       get_imm(1, 2023, definition="Wed1_Post9")
     """
     if isinstance(code, str):
         year = int(code[1:]) + 2000

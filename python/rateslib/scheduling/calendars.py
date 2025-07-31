@@ -32,7 +32,7 @@ def get_calendar(
 
     Returns
     -------
-    NamedCal, Cal, UnionCal or tuple
+    NamedCal, Cal, UnionCal
 
     Notes
     -----
