@@ -5,7 +5,12 @@
         "url": "https://rateslib.com/py/en/latest/"
     },
     {
-        "name": "2.0 (stable)",
+        "name": "2.1 (stable)",
+        "version": "2.1.x",
+        "url": "https://rateslib.com/py/en/2.1.x/"
+    },
+    {
+        "name": "2.0",
         "version": "2.0.x",
         "url": "https://rateslib.com/py/en/2.0.x/"
     },

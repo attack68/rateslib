@@ -12,7 +12,7 @@ and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
 email contact, see `rateslib <https://rateslib.com>`_.
 
-2.1.0 (Not released)
+2.1.0 (31st July 2025)
 ***************************
 
 This release has **restructured Curves** in order to provide a plug-in system to allow a user
