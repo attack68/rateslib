@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 from pandas import DataFrame, DatetimeIndex, MultiIndex
 
 from rateslib import defaults
-from rateslib.calendars import _get_fx_expiry_and_delivery, get_calendar
 from rateslib.curves._parsers import _validate_curve_not_no_input
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, Variable
@@ -34,6 +33,8 @@ from rateslib.periods import (
     NonDeliverableCashflow,
 )
 from rateslib.periods.utils import _get_fx_fixings_from_non_fx_forwards, _maybe_local
+from rateslib.scheduling import get_calendar
+from rateslib.scheduling.frequency import _get_fx_expiry_and_delivery
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -46,13 +47,13 @@ if TYPE_CHECKING:
         NPV,
         Any,
         CalInput,
-        Curve_,
         Curves_,
         DualTypes,
         DualTypes_,
         FixingsFx_,
         FixingsRates_,
         Solver_,
+        _BaseCurve_,
         bool_,
         datetime_,
         int_,
@@ -419,7 +420,7 @@ class NDF(Sensitivities, Metrics):
                 currency=reference_currency,
                 settlement_currency=self.kwargs["currency"],
                 payment=self.kwargs["settlement"],
-                fixing_date=self.kwargs["calendar"].lag(
+                fixing_date=self.kwargs["calendar"].lag_bus_days(
                     self.kwargs["settlement"], -self.kwargs["payment_lag"], False
                 ),  # a fixing date can be on a non-settlable date
                 fx_fixing=self.kwargs["fx_fixing"],
@@ -1344,6 +1345,11 @@ class FXSwap(XCS):
     objects.
 
     .. ipython:: python
+       :suppress:
+
+       from rateslib import FXSwap
+
+    .. ipython:: python
 
        usd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.95}, id="usd")
        eur = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.97}, id="eur")
@@ -1443,7 +1449,7 @@ class FXSwap(XCS):
                     "Cannot initialise FXSwap with `split_notional` but without `fx_fixings`",
                 )
 
-    def _set_split_notional(self, curve: Curve_ = NoInput(0), at_init: bool = False) -> None:
+    def _set_split_notional(self, curve: _BaseCurve_ = NoInput(0), at_init: bool = False) -> None:
         """
         Will set the fixed rate, if not zero, for leg1, given the provided split notional or the
         forecast split notional calculated from a curve.

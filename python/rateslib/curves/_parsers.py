@@ -11,8 +11,6 @@ from rateslib.default import NoInput
 
 if TYPE_CHECKING:
     from rateslib.typing import (
-        Curve,
-        Curve_,
         CurveInput,
         CurveInput_,
         CurveOption,
@@ -22,10 +20,12 @@ if TYPE_CHECKING:
         Curves_DiscTuple,
         Curves_Tuple,
         Solver,
+        _BaseCurve,
+        _BaseCurve_,
     )
 
 
-def _map_curve_or_id_from_solver_(curve: CurveOrId, solver: Solver) -> Curve:
+def _map_curve_or_id_from_solver_(curve: CurveOrId, solver: Solver) -> _BaseCurve:
     """
     Maps a "Curve | str" to a "Curve" via a Solver mapping.
 
@@ -44,7 +44,7 @@ def _map_curve_or_id_from_solver_(curve: CurveOrId, solver: Solver) -> Curve:
         try:
             # it is a safeguard to load curves from solvers when a solver is
             # provided and multiple curves might have the same id
-            __: Curve = solver._get_pre_curve(curve.id)
+            __: _BaseCurve = solver._get_pre_curve(curve.id)
             if id(__) != id(curve):  # Python id() is a memory id, not a string label id.
                 raise ValueError(
                     "A curve has been supplied, as part of ``curves``, which has the same "
@@ -84,7 +84,7 @@ def _map_curve_from_solver_(curve: CurveInput, solver: Solver) -> CurveOption:
     This is the explicit variety which does not handle NoInput.
     """
     if isinstance(curve, dict):
-        mapped_dict: dict[str, Curve] = {
+        mapped_dict: dict[str, _BaseCurve] = {
             k: _map_curve_or_id_from_solver_(v, solver) for k, v in curve.items()
         }
         return mapped_dict
@@ -105,7 +105,7 @@ def _map_curve_from_solver(curve: CurveInput_, solver: Solver) -> CurveOption_:
         return _map_curve_from_solver_(curve, solver)
 
 
-def _validate_curve_not_str(curve: CurveOrId) -> Curve:
+def _validate_curve_not_str(curve: CurveOrId) -> _BaseCurve:
     if isinstance(curve, str):
         raise ValueError("`curves` must contain Curve, not str, if `solver` not given.")
     return curve
@@ -158,7 +158,12 @@ def _get_curves_maybe_from_solver(
     if isinstance(curves, str) or not isinstance(curves, Sequence):  # Sequence can be str!
         # convert isolated value input to list
         curves_as_list: list[
-            Curve | dict[str, str | Curve] | dict[str, str] | dict[str, Curve] | NoInput | str
+            _BaseCurve
+            | dict[str, str | _BaseCurve]
+            | dict[str, str]
+            | dict[str, _BaseCurve]
+            | NoInput
+            | str
         ] = [curves]
     else:
         curves_as_list = list(curves)
@@ -197,7 +202,7 @@ def _make_4_tuple_of_curve(curves: tuple[CurveOption_, ...]) -> Curves_Tuple:
     return curves  # type: ignore[return-value]
 
 
-def _validate_curve_is_not_dict(curve: CurveOption_) -> Curve_:
+def _validate_curve_is_not_dict(curve: CurveOption_) -> _BaseCurve_:
     if isinstance(curve, dict):
         raise ValueError("`disc_curve` cannot be supplied as, or inferred from, a dict of Curves.")
     return curve
@@ -212,7 +217,7 @@ def _validate_disc_curves_are_not_dict(curves_tuple: Curves_Tuple) -> Curves_Dis
     )
 
 
-def _validate_curve_not_no_input(curve: Curve_) -> Curve:
+def _validate_curve_not_no_input(curve: _BaseCurve_) -> _BaseCurve:
     if isinstance(curve, NoInput):
         raise ValueError("`curve` must be supplied. Got NoInput or None.")
     return curve
@@ -227,7 +232,7 @@ def _validate_obj_not_no_input(obj: T | NoInput, name: str) -> T:
     return obj
 
 
-def _disc_maybe_from_curve(curve: CurveOption_, disc_curve: Curve_) -> Curve_:
+def _disc_maybe_from_curve(curve: CurveOption_, disc_curve: _BaseCurve_) -> _BaseCurve_:
     """Return a discount curve, pointed as the `curve` if not provided and if suitable Type."""
     if isinstance(disc_curve, NoInput):
         if isinstance(curve, dict):
@@ -236,20 +241,49 @@ def _disc_maybe_from_curve(curve: CurveOption_, disc_curve: Curve_) -> Curve_:
             return NoInput(0)
         elif curve._base_type == _CurveType.values:
             raise ValueError("`disc_curve` cannot be inferred from a non-DF based curve.")
-        _: Curve | NoInput = curve
+        _: _BaseCurve | NoInput = curve
     else:
         _ = disc_curve
     return _
 
 
-def _disc_required_maybe_from_curve(curve: CurveOption_, disc_curve: CurveOption_) -> Curve:
+def _disc_required_maybe_from_curve(curve: CurveOption_, disc_curve: CurveOption_) -> _BaseCurve:
     """Return a discount curve, pointed as the `curve` if not provided and if suitable Type."""
     if isinstance(disc_curve, dict):
         raise NotImplementedError("`disc_curve` cannot currently be inferred from a dict.")
-    _: Curve_ = _disc_maybe_from_curve(curve, disc_curve)
+    _: _BaseCurve_ = _disc_maybe_from_curve(curve, disc_curve)
     if isinstance(_, NoInput):
         raise TypeError(
             "`curves` have not been supplied correctly. "
             "A `disc_curve` is required to perform function."
         )
     return _
+
+
+def _maybe_set_ad_order(
+    curve: CurveOption_, order: int | dict[str, int | None] | None
+) -> int | dict[str, int | None] | None:
+    """method is used internally to set AD order and then later revert the curve to its original"""
+    if isinstance(curve, NoInput) or order is None:
+        return None  # do nothing
+    else:
+        if isinstance(curve, dict):
+            # method will return a dict of orders if a dict of curves is provided as input
+            if isinstance(order, dict):
+                return {
+                    k: _maybe_set_ad_order(v, order[k])  # type: ignore[misc]
+                    for k, v in curve.items()
+                }
+            else:
+                return {
+                    k: _maybe_set_ad_order(v, order)  # type: ignore[misc]
+                    for k, v in curve.items()
+                }
+        else:
+            try:
+                original_order = curve.ad
+                curve._set_ad_order(order)  # type: ignore[arg-type]
+            except AttributeError:
+                # Curve has no method (possibly a custom curve and not a subclass of _BaseCurve)
+                return None
+            return original_order

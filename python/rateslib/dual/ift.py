@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, ParamSpec
 import numpy as np
 
 from rateslib.dual.newton import _dual_float_or_unchanged, _solver_result
-from rateslib.dual.utils import _dual_float, _get_order_of, gradient
+from rateslib.dual.utils import _dual_float, _get_order_of, gradient, set_order
 from rateslib.rs import Dual, Dual2
 
 if TYPE_CHECKING:
@@ -170,7 +170,7 @@ def ift_1dim(
         else:
             return _solver_result(-1, i, g1, time() - t0, log=True, algo="ift_1dim")
 
-    # # IFT to preserve AD
+    # # IFT to preserve AD  # TODO: this uses `set_order` to handle Variable, maybe `_to_number`?
     ad_order = _get_order_of(s_tgt)
     if ad_order == 0:
         # return g1 as is.
@@ -178,13 +178,13 @@ def ift_1dim(
     elif ad_order == 1:
         s_: Dual | Dual2 = s(Dual(g1, ["x"], []))  # type: ignore[assignment]
         ds_dx = gradient(s_, vars=["x"])[0]
-        ret = Dual.vars_from(s_tgt, g1, s_tgt.vars, 1.0 / ds_dx * s_tgt.dual)  # type: ignore[union-attr, arg-type]
+        ret = Dual.vars_from(set_order(s_tgt, 1), g1, s_tgt.vars, 1.0 / ds_dx * s_tgt.dual)  # type: ignore[union-attr, arg-type]
     else:  # ad_order == 2
         s_ = s(Dual2(g1, ["x"], [], []))  # type: ignore[assignment]
         ds_dx = gradient(s_, vars=["x"])[0]
         d2s_dx2 = gradient(s_, vars=["x"], order=2)[0][0]
         ret = Dual2.vars_from(
-            s_tgt,  # type: ignore[arg-type]
+            set_order(s_tgt, 2),  # type: ignore[arg-type]
             g1,
             s_tgt.vars,  # type: ignore[union-attr, arg-type]
             1.0 / ds_dx * s_tgt.dual,  # type: ignore[union-attr]

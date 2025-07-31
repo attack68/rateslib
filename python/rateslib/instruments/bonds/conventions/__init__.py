@@ -51,7 +51,7 @@ class BondCalcMode:
     Notes
     -------
     For an example custom implementation of a *BondCalcMode* see the cookbook article:
-    :ref:`Understanding and Customising FixedRateBond Conventions <cook-bond_convs>`
+    `Cookbook: Understanding and Customising FixedRateBond Conventions <../z_bond_conventions.html>`_
 
     **Notation**
     

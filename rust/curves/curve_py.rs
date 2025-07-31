@@ -1,16 +1,17 @@
 //! Wrapper module to export Rust curve data types to Python using pyo3 bindings.
 
-use crate::calendars::CalType;
-use crate::calendars::{Convention, Modifier};
 use crate::curves::nodes::{Nodes, NodesTimestamp};
 use crate::curves::{
     CurveDF, CurveInterpolation, FlatBackwardInterpolator, FlatForwardInterpolator,
-    LinearInterpolator, LinearZeroRateInterpolator, LogLinearInterpolator, NullInterpolator,
+    LinearInterpolator, LinearZeroRateInterpolator, LogLinearInterpolator, Modifier,
+    NullInterpolator,
 };
 use crate::dual::{get_variable_tags, set_order, ADOrder, Dual, Dual2, Number};
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
-use bincode::{deserialize, serialize};
+use crate::scheduling::{Calendar, Convention};
+use bincode::config::legacy;
+use bincode::serde::{decode_from_slice, encode_to_vec};
 use chrono::NaiveDateTime;
 use indexmap::IndexMap;
 use pyo3::exceptions::PyValueError;
@@ -65,7 +66,7 @@ impl CurveInterpolation for CurveInterpolator {
 #[pyclass(module = "rateslib.rs")]
 #[derive(Clone, Deserialize, Serialize)]
 pub(crate) struct Curve {
-    inner: CurveDF<CurveInterpolator, CalType>,
+    inner: CurveDF<CurveInterpolator, Calendar>,
 }
 
 #[pymethods]
@@ -79,7 +80,7 @@ impl Curve {
         id: String,
         convention: Convention,
         modifier: Modifier,
-        calendar: CalType,
+        calendar: Calendar,
         index_base: Option<f64>,
     ) -> PyResult<Self> {
         let nodes_ = nodes_into_order(nodes, ad, &id);
@@ -175,11 +176,11 @@ impl Curve {
 
     // Pickling
     pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
-        *self = deserialize(state.as_bytes()).unwrap();
+        *self = decode_from_slice(state.as_bytes(), legacy()).unwrap().0;
         Ok(())
     }
     pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new(py, &serialize(&self).unwrap()))
+        Ok(PyBytes::new(py, &encode_to_vec(&self, legacy()).unwrap()))
     }
     pub fn __getnewargs__(
         &self,
@@ -190,7 +191,7 @@ impl Curve {
         String,
         Convention,
         Modifier,
-        CalType,
+        Calendar,
         Option<f64>,
     )> {
         Ok((
@@ -244,5 +245,43 @@ fn nodes_into_order(mut nodes: IndexMap<NaiveDateTime, Number>, ad: ADOrder, id:
                 |(i, (k, v))| (k, Dual2::from(set_order(v, ad, vec![vars[i].clone()]))),
             )))
         }
+    }
+}
+
+#[pymethods]
+impl Modifier {
+    // Pickling
+    #[new]
+    fn new_py(ad: u8) -> PyResult<Modifier> {
+        match ad {
+            0_u8 => Ok(Modifier::Act),
+            1_u8 => Ok(Modifier::F),
+            2_u8 => Ok(Modifier::ModF),
+            3_u8 => Ok(Modifier::P),
+            4_u8 => Ok(Modifier::ModP),
+            _ => Err(PyValueError::new_err(
+                "unreachable code on Convention pickle.",
+            )),
+        }
+    }
+    pub fn __getnewargs__<'py>(&self) -> PyResult<(u8,)> {
+        match self {
+            Modifier::Act => Ok((0_u8,)),
+            Modifier::F => Ok((1_u8,)),
+            Modifier::ModF => Ok((2_u8,)),
+            Modifier::P => Ok((3_u8,)),
+            Modifier::ModP => Ok((4_u8,)),
+        }
+    }
+}
+
+#[pyfunction]
+pub(crate) fn _get_modifier_str(modifier: Modifier) -> String {
+    match modifier {
+        Modifier::F => "F".to_string(),
+        Modifier::ModF => "MF".to_string(),
+        Modifier::P => "P".to_string(),
+        Modifier::ModP => "MP".to_string(),
+        Modifier::Act => "NONE".to_string(),
     }
 }

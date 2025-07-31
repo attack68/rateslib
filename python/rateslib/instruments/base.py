@@ -431,7 +431,7 @@ class Metrics:
             ],
             dropna=False,
         )
-        _ = _.sum().unstack([0, 1]).droplevel(0, axis=1)  # type: ignore[arg-type]
+        _ = _.sum().unstack([0, 1]).droplevel(0, axis=1)
         _.columns.names = ["local_ccy", "collateral_ccy"]
         _.index.names = ["payment"]
         _ = _.sort_index(ascending=True, axis=0).infer_objects().fillna(0.0)
@@ -479,7 +479,7 @@ class BaseDerivative(Sensitivities, Metrics, metaclass=ABCMeta):
         sign equal to that of notional if the notional is to reduce towards zero.
     convention: str, optional
         The day count convention applied to calculations of period accrual dates.
-        See :meth:`~rateslib.calendars.dcf`.
+        See :meth:`~rateslib.scheduling.dcf`.
     leg2_kwargs: Any
         All ``leg2`` arguments can be similarly input as above, e.g. ``leg2_frequency``.
         If **not** given, any ``leg2``

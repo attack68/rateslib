@@ -49,16 +49,6 @@ class default_context(ContextDecorator):
                 setattr(defaults, pat, val)
 
 
-from rateslib.calendars import (
-    Cal,
-    NamedCal,
-    UnionCal,
-    add_tenor,
-    create_calendar,
-    dcf,
-    get_calendar,
-    get_imm,
-)
 from rateslib.curves import (
     CompositeCurve,
     Curve,
@@ -68,7 +58,7 @@ from rateslib.curves import (
     index_left,
     index_value,
 )
-from rateslib.dual import Dual, Dual2, Variable, dual_exp, dual_log, dual_solve, gradient
+from rateslib.dual import ADOrder, Dual, Dual2, Variable, dual_exp, dual_log, dual_solve, gradient
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments import (
@@ -127,12 +117,27 @@ from rateslib.periods import (
     IndexCashflow,
     IndexFixedPeriod,
     NonDeliverableCashflow,
+    NonDeliverableFixedPeriod,
 )
-from rateslib.scheduling import Schedule
+from rateslib.scheduling import (
+    Adjuster,
+    Cal,
+    Frequency,
+    Imm,
+    NamedCal,
+    RollDay,
+    Schedule,
+    StubInference,
+    UnionCal,
+    add_tenor,
+    dcf,
+    get_calendar,
+    get_imm,
+    next_imm,
+)
 from rateslib.serialization import from_json
 from rateslib.solver import Solver
 from rateslib.splines import (
-    PPSpline,
     PPSplineDual,
     PPSplineDual2,
     PPSplineF64,
@@ -152,15 +157,13 @@ fixed income securities, derivatives, FX representation and curve construction
 in Python.
 """  # noqa: A001
 
-# Use __all__ to let type checkers know what is part of the public API.
-# Rateslib is not (yet) a py.typed library: the public API is determined
-# based on the documentation.
 __all__ = [
     "dt",
     "defaults",
     "NoInput",
     "from_json",
     # dual.py
+    "ADOrder",
     "Dual",
     "Dual2",
     "Variable",
@@ -171,21 +174,24 @@ __all__ = [
     # splines.py
     "bsplev_single",
     "bspldnev_single",
-    "PPSpline",
     "PPSplineF64",
     "PPSplineDual",
     "PPSplineDual2",
-    # calendars.py
-    "create_calendar",
+    # scheduling.py
     "get_calendar",
     "get_imm",
+    "next_imm",
     "add_tenor",
     "dcf",
     "Cal",
     "UnionCal",
     "NamedCal",
-    # scheduling.py
     "Schedule",
+    "Frequency",
+    "RollDay",
+    "Adjuster",
+    "StubInference",
+    "Imm",
     # curves.py
     "Curve",
     "LineCurve",
@@ -213,6 +219,7 @@ __all__ = [
     "FXCallPeriod",
     "FXPutPeriod",
     "NonDeliverableCashflow",
+    "NonDeliverableFixedPeriod",
     "CreditPremiumPeriod",
     "CreditProtectionPeriod",
     # legs.py
@@ -260,4 +267,4 @@ __all__ = [
     "FXBrokerFly",
 ]
 
-__version__ = "2.0.1"
+__version__ = "2.1.0"

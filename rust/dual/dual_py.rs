@@ -3,16 +3,13 @@
 use crate::dual::dual::{Dual, Dual2, Gradient1, Gradient2, Vars};
 use crate::dual::dual_ops::math_funcs::MathFuncs;
 use crate::dual::enums::{ADOrder, Number};
-use bincode::{deserialize, serialize};
-use num_traits::{Pow, Signed};
-use pyo3::exceptions::{PyTypeError, PyValueError};
-use pyo3::prelude::*;
-use pyo3::types::PyBytes; // , PyFloat};
-use std::sync::Arc;
-// use pyo3::types::PyFloat;
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
+use num_traits::{Pow, Signed};
 use numpy::{Element, PyArray1, PyArray2, PyArrayDescr, ToPyArray};
+use pyo3::exceptions::{PyTypeError, PyValueError};
+use pyo3::prelude::*;
+use std::sync::Arc;
 
 unsafe impl Element for Dual {
     const IS_COPY: bool = false;
@@ -35,17 +32,6 @@ unsafe impl Element for Dual2 {
     }
 }
 
-// This was removed when upgrading to pyO3 0.23: see https://pyo3.rs/v0.23.0/migration#intopyobject-and-intopyobjectref-derive-macros
-// impl IntoPy<PyObject> for Number {
-//     fn into_py(self, py: Python<'_>) -> PyObject {
-//         match self {
-//             Number::F64(f) => PyFloat::new_bound(py, f).to_object(py),
-//             Number::Dual(d) => Py::new(py, d).unwrap().to_object(py),
-//             Number::Dual2(d) => Py::new(py, d).unwrap().to_object(py),
-//         }
-//     }
-// }
-
 // https://github.com/PyO3/pyo3/discussions/3911
 // #[derive(Debug, Clone, PartialEq, PartialOrd, FromPyObject)]
 // pub enum DualsOrPyFloat<'py> {
@@ -66,14 +52,7 @@ impl ADOrder {
             _ => Err(PyValueError::new_err("unreachable code on ADOrder pickle.")),
         }
     }
-    pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
-        *self = deserialize(state.as_bytes()).unwrap();
-        Ok(())
-    }
-    pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new(py, &serialize(&self).unwrap()))
-    }
-    pub fn __getnewargs__<'py>(&self) -> PyResult<(u8,)> {
+    fn __getnewargs__<'py>(&self) -> PyResult<(u8,)> {
         match self {
             ADOrder::Zero => Ok((0_u8,)),
             ADOrder::One => Ok((1_u8,)),
@@ -132,24 +111,28 @@ impl Dual {
         Dual::try_new_from(other, real, vars, dual)
     }
 
+    /// The real coefficient of the dual number - its value.
     #[getter]
     #[pyo3(name = "real")]
     fn real_py(&self) -> PyResult<f64> {
         Ok(self.real())
     }
 
+    /// The string labels of the variables for which to record derivatives.
     #[getter]
     #[pyo3(name = "vars")]
     fn vars_py(&self) -> PyResult<Vec<&String>> {
         Ok(Vec::from_iter(self.vars().iter()))
     }
 
+    /// First derivative information contained as coefficient of linear manifold.
     #[getter]
     #[pyo3(name = "dual")]
     fn dual_py<'py>(&'py self, py: Python<'py>) -> PyResult<Bound<'py, PyArray1<f64>>> {
         Ok(self.dual().to_pyarray(py))
     }
 
+    /// Not available on `Dual`.
     #[getter]
     #[pyo3(name = "dual2")]
     fn dual2_py<'py>(&'py self, _py: Python<'py>) -> PyResult<Bound<'py, PyArray2<f64>>> {
@@ -158,6 +141,16 @@ impl Dual {
         ))
     }
 
+    /// Return the first derivatives of Self.
+    ///
+    /// Parameters
+    /// ----------
+    /// vars: tuple/list of str
+    ///     Name of the variables which to return gradients for.
+    ///
+    /// Returns
+    /// -------
+    /// ndarray
     #[pyo3(name = "grad1")]
     fn grad1<'py>(
         &'py self,
@@ -167,6 +160,7 @@ impl Dual {
         Ok(self.gradient1(vars).to_pyarray(py))
     }
 
+    /// Not available for :class:`~rateslib.dual.Dual`.
     #[pyo3(name = "grad2")]
     fn grad2<'py>(
         &'py self,
@@ -404,13 +398,6 @@ impl Dual {
     }
 
     // Pickling
-    pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
-        *self = deserialize(state.as_bytes()).unwrap();
-        Ok(())
-    }
-    pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new(py, &serialize(&self).unwrap()))
-    }
     pub fn __getnewargs__(&self) -> PyResult<(f64, Vec<String>, Vec<f64>)> {
         Ok((
             self.real,
@@ -419,7 +406,7 @@ impl Dual {
         ))
     }
 
-    // Conversion
+    /// Convert self into a :class:`~rateslib.dual.Dual2` with 2nd order manifold set to zero.
     #[pyo3(name = "to_dual2")]
     fn to_dual2_py(&self) -> Dual2 {
         self.clone().into()
@@ -464,6 +451,7 @@ impl Dual2 {
     /// For examples see also...
     ///
     /// .. seealso::
+    ///
     ///    :meth:`~rateslib.dual.Dual.vars_from`: Create a *Dual* with ``vars`` linked to another.
     ///
     #[staticmethod]
@@ -477,30 +465,44 @@ impl Dual2 {
         Dual2::try_new_from(other, real, vars, dual, dual2)
     }
 
+    /// The real coefficient of the dual number - its value.
     #[getter]
     #[pyo3(name = "real")]
     fn real_py(&self) -> PyResult<f64> {
         Ok(self.real)
     }
 
+    /// The string labels of the variables for which to record derivatives.
     #[getter]
     #[pyo3(name = "vars")]
     fn vars_py(&self) -> PyResult<Vec<&String>> {
         Ok(Vec::from_iter(self.vars.iter()))
     }
 
+    /// First derivative information contained as coefficient of linear manifold.
     #[getter]
     #[pyo3(name = "dual")]
     fn dual_py<'py>(&'py self, py: Python<'py>) -> PyResult<Bound<'py, PyArray1<f64>>> {
         Ok(self.dual.to_pyarray(py))
     }
 
+    /// Second derivative information contained as coefficient of quadratic manifold.
     #[getter]
     #[pyo3(name = "dual2")]
     fn dual2_py<'py>(&'py self, py: Python<'py>) -> PyResult<Bound<'py, PyArray2<f64>>> {
         Ok(self.dual2.to_pyarray(py))
     }
 
+    /// Return the first derivatives of a Self.
+    ///
+    /// Parameters
+    /// ----------
+    /// vars: tuple/list of str
+    ///     Name of the variables which to return gradients for.
+    ///
+    /// Returns
+    /// -------
+    /// ndarray
     #[pyo3(name = "grad1")]
     fn grad1_py<'py>(
         &'py self,
@@ -510,6 +512,16 @@ impl Dual2 {
         Ok(self.gradient1(vars).to_pyarray(py))
     }
 
+    /// Return the second derivatives of Self.
+    ///
+    /// Parameters
+    /// ----------
+    /// vars: tuple/list of str
+    ///     Name of the variables which to return gradients for.
+    ///
+    /// Returns
+    /// -------
+    /// ndarray
     #[pyo3(name = "grad2")]
     fn grad2_py<'py>(
         &'py self,
@@ -519,6 +531,19 @@ impl Dual2 {
         Ok(self.gradient2(vars).to_pyarray(py))
     }
 
+    /// Return the first derivatives of Self remapped as dual numbers.
+    ///
+    /// This preserves second derivative information so that first derivatives maintain
+    /// their own sensitivity to the variables.
+    ///
+    /// Parameters
+    /// ----------
+    /// vars: tuple/list of str
+    ///     Name of the variables which to return gradients for.
+    ///
+    /// Returns
+    /// -------
+    /// ndarray
     #[pyo3(name = "grad1_manifold")]
     fn grad1_manifold_py<'py>(
         &'py self,
@@ -752,13 +777,6 @@ impl Dual2 {
     }
 
     // Pickling
-    fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
-        *self = deserialize(state.as_bytes()).unwrap();
-        Ok(())
-    }
-    fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new(py, &serialize(&self).unwrap()))
-    }
     fn __getnewargs__(&self) -> PyResult<(f64, Vec<String>, Vec<f64>, Vec<f64>)> {
         Ok((
             self.real,
@@ -768,7 +786,7 @@ impl Dual2 {
         ))
     }
 
-    // Conversion
+    /// Convert self into a :class:`~rateslib.dual.Dual` dropping 2nd order manifold coefficients.
     #[pyo3(name = "to_dual")]
     fn to_dual_py(&self) -> Dual {
         self.clone().into()

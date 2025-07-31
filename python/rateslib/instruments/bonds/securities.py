@@ -3,20 +3,21 @@ from __future__ import annotations
 import abc
 import warnings
 from datetime import datetime, timedelta
+from functools import partial
 from typing import TYPE_CHECKING
 
 from pandas import DataFrame, Series
 
 from rateslib import defaults
-from rateslib.calendars import add_tenor, dcf
 from rateslib.curves import Curve, LineCurve, average_rate, index_left, index_value
 from rateslib.curves._parsers import (
     _disc_required_maybe_from_curve,
+    _maybe_set_ad_order,
     _validate_curve_is_not_dict,
     _validate_curve_not_no_input,
 )
 from rateslib.default import NoInput, _drb
-from rateslib.dual import Dual, Dual2, gradient, ift_1dim, newton_1dim, quadratic_eqn
+from rateslib.dual import Dual, Dual2, gradient, ift_1dim
 from rateslib.dual.utils import _dual_float
 from rateslib.instruments.base import Metrics
 from rateslib.instruments.bonds.conventions import (
@@ -40,6 +41,7 @@ from rateslib.periods import (
     FloatPeriod,
 )
 from rateslib.periods.utils import _maybe_local
+from rateslib.scheduling import add_tenor, dcf
 
 if TYPE_CHECKING:
     from rateslib.instruments.bonds.conventions.accrued import AccrualFunction
@@ -54,7 +56,6 @@ if TYPE_CHECKING:
         CalInput,
         Callable,
         Cashflow,
-        Curve_,
         CurveOption,
         CurveOption_,
         Curves_,
@@ -66,8 +67,11 @@ if TYPE_CHECKING:
         IndexFixedPeriod,
         Number,
         Solver_,
+        _BaseCurve,
+        _BaseCurve_,
         bool_,
         datetime_,
+        float_,
         int_,
         str_,
     )
@@ -88,8 +92,8 @@ class BondMixin:
         Uses unadjusted dates.
         """
         _: int = index_left(
-            self.leg1.schedule.uschedule,
-            len(self.leg1.schedule.uschedule),
+            self.leg1.schedule.aschedule,
+            len(self.leg1.schedule.aschedule),
             settlement,
         )
         return _
@@ -157,12 +161,12 @@ class BondMixin:
         not** receive the coupon if they settle on or after the coupon end date.
         """
         prev_a_idx = index_left(
-            self.leg1.schedule.uschedule,
-            len(self.leg1.schedule.uschedule),
+            self.leg1.schedule.aschedule,
+            len(self.leg1.schedule.aschedule),
             settlement,
         )
-        ex_div_date = self.leg1.schedule.calendar.lag(
-            self.leg1.schedule.uschedule[prev_a_idx + 1],
+        ex_div_date = self.leg1.schedule.calendar.lag_bus_days(
+            self.leg1.schedule.aschedule[prev_a_idx + 1],
             -self.kwargs["ex_div"],
             True,
         )
@@ -282,7 +286,7 @@ class BondMixin:
         f: int = 12 / defaults.frequency_months[self.leg1.schedule.frequency]  # type: ignore[assignment]
         acc_idx: int = self._period_index(settlement)
         _is_ex_div: bool = self.ex_div(settlement)
-        if settlement == self.leg1.schedule.uschedule[acc_idx + 1]:
+        if settlement == self.leg1.schedule.aschedule[acc_idx + 1]:
             # then settlement aligns with a cashflow: manually adjust to next period
             _is_ex_div = False
             acc_idx += 1
@@ -512,7 +516,7 @@ class BondMixin:
     def _npv_local(
         self,
         curve: CurveOption_,
-        disc_curve: Curve,
+        disc_curve: _BaseCurve,
         settlement: datetime,
         projection: datetime_,
     ) -> DualTypes:
@@ -556,8 +560,10 @@ class BondMixin:
         self._set_base_index_if_none(curve)
         npv: DualTypes = self.leg1.npv(curve, disc_curve, NoInput(0), NoInput(0), local=False)  # type: ignore[assignment]
 
-        # now must systematically deduct any cashflow between the initial node date
+        # now must systematically deduct any cashflow between the curve initial node date
         # and the settlement date, including the cashflow after settlement if ex_div.
+        # also deduct the previous coupon period - which is only relevant if it ended on a
+        # holiday and the payment has rolled into scope (see gh dev 17)
         initial_idx = index_left(
             self.leg1.schedule.aschedule,
             self.leg1.schedule.n_periods + 1,
@@ -569,7 +575,9 @@ class BondMixin:
             settlement,
         )
 
-        for period_idx in range(initial_idx, settle_idx):
+        for period_idx in range(initial_idx - 1, settle_idx):
+            if period_idx < 0:
+                continue
             # deduct coupon period
             npv -= self.leg1.periods[period_idx].npv(  # type: ignore[operator]
                 curve, disc_curve, NoInput(0), NoInput(0), local=False
@@ -645,7 +653,7 @@ class BondMixin:
             self.leg1.currency,
         )
         curves_1 = _validate_curve_not_no_input(curves_[1])
-        settlement = self.leg1.schedule.calendar.lag(
+        settlement = self.leg1.schedule.calendar.lag_bus_days(
             curves_1.nodes.initial,
             self.kwargs["settle"],
             True,
@@ -656,7 +664,7 @@ class BondMixin:
     def analytic_delta(
         self,
         curve: CurveOption_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
     ) -> DualTypes:
@@ -666,7 +674,7 @@ class BondMixin:
         For arguments see :meth:`~rateslib.periods.BasePeriod.analytic_delta`.
         """
         disc_curve_ = _disc_required_maybe_from_curve(curve, disc_curve)
-        settlement = self.leg1.schedule.calendar.lag(
+        settlement = self.leg1.schedule.calendar.lag_bus_days(
             disc_curve_.nodes.initial,
             self.kwargs["settle"],
             True,
@@ -739,7 +747,7 @@ class BondMixin:
             if isinstance(curves_[1], NoInput):
                 settlement_ = self.leg1.schedule.effective
             else:
-                settlement_ = self.leg1.schedule.calendar.lag(
+                settlement_ = self.leg1.schedule.calendar.lag_bus_days(
                     curves_[1].nodes.initial,
                     self.kwargs["settle"],
                     True,
@@ -765,7 +773,9 @@ class BondMixin:
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         price: DualTypes_ = NoInput(0),
-        dirty: bool = False,
+        metric: str_ = NoInput(0),
+        func_tol: float_ = NoInput(0),
+        conv_tol: float_ = NoInput(0),
     ) -> DualTypes:
         """
         The option adjusted spread added to the discounting *Curve* to value the security
@@ -792,12 +802,56 @@ class BondMixin:
             Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
         price : float, Dual, Dual2
             The price of the bond to match.
-        dirty : bool
-            Whether the price is given clean or dirty.
+        metric : str, optional
+            The metric to use when evaluating the price/rate of the instrument. If not
+            given uses the instrument's :meth:`~rateslib.instruments.FixedRateBond.rate` method
+            default.
+        func_tol: float, optional
+            The tolerance for the objective function value when iteratively solving. If not given
+            uses `defaults.oaspread_func_tol`.
+        conv_tol: float, optional
+            The tolerance used for stopping criteria of successive iteration values. If not
+            given uses `defaults.oaspread_conv_tol`.
 
         Returns
         -------
         float, Dual, Dual2
+
+        Notes
+        ------
+        The discount curve must be of type :class:`~rateslib.curves._BaseCurve` with a
+        provided :meth:`~rateslib.curves._BaseCurve.shift` method available.
+
+        .. warning::
+           The sensitivity of variables is preserved for the input argument ``price``, but this
+           function does **not** preserve AD towards variables associated with the ``curves`` or
+           ``solver``.
+
+        Examples
+        --------
+
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import Variable
+
+        .. ipython:: python
+
+           bond = FixedRateBond(dt(2000, 1, 1), "3Y", fixed_rate=2.5, spec="us_gb")
+           curve = Curve({dt(2000, 7, 1): 1.0, dt(2005, 7, 1): 0.80})
+           # Add AD variables to the curve without a Solver
+           curve._set_ad_order(1)
+
+           bond.oaspread(curves=curve, price=Variable(95.0, ["price"], []))
+
+        This result excludes curve sensitivities but includes sensitivity to the
+        constructed *'price'* variable. Accuracy can be observed through numerical simulation.
+
+        .. ipython:: python
+
+           bond.oaspread(curves=curve, price=96.0)
+           bond.oaspread(curves=curve, price=94.0)
+
         """
         if isinstance(price, NoInput):
             raise ValueError("`price` must be supplied in order to derive the `oaspread`.")
@@ -810,146 +864,53 @@ class BondMixin:
             base,
             self.leg1.currency,
         )
-        metric = "dirty_price" if dirty else "clean_price"
 
-        return self._oaspread_algorithm(
-            curves_[0], _validate_curve_not_no_input(curves_[1]), metric, _dual_float(price)
+        def s_with_args(
+            g: DualTypes, curve: CurveOption_, disc_curve: _BaseCurve, metric: str_
+        ) -> DualTypes:
+            """
+            Return the price of a bond given an OASpread.
+
+            Parameters
+            ----------
+            g: DualTypes
+                The OASpread value in basis points.
+            curve:
+                The forecasting curve.
+            disc_curve:
+                The discount curve.
+
+            Returns
+            -------
+            DualTypes
+            """
+            _shifted_discount_curve = disc_curve.shift(g)
+            return self.rate(curves=[curve, _shifted_discount_curve], metric=metric)
+
+        disc_curve_: _BaseCurve = _validate_curve_not_no_input(curves_[1])
+        _ad_disc = _maybe_set_ad_order(disc_curve_, 0)
+        _ad_fore = _maybe_set_ad_order(curves_[0], 0)
+
+        s = partial(
+            s_with_args,
+            curve=curves_[0],
+            disc_curve=disc_curve_,
+            metric=metric,
         )
 
-    def _oaspread_algorithm(
-        self, curve: CurveOption_, disc_curve: Curve, metric: str, price: float
-    ) -> float:
-        """
-        Perform the algorithm as specified in "Coding Interest Rates" to derive an OAS spread
-        balancing performance of the iteration with accuracy.
-
-        Not AD safe, returns a float.
-
-        Parameters
-        ----------
-        curve
-        disc_curve
-        metric
-        price
-
-        Returns
-        -------
-        float
-        """
-
-        def _copy_curve(curve: CurveOption_) -> CurveOption_:
-            if isinstance(curve, NoInput) or curve is None:
-                return NoInput(0)
-            elif isinstance(curve, dict):
-                return {k: v.copy() for k, v in curve.items()}
-            else:
-                return curve.copy()
-
-        def _set_ad_order_of_forecasting_curve(curve: CurveOption_, order: int) -> None:
-            if isinstance(curve, NoInput):
-                pass
-            elif isinstance(curve, dict):
-                for _k, v in curve.items():
-                    v._set_ad_order(order)
-            else:
-                curve._set_ad_order(order)
-
-        # attach "z_spread" sensitivity to an AD order 1 curve.
-        disc_curve_ = disc_curve._shift(
-            Dual(0.0, ["z_spread"], []),
-            composite=False,
-            _no_validation=True,
+        result = ift_1dim(
+            s,
+            price,
+            "ytm_quadratic",
+            (-300, 200, 1200),
+            func_tol=_drb(defaults.oaspread_func_tol, func_tol),
+            conv_tol=_drb(defaults.oaspread_conv_tol, conv_tol),
         )
-        curve_ = _copy_curve(curve)
-        _set_ad_order_of_forecasting_curve(curve_, 0)
 
-        # find a first order approximation of z, z_hat, using a Dual approach:
-        npv_price: Dual | Dual2 = self.rate(curves=[curve_, disc_curve_], metric=metric)  # type: ignore[assignment]
-        b: float = gradient(npv_price, ["z_spread"], 1)[0]
-        c: float = _dual_float(npv_price) - price
-        z_hat: float = -c / b
-
-        # shift the curve to the first order approximation and fine tune with 2nd order approxim.
-        disc_curve_ = disc_curve._shift(
-            Dual2(z_hat, ["z_spread"], [], []),
-            composite=False,
-            _no_validation=True,
-        )
-        npv_price = self.rate(curves=[curve_, disc_curve_], metric=metric)  # type: ignore[assignment]
-        coeffs: tuple[float, float, float] = (
-            0.5 * gradient(npv_price, ["z_spread"], 2)[0][0],
-            gradient(npv_price, ["z_spread"], 1)[0],
-            _dual_float(npv_price) - price,
-        )
-        z_hat2: float = quadratic_eqn(*coeffs, x0=-c / b)["g"]
-
-        # perform one final approximation albeit the additional price calculation slows calc time
-        disc_curve_ = disc_curve._shift(
-            z_hat + z_hat2,
-            composite=False,
-            _no_validation=True,
-        )
-        disc_curve_._set_ad_order(0)
-        _set_ad_order_of_forecasting_curve(curve_, 0)
-        npv_price_: float = self.rate(curves=[curve_, disc_curve_], metric=metric)  # type: ignore[assignment]
-        b = coeffs[1] + 2 * coeffs[0] * z_hat2  # forecast the new gradient
-        c = npv_price_ - price
-        z_hat3: float = -c / b
-
-        z = z_hat + z_hat2 + z_hat3
-        return z
-
-    # TODO: unit tests for the oaspread_newton algo, and derive the analytics to keep this AD safe
-    def _oaspread_newton_algorithm(
-        self, curve: CurveOption_, disc_curve: Curve, metric: str, price: float
-    ) -> DualTypes:
-        """
-        NOT FULLY CHECKED or TESTED: DO NOT USE
-
-        Perform the algorithm as specified in "Coding Interest Rates" to derive an OAS spread
-        balancing performance of the iteration with accuracy.
-
-        Not AD safe, returns a float.
-
-        Parameters
-        ----------
-        curve
-        disc_curve
-        metric
-        price
-
-        Returns
-        -------
-        float
-        """
-
-        def _copy_curve(curve: CurveOption_) -> CurveOption_:
-            if isinstance(curve, NoInput) or curve is None:
-                return NoInput(0)
-            elif isinstance(curve, dict):
-                return {k: v.copy() for k, v in curve.items()}
-            else:
-                return curve.copy()
-
-        curve_ = _copy_curve(curve)
-
-        def root(z: DualTypes, P_tgt: DualTypes) -> tuple[DualTypes, float]:
-            if isinstance(z, Dual):
-                vars_ = [_ for _ in z.vars if _ != "__z_spd__§"]
-                z_: DualTypes = Dual(float(z), vars=vars_, dual=gradient(z, vars=vars_, order=1))  # type: ignore[arg-type]
-                z_ += Dual(0.0, ["__z_spd__§"], [])
-            else:
-                z_ = z + Dual(0.0, ["__z_spd__§"], [])
-
-            shifted_curve = disc_curve.shift(z_, composite=False)
-            P_iter: Dual | Dual2 = self.rate(curves=[curve_, shifted_curve], metric=metric)  # type: ignore[assignment]
-            f_0 = P_tgt - P_iter
-            f_1 = -gradient(P_iter, vars=["__z_spd__§"], order=1)[0]
-            return f_0, f_1
-
-        soln = newton_1dim(root, 0.0, 10, 1e-7, 1e-5, (price,), raise_on_fail=False)
-        _: DualTypes = soln["g"]
-        return _
+        _maybe_set_ad_order(disc_curve_, _ad_disc)
+        _maybe_set_ad_order(curves_[0], _ad_fore)
+        ret: DualTypes = result["g"]
+        return ret
 
 
 class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
@@ -998,7 +959,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         sign equal to that of notional if the notional is to reduce towards zero.
     convention: str, optional
         The day count convention applied to calculations of period accrual dates.
-        See :meth:`~rateslib.calendars.dcf`.
+        See :meth:`~rateslib.scheduling.dcf`.
     fixed_rate : float, optional
         The **coupon** rate applied to determine cashflows. Can be set
         to `None` and designated
@@ -1145,7 +1106,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
     fixed_rate: DualTypes
     leg1: FixedLeg
 
-    def _period_cashflow(self, period: Cashflow | FixedPeriod, curve: Curve_) -> DualTypes:  # type: ignore[override]
+    def _period_cashflow(self, period: Cashflow | FixedPeriod, curve: _BaseCurve_) -> DualTypes:  # type: ignore[override]
         """Nominal fixed rate bonds use the known "cashflow" attribute on the *Period*."""
         return period.cashflow  # type: ignore[return-value]  # FixedRate on bond cannot be NoInput
 
@@ -1309,7 +1270,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         metric = _drb(self.kwargs["metric"], metric).lower()
         if metric in ["clean_price", "dirty_price", "ytm"]:
             if isinstance(forward_settlement, NoInput):
-                settlement = self.leg1.schedule.calendar.lag(
+                settlement = self.leg1.schedule.calendar.lag_bus_days(
                     curves_1.nodes.initial,
                     self.kwargs["settle"],
                     True,
@@ -1500,6 +1461,11 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
 
         Examples
         --------
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import FixedRateBond
+
         .. ipython:: python
 
            gilt = FixedRateBond(
@@ -1758,7 +1724,7 @@ class IndexFixedRateBond(FixedRateBond):
             # self.notional which is currently assumed to be a fixed quantity
             raise NotImplementedError("`amortization` for IndexFixedRateBond must be zero.")
 
-    def index_ratio(self, settlement: datetime, curve: Curve_) -> DualTypes:
+    def index_ratio(self, settlement: datetime, curve: _BaseCurve_) -> DualTypes:
         """
         Return the index ratio assigned to an *IndexFixedRateBond* for a given settlement.
 
@@ -1852,7 +1818,7 @@ class IndexFixedRateBond(FixedRateBond):
             "index_dirty_price",
         ]:
             if isinstance(forward_settlement, NoInput):
-                settlement = self.leg1.schedule.calendar.lag(
+                settlement = self.leg1.schedule.calendar.lag_bus_days(
                     curves_1.nodes.initial,
                     self.kwargs["settle"],
                     True,
@@ -1909,7 +1875,7 @@ class Bill(FixedRateBond):
         The currency of the leg (3-digit code).
     convention: str, optional
         The day count convention applied to calculations of period accrual dates.
-        See :meth:`~rateslib.calendars.dcf`.
+        See :meth:`~rateslib.scheduling.dcf`.
     settle : int
         The number of business days for regular settlement time, i.e, 1 is T+1.
     calc_mode : str, optional (defaults.calc_mode["Bill"])
@@ -1946,6 +1912,11 @@ class Bill(FixedRateBond):
     :meth:`~rateslib.instruments.FixedRateBond.fwd_from_repo`
     :meth:`~rateslib.instruments.FixedRateBond.duration`,
     :meth:`~rateslib.instruments.FixedRateBond.convexity`.
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import Bill, Solver
 
     .. ipython:: python
 
@@ -2132,7 +2103,7 @@ class Bill(FixedRateBond):
             self.leg1.currency,
         )
         curves_1 = _validate_curve_not_no_input(curves_[1])
-        settlement = self.leg1.schedule.calendar.lag(
+        settlement = self.leg1.schedule.calendar.lag_bus_days(
             curves_1.nodes.initial,
             self.kwargs["settle"],
             True,
@@ -2379,7 +2350,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         sign equal to that of notional if the notional is to reduce towards zero.
     convention: str, optional
         The day count convention applied to calculations of period accrual dates.
-        See :meth:`~rateslib.calendars.dcf`.
+        See :meth:`~rateslib.scheduling.dcf`.
     float_spread : float, optional
         The spread applied to determine cashflows. Can be set to `None` and designated
         later, perhaps after a mid-market spread for all periods has been calculated.
@@ -2545,7 +2516,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
             # self.notional which is currently assumed to be a fixed quantity
             raise NotImplementedError("`amortization` for FloatRateNote must be zero.")
 
-    def _period_cashflow(self, period: Cashflow | FloatPeriod, curve: Curve_) -> DualTypes:  # type: ignore[override]
+    def _period_cashflow(self, period: Cashflow | FloatPeriod, curve: _BaseCurve_) -> DualTypes:  # type: ignore[override]
         """FloatRateNotes must forecast cashflows with a *Curve* on the *Period*."""
         if isinstance(period, FloatPeriod):
             _: DualTypes = period.cashflow(curve)  # type: ignore[assignment]
@@ -2591,7 +2562,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
                     if isinstance(pseudo_period.fixings, Series):
                         last_fixing = pseudo_period.fixings.iloc[-1]
                     else:
-                        last_fixing = pseudo_period.fixings[-1]  # type: ignore[index, assignment]
+                        last_fixing = pseudo_period.fixings[-1]  # type: ignore[index]
                     warnings.warn(
                         "A `Curve` was not supplied. Residual required fixings not yet "
                         "published are forecast from the last known fixing.",
@@ -2678,6 +2649,12 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         Examples
         --------
         An RFR based FRN where the fixings are known up to the end of period.
+
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import FloatRateNote
+           from pandas import date_range
 
         .. ipython:: python
 
@@ -2835,7 +2812,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         if metric in ["clean_price", "dirty_price", "spread", "ytm"]:
             curves_1 = _validate_curve_not_no_input(curves_[1])
             if isinstance(forward_settlement, NoInput):
-                settlement = self.leg1.schedule.calendar.lag(
+                settlement = self.leg1.schedule.calendar.lag_bus_days(
                     curves_1.nodes.initial,  # discount curve
                     self.kwargs["settle"],
                     True,

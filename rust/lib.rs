@@ -30,13 +30,8 @@ use curves::curve_py::Curve;
 use curves::interpolation::interpolation_py::index_left_f64;
 use curves::{
     FlatBackwardInterpolator, FlatForwardInterpolator, LinearInterpolator,
-    LinearZeroRateInterpolator, LogLinearInterpolator, NullInterpolator,
-};
-
-pub mod calendars;
-use calendars::calendar_py::get_calendar_by_name_py;
-use calendars::{
-    Cal, Convention, Modifier, NamedCal, RollDay, UnionCal, _get_convention_str, _get_modifier_str,
+    LinearZeroRateInterpolator, LogLinearInterpolator, Modifier, NullInterpolator,
+    _get_modifier_str,
 };
 
 pub mod fx;
@@ -46,7 +41,11 @@ use fx::rates::{FXRate, FXRates};
 pub mod fx_volatility;
 use fx_volatility::sabr_funcs::{_sabr_x0, _sabr_x1, _sabr_x2};
 
-// pub mod scheduling;
+pub mod scheduling;
+use scheduling::{
+    Cal, Convention, Frequency, Imm, NamedCal, PyAdjuster, RollDay, Schedule, StubInference,
+    UnionCal, _get_convention_str,
+};
 
 #[pymodule]
 fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -71,6 +70,7 @@ fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Curves
     m.add_class::<Curve>()?;
+    m.add_class::<Modifier>()?;
     m.add_function(wrap_pyfunction!(index_left_f64, m)?)?;
     m.add_class::<FlatBackwardInterpolator>()?;
     m.add_class::<FlatForwardInterpolator>()?;
@@ -79,16 +79,20 @@ fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<LinearZeroRateInterpolator>()?;
     m.add_class::<NullInterpolator>()?;
 
-    // Calendars
+    // Scheduling
     m.add_class::<Cal>()?;
     m.add_class::<UnionCal>()?;
     m.add_class::<NamedCal>()?;
-    m.add_class::<Modifier>()?;
-    m.add_class::<RollDay>()?;
     m.add_class::<Convention>()?;
-    m.add_function(wrap_pyfunction!(get_calendar_by_name_py, m)?)?;
+    m.add_class::<PyAdjuster>()?;
     m.add_function(wrap_pyfunction!(_get_convention_str, m)?)?;
     m.add_function(wrap_pyfunction!(_get_modifier_str, m)?)?;
+
+    m.add_class::<Frequency>()?;
+    m.add_class::<RollDay>()?;
+    m.add_class::<Imm>()?;
+    m.add_class::<StubInference>()?;
+    m.add_class::<Schedule>()?;
 
     // FX
     m.add_class::<Ccy>()?;

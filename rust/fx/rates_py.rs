@@ -2,7 +2,8 @@
 
 use crate::dual::{ADOrder, Number, NumberArray2};
 use crate::fx::rates::{Ccy, FXRate, FXRates};
-use bincode::{deserialize, serialize};
+use bincode::config::legacy;
+use bincode::serde::{decode_from_slice, encode_to_vec};
 use chrono::prelude::*;
 use ndarray::Axis;
 use pyo3::prelude::*;
@@ -36,11 +37,11 @@ impl Ccy {
 
     // Pickling
     pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
-        *self = deserialize(state.as_bytes()).unwrap();
+        *self = decode_from_slice(state.as_bytes(), legacy()).unwrap().0;
         Ok(())
     }
     pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new(py, &serialize(&self).unwrap()))
+        Ok(PyBytes::new(py, &encode_to_vec(&self, legacy()).unwrap()))
     }
     pub fn __getnewargs__<'py>(&self) -> PyResult<(String,)> {
         Ok(((*(self.name)).clone(),))
@@ -110,11 +111,11 @@ impl FXRate {
 
     // Pickling
     pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
-        *self = deserialize(state.as_bytes()).unwrap();
+        *self = decode_from_slice(state.as_bytes(), legacy()).unwrap().0;
         Ok(())
     }
     pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new(py, &serialize(&self).unwrap()))
+        Ok(PyBytes::new(py, &encode_to_vec(&self, legacy()).unwrap()))
     }
     pub fn __getnewargs__<'py>(&self) -> PyResult<(String, String, Number, Option<NaiveDateTime>)> {
         Ok((
@@ -250,11 +251,11 @@ impl FXRates {
 
     // Pickling
     pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
-        *self = deserialize(state.as_bytes()).unwrap();
+        *self = decode_from_slice(state.as_bytes(), legacy()).unwrap().0;
         Ok(())
     }
     pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new(py, &serialize(&self).unwrap()))
+        Ok(PyBytes::new(py, &encode_to_vec(&self, legacy()).unwrap()))
     }
     pub fn __getnewargs__<'py>(&self) -> PyResult<(Vec<FXRate>, Option<Ccy>)> {
         Ok((self.fx_rates.clone(), Some(self.currencies[0])))
@@ -273,7 +274,7 @@ impl FXRates {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::ndt;
+    use crate::scheduling::ndt;
 
     #[test]
     fn fxrates_eq() {

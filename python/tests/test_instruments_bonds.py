@@ -5,10 +5,9 @@ import pytest
 from pandas import DataFrame, Series, date_range
 from pandas.testing import assert_frame_equal
 from rateslib import defaults
-from rateslib.calendars import dcf, get_calendar
 from rateslib.curves import Curve, LineCurve
 from rateslib.default import NoInput
-from rateslib.dual import Dual, Dual2
+from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments import (
     IRS,
@@ -19,6 +18,7 @@ from rateslib.instruments import (
     IndexFixedRateBond,
 )
 from rateslib.instruments.bonds import BondCalcMode
+from rateslib.scheduling import dcf, get_calendar
 from rateslib.solver import Solver
 
 
@@ -574,7 +574,7 @@ class TestFixedRateBond:
             frequency="S",
             calc_mode="ca_gb",
             roll=1,
-            stub="FRONT",
+            stub="SHORTFRONT",
             ex_div=1,
         )
         result = bond.price(ytm=4.0, settlement=s)
@@ -592,7 +592,7 @@ class TestFixedRateBond:
             frequency="S",
             calc_mode="cadgb",
             roll=1,
-            stub="FRONT",
+            stub="SHORTFRONT",
             ex_div=1,
         )
         result = bond.price(ytm=2.249977, settlement=dt(2018, 10, 16))
@@ -665,6 +665,11 @@ class TestFixedRateBond:
         result = frb.ytm(price=price, settlement=sett)
         assert abs(result - exp_ytm) < 1e-6
 
+    def test_long_stub(self):
+        # DE000BU2Z056
+        bond = FixedRateBond(dt(2025, 7, 4), dt(2035, 8, 15), spec="de_gb", fixed_rate=2.60)
+        assert bond.leg1.schedule.aschedule[0:2] == [dt(2025, 7, 4), dt(2026, 8, 15)]
+
     ## French OAT
 
     @pytest.mark.parametrize(
@@ -698,7 +703,6 @@ class TestFixedRateBond:
         ],
     )
     def test_regular_it_gb(self, sett, price, exp_ytm, exp_acc) -> None:
-        # Values compared with BBG YA for "True Yield" and Accrued
         frb = FixedRateBond(  # ISIN IT0005518128
             effective=dt(2022, 11, 1),
             termination=dt(2033, 5, 1),
@@ -742,14 +746,13 @@ class TestFixedRateBond:
     @pytest.mark.parametrize(
         ("sett", "ytm", "exp_price", "exp_acc"),
         [
-            (dt(2032, 11, 1), 6.429702, 99.00, 0.0),  # BBG - Last coupon simple rate
-            (dt(2032, 11, 2), 6.439891, 99.00, 0.01215),  # BBG YAS Yield-Last coupon simple rate
-            (dt(2033, 3, 15), 6.862519, 99.65, 1.628730),  # BBG YAS Yield - Last coupon simple rate
+            (dt(2032, 11, 1), 6.429702, 99.00, 0.0),  # Last coupon simple rate
+            (dt(2032, 11, 2), 6.439891, 99.00, 0.01215),  # Last coupon simple rate
+            (dt(2033, 3, 15), 6.862519, 99.65, 1.628730),  # Last coupon simple rate
             (dt(2033, 4, 29), 6.450803, 99.97, 2.175690),  # Test accrual upto adjusted payment date
         ],
     )
     def test_regular_it_gb_final_simple(self, sett, ytm, exp_price, exp_acc) -> None:
-        # Values compared with BBG YA for "True Yield" and Accrued
         frb = FixedRateBond(  # ISIN IT0005518128
             effective=dt(2022, 11, 1),
             termination=dt(2033, 5, 1),
@@ -771,7 +774,6 @@ class TestFixedRateBond:
         ],
     )
     def test_regular_it_gb_final_simple_vs_excel2(self, sett, ytm, exp_price, exp_acc) -> None:
-        # These values are not the same as for BBG YA, by small tolerance. See above > test1.
         frb = FixedRateBond(  # ISIN IT0005547408
             effective=dt(2023, 6, 13),
             termination=dt(2027, 6, 13),
@@ -850,7 +852,7 @@ class TestFixedRateBond:
         ],
     )
     def test_bny_mellon(self, settlement, price, exp_ytm, exp_acc) -> None:
-        # BNY Mellon ISIN: US06406RAH03, compared with BBG BXT.
+        # BNY Mellon ISIN: US06406RAH03,
         b = FixedRateBond(
             effective=dt(2018, 4, 30),
             termination=dt(2028, 4, 28),
@@ -874,7 +876,7 @@ class TestFixedRateBond:
         ],
     )
     def test_bny_mellon_spec(self, settlement, price, exp_ytm, exp_acc) -> None:
-        # BNY Mellon ISIN: US06406RAH03, compared with BBG BXT.
+        # BNY Mellon ISIN: US06406RAH03,
         b = FixedRateBond(
             effective=dt(2018, 4, 30),
             termination=dt(2028, 4, 28),
@@ -900,7 +902,7 @@ class TestFixedRateBond:
         ],
     )
     def test_cali_state_school(self, settlement, price, exp_ytm, exp_acc) -> None:
-        # LA Unif ISIN: US544647CW89, compared with BBG BXT.
+        # LA Unif ISIN: US544647CW89,
         b = FixedRateBond(
             effective=dt(2020, 11, 10),
             termination=dt(2026, 7, 1),
@@ -924,7 +926,7 @@ class TestFixedRateBond:
         ],
     )
     def test_new_jersey_transport(self, settlement, price, exp_ytm, exp_acc) -> None:
-        # NJ Transport ISIN: US64613CEZ77, compared with BBG BXT.
+        # NJ Transport ISIN: US64613CEZ77,
         b = FixedRateBond(
             effective=dt(2024, 10, 24),
             termination=dt(2026, 6, 15),
@@ -1428,7 +1430,7 @@ class TestFixedRateBond:
 
     @pytest.mark.parametrize(
         ("price", "tol"),
-        [(112.0, 1e-10), (104.0, 1e-10), (96.0, 1e-9), (91.0, 1e-7)],
+        [(112.0, 5e-7), (104.0, 1e-8), (96.0, 1e-7), (91.0, 1e-6)],
     )
     def test_oaspread(self, price, tol) -> None:
         gilt = FixedRateBond(
@@ -1446,19 +1448,19 @@ class TestFixedRateBond:
         curve = Curve({dt(2010, 11, 25): 1.0, dt(2015, 12, 7): 0.75})
         # result = gilt.npv(curve) = 113.22198344812742
         result = gilt.oaspread(curve, price=price)
-        curve_z = curve.shift(result, composite=False)
+        curve_z = curve.shift(result)
         result = gilt.rate(curve_z, metric="clean_price")
         assert abs(result - price) < tol
 
     @pytest.mark.parametrize(
         ("price", "tol"),
         [
-            (85, 1e-8),
-            (75, 1e-6),
-            (65, 1e-4),
-            (55, 1e-3),
-            (45, 1e-1),
-            (35, 0.20),
+            (85, 5e-8),
+            (75, 5e-8),
+            (65, 1e-7),
+            (55, 1e-7),
+            (45, 5e-8),
+            (35, 5e-8),
         ],
     )
     def test_oaspread_low_price(self, price, tol) -> None:
@@ -1477,9 +1479,51 @@ class TestFixedRateBond:
         curve = Curve({dt(1999, 11, 25): 1.0, dt(2015, 12, 7): 0.85})
         # result = gilt.npv(curve) = 113.22198344812742
         result = gilt.oaspread(curve, price=price)
-        curve_z = curve.shift(result, composite=False)
+        curve_z = curve.shift(result)
         result = gilt.rate(curve_z, metric="clean_price")
         assert abs(result - price) < tol
+
+    def test_oas_spread_with_solver(self):
+        gilt = FixedRateBond(
+            effective=dt(1998, 12, 7),
+            termination=dt(2015, 12, 7),
+            spec="uk_gb",
+            fixed_rate=1.0,
+        )
+        curve = Curve({dt(1999, 11, 25): 1.0, dt(2015, 12, 7): 0.85})
+        Solver(
+            curves=[curve],
+            instruments=[IRS(dt(1999, 12, 8), "2y", spec="gbp_irs", curves=curve)],
+            s=[2.5],
+        )
+        # gilt.rate(curve, metric="dirty_price") = 80.52025551638633
+        result = gilt.oaspread(curve, price=95.00)
+        curve_z = curve.shift(result)
+        result = gilt.rate(curve_z, metric="clean_price")
+        assert abs(result - 95.00) < 1e-8
+
+    def test_oaspread_ift_fwddiff(self):
+        bond = FixedRateBond(dt(2000, 1, 1), "3Y", fixed_rate=2.5, spec="us_gb")
+        curve = Curve({dt(2000, 7, 1): 1.0, dt(2005, 7, 1): 0.80})
+        # Add AD variables to the curve without a Solver
+        curve._set_ad_order(1)
+
+        result = bond.oaspread(curves=curve, price=Variable(95.0, ["price"], []))
+        grad = gradient(result, ["price"])[0]
+
+        assert abs(bond.oaspread(curves=curve, price=95.01) - result - 0.01 * grad) < 1e-3
+        assert abs(bond.oaspread(curves=curve, price=94.99) - result + 0.01 * grad) < 1e-3
+
+    def test_oas_spread_metric(self):
+        gilt = FixedRateBond(dt(1998, 12, 7), dt(2015, 12, 7), spec="uk_gb", fixed_rate=1.0)
+        curve = Curve({dt(1999, 11, 3): 1.0, dt(2015, 12, 7): 0.85})
+        result1 = gilt.oaspread(curve, price=95.0, metric="clean_price")
+        result2 = gilt.oaspread(
+            curve, price=95.0 + gilt.accrued(dt(1999, 11, 4)), metric="dirty_price"
+        )
+        result3 = gilt.oaspread(curve, price=gilt.ytm(95.0, dt(1999, 11, 4)), metric="ytm")
+        assert abs(result1 - result2) < 1e-5
+        assert abs(result1 - result3) < 1e-5
 
     def test_cashflows_no_curve(self) -> None:
         gilt = FixedRateBond(
@@ -1571,6 +1615,113 @@ class TestFixedRateBond:
         )
         result = frb.ytm(price=173.80904334438674, settlement=dt(2000, 1, 20))
         assert abs(result + 1.3549202231746622) < 1e-10
+
+    def test_oas_coupon_on_non_bus_day(self):
+        # coupon falls on 30th Jun (sunday) and paid on 1st July. OAS spread now handles.
+        # dev gh 17
+        bond = FixedRateBond(dt(2023, 12, 31), "3y", fixed_rate=0.5, spec="us_gb")
+        curve = Curve({dt(2024, 6, 24): 1.0, dt(2028, 6, 25): 1.0})
+        for today in [
+            dt(2024, 6, 25),
+            dt(2024, 6, 26),
+            dt(2024, 6, 27),
+            dt(2024, 6, 28),
+            dt(2024, 6, 29),
+            dt(2024, 6, 30),
+            dt(2024, 7, 1),
+            dt(2024, 7, 2),
+            dt(2024, 7, 3),
+        ]:
+            curve_ = curve.translate(today)
+            assert 49.1 < bond.oaspread(curve_, price=100.0) < 49.2
+
+    def test_dirty_price_on_non_bus_day(self):
+        # coupon falls on 30th Jun (sunday) and paid on 1st July. OAS spread now handles.
+        # dev gh 17
+        bond = FixedRateBond(dt(2023, 12, 31), "3y", fixed_rate=0.5, spec="us_gb")
+        curve = Curve({dt(2024, 6, 24): 1.0, dt(2028, 6, 25): 1.0})
+        for today in [
+            dt(2024, 6, 25),
+            dt(2024, 6, 26),
+            dt(2024, 6, 27),
+            dt(2024, 6, 28),
+            dt(2024, 6, 29),
+            dt(2024, 6, 30),
+            dt(2024, 7, 1),
+            dt(2024, 7, 2),
+            dt(2024, 7, 3),
+        ]:
+            curve_ = curve.translate(today)
+            if today <= dt(2024, 6, 27):  # settlement Friday 28th June
+                assert bond.rate(curve_, metric="dirty_price") == 101.5
+            else:
+                assert bond.rate(curve_, metric="dirty_price") == 101.25
+
+    @pytest.mark.parametrize(
+        "bond",
+        [
+            FixedRateBond(dt(2023, 12, 31), dt(2025, 12, 31), fixed_rate=4.25, spec="us_gb"),
+            FixedRateBond(
+                dt(2023, 12, 31), dt(2025, 12, 31), fixed_rate=4.25, spec="us_gb", modifier="F"
+            ),
+        ],
+    )
+    def test_npv_and_oas_with_adjusted_accrual_on_non_bus_day(self, bond):
+        curve = Curve({dt(2024, 6, 28): 1.0, dt(2026, 6, 30): 0.96})
+        result = (
+            bond.npv(curves=curve),
+            bond.oaspread(curves=curve, price=97.0),
+            bond.rate(curves=curve, metric="clean_price"),
+        )
+        for date in [dt(2024, 7, 1), dt(2024, 7, 2)]:
+            curve_ = curve.translate(date)
+            assert abs(bond.npv(curves=curve_) - result[0]) < 250.0
+            assert abs(bond.oaspread(curves=curve_, price=97.0) - result[1]) < 0.75
+            assert abs(bond.rate(curves=curve_, metric="clean_price") - result[2]) < 0.03
+
+    @pytest.mark.parametrize(
+        ("settlement", "forward_settlement", "expected"),
+        [
+            (dt(2024, 6, 27), dt(2024, 6, 28), 100.002503),
+            (dt(2024, 6, 27), dt(2024, 6, 29), 100.005596),
+            (dt(2024, 6, 27), dt(2024, 6, 30), 100.007805),
+            (dt(2024, 6, 27), dt(2024, 7, 1), 100.010140),
+            (dt(2024, 6, 27), dt(2024, 7, 2), 100.012475),
+            (dt(2024, 6, 29), dt(2024, 7, 1), 100.004550),
+        ],
+    )
+    def test_fwd_from_repo_ex_div_and_holidays(self, settlement, forward_settlement, expected):
+        bond = FixedRateBond(dt(2023, 12, 31), dt(2025, 12, 31), fixed_rate=4.25, spec="us_gb")
+        result = bond.fwd_from_repo(
+            price=100.0,
+            settlement=settlement,
+            forward_settlement=forward_settlement,
+            repo_rate=5.0,
+            convention="Act360",
+        )
+        assert abs(result - expected) < 1e-6
+
+    @pytest.mark.parametrize(
+        ("settlement", "forward_settlement", "fwd_price"),
+        [
+            (dt(2024, 6, 27), dt(2024, 6, 28), 100.002503),
+            (dt(2024, 6, 27), dt(2024, 6, 29), 100.005596),
+            (dt(2024, 6, 27), dt(2024, 6, 30), 100.007805),
+            (dt(2024, 6, 27), dt(2024, 7, 1), 100.010140),
+            (dt(2024, 6, 27), dt(2024, 7, 2), 100.012475),
+            (dt(2024, 6, 29), dt(2024, 7, 1), 100.004550),
+        ],
+    )
+    def test_repo_from_fwd_ex_div_and_holidays(self, settlement, forward_settlement, fwd_price):
+        bond = FixedRateBond(dt(2023, 12, 31), dt(2025, 12, 31), fixed_rate=4.25, spec="us_gb")
+        result = bond.repo_from_fwd(
+            price=100.0,
+            settlement=settlement,
+            forward_settlement=forward_settlement,
+            forward_price=fwd_price,
+            convention="Act360",
+        )
+        assert abs(result - 5.00) < 2e-4
 
 
 class TestIndexFixedRateBond:
@@ -1666,10 +1817,13 @@ class TestIndexFixedRateBond:
             index_lag=3,
             metric="ytm",
         )
-        curve = Curve({dt(1998, 12, 9): 1.0, dt(2015, 12, 7): 0.50}, index_base=100.0, index_lag=3)
-        clean_price = gilt.rate(curve, metric="clean_price")
+        disc_curve = Curve(
+            {dt(1998, 12, 9): 1.0, dt(2015, 12, 7): 0.50}, index_base=100.0, index_lag=3
+        )
+        curve = Curve({dt(1998, 12, 1): 1.0, dt(2015, 12, 7): 0.50}, index_base=100.0, index_lag=3)
+        clean_price = gilt.rate([curve, disc_curve], metric="clean_price")
         expected = gilt.ytm(price=clean_price, settlement=dt(1998, 12, 9))
-        result = gilt.rate(curve)  # default metric is "ytm"
+        result = gilt.rate([curve, disc_curve])  # default metric is "ytm"
         assert abs(result - expected) < 1e-8
 
     @pytest.mark.parametrize(
@@ -2142,7 +2296,7 @@ class TestBill:
         curve = Curve({dt(1998, 12, 7): 1.0, dt(2015, 12, 7): 0.75})
         # result = bill.rate(curve, metric="price") # = 98.605
         result = bill.oaspread(curve, price=price)
-        curve_z = curve.shift(result, composite=False)
+        curve_z = curve.shift(result)
         result = bill.rate(curve_z, metric="clean_price")
         assert abs(result - price) < tol
 
@@ -2598,7 +2752,7 @@ class TestFloatRateNote:
         curve = Curve({dt(1998, 12, 7): 1.0, dt(2015, 12, 7): 0.75})
         # result = bond.rate(curve, metric="clean_price") = 99.999999999999953
         result = bond.oaspread(curve, price=price)
-        curve_z = curve.shift(result, composite=False)
+        curve_z = curve.shift(result)
         result = bond.rate([curve, curve_z], metric="clean_price")
         assert abs(result - price) < tol
 

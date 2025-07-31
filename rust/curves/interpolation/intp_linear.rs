@@ -2,7 +2,8 @@ use crate::curves::interpolation::utils::linear_interp;
 use crate::curves::nodes::NodesTimestamp;
 use crate::curves::CurveInterpolation;
 use crate::dual::Number;
-use bincode::{deserialize, serialize};
+use bincode::config::legacy;
+use bincode::serde::{decode_from_slice, encode_to_vec};
 use chrono::NaiveDateTime;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyTuple};
@@ -24,11 +25,11 @@ impl LinearInterpolator {
 
     // Pickling
     pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
-        *self = deserialize(state.as_bytes()).unwrap();
+        *self = decode_from_slice(state.as_bytes(), legacy()).unwrap().0;
         Ok(())
     }
     pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new(py, &serialize(&self).unwrap()))
+        Ok(PyBytes::new(py, &encode_to_vec(&self, legacy()).unwrap()))
     }
     pub fn __getnewargs__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyTuple>> {
         Ok(PyTuple::empty(py))
@@ -58,8 +59,8 @@ impl CurveInterpolation for LinearInterpolator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::calendars::ndt;
     use crate::curves::nodes::Nodes;
+    use crate::scheduling::ndt;
     use indexmap::IndexMap;
 
     fn nodes_timestamp_fixture() -> NodesTimestamp {

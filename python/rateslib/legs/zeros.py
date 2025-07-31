@@ -18,13 +18,13 @@ if TYPE_CHECKING:
     from rateslib.typing import (
         FX_,
         Any,
-        Curve,
-        Curve_,
         CurveOption_,
         DualTypes,
         DualTypes_,
         FixingsRates_,
         Schedule,
+        _BaseCurve,
+        _BaseCurve_,
         datetime,
     )
 
@@ -85,6 +85,11 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
 
     Examples
     --------
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import ZeroFloatLeg
+
     .. ipython:: python
 
        zfl = ZeroFloatLeg(
@@ -193,7 +198,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         For arguments see
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
         """
-        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve = _disc_required_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.currency, fx, base)
         value = (
             self.rate(curve)
@@ -239,7 +244,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         -------
         DataFrame
         """
-        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve = _disc_required_maybe_from_curve(curve, disc_curve)
 
         if self.fixing_method == "ibor":
             dfs = []
@@ -269,8 +274,8 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
 
     def analytic_delta(
         self,
-        curve: Curve | NoInput = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
+        curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
@@ -280,7 +285,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         For arguments see
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
         """
-        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve = _disc_required_maybe_from_curve(curve, disc_curve)
         fx_, base = _get_fx_and_base(self.currency, fx, base)
 
         float_periods: list[FloatPeriod] = [_ for _ in self.periods if isinstance(_, FloatPeriod)]
@@ -298,7 +303,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
     def cashflows(
         self,
         curve: CurveOption_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:
@@ -308,7 +313,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         For arguments see
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
         """
-        disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve_ = _disc_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.currency, fx, base)
 
         if isinstance(curve, NoInput):
@@ -391,6 +396,11 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
     Examples
     --------
     .. ipython:: python
+       :suppress:
+
+       from rateslib import ZeroFixedLeg
+
+    .. ipython:: python
 
        zfl = ZeroFixedLeg(
            effective=dt(2022, 1, 1),
@@ -423,13 +433,13 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
         self.periods = [
             FixedPeriod(
                 fixed_rate=NoInput(0),
-                start=self.schedule.effective,
-                end=self.schedule.termination,
+                start=self.schedule.aschedule[0],
+                end=self.schedule.aschedule[-1],
                 payment=self.schedule.pschedule[-1],
                 notional=self.notional,
                 currency=self.currency,
                 convention=self.convention,
-                termination=self.schedule.termination,
+                termination=self.schedule.aschedule[-1],
                 frequency=self.schedule.frequency,
                 stub=False,
                 roll=self.schedule.roll,
@@ -474,7 +484,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
     def cashflows(
         self,
         curve: CurveOption_ = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:
@@ -484,7 +494,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
         For arguments see
         :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`.
         """
-        disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve_ = _disc_maybe_from_curve(curve, disc_curve)
         fx_, base = _get_fx_and_base(self.currency, fx, base)
         rate = self.fixed_rate
         cashflow = self.periods[0].cashflow
@@ -522,8 +532,8 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
 
     def analytic_delta(
         self,
-        curve: Curve | NoInput = NoInput(0),
-        disc_curve: Curve | NoInput = NoInput(0),
+        curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
@@ -533,7 +543,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
         For arguments see
         :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
         """
-        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve = _disc_required_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.currency, fx, base)
         if isinstance(self.fixed_rate, NoInput):
             raise ValueError("Must have `fixed_rate` on ZeroFixedLeg for analytic delta.")

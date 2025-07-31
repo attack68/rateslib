@@ -199,6 +199,8 @@ class Defaults:
            1808, 1821, 1824, 1825,
         ]
         # fmt: on
+        self.multi_csa_min_step: int = 1
+        self.multi_csa_max_step: int = 1825
         self.curve_caching = True
         self.curve_caching_max = 1000
 
@@ -261,6 +263,8 @@ class Defaults:
             "recovery": "Recovery",
         }
         self._global_ad_order = 1
+        self.oaspread_func_tol = 1e-6
+        self.oaspread_conv_tol = 1e-8
 
         # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
         # Commercial use of this code, and/or copying and redistribution is prohibited.

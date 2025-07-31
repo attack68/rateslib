@@ -4,21 +4,21 @@ from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING
 
 from rateslib import defaults
-from rateslib.calendars import dcf
 from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_maybe_from_curve
 from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
 from rateslib.periods.utils import _get_fx_and_base
+from rateslib.scheduling import dcf
 
 if TYPE_CHECKING:
     from rateslib.typing import (
         FX_,
         Any,
         CalInput,
-        Curve,
-        Curve_,
         CurveOption_,
         DualTypes,
+        _BaseCurve,
+        _BaseCurve_,
         datetime,
         datetime_,
         float_,
@@ -172,7 +172,7 @@ class BasePeriod(metaclass=ABCMeta):
            period.analytic_delta(curve, curve, fxr)
            period.analytic_delta(curve, curve, fxr, "gbp")
         """  # noqa: E501
-        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve = _disc_required_maybe_from_curve(curve, disc_curve)
         fx_, _ = _get_fx_and_base(self.currency, fx, base)
         ret: DualTypes = fx_ * self.notional * self.dcf * disc_curve_[self.payment] / 10000
         return ret
@@ -181,7 +181,7 @@ class BasePeriod(metaclass=ABCMeta):
     def cashflows(
         self,
         curve: CurveOption_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
     ) -> dict[str, Any]:
@@ -217,7 +217,7 @@ class BasePeriod(metaclass=ABCMeta):
 
            period.cashflows(curve, curve, fxr)
         """
-        disc_curve_: Curve | NoInput = _disc_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve_ = _disc_maybe_from_curve(curve, disc_curve)
         if isinstance(disc_curve_, NoInput):
             df: float | None = None
             collateral: str | None = None

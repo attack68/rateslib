@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Protocol
 from pandas import DataFrame
 
 from rateslib import defaults
-from rateslib.calendars import _get_years_and_months, add_tenor
 from rateslib.curves import Curve
 from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
@@ -17,7 +16,9 @@ from rateslib.instruments.utils import (
     _update_with_defaults,
 )
 from rateslib.periods.utils import _get_fx_and_base
-from rateslib.rs import Cal, Modifier, RollDay
+from rateslib.rs import Adjuster, Cal, RollDay
+from rateslib.scheduling import add_tenor
+from rateslib.scheduling.calendars import _get_years_and_months
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
@@ -88,6 +89,11 @@ class BondFuture(Sensitivities):
     that publication exactly no calendar has been provided. Using the London business day
     calendar and would affect the metrics of the third bond to a small degree (i.e.
     set `calendar="ldn"`)
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import BondFuture
 
     .. ipython:: python
 
@@ -446,7 +452,7 @@ class BondFuture(Sensitivities):
         f = -1.0
         while _date < mat:
             f += 1
-            _date = cal.add_months(_date, 1, Modifier.Act, RollDay.Int(dd.day), False)
+            _date = cal.add_months(_date, 1, Adjuster.Actual(), RollDay.Day(dd.day))
             if f == 12:
                 f = 0
                 n += 1
@@ -602,7 +608,7 @@ class BondFuture(Sensitivities):
         delivery = _drb(self.kwargs["delivery"][1], delivery)  # type: ignore[index, misc]
 
         # build a curve for pricing
-        today = basket[0].leg1.schedule.calendar.lag(
+        today = basket[0].leg1.schedule.calendar.lag_bus_days(
             settlement,
             -basket[0].kwargs["settle"],
             False,
@@ -638,7 +644,7 @@ class BondFuture(Sensitivities):
             ],
         }
         for shift in shifts:
-            _curve = bcurve.shift(shift, composite=False)
+            _curve = bcurve.shift(shift)
             future_price = self.rate(curves=_curve, metric="future_price")
             data.update(
                 {

@@ -11,8 +11,8 @@ import numpy as np
 from pandas import DataFrame, Series
 
 from rateslib import defaults
-from rateslib.calendars import add_tenor
-from rateslib.curves import Curve, LineCurve, MultiCsaCurve, ProxyCurve
+from rateslib.curves import Curve, MultiCsaCurve, ProxyCurve
+from rateslib.curves.utils import _CurveType
 from rateslib.default import NoInput, PlotOutput, _drb, plot
 from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.fx.fx_rates import FXRates
@@ -23,9 +23,10 @@ from rateslib.mutability import (
     _WithCache,
     _WithState,
 )
+from rateslib.scheduling import add_tenor
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, Number, datetime_
+    from rateslib.typing import Number, _BaseCurve, datetime_
 DualTypes: TypeAlias = (
     "Dual | Dual2 | Variable | float"  # required for non-cyclic import on _WithCache
 )
@@ -190,7 +191,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
     def __init__(
         self,
         fx_rates: FXRates | list[FXRates],
-        fx_curves: dict[str, Curve],
+        fx_curves: dict[str, _BaseCurve],
         base: str | NoInput = NoInput(0),
     ) -> None:
         self._ad = 1
@@ -218,18 +219,32 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
         if self._state != self._get_composited_state():
             self.update()
 
-    def _validate_fx_curves(self, fx_curves: dict[str, Curve]) -> None:
-        self.fx_curves: dict[str, Curve] = {k.lower(): v for k, v in fx_curves.items()}
+    def _validate_fx_curves(self, fx_curves: dict[str, _BaseCurve]) -> None:
+        self.fx_curves: dict[str, _BaseCurve] = {k.lower(): v for k, v in fx_curves.items()}
 
         self.terminal: datetime = datetime(2200, 1, 1)
         for flag, (k, curve) in enumerate(self.fx_curves.items()):
-            curve._meta = replace(curve._meta, _collateral=k[3:6])  # label curves with collateral
+            try:  # to label curve meta with collateral
+                curve._meta = replace(curve._meta, _collateral=k[3:6])  # type: ignore[misc]
+            except AttributeError:
+                if curve._meta.collateral is not None and curve._meta.collateral != k[3:6]:
+                    warnings.warn(
+                        "Constructing an FXForwards with curve operation objects is possible.\n"
+                        "However, these objects reference other curve meta data, and a collateral "
+                        f"clash has been detected.\n "
+                        f"Curve.meta.collateral: '{curve._meta.collateral}'\n"
+                        f"Actual collateral: '{k[3:6]}'",
+                        UserWarning,
+                    )
+                else:
+                    # collateral is None so ignore, or it is correct anyway so pass
+                    pass
 
             if flag == 0:
                 self.immediate: datetime = curve.nodes.keys[0]
             elif self.immediate != curve.nodes.keys[0]:
                 raise ValueError("`fx_curves` do not have the same initial date.")
-            if isinstance(curve, LineCurve):
+            if curve._base_type == _CurveType.values:
                 raise TypeError("`fx_curves` must be DF based, not type LineCurve.")
             if curve.nodes.final < self.terminal:
                 self.terminal = curve.nodes.final
@@ -369,8 +384,8 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
 
     @staticmethod
     def _get_curves_for_currencies(
-        fx_curves: dict[str, Curve], currencies: list[str]
-    ) -> dict[str, Curve]:
+        fx_curves: dict[str, _BaseCurve], currencies: list[str]
+    ) -> dict[str, _BaseCurve]:
         """produces a complete subset of fx curves given a list of currencies"""
         ps = product(currencies, currencies)
         ret = {p[0] + p[1]: fx_curves[p[0] + p[1]] for p in ps if p[0] + p[1] in fx_curves}
@@ -684,6 +699,11 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
         --------
 
         .. ipython:: python
+           :suppress:
+
+           from pandas import DataFrame
+
+        .. ipython:: python
 
            fxr = FXRates({"usdnok": 8.0}, settlement=dt(2022, 1, 1))
            usdusd = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99})
@@ -754,7 +774,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
         return (fx1 - fx0) * 10000
 
     @_validate_states
-    def _full_curve(self, cashflow: str, collateral: str) -> Curve:
+    def _full_curve(self, cashflow: str, collateral: str) -> _BaseCurve:
         """
         Calculate a cash collateral curve.
 
@@ -792,7 +812,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
             )
             for k in [self.immediate + timedelta(days=i) for i in range(days + 1)]
         }
-        c_: Curve = Curve(nodes)
+        c_: _BaseCurve = Curve(nodes)
         return c_
 
     # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -804,11 +824,8 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
         self,
         cashflow: str,
         collateral: str | list[str] | tuple[str, ...],
-        convention: str | NoInput = NoInput(1),  # will inherit from available curve
-        modifier: str | NoInput = NoInput(1),  # will inherit from available curve
-        calendar: CalInput = NoInput(1),  # will inherit from available curve
         id: str | NoInput = NoInput(0),  # noqa: A002
-    ) -> Curve:
+    ) -> _BaseCurve:
         """
         Return a cash collateral *Curve*.
 
@@ -819,16 +836,6 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
         collateral : str, or list/tuple of such
             The currency of the CSA against which cashflows are collateralised (3-digit
             code). If a list or tuple will return a CompositeCurve in multi-CSA mode.
-        convention : str
-            The day count convention used for calculating rates. If `None` defaults
-            to the convention in the local cashflow currency.
-        modifier : str, optional
-            The modification rule, in {"F", "MF", "P", "MP"}, for determining rates.
-            If `False` will default to the modifier in the local cashflow currency.
-        calendar : calendar or str, optional
-            The holiday calendar object to use. If str, lookups named calendar
-            from static data. Used for determining rates. If `False` will
-            default to the calendar in the local cashflow currency.
         id : str, optional
             The identifier attached to any constructed :class:`~rateslib.fx.ProxyCurve`.
 
@@ -839,31 +846,31 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
         Notes
         -----
         If the :class:`~rateslib.curves.Curve` already exists within the attribute
-        ``fx_curves`` that *Curve* will be returned.
+        ``fx_curves`` that *Curve* will be returned directly.
 
         If a :class:`~rateslib.curves.ProxyCurve` already exists with the attribute
         ``fx_proxy_curves`` that *Curve* will be returned.
 
-        Otherwise, creates and returns a ``ProxyCurve`` which determines rates
+        Otherwise, creates and returns a :class:`~rateslib.curves.ProxyCurve` which determines rates
         and DFs via the chaining method and the below formula,
 
         .. math::
 
            w_{dom:for,i} = \\frac{f_{DOMFOR,i}}{F_{DOMFOR,0}} v_{for:for,i}
 
-        The returned curve contains contrived methods to calculate rates and DFs
-        from the combination of curves and FX rates that are available within
-        the given :class:`FXForwards` instance.
-
         For multiple collateral currencies returns a :class:`~rateslib.curves.MultiCsaCurve`.
+
+        The :class:`~rateslib.curves._CurveMeta` inherits values from the local cash
+        :class:`~rateslib.curves.Curve`, and the ``collateral`` value is set as the defined
+        collateral currency.
         """
         if isinstance(collateral, list | tuple):
             # TODO add this curve to fx_proxy_curves and lexsort the collateral
             curves = []
             for coll in collateral:
-                curves.append(self.curve(cashflow, coll, convention, modifier, calendar))
-            curve = MultiCsaCurve(curves=curves, id=id)
-            curve._meta = replace(curve.meta, _collateral=",".join([_.lower() for _ in collateral]))
+                curves.append(self.curve(cashflow, coll))
+            curve: _BaseCurve = MultiCsaCurve(curves=curves, id=id)
+            curve._meta = replace(curve.meta, _collateral=",".join([_.lower() for _ in collateral]))  # type: ignore[misc]
             return curve
 
         cash_ccy, coll_ccy = cashflow.lower(), collateral.lower()
@@ -874,13 +881,10 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
         elif pair in self._fx_proxy_curves:
             return self._fx_proxy_curves[pair]
         else:
-            curve_ = ProxyCurve(
+            curve_: ProxyCurve = ProxyCurve(
                 cashflow=cash_ccy,
                 collateral=coll_ccy,
                 fx_forwards=self,
-                convention=convention,
-                modifier=modifier,
-                calendar=calendar,
                 id=id,
             )
             self._fx_proxy_curves[pair] = curve_
@@ -968,7 +972,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
         container = {
             "base": self.base,
             "fx_rates": fx_rates,
-            "fx_curves": {k: v.to_json() for k, v in self.fx_curves.items()},
+            "fx_curves": {k: v.to_json() for k, v in self.fx_curves.items()},  # type: ignore[attr-defined]
         }
         return json.dumps(container, default=str)
 
@@ -1057,8 +1061,8 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
 
 def forward_fx(
     date: datetime,
-    curve_domestic: Curve,
-    curve_foreign: Curve,
+    curve_domestic: _BaseCurve,
+    curve_foreign: _BaseCurve,
     fx_rate: DualTypes,
     fx_settlement: datetime | NoInput = NoInput(0),
 ) -> DualTypes:
@@ -1112,6 +1116,11 @@ def forward_fx(
     Using this function directly.
 
     .. ipython:: python
+       :suppress:
+
+       from rateslib.fx.fx_forwards import forward_fx
+
+    .. ipython:: python
 
        domestic_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.96})
        foreign_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99})
@@ -1150,7 +1159,7 @@ def forward_fx(
 
 
 def _get_curves_indicator_array(
-    q: int, currencies: dict[str, int], fx_curves: dict[str, Curve]
+    q: int, currencies: dict[str, int], fx_curves: dict[str, _BaseCurve]
 ) -> np.ndarray[tuple[int, int], np.dtype[np.int_]]:
     """
     Constructs an indicator array identifying which cash-collateral curves are available in the

@@ -1781,6 +1781,32 @@ def test_pre_solver_single_fx_object() -> None:
     assert (result - expected) < 1e-4
 
 
+def test_pre_solver_set_ad_order() -> None:
+    curve1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99})
+    curve2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99})
+    curve3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99})
+    cc = CompositeCurve([curve2, curve3])
+    s1 = Solver(curves=[curve1], instruments=[Value(dt(2022, 5, 1), curves=curve1)], s=[0.99])
+    s2 = Solver(curves=[curve2], instruments=[Value(dt(2022, 5, 1), curves=curve1)], s=[0.99])
+    s3 = Solver(
+        pre_solvers=[s1, s2],
+        curves=[cc, curve3],
+        instruments=[Value(dt(2022, 5, 1), curves=curve1)],
+        s=[0.99],
+    )
+    s3._set_ad_order(2)
+    for c in [curve1, curve2, curve3, cc]:
+        assert c._ad == 2
+    assert s2._ad == 2
+    assert s1._ad == 2
+
+    s3._set_ad_order(1)
+    for c in [curve1, curve2, curve3, cc]:
+        assert c._ad == 1
+    assert s2._ad == 1
+    assert s1._ad == 1
+
+
 def test_solver_jacobians_in_text() -> None:
     par_curve = Curve(
         nodes={

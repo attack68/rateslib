@@ -19,14 +19,14 @@ if TYPE_CHECKING:
     from rateslib.typing import (
         FX_,
         Any,
-        Curve,
-        Curve_,
         CurveOption_,
         DualTypes,
         DualTypes_,
         FixingsFx_,
         FixingsRates_,
         Schedule,
+        _BaseCurve,
+        _BaseCurve_,
         datetime_,
         int_,
         str_,
@@ -108,7 +108,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         last_fixing_date = ser.index[-1]
         fixings_list: list[DualTypes] = []
         for i in range(ini_period, self.schedule.n_periods):
-            required_date = self.schedule.calendar.lag(
+            required_date = self.schedule.calendar.lag_bus_days(
                 self.schedule.aschedule[i], self.payment_lag_exchange, True
             )
             if required_date > last_fixing_date:
@@ -143,7 +143,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         elif isinstance(value, float | Dual | Dual2 | Variable):
             self._fx_fixings = [value]
         elif isinstance(value, Series):
-            self._fx_fixings = self._get_fx_fixings_from_series(value)  # type: ignore[arg-type]
+            self._fx_fixings = self._get_fx_fixings_from_series(value)
         elif isinstance(value, tuple):
             self._fx_fixings = [value[0]]
             self._fx_fixings.extend(self._get_fx_fixings_from_series(value[1], ini_period=1))
@@ -181,7 +181,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
                 fx_fixings_.append(
                     fx.rate(
                         self.alt_currency + self.currency,
-                        self.schedule.calendar.lag(
+                        self.schedule.calendar.lag_bus_days(
                             self.schedule.aschedule[i],
                             self.payment_lag_exchange,
                             True,
@@ -205,7 +205,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
             [
                 Cashflow(
                     -self.notional,
-                    self.schedule.calendar.lag(
+                    self.schedule.calendar.lag_bus_days(
                         self.schedule.aschedule[0],
                         self.payment_lag_exchange,
                         True,
@@ -233,7 +233,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         mtm_flows = [
             Cashflow(
                 -notionals[i + 1] + notionals[i],
-                self.schedule.calendar.lag(
+                self.schedule.calendar.lag_bus_days(
                     self.schedule.aschedule[i + 1],
                     self.payment_lag_exchange,
                     True,
@@ -254,7 +254,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         self.periods.append(
             Cashflow(
                 notionals[-1],
-                self.schedule.calendar.lag(
+                self.schedule.calendar.lag_bus_days(
                     self.schedule.aschedule[-1],
                     self.payment_lag_exchange,
                     True,
@@ -267,8 +267,8 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
 
     def npv(
         self,
-        curve: Curve,
-        disc_curve: Curve_ = NoInput(0),
+        curve: _BaseCurve,
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
         local: bool = False,
@@ -281,8 +281,8 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
 
     def cashflows(
         self,
-        curve: Curve_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DataFrame:
@@ -294,8 +294,8 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
 
     def analytic_delta(
         self,
-        curve: Curve_ = NoInput(0),
-        disc_curve: Curve_ = NoInput(0),
+        curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str | NoInput = NoInput(0),
     ) -> DualTypes:
@@ -455,7 +455,7 @@ class FloatLegMtm(_FloatLegMixin, BaseLegMtm):
     def fixings_table(
         self,
         curve: CurveOption_,
-        disc_curve: Curve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         approximate: bool = False,

@@ -2,7 +2,6 @@ import math
 from datetime import datetime as dt
 
 import pytest
-from rateslib.calendars import _get_modifier, get_calendar
 from rateslib.curves.rs import (
     CurveObj,
     CurveRs,
@@ -17,7 +16,8 @@ from rateslib.curves.rs import (
 )
 from rateslib.dual import Dual2
 from rateslib.dual.utils import ADOrder, _get_adorder
-from rateslib.rs import Convention
+from rateslib.rs import Convention, Modifier
+from rateslib.scheduling import get_calendar
 from rateslib.serialization import from_json
 
 
@@ -54,7 +54,7 @@ def curve():
         id="v",
         ad=_get_adorder(1),
         convention=_get_convention("Act360"),
-        modifier=_get_modifier("MF", True),
+        modifier=Modifier.ModF,
         calendar=get_calendar("all"),
     )
 
@@ -83,7 +83,7 @@ def indexcurvers():
         id="v",
         ad=_get_adorder(1),
         convention=_get_convention("Act360"),
-        modifier=_get_modifier("MF", True),
+        modifier=Modifier.ModF,
         calendar=get_calendar("all"),
         index_base=100.0,
     )

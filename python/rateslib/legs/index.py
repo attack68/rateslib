@@ -14,7 +14,7 @@ from rateslib.periods.index import _validate_index_method_and_lag
 from rateslib.scheduling import Schedule
 
 if TYPE_CHECKING:
-    from rateslib.typing import NPV, Any, Curve_, DataFrame, DualTypes, DualTypes_, int_, str_
+    from rateslib.typing import NPV, Any, DataFrame, DualTypes, DualTypes_, _BaseCurve_, int_, str_
 
 
 class _IndexLegMixin:
@@ -26,17 +26,17 @@ class _IndexLegMixin:
     index_lag: int
 
     @property
-    def index_fixings(self) -> DualTypes | list[DualTypes] | Series[DualTypes] | NoInput:  # type: ignore[type-var]
+    def index_fixings(self) -> Series[DualTypes] | DualTypes_:  # type: ignore[type-var]
         return self._index_fixings
 
     @index_fixings.setter
     def index_fixings(
         self,
-        value: DualTypes | Series[DualTypes] | NoInput,  # type: ignore[type-var]
+        value: Series[DualTypes] | DualTypes_,  # type: ignore[type-var]
     ) -> None:
         if isinstance(value, Series):
-            value = _validate_index_fixings_as_series(value)  # type: ignore[arg-type]
-        self._index_fixings: DualTypes | Series[DualTypes] | NoInput = value  # type: ignore[type-var]
+            value = _validate_index_fixings_as_series(value)
+        self._index_fixings: Series[DualTypes] | DualTypes_ = value  # type: ignore[type-var]
 
         if isinstance(value, NoInput):
             for p in [_ for _ in self.periods if type(_) is not Cashflow]:
@@ -47,7 +47,7 @@ class _IndexLegMixin:
                 p.index_fixings = index_value(  # type: ignore[union-attr]
                     self.index_lag,
                     self.index_method,
-                    value,  # type: ignore[arg-type]
+                    value,
                     date_,
                     NoInput(0),
                 )
@@ -63,7 +63,7 @@ class _IndexLegMixin:
     @index_base.setter
     def index_base(self, value: DualTypes | Series[DualTypes] | NoInput) -> None:  # type: ignore[type-var]
         if isinstance(value, Series):
-            value = _validate_index_fixings_as_series(value)  # type: ignore[arg-type]
+            value = _validate_index_fixings_as_series(value)
             ret = index_value(
                 self.index_lag, self.index_method, value, self.schedule.effective, NoInput(0)
             )
@@ -144,6 +144,11 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
     Examples
     --------
     .. ipython:: python
+       :suppress:
+
+       from rateslib import ZeroIndexLeg
+
+    .. ipython:: python
 
        index_curve = Curve({dt(2022, 1, 1): 1.0, dt(2027, 1, 1): 0.95}, index_base=100.0)
        zil = ZeroIndexLeg(
@@ -163,8 +168,8 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
     def __init__(
         self,
         *args: Any,
-        index_base: DualTypes | Series[DualTypes] | NoInput = NoInput(0),  # type: ignore[type-var]
-        index_fixings: DualTypes | Series[DualTypes] | NoInput = NoInput(0),  # type: ignore[type-var]
+        index_base: Series[DualTypes] | DualTypes_ = NoInput(0),  # type: ignore[type-var]
+        index_fixings: Series[DualTypes] | DualTypes_ = NoInput(0),  # type: ignore[type-var]
         index_method: str | NoInput = NoInput(0),
         index_lag: int | NoInput = NoInput(0),
         **kwargs: Any,
@@ -218,7 +223,7 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
             ),
         ]
 
-    def cashflow(self, curve: Curve_ = NoInput(0)) -> DualTypes:
+    def cashflow(self, curve: _BaseCurve_ = NoInput(0)) -> DualTypes:
         """Aggregate the cashflows on the *IndexFixedPeriod* and *Cashflow* period using a
         *Curve*."""
         _: DualTypes = self.periods[0].cashflow(curve) + self.periods[1].cashflow  # type: ignore[operator]
@@ -317,6 +322,10 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
 
     Examples
     --------
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import IndexFixedLeg
 
     .. ipython:: python
 
@@ -344,7 +353,7 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
         self,
         *args: Any,
         index_base: DualTypes,
-        index_fixings: DualTypes_ | Series[DualTypes] = NoInput(0),  # type: ignore[type-var]
+        index_fixings: Series[DualTypes] | DualTypes_ = NoInput(0),  # type: ignore[type-var]
         index_method: str_ = NoInput(0),
         index_lag: int_ = NoInput(0),
         fixed_rate: DualTypes_ = NoInput(0),
@@ -394,7 +403,7 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
         if self.final_exchange:
             periods_[1] = IndexCashflow(
                 notional=self.notional - self.amortization * (self.schedule.n_periods - 1),
-                payment=self.schedule.calendar.lag(
+                payment=self.schedule.calendar.lag_bus_days(
                     self.schedule.aschedule[-1],
                     self.payment_lag_exchange,
                     True,

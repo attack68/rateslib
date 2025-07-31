@@ -12,6 +12,10 @@ import numpy as np
 from pandas import DataFrame as DataFrame
 from pandas import Series as Series
 
+from rateslib.curves import RolledCurve as RolledCurve
+from rateslib.curves import ShiftedCurve as ShiftedCurve
+from rateslib.curves import TranslatedCurve as TranslatedCurve
+from rateslib.curves import _BaseCurve as _BaseCurve
 from rateslib.default import NoInput as NoInput
 from rateslib.dual.variable import Variable as Variable
 from rateslib.fx import FXForwards as FXForwards
@@ -66,6 +70,7 @@ from rateslib.periods import FXOptionPeriod as FXOptionPeriod
 from rateslib.periods import FXPutPeriod as FXPutPeriod
 from rateslib.periods import IndexCashflow as IndexCashflow
 from rateslib.periods import IndexFixedPeriod as IndexFixedPeriod
+from rateslib.rs import Adjuster as Adjuster
 from rateslib.rs import (
     Cal,
     FlatBackwardInterpolator,
@@ -82,6 +87,7 @@ from rateslib.rs import Dual2 as Dual2
 from rateslib.rs import PPSplineDual as PPSplineDual
 from rateslib.rs import PPSplineDual2 as PPSplineDual2
 from rateslib.rs import PPSplineF64 as PPSplineF64
+from rateslib.rs import RollDay as RollDay
 from rateslib.scheduling import Schedule as Schedule
 from rateslib.solver import Solver as Solver
 
@@ -115,25 +121,23 @@ int_: TypeAlias = "int | NoInput"
 datetime_: TypeAlias = "datetime | NoInput"
 float_: TypeAlias = "float | NoInput"
 
-from rateslib.curves import Curve as Curve  # noqa: E402
+_BaseCurve_: TypeAlias = "_BaseCurve | NoInput"
+CurveDict: TypeAlias = "dict[str, _BaseCurve | str] | dict[str, _BaseCurve] | dict[str, str]"
 
-Curve_: TypeAlias = "Curve | NoInput"
-CurveDict: TypeAlias = "dict[str, Curve | str] | dict[str, Curve] | dict[str, str]"
-
-CurveOrId: TypeAlias = "Curve | str"
+CurveOrId: TypeAlias = "_BaseCurve | str"
 CurveOrId_: TypeAlias = "CurveOrId | NoInput"
 
 CurveInput: TypeAlias = "CurveOrId | CurveDict"
 CurveInput_: TypeAlias = "CurveInput | NoInput"
 
-CurveOption: TypeAlias = "Curve | dict[str, Curve]"
+CurveOption: TypeAlias = "_BaseCurve | dict[str, _BaseCurve]"
 CurveOption_: TypeAlias = "CurveOption | NoInput"
 
 Curves: TypeAlias = "CurveOrId | CurveDict | Sequence[CurveOrId | CurveDict]"
 Curves_: TypeAlias = "CurveOrId_ | CurveDict | Sequence[CurveOrId_ | CurveDict]"
 
 Curves_Tuple: TypeAlias = "tuple[CurveOption_, CurveOption_, CurveOption_, CurveOption_]"
-Curves_DiscTuple: TypeAlias = "tuple[CurveOption_, Curve_, CurveOption_, Curve_]"
+Curves_DiscTuple: TypeAlias = "tuple[CurveOption_, _BaseCurve_, CurveOption_, _BaseCurve_]"
 
 FXVolObj: TypeAlias = "FXDeltaVolSurface | FXDeltaVolSmile | FXSabrSmile | FXSabrSurface"
 

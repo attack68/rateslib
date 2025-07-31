@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 from pandas import DataFrame
 
 from rateslib import defaults
-from rateslib.curves import Curve
 from rateslib.curves._parsers import _disc_required_maybe_from_curve
 from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
@@ -42,6 +41,7 @@ if TYPE_CHECKING:
         FixingsRates_,
         FloatPeriod,
         Solver_,
+        _BaseCurve,
     )
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
@@ -510,6 +510,11 @@ class STIRFuture(IRS):
     :meth:`~rateslib.instruments.STIRFuture.npv`,
 
     .. ipython:: python
+       :suppress:
+
+       from rateslib import STIRFuture
+
+    .. ipython:: python
 
        stir = STIRFuture(
             effective=dt(2022, 3, 16),
@@ -824,6 +829,11 @@ class ZCS(BaseDerivative):
     :meth:`~rateslib.instruments.ZCS.analytic_delta`, and
 
     .. ipython:: python
+       :suppress:
+
+       from rateslib import ZCS
+
+    .. ipython:: python
 
        zcs = ZCS(
            effective=dt(2022, 1, 1),
@@ -1121,6 +1131,11 @@ class SBS(BaseDerivative):
     Examples
     --------
     Construct curves to price the example.
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import SBS
 
     .. ipython:: python
 
@@ -1464,6 +1479,11 @@ class FRA(BaseDerivative):
     Construct curves to price the example.
 
     .. ipython:: python
+       :suppress:
+
+       from rateslib import FRA
+
+    .. ipython:: python
 
        eur3m = Curve(
            nodes={
@@ -1595,7 +1615,7 @@ class FRA(BaseDerivative):
 
         For arguments see :meth:`~rateslib.periods.BasePeriod.analytic_delta`.
         """
-        disc_curve_: Curve = _disc_required_maybe_from_curve(curve, disc_curve)
+        disc_curve_: _BaseCurve = _disc_required_maybe_from_curve(curve, disc_curve)
         fx, base = _get_fx_and_base(self.leg1.currency, fx, base)
         rate = self.rate([curve])
         dcf = self._fixed_period.dcf

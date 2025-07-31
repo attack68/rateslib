@@ -12,7 +12,7 @@ from pandas import DataFrame, MultiIndex, Series, concat
 from pandas.errors import PerformanceWarning
 
 from rateslib import defaults
-from rateslib.curves import CompositeCurve, Curve, MultiCsaCurve, ProxyCurve
+from rateslib.curves import CompositeCurve, Curve, MultiCsaCurve, ProxyCurve, _BaseCurve
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, dual_solve, gradient
 from rateslib.dual.newton import _solver_result
@@ -1348,8 +1348,8 @@ class Solver(Gradients, _WithState):
     @_validate_states
     def _get_pre_curve(self, obj: str) -> Curve:
         ret: Curve | FXVols = self.pre_curves[obj]
-        if isinstance(ret, Curve):
-            return ret  # type: ignore[no-any-return]
+        if isinstance(ret, _BaseCurve):
+            return ret
         else:
             raise ValueError(
                 f"A type of `Curve` object was sought with id:'{obj}' from Solver but another "
@@ -1617,7 +1617,7 @@ class Solver(Gradients, _WithState):
         for pre_solver in self.pre_solvers:
             pre_solver._set_ad_order(order=order)
         self._ad = order
-        for _, curve in self.curves.items():
+        for _, curve in self.pre_curves.items():
             curve._set_ad_order(order)
         if not isinstance(self.fx, NoInput):
             self.fx._set_ad_order(order)

@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 from pandas import DataFrame, Series, concat
 
 from rateslib import defaults
-from rateslib.calendars import add_tenor
 from rateslib.default import NoInput, _drb
 from rateslib.periods import (
     Cashflow,
@@ -18,7 +17,7 @@ from rateslib.periods import (
     IndexCashflow,
     IndexFixedPeriod,
 )
-from rateslib.scheduling import Schedule
+from rateslib.scheduling import Schedule, add_tenor
 
 if TYPE_CHECKING:
     from rateslib.typing import (
@@ -26,12 +25,12 @@ if TYPE_CHECKING:
         NPV,
         Any,
         CalInput,
-        Curve,
         CurveOption_,
         DualTypes,
         DualTypes_,
         FixingsRates_,
         Period,
+        _BaseCurve,
         bool_,
         datetime,
         datetime_,
@@ -75,7 +74,7 @@ class BaseLeg(metaclass=ABCMeta):
         The modification rule, in {"F", "MF", "P", "MP"}
     calendar : calendar or str, optional
         The holiday calendar object to use. If str, looks up named calendar from
-        static data. See :meth:`~rateslib.calendars.get_calendar`.
+        static data. See :meth:`~rateslib.scheduling.get_calendar`.
     payment_lag : int, optional
         The number of business days to lag payments by on regular accrual periods.
     notional : float, optional
@@ -87,7 +86,7 @@ class BaseLeg(metaclass=ABCMeta):
         sign equal to that of notional if the notional is to reduce towards zero.
     convention: str, optional
         The day count convention applied to calculations of period accrual dates.
-        See :meth:`~rateslib.calendars.dcf`.
+        See :meth:`~rateslib.scheduling.dcf`.
     payment_lag_exchange : int
         The number of business days by which to delay notional exchanges, aligned with
         the accrual schedule.
@@ -164,17 +163,17 @@ class BaseLeg(metaclass=ABCMeta):
         final_exchange: bool = False,
     ) -> None:
         self.schedule = Schedule(
-            effective,
-            termination,
-            frequency,
-            stub,
-            front_stub,
-            back_stub,
-            roll,
-            eom,
-            modifier,
-            calendar,
-            payment_lag,
+            effective=effective,
+            termination=termination,
+            frequency=frequency,
+            stub=stub,
+            front_stub=front_stub,
+            back_stub=back_stub,
+            roll=roll,
+            eom=eom,
+            modifier=modifier,
+            calendar=calendar,
+            payment_lag=payment_lag,
         )
         self.convention: str = _drb(defaults.convention, convention)
         self.currency: str = _drb(defaults.base_currency, currency).lower()
@@ -242,7 +241,7 @@ class BaseLeg(metaclass=ABCMeta):
         if self.initial_exchange:
             periods_[0] = Cashflow(
                 notional=-self.notional,
-                payment=self.schedule.calendar.lag(
+                payment=self.schedule.calendar.lag_bus_days(
                     self.schedule.aschedule[0],
                     self.payment_lag_exchange,
                     True,
@@ -254,7 +253,7 @@ class BaseLeg(metaclass=ABCMeta):
         if self.final_exchange:
             periods_[1] = Cashflow(
                 notional=self.notional - self.amortization * (self.schedule.n_periods - 1),
-                payment=self.schedule.calendar.lag(
+                payment=self.schedule.calendar.lag_bus_days(
                     self.schedule.aschedule[-1],
                     self.payment_lag_exchange,
                     True,
@@ -273,7 +272,7 @@ class BaseLeg(metaclass=ABCMeta):
             periods_ = [
                 Cashflow(
                     notional=self.amortization,
-                    payment=self.schedule.calendar.lag(
+                    payment=self.schedule.calendar.lag_bus_days(
                         self.schedule.aschedule[i + 1],
                         self.payment_lag_exchange,
                         True,
@@ -532,7 +531,7 @@ class _FloatLegMixin:
             fixings_: list[DualTypes | list[DualTypes] | Series[DualTypes] | NoInput] = []  # type: ignore[type-var]
         elif isinstance(fixings, Series):
             # oldest fixing at index 0: latest -1
-            sorted_fixings: Series[DualTypes] = fixings.sort_index()  # type: ignore[type-var, assignment]
+            sorted_fixings: Series[DualTypes] = fixings.sort_index()  # type: ignore[type-var]
             fixings_ = self._get_fixings_from_series(sorted_fixings)  # type: ignore[assignment]
         elif isinstance(fixings, tuple):
             fixings_ = [fixings[0]]
@@ -612,8 +611,8 @@ class _FloatLegMixin:
     def _spread_isda_approximated_rate(
         self,
         target_npv: DualTypes,
-        fore_curve: Curve,  # TODO: use CurveOption_ and handle dict[str, Curve]
-        disc_curve: Curve,  # TODO: use CurveOption_ and handle dict[str, Curve]
+        fore_curve: _BaseCurve,  # TODO: use CurveOption_ and handle dict[str, Curve]
+        disc_curve: _BaseCurve,  # TODO: use CurveOption_ and handle dict[str, Curve]
     ) -> DualTypes:
         """
         Use approximated derivatives through geometric averaged 1day rates to derive the
@@ -663,7 +662,7 @@ class _FloatLegMixin:
             if isinstance(period, FloatPeriod):
                 period.float_spread = _
 
-    # def fixings_table(self, curve: Curve):
+    # def fixings_table(self, curve: _BaseCurve):
     #     """
     #     Return a DataFrame of fixing exposures on a :class:`~rateslib.legs.FloatLeg`.
     #

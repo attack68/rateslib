@@ -24,21 +24,29 @@ macro_rules! create_interface {
                 }
             }
 
+            fn __getnewargs__(&self, _py: Python) -> PyResult<(usize, Vec<f64>, Option<Vec<$type>>)> {
+                Ok((self.k()?, self.t()?, self.c()?))
+            }
+
+            /// The dimension of the pp spline.
             #[getter]
             fn n(&self) -> PyResult<usize> {
                 Ok(*self.inner.n())
             }
 
+            /// The order of the pp spline.
             #[getter]
             fn k(&self) -> PyResult<usize> {
                 Ok(*self.inner.k())
             }
 
+            /// The knot sequence of the pp spline, of length ``n+k``.
             #[getter]
             fn t(&self) -> PyResult<Vec<f64>> {
                 Ok(self.inner.t().clone())
             }
 
+            /// The spline coefficients of length ``n``.
             #[getter]
             fn c(&self) -> PyResult<Option<Vec<$type>>> {
                 match self.inner.c() {
@@ -391,7 +399,16 @@ macro_rules! create_interface {
                 $name { inner: self.inner.clone() }
             }
 
-            // JSON
+            fn __repr__(&self) -> String {
+                format!("<rl.{} at {:p}>", stringify!($name) ,self)
+            }
+
+             // JSON
+            /// Return a JSON representation of the object.
+            ///
+            /// Returns
+            /// -------
+            /// str
             #[pyo3(name = "to_json")]
             fn to_json_py(&self) -> PyResult<String> {
                 match DeserializedObj::$name(self.clone()).to_json() {
@@ -406,17 +423,6 @@ macro_rules! create_interface {
 create_interface!(PPSplineF64, f64);
 create_interface!(PPSplineDual, Dual);
 create_interface!(PPSplineDual2, Dual2);
-
-// // removed on upgrade to pyo3 0.23, see https://pyo3.rs/v0.23.0/migration#intopyobject-and-intopyobjectref-derive-macros
-// impl IntoPy<PyObject> for NumberPPSpline {
-//     fn into_py(self, py: Python<'_>) -> PyObject {
-//         match self {
-//             NumberPPSpline::F64(s) => Py::new(py, s).unwrap().to_object(py),
-//             NumberPPSpline::Dual(s) => Py::new(py, s).unwrap().to_object(py),
-//             NumberPPSpline::Dual2(s) => Py::new(py, s).unwrap().to_object(py),
-//         }
-//     }
-// }
 
 /// Calculate the value of an indexed b-spline at *x*.
 ///
@@ -511,6 +517,11 @@ pub(crate) fn bsplev_single(
 /// is discontinuous at `x` = 2.0.
 ///
 /// .. ipython:: python
+///    :suppress:
+///
+///    from rateslib import bspldnev_single
+///
+/// .. ipython:: python
 ///
 ///    t = [1,1,1,1,2,2,2,3,4,4,4,4]
 ///    bspldnev_single(x=2.0, i=3, k=4, t=t, m=1)
@@ -523,7 +534,7 @@ pub(crate) fn bsplev_single(
 ///    from datetime import datetime as dt
 ///    import numpy as np
 ///    t = [1,1,1,1,2,2,2,3,4,4,4,4]
-///    spline = PPSpline(k=4, t=t)
+///    spline = PPSplineF64(k=4, t=t)
 ///    x = np.linspace(1, 4, 76)
 ///    fix, ax = plt.subplots(1,1)
 ///    ax.plot(x, spline.bspldnev(x, 3, 0))

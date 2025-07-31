@@ -5,7 +5,6 @@ import pytest
 from pandas import DataFrame, Index, MultiIndex, Series, isna
 from pandas.testing import assert_frame_equal
 from rateslib import default_context
-from rateslib.calendars import add_tenor
 from rateslib.curves import CompositeCurve, Curve, LineCurve, MultiCsaCurve
 from rateslib.curves._parsers import _map_curve_from_solver
 from rateslib.default import NoInput
@@ -44,6 +43,7 @@ from rateslib.instruments import (
 from rateslib.instruments.utils import (
     _get_curves_fx_and_base_maybe_from_solver,
 )
+from rateslib.scheduling import add_tenor
 from rateslib.solver import Solver
 
 
@@ -1393,7 +1393,7 @@ class TestIRS:
 
     def test_1d_instruments(self):
         # GH484
-        with pytest.raises(ValueError, match="date, stub and roll inputs are invalid"):
+        with pytest.raises(ValueError, match="A Schedule could not be generated from the pa"):
             IRS(dt(2025, 1, 1), "1d", spec="sek_irs")
 
 
@@ -1527,6 +1527,20 @@ class TestIIRS:
         iirs = IIRS(dt(2022, 1, 15), "6m", "Q", curves=curve)
         result = iirs.fixings_table()
         assert isinstance(result, DataFrame)
+
+    def test_fixing_in_the_past(self):
+        # this test will also initialise `index_base` from the provided `index_fixings`
+        discount = Curve({dt(2025, 5, 15): 1.0, dt(2027, 5, 15): 0.96})
+        inflation = Curve(
+            {dt(2025, 4, 1): 1.0, dt(2027, 5, 1): 0.98}, index_base=100.0, index_lag=0
+        )
+        fixings = Series(
+            [97, 98, 99, 100.0],
+            index=[dt(2025, 1, 1), dt(2025, 2, 1), dt(2025, 3, 1), dt(2025, 4, 1)],
+        )
+        iirs = IIRS(dt(2025, 5, 15), "1y", "Q", index_fixings=fixings)
+        result = iirs.rate(curves=[inflation, discount])
+        assert abs(result - 0.938782232) < 1e-8
 
 
 class TestSBS:
@@ -1707,7 +1721,7 @@ class TestFRA:
 
 
 class TestZCS:
-    @pytest.mark.parametrize(("freq", "exp"), [("Q", 3.529690979), ("S", 3.54526437721296)])
+    @pytest.mark.parametrize(("freq", "exp"), [("Q", 3.53163356950), ("S", 3.54722411409218)])
     def test_zcs_rate(self, freq, exp) -> None:
         usd = Curve(
             nodes={dt(2022, 1, 1): 1.0, dt(2027, 1, 1): 0.85, dt(2032, 1, 1): 0.70},
@@ -1720,6 +1734,7 @@ class TestZCS:
             frequency=freq,
             leg2_frequency="Q",
             calendar="bus",
+            modifier="MF",
             currency="usd",
             fixed_rate=4.0,
             convention="Act360",
@@ -1747,7 +1762,7 @@ class TestZCS:
             curves=["usd"],
         )
         result = zcs.analytic_delta(usd, usd)
-        expected = 105226.66099084
+        expected = 105186.21760654295
         assert abs(result - expected) < 1e-7
 
     def test_zcs_raise_frequency(self) -> None:
@@ -1819,6 +1834,20 @@ class TestZCIS:
             with pytest.warns(UserWarning):
                 zcis.rate()
 
+    def test_fixing_in_the_past(self):
+        # this test will also initialise `index_base` from the provided `index_fixings`
+        discount = Curve({dt(2025, 5, 15): 1.0, dt(2027, 5, 15): 0.96})
+        inflation = Curve(
+            {dt(2025, 4, 1): 1.0, dt(2027, 5, 1): 0.98}, index_base=100.0, index_lag=0
+        )
+        fixings = Series(
+            [97, 98, 99, 100.0],
+            index=[dt(2025, 1, 1), dt(2025, 2, 1), dt(2025, 3, 1), dt(2025, 4, 1)],
+        )
+        zcis = ZCIS(dt(2025, 5, 15), "1y", spec="eur_zcis", leg2_index_fixings=fixings)
+        result = zcis.rate(curves=[inflation, discount])
+        assert abs(result - 2.8742266148532813) < 1e-8
+
 
 class TestValue:
     def test_npv_adelta_cashflows_raises(self) -> None:
@@ -1837,6 +1866,13 @@ class TestValue:
         result = v.rate(curve)
         expected = 4.074026613753926
         assert result == expected
+
+    def test_on_rate(self, curve) -> None:
+        c = Curve({dt(2000, 1, 1): 1.0, dt(2000, 7, 1): 1.0})
+        v = Value(effective=dt(2000, 2, 1), metric="o/n_rate")
+        result = v.rate(c)
+        expected = 0.0
+        assert abs(result - expected) < 1e-8
 
     def test_index_value(self) -> None:
         curve = Curve(
@@ -2898,6 +2934,69 @@ class TestNonMtmFixedFixedXCS:
             xcs.leg2_float_spread = 2.0
 
 
+@pytest.fixture
+def isda_credit_curves_40rr_20quote():
+    # https://www.cdsmodel.com/rfr-test-grids.html?
+    # USD 22 June 2022
+
+    # from rateslib.scheduling import get_calendar
+    # trade = dt(2022, 6, 22)
+    # spot = get_calendar("nyc").add_bus_days(trade, 2, False)
+    # tenors = ["1m", "2m", "3m", "6m", "1y", "2y", "3y", "4y", "5y", "6y", "7y", "8y", "9y"]
+    # tenors += ["10y", "12y", "15y", "20y", "25y", "30y"]
+    # curve = Curve(
+    #     nodes={
+    #         trade: 1.0,
+    #         **{add_tenor(spot, _, "f", "nyc"): 1.0 for _ in tenors},
+    #     },
+    #     interpolation="log_linear",
+    # )
+    # solver = Solver(
+    #     curves=[curve],
+    #     instruments=[IRS(spot, _, spec="usd_irs", curves=curve) for _ in tenors],
+    #     s=[1.5088, 1.8228, 1.9729, 2.5640, 3.1620, 3.3169, 3.2441, 3.1771, 3.1371, 3.1131, 3.0951,
+    #        3.0841, 3.0811, 3.0871, 3.1061, 3.1201, 3.0601, 2.9381, 2.8221]
+    # )
+    #
+    # credit_curve = Curve(
+    #     nodes={trade: 1.0, dt(2055, 1, 1): 1.0}, credit_recovery_rate=0.4
+    # )
+    # solver2 = Solver(
+    #     curves=[credit_curve],
+    #     pre_solvers=[solver],
+    #     instruments=[
+    #         CDS(dt(2022, 6, 20), dt(2023, 6, 20), spec="us_ig_cds", curves=[credit_curve, curve])], #noqa: E501
+    #     s=[0.20]
+    # )
+
+    curve = Curve(
+        {
+            dt(2022, 6, 22, 0, 0): 1.0,
+            dt(2022, 7, 25, 0, 0): 0.9986187857823194,
+            dt(2022, 8, 24, 0, 0): 0.9968373705612348,
+            dt(2022, 9, 26, 0, 0): 0.994791605422867,
+            dt(2022, 12, 27, 0, 0): 0.9868431949407511,
+            dt(2023, 6, 26, 0, 0): 0.9686906539113461,
+            dt(2024, 6, 24, 0, 0): 0.9357773336285784,
+            dt(2025, 6, 24, 0, 0): 0.9073411683282268,
+            dt(2026, 6, 24, 0, 0): 0.8808780124060293,
+            dt(2027, 6, 24, 0, 0): 0.8551765951547667,
+            dt(2028, 6, 26, 0, 0): 0.8298749243478529,
+            dt(2029, 6, 25, 0, 0): 0.8056454824131845,
+            dt(2030, 6, 24, 0, 0): 0.7819517736960135,
+            dt(2031, 6, 24, 0, 0): 0.7584699996495646,
+            dt(2032, 6, 24, 0, 0): 0.7349334728363958,
+            dt(2034, 6, 26, 0, 0): 0.6890701260967745,
+            dt(2037, 6, 24, 0, 0): 0.62634116393611,
+            dt(2042, 6, 24, 0, 0): 0.5441094046550682,
+            dt(2047, 6, 24, 0, 0): 0.4864281755586489,
+            dt(2052, 6, 24, 0, 0): 0.4409891618081753,
+        }
+    )
+
+    return (None, curve)
+
+
 class TestCDS:
     def okane_curve(self):
         today = dt(2019, 8, 12)
@@ -3191,6 +3290,44 @@ class TestCDS:
         )
         result = cds.accrued(dt(2022, 2, 1))
         assert abs(result + 0.25 * 1e9 * 0.02 * 31 / 90) < 1e-6
+
+    @pytest.mark.parametrize(
+        ("cash", "tenor", "quote"),
+        [
+            (-79690.03, "1y", 0.20),
+            (-156453.96, "2y", 0.20),
+            (-230320.76, "3y", 0.20),
+            (-370875.32, "5y", 0.20),
+            (-502612.64, "7y", 0.20),
+            (-684299.75, "10y", 0.20),
+            (116199.85, "1y", 2.20),
+            (225715.34, "2y", 2.20),
+            (327602.22, "3y", 2.20),
+            (512001.20, "5y", 2.20),
+            (673570.58, "7y", 2.20),
+            (878545.53, "10y", 2.20),
+        ],
+    )
+    def test_standard_model_test_grid(self, cash, tenor, quote, isda_credit_curves_40rr_20quote):
+        # https://www.cdsmodel.com/rfr-test-grids.html?
+        # USD 22 June 2022
+        credit_curve, curve = isda_credit_curves_40rr_20quote
+
+        credit_curve = Curve({dt(2022, 6, 22): 1.0, dt(2052, 6, 30): 1.0}, credit_recovery_rate=0.4)
+        Solver(
+            curves=[credit_curve],
+            instruments=[
+                CDS(dt(2022, 6, 20), tenor, spec="us_ig_cds", curves=[credit_curve, curve])
+            ],
+            s=[quote],
+        )
+
+        cds = CDS(
+            dt(2022, 6, 20), tenor, spec="us_ig_cds", curves=[credit_curve, curve], notional=10e6
+        )
+        result = cds.npv()
+        assert abs(result - cash) < 875
+        print(abs(result - cash))
 
 
 class TestXCS:
@@ -5267,7 +5404,7 @@ class TestFXOptions:
             premium=100000.0,
         )
         result = fxo.rate(
-            curves=[None, fxfo.curve("eur", "usd", None, fxfo.curve("usd", "usd"))],
+            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
             vol=vol_,
             fx=fxfo,
             metric="vol",

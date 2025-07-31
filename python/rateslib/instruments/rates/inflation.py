@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from rateslib import index_value
 from rateslib.curves._parsers import _validate_curve_is_not_dict, _validate_curve_not_no_input
 from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
@@ -20,11 +21,14 @@ if TYPE_CHECKING:
         Any,
         Curves_,
         DataFrame,
+        Dual,
+        Dual2,
         DualTypes,
         DualTypes_,
         FixingsRates_,
         Series,
         Solver_,
+        Variable,
         datetime_,
         int_,
         str_,
@@ -241,11 +245,12 @@ class ZCIS(BaseDerivative):
         )
         if isinstance(self.leg2_index_base, NoInput):
             # must forecast for the leg
-            i_curve = _validate_curve_not_no_input(_validate_curve_is_not_dict(curves_[2]))
-            forecast_value = i_curve.index_value(
-                self.leg2.schedule.effective,
-                self.leg2.index_lag,
-                self.leg2.index_method,
+            forecast_value: Dual | Dual2 | float | Variable = index_value(  # type: ignore[assignment]
+                index_lag=self.leg2.index_lag,
+                index_method=self.leg2.index_method,
+                index_fixings=self.leg2.index_fixings,
+                index_date=self.leg2.schedule.effective,
+                index_curve=_validate_curve_not_no_input(_validate_curve_is_not_dict(curves_[2])),
             )
             if abs(forecast_value) < 1e-13:
                 raise ValueError(
@@ -253,11 +258,10 @@ class ZCIS(BaseDerivative):
                     "This might occur if the ZCIS starts in the past, or has a 'monthly' "
                     "`index_method` which uses the 1st day of the effective month, which is in the "
                     "past.\nA known `index_base` value should be input with the ZCIS "
-                    "specification.",
+                    "specification, or use `leg2_index_fixings`.",
                 )
             self.leg2.index_base = forecast_value
         leg2_npv: DualTypes = self.leg2.npv(curves_[2], curves_[3], local=False)  # type: ignore[assignment]
-
         return self.leg1._spread(-leg2_npv, curves_[0], curves_[1]) / 100
 
 
@@ -300,6 +304,11 @@ class IIRS(BaseDerivative):
     Examples
     --------
     Construct a curve to price the example.
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import IIRS, ZCIS
 
     .. ipython:: python
 
@@ -555,12 +564,22 @@ class IIRS(BaseDerivative):
         )
         if isinstance(self.index_base, NoInput):
             # must forecast for the leg
-            i_curve = _validate_curve_not_no_input(_validate_curve_is_not_dict(curves_[0]))
-            self.leg1.index_base = i_curve.index_value(
-                self.leg1.schedule.effective,
-                self.leg1.index_lag,
-                self.leg1.index_method,
+            forecast_value: Dual | Dual2 | float | Variable = index_value(  # type: ignore[assignment]
+                index_lag=self.leg1.index_lag,
+                index_method=self.leg1.index_method,
+                index_fixings=self.leg1.index_fixings,
+                index_date=self.leg1.schedule.effective,
+                index_curve=_validate_curve_not_no_input(_validate_curve_is_not_dict(curves_[0])),
             )
+            self.leg1.index_base = forecast_value
+            if abs(forecast_value) < 1e-13:
+                raise ValueError(
+                    "Forecasting the `index_base` for the IIRS yielded 0.0, which is infeasible.\n"
+                    "This might occur if the IIRS starts in the past, or has a 'monthly' "
+                    "`index_method` which uses the 1st day of the effective month, which is in the "
+                    "past.\nA known `index_base` value should be input with the IIRS "
+                    "specification, or use `index_fixings`.",
+                )
         leg2_npv: DualTypes = self.leg2.npv(curves_[2], curves_[3], local=False)  # type: ignore[assignment]
 
         if isinstance(self.fixed_rate, NoInput):
