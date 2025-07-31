@@ -3327,6 +3327,7 @@ class TestCDS:
         )
         result = cds.npv()
         assert abs(result - cash) < 875
+        print(abs(result - cash))
 
 
 class TestXCS:
