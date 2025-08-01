@@ -818,3 +818,28 @@ def test_cds_standard_example() -> None:
         dt(2010, 3, 22),
     ]
     assert s.pschedule == expected
+
+
+@pytest.mark.parametrize(
+    "frequency",
+    [
+        "M",  # monthly,
+        "Q",  # quarterly,
+        "S",  # semi-annually,
+        "A",  # annually,
+        "10D",  # 10-cal-days
+        "10B",  # 10-bus-days
+        "2W",  # 14-cal-days
+        "8M",  # 8-months
+        "1Y",  # 1-year
+    ],
+)
+def test_all_frequency_as_str(frequency):
+    s = Schedule(
+        dt(2000, 1, 1),
+        dt(2010, 1, 1),
+        frequency=frequency,
+        stub="ShortFront",
+        calendar="bus",
+    )
+    s.__str__()

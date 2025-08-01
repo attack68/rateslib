@@ -46,21 +46,25 @@ def _get_frequency(
         n_ = int(frequency[:-1])
         return Frequency.CalDays(n_ * 7)
     elif frequency_ == "M":
-        return Frequency.Months(1, _get_rollday(roll))
-    elif frequency_ == "B":
-        return Frequency.Months(2, _get_rollday(roll))
+        # handles the dual case of 'xM' for x-months or 'M' or monthly, i.e. 1-month
+        if len(frequency) == 1:
+            return Frequency.Months(1, _get_rollday(roll))
+        else:
+            n_ = int(frequency[:-1])
+            return Frequency.Months(n_, _get_rollday(roll))
     elif frequency_ == "Q":
         return Frequency.Months(3, _get_rollday(roll))
-    elif frequency_ == "T":
-        return Frequency.Months(4, _get_rollday(roll))
     elif frequency_ == "S":
         return Frequency.Months(6, _get_rollday(roll))
     elif frequency_ == "A":
         return Frequency.Months(12, _get_rollday(roll))
+    elif frequency_ == "Y":
+        n_ = int(frequency[:-1])
+        return Frequency.Months(12 * n_, _get_rollday(roll))
     elif frequency_ == "Z":
         return Frequency.Zero()
     else:
-        raise ValueError("Frequency can not be determined from `frequency` input.")
+        raise ValueError(f"Frequency can not be determined from `frequency` input: '{frequency}'.")
 
 
 def _get_stub_inference(
@@ -148,11 +152,14 @@ class Schedule:
     termination : datetime, str
         The unadjusted termination date. If given as adjusted, unadjusted alternatives may be
         inferred. If given as string tenor will be calculated from ``effective``.
-    frequency : Frequency, str in {"M", "B", "Q", "T", "S", "A", "Z"}
+    frequency : Frequency, str in {"M", "Q", "S", "A", "Z", "_D", "_B", "_W", "_M", "_Y"}
         The frequency of the schedule.
         If given as string will derive a :class:`~rateslib.scheduling.Frequency` aligning with:
-        M(onthly), B(i-monthly), T(hirdly), Q(uarterly), S(emi-annually), A(nnually), Z(ero-coupon),
-        with the :class:`~rateslib.scheduling.RollDay` as per ``roll``.
+        monthly ("M"), quarterly ("Q"), semi-annually ("S"), annually("A") or zero-coupon ("Z"), or
+        a set number of calendar or business days ("_D", "_B"), weeks ("_W"), months ("_M") or
+        years ("_Y").
+        Where required, the :class:`~rateslib.scheduling.RollDay` is derived as per ``roll``
+        and business day calendar as per ``calendar``.
     stub : StubInference, str in {"ShortFront", "LongFront", "ShortBack", "LongBack"}, optional
         The stub type used if stub inference is required. If given as string will derive a
         :class:`~rateslib.scheduling.StubInference`.
