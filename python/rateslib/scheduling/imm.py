@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -38,24 +39,13 @@ def next_imm(start: datetime, definition: str | Imm = Imm.Wed3_HMUZ) -> datetime
     ----------
     start : datetime
         The date from which to determine the next IMM.
-    definition : Imm, str in {"imm", "serial_imm", "credit_imm", "credit_imm_HU", "credit_imm_MZ"}
-        The IMM definition to return the date for. See notes.
+    definition : Imm, str
+        The IMM definition to return the date for. This is entered as either an
+        :class:`~rateslib.scheduling.Imm` enum, or that enum variant name as sting, e.g. *"Wed3"*.
 
     Returns
     -------
     datetime
-
-    Notes
-    -----
-    The ``definition`` is typically input as an :class:`~rateslib.scheduling.Imm` enum.
-    For simpler, and legacy cases, string input options are also available:
-
-    - 'imm': :class:`~rateslib.scheduling.Imm.Wed3_HMUZ`,
-    - 'serial_imm': :class:`~rateslib.scheduling.Imm.Wed3`,
-    - 'credit_imm': :class:`~rateslib.scheduling.Imm.Day20_HMUZ`,
-    - 'credit_imm_HU': :class:`~rateslib.scheduling.Imm.Day20_HU`,
-    - 'credit_imm_MZ': :class:`~rateslib.scheduling.Imm.Day20_MZ`,
-    - String representations of all of the underlying enum variants, e.g. 'Wed3'.
 
     Examples
     --------
@@ -79,7 +69,15 @@ def next_imm(start: datetime, definition: str | Imm = Imm.Wed3_HMUZ) -> datetime
 
     """
     if isinstance(definition, str):
-        imm_: Imm = _Imm[definition.lower()]
+        d_ = definition.lower()
+        if d_ in ["imm", "serial_imm", "credit_imm", "credit_imm_hu", "credit_imm_mz"]:
+            warnings.warn(
+                f"The given string entry '{d_}' is deprecated and will be removed in "
+                f"future releases. Please change the equivalent version in {{'Wed3', 'Wed3_HMUZ', "
+                f"'Day20', 'Day20_HMUZ', 'Day20_HU', 'Day20_MZ'}}",
+                DeprecationWarning,
+            )
+        imm_: Imm = _Imm[d_]
     else:
         imm_ = definition
     return imm_.next(start)
@@ -120,7 +118,8 @@ def get_imm(
         Identifier in the form of a one digit month code and 21st century year, e.g. "U29".
         If code is given ``month`` and ``year`` are unused.
     definition: Imm, str
-        The IMM definition to return the date for. See :meth:`~rateslib.scheduling.next_imm`.
+        The IMM definition to return the date for. This is entered as either an
+        :class:`~rateslib.scheduling.Imm` enum, or that enum variant name as sting, e.g. *"Wed3"*.
 
     Returns
     -------
@@ -154,7 +153,15 @@ def get_imm(
         raise ValueError("`month` and `year` must each be valid integers if `code`not given.")
 
     if isinstance(definition, str):
-        imm_: Imm = _Imm[definition.lower()]
+        d_ = definition.lower()
+        if d_ in ["imm", "serial_imm", "credit_imm", "credit_imm_hu", "credit_imm_mz"]:
+            warnings.warn(
+                f"The given string entry '{d_}' is deprecated and will be removed in "
+                f"future releases. Please change the equivalent version in {{'Wed3', 'Wed3_HMUZ', "
+                f"'Day20', 'Day20_HMUZ', 'Day20_HU', 'Day20_MZ'}}",
+                DeprecationWarning,
+            )
+        imm_: Imm = _Imm[d_]
     else:
         imm_ = definition
     return imm_.get(year, month)

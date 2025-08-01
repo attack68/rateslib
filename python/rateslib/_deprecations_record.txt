@@ -1,0 +1,4 @@
+method or class, version deprecated, version removal, notes
+---
+get_imm, 2.2.0, 2.4.0, arg inputs only
+next_imm, 2.2.0, 2.4.0, arg inputs only
