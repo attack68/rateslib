@@ -572,29 +572,39 @@ def test_get_calendar_from_defaults() -> None:
 @pytest.mark.parametrize(
     ("start", "method", "expected"),
     [
-        (dt(2025, 1, 1), "imm", dt(2025, 3, 19)),
-        (dt(2025, 1, 1), "serial_imm", dt(2025, 1, 15)),
-        (dt(2025, 1, 1), "credit_imm", dt(2025, 3, 20)),
-        (dt(2025, 1, 1), "credit_imm_HU", dt(2025, 3, 20)),
-        (dt(2025, 1, 1), "credit_imm_MZ", dt(2025, 6, 20)),
-        (dt(2025, 1, 15), "serial_imm", dt(2025, 2, 19)),
-        (dt(2025, 3, 19), "imm", dt(2025, 6, 18)),
-        (dt(2025, 3, 20), "credit_imm", dt(2025, 6, 20)),
-        (dt(2025, 3, 20), "credit_imm_HU", dt(2025, 9, 20)),
-        (dt(2025, 3, 20), "credit_imm_MZ", dt(2025, 6, 20)),
-        (dt(2025, 9, 20), "credit_imm_HU", dt(2026, 3, 20)),
-        (dt(2025, 12, 1), "imm", dt(2025, 12, 17)),
-        (dt(2025, 12, 1), "serial_imm", dt(2025, 12, 17)),
-        (dt(2025, 12, 1), "credit_imm", dt(2025, 12, 20)),
-        (dt(2025, 12, 1), "credit_imm_HU", dt(2026, 3, 20)),
-        (dt(2025, 12, 1), "credit_imm_MZ", dt(2025, 12, 20)),
-        (dt(2025, 12, 17), "imm", dt(2026, 3, 18)),
-        (dt(2025, 12, 17), "serial_imm", dt(2026, 1, 21)),
-        (dt(2025, 12, 20), "credit_imm", dt(2026, 3, 20)),
-        (dt(2025, 12, 20), "credit_imm_HU", dt(2026, 3, 20)),
-        (dt(2025, 12, 20), "credit_imm_MZ", dt(2026, 6, 20)),
+        (dt(2025, 1, 1), "wed3_hmuz", dt(2025, 3, 19)),
+        (dt(2025, 1, 1), "wed3", dt(2025, 1, 15)),
+        (dt(2025, 1, 1), "day20_hmuz", dt(2025, 3, 20)),
+        (dt(2025, 1, 1), "day20_HU", dt(2025, 3, 20)),
+        (dt(2025, 1, 1), "day20_MZ", dt(2025, 6, 20)),
+        (dt(2025, 1, 15), "wed3", dt(2025, 2, 19)),
+        (dt(2025, 3, 19), "wed3_hmuz", dt(2025, 6, 18)),
+        (dt(2025, 3, 20), "day20_hmuz", dt(2025, 6, 20)),
+        (dt(2025, 3, 20), "day20_HU", dt(2025, 9, 20)),
+        (dt(2025, 3, 20), "day20_MZ", dt(2025, 6, 20)),
+        (dt(2025, 9, 20), "day20_HU", dt(2026, 3, 20)),
+        (dt(2025, 12, 1), "wed3_hmuz", dt(2025, 12, 17)),
+        (dt(2025, 12, 1), "wed3", dt(2025, 12, 17)),
+        (dt(2025, 12, 1), "day20_hmuz", dt(2025, 12, 20)),
+        (dt(2025, 12, 1), "day20_HU", dt(2026, 3, 20)),
+        (dt(2025, 12, 1), "day20_MZ", dt(2025, 12, 20)),
+        (dt(2025, 12, 17), "wed3_hmuz", dt(2026, 3, 18)),
+        (dt(2025, 12, 17), "wed3", dt(2026, 1, 21)),
+        (dt(2025, 12, 20), "day20_hmuz", dt(2026, 3, 20)),
+        (dt(2025, 12, 20), "day20_HU", dt(2026, 3, 20)),
+        (dt(2025, 12, 20), "day20_MZ", dt(2026, 6, 20)),
     ],
 )
 def test_next_imm(start, method, expected):
     result = next_imm(start, method)
     assert result == expected
+
+
+def test_next_imm_depr():
+    with pytest.warns(DeprecationWarning):
+        next_imm(dt(2000, 1, 1), "imm")
+
+
+def test_get_imm_depr():
+    with pytest.warns(DeprecationWarning):
+        get_imm(3, 2000, definition="imm")
