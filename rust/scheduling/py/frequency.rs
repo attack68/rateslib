@@ -223,7 +223,7 @@ impl Frequency {
                 roll: _,
             } => Ok(format!("A")),
             _ => Err(PyValueError::new_err(
-                "No recognisable string represenation for Frequency.",
+                "No recognisable string representation for Frequency.",
             )),
         }
     }
