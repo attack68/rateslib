@@ -12,6 +12,24 @@ and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
 email contact, see `rateslib <https://rateslib.com>`_.
 
+2.1.1 (not released)
+***************************
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - **Deprecations**
+     - - Warnings for deprecated arguments in :meth:`~rateslib.scheduling.get_imm` and
+         :meth:`~rateslib.scheduling.next_imm`.
+         (`1005 <https://github.com/attack68/rateslib/pull/1005>`_)
+   * - **Bugs/Regressions**
+     - - The string input for a *Schedule* ``frequency`` removes unusual options ("B", "T") and
+         replaces it with working identifiers, e.g. "2M" and "4M", as well as "1Y".
+         (`1006 <https://github.com/attack68/rateslib/pull/1006>`_)
+
 2.1.0 (31st July 2025)
 ***************************
 
