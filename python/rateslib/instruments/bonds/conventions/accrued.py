@@ -3,9 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Protocol
 
-from rateslib import defaults
-from rateslib.default import NoInput
-from rateslib.scheduling import add_tenor, dcf
+from rateslib.scheduling import dcf
 
 if TYPE_CHECKING:
     from rateslib.typing import Any, BondMixin, Security
@@ -56,36 +54,73 @@ def _acc_linear_proportion_by_days_long_stub_split(
     # TODO: handle this union attribute by segregating Securities periods into different
     # categories, perhaps when also integrating deterministic amortised bonds.
     if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
-        fm = defaults.frequency_months[obj.leg1.schedule.frequency]
-        f = 12 / fm
+        f = obj.leg1.schedule.periods_per_annum
+        freq = obj.leg1.schedule.frequency_obj
+        adjuster = obj.leg1.schedule.accrual_adjuster
+        calendar = obj.leg1.schedule.calendar
+
         if obj.leg1.periods[acc_idx].dcf * f > 1:  # type: ignore[union-attr]
             # long stub
-            quasi_coupon = add_tenor(
-                obj.leg1.schedule.aschedule[acc_idx + 1],
-                f"-{fm}M",
-                "NONE",
-                NoInput(0),
-                obj.leg1.schedule.roll,
-            )
-            quasi_start = add_tenor(
-                quasi_coupon,
-                f"-{fm}M",
-                "NONE",
-                NoInput(0),
-                obj.leg1.schedule.roll,
-            )
 
-            s_bar_u = (quasi_coupon - quasi_start).days
-            if settlement <= quasi_coupon:
-                # then first part of long stub
-                r_bar_u = (settlement - obj.leg1.schedule.aschedule[acc_idx]).days
-                r_u = 0.0
-                s_u = 1.0
+            if acc_idx > 0:
+                # then stub is implied to be at the back, must roll forwards
+                ustart = obj.leg1.schedule.uschedule[acc_idx]
+                astart = obj.leg1.schedule.aschedule[acc_idx]
+                quasi_ucoupon = freq.unext(ustart)
+                quasi_acoupon = adjuster.adjust(quasi_ucoupon, calendar)
+                quasi_uend = freq.unext(quasi_ucoupon)
+                quasi_aend = adjuster.adjust(quasi_uend, calendar)
+                s_bar_u = (quasi_acoupon - astart).days
+
+                if settlement <= quasi_acoupon:
+                    #
+                    # |--------------------------|-----------------|---------|
+                    # s                     *    qc                e         qe
+                    # <-----------s_bar_u-------->
+                    # <---r_bar_u----------->                        ==>  (r_bar_u / s_bar_u) / (df)
+                    r_bar_u = (settlement - astart).days
+                    r_u = 0.0
+                    s_u = 1.0
+                else:
+                    #
+                    # |--------------------------|-----------------|---------|
+                    # s                          qc             *  e         qe
+                    # <-----------s_bar_u--------><------s_u----------------->
+                    # <--------r_bar_u-----------><----r_u------>
+                    #                                    ==>  (r_bar_u / s_bar_u + r_u / s_u) / (df)
+                    r_u = (settlement - quasi_acoupon).days
+                    s_u = (quasi_aend - quasi_acoupon).days
+                    r_bar_u = (quasi_acoupon - astart).days
             else:
-                # then second part of long stub
-                r_u = (settlement - quasi_coupon).days
-                s_u = (obj.leg1.schedule.aschedule[acc_idx + 1] - quasi_coupon).days
-                r_bar_u = (quasi_coupon - obj.leg1.schedule.aschedule[acc_idx]).days
+                # then stub is implied to be at the front, must roll backwards
+                uend = obj.leg1.schedule.uschedule[acc_idx + 1]
+                aend = obj.leg1.schedule.aschedule[acc_idx + 1]
+                quasi_ucoupon = freq.uprevious(uend)
+                quasi_acoupon = adjuster.adjust(quasi_ucoupon, calendar)
+                quasi_ustart = freq.uprevious(quasi_ucoupon)
+                quasi_astart = adjuster.adjust(quasi_ustart, calendar)
+                s_bar_u = (quasi_acoupon - quasi_astart).days
+
+                if settlement <= quasi_acoupon:
+                    #
+                    # |--------|-------------------|--------------------------|
+                    # qs       s             *     qc                         e
+                    # <-----------s_bar_u--------->
+                    #          <---r_bar_u--->                       ==>  (r_bar_u / s_bar_u) / (df)
+                    r_bar_u = (settlement - obj.leg1.schedule.aschedule[acc_idx]).days
+                    r_u = 0.0
+                    s_u = 1.0
+                else:
+                    #
+                    # |--------|-------------------|--------------------------|
+                    # qs       s                   qc             *           e
+                    # <-----------s_bar_u---------><------------s_u----------->
+                    #          <-------r_bar_u----><------r_u----->
+                    #
+                    #                                    ==>  (r_bar_u / s_bar_u + r_u / s_u) / (df)
+                    r_u = (settlement - quasi_acoupon).days
+                    s_u = (aend - quasi_acoupon).days
+                    r_bar_u = (quasi_acoupon - obj.leg1.schedule.aschedule[acc_idx]).days
 
             return (r_bar_u / s_bar_u + r_u / s_u) / (obj.leg1.periods[acc_idx].dcf * f)  # type: ignore[union-attr]
 
@@ -104,7 +139,7 @@ def _acc_30e360_backward(
     """
     if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
         return _acc_linear_proportion_by_days(obj, settlement, acc_idx)
-    f = 12 / defaults.frequency_months[obj.leg1.schedule.frequency]
+    f = obj.leg1.schedule.periods_per_annum
     _: float = dcf(settlement, obj.leg1.schedule.aschedule[acc_idx + 1], "30e360") * f
     _ = 1 - _
     return _
@@ -136,7 +171,7 @@ def _acc_act365_with_1y_and_stub_adjustment(
     """
     if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
         return _acc_linear_proportion_by_days(obj, settlement, acc_idx)
-    f = 12 / defaults.frequency_months[obj.leg1.schedule.frequency]
+    f = obj.leg1.schedule.periods_per_annum
     r = (settlement - obj.leg1.schedule.aschedule[acc_idx]).days
     s = (obj.leg1.schedule.aschedule[acc_idx + 1] - obj.leg1.schedule.aschedule[acc_idx]).days
     if r == s:

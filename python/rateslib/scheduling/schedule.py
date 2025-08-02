@@ -454,6 +454,14 @@ class Schedule:
         return self.obj.frequency.string()
 
     @cached_property
+    def periods_per_annum(self) -> float:
+        """
+        Average number of coupons per annum. See
+        :meth:`~rateslib.scheduling.Frequency.periods_per_annum`.
+        """
+        return self.obj.frequency.periods_per_annum()
+
+    @cached_property
     def frequency_obj(self) -> Frequency:
         """The :class:`~rateslib.scheduling.Frequency` object determining the periods."""
         return self.obj.frequency
