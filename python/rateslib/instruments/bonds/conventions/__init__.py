@@ -54,7 +54,7 @@ class BondCalcMode:
     For an example custom implementation of a *BondCalcMode* see the cookbook article:
     `Cookbook: Understanding and Customising FixedRateBond Conventions <../z_bond_conventions.html>`_
     
-    The :class:`~rateslib.instruments.BondCalcMode` is used to configure the calculations for 
+    The :class:`~rateslib.instruments.BondCalcMode` is used to configure the calculations for
     **accrued interest** and **yield-to-maturity** for a variety of different bonds.
     
     The bottom of this page enumerates all of the notation for formulae.
@@ -64,7 +64,7 @@ class BondCalcMode:
     
     *Rateslib* makes two types of accrued interest calculations:
     
-    - Physically settleable accrued interest, *AI*, returned from the 
+    - Physically settleable accrued interest, *AI*, returned from the
       :meth:`~rateslib.instruments.FixedRateBond.accrued` method by default.
     
       .. math::
@@ -79,10 +79,10 @@ class BondCalcMode:
          &AI_y = \\xi_y c_i \\qquad \\text{if not ex-dividend} \\\\
          &AI_y = (\\xi_y - 1) c_i \\qquad \\text{if ex-dividend} \\\\
 
-    Where in both these formula :math:`c_i` currently always uses the real ``cashflow`` method 
+    Where in both these formula :math:`c_i` currently always uses the real ``cashflow`` method
     (see below).
 
-    These two methods are almost always the same, but for an example where they differ consider 
+    These two methods are almost always the same, but for an example where they differ consider
     Canadian government bonds. The calculation mode relies on determining the :math:`\\xi` and
     :math:`\\xi_y` values, known as the **accrual fraction**. This is achieved by using the
     following functions:
@@ -150,8 +150,8 @@ class BondCalcMode:
     -----------------
     
     Yield-to-maturity in *rateslib*, for *every bond*, is calculated using the below formula.
-    The specific discounting and cashflow generating functions must be provided to determine 
-    values based on the conventions of that specific bond. The cases where the number of remaining 
+    The specific discounting and cashflow generating functions must be provided to determine
+    values based on the conventions of that specific bond. The cases where the number of remaining
     coupons are 1, 2, or generically >2 are outlined explicitly:
 
     .. math::
