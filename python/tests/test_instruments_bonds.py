@@ -1723,6 +1723,39 @@ class TestFixedRateBond:
         )
         assert abs(result - 5.00) < 2e-4
 
+    def test_183d_ytm(self):
+        bond_base = FixedRateBond(dt(2000, 1, 1), dt(2001, 1, 1), fixed_rate=5.0, spec="us_gb")
+        bond_test = FixedRateBond(
+            dt(2000, 1, 1), dt(2001, 1, 1), fixed_rate=5.0, spec="us_gb", frequency="183D"
+        )
+        expected = bond_base.ytm(100, dt(2000, 1, 1))
+        result = bond_test.ytm(100, dt(2000, 1, 1))
+        assert abs(expected - result) < 1e-5
+
+    def test_long_back_stub_split_accrued(self):
+        bond = FixedRateBond(
+            dt(2000, 1, 1), dt(2001, 2, 15), fixed_rate=20.0, spec="us_gb", stub="LongBack"
+        )
+        accrued = bond.accrued(dt(2001, 1, 15))
+        approximation = (dt(2001, 1, 15) - dt(2000, 7, 1)).days / 365 * 20.0
+        assert abs(accrued - approximation) < 1e-1
+
+    def test_long_back_front_stubs_split_accrued(self):
+        bond = FixedRateBond(
+            dt(2000, 1, 1),
+            dt(2002, 2, 15),
+            front_stub=dt(2000, 9, 8),
+            fixed_rate=20.0,
+            spec="us_gb",
+            stub="LongBack",
+        )
+        accrued = bond.accrued(dt(2002, 1, 15))
+        approximation = (dt(2002, 1, 15) - dt(2001, 3, 8)).days / 365 * 20.0
+        assert abs(accrued - approximation) < 1e-1
+
+        price = bond.price(ytm=20.0, settlement=dt(2002, 1, 15))
+        assert abs(price - 100.0) < 5e-1
+
 
 class TestIndexFixedRateBond:
     def test_fixed_rate_bond_price(self) -> None:

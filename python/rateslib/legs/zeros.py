@@ -461,7 +461,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
         # the headline fixed_rate is the IRR rate but the rate attached to Periods is a simple
         # rate in order to determine cashflows according to the normal cashflow logic.
         self._fixed_rate = value
-        f = 12 / defaults.frequency_months[self.schedule.frequency]
+        f = self.schedule.periods_per_annum
         if not isinstance(value, NoInput):
             period_rate = 100 * (1 / self.dcf) * ((1 + value / (100 * f)) ** (self.dcf * f) - 1)
         else:
@@ -548,7 +548,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
         if isinstance(self.fixed_rate, NoInput):
             raise ValueError("Must have `fixed_rate` on ZeroFixedLeg for analytic delta.")
 
-        f = 12 / defaults.frequency_months[self.schedule.frequency]
+        f = self.schedule.periods_per_annum
         _: DualTypes = self.notional * self.dcf * disc_curve_[self.periods[0].payment]
         _ *= (1 + self.fixed_rate / (100 * f)) ** (self.dcf * f - 1)
         return _ / 10000 * fx
@@ -573,7 +573,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
         """
         a_delta = self._analytic_delta(fore_curve, disc_curve, fx, self.currency)
         period_rate = -target_npv / (a_delta * 100)
-        f = 12 / defaults.frequency_months[self.schedule.frequency]
+        f = self.schedule.periods_per_annum
         _: DualTypes = f * ((1 + period_rate * self.dcf / 100) ** (1 / (self.dcf * f)) - 1)
         return _ * 10000
 
