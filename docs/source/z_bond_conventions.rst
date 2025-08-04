@@ -26,7 +26,8 @@ level of customisation that is required to properly match the intended conventio
 
 - **Regular scheduling parameters**, which are similar to *swaps* and contain
   arguments like ``calendar``, ``convention``, ``modifier``, ``ex_div``, relevant to cashflow
-  and date determination.
+  and date determination. See a :class:`~rateslib.scheduling.Schedule` for detailed instructions
+  on scheduling.
 - **Calculation modes** which are unique to *bonds* and define certain types of calculation
   per bond type. For example, how accrued interest is calculated for settlement and during
   YTM calculations, and how YTM calculations are performed.

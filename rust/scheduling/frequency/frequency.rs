@@ -294,7 +294,7 @@ pub trait Scheduling {
         let mut date = self.next(&ndt(1999, 12, 31));
         if date > ndt(2049, 12, 31) {
             // then the next method has generated an unusually long period. return nominal value
-            return 0.01_f64
+            return 0.01_f64;
         }
         let estimated_end = date + Months::new(600);
         let mut counter = 0_f64;
@@ -308,7 +308,7 @@ pub trait Scheduling {
                 date = self.previous(&prev)
             }
             if date >= estimated_end {
-                if (estimated_end - prev) < (date-estimated_end) {
+                if (estimated_end - prev) < (date - estimated_end) {
                     count = f64::max(1.0, counter - 1.0);
                 } else {
                     count = counter;
@@ -1042,32 +1042,104 @@ mod tests {
         }
     }
 
-        #[test]
-        fn test_coupons_per_annum() {
-            let options: Vec<(Frequency, f64)> = vec![
-                (Frequency::CalDays{number:365}, 1.0),
-                (Frequency::CalDays{number:182}, 2.0),
-                (Frequency::CalDays{number:183}, 2.0),
-                (Frequency::CalDays{number:91}, 4.02),
-                (Frequency::CalDays{number:28}, 13.04),
-                (Frequency::CalDays{number:7}, 52.18),
-                (Frequency::BusDays{number:5, calendar:Cal::new(vec![], vec![5,6]).into()}, 52.18),
-                (Frequency::BusDays{number:63, calendar:Cal::new(vec![], vec![5,6]).into()}, 4.14),
-                (Frequency::BusDays{number:62, calendar:Cal::new(vec![], vec![5,6]).into()}, 4.2),
-                (Frequency::Months{number:1, roll: None}, 12.0),
-                (Frequency::Months{number:2, roll: None}, 6.0),
-                (Frequency::Months{number:3, roll: None}, 4.0),
-                (Frequency::Months{number:4, roll: None}, 3.0),
-                (Frequency::Months{number:6, roll: None}, 2.0),
-                (Frequency::Months{number:9, roll: None}, 1.34),
-                (Frequency::Months{number:12, roll: None}, 1.0),
-                (Frequency::Months{number:24, roll: None}, 0.5),
-                (Frequency::Months{number:3, roll: Some(RollDay::IMM())}, 4.0),
-                (Frequency::Zero{}, 0.01),
-            ];
-            for option in options {
-                let result = option.0.periods_per_annum();
-                assert_eq!(result, option.1);
-            }
+    #[test]
+    fn test_coupons_per_annum() {
+        let options: Vec<(Frequency, f64)> = vec![
+            (Frequency::CalDays { number: 365 }, 1.0),
+            (Frequency::CalDays { number: 182 }, 2.0),
+            (Frequency::CalDays { number: 183 }, 2.0),
+            (Frequency::CalDays { number: 91 }, 4.02),
+            (Frequency::CalDays { number: 28 }, 13.04),
+            (Frequency::CalDays { number: 7 }, 52.18),
+            (
+                Frequency::BusDays {
+                    number: 5,
+                    calendar: Cal::new(vec![], vec![5, 6]).into(),
+                },
+                52.18,
+            ),
+            (
+                Frequency::BusDays {
+                    number: 63,
+                    calendar: Cal::new(vec![], vec![5, 6]).into(),
+                },
+                4.14,
+            ),
+            (
+                Frequency::BusDays {
+                    number: 62,
+                    calendar: Cal::new(vec![], vec![5, 6]).into(),
+                },
+                4.2,
+            ),
+            (
+                Frequency::Months {
+                    number: 1,
+                    roll: None,
+                },
+                12.0,
+            ),
+            (
+                Frequency::Months {
+                    number: 2,
+                    roll: None,
+                },
+                6.0,
+            ),
+            (
+                Frequency::Months {
+                    number: 3,
+                    roll: None,
+                },
+                4.0,
+            ),
+            (
+                Frequency::Months {
+                    number: 4,
+                    roll: None,
+                },
+                3.0,
+            ),
+            (
+                Frequency::Months {
+                    number: 6,
+                    roll: None,
+                },
+                2.0,
+            ),
+            (
+                Frequency::Months {
+                    number: 9,
+                    roll: None,
+                },
+                1.34,
+            ),
+            (
+                Frequency::Months {
+                    number: 12,
+                    roll: None,
+                },
+                1.0,
+            ),
+            (
+                Frequency::Months {
+                    number: 24,
+                    roll: None,
+                },
+                0.5,
+            ),
+            (
+                Frequency::Months {
+                    number: 3,
+                    roll: Some(RollDay::IMM()),
+                },
+                4.0,
+            ),
+            (Frequency::Zero {}, 0.01),
+        ];
+        for option in options {
+            let result = option.0.periods_per_annum();
+            assert_eq!(result, option.1);
         }
+    }
 }
