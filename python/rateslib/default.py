@@ -302,7 +302,6 @@ Scheduling:\n
                         "eom",
                         "eom_fx",
                         "eval_mode",
-                        "frequency_months",
                     ]
                 ]
             )
