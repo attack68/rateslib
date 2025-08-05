@@ -12,6 +12,25 @@ and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
 email contact, see `rateslib <https://rateslib.com>`_.
 
+2.2.0 (not released)
+***********************
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Feature
+     - Description
+   * - **Refactors**
+     - - The scheduling arguments for any :class:`~rateslib.legs.BaseLeg` have been removed
+         in favour of using ``schedule`` argument containing a generated
+         :class:`~rateslib.scheduling.Schedule`.
+         (`1009 <https://github.com/attack68/rateslib/pull/1009>`_)
+       - The attribute ``roll`` is removed from :class:`~rateslib.periods.BasePeriod` and the
+         ``frequency`` is now associated with a :class:`~rateslib.scheduling.Frequency`, rather than
+         a string identifier.
+         (`1010 <https://github.com/attack68/rateslib/pull/1010>`_)
+
 2.1.1 (not released)
 ***************************
 
