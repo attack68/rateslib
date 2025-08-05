@@ -43,7 +43,7 @@ from rateslib.instruments import (
 from rateslib.instruments.utils import (
     _get_curves_fx_and_base_maybe_from_solver,
 )
-from rateslib.scheduling import add_tenor
+from rateslib.scheduling import Adjuster, NamedCal, Schedule, add_tenor
 from rateslib.solver import Solver
 
 
@@ -4489,32 +4489,36 @@ class TestSpec:
             spec="test",
         )
         expected = dict(
-            effective=dt(2022, 1, 1),
-            termination=dt(2024, 2, 26),
-            frequency="Q",
-            stub="longfront",
-            front_stub=NoInput(0),
-            back_stub=NoInput(0),
-            roll=NoInput(0),
-            eom=False,
-            modifier="p",
-            calendar="tgt",
-            payment_lag=4,
+            schedule=Schedule(
+                effective=dt(2022, 1, 1),
+                termination=dt(2024, 2, 26),
+                frequency="Q",
+                stub="longfront",
+                front_stub=NoInput(0),
+                back_stub=NoInput(0),
+                roll=NoInput(0),
+                eom=False,
+                modifier="p",
+                calendar="tgt",
+                payment_lag=4,
+            ),
+            leg2_schedule=Schedule(
+                effective=dt(2022, 1, 1),
+                termination=dt(2024, 2, 26),
+                frequency="m",
+                stub="longback",
+                front_stub=NoInput(0),
+                back_stub=NoInput(0),
+                roll=1,
+                eom=False,
+                modifier="mp",
+                calendar="nyc,tgt,ldn",
+                payment_lag=3,
+            ),
             notional=250.0,
             currency="tes",
             amortization=NoInput(0),
             convention="test",
-            leg2_effective=dt(2022, 1, 1),
-            leg2_termination=dt(2024, 2, 26),
-            leg2_frequency="m",
-            leg2_stub="longback",
-            leg2_front_stub=NoInput(0),
-            leg2_back_stub=NoInput(0),
-            leg2_roll=1,
-            leg2_eom=False,
-            leg2_modifier="mp",
-            leg2_calendar="nyc,tgt,ldn",
-            leg2_payment_lag=3,
             leg2_notional=-250.0,
             leg2_currency="tes",
             leg2_convention="test2",
@@ -4551,7 +4555,7 @@ class TestSpec:
         assert irs.kwargs["convention"] == "30e360"
         assert irs.kwargs["leg2_convention"] == "30e360"
         assert irs.kwargs["currency"] == "usd"
-        assert irs.kwargs["roll"] == "imm"
+        assert irs.kwargs["schedule"].roll == "IMM"
 
     def test_sbs(self) -> None:
         inst = SBS(
@@ -4565,8 +4569,8 @@ class TestSpec:
         assert inst.kwargs["leg2_convention"] == "30e360"
         assert inst.kwargs["currency"] == "eur"
         assert inst.kwargs["fixing_method"] == "ibor"
-        assert inst.kwargs["frequency"] == "A"
-        assert inst.kwargs["leg2_frequency"] == "s"
+        assert inst.kwargs["schedule"].frequency == "A"
+        assert inst.kwargs["leg2_schedule"].frequency == "S"
 
     def test_zcis(self) -> None:
         inst = ZCIS(
@@ -4580,7 +4584,7 @@ class TestSpec:
         assert inst.kwargs["leg2_convention"] == "1+"
         assert inst.kwargs["currency"] == "eur"
         assert inst.kwargs["leg2_index_method"] == "monthly"
-        assert inst.kwargs["leg2_calendar"] == "nyc,tgt"
+        assert inst.kwargs["leg2_schedule"].calendar == NamedCal("nyc,tgt")
 
     def test_zcs(self) -> None:
         inst = ZCS(
@@ -4592,9 +4596,9 @@ class TestSpec:
             fixed_rate=3.0,
         )
         assert inst.kwargs["convention"] == "act365f"
-        assert inst.kwargs["leg2_frequency"] == "a"
         assert inst.kwargs["currency"] == "gbp"
-        assert inst.kwargs["leg2_calendar"] == "nyc,tgt"
+        assert inst.kwargs["leg2_schedule"].calendar == NamedCal("nyc,tgt")
+        assert inst.kwargs["leg2_schedule"].frequency == "A"
         assert inst.kwargs["fixed_rate"] == 3.0
         assert inst.kwargs["leg2_spread_compound_method"] == "none_simple"
 
@@ -4608,9 +4612,9 @@ class TestSpec:
             fixed_rate=3.0,
         )
         assert inst.kwargs["convention"] == "actacticma"
-        assert inst.kwargs["leg2_frequency"] == "q"
+        assert inst.kwargs["leg2_schedule"].frequency == "Q"
         assert inst.kwargs["currency"] == "sek"
-        assert inst.kwargs["leg2_calendar"] == "nyc,tgt"
+        assert inst.kwargs["leg2_schedule"].calendar == NamedCal("nyc,tgt")
         assert inst.kwargs["fixed_rate"] == 3.0
         assert inst.kwargs["leg2_spread_compound_method"] == "none_simple"
 
@@ -4673,8 +4677,8 @@ class TestSpec:
         assert fra.kwargs["convention"] == "act360"
         assert fra.kwargs["currency"] == "eur"
         assert fra.kwargs["fixed_rate"] == 2.0
-        assert fra.kwargs["leg2_payment_lag"] == 5
-        assert fra.kwargs["leg2_modifier"] == "F"
+        assert fra.kwargs["leg2_schedule"].payment_adjuster == Adjuster.BusDaysLagSettle(5)
+        assert fra.kwargs["leg2_schedule"].modifier == Adjuster.Following()
 
     def test_frn(self) -> None:
         frn = FloatRateNote(
@@ -4687,8 +4691,8 @@ class TestSpec:
         assert frn.kwargs["method_param"] == 5
         assert frn.kwargs["convention"] == "act360"
         assert frn.kwargs["currency"] == "usd"
-        assert frn.kwargs["payment_lag"] == 5
-        assert frn.kwargs["modifier"] == "mf"
+        assert frn.kwargs["schedule"].payment_adjuster == Adjuster.BusDaysLagSettle(5)
+        assert frn.kwargs["schedule"].modifier == Adjuster.ModifiedFollowing()
 
     def test_xcs(self) -> None:
         xcs = XCS(
@@ -4701,10 +4705,10 @@ class TestSpec:
         assert xcs.kwargs["fixing_method"] == "rfr_payment_delay"
         assert xcs.kwargs["convention"] == "act360"
         assert xcs.kwargs["currency"] == "eur"
-        assert xcs.kwargs["calendar"] == "ldn,tgt,nyc"
-        assert xcs.kwargs["payment_lag"] == 5
-        assert xcs.kwargs["leg2_payment_lag"] == 5
-        assert xcs.kwargs["leg2_calendar"] == "ldn,tgt,nyc"
+        assert xcs.kwargs["schedule"].calendar == NamedCal("ldn,tgt,nyc")
+        assert xcs.kwargs["schedule"].payment_adjuster == Adjuster.BusDaysLagSettle(5)
+        assert xcs.kwargs["leg2_schedule"].payment_adjuster == Adjuster.BusDaysLagSettle(5)
+        assert xcs.kwargs["leg2_schedule"].calendar == NamedCal("ldn,tgt,nyc")
 
 
 @pytest.mark.parametrize(

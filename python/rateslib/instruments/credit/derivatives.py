@@ -50,13 +50,15 @@ class CDS(BaseDerivative):
         premium_accrued: bool | NoInput = NoInput(0),
         **kwargs: Any,
     ) -> None:
+        # pre-scheduling overloads
+        kwargs["leg2_frequency"] = "Z"  # CDS protection is only ever one payoff
         super().__init__(*args, **kwargs)
+
         cds_specific: dict[str, Any] = dict(
             initial_exchange=False,  # CDS have no exchanges
             final_exchange=False,
             leg2_initial_exchange=False,
             leg2_final_exchange=False,
-            leg2_frequency="Z",  # CDS protection is only ever one payoff
             fixed_rate=fixed_rate,
             premium_accrued=premium_accrued,
         )

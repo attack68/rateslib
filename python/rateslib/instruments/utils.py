@@ -11,6 +11,7 @@ from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXSabrSmile, FXSabrSurface
+from rateslib.scheduling import Schedule
 
 if TYPE_CHECKING:
     from rateslib.typing import (
@@ -246,6 +247,24 @@ def _push(spec: str_, kwargs: dict[str, Any]) -> dict[str, Any]:
 
         user = {k: v for k, v in kwargs.items() if not isinstance(v, NoInput)}
         return {**kwargs, **spec_kwargs, **user}
+
+
+def _convert_to_schedule_kwargs(kwargs: dict[str, Any], leg: int) -> dict[str, Any]:
+    _ = "" if leg == 1 else "leg2_"
+    kwargs[f"{_}schedule"] = Schedule(
+        effective=kwargs.pop(f"{_}effective"),
+        termination=kwargs.pop(f"{_}termination"),
+        frequency=kwargs.pop(f"{_}frequency"),
+        stub=kwargs.pop(f"{_}stub"),
+        front_stub=kwargs.pop(f"{_}front_stub"),
+        back_stub=kwargs.pop(f"{_}back_stub"),
+        roll=kwargs.pop(f"{_}roll"),
+        eom=kwargs.pop(f"{_}eom"),
+        modifier=kwargs.pop(f"{_}modifier"),
+        calendar=kwargs.pop(f"{_}calendar"),
+        payment_lag=kwargs.pop(f"{_}payment_lag"),
+    )
+    return kwargs
 
 
 def _update_not_noinput(base_kwargs: dict[str, Any], new_kwargs: dict[str, Any]) -> dict[str, Any]:

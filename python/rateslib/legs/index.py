@@ -147,14 +147,13 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
        :suppress:
 
        from rateslib import ZeroIndexLeg
+       from rateslib.scheduling import Schedule
 
     .. ipython:: python
 
        index_curve = Curve({dt(2022, 1, 1): 1.0, dt(2027, 1, 1): 0.95}, index_base=100.0)
        zil = ZeroIndexLeg(
-           effective=dt(2022, 1, 15),
-           termination="3Y",
-           frequency="S",
+           schedule=Schedule(dt(2022, 1, 15), "3Y", "S"),
            index_method="monthly",
            index_base=100.25,
        )
@@ -326,13 +325,14 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
        :suppress:
 
        from rateslib import IndexFixedLeg
+       from rateslib.scheduling import Schedule
 
     .. ipython:: python
 
        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
        index_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_base=100.0)
        index_leg_exch = IndexFixedLeg(
-           dt(2022, 1, 1), "9M", "Q",
+           schedule=Schedule(dt(2022, 1, 1), "9M", "Q"),
            notional=1000000,
            amortization=200000,
            index_base=100.0,
