@@ -8,7 +8,7 @@ from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_mayb
 from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
 from rateslib.periods.utils import _get_fx_and_base
-from rateslib.scheduling import dcf
+from rateslib.scheduling import Frequency, dcf
 from rateslib.scheduling.schedule import _get_frequency
 
 if TYPE_CHECKING:
@@ -18,6 +18,7 @@ if TYPE_CHECKING:
         CalInput,
         CurveOption_,
         DualTypes,
+        RollDay,
         _BaseCurve,
         _BaseCurve_,
         datetime,
@@ -70,7 +71,7 @@ class BasePeriod(metaclass=ABCMeta):
         start: datetime,
         end: datetime,
         payment: datetime,
-        frequency: str,
+        frequency: Frequency,
         notional: float_ = NoInput(0),
         currency: str_ = NoInput(0),
         convention: str_ = NoInput(0),
@@ -84,16 +85,13 @@ class BasePeriod(metaclass=ABCMeta):
         self.start: datetime = start
         self.end: datetime = end
         self.payment: datetime = payment
-        self.frequency: str = frequency.upper()
+        self.frequency = _get_frequency(frequency, roll, calendar)
         self.notional: float = _drb(defaults.notional, notional)
         self.currency: str = _drb(defaults.base_currency, currency).lower()
         self.convention: str = _drb(defaults.convention, convention)
         self.termination = termination
-        self.freq_months: int = int(
-            12.0 / _get_frequency(frequency, roll, calendar).periods_per_annum()
-        )
+        self.freq_months: int = int(12.0 / self.frequency.periods_per_annum())
         self.stub: bool = stub
-        self.roll: int | str | NoInput = roll
         self.calendar: CalInput = calendar
 
     def __repr__(self) -> str:
@@ -117,7 +115,7 @@ class BasePeriod(metaclass=ABCMeta):
             self.termination,
             self.freq_months,
             self.stub,
-            self.roll,
+            _get_roll_from_frequency(self.frequency),
             self.calendar,
         )
 
@@ -292,3 +290,10 @@ class BasePeriod(metaclass=ABCMeta):
            period.npv(curve, curve, fxr, local=True)
         """
         pass  # pragma: no cover
+
+
+def _get_roll_from_frequency(frequency: Frequency) -> RollDay | NoInput:
+    if isinstance(frequency, Frequency.Months):
+        return NoInput(0) if frequency.roll is None else frequency.roll
+    else:
+        return NoInput(0)
