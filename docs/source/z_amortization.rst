@@ -28,9 +28,7 @@ a notional amount each period.
 .. ipython:: python
 
    fxl = FixedLeg(
-       effective=dt(2000, 1, 1),
-       termination="1y",
-       frequency="Q",
+       schedule=Schedule(dt(2000, 1, 1), "1y", "Q"),
        notional=10e6,
        amortization=1e6,      # <- 1mm reduction per period
    )
@@ -39,9 +37,7 @@ a notional amount each period.
 .. ipython:: python
 
    fll = FloatLeg(
-       effective=dt(2000, 1, 1),
-       termination="1y",
-       frequency="M",
+       schedule=Schedule(dt(2000, 1, 1), "1y", "M"),
        notional=10e6,
        amortization=0.5e6,    # 0.5mm reduction per period
    )
@@ -76,9 +72,7 @@ amount of interim exchanges that have already occurred.
 .. ipython:: python
 
    fxl = FixedLeg(
-       effective=dt(2000, 1, 1),
-       termination="1y",
-       frequency="Q",
+       schedule=Schedule(dt(2000, 1, 1), "1y", "Q"),
        notional=10e6,
        final_exchange=True,
        amortization=1e6,      # <- 1mm reduction and notional exchange per period
@@ -88,9 +82,7 @@ amount of interim exchanges that have already occurred.
 .. ipython:: python
 
    fll = FloatLeg(
-       effective=dt(2000, 1, 1),
-       termination="1y",
-       frequency="Q",
+       schedule=Schedule(dt(2000, 1, 1), "1y", "Q"),
        notional=10e6,
        final_exchange=True,
        amortization=1e6,      # <- 1mm reduction and notional exchange per period
@@ -122,9 +114,7 @@ will also be indexed by the index.
 
    icurve = Curve({dt(2000, 1, 1): 1.0, dt(2010, 1, 1): 0.75}, index_base=100.0)
    il = IndexFixedLeg(
-       effective=dt(2000, 1, 1),
-       termination="1y",
-       frequency="M",
+       schedule=Schedule(dt(2000, 1, 1), "1y", "M"),
        notional=10e6,
        index_base=100.0,
        amortization=0.5e6,    # 0.5mm reduction per period
@@ -135,9 +125,7 @@ will also be indexed by the index.
 .. ipython:: python
 
    il = IndexFixedLeg(
-       effective=dt(2000, 4, 1),
-       termination="1y",
-       frequency="Q",
+       schedule=Schedule(dt(2000, 4, 1), "1y", "Q"),
        notional=10e6,
        index_base=100.0,
        final_exchange=True,

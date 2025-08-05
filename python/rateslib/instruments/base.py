@@ -11,6 +11,7 @@ from rateslib import defaults
 from rateslib.default import NoInput
 from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.instruments.utils import (
+    _convert_to_schedule_kwargs,
     _get_curves_fx_and_base_maybe_from_solver,
     _inherit_or_negate,
     _push,
@@ -588,6 +589,9 @@ class BaseDerivative(Sensitivities, Metrics, metaclass=ABCMeta):
         if self.kwargs["payment_lag"] is NoInput.blank:
             self.kwargs["payment_lag"] = defaults.payment_lag_specific[type(self).__name__]
         self.kwargs = _inherit_or_negate(self.kwargs)  # inherit or negate the complete arg list
+
+        self.kwargs = _convert_to_schedule_kwargs(self.kwargs, leg=1)
+        self.kwargs = _convert_to_schedule_kwargs(self.kwargs, leg=2)
 
         self.curves = curves
         self.spec = spec

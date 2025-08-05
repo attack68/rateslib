@@ -89,13 +89,12 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
        :suppress:
 
        from rateslib import ZeroFloatLeg
+       from rateslib.scheduling import Schedule
 
     .. ipython:: python
 
        zfl = ZeroFloatLeg(
-           effective=dt(2022, 1, 1),
-           termination="3Y",
-           frequency="S",
+           schedule=Schedule(dt(2022, 1, 1), "3Y", "S"),
            fixing_method="ibor",
            method_param=0,
            float_spread=100.0
@@ -399,13 +398,12 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
        :suppress:
 
        from rateslib import ZeroFixedLeg
+       from rateslib.scheduling import Schedule
 
     .. ipython:: python
 
        zfl = ZeroFixedLeg(
-           effective=dt(2022, 1, 1),
-           termination="3Y",
-           frequency="S",
+           schedule=Schedule(dt(2022, 1, 1), "3Y", "S"),
            convention="1+",
            fixed_rate=5.0
        )

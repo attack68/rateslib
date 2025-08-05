@@ -5,6 +5,7 @@
 
    from rateslib.periods import *
    from rateslib.legs import *
+   from rateslib.scheduling import Schedule
    from datetime import datetime as dt
    curve = Curve(
        nodes={
@@ -70,17 +71,19 @@ For complete documentation of some of these inputs see :ref:`Scheduling<schedule
 .. ipython:: python
 
    fixed_leg = FixedLeg(
-       effective=dt(2022, 1, 15),        # <- Scheduling options start here
-       termination=dt(2022, 12, 7),
-       frequency="Q",
-       stub="ShortFrontShortBack",
-       front_stub=dt(2022, 2, 28),
-       back_stub=dt(2022, 11, 30),
-       roll=31,
-       eom=True,
-       modifier="MF",
-       calendar="nyc",
-       payment_lag=2,
+       schedule=Schedule(                # <- Scheduling options start here
+           effective=dt(2022, 1, 15),
+           termination=dt(2022, 12, 7),
+           frequency="Q",
+           stub="ShortFrontShortBack",
+           front_stub=dt(2022, 2, 28),
+           back_stub=dt(2022, 11, 30),
+           roll=31,
+           eom=True,
+           modifier="MF",
+           calendar="nyc",
+           payment_lag=2,
+       ),
        payment_lag_exchange=0,
        notional=2000000,                 # <- Generic options start here
        currency="usd",
@@ -98,17 +101,19 @@ inputs that are appropriate for calculating a :class:`~rateslib.periods.FloatPer
 .. ipython:: python
 
    float_leg = FloatLeg(
-       effective=dt(2022, 1, 15),           # <- Scheduling options start here
-       termination=dt(2022, 12, 7),
-       frequency="Q",
-       stub="ShortFrontShortBack",
-       front_stub=dt(2022, 2, 28),
-       back_stub=dt(2022, 11, 30),
-       roll=31,
-       eom=True,
-       modifier="MF",
-       calendar="nyc",
-       payment_lag=2,
+       schedule=Schedule(                   # <- Scheduling options start here
+           effective=dt(2022, 1, 15),
+           termination=dt(2022, 12, 7),
+           frequency="Q",
+           stub="ShortFrontShortBack",
+           front_stub=dt(2022, 2, 28),
+           back_stub=dt(2022, 11, 30),
+           roll=31,
+           eom=True,
+           modifier="MF",
+           calendar="nyc",
+           payment_lag=2,
+       ),
        payment_lag_exchange=0,
        notional=2000000,                    # <- Generic options start here
        currency="usd",
@@ -151,17 +156,19 @@ on *CrossCurrencySwaps* for example.
 .. ipython:: python
 
    fixed_leg_exch = FixedLeg(
-       effective=dt(2022, 1, 15),       # <- Scheduling options start here
-       termination=dt(2022, 7, 15),
-       frequency="Q",
-       stub=NoInput(0),
-       front_stub=NoInput(0),
-       back_stub=NoInput(0),
-       roll=NoInput(0),
-       eom=True,
-       modifier="MF",
-       calendar="nyc",
-       payment_lag=2,
+       schedule=Schedule(               # <- Scheduling options start here
+           effective=dt(2022, 1, 15),
+           termination=dt(2022, 7, 15),
+           frequency="Q",
+           stub=NoInput(0),
+           front_stub=NoInput(0),
+           back_stub=NoInput(0),
+           roll=NoInput(0),
+           eom=True,
+           modifier="MF",
+           calendar="nyc",
+           payment_lag=2,
+       ),
        payment_lag_exchange=0,
        notional=2000000,                # <- Generic options start here
        currency="usd",
@@ -196,17 +203,19 @@ and :class:`~rateslib.legs.FloatLeg`.
 .. ipython:: python
 
    float_leg_exch = FloatLegMtm(
-       effective=dt(2022, 1, 3),         # <- Scheduling options start here
-       termination=dt(2022, 7, 3),
-       frequency="Q",
-       stub=NoInput(0),
-       front_stub=NoInput(0),
-       back_stub=NoInput(0),
-       roll=NoInput(0),
-       eom=True,
-       modifier="MF",
-       calendar="nyc",
-       payment_lag=2,
+       schedule=Schedule(                # <- Scheduling options start here
+           effective=dt(2022, 1, 3),
+           termination=dt(2022, 7, 3),
+           frequency="Q",
+           stub=NoInput(0),
+           front_stub=NoInput(0),
+           back_stub=NoInput(0),
+           roll=NoInput(0),
+           eom=True,
+           modifier="MF",
+           calendar="nyc",
+           payment_lag=2,
+       ),
        payment_lag_exchange=0,
        notional=None,                    # <- Generic options start here
        currency="usd",

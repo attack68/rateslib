@@ -60,12 +60,13 @@ class FixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
        :suppress:
 
        from rateslib import FixedLeg
+       from rateslib.scheduling import Schedule
 
     .. ipython:: python
 
        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
        fixed_leg_exch = FixedLeg(
-           dt(2022, 1, 1), "9M", "Q",
+           schedule=Schedule(dt(2022, 1, 1), "9M", "Q"),
            fixed_rate=2.0,
            notional=1000000,
            amortization=200000,
@@ -181,13 +182,12 @@ class FloatLeg(_FloatLegMixin, BaseLeg):
        :suppress:
 
        from rateslib import FloatLeg
+       from rateslib.scheduling import Schedule
 
     .. ipython:: python
 
        float_leg = FloatLeg(
-           effective=dt(2021, 12, 1),
-           termination="9M",
-           frequency="Q",
+           schedule=Schedule(dt(2021, 12, 1), "9M", "Q"),
            fixing_method="ibor",
            fixings=2.00,
        )
@@ -198,9 +198,7 @@ class FloatLeg(_FloatLegMixin, BaseLeg):
     .. ipython:: python
 
        float_leg = FloatLeg(
-           effective=dt(2021, 9, 1),
-           termination="12M",
-           frequency="Q",
+           schedule=Schedule(dt(2021, 9, 1), "12M", "Q"),
            fixing_method="ibor",
            fixings=[1.00, 2.00],
        )
@@ -212,9 +210,7 @@ class FloatLeg(_FloatLegMixin, BaseLeg):
     .. ipython:: python
 
        float_leg = FloatLeg(
-           effective=dt(2021, 9, 1),
-           termination="12M",
-           frequency="Q",
+           schedule=Schedule(dt(2021, 9, 1), "12M", "Q"),
            fixing_method="ibor",
            method_param=0,
            fixings=Series([1.00, 2.00], index=[dt(2021, 9, 1), dt(2021, 12, 1)])
@@ -228,12 +224,9 @@ class FloatLeg(_FloatLegMixin, BaseLeg):
 
        swestr_curve = Curve({dt(2023, 1, 2): 1.0, dt(2023, 7, 2): 0.99}, calendar="stk")
        float_leg = FloatLeg(
-           effective=dt(2022, 12, 28),
-           termination="2M",
-           frequency="M",
+           schedule=Schedule(dt(2022, 12, 28), "2M", "M", calendar="stk"),
            fixings=[[1.19, 1.19, -8.81]],
            currency="SEK",
-           calendar="stk"
        )
        float_leg.cashflows(swestr_curve)
        float_leg.fixings_table(swestr_curve)[dt(2022,12,28):dt(2023,1,4)]
@@ -244,12 +237,9 @@ class FloatLeg(_FloatLegMixin, BaseLeg):
     .. ipython:: python
 
        float_leg = FloatLeg(
-           effective=dt(2022, 12, 28),
-           termination="2M",
-           frequency="M",
+           schedule=Schedule(dt(2022, 12, 28), "2M", "M", calendar="stk"),
            fixings=Series([1.19, 1.19, -8.81], index=[dt(2022, 12, 28), dt(2022, 12, 29), dt(2022, 12, 30)]),
            currency="SEK",
-           calendar="stk",
        )
        float_leg.cashflows(swestr_curve)
        float_leg.fixings_table(swestr_curve)[dt(2022,12,28):dt(2023,1,4)]
