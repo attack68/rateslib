@@ -31,6 +31,7 @@ from rateslib.instruments.sensitivities import Sensitivities
 
 # from scipy.optimize import brentq
 from rateslib.instruments.utils import (
+    _convert_to_schedule_kwargs,
     _get,
     _get_curves_fx_and_base_maybe_from_solver,
     _push,
@@ -1186,6 +1187,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         self.spec = spec
 
         self._fixed_rate = fixed_rate
+        self.kwargs = _convert_to_schedule_kwargs(self.kwargs, leg=1)
         self.leg1 = FixedLeg(
             **_get(self.kwargs, leg=1, filter=("ex_div", "settle", "calc_mode", "metric"))
         )
@@ -1716,6 +1718,7 @@ class IndexFixedRateBond(FixedRateBond):
         self._fixed_rate = fixed_rate
         self._index_base = index_base  # type: ignore[assignment]
 
+        self.kwargs = _convert_to_schedule_kwargs(self.kwargs, leg=1)
         self.leg1 = IndexFixedLeg(
             **_get(self.kwargs, leg=1, filter=("ex_div", "settle", "calc_mode", "metric")),
         )
@@ -2256,7 +2259,7 @@ class Bill(FixedRateBond):
             freq = calc_mode._ytm_clone_kwargs["frequency"]
 
         frequency = _get_frequency(
-            freq, self.leg1.schedule.utermination.day, self.kwargs["calendar"]
+            freq, self.leg1.schedule.utermination.day, self.leg1.schedule.calendar
         )
         quasi_ustart = frequency.uprevious(self.leg1.schedule.uschedule[-1])
         while quasi_ustart > settlement:
@@ -2305,7 +2308,9 @@ class Bill(FixedRateBond):
                 self.price(Variable(ytm_, ["y"]), settlement, dirty=True)
             )
             freq = _get_frequency(
-                self.kwargs["frequency"], self.kwargs["roll"], self.kwargs["calendar"]
+                self.kwargs["frequency"],
+                self.leg1.schedule.utermination.day,
+                self.leg1.schedule.calendar,
             )
             f = freq.periods_per_annum()
             v = 1 + ytm_ / (100 * f)
@@ -2510,6 +2515,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         self.spec = spec
 
         self._float_spread = float_spread
+        self.kwargs = _convert_to_schedule_kwargs(self.kwargs, leg=1)
         self.leg1 = FloatLeg(
             **_get(self.kwargs, leg=1, filter=("ex_div", "settle", "calc_mode", "metric"))
         )

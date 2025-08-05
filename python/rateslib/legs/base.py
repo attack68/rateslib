@@ -24,16 +24,13 @@ if TYPE_CHECKING:
         FX_,
         NPV,
         Any,
-        CalInput,
         CurveOption_,
         DualTypes,
         DualTypes_,
         FixingsRates_,
         Period,
         _BaseCurve,
-        bool_,
         datetime,
-        datetime_,
         int_,
         str_,
     )
@@ -49,34 +46,8 @@ class BaseLeg(metaclass=ABCMeta):
 
     Parameters
     ----------
-    effective : datetime
-        The adjusted or unadjusted effective date.
-    termination : datetime or str
-        The adjusted or unadjusted termination date. If a string, then a tenor must be
-        given expressed in days (`"D"`), months (`"M"`) or years (`"Y"`), e.g. `"48M"`.
-    frequency : str in {"M", "B", "Q", "T", "S", "A", "Z"}, optional
-        The frequency of the schedule.
-    stub : str combining {"SHORT", "LONG"} with {"FRONT", "BACK"}, optional
-        The stub type to enact on the swap. Can provide two types, for
-        example "SHORTFRONTLONGBACK".
-    front_stub : datetime, optional
-        An adjusted or unadjusted date for the first stub period.
-    back_stub : datetime, optional
-        An adjusted or unadjusted date for the back stub period.
-        See notes for combining ``stub``, ``front_stub`` and ``back_stub``
-        and any automatic stub inference.
-    roll : int in [1, 31] or str in {"eom", "imm", "som"}, optional
-        The roll day of the schedule. Inferred if not given.
-    eom : bool, optional
-        Use an end of month preference rather than regular rolls for inference. Set by
-        default. Not required if ``roll`` is specified.
-    modifier : str, optional
-        The modification rule, in {"F", "MF", "P", "MP"}
-    calendar : calendar or str, optional
-        The holiday calendar object to use. If str, looks up named calendar from
-        static data. See :meth:`~rateslib.scheduling.get_calendar`.
-    payment_lag : int, optional
-        The number of business days to lag payments by on regular accrual periods.
+    schedule: Schedule
+        The :class:`~rateslib.scheduling.Schedule` object which structures contiguous *Periods*.
     notional : float, optional
         The leg notional, which is applied to each period.
     currency : str, optional
@@ -98,9 +69,6 @@ class BaseLeg(metaclass=ABCMeta):
 
     Notes
     -----
-    See also :class:`~rateslib.scheduling.Schedule` for a more thorough description
-    of some of these scheduling arguments.
-
     The (optional) initial cashflow notional is set as the negative of the notional.
     The payment date is set equal to the accrual start date adjusted by
     the ``payment_lag_exchange``.
@@ -142,18 +110,8 @@ class BaseLeg(metaclass=ABCMeta):
     @abstractmethod
     def __init__(
         self,
-        effective: datetime,
-        termination: datetime | str,
-        frequency: str,
+        schedule: Schedule,
         *,
-        stub: str_ = NoInput(0),
-        front_stub: datetime_ = NoInput(0),
-        back_stub: datetime_ = NoInput(0),
-        roll: int | str_ = NoInput(0),
-        eom: bool_ = NoInput(0),
-        modifier: str_ = NoInput(0),
-        calendar: CalInput = NoInput(0),
-        payment_lag: int_ = NoInput(0),
         notional: DualTypes_ = NoInput(0),
         currency: str_ = NoInput(0),
         amortization: DualTypes_ = NoInput(0),
@@ -162,19 +120,7 @@ class BaseLeg(metaclass=ABCMeta):
         initial_exchange: bool = False,
         final_exchange: bool = False,
     ) -> None:
-        self.schedule = Schedule(
-            effective=effective,
-            termination=termination,
-            frequency=frequency,
-            stub=stub,
-            front_stub=front_stub,
-            back_stub=back_stub,
-            roll=roll,
-            eom=eom,
-            modifier=modifier,
-            calendar=calendar,
-            payment_lag=payment_lag,
-        )
+        self.schedule = schedule
         self.convention: str = _drb(defaults.convention, convention)
         self.currency: str = _drb(defaults.base_currency, currency).lower()
         self.payment_lag_exchange: int = _drb(defaults.payment_lag_exchange, payment_lag_exchange)

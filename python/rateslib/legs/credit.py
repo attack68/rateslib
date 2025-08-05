@@ -52,6 +52,7 @@ class CreditPremiumLeg(_FixedLegMixin, BaseLeg):
        :suppress:
 
        from rateslib.curves import Curve
+       from rateslib.scheduling import Schedule
        from rateslib.legs import CreditPremiumLeg
        from datetime import datetime as dt
 
@@ -60,7 +61,7 @@ class CreditPremiumLeg(_FixedLegMixin, BaseLeg):
        disc_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
        hazard_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995})
        premium_leg = CreditPremiumLeg(
-           dt(2022, 1, 1), "9M", "Q",
+           schedule=Schedule(dt(2022, 1, 1), "9M", "Q"),
            fixed_rate=2.60,
            notional=1000000,
        )
@@ -198,6 +199,7 @@ class CreditProtectionLeg(BaseLeg):
        :suppress:
 
        from rateslib.curves import Curve
+       from rateslib.scheduling import Schedule
        from rateslib.legs import CreditProtectionLeg
        from datetime import datetime as dt
 
@@ -206,7 +208,7 @@ class CreditProtectionLeg(BaseLeg):
        disc_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
        hazard_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995})
        protection_leg = CreditProtectionLeg(
-           dt(2022, 1, 1), "9M", "Z",
+           schedule=Schedule(dt(2022, 1, 1), "9M", "Z"),
            notional=1000000,
        )
        protection_leg.cashflows(hazard_curve, disc_curve)
