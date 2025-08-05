@@ -21,7 +21,7 @@ def dcf(
     termination: datetime_ = NoInput(0),  # required for 30E360ISDA and ActActICMA
     frequency_months: int_ = NoInput(0),  # req. ActActICMA = ActActISMA = ActActBond
     stub: bool_ = NoInput(0),  # required for ActActICMA = ActActISMA = ActActBond
-    roll: str | int_ = NoInput(0),  # required also for ActACtICMA = ...
+    roll: RollDay | str | int_ = NoInput(0),  # required also for ActACtICMA = ...
     calendar: CalInput = NoInput(0),  # required for ActACtICMA = ActActISMA = ActActBond
 ) -> float:
     """
@@ -211,7 +211,7 @@ def _dcf_30u360(
     termination: datetime | NoInput,
     frequency_months: int | NoInput,
     stub: bool | NoInput,
-    roll: str | int | NoInput,
+    roll: RollDay | str | int | NoInput,
     calendar: CalInput,
 ) -> float:
     """
