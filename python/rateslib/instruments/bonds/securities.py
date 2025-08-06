@@ -2760,6 +2760,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
                 spread_compound_method=self.leg1.spread_compound_method,
                 # roll=self.leg1.schedule.roll,
                 calendar=self.leg1.schedule.calendar,
+                adjuster=self.leg1.schedule.accrual_adjuster,
             )
             rate_to_settle = self._accrual_rate(p, curve, self.leg1.method_param)
             accrued_to_settle = 100 * p.dcf * rate_to_settle / 100
