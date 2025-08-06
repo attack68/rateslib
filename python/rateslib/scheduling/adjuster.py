@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from rateslib.default import NoInput
 from rateslib.rs import Adjuster
 
 if TYPE_CHECKING:
-    pass
+    from rateslib.typing import str_
 
 _A = {  # Provides the map of all available string to Adjuster conversions.
     "NONESETTLE": Adjuster.Actual(),
@@ -21,6 +22,13 @@ _A = {  # Provides the map of all available string to Adjuster conversions.
     "FEX": Adjuster.FollowingExLast(),
     "FEXSETTLE": Adjuster.FollowingExLastSettle(),
 }
+
+
+def _get_adjuster_none(adjuster: Adjuster | str_) -> Adjuster | None:
+    if isinstance(adjuster, NoInput):
+        return None
+    else:
+        return _get_adjuster(adjuster)
 
 
 def _get_adjuster(adjuster: str | Adjuster) -> Adjuster:

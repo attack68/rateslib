@@ -8,7 +8,8 @@ from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_mayb
 from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
 from rateslib.periods.utils import _get_fx_and_base
-from rateslib.scheduling import Frequency, dcf
+from rateslib.scheduling import Frequency, dcf, Adjuster
+from rateslib.scheduling.adjuster import _get_adjuster_none
 from rateslib.scheduling.schedule import _get_frequency
 
 if TYPE_CHECKING:
@@ -63,6 +64,8 @@ class BasePeriod(metaclass=ABCMeta):
         not already specify a valid and necessary value.
     calendar : Calendar, str, optional
         Used only by ``stub`` periods and for specific values of ``convention``.
+    adjuster : Adjuster, str, optional
+        The adjuster used to derive adjusted period accrual dates.
 
     """
 
@@ -80,6 +83,7 @@ class BasePeriod(metaclass=ABCMeta):
         stub: bool = False,
         roll: RollDay | int | str_ = NoInput(0),
         calendar: CalInput = NoInput(0),
+        adjuster: Adjuster | str_ = NoInput(0),
     ):
         if end < start:
             raise ValueError("`end` cannot be before `start`.")
@@ -88,6 +92,7 @@ class BasePeriod(metaclass=ABCMeta):
         self.payment: datetime = payment
         self.frequency = _get_frequency(frequency, roll, calendar)
         self.calendar: CalInput = calendar
+        self.adjuster: Adjuster | None = _get_adjuster_none(adjuster)
         self.stub: bool = stub
         self.notional: float = _drb(defaults.notional, notional)
         self.currency: str = _drb(defaults.base_currency, currency).lower()
