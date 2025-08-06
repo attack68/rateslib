@@ -208,6 +208,7 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
                 stub=False,
                 # roll=self.schedule.roll,
                 calendar=self.schedule.calendar,
+                adjuster=self.schedule.accrual_adjuster,
                 index_base=self.index_base,
                 index_fixings=NoInput(0),  # set during init
                 index_lag=self.index_lag,
@@ -458,6 +459,7 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
                     stub=period[defaults.headers["stub_type"]] == "Stub",
                     # roll=self.schedule.roll,
                     calendar=self.schedule.calendar,
+                    adjuster=self.schedule.accrual_adjuster,
                     index_method=self.index_method,
                     index_base=NoInput(0),  # set during init
                     index_fixings=NoInput(0),  # set during init

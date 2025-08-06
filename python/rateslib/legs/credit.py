@@ -164,6 +164,7 @@ class CreditPremiumLeg(_FixedLegMixin, BaseLeg):
             stub=stub,
             # roll=self.schedule.roll,
             calendar=self.schedule.calendar,
+            adjuster=self.schedule.accrual_adjuster,
         )
 
 
@@ -293,4 +294,5 @@ class CreditProtectionLeg(BaseLeg):
             stub=stub,
             # roll=self.schedule.roll,
             calendar=self.schedule.calendar,
+            adjuster=self.schedule.accrual_adjuster,
         )

@@ -442,6 +442,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
                 stub=False,
                 # roll=self.schedule.roll,
                 calendar=self.schedule.calendar,
+                adjuster=self.schedule.accrual_adjuster,
             ),
         ]
 

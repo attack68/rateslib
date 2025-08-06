@@ -416,6 +416,7 @@ class _FixedLegMixin:
             stub=stub,
             # roll=self.schedule.roll,
             calendar=self.schedule.calendar,
+            adjuster=self.schedule.accrual_adjuster,
         )
 
 
@@ -676,6 +677,7 @@ class _FloatLegMixin:
             stub=stub,
             # roll=self.schedule.roll,
             calendar=self.schedule.calendar,
+            adjuster=self.schedule.accrual_adjuster,
             fixings=self.fixings[iterator],
             fixing_method=self.fixing_method,
             method_param=self.method_param,
