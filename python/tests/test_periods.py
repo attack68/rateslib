@@ -28,7 +28,7 @@ from rateslib.periods import (
     NonDeliverableCashflow,
     NonDeliverableFixedPeriod,
 )
-from rateslib.scheduling import Cal
+from rateslib.scheduling import Cal, Frequency, RollDay
 
 
 @pytest.fixture
@@ -90,13 +90,25 @@ def line_curve():
 @pytest.mark.parametrize(
     "obj",
     [
-        FixedPeriod(dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 2, 1), frequency="m", fixed_rate=2.0),
+        FixedPeriod(
+            dt(2000, 1, 1),
+            dt(2000, 2, 1),
+            dt(2000, 2, 1),
+            frequency=Frequency.Months(1, None),
+            fixed_rate=2.0,
+        ),
         Cashflow(notional=1e6, payment=dt(2022, 1, 1), currency="usd"),
         IndexCashflow(notional=1e6, payment=dt(2022, 1, 1), currency="usd", index_base=100.0),
         IndexFixedPeriod(
-            dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 2, 1), frequency="m", fixed_rate=2.0
+            dt(2000, 1, 1),
+            dt(2000, 2, 1),
+            dt(2000, 2, 1),
+            frequency=Frequency.Months(1, None),
+            fixed_rate=2.0,
         ),
-        FloatPeriod(dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 2, 1), frequency="m"),
+        FloatPeriod(
+            dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 2, 1), frequency=Frequency.Months(1, None)
+        ),
         FXCallPeriod(
             pair="eurusd",
             expiry=dt(2000, 1, 1),
@@ -124,7 +136,7 @@ class TestFXandBase:
             dt(2022, 2, 1),
             dt(2022, 3, 1),
             dt(2022, 3, 1),
-            "A",
+            Frequency.Months(12, None),
             fixed_rate=2,
             currency="usd",
         )
@@ -138,7 +150,7 @@ class TestFXandBase:
             dt(2022, 2, 1),
             dt(2022, 3, 1),
             dt(2022, 3, 1),
-            "A",
+            Frequency.Months(12, None),
             fixed_rate=2,
             currency="usd",
         )
@@ -152,7 +164,7 @@ class TestFXandBase:
             dt(2022, 2, 1),
             dt(2022, 3, 1),
             dt(2022, 3, 1),
-            "A",
+            Frequency.Months(12, None),
             fixed_rate=2,
             currency="usd",
         )
@@ -169,7 +181,7 @@ class TestFloatPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
         )
         assert float_period.cashflow(None) is None
 
@@ -196,7 +208,7 @@ class TestFloatPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             float_spread=float_spread,
             spread_compound_method=spread_method,
         )
@@ -220,7 +232,7 @@ class TestFloatPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             float_spread=spread,
         )
         curve = curve if crv else None
@@ -267,7 +279,7 @@ class TestFloatPeriod:
                 start=dt(2022, 1, 1),
                 end=dt(2022, 4, 1),
                 payment=dt(2022, 4, 3),
-                frequency="Q",
+                frequency=Frequency.Months(3, None),
                 spread_compound_method="bad_vibes",
             )
 
@@ -276,7 +288,7 @@ class TestFloatPeriod:
             start=dt(2022, 1, 1),
             end=dt(2022, 4, 1),
             payment=dt(2022, 4, 3),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             spread_compound_method="none_simple",
             float_spread=1,
         )
@@ -289,7 +301,7 @@ class TestFloatPeriod:
             start=dt(2022, 1, 10),
             end=dt(2022, 1, 15),
             payment=dt(2022, 1, 15),
-            frequency="M",
+            frequency=Frequency.Months(1, None),
             fixing_method="rfr_lockout",
             method_param=6,
         )
@@ -302,7 +314,7 @@ class TestFloatPeriod:
                 start=dt(2022, 1, 1),
                 end=dt(2022, 4, 1),
                 payment=dt(2022, 4, 3),
-                frequency="Q",
+                frequency=Frequency.Months(3, None),
                 fixing_method="bad_vibes",
             )
 
@@ -314,7 +326,7 @@ class TestFloatPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
         )
         result = float_period.npv(curve)
         assert abs(result + 9997768.95848275) < 1e-7
@@ -324,7 +336,7 @@ class TestFloatPeriod:
             dt(2022, 1, 1),
             dt(2022, 1, 4),
             dt(2022, 1, 4),
-            "Q",
+            Frequency.Months(3, None),
             fixing_method="rfr_payment_delay_avg",
             spread_compound_method="isda_compounding",
         )
@@ -339,7 +351,7 @@ class TestFloatPeriod:
             dt(2022, 1, 1),
             dt(2022, 1, 4),
             dt(2022, 1, 4),
-            "Q",
+            Frequency.Months(3, None),
             fixing_method="rfr_payment_delay",
         )
         result = period.rate(curve)
@@ -353,7 +365,7 @@ class TestFloatPeriod:
             dt(2022, 1, 1),
             dt(2022, 1, 4),
             dt(2022, 1, 4),
-            "Q",
+            Frequency.Months(3, None),
             fixing_method="rfr_payment_delay",
             fixings=[10, 8],
         )
@@ -368,7 +380,7 @@ class TestFloatPeriod:
             dt(2022, 1, 1),
             dt(2022, 1, 4),
             dt(2022, 1, 4),
-            "Q",
+            Frequency.Months(3, None),
             fixing_method="rfr_payment_delay_avg",
         )
         result = period.rate(curve)
@@ -387,7 +399,7 @@ class TestFloatPeriod:
             dt(2022, 1, 1),
             dt(2022, 1, 4),
             dt(2022, 1, 4),
-            "Q",
+            Frequency.Months(3, None),
             fixing_method="rfr_payment_delay_avg",
             fixings=[10, 8],
         )
@@ -402,7 +414,7 @@ class TestFloatPeriod:
             dt(2022, 1, 1),
             dt(2022, 1, 4),
             dt(2022, 1, 4),
-            "Q",
+            Frequency.Months(3, None),
             fixing_method="rfr_lockout_avg",
             method_param=2,
         )
@@ -415,7 +427,7 @@ class TestFloatPeriod:
             dt(2022, 1, 2),
             dt(2022, 1, 5),
             dt(2022, 1, 5),
-            "Q",
+            Frequency.Months(3, None),
             fixing_method="rfr_lockout_avg",
             method_param=1,
         )
@@ -430,7 +442,7 @@ class TestFloatPeriod:
             dt(2022, 1, 1),
             dt(2022, 1, 4),
             dt(2022, 1, 4),
-            "Q",
+            Frequency.Months(3, None),
             fixing_method="rfr_lockout_avg",
             method_param=2,
             fixings=[10, 8],
@@ -443,7 +455,7 @@ class TestFloatPeriod:
             dt(2022, 1, 2),
             dt(2022, 1, 5),
             dt(2022, 1, 5),
-            "Q",
+            Frequency.Months(3, None),
             fixing_method="rfr_lockout_avg",
             method_param=1,
             fixings=[10, 8],
@@ -459,7 +471,7 @@ class TestFloatPeriod:
             dt(2022, 1, 1),
             dt(2022, 1, 4),
             dt(2022, 1, 4),
-            "Q",
+            Frequency.Months(3, None),
             fixing_method="rfr_lockout",
             method_param=2,
         )
@@ -472,7 +484,7 @@ class TestFloatPeriod:
             dt(2022, 1, 2),
             dt(2022, 1, 5),
             dt(2022, 1, 5),
-            "Q",
+            Frequency.Months(3, None),
             fixing_method="rfr_lockout",
             method_param=1,
         )
@@ -487,7 +499,7 @@ class TestFloatPeriod:
             dt(2022, 1, 1),
             dt(2022, 1, 4),
             dt(2022, 1, 4),
-            "Q",
+            Frequency.Months(3, None),
             fixing_method="rfr_lockout",
             method_param=2,
             fixings=[10, 8],
@@ -500,7 +512,7 @@ class TestFloatPeriod:
             dt(2022, 1, 2),
             dt(2022, 1, 5),
             dt(2022, 1, 5),
-            "Q",
+            Frequency.Months(3, None),
             fixing_method="rfr_lockout",
             method_param=1,
             fixings=[10, 8],
@@ -516,7 +528,7 @@ class TestFloatPeriod:
             dt(2022, 1, 2),
             dt(2022, 1, 5),
             dt(2022, 1, 5),
-            "Q",
+            Frequency.Months(3, None),
             fixing_method="rfr_observation_shift",
             method_param=1,
         )
@@ -528,7 +540,7 @@ class TestFloatPeriod:
             dt(2022, 1, 3),
             dt(2022, 1, 5),
             dt(2022, 1, 5),
-            "Q",
+            Frequency.Months(3, None),
             fixing_method="rfr_observation_shift",
             method_param=2,
         )
@@ -548,7 +560,7 @@ class TestFloatPeriod:
             dt(2022, 1, 2),
             dt(2022, 1, 5),
             dt(2022, 1, 5),
-            "Q",
+            Frequency.Months(3, None),
             fixing_method="rfr_observation_shift",
             method_param=1,
             fixings=[10, 8],
@@ -561,7 +573,7 @@ class TestFloatPeriod:
             dt(2022, 1, 3),
             dt(2022, 1, 5),
             dt(2022, 1, 5),
-            "Q",
+            Frequency.Months(3, None),
             fixing_method="rfr_observation_shift",
             method_param=2,
             fixings=[10, 8],
@@ -577,7 +589,7 @@ class TestFloatPeriod:
             dt(2022, 1, 2),
             dt(2022, 1, 5),
             dt(2022, 1, 5),
-            "Q",
+            Frequency.Months(3, None),
             fixing_method="rfr_observation_shift_avg",
             method_param=1,
         )
@@ -589,7 +601,7 @@ class TestFloatPeriod:
             dt(2022, 1, 3),
             dt(2022, 1, 5),
             dt(2022, 1, 5),
-            "Q",
+            Frequency.Months(3, None),
             fixing_method="rfr_observation_shift_avg",
             method_param=2,
         )
@@ -609,7 +621,7 @@ class TestFloatPeriod:
             dt(2022, 1, 2),
             dt(2022, 1, 5),
             dt(2022, 1, 5),
-            "Q",
+            Frequency.Months(3, None),
             fixing_method="rfr_observation_shift_avg",
             method_param=1,
             fixings=[10, 8],
@@ -622,7 +634,7 @@ class TestFloatPeriod:
             dt(2022, 1, 3),
             dt(2022, 1, 5),
             dt(2022, 1, 5),
-            "Q",
+            Frequency.Months(3, None),
             fixing_method="rfr_observation_shift_avg",
             method_param=2,
             fixings=[10, 8],
@@ -637,7 +649,7 @@ class TestFloatPeriod:
             start=dt(2022, 1, 1),
             end=dt(2022, 12, 31),
             payment=dt(2022, 12, 31),
-            frequency="A",
+            frequency=Frequency.Months(12, None),
             fixing_method="rfr_lookback",
             method_param=5,
         )
@@ -705,7 +717,7 @@ class TestFloatPeriod:
             dt(2022, 1, 5),
             dt(2022, 1, 11),
             dt(2022, 1, 11),
-            "Q",
+            Frequency.Months(3, None),
             fixing_method=method,
             convention="act365f",
             notional=-1000000,
@@ -727,7 +739,7 @@ class TestFloatPeriod:
             dt(2022, 1, 5),
             dt(2022, 1, 11),
             dt(2022, 1, 11),
-            "Q",
+            Frequency.Months(3, None),
             fixing_method="rfr_payment_delay",
             notional=-1000000,
         )
@@ -745,7 +757,7 @@ class TestFloatPeriod:
             dt(2022, 1, 5),
             dt(2022, 1, 11),
             dt(2022, 1, 11),
-            "Q",
+            Frequency.Months(3, None),
             fixing_method="rfr_payment_delay",
             convention="act365f",
             notional=-1000000,
@@ -775,7 +787,7 @@ class TestFloatPeriod:
             dt(2022, 1, 10),
             dt(2022, 1, 11),
             dt(2022, 1, 11),
-            "Q",
+            Frequency.Months(3, None),
             fixing_method=method,
             method_param=param,
             notional=-1000000,
@@ -800,7 +812,7 @@ class TestFloatPeriod:
         period = FloatPeriod(
             start=dt(2022, 1, 28),
             end=dt(2022, 2, 2),
-            frequency="A",
+            frequency=Frequency.Months(12, None),
             payment=dt(2022, 1, 1),
             fixing_method=method,
             method_param=param,
@@ -831,7 +843,7 @@ class TestFloatPeriod:
             start=dt(2022, 1, 1),
             end=dt(2022, 1, 4),
             payment=dt(2022, 1, 4),
-            frequency="M",
+            frequency=Frequency.Months(1, None),
             float_spread=100,
             spread_compound_method=method,
             convention="act365f",
@@ -844,7 +856,7 @@ class TestFloatPeriod:
             start=dt(2022, 1, 5),
             end=dt(2022, 4, 5),
             payment=dt(2022, 4, 5),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixing_method="ibor",
             method_param=2,
         )
@@ -856,7 +868,7 @@ class TestFloatPeriod:
             start=dt(2022, 1, 4),
             end=dt(2022, 4, 4),
             payment=dt(2022, 4, 4),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixing_method="ibor",
             method_param=2,
             convention="act365f",
@@ -886,7 +898,7 @@ class TestFloatPeriod:
             start=dt(2022, 1, 4),
             end=dt(2022, 4, 4),
             payment=dt(2022, 4, 4),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixing_method="ibor",
             method_param=2,
             convention="act365f",
@@ -916,7 +928,7 @@ class TestFloatPeriod:
             start=dt(2022, 1, 4),
             end=dt(2022, 4, 4),
             payment=dt(2022, 4, 4),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixing_method="ibor",
             method_param=2,
             convention="act365f",
@@ -951,7 +963,7 @@ class TestFloatPeriod:
             start=dt(2023, 3, 6),
             end=dt(2023, 6, 6),
             payment=dt(2023, 6, 6),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixing_method="ibor",
             method_param=2,
             fixings=fixings,
@@ -968,7 +980,7 @@ class TestFloatPeriod:
             start=dt(2000, 2, 2),
             end=dt(2000, 5, 2),
             payment=dt(2000, 5, 2),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixing_method="ibor",
             method_param=0,
         )
@@ -996,7 +1008,7 @@ class TestFloatPeriod:
             start=dt(2000, 2, 2),
             end=dt(2000, 3, 2),
             payment=dt(2000, 3, 2),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixing_method="rfr_payment_delay",
             method_param=0,
         )
@@ -1017,7 +1029,7 @@ class TestFloatPeriod:
             start=dt(2023, 3, 20),
             end=dt(2023, 6, 20),
             payment=dt(2023, 6, 20),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixing_method="ibor",
             method_param=2,
             fixings=fixings,
@@ -1033,7 +1045,7 @@ class TestFloatPeriod:
             start=dt(2022, 4, 1),
             end=dt(2022, 7, 1),
             payment=dt(2022, 7, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixing_method="ibor",
             method_param=2,
             float_spread=float_spread,
@@ -1047,7 +1059,7 @@ class TestFloatPeriod:
             start=dt(2022, 4, 1),
             end=dt(2022, 5, 1),
             payment=dt(2022, 5, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixing_method="ibor",
             method_param=2,
             stub=True,
@@ -1061,7 +1073,7 @@ class TestFloatPeriod:
             start=dt(2022, 4, 1),
             end=dt(2022, 5, 1),
             payment=dt(2022, 5, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixing_method="ibor",
             method_param=2,
             stub=True,
@@ -1078,7 +1090,7 @@ class TestFloatPeriod:
             start=dt(2021, 12, 30),
             end=dt(2022, 1, 3),
             payment=dt(2022, 1, 3),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixing_method="rfr_payment_delay",
             float_spread=100,
             fixings=[1.5, 2.5],
@@ -1100,7 +1112,7 @@ class TestFloatPeriod:
             start=dt(2021, 12, 30),
             end=dt(2022, 1, 3),
             payment=dt(2022, 1, 3),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixing_method="rfr_payment_delay",
             float_spread=100,
             fixings=fixings,
@@ -1130,7 +1142,7 @@ class TestFloatPeriod:
             start=dt(2021, 12, 30),
             end=dt(2022, 1, 3),
             payment=dt(2022, 1, 3),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixing_method="rfr_payment_delay",
             float_spread=100,
             fixings=fixings,
@@ -1167,7 +1179,7 @@ class TestFloatPeriod:
             start=dt(2023, 1, 23),
             end=dt(2023, 1, 30),
             payment=dt(2023, 1, 30),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixing_method="rfr_payment_delay",
             fixings=fixings,
             convention="act365F",
@@ -1193,7 +1205,7 @@ class TestFloatPeriod:
             start=dt(2023, 1, 23),
             end=dt(2023, 1, 30),
             payment=dt(2023, 1, 30),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixing_method="rfr_payment_delay",
             fixings=fixings,
             convention="act365F",
@@ -1211,7 +1223,7 @@ class TestFloatPeriod:
             start=dt(2022, 1, 4),
             end=dt(2022, 4, 4),
             payment=dt(2022, 4, 4),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixing_method="rfr_payment_delay",
             spread_compound_method="isda_compounding",
             float_spread=100,
@@ -1227,7 +1239,7 @@ class TestFloatPeriod:
                 start=dt(2022, 1, 4),
                 end=dt(2022, 4, 4),
                 payment=dt(2022, 4, 4),
-                frequency="Q",
+                frequency=Frequency.Months(3, None),
                 fixing_method="ibor",
                 method_param=2,
                 fixings=[1.00],
@@ -1237,7 +1249,7 @@ class TestFloatPeriod:
             start=dt(2022, 1, 4),
             end=dt(2022, 4, 4),
             payment=dt(2022, 4, 4),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixing_method="ibor",
             method_param=2,
         )
@@ -1308,7 +1320,7 @@ class TestFloatPeriod:
             start=dt(2022, 12, 28),
             end=dt(2023, 1, 2),
             payment=dt(2023, 1, 2),
-            frequency="M",
+            frequency=Frequency.Months(1, None),
             fixings=[1.19, 1.19, -8.81],
             fixing_method=meth,
         )
@@ -1332,7 +1344,7 @@ class TestFloatPeriod:
             start=dt(2022, 12, 28),
             end=dt(2023, 1, 2),
             payment=dt(2023, 1, 2),
-            frequency="M",
+            frequency=Frequency.Months(1, None),
             fixings=[1.19, 1.19, -8.81],
             fixing_method="rfr_payment_delay",
         )
@@ -1346,7 +1358,7 @@ class TestFloatPeriod:
             start=dt(2022, 2, 1),
             end=dt(2022, 2, 28),
             payment=dt(2022, 2, 28),
-            frequency="M",
+            frequency=Frequency.Months(1, None),
             fixing_method="rfr_payment_delay",
         )
         result = float_period.fixings_table(curve, right=dt(2022, 2, 13))
@@ -1391,7 +1403,7 @@ class TestFloatPeriod:
             start=dt(2022, 12, 28),
             end=dt(2023, 1, 3),
             payment=dt(2023, 1, 3),
-            frequency="M",
+            frequency=Frequency.Months(1, None),
             fixing_method=method,
             method_param=param,
             spread_compound_method=scm,
@@ -1413,7 +1425,7 @@ class TestFloatPeriod:
             start=dt(2022, 12, 28),
             end=dt(2023, 1, 3),
             payment=dt(2023, 1, 3),
-            frequency="M",
+            frequency=Frequency.Months(1, None),
             fixing_method="rfr_payment_delay",
         )
         expected = float_period.fixings_table(curve, right=right)
@@ -1450,7 +1462,7 @@ class TestFloatPeriod:
             start=dt(2022, 12, 28),
             end=dt(2023, 1, 3),
             payment=dt(2023, 1, 3),
-            frequency="M",
+            frequency=Frequency.Months(1, None),
             fixing_method=method,
             method_param=param,
             spread_compound_method="none_simple",
@@ -1476,7 +1488,7 @@ class TestFloatPeriod:
             start=dt(2021, 12, 30),
             end=dt(2022, 1, 3),
             payment=dt(2022, 1, 3),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixing_method="rfr_payment_delay",
             float_spread=100,
             fixings=fixings,
@@ -1504,7 +1516,7 @@ class TestFloatPeriod:
             start=dt(2022, 1, 1),
             end=dt(2022, 7, 1),
             payment=dt(2022, 7, 1),
-            frequency="S",
+            frequency=Frequency.Months(6, None),
             fixing_method="rfr_payment_delay",
             float_spread=0,
             convention="act365F",
@@ -1522,7 +1534,7 @@ class TestFloatPeriod:
             start=dt(2022, 12, 28),
             end=dt(2023, 1, 2),
             payment=dt(2023, 1, 2),
-            frequency="M",
+            frequency=Frequency.Months(1, None),
             fixings=[1.19, 1.19],
         )
 
@@ -1542,7 +1554,7 @@ class TestFloatPeriod:
                 start=dt(2022, 1, 4),
                 end=dt(2022, 4, 4),
                 payment=dt(2022, 4, 4),
-                frequency="Q",
+                frequency=Frequency.Months(3, None),
                 fixing_method="rfr_lockout",
                 method_param=0,
                 fixings=[1.00],
@@ -1553,7 +1565,7 @@ class TestFloatPeriod:
                 start=dt(2022, 1, 4),
                 end=dt(2022, 4, 4),
                 payment=dt(2022, 4, 4),
-                frequency="Q",
+                frequency=Frequency.Months(3, None),
                 fixing_method="rfr_payment_delay",
                 method_param=2,
                 fixings=[1.00],
@@ -1564,7 +1576,7 @@ class TestFloatPeriod:
             start=dt(2022, 12, 28),
             end=dt(2023, 1, 2),
             payment=dt(2023, 1, 2),
-            frequency="M",
+            frequency=Frequency.Months(1, None),
             fixings=[1.19, 1.19, -8.81],
             spread_compound_method="isda_compounding",
             float_spread=1.0,
@@ -1589,7 +1601,7 @@ class TestFloatPeriod:
         period = FloatPeriod(
             start=dt(2022, 1, 4),
             end=dt(2022, 1, 11),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixing_method="rfr_payment_delay",
             payment=dt(2022, 1, 9),
             float_spread=10.0,
@@ -1605,7 +1617,7 @@ class TestFloatPeriod:
         period = FloatPeriod(
             start=dt(2022, 1, 4),
             end=dt(2022, 1, 11),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixing_method="rfr_payment_delay",
             payment=dt(2022, 1, 9),
             float_spread=10.0,
@@ -1631,7 +1643,7 @@ class TestFloatPeriod:
             start=dt(2023, 4, 27),
             end=dt(2023, 5, 12),
             payment=dt(2023, 5, 16),
-            frequency="A",
+            frequency=Frequency.Months(12, None),
             fixing_method=meth,
             method_param=param,
             float_spread=0.0,
@@ -1645,7 +1657,7 @@ class TestFloatPeriod:
             start=dt(2023, 4, 27),
             end=dt(2023, 6, 12),
             payment=dt(2023, 6, 16),
-            frequency="A",
+            frequency=Frequency.Months(12, None),
             fixing_method="ibor",
             method_param=1,
             float_spread=0.0,
@@ -1662,7 +1674,7 @@ class TestFloatPeriod:
             start=dt(2023, 2, 1),
             end=dt(2023, 4, 1),
             payment=dt(2023, 4, 1),
-            frequency="A",
+            frequency=Frequency.Months(12, None),
             fixing_method="ibor",
             method_param=1,
             float_spread=0.0,
@@ -1681,7 +1693,7 @@ class TestFloatPeriod:
             start=dt(2023, 2, 1),
             end=dt(2023, 4, 1),
             payment=dt(2023, 4, 1),
-            frequency="A",
+            frequency=Frequency.Months(12, None),
             fixing_method="ibor",
             method_param=1,
             float_spread=0.0,
@@ -1701,7 +1713,7 @@ class TestFloatPeriod:
             start=dt(2023, 2, 1),
             end=dt(2023, 4, 1),
             payment=dt(2023, 4, 1),
-            frequency="A",
+            frequency=Frequency.Months(12, None),
             fixing_method="rfr_payment_delay",
             float_spread=0.0,
             stub=True,
@@ -1714,7 +1726,7 @@ class TestFloatPeriod:
             start=dt(2023, 2, 1),
             end=dt(2023, 4, 1),
             payment=dt(2023, 4, 1),
-            frequency="A",
+            frequency=Frequency.Months(12, None),
             fixing_method="rfr_payment_delay",
             float_spread=0.0,
             stub=True,
@@ -1728,7 +1740,7 @@ class TestFloatPeriod:
             start=dt(2023, 2, 1),
             end=dt(2023, 4, 1),
             payment=dt(2023, 4, 1),
-            frequency="A",
+            frequency=Frequency.Months(12, None),
             fixing_method="ibor",
             method_param=1,
             float_spread=0.0,
@@ -1748,7 +1760,7 @@ class TestFloatPeriod:
             start=dt(2023, 2, 1),
             end=dt(2023, 4, 1),
             payment=dt(2023, 4, 1),
-            frequency="A",
+            frequency=Frequency.Months(12, None),
             fixing_method="ibor",
             method_param=1,
             float_spread=0.0,
@@ -1767,7 +1779,7 @@ class TestFloatPeriod:
             start=dt(2023, 2, 1),
             end=dt(2023, 5, 1),
             payment=dt(2023, 5, 1),
-            frequency="q",
+            frequency=Frequency.Months(3, None),
             fixing_method="ibor",
             method_param=1,
             float_spread=0.0,
@@ -1786,7 +1798,9 @@ class TestFloatPeriod:
         assert_frame_equal(result, expected)
 
     def test_local_historical_pay_date_issue(self, curve) -> None:
-        period = FloatPeriod(dt(2021, 1, 1), dt(2021, 4, 1), dt(2021, 4, 1), "Q")
+        period = FloatPeriod(
+            dt(2021, 1, 1), dt(2021, 4, 1), dt(2021, 4, 1), Frequency.Months(3, None)
+        )
         result = period.npv(curve, local=True)
         assert result == {"usd": 0.0}
 
@@ -1801,7 +1815,7 @@ class TestFloatPeriod:
             start=dt(2000, 1, 12),
             end=dt(2000, 4, 12),
             fixing_method=fixing_method,
-            frequency="q",
+            frequency=Frequency.Months(3, None),
             fixings=fixings,
             payment=dt(2000, 4, 12),
         )
@@ -1835,7 +1849,7 @@ class TestFloatPeriod:
             start=dt(2000, 1, 1),
             end=dt(2000, 2, 1),
             fixing_method="rfr_payment_delay_avg",
-            frequency="m",
+            frequency=Frequency.Months(1, None),
             calendar="all",
             fixings=fixings,
             payment=dt(2000, 2, 1),
@@ -1852,6 +1866,16 @@ class TestFloatPeriod:
 
 
 class TestFixedPeriod:
+    def test_frequency_as_str(self):
+        p = FixedPeriod(
+            dt(2000, 1, 1),
+            dt(2000, 4, 1),
+            dt(2000, 4, 1),
+            "Q",
+            roll=1,
+        )
+        assert p.frequency == Frequency.Months(3, RollDay.Day(1))
+
     def test_fixed_period_analytic_delta(self, curve, fxr) -> None:
         fixed_period = FixedPeriod(
             start=dt(2022, 1, 1),
@@ -1860,7 +1884,7 @@ class TestFixedPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             currency="usd",
         )
         result = fixed_period.analytic_delta(curve)
@@ -1877,7 +1901,7 @@ class TestFixedPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             currency="usd",
         )
         fxr = FXRates({"usdnok": 10.0}, base="NOK")
@@ -1902,7 +1926,7 @@ class TestFixedPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixed_rate=rate,
         )
 
@@ -1946,7 +1970,7 @@ class TestFixedPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixed_rate=4.00,
             currency="usd",
         )
@@ -1964,7 +1988,7 @@ class TestFixedPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixed_rate=4.00,
             currency="usd",
         )
@@ -1982,7 +2006,7 @@ class TestFixedPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             currency="usd",
         )
         with pytest.raises(TypeError, match="`fixed_rate` must be set on the Period"):
@@ -2001,7 +2025,7 @@ class TestCreditPremiumPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixed_rate=4.0,
             currency="usd",
             premium_accrued=accrued,
@@ -2020,7 +2044,7 @@ class TestCreditPremiumPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixed_rate=4.00,
             currency="usd",
         )
@@ -2043,7 +2067,7 @@ class TestCreditPremiumPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             currency="usd",
         )
         with pytest.raises(
@@ -2063,7 +2087,7 @@ class TestCreditPremiumPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixed_rate=4.00,
             currency="usd",
             premium_accrued=accrued,
@@ -2082,7 +2106,7 @@ class TestCreditPremiumPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixed_rate=4.00,
             currency="usd",
         )
@@ -2099,7 +2123,7 @@ class TestCreditPremiumPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixed_rate=4.00,
             currency="usd",
         )
@@ -2136,7 +2160,7 @@ class TestCreditPremiumPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixed_rate=4.00,
             currency="usd",
         )
@@ -2172,7 +2196,7 @@ class TestCreditPremiumPeriod:
             notional=1e9,
             convention="ActActICMA",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixed_rate=4.00,
             currency="usd",
         )
@@ -2183,7 +2207,7 @@ class TestCreditPremiumPeriod:
             notional=1e9,
             convention="ActActICMA",
             termination=dt(2022, 4, 1),
-            frequency="S",
+            frequency=Frequency.Months(6, None),
             fixed_rate=2.00,
             currency="usd",
         )
@@ -2200,7 +2224,7 @@ class TestCreditPremiumPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             currency="usd",
         )
         assert premium_period.cashflow is None
@@ -2213,7 +2237,7 @@ class TestCreditPremiumPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             currency="usd",
         )
         assert premium_period.accrued(dt(2022, 2, 1)) is None
@@ -2226,7 +2250,7 @@ class TestCreditPremiumPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             currency="usd",
             fixed_rate=2.0,
         )
@@ -2241,7 +2265,7 @@ class TestCreditPremiumPeriod:
             notional=1e9,
             convention="ActActICMA",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             currency="usd",
             fixed_rate=2.0,
         )
@@ -2257,7 +2281,7 @@ class TestCreditProtectionPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             currency="usd",
         )
         period.discretization = 1
@@ -2280,7 +2304,7 @@ class TestCreditProtectionPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             currency="usd",
         )
         with pytest.raises(
@@ -2302,7 +2326,7 @@ class TestCreditProtectionPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             currency="usd",
         )
         result = period.analytic_delta(hazard_curve, curve)
@@ -2319,7 +2343,7 @@ class TestCreditProtectionPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             currency="usd",
         )
         fxr = FXRates({"usdnok": 10.0}, base="NOK")
@@ -2335,7 +2359,7 @@ class TestCreditProtectionPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             currency="usd",
         )
 
@@ -2374,7 +2398,7 @@ class TestCreditProtectionPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             currency="usd",
         )
         cashflow = None
@@ -2406,7 +2430,7 @@ class TestCreditProtectionPeriod:
             end=dt(2022, 4, 1),
             payment=dt(2022, 4, 1),
             notional=1e9,
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
         )
         h1 = hazard_curve.copy()
         h2 = hazard_curve.copy()
@@ -2422,7 +2446,7 @@ class TestCreditProtectionPeriod:
             end=dt(2022, 1, 4),
             payment=dt(2022, 1, 4),
             notional=1e9,
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
         )
         r1 = period.npv(hazard_curve, curve)
         exp = -20006.321837529074
@@ -2434,7 +2458,7 @@ class TestCreditProtectionPeriod:
             end=dt(2022, 1, 4),
             payment=dt(2022, 1, 4),
             notional=1e9,
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
         )
 
         result = period.analytic_rec_risk(hazard_curve, curve)
@@ -2523,7 +2547,7 @@ class TestIndexFixedPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 3),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixed_rate=4.00,
             currency="usd",
             index_base=100.0,
@@ -2546,7 +2570,7 @@ class TestIndexFixedPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 3),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixed_rate=4.00,
             currency="usd",
             index_base=100.0,
@@ -2577,7 +2601,7 @@ class TestIndexFixedPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 3),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixed_rate=4.00,
             currency="usd",
             index_base=100.0,
@@ -2612,7 +2636,7 @@ class TestIndexFixedPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             currency="usd",
             index_base=200.0,
             index_fixings=300.0,
@@ -2632,7 +2656,7 @@ class TestIndexFixedPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 3),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             currency="usd",
             index_base=200.0,
             index_fixings=fixings,
@@ -2661,7 +2685,7 @@ class TestIndexFixedPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 3),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             currency="usd",
             index_base=200.0,
             index_fixings=fixings,
@@ -2679,7 +2703,7 @@ class TestIndexFixedPeriod:
                 notional=1e9,
                 convention="Act360",
                 termination=dt(2022, 4, 1),
-                frequency="Q",
+                frequency=Frequency.Months(3, None),
                 currency="usd",
                 index_base=200.0,
                 index_method="BAD",
@@ -2693,7 +2717,7 @@ class TestIndexFixedPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 3),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixed_rate=4.00,
             currency="usd",
             index_base=100.0,
@@ -2720,7 +2744,7 @@ class TestIndexFixedPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixed_rate=4.00,
             currency="usd",
             index_base=100.0,
@@ -2741,7 +2765,7 @@ class TestIndexFixedPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 1),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixed_rate=4.00,
             currency="usd",
             index_base=100.0,
@@ -2778,7 +2802,7 @@ class TestIndexFixedPeriod:
             start=dt(2022, 1, 1),
             end=dt(2022, 2, 1),
             payment=dt(2022, 2, 1),
-            frequency="M",
+            frequency=Frequency.Months(1, None),
             index_base=100.0,
         )
         assert i_period.cashflow() is None
@@ -2789,7 +2813,7 @@ class TestIndexFixedPeriod:
             start=dt(2022, 1, 1),
             end=dt(2022, 2, 1),
             payment=dt(2022, 2, 1),
-            frequency="M",
+            frequency=Frequency.Months(1, None),
             index_base=100.0,
         )
         result = i_period.cashflows()
@@ -2800,7 +2824,7 @@ class TestIndexFixedPeriod:
             start=dt(2022, 1, 1),
             end=dt(2022, 2, 1),
             payment=dt(2022, 2, 1),
-            frequency="M",
+            frequency=Frequency.Months(1, None),
             index_base=100.0,
         )
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99})
@@ -2828,7 +2852,7 @@ class TestIndexFixedPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 3),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixed_rate=4.00,
             currency="usd",
             index_base=100.0,
@@ -2849,7 +2873,7 @@ class TestIndexFixedPeriod:
             notional=1e9,
             convention="Act360",
             termination=dt(2022, 4, 3),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixed_rate=4.00,
             currency="usd",
             index_base=100.0,
@@ -2875,7 +2899,7 @@ class TestIndexFixedPeriod:
             notional=1e6,
             convention="30360",
             termination=dt(2022, 4, 3),
-            frequency="Q",
+            frequency=Frequency.Months(3, None),
             fixed_rate=4.00,
             currency="usd",
             index_base=100.0,
@@ -2924,7 +2948,7 @@ class TestIndexFixedPeriod:
             index_lag=3,
             index_fixings=RPI,
             index_base=RPI,
-            frequency="S",
+            frequency=Frequency.Months(6, None),
             payment=dt(2025, 5, 27),
         )
         result = period.cashflows()
@@ -3150,7 +3174,7 @@ class TestNonDeliverableFixedPeriod:
             notional=1e6,
             fx_fixing=fx_fixing,
             fx_fixing_date=dt(2025, 4, 29),
-            frequency="q",
+            frequency=Frequency.Months(3, None),
             fixed_rate=3.0,
             reversed=True,
         )
@@ -3171,7 +3195,7 @@ class TestNonDeliverableFixedPeriod:
             notional=0.2e6,
             fx_fixing=fx_fixing,
             fx_fixing_date=dt(2025, 4, 29),
-            frequency="q",
+            frequency=Frequency.Months(3, None),
             fixed_rate=3.0,
         )
         cf = ndfp.cashflow(fx=fxf_ndf)
@@ -3191,7 +3215,7 @@ class TestNonDeliverableFixedPeriod:
             notional=1e6,
             fx_fixing=fx_fixing,
             fx_fixing_date=dt(2025, 4, 29),
-            frequency="q",
+            frequency=Frequency.Months(3, None),
         )
         assert ndfp.cashflow(fx=fxf_ndf) is None
 
@@ -3207,7 +3231,7 @@ class TestNonDeliverableFixedPeriod:
             notional=1e9,
             fx_fixing=fx_fixing,
             fx_fixing_date=dt(2025, 4, 29),
-            frequency="q",
+            frequency=Frequency.Months(3, None),
             fixed_rate=3.0,
             reversed=True,
         )
@@ -3229,7 +3253,7 @@ class TestNonDeliverableFixedPeriod:
             notional=1e9,
             fx_fixing=5.0,
             fx_fixing_date=dt(2025, 4, 29),
-            frequency="q",
+            frequency=Frequency.Months(3, None),
             fixed_rate=3.0,
             reversed=True,
         )
@@ -3251,7 +3275,7 @@ class TestNonDeliverableFixedPeriod:
             notional=1e9,
             fx_fixing=fx_fixing,
             fx_fixing_date=dt(2025, 4, 29),
-            frequency="q",
+            frequency=Frequency.Months(3, None),
             fixed_rate=3.0,
             reversed=True,
         )
@@ -3273,7 +3297,7 @@ class TestNonDeliverableFixedPeriod:
             notional=1e9,
             fx_fixing=fx_fixing,
             fx_fixing_date=dt(2025, 4, 29),
-            frequency="q",
+            frequency=Frequency.Months(3, None),
             fixed_rate=3.0,
         )
         curve = fxf_ndf.curve("usd", "usd")
@@ -3296,7 +3320,7 @@ class TestNonDeliverableFixedPeriod:
             notional=1e9,
             fx_fixing=NoInput(0),
             fx_fixing_date=dt(2025, 4, 29),
-            frequency="q",
+            frequency=Frequency.Months(3, None),
             fixed_rate=fixed_rate,
         )
         result = ndfp.cashflows(curve=curve_, fx=fxf_ndf)
@@ -3326,7 +3350,7 @@ class TestNonDeliverableFixedPeriod:
 
 def test_base_period_dates_raise() -> None:
     with pytest.raises(ValueError):
-        _ = FixedPeriod(dt(2023, 1, 1), dt(2022, 1, 1), dt(2024, 1, 1), "Q")
+        _ = FixedPeriod(dt(2023, 1, 1), dt(2022, 1, 1), dt(2024, 1, 1), Frequency.Months(3, None))
 
 
 @pytest.fixture

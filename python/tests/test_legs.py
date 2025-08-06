@@ -7,7 +7,6 @@ from pandas.testing import assert_frame_equal, assert_series_equal
 from rateslib import default_context, defaults
 from rateslib.curves import Curve
 from rateslib.default import NoInput
-from rateslib.dual import Dual
 from rateslib.fx import FXForwards, FXRates
 from rateslib.legs import (
     CreditPremiumLeg,
@@ -31,7 +30,7 @@ from rateslib.periods import (
     IndexCashflow,
     IndexFixedPeriod,
 )
-from rateslib.scheduling import Schedule
+from rateslib.scheduling import Frequency, Schedule
 
 
 @pytest.fixture
@@ -100,7 +99,10 @@ def test_repr_mtm(Leg):
 
 def test_repr_custom():
     period = FixedPeriod(
-        start=dt(2000, 1, 1), end=dt(2000, 2, 1), payment=dt(2000, 2, 1), frequency="m"
+        start=dt(2000, 1, 1),
+        end=dt(2000, 2, 1),
+        payment=dt(2000, 2, 1),
+        frequency=Frequency.Months(1, None),
     )
     leg = CustomLeg([period])
     assert leg.__repr__() == f"<rl.CustomLeg at {hex(id(leg))}>"
@@ -567,7 +569,7 @@ class TestFloatLeg:
                         start=dt(2022, 1, 3),
                         end=dt(2022, 3, 15),
                         payment=dt(2022, 3, 17),
-                        frequency="Q",
+                        frequency=Frequency.Months(3, None),
                         notional=defaults.notional,
                         convention=defaults.convention,
                         termination=dt(2022, 6, 15),
@@ -576,7 +578,7 @@ class TestFloatLeg:
                         start=dt(2022, 3, 15),
                         end=dt(2022, 6, 15),
                         payment=dt(2022, 6, 17),
-                        frequency="Q",
+                        frequency=Frequency.Months(3, None),
                         notional=defaults.notional,
                         convention=defaults.convention,
                         termination=dt(2022, 6, 15),
@@ -2232,7 +2234,7 @@ class TestCustomLeg:
                 start=dt(2022, 1, 1),
                 end=dt(2023, 1, 1),
                 payment=dt(2023, 1, 9),
-                frequency="A",
+                frequency=Frequency.Months(12, None),
                 fixed_rate=1.0,
             ),
             FloatPeriod(
@@ -2242,7 +2244,7 @@ class TestCustomLeg:
                 notional=1e9,
                 convention="Act360",
                 termination=dt(2022, 4, 1),
-                frequency="Q",
+                frequency=Frequency.Months(3, None),
                 float_spread=10.0,
             ),
             CreditPremiumPeriod(
@@ -2252,7 +2254,7 @@ class TestCustomLeg:
                 notional=1e9,
                 convention="Act360",
                 termination=dt(2022, 4, 1),
-                frequency="Q",
+                frequency=Frequency.Months(3, None),
                 fixed_rate=4.0,
                 currency="usd",
             ),
@@ -2263,7 +2265,7 @@ class TestCustomLeg:
                 notional=1e9,
                 convention="Act360",
                 termination=dt(2022, 4, 1),
-                frequency="Q",
+                frequency=Frequency.Months(3, None),
                 currency="usd",
             ),
             Cashflow(notional=1e9, payment=dt(2022, 4, 3)),
@@ -2274,7 +2276,7 @@ class TestCustomLeg:
                 notional=1e9,
                 convention="Act360",
                 termination=dt(2022, 4, 3),
-                frequency="Q",
+                frequency=Frequency.Months(3, None),
                 fixed_rate=4.00,
                 currency="usd",
                 index_base=100.0,
@@ -2296,14 +2298,14 @@ class TestCustomLeg:
                     start=dt(2022, 1, 1),
                     end=dt(2023, 1, 1),
                     payment=dt(2023, 1, 9),
-                    frequency="A",
+                    frequency=Frequency.Months(12, None),
                     fixed_rate=1.0,
                 ),
                 FixedPeriod(
                     start=dt(2022, 2, 1),
                     end=dt(2023, 2, 1),
                     payment=dt(2023, 2, 9),
-                    frequency="A",
+                    frequency=Frequency.Months(12, None),
                     fixed_rate=2.0,
                 ),
             ],
@@ -2319,14 +2321,14 @@ class TestCustomLeg:
                     start=dt(2022, 1, 1),
                     end=dt(2023, 1, 1),
                     payment=dt(2023, 1, 9),
-                    frequency="A",
+                    frequency=Frequency.Months(12, None),
                     fixed_rate=1.0,
                 ),
                 FixedPeriod(
                     start=dt(2022, 2, 1),
                     end=dt(2023, 2, 1),
                     payment=dt(2023, 2, 9),
-                    frequency="A",
+                    frequency=Frequency.Months(12, None),
                     fixed_rate=2.0,
                 ),
             ],
@@ -2342,14 +2344,14 @@ class TestCustomLeg:
                     start=dt(2022, 1, 1),
                     end=dt(2023, 1, 1),
                     payment=dt(2023, 1, 9),
-                    frequency="A",
+                    frequency=Frequency.Months(12, None),
                     fixed_rate=1.0,
                 ),
                 FixedPeriod(
                     start=dt(2022, 2, 1),
                     end=dt(2023, 2, 1),
                     payment=dt(2023, 2, 9),
-                    frequency="A",
+                    frequency=Frequency.Months(12, None),
                     fixed_rate=2.0,
                 ),
             ],
