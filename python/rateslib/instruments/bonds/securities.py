@@ -2747,7 +2747,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
                 start=self.leg1.schedule.aschedule[acc_idx],
                 end=settlement,
                 payment=settlement,
-                frequency=self.leg1.schedule.frequency,
+                frequency=self.leg1.schedule.frequency_obj,
                 notional=-100,
                 currency=self.leg1.currency,
                 convention=self.leg1.convention,
@@ -2758,7 +2758,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
                 fixings=self.leg1.fixings[acc_idx],
                 method_param=self.leg1.method_param,
                 spread_compound_method=self.leg1.spread_compound_method,
-                roll=self.leg1.schedule.roll,
+                # roll=self.leg1.schedule.roll,
                 calendar=self.leg1.schedule.calendar,
             )
             rate_to_settle = self._accrual_rate(p, curve, self.leg1.method_param)

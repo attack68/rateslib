@@ -438,9 +438,9 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
                 currency=self.currency,
                 convention=self.convention,
                 termination=self.schedule.aschedule[-1],
-                frequency=self.schedule.frequency,
+                frequency=self.schedule.frequency_obj,
                 stub=False,
-                roll=self.schedule.roll,
+                # roll=self.schedule.roll,
                 calendar=self.schedule.calendar,
             ),
         ]
