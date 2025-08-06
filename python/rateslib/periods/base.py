@@ -42,9 +42,9 @@ class BasePeriod(metaclass=ABCMeta):
         The adjusted end date of the calculation period.
     payment : Datetime
         The adjusted payment date of the period.
-    frequency : str
-        The frequency of the corresponding leg. Also used
-        with specific values for ``convention``, or floating rate calculation.
+    frequency : Frequency, str
+        The frequency of the corresponding leg. If it does not contain a ``roll`` or
+        ``calendar`` will be inferred from the additional arguments as necessary.
     notional : float, optional, set by Default
         The notional amount of the period (positive implies paying a cashflow).
     currency : str, optional
@@ -59,8 +59,9 @@ class BasePeriod(metaclass=ABCMeta):
         Records whether the period is a stub or regular. Used by certain day count
         convention calculations.
     roll : int, str, optional
-        Used only by ``stub`` periods and for specific values of ``convention``.
-    calendar : CustomBusinessDay, str, optional
+        Used to yield a :class:`~rateslib.scheduling.Frequency` if ``frequency`` does
+        not already specify a valid and necessary value.
+    calendar : Calendar, str, optional
         Used only by ``stub`` periods and for specific values of ``convention``.
 
     """
@@ -71,13 +72,13 @@ class BasePeriod(metaclass=ABCMeta):
         start: datetime,
         end: datetime,
         payment: datetime,
-        frequency: Frequency,
+        frequency: Frequency | str,
         notional: float_ = NoInput(0),
         currency: str_ = NoInput(0),
         convention: str_ = NoInput(0),
         termination: datetime_ = NoInput(0),
         stub: bool = False,
-        roll: int | str_ = NoInput(0),
+        roll: RollDay | int | str_ = NoInput(0),
         calendar: CalInput = NoInput(0),
     ):
         if end < start:
@@ -86,13 +87,13 @@ class BasePeriod(metaclass=ABCMeta):
         self.end: datetime = end
         self.payment: datetime = payment
         self.frequency = _get_frequency(frequency, roll, calendar)
+        self.calendar: CalInput = calendar
+        self.stub: bool = stub
         self.notional: float = _drb(defaults.notional, notional)
         self.currency: str = _drb(defaults.base_currency, currency).lower()
         self.convention: str = _drb(defaults.convention, convention)
         self.termination = termination
         self.freq_months: int = int(12.0 / self.frequency.periods_per_annum())
-        self.stub: bool = stub
-        self.calendar: CalInput = calendar
 
     def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"

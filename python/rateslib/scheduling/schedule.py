@@ -30,6 +30,23 @@ if TYPE_CHECKING:
 def _get_frequency(
     frequency: str | Frequency, roll: str | RollDay | int_, calendar: CalInput
 ) -> Frequency:
+    """
+    Get a :class:`~rateslib.scheduling.Frequency` object from legacy UI inputs.
+
+    Parameters
+    ----------
+    frequency: str or Frequency
+        If string is combined with the ``roll`` and ``calendar`` parameters to derive the
+        output.
+    roll: str, int or RollDay, optional
+        The roll-day to be associated with a *Frequency.Months* variant, if given.
+    calendar: calendar, str, optional
+        The calendar to be associated with a *Frequency.BusDay* variant, if given.
+
+    Returns
+    -------
+    Frequency
+    """
     if isinstance(frequency, Frequency):
         if getattr(frequency, "roll", "no default") is None:
             return Frequency.Months(frequency.number, _get_rollday(roll))  # type: ignore[attr-defined]
