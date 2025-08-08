@@ -27,6 +27,8 @@ pub enum Convention {
     /// - Start day is *min(30, start day)* or 30 if start day is EoM February and roll is EoM.
     /// - End day is *min(30, end day)* if start day is 30, or 30 if start and end are EoM February
     ///   and roll is EoM.
+    ///
+    /// For [dcf][Convention::dcf]: requires ``frequency`` with a [RollDay] for February EoM adjustment.
     ThirtyU360 = 3,
     /// 30 days in month and 360 days in year with month end modification rules.
     ///
@@ -35,8 +37,10 @@ pub enum Convention {
     ThirtyE360 = 4,
     /// 30 days in month and 360 days in year with month end modification rules.
     ///
-    /// - Start day is *min(30, start day)* or 30 if start day is EoM February.
-    /// - End day is *min(30, end day)* or 30 if end day is EoM February and not *Leg* termination.
+    /// - Start day is *min(30, start day)* or 30 if start day is February EoM.
+    /// - End day is *min(30, end day)* or 30 if end day is February EoM and not *Leg* termination.
+    ///
+    /// For [dcf][Convention::dcf]: requires ``termination`` for February EoM adjustments.
     ThirtyE360ISDA = 5,
     /// Number of whole years plus fractional end period according to 'Act365F'.
     YearsAct365F = 6,
@@ -49,10 +53,19 @@ pub enum Convention {
     /// Actual days divided by actual days with leap year modification rules.
     ActActISDA = 10,
     /// Day count based on [Frequency] definition.
+    ///
+    /// For [dcf][Convention::dcf]: requires ``frequency`` and ``stub`` in all cases.
+    /// If a stub period further requires ``termination``, ``calendar`` and ``adjuster`` to
+    /// accurately evaluate the fractional part of a period.
     ActActICMA = 11,
     /// Number of business days in period divided by 252.
+    ///
+    /// For [dcf][Convention::dcf]: a ``calendar`` is required. If not given, a [Calendar] will
+    /// attempt to be sourced from the ``frequency`` if given a *BusDays* variant.
     Bus252 = 12,
     /// ActActICMA falling back to Act365F in stub periods.
+    ///
+    /// For [dcf][Convention::dcf]: requires the same arguments as ``ActActICMA`` variant.
     ActActICMAStubAct365F = 13,
 }
 
@@ -101,13 +114,18 @@ impl Convention {
                 }
             }
             Convention::Bus252 => {
+                let calendar_: &Calendar;
                 if calendar.is_none() {
-                    Err(PyValueError::new_err(
-                        "`calendar` must be supplied for 'Bus252' type convention.",
-                    ))
+                    match frequency {
+                        Some(Frequency::BusDays {number: _, calendar: c}) => calendar_ = c,
+                        _ => {return Err(PyValueError::new_err(
+                            "`calendar` must be supplied for 'Bus252' type convention.",
+                        ));}
+                    }
                 } else {
-                    Ok(dcf_bus252(start, end, calendar.unwrap()))
+                    calendar_ = calendar.unwrap();
                 }
+                Ok(dcf_bus252(start, end, calendar_))
             }
             Convention::ActActICMAStubAct365F => {
                 if frequency.is_none() {
