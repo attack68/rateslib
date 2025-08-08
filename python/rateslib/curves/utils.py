@@ -14,6 +14,8 @@ from rateslib.curves.interpolation import INTERPOLATION, InterpolationFunction
 from rateslib.default import NoInput
 from rateslib.dual import dual_log, set_order_convert
 from rateslib.dual.utils import _to_number
+from rateslib.scheduling import Convention
+from rateslib.scheduling.dcfs import _get_convention
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
@@ -58,7 +60,7 @@ class _CurveMeta:
     """
 
     _calendar: CalTypes
-    _convention: str
+    _convention: Convention
     _modifier: str
     _index_base: float_ | Variable
     _index_lag: int
@@ -72,7 +74,7 @@ class _CurveMeta:
         return self._calendar
 
     @property
-    def convention(self) -> str:
+    def convention(self) -> Convention:
         """Day count convention for determining rates and interpolation."""
         return self._convention
 
@@ -123,7 +125,7 @@ class _CurveMeta:
             PyNative=dict(
                 _CurveMeta=dict(
                     calendar=self.calendar.to_json(),
-                    convention=self.convention,
+                    convention=self.convention.to_json(),
                     modifier=self.modifier,
                     index_base=_obj_to_json(self.index_base),
                     index_lag=self.index_lag,
@@ -140,7 +142,7 @@ class _CurveMeta:
         from rateslib.serialization import from_json
 
         return _CurveMeta(
-            _convention=loaded_json["convention"],
+            _convention=from_json(loaded_json["convention"]),
             _modifier=loaded_json["modifier"],
             _index_lag=loaded_json["index_lag"],
             _collateral=loaded_json["collateral"],
@@ -283,7 +285,7 @@ class _CurveInterpolator:
 
     _local_name: str
     _local_func: InterpolationFunction
-    _convention: str
+    _convention: Convention
     _spline: _CurveSpline | None
 
     def __init__(
@@ -292,7 +294,7 @@ class _CurveInterpolator:
         t: list[datetime] | NoInput,
         endpoints: tuple[str, str],
         node_dates: list[datetime],
-        convention: str,
+        convention: Convention | str,
         curve_type: _CurveType,
     ) -> None:
         if not isinstance(t, NoInput) and local == "spline":
@@ -302,7 +304,7 @@ class _CurveInterpolator:
                 f"It should not be specified directly. Got: {t}"
             )
 
-        self._convention = convention
+        self._convention = _get_convention(convention)
         if isinstance(local, NoInput):
             local = defaults.interpolation[curve_type.name]
 
@@ -316,11 +318,11 @@ class _CurveInterpolator:
                     + [node_dates[-1], node_dates[-1], node_dates[-1]]
                 )
 
-            if self._local_name + "_" + convention in INTERPOLATION:
-                self._local_func = INTERPOLATION[self.local_name + "_" + convention]
+            if (self._local_name, self.convention) in INTERPOLATION:
+                self._local_func = INTERPOLATION[(self.local_name, self.convention)]
             else:
                 try:
-                    self._local_func = INTERPOLATION[self.local_name]
+                    self._local_func = INTERPOLATION[(self.local_name, None)]
                 except KeyError:
                     raise ValueError(
                         f"Curve interpolation: '{self.local_name}' not available.\n"
@@ -358,7 +360,7 @@ class _CurveInterpolator:
         return self._spline
 
     @property
-    def convention(self) -> str:
+    def convention(self) -> Convention:
         """The day count convention used to adjust interpolation functions."""
         return self._convention
 
@@ -395,7 +397,7 @@ class _CurveInterpolator:
                 _CurveInterpolator=dict(
                     local=self.local_name,
                     spline=_obj_to_json(self.spline),
-                    convention=self.convention,
+                    convention=_obj_to_json(self.convention),
                 )
             )
         )
@@ -419,7 +421,7 @@ class _CurveInterpolator:
             t=t,
             endpoints=NoInput(0) if spl is None else spl.endpoints,  # type: ignore[arg-type]
             node_dates=node_dates,
-            convention=loaded_json["convention"],
+            convention=from_json(loaded_json["convention"]),
             curve_type=NoInput(0),  # type: ignore[arg-type]
         )
 
@@ -558,7 +560,7 @@ class _CurveNodes:
 def average_rate(
     effective: datetime,
     termination: datetime,
-    convention: str,
+    convention: Convention | str,
     rate: DualTypes,
     dcf: float,
 ) -> tuple[Number, float, float]:
@@ -606,7 +608,8 @@ def average_rate(
     e.g. *'act360'* and *'act365f'* this is explicit and exact, but for others, such as *'30360'*,
     this function will likely be lesser used and less accurate.
     """
-    if convention.upper() == "BUS252":
+    convention_ = _get_convention(convention)
+    if convention_ == Convention.Bus252:
         # business days are used
         n: float = dcf * 252.0
         d = 1.0 / 252.0

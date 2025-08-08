@@ -37,7 +37,8 @@ from rateslib.mutability import (
     _WithCache,
     _WithState,
 )
-from rateslib.scheduling import Adjuster, add_tenor, dcf, get_calendar
+from rateslib.scheduling import Adjuster, Convention, add_tenor, dcf, get_calendar
+from rateslib.scheduling.dcfs import _get_convention
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
@@ -169,7 +170,7 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], _WithOperations, A
         return _CurveMeta(
             _calendar=get_calendar(NoInput(0)),
             _collateral=None,
-            _convention=defaults.convention.lower(),
+            _convention=_get_convention(defaults.convention),
             _credit_discretization=defaults.cds_protection_discretization,
             _credit_recovery_rate=defaults.cds_recovery_rate,
             _index_base=NoInput(0),
@@ -1358,7 +1359,7 @@ class _WithMutability:
         t: list[datetime] | NoInput = NoInput(0),
         endpoints: str | tuple[str, str] | NoInput = NoInput(0),
         id: str | NoInput = NoInput(0),  # noqa: A002
-        convention: str | NoInput = NoInput(0),
+        convention: Convention | str | NoInput = NoInput(0),
         modifier: str | NoInput = NoInput(0),
         calendar: CalInput = NoInput(0),
         ad: int = 0,
@@ -1374,7 +1375,7 @@ class _WithMutability:
         # Parameters for the rate/values derivation
         self._meta = _CurveMeta(
             _calendar=get_calendar(calendar),
-            _convention=_drb(defaults.convention, convention).lower(),
+            _convention=_get_convention(_drb(defaults.convention, convention)),
             _modifier=_drb(defaults.modifier, modifier).upper(),
             _index_base=index_base,
             _index_lag=_drb(defaults.index_lag_curve, index_lag),

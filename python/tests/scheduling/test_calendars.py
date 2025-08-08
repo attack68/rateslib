@@ -482,16 +482,17 @@ def test_get_years_and_months(d1, d2, exp) -> None:
     ],
 )
 def test_act_act_icma_z_freq(s, e, t, exp) -> None:
-    # with pytest.warns(UserWarning, match="Using `convention` 'ActActICMA' with a Period having"):
-    result = Convention.ActActICMA.dcf(
-        start=s,
-        end=e,
-        termination=t,
-        frequency=Frequency.Zero(),  # Z Frequency
-        stub=True,
-        calendar=Cal([], []),
-        adjuster=Adjuster.Actual(),
-    )
+    with pytest.warns(UserWarning, match="`frequency` cannot be 'Zero' variant in combination wit"):
+        result = dcf(
+            start=s,
+            end=e,
+            convention="ActActICMA",
+            termination=t,
+            frequency=Frequency.Zero(),  # Z Frequency
+            stub=True,
+            calendar=Cal([], []),
+            adjuster=Adjuster.Actual(),
+        )
     assert abs(result - exp) < 1e-6
 
 

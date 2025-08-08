@@ -44,7 +44,7 @@ use fx_volatility::sabr_funcs::{_sabr_x0, _sabr_x1, _sabr_x2};
 pub mod scheduling;
 use scheduling::{
     Cal, Convention, Frequency, Imm, NamedCal, PyAdjuster, RollDay, Schedule, StubInference,
-    UnionCal, _get_convention_str,
+    UnionCal,
 };
 
 #[pymodule]
@@ -85,7 +85,6 @@ fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<NamedCal>()?;
     m.add_class::<Convention>()?;
     m.add_class::<PyAdjuster>()?;
-    m.add_function(wrap_pyfunction!(_get_convention_str, m)?)?;
     m.add_function(wrap_pyfunction!(_get_modifier_str, m)?)?;
 
     m.add_class::<Frequency>()?;

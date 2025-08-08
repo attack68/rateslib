@@ -128,6 +128,7 @@ class Convention:
         calendar: CalTypes | None,
         adjuster: Adjuster | None,
     ) -> float: ...
+    def to_json(self) -> str: ...
 
 class Modifier:
     P: Modifier

@@ -1,3 +1,4 @@
+use crate::json::{DeserializedObj, JSON};
 use crate::scheduling::{Adjuster, Calendar, Convention, Frequency, PyAdjuster};
 use chrono::prelude::*;
 use pyo3::exceptions::PyValueError;
@@ -60,5 +61,39 @@ impl Convention {
 
     fn __repr__(&self) -> String {
         format!("<rl.Convention.{:?} at {:p}>", self, self)
+    }
+
+    fn __str__(&self) -> String {
+        match self {
+            Convention::Act360 => "Act360".to_string(),
+            Convention::Act365F => "Act365F".to_string(),
+            Convention::YearsAct365F => "YearsAct365F".to_string(),
+            Convention::YearsAct360 => "YearsAct360".to_string(),
+            Convention::YearsMonths => "YearsMonths".to_string(),
+            Convention::Thirty360 => "30360".to_string(),
+            Convention::ThirtyU360 => "30u360".to_string(),
+            Convention::ThirtyE360 => "30e360".to_string(),
+            Convention::ThirtyE360ISDA => "30e360ISDA".to_string(),
+            Convention::One => "One".to_string(),
+            Convention::ActActISDA => "ActActISDA".to_string(),
+            Convention::ActActICMA => "ActActICMA".to_string(),
+            Convention::Bus252 => "Bus252".to_string(),
+            Convention::ActActICMAStubAct365F => "ActActICMAStubAct365F".to_string(),
+        }
+    }
+
+    /// Return a JSON representation of the object.
+    ///
+    /// Returns
+    /// -------
+    /// str
+    #[pyo3(name = "to_json")]
+    fn to_json_py(&self) -> PyResult<String> {
+        match DeserializedObj::Convention(self.clone()).to_json() {
+            Ok(v) => Ok(v),
+            Err(_) => Err(PyValueError::new_err(
+                "Failed to serialize `Convention` to JSON.",
+            )),
+        }
     }
 }

@@ -11,7 +11,6 @@ from rateslib.curves.rs import (
     LinearZeroRateInterpolator,
     LogLinearInterpolator,
     _get_convention,
-    _get_convention_str,
     _get_interpolator,
 )
 from rateslib.dual import Dual2

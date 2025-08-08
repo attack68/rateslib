@@ -7,7 +7,7 @@ from pytz import UTC
 
 from rateslib.dual import dual_exp, dual_log
 from rateslib.rs import index_left_f64
-from rateslib.scheduling import dcf
+from rateslib.scheduling import Convention, dcf
 
 if TYPE_CHECKING:
     from rateslib.typing import Any, DualTypes, _BaseCurve, datetime  # pragma: no cover
@@ -108,16 +108,16 @@ def _runtime_error(date: datetime, curve: _BaseCurve) -> DualTypes:
     )
 
 
-INTERPOLATION: dict[str, InterpolationFunction] = {
-    "linear": _linear,
-    "linear_bus252": _linear_bus,
-    "log_linear": _log_linear,
-    "log_linear_bus252": _log_linear_bus,
-    "linear_zero_rate": _linear_zero_rate,
-    "linear_index": _linear_index,
-    "flat_forward": _flat_forward,
-    "flat_backward": _flat_backward,
-    "spline": _runtime_error,
+INTERPOLATION: dict[tuple[str, Convention | None], InterpolationFunction] = {
+    ("linear", None): _linear,  # default linear interpolation for all Convention types
+    ("linear", Convention.Bus252): _linear_bus,  # overload for Bus252 type
+    ("log_linear", None): _log_linear,
+    ("log_linear", Convention.Bus252): _log_linear_bus,
+    ("linear_zero_rate", None): _linear_zero_rate,
+    ("linear_index", None): _linear_index,
+    ("flat_forward", None): _flat_forward,
+    ("flat_backward", None): _flat_backward,
+    ("spline", None): _runtime_error,
 }
 
 
