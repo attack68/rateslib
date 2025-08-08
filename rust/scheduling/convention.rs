@@ -442,26 +442,6 @@ fn dcf_bus252(start: &NaiveDateTime, end: &NaiveDateTime, calendar: &Calendar) -
     }
 }
 
-#[pyfunction]
-pub(crate) fn _get_convention_str(convention: Convention) -> String {
-    match convention {
-        Convention::Act365F => "Act365F".to_string(),
-        Convention::Act360 => "Act360".to_string(),
-        Convention::YearsAct365F => "Act365F+".to_string(),
-        Convention::YearsAct360 => "Act360+".to_string(),
-        Convention::YearsMonths => "1+".to_string(),
-        Convention::Thirty360 => "30360".to_string(),
-        Convention::ThirtyU360 => "30u360".to_string(),
-        Convention::ThirtyE360 => "30e360".to_string(),
-        Convention::ThirtyE360ISDA => "30e360ISDA".to_string(),
-        Convention::ActActISDA => "ActActISDA".to_string(),
-        Convention::ActActICMA => "ActActICMA".to_string(),
-        Convention::One => "1".to_string(),
-        Convention::Bus252 => "Bus252".to_string(),
-        Convention::ActActICMAStubAct365F => "ActActICMA_Stub_Act365F".to_string(),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

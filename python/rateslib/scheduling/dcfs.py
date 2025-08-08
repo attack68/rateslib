@@ -46,8 +46,8 @@ def dcf(
           a stub the ``termination`` of the leg is used to assess front or back stubs and
           adjust the calculation accordingly)
 
-    frequency_months : int, optional
-        The number of months according to the frequency of the period. Required only
+    frequency : Frequency, str, optional
+        The frequency of the period. Required only
         with specific values for ``convention``.
     stub : bool, optional
         Required for `"ACTACTICMA", "ACTACTISMA", "ACTACTBOND", "ACTACTICMA_STUB365F"`.
@@ -58,6 +58,9 @@ def dcf(
         regular periods when calculating stubs.
     calendar: str, Calendar, optional
         Required for `"BUS252"` to count business days in period.
+    adjuster: Adjuster, str, optional
+        The :class:`~rateslib.scheduling.Adjuster` used to convert unadjusted dates to
+        adjusted accrual dates on the periods.
 
     Returns
     --------
@@ -162,18 +165,26 @@ CONVENTIONS_MAP: dict[str, Convention] = {
     "ACT360": Convention.Act360,
     ###
     "30360": Convention.Thirty360,
+    "THIRTY360": Convention.Thirty360,
     "360360": Convention.Thirty360,
     "BONDBASIS": Convention.Thirty360,
     "30E360": Convention.ThirtyE360,
+    "THIRTYE360": Convention.ThirtyE360,
     "EUROBONDBASIS": Convention.ThirtyE360,
     "30E360ISDA": Convention.ThirtyE360ISDA,
+    "THIRTYE360ISDA": Convention.ThirtyE360ISDA,
     "30U360": Convention.ThirtyU360,
+    "THIRTYU360": Convention.ThirtyU360,
     ###
     "ACT365F+": Convention.YearsAct365F,
+    "YEARSACT365F": Convention.YearsAct365F,
     "ACT360+": Convention.YearsAct360,
+    "YEARSACT360": Convention.YearsAct360,
     "1+": Convention.YearsMonths,
+    "YEARSMONTHS": Convention.YearsMonths,
     ###
     "1": Convention.One,
+    "ONE": Convention.One,
     ###
     "ACTACT": Convention.ActActISDA,
     "ACTACTISDA": Convention.ActActISDA,
@@ -184,6 +195,7 @@ CONVENTIONS_MAP: dict[str, Convention] = {
     "BUS252": Convention.Bus252,
     ###
     "ACTACTICMA_STUB365F": Convention.ActActICMAStubAct365F,
+    "ACTACTICMASTUBACT365F": Convention.ActActICMAStubAct365F,
 }
 
 

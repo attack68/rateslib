@@ -138,6 +138,4 @@ pub use crate::scheduling::{
     frequency::{Frequency, Imm, RollDay, Scheduling},
     schedule::{Schedule, StubInference},
 };
-pub(crate) use crate::scheduling::{
-    convention::_get_convention_str, frequency::get_unadjusteds, py::PyAdjuster,
-};
+pub(crate) use crate::scheduling::{frequency::get_unadjusteds, py::PyAdjuster};

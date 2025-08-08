@@ -17,7 +17,6 @@ from rateslib.rs import (
     LogLinearInterpolator,
     Modifier,
     NullInterpolator,
-    _get_convention_str,
     _get_modifier_str,
 )
 from rateslib.rs import Curve as CurveObj  # noqa: F401
@@ -64,7 +63,7 @@ class CurveRs:
 
     @property
     def convention(self) -> str:
-        return _get_convention_str(self.obj.convention)
+        return str(self.obj.convention)
 
     @property
     def modifier(self) -> str:

@@ -1,11 +1,12 @@
 use crate::json::JSON;
-use crate::scheduling::{Cal, Calendar, NamedCal, StubInference, UnionCal};
+use crate::scheduling::{Cal, Calendar, Convention, NamedCal, StubInference, UnionCal};
 
 impl JSON for Cal {}
 impl JSON for UnionCal {}
 impl JSON for NamedCal {}
 impl JSON for Calendar {}
 impl JSON for StubInference {}
+impl JSON for Convention {}
 
 #[cfg(test)]
 mod tests {

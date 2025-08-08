@@ -144,6 +144,7 @@ def test_pickle_round_trip_obj_via_equality(obj):
             Frequency.Months(4, RollDay.Day(2)),
             Frequency.Months(4, None),
         ),
+        (Convention.ActActICMA, Convention.ActActICMA, Convention.ActActISDA),
     ],
 )
 def test_enum_equality(a1, a2, b1):
@@ -157,7 +158,7 @@ def test_enum_equality(a1, a2, b1):
         (Imm, ["next", "get", "validate", "to_json"]),
         (StubInference, ["to_json"]),
         (ADOrder, []),
-        (Convention, ["dcf"]),
+        (Convention, ["dcf", "to_json"]),
     ],
 )
 def test_simple_enum_pickle(enum, method_filter):
