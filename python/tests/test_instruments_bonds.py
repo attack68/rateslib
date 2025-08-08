@@ -2385,6 +2385,37 @@ class TestBill:
         b = Bill(dt(2023, 2, 28), "3m", spec="se_gbb")
         assert b.leg1.periods[0].end == dt(2023, 5, 28)
 
+    def test_act_act_icma(self):
+        # gh 144
+        bill_actacticma = Bill(
+            effective=dt(2024, 2, 29),
+            termination=dt(2024, 5, 29),  # 90 calendar days
+            modifier="NONE",
+            calendar="bus",
+            payment_lag=0,
+            notional=-1000000,
+            currency="usd",
+            convention="ACTACTICMA",
+            settle=0,
+            calc_mode="us_gbb",
+        )
+
+        bill_act360 = Bill(
+            effective=dt(2024, 2, 29),
+            termination=dt(2024, 5, 29),  # 90 calendar days
+            modifier="NONE",
+            calendar="bus",
+            payment_lag=0,
+            notional=-1000000,
+            currency="usd",
+            convention="ACT360",
+            settle=0,
+            calc_mode="us_gbb",
+        )
+
+        assert bill_actacticma.dcf == 0.2465753424657534
+        assert bill_act360.dcf == 0.25
+
 
 class TestFloatRateNote:
     @pytest.mark.parametrize(

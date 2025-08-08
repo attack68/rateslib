@@ -22,7 +22,7 @@ impl Convention {
             10_u8 => Ok(Convention::ActActISDA),
             11_u8 => Ok(Convention::ActActICMA),
             12_u8 => Ok(Convention::Bus252),
-            13_u8 => Ok(Convention::ActActICMA_Stub_Act365F),
+            13_u8 => Ok(Convention::ActActICMAStubAct365F),
             _ => Err(PyValueError::new_err(
                 "unreachable code on Convention pickle.",
             )),

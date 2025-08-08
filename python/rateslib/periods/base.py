@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING
+from functools import cached_property
 
 from rateslib import defaults
 from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_maybe_from_curve
@@ -111,7 +112,7 @@ class BasePeriod(metaclass=ABCMeta):
             f"{self.end.strftime('%Y-%m-%d')},{self.notional},{self.convention}>"
         )
 
-    @property
+    @cached_property
     def dcf(self) -> float:
         """
         float : Calculated with appropriate ``convention`` over the period.

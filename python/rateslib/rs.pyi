@@ -116,7 +116,7 @@ class Convention:
     ActActISDA: Convention
     ActActICMA: Convention
     Bus252: Convention
-    ActActICMA_Stub_Act365F: Convention
+    ActActICMAStubAct365F: Convention
 
     def dcf(
         self,
