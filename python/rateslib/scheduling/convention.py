@@ -1,28 +1,47 @@
 from __future__ import annotations
 
-import warnings
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 from rateslib.default import NoInput, _drb
-from rateslib.scheduling import Adjuster, Convention, Frequency, RollDay
+from rateslib.rs import Adjuster, Convention, Frequency, RollDay
 from rateslib.scheduling.adjuster import _get_adjuster
-from rateslib.scheduling.calendars import get_calendar
-from rateslib.scheduling.frequency import _get_frequency_none
+from rateslib.scheduling.frequency import _get_frequency
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, bool_, datetime_, int_, str_
+    from rateslib.typing import CalInput, bool_, datetime, datetime_, str_
+
+_CONVENTIONS_MAP: dict[str, Convention] = {
+    "ACT365F": Convention.Act365F,
+    "ACT360": Convention.Act360,
+    "THIRTY360": Convention.Thirty360,
+    "THIRTYE360": Convention.ThirtyE360,
+    "THIRTYU360": Convention.ThirtyU360,
+    "THIRTYE360ISDA": Convention.ThirtyE360ISDA,
+    "YEARSACT365F": Convention.YearsAct365F,
+    "YEARSACT360": Convention.YearsAct360,
+    "YEARSMONTHS": Convention.YearsMonths,
+    "ONE": Convention.One,
+    "ACTACTISDA": Convention.ActActISDA,
+    "ACTACTICMA": Convention.ActActICMA,
+    "BUS252": Convention.Bus252,
+}
+
+
+def _get_convention(convention: str | Convention) -> Convention:
+    if isinstance(convention, Convention):
+        return convention
+    return _CONVENTIONS_MAP[convention.upper()]
 
 
 def dcf(
     start: datetime,
     end: datetime,
-    convention: Convention | str,
-    termination: datetime_ = NoInput(0),  # required for 30E360ISDA and ActActICMA
-    frequency: Frequency | str_ = NoInput(0),  # req. ActActICMA = ActActISMA = ActActBond
-    stub: bool_ = NoInput(0),  # required for ActActICMA = ActActISMA = ActActBond
-    roll: RollDay | str | int_ = NoInput(0),  # required also for ActACtICMA = ...
-    calendar: CalInput = NoInput(0),  # required for ActACtICMA = ActActISMA = ActActBond
+    convention: str | Convention,
+    termination: datetime_ = NoInput(0),
+    frequency: Frequency | str_ = NoInput(0),
+    roll: RollDay | int | str_ = NoInput(0),
+    stub: bool_ = NoInput(0),
+    calendar: CalInput = NoInput(0),
     adjuster: Adjuster | str_ = NoInput(0),
 ) -> float:
     """
@@ -46,8 +65,8 @@ def dcf(
           a stub the ``termination`` of the leg is used to assess front or back stubs and
           adjust the calculation accordingly)
 
-    frequency : Frequency, str, optional
-        The frequency of the period. Required only
+    frequency_months : int, optional
+        The number of months according to the frequency of the period. Required only
         with specific values for ``convention``.
     stub : bool, optional
         Required for `"ACTACTICMA", "ACTACTISMA", "ACTACTBOND", "ACTACTICMA_STUB365F"`.
@@ -58,9 +77,6 @@ def dcf(
         regular periods when calculating stubs.
     calendar: str, Calendar, optional
         Required for `"BUS252"` to count business days in period.
-    adjuster: Adjuster, str, optional
-        The :class:`~rateslib.scheduling.Adjuster` used to convert unadjusted dates to
-        adjusted accrual dates on the periods.
 
     Returns
     --------
@@ -134,88 +150,33 @@ def dcf(
        dcf(dt(2000, 1, 1), dt(2000, 4, 3), "ActActICMA", dt(2010, 1, 1), 3, True)
 
     """  # noqa: E501
-    convention_ = _get_convention(convention)
-    if isinstance(adjuster, NoInput):
-        adjuster = Adjuster.Actual()
-    frequency_: Frequency | None = _get_frequency_none(frequency, roll, calendar)
+    convention_: Convention = _get_convention(convention)
+    if isinstance(frequency, NoInput):
+        frequency_: Frequency | None = None
+    else:
+        frequency_ = _get_frequency(frequency, roll, calendar)
 
-    if isinstance(frequency_, Frequency.Zero) and convention_ in [
-        Convention.ActActICMA,
-        Convention.ActActICMAStubAct365F,
-    ]:
-        warnings.warn(
-            "`frequency` cannot be 'Zero' variant in combination with 'ActActICMA' type"
-            "conventions. Internally this will be converted to 'Frequency.Months(12, ...)'",
-            UserWarning,
+    if isinstance(adjuster, NoInput):
+        adjuster_: Adjuster | None = None
+    else:
+        adjuster_ = _get_adjuster(adjuster)
+    try:
+        return convention_.dcf(
+            start=start,
+            end=end,
+            termination=_drb(None, termination),
+            frequency=frequency_,
+            stub=_drb(None, stub),
+            calendar=_drb(None, calendar),
+            adjuster=adjuster_,
+        )
+    except KeyError:
+        raise ValueError(
+            "`convention` must be in {'Act365f', '1', '1+', 'Act360', "
+            "'30360' '360360', 'BondBasis', '30U360', '30E360', 'EuroBondBasis', "
+            "'30E360ISDA', 'ActAct', 'ActActISDA', 'ActActICMA', "
+            "'ActActISMA', 'ActActBond'}",
         )
 
-    return convention_.dcf(
-        start=start,
-        end=end,
-        termination=_drb(None, termination),
-        frequency=frequency_,
-        stub=_drb(None, stub),
-        calendar=get_calendar(calendar),
-        adjuster=_get_adjuster(_drb(Adjuster.Actual(), adjuster)),
-    )
 
-
-CONVENTIONS_MAP: dict[str, Convention] = {
-    "ACT365F": Convention.Act365F,
-    "ACT360": Convention.Act360,
-    ###
-    "30360": Convention.Thirty360,
-    "THIRTY360": Convention.Thirty360,
-    "360360": Convention.Thirty360,
-    "BONDBASIS": Convention.Thirty360,
-    "30E360": Convention.ThirtyE360,
-    "THIRTYE360": Convention.ThirtyE360,
-    "EUROBONDBASIS": Convention.ThirtyE360,
-    "30E360ISDA": Convention.ThirtyE360ISDA,
-    "THIRTYE360ISDA": Convention.ThirtyE360ISDA,
-    "30U360": Convention.ThirtyU360,
-    "THIRTYU360": Convention.ThirtyU360,
-    ###
-    "ACT365F+": Convention.YearsAct365F,
-    "YEARSACT365F": Convention.YearsAct365F,
-    "ACT360+": Convention.YearsAct360,
-    "YEARSACT360": Convention.YearsAct360,
-    "1+": Convention.YearsMonths,
-    "YEARSMONTHS": Convention.YearsMonths,
-    ###
-    "1": Convention.One,
-    "ONE": Convention.One,
-    ###
-    "ACTACT": Convention.ActActISDA,
-    "ACTACTISDA": Convention.ActActISDA,
-    "ACTACTICMA": Convention.ActActICMA,
-    "ACTACTISMA": Convention.ActActICMA,
-    "ACTACTBOND": Convention.ActActICMA,
-    ###
-    "BUS252": Convention.Bus252,
-    ###
-    "ACTACTICMA_STUB365F": Convention.ActActICMAStubAct365F,
-    "ACTACTICMASTUBACT365F": Convention.ActActICMAStubAct365F,
-}
-
-
-def _get_convention(convention: Convention | str) -> Convention:
-    """Convert a user str input into a Convention enum."""
-    if isinstance(convention, Convention):
-        return convention
-    else:
-        try:
-            return CONVENTIONS_MAP[convention.upper()]
-        except KeyError:
-            raise ValueError(f"`convention`: {convention}, is not valid.")
-            # raise ValueError(
-            #     "`convention` must be in {'Act365f', '1', '1+', 'Act360', "
-            #     "'30360' '360360', 'BondBasis', '30U360', '30E360', 'EuroBondBasis', "
-            #     "'30E360ISDA', 'ActAct', 'ActActISDA', 'ActActICMA', "
-            #     "'ActActISMA', 'ActActBond'}",
-            # )
-
-
-# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-# Commercial use of this code, and/or copying and redistribution is prohibited.
-# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+__all__ = ["Convention"]

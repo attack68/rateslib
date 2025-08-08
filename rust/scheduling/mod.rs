@@ -122,7 +122,7 @@
 //! ```
 
 mod calendars;
-mod dcfs;
+mod convention;
 mod frequency;
 mod schedule;
 
@@ -134,10 +134,8 @@ pub use crate::scheduling::{
     calendars::{
         ndt, Adjuster, Adjustment, Cal, Calendar, CalendarAdjustment, DateRoll, NamedCal, UnionCal,
     },
-    dcfs::Convention,
+    convention::Convention,
     frequency::{Frequency, Imm, RollDay, Scheduling},
     schedule::{Schedule, StubInference},
 };
-pub(crate) use crate::scheduling::{
-    dcfs::_get_convention_str, frequency::get_unadjusteds, py::PyAdjuster,
-};
+pub(crate) use crate::scheduling::{frequency::get_unadjusteds, py::PyAdjuster};

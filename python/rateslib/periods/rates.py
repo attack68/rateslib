@@ -33,6 +33,7 @@ if TYPE_CHECKING:
         FX_,
         Any,
         CalTypes,
+        Convention,
         CurveOption_,
         DualTypes,
         DualTypes_,
@@ -581,10 +582,12 @@ class FloatPeriod(BasePeriod):
             # probably "needs a `curve` to forecast rate
             return None
 
-    def _maybe_get_cal_and_conv_from_curve(self, curve: CurveOption_) -> tuple[CalTypes, str]:
+    def _maybe_get_cal_and_conv_from_curve(
+        self, curve: CurveOption_
+    ) -> tuple[CalTypes, Convention]:
         if isinstance(curve, NoInput):
             cal_: CalTypes = get_calendar(self.calendar)
-            conv_: str = self.convention
+            conv_: Convention = self.convention
             warnings.warn(
                 "A `curve` has not been supplied to FloatPeriod.rate().\n"
                 "For 'ibor' method a `calendar` is required to determine the fixing date.\n"
@@ -939,7 +942,7 @@ class FloatPeriod(BasePeriod):
         return rates
 
     def _rfr_get_individual_fixings_data(
-        self, calendar: CalTypes, convention: str, curve: _BaseCurve_, allow_na: bool = False
+        self, calendar: CalTypes, convention: Convention, curve: _BaseCurve_, allow_na: bool = False
     ) -> dict[str, Any]:
         """
         Gets relevant DCF values and populates all the individual RFR fixings either known or
@@ -1633,7 +1636,7 @@ class FloatPeriod(BasePeriod):
         return start_obs, end_obs, start_dcf, end_dcf
 
     def _get_method_dcf_markers(
-        self, calendar: CalTypes, convention: str, exposure: bool = False
+        self, calendar: CalTypes, convention: Convention, exposure: bool = False
     ) -> tuple[
         Series[datetime],
         Series[datetime],

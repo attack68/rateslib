@@ -1251,7 +1251,7 @@ class TestCurve:
         curve = Curve(
             nodes={dt(2000, 1, 3): 1.0, dt(2000, 1, 17): 0.9},
             calendar="bus",
-            convention="act365",
+            convention="act365f",
             interpolation=interpolation,
         )
         curve2 = Curve(

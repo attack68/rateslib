@@ -82,6 +82,7 @@ from rateslib.rs import (
     NullInterpolator,
     UnionCal,
 )
+from rateslib.rs import Convention as Convention
 from rateslib.rs import Dual as Dual
 from rateslib.rs import Dual2 as Dual2
 from rateslib.rs import Frequency as Frequency
@@ -96,6 +97,7 @@ Solver_: TypeAlias = "Solver | NoInput"
 
 CalTypes: TypeAlias = "Cal | UnionCal | NamedCal"
 CalInput: TypeAlias = "CalTypes | str | NoInput"
+Adjuster_: TypeAlias = "Adjuster | NoInput"
 
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"
 DualTypes_: TypeAlias = "DualTypes | NoInput"

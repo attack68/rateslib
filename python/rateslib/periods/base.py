@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 from rateslib import defaults
@@ -8,15 +9,17 @@ from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_mayb
 from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
 from rateslib.periods.utils import _get_fx_and_base
-from rateslib.scheduling import Frequency, dcf, Adjuster
-from rateslib.scheduling.adjuster import _get_adjuster_none
-from rateslib.scheduling.schedule import _get_frequency
+from rateslib.scheduling import Adjuster, Frequency, dcf, get_calendar
+from rateslib.scheduling.adjuster import _get_adjuster
+from rateslib.scheduling.dcfs import _get_convention
+from rateslib.scheduling.frequency import _get_frequency
 
 if TYPE_CHECKING:
     from rateslib.typing import (
         FX_,
         Any,
         CalInput,
+        Convention,
         CurveOption_,
         DualTypes,
         RollDay,
@@ -90,13 +93,15 @@ class BasePeriod(metaclass=ABCMeta):
         self.start: datetime = start
         self.end: datetime = end
         self.payment: datetime = payment
-        self.frequency = _get_frequency(frequency, roll, calendar)
-        self.calendar: CalInput = calendar
-        self.adjuster: Adjuster | None = _get_adjuster_none(adjuster)
+        self.frequency: Frequency = _get_frequency(frequency, roll, calendar)
+        self.calendar: CalInput = get_calendar(calendar)
+        self.adjuster: Adjuster | NoInput = (
+            adjuster if isinstance(adjuster, NoInput) else _get_adjuster(adjuster)
+        )
         self.stub: bool = stub
         self.notional: float = _drb(defaults.notional, notional)
         self.currency: str = _drb(defaults.base_currency, currency).lower()
-        self.convention: str = _drb(defaults.convention, convention)
+        self.convention: Convention = _get_convention(_drb(defaults.convention, convention))
         self.termination = termination
         self.freq_months: int = int(12.0 / self.frequency.periods_per_annum())
 
@@ -109,20 +114,21 @@ class BasePeriod(metaclass=ABCMeta):
             f"{self.end.strftime('%Y-%m-%d')},{self.notional},{self.convention}>"
         )
 
-    @property
+    @cached_property
     def dcf(self) -> float:
         """
         float : Calculated with appropriate ``convention`` over the period.
         """
         return dcf(
-            self.start,
-            self.end,
-            self.convention,
-            self.termination,
-            self.freq_months,
-            self.stub,
-            _get_roll_from_frequency(self.frequency),
-            self.calendar,
+            start=self.start,
+            end=self.end,
+            convention=self.convention,
+            termination=self.termination,
+            frequency=self.frequency,
+            stub=self.stub,
+            roll=_get_roll_from_frequency(self.frequency),
+            calendar=self.calendar,
+            adjuster=self.adjuster,
         )
 
     @abstractmethod
@@ -239,7 +245,7 @@ class BasePeriod(metaclass=ABCMeta):
             defaults.headers["a_acc_start"]: self.start,
             defaults.headers["a_acc_end"]: self.end,
             defaults.headers["payment"]: self.payment,
-            defaults.headers["convention"]: self.convention,
+            defaults.headers["convention"]: str(self.convention),
             defaults.headers["dcf"]: self.dcf,
             defaults.headers["notional"]: _dual_float(self.notional),
             defaults.headers["df"]: df,
