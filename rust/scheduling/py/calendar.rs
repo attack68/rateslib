@@ -4,63 +4,15 @@ use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
 use crate::scheduling::py::adjuster::get_roll_adjuster_from_str;
 use crate::scheduling::{
-    Adjuster, Adjustment, Cal, Calendar, CalendarAdjustment, Convention, DateRoll, NamedCal,
-    PyAdjuster, RollDay, UnionCal,
+    Adjuster, Adjustment, Cal, Calendar, CalendarAdjustment, DateRoll, NamedCal, PyAdjuster,
+    RollDay, UnionCal,
 };
-use bincode::config::legacy;
-use bincode::serde::{decode_from_slice, encode_to_vec};
 use chrono::NaiveDateTime;
 use indexmap::set::IndexSet;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyType};
+use pyo3::types::PyType;
 use std::collections::HashSet;
-
-#[pymethods]
-impl Convention {
-    // Pickling
-    #[new]
-    fn new_py(ad: u8) -> PyResult<Convention> {
-        match ad {
-            0_u8 => Ok(Convention::One),
-            1_u8 => Ok(Convention::OnePlus),
-            2_u8 => Ok(Convention::Act365F),
-            3_u8 => Ok(Convention::Act365FPlus),
-            4_u8 => Ok(Convention::Act360),
-            5_u8 => Ok(Convention::ThirtyE360),
-            6_u8 => Ok(Convention::Thirty360),
-            7_u8 => Ok(Convention::Thirty360ISDA),
-            8_u8 => Ok(Convention::ActActISDA),
-            9_u8 => Ok(Convention::ActActICMA),
-            10_u8 => Ok(Convention::Bus252),
-            _ => Err(PyValueError::new_err(
-                "unreachable code on Convention pickle.",
-            )),
-        }
-    }
-    pub fn __setstate__(&mut self, state: Bound<'_, PyBytes>) -> PyResult<()> {
-        *self = decode_from_slice(state.as_bytes(), legacy()).unwrap().0;
-        Ok(())
-    }
-    pub fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
-        Ok(PyBytes::new(py, &encode_to_vec(&self, legacy()).unwrap()))
-    }
-    pub fn __getnewargs__<'py>(&self) -> PyResult<(u8,)> {
-        match self {
-            Convention::One => Ok((0_u8,)),
-            Convention::OnePlus => Ok((1_u8,)),
-            Convention::Act365F => Ok((2_u8,)),
-            Convention::Act365FPlus => Ok((3_u8,)),
-            Convention::Act360 => Ok((4_u8,)),
-            Convention::ThirtyE360 => Ok((5_u8,)),
-            Convention::Thirty360 => Ok((6_u8,)),
-            Convention::Thirty360ISDA => Ok((7_u8,)),
-            Convention::ActActISDA => Ok((8_u8,)),
-            Convention::ActActICMA => Ok((9_u8,)),
-            Convention::Bus252 => Ok((10_u8,)),
-        }
-    }
-}
 
 #[pymethods]
 impl Cal {

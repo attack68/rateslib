@@ -5,7 +5,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
 use serde::{Deserialize, Serialize};
 
-/// A frequency for generating unadjusted scheduling periods.
+/// Specifier for generating unadjusted scheduling periods.
 #[pyclass(module = "rateslib.rs", eq)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Frequency {

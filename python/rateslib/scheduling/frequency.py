@@ -13,6 +13,72 @@ if TYPE_CHECKING:
     from rateslib.typing import CalInput, datetime_, int_
 
 
+def _get_frequency(
+    frequency: str | Frequency, roll: str | RollDay | int_, calendar: CalInput
+) -> Frequency:
+    """
+    Get a :class:`~rateslib.scheduling.Frequency` object from legacy UI inputs.
+
+    Parameters
+    ----------
+    frequency: str or Frequency
+        If string, is combined with the ``roll`` and ``calendar`` parameters to derive the
+        output.
+    roll: str, int or RollDay, optional
+        The roll-day to be associated with a *Frequency.Months* variant, if given.
+    calendar: calendar, str, optional
+        The calendar to be associated with a *Frequency.BusDay* variant, if given.
+
+    Returns
+    -------
+    Frequency
+    """
+    if isinstance(frequency, Frequency):
+        if getattr(frequency, "roll", "no default") is None:
+            return Frequency.Months(frequency.number, _get_rollday(roll))  # type: ignore[attr-defined]
+        return frequency
+
+    frequency_: str = frequency.upper()[-1]
+    if frequency_ == "D":
+        n_: int = int(frequency[:-1])
+        return Frequency.CalDays(n_)
+    elif frequency_ == "B":
+        n_ = int(frequency[:-1])
+        return Frequency.BusDays(n_, get_calendar(calendar))
+    elif frequency_ == "W":
+        n_ = int(frequency[:-1])
+        return Frequency.CalDays(n_ * 7)
+    elif frequency_ == "M":
+        # handles the dual case of 'xM' for x-months or 'M' or monthly, i.e. 1-month
+        if len(frequency) == 1:
+            return Frequency.Months(1, _get_rollday(roll))
+        else:
+            n_ = int(frequency[:-1])
+            return Frequency.Months(n_, _get_rollday(roll))
+    elif frequency_ == "Q":
+        return Frequency.Months(3, _get_rollday(roll))
+    elif frequency_ == "S":
+        return Frequency.Months(6, _get_rollday(roll))
+    elif frequency_ == "A":
+        return Frequency.Months(12, _get_rollday(roll))
+    elif frequency_ == "Y":
+        n_ = int(frequency[:-1])
+        return Frequency.Months(12 * n_, _get_rollday(roll))
+    elif frequency_ == "Z":
+        return Frequency.Zero()
+    else:
+        raise ValueError(f"Frequency can not be determined from `frequency` input: '{frequency}'.")
+
+
+def _get_frequency_none(
+    frequency: str | Frequency | NoInput, roll: str | RollDay | int_, calendar: CalInput
+) -> Frequency | None:
+    if isinstance(frequency, NoInput):
+        return None
+    else:
+        return _get_frequency(frequency, roll, calendar)
+
+
 def add_tenor(
     start: datetime,
     tenor: str | Frequency,

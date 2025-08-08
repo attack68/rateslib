@@ -7,7 +7,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
 use serde::{Deserialize, Serialize};
 
-/// An indicator used by [`Schedule::try_new_inferred`] to instruct its inference logic.
+/// Specifier used by [`Schedule::try_new_inferred`] to instruct its inference logic.
 #[pyclass(module = "rateslib.rs", eq, eq_int)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum StubInference {
