@@ -43,7 +43,7 @@ from rateslib.periods import (
 )
 from rateslib.periods.utils import _maybe_local
 from rateslib.scheduling import dcf
-from rateslib.scheduling.schedule import _get_frequency
+from rateslib.scheduling.frequency import _get_frequency
 
 if TYPE_CHECKING:
     from rateslib.instruments.bonds.conventions.accrued import AccrualFunction

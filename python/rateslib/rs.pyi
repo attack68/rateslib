@@ -104,16 +104,30 @@ class Schedule:
 
 class Convention:
     Act365F: Convention
-    Act365FPlus: Convention
     Act360: Convention
     Thirty360: Convention
+    ThirtyU360: Convention
     ThirtyE360: Convention
-    Thirty360ISDA: Convention
+    ThirtyE360ISDA: Convention
+    YearsAct365F: Convention
+    YearsAct360: Convention
+    YearsMonths: Convention
+    One: Convention
     ActActISDA: Convention
     ActActICMA: Convention
-    One: Convention
-    OnePlus: Convention
     Bus252: Convention
+    ActActICMA_Stub_Act365F: Convention
+
+    def dcf(
+        self,
+        start: datetime,
+        end: datetime,
+        termination: datetime | None,
+        frequency: Frequency | None,
+        stub: bool | None,
+        calendar: CalTypes | None,
+        adjuster: Adjuster | None,
+    ) -> float: ...
 
 class Modifier:
     P: Modifier

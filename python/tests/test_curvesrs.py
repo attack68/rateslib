@@ -21,28 +21,6 @@ from rateslib.scheduling import get_calendar
 from rateslib.serialization import from_json
 
 
-@pytest.mark.parametrize(
-    "convention",
-    [
-        Convention.One,
-        Convention.OnePlus,
-        Convention.Act365F,
-        Convention.Act365FPlus,
-        Convention.Act360,
-        Convention.ThirtyE360,
-        Convention.Thirty360,
-        Convention.Thirty360ISDA,
-        Convention.ActActISDA,
-        Convention.ActActICMA,
-        Convention.Bus252,
-    ],
-)
-def test_pickle_convention(convention) -> None:
-    import pickle
-
-    assert convention == pickle.loads(pickle.dumps(convention))
-
-
 @pytest.fixture
 def curve():
     return CurveObj(

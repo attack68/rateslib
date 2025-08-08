@@ -140,7 +140,15 @@ def _acc_30e360_backward(
     if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
         return _acc_linear_proportion_by_days(obj, settlement, acc_idx)
     f = obj.leg1.schedule.periods_per_annum
-    _: float = dcf(settlement, obj.leg1.schedule.aschedule[acc_idx + 1], "30e360") * f
+    _: float = (
+        dcf(
+            start=settlement,
+            end=obj.leg1.schedule.aschedule[acc_idx + 1],
+            convention="30e360",
+            frequency=obj.leg1.schedule.frequency_obj,
+        )
+        * f
+    )
     _ = 1 - _
     return _
 
@@ -154,8 +162,18 @@ def _acc_30u360_forward(
     [Designed primarily for US Corporate/Muni Bonds]
     """
     sch = obj.leg1.schedule
-    accrued = dcf(sch.aschedule[acc_idx], settlement, "30u360")
-    period = dcf(sch.aschedule[acc_idx], sch.aschedule[acc_idx + 1], "30u360")
+    accrued = dcf(
+        start=sch.aschedule[acc_idx],
+        end=settlement,
+        convention="30u360",
+        frequency=sch.frequency_obj,
+    )
+    period = dcf(
+        start=sch.aschedule[acc_idx],
+        end=sch.aschedule[acc_idx + 1],
+        convention="30u360",
+        frequency=sch.frequency_obj,
+    )
     return accrued / period
 
 

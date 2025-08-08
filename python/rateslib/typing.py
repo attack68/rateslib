@@ -96,6 +96,7 @@ Solver_: TypeAlias = "Solver | NoInput"
 
 CalTypes: TypeAlias = "Cal | UnionCal | NamedCal"
 CalInput: TypeAlias = "CalTypes | str | NoInput"
+Adjuster_: TypeAlias = "Adjuster | NoInput"
 
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"
 DualTypes_: TypeAlias = "DualTypes | NoInput"

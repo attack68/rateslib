@@ -8,9 +8,9 @@ from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_mayb
 from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
 from rateslib.periods.utils import _get_fx_and_base
-from rateslib.scheduling import Frequency, dcf, Adjuster
-from rateslib.scheduling.adjuster import _get_adjuster_none
-from rateslib.scheduling.schedule import _get_frequency
+from rateslib.scheduling import Adjuster, Frequency, dcf, get_calendar
+from rateslib.scheduling.adjuster import _get_adjuster
+from rateslib.scheduling.frequency import _get_frequency
 
 if TYPE_CHECKING:
     from rateslib.typing import (
@@ -91,8 +91,10 @@ class BasePeriod(metaclass=ABCMeta):
         self.end: datetime = end
         self.payment: datetime = payment
         self.frequency = _get_frequency(frequency, roll, calendar)
-        self.calendar: CalInput = calendar
-        self.adjuster: Adjuster | None = _get_adjuster_none(adjuster)
+        self.calendar: CalInput = get_calendar(calendar)
+        self.adjuster: Adjuster | NoInput = (
+            adjuster if isinstance(adjuster, NoInput) else _get_adjuster(adjuster)
+        )
         self.stub: bool = stub
         self.notional: float = _drb(defaults.notional, notional)
         self.currency: str = _drb(defaults.base_currency, currency).lower()
@@ -115,14 +117,15 @@ class BasePeriod(metaclass=ABCMeta):
         float : Calculated with appropriate ``convention`` over the period.
         """
         return dcf(
-            self.start,
-            self.end,
-            self.convention,
-            self.termination,
-            self.freq_months,
-            self.stub,
-            _get_roll_from_frequency(self.frequency),
-            self.calendar,
+            start=self.start,
+            end=self.end,
+            convention=self.convention,
+            termination=self.termination,
+            frequency=self.frequency,
+            stub=self.stub,
+            roll=_get_roll_from_frequency(self.frequency),
+            calendar=self.calendar,
+            adjuster=self.adjuster,
         )
 
     @abstractmethod

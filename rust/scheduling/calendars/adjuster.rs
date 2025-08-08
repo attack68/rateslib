@@ -2,7 +2,7 @@ use crate::scheduling::DateRoll;
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 
-/// A list of rules for performing date adjustment.
+/// Specifier for date adjustment rules.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Adjuster {
     /// Actual date without adjustment.

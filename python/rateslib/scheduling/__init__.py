@@ -3,6 +3,7 @@ from __future__ import annotations
 import rateslib.rs
 from rateslib.rs import Adjuster, Cal, Frequency, Imm, NamedCal, RollDay, StubInference, UnionCal
 from rateslib.scheduling.calendars import get_calendar
+from rateslib.scheduling.convention import Convention
 from rateslib.scheduling.dcfs import dcf
 from rateslib.scheduling.frequency import add_tenor
 from rateslib.scheduling.imm import get_imm, next_imm
@@ -152,6 +153,7 @@ __all__ = (
     "Adjuster",
     "Frequency",
     "StubInference",
+    "Convention",
     "Imm",
     "Cal",
     "dcf",

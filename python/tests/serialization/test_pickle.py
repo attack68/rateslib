@@ -21,7 +21,16 @@ from rateslib.curves import (
     ProxyCurve,
 )
 from rateslib.rs import Schedule as ScheduleRs
-from rateslib.scheduling import Adjuster, Cal, Frequency, RollDay, Schedule, StubInference, UnionCal
+from rateslib.scheduling import (
+    Adjuster,
+    Cal,
+    Convention,
+    Frequency,
+    RollDay,
+    Schedule,
+    StubInference,
+    UnionCal,
+)
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 
@@ -144,7 +153,12 @@ def test_enum_equality(a1, a2, b1):
 
 @pytest.mark.parametrize(
     ("enum", "method_filter"),
-    [(Imm, ["next", "get", "validate", "to_json"]), (StubInference, ["to_json"]), (ADOrder, [])],
+    [
+        (Imm, ["next", "get", "validate", "to_json"]),
+        (StubInference, ["to_json"]),
+        (ADOrder, []),
+        (Convention, ["dcf"]),
+    ],
 )
 def test_simple_enum_pickle(enum, method_filter):
     variants = [v for v in enum.__dict__ if "__" not in v and v not in method_filter]

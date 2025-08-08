@@ -2199,6 +2199,7 @@ class TestCreditPremiumPeriod:
             frequency=Frequency.Months(3, None),
             fixed_rate=4.00,
             currency="usd",
+            adjuster="F",
         )
         p2 = CreditPremiumPeriod(
             start=dt(2021, 10, 1),
@@ -2210,6 +2211,7 @@ class TestCreditPremiumPeriod:
             frequency=Frequency.Months(6, None),
             fixed_rate=2.00,
             currency="usd",
+            adjuster="F",
         )
         r1 = p1.npv(hazard_curve, curve)
         r2 = p2.npv(hazard_curve, curve)
@@ -2268,6 +2270,7 @@ class TestCreditPremiumPeriod:
             frequency=Frequency.Months(3, None),
             currency="usd",
             fixed_rate=2.0,
+            adjuster="F",
         )
         assert abs(premium_period.accrued(dt(2022, 2, 1)) - (-1e9 * 0.25 * 31 / 90 * 0.02)) < 1e-9
 

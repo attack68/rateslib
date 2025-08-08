@@ -5,24 +5,27 @@ import warnings
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from rateslib.default import NoInput
-from rateslib.rs import Adjuster, Convention, RollDay
+from rateslib.default import NoInput, _drb
+from rateslib.scheduling import Adjuster, Convention, Frequency, RollDay
+from rateslib.scheduling.adjuster import _get_adjuster
 from rateslib.scheduling.calendars import get_calendar
+from rateslib.scheduling.frequency import _get_frequency_none
 from rateslib.scheduling.rollday import _get_rollday
 
 if TYPE_CHECKING:
-    from rateslib.typing import Any, CalInput, Callable, bool_, datetime_, int_
+    from rateslib.typing import Any, CalInput, Callable, bool_, datetime_, int_, str_
 
 
 def dcf(
     start: datetime,
     end: datetime,
-    convention: str,
+    convention: Convention | str,
     termination: datetime_ = NoInput(0),  # required for 30E360ISDA and ActActICMA
-    frequency_months: int_ = NoInput(0),  # req. ActActICMA = ActActISMA = ActActBond
+    frequency: Frequency | str_ = NoInput(0),  # req. ActActICMA = ActActISMA = ActActBond
     stub: bool_ = NoInput(0),  # required for ActActICMA = ActActISMA = ActActBond
     roll: RollDay | str | int_ = NoInput(0),  # required also for ActACtICMA = ...
     calendar: CalInput = NoInput(0),  # required for ActACtICMA = ActActISMA = ActActBond
+    adjuster: Adjuster | str_ = NoInput(0),
 ) -> float:
     """
     Calculate the day count fraction of a period.
@@ -130,37 +133,47 @@ def dcf(
        dcf(dt(2000, 1, 1), dt(2000, 4, 3), "ActActICMA", dt(2010, 1, 1), 3, True)
 
     """  # noqa: E501
-    convention = convention.upper()
-    try:
-        return _DCF[convention](start, end, termination, frequency_months, stub, roll, calendar)
-    except KeyError:
-        raise ValueError(
-            "`convention` must be in {'Act365f', '1', '1+', 'Act360', "
-            "'30360' '360360', 'BondBasis', '30U360', '30E360', 'EuroBondBasis', "
-            "'30E360ISDA', 'ActAct', 'ActActISDA', 'ActActICMA', "
-            "'ActActISMA', 'ActActBond'}",
-        )
+    convention_ = _get_convention(convention)
+    if isinstance(adjuster, NoInput):
+        adjuster = Adjuster.Actual()
+    return convention_.dcf(
+        start=start,
+        end=end,
+        termination=_drb(None, termination),
+        frequency=_get_frequency_none(frequency, roll, calendar),
+        stub=_drb(None, stub),
+        calendar=get_calendar(calendar),
+        adjuster=_get_adjuster(_drb(Adjuster.Actual(), adjuster)),
+    )
 
 
 CONVENTIONS_MAP: dict[str, Convention] = {
     "ACT365F": Convention.Act365F,
-    "ACT365F+": Convention.Act365FPlus,
     "ACT360": Convention.Act360,
+    ###
     "30360": Convention.Thirty360,
     "360360": Convention.Thirty360,
     "BONDBASIS": Convention.Thirty360,
     "30E360": Convention.ThirtyE360,
     "EUROBONDBASIS": Convention.ThirtyE360,
-    "30E360ISDA": Convention.Thirty360ISDA,
+    "30E360ISDA": Convention.ThirtyE360ISDA,
+    "30U360": Convention.ThirtyU360,
+    ###
+    "ACT365F+": Convention.YearsAct365F,
+    "ACT360+": Convention.YearsAct360,
+    "1+": Convention.YearsMonths,
+    ###
+    "1": Convention.One,
+    ###
     "ACTACT": Convention.ActActISDA,
     "ACTACTISDA": Convention.ActActISDA,
     "ACTACTICMA": Convention.ActActICMA,
-    # "ACTACTICMA_STUB365F": "should panic",
     "ACTACTISMA": Convention.ActActICMA,
     "ACTACTBOND": Convention.ActActICMA,
-    "1": Convention.One,
-    "1+": Convention.OnePlus,
+    ###
     "BUS252": Convention.Bus252,
+    ###
+    "ACTACTICMA_STUB365F": Convention.ActActICMA_Stub_Act365F,
 }
 
 
@@ -171,12 +184,21 @@ def _is_end_feb(date: datetime) -> bool:
     return False
 
 
-def _get_convention(convention: str) -> Convention:
+def _get_convention(convention: Convention | str) -> Convention:
     """Convert a user str input into a Convention enum."""
-    try:
-        return CONVENTIONS_MAP[convention.upper()]
-    except KeyError:
-        raise ValueError(f"`convention`: {convention}, is not valid.")
+    if isinstance(convention, Convention):
+        return convention
+    else:
+        try:
+            return CONVENTIONS_MAP[convention.upper()]
+        except KeyError:
+            raise ValueError(f"`convention`: {convention}, is not valid.")
+            # raise ValueError(
+            #     "`convention` must be in {'Act365f', '1', '1+', 'Act360', "
+            #     "'30360' '360360', 'BondBasis', '30U360', '30E360', 'EuroBondBasis', "
+            #     "'30E360ISDA', 'ActAct', 'ActActISDA', 'ActActICMA', "
+            #     "'ActActISMA', 'ActActBond'}",
+            # )
 
 
 def _dcf_act365f(start: datetime, end: datetime, *args: Any) -> float:

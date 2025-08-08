@@ -122,6 +122,7 @@ from rateslib.periods import (
 from rateslib.scheduling import (
     Adjuster,
     Cal,
+    Convention,
     Frequency,
     Imm,
     NamedCal,
@@ -191,6 +192,7 @@ __all__ = [
     "RollDay",
     "Adjuster",
     "StubInference",
+    "Convention",
     "Imm",
     # curves.py
     "Curve",
