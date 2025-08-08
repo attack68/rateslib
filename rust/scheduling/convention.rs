@@ -117,10 +117,15 @@ impl Convention {
                 let calendar_: &Calendar;
                 if calendar.is_none() {
                     match frequency {
-                        Some(Frequency::BusDays {number: _, calendar: c}) => calendar_ = c,
-                        _ => {return Err(PyValueError::new_err(
-                            "`calendar` must be supplied for 'Bus252' type convention.",
-                        ));}
+                        Some(Frequency::BusDays {
+                            number: _,
+                            calendar: c,
+                        }) => calendar_ = c,
+                        _ => {
+                            return Err(PyValueError::new_err(
+                                "`calendar` must be supplied for 'Bus252' type convention.",
+                            ));
+                        }
                     }
                 } else {
                     calendar_ = calendar.unwrap();
