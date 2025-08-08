@@ -6,7 +6,9 @@ from rateslib.curves import Curve
 from rateslib.default import NoInput
 from rateslib.instruments import IRS
 from rateslib.scheduling import (
+    Adjuster,
     Cal,
+    Convention,
     Frequency,
     RollDay,
     add_tenor,
@@ -16,7 +18,6 @@ from rateslib.scheduling import (
     next_imm,
 )
 from rateslib.scheduling.calendars import _adjust_date, _get_years_and_months, _is_day_type_tenor
-from rateslib.scheduling.dcfs import _dcf_actacticma
 from rateslib.scheduling.frequency import _get_frequency, _get_fx_expiry_and_delivery
 
 
@@ -481,16 +482,16 @@ def test_get_years_and_months(d1, d2, exp) -> None:
     ],
 )
 def test_act_act_icma_z_freq(s, e, t, exp) -> None:
-    with pytest.warns(UserWarning, match="Using `convention` 'ActActICMA' with a Period having"):
-        result = _dcf_actacticma(
-            start=s,
-            end=e,
-            termination=t,
-            frequency_months=1e8,  # Z Frequency
-            stub=False,
-            roll=NoInput(0),
-            calendar=NoInput(0),
-        )
+    # with pytest.warns(UserWarning, match="Using `convention` 'ActActICMA' with a Period having"):
+    result = Convention.ActActICMA.dcf(
+        start=s,
+        end=e,
+        termination=t,
+        frequency=Frequency.Zero(),  # Z Frequency
+        stub=True,
+        calendar=Cal([], []),
+        adjuster=Adjuster.Actual(),
+    )
     assert abs(result - exp) < 1e-6
 
 

@@ -10,8 +10,8 @@ use crate::scheduling::{
 };
 
 /// Specifier for day count conventions
-#[pyclass(module = "rateslib.rs", eq, eq_int)]
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
+#[pyclass(module = "rateslib.rs", eq, eq_int, hash, frozen)]
+#[derive(Debug, Hash, Copy, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Convention {
     /// Actual days in period divided by 365.
     Act365F = 0,
@@ -53,7 +53,7 @@ pub enum Convention {
     /// Number of business days in period divided by 252.
     Bus252 = 12,
     /// ActActICMA falling back to Act365F in stub periods.
-    ActActICMA_Stub_Act365F = 13,
+    ActActICMAStubAct365F = 13,
 }
 
 impl Convention {
@@ -109,7 +109,7 @@ impl Convention {
                     Ok(dcf_bus252(start, end, calendar.unwrap()))
                 }
             }
-            Convention::ActActICMA_Stub_Act365F => {
+            Convention::ActActICMAStubAct365F => {
                 if frequency.is_none() {
                     Err(PyValueError::new_err(
                         "`frequency` must be supplied for 'ActActICMA' type convention.",
@@ -317,8 +317,11 @@ fn dcf_act_icma(
     calendar: Option<&Calendar>,
     adjuster: Option<&Adjuster>,
 ) -> Result<f64, PyErr> {
+    let freq = actacticma_frequency_conversion(frequency);
+    let ppa = freq.periods_per_annum();
+
     if !stub {
-        Ok(1.0 / frequency.periods_per_annum())
+        Ok(1.0 / ppa)
     } else {
         if termination.is_none() || adjuster.is_none() || calendar.is_none() {
             return Err(PyValueError::new_err(
@@ -333,22 +336,22 @@ fn dcf_act_icma(
             while *end > qe1 {
                 fraction += 1.0;
                 qe0 = qe1;
-                qe1 = (*(adjuster.unwrap())).adjust(&frequency.next(&qe0), calendar.unwrap());
+                qe1 = (*(adjuster.unwrap())).adjust(&freq.next(&qe0), calendar.unwrap());
             }
             fraction =
                 fraction + ((*end - qe0).num_days() as f64) / ((qe1 - qe0).num_days() as f64);
-            Ok(fraction / frequency.periods_per_annum())
+            Ok(fraction / ppa)
         } else {
             let mut qs0 = *end;
             let mut qs1 = *end;
             while *start < qs1 {
                 fraction += 1.0;
                 qs0 = qs1;
-                qs1 = (*(adjuster.unwrap())).adjust(&frequency.previous(&qs0), calendar.unwrap());
+                qs1 = (*(adjuster.unwrap())).adjust(&freq.previous(&qs0), calendar.unwrap());
             }
             fraction =
                 fraction + ((qs0 - *start).num_days() as f64) / ((qs0 - qs1).num_days() as f64);
-            Ok(fraction / frequency.periods_per_annum())
+            Ok(fraction / ppa)
         }
     }
 }
@@ -362,10 +365,12 @@ fn dcf_act_icma_stub_365f(
     calendar: Option<&Calendar>,
     adjuster: Option<&Adjuster>,
 ) -> Result<f64, PyErr> {
+    let freq = actacticma_frequency_conversion(frequency);
+    let ppa = freq.periods_per_annum();
+
     if !stub {
-        Ok(1.0 / frequency.periods_per_annum())
+        Ok(1.0 / ppa)
     } else {
-        let ppa = frequency.periods_per_annum();
         if termination.is_none() || adjuster.is_none() || calendar.is_none() {
             return Err(PyValueError::new_err(
                 "Stub periods under ActActICMA require `termination`, `adjuster` and `calendar` arguments to determine appropriate fractions."
@@ -379,7 +384,7 @@ fn dcf_act_icma_stub_365f(
             while *end > qe1 {
                 fraction += 1.0;
                 qe0 = qe1;
-                qe1 = (*(adjuster.unwrap())).adjust(&frequency.next(&qe0), calendar.unwrap());
+                qe1 = (*(adjuster.unwrap())).adjust(&freq.next(&qe0), calendar.unwrap());
             }
             fraction = fraction + ppa * (*end - qe0).num_days() as f64 / 365.0;
             Ok(fraction / ppa)
@@ -389,11 +394,21 @@ fn dcf_act_icma_stub_365f(
             while *start < qs1 {
                 fraction += 1.0;
                 qs0 = qs1;
-                qs1 = (*(adjuster.unwrap())).adjust(&frequency.previous(&qs0), calendar.unwrap());
+                qs1 = (*(adjuster.unwrap())).adjust(&freq.previous(&qs0), calendar.unwrap());
             }
             fraction = fraction + ppa * (qs0 - *start).num_days() as f64 / 365.0;
             Ok(fraction / ppa)
         }
+    }
+}
+
+fn actacticma_frequency_conversion(frequency: &Frequency) -> Frequency {
+    match frequency {
+        Frequency::Zero {} => Frequency::Months {
+            number: 12,
+            roll: None,
+        },
+        _ => frequency.clone(),
     }
 }
 
@@ -443,7 +458,7 @@ pub(crate) fn _get_convention_str(convention: Convention) -> String {
         Convention::ActActICMA => "ActActICMA".to_string(),
         Convention::One => "1".to_string(),
         Convention::Bus252 => "Bus252".to_string(),
-        Convention::ActActICMA_Stub_Act365F => "ActActICMA_Stub_Act365F".to_string(),
+        Convention::ActActICMAStubAct365F => "ActActICMA_Stub_Act365F".to_string(),
     }
 }
 
