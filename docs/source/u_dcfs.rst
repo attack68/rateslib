@@ -12,10 +12,20 @@ Day count fractions (DCFs)
 
 This module also contains a :meth:`~rateslib.scheduling.dcf` method for calculating
 day count fractions.
-Review the API documentation for specific calculation details. Current DCF conventions
-available are listed below:
+Review the API documentation for specific calculation details.
 
-.. ipython:: python
+Summary
+********
 
-   from rateslib.scheduling.dcfs import _DCF
-   print(_DCF.keys())
+Classes
+-------
+
+.. autosummary::
+   rateslib.scheduling.Convention
+
+Methods
+-------
+
+.. autosummary::
+   rateslib.scheduling.dcf
+

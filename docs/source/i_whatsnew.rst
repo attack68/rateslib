@@ -21,12 +21,18 @@ email contact, see `rateslib <https://rateslib.com>`_.
 
    * - Feature
      - Description
+   * - **Scheduling**
+     - - The :class:`~rateslib.scheduling.Convention` has been further integrated into the objects
+         in the library. While string UI input is often still available, these types are now
+         directly associated with object attributes.
+       - The :meth:`~rateslib.scheduling.dcf` method has revised arguments to work directly with
+         the :class:`~rateslib.scheduling.Convention`.
    * - **Refactors**
      - - The scheduling arguments for any :class:`~rateslib.legs.BaseLeg` have been removed
-         in favour of using ``schedule`` argument containing a generated
+         in favour of using a ``schedule`` argument containing a generated
          :class:`~rateslib.scheduling.Schedule`.
          (`1009 <https://github.com/attack68/rateslib/pull/1009>`_)
-       - The attribute ``roll`` is removed from :class:`~rateslib.periods.BasePeriod` and the
+       - The attribute ``adjuster`` is added to any :class:`~rateslib.periods.BasePeriod` and the
          ``frequency`` is now associated with a :class:`~rateslib.scheduling.Frequency`, rather than
          a string identifier.
          (`1010 <https://github.com/attack68/rateslib/pull/1010>`_)

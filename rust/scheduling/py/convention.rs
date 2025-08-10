@@ -30,6 +30,36 @@ impl Convention {
         }
     }
 
+    /// Calculate the day count fraction of a period.
+    ///
+    /// Parameters
+    /// ----------
+    /// start : datetime
+    ///     The adjusted start date of the calculation period.
+    /// end : datetime
+    ///     The adjusted end date of the calculation period.
+    /// termination : datetime, optional
+    ///     The adjusted termination date of the leg. Required only for some ``convention``.
+    /// frequency : Frequency, str, optional
+    ///     The frequency of the period. Required only for some ``convention``.
+    /// stub : bool, optional
+    ///    Indicates whether the period is a stub or not. Required only for some ``convention``.
+    /// roll : str, int, optional
+    ///     Used only if ``frequency`` is given in string form. Required only for some ``convention``.
+    /// calendar: str, Calendar, optional
+    ///     Used only of ``frequency`` is given in string form. Required only for some ``convention``.
+    /// adjuster: Adjuster, str, optional
+    ///     The :class:`~rateslib.scheduling.Adjuster` used to convert unadjusted dates to
+    ///     adjusted accrual dates on the period. Required only for some ``convention``.
+    ///
+    /// Returns
+    /// --------
+    /// float
+    ///
+    /// Notes
+    /// -----
+    /// Further details on the required arguments can be found under ``Convention`` at the
+    /// lower level Rust docs, see :rust:`rateslib-rs: Scheduling <scheduling>`.
     #[pyo3(name = "dcf", signature=(start, end, termination=None, frequency=None, stub=None, calendar=None, adjuster=None   ))]
     fn dcf_py(
         &self,
