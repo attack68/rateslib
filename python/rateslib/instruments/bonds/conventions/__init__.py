@@ -108,7 +108,7 @@ class BondCalcMode:
       
          \\xi = (\\bar{r}_u / \\bar{s}_u + r_u / s_u) / ( d_i * f )
       
-    - ``30u360_backward``: For **stubs** this method reverts to ``linear_days``. Otherwise,
+    - ``30e360_backward``: For **stubs** this method reverts to ``linear_days``. Otherwise,
       determines the DCF, under the required convention, of the remaining part of the coupon
       period from settlement and deducts this from the full accrual fraction.
       
