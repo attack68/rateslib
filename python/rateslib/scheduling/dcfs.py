@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import warnings
 from datetime import datetime
+from functools import partial
 from typing import TYPE_CHECKING
 
 from rateslib.default import NoInput, _drb
@@ -11,7 +12,7 @@ from rateslib.scheduling.calendars import get_calendar
 from rateslib.scheduling.frequency import _get_frequency_none
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, bool_, datetime_, int_, str_
+    from rateslib.typing import Any, CalInput, Callable, bool_, datetime_, int_, str_
 
 
 def dcf(
@@ -94,6 +95,13 @@ def dcf(
             UserWarning,
         )
 
+    # delegate simple calculations to Python only for performance gains, otherwise use Rust.
+    if convention_ in PERFORMANCE:
+        try:
+            return PERFORMANCE[convention_](start, end, frequency=frequency_, stub=stub)
+        except NotImplementedError:
+            pass
+
     return convention_.dcf(
         start=start,
         end=end,
@@ -142,6 +150,29 @@ CONVENTIONS_MAP: dict[str, Convention] = {
     ###
     "ACTACTICMA_STUB365F": Convention.ActActICMAStubAct365F,
     "ACTACTICMASTUBACT365F": Convention.ActActICMAStubAct365F,
+}
+
+
+def _dcf_numeric(start: datetime, end: datetime, denominator: float, **kwargs: Any) -> float:
+    """Calculate the day count fraction of a period using the fixed denominator rule."""
+    return (end - start).days / denominator
+
+
+def _dcf_actacticma_nonstub(
+    start: datetime, end: datetime, frequency: Frequency, stub: bool, **kwargs: Any
+) -> float:
+    """Calculate just the regular frequency part of the dcf for ActActICMA."""
+    if not stub:
+        return 1.0 / frequency.periods_per_annum()
+    else:
+        raise NotImplementedError("`stub` must be `False` for `ActActICMA` performance short cut.")
+
+
+PERFORMANCE: dict[Convention, Callable[..., float]] = {
+    Convention.Act365F: partial(_dcf_numeric, denominator=365.0),
+    Convention.Act360: partial(_dcf_numeric, denominator=360.0),
+    Convention.ActActICMA: _dcf_actacticma_nonstub,
+    Convention.ActActICMAStubAct365F: _dcf_actacticma_nonstub,
 }
 
 
