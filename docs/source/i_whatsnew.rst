@@ -37,7 +37,7 @@ email contact, see `rateslib <https://rateslib.com>`_.
          a string identifier.
          (`1010 <https://github.com/attack68/rateslib/pull/1010>`_)
 
-2.1.1 (not released)
+2.1.1 (12th August 2025)
 ***************************
 
 .. list-table::
