@@ -1,5 +1,4 @@
 use chrono::prelude::*;
-use chrono::Days;
 use indexmap::IndexSet;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -201,23 +200,15 @@ pub(crate) fn get_unadjusteds(
     let mut udates: Vec<NaiveDateTime> = vec![];
 
     // always return at least `date`
-    let mut udate = *date;
-    udates.push(udate);
+    udates.push(*date);
 
-    // find dates in the past that might adjust forward to `date`.
-    udate = *date - Days::new(1);
-    while adjuster.adjust(&udate, calendar) == *date {
-        udates.push(udate);
-        udate = udate - Days::new(1);
-    }
-
-    // find dates in the future that might adjust backwards to `date`.
-    udate = *date + Days::new(1);
-    while adjuster.adjust(&udate, calendar) == *date {
-        udates.push(udate);
-        udate = udate + Days::new(1);
-    }
-
+    // get the vector of reversals and filter out date
+    let reversals: Vec<NaiveDateTime> = adjuster
+        .reverse(date, calendar)
+        .into_iter()
+        .filter(|v| v != date)
+        .collect();
+    udates.extend(reversals);
     udates
 }
 

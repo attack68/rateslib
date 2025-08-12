@@ -7,7 +7,7 @@ from pandas.testing import assert_index_equal
 from pandas.tseries.holiday import Holiday
 from rateslib import defaults
 from rateslib.default import NoInput
-from rateslib.rs import Frequency, RollDay
+from rateslib.rs import Adjuster, Frequency, RollDay
 from rateslib.scheduling import Cal
 from rateslib.scheduling.schedule import Schedule
 
@@ -843,3 +843,15 @@ def test_all_frequency_as_str(frequency):
         calendar="bus",
     )
     s.__str__()
+
+
+def test_inference_busdays():
+    # the effective is given adjusted whilst termination is unadjusted
+    s = Schedule(
+        effective=dt(2000, 1, 6),
+        termination=dt(2000, 3, 1),
+        frequency=Frequency.Months(1, None),
+        modifier=Adjuster.BusDaysLagSettle(5),
+    )
+    assert s.uschedule == [dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 3, 1)]
+    assert s.aschedule == [dt(2000, 1, 6), dt(2000, 2, 6), dt(2000, 3, 6)]

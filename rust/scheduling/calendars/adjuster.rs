@@ -1,5 +1,6 @@
 use crate::scheduling::DateRoll;
 use chrono::prelude::*;
+use chrono::Days;
 use serde::{Deserialize, Serialize};
 
 /// Specifier for date adjustment rules.
@@ -39,6 +40,9 @@ pub enum Adjuster {
 pub trait Adjustment {
     /// Adjust a date under an adjustment rule.
     fn adjust<T: DateRoll>(&self, udate: &NaiveDateTime, calendar: &T) -> NaiveDateTime;
+
+    /// Perform a reverse adjustment to derive potential unadjusted date candidates.
+    fn reverse<T: DateRoll>(&self, adate: &NaiveDateTime, calendar: &T) -> Vec<NaiveDateTime>;
 
     /// Adjust a vector of dates under an adjustment rule;
     fn adjusts<T: DateRoll>(&self, udates: &Vec<NaiveDateTime>, calendar: &T)
@@ -94,6 +98,39 @@ impl Adjustment for Adjuster {
         }
     }
 
+    fn reverse<T: DateRoll>(&self, adate: &NaiveDateTime, calendar: &T) -> Vec<NaiveDateTime> {
+        match self {
+            Adjuster::Actual {} => vec![*adate],
+            Adjuster::Following {} => reverse_forward_type(adate, self, calendar),
+            Adjuster::Previous {} => reverse_backward_type(adate, self, calendar),
+            Adjuster::ModifiedFollowing {} => reverse_modified_type(adate, self, calendar),
+            Adjuster::ModifiedPrevious {} => reverse_modified_type(adate, self, calendar),
+            Adjuster::FollowingSettle {} => reverse_forward_type(adate, self, calendar),
+            Adjuster::PreviousSettle {} => reverse_backward_type(adate, self, calendar),
+            Adjuster::ModifiedFollowingSettle {} => reverse_modified_type(adate, self, calendar),
+            Adjuster::ModifiedPreviousSettle {} => reverse_modified_type(adate, self, calendar),
+            Adjuster::BusDaysLagSettle(n) => {
+                if Adjuster::BusDaysLagSettle(0).adjust(adate, calendar) != *adate {
+                    return vec![]; // input has no valid reversal
+                }
+                let date = calendar.add_bus_days(adate, -n, false).unwrap();
+                Adjuster::Previous {}.reverse(&date, calendar)
+            }
+            Adjuster::CalDaysLagSettle(n) => {
+                let ret: Vec<NaiveDateTime> = if *n < 0 {
+                    Adjuster::PreviousSettle {}.reverse(adate, calendar)
+                } else {
+                    Adjuster::FollowingSettle {}.reverse(adate, calendar)
+                };
+                ret.into_iter()
+                    .map(|d| calendar.add_cal_days(&d, -n, &Adjuster::Actual {}))
+                    .collect()
+            }
+            Adjuster::FollowingExLast {} => reverse_forward_type(adate, self, calendar), // no vector
+            Adjuster::FollowingExLastSettle {} => reverse_forward_type(adate, self, calendar), // no vector
+        }
+    }
+
     fn adjusts<T: DateRoll>(
         &self,
         udates: &Vec<NaiveDateTime>,
@@ -116,11 +153,83 @@ impl Adjustment for Adjuster {
     }
 }
 
+fn reverse_forward_type<T: DateRoll>(
+    adate: &NaiveDateTime,
+    adjuster: &Adjuster,
+    calendar: &T,
+) -> Vec<NaiveDateTime> {
+    let mut ret: Vec<NaiveDateTime>;
+    if (*adjuster).adjust(adate, calendar) == *adate {
+        // adate is valid reversal
+        ret = vec![*adate];
+    } else {
+        // adate is an unadjusted date and is not valid: it has no reversal.
+        return vec![];
+    }
+    let mut date = *adate - Days::new(1);
+    while (*adjuster).adjust(&date, calendar) == *adate {
+        ret.push(date);
+        date = date - Days::new(1);
+    }
+    ret
+}
+
+fn reverse_backward_type<T: DateRoll>(
+    adate: &NaiveDateTime,
+    adjuster: &Adjuster,
+    calendar: &T,
+) -> Vec<NaiveDateTime> {
+    let mut ret: Vec<NaiveDateTime>;
+    if (*adjuster).adjust(adate, calendar) == *adate {
+        // adate is valid reversal
+        ret = vec![*adate];
+    } else {
+        // adate is an unadjusted date and is not valid: it has no reversal.
+        return vec![];
+    }
+    let mut date = *adate + Days::new(1);
+    while (*adjuster).adjust(&date, calendar) == *adate {
+        ret.push(date);
+        date = date + Days::new(1);
+    }
+    ret
+}
+
+fn reverse_modified_type<T: DateRoll>(
+    adate: &NaiveDateTime,
+    adjuster: &Adjuster,
+    calendar: &T,
+) -> Vec<NaiveDateTime> {
+    let mut ret: Vec<NaiveDateTime>;
+    if (*adjuster).adjust(adate, calendar) == *adate {
+        // adate is valid reversal of itself
+        ret = vec![*adate];
+    } else {
+        // adate is an unadjusted date and is not valid: it has no reversal.
+        return vec![];
+    }
+    let mut date = *adate - Days::new(1);
+    let mut adj = (*adjuster).adjust(&date, calendar);
+    while adj == *adate && date.month() == adate.month() {
+        ret.push(date);
+        date = date - Days::new(1);
+        adj = (*adjuster).adjust(&date, calendar);
+    }
+    date = *adate + Days::new(1);
+    adj = (*adjuster).adjust(&date, calendar);
+    while adj == *adate && date.month() == adate.month() {
+        ret.push(date);
+        date = date + Days::new(1);
+        adj = (*adjuster).adjust(&date, calendar);
+    }
+    ret
+}
+
 // UNIT TESTS
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scheduling::{ndt, Cal};
+    use crate::scheduling::{ndt, Cal, Calendar};
 
     fn fixture_hol_cal() -> Cal {
         let hols = vec![ndt(2015, 9, 5), ndt(2015, 9, 7)]; // Saturday and Monday
@@ -168,5 +277,166 @@ mod tests {
                 ndt(2015, 9, 7)
             ]
         );
+    }
+
+    #[test]
+    fn test_reverse() {
+        let cal = Cal::new(
+            vec![
+                ndt(2000, 1, 31),
+                ndt(2000, 1, 29),
+                ndt(2000, 1, 10),
+                ndt(2000, 1, 11),
+                ndt(2000, 1, 16),
+                ndt(2000, 1, 1),
+                ndt(2000, 1, 3),
+            ],
+            vec![],
+        );
+
+        let options: Vec<(NaiveDateTime, Adjuster, Vec<NaiveDateTime>)> = vec![
+            // No reversals for holidays
+            (ndt(2000, 1, 1), Adjuster::Following {}, vec![]),
+            (ndt(2000, 1, 1), Adjuster::Previous {}, vec![]),
+            (ndt(2000, 1, 1), Adjuster::ModifiedPrevious {}, vec![]),
+            (ndt(2000, 1, 11), Adjuster::CalDaysLagSettle(3), vec![]),
+            (ndt(2000, 1, 11), Adjuster::BusDaysLagSettle(3), vec![]),
+            // Valid reversals for adjusted dates.
+            (
+                ndt(2000, 1, 2),
+                Adjuster::Following {},
+                vec![ndt(2000, 1, 2), ndt(2000, 1, 1)],
+            ),
+            (
+                ndt(2000, 1, 30),
+                Adjuster::Following {},
+                vec![ndt(2000, 1, 30), ndt(2000, 1, 29)],
+            ),
+            (
+                ndt(2000, 1, 2),
+                Adjuster::FollowingSettle {},
+                vec![ndt(2000, 1, 2), ndt(2000, 1, 1)],
+            ),
+            (
+                ndt(2000, 1, 30),
+                Adjuster::FollowingSettle {},
+                vec![ndt(2000, 1, 30), ndt(2000, 1, 29)],
+            ),
+            (
+                ndt(2000, 1, 2),
+                Adjuster::Previous {},
+                vec![ndt(2000, 1, 2), ndt(2000, 1, 3)],
+            ),
+            (
+                ndt(2000, 1, 30),
+                Adjuster::Previous {},
+                vec![ndt(2000, 1, 30), ndt(2000, 1, 31)],
+            ),
+            (
+                ndt(2000, 1, 2),
+                Adjuster::PreviousSettle {},
+                vec![ndt(2000, 1, 2), ndt(2000, 1, 3)],
+            ),
+            (
+                ndt(2000, 1, 30),
+                Adjuster::PreviousSettle {},
+                vec![ndt(2000, 1, 30), ndt(2000, 1, 31)],
+            ),
+            (
+                ndt(2000, 1, 2),
+                Adjuster::FollowingExLast {},
+                vec![ndt(2000, 1, 2), ndt(2000, 1, 1)],
+            ),
+            (
+                ndt(2000, 1, 30),
+                Adjuster::FollowingExLast {},
+                vec![ndt(2000, 1, 30), ndt(2000, 1, 29)],
+            ),
+            (
+                ndt(2000, 1, 2),
+                Adjuster::FollowingExLastSettle {},
+                vec![ndt(2000, 1, 2), ndt(2000, 1, 1)],
+            ),
+            (
+                ndt(2000, 1, 30),
+                Adjuster::FollowingExLastSettle {},
+                vec![ndt(2000, 1, 30), ndt(2000, 1, 29)],
+            ),
+            (
+                ndt(2000, 1, 2),
+                Adjuster::ModifiedFollowing {},
+                vec![ndt(2000, 1, 2), ndt(2000, 1, 1)],
+            ),
+            (
+                ndt(2000, 1, 30),
+                Adjuster::ModifiedFollowing {},
+                vec![ndt(2000, 1, 30), ndt(2000, 1, 29), ndt(2000, 1, 31)],
+            ),
+            (
+                ndt(2000, 1, 2),
+                Adjuster::ModifiedPrevious {},
+                vec![ndt(2000, 1, 2), ndt(2000, 1, 1), ndt(2000, 1, 3)],
+            ),
+            (
+                ndt(2000, 1, 30),
+                Adjuster::ModifiedPrevious {},
+                vec![ndt(2000, 1, 30), ndt(2000, 1, 31)],
+            ),
+            (
+                ndt(2000, 1, 2),
+                Adjuster::ModifiedFollowingSettle {},
+                vec![ndt(2000, 1, 2), ndt(2000, 1, 1)],
+            ),
+            (
+                ndt(2000, 1, 30),
+                Adjuster::ModifiedFollowingSettle {},
+                vec![ndt(2000, 1, 30), ndt(2000, 1, 29), ndt(2000, 1, 31)],
+            ),
+            (
+                ndt(2000, 1, 2),
+                Adjuster::ModifiedPreviousSettle {},
+                vec![ndt(2000, 1, 2), ndt(2000, 1, 1), ndt(2000, 1, 3)],
+            ),
+            (
+                ndt(2000, 1, 30),
+                Adjuster::ModifiedPreviousSettle {},
+                vec![ndt(2000, 1, 30), ndt(2000, 1, 31)],
+            ),
+            (ndt(2000, 1, 2), Adjuster::Actual {}, vec![ndt(2000, 1, 2)]),
+            (
+                ndt(2000, 1, 30),
+                Adjuster::Actual {},
+                vec![ndt(2000, 1, 30)],
+            ),
+            (
+                ndt(2000, 1, 30),
+                Adjuster::Actual {},
+                vec![ndt(2000, 1, 30)],
+            ),
+            (
+                ndt(2000, 1, 15),
+                Adjuster::CalDaysLagSettle(5),
+                vec![ndt(2000, 1, 10)],
+            ),
+            (
+                ndt(2000, 1, 12),
+                Adjuster::CalDaysLagSettle(5),
+                vec![ndt(2000, 1, 7), ndt(2000, 1, 6), ndt(2000, 1, 5)],
+            ),
+            (
+                ndt(2000, 1, 18),
+                Adjuster::BusDaysLagSettle(5),
+                vec![ndt(2000, 1, 12)],
+            ),
+            (
+                ndt(2000, 1, 17),
+                Adjuster::BusDaysLagSettle(5),
+                vec![ndt(2000, 1, 9), ndt(2000, 1, 10), ndt(2000, 1, 11)],
+            ),
+        ];
+        for option in options {
+            let result = option.1.reverse(&option.0, &Calendar::Cal(cal.clone()));
+            assert_eq!(result, option.2)
+        }
     }
 }
