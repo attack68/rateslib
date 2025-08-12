@@ -136,6 +136,24 @@ impl PyAdjuster {
         adjuster.adjust(&date, &calendar)
     }
 
+    /// Return a list of `dates` which result in ``date`` when the adjustment is applied.
+    ///
+    /// Parameters
+    /// ----------
+    /// date: datetime
+    ///     Date to reverse to detect possible unadjusted dates.
+    /// calendar: Cal, UnionCal or NamedCal
+    ///     The calendar to assist with date adjustment.
+    ///
+    /// Returns
+    /// -------
+    /// datetime
+    #[pyo3(name = "reverse")]
+    fn reverse_py(&self, date: NaiveDateTime, calendar: Calendar) -> Vec<NaiveDateTime> {
+        let adjuster: Adjuster = (*self).into();
+        adjuster.reverse(&date, &calendar)
+    }
+
     /// Return a vector of `dates` adjusted under a date adjustment rule.
     ///
     /// Parameters
