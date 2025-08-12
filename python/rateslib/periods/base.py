@@ -9,6 +9,7 @@ from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
 from rateslib.periods.utils import _get_fx_and_base
 from rateslib.scheduling import dcf
+from rateslib.scheduling.schedule import _get_frequency
 
 if TYPE_CHECKING:
     from rateslib.typing import (
@@ -88,7 +89,9 @@ class BasePeriod(metaclass=ABCMeta):
         self.currency: str = _drb(defaults.base_currency, currency).lower()
         self.convention: str = _drb(defaults.convention, convention)
         self.termination = termination
-        self.freq_months: int = defaults.frequency_months[self.frequency]
+        self.freq_months: int = int(
+            12.0 / _get_frequency(frequency, roll, calendar).periods_per_annum()
+        )
         self.stub: bool = stub
         self.roll: int | str | NoInput = roll
         self.calendar: CalInput = calendar

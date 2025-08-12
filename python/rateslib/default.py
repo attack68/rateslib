@@ -123,15 +123,6 @@ class Defaults:
             "wlg": NamedCal("wlg"),
             "mum": NamedCal("mum"),
         }
-        self.frequency_months = {
-            "M": 1,
-            "B": 2,
-            "Q": 3,
-            "T": 4,
-            "S": 6,
-            "A": 12,
-            "Z": 120000,  # corresponds to 10,000 years
-        }
         self.eom = False
         self.eom_fx = True
 
@@ -311,7 +302,6 @@ Scheduling:\n
                         "eom",
                         "eom_fx",
                         "eval_mode",
-                        "frequency_months",
                     ]
                 ]
             )
