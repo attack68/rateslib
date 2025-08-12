@@ -21,7 +21,7 @@ class YtmDiscountFunction(Protocol):
         self,
         obj: Security | BondMixin,
         ytm: DualTypes,
-        f: int,
+        f: float,
         settlement: datetime,
         acc_idx: int,
         v2: DualTypes | None,
@@ -37,7 +37,7 @@ class YtmStubDiscountFunction(Protocol):
         self,
         obj: Security | BondMixin,
         ytm: DualTypes,
-        f: int,
+        f: float,
         settlement: datetime,
         acc_idx: int,
         v2: DualTypes,
@@ -52,7 +52,7 @@ class CashflowFunction(Protocol):
         self,
         obj: Security | BondMixin,
         ytm: DualTypes,
-        f: int,
+        f: float,
         acc_idx: int,
         p_idx: int,
         n: int,
@@ -68,7 +68,7 @@ The calculations for v2:
 def _v2_(
     obj: Security | BondMixin,
     ytm: DualTypes,
-    f: int,
+    f: float,
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes | None,
@@ -88,7 +88,7 @@ def _v2_(
 def _v2_annual(
     obj: Security | BondMixin,
     ytm: DualTypes,
-    f: int,
+    f: float,
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes | None,
@@ -107,7 +107,7 @@ def _v2_annual(
 def _v2_annual_pay_adjust(
     obj: Security | BondMixin,
     ytm: DualTypes,
-    f: int,
+    f: float,
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes | None,
@@ -129,7 +129,7 @@ The calculations for v1:
 def _v1_compounded(
     obj: Security | BondMixin,
     ytm: DualTypes,
-    f: int,
+    f: float,
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes,
@@ -157,7 +157,7 @@ def _v1_compounded(
 def _v1_simple(
     obj: Security | BondMixin,
     ytm: DualTypes,
-    f: int,
+    f: float,
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes,
@@ -181,7 +181,7 @@ def _v1_simple(
 def _v1_simple_pay_adjust(
     obj: Security | BondMixin,
     ytm: DualTypes,
-    f: int,
+    f: float,
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes,
@@ -202,7 +202,7 @@ def _v1_simple_pay_adjust(
 def _v1_compounded_pay_adjust(
     obj: Security | BondMixin,
     ytm: DualTypes,
-    f: int,
+    f: float,
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes,
@@ -223,7 +223,7 @@ def _v1_compounded_pay_adjust(
 def _v1_compounded_final_simple(
     obj: Security | BondMixin,
     ytm: DualTypes,
-    f: int,
+    f: float,
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes,
@@ -247,7 +247,7 @@ def _v1_compounded_final_simple(
 def _v1_compounded_final_simple_pay_adjust(
     obj: Security | BondMixin,
     ytm: DualTypes,
-    f: int,
+    f: float,
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes,
@@ -269,7 +269,7 @@ def _v1_compounded_final_simple_pay_adjust(
 def _v1_comp_stub_act365f(
     obj: Security | BondMixin,
     ytm: DualTypes,
-    f: int,
+    f: float,
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes,
@@ -287,7 +287,7 @@ def _v1_comp_stub_act365f(
 def _v1_simple_long_stub(
     obj: Security | BondMixin,
     ytm: DualTypes,
-    f: int,
+    f: float,
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes,
@@ -323,7 +323,7 @@ The calculations for v3:
 def _v3_compounded(
     obj: Security | BondMixin,
     ytm: DualTypes,
-    f: int,
+    f: float,
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes,
@@ -346,7 +346,7 @@ def _v3_compounded(
 def _v3_compounded_pay_adjust(
     obj: Security | BondMixin,
     ytm: DualTypes,
-    f: int,
+    f: float,
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes,
@@ -364,7 +364,7 @@ def _v3_compounded_pay_adjust(
 def _v3_30e360_u_simple(
     obj: Security | BondMixin,
     ytm: DualTypes,
-    f: int,
+    f: float,
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes,
@@ -383,7 +383,7 @@ def _v3_30e360_u_simple(
 def _v3_simple(
     obj: Security | BondMixin,
     ytm: DualTypes,
-    f: int,
+    f: float,
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes,
@@ -403,7 +403,7 @@ def _v3_simple(
 def _v3_simple_pay_adjust(
     obj: Security | BondMixin,
     ytm: DualTypes,
-    f: int,
+    f: float,
     settlement: datetime,
     acc_idx: int,
     v2: DualTypes,
@@ -449,7 +449,7 @@ V3_FUNCS: dict[str, YtmStubDiscountFunction] = {
 def _c_from_obj(
     obj: Security | BondMixin,
     ytm: DualTypes,
-    f: int,
+    f: float,
     acc_idx: int,
     p_idx: int,
     n: int,
@@ -465,7 +465,7 @@ def _c_from_obj(
 def _c_full_coupon(
     obj: Security | BondMixin,
     ytm: DualTypes,
-    f: int,
+    f: float,
     acc_idx: int,
     p_idx: int,
     n: int,

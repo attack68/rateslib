@@ -69,6 +69,16 @@ impl Frequency {
         self.next(&date)
     }
 
+    /// Return an average number of coupons per annum measured over 50 years.
+    ///
+    /// Returns
+    /// -------
+    /// float
+    #[pyo3(name = "periods_per_annum")]
+    fn periods_per_annum_py(&self) -> f64 {
+        self.periods_per_annum()
+    }
+
     /// Return the next unadjusted date under the schedule frequency.
     ///
     /// Parameters
@@ -223,7 +233,7 @@ impl Frequency {
                 roll: _,
             } => Ok(format!("A")),
             _ => Err(PyValueError::new_err(
-                "No recognisable string represenation for Frequency.",
+                "No recognisable string representation for Frequency.",
             )),
         }
     }

@@ -102,7 +102,7 @@ python-json-logger==3.3.0
 pytz==2025.2
 PyYAML==6.0.2
 pyzmq==27.0.0
--e git+https://github.com/attack68/rateslib-dev.git@cb670c0cf1219d6f68e112e3fc01f282abaf92f8#egg=rateslib
+-e git+https://github.com/attack68/rateslib-dev.git@77411b213c8350d2feac162e585a8f470e29c2e6#egg=rateslib
 readme_renderer==44.0
 referencing==0.36.2
 requests==2.32.4

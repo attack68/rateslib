@@ -17,8 +17,8 @@ from rateslib.curves._parsers import (
     _validate_curve_not_no_input,
 )
 from rateslib.default import NoInput, _drb
-from rateslib.dual import Dual, Dual2, gradient, ift_1dim
-from rateslib.dual.utils import _dual_float
+from rateslib.dual import Dual, Dual2, Variable, gradient, ift_1dim
+from rateslib.dual.utils import _dual_float, _to_number
 from rateslib.instruments.base import Metrics
 from rateslib.instruments.bonds.conventions import (
     BILL_MODE_MAP,
@@ -41,7 +41,8 @@ from rateslib.periods import (
     FloatPeriod,
 )
 from rateslib.periods.utils import _maybe_local
-from rateslib.scheduling import add_tenor, dcf
+from rateslib.scheduling import dcf
+from rateslib.scheduling.schedule import _get_frequency
 
 if TYPE_CHECKING:
     from rateslib.instruments.bonds.conventions.accrued import AccrualFunction
@@ -283,7 +284,7 @@ class BondMixin:
 
         Note: `curve` is only needed for FloatRate Periods on `_period_cashflow`
         """
-        f: int = 12 / defaults.frequency_months[self.leg1.schedule.frequency]  # type: ignore[assignment]
+        f: float = self.leg1.schedule.frequency_obj.periods_per_annum()
         acc_idx: int = self._period_index(settlement)
         _is_ex_div: bool = self.ex_div(settlement)
         if settlement == self.leg1.schedule.aschedule[acc_idx + 1]:
@@ -1439,7 +1440,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
             _ = -gradient(price_dual, ["y"])[0] / float(price_dual) * 100
         elif metric == "duration":
             price_dual = self.price(Dual(ytm_, ["y"], []), settlement, dirty=True)  # type: ignore[assignment]
-            f = 12 / defaults.frequency_months[self.kwargs["frequency"].upper()]
+            f = self.leg1.schedule.periods_per_annum
             v = 1 + ytm_ / (100 * f)
             _ = -gradient(price_dual, ["y"])[0] / float(price_dual) * v * 100
         return _
@@ -2254,19 +2255,16 @@ class Bill(FixedRateBond):
                 calc_mode = BILL_MODE_MAP[calc_mode.lower()]
             freq = calc_mode._ytm_clone_kwargs["frequency"]
 
-        frequency_months = defaults.frequency_months[freq.upper()]
-        quasi_start = self.leg1.schedule.termination
-        while quasi_start > settlement:
-            quasi_start = add_tenor(
-                quasi_start,
-                f"-{frequency_months}M",
-                "NONE",
-                NoInput(0),
-                NoInput(0),
-            )
+        frequency = _get_frequency(
+            freq, self.leg1.schedule.utermination.day, self.kwargs["calendar"]
+        )
+        quasi_ustart = frequency.uprevious(self.leg1.schedule.uschedule[-1])
+        while quasi_ustart > settlement:
+            quasi_ustart = frequency.uprevious(quasi_ustart)
+
         equiv_bond = FixedRateBond(
-            effective=quasi_start,
-            termination=self.leg1.schedule.termination,
+            effective=quasi_ustart,
+            termination=self.leg1.schedule.utermination,
             fixed_rate=0.0,
             **_get(
                 calc_mode._ytm_clone_kwargs,
@@ -2276,9 +2274,10 @@ class Bill(FixedRateBond):
         )
         return equiv_bond.ytm(price, settlement)
 
-    def duration(self, *args: Any, **kwargs: Any) -> float:
+    def duration(self, ytm: DualTypes, settlement: datetime, metric: str = "risk") -> float:
         """
-        Return the duration of the *Bill*. See :class:`~rateslib.instruments.FixedRateBond.duration` for arguments.
+        Return the duration of the *Bill*. See
+        :class:`~rateslib.instruments.FixedRateBond.duration` for arguments.
 
         Notes
         ------
@@ -2299,7 +2298,21 @@ class Bill(FixedRateBond):
            bill.duration(settlement=dt(2024, 5, 30), ytm=5.2525, metric="duration")
 
         """  # noqa: E501
-        return super().duration(*args, **kwargs)
+        # TODO: this is not AD safe: returns only float
+        ytm_: float = _dual_float(ytm)
+        if metric == "duration":
+            price_: Dual | Dual2 = _to_number(  # type: ignore[assignment]
+                self.price(Variable(ytm_, ["y"]), settlement, dirty=True)
+            )
+            freq = _get_frequency(
+                self.kwargs["frequency"], self.kwargs["roll"], self.kwargs["calendar"]
+            )
+            f = freq.periods_per_annum()
+            v = 1 + ytm_ / (100 * f)
+            _: float = -gradient(price_, ["y"])[0] / _dual_float(price_) * v * 100
+            return _
+        else:
+            return super().duration(ytm, settlement, metric)
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

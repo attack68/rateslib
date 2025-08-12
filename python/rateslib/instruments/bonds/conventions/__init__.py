@@ -50,53 +50,47 @@ class BondCalcMode:
 
     Notes
     -------
+    
     For an example custom implementation of a *BondCalcMode* see the cookbook article:
     `Cookbook: Understanding and Customising FixedRateBond Conventions <../z_bond_conventions.html>`_
-
-    **Notation**
     
-    The following notation is used in this section:
+    The :class:`~rateslib.instruments.BondCalcMode` is used to configure the calculations for
+    **accrued interest** and **yield-to-maturity** for a variety of different bonds.
     
-    - :math:`\\xi`: The **accrual fraction** is a float, typically, in [0, 1] which defines the
-      amount of a bond's current cashflow period that is paid at *settlement* as accrued interest.
-    - :math:`\\xi_y`: The **accrual fraction** determined in a secondary method, used only in YTM
-      calculations and **not** for physical settlement.
-      (Almost always :math:`\\xi_y` and :math:`\\xi` are the same, for an exception see
-      Canadian GBs)
-    - :math:`r_u`: The number of calendar days between the last (unadjusted) coupon date and
-      settlement. If a **long stub** this is either; zero if settlement falls before the
-      (unadjusted) quasi-coupon date, or the number of calendar days between
-      those dates.
-    - :math:`s_u`: The number of calendar days between the last (unadjusted) coupon date and the
-      next (unadjusted) coupon date, i.e the number of calendar days in the (unadjusted) coupon
-      period. If a **long stub** this is the number of calendar days in the (unadjusted)
-      quasi-coupon period.
-    - :math:`\\bar{r}_u`: If a **long stub**, the number of calendar days between the accrual
-      effective date and either; the next (unadjusted) quasi-coupon date, or settlement date,
-      whichever is earliest.
-    - :math:`\\bar{s}_u`: If a **long stub**, the number of calendar days between the prior
-      (unadjusted) quasi-coupon date and the (unadjusted) next quasi-coupon date surrounding the
-      accrual effective date.
-    - :math:`d_i`: The full DCF of coupon period, *i*, calculated with the convention which
-      determines the physical cashflows.
-    - :math:`f`: The frequency of the coupon as integer, 1-annually, 2-semi, 3-tertiary,
-      4-quarterly, 6-bi-monthly, 12-monthly.
-    - :math:`\\bar{d}_u`: The DCF between settlement and the next (unadjusted) coupon date
-      determined with the convention of the accrual function (which may be different to the
-      convention for determining physical bond cashflows)
-    - :math:`c_i`: A coupon cashflow monetary amount, **per 100 nominal**, for coupon period, *i*.
-    - :math:`p_d`: Number of days between unadjusted coupon date and payment date in a coupon
-      period, i.e. the pay delay.
-    - :math:`p_D` = Number of days between previous payment date and current payment date, in a
-      coupon period.
-    - :math:`C`: The nominal annual coupon rate for the bond.
-    - :math:`y`: The yield-to-maturity for a given bond. The expression of which, i.e. annually
-      or semi-annually is derived from the calculation context.
+    The bottom of this page enumerates all of the notation for formulae.
 
+    Accrued Interest
+    ****************
+    
+    *Rateslib* makes two types of accrued interest calculations:
+    
+    - Physically settleable accrued interest, *AI*, returned from the
+      :meth:`~rateslib.instruments.FixedRateBond.accrued` method by default.
+    
+      .. math::
+    
+         &AI = \\xi c_i \\qquad \\text{if not ex-dividend} \\\\
+         &AI = (\\xi - 1) c_i \\qquad \\text{if ex-dividend} \\\\
+         
+    - Accrued interest for the purpose of determining accurate YTM calculations.
+    
+      .. math::
+    
+         &AI_y = \\xi_y c_i \\qquad \\text{if not ex-dividend} \\\\
+         &AI_y = (\\xi_y - 1) c_i \\qquad \\text{if ex-dividend} \\\\
+
+    Where in both these formula :math:`c_i` currently always uses the real ``cashflow`` method
+    (see below).
+
+    These two methods are almost always the same, but for an example where they differ consider
+    Canadian government bonds. The calculation mode relies on determining the :math:`\\xi` and
+    :math:`\\xi_y` values, known as the **accrual fraction**. This is achieved by using the
+    following functions:
+    
     **Accrual Functions**
 
     Accrual functions must be supplied to the ``settle_accrual`` and ``ytm_accrual``
-    arguments, and must output **accrual fractions**. The available values are:
+    arguments. The available values are:
 
     - ``linear_days``: A calendar day, linear proportion used in any period.
       (Used by UK and German GBs).
@@ -122,8 +116,8 @@ class BondCalcMode:
       
          \\xi = 1 - \\bar{d_u} f
       
-    - ``30u360_forward``: Calculates the DCF between last (unadjusted) coupon and settlement,
-      and compares this with DCF between (unadjusted) coupon dates, both measured using *'30u360'*
+    - ``30u360_forward``: Calculates the DCF between last accrual coupon and settlement,
+      and compares this with DCF between accrual coupon dates, both measured using *'30u360'*
       (See MSRB Rule G-33):
       
       .. math::
@@ -148,34 +142,17 @@ class BondCalcMode:
 
        def _linear_days(obj, settlement, acc_idx, *args) -> float:
             sch = obj.leg1.schedule
-            r_u = (settlement - sch.uschedule[acc_idx]).days
-            s_u = (sch.uschedule[acc_idx + 1] - sch.uschedule[acc_idx]).days
+            r_u = (settlement - sch.aschedule[acc_idx]).days
+            s_u = (sch.aschedule[acc_idx + 1] - sch.aschedule[acc_idx]).days
             return r_u / s_u
-            
-    **Calculation of Accrued Interest**
     
-    Accrued interest, *AI*, is then calculated according to the following:
+    Yield-To-Maturity
+    -----------------
     
-    .. math::
-    
-       &AI = \\xi c_i \\qquad \\text{if not ex-dividend} \\\\
-       &AI = (\\xi - 1) c_i \\qquad \\text{if ex-dividend} \\\\
-       
-    And accrued interest for the purpose of YTM calculations, :math:`AI_y`, is:
-    
-    .. math::
-    
-       &AI_y = \\xi_y c_i \\qquad \\text{if not ex-dividend} \\\\
-       &AI_y = (\\xi_y - 1) c_i \\qquad \\text{if ex-dividend} \\\\
-
-    Where in these formula :math:`c_i` currently always uses the ``cashflow`` method (see below).
-
-    **YTM Calculation and Required Functions**
-
-    Yield-to-maturity is calculated using the below formula, where specific discounting and
-    cashflow functions must be provided to determine values based on the conventions of a given
-    bond. The below formula outlines the
-    cases where the number of remaining coupons are 1, 2, or generically >2.
+    Yield-to-maturity in *rateslib*, for *every bond*, is calculated using the below formula.
+    The specific discounting and cashflow generating functions must be provided to determine
+    values based on the conventions of that specific bond. The cases where the number of remaining
+    coupons are 1, 2, or generically >2 are outlined explicitly:
 
     .. math::
 
@@ -347,6 +324,47 @@ class BondCalcMode:
       .. math::
       
          c_i = \\frac{-N_i C}{f}
+
+    Notation
+    --------
+    
+    The notation used above is described:
+    
+    - :math:`\\xi`: The **accrual fraction** is a float, typically, in [0, 1] which defines the
+      amount of a bond's current cashflow period that is paid at *settlement* as accrued interest.
+    - :math:`\\xi_y`: The **accrual fraction** determined in a secondary method, used only in YTM
+      calculations and **not** for physical settlement.
+      (Almost always :math:`\\xi_y` and :math:`\\xi` are the same, for an exception see
+      Canadian GBs)
+    - :math:`r_u`: The number of calendar days between the last accrual coupon date and
+      settlement. If a **long stub** this is either; zero if settlement falls before the
+      accrual quasi-coupon date, or the number of calendar days between
+      those dates.
+    - :math:`s_u`: The number of calendar days between the last accrual coupon date and the
+      next accrual coupon date, i.e the number of calendar days in the accrual coupon
+      period. If a **long stub** this is the number of calendar days in the accrual
+      quasi-coupon period.
+    - :math:`\\bar{r}_u`: If a **long stub**, the number of calendar days between the accrual
+      effective date and either; the next accrual quasi-coupon date, or settlement date,
+      whichever is earliest.
+    - :math:`\\bar{s}_u`: If a **long stub**, the number of calendar days between the prior
+      accrual quasi-coupon date and the accrual next quasi-coupon date surrounding the
+      accrual effective date.
+    - :math:`d_i`: The full DCF of coupon period, *i*, calculated with the convention which
+      determines the physical cashflows.
+    - :math:`f`: The number of coupon periods per annum, e.g. 1-annually, 2-semi, 3-tertiary,
+      4-quarterly, 6-bi-monthly, 12-monthly.
+    - :math:`\\bar{d}_u`: The DCF between settlement and the next accrual coupon date
+      determined with the convention of the accrual function (which may be different to the
+      convention for determining physical bond cashflows)
+    - :math:`c_i`: A coupon cashflow monetary amount, **per 100 nominal**, for coupon period, *i*.
+    - :math:`p_d`: Number of days between unadjusted coupon date and payment date in a coupon
+      period, i.e. the pay delay.
+    - :math:`p_D` = Number of days between previous payment date and current payment date, in a
+      coupon period.
+    - :math:`C`: The nominal annual coupon rate for the bond.
+    - :math:`y`: The yield-to-maturity for a given bond. The expression of which, i.e. annually
+      or semi-annually is derived from the calculation context.
     
     """  # noqa: E501, W293
 
