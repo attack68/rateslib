@@ -9,7 +9,7 @@ from rateslib import defaults
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.fx import FXForwards
-from rateslib.legs.base import BaseLeg, _FixedLegMixin, _FloatLegMixin
+from rateslib.legs.base import BaseLeg, _AmortizationType, _FixedLegMixin, _FloatLegMixin
 from rateslib.periods import Cashflow
 from rateslib.periods.utils import _get_fx_fixings_from_non_fx_forwards, _validate_float_args
 
@@ -86,8 +86,8 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
             kwargs["initial_exchange"] = True
         kwargs["final_exchange"] = True
         super().__init__(*args, **kwargs)
-        if self.amortization != 0:
-            raise ValueError("`amortization` cannot be supplied to a `FixedLegExchangeMtm` type.")
+        if self.amortization._type != _AmortizationType.NoAmortization:
+            raise ValueError("`amortization` cannot be supplied to a `BaseLegMtm` type.")
 
         # calls the fixings setter, will convert the input types to list
         self.fx_fixings = fx_fixings

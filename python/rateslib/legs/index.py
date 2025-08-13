@@ -8,7 +8,7 @@ from pandas import Series
 from rateslib import defaults
 from rateslib.curves import index_value
 from rateslib.default import NoInput, _drb
-from rateslib.legs.base import BaseLeg, _FixedLegMixin
+from rateslib.legs.base import BaseLeg, _AmortizationType, _FixedLegMixin
 from rateslib.periods import Cashflow, IndexCashflow, IndexFixedPeriod
 from rateslib.periods.index import _validate_index_method_and_lag
 from rateslib.scheduling import Schedule
@@ -403,7 +403,7 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
         # final cashflow
         if self.final_exchange:
             periods_[1] = IndexCashflow(
-                notional=self.notional - self.amortization * (self.schedule.n_periods - 1),
+                notional=self.amortization.outstanding[-1],
                 payment=self.schedule.calendar.lag_bus_days(
                     self.schedule.aschedule[-1],
                     self.payment_lag_exchange,
@@ -423,12 +423,12 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
 
     def _set_interim_exchange_periods(self) -> None:
         """Set cashflow exchanges if `amortization` and `final_exchange` are present."""
-        if not self.final_exchange or self.amortization == 0:
+        if not self.final_exchange or self.amortization._type == _AmortizationType.NoAmortization:
             self._interim_exchange_periods: tuple[IndexCashflow, ...] | None = None
         else:
             periods_ = [
                 IndexCashflow(
-                    notional=self.amortization,
+                    notional=self.amortization.amortization[i],
                     payment=self.schedule.pschedule[1 + i],
                     currency=self.currency,
                     stub_type="Amortization",
@@ -451,7 +451,7 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
                     start=period[defaults.headers["a_acc_start"]],
                     end=period[defaults.headers["a_acc_end"]],
                     payment=period[defaults.headers["payment"]],
-                    notional=self.notional - self.amortization * i,
+                    notional=self.amortization.outstanding[i],
                     convention=self.convention,
                     currency=self.currency,
                     termination=self.schedule.termination,

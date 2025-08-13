@@ -916,7 +916,7 @@ class XCS(BaseDerivative):
         self.leg2.notional = self.leg2_notional
         if not isinstance(self.kwargs["amortization"], NoInput):
             self.leg2_amortization = self.leg1.amortization * -fx
-            self.leg2.amortization = self.leg2_amortization  # type: ignore[assignment]
+            self.leg2.amortization = self.leg2_amortization
 
     @property
     def _is_unpriced(self) -> bool:

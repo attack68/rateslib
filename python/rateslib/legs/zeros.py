@@ -10,7 +10,7 @@ from rateslib import defaults
 from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_maybe_from_curve
 from rateslib.default import NoInput
 from rateslib.dual.utils import _dual_float
-from rateslib.legs.base import BaseLeg, _FixedLegMixin, _FloatLegMixin
+from rateslib.legs.base import BaseLeg, _AmortizationType, _FixedLegMixin, _FloatLegMixin
 from rateslib.periods import FixedPeriod, FloatPeriod
 from rateslib.periods.utils import _get_fx_and_base, _validate_float_args
 
@@ -130,7 +130,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
                 "construction. Set the `frequency` equal to the compounding frequency of the "
                 "expressed fixed rate, e.g. 'S' for semi-annual compounding.",
             )
-        if abs(_dual_float(self.amortization)) > 1e-8:
+        if self.amortization._type != _AmortizationType.NoAmortization:
             raise ValueError("`ZeroFloatLeg` cannot be defined with `amortization`.")
         if self.initial_exchange or self.final_exchange:
             raise ValueError("`initial_exchange` or `final_exchange` not allowed on ZeroFloatLeg.")
@@ -424,7 +424,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
                 "construction. Set the `frequency` equal to the compounding frequency of the "
                 "expressed fixed rate, e.g. 'S' for semi-annual compounding.",
             )
-        if abs(_dual_float(self.amortization)) > 1e-8:
+        if self.amortization._type != _AmortizationType.NoAmortization:
             raise ValueError("`ZeroFixedLeg` cannot be defined with `amortization`.")
 
     def _set_periods(self) -> None:

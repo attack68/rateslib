@@ -9,6 +9,7 @@ from rateslib.curves import Curve
 from rateslib.default import NoInput
 from rateslib.fx import FXForwards, FXRates
 from rateslib.legs import (
+    Amortization,
     CreditPremiumLeg,
     CreditProtectionLeg,
     CustomLeg,
@@ -21,6 +22,7 @@ from rateslib.legs import (
     ZeroFloatLeg,
     ZeroIndexLeg,
 )
+from rateslib.legs.base import _AmortizationType
 from rateslib.periods import (
     Cashflow,
     CreditPremiumPeriod,
@@ -1384,6 +1386,16 @@ class TestFixedLeg:
         assert fixed_leg.fixed_rate == 2.0
         assert fixed_leg.periods[0].fixed_rate == 2.0
 
+    def test_fixed_leg_final_exchange_custom_amort(self):
+        leg = FixedLeg(
+            schedule=Schedule(dt(2000, 1, 1), dt(2000, 5, 1), "M"),
+            notional=100,
+            amortization=Amortization(4, 100, [0, 50.0, 0]),
+            final_exchange=True,
+        )
+        result = leg.cashflows()
+        assert result["Notional"].tolist() == [100.0, 0.0, 100.0, 50.0, 50.0, 0.0, 50.0, 50.0]
+
 
 class TestCreditPremiumLeg:
     @pytest.mark.parametrize(
@@ -2359,6 +2371,26 @@ class TestCustomLeg:
         result = cl.analytic_delta(curve)
         expected = 194.1782607729773
         assert abs(result - expected) < 1e-6
+
+
+class TestAmortization:
+    def test_percent(self):
+        a = Amortization(4, 100.0, "20%")
+        assert a.outstanding == (100.0, 80.0, 64.0, 51.2)
+        assert a.amortization == (20.0, 16.0, 12.8)
+        assert a._type == _AmortizationType.CustomSchedule
+
+    def test_to_zero(self):
+        a = Amortization(4, 100.0, "to_zero")
+        assert a.outstanding == (100.0, 75.0, 50.0, 25.0)
+        assert a.amortization == (25.0, 25.0, 25.0)
+        assert a._type == _AmortizationType.ConstantPeriod
+
+    def test_custom(self):
+        a = Amortization(4, 100.0, [10.0, 20.0, 30.0])
+        assert a.outstanding == (100.0, 90.0, 70.0, 40.0)
+        assert a.amortization == (10.0, 20.0, 30.0)
+        assert a._type == _AmortizationType.CustomSchedule
 
 
 def test_leg_amortization() -> None:

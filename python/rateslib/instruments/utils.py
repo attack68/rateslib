@@ -312,7 +312,12 @@ def _inherit_or_negate(kwargs: dict[str, Any], ignore_blank: bool = False) -> di
                     return NoInput(0)
 
             if v is NoInput(-1):
-                return leg1_v * -1.0
+                if isinstance(leg1_v, list):
+                    return [_ * -1.0 for _ in leg1_v]
+                elif isinstance(leg1_v, tuple):
+                    return tuple([_ * -1.0 for _ in leg1_v])
+                else:
+                    return leg1_v * -1.0
             elif v is NoInput(1):
                 return leg1_v
         return v  # do nothing to leg1 attributes
