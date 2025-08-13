@@ -43,6 +43,7 @@ from rateslib.instruments import (
 from rateslib.instruments.utils import (
     _get_curves_fx_and_base_maybe_from_solver,
 )
+from rateslib.legs.base import Amortization
 from rateslib.scheduling import Adjuster, NamedCal, Schedule, add_tenor
 from rateslib.solver import Solver
 
@@ -1395,6 +1396,26 @@ class TestIRS:
         # GH484
         with pytest.raises(ValueError, match="A Schedule could not be generated from the pa"):
             IRS(dt(2025, 1, 1), "1d", spec="sek_irs")
+
+    def test_custom_amortization_raises(self):
+        with pytest.raises(ValueError, match="Custom amortisation schedules must have `n-1` amort"):
+            IRS(dt(2000, 1, 1), dt(2000, 4, 1), "M", notional=1000, amortization=[100, 400, 50])
+
+    def test_custom_amortization(self):
+        irs = IRS(dt(2000, 1, 1), dt(2000, 5, 1), "M", notional=1000, amortization=[100, 400, 50])
+        assert irs.leg1.amortization.outstanding == (1000.0, 900.0, 500.0, 450.0)
+        assert irs.leg1.amortization.amortization == (100.0, 400.0, 50.0)
+        assert irs.leg2.amortization.outstanding == (-1000.0, -900.0, -500.0, -450.0)
+        assert irs.leg2.amortization.amortization == (-100.0, -400.0, -50.0)
+
+    def test_custom_amortization_as_object(self):
+        # test an Amortization object can be passed and is negated correctly
+        amort = Amortization(4, 1000.0, [100.0, 400.0, 50.0])
+        irs = IRS(dt(2000, 1, 1), dt(2000, 5, 1), "M", notional=1000, amortization=amort)
+        assert irs.leg1.amortization.outstanding == (1000.0, 900.0, 500.0, 450.0)
+        assert irs.leg1.amortization.amortization == (100.0, 400.0, 50.0)
+        assert irs.leg2.amortization.outstanding == (-1000.0, -900.0, -500.0, -450.0)
+        assert irs.leg2.amortization.amortization == (-100.0, -400.0, -50.0)
 
 
 class TestIIRS:
