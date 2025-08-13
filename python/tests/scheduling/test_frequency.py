@@ -1,7 +1,7 @@
 from datetime import datetime as dt
 
 import pytest
-from rateslib.rs import Cal, Frequency, RollDay, Adjuster
+from rateslib.rs import Adjuster, Cal, Frequency, RollDay
 
 
 @pytest.mark.parametrize(

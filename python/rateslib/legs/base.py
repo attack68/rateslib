@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import warnings
 from abc import ABCMeta, abstractmethod
+from enum import Enum
 from typing import TYPE_CHECKING
 
 from pandas import DataFrame, Series, concat
@@ -38,6 +39,114 @@ if TYPE_CHECKING:
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+
+class _AmortizationType(Enum):
+    """
+    Enumerable type to define the possible types of amortization that some legs can handle.
+    """
+
+    NoAmortization = 0
+    ConstantPeriod = 1
+    CustomSchedule = 2
+
+
+def _get_amortization(
+    amortization: DualTypes_ | list[DualTypes] | tuple[DualTypes, ...] | str | Amortization,
+    initial: DualTypes,
+    n: int,
+) -> Amortization:
+    if isinstance(amortization, Amortization):
+        return amortization
+    else:
+        return Amortization(n, initial, amortization)
+
+
+class Amortization:
+    """
+    An amortization schedule for any :class:`~rateslib.legs.base.BaseLeg`.
+
+    Parameters
+    ----------
+    n: int
+        The number of periods in the schedule.
+    initial: float, Dual, Dual2, Variable
+        The notional applied to the first period in the schedule.
+    amortization: float, Dual, Dual2, Variable, list, tuple, str, optional
+        The amortization structure to apply to the schedule.
+
+    Notes
+    -----
+    If ``amortization`` is:
+
+    - not specified then the schedule is assumed to have no amortization.
+    - some scalar then the amortization amount will be a constant value per period.
+    - a list or tuple of *n-1* scalars, then this is defines a custome amortization schedule.
+    - a string flag then an amortization schedule will be calculated directly:
+
+      - *"to_zero": each period will be a constant value ending with zero implied ending balance.
+      - *"{float}%": each period will amortize by a constant percentage of the outstanding balance.
+
+
+    """
+
+    _type: _AmortizationType
+    amortization: tuple[DualTypes, ...]
+    outstanding: tuple[DualTypes, ...]
+
+    def __init__(
+        self,
+        n: int,
+        initial: DualTypes,
+        amortization: DualTypes_ | list[DualTypes] | tuple[DualTypes, ...] | str = NoInput(0),
+    ) -> None:
+        if isinstance(amortization, NoInput):
+            self._type = _AmortizationType.NoAmortization
+            self.amortization = (0.0,) * (n - 1)
+            self.outstanding = (initial,) * n
+        elif isinstance(amortization, list | tuple):
+            self._type = _AmortizationType.CustomSchedule
+            if len(amortization) != (n - 1):
+                raise ValueError(
+                    "Custom amortisation schedules must have `n-1` amortization amounts for `n` "
+                    f"periods.\nGot '{len(amortization)}' amounts for '{n}' periods."
+                )
+            self.amortization = tuple(amortization)
+            outstanding = [initial]
+            for value in amortization:
+                outstanding.append(outstanding[-1] - value)
+            self.outstanding = tuple(outstanding)
+        elif isinstance(amortization, str):
+            if amortization.lower() == "to_zero":
+                self._type = _AmortizationType.ConstantPeriod
+                self.amortization = (initial / n,) * (n - 1)
+                self.outstanding = (initial,) + tuple([initial * (1 - i / n) for i in range(1, n)])
+            elif amortization[-1] == "%":
+                self._type = _AmortizationType.CustomSchedule
+                amortization_ = [initial * float(amortization[:-1]) / 100]
+                outstanding_ = [initial]
+                for i in range(1, n):
+                    outstanding_.append(outstanding_[-1] - amortization_[-1])
+                    if i != n - 1:
+                        amortization_.append(outstanding_[-1] * float(amortization[:-1]) / 100)
+                self.outstanding = tuple(outstanding_)
+                self.amortization = tuple(amortization_)
+            else:
+                raise ValueError("`amortization` as string must be one of 'to_zero', '{float}%'.")
+        else:  # isinstance(amortization, DualTypes)
+            self._type = _AmortizationType.ConstantPeriod
+            self.amortization = (amortization,) * (n - 1)
+            self.outstanding = (initial,) + tuple([initial - amortization * i for i in range(1, n)])
+
+    def __mul__(self, other: DualTypes) -> Amortization:
+        return Amortization(
+            n=len(self.outstanding),
+            initial=self.outstanding[0] * other,
+            amortization=[_ * other for _ in self.amortization],
+        )
+
+    def __rmul__(self, other: DualTypes) -> Amortization:
+        return self.__mul__(other)
 
 
 class BaseLeg(metaclass=ABCMeta):
@@ -114,7 +223,7 @@ class BaseLeg(metaclass=ABCMeta):
         *,
         notional: DualTypes_ = NoInput(0),
         currency: str_ = NoInput(0),
-        amortization: DualTypes_ = NoInput(0),
+        amortization: DualTypes_ | list[DualTypes] | Amortization | str = NoInput(0),
         convention: str_ = NoInput(0),
         payment_lag_exchange: int_ = NoInput(0),
         initial_exchange: bool = False,
@@ -127,7 +236,9 @@ class BaseLeg(metaclass=ABCMeta):
         self.initial_exchange: bool = initial_exchange
         self.final_exchange: bool = final_exchange
         self._notional: DualTypes = _drb(defaults.notional, notional)
-        self._amortization: DualTypes = _drb(0.0, amortization)
+        self._amortization: Amortization = _get_amortization(
+            amortization, self.notional, self.schedule.n_periods
+        )
         if getattr(self, "_delay_set_periods", False):
             pass
         else:
@@ -139,16 +250,20 @@ class BaseLeg(metaclass=ABCMeta):
 
     @notional.setter
     def notional(self, value: DualTypes) -> None:
+        initial, amortization = _set_notional_and_amortization(
+            value, self.amortization, self.schedule.n_periods
+        )
         self._notional = value
+        self._amortization = amortization
         self._set_periods()
 
     @property
-    def amortization(self) -> DualTypes:
+    def amortization(self) -> Amortization:
         return self._amortization
 
     @amortization.setter
-    def amortization(self, value: float) -> None:
-        self._amortization = value
+    def amortization(self, value: DualTypes_ | list[DualTypes] | Amortization | str) -> None:
+        self._amortization = _get_amortization(value, self.notional, self.schedule.n_periods)
         self._set_periods()
 
     @abstractmethod
@@ -186,7 +301,7 @@ class BaseLeg(metaclass=ABCMeta):
 
         if self.initial_exchange:
             periods_[0] = Cashflow(
-                notional=-self.notional,
+                notional=-self.amortization.outstanding[0],
                 payment=self.schedule.calendar.lag_bus_days(
                     self.schedule.aschedule[0],
                     self.payment_lag_exchange,
@@ -198,7 +313,7 @@ class BaseLeg(metaclass=ABCMeta):
 
         if self.final_exchange:
             periods_[1] = Cashflow(
-                notional=self.notional - self.amortization * (self.schedule.n_periods - 1),
+                notional=self.amortization.outstanding[-1],
                 payment=self.schedule.calendar.lag_bus_days(
                     self.schedule.aschedule[-1],
                     self.payment_lag_exchange,
@@ -212,12 +327,12 @@ class BaseLeg(metaclass=ABCMeta):
 
     def _set_interim_exchange_periods(self) -> None:
         """Set cashflow exchanges if `amortization` and `final_exchange` are present."""
-        if not self.final_exchange or self.amortization == 0:
+        if not self.final_exchange or self.amortization._type == _AmortizationType.NoAmortization:
             self._interim_exchange_periods: tuple[Cashflow, ...] | None = None
         else:
             periods_ = [
                 Cashflow(
-                    notional=self.amortization,
+                    notional=self.amortization.amortization[i],
                     payment=self.schedule.calendar.lag_bus_days(
                         self.schedule.aschedule[i + 1],
                         self.payment_lag_exchange,
@@ -238,7 +353,7 @@ class BaseLeg(metaclass=ABCMeta):
                     end=period[defaults.headers["a_acc_end"]],
                     payment=period[defaults.headers["payment"]],
                     stub=period[defaults.headers["stub_type"]] == "Stub",
-                    notional=self.notional - self.amortization * i,
+                    notional=self.amortization.outstanding[i],
                     iterator=i,
                 )
                 for i, period in enumerate(self.schedule.table.to_dict(orient="index").values())
@@ -837,3 +952,19 @@ class CustomLeg(BaseLeg):
 
     def _regular_period(self, *args: Any, **kwargs: Any) -> Any:
         pass
+
+
+def _set_notional_and_amortization(
+    initial: DualTypes, amortization: Amortization, n: int
+) -> tuple[DualTypes, Amortization]:
+    """
+    Initial notional and amortization should be set simulatenously, however, line-by-line
+    execution of object attributes does not permit this.
+    This function handles different cases.
+    """
+    if amortization._type == _AmortizationType.NoAmortization:
+        return initial, Amortization(n, initial, NoInput(0))
+    elif amortization._type == _AmortizationType.ConstantPeriod:
+        return initial, Amortization(n, initial, amortization.amortization[0])
+    else:  # _type is customised
+        return initial, Amortization(n, initial, amortization.amortization)

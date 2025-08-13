@@ -94,6 +94,7 @@ from rateslib.instruments import (
     VolValue,
 )
 from rateslib.legs import (
+    Amortization,
     CreditPremiumLeg,
     CreditProtectionLeg,
     CustomLeg,
@@ -225,6 +226,7 @@ __all__ = [
     "CreditPremiumPeriod",
     "CreditProtectionPeriod",
     # legs.py
+    "Amortization",
     "FixedLeg",
     "FloatLeg",
     "ZeroFloatLeg",

@@ -38,6 +38,7 @@ from rateslib.instruments.utils import (
     _update_with_defaults,
 )
 from rateslib.legs import FixedLeg, FloatLeg, IndexFixedLeg
+from rateslib.legs.base import _AmortizationType
 from rateslib.periods import (
     FloatPeriod,
 )
@@ -390,7 +391,7 @@ class BondMixin:
             d_price = price + self._accrued(settlement, self.calc_mode._settle_accrual)
         else:
             d_price = price
-        if self.leg1.amortization != 0:
+        if self.leg1.amortization._type != _AmortizationType.NoAmortization:
             raise NotImplementedError(
                 "method for forward price not available with amortization",
             )  # pragma: no cover
@@ -1192,7 +1193,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
             **_get(self.kwargs, leg=1, filter=("ex_div", "settle", "calc_mode", "metric"))
         )
 
-        if self.leg1.amortization != 0:
+        if self.leg1.amortization._type != _AmortizationType.NoAmortization:
             # Note if amortization is added to FixedRateBonds must systematically
             # go through and update all methods. Many rely on the quantity
             # self.notional which is currently assumed to be a fixed quantity
@@ -1722,7 +1723,7 @@ class IndexFixedRateBond(FixedRateBond):
         self.leg1 = IndexFixedLeg(
             **_get(self.kwargs, leg=1, filter=("ex_div", "settle", "calc_mode", "metric")),
         )
-        if self.leg1.amortization != 0:
+        if self.leg1.amortization._type != _AmortizationType.NoAmortization:
             # Note if amortization is added to IndexFixedRateBonds must systematically
             # go through and update all methods. Many rely on the quantity
             # self.notional which is currently assumed to be a fixed quantity
@@ -2529,7 +2530,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
                 "determined due to unknown fixings.",
             )
 
-        if self.leg1.amortization != 0:
+        if self.leg1.amortization._type != _AmortizationType.NoAmortization:
             # Note if amortization is added to FloatRateNote must systematically
             # go through and update all methods. Many rely on the quantity
             # self.notional which is currently assumed to be a fixed quantity
