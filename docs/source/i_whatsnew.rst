@@ -21,12 +21,31 @@ email contact, see `rateslib <https://rateslib.com>`_.
 
    * - Feature
      - Description
+   * - **Instruments**
+     - - Custom amortization for certain *Instruments* (a good example being an
+         :class:`~rateslib.instruments.IRS`) is now available via custom ``amortization``
+         schedules to the *Instrument* configuration or by using the new
+         :class:`~rateslib.legs.Amortization`
+         class, which can also derive amortization schedules for common scenarios.
+         (`1019 <https://github.com/attack68/rateslib/pull/1019>`_). See
+         :ref:`Using Amortization <cook-amortisation-doc>` for examples.
    * - **Scheduling**
-     - - The :class:`~rateslib.scheduling.Convention` has been further integrated into the objects
-         in the library. While string UI input is often still available, these types are now
-         directly associated with object attributes.
-       - The :meth:`~rateslib.scheduling.dcf` method has revised arguments to work directly with
-         the :class:`~rateslib.scheduling.Convention`.
+     - - The :class:`~rateslib.scheduling.Convention` is now a central DCF component for all
+         DCF calculations. While string UI input still available, these types are now
+         directly associated with object attributes for library consistency.
+         (`1013 <https://github.com/attack68/rateslib/pull/1013>`_)
+         (`1014 <https://github.com/attack68/rateslib/pull/1014>`_)
+         (`1015 <https://github.com/attack68/rateslib/pull/1015>`_)
+       - :red:`Minor Breaking Change!` The :meth:`~rateslib.scheduling.dcf` method has revised
+         arguments to work directly with the :class:`~rateslib.scheduling.Convention`.
+       - :red:`Minor Breaking Change!` Any :class:`~rateslib.periods.BasePeriod` now requires
+         an additional argument, :class:`~rateslib.scheduling.Adjuster`, to fully define its
+         period specification (most used by the internal :meth:`~rateslib.scheduling.dcf` call).
+        (`1012 <https://github.com/attack68/rateslib/pull/1012>`_)
+       - A :meth:`~rateslib.scheduling.Adjuster.reverse` method is added to an
+         :class:`~rateslib.scheduling.Adjuster` for deriving unadjusted date potentials (which is
+         used during schedule inference).
+         (`1012 <https://github.com/attack68/rateslib/pull/1012>`_)
    * - **Refactors**
      - - The scheduling arguments for any :class:`~rateslib.legs.BaseLeg` have been removed
          in favour of using a ``schedule`` argument containing a generated
