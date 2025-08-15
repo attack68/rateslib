@@ -82,9 +82,13 @@ class Schedule:
     calendar: CalTypes
     accrual_adjuster: Adjuster
     payment_adjuster: Adjuster
+    payment_adjuster2: Adjuster
+    payment_adjuster3: Adjuster
     uschedule: list[datetime]
     aschedule: list[datetime]
     pschedule: list[datetime]
+    pschedule2: list[datetime]
+    pschedule3: list[datetime]
 
     def __init__(
         self,
@@ -94,6 +98,8 @@ class Schedule:
         calendar: CalTypes,
         accrual_adjuster: Adjuster,
         payment_adjuster: Adjuster,
+        payment_adjuster2: Adjuster | None,
+        payment_adjuster3: Adjuster | None,
         front_stub: datetime | None,
         back_stub: datetime | None,
         eom: bool,

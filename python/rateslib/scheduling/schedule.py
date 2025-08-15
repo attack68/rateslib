@@ -17,6 +17,7 @@ from rateslib.scheduling.rollday import _is_eom_cal
 
 if TYPE_CHECKING:
     from rateslib.typing import (
+        Adjuster_,
         Any,
         CalInput,
         CalTypes,
@@ -100,6 +101,13 @@ def _get_adjuster_from_lag(lag: Adjuster | int_) -> Adjuster:
     return _get_adjuster(f"{lag_}B")
 
 
+def _get_adjuster_or_none(lag: Adjuster | int_) -> Adjuster | None:
+    if lag is None:
+        return None
+    else:
+        return _get_adjuster_from_lag(lag)
+
+
 class Schedule:
     """
     Generate a schedule of dates according to a regular pattern and calendar inference.
@@ -147,6 +155,14 @@ class Schedule:
         The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
         a payment date. If given as integer will define the number of business days to
         lag payments by.
+    payment_lag_exchange: Adjuster, int, optional
+        The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
+        additional payment date. If given as integer will define the number of business days to
+        lag payments by.
+    extra_lag: Adjuster, int, optional
+        The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
+        additional dates, which may be used, for example by fixings schedules. If given as integer
+        will define the number of business days to lag dates by.
     eval_date: datetime, optional
         Only required if ``effective`` is given as a string tenor, to provide a point of reference.
     eval_mode: str in {"swaps_align", "swaptions_align"}
@@ -297,6 +313,8 @@ class Schedule:
         modifier: Adjuster | str_ = NoInput(0),
         calendar: CalInput = NoInput(0),
         payment_lag: Adjuster | int_ = NoInput(0),
+        payment_lag_exchange: Adjuster | int_ = NoInput(0),
+        extra_lag: Adjuster | int_ = NoInput(0),
         eval_date: datetime_ = NoInput(0),
         eval_mode: str_ = NoInput(0),
     ) -> None:
@@ -307,6 +325,8 @@ class Schedule:
         frequency_: Frequency = _get_frequency(frequency, roll, calendar_)
         accrual_adjuster = _get_adjuster_from_modifier(modifier, _should_mod_days(termination))
         payment_adjuster = _get_adjuster_from_lag(payment_lag)
+        payment_adjuster2 = _get_adjuster_or_none(_drb(None, payment_lag_exchange))
+        payment_adjuster3 = _get_adjuster_or_none(_drb(None, extra_lag))
 
         effective_: datetime = _validate_effective(
             effective,
@@ -332,6 +352,8 @@ class Schedule:
             calendar=calendar_,
             accrual_adjuster=accrual_adjuster,
             payment_adjuster=payment_adjuster,
+            payment_adjuster2=payment_adjuster2,
+            payment_adjuster3=payment_adjuster3,
             front_stub=_drb(None, front_stub),
             back_stub=_drb(None, back_stub),
             eom=eom_,
@@ -360,6 +382,8 @@ class Schedule:
         Adjuster,
         CalInput,
         Adjuster,
+        Adjuster_,
+        Adjuster_,
         NoInput,
         NoInput,
     ]:
@@ -375,6 +399,8 @@ class Schedule:
             self.accrual_adjuster,
             self.calendar,
             self.payment_adjuster,
+            NoInput(0) if self.payment_adjuster2 is None else self.payment_adjuster2,
+            NoInput(0) if self.payment_adjuster3 is None else self.payment_adjuster3,
             NoInput(0),
             NoInput(0),
         )
@@ -407,6 +433,24 @@ class Schedule:
         These are determined by applying the ``payment_adjuster`` to ``aschedule``.
         """
         return self.obj.pschedule
+
+    @cached_property
+    def pschedule2(self) -> list[datetime] | None:
+        """
+        A list of accrual adjusted dates.
+
+        These are determined by applying the ``payment_adjuster2`` to ``aschedule``.
+        """
+        return self.obj.pschedule2
+
+    @cached_property
+    def pschedule3(self) -> list[datetime] | None:
+        """
+        A list of accrual adjusted dates.
+
+        These are determined by applying the ``payment_adjuster3`` to ``aschedule``.
+        """
+        return self.obj.pschedule3
 
     @cached_property
     def frequency(self) -> str:
@@ -448,6 +492,16 @@ class Schedule:
     def payment_adjuster(self) -> Adjuster:
         """The :class:`~rateslib.scheduling.Adjuster` object used for payment date adjustment."""
         return self.obj.payment_adjuster
+
+    @cached_property
+    def payment_adjuster2(self) -> Adjuster:
+        """The :class:`~rateslib.scheduling.Adjuster` object used for additional date adjustment."""
+        return self.obj.payment_adjuster2
+
+    @cached_property
+    def payment_adjuster3(self) -> Adjuster:
+        """The :class:`~rateslib.scheduling.Adjuster` object used for additional date adjustment."""
+        return self.obj.payment_adjuster3
 
     @cached_property
     def termination(self) -> datetime:

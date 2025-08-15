@@ -44,7 +44,7 @@ impl StubInference {
 #[pymethods]
 impl Schedule {
     #[new]
-    #[pyo3(signature = (effective, termination, frequency, calendar, accrual_adjuster, payment_adjuster, eom, front_stub=None, back_stub=None, stub_inference=None))]
+    #[pyo3(signature = (effective, termination, frequency, calendar, accrual_adjuster, payment_adjuster, eom, front_stub=None, back_stub=None, stub_inference=None, payment_adjuster2=None, payment_adjuster3=None))]
     fn new_py(
         effective: NaiveDateTime,
         termination: NaiveDateTime,
@@ -56,6 +56,8 @@ impl Schedule {
         front_stub: Option<NaiveDateTime>,
         back_stub: Option<NaiveDateTime>,
         stub_inference: Option<StubInference>,
+        payment_adjuster2: Option<PyAdjuster>,
+        payment_adjuster3: Option<PyAdjuster>,
     ) -> PyResult<Self> {
         Schedule::try_new_inferred(
             effective,
@@ -66,6 +68,8 @@ impl Schedule {
             calendar,
             accrual_adjuster.into(),
             payment_adjuster.into(),
+            payment_adjuster2.map(Into::into),
+            payment_adjuster3.map(Into::into),
             eom,
             stub_inference,
         )
@@ -113,6 +117,18 @@ impl Schedule {
     }
 
     #[getter]
+    #[pyo3(name = "payment_adjuster2")]
+    fn payment_adjuster2_py(&self) -> Option<PyAdjuster> {
+        self.payment_adjuster2.map(Into::into)
+    }
+
+    #[getter]
+    #[pyo3(name = "payment_adjuster3")]
+    fn payment_adjuster3_py(&self) -> Option<PyAdjuster> {
+        self.payment_adjuster3.map(Into::into)
+    }
+
+    #[getter]
     #[pyo3(name = "ufront_stub")]
     fn ufront_stub_py(&self) -> Option<NaiveDateTime> {
         self.ufront_stub
@@ -140,6 +156,18 @@ impl Schedule {
     #[pyo3(name = "pschedule")]
     fn pschedule_py(&self) -> Vec<NaiveDateTime> {
         self.pschedule.clone()
+    }
+
+    #[getter]
+    #[pyo3(name = "pschedule2")]
+    fn pschedule2_py(&self) -> Option<Vec<NaiveDateTime>> {
+        self.pschedule2.clone()
+    }
+
+    #[getter]
+    #[pyo3(name = "pschedule3")]
+    fn pschedule3_py(&self) -> Option<Vec<NaiveDateTime>> {
+        self.pschedule3.clone()
     }
 
     // Pickling
