@@ -89,6 +89,7 @@
 //!    Calendar::Cal(cal),                      // calendar
 //!    Adjuster::ModifiedFollowing{},           // accrual_adjuster
 //!    Adjuster::BusDaysLagSettle(2),           // payment_adjuster
+//!    None, None,                              // no additional payment_adjusters
 //!    false,                                   // eom
 //!    Some(StubInference::ShortFront),         // stub_inference
 //! );
@@ -112,6 +113,7 @@
 //!    Calendar::Cal(cal),                      // calendar
 //!    Adjuster::ModifiedFollowing{},           // accrual_adjuster
 //!    Adjuster::BusDaysLagSettle(2),           // payment_adjuster
+//!    None, None,                              // no additional payment_adjusters
 //!    true,                                    // eom
 //!    Some(StubInference::ShortFront),         // stub_inference
 //! );

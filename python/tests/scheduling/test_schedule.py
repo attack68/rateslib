@@ -855,3 +855,19 @@ def test_inference_busdays():
     )
     assert s.uschedule == [dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 3, 1)]
     assert s.aschedule == [dt(2000, 1, 6), dt(2000, 2, 6), dt(2000, 3, 6)]
+
+
+def test_payment_adjuster_2_and_3():
+    s = Schedule(
+        dt(2000, 1, 1),
+        dt(2000, 3, 1),
+        "M",
+        calendar="all",
+        modifier="none",
+        payment_lag=1,
+        payment_lag_exchange=2,
+        extra_lag=-2,
+    )
+    assert s.pschedule == [dt(2000, 1, 2), dt(2000, 2, 2), dt(2000, 3, 2)]
+    assert s.pschedule2 == [dt(2000, 1, 3), dt(2000, 2, 3), dt(2000, 3, 3)]
+    assert s.pschedule3 == [dt(1999, 12, 30), dt(2000, 1, 30), dt(2000, 2, 28)]

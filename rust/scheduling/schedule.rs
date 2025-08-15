@@ -47,8 +47,12 @@ pub struct Schedule {
     pub calendar: Calendar,
     /// The [`Adjuster`] to adjust the unadjusted schedule dates to adjusted period accrual dates.
     pub accrual_adjuster: Adjuster,
-    /// The [`Adjuster`] to adjust the adjusted schedule dates to period payment dates.
+    /// The [`Adjuster`] to adjust the accrual schedule dates to period payment dates.
     pub payment_adjuster: Adjuster,
+    /// An additional [`Adjuster`] to adjust the accrual schedule dates to some other period payment or fixing dates.
+    pub payment_adjuster2: Option<Adjuster>,
+    /// An additional [`Adjuster`] to adjust the accrual schedule dates to some other period payment or fixing dates.
+    pub payment_adjuster3: Option<Adjuster>,
     /// The vector of unadjusted period accrual dates.
     #[serde(skip)]
     pub uschedule: Vec<NaiveDateTime>,
@@ -58,6 +62,12 @@ pub struct Schedule {
     /// The vector of payment dates associated with the adjusted accrual dates.
     #[serde(skip)]
     pub pschedule: Vec<NaiveDateTime>,
+    /// An additional vector of payment dates associated with the adjusted accrual dates.
+    #[serde(skip)]
+    pub pschedule2: Option<Vec<NaiveDateTime>>,
+    /// An additional vector of payment dates associated with the adjusted accrual dates.
+    #[serde(skip)]
+    pub pschedule3: Option<Vec<NaiveDateTime>>,
 }
 
 #[derive(Deserialize)]
@@ -70,6 +80,8 @@ struct ScheduleDataModel {
     calendar: Calendar,
     accrual_adjuster: Adjuster,
     payment_adjuster: Adjuster,
+    payment_adjuster2: Option<Adjuster>,
+    payment_adjuster3: Option<Adjuster>,
 }
 
 impl std::convert::From<ScheduleDataModel> for Schedule {
@@ -83,6 +95,8 @@ impl std::convert::From<ScheduleDataModel> for Schedule {
             model.calendar,
             model.accrual_adjuster,
             model.payment_adjuster,
+            model.payment_adjuster2,
+            model.payment_adjuster3,
         )
         .expect("Data model for `Schedule` is corrupt or invalid.")
     }
@@ -188,6 +202,7 @@ impl Schedule {
     ///     Cal::new(vec![], vec![5,6]).into(),                 // calendar
     ///     Adjuster::ModifiedFollowing{},                      // accrual_adjuster
     ///     Adjuster::BusDaysLagSettle(3),                      // payment_adjuster
+    ///     None, None,                                         // no additional payment_adjusters
     /// );
     /// # let s = s.unwrap();
     /// assert_eq!(s.uschedule, vec![ndt(2024, 1, 3), ndt(2024, 2, 3), ndt(2024, 3, 3), ndt(2024, 4, 15)]);
@@ -205,6 +220,7 @@ impl Schedule {
     ///     Cal::new(vec![], vec![5,6]).into(),                 // calendar
     ///     Adjuster::ModifiedFollowing{},                      // accrual_adjuster
     ///     Adjuster::BusDaysLagSettle(3),                      // payment_adjuster
+    ///     None, None,                                         // no additional payment_adjusters
     /// );
     /// assert!(s.is_err());
     /// ```
@@ -217,6 +233,8 @@ impl Schedule {
         calendar: Calendar,
         accrual_adjuster: Adjuster,
         payment_adjuster: Adjuster,
+        payment_adjuster2: Option<Adjuster>,
+        payment_adjuster3: Option<Adjuster>,
     ) -> Result<Self, PyErr> {
         // validate date ordering
         let _ = validate_date_ordering(
@@ -293,6 +311,10 @@ impl Schedule {
 
         let aschedule: Vec<NaiveDateTime> = accrual_adjuster.adjusts(&uschedule, &calendar);
         let pschedule = payment_adjuster.adjusts(&aschedule, &calendar);
+        let pschedule2: Option<Vec<NaiveDateTime>> =
+            payment_adjuster2.map(|a| a.adjusts(&aschedule, &calendar));
+        let pschedule3: Option<Vec<NaiveDateTime>> =
+            payment_adjuster3.map(|a| a.adjusts(&aschedule, &calendar));
 
         Ok(Self {
             ueffective,
@@ -303,9 +325,13 @@ impl Schedule {
             calendar: calendar.clone(),
             accrual_adjuster,
             payment_adjuster,
+            payment_adjuster2,
+            payment_adjuster3,
             uschedule,
             aschedule,
             pschedule,
+            pschedule2,
+            pschedule3,
         })
     }
 
@@ -327,6 +353,8 @@ impl Schedule {
         calendar: Calendar,
         accrual_adjuster: Adjuster,
         payment_adjuster: Adjuster,
+        payment_adjuster2: Option<Adjuster>,
+        payment_adjuster3: Option<Adjuster>,
         stub_inference: Option<StubInference>,
     ) -> Result<Self, PyErr> {
         // evaluate if schedule is valid as defined without stub inference
@@ -339,6 +367,8 @@ impl Schedule {
             calendar.clone(),
             accrual_adjuster,
             payment_adjuster,
+            payment_adjuster2,
+            payment_adjuster3,
         );
 
         // validate inference is not blocked by user defined values.
@@ -424,6 +454,8 @@ impl Schedule {
             calendar,
             accrual_adjuster,
             payment_adjuster,
+            payment_adjuster2,
+            payment_adjuster3,
         )
     }
 
@@ -445,6 +477,8 @@ impl Schedule {
         calendar: Calendar,
         accrual_adjuster: Adjuster,
         payment_adjuster: Adjuster,
+        payment_adjuster2: Option<Adjuster>,
+        payment_adjuster3: Option<Adjuster>,
         eom: bool,
         stub_inference: Option<StubInference>,
     ) -> Result<Self, PyErr> {
@@ -468,6 +502,8 @@ impl Schedule {
                     calendar.clone(),
                     accrual_adjuster,
                     payment_adjuster,
+                    payment_adjuster2,
+                    payment_adjuster3,
                     stub_inference,
                 )
                 .ok()
@@ -522,6 +558,8 @@ impl Schedule {
         calendar: Calendar,
         accrual_adjuster: Adjuster,
         payment_adjuster: Adjuster,
+        payment_adjuster2: Option<Adjuster>,
+        payment_adjuster3: Option<Adjuster>,
         eom: bool,
         stub_inference: Option<StubInference>,
     ) -> Result<Schedule, PyErr> {
@@ -583,6 +621,8 @@ impl Schedule {
                     calendar.clone(),
                     accrual_adjuster,
                     payment_adjuster,
+                    payment_adjuster2,
+                    payment_adjuster3,
                     eom,
                     stub_inference,
                 )
@@ -762,6 +802,8 @@ mod tests {
                 Calendar::Cal(Cal::new(vec![], vec![5, 6])),
                 Adjuster::Following {},
                 Adjuster::Following {},
+                None,
+                None,
             );
             assert_eq!(result.unwrap().uschedule, option.2);
         }
@@ -797,6 +839,8 @@ mod tests {
                 Calendar::Cal(Cal::new(vec![], vec![5, 6])),
                 Adjuster::Following {},
                 Adjuster::Following {},
+                None,
+                None,
             );
             assert!(result.is_err());
         }
@@ -848,6 +892,8 @@ mod tests {
                 Calendar::Cal(Cal::new(vec![], vec![5, 6])),
                 Adjuster::Following {},
                 Adjuster::Following {},
+                None,
+                None,
             );
             assert_eq!(result.unwrap().uschedule, option.3);
         }
@@ -936,6 +982,8 @@ mod tests {
                 Calendar::Cal(Cal::new(vec![], vec![5, 6])),
                 Adjuster::Following {},
                 Adjuster::Following {},
+                None,
+                None,
             );
             assert_eq!(result.unwrap().uschedule, option.4);
         }
@@ -993,6 +1041,8 @@ mod tests {
                 Calendar::Cal(Cal::new(vec![], vec![5, 6])),
                 Adjuster::Following {},
                 Adjuster::Following {},
+                None,
+                None,
             );
             assert!(result.is_err());
         }
@@ -1071,6 +1121,8 @@ mod tests {
                 Calendar::Cal(Cal::new(vec![], vec![5, 6])),
                 Adjuster::Following {},
                 Adjuster::Following {},
+                None,
+                None,
             );
             assert_eq!(result.unwrap().uschedule, option.4);
         }
@@ -1102,6 +1154,8 @@ mod tests {
                 Calendar::Cal(Cal::new(vec![], vec![5, 6])),
                 Adjuster::Following {},
                 Adjuster::Following {},
+                None,
+                None,
             );
             assert!(result.is_err());
         }
@@ -1122,6 +1176,8 @@ mod tests {
             Calendar::Cal(Cal::new(vec![], vec![5, 6])),
             Adjuster::Actual {},
             Adjuster::Actual {},
+            None,
+            None,
         );
         assert!(result.is_err())
     }
@@ -1140,6 +1196,8 @@ mod tests {
             Calendar::Cal(Cal::new(vec![], vec![5, 6])),
             Adjuster::ModifiedFollowing {},
             Adjuster::BusDaysLagSettle(1),
+            None,
+            None,
         );
         assert!(s.is_err()); // 1st Jan is adjusted to 2nd Jan aligning with front stub
 
@@ -1155,6 +1213,8 @@ mod tests {
             Calendar::Cal(Cal::new(vec![], vec![5, 6])),
             Adjuster::ModifiedFollowing {},
             Adjuster::BusDaysLagSettle(1),
+            None,
+            None,
         );
         assert!(s.is_err()); // 1st Jan is adjusted to 2nd Jan aligning with front stub
     }
@@ -1173,6 +1233,8 @@ mod tests {
             Calendar::Cal(Cal::new(vec![], vec![5, 6])),
             Adjuster::ModifiedFollowing {},
             Adjuster::BusDaysLagSettle(1),
+            None,
+            None,
             true,
             None,
         )
@@ -1197,6 +1259,8 @@ mod tests {
             Calendar::Cal(Cal::new(vec![], vec![5, 6])),
             Adjuster::ModifiedFollowing {},
             Adjuster::BusDaysLagSettle(1),
+            None,
+            None,
             false,
             None,
         )
@@ -1221,6 +1285,8 @@ mod tests {
             Calendar::Cal(Cal::new(vec![], vec![5, 6])),
             Adjuster::ModifiedFollowing {},
             Adjuster::BusDaysLagSettle(1),
+            None,
+            None,
             true,
             None,
         )
@@ -1248,6 +1314,8 @@ mod tests {
                 Calendar::Cal(Cal::new(vec![], vec![])),
                 Adjuster::ModifiedFollowing {},
                 Adjuster::BusDaysLagSettle(1),
+                None,
+                None,
                 Some(StubInference::ShortBack)
             )
             .is_err()
@@ -1265,6 +1333,8 @@ mod tests {
                 Calendar::Cal(Cal::new(vec![], vec![])),
                 Adjuster::ModifiedFollowing {},
                 Adjuster::BusDaysLagSettle(1),
+                None,
+                None,
                 Some(StubInference::ShortBack)
             )
             .is_err()
@@ -1282,6 +1352,8 @@ mod tests {
                 Calendar::Cal(Cal::new(vec![], vec![])),
                 Adjuster::ModifiedFollowing {},
                 Adjuster::BusDaysLagSettle(1),
+                None,
+                None,
                 Some(StubInference::LongBack)
             )
             .is_err()
@@ -1299,6 +1371,8 @@ mod tests {
                 Calendar::Cal(Cal::new(vec![], vec![])),
                 Adjuster::ModifiedFollowing {},
                 Adjuster::BusDaysLagSettle(1),
+                None,
+                None,
                 Some(StubInference::ShortFront)
             )
             .is_err()
@@ -1316,6 +1390,8 @@ mod tests {
                 Calendar::Cal(Cal::new(vec![], vec![])),
                 Adjuster::ModifiedFollowing {},
                 Adjuster::BusDaysLagSettle(1),
+                None,
+                None,
                 Some(StubInference::LongFront)
             )
             .is_err()
@@ -1337,6 +1413,8 @@ mod tests {
             Calendar::Cal(Cal::new(vec![], vec![5, 6])),
             Adjuster::ModifiedFollowing {},
             Adjuster::BusDaysLagSettle(1),
+            None,
+            None,
             true,
             Some(StubInference::ShortFront),
         )
@@ -1359,6 +1437,8 @@ mod tests {
             Calendar::Cal(Cal::new(vec![], vec![5, 6])),
             Adjuster::ModifiedFollowing {},
             Adjuster::BusDaysLagSettle(1),
+            None,
+            None,
             true,
             None,
         )
@@ -1386,6 +1466,8 @@ mod tests {
             Calendar::Cal(Cal::new(vec![], vec![5, 6])),
             Adjuster::ModifiedFollowing {},
             Adjuster::BusDaysLagSettle(1),
+            None,
+            None,
             true,
             None,
         )
@@ -1404,6 +1486,8 @@ mod tests {
             Calendar::Cal(Cal::new(vec![], vec![5, 6])),
             Adjuster::ModifiedFollowing {},
             Adjuster::BusDaysLagSettle(1),
+            None,
+            None,
             true,
             Some(StubInference::ShortBack),
         )
@@ -1425,6 +1509,8 @@ mod tests {
             Calendar::Cal(Cal::new(vec![], vec![])),
             Adjuster::ModifiedFollowing {},
             Adjuster::BusDaysLagSettle(2),
+            None,
+            None,
             false,
             Some(StubInference::ShortFront),
         )
