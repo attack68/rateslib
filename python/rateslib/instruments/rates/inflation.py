@@ -416,18 +416,14 @@ class IIRS(BaseDerivative):
         index_method: str_ = NoInput(0),
         index_lag: int_ = NoInput(0),
         notional_exchange: bool = False,
-        payment_lag_exchange: int_ = NoInput(0),
         leg2_float_spread: DualTypes_ = NoInput(0),
         leg2_fixings: FixingsRates_ = NoInput(0),  # type: ignore[type-var]
         leg2_fixing_method: str_ = NoInput(0),
         leg2_method_param: int_ = NoInput(0),
         leg2_spread_compound_method: str_ = NoInput(0),
-        leg2_payment_lag_exchange: int_ = NoInput(1),
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
-        if leg2_payment_lag_exchange is NoInput.inherit:
-            leg2_payment_lag_exchange = payment_lag_exchange
         user_kwargs = dict(
             fixed_rate=fixed_rate,
             index_base=index_base,
@@ -436,13 +432,11 @@ class IIRS(BaseDerivative):
             index_lag=index_lag,
             initial_exchange=False,
             final_exchange=notional_exchange,
-            payment_lag_exchange=payment_lag_exchange,
             leg2_float_spread=leg2_float_spread,
             leg2_spread_compound_method=leg2_spread_compound_method,
             leg2_fixings=leg2_fixings,
             leg2_fixing_method=leg2_fixing_method,
             leg2_method_param=leg2_method_param,
-            leg2_payment_lag_exchange=leg2_payment_lag_exchange,
             leg2_initial_exchange=False,
             leg2_final_exchange=notional_exchange,
         )

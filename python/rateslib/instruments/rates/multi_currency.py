@@ -706,7 +706,6 @@ class XCS(BaseDerivative):
         self,
         *args: Any,
         fixed: bool_ = NoInput(0),
-        payment_lag_exchange: int_ = NoInput(0),
         fixed_rate: DualTypes_ = NoInput(0),
         float_spread: DualTypes_ = NoInput(0),
         spread_compound_method: str_ = NoInput(0),
@@ -715,7 +714,6 @@ class XCS(BaseDerivative):
         method_param: int_ = NoInput(0),
         leg2_fixed: bool_ = NoInput(0),
         leg2_mtm: bool_ = NoInput(0),
-        leg2_payment_lag_exchange: int_ = NoInput(1),
         leg2_fixed_rate: DualTypes_ = NoInput(0),
         leg2_float_spread: DualTypes_ = NoInput(0),
         leg2_fixings: FixingsRates_ = NoInput(0),
@@ -756,14 +754,11 @@ class XCS(BaseDerivative):
             Leg1 = FloatLeg
         leg1_user_kwargs.update(
             dict(
-                payment_lag_exchange=payment_lag_exchange,
                 initial_exchange=True,
                 final_exchange=True,
             ),
         )
 
-        if leg2_payment_lag_exchange is NoInput.inherit:
-            leg2_payment_lag_exchange = payment_lag_exchange
         if self.kwargs["leg2_fixed"]:
             self.kwargs.pop("leg2_spread_compound_method", None)
             self.kwargs.pop("leg2_fixing_method", None)
@@ -787,7 +782,6 @@ class XCS(BaseDerivative):
             Leg2 = FloatLeg if not leg2_mtm else FloatLegMtm
         leg2_user_kwargs.update(
             dict(
-                leg2_payment_lag_exchange=leg2_payment_lag_exchange,
                 leg2_initial_exchange=True,
                 leg2_final_exchange=True,
             ),

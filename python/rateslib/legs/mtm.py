@@ -46,7 +46,8 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         (MTM) notional exchanges after each period. If not given, or only some
         FX fixings are given, the remaining unknown fixings will be forecast
         by a provided :class:`~rateslib.fx.FXForwards` object later. If a Series must be indexed
-        by the date of the notional exchange considering ``payment_lag_exchange``.
+        by the date of the notional exchange considering ``payment_lag_exchange`` on the
+        ``schedule``.
     alt_currency : str
         The alternative reference currency against which FX fixings are measured
         for MTM notional exchanges (3-digit code).
@@ -108,9 +109,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         last_fixing_date = ser.index[-1]
         fixings_list: list[DualTypes] = []
         for i in range(ini_period, self.schedule.n_periods):
-            required_date = self.schedule.calendar.lag_bus_days(
-                self.schedule.aschedule[i], self.payment_lag_exchange, True
-            )
+            required_date = self.schedule.pschedule2[i]
             if required_date > last_fixing_date:
                 break
             else:
@@ -179,14 +178,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         if isinstance(fx, FXForwards):
             for i in range(n_given, n_req):
                 fx_fixings_.append(
-                    fx.rate(
-                        self.alt_currency + self.currency,
-                        self.schedule.calendar.lag_bus_days(
-                            self.schedule.aschedule[i],
-                            self.payment_lag_exchange,
-                            True,
-                        ),
-                    ),
+                    fx.rate(self.alt_currency + self.currency, self.schedule.pschedule2[i]),
                 )
         elif n_req > 0:  # only check if unknown fixings are required
             fx_fixings_ = _get_fx_fixings_from_non_fx_forwards(n_given, n_req, fx_fixings_)
@@ -205,11 +197,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
             [
                 Cashflow(
                     -self.notional,
-                    self.schedule.calendar.lag_bus_days(
-                        self.schedule.aschedule[0],
-                        self.payment_lag_exchange,
-                        True,
-                    ),
+                    self.schedule.pschedule2[0],
                     self.currency,
                     "Exchange",
                     fx_fixings_[0],
@@ -233,11 +221,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         mtm_flows = [
             Cashflow(
                 -notionals[i + 1] + notionals[i],
-                self.schedule.calendar.lag_bus_days(
-                    self.schedule.aschedule[i + 1],
-                    self.payment_lag_exchange,
-                    True,
-                ),
+                self.schedule.pschedule2[i + 1],
                 self.currency,
                 "Mtm",
                 fx_fixings_[i + 1],
@@ -254,11 +238,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         self.periods.append(
             Cashflow(
                 notionals[-1],
-                self.schedule.calendar.lag_bus_days(
-                    self.schedule.aschedule[-1],
-                    self.payment_lag_exchange,
-                    True,
-                ),
+                self.schedule.pschedule2[-1],
                 self.currency,
                 "Exchange",
                 fx_fixings_[-1],

@@ -263,6 +263,7 @@ def _convert_to_schedule_kwargs(kwargs: dict[str, Any], leg: int) -> dict[str, A
         modifier=kwargs.pop(f"{_}modifier"),
         calendar=kwargs.pop(f"{_}calendar"),
         payment_lag=kwargs.pop(f"{_}payment_lag"),
+        payment_lag_exchange=kwargs.pop(f"{_}payment_lag_exchange"),
     )
     return kwargs
 

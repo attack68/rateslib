@@ -98,7 +98,7 @@ class Schedule:
         calendar: CalTypes,
         accrual_adjuster: Adjuster,
         payment_adjuster: Adjuster,
-        payment_adjuster2: Adjuster | None,
+        payment_adjuster2: Adjuster,
         payment_adjuster3: Adjuster | None,
         front_stub: datetime | None,
         back_stub: datetime | None,

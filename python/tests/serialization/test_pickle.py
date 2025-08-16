@@ -94,6 +94,7 @@ from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
             calendar=NamedCal("tgt"),
             accrual_adjuster=Adjuster.ModifiedFollowing(),
             payment_adjuster=Adjuster.BusDaysLagSettle(2),
+            payment_adjuster2=Adjuster.Actual(),
             front_stub=None,
             back_stub=None,
             eom=False,

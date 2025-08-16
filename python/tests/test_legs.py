@@ -135,9 +135,9 @@ class TestFloatLeg:
                         effective=dt(2022, 1, 1),
                         termination=dt(2022, 6, 1),
                         payment_lag=0,
+                        payment_lag_exchange=0,
                         frequency="Q",
                     ),
-                    payment_lag_exchange=0,
                     notional=1e9,
                     convention="Act360",
                     fixing_method="rfr_payment_delay",
@@ -153,9 +153,9 @@ class TestFloatLeg:
                         effective=dt(2022, 1, 1),
                         termination=dt(2022, 6, 1),
                         payment_lag=0,
+                        payment_lag_exchange=0,
                         frequency="Q",
                     ),
-                    payment_lag_exchange=0,
                     convention="Act360",
                     fixing_method="rfr_payment_delay",
                     spread_compound_method="none_simple",
@@ -1712,6 +1712,8 @@ class TestIndexFixedLegExchange:
                 dt(2022, 1, 1),
                 "9M",
                 "Q",
+                payment_lag=2,
+                payment_lag_exchange=0,
             ),
             notional=1000000,
             amortization=200000,
@@ -1722,7 +1724,7 @@ class TestIndexFixedLegExchange:
             index_lag=3,
         )
         result = index_leg_exch.npv(index_curve, curve)
-        expected = -999971.65702
+        expected = -999993.7970219046
         assert abs(result - expected) < 1e-4
 
     def test_index_lag_on_periods(self):
@@ -2038,13 +2040,13 @@ class TestFloatLegExchangeMtm:
                 effective=dt(2022, 1, 3),
                 termination=dt(2022, 7, 3),
                 frequency="Q",
+                payment_lag_exchange=3,
             ),
             notional=265,
             float_spread=5.0,
             currency="usd",
             alt_currency="eur",
             alt_notional=10e6,
-            payment_lag_exchange=3,
             fx_fixings=fx_fixings,
         )
         fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
@@ -2083,13 +2085,13 @@ class TestFloatLegExchangeMtm:
                 effective=dt(2022, 1, 3),
                 termination=dt(2022, 7, 3),
                 frequency="Q",
+                payment_lag_exchange=3,
             ),
             notional=265,
             float_spread=5.0,
             currency="usd",
             alt_currency="eur",
             alt_notional=10e6,
-            payment_lag_exchange=3,
             fixing_method="ibor",
             method_param=0,
         )
@@ -2117,13 +2119,13 @@ class TestFloatLegExchangeMtm:
                 effective=dt(2022, 1, 3),
                 termination=dt(2022, 7, 3),
                 frequency="Q",
+                payment_lag_exchange=0,
             ),
             notional=265,
             float_spread=5.0,
             currency="usd",
             alt_currency="eur",
             alt_notional=10e6,
-            payment_lag_exchange=0,
         )
         fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
         fxf = FXForwards(
@@ -2146,6 +2148,7 @@ class TestFloatLegExchangeMtm:
                 termination=dt(2022, 7, 3),
                 frequency="Q",
                 payment_lag=0,
+                payment_lag_exchange=0,
             ),
             notional=265,
             currency="usd",
@@ -2153,7 +2156,6 @@ class TestFloatLegExchangeMtm:
             alt_notional=1e9,
             fixing_method="rfr_payment_delay",
             spread_compound_method="isda_compounding",
-            payment_lag_exchange=0,
             float_spread=0.0,
         )
         fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
@@ -2187,6 +2189,7 @@ class TestFloatLegExchangeMtm:
                 effective=dt(2022, 1, 3),
                 termination=dt(2022, 7, 3),
                 frequency="Q",
+                payment_lag_exchange=3,
             ),
             notional=265,
             float_spread=5.0,
@@ -2194,7 +2197,6 @@ class TestFloatLegExchangeMtm:
             alt_currency="eur",
             alt_notional=10e6,
             fx_fixings=fx_fixings,
-            payment_lag_exchange=3,
         )
 
         with pytest.warns(UserWarning), default_context("no_fx_fixings_for_xcs", "warn"):
@@ -2213,28 +2215,30 @@ class TestFloatLegExchangeMtm:
                     effective=dt(2022, 1, 3),
                     termination=dt(2022, 7, 3),
                     frequency="Q",
+                    payment_lag_exchange=3,
                 ),
                 notional=265,
                 float_spread=5.0,
                 currency="usd",
                 alt_currency="eur",
                 alt_notional=10e6,
-                payment_lag_exchange=3,
                 fx_fixings=Series([1.25], index=[dt(2022, 2, 6)]),
             )
 
     def test_mtm_raises_alt(self) -> None:
         with pytest.raises(ValueError, match="`alt_currency` and `currency` must be supplied"):
             FloatLegMtm(
-                effective=dt(2022, 1, 3),
-                termination=dt(2022, 7, 3),
-                frequency="Q",
+                schedule=Schedule(
+                    effective=dt(2022, 1, 3),
+                    termination=dt(2022, 7, 3),
+                    frequency="Q",
+                    payment_lag_exchange=3,
+                ),
                 notional=265,
                 float_spread=5.0,
                 currency="usd",
                 # alt_currency="eur",
                 alt_notional=10e6,
-                payment_lag_exchange=3,
             )
 
 
@@ -2482,13 +2486,13 @@ def test_fixed_leg_exchange_mtm(fx_fixings, exp) -> None:
             effective=dt(2022, 1, 3),
             termination=dt(2022, 7, 3),
             frequency="Q",
+            payment_lag_exchange=3,
         ),
         notional=265,
         fixed_rate=5.0,
         currency="usd",
         alt_currency="eur",
         alt_notional=10e6,
-        payment_lag_exchange=3,
         fx_fixings=fx_fixings,
     )
     fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
@@ -2530,12 +2534,12 @@ def test_mtm_leg_raises(type_) -> None:
                 effective=dt(2022, 1, 3),
                 termination=dt(2022, 7, 3),
                 frequency="Q",
+                payment_lag_exchange=3,
             ),
             notional=265,
             currency="usd",
             alt_currency="eur",
             alt_notional=10e6,
-            payment_lag_exchange=3,
             amortization=1000,
         )
 
@@ -2545,12 +2549,12 @@ def test_mtm_leg_raises(type_) -> None:
                 effective=dt(2022, 1, 3),
                 termination=dt(2022, 7, 3),
                 frequency="Q",
+                payment_lag_exchange=3,
             ),
             notional=265,
             currency="usd",
             alt_currency="eur",
             alt_notional=10e6,
-            payment_lag_exchange=3,
             fx_fixings="bad_type",
         )
 
@@ -2569,12 +2573,12 @@ def test_mtm_leg_exchange_metrics(type_, expected, kw) -> None:
             termination=dt(2022, 7, 3),
             frequency="Q",
             payment_lag=0,
+            payment_lag_exchange=0,
         ),
         notional=265,
         currency="usd",
         alt_currency="eur",
         alt_notional=10e6,
-        payment_lag_exchange=0,
         **kw,
     )
     fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
