@@ -29,6 +29,9 @@ email contact, see `rateslib <https://rateslib.com>`_.
          class, which can also derive amortization schedules for common scenarios.
          (`1019 <https://github.com/attack68/rateslib/pull/1019>`_). See
          :ref:`Using Amortization <cook-amortisation-doc>` for examples.
+       - Add *'nz_gb'* ``spec`` for New Zealand government bonds, and the associated functions
+         for YTM required by its convention.
+         (`1021 <https://github.com/attack68/rateslib/pull/1021>`_)
    * - **Scheduling**
      - - The :class:`~rateslib.scheduling.Convention` is now a central DCF component for all
          DCF calculations. While string UI input still available, these types are now

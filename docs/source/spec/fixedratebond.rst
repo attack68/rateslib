@@ -207,3 +207,23 @@ coupons. **Note** this is not the appropriate convention for monthly-pay securit
    from rateslib.instruments.bonds.conventions import CA_GB
    CA_GB.kwargs
    FixedRateBond(dt(2000, 1, 1), "10y", spec="ca_gb", fixed_rate=2.5).kwargs
+
+NZD
+****
+
+.. _spec-nz-gb:
+
+Government Bonds
+-------------------
+
+Kiwi government bond convention.
+Yield calculations use normal conventions except in the case of one coupon
+payment remaining, when simple ACT365F is used.
+See `Bond Memorandum <https://debtmanagement.treasury.govt.nz/sites/default/files/2024-11/nz-govt-nominal-bonds-information-memorandum-5nov24.pdf>`_
+
+.. ipython:: python
+
+   defaults.spec["nz_gb"]
+   from rateslib.instruments.bonds.conventions import NZ_GB
+   NZ_GB.kwargs
+   FixedRateBond(dt(2000, 1, 1), "10y", spec="nz_gb", fixed_rate=2.5).kwargs

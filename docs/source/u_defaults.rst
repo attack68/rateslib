@@ -270,7 +270,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
      -
    * - NZD
-     -
+     - :ref:`nz_gb <spec-nz-gb>`
      -
      -
      -
