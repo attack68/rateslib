@@ -32,6 +32,9 @@ email contact, see `rateslib <https://rateslib.com>`_.
        - Add *'nz_gb'* ``spec`` for New Zealand government bonds, and the associated functions
          for YTM required by its convention.
          (`1021 <https://github.com/attack68/rateslib/pull/1021>`_)
+       - Some *Instruments* now permit only a keyword only argument structure after the positional
+         arguments ``effective``, ``termination`` and ``frequency``.
+         (`1022 <https://github.com/attack68/rateslib/pull/1022>`_)
    * - **Scheduling**
      - - The :class:`~rateslib.scheduling.Convention` is now a central DCF component for all
          DCF calculations. While string UI input still available, these types are now
@@ -44,11 +47,17 @@ email contact, see `rateslib <https://rateslib.com>`_.
        - :red:`Minor Breaking Change!` Any :class:`~rateslib.periods.BasePeriod` now requires
          an additional argument, :class:`~rateslib.scheduling.Adjuster`, to fully define its
          period specification (most used by the internal :meth:`~rateslib.scheduling.dcf` call).
-        (`1012 <https://github.com/attack68/rateslib/pull/1012>`_)
+         (`1012 <https://github.com/attack68/rateslib/pull/1012>`_)
        - A :meth:`~rateslib.scheduling.Adjuster.reverse` method is added to an
          :class:`~rateslib.scheduling.Adjuster` for deriving unadjusted date potentials (which is
          used during schedule inference).
          (`1012 <https://github.com/attack68/rateslib/pull/1012>`_)
+       - The :class:`~rateslib.scheduling.Schedule` now has additional arguments
+         ``payment_lag_exchange`` and ``extra_lag`` to create additional schedule components,
+         typically for notional exchanges, which are used by *Legs*. The isolated arguments
+         ``payment_lag_exchange`` have been dropped in some places in favour of shifting the
+         logic direction to a :class:`~rateslib.scheduling.Schedule`. This should be noted for
+         all *Instruments* and *Legs* with notional exchanges.
    * - **Refactors**
      - - The scheduling arguments for any :class:`~rateslib.legs.BaseLeg` have been removed
          in favour of using a ``schedule`` argument containing a generated
@@ -58,6 +67,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
          ``frequency`` is now associated with a :class:`~rateslib.scheduling.Frequency`, rather than
          a string identifier.
          (`1010 <https://github.com/attack68/rateslib/pull/1010>`_)
+   * - **Bugs**
+     - - :class:`~rateslib.legs.IndexFixedLeg` now applies the ``payment_lag_exchange`` adjuster
+         to amortization notional exchanges as opposed to the ``payment_lag`` adjuster.
+         (`1022 <https://github.com/attack68/rateslib/pull/1022>`_)
 
 2.1.1 (12th August 2025)
 ***************************
