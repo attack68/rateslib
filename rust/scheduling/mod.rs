@@ -89,7 +89,8 @@
 //!    Calendar::Cal(cal),                      // calendar
 //!    Adjuster::ModifiedFollowing{},           // accrual_adjuster
 //!    Adjuster::BusDaysLagSettle(2),           // payment_adjuster
-//!    None, None,                              // no additional payment_adjusters
+//!    Adjuster::Actual{},                      // payment_adjuster2
+//!    None,                                    // payment_adjuster3
 //!    false,                                   // eom
 //!    Some(StubInference::ShortFront),         // stub_inference
 //! );
@@ -113,7 +114,8 @@
 //!    Calendar::Cal(cal),                      // calendar
 //!    Adjuster::ModifiedFollowing{},           // accrual_adjuster
 //!    Adjuster::BusDaysLagSettle(2),           // payment_adjuster
-//!    None, None,                              // no additional payment_adjusters
+//!    Adjuster::Actual{},                      // payment_adjuster2
+//!    None,                                    // payment_adjuster3
 //!    true,                                    // eom
 //!    Some(StubInference::ShortFront),         // stub_inference
 //! );
