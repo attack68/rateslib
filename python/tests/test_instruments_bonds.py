@@ -547,7 +547,7 @@ class TestFixedRateBond:
             frequency="S",
             calc_mode="cadgb",
             roll=1,
-            stub="FRONT",
+            stub="SHORTFRONT",
             ex_div=1,
         )
         result = bond.price(ytm=4.0, settlement=s)
@@ -1043,6 +1043,29 @@ class TestFixedRateBond:
     def test_ch_gb(self, ytm, sett, exp):
         # ISIN: CH0127181169
         bond = FixedRateBond(dt(2012, 4, 30), dt(2042, 4, 30), fixed_rate=1.5, spec="ch_gb")
+        accrued = bond.accrued(sett)
+        assert abs(accrued - exp[1]) < 1e-8
+        price = bond.price(ytm=ytm, settlement=sett)
+        assert abs(price - exp[0]) < 1e-6
+
+    # New Zealand GB
+
+    @pytest.mark.parametrize(
+        ("ytm", "sett", "maturity", "coupon", "exp"),
+        [
+            (4.355, dt(2022, 11, 22), dt(2034, 5, 15), 4.25, [99.0583817412, 0.0821823204]),
+            (
+                5.348,
+                dt(2051, 4, 15),
+                dt(2051, 5, 15),
+                2.75,
+                [99.7842450753699, 1.1470994475],
+            ),  # Last period simple_act365f
+            (0.745, dt(2021, 2, 10), dt(2026, 5, 15), 0.50, [98.7384877998, 0.1201657459]),
+        ],
+    )
+    def test_nz_gb(self, ytm, sett, maturity, coupon, exp):
+        bond = FixedRateBond(dt(2020, 5, 15), maturity, fixed_rate=coupon, spec="nz_gb")
         accrued = bond.accrued(sett)
         assert abs(accrued - exp[1]) < 1e-8
         price = bond.price(ytm=ytm, settlement=sett)
