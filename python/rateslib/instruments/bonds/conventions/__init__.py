@@ -226,12 +226,22 @@ class BondCalcMode:
       .. math::
       
          v_1 = \\frac{1}{1 + g(\\xi_y) y / f}  \\quad \\text{where, } g(\\xi_y) \\text{ defined as above}
-
+      
     Combinations, or extensions, of the two above functions are also required for some
     bond conventions:
 
+    - ``simple_act365f``: uses simple interest with a DCF calculated under Act365F convention,
+      irrespective of the bond’s underlying convention.
+      
+      .. math::
+      
+         v_1 = \\frac{1}{1 +  \\bar{d_u} y}
+         
     - ``compounding_final_simple``: uses ``compounding``, unless settlement occurs in the final
       period of the bond (and in which case n=1) and then the ``simple`` method is applied.
+    - ``compounding_final_simple_act365f``: uses ``compounding``, unless settlement occurs in the
+      final period of the bond (and in which case n=1) and then the ``simple_act365f`` method is
+      applied.
     - ``compounding_stub_act365f``: uses ``compounding``, unless settlement occurs in a stub
       period in which case Act365F convention derives the exponent.
       
@@ -485,6 +495,18 @@ UK_GB = BondCalcMode(
     cn="cashflow",
 )
 
+NZ_GB = BondCalcMode(
+    # New Zealand government bond conventions
+    settle_accrual="linear_days",
+    ytm_accrual="linear_days",
+    v1="compounding_final_simple_act365f",
+    v2="regular",
+    v3="compounding",
+    c1="cashflow",
+    ci="cashflow",
+    cn="cashflow",
+)
+
 US_GB = BondCalcMode(
     # US Treasury street convention
     settle_accrual="linear_days_long_front_split",
@@ -652,6 +674,7 @@ SE_GBB = BillCalcMode(
 
 BOND_MODE_MAP = {
     "uk_gb": UK_GB,
+    "nz_gb": NZ_GB,
     "us_gb": US_GB,
     "de_gb": DE_GB,
     "fr_gb": FR_GB,

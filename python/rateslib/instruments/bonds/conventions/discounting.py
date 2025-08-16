@@ -178,6 +178,24 @@ def _v1_simple(
     return v_
 
 
+def _v1_simple_act365f(
+    obj: Security | BondMixin,
+    ytm: DualTypes,
+    f: float,
+    settlement: datetime,
+    acc_idx: int,
+    v2: DualTypes,
+    accrual: AccrualFunction,
+    period_idx: int,
+) -> DualTypes:
+    """
+    Use simple rates with the DCF determined by Act365F.
+    """
+    fd0 = dcf(settlement, obj.leg1.schedule.aschedule[acc_idx + 1], "Act365F")
+    v_ = 1 / (1 + fd0 * ytm / 100.0)
+    return v_
+
+
 def _v1_simple_pay_adjust(
     obj: Security | BondMixin,
     ytm: DualTypes,
@@ -240,6 +258,30 @@ def _v1_compounded_final_simple(
         # settlement == self.leg1.schedule.aschedule[acc_idx + 1]:
         # then settlement is in last period use simple interest.
         return _v1_simple(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
+    else:
+        return _v1_compounded(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
+
+
+def _v1_compounded_final_simple_act365f(
+    obj: Security | BondMixin,
+    ytm: DualTypes,
+    f: float,
+    settlement: datetime,
+    acc_idx: int,
+    v2: DualTypes,
+    accrual: AccrualFunction,
+    period_idx: int,
+) -> DualTypes:
+    """
+    Uses regular fractional compounding except if it is last period, when simple money-mkt
+    yield is used instead with discounting Act365F.
+    Introduced for New Zealand Government Bonds.
+    """
+    if acc_idx == obj.leg1.schedule.n_periods - 1:
+        # or \
+        # settlement == self.leg1.schedule.aschedule[acc_idx + 1]:
+        # then settlement is in last period use simple interest.
+        return _v1_simple_act365f(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
     else:
         return _v1_compounded(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
 
@@ -429,6 +471,8 @@ V1_FUNCS: dict[str, YtmStubDiscountFunction] = {
     "compounding_final_simple_pay_adjust": _v1_compounded_final_simple_pay_adjust,  # noqa: E501
     "compounding_stub_act365f": _v1_comp_stub_act365f,
     "simple_long_stub_compounding": _v1_simple_long_stub,
+    "compounding_final_simple_act365f": _v1_compounded_final_simple_act365f,
+    "simple_act365f": _v1_simple_act365f,
 }
 
 V2_FUNCS: dict[str, YtmDiscountFunction] = {
