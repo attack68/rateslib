@@ -18,6 +18,7 @@ from rateslib.legs import (
     FloatLeg,
     FloatLegMtm,
     IndexFixedLeg,
+    NonDeliverableFixedLeg,
     ZeroFixedLeg,
     ZeroFloatLeg,
     ZeroIndexLeg,
@@ -2375,6 +2376,55 @@ class TestCustomLeg:
         result = cl.analytic_delta(curve)
         expected = 194.1782607729773
         assert abs(result - expected) < 1e-6
+
+
+class TestNonDeliverableFixedLeg:
+    def test_set_periods(self):
+        leg = NonDeliverableFixedLeg(
+            schedule=Schedule(dt(2000, 1, 1), dt(2000, 3, 1), "M"),
+            fixed_rate=2.0,
+            currency="usd",
+            pair="brlusd",
+        )
+        assert len(leg.periods) == 2
+
+    def test_npv(self):
+        fxr = FXRates({"usdbrl": 9.50}, settlement=dt(2022, 1, 3))
+        fxf = FXForwards(
+            fxr,
+            {
+                "usdusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.965}),
+                "brlbrl": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.985}),
+                "brlusd": Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.987}),
+            },
+        )
+        leg = NonDeliverableFixedLeg(
+            schedule=Schedule(dt(2022, 1, 1), dt(2022, 3, 1), "M"),
+            fixed_rate=2.0,
+            currency="usd",
+            pair="brlusd",
+            notional=1e6,  # 1mm BRL
+        )
+        result = leg.npv(disc_curve=fxf.curve("brl", "brl"), fx=fxf)
+        expected = -345.311781  #  2.0% * 1mm * (2 / 12) / 9.5
+        assert abs(result - expected) < 1e-6
+
+        result = leg.npv(disc_curve=fxf.curve("brl", "brl"), fx=fxf, base="brl")
+        expected = -345.311781 * fxf.rate("usdbrl")  # 2.0% * 1mm * (2 / 12) / 9.5
+        assert abs(result - expected) < 1e-5
+
+    @pytest.mark.parametrize("fixings", [[1.66], 1.66, Series(data=[1.66], index=[dt(2022, 2, 3)])])
+    def test_set_fixings(self, fixings):
+        leg = NonDeliverableFixedLeg(
+            schedule=Schedule(dt(2022, 1, 1), dt(2022, 3, 1), "M"),
+            fixed_rate=2.0,
+            currency="usd",
+            pair="brlusd",
+            notional=1e6,  # 1mm BRL
+            fx_fixings=fixings,
+        )
+        assert leg.periods[0].fx_fixing == 1.66
+        assert leg.periods[1].fx_fixing == NoInput(0)
 
 
 class TestAmortization:

@@ -28,6 +28,7 @@ if TYPE_CHECKING:
         CurveOption_,
         DualTypes,
         DualTypes_,
+        FixingsFx_,
         FixingsRates_,
         Period,
         _BaseCurve,
@@ -206,6 +207,7 @@ class BaseLeg(metaclass=ABCMeta):
     """
 
     periods: list[Period]
+    schedule: Schedule
 
     @abstractmethod
     def __init__(
@@ -491,8 +493,8 @@ class _FixedLegMixin:
         start: datetime,
         end: datetime,
         payment: datetime,
-        notional: DualTypes,
         stub: bool,
+        notional: DualTypes,
         iterator: int,
     ) -> FixedPeriod:
         return FixedPeriod(
@@ -945,3 +947,66 @@ def _set_notional_and_amortization(
         return initial, Amortization(n, initial, amortization.amortization[0])
     else:  # _type is customised
         return initial, Amortization(n, initial, amortization.amortization)
+
+
+def _get_single_element_fixings(
+    fixings: FixingsFx_,  # type: ignore[type-var]
+    index_dates: list[datetime],
+) -> list[DualTypes | NoInput] | NoInput:
+    """
+    Get a fixing value per period for each fixing index date, as a single value type (i.e. not
+    a compounded type as in OIS fixings)
+
+    Parameters
+    ----------
+    fixings
+    index_dates
+
+    Returns
+    -------
+    list[DualTypes]
+    """
+    if isinstance(fixings, NoInput):
+        return NoInput(0)
+    elif isinstance(fixings, tuple):
+        first_fixing = [fixings[0]]
+        latter_fixings = _get_single_element_fixings(fixings[1], index_dates[1:])
+        return first_fixing + latter_fixings  # type: ignore[operator, return-value]
+    elif isinstance(fixings, list):
+        if len(fixings) > len(index_dates):
+            raise ValueError(
+                f"Number of `fixings` ('{len(fixings)}') cannot be greater in number than "
+                f"the `index_dates` ('{len(index_dates)}')."
+            )
+        else:
+            return fixings + [NoInput(0)] * (len(index_dates) - len(fixings))
+    elif isinstance(fixings, Series):
+        indexed_fixings = _get_single_element_fixings_from_series(fixings, index_dates)
+        return indexed_fixings + [NoInput(0)] * (len(index_dates) - len(indexed_fixings))
+    else:  # fixings is a DualTypes
+        return [fixings] + [NoInput(0)] * (len(index_dates) - 1)
+
+
+def _get_single_element_fixings_from_series(
+    ser: Series[DualTypes],  # type: ignore[type-var]
+    index_dates: list[datetime],
+) -> list[DualTypes]:
+    """
+    Get fixing values from the indexed series by ascending order.
+    """
+    if not ser.is_monotonic_increasing:
+        ser = ser.iloc[::-1]
+    last_fixing_date = ser.index[-1]
+    fixings_list: list[DualTypes] = []
+    for index_date in index_dates:
+        if index_date > last_fixing_date:
+            break
+        else:
+            try:
+                fixings_list.append(ser[index_date])
+            except KeyError:
+                raise ValueError(
+                    "A Series is provided for `fixings` but the required `index_date`, "
+                    f"{index_date.strftime('%Y-%d-%m')}, is not availble within the Series."
+                )
+    return fixings_list

@@ -28,6 +28,7 @@ from rateslib.legs import (
     FloatLeg,
     FloatLegMtm,
 )
+from rateslib.legs.rates import _get_reference_currency_and_reversed
 from rateslib.periods import (
     Cashflow,
     NonDeliverableCashflow,
@@ -344,7 +345,7 @@ class NDF(Sensitivities, Metrics):
 
        ndf = NDF(
            settlement="3m",
-           pair="usd",  # <- EUR is still reference currency
+           pair="usdeur",  # <- EUR is still reference currency
            currency="usd",  # <- USD is the settlement currency
            notional=1e6,  # <- this is long 1mm EUR
            eval_date=dt(2000, 7, 1),
@@ -406,12 +407,8 @@ class NDF(Sensitivities, Metrics):
             self.kwargs["eom"],
         )
 
-        if self.kwargs["currency"] not in self.kwargs["pair"]:
-            raise ValueError("`currency` must be one of the currencies in `pair`.")
-        reference_currency = (
-            self.kwargs["pair"][0:3]
-            if self.kwargs["pair"][0:3] != self.kwargs["currency"]
-            else self.kwargs["pair"][3:]
+        reference_currency, reversed_ = _get_reference_currency_and_reversed(
+            self.kwargs["pair"], self.kwargs["currency"]
         )
 
         self.periods = (
@@ -424,7 +421,7 @@ class NDF(Sensitivities, Metrics):
                     self.kwargs["settlement"], -self.kwargs["payment_lag"], False
                 ),  # a fixing date can be on a non-settlable date
                 fx_fixing=self.kwargs["fx_fixing"],
-                reversed=self.kwargs["pair"][0:3] == self.kwargs["currency"],
+                reversed=reversed_,
             ),
             Cashflow(
                 notional=0.0,  # will be set by set_cashflow_notional

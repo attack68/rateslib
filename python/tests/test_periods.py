@@ -3176,7 +3176,6 @@ class TestNonDeliverableFixedPeriod:
             settlement_currency="usd",
             notional=1e6,
             fx_fixing=fx_fixing,
-            fx_fixing_date=dt(2025, 4, 29),
             frequency=Frequency.Months(3, None),
             fixed_rate=3.0,
             reversed=True,
@@ -3197,7 +3196,6 @@ class TestNonDeliverableFixedPeriod:
             settlement_currency="usd",
             notional=0.2e6,
             fx_fixing=fx_fixing,
-            fx_fixing_date=dt(2025, 4, 29),
             frequency=Frequency.Months(3, None),
             fixed_rate=3.0,
         )
@@ -3217,7 +3215,6 @@ class TestNonDeliverableFixedPeriod:
             currency="brl",
             notional=1e6,
             fx_fixing=fx_fixing,
-            fx_fixing_date=dt(2025, 4, 29),
             frequency=Frequency.Months(3, None),
         )
         assert ndfp.cashflow(fx=fxf_ndf) is None
@@ -3233,7 +3230,6 @@ class TestNonDeliverableFixedPeriod:
             settlement_currency="usd",
             notional=1e9,
             fx_fixing=fx_fixing,
-            fx_fixing_date=dt(2025, 4, 29),
             frequency=Frequency.Months(3, None),
             fixed_rate=3.0,
             reversed=True,
@@ -3255,7 +3251,6 @@ class TestNonDeliverableFixedPeriod:
             settlement_currency="usd",
             notional=1e9,
             fx_fixing=5.0,
-            fx_fixing_date=dt(2025, 4, 29),
             frequency=Frequency.Months(3, None),
             fixed_rate=3.0,
             reversed=True,
@@ -3277,7 +3272,6 @@ class TestNonDeliverableFixedPeriod:
             settlement_currency="usd",
             notional=1e9,
             fx_fixing=fx_fixing,
-            fx_fixing_date=dt(2025, 4, 29),
             frequency=Frequency.Months(3, None),
             fixed_rate=3.0,
             reversed=True,
@@ -3299,7 +3293,6 @@ class TestNonDeliverableFixedPeriod:
             settlement_currency="usd",
             notional=1e9,
             fx_fixing=fx_fixing,
-            fx_fixing_date=dt(2025, 4, 29),
             frequency=Frequency.Months(3, None),
             fixed_rate=3.0,
         )
@@ -3322,7 +3315,6 @@ class TestNonDeliverableFixedPeriod:
             settlement_currency="usd",
             notional=1e9,
             fx_fixing=NoInput(0),
-            fx_fixing_date=dt(2025, 4, 29),
             frequency=Frequency.Months(3, None),
             fixed_rate=fixed_rate,
         )
