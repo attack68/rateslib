@@ -302,7 +302,7 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
        An initial exchange is not currently implemented for this leg.
 
     The final cashflow notional is set as the notional. The payment date is set equal
-    to the final accrual date adjusted by ``payment_lag_exchange``.
+    to the final accrual date adjusted by ``payment_lag_exchange`` in ``schedule``.
 
     If ``amortization`` is specified an exchanged notional equivalent to the
     amortization amount is added to the list of periods. For similar examples see
@@ -385,12 +385,7 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
             # self.periods.append(
             #     IndexCashflow(
             #         notional=-self.notional,
-            #         payment=add_tenor(
-            #             self.schedule.aschedule[0],
-            #             f"{self.payment_lag_exchange}B",
-            #             None,
-            #             self.schedule.calendar,
-            #         ),
+            #         payment=self.schedule.pschedule2[0],
             #         currency=self.currency,
             #         stub_type="Exchange",
             #         rate=None,
@@ -404,11 +399,7 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
         if self.final_exchange:
             periods_[1] = IndexCashflow(
                 notional=self.amortization.outstanding[-1],
-                payment=self.schedule.calendar.lag_bus_days(
-                    self.schedule.aschedule[-1],
-                    self.payment_lag_exchange,
-                    True,
-                ),
+                payment=self.schedule.pschedule2[-1],
                 currency=self.currency,
                 stub_type="Exchange",
                 rate=NoInput(0),
@@ -429,7 +420,7 @@ class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[mi
             periods_ = [
                 IndexCashflow(
                     notional=self.amortization.amortization[i],
-                    payment=self.schedule.pschedule[1 + i],
+                    payment=self.schedule.pschedule2[1 + i],
                     currency=self.currency,
                     stub_type="Amortization",
                     rate=NoInput(0),

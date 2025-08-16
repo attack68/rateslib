@@ -482,8 +482,8 @@ class BaseDerivative(Sensitivities, Metrics, metaclass=ABCMeta):
         The day count convention applied to calculations of period accrual dates.
         See :meth:`~rateslib.scheduling.dcf`.
     leg2_kwargs: Any
-        All ``leg2`` arguments can be similarly input as above, e.g. ``leg2_frequency``.
-        If **not** given, any ``leg2``
+        All ``leg2`` arguments can be similarly input as above, e.g. ``leg2_frequency`` or
+        ``leg2_calendar``. If **not** given, any ``leg2``
         argument inherits its value from the ``leg1`` arguments, except in the case of
         ``notional`` and ``amortization`` where ``leg2`` inherits the negated value.
     curves : Curve, LineCurve, str or list of such, optional
@@ -517,6 +517,7 @@ class BaseDerivative(Sensitivities, Metrics, metaclass=ABCMeta):
         effective: datetime | NoInput = NoInput(0),
         termination: datetime | str | NoInput = NoInput(0),
         frequency: int | NoInput = NoInput(0),
+        *,
         stub: str | NoInput = NoInput(0),
         front_stub: datetime | NoInput = NoInput(0),
         back_stub: datetime | NoInput = NoInput(0),
@@ -525,6 +526,7 @@ class BaseDerivative(Sensitivities, Metrics, metaclass=ABCMeta):
         modifier: str | NoInput = NoInput(0),
         calendar: CalInput = NoInput(0),
         payment_lag: int | NoInput = NoInput(0),
+        payment_lag_exchange: int | NoInput = NoInput(0),
         notional: float | NoInput = NoInput(0),
         currency: str | NoInput = NoInput(0),
         amortization: float | NoInput = NoInput(0),
@@ -540,6 +542,7 @@ class BaseDerivative(Sensitivities, Metrics, metaclass=ABCMeta):
         leg2_modifier: str | NoInput = NoInput(1),
         leg2_calendar: CalInput = NoInput(1),
         leg2_payment_lag: int | NoInput = NoInput(1),
+        leg2_payment_lag_exchange: int | NoInput = NoInput(1),
         leg2_notional: float | NoInput = NoInput(-1),
         leg2_currency: str | NoInput = NoInput(1),
         leg2_amortization: float | NoInput = NoInput(-1),
@@ -559,6 +562,7 @@ class BaseDerivative(Sensitivities, Metrics, metaclass=ABCMeta):
             modifier=modifier,
             calendar=calendar,
             payment_lag=payment_lag,
+            payment_lag_exchange=payment_lag_exchange,
             notional=notional,
             currency=currency,
             amortization=amortization,
@@ -574,6 +578,7 @@ class BaseDerivative(Sensitivities, Metrics, metaclass=ABCMeta):
             leg2_modifier=leg2_modifier,
             leg2_calendar=leg2_calendar,
             leg2_payment_lag=leg2_payment_lag,
+            leg2_payment_lag_exchange=leg2_payment_lag_exchange,
             leg2_notional=leg2_notional,
             leg2_currency=leg2_currency,
             leg2_amortization=leg2_amortization,
@@ -588,6 +593,8 @@ class BaseDerivative(Sensitivities, Metrics, metaclass=ABCMeta):
         )
         if self.kwargs["payment_lag"] is NoInput.blank:
             self.kwargs["payment_lag"] = defaults.payment_lag_specific[type(self).__name__]
+        if self.kwargs["payment_lag_exchange"] is NoInput.blank:
+            self.kwargs["payment_lag_exchange"] = defaults.payment_lag_exchange
         self.kwargs = _inherit_or_negate(self.kwargs)  # inherit or negate the complete arg list
 
         self.kwargs = _convert_to_schedule_kwargs(self.kwargs, leg=1)

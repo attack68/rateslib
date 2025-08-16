@@ -94,18 +94,19 @@ def _should_mod_days(tenor: datetime | str) -> bool:
         return True
 
 
-def _get_adjuster_from_lag(lag: Adjuster | int_) -> Adjuster:
+def _get_adjuster_from_lag_drb(lag: Adjuster | int_, default: str) -> Adjuster:
     if isinstance(lag, Adjuster):
         return lag
-    lag_: int = _drb(defaults.payment_lag, lag)
-    return _get_adjuster(f"{lag_}B")
+    else:
+        lag_: int = _drb(getattr(defaults, default), lag)
+        return _get_adjuster(f"{lag_}B")
 
 
-def _get_adjuster_or_none(lag: Adjuster | int_) -> Adjuster | None:
+def _get_adjuster_or_none(lag: Adjuster | None | int_, default: str) -> Adjuster | None:
     if lag is None:
         return None
     else:
-        return _get_adjuster_from_lag(lag)
+        return _get_adjuster_from_lag_drb(lag, default)
 
 
 class Schedule:
@@ -324,9 +325,9 @@ class Schedule:
         calendar_: CalTypes = get_calendar(calendar)
         frequency_: Frequency = _get_frequency(frequency, roll, calendar_)
         accrual_adjuster = _get_adjuster_from_modifier(modifier, _should_mod_days(termination))
-        payment_adjuster = _get_adjuster_from_lag(payment_lag)
-        payment_adjuster2 = _get_adjuster_or_none(_drb(None, payment_lag_exchange))
-        payment_adjuster3 = _get_adjuster_or_none(_drb(None, extra_lag))
+        payment_adjuster = _get_adjuster_from_lag_drb(payment_lag, "payment_lag")
+        payment_adjuster2 = _get_adjuster_from_lag_drb(payment_lag_exchange, "payment_lag_exchange")
+        payment_adjuster3 = _get_adjuster_or_none(_drb(None, extra_lag), "payment_lag_exchange")
 
         effective_: datetime = _validate_effective(
             effective,
@@ -435,7 +436,7 @@ class Schedule:
         return self.obj.pschedule
 
     @cached_property
-    def pschedule2(self) -> list[datetime] | None:
+    def pschedule2(self) -> list[datetime]:
         """
         A list of accrual adjusted dates.
 
@@ -499,7 +500,7 @@ class Schedule:
         return self.obj.payment_adjuster2
 
     @cached_property
-    def payment_adjuster3(self) -> Adjuster:
+    def payment_adjuster3(self) -> Adjuster | None:
         """The :class:`~rateslib.scheduling.Adjuster` object used for additional date adjustment."""
         return self.obj.payment_adjuster3
 
