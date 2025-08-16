@@ -3,8 +3,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from rateslib.default import NoInput
-from rateslib.legs.base import BaseLeg, _FixedLegMixin, _FloatLegMixin
-from rateslib.periods import Cashflow, FixedPeriod, FloatPeriod
+from rateslib.legs.base import BaseLeg, _FixedLegMixin, _FloatLegMixin, _get_single_element_fixings
+from rateslib.periods import (
+    Cashflow,
+    FixedPeriod,
+    FloatPeriod,
+    NonDeliverableCashflow,
+    NonDeliverableFixedPeriod,
+)
 from rateslib.periods.utils import _validate_float_args
 
 if TYPE_CHECKING:
@@ -17,15 +23,17 @@ if TYPE_CHECKING:
         CurveOption_,
         DualTypes,
         DualTypes_,
+        FixingsFx_,
         FixingsRates_,
         Schedule,
+        datetime,
         datetime_,
         int_,
         str_,
     )
 
 
-class FixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
+class FixedLeg(_FixedLegMixin, BaseLeg):
     """
     Create a fixed leg composed of :class:`~rateslib.periods.FixedPeriod` s.
 
@@ -367,3 +375,165 @@ class FloatLeg(_FloatLegMixin, BaseLeg):
     #     elif self.fixing_method == "ibor":
     #         return False
     #     return True
+
+
+class NonDeliverableFixedLeg(_FixedLegMixin, BaseLeg):
+    """
+    Create a non-deliverable fixed leg composed of :class:`~rateslib.periods.NonDeliverableFixedPeriod` s.
+
+    Parameters
+    ----------
+    args : tuple
+        Required positional args to :class:`BaseLeg`.
+    pair: str
+        The FX pair against which settlement takes place.
+    fixed_rate : float, optional
+        The rate applied to determine cashflows in % (i.e 5.0 = 5%). Can be left unset and
+        designated later, perhaps after a mid-market rate for all periods has been calculated.
+    fx_fixings: float, list[float], Series, tuple[float, Series], optional
+        The FX fixings used for the settlement of non-deliverable cashflows.
+    kwargs : dict
+        Required keyword arguments to :class:`BaseLeg`.
+
+    Notes
+    -----
+    The NPV of a fixed leg is the sum of the period NPVs.
+
+    .. math::
+
+       P = \\underbrace{- R \\sum_{i=1}^n {N_i f_i d_i v_i(m_i)}}_{\\text{regular flows}}
+
+    The analytic delta is the sum of the period analytic deltas.
+
+    .. math::
+
+       A = -\\frac{\\partial P}{\\partial R} = \\sum_{i=1}^n {N_i f_i d_i v_i(m_i)}
+
+    Examples
+    --------
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import NonDeliverableFixedLeg
+       from rateslib.scheduling import Schedule
+
+    .. ipython:: python
+
+       curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
+       ndfl = NonDeliverableFixedLeg(
+           schedule=Schedule(dt(2022, 1, 1), "2M", "M"),
+           pair="brlusd",  # reference curreny is implied to be BRL
+           currency="usd",
+           fixed_rate=2.0,
+           notional=1000000,  # 1mm BRL
+           amortization=200000,
+           fx_fixings=[0.15, 0.20],
+       )
+       ndfl.cashflows(curve)
+       ndfl.npv(curve)
+    """  # noqa: E501
+
+    _delay_set_periods: bool = True
+    periods: list[NonDeliverableFixedPeriod | NonDeliverableCashflow]  # type: ignore[assignment]
+    _regular_periods: tuple[NonDeliverableFixedPeriod, ...]
+
+    def __init__(
+        self,
+        *args: Any,
+        pair: str,
+        fixed_rate: DualTypes_ = NoInput(0),
+        fx_fixings: FixingsFx_ = NoInput(0),  # type: ignore[type-var]
+        **kwargs: Any,
+    ) -> None:
+        self._fixed_rate = fixed_rate
+        super().__init__(*args, **kwargs)
+        self.pair = pair.lower()
+        self.reference_currency, self.reversed = _get_reference_currency_and_reversed(
+            self.pair, self.currency
+        )
+        if self.final_exchange or self.initial_exchange:
+            raise ValueError("Exchange of notional on a non-deliverable Leg is impractical.")
+        self._set_periods()
+        self.fx_fixings = fx_fixings
+
+    def analytic_delta(self, *args: Any, **kwargs: Any) -> DualTypes:
+        """
+        Return the analytic delta of the *FixedLeg* via summing all periods.
+
+        For arguments see
+        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
+        """
+        return super().analytic_delta(*args, **kwargs)
+
+    def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame:
+        """
+        Return the properties of the *FixedLeg* used in calculating cashflows.
+
+        For arguments see
+        :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`.
+        """
+        return super().cashflows(*args, **kwargs)
+
+    def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]:
+        """
+        Return the NPV of the *FixedLeg* via summing all periods.
+
+        For arguments see
+        :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`.
+        """
+        return super().npv(*args, **kwargs)
+
+    def _set_periods(self) -> None:
+        return super()._set_periods()
+
+    def _regular_period(
+        self,
+        start: datetime,
+        end: datetime,
+        payment: datetime,
+        stub: bool,
+        notional: DualTypes,
+        iterator: int,
+    ) -> FixedPeriod:
+        return NonDeliverableFixedPeriod(
+            fixed_rate=self.fixed_rate,
+            start=start,
+            end=end,
+            payment=payment,
+            frequency=self.schedule.frequency_obj,
+            notional=notional,
+            currency=self.reference_currency,
+            settlement_currency=self.currency,
+            reversed=self.reversed,
+            convention=self.convention,
+            termination=self.schedule.termination,
+            stub=stub,
+            # roll=self.schedule.roll,
+            calendar=self.schedule.calendar,
+            adjuster=self.schedule.accrual_adjuster,
+        )
+
+    @property
+    def fx_fixings(self) -> list[DualTypes | NoInput] | NoInput:
+        return self._fixings
+
+    @fx_fixings.setter
+    def fx_fixings(self, value: FixingsFx_) -> None:
+        fixings = _get_single_element_fixings(value, self.schedule.pschedule[1:])
+        self._fixings = fixings
+        if not isinstance(fixings, NoInput):
+            for i, fixing in enumerate(fixings):
+                if isinstance(fixing, NoInput):
+                    break
+                else:
+                    self._regular_periods[i].fx_fixing = fixing
+
+
+def _get_reference_currency_and_reversed(pair: str, currency: str) -> tuple[str, bool]:
+    """strings in lower format"""
+    if currency not in pair:
+        raise ValueError("`currency` must be one of the currencies in `pair`.")
+    reference_currency = pair[0:3] if pair[0:3] != currency else pair[3:]
+    reversed_ = pair == f"{currency}{reference_currency}"
+    return reference_currency, reversed_

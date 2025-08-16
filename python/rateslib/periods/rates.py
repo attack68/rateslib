@@ -1757,8 +1757,6 @@ class NonDeliverableFixedPeriod(FixedPeriod):
         The FX fixing to determine the settlement amount.
         The ``currency`` should be the left hand side, and ``settlement_currency`` as RHS,
         e.g. BRLUSD, unless ``reversed``, in which case it should be, e.g. USDBRL.
-    fx_fixing_date: datetime
-        Date on which the FX fixing for settlement is determined.
     reversed: bool, optional
         If *True* reverses the FX rate for settlement fixing, as shown above.
 
@@ -1804,7 +1802,6 @@ class NonDeliverableFixedPeriod(FixedPeriod):
            fixed_rate=5.0,
            settlement_currency="usd",
            fx_fixing=5.0,
-           fx_fixing_date=dt(2022, 7, 30),
            reversed=True,
        )
        fp.cashflows(curve=Curve({dt(2022, 1, 1):1.0, dt(2022, 12, 31): 0.98}))
@@ -1815,13 +1812,11 @@ class NonDeliverableFixedPeriod(FixedPeriod):
         *args: Any,
         settlement_currency: str,
         fx_fixing: DualTypes_ = NoInput(0),
-        fx_fixing_date: datetime_ = NoInput(0),
         reversed: bool = False,  # noqa: A002
         **kwargs: Any,
     ) -> None:
         self.settlement_currency = settlement_currency.lower()
         self.fx_fixing = fx_fixing
-        self.fx_fixing_date = fx_fixing_date
         self.reversed = reversed
         super().__init__(*args, **kwargs)
         if self.reversed:

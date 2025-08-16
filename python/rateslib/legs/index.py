@@ -263,7 +263,7 @@ class ZeroIndexLeg(_IndexLegMixin, BaseLeg):
         return super().npv(*args, **kwargs)
 
 
-class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):  # type: ignore[misc]
+class IndexFixedLeg(_IndexLegMixin, _FixedLegMixin, BaseLeg):
     """
     Create a leg of :class:`~rateslib.periods.IndexFixedPeriod` s and initial and
     final :class:`~rateslib.periods.IndexCashflow` s.
