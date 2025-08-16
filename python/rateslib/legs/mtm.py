@@ -286,7 +286,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         return ret
 
 
-class FixedLegMtm(_FixedLegMixin, BaseLegMtm):  # type: ignore[misc]
+class FixedLegMtm(_FixedLegMixin, BaseLegMtm):
     """
     Create a leg of :class:`~rateslib.periods.FixedPeriod` s and initial, mtm and
     final :class:`~rateslib.periods.Cashflow` s.

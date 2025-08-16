@@ -354,7 +354,7 @@ class ZeroFloatLeg(_FloatLegMixin, BaseLeg):
         return DataFrame.from_records(seq)
 
 
-class ZeroFixedLeg(_FixedLegMixin, BaseLeg):  # type: ignore[misc]
+class ZeroFixedLeg(_FixedLegMixin, BaseLeg):
     """
     Create a zero coupon fixed leg composed of a single
     :class:`~rateslib.periods.FixedPeriod` .
