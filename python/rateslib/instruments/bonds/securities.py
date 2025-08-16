@@ -952,7 +952,9 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         The holiday calendar object to use. If str, looks up named calendar from
         static data.
     payment_lag : int, optional
-        The number of business days to lag payments by.
+        The number of business days to lag regular coupon payments by.
+    payment_lag_exchange : int, optional
+        The number of business days to lag notional exchange payments by.
     notional : float, optional
         The leg notional, which is applied to each period.
     currency : str, optional
@@ -1118,6 +1120,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         effective: datetime_ = NoInput(0),
         termination: datetime | str_ = NoInput(0),
         frequency: str_ = NoInput(0),
+        *,
         stub: str_ = NoInput(0),
         front_stub: datetime_ = NoInput(0),
         back_stub: datetime_ = NoInput(0),
@@ -1126,6 +1129,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         modifier: str_ = NoInput(0),
         calendar: CalInput = NoInput(0),
         payment_lag: int_ = NoInput(0),
+        payment_lag_exchange: int_ = NoInput(0),
         notional: DualTypes_ = NoInput(0),
         currency: str_ = NoInput(0),
         amortization: DualTypes_ = NoInput(0),
@@ -1150,6 +1154,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
             modifier=modifier,
             calendar=calendar,
             payment_lag=payment_lag,
+            payment_lag_exchange=payment_lag_exchange,
             notional=notional,
             currency=currency,
             amortization=amortization,
@@ -1170,6 +1175,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
             initial_exchange=False,
             final_exchange=True,
             payment_lag=defaults.payment_lag_specific[type(self).__name__],
+            payment_lag_exchange=defaults.payment_lag_specific[type(self).__name__],
             ex_div=defaults.ex_div,
             settle=defaults.settle,
         )
@@ -1647,6 +1653,7 @@ class IndexFixedRateBond(FixedRateBond):
         modifier: str_ = NoInput(0),
         calendar: CalInput = NoInput(0),
         payment_lag: int_ = NoInput(0),
+        payment_lag_exchange: int_ = NoInput(0),
         notional: DualTypes_ = NoInput(0),
         currency: str_ = NoInput(0),
         amortization: DualTypes_ = NoInput(0),
@@ -1675,6 +1682,7 @@ class IndexFixedRateBond(FixedRateBond):
             modifier=modifier,
             calendar=calendar,
             payment_lag=payment_lag,
+            payment_lag_exchange=payment_lag_exchange,
             notional=notional,
             currency=currency,
             amortization=amortization,
@@ -1699,6 +1707,7 @@ class IndexFixedRateBond(FixedRateBond):
             initial_exchange=False,
             final_exchange=True,
             payment_lag=defaults.payment_lag_specific[type(self).__name__],
+            payment_lag_exchange=defaults.payment_lag_exchange,
             ex_div=defaults.ex_div,
             settle=defaults.settle,
             index_method=defaults.index_method,
@@ -2359,7 +2368,9 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         The holiday calendar object to use. If str, looks up named calendar from
         static data.
     payment_lag : int, optional
-        The number of business days to lag payments by.
+        The number of business days to lag regular coupon payments by.
+    payment_lag_exchange : int, optional
+        The number of business days to lag notional exchange payments by.
     notional : float, optional
         The leg notional, which is applied to each period.
     currency : str, optional
@@ -2442,6 +2453,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         modifier: str_ = NoInput(0),
         calendar: CalInput = NoInput(0),
         payment_lag: int_ = NoInput(0),
+        payment_lag_exchange: int_ = NoInput(0),
         notional: DualTypes_ = NoInput(0),
         currency: str_ = NoInput(0),
         amortization: DualTypes_ = NoInput(0),
@@ -2470,6 +2482,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
             modifier=modifier,
             calendar=calendar,
             payment_lag=payment_lag,
+            payment_lag_exchange=payment_lag_exchange,
             notional=notional,
             currency=currency,
             amortization=amortization,
@@ -2494,6 +2507,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
             initial_exchange=False,
             final_exchange=True,
             payment_lag=defaults.payment_lag_specific[type(self).__name__],
+            payment_lag_exchange=defaults.payment_lag_exchange,
             ex_div=defaults.ex_div,
             settle=defaults.settle,
         )

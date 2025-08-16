@@ -4522,6 +4522,7 @@ class TestSpec:
                 modifier="p",
                 calendar="tgt",
                 payment_lag=4,
+                payment_lag_exchange=0,
             ),
             leg2_schedule=Schedule(
                 effective=dt(2022, 1, 1),
@@ -4535,6 +4536,7 @@ class TestSpec:
                 modifier="mp",
                 calendar="nyc,tgt,ldn",
                 payment_lag=3,
+                payment_lag_exchange=0,
             ),
             notional=250.0,
             currency="tes",

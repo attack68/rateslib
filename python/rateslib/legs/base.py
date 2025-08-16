@@ -32,7 +32,6 @@ if TYPE_CHECKING:
         Period,
         _BaseCurve,
         datetime,
-        int_,
         str_,
     )
 
@@ -167,9 +166,6 @@ class BaseLeg(metaclass=ABCMeta):
     convention: str, optional
         The day count convention applied to calculations of period accrual dates.
         See :meth:`~rateslib.scheduling.dcf`.
-    payment_lag_exchange : int
-        The number of business days by which to delay notional exchanges, aligned with
-        the accrual schedule.
     initial_exchange : bool
         Whether to also include an initial notional exchange.
     final_exchange : bool
@@ -179,15 +175,11 @@ class BaseLeg(metaclass=ABCMeta):
     Notes
     -----
     The (optional) initial cashflow notional is set as the negative of the notional.
-    The payment date is set equal to the accrual start date adjusted by
-    the ``payment_lag_exchange``.
-
-    The final cashflow notional is set as the notional. The payment date is set equal
-    to the final accrual date adjusted by ``payment_lag_exchange``.
+    The final cashflow notional is set as the notional.
 
     If ``amortization`` is specified an exchanged notional equivalent to the
     amortization amount is added to the list of periods as interim exchanges if
-    ``final_exchange`` is *True*. Payment dates adhere to the ``payment_lag_exchange``.
+    ``final_exchange`` is *True*.
 
     Examples
     --------
@@ -201,7 +193,6 @@ class BaseLeg(metaclass=ABCMeta):
     periods : list
     initial_exchange : bool
     final_exchange : bool
-    payment_lag_exchange : int
 
     See Also
     --------
@@ -225,14 +216,12 @@ class BaseLeg(metaclass=ABCMeta):
         currency: str_ = NoInput(0),
         amortization: DualTypes_ | list[DualTypes] | Amortization | str = NoInput(0),
         convention: str_ = NoInput(0),
-        payment_lag_exchange: int_ = NoInput(0),
         initial_exchange: bool = False,
         final_exchange: bool = False,
     ) -> None:
         self.schedule = schedule
         self.convention: str = _drb(defaults.convention, convention)
         self.currency: str = _drb(defaults.base_currency, currency).lower()
-        self.payment_lag_exchange: int = _drb(defaults.payment_lag_exchange, payment_lag_exchange)
         self.initial_exchange: bool = initial_exchange
         self.final_exchange: bool = final_exchange
         self._notional: DualTypes = _drb(defaults.notional, notional)
@@ -302,11 +291,7 @@ class BaseLeg(metaclass=ABCMeta):
         if self.initial_exchange:
             periods_[0] = Cashflow(
                 notional=-self.amortization.outstanding[0],
-                payment=self.schedule.calendar.lag_bus_days(
-                    self.schedule.aschedule[0],
-                    self.payment_lag_exchange,
-                    True,
-                ),
+                payment=self.schedule.pschedule2[0],
                 currency=self.currency,
                 stub_type="Exchange",
             )
@@ -314,11 +299,7 @@ class BaseLeg(metaclass=ABCMeta):
         if self.final_exchange:
             periods_[1] = Cashflow(
                 notional=self.amortization.outstanding[-1],
-                payment=self.schedule.calendar.lag_bus_days(
-                    self.schedule.aschedule[-1],
-                    self.payment_lag_exchange,
-                    True,
-                ),
+                payment=self.schedule.pschedule2[-1],
                 currency=self.currency,
                 stub_type="Exchange",
             )
@@ -333,11 +314,7 @@ class BaseLeg(metaclass=ABCMeta):
             periods_ = [
                 Cashflow(
                     notional=self.amortization.amortization[i],
-                    payment=self.schedule.calendar.lag_bus_days(
-                        self.schedule.aschedule[i + 1],
-                        self.payment_lag_exchange,
-                        True,
-                    ),
+                    payment=self.schedule.pschedule2[i + 1],
                     currency=self.currency,
                     stub_type="Amortization",
                 )
