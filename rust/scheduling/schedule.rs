@@ -204,7 +204,8 @@ impl Schedule {
     ///     Cal::new(vec![], vec![5,6]).into(),                 // calendar
     ///     Adjuster::ModifiedFollowing{},                      // accrual_adjuster
     ///     Adjuster::BusDaysLagSettle(3),                      // payment_adjuster
-    ///     None, None,                                         // no additional payment_adjusters
+    ///     Adjuster::Actual{},                                 // payment_adjuster2
+    ///     None,                                               // payment_adjuster3
     /// );
     /// # let s = s.unwrap();
     /// assert_eq!(s.uschedule, vec![ndt(2024, 1, 3), ndt(2024, 2, 3), ndt(2024, 3, 3), ndt(2024, 4, 15)]);
@@ -222,7 +223,8 @@ impl Schedule {
     ///     Cal::new(vec![], vec![5,6]).into(),                 // calendar
     ///     Adjuster::ModifiedFollowing{},                      // accrual_adjuster
     ///     Adjuster::BusDaysLagSettle(3),                      // payment_adjuster
-    ///     None, None,                                         // no additional payment_adjusters
+    ///     Adjuster::Actual{},                                 // payment_adjuster2
+    ///     None,                                               // payment_adjuster3
     /// );
     /// assert!(s.is_err());
     /// ```
