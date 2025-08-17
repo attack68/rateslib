@@ -114,8 +114,11 @@ class FixedPeriod(BasePeriod):
         """
         return super().analytic_delta(*args, **kwargs)
 
-    @property
-    def cashflow(self) -> DualTypes | None:
+    def cashflow(
+        self,
+        curve: CurveOption_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+    ) -> DualTypes | None:
         """
         float, Dual or Dual2 : The calculated value from rate, dcf and notional.
         """
@@ -143,7 +146,7 @@ class FixedPeriod(BasePeriod):
         """
         disc_curve_: _BaseCurve = _disc_required_maybe_from_curve(curve, disc_curve)
         try:
-            value: DualTypes = self.cashflow * disc_curve_[self.payment]  # type: ignore[operator]
+            value: DualTypes = self.cashflow() * disc_curve_[self.payment]  # type: ignore[operator]
         except TypeError as e:
             # either fixed rate is None
             if isinstance(self.fixed_rate, NoInput):
@@ -174,7 +177,8 @@ class FixedPeriod(BasePeriod):
             npv = _dual_float(npv_dual)
             npv_fx = npv * _dual_float(fx_)
 
-        cashflow = None if self.cashflow is None else _dual_float(self.cashflow)
+        c: DualTypes | None = self.cashflow()
+        cashflow = None if c is None else _dual_float(c)
         return {
             **super().cashflows(curve, disc_curve_, fx_, base_),
             defaults.headers["rate"]: self.fixed_rate,
@@ -558,7 +562,7 @@ class FloatPeriod(BasePeriod):
 
         return _maybe_local(value, local, self.currency, fx, base)
 
-    def cashflow(self, curve: CurveOption_ = NoInput(0)) -> DualTypes | None:
+    def cashflow(self, curve: CurveOption_ = NoInput(0), fx: FX_ = NoInput(0)) -> DualTypes | None:
         """
         Forecast the *Period* cashflow based on a *Curve* providing index rates.
 

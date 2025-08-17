@@ -1693,7 +1693,7 @@ class FRA(BaseDerivative):
         )
         return self._float_period.rate(curves_[0])
 
-    def cashflow(self, curve: CurveOption_) -> DualTypes | None:
+    def cashflow(self, curve: CurveOption_, fx: FX_ = NoInput(0)) -> DualTypes | None:
         """
         Calculate the local currency cashflow on the FRA from current floating rate
         and fixed rate.
@@ -1707,7 +1707,7 @@ class FRA(BaseDerivative):
         -------
         float, Dual or Dual2
         """
-        cf1 = self._fixed_period.cashflow
+        cf1 = self._fixed_period.cashflow()
         rate = self._float_period.rate(curve)
         cf2 = self.kwargs["notional"] * self._float_period.dcf * rate / 100
         if not isinstance(cf1, NoInput) and not isinstance(cf2, NoInput):

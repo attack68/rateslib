@@ -496,7 +496,7 @@ class ZeroFixedLeg(_FixedLegMixin, BaseLeg):
         disc_curve_: _BaseCurve_ = _disc_maybe_from_curve(curve, disc_curve)
         fx_, base = _get_fx_and_base(self.currency, fx, base)
         rate = self.fixed_rate
-        cashflow = self.periods[0].cashflow
+        cashflow = self.periods[0].cashflow()
 
         if isinstance(disc_curve_, NoInput) or isinstance(rate, NoInput):
             npv, npv_fx, df, collateral = None, None, None, None

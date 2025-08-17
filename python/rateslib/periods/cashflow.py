@@ -130,7 +130,7 @@ class Cashflow:
         :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
         """
         disc_curve_: _BaseCurve = _disc_required_maybe_from_curve(curve, disc_curve)
-        value: DualTypes = self.cashflow * disc_curve_[self.payment]
+        value: DualTypes = self.cashflow() * disc_curve_[self.payment]
         return _maybe_local(value, local, self.currency, fx, base)
 
     def cashflows(
@@ -157,7 +157,7 @@ class Cashflow:
             df, collateral = _dual_float(disc_curve_[self.payment]), disc_curve_.meta.collateral
 
         try:
-            cashflow_ = _dual_float(self.cashflow)
+            cashflow_ = _dual_float(self.cashflow())
         except TypeError:  # cashflow in superclass not a property
             cashflow_ = None
 
@@ -183,8 +183,11 @@ class Cashflow:
             defaults.headers["collateral"]: collateral,
         }
 
-    @property
-    def cashflow(self) -> DualTypes:
+    def cashflow(
+        self,
+        curve: CurveOption_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+    ) -> DualTypes:
         return -self.notional
 
     # @property
