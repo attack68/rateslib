@@ -67,6 +67,10 @@ email contact, see `rateslib <https://rateslib.com>`_.
          ``frequency`` is now associated with a :class:`~rateslib.scheduling.Frequency`, rather than
          a string identifier.
          (`1010 <https://github.com/attack68/rateslib/pull/1010>`_)
+       - The ``cashflow`` property on many *BasePeriod* types is now a callable method consistent
+         with other *Period* types, such as a *FloatPeriod*. Its results is unchanged when
+         provided no arguments.
+         (`1025 <https://github.com/attack68/rateslib/pull/1025>`_)
    * - **Bugs**
      - - :class:`~rateslib.legs.IndexFixedLeg` now applies the ``payment_lag_exchange`` adjuster
          to amortization notional exchanges as opposed to the ``payment_lag`` adjuster.
