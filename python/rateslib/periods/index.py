@@ -42,17 +42,21 @@ class IndexMixin(metaclass=ABCMeta):
     end: datetime
     currency: str
 
-    @property
     @abstractmethod
-    def real_cashflow(self) -> DualTypes | None:
+    def real_cashflow(
+        self,
+        curve: CurveOption_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+    ) -> DualTypes | None:
         pass  # pragma: no cover
 
-    def cashflow(self, curve: CurveOption_ = NoInput(0)) -> DualTypes | None:
+    def cashflow(self, curve: CurveOption_ = NoInput(0), fx: FX_ = NoInput(0)) -> DualTypes | None:
         """
         float, Dual or Dual2 : The calculated value from rate, dcf and notional,
         adjusted for the index.
         """
-        if self.real_cashflow is None:
+        rc = self.real_cashflow(curve, fx)
+        if rc is None:
             return None
         else:
             index_ratio, _, _ = self.index_ratio(curve)
@@ -63,7 +67,7 @@ class IndexMixin(metaclass=ABCMeta):
                     notional_ = -1.0
                 else:
                     notional_ = 0.0
-                ret: DualTypes = self.real_cashflow * (index_ratio + notional_)
+                ret: DualTypes = rc * (index_ratio + notional_)
             return ret
 
     def index_ratio(
@@ -131,7 +135,7 @@ class IndexMixin(metaclass=ABCMeta):
         return _maybe_local(value, local, self.currency, fx, base)
 
 
-class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
+class IndexFixedPeriod(IndexMixin, FixedPeriod):
     """
     Create a period defined with a real rate adjusted by an index.
 
@@ -255,8 +259,9 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
             )
         return real_a_delta * index_ratio
 
-    @property
-    def real_cashflow(self) -> DualTypes | None:
+    def real_cashflow(
+        self, curve: CurveOption_ = NoInput(0), fx: FX_ = NoInput(0)
+    ) -> DualTypes | None:
         """
         float, Dual or Dual2 : The calculated real value from rate, dcf and notional.
         """
@@ -297,7 +302,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):  # type: ignore[misc]
             **super(FixedPeriod, self).cashflows(curve, disc_curve_, fx, base),
             defaults.headers["rate"]: self.fixed_rate,
             defaults.headers["spread"]: None,
-            defaults.headers["real_cashflow"]: self.real_cashflow,
+            defaults.headers["real_cashflow"]: self.real_cashflow(),
             defaults.headers["index_base"]: _float_or_none(index_base_),
             defaults.headers["index_value"]: _float_or_none(index_val_),
             defaults.headers["index_ratio"]: _float_or_none(index_ratio_),
@@ -423,8 +428,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         )
         self.index_only = index_only
 
-    @property
-    def real_cashflow(self) -> DualTypes:
+    def real_cashflow(self, curve: CurveOption_ = NoInput(0), fx: FX_ = NoInput(0)) -> DualTypes:
         return -self.notional
 
     def cashflows(
@@ -442,7 +446,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         return {
             **super(IndexMixin, self).cashflows(curve, disc_curve, fx, base),
             defaults.headers["a_acc_end"]: self.end,
-            defaults.headers["real_cashflow"]: self.real_cashflow,
+            defaults.headers["real_cashflow"]: self.real_cashflow(),
             defaults.headers["index_base"]: _float_or_none(index_base_),
             defaults.headers["index_value"]: _float_or_none(index_val_),
             defaults.headers["index_ratio"]: _float_or_none(index_ratio_),

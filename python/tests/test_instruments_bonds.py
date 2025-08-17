@@ -442,7 +442,7 @@ class TestFixedRateBond:
             fixed_rate=7.875,
             notional=-7000,
         )
-        assert abs(note.leg1.periods[0].cashflow - 386.474184670) < 5e-7
+        assert abs(note.leg1.periods[0].cashflow() - 386.474184670) < 5e-7
 
     # Swedish Government Bond Tests. Data from alternative systems.
 
@@ -597,7 +597,7 @@ class TestFixedRateBond:
         )
         result = bond.price(ytm=2.249977, settlement=dt(2018, 10, 16))
         accrued = bond.accrued(settlement=dt(2018, 10, 16))
-        stub_cash = bond.leg1.periods[0].cashflow
+        stub_cash = bond.leg1.periods[0].cashflow()
         assert abs(accrued - 0.499315) < 1e-6
         assert abs(result - 100.00) < 1e-5
         assert abs(stub_cash + 7828.77) < 1e-2
@@ -883,7 +883,7 @@ class TestFixedRateBond:
             fixed_rate=3.85,
             spec="us_corp",
         )
-        assert abs(b.leg1.periods[0].cashflow + 19036.1111) < 1e-4
+        assert abs(b.leg1.periods[0].cashflow() + 19036.1111) < 1e-4
         ytm = b.ytm(price, settlement)
         acc = b.accrued(settlement)
         assert abs(acc - exp_acc) < 1e-8

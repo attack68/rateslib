@@ -253,6 +253,32 @@ class BasePeriod(metaclass=ABCMeta):
         }
 
     @abstractmethod
+    def cashflow(
+        self,
+        curve: CurveOption_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+    ) -> DualTypes | None:
+        """
+        Return the forecast cashflow of the period.
+
+        Parameters
+        ----------
+        curve : Curve, optional
+            The forecasting curve object. Not used unless it is set equal to
+            ``disc_curve``, or if a rate in a :class:`FloatPeriod` is required.
+        fx : float, FXRates, FXForwards, optional
+            The immediate settlement FX rate that will be used to convert values
+            into another currency. A given `float` is used directly. If giving a
+            :class:`~rateslib.fx.FXRates` or :class:`~rateslib.fx.FXForwards`
+            object, converts from local currency into ``base``.
+
+        Returns
+        -------
+        float, Dual, Dual2, or None
+        """
+        pass
+
+    @abstractmethod
     def npv(
         self,
         curve: CurveOption_ = NoInput(0),

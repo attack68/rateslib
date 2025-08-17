@@ -417,7 +417,7 @@ class BondMixin:
         for p_idx in range(settlement_idx, fwd_settlement_idx):
             # deduct accrued coupon from dirty price
             c_period = self.leg1._regular_periods[p_idx]
-            c_cashflow: DualTypes = c_period.cashflow  # type: ignore[assignment]
+            c_cashflow: DualTypes = c_period.cashflow()  # type: ignore[assignment]
             # TODO handle FloatPeriod cashflow fetch if need a curve.
             if method.lower() == "proceeds":
                 dcf_ = dcf(c_period.payment, forward_settlement, convention_)
@@ -508,7 +508,7 @@ class BondMixin:
         for p_idx in range(settlement_idx, fwd_settlement_idx):
             # deduct accrued coupon from dirty price
             c_period = self.leg1._regular_periods[p_idx]
-            c_cashflow: DualTypes = c_period.cashflow  # type: ignore[assignment]
+            c_cashflow: DualTypes = c_period.cashflow()  # type: ignore[assignment]
             # TODO handle FloatPeriod if it needs a Curve to forecast cashflow
             dcf_ = dcf(c_period.payment, forward_settlement, convention_)
             numerator += 100 * c_cashflow / -self.leg1.notional
@@ -1113,7 +1113,7 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
 
     def _period_cashflow(self, period: Cashflow | FixedPeriod, curve: _BaseCurve_) -> DualTypes:  # type: ignore[override]
         """Nominal fixed rate bonds use the known "cashflow" attribute on the *Period*."""
-        return period.cashflow  # type: ignore[return-value]  # FixedRate on bond cannot be NoInput
+        return period.cashflow()  # type: ignore[return-value]  # FixedRate on bond cannot be NoInput
 
     def __init__(
         self,
@@ -1638,7 +1638,7 @@ class IndexFixedRateBond(FixedRateBond):
         curve: CurveOption_,
     ) -> DualTypes:
         """Indexed bonds use the known "real_cashflow" attribute on the *Period*."""
-        return period.real_cashflow  # type: ignore[return-value]
+        return period.real_cashflow()  # type: ignore[return-value]
 
     def __init__(
         self,
@@ -2555,7 +2555,7 @@ class FloatRateNote(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         if isinstance(period, FloatPeriod):
             _: DualTypes = period.cashflow(curve)  # type: ignore[assignment]
         else:
-            _ = period.cashflow
+            _ = period.cashflow()
         return _
 
     def _accrual_rate(

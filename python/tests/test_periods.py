@@ -2229,7 +2229,7 @@ class TestCreditPremiumPeriod:
             frequency=Frequency.Months(3, None),
             currency="usd",
         )
-        assert premium_period.cashflow is None
+        assert premium_period.cashflow() is None
 
     def test_no_accrued(self):
         premium_period = CreditPremiumPeriod(
@@ -2585,7 +2585,7 @@ class TestIndexFixedPeriod:
             interpolation="linear_index",
             index_lag=3,
         )
-        result = index_period.real_cashflow
+        result = index_period.real_cashflow()
         expected = -1e7 * ((dt(2022, 4, 1) - dt(2022, 1, 1)) / timedelta(days=360)) * 4
         assert abs(result - expected) < 1e-8
 
@@ -2617,7 +2617,7 @@ class TestIndexFixedPeriod:
             interpolation="linear_index",
             index_lag=0,
         )
-        result = index_period.real_cashflow
+        result = index_period.real_cashflow()
         expected = -1e7 * ((dt(2022, 4, 1) - dt(2022, 1, 1)) / timedelta(days=360)) * 4
         assert abs(result - expected) < 1e-8
 
@@ -2809,7 +2809,7 @@ class TestIndexFixedPeriod:
             index_base=100.0,
         )
         assert i_period.cashflow() is None
-        assert i_period.real_cashflow is None
+        assert i_period.real_cashflow() is None
 
     def test_cashflow_no_index_rate(self) -> None:
         i_period = IndexFixedPeriod(
@@ -2966,7 +2966,7 @@ class TestIndexCashflow:
 
     def test_index_cashflow(self) -> None:
         cf = IndexCashflow(notional=1e6, payment=dt(2022, 1, 1), index_base=100, index_fixings=200)
-        assert cf.real_cashflow == -1e6
+        assert cf.real_cashflow() == -1e6
 
         assert cf.cashflow(None) == -2e6
 

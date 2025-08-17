@@ -23,7 +23,6 @@ if TYPE_CHECKING:
         CurveOption_,
         DualTypes,
         DualTypes_,
-        _BaseCurve,
         _BaseCurve_,
         datetime,
         str_,
@@ -97,8 +96,7 @@ class CreditPremiumPeriod(BasePeriod):
         self.fixed_rate: DualTypes_ = fixed_rate
         super().__init__(*args, **kwargs)
 
-    @property
-    def cashflow(self) -> DualTypes | None:
+    def cashflow(self, curve: CurveOption_ = NoInput(0), fx: FX_ = NoInput(0)) -> DualTypes | None:
         """
         float, Dual or Dual2 : The calculated value from rate, dcf and notional.
         """
@@ -121,12 +119,13 @@ class CreditPremiumPeriod(BasePeriod):
         -------
         float
         """
-        if self.cashflow is None:  # self.fixed_rate is NoInput
+        c = self.cashflow()
+        if c is None:  # self.fixed_rate is NoInput
             return None
         else:
             if settlement <= self.start or settlement >= self.end:
                 return 0.0
-            return self.cashflow * (settlement - self.start).days / (self.end - self.start).days
+            return c * (settlement - self.start).days / (self.end - self.start).days
 
     def npv(
         self,
@@ -172,7 +171,9 @@ class CreditPremiumPeriod(BasePeriod):
             #     (i + r) / n * disc_curve[m_today + timedelta(days=i)] * (curve[m_i] - curve[m_i2])
             #     )
 
-        return _maybe_local(self.cashflow * (q_end * v_payment + _), local, self.currency, fx, base)
+        return _maybe_local(
+            self.cashflow() * (q_end * v_payment + _), local, self.currency, fx, base
+        )
 
     def analytic_delta(
         self,
@@ -239,15 +240,14 @@ class CreditPremiumPeriod(BasePeriod):
         else:
             npv, npv_fx, survival = None, None, None
 
+        c = self.cashflow(curve, fx)
         return {
             **super().cashflows(curve, disc_curve, fx, base),
             defaults.headers["rate"]: None
             if isinstance(self.fixed_rate, NoInput)
             else _dual_float(self.fixed_rate),
             defaults.headers["survival"]: survival,
-            defaults.headers["cashflow"]: None
-            if self.cashflow is None
-            else _dual_float(self.cashflow),
+            defaults.headers["cashflow"]: None if c is None else _dual_float(c),
             defaults.headers["npv"]: npv,
             defaults.headers["fx"]: _dual_float(fx),
             defaults.headers["npv_fx"]: npv_fx,
@@ -302,12 +302,15 @@ class CreditProtectionPeriod(BasePeriod):
     ) -> None:
         super().__init__(*args, **kwargs)
 
-    def cashflow(self, curve: _BaseCurve) -> DualTypes:
+    def cashflow(self, curve: _BaseCurve_ = NoInput(0), fx: FX_ = NoInput(0)) -> DualTypes | None:  # type: ignore[override]
         """
         float, Dual or Dual2 : The calculated protection amount determined from notional
         and recovery rate.
         """
-        return -self.notional * (1 - curve.meta.credit_recovery_rate)
+        if isinstance(curve, NoInput):
+            return None
+        else:
+            return -self.notional * (1 - curve.meta.credit_recovery_rate)
 
     def npv(
         self,
@@ -341,7 +344,7 @@ class CreditProtectionPeriod(BasePeriod):
             value += 0.5 * (v1 + v2) * (q1 - q2)
             # value += v2 * (q1 - q2)
 
-        value *= self.cashflow(curve_)
+        value *= self.cashflow(curve_)  # type: ignore[operator]
         return _maybe_local(value, local, self.currency, fx, base)
 
     def analytic_delta(
@@ -378,7 +381,7 @@ class CreditProtectionPeriod(BasePeriod):
             npv_fx = npv * _dual_float(fx)
             survival = _dual_float(curve[self.end])
             rec = _dual_float(curve.meta.credit_recovery_rate)
-            cashf = _dual_float(self.cashflow(curve))
+            cashf = _dual_float(self.cashflow(curve))  # type: ignore[arg-type]
         else:
             rec, npv, npv_fx, survival, cashf = None, None, None, None, None
 
