@@ -2068,9 +2068,9 @@ class TestFloatLegExchangeMtm:
         rate = [_ if _ is not NoInput(0) else fxf.rate("eurusd", d[i]) for i, _ in enumerate(exp)]
 
         float_leg_exch.cashflows(fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf)
-        assert float(float_leg_exch.periods[0].cashflow - 10e6 * rate[0]) < 1e-6
-        assert float(float_leg_exch.periods[2].cashflow - 10e6 * (rate[1] - rate[0])) < 1e-6
-        assert float(float_leg_exch.periods[4].cashflow - 10e6 * (rate[2] - rate[1])) < 1e-6
+        assert float(float_leg_exch.periods[0].cashflow() - 10e6 * rate[0]) < 1e-6
+        assert float(float_leg_exch.periods[2].cashflow() - 10e6 * (rate[1] - rate[0])) < 1e-6
+        assert float(float_leg_exch.periods[4].cashflow() - 10e6 * (rate[2] - rate[1])) < 1e-6
         assert float_leg_exch.periods[4].payment == d[-1]
 
         assert float_leg_exch.periods[1].notional == 10e6 * rate[0]
@@ -2563,9 +2563,9 @@ def test_fixed_leg_exchange_mtm(fx_fixings, exp) -> None:
     rate = [_ if _ is not NoInput(0) else fxf.rate("eurusd", d[i]) for i, _ in enumerate(exp)]
 
     fixed_leg_exch.cashflows(fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf)
-    assert float(fixed_leg_exch.periods[0].cashflow - 10e6 * rate[0]) < 1e-6
-    assert float(fixed_leg_exch.periods[2].cashflow - 10e6 * (rate[1] - rate[0])) < 1e-6
-    assert float(fixed_leg_exch.periods[4].cashflow - 10e6 * (rate[2] - rate[1])) < 1e-6
+    assert float(fixed_leg_exch.periods[0].cashflow() - 10e6 * rate[0]) < 1e-6
+    assert float(fixed_leg_exch.periods[2].cashflow() - 10e6 * (rate[1] - rate[0])) < 1e-6
+    assert float(fixed_leg_exch.periods[4].cashflow() - 10e6 * (rate[2] - rate[1])) < 1e-6
     assert fixed_leg_exch.periods[4].payment == dt(2022, 7, 6)
 
     assert fixed_leg_exch.periods[1].notional == 10e6 * rate[0]
