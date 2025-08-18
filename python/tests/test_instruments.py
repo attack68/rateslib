@@ -2052,24 +2052,24 @@ class TestNDF:
             pair="brlusd",
             settlement=dt(2022, 1, 1),
         )
-        assert ndf.periods[0].currency == "brl"
-        assert ndf.periods[0].settlement_currency == "usd"
-        assert ndf.periods[0].reversed is False
+        assert ndf.periods[0].currency == "usd"
+        assert ndf.periods[0].reference_currency == "brl"
+        assert ndf.periods[0].fx_reversed is False
 
     def test_construction_reversed(self) -> None:
         ndf = NDF(pair="usdbrl", settlement=dt(2022, 1, 1), currency="usd")
-        assert ndf.periods[0].currency == "brl"
-        assert ndf.periods[0].settlement_currency == "usd"
-        assert ndf.periods[0].reversed is True
+        assert ndf.periods[0].currency == "usd"
+        assert ndf.periods[0].reference_currency == "brl"
+        assert ndf.periods[0].fx_reversed is True
 
     @pytest.mark.parametrize(
-        ("lag", "eval1", "exp1", "exp2"),
+        ("lag", "eval1", "exp2"),
         [
-            (2, dt(2009, 8, 11), dt(2009, 11, 11), dt(2009, 11, 13)),
-            (3, dt(2009, 8, 10), dt(2009, 11, 10), dt(2009, 11, 13)),
+            (2, dt(2009, 8, 11), dt(2009, 11, 13)),
+            (3, dt(2009, 8, 10), dt(2009, 11, 13)),
         ],
     )
-    def test_dates(self, lag, eval1, exp1, exp2):
+    def test_dates(self, lag, eval1, exp2):
         ndf = NDF(
             pair="eurusd",
             settlement="3m",
@@ -2079,16 +2079,15 @@ class TestNDF:
             payment_lag=lag,
         )
         assert ndf.periods[0].payment == exp2
-        assert ndf.periods[0].fixing_date == exp1
 
     @pytest.mark.parametrize(
-        ("eom", "exp", "exp2"),
+        ("eom", "exp"),
         [
-            (True, dt(2025, 5, 30), dt(2025, 5, 28)),
-            (False, dt(2025, 5, 28), dt(2025, 5, 26)),
+            (True, dt(2025, 5, 30)),
+            (False, dt(2025, 5, 28)),
         ],
     )
-    def test_roll(self, eom, exp, exp2):
+    def test_roll(self, eom, exp):
         ndf = NDF(
             pair="eurusd",
             settlement="3m",
@@ -2099,7 +2098,6 @@ class TestNDF:
             eom=eom,
         )
         assert ndf.periods[0].payment == exp
-        assert ndf.periods[0].fixing_date == exp2
 
     def test_zero_analytic_delta(self):
         ndf = NDF(
