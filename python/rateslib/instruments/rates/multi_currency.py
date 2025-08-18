@@ -414,14 +414,10 @@ class NDF(Sensitivities, Metrics):
         self.periods = (
             NonDeliverableCashflow(
                 notional=-self.kwargs["notional"],
-                currency=reference_currency,
-                settlement_currency=self.kwargs["currency"],
+                currency=self.kwargs["currency"],
+                pair=self.kwargs["pair"],
                 payment=self.kwargs["settlement"],
-                fixing_date=self.kwargs["calendar"].lag_bus_days(
-                    self.kwargs["settlement"], -self.kwargs["payment_lag"], False
-                ),  # a fixing date can be on a non-settlable date
                 fx_fixing=self.kwargs["fx_fixing"],
-                reversed=reversed_,
             ),
             Cashflow(
                 notional=0.0,  # will be set by set_cashflow_notional
