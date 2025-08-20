@@ -262,8 +262,6 @@ class CreditProtectionPeriod(BasePeriod):
     ----------
     args : dict
         Required positional args to :class:`BasePeriod`.
-    recovery_rate : float, Dual, Dual2, optional
-        The assumed recovery rate that defines payment on credit default. Set by ``defaults``.
     kwargs : dict
         Required keyword arguments to :class:`BasePeriod`.
 
