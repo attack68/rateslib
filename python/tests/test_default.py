@@ -3,6 +3,7 @@ from pandas import Series
 from rateslib import __version__, default_context, defaults, dt
 from rateslib.curves import Curve
 from rateslib.instruments import IRS
+from rateslib.scheduling import Adjuster, get_calendar
 
 
 def test_version() -> None:
@@ -51,3 +52,85 @@ def test_calendar_matches_fixings_corra() -> None:
 def test_fixings_raises_file_error() -> None:
     with pytest.raises(ValueError, match="Fixing data for the index "):
         defaults.fixings["nofile"]
+
+
+def test_add_fixings_directly() -> None:
+    s = Series(
+        index=[dt(2000, 2, 1), dt(2000, 3, 1), dt(2000, 1, 1)],
+        data=[200.0, 300.0, 100.0],
+    )
+    defaults.fixings.add_series("my_values", s)
+    assert defaults.fixings["my_values"].is_monotonic_increasing
+    assert defaults.fixings["my_values"].name == "rate"
+    assert defaults.fixings["my_values"].index.name == "reference_date"
+
+
+def test_get_stub_ibor_fixings() -> None:
+    s = Series(
+        index=[dt(2000, 2, 1), dt(2000, 3, 1), dt(2000, 1, 1)],
+        data=[200.0, 300.0, 100.0],
+    )
+    defaults.fixings.add_series("usd_IBOR_2w", s)
+    defaults.fixings.add_series("usd_IBOR_3w", s)
+    defaults.fixings.add_series("usd_IBOR_1m", s)
+    defaults.fixings.add_series("usd_IBOR_2m", s)
+    defaults.fixings.add_series("USD_ibor_3M", s)
+    s, _ = defaults.fixings.get_stub_ibor_fixings(
+        value_start_date=dt(2000, 1, 1),
+        value_end_date=dt(2000, 2, 15),
+        calendar=get_calendar("nyc"),
+        modifier=Adjuster.Following(),
+        fixing_identifier="USD_IBOR",
+    )
+    assert s == ["1M", "2M"]
+
+
+def test_get_stub_ibor_fixings_no_left() -> None:
+    s = Series(
+        index=[dt(2000, 2, 1), dt(2000, 3, 1), dt(2000, 1, 1)],
+        data=[200.0, 300.0, 100.0],
+    )
+    defaults.fixings.add_series("usd_IBOR_2w", s)
+    defaults.fixings.add_series("usd_IBOR_3w", s)
+    defaults.fixings.add_series("usd_IBOR_1m", s)
+    defaults.fixings.add_series("usd_IBOR_2m", s)
+    defaults.fixings.add_series("USD_ibor_3M", s)
+    s, _ = defaults.fixings.get_stub_ibor_fixings(
+        value_start_date=dt(2000, 1, 1),
+        value_end_date=dt(2000, 1, 8),
+        calendar=get_calendar("nyc"),
+        modifier=Adjuster.Following(),
+        fixing_identifier="USD_IBOR",
+    )
+    assert s == ["2W"]
+
+
+def test_get_stub_ibor_fixings_no_right() -> None:
+    s = Series(
+        index=[dt(2000, 2, 1), dt(2000, 3, 1), dt(2000, 1, 1)],
+        data=[200.0, 300.0, 100.0],
+    )
+    defaults.fixings.add_series("usd_IBOR_2w", s)
+    defaults.fixings.add_series("usd_IBOR_3w", s)
+    defaults.fixings.add_series("usd_IBOR_1m", s)
+    defaults.fixings.add_series("usd_IBOR_2m", s)
+    defaults.fixings.add_series("USD_ibor_3M", s)
+    s, _ = defaults.fixings.get_stub_ibor_fixings(
+        value_start_date=dt(2000, 1, 1),
+        value_end_date=dt(2000, 7, 8),
+        calendar=get_calendar("nyc"),
+        modifier=Adjuster.Following(),
+        fixing_identifier="USD_IBOR",
+    )
+    assert s == ["3M"]
+
+
+def test_get_stub_ibor_fixings_no_left_no_right() -> None:
+    s, _ = defaults.fixings.get_stub_ibor_fixings(
+        value_start_date=dt(2000, 1, 1),
+        value_end_date=dt(2000, 7, 8),
+        calendar=get_calendar("nyc"),
+        modifier=Adjuster.Following(),
+        fixing_identifier="USD_NONE",
+    )
+    assert s == []

@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING
 
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
@@ -20,6 +20,8 @@ PlotOutput = tuple[plt.Figure, plt.Axes, list[plt.Line2D]]  # type: ignore[name-
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+if TYPE_CHECKING:
+    from rateslib.typing import Adjuster, Any, CalTypes
 
 
 class NoInput(Enum):
@@ -67,8 +69,8 @@ class Fixings:
         return df["rate"].sort_index(ascending=True)
 
     def __getitem__(self, item: str) -> Series[float]:
-        if item in self.loaded:
-            return self.loaded[item]
+        if item.upper() in self.loaded:
+            return self.loaded[item.upper()]
 
         try:
             s = self._load_csv(self.directory, f"{item}.csv")
@@ -82,12 +84,96 @@ class Fixings:
                 "For further info see 'Working with Fixings' in the documentation cookbook.",
             )
 
-        self.loaded[item] = s
+        self.loaded[item.upper()] = s
         return s
 
     def __init__(self) -> None:
         self.directory = os.path.dirname(os.path.abspath(__file__)) + "/data"
         self.loaded: dict[str, Series[float]] = {}
+
+    def add_series(self, name: str, series: Series[float]) -> None:
+        if name in self.loaded:
+            raise ValueError(f"Fixing data for the index '{name}' has already been loaded.")
+        s = series.sort_index(ascending=True)
+        s.index.name = "reference_date"
+        s.name = "rate"
+        self.loaded[name.upper()] = s
+
+    def get_stub_ibor_fixings(
+        self,
+        value_start_date: datetime,
+        value_end_date: datetime,
+        calendar: CalTypes,
+        modifier: Adjuster,
+        fixing_identifier: str,
+    ) -> tuple[list[str], list[datetime]]:
+        """
+        Return the tenors available in the :class:`~rateslib.defaults.Fixings` object for
+        determining a stub period.
+
+
+        Parameters
+        ----------
+        value_start_date: datetime
+            The value start date of the IBOR period.
+        value_end_date: datetime
+            The value end date of the current stub period.
+        calendar: Cal, UnionCal, NamedCal,
+            The calendar to derive IBOR value end dates.
+        modifier: Adjuster
+            The date adjuster to derive IBOR value end dates.
+        fixing_identifier: str
+            The fixing name, prior to the addition of tenor, e.g. "EUR_EURIBOR"
+
+        Returns
+        -------
+        tuple of list[string tenors] and list[evaluated end dates]
+        """
+        from rateslib.scheduling import add_tenor
+
+        left: tuple[str | None, datetime] = (None, datetime(1, 1, 1))
+        right: tuple[str | None, datetime] = (None, datetime(9999, 1, 1))
+
+        for tenor in [
+            "1D",
+            "1B",
+            "2B",
+            "1W",
+            "2W",
+            "3W",
+            "4W",
+            "1M",
+            "2M",
+            "3M",
+            "4M",
+            "5M",
+            "6M",
+            "7M",
+            "8M",
+            "9M",
+            "10M",
+            "11M",
+            "12M",
+            "1Y",
+        ]:
+            if f"{fixing_identifier.upper()}_{tenor}" not in self.loaded:
+                continue
+            sample_end = add_tenor(value_start_date, tenor, modifier=modifier, calendar=calendar)
+
+            if sample_end <= value_end_date and sample_end > left[1]:
+                left = (tenor, sample_end)
+            if sample_end >= value_end_date and sample_end < right[1]:
+                right = (tenor, sample_end)
+                break
+
+        ret: tuple[list[str], list[datetime]] = ([], [])
+        if left[0] is not None:
+            ret[0].append(left[0])
+            ret[1].append(left[1])
+        if right[0] is not None:
+            ret[0].append(right[0])
+            ret[1].append(right[1])
+        return ret
 
 
 class Defaults:
