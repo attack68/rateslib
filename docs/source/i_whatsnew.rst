@@ -21,6 +21,13 @@ email contact, see `rateslib <https://rateslib.com>`_.
 
    * - Feature
      - Description
+   * - **Fixings**
+     - - Add the ability to add a fixings *Series* directly to the
+         :class:`~rateslib.defaults.Fixings` defaults object without having to load from CSV file.
+         (`1033 <https://github.com/attack68/rateslib/pull/1033>`_).
+       - Add a new method to extract relevant fixing *Series* for IBOR type stub
+         interpolations: :meth:`~rateslib.defaults.Fixings.get_stub_ibor_fixings`.
+         (`1033 <https://github.com/attack68/rateslib/pull/1033>`_)
    * - **Instruments**
      - - Custom amortization for certain *Instruments* (a good example being an
          :class:`~rateslib.instruments.IRS`) is now available via custom ``amortization``
