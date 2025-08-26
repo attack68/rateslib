@@ -83,8 +83,8 @@ For complete documentation of some of these inputs see :ref:`Scheduling<schedule
            modifier="MF",
            calendar="nyc",
            payment_lag=2,
+           payment_lag_exchange=0,
        ),
-       payment_lag_exchange=0,
        notional=2000000,                 # <- Generic options start here
        currency="usd",
        amortization=250000,
@@ -113,8 +113,8 @@ inputs that are appropriate for calculating a :class:`~rateslib.periods.FloatPer
            modifier="MF",
            calendar="nyc",
            payment_lag=2,
+           payment_lag_exchange=0,
        ),
-       payment_lag_exchange=0,
        notional=2000000,                    # <- Generic options start here
        currency="usd",
        amortization=250000,
@@ -168,8 +168,8 @@ on *CrossCurrencySwaps* for example.
            modifier="MF",
            calendar="nyc",
            payment_lag=2,
+           payment_lag_exchange=0,
        ),
-       payment_lag_exchange=0,
        notional=2000000,                # <- Generic options start here
        currency="usd",
        amortization=250000,
@@ -215,8 +215,8 @@ and :class:`~rateslib.legs.FloatLeg`.
            modifier="MF",
            calendar="nyc",
            payment_lag=2,
+           payment_lag_exchange=0,
        ),
-       payment_lag_exchange=0,
        notional=None,                    # <- Generic options start here
        currency="usd",
        amortization=NoInput(0),

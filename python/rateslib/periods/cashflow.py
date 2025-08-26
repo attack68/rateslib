@@ -291,14 +291,10 @@ class NonDeliverableCashflow(Cashflow):
         The settlement date of the exchange.
     settlement_currency : str
         The currency of the deliverable currency (3-digit code), e.g. "usd" or "eur".
-    fixing_date: datetime
-        The date on which the FX fixings will be recorded.
     fx_fixing: float, Dual, Dual2, optional
         The FX fixing to determine the settlement amount. The reference ``currency`` should be
         the left hand side, e.g. BRLUSD, unless ``reversed``
         in which case should be right hand side, e.g. USDBRL.
-    reversed: bool, optional
-        If *True* reverses the FX rate, as shown above.
 
     Notes
     -----
@@ -333,21 +329,18 @@ class NonDeliverableCashflow(Cashflow):
     .. ipython:: python
 
        ndc = NonDeliverableCashflow(
-           notional=10e6,  # <- this is BRL amount
-           currency="brl",
+           notional=10e6,                # <- this is BRL amount
+           currency="usd",               # <- this is USD settlement currency
            payment=dt(2025, 6, 1),
-           settlement_currency="usd",
-           fixing_date=dt(2025, 5, 29),  # <- for the BRLUSD FX rate
+           pair="brlusd",                # <- this implies BRL reference currency
        )
        ndc.cashflows()
 
        ndc = NonDeliverableCashflow(
-           notional=2e6,  # <- this is USD amount
-           currency="brl",
+           notional=2e6,                 # <- this is a BRL amount
+           currency="usd",               # <- this is USD settlement currency
            payment=dt(2025, 6, 1),
-           settlement_currency="usd",
-           fixing_date=dt(2025, 5, 29),  # <- this is USDBRL FX rate
-           reversed=True,
+           pair="usdbrl",                # <- this implies BRL reference currency
        )
        ndc.cashflows()
     """
