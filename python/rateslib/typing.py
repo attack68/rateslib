@@ -17,6 +17,7 @@ from rateslib.curves import ShiftedCurve as ShiftedCurve
 from rateslib.curves import TranslatedCurve as TranslatedCurve
 from rateslib.curves import _BaseCurve as _BaseCurve
 from rateslib.default import NoInput as NoInput
+from rateslib.default import Result as Result
 from rateslib.dual.variable import Variable as Variable
 from rateslib.fx import FXForwards as FXForwards
 from rateslib.fx import FXRates as FXRates

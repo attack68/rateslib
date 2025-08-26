@@ -7,9 +7,9 @@ from typing import TYPE_CHECKING
 from pandas import Series
 
 from rateslib import defaults
-from rateslib.curves import index_value
 from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_maybe_from_curve
-from rateslib.default import NoInput, _drb
+from rateslib.curves.curves import _try_index_value
+from rateslib.default import NoInput, Ok, _drb
 from rateslib.dual.utils import _dual_float
 from rateslib.periods.cashflow import Cashflow
 from rateslib.periods.rates import FixedPeriod
@@ -22,6 +22,7 @@ if TYPE_CHECKING:
         CurveOption_,
         DualTypes,
         DualTypes_,
+        Result,
         _BaseCurve,
         _BaseCurve_,
         str_,
@@ -59,16 +60,42 @@ class IndexMixin(metaclass=ABCMeta):
         if rc is None:
             return None
         else:
-            index_ratio, _, _ = self.index_ratio(curve)
-            if index_ratio is None:
+            index_ratio, _, _ = self._try_index_ratio(curve)
+            if index_ratio.is_err:
                 return None
             else:
                 if self.index_only:
                     notional_ = -1.0
                 else:
                     notional_ = 0.0
-                ret: DualTypes = rc * (index_ratio + notional_)
-            return ret
+                ret: DualTypes = rc * (index_ratio.unwrap() + notional_)
+                return ret
+
+    def _try_index_ratio(
+        self, curve: CurveOption_ = NoInput(0)
+    ) -> tuple[Result[DualTypes], Result[DualTypes], Result[DualTypes]]:
+        # IndexCashflow has no start
+        i_date_base: datetime | NoInput = getattr(self, "start", NoInput(0))
+        denominator_ = _try_index_value(
+            index_fixings=self.index_base,
+            index_date=i_date_base,
+            index_curve=curve,
+            index_lag=self.index_lag,
+            index_method=self.index_method,
+        )
+        if denominator_.is_err:
+            return denominator_, denominator_, denominator_
+        numerator_ = _try_index_value(
+            index_fixings=self.index_fixings,
+            index_date=self.end,
+            index_curve=curve,
+            index_lag=self.index_lag,
+            index_method=self.index_method,
+        )
+        if numerator_.is_err:
+            return numerator_, numerator_, numerator_
+        else:
+            return Ok(numerator_.unwrap() / denominator_.unwrap()), numerator_, denominator_
 
     def index_ratio(
         self, curve: CurveOption_ = NoInput(0)
@@ -87,30 +114,12 @@ class IndexMixin(metaclass=ABCMeta):
 
         Returns
         -------
-        float, Dual, Dual2
+        tuple of float, Dual, Dual2
         """
-        # IndexCashflow has no start
-        i_date_base: datetime | NoInput = getattr(self, "start", NoInput(0))
-        denominator_ = index_value(
-            index_fixings=self.index_base,
-            index_date=i_date_base,
-            index_curve=curve,
-            index_lag=self.index_lag,
-            index_method=self.index_method,
-        )
-        numerator_ = index_value(
-            index_fixings=self.index_fixings,
-            index_date=self.end,
-            index_curve=curve,
-            index_lag=self.index_lag,
-            index_method=self.index_method,
-        )
-        numerator = _drb(None, numerator_)
-        denominator = _drb(None, denominator_)
-        if numerator is None or denominator is None:
-            return None, numerator, denominator
-        else:
-            return numerator / denominator, numerator, denominator
+        i, n, d = self._try_index_ratio(curve)
+        if i.is_err:
+            i.unwrap()
+        return i.unwrap(), n.unwrap(), d.unwrap()
 
     def npv(
         self,
@@ -296,7 +305,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
             npv = _dual_float(npv_)
             npv_fx = npv * _dual_float(fx)
 
-        index_ratio_, index_val_, index_base_ = self.index_ratio(curve)
+        index_ratio_, index_val_, index_base_ = self._try_index_ratio(curve)
 
         return {
             **super(FixedPeriod, self).cashflows(curve, disc_curve_, fx, base),
@@ -442,7 +451,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         Return the cashflows of the *IndexCashflow*.
         See :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
         """
-        index_ratio_, index_val_, index_base_ = self.index_ratio(curve)
+        index_ratio_, index_val_, index_base_ = self._try_index_ratio(curve)
         return {
             **super(IndexMixin, self).cashflows(curve, disc_curve, fx, base),
             defaults.headers["a_acc_end"]: self.end,
@@ -485,7 +494,16 @@ def _index_series_to_value(
     index_fixings: Series[DualTypes] | DualTypes | NoInput,  # type: ignore[type-var]
 ) -> DualTypes_:
     if isinstance(index_fixings, Series):
-        val = index_value(index_lag, index_method, index_fixings, index_date, NoInput(0))
+        val: Result[DualTypes] = _try_index_value(
+            index_lag=index_lag,
+            index_method=index_method,
+            index_fixings=index_fixings,
+            index_date=index_date,
+            index_curve=NoInput(0),
+        )
+        if val.is_ok:
+            return val.unwrap()
+        else:
+            return NoInput(0)
     else:
-        val = index_fixings
-    return val
+        return index_fixings

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from rateslib import defaults
 from rateslib.curves import _BaseCurve
 from rateslib.curves._parsers import _validate_obj_not_no_input
-from rateslib.default import NoInput, _drb
+from rateslib.default import Err, NoInput, Ok, _drb
 from rateslib.dual.utils import _dual_float
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
@@ -18,6 +18,7 @@ if TYPE_CHECKING:
         DataFrame,
         DualTypes,
         FXVolOption_,
+        Result,
         _BaseCurve,
         datetime,
         datetime_,
@@ -180,9 +181,11 @@ def _maybe_fx_converted(
     return value * fx_
 
 
-def _float_or_none(val: DualTypes | None | NoInput) -> float | None:
-    if val is None or isinstance(val, NoInput):
+def _float_or_none(val: DualTypes | None | NoInput | Result[DualTypes]) -> float | None:
+    if val is None or isinstance(val, NoInput | Err):
         return None
+    elif isinstance(val, Ok):
+        return _dual_float(val.unwrap())
     else:
         return _dual_float(val)
 

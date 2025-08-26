@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from pandas import Series
 
 from rateslib import defaults
-from rateslib.curves import index_value
+from rateslib.curves.curves import _try_index_value
 from rateslib.default import NoInput, _drb
 from rateslib.legs.base import BaseLeg, _AmortizationType, _FixedLegMixin
 from rateslib.periods import Cashflow, IndexCashflow, IndexFixedPeriod
@@ -54,13 +54,17 @@ class _IndexLegMixin:
         elif isinstance(value, Series):
             for p in [_ for _ in self.periods if type(_) is not Cashflow]:
                 date_: datetime = p.end if type(p) is IndexFixedPeriod else p.payment
-                p.index_fixings = index_value(  # type: ignore[union-attr]
-                    self.index_lag,
-                    self.index_method,
-                    value,
-                    date_,
-                    NoInput(0),
+                index_fixing = _try_index_value(
+                    index_lag=self.index_lag,
+                    index_method=self.index_method,
+                    index_fixings=value,
+                    index_date=date_,
+                    index_curve=NoInput(0),
                 )
+                if index_fixing.is_err:
+                    p.index_fixings = NoInput(0)  # type: ignore[union-attr]
+                else:
+                    p.index_fixings = index_fixing.unwrap()  # type: ignore[union-attr]
         else:
             self.periods[0].index_fixings = value  # type: ignore[union-attr]
             for p in [_ for _ in self.periods[1:] if type(_) is not Cashflow]:
@@ -74,9 +78,17 @@ class _IndexLegMixin:
     def index_base(self, value: DualTypes | Series[DualTypes] | NoInput) -> None:  # type: ignore[type-var]
         if isinstance(value, Series):
             value = _validate_index_fixings_as_series(value)
-            ret = index_value(
-                self.index_lag, self.index_method, value, self.schedule.effective, NoInput(0)
+            result = _try_index_value(
+                index_lag=self.index_lag,
+                index_method=self.index_method,
+                index_fixings=value,
+                index_date=self.schedule.effective,
+                index_curve=NoInput(0),
             )
+            if result.is_err:
+                ret: DualTypes_ = NoInput(0)
+            else:
+                ret = result.unwrap()
         else:
             ret = value
         self._index_base = ret

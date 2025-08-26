@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generic, NoReturn, TypeAlias, TypeVar
 
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
@@ -459,6 +459,54 @@ Miscellaneous:\n
         }
 """  # noqa: W291
         return _
+
+
+T = TypeVar("T")
+
+
+class Err:
+    _exception: Exception
+
+    def __init__(self, exception: Exception) -> None:
+        self._exception = exception
+
+    def __repr__(self) -> str:
+        return f"<rl.DelayedException at {hex(id(self))}>"
+
+    @property
+    def is_err(self) -> bool:
+        return True
+
+    @property
+    def is_ok(self) -> bool:
+        return False
+
+    def unwrap(self) -> NoReturn:
+        raise self._exception
+
+
+class Ok(Generic[T]):
+    _value: T
+
+    def __init__(self, value: T) -> None:
+        self._value = value
+
+    def __repr__(self) -> str:
+        return f"<rl.Result {self._value.__repr__()}>"
+
+    @property
+    def is_err(self) -> bool:
+        return False
+
+    @property
+    def is_ok(self) -> bool:
+        return True
+
+    def unwrap(self) -> T:
+        return self._value
+
+
+Result: TypeAlias = Ok[T] | Err
 
 
 def plot(

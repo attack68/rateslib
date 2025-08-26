@@ -161,7 +161,9 @@ class Value(Metrics):
             dcf_ = dcf(curve_0.nodes.initial, self.effective, self.convention)
             ret = (dual_log(curve_0[self.effective]) / -dcf_) * 100
         elif metric == "index_value":
-            ret = curve_0.index_value(self.effective, curve_0.meta.index_lag, "daily")
+            ret = curve_0.index_value(
+                date=self.effective, index_lag=curve_0.meta.index_lag, interpolation="daily"
+            )
         elif metric == "o/n_rate":
             ret = curve_0.rate(self.effective, "1D")  # type: ignore[assignment]
         else:
