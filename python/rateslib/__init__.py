@@ -106,6 +106,7 @@ from rateslib.legs import (
     ZeroFixedLeg,
     ZeroFloatLeg,
     ZeroIndexLeg,
+    NonDeliverableFixedLeg,
 )
 from rateslib.periods import (
     Cashflow,
@@ -238,6 +239,7 @@ __all__ = [
     "CustomLeg",
     "CreditPremiumLeg",
     "CreditProtectionLeg",
+    "NonDeliverableFixedLeg",
     # instruments.py
     "FixedRateBond",
     "IndexFixedRateBond",
