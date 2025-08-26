@@ -1754,14 +1754,14 @@ class IndexFixedRateBond(FixedRateBond):
         float, Dual, Dual2, Variable
         """
         # TODO: this indexing of periods assumes no amortization
-        index_val: DualTypes = index_value(  # type: ignore[assignment]
+        index_val: DualTypes = index_value(
             index_fixings=self.leg1.index_fixings,
             index_curve=curve,
             index_lag=self.leg1.index_lag,
             index_method=self.leg1.index_method,
             index_date=settlement,
         )
-        index_base: DualTypes = index_value(  # type: ignore[assignment]
+        index_base: DualTypes = index_value(
             index_fixings=self.index_base,
             index_date=self.leg1.schedule.effective,
             index_lag=self.leg1.index_lag,

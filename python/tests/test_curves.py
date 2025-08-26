@@ -15,9 +15,9 @@ from rateslib.curves import (
     index_left,
     index_value,
 )
-from rateslib.curves.curves import CreditImpliedCurve, _BaseCurve
+from rateslib.curves.curves import CreditImpliedCurve, _BaseCurve, _try_index_value
 from rateslib.curves.utils import _CurveNodes, _CurveSpline
-from rateslib.default import NoInput
+from rateslib.default import Err, NoInput, Ok
 from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.dual.utils import _get_order_of
 from rateslib.fx import FXForwards, FXRates
@@ -2536,8 +2536,8 @@ class TestIndexValue:
         assert abs(result - expected) < 1e-9
 
     @pytest.mark.parametrize("method", ["curve", "daily", "monthly"])
-    def test_no_input_return(self, method):
-        assert isinstance(index_value(0, method, NoInput(0), dt(2000, 1, 1), NoInput(0)), NoInput)
+    def test_no_input_return_result_err(self, method):
+        assert _try_index_value(0, method, NoInput(0), dt(2000, 1, 1), NoInput(0)).is_err
 
     @pytest.mark.parametrize("method", ["curve", "daily", "monthly"])
     def test_fixings_type_raises(self, method):
@@ -2551,7 +2551,13 @@ class TestIndexValue:
     def test_non_zero_index_lag_with_curve_method_raises(self):
         ser = Series([1.0], index=[dt(2000, 1, 1)])
         with pytest.raises(ValueError, match="`index_lag` must be zero when using a 'curve' `inde"):
-            index_value(4, "curve", ser, dt(2000, 1, 1), NoInput(0))
+            index_value(
+                index_lag=4,
+                index_method="curve",
+                index_fixings=ser,
+                index_date=dt(2000, 1, 1),
+                index_curve=NoInput(0),
+            )
 
     def test_documentation_uk_dmo_replication(self):
         # this is an example in the index value documentation
@@ -2566,10 +2572,13 @@ class TestIndexValue:
         assert abs(result - expected) < 5e-6
 
     def test_no_input_return_if_future_based(self):
-        # the requested date is beyond the ability of the fixings curve
+        # the requested date is beyond the ability of the fixings series and no curve is provided
         rpi_series = Series([172.2, 173.1], index=[dt(2001, 3, 1), dt(2001, 4, 1)])
-        assert isinstance(index_value(0, "curve", rpi_series, dt(2001, 4, 2)), NoInput)
-        assert not isinstance(index_value(0, "curve", rpi_series, dt(2001, 4, 1)), NoInput)
+
+        res1 = _try_index_value(0, "curve", rpi_series, dt(2001, 4, 2))
+        assert res1.is_err
+        res2 = _try_index_value(0, "curve", rpi_series, dt(2001, 4, 1))
+        assert res2.is_ok
 
     def test_mixed_forecast_value_fixings_with_curve(self):
         rpi = Series([100.0], index=[dt(2000, 1, 1)])
@@ -2601,9 +2610,10 @@ class TestIndexValue:
         rpi = Series([100.0], index=[dt(2000, 1, 1)])
         assert index_value(0, "daily", rpi, dt(2000, 1, 1), NoInput(0)) == 100.0
 
-    def test_daily_method_returns_noinput_if_data_unavailable(self):
+    def test_daily_method_returns_err_if_data_unavailable(self):
         rpi = Series([100.0], index=[dt(2000, 1, 1)])
-        assert isinstance(index_value(0, "daily", rpi, dt(2000, 1, 2), NoInput(0)), NoInput)
+        res = _try_index_value(0, "daily", rpi, dt(2000, 1, 2), NoInput(0))
+        assert res.is_err
 
     def test_curve_method_from_curve_with_non_zero_index_lag(self):
         curve = Curve(
@@ -2618,17 +2628,17 @@ class TestIndexValue:
     @pytest.mark.parametrize(
         ("curve", "exp"),
         [
-            (NoInput(0), NoInput(0)),
+            (NoInput(0), Err),
             (
                 Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.99}, index_base=100.0, index_lag=0),
-                100.0,
+                Ok,
             ),
         ],
     )
     def test_series_len_zero(self, curve, exp):
         s = Series(data=[], index=[])
-        result = index_value(0, "curve", s, dt(2000, 1, 1), curve)
-        assert result == exp
+        result = _try_index_value(0, "curve", s, dt(2000, 1, 1), curve)
+        assert isinstance(result, exp)
 
     def test_series_and_curve_aligns_with_som_date(self):
         # the relevant value can be directly matched on the Series

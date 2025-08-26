@@ -245,7 +245,7 @@ class ZCIS(BaseDerivative):
         )
         if isinstance(self.leg2_index_base, NoInput):
             # must forecast for the leg
-            forecast_value: Dual | Dual2 | float | Variable = index_value(  # type: ignore[assignment]
+            forecast_value: Dual | Dual2 | float | Variable = index_value(
                 index_lag=self.leg2.index_lag,
                 index_method=self.leg2.index_method,
                 index_fixings=self.leg2.index_fixings,
@@ -558,7 +558,7 @@ class IIRS(BaseDerivative):
         )
         if isinstance(self.index_base, NoInput):
             # must forecast for the leg
-            forecast_value: Dual | Dual2 | float | Variable = index_value(  # type: ignore[assignment]
+            forecast_value: Dual | Dual2 | float | Variable = index_value(
                 index_lag=self.leg1.index_lag,
                 index_method=self.leg1.index_method,
                 index_fixings=self.leg1.index_fixings,
