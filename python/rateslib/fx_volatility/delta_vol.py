@@ -11,9 +11,7 @@ from pytz import UTC
 
 from rateslib import defaults
 from rateslib.default import (
-    NoInput,
     PlotOutput,
-    _drb,
     plot3d,
 )
 from rateslib.dual import (
@@ -30,6 +28,7 @@ from rateslib.dual import (
     set_order_convert,
 )
 from rateslib.dual.utils import _dual_float
+from rateslib.enums import NoInput, _drb
 from rateslib.fx_volatility.base import _BaseSmile
 from rateslib.fx_volatility.utils import (
     _d_plus_min_u,

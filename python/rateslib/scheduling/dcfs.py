@@ -5,7 +5,7 @@ from datetime import datetime
 from functools import partial
 from typing import TYPE_CHECKING
 
-from rateslib.default import NoInput, _drb
+from rateslib.enums import NoInput, _drb
 from rateslib.scheduling import Adjuster, Convention, Frequency, RollDay
 from rateslib.scheduling.adjuster import _get_adjuster
 from rateslib.scheduling.calendars import get_calendar

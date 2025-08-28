@@ -6,8 +6,9 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from rateslib import defaults
-from rateslib.default import NoInput, _drb, _make_py_json
+from rateslib.default import _make_py_json
 from rateslib.dual.utils import _get_adorder
+from rateslib.enums import NoInput, _drb
 from rateslib.rs import (
     ADOrder,
     FlatBackwardInterpolator,

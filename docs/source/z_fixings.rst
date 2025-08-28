@@ -9,9 +9,70 @@
    from datetime import datetime as dt
    import numpy as np
    from pandas import DataFrame, option_context, Index
+   import os
 
 Working with Fixings
 **********************
+
+The default *Fixings* object
+----------------------------
+
+Financial fixing data is important for financial *Instrument* specification and pricing.
+*Rateslib* uses a global :class:`~rateslib.default.Defaults` object and it stores its fixing
+data, that is internally referenced, under the attribute ``fixings``. *Rateslib* provides a default
+object, :class:`~rateslib.fixings.Fixings`, as the bridge between loading stored data and
+populating *Instrument* pricing data when required.
+
+Currently there are two methods for populating data using the :class:`~rateslib.fixings.Fixings` class.
+
+1) Creating CSV files and loading from file. The example below creates a CSV dynamically using
+   Python, storing it in the relevant directory and then loads the fixing series directly.
+
+.. ipython:: python
+
+   # Set the fixings default directoyr
+   defaults.fixings.directory = os.getcwd()
+
+   # Create a CSV file in the correct and unique format.
+   df = DataFrame({
+       "reference_date": ["01-01-2000", "01-02-2000", "01-03-2000"],
+       "rate": [100.0, 101.1, 102.2]
+   }).set_index("reference_date")
+   df.to_csv("CPI_EXAMPLE.csv")
+
+   # Load that file to a fixings Series object.
+   defaults.fixings["CPI_EXAMPLE"]
+
+2) Constructing Series objects in Python and directly and adding them with the
+   :meth:`~rateslib.fixings.Fixings.add_series` method. Here we will also remove the above example
+   to demonstrate simple overwrites.
+
+.. ipython::
+
+   # Remove the existing data (the CSV file is not deleted), and modify the data in the Series.
+   popped = defaults.fixings.remove_series("CPI_EXAMPLE").astype(object)
+   popped[dt(2000, 2, 1)] = Dual(101.1, ["x"], [])
+
+   # Add the modified Series with a new ID.
+   defaults.fixings.add_series("CPI_EXAMPLE", popped)
+   defaults.fixings["CPI_EXAMPLE"]
+
+The fixings *Series* are lazily loaded, and once loaded will be stored in the dictionary
+they will not be reloaded unless removed using :meth:`~rateslib.fixings.Fixings.remove_series`
+and re-called.
+
+
+
+Building a custom Fixings loader
+--------------------------------
+
+The class :class:`~rateslib.fixings._BaseFixingsLoader` is the abstract base class required to
+build and insert a custom fixings loader. For example, suppose you did not want to use CSV files,
+but instead wanted a mechanism to call some SQL and fetch a fixing series from a database.
+
+This is possible by overloading *rateslib's* :class:`~rateslib.fixings.Fixings` object.
+The following object is a simplified construction of this idea.
+
 
 .. note::
 
@@ -26,10 +87,6 @@ with accurate and upto date RFR or IBOR fixings.
 As an example, a small selection of SOFR fixings which are used in some examples
 within, *rateslib* documentation are shown below along with the source directory.
 
-.. ipython:: python
-
-   defaults.fixings.directory
-   defaults.fixings["usd_rfr"]  # an available alias is 'fixings["sofr"]'
 
 It is possible to overwrite these CSV files (provided the template structure is
 maintained) or to set a new directory and place new CSV files there.
@@ -161,3 +218,31 @@ and the MTM payments are 1.21 and 1.24, as expected.
    import os
    os.remove("gbpusd.csv")
    os.remove("sek_ibor_3m.csv")
+   os.remove("CPI_EXAMPLE.csv")
+
+
+.. ipython:: python
+
+   class SQLLoader(_BaseFixingsLoader):
+
+       def __init__(self) -> None:
+           self.cache: dict[str, Series[float]] = {}
+
+       def __getitem__(self, name: str):
+           if name in self.cache:
+               return self.cache[name]
+           else:
+               # simulate fetching some data from an SQL database.
+               from random import random
+               self.cache[name] = Series(
+                   index=[dt(2000, 1, 1), dt(2001, 1 ,1)],
+                   data=[random(), random()],
+               )
+               return self.__getitem__(name)
+
+Now overload the *rateslib* object and get fixings as usual:
+
+.. ipython:: python
+
+   defaults.fixings = SQLLoader()
+   defaults.fixings["RANDOM_INDEX"]

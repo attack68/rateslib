@@ -12,7 +12,8 @@ for _dependency in _hard_dependencies:
 
 from datetime import datetime as dt
 
-from rateslib.default import Defaults, NoInput
+from rateslib.default import Defaults
+from rateslib.enums import NoInput
 
 defaults = Defaults()
 
@@ -103,10 +104,10 @@ from rateslib.legs import (
     FloatLeg,
     FloatLegMtm,
     IndexFixedLeg,
+    NonDeliverableFixedLeg,
     ZeroFixedLeg,
     ZeroFloatLeg,
     ZeroIndexLeg,
-    NonDeliverableFixedLeg,
 )
 from rateslib.periods import (
     Cashflow,

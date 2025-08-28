@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 from pandas import Series
 
 from rateslib import defaults
-from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, Variable
+from rateslib.enums import NoInput, _drb
 from rateslib.fx import FXForwards
 from rateslib.legs.base import BaseLeg, _AmortizationType, _FixedLegMixin, _FloatLegMixin
 from rateslib.periods import Cashflow

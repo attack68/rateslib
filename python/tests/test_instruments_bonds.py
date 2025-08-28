@@ -1934,7 +1934,7 @@ class TestIndexFixedRateBond:
             index_fixings=[100.0, 200.0],
             index_method="daily",
         )
-        with pytest.raises(TypeError, match="`index_fixings` must be of type: Series, DualTy"):
+        with pytest.raises(TypeError, match="`index_fixings` must be of type: Str, Series, Dual"):
             bond.index_ratio(settlement=dt(2022, 4, 15), curve=i_curve)
 
     def test_fixed_rate_bond_npv_private(self) -> None:

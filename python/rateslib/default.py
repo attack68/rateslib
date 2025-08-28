@@ -1,18 +1,15 @@
 from __future__ import annotations
 
-import os
 from datetime import datetime
-from enum import Enum
-from typing import TYPE_CHECKING, Generic, NoReturn, TypeAlias, TypeVar
+from typing import TYPE_CHECKING
 
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas
-from packaging import version
-from pandas import Series, read_csv
 
 from rateslib._spec_loader import INSTRUMENT_SPECS
+from rateslib.enums import NoInput, _drb
+from rateslib.fixings import Fixings
 from rateslib.rs import Cal, NamedCal, UnionCal
 
 PlotOutput = tuple[plt.Figure, plt.Axes, list[plt.Line2D]]  # type: ignore[name-defined]
@@ -21,159 +18,7 @@ PlotOutput = tuple[plt.Figure, plt.Axes, list[plt.Line2D]]  # type: ignore[name-
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 if TYPE_CHECKING:
-    from rateslib.typing import Adjuster, Any, CalTypes
-
-
-class NoInput(Enum):
-    """
-    Enumerable type to handle setting default values.
-
-    See :ref:`default values <defaults-doc>`.
-    """
-
-    blank = 0
-    inherit = 1
-    negate = -1
-
-
-class Fixings:
-    """
-    Class to lazy load fixing data from CSV files.
-
-    .. warning::
-
-       *Rateslib* does not come pre-packaged with accurate, nor upto date fixing data.
-       This is for a number of reasons; one being a lack of data licensing to distribute such
-       data, and the second being a statically uploaded package relative to daily, dynamic fixing
-       information is not practical.
-
-    To use this class effectively the CSV files must be populated by the user, ideally scheduled
-    regularly to continuously update these files with incoming fixing data.
-    See :ref:`working with fixings <cook-fixings-doc>`.
-
-    """
-
-    @staticmethod
-    def _load_csv(directory: str, path: str) -> Series[float]:
-        target = os.path.join(directory, path)
-        if version.parse(pandas.__version__) < version.parse("2.0"):  # pragma: no cover
-            # this is tested by the minimum version gitflow actions.
-            # TODO (low:dependencies) remove when pandas min version is bumped to 2.0
-            df = read_csv(target)
-            df["reference_date"] = df["reference_date"].map(
-                lambda x: datetime.strptime(x, "%d-%m-%Y"),
-            )
-            df = df.set_index("reference_date")
-        else:
-            df = read_csv(target, index_col=0, parse_dates=[0], date_format="%d-%m-%Y")
-        return df["rate"].sort_index(ascending=True)
-
-    def __getitem__(self, item: str) -> Series[float]:
-        if item.upper() in self.loaded:
-            return self.loaded[item.upper()]
-
-        try:
-            s = self._load_csv(self.directory, f"{item}.csv")
-        except FileNotFoundError:
-            raise ValueError(
-                f"Fixing data for the index '{item}' has been attempted, but there is no file:\n"
-                f"'{item}.csv' located in the search directory: '{self.directory}'\n"
-                "Create a CSV file in the directory with the above name and the exact "
-                "template structure:\n###################\n"
-                "reference_date,rate\n26-08-2023,5.6152\n27-08-2023,5.6335\n##################\n"
-                "For further info see 'Working with Fixings' in the documentation cookbook.",
-            )
-
-        self.loaded[item.upper()] = s
-        return s
-
-    def __init__(self) -> None:
-        self.directory = os.path.dirname(os.path.abspath(__file__)) + "/data"
-        self.loaded: dict[str, Series[float]] = {}
-
-    def add_series(self, name: str, series: Series[float]) -> None:
-        if name in self.loaded:
-            raise ValueError(f"Fixing data for the index '{name}' has already been loaded.")
-        s = series.sort_index(ascending=True)
-        s.index.name = "reference_date"
-        s.name = "rate"
-        self.loaded[name.upper()] = s
-
-    def get_stub_ibor_fixings(
-        self,
-        value_start_date: datetime,
-        value_end_date: datetime,
-        calendar: CalTypes,
-        modifier: Adjuster,
-        fixing_identifier: str,
-    ) -> tuple[list[str], list[datetime]]:
-        """
-        Return the tenors available in the :class:`~rateslib.defaults.Fixings` object for
-        determining a stub period.
-
-
-        Parameters
-        ----------
-        value_start_date: datetime
-            The value start date of the IBOR period.
-        value_end_date: datetime
-            The value end date of the current stub period.
-        calendar: Cal, UnionCal, NamedCal,
-            The calendar to derive IBOR value end dates.
-        modifier: Adjuster
-            The date adjuster to derive IBOR value end dates.
-        fixing_identifier: str
-            The fixing name, prior to the addition of tenor, e.g. "EUR_EURIBOR"
-
-        Returns
-        -------
-        tuple of list[string tenors] and list[evaluated end dates]
-        """
-        from rateslib.scheduling import add_tenor
-
-        left: tuple[str | None, datetime] = (None, datetime(1, 1, 1))
-        right: tuple[str | None, datetime] = (None, datetime(9999, 1, 1))
-
-        for tenor in [
-            "1D",
-            "1B",
-            "2B",
-            "1W",
-            "2W",
-            "3W",
-            "4W",
-            "1M",
-            "2M",
-            "3M",
-            "4M",
-            "5M",
-            "6M",
-            "7M",
-            "8M",
-            "9M",
-            "10M",
-            "11M",
-            "12M",
-            "1Y",
-        ]:
-            if f"{fixing_identifier.upper()}_{tenor}" not in self.loaded:
-                continue
-            sample_end = add_tenor(value_start_date, tenor, modifier=modifier, calendar=calendar)
-
-            if sample_end <= value_end_date and sample_end > left[1]:
-                left = (tenor, sample_end)
-            if sample_end >= value_end_date and sample_end < right[1]:
-                right = (tenor, sample_end)
-                break
-
-        ret: tuple[list[str], list[datetime]] = ([], [])
-        if left[0] is not None:
-            ret[0].append(left[0])
-            ret[1].append(left[1])
-        if right[0] is not None:
-            ret[0].append(right[0])
-            ret[1].append(right[1])
-        return ret
+    from rateslib.typing import Any, _BaseFixingsLoader
 
 
 class Defaults:
@@ -348,7 +193,7 @@ class Defaults:
         # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
         # fixings data
-        self.fixings = Fixings()
+        self.fixings: _BaseFixingsLoader = Fixings()
 
         self.spec = INSTRUMENT_SPECS
 
@@ -364,7 +209,8 @@ class Defaults:
            defaults.reset_defaults()
         """
         base = Defaults()
-        for attr in [_ for _ in dir(self) if _[:2] != "__"]:
+        # do not re-load or reset fixings
+        for attr in [_ for _ in dir(self) if _[:2] != "__" and _ != "fixings"]:
             setattr(self, attr, getattr(base, attr))
 
     def print(self) -> str:
@@ -461,54 +307,6 @@ Miscellaneous:\n
         return _
 
 
-T = TypeVar("T")
-
-
-class Err:
-    _exception: Exception
-
-    def __init__(self, exception: Exception) -> None:
-        self._exception = exception
-
-    def __repr__(self) -> str:
-        return f"<rl.DelayedException at {hex(id(self))}>"
-
-    @property
-    def is_err(self) -> bool:
-        return True
-
-    @property
-    def is_ok(self) -> bool:
-        return False
-
-    def unwrap(self) -> NoReturn:
-        raise self._exception
-
-
-class Ok(Generic[T]):
-    _value: T
-
-    def __init__(self, value: T) -> None:
-        self._value = value
-
-    def __repr__(self) -> str:
-        return f"<rl.Result {self._value.__repr__()}>"
-
-    @property
-    def is_err(self) -> bool:
-        return False
-
-    @property
-    def is_ok(self) -> bool:
-        return True
-
-    def unwrap(self) -> T:
-        return self._value
-
-
-Result: TypeAlias = Ok[T] | Err
-
-
 def plot(
     x: list[list[Any]], y: list[list[Any]], labels: list[str] | NoInput = NoInput(0)
 ) -> PlotOutput:
@@ -548,11 +346,6 @@ def plot3d(
     # Plot the surface.
     ax.plot_surface(X, Y, z, cmap=cm.coolwarm, linewidth=0, antialiased=False)  # type: ignore[attr-defined]
     return fig, ax, None
-
-
-def _drb(default: Any, possible_ni: Any | NoInput) -> Any:
-    """(D)efault (r)eplaces (b)lank"""
-    return default if isinstance(possible_ni, NoInput) else possible_ni
 
 
 def _make_py_json(json: str, class_name: str) -> str:

@@ -26,9 +26,10 @@ from rateslib.curves.utils import (
     _ProxyCurveInterpolator,
     average_rate,
 )
-from rateslib.default import Err, NoInput, Ok, PlotOutput, _drb, plot
+from rateslib.default import PlotOutput, plot
 from rateslib.dual import Dual, Dual2, Variable, dual_exp, set_order_convert
 from rateslib.dual.utils import _dual_float, _get_order_of
+from rateslib.enums import Err, NoInput, Ok, _drb
 from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,
@@ -2806,7 +2807,7 @@ class CreditImpliedCurve(_BaseCurve):
 def index_value(
     index_lag: int,
     index_method: str,
-    index_fixings: Series[DualTypes] | DualTypes | NoInput = NoInput(0),  # type: ignore[type-var]
+    index_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
     index_date: datetime_ = NoInput(0),
     index_curve: CurveOption_ = NoInput(0),
 ) -> DualTypes:
@@ -2821,7 +2822,7 @@ def index_value(
         value.
     index_method: str in {"curve", "daily", "monthly"}
         The method used to derive and interpolate index values.
-    index_fixings: float, Dual, Dual2, Variable, Series[DualTypes], optional
+    index_fixings: float, Dual, Dual2, Variable, Series[DualTypes], str, optional
         A specific index value which is returned directly, or if given as a Series applies the
         appropriate ``index_method`` to determine a value. May also forecast from *Curve* if
         necessary. See notes.
@@ -2872,19 +2873,20 @@ def index_value(
            index_date=dt(2001, 7, 20)
        )
     """
-    return _try_index_value(
+    iv_result = _try_index_value(
         index_lag=index_lag,
         index_method=index_method,
         index_fixings=index_fixings,
         index_date=index_date,
         index_curve=index_curve,
-    ).unwrap()
+    )
+    return iv_result.unwrap()
 
 
 def _try_index_value(
     index_lag: int,
     index_method: str,
-    index_fixings: Series[DualTypes] | DualTypes | NoInput = NoInput(0),  # type: ignore[type-var]
+    index_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
     index_date: datetime_ = NoInput(0),
     index_curve: CurveOption_ = NoInput(0),
 ) -> Result[DualTypes]:
@@ -2917,27 +2919,51 @@ def _try_index_value(
                     "was provided."
                 )
             )
-        return index_curve._try_index_value(index_date, index_lag, index_method)
-    elif isinstance(index_fixings, Series):
+        return index_curve._try_index_value(
+            date=index_date,
+            index_lag=index_lag,
+            interpolation=index_method,
+        )
+    elif isinstance(index_fixings, str):
+        try:
+            fixings_series = defaults.fixings.__getitem__(index_fixings)
+        except Exception as e:
+            return Err(e)
         if isinstance(index_curve, NoInput):
             return _index_value_from_series_no_curve(
-                index_lag,
-                index_method,
-                index_fixings,
-                index_date,
+                index_lag=index_lag,
+                index_method=index_method,
+                index_fixings=fixings_series,  # type: ignore[arg-type]
+                index_date=index_date,
             )
         else:
             return _index_value_from_mixed_series_and_curve(
-                index_lag,
-                index_method,
-                index_fixings,
-                index_date,
-                index_curve,
+                index_lag=index_lag,
+                index_method=index_method,
+                index_fixings=fixings_series,  # type: ignore[arg-type]
+                index_date=index_date,
+                index_curve=index_curve,
+            )
+    elif isinstance(index_fixings, Series):
+        if isinstance(index_curve, NoInput):
+            return _index_value_from_series_no_curve(
+                index_lag=index_lag,
+                index_method=index_method,
+                index_fixings=index_fixings,
+                index_date=index_date,
+            )
+        else:
+            return _index_value_from_mixed_series_and_curve(
+                index_lag=index_lag,
+                index_method=index_method,
+                index_fixings=index_fixings,
+                index_date=index_date,
+                index_curve=index_curve,
             )
     else:
         return Err(
             TypeError(
-                "`index_fixings` must be of type: Series, DualTypes or NoInput.\n"
+                "`index_fixings` must be of type: Str, Series, DualTypes or NoInput.\n"
                 f"{type(index_fixings)} was given."
             )
         )
@@ -3055,6 +3081,8 @@ def _index_value_from_series_no_curve(
     """
     Derive a value from a Series only, detecting cases where the errors might be raised.
     """
+    fixings_series = index_fixings
+
     if index_method == "curve":
         if index_lag != 0:
             return Err(
@@ -3063,17 +3091,17 @@ def _index_value_from_series_no_curve(
                     f"`index_date`: {index_date}, is in Series but got `index_lag`: {index_lag}."
                 )
             )
-        if len(index_fixings.index) == 0:
+        if len(fixings_series.index) == 0:
             return Err(
                 ValueError(
                     "An index value cannot be derived from an `index_fixings` Series having "
                     "no entries."
                 )
             )
-        if index_date in index_fixings.index:
+        if index_date in fixings_series.index:
             # simplest case returns Series value if all checks pass.
-            return Ok(index_fixings.loc[index_date])
-        if index_date < index_fixings.index[0] or index_date > index_fixings.index[-1]:
+            return Ok(fixings_series.loc[index_date])
+        if index_date < fixings_series.index[0] or index_date > fixings_series.index[-1]:
             # if requested index date is outside of the scope of the Series return NoInput
             # this handles historic and future cases
             return Err(

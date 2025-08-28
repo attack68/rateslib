@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from rateslib import defaults
-from rateslib.default import NoInput
+from rateslib.enums import NoInput
 from rateslib.rs import Cal, NamedCal, UnionCal
 from rateslib.scheduling.adjuster import _convert_to_adjuster
 
