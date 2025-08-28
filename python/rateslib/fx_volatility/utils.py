@@ -9,9 +9,6 @@ from typing import TYPE_CHECKING, TypeAlias
 from pandas import Series
 from pytz import UTC
 
-from rateslib.default import (
-    NoInput,
-)
 from rateslib.dual import (
     Dual,
     Dual2,
@@ -23,6 +20,9 @@ from rateslib.dual import (
     set_order_convert,
 )
 from rateslib.dual.utils import _dual_float, _to_number
+from rateslib.enums import (
+    NoInput,
+)
 from rateslib.rs import _sabr_x0 as _rs_sabr_x0
 from rateslib.rs import _sabr_x1 as _rs_sabr_x1
 from rateslib.rs import _sabr_x2 as _rs_sabr_x2

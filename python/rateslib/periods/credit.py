@@ -5,9 +5,9 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from rateslib import defaults
-from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.dual.utils import _dual_float
+from rateslib.enums import NoInput, _drb
 from rateslib.periods.base import BasePeriod
 from rateslib.periods.utils import (
     _get_fx_and_base,

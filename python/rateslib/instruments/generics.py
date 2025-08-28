@@ -10,8 +10,8 @@ from pandas import DataFrame, DatetimeIndex, concat
 from rateslib import defaults
 from rateslib.curves._parsers import _validate_curve_is_not_dict, _validate_curve_not_no_input
 from rateslib.curves.utils import _CurveType
-from rateslib.default import NoInput, _drb
 from rateslib.dual import dual_log
+from rateslib.enums import NoInput, _drb
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
 from rateslib.instruments.base import Metrics
 from rateslib.instruments.sensitivities import Sensitivities

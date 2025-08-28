@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 from matplotlib import pyplot as plt
 from pandas import Series
-from rateslib import default_context
+from rateslib import default_context, defaults
 from rateslib.curves import (
     CompositeCurve,
     Curve,
@@ -17,9 +17,9 @@ from rateslib.curves import (
 )
 from rateslib.curves.curves import CreditImpliedCurve, _BaseCurve, _try_index_value
 from rateslib.curves.utils import _CurveNodes, _CurveSpline
-from rateslib.default import Err, NoInput, Ok
 from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.dual.utils import _get_order_of
+from rateslib.enums import Err, NoInput, Ok
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments import IRS
 from rateslib.scheduling import Cal, dcf, get_calendar
@@ -2541,7 +2541,7 @@ class TestIndexValue:
 
     @pytest.mark.parametrize("method", ["curve", "daily", "monthly"])
     def test_fixings_type_raises(self, method):
-        with pytest.raises(TypeError, match="`index_fixings` must be of type: Serie"):
+        with pytest.raises(TypeError, match="`index_fixings` must be of type: Str, Series, DualTy"):
             index_value(0, method, [1, 2], dt(2000, 1, 1), NoInput(0))
 
     def test_no_index_date_raises(self):
@@ -2550,14 +2550,16 @@ class TestIndexValue:
 
     def test_non_zero_index_lag_with_curve_method_raises(self):
         ser = Series([1.0], index=[dt(2000, 1, 1)])
+        defaults.fixings.add_series("1234FGFS6", ser)
         with pytest.raises(ValueError, match="`index_lag` must be zero when using a 'curve' `inde"):
             index_value(
                 index_lag=4,
                 index_method="curve",
-                index_fixings=ser,
+                index_fixings="1234FGFS6",
                 index_date=dt(2000, 1, 1),
                 index_curve=NoInput(0),
             )
+        defaults.fixings.remove_series("1234FGFS6")
 
     def test_documentation_uk_dmo_replication(self):
         # this is an example in the index value documentation

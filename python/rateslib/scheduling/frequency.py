@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from rateslib.default import NoInput
+from rateslib.enums import NoInput
 from rateslib.rs import Adjuster, Frequency, Imm, RollDay
 from rateslib.scheduling.adjuster import _convert_to_adjuster
 from rateslib.scheduling.calendars import get_calendar

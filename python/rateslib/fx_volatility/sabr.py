@@ -9,10 +9,6 @@ from pandas import Series
 from pytz import UTC
 
 from rateslib import defaults
-from rateslib.default import (
-    NoInput,
-    _drb,
-)
 from rateslib.dual import (
     Dual,
     Dual2,
@@ -24,6 +20,7 @@ from rateslib.dual import (
     set_order_convert,
 )
 from rateslib.dual.utils import _dual_float, _to_number
+from rateslib.enums import NoInput, _drb
 from rateslib.fx import FXForwards
 from rateslib.fx_volatility.base import _BaseSmile
 from rateslib.fx_volatility.utils import (

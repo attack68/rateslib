@@ -7,7 +7,8 @@ from typing import TYPE_CHECKING
 from pandas import DataFrame
 
 from rateslib import defaults
-from rateslib.default import NoInput, _drb, _make_py_json
+from rateslib.default import _make_py_json
+from rateslib.enums import NoInput, _drb
 from rateslib.rs import Adjuster, Frequency, RollDay, StubInference
 from rateslib.rs import Schedule as Schedule_rs
 from rateslib.scheduling.adjuster import _convert_to_adjuster, _get_adjuster

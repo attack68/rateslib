@@ -16,9 +16,11 @@ from rateslib.curves import RolledCurve as RolledCurve
 from rateslib.curves import ShiftedCurve as ShiftedCurve
 from rateslib.curves import TranslatedCurve as TranslatedCurve
 from rateslib.curves import _BaseCurve as _BaseCurve
-from rateslib.default import NoInput as NoInput
-from rateslib.default import Result as Result
 from rateslib.dual.variable import Variable as Variable
+from rateslib.enums import NoInput as NoInput
+from rateslib.enums import Result as Result
+from rateslib.fixings import Fixings as Fixings
+from rateslib.fixings import _BaseFixingsLoader as _BaseFixingsLoader
 from rateslib.fx import FXForwards as FXForwards
 from rateslib.fx import FXRates as FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile as FXDeltaVolSmile

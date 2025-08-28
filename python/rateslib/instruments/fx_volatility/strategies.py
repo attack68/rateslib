@@ -6,9 +6,9 @@ from typing import TYPE_CHECKING
 from pandas import DataFrame
 
 from rateslib.curves._parsers import _validate_obj_not_no_input
-from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, Variable, dual_log, newton_1dim
 from rateslib.dual.utils import _dual_float, _set_ad_order_objects
+from rateslib.enums import NoInput, _drb
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments.fx_volatility.vanilla import FXCall, FXOption, FXPut
 from rateslib.instruments.utils import (
