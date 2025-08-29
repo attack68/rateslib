@@ -13,10 +13,10 @@ from pandas.errors import PerformanceWarning
 
 from rateslib import defaults
 from rateslib.curves import CompositeCurve, Curve, MultiCsaCurve, ProxyCurve, _BaseCurve
-from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, dual_solve, gradient
 from rateslib.dual.newton import _solver_result
 from rateslib.dual.utils import _dual_float
+from rateslib.enums import NoInput, _drb
 from rateslib.fx import FXForwards, FXRates
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

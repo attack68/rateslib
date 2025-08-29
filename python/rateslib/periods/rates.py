@@ -11,9 +11,9 @@ from rateslib import defaults
 from rateslib.curves import _BaseCurve, average_rate, index_left
 from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_maybe_from_curve
 from rateslib.curves.utils import _CurveType
-from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.dual.utils import _dual_float
+from rateslib.enums import NoInput, _drb
 from rateslib.periods.base import BasePeriod
 from rateslib.periods.utils import (
     _float_or_none,

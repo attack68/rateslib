@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from pandas import DataFrame, Series, concat
 
 from rateslib import defaults
-from rateslib.default import NoInput, _drb
+from rateslib.enums import NoInput, _drb
 from rateslib.periods import (
     Cashflow,
     CreditPremiumPeriod,

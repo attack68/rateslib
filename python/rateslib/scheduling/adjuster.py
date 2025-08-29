@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from rateslib.default import NoInput
+from rateslib.enums import NoInput
 from rateslib.rs import Adjuster
 
 if TYPE_CHECKING:

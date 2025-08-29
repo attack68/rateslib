@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 
 from rateslib import defaults
 from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_maybe_from_curve
-from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
+from rateslib.enums import NoInput, _drb
 from rateslib.periods.utils import _get_fx_and_base
 from rateslib.scheduling import Adjuster, Frequency, dcf, get_calendar
 from rateslib.scheduling.adjuster import _get_adjuster

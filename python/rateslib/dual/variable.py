@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 from rateslib import defaults
-from rateslib.default import NoInput
+from rateslib.enums import NoInput
 from rateslib.rs import Dual, Dual2
 
 if TYPE_CHECKING:

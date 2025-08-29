@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from pandas import DataFrame, concat, isna
 
 from rateslib import defaults
-from rateslib.default import NoInput
+from rateslib.enums import NoInput
 from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.instruments.utils import (
     _convert_to_schedule_kwargs,

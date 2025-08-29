@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 from rateslib import defaults
 from rateslib.curves import _BaseCurve
 from rateslib.curves._parsers import _validate_obj_not_no_input
-from rateslib.default import Err, NoInput, Ok, _drb
 from rateslib.dual.utils import _dual_float
+from rateslib.enums import Err, NoInput, Ok, _drb
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
 

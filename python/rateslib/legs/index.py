@@ -7,7 +7,7 @@ from pandas import Series
 
 from rateslib import defaults
 from rateslib.curves.curves import _try_index_value
-from rateslib.default import NoInput, _drb
+from rateslib.enums import NoInput, _drb
 from rateslib.legs.base import BaseLeg, _AmortizationType, _FixedLegMixin
 from rateslib.periods import Cashflow, IndexCashflow, IndexFixedPeriod
 from rateslib.periods.index import _validate_index_method_and_lag

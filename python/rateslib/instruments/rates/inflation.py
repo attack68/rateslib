@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 
 from rateslib import index_value
 from rateslib.curves._parsers import _validate_curve_is_not_dict, _validate_curve_not_no_input
-from rateslib.default import NoInput, _drb
 from rateslib.dual.utils import _dual_float
+from rateslib.enums import NoInput, _drb
 from rateslib.instruments.base import BaseDerivative
 from rateslib.instruments.utils import (
     _get,

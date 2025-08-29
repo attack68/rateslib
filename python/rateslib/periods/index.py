@@ -9,8 +9,8 @@ from pandas import Series
 from rateslib import defaults
 from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_maybe_from_curve
 from rateslib.curves.curves import _try_index_value
-from rateslib.default import NoInput, Ok, _drb
 from rateslib.dual.utils import _dual_float
+from rateslib.enums import NoInput, Ok, _drb
 from rateslib.periods.cashflow import Cashflow
 from rateslib.periods.rates import FixedPeriod
 from rateslib.periods.utils import _float_or_none, _get_fx_and_base, _maybe_local

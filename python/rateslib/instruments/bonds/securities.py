@@ -16,9 +16,9 @@ from rateslib.curves._parsers import (
     _validate_curve_is_not_dict,
     _validate_curve_not_no_input,
 )
-from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, Dual2, Variable, gradient, ift_1dim
 from rateslib.dual.utils import _dual_float, _to_number
+from rateslib.enums import NoInput, _drb
 from rateslib.instruments.base import Metrics
 from rateslib.instruments.bonds.conventions import (
     BILL_MODE_MAP,

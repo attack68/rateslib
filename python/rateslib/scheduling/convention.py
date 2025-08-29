@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from rateslib.default import NoInput, _drb
+from rateslib.enums import NoInput, _drb
 from rateslib.rs import Adjuster, Convention, Frequency, RollDay
 from rateslib.scheduling.adjuster import _get_adjuster
 from rateslib.scheduling.frequency import _get_frequency

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from rateslib import defaults
 from rateslib.curves import index_left
-from rateslib.default import NoInput, _drb
+from rateslib.enums import NoInput, _drb
 from rateslib.legs.base import BaseLeg, _FixedLegMixin
 from rateslib.periods.credit import CreditPremiumPeriod, CreditProtectionPeriod
 
