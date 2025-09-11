@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from rateslib.enums import NoInput
+from rateslib.enums.generics import NoInput
 from rateslib.rs import Adjuster
 
 if TYPE_CHECKING:
@@ -46,7 +46,9 @@ def _get_adjuster(adjuster: str | Adjuster) -> Adjuster:
 
 
 def _convert_to_adjuster(modifier: str | Adjuster, settlement: bool, mod_days: bool) -> Adjuster:
-    """Convert a legacy `modifier` to an Adjuster with additional options."""
+    """Convert a legacy `modifier` to an Adjuster with additional options.
+    If `modify days` is disallowed then MF -> F
+    """
     if isinstance(modifier, Adjuster):
         return modifier
     modifier = modifier.upper()

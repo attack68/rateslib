@@ -3,18 +3,19 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from rateslib.enums import NoInput
+import rateslib.errors as err
+from rateslib.enums.generics import NoInput
 from rateslib.rs import Adjuster, Frequency, Imm, RollDay
 from rateslib.scheduling.adjuster import _convert_to_adjuster
 from rateslib.scheduling.calendars import get_calendar
 from rateslib.scheduling.rollday import _get_rollday
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, datetime_, int_
+    from rateslib.typing import CalInput, datetime_, int_, str_
 
 
 def _get_frequency(
-    frequency: str | Frequency, roll: str | RollDay | int_, calendar: CalInput
+    frequency: str_ | Frequency, roll: str | RollDay | int_, calendar: CalInput
 ) -> Frequency:
     """
     Get a :class:`~rateslib.scheduling.Frequency` object from legacy UI inputs.
@@ -37,6 +38,9 @@ def _get_frequency(
         if getattr(frequency, "roll", "no default") is None:
             return Frequency.Months(frequency.number, _get_rollday(roll))  # type: ignore[attr-defined]
         return frequency
+
+    if isinstance(frequency, NoInput):
+        raise ValueError(err.VE_NEEDS_FREQUENCY)
 
     frequency_: str = frequency.upper()[-1]
     if frequency_ == "D":
@@ -77,6 +81,21 @@ def _get_frequency_none(
         return None
     else:
         return _get_frequency(frequency, roll, calendar)
+
+
+def _get_tenor_from_frequency(frequency: Frequency) -> str:
+    if isinstance(frequency, Frequency.Months):
+        return f"{frequency.number}M"
+    elif isinstance(frequency, Frequency.CalDays):
+        if frequency.number % 7 == 0:
+            return f"{frequency.number / 7}W"
+        else:
+            return f"{frequency.number}D"
+    elif isinstance(frequency, Frequency.BusDays):
+        return f"{frequency.number}B"
+    elif isinstance(frequency, Frequency.Zero):
+        raise ValueError("Cannot determine regular tenor from Frequency.Zero")
+    raise ValueError("Cannot determine regular tenor from Frequency")
 
 
 def add_tenor(

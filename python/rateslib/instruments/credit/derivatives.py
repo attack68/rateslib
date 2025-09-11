@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from rateslib import defaults
 from rateslib.dual.utils import _dual_float
-from rateslib.enums import NoInput
+from rateslib.enums.generics import NoInput
 from rateslib.instruments.base import BaseDerivative
 from rateslib.instruments.utils import (
     _get,

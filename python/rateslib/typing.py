@@ -16,9 +16,10 @@ from rateslib.curves import RolledCurve as RolledCurve
 from rateslib.curves import ShiftedCurve as ShiftedCurve
 from rateslib.curves import TranslatedCurve as TranslatedCurve
 from rateslib.curves import _BaseCurve as _BaseCurve
+from rateslib.curves import _CurveMeta as _CurveMeta
 from rateslib.dual.variable import Variable as Variable
-from rateslib.enums import NoInput as NoInput
-from rateslib.enums import Result as Result
+from rateslib.enums.generics import NoInput as NoInput
+from rateslib.enums.generics import Result as Result
 from rateslib.fixings import Fixings as Fixings
 from rateslib.fixings import _BaseFixingsLoader as _BaseFixingsLoader
 from rateslib.fx import FXForwards as FXForwards
@@ -73,6 +74,7 @@ from rateslib.periods import FXOptionPeriod as FXOptionPeriod
 from rateslib.periods import FXPutPeriod as FXPutPeriod
 from rateslib.periods import IndexCashflow as IndexCashflow
 from rateslib.periods import IndexFixedPeriod as IndexFixedPeriod
+from rateslib.periods.components.parameters import _FloatRateParams as _FloatRateParams
 from rateslib.rs import Adjuster as Adjuster
 from rateslib.rs import (
     Cal,
@@ -94,6 +96,8 @@ from rateslib.rs import PPSplineDual2 as PPSplineDual2
 from rateslib.rs import PPSplineF64 as PPSplineF64
 from rateslib.rs import RollDay as RollDay
 from rateslib.scheduling import Schedule as Schedule
+from rateslib.scheduling.float_rate_index import FloatRateIndex as FloatRateIndex
+from rateslib.scheduling.float_rate_index import FloatRateSeries as FloatRateSeries
 from rateslib.solver import Solver as Solver
 
 Solver_: TypeAlias = "Solver | NoInput"
@@ -161,6 +165,8 @@ ListFXVol_: TypeAlias = "list[ListFXVol_ | FXVol_]"
 
 FX: TypeAlias = "DualTypes | FXRates | FXForwards"
 FX_: TypeAlias = "FX | NoInput"
+FXRevised_: TypeAlias = "FXRates | FXForwards | NoInput"
+FXForwards_: TypeAlias = "FXForwards | NoInput"
 
 NPV: TypeAlias = "DualTypes | dict[str, DualTypes]"
 

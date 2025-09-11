@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from rateslib.dual import Dual, Dual2
 from rateslib.dual.utils import _to_number
-from rateslib.enums import NoInput
+from rateslib.enums.generics import NoInput
 
 if TYPE_CHECKING:
     from rateslib.typing import Any, DualTypes, Number  # pragma: no cover

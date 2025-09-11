@@ -1171,7 +1171,7 @@ class TestZeroIndexLeg:
             {
                 "Type": ["ZeroIndexLeg"],
                 "Notional": [1000000.0],
-                "Real Cashflow": [-1000000.0],
+                "Unindexed Cashflow": [-1000000.0],
                 "Index Base": [100.11863],
                 "Index Ratio": [1.06178],
                 "Cashflow": [-61782.379],
@@ -1183,7 +1183,7 @@ class TestZeroIndexLeg:
                 [
                     "Type",
                     "Notional",
-                    "Real Cashflow",
+                    "Unindexed Cashflow",
                     "Index Base",
                     "Index Ratio",
                     "Cashflow",

@@ -109,6 +109,10 @@ Periods
 
 Link to the :ref:`Periods<periods-doc>` section in the user guide.
 
+.. automodapi:: rateslib.periods.components.parameters
+   :inherited-members:
+   :no-heading:
+
 .. automodapi:: rateslib.periods
    :no-heading:
 

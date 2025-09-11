@@ -8,7 +8,7 @@ from pandas import DataFrame
 from rateslib import defaults
 from rateslib.curves._parsers import _disc_required_maybe_from_curve
 from rateslib.dual.utils import _dual_float
-from rateslib.enums import NoInput, _drb
+from rateslib.enums.generics import NoInput, _drb
 from rateslib.instruments.base import BaseDerivative
 from rateslib.instruments.utils import (
     _composit_fixings_table,

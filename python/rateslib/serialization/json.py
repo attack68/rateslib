@@ -9,7 +9,7 @@ from rateslib.curves import Curve, LineCurve
 from rateslib.curves.rs import CurveRs
 from rateslib.curves.utils import _CurveInterpolator, _CurveMeta, _CurveNodes, _CurveSpline
 from rateslib.dual import Variable
-from rateslib.enums import NoInput
+from rateslib.enums.generics import NoInput
 from rateslib.fx import FXRates
 from rateslib.rs import from_json as from_json_rs
 from rateslib.scheduling import Schedule

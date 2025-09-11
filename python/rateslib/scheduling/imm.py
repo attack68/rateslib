@@ -4,7 +4,7 @@ import warnings
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from rateslib.enums import NoInput
+from rateslib.enums.generics import NoInput
 from rateslib.rs import Imm
 
 if TYPE_CHECKING:

@@ -9,7 +9,7 @@ from pandas import DataFrame
 from rateslib import defaults
 from rateslib.curves import Curve
 from rateslib.dual.utils import _dual_float
-from rateslib.enums import NoInput, _drb
+from rateslib.enums.generics import NoInput, _drb
 from rateslib.instruments.sensitivities import Sensitivities
 from rateslib.instruments.utils import (
     _push,

@@ -9,11 +9,12 @@ from pandas import Series
 from rateslib import defaults
 from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_maybe_from_curve
 from rateslib.curves.curves import _try_index_value
-from rateslib.dual.utils import _dual_float
-from rateslib.enums import NoInput, Ok, _drb
+from rateslib.dual.utils import _dual_float, _float_or_none
+from rateslib.enums.generics import NoInput, Ok, _drb
+from rateslib.enums.parameters import _get_index_method
 from rateslib.periods.cashflow import Cashflow
 from rateslib.periods.rates import FixedPeriod
-from rateslib.periods.utils import _float_or_none, _get_fx_and_base, _maybe_local
+from rateslib.periods.utils import _get_fx_and_base, _maybe_local
 
 if TYPE_CHECKING:
     from rateslib.typing import (
@@ -76,12 +77,13 @@ class IndexMixin(metaclass=ABCMeta):
     ) -> tuple[Result[DualTypes], Result[DualTypes], Result[DualTypes]]:
         # IndexCashflow has no start
         i_date_base: datetime | NoInput = getattr(self, "start", NoInput(0))
+        index_method_ = _get_index_method(self.index_method)
         denominator_ = _try_index_value(
             index_fixings=self.index_base,
             index_date=i_date_base,
             index_curve=curve,
             index_lag=self.index_lag,
-            index_method=self.index_method,
+            index_method=index_method_,
         )
         if denominator_.is_err:
             return denominator_, denominator_, denominator_
@@ -90,7 +92,7 @@ class IndexMixin(metaclass=ABCMeta):
             index_date=self.end,
             index_curve=curve,
             index_lag=self.index_lag,
-            index_method=self.index_method,
+            index_method=index_method_,
         )
         if numerator_.is_err:
             return numerator_, numerator_, numerator_
@@ -176,7 +178,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
 
     Notes
     -----
-    The ``real_cashflow`` is defined as follows;
+    The ``unindexed_cashflow`` is defined as follows;
 
     .. math::
 
@@ -311,7 +313,7 @@ class IndexFixedPeriod(IndexMixin, FixedPeriod):
             **super(FixedPeriod, self).cashflows(curve, disc_curve_, fx, base),
             defaults.headers["rate"]: self.fixed_rate,
             defaults.headers["spread"]: None,
-            defaults.headers["real_cashflow"]: self.real_cashflow(),
+            defaults.headers["unindexed_cashflow"]: self.real_cashflow(),
             defaults.headers["index_base"]: _float_or_none(index_base_),
             defaults.headers["index_value"]: _float_or_none(index_val_),
             defaults.headers["index_ratio"]: _float_or_none(index_ratio_),
@@ -367,7 +369,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
 
     Notes
     -----
-    The ``real_cashflow`` is defined as follows;
+    The ``unindexed_cashflow`` is defined as follows;
 
     .. math::
 
@@ -455,7 +457,7 @@ class IndexCashflow(IndexMixin, Cashflow):  # type: ignore[misc]
         return {
             **super(IndexMixin, self).cashflows(curve, disc_curve, fx, base),
             defaults.headers["a_acc_end"]: self.end,
-            defaults.headers["real_cashflow"]: self.real_cashflow(),
+            defaults.headers["unindexed_cashflow"]: self.real_cashflow(),
             defaults.headers["index_base"]: _float_or_none(index_base_),
             defaults.headers["index_value"]: _float_or_none(index_val_),
             defaults.headers["index_ratio"]: _float_or_none(index_ratio_),
@@ -496,7 +498,7 @@ def _index_series_to_value(
     if isinstance(index_fixings, Series):
         val: Result[DualTypes] = _try_index_value(
             index_lag=index_lag,
-            index_method=index_method,
+            index_method=_get_index_method(index_method),
             index_fixings=index_fixings,
             index_date=index_date,
             index_curve=NoInput(0),

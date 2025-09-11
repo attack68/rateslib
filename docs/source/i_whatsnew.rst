@@ -15,6 +15,14 @@ email contact, see `rateslib <https://rateslib.com>`_.
 2.2.0 (not released)
 ***********************
 
+
+Must note: period.float_spread does not work anymore. Periods now have specific parameter objects,
+fixings exposure is completely re-engineered, approximations are not currently available.
+Signature of some functions for Periods is now uses a more explicit keyword argument structure
+only. This is due to certain objects being used primarily internally with a UI focused more on
+higher level instrumenst than their constructing objects.
+
+
 .. list-table::
    :widths: 25 75
    :header-rows: 1
@@ -78,6 +86,9 @@ email contact, see `rateslib <https://rateslib.com>`_.
          with other *Period* types, such as a *FloatPeriod*. Its results is unchanged when
          provided no arguments.
          (`1025 <https://github.com/attack68/rateslib/pull/1025>`_)
+   * - **Automatic Differentiation**
+     - - The :class:`~rateslib.dual.gradient` method can now be called on `float` and `int` datatypes
+         and will return an array of zeros the length of requested variables.
    * - **Bugs**
      - - :class:`~rateslib.legs.IndexFixedLeg` now applies the ``payment_lag_exchange`` adjuster
          to amortization notional exchanges as opposed to the ``payment_lag`` adjuster.
