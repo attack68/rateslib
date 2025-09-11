@@ -7,7 +7,7 @@ from pandas import Series
 
 from rateslib import defaults
 from rateslib.dual import Dual, Dual2, Variable
-from rateslib.enums import NoInput, _drb
+from rateslib.enums.generics import NoInput, _drb
 from rateslib.fx import FXForwards
 from rateslib.legs.base import BaseLeg, _AmortizationType, _FixedLegMixin, _FloatLegMixin
 from rateslib.periods import Cashflow
@@ -27,6 +27,7 @@ if TYPE_CHECKING:
         Schedule,
         _BaseCurve,
         _BaseCurve_,
+        datetime,
         datetime_,
         int_,
         str_,
@@ -103,10 +104,17 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
 
     def _get_fx_fixings_from_series(
         self,
-        ser: Series[DualTypes],  # type: ignore[type-var]
+        ser: Series[DualTypes] | str,  # type: ignore[type-var]
         ini_period: int = 0,
     ) -> list[DualTypes]:
-        last_fixing_date = ser.index[-1]
+        if isinstance(ser, str):
+            data = defaults.fixings.__getitem__(ser)
+            ser_: Series[DualTypes] = data[1]  # type: ignore[type-var]
+            last_fixing_date: datetime = data[2][1]
+        else:
+            ser_ = ser
+            last_fixing_date = ser_.index[-1]
+
         fixings_list: list[DualTypes] = []
         for i in range(ini_period, self.schedule.n_periods):
             required_date = self.schedule.pschedule2[i]
@@ -114,7 +122,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
                 break
             else:
                 try:
-                    fixings_list.append(ser[required_date])
+                    fixings_list.append(ser_[required_date])
                 except KeyError:
                     raise ValueError(
                         "A Series is provided for FX fixings but the required exchange "

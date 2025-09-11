@@ -7,7 +7,8 @@ from pandas import Series
 
 from rateslib import defaults
 from rateslib.curves.curves import _try_index_value
-from rateslib.enums import NoInput, _drb
+from rateslib.enums.generics import NoInput, _drb
+from rateslib.enums.parameters import _get_index_method
 from rateslib.legs.base import BaseLeg, _AmortizationType, _FixedLegMixin
 from rateslib.periods import Cashflow, IndexCashflow, IndexFixedPeriod
 from rateslib.periods.index import _validate_index_method_and_lag
@@ -52,11 +53,12 @@ class _IndexLegMixin:
             for p in [_ for _ in self.periods if type(_) is not Cashflow]:
                 p.index_fixings = NoInput(0)  # type: ignore[union-attr]
         elif isinstance(value, Series):
+            index_method_ = _get_index_method(self.index_method)
             for p in [_ for _ in self.periods if type(_) is not Cashflow]:
                 date_: datetime = p.end if type(p) is IndexFixedPeriod else p.payment
                 index_fixing = _try_index_value(
                     index_lag=self.index_lag,
-                    index_method=self.index_method,
+                    index_method=index_method_,
                     index_fixings=value,
                     index_date=date_,
                     index_curve=NoInput(0),
@@ -77,10 +79,11 @@ class _IndexLegMixin:
     @index_base.setter
     def index_base(self, value: DualTypes | Series[DualTypes] | NoInput) -> None:  # type: ignore[type-var]
         if isinstance(value, Series):
+            index_method_ = _get_index_method(self.index_method)
             value = _validate_index_fixings_as_series(value)
             result = _try_index_value(
                 index_lag=self.index_lag,
-                index_method=self.index_method,
+                index_method=index_method_,
                 index_fixings=value,
                 index_date=self.schedule.effective,
                 index_curve=NoInput(0),

@@ -176,6 +176,14 @@ def test_gradient_method(vars_, expected, x_1, y_2) -> None:
     assert np.all(result == expected)
 
 
+def test_gradient_on_float():
+    result = gradient(1.0, ["v0", "s"])
+    assert np.all(result == np.array([0.0, 0.0]))
+
+    result = gradient(1.0, ["s"], order=2)
+    assert np.all(result == np.array([[0.0, 0.0], [0.0, 0.0]]))
+
+
 @pytest.mark.parametrize(
     ("vars_", "expected"),
     [

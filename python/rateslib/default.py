@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from rateslib._spec_loader import INSTRUMENT_SPECS
-from rateslib.enums import NoInput, _drb
+from rateslib.enums.generics import NoInput, _drb
+from rateslib.enums.parameters import FloatFixingMethod
 from rateslib.fixings import Fixings
 from rateslib.rs import Cal, NamedCal, UnionCal
 
@@ -95,6 +96,15 @@ class Defaults:
             "rfr_lockout_avg": 2,
             "rfr_lookback_avg": 2,
             "ibor": 2,
+            FloatFixingMethod.RFRPaymentDelayAverage: 0,
+            FloatFixingMethod.RFRPaymentDelay: 0,
+            FloatFixingMethod.IBOR: 2,
+            FloatFixingMethod.RFRLockout: 2,
+            FloatFixingMethod.RFRLockoutAverage: 2,
+            FloatFixingMethod.RFRObservationShiftAverage: 2,
+            FloatFixingMethod.RFRObservationShift: 2,
+            FloatFixingMethod.RFRLookback: 2,
+            FloatFixingMethod.RFRLookbackAverage: 2,
         }
         self.spread_compound_method = "none_simple"
         self.base_currency = "usd"
@@ -160,14 +170,17 @@ class Defaults:
             "dcf": "DCF",
             "df": "DF",
             "notional": "Notional",
+            "reference_currency": "Reference Ccy",
             "currency": "Ccy",
+            "fx_fixing": "FX Fixing",
             "rate": "Rate",
             "spread": "Spread",
             "npv": "NPV",
             "cashflow": "Cashflow",
             "fx": "FX Rate",
             "npv_fx": "NPV Ccy",
-            "real_cashflow": "Real Cashflow",
+            "base": "Base Ccy",
+            "unindexed_cashflow": "Unindexed Cashflow",
             "index_value": "Index Val",
             "index_ratio": "Index Ratio",
             "index_base": "Index Base",

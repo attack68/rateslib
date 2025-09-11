@@ -1,10 +1,11 @@
+import os
 from datetime import datetime as dt
 
 import numpy as np
 import pytest
 from pandas import DataFrame, Index, MultiIndex, Series, isna
 from pandas.testing import assert_frame_equal
-from rateslib import default_context
+from rateslib import default_context, defaults
 from rateslib.curves import CompositeCurve, Curve, LineCurve, MultiCsaCurve
 from rateslib.curves._parsers import _map_curve_from_solver
 from rateslib.default import NoInput
@@ -3567,6 +3568,28 @@ class TestXCS:
         )
 
         XCS(dt(2000, 1, 7), "9m", spec="eurusd_xcs", fixed=True, fixed_rate=3.0)
+
+    def test_fixing_doc(self):
+        # tests a series as sting can be provided to XCS in tuple
+        curve = Curve({dt(2023, 1, 15): 1.0, dt(2028, 1, 1): 0.96})
+        name = str(hash(os.urandom(8)))
+        defaults.fixings.add(
+            name,
+            Series(
+                index=[dt(2023, 1, 17), dt(2023, 4, 17), dt(2023, 7, 17)],
+                data=[1.19, 1.21, 1.24],
+            ),
+        )
+        xcs = XCS(
+            effective=dt(2023, 1, 15),
+            termination="9M",
+            spec="gbpusd_xcs",
+            fx_fixings=(1.20, name),
+        )
+        result = xcs.cashflows(
+            curves=curve, fx=1.25
+        )  # arguments here used as a placeholder to display values.
+        assert isinstance(result, DataFrame)
 
 
 class TestFixedFloatXCS:

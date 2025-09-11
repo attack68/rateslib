@@ -8,7 +8,7 @@ from pandas import DataFrame
 from rateslib import FXDeltaVolSmile, FXDeltaVolSurface, defaults
 from rateslib.curves._parsers import _get_curves_maybe_from_solver, _validate_curve_not_no_input
 from rateslib.dual import Dual, Dual2, Variable
-from rateslib.enums import NoInput
+from rateslib.enums.generics import NoInput
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXSabrSmile, FXSabrSurface
 from rateslib.scheduling import Schedule

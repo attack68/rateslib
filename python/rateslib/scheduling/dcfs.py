@@ -5,10 +5,11 @@ from datetime import datetime
 from functools import partial
 from typing import TYPE_CHECKING
 
-from rateslib.enums import NoInput, _drb
+from rateslib.enums.generics import NoInput, _drb
 from rateslib.scheduling import Adjuster, Convention, Frequency, RollDay
 from rateslib.scheduling.adjuster import _get_adjuster
 from rateslib.scheduling.calendars import get_calendar
+from rateslib.scheduling.convention import _get_convention
 from rateslib.scheduling.frequency import _get_frequency_none
 
 if TYPE_CHECKING:
@@ -113,46 +114,6 @@ def dcf(
     )
 
 
-CONVENTIONS_MAP: dict[str, Convention] = {
-    "ACT365F": Convention.Act365F,
-    "ACT365": Convention.Act365F,
-    "ACT360": Convention.Act360,
-    ###
-    "30360": Convention.Thirty360,
-    "THIRTY360": Convention.Thirty360,
-    "360360": Convention.Thirty360,
-    "BONDBASIS": Convention.Thirty360,
-    "30E360": Convention.ThirtyE360,
-    "THIRTYE360": Convention.ThirtyE360,
-    "EUROBONDBASIS": Convention.ThirtyE360,
-    "30E360ISDA": Convention.ThirtyE360ISDA,
-    "THIRTYE360ISDA": Convention.ThirtyE360ISDA,
-    "30U360": Convention.ThirtyU360,
-    "THIRTYU360": Convention.ThirtyU360,
-    ###
-    "ACT365F+": Convention.YearsAct365F,
-    "YEARSACT365F": Convention.YearsAct365F,
-    "ACT360+": Convention.YearsAct360,
-    "YEARSACT360": Convention.YearsAct360,
-    "1+": Convention.YearsMonths,
-    "YEARSMONTHS": Convention.YearsMonths,
-    ###
-    "1": Convention.One,
-    "ONE": Convention.One,
-    ###
-    "ACTACT": Convention.ActActISDA,
-    "ACTACTISDA": Convention.ActActISDA,
-    "ACTACTICMA": Convention.ActActICMA,
-    "ACTACTISMA": Convention.ActActICMA,
-    "ACTACTBOND": Convention.ActActICMA,
-    ###
-    "BUS252": Convention.Bus252,
-    ###
-    "ACTACTICMA_STUB365F": Convention.ActActICMAStubAct365F,
-    "ACTACTICMASTUBACT365F": Convention.ActActICMAStubAct365F,
-}
-
-
 def _dcf_numeric(start: datetime, end: datetime, denominator: float, **kwargs: Any) -> float:
     """Calculate the day count fraction of a period using the fixed denominator rule."""
     return (end - start).days / denominator
@@ -174,17 +135,6 @@ PERFORMANCE: dict[Convention, Callable[..., float]] = {
     Convention.ActActICMA: _dcf_actacticma_nonstub,
     Convention.ActActICMAStubAct365F: _dcf_actacticma_nonstub,
 }
-
-
-def _get_convention(convention: Convention | str) -> Convention:
-    """Convert a user str input into a Convention enum."""
-    if isinstance(convention, Convention):
-        return convention
-    else:
-        try:
-            return CONVENTIONS_MAP[convention.upper()]
-        except KeyError:
-            raise ValueError(f"`convention`: {convention}, is not valid.")
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

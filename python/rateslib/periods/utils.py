@@ -3,11 +3,11 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING
 
+import rateslib.errors as err
 from rateslib import defaults
 from rateslib.curves import _BaseCurve
 from rateslib.curves._parsers import _validate_obj_not_no_input
-from rateslib.dual.utils import _dual_float
-from rateslib.enums import Err, NoInput, Ok, _drb
+from rateslib.enums.generics import Err, NoInput, Ok, _drb
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
 
@@ -181,15 +181,6 @@ def _maybe_fx_converted(
     return value * fx_
 
 
-def _float_or_none(val: DualTypes | None | NoInput | Result[DualTypes]) -> float | None:
-    if val is None or isinstance(val, NoInput | Err):
-        return None
-    elif isinstance(val, Ok):
-        return _dual_float(val.unwrap())
-    else:
-        return _dual_float(val)
-
-
 def _get_ibor_curve_from_dict(months: int, d: dict[str, _BaseCurve]) -> _BaseCurve:
     try:
         return d[f"{months}m"]
@@ -221,7 +212,8 @@ def _get_rfr_curve_from_dict(d: dict[str, _BaseCurve]) -> _BaseCurve:
         else:
             return ret
     raise ValueError(
-        "A `curve` supplied as dict to an RFR based period must contain a key entry 'rfr'."
+        "A `rate_curve` supplied as dict to an RFR based calculation must contain a key "
+        "entry 'rfr'."
     )
 
 
@@ -280,18 +272,16 @@ def _validate_credit_curves(
 
 
 def _validate_fx_as_forwards(fx: FX_) -> FXForwards:
+    return _try_validate_fx_as_forwards(fx).unwrap()
+
+
+def _try_validate_fx_as_forwards(fx: FX_) -> Result[FXForwards]:
     if isinstance(fx, NoInput):
-        raise ValueError(
-            "An FXForwards object for `fx` is required for instrument pricing.\n"
-            "If this instrument is part of a Solver, have you omitted the `fx` input?",
-        )
+        return Err(ValueError(err.VE_NEEDS_FX_FORWARDS))
     elif not isinstance(fx, FXForwards):
-        raise ValueError(
-            "An FXForwards object for `fx` is required for instrument pricing.\n"
-            f"The given type, '{type(fx).__name__}', cannot be used here."
-        )
+        raise ValueError(err.VE_NEEDS_FX_FORWARDS_BAD_TYPE.format(type(fx).__name__))
     else:
-        return fx  # type: ignore[no-any-return]
+        return Ok(fx)
 
 
 def _get_fx_fixings_from_non_fx_forwards(

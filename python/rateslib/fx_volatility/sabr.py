@@ -20,7 +20,7 @@ from rateslib.dual import (
     set_order_convert,
 )
 from rateslib.dual.utils import _dual_float, _to_number
-from rateslib.enums import NoInput, _drb
+from rateslib.enums.generics import NoInput, _drb
 from rateslib.fx import FXForwards
 from rateslib.fx_volatility.base import _BaseSmile
 from rateslib.fx_volatility.utils import (

@@ -11,7 +11,8 @@ from rateslib import defaults
 from rateslib.curves._parsers import _validate_curve_is_not_dict, _validate_curve_not_no_input
 from rateslib.curves.utils import _CurveType
 from rateslib.dual import dual_log
-from rateslib.enums import NoInput, _drb
+from rateslib.enums.generics import NoInput, _drb
+from rateslib.enums.parameters import IndexMethod
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
 from rateslib.instruments.base import Metrics
 from rateslib.instruments.sensitivities import Sensitivities
@@ -162,7 +163,9 @@ class Value(Metrics):
             ret = (dual_log(curve_0[self.effective]) / -dcf_) * 100
         elif metric == "index_value":
             ret = curve_0.index_value(
-                date=self.effective, index_lag=curve_0.meta.index_lag, interpolation="daily"
+                index_date=self.effective,
+                index_lag=curve_0.meta.index_lag,
+                index_method=IndexMethod.Daily,
             )
         elif metric == "o/n_rate":
             ret = curve_0.rate(self.effective, "1D")  # type: ignore[assignment]

@@ -18,7 +18,7 @@ from rateslib.curves._parsers import (
 )
 from rateslib.dual import Dual, Dual2, Variable, gradient, ift_1dim
 from rateslib.dual.utils import _dual_float, _to_number
-from rateslib.enums import NoInput, _drb
+from rateslib.enums.generics import NoInput, _drb
 from rateslib.instruments.base import Metrics
 from rateslib.instruments.bonds.conventions import (
     BILL_MODE_MAP,
@@ -1501,7 +1501,8 @@ class FixedRateBond(Sensitivities, BondMixin, Metrics):  # type: ignore[misc]
         # TODO: method is not AD safe: returns float
         ytm_: float = _dual_float(ytm)
         _ = self.price(Dual2(ytm_, ["_ytm__§"], [], []), settlement)
-        return gradient(_, ["_ytm__§"], 2)[0][0]  # type: ignore[no-any-return, arg-type]
+        ret: float = gradient(_, ["_ytm__§"], 2)[0][0]
+        return ret
 
     def price(self, ytm: DualTypes, settlement: datetime, dirty: bool = False) -> DualTypes:
         """
@@ -1637,7 +1638,7 @@ class IndexFixedRateBond(FixedRateBond):
         period: IndexCashflow | IndexFixedPeriod,  # type: ignore[override]
         curve: CurveOption_,
     ) -> DualTypes:
-        """Indexed bonds use the known "real_cashflow" attribute on the *Period*."""
+        """Indexed bonds use the known "unindexed_cashflow" attribute on the *Period*."""
         return period.real_cashflow()  # type: ignore[return-value]
 
     def __init__(

@@ -11,7 +11,7 @@ from rateslib import FXDeltaVolSmile, FXDeltaVolSurface, defaults
 from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.default import PlotOutput, plot
 from rateslib.dual.utils import _dual_float
-from rateslib.enums import NoInput, _drb
+from rateslib.enums.generics import NoInput, _drb
 from rateslib.fx_volatility import FXSabrSmile, FXSabrSurface
 from rateslib.instruments.base import Metrics
 from rateslib.instruments.sensitivities import Sensitivities

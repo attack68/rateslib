@@ -15,7 +15,7 @@ from rateslib.curves import Curve, MultiCsaCurve, ProxyCurve
 from rateslib.curves.utils import _CurveType
 from rateslib.default import PlotOutput, plot
 from rateslib.dual import Dual, Dual2, Variable, gradient
-from rateslib.enums import NoInput, _drb
+from rateslib.enums.generics import NoInput, _drb
 from rateslib.fx.fx_rates import FXRates
 from rateslib.mutability import (
     _clear_cache_post,
