@@ -31,6 +31,32 @@ if TYPE_CHECKING:
 
 
 class _SettlementParams:
+    """
+    Parameters for settlement of *Period* cashflows.
+
+    Parameters
+    ----------
+    _currency: str
+        The physical *settlement currency* of the *Period*.
+    _notional: float, Dual, Dual2, Variable
+        The notional amount of the *Period* expressed in *reference currency*.
+    _payment: datetime
+        The payment date of the cashflow.
+    _pair: str, optional
+        For non-deliverable *Periods* only.
+        The currency pair of the *FX* rate fixing that determines settlement. The
+        *reference currency* is implied from ``pair`` when it is not equal to ``currency``.
+    _fx_fixings: float, Dual, Dual2, Variable, str, Series, optional
+        For non-deliverable *Periods* only.
+        An element which can determine the ``fx_fixing``.
+    _delivery: datetime, optional
+        For non-deliverable *Periods* only.
+        The settlement delivery date of the *FX* rate fixing.
+    _ex_dividend: datetime, optional
+        The ex-dividend date of the *Period*. Settlements occurring **after** this date
+        are assumed to be non-receivable.
+
+    """
     _currency: str
     _notional: DualTypes
     _payment: datetime
