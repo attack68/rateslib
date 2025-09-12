@@ -4,10 +4,11 @@ import warnings
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, TypeVar
 
+import rateslib.errors as err
 from rateslib import defaults
 from rateslib.curves import MultiCsaCurve, ProxyCurve
 from rateslib.curves.utils import _CurveType
-from rateslib.enums import NoInput
+from rateslib.enums.generics import Err, NoInput, Ok
 
 if TYPE_CHECKING:
     from rateslib.typing import (
@@ -19,6 +20,7 @@ if TYPE_CHECKING:
         Curves_,
         Curves_DiscTuple,
         Curves_Tuple,
+        Result,
         Solver,
         _BaseCurve,
         _BaseCurve_,
@@ -258,6 +260,23 @@ def _disc_required_maybe_from_curve(curve: CurveOption_, disc_curve: CurveOption
             "A `disc_curve` is required to perform function."
         )
     return _
+
+
+def _try_disc_required_maybe_from_curve(
+    curve: CurveOption_, disc_curve: CurveOption_
+) -> Result[_BaseCurve]:
+    """Return a discount curve, pointed as the `curve` if not provided and if suitable Type."""
+    if isinstance(disc_curve, dict):
+        return Err(NotImplementedError(err.NI_NO_DISC_FROM_DICT))
+    if isinstance(disc_curve, NoInput):
+        if isinstance(curve, dict):
+            return Err(NotImplementedError(err.NI_NO_DISC_FROM_DICT))
+        elif isinstance(curve, NoInput):
+            return Err(ValueError(err.VE_NEEDS_DISC_CURVE))
+        elif curve._base_type == _CurveType.values:
+            return Err(ValueError(err.VE_NO_DISC_FROM_VALUES))
+        return Ok(curve)
+    return Ok(disc_curve)
 
 
 def _maybe_set_ad_order(

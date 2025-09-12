@@ -10,7 +10,7 @@ from rateslib import defaults
 from rateslib.curves._parsers import _validate_curve_not_no_input
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.dual.utils import _dual_float
-from rateslib.enums import NoInput, _drb
+from rateslib.enums.generics import NoInput, _drb
 from rateslib.fx import FXForwards, FXRates, forward_fx
 from rateslib.instruments.base import BaseDerivative, Metrics
 from rateslib.instruments.sensitivities import Sensitivities

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, NoReturn, TypeAlias
 
 from rateslib.default import PlotOutput, plot
 from rateslib.dual import Dual, Dual2, Variable
-from rateslib.enums import NoInput, _drb
+from rateslib.enums.generics import NoInput, _drb
 from rateslib.fx_volatility.utils import _FXSmileMeta
 from rateslib.mutability import _WithCache, _WithState
 

@@ -20,7 +20,7 @@ from rateslib.dual import (
     set_order_convert,
 )
 from rateslib.dual.utils import _dual_float, _to_number
-from rateslib.enums import (
+from rateslib.enums.generics import (
     NoInput,
 )
 from rateslib.rs import _sabr_x0 as _rs_sabr_x0

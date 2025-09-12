@@ -9,9 +9,6 @@
 //! - Inference for stub dates and monthly [`RollDay`] when utilising a UI which extends to users
 //!   being allowed to supply unknown or ambiguous parameters.
 //!
-//! The [supplementary material](https://www.amazon.com/dp/0995455562) discusses the algorithms,
-//! architecture and implementation of these objects.
-//!
 //! # Calendars and Date Adjustment
 //!
 //! ## Calendars
@@ -60,8 +57,7 @@
 //!
 //! # Schedules
 //!
-//! A [`Schedule`] is an ordered and patterned array of periods and dates. Again, more details can
-//! be found in the [supplementary material](https://www.amazon.com/dp/0995455562).
+//! A [`Schedule`] is an ordered and patterned array of periods and dates.
 //!
 //! All [`Schedule`] objects in *rateslib* are centered about the definition of their [`Frequency`],
 //! which is an enum describing a regular period of time. Certain [`Frequency`] variants have

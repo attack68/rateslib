@@ -1647,7 +1647,7 @@ class TestFloatPeriod:
             fixing_method=meth,
             method_param=param,
             float_spread=0.0,
-            fixings=defaults.fixings["nowa"],
+            fixings=defaults.fixings["nowa"][1],
         )
         result = period.rate(curve)
         assert abs(result - exp) < 1e-7
@@ -1718,7 +1718,7 @@ class TestFloatPeriod:
             float_spread=0.0,
             stub=True,
         )
-        with pytest.raises(ValueError, match="A `curve` supplied as dict to an RFR based period m"):
+        with pytest.raises(ValueError, match="A `rate_curve` supplied as dict to an RFR based cal"):
             period.rate({"bad_index": curve})
 
     def test_rfr_period_curve_dict_allowed(self, curve) -> None:
@@ -2789,7 +2789,7 @@ class TestIndexFixedPeriod:
             "Rate": 4.0,
             "Spread": None,
             "Cashflow": -20000000.0,
-            "Real Cashflow": -10e6,
+            "Unindexed Cashflow": -10e6,
             "Index Base": 100.0,
             "Index Val": 200.0,
             "Index Ratio": 2.0,

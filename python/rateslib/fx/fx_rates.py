@@ -14,7 +14,7 @@ from rateslib.default import (
 )
 from rateslib.dual import Dual, gradient
 from rateslib.dual.utils import _get_adorder
-from rateslib.enums import NoInput, _drb
+from rateslib.enums.generics import NoInput, _drb
 from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,

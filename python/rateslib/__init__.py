@@ -13,7 +13,7 @@ for _dependency in _hard_dependencies:
 from datetime import datetime as dt
 
 from rateslib.default import Defaults
-from rateslib.enums import NoInput
+from rateslib.enums.generics import NoInput
 
 defaults = Defaults()
 

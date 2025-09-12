@@ -286,7 +286,7 @@ class TestNamedCal:
     ],
 )
 def test_calendar_against_historical_fixings(datafile, calendar, known_exceptions):
-    fixings = defaults.fixings[datafile]
+    fixings = defaults.fixings[datafile][1]
     calendar_ = get_calendar(calendar)
     bus_days = Index(calendar_.bus_date_range(fixings.index[0], fixings.index[-1]))
     diff = fixings.index.symmetric_difference(bus_days)

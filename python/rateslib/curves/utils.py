@@ -13,9 +13,9 @@ from rateslib import defaults
 from rateslib.curves.interpolation import INTERPOLATION, InterpolationFunction
 from rateslib.dual import dual_log, set_order_convert
 from rateslib.dual.utils import _to_number
-from rateslib.enums import NoInput
+from rateslib.enums.generics import NoInput
 from rateslib.scheduling import Convention
-from rateslib.scheduling.dcfs import _get_convention
+from rateslib.scheduling.convention import _get_convention
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:

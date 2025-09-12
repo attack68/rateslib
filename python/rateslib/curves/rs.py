@@ -8,7 +8,7 @@ from uuid import uuid4
 from rateslib import defaults
 from rateslib.default import _make_py_json
 from rateslib.dual.utils import _get_adorder
-from rateslib.enums import NoInput, _drb
+from rateslib.enums.generics import NoInput, _drb
 from rateslib.rs import (
     ADOrder,
     FlatBackwardInterpolator,
@@ -22,7 +22,7 @@ from rateslib.rs import (
 )
 from rateslib.rs import Curve as CurveObj  # noqa: F401
 from rateslib.scheduling import get_calendar
-from rateslib.scheduling.dcfs import _get_convention
+from rateslib.scheduling.convention import _get_convention
 
 if TYPE_CHECKING:
     from rateslib.typing import CalInput, CurveInterpolator, DualTypes, Number

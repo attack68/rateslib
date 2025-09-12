@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from rateslib.enums import NoInput
+from rateslib.enums.generics import NoInput
 from rateslib.legs.base import BaseLeg, _FixedLegMixin, _FloatLegMixin, _get_single_element_fixings
 from rateslib.periods import (
     Cashflow,

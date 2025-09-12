@@ -9,17 +9,18 @@ from packaging import version
 from pandas import Series, read_csv
 from pandas import __version__ as pandas_version
 
-from rateslib.enums import Err
+import rateslib.errors as err
+from rateslib.enums.generics import Err, NoInput, Ok
 
 if TYPE_CHECKING:
-    from rateslib.typing import Adjuster, CalTypes, DualTypes, Result
+    from rateslib.typing import Adjuster, CalTypes, DualTypes, FloatRateSeries, Result, datetime_
 
 
 class _BaseFixingsLoader(metaclass=ABCMeta):
     @abstractmethod
-    def __getitem__(self, name: str) -> Series[float]:
+    def __getitem__(self, name: str) -> tuple[int, Series[DualTypes], tuple[datetime, datetime]]:  # type: ignore[type-var]
         """
-        Get item method to load a fixing series from a custom container object.
+        Get item method to load a fixing series and ist state id from a custom container object.
 
         Parameters
         ----------
@@ -28,14 +29,55 @@ class _BaseFixingsLoader(metaclass=ABCMeta):
 
         Returns
         -------
-        pandas Series
+        tuple of int, pandas Series, and tuple of datetime
 
         Notes
         -----
+        The first tuple element is a hash integer which represents the state of the Series object.
+        This is used to determine if the Series object has changed since it was last loaded,
+        and makes for more efficient fixings lookup calculations in *Periods*.
+
+        The second element is the timeseries object itself.
+
+        The third tuple element is a cached record of the first and last dates in the Series index.
+
         If a valid Series object cannot be loaded this method **must** raise an `Exception`,
         preferably a `ValueError`.
         """
         pass
+
+    def __try_getitem__(
+        self, name: str
+    ) -> Result[tuple[int, Series[DualTypes], tuple[datetime, datetime]]]:  # type: ignore[type-var]
+        try:
+            tuple_value = self.__getitem__(name)
+        except Exception as e:
+            return Err(e)
+        else:
+            return Ok(tuple_value)
+
+    def __base_lookup__(
+        self,
+        fixing_series: Series[DualTypes],  # type: ignore[type-var]
+        lookup_date: datetime_,
+        bounds: tuple[datetime, datetime] | None = None,
+    ) -> Result[DualTypes]:
+        if bounds is not None:
+            left, right = bounds
+        else:
+            # default to slower mechanism of lookup
+            left, right = fixing_series.index[0], fixing_series.index[-1]
+
+        if isinstance(lookup_date, NoInput):
+            # program break, raise directly
+            raise ValueError("A `lookup_date` must be provided for fetching fixings from Series.")
+        if lookup_date < left or lookup_date > right:
+            return Err(FixingRangeError(lookup_date, (left, right)))
+
+        if lookup_date not in fixing_series.index:
+            return Err(FixingMissingDataError(lookup_date, (left, right)))
+        else:
+            return Ok(fixing_series.loc[lookup_date])
 
     def get_stub_ibor_fixings(
         self,
@@ -45,7 +87,7 @@ class _BaseFixingsLoader(metaclass=ABCMeta):
         fixing_calendar: CalTypes,
         fixing_modifier: Adjuster,
         fixing_identifier: str,
-    ) -> tuple[list[str], list[datetime], list[float | None]]:
+    ) -> tuple[list[str], list[datetime], list[DualTypes | None]]:
         """
         Return the tenors available in the :class:`~rateslib.defaults.Fixings` object for
         determining an IBOR type stub period.
@@ -69,19 +111,16 @@ class _BaseFixingsLoader(metaclass=ABCMeta):
         -------
         tuple of list[string tenors] and list[evaluated end dates]
         """
-        from rateslib.scheduling import add_tenor
 
-        left: tuple[str | None, datetime] = (None, datetime(1, 1, 1))
-        right: tuple[str | None, datetime] = (None, datetime(9999, 1, 1))
+        def _is_available(tenor: str) -> bool:
+            try:
+                self.__getitem__(f"{fixing_identifier.upper()}_{tenor}")
+            except Exception:  # noqa: S112
+                return False
+            else:
+                return True
 
-        for tenor in [
-            "1D",
-            "1B",
-            "2B",
-            "1W",
-            "2W",
-            "3W",
-            "4W",
+        tenors = ["1D", "1B", "2B", "1W", "2W", "3W", "4W"] + [
             "1M",
             "2M",
             "3M",
@@ -95,70 +134,31 @@ class _BaseFixingsLoader(metaclass=ABCMeta):
             "11M",
             "12M",
             "1Y",
-        ]:
-            try:
-                _ = self.__getitem__(f"{fixing_identifier.upper()}_{tenor}")
-            except Exception:  # noqa: S112
-                continue
-            else:
-                sample_end = add_tenor(
-                    start=value_start_date,
-                    tenor=tenor,
-                    modifier=fixing_modifier,
-                    calendar=fixing_calendar,
-                )
-                if sample_end <= value_end_date and sample_end > left[1]:
-                    left = (tenor, sample_end)
-                if sample_end >= value_end_date and sample_end < right[1]:
-                    right = (tenor, sample_end)
-                    break
+        ]
 
-        ret: tuple[list[str], list[datetime], list[float | None]] = ([], [], [])
-        if left[0] is not None:
-            s = self[f"{fixing_identifier.upper()}_{left[0]}"]
-            try:
-                val: float = s[fixing_date]
-            except KeyError:
-                ret[2].append(None)
-            else:
-                ret[2].append(val)
-            ret[0].append(left[0])
-            ret[1].append(left[1])
-        if right[0] is not None:
-            s = self[f"{fixing_identifier.upper()}_{right[0]}"]
-            try:
-                val = s[fixing_date]
-            except KeyError:
-                ret[2].append(None)
-            else:
-                ret[2].append(val)
-            ret[0].append(right[0])
-            ret[1].append(right[1])
-        return ret
+        available_tenors = [tenor for tenor in tenors if _is_available(tenor)]
+        from rateslib.scheduling.float_rate_index import FloatRateSeries
 
-    def get_index_value_from_fixings(
-        self,
-        index_lag: int,
-        index_method: str,
-        index_fixings: str,
-        index_date: datetime,
-    ) -> Result[DualTypes]:
-        """
-        Derive a value from a Series only, detecting cases where the errors might be raised.
-        """
-        try:
-            fixings_series = self.__getitem__(index_fixings)
-        except Exception as e:
-            return Err(e)
-
-        from rateslib.curves.curves import _index_value_from_series_no_curve
-
-        return _index_value_from_series_no_curve(
-            index_lag=index_lag,
-            index_method=index_method,
-            index_fixings=fixings_series,  # type: ignore[arg-type]
-            index_date=index_date,
+        neighbouring_tenors = _find_neighbouring_tenors(
+            end=value_end_date,
+            start=value_start_date,
+            tenors=available_tenors,
+            rate_series=FloatRateSeries(
+                lag=0, calendar=fixing_calendar, convention="1", modifier=fixing_modifier, eom=False
+            ),
         )
+
+        values: list[DualTypes | None] = []
+        for tenor in neighbouring_tenors[0]:
+            try:
+                val: DualTypes = self.__getitem__(f"{fixing_identifier.upper()}_{tenor}")[1][
+                    fixing_date
+                ]
+            except KeyError:
+                values.append(None)
+            else:
+                values.append(val)
+        return neighbouring_tenors + (values,)
 
 
 class Fixings(_BaseFixingsLoader):
@@ -190,7 +190,7 @@ class Fixings(_BaseFixingsLoader):
 
     - Either by maintaining a set of CSV files in the source lookup directory (whose path is
       visible/settable by calling `defaults.fixings.directory`)
-    - Or creating a pandas *Series* and using the :meth:`~rateslib.default.Fixings.add_series` to
+    - Or creating a pandas *Series* and using the :meth:`~rateslib.default.Fixings.add` to
       add this object to the dictionary.
 
     **Fixing Lookup**
@@ -212,7 +212,7 @@ class Fixings(_BaseFixingsLoader):
            index=[dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 3, 1)],
            data=[100.0, 101.2, 102.2]
        )
-       defaults.fixings.add_series("MY_CPI", cpi)
+       defaults.fixings.add("MY_CPI", cpi)
        defaults.fixings["MY_CPI"]
 
     .. ipython:: python
@@ -226,8 +226,31 @@ class Fixings(_BaseFixingsLoader):
     For further info see :ref:`working with fixings <cook-fixings-doc>`.
     """
 
+    def __init__(self) -> None:
+        self.directory = os.path.dirname(os.path.abspath(__file__)) + "/data"
+        self.loaded: dict[str, tuple[int, Series[DualTypes], tuple[datetime, datetime]]] = {}  # type: ignore[type-var]
+
+    def __getitem__(self, name: str) -> tuple[int, Series[DualTypes], tuple[datetime, datetime]]:  # type: ignore[type-var]
+        name_ = name.upper()
+        if name_ in self.loaded:
+            return self.loaded[name_]
+
+        try:
+            s: Series[DualTypes] = self._load_csv(self.directory, f"{name}.csv")  # type: ignore[type-var]
+        except FileNotFoundError:
+            raise ValueError(
+                f"Fixing data for the index '{name}' has been attempted, but there is no file:\n"
+                f"'{name}.csv' located in the search directory.\n"
+                "For further info see the documentation for the `Fixings` class and/or the "
+                "cookbook article  'Working with Fixings'.",
+            )
+
+        data = (hash(os.urandom(8)), s, (s.index[0], s.index[-1]))
+        self.loaded[name_] = data
+        return data
+
     @staticmethod
-    def _load_csv(directory: str, path: str) -> Series[float]:
+    def _load_csv(directory: str, path: str) -> Series[DualTypes]:  # type: ignore[type-var]
         target = os.path.join(directory, path)
         if version.parse(pandas_version) < version.parse("2.0"):  # pragma: no cover
             # this is tested by the minimum version gitflow actions.
@@ -241,34 +264,83 @@ class Fixings(_BaseFixingsLoader):
             df = read_csv(target, index_col=0, parse_dates=[0], date_format="%d-%m-%Y")
         return df["rate"].sort_index(ascending=True)
 
-    def __getitem__(self, name: str) -> Series[float]:
-        if name.upper() in self.loaded:
-            return self.loaded[name.upper()]
-
-        try:
-            s = self._load_csv(self.directory, f"{name}.csv")
-        except FileNotFoundError:
-            raise ValueError(
-                f"Fixing data for the index '{name}' has been attempted, but there is no file:\n"
-                f"'{name}.csv' located in the search directory.\n"
-                "For further info see the documentation for the `Fixings` class and/or the "
-                "cookbook article  'Working with Fixings'.",
-            )
-
-        self.loaded[name.upper()] = s
-        return s
-
-    def __init__(self) -> None:
-        self.directory = os.path.dirname(os.path.abspath(__file__)) + "/data"
-        self.loaded: dict[str, Series[float]] = {}
-
-    def add_series(self, name: str, series: Series[float]) -> None:
+    def add(self, name: str, series: Series[DualTypes]) -> None:  # type: ignore[type-var]
         if name in self.loaded:
             raise ValueError(f"Fixing data for the index '{name}' has already been loaded.")
         s = series.sort_index(ascending=True)
         s.index.name = "reference_date"
         s.name = "rate"
-        self.loaded[name.upper()] = s
+        name_ = name.upper()
+        self.loaded[name_] = (hash(os.urandom(8)), s, (s.index[0], s.index[-1]))
 
-    def remove_series(self, name: str) -> Series[float] | None:
-        return self.loaded.pop(name.upper(), None)
+    def pop(self, name: str) -> Series[DualTypes] | None:  # type: ignore[type-var]
+        name_ = name.upper()
+        popped = self.loaded.pop(name_, None)
+        if popped is not None:
+            return popped[1]  # return the Series object only
+        else:
+            return None
+
+
+class FixingRangeError(Exception):
+    def __init__(self, date: datetime, boundary: tuple[datetime, datetime]) -> None:
+        super().__init__(
+            f"Fixing lookup for date '{date}' failed.\n"
+            f"The fixings series has range [{boundary[0]}, {boundary[1]}]"
+        )
+        self.date = date
+        self.boundary = boundary
+
+
+class FixingMissingDataError(Exception):
+    def __init__(self, date: datetime, boundary: tuple[datetime, datetime]) -> None:
+        super().__init__(
+            f"Fixing lookup for date '{date}' failed.\n"
+            f"The requested date falls within the fixings series range "
+            f"[{boundary[0]}, {boundary[1]}] but was not found."
+        )
+        self.date = date
+        self.boundary = boundary
+
+
+class FixingMissingForecasterError(Exception):
+    def __init__(self) -> None:
+        super().__init__(err.VE_NEEDS_RATE_TO_FORECAST_RFR)
+
+
+def _find_neighbouring_tenors(
+    end: datetime,
+    start: datetime,
+    tenors: list[str],
+    rate_series: FloatRateSeries,
+) -> tuple[list[str], list[datetime]]:
+    """
+    Given a list of string tenors find the two, measured from `start`, that encompass `end`
+    on neighbouring sides. If outside, find the closest single tenor.
+    """
+    from rateslib.scheduling import add_tenor
+
+    left: tuple[str | None, datetime] = (None, datetime(1, 1, 1))
+    right: tuple[str | None, datetime] = (None, datetime(9999, 1, 1))
+
+    for tenor in tenors:
+        sample_end = add_tenor(
+            start=start,
+            tenor=tenor,
+            modifier=rate_series.modifier,
+            calendar=rate_series.calendar,
+        )
+        if sample_end <= end and sample_end > left[1]:
+            left = (tenor, sample_end)
+        if sample_end >= end and sample_end < right[1]:
+            right = (tenor, sample_end)
+            break
+
+    ret: tuple[list[str], list[datetime]] = ([], [])
+    if left[0] is not None:
+        ret[0].append(left[0])
+        ret[1].append(left[1])
+    if right[0] is not None:
+        ret[0].append(right[0])
+        ret[1].append(right[1])
+    return ret
