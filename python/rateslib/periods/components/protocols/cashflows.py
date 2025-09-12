@@ -1,0 +1,191 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Protocol
+
+from rateslib import defaults
+from rateslib.curves._parsers import (
+    _try_disc_required_maybe_from_curve,
+)
+from rateslib.dual.utils import _dual_float, _float_or_none
+from rateslib.enums.generics import NoInput
+from rateslib.periods.components.parameters import (
+    _CashflowRateParams,
+    _FixedRateParams,
+    _FloatRateParams,
+    _IndexParams,
+    _PeriodParams,
+    _SettlementParams,
+)
+from rateslib.periods.components.utils import (
+    _get_immediate_fx_scalar_and_base,
+)
+from rateslib.periods.components.protocols.npv import _WithNPVStatic
+
+if TYPE_CHECKING:
+    from rateslib.typing import (
+        FX_,
+        Any,
+        CurveOption_,
+        DualTypes,
+        Result,
+        _BaseCurve_,
+        datetime_,
+        str_,
+    )
+
+
+class _WithNPVCashflowsStatic(_WithNPVStatic, Protocol):
+    settlement_params: _SettlementParams
+    index_params: _IndexParams | None
+    period_params: _PeriodParams
+    rate_params: _FixedRateParams | _CashflowRateParams | _FloatRateParams
+
+    def cashflows(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
+        settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
+    ) -> dict[str, Any]:
+        """
+        Return aggregated cashflow data for the *Period*.
+
+        .. warning::
+
+           This method is a convenience method to provide a visual representation of all
+           associated calculation data. Calling this method to extracting certain values
+           should be avoided. It is more efficent to source relevant parameters or calculations
+           from object attributes or other methods directly.
+
+        Parameters
+        ----------
+        XXX
+
+        Returns
+        -------
+        dict of values
+        """
+
+        # standard parameters
+        standard_elements = {
+            defaults.headers["type"]: type(self).__name__,
+            defaults.headers["stub_type"]: "Stub" if self.period_params.stub else "Regular",
+            defaults.headers["currency"]: self.settlement_params.currency.upper(),
+            defaults.headers["payment"]: self.settlement_params.payment,
+            defaults.headers["notional"]: _dual_float(self.settlement_params.notional),
+        }
+
+        # indexing parameters
+        if self.is_indexed:
+            assert isinstance(self.index_params, _IndexParams)  # noqa: S101
+            i = self.index_params.try_index_ratio(index_curve)
+            if i.is_err:
+                ir, iv, ib = (
+                    None,
+                    None,
+                    None,
+                )
+            else:
+                ir, iv, ib = i.unwrap()
+            index_elements = {
+                defaults.headers["index_base"]: _float_or_none(ib),
+                defaults.headers["index_value"]: _float_or_none(iv),
+                defaults.headers["index_ratio"]: _float_or_none(ir),
+            }
+        else:
+            index_elements = {}
+
+        # period parameters
+        if isinstance(self.rate_params, _CashflowRateParams):
+            period_elements = {}
+        else:
+            period_elements = {
+                defaults.headers["convention"]: str(self.period_params.convention),
+                defaults.headers["dcf"]: self.period_params.dcf,
+                defaults.headers["a_acc_start"]: self.period_params.start,
+                defaults.headers["a_acc_end"]: self.period_params.end,
+            }
+
+        # non-deliverable parameters
+        if self.is_non_deliverable:
+            fx_fixing_res: Result[DualTypes] = self.settlement_params.try_fx_fixing(fx)  # type: ignore[arg-type]  # validated in function
+            currency_elements = {
+                defaults.headers["fx_fixing"]: _float_or_none(fx_fixing_res),
+                defaults.headers[
+                    "reference_currency"
+                ]: self.settlement_params.reference_currency.upper(),
+            }
+        else:
+            currency_elements = {}
+
+        # cashflow valuation based parameters
+        uc = self.try_unindexed_cashflow(rate_curve=rate_curve, fx=fx)  # type: ignore[arg-type]  # validated in function
+        c = self.try_cashflow(rate_curve=rate_curve, index_curve=index_curve, fx=fx)  # type: ignore[arg-type]  # validated in function
+
+        disc_curve_result = _try_disc_required_maybe_from_curve(
+            curve=rate_curve, disc_curve=disc_curve
+        )
+        if disc_curve_result.is_err:
+            # then NPV is impossible
+            v, collateral = None, None
+        else:
+            v = disc_curve_result.unwrap()[self.settlement_params.payment]
+            collateral = disc_curve_result.unwrap().meta.collateral
+
+        # Since `cashflows` in not a performance critical function this call duplicates
+        # cashflow calculations. A more efficient calculation is possible but the code branching
+        # in ugly.
+        local_npv_result = self.try_local_npv(
+            rate_curve=rate_curve,
+            index_curve=index_curve,
+            disc_curve=disc_curve,
+            fx=fx,  # type: ignore[arg-type]
+            settlement=settlement,
+            forward=forward,
+        )
+
+        fx_, base_ = _get_immediate_fx_scalar_and_base(self.settlement_params.currency, fx, base)
+        if local_npv_result.is_err:
+            npv_fx = None
+        else:
+            npv_fx = local_npv_result.unwrap() * fx_
+
+        cashflow_elements = {
+            defaults.headers["df"]: _float_or_none(v),
+            defaults.headers["cashflow"]: _float_or_none(c),
+            defaults.headers["npv"]: _float_or_none(local_npv_result),
+            defaults.headers["fx"]: _dual_float(fx_),
+            defaults.headers["base"]: base_.upper(),
+            defaults.headers["npv_fx"]: _float_or_none(npv_fx),
+            defaults.headers["collateral"]: collateral,
+        }
+        if self.is_indexed:
+            cashflow_elements[defaults.headers["unindexed_cashflow"]] = _float_or_none(uc)
+
+        # rate parameters
+        if isinstance(self.rate_params, _FixedRateParams):
+            rate_elements = {
+                defaults.headers["rate"]: _float_or_none(self.rate_params.fixed_rate),
+                defaults.headers["spread"]: None,
+            }
+        elif isinstance(self.rate_params, _FloatRateParams):
+            rate_elements = {
+                # try_rate is guaranteed by having FloatRateParams but this is poor typing.
+                defaults.headers["rate"]: _float_or_none(self.try_rate(rate_curve=rate_curve)),  # type: ignore[attr-defined]
+                defaults.headers["spread"]: _float_or_none(self.rate_params.float_spread),
+            }
+        else:
+            rate_elements = {}
+
+        return {
+            **standard_elements,
+            **currency_elements,
+            **period_elements,
+            **index_elements,
+            **rate_elements,
+            **cashflow_elements,
+        }

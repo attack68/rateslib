@@ -82,7 +82,7 @@ Curves
    :no-inheritance-diagram:
 
 Class Inheritance Diagram
---------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. inheritance-diagram:: rateslib.curves.Curve rateslib.curves.LineCurve rateslib.curves.CompositeCurve rateslib.curves.MultiCsaCurve rateslib.curves.ProxyCurve rateslib.curves._BaseCurve rateslib.curves._WithMutability rateslib.curves.CreditImpliedCurve rateslib.curves.TranslatedCurve rateslib.curves.RolledCurve rateslib.curves.ShiftedCurve
    :private-bases:
@@ -109,9 +109,16 @@ Periods
 
 Link to the :ref:`Periods<periods-doc>` section in the user guide.
 
-.. automodapi:: rateslib.periods.components.parameters
+Protocols
+^^^^^^^^^
+
+.. automodapi:: rateslib.periods.components
+   :headings: "^-"
    :inherited-members:
    :no-heading:
+   :include: _WithNPV
+   :include: _WithNPVStatic
+
 
 .. automodapi:: rateslib.periods
    :no-heading:
@@ -133,7 +140,7 @@ Instruments
    :no-inheritance-diagram:
 
 Class Inheritance Diagram
---------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. automod-diagram:: rateslib.instruments
     :parts: 1
@@ -169,6 +176,7 @@ Serialization
 ==============
 
 .. automodapi:: rateslib.serialization
+   :no-heading:
    :inherited-members:
    :no-inheritance-diagram:
 

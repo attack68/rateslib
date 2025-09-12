@@ -16,8 +16,10 @@ from rateslib.periods.components.float_period import (
     NonDeliverableFloatPeriod,
     NonDeliverableIndexFloatPeriod,
 )
+from rateslib.periods.components.protocols import _WithNPV
 
 __all__ = [
+    "_WithNPV",
     "Cashflow",
     "IndexCashflow",
     "NonDeliverableCashflow",
