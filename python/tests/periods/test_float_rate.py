@@ -6,12 +6,12 @@ from pandas import NA, Series
 from pandas.testing import assert_series_equal
 from rateslib import fixings
 from rateslib.curves import Curve, LineCurve
+from rateslib.data.fixings import FloatRateIndex, FloatRateSeries, _RFRRate
+from rateslib.data.loader import FixingMissingForecasterError
 from rateslib.default import NoInput
 from rateslib.enums.parameters import FloatFixingMethod, SpreadCompoundMethod
-from rateslib.fixing_data import FixingMissingForecasterError
-from rateslib.periods.components.float_rate import _RFRRate, rate_value
+from rateslib.periods.components.float_rate import rate_value
 from rateslib.scheduling import Adjuster, Convention, Frequency, NamedCal
-from rateslib.scheduling.float_rate_index import FloatRateIndex, FloatRateSeries
 
 
 @pytest.fixture

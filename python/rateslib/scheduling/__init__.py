@@ -5,10 +5,6 @@ from rateslib.rs import Adjuster, Cal, Frequency, Imm, NamedCal, RollDay, StubIn
 from rateslib.scheduling.calendars import get_calendar
 from rateslib.scheduling.convention import Convention
 from rateslib.scheduling.dcfs import dcf
-from rateslib.scheduling.float_rate_index import (
-    FloatRateIndex,
-    FloatRateSeries,
-)
 from rateslib.scheduling.frequency import add_tenor
 from rateslib.scheduling.imm import get_imm, next_imm
 from rateslib.scheduling.schedule import Schedule
@@ -167,6 +163,4 @@ __all__ = (
     "get_calendar",
     "get_imm",
     "next_imm",
-    "FloatRateSeries",
-    "FloatRateIndex",
 )
