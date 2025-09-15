@@ -12,6 +12,7 @@ from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.default import PlotOutput, plot
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, _drb
+from rateslib.enums.parameters import _get_fx_delta_type
 from rateslib.fx_volatility import FXSabrSmile, FXSabrSurface
 from rateslib.instruments.base import Metrics
 from rateslib.instruments.sensitivities import Sensitivities
@@ -244,10 +245,10 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
             )
         elif self.kwargs["premium_ccy"] == self.kwargs["pair"][3:]:
             self.kwargs["metric_period"] = "pips"
-            self.kwargs["delta_adjustment"] = ""
+            self.kwargs["delta_method"] = _get_fx_delta_type(self.kwargs["delta_type"])
         else:
             self.kwargs["metric_period"] = "percent"
-            self.kwargs["delta_adjustment"] = "_pa"
+            self.kwargs["delta_method"] = _get_fx_delta_type(self.kwargs["delta_type"] + "_pa")
 
         # nothing to inherit or negate.
         # self.kwargs = _inherit_or_negate(self.kwargs)  # inherit or negate the complete arg list
@@ -376,7 +377,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
                     self._pricing.k,
                 ) = self._option_periods[0]._index_vol_and_strike_from_delta(
                     delta=float(self.kwargs["strike"][:-1]) / 100.0,
-                    delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
+                    delta_type=self.kwargs["delta_method"],
                     vol=_validate_obj_not_no_input(vol_, "vol"),  # type: ignore[arg-type]
                     w_deli=w_deli,
                     w_spot=w_spot,
@@ -791,7 +792,7 @@ class FXCall(FXOption):
                 ),
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"],
-                delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
+                delta_type=self.kwargs["delta_method"],
                 metric=self.kwargs["metric_period"],
             ),
         )
@@ -817,7 +818,7 @@ class FXPut(FXOption):
                 ),
                 notional=self.kwargs["notional"],
                 option_fixing=self.kwargs["option_fixing"],
-                delta_type=self.kwargs["delta_type"] + self.kwargs["delta_adjustment"],
+                delta_type=self.kwargs["delta_method"],
                 metric=self.kwargs["metric_period"],
             ),
         )

@@ -20,8 +20,10 @@ from rateslib.curves import _CurveMeta as _CurveMeta
 from rateslib.dual.variable import Variable as Variable
 from rateslib.enums.generics import NoInput as NoInput
 from rateslib.enums.generics import Result as Result
-from rateslib.fixings import Fixings as Fixings
-from rateslib.fixings import _BaseFixingsLoader as _BaseFixingsLoader
+from rateslib.enums.parameters import FXDeltaMethod as FXDeltaMethod
+from rateslib.enums.parameters import OptionType as OptionType
+from rateslib.fixing_data import Fixings as Fixings
+from rateslib.fixing_data import _BaseFixingsLoader as _BaseFixingsLoader
 from rateslib.fx import FXForwards as FXForwards
 from rateslib.fx import FXRates as FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile as FXDeltaVolSmile

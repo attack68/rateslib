@@ -2,15 +2,15 @@ import re
 from dataclasses import replace
 from datetime import datetime as dt
 from datetime import timedelta
-from sys import prefix
 
 import pytest
 from pandas import NA, DataFrame, Index, MultiIndex, Series, date_range
 from pandas.testing import assert_frame_equal
-from rateslib import defaults
+from rateslib import defaults, fixings
 from rateslib.curves import CompositeCurve, Curve, LineCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual, gradient
+from rateslib.enums.parameters import FXDeltaMethod
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXSabrSmile, FXSabrSurface
 from rateslib.fx_volatility.utils import _d_plus_min_u
@@ -1647,7 +1647,7 @@ class TestFloatPeriod:
             fixing_method=meth,
             method_param=param,
             float_spread=0.0,
-            fixings=defaults.fixings["nowa"][1],
+            fixings=fixings["nowa"][1],
         )
         result = period.rate(curve)
         assert abs(result - exp) < 1e-7
@@ -3743,14 +3743,22 @@ class TestFXOption:
     @pytest.mark.parametrize(
         ("dlty", "delta", "exp_k"),
         [
-            ("forward", 0.25, 1.101271021340),
-            ("forward_pa", 0.25, 1.10023348001),
-            ("forward", 0.251754, 1.100999951),
-            ("forward_pa", 0.8929, 0.9748614298),  # close to peak of premium adjusted delta graph.
-            ("spot", 0.25, 1.10101920113408),
-            ("spot_pa", 0.25, 1.099976469786),
-            ("spot", 0.251754, 1.10074736155),
-            ("spot_pa", 0.8870, 0.97543175409),  # close to peak of premium adjusted delta graph.
+            (FXDeltaMethod.Forward, 0.25, 1.101271021340),
+            (FXDeltaMethod.ForwardPremiumAdjusted, 0.25, 1.10023348001),
+            (FXDeltaMethod.Forward, 0.251754, 1.100999951),
+            (
+                FXDeltaMethod.ForwardPremiumAdjusted,
+                0.8929,
+                0.9748614298,
+            ),  # close to peak of premium adjusted delta graph.
+            (FXDeltaMethod.Spot, 0.25, 1.10101920113408),
+            (FXDeltaMethod.SpotPremiumAdjusted, 0.25, 1.099976469786),
+            (FXDeltaMethod.Spot, 0.251754, 1.10074736155),
+            (
+                FXDeltaMethod.SpotPremiumAdjusted,
+                0.8870,
+                0.97543175409,
+            ),  # close to peak of premium adjusted delta graph.
         ],
     )
     @pytest.mark.parametrize("smile", [False, True])
@@ -3835,8 +3843,24 @@ class TestFXOption:
         assert result[1][0] == (1.101 - 1.07) * 20e6
         assert result[1][-1] == 0.0
 
-    @pytest.mark.parametrize("delta_type", ["spot", "spot_pa", "forward", "forward_pa"])
-    @pytest.mark.parametrize("smile_type", ["spot", "spot_pa", "forward", "forward_pa"])
+    @pytest.mark.parametrize(
+        "delta_type",
+        [
+            FXDeltaMethod.Spot,
+            FXDeltaMethod.SpotPremiumAdjusted,
+            FXDeltaMethod.Forward,
+            FXDeltaMethod.ForwardPremiumAdjusted,
+        ],
+    )
+    @pytest.mark.parametrize(
+        "smile_type",
+        [
+            FXDeltaMethod.Spot,
+            FXDeltaMethod.SpotPremiumAdjusted,
+            FXDeltaMethod.Forward,
+            FXDeltaMethod.ForwardPremiumAdjusted,
+        ],
+    )
     @pytest.mark.parametrize("delta", [-0.1, -0.25, -0.75, -0.9, -1.5])
     @pytest.mark.parametrize("vol_smile", [True, False])
     def test_strike_and_delta_idx_multisolve_from_delta_put(
@@ -3847,7 +3871,10 @@ class TestFXOption:
         delta,
         vol_smile,
     ) -> None:
-        if delta < -1.0 and "_pa" not in delta_type:
+        if delta < -1.0 and delta_type not in [
+            FXDeltaMethod.SpotPremiumAdjusted,
+            FXDeltaMethod.ForwardPremiumAdjusted,
+        ]:
             pytest.skip("Put delta cannot be below -1.0 in unadjusted cases.")
         fxo = FXPutPeriod(
             pair="eurusd",
@@ -3896,8 +3923,24 @@ class TestFXOption:
 
         assert abs(delta - expected) < 1e-8
 
-    @pytest.mark.parametrize("delta_type", ["spot", "spot_pa", "forward", "forward_pa"])
-    @pytest.mark.parametrize("smile_type", ["spot", "spot_pa", "forward", "forward_pa"])
+    @pytest.mark.parametrize(
+        "delta_type",
+        [
+            FXDeltaMethod.Spot,
+            FXDeltaMethod.SpotPremiumAdjusted,
+            FXDeltaMethod.Forward,
+            FXDeltaMethod.ForwardPremiumAdjusted,
+        ],
+    )
+    @pytest.mark.parametrize(
+        "smile_type",
+        [
+            FXDeltaMethod.Spot,
+            FXDeltaMethod.SpotPremiumAdjusted,
+            FXDeltaMethod.Forward,
+            FXDeltaMethod.ForwardPremiumAdjusted,
+        ],
+    )
     @pytest.mark.parametrize("delta", [0.1, 0.25, 0.65, 0.9])
     @pytest.mark.parametrize("vol_smile", [True, False])
     def test_strike_and_delta_idx_multisolve_from_delta_call(
@@ -3908,7 +3951,10 @@ class TestFXOption:
         delta,
         vol_smile,
     ) -> None:
-        if delta > 0.65 and "_pa" in delta_type:
+        if delta > 0.65 and delta_type in [
+            FXDeltaMethod.SpotPremiumAdjusted,
+            FXDeltaMethod.ForwardPremiumAdjusted,
+        ]:
             pytest.skip("Premium adjusted call delta cannot be above the peak ~0.7?.")
         fxo = FXCallPeriod(
             pair="eurusd",

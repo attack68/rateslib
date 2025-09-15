@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from pandas import Series
 
-from rateslib import defaults
+from rateslib import fixings
 from rateslib.enums.generics import NoInput
 
 if TYPE_CHECKING:
@@ -75,7 +75,7 @@ class _BaseFixing(metaclass=ABCMeta):
             if isinstance(self._identifier, NoInput):
                 return NoInput(0)
             else:
-                state, timeseries, bounds = defaults.fixings.__getitem__(self._identifier)
+                state, timeseries, bounds = fixings.__getitem__(self._identifier)
                 if state == self._state:
                     return NoInput(0)
                 else:

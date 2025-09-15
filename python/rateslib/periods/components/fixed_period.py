@@ -30,7 +30,9 @@ class FixedPeriod(BasePeriod):
 
     def try_unindexed_reference_cashflow(
         self,
+        *,
         rate_curve: CurveOption_ = NoInput(0),
+        **kwargs: Any,
     ) -> Result[DualTypes]:
         if isinstance(self.rate_params.fixed_rate, NoInput):
             return Err(ValueError(err.VE_NEEDS_FIXEDRATE))

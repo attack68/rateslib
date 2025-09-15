@@ -54,7 +54,7 @@ TE_NO_FIXING_EXPOSURE_ON_OBJ = (
 VE01_1 = (
     "Fixing data for the index '{0}' has been attempted, but none found.\nEither there "
     "is no data file ('{0}.csv') located in the searched data directory,\nor a Series "
-    "has not been added manually by performing `defaults.fixings.add"
+    "has not been added manually by performing `fixings.add"
     "('{0}', some_series)`.\nTo create a CSV file in the searched data directory "
     "use the exact template structure for the file between the hashes:\n"
     "###################\n"
@@ -82,8 +82,8 @@ FW_FIXINGS_AS_SERIES = (
     "Best practice is to add the fixings object to the default _BaseFixingsLoader and then "
     "reference that object by Series name.\n"
     "For example, change: `rate_fixings`=my_series_object` to\n"
-    "`defaults.fixings.add('EURIBOR_3M', my_series_object)`\n"
-    "`defaults.fixings.add('EURIBOR_6M', another_series_object)`\n"
+    "`fixings.add('EURIBOR_3M', my_series_object)`\n"
+    "`fixings.add('EURIBOR_6M', another_series_object)`\n"
     "`rate_fixings='EURIBOR'`\n"
     "See cookbook article 'Working with Fixings' for more information."
 )
@@ -125,6 +125,10 @@ VE08_1 = (
     "there is no `index_base_date`,\nor if there are no `index_fixings` and there is no "
     "`index_reference_date` is combination."
 )
+
+
+VE_NEEDS_STRIKE = "An FXOptionPeriod cashflow cannot be determined without setting a `strike`."
+
 
 # VE_NEEDS_FIXING_SERIES = (
 #     "A `fixing_series` must be supplied for floating rate parameters."
@@ -168,13 +172,13 @@ VE_NEEDS_RATE_TO_FORECAST_TENOR_IBOR = (
 
 VE_FIXINGS_BAD_TYPE = (
     "`.._fixings` should be a single value or a string labelling a fixing set in the "
-    "`defaults.fixings` container. It cannot be a list or Series.\n"
+    "`fixings` container. It cannot be a list or Series.\n"
     "To migrate from the legacy implementation where a Series could be supplied directly "
     "use the following:\nAdd your Series to defaults: `default.fixings.add('EURIBOR_3M', "
     "my_series_obj)`\nAnd then reference this fixing set directly: `rate_fixings='EURIBOR'`.\nThe"
     "suffix '_3M' will be added directly internally (based on the Frequency) and will adjust for "
     "stub fixings. RFR fixings will have the '_1B' suffix added, so use for example:\n"
-    "Add an RFR Series: `defaults.fixings.add('SOFR_1B', my_series_obj)`\n"
+    "Add an RFR Series: `fixings.add('SOFR_1B', my_series_obj)`\n"
     "And reference this set directly: `rate_fixings='SOFR'`.\n"
     "For further details see the cookbook documentation entitled 'Working with Fixings'."
 )
@@ -192,7 +196,7 @@ VE02_2 = (
 VE02_3 = (
     "Providing `rate_fixings` as a scalar value for an RFR type `fixing_method` is not "
     "permitted due to ambiguity, particularly in combination with the `float_spread`.\n"
-    "Consider adding a Series to `defaults`: `defaults.fixings.add('MY_RFR_1B', "
+    "Consider adding a Series to `defaults`: `fixings.add('MY_RFR_1B', "
     "some_series)`\nAnd then referencing this fixings collection: `rate_fixings='MY_RFR'\n"
     "For an RFR type fixing method the suffix added internally is always '_1B'."
 )

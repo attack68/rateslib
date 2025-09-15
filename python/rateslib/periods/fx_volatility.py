@@ -12,6 +12,7 @@ from rateslib.dual import dual_exp, dual_log, dual_norm_cdf, dual_norm_pdf
 from rateslib.dual.newton import newton_1dim
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, _drb
+from rateslib.enums.parameters import FXDeltaMethod, _get_fx_delta_type
 from rateslib.fx import FXForwards
 from rateslib.fx_volatility import (
     FXDeltaVolSmile,
@@ -103,7 +104,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         strike: DualTypes_ = NoInput(0),
         notional: DualTypes_ = NoInput(0),
         option_fixing: DualTypes_ = NoInput(0),
-        delta_type: str_ = NoInput(0),
+        delta_type: FXDeltaMethod | str_ = NoInput(0),
         metric: str_ = NoInput(0),
     ) -> None:
         self.pair: str = pair.lower()
@@ -115,7 +116,9 @@ class FXOptionPeriod(metaclass=ABCMeta):
         self.delivery: datetime = delivery
         self.expiry: datetime = expiry
         self.option_fixing: DualTypes_ = option_fixing
-        self.delta_type: str = _drb(defaults.fx_delta_type, delta_type).lower()
+        self.delta_type: FXDeltaMethod = _get_fx_delta_type(
+            _drb(defaults.fx_delta_type, delta_type)
+        )
         self.metric: str | NoInput = metric
 
     def __repr__(self) -> str:
@@ -540,14 +543,14 @@ class FXOptionPeriod(metaclass=ABCMeta):
         vol_ /= 100.0
         vol_sqrt_t = vol_ * sqrt_t
 
-        if "spot" in self.delta_type:
+        _is_spot = self.delta_type in [FXDeltaMethod.Spot, FXDeltaMethod.SpotPremiumAdjusted]
+        if _is_spot:
             z_v_0 = v_deli / v_spot
         else:
             z_v_0 = 1.0
         d_eta_0 = _d_plus_min_u(u, vol_sqrt_t, eta_0)
         d_plus = _d_plus_min_u(u, vol_sqrt_t, 0.5)
         d_min = _d_plus_min_u(u, vol_sqrt_t, -0.5)
-        _is_spot = "spot" in self.delta_type
 
         _: dict[str, Any] = dict()
 
@@ -590,7 +593,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
         if not _reduced:
             _["delta"] = self._analytic_delta(
                 premium,
-                "_pa" in self.delta_type,
+                self.delta_type
+                in [FXDeltaMethod.ForwardPremiumAdjusted, FXDeltaMethod.SpotPremiumAdjusted],
                 z_u_0,
                 z_w_0,
                 d_eta_0,
@@ -730,7 +734,10 @@ class FXOptionPeriod(metaclass=ABCMeta):
             # d sigma / d delta_idx
             _B = evaluate(smile.nodes.spline.spline, delta_idx, 1) / 100.0  # type: ignore[arg-type]
 
-            if "pa" in vol.meta.delta_type:
+            if vol.meta.delta_type in [
+                FXDeltaMethod.ForwardPremiumAdjusted,
+                FXDeltaMethod.SpotPremiumAdjusted,
+            ]:
                 # then smile is adjusted:
                 ddelta_idx_df_d: DualTypes = -delta_idx / f_d  # type: ignore[operator]
             else:
@@ -801,7 +808,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
     def _index_vol_and_strike_from_atm(
         self,
-        delta_type: str,
+        delta_type: FXDeltaMethod,
         vol: FXVolOption,
         w_deli: DualTypes,
         w_spot: DualTypes,
@@ -814,7 +821,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
         Parameters
         ----------
-        delta_type: str
+        delta_type: FXDeltaMethod
             The delta type of the option period.
         vol: DualTypes | Smile | Surface
             The volatility used, either specifici value or a Smile/Surface.
@@ -917,8 +924,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
         z_w_1: DualTypes,
         vol: DualTypes | FXDeltaVolSmile | FXDeltaVolSurface,
         t_e: DualTypes,
-        delta_type: str,
-        vol_delta_type: str,
+        delta_type: FXDeltaMethod,
+        vol_delta_type: FXDeltaMethod,
         z_w: DualTypes,
     ) -> tuple[DualTypes | None, DualTypes, DualTypes]:
         """Determine strike from ATM delta specification with DeltaVol models or fixed volatility"""
@@ -966,7 +973,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
     def _index_vol_and_strike_from_delta(
         self,
         delta: float,
-        delta_type: str,
+        delta_type: FXDeltaMethod,
         vol: FXVolOption,
         w_deli: DualTypes,
         w_spot: DualTypes,
@@ -981,7 +988,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         ----------
         delta: float
            The delta percent, e.g 0.25.
-        delta_type: str
+        delta_type: FXDeltaMethod
            The delta type of the option period.
         vol: DualTypes | Smile | Surface
            The volatility used, either a specific value or a Smile/Surface.
@@ -1023,8 +1030,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
         delta: float,
         vol: DualTypes | FXDeltaVolSmile | FXDeltaVolSurface,
         t_e: DualTypes,
-        delta_type: str,
-        vol_delta_type: str,
+        delta_type: FXDeltaMethod,
+        vol_delta_type: FXDeltaMethod,
         z_w: DualTypes,
     ) -> tuple[DualTypes | None, DualTypes, DualTypes]:
         """Determine strike and delta index for an option by delta % for DeltaVol type models
@@ -1070,7 +1077,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
     def _index_vol_and_strike_from_delta_sabr(
         self,
         delta: float,
-        delta_type: str,
+        delta_type: FXDeltaMethod,
         vol: FXSabrSmile | FXSabrSurface,
         z_w: DualTypes,
         f: DualTypes | FXForwards,
