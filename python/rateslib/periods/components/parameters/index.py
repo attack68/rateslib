@@ -18,7 +18,7 @@ from rateslib.enums.parameters import (
     IndexMethod,
     _get_index_method,
 )
-from rateslib.fixings import FixingRangeError
+from rateslib.fixing_data import FixingRangeError
 from rateslib.periods.components.parameters.base_fixing import _BaseFixing
 
 if TYPE_CHECKING:
@@ -226,19 +226,19 @@ class IndexFixing(_BaseFixing):
 
        from rateslib.periods.components.parameters import IndexFixing
        from rateslib.enums.parameters import IndexMethod
-       from rateslib import defaults, dt
+       from rateslib import fixings, dt
        from pandas import Series
 
     .. ipython:: python
 
-       defaults.fixings.add("UK-CPI", Series(index=[dt(2000, 1, 1), dt(2000, 2, 1)], data=[100, 110.0]))
+       fixings.add("UK-CPI", Series(index=[dt(2000, 1, 1), dt(2000, 2, 1)], data=[100, 110.0]))
        index_fix = IndexFixing(date=dt(2000, 4, 15), identifier="UK-CPI", index_lag=3, index_method=IndexMethod.Daily)
        index_fix.value
 
     .. ipython:: python
        :suppress:
 
-       defaults.fixings.pop("UK-CPI")
+       fixings.pop("UK-CPI")
 
     """  # noqa: E501
 

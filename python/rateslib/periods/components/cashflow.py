@@ -7,12 +7,13 @@ from rateslib import defaults
 from rateslib.enums.generics import NoInput, Ok, _drb
 from rateslib.enums.parameters import IndexMethod
 from rateslib.periods.components.parameters import (
-    _CashflowRateParams,
     _IndexParams,
     _init_or_none_IndexParams,
-    _PeriodParams,
+    _init_or_none_NonDeliverableParams,
+    _init_SettlementParams_with_nd_pair,
     _SettlementParams,
 )
+from rateslib.periods.components.parameters.settlement import _NonDeliverableParams
 from rateslib.periods.components.protocols import (
     _WithAnalyticDeltaStatic,
     _WithNPVCashflowsStatic,
@@ -38,9 +39,10 @@ if TYPE_CHECKING:
 
 class Cashflow(_WithNPVCashflowsStatic, _WithAnalyticDeltaStatic, _WithRateFixingsExposureStatic):
     settlement_params: _SettlementParams
-    period_params: _PeriodParams
-    index_params: None | _IndexParams
-    rate_params: _CashflowRateParams
+    non_deliverable_params: _NonDeliverableParams | None
+    index_params: _IndexParams | None
+    rate_params: None
+    period_params: None
 
     def __init__(
         self,
@@ -50,6 +52,7 @@ class Cashflow(_WithNPVCashflowsStatic, _WithAnalyticDeltaStatic, _WithRateFixin
         notional: DualTypes,
         currency: str_ = NoInput(0),
         ex_dividend: datetime_ = NoInput(0),
+        # non-deliverable args:
         pair: str_ = NoInput(0),
         fx_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
         delivery: datetime_ = NoInput(0),
@@ -62,26 +65,21 @@ class Cashflow(_WithNPVCashflowsStatic, _WithAnalyticDeltaStatic, _WithRateFixin
         index_base_date: datetime_ = NoInput(0),
         index_reference_date: datetime_ = NoInput(0),
     ):
-        self.settlement_params = _SettlementParams(
+        self.settlement_params = _init_SettlementParams_with_nd_pair(
             _notional=notional,
             _payment=payment,
             _currency=_drb(defaults.base_currency, currency).lower(),
-            _pair=pair if isinstance(pair, NoInput) else pair.lower(),
+            _ex_dividend=_drb(payment, ex_dividend),
+            _non_deliverable_pair=pair,
+        )
+        self.non_deliverable_params = _init_or_none_NonDeliverableParams(
+            _currency=self.settlement_params.currency,
+            _pair=pair,
             _fx_fixings=fx_fixings,
-            _delivery=delivery,
-            _ex_dividend=ex_dividend,
+            _delivery=_drb(self.settlement_params.payment, delivery),
         )
-        self.rate_params = _CashflowRateParams()
-        self.period_params = _PeriodParams(  # data for `Cashflow` is placeholder
-            _start=payment,
-            _end=payment,
-            _frequency=None,  # type: ignore[arg-type]
-            _calendar=None,  # type: ignore[arg-type]
-            _adjuster=None,  # type: ignore[arg-type]
-            _stub=None,  # type: ignore[arg-type]
-            _convention=None,  # type: ignore[arg-type]
-            _termination=None,  # type: ignore[arg-type]
-        )
+        self.rate_params = None
+        self.period_params = None
         self.index_params = _init_or_none_IndexParams(
             _index_base=index_base,
             _index_lag=index_lag,
@@ -96,6 +94,7 @@ class Cashflow(_WithNPVCashflowsStatic, _WithAnalyticDeltaStatic, _WithRateFixin
         self,
         *,
         rate_curve: CurveOption_ = NoInput(0),
+        **kwargs: Any,
     ) -> Result[DualTypes]:
         return Ok(-self.settlement_params.notional)
 

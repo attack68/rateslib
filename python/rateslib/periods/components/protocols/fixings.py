@@ -12,6 +12,7 @@ if TYPE_CHECKING:
         Result,
     )
 
+
 class _WithRateFixingsExposureStatic(Protocol):
     def try_unindexed_reference_fixings_exposure(self) -> Result[DataFrame]:
         return Err(TypeError(err.TE_NO_FIXING_EXPOSURE_ON_OBJ.format(type(self).__name__)))

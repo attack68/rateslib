@@ -8,6 +8,7 @@ from rateslib import defaults
 from rateslib.curves import _BaseCurve
 from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.enums.generics import Err, NoInput, Ok, _drb
+from rateslib.enums.parameters import FXDeltaMethod
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface
 
@@ -247,7 +248,7 @@ def _get_vol_smile_or_raise(vol: FXVolOption_, expiry: datetime) -> FXDeltaVolSm
         raise ValueError("Must supply FXDeltaVolSmile/Surface as `vol` not numeric value.")
 
 
-def _get_vol_delta_type(vol: FXVolOption_, default_delta_type: str) -> str:
+def _get_vol_delta_type(vol: FXVolOption_, default_delta_type: FXDeltaMethod) -> FXDeltaMethod:
     if not isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
         return default_delta_type
     else:

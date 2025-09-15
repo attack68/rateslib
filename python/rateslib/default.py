@@ -10,7 +10,6 @@ import numpy as np
 from rateslib._spec_loader import INSTRUMENT_SPECS
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import FloatFixingMethod
-from rateslib.fixings import Fixings
 from rateslib.rs import Cal, NamedCal, UnionCal
 
 PlotOutput = tuple[plt.Figure, plt.Axes, list[plt.Line2D]]  # type: ignore[name-defined]
@@ -19,7 +18,7 @@ PlotOutput = tuple[plt.Figure, plt.Axes, list[plt.Line2D]]  # type: ignore[name-
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 if TYPE_CHECKING:
-    from rateslib.typing import Any, _BaseFixingsLoader
+    from rateslib.typing import Any
 
 
 class Defaults:
@@ -204,9 +203,6 @@ class Defaults:
         # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
         # Commercial use of this code, and/or copying and redistribution is prohibited.
         # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-        # fixings data
-        self.fixings: _BaseFixingsLoader = Fixings()
 
         self.spec = INSTRUMENT_SPECS
 

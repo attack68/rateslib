@@ -7,29 +7,29 @@ from datetime import timedelta
 import numpy as np
 import pytest
 import rateslib.errors as err
-from pandas import NA, DataFrame, Index, MultiIndex, Series, date_range
+from pandas import DataFrame, Index, MultiIndex, Series, date_range
 from pandas.testing import assert_frame_equal
-from rateslib import defaults
+from rateslib import defaults, fixings
 from rateslib.curves import CompositeCurve, Curve, LineCurve
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, gradient
 from rateslib.enums import FloatFixingMethod
-from rateslib.fixings import FixingMissingForecasterError
+from rateslib.enums.parameters import FXDeltaMethod
+from rateslib.fixing_data import FixingMissingForecasterError
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXSabrSmile, FXSabrSurface
 from rateslib.fx_volatility.utils import _d_plus_min_u
 from rateslib.periods import (
     CreditPremiumPeriod,
     CreditProtectionPeriod,
-    # FloatPeriod,
-    FXCallPeriod,
-    FXPutPeriod,
     IndexMixin,
 )
 from rateslib.periods.components import (
     Cashflow,
     FixedPeriod,
     FloatPeriod,
+    FXCallPeriod,
+    FXPutPeriod,
     IndexCashflow,
     IndexFixedPeriod,
     NonDeliverableCashflow,
@@ -379,9 +379,7 @@ class TestFloatPeriod:
     def test_rfr_payment_delay_method_with_fixings(self, curve_type, rfr_curve, line_curve) -> None:
         curve = rfr_curve if curve_type == "curve" else line_curve
         name = str(hash(os.urandom(8)))
-        defaults.fixings.add(
-            f"{name}_1B", Series(index=[dt(2022, 1, 1), dt(2022, 1, 2)], data=[10.0, 8.0])
-        )
+        fixings.add(f"{name}_1B", Series(index=[dt(2022, 1, 1), dt(2022, 1, 2)], data=[10.0, 8.0]))
         period = FloatPeriod(
             start=dt(2022, 1, 1),
             end=dt(2022, 1, 4),
@@ -400,7 +398,7 @@ class TestFloatPeriod:
         result = period.rate(curve)
         expected = ((1 + 0.10 / 365) * (1 + 0.08 / 365) * (1 + 0.03 / 365) - 1) * 36500 / 3
         assert abs(result - expected) < 1e-12
-        defaults.fixings.pop(f"{name}_1B")
+        fixings.pop(f"{name}_1B")
 
     @pytest.mark.parametrize("curve_type", ["curve", "line_curve"])
     def test_rfr_payment_delay_avg_method(self, curve_type, rfr_curve, line_curve) -> None:
@@ -431,9 +429,7 @@ class TestFloatPeriod:
         line_curve,
     ) -> None:
         curve = rfr_curve if curve_type == "curve" else line_curve
-        defaults.fixings.add(
-            "887762_1B", Series(index=[dt(2022, 1, 1), dt(2022, 1, 2)], data=[10.0, 8.0])
-        )
+        fixings.add("887762_1B", Series(index=[dt(2022, 1, 1), dt(2022, 1, 2)], data=[10.0, 8.0]))
         period = FloatPeriod(
             start=dt(2022, 1, 1),
             end=dt(2022, 1, 4),
@@ -453,7 +449,7 @@ class TestFloatPeriod:
         result = period.rate(curve)
         expected = (10.0 + 8.0 + 3.0) / 3
         assert abs(result - expected) < 1e-11
-        defaults.fixings.pop("887762_1B")
+        fixings.pop("887762_1B")
 
     @pytest.mark.parametrize("curve_type", ["curve", "line_curve"])
     def test_rfr_lockout_avg_method(self, curve_type, rfr_curve, line_curve) -> None:
@@ -500,9 +496,7 @@ class TestFloatPeriod:
     @pytest.mark.parametrize("curve_type", ["curve", "line_curve"])
     def test_rfr_lockout_avg_method_with_fixings(self, curve_type, rfr_curve, line_curve) -> None:
         curve = rfr_curve if curve_type == "curve" else line_curve
-        defaults.fixings.add(
-            "887762_1B", Series(index=[dt(2022, 1, 1), dt(2022, 1, 2)], data=[10.0, 8.0])
-        )
+        fixings.add("887762_1B", Series(index=[dt(2022, 1, 1), dt(2022, 1, 2)], data=[10.0, 8.0]))
         period = FloatPeriod(
             start=dt(2022, 1, 1),
             end=dt(2022, 1, 4),
@@ -542,7 +536,7 @@ class TestFloatPeriod:
         result = period.rate(rfr_curve)
         expected = (10.0 + 8.0 + 8.0) / 3
         assert abs(result - expected) < 1e-12
-        defaults.fixings.pop("887762_1B")
+        fixings.pop("887762_1B")
 
     @pytest.mark.parametrize("curve_type", ["curve", "line_curve"])
     def test_rfr_lockout_method(self, curve_type, rfr_curve, line_curve) -> None:
@@ -589,9 +583,7 @@ class TestFloatPeriod:
     @pytest.mark.parametrize("curve_type", ["curve", "line_curve"])
     def test_rfr_lockout_method_with_fixings(self, curve_type, rfr_curve, line_curve) -> None:
         curve = rfr_curve if curve_type == "curve" else line_curve
-        defaults.fixings.add(
-            "887762_1B", Series(index=[dt(2022, 1, 1), dt(2022, 1, 2)], data=[10.0, 8.0])
-        )
+        fixings.add("887762_1B", Series(index=[dt(2022, 1, 1), dt(2022, 1, 2)], data=[10.0, 8.0]))
         period = FloatPeriod(
             start=dt(2022, 1, 1),
             end=dt(2022, 1, 4),
@@ -631,7 +623,7 @@ class TestFloatPeriod:
         result = period.rate(rfr_curve)
         expected = ((1 + 0.10 / 365) * (1 + 0.08 / 365) * (1 + 0.08 / 365) - 1) * 36500 / 3
         assert abs(result - expected) < 1e-12
-        defaults.fixings.pop("887762_1B")
+        fixings.pop("887762_1B")
 
     @pytest.mark.parametrize("curve_type", ["curve", "line_curve"])
     def test_rfr_observation_shift_method(self, curve_type, rfr_curve, line_curve) -> None:
@@ -683,9 +675,7 @@ class TestFloatPeriod:
     ) -> None:
         curve = rfr_curve if curve_type == "curve" else line_curve
         name = str(hash(os.urandom(8)))
-        defaults.fixings.add(
-            f"{name}_1B", Series(index=[dt(2022, 1, 1), dt(2022, 1, 2)], data=[10.0, 8.0])
-        )
+        fixings.add(f"{name}_1B", Series(index=[dt(2022, 1, 1), dt(2022, 1, 2)], data=[10.0, 8.0]))
         period = FloatPeriod(
             start=dt(2022, 1, 2),
             end=dt(2022, 1, 5),
@@ -725,7 +715,7 @@ class TestFloatPeriod:
         result = period.rate(curve)
         expected = ((1 + 0.10 / 365) * (1 + 0.08 / 365) - 1) * 36500 / 2
         assert abs(result - expected) < 1e-12
-        defaults.fixings.pop(f"{name}_1B")
+        fixings.pop(f"{name}_1B")
 
     @pytest.mark.parametrize("curve_type", ["curve", "line_curve"])
     def test_rfr_observation_shift_method_with_fixings_and_float_spread(
@@ -736,9 +726,7 @@ class TestFloatPeriod:
     ) -> None:
         curve = rfr_curve if curve_type == "curve" else line_curve
         name = str(hash(os.urandom(8)))
-        defaults.fixings.add(
-            f"{name}_1B", Series(index=[dt(2022, 1, 1), dt(2022, 1, 2)], data=[10.0, 8.0])
-        )
+        fixings.add(f"{name}_1B", Series(index=[dt(2022, 1, 1), dt(2022, 1, 2)], data=[10.0, 8.0]))
         period = FloatPeriod(
             start=dt(2022, 1, 3),
             end=dt(2022, 1, 5),
@@ -760,7 +748,7 @@ class TestFloatPeriod:
         result = period.rate(curve)  # double calc to test caching of fixing result
         expected = ((1 + 0.10 / 365) * (1 + 0.08 / 365) - 1) * 36500 / 2 + 10.0
         assert abs(result - expected) < 1e-12
-        defaults.fixings.pop(f"{name}_1B")
+        fixings.pop(f"{name}_1B")
 
     @pytest.mark.parametrize("curve_type", ["curve", "line_curve"])
     def test_rfr_observation_shift_avg_method(self, curve_type, rfr_curve, line_curve) -> None:
@@ -811,9 +799,7 @@ class TestFloatPeriod:
         line_curve,
     ) -> None:
         curve = rfr_curve if curve_type == "curve" else line_curve
-        defaults.fixings.add(
-            "123454_1B", Series(index=[dt(2022, 1, 1), dt(2022, 1, 2)], data=[10.0, 8.0])
-        )
+        fixings.add("123454_1B", Series(index=[dt(2022, 1, 1), dt(2022, 1, 2)], data=[10.0, 8.0]))
         period = FloatPeriod(
             start=dt(2022, 1, 2),
             end=dt(2022, 1, 5),
@@ -853,7 +839,7 @@ class TestFloatPeriod:
         result = period.rate(curve)
         expected = (10.0 + 8) / 2
         assert abs(result - expected) < 1e-11
-        defaults.fixings.pop("123454_1B")
+        fixings.pop("123454_1B")
 
     def test_dcf_obs_period_raises(self) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, calendar="ldn")
@@ -1043,7 +1029,7 @@ class TestFloatPeriod:
         # This is probably a redundant test but it came later after some refactoring and
         # was double checked with manual calculation in Excel. Easy to do.
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2022, 3, 1): 1.0}, calendar="nyc")
-        defaults.fixings.add("887654_1B", Series(data=[3.0, 5.0, 2.0], index=index))
+        fixings.add("887654_1B", Series(data=[3.0, 5.0, 2.0], index=index))
         period = FloatPeriod(
             start=dt(2022, 1, 28),
             end=dt(2022, 2, 2),
@@ -1057,7 +1043,7 @@ class TestFloatPeriod:
         )
         result = period.rate(curve)
         assert abs(result - expected) < 1e-8
-        defaults.fixings.pop("887654_1B")
+        fixings.pop("887654_1B")
 
     @pytest.mark.parametrize(
         ("method", "expected"),
@@ -1220,11 +1206,11 @@ class TestFloatPeriod:
 
     def test_ibor_fixings(self) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2025, 1, 1): 0.90}, calendar="bus")
-        fixings = Series(
+        fixings_ = Series(
             [1.00, 2.801, 1.00, 1.00],
             index=[dt(2023, 3, 1), dt(2023, 3, 2), dt(2023, 3, 3), dt(2023, 3, 6)],
         )
-        defaults.fixings.add("TEST_VALUES_3M", fixings)
+        fixings.add("TEST_VALUES_3M", fixings_)
         float_period = FloatPeriod(
             start=dt(2023, 3, 6),
             end=dt(2023, 6, 6),
@@ -1243,7 +1229,7 @@ class TestFloatPeriod:
         )
         result = float_period.rate(curve)
         assert result == 2.801
-        defaults.fixings.loaded.pop("TEST_VALUES_3M")
+        fixings.pop("TEST_VALUES_3M")
 
     def test_ibor_fixings_table_historical_before_curve(self) -> None:
         # fixing table should return a DataFrame with an unknown rate and zero exposure
@@ -1302,7 +1288,7 @@ class TestFloatPeriod:
             float_period.try_unindexed_reference_fixings_exposure(rate_curve=curve).unwrap()
 
         name = str(hash(os.urandom(8)))
-        defaults.fixings.add(f"{name}_1B", Series(index=[dt(2022, 1, 3)], data=[4.0]))
+        fixings.add(f"{name}_1B", Series(index=[dt(2022, 1, 3)], data=[4.0]))
         float_period = FloatPeriod(
             rate_fixings=name,
             start=dt(2022, 1, 3),
@@ -1328,8 +1314,8 @@ class TestFloatPeriod:
     def test_ibor_fixing_unavailable(self) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2025, 1, 1): 0.90}, calendar="bus")
         lcurve = LineCurve({dt(2022, 1, 1): 2.0, dt(2025, 1, 1): 4.0}, calendar="bus")
-        fixings = Series([2.801], index=[dt(2023, 3, 1)])
-        defaults.fixings.add("TEST_VALUES_3M", fixings)
+        fixings_ = Series([2.801], index=[dt(2023, 3, 1)])
+        fixings.add("TEST_VALUES_3M", fixings_)
         float_period = FloatPeriod(
             start=dt(2023, 3, 20),
             end=dt(2023, 6, 20),
@@ -1344,7 +1330,7 @@ class TestFloatPeriod:
         assert abs(result - 3.476095729528156) < 1e-5
         result = float_period.rate(lcurve)  # fixing occurs 18th Mar, not in `fixings`
         assert abs(result - 2.801094890510949) < 1e-5
-        defaults.fixings.loaded.pop("TEST_VALUES_3M")
+        fixings.pop("TEST_VALUES_3M")
 
     @pytest.mark.parametrize("float_spread", [0, 100])
     def test_ibor_rate_df_curve(self, float_spread, curve) -> None:
@@ -1393,9 +1379,7 @@ class TestFloatPeriod:
     @pytest.mark.parametrize("curve_type", ["curve", "linecurve"])
     def test_period_historic_fixings(self, curve_type, line_curve, rfr_curve) -> None:
         curve = rfr_curve if curve_type == "curve" else line_curve
-        defaults.fixings.add(
-            "123_1B", Series(index=[dt(2021, 12, 30), dt(2021, 12, 31)], data=[1.50, 2.50])
-        )
+        fixings.add("123_1B", Series(index=[dt(2021, 12, 30), dt(2021, 12, 31)], data=[1.50, 2.50]))
         period = FloatPeriod(
             start=dt(2021, 12, 30),
             end=dt(2022, 1, 3),
@@ -1410,16 +1394,16 @@ class TestFloatPeriod:
             (1 + 0.015 / 365) * (1 + 0.025 / 365) * (1 + 0.01 / 365) * (1 + 0.02 / 365) - 1
         ) * 36500 / 4 + 1
         assert period.rate(curve) == expected
-        defaults.fixings.pop("123_1B")
+        fixings.pop("123_1B")
 
     @pytest.mark.parametrize("curve_type", ["curve", "linecurve"])
     def test_period_historic_fixings_series(self, curve_type, line_curve, rfr_curve) -> None:
         curve = rfr_curve if curve_type == "curve" else line_curve
-        fixings = Series(
+        fixings_ = Series(
             [99, 99, 1.5, 2.5],
             index=[dt(1995, 1, 1), dt(2021, 12, 29), dt(2021, 12, 30), dt(2021, 12, 31)],
         )
-        defaults.fixings.add("123_1B", fixings)
+        fixings.add("123_1B", fixings_)
         period = FloatPeriod(
             start=dt(2021, 12, 30),
             end=dt(2022, 1, 3),
@@ -1435,7 +1419,7 @@ class TestFloatPeriod:
         ) * 36500 / 4 + 1
         result = period.rate(curve)
         assert result == expected
-        defaults.fixings.pop("123_1B")
+        fixings.pop("123_1B")
 
     @pytest.mark.parametrize("curve_type", ["linecurve", "curve"])
     def test_period_historic_fixings_series_missing_warns(
@@ -1450,7 +1434,9 @@ class TestFloatPeriod:
         #
 
         # this test was modified for v2.2. Now a missing fixing raises an error directly
-        fixings = Series([4.0, 3.0, 2.5], index=[dt(1995, 12, 1), dt(2021, 12, 30), dt(2022, 1, 1)])
+        fixings_ = Series(
+            [4.0, 3.0, 2.5], index=[dt(1995, 12, 1), dt(2021, 12, 30), dt(2022, 1, 1)]
+        )
         with pytest.raises(ValueError, match="The fixings series '199"):
             FloatPeriod(
                 start=dt(2021, 12, 30),
@@ -1459,7 +1445,7 @@ class TestFloatPeriod:
                 frequency=Frequency.Months(3, None),
                 fixing_method="rfr_payment_delay",
                 float_spread=100,
-                rate_fixings=fixings,
+                rate_fixings=fixings_,
                 convention="act365F",
             )
 
@@ -1467,7 +1453,7 @@ class TestFloatPeriod:
         # Create historical fixings spanning 5 days for a FloatPeriod.
         # But set a Cal that does not expect all of these - one holdiay midweek.
         # Observe the rate calculation.
-        fixings = Series(
+        fixings_ = Series(
             data=[1.0, 2.0, 3.0, 4.0, 5.0],
             index=[
                 dt(2023, 1, 23),
@@ -1478,7 +1464,7 @@ class TestFloatPeriod:
             ],
         )
         cal = Cal(holidays=[dt(2023, 1, 25)], week_mask=[5, 6])
-        defaults.fixings.add("x45_1B", fixings)
+        fixings.add("x45_1B", fixings_)
         period = FloatPeriod(
             start=dt(2023, 1, 23),
             end=dt(2023, 1, 30),
@@ -1492,7 +1478,7 @@ class TestFloatPeriod:
         curve = Curve({dt(2023, 1, 26): 1.0, dt(2025, 1, 26): 1.0}, calendar=cal)
         with pytest.warns(UserWarning, match=err.W02_0[:20]):
             period.rate(curve)
-        defaults.fixings.pop("x45_1B")
+        fixings.pop("x45_1B")
 
     def test_fewer_fixings_than_expected_raises(self):
         # Create historical fixings spanning 4 days for a FloatPeriod, with mid-week holiday
@@ -1500,7 +1486,7 @@ class TestFloatPeriod:
         # Observe the rate calculation.
 
         # this tests performs a minimal version of test_period_historic_fixings_series_missing_warns
-        fixings = Series(
+        fixings_ = Series(
             data=[1.0, 2.0, 4.0, 5.0],
             index=[dt(2023, 1, 23), dt(2023, 1, 24), dt(2023, 1, 26), dt(2023, 1, 27)],
         )
@@ -1511,7 +1497,7 @@ class TestFloatPeriod:
                 payment=dt(2023, 1, 30),
                 frequency=Frequency.Months(3, None),
                 fixing_method="rfr_payment_delay",
-                rate_fixings=fixings,
+                rate_fixings=fixings_,
                 convention="act365F",
                 calendar="bus",
             )
@@ -1535,7 +1521,7 @@ class TestFloatPeriod:
     def test_fixing_with_float_spread_complicated_compounding(self, curve) -> None:
         # this test ensures float spread is calculated correctly and populate to the fixings
         # value as a scalar and repeated calculations are avoided.
-        defaults.fixings.add(
+        fixings.add(
             "x45_1B", Series(index=[dt(2000, 1, 1), dt(2000, 1, 2), dt(2000, 1, 3)], data=1.0)
         )
         float_period = FloatPeriod(
@@ -1631,7 +1617,7 @@ class TestFloatPeriod:
             [(curve.id, "notional"), (curve.id, "risk"), (curve.id, "dcf"), (curve.id, "rates")]
         )
         name = str(hash(os.urandom(8)))
-        defaults.fixings.add(
+        fixings.add(
             f"{name}_1B",
             Series(
                 index=[dt(2022, 12, 28), dt(2022, 12, 29), dt(2022, 12, 30)],
@@ -1653,7 +1639,7 @@ class TestFloatPeriod:
         # assert values are unchanged even if curve can calculate derivatives
         result = float_period.try_unindexed_reference_fixings_exposure(rate_curve=curve).unwrap()
 
-        defaults.fixings.pop(f"{name}_1B")
+        fixings.pop(f"{name}_1B")
         assert_frame_equal(result, exp)
 
     @pytest.mark.parametrize(
@@ -1665,7 +1651,7 @@ class TestFloatPeriod:
     )
     def test_rfr_fixings_table_right(self, curve, right, exp) -> None:
         name = str(hash(os.urandom(8)))
-        defaults.fixings.add(
+        fixings.add(
             f"{name}_1B",
             Series(
                 index=[dt(2022, 12, 28), dt(2022, 12, 29), dt(2022, 12, 30)],
@@ -1888,7 +1874,7 @@ class TestFloatPeriod:
 
     def test_custom_interp_rate_nan(self) -> None:
         name = str(hash(os.urandom(8)))
-        defaults.fixings.add(
+        fixings.add(
             f"{name}_1B", Series(index=[dt(2022, 12, 28), dt(2022, 12, 29)], data=[1.19, 1.19])
         )
         float_period = FloatPeriod(
@@ -1937,7 +1923,7 @@ class TestFloatPeriod:
 
     def test_analytic_delta_no_curve_raises(self) -> None:
         name = str(hash(os.urandom(9)))
-        defaults.fixings.add(f"{name}_1B", Series(index=[dt(2022, 12, 28)], data=1.19))
+        fixings.add(f"{name}_1B", Series(index=[dt(2022, 12, 28)], data=1.19))
         float_period = FloatPeriod(
             start=dt(2022, 12, 28),
             end=dt(2023, 1, 2),
@@ -2010,7 +1996,7 @@ class TestFloatPeriod:
     def test_norges_bank_nowa_calc_same(self, meth, param, exp) -> None:
         # https://app.norges-bank.no/nowa/#/en/
         curve = Curve({dt(2023, 8, 4): 1.0}, calendar="osl", convention="act365f")
-        defaults.fixings.add("nowa_1B", defaults.fixings["nowa"][1])
+        fixings.add("nowa_1B", fixings["nowa"][1])
         period = FloatPeriod(
             start=dt(2023, 4, 27),
             end=dt(2023, 5, 12),
@@ -2030,7 +2016,7 @@ class TestFloatPeriod:
         )
         result = period.rate(curve)
         assert abs(result - exp) < 1e-7
-        defaults.fixings.pop("nowa_1B")
+        fixings.pop("nowa_1B")
 
     def test_interpolated_ibor_warns(self) -> None:
         period = FloatPeriod(
@@ -2288,7 +2274,7 @@ class TestFloatPeriod:
             assert abs(result - 3.0) < 1e-8  # uses fixing
 
     @pytest.mark.parametrize(
-        "fixings",
+        "rate_fixings",
         [
             Series(
                 index=[dt(2000, 1, 1), dt(2000, 1, 2), dt(2000, 1, 3)], data=[2.0, 2.0, 2.0]
@@ -2302,11 +2288,11 @@ class TestFloatPeriod:
     @pytest.mark.parametrize(
         "curve", [NoInput(0), LineCurve({dt(2000, 1, 1): 2.0, dt(2001, 1, 1): 2.0})]
     )
-    def test_rate_optional_curve_rfr(self, curve, fixings) -> None:
+    def test_rate_optional_curve_rfr(self, curve, rate_fixings) -> None:
         # GH530. Test RFR periods what happens when supply/not supply a Curve and fixings
         # are either exhaustive/ not exhaustive
         name = str(hash(os.urandom(8)))
-        defaults.fixings.add(f"{name}_1B", fixings)
+        fixings.add(f"{name}_1B", rate_fixings)
         period = FloatPeriod(
             start=dt(2000, 1, 1),
             end=dt(2000, 2, 1),
@@ -2319,7 +2305,7 @@ class TestFloatPeriod:
 
         # When a curve is not supplied for RFR period currently it will still fail
         # even if exhaustive fixings are available. There is currently no branching handling this.
-        if isinstance(curve, NoInput) and len(fixings) == 3:
+        if isinstance(curve, NoInput) and len(rate_fixings) == 3:
             with pytest.raises(
                 FixingMissingForecasterError, match="A `rate_curve` is required to forecast mi"
             ):
@@ -2328,14 +2314,14 @@ class TestFloatPeriod:
             # it will conclude without fail, the exhaustive case is captured.
             period.rate(curve)
 
-        defaults.fixings.pop(f"{name}_1B")
+        fixings.pop(f"{name}_1B")
 
     def test_rfr_lockout_calculation_is_accurate(self):
         # this is an additional test to ensure the validity of the lockout rate
         # it combines multiple features such as weekends and changing rates.
         # it ensures that the DCF is handled correctly for the locked out days
         name = str(hash(os.urandom(8)))
-        defaults.fixings.add(
+        fixings.add(
             f"{name}_1B",
             Series(
                 index=[
@@ -2367,7 +2353,7 @@ class TestFloatPeriod:
             rate_fixings=name,
         )
         result = p.rate(rate_curve=NoInput(0))
-        defaults.fixings.pop(f"{name}_1B")
+        fixings.pop(f"{name}_1B")
         d = 1.0 / 36000.0
         expected = (
             (1 + 1 * 3 * d)
@@ -3019,7 +3005,6 @@ class TestCashflow:
         expected = {
             defaults.headers["base"]: "UNSPECIFIED" if fx == 2.0 else "NOK",
             defaults.headers["type"]: "Cashflow",
-            defaults.headers["stub_type"]: "Regular",
             # defaults.headers["a_acc_start"]: None,
             # defaults.headers["a_acc_end"]: None,
             defaults.headers["payment"]: dt(2022, 4, 3),
@@ -3474,7 +3459,7 @@ class TestIndexFixedPeriod:
             ],
             columns=["month", "rate"],
         ).set_index("month")["rate"]
-        defaults.fixings.add("CPI_INDEX", RPI)
+        fixings.add("CPI_INDEX", RPI)
         period = IndexFixedPeriod(
             start=dt(2024, 11, 27),
             end=dt(2025, 5, 27),
@@ -3487,7 +3472,7 @@ class TestIndexFixedPeriod:
         )
         result = period.cashflows()
 
-        defaults.fixings.loaded.pop("CPI_INDEX")
+        fixings.pop("CPI_INDEX")
         assert result["Index Base"] == 389.9 + (388.6 - 389.9) * (27 - 1) / 30
         assert result["Index Val"] == 394 + (395.3 - 394) * (27 - 1) / 31
 
@@ -3604,7 +3589,7 @@ class TestNonDeliverableCashflow:
             payment=dt(2025, 6, 1),
             fx_fixings=0.25,
         )
-        result = ndf.settlement_params.fx_fixing.value
+        result = ndf.non_deliverable_params.fx_fixing.value
         expected = 0.25
         assert abs(result - expected) < 1e-8
 
@@ -3616,7 +3601,7 @@ class TestNonDeliverableCashflow:
             payment=dt(2025, 6, 1),
             fx_fixings=0.25,
         )
-        result = ndf.settlement_params.try_fx_fixing(fx=fxf_ndf).unwrap()
+        result = ndf.non_deliverable_params.try_fx_fixing(fx=fxf_ndf).unwrap()
         expected = 0.25
         assert abs(result - expected) < 1e-8
 
@@ -3627,8 +3612,8 @@ class TestNonDeliverableCashflow:
             pair="brlusd",
             payment=dt(2025, 6, 1),
         )
-        result = ndf.settlement_params.try_fx_fixing(fx=fxf_ndf).unwrap()
-        expected = fxf_ndf.rate(ndf.settlement_params.pair, dt(2025, 6, 1))
+        result = ndf.non_deliverable_params.try_fx_fixing(fx=fxf_ndf).unwrap()
+        expected = fxf_ndf.rate(ndf.non_deliverable_params.pair, dt(2025, 6, 1))
         assert abs(result - expected) < 1e-8
 
     def test_forecast_rate(self, fxf_ndf):
@@ -3638,8 +3623,8 @@ class TestNonDeliverableCashflow:
             pair="brlusd",
             payment=dt(2025, 6, 1),
         )
-        result = ndf.settlement_params.try_fx_fixing(fx=fxf_ndf).unwrap()
-        expected = fxf_ndf.rate(ndf.settlement_params.pair, dt(2025, 6, 1))
+        result = ndf.non_deliverable_params.try_fx_fixing(fx=fxf_ndf).unwrap()
+        expected = fxf_ndf.rate(ndf.non_deliverable_params.pair, dt(2025, 6, 1))
         assert abs(result - expected) < 1e-8
 
     def test_cashflows_priced(self, fxf_ndf):
@@ -3662,7 +3647,6 @@ class TestNonDeliverableCashflow:
             "NPV Ccy": -246383.57738594883,
             "Notional": 1000000.0,
             "Payment": dt(2025, 6, 1, 0, 0),
-            "Period": "Regular",
             "FX Fixing": 0.25,
             "Reference Ccy": "BRL",
             "Type": "NonDeliverableCashflow",
@@ -3690,7 +3674,6 @@ class TestNonDeliverableCashflow:
             "Notional": 1000000.0,
             "Reference Ccy": "BRL",
             "Payment": dt(2025, 6, 1, 0, 0),
-            "Period": "Regular",
             "Type": "NonDeliverableCashflow",
         }
         assert result == expected
@@ -3735,7 +3718,7 @@ class TestNonDeliverableFixedPeriod:
             fixed_rate=3.0,
         )
         cf = ndfp.try_cashflow(fx=fxf_ndf).unwrap()
-        fx_fixing = ndfp.settlement_params.try_fx_fixing(fx=fxf_ndf).unwrap()
+        fx_fixing = ndfp.non_deliverable_params.try_fx_fixing(fx=fxf_ndf).unwrap()
         expected = -1e6 * 0.25 * 0.03 / fx_fixing  # in USD
         assert abs(cf - expected) < 1e-8
 
@@ -3754,7 +3737,7 @@ class TestNonDeliverableFixedPeriod:
             fixed_rate=3.0,
         )
         cf = ndfp.try_cashflow(fx=fxf_ndf).unwrap()
-        fx_fixing = ndfp.settlement_params.try_fx_fixing(fx=fxf_ndf).unwrap()
+        fx_fixing = ndfp.non_deliverable_params.try_fx_fixing(fx=fxf_ndf).unwrap()
         expected = -0.2e6 * 0.25 * 0.03 * fx_fixing  # in USD
         assert abs(cf - expected) < 1e-8
 
@@ -3789,7 +3772,7 @@ class TestNonDeliverableFixedPeriod:
         )
         curve = fxf_ndf.curve("usd", "usd")
         result = ndfp.analytic_delta(rate_curve=curve, fx=fxf_ndf)
-        fx_fixing = ndfp.settlement_params.try_fx_fixing(fx=fxf_ndf).unwrap()
+        fx_fixing = ndfp.non_deliverable_params.try_fx_fixing(fx=fxf_ndf).unwrap()
         expected = 1e9 * 0.25 * 0.0001 * curve[dt(2025, 5, 1)] / fx_fixing  # in USD
         assert abs(result - expected) < 1e-8
 
@@ -3829,7 +3812,7 @@ class TestNonDeliverableFixedPeriod:
         )
         curve = fxf_ndf.curve("usd", "usd")
         result = ndfp.npv(rate_curve=curve, fx=fxf_ndf)
-        fx_fixing = ndfp.settlement_params.try_fx_fixing(fx=fxf_ndf).unwrap()
+        fx_fixing = ndfp.non_deliverable_params.try_fx_fixing(fx=fxf_ndf).unwrap()
         expected = -1e9 * 0.25 * 0.03 * curve[dt(2025, 5, 1)] / fx_fixing  # in USD
         assert abs(result - expected) < 1e-8
 
@@ -3849,7 +3832,7 @@ class TestNonDeliverableFixedPeriod:
         )
         curve = fxf_ndf.curve("usd", "usd")
         result = ndfp.npv(rate_curve=curve, fx=fxf_ndf)
-        fx_fixing = ndfp.settlement_params.try_fx_fixing(fx=fxf_ndf).unwrap()
+        fx_fixing = ndfp.non_deliverable_params.try_fx_fixing(fx=fxf_ndf).unwrap()
         expected = -1e9 * 0.25 * 0.03 * curve[dt(2025, 5, 1)] * fx_fixing  # in USD
         assert abs(result - expected) < 1e-8
 
@@ -3984,7 +3967,12 @@ class TestFXOption:
             notional=20e6,
             delta_type=dlty,
         )
-        result = fxo.rate(fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd"), fx=fxfo, vol=vol_)
+        result = fxo.try_rate(
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            fx_vol=vol_,
+        ).unwrap()
         expected = exp_pts
         assert abs(result - expected) < 1e-3
 
@@ -3996,7 +3984,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=vol_,
+            fx_vol=vol_,
         )["delta"]
         expected = exp_dl
         assert abs(result - expected) < 1e-6
@@ -4032,12 +4020,12 @@ class TestFXOption:
             delta_type=dlty,
             metric="percent",
         )
-        result = fxo.rate(
+        result = fxo.try_rate(
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=vol_,
-        )
+            fx_vol=vol_,
+        ).unwrap()
         expected = exp_pts
         assert abs(result - expected) < 1e-3
 
@@ -4049,7 +4037,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=vol_,
+            fx_vol=vol_,
             premium=exp_prem,
         )["delta"]
         expected = exp_dl
@@ -4076,10 +4064,10 @@ class TestFXOption:
             notional=20e6,
         )
         result = fxo.npv(
-            fxfo.curve("eur", "usd"),
-            fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=vol_,
+            fx_vol=vol_,
         )
         result /= fxfo.curve("usd", "usd")[dt(2023, 6, 20)]
         expected = 140451.5273  # 140500 USD premium according to Tullets calcs (may be rounded)
@@ -4106,10 +4094,10 @@ class TestFXOption:
             notional=20e6,
         )
         result = fxo.npv(
-            fxfo.curve("eur", "usd"),
-            fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=vol_,
+            fx_vol=vol_,
         )
         assert result == 0.0
 
@@ -4121,13 +4109,13 @@ class TestFXOption:
             payment=dt(2023, 3, 17),
             strike=1.101,
             notional=20e6,
-            option_fixing=1.102,
+            option_fixings=1.102,
         )
         result = fxo.npv(
-            fxfo.curve("eur", "usd"),
-            fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=8.9,
+            fx_vol=8.9,
         )
         expected = (1.102 - 1.101) * 20e6 * fxfo.curve("usd", "usd")[dt(2023, 3, 17)]
         assert abs(result - expected) < 1e-9
@@ -4140,13 +4128,13 @@ class TestFXOption:
             payment=dt(2023, 3, 17),
             strike=1.101,
             notional=20e6,
-            option_fixing=1.100,
+            option_fixings=1.100,
         )
         result = fxo.npv(
-            fxfo.curve("eur", "usd"),
-            fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=8.9,
+            fx_vol=8.9,
         )
         expected = (1.101 - 1.100) * 20e6 * fxfo.curve("usd", "usd")[dt(2023, 3, 17)]
         assert abs(result - expected) < 1e-9
@@ -4159,13 +4147,13 @@ class TestFXOption:
             payment=dt(2023, 3, 17),
             strike=1.101,
             notional=20e6,
-            option_fixing=1.100,
+            option_fixings=1.100,
         )
         result = fxo.npv(
-            fxfo.curve("eur", "usd"),
-            fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=8.9,
+            fx_vol=8.9,
         )
         expected = 0.0
         assert abs(result - expected) < 1e-9
@@ -4179,12 +4167,12 @@ class TestFXOption:
             strike=1.101,
             notional=20e6,
         )
-        with pytest.raises(ValueError, match="`metric` must be in"):
+        with pytest.raises(ValueError, match="FXOption `metric` as string: 'bad' i"):
             fxo.rate(
-                fxfo.curve("eur", "usd"),
-                fxfo.curve("usd", "usd"),
+                rate_curve=fxfo.curve("eur", "usd"),
+                disc_curve=fxfo.curve("usd", "usd"),
                 fx=fxfo,
-                vol=8.9,
+                fx_vol=8.9,
                 metric="bad",
             )
 
@@ -4209,10 +4197,10 @@ class TestFXOption:
             notional=20e6,
         )
         result = fxo.rate(
-            fxfo.curve("eur", "usd"),
-            fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=vol_,
+            fx_vol=vol_,
         )
         expected = 70.225764  # 70.25 premium according to Tullets calcs (may be rounded)
         assert abs(result - expected) < 1e-6
@@ -4227,15 +4215,15 @@ class TestFXOption:
             notional=20e6,
         )
         result = fxo.implied_vol(
-            fxfo.curve("eur", "usd"),
-            fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
             premium=70.25,
         )
         expected = 8.90141775  # Tullets have trade confo at 8.9%
         assert abs(expected - result) < 1e-8
 
-        premium_pc = 0.007025 / fxfo.rate("eurusd", fxo.delivery) * 100.0
+        premium_pc = 0.007025 / fxfo.rate("eurusd", fxo.fx_option_params.delivery) * 100.0
         result = fxo.implied_vol(
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
@@ -4266,10 +4254,10 @@ class TestFXOption:
             notional=20e6,
         )
         result = fxo.rate(
-            fxfo.curve("eur", "usd"),
-            fxfo.curve("usd", "usd"),
-            fxfo,
-            vol=vol_,
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            fx_vol=vol_,
         )
         expected = 83.836959  # Tullets trade confo has 83.75
         assert abs(result - expected) < 1e-6
@@ -4296,10 +4284,10 @@ class TestFXOption:
         )
         result = (
             fxo.npv(
-                fxfo.curve("eur", "usd"),
-                fxfo.curve("usd", "usd"),
-                fxfo,
-                vol=vol_,
+                rate_curve=fxfo.curve("eur", "usd"),
+                disc_curve=fxfo.curve("usd", "usd"),
+                fx=fxfo,
+                fx_vol=vol_,
             )
             / fxfo.curve("usd", "usd")[dt(2023, 6, 20)]
         )
@@ -4309,14 +4297,16 @@ class TestFXOption:
     @pytest.mark.parametrize(
         ("dlty", "delta", "exp_k"),
         [
-            ("forward", 0.25, 1.101271021340),
-            ("forward_pa", 0.25, 1.10023348001),
-            ("forward", 0.251754, 1.100999951),
-            ("forward_pa", 0.8929, 0.9748614298),  # close to peak of premium adjusted delta graph.
-            ("spot", 0.25, 1.10101920113408),
-            ("spot_pa", 0.25, 1.099976469786),
-            ("spot", 0.251754, 1.10074736155),
-            ("spot_pa", 0.8870, 0.97543175409),  # close to peak of premium adjusted delta graph.
+            (FXDeltaMethod.Forward, 0.25, 1.101271021340),
+            (FXDeltaMethod.ForwardPremiumAdjusted, 0.25, 1.10023348001),
+            (FXDeltaMethod.Forward, 0.251754, 1.100999951),
+            (FXDeltaMethod.ForwardPremiumAdjusted, 0.8929, 0.9748614298),
+            # close to peak of premium adjusted delta graph.
+            (FXDeltaMethod.Spot, 0.25, 1.10101920113408),
+            (FXDeltaMethod.SpotPremiumAdjusted, 0.25, 1.099976469786),
+            (FXDeltaMethod.Spot, 0.251754, 1.10074736155),
+            (FXDeltaMethod.SpotPremiumAdjusted, 0.8870, 0.97543175409),
+            # close to peak of premium adjusted delta graph.
         ],
     )
     @pytest.mark.parametrize("smile", [False, True])
@@ -4345,10 +4335,10 @@ class TestFXOption:
             delta,
             dlty,
             vol_,
-            fxfo.curve("eur", "usd")[fxo.delivery],
+            fxfo.curve("eur", "usd")[fxo.fx_option_params.delivery],
             fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
             fxfo.rate("eurusd", dt(2023, 6, 20)),
-            fxo._t_to_expiry(fxfo.curve("usd", "usd").nodes.initial),
+            fxo.fx_option_params.time_to_expiry(fxfo.curve("usd", "usd").nodes.initial),
         )[2]
         expected = exp_k
         assert abs(result - expected) < 1e-8
@@ -4364,10 +4354,10 @@ class TestFXOption:
             delta_type=dlty,
         )
         result2 = fxo.analytic_greeks(
-            fxfo.curve("eur", "usd"),
-            fxfo.curve("usd", "usd"),
-            fxfo,
-            vol=vol_,
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            fx_vol=vol_,
         )["delta"]
         assert abs(result2 - delta) < 1e-8
 
@@ -4401,8 +4391,24 @@ class TestFXOption:
         assert result[1][0] == (1.101 - 1.07) * 20e6
         assert result[1][-1] == 0.0
 
-    @pytest.mark.parametrize("delta_type", ["spot", "spot_pa", "forward", "forward_pa"])
-    @pytest.mark.parametrize("smile_type", ["spot", "spot_pa", "forward", "forward_pa"])
+    @pytest.mark.parametrize(
+        "delta_type",
+        [
+            FXDeltaMethod.Spot,
+            FXDeltaMethod.SpotPremiumAdjusted,
+            FXDeltaMethod.Forward,
+            FXDeltaMethod.ForwardPremiumAdjusted,
+        ],
+    )
+    @pytest.mark.parametrize(
+        "smile_type",
+        [
+            FXDeltaMethod.Spot,
+            FXDeltaMethod.SpotPremiumAdjusted,
+            FXDeltaMethod.Forward,
+            FXDeltaMethod.ForwardPremiumAdjusted,
+        ],
+    )
     @pytest.mark.parametrize("delta", [-0.1, -0.25, -0.75, -0.9, -1.5])
     @pytest.mark.parametrize("vol_smile", [True, False])
     def test_strike_and_delta_idx_multisolve_from_delta_put(
@@ -4413,7 +4419,10 @@ class TestFXOption:
         delta,
         vol_smile,
     ) -> None:
-        if delta < -1.0 and "_pa" not in delta_type:
+        if delta < -1.0 and delta_type not in [
+            FXDeltaMethod.SpotPremiumAdjusted,
+            FXDeltaMethod.ForwardPremiumAdjusted,
+        ]:
             pytest.skip("Put delta cannot be below -1.0 in unadjusted cases.")
         fxo = FXPutPeriod(
             pair="eurusd",
@@ -4445,25 +4454,41 @@ class TestFXOption:
             fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
             fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
             fxfo.rate("eurusd", dt(2023, 6, 20)),
-            fxo._t_to_expiry(fxfo.curve("eur", "usd").nodes.initial),
+            fxo.fx_option_params.time_to_expiry(fxfo.curve("eur", "usd").nodes.initial),
         )
 
-        fxo.strike = result[2]
+        fxo.fx_option_params.strike = result[2]
 
         if vol_smile:
             vol_ = result[1]
 
         expected = fxo.analytic_greeks(
-            disc_curve=fxfo.curve("eur", "usd"),
-            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=vol_,
+            fx_vol=vol_,
         )["delta"]
 
         assert abs(delta - expected) < 1e-8
 
-    @pytest.mark.parametrize("delta_type", ["spot", "spot_pa", "forward", "forward_pa"])
-    @pytest.mark.parametrize("smile_type", ["spot", "spot_pa", "forward", "forward_pa"])
+    @pytest.mark.parametrize(
+        "delta_type",
+        [
+            FXDeltaMethod.Spot,
+            FXDeltaMethod.SpotPremiumAdjusted,
+            FXDeltaMethod.Forward,
+            FXDeltaMethod.ForwardPremiumAdjusted,
+        ],
+    )
+    @pytest.mark.parametrize(
+        "smile_type",
+        [
+            FXDeltaMethod.Spot,
+            FXDeltaMethod.SpotPremiumAdjusted,
+            FXDeltaMethod.Forward,
+            FXDeltaMethod.ForwardPremiumAdjusted,
+        ],
+    )
     @pytest.mark.parametrize("delta", [0.1, 0.25, 0.65, 0.9])
     @pytest.mark.parametrize("vol_smile", [True, False])
     def test_strike_and_delta_idx_multisolve_from_delta_call(
@@ -4474,7 +4499,10 @@ class TestFXOption:
         delta,
         vol_smile,
     ) -> None:
-        if delta > 0.65 and "_pa" in delta_type:
+        if delta > 0.65 and delta_type in [
+            FXDeltaMethod.SpotPremiumAdjusted,
+            FXDeltaMethod.ForwardPremiumAdjusted,
+        ]:
             pytest.skip("Premium adjusted call delta cannot be above the peak ~0.7?.")
         fxo = FXCallPeriod(
             pair="eurusd",
@@ -4505,18 +4533,18 @@ class TestFXOption:
             fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
             fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
             fxfo.rate("eurusd", dt(2023, 6, 20)),
-            fxo._t_to_expiry(fxfo.curve("eur", "usd").nodes.initial),
+            fxo.fx_option_params.time_to_expiry(fxfo.curve("eur", "usd").nodes.initial),
         )
 
-        fxo.strike = result[2]
+        fxo.fx_option_params.strike = result[2]
         if vol_smile:
             vol_ = result[1]
 
         expected = fxo.analytic_greeks(
-            disc_curve=fxfo.curve("eur", "usd"),
-            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=vol_,
+            fx_vol=vol_,
         )["delta"]
         assert abs(delta - expected) < 1e-8
 
@@ -4562,7 +4590,7 @@ class TestFXOption:
                 fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
                 fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
                 fxfo.rate("eurusd", dt(2023, 6, 20)),
-                fxo._t_to_expiry(fxfo.curve("eur", "usd").nodes.initial),
+                fxo.fx_option_params.time_to_expiry(fxfo.curve("eur", "usd").nodes.initial),
             )
 
     @pytest.mark.parametrize("delta_type", ["forward", "spot"])
@@ -4581,7 +4609,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=8.9,
+            fx_vol=8.9,
         )
         f_d = fxfo.rate("eurusd", dt(2023, 6, 20))
         f_t = fxfo.rate("eurusd", dt(2023, 3, 20))
@@ -4593,7 +4621,7 @@ class TestFXOption:
             fxfo.curve("eur", "usd"),
             fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=8.9,
+            fx_vol=8.9,
         )
         denomn = (f_d2 - f_d) if "forward" in delta_type else (f_t2 - f_t)
         fwd_diff = -(base["delta"] - base_1["delta"]) / denomn
@@ -4610,24 +4638,24 @@ class TestFXOption:
             delta_type="forward",
         )
         result = fxc.analytic_greeks(
-            fxfo.curve("eur", "usd"),
-            fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=8.9,
+            fx_vol=8.9,
         )["vega"]
         assert abs(result * 20e6 / 100 - 33757.945) < 1e-2
 
         p0 = fxc.npv(
-            disc_curve=fxfo.curve("eur", "usd"),
-            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=8.9,
+            fx_vol=8.9,
         )
         p1 = fxc.npv(
-            disc_curve=fxfo.curve("eur", "usd"),
-            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=8.91,
+            fx_vol=8.91,
         )
         fwd_diff = (p1 - p0) / 20e6 * 10000.0
         assert abs(result - fwd_diff) < 1e-4
@@ -4643,29 +4671,29 @@ class TestFXOption:
             delta_type="forward",
         )
         result = fxc.analytic_greeks(
-            fxfo.curve("eur", "usd"),
-            fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=8.9,
+            fx_vol=8.9,
         )["vomma"]
 
         p0 = fxc.npv(
-            disc_curve=fxfo.curve("eur", "usd"),
-            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=8.9,
+            fx_vol=8.9,
         )
         p1 = fxc.npv(
-            disc_curve=fxfo.curve("eur", "usd"),
-            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=8.91,
+            fx_vol=8.91,
         )
         p_1 = fxc.npv(
-            disc_curve=fxfo.curve("eur", "usd"),
-            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=8.89,
+            fx_vol=8.89,
         )
         fwd_diff = (p1 - p0 - p0 + p_1) * 1e4 * 1e4
         assert abs(result - fwd_diff) < 1e-6
@@ -4682,22 +4710,22 @@ class TestFXOption:
             delta_type="forward",
         )
         npv = fxc.npv(
-            disc_curve=fxfo.curve("eur", "usd"),
-            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=10.0,
+            fx_vol=10.0,
         )
         npv2 = fxc.npv(
-            disc_curve=fxfo.curve("eur", "usd"),
-            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=10.1,
+            fx_vol=10.1,
         )
         greeks = fxc.analytic_greeks(
-            disc_curve=fxfo.curve("eur", "usd"),
-            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=Dual(10.0, ["vol"], [100.0]),
+            fx_vol=Dual(10.0, ["vol"], [100.0]),
         )
         taylor_vega = 10e6 * greeks["vega"] * 0.1 / 100.0
         taylor_vomma = 10e6 * 0.5 * greeks["vomma"] * 0.1**2 / 10000.0
@@ -4717,30 +4745,30 @@ class TestFXOption:
             delta_type=delta_type,
         )
         npv = fxc.npv(
-            disc_curve=fxfo.curve("eur", "usd"),
-            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=10.0,
+            fx_vol=10.0,
         )
         greeks = fxc.analytic_greeks(
-            disc_curve=fxfo.curve("eur", "usd"),
-            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=10.0,
+            fx_vol=10.0,
         )
         f_d = fxfo.rate("eurusd", dt(2023, 6, 20))
         fxfo.fx_rates.update({"eurusd": 1.0625})
         fxfo.update()
         f_d2 = fxfo.rate("eurusd", dt(2023, 6, 20))
         npv2 = fxc.npv(
-            disc_curve=fxfo.curve("eur", "usd"),
-            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=10.0,
+            fx_vol=10.0,
         )
         if delta_type == "forward":
             fwd_diff = f_d2 - f_d
-            discount_date = fxc.delivery
+            discount_date = fxc.fx_option_params.delivery
         else:
             fwd_diff = 0.001
             discount_date = dt(2023, 3, 20)
@@ -4763,16 +4791,16 @@ class TestFXOption:
             delta_type=delta_type,
         )
         npv = fxc.npv(
-            disc_curve=fxfo.curve("eur", "usd"),
-            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=10.0,
+            fx_vol=10.0,
         )
         greeks = fxc.analytic_greeks(
-            disc_curve=fxfo.curve("eur", "usd"),
-            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=Dual(10.0, ["vol"], [100.0]),
+            fx_vol=Dual(10.0, ["vol"], [100.0]),
         )
         f_d = fxfo.rate("eurusd", dt(2023, 6, 20))
         fxfo.fx_rates.update({"eurusd": 1.0625})
@@ -4780,21 +4808,21 @@ class TestFXOption:
         f_d2 = fxfo.rate("eurusd", dt(2023, 6, 20))
         if delta_type == "forward":
             fwd_diff = f_d2 - f_d
-            discount_date = fxc.delivery
+            discount_date = fxc.fx_option_params.delivery
         else:
             fwd_diff = 0.001
             discount_date = dt(2023, 3, 20)
         npv2 = fxc.npv(
-            disc_curve=fxfo.curve("eur", "usd"),
-            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=10.1,
+            fx_vol=10.1,
         )
         fxc.analytic_greeks(
-            disc_curve=fxfo.curve("eur", "usd"),
-            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=Dual(10.1, ["vol"], [100.0]),
+            fx_vol=Dual(10.1, ["vol"], [100.0]),
         )
         expected = npv2 - npv
         taylor_delta = fwd_diff * greeks["delta"] * 10e6
@@ -4846,7 +4874,12 @@ class TestFXOption:
             delta_type="forward",
         )
         with pytest.raises(ValueError, match="`expiry` of VolSmile and OptionPeriod do not match"):
-            fxc.npv(fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd"), fx=fxfo, vol=vol_)
+            fxc.npv(
+                rate_curve=fxfo.curve("eur", "usd"),
+                disc_curve=fxfo.curve("usd", "usd"),
+                fx=fxfo,
+                fx_vol=vol_,
+            )
 
     @pytest.mark.parametrize("smile", [True, False])
     def test_call_cashflows(self, fxfo, smile) -> None:
@@ -4869,10 +4902,10 @@ class TestFXOption:
             notional=20e6,
         )
         result = fxo.cashflows(
-            fxfo.curve("eur", "usd"),
-            fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            vol=vol_,
+            fx_vol=vol_,
             base="eur",
         )
         assert isinstance(result, dict)
@@ -4903,14 +4936,13 @@ class TestFXOption:
             delta_type="spot",
         )
         gks = fxo.analytic_greeks(
-            disc_curve=fxfo.curve("eur", "usd"),
-            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            base="usd",
-            vol=vol_,
+            fx_vol=vol_,
         )
 
-        v_deli = fxfo.curve("usd", "usd")[fxo.delivery]
+        v_deli = fxfo.curve("usd", "usd")[fxo.fx_option_params.delivery]
         v_spot = fxfo.curve("usd", "usd")[dt(2023, 3, 20)]
 
         # this is the actual derivative of vol with respect to either spot or forward via AD
@@ -4919,7 +4951,7 @@ class TestFXOption:
             expected = gradient(gks["__vol"], ["fx_eurusd"])[0]
         else:
             z_v_0 = 1.0
-            w_deli = fxfo.curve("eur", "usd")[fxo.delivery]
+            w_deli = fxfo.curve("eur", "usd")[fxo.fx_option_params.delivery]
             w_spot = fxfo.curve("eur", "usd")[dt(2023, 3, 20)]
             expected = (
                 gradient(gks["__vol"], ["fx_eurusd"])[0] * v_deli * w_spot / (v_spot * w_deli)
@@ -5044,11 +5076,10 @@ class TestFXOption:
             delta_type="spot",
         )
         gks = fxo.analytic_greeks(
-            disc_curve=fxfo.curve("eur", "usd"),
-            disc_curve_ccy2=fxfo.curve("usd", "usd"),
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
-            base="usd",
-            vol=vol_,
+            fx_vol=vol_,
         )
 
         P = 20e6 * gks["__bs76"]

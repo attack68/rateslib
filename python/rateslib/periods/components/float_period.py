@@ -6,13 +6,17 @@ import numpy as np
 from pandas import DataFrame, MultiIndex, Series, concat, isna
 
 import rateslib.errors as err
-from rateslib.curves._parsers import _try_disc_required_maybe_from_curve
+from rateslib.curves._parsers import (
+    _disc_required_maybe_from_curve,
+    _try_disc_required_maybe_from_curve,
+    _validate_obj_not_no_input,
+)
 from rateslib.curves.utils import average_rate
 from rateslib.dual import Variable, gradient
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import Err, NoInput, Ok
 from rateslib.enums.parameters import FloatFixingMethod, SpreadCompoundMethod
-from rateslib.fixings import _find_neighbouring_tenors
+from rateslib.fixing_data import _find_neighbouring_tenors
 from rateslib.periods.components.base_period import BasePeriod
 from rateslib.periods.components.float_rate import (
     _maybe_get_rate_series_from_curve,
@@ -80,7 +84,9 @@ class FloatPeriod(BasePeriod):
 
     def try_unindexed_reference_cashflow(
         self,
+        *,
         rate_curve: CurveOption_ = NoInput(0),
+        **kwargs: Any,
     ) -> Result[DualTypes]:
         r = self.try_rate(rate_curve)
         if r.is_err:
@@ -155,7 +161,7 @@ class FloatPeriod(BasePeriod):
                 rate_curve_ = rate_curve
             return _FixingsExposureCalculator.rfr(
                 p=self,
-                rate_curve=rate_curve_,
+                rate_curve=_validate_obj_not_no_input(rate_curve_, "rate_curve"),
                 disc_curve=disc_curve,
                 right=right,
             )
@@ -226,7 +232,7 @@ class NonDeliverableIndexFloatPeriod(FloatPeriod):
 class _FixingsExposureCalculator:
     @classmethod
     def rfr(
-        cls, p: FloatPeriod, rate_curve: _BaseCurve_, disc_curve: _BaseCurve_, right: datetime_
+        cls, p: FloatPeriod, rate_curve: _BaseCurve, disc_curve: _BaseCurve_, right: datetime_
     ) -> Result[DataFrame]:
         rate_fixing: DualTypes_ = p.rate_params.rate_fixing.value
 
@@ -290,7 +296,7 @@ class _FixingsExposureCalculator:
                 _RFRRate._get_dates_and_fixing_rates_from_fixings(
                     rate_series=rate_series_,
                     bounds_obs=bounds_obs,
-                    bounds_dcf=bounds_dcf,
+                    bounds_dcf=bounds_dcf,  # type: ignore[arg-type]  # prechecked
                     is_matching=False,
                     rate_fixings=p.rate_params.rate_fixing.identifier,
                 )
@@ -303,7 +309,7 @@ class _FixingsExposureCalculator:
                 fixing_rates=fixing_rates,  # type: ignore[arg-type]
                 rate_curve=rate_curve,
                 dates_obs=dates_obs,
-                dcfs_obs=dcfs_obs,
+                dcfs_obs=dcfs_obs,  # type: ignore[arg-type]
             )
 
         d_star = p.period_params.dcf
@@ -312,12 +318,12 @@ class _FixingsExposureCalculator:
             p=p,
             rate_series=rate_series_,
             r_star=r_star,
-            di=dcfs_dcf,
+            di=dcfs_dcf,  # type: ignore[arg-type]
             z=p.rate_params.float_spread,
             fixing_method=p.rate_params.fixing_method,
             method_param=p.rate_params.method_param,
             spread_compound_method=p.rate_params.spread_compound_method,
-            fixing_rates=fixing_rates,
+            fixing_rates=fixing_rates,  # type: ignore[arg-type]
         )
 
         dc_result = _try_disc_required_maybe_from_curve(curve=rate_curve, disc_curve=disc_curve)
@@ -335,7 +341,7 @@ class _FixingsExposureCalculator:
         )
         vi = np.array([disc_curve_[_] for _ in dates_obs[1:]])  # TODO: can approximate this
         ni = 1 / (dcfs_obs * vi) * dPdr * 10000.0
-        fixing_notionals = Series(data=ni, index=fixing_rates.index)
+        fixing_notionals = Series(data=ni, index=fixing_rates.index)  # type: ignore[union-attr]
 
         df = fixing_notionals.astype(float).to_frame(name="notional")
         df["risk"] = dPdr
@@ -368,7 +374,7 @@ class _FixingsExposureCalculator:
         fixing_method: FloatFixingMethod,
         method_param: int,
         spread_compound_method: SpreadCompoundMethod,
-        fixing_rates: Series[DualTypes],
+        fixing_rates: Series[DualTypes],  # type: ignore[type-var]
     ) -> Arr1dObj:
         # approximate sensitivity to each fixing
         z = z / 100.0
@@ -439,9 +445,9 @@ class _FixingsExposureCalculator:
                 # then must perform an interpolated calculation
                 return cls._ibor_stub(
                     p=p,
-                    rate_fixing=p.rate_params.rate_fixing,
+                    rate_fixing=p.rate_params.rate_fixing,  # type: ignore[arg-type]
                     rate_curve=rate_curve,
-                    disc_curve=disc_curve,
+                    disc_curve=_validate_obj_not_no_input(disc_curve, "disc_curve"),
                     right=right,
                     risk=risk,
                 )
@@ -459,9 +465,9 @@ class _FixingsExposureCalculator:
 
         return cls._ibor_single_tenor(
             p=p,
-            rate_fixing=p.rate_params.rate_fixing,
+            rate_fixing=p.rate_params.rate_fixing,  # type: ignore[arg-type]  # pre-checked
             rate_curve=curve_,
-            disc_curve=disc_curve,
+            disc_curve=_disc_required_maybe_from_curve(curve_, disc_curve),
             right=right,
         )
 
@@ -559,16 +565,16 @@ class _FixingsExposureCalculator:
 
         df0 = cls._make_dataframe(
             [rate_fixing.date],
-            [risk * w0 / (d0 * v0)],
-            [0.0001 * risk * w0],
+            [risk * w0 / (d0 * v0)],  # type: ignore[list-item]
+            [0.0001 * risk * w0],  # type: ignore[list-item]
             [d0],
             [np.nan],
             rate_curve[tenors[0]].id,
         )
         df1 = cls._make_dataframe(
             [rate_fixing.date],
-            [risk * w1 / (d1 * v1)],
-            [0.0001 * risk * w1],
+            [risk * w1 / (d1 * v1)],  # type: ignore[list-item]
+            [0.0001 * risk * w1],  # type: ignore[list-item]
             [d1],
             [np.nan],
             rate_curve[tenors[1]].id,

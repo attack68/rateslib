@@ -1,7 +1,7 @@
 from datetime import datetime as dt
 
 import pytest
-from rateslib import defaults
+from rateslib import defaults, fixings
 from rateslib.curves import Curve
 from rateslib.default import NoInput
 from rateslib.instruments import IRS
@@ -504,8 +504,8 @@ def test_calendar_aligns_with_fixings_tyo() -> None:
         {dt(2015, 6, 10): 1.0, dt(2024, 6, 3): 1.0},
         calendar="tyo",
     )
-    fixings = defaults.fixings["jpy_rfr"][1]
-    irs = IRS(dt(2015, 6, 10), dt(2024, 6, 3), "A", leg2_fixings=fixings, calendar="tyo")
+    fixings_ = fixings["jpy_rfr"][1]
+    irs = IRS(dt(2015, 6, 10), dt(2024, 6, 3), "A", leg2_fixings=fixings_, calendar="tyo")
     irs.rate(curve)
 
 
@@ -517,8 +517,8 @@ def test_calendar_aligns_with_fixings_syd() -> None:
         {dt(2015, 6, 10): 1.0, dt(2024, 6, 3): 1.0},
         calendar="syd",
     )
-    fixings = defaults.fixings["aud_rfr"][1]
-    irs = IRS(dt(2015, 6, 10), dt(2024, 6, 3), "A", leg2_fixings=fixings, calendar="syd")
+    fixings_ = fixings["aud_rfr"][1]
+    irs = IRS(dt(2015, 6, 10), dt(2024, 6, 3), "A", leg2_fixings=fixings_, calendar="syd")
     irs.rate(curve)
 
 

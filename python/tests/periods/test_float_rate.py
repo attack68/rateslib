@@ -4,11 +4,11 @@ import pytest
 import rateslib.errors as err
 from pandas import NA, Series
 from pandas.testing import assert_series_equal
-from rateslib import defaults
+from rateslib import fixings
 from rateslib.curves import Curve, LineCurve
 from rateslib.default import NoInput
 from rateslib.enums.parameters import FloatFixingMethod, SpreadCompoundMethod
-from rateslib.fixings import FixingMissingForecasterError
+from rateslib.fixing_data import FixingMissingForecasterError
 from rateslib.periods.components.float_rate import _RFRRate, rate_value
 from rateslib.scheduling import Adjuster, Convention, Frequency, NamedCal
 from rateslib.scheduling.float_rate_index import FloatRateIndex, FloatRateSeries
@@ -167,7 +167,7 @@ class TestIBORRate:
 
     def test_tenor_rate_from_fixing_str(self, curve, line_curve, curve2, line_curve2):
         # test an IBOR rate is calculated correctly from a fixing series
-        defaults.fixings.add("TEST_VALUES_3M", Series(index=[dt(1999, 12, 30)], data=[1.2]))
+        fixings.add("TEST_VALUES_3M", Series(index=[dt(1999, 12, 30)], data=[1.2]))
         for rate_curve in [
             curve,
             line_curve,
@@ -186,11 +186,11 @@ class TestIBORRate:
                 float_spread=18.0,
             )
             assert abs(result - 1.38) < 1e-12
-        defaults.fixings.loaded.pop("TEST_VALUES_3M")
+        fixings.pop("TEST_VALUES_3M")
 
     def test_tenor_rate_from_fixing_str_fallback(self, curve, line_curve, curve2, line_curve2):
         # test an IBOR rate is calculated correctly from a curve when no fixing date exists
-        defaults.fixings.add("TEST_VALUES_3M", Series(index=[dt(1900, 1, 1)], data=[1.2]))
+        fixings.add("TEST_VALUES_3M", Series(index=[dt(1900, 1, 1)], data=[1.2]))
         for rate_curve in [
             curve,
             line_curve,
@@ -212,12 +212,12 @@ class TestIBORRate:
                     float_spread=18.0,
                 )
             assert abs(result - 2.18) < 1e-12
-        defaults.fixings.loaded.pop("TEST_VALUES_3M")
+        fixings.pop("TEST_VALUES_3M")
 
     def test_stub_rate_from_fixing_dict(self, curve, line_curve, curve2, line_curve2):
         # test an IBOR rate is calculated correctly from a fixing series
-        defaults.fixings.add("TEST_VALUES_3M", Series(index=[dt(1999, 12, 30)], data=[1.2]))
-        defaults.fixings.add("TEST_VALUES_6M", Series(index=[dt(1999, 12, 30)], data=[2.2]))
+        fixings.add("TEST_VALUES_3M", Series(index=[dt(1999, 12, 30)], data=[1.2]))
+        fixings.add("TEST_VALUES_6M", Series(index=[dt(1999, 12, 30)], data=[2.2]))
         for rate_curve in [
             curve,
             line_curve,
@@ -237,13 +237,13 @@ class TestIBORRate:
             )
             expected = 1.2 + 1.0 * 45 / 91 + 0.18
             assert abs(result - expected) < 1e-12
-        defaults.fixings.loaded.pop("TEST_VALUES_3M")
-        defaults.fixings.loaded.pop("TEST_VALUES_6M")
+        fixings.pop("TEST_VALUES_3M")
+        fixings.pop("TEST_VALUES_6M")
 
     def test_stub_rate_from_fixing_dict_missing_data(self, curve, line_curve, curve2, line_curve2):
         # test an IBOR rate is calculated correctly from a fixing series
-        defaults.fixings.add("TEST_VALUES_3M", Series(index=[dt(1999, 12, 1)], data=[1.2]))
-        defaults.fixings.add("TEST_VALUES_6M", Series(index=[dt(1999, 12, 1)], data=[2.2]))
+        fixings.add("TEST_VALUES_3M", Series(index=[dt(1999, 12, 1)], data=[1.2]))
+        fixings.add("TEST_VALUES_6M", Series(index=[dt(1999, 12, 1)], data=[2.2]))
         for rate_curve, expected in [
             (curve, 2.18249787441),
             (line_curve, 2.180),
@@ -263,12 +263,12 @@ class TestIBORRate:
             )
             # expected = 1.2 + 1.0 * 45 / 91 + 0.18
             assert abs(result - expected) < 1e-11
-        defaults.fixings.loaded.pop("TEST_VALUES_3M")
-        defaults.fixings.loaded.pop("TEST_VALUES_6M")
+        fixings.pop("TEST_VALUES_3M")
+        fixings.pop("TEST_VALUES_6M")
 
     def test_stub_rate_from_fixing_dict_1tenor(self, curve, line_curve, curve2, line_curve2):
         # test an IBOR rate is calculated correctly from a fixing series
-        defaults.fixings.add("TEST_VALUES_6M", Series(index=[dt(1999, 12, 30)], data=[4.1]))
+        fixings.add("TEST_VALUES_6M", Series(index=[dt(1999, 12, 30)], data=[4.1]))
         for rate_curve in [
             curve,
             line_curve,
@@ -288,7 +288,7 @@ class TestIBORRate:
             )
             expected = 4.1 + 0.18
             assert abs(result - expected) < 1e-12
-        defaults.fixings.loaded.pop("TEST_VALUES_6M")
+        fixings.pop("TEST_VALUES_6M")
 
     def test_stub_rate_from_scalar_fixing(self, curve, line_curve, curve2, line_curve2):
         # test an IBOR stub rate is calculated correctly from a fixing scalar
@@ -413,7 +413,7 @@ class TestRFRRate:
         fixing_rates = Series(
             index=[dt(2000, 1, 1), dt(2000, 1, 2), dt(2000, 1, 3), dt(2000, 1, 4)], data=NA
         )
-        defaults.fixings.add(
+        fixings.add(
             "USD_SOFR_1B",
             Series(index=[dt(1999, 1, 1), dt(2000, 1, 1), dt(2000, 1, 2)], data=[1.0, 2.0, 3.0]),
         )
@@ -427,11 +427,11 @@ class TestRFRRate:
                 data=[2.0, 3.0, NA, NA],
             ),
         )
-        defaults.fixings.loaded.pop("USD_SOFR_1B")
+        fixings.pop("USD_SOFR_1B")
 
     def test_populate_rates_from_rate_fixings_all_filled(self):
         fixing_rates = Series(index=[dt(2000, 1, 1), dt(2000, 1, 2), dt(2000, 1, 3)], data=NA)
-        defaults.fixings.add(
+        fixings.add(
             "USD_SOFR_1B",
             Series(
                 index=[
@@ -455,11 +455,11 @@ class TestRFRRate:
                 dtype=object,
             ),
         )
-        defaults.fixings.loaded.pop("USD_SOFR_1B")
+        fixings.pop("USD_SOFR_1B")
 
     def test_populate_rates_from_rate_fixings_none_filled(self):
         fixing_rates = Series(index=[dt(2000, 1, 1), dt(2000, 1, 2)], data=NA)
-        defaults.fixings.add(
+        fixings.add(
             "USD_SOFR_1B",
             Series(index=[dt(1999, 1, 1)], data=[1.0]),
         )
@@ -470,18 +470,16 @@ class TestRFRRate:
             result,
             Series(index=[dt(2000, 1, 1), dt(2000, 1, 2)], data=[NA, NA], dtype=object),
         )
-        defaults.fixings.loaded.pop("USD_SOFR_1B")
+        fixings.pop("USD_SOFR_1B")
 
     def test_populate_rates_from_rate_fixings_missing_fixing(self):
         fixing_rates = Series(
             index=[dt(2000, 1, 1), dt(2000, 1, 2), dt(2000, 1, 3), dt(2000, 1, 4)], data=NA
         )
-        defaults.fixings.add(
-            "USD_SOFR_1B", Series(index=[dt(1999, 1, 1), dt(2000, 1, 2)], data=[1.0, 3.0])
-        )
+        fixings.add("USD_SOFR_1B", Series(index=[dt(1999, 1, 1), dt(2000, 1, 2)], data=[1.0, 3.0]))
         with pytest.raises(ValueError, match="The fixings series 'USD_SOFR_1B' for the RFR 1B rat"):
             _RFRRate._push_rate_fixings_as_series_to_fixing_rates(fixing_rates, "USD_SOFR_1B")
-        defaults.fixings.loaded.pop("USD_SOFR_1B")
+        fixings.pop("USD_SOFR_1B")
 
     @pytest.mark.skip(reason="Not expecting the most recent fixing is an allowed oversight.")
     def test_populate_rates_from_rate_fixings_extra_fixing(self):
@@ -491,13 +489,13 @@ class TestRFRRate:
         fixing_rates = Series(
             index=[dt(2000, 1, 1), dt(2000, 1, 2), dt(2000, 1, 4), dt(2000, 1, 5)], data=NA
         )
-        defaults.fixings.add(
+        fixings.add(
             "USD_SOFR_1B",
             Series(index=[dt(2000, 1, 1), dt(2000, 1, 2), dt(2000, 1, 3)], data=[1.0, 2.0, 3.0]),
         )
         with pytest.warns(UserWarning, match="The fixings series 'USD_SOFR' for the RFR 1B rates"):
             _RFRRate._push_rate_fixings_as_series_to_fixing_rates(fixing_rates, "USD_SOFR_1B")
-        defaults.fixings.loaded.pop("USD_SOFR_1B")
+        fixings.pop("USD_SOFR_1B")
 
     def test_populate_rates_from_rate_fixings_extra_fixing2(self):
         # the lengths of the expected fixings in the return and fixing series is different and
@@ -505,7 +503,7 @@ class TestRFRRate:
         fixing_rates = Series(
             index=[dt(2000, 1, 1), dt(2000, 1, 2), dt(2000, 1, 4), dt(2000, 1, 5)], data=NA
         )
-        defaults.fixings.add(
+        fixings.add(
             "USD_SOFR_1B",
             Series(
                 index=[dt(2000, 1, 1), dt(2000, 1, 2), dt(2000, 1, 3), dt(2000, 1, 4)],
@@ -514,7 +512,7 @@ class TestRFRRate:
         )
         with pytest.warns(UserWarning, match="The fixings series 'USD_SOFR_1B' for the RFR 1B rat"):
             _RFRRate._push_rate_fixings_as_series_to_fixing_rates(fixing_rates, "USD_SOFR_1B")
-        defaults.fixings.loaded.pop("USD_SOFR_1B")
+        fixings.pop("USD_SOFR_1B")
 
     @pytest.mark.parametrize(
         ("fixing_method"),
@@ -556,9 +554,7 @@ class TestRFRRate:
         assert abs(result - expected) < 1e-10
 
     def test_semi_inefficient_calc_with_populated_fixings(self, curve):
-        defaults.fixings.add(
-            "USD_SOFR_1B", Series(index=[dt(2000, 1, 3), dt(2000, 1, 4)], data=[1.5, 1.7])
-        )
+        fixings.add("USD_SOFR_1B", Series(index=[dt(2000, 1, 3), dt(2000, 1, 4)], data=[1.5, 1.7]))
         r2 = curve._rate_with_raise(dt(2000, 1, 5), dt(2000, 1, 6))
         r3 = curve._rate_with_raise(dt(2000, 1, 6), dt(2000, 1, 7))
 
@@ -574,13 +570,11 @@ class TestRFRRate:
         expected = (
             (1 + 0.015 / 360) * (1 + 0.017 / 360) * (1 + r2 / 36000) * (1 + r3 / 36000) - 1
         ) * 36000 / 4 + 0.1
-        defaults.fixings.loaded.pop("USD_SOFR_1B")
+        fixings.pop("USD_SOFR_1B")
         assert abs(result - expected) < 1e-10
 
     def test_inefficient_calc_with_populated_fixings_no_curve_raises(self, curve):
-        defaults.fixings.add(
-            "USD_SOFR_1B", Series(index=[dt(2000, 1, 3), dt(2000, 1, 4)], data=[1.5, 1.7])
-        )
+        fixings.add("USD_SOFR_1B", Series(index=[dt(2000, 1, 3), dt(2000, 1, 4)], data=[1.5, 1.7]))
         with pytest.raises(
             FixingMissingForecasterError, match=err.VE_NEEDS_RATE_POPULATE_FIXINGS[:25]
         ):
@@ -594,7 +588,7 @@ class TestRFRRate:
                 rate_fixings="USD_SOFR_1B",
                 rate_series="usd_rfr",
             )
-        defaults.fixings.loaded.pop("USD_SOFR_1B")
+        fixings.pop("USD_SOFR_1B")
 
     def test_inefficient_calc_with_lockout_too_long_raises(self, curve):
         # the lockout param is invalid
@@ -612,9 +606,7 @@ class TestRFRRate:
     @pytest.mark.parametrize("curve_type", ["values", "dfs"])
     def test_inefficient_calc_with_populated_fixings(self, curve_type, curve, line_curve):
         rate_curve = curve if curve_type == "dfs" else line_curve
-        defaults.fixings.add(
-            "USD_SOFR_1B", Series(index=[dt(2000, 1, 3), dt(2000, 1, 4)], data=[1.5, 1.7])
-        )
+        fixings.add("USD_SOFR_1B", Series(index=[dt(2000, 1, 3), dt(2000, 1, 4)], data=[1.5, 1.7]))
         r2 = rate_curve._rate_with_raise(dt(2000, 1, 5), dt(2000, 1, 6))
         r3 = rate_curve._rate_with_raise(dt(2000, 1, 6), dt(2000, 1, 7))
 
@@ -631,11 +623,11 @@ class TestRFRRate:
         expected = (
             (1 + 0.015 / 360) * (1 + 0.017 / 360) * (1 + r2 / 36000) * (1 + r3 / 36000) - 1
         ) * 36000 / 4 + 0.1
-        defaults.fixings.loaded.pop("USD_SOFR_1B")
+        fixings.pop("USD_SOFR_1B")
         assert abs(result - expected) < 1e-10
 
     def test_inefficient_calc_with_non_overlapping_fixings(self, curve):
-        defaults.fixings.add("USD_SOFR_1B", Series(index=[dt(2001, 1, 1)], data=[100.0]))
+        fixings.add("USD_SOFR_1B", Series(index=[dt(2001, 1, 1)], data=[100.0]))
 
         rate_value(
             start=dt(2000, 1, 4),
@@ -646,7 +638,7 @@ class TestRFRRate:
             method_param=0,
             rate_fixings="USD_SOFR_1B",
         )
-        defaults.fixings.loaded.pop("USD_SOFR_1B")
+        fixings.pop("USD_SOFR_1B")
 
     @pytest.mark.parametrize(
         ("fixing_method", "expected"),

@@ -8,27 +8,27 @@ from rateslib.curves._parsers import (
     _disc_maybe_from_curve,
     _try_disc_required_maybe_from_curve,
 )
-from rateslib.enums.generics import Err, NoInput, Ok
+from rateslib.enums.generics import NoInput, Ok
 from rateslib.periods.components.parameters import (
     _IndexParams,
     _SettlementParams,
 )
+from rateslib.periods.components.parameters.settlement import _NonDeliverableParams
 from rateslib.periods.components.utils import (
     _maybe_local,
 )
 
 if TYPE_CHECKING:
     from rateslib.typing import (
-        Any,
+        FX_,
         CurveOption_,
         DualTypes,
         FXForwards_,
-        FXRevised_,
+        FXVolOption_,
         Result,
         _BaseCurve_,
         datetime_,
         str_,
-        FXVol_
     )
 
 
@@ -50,13 +50,13 @@ class _WithNPV(Protocol):
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVol_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> Result[DualTypes]:
         r"""
         Calculate the NPV of the *Period* in local settlement currency.
-        
+
         Parameters
         ----------
         rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
@@ -73,27 +73,27 @@ class _WithNPV(Protocol):
             The FX volatility *Smile* or *Surface* object used for determining Black calendar
             day implied volatility values.
         settlement: datetime, optional
-            The assumed settlement date of the *PV* determination. Used only to evaluate 
+            The assumed settlement date of the *PV* determination. Used only to evaluate
             *ex-dividend* status.
         forward: datetime, optional
             The future date to project the *PV* to using the ``disc_curve``.
-        
+
         Returns
         -------
         Result of float, Dual, Dual2, Variable
-        
+
         Notes
         -----
-        
+
         Is a generalised function for determining the ex-dividend adjusted, forward projected
         *NPV* of any *Period's* modelled cashflow, expressed in local *settlement currency* units.
-        
+
         .. math::
-         
+
            P(m_s, m_f) = \mathbb{I}(m_s) \frac{1}{v(m_f)} \mathbb{E^Q} [v(m_T) C(m_T) ],  \qquad \; \mathbb{I}(m_s) = \left \{ \begin{matrix} 0 & m_s > m_{ex} \\ 1 & m_s \leq m_{ex} \end{matrix} \right .
 
         for forward, :math:`m_f`, settlement, :math:`m_s`, and ex-dividend, :math:`m_{ex}`.
-        """
+        """  # noqa: E501
         pass
 
     def npv(
@@ -102,8 +102,8 @@ class _WithNPV(Protocol):
         rate_curve: CurveOption_ = NoInput(0),
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
-        fx: FXRevised_ = NoInput(0),
-        fx_vol: FXVol_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
         settlement: datetime_ = NoInput(0),
@@ -161,7 +161,7 @@ class _WithNPV(Protocol):
             rate_curve=rate_curve,
             index_curve=index_curve,
             disc_curve=disc_curve,
-            fx=fx,  # type: ignore[arg-type]
+            fx=fx,
             fx_vol=fx_vol,
             settlement=settlement,
             forward=forward,
@@ -208,6 +208,7 @@ class _WithIndexingStatic(Protocol):
 
 class _WithNonDeliverableStatic(Protocol):
     settlement_params: _SettlementParams
+    non_deliverable_params: _NonDeliverableParams | None
 
     @property
     def is_non_deliverable(self) -> bool:
@@ -215,13 +216,13 @@ class _WithNonDeliverableStatic(Protocol):
         Check whether the *Period* is non-deliverable,
         which means it has a separate ``currency`` to the ``reference_currency``.
         """
-        return self.settlement_params.pair is not None
+        return self.non_deliverable_params is not None
 
     def _maybe_convert_deliverable(
         self, value: Result[DualTypes], fx: FXForwards_
     ) -> Result[DualTypes]:
         """Convert a value in reference currency to settlement currency if required."""
-        if not self.is_non_deliverable:
+        if self.non_deliverable_params is None:
             # then cashflow is directly deliverable
             return value
         else:
@@ -229,17 +230,147 @@ class _WithNonDeliverableStatic(Protocol):
                 return value
 
             value_: DualTypes = value.unwrap()
-            fx_fix_res = self.settlement_params.try_fx_fixing(fx)
+            fx_fix_res = self.non_deliverable_params.try_fx_fixing(fx)
             if fx_fix_res.is_err:
                 return fx_fix_res
             else:
                 fx_fix = fx_fix_res.unwrap()
-            c = value_ * (fx_fix if not self.settlement_params.fx_reversed else (1.0 / fx_fix))
+            c = value_ * (fx_fix if not self.non_deliverable_params.fx_reversed else (1.0 / fx_fix))
             return Ok(c)
 
 
 class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, Protocol):
     settlement_params: _SettlementParams
+
+    # required by each Static Period...
+    def try_unindexed_reference_cashflow(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+    ) -> Result[DualTypes]:
+        """
+        Calculate the cashflow for the *Period* before settlement currency and
+        indexation adjustments.
+
+        Parameters
+        ----------
+        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
+            Used to forecast floating period rates, if necessary.
+
+        Returns
+        -------
+        Result of float, Dual, Dual2, Variable
+        """
+        pass
+
+    # automatically provided for each Static Period...
+
+    def try_reference_cashflow(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+    ) -> Result[DualTypes]:
+        """
+        Calculate the cashflow for the *Period* before settlement currency adjustment
+        but with indexation.
+
+        Parameters
+        ----------
+        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
+            Used to forecast floating period rates, if necessary.
+        index_curve: _BaseCurve, optional
+            Used to forecast index values for indexation, if necessary.
+
+        Returns
+        -------
+        float, Dual, Dual2, Variable or None
+        """
+        rrc = self.try_unindexed_reference_cashflow(
+            rate_curve=rate_curve,
+            disc_curve=disc_curve,
+            index_curve=index_curve,
+            fx=fx,
+            fx_vol=fx_vol,
+        )
+        return self._maybe_index_up(value=rrc, index_curve=index_curve)
+
+    def try_unindexed_cashflow(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+    ) -> Result[DualTypes]:
+        """
+        Calculate the cashflow for the *Period* with settlement currency adjustment
+        but without indexation.
+
+        Parameters
+        ----------
+        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
+            Used to forecast floating period rates, if necessary.
+        fx: FXForwards, optional
+            The :class:`~rateslib.fx.FXForward` object used for forecasting the
+            ``fx_fixing`` for deliverable cashflows, if necessary.
+
+        Returns
+        -------
+        float, Dual, Dual2, Variable or None
+        """
+        rrc = self.try_unindexed_reference_cashflow(
+            rate_curve=rate_curve,
+            disc_curve=disc_curve,
+            index_curve=index_curve,
+            fx=fx,
+            fx_vol=fx_vol,
+        )
+        return self._maybe_convert_deliverable(value=rrc, fx=fx)
+
+    def try_cashflow(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+    ) -> Result[DualTypes]:
+        """
+        Calculate the cashflow for the *Period* with settlement currency adjustment
+        **and** indexation.
+
+        Parameters
+        ----------
+        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
+            Used to forecast floating period rates, if necessary.
+        index_curve: _BaseCurve, optional
+            Used to forecast index values for indexation, if necessary.
+        fx: FXForwards, optional
+            The :class:`~rateslib.fx.FXForward` object used for forecasting the
+            ``fx_fixing`` for deliverable cashflows, if necessary.
+
+        Returns
+        -------
+        Result of float, Dual, Dual2, Variable
+        """
+        rc = self.try_reference_cashflow(
+            rate_curve=rate_curve,
+            index_curve=index_curve,
+            disc_curve=disc_curve,
+            fx=fx,
+            fx_vol=fx_vol,
+        )
+        return self._maybe_convert_deliverable(value=rc, fx=fx)
 
     def try_local_npv(
         self,
@@ -248,7 +379,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVol_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> Result[DualTypes]:
@@ -273,7 +404,13 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         ):
             return Ok(0.0)  # payment date is in the past
 
-        c = self.try_cashflow(rate_curve=rate_curve, index_curve=index_curve, fx=fx)
+        c = self.try_cashflow(
+            rate_curve=rate_curve,
+            index_curve=index_curve,
+            disc_curve=disc_curve,
+            fx_vol=fx_vol,
+            fx=fx,
+        )
         if c.is_err:
             return c
         c_: DualTypes = c.unwrap()
@@ -294,100 +431,3 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         else:
             forward_ = forward
         return Ok(vc / disc_curve_[forward_])
-
-    def try_unindexed_reference_cashflow(
-        self,
-        *,
-        rate_curve: CurveOption_ = NoInput(0),
-    ) -> Result[DualTypes]:
-        """
-        Calculate the cashflow for the *Period* before settlement currency and
-        indexation adjustments.
-
-        Parameters
-        ----------
-        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
-            Used to forecast floating period rates, if necessary.
-
-        Returns
-        -------
-        Result of float, Dual, Dual2, Variable
-        """
-        pass
-
-    def try_reference_cashflow(
-        self,
-        *,
-        rate_curve: CurveOption_ = NoInput(0),
-        index_curve: _BaseCurve_ = NoInput(0),
-    ) -> Result[DualTypes]:
-        """
-        Calculate the cashflow for the *Period* before settlement currency adjustment
-        but with indexation.
-
-        Parameters
-        ----------
-        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
-            Used to forecast floating period rates, if necessary.
-        index_curve: _BaseCurve, optional
-            Used to forecast index values for indexation, if necessary.
-
-        Returns
-        -------
-        float, Dual, Dual2, Variable or None
-        """
-        rrc = self.try_unindexed_reference_cashflow(rate_curve=rate_curve)
-        return self._maybe_index_up(value=rrc, index_curve=index_curve)
-
-    def try_unindexed_cashflow(
-        self,
-        *,
-        rate_curve: CurveOption_ = NoInput(0),
-        fx: FXForwards_ = NoInput(0),
-    ) -> Result[DualTypes]:
-        """
-        Calculate the cashflow for the *Period* with settlement currency adjustment
-        but without indexation.
-
-        Parameters
-        ----------
-        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
-            Used to forecast floating period rates, if necessary.
-        fx: FXForwards, optional
-            The :class:`~rateslib.fx.FXForward` object used for forecasting the
-            ``fx_fixing`` for deliverable cashflows, if necessary.
-
-        Returns
-        -------
-        float, Dual, Dual2, Variable or None
-        """
-        rrc = self.try_unindexed_reference_cashflow(rate_curve=rate_curve)
-        return self._maybe_convert_deliverable(value=rrc, fx=fx)
-
-    def try_cashflow(
-        self,
-        *,
-        rate_curve: CurveOption_ = NoInput(0),
-        index_curve: _BaseCurve_ = NoInput(0),
-        fx: FXForwards_ = NoInput(0),
-    ) -> Result[DualTypes]:
-        """
-        Calculate the cashflow for the *Period* with settlement currency adjustment
-        **and** indexation.
-
-        Parameters
-        ----------
-        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
-            Used to forecast floating period rates, if necessary.
-        index_curve: _BaseCurve, optional
-            Used to forecast index values for indexation, if necessary.
-        fx: FXForwards, optional
-            The :class:`~rateslib.fx.FXForward` object used for forecasting the
-            ``fx_fixing`` for deliverable cashflows, if necessary.
-
-        Returns
-        -------
-        Result of float, Dual, Dual2, Variable
-        """
-        rc = self.try_reference_cashflow(rate_curve=rate_curve, index_curve=index_curve)
-        return self._maybe_convert_deliverable(value=rc, fx=fx)

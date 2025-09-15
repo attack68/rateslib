@@ -16,6 +16,7 @@ from rateslib.periods.components.float_period import (
     NonDeliverableFloatPeriod,
     NonDeliverableIndexFloatPeriod,
 )
+from rateslib.periods.components.fx_volatility import FXCallPeriod, FXOptionPeriod, FXPutPeriod
 from rateslib.periods.components.protocols import _WithNPV
 
 __all__ = [
@@ -32,4 +33,7 @@ __all__ = [
     "IndexFloatPeriod",
     "NonDeliverableFloatPeriod",
     "NonDeliverableIndexFloatPeriod",
+    "FXOptionPeriod",
+    "FXCallPeriod",
+    "FXPutPeriod",
 ]

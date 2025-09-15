@@ -16,17 +16,19 @@ from rateslib.periods.components.parameters import (
     _PeriodParams,
     _SettlementParams,
 )
+from rateslib.periods.components.parameters.fx_volatility import _FXOptionParams
+from rateslib.periods.components.protocols.npv import _WithNPVStatic
 from rateslib.periods.components.utils import (
     _get_immediate_fx_scalar_and_base,
 )
-from rateslib.periods.components.protocols.npv import _WithNPVStatic
 
 if TYPE_CHECKING:
     from rateslib.typing import (
-        FX_,
         Any,
         CurveOption_,
         DualTypes,
+        FXForwards_,
+        FXVolOption_,
         Result,
         _BaseCurve_,
         datetime_,
@@ -37,8 +39,9 @@ if TYPE_CHECKING:
 class _WithNPVCashflowsStatic(_WithNPVStatic, Protocol):
     settlement_params: _SettlementParams
     index_params: _IndexParams | None
-    period_params: _PeriodParams
-    rate_params: _FixedRateParams | _CashflowRateParams | _FloatRateParams
+    period_params: _PeriodParams | None
+    rate_params: _FixedRateParams | _CashflowRateParams | _FloatRateParams | None
+    fx_option_params: _FXOptionParams | None
 
     def cashflows(
         self,
@@ -46,7 +49,8 @@ class _WithNPVCashflowsStatic(_WithNPVStatic, Protocol):
         rate_curve: CurveOption_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         index_curve: _BaseCurve_ = NoInput(0),
-        fx: FX_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -73,11 +77,14 @@ class _WithNPVCashflowsStatic(_WithNPVStatic, Protocol):
         # standard parameters
         standard_elements = {
             defaults.headers["type"]: type(self).__name__,
-            defaults.headers["stub_type"]: "Stub" if self.period_params.stub else "Regular",
             defaults.headers["currency"]: self.settlement_params.currency.upper(),
             defaults.headers["payment"]: self.settlement_params.payment,
             defaults.headers["notional"]: _dual_float(self.settlement_params.notional),
         }
+        if self.period_params is not None:
+            standard_elements[defaults.headers["stub_type"]] = (
+                "Stub" if self.period_params.stub else "Regular"
+            )
 
         # indexing parameters
         if self.is_indexed:
@@ -100,7 +107,7 @@ class _WithNPVCashflowsStatic(_WithNPVStatic, Protocol):
             index_elements = {}
 
         # period parameters
-        if isinstance(self.rate_params, _CashflowRateParams):
+        if self.period_params is None:
             period_elements = {}
         else:
             period_elements = {
@@ -111,20 +118,31 @@ class _WithNPVCashflowsStatic(_WithNPVStatic, Protocol):
             }
 
         # non-deliverable parameters
-        if self.is_non_deliverable:
-            fx_fixing_res: Result[DualTypes] = self.settlement_params.try_fx_fixing(fx)  # type: ignore[arg-type]  # validated in function
+        if self.non_deliverable_params is not None:
+            fx_fixing_res: Result[DualTypes] = self.non_deliverable_params.try_fx_fixing(fx)
             currency_elements = {
                 defaults.headers["fx_fixing"]: _float_or_none(fx_fixing_res),
                 defaults.headers[
                     "reference_currency"
-                ]: self.settlement_params.reference_currency.upper(),
+                ]: self.non_deliverable_params.reference_currency.upper(),
             }
         else:
             currency_elements = {}
 
         # cashflow valuation based parameters
-        uc = self.try_unindexed_cashflow(rate_curve=rate_curve, fx=fx)  # type: ignore[arg-type]  # validated in function
-        c = self.try_cashflow(rate_curve=rate_curve, index_curve=index_curve, fx=fx)  # type: ignore[arg-type]  # validated in function
+        uc = self.try_unindexed_cashflow(
+            rate_curve=rate_curve,
+            disc_curve=disc_curve,
+            fx=fx,
+            fx_vol=fx_vol,
+        )
+        c = self.try_cashflow(
+            rate_curve=rate_curve,
+            disc_curve=disc_curve,
+            index_curve=index_curve,
+            fx=fx,
+            fx_vol=fx_vol,
+        )
 
         disc_curve_result = _try_disc_required_maybe_from_curve(
             curve=rate_curve, disc_curve=disc_curve
@@ -143,7 +161,8 @@ class _WithNPVCashflowsStatic(_WithNPVStatic, Protocol):
             rate_curve=rate_curve,
             index_curve=index_curve,
             disc_curve=disc_curve,
-            fx=fx,  # type: ignore[arg-type]
+            fx=fx,
+            fx_vol=fx_vol,
             settlement=settlement,
             forward=forward,
         )

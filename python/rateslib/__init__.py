@@ -14,8 +14,10 @@ from datetime import datetime as dt
 
 from rateslib.default import Defaults
 from rateslib.enums.generics import NoInput
+from rateslib.fixing_data import Fixings
 
 defaults = Defaults()
+fixings = Fixings()
 
 from contextlib import ContextDecorator
 

@@ -8,7 +8,7 @@ import numpy as np
 from pandas import Series, isna
 
 import rateslib.errors as err
-from rateslib import NoInput, defaults
+from rateslib import NoInput, fixings
 from rateslib.curves import _BaseCurve, index_left
 from rateslib.curves.utils import _CurveType
 from rateslib.dual import Dual, Dual2, Variable
@@ -19,7 +19,7 @@ from rateslib.enums.parameters import (
     _get_float_fixing_method,
     _get_spread_compound_method,
 )
-from rateslib.fixings import FixingMissingForecasterError
+from rateslib.fixing_data import FixingMissingForecasterError
 from rateslib.periods.utils import _get_rfr_curve_from_dict
 from rateslib.scheduling import add_tenor, dcf
 from rateslib.scheduling.convention import Convention
@@ -224,7 +224,7 @@ class _IBORRate:
         rate_series: FloatRateSeries,
     ) -> Result[DualTypes]:
         if isinstance(rate_fixings, str):
-            tenors, dates, fixings = defaults.fixings.get_stub_ibor_fixings(
+            tenors, dates, fixings_ = fixings.get_stub_ibor_fixings(
                 value_start_date=start,
                 value_end_date=end,
                 fixing_calendar=rate_series.calendar,
@@ -244,7 +244,7 @@ class _IBORRate:
                     rate_series=rate_series,
                 )
             elif len(tenors) == 1:
-                if fixings[0] is None:
+                if fixings_[0] is None:
                     return _IBORRate._rate_interpolated_stub(
                         rate_curve=rate_curve,
                         rate_fixings=NoInput(0),  # no fixings are found
@@ -254,9 +254,9 @@ class _IBORRate:
                         float_spread=float_spread,
                         rate_series=rate_series,
                     )
-                return Ok(fixings[0] + float_spread / 100.0)
+                return Ok(fixings_[0] + float_spread / 100.0)
             else:
-                if fixings[0] is None or fixings[1] is None:
+                if fixings_[0] is None or fixings_[1] is None:
                     # missing data exists
                     return _IBORRate._rate_interpolated_stub(
                         rate_curve=rate_curve,
@@ -271,8 +271,8 @@ class _IBORRate:
                     _IBORRate._interpolated_stub_rate(
                         left_date=dates[0],
                         right_date=dates[1],
-                        left_rate=fixings[0],
-                        right_rate=fixings[1],
+                        left_rate=fixings_[0],
+                        right_rate=fixings_[1],
                         maturity_date=end,
                         float_spread=float_spread,
                     )
@@ -373,13 +373,13 @@ class _IBORRate:
         if isinstance(rate_fixings, str | Series):
             if isinstance(rate_fixings, str):
                 identifier = rate_fixings
-                fixings = defaults.fixings[identifier][1]
+                fixings_ = fixings[identifier][1]
             else:
                 identifier = "<SERIES_OBJECT>"
-                fixings = rate_fixings
+                fixings_ = rate_fixings
 
             try:
-                fixing = fixings.loc[fixing_date]
+                fixing = fixings_.loc[fixing_date]
                 return Ok(fixing + float_spread / 100.0)
             except KeyError:
                 warnings.warn(
@@ -852,7 +852,7 @@ class _RFRRate:
         Populates an empty fixings_rates Series with values from a looked up fixings collection.
         """
         if isinstance(rate_fixings, str):
-            fixing_series = defaults.fixings[rate_fixings][1]
+            fixing_series = fixings[rate_fixings][1]
         else:
             fixing_series = rate_fixings
         if fixing_rates.index[0] > fixing_series.index[-1]:

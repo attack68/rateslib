@@ -3,13 +3,21 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING
 
-from rateslib.enums.generics import NoInput
+import rateslib.errors as err
+from rateslib.curves._parsers import _validate_obj_not_no_input
+from rateslib.enums.generics import Err, NoInput, Ok, Result
+from rateslib.enums.parameters import FXDeltaMethod
 from rateslib.fx import FXForwards, FXRates
+from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 
 if TYPE_CHECKING:
     from rateslib.typing import (
         FX_,
+        Any,
         DualTypes,
+        FXVolOption_,
+        _BaseCurve,
+        datetime,
         str_,
     )
 
@@ -105,3 +113,74 @@ def _get_immediate_fx_scalar_and_base(
                     DeprecationWarning,
                 )
             return fx, base
+
+
+def _get_vol_maybe_from_obj(
+    vol: FXVolOption_,
+    fx: FXForwards,
+    disc_curve: _BaseCurve,
+    strike: DualTypes,
+    pair: str,
+    delivery: datetime,
+    expiry: datetime,
+) -> DualTypes:
+    """Return a volatility for the option from a given FX Vol object.
+
+    ``disc_curve`` is used as the LHS rate_curve to convert between spot and delivery delta.
+    """
+    # FXOption can have a `strike` that is NoInput, however this internal function should
+    # only be performed after a `strike` has been set to number, temporarily or otherwise.
+
+    if isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile | FXSabrSurface):
+        spot = fx.pairs_settlement[pair]
+        f = fx.rate(pair, delivery)
+        _: tuple[Any, DualTypes, Any] = vol.get_from_strike(
+            k=strike,
+            f=f,
+            w_deli=disc_curve[delivery],
+            w_spot=disc_curve[spot],
+            expiry=expiry,
+        )
+        vol_: DualTypes = _[1]
+    elif isinstance(vol, NoInput):
+        raise ValueError("`vol` cannot be NoInput when provided to pricing function.")
+    else:
+        vol_ = vol
+
+    return vol_
+
+
+def _get_vol_smile_or_value(vol: FXVolOption_, expiry: datetime) -> FXDeltaVolSmile | DualTypes:
+    if isinstance(vol, FXDeltaVolSurface):
+        return vol.get_smile(expiry)
+    else:
+        return _validate_obj_not_no_input(vol, "vol")  # type: ignore[return-value]
+
+
+def _get_vol_smile_or_raise(vol: FXVolOption_, expiry: datetime) -> FXDeltaVolSmile:
+    if isinstance(vol, FXDeltaVolSurface):
+        return vol.get_smile(expiry)
+    elif isinstance(vol, FXDeltaVolSmile):
+        return vol
+    else:
+        raise ValueError("Must supply FXDeltaVolSmile/Surface as `vol` not numeric value.")
+
+
+def _get_vol_delta_type(vol: FXVolOption_, default_delta_type: FXDeltaMethod) -> FXDeltaMethod:
+    if not isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
+        return default_delta_type
+    else:
+        return vol.meta.delta_type
+
+
+def _validate_fx_as_forwards(fx: FX_) -> FXForwards:
+    return _try_validate_fx_as_forwards(fx).unwrap()
+
+
+def _try_validate_fx_as_forwards(fx: FX_) -> Result[FXForwards]:
+    if isinstance(fx, NoInput):
+        return Err(ValueError(err.VE_NEEDS_FX_FORWARDS))
+    elif not isinstance(fx, FXForwards):
+        raise ValueError(err.VE_NEEDS_FX_FORWARDS_BAD_TYPE.format(type(fx).__name__))
+    else:
+        return Ok(fx)
