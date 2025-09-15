@@ -12,9 +12,8 @@ for _dependency in _hard_dependencies:
 
 from datetime import datetime as dt
 
+from rateslib.data.loader import Fixings
 from rateslib.default import Defaults
-from rateslib.enums.generics import NoInput
-from rateslib.fixing_data import Fixings
 
 defaults = Defaults()
 fixings = Fixings()
@@ -62,6 +61,7 @@ from rateslib.curves import (
     index_value,
 )
 from rateslib.dual import ADOrder, Dual, Dual2, Variable, dual_exp, dual_log, dual_solve, gradient
+from rateslib.enums.generics import NoInput
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments import (

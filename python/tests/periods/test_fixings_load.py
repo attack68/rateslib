@@ -5,14 +5,20 @@ import pytest
 import rateslib.errors as err
 from pandas import Series
 from rateslib import fixings
+from rateslib.data.fixings import (
+    FloatRateIndex,
+    FloatRateSeries,
+    FXFixing,
+    IBORFixing,
+    IBORStubFixing,
+    RFRFixing,
+)
+from rateslib.data.loader import FixingMissingDataError
 from rateslib.enums import FloatFixingMethod, SpreadCompoundMethod
 from rateslib.enums.generics import NoInput
 from rateslib.enums.parameters import IndexMethod
 from rateslib.errors import VE_INDEX_BASE_NO_STR
-from rateslib.fixing_data import FixingMissingDataError
 from rateslib.periods.components import Cashflow, FloatPeriod
-from rateslib.periods.components.parameters import FXFixing, IBORFixing, IBORStubFixing, RFRFixing
-from rateslib.scheduling.float_rate_index import FloatRateIndex, FloatRateSeries
 from rateslib.scheduling.frequency import Frequency
 
 

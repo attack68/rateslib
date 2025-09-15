@@ -17,10 +17,10 @@ from rateslib.curves import (
 )
 from rateslib.curves.curves import CreditImpliedCurve, _BaseCurve, _try_index_value
 from rateslib.curves.utils import _CurveNodes, _CurveSpline
+from rateslib.data.loader import FixingMissingDataError
 from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.dual.utils import _get_order_of
 from rateslib.enums.generics import Err, NoInput, Ok
-from rateslib.fixing_data import FixingMissingDataError
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments import IRS
 from rateslib.scheduling import Cal, dcf, get_calendar

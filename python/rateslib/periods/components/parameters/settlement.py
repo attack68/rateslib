@@ -6,15 +6,14 @@ from typing import TYPE_CHECKING
 from pandas import Series
 
 import rateslib.errors as err
-from rateslib import defaults, fixings
+from rateslib import defaults
+from rateslib.data.fixings import FXFixing
 from rateslib.enums.generics import (
     Err,
     NoInput,
     Ok,
     _drb,
 )
-from rateslib.fixing_data import FixingRangeError
-from rateslib.periods.components.parameters.base_fixing import _BaseFixing
 from rateslib.periods.utils import _try_validate_fx_as_forwards
 
 if TYPE_CHECKING:
@@ -172,76 +171,6 @@ class _NonDeliverableParams:
         else:
             fx_fixing_ = fx_fixing
         return Ok(fx_fixing_)
-
-
-class FXFixing(_BaseFixing):
-    """
-    An FX fixing value for cross currency settlement.
-
-    Parameters
-    ----------
-    date: datetime
-        The date of relevance for the FX fixing, which is its **delivery** date.
-    value: float, Dual, Dual2, Variable, optional
-        The initial value for the fixing to adopt. Most commonly this is not given and it is
-        determined from a timeseries of published FX rates.
-    identifier: str, optional
-        The string name of the timeseries to be loaded by the *Fixings* object.
-
-    Examples
-    --------
-
-    .. ipython:: python
-       :suppress:
-
-       from rateslib.periods.components.parameters import FXFixing
-       from rateslib import fixings, dt
-       from pandas import Series
-
-    .. ipython:: python
-
-       fixings.add("EURGBP-x89", Series(index=[dt(2000, 1, 1)], data=[0.905]))
-       fxfix = FXFixing(date=dt(2000, 1, 1), identifier="EURGBP-x89")
-       fxfix.value
-
-    .. ipython:: python
-       :suppress:
-
-       fixings.pop("EURGBP-x89")
-
-    """
-
-    def __init__(
-        self,
-        date: datetime,
-        value: DualTypes_ = NoInput(0),
-        identifier: str_ = NoInput(0),
-    ) -> None:
-        super().__init__(date=date, value=value, identifier=identifier)
-
-    def _lookup_and_calculate(
-        self, timeseries: Series, bounds: tuple[datetime, datetime] | None
-    ) -> DualTypes_:
-        return self._lookup(timeseries=timeseries, date=self.date, bounds=bounds)
-
-    @classmethod
-    def _lookup(
-        cls,
-        timeseries: Series[DualTypes],  # type: ignore[type-var]
-        date: datetime,
-        bounds: tuple[datetime, datetime] | None = None,
-    ) -> DualTypes_:
-        result = fixings.__base_lookup__(
-            fixing_series=timeseries,
-            lookup_date=date,
-            bounds=bounds,
-        )
-        if isinstance(result, Err):
-            if isinstance(result._exception, FixingRangeError):
-                return NoInput(0)
-            result.unwrap()
-        else:
-            return result.unwrap()
 
 
 def _init_or_none_NonDeliverableParams(

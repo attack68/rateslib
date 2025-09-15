@@ -11,11 +11,12 @@ from pandas import DataFrame, Index, MultiIndex, Series, date_range
 from pandas.testing import assert_frame_equal
 from rateslib import defaults, fixings
 from rateslib.curves import CompositeCurve, Curve, LineCurve
+from rateslib.data.fixings import FloatRateSeries
+from rateslib.data.loader import FixingMissingForecasterError
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, gradient
 from rateslib.enums import FloatFixingMethod
 from rateslib.enums.parameters import FXDeltaMethod
-from rateslib.fixing_data import FixingMissingForecasterError
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXSabrSmile, FXSabrSurface
 from rateslib.fx_volatility.utils import _d_plus_min_u
@@ -37,7 +38,6 @@ from rateslib.periods.components import (
 )
 from rateslib.periods.components.float_rate import rate_value
 from rateslib.scheduling import Cal, Frequency, RollDay
-from rateslib.scheduling.float_rate_index import FloatRateSeries
 
 
 @pytest.fixture

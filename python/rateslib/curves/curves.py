@@ -27,12 +27,12 @@ from rateslib.curves.utils import (
     _ProxyCurveInterpolator,
     average_rate,
 )
+from rateslib.data.loader import FixingMissingDataError, FixingRangeError
 from rateslib.default import PlotOutput, plot
 from rateslib.dual import Dual, Dual2, Variable, dual_exp, set_order_convert
 from rateslib.dual.utils import _dual_float, _get_order_of
 from rateslib.enums.generics import Err, NoInput, Ok, _drb
 from rateslib.enums.parameters import IndexMethod, _get_index_method
-from rateslib.fixing_data import FixingMissingDataError, FixingRangeError
 from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,
