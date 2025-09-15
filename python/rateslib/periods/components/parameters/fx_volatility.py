@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 
 from pandas import Series
 
+from rateslib.data.fixings import FXFixing
 from rateslib.enums.parameters import FXOptionMetric, _get_fx_option_metric
-from rateslib.periods.components.parameters.settlement import FXFixing
 
 if TYPE_CHECKING:
     from rateslib.typing import (

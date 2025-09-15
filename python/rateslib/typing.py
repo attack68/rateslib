@@ -17,13 +17,18 @@ from rateslib.curves import ShiftedCurve as ShiftedCurve
 from rateslib.curves import TranslatedCurve as TranslatedCurve
 from rateslib.curves import _BaseCurve as _BaseCurve
 from rateslib.curves import _CurveMeta as _CurveMeta
+from rateslib.data.fixings import FloatRateIndex as FloatRateIndex
+from rateslib.data.fixings import FloatRateSeries as FloatRateSeries
+from rateslib.data.loader import Fixings as Fixings
+from rateslib.data.loader import _BaseFixingsLoader as _BaseFixingsLoader
 from rateslib.dual.variable import Variable as Variable
 from rateslib.enums.generics import NoInput as NoInput
 from rateslib.enums.generics import Result as Result
+from rateslib.enums.parameters import FloatFixingMethod as FloatFixingMethod
 from rateslib.enums.parameters import FXDeltaMethod as FXDeltaMethod
+from rateslib.enums.parameters import IndexMethod as IndexMethod
 from rateslib.enums.parameters import OptionType as OptionType
-from rateslib.fixing_data import Fixings as Fixings
-from rateslib.fixing_data import _BaseFixingsLoader as _BaseFixingsLoader
+from rateslib.enums.parameters import SpreadCompoundMethod as SpreadCompoundMethod
 from rateslib.fx import FXForwards as FXForwards
 from rateslib.fx import FXRates as FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile as FXDeltaVolSmile
@@ -98,8 +103,6 @@ from rateslib.rs import PPSplineDual2 as PPSplineDual2
 from rateslib.rs import PPSplineF64 as PPSplineF64
 from rateslib.rs import RollDay as RollDay
 from rateslib.scheduling import Schedule as Schedule
-from rateslib.scheduling.float_rate_index import FloatRateIndex as FloatRateIndex
-from rateslib.scheduling.float_rate_index import FloatRateSeries as FloatRateSeries
 from rateslib.solver import Solver as Solver
 
 Solver_: TypeAlias = "Solver | NoInput"

@@ -5,11 +5,10 @@ from abc import ABCMeta, abstractmethod
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+import rateslib.errors as err
 from packaging import version
 from pandas import Series, read_csv
 from pandas import __version__ as pandas_version
-
-import rateslib.errors as err
 from rateslib.enums.generics import Err, NoInput, Ok, _drb
 
 if TYPE_CHECKING:
@@ -143,7 +142,7 @@ class _BaseFixingsLoader(metaclass=ABCMeta):
         ]
 
         available_tenors = [tenor for tenor in tenors if _is_available(tenor)]
-        from rateslib.scheduling.float_rate_index import FloatRateSeries
+        from rateslib.data.fixings import FloatRateSeries
 
         neighbouring_tenors = _find_neighbouring_tenors(
             end=value_end_date,
@@ -169,7 +168,7 @@ class _BaseFixingsLoader(metaclass=ABCMeta):
 
 class DefaultFixingsLoader(_BaseFixingsLoader):
     def __init__(self) -> None:
-        self.directory = os.path.dirname(os.path.abspath(__file__)) + "/data"
+        self.directory = os.path.dirname(os.path.abspath(__file__)) + "/historical"
         self.loaded: dict[str, tuple[int, Series[DualTypes], tuple[datetime, datetime]]] = {}  # type: ignore[type-var]
 
     @staticmethod

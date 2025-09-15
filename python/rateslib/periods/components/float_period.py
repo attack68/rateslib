@@ -12,21 +12,25 @@ from rateslib.curves._parsers import (
     _validate_obj_not_no_input,
 )
 from rateslib.curves.utils import average_rate
+from rateslib.data.fixings import (
+    FloatRateSeries,
+    IBORFixing,
+    IBORStubFixing,
+    _maybe_get_rate_series_from_curve,
+    _RFRRate,
+)
+from rateslib.data.loader import _find_neighbouring_tenors
 from rateslib.dual import Variable, gradient
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import Err, NoInput, Ok
 from rateslib.enums.parameters import FloatFixingMethod, SpreadCompoundMethod
-from rateslib.fixing_data import _find_neighbouring_tenors
 from rateslib.periods.components.base_period import BasePeriod
 from rateslib.periods.components.float_rate import (
-    _maybe_get_rate_series_from_curve,
-    _RFRRate,
     try_rate_value,
 )
-from rateslib.periods.components.parameters import IBORFixing, IBORStubFixing, _init_FloatRateParams
+from rateslib.periods.components.parameters import _init_FloatRateParams
 from rateslib.periods.utils import _get_rfr_curve_from_dict, _trim_df_by_index
 from rateslib.scheduling import dcf
-from rateslib.scheduling.float_rate_index import FloatRateSeries
 from rateslib.scheduling.frequency import _get_tenor_from_frequency
 
 if TYPE_CHECKING:

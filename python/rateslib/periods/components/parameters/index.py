@@ -7,7 +7,8 @@ from pandas import Series
 
 import rateslib.errors as err
 from rateslib import defaults
-from rateslib.curves.curves import _index_value_from_series_no_curve, _try_index_value
+from rateslib.curves.curves import _try_index_value
+from rateslib.data.fixings import IndexFixing
 from rateslib.enums.generics import (
     Err,
     NoInput,
@@ -18,8 +19,6 @@ from rateslib.enums.parameters import (
     IndexMethod,
     _get_index_method,
 )
-from rateslib.fixing_data import FixingRangeError
-from rateslib.periods.components.parameters.base_fixing import _BaseFixing
 
 if TYPE_CHECKING:
     from rateslib.typing import (
@@ -29,7 +28,6 @@ if TYPE_CHECKING:
         Result,
         _BaseCurve_,
         bool_,
-        datetime,
         datetime_,
         int_,
         str_,
@@ -198,112 +196,6 @@ class _IndexParams:
         tuple of float, Dual, Dual2, Variable for the ratio, numerator, denominator.
         """
         return self.try_index_ratio(index_curve=index_curve).unwrap()
-
-
-class IndexFixing(_BaseFixing):
-    """
-    An index fixing value for settlement of indexed cashflows.
-
-    Parameters
-    ----------
-    index_lag: int
-        The number months by which the reference date is lagged to derive an index value.
-    index_method: IndexMethod
-        The method used for calculating the index value. See :class:`IndexMethod`.
-    date: datetime
-        The date of relevance for the index fixing, which is its **reference value** date.
-    value: float, Dual, Dual2, Variable, optional
-        The initial value for the fixing to adopt. Most commonly this is not given and it is
-        determined from a timeseries of published FX rates.
-    identifier: str, optional
-        The string name of the timeseries to be loaded by the *Fixings* object.
-
-    Examples
-    --------
-
-    .. ipython:: python
-       :suppress:
-
-       from rateslib.periods.components.parameters import IndexFixing
-       from rateslib.enums.parameters import IndexMethod
-       from rateslib import fixings, dt
-       from pandas import Series
-
-    .. ipython:: python
-
-       fixings.add("UK-CPI", Series(index=[dt(2000, 1, 1), dt(2000, 2, 1)], data=[100, 110.0]))
-       index_fix = IndexFixing(date=dt(2000, 4, 15), identifier="UK-CPI", index_lag=3, index_method=IndexMethod.Daily)
-       index_fix.value
-
-    .. ipython:: python
-       :suppress:
-
-       fixings.pop("UK-CPI")
-
-    """  # noqa: E501
-
-    _index_lag: int
-    _index_method: IndexMethod
-
-    def __init__(
-        self,
-        *,
-        index_lag: int,
-        index_method: IndexMethod,
-        date: datetime,
-        value: DualTypes_ = NoInput(0),
-        identifier: str_ = NoInput(0),
-    ) -> None:
-        super().__init__(date=date, value=value, identifier=identifier)
-
-        self._index_lag = index_lag
-        self._index_method = index_method
-
-    @property
-    def index_method(self) -> IndexMethod:
-        """The :class:`IndexMethod` used for calculating the index value."""
-        return self._index_method
-
-    @property
-    def index_lag(self) -> int:
-        """The number months by which the reference date is lagged to derive an index value."""
-        return self._index_lag
-
-    def _lookup_and_calculate(
-        self,
-        timeseries: Series[DualTypes],  # type: ignore[type-var]
-        bounds: tuple[datetime, datetime] | None,
-    ) -> DualTypes_:
-        return self._lookup(
-            index_lag=self.index_lag,
-            index_method=self.index_method,
-            date=self.date,
-            timeseries=timeseries,
-            bounds=bounds,
-        )
-
-    @classmethod
-    def _lookup(
-        cls,
-        index_lag: int,
-        index_method: IndexMethod,
-        timeseries: Series[DualTypes],  # type: ignore[type-var]
-        date: datetime,
-        bounds: tuple[datetime, datetime] | None = None,
-    ) -> DualTypes_:
-        result = _index_value_from_series_no_curve(
-            index_lag=index_lag,
-            index_method=index_method,
-            index_fixings=timeseries,
-            index_date=date,
-            index_fixings_boundary=bounds,
-        )
-        if isinstance(result, Err):
-            if isinstance(result._exception, FixingRangeError):
-                return NoInput(0)
-            result.unwrap()
-        else:
-            return result.unwrap()
 
 
 def _init_or_none_IndexParams(
