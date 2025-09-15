@@ -29,6 +29,7 @@ from rateslib.dual import (
 )
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, _drb
+from rateslib.enums.parameters import FXDeltaMethod, _get_fx_delta_type
 from rateslib.fx_volatility.base import _BaseSmile
 from rateslib.fx_volatility.utils import (
     _d_plus_min_u,
@@ -39,7 +40,6 @@ from rateslib.fx_volatility.utils import (
     _moneyness_from_delta_closed_form,
     _surface_index_left,
     _t_var_interp,
-    _validate_delta_type,
     _validate_weights,
 )
 from rateslib.mutability import (
@@ -70,7 +70,7 @@ class FXDeltaVolSmile(_BaseSmile):
         Acts as the initial node of a *Curve*. Should be assigned today's immediate date.
     expiry: datetime
         The expiry date of the options associated with this *Smile*
-    delta_type: str in {"spot", "spot_pa", "forward", "forward_pa"}
+    delta_type: FXDeltaMethod or str
         The type of delta calculation that is used on the options to attain a delta which
         is referenced by the node keys.
     id: str, optional
@@ -114,7 +114,7 @@ class FXDeltaVolSmile(_BaseSmile):
         nodes: dict[float, DualTypes],
         eval_date: datetime,
         expiry: datetime,
-        delta_type: str,
+        delta_type: FXDeltaMethod | str,
         id: str | NoInput = NoInput(0),  # noqa: A002
         ad: int = 0,
     ):
@@ -126,7 +126,7 @@ class FXDeltaVolSmile(_BaseSmile):
             meta=_FXSmileMeta(
                 _expiry=expiry,
                 _eval_date=eval_date,
-                _delta_type=_validate_delta_type(delta_type),
+                _delta_type=_get_fx_delta_type(delta_type),
                 _plot_x_axis="delta",
                 _pair=None,
                 _delivery=get_calendar(NoInput(0)).lag_bus_days(
@@ -192,7 +192,7 @@ class FXDeltaVolSmile(_BaseSmile):
     def get(
         self,
         delta: DualTypes,
-        delta_type: str,
+        delta_type: FXDeltaMethod | str,
         phi: float,
         z_w: DualTypes,
     ) -> DualTypes:
@@ -207,7 +207,7 @@ class FXDeltaVolSmile(_BaseSmile):
         ----------
         delta: float
             The delta to obtain a volatility for.
-        delta_type: str in {"spot", "spot_pa", "forward", "forward_pa"}
+        delta_type: FXDeltaMethod or str
             The delta type the given delta is expressed in.
         phi: float
             Whether the given delta is assigned to a put or call option.
@@ -221,7 +221,8 @@ class FXDeltaVolSmile(_BaseSmile):
         -------
         DualTypes
         """
-        eta_0, z_w_0, _ = _delta_type_constants(delta_type, z_w, 0.0)  # u: unused
+        delta_type_ = _get_fx_delta_type(delta_type)
+        eta_0, z_w_0, _ = _delta_type_constants(delta_type_, z_w, 0.0)  # u: unused
         eta_1, z_w_1, _ = _delta_type_constants(self.meta.delta_type, z_w, 0.0)  # u: unused
         # then delta types are both unadjusted, used closed form.
         if eta_0 == eta_1 and eta_0 == 0.5:
@@ -231,7 +232,7 @@ class FXDeltaVolSmile(_BaseSmile):
         elif eta_0 == eta_1 and eta_0 == -0.5:
             u = _moneyness_from_delta_one_dimensional(
                 delta,
-                delta_type,
+                delta_type_,
                 self.meta.delta_type,
                 self,
                 self.meta.t_expiry,
@@ -242,7 +243,7 @@ class FXDeltaVolSmile(_BaseSmile):
             return self[delta_idx]
         else:  # delta adjustment types are different, use 2-d solver.
             u, delta_idx = _moneyness_from_delta_two_dimensional(
-                delta, delta_type, self, self.meta.t_expiry, z_w, phi
+                delta, delta_type_, self, self.meta.t_expiry, z_w, phi
             )
             return self[delta_idx]
 
@@ -363,7 +364,7 @@ class FXDeltaVolSmile(_BaseSmile):
         )
         vols: list[float] | list[Dual] | list[Dual2] = self.nodes.spline.spline.ppev(x)
         if x_axis in ["moneyness", "strike"]:
-            if self.meta.delta_type != "forward":
+            if self.meta.delta_type != FXDeltaMethod.Forward:
                 warnings.warn(
                     "FXDeltaVolSmile.plot() approximates 'moneyness' and 'strike' using the "
                     "convention that the Smile has a `delta_type` of 'forward'.\nThe Smile "
@@ -541,7 +542,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         an array of size: (length of ``expiries``, length of ``delta_indexes``).
     eval_date: datetime
         Acts as the initial node of a *Curve*. Should be assigned today's immediate date.
-    delta_type: str in {"spot", "spot_pa", "forward", "forward_pa"}
+    delta_type: FXDeltaMethod or str
         The type of delta calculation that is used as the *Smiles* definition to obtain a delta
         index which is referenced by the node keys.
     weights: Series, optional
@@ -611,7 +612,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         expiries: list[datetime],
         node_values: list[DualTypes],
         eval_date: datetime,
-        delta_type: str,
+        delta_type: FXDeltaMethod | str,
         weights: Series[float] | NoInput = NoInput(0),
         id: str | NoInput = NoInput(0),  # noqa: A002
         ad: int = 0,
@@ -622,7 +623,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
 
         self._meta = _FXDeltaVolSurfaceMeta(
             _eval_date=eval_date,
-            _delta_type=_validate_delta_type(delta_type),
+            _delta_type=_get_fx_delta_type(delta_type),
             _plot_x_axis="delta",
             _weights=_validate_weights(weights, eval_date, expiries),
             _delta_indexes=delta_indexes,
@@ -879,8 +880,8 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
 
 
 def _moneyness_from_atm_delta_one_dimensional(
-    delta_type: str,
-    vol_delta_type: str,
+    delta_type: FXDeltaMethod,
+    vol_delta_type: FXDeltaMethod,
     vol: DualTypes | FXDeltaVolSmile,
     t_e: DualTypes,
     z_w: DualTypes,
@@ -888,8 +889,8 @@ def _moneyness_from_atm_delta_one_dimensional(
 ) -> DualTypes:
     def root1d(
         g: DualTypes,
-        delta_type: str,
-        vol_delta_type: str,
+        delta_type: FXDeltaMethod,
+        vol_delta_type: FXDeltaMethod,
         phi: float,
         sqrt_t_e: float,
         z_w: DualTypes,
@@ -932,7 +933,11 @@ def _moneyness_from_atm_delta_one_dimensional(
         avg_vol: DualTypes = _dual_float(vol.nodes.values[int(vol.nodes.n / 2)])
     else:
         avg_vol = vol
-    g01 = phi * 0.5 * (z_w if "spot" in delta_type else 1.0)
+    g01 = (
+        phi
+        * 0.5
+        * (z_w if delta_type in [FXDeltaMethod.Spot, FXDeltaMethod.SpotPremiumAdjusted] else 1.0)
+    )
     g00 = _moneyness_from_delta_closed_form(g01, avg_vol, t_e, 1.0, phi)
 
     root_solver = newton_1dim(
@@ -950,8 +955,8 @@ def _moneyness_from_atm_delta_one_dimensional(
 
 def _moneyness_from_delta_one_dimensional(
     delta: DualTypes,
-    delta_type: str,
-    vol_delta_type: str,
+    delta_type: FXDeltaMethod,
+    vol_delta_type: FXDeltaMethod,
     vol: FXDeltaVolSmile | DualTypes,
     t_e: DualTypes,
     z_w: DualTypes,
@@ -960,8 +965,8 @@ def _moneyness_from_delta_one_dimensional(
     def root1d(
         g: DualTypes,
         delta: DualTypes,
-        delta_type: str,
-        vol_delta_type: str,
+        delta_type: FXDeltaMethod,
+        vol_delta_type: FXDeltaMethod,
         phi: float,
         sqrt_t_e: DualTypes,
         z_w: DualTypes,
@@ -1033,7 +1038,7 @@ def _moneyness_from_delta_one_dimensional(
 
 
 def _moneyness_from_atm_delta_two_dimensional(
-    delta_type: str,
+    delta_type: FXDeltaMethod,
     vol: FXDeltaVolSmile,
     t_e: DualTypes,
     z_w: DualTypes,
@@ -1041,8 +1046,8 @@ def _moneyness_from_atm_delta_two_dimensional(
 ) -> tuple[DualTypes, DualTypes]:
     def root2d(
         g: list[DualTypes],
-        delta_type: str,
-        vol_delta_type: str,
+        delta_type: FXDeltaMethod,
+        vol_delta_type: FXDeltaMethod,
         phi: float,
         sqrt_t_e: DualTypes,
         z_w: DualTypes,
@@ -1087,7 +1092,11 @@ def _moneyness_from_atm_delta_two_dimensional(
         return [f0_0, f0_1], [[f1_00, f1_01], [f1_10, f1_11]]
 
     avg_vol = _dual_float(vol.nodes.values[int(vol.nodes.n / 2)])
-    g01 = phi * 0.5 * (z_w if "spot" in delta_type else 1.0)
+    g01 = (
+        phi
+        * 0.5
+        * (z_w if delta_type in [FXDeltaMethod.Spot, FXDeltaMethod.SpotPremiumAdjusted] else 1.0)
+    )
     g00 = _moneyness_from_delta_closed_form(g01, avg_vol, t_e, 1.0, phi)
 
     root_solver = newton_ndim(
@@ -1105,7 +1114,7 @@ def _moneyness_from_atm_delta_two_dimensional(
 
 def _moneyness_from_delta_two_dimensional(
     delta: DualTypes,
-    delta_type: str,
+    delta_type: FXDeltaMethod,
     vol: FXDeltaVolSmile,
     t_e: DualTypes,
     z_w: DualTypes,
@@ -1114,8 +1123,8 @@ def _moneyness_from_delta_two_dimensional(
     def root2d(
         g: Sequence[DualTypes],
         delta: DualTypes,
-        delta_type: str,
-        vol_delta_type: str,
+        delta_type: FXDeltaMethod,
+        vol_delta_type: FXDeltaMethod,
         phi: float,
         sqrt_t_e: float,
         z_w: DualTypes,
@@ -1190,7 +1199,11 @@ def _moneyness_from_delta_two_dimensional(
 
 
 def _moneyness_from_delta_three_dimensional(
-    delta_type: str, vol: DualTypes | FXDeltaVolSmile, t_e: DualTypes, z_w: DualTypes, phi: float
+    delta_type: FXDeltaMethod,
+    vol: DualTypes | FXDeltaVolSmile,
+    t_e: DualTypes,
+    z_w: DualTypes,
+    phi: float,
 ) -> tuple[DualTypes, DualTypes, DualTypes]:
     """
     Solve the ATM delta problem where delta is not explicit.
@@ -1200,8 +1213,8 @@ def _moneyness_from_delta_three_dimensional(
 
     def root3d(
         g: list[DualTypes],
-        delta_type: str,
-        vol_delta_type: str,
+        delta_type: FXDeltaMethod,
+        vol_delta_type: FXDeltaMethod,
         phi: float,
         sqrt_t_e: DualTypes,
         z_w: DualTypes,
@@ -1266,7 +1279,11 @@ def _moneyness_from_delta_three_dimensional(
     else:
         avg_vol = vol
         vol_delta_type = delta_type
-    g02 = 0.5 * phi * (z_w if "spot" in delta_type else 1.0)
+    g02 = (
+        0.5
+        * phi
+        * (z_w if delta_type in [FXDeltaMethod.Spot, FXDeltaMethod.SpotPremiumAdjusted] else 1.0)
+    )
     g01 = g02 if phi > 0 else max(g02, -0.75)
     g00 = _moneyness_from_delta_closed_form(g01, avg_vol, t_e, 1.0, phi)
 

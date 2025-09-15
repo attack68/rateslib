@@ -9,6 +9,7 @@ from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.dual import Dual, Dual2, Variable, dual_log, newton_1dim
 from rateslib.dual.utils import _dual_float, _set_ad_order_objects
 from rateslib.enums.generics import NoInput, _drb
+from rateslib.enums.parameters import FXDeltaMethod
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments.fx_volatility.vanilla import FXCall, FXOption, FXPut
 from rateslib.instruments.utils import (
@@ -837,16 +838,36 @@ class FXStrangle(FXOptionStrat, FXOption):
         w_deli: DualTypes = curves_1[self.kwargs["delivery"]]
         f_d: DualTypes = fxf.rate(self.kwargs["pair"], self.kwargs["delivery"])
         f_t: DualTypes = fxf.rate(self.kwargs["pair"], spot)
-        z_w_0 = 1.0 if "forward" in self.kwargs["delta_type"] else w_deli / w_spot
-        f_0 = f_d if "forward" in self.kwargs["delta_type"] else f_t
+        z_w_0 = (
+            1.0
+            if self.kwargs["delta_type"]
+            in [FXDeltaMethod.ForwardPremiumAdjusted, FXDeltaMethod.Forward]
+            else w_deli / w_spot
+        )
+        f_0 = (
+            f_d
+            if self.kwargs["delta_type"]
+            in [FXDeltaMethod.ForwardPremiumAdjusted, FXDeltaMethod.Forward]
+            else f_t
+        )
 
         eta1 = None
         fzw1zw0: DualTypes = 0.0
         if isinstance(
             vol_[0], FXDeltaVolSurface | FXDeltaVolSmile
         ):  # multiple Vol objects cannot be used, will derive conventions from the first one found.
-            eta1 = -0.5 if "_pa" in vol_[0].meta.delta_type else 0.5
-            z_w_1 = 1.0 if "forward" in vol_[0].meta.delta_type else w_deli / w_spot
+            eta1 = (
+                -0.5
+                if vol_[0].meta.delta_type
+                in [FXDeltaMethod.ForwardPremiumAdjusted, FXDeltaMethod.SpotPremiumAdjusted]
+                else 0.5
+            )
+            z_w_1 = (
+                1.0
+                if vol_[0].meta.delta_type
+                in [FXDeltaMethod.ForwardPremiumAdjusted, FXDeltaMethod.Forward]
+                else w_deli / w_spot
+            )
             fzw1zw0 = f_0 * z_w_1 / z_w_0
 
         # Determine the initial guess for Newton type iterations

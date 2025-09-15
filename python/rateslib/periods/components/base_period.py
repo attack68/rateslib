@@ -9,9 +9,12 @@ from rateslib.enums.parameters import IndexMethod
 from rateslib.periods.components.parameters import (
     _IndexParams,
     _init_or_none_IndexParams,
+    _init_or_none_NonDeliverableParams,
+    _init_SettlementParams_with_nd_pair,
     _PeriodParams,
     _SettlementParams,
 )
+from rateslib.periods.components.parameters.settlement import _NonDeliverableParams
 from rateslib.periods.components.protocols import (
     _WithAnalyticDeltaStatic,
     _WithNPVCashflowsStatic,
@@ -46,6 +49,7 @@ class BasePeriod(
     settlement_params: _SettlementParams
     period_params: _PeriodParams
     index_params: _IndexParams | None
+    non_deliverable_params: _NonDeliverableParams | None
 
     @abstractmethod
     def __init__(
@@ -56,9 +60,6 @@ class BasePeriod(
         notional: DualTypes_ = NoInput(0),
         currency: str_ = NoInput(0),
         ex_dividend: datetime_ = NoInput(0),
-        pair: str_ = NoInput(0),
-        fx_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
-        delivery: datetime_ = NoInput(0),
         # period params
         start: datetime,
         end: datetime,
@@ -69,6 +70,10 @@ class BasePeriod(
         roll: RollDay | int | str_ = NoInput(0),
         calendar: CalInput = NoInput(0),
         adjuster: Adjuster | str_ = NoInput(0),
+        # non-deliverable args:
+        pair: str_ = NoInput(0),
+        fx_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+        delivery: datetime_ = NoInput(0),
         # index-args:
         index_base: DualTypes_ = NoInput(0),
         index_lag: int_ = NoInput(0),
@@ -78,14 +83,18 @@ class BasePeriod(
         index_base_date: datetime_ = NoInput(0),
         index_reference_date: datetime_ = NoInput(0),
     ):
-        self.settlement_params = _SettlementParams(
+        self.settlement_params = _init_SettlementParams_with_nd_pair(
             _currency=_drb(defaults.base_currency, currency).lower(),
             _payment=payment,
             _notional=_drb(defaults.notional, notional),
+            _ex_dividend=_drb(payment, ex_dividend),
+            _non_deliverable_pair=pair,
+        )
+        self.non_deliverable_params = _init_or_none_NonDeliverableParams(
+            _currency=self.settlement_params.currency,
             _pair=pair,
+            _delivery=_drb(self.settlement_params.payment, delivery),
             _fx_fixings=fx_fixings,
-            _delivery=delivery,
-            _ex_dividend=ex_dividend,
         )
         self.period_params = _PeriodParams(
             _start=start,

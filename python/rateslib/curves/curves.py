@@ -16,7 +16,7 @@ from pandas import Series
 from pytz import UTC
 
 import rateslib.errors as err
-from rateslib import defaults
+from rateslib import defaults, fixings
 from rateslib.curves.interpolation import InterpolationFunction
 from rateslib.curves.utils import (
     _CreditImpliedType,
@@ -32,7 +32,7 @@ from rateslib.dual import Dual, Dual2, Variable, dual_exp, set_order_convert
 from rateslib.dual.utils import _dual_float, _get_order_of
 from rateslib.enums.generics import Err, NoInput, Ok, _drb
 from rateslib.enums.parameters import IndexMethod, _get_index_method
-from rateslib.fixings import FixingMissingDataError, FixingRangeError
+from rateslib.fixing_data import FixingMissingDataError, FixingRangeError
 from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,
@@ -2941,7 +2941,7 @@ def _try_index_value(
         )
     elif isinstance(index_fixings, str):
         try:
-            fixings_series = defaults.fixings.__getitem__(index_fixings)
+            fixings_series = fixings.__getitem__(index_fixings)
         except Exception as e:
             return Err(e)
         if isinstance(index_curve, NoInput):

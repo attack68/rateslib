@@ -9,7 +9,7 @@ import numpy as np
 from pandas import Series
 
 import rateslib.errors as err
-from rateslib import defaults
+from rateslib import defaults, fixings
 from rateslib.enums.generics import (
     Err,
     NoInput,
@@ -21,7 +21,7 @@ from rateslib.enums.parameters import (
     _get_float_fixing_method,
     _get_spread_compound_method,
 )
-from rateslib.fixings import FixingRangeError
+from rateslib.fixing_data import FixingRangeError
 from rateslib.periods.components.float_rate import _RFRRate
 from rateslib.periods.components.parameters.base_fixing import _BaseFixing
 from rateslib.scheduling import Convention, Frequency, add_tenor
@@ -411,12 +411,12 @@ class IBORFixing(_BaseFixing):
 
        from rateslib.periods.components.parameters import IBORFixing
        from rateslib.scheduling.float_rate_index import FloatRateIndex
-       from rateslib import defaults, dt
+       from rateslib import fixings, dt
        from pandas import Series
 
     .. ipython:: python
 
-       defaults.fixings.add("EURIBOR_3M", Series(index=[dt(2000, 1, 3), dt(2000, 2, 4)], data=[1.651, 1.665]))
+       fixings.add("EURIBOR_3M", Series(index=[dt(2000, 1, 3), dt(2000, 2, 4)], data=[1.651, 1.665]))
        ibor_fix = IBORFixing(
            accrual_start=dt(2000, 1, 5),
            identifier="Euribor_3m",
@@ -428,7 +428,7 @@ class IBORFixing(_BaseFixing):
     .. ipython:: python
        :suppress:
 
-       defaults.fixings.pop("Euribor_3m")
+       fixings.pop("Euribor_3m")
 
     """  # noqa: E501
 
@@ -493,7 +493,7 @@ class IBORFixing(_BaseFixing):
         date: datetime,
         bounds: tuple[datetime, datetime] | None = None,
     ) -> DualTypes_:
-        result = defaults.fixings.__base_lookup__(
+        result = fixings.__base_lookup__(
             fixing_series=timeseries,
             lookup_date=date,
             bounds=bounds,
@@ -548,15 +548,15 @@ class IBORStubFixing(_BaseFixing):
 
        from rateslib.periods.components.parameters import IBORStubFixing
        from rateslib.scheduling.float_rate_index import FloatRateSeries
-       from rateslib import defaults, dt
+       from rateslib import fixings, dt
        from pandas import Series
 
     .. ipython:: python
 
-       defaults.fixings.add("EURIBOR_1M", Series(index=[dt(2000, 1, 3), dt(2000, 2, 4)], data=[1.651, 1.665]))
-       defaults.fixings.add("EURIBOR_2M", Series(index=[dt(2000, 1, 3), dt(2000, 2, 4)], data=[2.651, 2.665]))
-       defaults.fixings.add("EURIBOR_3M", Series(index=[dt(2000, 1, 3), dt(2000, 2, 4)], data=[3.651, 3.665]))
-       defaults.fixings.add("EURIBOR_6M", Series(index=[dt(2000, 1, 3), dt(2000, 2, 4)], data=[4.651, 4.665]))
+       fixings.add("EURIBOR_1M", Series(index=[dt(2000, 1, 3), dt(2000, 2, 4)], data=[1.651, 1.665]))
+       fixings.add("EURIBOR_2M", Series(index=[dt(2000, 1, 3), dt(2000, 2, 4)], data=[2.651, 2.665]))
+       fixings.add("EURIBOR_3M", Series(index=[dt(2000, 1, 3), dt(2000, 2, 4)], data=[3.651, 3.665]))
+       fixings.add("EURIBOR_6M", Series(index=[dt(2000, 1, 3), dt(2000, 2, 4)], data=[4.651, 4.665]))
        ibor_fix = IBORStubFixing(
            accrual_start=dt(2000, 1, 5),
            accrual_end=dt(2000, 5, 17),
@@ -575,17 +575,17 @@ class IBORStubFixing(_BaseFixing):
     .. ipython:: python
        :suppress:
 
-       defaults.fixings.pop("Euribor_1m")
-       defaults.fixings.pop("Euribor_2m")
-       defaults.fixings.pop("Euribor_3m")
-       defaults.fixings.pop("Euribor_6m")
+       fixings.pop("Euribor_1m")
+       fixings.pop("Euribor_2m")
+       fixings.pop("Euribor_3m")
+       fixings.pop("Euribor_6m")
 
     This fixing can only be determined from a single tenor, which is quite distinct from the
     stub tenor in this case.
 
     .. ipython:: python
 
-       defaults.fixings.add("NIBOR_6M", Series(index=[dt(2000, 1, 3), dt(2000, 2, 4)], data=[4.651, 4.665]))
+       fixings.add("NIBOR_6M", Series(index=[dt(2000, 1, 3), dt(2000, 2, 4)], data=[4.651, 4.665]))
        ibor_fix = IBORStubFixing(
            accrual_start=dt(2000, 1, 5),
            accrual_end=dt(2000, 1, 17),
@@ -797,7 +797,7 @@ class IBORStubFixing(_BaseFixing):
             "1Y",
         ]:
             try:
-                _ = defaults.fixings.__getitem__(f"{self.identifier}_{tenor}")
+                _ = fixings.__getitem__(f"{self.identifier}_{tenor}")
             except Exception:  # noqa: S112
                 continue
             else:
@@ -859,14 +859,14 @@ class RFRFixing(_BaseFixing):
        from rateslib.enums.parameters import SpreadCompoundMethod, FloatFixingMethod
        from rateslib.periods.components.parameters import RFRFixing
        from rateslib.scheduling.float_rate_index import FloatRateIndex
-       from rateslib import defaults, dt
+       from rateslib import fixings, dt
        from pandas import Series
 
     The below is a fully determined *RFRFixing* with populated rates.
 
     .. ipython:: python
 
-       defaults.fixings.add("SOFR_1B", Series(index=[
+       fixings.add("SOFR_1B", Series(index=[
             dt(2025, 1, 8), dt(2025, 1, 9), dt(2025, 1, 10), dt(2025, 1, 13), dt(2025, 1, 14)
           ], data=[1.1, 2.2, 3.3, 4.4, 5.5]))
 
@@ -904,7 +904,7 @@ class RFRFixing(_BaseFixing):
     .. ipython:: python
        :suppress:
 
-       defaults.fixings.pop("SOFR_1B")
+       fixings.pop("SOFR_1B")
 
     """
 
@@ -985,7 +985,7 @@ class RFRFixing(_BaseFixing):
             if isinstance(self._identifier, NoInput):
                 return NoInput(0)
             else:
-                state, timeseries, bounds = defaults.fixings.__getitem__(self._identifier)
+                state, timeseries, bounds = fixings.__getitem__(self._identifier)
                 if state == self._state:
                     return NoInput(0)
                 else:

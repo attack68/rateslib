@@ -4,7 +4,7 @@ from datetime import datetime as dt
 import numpy as np
 import pandas as pd
 import pytest
-from rateslib import defaults
+from rateslib import fixings
 from rateslib.curves import Curve
 from rateslib.enums import FloatFixingMethod, SpreadCompoundMethod
 from rateslib.instruments import IRS
@@ -132,10 +132,10 @@ class TestFloatPeriod:
             spread_compound_method=scm,
         )
         risk = solver.delta(npv=p.npv(rate_curve=rate_curve, disc_curve=curve, local=True))
-        fixings = p.try_unindexed_reference_fixings_exposure(
+        fixings_ = p.try_unindexed_reference_fixings_exposure(
             rate_curve=rate_curve, disc_curve=curve
         ).unwrap()
-        fixings = fixings.reindex(
+        fixings_ = fixings_.reindex(
             [
                 dt(2022, 1, 30),
                 dt(2022, 1, 31),
@@ -151,7 +151,7 @@ class TestFloatPeriod:
             fill_value=np.nan,
         )
 
-        risk_compare = fixings[("curve", "risk")].astype(float).fillna(0.0).to_numpy()
+        risk_compare = fixings_[("curve", "risk")].astype(float).fillna(0.0).to_numpy()
         risk_array = risk.to_numpy()[:, 0]
 
         _diff = np.max(np.abs(risk_compare - risk_array))
@@ -163,7 +163,7 @@ class TestFloatPeriod:
 
         # now add some fixings
         name = str(hash(os.urandom(8)))
-        defaults.fixings.add(
+        fixings.add(
             f"{name}_1B",
             pd.Series(
                 index=[dt(2022, 1, 31), dt(2022, 2, 1), dt(2022, 2, 2), dt(2022, 2, 3)],
@@ -185,10 +185,10 @@ class TestFloatPeriod:
             rate_fixings=name,
         )
 
-        fixings = p.try_unindexed_reference_fixings_exposure(
+        fixings_ = p.try_unindexed_reference_fixings_exposure(
             rate_curve=rate_curve, disc_curve=curve
         ).unwrap()
-        fixings = fixings.reindex(
+        fixings_ = fixings_.reindex(
             [
                 dt(2022, 1, 30),
                 dt(2022, 1, 31),
@@ -205,6 +205,6 @@ class TestFloatPeriod:
         )
 
         risk_array[:5] = 0.0
-        risk_compare = fixings[("curve", "risk")].astype(float).fillna(0.0).to_numpy()
+        risk_compare = fixings_[("curve", "risk")].astype(float).fillna(0.0).to_numpy()
 
         assert np.all(np.isclose(risk_array, risk_compare, atol=atol))

@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 from pandas import DataFrame, Index, MultiIndex, Series, isna
 from pandas.testing import assert_frame_equal
-from rateslib import default_context, defaults
+from rateslib import default_context, fixings
 from rateslib.curves import CompositeCurve, Curve, LineCurve, MultiCsaCurve
 from rateslib.curves._parsers import _map_curve_from_solver
 from rateslib.default import NoInput
@@ -3573,7 +3573,7 @@ class TestXCS:
         # tests a series as sting can be provided to XCS in tuple
         curve = Curve({dt(2023, 1, 15): 1.0, dt(2028, 1, 1): 0.96})
         name = str(hash(os.urandom(8)))
-        defaults.fixings.add(
+        fixings.add(
             name,
             Series(
                 index=[dt(2023, 1, 17), dt(2023, 4, 17), dt(2023, 7, 17)],

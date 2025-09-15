@@ -10,6 +10,7 @@ from rateslib import default_context
 from rateslib.curves import CompositeCurve, Curve, LineCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, gradient
+from rateslib.enums.parameters import _get_fx_delta_type
 from rateslib.fx import (
     FXForwards,
     FXRates,
@@ -24,7 +25,6 @@ from rateslib.fx_volatility import (
 from rateslib.fx_volatility.utils import (
     _d_sabr_d_k_or_f,
     _FXSabrSmileNodes,
-    _validate_delta_type,
 )
 from rateslib.periods.fx_volatility import FXCallPeriod
 from rateslib.scheduling import get_calendar
@@ -2218,5 +2218,5 @@ class TestStateAndCache:
 
 
 def test_validate_delta_type() -> None:
-    with pytest.raises(ValueError, match="`delta_type` must be in"):
-        _validate_delta_type("BAD_TYPE")
+    with pytest.raises(ValueError, match="`delta_type` as string: 'BAD_TYPE' i"):
+        _get_fx_delta_type("BAD_TYPE")

@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 from matplotlib import pyplot as plt
 from pandas import Series
-from rateslib import default_context, defaults
+from rateslib import default_context, defaults, fixings
 from rateslib.curves import (
     CompositeCurve,
     Curve,
@@ -20,7 +20,7 @@ from rateslib.curves.utils import _CurveNodes, _CurveSpline
 from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.dual.utils import _get_order_of
 from rateslib.enums.generics import Err, NoInput, Ok
-from rateslib.fixings import FixingMissingDataError
+from rateslib.fixing_data import FixingMissingDataError
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments import IRS
 from rateslib.scheduling import Cal, dcf, get_calendar
@@ -2557,7 +2557,7 @@ class TestIndexValue:
 
     def test_non_zero_index_lag_with_curve_method_raises(self):
         ser = Series([1.0], index=[dt(2000, 1, 1)])
-        defaults.fixings.add("1234FGFS6", ser)
+        fixings.add("1234FGFS6", ser)
         with pytest.raises(ValueError, match="`index_lag` must be zero when using a 'Curve' `inde"):
             index_value(
                 index_lag=4,
@@ -2566,7 +2566,7 @@ class TestIndexValue:
                 index_date=dt(2000, 1, 1),
                 index_curve=NoInput(0),
             )
-        defaults.fixings.pop("1234FGFS6")
+        fixings.pop("1234FGFS6")
 
     def test_documentation_uk_dmo_replication(self):
         # this is an example in the index value documentation

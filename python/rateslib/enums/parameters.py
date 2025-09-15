@@ -3,6 +3,24 @@ from __future__ import annotations
 from enum import Enum
 
 
+class OptionType(float, Enum):
+    """
+    Enumerable type to define option directions.
+    """
+
+    Put = -1.0
+    Call = 1.0
+
+
+class FXOptionMetric(Enum):
+    """
+    Enumerable type for FXOption metrics.
+    """
+
+    Pips = 0
+    Percent = 1
+
+
 class IndexMethod(Enum):
     """
     Enumerable type to define determining the index value on some reference value date.
@@ -65,6 +83,20 @@ class SpreadCompoundMethod(Enum):
     NoneSimple = 0
     ISDACompounding = 1
     ISDAFlatCompounding = 2
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class FXDeltaMethod(Enum):
+    """
+    Enumerable type to define the delta expression of an FX option.
+    """
+
+    Forward = 0
+    Spot = 1
+    ForwardPremiumAdjusted = 2
+    SpotPremiumAdjusted = 3
 
     def __str__(self) -> str:
         return self.name
@@ -145,4 +177,45 @@ def _get_spread_compound_method(method: str | SpreadCompoundMethod) -> SpreadCom
             raise ValueError(
                 f"`spread_compound_method` as string: '{method}' is not a valid option. "
                 f"Please consult docs."
+            )
+
+
+_FX_DELTA_TYPE_MAP = {
+    "forward": FXDeltaMethod.Forward,
+    "spot": FXDeltaMethod.Spot,
+    "forward_pa": FXDeltaMethod.ForwardPremiumAdjusted,
+    "spot_pa": FXDeltaMethod.SpotPremiumAdjusted,
+    "forwardpremkiumadjusted": FXDeltaMethod.ForwardPremiumAdjusted,
+    "spotpremiumadjusted": FXDeltaMethod.SpotPremiumAdjusted,
+}
+
+
+def _get_fx_delta_type(method: str | FXDeltaMethod) -> FXDeltaMethod:
+    if isinstance(method, FXDeltaMethod):
+        return method
+    else:
+        try:
+            return _FX_DELTA_TYPE_MAP[method.lower()]
+        except KeyError:
+            raise ValueError(
+                f"`delta_type` as string: '{method}' is not a valid option. Please consult docs."
+            )
+
+
+_FX_METRIC_MAP = {
+    "pips": FXOptionMetric.Pips,
+    "percent": FXOptionMetric.Percent,
+}
+
+
+def _get_fx_option_metric(method: str | FXOptionMetric) -> FXOptionMetric:
+    if isinstance(method, FXOptionMetric):
+        return method
+    else:
+        try:
+            return _FX_METRIC_MAP[method.lower()]
+        except KeyError:
+            raise ValueError(
+                f"FXOption `metric` as string: '{method}' is not a valid option. Please consult "
+                f"docs."
             )

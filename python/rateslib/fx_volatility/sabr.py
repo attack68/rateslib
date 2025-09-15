@@ -21,6 +21,7 @@ from rateslib.dual import (
 )
 from rateslib.dual.utils import _dual_float, _to_number
 from rateslib.enums.generics import NoInput, _drb
+from rateslib.enums.parameters import FXDeltaMethod
 from rateslib.fx import FXForwards
 from rateslib.fx_volatility.base import _BaseSmile
 from rateslib.fx_volatility.utils import (
@@ -136,7 +137,7 @@ class FXSabrSmile(_BaseSmile):
             _delivery_lag=delivery_lag_,
             _delivery=cal_.lag_bus_days(expiry, delivery_lag_, True),
             _pair=_drb(None, pair),
-            _delta_type="not_available",
+            _delta_type=FXDeltaMethod.Forward,  # unused for SABR Model
         )
 
         for _ in ["alpha", "beta", "rho", "nu"]:

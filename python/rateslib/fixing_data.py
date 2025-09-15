@@ -10,7 +10,7 @@ from pandas import Series, read_csv
 from pandas import __version__ as pandas_version
 
 import rateslib.errors as err
-from rateslib.enums.generics import Err, NoInput, Ok
+from rateslib.enums.generics import Err, NoInput, Ok, _drb
 
 if TYPE_CHECKING:
     from rateslib.typing import Adjuster, CalTypes, DualTypes, FloatRateSeries, Result, datetime_
@@ -45,6 +45,12 @@ class _BaseFixingsLoader(metaclass=ABCMeta):
         preferably a `ValueError`.
         """
         pass
+
+    @abstractmethod
+    def add(self, name: str, series: Series[DualTypes]) -> None: ...  # type: ignore[type-var]
+
+    @abstractmethod
+    def pop(self, name: str) -> Series[DualTypes] | None: ...  # type: ignore[type-var]
 
     def __try_getitem__(
         self, name: str
@@ -161,74 +167,25 @@ class _BaseFixingsLoader(metaclass=ABCMeta):
         return neighbouring_tenors + (values,)
 
 
-class Fixings(_BaseFixingsLoader):
-    """
-    Object to store and load fixing data to populate *Leg* and *Period* calculations.
-
-    .. warning::
-
-       You must maintain and populate your own fixing data.
-
-       *Rateslib* does not come pre-packaged with accurate, nor upto date fixing data.
-       1) It does not have data licensing to distribute such data.
-       2) It is a statically uploaded code package will become immediately out of date.
-
-    .. attention::
-
-       This object is loaded once by *rateslib* and is associated with its global
-       :class:`~rateslib.default.Defaults` object under the attribute `defaults.fixings`.
-       Only this object is referenced internally and other instantiations of this class
-       will be ignored.
-
-    Notes
-    -----
-    This class maintains a dictionary of financial fixing Series indexed by string identifiers.
-
-    **Fixing Population**
-
-    This dictionary can be populated in one of two ways:
-
-    - Either by maintaining a set of CSV files in the source lookup directory (whose path is
-      visible/settable by calling `defaults.fixings.directory`)
-    - Or creating a pandas *Series* and using the :meth:`~rateslib.default.Fixings.add` to
-      add this object to the dictionary.
-
-    **Fixing Lookup**
-
-    Lookup of a fixing *Series* is performed, for example using the get item pattern. If an
-    object does not already exist in the dictionary it will be attempted to load from source CSV
-    file. If neither exists it will raise a `ValueError`.
-
-    .. ipython:: python
-       :suppress:
-
-       from pandas import Series
-       from datetime import datetime as dt
-       from rateslib import defaults
-
-    .. ipython:: python
-
-       cpi = Series(
-           index=[dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 3, 1)],
-           data=[100.0, 101.2, 102.2]
-       )
-       defaults.fixings.add("MY_CPI", cpi)
-       defaults.fixings["MY_CPI"]
-
-    .. ipython:: python
-
-       try:
-           defaults.fixings["NON_EXISTENT_SERIES"]
-       except ValueError as e:
-           print(e)
-
-    The `Fixings` object can be overladed by a user customised implementation.
-    For further info see :ref:`working with fixings <cook-fixings-doc>`.
-    """
-
+class DefaultFixingsLoader(_BaseFixingsLoader):
     def __init__(self) -> None:
         self.directory = os.path.dirname(os.path.abspath(__file__)) + "/data"
         self.loaded: dict[str, tuple[int, Series[DualTypes], tuple[datetime, datetime]]] = {}  # type: ignore[type-var]
+
+    @staticmethod
+    def _load_csv(directory: str, path: str) -> Series[DualTypes]:  # type: ignore[type-var]
+        target = os.path.join(directory, path)
+        if version.parse(pandas_version) < version.parse("2.0"):  # pragma: no cover
+            # this is tested by the minimum version gitflow actions.
+            # TODO (low:dependencies) remove when pandas min version is bumped to 2.0
+            df = read_csv(target)
+            df["reference_date"] = df["reference_date"].map(
+                lambda x: datetime.strptime(x, "%d-%m-%Y"),
+            )
+            df = df.set_index("reference_date")
+        else:
+            df = read_csv(target, index_col=0, parse_dates=[0], date_format="%d-%m-%Y")
+        return df["rate"].sort_index(ascending=True)
 
     def __getitem__(self, name: str) -> tuple[int, Series[DualTypes], tuple[datetime, datetime]]:  # type: ignore[type-var]
         name_ = name.upper()
@@ -249,21 +206,6 @@ class Fixings(_BaseFixingsLoader):
         self.loaded[name_] = data
         return data
 
-    @staticmethod
-    def _load_csv(directory: str, path: str) -> Series[DualTypes]:  # type: ignore[type-var]
-        target = os.path.join(directory, path)
-        if version.parse(pandas_version) < version.parse("2.0"):  # pragma: no cover
-            # this is tested by the minimum version gitflow actions.
-            # TODO (low:dependencies) remove when pandas min version is bumped to 2.0
-            df = read_csv(target)
-            df["reference_date"] = df["reference_date"].map(
-                lambda x: datetime.strptime(x, "%d-%m-%Y"),
-            )
-            df = df.set_index("reference_date")
-        else:
-            df = read_csv(target, index_col=0, parse_dates=[0], date_format="%d-%m-%Y")
-        return df["rate"].sort_index(ascending=True)
-
     def add(self, name: str, series: Series[DualTypes]) -> None:  # type: ignore[type-var]
         if name in self.loaded:
             raise ValueError(f"Fixing data for the index '{name}' has already been loaded.")
@@ -280,6 +222,84 @@ class Fixings(_BaseFixingsLoader):
             return popped[1]  # return the Series object only
         else:
             return None
+
+
+class Fixings(_BaseFixingsLoader):
+    """
+    Object to store and load fixing data to populate *Leg* and *Period* calculations.
+
+    .. warning::
+
+       You must maintain and populate your own fixing data.
+
+       *Rateslib* does not come pre-packaged with accurate, nor upto date fixing data.
+       1) It does not have data licensing to distribute such data.
+       2) It is a statically uploaded code package will become immediately out of date.
+
+    .. attention::
+
+       This object is loaded once by *rateslib* and is associated with its global
+       :class:`~rateslib.default.Defaults` object under the attribute `fixings`.
+       Only this object is referenced internally and other instantiations of this class
+       will be ignored.
+
+    Notes
+    -----
+    This class maintains a dictionary of financial fixing Series indexed by string identifiers.
+
+    **Fixing Population**
+
+    This dictionary can be populated in one of two ways:
+
+    - Either by maintaining a set of CSV files in the source lookup directory (whose path is
+      visible/settable by calling `fixings.directory`)
+    - Or creating a pandas *Series* and using the :meth:`~rateslib.default.Fixings.add` to
+      add this object to the dictionary.
+
+    **Fixing Lookup**
+
+    Lookup of a fixing *Series* is performed, for example using the get item pattern. If an
+    object does not already exist in the dictionary it will be attempted to load from source CSV
+    file. If neither exists it will raise a `ValueError`.
+
+    .. ipython:: python
+       :suppress:
+
+       from pandas import Series
+       from datetime import datetime as dt
+       from rateslib import fixings
+
+    .. ipython:: python
+
+       cpi = Series(
+           index=[dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 3, 1)],
+           data=[100.0, 101.2, 102.2]
+       )
+       fixings.add("MY_CPI", cpi)
+       fixings["MY_CPI"]
+
+    .. ipython:: python
+
+       try:
+           fixings["NON_EXISTENT_SERIES"]
+       except ValueError as e:
+           print(e)
+
+    The `Fixings` object can be overladed by a user customised implementation.
+    For further info see :ref:`working with fixings <cook-fixings-doc>`.
+    """
+
+    def __init__(self, loader: _BaseFixingsLoader | NoInput = NoInput(0)) -> None:
+        self.loader: _BaseFixingsLoader = _drb(DefaultFixingsLoader(), loader)
+
+    def __getitem__(self, name: str) -> tuple[int, Series[DualTypes], tuple[datetime, datetime]]:  # type: ignore[type-var]
+        return self.loader.__getitem__(name)
+
+    def add(self, name: str, series: Series[DualTypes]) -> None:  # type: ignore[type-var]
+        return self.loader.add(name, series)
+
+    def pop(self, name: str) -> Series[DualTypes] | None:  # type: ignore[type-var]
+        return self.loader.pop(name)
 
 
 class FixingRangeError(Exception):

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from pandas import Series
 
-from rateslib import defaults
+from rateslib import defaults, fixings
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.fx import FXForwards
@@ -108,7 +108,7 @@ class BaseLegMtm(BaseLeg, metaclass=ABCMeta):
         ini_period: int = 0,
     ) -> list[DualTypes]:
         if isinstance(ser, str):
-            data = defaults.fixings.__getitem__(ser)
+            data = fixings.__getitem__(ser)
             ser_: Series[DualTypes] = data[1]  # type: ignore[type-var]
             last_fixing_date: datetime = data[2][1]
         else:

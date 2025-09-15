@@ -6,14 +6,14 @@ from typing import TYPE_CHECKING
 from pandas import Series
 
 import rateslib.errors as err
-from rateslib import defaults
+from rateslib import defaults, fixings
 from rateslib.enums.generics import (
     Err,
     NoInput,
     Ok,
     _drb,
 )
-from rateslib.fixings import FixingRangeError
+from rateslib.fixing_data import FixingRangeError
 from rateslib.periods.components.parameters.base_fixing import _BaseFixing
 from rateslib.periods.utils import _try_validate_fx_as_forwards
 
@@ -57,52 +57,25 @@ class _SettlementParams:
         are assumed to be non-receivable.
 
     """
+
     _currency: str
     _notional: DualTypes
+    _notional_currency: str
     _payment: datetime
     _ex_dividend: datetime
-
-    # non-deliverable or FX related components
-    _pair: str | None
-    _fx_fixing: FXFixing
-    _delivery: datetime | NoInput
 
     def __init__(
         self,
         _currency: str,
         _notional: DualTypes,
+        _notional_currency: str,
         _payment: datetime,
-        _pair: str_ = NoInput(0),
-        _fx_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
-        _delivery: datetime_ = NoInput(0),
         _ex_dividend: datetime_ = NoInput(0),
     ) -> None:
         self._currency = _currency.lower()
         self._notional = _notional
+        self._notional_currency = _notional_currency
         self._payment = _payment
-        self._pair = None if isinstance(_pair, NoInput) else _pair.lower()
-        if self._pair is None:
-            self._delivery = NoInput(0)
-            self._fx_fixing = FXFixing(date=self.delivery)
-        else:
-            self._delivery = _delivery
-            if isinstance(_fx_fixings, Series):
-                value = FXFixing._lookup(timeseries=_fx_fixings, date=self.delivery)
-                self._fx_fixing = FXFixing(
-                    date=self.delivery,
-                    value=value,
-                )
-            elif isinstance(_fx_fixings, str):
-                self._fx_fixing = FXFixing(
-                    date=self.delivery,
-                    identifier=_fx_fixings,
-                )
-            else:
-                self._fx_fixing = FXFixing(
-                    date=self.delivery,
-                    value=_fx_fixings,
-                )
-
         self._ex_dividend = _drb(self.payment, _ex_dividend)
 
     @property
@@ -114,19 +87,63 @@ class _SettlementParams:
         return self._notional
 
     @property
+    def notional_currency(self) -> str:
+        return self._notional_currency
+
+    @property
     def payment(self) -> datetime:
         return self._payment
 
     @property
-    def reference_currency(self) -> str:
-        if self.pair is None:
-            return self.currency
+    def ex_dividend(self) -> datetime:
+        return self._ex_dividend
+
+
+class _NonDeliverableParams:
+    _currency: str
+    _pair: str
+    _fx_fixing: FXFixing
+    _delivery: datetime
+
+    def __init__(
+        self,
+        _currency: str,
+        _pair: str,
+        _delivery: datetime,
+        _fx_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+    ) -> None:
+        self._currency = _currency.lower()
+        self._pair = _pair
+        self._delivery = _delivery
+
+        if isinstance(_fx_fixings, Series):
+            value = FXFixing._lookup(timeseries=_fx_fixings, date=self.delivery)
+            self._fx_fixing = FXFixing(
+                date=self.delivery,
+                value=value,
+            )
+        elif isinstance(_fx_fixings, str):
+            self._fx_fixing = FXFixing(
+                date=self.delivery,
+                identifier=_fx_fixings,
+            )
         else:
-            ccy1, ccy2 = self.pair[0:3], self.pair[3:6]
-            return ccy1 if ccy1 != self.currency else ccy2
+            self._fx_fixing = FXFixing(
+                date=self.delivery,
+                value=_fx_fixings,
+            )
 
     @property
-    def pair(self) -> str | None:
+    def currency(self) -> str:
+        return self._currency
+
+    @property
+    def reference_currency(self) -> str:
+        ccy1, ccy2 = self.pair[0:3], self.pair[3:6]
+        return ccy1 if ccy1 != self.currency else ccy2
+
+    @property
+    def pair(self) -> str:
         return self._pair
 
     @property
@@ -139,26 +156,15 @@ class _SettlementParams:
 
     @property
     def delivery(self) -> datetime:
-        if isinstance(self._delivery, NoInput):
-            return self._payment
         return self._delivery
-
-    @property
-    def ex_dividend(self) -> datetime:
-        return self._ex_dividend
 
     @cached_property
     def fx_reversed(self) -> bool:
-        if self.pair is None:
-            return False
         return self.pair[3:6] == self.reference_currency
 
     def try_fx_fixing(self, fx: FXForwards_) -> Result[DualTypes]:
         fx_fixing: DualTypes_ = self.fx_fixing.value
         if isinstance(fx_fixing, NoInput):
-            # need to forecast
-            if self.pair is None:
-                return Err(AttributeError(err.AE_NEEDS_PAIR_TO_FORECAST))
             fx_result = _try_validate_fx_as_forwards(fx)
             if isinstance(fx_result, Err):
                 return fx_result
@@ -189,19 +195,19 @@ class FXFixing(_BaseFixing):
        :suppress:
 
        from rateslib.periods.components.parameters import FXFixing
-       from rateslib import defaults, dt
+       from rateslib import fixings, dt
        from pandas import Series
 
     .. ipython:: python
 
-       defaults.fixings.add("EURGBP-x89", Series(index=[dt(2000, 1, 1)], data=[0.905]))
+       fixings.add("EURGBP-x89", Series(index=[dt(2000, 1, 1)], data=[0.905]))
        fxfix = FXFixing(date=dt(2000, 1, 1), identifier="EURGBP-x89")
        fxfix.value
 
     .. ipython:: python
        :suppress:
 
-       defaults.fixings.pop("EURGBP-x89")
+       fixings.pop("EURGBP-x89")
 
     """
 
@@ -225,7 +231,7 @@ class FXFixing(_BaseFixing):
         date: datetime,
         bounds: tuple[datetime, datetime] | None = None,
     ) -> DualTypes_:
-        result = defaults.fixings.__base_lookup__(
+        result = fixings.__base_lookup__(
             fixing_series=timeseries,
             lookup_date=date,
             bounds=bounds,
@@ -236,3 +242,49 @@ class FXFixing(_BaseFixing):
             result.unwrap()
         else:
             return result.unwrap()
+
+
+def _init_or_none_NonDeliverableParams(
+    _currency: str,
+    _pair: str_,
+    _delivery: datetime,
+    _fx_fixings: DualTypes | Series[DualTypes] | str_,  # type: ignore[type-var]
+) -> _NonDeliverableParams | None:
+    if isinstance(_pair, NoInput):
+        return None
+    else:
+        return _NonDeliverableParams(
+            _currency=_currency,
+            _pair=_pair,
+            _delivery=_delivery,
+            _fx_fixings=_fx_fixings,
+        )
+
+
+def _init_SettlementParams_with_nd_pair(
+    _currency: str_,
+    _payment: datetime,
+    _notional: DualTypes_,
+    _ex_dividend: datetime,
+    _non_deliverable_pair: str_,
+) -> _SettlementParams:
+    notional = _drb(defaults.notional, _notional)
+    ccy = _drb(defaults.base_currency, _currency).lower()
+    if isinstance(_non_deliverable_pair, NoInput):
+        return _SettlementParams(
+            _currency=ccy,
+            _notional_currency=ccy,
+            _payment=_payment,
+            _notional=notional,
+            _ex_dividend=_ex_dividend,
+        )
+    else:
+        c1, c2 = _non_deliverable_pair.lower()[:3], _non_deliverable_pair.lower()[3:]
+        # other parameters will also be determined.
+        return _SettlementParams(
+            _currency=ccy,
+            _notional_currency=c1 if c1 != ccy else c2,
+            _payment=_payment,
+            _notional=notional,
+            _ex_dividend=_ex_dividend,
+        )
