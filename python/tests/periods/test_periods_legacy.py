@@ -21,12 +21,12 @@ from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXSabrSmile, FXSabrSurface
 from rateslib.fx_volatility.utils import _d_plus_min_u
 from rateslib.periods import (
-    CreditPremiumPeriod,
     CreditProtectionPeriod,
     IndexMixin,
 )
 from rateslib.periods.components import (
     Cashflow,
+    CreditPremiumPeriod,
     FixedPeriod,
     FloatPeriod,
     FXCallPeriod,
@@ -2543,10 +2543,10 @@ class TestCreditPremiumPeriod:
             currency="usd",
             premium_accrued=accrued,
         )
-        result = premium_period.npv(hazard_curve, curve)
+        result = premium_period.npv(rate_curve=hazard_curve, disc_curve=curve)
         assert abs(result - exp) < 1e-7
 
-        result = premium_period.npv(hazard_curve, curve, fxr, "nok")
+        result = premium_period.npv(rate_curve=hazard_curve, disc_curve=curve, fx=fxr, base="nok")
         assert abs(result - exp * 10.0) < 1e-6
 
     def test_period_npv_raises(self, curve, hazard_curve) -> None:
@@ -2565,12 +2565,12 @@ class TestCreditPremiumPeriod:
             TypeError,
             match=re.escape("`curves` have not been supplied correctly."),
         ):
-            premium_period.npv(hazard_curve)
+            premium_period.npv(rate_curve=hazard_curve)
         with pytest.raises(
             TypeError,
             match=re.escape("`curves` have not been supplied correctly."),
         ):
-            premium_period.npv(NoInput(0), curve)
+            premium_period.npv(rate_curve=NoInput(0), disc_curve=curve)
 
     def test_period_npv_no_spread_raises(self, curve, hazard_curve) -> None:
         premium_period = CreditPremiumPeriod(
@@ -2585,9 +2585,9 @@ class TestCreditPremiumPeriod:
         )
         with pytest.raises(
             ValueError,
-            match=re.escape("`fixed_rate` must be set as a value"),
+            match=re.escape("A `fixed_rate` must be set for a cashfl"),
         ):
-            premium_period.npv(hazard_curve, curve)
+            premium_period.npv(rate_curve=hazard_curve, disc_curve=curve)
 
     @pytest.mark.parametrize(
         ("accrued", "exp"), [(True, 24732.108694072398), (False, 24719.733694072398)]
@@ -2605,10 +2605,12 @@ class TestCreditPremiumPeriod:
             currency="usd",
             premium_accrued=accrued,
         )
-        result = premium_period.analytic_delta(hazard_curve, curve)
+        result = premium_period.analytic_delta(rate_curve=hazard_curve, disc_curve=curve)
         assert abs(result - exp) < 1e-7
 
-        result = premium_period.analytic_delta(hazard_curve, curve, fxr, "nok")
+        result = premium_period.analytic_delta(
+            rate_curve=hazard_curve, disc_curve=curve, fx=fxr, base="nok"
+        )
         assert abs(result - exp * 10.0) < 1e-7
 
     def test_period_analytic_delta_fxr_base(self, hazard_curve, curve, fxr) -> None:
@@ -2624,7 +2626,12 @@ class TestCreditPremiumPeriod:
             currency="usd",
         )
         fxr = FXRates({"usdnok": 10.0}, base="NOK")
-        result = premium_period.analytic_delta(hazard_curve, curve, fxr)
+        result = premium_period.analytic_delta(
+            rate_curve=hazard_curve,
+            disc_curve=curve,
+            fx=fxr,
+            base="nok",
+        )
         assert abs(result - 247321.086941) < 1e-6
 
     def test_period_cashflows(self, hazard_curve, curve, fxr) -> None:
@@ -2641,9 +2648,10 @@ class TestCreditPremiumPeriod:
             currency="usd",
         )
 
-        cashflow = 400 * -1e9 * premium_period.dcf / 10000
+        cashflow = 400 * -1e9 * premium_period.period_params.dcf / 10000
         expected = {
             defaults.headers["type"]: "CreditPremiumPeriod",
+            defaults.headers["base"]: "NOK",
             defaults.headers["stub_type"]: "Regular",
             defaults.headers["a_acc_start"]: dt(2022, 1, 1),
             defaults.headers["a_acc_end"]: dt(2022, 4, 1),
@@ -2651,17 +2659,20 @@ class TestCreditPremiumPeriod:
             defaults.headers["notional"]: 1e9,
             defaults.headers["currency"]: "USD",
             defaults.headers["convention"]: "Act360",
-            defaults.headers["dcf"]: premium_period.dcf,
+            defaults.headers["dcf"]: premium_period.period_params.dcf,
             defaults.headers["df"]: 0.9897791268897856,
             defaults.headers["rate"]: 4.0,
-            defaults.headers["survival"]: 0.999,
+            # defaults.headers["survival"]: 0.999,
+            defaults.headers["spread"]: None,
             defaults.headers["npv"]: -9892843.47762896,
             defaults.headers["cashflow"]: cashflow,
             defaults.headers["fx"]: 10.0,
             defaults.headers["npv_fx"]: -9892843.47762896 * 10.0,
             defaults.headers["collateral"]: None,
         }
-        result = premium_period.cashflows(hazard_curve, curve, fx=fxr, base="nok")
+        result = premium_period.cashflows(
+            rate_curve=hazard_curve, disc_curve=curve, fx=fxr, base="nok"
+        )
         assert result == expected
 
     def test_period_cashflows_no_curves(self, fxr) -> None:
@@ -2678,9 +2689,10 @@ class TestCreditPremiumPeriod:
             currency="usd",
         )
 
-        cashflow = 400 * -1e9 * premium_period.dcf / 10000
+        cashflow = 400 * -1e9 * premium_period.period_params.dcf / 10000
         expected = {
             defaults.headers["type"]: "CreditPremiumPeriod",
+            defaults.headers["base"]: "NOK",
             defaults.headers["stub_type"]: "Regular",
             defaults.headers["a_acc_start"]: dt(2022, 1, 1),
             defaults.headers["a_acc_end"]: dt(2022, 4, 1),
@@ -2688,10 +2700,11 @@ class TestCreditPremiumPeriod:
             defaults.headers["notional"]: 1e9,
             defaults.headers["currency"]: "USD",
             defaults.headers["convention"]: "Act360",
-            defaults.headers["dcf"]: premium_period.dcf,
+            defaults.headers["dcf"]: premium_period.period_params.dcf,
             defaults.headers["df"]: None,
             defaults.headers["rate"]: 4.0,
-            defaults.headers["survival"]: None,
+            # defaults.headers["survival"]: None,
+            defaults.headers["spread"]: None,
             defaults.headers["npv"]: None,
             defaults.headers["cashflow"]: cashflow,
             defaults.headers["fx"]: 10.0,
@@ -2726,8 +2739,8 @@ class TestCreditPremiumPeriod:
             currency="usd",
             adjuster="F",
         )
-        r1 = p1.npv(hazard_curve, curve)
-        r2 = p2.npv(hazard_curve, curve)
+        r1 = p1.npv(rate_curve=hazard_curve, disc_curve=curve)
+        r2 = p2.npv(rate_curve=hazard_curve, disc_curve=curve)
 
         assert 2505 > r1 - r2 > 2500
 
@@ -2742,7 +2755,8 @@ class TestCreditPremiumPeriod:
             frequency=Frequency.Months(3, None),
             currency="usd",
         )
-        assert premium_period.cashflow() is None
+        result = premium_period.try_cashflow()
+        assert result.is_err
 
     def test_no_accrued(self):
         premium_period = CreditPremiumPeriod(
@@ -2755,7 +2769,7 @@ class TestCreditPremiumPeriod:
             frequency=Frequency.Months(3, None),
             currency="usd",
         )
-        assert premium_period.accrued(dt(2022, 2, 1)) is None
+        assert premium_period.try_accrued(dt(2022, 2, 1)).is_err
 
     def test_accrued_out_of_range(self):
         premium_period = CreditPremiumPeriod(

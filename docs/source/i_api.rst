@@ -35,20 +35,20 @@ Notation
 Defaults
 =========
 
+These objects are used to set values for missing parameters globally.
+
 .. automodapi:: rateslib.default
    :no-heading:
    :no-inheritance-diagram:
-   :skip: Any
-   :skip: plot
-   :skip: plot3d
-   :skip: datetime
-   :skip: Enum
-   :skip: read_csv
-   :skip: Cal
-   :skip: NamedCal
-   :skip: Series
-   :skip: UnionCal
 
+Enums
+======
+
+Objects to define parameter settings across different objects throughout the libary.
+
+.. automodapi:: rateslib.enums
+   :no-heading:
+   :no-inheritance-diagram:
 
 Scheduling
 ===========
@@ -88,6 +88,19 @@ Class Inheritance Diagram
    :private-bases:
    :parts: 1
 
+
+Fixings
+========
+
+.. automodapi:: rateslib.data.loader
+   :no-heading:
+   :inherited-members:
+   :no-inheritance-diagram:
+
+.. automodapi:: rateslib.data.fixings
+   :no-heading:
+   :inherited-members:
+   :no-inheritance-diagram:
 
 FX
 ===

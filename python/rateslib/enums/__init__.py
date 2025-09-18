@@ -1,6 +1,8 @@
 from rateslib.enums.generics import Err, NoInput, Ok, Result
 from rateslib.enums.parameters import (
     FloatFixingMethod,
+    FXDeltaMethod,
+    FXOptionMetric,
     IndexMethod,
     SpreadCompoundMethod,
 )
@@ -13,4 +15,6 @@ __all__ = [
     "FloatFixingMethod",
     "IndexMethod",
     "SpreadCompoundMethod",
+    "FXDeltaMethod",
+    "FXOptionMetric",
 ]

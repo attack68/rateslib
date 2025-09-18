@@ -1,3 +1,4 @@
+from rateslib.periods.components.parameters.credit import _CreditParams
 from rateslib.periods.components.parameters.index import (
     _IndexParams,
     _init_or_none_IndexParams,
@@ -28,4 +29,5 @@ __all__ = [
     "_FloatRateParams",
     "_CashflowRateParams",
     "_NonDeliverableParams",
+    "_CreditParams",
 ]

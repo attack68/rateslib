@@ -35,7 +35,8 @@ Trivial derivatives examples
 ----------------------------
 
 *Rateslib* has two fundamental :ref:`Curve types<c-curves-doc>`. Both can be constructed
-independently by providing basic inputs.
+independently by providing basic inputs. Most of the time you will only need to use
+a :class:`~rateslib.curves.Curve`.
 
 .. tabs::
 
@@ -63,7 +64,8 @@ independently by providing basic inputs.
 
       A :class:`~rateslib.curves.LineCurve` is value based and is constructed
       by providing curve values on specific node dates. Interpolation between ``nodes`` is
-      configurable, with the default being *"linear"* interpolation (hence *LineCurve*).
+      configurable, with the default being *"linear"* interpolation (hence *LineCurve*). This type
+      has no DFs so can't be used for discounting.
 
       .. ipython:: python
 
@@ -406,6 +408,7 @@ Curve for EUR cashflows, collateralised in USD**, and similarly for other entrie
     :titlesonly:
 
     u_defaults.rst
+    u_fixings.rst
     g_fx.rst
 
 More about instruments

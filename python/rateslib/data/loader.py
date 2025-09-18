@@ -16,6 +16,10 @@ if TYPE_CHECKING:
 
 
 class _BaseFixingsLoader(metaclass=ABCMeta):
+    """
+    Abstract base class to allow custom implementations of a fixings data loader.
+    """
+
     @abstractmethod
     def __getitem__(self, name: str) -> tuple[int, Series[DualTypes], tuple[datetime, datetime]]:  # type: ignore[type-var]
         """
@@ -46,10 +50,59 @@ class _BaseFixingsLoader(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def add(self, name: str, series: Series[DualTypes]) -> None: ...  # type: ignore[type-var]
+    def add(self, name: str, series: Series[DualTypes]) -> None:  # type: ignore[type-var]
+        """
+        Add a timeseries to the data loader directly from Python.
+
+        Parameters
+        ----------
+        name: str
+            The string identifier for the timeseries.
+        series: Series[DualTypes]
+            The timeseries to add to static data.
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import fixings, dt
+           from pandas import Series
+
+        .. ipython:: python
+
+           ts = Series(index=[dt(2000, 1, 1)], data=[666.0])
+           fixings.add("my_timeseries", ts)
+           fixings["my_timeseries"]
+           fixings.pop("my_timeseries")
+
+        """
+        pass
 
     @abstractmethod
-    def pop(self, name: str) -> Series[DualTypes] | None: ...  # type: ignore[type-var]
+    def pop(self, name: str) -> Series[DualTypes] | None:  # type: ignore[type-var]
+        """
+        Remove a timeseries from the data loader.
+
+        Parameters
+        ----------
+        name: str
+            The string identifier for the timeseries.
+
+        Returns
+        -------
+        Series[DualTypes] or None
+
+        Notes
+        -----
+        If the ``name`` does not exist None will be returned.
+        """
+        pass
 
     def __try_getitem__(
         self, name: str
@@ -167,9 +220,29 @@ class _BaseFixingsLoader(metaclass=ABCMeta):
 
 
 class DefaultFixingsLoader(_BaseFixingsLoader):
+    """
+    The :class:`~rateslib.data.loader._BaseFixingsLoader` implemented by default.
+
+    This loader searches a particular local directory for CSV files.
+    """
+
     def __init__(self) -> None:
-        self.directory = os.path.dirname(os.path.abspath(__file__)) + "/historical"
-        self.loaded: dict[str, tuple[int, Series[DualTypes], tuple[datetime, datetime]]] = {}  # type: ignore[type-var]
+        self._directory = os.path.dirname(os.path.abspath(__file__)) + "/historical"
+        self._loaded: dict[str, tuple[int, Series[DualTypes], tuple[datetime, datetime]]] = {}  # type: ignore[type-var]
+
+    @property
+    def directory(self) -> str:
+        """The local directory in which data CSV files may be located."""
+        return self._directory
+
+    @directory.setter
+    def directory(self, val: str) -> None:
+        self._directory = val
+
+    @property
+    def loaded(self) -> dict[str, tuple[int, Series[DualTypes], tuple[datetime, datetime]]]:  # type: ignore[type-var]
+        """A dictionary of the (state id, timeseries, data range) keyed by identifiers."""
+        return self._loaded
 
     @staticmethod
     def _load_csv(directory: str, path: str) -> Series[DualTypes]:  # type: ignore[type-var]
@@ -237,10 +310,16 @@ class Fixings(_BaseFixingsLoader):
 
     .. attention::
 
-       This object is loaded once by *rateslib* and is associated with its global
-       :class:`~rateslib.default.Defaults` object under the attribute `fixings`.
+       This object is loaded **once** by *rateslib* and in its global module,
+       under the attribute `fixings`.
        Only this object is referenced internally and other instantiations of this class
        will be ignored.
+
+    Parameters
+    ----------
+    loader: _BaseFixingsLoader, optional
+        The object that performs data loading. If not given defaults to
+        :class:`~rateslib.data.loader.DefaultFixingsLoader`.
 
     Notes
     -----
@@ -289,10 +368,17 @@ class Fixings(_BaseFixingsLoader):
     """
 
     def __init__(self, loader: _BaseFixingsLoader | NoInput = NoInput(0)) -> None:
-        self.loader: _BaseFixingsLoader = _drb(DefaultFixingsLoader(), loader)
+        self._loader: _BaseFixingsLoader = _drb(DefaultFixingsLoader(), loader)
 
     def __getitem__(self, name: str) -> tuple[int, Series[DualTypes], tuple[datetime, datetime]]:  # type: ignore[type-var]
         return self.loader.__getitem__(name)
+
+    @property
+    def loader(self) -> _BaseFixingsLoader:
+        """
+        Object responsible for fetching data from external sources.
+        """
+        return self._loader
 
     def add(self, name: str, series: Series[DualTypes]) -> None:  # type: ignore[type-var]
         return self.loader.add(name, series)
@@ -363,3 +449,6 @@ def _find_neighbouring_tenors(
         ret[0].append(right[0])
         ret[1].append(right[1])
     return ret
+
+
+__all__ = ["_BaseFixingsLoader", "DefaultFixingsLoader", "Fixings"]
