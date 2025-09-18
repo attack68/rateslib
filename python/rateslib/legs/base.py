@@ -695,7 +695,7 @@ class _FloatLegMixin:
     @float_spread.setter
     def float_spread(self, value: DualTypes) -> None:
         self._float_spread = value
-        if value is NoInput(0):
+        if isinstance(value, NoInput):
             _ = 0.0
         else:
             _ = value

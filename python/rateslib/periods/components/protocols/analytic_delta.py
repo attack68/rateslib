@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol
 
 from rateslib.dual import dual_log, dual_norm_cdf, dual_norm_pdf
-from rateslib.enums.generics import NoInput, Ok
+from rateslib.enums.generics import Err, NoInput
 from rateslib.enums.parameters import FXDeltaMethod
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.fx_volatility.utils import (
@@ -37,7 +37,91 @@ if TYPE_CHECKING:
     )
 
 
-class _WithAnalyticDeltaStatic(_WithIndexingStatic, _WithNonDeliverableStatic, Protocol):
+class _WithAnalyticDelta(Protocol):
+    settlement_params: _SettlementParams
+
+    def try_analytic_delta(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        fx: FXRevised_ = NoInput(0),
+    ) -> Result[DualTypes]:
+        """
+        Calculate the analytic rate delta of a *Period* expressed in local settlement currency.
+
+        Parameters
+        ----------
+        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
+            Used to forecast floating period rates, if necessary.
+        index_curve: _BaseCurve, optional
+            Used to forecast index values for indexation, if necessary.
+        disc_curve: _BaseCurve, optional
+            Used to discount cashflows.
+        fx: FXForwards, optional
+            The :class:`~rateslib.fx.FXForward` object used for forecasting the
+            ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
+            class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
+
+        Returns
+        -------
+        Result[DualTypes]
+        """
+        pass
+
+    def analytic_delta(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        fx: FXRevised_ = NoInput(0),
+        base: str_ = NoInput(0),
+    ) -> DualTypes:
+        """
+        Calculate the analytic rate delta of a *Period* expressed in a base currency.
+
+        Parameters
+        ----------
+        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
+            Used to forecast floating period rates, if necessary.
+        index_curve: _BaseCurve, optional
+            Used to forecast index values for indexation, if necessary.
+        disc_curve: _BaseCurve, optional
+            Used to discount cashflows.
+        fx: FXForwards, optional
+            The :class:`~rateslib.fx.FXForward` object used for forecasting the
+            ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
+            class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
+        base: str, optional
+            The currency to return the result in. If not given is set to the *local settlement*
+            ``currency``.
+
+        Returns
+        -------
+        float, Dual, Dual2, Variable
+        """
+        lad = self.try_analytic_delta(
+            rate_curve=rate_curve,
+            index_curve=index_curve,
+            disc_curve=disc_curve,
+            fx=fx,
+        )
+        if isinstance(lad, Err):
+            lad.unwrap()
+
+        return _maybe_fx_converted(
+            value=lad.unwrap(),
+            currency=self.settlement_params.currency,
+            fx=fx,
+            base=base,
+        )
+
+
+class _WithAnalyticDeltaStatic(
+    _WithAnalyticDelta, _WithIndexingStatic, _WithNonDeliverableStatic, Protocol
+):
     def try_unindexed_reference_analytic_delta(
         self,
         *,
@@ -97,7 +181,6 @@ class _WithAnalyticDeltaStatic(_WithIndexingStatic, _WithNonDeliverableStatic, P
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXRevised_ = NoInput(0),
-        base: str_ = NoInput(0),
     ) -> Result[DualTypes]:
         """
         Calculate the analytic rate delta of a *Period* expressed in a base currency.
@@ -130,53 +213,7 @@ class _WithAnalyticDeltaStatic(_WithIndexingStatic, _WithNonDeliverableStatic, P
         lad = self._maybe_convert_deliverable(value=rad, fx=fx)  # type: ignore[arg-type]
         if lad.is_err:
             return lad
-        return Ok(
-            _maybe_fx_converted(
-                value=lad.unwrap(), currency=self.settlement_params.currency, fx=fx, base=base
-            )
-        )
-
-    def analytic_delta(
-        self,
-        *,
-        rate_curve: CurveOption_ = NoInput(0),
-        index_curve: _BaseCurve_ = NoInput(0),
-        disc_curve: _BaseCurve_ = NoInput(0),
-        fx: FXRevised_ = NoInput(0),
-        base: str_ = NoInput(0),
-    ) -> DualTypes:
-        """
-        Calculate the analytic rate delta of a *Period* expressed in a base currency.
-
-        Parameters
-        ----------
-        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
-            Used to forecast floating period rates, if necessary.
-        index_curve: _BaseCurve, optional
-            Used to forecast index values for indexation, if necessary.
-        disc_curve: _BaseCurve, optional
-            Used to discount cashflows.
-        fx: FXForwards, optional
-            The :class:`~rateslib.fx.FXForward` object used for forecasting the
-            ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
-            class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
-        base: str, optional
-            The currency to return the result in. If not given is set to the *local settlement*
-            ``currency``.
-        local: bool, optional
-            An override flag to return a dict of NPV values indexed by string currency.
-
-        Returns
-        -------
-        float, Dual, Dual2, Variable
-        """
-        return self.try_analytic_delta(
-            rate_curve=rate_curve,
-            index_curve=index_curve,
-            disc_curve=disc_curve,
-            fx=fx,
-            base=base,
-        ).unwrap()
+        return lad
 
 
 class _WithAnalyticFXOptionGreeks(Protocol):

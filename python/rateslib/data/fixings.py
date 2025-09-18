@@ -17,7 +17,13 @@ from rateslib.curves.utils import _CurveType
 from rateslib.data.loader import FixingMissingForecasterError, FixingRangeError
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.enums.generics import Err, NoInput, Ok, _drb
-from rateslib.enums.parameters import FloatFixingMethod, SpreadCompoundMethod
+from rateslib.enums.parameters import (
+    FloatFixingMethod,
+    SpreadCompoundMethod,
+    _get_float_fixing_method,
+    _get_index_method,
+    _get_spread_compound_method,
+)
 from rateslib.rs import Adjuster, NamedCal
 from rateslib.scheduling.adjuster import _get_adjuster
 from rateslib.scheduling.calendars import get_calendar
@@ -159,7 +165,7 @@ class IndexFixing(_BaseFixing):
     .. ipython:: python
        :suppress:
 
-       from rateslib.periods.components.parameters import IndexFixing
+       from rateslib.data.fixings import IndexFixing
        from rateslib.enums.parameters import IndexMethod
        from rateslib import fixings, dt
        from pandas import Series
@@ -184,7 +190,7 @@ class IndexFixing(_BaseFixing):
         self,
         *,
         index_lag: int,
-        index_method: IndexMethod,
+        index_method: IndexMethod | str,
         date: datetime,
         value: DualTypes_ = NoInput(0),
         identifier: str_ = NoInput(0),
@@ -192,7 +198,7 @@ class IndexFixing(_BaseFixing):
         super().__init__(date=date, value=value, identifier=identifier)
 
         self._index_lag = index_lag
-        self._index_method = index_method
+        self._index_method = _get_index_method(index_method)
 
     @property
     def index_method(self) -> IndexMethod:
@@ -261,7 +267,7 @@ class FXFixing(_BaseFixing):
     .. ipython:: python
        :suppress:
 
-       from rateslib.periods.components.parameters import FXFixing
+       from rateslib.data.fixings import FXFixing
        from rateslib import fixings, dt
        from pandas import Series
 
@@ -337,8 +343,8 @@ class IBORFixing(_BaseFixing):
     .. ipython:: python
        :suppress:
 
-       from rateslib.periods.components.parameters import IBORFixing
-       from rateslib.scheduling.float_rate_index import FloatRateIndex
+       from rateslib.data.fixings import IBORFixing
+       from rateslib.data.fixings import FloatRateIndex
        from rateslib import fixings, dt
        from pandas import Series
 
@@ -474,8 +480,8 @@ class IBORStubFixing(_BaseFixing):
     .. ipython:: python
        :suppress:
 
-       from rateslib.periods.components.parameters import IBORStubFixing
-       from rateslib.scheduling.float_rate_index import FloatRateSeries
+       from rateslib.data.fixings import IBORStubFixing
+       from rateslib.data.fixings import FloatRateSeries
        from rateslib import fixings, dt
        from pandas import Series
 
@@ -564,7 +570,7 @@ class IBORStubFixing(_BaseFixing):
     def __init__(
         self,
         *,
-        rate_series: FloatRateSeries,
+        rate_series: FloatRateSeries | str,
         accrual_start: datetime,
         accrual_end: datetime,
         value: DualTypes_ = NoInput(0),
@@ -574,7 +580,7 @@ class IBORStubFixing(_BaseFixing):
         super().__init__(value=value, date=date, identifier=identifier)  # type: ignore[arg-type]
         self._accrual_start = accrual_start
         self._accrual_end = accrual_end
-        self._series = rate_series
+        self._series = _get_float_rate_series(rate_series)
         self._date = _drb(
             self.series.calendar.lag_bus_days(self.accrual_start, -self.series.lag, False),
             date,
@@ -769,11 +775,11 @@ class RFRFixing(_BaseFixing):
     identifier: str, optional
         The string name of the timeseries to be loaded by the *Fixings* object. For alignment with
         internal structuring these should have the suffix "_1B", e.g. "ESTR_1B".
-    fixing_method: FloatFixingMethod
+    fixing_method: FloatFixingMethod or str
         The :class:`FloatFixingMethod` object used to combine multiple RFR fixings.
     method_param: int
         A parameter required by the ``fixing_method``.
-    spread_compound_method: SpreadCompoundMethod
+    spread_compound_method: SpreadCompoundMethod or str
         A :class:`SpreadCompoundMethod` object used define the calculation of the addition of the
         ``float_spread``.
     float_spread: float, DUal, Dual2, Variable
@@ -785,8 +791,8 @@ class RFRFixing(_BaseFixing):
        :suppress:
 
        from rateslib.enums.parameters import SpreadCompoundMethod, FloatFixingMethod
-       from rateslib.periods.components.parameters import RFRFixing
-       from rateslib.scheduling.float_rate_index import FloatRateIndex
+       from rateslib.data.fixings import RFRFixing
+       from rateslib.data.fixings import FloatRateIndex
        from rateslib import fixings, dt
        from pandas import Series
 
@@ -820,8 +826,8 @@ class RFRFixing(_BaseFixing):
            accrual_start=dt(2025, 1, 9),
            accrual_end=dt(2025, 1, 21),
            identifier="SOFR_1B",
-           spread_compound_method=SpreadCompoundMethod.NoneSimple,
-           fixing_method=FloatFixingMethod.RFRPaymentDelay,
+           spread_compound_method="NoneSimple",
+           fixing_method="RFRPaymentDelay",
            method_param=0,
            float_spread=0.0,
            rate_index=FloatRateIndex(frequency="1B", series="usd_rfr")
@@ -853,9 +859,9 @@ class RFRFixing(_BaseFixing):
         rate_index: FloatRateIndex,
         accrual_start: datetime,
         accrual_end: datetime,
-        fixing_method: FloatFixingMethod,
+        fixing_method: FloatFixingMethod | str,
         method_param: int,
-        spread_compound_method: SpreadCompoundMethod,
+        spread_compound_method: SpreadCompoundMethod | str,
         float_spread: DualTypes,
         value: DualTypes_ = NoInput(0),
         identifier: str_ = NoInput(0),
@@ -865,12 +871,12 @@ class RFRFixing(_BaseFixing):
         self._state = 0
 
         self._float_spread = float_spread
-        self._spread_compound_method = spread_compound_method
+        self._spread_compound_method = _get_spread_compound_method(spread_compound_method)
         self._rate_index = rate_index
         self._value = value
         self._accrual_start = accrual_start
         self._accrual_end = accrual_end
-        self._fixing_method = fixing_method
+        self._fixing_method = _get_float_fixing_method(fixing_method)
         self._method_param = method_param
         self._populated = Series(index=[], data=[], dtype=float)
 
@@ -966,6 +972,8 @@ class RFRFixing(_BaseFixing):
             _RFRRate._push_rate_fixings_as_series_to_fixing_rates(
                 fixing_rates=fixing_rates,
                 rate_fixings=timeseries,
+                fixing_method=fixing_method,
+                method_param=method_param,
             )
         )
         if len(unpopulated) > 0:
@@ -1645,6 +1653,8 @@ class _RFRRate:
                 bounds_dcf=bounds_dcf,
                 is_matching=is_matching,
                 rate_fixings=rate_fixings,
+                fixing_method=fixing_method,
+                method_param=method_param,
             )
         )
 
@@ -1781,6 +1791,7 @@ class _RFRRate:
         Perform a full calculation forecasting every individual fixing rate and then compounding
         or averaging each of them up in turn, combining a float spread if necessary.
         """
+        # overwrite with lockout rates: this is needed if rates have been forecast from curve.
         if fixing_method in [FloatFixingMethod.RFRLockout, FloatFixingMethod.RFRLockoutAverage]:
             # overwrite fixings
             if method_param >= len(fixing_rates):
@@ -1817,6 +1828,8 @@ class _RFRRate:
         bounds_dcf: tuple[datetime, datetime],
         is_matching: bool,
         rate_fixings: Series[DualTypes] | str_,  # type: ignore[type-var]
+        fixing_method: FloatFixingMethod,
+        method_param: int,
     ) -> tuple[  # type: ignore[type-var]
         Arr1dObj,
         Arr1dObj,
@@ -1862,6 +1875,8 @@ class _RFRRate:
                 _RFRRate._push_rate_fixings_as_series_to_fixing_rates(
                     fixing_rates=fixing_rates,
                     rate_fixings=rate_fixings,
+                    fixing_method=fixing_method,
+                    method_param=method_param,
                 )
             )
         else:
@@ -1878,7 +1893,7 @@ class _RFRRate:
         dates_obs: Arr1dObj,
         dcfs_obs: Arr1dF64,
     ) -> Result[None]:
-        # determine upopulated fixings from the curve
+        # determine unpopulated fixings from the curve
         if len(unpopulated) > 0 and isinstance(rate_curve, NoInput):
             return Err(FixingMissingForecasterError())  # missing data - needs a rate_curve
 
@@ -1903,12 +1918,15 @@ class _RFRRate:
                 data=r,
             )
         fixing_rates.update(unpopulated)
+
         return Ok(None)
 
     @staticmethod
     def _push_rate_fixings_as_series_to_fixing_rates(
         fixing_rates: Series[DualTypes],  # type: ignore[type-var]
         rate_fixings: str | Series[DualTypes],  # type: ignore[type-var]
+        fixing_method: FloatFixingMethod,
+        method_param: int,
     ) -> tuple[Series[DualTypes], Series[DualTypes], Series[DualTypes]]:  # type: ignore[type-var]
         """
         Populates an empty fixings_rates Series with values from a looked up fixings collection.
@@ -1922,6 +1940,14 @@ class _RFRRate:
             return fixing_rates, Series(index=[], data=np.nan), fixing_rates.copy()  # type: ignore[return-value]
         else:
             fixing_rates.update(fixing_series)
+
+        # push lockout rates if they are available
+        if fixing_method in [FloatFixingMethod.RFRLockout, FloatFixingMethod.RFRLockoutAverage]:
+            if method_param >= len(fixing_rates):
+                raise ValueError(err.VE_LOCKOUT_METHOD_PARAM.format(method_param, fixing_rates))
+            if not isna(fixing_rates.iloc[-(1 + method_param)]):  # type: ignore[arg-type]
+                for i in range(method_param):
+                    fixing_rates.iloc[-(1 + i)] = fixing_rates.iloc[-(1 + method_param)]
 
         # validate for missing and expected fixings in the fixing Series
         nans = isna(fixing_rates)
@@ -2341,3 +2367,15 @@ def _maybe_get_rate_series_from_curve(
             # dual parameters may be specified
             # get params from rate_index
             return rate_series
+
+
+__all__ = [
+    "_BaseFixing",
+    "IndexFixing",
+    "RFRFixing",
+    "IBORFixing",
+    "IBORStubFixing",
+    "FXFixing",
+    "FloatRateSeries",
+    "FloatRateIndex",
+]

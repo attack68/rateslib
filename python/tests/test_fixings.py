@@ -1,7 +1,10 @@
+import os
+
 import pytest
 from pandas import Series
 from rateslib import dt, fixings
 from rateslib.curves import Curve
+from rateslib.data.fixings import FloatRateIndex, FloatRateSeries, RFRFixing
 from rateslib.instruments import IRS
 from rateslib.scheduling import Adjuster, get_calendar
 
@@ -137,3 +140,25 @@ def test_state_id():
     fixings.pop("usd_IBOR_3w")
     fixings.add("usd_IBOR_3w", s)
     assert before != fixings["usd_IBOR_3w"][0]
+
+
+class TestRFRFixing:
+    def test_rfr_lockout(self) -> None:
+        name = str(hash(os.urandom(8))) + "_1B"
+        estr_1b = Series(
+            index=[dt(2025, 9, 12), dt(2025, 9, 15), dt(2025, 9, 16)], data=[1.91, 1.92, 1.93]
+        )
+        fixings.add(name, estr_1b)
+        rfr_fixing = RFRFixing(
+            accrual_start=dt(2025, 9, 12),
+            accrual_end=dt(2025, 9, 19),
+            identifier=name,
+            spread_compound_method="NoneSimple",
+            fixing_method="RFRLockout",
+            method_param=2,
+            float_spread=100.0,
+            rate_index=FloatRateIndex(frequency="1B", series="eur_rfr"),
+        )
+        result = rfr_fixing.value
+        assert abs(result - 2.9202637862854033) < 1e-10
+        assert len(rfr_fixing.populated) == 5
