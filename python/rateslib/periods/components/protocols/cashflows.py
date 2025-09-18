@@ -10,6 +10,7 @@ from rateslib.dual.utils import _dual_float, _float_or_none
 from rateslib.enums.generics import Err, NoInput
 from rateslib.periods.components.parameters import (
     _CashflowRateParams,
+    _CreditParams,
     _FixedRateParams,
     _FloatRateParams,
     _IndexParams,
@@ -21,6 +22,7 @@ from rateslib.periods.components.parameters.fx_volatility import _FXOptionParams
 from rateslib.periods.components.protocols.npv import _WithNPV, _WithNPVStatic
 from rateslib.periods.components.utils import (
     _get_immediate_fx_scalar_and_base,
+    _validate_credit_curve,
 )
 
 if TYPE_CHECKING:
@@ -44,6 +46,7 @@ class _WithNPVCashflows(_WithNPV, Protocol):
     index_params: None
     period_params: _PeriodParams | None
     fx_option_params: _FXOptionParams | None
+    credit_params: _CreditParams | None
 
     def try_cashflow(
         self,
@@ -151,7 +154,7 @@ class _WithNPVCashflows(_WithNPV, Protocol):
 
         # Since `cashflows` in not a performance critical function this call duplicates
         # cashflow calculations. A more efficient calculation is possible but the code branching
-        # in ugly.
+        # is ugly.
         local_npv_result = self.try_local_npv(
             rate_curve=rate_curve,
             index_curve=index_curve,
@@ -193,11 +196,31 @@ class _WithNPVCashflows(_WithNPV, Protocol):
         else:
             rate_elements = {}
 
+        credit_elements: dict[str, Any] = {}
+        if self.credit_params is not None and self.period_params is not None:
+            rc_res = _validate_credit_curve(rate_curve)
+            if not isinstance(rc_res, Err):
+                credit_elements.update(
+                    {
+                        defaults.headers["survival"]: _dual_float(
+                            rc_res.unwrap()[self.period_params.end]
+                        ),
+                        defaults.headers["recovery"]: _dual_float(
+                            rc_res.unwrap().meta.credit_recovery_rate
+                        ),
+                    }
+                )
+            else:
+                credit_elements.update(
+                    {defaults.headers["survival"]: None, defaults.headers["recovery"]: None}
+                )
+
         return {
             **standard_elements,
             **period_elements,
             **rate_elements,
             **cashflow_elements,
+            **credit_elements,
         }
 
 

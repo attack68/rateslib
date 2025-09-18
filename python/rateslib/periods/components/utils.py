@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import rateslib.errors as err
 from rateslib.curves._parsers import _validate_obj_not_no_input
+from rateslib.curves.curves import _BaseCurve
 from rateslib.enums.generics import Err, NoInput, Ok, Result
 from rateslib.enums.parameters import FXDeltaMethod
 from rateslib.fx import FXForwards, FXRates
@@ -14,6 +15,7 @@ if TYPE_CHECKING:
     from rateslib.typing import (
         FX_,
         Any,
+        CurveOption_,
         DualTypes,
         FXVolOption_,
         _BaseCurve,
@@ -184,3 +186,35 @@ def _try_validate_fx_as_forwards(fx: FX_) -> Result[FXForwards]:
         raise ValueError(err.VE_NEEDS_FX_FORWARDS_BAD_TYPE.format(type(fx).__name__))
     else:
         return Ok(fx)
+
+
+def _validate_credit_curve(curve: CurveOption_) -> Result[_BaseCurve]:
+    if not isinstance(curve, _BaseCurve):
+        return Err(
+            TypeError(
+                "`curves` have not been supplied correctly.\n"
+                f"A _BaseCurve type object is required. Got: {type(curve).__name__}"
+            )
+        )
+    return Ok(curve)
+
+
+def _validate_credit_curves(
+    rate_curve: CurveOption_, disc_curve: CurveOption_
+) -> Result[tuple[_BaseCurve, _BaseCurve]]:
+    # used by Credit type Periods to narrow inputs
+    if not isinstance(rate_curve, _BaseCurve):
+        return Err(
+            TypeError(
+                "`curves` have not been supplied correctly.\n"
+                "`curve`for a CreditPremiumPeriod must be supplied as a Curve type."
+            )
+        )
+    if not isinstance(disc_curve, _BaseCurve):
+        return Err(
+            TypeError(
+                "`curves` have not been supplied correctly.\n"
+                "`disc_curve` for a CreditPremiumPeriod must be supplied as a Curve type."
+            )
+        )
+    return Ok((rate_curve, disc_curve))

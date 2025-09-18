@@ -21,12 +21,12 @@ from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXSabrSmile, FXSabrSurface
 from rateslib.fx_volatility.utils import _d_plus_min_u
 from rateslib.periods import (
-    CreditProtectionPeriod,
     IndexMixin,
 )
 from rateslib.periods.components import (
     Cashflow,
     CreditPremiumPeriod,
+    CreditProtectionPeriod,
     FixedPeriod,
     FloatPeriod,
     FXCallPeriod,
@@ -2662,7 +2662,8 @@ class TestCreditPremiumPeriod:
             defaults.headers["dcf"]: premium_period.period_params.dcf,
             defaults.headers["df"]: 0.9897791268897856,
             defaults.headers["rate"]: 4.0,
-            # defaults.headers["survival"]: 0.999,
+            defaults.headers["survival"]: 0.999,
+            defaults.headers["recovery"]: 0.40,
             defaults.headers["spread"]: None,
             defaults.headers["npv"]: -9892843.47762896,
             defaults.headers["cashflow"]: cashflow,
@@ -2703,7 +2704,8 @@ class TestCreditPremiumPeriod:
             defaults.headers["dcf"]: premium_period.period_params.dcf,
             defaults.headers["df"]: None,
             defaults.headers["rate"]: 4.0,
-            # defaults.headers["survival"]: None,
+            defaults.headers["survival"]: None,
+            defaults.headers["recovery"]: None,
             defaults.headers["spread"]: None,
             defaults.headers["npv"]: None,
             defaults.headers["cashflow"]: cashflow,
@@ -2815,15 +2817,18 @@ class TestCreditProtectionPeriod:
             currency="usd",
         )
         period.discretization = 1
-        result = period.npv(hazard_curve, curve)  # discounted properly this is -596962.1422873045
+        result = period.npv(
+            rate_curve=hazard_curve,
+            disc_curve=curve,
+        )  # discounted properly this is -596962.1422873045
         assert abs(result - -596962.1422873045) < 34
 
         period.discretization = 23
-        result = period.npv(hazard_curve, curve)
+        result = period.npv(rate_curve=hazard_curve, disc_curve=curve)
         exp = -596995.7591843301
         assert abs(result - exp) < 1e-7
 
-        result = period.npv(hazard_curve, curve, fxr, "nok")
+        result = period.npv(rate_curve=hazard_curve, disc_curve=curve, fx=fxr, base="nok")
         assert abs(result - exp * 10.0) < 1e-6
 
     def test_period_npv_raises(self, curve, hazard_curve) -> None:
@@ -2841,12 +2846,12 @@ class TestCreditProtectionPeriod:
             TypeError,
             match=re.escape("`curves` have not been supplied correctly."),
         ):
-            period.npv(hazard_curve)
+            period.npv(rate_curve=hazard_curve)
         with pytest.raises(
             TypeError,
             match=re.escape("`curves` have not been supplied correctly."),
         ):
-            period.npv(NoInput(0), curve)
+            period.npv(rate_curve=NoInput(0), disc_curve=curve)
 
     def test_period_analytic_delta(self, hazard_curve, curve, fxr) -> None:
         period = CreditProtectionPeriod(
@@ -2859,10 +2864,12 @@ class TestCreditProtectionPeriod:
             frequency=Frequency.Months(3, None),
             currency="usd",
         )
-        result = period.analytic_delta(hazard_curve, curve)
+        result = period.analytic_delta(rate_curve=hazard_curve, disc_curve=curve)
         assert abs(result - 0.0) < 1e-7
 
-        result = period.analytic_delta(hazard_curve, curve, fxr, "nok")
+        result = period.analytic_delta(
+            rate_curve=hazard_curve, disc_curve=curve, fx=fxr, base="nok"
+        )
         assert abs(result - 0.0 * 10.0) < 1e-7
 
     def test_period_analytic_delta_fxr_base(self, hazard_curve, curve, fxr) -> None:
@@ -2877,7 +2884,7 @@ class TestCreditProtectionPeriod:
             currency="usd",
         )
         fxr = FXRates({"usdnok": 10.0}, base="NOK")
-        result = period.analytic_delta(hazard_curve, curve, fxr)
+        result = period.analytic_delta(rate_curve=hazard_curve, disc_curve=curve, fx=fxr)
         assert abs(result - 0.0) < 1e-7
 
     def test_period_cashflows(self, hazard_curve, curve, fxr) -> None:
@@ -2893,7 +2900,7 @@ class TestCreditProtectionPeriod:
             currency="usd",
         )
 
-        cashflow = -period.notional * (1 - hazard_curve.meta.credit_recovery_rate)
+        cashflow = -period.settlement_params.notional * (1 - hazard_curve.meta.credit_recovery_rate)
         expected = {
             defaults.headers["type"]: "CreditProtectionPeriod",
             defaults.headers["stub_type"]: "Regular",
@@ -2903,7 +2910,7 @@ class TestCreditProtectionPeriod:
             defaults.headers["notional"]: 1e9,
             defaults.headers["currency"]: "USD",
             defaults.headers["convention"]: "Act360",
-            defaults.headers["dcf"]: period.dcf,
+            defaults.headers["dcf"]: period.period_params.dcf,
             defaults.headers["df"]: 0.9897791268897856,
             defaults.headers["recovery"]: 0.4,
             defaults.headers["survival"]: 0.999,
@@ -2913,7 +2920,7 @@ class TestCreditProtectionPeriod:
             defaults.headers["npv_fx"]: -596995.7591843301 * 10.0,
             defaults.headers["collateral"]: None,
         }
-        result = period.cashflows(hazard_curve, curve, fx=fxr, base="nok")
+        result = period.cashflows(rate_curve=hazard_curve, disc_curve=curve, fx=fxr, base="nok")
 
         for key in expected:
             assert key in result
@@ -2935,13 +2942,14 @@ class TestCreditProtectionPeriod:
         expected = {
             defaults.headers["type"]: "CreditProtectionPeriod",
             defaults.headers["stub_type"]: "Regular",
+            defaults.headers["base"]: "NOK",
             defaults.headers["a_acc_start"]: dt(2022, 1, 1),
             defaults.headers["a_acc_end"]: dt(2022, 4, 1),
             defaults.headers["payment"]: dt(2022, 4, 3),
             defaults.headers["notional"]: 1e9,
             defaults.headers["currency"]: "USD",
             defaults.headers["convention"]: "Act360",
-            defaults.headers["dcf"]: period.dcf,
+            defaults.headers["dcf"]: period.period_params.dcf,
             defaults.headers["df"]: None,
             defaults.headers["recovery"]: None,
             defaults.headers["survival"]: None,
@@ -2966,8 +2974,8 @@ class TestCreditProtectionPeriod:
         h2 = hazard_curve.copy()
         h1._meta = replace(h1.meta, _credit_discretization=1)
         h2._meta = replace(h2.meta, _credit_discretization=31)
-        r1 = p1.npv(h1, curve)
-        r2 = p1.npv(h2, curve)
+        r1 = p1.npv(rate_curve=h1, disc_curve=curve)
+        r2 = p1.npv(rate_curve=h2, disc_curve=curve)
         assert 0.1 < abs(r1 - r2) < 1.0  # very similar result but not identical
 
     def test_mid_period(self, hazard_curve, curve):
@@ -2978,7 +2986,7 @@ class TestCreditProtectionPeriod:
             notional=1e9,
             frequency=Frequency.Months(3, None),
         )
-        r1 = period.npv(hazard_curve, curve)
+        r1 = period.npv(rate_curve=hazard_curve, disc_curve=curve)
         exp = -20006.321837529074
         assert abs(r1 - exp) < 1e-7
 
@@ -2992,9 +3000,9 @@ class TestCreditProtectionPeriod:
         )
 
         result = period.analytic_rec_risk(hazard_curve, curve)
-        p1 = period.npv(hazard_curve, curve)
+        p1 = period.npv(rate_curve=hazard_curve, disc_curve=curve)
         hazard_curve.update_meta("credit_recovery_rate", 0.41)
-        p2 = period.npv(hazard_curve, curve)
+        p2 = period.npv(rate_curve=hazard_curve, disc_curve=curve)
         expected = p2 - p1
         assert abs(result - expected) < 1e-9
 
