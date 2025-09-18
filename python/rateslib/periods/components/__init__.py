@@ -4,7 +4,7 @@ from rateslib.periods.components.cashflow import (
     NonDeliverableCashflow,
     NonDeliverableIndexCashflow,
 )
-from rateslib.periods.components.credit import CreditPremiumPeriod
+from rateslib.periods.components.credit import CreditPremiumPeriod, CreditProtectionPeriod
 from rateslib.periods.components.fixed_period import (
     FixedPeriod,
     IndexFixedPeriod,
@@ -38,4 +38,5 @@ __all__ = [
     "FXCallPeriod",
     "FXPutPeriod",
     "CreditPremiumPeriod",
+    "CreditProtectionPeriod",
 ]
