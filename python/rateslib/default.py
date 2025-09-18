@@ -360,3 +360,6 @@ def plot3d(
 def _make_py_json(json: str, class_name: str) -> str:
     """Modifies the output JSON output for Rust structs wrapped by Python classes."""
     return '{"PyWrapped":' + json + "}"
+
+
+__all__ = ["Defaults"]

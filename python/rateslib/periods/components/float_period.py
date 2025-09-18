@@ -303,6 +303,8 @@ class _FixingsExposureCalculator:
                     bounds_dcf=bounds_dcf,  # type: ignore[arg-type]  # prechecked
                     is_matching=False,
                     rate_fixings=p.rate_params.rate_fixing.identifier,
+                    fixing_method=p.rate_params.fixing_method,
+                    method_param=p.rate_params.method_param,
                 )
             )
 

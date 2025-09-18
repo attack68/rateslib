@@ -418,7 +418,7 @@ class TestRFRRate:
             Series(index=[dt(1999, 1, 1), dt(2000, 1, 1), dt(2000, 1, 2)], data=[1.0, 2.0, 3.0]),
         )
         result, _, _ = _RFRRate._push_rate_fixings_as_series_to_fixing_rates(
-            fixing_rates, "USD_SOFR_1B"
+            fixing_rates, "USD_SOFR_1B", FloatFixingMethod.RFRPaymentDelay, 0
         )
         assert_series_equal(
             result,
@@ -445,7 +445,7 @@ class TestRFRRate:
             ),
         )
         result, _, _ = _RFRRate._push_rate_fixings_as_series_to_fixing_rates(
-            fixing_rates, "USD_SOFR_1B"
+            fixing_rates, "USD_SOFR_1B", FloatFixingMethod.RFRPaymentDelay, 0
         )
         assert_series_equal(
             result,
@@ -464,7 +464,7 @@ class TestRFRRate:
             Series(index=[dt(1999, 1, 1)], data=[1.0]),
         )
         result, _, _ = _RFRRate._push_rate_fixings_as_series_to_fixing_rates(
-            fixing_rates, "USD_SOFR_1B"
+            fixing_rates, "USD_SOFR_1B", FloatFixingMethod.RFRPaymentDelay, 0
         )
         assert_series_equal(
             result,
@@ -478,7 +478,9 @@ class TestRFRRate:
         )
         fixings.add("USD_SOFR_1B", Series(index=[dt(1999, 1, 1), dt(2000, 1, 2)], data=[1.0, 3.0]))
         with pytest.raises(ValueError, match="The fixings series 'USD_SOFR_1B' for the RFR 1B rat"):
-            _RFRRate._push_rate_fixings_as_series_to_fixing_rates(fixing_rates, "USD_SOFR_1B")
+            _RFRRate._push_rate_fixings_as_series_to_fixing_rates(
+                fixing_rates, "USD_SOFR_1B", FloatFixingMethod.RFRPaymentDelay, 0
+            )
         fixings.pop("USD_SOFR_1B")
 
     @pytest.mark.skip(reason="Not expecting the most recent fixing is an allowed oversight.")
@@ -511,7 +513,9 @@ class TestRFRRate:
             ),
         )
         with pytest.warns(UserWarning, match="The fixings series 'USD_SOFR_1B' for the RFR 1B rat"):
-            _RFRRate._push_rate_fixings_as_series_to_fixing_rates(fixing_rates, "USD_SOFR_1B")
+            _RFRRate._push_rate_fixings_as_series_to_fixing_rates(
+                fixing_rates, "USD_SOFR_1B", FloatFixingMethod.RFRPaymentDelay, 0
+            )
         fixings.pop("USD_SOFR_1B")
 
     @pytest.mark.parametrize(

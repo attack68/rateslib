@@ -11,10 +11,10 @@ from rateslib.periods.components.parameters import (
     _init_or_none_IndexParams,
     _init_or_none_NonDeliverableParams,
     _init_SettlementParams_with_nd_pair,
+    _NonDeliverableParams,
     _PeriodParams,
     _SettlementParams,
 )
-from rateslib.periods.components.parameters.settlement import _NonDeliverableParams
 from rateslib.periods.components.protocols import (
     _WithAnalyticDeltaStatic,
     _WithNPVCashflowsStatic,
