@@ -22,7 +22,7 @@ from rateslib.scheduling.adjuster import _get_adjuster
 from rateslib.scheduling.convention import _get_convention
 from rateslib.scheduling.frequency import _get_frequency
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from rateslib.typing import (
         FX_,
         Adjuster,
@@ -208,7 +208,12 @@ class CreditPremiumPeriod(_WithNPVCashflows, _WithAnalyticDelta):
         if isinstance(cf_res, Err):
             return cf_res
 
-        return Ok(cf_res.unwrap() * self._probability_adjusted_df(rate_curve_, disc_curve_))
+        pv0 = cf_res.unwrap() * self._probability_adjusted_df(rate_curve_, disc_curve_)
+        return Ok(
+            self._screen_ex_div_and_forward(
+                local_npv=pv0, disc_curve=disc_curve_, settlement=settlement, forward=forward
+            )
+        )
 
     def try_analytic_delta(
         self,
@@ -516,11 +521,16 @@ class CreditProtectionPeriod(_WithNPVCashflows, _WithAnalyticDelta):
             value += 0.5 * (v1 + v2) * (q1 - q2)
             # value += v2 * (q1 - q2)
 
-        cf_res = self.try_cashflow(rate_curve=rate_curve)
-        if isinstance(cf_res, Err):
-            return cf_res
-        else:
-            return Ok(value * cf_res.unwrap())
+        # curves are pre-validated so will not error
+        cf = self.try_cashflow(rate_curve=rate_curve).unwrap()
+        return Ok(
+            self._screen_ex_div_and_forward(
+                local_npv=value * cf,
+                disc_curve=disc_curve_,
+                forward=forward,
+                settlement=settlement,
+            )
+        )
 
     def try_analytic_delta(
         self,
@@ -584,7 +594,11 @@ class CreditProtectionPeriod(_WithNPVCashflows, _WithAnalyticDelta):
             ),
         )
         pv: DualTypes = self.npv(  # type: ignore[assignment]
-            rate_curve=haz_curve, disc_curve=disc_curve_, fx=fx, base=base, local=False  # type: ignore[arg-type]
+            rate_curve=haz_curve,
+            disc_curve=disc_curve_,
+            fx=fx,  # type: ignore[arg-type]
+            base=base,
+            local=False,
         )
         _: float = _dual_float(gradient(pv, ["__rec_rate__"], order=1)[0])
         return _ * 0.01

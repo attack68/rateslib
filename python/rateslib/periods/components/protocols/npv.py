@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-from datetime import datetime
 from typing import TYPE_CHECKING, Protocol
 
 from rateslib.curves import _BaseCurve
 from rateslib.curves._parsers import (
-    _disc_maybe_from_curve,
     _try_disc_required_maybe_from_curve,
 )
-from rateslib.enums.generics import NoInput, Ok
+from rateslib.enums.generics import Err, NoInput, Ok
 from rateslib.periods.components.parameters import (
     _IndexParams,
     _SettlementParams,
@@ -95,6 +93,45 @@ class _WithNPV(Protocol):
         for forward, :math:`m_f`, settlement, :math:`m_s`, and ex-dividend, :math:`m_{ex}`.
         """  # noqa: E501
         pass
+
+    def _screen_ex_div_and_forward(
+        self,
+        local_npv: DualTypes,
+        disc_curve: _BaseCurve,
+        settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
+    ) -> DualTypes:
+        """
+        Remap an immediate, local currency NPV to account for a forward valuation and settlement.
+
+        Parameters
+        ----------
+        local_npv: float, Dual, Dual2, Variable
+            The local currency PV measured with immediate effect.
+        settlement: datetime
+            The settlement date to compare against an ex-dividend date to imply a cashflow.
+        forward: datetime
+            The projected forward valuation of the PV obtained via the discount curve
+
+        Returns
+        -------
+        Float, Dual, Dual2, Variable
+        """
+        # determine forward_ and settlement_ if not given
+        if isinstance(settlement, NoInput):
+            if isinstance(forward, NoInput):
+                return local_npv
+            else:
+                # ex-div is assumed to always after a blank settlement
+                return local_npv / disc_curve[forward]
+        else:
+            if settlement > self.settlement_params.ex_dividend:
+                return 0.0
+            if isinstance(forward, NoInput):
+                # forward is assumed to be equal to settlement
+                return local_npv / disc_curve[settlement]
+            else:
+                return local_npv / disc_curve[forward]
 
     def npv(
         self,
@@ -383,51 +420,29 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> Result[DualTypes]:
-        disc_curve = _disc_maybe_from_curve(rate_curve, disc_curve)
+        dc_res = _try_disc_required_maybe_from_curve(curve=rate_curve, disc_curve=disc_curve)
+        if isinstance(dc_res, Err):
+            return dc_res
+        disc_curve_: _BaseCurve = dc_res.unwrap()
 
-        # settlement ex-div indicator function
-        if isinstance(settlement, NoInput):
-            if not isinstance(disc_curve, NoInput):
-                settlement_: datetime = disc_curve.nodes.initial
-            else:
-                # settlement is assumed to always be prior to ex-dividend
-                settlement_ = datetime(1, 1, 1)
-        else:
-            settlement_ = settlement
-        if settlement_ > self.settlement_params.ex_dividend:
+        if self.settlement_params.payment < disc_curve_.nodes.initial:
+            # payment date is in the past
             return Ok(0.0)
-
-        # payment in the past indicator function
-        if (
-            not isinstance(disc_curve, NoInput)
-            and self.settlement_params.payment < disc_curve.nodes.initial
-        ):
-            return Ok(0.0)  # payment date is in the past
 
         c = self.try_cashflow(
             rate_curve=rate_curve,
             index_curve=index_curve,
-            disc_curve=disc_curve,
+            disc_curve=disc_curve_,
             fx_vol=fx_vol,
             fx=fx,
         )
         if c.is_err:
             return c
-        c_: DualTypes = c.unwrap()
 
-        disc_curve_result = _try_disc_required_maybe_from_curve(
-            curve=rate_curve, disc_curve=disc_curve
+        # this will also handle cashflows before the curve as DF is zero.
+        pv0 = c.unwrap() * disc_curve_[self.settlement_params.payment]
+        return Ok(
+            self._screen_ex_div_and_forward(
+                local_npv=pv0, disc_curve=disc_curve_, settlement=settlement, forward=forward
+            )
         )
-        if disc_curve_result.is_err:
-            return disc_curve_result  # type: ignore[return-value]
-        disc_curve_: _BaseCurve = disc_curve_result.unwrap()
-
-        vc = c_ * disc_curve_[self.settlement_params.payment]
-
-        if isinstance(forward, NoInput) and isinstance(settlement, NoInput):
-            return Ok(vc)  # forward is assumed to be immediate date
-        elif isinstance(forward, NoInput):
-            forward_ = settlement_
-        else:
-            forward_ = forward
-        return Ok(vc / disc_curve_[forward_])
