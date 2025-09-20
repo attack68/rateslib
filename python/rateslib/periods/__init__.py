@@ -5,6 +5,8 @@ from rateslib.periods.fx_volatility import FXCallPeriod, FXOptionPeriod, FXPutPe
 from rateslib.periods.index import IndexCashflow, IndexFixedPeriod, IndexMixin
 from rateslib.periods.rates import FixedPeriod, FloatPeriod, NonDeliverableFixedPeriod
 
+# from rateslib.periods.components import FixedPeriod
+
 __all__ = [
     "BasePeriod",
     "FXOptionPeriod",

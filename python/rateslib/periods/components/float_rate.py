@@ -17,7 +17,7 @@ from rateslib.periods.utils import _get_rfr_curve_from_dict
 from rateslib.scheduling.frequency import _get_frequency
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.typing import (  # pragma: no cover
         CurveOption_,
         DualTypes,
         DualTypes_,

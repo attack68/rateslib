@@ -118,7 +118,7 @@ def _get_immediate_fx_scalar_and_base(
 
 
 def _get_vol_maybe_from_obj(
-    vol: FXVolOption_,
+    fx_vol: FXVolOption_,
     fx: FXForwards,
     disc_curve: _BaseCurve,
     strike: DualTypes,
@@ -133,10 +133,10 @@ def _get_vol_maybe_from_obj(
     # FXOption can have a `strike` that is NoInput, however this internal function should
     # only be performed after a `strike` has been set to number, temporarily or otherwise.
 
-    if isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile | FXSabrSurface):
+    if isinstance(fx_vol, FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile | FXSabrSurface):
         spot = fx.pairs_settlement[pair]
         f = fx.rate(pair, delivery)
-        _: tuple[Any, DualTypes, Any] = vol.get_from_strike(
+        _: tuple[Any, DualTypes, Any] = fx_vol.get_from_strike(
             k=strike,
             f=f,
             w_deli=disc_curve[delivery],
@@ -144,10 +144,10 @@ def _get_vol_maybe_from_obj(
             expiry=expiry,
         )
         vol_: DualTypes = _[1]
-    elif isinstance(vol, NoInput):
-        raise ValueError("`vol` cannot be NoInput when provided to pricing function.")
+    elif isinstance(fx_vol, NoInput):
+        raise ValueError("`fx_vol` cannot be NoInput when provided to pricing function.")
     else:
-        vol_ = vol
+        vol_ = fx_vol
 
     return vol_
 

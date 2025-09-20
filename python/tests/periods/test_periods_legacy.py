@@ -11,18 +11,16 @@ from pandas import DataFrame, Index, MultiIndex, Series, date_range
 from pandas.testing import assert_frame_equal
 from rateslib import defaults, fixings
 from rateslib.curves import CompositeCurve, Curve, LineCurve
+from rateslib.curves.curves import _try_index_value
 from rateslib.data.fixings import FloatRateSeries
 from rateslib.data.loader import FixingMissingForecasterError
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, gradient
 from rateslib.enums import FloatFixingMethod
-from rateslib.enums.parameters import FXDeltaMethod
+from rateslib.enums.parameters import FXDeltaMethod, IndexMethod
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXSabrSmile, FXSabrSurface
 from rateslib.fx_volatility.utils import _d_plus_min_u
-from rateslib.periods import (
-    IndexMixin,
-)
 from rateslib.periods.components import (
     Cashflow,
     CreditPremiumPeriod,
@@ -1332,6 +1330,23 @@ class TestFloatPeriod:
         assert abs(result - 2.801094890510949) < 1e-5
         fixings.pop("TEST_VALUES_3M")
 
+    def test_ibor_fixings_exposure_with_fixing(self) -> None:
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2025, 1, 1): 0.90}, calendar="bus")
+        float_period = FloatPeriod(
+            start=dt(2023, 3, 20),
+            end=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            frequency=Frequency.Months(3, None),
+            fixing_method="ibor",
+            method_param=2,
+            calendar="bus",
+            rate_fixings=2.0,
+        )
+        result = float_period.try_unindexed_reference_fixings_exposure(rate_curve=curve).unwrap()
+        assert result.iloc[0, 0] == 0.0
+        assert result.iloc[0, 1] == 0.0
+        assert result.iloc[0, 3] == 2.0
+
     @pytest.mark.parametrize("float_spread", [0, 100])
     def test_ibor_rate_df_curve(self, float_spread, curve) -> None:
         period = FloatPeriod(
@@ -2230,6 +2245,31 @@ class TestFloatPeriod:
         )
         assert_frame_equal(result, expected)
 
+    def test_ibor_fixings_no_bad_curves_raises(self):
+        curve1 = LineCurve({dt(2022, 1, 1): 2.0, dt(2023, 2, 1): 2.0})
+        float_period = FloatPeriod(
+            start=dt(2023, 3, 6),
+            end=dt(2023, 6, 6),
+            payment=dt(2023, 6, 6),
+            frequency=Frequency.Months(3, None),
+            fixing_method="ibor",
+            method_param=2,
+            fixing_series=FloatRateSeries(
+                calendar="bus",
+                convention="act360",
+                lag=2,
+                modifier="mf",
+                eom=False,
+            ),
+        )
+        with pytest.raises(ValueError, match="`rate_curve` must be supplied as Curve or"):
+            float_period.try_unindexed_reference_fixings_exposure(rate_curve=NoInput(0))
+
+        with pytest.raises(ValueError, match="`disc_curve` cannot be inferred from a non-DF base"):
+            float_period.try_unindexed_reference_fixings_exposure(
+                rate_curve=curve1, disc_curve=NoInput(0)
+            )
+
     def test_local_historical_pay_date_issue(self, curve) -> None:
         period = FloatPeriod(
             start=dt(2021, 1, 1),
@@ -2371,6 +2411,24 @@ class TestFloatPeriod:
         assert abs(result - not_expected) > 1e-14
         assert abs(result - expected) < 1e-14
 
+    def test_analytic_delta_raises(self, curve):
+        p = FloatPeriod(
+            start=dt(2024, 6, 7),
+            end=dt(2024, 6, 20),
+            payment=dt(2024, 6, 21),
+            frequency="A",
+            fixing_method=FloatFixingMethod.RFRLockout,
+            method_param=4,
+            fixing_series=FloatRateSeries(
+                calendar="bus", convention="act360", lag=0, eom=False, modifier="F"
+            ),
+            spread_compound_method="ISDACompounding",
+            float_spread=50.0,
+        )
+        assert p.try_unindexed_reference_analytic_delta(
+            rate_curve=NoInput(0), disc_curve=curve
+        ).is_err
+
 
 class TestFixedPeriod:
     def test_frequency_as_str(self):
@@ -2399,6 +2457,19 @@ class TestFixedPeriod:
 
         result = fixed_period.analytic_delta(rate_curve=curve, fx=fxr, base="nok")
         assert abs(result - 247444.78172244584) < 1e-7
+
+    def test_fixed_period_analytic_delta_raises(self, curve, fxr) -> None:
+        fixed_period = FixedPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="Act360",
+            termination=dt(2022, 4, 1),
+            frequency=Frequency.Months(3, None),
+            currency="usd",
+        )
+        assert fixed_period.try_unindexed_reference_analytic_delta(rate_curve=dict()).is_err
 
     def test_fixed_period_analytic_delta_fxr_base(self, curve, fxr) -> None:
         fixed_period = FixedPeriod(
@@ -2803,6 +2874,21 @@ class TestCreditPremiumPeriod:
         )
         assert abs(premium_period.accrued(dt(2022, 2, 1)) - (-1e9 * 0.25 * 31 / 90 * 0.02)) < 1e-9
 
+    def test_analytic_delta_bad_curve(self):
+        premium_period = CreditPremiumPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 3),
+            notional=1e9,
+            convention="ActActICMA",
+            termination=dt(2022, 4, 1),
+            frequency=Frequency.Months(3, None),
+            currency="usd",
+            fixed_rate=2.0,
+            adjuster="F",
+        )
+        assert premium_period.try_analytic_delta(rate_curve=dict()).is_err
+
 
 class TestCreditProtectionPeriod:
     def test_period_npv(self, hazard_curve, curve, fxr) -> None:
@@ -3005,6 +3091,17 @@ class TestCreditProtectionPeriod:
         p2 = period.npv(rate_curve=hazard_curve, disc_curve=curve)
         expected = p2 - p1
         assert abs(result - expected) < 1e-9
+
+    def test_recovery_risk_raises(self, hazard_curve, curve):
+        period = CreditProtectionPeriod(
+            start=dt(2021, 10, 4),
+            end=dt(2022, 1, 4),
+            payment=dt(2022, 1, 4),
+            notional=1e9,
+            frequency=Frequency.Months(3, None),
+        )
+        with pytest.raises(TypeError, match="`curves` have not been supplied cor"):
+            period.analytic_rec_risk(rate_curve=dict())
 
 
 class TestCashflow:
@@ -3275,7 +3372,7 @@ class TestIndexFixedPeriod:
         result = index_period.npv(index_curve=index_curve, rate_curve=curve, local=True)
         assert abs(result["usd"] - expected) < 1e-8
 
-    def test_period_npv_raises(self) -> None:
+    def test_period_npv_raises(self, curve) -> None:
         index_period = IndexFixedPeriod(
             start=dt(2022, 1, 1),
             end=dt(2022, 4, 1),
@@ -3292,7 +3389,7 @@ class TestIndexFixedPeriod:
             ValueError,
             match=re.escape("`index_value` must be forecast from a `index_curve`"),
         ):
-            index_period.npv()
+            index_period.npv(disc_curve=curve)
 
     @pytest.mark.parametrize("curve_", [True, False])
     def test_period_cashflows(self, curve, curve_) -> None:
@@ -3371,18 +3468,17 @@ class TestIndexFixedPeriod:
         with pytest.raises(ValueError, match="Curve must be initialised with an `index_base`"):
             i_period.index_params.index_ratio(curve)
 
-    @pytest.mark.skip(reason="`index_fixings` as Series removed for Period in 2.0")
     def test_index_fixings_linear_interp(self) -> None:
-        i_fixings = Series([173.1, 174.2], index=[dt(2001, 7, 1), dt(2001, 8, 1)])
-        result = IndexMixin._index_value(
-            i_fixings=i_fixings,
-            i_curve=None,
-            i_date=dt(2001, 7, 20),
-            i_lag=3,
-            i_method="daily",
+        i_fixings = Series([173.1, 174.2], index=[dt(2001, 6, 1), dt(2001, 7, 1)])
+        result = _try_index_value(
+            index_fixings=i_fixings,
+            index_curve=NoInput(0),
+            index_date=dt(2001, 7, 20),
+            index_lag=1,
+            index_method=IndexMethod.Daily,
         )
         expected = 173.1 + 19 / 31 * (174.2 - 173.1)
-        assert abs(result - expected) < 1e-6
+        assert abs(result.unwrap() - expected) < 1e-6
 
     def test_composite_curve(self) -> None:
         index_period = IndexFixedPeriod(
@@ -5110,3 +5206,87 @@ class TestFXOption:
         result = dP_dfs / (20e6 * v_spot)
         expected = gks["delta_sticky"]
         assert abs(result - expected) < 1e-8
+
+    def test_no_strike_raises(self):
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=NoInput(0),
+            notional=20e6,
+            delta_type="spot",
+        )
+        with pytest.raises(ValueError, match=err.VE_NEEDS_STRIKE):
+            fxo.try_unindexed_reference_cashflow().unwrap()
+
+    def test_try_rate_with_metric(self, fxfo):
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=1.1,
+            notional=20e6,
+            delta_type="spot",
+        )
+        vol_ = FXDeltaVolSmile(
+            nodes={
+                0.25: 8.9,
+                0.5: 8.7,
+                0.75: 10.15,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="spot",
+        )
+        result1 = fxo.try_rate(
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            fx_vol=vol_,
+            metric="Pips",
+        )
+        result2 = fxo.try_rate(
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
+            fx_vol=vol_,
+            fx=fxfo,
+            metric="Percent",
+        )
+        result3 = fxo.try_rate(
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
+            fx_vol=vol_,
+            fx=fxfo,
+        )
+        assert result1.unwrap() != result2.unwrap()
+        assert result1.unwrap() == result3.unwrap()  # default is Pips
+
+    def test_try_rate_errs(self, fxfo):
+        fxo = FXCallPeriod(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery=dt(2023, 6, 20),
+            payment=dt(2023, 6, 20),
+            strike=NoInput(0),
+            notional=20e6,
+            delta_type="spot",
+        )
+        vol_ = FXDeltaVolSmile(
+            nodes={
+                0.25: 8.9,
+                0.5: 8.7,
+                0.75: 10.15,
+            },
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="spot",
+        )
+        assert fxo.try_rate(
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            fx_vol=vol_,
+            metric="Pips",
+        ).is_err

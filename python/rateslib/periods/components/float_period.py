@@ -496,16 +496,10 @@ class _FixingsExposureCalculator:
             calendar=rate_fixing.index.calendar,
         )
 
-        dc_result = _try_disc_required_maybe_from_curve(curve=rate_curve, disc_curve=disc_curve)
-        if isinstance(dc_result, Err):
-            return dc_result
-        else:
-            disc_curve_: _BaseCurve = dc_result.unwrap()
-
         if not isinstance(rate_fixing.value, NoInput):
             risk, notional = 0.0, 0.0  # then fixing is set so return zero exposure.
             _rate = _dual_float(rate_fixing.value)
-        elif rate_fixing.date < disc_curve_.nodes.initial:
+        elif rate_fixing.date < disc_curve.nodes.initial:
             _rate = np.nan
             risk, notional = 0.0, 0.0
             notional = 0.0
@@ -514,12 +508,12 @@ class _FixingsExposureCalculator:
                 (
                     -p.settlement_params.notional
                     * p.period_params.dcf
-                    * disc_curve_[p.settlement_params.payment]
+                    * disc_curve[p.settlement_params.payment]
                 )
                 if isinstance(risk, NoInput)
                 else risk
             )
-            notional = _dual_float(risk / (reg_dcf * disc_curve_[rate_fixing.accrual_end]))
+            notional = _dual_float(risk / (reg_dcf * disc_curve[rate_fixing.accrual_end]))
             risk = _dual_float(risk) * 0.0001  # scale to bp
             _rate = _dual_float(p.rate(rate_curve=rate_curve))
 
@@ -543,16 +537,10 @@ class _FixingsExposureCalculator:
         right: datetime_,
         risk: DualTypes_ = NoInput(0),
     ) -> Result[DataFrame]:
-        dc_result = _try_disc_required_maybe_from_curve(curve=rate_curve, disc_curve=disc_curve)
-        if isinstance(dc_result, Err):
-            return dc_result
-        else:
-            disc_curve_: _BaseCurve = dc_result.unwrap()
-
         risk = (
             -p.settlement_params.notional
             * p.period_params.dcf
-            * disc_curve_[p.settlement_params.payment]
+            * disc_curve[p.settlement_params.payment]
             if isinstance(risk, NoInput)
             else risk
         )
@@ -567,7 +555,7 @@ class _FixingsExposureCalculator:
         w0 = 1 - w1
         d0 = dcf(rate_fixing.accrual_start, ends[0], rate_fixing.series.convention)
         d1 = dcf(rate_fixing.accrual_start, ends[1], rate_fixing.series.convention)
-        v0, v1 = disc_curve_[ends[0]], disc_curve_[ends[1]]
+        v0, v1 = disc_curve[ends[0]], disc_curve[ends[1]]
 
         df0 = cls._make_dataframe(
             [rate_fixing.date],
