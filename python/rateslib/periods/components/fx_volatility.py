@@ -50,7 +50,7 @@ from rateslib.periods.components.utils import (
 )
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.typing import (  # pragma: no cover
         Any,
         Arr1dF64,
         DualTypes,
@@ -183,7 +183,7 @@ class FXOptionPeriod(_WithNPVCashflowsStatic, _WithAnalyticFXOptionGreeks, metac
             rate_curve_ = _validate_obj_not_no_input(rate_curve, "rate_curve")
             disc_curve_ = _validate_obj_not_no_input(disc_curve, "disc_curve")
             vol_ = _get_vol_maybe_from_obj(
-                vol=fx_vol,
+                fx_vol=fx_vol,
                 fx=fx_,
                 disc_curve=rate_curve_,
                 strike=k,
@@ -209,7 +209,7 @@ class FXOptionPeriod(_WithNPVCashflowsStatic, _WithAnalyticFXOptionGreeks, metac
         disc_curve: _BaseCurve,
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
-        metric: str_ = NoInput(0),
+        metric: FXOptionMetric | str_ = NoInput(0),
     ) -> Result[DualTypes]:
         """
         Return the pricing metric of the *FXOption*.
@@ -236,10 +236,8 @@ class FXOptionPeriod(_WithNPVCashflowsStatic, _WithAnalyticFXOptionGreeks, metac
         """
         if not isinstance(metric, NoInput):
             metric_ = _get_fx_option_metric(metric)
-        elif not isinstance(self.fx_option_params.metric, NoInput):
+        else:  # use metric associated with self
             metric_ = self.fx_option_params.metric
-        else:
-            metric_ = _get_fx_option_metric(defaults.fx_option_metric)
 
         cash_res = self.try_unindexed_reference_cashflow(
             rate_curve=rate_curve,
