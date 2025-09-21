@@ -16,6 +16,7 @@ from rateslib.periods.components import (
     NonDeliverableIndexFixedPeriod,
     NonDeliverableIndexFloatPeriod,
 )
+from rateslib.periods.components.cashflow import MtmCashflow
 
 
 class TestCashflow:
@@ -167,6 +168,14 @@ class TestNonDeliverableCashflow:
                 index_base=100.0,
             )
 
+    def test_undefined_currencies(self):
+        with pytest.raises(ValueError, match=err.VE_MISMATCHED_ND_PAIR[:15]):
+            NonDeliverableCashflow(
+                pair="eurbrl",
+                payment=dt(2000, 1, 1),
+                notional=2e6,
+            )
+
 
 class TestIndexCashflow:
     def test_init(self):
@@ -205,6 +214,20 @@ class TestNonDeliverableIndexCashflow:
                 payment=dt(2000, 1, 1),
                 index_base=100.0,
             )
+
+
+class TestMtmCashflow:
+    def test_init(self):
+        MtmCashflow(
+            currency="usd",
+            notional=2e6,
+            payment=dt(2000, 1, 10),
+            pair="eurusd",
+            fx_fixings_start=2.0,
+            fx_fixings_end=3.0,
+            start=dt(2000, 1, 1),
+            end=dt(2000, 1, 10),
+        )
 
 
 class TestNonDeliverableFixedPeriod:

@@ -10,7 +10,7 @@ from rateslib.periods.components.parameters import (
     _IndexParams,
     _init_or_none_IndexParams,
     _init_or_none_NonDeliverableParams,
-    _init_SettlementParams_with_nd_pair,
+    _init_SettlementParams_with_fx_pair,
     _NonDeliverableParams,
     _PeriodParams,
     _SettlementParams,
@@ -83,12 +83,12 @@ class BasePeriod(
         index_base_date: datetime_ = NoInput(0),
         index_reference_date: datetime_ = NoInput(0),
     ):
-        self.settlement_params = _init_SettlementParams_with_nd_pair(
+        self.settlement_params = _init_SettlementParams_with_fx_pair(
             _currency=_drb(defaults.base_currency, currency).lower(),
             _payment=payment,
             _notional=_drb(defaults.notional, notional),
             _ex_dividend=_drb(payment, ex_dividend),
-            _non_deliverable_pair=pair,
+            _fx_pair=pair,
         )
         self.non_deliverable_params = _init_or_none_NonDeliverableParams(
             _currency=self.settlement_params.currency,

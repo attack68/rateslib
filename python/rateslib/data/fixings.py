@@ -16,7 +16,7 @@ from rateslib.curves.interpolation import index_left
 from rateslib.curves.utils import _CurveType
 from rateslib.data.loader import FixingMissingForecasterError, FixingRangeError
 from rateslib.dual import Dual, Dual2, Variable
-from rateslib.enums.generics import Err, NoInput, Ok, _drb
+from rateslib.enums.generics import Err, NoInput, Ok, _drb, _validate_obj_not_no_input
 from rateslib.enums.parameters import (
     FloatFixingMethod,
     SpreadCompoundMethod,
@@ -40,6 +40,8 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         Frequency,
+        FXForwards,
+        FXForwards_,
         IndexMethod,
         Result,
         _BaseCurve_,
@@ -255,6 +257,8 @@ class FXFixing(_BaseFixing):
     ----------
     date: datetime
         The date of relevance for the FX fixing, which is its **delivery** date.
+    pair: str,
+        The currency pair related to the FX fixing.
     value: float, Dual, Dual2, Variable, optional
         The initial value for the fixing to adopt. Most commonly this is not given and it is
         determined from a timeseries of published FX rates.
@@ -274,7 +278,7 @@ class FXFixing(_BaseFixing):
     .. ipython:: python
 
        fixings.add("EURGBP-x89", Series(index=[dt(2000, 1, 1)], data=[0.905]))
-       fxfix = FXFixing(date=dt(2000, 1, 1), identifier="EURGBP-x89")
+       fxfix = FXFixing(date=dt(2000, 1, 1), pair="eurusd", identifier="EURGBP-x89")
        fxfix.value
 
     .. ipython:: python
@@ -287,10 +291,12 @@ class FXFixing(_BaseFixing):
     def __init__(
         self,
         date: datetime,
+        pair: str,
         value: DualTypes_ = NoInput(0),
         identifier: str_ = NoInput(0),
     ) -> None:
         super().__init__(date=date, value=value, identifier=identifier)
+        self._pair = pair.lower()
 
     def _lookup_and_calculate(
         self, timeseries: Series, bounds: tuple[datetime, datetime] | None
@@ -315,6 +321,51 @@ class FXFixing(_BaseFixing):
             result.unwrap()
         else:
             return result.unwrap()
+
+    @property
+    def pair(self) -> str:
+        """The currency pair related to the FX fixing."""
+        return self._pair
+
+    def value_or_forecast(self, fx: FXForwards_) -> DualTypes:
+        """
+        Return the determined value of the fixing or forecast it if not available.
+
+        Parameters
+        ----------
+        fx: FXForwards_:
+            The :class:`FXForwards` object to forecast the forward FX rate.
+
+        Returns
+        -------
+        float, Dual, Dual2, Variable
+        """
+        if isinstance(self.value, NoInput):
+            fx_: FXForwards = _validate_obj_not_no_input(fx, "FXForwards")
+            return fx_.rate(pair=self.pair, settlement=self.date)
+        else:
+            return self.value
+
+    def try_value_or_forecast(self, fx: FXForwards_) -> Result[DualTypes]:
+        """
+        Return the determined value of the fixing or forecast it if not available.
+
+        Parameters
+        ----------
+        fx: FXForwards, optional
+            The :class:`FXForwards` object to forecast the forward FX rate.
+
+        Returns
+        -------
+        Result[float, Dual, Dual2, Variable]
+        """
+        if isinstance(self.value, NoInput):
+            if isinstance(fx, NoInput):
+                return Err(ValueError("Must provide `fx` argument to forecast FXFixing."))
+            else:
+                return Ok(fx.rate(pair=self.pair, settlement=self.date))
+        else:
+            return Ok(self.value)
 
 
 class IBORFixing(_BaseFixing):

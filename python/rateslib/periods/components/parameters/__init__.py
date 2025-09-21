@@ -3,6 +3,10 @@ from rateslib.periods.components.parameters.index import (
     _IndexParams,
     _init_or_none_IndexParams,
 )
+from rateslib.periods.components.parameters.mtm import (
+    _init_MtmParams,
+    _MtmParams,
+)
 from rateslib.periods.components.parameters.period import _PeriodParams
 from rateslib.periods.components.parameters.rate import (
     _CashflowRateParams,
@@ -12,7 +16,7 @@ from rateslib.periods.components.parameters.rate import (
 )
 from rateslib.periods.components.parameters.settlement import (
     _init_or_none_NonDeliverableParams,
-    _init_SettlementParams_with_nd_pair,
+    _init_SettlementParams_with_fx_pair,
     _NonDeliverableParams,
     _SettlementParams,
 )
@@ -21,8 +25,9 @@ __all__ = [
     "_IndexParams",
     "_init_or_none_IndexParams",
     "_init_or_none_NonDeliverableParams",
-    "_init_SettlementParams_with_nd_pair",
+    "_init_SettlementParams_with_fx_pair",
     "_init_FloatRateParams",
+    "_init_MtmParams",
     "_SettlementParams",
     "_PeriodParams",
     "_FixedRateParams",
@@ -30,4 +35,5 @@ __all__ = [
     "_CashflowRateParams",
     "_NonDeliverableParams",
     "_CreditParams",
+    "_MtmParams",
 ]

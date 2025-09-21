@@ -19,6 +19,11 @@ from rateslib.curves import _BaseCurve as _BaseCurve
 from rateslib.curves import _CurveMeta as _CurveMeta
 from rateslib.data.fixings import FloatRateIndex as FloatRateIndex
 from rateslib.data.fixings import FloatRateSeries as FloatRateSeries
+from rateslib.data.fixings import FXFixing as FXFixing
+from rateslib.data.fixings import IBORFixing as IBORFixing
+from rateslib.data.fixings import IBORStubFixing as IBORStubFixing
+from rateslib.data.fixings import IndexFixing as IndexFixing
+from rateslib.data.fixings import RFRFixing as RFRFixing
 from rateslib.data.loader import Fixings as Fixings
 from rateslib.data.loader import _BaseFixingsLoader as _BaseFixingsLoader
 from rateslib.dual.variable import Variable as Variable
