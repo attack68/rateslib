@@ -63,6 +63,19 @@ class NoInput(Enum):
     negate = -1
 
 
+def _validate_obj_not_no_input(obj: T | NoInput, expected: str) -> T:
+    if isinstance(obj, NoInput):
+        raise ValueError(f"Object of type `{expected}` must be supplied. Got NoInput.")
+    return obj
+
+
+def _try_validate_obj_not_no_input(obj: T | NoInput, expected: str) -> Result[T]:
+    if isinstance(obj, NoInput):
+        return Err(ValueError(f"Object of type `{expected}` must be supplied. Got NoInput."))
+    else:
+        return Ok(obj)
+
+
 def _drb(default: Any, possible_ni: Any | NoInput) -> Any:
     """(D)efault (r)eplaces (b)lank"""
     return default if isinstance(possible_ni, NoInput) else possible_ni

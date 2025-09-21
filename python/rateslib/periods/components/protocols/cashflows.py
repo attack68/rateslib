@@ -308,7 +308,9 @@ class _WithNPVCashflowsStatic(_WithNPVStatic, Protocol):
 
         # non-deliverable parameters
         if self.non_deliverable_params is not None:
-            fx_fixing_res: Result[DualTypes] = self.non_deliverable_params.try_fx_fixing(fx)
+            fx_fixing_res: Result[DualTypes] = (
+                self.non_deliverable_params.fx_fixing.try_value_or_forecast(fx)
+            )
             currency_elements = {
                 defaults.headers["fx_fixing"]: _float_or_none(fx_fixing_res),
                 defaults.headers[

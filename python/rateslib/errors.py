@@ -138,6 +138,10 @@ VE_NEEDS_STRIKE = "An FXOptionPeriod cashflow cannot be determined without setti
 
 # 02: periods/components/float_rate.py
 
+VE_MISMATCHED_ND_PAIR = (
+    "A non-deliverable pair must contain the settlement currency.\nGot '{0}' and '{1}'."
+)
+
 MISMATCH_RATE_INDEX_PARAMETERS = (
     "A `rate_curve` and `rate_index` have been supplied with conflicting parameters.\n"
     "Specifically for the attribute '{0}'\n"
