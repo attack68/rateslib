@@ -267,7 +267,7 @@ class _WithNonDeliverableStatic(Protocol):
                 return value
 
             value_: DualTypes = value.unwrap()
-            fx_fix_res = self.non_deliverable_params.try_fx_fixing(fx)
+            fx_fix_res = self.non_deliverable_params.fx_fixing.try_value_or_forecast(fx)
             if fx_fix_res.is_err:
                 return fx_fix_res
             else:

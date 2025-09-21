@@ -54,16 +54,19 @@ class _FXOptionParams:
             self._option_fixing = FXFixing(
                 date=self.delivery,
                 value=value,
+                pair=self.pair,
             )
         elif isinstance(_option_fixings, str):
             self._option_fixing = FXFixing(
                 date=self.delivery,
                 identifier=_option_fixings,
+                pair=self.pair,
             )
         else:
             self._option_fixing = FXFixing(
                 date=self.delivery,
                 value=_option_fixings,
+                pair=self.pair,
             )
 
     @property

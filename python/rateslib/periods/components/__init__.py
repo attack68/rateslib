@@ -1,6 +1,7 @@
 from rateslib.periods.components.cashflow import (
     Cashflow,
     IndexCashflow,
+    MtmCashflow,
     NonDeliverableCashflow,
     NonDeliverableIndexCashflow,
 )
@@ -26,6 +27,7 @@ __all__ = [
     "IndexCashflow",
     "NonDeliverableCashflow",
     "NonDeliverableIndexCashflow",
+    "MtmCashflow",
     "FixedPeriod",
     "IndexFixedPeriod",
     "NonDeliverableFixedPeriod",

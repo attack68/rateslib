@@ -31,6 +31,7 @@ from rateslib.periods.components import (
     FXPutPeriod,
     IndexCashflow,
     IndexFixedPeriod,
+    MtmCashflow,
     NonDeliverableCashflow,
     NonDeliverableFixedPeriod,
 )
@@ -3651,6 +3652,38 @@ class TestIndexCashflow:
         assert isinstance(result["Cashflow"], float)
 
 
+class TestMtmCashflow:
+    def test_cashflow(self):
+        p = MtmCashflow(
+            currency="usd",
+            notional=2e6,
+            payment=dt(2000, 1, 10),
+            pair="eurusd",
+            fx_fixings_start=2.0,
+            fx_fixings_end=2.2,
+            start=dt(2000, 1, 1),
+            end=dt(2000, 1, 10),
+        )
+        result = p.try_unindexed_reference_cashflow().unwrap()
+        expected = -0.2 * 2e6
+        assert abs(result - expected) < 1e-9
+
+    def test_cashflow_reversed(self):
+        p = MtmCashflow(
+            currency="usd",
+            notional=2e6,
+            payment=dt(2000, 1, 10),
+            pair="usdeur",
+            fx_fixings_start=0.5,
+            fx_fixings_end=1.0 / 2.2,
+            start=dt(2000, 1, 1),
+            end=dt(2000, 1, 10),
+        )
+        result = p.try_unindexed_reference_cashflow()
+        expected = -0.2 * 2e6
+        assert abs(result.unwrap() - expected) < 1e-9
+
+
 class TestNonDeliverableCashflow:
     @pytest.fixture(scope="class")
     def fxf_ndf(self):
@@ -3719,7 +3752,7 @@ class TestNonDeliverableCashflow:
             payment=dt(2025, 6, 1),
             fx_fixings=0.25,
         )
-        result = ndf.non_deliverable_params.try_fx_fixing(fx=fxf_ndf).unwrap()
+        result = ndf.non_deliverable_params.fx_fixing.try_value_or_forecast(fx=fxf_ndf).unwrap()
         expected = 0.25
         assert abs(result - expected) < 1e-8
 
@@ -3730,7 +3763,7 @@ class TestNonDeliverableCashflow:
             pair="brlusd",
             payment=dt(2025, 6, 1),
         )
-        result = ndf.non_deliverable_params.try_fx_fixing(fx=fxf_ndf).unwrap()
+        result = ndf.non_deliverable_params.fx_fixing.try_value_or_forecast(fx=fxf_ndf).unwrap()
         expected = fxf_ndf.rate(ndf.non_deliverable_params.pair, dt(2025, 6, 1))
         assert abs(result - expected) < 1e-8
 
@@ -3741,7 +3774,7 @@ class TestNonDeliverableCashflow:
             pair="brlusd",
             payment=dt(2025, 6, 1),
         )
-        result = ndf.non_deliverable_params.try_fx_fixing(fx=fxf_ndf).unwrap()
+        result = ndf.non_deliverable_params.fx_fixing.try_value_or_forecast(fx=fxf_ndf).unwrap()
         expected = fxf_ndf.rate(ndf.non_deliverable_params.pair, dt(2025, 6, 1))
         assert abs(result - expected) < 1e-8
 
@@ -3836,7 +3869,7 @@ class TestNonDeliverableFixedPeriod:
             fixed_rate=3.0,
         )
         cf = ndfp.try_cashflow(fx=fxf_ndf).unwrap()
-        fx_fixing = ndfp.non_deliverable_params.try_fx_fixing(fx=fxf_ndf).unwrap()
+        fx_fixing = ndfp.non_deliverable_params.fx_fixing.try_value_or_forecast(fx=fxf_ndf).unwrap()
         expected = -1e6 * 0.25 * 0.03 / fx_fixing  # in USD
         assert abs(cf - expected) < 1e-8
 
@@ -3855,7 +3888,7 @@ class TestNonDeliverableFixedPeriod:
             fixed_rate=3.0,
         )
         cf = ndfp.try_cashflow(fx=fxf_ndf).unwrap()
-        fx_fixing = ndfp.non_deliverable_params.try_fx_fixing(fx=fxf_ndf).unwrap()
+        fx_fixing = ndfp.non_deliverable_params.fx_fixing.try_value_or_forecast(fx=fxf_ndf).unwrap()
         expected = -0.2e6 * 0.25 * 0.03 * fx_fixing  # in USD
         assert abs(cf - expected) < 1e-8
 
@@ -3890,7 +3923,7 @@ class TestNonDeliverableFixedPeriod:
         )
         curve = fxf_ndf.curve("usd", "usd")
         result = ndfp.analytic_delta(rate_curve=curve, fx=fxf_ndf)
-        fx_fixing = ndfp.non_deliverable_params.try_fx_fixing(fx=fxf_ndf).unwrap()
+        fx_fixing = ndfp.non_deliverable_params.fx_fixing.try_value_or_forecast(fx=fxf_ndf).unwrap()
         expected = 1e9 * 0.25 * 0.0001 * curve[dt(2025, 5, 1)] / fx_fixing  # in USD
         assert abs(result - expected) < 1e-8
 
@@ -3930,7 +3963,7 @@ class TestNonDeliverableFixedPeriod:
         )
         curve = fxf_ndf.curve("usd", "usd")
         result = ndfp.npv(rate_curve=curve, fx=fxf_ndf)
-        fx_fixing = ndfp.non_deliverable_params.try_fx_fixing(fx=fxf_ndf).unwrap()
+        fx_fixing = ndfp.non_deliverable_params.fx_fixing.try_value_or_forecast(fx=fxf_ndf).unwrap()
         expected = -1e9 * 0.25 * 0.03 * curve[dt(2025, 5, 1)] / fx_fixing  # in USD
         assert abs(result - expected) < 1e-8
 
@@ -3950,7 +3983,7 @@ class TestNonDeliverableFixedPeriod:
         )
         curve = fxf_ndf.curve("usd", "usd")
         result = ndfp.npv(rate_curve=curve, fx=fxf_ndf)
-        fx_fixing = ndfp.non_deliverable_params.try_fx_fixing(fx=fxf_ndf).unwrap()
+        fx_fixing = ndfp.non_deliverable_params.fx_fixing.try_value_or_forecast(fx=fxf_ndf).unwrap()
         expected = -1e9 * 0.25 * 0.03 * curve[dt(2025, 5, 1)] * fx_fixing  # in USD
         assert abs(result - expected) < 1e-8
 

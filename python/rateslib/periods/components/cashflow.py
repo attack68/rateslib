@@ -4,15 +4,17 @@ from typing import TYPE_CHECKING
 
 import rateslib.errors as err
 from rateslib import defaults
-from rateslib.enums.generics import NoInput, Ok, _drb
+from rateslib.enums.generics import Err, NoInput, Ok, _drb
 from rateslib.enums.parameters import IndexMethod
 from rateslib.periods.components.parameters import (
     _IndexParams,
+    _init_MtmParams,
     _init_or_none_IndexParams,
     _init_or_none_NonDeliverableParams,
-    _init_SettlementParams_with_nd_pair,
+    _init_SettlementParams_with_fx_pair,
     _SettlementParams,
 )
+from rateslib.periods.components.parameters.mtm import _MtmParams
 from rateslib.periods.components.parameters.settlement import _NonDeliverableParams
 from rateslib.periods.components.protocols import (
     _WithAnalyticDeltaStatic,
@@ -26,6 +28,7 @@ if TYPE_CHECKING:
         CurveOption_,
         DualTypes,
         DualTypes_,
+        FXForwards_,
         Result,
         Series,
         _BaseCurve_,
@@ -65,12 +68,12 @@ class Cashflow(_WithNPVCashflowsStatic, _WithAnalyticDeltaStatic, _WithRateFixin
         index_base_date: datetime_ = NoInput(0),
         index_reference_date: datetime_ = NoInput(0),
     ):
-        self.settlement_params = _init_SettlementParams_with_nd_pair(
+        self.settlement_params = _init_SettlementParams_with_fx_pair(
             _notional=notional,
             _payment=payment,
             _currency=_drb(defaults.base_currency, currency).lower(),
             _ex_dividend=_drb(payment, ex_dividend),
-            _non_deliverable_pair=pair,
+            _fx_pair=pair,
         )
         self.non_deliverable_params = _init_or_none_NonDeliverableParams(
             _currency=self.settlement_params.currency,
@@ -132,3 +135,73 @@ class NonDeliverableIndexCashflow(Cashflow):
             raise ValueError(err.VE_NEEDS_INDEX_PARAMS.format(type(self).__name__))
         if not self.is_non_deliverable:
             raise ValueError(err.VE_NEEDS_ND_CURRENCY_PARAMS.format(type(self).__name__))
+
+
+class MtmCashflow(
+    _WithNPVCashflowsStatic, _WithAnalyticDeltaStatic, _WithRateFixingsExposureStatic
+):
+    settlement_params: _SettlementParams
+    mtm_params: _MtmParams
+    non_deliverable_params: None
+    index_params: None
+    rate_params: None
+    period_params: None
+
+    def __init__(
+        self,
+        *,
+        payment: datetime,
+        notional: DualTypes,
+        pair: str,
+        start: datetime,
+        end: datetime_ = NoInput(0),
+        currency: str_ = NoInput(0),
+        ex_dividend: datetime_ = NoInput(0),
+        fx_fixings_start: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+        fx_fixings_end: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+    ):
+        self.settlement_params = _init_SettlementParams_with_fx_pair(
+            _notional=notional,
+            _payment=payment,
+            _currency=_drb(defaults.base_currency, currency).lower(),
+            _ex_dividend=_drb(payment, ex_dividend),
+            _fx_pair=pair,
+        )
+        self.mtm_params = _init_MtmParams(
+            _pair=pair,
+            _currency=_drb(defaults.base_currency, currency).lower(),
+            _start=start,
+            _end=_drb(payment, end),
+            _fx_fixings_start=fx_fixings_start,
+            _fx_fixings_end=fx_fixings_end,
+        )
+        self.non_deliverable_params = None
+        self.rate_params = None
+        self.period_params = None
+        self.index_params = None
+
+    def try_unindexed_reference_cashflow(  # type: ignore[override]
+        self,
+        *,
+        fx: FXForwards_ = NoInput(0),
+        **kwargs: Any,
+    ) -> Result[DualTypes]:
+        fx0 = self.mtm_params.fx_fixing_start.try_value_or_forecast(fx)
+        fx1 = self.mtm_params.fx_fixing_end.try_value_or_forecast(fx)
+        if isinstance(fx0, Err):
+            return fx0
+        if isinstance(fx1, Err):
+            return fx1
+        if self.mtm_params.fx_reversed:
+            diff = 1.0 / fx1.unwrap() - 1.0 / fx0.unwrap()
+        else:
+            diff = fx1.unwrap() - fx0.unwrap()
+        return Ok(-self.settlement_params.notional * diff)
+
+    def try_unindexed_reference_analytic_delta(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+    ) -> Result[DualTypes]:
+        return Ok(0.0)
