@@ -351,8 +351,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
                     k=self._pricing.k,
                     f=self._pricing.f_d if not isinstance(vol_, FXSabrSurface) else fx_,  # type: ignore[arg-type]
                     expiry=self.kwargs["expiry"],
-                    w_deli=w_deli,
-                    w_spot=w_spot,
+                    z_w=w_deli / w_spot,
                 )
         else:
             # will determine the strike from % delta or ATM-delta string
