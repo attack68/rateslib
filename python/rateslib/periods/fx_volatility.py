@@ -520,8 +520,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
                 k=self.strike,
                 f=f_d,
                 expiry=self.expiry,
-                w_deli=w_deli,
-                w_spot=w_spot,
+                z_w=w_deli / w_spot,
             )
             delta_idx: DualTypes | None = res[0]
             vol_: DualTypes = res[1]
@@ -1167,9 +1166,8 @@ class FXOptionPeriod(metaclass=ABCMeta):
             _: tuple[Any, DualTypes, Any] = vol.get_from_strike(
                 k=self.strike,
                 f=f,
-                w_deli=disc_curve[self.delivery],
-                w_spot=disc_curve[spot],
                 expiry=self.expiry,
+                z_w=disc_curve[self.delivery] / disc_curve[spot],
             )
             vol_: DualTypes = _[1]
         elif isinstance(vol, NoInput):

@@ -22,6 +22,8 @@ Signature of some functions for Periods is now uses a more explicit keyword argu
 only. This is due to certain objects being used primarily internally with a UI focused more on
 higher level instrumenst than their constructing objects.
 
+The `get_from_strike` method for FX SMiles / Surfaces refactored to use `z_w` as n input.
+
 
 .. list-table::
    :widths: 25 75
