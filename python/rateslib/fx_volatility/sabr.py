@@ -43,7 +43,16 @@ from rateslib.mutability import (
 from rateslib.scheduling import get_calendar
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, DualTypes, Number, Sequence, datetime_, int_, str_
+    from rateslib.typing import (  # pragma: no cover
+        CalInput,
+        DualTypes,
+        DualTypes_,
+        Number,
+        Sequence,
+        datetime_,
+        int_,
+        str_,
+    )
 
 
 class FXSabrSmile(_BaseSmile):
@@ -180,8 +189,7 @@ class FXSabrSmile(_BaseSmile):
         k: DualTypes,
         f: DualTypes | FXForwards,
         expiry: datetime_ = NoInput(0),
-        w_deli: DualTypes | NoInput = NoInput(0),
-        w_spot: DualTypes | NoInput = NoInput(0),
+        z_w: DualTypes_ = NoInput(0),
     ) -> tuple[DualTypes, DualTypes, DualTypes]:
         """
         Given an option strike return the volatility.
@@ -196,9 +204,7 @@ class FXSabrSmile(_BaseSmile):
             Typically uses with *Surfaces*.
             If given, performs a check to ensure consistency of valuations. Raises if expiry
             requested and expiry of the *Smile* do not match. Used internally.
-        w_deli: DualTypes, optional
-            Not used by *SabrSmile*
-        w_spot: DualTypes, optional
+        z_w: DualTypes, optional
             Not used by *SabrSmile*
 
         Returns
@@ -625,8 +631,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         k: DualTypes,
         f: DualTypes | FXForwards,
         expiry: datetime,
-        w_deli: DualTypes | NoInput = NoInput(0),
-        w_spot: DualTypes | NoInput = NoInput(0),
+        z_w: DualTypes | NoInput = NoInput(0),
     ) -> tuple[DualTypes, DualTypes, DualTypes]:
         """
         Given an option strike return the volatility.
@@ -640,9 +645,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         expiry: datetime, optional
             The expiry of the option. Required for temporal interpolation between
             cross-sectional *Smiles*.
-        w_deli: DualTypes, optional
-            Not used by *SabrSurface*
-        w_spot: DualTypes, optional
+        z_w: DualTypes, optional
             Not used by *SabrSurface*
 
         Returns

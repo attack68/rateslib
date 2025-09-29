@@ -53,7 +53,7 @@ from rateslib.scheduling import get_calendar
 from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
-    from rateslib.typing import DualTypes, Sequence  # pragma: no cover
+    from rateslib.typing import DualTypes, DualTypes_, Sequence  # pragma: no cover
 
 
 class FXDeltaVolSmile(_BaseSmile):
@@ -252,8 +252,7 @@ class FXDeltaVolSmile(_BaseSmile):
         k: DualTypes,
         f: DualTypes,
         expiry: datetime | NoInput = NoInput(0),
-        w_deli: DualTypes | NoInput = NoInput(0),
-        w_spot: DualTypes | NoInput = NoInput(0),
+        z_w: DualTypes | NoInput = NoInput(0),
     ) -> tuple[DualTypes, DualTypes, DualTypes]:
         """
         Given an option strike return associated delta and vol values.
@@ -268,10 +267,12 @@ class FXDeltaVolSmile(_BaseSmile):
             Typically used with *Surfaces*.
             If given, performs a check to ensure consistency of valuations. Raises if expiry
             requested and expiry of the *Smile* do not match. Used internally.
-        w_deli: DualTypes, optional
-            Required only for spot/forward conversions.
-        w_spot: DualTypes, optional
-            Required only for spot/forward conversions.
+        z_w: float, Dual, Dual2, Variable, optional
+            :math:`z_w` is the factor used to convert between spot and forward type delta values.
+            It is calculated for a specific option from the *Curve* for discounting cashflows in the
+            domestic (i.e. LHS side or notional) currency using the appropriate collateral rate for
+            the option, taking the DF at delivery divided by the DF at spot. If spot type delta
+            is not used this value is not required.
 
 
         Returns
@@ -292,12 +293,7 @@ class FXDeltaVolSmile(_BaseSmile):
             )
 
         u: DualTypes = k / f  # moneyness
-        w: DualTypes | NoInput = (
-            NoInput(0)
-            if isinstance(w_deli, NoInput) or isinstance(w_spot, NoInput)
-            else w_deli / w_spot
-        )
-        eta, z_w, z_u = _delta_type_constants(self.meta.delta_type, w, u)
+        eta, z_w, z_u = _delta_type_constants(self.meta.delta_type, z_w, u)
 
         # Variables are passed to these functions so that iteration can take place using float
         # which is faster and then a final iteration at the fixed point can be included with Dual
@@ -827,8 +823,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         k: DualTypes,
         f: DualTypes,
         expiry: datetime | NoInput = NoInput(0),
-        w_deli: DualTypes | NoInput = NoInput(0),
-        w_spot: DualTypes | NoInput = NoInput(0),
+        z_w: DualTypes_ = NoInput(0),
     ) -> tuple[DualTypes, DualTypes, DualTypes]:
         """
         Given an option strike and expiry return associated delta and vol values.
@@ -841,10 +836,12 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
             The forward rate at delivery of the option.
         expiry: datetime
             Required to produce the cross-sectional *Smile* on the *Surface*.
-        w_deli: DualTypes, optional
-            Required only for spot/forward conversions.
-        w_spot: DualTypes, optional
-            Required only for spot/forward conversions.
+        z_w: float, Dual, Dual2, Variable, optional
+            :math:`z_w` is the factor used to convert between spot and forward type delta values.
+            It is calculated for a specific option from the *Curve* for discounting cashflows in the
+            domestic (i.e. LHS side or notional) currency using the appropriate collateral rate for
+            the option, taking the DF at delivery divided by the DF at spot. If spot type delta
+            is not used this value is not required.
 
         Returns
         -------
@@ -859,7 +856,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         if isinstance(expiry, NoInput):
             raise ValueError("`expiry` required to get cross-section of FXDeltaVolSurface.")
         smile = self.get_smile(expiry)
-        return smile.get_from_strike(k, f, expiry, w_deli, w_spot)
+        return smile.get_from_strike(k, f, expiry, z_w)
 
     # _validate_states not required since called by `get_smile` internally
     def _get_index(self, delta_index: DualTypes, expiry: datetime) -> DualTypes:
