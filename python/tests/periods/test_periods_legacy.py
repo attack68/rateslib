@@ -125,13 +125,11 @@ def line_curve():
             pair="eurusd",
             expiry=dt(2000, 1, 1),
             delivery=dt(2000, 1, 1),
-            payment=dt(2000, 1, 1),
         ),
         FXPutPeriod(
             pair="eurusd",
             expiry=dt(2000, 1, 1),
             delivery=dt(2000, 1, 1),
-            payment=dt(2000, 1, 1),
         ),
     ],
 )
@@ -4113,7 +4111,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=pay,
+            # payment=pay,
             strike=k,
             notional=20e6,
             delta_type=dlty,
@@ -4123,6 +4121,7 @@ class TestFXOption:
             disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
             fx_vol=vol_,
+            forward_settlement=pay,
         ).unwrap()
         expected = exp_pts
         assert abs(result - expected) < 1e-3
@@ -4165,7 +4164,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=pay,
+            # payment=pay,
             strike=k,
             notional=20e6,
             delta_type=dlty,
@@ -4176,6 +4175,7 @@ class TestFXOption:
             fxfo.curve("usd", "usd"),
             fx=fxfo,
             fx_vol=vol_,
+            forward_settlement=pay,
         ).unwrap()
         expected = exp_pts
         assert abs(result - expected) < 1e-3
@@ -4190,6 +4190,7 @@ class TestFXOption:
             fx=fxfo,
             fx_vol=vol_,
             premium=exp_prem,
+            premium_payment=pay,
         )["delta"]
         expected = exp_dl
         assert abs(result - expected) < 5e-5
@@ -4210,7 +4211,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
+            # payment=dt(2023, 6, 20),
             strike=1.101,
             notional=20e6,
         )
@@ -4240,7 +4241,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2022, 6, 16),
             delivery=dt(2022, 6, 20),
-            payment=dt(2022, 6, 20),
+            # payment=dt(2022, 6, 20),
             strike=1.101,
             notional=20e6,
         )
@@ -4257,7 +4258,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 3, 15),
             delivery=dt(2023, 3, 17),
-            payment=dt(2023, 3, 17),
+            # payment=dt(2023, 3, 17),
             strike=1.101,
             notional=20e6,
             option_fixings=1.102,
@@ -4276,7 +4277,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 3, 15),
             delivery=dt(2023, 3, 17),
-            payment=dt(2023, 3, 17),
+            # payment=dt(2023, 3, 17),
             strike=1.101,
             notional=20e6,
             option_fixings=1.100,
@@ -4295,7 +4296,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 3, 15),
             delivery=dt(2023, 3, 17),
-            payment=dt(2023, 3, 17),
+            # payment=dt(2023, 3, 17),
             strike=1.101,
             notional=20e6,
             option_fixings=1.100,
@@ -4314,7 +4315,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
+            # payment=dt(2023, 6, 20),
             strike=1.101,
             notional=20e6,
         )
@@ -4343,7 +4344,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
+            # payment=dt(2023, 6, 20),
             strike=1.101,
             notional=20e6,
         )
@@ -4361,7 +4362,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
+            # payment=dt(2023, 6, 20),
             strike=1.101,
             notional=20e6,
         )
@@ -4400,7 +4401,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
+            # payment=dt(2023, 6, 20),
             strike=1.033,
             notional=20e6,
         )
@@ -4429,7 +4430,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
+            # payment=dt(2023, 6, 20),
             strike=1.033,
             notional=20e6,
         )
@@ -4477,7 +4478,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
+            # payment=dt(2023, 6, 20),
             strike=1.101,
             notional=20e6,
             delta_type=dlty,
@@ -4499,7 +4500,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
+            # payment=dt(2023, 6, 20),
             strike=float(result),
             notional=20e6,
             delta_type=dlty,
@@ -4517,7 +4518,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
+            # payment=dt(2023, 6, 20),
             strike=1.101,
             notional=20e6,
         )
@@ -4532,7 +4533,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
+            # payment=dt(2023, 6, 20),
             strike=1.101,
             notional=20e6,
         )
@@ -4579,7 +4580,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
+            # payment=dt(2023, 6, 20),
             strike=1.033,
             notional=20e6,
             delta_type=delta_type,
@@ -4659,7 +4660,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
+            # payment=dt(2023, 6, 20),
             strike=1.033,
             notional=20e6,
             delta_type=delta_type,
@@ -4715,7 +4716,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
+            # payment=dt(2023, 6, 20),
             strike=1.033,
             notional=20e6,
             delta_type=delta_type,
@@ -4751,7 +4752,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=dt(2023, 3, 16),
+            # payment=dt(2023, 3, 16),
             notional=20e6,
             strike=1.101,
             delta_type=delta_type,
@@ -4783,7 +4784,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=dt(2023, 3, 16),
+            # payment=dt(2023, 3, 16),
             notional=20e6,
             strike=1.101,
             delta_type="forward",
@@ -4816,7 +4817,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=dt(2023, 3, 16),
+            # payment=dt(2023, 3, 16),
             notional=1,
             strike=1.101,
             delta_type="forward",
@@ -4855,7 +4856,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=payment,
+            # payment=payment,
             notional=10e6,
             strike=1.10,
             delta_type="forward",
@@ -4890,7 +4891,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=payment,
+            # payment=payment,
             notional=10e6,
             strike=1.10,
             delta_type=delta_type,
@@ -4936,7 +4937,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=payment,
+            # payment=payment,
             notional=10e6,
             strike=1.10,
             delta_type=delta_type,
@@ -4993,7 +4994,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
+            # payment=dt(2023, 6, 20),
             notional=10e6,
             strike=1.10,
             delta_type="spot_pa",
@@ -5009,7 +5010,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
+            # payment=dt(2023, 6, 20),
             notional=10e6,
             strike=1.10,
             delta_type="forward",
@@ -5048,7 +5049,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
+            # payment=dt(2023, 6, 20),
             strike=1.101,
             notional=20e6,
         )
@@ -5071,7 +5072,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
+            # payment=dt(2023, 6, 20),
             strike=1.101,
             notional=20e6,
             delta_type=delta_type,
@@ -5211,7 +5212,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
+            # payment=dt(2023, 6, 20),
             strike=1.101,
             notional=20e6,
             delta_type="spot",
@@ -5245,7 +5246,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
+            # payment=dt(2023, 6, 20),
             strike=NoInput(0),
             notional=20e6,
             delta_type="spot",
@@ -5258,7 +5259,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
+            # payment=dt(2023, 6, 20),
             strike=1.1,
             notional=20e6,
             delta_type="spot",
@@ -5301,7 +5302,7 @@ class TestFXOption:
             pair="eurusd",
             expiry=dt(2023, 6, 16),
             delivery=dt(2023, 6, 20),
-            payment=dt(2023, 6, 20),
+            # payment=dt(2023, 6, 20),
             strike=NoInput(0),
             notional=20e6,
             delta_type="spot",
@@ -5323,3 +5324,71 @@ class TestFXOption:
             fx_vol=vol_,
             metric="Pips",
         ).is_err
+
+    def test_non_deliverable_fx_option(self, fxfo):
+        # this is an NOKSEK FX option with notional in NOK, normal value in SEK but non-deliverable
+        # requiring conversion to USD
+        fxo = FXCallPeriod(
+            delivery=dt(2000, 3, 1),
+            pair="NOKSEK",
+            nd_pair="SEKUSD",
+            strike=1.0,
+            expiry=dt(2000, 2, 28),
+        )
+        assert fxo.settlement_params.notional_currency == "nok"
+        assert fxo.settlement_params.currency == "usd"
+        assert fxo.non_deliverable_params.reference_currency == "sek"
+
+        fxo = FXCallPeriod(
+            delivery=dt(2000, 3, 1),
+            pair="NOKSEK",
+            strike=1.0,
+            expiry=dt(2000, 2, 28),
+        )
+        assert fxo.settlement_params.notional_currency == "nok"
+        assert fxo.settlement_params.currency == "sek"
+        assert fxo.non_deliverable_params is None
+
+    def test_non_deliverable_fx_option_npv(self, fxfo):
+        # this is an NOKSEK FX option with notional in NOK, normal value in SEK but non-deliverable
+        # requiring conversion to USD
+        fxf = FXForwards(
+            fx_rates=FXRates({"seknok": 0.95, "usdsek": 9.95}, settlement=dt(2000, 1, 1)),
+            fx_curves={
+                "usdusd": Curve({dt(2000, 1, 1): 1.0, dt(2000, 6, 1): 0.98}),
+                "sekusd": Curve({dt(2000, 1, 1): 1.0, dt(2000, 6, 1): 0.981}),
+                "seksek": Curve({dt(2000, 1, 1): 1.0, dt(2000, 6, 1): 0.984}),
+                "noknok": Curve({dt(2000, 1, 1): 1.0, dt(2000, 6, 1): 0.986}),
+                "nokusd": Curve({dt(2000, 1, 1): 1.0, dt(2000, 6, 1): 0.989}),
+            },
+        )
+        fxond = FXCallPeriod(
+            delivery=dt(2000, 3, 1),
+            pair="NOKSEK",
+            nd_pair="SEKUSD",
+            strike=1.0,
+            expiry=dt(2000, 2, 28),
+        )
+        fxo = FXCallPeriod(
+            delivery=dt(2000, 3, 1),
+            pair="NOKSEK",
+            strike=1.0,
+            expiry=dt(2000, 2, 28),
+        )
+        npv = fxo.try_local_npv(fx=fxf, fx_vol=10.0, disc_curve=fxf.curve("sek", "usd"))
+        npv_nd = fxond.try_local_npv(fx=fxf, fx_vol=10.0, disc_curve=fxf.curve("usd", "usd"))
+
+        # local NPV should be expressed in USD for ND type
+        assert abs(npv.unwrap() / 9.95 - npv_nd.unwrap()) < 1e-10
+
+    def test_cashflow_no_pricing_objects(self):
+        # this is an NOKSEK FX option with notional in NOK, normal value in SEK but non-deliverable
+        # requiring conversion to USD
+        fxo = FXCallPeriod(
+            delivery=dt(2000, 3, 1),
+            pair="NOKSEK",
+            strike=1.0,
+            expiry=dt(2000, 2, 28),
+        )
+        cf = fxo.cashflows()
+        assert isinstance(cf, dict)

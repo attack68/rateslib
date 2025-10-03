@@ -18,6 +18,31 @@ if TYPE_CHECKING:
 
 
 class _PeriodParams:
+    """Parameters of *Period* cashflows associated with some
+    :class:`~rateslib.scheduling.Schedule`.
+
+    Parameters
+    ----------
+    _start: datetime
+        The identified start date of the *Period*.
+    _end: datetime
+        The identified end date of the *Period*.
+    _frequency: Frequency
+        The :class:`~rateslib.scheduling.Frequency` associated with the *Period*.
+    _convention: Convention
+        The day count :class:`~rateslib.scheduling.Convention` associated with the *Period*.
+    _termination: datetime, optional
+        The termination date of an external :class:`~rateslib.scheduling.Schedule`.
+    _calendar: Calendar, optional
+         The calendar associated with the *Period*.
+    _stub: bool
+        Whether the *Period* is defined as a stub according to some external
+        :class:`~rateslib.scheduling.Schedule`.
+    _adjuster: Adjuster, optional
+        The date :class:`~rateslib.scheduling.Adjuster` applied to unadjusted dates in the
+        external :class:`~rateslib.scheduling.Schedule` to arrive at adjusted accrual dates.
+    """
+
     _start: datetime
     _end: datetime
     _frequency: Frequency
@@ -52,40 +77,50 @@ class _PeriodParams:
 
     @property
     def start(self) -> datetime:
+        """The identified start date of the *Period*."""
         return self._start
 
     @property
     def end(self) -> datetime:
+        """The identified end date of the *Period*."""
         return self._end
 
     @property
     def termination(self) -> datetime_:
+        """The termination date of an external :class:`~rateslib.scheduling.Schedule`."""
         return self._termination
 
     @property
     def adjuster(self) -> Adjuster_:
+        """The date :class:`~rateslib.scheduling.Adjuster` applied to unadjusted dates in the
+        external :class:`~rateslib.scheduling.Schedule` to arrive at adjusted accrual dates."""
         return self._adjuster
 
     @property
     def calendar(self) -> CalTypes:
+        """The calendar associated with the *Period*."""
         return self._calendar
 
     @property
     def stub(self) -> bool:
+        """Whether the *Period* is defined as a stub according to some external
+        :class:`~rateslib.scheduling.Schedule`"""
         return self._stub
 
     @property
     def convention(self) -> Convention:
+        """The day count :class:`~rateslib.scheduling.Convention` associated with the *Period*."""
         return self._convention
 
     @property
     def frequency(self) -> Frequency:
+        """The :class:`~rateslib.scheduling.Frequency` associated with the *Period*."""
         return self._frequency
 
     @cached_property
     def dcf(self) -> float:
         """
-        float : Calculated with appropriate ``convention`` over the period.
+        The DCF of the *Period* determined under its given parameters.
         """
         return dcf(
             start=self.start,

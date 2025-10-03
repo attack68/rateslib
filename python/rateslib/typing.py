@@ -127,6 +127,9 @@ Arr2dF64: TypeAlias = "np.ndarray[tuple[int, int], np.dtype[np.float64]]"
 Arr1dObj: TypeAlias = "np.ndarray[tuple[int], np.dtype[np.object_]]"
 Arr2dObj: TypeAlias = "np.ndarray[tuple[int, int], np.dtype[np.object_]]"
 
+PeriodFixings: TypeAlias = "DualTypes | Series[DualTypes] | str | NoInput"
+LegFixings: TypeAlias = "PeriodFixings | list[PeriodFixings] | tuple[PeriodFixings, PeriodFixings]"
+
 FixingsRates: TypeAlias = "Series[DualTypes] | list[DualTypes | list[DualTypes] | Series[DualTypes] | NoInput] | tuple[DualTypes, Series[DualTypes]] | DualTypes"
 FixingsRates_: TypeAlias = "FixingsRates | NoInput"
 

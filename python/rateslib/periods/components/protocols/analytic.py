@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol
 
 from rateslib.dual import dual_log, dual_norm_cdf, dual_norm_pdf
-from rateslib.enums.generics import Err, NoInput
+from rateslib.enums.generics import Err, NoInput, _drb
 from rateslib.enums.parameters import FXDeltaMethod
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.fx_volatility.utils import (
@@ -33,11 +33,14 @@ if TYPE_CHECKING:
         _BaseCurve,
         _BaseCurve_,
         datetime,
+        datetime_,
         str_,
     )
 
 
 class _WithAnalyticDelta(Protocol):
+    """Protocol to establish analytical sensitivity to rate type metrics."""
+
     settlement_params: _SettlementParams
 
     def try_analytic_delta(
@@ -49,7 +52,8 @@ class _WithAnalyticDelta(Protocol):
         fx: FXRevised_ = NoInput(0),
     ) -> Result[DualTypes]:
         """
-        Calculate the analytic rate delta of a *Period* expressed in local settlement currency.
+        Calculate the analytic rate delta of a *Period* expressed in local settlement currency,
+        with lazy error raising.
 
         Parameters
         ----------
@@ -160,7 +164,7 @@ class _WithAnalyticDeltaStatic(
         rrad = self.try_unindexed_reference_analytic_delta(
             rate_curve=rate_curve, disc_curve=disc_curve
         )
-        return self._maybe_index_up(value=rrad, index_curve=index_curve)
+        return self.try_index_up(value=rrad, index_curve=index_curve)
 
     def try_unindexed_analytic_delta(
         self,
@@ -172,7 +176,7 @@ class _WithAnalyticDeltaStatic(
         rrad = self.try_unindexed_reference_analytic_delta(
             rate_curve=rate_curve, disc_curve=disc_curve
         )
-        return self._maybe_convert_deliverable(value=rrad, fx=fx)
+        return self.try_convert_deliverable(value=rrad, fx=fx)
 
     def try_analytic_delta(
         self,
@@ -210,7 +214,7 @@ class _WithAnalyticDeltaStatic(
         rad = self.try_reference_analytic_delta(
             rate_curve=rate_curve, disc_curve=disc_curve, index_curve=index_curve
         )
-        lad = self._maybe_convert_deliverable(value=rad, fx=fx)  # type: ignore[arg-type]
+        lad = self.try_convert_deliverable(value=rad, fx=fx)  # type: ignore[arg-type]
         if lad.is_err:
             return lad
         return lad
@@ -220,23 +224,23 @@ class _WithAnalyticFXOptionGreeks(Protocol):
     settlement_params: _SettlementParams
     fx_option_params: _FXOptionParams
 
-    def try_unindexed_reference_analytic_greeks(
-        self,
-        *,
-        rate_curve: _BaseCurve,
-        disc_curve: _BaseCurve,
-        fx: FXForwards,
-        index_curve: _BaseCurve_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
-    ) -> dict[str, Any]:
-        return self.__base_analytic_greeks(
-            rate_curve=rate_curve,
-            disc_curve=disc_curve,
-            fx=fx,
-            fx_vol=fx_vol,
-            premium=NoInput(0),
-            _reduced=False,
-        )
+    # def try_unindexed_reference_analytic_greeks(
+    #     self,
+    #     *,
+    #     rate_curve: _BaseCurve,
+    #     disc_curve: _BaseCurve,
+    #     fx: FXForwards,
+    #     index_curve: _BaseCurve_ = NoInput(0),
+    #     fx_vol: FXVolOption_ = NoInput(0),
+    # ) -> dict[str, Any]:
+    #     return self.__base_analytic_greeks(
+    #         rate_curve=rate_curve,
+    #         disc_curve=disc_curve,
+    #         fx=fx,
+    #         fx_vol=fx_vol,
+    #         premium=NoInput(0),
+    #         _reduced=False,
+    #     )
 
     def analytic_greeks(
         self,
@@ -245,6 +249,7 @@ class _WithAnalyticFXOptionGreeks(Protocol):
         fx: FXForwards,
         fx_vol: FXVolOption_ = NoInput(0),
         premium: DualTypes_ = NoInput(0),  # expressed in the payment currency
+        premium_payment: datetime_ = NoInput(0),
     ) -> dict[str, Any]:
         r"""
         Return the different greeks for the *FX Option*.
@@ -264,6 +269,9 @@ class _WithAnalyticFXOptionGreeks(Protocol):
             The premium value of the option paid at the appropriate payment date.
             Premium should be expressed in domestic currency.
             If not given calculates and assumes a mid-market premium.
+        premium_payment: datetime, optional
+            The date that the premium is paid. If not given is assumed to be equal to the
+            *payment* associated with the option period *settlement_params*.
 
         Returns
         -------
@@ -324,7 +332,12 @@ class _WithAnalyticFXOptionGreeks(Protocol):
         ValueError: if the ``strike`` is not set on the *Option*.
         """  # noqa: E501
         return self.__base_analytic_greeks(
-            rate_curve=rate_curve, disc_curve=disc_curve, fx=fx, fx_vol=fx_vol, premium=premium
+            rate_curve=rate_curve,
+            disc_curve=disc_curve,
+            fx=fx,
+            fx_vol=fx_vol,
+            premium=premium,
+            premium_payment=premium_payment,
         )
 
     def __base_analytic_greeks(
@@ -334,6 +347,7 @@ class _WithAnalyticFXOptionGreeks(Protocol):
         fx: FXForwards,
         fx_vol: FXVolOption_ = NoInput(0),
         premium: DualTypes_ = NoInput(0),  # expressed in the payment currency
+        premium_payment: datetime_ = NoInput(0),
         _reduced: bool = False,
     ) -> dict[str, Any]:
         """Calculates `analytic_greeks`, if _reduced only calculates those necessary for
@@ -343,15 +357,15 @@ class _WithAnalyticFXOptionGreeks(Protocol):
 
         __vol, vega, __bs76, _kappa, _kega, _delta_index, gamma, __strike, __forward, __sqrt_t
         """
-
+        premium_payment_ = _drb(self.settlement_params.payment, premium_payment)
         if isinstance(self.fx_option_params.strike, NoInput):
             raise ValueError("`strike` must be set to value FXOption.")
 
         spot = fx.pairs_settlement[self.fx_option_params.pair]
         w_spot = rate_curve[spot]
         w_deli = rate_curve[self.fx_option_params.delivery]
-        if self.fx_option_params.delivery != self.settlement_params.payment:
-            w_payment = rate_curve[self.settlement_params.payment]
+        if self.fx_option_params.delivery != premium_payment_:
+            w_payment = rate_curve[premium_payment_]
         else:
             w_payment = w_deli
         v_deli = disc_curve[self.fx_option_params.delivery]
@@ -373,8 +387,7 @@ class _WithAnalyticFXOptionGreeks(Protocol):
                 k=self.fx_option_params.strike,
                 f=f_d,
                 expiry=self.fx_option_params.expiry,
-                w_deli=w_deli,
-                w_spot=w_spot,
+                z_w=w_deli / w_spot,
             )
             delta_idx: DualTypes | None = res[0]
             fx_vol_: DualTypes = res[1]

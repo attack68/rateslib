@@ -24,6 +24,11 @@ class FXOptionMetric(Enum):
 class IndexMethod(Enum):
     """
     Enumerable type to define determining the index value on some reference value date.
+
+    Notes
+    -----
+    ``Curve`` variant derives an index value directly from a *Curve* by using its discount factors
+    and its index base date.
     """
 
     Daily = 0

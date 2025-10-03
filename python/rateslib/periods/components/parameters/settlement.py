@@ -33,23 +33,14 @@ class _SettlementParams:
     _currency: str
         The physical *settlement currency* of the *Period*.
     _notional: float, Dual, Dual2, Variable
-        The notional amount of the *Period* expressed in *reference currency*.
+        The notional amount of the *Period* expressed in ``notional currency``.
+    _notional_currency: str
+        The currency for the expresion of ``notional`` amount.
     _payment: datetime
-        The payment date of the cashflow.
-    _pair: str, optional
-        For non-deliverable *Periods* only.
-        The currency pair of the *FX* rate fixing that determines settlement. The
-        *reference currency* is implied from ``pair`` when it is not equal to ``currency``.
-    _fx_fixings: float, Dual, Dual2, Variable, str, Series, optional
-        For non-deliverable *Periods* only.
-        An element which can determine the ``fx_fixing``.
-    _delivery: datetime, optional
-        For non-deliverable *Periods* only.
-        The settlement delivery date of the *FX* rate fixing.
+        The payment date of the *Period* cashflow.
     _ex_dividend: datetime, optional
         The ex-dividend date of the *Period*. Settlements occurring **after** this date
-        are assumed to be non-receivable.
-
+        are assumed to be non-receivable. If not given is assumed to be equal to ``payment``
     """
 
     _currency: str
@@ -68,36 +59,56 @@ class _SettlementParams:
     ) -> None:
         self._currency = _currency.lower()
         self._notional = _notional
-        self._notional_currency = _notional_currency
+        self._notional_currency = _notional_currency.lower()
         self._payment = _payment
         self._ex_dividend = _drb(self.payment, _ex_dividend)
 
     @property
     def currency(self) -> str:
+        """The local settlement currency of the *Period* cashflow."""
         return self._currency
 
     @property
     def notional(self) -> DualTypes:
+        """The notional amount of the *Period* expressed in units of ``notional_currency``."""
         return self._notional
 
     @property
     def notional_currency(self) -> str:
+        """The currency for the expression of ``notional`` amount."""
         return self._notional_currency
 
     @property
     def payment(self) -> datetime:
+        """The payment date of the *Period* cashflow."""
         return self._payment
 
     @property
     def ex_dividend(self) -> datetime:
+        """The ex-dividend date for settlement of the *Period* cashflow."""
         return self._ex_dividend
 
 
 class _NonDeliverableParams:
+    """
+    Parameters for determination of non-deliverable *Period* cashflows.
+
+    Parameters
+    ----------
     _currency: str
-    _pair: str
-    _fx_fixing: FXFixing
-    _delivery: datetime
+        The physical *settlement currency* of the *Period*.
+    _pair: str, optional
+        For non-deliverable *Periods* only.
+        The currency pair of the *FX* rate fixing that determines settlement. The
+        *reference currency* is implied from ``pair`` when it is not equal to ``currency``.
+    _fx_fixings: float, Dual, Dual2, Variable, Series, str, optional
+        The value of the :class:`~rateslib.data.fixings.FXFixing`. If a scalar is used directly.
+        If a string identifier will link to the central ``fixings`` object and data loader.
+    _delivery: datetime, optional
+        For non-deliverable *Periods* only.
+        The settlement delivery date of the *FX* rate fixing.
+
+    """
 
     def __init__(
         self,
@@ -107,25 +118,28 @@ class _NonDeliverableParams:
         _fx_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
     ) -> None:
         self._currency = _currency.lower()
-        self._pair = _pair
-        self._delivery = _delivery
-        self._fx_fixing = _init_fx_fixing(date=self.delivery, pair=self.pair, fixings=_fx_fixings)
+        self._pair = _pair.lower()
+        self._fx_fixing = _init_fx_fixing(date=_delivery, pair=self.pair, fixings=_fx_fixings)
 
     @property
     def currency(self) -> str:
+        """The physical *settlement currency* of the *Period*."""
         return self._currency
 
     @property
     def reference_currency(self) -> str:
+        """The *reference currency* of underlying *Period* cashflows."""
         ccy1, ccy2 = self.pair[0:3], self.pair[3:6]
         return ccy1 if ccy1 != self.currency else ccy2
 
     @property
     def pair(self) -> str:
+        """The currency pair associated with the :class:`~rateslib.data.fixings.FXFixing`."""
         return self._pair
 
     @property
     def fx_fixing(self) -> FXFixing:
+        """The :class:`~rateslib.data.fixings.FXFixing` associated with the *Period* cashflow."""
         return self._fx_fixing
 
     @fx_fixing.setter
@@ -134,10 +148,13 @@ class _NonDeliverableParams:
 
     @property
     def delivery(self) -> datetime:
-        return self._delivery
+        """The settlement delivery date of the :class:`~rateslib.data.fixings.FXFixing`."""
+        return self.fx_fixing.date
 
     @cached_property
     def fx_reversed(self) -> bool:
+        """Whether the *FX* rate fixing is reversed relative to the ``referency_currency``
+        and ``currency``."""
         return self.pair[3:6] == self.reference_currency
 
 

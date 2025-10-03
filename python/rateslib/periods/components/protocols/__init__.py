@@ -1,4 +1,4 @@
-from rateslib.periods.components.protocols.analytic_delta import (
+from rateslib.periods.components.protocols.analytic import (
     _WithAnalyticDelta,
     _WithAnalyticDeltaStatic,
     _WithAnalyticFXOptionGreeks,

@@ -35,6 +35,34 @@ if TYPE_CHECKING:
 
 
 class _IndexParams:
+    """
+    Parameters for *Period* cashflows adjusted under some indexation.
+
+    Parameters
+    ----------
+    _index_method : IndexMethod
+        The interpolation method, or otherwise, to determine index values from reference dates.
+    _index_lag: int
+        The indexation lag, in months, applied to the determination of index values.
+    _index_base: float, Dual, Dual2, Variable, optional
+        The specific value set of the base index value.
+        If not given and ``index_fixings`` is a str fixings identifier that will be
+        used to determine the base index value.
+    _index_fixings: float, Dual, Dual2, Variable, Series, str, optional
+        The index value for the reference date.
+        If a scalar value this is used directly. If a string identifier will link to the
+        central ``fixings`` object and data loader.
+    _index_base_date: datetime, optional
+        The reference date for determining the base index value. Not required if ``_index_base``
+        value is given directly.
+    _index_reference_date: datetime, optional
+        The reference date for determining the index value. Not required if ``_index_fixings``
+        is given as a scalar value.
+    _index_only: bool, optional
+        A flag which determines non-payment of notional on supported *Periods*.
+
+    """
+
     _index_lag: int
     _index_method: IndexMethod
     _index_fixing: IndexFixing
@@ -107,6 +135,7 @@ class _IndexParams:
 
     @property
     def index_base(self) -> IndexFixing:
+        """The :class:`~rateslib.data.fixings.IndexFixing` associated with the index base date."""
         return self._index_base
 
     @index_base.setter
@@ -115,6 +144,8 @@ class _IndexParams:
 
     @property
     def index_fixing(self) -> IndexFixing:
+        """The :class:`~rateslib.data.fixings.IndexFixing` associated with the index
+        reference date."""
         return self._index_fixing
 
     @index_fixing.setter
@@ -123,22 +154,75 @@ class _IndexParams:
 
     @property
     def index_only(self) -> bool:
+        """A flag which determines non-payment of notional on supported *Periods*."""
         return self._index_only
 
     @property
     def index_lag(self) -> int:
+        """The indexation lag, in months, applied to the determination of index values."""
         return self._index_lag
 
     @property
     def index_method(self) -> IndexMethod:
+        """The :class:`~rateslib.enums.parameters.IndexMethod` to determine index values
+        from reference dates."""
         return self._index_method
+
+    def try_index_value(
+        self,
+        index_curve: _BaseCurve_ = NoInput(0),
+    ) -> Result[DualTypes]:
+        """
+        Determine the index reference value from fixing or forecast curve, with lazy error raising.
+
+        Parameters
+        ----------
+        index_curve : _BaseCurve, optional
+            The curve from which index values are forecast if required.
+
+        Returns
+        -------
+        Result[float, Dual, Dual2, Variable]
+        """
+        return _try_index_value(
+            index_fixings=self.index_fixing.value,
+            index_date=self.index_fixing.date,
+            index_curve=index_curve,
+            index_lag=self.index_lag,
+            index_method=self.index_method,
+        )
+
+    def try_index_base(
+        self,
+        index_curve: _BaseCurve_ = NoInput(0),
+    ) -> Result[DualTypes]:
+        """
+        Determine the index base value from fixing or forecast curve, with lazy error raising.
+
+        Parameters
+        ----------
+        index_curve : _BaseCurve, optional
+            The curve from which index values are forecast if required.
+
+        Returns
+        -------
+        Result[float, Dual, Dual2, Variable]
+        """
+        return _try_index_value(
+            index_fixings=self.index_base.value,
+            index_date=self.index_base.date,
+            index_curve=index_curve,
+            index_lag=self.index_lag,
+            index_method=self.index_method,
+        )
 
     def try_index_ratio(
         self,
         index_curve: _BaseCurve_ = NoInput(0),
     ) -> Result[tuple[DualTypes, DualTypes, DualTypes]]:
         """
-        Calculate the index ratio for the *Period*, including the numerator and denominator.
+        Calculate the index ratio for the *Period*, including the numerator and denominator,
+        with lazy error raising.
 
         .. math::
 
@@ -151,27 +235,14 @@ class _IndexParams:
 
         Returns
         -------
-        Result of tuple of float, Dual, Dual2, Variable for the ratio, numerator, denominator.
+        Result[tuple[float, Dual, Dual2, Variable]] for the ratio, numerator, denominator.
         """
-        denominator_ = _try_index_value(
-            index_fixings=self.index_base.value,
-            index_date=self.index_base.date,
-            index_curve=index_curve,
-            index_lag=self.index_lag,
-            index_method=self.index_method,
-        )
+        denominator_ = self.try_index_base(index_curve=index_curve)
         if isinstance(denominator_, Err):
             return denominator_
-        numerator_ = _try_index_value(
-            index_fixings=self.index_fixing.value,
-            index_date=self.index_fixing.date,
-            index_curve=index_curve,
-            index_lag=self.index_lag,
-            index_method=self.index_method,
-        )
+        numerator_ = self.try_index_value(index_curve=index_curve)
         if isinstance(numerator_, Err):
             return numerator_
-
         n_, d_ = numerator_.unwrap(), denominator_.unwrap()
         return Ok((n_ / d_, n_, d_))
 
@@ -193,7 +264,7 @@ class _IndexParams:
 
         Returns
         -------
-        tuple of float, Dual, Dual2, Variable for the ratio, numerator, denominator.
+        tuple[float, Dual, Dual2, Variable] for the ratio, numerator, denominator.
         """
         return self.try_index_ratio(index_curve=index_curve).unwrap()
 
