@@ -4,6 +4,7 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 import os
 import sys
+import pandas as pd
 
 sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath('../..'))
@@ -86,3 +87,7 @@ pygments_style = "sphinx"
 inheritance_graph_attrs = dict(rankdir="LR", size='"6.0, 8.0"', fontsize=10, ratio='compress')
 inheritance_node_attrs = dict(shape='box', fontsize=10, height=0.25, color='gray60', style='filled', fontcolor="white", fillcolor="darkorange2")
 inheritance_edge_attrs = dict(color='gray60')
+
+# pandas
+pd.set_option('display.max_columns', None)
+pd.set_option('display.width', 1000)

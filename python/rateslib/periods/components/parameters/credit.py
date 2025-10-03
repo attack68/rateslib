@@ -2,6 +2,11 @@ from __future__ import annotations
 
 
 class _CreditParams:
+    """
+    Parameters for *Period* cashflows associated with credit events.
+
+    """
+
     _premium_accrued: bool
 
     def __init__(self, _premium_accrued: bool) -> None:

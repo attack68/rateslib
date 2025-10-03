@@ -1,3 +1,4 @@
+from rateslib.periods.components.base_period import BasePeriod
 from rateslib.periods.components.cashflow import (
     Cashflow,
     IndexCashflow,
@@ -19,10 +20,12 @@ from rateslib.periods.components.float_period import (
     NonDeliverableIndexFloatPeriod,
 )
 from rateslib.periods.components.fx_volatility import FXCallPeriod, FXOptionPeriod, FXPutPeriod
-from rateslib.periods.components.protocols import _WithNPV
+from rateslib.periods.components.protocols import _WithNPV, _WithNPVStatic
 
 __all__ = [
     "_WithNPV",
+    "_WithNPVStatic",
+    "BasePeriod",
     "Cashflow",
     "IndexCashflow",
     "NonDeliverableCashflow",

@@ -152,7 +152,8 @@ class IndexFixing(_BaseFixing):
     index_lag: int
         The number months by which the reference date is lagged to derive an index value.
     index_method: IndexMethod
-        The method used for calculating the index value. See :class:`IndexMethod`.
+        The method used for calculating the index value. See
+        :class:`~rateslib.enums.parameters.IndexMethod`.
     date: datetime
         The date of relevance for the index fixing, which is its **reference value** date.
     value: float, Dual, Dual2, Variable, optional
@@ -204,7 +205,8 @@ class IndexFixing(_BaseFixing):
 
     @property
     def index_method(self) -> IndexMethod:
-        """The :class:`IndexMethod` used for calculating the index value."""
+        """The :class:`~rateslib.enums.parameters.IndexMethod` used for calculating the
+        index value."""
         return self._index_method
 
     @property

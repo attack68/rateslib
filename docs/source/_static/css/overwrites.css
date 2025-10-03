@@ -88,6 +88,11 @@ div.tutorial span{
   font-style: italic;
 }
 
+.green {
+  color: #00612c;
+  font-style: italic;
+}
+
 table.scrollwide {
   display: block;
   width: 648px;

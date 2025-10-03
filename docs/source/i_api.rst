@@ -14,23 +14,6 @@ Indices and tables
 * :ref:`modindex`
 * :ref:`search`
 
-Notation
-=========
-
-.. math::
-
-   d \quad \text{or} \quad d_i =& \text{DCF of period} \; (i) \\
-   m \quad \text{or} \quad m_i =& \text{Maturity date of period} \; (i) \\
-   v(m) =& \text{DF of period payment date,} \; m \\
-   N \quad \text{or} \quad N_i =& \text{Notional of period} \; (i) \\
-   R =& \text{Fixed rate of period or leg} \\
-   z =& \text{Floating period spread} \\
-   r(r_i, z) =& \text{Floating rate of period as a function of fixings,} \; (r_i) \\
-   C =& \text{Cashflow} \\
-   P =& \text{Net present value} \\
-   I(m) =& \text{Index ratio applicable at maturity,} \; m \\
-   S =& \text{Fixed credit spread} \\
-   Q(m) =& \text{Survival probability at maturity,} \; m \\
 
 Defaults
 =========
@@ -122,19 +105,62 @@ Periods
 
 Link to the :ref:`Periods<periods-doc>` section in the user guide.
 
+.. automodapi:: rateslib.periods
+   :no-heading:
+
 Protocols
 ^^^^^^^^^
 
-.. automodapi:: rateslib.periods.components
+.. automodapi:: rateslib.periods.components.protocols
+   :no-inheritance-diagram:
    :headings: "^-"
    :inherited-members:
    :no-heading:
    :include: _WithNPV
    :include: _WithNPVStatic
+   :include: _WithIndexingStatic
+   :include: _WithNonDeliverableStatic
 
+Parameters
+^^^^^^^^^^
 
-.. automodapi:: rateslib.periods
+.. automodapi:: rateslib.periods.components.parameters
+   :no-inheritance-diagram:
+   :headings: "^-"
+   :inherited-members:
    :no-heading:
+   :skip: _init_or_none_IndexParams
+   :skip: _init_or_none_NonDeliverableParams
+   :skip: _init_SettlementParams_with_fx_pair
+   :skip: _init_FloatRateParams
+   :skip: _init_MtmParams
+
+Objects
+^^^^^^^^
+
+.. automodapi:: rateslib.periods.components
+   :no-inheritance-diagram:
+   :headings: "^-"
+   :inherited-members:
+   :no-heading:
+   :include: BasePeriod
+   :include: FloatPeriod
+   :include: FixedPeriod
+   :include: Cashflow
+   :include: CreditPremiumPeriod
+   :include: CreditProtectionPeriod
+   :include: FXOptionPeriod
+   :include: FXCallPeriod
+   :include: FXPutPeriod
+
+
+Class Inheritance Diagram
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. inheritance-diagram:: rateslib.periods.components.protocols._WithNPV rateslib.periods.components.protocols._WithNPVStatic rateslib.periods.components.protocols._WithIndexingStatic rateslib.periods.components.protocols._WithNonDeliverableStatic rateslib.periods.components.BasePeriod rateslib.periods.components.FloatPeriod rateslib.periods.components.Cashflow rateslib.periods.components.FixedPeriod
+   :private-bases:
+   :parts: 1
+
 
 Legs
 =====
@@ -143,6 +169,46 @@ Link to the :ref:`Legs<legs-doc>` section in the user guide.
 
 .. automodapi:: rateslib.legs
    :no-heading:
+
+
+.. Protocols
+    ^^^^^^^^^
+
+    .. automodapi:: rateslib.legs.components.protocols
+       :no-inheritance-diagram:
+       :headings: "^-"
+       :inherited-members:
+       :no-heading:
+       :include: _WithNPV
+       :include: _WithNPVStatic
+       :include: _WithIndexingStatic
+       :include: _WithNonDeliverableStatic
+
+    Parameters
+    ^^^^^^^^^^
+
+    .. automodapi:: rateslib.legs.components.parameters
+       :no-inheritance-diagram:
+       :headings: "^-"
+       :inherited-members:
+       :no-heading:
+       :skip: _init_or_none_IndexParams
+       :skip: _init_or_none_NonDeliverableParams
+       :skip: _init_SettlementParams_with_fx_pair
+       :skip: _init_FloatRateParams
+       :skip: _init_MtmParams
+
+Objects
+^^^^^^^^
+
+.. automodapi:: rateslib.legs.components
+   :no-inheritance-diagram:
+   :headings: "^-"
+   :inherited-members:
+   :no-heading:
+   :include: FixedLeg
+   :include: FloatLeg
+   :include: Amortization
 
 Instruments
 ============

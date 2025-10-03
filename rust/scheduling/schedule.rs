@@ -131,7 +131,7 @@ fn validate_individual_dates(
 }
 
 /// Ensure dates are ordered and that they do not define 'dead stubs', which are created when
-/// two scheduling dates are adjusted under some [Adjusted] and result in the same date.
+/// two scheduling dates are adjusted under some [Adjuster] and result in the same date.
 fn validate_date_ordering(
     ueffective: &NaiveDateTime,
     ufront_stub: &Option<NaiveDateTime>,

@@ -20,7 +20,13 @@ from rateslib.enums.parameters import (
     _get_fx_option_metric,
 )
 from rateslib.fx import FXForwards
-from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
+from rateslib.fx_volatility import (
+    FXDeltaVolSmile,
+    FXDeltaVolSurface,
+    FXSabrSmile,
+    FXSabrSurface,
+    FXVolObj,
+)
 from rateslib.fx_volatility.delta_vol import (
     _moneyness_from_atm_delta_one_dimensional,
     _moneyness_from_atm_delta_two_dimensional,
@@ -35,8 +41,13 @@ from rateslib.fx_volatility.utils import (
     _moneyness_from_delta_closed_form,
     _surface_index_left,
 )
-from rateslib.periods.components.parameters import _SettlementParams
-from rateslib.periods.components.parameters.fx_volatility import _FXOptionParams
+from rateslib.periods.components.parameters import (
+    _FXOptionParams,
+    _IndexParams,
+    _init_or_none_IndexParams,
+    _NonDeliverableParams,
+    _SettlementParams,
+)
 from rateslib.periods.components.protocols import (
     _WithAnalyticFXOptionGreeks,
     _WithNPVCashflowsStatic,
@@ -46,6 +57,7 @@ from rateslib.periods.components.utils import (
     _get_vol_maybe_from_obj,
     _get_vol_smile_or_raise,
     _get_vol_smile_or_value,
+    _try_validate_fx_as_forwards,
     _validate_fx_as_forwards,
 )
 
@@ -58,53 +70,147 @@ if TYPE_CHECKING:
         FXForwards_,
         FXVolOption,
         FXVolOption_,
+        IndexMethod,
         Number,
         Series,
         _BaseCurve,
         _BaseCurve_,
+        bool_,
         datetime,
         datetime_,
+        int_,
         str_,
     )
 
 
 class FXOptionPeriod(_WithNPVCashflowsStatic, _WithAnalyticFXOptionGreeks, metaclass=ABCMeta):
-    """
-    Abstract base class for constructing volatility components of FXOptions.
+    r"""
+    An abstract base class for implementing FX option *Periods*.
+
+    **See Also**: :class:`~rateslib.periods.components.FXCallPeriod`,
+    :class:`~rateslib.periods.components.FXPutPeriod`
+
+    .. role:: red
+
+    .. role:: green
+
+    Parameters
+    ----------
+    .
+        .. note::
+
+           The following define **fx option** and generalised **settlement** parameters.
+
+    direction: OptionType, :red:`required`
+        Call or put. The value :math:`\phi` value in option formulae.
+    delivery: datetime, :red:`required`
+        The settlement date of the underlying FX rate. Also used as the implied payment date of
+        the cashflow valuation date.
+    pair: str, :red:`required`
+        The currency pair of the :class:`~rateslib.data.fixings.FXFixing` against which the option
+        will settle.
+    expiry: datetime, :red:`required`
+        The expiry date of the option, when the option fixing is determined.
+    strike: float, Dual, Dual2, Variable, :green:`optional`
+        The strike price of the option. Can be set after initialisation.
+    notional: float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
+        The notional of the option expressed in units of LHS currency of `pair`.
+    delta_type: FXDeltaMethod, str, :green:`optional (set by 'default')`
+        The definition of the delta for the option.
+    metric: FXDeltaMethod, str, :green:`optional` (set by 'default')`
+        The metric used by default in the
+        :meth:`~rateslib.periods.components.fx_volatility.FXOptionPeriod.rate` method.
+    option_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
+        The value of the option :class:`~rateslib.data.fixings.FXFixing`. If a scalar, is used
+        directly. If a string identifier, links to the central ``fixings`` object and data loader.
+    ex_dividend: datetime, :green:`optional (set as 'delivery')`
+
+        .. note::
+
+           The following parameters define **non-deliverability**. If the *Period* is directly
+           deliverable do not supply these parameters. The ``nd_pair`` must contain RHS currency
+           of `pair` in order to define a valid non-deliverable FX Option.
+
+    nd_pair: str, :green:`optional`
+        The currency pair of the :class:`~rateslib.data.fixings.FXFixing` that determines
+        non-deliverable settlement. The *reference currency* is implied from ``pair``.
+        Must include ``currency``.
+    fx_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
+        The value of the non-deliverable :class:`~rateslib.data.fixings.FXFixing`. If a scalar is
+        used directly. If a string identifier will link to the central ``fixings`` object and
+        data loader.
+
+        .. note::
+
+           The following parameters define **indexation**. The *Period* will be considered
+           indexed if any of ``index_method``, ``index_lag``, ``index_base``, ``index_fixings``
+           are given. FX Options are rarely, if ever, indexed so frequently these parameters
+           should be ignored.
+
+    index_method : IndexMethod, str, :green:`optional (set by 'defaults')`
+        The interpolation method, or otherwise, to determine index values from reference dates.
+    index_lag: int, :green:`optional (set by 'defaults')`
+        The indexation lag, in months, applied to the determination of index values.
+    index_base: float, Dual, Dual2, Variable, :green:`optional`
+        The specific value set of the base index value.
+        If not given and ``index_fixings`` is a str fixings identifier that will be
+        used to determine the base index value.
+    index_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
+        The index value for the reference date.
+        If a scalar value this is used directly. If a string identifier will link to the
+        central ``fixings`` object and data loader.
+    index_base_date: datetime, :green:`optional`
+        The reference date for determining the base index value. Not required if ``_index_base``
+        value is given directly.
+    index_reference_date: datetime, :green:`optional (set as 'end')`
+        The reference date for determining the index value. Not required if ``_index_fixings``
+        is given as a scalar value.
+    index_only: bool, :green:`optional (set as False)`
+        A flag which determines non-payment of notional on supported *Periods*.
+
+
+    Notes
+    ------
 
     Pricing model uses Black 76 log-normal volatility calculations with calendar day time
     reference.
 
-    Parameters
-    -----------
-    pair: str
-        The currency pair for the FX rate which the option is settled. 3-digit code, e.g. "eurusd".
-    expiry: datetime
-        The expiry of the option: when the fixing and moneyness is determined.
-    delivery: datetime
-        The delivery date of the underlying FX pair. E.g. typically this would be **spot** as
-        measured from the expiry date.
-    payment: datetime
-        The payment date of the premium associated with the option.
-    strike: float, Dual, Dual2
-        The strike value of the option.
-    notional: float
-        The amount in ccy1 (LHS) on which the option is based.
-    option_fixing: float, optional
-        If an option has already expired this argument is used to fix the price determined at
-        expiry.
-    delta_type: FXDeltaMethod or str
-        When deriving strike from a delta percentage the method used to associate the sensitivity
-        to either a spot rate or a forward rate, possibly also premium adjusted.
-    metric: str in {"pips", "percent"}, optional
-        The pricing metric for the rate of the options.
     """
 
-    fx_option_params: _FXOptionParams
-    settlement_params: _SettlementParams
-    index_params: None
-    non_deliverable_params: None
-    rate_params: None
+    @property
+    def period_params(self) -> None:  # type: ignore[override]
+        """This *Period* type has no
+        :class:`~rateslib.periods.components.parameters._PeriodParams`."""
+        return self._period_params
+
+    @property
+    def settlement_params(self) -> _SettlementParams:  # type: ignore[override]
+        """The :class:`~rateslib.periods.components.parameters._SettlementParams`
+        of the *Period*."""
+        return self._settlement_params
+
+    @property
+    def index_params(self) -> _IndexParams | None:  # type: ignore[override]
+        """The :class:`~rateslib.periods.components.parameters._IndexParams` of
+        the *Period*, if any."""
+        return self._index_params
+
+    @property
+    def non_deliverable_params(self) -> _NonDeliverableParams | None:  # type: ignore[override]
+        """The :class:`~rateslib.periods.components.parameters._NonDeliverableParams` of the
+        *Period*., if any."""
+        return self._non_deliverable_params
+
+    @property
+    def rate_params(self) -> None:  # type: ignore[override]
+        """This *Period* type has no rate parameters."""
+        return self._rate_params
+
+    @property
+    def fx_option_params(self) -> _FXOptionParams:  # type: ignore[override]
+        """The :class:`~rateslib.periods.components.parameters._FXOptionParams` of the
+        *Period*."""
+        return self._fx_option_params
 
     @abstractmethod
     def __init__(
@@ -112,41 +218,82 @@ class FXOptionPeriod(_WithNPVCashflowsStatic, _WithAnalyticFXOptionGreeks, metac
         *,
         # option params:
         direction: OptionType,
-        payment: datetime,
+        delivery: datetime,  # otherwise termed the 'payment' of the period
         pair: str,
-        delivery: datetime,
         expiry: datetime,
         strike: DualTypes_ = NoInput(0),
         notional: DualTypes_ = NoInput(0),
-        # currency: str_ = NoInput(0),
         delta_type: FXDeltaMethod | str_ = NoInput(0),
         metric: FXOptionMetric | str_ = NoInput(0),
         option_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
         # currency args:
         ex_dividend: datetime_ = NoInput(0),
+        # non-deliverable args:
+        nd_pair: str_ = NoInput(0),
+        fx_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+        # index-args:
+        index_base: DualTypes_ = NoInput(0),
+        index_lag: int_ = NoInput(0),
+        index_method: IndexMethod | str_ = NoInput(0),
+        index_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+        index_only: bool_ = NoInput(0),
+        index_base_date: datetime_ = NoInput(0),
+        index_reference_date: datetime_ = NoInput(0),
     ) -> None:
-        self.index_params = None
-        self.non_deliverable_params = None
-        self.rate_params = None
-        self.period_params = None
-        self.settlement_params = _SettlementParams(
-            _notional=_drb(defaults.notional, notional),
-            _payment=payment,
-            _currency=pair[3:].lower(),
-            _notional_currency=pair[:3].lower(),
-            _ex_dividend=ex_dividend,
+        self._index_params = _init_or_none_IndexParams(
+            _index_base=index_base,
+            _index_lag=index_lag,
+            _index_method=index_method,
+            _index_fixings=index_fixings,
+            _index_only=index_only,
+            _index_base_date=index_base_date,
+            _index_reference_date=_drb(delivery, index_reference_date),
         )
-        self.fx_option_params = _FXOptionParams(
+        self._fx_option_params = _FXOptionParams(
             _direction=direction,
             _expiry=expiry,
             _delivery=delivery,
             _delta_type=_get_fx_delta_type(_drb(defaults.fx_delta_type, delta_type)),
             _pair=pair,
-            _currency=pair[3:].lower(),
             _strike=strike,
             _metric=_drb(defaults.fx_option_metric, metric),
             _option_fixings=option_fixings,
         )
+        self._rate_params = None
+        self._period_params = None
+
+        if isinstance(nd_pair, NoInput):
+            # then option is directly deliverable
+            self._non_deliverable_params: _NonDeliverableParams | None = None
+            self._settlement_params = _SettlementParams(
+                _notional=_drb(defaults.notional, notional),
+                _payment=delivery,
+                _currency=pair[3:].lower(),
+                _notional_currency=pair[:3].lower(),
+                _ex_dividend=ex_dividend,
+            )
+        else:
+            fx_ccy1, fx_ccy2 = self.fx_option_params.pair[:3], self.fx_option_params.pair[3:]
+            nd_ccy1, nd_ccy2 = nd_pair.lower()[:3], nd_pair.lower()[3:]
+            if fx_ccy2 == nd_ccy1:
+                currency = nd_ccy2
+            elif fx_ccy2 != nd_ccy2:
+                currency = nd_ccy1
+            else:
+                raise ValueError(err.VE_MISMATCHED_FX_PAIR_ND_PAIR.format(nd_pair.lower(), fx_ccy2))
+            self._non_deliverable_params = _NonDeliverableParams(
+                _currency=currency,
+                _pair=nd_pair,
+                _delivery=delivery,
+                _fx_fixings=fx_fixings,
+            )
+            self._settlement_params = _SettlementParams(
+                _notional=_drb(defaults.notional, notional),
+                _payment=delivery,
+                _currency=currency,
+                _notional_currency=fx_ccy1,
+                _ex_dividend=ex_dividend,
+            )
 
     def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
@@ -156,7 +303,7 @@ class FXOptionPeriod(_WithNPVCashflowsStatic, _WithAnalyticFXOptionGreeks, metac
         *,
         rate_curve: _BaseCurve_ = NoInput(0),  # w(.) variety
         disc_curve: _BaseCurve_ = NoInput(0),  # v(.) variety
-        index_curve: _BaseCurve_ = NoInput(0),
+        # index_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
         **kwargs: Any,
@@ -179,25 +326,46 @@ class FXOptionPeriod(_WithNPVCashflowsStatic, _WithAnalyticFXOptionGreeks, metac
 
         else:
             # value is expressed in currency (i.e. pair[3:])
-            fx_ = _validate_fx_as_forwards(fx)
-            rate_curve_ = _validate_obj_not_no_input(rate_curve, "rate_curve")
-            disc_curve_ = _validate_obj_not_no_input(disc_curve, "disc_curve")
+            fx_res = _try_validate_fx_as_forwards(fx)
+            if isinstance(fx_res, Err):
+                return fx_res
+            else:
+                fx_ = fx_res.unwrap()
+
+            # rate_curve_ = _validate_obj_not_no_input(rate_curve, "rate_curve")
+            # disc_curve_ = _validate_obj_not_no_input(disc_curve, "disc_curve")
+
             vol_ = _get_vol_maybe_from_obj(
                 fx_vol=fx_vol,
                 fx=fx_,
-                disc_curve=rate_curve_,
+                disc_curve=rate_curve,
                 strike=k,
                 pair=self.fx_option_params.pair,
                 delivery=self.fx_option_params.delivery,
                 expiry=self.fx_option_params.expiry,
             )
+
+            # Get time to expiry from some object
+            if not isinstance(disc_curve, NoInput):
+                t_e = self.fx_option_params.time_to_expiry(disc_curve.nodes.initial)
+            elif isinstance(fx_vol, FXVolObj):
+                t_e = self.fx_option_params.time_to_expiry(fx_vol.meta.eval_date)
+            elif not isinstance(rate_curve, NoInput):
+                t_e = self.fx_option_params.time_to_expiry(rate_curve.nodes.initial)
+            else:
+                return Err(
+                    ValueError(
+                        "Object required to define evaluation date and time to expiry.\n"
+                        "Use one of `disc_curve`, `fx_vol`, or `rate_curve`."
+                    )
+                )
+
             expected = _black76(
                 F=fx_.rate(self.fx_option_params.pair, self.fx_option_params.delivery),
                 K=k,
-                t_e=self.fx_option_params.time_to_expiry(disc_curve_.nodes.initial),
+                t_e=t_e,
                 v1=NoInput(0),  # not required
-                v2=disc_curve_[self.fx_option_params.delivery]
-                / disc_curve_[self.settlement_params.payment],
+                v2=1.0,  # disc_curve_[delivery] / disc_curve_[payment],
                 vol=vol_ / 100.0,
                 phi=self.fx_option_params.direction.value,  # controls calls or put price
             )
@@ -210,6 +378,7 @@ class FXOptionPeriod(_WithNPVCashflowsStatic, _WithAnalyticFXOptionGreeks, metac
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
         metric: FXOptionMetric | str_ = NoInput(0),
+        forward_settlement: datetime_ = NoInput(0),
     ) -> Result[DualTypes]:
         """
         Return the pricing metric of the *FXOption*.
@@ -218,10 +387,11 @@ class FXOptionPeriod(_WithNPVCashflowsStatic, _WithAnalyticFXOptionGreeks, metac
 
         Parameters
         ----------
-        disc_curve: Curve
-            The discount *Curve* for the LHS currency. (Not used).
+        rate_curve: Curve
+            The discount *Curve* for the LHS currency. Used in the case of domestic notional
+            percent based quotations.
         disc_curve_ccy2: Curve
-            The discount *Curve* for the RHS currency.
+            The discount *Curve* for the RHS currency. Used for for pips based quotations.
         fx: float, FXRates, FXForwards, optional
             The object to project the currency pair FX rate at delivery.
         fx_vol: float, Dual, Dual2
@@ -229,6 +399,9 @@ class FXOptionPeriod(_WithNPVCashflowsStatic, _WithAnalyticFXOptionGreeks, metac
         metric: FXOptionMetric  or str, optional
             The metric to return. If *Pips* assumes the premium is in foreign (rhs)
             currency. If *Percent*, the premium is assumed to be domestic (lhs).
+        forward_settlement: datetime, optional
+            The premium is, by default, measured for payment at ``delivery``. This date will
+            return a calculation for premium payment on another date.
 
         Returns
         -------
@@ -251,13 +424,27 @@ class FXOptionPeriod(_WithNPVCashflowsStatic, _WithAnalyticFXOptionGreeks, metac
 
         if metric_ == FXOptionMetric.Pips:
             points_premium = cash / self.settlement_params.notional
-            return Ok(points_premium * 10000.0)
+            if isinstance(forward_settlement, NoInput):
+                return Ok(points_premium * 10000.0)
+            else:
+                return Ok(
+                    points_premium
+                    * 10000.0
+                    * disc_curve[self.settlement_params.payment]
+                    / disc_curve[forward_settlement]
+                )
         else:  # metric_ == FXOptionMetric.Percent:
             fx_ = _validate_fx_as_forwards(fx)
             currency_premium = cash / fx_.rate(
                 self.fx_option_params.pair, self.settlement_params.payment
             )
-            return Ok(currency_premium / self.settlement_params.notional * 100)
+            if isinstance(forward_settlement, NoInput):
+                return Ok(currency_premium / self.settlement_params.notional * 100)
+            else:
+                currency_premium *= (
+                    rate_curve[self.settlement_params.payment] / rate_curve[forward_settlement]
+                )
+                return Ok(currency_premium / self.settlement_params.notional * 100)
 
     def rate(
         self,
@@ -267,6 +454,7 @@ class FXOptionPeriod(_WithNPVCashflowsStatic, _WithAnalyticFXOptionGreeks, metac
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
         metric: str_ = NoInput(0),
+        forward_settlement: datetime_ = NoInput(0),
     ) -> DualTypes:
         """
         Return the pricing metric of the *FXOption*.
@@ -299,6 +487,7 @@ class FXOptionPeriod(_WithNPVCashflowsStatic, _WithAnalyticFXOptionGreeks, metac
             fx=fx,
             fx_vol=fx_vol,
             metric=metric,
+            forward_settlement=forward_settlement,
         ).unwrap()
 
     def implied_vol(
@@ -760,22 +949,40 @@ class FXOptionPeriod(_WithNPVCashflowsStatic, _WithAnalyticFXOptionGreeks, metac
 
 
 class FXCallPeriod(FXOptionPeriod):
-    """
-    Create an FXCallPeriod.
+    r"""
+    A *Period* defined by an FX call option.
 
-    For parameters see :class:`~rateslib.periods.FXOptionPeriod`.
-    """
+    For parameters see :class:`~rateslib.periods.components.FXOptionPeriod`, where `direction` is
+    set to 1.0.
+
+    The expected unindexed reference cashflow is given by,
+
+    .. math::
+
+       \mathbb{E^Q}[\bar{C}_t] = \left \{ \begin{matrix} \max(f_d - K, 0) & \text{after expiry} \\ B76(f_d, K, t, \sigma) & \text{before expiry} \end{matrix} \right .
+
+    where :math:`B76(.)` is the Black-76 option pricing formula.
+    """  # noqa: E501
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **{"direction": OptionType.Call, **kwargs})
+        super().__init__(*args, **{**kwargs, "direction": OptionType.Call})
 
 
 class FXPutPeriod(FXOptionPeriod):
-    """
-    Create an FXPutPeriod.
+    r"""
+    A *Period* defined by an FX put option.
 
-    For parameters see :class:`~rateslib.periods.FXOptionPeriod`.
-    """
+    For parameters see :class:`~rateslib.periods.components.FXOptionPeriod`, where `direction` is
+    set to -1.0.
+
+    The expected unindexed reference cashflow is given by,
+
+    .. math::
+
+       \mathbb{E^Q}[\bar{C}_t] = \left \{ \begin{matrix} \max(K - f_d, 0) & \text{after expiry} \\ B76(f_d, K, t, \sigma) & \text{before expiry} \end{matrix} \right .
+
+    where :math:`B76(.)` is the Black-76 option pricing formula.
+    """  # noqa: E501
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **{"direction": OptionType.Put, **kwargs})
+        super().__init__(*args, **{**kwargs, "direction": OptionType.Put})

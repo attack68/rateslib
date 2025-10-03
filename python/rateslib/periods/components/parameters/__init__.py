@@ -1,4 +1,5 @@
 from rateslib.periods.components.parameters.credit import _CreditParams
+from rateslib.periods.components.parameters.fx_volatility import _FXOptionParams
 from rateslib.periods.components.parameters.index import (
     _IndexParams,
     _init_or_none_IndexParams,
@@ -9,7 +10,6 @@ from rateslib.periods.components.parameters.mtm import (
 )
 from rateslib.periods.components.parameters.period import _PeriodParams
 from rateslib.periods.components.parameters.rate import (
-    _CashflowRateParams,
     _FixedRateParams,
     _FloatRateParams,
     _init_FloatRateParams,
@@ -32,8 +32,8 @@ __all__ = [
     "_PeriodParams",
     "_FixedRateParams",
     "_FloatRateParams",
-    "_CashflowRateParams",
     "_NonDeliverableParams",
     "_CreditParams",
     "_MtmParams",
+    "_FXOptionParams",
 ]
