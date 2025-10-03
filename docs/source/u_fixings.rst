@@ -179,7 +179,8 @@ To date, *rateslib* makes use of 3 classifications of fixing; **index**, **fx** 
 
          fx_fixing = FXFixing(
              date=dt(2025, 9, 16),
-             identifier="GBPUSD_1600_GMT"
+             identifier="GBPUSD_1600_GMT",
+             pair="gbpusd",
          )
          fx_fixing.value
 

@@ -44,59 +44,80 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class CreditPremiumPeriod(_WithNPVCashflows, _WithAnalyticDelta):
-    """
-    Create a credit premium period defined by a credit spread.
+    r"""
+    A *Period* defined by a fixed interest rate and contingent credit event.
+
+    The immediate expected valuation of the *Period* cashflow is defined as;
+
+    .. math::
+
+       \mathbb{E^Q} [V(m_T)C_T] = -N S d (Q(m_{a.s}) v(m_t) + V_{I_{pa}} )
+
+    where,
+
+    .. math::
+
+       V_{I_{pa}} = C_t I_{pa} v(m_{a.e}) \times \left \{ \begin{matrix}  \frac{1}{2} \left ( Q(m_{a.s}) - Q(m_{a.e}) \right ) & m_{a.s} >= m_{today} \\ \frac{\tilde{n}+r}{2\tilde{n}} \left ( 1 - Q(m_{a.e}) \right ) & m_{a.s} < m_{today} \\ \end{matrix} \right .
+
+
+    .. role:: red
+
+    .. role:: green
 
     Parameters
     ----------
-    args : dict
-        Required positional args to :class:`BasePeriod`.
-    fixed_rate : float or None, optional
-        The rate applied to determine the cashflow. If `None`, can be set later,
-        typically after a mid-market rate for all periods has been calculated.
-        Entered in percentage points, e.g 50bps is 0.50.
-    premium_accrued : bool, optional
-        Whether the premium is accrued within the period to default.
-    kwargs : dict
-        Required keyword arguments to :class:`BasePeriod`.
+    .
+        .. note::
 
-    Notes
-    -----
-    The ``cashflow`` is defined as follows;
+           The following define generalised **settlement** parameters.
 
-    .. math::
+    currency: str, :green:`optional (set by 'defaults')`
+        The physical *settlement currency* of the *Period*.
+    notional: float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
+        The notional amount of the *Period* expressed in ``notional currency``.
+    payment: datetime, :red:`required`
+        The payment date of the *Period* cashflow.
+    ex_dividend: datetime, :green:`optional (set as 'payment')`
+        The ex-dividend date of the *Period*. Settlements occurring **after** this date
+        are assumed to be non-receivable.
 
-       C = -NdS
+        .. note::
 
-    The NPV of the full cashflow is defined as;
+           The following parameters are scheduling **period** parameters
 
-    .. math::
+    start: datetime, :red:`required`
+        The identified start date of the *Period*.
+    end: datetime, :red:`required`
+        The identified end date of the *Period*.
+    frequency: Frequency, str, :red:`required`
+        The :class:`~rateslib.scheduling.Frequency` associated with the *Period*.
+    convention: Convention, str, :green:`optional` (set by 'defaults')
+        The day count :class:`~rateslib.scheduling.Convention` associated with the *Period*.
+    termination: datetime, :green:`optional`
+        The termination date of an external :class:`~rateslib.scheduling.Schedule`.
+    calendar: Calendar, :green:`optional`
+         The calendar associated with the *Period*.
+    stub: bool, str, :green:`optional (set as False)`
+        Whether the *Period* is defined as a stub according to some external
+        :class:`~rateslib.scheduling.Schedule`.
+    adjuster: Adjuster, :green:`optional`
+        The date :class:`~rateslib.scheduling.Adjuster` applied to unadjusted dates in the
+        external :class:`~rateslib.scheduling.Schedule` to arrive at adjusted accrual dates.
 
-       P_c = Cv(m_{payment})Q(m_{end})
+        .. note::
 
-    If ``premium_accrued`` is permitted then an additional component equivalent to the following
-    is calculated using an approximation of the inter-period default rate,
+           The following define **fixed rate** parameters.
 
-    .. math::
+    fixed_rate: float, Dual, Dual2, Variable, :green:`optional`
+        The fixed rate to determine the *Period* cashflow.
 
-       P_a = Cv(m_{payment}) \\left ( Q(m_{start}) - Q(m_{end}) \\right ) \\frac{(n+r)}{2n}
+        .. note::
 
-    where *r* is the number of days after the *start* that *today* is for an on-going period, zero otherwise, and
-    :math:`Q(m_{start})` is equal to one for an on-going period.
+           The following parameters define **credit specific** elements.
 
-    The :meth:`~rateslib.periods.BasePeriod.npv` is defined as;
+    premium_accrued: bool, :green:`optional (set by 'defaults')`
+        Whether an accrued premium is paid on the event of mid-period credit default.
 
-    .. math::
-
-       P = P_c + I_{pa} P_a
-
-    where :math:`I_{pa}` is an indicator function if the *Period* allows ``premium_accrued`` or not.
-
-    The :meth:`~rateslib.periods.BasePeriod.analytic_delta` is defined as;
-
-    .. math::
-
-       A = - \\frac{\\partial P}{\\partial S} = Ndv(m) \\left ( Q(m_{end}) + I_{pa} (Q(m_{start}) - Q(m_{end}) \\frac{(n+r)}{2n}  \\right )
     """  # noqa: E501
 
     def __init__(
@@ -158,46 +179,6 @@ class CreditPremiumPeriod(_WithNPVCashflows, _WithAnalyticDelta):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> Result[DualTypes]:
-        r"""
-        Calculate the NPV of the *Period* in local settlement currency.
-
-        Parameters
-        ----------
-        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
-            Used to forecast floating period rates, if necessary.
-        index_curve: _BaseCurve, optional
-            Used to forecast index values for indexation, if necessary.
-        disc_curve: _BaseCurve, optional
-            Used to discount cashflows.
-        fx: FXForwards, optional
-            The :class:`~rateslib.fx.FXForward` object used for forecasting the
-            ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
-            class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
-        fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
-            The FX volatility *Smile* or *Surface* object used for determining Black calendar
-            day implied volatility values.
-        settlement: datetime, optional
-            The assumed settlement date of the *PV* determination. Used only to evaluate
-            *ex-dividend* status.
-        forward: datetime, optional
-            The future date to project the *PV* to using the ``disc_curve``.
-
-        Returns
-        -------
-        Result of float, Dual, Dual2, Variable
-
-        Notes
-        -----
-
-        Is a generalised function for determining the ex-dividend adjusted, forward projected
-        *NPV* of any *Period's* modelled cashflow, expressed in local *settlement currency* units.
-
-        .. math::
-
-           P(m_s, m_f) = \mathbb{I}(m_s) \frac{1}{v(m_f)} \mathbb{E^Q} [v(m_T) C(m_T) ],  \qquad \; \mathbb{I}(m_s) = \left \{ \begin{matrix} 0 & m_s > m_{ex} \\ 1 & m_s \leq m_{ex} \end{matrix} \right .
-
-        for forward, :math:`m_f`, settlement, :math:`m_s`, and ex-dividend, :math:`m_{ex}`.
-        """  # noqa: E501
         c_res = _validate_credit_curves(rate_curve, disc_curve)
         if isinstance(c_res, Err):
             return c_res
@@ -224,26 +205,6 @@ class CreditPremiumPeriod(_WithNPVCashflows, _WithAnalyticDelta):
         fx: FXRevised_ = NoInput(0),
         base: str_ = NoInput(0),
     ) -> Result[DualTypes]:
-        """
-        Calculate the analytic rate delta of a *Period* expressed in a base currency.
-
-        Parameters
-        ----------
-        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
-            Used to forecast floating period rates, if necessary.
-        index_curve: _BaseCurve, optional
-            Used to forecast index values for indexation, if necessary.
-        disc_curve: _BaseCurve, optional
-            Used to discount cashflows.
-        fx: FXForwards, optional
-            The :class:`~rateslib.fx.FXForward` object used for forecasting the
-            ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
-            class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
-
-        Returns
-        -------
-        Result[DualTypes]
-        """
         c = 0.0001 * self.period_params.dcf * self.settlement_params.notional
 
         c_res = _validate_credit_curves(rate_curve, disc_curve)
@@ -307,7 +268,8 @@ class CreditPremiumPeriod(_WithNPVCashflows, _WithAnalyticDelta):
 
     def try_accrued(self, settlement: datetime) -> Result[DualTypes]:
         """
-        Calculate the amount of premium accrued until a specific date within the *Period*.
+        Calculate the amount of premium accrued until a specific date within the *Period*, with
+        lazy error raising.
 
         Parameters
         ----------
@@ -350,41 +312,56 @@ class CreditPremiumPeriod(_WithNPVCashflows, _WithAnalyticDelta):
 
 class CreditProtectionPeriod(_WithNPVCashflows, _WithAnalyticDelta):
     """
-    Create a credit protection period defined by a recovery rate.
+    A *Period* defined by a credit event and contingent notional payment.
+
+    The immediate expected valuation of the *Period* cashflow is defined as;
+
+    [TODO: NEEDS INPUT]
+
+    .. role:: red
+
+    .. role:: green
 
     Parameters
     ----------
-    args : dict
-        Required positional args to :class:`BasePeriod`.
-    kwargs : dict
-        Required keyword arguments to :class:`BasePeriod`.
+    .
+        .. note::
 
-    Notes
-    -----
-    The ``cashflow``, paid on a credit event, is defined as follows;
+           The following define generalised **settlement** parameters.
 
-    .. math::
+    currency: str, :green:`optional (set by 'defaults')`
+        The physical *settlement currency* of the *Period*.
+    notional: float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
+        The notional amount of the *Period* expressed in ``notional currency``.
+    payment: datetime, :red:`required`
+        The payment date of the *Period* cashflow.
+    ex_dividend: datetime, :green:`optional (set as 'payment')`
+        The ex-dividend date of the *Period*. Settlements occurring **after** this date
+        are assumed to be non-receivable.
 
-       C = -N(1-R)
+        .. note::
 
-    where *R* is the recovery rate.
+           The following parameters are scheduling **period** parameters
 
-    The :meth:`~rateslib.periods.BasePeriod.npv` is defined as a discretized sum of inter-period blocks whose
-    probability of default and protection payment sum to give an expected payment;
+    start: datetime, :red:`required`
+        The identified start date of the *Period*.
+    end: datetime, :red:`required`
+        The identified end date of the *Period*.
+    frequency: Frequency, str, :red:`required`
+        The :class:`~rateslib.scheduling.Frequency` associated with the *Period*.
+    convention: Convention, str, :green:`optional` (set by 'defaults')
+        The day count :class:`~rateslib.scheduling.Convention` associated with the *Period*.
+    termination: datetime, :green:`optional`
+        The termination date of an external :class:`~rateslib.scheduling.Schedule`.
+    calendar: Calendar, :green:`optional`
+         The calendar associated with the *Period*.
+    stub: bool, str, :green:`optional (set as False)`
+        Whether the *Period* is defined as a stub according to some external
+        :class:`~rateslib.scheduling.Schedule`.
+    adjuster: Adjuster, :green:`optional`
+        The date :class:`~rateslib.scheduling.Adjuster` applied to unadjusted dates in the
+        external :class:`~rateslib.scheduling.Schedule` to arrive at adjusted accrual dates.
 
-    .. math::
-
-       j &= [n/discretization] \\\\
-       P &= C \\sum_{i=1}^{j} \\frac{1}{2} \\left ( v(m_{i-1}) + v_(m_{i}) \\right ) \\left ( Q(m_{i-1}) - Q(m_{i}) \\right ) \\\\
-
-    The *start* and *end* of the period are restricted by the *Curve* if the *Period* is current (i.e. *today* is
-    later than *start*)
-
-    The :meth:`~rateslib.periods.BasePeriod.analytic_delta` is defined as;
-
-    .. math::
-
-       A = 0
     """  # noqa: E501
 
     def __init__(

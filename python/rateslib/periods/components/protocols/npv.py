@@ -31,9 +31,17 @@ if TYPE_CHECKING:
 
 
 class _WithNPV(Protocol):
-    """
+    r"""
     Protocol to establish value of any *Period* type.
 
+    Notes
+    -----
+    Each *Period* type is required to implement the immediate expectation of value of
+    its cashflow under the risk neutral measure, expressed in its local settlement currency.
+
+    .. math::
+
+       P_0 = \mathbb{E^Q}[V(m_T) C_T]
     """
 
     settlement_params: _SettlementParams
@@ -53,7 +61,15 @@ class _WithNPV(Protocol):
         forward: datetime_ = NoInput(0),
     ) -> Result[DualTypes]:
         r"""
-        Calculate the NPV of the *Period* in local settlement currency.
+        Calculate the NPV of the *Period* in local settlement currency, with lazy error raising.
+
+        This method adjusts for ex-dividend and forward projected value, according to,
+
+        .. math::
+
+           P(m_s, m_f) = \mathbb{I}(m_s) \frac{1}{v(m_f)} \mathbb{E^Q} [V(m_T) C(m_T) ],  \qquad \; \mathbb{I}(m_s) = \left \{ \begin{matrix} 0 & m_s > m_{ex} \\ 1 & m_s \leq m_{ex} \end{matrix} \right .
+
+        for forward, :math:`m_f`, settlement, :math:`m_s`, and ex-dividend, :math:`m_{ex}`.
 
         Parameters
         ----------
@@ -78,19 +94,7 @@ class _WithNPV(Protocol):
 
         Returns
         -------
-        Result of float, Dual, Dual2, Variable
-
-        Notes
-        -----
-
-        Is a generalised function for determining the ex-dividend adjusted, forward projected
-        *NPV* of any *Period's* modelled cashflow, expressed in local *settlement currency* units.
-
-        .. math::
-
-           P(m_s, m_f) = \mathbb{I}(m_s) \frac{1}{v(m_f)} \mathbb{E^Q} [v(m_T) C(m_T) ],  \qquad \; \mathbb{I}(m_s) = \left \{ \begin{matrix} 0 & m_s > m_{ex} \\ 1 & m_s \leq m_{ex} \end{matrix} \right .
-
-        for forward, :math:`m_f`, settlement, :math:`m_s`, and ex-dividend, :math:`m_{ex}`.
+        Result[float, Dual, Dual2, Variable]
         """  # noqa: E501
         pass
 
@@ -148,6 +152,13 @@ class _WithNPV(Protocol):
     ) -> DualTypes | dict[str, DualTypes]:
         """
         Calculate the NPV of the *Period* converted to any other *base* accounting currency.
+
+        This method converts a local settlement currency value to a base accounting currency
+        according to:
+
+        .. math::
+
+           P^{bas}(m_s, m_f) = f_{loc:bas}(m_f) P(m_s, m_f)
 
         .. hint::
 
@@ -209,20 +220,34 @@ class _WithNPV(Protocol):
 
 
 class _WithIndexingStatic(Protocol):
+    """
+    Protocol to provide indexation for *Static Period* types.
+    """
+
     index_params: _IndexParams | None
 
     @property
     def is_indexed(self) -> bool:
         """
-        Check whether the *Period* has indexation applied, which means it has associated
-        index parameters.
+        Check whether the *Period* has indexation applied, which means it has ``index_params``.
         """
         return self.index_params is not None
 
-    def _maybe_index_up(
-        self, value: Result[DualTypes], index_curve: _BaseCurve_
-    ) -> Result[DualTypes]:
-        """Apply indexation to a value if required."""
+    def try_index_up(self, value: Result[DualTypes], index_curve: _BaseCurve_) -> Result[DualTypes]:
+        """
+        Apply indexation to a *Static Period* using its ``index_params``, with lazy error raising.
+
+        Parameters
+        ----------
+        value: Result[float, Dual, Dual2, Variable]
+            The possible value to apply indexation to.
+        index_curve: _BaseCurve, optional
+            The index curve used to forecast index values, if necessary.
+
+        Returns
+        -------
+        Result[float, Dual, Dual2, Variable]
+        """
         if not self.is_indexed:
             # then no indexation of the cashflow will occur.
             return value
@@ -244,6 +269,10 @@ class _WithIndexingStatic(Protocol):
 
 
 class _WithNonDeliverableStatic(Protocol):
+    """
+    Protocol to provide non-deliverable conversion for *Static Period* types.
+    """
+
     settlement_params: _SettlementParams
     non_deliverable_params: _NonDeliverableParams | None
 
@@ -251,14 +280,28 @@ class _WithNonDeliverableStatic(Protocol):
     def is_non_deliverable(self) -> bool:
         """
         Check whether the *Period* is non-deliverable,
-        which means it has a separate ``currency`` to the ``reference_currency``.
+        which means it has ``non_deliverable_params``.
         """
         return self.non_deliverable_params is not None
 
-    def _maybe_convert_deliverable(
+    def try_convert_deliverable(
         self, value: Result[DualTypes], fx: FXForwards_
     ) -> Result[DualTypes]:
-        """Convert a value in reference currency to settlement currency if required."""
+        """
+        Apply settlement currency conversion to a *Static Period* using its
+        ``non_deliverable_params``, with lazy error raising.
+
+        Parameters
+        ----------
+        value: Result[float, Dual, Dual2, Variable]
+            The possible value to apply settlement currency conversion to.
+        fx: FXForwards, optional
+            The object used to forecast forward FX rates, if necessary.
+
+        Returns
+        -------
+        Result[float, Dual, Dual2, Variable]
+        """
         if self.non_deliverable_params is None:
             # then cashflow is directly deliverable
             return value
@@ -277,6 +320,24 @@ class _WithNonDeliverableStatic(Protocol):
 
 
 class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, Protocol):
+    r"""
+    Protocol to establish value of any *Static Period* type.
+
+    Notes
+    -----
+    A *Static Period* type is one with a defined, non-random cashflow date, and for which
+    indexation and non-deliverability components are independent and can be taken outside of
+    the expectation of value.
+
+    Each *Static Period* is required to implement the expectation of its unindexed reference
+    currency cashflow under the risk neutral measure, paid at the known payment date.
+
+    .. math::
+
+       \mathbb{E^Q}[\bar{C}_t]
+
+    """
+
     settlement_params: _SettlementParams
 
     # required by each Static Period...
@@ -289,18 +350,33 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         fx: FX_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
     ) -> Result[DualTypes]:
-        """
-        Calculate the cashflow for the *Period* before settlement currency and
-        indexation adjustments.
+        r"""
+        Calculate the cashflow for the *Static Period* before settlement currency and
+        indexation adjustments, with lazy error raising.
+
+        .. math::
+
+           \mathbb{E^Q}[\bar{C}_t]
 
         Parameters
         ----------
         rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
             Used to forecast floating period rates, if necessary.
+        index_curve: _BaseCurve, optional
+            Used to forecast index values for indexation, if necessary.
+        disc_curve: _BaseCurve, optional
+            Used to discount cashflows, if necessary.
+        fx: FXForwards, optional
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting the
+            ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
+            :class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
+        fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
+            The FX volatility *Smile* or *Surface* object used for determining Black calendar
+            day implied volatility values.
 
         Returns
         -------
-        Result of float, Dual, Dual2, Variable
+        Result[float, Dual, Dual2, Variable]
         """
         pass
 
@@ -315,9 +391,13 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         fx: FX_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
     ) -> Result[DualTypes]:
-        """
-        Calculate the cashflow for the *Period* before settlement currency adjustment
-        but with indexation.
+        r"""
+        Calculate the cashflow for the *Static Period* before settlement currency adjustment
+        but after indexation, with lazy error raising.
+
+        .. math::
+
+           I_r\mathbb{E^Q}[\bar{C}_t]
 
         Parameters
         ----------
@@ -325,10 +405,19 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
             Used to forecast floating period rates, if necessary.
         index_curve: _BaseCurve, optional
             Used to forecast index values for indexation, if necessary.
+        disc_curve: _BaseCurve, optional
+            Used to discount cashflows, if necessary.
+        fx: FXForwards, optional
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting the
+            ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
+            :class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
+        fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
+            The FX volatility *Smile* or *Surface* object used for determining Black calendar
+            day implied volatility values.
 
         Returns
         -------
-        float, Dual, Dual2, Variable or None
+        Result[float, Dual, Dual2, Variable]
         """
         rrc = self.try_unindexed_reference_cashflow(
             rate_curve=rate_curve,
@@ -337,7 +426,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
             fx=fx,
             fx_vol=fx_vol,
         )
-        return self._maybe_index_up(value=rrc, index_curve=index_curve)
+        return self.try_index_up(value=rrc, index_curve=index_curve)
 
     def try_unindexed_cashflow(
         self,
@@ -348,21 +437,33 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
     ) -> Result[DualTypes]:
-        """
-        Calculate the cashflow for the *Period* with settlement currency adjustment
-        but without indexation.
+        r"""
+        Calculate the cashflow for the *Static Period* with settlement currency adjustment
+        but without indexation, with lazy error raising.
+
+        .. math::
+
+           f(m_d)\mathbb{E^Q}[\bar{C}_t]
 
         Parameters
         ----------
         rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
             Used to forecast floating period rates, if necessary.
+        index_curve: _BaseCurve, optional
+            Used to forecast index values for indexation, if necessary.
+        disc_curve: _BaseCurve, optional
+            Used to discount cashflows, if necessary.
         fx: FXForwards, optional
-            The :class:`~rateslib.fx.FXForward` object used for forecasting the
-            ``fx_fixing`` for deliverable cashflows, if necessary.
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting the
+            ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
+            :class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
+        fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
+            The FX volatility *Smile* or *Surface* object used for determining Black calendar
+            day implied volatility values.
 
         Returns
         -------
-        float, Dual, Dual2, Variable or None
+        Result[float, Dual, Dual2, Variable]
         """
         rrc = self.try_unindexed_reference_cashflow(
             rate_curve=rate_curve,
@@ -371,7 +472,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
             fx=fx,
             fx_vol=fx_vol,
         )
-        return self._maybe_convert_deliverable(value=rrc, fx=fx)
+        return self.try_convert_deliverable(value=rrc, fx=fx)
 
     def try_cashflow(
         self,
@@ -382,9 +483,13 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
     ) -> Result[DualTypes]:
-        """
+        r"""
         Calculate the cashflow for the *Period* with settlement currency adjustment
-        **and** indexation.
+        and indexation.
+
+        .. math::
+
+           I_r f(m_d)\mathbb{E^Q}[\bar{C}_t]
 
         Parameters
         ----------
@@ -392,13 +497,19 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
             Used to forecast floating period rates, if necessary.
         index_curve: _BaseCurve, optional
             Used to forecast index values for indexation, if necessary.
+        disc_curve: _BaseCurve, optional
+            Used to discount cashflows, if necessary.
         fx: FXForwards, optional
-            The :class:`~rateslib.fx.FXForward` object used for forecasting the
-            ``fx_fixing`` for deliverable cashflows, if necessary.
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting the
+            ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
+            :class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
+        fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
+            The FX volatility *Smile* or *Surface* object used for determining Black calendar
+            day implied volatility values.
 
         Returns
         -------
-        Result of float, Dual, Dual2, Variable
+        Result[float, Dual, Dual2, Variable]
         """
         rc = self.try_reference_cashflow(
             rate_curve=rate_curve,
@@ -407,7 +518,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
             fx=fx,
             fx_vol=fx_vol,
         )
-        return self._maybe_convert_deliverable(value=rc, fx=fx)
+        return self.try_convert_deliverable(value=rc, fx=fx)
 
     def try_local_npv(
         self,
@@ -420,6 +531,44 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> Result[DualTypes]:
+        r"""
+        Calculate the NPV of the *Period* in local settlement currency, with lazy error raising.
+
+        This method adjusts for ex-dividend and forward projected value. It also adds
+        indexation and non-deliverability to the unindexed reference cashflow according to,
+
+        .. math::
+
+           P(m_s, m_f) = \mathbb{I}(m_s) \frac{1}{v(m_f)} v(m_t) I_r f(m_d) \mathbb{E^Q} [\bar{C}_t],  \qquad \; \mathbb{I}(m_s) = \left \{ \begin{matrix} 0 & m_s > m_{ex} \\ 1 & m_s \leq m_{ex} \end{matrix} \right .
+
+        for forward, :math:`m_f`, settlement, :math:`m_s`, and ex-dividend, :math:`m_{ex}`,
+        non-deliverable delivery, :math:`m_d`, and index ratio, :math:`I_r`.
+
+        Parameters
+        ----------
+        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
+            Used to forecast floating period rates, if necessary.
+        index_curve: _BaseCurve, optional
+            Used to forecast index values for indexation, if necessary.
+        disc_curve: _BaseCurve, optional
+            Used to discount cashflows.
+        fx: FXForwards, optional
+            The :class:`~rateslib.fx.FXForward` object used for forecasting the
+            ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
+            class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
+        fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
+            The FX volatility *Smile* or *Surface* object used for determining Black calendar
+            day implied volatility values.
+        settlement: datetime, optional
+            The assumed settlement date of the *PV* determination. Used only to evaluate
+            *ex-dividend* status.
+        forward: datetime, optional
+            The future date to project the *PV* to using the ``disc_curve``.
+
+        Returns
+        -------
+        Result[float, Dual, Dual2, Variable]
+        """  # noqa: E501
         dc_res = _try_disc_required_maybe_from_curve(curve=rate_curve, disc_curve=disc_curve)
         if isinstance(dc_res, Err):
             return dc_res

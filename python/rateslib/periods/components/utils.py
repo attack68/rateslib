@@ -139,8 +139,7 @@ def _get_vol_maybe_from_obj(
         _: tuple[Any, DualTypes, Any] = fx_vol.get_from_strike(
             k=strike,
             f=f,
-            w_deli=disc_curve[delivery],
-            w_spot=disc_curve[spot],
+            z_w=disc_curve[delivery] / disc_curve[spot],
             expiry=expiry,
         )
         vol_: DualTypes = _[1]

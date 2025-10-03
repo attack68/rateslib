@@ -9,7 +9,6 @@ from rateslib.curves._parsers import (
 from rateslib.dual.utils import _dual_float, _float_or_none
 from rateslib.enums.generics import Err, NoInput
 from rateslib.periods.components.parameters import (
-    _CashflowRateParams,
     _CreditParams,
     _FixedRateParams,
     _FloatRateParams,
@@ -41,7 +40,7 @@ if TYPE_CHECKING:
 
 class _WithNPVCashflows(_WithNPV, Protocol):
     settlement_params: _SettlementParams
-    rate_params: _FixedRateParams | _CashflowRateParams | _FloatRateParams | None
+    rate_params: _FixedRateParams | _FloatRateParams | None
     non_deliverable_params: None
     index_params: None
     period_params: _PeriodParams | None
@@ -229,7 +228,7 @@ class _WithNPVCashflowsStatic(_WithNPVStatic, Protocol):
     non_deliverable_params: _NonDeliverableParams | None
     index_params: _IndexParams | None
     period_params: _PeriodParams | None
-    rate_params: _FixedRateParams | _CashflowRateParams | _FloatRateParams | None
+    rate_params: _FixedRateParams | _FloatRateParams | None
     fx_option_params: _FXOptionParams | None
 
     def cashflows(
@@ -278,19 +277,17 @@ class _WithNPVCashflowsStatic(_WithNPVStatic, Protocol):
         # indexing parameters
         if self.is_indexed:
             assert isinstance(self.index_params, _IndexParams)  # noqa: S101
-            i = self.index_params.try_index_ratio(index_curve)
-            if i.is_err:
-                ir, iv, ib = (
-                    None,
-                    None,
-                    None,
-                )
+            iv = self.index_params.try_index_value(index_curve=index_curve)
+            ib = self.index_params.try_index_base(index_curve=index_curve)
+            if not isinstance(iv, Err) and not isinstance(ib, Err):
+                ir = iv.unwrap() / ib.unwrap()
             else:
-                ir, iv, ib = i.unwrap()
+                ir = None
             index_elements = {
                 defaults.headers["index_base"]: _float_or_none(ib),
                 defaults.headers["index_value"]: _float_or_none(iv),
                 defaults.headers["index_ratio"]: _float_or_none(ir),
+                defaults.headers["index_fix_date"]: self.index_params.index_fixing.date
             }
         else:
             index_elements = {}
@@ -313,9 +310,21 @@ class _WithNPVCashflowsStatic(_WithNPVStatic, Protocol):
             )
             currency_elements = {
                 defaults.headers["fx_fixing"]: _float_or_none(fx_fixing_res),
+                defaults.headers["fx_fixing_date"]: self.non_deliverable_params.fx_fixing.date,
                 defaults.headers[
                     "reference_currency"
                 ]: self.non_deliverable_params.reference_currency.upper(),
+            }
+        elif getattr(self, "mtm_params", None) is not None:
+            fx_fixing_res: Result[DualTypes] = (
+                self.mtm_params.fx_fixing_end.try_value_or_forecast(fx)
+            )
+            currency_elements = {
+                defaults.headers["fx_fixing"]: _float_or_none(fx_fixing_res),
+                defaults.headers["fx_fixing_date"]: self.mtm_params.fx_fixing_end.date,
+                defaults.headers[
+                    "reference_currency"
+                ]: self.mtm_params.reference_currency.upper(),
             }
         else:
             currency_elements = {}

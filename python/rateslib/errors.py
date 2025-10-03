@@ -8,6 +8,11 @@ VE_ATTRIBUTE_IS_IMMUTABLE = (
     "The '{}' attribute is immutable to avoid conflicting calculations. Re-initialize the instance."
 )
 
+VE_ND_LEG_NEEDS_NO_EXCHANGES = (
+    "An Leg defined as non-deliverable by some parameter, e.g. `pair` cannot have "
+    "notional exchanges."
+)
+
 # Curve Parsing
 
 NI_NO_DISC_FROM_DICT = "`disc_curve` cannot currently be parsed from a dictionary of curves."
@@ -37,6 +42,12 @@ VE_NEEDS_ND_CURRENCY_PARAMS = (
 VE_HAS_ND_CURRENCY_PARAMS = (
     "`{0}` must not be initialised with non-deliverable currency parameters, i.e. those for "
     "`_CurrencyParams`. See docs."
+)
+
+VE_MISMATCHED_FX_PAIR_ND_PAIR = (
+    "A non-deliverable FXOption must be configured with a non-deliverable currency `pair`"
+    "which includes the RHS currency of the `fx_pair` specific to the FXOption.\nGot "
+    "`pair': {0}' and RHS of `fx_pair`: '{1}'."
 )
 
 # Fixings

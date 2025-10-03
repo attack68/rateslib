@@ -30,10 +30,6 @@ if TYPE_CHECKING:
         str_,
     )
 
-####################################################################################################
-
-# Main function of this module
-
 
 def rate_value(
     start: datetime,

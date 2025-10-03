@@ -39,7 +39,6 @@ class _FXOptionParams:
         _metric: str | FXOptionMetric,
         _option_fixings: DualTypes | Series[DualTypes] | str_,  # type: ignore[type-var]
         _strike: DualTypes_,
-        _currency: str,
     ):
         self._direction = _direction
         self._expiry = _expiry
@@ -48,7 +47,6 @@ class _FXOptionParams:
         self._delta_type = _delta_type
         self._metric = _get_fx_option_metric(_metric)
         self._strike = _strike
-        self._currency = _currency
         if isinstance(_option_fixings, Series):
             value = FXFixing._lookup(timeseries=_option_fixings, date=self.delivery)
             self._option_fixing = FXFixing(
@@ -79,20 +77,10 @@ class _FXOptionParams:
         """The date of the FX rate exchange for the FX rate used for settlement of the option."""
         return self._delivery
 
-    # @property
-    # def referency_currency(self) -> str:
-    #     """The currency units in which the ``notional`` is expressed."""
-    #     return self.pair[:3]
-
     @property
     def pair(self) -> str:
         """The currency pair for settlement of the option."""
         return self._pair
-
-    # @property
-    # def currency(self) -> str:
-    #     """The currency of the base premium calculation."""
-    #     return self.pair[3:]
 
     @property
     def direction(self) -> OptionType:

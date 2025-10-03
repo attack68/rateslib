@@ -38,6 +38,7 @@ if TYPE_CHECKING:
         CalTypes,
         DualTypes,
         DualTypes_,
+        PeriodFixings,
         datetime,
         int_,
         str_,
@@ -46,7 +47,7 @@ if TYPE_CHECKING:
 
 def _init_FloatRateParams(
     _float_spread: DualTypes_,
-    _rate_fixings: DualTypes | Series[DualTypes] | str_,  # type: ignore[type-var]
+    _rate_fixings: PeriodFixings,  # type: ignore[type-var]
     _fixing_method: FloatFixingMethod | str_,
     _method_param: int_,
     _spread_compound_method: SpreadCompoundMethod | str_,
@@ -220,6 +221,15 @@ def _init_FloatRateParams(
 
 
 class _CreditParams:
+    """
+    Parameters associated with credit related *Periods*.
+
+    Parameters
+    ----------
+    _premium_accrued: bool
+        Whether premium *Periods* pay accrued in the event of mid-period default.
+    """
+
     _premium_accrued: bool
 
     def __init__(self, _premium_accrued: bool):
@@ -227,19 +237,26 @@ class _CreditParams:
 
     @property
     def premium_accrued(self) -> bool:
+        """Whether premium *Periods* pay accrued in the event of mid-period default."""
         return self._premium_accrued
 
 
-class _CashflowRateParams:
-    pass
-
-
 class _FixedRateParams:
+    """
+    Parameters for a *Period* containing a fixed rate.
+
+    Parameters
+    ----------
+    _fixed_rate: float, Dual, Dual2, Variable, optional
+        The fixed rate defining the *Period* cashflow.
+    """
+
     def __init__(self, _fixed_rate: DualTypes_) -> None:
         self._fixed_rate = _fixed_rate
 
     @property
     def fixed_rate(self) -> DualTypes | NoInput:
+        """The fixed rate defining the *Period* cashflow."""
         return self._fixed_rate
 
     @fixed_rate.setter
@@ -248,6 +265,30 @@ class _FixedRateParams:
 
 
 class _FloatRateParams:
+    """
+    Parameters for a *Period* containing a floating rate.
+
+    Parameters
+    ----------
+    _fixing_method: FloatFixingMethod
+        The :class:`~rateslib.enums.parameters.FloatFixingMethod` describing the determination
+        of the floating rate for the period.
+    _method_param: int
+        A specific parameter that is used by the specific ``fixing_method``.
+    _fixing_index: FloatRateIndex,
+        The :class:`~rateslib.enums.parameters.FloatRateIndex` defining the specific interest
+        rate index and some of its calculation parameters.
+    _float_spread: float, Dual, Dual2, Variable
+        The amount (in bps) added to the rate in the period rate determination.
+    _spread_compound_method: SpreadCompoundMethod
+        The :class:`~rateslib.enums.parameters.SpreadCompoundMethod` used in the calculation
+        of the period rate when combining a ``_float_spread``. Used **only** with RFR type
+        ``fixing_method``.
+    _rate_fixing: IBORFixing, IBORStubFixing, RFRFixing
+        The appropriate rate fixing class that is used to determine if known, published
+        values are available for the *Period*.
+    """
+
     _fixing_method: FloatFixingMethod
     _method_param: int
     _fixing_index: FloatRateIndex
@@ -281,14 +322,19 @@ class _FloatRateParams:
 
     @property
     def fixing_series(self) -> FloatRateSeries:
+        """The :class:`~rateslib.enums.parameters.FloatRateSeries` of the
+        :class:`~rateslib.enums.parameters.FloatRateIndex`."""
         return self._fixing_series
 
     @property
     def fixing_index(self) -> FloatRateIndex:
+        """The :class:`~rateslib.enums.parameters.FloatRateIndex` assoociated with the
+        determination of the floating rate for the *Period*."""
         return self._fixing_index
 
     @cached_property
     def fixing_date(self) -> datetime:
+        """The relevant date of the (first) rate fixing for the *Period*."""
         if self.fixing_method in [
             FloatFixingMethod.RFRPaymentDelay,
             FloatFixingMethod.RFRPaymentDelayAverage,
@@ -303,38 +349,60 @@ class _FloatRateParams:
 
     @property
     def fixing_convention(self) -> Convention:
+        """The day count :class:`~rateslib.scheduling.Convention` of the
+        :class:`~rateslib.enums.parameters.FloatRateIndex`."""
         return self.fixing_index.convention
 
     @property
     def fixing_modifier(self) -> Adjuster:
+        """The date :class:`~rateslib.scheduling.Adjuster` of the
+        :class:`~rateslib.enums.parameters.FloatRateIndex`."""
         return self.fixing_index.modifier
 
     @property
     def fixing_frequency(self) -> Frequency:
+        """The date :class:`~rateslib.scheduling.Frequency` of the
+        :class:`~rateslib.enums.parameters.FloatRateIndex`."""
         return self.fixing_index.frequency
 
     @property
     def accrual_start(self) -> datetime:
+        """
+        The accrual start date for the *Period*.
+
+        Fixing dates will be measured relative to this date under appropriate calendars and
+        ``method_param``
+        """
         return self.rate_fixing.accrual_start
 
     @property
     def accrual_end(self) -> datetime:
+        """The accrual end date for the *Period*.
+
+        Final fixing dates (or IBOR stub weights) will be measured relative to this date under
+        appropriate calendars and ``method_param``.
+        """
         return self.rate_fixing.accrual_end
 
     @property
     def fixing_calendar(self) -> CalTypes:
+        """The calendar of the :class:`~rateslib.enums.parameters.FloatRateIndex`."""
         return self.fixing_index.calendar
 
     @property
     def fixing_method(self) -> FloatFixingMethod:
+        """The :class:`~rateslib.enums.parameters.FloatFixingMethod` defining the determination of
+        the floating rate for the period."""
         return self._fixing_method
 
     @property
     def method_param(self) -> int:
+        """A parameter used by the ``fixing_method``."""
         return self._method_param
 
     @property
     def float_spread(self) -> DualTypes:
+        """The amount (in bps) added to the rate in the period rate determination."""
         return self._float_spread
 
     @float_spread.setter
@@ -344,10 +412,12 @@ class _FloatRateParams:
 
     @property
     def spread_compound_method(self) -> SpreadCompoundMethod:
+        """The :class:`~rateslib.enums.parameters.SpreadCompoundMethod` used in the calculation."""
         return self._spread_compound_method
 
     @property
     def rate_fixing(self) -> IBORFixing | IBORStubFixing | RFRFixing:
+        """The appropriate rate fixing class for the *Period*."""
         return self._rate_fixing
 
     def _validate_combinations_args(self) -> None:

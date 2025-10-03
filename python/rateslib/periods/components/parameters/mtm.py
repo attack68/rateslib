@@ -13,6 +13,21 @@ if TYPE_CHECKING:
 
 
 class _MtmParams:
+    """
+    Parameters for *Period* cashflows associated with multiple
+    :class:`~rateslib.data.fixings.FXFixing`.
+
+    Parameters
+    ----------
+    _fx_fixing_start: FXFixing
+        The :class:`~rateslib.data.fixings.FXFixing` that is determined at the start of the
+        *Period*.
+    _fx_fixing_end: FXFixing
+        The :class:`~rateslib.data.fixings.FXFixing` that is determined at the end of the *Period*.
+    _currency: str
+        The local *settlement currency* of the *Period*.
+    """
+
     _fx_fixing_start: FXFixing
     _fx_fixing_end: FXFixing
     _currency: str
@@ -29,12 +44,12 @@ class _MtmParams:
 
     @property
     def fx_fixing_start(self) -> FXFixing:
-        """The FX fixing measured at the start of the period."""
+        """The  :class:`~rateslib.data.fixings.FXFixing` measured at the start of the period."""
         return self._fx_fixing_start
 
     @property
     def fx_fixing_end(self) -> FXFixing:
-        """The FX fixing measured at the start of the period."""
+        """The :class:`~rateslib.data.fixings.FXFixing` measured at the end of the period."""
         return self._fx_fixing_end
 
     @property
@@ -44,11 +59,18 @@ class _MtmParams:
 
     @property
     def pair(self) -> str:
-        """The pair that defined the FX fixings."""
+        """The pair that defines each  :class:`~rateslib.data.fixings.FXFixing`."""
         return self.fx_fixing_start.pair
+
+    @property
+    def reference_currency(self) -> str:
+        """The *reference currency* of the period."""
+        ccy1, ccy2 = self.pair[:3], self.pair[3:]
+        return ccy1 if ccy2 == self.currency else ccy2
 
     @cached_property
     def fx_reversed(self) -> bool:
+        """Whether the ``reference_currency`` and ``currency`` are reversed in the ``pair``."""
         return self.currency == self.pair[:3]
 
     def try_fixing_change(self, fx: FXForwards_) -> Result[DualTypes]:
