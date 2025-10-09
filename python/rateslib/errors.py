@@ -13,6 +13,8 @@ VE_ND_LEG_NEEDS_NO_EXCHANGES = (
     "notional exchanges."
 )
 
+VE_PAIR_AND_LEG_MTM = "Setting `mtm` on a Leg requires a non-deliverable `pair` input."
+
 # Curve Parsing
 
 NI_NO_DISC_FROM_DICT = "`disc_curve` cannot currently be parsed from a dictionary of curves."
@@ -23,6 +25,8 @@ VE_NEEDS_DISC_CURVE = (
 )
 
 VE_NO_DISC_FROM_VALUES = "`disc_curve` cannot be inferred from a non-DF based curve."
+
+VE_BEFORE_INITIAL = "The Curve initial node date is after the required forecasting date."
 
 # Period Parameters
 
@@ -148,6 +152,8 @@ VE_NEEDS_STRIKE = "An FXOptionPeriod cashflow cannot be determined without setti
 # VE_NEEDS_FIXING_FREQUENCY = "A `fixing_frequency` must be supplied for floating rate parameters."
 
 # 02: periods/components/float_rate.py
+
+VE_NEEDS_RATE_CURVE = "A `rate_curve` must be provided to this method."
 
 VE_MISMATCHED_ND_PAIR = (
     "A non-deliverable pair must contain the settlement currency.\nGot '{0}' and '{1}'."

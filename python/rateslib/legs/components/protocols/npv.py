@@ -3,14 +3,17 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol
 
 from rateslib.enums.generics import NoInput
+from rateslib.periods.components.utils import (
+    _maybe_local,
+)
 
 if TYPE_CHECKING:
+    from rateslib.periods.components import Period
     from rateslib.typing import (
         CurveOption_,
         DualTypes,
         FXForwards_,
         FXVolOption_,
-        Period,
         _BaseCurve_,
         datetime_,
         str_,
@@ -23,7 +26,11 @@ class _WithNPV(Protocol):
 
     """
 
-    periods: list[Period]
+    _periods: list[Period]
+
+    @property
+    def periods(self) -> list[Period]:
+        return self._periods
 
     def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
@@ -89,17 +96,24 @@ class _WithNPV(Protocol):
         for this conversion although best practice does not recommend it due to possible
         settlement date conflicts.
         """
-        return sum(
-            _.npv(
+        # a Leg only has cashflows in one single currency, so some up those values first
+        # then format for necessary dict output if required.
+        local_npv: DualTypes = sum(
+            _.try_local_npv(
                 rate_curve=rate_curve,
                 index_curve=index_curve,
                 disc_curve=disc_curve,
                 fx=fx,
                 fx_vol=fx_vol,
-                base=base,
-                local=local,
                 settlement=settlement,
                 forward=forward,
-            )
+            ).unwrap()
             for _ in self.periods
+        )
+        return _maybe_local(
+            value=local_npv,
+            local=local,
+            currency=self.periods[0].settlement_params.currency,
+            fx=fx,
+            base=base,
         )

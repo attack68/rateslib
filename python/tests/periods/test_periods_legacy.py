@@ -861,6 +861,7 @@ class TestFloatPeriod:
         ):
             float_period.rate(curve)
 
+    @pytest.mark.skip(reason="NOTIONAL mapping not yet implemented.")
     @pytest.mark.parametrize(
         "curve_type",
         ["curve", "linecurve"],
@@ -943,7 +944,93 @@ class TestFloatPeriod:
         assert table.index.tolist()[1] == expected_date
         assert np.all(np.isclose(np.array(expected), table[(rfr_curve.id, "notional")].to_numpy()))
 
-    def test_rfr_fixings_array_raises2(self, line_curve) -> None:
+    @pytest.mark.parametrize(
+        "curve_type",
+        ["curve", "linecurve"],
+    )
+    @pytest.mark.parametrize(
+        ("method", "expected", "expected_date"),
+        [
+            ("rfr_payment_delay", [0.27393, 0.27392, 0.82155, 0.27391], dt(2022, 1, 6)),
+            ("rfr_observation_shift", [0.41074, 0.41073, 0.41072, 0.41071], dt(2022, 1, 4)),
+            ("rfr_lockout", [0.27391, 1.36933, 0, 0], dt(2022, 1, 6)),
+            ("rfr_lookback", [0.27387, 0.27386, 0.82143, 0.27385], dt(2022, 1, 4)),
+        ],
+    )
+    def test_rfr_fixings_array_substitute(
+        self, curve_type, method, expected, expected_date
+    ) -> None:
+        # tests the fixings array and the compounding for different types of curve
+        # at different rates in the period.
+
+        v1 = 1 / (1 + 0.01 / 365)
+        v2 = v1 / (1 + 0.02 / 365)
+        v3 = v2 / (1 + 0.03 / 365)
+        v4 = v3 / (1 + 0.04 / 365)
+        v5 = v4 / (1 + 0.045 * 3 / 365)
+        v6 = v5 / (1 + 0.05 / 365)
+        v7 = v6 / (1 + 0.055 / 365)
+
+        nodes = {
+            dt(2022, 1, 3): 1.00,
+            dt(2022, 1, 4): v1,
+            dt(2022, 1, 5): v2,
+            dt(2022, 1, 6): v3,
+            dt(2022, 1, 7): v4,
+            dt(2022, 1, 10): v5,
+            dt(2022, 1, 11): v6,
+            dt(2022, 1, 12): v7,
+        }
+        curve = Curve(
+            nodes=nodes,
+            interpolation="log_linear",
+            convention="act365f",
+            calendar="bus",
+        )
+
+        line_curve = LineCurve(
+            nodes={
+                dt(2022, 1, 2): -99,
+                dt(2022, 1, 3): 1.0,
+                dt(2022, 1, 4): 2.0,
+                dt(2022, 1, 5): 3.0,
+                dt(2022, 1, 6): 4.0,
+                dt(2022, 1, 7): 4.5,
+                dt(2022, 1, 10): 5.0,
+                dt(2022, 1, 11): 5.5,
+            },
+            interpolation="linear",
+            convention="act365f",
+            calendar="bus",
+        )
+        rfr_curve = curve if curve_type == "curve" else line_curve
+
+        period = FloatPeriod(
+            start=dt(2022, 1, 5),
+            end=dt(2022, 1, 11),
+            payment=dt(2022, 1, 11),
+            frequency=Frequency.Months(3, None),
+            fixing_method=method,
+            convention="act365f",
+            notional=-1000000,
+            fixing_series=FloatRateSeries(
+                calendar="bus",
+                lag=0,
+                convention="act365f",
+                modifier="f",
+                eom=True,
+            ),
+        )
+        table = period.local_rate_fixings(rate_curve=rfr_curve, disc_curve=curve)
+
+        assert table.index.tolist()[1] == expected_date
+        assert np.all(
+            np.isclose(
+                np.array(expected), table[(rfr_curve.id, "usd", "usd", "1B")].to_numpy(), atol=1e-4
+            )
+        )
+
+    def test_rfr_fixings_array_raises2(self, line_curve, curve) -> None:
         period = FloatPeriod(
             start=dt(2022, 1, 5),
             end=dt(2022, 1, 11),
@@ -961,13 +1048,14 @@ class TestFloatPeriod:
             ),
         )
         with pytest.raises(ValueError, match="`disc_curve` cannot be inferred from a non-DF"):
-            period.try_unindexed_reference_fixings_exposure(rate_curve=line_curve).unwrap()
+            period.local_rate_fixings(rate_curve=line_curve)
 
         with pytest.raises(ValueError, match="A `rate_curve` supplied as dict to an RF"):
-            period.try_unindexed_reference_fixings_exposure(
-                rate_curve={"1m": line_curve, "2m": line_curve}
-            ).unwrap()
+            period.local_rate_fixings(
+                rate_curve={"1m": line_curve, "2m": line_curve}, disc_curve=curve
+            )
 
+    @pytest.mark.skip(reason="NOTIONAL mapping not implemented")
     @pytest.mark.parametrize(
         ("method", "param", "expected"),
         [
@@ -1002,6 +1090,41 @@ class TestFloatPeriod:
         )
         result = period.try_unindexed_reference_fixings_exposure(rate_curve=rfr_curve).unwrap()
         assert abs(result[(rfr_curve.id, "notional")].iloc[0] - expected) < 1
+
+    @pytest.mark.parametrize(
+        ("method", "param", "expected"),
+        [
+            ("rfr_payment_delay", 0, 0.27388),
+            ("rfr_observation_shift", 1, 0.27388),
+            ("rfr_lookback", 1, 0.27388),
+        ],
+    )
+    def test_rfr_fixings_array_single_period_substitute(self, method, param, expected) -> None:
+        rfr_curve = Curve(
+            nodes={dt(2022, 1, 3): 1.0, dt(2022, 1, 15): 0.9995},
+            interpolation="log_linear",
+            convention="act365f",
+            calendar="bus",
+        )
+        period = FloatPeriod(
+            start=dt(2022, 1, 10),
+            end=dt(2022, 1, 11),
+            payment=dt(2022, 1, 11),
+            frequency=Frequency.Months(3, None),
+            fixing_method=method,
+            method_param=param,
+            notional=-1000000,
+            convention="act365f",
+            fixing_series=FloatRateSeries(
+                calendar="bus",
+                lag=0,
+                convention="act365f",
+                modifier="f",
+                eom=True,
+            ),
+        )
+        result = period.local_rate_fixings(rate_curve=rfr_curve)
+        assert abs(result[(rfr_curve.id, "usd", "usd", "1B")].iloc[0] - expected) < 1
 
     @pytest.mark.parametrize(
         ("method", "param", "expected", "index"),
@@ -1089,6 +1212,7 @@ class TestFloatPeriod:
         # assert period.rate_params._is_inefficient is False
         assert period.rate(line_curve) == 3.0
 
+    @pytest.mark.skip(reason="NOTIONAL mapping not implemented")
     def test_ibor_fixing_table(self, line_curve, curve) -> None:
         float_period = FloatPeriod(
             start=dt(2022, 1, 4),
@@ -1127,6 +1251,26 @@ class TestFloatPeriod:
             ]
         )
         assert_frame_equal(expected, result)
+
+    def test_ibor_fixing_table_substitute(self, line_curve, curve) -> None:
+        float_period = FloatPeriod(
+            start=dt(2022, 1, 4),
+            end=dt(2022, 4, 4),
+            payment=dt(2022, 4, 4),
+            frequency=Frequency.Months(3, None),
+            fixing_method="ibor",
+            method_param=2,
+            convention="act365f",
+            fixing_series=FloatRateSeries(
+                calendar="all",
+                lag=2,
+                convention="act365f",
+                modifier="f",
+                eom=True,
+            ),
+        )
+        result = float_period.local_rate_fixings(rate_curve=line_curve, disc_curve=curve)
+        assert abs(result.iloc[0, 0] + 24.402790080357686) < 1e-10
 
     def test_ibor_fixing_table_right(self, line_curve, curve) -> None:
         float_period = FloatPeriod(
@@ -1228,6 +1372,7 @@ class TestFloatPeriod:
         assert result == 2.801
         fixings.pop("TEST_VALUES_3M")
 
+    @pytest.mark.skip(reason="NOTIONAL mapping not implemented")
     def test_ibor_fixings_table_historical_before_curve(self) -> None:
         # fixing table should return a DataFrame with an unknown rate and zero exposure
         # the fixing has occurred in the past but is unspecified.
@@ -1262,6 +1407,37 @@ class TestFloatPeriod:
         )
         assert_frame_equal(expected, result)
 
+    def test_ibor_fixings_table_historical_before_curve_substitute(self) -> None:
+        # fixing table should return a DataFrame with an unknown rate and zero exposure
+        # the fixing has occurred in the past but is unspecified.
+        curve = Curve({dt(2022, 1, 1): 1.0, dt(2025, 1, 1): 0.90}, calendar="bus")
+        float_period = FloatPeriod(
+            start=dt(2000, 2, 2),
+            end=dt(2000, 5, 2),
+            payment=dt(2000, 5, 2),
+            frequency=Frequency.Months(3, None),
+            fixing_method="ibor",
+            method_param=0,
+            fixing_series=FloatRateSeries(
+                calendar="bus",
+                convention="act360",
+                lag=0,
+                modifier="mf",
+                eom=False,
+            ),
+        )
+        result = float_period.local_rate_fixings(rate_curve=curve)
+        expected = DataFrame(
+            data=[[0.0]],
+            index=Index([dt(2000, 2, 2)], name="obs_dates"),
+            columns=MultiIndex.from_tuples(
+                [(curve.id, "usd", "usd", "3M")],
+                names=["identifier", "local_ccy", "display_ccy", "frequency"],
+            ),
+        )
+        assert_frame_equal(expected, result)
+
+    @pytest.mark.skip(reason="NOTIONAL mapping not implemented.")
     def test_rfr_fixings_table_historical_before_curve(self) -> None:
         # fixing table should return a DataFrame with an unknown rate and zero exposure
         # the fixing has occurred in the past but is unspecified.
@@ -1308,6 +1484,52 @@ class TestFloatPeriod:
         assert result.iloc[0, 0] == 0.0
         assert result[f"{curve.id}", "notional"][dt(2022, 1, 3)] == 0.0
 
+    def test_rfr_fixings_table_historical_before_curve_substitute(self) -> None:
+        # fixing table should return a DataFrame with an unknown rate and zero exposure
+        # the fixing has occurred in the past but is unspecified.
+        curve = Curve({dt(2022, 1, 4): 1.0, dt(2025, 1, 1): 0.90}, calendar="bus")
+        float_period = FloatPeriod(
+            start=dt(2022, 1, 3),
+            end=dt(2022, 1, 4),
+            payment=dt(2022, 1, 4),
+            frequency=Frequency.Months(3, None),
+            fixing_method="rfr_payment_delay",
+            method_param=0,
+            fixing_series=FloatRateSeries(
+                calendar="bus",
+                convention="act360",
+                eom=False,
+                modifier="F",
+                lag=0,
+            ),
+        )
+        with pytest.raises(ValueError, match="The Curve initial node date is after the required"):
+            float_period.local_rate_fixings(rate_curve=curve)
+
+        name = str(hash(os.urandom(8)))
+        fixings.add(f"{name}_1B", Series(index=[dt(2022, 1, 3)], data=[4.0]))
+        float_period = FloatPeriod(
+            rate_fixings=name,
+            start=dt(2022, 1, 3),
+            end=dt(2022, 1, 4),
+            payment=dt(2022, 1, 4),
+            frequency=Frequency.Months(3, None),
+            fixing_method="rfr_payment_delay",
+            method_param=0,
+            fixing_series=FloatRateSeries(
+                calendar="bus",
+                convention="act360",
+                eom=False,
+                modifier="F",
+                lag=0,
+            ),
+        )
+        result = float_period.local_rate_fixings(rate_curve=curve)
+
+        assert isinstance(result, DataFrame)
+        assert result.iloc[0, 0] == 0.0
+        assert result.index[0] == dt(2022, 1, 3)
+
     def test_ibor_fixing_unavailable(self) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2025, 1, 1): 0.90}, calendar="bus")
         lcurve = LineCurve({dt(2022, 1, 1): 2.0, dt(2025, 1, 1): 4.0}, calendar="bus")
@@ -1341,10 +1563,8 @@ class TestFloatPeriod:
             calendar="bus",
             rate_fixings=2.0,
         )
-        result = float_period.try_unindexed_reference_fixings_exposure(rate_curve=curve).unwrap()
+        result = float_period.local_rate_fixings(rate_curve=curve)
         assert result.iloc[0, 0] == 0.0
-        assert result.iloc[0, 1] == 0.0
-        assert result.iloc[0, 3] == 2.0
 
     @pytest.mark.parametrize("float_spread", [0, 100])
     def test_ibor_rate_df_curve(self, float_spread, curve) -> None:
@@ -1573,6 +1793,7 @@ class TestFloatPeriod:
     #             rate_fixings=[1.00],
     #         )
 
+    @pytest.mark.skip(reason="NOTIONAL mapping not implemented.")
     @pytest.mark.parametrize(
         ("meth", "exp"),
         [
@@ -1879,12 +2100,10 @@ class TestFloatPeriod:
                 calendar="all", convention="act360", eom=True, lag=0, modifier="F"
             ),
         )
-        table = period.try_unindexed_reference_fixings_exposure(rate_curve=curve).unwrap()
+        table = period.local_rate_fixings(rate_curve=curve)
         period.rate_params.float_spread = 200
-        table2 = period.try_unindexed_reference_fixings_exposure(rate_curve=curve).unwrap()
-        assert (
-            table[(curve.id, "notional")].iloc[0] == table2[(curve.id, "notional")].iloc[0]
-        ) == exp
+        table2 = period.local_rate_fixings(rate_curve=curve)
+        assert (table.iloc[0, 0] == table2.iloc[0, 0]) == exp
 
     def test_custom_interp_rate_nan(self) -> None:
         name = str(hash(os.urandom(8)))
@@ -1906,11 +2125,8 @@ class TestFloatPeriod:
 
         line_curve = LineCurve({dt(2023, 1, 1): 3.0, dt(2023, 2, 1): 2.0}, interpolation=interp)
         curve = Curve({dt(2023, 1, 1): 1.0, dt(2023, 2, 1): 0.999})
-        result = float_period.try_unindexed_reference_fixings_exposure(
-            rate_curve=line_curve, disc_curve=curve
-        )
-        with pytest.raises(ValueError, match="`effective` date for rate period is before the init"):
-            result.unwrap()
+        with pytest.raises(ValueError, match="The Curve initial node date is after the "):
+            float_period.local_rate_fixings(rate_curve=line_curve, disc_curve=curve)
 
     def test_method_param_raises(self) -> None:
         with pytest.raises(ValueError, match='`method_param` must be >0 for "RFRLockout'):
@@ -2115,6 +2331,7 @@ class TestFloatPeriod:
         result = period.rate({"rfr": curve})
         assert result == expected
 
+    @pytest.mark.skip(reason="NOTIONAL mapping for fixings exposure not implemented.")
     def test_ibor_stub_book2(self):
         curve = Curve(
             {dt(2022, 1, 1): 1.0, dt(2025, 1, 1): 0.94},
@@ -2148,6 +2365,38 @@ class TestFloatPeriod:
         assert abs(result.iloc[0, 1] - 8.5467) < 1e-4
         assert abs(result.iloc[0, 5] - 8.2710) < 1e-4
 
+    def test_ibor_stub_book2_substitute(self):
+        curve = Curve(
+            {dt(2022, 1, 1): 1.0, dt(2025, 1, 1): 0.94},
+            calendar="tgt",
+            convention="act360",
+            id="euribor3m",
+        )
+        curve2 = Curve(
+            {dt(2022, 1, 1): 1.0, dt(2025, 1, 1): 0.94},
+            calendar="tgt",
+            convention="act360",
+            id="euribor1m",
+        )
+        stub_fp = FloatPeriod(
+            start=dt(2022, 3, 14),
+            end=dt(2022, 5, 14),
+            payment=dt(2022, 5, 14),
+            frequency="Q",
+            calendar="tgt",
+            convention="act360",
+            fixing_method="ibor",
+            method_param=2,
+            notional=-1e6,
+            stub=True,
+        )
+        result = stub_fp.local_rate_fixings(
+            rate_curve={"1m": curve2, "3m": curve}, disc_curve=curve
+        )
+        assert abs(result.iloc[0, 0] - 8.5467) < 1e-4
+        assert abs(result.iloc[0, 1] - 8.2710) < 1e-4
+
+    @pytest.mark.skip(reason="NOTIONAL mapping for fixings exposure not implemented.")
     def test_ibor_stub_fixings_table(self) -> None:
         period = FloatPeriod(
             start=dt(2023, 2, 1),
@@ -2174,6 +2423,29 @@ class TestFloatPeriod:
         assert abs(result.iloc[0, 1] + 8.0601) < 1e-4
         assert abs(result.iloc[0, 5] + 8.32877) < 1e-4
 
+    def test_ibor_stub_fixings_table_substitute(self) -> None:
+        period = FloatPeriod(
+            start=dt(2023, 2, 1),
+            end=dt(2023, 4, 1),
+            payment=dt(2023, 4, 1),
+            frequency=Frequency.Months(12, None),
+            fixing_method="ibor",
+            method_param=1,
+            float_spread=0.0,
+            stub=True,
+            fixing_series=FloatRateSeries(
+                calendar="all", convention="act360", lag=1, eom=False, modifier="mf"
+            ),
+        )
+        curve3 = LineCurve({dt(2022, 1, 1): 3.0, dt(2023, 2, 1): 3.0})
+        curve1 = LineCurve({dt(2022, 1, 1): 2.0, dt(2023, 2, 1): 2.0})
+        dc = Curve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
+        result = period.local_rate_fixings(rate_curve={"1M": curve1, "3m": curve3}, disc_curve=dc)
+        assert isinstance(result, DataFrame)
+        assert abs(result.iloc[0, 0] + 8.0601) < 1e-4
+        assert abs(result.iloc[0, 1] + 8.32877) < 1e-4
+
+    @pytest.mark.skip(reason="NOTIONAL mapping for fixings exposure not implemented.")
     def test_ibor_stub_fixings_rfr_in_dict_ignored(self) -> None:
         period = FloatPeriod(
             start=dt(2023, 2, 1),
@@ -2199,6 +2471,30 @@ class TestFloatPeriod:
         assert abs(result.iloc[0, 4] + 336894) < 1
         assert abs(result.iloc[0, 1] + 8.0601) < 1e-4
         assert abs(result.iloc[0, 5] + 8.32877) < 1e-4
+
+    def test_ibor_stub_fixings_rfr_in_dict_ignored_substitute(self) -> None:
+        period = FloatPeriod(
+            start=dt(2023, 2, 1),
+            end=dt(2023, 4, 1),
+            payment=dt(2023, 4, 1),
+            frequency=Frequency.Months(12, None),
+            fixing_method="ibor",
+            method_param=1,
+            float_spread=0.0,
+            stub=True,
+            fixing_series=FloatRateSeries(
+                calendar="all", convention="act360", lag=1, eom=False, modifier="mf"
+            ),
+        )
+        curve3 = LineCurve({dt(2022, 1, 1): 3.0, dt(2023, 2, 1): 3.0})
+        curve1 = LineCurve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
+        dc = Curve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
+        result = period.local_rate_fixings(
+            rate_curve={"1M": curve1, "3m": curve3, "rfr": curve1}, disc_curve=dc
+        )
+        assert isinstance(result, DataFrame)
+        assert abs(result.iloc[0, 0] + 8.0601) < 1e-4
+        assert abs(result.iloc[0, 1] + 8.32877) < 1e-4
 
     def test_ibor_stub_fixings_table_right(self) -> None:
         period = FloatPeriod(
@@ -2231,21 +2527,23 @@ class TestFloatPeriod:
         )
         curve3 = LineCurve({dt(2022, 1, 1): 3.0, dt(2023, 2, 1): 3.0})
         curve1 = LineCurve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
-        result = period.try_unindexed_reference_fixings_exposure(
-            rate_curve={"1M": curve1, "3M": curve3}, disc_curve=curve1
-        ).unwrap()
-        expected = DataFrame(
-            data=[[-1e6, -24.722222222222, 0.24722222222222223, 3.0]],
-            index=Index([dt(2023, 1, 31)], name="obs_dates"),
-            columns=["notional", "risk", "dcf", "rates"],
+        curved = Curve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
+        result = period.local_rate_fixings(
+            rate_curve={"1M": curve1, "3M": curve3}, disc_curve=curved
         )
-        expected.columns = MultiIndex.from_tuples(
-            [(curve3.id, "notional"), (curve3.id, "risk"), (curve3.id, "dcf"), (curve3.id, "rates")]
+        expected = DataFrame(
+            data=[[-24.722222222222]],
+            index=Index([dt(2023, 1, 31)], name="obs_dates"),
+            columns=MultiIndex.from_tuples(
+                [(curve3.id, "usd", "usd", "3M")],
+                names=["identifier", "local_ccy", "display_ccy", "frequency"],
+            ),
         )
         assert_frame_equal(result, expected)
 
     def test_ibor_fixings_no_bad_curves_raises(self):
         curve1 = LineCurve({dt(2022, 1, 1): 2.0, dt(2023, 2, 1): 2.0})
+        disc_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 0.96})
         float_period = FloatPeriod(
             start=dt(2023, 3, 6),
             end=dt(2023, 6, 6),
@@ -2261,13 +2559,11 @@ class TestFloatPeriod:
                 eom=False,
             ),
         )
-        with pytest.raises(ValueError, match="`rate_curve` must be supplied as Curve or"):
-            float_period.try_unindexed_reference_fixings_exposure(rate_curve=NoInput(0))
+        with pytest.raises(ValueError, match="A `rate_curve` must be provided to this method"):
+            float_period.local_rate_fixings(rate_curve=NoInput(0), disc_curve=disc_curve)
 
         with pytest.raises(ValueError, match="`disc_curve` cannot be inferred from a non-DF base"):
-            float_period.try_unindexed_reference_fixings_exposure(
-                rate_curve=curve1, disc_curve=NoInput(0)
-            )
+            float_period.local_rate_fixings(rate_curve=curve1, disc_curve=NoInput(0))
 
     def test_local_historical_pay_date_issue(self, curve) -> None:
         period = FloatPeriod(
@@ -2424,7 +2720,7 @@ class TestFloatPeriod:
             spread_compound_method="ISDACompounding",
             float_spread=50.0,
         )
-        assert p.try_unindexed_reference_analytic_delta(
+        assert p.try_unindexed_reference_cashflow_analytic_delta(
             rate_curve=NoInput(0), disc_curve=curve
         ).is_err
 
@@ -2468,7 +2764,7 @@ class TestFixedPeriod:
             frequency=Frequency.Months(3, None),
             currency="usd",
         )
-        assert fixed_period.try_unindexed_reference_analytic_delta(rate_curve=dict()).is_err
+        assert fixed_period.try_immediate_local_analytic_delta(rate_curve=dict()).is_err
 
     def test_fixed_period_analytic_delta_fxr_base(self, curve, fxr) -> None:
         fixed_period = FixedPeriod(
@@ -2886,7 +3182,7 @@ class TestCreditPremiumPeriod:
             fixed_rate=2.0,
             adjuster="F",
         )
-        assert premium_period.try_analytic_delta(rate_curve=dict()).is_err
+        assert premium_period.try_local_analytic_delta(rate_curve=dict()).is_err
 
 
 class TestCreditProtectionPeriod:
@@ -3423,6 +3719,7 @@ class TestIndexFixedPeriod:
             "Spread": None,
             "Cashflow": -20000000.0,
             "Unindexed Cashflow": -10e6,
+            "Index Fix Date": dt(2022, 4, 1),
             "Index Base": 100.0,
             "Index Val": 200.0,
             "Index Ratio": 2.0,
@@ -3595,11 +3892,11 @@ class TestIndexFixedPeriod:
 
 
 class TestIndexCashflow:
-    def test_cashflow_analytic_delta(self) -> None:
+    def test_cashflow_analytic_delta(self, curve) -> None:
         cashflow = IndexCashflow(
             notional=1e6, payment=dt(2022, 1, 1), index_base=100, index_fixings=105
         )
-        assert cashflow.analytic_delta() == 0
+        assert cashflow.analytic_delta(disc_curve=curve) == 0
 
     def test_index_cashflow(self) -> None:
         cf = IndexCashflow(notional=1e6, payment=dt(2022, 1, 1), index_base=100, index_fixings=200)
@@ -3796,6 +4093,7 @@ class TestNonDeliverableCashflow:
             "NPV Ccy": -246383.57738594883,
             "Notional": 1000000.0,
             "Payment": dt(2025, 6, 1, 0, 0),
+            "FX Fix Date": dt(2025, 6, 1),
             "FX Fixing": 0.25,
             "Reference Ccy": "BRL",
             "Type": "NonDeliverableCashflow",
@@ -3818,16 +4116,17 @@ class TestNonDeliverableCashflow:
             "DF": None,
             "FX Rate": 1.0,
             "FX Fixing": None,
+            "FX Fix Date": dt(2025, 6, 1),
             "NPV": None,
             "NPV Ccy": None,
             "Notional": 1000000.0,
             "Reference Ccy": "BRL",
-            "Payment": dt(2025, 6, 1, 0, 0),
+            "Payment": dt(2025, 6, 1),
             "Type": "NonDeliverableCashflow",
         }
         assert result == expected
 
-    def test_analytic_delta(self):
+    def test_analytic_delta(self, curve):
         ndf = NonDeliverableCashflow(
             notional=1e6,
             currency="usd",
@@ -3835,7 +4134,7 @@ class TestNonDeliverableCashflow:
             payment=dt(2025, 6, 1),
             fx_fixings=0.25,
         )
-        assert ndf.analytic_delta() == 0.0
+        assert ndf.analytic_delta(disc_curve=curve) == 0.0
 
 
 class TestNonDeliverableFixedPeriod:
@@ -4014,6 +4313,7 @@ class TestNonDeliverableFixedPeriod:
             "DF": 0.9889384743344495 if curve else None,
             "FX Rate": 1.0,
             "FX Fixing": 0.20099455502844088,
+            "FX Fix Date": dt(2025, 5, 1),
             "NPV": -1490784.364495184 if curve else None,
             "NPV Ccy": -1490784.364495184 if curve else None,
             "Notional": 1000000000.0,

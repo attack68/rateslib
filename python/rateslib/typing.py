@@ -87,6 +87,10 @@ from rateslib.periods import FXPutPeriod as FXPutPeriod
 from rateslib.periods import IndexCashflow as IndexCashflow
 from rateslib.periods import IndexFixedPeriod as IndexFixedPeriod
 from rateslib.periods.components.parameters import _FloatRateParams as _FloatRateParams
+from rateslib.periods.components.parameters import _IndexParams as _IndexParams
+from rateslib.periods.components.parameters import _NonDeliverableParams as _NonDeliverableParams
+from rateslib.periods.components.parameters import _PeriodParams as _PeriodParams
+from rateslib.periods.components.parameters import _SettlementParams as _SettlementParams
 from rateslib.rs import Adjuster as Adjuster
 from rateslib.rs import (
     Cal,

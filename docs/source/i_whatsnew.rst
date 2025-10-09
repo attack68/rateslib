@@ -24,6 +24,11 @@ higher level instrumenst than their constructing objects.
 
 The `get_from_strike` method for FX SMiles / Surfaces refactored to use `z_w` as n input.
 
+The fixings exposure table no longer yields notional equivalent. It just returns monetary
+sensitivity to the fixing.
+
+Performance of the _spread for a float leg might be reduced for ISDA ``spread_compound_method``.
+
 
 .. list-table::
    :widths: 25 75

@@ -328,9 +328,7 @@ class Schedule:
         accrual_adjuster = _get_adjuster_from_modifier(modifier, _should_mod_days(termination))
         payment_adjuster = _get_adjuster_from_lag_drb(payment_lag, "payment_lag")
         payment_adjuster2 = _get_adjuster_from_lag_drb(payment_lag_exchange, "payment_lag_exchange")
-        payment_adjuster3 = _get_adjuster_from_lag_drb(
-            _drb(Adjuster.Actual(), extra_lag), "payment_lag"
-        )
+        payment_adjuster3 = _get_adjuster_or_none(_drb(None, extra_lag), "payment_lag")
 
         effective_: datetime = _validate_effective(
             effective,
@@ -448,7 +446,7 @@ class Schedule:
         return self.obj.pschedule2
 
     @cached_property
-    def pschedule3(self) -> list[datetime] | None:
+    def pschedule3(self) -> list[datetime]:
         """
         A list of accrual adjusted dates.
 

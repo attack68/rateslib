@@ -986,6 +986,13 @@ class RFRFixing(_BaseFixing):
         """The looked up fixings as part of the calculation after a ``value`` calculation."""
         return self._populated
 
+    @property
+    def unpopulated(self) -> Series[DualTypes]:  # type: ignore[type-var]
+        """The fixings that are not published but are required to determine the period fixing."""
+        return Series(index=self.dates_obs[:-1], data=np.nan, dtype=object).drop(  # type: ignore[return-value]
+            self.populated.index
+        )
+
     def _lookup_and_calculate(
         self,
         timeseries: Series[DualTypes],  # type: ignore[type-var]
@@ -1064,7 +1071,7 @@ class RFRFixing(_BaseFixing):
     @cached_property
     def dcfs_obs(self) -> Arr1dF64:
         """A sequence of floats defining the individual **DCF** values associated with
-        the **observation** dates."""
+        the method's **observation** dates."""
         return _RFRRate._get_dcf_values(
             dcf_dates=self.dates_obs,
             fixing_convention=self.rate_index.convention,
@@ -1074,7 +1081,7 @@ class RFRFixing(_BaseFixing):
     @cached_property
     def dcfs_dcf(self) -> Arr1dF64:
         """A sequence of floats defining the individual **DCF** values associated with
-        the **DCF** dates."""
+        the **DCF** dates natural to the fixing rates."""
         return _RFRRate._get_dcf_values(
             dcf_dates=self.dates_dcf,
             fixing_convention=self.rate_index.convention,

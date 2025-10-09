@@ -120,6 +120,8 @@ Protocols
    :include: _WithNPVStatic
    :include: _WithIndexingStatic
    :include: _WithNonDeliverableStatic
+   :include: _WithAnalyticDelta
+   :include: _WithAnalyticDeltaStatic
 
 Parameters
 ^^^^^^^^^^
@@ -147,6 +149,7 @@ Objects
    :include: FloatPeriod
    :include: FixedPeriod
    :include: Cashflow
+   :include: MtmCashflow
    :include: CreditPremiumPeriod
    :include: CreditProtectionPeriod
    :include: FXOptionPeriod

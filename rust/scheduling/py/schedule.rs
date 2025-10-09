@@ -166,7 +166,7 @@ impl Schedule {
 
     #[getter]
     #[pyo3(name = "pschedule3")]
-    fn pschedule3_py(&self) -> Option<Vec<NaiveDateTime>> {
+    fn pschedule3_py(&self) -> Vec<NaiveDateTime> {
         self.pschedule3.clone()
     }
 
