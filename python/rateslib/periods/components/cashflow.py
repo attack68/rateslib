@@ -7,19 +7,16 @@ from rateslib import defaults
 from rateslib.enums.generics import Err, NoInput, Ok, _drb
 from rateslib.enums.parameters import IndexMethod
 from rateslib.periods.components.parameters import (
-    _IndexParams,
     _init_MtmParams,
     _init_or_none_IndexParams,
     _init_or_none_NonDeliverableParams,
     _init_SettlementParams_with_fx_pair,
-    _SettlementParams,
 )
 from rateslib.periods.components.parameters.mtm import _MtmParams
-from rateslib.periods.components.parameters.settlement import _NonDeliverableParams
 from rateslib.periods.components.protocols import (
     _WithAnalyticDeltaStatic,
+    _WithAnalyticRateFixingsSensitivityStatic,
     _WithNPVCashflowsStatic,
-    _WithRateFixingsExposureStatic,
 )
 
 if TYPE_CHECKING:
@@ -40,7 +37,9 @@ if TYPE_CHECKING:
     )
 
 
-class Cashflow(_WithNPVCashflowsStatic, _WithAnalyticDeltaStatic, _WithRateFixingsExposureStatic):
+class Cashflow(
+    _WithNPVCashflowsStatic, _WithAnalyticDeltaStatic, _WithAnalyticRateFixingsSensitivityStatic
+):
     r"""
     A *Period* defined by a specific amount.
 
@@ -49,6 +48,27 @@ class Cashflow(_WithNPVCashflowsStatic, _WithAnalyticDeltaStatic, _WithRateFixin
     .. math::
 
        \mathbb{E^Q} [\bar{C}_t] = -N
+
+    There is no *analytical delta* for this *Period* type and hence :math:`\xi` is not defined.
+
+    Examples
+    --------
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.periods.components import Cashflow
+       from datetime import datetime as dt
+
+    .. ipython:: python
+
+       period = Cashflow(
+           payment=dt(2025, 10, 22),
+           ex_dividend=dt(2025, 10, 21),
+           currency="eur",
+           notional=125000,
+       )
+       print(period.cashflows())
 
     .. role:: red
 
@@ -112,71 +132,7 @@ class Cashflow(_WithNPVCashflowsStatic, _WithAnalyticDeltaStatic, _WithRateFixin
     index_only: bool, :green:`optional (set as False)`
         A flag which determines non-payment of notional on supported *Periods*.
 
-
-    ..  Examples
-        --------
-
-        A typical RFR type :class:`~rateslib.periods.components.FloatPeriod`.
-
-        .. ipython:: python
-           :supress:
-
-           from rateslib.periods.components import FloatPeriod
-           from rateslib.data.fixings import FloatRateIndex
-           from datetime import datetime as dt
-
-        .. ipython:: python
-
-           period = FloatPeriod(
-               start=dt(2025, 9, 22),
-               end=dt(2025, 10, 20),
-               payment=dt(2025, 10, 22),
-               frequency="1M",
-           )
-
-        A typical IBOR tenor type :class:`~rateslib.periods.components.FloatPeriod`.
-
-        .. ipython:: python
-
-           period = FloatPeriod(
-               start=dt(2025, 9, 22),
-               end=dt(2025, 10, 22),
-               payment=dt(2025, 10, 22),
-               frequency="1M",
-               currency="eur",
-               fixing_method="IBOR",
-               fixing_series="eur_IBOR",
-           )
     """
-
-    @property
-    def period_params(self) -> None:  # type: ignore[override]
-        """This *Period* type has no
-        :class:`~rateslib.periods.components.parameters._PeriodParams`."""
-        return self._period_params
-
-    @property
-    def settlement_params(self) -> _SettlementParams:  # type: ignore[override]
-        """The :class:`~rateslib.periods.components.parameters._SettlementParams`
-        of the *Period*."""
-        return self._settlement_params
-
-    @property
-    def index_params(self) -> _IndexParams | None:  # type: ignore[override]
-        """The :class:`~rateslib.periods.components.parameters._IndexParams` of
-        the *Period*, if any."""
-        return self._index_params
-
-    @property
-    def non_deliverable_params(self) -> _NonDeliverableParams | None:  # type: ignore[override]
-        """The :class:`~rateslib.periods.components.parameters._NonDeliverableParams` of the
-        *Period*., if any."""
-        return self._non_deliverable_params
-
-    @property
-    def rate_params(self) -> None:  # type: ignore[override]
-        """This *Period* type has no rate parameters."""
-        return self._rate_params
 
     def __init__(
         self,
@@ -212,8 +168,6 @@ class Cashflow(_WithNPVCashflowsStatic, _WithAnalyticDeltaStatic, _WithRateFixin
             _fx_fixings=fx_fixings,
             _delivery=_drb(self.settlement_params.payment, delivery),
         )
-        self._rate_params = None
-        self._period_params = None
         self._index_params = _init_or_none_IndexParams(
             _index_base=index_base,
             _index_lag=index_lag,
@@ -232,7 +186,7 @@ class Cashflow(_WithNPVCashflowsStatic, _WithAnalyticDeltaStatic, _WithRateFixin
     ) -> Result[DualTypes]:
         return Ok(-self.settlement_params.notional)
 
-    def try_unindexed_reference_analytic_delta(
+    def try_unindexed_reference_cashflow_analytic_delta(
         self,
         *,
         rate_curve: CurveOption_ = NoInput(0),
@@ -269,7 +223,7 @@ class NonDeliverableIndexCashflow(Cashflow):
 
 
 class MtmCashflow(
-    _WithNPVCashflowsStatic, _WithAnalyticDeltaStatic, _WithRateFixingsExposureStatic
+    _WithNPVCashflowsStatic, _WithAnalyticDeltaStatic, _WithAnalyticRateFixingsSensitivityStatic
 ):
     r"""
     A *Period* defined by a specific amount calculated from the difference between two
@@ -283,6 +237,30 @@ class MtmCashflow(
     .. math::
 
        \mathbb{E^Q} [\bar{C}_t] = -N ( f_{not:ref}(m_{a.e}) - f_{not:ref}(m_{a.s}) )
+
+    There is no *analytical delta* for this *Period* type and hence :math:`\xi` is not defined.
+
+    Examples
+    --------
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.periods.components import MtmCashflow
+       from datetime import datetime as dt
+
+    .. ipython:: python
+
+       period = MtmCashflow(
+           payment=dt(2025, 10, 22),
+           start=dt(2025, 7, 22),
+           currency="usd",
+           pair="eurusd",
+           notional=125000,
+           fx_fixings_start=1.10,
+           fx_fixings_end=1.20,
+       )
+       print(period.cashflows())
 
     .. role:: red
 
@@ -304,21 +282,28 @@ class MtmCashflow(
     ex_dividend: datetime, :green:`optional (set as 'payment')`
         The ex-dividend date of the *Period*. Settlements occurring **after** this date
         are assumed to be non-receivable.
-    pair: str, :green:`optional`
-        The currency pair of the two :class:`~rateslib.data.fixings.FXFixing` that determines
-        settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
 
         .. note::
 
-           The following parameters define **non-deliverability**. If the *Period* is directly
-           deliverable do not supply these parameters.
+           The following parameters define the specific **mtm** aspects of the *cashflow*.
 
-
-    fx_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
-        The value of the :class:`~rateslib.data.fixings.FXFixing`. If a scalar is used directly.
-        If a string identifier will link to the central ``fixings`` object and data loader.
-    delivery: datetime, :green:`optional (set as 'payment')`
-        The settlement delivery date of the :class:`~rateslib.data.fixings.FXFixing`.
+    pair: str, :red:`required`
+        The currency pair of the two :class:`~rateslib.data.fixings.FXFixing` that determines
+        settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
+    start: datetime, :red:`required`
+        The delivery date of the first :class:`~rateslib.data.fixings.FXFixing` at the start of
+        the *Period*.
+    end: datetime, :green:`optional (set as 'payment')`
+        The delivery date of the second :class:`~rateslib.data.fixings.FXFixing` at the end of
+        the *Period*.
+    fx_fixings_start: float, Dual, Dual2, Variable, Series, str, :green:`optional`
+        The value of the first :class:`~rateslib.data.fixings.FXFixing`. If a scalar, is used
+        directly. If a string identifier will link to the central ``fixings`` object and
+        data loader.
+    fx_fixings_end: float, Dual, Dual2, Variable, Series, str, :green:`optional`
+        The value of the second :class:`~rateslib.data.fixings.FXFixing`. If a scalar, is used
+        directly. If a string identifier will link to the central ``fixings`` object and
+        data loader.
 
         .. note::
 
@@ -350,39 +335,10 @@ class MtmCashflow(
     """
 
     @property
-    def period_params(self) -> None:  # type: ignore[override]
-        """This *Period* type has no
-        :class:`~rateslib.periods.components.parameters._PeriodParams`."""
-        return self._period_params
-
-    @property
-    def settlement_params(self) -> _SettlementParams:  # type: ignore[override]
-        """The :class:`~rateslib.periods.components.parameters._SettlementParams`
-        of the *Period*."""
-        return self._settlement_params
-
-    @property
-    def index_params(self) -> _IndexParams | None:  # type: ignore[override]
-        """The :class:`~rateslib.periods.components.parameters._IndexParams` of
-        the *Period*, if any."""
-        return self._index_params
-
-    @property
-    def non_deliverable_params(self) -> None:  # type: ignore[override]
-        """The :class:`~rateslib.periods.components.parameters._NonDeliverableParams` of the
-        *Period*., if any."""
-        return self._non_deliverable_params
-
-    @property
-    def mtm_params(self) -> _MtmParams:  # type: ignore[override]
+    def mtm_params(self) -> _MtmParams:
         """The :class:`~rateslib.periods.components.parameters._MtmParams` of the
         *Period*."""
         return self._mtm_params
-
-    @property
-    def rate_params(self) -> None:  # type: ignore[override]
-        """This *Period* type has no rate parameters."""
-        return self._rate_params
 
     def __init__(
         self,
@@ -400,7 +356,7 @@ class MtmCashflow(
         index_base: DualTypes_ = NoInput(0),
         index_lag: int_ = NoInput(0),
         index_method: IndexMethod | str_ = NoInput(0),
-        index_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0), # type: ignore[type-var]
+        index_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
         index_only: bool_ = NoInput(0),
         index_base_date: datetime_ = NoInput(0),
         index_reference_date: datetime_ = NoInput(0),
@@ -421,8 +377,6 @@ class MtmCashflow(
             _fx_fixings_end=fx_fixings_end,
         )
         self._non_deliverable_params = None
-        self._rate_params = None
-        self._period_params = None
         self._index_params = _init_or_none_IndexParams(
             _index_base=index_base,
             _index_lag=index_lag,
@@ -451,7 +405,7 @@ class MtmCashflow(
             diff = fx1.unwrap() - fx0.unwrap()
         return Ok(-self.settlement_params.notional * diff)
 
-    def try_unindexed_reference_analytic_delta(
+    def try_unindexed_reference_cashflow_analytic_delta(
         self,
         *,
         rate_curve: CurveOption_ = NoInput(0),

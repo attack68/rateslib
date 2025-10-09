@@ -4,16 +4,24 @@ from typing import TYPE_CHECKING
 
 from pandas import Series
 
+import rateslib.errors as err
 from rateslib import defaults
+from rateslib.dual import ift_1dim
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import FloatFixingMethod, SpreadCompoundMethod
 from rateslib.legs.components.amortization import Amortization, _AmortizationType, _get_amortization
-from rateslib.legs.components.protocols import _WithAnalyticDelta, _WithCashflows, _WithNPV
+from rateslib.legs.components.protocols import (
+    _WithAnalyticDelta,
+    _WithAnalyticRateFixingsSensitivity,
+    _WithCashflows,
+    _WithNPV,
+)
 from rateslib.legs.components.utils import _leg_fixings_to_list
-from rateslib.periods.components import Cashflow, FloatPeriod
+from rateslib.periods.components import Cashflow, FloatPeriod, MtmCashflow
 from rateslib.periods.components.parameters import _FloatRateParams, _SettlementParams
 
 if TYPE_CHECKING:
+    from rateslib.periods.components import Period
     from rateslib.typing import (  # pragma: no cover
         FX_,
         CurveOption_,
@@ -22,14 +30,21 @@ if TYPE_CHECKING:
         FloatRateSeries,
         Frequency,
         IndexMethod,
-        Period,
+        LegFixings,
         Schedule,
+        _BaseCurve_,
+        datetime,
         int_,
         str_,
     )
 
 
-class FloatLeg(_WithNPV, _WithCashflows, _WithAnalyticDelta):
+class FloatLeg(
+    _WithNPV,
+    _WithCashflows,
+    _WithAnalyticDelta,
+    _WithAnalyticRateFixingsSensitivity,
+):
     """
     Abstract base class with common parameters for all ``Leg`` subclasses.
 
@@ -106,15 +121,17 @@ class FloatLeg(_WithNPV, _WithCashflows, _WithAnalyticDelta):
         if self._exchange_periods[0] is not None:
             periods_.append(self._exchange_periods[0])
 
+        args: tuple[tuple[FloatPeriod | MtmCashflow | Cashflow, ...], ...] = (
+            self._regular_periods[:-1],
+        )
+        if self._mtm_exchange_periods is not None:
+            args += (self._mtm_exchange_periods,)
         if self._interim_exchange_periods is not None:
-            interleaved_periods_: list[Period] = [
-                val
-                for pair in zip(self._regular_periods, self._interim_exchange_periods, strict=False)
-                for val in pair
-            ]
-            interleaved_periods_.append(self._regular_periods[-1])  # add last regular period
-        else:
-            interleaved_periods_ = list(self._regular_periods)
+            args += (self._interim_exchange_periods,)
+        interleaved_periods_: list[Period] = [
+            item for combination in zip(*args, strict=True) for item in combination
+        ]
+        interleaved_periods_.append(self._regular_periods[-1])  # add last regular period
         periods_.extend(interleaved_periods_)
 
         if self._exchange_periods[1] is not None:
@@ -135,6 +152,10 @@ class FloatLeg(_WithNPV, _WithCashflows, _WithAnalyticDelta):
     def schedule(self) -> Schedule:
         return self._schedule
 
+    @property
+    def amortization(self) -> Amortization:
+        return self._amortization
+
     def __init__(
         self,
         schedule: Schedule,
@@ -150,7 +171,10 @@ class FloatLeg(_WithNPV, _WithCashflows, _WithAnalyticDelta):
         notional: DualTypes_ = NoInput(0),
         amortization: DualTypes_ | list[DualTypes] | Amortization | str = NoInput(0),
         currency: str_ = NoInput(0),
+        # non-deliverable
         pair: str_ = NoInput(0),
+        fx_fixings: LegFixings = NoInput(0),  # type: ignore[type-var]
+        mtm: bool = False,
         # period
         convention: str_ = NoInput(0),
         initial_exchange: bool = False,
@@ -169,38 +193,63 @@ class FloatLeg(_WithNPV, _WithCashflows, _WithAnalyticDelta):
         self._currency: str = _drb(defaults.base_currency, currency).lower()
         self._convention: str = _drb(defaults.convention, convention)
 
+        index_fixings_ = _leg_fixings_to_list(index_fixings, self.schedule.n_periods)
+        fx_fixings_ = _leg_fixings_to_list(fx_fixings, self.schedule.n_periods)
         # Exchange periods
         if not initial_exchange:
             _ini_cf: Cashflow | None = None
         else:
             _ini_cf = Cashflow(
-                payment=self._schedule.pschedule2[0],
+                payment=self.schedule.pschedule2[0],
                 notional=-self._amortization.outstanding[0],
                 currency=self._currency,
-                ex_dividend=self._schedule.pschedule3[0],
+                ex_dividend=self.schedule.pschedule3[0],
+                # non-deliverable
+                pair=pair,
+                fx_fixings=fx_fixings_[0],
+                delivery=self.schedule.pschedule2[0],
+                # index params
                 index_base=index_base,
                 index_lag=index_lag,
                 index_method=index_method,
-                index_fixings=index_fixings,
-                index_base_date=self._schedule.aschedule[0],
-                index_reference_date=self._schedule.aschedule[0],
+                index_fixings=index_fixings_[0],
+                index_base_date=self.schedule.aschedule[0],
+                index_reference_date=self.schedule.aschedule[0],
             )
-        if not final_exchange:
+        final_exchange_ = final_exchange or initial_exchange
+        if not final_exchange_:
             _final_cf: Cashflow | None = None
         else:
             _final_cf = Cashflow(
-                payment=self._schedule.pschedule2[-1],
+                payment=self.schedule.pschedule2[-1],
                 notional=self._amortization.outstanding[-1],
                 currency=self._currency,
-                ex_dividend=self._schedule.pschedule3[-1],
+                ex_dividend=self.schedule.pschedule3[-1],
+                # non-deliverable
+                pair=pair,
+                fx_fixings=fx_fixings_[0] if not mtm else fx_fixings_[-1],
+                delivery=self.schedule.pschedule2[0] if not mtm else self.schedule.pschedule2[-2],
+                # index parameters
                 index_base=index_base,
                 index_lag=index_lag,
                 index_method=index_method,
-                index_fixings=index_fixings,
-                index_base_date=self._schedule.aschedule[0],
-                index_reference_date=self._schedule.aschedule[-1],
+                index_fixings=index_fixings_[-1],
+                index_base_date=self.schedule.aschedule[0],
+                index_reference_date=self.schedule.aschedule[-1],
             )
         self._exchange_periods = (_ini_cf, _final_cf)
+
+        def fx_delivery(i: int) -> datetime:
+            if not mtm:
+                # then ND type is a one-fixing only
+                return self.schedule.pschedule2[0]
+            else:
+                if final_exchange_:
+                    # then ND type is a XCS
+                    return self.schedule.pschedule2[i]
+                else:
+                    # then ND type is IRS
+                    return self.schedule.pschedule[i + 1]
 
         rate_fixings_list = _leg_fixings_to_list(rate_fixings, self._schedule.n_periods)
         self._regular_periods = tuple(
@@ -214,25 +263,29 @@ class FloatLeg(_WithNPV, _WithCashflows, _WithAnalyticDelta):
                     fixing_frequency=fixing_frequency,
                     fixing_series=fixing_series,
                     # currency args
-                    payment=self._schedule.pschedule[i + 1],
+                    payment=self.schedule.pschedule[i + 1],
                     currency=self._currency,
-                    notional=self._amortization.outstanding[i],
-                    ex_dividend=self._schedule.pschedule3[i + 1],
+                    notional=self.amortization.outstanding[i],
+                    ex_dividend=self.schedule.pschedule3[i + 1],
                     # period params
-                    start=self._schedule.aschedule[i],
-                    end=self._schedule.aschedule[i + 1],
-                    frequency=self._schedule.frequency_obj,
+                    start=self.schedule.aschedule[i],
+                    end=self.schedule.aschedule[i + 1],
+                    frequency=self.schedule.frequency_obj,
                     convention=self._convention,
-                    termination=self._schedule.aschedule[-1],
-                    stub=self._schedule._stubs[i],
+                    termination=self.schedule.aschedule[-1],
+                    stub=self.schedule._stubs[i],
                     roll=NoInput(0),  #  defined by Frequency
-                    calendar=self._schedule.calendar,
-                    adjuster=self._schedule.accrual_adjuster,
+                    calendar=self.schedule.calendar,
+                    adjuster=self.schedule.accrual_adjuster,
+                    # non-deliverable : Not allowed with notional exchange
+                    pair=pair,
+                    fx_fixings=fx_fixings_[0] if not mtm else fx_fixings_[i],
+                    delivery=fx_delivery(i),
                     # index params
                     index_base=index_base,
                     index_lag=index_lag,
                     index_method=index_method,
-                    index_fixings=index_fixings,
+                    index_fixings=index_fixings_[i],
                     index_base_date=self._schedule.aschedule[0],
                     index_reference_date=self._schedule.aschedule[i + 1],
                 )
@@ -241,27 +294,63 @@ class FloatLeg(_WithNPV, _WithCashflows, _WithAnalyticDelta):
         )
 
         # amortization exchanges
-        if not final_exchange or self._amortization._type == _AmortizationType.NoAmortization:
+        if not final_exchange_ or self.amortization._type == _AmortizationType.NoAmortization:
             self._interim_exchange_periods: tuple[Cashflow, ...] | None = None
         else:
             self._interim_exchange_periods = tuple(
                 [
                     Cashflow(
-                        notional=self._amortization.amortization[i],
-                        payment=self._schedule.pschedule2[i + 1],
+                        notional=self.amortization.amortization[i],
+                        payment=self.schedule.pschedule2[i + 1],
                         currency=self._currency,
-                        ex_dividend=self._schedule.pschedule3[i + 1],
+                        ex_dividend=self.schedule.pschedule3[i + 1],
+                        # non-deliverable params
+                        pair=pair,
+                        fx_fixings=fx_fixings_[0] if not mtm else fx_fixings_[i + 1],
+                        delivery=self.schedule.pschedule2[0]
+                        if not mtm
+                        else self.schedule.pschedule2[i + 1],  # schedule for exchanges
                         # index params
                         index_base=index_base,
                         index_lag=index_lag,
                         index_method=index_method,
-                        index_fixings=index_fixings,
+                        index_fixings=index_fixings_[i],
                         index_base_date=self._schedule.aschedule[0],
                         index_reference_date=self._schedule.aschedule[i + 1],
                     )
                     for i in range(self._schedule.n_periods - 1)
                 ]
             )
+
+        # mtm exchanges
+        if mtm and final_exchange_:
+            if isinstance(pair, NoInput):
+                raise ValueError(err.VE_PAIR_AND_LEG_MTM)
+            self._mtm_exchange_periods: tuple[MtmCashflow, ...] | None = tuple(
+                [
+                    MtmCashflow(
+                        payment=self.schedule.pschedule2[i + 1],
+                        notional=-self.amortization.outstanding[i],
+                        pair=pair,
+                        start=self.schedule.pschedule2[i],
+                        end=self.schedule.pschedule2[i + 1],
+                        currency=self._currency,
+                        ex_dividend=self.schedule.pschedule3[i + 1],
+                        fx_fixings_start=fx_fixings_[i],
+                        fx_fixings_end=fx_fixings_[i + 1],
+                        # index params
+                        index_base=index_base,
+                        index_lag=index_lag,
+                        index_method=index_method,
+                        index_fixings=index_fixings_[i],
+                        index_base_date=self.schedule.aschedule[0],
+                        index_reference_date=self.schedule.aschedule[i + 1],
+                    )
+                    for i in range(self.schedule.n_periods - 1)
+                ]
+            )
+        else:
+            self._mtm_exchange_periods = None
 
     @property
     def _is_linear(self) -> bool:
@@ -290,6 +379,7 @@ class FloatLeg(_WithNPV, _WithCashflows, _WithAnalyticDelta):
         rate_curve: CurveOption_,
         disc_curve: CurveOption_,
         fx: FX_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
     ) -> DualTypes:
         """
         Calculates an adjustment to the ``fixed_rate`` or ``float_spread`` to match
@@ -336,5 +426,38 @@ class FloatLeg(_WithNPV, _WithCashflows, _WithAnalyticDelta):
             )
             return -target_npv / a_delta
         else:
-            return self._spread_isda_approximated_rate(target_npv, fore_curve, disc_curve)  # type: ignore[arg-type]
-            # _ = self._spread_isda_dual2(target_npv, fore_curve, disc_curve, fx)
+            original_z = self.float_spread
+            original_npv = self.npv(
+                rate_curve=rate_curve,
+                disc_curve=disc_curve,
+                index_curve=index_curve,
+                fx=fx,
+            )
+
+            def s(g: DualTypes) -> DualTypes:
+                """
+                This determines the NPV change subject to a given float spread change denoted, g.
+                """
+                self.float_spread = g + original_z
+                return (
+                    self.npv(  # type: ignore[operator]
+                        rate_curve=rate_curve,
+                        disc_curve=disc_curve,
+                        index_curve=index_curve,
+                        fx=fx,
+                    )
+                    - original_npv
+                )
+
+            result = ift_1dim(
+                s=s,
+                s_tgt=target_npv,
+                h="modified_brent",
+                ini_h_args=(-10000, 10000),
+                func_tol=1e-9,
+                conv_tol=1e-6,
+            )
+
+            self.float_spread = original_z
+            _: DualTypes = result["g"]
+            return _

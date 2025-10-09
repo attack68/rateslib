@@ -6,26 +6,37 @@ import rateslib.errors as err
 from rateslib import defaults
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.legs.components.amortization import Amortization, _AmortizationType, _get_amortization
-from rateslib.legs.components.protocols import _WithAnalyticDelta, _WithCashflows, _WithNPV
+from rateslib.legs.components.protocols import (
+    _WithAnalyticDelta,
+    _WithAnalyticRateFixingsSensitivity,
+    _WithCashflows,
+    _WithNPV,
+)
 from rateslib.legs.components.utils import _leg_fixings_to_list
 from rateslib.periods.components import Cashflow, FixedPeriod, MtmCashflow
 
 if TYPE_CHECKING:
+    from rateslib.periods.components import Period
     from rateslib.typing import (  # pragma: no cover
-        datetime,
         DualTypes,
         DualTypes_,
         IndexMethod,
         LegFixings,
-        Period,
         Schedule,
         Series,
+        _SettlementParams,
+        datetime,
         int_,
         str_,
     )
 
 
-class FixedLeg(_WithNPV, _WithCashflows, _WithAnalyticDelta):
+class FixedLeg(
+    _WithNPV,
+    _WithCashflows,
+    _WithAnalyticDelta,
+    _WithAnalyticRateFixingsSensitivity,
+):
     """
     Define a *Leg* containing :class:`~rateslib.periods.components.FixedPeriod`.
 
@@ -219,7 +230,13 @@ class FixedLeg(_WithNPV, _WithCashflows, _WithAnalyticDelta):
       .. ipython:: python
 
          leg = FixedLeg(
-             schedule=Schedule(effective=dt(2000, 1, 1), termination=dt(2000, 10, 1), frequency="Q", payment_lag=1, payment_lag_exchange=0),
+             schedule=Schedule(
+                 effective=dt(2000, 1, 1),
+                 termination=dt(2000, 10, 1),
+                 frequency="Q",
+                 payment_lag=1,
+                 payment_lag_exchange=0,
+             ),
              fixed_rate=1.0,
              currency="usd",
              pair="eurusd",
@@ -245,7 +262,13 @@ class FixedLeg(_WithNPV, _WithCashflows, _WithAnalyticDelta):
              data=[1.27, 1.29, 1.32])
          )
          leg = FixedLeg(
-             schedule=Schedule(effective=dt(2000, 1, 1), termination=dt(2000, 10, 1), frequency="Q", payment_lag=1, payment_lag_exchange=0),
+             schedule=Schedule(
+                 effective=dt(2000, 1, 1),
+                 termination=dt(2000, 10, 1),
+                 frequency="Q",
+                 payment_lag=1,
+                 payment_lag_exchange=0
+             ),
              fixed_rate=1.0,
              currency="usd",
              pair="eurusd",
@@ -265,7 +288,13 @@ class FixedLeg(_WithNPV, _WithCashflows, _WithAnalyticDelta):
       .. ipython:: python
 
          leg = FixedLeg(
-             schedule=Schedule(effective=dt(2000, 1, 1), termination=dt(2000, 10, 1), frequency="Q", payment_lag=2, payment_lag_exchange=1),
+             schedule=Schedule(
+                 effective=dt(2000, 1, 1),
+                 termination=dt(2000, 10, 1),
+                 frequency="Q",
+                 payment_lag=2,
+                 payment_lag_exchange=1
+             ),
              fixed_rate=1.0,
              currency="usd",
              pair="eurusd",
@@ -299,7 +328,13 @@ class FixedLeg(_WithNPV, _WithCashflows, _WithAnalyticDelta):
     .. ipython:: python
 
        leg = FixedLeg(
-           schedule=Schedule(effective=dt(2000, 1, 1), termination=dt(2000, 10, 1), frequency="Q", payment_lag=2, payment_lag_exchange=1),
+           schedule=Schedule(
+               effective=dt(2000, 1, 1),
+               termination=dt(2000, 10, 1),
+               frequency="Q",
+               payment_lag=2,
+               payment_lag_exchange=1
+           ),
            fixed_rate=1.0,
            currency="usd",
            pair="eurusd",
@@ -313,7 +348,13 @@ class FixedLeg(_WithNPV, _WithCashflows, _WithAnalyticDelta):
     .. ipython:: python
 
        leg = FixedLeg(
-           schedule=Schedule(effective=dt(2000, 1, 1), termination=dt(2000, 10, 1), frequency="Q", payment_lag=2, payment_lag_exchange=1),
+           schedule=Schedule(
+               effective=dt(2000, 1, 1),
+               termination=dt(2000, 10, 1),
+               frequency="Q",
+               payment_lag=2,
+               payment_lag_exchange=1
+           ),
            fixed_rate=1.0,
            currency="usd",
            pair="eurusd",
@@ -334,7 +375,13 @@ class FixedLeg(_WithNPV, _WithCashflows, _WithAnalyticDelta):
     .. ipython:: python
 
        leg = FixedLeg(
-           schedule=Schedule(effective=dt(2000, 1, 1), termination=dt(2000, 7, 1), frequency="Q", payment_lag=2, payment_lag_exchange=1),
+           schedule=Schedule(
+               effective=dt(2000, 1, 1),
+               termination=dt(2000, 7, 1),
+               frequency="Q",
+               payment_lag=2,
+               payment_lag_exchange=1
+           ),
            fixed_rate=1.0,
            currency="usd",
            pair="eurusd",
@@ -362,6 +409,12 @@ class FixedLeg(_WithNPV, _WithCashflows, _WithAnalyticDelta):
     """
 
     @property
+    def settlement_params(self) -> _SettlementParams:
+        """The :class:`~rateslib.periods.components.parameters._SettlementParams` associated with
+        the first :class:`~rateslib.periods.components.FloatPeriod`."""
+        return self._regular_periods[0].settlement_params
+
+    @property
     def periods(self) -> list[Period]:
         """Combine all period collection types into an ordered list."""
         periods_: list[Period] = []
@@ -369,7 +422,7 @@ class FixedLeg(_WithNPV, _WithCashflows, _WithAnalyticDelta):
         if self._exchange_periods[0] is not None:
             periods_.append(self._exchange_periods[0])
 
-        args = (self._regular_periods[:-1],)
+        args: tuple[tuple[Period], ...] = (self._regular_periods[:-1],)  # type: ignore[assignment]
         if self._mtm_exchange_periods is not None:
             args += (self._mtm_exchange_periods,)
         if self._interim_exchange_periods is not None:
@@ -414,7 +467,7 @@ class FixedLeg(_WithNPV, _WithCashflows, _WithAnalyticDelta):
         currency: str_ = NoInput(0),
         # non-deliverable
         pair: str_ = NoInput(0),
-        fx_fixings: LegFixings = NoInput(0),
+        fx_fixings: LegFixings = NoInput(0),  # type: ignore[type-var]
         mtm: bool = False,
         # period
         convention: str_ = NoInput(0),
@@ -491,7 +544,7 @@ class FixedLeg(_WithNPV, _WithCashflows, _WithAnalyticDelta):
                     return self.schedule.pschedule2[i]
                 else:
                     # then ND type is IRS
-                    return self.schedule.pschedule[i+1]
+                    return self.schedule.pschedule[i + 1]
 
         self._regular_periods = tuple(
             [
@@ -529,7 +582,7 @@ class FixedLeg(_WithNPV, _WithCashflows, _WithAnalyticDelta):
         )
 
         # amortization exchanges
-        if not final_exchange_ or self._amortization._type == _AmortizationType.NoAmortization:
+        if not final_exchange_ or self.amortization._type == _AmortizationType.NoAmortization:
             self._interim_exchange_periods: tuple[Cashflow, ...] | None = None
         else:
             # only with notional exchange and some Amortization amount
@@ -543,7 +596,9 @@ class FixedLeg(_WithNPV, _WithCashflows, _WithAnalyticDelta):
                         # non-deliverable params
                         pair=pair,
                         fx_fixings=fx_fixings_[0] if not mtm else fx_fixings_[i + 1],
-                        delivery=self.schedule.pschedule2[0] if not mtm else self.schedule.pschedule2[i + 1],  # schedule for exchanges
+                        delivery=self.schedule.pschedule2[0]
+                        if not mtm
+                        else self.schedule.pschedule2[i + 1],  # schedule for exchanges
                         # index params
                         index_base=index_base,
                         index_lag=index_lag,
@@ -558,18 +613,20 @@ class FixedLeg(_WithNPV, _WithCashflows, _WithAnalyticDelta):
 
         # mtm exchanges
         if mtm and final_exchange_:
-            self._mtm_exchange_periods = tuple(
+            if isinstance(pair, NoInput):
+                raise ValueError(err.VE_PAIR_AND_LEG_MTM)
+            self._mtm_exchange_periods: tuple[MtmCashflow, ...] | None = tuple(
                 [
                     MtmCashflow(
-                        payment=self.schedule.pschedule2[i+1],
+                        payment=self.schedule.pschedule2[i + 1],
                         notional=-self.amortization.outstanding[i],
                         pair=pair,
                         start=self.schedule.pschedule2[i],
-                        end=self.schedule.pschedule2[i+1],
+                        end=self.schedule.pschedule2[i + 1],
                         currency=self._currency,
-                        ex_dividend=self.schedule.pschedule3[i+1],
+                        ex_dividend=self.schedule.pschedule3[i + 1],
                         fx_fixings_start=fx_fixings_[i],
-                        fx_fixings_end=fx_fixings_[i+1],
+                        fx_fixings_end=fx_fixings_[i + 1],
                         # index params
                         index_base=index_base,
                         index_lag=index_lag,
@@ -578,8 +635,8 @@ class FixedLeg(_WithNPV, _WithCashflows, _WithAnalyticDelta):
                         index_base_date=self.schedule.aschedule[0],
                         index_reference_date=self.schedule.aschedule[i + 1],
                     )
-                for i in range(self.schedule.n_periods - 1)
+                    for i in range(self.schedule.n_periods - 1)
                 ]
             )
         else:
-            self._mtm_exchange_periods: tuple[MtmCashflow, ...] | None = None
+            self._mtm_exchange_periods = None

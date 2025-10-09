@@ -54,6 +54,8 @@ pub struct Schedule {
     /// This is often used as a notional exchange lag, which for XCS, for example, differs to a regular coupon lag.
     pub payment_adjuster2: Adjuster,
     /// An additional [`Adjuster`] to adjust the accrual schedule dates to some other period payment or fixing dates.
+    ///
+    /// If *None* is set to match ``payment_adjuster``.
     pub payment_adjuster3: Option<Adjuster>,
     /// The vector of unadjusted period accrual dates.
     #[serde(skip)]
@@ -69,7 +71,7 @@ pub struct Schedule {
     pub pschedule2: Vec<NaiveDateTime>,
     /// An additional vector of payment dates associated with the adjusted accrual dates.
     #[serde(skip)]
-    pub pschedule3: Option<Vec<NaiveDateTime>>,
+    pub pschedule3: Vec<NaiveDateTime>,
 }
 
 #[derive(Deserialize)]
@@ -316,8 +318,10 @@ impl Schedule {
         let aschedule: Vec<NaiveDateTime> = accrual_adjuster.adjusts(&uschedule, &calendar);
         let pschedule = payment_adjuster.adjusts(&aschedule, &calendar);
         let pschedule2 = payment_adjuster2.adjusts(&aschedule, &calendar);
-        let pschedule3: Option<Vec<NaiveDateTime>> =
-            payment_adjuster3.map(|a| a.adjusts(&aschedule, &calendar));
+        let pschedule3 = match payment_adjuster3 {
+            None => pschedule.clone(),
+            Some(adjuster) => adjuster.adjusts(&aschedule, &calendar),
+        };
 
         Ok(Self {
             ueffective,

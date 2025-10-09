@@ -13,11 +13,10 @@ from rateslib.periods.components.parameters import (
     _FixedRateParams,
     _FloatRateParams,
     _IndexParams,
+    _MtmParams,
     _NonDeliverableParams,
     _PeriodParams,
-    _SettlementParams,
 )
-from rateslib.periods.components.parameters.fx_volatility import _FXOptionParams
 from rateslib.periods.components.protocols.npv import _WithNPV, _WithNPVStatic
 from rateslib.periods.components.utils import (
     _get_immediate_fx_scalar_and_base,
@@ -25,6 +24,7 @@ from rateslib.periods.components.utils import (
 )
 
 if TYPE_CHECKING:
+    # from rateslib.periods.components import Period
     from rateslib.typing import (
         Any,
         CurveOption_,
@@ -39,13 +39,16 @@ if TYPE_CHECKING:
 
 
 class _WithNPVCashflows(_WithNPV, Protocol):
-    settlement_params: _SettlementParams
-    rate_params: _FixedRateParams | _FloatRateParams | None
-    non_deliverable_params: None
-    index_params: None
-    period_params: _PeriodParams | None
-    fx_option_params: _FXOptionParams | None
-    credit_params: _CreditParams | None
+    """
+    Determine and display all metrics for the *Period*.
+
+    .. warning::
+
+       This class provides convenience methods to display all
+       associated calculation data. Calling this method to extract certain values
+       should be avoided. It is more efficent to source relevant parameters or calculations
+       from object attributes or other methods directly.
+    """
 
     def try_cashflow(
         self,
@@ -99,121 +102,51 @@ class _WithNPVCashflows(_WithNPV, Protocol):
 
            This method is a convenience method to provide a visual representation of all
            associated calculation data. Calling this method to extracting certain values
-           should be avoided. It is more efficent to source relevant parameters or calculations
+           should be avoided. It is more efficient to source relevant parameters or calculations
            from object attributes or other methods directly.
 
         Parameters
         ----------
-        XXX
+        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
+            Used to forecast floating period rates, if necessary.
+        index_curve: _BaseCurve, optional
+            Used to forecast index values for indexation, if necessary.
+        disc_curve: _BaseCurve, optional
+            Used to discount cashflows.
+        fx: FXForwards, optional
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting the
+            ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
+            :class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
+        fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
+            The FX volatility *Smile* or *Surface* object used for determining Black calendar
+            day implied volatility values.
+        base: str, optional
+            The currency to convert the *local settlement* NPV to.
+        settlement: datetime, optional
+            The assumed settlement date of the *PV* determination. Used only to evaluate
+            *ex-dividend* status.
+        forward: datetime, optional
+            The future date to project the *PV* to using the ``disc_curve``.
 
         Returns
         -------
         dict of values
         """
-
-        # standard parameters
-        standard_elements = {
-            defaults.headers["type"]: type(self).__name__,
-            defaults.headers["currency"]: self.settlement_params.currency.upper(),
-            defaults.headers["payment"]: self.settlement_params.payment,
-            defaults.headers["notional"]: _dual_float(self.settlement_params.notional),
-        }
-        # period parameters
-        if self.period_params is not None:
-            standard_elements[defaults.headers["stub_type"]] = (
-                "Stub" if self.period_params.stub else "Regular"
-            )
-            period_elements = {
-                defaults.headers["convention"]: str(self.period_params.convention),
-                defaults.headers["dcf"]: self.period_params.dcf,
-                defaults.headers["a_acc_start"]: self.period_params.start,
-                defaults.headers["a_acc_end"]: self.period_params.end,
-            }
-        else:
-            period_elements = {}
-
-        # cashflow valuation based parameters
-        c = self.try_cashflow(
+        standard_elements = _standard_elements(self=self)
+        period_elements = _period_elements(self=self)
+        cashflow_elements = _cashflow_elements(
+            self=self,
             rate_curve=rate_curve,
             disc_curve=disc_curve,
             index_curve=index_curve,
             fx=fx,
             fx_vol=fx_vol,
-        )
-
-        disc_curve_result = _try_disc_required_maybe_from_curve(
-            curve=rate_curve, disc_curve=disc_curve
-        )
-        if disc_curve_result.is_err:
-            # then NPV is impossible
-            v, collateral = None, None
-        else:
-            v = disc_curve_result.unwrap()[self.settlement_params.payment]
-            collateral = disc_curve_result.unwrap().meta.collateral
-
-        # Since `cashflows` in not a performance critical function this call duplicates
-        # cashflow calculations. A more efficient calculation is possible but the code branching
-        # is ugly.
-        local_npv_result = self.try_local_npv(
-            rate_curve=rate_curve,
-            index_curve=index_curve,
-            disc_curve=disc_curve,
-            fx=fx,
-            fx_vol=fx_vol,
-            settlement=settlement,
+            base=base,
             forward=forward,
+            settlement=settlement,
         )
-
-        fx_, base_ = _get_immediate_fx_scalar_and_base(self.settlement_params.currency, fx, base)
-        if local_npv_result.is_err:
-            npv_fx = None
-        else:
-            npv_fx = local_npv_result.unwrap() * fx_
-
-        cashflow_elements = {
-            defaults.headers["df"]: _float_or_none(v),
-            defaults.headers["cashflow"]: _float_or_none(c),
-            defaults.headers["npv"]: _float_or_none(local_npv_result),
-            defaults.headers["fx"]: _dual_float(fx_),
-            defaults.headers["base"]: base_.upper(),
-            defaults.headers["npv_fx"]: _float_or_none(npv_fx),
-            defaults.headers["collateral"]: collateral,
-        }
-
-        # rate parameters
-        if isinstance(self.rate_params, _FixedRateParams):
-            rate_elements = {
-                defaults.headers["rate"]: _float_or_none(self.rate_params.fixed_rate),
-                defaults.headers["spread"]: None,
-            }
-        elif isinstance(self.rate_params, _FloatRateParams):
-            rate_elements = {
-                # try_rate is guaranteed by having FloatRateParams but this is poor typing.
-                defaults.headers["rate"]: _float_or_none(self.try_rate(rate_curve=rate_curve)),  # type: ignore[attr-defined]
-                defaults.headers["spread"]: _float_or_none(self.rate_params.float_spread),
-            }
-        else:
-            rate_elements = {}
-
-        credit_elements: dict[str, Any] = {}
-        if self.credit_params is not None and self.period_params is not None:
-            rc_res = _validate_credit_curve(rate_curve)
-            if not isinstance(rc_res, Err):
-                credit_elements.update(
-                    {
-                        defaults.headers["survival"]: _dual_float(
-                            rc_res.unwrap()[self.period_params.end]
-                        ),
-                        defaults.headers["recovery"]: _dual_float(
-                            rc_res.unwrap().meta.credit_recovery_rate
-                        ),
-                    }
-                )
-            else:
-                credit_elements.update(
-                    {defaults.headers["survival"]: None, defaults.headers["recovery"]: None}
-                )
-
+        rate_elements = _rate_elements(self=self, rate_curve=rate_curve)
+        credit_elements = _credit_elements(self=self, rate_curve=rate_curve)
         return {
             **standard_elements,
             **period_elements,
@@ -224,12 +157,72 @@ class _WithNPVCashflows(_WithNPV, Protocol):
 
 
 class _WithNPVCashflowsStatic(_WithNPVStatic, Protocol):
-    settlement_params: _SettlementParams
-    non_deliverable_params: _NonDeliverableParams | None
-    index_params: _IndexParams | None
-    period_params: _PeriodParams | None
-    rate_params: _FixedRateParams | _FloatRateParams | None
-    fx_option_params: _FXOptionParams | None
+    def _index_elements(
+        self,
+        rate_curve: CurveOption_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+    ) -> dict[str, Any]:
+        # indexing parameters
+        index_elements: dict[str, Any] = {}
+        if hasattr(self, "index_params") and isinstance(self.index_params, _IndexParams):
+            assert isinstance(self.index_params, _IndexParams)  # noqa: S101
+            iv = self.index_params.try_index_value(index_curve=index_curve)
+            ib = self.index_params.try_index_base(index_curve=index_curve)
+            if not isinstance(iv, Err) and not isinstance(ib, Err):
+                ir = iv.unwrap() / ib.unwrap()
+            else:
+                ir = None
+
+            uc = self.try_unindexed_cashflow(
+                rate_curve=rate_curve,
+                disc_curve=disc_curve,
+                fx=fx,
+                fx_vol=fx_vol,
+            )
+
+            index_elements = {
+                defaults.headers["index_base"]: _float_or_none(ib),
+                defaults.headers["index_value"]: _float_or_none(iv),
+                defaults.headers["index_ratio"]: _float_or_none(ir),
+                defaults.headers["index_fix_date"]: self.index_params.index_fixing.date,
+                defaults.headers["unindexed_cashflow"]: _float_or_none(uc),
+            }
+        return index_elements
+
+    def _non_deliverable_elements(self, fx: FXForwards_) -> dict[str, Any]:
+        # non-deliverable parameters
+        non_deliverable_elements: dict[str, Any] = {}
+        if hasattr(self, "non_deliverable_params") and isinstance(
+            self.non_deliverable_params, _NonDeliverableParams
+        ):
+            fx_fixing_res: Result[DualTypes] = (
+                self.non_deliverable_params.fx_fixing.try_value_or_forecast(fx)
+            )
+            non_deliverable_elements.update(
+                {
+                    defaults.headers["fx_fixing"]: _float_or_none(fx_fixing_res),
+                    defaults.headers["fx_fixing_date"]: self.non_deliverable_params.fx_fixing.date,
+                    defaults.headers[
+                        "reference_currency"
+                    ]: self.non_deliverable_params.reference_currency.upper(),
+                }
+            )
+        return non_deliverable_elements
+
+    def _mtm_elements(self, fx: FXForwards_) -> dict[str, Any]:
+        mtm_elements: dict[str, Any] = {}
+        if hasattr(self, "mtm_params") and isinstance(self.mtm_params, _MtmParams):
+            # mtm_elements overwrite non_deliverable elements as these are exclusive params.
+            fx_fixing_res = self.mtm_params.fx_fixing_end.try_value_or_forecast(fx)
+            mtm_elements = {
+                defaults.headers["fx_fixing"]: _float_or_none(fx_fixing_res),
+                defaults.headers["fx_fixing_date"]: self.mtm_params.fx_fixing_end.date,
+                defaults.headers["reference_currency"]: self.mtm_params.reference_currency.upper(),
+            }
+        return mtm_elements
 
     def cashflows(
         self,
@@ -250,161 +243,213 @@ class _WithNPVCashflowsStatic(_WithNPVStatic, Protocol):
 
            This method is a convenience method to provide a visual representation of all
            associated calculation data. Calling this method to extracting certain values
-           should be avoided. It is more efficent to source relevant parameters or calculations
+           should be avoided. It is more efficient to source relevant parameters or calculations
            from object attributes or other methods directly.
 
         Parameters
         ----------
-        XXX
+        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
+            Used to forecast floating period rates, if necessary.
+        index_curve: _BaseCurve, optional
+            Used to forecast index values for indexation, if necessary.
+        disc_curve: _BaseCurve, optional
+            Used to discount cashflows.
+        fx: FXForwards, optional
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting the
+            ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
+            :class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
+        fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
+            The FX volatility *Smile* or *Surface* object used for determining Black calendar
+            day implied volatility values.
+        base: str, optional
+            The currency to convert the *local settlement* NPV to.
+        settlement: datetime, optional
+            The assumed settlement date of the *PV* determination. Used only to evaluate
+            *ex-dividend* status.
+        forward: datetime, optional
+            The future date to project the *PV* to using the ``disc_curve``.
 
         Returns
         -------
         dict of values
         """
+        standard_elements = _standard_elements(self=self)
+        period_elements = _period_elements(self=self)
+        cashflow_elements = _cashflow_elements(
+            self=self,
+            rate_curve=rate_curve,
+            disc_curve=disc_curve,
+            index_curve=index_curve,
+            fx=fx,
+            fx_vol=fx_vol,
+            base=base,
+            forward=forward,
+            settlement=settlement,
+        )
+        rate_elements = _rate_elements(self=self, rate_curve=rate_curve)
+        credit_elements = _credit_elements(self=self, rate_curve=rate_curve)
+        index_elements = self._index_elements(index_curve=index_curve)
+        non_deliverable_elements = self._non_deliverable_elements(fx=fx)
+        mtm_elements = self._mtm_elements(fx=fx)
+        return {
+            **standard_elements,
+            **period_elements,
+            **cashflow_elements,
+            **rate_elements,
+            **credit_elements,
+            **index_elements,
+            **non_deliverable_elements,
+            **mtm_elements,
+        }
 
-        # standard parameters
-        standard_elements = {
+
+def _standard_elements(self: _WithNPVCashflows | _WithNPVCashflowsStatic) -> dict[str, Any]:
+    """Typical cashflow attributes for any constructed *Period*"""
+    # standard parameters
+    standard_elements: dict[str, Any] = {}
+    standard_elements.update(
+        {
             defaults.headers["type"]: type(self).__name__,
             defaults.headers["currency"]: self.settlement_params.currency.upper(),
             defaults.headers["payment"]: self.settlement_params.payment,
             defaults.headers["notional"]: _dual_float(self.settlement_params.notional),
         }
-        if self.period_params is not None:
-            standard_elements[defaults.headers["stub_type"]] = (
-                "Stub" if self.period_params.stub else "Regular"
-            )
+    )
+    return standard_elements
 
-        # indexing parameters
-        if self.is_indexed:
-            assert isinstance(self.index_params, _IndexParams)  # noqa: S101
-            iv = self.index_params.try_index_value(index_curve=index_curve)
-            ib = self.index_params.try_index_base(index_curve=index_curve)
-            if not isinstance(iv, Err) and not isinstance(ib, Err):
-                ir = iv.unwrap() / ib.unwrap()
-            else:
-                ir = None
-            index_elements = {
-                defaults.headers["index_base"]: _float_or_none(ib),
-                defaults.headers["index_value"]: _float_or_none(iv),
-                defaults.headers["index_ratio"]: _float_or_none(ir),
-                defaults.headers["index_fix_date"]: self.index_params.index_fixing.date
-            }
-        else:
-            index_elements = {}
 
-        # period parameters
-        if self.period_params is None:
-            period_elements = {}
-        else:
-            period_elements = {
+def _period_elements(self: _WithNPVCashflows | _WithNPVCashflowsStatic) -> dict[str, Any]:
+    """
+    Typical date-like attributes for any constructed *Period* with `period_params`.
+    """
+    # period parameters
+    period_elements: dict[str, Any] = {}
+    if hasattr(self, "period_params") and isinstance(self.period_params, _PeriodParams):
+        period_elements.update(
+            {
+                defaults.headers["stub_type"]: "Stub" if self.period_params.stub else "Regular",
                 defaults.headers["convention"]: str(self.period_params.convention),
                 defaults.headers["dcf"]: self.period_params.dcf,
                 defaults.headers["a_acc_start"]: self.period_params.start,
                 defaults.headers["a_acc_end"]: self.period_params.end,
             }
-
-        # non-deliverable parameters
-        if self.non_deliverable_params is not None:
-            fx_fixing_res: Result[DualTypes] = (
-                self.non_deliverable_params.fx_fixing.try_value_or_forecast(fx)
-            )
-            currency_elements = {
-                defaults.headers["fx_fixing"]: _float_or_none(fx_fixing_res),
-                defaults.headers["fx_fixing_date"]: self.non_deliverable_params.fx_fixing.date,
-                defaults.headers[
-                    "reference_currency"
-                ]: self.non_deliverable_params.reference_currency.upper(),
-            }
-        elif getattr(self, "mtm_params", None) is not None:
-            fx_fixing_res: Result[DualTypes] = (
-                self.mtm_params.fx_fixing_end.try_value_or_forecast(fx)
-            )
-            currency_elements = {
-                defaults.headers["fx_fixing"]: _float_or_none(fx_fixing_res),
-                defaults.headers["fx_fixing_date"]: self.mtm_params.fx_fixing_end.date,
-                defaults.headers[
-                    "reference_currency"
-                ]: self.mtm_params.reference_currency.upper(),
-            }
-        else:
-            currency_elements = {}
-
-        # cashflow valuation based parameters
-        uc = self.try_unindexed_cashflow(
-            rate_curve=rate_curve,
-            disc_curve=disc_curve,
-            fx=fx,
-            fx_vol=fx_vol,
         )
-        c = self.try_cashflow(
-            rate_curve=rate_curve,
-            disc_curve=disc_curve,
-            index_curve=index_curve,
-            fx=fx,
-            fx_vol=fx_vol,
-        )
+    return period_elements
 
-        disc_curve_result = _try_disc_required_maybe_from_curve(
-            curve=rate_curve, disc_curve=disc_curve
-        )
-        if disc_curve_result.is_err:
-            # then NPV is impossible
-            v, collateral = None, None
-        else:
-            v = disc_curve_result.unwrap()[self.settlement_params.payment]
-            collateral = disc_curve_result.unwrap().meta.collateral
 
-        # Since `cashflows` in not a performance critical function this call duplicates
-        # cashflow calculations. A more efficient calculation is possible but the code branching
-        # in ugly.
-        local_npv_result = self.try_local_npv(
-            rate_curve=rate_curve,
-            index_curve=index_curve,
-            disc_curve=disc_curve,
-            fx=fx,
-            fx_vol=fx_vol,
-            settlement=settlement,
-            forward=forward,
-        )
-
-        fx_, base_ = _get_immediate_fx_scalar_and_base(self.settlement_params.currency, fx, base)
-        if local_npv_result.is_err:
-            npv_fx = None
-        else:
-            npv_fx = local_npv_result.unwrap() * fx_
-
-        cashflow_elements = {
-            defaults.headers["df"]: _float_or_none(v),
-            defaults.headers["cashflow"]: _float_or_none(c),
-            defaults.headers["npv"]: _float_or_none(local_npv_result),
-            defaults.headers["fx"]: _dual_float(fx_),
-            defaults.headers["base"]: base_.upper(),
-            defaults.headers["npv_fx"]: _float_or_none(npv_fx),
-            defaults.headers["collateral"]: collateral,
-        }
-        if self.is_indexed:
-            cashflow_elements[defaults.headers["unindexed_cashflow"]] = _float_or_none(uc)
-
-        # rate parameters
+def _rate_elements(
+    self: _WithNPVCashflows | _WithNPVCashflowsStatic,
+    rate_curve: CurveOption_,
+) -> dict[str, Any]:
+    """
+    Typical rate-like attributes for any constructed *Period* with `rate_params`.
+    """
+    # rate parameters
+    rate_elements: dict[str, Any] = {}
+    if hasattr(self, "rate_params"):
         if isinstance(self.rate_params, _FixedRateParams):
-            rate_elements = {
-                defaults.headers["rate"]: _float_or_none(self.rate_params.fixed_rate),
-                defaults.headers["spread"]: None,
-            }
+            rate_elements.update(
+                {
+                    defaults.headers["rate"]: _float_or_none(self.rate_params.fixed_rate),
+                    defaults.headers["spread"]: None,
+                }
+            )
         elif isinstance(self.rate_params, _FloatRateParams):
-            rate_elements = {
-                # try_rate is guaranteed by having FloatRateParams but this is poor typing.
-                defaults.headers["rate"]: _float_or_none(self.try_rate(rate_curve=rate_curve)),  # type: ignore[attr-defined]
-                defaults.headers["spread"]: _float_or_none(self.rate_params.float_spread),
-            }
-        else:
-            rate_elements = {}
+            rate_elements.update(
+                {
+                    # try_rate is guaranteed by having FloatRateParams but this is poor typing.
+                    defaults.headers["rate"]: _float_or_none(self.try_rate(rate_curve=rate_curve)),  # type: ignore[attr-defined]
+                    defaults.headers["spread"]: _float_or_none(self.rate_params.float_spread),
+                }
+            )
+    return rate_elements
 
-        return {
-            **standard_elements,
-            **currency_elements,
-            **period_elements,
-            **index_elements,
-            **rate_elements,
-            **cashflow_elements,
-        }
+
+def _credit_elements(
+    self: _WithNPVCashflows | _WithNPVCashflowsStatic,
+    rate_curve: CurveOption_,
+) -> dict[str, Any]:
+    """
+    Typical credit-like attributes for any constructed *Period* with `credit_params`.
+    """
+    credit_elements: dict[str, Any] = {}
+    if hasattr(self, "credit_params") and isinstance(self.credit_params, _CreditParams):
+        if hasattr(self, "period_params") and isinstance(self.period_params, _PeriodParams):
+            rc_res = _validate_credit_curve(rate_curve)
+            if not isinstance(rc_res, Err):
+                credit_elements.update(
+                    {
+                        defaults.headers["survival"]: _dual_float(
+                            rc_res.unwrap()[self.period_params.end]
+                        ),
+                        defaults.headers["recovery"]: _dual_float(
+                            rc_res.unwrap().meta.credit_recovery_rate
+                        ),
+                    }
+                )
+            else:
+                credit_elements.update(
+                    {defaults.headers["survival"]: None, defaults.headers["recovery"]: None}
+                )
+        else:
+            pass
+    return credit_elements
+
+
+def _cashflow_elements(
+    self: _WithNPVCashflows | _WithNPVCashflowsStatic,
+    *,
+    rate_curve: CurveOption_ = NoInput(0),
+    disc_curve: _BaseCurve_ = NoInput(0),
+    index_curve: _BaseCurve_ = NoInput(0),
+    fx: FXForwards_ = NoInput(0),
+    fx_vol: FXVolOption_ = NoInput(0),
+    base: str_ = NoInput(0),
+    settlement: datetime_ = NoInput(0),
+    forward: datetime_ = NoInput(0),
+) -> dict[str, Any]:
+    # cashflow valuation based parameters
+    c = self.try_cashflow(
+        rate_curve=rate_curve,
+        disc_curve=disc_curve,
+        index_curve=index_curve,
+        fx=fx,
+        fx_vol=fx_vol,
+    )
+
+    disc_curve_result = _try_disc_required_maybe_from_curve(curve=rate_curve, disc_curve=disc_curve)
+    if disc_curve_result.is_err:
+        # then NPV is impossible
+        v, collateral = None, None
+    else:
+        v = disc_curve_result.unwrap()[self.settlement_params.payment]
+        collateral = disc_curve_result.unwrap().meta.collateral
+
+    # Since `cashflows` in not a performance critical function this call duplicates
+    # cashflow calculations. A more efficient calculation is possible but the code branching
+    # is ugly.
+    local_npv_result = self.try_local_npv(
+        rate_curve=rate_curve,
+        index_curve=index_curve,
+        disc_curve=disc_curve,
+        fx=fx,
+        fx_vol=fx_vol,
+        settlement=settlement,
+        forward=forward,
+    )
+
+    fx_, base_ = _get_immediate_fx_scalar_and_base(self.settlement_params.currency, fx, base)
+    if local_npv_result.is_err:
+        npv_fx = None
+    else:
+        npv_fx = local_npv_result.unwrap() * fx_
+
+    return {
+        defaults.headers["df"]: _float_or_none(v),
+        defaults.headers["cashflow"]: _float_or_none(c),
+        defaults.headers["npv"]: _float_or_none(local_npv_result),
+        defaults.headers["fx"]: _dual_float(fx_),
+        defaults.headers["base"]: base_.upper(),
+        defaults.headers["npv_fx"]: _float_or_none(npv_fx),
+        defaults.headers["collateral"]: collateral,
+    }

@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     )
 
 
-def _leg_fixings_to_list(rate_fixings: LegFixings, n_periods: int) -> list[PeriodFixings]:
+def _leg_fixings_to_list(rate_fixings: LegFixings, n_periods: int) -> list[PeriodFixings]:  # type: ignore[type-var]
     """Perform a conversion of 'LegRateFixings' into a list of PeriodFixings."""
     if isinstance(rate_fixings, NoInput):
         # NoInput is converted to a list of NoInputs
@@ -29,4 +29,4 @@ def _leg_fixings_to_list(rate_fixings: LegFixings, n_periods: int) -> list[Perio
         return [rate_fixings] * n_periods
     else:
         # A scalar value is padded with NoInputs.
-        return [rate_fixings] + [NoInput(0)] * (n_periods - 1)
+        return [rate_fixings] + [NoInput(0)] * (n_periods - 1)  # type: ignore[return-value]

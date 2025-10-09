@@ -7,6 +7,10 @@ T = TypeVar("T")
 
 
 class Err:
+    """
+    Standard result class indicating **failure** and containing some *Exception* type.
+    """
+
     _exception: Exception
 
     def __init__(self, exception: Exception) -> None:
@@ -28,6 +32,8 @@ class Err:
 
 
 class Ok(Generic[T]):
+    """Standard result class indicating **success** and containing some value."""
+
     _value: T
 
     def __init__(self, value: T) -> None:

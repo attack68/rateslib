@@ -276,6 +276,8 @@ def _try_disc_required_maybe_from_curve(
         elif curve._base_type == _CurveType.values:
             return Err(ValueError(err.VE_NO_DISC_FROM_VALUES))
         return Ok(curve)
+    if disc_curve._base_type == _CurveType.values:
+        return Err(ValueError(err.VE_NO_DISC_FROM_VALUES))
     return Ok(disc_curve)
 
 

@@ -1,30 +1,28 @@
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Protocol
 
+from pandas import DataFrame, concat
+
 from rateslib.enums.generics import NoInput
-from rateslib.periods.components.utils import (
-    _maybe_local,
-)
 
 if TYPE_CHECKING:
     from rateslib.periods.components import Period
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.typing import (
         CurveOption_,
-        DualTypes,
         FXForwards_,
         FXVolOption_,
         _BaseCurve_,
         datetime_,
-        str_,
     )
 
 
-class _WithAnalyticDelta(Protocol):
+class _WithAnalyticRateFixingsSensitivity(Protocol):
     @property
     def periods(self) -> list[Period]: ...
 
-    def analytic_delta(
+    def local_rate_fixings(
         self,
         *,
         rate_curve: CurveOption_ = NoInput(0),
@@ -32,13 +30,14 @@ class _WithAnalyticDelta(Protocol):
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
-        base: str_ = NoInput(0),
-        local: bool = False,
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
-    ) -> DualTypes | dict[str, DualTypes]:
+    ) -> DataFrame:
         """
-        Calculate the analytic rate delta of a *Period* expressed in a base currency.
+        Return a DataFrame of financial sensitivity to published interest rate fixings,
+        expressed in local **settlement currency** of the *Period*.
+
+        If the *Period* has no sensitivity to rates fixings this *DataFrame* is empty.
 
         Parameters
         ----------
@@ -55,10 +54,6 @@ class _WithAnalyticDelta(Protocol):
         fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
             The FX volatility *Smile* or *Surface* object used for determining Black calendar
             day implied volatility values.
-        base: str, optional
-            The currency to convert the *local settlement* NPV to.
-        local: bool, optional
-            An override flag to return a dict of NPV values indexed by string currency.
         settlement: datetime, optional
             The assumed settlement date of the *PV* determination. Used only to evaluate
             *ex-dividend* status.
@@ -67,24 +62,23 @@ class _WithAnalyticDelta(Protocol):
 
         Returns
         -------
-        float, Dual, Dual2, Variable
+        DataFrame
         """
-        local_analytic_delta: DualTypes = sum(
-            _.try_local_analytic_delta(
-                rate_curve=rate_curve,
-                index_curve=index_curve,
-                disc_curve=disc_curve,
-                fx=fx,
-                fx_vol=fx_vol,
-                settlement=settlement,
-                forward=forward,
-            ).unwrap()
-            for _ in self.periods
-        )
-        return _maybe_local(
-            value=local_analytic_delta,
-            local=local,
-            currency=self.periods[0].settlement_params.currency,
-            fx=fx,
-            base=base,
-        )
+        dfs = []
+        for period in self.periods:
+            dfs.append(
+                period.local_rate_fixings(
+                    rate_curve=rate_curve,
+                    index_curve=index_curve,
+                    disc_curve=disc_curve,
+                    fx=fx,
+                    fx_vol=fx_vol,
+                    settlement=settlement,
+                    forward=forward,
+                )
+            )
+
+        with warnings.catch_warnings():
+            # TODO: pandas 2.1.0 has a FutureWarning for concatenating DataFrames with Null entries
+            warnings.filterwarnings("ignore", category=FutureWarning)
+            return concat(dfs)

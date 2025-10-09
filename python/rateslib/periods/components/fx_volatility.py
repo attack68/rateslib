@@ -178,31 +178,31 @@ class FXOptionPeriod(_WithNPVCashflowsStatic, _WithAnalyticFXOptionGreeks, metac
     """
 
     @property
-    def period_params(self) -> None:  # type: ignore[override]
+    def period_params(self) -> None:
         """This *Period* type has no
         :class:`~rateslib.periods.components.parameters._PeriodParams`."""
         return self._period_params
 
     @property
-    def settlement_params(self) -> _SettlementParams:  # type: ignore[override]
+    def settlement_params(self) -> _SettlementParams:
         """The :class:`~rateslib.periods.components.parameters._SettlementParams`
         of the *Period*."""
         return self._settlement_params
 
     @property
-    def index_params(self) -> _IndexParams | None:  # type: ignore[override]
+    def index_params(self) -> _IndexParams | None:
         """The :class:`~rateslib.periods.components.parameters._IndexParams` of
         the *Period*, if any."""
         return self._index_params
 
     @property
-    def non_deliverable_params(self) -> _NonDeliverableParams | None:  # type: ignore[override]
+    def non_deliverable_params(self) -> _NonDeliverableParams | None:
         """The :class:`~rateslib.periods.components.parameters._NonDeliverableParams` of the
         *Period*., if any."""
         return self._non_deliverable_params
 
     @property
-    def rate_params(self) -> None:  # type: ignore[override]
+    def rate_params(self) -> None:
         """This *Period* type has no rate parameters."""
         return self._rate_params
 
