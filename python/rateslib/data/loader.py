@@ -443,10 +443,10 @@ def _find_neighbouring_tenors(
 
     ret: tuple[list[str], list[datetime]] = ([], [])
     if left[0] is not None:
-        ret[0].append(left[0])
+        ret[0].append(left[0].upper())
         ret[1].append(left[1])
     if right[0] is not None:
-        ret[0].append(right[0])
+        ret[0].append(right[0].upper())
         ret[1].append(right[1])
     return ret
 

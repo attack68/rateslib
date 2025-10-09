@@ -3,49 +3,60 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import numpy as np
-from pandas import DataFrame, MultiIndex, Series, concat, isna
+from pandas import DataFrame, Index, MultiIndex, Series, merge
 
 import rateslib.errors as err
-from rateslib.curves._parsers import (
-    _disc_required_maybe_from_curve,
-    _try_disc_required_maybe_from_curve,
-    _validate_obj_not_no_input,
-)
+from rateslib import defaults
+from rateslib.curves import _BaseCurve
 from rateslib.curves.utils import average_rate
 from rateslib.data.fixings import (
     FloatRateSeries,
-    IBORFixing,
-    IBORStubFixing,
-    _maybe_get_rate_series_from_curve,
     _RFRRate,
 )
 from rateslib.data.loader import _find_neighbouring_tenors
 from rateslib.dual import Variable, gradient
 from rateslib.dual.utils import _dual_float
-from rateslib.enums.generics import Err, NoInput, Ok
-from rateslib.enums.parameters import FloatFixingMethod, SpreadCompoundMethod
-from rateslib.periods.components.base_period import BasePeriod
+from rateslib.enums.generics import Err, NoInput, Ok, _drb
+from rateslib.enums.parameters import FloatFixingMethod, IndexMethod, SpreadCompoundMethod
 from rateslib.periods.components.float_rate import (
     try_rate_value,
 )
-from rateslib.periods.components.parameters import _init_FloatRateParams
-from rateslib.periods.utils import _get_rfr_curve_from_dict, _trim_df_by_index
-from rateslib.scheduling import dcf
-from rateslib.scheduling.frequency import _get_tenor_from_frequency
+from rateslib.periods.components.parameters import (
+    _init_FloatRateParams,
+    _init_or_none_IndexParams,
+    _init_or_none_NonDeliverableParams,
+    _init_SettlementParams_with_fx_pair,
+    _PeriodParams,
+)
+from rateslib.periods.components.protocols import (
+    _WithAnalyticDeltaStatic,
+    _WithAnalyticRateFixingsSensitivityStatic,
+    _WithNPVCashflowsStatic,
+)
+from rateslib.periods.utils import _get_rfr_curve_from_dict
+from rateslib.scheduling import Adjuster, Frequency, get_calendar
+from rateslib.scheduling.adjuster import _get_adjuster
+from rateslib.scheduling.convention import _get_convention
+from rateslib.scheduling.frequency import _get_frequency, _get_tenor_from_frequency
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
         Any,
-        Arr1dF64,
         Arr1dObj,
+        CalInput,
         CurveOption_,
         DualTypes,
         DualTypes_,
         Frequency,
+        FXForwards_,
+        FXVolOption_,
         Result,
-        _BaseCurve,
+        RFRFixing,
+        RollDay,
+        Series,
         _BaseCurve_,
         _FloatRateParams,
+        bool_,
         datetime,
         datetime_,
         int_,
@@ -53,7 +64,11 @@ if TYPE_CHECKING:
     )
 
 
-class FloatPeriod(BasePeriod):
+class FloatPeriod(
+    _WithNPVCashflowsStatic,
+    _WithAnalyticDeltaStatic,
+    _WithAnalyticRateFixingsSensitivityStatic,
+):
     r"""
     A *Period* defined by a floating interest rate.
 
@@ -62,6 +77,8 @@ class FloatPeriod(BasePeriod):
     .. math::
 
        \mathbb{E^Q} [\bar{C}_t] = -N d r(\mathbf{C}, z, R_i)
+
+    For *analytic delta* purposes the :math:`\xi=-z`.
 
     .. role:: red
 
@@ -219,6 +236,10 @@ class FloatPeriod(BasePeriod):
         """The :class:`~rateslib.periods.components.parameters._FloatRateParams` of the *Period*."""
         return self._rate_params
 
+    @property
+    def period_params(self) -> _PeriodParams:
+        return self._period_params
+
     def __init__(
         self,
         *,
@@ -229,9 +250,66 @@ class FloatPeriod(BasePeriod):
         spread_compound_method: SpreadCompoundMethod | str_ = NoInput(0),
         fixing_frequency: Frequency | str_ = NoInput(0),
         fixing_series: FloatRateSeries | str_ = NoInput(0),
-        **kwargs: Any,
+        # currency args:
+        payment: datetime,
+        notional: DualTypes_ = NoInput(0),
+        currency: str_ = NoInput(0),
+        ex_dividend: datetime_ = NoInput(0),
+        # period params
+        start: datetime,
+        end: datetime,
+        frequency: Frequency | str,
+        convention: str_ = NoInput(0),
+        termination: datetime_ = NoInput(0),
+        stub: bool = False,
+        roll: RollDay | int | str_ = NoInput(0),
+        calendar: CalInput = NoInput(0),
+        adjuster: Adjuster | str_ = NoInput(0),
+        # non-deliverable args:
+        pair: str_ = NoInput(0),
+        fx_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+        delivery: datetime_ = NoInput(0),
+        # index-args:
+        index_base: DualTypes_ = NoInput(0),
+        index_lag: int_ = NoInput(0),
+        index_method: IndexMethod | str_ = NoInput(0),
+        index_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+        index_only: bool_ = NoInput(0),
+        index_base_date: datetime_ = NoInput(0),
+        index_reference_date: datetime_ = NoInput(0),
     ) -> None:
-        super().__init__(**kwargs)
+        self._settlement_params = _init_SettlementParams_with_fx_pair(
+            _currency=_drb(defaults.base_currency, currency).lower(),
+            _payment=payment,
+            _notional=_drb(defaults.notional, notional),
+            _ex_dividend=_drb(payment, ex_dividend),
+            _fx_pair=pair,
+        )
+        self._non_deliverable_params = _init_or_none_NonDeliverableParams(
+            _currency=self.settlement_params.currency,
+            _pair=pair,
+            _delivery=_drb(self.settlement_params.payment, delivery),
+            _fx_fixings=fx_fixings,
+        )
+        self._period_params = _PeriodParams(
+            _start=start,
+            _end=end,
+            _frequency=_get_frequency(frequency, roll, calendar),
+            _calendar=get_calendar(calendar),
+            _adjuster=NoInput(0) if isinstance(adjuster, NoInput) else _get_adjuster(adjuster),
+            _stub=stub,
+            _convention=_get_convention(_drb(defaults.convention, convention)),
+            _termination=termination,
+        )
+        self._index_params = _init_or_none_IndexParams(
+            _index_base=index_base,
+            _index_lag=index_lag,
+            _index_method=index_method,
+            _index_fixings=index_fixings,
+            _index_only=index_only,
+            _index_base_date=index_base_date,
+            _index_reference_date=_drb(self.period_params.end, index_reference_date),
+        )
         self._rate_params = _init_FloatRateParams(
             _method_param=method_param,
             _float_spread=float_spread,
@@ -260,7 +338,7 @@ class FloatPeriod(BasePeriod):
             return r
         return Ok(-self.settlement_params.notional * r.unwrap() * 0.01 * self.period_params.dcf)
 
-    def try_unindexed_reference_analytic_delta(
+    def try_unindexed_reference_cashflow_analytic_delta(
         self,
         *,
         rate_curve: CurveOption_ = NoInput(0),
@@ -281,10 +359,6 @@ class FloatPeriod(BasePeriod):
         -------
         float, Dual, Dual2, Variable
         """
-        disc_curve_ = _try_disc_required_maybe_from_curve(curve=rate_curve, disc_curve=disc_curve)
-        if isinstance(disc_curve_, Err):
-            return disc_curve_
-
         if (
             self.rate_params.spread_compound_method == SpreadCompoundMethod.NoneSimple
             or self.rate_params.float_spread == 0
@@ -300,38 +374,57 @@ class FloatPeriod(BasePeriod):
             dr_dz = gradient(rate.unwrap(), ["z_float_spread"])[0] * 100
             self.rate_params.float_spread = _
 
-        return Ok(
-            self.settlement_params.notional
-            * 0.0001
-            * dr_dz
-            * self.period_params.dcf
-            * disc_curve_.unwrap()[self.settlement_params.payment]
-        )
+        return Ok(self.settlement_params.notional * 0.0001 * dr_dz * self.period_params.dcf)
 
-    def try_unindexed_reference_fixings_exposure(
+    def try_unindexed_reference_cashflow_fixings_sensitivity(
         self,
+        *,
         rate_curve: CurveOption_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
-        right: datetime_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
     ) -> Result[DataFrame]:
+        if isinstance(rate_curve, NoInput):
+            return Err(ValueError(err.VE_NEEDS_RATE_CURVE))
+
         if self.rate_params.fixing_method == FloatFixingMethod.IBOR:
-            return _FixingsExposureCalculator.ibor(
-                p=self,
-                rate_curve=rate_curve,
-                disc_curve=disc_curve,
-                right=right,
+            return _UnindexedReferenceCashflowFixingsSensitivity._ibor(
+                self=self, rate_curve=rate_curve
             )
-        else:
+        else:  # is RFR
             if isinstance(rate_curve, dict):
-                rate_curve_: _BaseCurve_ = _get_rfr_curve_from_dict(rate_curve)
+                rate_curve_: _BaseCurve = _get_rfr_curve_from_dict(rate_curve)
             else:
                 rate_curve_ = rate_curve
-            return _FixingsExposureCalculator.rfr(
-                p=self,
-                rate_curve=_validate_obj_not_no_input(rate_curve_, "rate_curve"),
-                disc_curve=disc_curve,
-                right=right,
+            return _UnindexedReferenceCashflowFixingsSensitivity._rfr(
+                self=self, rate_curve=rate_curve_
             )
+
+    # def try_unindexed_reference_fixings_exposure(
+    #     self,
+    #     rate_curve: CurveOption_ = NoInput(0),
+    #     disc_curve: _BaseCurve_ = NoInput(0),
+    #     right: datetime_ = NoInput(0),
+    # ) -> Result[DataFrame]:
+    #     if self.rate_params.fixing_method == FloatFixingMethod.IBOR:
+    #         return _FixingsExposureCalculator.ibor(
+    #             p=self,
+    #             rate_curve=rate_curve,
+    #             disc_curve=disc_curve,
+    #             right=right,
+    #         )
+    #     else:
+    #         if isinstance(rate_curve, dict):
+    #             rate_curve_: _BaseCurve_ = _get_rfr_curve_from_dict(rate_curve)
+    #         else:
+    #             rate_curve_ = rate_curve
+    #         return _FixingsExposureCalculator.rfr(
+    #             p=self,
+    #             rate_curve=_validate_obj_not_no_input(rate_curve_, "rate_curve"),
+    #             disc_curve=disc_curve,
+    #             right=right,
+    #         )
 
     def try_rate(self, rate_curve: CurveOption_) -> Result[DualTypes]:
         rate_fixing = self.rate_params.rate_fixing.value
@@ -396,378 +489,378 @@ class NonDeliverableIndexFloatPeriod(FloatPeriod):
             raise ValueError(err.VE_NEEDS_ND_CURRENCY_PARAMS.format(type(self).__name__))
 
 
-class _FixingsExposureCalculator:
-    @classmethod
-    def rfr(
-        cls, p: FloatPeriod, rate_curve: _BaseCurve, disc_curve: _BaseCurve_, right: datetime_
-    ) -> Result[DataFrame]:
-        rate_fixing: DualTypes_ = p.rate_params.rate_fixing.value
-
-        rate_series_ = _maybe_get_rate_series_from_curve(
-            rate_curve=rate_curve,
-            rate_series=p.rate_params.fixing_series,
-            method_param=p.rate_params.method_param,
-        )
-
-        data = _RFRRate._rate(
-            start=p.period_params.start,
-            end=p.period_params.end,
-            rate_curve=rate_curve,
-            rate_fixings=p.rate_params.rate_fixing.identifier
-            if isinstance(rate_fixing, NoInput)
-            else rate_fixing,
-            fixing_method=p.rate_params.fixing_method,
-            method_param=p.rate_params.method_param,
-            spread_compound_method=p.rate_params.spread_compound_method,
-            float_spread=p.rate_params.float_spread,
-            rate_series=rate_series_,
-        )
-        if isinstance(data, Err):
-            return data
-        else:
-            (
-                r_star,
-                bounds_obs,
-                bounds_dcf,
-                dates_obs,
-                dates_dcf,
-                dcfs_obs,
-                dcfs_dcf,
-                fixing_rates,
-                populated,
-                unpopulated,
-            ) = data.unwrap()
-
-        if bounds_obs is None:
-            bounds_obs, bounds_dcf, is_matching = _RFRRate._adjust_dates(
-                start=p.period_params.start,
-                end=p.period_params.end,
-                fixing_method=p.rate_params.fixing_method,
-                method_param=p.rate_params.method_param,
-                fixing_calendar=p.rate_params.fixing_series.calendar,
-            )
-
-        if not isinstance(right, NoInput) and bounds_obs[0] > right:
-            df = cls._make_dataframe(
-                obs_dates=[],
-                notional=[],
-                risk=[],
-                dcf=[],
-                rates=[],
-                name=rate_curve.id,
-            )
-            return Ok(df)
-
-        if dates_obs is None:
-            dates_obs, dates_dcf, dcfs_obs, dcfs_dcf, populated, unpopulated, fixing_rates = (
-                _RFRRate._get_dates_and_fixing_rates_from_fixings(
-                    rate_series=rate_series_,
-                    bounds_obs=bounds_obs,
-                    bounds_dcf=bounds_dcf,  # type: ignore[arg-type]  # prechecked
-                    is_matching=False,
-                    rate_fixings=p.rate_params.rate_fixing.identifier,
-                    fixing_method=p.rate_params.fixing_method,
-                    method_param=p.rate_params.method_param,
-                )
-            )
-
-        if isna(fixing_rates).any():  # type: ignore[union-attr]
-            _RFRRate._forecast_fixing_rates_from_curve(
-                unpopulated=unpopulated,  # type: ignore[arg-type]
-                populated=populated,  # type: ignore[arg-type]
-                fixing_rates=fixing_rates,  # type: ignore[arg-type]
-                rate_curve=rate_curve,
-                dates_obs=dates_obs,
-                dcfs_obs=dcfs_obs,  # type: ignore[arg-type]
-            )
-
-        d_star = p.period_params.dcf
-
-        drdr = _FixingsExposureCalculator._drdr_rfr_approximation(
-            p=p,
-            rate_series=rate_series_,
-            r_star=r_star,
-            di=dcfs_dcf,  # type: ignore[arg-type]
-            z=p.rate_params.float_spread,
-            fixing_method=p.rate_params.fixing_method,
-            method_param=p.rate_params.method_param,
-            spread_compound_method=p.rate_params.spread_compound_method,
-            fixing_rates=fixing_rates,  # type: ignore[arg-type]
-        )
-
-        dc_result = _try_disc_required_maybe_from_curve(curve=rate_curve, disc_curve=disc_curve)
-        if isinstance(dc_result, Err):
-            return dc_result
-        else:
-            disc_curve_: _BaseCurve = dc_result.unwrap()
-
-        dPdr = (
-            -p.settlement_params.notional
-            * disc_curve_[p.settlement_params.payment]
-            * d_star
-            * drdr
-            / 10000.0
-        )
-        vi = np.array([disc_curve_[_] for _ in dates_obs[1:]])  # TODO: can approximate this
-        ni = 1 / (dcfs_obs * vi) * dPdr * 10000.0
-        fixing_notionals = Series(data=ni, index=fixing_rates.index)  # type: ignore[union-attr]
-
-        df = fixing_notionals.astype(float).to_frame(name="notional")
-        df["risk"] = dPdr
-        df["dcf"] = dcfs_obs
-        df["rates"] = fixing_rates
-
-        if populated is None or len(populated) == 0:
-            pass  # nothing to set to zero as being fixed.
-        else:
-            df.loc[populated.index, ["notional", "risk"]] = 0.0
-
-        df.columns = MultiIndex.from_tuples(
-            [
-                (rate_curve.id, "notional"),
-                (rate_curve.id, "risk"),
-                (rate_curve.id, "dcf"),
-                (rate_curve.id, "rates"),
-            ]
-        )
-        df.index.name = "obs_dates"
-        return Ok(_trim_df_by_index(df.astype(float), NoInput(0), right))
-
-    @staticmethod
-    def _drdr_rfr_approximation(
-        p: FloatPeriod,
-        rate_series: FloatRateSeries,
-        r_star: DualTypes,
-        di: Arr1dF64,
-        z: DualTypes,
-        fixing_method: FloatFixingMethod,
-        method_param: int,
-        spread_compound_method: SpreadCompoundMethod,
-        fixing_rates: Series[DualTypes],  # type: ignore[type-var]
-    ) -> Arr1dObj:
-        # approximate sensitivity to each fixing
-        z = z / 100.0
-
-        d = di.sum()
-        if fixing_method in [
-            FloatFixingMethod.RFRLockoutAverage,
-            FloatFixingMethod.RFRObservationShiftAverage,
-            FloatFixingMethod.RFRLookbackAverage,
-            FloatFixingMethod.RFRPaymentDelayAverage,
-        ]:
-            drdri: Arr1dObj = di / d
-        elif spread_compound_method == SpreadCompoundMethod.ISDACompounding:
-            # this makes a number of approximations including reversing a compounded spread
-            # with a simple formula
-            r_bar, d_bar, n = average_rate(
-                effective=p.period_params.start,
-                termination=p.period_params.end,
-                convention=rate_series.convention,
-                rate=r_star - z,
-                dcf=p.period_params.dcf,
-            )
-            drdri = di / (1 + di * (r_bar + z) / 100.0) * (r_star / 100.0 * d + 1) / d  # type: ignore[operator]
-        # elif spread_compound_method == SpreadCompoundMethod.ISDAFlatCompounding:
-        #     r_star = ((1 + d_bar * (r_bar + z) / 100.0) ** n - 1) * 100.0 / (n * d_bar)
-        #     drdri1 = di / (1 + di * (r_bar + z) / 100.0) * ((r_star / 100.0 * d) + 1) / d
-        #     drdri2 = di / (1 + di * r_bar / 100.0) * ((r_star0 / 100.0 * d) + 1) / d
-        #     drdri = (drdri1 + drdri2) / 2.0
-        else:  # spread_compound_method == SpreadCompoundMethod.NoneSimple:
-            ri = fixing_rates.to_numpy()
-            drdri = di / (1 + di * ri / 100.0) * ((r_star - z) / 100.0 * d + 1) / d
-
-        if fixing_method in [FloatFixingMethod.RFRLockoutAverage, FloatFixingMethod.RFRLockout]:
-            for i in range(method_param):
-                drdri[-(method_param + 1)] += drdri[-(i + 1)]
-                drdri[-(i + 1)] = 0.0
-
-        return drdri
-
-    ###############################
-
-    @classmethod
-    def ibor(
-        cls,
-        p: FloatPeriod,
-        rate_curve: CurveOption_,
-        disc_curve: _BaseCurve_,
-        right: datetime_,
-        risk: DualTypes_ = NoInput(0),
-    ) -> Result[DataFrame]:
-        """
-        Calculate a fixings_table under an IBOR based methodology.
-
-        Parameters
-        ----------
-        curve: Curve or Dict
-            Dict may be relevant if the period is a stub.
-        risk: float, optional
-            This is the known financial exposure to the movement of the period IBOR fixing.
-            Expressed per 1 in percentage rate, i.e. risk per bp * 10000
-
-        Returns
-        -------
-        DataFrame
-        """
-        if isinstance(rate_curve, dict):
-            if p.period_params.stub:
-                # then must perform an interpolated calculation
-                return cls._ibor_stub(
-                    p=p,
-                    rate_fixing=p.rate_params.rate_fixing,  # type: ignore[arg-type]
-                    rate_curve=rate_curve,
-                    disc_curve=_validate_obj_not_no_input(disc_curve, "disc_curve"),
-                    right=right,
-                    risk=risk,
-                )
-            else:  # not self.stub:
-                # then extract the one relevant curve from dict
-                curve_: _BaseCurve = _get_ibor_curve_from_dict(
-                    p.rate_params.fixing_frequency, rate_curve
-                )
-        elif isinstance(rate_curve, NoInput):
-            raise ValueError(
-                "`rate_curve` must be supplied as Curve or dict for IBOR fixings exposure."
-            )
-        else:
-            curve_ = rate_curve
-
-        return cls._ibor_single_tenor(
-            p=p,
-            rate_fixing=p.rate_params.rate_fixing,  # type: ignore[arg-type]  # pre-checked
-            rate_curve=curve_,
-            disc_curve=_disc_required_maybe_from_curve(curve_, disc_curve),
-            right=right,
-        )
-
-    @classmethod
-    def _ibor_single_tenor(
-        cls,
-        p: FloatPeriod,
-        rate_fixing: IBORFixing,
-        rate_curve: _BaseCurve,
-        disc_curve: _BaseCurve,
-        right: datetime_,
-        risk: DualTypes_ = NoInput(0),
-    ) -> Result[DataFrame]:
-        reg_dcf = dcf(
-            start=rate_fixing.accrual_start,
-            end=rate_fixing.accrual_end,
-            convention=rate_fixing.index.convention,
-            frequency=rate_fixing.index.frequency,
-            stub=False,
-            calendar=rate_fixing.index.calendar,
-        )
-
-        if not isinstance(rate_fixing.value, NoInput):
-            risk, notional = 0.0, 0.0  # then fixing is set so return zero exposure.
-            _rate = _dual_float(rate_fixing.value)
-        elif rate_fixing.date < disc_curve.nodes.initial:
-            _rate = np.nan
-            risk, notional = 0.0, 0.0
-            notional = 0.0
-        else:
-            risk = (
-                (
-                    -p.settlement_params.notional
-                    * p.period_params.dcf
-                    * disc_curve[p.settlement_params.payment]
-                )
-                if isinstance(risk, NoInput)
-                else risk
-            )
-            notional = _dual_float(risk / (reg_dcf * disc_curve[rate_fixing.accrual_end]))
-            risk = _dual_float(risk) * 0.0001  # scale to bp
-            _rate = _dual_float(p.rate(rate_curve=rate_curve))
-
-        df = cls._make_dataframe(
-            obs_dates=[rate_fixing.date],
-            notional=[notional],
-            risk=[risk],
-            dcf=[reg_dcf],
-            rates=[_rate],
-            name=rate_curve.id,
-        )
-        return Ok(_trim_df_by_index(df, NoInput(0), right))
-
-    @classmethod
-    def _ibor_stub(
-        cls,
-        p: FloatPeriod,
-        rate_fixing: IBORStubFixing,
-        rate_curve: dict[str, _BaseCurve],
-        disc_curve: _BaseCurve,
-        right: datetime_,
-        risk: DualTypes_ = NoInput(0),
-    ) -> Result[DataFrame]:
-        risk = (
-            -p.settlement_params.notional
-            * p.period_params.dcf
-            * disc_curve[p.settlement_params.payment]
-            if isinstance(risk, NoInput)
-            else risk
-        )
-        # get the relevant tenors
-        tenors, ends = _find_neighbouring_tenors(
-            end=rate_fixing.accrual_end,
-            start=rate_fixing.accrual_start,
-            tenors=[_ for _ in rate_curve if _.upper() != "RFR"],
-            rate_series=rate_fixing.series,
-        )
-        w1 = (rate_fixing.accrual_end - ends[0]) / (ends[1] - ends[0])
-        w0 = 1 - w1
-        d0 = dcf(rate_fixing.accrual_start, ends[0], rate_fixing.series.convention)
-        d1 = dcf(rate_fixing.accrual_start, ends[1], rate_fixing.series.convention)
-        v0, v1 = disc_curve[ends[0]], disc_curve[ends[1]]
-
-        df0 = cls._make_dataframe(
-            [rate_fixing.date],
-            [risk * w0 / (d0 * v0)],  # type: ignore[list-item]
-            [0.0001 * risk * w0],  # type: ignore[list-item]
-            [d0],
-            [np.nan],
-            rate_curve[tenors[0]].id,
-        )
-        df1 = cls._make_dataframe(
-            [rate_fixing.date],
-            [risk * w1 / (d1 * v1)],  # type: ignore[list-item]
-            [0.0001 * risk * w1],  # type: ignore[list-item]
-            [d1],
-            [np.nan],
-            rate_curve[tenors[1]].id,
-        )
-
-        df = concat([df0, df1], axis=1)
-        return Ok(_trim_df_by_index(df.astype(float), NoInput(0), right))
-
-    @staticmethod
-    def _make_dataframe(
-        obs_dates: list[datetime],
-        notional: list[float],
-        risk: list[float],
-        dcf: list[float],
-        rates: list[float],
-        name: str,
-    ) -> DataFrame:
-        df = DataFrame(
-            {
-                "obs_dates": obs_dates,
-                "notional": notional,
-                "risk": risk,
-                "dcf": dcf,
-                "rates": rates,
-            },
-        ).set_index("obs_dates")
-
-        df.columns = MultiIndex.from_tuples(
-            [
-                (name, "notional"),
-                (name, "risk"),
-                (name, "dcf"),
-                (name, "rates"),
-            ]
-        )
-        return df
+# class _FixingsExposureCalculator:
+#     @classmethod
+#     def rfr(
+#         cls, p: FloatPeriod, rate_curve: _BaseCurve, disc_curve: _BaseCurve_, right: datetime_
+#     ) -> Result[DataFrame]:
+#         rate_fixing: DualTypes_ = p.rate_params.rate_fixing.value
+#
+#         rate_series_ = _maybe_get_rate_series_from_curve(
+#             rate_curve=rate_curve,
+#             rate_series=p.rate_params.fixing_series,
+#             method_param=p.rate_params.method_param,
+#         )
+#
+#         data = _RFRRate._rate(
+#             start=p.period_params.start,
+#             end=p.period_params.end,
+#             rate_curve=rate_curve,
+#             rate_fixings=p.rate_params.rate_fixing.identifier
+#             if isinstance(rate_fixing, NoInput)
+#             else rate_fixing,
+#             fixing_method=p.rate_params.fixing_method,
+#             method_param=p.rate_params.method_param,
+#             spread_compound_method=p.rate_params.spread_compound_method,
+#             float_spread=p.rate_params.float_spread,
+#             rate_series=rate_series_,
+#         )
+#         if isinstance(data, Err):
+#             return data
+#         else:
+#             (
+#                 r_star,
+#                 bounds_obs,
+#                 bounds_dcf,
+#                 dates_obs,
+#                 dates_dcf,
+#                 dcfs_obs,
+#                 dcfs_dcf,
+#                 fixing_rates,
+#                 populated,
+#                 unpopulated,
+#             ) = data.unwrap()
+#
+#         if bounds_obs is None:
+#             bounds_obs, bounds_dcf, is_matching = _RFRRate._adjust_dates(
+#                 start=p.period_params.start,
+#                 end=p.period_params.end,
+#                 fixing_method=p.rate_params.fixing_method,
+#                 method_param=p.rate_params.method_param,
+#                 fixing_calendar=p.rate_params.fixing_series.calendar,
+#             )
+#
+#         if not isinstance(right, NoInput) and bounds_obs[0] > right:
+#             df = cls._make_dataframe(
+#                 obs_dates=[],
+#                 notional=[],
+#                 risk=[],
+#                 dcf=[],
+#                 rates=[],
+#                 name=rate_curve.id,
+#             )
+#             return Ok(df)
+#
+#         if dates_obs is None:
+#             dates_obs, dates_dcf, dcfs_obs, dcfs_dcf, populated, unpopulated, fixing_rates = (
+#                 _RFRRate._get_dates_and_fixing_rates_from_fixings(
+#                     rate_series=rate_series_,
+#                     bounds_obs=bounds_obs,
+#                     bounds_dcf=bounds_dcf,  # type: ignore[arg-type]  # prechecked
+#                     is_matching=False,
+#                     rate_fixings=p.rate_params.rate_fixing.identifier,
+#                     fixing_method=p.rate_params.fixing_method,
+#                     method_param=p.rate_params.method_param,
+#                 )
+#             )
+#
+#         if isna(fixing_rates).any():  # type: ignore[union-attr]
+#             _RFRRate._forecast_fixing_rates_from_curve(
+#                 unpopulated=unpopulated,  # type: ignore[arg-type]
+#                 populated=populated,  # type: ignore[arg-type]
+#                 fixing_rates=fixing_rates,  # type: ignore[arg-type]
+#                 rate_curve=rate_curve,
+#                 dates_obs=dates_obs,
+#                 dcfs_obs=dcfs_obs,  # type: ignore[arg-type]
+#             )
+#
+#         d_star = p.period_params.dcf
+#
+#         drdr = _FixingsExposureCalculator._drdr_rfr_approximation(
+#             p=p,
+#             rate_series=rate_series_,
+#             r_star=r_star,
+#             di=dcfs_dcf,  # type: ignore[arg-type]
+#             z=p.rate_params.float_spread,
+#             fixing_method=p.rate_params.fixing_method,
+#             method_param=p.rate_params.method_param,
+#             spread_compound_method=p.rate_params.spread_compound_method,
+#             fixing_rates=fixing_rates,  # type: ignore[arg-type]
+#         )
+#
+#         dc_result = _try_disc_required_maybe_from_curve(curve=rate_curve, disc_curve=disc_curve)
+#         if isinstance(dc_result, Err):
+#             return dc_result
+#         else:
+#             disc_curve_: _BaseCurve = dc_result.unwrap()
+#
+#         dPdr = (
+#             -p.settlement_params.notional
+#             * disc_curve_[p.settlement_params.payment]
+#             * d_star
+#             * drdr
+#             / 10000.0
+#         )
+#         vi = np.array([disc_curve_[_] for _ in dates_obs[1:]])  # TODO: can approximate this
+#         ni = 1 / (dcfs_obs * vi) * dPdr * 10000.0
+#         fixing_notionals = Series(data=ni, index=fixing_rates.index)  # type: ignore[union-attr]
+#
+#         df = fixing_notionals.astype(float).to_frame(name="notional")
+#         df["risk"] = dPdr
+#         df["dcf"] = dcfs_obs
+#         df["rates"] = fixing_rates
+#
+#         if populated is None or len(populated) == 0:
+#             pass  # nothing to set to zero as being fixed.
+#         else:
+#             df.loc[populated.index, ["notional", "risk"]] = 0.0
+#
+#         df.columns = MultiIndex.from_tuples(
+#             [
+#                 (rate_curve.id, "notional"),
+#                 (rate_curve.id, "risk"),
+#                 (rate_curve.id, "dcf"),
+#                 (rate_curve.id, "rates"),
+#             ]
+#         )
+#         df.index.name = "obs_dates"
+#         return Ok(_trim_df_by_index(df.astype(float), NoInput(0), right))
+#
+#     @staticmethod
+#     def _drdr_rfr_approximation(
+#         p: FloatPeriod,
+#         rate_series: FloatRateSeries,
+#         r_star: DualTypes,
+#         di: Arr1dF64,
+#         z: DualTypes,
+#         fixing_method: FloatFixingMethod,
+#         method_param: int,
+#         spread_compound_method: SpreadCompoundMethod,
+#         fixing_rates: Series[DualTypes],  # type: ignore[type-var]
+#     ) -> Arr1dObj:
+#         # approximate sensitivity to each fixing
+#         z = z / 100.0
+#
+#         d = di.sum()
+#         if fixing_method in [
+#             FloatFixingMethod.RFRLockoutAverage,
+#             FloatFixingMethod.RFRObservationShiftAverage,
+#             FloatFixingMethod.RFRLookbackAverage,
+#             FloatFixingMethod.RFRPaymentDelayAverage,
+#         ]:
+#             drdri: Arr1dObj = di / d
+#         elif spread_compound_method == SpreadCompoundMethod.ISDACompounding:
+#             # this makes a number of approximations including reversing a compounded spread
+#             # with a simple formula
+#             r_bar, d_bar, n = average_rate(
+#                 effective=p.period_params.start,
+#                 termination=p.period_params.end,
+#                 convention=rate_series.convention,
+#                 rate=r_star - z,
+#                 dcf=p.period_params.dcf,
+#             )
+#             drdri = di / (1 + di * (r_bar + z) / 100.0) * (r_star / 100.0 * d + 1) / d  # type: ignore[operator]
+#         # elif spread_compound_method == SpreadCompoundMethod.ISDAFlatCompounding:
+#         #     r_star = ((1 + d_bar * (r_bar + z) / 100.0) ** n - 1) * 100.0 / (n * d_bar)
+#         #     drdri1 = di / (1 + di * (r_bar + z) / 100.0) * ((r_star / 100.0 * d) + 1) / d
+#         #     drdri2 = di / (1 + di * r_bar / 100.0) * ((r_star0 / 100.0 * d) + 1) / d
+#         #     drdri = (drdri1 + drdri2) / 2.0
+#         else:  # spread_compound_method == SpreadCompoundMethod.NoneSimple:
+#             ri = fixing_rates.to_numpy()
+#             drdri = di / (1 + di * ri / 100.0) * ((r_star - z) / 100.0 * d + 1) / d
+#
+#         if fixing_method in [FloatFixingMethod.RFRLockoutAverage, FloatFixingMethod.RFRLockout]:
+#             for i in range(method_param):
+#                 drdri[-(method_param + 1)] += drdri[-(i + 1)]
+#                 drdri[-(i + 1)] = 0.0
+#
+#         return drdri
+#
+#     ###############################
+#
+#     @classmethod
+#     def ibor(
+#         cls,
+#         p: FloatPeriod,
+#         rate_curve: CurveOption_,
+#         disc_curve: _BaseCurve_,
+#         right: datetime_,
+#         risk: DualTypes_ = NoInput(0),
+#     ) -> Result[DataFrame]:
+#         """
+#         Calculate a fixings_table under an IBOR based methodology.
+#
+#         Parameters
+#         ----------
+#         curve: Curve or Dict
+#             Dict may be relevant if the period is a stub.
+#         risk: float, optional
+#             This is the known financial exposure to the movement of the period IBOR fixing.
+#             Expressed per 1 in percentage rate, i.e. risk per bp * 10000
+#
+#         Returns
+#         -------
+#         DataFrame
+#         """
+#         if isinstance(rate_curve, dict):
+#             if p.period_params.stub:
+#                 # then must perform an interpolated calculation
+#                 return cls._ibor_stub(
+#                     p=p,
+#                     rate_fixing=p.rate_params.rate_fixing,  # type: ignore[arg-type]
+#                     rate_curve={k.upper(): v for (k,v) in rate_curve.items()},
+#                     disc_curve=_validate_obj_not_no_input(disc_curve, "disc_curve"),
+#                     right=right,
+#                     risk=risk,
+#                 )
+#             else:  # not self.stub:
+#                 # then extract the one relevant curve from dict
+#                 curve_: _BaseCurve = _get_ibor_curve_from_dict(
+#                     p.rate_params.fixing_frequency, rate_curve
+#                 )
+#         elif isinstance(rate_curve, NoInput):
+#             raise ValueError(
+#                 "`rate_curve` must be supplied as Curve or dict for IBOR fixings exposure."
+#             )
+#         else:
+#             curve_ = rate_curve
+#
+#         return cls._ibor_single_tenor(
+#             p=p,
+#             rate_fixing=p.rate_params.rate_fixing,  # type: ignore[arg-type]  # pre-checked
+#             rate_curve=curve_,
+#             disc_curve=_disc_required_maybe_from_curve(curve_, disc_curve),
+#             right=right,
+#         )
+#
+#     @classmethod
+#     def _ibor_single_tenor(
+#         cls,
+#         p: FloatPeriod,
+#         rate_fixing: IBORFixing,
+#         rate_curve: _BaseCurve,
+#         disc_curve: _BaseCurve,
+#         right: datetime_,
+#         risk: DualTypes_ = NoInput(0),
+#     ) -> Result[DataFrame]:
+#         reg_dcf = dcf(
+#             start=rate_fixing.accrual_start,
+#             end=rate_fixing.accrual_end,
+#             convention=rate_fixing.index.convention,
+#             frequency=rate_fixing.index.frequency,
+#             stub=False,
+#             calendar=rate_fixing.index.calendar,
+#         )
+#
+#         if not isinstance(rate_fixing.value, NoInput):
+#             risk, notional = 0.0, 0.0  # then fixing is set so return zero exposure.
+#             _rate = _dual_float(rate_fixing.value)
+#         elif rate_fixing.date < disc_curve.nodes.initial:
+#             _rate = np.nan
+#             risk, notional = 0.0, 0.0
+#             notional = 0.0
+#         else:
+#             risk = (
+#                 (
+#                     -p.settlement_params.notional
+#                     * p.period_params.dcf
+#                     * disc_curve[p.settlement_params.payment]
+#                 )
+#                 if isinstance(risk, NoInput)
+#                 else risk
+#             )
+#             notional = _dual_float(risk / (reg_dcf * disc_curve[rate_fixing.accrual_end]))
+#             risk = _dual_float(risk) * 0.0001  # scale to bp
+#             _rate = _dual_float(p.rate(rate_curve=rate_curve))
+#
+#         df = cls._make_dataframe(
+#             obs_dates=[rate_fixing.date],
+#             notional=[notional],
+#             risk=[risk],
+#             dcf=[reg_dcf],
+#             rates=[_rate],
+#             name=rate_curve.id,
+#         )
+#         return Ok(_trim_df_by_index(df, NoInput(0), right))
+#
+#     @classmethod
+#     def _ibor_stub(
+#         cls,
+#         p: FloatPeriod,
+#         rate_fixing: IBORStubFixing,
+#         rate_curve: dict[str, _BaseCurve],
+#         disc_curve: _BaseCurve,
+#         right: datetime_,
+#         risk: DualTypes_ = NoInput(0),
+#     ) -> Result[DataFrame]:
+#         risk = (
+#             -p.settlement_params.notional
+#             * p.period_params.dcf
+#             * disc_curve[p.settlement_params.payment]
+#             if isinstance(risk, NoInput)
+#             else risk
+#         )
+#         # get the relevant tenors
+#         tenors, ends = _find_neighbouring_tenors(
+#             end=rate_fixing.accrual_end,
+#             start=rate_fixing.accrual_start,
+#             tenors=[_ for _ in rate_curve if _.upper() != "RFR"],
+#             rate_series=rate_fixing.series,
+#         )
+#         w1 = (rate_fixing.accrual_end - ends[0]) / (ends[1] - ends[0])
+#         w0 = 1 - w1
+#         d0 = dcf(rate_fixing.accrual_start, ends[0], rate_fixing.series.convention)
+#         d1 = dcf(rate_fixing.accrual_start, ends[1], rate_fixing.series.convention)
+#         v0, v1 = disc_curve[ends[0]], disc_curve[ends[1]]
+#
+#         df0 = cls._make_dataframe(
+#             [rate_fixing.date],
+#             [risk * w0 / (d0 * v0)],  # type: ignore[list-item]
+#             [0.0001 * risk * w0],  # type: ignore[list-item]
+#             [d0],
+#             [np.nan],
+#             rate_curve[tenors[0]].id,
+#         )
+#         df1 = cls._make_dataframe(
+#             [rate_fixing.date],
+#             [risk * w1 / (d1 * v1)],  # type: ignore[list-item]
+#             [0.0001 * risk * w1],  # type: ignore[list-item]
+#             [d1],
+#             [np.nan],
+#             rate_curve[tenors[1]].id,
+#         )
+#
+#         df = concat([df0, df1], axis=1)
+#         return Ok(_trim_df_by_index(df.astype(float), NoInput(0), right))
+#
+#     @staticmethod
+#     def _make_dataframe(
+#         obs_dates: list[datetime],
+#         notional: list[float],
+#         risk: list[float],
+#         dcf: list[float],
+#         rates: list[float],
+#         name: str,
+#     ) -> DataFrame:
+#         df = DataFrame(
+#             {
+#                 "obs_dates": obs_dates,
+#                 "notional": notional,
+#                 "risk": risk,
+#                 "dcf": dcf,
+#                 "rates": rates,
+#             },
+#         ).set_index("obs_dates")
+#
+#         df.columns = MultiIndex.from_tuples(
+#             [
+#                 (name, "notional"),
+#                 (name, "risk"),
+#                 (name, "dcf"),
+#                 (name, "rates"),
+#             ]
+#         )
+#         return df
 
 
 def _get_ibor_curve_from_dict(fixing_frequency: Frequency, d: dict[str, _BaseCurve]) -> _BaseCurve:
@@ -777,6 +870,247 @@ def _get_ibor_curve_from_dict(fixing_frequency: Frequency, d: dict[str, _BaseCur
         return remapped[freq_str]
     except KeyError:
         raise ValueError(
-            "If supplying `curve` as dict must provide a tenor mapping key and curve for"
+            "If supplying `rate_curve` as dict must provide a tenor mapping key and curve for"
             f"the frequency of the given Period. The missing mapping is '{freq_str}'."
         )
+
+
+def _get_ibor_curve_from_dict2(fixing_frequency: str, d: dict[str, _BaseCurve]) -> _BaseCurve:
+    remapped = {k.upper(): v for k, v in d.items()}
+    try:
+        return remapped[fixing_frequency.upper()]
+    except KeyError:
+        raise ValueError(
+            "If supplying `rate_curve` as dict must provide a tenor mapping key and curve for"
+            f"the frequency of the given Period. The missing mapping is '{fixing_frequency}'."
+        )
+
+
+class _UnindexedReferenceCashflowFixingsSensitivity:
+    @staticmethod
+    def _ibor(
+        self: FloatPeriod, rate_curve: _BaseCurve | dict[str, _BaseCurve]
+    ) -> Result[DataFrame]:
+        if self.period_params.stub:
+            if isinstance(rate_curve, dict):
+                rate_curve_: dict[str, _BaseCurve] = rate_curve
+            else:
+                rate_curve_ = {
+                    _get_tenor_from_frequency(self.rate_params.fixing_frequency): rate_curve
+                }
+            return _UnindexedReferenceCashflowFixingsSensitivity._ibor_stub(
+                self=self,
+                rate_curve=rate_curve_,
+                frequency_str=_get_tenor_from_frequency(self.rate_params.fixing_frequency),
+            )
+        else:
+            if isinstance(rate_curve, dict):
+                rate_curve__: _BaseCurve = _get_ibor_curve_from_dict(
+                    self.rate_params.fixing_frequency, rate_curve
+                )
+            else:
+                rate_curve__ = rate_curve
+            return _UnindexedReferenceCashflowFixingsSensitivity._ibor_regular(
+                self=self,
+                rate_curve=rate_curve__,
+                frequency_str=_get_tenor_from_frequency(self.rate_params.fixing_frequency),
+            )
+
+    @staticmethod
+    def _ibor_regular(
+        self: FloatPeriod,
+        rate_curve: _BaseCurve,
+        frequency_str: str,
+    ) -> Result[DataFrame]:
+        return Ok(
+            DataFrame(
+                index=Index(data=[self.rate_params.rate_fixing.date], name="obs_dates"),
+                data=[
+                    -self.settlement_params.notional * self.period_params.dcf * 0.0001
+                    if isinstance(self.rate_params.rate_fixing.value, NoInput)
+                    else 0.0
+                ],
+                columns=MultiIndex.from_tuples(
+                    [
+                        (
+                            rate_curve.id,
+                            self.settlement_params.currency,
+                            self.settlement_params.notional_currency,
+                            frequency_str,
+                        )
+                    ],
+                    names=["identifier", "local_ccy", "display_ccy", "frequency"],
+                ),
+            )
+        )
+
+    @staticmethod
+    def _ibor_stub(
+        self: FloatPeriod,
+        rate_curve: dict[str, _BaseCurve],
+        frequency_str: str,
+    ) -> Result[DataFrame]:
+        # get consistent curves for the tenors of the stub fixings
+        tenors, ends = _find_neighbouring_tenors(
+            end=self.rate_params.rate_fixing.accrual_end,
+            start=self.rate_params.rate_fixing.accrual_start,
+            tenors=[_ for _ in rate_curve if _.upper() != "RFR"],
+            rate_series=self.rate_params.rate_fixing.series,  # type: ignore[unio-attr]
+        )
+        rate_curve_1: _BaseCurve = _get_ibor_curve_from_dict2(tenors[0], rate_curve)
+        df1_res = _UnindexedReferenceCashflowFixingsSensitivity._ibor_regular(
+            self=self,
+            rate_curve=rate_curve_1,
+            frequency_str=tenors[0],
+        )
+        if tenors[0] == tenors[1]:
+            return df1_res  # then no multiple curves for the stub
+        else:
+            rate_curve_2: _BaseCurve = _get_ibor_curve_from_dict2(tenors[1], rate_curve)
+            df2_res = _UnindexedReferenceCashflowFixingsSensitivity._ibor_regular(
+                self=self,
+                rate_curve=rate_curve_2,
+                frequency_str=tenors[1],
+            )
+            alpha = (ends[1] - self.period_params.end) / (ends[1] - ends[0])
+            return Ok(
+                merge(
+                    left=df1_res.unwrap() * alpha,
+                    right=df2_res.unwrap() * (1 - alpha),
+                    left_index=True,
+                    right_index=True,
+                )
+            )
+
+    @staticmethod
+    def _rfr(
+        self: FloatPeriod,
+        rate_curve: _BaseCurve,
+    ) -> Result[DataFrame]:
+        rf: RFRFixing = self.rate_params.rate_fixing  # type: ignore[assignment]
+
+        if isinstance(rf.value, NoInput):
+            # then some sensitivity still exists
+            drdr = _UnindexedReferenceCashflowFixingsSensitivity._rfr_drdr_approximation(
+                self=self,
+                rate_curve=rate_curve,
+            )
+        else:
+            # all sensitivity is zero
+            drdr = np.array([0.0 for _ in range(len(rf.dates_obs) - 1)])
+
+        temp = Series(
+            index=rf.dates_obs[:-1],
+            data=-self.settlement_params.notional * self.period_params.dcf * 0.0001 * drdr,
+        )
+        temp[rf.populated.index] = 0.0
+
+        df1 = DataFrame(
+            index=Index(data=rf.dates_obs[:-1], name="obs_dates"),
+            data=temp.to_list(),
+            columns=MultiIndex.from_tuples(
+                [
+                    (
+                        rate_curve.id,
+                        self.settlement_params.currency,
+                        self.settlement_params.notional_currency,
+                        "1B",
+                    )
+                ],
+                names=["identifier", "local_ccy", "display_ccy", "frequency"],
+            ),
+        )
+        return Ok(df1)
+
+    @staticmethod
+    def _rfr_drdr_approximation(
+        self: FloatPeriod,
+        rate_curve: _BaseCurve,
+    ) -> Arr1dObj:
+        """
+        Determine the value :math:`\frac{\\partial r(r_i, z)}{\\partial r_j}` for rate
+        fixing sensitivity.
+
+        For NoneSimple spread compounding this formula is exact, which covers most cases.
+
+        For ISDAFlatCompounding this is approximated as the NoneSimple case so is an
+        approximation.
+
+        For ISDACompounding the geometric 1-day average rate is used as a component in the formula
+        meaning the result is approximate.
+
+        These values do **not** distinguish between published and unpublished fixings. This should
+        be adjusted post.
+
+        Returns
+        -------
+        ndarray
+        """
+        rf: RFRFixing = self.rate_params.rate_fixing  # type: ignore[assignment]
+        d_hat_i = rf.dcfs_dcf
+        z = self.rate_params.float_spread
+        fixing_method = self.rate_params.fixing_method
+        spread_compound_method = self.rate_params.spread_compound_method
+        method_param = self.rate_params.method_param
+
+        # approximate sensitivity to each fixing
+        z = z / 100.0
+
+        d = d_hat_i.sum()
+        if fixing_method in [
+            FloatFixingMethod.RFRLockoutAverage,
+            FloatFixingMethod.RFRObservationShiftAverage,
+            FloatFixingMethod.RFRLookbackAverage,
+            FloatFixingMethod.RFRPaymentDelayAverage,
+        ]:
+            drdri: Arr1dObj = d_hat_i / d
+        else:
+            unpopulated = rf.unpopulated
+            populated = rf.populated
+            r_i = Series(index=rf.dates_obs[:-1], data=np.nan, dtype=object)
+            r_i.update(populated)  #
+            # determine the rate for the period, from the curve if necessary
+            if unpopulated.index[0] < rate_curve.nodes.initial:
+                raise ValueError(err.VE_BEFORE_INITIAL)
+            _RFRRate._forecast_fixing_rates_from_curve(
+                unpopulated=unpopulated,
+                populated=populated,
+                fixing_rates=r_i,
+                rate_curve=rate_curve,
+                dates_obs=rf.dates_obs,
+                dcfs_obs=rf.dcfs_obs,
+            )
+            r_star = _RFRRate._inefficient_calculation(
+                fixing_rates=r_i,
+                fixing_dcfs=d_hat_i,
+                fixing_method=fixing_method,
+                method_param=method_param,
+                spread_compound_method=spread_compound_method,
+                float_spread=self.rate_params.float_spread,
+            ).unwrap()
+            if spread_compound_method == SpreadCompoundMethod.ISDACompounding:
+                # this makes a number of approximations including reversing a compounded spread
+                # with a simple formula
+                r_bar, d_bar, n = average_rate(
+                    effective=self.period_params.start,
+                    termination=self.period_params.end,
+                    convention=self.rate_params.fixing_series.convention,
+                    rate=r_star - z,
+                    dcf=d,
+                )
+                drdri = d_hat_i / (1 + d_hat_i * (r_bar + z) / 100.0) * (1 + r_star / 100.0 * d) / d  # type: ignore[operator]
+            # elif spread_compound_method == SpreadCompoundMethod.ISDAFlatCompounding:
+            #     r_star = ((1 + d_bar * (r_bar + z) / 100.0) ** n - 1) * 100.0 / (n * d_bar)
+            #     drdri1 = di / (1 + di * (r_bar + z) / 100.0) * ((r_star / 100.0 * d) + 1) / d
+            #     drdri2 = di / (1 + di * r_bar / 100.0) * ((r_star0 / 100.0 * d) + 1) / d
+            #     drdri = (drdri1 + drdri2) / 2.0
+            else:  # spread_compound_method == SpreadCompoundMethod.NoneSimple:
+                r_i_ = r_i.to_numpy()
+                drdri = d_hat_i / (1 + d_hat_i * r_i_ / 100.0) * ((r_star - z) / 100.0 * d + 1) / d
+
+        if fixing_method in [FloatFixingMethod.RFRLockoutAverage, FloatFixingMethod.RFRLockout]:
+            for i in range(method_param):
+                drdri[-(method_param + 1)] += drdri[-(i + 1)]
+                drdri[-(i + 1)] = 0.0
+
+        return drdri
