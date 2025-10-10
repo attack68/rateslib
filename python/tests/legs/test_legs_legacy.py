@@ -13,7 +13,7 @@ from rateslib.dual import Dual
 from rateslib.fx import FXForwards, FXRates
 from rateslib.legs import (
     # Amortization,
-    CreditPremiumLeg,
+    # CreditPremiumLeg,
     CreditProtectionLeg,
     CustomLeg,
     # FixedLeg,
@@ -26,7 +26,7 @@ from rateslib.legs import (
     ZeroFloatLeg,
     ZeroIndexLeg,
 )
-from rateslib.legs.components import Amortization, FixedLeg, FloatLeg
+from rateslib.legs.components import Amortization, CreditPremiumLeg, FixedLeg, FloatLeg
 from rateslib.legs.components.amortization import _AmortizationType
 from rateslib.periods import (
     # Cashflow,
@@ -1692,7 +1692,7 @@ class TestCreditPremiumLeg:
             convention="Act360",
             premium_accrued=premium_accrued,
         )
-        result = leg.analytic_delta(hazard_curve, curve)
+        result = leg.analytic_delta(rate_curve=hazard_curve, disc_curve=curve)
         assert abs(result - exp) < 1e-7
 
     @pytest.mark.parametrize(("premium_accrued"), [True, False])
@@ -1709,8 +1709,10 @@ class TestCreditPremiumLeg:
             premium_accrued=premium_accrued,
             fixed_rate=4.00,
         )
-        result = leg.npv(hazard_curve, curve)
-        assert abs(result + 400 * leg.analytic_delta(hazard_curve, curve)) < 1e-7
+        result = leg.npv(rate_curve=hazard_curve, disc_curve=curve)
+        assert (
+            abs(result + 400 * leg.analytic_delta(rate_curve=hazard_curve, disc_curve=curve)) < 1e-7
+        )
 
     def test_premium_leg_cashflows(self, hazard_curve, curve) -> None:
         leg = CreditPremiumLeg(
@@ -1724,7 +1726,7 @@ class TestCreditPremiumLeg:
             convention="Act360",
             fixed_rate=4.00,
         )
-        result = leg.cashflows(hazard_curve, curve)
+        result = leg.cashflows(rate_curve=hazard_curve, disc_curve=curve)
         # test a couple of return elements
         assert abs(result.loc[0, defaults.headers["cashflow"]] - 6555555.55555) < 1e-4
         assert abs(result.loc[1, defaults.headers["df"]] - 0.98307) < 1e-4
@@ -1742,11 +1744,11 @@ class TestCreditPremiumLeg:
             convention="Act360",
         )
         assert leg.fixed_rate is NoInput(0)
-        assert leg.periods[0].fixed_rate is NoInput(0)
+        assert leg.periods[0].rate_params.fixed_rate is NoInput(0)
 
         leg.fixed_rate = 2.0
         assert leg.fixed_rate == 2.0
-        assert leg.periods[0].fixed_rate == 2.0
+        assert leg.periods[0].rate_params.fixed_rate == 2.0
 
     @pytest.mark.parametrize(
         ("date", "exp"),
@@ -1773,7 +1775,7 @@ class TestCreditPremiumLeg:
 
     @pytest.mark.parametrize("final", [True, False])
     def test_exchanges_raises(self, final):
-        with pytest.raises(ValueError, match="`initial_exchange` and `final_exchange` cannot be"):
+        with pytest.raises(TypeError, match="unexpected keyword argument"):
             CreditPremiumLeg(
                 schedule=Schedule(
                     effective=dt(2022, 1, 1),
