@@ -40,14 +40,26 @@ if TYPE_CHECKING:
 
 class _WithNPVCashflows(_WithNPV, Protocol):
     """
-    Determine and display all metrics for the *Period*.
+    Protocol for parameter and calculation display for the *Period*.
 
     .. warning::
 
-       This class provides convenience methods to display all
-       associated calculation data. Calling this method to extract certain values
-       should be avoided. It is more efficent to source relevant parameters or calculations
-       from object attributes or other methods directly.
+       The direct methods of this class are for display convenience.
+       Calling these to extract certain values should be avoided. It is more efficient to
+       source relevant parameters or calculations from object attributes or other methods directly.
+
+    .. rubric:: Required methods
+
+    .. autosummary::
+
+      ~_WithNPVCashflows.try_cashflow
+
+    .. rubric:: Provided methods
+
+    .. autosummary::
+
+      ~_WithNPVCashflows.cashflows
+
     """
 
     def try_cashflow(
@@ -157,6 +169,23 @@ class _WithNPVCashflows(_WithNPV, Protocol):
 
 
 class _WithNPVCashflowsStatic(_WithNPVStatic, Protocol):
+    """
+    Protocol for parameter and calculation display for the *Static Period*.
+
+    .. warning::
+
+       The direct methods of this class are for display convenience.
+       Calling these to extract certain values should be avoided. It is more efficient to
+       source relevant parameters or calculations from object attributes or other methods directly.
+
+    .. rubric:: Provided methods
+
+    .. autosummary::
+
+      ~_WithNPVCashflows.cashflows
+
+    """
+
     def _index_elements(
         self,
         rate_curve: CurveOption_ = NoInput(0),

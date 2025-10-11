@@ -6,32 +6,24 @@ from rateslib import defaults
 from rateslib.curves import index_left
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.legs.components.amortization import Amortization, _get_amortization
-from rateslib.legs.components.protocols import (
-    _WithAnalyticDelta,
-    _WithAnalyticRateFixingsSensitivity,
-    _WithCashflows,
-    _WithNPV,
-)
-from rateslib.periods.components import CreditPremiumPeriod
+from rateslib.legs.components.protocols import _BaseLeg
+from rateslib.periods.components import CreditPremiumPeriod, CreditProtectionPeriod
 
 if TYPE_CHECKING:
     from rateslib.periods.components import Period
     from rateslib.typing import (  # pragma: no cover
+        FX_,
         DualTypes,
         DualTypes_,
         Schedule,
+        _BaseCurve_,
         _SettlementParams,
         datetime,
         str_,
     )
 
 
-class CreditPremiumLeg(
-    _WithNPV,
-    _WithCashflows,
-    _WithAnalyticDelta,
-    _WithAnalyticRateFixingsSensitivity,
-):
+class CreditPremiumLeg(_BaseLeg):
     """
     Define a *Leg* containing :class:`~rateslib.periods.components.CreditPremiumPeriod`.
 
@@ -178,3 +170,143 @@ class CreditPremiumLeg(
         # self._interim_exchange_periods = None
         # self._exchange_periods = (None, None)
         # self._mtm_exchange_periods = None
+
+
+class CreditProtectionLeg(_BaseLeg):
+    """
+    Create a credit protection leg composed of :class:`~rateslib.periods.CreditProtectionPeriod` s.
+
+    Parameters
+    ----------
+    args : tuple
+        Required positional args to :class:`BaseLeg`.
+    kwargs : dict
+        Required keyword arguments to :class:`BaseLeg`.
+
+    Notes
+    -----
+    The NPV of a credit protection leg is the sum of the period NPVs.
+
+    .. math::
+
+       P = \\sum_{i=1}^n P_i
+
+    The analytic delta is the sum of the period analytic deltas.
+
+    .. math::
+
+       A = -\\frac{\\partial P}{\\partial S} = \\sum_{i=1}^n -\\frac{\\partial P_i}{\\partial S}
+
+    Examples
+    --------
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.curves import Curve
+       from rateslib.scheduling import Schedule
+       from rateslib.legs import CreditProtectionLeg
+       from datetime import datetime as dt
+
+    .. ipython:: python
+
+       disc_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
+       hazard_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995})
+       protection_leg = CreditProtectionLeg(
+           schedule=Schedule(dt(2022, 1, 1), "9M", "Z"),
+           notional=1000000,
+       )
+       protection_leg.cashflows(hazard_curve, disc_curve)
+       protection_leg.npv(hazard_curve, disc_curve)
+    """  # noqa: E501
+
+    @property
+    def settlement_params(self) -> _SettlementParams:
+        """The :class:`~rateslib.periods.components.parameters._SettlementParams` associated with
+        the first :class:`~rateslib.periods.components.FloatPeriod`."""
+        return self._regular_periods[0].settlement_params
+
+    @property
+    def periods(self) -> list[Period]:
+        """Combine all period collection types into an ordered list."""
+        return self._regular_periods
+
+    @property
+    def schedule(self) -> Schedule:
+        return self._schedule
+
+    @property
+    def amortization(self) -> Amortization:
+        return self._amortization
+
+    def __init__(
+        self,
+        schedule: Schedule,
+        *,
+        # settlement and currency
+        notional: DualTypes_ = NoInput(0),
+        amortization: DualTypes_ | list[DualTypes] | Amortization | str = NoInput(0),
+        currency: str_ = NoInput(0),
+        # period
+        convention: str_ = NoInput(0),
+    ) -> None:
+        self._schedule = schedule
+        self._notional: DualTypes = _drb(defaults.notional, notional)
+        self._amortization: Amortization = _get_amortization(
+            amortization, self._notional, self.schedule.n_periods
+        )
+        self._currency: str = _drb(defaults.base_currency, currency).lower()
+        self._convention: str = _drb(defaults.convention, convention)
+
+        self._regular_periods = tuple(
+            [
+                CreditProtectionPeriod(
+                    # currency args
+                    payment=self.schedule.pschedule[i + 1],
+                    currency=self._currency,
+                    notional=self.amortization.outstanding[i],
+                    ex_dividend=self.schedule.pschedule3[i + 1],
+                    # period params
+                    start=self.schedule.aschedule[i],
+                    end=self.schedule.aschedule[i + 1],
+                    frequency=self.schedule.frequency_obj,
+                    convention=self._convention,
+                    termination=self.schedule.aschedule[-1],
+                    stub=self.schedule._stubs[i],
+                    roll=NoInput(0),  #  defined by Frequency
+                    calendar=self.schedule.calendar,
+                    adjuster=self.schedule.accrual_adjuster,
+                )
+                for i in range(self.schedule.n_periods)
+            ]
+        )
+
+        # # No amortization exchanges
+        # self._interim_exchange_periods = None
+        # self._exchange_periods = (None, None)
+        # self._mtm_exchange_periods = None
+
+    def analytic_rec_risk(
+        self,
+        rate_curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        base: str_ = NoInput(0),
+    ) -> float:
+        """
+        Return the analytic recovery risk of the *CreditProtectionLeg* via summing all periods.
+
+        For arguments see
+        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`.
+        """
+        _ = (
+            period.analytic_rec_risk(
+                rate_curve=rate_curve,
+                disc_curve=disc_curve,
+                fx=fx,
+                base=base,
+            )
+            for period in self.periods
+        )
+        ret: DualTypes = sum(_)
+        return ret

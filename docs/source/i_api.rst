@@ -111,20 +111,20 @@ Link to the :ref:`Periods<periods-doc>` section in the user guide.
 Protocols
 ^^^^^^^^^
 
+*Period* protocols establish common functionality and methods that all *Periods* share consistently.
+
 .. automodapi:: rateslib.periods.components.protocols
    :no-inheritance-diagram:
    :headings: "^-"
    :inherited-members:
    :no-heading:
-   :include: _WithNPV
-   :include: _WithNPVStatic
-   :include: _WithIndexingStatic
-   :include: _WithNonDeliverableStatic
-   :include: _WithAnalyticDelta
-   :include: _WithAnalyticDeltaStatic
+   :skip: _BasePeriod
+   :skip: _BasePeriodStatic
 
 Parameters
 ^^^^^^^^^^
+
+*Period* parameters define containers for input values used in the construction of functionality.
 
 .. automodapi:: rateslib.periods.components.parameters
    :no-inheritance-diagram:
@@ -145,16 +145,6 @@ Objects
    :headings: "^-"
    :inherited-members:
    :no-heading:
-   :include: BasePeriod
-   :include: FloatPeriod
-   :include: FixedPeriod
-   :include: Cashflow
-   :include: MtmCashflow
-   :include: CreditPremiumPeriod
-   :include: CreditProtectionPeriod
-   :include: FXOptionPeriod
-   :include: FXCallPeriod
-   :include: FXPutPeriod
 
 
 Class Inheritance Diagram

@@ -141,16 +141,11 @@ class _WithAnalyticFXOptionGreeks(Protocol):
         ------
         ValueError: if the ``strike`` is not set on the *Option*.
         """  # noqa: E501
-        return self.__base_analytic_greeks(
-            rate_curve=rate_curve,
-            disc_curve=disc_curve,
-            fx=fx,
-            fx_vol=fx_vol,
-            premium=premium,
-            premium_payment=premium_payment,
+        return NotImplementedError(
+            "Type {type(self).__name__} has not implmented `anlaytic_greeks`."
         )
 
-    def __base_analytic_greeks(
+    def _base_analytic_greeks(
         self,
         rate_curve: _BaseCurve,  #  w(.)
         disc_curve: _BaseCurve,  # v(.)

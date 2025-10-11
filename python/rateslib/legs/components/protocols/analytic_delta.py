@@ -8,13 +8,13 @@ from rateslib.periods.components.utils import (
 )
 
 if TYPE_CHECKING:
-    from rateslib.periods.components import Period
     from rateslib.typing import (  # pragma: no cover
         CurveOption_,
         DualTypes,
         FXForwards_,
         FXVolOption_,
         _BaseCurve_,
+        _BasePeriod,
         datetime_,
         str_,
     )
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 class _WithAnalyticDelta(Protocol):
     @property
-    def periods(self) -> list[Period]: ...
+    def periods(self) -> list[_BasePeriod]: ...
 
     def analytic_delta(
         self,
