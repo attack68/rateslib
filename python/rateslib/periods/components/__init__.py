@@ -1,4 +1,4 @@
-from typing import TypeAlias
+from __future__ import annotations
 
 from rateslib.periods.components.cashflow import (
     Cashflow,
@@ -13,6 +13,7 @@ from rateslib.periods.components.fixed_period import (
     IndexFixedPeriod,
     NonDeliverableFixedPeriod,
     NonDeliverableIndexFixedPeriod,
+    ZeroFixedPeriod,
 )
 from rateslib.periods.components.float_period import (
     FloatPeriod,
@@ -21,19 +22,11 @@ from rateslib.periods.components.float_period import (
     NonDeliverableIndexFloatPeriod,
 )
 from rateslib.periods.components.fx_volatility import FXCallPeriod, FXOptionPeriod, FXPutPeriod
-from rateslib.periods.components.protocols import _WithNPV, _WithNPVStatic
-
-Period: TypeAlias = (
-    "FixedPeriod | IndexFixedPeriod | NonDeliverableFixedPeriod | "
-    "NonDeliverableIndexFixedPeriod | FloatPeriod | IndexFloatPeriod | "
-    "NonDeliverableFloatPeriod | NonDeliverableIndexFloatPeriod | "
-    "Cashflow | IndexCashflow | NonDeliverableCashflow | NonDeliverableIndexCashflow | "
-    "MtmCashflow | CreditPremiumPeriod | CreditProtectionPeriod"
-)
+from rateslib.periods.components.protocols import _BasePeriod, _BasePeriodStatic
 
 __all__ = [
-    "_WithNPV",
-    "_WithNPVStatic",
+    "_BasePeriod",
+    "_BasePeriodStatic",
     "Cashflow",
     "IndexCashflow",
     "NonDeliverableCashflow",
@@ -52,4 +45,5 @@ __all__ = [
     "FXPutPeriod",
     "CreditPremiumPeriod",
     "CreditProtectionPeriod",
+    "ZeroFixedPeriod",
 ]

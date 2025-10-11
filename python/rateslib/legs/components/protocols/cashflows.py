@@ -7,12 +7,12 @@ from pandas import DataFrame
 from rateslib.enums.generics import NoInput
 
 if TYPE_CHECKING:
-    from rateslib.periods.components import Period
     from rateslib.typing import (
         CurveOption_,
         FXForwards_,
         FXVolOption_,
         _BaseCurve_,
+        _BasePeriod,
         datetime_,
         str_,
     )
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 class _WithCashflows(Protocol):
     @property
-    def periods(self) -> list[Period]: ...
+    def periods(self) -> list[_BasePeriod]: ...
 
     def cashflows(
         self,

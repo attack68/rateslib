@@ -1,4 +1,8 @@
-from rateslib.periods.components.protocols.npv import (  # noqa: I001
+# ruff: noqa: I001
+
+from abc import ABCMeta
+
+from rateslib.periods.components.protocols.npv import (
     _WithIndexingStatic,
     _WithNonDeliverableStatic,
     _WithNPV,
@@ -8,22 +12,53 @@ from rateslib.periods.components.protocols.analytic_delta import (
     _WithAnalyticDelta,
     _WithAnalyticDeltaStatic,
 )
+from rateslib.periods.components.protocols.analytic_fixings import (
+    _WithAnalyticRateFixings,
+    _WithAnalyticRateFixingsStatic,
+)
 from rateslib.periods.components.protocols.analytic_greeks import _WithAnalyticFXOptionGreeks
 from rateslib.periods.components.protocols.cashflows import (
     _WithNPVCashflows,
     _WithNPVCashflowsStatic,
 )
-from rateslib.periods.components.protocols.fixings import _WithAnalyticRateFixingsSensitivityStatic
+
+
+class _BasePeriod(
+    _WithNPVCashflows,
+    _WithAnalyticDelta,
+    _WithAnalyticRateFixings,
+    _WithAnalyticFXOptionGreeks,
+    metaclass=ABCMeta,
+):
+    """Abstract base class for *Period* types."""
+
+    pass
+
+
+class _BasePeriodStatic(
+    _WithNPVCashflowsStatic,
+    _WithAnalyticDeltaStatic,
+    _WithAnalyticRateFixingsStatic,
+    _BasePeriod,
+    metaclass=ABCMeta,
+):
+    """Abstract base class for *Static Period* types."""
+
+    pass
+
 
 __all__ = [
     "_WithNPV",
-    "_WithIndexingStatic",
-    "_WithNonDeliverableStatic",
-    "_WithNPVStatic",
-    "_WithNPVCashflowsStatic",
     "_WithNPVCashflows",
     "_WithAnalyticDelta",
-    "_WithAnalyticDeltaStatic",
-    "_WithAnalyticRateFixingsSensitivityStatic",
+    "_WithAnalyticRateFixings",
     "_WithAnalyticFXOptionGreeks",
+    "_WithNPVStatic",
+    "_WithNPVCashflowsStatic",
+    "_WithAnalyticDeltaStatic",
+    "_WithAnalyticRateFixingsStatic",
+    "_WithIndexingStatic",
+    "_WithNonDeliverableStatic",
+    "_BasePeriodStatic",
+    "_BasePeriod",
 ]

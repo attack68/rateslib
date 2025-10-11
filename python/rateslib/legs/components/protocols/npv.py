@@ -8,13 +8,13 @@ from rateslib.periods.components.utils import (
 )
 
 if TYPE_CHECKING:
-    from rateslib.periods.components import Period
     from rateslib.typing import (
         CurveOption_,
         DualTypes,
         FXForwards_,
         FXVolOption_,
         _BaseCurve_,
+        _BasePeriod,
         datetime_,
         str_,
     )
@@ -26,10 +26,10 @@ class _WithNPV(Protocol):
 
     """
 
-    _periods: list[Period]
+    _periods: list[_BasePeriod]
 
     @property
-    def periods(self) -> list[Period]:
+    def periods(self) -> list[_BasePeriod]:
         return self._periods
 
     def __repr__(self) -> str:

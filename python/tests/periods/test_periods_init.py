@@ -4,6 +4,8 @@ import pytest
 import rateslib.errors as err
 from rateslib.periods.components import (
     Cashflow,
+    CreditPremiumPeriod,
+    CreditProtectionPeriod,
     FixedPeriod,
     FloatPeriod,
     IndexCashflow,
@@ -15,8 +17,10 @@ from rateslib.periods.components import (
     NonDeliverableIndexCashflow,
     NonDeliverableIndexFixedPeriod,
     NonDeliverableIndexFloatPeriod,
+    ZeroFixedPeriod,
 )
 from rateslib.periods.components.cashflow import MtmCashflow
+from rateslib.scheduling import Schedule
 
 
 class TestCashflow:
@@ -413,3 +417,38 @@ class TestNonDeliverableIndexFloatPeriod:
                 adjuster="mf",
                 index_base=100.0,
             )
+
+
+class TestCreditPremiumPeriod:
+    def test_init(self):
+        CreditPremiumPeriod(
+            start=dt(2000, 1, 1),
+            end=dt(2000, 2, 1),
+            payment=dt(2000, 2, 1),
+            frequency="M",
+            notional=2e6,
+            premium_accrued=False,
+        )
+
+
+class TestCreditProtectionPeriod:
+    def test_init(self):
+        CreditProtectionPeriod(
+            start=dt(2000, 1, 1),
+            end=dt(2000, 2, 1),
+            payment=dt(2000, 2, 1),
+            frequency="M",
+            notional=2e6,
+        )
+
+
+class TestZeroFixedPeriod:
+    def test_init(self):
+        ZeroFixedPeriod(
+            schedule=Schedule(
+                effective=dt(2000, 1, 1),
+                termination=dt(2000, 9, 1),
+                frequency="M",
+            ),
+            convention="act365f",
+        )

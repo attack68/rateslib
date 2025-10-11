@@ -97,6 +97,19 @@ class _WithNPV(Protocol):
     r"""
     Protocol to establish value of any *Period* type.
 
+    .. rubric:: Required methods
+
+    .. autosummary::
+
+      ~_WithNPV.try_immediate_local_npv
+
+    .. rubric:: Provided methods
+
+    .. autosummary::
+
+      ~_WithNPV.try_local_npv
+      ~_WithNPV.npv
+
     Notes
     -----
     Each *Period* type is required to implement the immediate expectation of value of
@@ -128,7 +141,8 @@ class _WithNPV(Protocol):
         fx_vol: FXVolOption_ = NoInput(0),
     ) -> Result[DualTypes]:
         r"""
-        Calculate the NPV of the *Period* in local settlement currency, with lazy error raising.
+        Calculate the immediate NPV of the *Period* in local settlement currency, with lazy error
+        raising.
 
         This method does **not** adjust for ex-dividend and is an immediate measure according to,
 
@@ -364,6 +378,9 @@ class _WithIndexingStatic(Protocol):
 class _WithNonDeliverableStatic(Protocol):
     """
     Protocol to provide non-deliverable conversion for *Static Period* types.
+
+
+
     """
 
     _non_deliverable_params: _NonDeliverableParams | None
@@ -420,6 +437,23 @@ class _WithNonDeliverableStatic(Protocol):
 class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, Protocol):
     r"""
     Protocol to establish value of any *Static Period* type.
+
+    .. rubric:: Required methods
+
+    .. autosummary::
+
+       ~_WithNPVStatic.try_unindexed_reference_cashflow
+
+    .. rubric:: Provided methods
+
+    .. autosummary::
+
+       ~_WithNPVStatic.try_reference_cashflow
+       ~_WithNPVStatic.try_unindexed_cashflow
+       ~_WithNPVStatic.try_cashflow
+       ~_WithNPVStatic.try_immediate_local_npv
+       ~_WithNPVStatic.try_local_npv
+       ~_WithNPVStatic.npv
 
     Notes
     -----
@@ -676,94 +710,3 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         if c.is_err:
             return c
         return Ok(c.unwrap() * disc_curve_[self.settlement_params.payment])
-
-    # def try_local_npv(
-    #     self,
-    #     *,
-    #     rate_curve: CurveOption_ = NoInput(0),
-    #     index_curve: _BaseCurve_ = NoInput(0),
-    #     disc_curve: _BaseCurve_ = NoInput(0),
-    #     fx: FXForwards_ = NoInput(0),
-    #     fx_vol: FXVolOption_ = NoInput(0),
-    #     settlement: datetime_ = NoInput(0),
-    #     forward: datetime_ = NoInput(0),
-    # ) -> Result[DualTypes]:
-    #     r"""
-    #     Calculate the NPV of the *Period* in local settlement currency, with lazy error raising.
-    #
-    #     This method adjusts for ex-dividend and forward projected value. It also adds
-    #     indexation and non-deliverability to the unindexed reference cashflow according to,
-    #
-    #     .. math::
-    #
-    #        P(m_s, m_f) = \mathbb{I}(m_s) \frac{1}{v(m_f)} v(m_t) I_r f(m_d) \mathbb{E^Q} [\bar{C}_t],  \qquad \; \mathbb{I}(m_s) = \left \{ \begin{matrix} 0 & m_s > m_{ex} \\ 1 & m_s \leq m_{ex} \end{matrix} \right .
-    #
-    #     for forward, :math:`m_f`, settlement, :math:`m_s`, and ex-dividend, :math:`m_{ex}`,
-    #     non-deliverable delivery, :math:`m_d`, and index ratio, :math:`I_r`.
-    #
-    #     Parameters
-    #     ----------
-    #     rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
-    #         Used to forecast floating period rates, if necessary.
-    #     index_curve: _BaseCurve, optional
-    #         Used to forecast index values for indexation, if necessary.
-    #     disc_curve: _BaseCurve, optional
-    #         Used to discount cashflows.
-    #     fx: FXForwards, optional
-    #         The :class:`~rateslib.fx.FXForward` object used for forecasting the
-    #         ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
-    #         class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
-    #     fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
-    #         The FX volatility *Smile* or *Surface* object used for determining Black calendar
-    #         day implied volatility values.
-    #     settlement: datetime, optional
-    #         The assumed settlement date of the *PV* determination. Used only to evaluate
-    #         *ex-dividend* status.
-    #     forward: datetime, optional
-    #         The future date to project the *PV* to using the ``disc_curve``.
-    #
-    #     Returns
-    #     -------
-    #     Result[float, Dual, Dual2, Variable]
-    #     """  # noqa: E501
-    #     return super().try_local_npv(
-    #         rate_curve=rate_curve,
-    #         index_curve=index_curve,
-    #         disc_curve=disc_curve,
-    #         fx=fx,
-    #         fx_vol=fx_vol,
-    #         settlement=settlement,
-    #         forward=forward,
-    #     )
-
-    # dc_res = _try_disc_required_maybe_from_curve(curve=rate_curve, disc_curve=disc_curve)
-    # if isinstance(dc_res, Err):
-    #     return dc_res
-    # disc_curve_: _BaseCurve = dc_res.unwrap()
-    #
-    # if self.settlement_params.payment < disc_curve_.nodes.initial:
-    #     # payment date is in the past
-    #     return Ok(0.0)
-    #
-    # c = self.try_cashflow(
-    #     rate_curve=rate_curve,
-    #     index_curve=index_curve,
-    #     disc_curve=disc_curve_,
-    #     fx_vol=fx_vol,
-    #     fx=fx,
-    # )
-    # if c.is_err:
-    #     return c
-    #
-    # # this will also handle cashflows before the curve as DF is zero.
-    # pv0 = c.unwrap() * disc_curve_[self.settlement_params.payment]
-    # return Ok(
-    #     _screen_ex_div_and_forward(
-    #         local_value=pv0,
-    #         disc_curve=disc_curve_,
-    #         rate_curve=rate_curve,
-    #         ex_dividend=self.settlement_params.ex_dividend,
-    #         settlement=settlement,
-    #         forward=forward,
-    #     )
-    # )

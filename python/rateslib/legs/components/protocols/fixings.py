@@ -8,19 +8,19 @@ from pandas import DataFrame, concat
 from rateslib.enums.generics import NoInput
 
 if TYPE_CHECKING:
-    from rateslib.periods.components import Period
     from rateslib.typing import (
         CurveOption_,
         FXForwards_,
         FXVolOption_,
         _BaseCurve_,
+        _BasePeriod,
         datetime_,
     )
 
 
 class _WithAnalyticRateFixingsSensitivity(Protocol):
     @property
-    def periods(self) -> list[Period]: ...
+    def periods(self) -> list[_BasePeriod]: ...
 
     def local_rate_fixings(
         self,
@@ -67,7 +67,7 @@ class _WithAnalyticRateFixingsSensitivity(Protocol):
         dfs = []
         for period in self.periods:
             dfs.append(
-                period.local_rate_fixings(
+                period.local_analytic_rate_fixings(
                     rate_curve=rate_curve,
                     index_curve=index_curve,
                     disc_curve=disc_curve,

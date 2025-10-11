@@ -35,6 +35,19 @@ class _WithAnalyticDelta(Protocol):
     r"""
     Protocol to establish analytical sensitivity to rate type metrics.
 
+    .. rubric:: Required methods
+
+    .. autosummary::
+
+      ~_WithAnalyticDelta.try_immediate_local_analytic_delta
+
+    .. rubric:: Provided methods
+
+    .. autosummary::
+
+      ~_WithAnalyticDelta.try_local_analytic_delta
+      ~_WithAnalyticDelta.analytic_delta
+
     Notes
     -----
     Since this is *analytical*, each *Period* type must define its unique referenced sensitivity
@@ -43,7 +56,7 @@ class _WithAnalyticDelta(Protocol):
     .. math::
 
        A^{bas}(m_f, m_s) = \frac{\partial P^{bas}(m_f, m_s)}{\partial \xi}, \quad \text{for some quantity, } \xi
-    """
+    """  # noqa: E501
 
     _settlement_params: _SettlementParams
 
@@ -63,8 +76,8 @@ class _WithAnalyticDelta(Protocol):
         fx_vol: FXVolOption_ = NoInput(0),
     ) -> Result[DualTypes]:
         r"""
-        Calculate the analytic rate delta of a *Period* expressed in local settlement currency,
-        with lazy error raising.
+        Calculate the immediate, analytic rate delta of a *Period* expressed in local
+        settlement currency, with lazy error raising.
 
         This method does **not** adjust for ex-dividend and is an immediate measure according to,
 
@@ -142,7 +155,7 @@ class _WithAnalyticDelta(Protocol):
         Returns
         -------
         Result[DualTypes]
-        """
+        """  # noqa: E501
         local_immediate_result = self.try_immediate_local_analytic_delta(
             rate_curve=rate_curve,
             index_curve=index_curve,
@@ -231,6 +244,36 @@ class _WithAnalyticDelta(Protocol):
 class _WithAnalyticDeltaStatic(
     _WithAnalyticDelta, _WithIndexingStatic, _WithNonDeliverableStatic, Protocol
 ):
+    r"""
+    Protocol to establish analytical sensitivity to rate type metrics for *Static Period* types.
+
+    .. rubric:: Required methods
+
+    .. autosummary::
+
+      ~_WithAnalyticDeltaStatic.try_unindexed_reference_cashflow_analytic_delta
+
+    .. rubric:: Provided methods
+
+    .. autosummary::
+
+      ~_WithAnalyticDeltaStatic.try_reference_cashflow_analytic_delta
+      ~_WithAnalyticDeltaStatic.try_unindexed_cashflow_analytic_delta
+      ~_WithAnalyticDeltaStatic.try_cashflow_analytic_delta
+      ~_WithAnalyticDeltaStatic.try_immediate_local_analytic_delta
+      ~_WithAnalyticDeltaStatic.try_local_analytic_delta
+      ~_WithAnalyticDeltaStatic.analytic_delta
+
+    Notes
+    -----
+    Since this is *analytical*, each *Period* type must define its unique referenced sensitivity
+    to interest rates. This protocol ultimately determines the quantity,
+
+    .. math::
+
+       A^{bas}(m_f, m_s) = \frac{\partial P^{bas}(m_f, m_s)}{\partial \xi}, \quad \text{for some quantity, } \xi
+    """  # noqa: E501
+
     def try_unindexed_reference_cashflow_analytic_delta(
         self,
         *,
@@ -256,7 +299,10 @@ class _WithAnalyticDeltaStatic(
         -------
         float, Dual, Dual2, Variable
         """
-        pass
+        raise NotImplementedError(
+            f"type {type(self).__name__} has not implemented "
+            f"`try_unindexed_reference_cashflow_analytic_delta`"
+        )
 
     def try_reference_cashflow_analytic_delta(
         self,
