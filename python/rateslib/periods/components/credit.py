@@ -15,7 +15,7 @@ from rateslib.periods.components.parameters import (
     _PeriodParams,
     _SettlementParams,
 )
-from rateslib.periods.components.protocols import _WithAnalyticDelta, _WithNPVCashflows
+from rateslib.periods.components.protocols import _BasePeriod
 from rateslib.periods.components.utils import _validate_credit_curve, _validate_credit_curves
 from rateslib.scheduling import Frequency, get_calendar
 from rateslib.scheduling.adjuster import _get_adjuster
@@ -43,7 +43,7 @@ if TYPE_CHECKING:  # pragma: no cover
     )
 
 
-class CreditPremiumPeriod(_WithNPVCashflows, _WithAnalyticDelta):
+class CreditPremiumPeriod(_BasePeriod):
     r"""
     A *Period* defined by a fixed interest rate and contingent credit event.
 
@@ -317,7 +317,7 @@ class CreditPremiumPeriod(_WithNPVCashflows, _WithAnalyticDelta):
         return self.try_accrued(settlement).unwrap()
 
 
-class CreditProtectionPeriod(_WithNPVCashflows, _WithAnalyticDelta):
+class CreditProtectionPeriod(_BasePeriod):
     r"""
     A *Period* defined by a credit event and contingent notional payment.
 

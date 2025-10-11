@@ -11,17 +11,13 @@ from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import FloatFixingMethod, SpreadCompoundMethod
 from rateslib.legs.components.amortization import Amortization, _AmortizationType, _get_amortization
 from rateslib.legs.components.protocols import (
-    _WithAnalyticDelta,
-    _WithAnalyticRateFixingsSensitivity,
-    _WithCashflows,
-    _WithNPV,
+    _BaseLeg,
 )
 from rateslib.legs.components.utils import _leg_fixings_to_list
 from rateslib.periods.components import Cashflow, FloatPeriod, MtmCashflow
 from rateslib.periods.components.parameters import _FloatRateParams, _SettlementParams
 
 if TYPE_CHECKING:
-    from rateslib.periods.components import Period
     from rateslib.typing import (  # pragma: no cover
         FX_,
         CurveOption_,
@@ -33,18 +29,14 @@ if TYPE_CHECKING:
         LegFixings,
         Schedule,
         _BaseCurve_,
+        _BasePeriod,
         datetime,
         int_,
         str_,
     )
 
 
-class FloatLeg(
-    _WithNPV,
-    _WithCashflows,
-    _WithAnalyticDelta,
-    _WithAnalyticRateFixingsSensitivity,
-):
+class FloatLeg(_BaseLeg):
     """
     Abstract base class with common parameters for all ``Leg`` subclasses.
 
@@ -114,9 +106,9 @@ class FloatLeg(
         return self._regular_periods[0].settlement_params
 
     @property
-    def periods(self) -> list[Period]:
+    def periods(self) -> list[_BasePeriod]:
         """Combine all period collection types into an ordered list."""
-        periods_: list[Period] = []
+        periods_: list[_BasePeriod] = []
 
         if self._exchange_periods[0] is not None:
             periods_.append(self._exchange_periods[0])
@@ -128,7 +120,7 @@ class FloatLeg(
             args += (self._mtm_exchange_periods,)
         if self._interim_exchange_periods is not None:
             args += (self._interim_exchange_periods,)
-        interleaved_periods_: list[Period] = [
+        interleaved_periods_: list[_BasePeriod] = [
             item for combination in zip(*args, strict=True) for item in combination
         ]
         interleaved_periods_.append(self._regular_periods[-1])  # add last regular period

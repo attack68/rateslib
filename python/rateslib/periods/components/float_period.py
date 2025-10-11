@@ -28,11 +28,7 @@ from rateslib.periods.components.parameters import (
     _init_SettlementParams_with_fx_pair,
     _PeriodParams,
 )
-from rateslib.periods.components.protocols import (
-    _WithAnalyticDeltaStatic,
-    _WithAnalyticRateFixingsSensitivityStatic,
-    _WithNPVCashflowsStatic,
-)
+from rateslib.periods.components.protocols import _BasePeriodStatic
 from rateslib.periods.utils import _get_rfr_curve_from_dict
 from rateslib.scheduling import Adjuster, Frequency, get_calendar
 from rateslib.scheduling.adjuster import _get_adjuster
@@ -64,11 +60,7 @@ if TYPE_CHECKING:
     )
 
 
-class FloatPeriod(
-    _WithNPVCashflowsStatic,
-    _WithAnalyticDeltaStatic,
-    _WithAnalyticRateFixingsSensitivityStatic,
-):
+class FloatPeriod(_BasePeriodStatic):
     r"""
     A *Period* defined by a floating interest rate.
 
@@ -146,7 +138,7 @@ class FloatPeriod(
         set to zero.
     spread_compound_method: SpreadCompoundMethod, str, :green:`optional (set by 'defaults')`
         The :class:`~rateslib.enums.parameters.SpreadCompoundMethod` used in the calculation
-        of the period rate when combining a ``_float_spread``. Used **only** with RFR type
+        of the period rate when combining a ``float_spread``. Used **only** with RFR type
         ``fixing_method``. Set by ``defaults``.
     rate_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
         The value of the rate fixing. If a scalar, is used directly. If a string identifier, links
@@ -376,7 +368,7 @@ class FloatPeriod(
 
         return Ok(self.settlement_params.notional * 0.0001 * dr_dz * self.period_params.dcf)
 
-    def try_unindexed_reference_cashflow_fixings_sensitivity(
+    def try_unindexed_reference_cashflow_analytic_rate_fixings(
         self,
         *,
         rate_curve: CurveOption_ = NoInput(0),
@@ -955,7 +947,7 @@ class _UnindexedReferenceCashflowFixingsSensitivity:
             end=self.rate_params.rate_fixing.accrual_end,
             start=self.rate_params.rate_fixing.accrual_start,
             tenors=[_ for _ in rate_curve if _.upper() != "RFR"],
-            rate_series=self.rate_params.rate_fixing.series,  # type: ignore[unio-attr]
+            rate_series=self.rate_params.rate_fixing.series,  # type: ignore[union-attr]
         )
         rate_curve_1: _BaseCurve = _get_ibor_curve_from_dict2(tenors[0], rate_curve)
         df1_res = _UnindexedReferenceCashflowFixingsSensitivity._ibor_regular(

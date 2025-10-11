@@ -34,9 +34,10 @@ from rateslib.periods.components import (
     MtmCashflow,
     NonDeliverableCashflow,
     NonDeliverableFixedPeriod,
+    ZeroFixedPeriod,
 )
 from rateslib.periods.components.float_rate import rate_value
-from rateslib.scheduling import Cal, Frequency, RollDay
+from rateslib.scheduling import Cal, Frequency, RollDay, Schedule
 
 
 @pytest.fixture
@@ -1021,7 +1022,7 @@ class TestFloatPeriod:
                 eom=True,
             ),
         )
-        table = period.local_rate_fixings(rate_curve=rfr_curve, disc_curve=curve)
+        table = period.local_analytic_rate_fixings(rate_curve=rfr_curve, disc_curve=curve)
 
         assert table.index.tolist()[1] == expected_date
         assert np.all(
@@ -1048,10 +1049,10 @@ class TestFloatPeriod:
             ),
         )
         with pytest.raises(ValueError, match="`disc_curve` cannot be inferred from a non-DF"):
-            period.local_rate_fixings(rate_curve=line_curve)
+            period.local_analytic_rate_fixings(rate_curve=line_curve)
 
         with pytest.raises(ValueError, match="A `rate_curve` supplied as dict to an RF"):
-            period.local_rate_fixings(
+            period.local_analytic_rate_fixings(
                 rate_curve={"1m": line_curve, "2m": line_curve}, disc_curve=curve
             )
 
@@ -1123,7 +1124,7 @@ class TestFloatPeriod:
                 eom=True,
             ),
         )
-        result = period.local_rate_fixings(rate_curve=rfr_curve)
+        result = period.local_analytic_rate_fixings(rate_curve=rfr_curve)
         assert abs(result[(rfr_curve.id, "usd", "usd", "1B")].iloc[0] - expected) < 1
 
     @pytest.mark.parametrize(
@@ -1269,7 +1270,7 @@ class TestFloatPeriod:
                 eom=True,
             ),
         )
-        result = float_period.local_rate_fixings(rate_curve=line_curve, disc_curve=curve)
+        result = float_period.local_analytic_rate_fixings(rate_curve=line_curve, disc_curve=curve)
         assert abs(result.iloc[0, 0] + 24.402790080357686) < 1e-10
 
     def test_ibor_fixing_table_right(self, line_curve, curve) -> None:
@@ -1426,7 +1427,7 @@ class TestFloatPeriod:
                 eom=False,
             ),
         )
-        result = float_period.local_rate_fixings(rate_curve=curve)
+        result = float_period.local_analytic_rate_fixings(rate_curve=curve)
         expected = DataFrame(
             data=[[0.0]],
             index=Index([dt(2000, 2, 2)], name="obs_dates"),
@@ -1504,7 +1505,7 @@ class TestFloatPeriod:
             ),
         )
         with pytest.raises(ValueError, match="The Curve initial node date is after the required"):
-            float_period.local_rate_fixings(rate_curve=curve)
+            float_period.local_analytic_rate_fixings(rate_curve=curve)
 
         name = str(hash(os.urandom(8)))
         fixings.add(f"{name}_1B", Series(index=[dt(2022, 1, 3)], data=[4.0]))
@@ -1524,7 +1525,7 @@ class TestFloatPeriod:
                 lag=0,
             ),
         )
-        result = float_period.local_rate_fixings(rate_curve=curve)
+        result = float_period.local_analytic_rate_fixings(rate_curve=curve)
 
         assert isinstance(result, DataFrame)
         assert result.iloc[0, 0] == 0.0
@@ -1563,7 +1564,7 @@ class TestFloatPeriod:
             calendar="bus",
             rate_fixings=2.0,
         )
-        result = float_period.local_rate_fixings(rate_curve=curve)
+        result = float_period.local_analytic_rate_fixings(rate_curve=curve)
         assert result.iloc[0, 0] == 0.0
 
     @pytest.mark.parametrize("float_spread", [0, 100])
@@ -2100,9 +2101,9 @@ class TestFloatPeriod:
                 calendar="all", convention="act360", eom=True, lag=0, modifier="F"
             ),
         )
-        table = period.local_rate_fixings(rate_curve=curve)
+        table = period.local_analytic_rate_fixings(rate_curve=curve)
         period.rate_params.float_spread = 200
-        table2 = period.local_rate_fixings(rate_curve=curve)
+        table2 = period.local_analytic_rate_fixings(rate_curve=curve)
         assert (table.iloc[0, 0] == table2.iloc[0, 0]) == exp
 
     def test_custom_interp_rate_nan(self) -> None:
@@ -2126,7 +2127,7 @@ class TestFloatPeriod:
         line_curve = LineCurve({dt(2023, 1, 1): 3.0, dt(2023, 2, 1): 2.0}, interpolation=interp)
         curve = Curve({dt(2023, 1, 1): 1.0, dt(2023, 2, 1): 0.999})
         with pytest.raises(ValueError, match="The Curve initial node date is after the "):
-            float_period.local_rate_fixings(rate_curve=line_curve, disc_curve=curve)
+            float_period.local_analytic_rate_fixings(rate_curve=line_curve, disc_curve=curve)
 
     def test_method_param_raises(self) -> None:
         with pytest.raises(ValueError, match='`method_param` must be >0 for "RFRLockout'):
@@ -2390,7 +2391,7 @@ class TestFloatPeriod:
             notional=-1e6,
             stub=True,
         )
-        result = stub_fp.local_rate_fixings(
+        result = stub_fp.local_analytic_rate_fixings(
             rate_curve={"1m": curve2, "3m": curve}, disc_curve=curve
         )
         assert abs(result.iloc[0, 0] - 8.5467) < 1e-4
@@ -2440,7 +2441,9 @@ class TestFloatPeriod:
         curve3 = LineCurve({dt(2022, 1, 1): 3.0, dt(2023, 2, 1): 3.0})
         curve1 = LineCurve({dt(2022, 1, 1): 2.0, dt(2023, 2, 1): 2.0})
         dc = Curve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
-        result = period.local_rate_fixings(rate_curve={"1M": curve1, "3m": curve3}, disc_curve=dc)
+        result = period.local_analytic_rate_fixings(
+            rate_curve={"1M": curve1, "3m": curve3}, disc_curve=dc
+        )
         assert isinstance(result, DataFrame)
         assert abs(result.iloc[0, 0] + 8.0601) < 1e-4
         assert abs(result.iloc[0, 1] + 8.32877) < 1e-4
@@ -2489,7 +2492,7 @@ class TestFloatPeriod:
         curve3 = LineCurve({dt(2022, 1, 1): 3.0, dt(2023, 2, 1): 3.0})
         curve1 = LineCurve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
         dc = Curve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
-        result = period.local_rate_fixings(
+        result = period.local_analytic_rate_fixings(
             rate_curve={"1M": curve1, "3m": curve3, "rfr": curve1}, disc_curve=dc
         )
         assert isinstance(result, DataFrame)
@@ -2528,7 +2531,7 @@ class TestFloatPeriod:
         curve3 = LineCurve({dt(2022, 1, 1): 3.0, dt(2023, 2, 1): 3.0})
         curve1 = LineCurve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
         curved = Curve({dt(2022, 1, 1): 1.0, dt(2023, 2, 1): 1.0})
-        result = period.local_rate_fixings(
+        result = period.local_analytic_rate_fixings(
             rate_curve={"1M": curve1, "3M": curve3}, disc_curve=curved
         )
         expected = DataFrame(
@@ -2560,10 +2563,10 @@ class TestFloatPeriod:
             ),
         )
         with pytest.raises(ValueError, match="A `rate_curve` must be provided to this method"):
-            float_period.local_rate_fixings(rate_curve=NoInput(0), disc_curve=disc_curve)
+            float_period.local_analytic_rate_fixings(rate_curve=NoInput(0), disc_curve=disc_curve)
 
         with pytest.raises(ValueError, match="`disc_curve` cannot be inferred from a non-DF base"):
-            float_period.local_rate_fixings(rate_curve=curve1, disc_curve=NoInput(0))
+            float_period.local_analytic_rate_fixings(rate_curve=curve1, disc_curve=NoInput(0))
 
     def test_local_historical_pay_date_issue(self, curve) -> None:
         period = FloatPeriod(
@@ -4325,6 +4328,22 @@ class TestNonDeliverableFixedPeriod:
             "Type": "NonDeliverableFixedPeriod",
         }
         assert result == expected
+
+
+class TestZeroFixedPeriod:
+    def test_cashflows(self):
+        zp = ZeroFixedPeriod(
+            schedule=Schedule(
+                effective=dt(2000, 1, 1),
+                termination=dt(2003, 6, 1),
+                frequency="A",
+            ),
+            convention="1",
+            fixed_rate=1.0,
+        )
+        cf = zp.cashflows()
+        assert cf[defaults.headers["dcf"]] == 4.0
+        assert cf[defaults.headers["cashflow"]] == ((1 + 0.01) ** 4 - 1) * -1e6
 
 
 def test_base_period_dates_raise() -> None:

@@ -10,35 +10,37 @@ from rateslib import default_context, defaults, fixings
 from rateslib.curves import Curve
 from rateslib.default import NoInput
 from rateslib.dual import Dual
+from rateslib.enums.generics import _drb
 from rateslib.fx import FXForwards, FXRates
 from rateslib.legs import (
     # Amortization,
     # CreditPremiumLeg,
-    CreditProtectionLeg,
-    CustomLeg,
+    # CreditProtectionLeg,
+    # CustomLeg,
     # FixedLeg,
     # FixedLegMtm,
     # FloatLeg,
     # FloatLegMtm,
     # IndexFixedLeg,
     # NonDeliverableFixedLeg,
-    ZeroFixedLeg,
+    # ZeroFixedLeg,
     ZeroFloatLeg,
     ZeroIndexLeg,
 )
-from rateslib.legs.components import Amortization, CreditPremiumLeg, FixedLeg, FloatLeg
-from rateslib.legs.components.amortization import _AmortizationType
-from rateslib.periods import (
-    # Cashflow,
-    CreditPremiumPeriod,
-    CreditProtectionPeriod,
-    # FixedPeriod,
-    # FloatPeriod,
-    IndexCashflow,
-    IndexFixedPeriod,
+from rateslib.legs.components import (
+    Amortization,
+    CreditPremiumLeg,
+    CreditProtectionLeg,
+    CustomLeg,
+    FixedLeg,
+    FloatLeg,
+    ZeroFixedLeg,
 )
+from rateslib.legs.components.amortization import _AmortizationType
 from rateslib.periods.components import (
     Cashflow,
+    CreditPremiumPeriod,
+    CreditProtectionPeriod,
     FixedPeriod,
     FloatPeriod,
 )
@@ -917,14 +919,14 @@ class TestZeroFixedLeg:
             convention="ActAct",
             fixed_rate=rate,
         )
-        result = zfl.cashflows(curve)
+        result = zfl.cashflows(disc_curve=curve)
         expected = DataFrame(
             {
-                "Type": ["ZeroFixedLeg"],
+                "Type": ["ZeroFixedPeriod"],
                 "Acc Start": [dt(2022, 1, 1)],
                 "Acc End": [dt(2027, 1, 1)],
                 "DCF": [5.0],
-                "Rate": [rate],
+                "Rate": [_drb(None, rate)],
                 "Cashflow": [cash],
             },
         )
@@ -950,10 +952,10 @@ class TestZeroFixedLeg:
             convention="ActAct",
             fixed_rate=2.0,
         )
-        result = zfl.cashflows(curve)
+        result = zfl.cashflows(disc_curve=curve)
         expected = DataFrame(
             {
-                "Type": ["ZeroFixedLeg"],
+                "Type": ["ZeroFixedPeriod"],
                 "Acc Start": [dt(2024, 12, 16)],
                 "Acc End": [dt(2029, 12, 17)],
                 "DCF": [5.0],
@@ -978,10 +980,10 @@ class TestZeroFixedLeg:
             convention="ActAct",
             fixed_rate=2.5,
         )
-        result = zfl.npv(curve)
+        result = zfl.npv(disc_curve=curve)
         expected = 13140821.29 * curve[dt(2027, 1, 1)]
         assert abs(result - expected) < 1e-2
-        result2 = zfl.npv(curve, local=True)
+        result2 = zfl.npv(disc_curve=curve, local=True)
         assert abs(result2["usd"] - expected) < 1e-2
 
     def test_zero_fixed_leg_analytic_delta(self, curve) -> None:
@@ -996,9 +998,7 @@ class TestZeroFixedLeg:
             convention="ActAct",
             fixed_rate=2.5,
         )
-        result1 = zfl._analytic_delta(curve)
-        result2 = zfl.analytic_delta(curve)
-        assert abs(result1 + 40789.7007) < 1e-3
+        result2 = zfl.analytic_delta(disc_curve=curve)
         assert abs(result2 + 45024.1974) < 1e-3
 
     def test_zero_fixed_spread(self, curve) -> None:
@@ -1017,7 +1017,7 @@ class TestZeroFixedLeg:
         assert (result / 100 - 2.50) < 1e-3
 
     def test_amortization_raises(self) -> None:
-        with pytest.raises(ValueError, match="`ZeroFixedLeg` cannot be defined with `amortizatio"):
+        with pytest.raises(TypeError, match="unexpected keyword argument 'amortization'"):
             ZeroFixedLeg(
                 schedule=Schedule(
                     effective=dt(2022, 1, 1),
@@ -1057,8 +1057,8 @@ class TestZeroFixedLeg:
             convention="ActAct",
             fixed_rate=NoInput(0),
         )
-        with pytest.raises(ValueError, match="Must have `fixed_rate` on ZeroFixedLeg for analy"):
-            zfl.analytic_delta(curve)
+        with pytest.raises(ValueError, match="A `fixed_rate` must be set for a "):
+            zfl.analytic_delta(disc_curve=curve)
 
 
 class TestZeroIndexLeg:
@@ -1802,7 +1802,7 @@ class TestCreditProtectionLeg:
             ),
             notional=1e9,
         )
-        result = leg.analytic_delta(hazard_curve, curve)
+        result = leg.analytic_delta(rate_curve=hazard_curve, disc_curve=curve)
         assert abs(result) < 1e-7
 
     def test_leg_analytic_rec_risk(self, hazard_curve, curve) -> None:
@@ -1815,11 +1815,11 @@ class TestCreditProtectionLeg:
             ),
             notional=1e7,
         )
-        result = leg.analytic_rec_risk(hazard_curve, curve)
+        result = leg.analytic_rec_risk(rate_curve=hazard_curve, disc_curve=curve)
 
-        pv0 = leg.npv(hazard_curve, curve)
+        pv0 = leg.npv(rate_curve=hazard_curve, disc_curve=curve)
         hazard_curve.update_meta("credit_recovery_rate", 0.41)
-        pv1 = leg.npv(hazard_curve, curve)
+        pv1 = leg.npv(rate_curve=hazard_curve, disc_curve=curve)
         expected = pv1 - pv0
         assert abs(result - expected) < 1e-7
 
@@ -1834,7 +1834,7 @@ class TestCreditProtectionLeg:
             ),
             notional=1e9,
         )
-        result = leg.npv(hazard_curve, curve)
+        result = leg.npv(rate_curve=hazard_curve, disc_curve=curve)
         expected = -1390922.0390295777  # with 1 cds_discretization this is -1390906.242843
         assert abs(result - expected) < 1e-7
 
@@ -1848,7 +1848,7 @@ class TestCreditProtectionLeg:
             notional=-1e9,
             convention="Act360",
         )
-        result = leg.cashflows(hazard_curve, curve)
+        result = leg.cashflows(rate_curve=hazard_curve, disc_curve=curve)
         # test a couple of return elements
         assert abs(result.loc[0, defaults.headers["cashflow"]] - 600e6) < 1e-4
         assert abs(result.loc[1, defaults.headers["df"]] - 0.98307) < 1e-4
@@ -1865,7 +1865,7 @@ class TestCreditProtectionLeg:
             convention="Act360",
         )
         assert len(leg.periods) == 1
-        assert leg.periods[0].end == dt(2024, 6, 1)
+        assert leg.periods[0].period_params.end == dt(2024, 6, 1)
 
 
 class TestIndexFixedLegExchange:
@@ -2599,23 +2599,6 @@ class TestCustomLeg:
                 currency="usd",
             ),
             Cashflow(notional=1e9, payment=dt(2022, 4, 3)),
-            IndexFixedPeriod(
-                start=dt(2022, 1, 3),
-                end=dt(2022, 4, 3),
-                payment=dt(2022, 4, 3),
-                notional=1e9,
-                convention="Act360",
-                termination=dt(2022, 4, 3),
-                frequency=Frequency.Months(3, None),
-                fixed_rate=4.00,
-                currency="usd",
-                index_base=100.0,
-            ),
-            IndexCashflow(
-                notional=200.0,
-                payment=dt(2022, 2, 1),
-                index_base=100.0,
-            ),
         ],
     )
     def test_init(self, curve, period) -> None:
@@ -2640,7 +2623,7 @@ class TestCustomLeg:
                 ),
             ],
         )
-        result = cl.npv(curve)
+        result = cl.npv(rate_curve=curve)
         expected = -29109.962157023772
         assert abs(result - expected) < 1e-6
 
@@ -2663,7 +2646,7 @@ class TestCustomLeg:
                 ),
             ],
         )
-        result = cl.cashflows(curve)
+        result = cl.cashflows(rate_curve=curve)
         assert isinstance(result, DataFrame)
         assert len(result.index) == 2
 
@@ -2686,7 +2669,7 @@ class TestCustomLeg:
                 ),
             ],
         )
-        result = cl.analytic_delta(curve)
+        result = cl.analytic_delta(rate_curve=curve)
         expected = 194.1782607729773
         assert abs(result - expected) < 1e-6
 

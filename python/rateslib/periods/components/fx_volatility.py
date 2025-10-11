@@ -48,10 +48,7 @@ from rateslib.periods.components.parameters import (
     _NonDeliverableParams,
     _SettlementParams,
 )
-from rateslib.periods.components.protocols import (
-    _WithAnalyticFXOptionGreeks,
-    _WithNPVCashflowsStatic,
-)
+from rateslib.periods.components.protocols import _BasePeriodStatic
 from rateslib.periods.components.utils import (
     _get_vol_delta_type,
     _get_vol_maybe_from_obj,
@@ -83,7 +80,7 @@ if TYPE_CHECKING:
     )
 
 
-class FXOptionPeriod(_WithNPVCashflowsStatic, _WithAnalyticFXOptionGreeks, metaclass=ABCMeta):
+class FXOptionPeriod(_BasePeriodStatic, metaclass=ABCMeta):
     r"""
     An abstract base class for implementing FX option *Periods*.
 
@@ -176,6 +173,24 @@ class FXOptionPeriod(_WithNPVCashflowsStatic, _WithAnalyticFXOptionGreeks, metac
     reference.
 
     """
+
+    def analytic_greeks(
+        self,
+        rate_curve: _BaseCurve,
+        disc_curve: _BaseCurve,
+        fx: FXForwards,
+        fx_vol: FXVolOption_ = NoInput(0),
+        premium: DualTypes_ = NoInput(0),  # expressed in the payment currency
+        premium_payment: datetime_ = NoInput(0),
+    ) -> dict[str, Any]:
+        return super()._base_analytic_greeks(
+            rate_curve=rate_curve,
+            disc_curve=disc_curve,
+            fx=fx,
+            fx_vol=fx_vol,
+            premium=premium,
+            premium_payment=premium_payment,
+        )
 
     @property
     def period_params(self) -> None:

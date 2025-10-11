@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING
+
+from pandas import DataFrame
 
 import rateslib.errors as err
 from rateslib import defaults
@@ -13,12 +16,8 @@ from rateslib.periods.components.parameters import (
     _init_SettlementParams_with_fx_pair,
     _PeriodParams,
 )
-from rateslib.periods.components.protocols import (
-    _WithAnalyticDeltaStatic,
-    _WithAnalyticRateFixingsSensitivityStatic,
-    _WithNPVCashflowsStatic,
-)
-from rateslib.scheduling import Adjuster, Frequency, get_calendar
+from rateslib.periods.components.protocols import _BasePeriodStatic
+from rateslib.scheduling import Adjuster, Frequency, dcf, get_calendar
 from rateslib.scheduling.adjuster import _get_adjuster
 from rateslib.scheduling.convention import _get_convention
 from rateslib.scheduling.frequency import _get_frequency
@@ -30,8 +29,11 @@ if TYPE_CHECKING:
         CurveOption_,
         DualTypes,
         DualTypes_,
+        FXForwards_,
+        FXVolOption_,
         Result,
         RollDay,
+        Schedule,
         Series,
         _BaseCurve_,
         bool_,
@@ -42,9 +44,7 @@ if TYPE_CHECKING:
     )
 
 
-class FixedPeriod(
-    _WithNPVCashflowsStatic, _WithAnalyticDeltaStatic, _WithAnalyticRateFixingsSensitivityStatic
-):
+class FixedPeriod(_BasePeriodStatic):
     r"""
     A *Period* defined by a fixed interest rate.
 
@@ -278,6 +278,51 @@ class FixedPeriod(
                 * self.period_params.dcf
             )
 
+    # def try_cashflow(
+    #     self,
+    #     *,
+    #     rate_curve: CurveOption_ = NoInput(0),
+    #     disc_curve: _BaseCurve_ = NoInput(0),
+    #     index_curve: _BaseCurve_ = NoInput(0),
+    #     fx: FXForwards_ = NoInput(0),
+    #     fx_vol: FXVolOption_ = NoInput(0),
+    # ) -> Result[DualTypes]:
+    #     if self.index_params is None:
+    #         if self.non_deliverable_params is None:
+    #             return self.try_unindexed_reference_cashflow(
+    #                 rate_curve=rate_curve,
+    #                 disc_curve=disc_curve,
+    #                 index_curve=index_curve,
+    #                 fx=fx,
+    #                 fx_vol=fx_vol,
+    #             )
+    #         else:
+    #             return self.try_unindexed_cashflow(
+    #                 rate_curve=rate_curve,
+    #                 disc_curve=disc_curve,
+    #                 index_curve=index_curve,
+    #                 fx=fx,
+    #                 fx_vol=fx_vol,
+    #             )
+    #     else:
+    #         if self.non_deliverable_params is None:
+    #             return self.try_reference_cashflow(
+    #                 rate_curve=rate_curve,
+    #                 disc_curve=disc_curve,
+    #                 index_curve=index_curve,
+    #                 fx=fx,
+    #                 fx_vol=fx_vol,
+    #             )
+    #         else:
+    #             rc = self.try_reference_cashflow(
+    #                 rate_curve=rate_curve,
+    #                 index_curve=index_curve,
+    #                 disc_curve=disc_curve,
+    #                 fx=fx,
+    #                 fx_vol=fx_vol,
+    #             )
+    #             return self.try_convert_deliverable(value=rc, fx=fx)
+
     def try_unindexed_reference_cashflow_analytic_delta(
         self,
         *,
@@ -285,6 +330,17 @@ class FixedPeriod(
         disc_curve: _BaseCurve_ = NoInput(0),
     ) -> Result[DualTypes]:
         return Ok(self.settlement_params.notional * 0.0001 * self.period_params.dcf)
+
+    def try_unindexed_reference_cashflow_analytic_rate_fixings(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+    ) -> Result[DataFrame]:
+        return Ok(DataFrame())
 
 
 class NonDeliverableFixedPeriod(FixedPeriod):
@@ -312,3 +368,197 @@ class NonDeliverableIndexFixedPeriod(FixedPeriod):
             raise ValueError(err.VE_NEEDS_INDEX_PARAMS.format(type(self).__name__))
         if not self.is_non_deliverable:
             raise ValueError(err.VE_NEEDS_ND_CURRENCY_PARAMS.format(type(self).__name__))
+
+
+class ZeroFixedPeriod(_BasePeriodStatic):
+    @property
+    def rate_params(self) -> _FixedRateParams:
+        """The :class:`~rateslib.periods.components.parameters._FixedRateParams` of the *Period*."""
+        return self._rate_params
+
+    @property
+    def period_params(self) -> _PeriodParams:
+        """The :class:`~rateslib.periods.components.parameters._PeriodParams` of the *Period*."""
+        return self._period_params
+
+    @property
+    def schedule(self) -> Schedule:
+        """The :class:`~rateslib.scheduling.Schedule` object for this *Period*."""
+        return self._schedule
+
+    @cached_property
+    def dcf(self) -> float:
+        """An overload for the calculation of the DCF, replacing `period_params.dcf`."""
+        return sum(
+            dcf(
+                start=self.schedule.aschedule[i],
+                end=self.schedule.aschedule[i + 1],
+                convention=self.period_params.convention,
+                termination=self.schedule.aschedule[-1],
+                frequency=self.schedule.frequency_obj,
+                stub=self.schedule._stubs[i],
+                roll=NoInput(0),  # taken from Frequency obj
+                calendar=self.schedule.calendar,
+                adjuster=self.schedule.modifier,
+            )
+            for i in range(self.schedule.n_periods)
+        )
+
+    def __init__(
+        self,
+        *,
+        fixed_rate: DualTypes_ = NoInput(0),
+        schedule: Schedule,
+        # currency args:
+        notional: DualTypes_ = NoInput(0),
+        currency: str_ = NoInput(0),
+        # period params
+        convention: str_ = NoInput(0),
+        # non-deliverable args:
+        pair: str_ = NoInput(0),
+        fx_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+        delivery: datetime_ = NoInput(0),
+        # index-args:
+        index_base: DualTypes_ = NoInput(0),
+        index_lag: int_ = NoInput(0),
+        index_method: IndexMethod | str_ = NoInput(0),
+        index_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+        index_only: bool_ = NoInput(0),
+    ) -> None:
+        self._schedule = schedule
+        self._settlement_params = _init_SettlementParams_with_fx_pair(
+            _currency=_drb(defaults.base_currency, currency).lower(),
+            _payment=self.schedule.pschedule[-1],
+            _notional=_drb(defaults.notional, notional),
+            _ex_dividend=self.schedule.pschedule3[-1],
+            _fx_pair=pair,
+        )
+        self._non_deliverable_params = _init_or_none_NonDeliverableParams(
+            _currency=self.settlement_params.currency,
+            _pair=pair,
+            _delivery=_drb(self.settlement_params.payment, delivery),
+            _fx_fixings=fx_fixings,
+        )
+        self._period_params = _PeriodParams(
+            _start=self.schedule.aschedule[0],
+            _end=self.schedule.aschedule[-1],
+            _frequency=self.schedule.frequency_obj,
+            _calendar=self.schedule.calendar,
+            _adjuster=self.schedule.modifier,
+            _stub=True,
+            _convention=_get_convention(_drb(defaults.convention, convention)),
+            _termination=self.schedule.aschedule[-1],
+        )
+        self._index_params = _init_or_none_IndexParams(
+            _index_base=index_base,
+            _index_lag=index_lag,
+            _index_method=index_method,
+            _index_fixings=index_fixings,
+            _index_only=index_only,
+            _index_base_date=self.schedule.aschedule[0],
+            _index_reference_date=self.schedule.aschedule[-1],
+        )
+        self._rate_params = _FixedRateParams(fixed_rate)
+
+    def try_unindexed_reference_cashflow(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        **kwargs: Any,
+    ) -> Result[DualTypes]:
+        if isinstance(self.rate_params.fixed_rate, NoInput):
+            return Err(ValueError(err.VE_NEEDS_FIXEDRATE))
+        else:
+            f = self.schedule.periods_per_annum
+            return Ok(
+                -self.settlement_params.notional
+                * ((1 + self.rate_params.fixed_rate / (f * 100)) ** (self.dcf * f) - 1)
+            )
+
+    def try_unindexed_reference_cashflow_analytic_delta(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+    ) -> Result[DualTypes]:
+        if isinstance(self.rate_params.fixed_rate, NoInput):
+            return Err(ValueError(err.VE_NEEDS_FIXEDRATE))
+        else:
+            f = self.schedule.periods_per_annum
+            return Ok(
+                self.settlement_params.notional
+                * 0.0001
+                * self.dcf
+                * ((1 + self.rate_params.fixed_rate / (f * 100)) ** (self.dcf * f - 1))
+            )
+
+    def try_unindexed_reference_cashflow_analytic_rate_fixings(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+    ) -> Result[DataFrame]:
+        return Ok(DataFrame())
+
+    def cashflows(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+        base: str_ = NoInput(0),
+        settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
+    ) -> dict[str, Any]:
+        """
+        Return aggregated cashflow data for the *Period*.
+
+        .. warning::
+
+           This method is a convenience method to provide a visual representation of all
+           associated calculation data. Calling this method to extracting certain values
+           should be avoided. It is more efficient to source relevant parameters or calculations
+           from object attributes or other methods directly.
+
+        Parameters
+        ----------
+        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
+            Used to forecast floating period rates, if necessary.
+        index_curve: _BaseCurve, optional
+            Used to forecast index values for indexation, if necessary.
+        disc_curve: _BaseCurve, optional
+            Used to discount cashflows.
+        fx: FXForwards, optional
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting the
+            ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
+            :class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
+        fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
+            The FX volatility *Smile* or *Surface* object used for determining Black calendar
+            day implied volatility values.
+        base: str, optional
+            The currency to convert the *local settlement* NPV to.
+        settlement: datetime, optional
+            The assumed settlement date of the *PV* determination. Used only to evaluate
+            *ex-dividend* status.
+        forward: datetime, optional
+            The future date to project the *PV* to using the ``disc_curve``.
+
+        Returns
+        -------
+        dict of values
+        """
+        d = super().cashflows(
+            rate_curve=rate_curve,
+            index_curve=index_curve,
+            disc_curve=disc_curve,
+            settlement=settlement,
+            forward=forward,
+            base=base,
+        )
+        d[defaults.headers["dcf"]] = self.dcf  # reinsert the overload
+        return d

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from pandas import DataFrame
+
 import rateslib.errors as err
 from rateslib import defaults
 from rateslib.enums.generics import Err, NoInput, Ok, _drb
@@ -14,9 +16,7 @@ from rateslib.periods.components.parameters import (
 )
 from rateslib.periods.components.parameters.mtm import _MtmParams
 from rateslib.periods.components.protocols import (
-    _WithAnalyticDeltaStatic,
-    _WithAnalyticRateFixingsSensitivityStatic,
-    _WithNPVCashflowsStatic,
+    _BasePeriodStatic,
 )
 
 if TYPE_CHECKING:
@@ -26,6 +26,7 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXForwards_,
+        FXVolOption_,
         Result,
         Series,
         _BaseCurve_,
@@ -37,9 +38,7 @@ if TYPE_CHECKING:
     )
 
 
-class Cashflow(
-    _WithNPVCashflowsStatic, _WithAnalyticDeltaStatic, _WithAnalyticRateFixingsSensitivityStatic
-):
+class Cashflow(_BasePeriodStatic):
     r"""
     A *Period* defined by a specific amount.
 
@@ -194,6 +193,17 @@ class Cashflow(
     ) -> Result[DualTypes]:
         return Ok(0.0)
 
+    def try_unindexed_reference_cashflow_analytic_rate_fixings(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+    ) -> Result[DataFrame]:
+        return Ok(DataFrame())
+
 
 class NonDeliverableCashflow(Cashflow):
     def __init__(self, **kwargs: Any) -> None:
@@ -222,9 +232,7 @@ class NonDeliverableIndexCashflow(Cashflow):
             raise ValueError(err.VE_NEEDS_ND_CURRENCY_PARAMS.format(type(self).__name__))
 
 
-class MtmCashflow(
-    _WithNPVCashflowsStatic, _WithAnalyticDeltaStatic, _WithAnalyticRateFixingsSensitivityStatic
-):
+class MtmCashflow(_BasePeriodStatic):
     r"""
     A *Period* defined by a specific amount calculated from the difference between two
     :class:`~rateslib.data.fixings.FXFixing`.
@@ -412,3 +420,14 @@ class MtmCashflow(
         disc_curve: _BaseCurve_ = NoInput(0),
     ) -> Result[DualTypes]:
         return Ok(0.0)
+
+    def try_unindexed_reference_cashflow_analytic_rate_fixings(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+    ) -> Result[DataFrame]:
+        return Ok(DataFrame())
