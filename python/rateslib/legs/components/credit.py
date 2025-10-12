@@ -7,10 +7,9 @@ from rateslib.curves import index_left
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.legs.components.amortization import Amortization, _get_amortization
 from rateslib.legs.components.protocols import _BaseLeg
-from rateslib.periods.components import CreditPremiumPeriod, CreditProtectionPeriod
+from rateslib.periods.components import CreditPremiumPeriod, CreditProtectionPeriod, _BasePeriod
 
 if TYPE_CHECKING:
-    from rateslib.periods.components import Period
     from rateslib.typing import (  # pragma: no cover
         FX_,
         DualTypes,
@@ -76,9 +75,9 @@ class CreditPremiumLeg(_BaseLeg):
         return self._regular_periods[0].settlement_params
 
     @property
-    def periods(self) -> list[Period]:
+    def periods(self) -> list[CreditPremiumPeriod]:  # type: ignore[override]
         """Combine all period collection types into an ordered list."""
-        return self._regular_periods
+        return list(self._regular_periods)
 
     @property
     def fixed_rate(self) -> DualTypes_:
@@ -143,7 +142,7 @@ class CreditPremiumLeg(_BaseLeg):
 
         self._regular_periods = tuple(
             [
-                CreditPremiumPeriod(
+                CreditPremiumPeriod(  # type: ignore[abstract]
                     fixed_rate=fixed_rate,
                     premium_accrued=premium_accrued,
                     # currency args
@@ -227,9 +226,9 @@ class CreditProtectionLeg(_BaseLeg):
         return self._regular_periods[0].settlement_params
 
     @property
-    def periods(self) -> list[Period]:
+    def periods(self) -> list[CreditProtectionPeriod]:  # type: ignore[override]
         """Combine all period collection types into an ordered list."""
-        return self._regular_periods
+        return list(self._regular_periods)
 
     @property
     def schedule(self) -> Schedule:
@@ -260,7 +259,7 @@ class CreditProtectionLeg(_BaseLeg):
 
         self._regular_periods = tuple(
             [
-                CreditProtectionPeriod(
+                CreditProtectionPeriod(  # type: ignore[abstract]
                     # currency args
                     payment=self.schedule.pschedule[i + 1],
                     currency=self._currency,
@@ -308,5 +307,5 @@ class CreditProtectionLeg(_BaseLeg):
             )
             for period in self.periods
         )
-        ret: DualTypes = sum(_)
+        ret: float = sum(_)
         return ret

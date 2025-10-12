@@ -525,7 +525,7 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], _WithOperations, A
             else:
                 return Ok(self.meta.index_base * 1.0 / self.__getitem__(index_date))
         elif index_method == IndexMethod.Monthly:
-            index_date_ = add_tenor(index_date, f"-{lag_months}M", "none", NoInput(0), 1)
+            index_date_ = add_tenor(index_date, f"{lag_months * -1}M", "none", NoInput(0), 1)
             return self._try_index_value(
                 index_date=index_date_,
                 index_lag=self.meta.index_lag,

@@ -796,7 +796,7 @@ class IBORStubFixing(_BaseFixing):
                 )
                 if sample_end <= self.accrual_end and sample_end > left[1]:
                     left = (tenor, sample_end)
-                if sample_end >= self.accrual_end and sample_end < right[1]:
+                if sample_end > self.accrual_end and sample_end < right[1]:
                     right = (tenor, sample_end)
                     break
 
