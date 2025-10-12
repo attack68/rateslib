@@ -141,7 +141,7 @@ class _WithAnalyticFXOptionGreeks(Protocol):
         ------
         ValueError: if the ``strike`` is not set on the *Option*.
         """  # noqa: E501
-        return NotImplementedError(
+        raise NotImplementedError(
             "Type {type(self).__name__} has not implmented `anlaytic_greeks`."
         )
 

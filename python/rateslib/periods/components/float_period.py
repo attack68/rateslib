@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 import numpy as np
-from pandas import DataFrame, Index, MultiIndex, Series, merge
+from pandas import DataFrame, Index, MultiIndex, Series, concat, merge
 
 import rateslib.errors as err
 from rateslib import defaults
@@ -18,6 +19,7 @@ from rateslib.dual import Variable, gradient
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import Err, NoInput, Ok, _drb
 from rateslib.enums.parameters import FloatFixingMethod, IndexMethod, SpreadCompoundMethod
+from rateslib.legs.components.utils import _leg_fixings_to_list
 from rateslib.periods.components.float_rate import (
     try_rate_value,
 )
@@ -30,7 +32,7 @@ from rateslib.periods.components.parameters import (
 )
 from rateslib.periods.components.protocols import _BasePeriodStatic
 from rateslib.periods.utils import _get_rfr_curve_from_dict
-from rateslib.scheduling import Adjuster, Frequency, get_calendar
+from rateslib.scheduling import Adjuster, Frequency, dcf, get_calendar
 from rateslib.scheduling.adjuster import _get_adjuster
 from rateslib.scheduling.convention import _get_convention
 from rateslib.scheduling.frequency import _get_frequency, _get_tenor_from_frequency
@@ -49,6 +51,7 @@ if TYPE_CHECKING:
         Result,
         RFRFixing,
         RollDay,
+        Schedule,
         Series,
         _BaseCurve_,
         _FloatRateParams,
@@ -481,6 +484,253 @@ class NonDeliverableIndexFloatPeriod(FloatPeriod):
             raise ValueError(err.VE_NEEDS_ND_CURRENCY_PARAMS.format(type(self).__name__))
 
 
+class ZeroFloatPeriod(_BasePeriodStatic):
+    @property
+    def rate_params(self) -> _FloatRateParams:
+        """The :class:`~rateslib.periods.components.parameters._FixedRateParams` of the *Period*."""
+        return self._float_periods[0].rate_params
+
+    @property
+    def period_params(self) -> _PeriodParams:
+        """The :class:`~rateslib.periods.components.parameters._PeriodParams` of the *Period*."""
+        return self._period_params
+
+    @property
+    def schedule(self) -> Schedule:
+        """The :class:`~rateslib.scheduling.Schedule` object for this *Period*."""
+        return self._schedule
+
+    @cached_property
+    def dcf(self) -> float:
+        """An overload for the calculation of the DCF, replacing `period_params.dcf`."""
+        return sum(
+            dcf(
+                start=self.schedule.aschedule[i],
+                end=self.schedule.aschedule[i + 1],
+                convention=self.period_params.convention,
+                termination=self.schedule.aschedule[-1],
+                frequency=self.schedule.frequency_obj,
+                stub=self.schedule._stubs[i],
+                roll=NoInput(0),  # taken from Frequency obj
+                calendar=self.schedule.calendar,
+                adjuster=self.schedule.modifier,
+            )
+            for i in range(self.schedule.n_periods)
+        )
+
+    @property
+    def float_spread(self) -> DualTypes:
+        return self._float_periods[0].rate_params.float_spread
+
+    @float_spread.setter
+    def float_spread(self, value: DualTypes) -> None:
+        for period in self._float_periods:
+            period.rate_params.float_spread = value
+
+    def __init__(
+        self,
+        *,
+        float_spread: DualTypes_ = NoInput(0),
+        rate_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+        fixing_method: FloatFixingMethod | str_ = NoInput(0),
+        method_param: int_ = NoInput(0),
+        spread_compound_method: SpreadCompoundMethod | str_ = NoInput(0),
+        fixing_frequency: Frequency | str_ = NoInput(0),
+        fixing_series: FloatRateSeries | str_ = NoInput(0),
+        schedule: Schedule,
+        # currency args:
+        notional: DualTypes_ = NoInput(0),
+        currency: str_ = NoInput(0),
+        # period params
+        convention: str_ = NoInput(0),
+        # non-deliverable args:
+        pair: str_ = NoInput(0),
+        fx_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+        delivery: datetime_ = NoInput(0),
+        # index-args:
+        index_base: DualTypes_ = NoInput(0),
+        index_lag: int_ = NoInput(0),
+        index_method: IndexMethod | str_ = NoInput(0),
+        index_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+        index_only: bool_ = NoInput(0),
+    ) -> None:
+        self._schedule = schedule
+        self._settlement_params = _init_SettlementParams_with_fx_pair(
+            _currency=_drb(defaults.base_currency, currency).lower(),
+            _payment=self.schedule.pschedule[-1],
+            _notional=_drb(defaults.notional, notional),
+            _ex_dividend=self.schedule.pschedule3[-1],
+            _fx_pair=pair,
+        )
+        self._non_deliverable_params = _init_or_none_NonDeliverableParams(
+            _currency=self.settlement_params.currency,
+            _pair=pair,
+            _delivery=_drb(self.settlement_params.payment, delivery),
+            _fx_fixings=fx_fixings,
+        )
+        self._period_params = _PeriodParams(
+            _start=self.schedule.aschedule[0],
+            _end=self.schedule.aschedule[-1],
+            _frequency=self.schedule.frequency_obj,
+            _calendar=self.schedule.calendar,
+            _adjuster=self.schedule.modifier,
+            _stub=True,
+            _convention=_get_convention(_drb(defaults.convention, convention)),
+            _termination=self.schedule.aschedule[-1],
+        )
+        self._index_params = _init_or_none_IndexParams(
+            _index_base=index_base,
+            _index_lag=index_lag,
+            _index_method=index_method,
+            _index_fixings=index_fixings,
+            _index_only=index_only,
+            _index_base_date=self.schedule.aschedule[0],
+            _index_reference_date=self.schedule.aschedule[-1],
+        )
+        rate_fixings_ = _leg_fixings_to_list(rate_fixings, self.schedule.n_periods)
+        self._float_periods: list[FloatPeriod] = [
+            FloatPeriod(  # type: ignore[abstract]
+                float_spread=float_spread,
+                rate_fixings=rate_fixings_[i],
+                fixing_method=fixing_method,
+                method_param=method_param,
+                spread_compound_method=spread_compound_method,
+                fixing_frequency=fixing_frequency,
+                fixing_series=fixing_series,
+                # currency args:
+                payment=self.schedule.pschedule[i + 1],
+                notional=notional,
+                currency=currency,
+                ex_dividend=self.schedule.pschedule3[i + 1],
+                # period params
+                start=self.schedule.aschedule[i],
+                end=self.schedule.aschedule[i + 1],
+                frequency=self.schedule.frequency_obj,
+                convention=convention,
+                termination=self.schedule.aschedule[-1],
+                stub=self.schedule._stubs[i],
+                roll=NoInput(0),  # inferred from frequency obj
+                calendar=self.schedule.calendar,
+                adjuster=self.schedule.modifier,
+                # Each individual period is not genuine Period, only psuedo periods to derive the
+                # cashflow calculation so no 'non-deliverable' or 'index' params are required.
+            )
+            for i in range(self.schedule.n_periods)
+        ]
+
+    def try_rate(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        **kwargs: Any,
+    ) -> Result[DualTypes]:
+        try:
+            r_i = [period.rate(rate_curve=rate_curve) for period in self._float_periods]
+            d_i = [period.period_params.dcf for period in self._float_periods]
+        except Exception as e:
+            return Err(e)
+
+        f = self.schedule.periods_per_annum
+        r = np.prod(1.0 + np.array(r_i) * np.array(d_i) / 100.0)
+        r = r ** (1.0 / (self.dcf * f))
+        r = (r - 1) * f * 100.0
+        return Ok(r)
+
+    def rate(self, *, rate_curve: CurveOption_ = NoInput(0)) -> DualTypes:
+        return self.try_rate(rate_curve=rate_curve).unwrap()
+
+    def try_unindexed_reference_cashflow(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        **kwargs: Any,
+    ) -> Result[DualTypes]:
+        # determine each rate from individual Periods
+        try:
+            r_i = [period.rate(rate_curve=rate_curve) for period in self._float_periods]
+            d_i = [period.period_params.dcf for period in self._float_periods]
+        except Exception as e:
+            return Err(e)
+        r = np.prod(1.0 + np.array(r_i) * np.array(d_i) / 100.0) - 1.0
+        return Ok(-self.settlement_params.notional * r)
+
+    def try_unindexed_reference_cashflow_analytic_delta(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+    ) -> Result[DualTypes]:
+        try:
+            r_i = [period.rate(rate_curve=rate_curve) for period in self._float_periods]
+            d_i = [period.period_params.dcf for period in self._float_periods]
+            a_i = [
+                period.try_unindexed_reference_cashflow_analytic_delta(
+                    rate_curve=rate_curve, disc_curve=disc_curve
+                ).unwrap()
+                for period in self._float_periods
+            ]
+        except Exception as e:
+            return Err(e)
+
+        lhs = np.prod(1.0 + np.array(r_i) * np.array(d_i) / 100.0)
+        rhs = np.sum([a / (1 + r * d / 100.0) for (a, d, r) in zip(a_i, d_i, r_i, strict=False)])
+        return Ok(lhs * rhs)
+
+    def try_unindexed_reference_cashflow_analytic_rate_fixings(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+    ) -> Result[DataFrame]:
+        try:
+            r_i = [period.rate(rate_curve=rate_curve) for period in self._float_periods]
+            d_i = [period.period_params.dcf for period in self._float_periods]
+            dfs_i = [
+                period.try_unindexed_reference_cashflow_analytic_rate_fixings(
+                    rate_curve=rate_curve,
+                    disc_curve=disc_curve,
+                    fx=fx,
+                    fx_vol=fx_vol,
+                    index_curve=index_curve,
+                ).unwrap()
+                for period in self._float_periods
+            ]
+        except Exception as e:
+            return Err(e)
+
+        scalar = np.prod(1.0 + np.array(r_i) * np.array(d_i) / 100.0)
+        dfs = [
+            df * scalar / (1 + d * r / 100.0) for (df, d, r) in zip(dfs_i, d_i, r_i, strict=False)
+        ]
+        return Ok(concat(dfs))
+
+    def cashflows(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+        base: str_ = NoInput(0),
+        settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
+    ) -> dict[str, Any]:
+        d = super().cashflows(
+            rate_curve=rate_curve,
+            index_curve=index_curve,
+            disc_curve=disc_curve,
+            settlement=settlement,
+            forward=forward,
+            base=base,
+        )
+        d[defaults.headers["dcf"]] = self.dcf  # reinsert the overload
+        return d
+
+
 # class _FixingsExposureCalculator:
 #     @classmethod
 #     def rfr(
@@ -651,7 +901,7 @@ class NonDeliverableIndexFloatPeriod(FloatPeriod):
 #                 rate=r_star - z,
 #                 dcf=p.period_params.dcf,
 #             )
-#             drdri = di / (1 + di * (r_bar + z) / 100.0) * (r_star / 100.0 * d + 1) / d  # type: ignore[operator]
+#             drdri = di / (1 + di * (r_bar + z) / 100.0) * (r_star / 100.0 * d + 1) / d
 #         # elif spread_compound_method == SpreadCompoundMethod.ISDAFlatCompounding:
 #         #     r_star = ((1 + d_bar * (r_bar + z) / 100.0) ** n - 1) * 100.0 / (n * d_bar)
 #         #     drdri1 = di / (1 + di * (r_bar + z) / 100.0) * ((r_star / 100.0 * d) + 1) / d
@@ -1060,14 +1310,14 @@ class _UnindexedReferenceCashflowFixingsSensitivity:
             unpopulated = rf.unpopulated
             populated = rf.populated
             r_i = Series(index=rf.dates_obs[:-1], data=np.nan, dtype=object)
-            r_i.update(populated)  #
+            r_i.update(populated)  #  type: ignore[arg-type]
             # determine the rate for the period, from the curve if necessary
             if unpopulated.index[0] < rate_curve.nodes.initial:
                 raise ValueError(err.VE_BEFORE_INITIAL)
             _RFRRate._forecast_fixing_rates_from_curve(
                 unpopulated=unpopulated,
                 populated=populated,
-                fixing_rates=r_i,
+                fixing_rates=r_i,  # type: ignore[arg-type]
                 rate_curve=rate_curve,
                 dates_obs=rf.dates_obs,
                 dcfs_obs=rf.dcfs_obs,
