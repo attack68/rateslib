@@ -7,7 +7,7 @@ from rateslib.scheduling import Schedule
 
 class TestFixedLeg:
     def test_init(self):
-        l = FixedLeg(
+        FixedLeg(
             schedule=Schedule(
                 effective=dt(2000, 1, 1),
                 termination=dt(2001, 1, 1),
@@ -22,4 +22,3 @@ class TestFixedLeg:
             final_exchange=True,
             initial_exchange=True,
         )
-        pass

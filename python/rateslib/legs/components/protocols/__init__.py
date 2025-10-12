@@ -23,4 +23,5 @@ __all__ = [
     "_WithCashflows",
     "_WithAnalyticDelta",
     "_WithAnalyticRateFixingsSensitivity",
+    "_BaseLeg",
 ]

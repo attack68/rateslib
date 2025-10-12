@@ -21,6 +21,7 @@ from rateslib.periods.components import (
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
+        FX_,
         CurveOption_,
         DualTypes,
         DualTypes_,
@@ -111,6 +112,9 @@ class FixedLeg(_BaseLeg):
         The index value for the reference date.
         Best practice is to supply this value as string identifier relating to the global
         ``fixings`` object.
+    index_only: bool, :green:`optional (set as False)`
+        A flag which indicates that the nominal amount is deducted from the cashflow leaving only
+        the indexed up quantity.
 
     Notes
     -----
@@ -423,9 +427,9 @@ class FixedLeg(_BaseLeg):
 
         args: tuple[tuple[_BasePeriod], ...] = (self._regular_periods[:-1],)  # type: ignore[assignment]
         if self._mtm_exchange_periods is not None:
-            args += (self._mtm_exchange_periods,)
+            args = args + (self._mtm_exchange_periods,)  # type: ignore[operator]
         if self._interim_exchange_periods is not None:
-            args += (self._interim_exchange_periods,)
+            args = args + (self._interim_exchange_periods,)  # type: ignore[operator]
         interleaved_periods_: list[_BasePeriod] = [
             item for combination in zip(*args, strict=True) for item in combination
         ]
@@ -477,6 +481,7 @@ class FixedLeg(_BaseLeg):
         index_lag: int_ = NoInput(0),
         index_method: IndexMethod | str_ = NoInput(0),
         index_fixings: Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+        index_only: bool = False,
     ) -> None:
         self._fixed_rate = fixed_rate
         self._schedule = schedule
@@ -493,7 +498,7 @@ class FixedLeg(_BaseLeg):
         if not initial_exchange:
             _ini_cf: Cashflow | None = None
         else:
-            _ini_cf = Cashflow(
+            _ini_cf = Cashflow(  # type: ignore[abstract]
                 payment=self.schedule.pschedule2[0],
                 notional=-self._amortization.outstanding[0],
                 currency=self._currency,
@@ -509,12 +514,13 @@ class FixedLeg(_BaseLeg):
                 index_fixings=index_fixings_[0],
                 index_base_date=self.schedule.aschedule[0],
                 index_reference_date=self.schedule.aschedule[0],
+                index_only=index_only,
             )
         final_exchange_ = final_exchange or initial_exchange
         if not final_exchange_:
             _final_cf: Cashflow | None = None
         else:
-            _final_cf = Cashflow(
+            _final_cf = Cashflow(  # type: ignore[abstract]
                 payment=self.schedule.pschedule2[-1],
                 notional=self._amortization.outstanding[-1],
                 currency=self._currency,
@@ -530,6 +536,7 @@ class FixedLeg(_BaseLeg):
                 index_fixings=index_fixings_[-1],
                 index_base_date=self.schedule.aschedule[0],
                 index_reference_date=self.schedule.aschedule[-1],
+                index_only=index_only,
             )
         self._exchange_periods = (_ini_cf, _final_cf)
 
@@ -545,9 +552,9 @@ class FixedLeg(_BaseLeg):
                     # then ND type is IRS
                     return self.schedule.pschedule[i + 1]
 
-        self._regular_periods = tuple(
+        self._regular_periods: tuple[FixedPeriod, ...] = tuple(
             [
-                FixedPeriod(
+                FixedPeriod(  # type: ignore[abstract]
                     fixed_rate=fixed_rate,
                     # currency args
                     payment=self.schedule.pschedule[i + 1],
@@ -575,6 +582,7 @@ class FixedLeg(_BaseLeg):
                     index_fixings=index_fixings_[i],
                     index_base_date=self.schedule.aschedule[0],
                     index_reference_date=self.schedule.aschedule[i + 1],
+                    index_only=index_only,
                 )
                 for i in range(self.schedule.n_periods)
             ]
@@ -582,12 +590,12 @@ class FixedLeg(_BaseLeg):
 
         # amortization exchanges
         if not final_exchange_ or self.amortization._type == _AmortizationType.NoAmortization:
-            self._interim_exchange_periods: tuple[Cashflow, ...] | None = None
+            self._interim_exchange_periods: tuple[_BasePeriod, ...] | None = None
         else:
             # only with notional exchange and some Amortization amount
             self._interim_exchange_periods = tuple(
                 [
-                    Cashflow(
+                    Cashflow(  # type: ignore[abstract]
                         notional=self.amortization.amortization[i],
                         payment=self.schedule.pschedule2[i + 1],
                         currency=self._currency,
@@ -605,6 +613,7 @@ class FixedLeg(_BaseLeg):
                         index_fixings=index_fixings_[i],
                         index_base_date=self.schedule.aschedule[0],
                         index_reference_date=self.schedule.aschedule[i + 1],
+                        index_only=index_only,
                     )
                     for i in range(self.schedule.n_periods - 1)
                 ]
@@ -614,9 +623,9 @@ class FixedLeg(_BaseLeg):
         if mtm and final_exchange_:
             if isinstance(pair, NoInput):
                 raise ValueError(err.VE_PAIR_AND_LEG_MTM)
-            self._mtm_exchange_periods: tuple[MtmCashflow, ...] | None = tuple(
+            self._mtm_exchange_periods: tuple[_BasePeriod, ...] | None = tuple(
                 [
-                    MtmCashflow(
+                    MtmCashflow(  # type: ignore[abstract]
                         payment=self.schedule.pschedule2[i + 1],
                         notional=-self.amortization.outstanding[i],
                         pair=pair,
@@ -633,6 +642,7 @@ class FixedLeg(_BaseLeg):
                         index_fixings=index_fixings_[i],
                         index_base_date=self.schedule.aschedule[0],
                         index_reference_date=self.schedule.aschedule[i + 1],
+                        index_only=index_only,
                     )
                     for i in range(self.schedule.n_periods - 1)
                 ]
@@ -685,7 +695,7 @@ class ZeroFixedLeg(_BaseLeg):
         currency: str_ = NoInput(0),
         # non-deliverable
         pair: str_ = NoInput(0),
-        fx_fixings: LegFixings = NoInput(0),  # type: ignore[type-var]
+        fx_fixings: LegFixings = NoInput(0),
         mtm: bool = False,
         # period
         convention: str_ = NoInput(0),
@@ -696,6 +706,7 @@ class ZeroFixedLeg(_BaseLeg):
         index_lag: int_ = NoInput(0),
         index_method: IndexMethod | str_ = NoInput(0),
         index_fixings: Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+        index_only: bool = False,
     ) -> None:
         self._schedule = schedule
         if self.schedule.frequency == "Z":
@@ -716,7 +727,7 @@ class ZeroFixedLeg(_BaseLeg):
         if not initial_exchange:
             _ini_cf: Cashflow | None = None
         else:
-            _ini_cf = Cashflow(
+            _ini_cf = Cashflow(  # type: ignore[abstract]
                 payment=self.schedule.pschedule2[0],
                 notional=-self._amortization.outstanding[0],
                 currency=self._currency,
@@ -732,12 +743,13 @@ class ZeroFixedLeg(_BaseLeg):
                 index_fixings=index_fixings_[0],
                 index_base_date=self.schedule.aschedule[0],
                 index_reference_date=self.schedule.aschedule[0],
+                index_only=index_only,
             )
         final_exchange_ = final_exchange or initial_exchange
         if not final_exchange_:
             _final_cf: Cashflow | None = None
         else:
-            _final_cf = Cashflow(
+            _final_cf = Cashflow(  # type: ignore[abstract]
                 payment=self.schedule.pschedule2[-1],
                 notional=self._amortization.outstanding[-1],
                 currency=self._currency,
@@ -750,35 +762,35 @@ class ZeroFixedLeg(_BaseLeg):
                 index_base=index_base,
                 index_lag=index_lag,
                 index_method=index_method,
-                index_fixings=index_fixings_[-1],
+                index_fixings=index_fixings_[0],
                 index_base_date=self.schedule.aschedule[0],
                 index_reference_date=self.schedule.aschedule[-1],
+                index_only=index_only,
             )
         self._exchange_periods = (_ini_cf, _final_cf)
 
-        self._regular_periods = tuple(
-            [
-                ZeroFixedPeriod(
-                    fixed_rate=NoInput(0),
-                    schedule=self.schedule,
-                    # currency args
-                    currency=self._currency,
-                    notional=self._notional,
-                    # period params
-                    convention=self._convention,
-                    # non-deliverable : Not allowed with notional exchange
-                    pair=pair,
-                    fx_fixings=fx_fixings_[0],
-                    delivery=self.schedule.pschedule2[0]
-                    if (not mtm or final_exchange)
-                    else self.schedule.pschedule2[-1],
-                    # index params
-                    index_base=index_base,
-                    index_lag=index_lag,
-                    index_method=index_method,
-                    index_fixings=index_fixings_[0],
-                )
-            ]
+        self._regular_periods = (
+            ZeroFixedPeriod(  # type: ignore[abstract]
+                fixed_rate=NoInput(0),
+                schedule=self.schedule,
+                # currency args
+                currency=self._currency,
+                notional=self._notional,
+                # period params
+                convention=self._convention,
+                # non-deliverable : Not allowed with notional exchange
+                pair=pair,
+                fx_fixings=fx_fixings_[0],
+                delivery=self.schedule.pschedule2[0]
+                if (not mtm or final_exchange)
+                else self.schedule.pschedule2[-1],
+                # index params
+                index_base=index_base,
+                index_lag=index_lag,
+                index_method=index_method,
+                index_fixings=index_fixings_[0],
+                index_only=index_only,
+            ),
         )
 
         self.fixed_rate = fixed_rate
@@ -792,6 +804,129 @@ class ZeroFixedLeg(_BaseLeg):
         self._fixed_rate = value
         for period in self._regular_periods:
             period.rate_params.fixed_rate = value
+
+    def _spread(
+        self,
+        target_npv: DualTypes,
+        fore_curve: CurveOption_,
+        disc_curve: CurveOption_,
+        fx: FX_ = NoInput(0),
+    ) -> DualTypes:
+        """
+        Overload the _spread calc to use analytic delta based on period rate
+        """
+        a_delta = self._analytic_delta(fore_curve, disc_curve, fx, self.currency)
+        period_rate = -target_npv / (a_delta * 100)
+        f = self.schedule.periods_per_annum
+        _: DualTypes = f * ((1 + period_rate * self.dcf / 100) ** (1 / (self.dcf * f)) - 1)
+        return _ * 10000
+
+
+class ZeroIndexLeg(_BaseLeg):
+    """
+    Create a zero coupon fixed leg composed of a single
+    :class:`~rateslib.periods.FixedPeriod` .
+
+    """
+
+    @property
+    def settlement_params(self) -> _SettlementParams:
+        """The :class:`~rateslib.periods.components.parameters._SettlementParams` associated with
+        the first :class:`~rateslib.periods.components.FloatPeriod`."""
+        return self._regular_periods[0].settlement_params
+
+    @cached_property
+    def periods(self) -> list[_BasePeriod]:
+        """Combine all period collection types into an ordered list."""
+        periods_: list[_BasePeriod] = []
+
+        if self._exchange_periods[0] is not None:
+            periods_.append(self._exchange_periods[0])
+        periods_.extend(self._regular_periods)
+
+        return periods_
+
+    @property
+    def schedule(self) -> Schedule:
+        return self._schedule
+
+    @property
+    def amortization(self) -> Amortization:
+        return self._amortization
+
+    def __init__(
+        self,
+        schedule: Schedule,
+        *,
+        # settlement and currency
+        notional: DualTypes_ = NoInput(0),
+        currency: str_ = NoInput(0),
+        # non-deliverable
+        pair: str_ = NoInput(0),
+        fx_fixings: LegFixings = NoInput(0),
+        mtm: bool = False,
+        # period
+        convention: str_ = NoInput(0),
+        initial_exchange: bool = False,
+        final_exchange: bool = False,
+        # index params
+        index_base: DualTypes_ = NoInput(0),
+        index_lag: int_ = NoInput(0),
+        index_method: IndexMethod | str_ = NoInput(0),
+        index_fixings: Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+    ) -> None:
+        self._schedule = schedule
+        self._notional: DualTypes = _drb(defaults.notional, notional)
+        self._currency: str = _drb(defaults.base_currency, currency).lower()
+        self._convention: str = _drb(defaults.convention, convention)
+        self._amortization = Amortization(n=self.schedule.n_periods, initial=self._notional)
+
+        index_fixings_ = _leg_fixings_to_list(index_fixings, self.schedule.n_periods)
+        fx_fixings_ = _leg_fixings_to_list(fx_fixings, self.schedule.n_periods)
+
+        # Exchange periods
+        if not initial_exchange:
+            _ini_cf: Cashflow | None = None
+        else:
+            _ini_cf = Cashflow(  # type: ignore[abstract]
+                payment=self.schedule.pschedule2[0],
+                notional=-self._amortization.outstanding[0],
+                currency=self._currency,
+                ex_dividend=self.schedule.pschedule3[0],
+                # non-deliverable
+                pair=pair,
+                fx_fixings=fx_fixings_[0],
+                delivery=self.schedule.pschedule2[0],
+                # index params
+                index_base=index_base,
+                index_lag=index_lag,
+                index_method=index_method,
+                index_fixings=index_fixings_[0],
+                index_base_date=self.schedule.aschedule[0],
+                index_reference_date=self.schedule.aschedule[0],
+                index_only=False,  #  is only True if there is not final exchange
+            )
+        final_exchange_ = final_exchange or initial_exchange
+        _final_cf = Cashflow(  # type: ignore[abstract]
+            payment=self.schedule.pschedule2[-1],
+            notional=self._amortization.outstanding[-1],
+            currency=self._currency,
+            ex_dividend=self.schedule.pschedule3[-1],
+            # non-deliverable
+            pair=pair,
+            fx_fixings=fx_fixings_[0] if not mtm else fx_fixings_[-1],
+            delivery=self.schedule.pschedule2[0] if not mtm else self.schedule.pschedule2[-2],
+            # index parameters
+            index_base=index_base,
+            index_lag=index_lag,
+            index_method=index_method,
+            index_fixings=index_fixings_[0],
+            index_base_date=self.schedule.aschedule[0],
+            index_reference_date=self.schedule.aschedule[-1],
+            index_only=not final_exchange_,
+        )
+        self._exchange_periods = (_ini_cf,)
+        self._regular_periods = (_final_cf,)
 
     def _spread(
         self,

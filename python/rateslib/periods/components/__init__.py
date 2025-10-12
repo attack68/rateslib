@@ -20,6 +20,7 @@ from rateslib.periods.components.float_period import (
     IndexFloatPeriod,
     NonDeliverableFloatPeriod,
     NonDeliverableIndexFloatPeriod,
+    ZeroFloatPeriod,
 )
 from rateslib.periods.components.fx_volatility import FXCallPeriod, FXOptionPeriod, FXPutPeriod
 from rateslib.periods.components.protocols import _BasePeriod, _BasePeriodStatic
@@ -46,4 +47,5 @@ __all__ = [
     "CreditPremiumPeriod",
     "CreditProtectionPeriod",
     "ZeroFixedPeriod",
+    "ZeroFloatPeriod",
 ]
