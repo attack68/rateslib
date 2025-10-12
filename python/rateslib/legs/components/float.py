@@ -384,7 +384,7 @@ class FloatLeg(_BaseLeg):
         target_npv : float, Dual or Dual2
             The target NPV that an adjustment to the parameter will achieve. **Must
             be in local currency of the leg.**
-        fore_curve : Curve or LineCurve
+        rate_curve : Curve or LineCurve
             The forecast curve passed to analytic delta calculation.
         disc_curve : Curve
             The discounting curve passed to analytic delta calculation.
@@ -415,8 +415,8 @@ class FloatLeg(_BaseLeg):
             a_delta: DualTypes = self.analytic_delta(  # type: ignore[assignment]
                 rate_curve=rate_curve,
                 disc_curve=disc_curve,
+                index_curve=index_curve,
                 fx=fx,
-                base=self.settlement_params.currency,
             )
             return -target_npv / a_delta
         else:
@@ -446,9 +446,11 @@ class FloatLeg(_BaseLeg):
             result = ift_1dim(
                 s=s,
                 s_tgt=target_npv,
-                h="modified_brent",
-                ini_h_args=(-10000, 10000),
-                func_tol=1e-9,
+                h="ytm_quadratic",
+                ini_h_args=(-300, 300, 1200),
+                # h="modified_brent",
+                # ini_h_args=(-10000, 10000),
+                func_tol=1e-6,
                 conv_tol=1e-6,
             )
 
