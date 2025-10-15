@@ -7,7 +7,7 @@ from rateslib.curves import index_left
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.legs.components.amortization import Amortization, _get_amortization
 from rateslib.legs.components.protocols import _BaseLeg
-from rateslib.periods.components import CreditPremiumPeriod, CreditProtectionPeriod, _BasePeriod
+from rateslib.periods.components import CreditPremiumPeriod, CreditProtectionPeriod
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
@@ -19,6 +19,7 @@ if TYPE_CHECKING:
         _SettlementParams,
         datetime,
         str_,
+        bool_,
     )
 
 
@@ -123,7 +124,7 @@ class CreditPremiumLeg(_BaseLeg):
         schedule: Schedule,
         *,
         fixed_rate: NoInput = NoInput(0),
-        premium_accrued: bool = NoInput(0),
+        premium_accrued: bool_ = NoInput(0),
         # settlement and currency
         notional: DualTypes_ = NoInput(0),
         amortization: DualTypes_ | list[DualTypes] | Amortization | str = NoInput(0),

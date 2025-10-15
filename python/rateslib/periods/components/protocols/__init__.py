@@ -18,13 +18,13 @@ from rateslib.periods.components.protocols.analytic_fixings import (
 )
 from rateslib.periods.components.protocols.analytic_greeks import _WithAnalyticFXOptionGreeks
 from rateslib.periods.components.protocols.cashflows import (
-    _WithNPVCashflows,
-    _WithNPVCashflowsStatic,
+    _WithCashflows,
+    _WithCashflowsStatic,
 )
 
 
 class _BasePeriod(
-    _WithNPVCashflows,
+    _WithCashflows,
     _WithAnalyticDelta,
     _WithAnalyticRateFixings,
     _WithAnalyticFXOptionGreeks,
@@ -36,7 +36,7 @@ class _BasePeriod(
 
 
 class _BasePeriodStatic(
-    _WithNPVCashflowsStatic,
+    _WithCashflowsStatic,
     _WithAnalyticDeltaStatic,
     _WithAnalyticRateFixingsStatic,
     _BasePeriod,
@@ -49,16 +49,14 @@ class _BasePeriodStatic(
 
 __all__ = [
     "_WithNPV",
-    "_WithNPVCashflows",
+    "_WithCashflows",
     "_WithAnalyticDelta",
     "_WithAnalyticRateFixings",
     "_WithAnalyticFXOptionGreeks",
     "_WithNPVStatic",
-    "_WithNPVCashflowsStatic",
+    "_WithCashflowsStatic",
     "_WithAnalyticDeltaStatic",
     "_WithAnalyticRateFixingsStatic",
     "_WithIndexingStatic",
     "_WithNonDeliverableStatic",
-    "_BasePeriodStatic",
-    "_BasePeriod",
 ]

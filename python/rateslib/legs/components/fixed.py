@@ -5,12 +5,12 @@ from typing import TYPE_CHECKING
 
 import rateslib.errors as err
 from rateslib import defaults
+from rateslib.data.fixings import _leg_fixings_to_list
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.legs.components.amortization import Amortization, _AmortizationType, _get_amortization
 from rateslib.legs.components.protocols import (
     _BaseLeg,
 )
-from rateslib.legs.components.utils import _leg_fixings_to_list
 from rateslib.periods.components import (
     Cashflow,
     FixedPeriod,
@@ -428,8 +428,8 @@ class FixedLeg(_BaseLeg):
         args: tuple[tuple[_BasePeriod], ...] = (self._regular_periods[:-1],)  # type: ignore[assignment]
         if self._mtm_exchange_periods is not None:
             args = args + (self._mtm_exchange_periods,)  # type: ignore[operator]
-        if self._interim_exchange_periods is not None:
-            args = args + (self._interim_exchange_periods,)  # type: ignore[operator]
+        if self._amortization_exchange_periods is not None:
+            args = args + (self._amortization_exchange_periods,)  # type: ignore[operator]
         interleaved_periods_: list[_BasePeriod] = [
             item for combination in zip(*args, strict=True) for item in combination
         ]
@@ -590,10 +590,10 @@ class FixedLeg(_BaseLeg):
 
         # amortization exchanges
         if not final_exchange_ or self.amortization._type == _AmortizationType.NoAmortization:
-            self._interim_exchange_periods: tuple[_BasePeriod, ...] | None = None
+            self._amortization_exchange_periods: tuple[_BasePeriod, ...] | None = None
         else:
             # only with notional exchange and some Amortization amount
-            self._interim_exchange_periods = tuple(
+            self._amortization_exchange_periods = tuple(
                 [
                     Cashflow(  # type: ignore[abstract]
                         notional=self.amortization.amortization[i],

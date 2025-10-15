@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Protocol
 
 from rateslib.curves import _BaseCurve
 from rateslib.curves._parsers import (
+    _disc_required_maybe_from_curve,
     _try_disc_required_maybe_from_curve,
 )
 from rateslib.enums.generics import Err, NoInput, Ok
@@ -101,13 +102,15 @@ class _WithNPV(Protocol):
 
     .. autosummary::
 
-      ~_WithNPV.try_immediate_local_npv
+      ~_WithNPV.immediate_local_npv
 
     .. rubric:: Provided methods
 
     .. autosummary::
 
       ~_WithNPV.try_local_npv
+      ~_WithNPV.try_immediate_local_npv
+      ~_WithNPV.local_npv
       ~_WithNPV.npv
 
     Notes
@@ -131,7 +134,7 @@ class _WithNPV(Protocol):
     def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
-    def try_immediate_local_npv(
+    def immediate_local_npv(
         self,
         *,
         rate_curve: CurveOption_ = NoInput(0),
@@ -139,10 +142,9 @@ class _WithNPV(Protocol):
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
-    ) -> Result[DualTypes]:
+    ) -> DualTypes:
         r"""
-        Calculate the immediate NPV of the *Period* in local settlement currency, with lazy error
-        raising.
+        Calculate the immediate NPV of the *Period* in local settlement currency.
 
         This method does **not** adjust for ex-dividend and is an immediate measure according to,
 
@@ -170,9 +172,43 @@ class _WithNPV(Protocol):
         -------
         Result[float, Dual, Dual2, Variable]
         """  # noqa: E501
+        raise NotImplementedError(
+            f"Period type '{type(self).__name__}' must implement `immediate_local_npv`"
+        )
+
+    def try_immediate_local_npv(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+    ) -> Result[DualTypes]:
+        r"""
+        Replicate :meth:`~rateslib.periods.components.protocols._WithNPV.immediate_local_npv` with
+        lazy exception handling.
+
+        Returns
+        -------
+        Result[float, Dual, Dual2, Variable]
+        """
+        try:
+            v = self.immediate_local_npv(
+                rate_curve=rate_curve,
+                index_curve=index_curve,
+                disc_curve=disc_curve,
+                fx_vol=fx_vol,
+                fx=fx,
+            )
+        except Exception as e:
+            return Err(e)
+        else:
+            return Ok(v)
+
         pass
 
-    def try_local_npv(
+    def local_npv(
         self,
         *,
         rate_curve: CurveOption_ = NoInput(0),
@@ -182,9 +218,9 @@ class _WithNPV(Protocol):
         fx_vol: FXVolOption_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
-    ) -> Result[DualTypes]:
+    ) -> DualTypes:
         r"""
-        Calculate the NPV of the *Period* in local settlement currency, with lazy error raising.
+        Calculate the NPV of the *Period* in local settlement currency.
 
         This method adjusts the immediate NPV for ex-dividend and forward projected value,
         according to,
@@ -218,9 +254,9 @@ class _WithNPV(Protocol):
 
         Returns
         -------
-        Result[float, Dual, Dual2, Variable]
+        float, Dual, Dual2, Variable
         """  # noqa: E501
-        local_immediate_npv_res = self.try_immediate_local_npv(
+        local_immediate_npv = self.immediate_local_npv(
             rate_curve=rate_curve,
             index_curve=index_curve,
             disc_curve=disc_curve,
@@ -228,13 +264,47 @@ class _WithNPV(Protocol):
             fx_vol=fx_vol,
         )
         return _screen_ex_div_and_forward(
-            local_value=local_immediate_npv_res,
+            local_value=Ok(local_immediate_npv),
             rate_curve=rate_curve,
             disc_curve=disc_curve,
             ex_dividend=self.settlement_params.ex_dividend,
             settlement=settlement,
             forward=forward,
-        )
+        ).unwrap()
+
+    def try_local_npv(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+        settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
+    ) -> Result[DualTypes]:
+        r"""
+        Replicate :meth:`~rateslib.periods.components.protocols._WithNPV.local_npv` with lazy
+        exception handling.
+
+        Returns
+        -------
+        Result[float, Dual, Dual2, Variable]
+        """
+        try:
+            v = self.local_npv(
+                rate_curve=rate_curve,
+                index_curve=index_curve,
+                disc_curve=disc_curve,
+                settlement=settlement,
+                forward=forward,
+                fx_vol=fx_vol,
+                fx=fx,
+            )
+        except Exception as e:
+            return Err(e)
+        else:
+            return Ok(v)
 
     def npv(
         self,
@@ -304,7 +374,7 @@ class _WithNPV(Protocol):
         for this conversion although best practice does not recommend it due to possible
         settlement date conflicts.
         """
-        local_npv = self.try_local_npv(
+        local_npv = self.local_npv(
             rate_curve=rate_curve,
             index_curve=index_curve,
             disc_curve=disc_curve,
@@ -312,7 +382,7 @@ class _WithNPV(Protocol):
             fx_vol=fx_vol,
             settlement=settlement,
             forward=forward,
-        ).unwrap()
+        )
         return _maybe_local(
             value=local_npv, local=local, currency=self.settlement_params.currency, fx=fx, base=base
         )
@@ -340,13 +410,13 @@ class _WithIndexingStatic(Protocol):
         """
         return self.index_params is not None
 
-    def try_index_up(self, value: Result[DualTypes], index_curve: _BaseCurve_) -> Result[DualTypes]:
+    def index_up(self, value: DualTypes, index_curve: _BaseCurve_) -> DualTypes:
         """
-        Apply indexation to a *Static Period* using its ``index_params``, with lazy error raising.
+        Apply indexation to a *Static Period* value using its ``index_params``.
 
         Parameters
         ----------
-        value: Result[float, Dual, Dual2, Variable]
+        value: float, Dual, Dual2, Variable
             The possible value to apply indexation to.
         index_curve: _BaseCurve, optional
             The index curve used to forecast index values, if necessary.
@@ -355,24 +425,34 @@ class _WithIndexingStatic(Protocol):
         -------
         Result[float, Dual, Dual2, Variable]
         """
-        if not self.is_indexed:
+        if self.index_params is None:
             # then no indexation of the cashflow will occur.
             return value
         else:
-            if value.is_err:
-                return value
-
-            value_: DualTypes = value.unwrap()
-            assert isinstance(self.index_params, _IndexParams)  # noqa: S101
-            i = self.index_params.try_index_ratio(index_curve)
-            if i.is_err:
-                return i  # type: ignore[return-value]
-
-            i_: DualTypes = i.unwrap()[0]
+            ir = self.index_params.try_index_ratio(index_curve).unwrap()[0]
             if self.index_params.index_only:
-                return Ok(value_ * (i_ - 1))
+                return value * (ir - 1)
             else:
-                return Ok(value_ * i_)
+                return value * ir
+
+    def try_index_up(self, value: Result[DualTypes], index_curve: _BaseCurve_) -> Result[DualTypes]:
+        r"""
+        Replicate :meth:`~rateslib.periods.components.protocols._WithIndexingStatic.index_up`
+        with lazy exception handling.
+
+        Returns
+        -------
+        Result[float, Dual, Dual2, Variable]
+        """
+        try:
+            v = self.index_up(
+                value=value.unwrap(),
+                index_curve=index_curve,
+            )
+        except Exception as e:
+            return Err(e)
+        else:
+            return Ok(v)
 
 
 class _WithNonDeliverableStatic(Protocol):
@@ -399,9 +479,7 @@ class _WithNonDeliverableStatic(Protocol):
         """
         return self.non_deliverable_params is not None
 
-    def try_convert_deliverable(
-        self, value: Result[DualTypes], fx: FXForwards_
-    ) -> Result[DualTypes]:
+    def convert_deliverable(self, value: DualTypes, fx: FXForwards_) -> DualTypes:
         """
         Apply settlement currency conversion to a *Static Period* using its
         ``non_deliverable_params``, with lazy error raising.
@@ -421,17 +499,30 @@ class _WithNonDeliverableStatic(Protocol):
             # then cashflow is directly deliverable
             return value
         else:
-            if value.is_err:
-                return value
+            fx_fix = self.non_deliverable_params.fx_fixing.try_value_or_forecast(fx).unwrap()
+            c = value * (fx_fix if not self.non_deliverable_params.fx_reversed else (1.0 / fx_fix))
+            return c
 
-            value_: DualTypes = value.unwrap()
-            fx_fix_res = self.non_deliverable_params.fx_fixing.try_value_or_forecast(fx)
-            if fx_fix_res.is_err:
-                return fx_fix_res
-            else:
-                fx_fix = fx_fix_res.unwrap()
-            c = value_ * (fx_fix if not self.non_deliverable_params.fx_reversed else (1.0 / fx_fix))
-            return Ok(c)
+    def try_convert_deliverable(
+        self, value: Result[DualTypes], fx: FXForwards_
+    ) -> Result[DualTypes]:
+        r"""
+        Replicate :meth:`~rateslib.periods.components.protocols._WithNonDeliverable.convert_deliverable`
+        with lazy exception handling.
+
+        Returns
+        -------
+        Result[float, Dual, Dual2, Variable]
+        """
+        try:
+            v = self.convert_deliverable(
+                value=value.unwrap(),
+                fx=fx,
+            )
+        except Exception as e:
+            return Err(e)
+        else:
+            return Ok(v)
 
 
 class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, Protocol):
@@ -442,17 +533,23 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
 
     .. autosummary::
 
-       ~_WithNPVStatic.try_unindexed_reference_cashflow
+       ~_WithNPVStatic.unindexed_reference_cashflow
 
     .. rubric:: Provided methods
 
     .. autosummary::
 
+       ~_WithNPVStatic.try_unindexed_reference_cashflow
        ~_WithNPVStatic.try_reference_cashflow
        ~_WithNPVStatic.try_unindexed_cashflow
        ~_WithNPVStatic.try_cashflow
        ~_WithNPVStatic.try_immediate_local_npv
        ~_WithNPVStatic.try_local_npv
+       ~_WithNPVStatic.reference_cashflow
+       ~_WithNPVStatic.unindexed_cashflow
+       ~_WithNPVStatic.cashflow
+       ~_WithNPVStatic.immediate_local_npv
+       ~_WithNPVStatic.local_npv
        ~_WithNPVStatic.npv
 
     Notes
@@ -472,7 +569,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
     """
 
     # required by each Static Period...
-    def try_unindexed_reference_cashflow(
+    def unindexed_reference_cashflow(
         self,
         *,
         rate_curve: CurveOption_ = NoInput(0),
@@ -480,10 +577,10 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
-    ) -> Result[DualTypes]:
+    ) -> DualTypes:
         r"""
         Calculate the cashflow for the *Static Period* before settlement currency and
-        indexation adjustments, with lazy error raising.
+        indexation adjustments.
 
         .. math::
 
@@ -507,13 +604,15 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
 
         Returns
         -------
-        Result[float, Dual, Dual2, Variable]
+        float, Dual, Dual2, Variable
         """
-        pass
+        raise NotImplementedError(
+            f"Period type '{type(self).__name__}' must implement `unindexed_reference_cashflow`"
+        )
 
     # automatically provided for each Static Period...
 
-    def try_reference_cashflow(
+    def try_unindexed_reference_cashflow(
         self,
         *,
         rate_curve: CurveOption_ = NoInput(0),
@@ -523,8 +622,38 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         fx_vol: FXVolOption_ = NoInput(0),
     ) -> Result[DualTypes]:
         r"""
+        Replicate :meth:`~rateslib.periods.components.protocols._WithNPVStatic.unindexed_reference_cashflow`
+        with lazy exception handling.
+
+        Returns
+        -------
+        Result[float, Dual, Dual2, Variable]
+        """
+        try:
+            v = self.unindexed_reference_cashflow(
+                rate_curve=rate_curve,
+                index_curve=index_curve,
+                disc_curve=disc_curve,
+                fx_vol=fx_vol,
+                fx=fx,
+            )
+        except Exception as e:
+            return Err(e)
+        else:
+            return Ok(v)
+
+    def reference_cashflow(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+    ) -> DualTypes:
+        r"""
         Calculate the cashflow for the *Static Period* before settlement currency adjustment
-        but after indexation, with lazy error raising.
+        but after indexation.
 
         .. math::
 
@@ -548,18 +677,48 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
 
         Returns
         -------
-        Result[float, Dual, Dual2, Variable]
+        float, Dual, Dual2, Variable
         """
-        rrc = self.try_unindexed_reference_cashflow(
+        urc = self.unindexed_reference_cashflow(
             rate_curve=rate_curve,
             disc_curve=disc_curve,
             index_curve=index_curve,
             fx=fx,
             fx_vol=fx_vol,
         )
-        return self.try_index_up(value=rrc, index_curve=index_curve)
+        return self.index_up(value=urc, index_curve=index_curve)
 
-    def try_unindexed_cashflow(
+    def try_reference_cashflow(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        fx: FX_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+    ) -> Result[DualTypes]:
+        r"""
+        Replicate :meth:`~rateslib.periods.components.protocols._WithNPVStatic.reference_cashflow`
+        with lazy exception handling.
+
+        Returns
+        -------
+        Result[float, Dual, Dual2, Variable]
+        """
+        try:
+            v = self.reference_cashflow(
+                rate_curve=rate_curve,
+                index_curve=index_curve,
+                disc_curve=disc_curve,
+                fx_vol=fx_vol,
+                fx=fx,
+            )
+        except Exception as e:
+            return Err(e)
+        else:
+            return Ok(v)
+
+    def unindexed_cashflow(
         self,
         *,
         rate_curve: CurveOption_ = NoInput(0),
@@ -567,10 +726,10 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
-    ) -> Result[DualTypes]:
+    ) -> DualTypes:
         r"""
         Calculate the cashflow for the *Static Period* with settlement currency adjustment
-        but without indexation, with lazy error raising.
+        but without indexation.
 
         .. math::
 
@@ -594,18 +753,18 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
 
         Returns
         -------
-        Result[float, Dual, Dual2, Variable]
+        float, Dual, Dual2, Variable
         """
-        rrc = self.try_unindexed_reference_cashflow(
+        urc = self.unindexed_reference_cashflow(
             rate_curve=rate_curve,
             disc_curve=disc_curve,
             index_curve=index_curve,
             fx=fx,
             fx_vol=fx_vol,
         )
-        return self.try_convert_deliverable(value=rrc, fx=fx)
+        return self.convert_deliverable(value=urc, fx=fx)
 
-    def try_cashflow(
+    def try_unindexed_cashflow(
         self,
         *,
         rate_curve: CurveOption_ = NoInput(0),
@@ -614,6 +773,36 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
     ) -> Result[DualTypes]:
+        r"""
+        Replicate :meth:`~rateslib.periods.components.protocols._WithNPVStatic.unindexed_cashflow`
+        with lazy exception handling.
+
+        Returns
+        -------
+        Result[float, Dual, Dual2, Variable]
+        """
+        try:
+            v = self.unindexed_cashflow(
+                rate_curve=rate_curve,
+                index_curve=index_curve,
+                disc_curve=disc_curve,
+                fx_vol=fx_vol,
+                fx=fx,
+            )
+        except Exception as e:
+            return Err(e)
+        else:
+            return Ok(v)
+
+    def cashflow(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+    ) -> DualTypes:
         r"""
         Calculate the cashflow for the *Period* with settlement currency adjustment
         and indexation.
@@ -640,18 +829,48 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
 
         Returns
         -------
-        Result[float, Dual, Dual2, Variable]
+        float, Dual, Dual2, Variable
         """
-        rc = self.try_reference_cashflow(
+        rc = self.reference_cashflow(
             rate_curve=rate_curve,
             index_curve=index_curve,
             disc_curve=disc_curve,
             fx=fx,
             fx_vol=fx_vol,
         )
-        return self.try_convert_deliverable(value=rc, fx=fx)
+        return self.convert_deliverable(value=rc, fx=fx)
 
-    def try_immediate_local_npv(
+    def try_cashflow(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+    ) -> Result[DualTypes]:
+        r"""
+        Replicate :meth:`~rateslib.periods.components.protocols._WithNPVStatic.cashflow`
+        with lazy exception handling.
+
+        Returns
+        -------
+        Result[float, Dual, Dual2, Variable]
+        """
+        try:
+            v = self.cashflow(
+                rate_curve=rate_curve,
+                index_curve=index_curve,
+                disc_curve=disc_curve,
+                fx_vol=fx_vol,
+                fx=fx,
+            )
+        except Exception as e:
+            return Err(e)
+        else:
+            return Ok(v)
+
+    def immediate_local_npv(
         self,
         *,
         rate_curve: CurveOption_ = NoInput(0),
@@ -659,7 +878,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
-    ) -> Result[DualTypes]:
+    ) -> DualTypes:
         r"""
         Calculate the NPV of the *Period* in local settlement currency, with lazy error raising.
 
@@ -689,24 +908,23 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
 
         Returns
         -------
-        Result[float, Dual, Dual2, Variable]
+        float, Dual, Dual2, Variable
         """
-        dc_res = _try_disc_required_maybe_from_curve(curve=rate_curve, disc_curve=disc_curve)
-        if isinstance(dc_res, Err):
-            return dc_res
-        disc_curve_: _BaseCurve = dc_res.unwrap()
+        # dc_res = _try_disc_required_maybe_from_curve(curve=rate_curve, disc_curve=disc_curve)
+        # if isinstance(dc_res, Err):
+        #     return dc_res
+        # disc_curve_: _BaseCurve = dc_res.unwrap()
 
+        disc_curve_ = _disc_required_maybe_from_curve(curve=rate_curve, disc_curve=disc_curve)
         if self.settlement_params.payment < disc_curve_.nodes.initial:
             # payment date is in the past
-            return Ok(0.0)
+            return 0.0
 
-        c = self.try_cashflow(
+        c = self.cashflow(
             rate_curve=rate_curve,
             index_curve=index_curve,
             disc_curve=disc_curve_,
             fx_vol=fx_vol,
             fx=fx,
         )
-        if c.is_err:
-            return c
-        return Ok(c.unwrap() * disc_curve_[self.settlement_params.payment])
+        return c * disc_curve_[self.settlement_params.payment]

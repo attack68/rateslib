@@ -11,7 +11,7 @@ from rateslib import defaults
 from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.dual import dual_exp, dual_log, dual_norm_cdf, dual_norm_pdf, newton_1dim
 from rateslib.dual.utils import _dual_float
-from rateslib.enums.generics import Err, NoInput, Ok, Result, _drb
+from rateslib.enums.generics import NoInput, Ok, Result, _drb
 from rateslib.enums.parameters import (
     FXDeltaMethod,
     FXOptionMetric,
@@ -54,7 +54,6 @@ from rateslib.periods.components.utils import (
     _get_vol_maybe_from_obj,
     _get_vol_smile_or_raise,
     _get_vol_smile_or_value,
-    _try_validate_fx_as_forwards,
     _validate_fx_as_forwards,
 )
 
@@ -313,7 +312,7 @@ class FXOptionPeriod(_BasePeriodStatic, metaclass=ABCMeta):
     def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
-    def try_unindexed_reference_cashflow(  # type: ignore[override]
+    def unindexed_reference_cashflow(  # type: ignore[override]
         self,
         *,
         rate_curve: _BaseCurve_ = NoInput(0),  # w(.) variety
@@ -322,9 +321,9 @@ class FXOptionPeriod(_BasePeriodStatic, metaclass=ABCMeta):
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
         **kwargs: Any,
-    ) -> Result[DualTypes]:
+    ) -> DualTypes:
         if isinstance(self.fx_option_params.strike, NoInput):
-            return Err(ValueError(err.VE_NEEDS_STRIKE))
+            raise ValueError(err.VE_NEEDS_STRIKE)
         k = self.fx_option_params.strike
 
         if not isinstance(self.fx_option_params.option_fixing.value, NoInput):
@@ -333,19 +332,15 @@ class FXOptionPeriod(_BasePeriodStatic, metaclass=ABCMeta):
             phi: OptionType = self.fx_option_params.direction
 
             if phi == OptionType.Call and k < fix:
-                return Ok((fix - k) * self.settlement_params.notional)
+                return (fix - k) * self.settlement_params.notional
             elif phi == OptionType.Put and k > fix:
-                return Ok((k - fix) * self.settlement_params.notional)
+                return (k - fix) * self.settlement_params.notional
             else:
-                return Ok(0.0)
+                return 0.0
 
         else:
             # value is expressed in currency (i.e. pair[3:])
-            fx_res = _try_validate_fx_as_forwards(fx)
-            if isinstance(fx_res, Err):
-                return fx_res
-            else:
-                fx_ = fx_res.unwrap()
+            fx_ = _validate_fx_as_forwards(fx)
 
             # rate_curve_ = _validate_obj_not_no_input(rate_curve, "rate_curve")
             # disc_curve_ = _validate_obj_not_no_input(disc_curve, "disc_curve")
@@ -368,11 +363,9 @@ class FXOptionPeriod(_BasePeriodStatic, metaclass=ABCMeta):
             elif not isinstance(rate_curve, NoInput):
                 t_e = self.fx_option_params.time_to_expiry(rate_curve.nodes.initial)
             else:
-                return Err(
-                    ValueError(
-                        "Object required to define evaluation date and time to expiry.\n"
-                        "Use one of `disc_curve`, `fx_vol`, or `rate_curve`."
-                    )
+                raise ValueError(
+                    "Object required to define evaluation date and time to expiry.\n"
+                    "Use one of `disc_curve`, `fx_vol`, or `rate_curve`."
                 )
 
             expected = _black76(
@@ -384,7 +377,7 @@ class FXOptionPeriod(_BasePeriodStatic, metaclass=ABCMeta):
                 vol=vol_ / 100.0,
                 phi=self.fx_option_params.direction.value,  # controls calls or put price
             )
-            return Ok(expected * self.settlement_params.notional)
+            return expected * self.settlement_params.notional
 
     def try_rate(
         self,
