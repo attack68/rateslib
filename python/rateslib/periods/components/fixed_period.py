@@ -60,6 +60,28 @@ class FixedPeriod(_BasePeriodStatic):
 
     .. role:: green
 
+    .. rubric:: Examples
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.periods.components import FixedPeriod
+       from datetime import datetime as dt
+
+    .. ipython:: python
+
+       period = FixedPeriod(
+           start=dt(2000, 1, 1),
+           end=dt(2001, 1, 1),
+           payment=dt(2001, 1, 1),
+           fixed_rate=5.0,
+           notional=1e6,
+           convention="ActActICMA",
+           frequency="A",
+       )
+       period.cashflows()
+
+
     Parameters
     ----------
     .
@@ -382,6 +404,24 @@ class ZeroFixedPeriod(_BasePeriodStatic):
 
     For *analytic delta* purposes the :math:`\xi=-R`.
 
+    .. rubric:: Examples
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.periods.components import ZeroFixedPeriod
+       from rateslib.scheduling import Schedule
+       from datetime import datetime as dt
+
+    .. ipython:: python
+
+       period = ZeroFixedPeriod(
+           schedule=Schedule(dt(2000, 1, 1), "5Y", "A"),
+           fixed_rate=5.0,
+           convention="1",
+       )
+       period.cashflows()
+    
     .. role:: red
 
     .. role:: green
@@ -447,28 +487,6 @@ class ZeroFixedPeriod(_BasePeriodStatic):
         central ``fixings`` object and data loader.
     index_only: bool, :green:`optional (set as False)`
         A flag which determines non-payment of notional on supported *Periods*.
-
-
-    Examples
-    --------
-
-    A typical :class:`~rateslib.periods.components.ZeroFixedPeriod`.
-
-    .. ipython:: python
-       :suppress:
-
-       from rateslib.periods.components import ZeroFixedPeriod
-       from rateslib.scheduling import Schedule
-       from datetime import datetime as dt
-
-    .. ipython:: python
-
-       period = ZeroFixedPeriod(
-           schedule=Schedule(dt(2000, 1, 1), "5Y", "A"),
-           fixed_rate=5.0,
-           convention="1",
-       )
-       period.cashflows()
 
     """  # noqa: E501
 
