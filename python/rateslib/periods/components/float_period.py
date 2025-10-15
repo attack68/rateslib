@@ -79,6 +79,37 @@ class FloatPeriod(_BasePeriodStatic):
 
     .. role:: green
 
+    .. rubric:: Examples
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.periods.components import FloatPeriod
+       from rateslib import fixings
+       from datetime import datetime as dt
+       from pandas import Series
+
+    .. ipython:: python
+
+       fixings.add("MY_RATE_INDEX_6M", Series(index=[dt(2000, 1, 1)], data=[2.66]))
+       period = FloatPeriod(
+           start=dt(2000, 1, 1),
+           end=dt(2000, 7, 1),
+           payment=dt(2000, 7, 1),
+           notional=1e6,
+           convention="Act360",
+           frequency="S",
+           fixing_method="ibor",
+           method_param=0,
+           rate_fixings="MY_RATE_INDEX"
+       )
+       period.cashflows()
+
+    .. ipython:: python
+       :suppress:
+
+       fixings.pop("MY_RATE_INDEX_6M")
+
     Parameters
     ----------
     .
@@ -494,6 +525,35 @@ class ZeroFloatPeriod(_BasePeriodStatic):
 
     For *analytic delta* purposes the :math:`\xi=-z`.
 
+    .. rubric:: Examples
+    
+    .. ipython:: python
+      :suppress:
+
+      from rateslib.periods.components import ZeroFloatPeriod
+      from rateslib.scheduling import Schedule
+      from datetime import datetime as dt
+
+    .. ipython:: python
+
+       fixings.add("MY_RATE_INDEX_6M", Series(
+           index=[dt(2000, 1, 1), dt(2000, 7, 1), dt(2001, 1, 1), dt(2001, 7, 1)],
+           data=[1.0, 2.0, 3.0, 4.0]
+       ))
+       period = ZeroFloatPeriod(
+           schedule=Schedule(dt(2000, 1, 1), "2Y", "S"),
+           fixing_method="IBOR",
+           rate_fixings="MY_RATE_INDEX",
+           convention="Act360",
+           method_param=0,
+       )
+       period.cashflows()
+
+    .. ipython:: python
+       :suppress:
+
+       fixings.pop("MY_RATE_INDEX_6M")
+
     .. role:: red
 
     .. role:: green
@@ -581,35 +641,12 @@ class ZeroFloatPeriod(_BasePeriodStatic):
     index_only: bool, :green:`optional (set as False)`
        A flag which determines non-payment of notional on supported *Periods*.
 
-
-    Examples
-    --------
-
-    A typical :class:`~rateslib.periods.components.ZeroFloatPeriod`.
-
-    .. ipython:: python
-      :suppress:
-
-      from rateslib.periods.components import ZeroFloatPeriod
-      from rateslib.scheduling import Schedule
-      from datetime import datetime as dt
-
-    .. ipython:: python
-
-      period = ZeroFloatPeriod(
-          schedule=Schedule(dt(2000, 1, 1), "2Y", "S"),
-          fixing_method="IBOR",
-          rate_fixings=[1.1, 2.1, 3.1, 4.1],
-          convention="Act360",
-      )
-      period.cashflows()
-
     """  # noqa: E501
 
     @property
     def rate_params(self) -> _FloatRateParams:
         """The :class:`~rateslib.periods.components.parameters._FixedRateParams` of the *Period*."""
-        return self._float_periods[0].rate_params
+        return self.float_periods[0].rate_params
 
     @property
     def period_params(self) -> _PeriodParams:
@@ -647,6 +684,14 @@ class ZeroFloatPeriod(_BasePeriodStatic):
     def float_spread(self, value: DualTypes) -> None:
         for period in self._float_periods:
             period.rate_params.float_spread = value
+
+    @property
+    def float_periods(self) -> list[FloatPeriod]:
+        """
+        The individual :class:`~rateslib.periods.components.period.FloatPeriod` that are
+        compounded.
+        """
+        return self._float_periods
 
     def __init__(
         self,
@@ -746,8 +791,8 @@ class ZeroFloatPeriod(_BasePeriodStatic):
         **kwargs: Any,
     ) -> Result[DualTypes]:
         try:
-            r_i = [period.rate(rate_curve=rate_curve) for period in self._float_periods]
-            d_i = [period.period_params.dcf for period in self._float_periods]
+            r_i = [period.rate(rate_curve=rate_curve) for period in self.float_periods]
+            d_i = [period.period_params.dcf for period in self.float_periods]
         except Exception as e:
             return Err(e)
 
@@ -785,8 +830,8 @@ class ZeroFloatPeriod(_BasePeriodStatic):
         **kwargs: Any,
     ) -> DualTypes:
         # determine each rate from individual Periods
-        r_i = [period.rate(rate_curve=rate_curve) for period in self._float_periods]
-        d_i = [period.period_params.dcf for period in self._float_periods]
+        r_i = [period.rate(rate_curve=rate_curve) for period in self.float_periods]
+        d_i = [period.period_params.dcf for period in self.float_periods]
         r = np.prod(1.0 + np.array(r_i) * np.array(d_i) / 100.0) - 1.0
         return -self.settlement_params.notional * r
 
@@ -822,8 +867,8 @@ class ZeroFloatPeriod(_BasePeriodStatic):
         fx_vol: FXVolOption_ = NoInput(0),
     ) -> Result[DataFrame]:
         try:
-            r_i = [period.rate(rate_curve=rate_curve) for period in self._float_periods]
-            d_i = [period.period_params.dcf for period in self._float_periods]
+            r_i = [period.rate(rate_curve=rate_curve) for period in self.float_periods]
+            d_i = [period.period_params.dcf for period in self.float_periods]
             dfs_i = [
                 period.try_unindexed_reference_cashflow_analytic_rate_fixings(
                     rate_curve=rate_curve,
@@ -832,7 +877,7 @@ class ZeroFloatPeriod(_BasePeriodStatic):
                     fx_vol=fx_vol,
                     index_curve=index_curve,
                 ).unwrap()
-                for period in self._float_periods
+                for period in self.float_periods
             ]
         except Exception as e:
             return Err(e)

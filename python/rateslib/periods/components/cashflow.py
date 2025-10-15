@@ -66,7 +66,7 @@ class Cashflow(_BasePeriodStatic):
            currency="eur",
            notional=125000,
        )
-       print(period.cashflows())
+       period.cashflows()
 
     .. role:: red
 
@@ -294,7 +294,7 @@ class MtmCashflow(_BasePeriodStatic):
            fx_fixings_start=1.10,
            fx_fixings_end=1.20,
        )
-       print(period.cashflows())
+       period.cashflows()
 
     .. role:: red
 
