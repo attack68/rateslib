@@ -604,7 +604,7 @@ class ZeroFloatPeriod(_BasePeriodStatic):
       )
       period.cashflows()
 
-    """
+    """  # noqa: E501
 
     @property
     def rate_params(self) -> _FloatRateParams:
@@ -774,7 +774,7 @@ class ZeroFloatPeriod(_BasePeriodStatic):
         Returns
         -------
         float, Dual, Dual2 or Variable
-        """
+        """  # noqa: E501
 
         return self.try_rate(rate_curve=rate_curve).unwrap()
 
