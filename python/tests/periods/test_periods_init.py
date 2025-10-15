@@ -8,15 +8,15 @@ from rateslib.periods.components import (
     CreditProtectionPeriod,
     FixedPeriod,
     FloatPeriod,
-    IndexCashflow,
-    IndexFixedPeriod,
-    IndexFloatPeriod,
-    NonDeliverableCashflow,
-    NonDeliverableFixedPeriod,
-    NonDeliverableFloatPeriod,
-    NonDeliverableIndexCashflow,
-    NonDeliverableIndexFixedPeriod,
-    NonDeliverableIndexFloatPeriod,
+    # IndexCashflow,
+    # IndexFixedPeriod,
+    # IndexFloatPeriod,
+    # NonDeliverableCashflow,
+    # NonDeliverableFixedPeriod,
+    # NonDeliverableFloatPeriod,
+    # NonDeliverableIndexCashflow,
+    # NonDeliverableIndexFixedPeriod,
+    # NonDeliverableIndexFloatPeriod,
     ZeroFixedPeriod,
 )
 from rateslib.periods.components.cashflow import MtmCashflow
@@ -61,6 +61,7 @@ class TestFloatPeriod:
         pass
 
 
+@pytest.mark.skip(reason="Deprecated objects.")
 class TestIndexFixedPeriod:
     def test_init(self):
         IndexFixedPeriod(
@@ -107,6 +108,7 @@ class TestIndexFixedPeriod:
             )
 
 
+@pytest.mark.skip(reason="Deprecated objects.")
 class TestNonDeliverableIndexFixedPeriod:
     def test_init(self):
         NonDeliverableIndexFixedPeriod(
@@ -154,6 +156,7 @@ class TestNonDeliverableIndexFixedPeriod:
             )
 
 
+@pytest.mark.skip(reason="Deprecated objects.")
 class TestNonDeliverableCashflow:
     def test_init(self):
         NonDeliverableCashflow(currency="usd", pair="brlusd", notional=2e6, payment=dt(2000, 1, 1))
@@ -181,6 +184,7 @@ class TestNonDeliverableCashflow:
             )
 
 
+@pytest.mark.skip(reason="Deprecated objects.")
 class TestIndexCashflow:
     def test_init(self):
         IndexCashflow(currency="usd", notional=2e6, payment=dt(2000, 1, 1), index_base=100.0)
@@ -200,6 +204,7 @@ class TestIndexCashflow:
             )
 
 
+@pytest.mark.skip(reason="Deprecated objects.")
 class TestNonDeliverableIndexCashflow:
     def test_init(self):
         NonDeliverableIndexCashflow(
@@ -234,6 +239,7 @@ class TestMtmCashflow:
         )
 
 
+@pytest.mark.skip(reason="Deprecated objects.")
 class TestNonDeliverableFixedPeriod:
     def test_init(self):
         NonDeliverableFixedPeriod(
@@ -280,6 +286,7 @@ class TestNonDeliverableFixedPeriod:
             )
 
 
+@pytest.mark.skip(reason="Deprecated objects.")
 class TestNonDeliverableFloatPeriod:
     def test_init(self):
         NonDeliverableFloatPeriod(
@@ -326,6 +333,7 @@ class TestNonDeliverableFloatPeriod:
             )
 
 
+@pytest.mark.skip(reason="Deprecated objects.")
 class TestIndexFloatPeriod:
     def test_init(self):
         IndexFloatPeriod(
@@ -372,6 +380,7 @@ class TestIndexFloatPeriod:
             )
 
 
+@pytest.mark.skip(reason="Deprecated objects.")
 class TestNonDeliverableIndexFloatPeriod:
     def test_init(self):
         NonDeliverableIndexFloatPeriod(

@@ -262,16 +262,16 @@ class FixedPeriod(_BasePeriodStatic):
         )
         self._rate_params = _FixedRateParams(fixed_rate)
 
-    def try_unindexed_reference_cashflow(
+    def unindexed_reference_cashflow(
         self,
         *,
         rate_curve: CurveOption_ = NoInput(0),
         **kwargs: Any,
-    ) -> Result[DualTypes]:
+    ) -> DualTypes:
         if isinstance(self.rate_params.fixed_rate, NoInput):
-            return Err(ValueError(err.VE_NEEDS_FIXEDRATE))
+            raise ValueError(err.VE_NEEDS_FIXEDRATE)
         else:
-            return Ok(
+            return (
                 -self.settlement_params.notional
                 * self.rate_params.fixed_rate
                 * 0.01
@@ -343,34 +343,135 @@ class FixedPeriod(_BasePeriodStatic):
         return Ok(DataFrame())
 
 
-class NonDeliverableFixedPeriod(FixedPeriod):
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        if not self.is_non_deliverable:
-            raise ValueError(err.VE_NEEDS_ND_CURRENCY_PARAMS.format(type(self).__name__))
-        if self.is_indexed:
-            raise ValueError(err.VE_HAS_INDEX_PARAMS.format(type(self).__name__))
-
-
-class IndexFixedPeriod(FixedPeriod):
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        if not self.is_indexed:
-            raise ValueError(err.VE_NEEDS_INDEX_PARAMS.format(type(self).__name__))
-        if self.is_non_deliverable:
-            raise ValueError(err.VE_HAS_ND_CURRENCY_PARAMS.format(type(self).__name__))
-
-
-class NonDeliverableIndexFixedPeriod(FixedPeriod):
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        if not self.is_indexed:
-            raise ValueError(err.VE_NEEDS_INDEX_PARAMS.format(type(self).__name__))
-        if not self.is_non_deliverable:
-            raise ValueError(err.VE_NEEDS_ND_CURRENCY_PARAMS.format(type(self).__name__))
+# class NonDeliverableFixedPeriod(FixedPeriod):
+#     def __init__(self, **kwargs: Any) -> None:
+#         super().__init__(**kwargs)
+#         if not self.is_non_deliverable:
+#             raise ValueError(err.VE_NEEDS_ND_CURRENCY_PARAMS.format(type(self).__name__))
+#         if self.is_indexed:
+#             raise ValueError(err.VE_HAS_INDEX_PARAMS.format(type(self).__name__))
+#
+#
+# class IndexFixedPeriod(FixedPeriod):
+#     def __init__(self, **kwargs: Any) -> None:
+#         super().__init__(**kwargs)
+#         if not self.is_indexed:
+#             raise ValueError(err.VE_NEEDS_INDEX_PARAMS.format(type(self).__name__))
+#         if self.is_non_deliverable:
+#             raise ValueError(err.VE_HAS_ND_CURRENCY_PARAMS.format(type(self).__name__))
+#
+#
+# class NonDeliverableIndexFixedPeriod(FixedPeriod):
+#     def __init__(self, **kwargs: Any) -> None:
+#         super().__init__(**kwargs)
+#         if not self.is_indexed:
+#             raise ValueError(err.VE_NEEDS_INDEX_PARAMS.format(type(self).__name__))
+#         if not self.is_non_deliverable:
+#             raise ValueError(err.VE_NEEDS_ND_CURRENCY_PARAMS.format(type(self).__name__))
 
 
 class ZeroFixedPeriod(_BasePeriodStatic):
+    r"""
+    A *Period* defined by a fixed interest rate, as a representation of multiple compounded *Periods*.
+
+    The expected unindexed reference cashflow under the risk neutral distribution is defined as,
+
+    .. math::
+
+       \mathbb{E^Q}[\bar{C}_t] = - N \left ( \left ( 1 + \frac{R}{f} \right )^{df} - 1 \right ), \qquad d = \sum_{i=1}^n d_i
+
+    For *analytic delta* purposes the :math:`\xi=-R`.
+
+    .. role:: red
+
+    .. role:: green
+
+    Parameters
+    ----------
+    .
+        .. note::
+
+           The following define generalised **settlement** parameters.
+
+    currency: str, :green:`optional (set by 'defaults')`
+        The physical *settlement currency* of the *Period*.
+    notional: float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
+        The notional amount of the *Period* expressed in ``notional currency``.
+
+        .. note::
+
+           The following parameters are scheduling **period** parameters
+
+    schedule: Schedule, :red:`required`
+        The :class:`~rateslib.scheduling.Schedule` defining the individual *Periods*, including
+        the *payment* and *ex-dividend* dates.
+
+        .. note::
+
+           The following define **fixed rate** parameters.
+
+    fixed_rate: float, Dual, Dual2, Variable, :green:`optional`
+        The fixed rate to determine the *Period* cashflow.
+
+        .. note::
+
+           The following parameters define **non-deliverability**. If the *Period* is directly
+           deliverable do not supply these parameters.
+
+    pair: str, :green:`optional`
+        The currency pair of the :class:`~rateslib.data.fixings.FXFixing` that determines
+        settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
+    fx_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
+        The value of the :class:`~rateslib.data.fixings.FXFixing`. If a scalar is used directly.
+        If a string identifier will link to the central ``fixings`` object and data loader.
+    delivery: datetime, :green:`optional (set as 'payment')`
+        The settlement delivery date of the :class:`~rateslib.data.fixings.FXFixing`.
+
+        .. note::
+
+           The following parameters define **indexation**. The *Period* will be considered
+           indexed if any of ``index_method``, ``index_lag``, ``index_base``, ``index_fixings``
+           are given.
+
+    index_method : IndexMethod, str, :green:`optional (set by 'defaults')`
+        The interpolation method, or otherwise, to determine index values from reference dates.
+    index_lag: int, :green:`optional (set by 'defaults')`
+        The indexation lag, in months, applied to the determination of index values.
+    index_base: float, Dual, Dual2, Variable, :green:`optional`
+        The specific value set of the base index value.
+        If not given and ``index_fixings`` is a str fixings identifier that will be
+        used to determine the base index value.
+    index_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
+        The index value for the reference date.
+        If a scalar value this is used directly. If a string identifier will link to the
+        central ``fixings`` object and data loader.
+    index_only: bool, :green:`optional (set as False)`
+        A flag which determines non-payment of notional on supported *Periods*.
+
+
+    Examples
+    --------
+
+    A typical :class:`~rateslib.periods.components.ZeroFixedPeriod`.
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.periods.components import ZeroFixedPeriod
+       from rateslib.scheduling import Schedule
+       from datetime import datetime as dt
+
+    .. ipython:: python
+
+       period = ZeroFixedPeriod(
+           schedule=Schedule(dt(2000, 1, 1), "5Y", "A"),
+           fixed_rate=5.0,
+           convention="1",
+       )
+       period.cashflows()
+
+    """
+
     @property
     def rate_params(self) -> _FixedRateParams:
         """The :class:`~rateslib.periods.components.parameters._FixedRateParams` of the *Period*."""
@@ -460,19 +561,18 @@ class ZeroFixedPeriod(_BasePeriodStatic):
         )
         self._rate_params = _FixedRateParams(fixed_rate)
 
-    def try_unindexed_reference_cashflow(
+    def unindexed_reference_cashflow(
         self,
         *,
         rate_curve: CurveOption_ = NoInput(0),
         **kwargs: Any,
-    ) -> Result[DualTypes]:
+    ) -> DualTypes:
         if isinstance(self.rate_params.fixed_rate, NoInput):
-            return Err(ValueError(err.VE_NEEDS_FIXEDRATE))
+            raise ValueError(err.VE_NEEDS_FIXEDRATE)
         else:
             f = self.schedule.periods_per_annum
-            return Ok(
-                -self.settlement_params.notional
-                * ((1 + self.rate_params.fixed_rate / (f * 100)) ** (self.dcf * f) - 1)
+            return -self.settlement_params.notional * (
+                (1 + self.rate_params.fixed_rate / (f * 100)) ** (self.dcf * f) - 1
             )
 
     def try_unindexed_reference_cashflow_analytic_delta(

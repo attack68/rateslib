@@ -4,9 +4,8 @@ from typing import TYPE_CHECKING
 
 from pandas import DataFrame
 
-import rateslib.errors as err
 from rateslib import defaults
-from rateslib.enums.generics import Err, NoInput, Ok, _drb
+from rateslib.enums.generics import NoInput, Ok, _drb
 from rateslib.enums.parameters import IndexMethod
 from rateslib.periods.components.parameters import (
     _init_MtmParams,
@@ -177,13 +176,13 @@ class Cashflow(_BasePeriodStatic):
             _index_only=index_only,
         )
 
-    def try_unindexed_reference_cashflow(
+    def unindexed_reference_cashflow(
         self,
         *,
         rate_curve: CurveOption_ = NoInput(0),
         **kwargs: Any,
-    ) -> Result[DualTypes]:
-        return Ok(-self.settlement_params.notional)
+    ) -> DualTypes:
+        return -self.settlement_params.notional
 
     def try_unindexed_reference_cashflow_analytic_delta(
         self,
@@ -205,31 +204,58 @@ class Cashflow(_BasePeriodStatic):
         return Ok(DataFrame())
 
 
-class NonDeliverableCashflow(Cashflow):
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        if not self.is_non_deliverable:
-            raise ValueError(err.VE_NEEDS_ND_CURRENCY_PARAMS.format(type(self).__name__))
-        if self.is_indexed:
-            raise ValueError(err.VE_HAS_INDEX_PARAMS.format(type(self).__name__))
-
-
-class IndexCashflow(Cashflow):
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        if not self.is_indexed:
-            raise ValueError(err.VE_NEEDS_INDEX_PARAMS.format(type(self).__name__))
-        if self.is_non_deliverable:
-            raise ValueError(err.VE_HAS_ND_CURRENCY_PARAMS.format(type(self).__name__))
-
-
-class NonDeliverableIndexCashflow(Cashflow):
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        if not self.is_indexed:
-            raise ValueError(err.VE_NEEDS_INDEX_PARAMS.format(type(self).__name__))
-        if not self.is_non_deliverable:
-            raise ValueError(err.VE_NEEDS_ND_CURRENCY_PARAMS.format(type(self).__name__))
+# class NonDeliverableCashflow(Cashflow):
+#     """
+#     Deprecated
+#
+#     .. warning::
+#
+#        This object is deprecated. Use a :class:`~rateslib.periods.components.Cashflow` instead.
+#
+#     """
+#
+#     def __init__(self, **kwargs: Any) -> None:
+#         super().__init__(**kwargs)
+#         if not self.is_non_deliverable:
+#             raise ValueError(err.VE_NEEDS_ND_CURRENCY_PARAMS.format(type(self).__name__))
+#         if self.is_indexed:
+#             raise ValueError(err.VE_HAS_INDEX_PARAMS.format(type(self).__name__))
+#
+#
+# class IndexCashflow(Cashflow):
+#     """
+#     Deprecated
+#
+#     .. warning::
+#
+#        This object is deprecated. Use a :class:`~rateslib.periods.components.Cashflow` instead.
+#
+#     """
+#
+#     def __init__(self, **kwargs: Any) -> None:
+#         super().__init__(**kwargs)
+#         if not self.is_indexed:
+#             raise ValueError(err.VE_NEEDS_INDEX_PARAMS.format(type(self).__name__))
+#         if self.is_non_deliverable:
+#             raise ValueError(err.VE_HAS_ND_CURRENCY_PARAMS.format(type(self).__name__))
+#
+#
+# class NonDeliverableIndexCashflow(Cashflow):
+#     """
+#     Deprecated
+#
+#     .. warning::
+#
+#        This object is deprecated. Use a :class:`~rateslib.periods.components.Cashflow` instead.
+#
+#     """
+#
+#     def __init__(self, **kwargs: Any) -> None:
+#         super().__init__(**kwargs)
+#         if not self.is_indexed:
+#             raise ValueError(err.VE_NEEDS_INDEX_PARAMS.format(type(self).__name__))
+#         if not self.is_non_deliverable:
+#             raise ValueError(err.VE_NEEDS_ND_CURRENCY_PARAMS.format(type(self).__name__))
 
 
 class MtmCashflow(_BasePeriodStatic):
@@ -395,23 +421,19 @@ class MtmCashflow(_BasePeriodStatic):
             _index_only=index_only,
         )
 
-    def try_unindexed_reference_cashflow(  # type: ignore[override]
+    def unindexed_reference_cashflow(  # type: ignore[override]
         self,
         *,
         fx: FXForwards_ = NoInput(0),
         **kwargs: Any,
-    ) -> Result[DualTypes]:
-        fx0 = self.mtm_params.fx_fixing_start.try_value_or_forecast(fx)
-        fx1 = self.mtm_params.fx_fixing_end.try_value_or_forecast(fx)
-        if isinstance(fx0, Err):
-            return fx0
-        if isinstance(fx1, Err):
-            return fx1
+    ) -> DualTypes:
+        fx0 = self.mtm_params.fx_fixing_start.try_value_or_forecast(fx).unwrap()
+        fx1 = self.mtm_params.fx_fixing_end.try_value_or_forecast(fx).unwrap()
         if self.mtm_params.fx_reversed:
-            diff = 1.0 / fx1.unwrap() - 1.0 / fx0.unwrap()
+            diff = 1.0 / fx1 - 1.0 / fx0
         else:
-            diff = fx1.unwrap() - fx0.unwrap()
-        return Ok(-self.settlement_params.notional * diff)
+            diff = fx1 - fx0
+        return -self.settlement_params.notional * diff
 
     def try_unindexed_reference_cashflow_analytic_delta(
         self,

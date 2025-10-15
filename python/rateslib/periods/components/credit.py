@@ -182,7 +182,7 @@ class CreditPremiumPeriod(_BasePeriod):
             _termination=termination,
         )
 
-    def try_immediate_local_npv(
+    def immediate_local_npv(
         self,
         *,
         rate_curve: CurveOption_ = NoInput(0),
@@ -190,18 +190,11 @@ class CreditPremiumPeriod(_BasePeriod):
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
-    ) -> Result[DualTypes]:
-        c_res = _validate_credit_curves(rate_curve, disc_curve)
-        if isinstance(c_res, Err):
-            return c_res
-        else:
-            rate_curve_, disc_curve_ = c_res.unwrap()
+    ) -> DualTypes:
+        rate_curve_, disc_curve_ = _validate_credit_curves(rate_curve, disc_curve).unwrap()
 
-        cf_res = self.try_cashflow()
-        if isinstance(cf_res, Err):
-            return cf_res
-
-        return Ok(cf_res.unwrap() * self._probability_adjusted_df(rate_curve_, disc_curve_))
+        cf = self.cashflow()
+        return cf * self._probability_adjusted_df(rate_curve_, disc_curve_)
 
     def try_immediate_local_analytic_delta(
         self,
@@ -222,6 +215,24 @@ class CreditPremiumPeriod(_BasePeriod):
 
         return Ok(c * self._probability_adjusted_df(rate_curve_, disc_curve_))
 
+    def cashflow(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+    ) -> DualTypes:
+        if isinstance(self.rate_params.fixed_rate, NoInput):
+            raise ValueError(err.VE_NEEDS_FIXEDRATE)
+        return (
+            -self.rate_params.fixed_rate
+            * 0.01
+            * self.period_params.dcf
+            * self.settlement_params.notional
+        )
+
     def try_cashflow(
         self,
         *,
@@ -231,14 +242,26 @@ class CreditPremiumPeriod(_BasePeriod):
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
     ) -> Result[DualTypes]:
-        if isinstance(self.rate_params.fixed_rate, NoInput):
-            return Err(ValueError(err.VE_NEEDS_FIXEDRATE))
-        return Ok(
-            -self.rate_params.fixed_rate
-            * 0.01
-            * self.period_params.dcf
-            * self.settlement_params.notional
-        )
+        r"""
+        Replicate :meth:`~rateslib.periods.components.protocols._WithNPVStatic.cashflow`
+        with lazy exception handling.
+
+        Returns
+        -------
+        Result[float, Dual, Dual2, Variable]
+        """
+        try:
+            v = self.cashflow(
+                rate_curve=rate_curve,
+                index_curve=index_curve,
+                disc_curve=disc_curve,
+                fx_vol=fx_vol,
+                fx=fx,
+            )
+        except Exception as e:
+            return Err(e)
+        else:
+            return Ok(v)
 
     def _probability_adjusted_df(self, rate_curve: _BaseCurve, disc_curve: _BaseCurve) -> DualTypes:
         v_payment = disc_curve[self.settlement_params.payment]
@@ -423,6 +446,18 @@ class CreditProtectionPeriod(_BasePeriod):
             _termination=termination,
         )
 
+    def cashflow(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+    ) -> DualTypes:
+        rate_curve_ = _validate_credit_curve(rate_curve).unwrap()
+        return -self.settlement_params.notional * (1 - rate_curve_.meta.credit_recovery_rate)
+
     def try_cashflow(
         self,
         *,
@@ -432,15 +467,28 @@ class CreditProtectionPeriod(_BasePeriod):
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
     ) -> Result[DualTypes]:
-        rc_res = _validate_credit_curve(rate_curve)
-        if isinstance(rc_res, Err):
-            return rc_res
+        r"""
+        Replicate :meth:`~rateslib.periods.components.protocols._WithNPVStatic.cashflow`
+        with lazy exception handling.
 
-        return Ok(
-            -self.settlement_params.notional * (1 - rc_res.unwrap().meta.credit_recovery_rate)
-        )
+        Returns
+        -------
+        Result[float, Dual, Dual2, Variable]
+        """
+        try:
+            v = self.cashflow(
+                rate_curve=rate_curve,
+                index_curve=index_curve,
+                disc_curve=disc_curve,
+                fx_vol=fx_vol,
+                fx=fx,
+            )
+        except Exception as e:
+            return Err(e)
+        else:
+            return Ok(v)
 
-    def try_immediate_local_npv(
+    def immediate_local_npv(
         self,
         *,
         rate_curve: CurveOption_ = NoInput(0),
@@ -448,12 +496,8 @@ class CreditProtectionPeriod(_BasePeriod):
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
-    ) -> Result[DualTypes]:
-        c_res = _validate_credit_curves(rate_curve, disc_curve)
-        if isinstance(c_res, Err):
-            return c_res
-        else:
-            rate_curve_, disc_curve_ = c_res.unwrap()
+    ) -> DualTypes:
+        rate_curve_, disc_curve_ = _validate_credit_curves(rate_curve, disc_curve).unwrap()
 
         discretization = rate_curve_.meta.credit_discretization
 
@@ -475,8 +519,8 @@ class CreditProtectionPeriod(_BasePeriod):
             # value += v2 * (q1 - q2)
 
         # curves are pre-validated so will not error
-        cf = self.try_cashflow(rate_curve=rate_curve).unwrap()
-        return Ok(value * cf)
+        cf = self.cashflow(rate_curve=rate_curve)
+        return value * cf
 
     def try_immediate_local_analytic_delta(
         self,

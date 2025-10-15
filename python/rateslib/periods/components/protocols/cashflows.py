@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     )
 
 
-class _WithNPVCashflows(_WithNPV, Protocol):
+class _WithCashflows(_WithNPV, Protocol):
     """
     Protocol for parameter and calculation display for the *Period*.
 
@@ -168,7 +168,7 @@ class _WithNPVCashflows(_WithNPV, Protocol):
         }
 
 
-class _WithNPVCashflowsStatic(_WithNPVStatic, Protocol):
+class _WithCashflowsStatic(_WithNPVStatic, Protocol):
     """
     Protocol for parameter and calculation display for the *Static Period*.
 
@@ -332,7 +332,7 @@ class _WithNPVCashflowsStatic(_WithNPVStatic, Protocol):
         }
 
 
-def _standard_elements(self: _WithNPVCashflows | _WithNPVCashflowsStatic) -> dict[str, Any]:
+def _standard_elements(self: _WithCashflows | _WithCashflowsStatic) -> dict[str, Any]:
     """Typical cashflow attributes for any constructed *Period*"""
     # standard parameters
     standard_elements: dict[str, Any] = {}
@@ -347,7 +347,7 @@ def _standard_elements(self: _WithNPVCashflows | _WithNPVCashflowsStatic) -> dic
     return standard_elements
 
 
-def _period_elements(self: _WithNPVCashflows | _WithNPVCashflowsStatic) -> dict[str, Any]:
+def _period_elements(self: _WithCashflows | _WithCashflowsStatic) -> dict[str, Any]:
     """
     Typical date-like attributes for any constructed *Period* with `period_params`.
     """
@@ -367,7 +367,7 @@ def _period_elements(self: _WithNPVCashflows | _WithNPVCashflowsStatic) -> dict[
 
 
 def _rate_elements(
-    self: _WithNPVCashflows | _WithNPVCashflowsStatic,
+    self: _WithCashflows | _WithCashflowsStatic,
     rate_curve: CurveOption_,
 ) -> dict[str, Any]:
     """
@@ -395,7 +395,7 @@ def _rate_elements(
 
 
 def _credit_elements(
-    self: _WithNPVCashflows | _WithNPVCashflowsStatic,
+    self: _WithCashflows | _WithCashflowsStatic,
     rate_curve: CurveOption_,
 ) -> dict[str, Any]:
     """
@@ -426,7 +426,7 @@ def _credit_elements(
 
 
 def _cashflow_elements(
-    self: _WithNPVCashflows | _WithNPVCashflowsStatic,
+    self: _WithCashflows | _WithCashflowsStatic,
     *,
     rate_curve: CurveOption_ = NoInput(0),
     disc_curve: _BaseCurve_ = NoInput(0),

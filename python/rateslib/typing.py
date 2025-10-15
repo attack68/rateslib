@@ -76,6 +76,7 @@ from rateslib.legs import IndexFixedLeg as IndexFixedLeg
 from rateslib.legs import ZeroFixedLeg as ZeroFixedLeg
 from rateslib.legs import ZeroFloatLeg as ZeroFloatLeg
 from rateslib.legs import ZeroIndexLeg as ZeroIndexLeg
+from rateslib.legs.components.protocols import _BaseLeg as _BaseLeg
 from rateslib.periods import Cashflow as Cashflow
 from rateslib.periods import CreditPremiumPeriod as CreditPremiumPeriod
 from rateslib.periods import CreditProtectionPeriod as CreditProtectionPeriod
@@ -86,12 +87,12 @@ from rateslib.periods import FXOptionPeriod as FXOptionPeriod
 from rateslib.periods import FXPutPeriod as FXPutPeriod
 from rateslib.periods import IndexCashflow as IndexCashflow
 from rateslib.periods import IndexFixedPeriod as IndexFixedPeriod
-from rateslib.periods.components import _BasePeriod as _BasePeriod
 from rateslib.periods.components.parameters import _FloatRateParams as _FloatRateParams
 from rateslib.periods.components.parameters import _IndexParams as _IndexParams
 from rateslib.periods.components.parameters import _NonDeliverableParams as _NonDeliverableParams
 from rateslib.periods.components.parameters import _PeriodParams as _PeriodParams
 from rateslib.periods.components.parameters import _SettlementParams as _SettlementParams
+from rateslib.periods.components.protocols import _BasePeriod as _BasePeriod
 from rateslib.rs import Adjuster as Adjuster
 from rateslib.rs import (
     Cal,

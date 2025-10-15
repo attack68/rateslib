@@ -7,7 +7,7 @@ from pandas import Series
 
 import rateslib.errors as err
 from rateslib import defaults
-from rateslib.curves import _BaseCurve
+from rateslib.data.fixings import _leg_fixings_to_list
 from rateslib.dual import ift_1dim
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import FloatFixingMethod, SpreadCompoundMethod
@@ -15,7 +15,6 @@ from rateslib.legs.components.amortization import Amortization, _AmortizationTyp
 from rateslib.legs.components.protocols import (
     _BaseLeg,
 )
-from rateslib.legs.components.utils import _leg_fixings_to_list
 from rateslib.periods.components import Cashflow, FloatPeriod, MtmCashflow, ZeroFloatPeriod
 from rateslib.periods.components.parameters import _FloatRateParams, _SettlementParams
 
@@ -120,8 +119,8 @@ class FloatLeg(_BaseLeg):
         )
         if self._mtm_exchange_periods is not None:
             args += (self._mtm_exchange_periods,)
-        if self._interim_exchange_periods is not None:
-            args += (self._interim_exchange_periods,)
+        if self._amortization_exchange_periods is not None:
+            args += (self._amortization_exchange_periods,)
         interleaved_periods_: list[_BasePeriod] = [
             item for combination in zip(*args, strict=True) for item in combination
         ]
@@ -289,9 +288,9 @@ class FloatLeg(_BaseLeg):
 
         # amortization exchanges
         if not final_exchange_ or self.amortization._type == _AmortizationType.NoAmortization:
-            self._interim_exchange_periods: tuple[Cashflow, ...] | None = None
+            self._amortization_exchange_periods: tuple[Cashflow, ...] | None = None
         else:
-            self._interim_exchange_periods = tuple(
+            self._amortization_exchange_periods = tuple(
                 [
                     Cashflow(  # type: ignore[abstract]
                         notional=self.amortization.amortization[i],

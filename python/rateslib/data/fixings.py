@@ -32,7 +32,7 @@ from rateslib.scheduling.dcfs import dcf
 from rateslib.scheduling.frequency import _get_frequency, _get_tenor_from_frequency, add_tenor
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.typing import (  # pragma: no cover
         Arr1dF64,
         Arr1dObj,
         CalTypes,
@@ -43,6 +43,8 @@ if TYPE_CHECKING:
         FXForwards,
         FXForwards_,
         IndexMethod,
+        LegFixings,
+        PeriodFixings,
         Result,
         _BaseCurve_,
         datetime_,
@@ -2427,6 +2429,25 @@ def _maybe_get_rate_series_from_curve(
             # dual parameters may be specified
             # get params from rate_index
             return rate_series
+
+
+def _leg_fixings_to_list(rate_fixings: LegFixings, n_periods: int) -> list[PeriodFixings]:  # type: ignore[type-var]
+    """Perform a conversion of 'LegRateFixings' into a list of PeriodFixings."""
+    if isinstance(rate_fixings, NoInput):
+        # NoInput is converted to a list of NoInputs
+        return [NoInput(0)] * n_periods
+    elif isinstance(rate_fixings, tuple):
+        # A tuple must be a 2-tuple which is converted to a first item and then multiplied.
+        return [rate_fixings[0]] + [rate_fixings[1]] * (n_periods - 1)
+    elif isinstance(rate_fixings, list):
+        # A list is padded with NoInputs
+        return rate_fixings + [NoInput(0)] * (n_periods - len(rate_fixings))
+    elif isinstance(rate_fixings, str | Series):
+        # A string or seried is multiplied
+        return [rate_fixings] * n_periods
+    else:
+        # A scalar value is padded with NoInputs.
+        return [rate_fixings] + [NoInput(0)] * (n_periods - 1)  # type: ignore[return-value]
 
 
 __all__ = [

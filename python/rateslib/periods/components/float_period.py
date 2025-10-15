@@ -12,6 +12,7 @@ from rateslib.curves import _BaseCurve
 from rateslib.curves.utils import average_rate
 from rateslib.data.fixings import (
     FloatRateSeries,
+    _leg_fixings_to_list,
     _RFRRate,
 )
 from rateslib.data.loader import _find_neighbouring_tenors
@@ -19,7 +20,6 @@ from rateslib.dual import Variable, gradient
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import Err, NoInput, Ok, _drb
 from rateslib.enums.parameters import FloatFixingMethod, IndexMethod, SpreadCompoundMethod
-from rateslib.legs.components.utils import _leg_fixings_to_list
 from rateslib.periods.components.float_rate import (
     try_rate_value,
 )
@@ -322,16 +322,14 @@ class FloatPeriod(_BasePeriodStatic):
             _period_stub=self.period_params.stub,
         )
 
-    def try_unindexed_reference_cashflow(
+    def unindexed_reference_cashflow(
         self,
         *,
         rate_curve: CurveOption_ = NoInput(0),
         **kwargs: Any,
-    ) -> Result[DualTypes]:
-        r = self.try_rate(rate_curve)
-        if r.is_err:
-            return r
-        return Ok(-self.settlement_params.notional * r.unwrap() * 0.01 * self.period_params.dcf)
+    ) -> DualTypes:
+        r = self.rate(rate_curve)
+        return -self.settlement_params.notional * r * 0.01 * self.period_params.dcf
 
     def try_unindexed_reference_cashflow_analytic_delta(
         self,
@@ -457,34 +455,157 @@ class FloatPeriod(_BasePeriodStatic):
         return self.try_rate(rate_curve).unwrap()
 
 
-class NonDeliverableFloatPeriod(FloatPeriod):
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        if not self.is_non_deliverable:
-            raise ValueError(err.VE_NEEDS_ND_CURRENCY_PARAMS.format(type(self).__name__))
-        if self.is_indexed:
-            raise ValueError(err.VE_HAS_INDEX_PARAMS.format(type(self).__name__))
-
-
-class IndexFloatPeriod(FloatPeriod):
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        if not self.is_indexed:
-            raise ValueError(err.VE_NEEDS_INDEX_PARAMS.format(type(self).__name__))
-        if self.is_non_deliverable:
-            raise ValueError(err.VE_HAS_ND_CURRENCY_PARAMS.format(type(self).__name__))
-
-
-class NonDeliverableIndexFloatPeriod(FloatPeriod):
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        if not self.is_indexed:
-            raise ValueError(err.VE_NEEDS_INDEX_PARAMS.format(type(self).__name__))
-        if not self.is_non_deliverable:
-            raise ValueError(err.VE_NEEDS_ND_CURRENCY_PARAMS.format(type(self).__name__))
+# class NonDeliverableFloatPeriod(FloatPeriod):
+#     def __init__(self, **kwargs: Any) -> None:
+#         super().__init__(**kwargs)
+#         if not self.is_non_deliverable:
+#             raise ValueError(err.VE_NEEDS_ND_CURRENCY_PARAMS.format(type(self).__name__))
+#         if self.is_indexed:
+#             raise ValueError(err.VE_HAS_INDEX_PARAMS.format(type(self).__name__))
+#
+#
+# class IndexFloatPeriod(FloatPeriod):
+#     def __init__(self, **kwargs: Any) -> None:
+#         super().__init__(**kwargs)
+#         if not self.is_indexed:
+#             raise ValueError(err.VE_NEEDS_INDEX_PARAMS.format(type(self).__name__))
+#         if self.is_non_deliverable:
+#             raise ValueError(err.VE_HAS_ND_CURRENCY_PARAMS.format(type(self).__name__))
+#
+#
+# class NonDeliverableIndexFloatPeriod(FloatPeriod):
+#     def __init__(self, **kwargs: Any) -> None:
+#         super().__init__(**kwargs)
+#         if not self.is_indexed:
+#             raise ValueError(err.VE_NEEDS_INDEX_PARAMS.format(type(self).__name__))
+#         if not self.is_non_deliverable:
+#             raise ValueError(err.VE_NEEDS_ND_CURRENCY_PARAMS.format(type(self).__name__))
 
 
 class ZeroFloatPeriod(_BasePeriodStatic):
+    r"""
+    A *Period* defined by compounded floating rate *Periods*.
+
+    The expected unindexed reference cashflow under the risk neutral distribution is defined as,
+
+    .. math::
+
+      \mathbb{E^Q}[\bar{C}_t] = - N \left ( \prod_{i=1}^n \left ( 1 + r_i(\mathbf{C}, R_j, z) d_i \right ) - 1 \right )
+
+    For *analytic delta* purposes the :math:`\xi=-z`.
+
+    .. role:: red
+
+    .. role:: green
+
+    Parameters
+    ----------
+    .
+       .. note::
+
+          The following define generalised **settlement** parameters.
+
+    currency: str, :green:`optional (set by 'defaults')`
+       The physical *settlement currency* of the *Period*.
+    notional: float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
+       The notional amount of the *Period* expressed in ``notional currency``.
+
+       .. note::
+
+          The following parameters are scheduling **period** parameters
+
+    schedule: Schedule, :red:`required`
+       The :class:`~rateslib.scheduling.Schedule` defining the individual *Periods*, including
+       the *payment* and *ex-dividend* dates.
+
+       .. note::
+
+          The following define **floating rate** parameters.
+
+    fixing_method: FloatFixingMethod, str, :green:`optional (set by 'defaults')`
+        The :class:`~rateslib.enums.parameters.FloatFixingMethod` describing the determination
+        of the floating rate for the period. Set by ``defaults``.
+    method_param: int, :green:`optional (set by 'defaults')`
+        A specific parameter that is used by the specific ``fixing_method``. Set by ``defaults``.
+    fixing_frequency: Frequency, str, :green:`optional (set by 'frequency' or '1B')`
+        The :class:`~rateslib.scheduling.Frequency` as a component of the
+        :class:`~rateslib.data.fixings.FloatRateIndex`. If not given is assumed to match the
+        frequency of the period for an IBOR type ``fixing_method`` or '1B' if RFR type.
+    fixing_series: FloatRateSeries, str, :green:`optional (implied by other parameters)`
+        The :class:`~rateslib.data.fixings.FloatRateSeries` as a component of the
+        :class:`~rateslib.data.fixings.FloatRateIndex`. If not given is assumed to match the
+        frequency of the period for an IBOR type ``fixing_method`` or '1B' if RFR type.
+    float_spread: float, Dual, Dual2, Variable, :green:`optional (set as 0.0)`
+        The amount (in bps) added to the rate in the period rate determination. If not given is
+        set to zero.
+    spread_compound_method: SpreadCompoundMethod, str, :green:`optional (set by 'defaults')`
+        The :class:`~rateslib.enums.parameters.SpreadCompoundMethod` used in the calculation
+        of the period rate when combining a ``float_spread``. Used **only** with RFR type
+        ``fixing_method``. Set by ``defaults``.
+    rate_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
+        The value of the rate fixing. If a scalar, is used directly. If a string identifier, links
+        to the central ``fixings`` object and data loader.
+
+        .. note::
+
+          The following parameters define **non-deliverability**. If the *Period* is directly
+          deliverable do not supply these parameters.
+
+    pair: str, :green:`optional`
+       The currency pair of the :class:`~rateslib.data.fixings.FXFixing` that determines
+       settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
+    fx_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
+       The value of the :class:`~rateslib.data.fixings.FXFixing`. If a scalar is used directly.
+       If a string identifier will link to the central ``fixings`` object and data loader.
+    delivery: datetime, :green:`optional (set as 'payment')`
+       The settlement delivery date of the :class:`~rateslib.data.fixings.FXFixing`.
+
+       .. note::
+
+          The following parameters define **indexation**. The *Period* will be considered
+          indexed if any of ``index_method``, ``index_lag``, ``index_base``, ``index_fixings``
+          are given.
+
+    index_method : IndexMethod, str, :green:`optional (set by 'defaults')`
+       The interpolation method, or otherwise, to determine index values from reference dates.
+    index_lag: int, :green:`optional (set by 'defaults')`
+       The indexation lag, in months, applied to the determination of index values.
+    index_base: float, Dual, Dual2, Variable, :green:`optional`
+       The specific value set of the base index value.
+       If not given and ``index_fixings`` is a str fixings identifier that will be
+       used to determine the base index value.
+    index_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
+       The index value for the reference date.
+       If a scalar value this is used directly. If a string identifier will link to the
+       central ``fixings`` object and data loader.
+    index_only: bool, :green:`optional (set as False)`
+       A flag which determines non-payment of notional on supported *Periods*.
+
+
+    Examples
+    --------
+
+    A typical :class:`~rateslib.periods.components.ZeroFloatPeriod`.
+
+    .. ipython:: python
+      :suppress:
+
+      from rateslib.periods.components import ZeroFloatPeriod
+      from rateslib.scheduling import Schedule
+      from datetime import datetime as dt
+
+    .. ipython:: python
+
+      period = ZeroFloatPeriod(
+          schedule=Schedule(dt(2000, 1, 1), "2Y", "S"),
+          fixing_method="IBOR",
+          rate_fixings=[1.1, 2.1, 3.1, 4.1],
+          convention="Act360",
+      )
+      period.cashflows()
+
+    """
+
     @property
     def rate_params(self) -> _FloatRateParams:
         """The :class:`~rateslib.periods.components.parameters._FixedRateParams` of the *Period*."""
@@ -637,22 +758,37 @@ class ZeroFloatPeriod(_BasePeriodStatic):
         return Ok(r)
 
     def rate(self, *, rate_curve: CurveOption_ = NoInput(0)) -> DualTypes:
+        r"""Calculate a single *rate* representation for the *Period's* cashflow.
+
+        The *rate* is determined from the compounded *Period* rates according to:
+
+        .. math::
+
+           \left ( 1 + \frac{r}{f} \right )^{df} = \prod_{i=1}^n \left ( 1 + r_i(\mathbf{C}, R_j, z) d_i \right )
+
+        Parameters
+        ----------
+        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
+            Used to forecast floating period rates, if necessary.
+
+        Returns
+        -------
+        float, Dual, Dual2 or Variable
+        """
+
         return self.try_rate(rate_curve=rate_curve).unwrap()
 
-    def try_unindexed_reference_cashflow(
+    def unindexed_reference_cashflow(
         self,
         *,
         rate_curve: CurveOption_ = NoInput(0),
         **kwargs: Any,
-    ) -> Result[DualTypes]:
+    ) -> DualTypes:
         # determine each rate from individual Periods
-        try:
-            r_i = [period.rate(rate_curve=rate_curve) for period in self._float_periods]
-            d_i = [period.period_params.dcf for period in self._float_periods]
-        except Exception as e:
-            return Err(e)
+        r_i = [period.rate(rate_curve=rate_curve) for period in self._float_periods]
+        d_i = [period.period_params.dcf for period in self._float_periods]
         r = np.prod(1.0 + np.array(r_i) * np.array(d_i) / 100.0) - 1.0
-        return Ok(-self.settlement_params.notional * r)
+        return -self.settlement_params.notional * r
 
     def try_unindexed_reference_cashflow_analytic_delta(
         self,

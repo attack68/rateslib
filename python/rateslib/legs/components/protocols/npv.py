@@ -99,7 +99,7 @@ class _WithNPV(Protocol):
         # a Leg only has cashflows in one single currency, so some up those values first
         # then format for necessary dict output if required.
         local_npv: DualTypes = sum(
-            _.try_local_npv(
+            _.local_npv(
                 rate_curve=rate_curve,
                 index_curve=index_curve,
                 disc_curve=disc_curve,
@@ -107,7 +107,7 @@ class _WithNPV(Protocol):
                 fx_vol=fx_vol,
                 settlement=settlement,
                 forward=forward,
-            ).unwrap()
+            )
             for _ in self.periods
         )
         return _maybe_local(
