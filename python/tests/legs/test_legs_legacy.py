@@ -1530,13 +1530,13 @@ class TestFixedLeg:
         assert (fl._exchange_periods[1] is None) is not (final or initial)
         if not amortization:
             assert fl.amortization._type == _AmortizationType.NoAmortization
-            assert fl._interim_exchange_periods is None
+            assert fl._amortization_exchange_periods is None
         else:
             assert fl.amortization._type == _AmortizationType.ConstantPeriod
             if not (final or initial):  # initial sets final to True
-                assert fl._interim_exchange_periods is None
+                assert fl._amortization_exchange_periods is None
             else:
-                assert len(fl._interim_exchange_periods) == 1
+                assert len(fl._amortization_exchange_periods) == 1
 
     @pytest.mark.parametrize("initial", [True, False])
     @pytest.mark.parametrize("final", [True, False])
@@ -1573,10 +1573,12 @@ class TestFixedLeg:
             assert fl._exchange_periods[1].non_deliverable_params.fx_fixing.value == 2.0
 
         if amortization and final:
-            assert fl._interim_exchange_periods[0].non_deliverable_params.fx_fixing.date == dt(
+            assert fl._amortization_exchange_periods[0].non_deliverable_params.fx_fixing.date == dt(
                 2000, 1, 2
             )
-            assert fl._interim_exchange_periods[0].non_deliverable_params.fx_fixing.value == 2.0
+            assert (
+                fl._amortization_exchange_periods[0].non_deliverable_params.fx_fixing.value == 2.0
+            )
             assert fl.amortization.amortization == (250000.0,)
 
             cf = fl.cashflows()
@@ -1613,14 +1615,14 @@ class TestFixedLeg:
         assert leg._regular_periods[0].index_params.index_fixing.date == leg.schedule.aschedule[1]
         assert leg._regular_periods[1].index_params.index_fixing.date == leg.schedule.aschedule[2]
         assert (
-            leg._interim_exchange_periods[0].index_params.index_fixing.date
+            leg._amortization_exchange_periods[0].index_params.index_fixing.date
             == leg.schedule.aschedule[1]
         )
         assert leg._exchange_periods[1].index_params.index_fixing.date == leg.schedule.aschedule[2]
 
         assert leg._regular_periods[0].index_params.index_base.value == 101.0
         assert leg._regular_periods[1].index_params.index_base.value == 101.0
-        assert leg._interim_exchange_periods[0].index_params.index_base.value == 101.0
+        assert leg._amortization_exchange_periods[0].index_params.index_base.value == 101.0
         assert leg._exchange_periods[1].index_params.index_base.value == 101.0
 
         fixings.pop(name)

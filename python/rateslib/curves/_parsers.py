@@ -308,3 +308,85 @@ def _maybe_set_ad_order(
                 # Curve has no method (possibly a custom curve and not a subclass of _BaseCurve)
                 return None
             return original_order
+
+
+def _to_six_curve_dict(
+    curves: CurveOption | list[CurveOption] | dict[str, CurveOption],
+) -> dict[str, CurveOption_]:
+    if isinstance(curves, list | tuple):
+        if len(curves) == 1:
+            return dict(
+                rate=curves[0],
+                disc=curves[0],
+                index=NoInput(0),
+                rate2=curves[0],
+                disc2=curves[0],
+                index2=NoInput(0),
+            )
+        if len(curves) == 2:
+            return dict(
+                rate=curves[0],
+                disc=curves[1],
+                index=NoInput(0),
+                rate2=curves[0],
+                disc2=curves[1],
+                index2=NoInput(0),
+            )
+        if len(curves) == 3:
+            return dict(
+                rate=curves[0],
+                disc=curves[1],
+                index=curves[2],
+                rate2=curves[0],
+                disc2=curves[1],
+                index2=curves[2],
+            )
+        if len(curves) == 4:
+            return dict(
+                rate=curves[0],
+                disc=curves[1],
+                index=NoInput(0),
+                rate2=curves[2],
+                disc2=curves[3],
+                index2=NoInput(0),
+            )
+        if len(curves) == 5:
+            return dict(
+                rate=curves[0],
+                disc=curves[1],
+                index=curves[2],
+                rate2=curves[3],
+                disc2=curves[4],
+                index2=curves[2],
+            )
+        if len(curves) == 6:
+            return dict(
+                rate=curves[0],
+                disc=curves[1],
+                index=curves[2],
+                rate2=curves[3],
+                disc2=curves[4],
+                index2=curves[5],
+            )
+        else:
+            raise ValueError(
+                f"`curves` as sequence must not be greater than 6 in length, got: {len(curves)}."
+            )
+    elif isinstance(curves, dict):
+        return dict(
+            rate=curves.get("rate", None) or NoInput(0),
+            disc=curves.get("disc", None) or curves.get("rate", None) or NoInput(0),
+            index=curves.get("index", None) or NoInput(0),
+            rate2=curves.get("rate2", None) or curves.get("rate", None) or NoInput(0),
+            disc2=curves.get("disc2", None) or curves.get("disc", None) or NoInput(0),
+            index2=curves.get("index2", None) or curves.get("index", None) or NoInput(0),
+        )
+    else:
+        return dict(
+            rate=curves,
+            disc=curves,
+            index=NoInput(0),
+            rate2=curves,
+            disc2=curves,
+            index2=NoInput(0),
+        )
