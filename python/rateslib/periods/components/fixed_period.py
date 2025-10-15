@@ -470,7 +470,7 @@ class ZeroFixedPeriod(_BasePeriodStatic):
        )
        period.cashflows()
 
-    """
+    """  # noqa: E501
 
     @property
     def rate_params(self) -> _FixedRateParams:

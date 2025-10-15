@@ -17,9 +17,9 @@ if TYPE_CHECKING:
         Schedule,
         _BaseCurve_,
         _SettlementParams,
+        bool_,
         datetime,
         str_,
-        bool_,
     )
 
 
