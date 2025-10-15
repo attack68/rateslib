@@ -513,7 +513,7 @@ class _WithNonDeliverableStatic(Protocol):
         Returns
         -------
         Result[float, Dual, Dual2, Variable]
-        """
+        """  # noqa: E501
         try:
             v = self.convert_deliverable(
                 value=value.unwrap(),
@@ -628,7 +628,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         Returns
         -------
         Result[float, Dual, Dual2, Variable]
-        """
+        """  # noqa: E501
         try:
             v = self.unindexed_reference_cashflow(
                 rate_curve=rate_curve,
