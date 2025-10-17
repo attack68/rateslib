@@ -34,6 +34,7 @@ if TYPE_CHECKING:
         datetime,
         int_,
         str_,
+        FXForwards_
     )
 
 
@@ -371,8 +372,8 @@ class FloatLeg(_BaseLeg):
         target_npv: DualTypes,
         rate_curve: CurveOption_,
         disc_curve: _BaseCurve_,
-        fx: FX_ = NoInput(0),
         index_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
     ) -> DualTypes:
         """
         Calculates an adjustment to the ``fixed_rate`` or ``float_spread`` to match
@@ -389,6 +390,8 @@ class FloatLeg(_BaseLeg):
             The discounting curve passed to analytic delta calculation.
         fx : FXForwards, optional
             Required for multi-currency legs which are MTM exchanged.
+        index_curve : _BaseCurve, optional
+            The index curve used for forecasting index values.
 
         Returns
         -------
@@ -411,7 +414,7 @@ class FloatLeg(_BaseLeg):
         --------
         """
         if self._is_linear:
-            a_delta: DualTypes = self.analytic_delta(  # type: ignore[assignment]
+            a_delta: DualTypes = self.local_analytic_delta(
                 rate_curve=rate_curve,
                 disc_curve=disc_curve,
                 index_curve=index_curve,
@@ -627,8 +630,4 @@ class ZeroFloatLeg(_BaseLeg):
         """
         Overload the _spread calc to use analytic delta based on period rate
         """
-        a_delta = self._analytic_delta(fore_curve, disc_curve, fx, self.currency)
-        period_rate = -target_npv / (a_delta * 100)
-        f = self.schedule.periods_per_annum
-        _: DualTypes = f * ((1 + period_rate * self.dcf / 100) ** (1 / (self.dcf * f)) - 1)
-        return _ * 10000
+        raise NotImplementedError()

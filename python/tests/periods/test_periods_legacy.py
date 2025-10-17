@@ -2875,8 +2875,8 @@ class TestFixedPeriod:
             currency="usd",
         )
         with pytest.raises(
-            ValueError,
-            match=re.escape("`disc_curve` is required but it has not been provided, or c"),
+            TypeError,
+            match=re.escape("`curves` have not been supplied correctly"),
         ):
             fixed_period.npv()
 
@@ -3454,7 +3454,7 @@ class TestCashflow:
         assert result == expected
 
     def test_cashflow_npv_raises(self, curve) -> None:
-        with pytest.raises(ValueError, match="`disc_curve` is required but it has not been pr"):
+        with pytest.raises(TypeError, match="`curves` have not been supplied correctly."):
             Cashflow(notional=1e6, payment=dt(2022, 1, 1)).npv()
         cashflow = Cashflow(notional=1e6, payment=dt(2022, 1, 1))
         assert cashflow.analytic_delta(rate_curve=curve) == 0
