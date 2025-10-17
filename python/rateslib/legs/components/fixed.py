@@ -29,10 +29,13 @@ if TYPE_CHECKING:
         LegFixings,
         Schedule,
         Series,
+        _BaseCurve_,
         _SettlementParams,
         datetime,
         int_,
         str_,
+        _BaseCurve,
+        FXForwards_,
     )
 
 
@@ -650,6 +653,56 @@ class FixedLeg(_BaseLeg):
         else:
             self._mtm_exchange_periods = None
 
+    def _spread(
+        self,
+        target_npv: DualTypes,
+        rate_curve: CurveOption_,
+        disc_curve: CurveOption_,
+        index_curve: _BaseCurve_,
+        fx: FXForwards_ = NoInput(0),
+    ) -> DualTypes:
+        """
+        Calculates the ``fixed_rate`` to match a specific target NPV on the leg.
+
+        Parameters
+        ----------
+        target_npv : float, Dual or Dual2
+            The target NPV that an adjustment to the parameter will achieve. **Must
+            be in local currency of the leg.**
+        rate_curve : Curve or LineCurve
+            The forecast curve passed to analytic delta calculation.
+        disc_curve : Curve
+            The discounting curve passed to analytic delta calculation.
+        index_curve : _BaseCurve_
+            The curve used for forecasting index values.
+        fx : FXForwards, optional
+            Required for multi-currency legs which are MTM exchanged.
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        Notes
+        -----
+        ``FixedLeg`` and ``FloatLeg`` with a *"none_simple"* spread compound method have
+        linear sensitivity to the spread. This can be calculated directly and
+        exactly using an analytic delta calculation.
+
+        *"isda_compounding"* and *"isda_flat_compounding"* spread compound methods
+        have non-linear sensitivity to the spread. This requires a root finding,
+        iterative algorithm, which, coupled with very poor performance of calculating
+        period rates under this method is exceptionally slow. We approximate this
+        using first and second order AD and extrapolate a solution as a Taylor
+        expansion. This results in approximation error.
+
+        Examples
+        --------
+        """
+        a_delta = self.local_analytic_delta(
+            rate_curve=rate_curve, disc_curve=disc_curve, index_curve=index_curve, fx=fx
+        )
+        return -target_npv / a_delta
+
 
 class ZeroFixedLeg(_BaseLeg):
     """
@@ -808,18 +861,28 @@ class ZeroFixedLeg(_BaseLeg):
     def _spread(
         self,
         target_npv: DualTypes,
-        fore_curve: CurveOption_,
-        disc_curve: CurveOption_,
-        fx: FX_ = NoInput(0),
+        rate_curve: CurveOption_,
+        disc_curve: _BaseCurve,
+        index_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
     ) -> DualTypes:
         """
         Overload the _spread calc to use analytic delta based on period rate
         """
-        a_delta = self._analytic_delta(fore_curve, disc_curve, fx, self.currency)
-        period_rate = -target_npv / (a_delta * 100)
+
+        unindexed_target_npv = (
+            target_npv / self._regular_periods[0].index_up(1.0, index_curve=index_curve)
+        )
+        unindexed_reference_target_npv = (
+            unindexed_target_npv / self._regular_periods[0].convert_deliverable(1.0, fx=fx)
+        )
+
         f = self.schedule.periods_per_annum
-        _: DualTypes = f * ((1 + period_rate * self.dcf / 100) ** (1 / (self.dcf * f)) - 1)
-        return _ * 10000
+        d = self._regular_periods[0].dcf
+        N = self.settlement_params.notional
+        w = disc_curve[self.settlement_params.payment]
+        R = ((-unindexed_reference_target_npv / (N * w) + 1) ** (1 / (d * f)) - 1) * f * 10000.0
+        return R
 
 
 class ZeroIndexLeg(_BaseLeg):
@@ -938,8 +1001,4 @@ class ZeroIndexLeg(_BaseLeg):
         """
         Overload the _spread calc to use analytic delta based on period rate
         """
-        a_delta = self._analytic_delta(fore_curve, disc_curve, fx, self.currency)
-        period_rate = -target_npv / (a_delta * 100)
-        f = self.schedule.periods_per_annum
-        _: DualTypes = f * ((1 + period_rate * self.dcf / 100) ** (1 / (self.dcf * f)) - 1)
-        return _ * 10000
+        raise NotImplementedError()

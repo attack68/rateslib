@@ -421,7 +421,7 @@ class ZeroFixedPeriod(_BasePeriodStatic):
            convention="1",
        )
        period.cashflows()
-    
+
     .. role:: red
 
     .. role:: green

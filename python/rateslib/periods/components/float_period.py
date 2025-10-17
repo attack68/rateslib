@@ -526,7 +526,7 @@ class ZeroFloatPeriod(_BasePeriodStatic):
     For *analytic delta* purposes the :math:`\xi=-z`.
 
     .. rubric:: Examples
-    
+
     .. ipython:: python
       :suppress:
 
@@ -832,7 +832,7 @@ class ZeroFloatPeriod(_BasePeriodStatic):
         # determine each rate from individual Periods
         r_i = [period.rate(rate_curve=rate_curve) for period in self.float_periods]
         d_i = [period.period_params.dcf for period in self.float_periods]
-        r = np.prod(1.0 + np.array(r_i) * np.array(d_i) / 100.0) - 1.0
+        r: DualTypes = np.prod(1.0 + np.array(r_i) * np.array(d_i) / 100.0) - 1.0
         return -self.settlement_params.notional * r
 
     def try_unindexed_reference_cashflow_analytic_delta(
