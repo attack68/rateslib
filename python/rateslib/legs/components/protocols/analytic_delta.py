@@ -24,6 +24,58 @@ class _WithAnalyticDelta(Protocol):
     @property
     def periods(self) -> list[_BasePeriod]: ...
 
+    def local_analytic_delta(
+        self,
+        rate_curve: CurveOption_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+        settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
+    ) -> DualTypes:
+        """
+        Calculate the analytic rate delta of a *Period* expressed in its local settlement currency.
+
+        Parameters
+        ----------
+        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
+            Used to forecast floating period rates, if necessary.
+        index_curve: _BaseCurve, optional
+            Used to forecast index values for indexation, if necessary.
+        disc_curve: _BaseCurve, optional
+            Used to discount cashflows.
+        fx: FXForwards, optional
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting the
+            ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
+            :class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
+        fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
+            The FX volatility *Smile* or *Surface* object used for determining Black calendar
+            day implied volatility values.
+        settlement: datetime, optional
+            The assumed settlement date of the *PV* determination. Used only to evaluate
+            *ex-dividend* status.
+        forward: datetime, optional
+            The future date to project the *PV* to using the ``disc_curve``.
+
+        Returns
+        -------
+        float, Dual, Dual2, Variable
+        """
+        local_analytic_delta: DualTypes = sum(
+            _.try_local_analytic_delta(
+                rate_curve=rate_curve,
+                index_curve=index_curve,
+                disc_curve=disc_curve,
+                fx=fx,
+                fx_vol=fx_vol,
+                settlement=settlement,
+                forward=forward,
+            ).unwrap()
+            for _ in self.periods
+        )
+        return local_analytic_delta
+
     def analytic_delta(
         self,
         *,

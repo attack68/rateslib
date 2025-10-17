@@ -1042,8 +1042,55 @@ class TestZeroFixedLeg:
             convention="ActAct",
             fixed_rate=NoInput(0),
         )
-        result = zfl._spread(13140821.29 * curve[dt(2027, 1, 1)], NoInput(0), curve)
-        assert (result / 100 - 2.50) < 1e-3
+        result = zfl._spread(
+            target_npv=13140821.29 * curve[dt(2027, 1, 1)],
+            rate_curve=NoInput(0),
+            disc_curve=curve,
+        )
+        assert abs(result / 100 - 2.50) < 1e-3
+
+    def test_zero_fixed_spread_indexed(self, curve) -> None:
+        zfl = ZeroFixedLeg(
+            schedule=Schedule(
+                effective=dt(2022, 1, 1),
+                termination="5y",
+                payment_lag=0,
+                frequency="A",
+            ),
+            notional=-1e8,
+            convention="ActAct",
+            fixed_rate=NoInput(0),
+            index_base=100.0,
+            index_fixings=110.0,
+        )
+        result = zfl._spread(
+            target_npv=13140821.29 * curve[dt(2027, 1, 1)],
+            rate_curve=NoInput(0),
+            disc_curve=curve,
+        )
+        assert abs(result / 100 - 2.2826266057484057) < 1e-3
+
+    def test_zero_fixed_spread_non_deliverable(self, curve) -> None:
+        zfl = ZeroFixedLeg(
+            schedule=Schedule(
+                effective=dt(2022, 1, 1),
+                termination="5y",
+                payment_lag=0,
+                frequency="A",
+            ),
+            notional=-1e8,
+            convention="ActAct",
+            fixed_rate=NoInput(0),
+            currency="usd",
+            pair="eurusd",
+            fx_fixings=2.0,
+        )
+        result = zfl._spread(
+            target_npv=13140821.29 * curve[dt(2027, 1, 1)],
+            rate_curve=NoInput(0),
+            disc_curve=curve,
+        )
+        assert abs(result / 100 - 1.2808477472765924) < 1e-3
 
     def test_amortization_raises(self) -> None:
         with pytest.raises(TypeError, match="unexpected keyword argument 'amortization'"):
@@ -1503,6 +1550,25 @@ class TestFixedLeg:
         assert cf.loc[0, "Reference Ccy"] == "BRL"
 
     # v2.5
+
+    def test_fixed_leg_spread(self, curve) -> None:
+        fixed_leg = FixedLeg(
+            schedule=Schedule(
+                effective=dt(2022, 1, 1),
+                termination=dt(2022, 7, 1),
+                payment_lag=2,
+                payment_lag_exchange=1,
+                frequency="Q",
+            ),
+            notional=-1e9,
+            convention="Act360",
+            fixed_rate=4.00,
+            currency="usd",
+        )
+        result = fixed_leg._spread(
+            target_npv=20000000, disc_curve=curve, rate_curve=curve, index_curve=curve
+        )
+        assert abs(result - 403.9491881327746) < 1e-6
 
     @pytest.mark.parametrize("initial", [True, False])
     @pytest.mark.parametrize("final", [True, False])
@@ -2587,7 +2653,12 @@ class TestFloatLegExchangeMtm:
             rate_curve=fxf.curve("usd", "usd"), disc_curve=fxf.curve("usd", "usd"), fx=fxf
         )
         # a_delta = leg.analytic_delta(fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf)
-        result = leg._spread(100, fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf)
+        result = leg._spread(
+            target_npv=100,
+            rate_curve=fxf.curve("usd", "usd"),
+            disc_curve=fxf.curve("usd", "usd"),
+            fx=fxf,
+        )
         leg.float_spread = result
         npv2 = leg.npv(
             rate_curve=fxf.curve("usd", "usd"), disc_curve=fxf.curve("usd", "usd"), fx=fxf
