@@ -25,17 +25,18 @@ if TYPE_CHECKING:
         CurveOption_,
         DualTypes,
         DualTypes_,
+        FXForwards_,
         IndexMethod,
         LegFixings,
         Schedule,
         Series,
+        _BaseCurve,
         _BaseCurve_,
         _SettlementParams,
         datetime,
+        datetime_,
         int_,
         str_,
-        _BaseCurve,
-        FXForwards_,
     )
 
 
@@ -657,9 +658,11 @@ class FixedLeg(_BaseLeg):
         self,
         target_npv: DualTypes,
         rate_curve: CurveOption_,
-        disc_curve: CurveOption_,
+        disc_curve: _BaseCurve_,
         index_curve: _BaseCurve_,
         fx: FXForwards_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
+        settlement: datetime_ = NoInput(0),
     ) -> DualTypes:
         """
         Calculates the ``fixed_rate`` to match a specific target NPV on the leg.
@@ -699,7 +702,12 @@ class FixedLeg(_BaseLeg):
         --------
         """
         a_delta = self.local_analytic_delta(
-            rate_curve=rate_curve, disc_curve=disc_curve, index_curve=index_curve, fx=fx
+            rate_curve=rate_curve,
+            disc_curve=disc_curve,
+            index_curve=index_curve,
+            fx=fx,
+            forward=forward,
+            settlement=settlement,
         )
         return -target_npv / a_delta
 
@@ -870,12 +878,12 @@ class ZeroFixedLeg(_BaseLeg):
         Overload the _spread calc to use analytic delta based on period rate
         """
 
-        unindexed_target_npv = (
-            target_npv / self._regular_periods[0].index_up(1.0, index_curve=index_curve)
+        unindexed_target_npv = target_npv / self._regular_periods[0].index_up(
+            1.0, index_curve=index_curve
         )
-        unindexed_reference_target_npv = (
-            unindexed_target_npv / self._regular_periods[0].convert_deliverable(1.0, fx=fx)
-        )
+        unindexed_reference_target_npv = unindexed_target_npv / self._regular_periods[
+            0
+        ].convert_deliverable(1.0, fx=fx)
 
         f = self.schedule.periods_per_annum
         d = self._regular_periods[0].dcf
