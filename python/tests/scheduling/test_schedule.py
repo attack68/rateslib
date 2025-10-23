@@ -871,3 +871,66 @@ def test_payment_adjuster_2_and_3():
     assert s.pschedule == [dt(2000, 1, 2), dt(2000, 2, 2), dt(2000, 3, 2)]
     assert s.pschedule2 == [dt(2000, 1, 3), dt(2000, 2, 3), dt(2000, 3, 3)]
     assert s.pschedule3 == [dt(1999, 12, 30), dt(2000, 1, 30), dt(2000, 2, 28)]
+
+
+@pytest.mark.parametrize(
+    ("eff", "front", "back", "term"),
+    [
+        # All unadjusted
+        (dt(2025, 1, 15), NoInput(0), NoInput(0), dt(2025, 4, 15)),
+        (dt(2025, 1, 15), dt(2025, 2, 15), NoInput(0), dt(2025, 4, 15)),
+        (dt(2025, 1, 15), NoInput(0), dt(2025, 3, 15), dt(2025, 4, 15)),
+        (dt(2025, 1, 15), dt(2025, 2, 15), dt(2025, 3, 15), dt(2025, 4, 15)),
+        # Stub given as adjusted
+        (dt(2025, 1, 15), dt(2025, 2, 17), NoInput(0), dt(2025, 4, 15)),
+        (dt(2025, 1, 15), NoInput(0), dt(2025, 3, 17), dt(2025, 4, 15)),
+        (dt(2025, 1, 15), dt(2025, 2, 17), dt(2025, 3, 17), dt(2025, 4, 15)),
+        # Stub given as mixed
+        (dt(2025, 1, 15), dt(2025, 2, 17), dt(2025, 3, 15), dt(2025, 4, 15)),
+    ],
+)
+def test_schedule_when_stub_input_is_regular(eff, front, back, term):
+    # GH-dev 142
+    s_base = Schedule(
+        effective=dt(2025, 1, 15),
+        termination=dt(2025, 3, 17),
+        calendar="bus",
+        frequency="M",
+        modifier="mf",
+    )
+    assert s_base.uschedule == [dt(2025, 1, 15), dt(2025, 2, 15), dt(2025, 3, 15)]
+    assert s_base.aschedule == [dt(2025, 1, 15), dt(2025, 2, 17), dt(2025, 3, 17)]
+
+    s = Schedule(
+        effective=eff,
+        termination=term,
+        front_stub=front,
+        back_stub=back,
+        calendar="bus",
+        frequency="M",
+        modifier="mf",
+    )
+    assert s._stubs == [False, False, False]
+
+
+@pytest.mark.skip(reason="multiple stubs, where one may be a genuine stub is not implemented.")
+@pytest.mark.parametrize("fs", [dt(2025, 2, 15), dt(2025, 2, 17)])
+def test_schedule_when_one_front_stub_of_two_is_regular(fs):
+    # GH-dev 142
+    # this tests that one stub might be genuine whilst the other is a regular period and
+    # the schedule still generates correctly.
+
+    # this requires additional branching in the Rust scheduling code in the pre-check which has
+    # not been developed. The most common use case for this pre-check is when only a front stub,
+    # i.e. the first coupon date of a bond is provided.
+
+    s = Schedule(
+        effective=dt(2025, 1, 15),
+        termination=dt(2025, 4, 25),
+        front_stub=fs,
+        back_stub=dt(2025, 4, 15),
+        calendar="bus",
+        frequency="M",
+        modifier="mf",
+    )
+    assert s._stubs == [False, False, False, True]

@@ -12,9 +12,12 @@ and this can be given on the public **Issues** board at the project github
 repository: `Rateslib Project <https://github.com/attack68/rateslib>`_, or by direct
 email contact, see `rateslib <https://rateslib.com>`_.
 
-2.2.0 (not released)
+2.5.0 (not released)
 ***********************
 
+This release drops semantic versioning and is semantically `rateslib 2 and a half`.
+Many elements of its core functionality have been re-written and this has created numerous
+breaking changes.
 
 Must note: period.float_spread does not work anymore. Periods now have specific parameter objects,
 fixings exposure is completely re-engineered, approximations are not currently available.
@@ -100,6 +103,10 @@ Performance of the _spread for a float leg might be reduced for ISDA ``spread_co
      - - :class:`~rateslib.legs.IndexFixedLeg` now applies the ``payment_lag_exchange`` adjuster
          to amortization notional exchanges as opposed to the ``payment_lag`` adjuster.
          (`1022 <https://github.com/attack68/rateslib/pull/1022>`_)
+       - Supplying a ``front_stub`` or ``back_stub`` to a :class:`~rateslib.scheduling.Schedule`,
+         which does not reflect a genuine stub, but is actually a regular coupon date, now still
+         allows that schedule to be constructed by performing a pre-check.
+         (`1062 <https://github.com/attack68/rateslib/pull/1062>`_)
 
 2.1.1 (12th August 2025)
 ***************************

@@ -1,6 +1,7 @@
 from datetime import datetime as dt
 
 import pytest
+from rateslib.enums.generics import NoInput
 from rateslib.rs import Adjuster, Cal, Frequency, RollDay, Schedule, StubInference
 
 

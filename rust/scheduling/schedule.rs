@@ -570,6 +570,58 @@ impl Schedule {
         eom: bool,
         stub_inference: Option<StubInference>,
     ) -> Result<Schedule, PyErr> {
+        // perform a preliminary check to determine if a given stub date actually falls under some
+        // regular schedule. This is common when a list of bonds have 'first coupon' dates that
+        // may or may not be official stub dates.
+        if front_stub.is_none() && back_stub.is_none() {
+            // then do nothing in this pre-check
+        } else {
+            let dates: (Vec<NaiveDateTime>, Vec<NaiveDateTime>) = (
+                get_unadjusteds(&effective, &accrual_adjuster, &calendar),
+                get_unadjusteds(&termination, &accrual_adjuster, &calendar),
+            );
+            let combinations = iproduct!(dates.0, dates.1);
+            let schedules: Vec<Schedule> = combinations
+                .into_iter()
+                .filter_map(|(e, t)| {
+                    Schedule::try_new_uschedule_infer_frequency(
+                        e,
+                        t,
+                        frequency.clone(),
+                        None,
+                        None,
+                        calendar.clone(),
+                        accrual_adjuster,
+                        payment_adjuster,
+                        payment_adjuster2,
+                        payment_adjuster3,
+                        eom,
+                        stub_inference,
+                    )
+                    .ok()
+                })
+                .filter(|schedule| schedule.is_regular())
+                .filter(|s| {
+                    front_stub.is_none()
+                        || (front_stub.is_some()
+                            && (front_stub.unwrap() == s.aschedule[1]
+                                || front_stub.unwrap() == s.uschedule[1]))
+                })
+                .filter(|s| {
+                    back_stub.is_none()
+                        || (back_stub.is_some()
+                            && (back_stub.unwrap() == s.aschedule[s.aschedule.len() - 2]
+                                || back_stub.unwrap() == s.uschedule[s.uschedule.len() - 2]))
+                })
+                .collect();
+            if schedules.len() == 0 {
+                // do nothing becuase the pre-check has failed: moved to usual construction
+            } else {
+                // filter regular schedules
+                return Ok(filter_schedules_by_eom(schedules, eom));
+            }
+        }
+
         // find all unadjusted combinations. only adjust the boundaries of the regular component.
         let dates: (
             Vec<NaiveDateTime>,
@@ -1525,6 +1577,37 @@ mod tests {
         assert_eq!(
             s.uschedule,
             vec![ndt(2022, 1, 1), ndt(2022, 3, 1), ndt(2022, 6, 1)]
+        );
+    }
+
+    #[test]
+    fn test_inference_allows_stubs_when_they_are_regular() {
+        let s = Schedule::try_new_inferred(
+            ndt(2025, 1, 15),
+            ndt(2025, 4, 15),
+            Frequency::Months {
+                number: 1,
+                roll: None,
+            },
+            None,
+            Some(ndt(2025, 3, 15)),
+            Calendar::Cal(Cal::new(vec![], vec![5, 6])),
+            Adjuster::ModifiedFollowing {},
+            Adjuster::BusDaysLagSettle(2),
+            Adjuster::Following {},
+            None,
+            false,
+            Some(StubInference::ShortFront),
+        )
+        .expect("schedule is valid");
+        assert_eq!(
+            s.uschedule,
+            vec![
+                ndt(2025, 1, 15),
+                ndt(2025, 2, 15),
+                ndt(2025, 3, 15),
+                ndt(2025, 4, 15)
+            ]
         );
     }
 }
