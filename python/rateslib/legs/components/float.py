@@ -26,6 +26,7 @@ if TYPE_CHECKING:
         DualTypes_,
         FloatRateSeries,
         Frequency,
+        FXForwards_,
         IndexMethod,
         LegFixings,
         Schedule,
@@ -34,7 +35,6 @@ if TYPE_CHECKING:
         datetime,
         int_,
         str_,
-        FXForwards_
     )
 
 
