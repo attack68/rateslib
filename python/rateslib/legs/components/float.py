@@ -20,19 +20,20 @@ from rateslib.periods.components.parameters import _FloatRateParams, _Settlement
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
-        FX_,
         CurveOption_,
         DualTypes,
         DualTypes_,
         FloatRateSeries,
         Frequency,
         FXForwards_,
+        FXVolOption_,
         IndexMethod,
         LegFixings,
         Schedule,
         _BaseCurve_,
         _BasePeriod,
         datetime,
+        datetime_,
         int_,
         str_,
     )
@@ -367,82 +368,51 @@ class FloatLeg(_BaseLeg):
             return False
         return True
 
-    def _spread(
+    def spread(
         self,
+        *,
         target_npv: DualTypes,
-        rate_curve: CurveOption_,
-        disc_curve: _BaseCurve_,
+        rate_curve: CurveOption_ = NoInput(0),
         index_curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+        settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
     ) -> DualTypes:
-        """
-        Calculates an adjustment to the ``fixed_rate`` or ``float_spread`` to match
-        a specific target NPV.
-
-        Parameters
-        ----------
-        target_npv : float, Dual or Dual2
-            The target NPV that an adjustment to the parameter will achieve. **Must
-            be in local currency of the leg.**
-        rate_curve : Curve or LineCurve
-            The forecast curve passed to analytic delta calculation.
-        disc_curve : Curve
-            The discounting curve passed to analytic delta calculation.
-        fx : FXForwards, optional
-            Required for multi-currency legs which are MTM exchanged.
-        index_curve : _BaseCurve, optional
-            The index curve used for forecasting index values.
-
-        Returns
-        -------
-        float, Dual, Dual2
-
-        Notes
-        -----
-        ``FixedLeg`` and ``FloatLeg`` with a *"none_simple"* spread compound method have
-        linear sensitivity to the spread. This can be calculated directly and
-        exactly using an analytic delta calculation.
-
-        *"isda_compounding"* and *"isda_flat_compounding"* spread compound methods
-        have non-linear sensitivity to the spread. This requires a root finding,
-        iterative algorithm, which, coupled with very poor performance of calculating
-        period rates under this method is exceptionally slow. We approximate this
-        using first and second order AD and extrapolate a solution as a Taylor
-        expansion. This results in approximation error.
-
-        Examples
-        --------
-        """
         if self._is_linear:
-            a_delta: DualTypes = self.local_analytic_delta(
+            local_npv = self.local_npv(
                 rate_curve=rate_curve,
                 disc_curve=disc_curve,
                 index_curve=index_curve,
                 fx=fx,
+                forward=forward,
+                settlement=settlement,
             )
-            return -target_npv / a_delta
+            a_delta = self.local_analytic_delta(
+                rate_curve=rate_curve,
+                disc_curve=disc_curve,
+                index_curve=index_curve,
+                fx=fx,
+                forward=forward,
+                settlement=settlement,
+            )
+            return -(target_npv - local_npv) / a_delta
         else:
             original_z = self.float_spread
-            original_npv = self.npv(
-                rate_curve=rate_curve,
-                disc_curve=disc_curve,
-                index_curve=index_curve,
-                fx=fx,
-            )
 
             def s(g: DualTypes) -> DualTypes:
                 """
                 This determines the NPV change subject to a given float spread change denoted, g.
                 """
-                self.float_spread = g + original_z
-                return (
-                    self.npv(  # type: ignore[operator]
-                        rate_curve=rate_curve,
-                        disc_curve=disc_curve,
-                        index_curve=index_curve,
-                        fx=fx,
-                    )
-                    - original_npv
+                self.float_spread = g
+                return self.local_npv(
+                    rate_curve=rate_curve,
+                    disc_curve=disc_curve,
+                    index_curve=index_curve,
+                    fx=fx,
+                    forward=forward,
+                    settlement=settlement,
                 )
 
             result = ift_1dim(
@@ -620,14 +590,46 @@ class ZeroFloatLeg(_BaseLeg):
             ),
         )
 
-    def _spread(
+    def spread(
         self,
+        *,
         target_npv: DualTypes,
-        fore_curve: CurveOption_,
-        disc_curve: CurveOption_,
-        fx: FX_ = NoInput(0),
+        rate_curve: CurveOption_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+        settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
     ) -> DualTypes:
-        """
-        Overload the _spread calc to use analytic delta based on period rate
-        """
-        raise NotImplementedError()
+        original_z = self.float_spread
+
+        def s(g: DualTypes) -> DualTypes:
+            """
+            This determines the NPV of the *Leg* subject to a given float spread change denoted, g.
+            """
+            self.float_spread = g
+            iteration_local_npv = self.local_npv(
+                rate_curve=rate_curve,
+                disc_curve=disc_curve,
+                index_curve=index_curve,
+                fx=fx,
+                forward=forward,
+                settlement=settlement,
+            )
+            return iteration_local_npv
+
+        result = ift_1dim(
+            s=s,
+            s_tgt=target_npv,
+            h="ytm_quadratic",
+            ini_h_args=(-300, 300, 1200),
+            # h="modified_brent",
+            # ini_h_args=(-10000, 10000),
+            func_tol=1e-6,
+            conv_tol=1e-6,
+        )
+
+        self.float_spread = original_z
+        _: DualTypes = result["g"]
+        return _

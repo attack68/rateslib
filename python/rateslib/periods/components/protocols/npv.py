@@ -246,10 +246,10 @@ class _WithNPV(Protocol):
         fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
             The FX volatility *Smile* or *Surface* object used for determining Black calendar
             day implied volatility values.
-        settlement: datetime, optional
+        settlement: datetime, optional (set as immediate date)
             The assumed settlement date of the *PV* determination. Used only to evaluate
             *ex-dividend* status.
-        forward: datetime, optional
+        forward: datetime, optional (set as ``settlement``)
             The future date to project the *PV* to using the ``disc_curve``.
 
         Returns
@@ -354,10 +354,10 @@ class _WithNPV(Protocol):
             The currency to convert the *local settlement* NPV to.
         local: bool, optional
             An override flag to return a dict of NPV values indexed by string currency.
-        settlement: datetime, optional
+        settlement: datetime, optional, (set as immediate date)
             The assumed settlement date of the *PV* determination. Used only to evaluate
             *ex-dividend* status.
-        forward: datetime, optional
+        forward: datetime, optional, (set as ``settlement``)
             The future date to project the *PV* to using the ``disc_curve``.
 
         Returns

@@ -436,14 +436,20 @@ class TestFloatLeg:
         assert float_leg._is_linear is expected
 
     @pytest.mark.parametrize(
-        ("method", "expected"),
+        ("method", "settlement", "forward", "expected"),
         [
-            ("ISDA_compounding", 357.7019143401966),
-            ("ISDA_flat_compounding", 360.65913016465225),
-            ("NONE_Simple", 362.2342162),
+            ("ISDA_compounding", NoInput(0), NoInput(0), 357.7019143401966),
+            ("ISDA_compounding", dt(2022, 4, 6), NoInput(0), 580.3895480501503),
+            ("ISDA_flat_compounding", NoInput(0), NoInput(0), 360.65913016465225),
+            ("ISDA_flat_compounding", dt(2022, 4, 6), NoInput(0), 587.64160672647),
+            ("NONE_Simple", NoInput(0), NoInput(0), 362.2342162),
+            ("NONE_Simple", NoInput(0), dt(2022, 2, 1), 360.98240826375957),
+            ("NONE_Simple", dt(2022, 4, 6), NoInput(0), 590.6350781908598),
         ],
     )
-    def test_float_leg_spread_calculation(self, method, expected, curve) -> None:
+    def test_float_leg_spread_calculation(
+        self, method, settlement, forward, expected, curve
+    ) -> None:
         leg = FloatLeg(
             schedule=Schedule(
                 effective=dt(2022, 1, 1),
@@ -458,11 +464,26 @@ class TestFloatLeg:
             currency="nok",
             float_spread=0,
         )
-        base_npv = leg.npv(rate_curve=curve, disc_curve=curve)
-        result = leg._spread(-15000000, curve, curve)
+        base_npv = leg.npv(
+            rate_curve=curve, disc_curve=curve, forward=forward, settlement=settlement
+        )
+        result = leg.spread(
+            target_npv=-15000000 + base_npv,
+            rate_curve=curve,
+            disc_curve=curve,
+            settlement=settlement,
+            forward=forward,
+        )
         assert abs(result - expected) < 1e-3
         leg.float_spread = result
-        assert abs(leg.npv(rate_curve=curve, disc_curve=curve) - base_npv + 15000000) < 2e2
+        assert (
+            abs(
+                leg.npv(rate_curve=curve, disc_curve=curve, forward=forward, settlement=settlement)
+                - base_npv
+                + 15000000
+            )
+            < 2e2
+        )
 
     def test_fixing_method_raises(self) -> None:
         with pytest.raises(ValueError, match="`fixing_method`"):
@@ -926,6 +947,46 @@ class TestZeroFloatLeg:
 
         assert abs(result - expected) < 1e-3
 
+    @pytest.mark.parametrize(
+        ("settlement", "forward", "exp"),
+        [
+            (NoInput(0), NoInput(0), 0.71008),
+            (NoInput(0), dt(2023, 1, 1), -0.11739),
+            (dt(2026, 1, 1), NoInput(0), -2.40765),
+        ],
+    )
+    def test_zero_float_spread_calc(self, settlement, forward, exp, curve) -> None:
+        rate_curve = curve.shift(25)
+        zfl = ZeroFloatLeg(
+            schedule=Schedule(
+                effective=dt(2022, 1, 1),
+                termination="5y",
+                payment_lag=0,
+                frequency="A",
+            ),
+            notional=-1e8,
+            convention="Act360",
+            fixing_method="ibor",
+        )
+        tgt_npv = 25000000 * curve[dt(2027, 1, 1)]
+        result = zfl.spread(
+            target_npv=tgt_npv,
+            rate_curve=rate_curve,
+            disc_curve=curve,
+            settlement=settlement,
+            forward=forward,
+        )
+
+        zfl.float_spread = result
+        tested = zfl.local_npv(
+            rate_curve=rate_curve,
+            disc_curve=curve,
+            settlement=settlement,
+            forward=forward,
+        )
+        assert abs(result / 100 - exp) < 1e-3
+        assert abs(tgt_npv - tested) < 1e-3
+
 
 class TestZeroFixedLeg:
     @pytest.mark.parametrize(
@@ -1030,7 +1091,15 @@ class TestZeroFixedLeg:
         result2 = zfl.analytic_delta(disc_curve=curve)
         assert abs(result2 + 45024.1974) < 1e-3
 
-    def test_zero_fixed_spread(self, curve) -> None:
+    @pytest.mark.parametrize(
+        ("settlement", "forward", "exp"),
+        [
+            (NoInput(0), NoInput(0), 2.50),
+            (NoInput(0), dt(2023, 1, 1), 2.404826),
+            (dt(2026, 1, 1), NoInput(0), 2.139550),
+        ],
+    )
+    def test_zero_fixed_spread(self, settlement, forward, exp, curve) -> None:
         zfl = ZeroFixedLeg(
             schedule=Schedule(
                 effective=dt(2022, 1, 1),
@@ -1042,12 +1111,35 @@ class TestZeroFixedLeg:
             convention="ActAct",
             fixed_rate=NoInput(0),
         )
-        result = zfl._spread(
+        result = zfl.spread(
             target_npv=13140821.29 * curve[dt(2027, 1, 1)],
             rate_curve=NoInput(0),
             disc_curve=curve,
+            settlement=settlement,
+            forward=forward,
         )
-        assert abs(result / 100 - 2.50) < 1e-3
+        assert abs(result / 100 - exp) < 1e-3
+
+    def test_zero_fixed_spread_raises_settlement(self, curve) -> None:
+        zfl = ZeroFixedLeg(
+            schedule=Schedule(
+                effective=dt(2022, 1, 1),
+                termination="5y",
+                payment_lag=0,
+                frequency="A",
+            ),
+            notional=-1e8,
+            convention="ActAct",
+            fixed_rate=NoInput(0),
+        )
+        with pytest.raises(ZeroDivisionError):
+            zfl.spread(
+                target_npv=13140821.29 * curve[dt(2027, 1, 1)],
+                rate_curve=NoInput(0),
+                disc_curve=curve,
+                settlement=dt(2029, 1, 1),
+                forward=NoInput(0),
+            )
 
     def test_zero_fixed_spread_indexed(self, curve) -> None:
         zfl = ZeroFixedLeg(
@@ -1063,7 +1155,7 @@ class TestZeroFixedLeg:
             index_base=100.0,
             index_fixings=110.0,
         )
-        result = zfl._spread(
+        result = zfl.spread(
             target_npv=13140821.29 * curve[dt(2027, 1, 1)],
             rate_curve=NoInput(0),
             disc_curve=curve,
@@ -1085,7 +1177,7 @@ class TestZeroFixedLeg:
             pair="eurusd",
             fx_fixings=2.0,
         )
-        result = zfl._spread(
+        result = zfl.spread(
             target_npv=13140821.29 * curve[dt(2027, 1, 1)],
             rate_curve=NoInput(0),
             disc_curve=curve,
@@ -1551,7 +1643,15 @@ class TestFixedLeg:
 
     # v2.5
 
-    def test_fixed_leg_spread(self, curve) -> None:
+    @pytest.mark.parametrize(
+        ("settlement", "forward", "exp"),
+        [
+            (NoInput(0), NoInput(0), 403.9491881327746),
+            (dt(2022, 3, 30), NoInput(0), 399.9990223763462),
+            (dt(2022, 4, 6), NoInput(0), 799.0147512470912),
+        ],
+    )
+    def test_fixed_leg_spread(self, settlement, forward, exp, curve) -> None:
         fixed_leg = FixedLeg(
             schedule=Schedule(
                 effective=dt(2022, 1, 1),
@@ -1565,10 +1665,15 @@ class TestFixedLeg:
             fixed_rate=4.00,
             currency="usd",
         )
-        result = fixed_leg._spread(
-            target_npv=20000000, disc_curve=curve, rate_curve=curve, index_curve=curve
+        result = fixed_leg.spread(
+            target_npv=20000000,
+            disc_curve=curve,
+            rate_curve=curve,
+            index_curve=curve,
+            settlement=settlement,
+            forward=forward,
         )
-        assert abs(result - 403.9491881327746) < 1e-6
+        assert abs(result - exp) < 1e-6
 
     @pytest.mark.parametrize("initial", [True, False])
     @pytest.mark.parametrize("final", [True, False])
@@ -1957,6 +2062,38 @@ class TestCreditPremiumLeg:
                 initial_exchange=final,
                 final_exchange=not final,
             )
+
+    @pytest.mark.parametrize(
+        ("settlement", "forward", "exp"),
+        [
+            (NoInput(0), NoInput(0), 408.02994815795125),
+            (dt(2022, 3, 30), NoInput(0), 404.03987718823055),
+            (dt(2022, 4, 6), NoInput(0), 811.1815703665554),
+        ],
+    )
+    def test_fixed_leg_spread(self, settlement, forward, exp, curve) -> None:
+        fixed_leg = CreditPremiumLeg(
+            schedule=Schedule(
+                effective=dt(2022, 1, 1),
+                termination=dt(2022, 7, 1),
+                payment_lag=2,
+                payment_lag_exchange=1,
+                frequency="Q",
+            ),
+            notional=-1e9,
+            convention="Act360",
+            fixed_rate=4.00,
+            currency="usd",
+        )
+        result = fixed_leg.spread(
+            target_npv=20000000,
+            disc_curve=curve,
+            rate_curve=curve,
+            index_curve=curve,
+            settlement=settlement,
+            forward=forward,
+        )
+        assert abs(result - exp) < 1e-6
 
 
 class TestCreditProtectionLeg:
@@ -2653,7 +2790,7 @@ class TestFloatLegExchangeMtm:
             rate_curve=fxf.curve("usd", "usd"), disc_curve=fxf.curve("usd", "usd"), fx=fxf
         )
         # a_delta = leg.analytic_delta(fxf.curve("usd", "usd"), fxf.curve("usd", "usd"), fxf)
-        result = leg._spread(
+        result = leg.spread(
             target_npv=100,
             rate_curve=fxf.curve("usd", "usd"),
             disc_curve=fxf.curve("usd", "usd"),
