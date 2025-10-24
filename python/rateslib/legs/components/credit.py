@@ -12,13 +12,17 @@ from rateslib.periods.components import CreditPremiumPeriod, CreditProtectionPer
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
         FX_,
+        CurveOption_,
         DualTypes,
         DualTypes_,
+        FXForwards_,
+        FXVolOption_,
         Schedule,
         _BaseCurve_,
         _SettlementParams,
         bool_,
         datetime,
+        datetime_,
         str_,
     )
 
@@ -170,6 +174,28 @@ class CreditPremiumLeg(_BaseLeg):
         # self._interim_exchange_periods = None
         # self._exchange_periods = (None, None)
         # self._mtm_exchange_periods = None
+
+    def spread(
+        self,
+        *,
+        target_npv: DualTypes,
+        rate_curve: CurveOption_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+        settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
+    ) -> DualTypes:
+        a_delta = self.local_analytic_delta(
+            rate_curve=rate_curve,
+            disc_curve=disc_curve,
+            index_curve=index_curve,
+            fx=fx,
+            forward=forward,
+            settlement=settlement,
+        )
+        return -target_npv / a_delta
 
 
 class CreditProtectionLeg(_BaseLeg):
