@@ -35,6 +35,60 @@ class _WithNPV(Protocol):
     def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
+    def local_npv(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+        settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
+    ) -> DualTypes:
+        """
+        Calculate the NPV of the *Period* expressed in local settlement currency.
+
+        Parameters
+        ----------
+        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
+            Used to forecast floating period rates, if necessary.
+        index_curve: _BaseCurve, optional
+            Used to forecast index values for indexation, if necessary.
+        disc_curve: _BaseCurve, optional
+            Used to discount cashflows.
+        fx: FXForwards, optional
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting the
+            ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
+            :class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
+        fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
+            The FX volatility *Smile* or *Surface* object used for determining Black calendar
+            day implied volatility values.
+        settlement: datetime, optional
+            The assumed settlement date of the *PV* determination. Used only to evaluate
+            *ex-dividend* status.
+        forward: datetime, optional
+            The future date to project the *PV* to using the ``disc_curve``.
+
+        Returns
+        -------
+        float, Dual, Dual2, Variable
+        """
+        # a Leg only has cashflows in one single currency
+        local_npv: DualTypes = sum(
+            _.local_npv(
+                rate_curve=rate_curve,
+                index_curve=index_curve,
+                disc_curve=disc_curve,
+                fx=fx,
+                fx_vol=fx_vol,
+                settlement=settlement,
+                forward=forward,
+            )
+            for _ in self.periods
+        )
+        return local_npv
+
     def npv(
         self,
         *,
@@ -117,3 +171,49 @@ class _WithNPV(Protocol):
             fx=fx,
             base=base,
         )
+
+    def spread(
+        self,
+        *,
+        target_npv: DualTypes,
+        rate_curve: CurveOption_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+        settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
+    ) -> DualTypes:
+        """
+        Calculate a spread metric which when applied to the *Leg* allows it to attain the target
+        value.
+
+        Parameters
+        ----------
+        target_npv: DualTypes, required
+            The target value of the *Leg* measured using all of the other given arguments.
+            Must be expressed in local settlement currency units.
+        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
+            Used to forecast floating period rates, if necessary.
+        index_curve: _BaseCurve, optional
+            Used to forecast index values for indexation, if necessary.
+        disc_curve: _BaseCurve, optional
+            Used to discount cashflows.
+        fx: FXForwards, optional
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting the
+            ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
+            :class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
+        fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
+            The FX volatility *Smile* or *Surface* object used for determining Black calendar
+            day implied volatility values.
+        settlement: datetime, optional
+            The assumed settlement date of the *PV* determination. Used only to evaluate
+            *ex-dividend* status.
+        forward: datetime, optional
+            The future date to project the *PV* to using the ``disc_curve``.
+
+        Returns
+        -------
+        float, Dual, Dual2, Variable
+        """
+        raise NotImplementedError(f"Method: `spread` is not available for {type(self).__name__}.")
