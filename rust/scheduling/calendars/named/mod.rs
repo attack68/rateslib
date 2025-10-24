@@ -6,6 +6,7 @@ pub mod bus;
 pub mod ldn;
 pub mod mum;
 pub mod nyc;
+pub mod fed;
 pub mod osl;
 pub mod stk;
 pub mod syd;
@@ -25,7 +26,7 @@ pub(crate) fn get_weekmask_by_name(name: &str) -> Result<Vec<u8>, PyErr> {
         ("all", all::WEEKMASK),
         ("bus", bus::WEEKMASK),
         ("nyc", nyc::WEEKMASK),
-        ("fed", nyc::WEEKMASK),
+        ("fed", fed::WEEKMASK),
         ("tgt", tgt::WEEKMASK),
         ("ldn", ldn::WEEKMASK),
         ("stk", stk::WEEKMASK),
@@ -51,7 +52,7 @@ pub(crate) fn get_holidays_by_name(name: &str) -> Result<Vec<NaiveDateTime>, PyE
         ("all", all::HOLIDAYS),
         ("bus", bus::HOLIDAYS),
         ("nyc", nyc::HOLIDAYS),
-        ("fed", nyc::HOLIDAYS),
+        ("fed", fed::HOLIDAYS),
         ("tgt", tgt::HOLIDAYS),
         ("ldn", ldn::HOLIDAYS),
         ("stk", stk::HOLIDAYS),
@@ -80,7 +81,7 @@ pub(crate) fn get_holidays_by_name(name: &str) -> Result<Vec<NaiveDateTime>, PyE
 //         ("all", all::RULES),
 //         ("bus", bus::RULES),
 //         ("nyc", nyc::RULES),
-//         ("fed", nyc::RULES),
+//         ("fed", fed::RULES),
 //         ("tgt", tgt::RULES),
 //         ("ldn", ldn::RULES),
 //         ("stk", stk::RULES),
