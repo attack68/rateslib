@@ -108,7 +108,7 @@ Performance of the _spread for a float leg might be reduced for ISDA ``spread_co
          allows that schedule to be constructed by performing a pre-check.
          (`1062 <https://github.com/attack68/rateslib/pull/1062>`_)
        - The FED holiday calendar now correctly excludes Good Friday.
-         (`1064 <https://github.com/attack68/rateslib/pull/1064>`_)
+         (`1065 <https://github.com/attack68/rateslib/pull/1065>`_)
 
 2.1.1 (12th August 2025)
 ***************************
