@@ -668,3 +668,8 @@ def test_next_imm_depr():
 def test_get_imm_depr():
     with pytest.warns(DeprecationWarning):
         get_imm(3, 2000, definition="imm")
+
+
+def test_fed_nyc_good_friday():
+    assert not get_calendar("nyc").is_bus_day(dt(2024, 3, 29))
+    assert get_calendar("fed").is_bus_day(dt(2024, 3, 29))
