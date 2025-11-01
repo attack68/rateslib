@@ -17,6 +17,7 @@ from rateslib.curves import ShiftedCurve as ShiftedCurve
 from rateslib.curves import TranslatedCurve as TranslatedCurve
 from rateslib.curves import _BaseCurve as _BaseCurve
 from rateslib.curves import _CurveMeta as _CurveMeta
+from rateslib.curves._parsers import _Curves as _Curves
 from rateslib.data.fixings import FloatRateIndex as FloatRateIndex
 from rateslib.data.fixings import FloatRateSeries as FloatRateSeries
 from rateslib.data.fixings import FXFixing as FXFixing
@@ -167,6 +168,9 @@ Curves_: TypeAlias = "CurveOrId_ | CurveDict | Sequence[CurveOrId_ | CurveDict]"
 
 Curves_Tuple: TypeAlias = "tuple[CurveOption_, CurveOption_, CurveOption_, CurveOption_]"
 Curves_DiscTuple: TypeAlias = "tuple[CurveOption_, _BaseCurve_, CurveOption_, _BaseCurve_]"
+
+# this is a type for a wrapped `rate_curve`, `disc_curve` and `index_curve`
+PeriodCurves: TypeAlias = "tuple[CurveOption_, _BaseCurve_, _BaseCurve_]"
 
 FXVolObj: TypeAlias = "FXDeltaVolSurface | FXDeltaVolSmile | FXSabrSmile | FXSabrSurface"
 

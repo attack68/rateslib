@@ -38,7 +38,7 @@ class _WithAnalyticRateFixings(Protocol):
 
     .. autosummary::
 
-       ~_WithAnalyticRateFixings.local_rate_fixings
+       ~_WithAnalyticRateFixings.local_analytic_rate_fixings
 
     """
 

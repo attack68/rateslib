@@ -1,138 +1,77 @@
 from __future__ import annotations
 
-import warnings
-from collections.abc import Sequence
 from typing import TYPE_CHECKING, TypeVar
 
 import rateslib.errors as err
-from rateslib import defaults
-from rateslib.curves import MultiCsaCurve, ProxyCurve
-from rateslib.curves.utils import _CurveType
-from rateslib.enums.generics import Err, NoInput, Ok
+from rateslib.curves._parsers import _map_curve_from_solver, _validate_no_str_in_curve_input
+from rateslib.enums.generics import Err, NoInput, Ok, Result, _drb
 
 if TYPE_CHECKING:
     from rateslib.typing import (
-        CurveInput,
-        CurveInput_,
+        FX_,
         CurveOption,
         CurveOption_,
-        CurveOrId,
         Curves_,
         Curves_DiscTuple,
-        Curves_Tuple,
-        Result,
-        Solver,
+        FXForwards_,
+        FXVolOption_,
+        InstrumentCurves,
+        Sequence,
+        Solver_,
         _BaseCurve,
         _BaseCurve_,
+        _Curves,
     )
 
 
-def _map_curve_or_id_from_solver_(curve: CurveOrId, solver: Solver) -> _BaseCurve:
-    """
-    Maps a "Curve | str" to a "Curve" via a Solver mapping.
-
-    If a Curve, runs a check against whether that Curve is associated with the given Solver,
-    and perform an action based on `defaults.curve_not_in_solver`
-    """
-    if isinstance(curve, str):
-        return solver._get_pre_curve(curve)
-    elif type(curve) is ProxyCurve or type(curve) is MultiCsaCurve:
-        # TODO: (mid) consider also adding CompositeCurves as exceptions under the same rule
-        # Proxy curves and MultiCsaCurves can exist outside of Solvers but be constructed
-        # directly from an FXForwards object tied to a Solver using only a Solver's
-        # dependent curves and AD variables.
-        return curve
+def _get_curve_maybe_from_solver(
+    curves_meta: _Curves,
+    curves: _Curves,
+    name: str,
+    solver: Solver_,
+) -> CurveOption_:
+    curve = _drb(getattr(curves_meta, name), getattr(curves, name))
+    if isinstance(solver, NoInput):
+        return _validate_no_str_in_curve_input(curve)
     else:
         try:
-            # it is a safeguard to load curves from solvers when a solver is
-            # provided and multiple curves might have the same id
-            __: _BaseCurve = solver._get_pre_curve(curve.id)
-            if id(__) != id(curve):  # Python id() is a memory id, not a string label id.
-                raise ValueError(
-                    "A curve has been supplied, as part of ``curves``, which has the same "
-                    f"`id` ('{curve.id}'),\nas one of the curves available as part of the "
-                    "Solver's collection but is not the same object.\n"
-                    "This is ambiguous and cannot price.\n"
-                    "Either refactor the arguments as follows:\n"
-                    "1) remove the conflicting curve: [curves=[..], solver=<Solver>] -> "
-                    "[curves=None, solver=<Solver>]\n"
-                    "2) change the `id` of the supplied curve and ensure the rateslib.defaults "
-                    "option 'curve_not_in_solver' is set to 'ignore'.\n"
-                    "   This will remove the ability to accurately price risk metrics.",
-                )
-            return __
-        except AttributeError:
-            raise AttributeError(
-                "`curve` has no attribute `id`, likely it not a valid object, got: "
-                f"{curve}.\nSince a solver is provided have you missed labelling the `curves` "
-                f"of the instrument or supplying `curves` directly?",
+            mapped_curve = _map_curve_from_solver(curve, solver)
+            return mapped_curve
+        except KeyError as e:
+            raise ValueError(
+                "`curves` must contain str curve `id` s existing in `solver` "
+                "(or its associated `pre_solvers`).\n"
+                f"The sought id was: '{e.args[0]}'.\n"
+                f"The available ids are {list(solver.pre_curves.keys())}.",
             )
-        except KeyError:
-            if defaults.curve_not_in_solver == "ignore":
-                return curve
-            elif defaults.curve_not_in_solver == "warn":
-                warnings.warn("`curve` not found in `solver`.", UserWarning)
-                return curve
-            else:
-                raise ValueError("`curve` must be in `solver`.")
 
 
-def _map_curve_from_solver_(curve: CurveInput, solver: Solver) -> CurveOption:
-    """
-    Maps a "Curve | str | dict[str, Curve | str]" to a "Curve | dict[str, Curve]" via a Solver.
-
-    If curve input involves strings get objects directly from solver curves mapping.
-
-    This is the explicit variety which does not handle NoInput.
-    """
-    if isinstance(curve, dict):
-        mapped_dict: dict[str, _BaseCurve] = {
-            k: _map_curve_or_id_from_solver_(v, solver) for k, v in curve.items()
-        }
-        return mapped_dict
+def _get_fx_maybe_from_solver(
+    fx: FX_,
+    solver: Solver_,
+) -> FX_:
+    # Get the `fx` from Solver only if not directly provided and Solver exists.
+    fx_: FXForwards_
+    if isinstance(fx, NoInput):
+        if not isinstance(solver, NoInput):
+            fx_ = solver.fx
+        else:
+            fx_ = NoInput(0)
     else:
-        return _map_curve_or_id_from_solver_(curve, solver)
+        fx_ = fx
+    return fx_
 
 
-def _map_curve_from_solver(curve: CurveInput_, solver: Solver) -> CurveOption_:
-    """
-    Maps a "Curve | str | dict[str, Curve | str] | NoInput" to a
-    "Curve | dict[str, Curve] | NoInput" via a Solver.
-
-    This is the inexplicit variety which handles NoInput.
-    """
-    if isinstance(curve, NoInput) or curve is None:
-        return NoInput(0)
-    else:
-        return _map_curve_from_solver_(curve, solver)
-
-
-def _validate_curve_not_str(curve: CurveOrId) -> _BaseCurve:
-    if isinstance(curve, str):
-        raise ValueError("`curves` must contain Curve, not str, if `solver` not given.")
-    return curve
-
-
-def _validate_no_str_in_curve_input(curve: CurveInput_) -> CurveOption_:
-    """
-    If a Solver is not available then raise an Exception if a CurveInput contains string Id.
-    """
-    if isinstance(curve, dict):
-        return {k: _validate_curve_not_str(v) for k, v in curve.items()}
-    elif isinstance(curve, NoInput) or curve is None:
-        return NoInput(0)
-    else:
-        return _validate_curve_not_str(curve)
-
-
-def _get_curves_maybe_from_solver(
-    curves_attr: Curves_,
-    solver: Solver | NoInput,
+def _get_curves_fx_vol_maybe_from_solver(
+    curves_meta: Curves_,
     curves: Curves_,
-) -> Curves_DiscTuple:
+    fx_vol_meta: FXVolOption_,
+    fx_vol: FXVolOption_,
+    fx: FX_,
+    solver: Solver_,
+) -> tuple[dict[str, CurveOption_], FXVolOption_, FXForwards_]:
     """
-    Attempt to resolve curves as a variety of input types to a 4-tuple consisting of:
-    (leg1 forecasting, leg1 discounting, leg2 forecasting, leg2 discounting)
+    Attempt to resolve pricing objects from given inputs or attached to a *Solver*
 
     Parameters
     ----------
@@ -147,14 +86,30 @@ def _get_curves_maybe_from_solver(
 
     Returns
     -------
-    4-Tuple of Curve, dict[str, Curve], NoInput
+    curves: 6-Tuple of Curve, dict[str, Curve], NoInput,
+    fx_vol: FXVol, NoInput
+    fx: FXForwards, NoInput
     """
-    if isinstance(curves, NoInput) and isinstance(curves_attr, NoInput):
-        # no data is available so consistently return a 4-tuple of no data
-        return (NoInput(0), NoInput(0), NoInput(0), NoInput(0))
+    is_solver = not isinstance(solver, NoInput)
+
+    # Get the `fx` from Solver only if not directly provided and Solver exists.
+    fx_: FXForwards_
+    if isinstance(fx, NoInput):
+        if is_solver:
+            fx_ = solver.fx
+        else:
+            fx_ = NoInput(0)
+    else:
+        fx_ = fx
+
+    # Get the `curves` from a combination
+    curves_: InstrumentCurves
+    if isinstance(curves, NoInput) and isinstance(curves_meta, NoInput):
+        # no data is available to derive curves
+        curves_ = (NoInput(0), NoInput(0), NoInput(0), NoInput(0), NoInput(0), NoInput(0))
     elif isinstance(curves, NoInput):
         # set the `curves` input as that which is set as attribute at instrument init.
-        curves = curves_attr
+        curves = curves_meta
 
     # refactor curves into a list
     if isinstance(curves, str) or not isinstance(curves, Sequence):  # Sequence can be str!
@@ -390,56 +345,3 @@ def _to_six_curve_dict(
             disc2=curves,
             index2=NoInput(0),
         )
-
-
-class _Curves:
-    """
-    Container for a pricing object providing a mapping for curves.
-    """
-
-    def __init__(
-        self,
-        *,
-        rate_curve: CurveOption_ = NoInput(0),
-        disc_curve: CurveOption_ = NoInput(0),
-        index_curve: CurveOption_ = NoInput(0),
-        leg2_rate_curve: CurveOption_ = NoInput(0),
-        leg2_disc_curve: CurveOption_ = NoInput(0),
-        leg2_index_curve: CurveOption_ = NoInput(0),
-    ):
-        self._rate_curve = rate_curve
-        self._disc_curve = disc_curve
-        self._index_curve = index_curve
-        self._leg2_rate_curve = leg2_rate_curve
-        self._leg2_disc_curve = leg2_disc_curve
-        self._leg2_index_curve = leg2_index_curve
-
-    @property
-    def rate_curve(self) -> CurveOption_:
-        """The curve used for floating rate or hazard rate forecasting on leg1."""
-        return self._rate_curve
-
-    @property
-    def disc_curve(self) -> CurveOption_:
-        """The curve used for discounting on leg1."""
-        return self._disc_curve
-
-    @property
-    def index_curve(self) -> CurveOption_:
-        """The index curve used for forecasting index values on leg1."""
-        return self._index_curve
-
-    @property
-    def leg2_rate_curve(self) -> CurveOption_:
-        """The curve used for floating rate or hazard rate forecasting on leg2."""
-        return self._leg2_rate_curve
-
-    @property
-    def leg2_disc_curve(self) -> CurveOption_:
-        """The curve used for discounting on leg2."""
-        return self._leg2_disc_curve
-
-    @property
-    def leg2_index_curve(self) -> CurveOption_:
-        """The index curve used for forecasting index values on leg2."""
-        return self._leg2_index_curve

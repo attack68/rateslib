@@ -207,7 +207,7 @@ __all__ = [
     "ProxyCurve",
     "index_left",
     "index_value",
-    # # fixings.py  cannot load due to circular import
+    # # analytic_fixings.py  cannot load due to circular import
     # "FXFixing",
     # "IBORFixing",
     # "IBORStubFixing",
