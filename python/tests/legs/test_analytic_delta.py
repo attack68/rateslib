@@ -29,3 +29,20 @@ def test_analytic_delta_protocol_local(curve):
     result = leg.analytic_delta(disc_curve=curve, local=True)
     expected = {"usd": 24.827510962072353}
     assert result == expected
+
+
+def test_forward_settlement(curve):
+    # tset that the analytic delta reacts to the settlement/ex-div constraint
+    leg = FixedLeg(
+        schedule=Schedule(
+            effective=dt(2021, 12, 2),
+            termination=dt(2022, 4, 2),
+            frequency="M",
+            payment_lag=0,
+        ),
+        fixed_rate=1.0,
+        notional=1e9,
+    )
+    result = leg.analytic_delta(disc_curve=curve, local=False)
+    result2 = leg.analytic_delta(disc_curve=curve, local=False, settlement=dt(2022, 1, 3))
+    assert result2 < (result - 5000)

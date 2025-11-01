@@ -9,7 +9,6 @@ from rateslib.instruments.components.protocols.utils import (
     _get_curve_maybe_from_solver,
     _get_fx_maybe_from_solver,
 )
-from rateslib.periods.components.utils import _maybe_fx_converted
 
 if TYPE_CHECKING:
     from rateslib.typing import (
@@ -25,7 +24,7 @@ if TYPE_CHECKING:
     )
 
 
-class _WithNPV(_WithCurves, Protocol):
+class _WithAnalyticDelta(_WithCurves, Protocol):
     """
     Protocol to establish value of any *Instrument* type.
     """
@@ -41,10 +40,7 @@ class _WithNPV(_WithCurves, Protocol):
     def kwargs(self) -> _KWArgs:
         return self._kwargs
 
-    def __repr__(self) -> str:
-        return f"<rl.{type(self).__name__} at {hex(id(self))}>"
-
-    def npv(
+    def analytic_delta(
         self,
         *,
         curves: Curves_ = NoInput(0),
@@ -55,9 +51,11 @@ class _WithNPV(_WithCurves, Protocol):
         local: bool = False,
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
+        leg: int = 1,
     ) -> DualTypes | dict[str, DualTypes]:
         """
-        Calculate the NPV of the *Period* converted to any other *base* accounting currency.
+        Calculate the rate analytic delta of any *Leg* of the *Instrument* converted to any
+        other *base* accounting currency.
 
         Parameters
         ----------
@@ -83,6 +81,8 @@ class _WithNPV(_WithCurves, Protocol):
             *ex-dividend* status.
         forward: datetime, optional
             The future date to project the *PV* to using the ``disc_curve``.
+        leg: int, optional
+            The leg number, 1 or 2, for which to determine the analytic delta.
 
         Returns
         -------
@@ -98,60 +98,25 @@ class _WithNPV(_WithCurves, Protocol):
         for this conversion although best practice does not recommend it due to possible
         settlement date conflicts.
         """
-        # this is a generalist implementation of an NPV function for an instrument with 2 legs.
-        # most instruments may be likely to implement NPV directly to benefit from optimisations
-        # specific to that instrument
-
         _curves: _Curves = self._parse_curves(curves)
         _curves_meta: _Curves = self.kwargs.meta["curves"]
-        _fx_maybe_from_solver = _get_fx_maybe_from_solver(fx, solver)
 
-        local_npv = {
-            self.legs[0].settlement_params.currency: self.legs[0].local_npv(
-                rate_curve=_get_curve_maybe_from_solver(
-                    _curves_meta, _curves, "rate_curve", solver
-                ),
-                disc_curve=_get_curve_maybe_from_solver(
-                    _curves_meta, _curves, "disc_curve", solver
-                ),
-                index_curve=_get_curve_maybe_from_solver(
-                    _curves_meta, _curves, "index_curve", solver
-                ),
-                fx=_fx_maybe_from_solver,
-                fx_vol=fx_vol,
-                settlement=settlement,
-                forward=forward,
-            )
-        }
+        prefix = "" if leg == 1 else "leg2_"
 
-        leg2_local_npv = self.legs[1].local_npv(
+        return self.legs[leg - 1].analytic_delta(
             rate_curve=_get_curve_maybe_from_solver(
-                _curves_meta, _curves, "leg2_rate_curve", solver
+                _curves_meta, _curves, f"{prefix}rate_curve", solver
             ),
             disc_curve=_get_curve_maybe_from_solver(
-                _curves_meta, _curves, "leg2_disc_curve", solver
+                _curves_meta, _curves, f"{prefix}disc_curve", solver
             ),
             index_curve=_get_curve_maybe_from_solver(
-                _curves_meta, _curves, "leg2_index_curve", solver
+                _curves_meta, _curves, f"{prefix}index_curve", solver
             ),
-            fx=_fx_maybe_from_solver,
             fx_vol=fx_vol,
+            fx=_get_fx_maybe_from_solver(fx, solver),
+            base=base,
+            local=local,
             settlement=settlement,
             forward=forward,
         )
-
-        if self.legs[0].settlement_params.currency == self.legs[1].settlement_params.currency:
-            # then the two legs share the same currency
-            local_npv[self.legs[0].settlement_params.currency] += leg2_local_npv
-        else:
-            local_npv[self.legs[1].settlement_params.currency] = leg2_local_npv
-
-        if not local:
-            single_value: DualTypes = 0.0
-            for k, v in local_npv.items():
-                single_value += _maybe_fx_converted(
-                    value=v, currency=k, fx=_fx_maybe_from_solver, base=base
-                )
-            return single_value
-        else:
-            return local_npv

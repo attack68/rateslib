@@ -6,28 +6,33 @@ from typing import TYPE_CHECKING, Protocol
 from pandas import DataFrame, concat
 
 from rateslib.enums.generics import NoInput
+from rateslib.instruments.components.protocols.curves import _WithCurves
+from rateslib.instruments.components.protocols.utils import (
+    _get_curve_maybe_from_solver,
+    _get_fx_maybe_from_solver,
+)
 
 if TYPE_CHECKING:
     from rateslib.typing import (
-        CurveOption_,
+        Curves_,
         FXForwards_,
         FXVolOption_,
-        _BaseCurve_,
-        _BasePeriod,
+        Solver_,
+        _BaseLeg,
+        _Curves,
         datetime_,
     )
 
 
-class _WithAnalyticRateFixingsSensitivity(Protocol):
+class _WithAnalyticRateFixings(_WithCurves, Protocol):
     @property
-    def periods(self) -> list[_BasePeriod]: ...
+    def legs(self) -> list[_BaseLeg]: ...
 
-    def local_rate_fixings(
+    def local_analytic_rate_fixings(
         self,
         *,
-        rate_curve: CurveOption_ = NoInput(0),
-        index_curve: _BaseCurve_ = NoInput(0),
-        disc_curve: _BaseCurve_ = NoInput(0),
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
@@ -64,19 +69,46 @@ class _WithAnalyticRateFixingsSensitivity(Protocol):
         -------
         DataFrame
         """
+        # this is a generic implementation to handle 2 legs.
+        _curves: _Curves = self._parse_curves(curves)
+        _curves_meta: _Curves = self.kwargs.meta["curves"]
+        _fx_maybe_from_solver = _get_fx_maybe_from_solver(fx, solver)
+
         dfs = []
-        for period in self.periods:
-            dfs.append(
-                period.local_analytic_rate_fixings(
-                    rate_curve=rate_curve,
-                    index_curve=index_curve,
-                    disc_curve=disc_curve,
-                    fx=fx,
-                    fx_vol=fx_vol,
-                    settlement=settlement,
-                    forward=forward,
-                )
+        dfs.append(
+            self.legs[0].local_analytic_rate_fixings(
+                rate_curve=_get_curve_maybe_from_solver(
+                    _curves_meta, _curves, "rate_curve", solver
+                ),
+                disc_curve=_get_curve_maybe_from_solver(
+                    _curves_meta, _curves, "disc_curve", solver
+                ),
+                index_curve=_get_curve_maybe_from_solver(
+                    _curves_meta, _curves, "index_curve", solver
+                ),
+                fx=_fx_maybe_from_solver,
+                fx_vol=fx_vol,
+                settlement=settlement,
+                forward=forward,
             )
+        )
+        dfs.append(
+            self.legs[1].local_analytic_rate_fixings(
+                rate_curve=_get_curve_maybe_from_solver(
+                    _curves_meta, _curves, "leg2_rate_curve", solver
+                ),
+                disc_curve=_get_curve_maybe_from_solver(
+                    _curves_meta, _curves, "leg2_disc_curve", solver
+                ),
+                index_curve=_get_curve_maybe_from_solver(
+                    _curves_meta, _curves, "leg2_index_curve", solver
+                ),
+                fx=_fx_maybe_from_solver,
+                fx_vol=fx_vol,
+                settlement=settlement,
+                forward=forward,
+            )
+        )
 
         with warnings.catch_warnings():
             # TODO: pandas 2.1.0 has a FutureWarning for concatenating DataFrames with Null entries

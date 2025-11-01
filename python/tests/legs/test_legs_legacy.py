@@ -303,7 +303,7 @@ class TestFloatLeg:
             fixing_method=method,
             method_param=param,
         )
-        result = float_leg.local_rate_fixings(rate_curve=curve)
+        result = float_leg.local_analytic_rate_fixings(rate_curve=curve)
         result = result[dt(2022, 12, 28) : dt(2023, 1, 1)]
         assert isinstance(result.iloc[0, 0], Dual)
         data = [_.real for _ in result.iloc[0:5, 0]]
@@ -836,7 +836,7 @@ class TestZeroFloatLeg:
         #     convention="Act360",
         #     frequency="Q",
         # )
-        result = zfl.local_rate_fixings(rate_curve=curve)
+        result = zfl.local_analytic_rate_fixings(rate_curve=curve)
         # compare = fl.fixings_table(curve)
         for i in range(len(result.index)):
             # consistent risk throught the compounded leg
@@ -855,7 +855,7 @@ class TestZeroFloatLeg:
             fixing_method="ibor",
             method_param=0,
         )
-        result = zfl.local_rate_fixings(rate_curve=curve)
+        result = zfl.local_analytic_rate_fixings(rate_curve=curve)
         assert abs(result.iloc[0, 0] - 24750) < 1e-3
         assert abs(result.iloc[1, 0] - 25022.4466) < 1e-2
         assert abs(result.iloc[2, 0] - 25294.7845) < 1e-2
@@ -876,7 +876,9 @@ class TestZeroFloatLeg:
             fixing_method="ibor",
             method_param=0,
         )
-        result = zfl.local_rate_fixings(rate_curve={"1m": curve, "3m": curve2}, disc_curve=curve)
+        result = zfl.local_analytic_rate_fixings(
+            rate_curve={"1m": curve, "3m": curve2}, disc_curve=curve
+        )
         assert abs(result.iloc[0, 0] - 8554.562) < 1e-2
         assert abs(result.iloc[0, 1] - 7726.701) < 1e-2
         assert isna(result.iloc[1, 0])
@@ -903,7 +905,9 @@ class TestZeroFloatLeg:
             method_param=0,
             rate_fixings=fixings,
         )
-        result = zfl.local_rate_fixings(rate_curve={"1m": curve, "3m": curve2}, disc_curve=curve)
+        result = zfl.local_analytic_rate_fixings(
+            rate_curve={"1m": curve, "3m": curve2}, disc_curve=curve
+        )
         assert abs(result.iloc[0, 0] - 0) < 1e-2
         assert abs(result.iloc[1, 0] - 0) < 1e-2
         assert isna(result.iloc[0, 1])
@@ -1526,7 +1530,7 @@ class TestFloatLegExchange:
             initial_exchange=True,
             final_exchange=True,
         )
-        result = fle.local_rate_fixings(rate_curve=curve)
+        result = fle.local_analytic_rate_fixings(rate_curve=curve)
         expected = DataFrame(
             data=[-0.2767869527597316, -0.27405055522733884],
             index=Index([dt(2022, 4, 30), dt(2022, 5, 1)], name="obs_dates"),
@@ -2720,7 +2724,9 @@ class TestFloatLegExchangeMtm:
             },
         )
 
-        result = float_leg_exch.local_rate_fixings(rate_curve=fxf.curve("usd", "usd"), fx=fxf)
+        result = float_leg_exch.local_analytic_rate_fixings(
+            rate_curve=fxf.curve("usd", "usd"), fx=fxf
+        )
         assert isinstance(result, DataFrame)
         assert isinstance(result.iloc[0, 0], Dual)
         assert abs(result.iloc[0, 0] + 260.1507) < 1e-3
@@ -2751,7 +2757,7 @@ class TestFloatLegExchangeMtm:
             },
         )
 
-        result = float_leg_exch.local_rate_fixings(
+        result = float_leg_exch.local_analytic_rate_fixings(
             rate_curve=fxf.curve("usd", "usd"), disc_curve=fxf.curve("usd", "usd"), fx=fxf
         )
         assert isinstance(result, DataFrame)
