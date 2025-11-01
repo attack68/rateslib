@@ -102,7 +102,7 @@ class CreditPremiumLeg(_BaseLeg):
     def amortization(self) -> Amortization:
         return self._amortization
 
-    def accrued(self, settlement: datetime) -> DualTypes | None:
+    def accrued(self, settlement: datetime) -> DualTypes:
         """
         Calculate the amount of premium accrued until a specific date within the relevant *Period*.
 
@@ -113,7 +113,7 @@ class CreditPremiumLeg(_BaseLeg):
 
         Returns
         -------
-        float
+        float, Dual, Dual2, Variable
         """
         _ = index_left(
             self.schedule.uschedule,

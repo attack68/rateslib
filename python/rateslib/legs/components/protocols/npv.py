@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol
 
 from rateslib.enums.generics import NoInput
+from rateslib.periods.components.parameters import _SettlementParams
 from rateslib.periods.components.utils import (
     _maybe_local,
 )
@@ -30,10 +31,17 @@ class _WithNPV(Protocol):
 
     @property
     def periods(self) -> list[_BasePeriod]:
+        """List of *Periods* associated with the *Leg*."""
         return self._periods
 
     def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
+
+    @property
+    def settlement_params(self) -> _SettlementParams:
+        """The :class:`~rateslib.periods.components.parameters._SettlementParams` of the
+        first *Period* of the *Leg*."""
+        return self.periods[0].settlement_params
 
     def local_npv(
         self,
@@ -47,7 +55,7 @@ class _WithNPV(Protocol):
         forward: datetime_ = NoInput(0),
     ) -> DualTypes:
         """
-        Calculate the NPV of the *Period* expressed in local settlement currency.
+        Calculate the NPV of the *Leg* expressed in local settlement currency.
 
         Parameters
         ----------
@@ -73,8 +81,10 @@ class _WithNPV(Protocol):
         Returns
         -------
         float, Dual, Dual2, Variable
+
         """
-        # a Leg only has cashflows in one single currency
+        # a Leg only has cashflows in one single currency, so some up those values first
+        # then format for necessary dict output if required.
         local_npv: DualTypes = sum(
             _.local_npv(
                 rate_curve=rate_curve,
@@ -167,7 +177,7 @@ class _WithNPV(Protocol):
         return _maybe_local(
             value=local_npv,
             local=local,
-            currency=self.periods[0].settlement_params.currency,
+            currency=self.settlement_params.currency,
             fx=fx,
             base=base,
         )

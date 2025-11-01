@@ -397,7 +397,7 @@ class FloatLeg(_BaseLeg):
                 forward=forward,
                 settlement=settlement,
             )
-            return -(target_npv - local_npv) / a_delta
+            return -(target_npv - local_npv) / a_delta + self.float_spread
         else:
             original_z = self.float_spread
 
