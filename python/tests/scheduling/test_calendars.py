@@ -673,3 +673,9 @@ def test_get_imm_depr():
 def test_fed_nyc_good_friday():
     assert not get_calendar("nyc").is_bus_day(dt(2024, 3, 29))
     assert get_calendar("fed").is_bus_day(dt(2024, 3, 29))
+
+
+def test_fed_sunday_to_monday():
+    fed = get_calendar("fed")
+    assert fed.is_bus_day(dt(2021, 12, 24))
+    assert not fed.is_bus_day(dt(2022, 12, 26))
