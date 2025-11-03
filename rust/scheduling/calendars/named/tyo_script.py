@@ -333,7 +333,7 @@ autumn_equinox_date = [
     "2021-09-23",  # Manual edit
     "2022-09-23",
     "2023-09-23",
-    "2024-09-22",
+    "2024-09-23",  # Manual edit
     "2025-09-23",  # Manual edit
     "2026-09-23",
     "2027-09-23",
@@ -621,6 +621,7 @@ RULES = [
     Holiday("Citizens Holiday 2019", year=2019, month=4, day=30),
     Holiday("Citizens Holiday2 2019", year=2019, month=5, day=2),
     Holiday("New Emperor coronation", year=2019, month=10, day=22),
+    Holiday("Bridge Holiday - Silver Week", year=2026, month=9, day=22),
 ]
 
 CALENDAR = CustomBusinessDay(  # type: ignore[call-arg]

@@ -109,6 +109,11 @@ Performance of the _spread for a float leg might be reduced for ISDA ``spread_co
          (`1062 <https://github.com/attack68/rateslib/pull/1062>`_)
        - The FED holiday calendar now correctly excludes Good Friday.
          (`1065 <https://github.com/attack68/rateslib/pull/1065>`_)
+       - The FED holiday calendar now correctly observes Independence Day and Xmas under the
+         Sunday to Monday rule.
+         (`1070 <https://github.com/attack68/rateslib/pull/1070>`_)
+       - The TYO calendar corrects an Autumnal Equinox and adds *Bridge Holiday*.
+         (`1070 <https://github.com/attack68/rateslib/pull/1070>`_)
 
 2.1.1 (12th August 2025)
 ***************************
