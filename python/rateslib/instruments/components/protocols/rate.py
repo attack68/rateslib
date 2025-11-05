@@ -33,6 +33,7 @@ class _WithRate(Protocol):
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
+        metric: str_ = NoInput(0),
     ) -> DualTypes:
         raise NotImplementedError(f"`rate` must be implemented for type: {type(self).__name__}")
 
@@ -50,7 +51,7 @@ class _WithRate(Protocol):
         raise NotImplementedError(f"`spread` is not implemented for type: {type(self).__name__}")
 
     @property
-    def rate_scalar(self):
+    def rate_scalar(self) -> float:
         """
         A scaling quantity associated with the :class:`~rateslib.solver.Solver` risk calculations.
         """

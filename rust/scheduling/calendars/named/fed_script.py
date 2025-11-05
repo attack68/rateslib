@@ -5,7 +5,6 @@ from dateutil.relativedelta import MO, TH
 from pandas.tseries.holiday import (
     AbstractHolidayCalendar,
     Holiday,
-    nearest_workday,
     sunday_to_monday,
 )
 from pandas.tseries.offsets import CustomBusinessDay, DateOffset
