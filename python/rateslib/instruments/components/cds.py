@@ -13,10 +13,10 @@ from rateslib.legs.components import CreditPremiumLeg, CreditProtectionLeg
 from rateslib.scheduling import Frequency
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.typing import (  # pragma: no cover
         CalInput,
-        CurveOption_,
         Curves_,
+        DataFrame,
         DualTypes,
         DualTypes_,
         Frequency,
@@ -67,11 +67,6 @@ class CDS(_BaseInstrument):
         currency: str_ = NoInput(0),
         amortization: float_ = NoInput(0),
         convention: str_ = NoInput(0),
-        leg2_float_spread: DualTypes_ = NoInput(0),
-        leg2_spread_compound_method: str_ = NoInput(0),
-        leg2_rate_fixings: FixingsRates_ = NoInput(0),  # type: ignore[type-var]
-        leg2_fixing_method: str_ = NoInput(0),
-        leg2_method_param: int_ = NoInput(0),
         leg2_effective: datetime_ = NoInput(1),
         leg2_termination: datetime | str_ = NoInput(1),
         leg2_frequency: Frequency | str_ = NoInput(0),
@@ -170,7 +165,8 @@ class CDS(_BaseInstrument):
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
-    ) -> DualTypes_:
+        metric: str_ = NoInput(0),
+    ) -> DualTypes:
         _curves = self._parse_curves(curves)
         disc_curve = _get_curve_maybe_from_solver(
             self.kwargs.meta["curves"], _curves, "disc_curve", solver
@@ -199,7 +195,7 @@ class CDS(_BaseInstrument):
             / 100
         )
 
-    def accrued(self, settlement: datetime_ = NoInput(0)) -> DualTypes:
+    def accrued(self, settlement: datetime) -> DualTypes:
         """
         Calculate the amount of premium accrued until a specific date within the relevant *Period*.
 
@@ -229,25 +225,17 @@ class CDS(_BaseInstrument):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DualTypes:
-        _curves = self._parse_curves(curves)
-        leg2_rate_curve = _get_curve_maybe_from_solver(
-            self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
-        )
-        disc_curve = _get_curve_maybe_from_solver(
-            self.kwargs.meta["curves"], _curves, "disc_curve", solver
-        )
-        leg1_npv: DualTypes = self.leg1.local_npv(
-            rate_curve=NoInput(0),
-            disc_curve=disc_curve,
-            index_curve=NoInput(0),
-            settlement=settlement,
-            forward=forward,
-        )
-        return self.leg2.spread(
-            target_npv=-leg1_npv,
-            rate_curve=leg2_rate_curve,
-            disc_curve=disc_curve,
-            index_curve=NoInput(0),
+        return (
+            self.rate(
+                curves=curves,
+                solver=solver,
+                fx=fx,
+                fx_vol=fx_vol,
+                base=base,
+                settlement=settlement,
+                forward=forward,
+            )
+            * 100.0
         )
 
     def npv(
@@ -297,14 +285,11 @@ class CDS(_BaseInstrument):
             )
             self.leg1.fixed_rate = _dual_float(mid_market_rate)
 
-    def _parse_curves(self, curves: CurveOption_) -> _Curves:
+    def _parse_curves(self, curves: Curves_) -> _Curves:
         """
         A CDS has two curve requirements: a hazard_curve and a disc_curve used by both legs.
 
-        When given as only 1 element this curve is applied to all of those components, although
-        this is a technical failure
-
-        When given as 2 elements the first is treated as the rate curve and the 2nd as disc curve.
+        When given as anything other than two curves will raise an Exception.
         """
         if isinstance(curves, NoInput):
             return _Curves()
@@ -329,21 +314,48 @@ class CDS(_BaseInstrument):
                     disc_curve=curves[1],
                     leg2_disc_curve=curves[1],
                 )
-            elif len(curves) == 1:
-                return _Curves(
-                    rate_curve=curves[0],
-                    leg2_rate_curve=curves[0],
-                    disc_curve=curves[0],
-                    leg2_disc_curve=curves[0],
-                )
             else:
-                raise ValueError(
-                    f"{type(self).__name__} requires only 2 curve types. Got {len(curves)}."
-                )
-        else:  # `curves` is just a single input which is copied across all curves
-            return _Curves(
-                rate_curve=curves,
-                leg2_rate_curve=curves,
-                disc_curve=curves,
-                leg2_disc_curve=curves,
-            )
+                raise ValueError(f"{type(self).__name__} requires 2 `curves`. Got {len(curves)}.")
+
+        else:  # `curves` is just a single input
+            raise ValueError(f"{type(self).__name__} requires 2 `curves`. Got 1.")
+
+    def cashflows(
+        self,
+        *,
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+        base: str_ = NoInput(0),
+        settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
+    ) -> DataFrame:
+        return super()._cashflows_from_legs(
+            curves=curves,
+            solver=solver,
+            fx=fx,
+            fx_vol=fx_vol,
+            base=base,
+            settlement=settlement,
+            forward=forward,
+        )
+
+    def local_analytic_rate_fixings(
+        self,
+        *,
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+        settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
+    ) -> DataFrame:
+        return self._local_analytic_rate_fixings_from_legs(
+            curves=curves,
+            solver=solver,
+            fx=fx,
+            fx_vol=fx_vol,
+            settlement=settlement,
+            forward=forward,
+        )

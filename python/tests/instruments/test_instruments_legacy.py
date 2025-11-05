@@ -18,14 +18,14 @@ from rateslib.instruments import (
     IIRS,
     # IRS,
     NDF,
-    SBS,
+    # SBS,
     XCS,
     ZCIS,
     ZCS,
     Bill,
     FixedRateBond,
     FloatRateNote,
-    Fly,
+    # Fly,
     FXBrokerFly,
     FXCall,
     FXExchange,
@@ -35,8 +35,8 @@ from rateslib.instruments import (
     FXStrangle,
     FXSwap,
     IndexFixedRateBond,
-    Portfolio,
-    Spread,
+    # Portfolio,
+    # Spread,
     STIRFuture,
     Value,
     VolValue,
@@ -44,6 +44,10 @@ from rateslib.instruments import (
 from rateslib.instruments.components import (
     CDS,
     IRS,
+    SBS,
+    Fly,
+    Portfolio,
+    Spread,
 )
 from rateslib.instruments.utils import (
     _get_curves_fx_and_base_maybe_from_solver,
@@ -1409,6 +1413,21 @@ class TestIRS:
         assert irs.leg2.amortization.outstanding == (-1000.0, -900.0, -500.0, -450.0)
         assert irs.leg2.amortization.amortization == (-100.0, -400.0, -50.0)
 
+    def test_irs_attributes(self):
+        irs = IRS(dt(2000, 1, 1), dt(2000, 5, 1), "M", fixed_rate=2.0)
+        assert irs.fixed_rate == 2.0
+        with pytest.raises(AttributeError, match="Attribute not available on IRS"):
+            irs.float_spread
+        with pytest.raises(AttributeError, match="Attribute not available on IRS"):
+            irs.leg2_fixed_rate
+        assert irs.leg2_float_spread == 0.0
+
+    def test_irs_parse_curves(self, curve):
+        irs = IRS(dt(2000, 1, 1), dt(2000, 5, 1), "M", fixed_rate=2.0)
+        r1 = irs.npv(curves=[curve])
+        r2 = irs.npv(curves={"rate_curve": curve, "disc_curve": curve})
+        assert r1 == r2
+
 
 class TestIIRS:
     def test_index_base_none_populated(self, curve) -> None:
@@ -1559,29 +1578,29 @@ class TestIIRS:
 class TestSBS:
     def test_sbs_npv(self, curve) -> None:
         sbs = SBS(dt(2022, 1, 1), "9M", "Q", float_spread=3.0)
-        a_delta = sbs.analytic_delta(curve, curve, leg=1)
-        npv = sbs.npv(curve)
+        a_delta = sbs.analytic_delta(curves=[curve, curve, curve], leg=1)
+        npv = sbs.npv(curves=[curve, curve, curve])
         assert abs(npv + 3.0 * a_delta) < 1e-9
 
         sbs.leg2_float_spread = 4.5
-        npv = sbs.npv(curve)
+        npv = sbs.npv(curves=[curve, curve, curve])
         assert abs(npv - 1.5 * a_delta) < 1e-9
 
     def test_sbs_rate(self, curve) -> None:
         sbs = SBS(dt(2022, 1, 1), "9M", "Q", float_spread=3.0)
-        result = sbs.rate([curve], leg=1)
-        alias = sbs.spread([curve], leg=1)
+        result = sbs.rate(curves=[curve] * 3)
+        alias = sbs.spread(curves=[curve] * 3)
         assert abs(result - 0) < 1e-8
         assert abs(alias - 0) < 1e-8
 
-        result = sbs.rate([curve], leg=2)
-        alias = sbs.rate([curve], leg=2)
+        result = sbs.rate(curves=[curve] * 3, metric="leg2_float_spread")
+        alias = sbs.rate(curves=[curve] * 3, metric="leg2_float_spread")
         assert abs(result - 3.0) < 1e-8
         assert abs(alias - 3.0) < 1e-8
 
     def test_sbs_cashflows(self, curve) -> None:
         sbs = SBS(dt(2022, 1, 1), "9M", "Q", float_spread=3.0)
-        result = sbs.cashflows(curve)
+        result = sbs.cashflows(curves=[curve] * 3)
         expected = DataFrame(
             {
                 "Type": ["FloatPeriod", "FloatPeriod"],
@@ -1597,15 +1616,15 @@ class TestSBS:
 
     def test_sbs_fixed_rate_raises(self, curve) -> None:
         sbs = SBS(dt(2022, 1, 1), "9M", "Q", float_spread=3.0)
-        with pytest.raises(AttributeError, match="Cannot set `fixed_rate`"):
+        with pytest.raises(AttributeError, match="property 'fixed_rate' of 'SBS' object has no se"):
             sbs.fixed_rate = 1.0
 
-        with pytest.raises(AttributeError, match="Cannot set `leg2_fixed_rate`"):
+        with pytest.raises(AttributeError, match="property 'leg2_fixed_rate' of 'SBS' object has"):
             sbs.leg2_fixed_rate = 1.0
 
     def test_fixings_table(self, curve):
-        inst = SBS(dt(2022, 1, 15), "6m", spec="usd_irs", curves=curve)
-        result = inst.fixings_table()
+        inst = SBS(dt(2022, 1, 15), "6m", spec="usd_irs", curves=[curve] * 3)
+        result = inst.local_analytic_rate_fixings()
         assert isinstance(result, DataFrame)
 
     def test_fixings_table_3s1s(self, curve, curve2):
@@ -1620,9 +1639,9 @@ class TestSBS:
             leg2_frequency="m",
             curves=[curve, curve, curve2, curve],
         )
-        result = inst.fixings_table()
+        result = inst.local_analytic_rate_fixings()
         assert isinstance(result, DataFrame)
-        assert len(result.columns) == 8
+        assert len(result.columns) == 2
         assert len(result.index) == 8
 
 
@@ -3343,7 +3362,25 @@ class TestCDS:
         )
         result = cds.npv()
         assert abs(result - cash) < 875
-        print(abs(result - cash))
+
+    def test_cds_attributes(self):
+        cds = CDS(
+            dt(2022, 1, 1), "6M", "Q", payment_lag=0, currency="eur", notional=1e9, fixed_rate=2.0
+        )
+        assert cds.fixed_rate == 2.0
+        cds.fixed_rate = 1.0
+        assert cds.fixed_rate == 1.0
+
+    def test_cds_parse_curves(self, curve, curve2):
+        cds = CDS(
+            dt(2022, 1, 1), "6M", "Q", payment_lag=0, currency="eur", notional=1e9, fixed_rate=2.0
+        )
+        r1 = cds.npv(curves={"rate_curve": curve, "disc_curve": curve2})
+        r2 = cds.npv(curves=[curve, curve2])
+        assert r1 == r2
+
+        with pytest.raises(ValueError, match="CDS requires 2"):
+            cds.npv(curves=curve)
 
 
 class TestXCS:
@@ -4118,7 +4155,7 @@ class TestPricingMechanism:
         ob.spread()
 
     def test_sbs(self, curve) -> None:
-        ob = SBS(dt(2022, 1, 28), "6m", "Q", curves=curve)
+        ob = SBS(dt(2022, 1, 28), "6m", "Q", curves=[curve] * 3)
         ob.rate()
         ob.npv()
         ob.cashflows()
@@ -4300,25 +4337,25 @@ class TestPortfolio:
         irs2 = IRS(dt(2022, 1, 23), "6m", spec="eur_irs6", curves=curve2, notional=1e6)
         irs3 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=-2e6)
         pf = Portfolio([irs1, irs2, irs3])
-        result = pf.fixings_table()
+        result = pf.local_analytic_rate_fixings()
 
-        # irs1 and irs3 are summed over curve c1 notional
-        assert abs(result["c1", "notional"][dt(2022, 1, 15)] - 1021994.16) < 1e-2
+        # # irs1 and irs3 are summed over curve c1 notional
+        # assert abs(result["c1", "notional"][dt(2022, 1, 15)] - 1021994.16) < 1e-2
         # irs1 and irs3 are summed over curve c1 risk
-        assert abs(result["c1", "risk"][dt(2022, 1, 15)] - 25.249) < 1e-2
+        assert abs(result["c1", "eur", "eur", "3M"][dt(2022, 1, 13)] - 25.249) < 1e-2
         # c1 has no exposure to 22nd Jan
-        assert isna(result["c1", "risk"][dt(2022, 1, 22)])
-        # c1 dcf is not summed
-        assert abs(result["c1", "dcf"][dt(2022, 1, 15)] - 0.25) < 1e-3
+        assert isna(result["c1", "eur", "eur", "3M"][dt(2022, 1, 20)])
+        # # c1 dcf is not summed
+        # assert abs(result["c1", "dcf"][dt(2022, 1, 15)] - 0.25) < 1e-3
 
-        # irs2 is included
-        assert abs(result["c2", "notional"][dt(2022, 1, 22)] - 1005297.17) < 1e-2
+        # # irs2 is included
+        # assert abs(result["c2", "notional"][dt(2022, 1, 22)] - 1005297.17) < 1e-2
         # irs1 and irs3 are summed over curve c1 risk
-        assert abs(result["c2", "risk"][dt(2022, 1, 22)] - 48.773) < 1e-3
+        assert abs(result["c2", "eur", "eur", "6M"][dt(2022, 1, 20)] - 48.773) < 1e-3
         # c2 has no exposure to 15 Jan
-        assert isna(result["c2", "risk"][dt(2022, 1, 15)])
-        # c2 has DCF
-        assert abs(result["c2", "dcf"][dt(2022, 1, 22)] - 0.50277) < 1e-3
+        assert isna(result["c2", "eur", "eur", "6M"][dt(2022, 1, 13)])
+        # # c2 has DCF
+        # assert abs(result["c2", "dcf"][dt(2022, 1, 22)] - 0.50277) < 1e-3
 
     def test_fixings_table_null_inst(self, curve):
         irs = IRS(dt(2022, 1, 15), "6m", spec="eur_irs3", curves=curve)
@@ -4405,25 +4442,17 @@ class TestFly:
         irs2 = IRS(dt(2022, 1, 23), "6m", spec="eur_irs6", curves=curve2, notional=1e6)
         irs3 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=-2e6)
         fly = Fly(irs1, irs2, irs3)
-        result = fly.local_rate_fixings()
+        result = fly.local_analytic_rate_fixings()
 
-        # irs1 and irs3 are summed over curve c1 notional
-        assert abs(result["c1", "notional"][dt(2022, 1, 15)] - 1021994.16) < 1e-2
         # irs1 and irs3 are summed over curve c1 risk
-        assert abs(result["c1", "risk"][dt(2022, 1, 15)] - 25.249) < 1e-2
+        assert abs(result[("c1", "eur", "eur", "3M")][dt(2022, 1, 13)] - 25.249) < 1e-2
         # c1 has no exposure to 22nd Jan
-        assert isna(result["c1", "risk"][dt(2022, 1, 22)])
-        # c1 dcf is not summed
-        assert abs(result["c1", "dcf"][dt(2022, 1, 15)] - 0.25) < 1e-3
+        assert isna(result[("c1", "eur", "eur", "3M")][dt(2022, 1, 20)])
 
-        # irs2 is included
-        assert abs(result["c2", "notional"][dt(2022, 1, 22)] - 1005297.17) < 1e-2
         # irs1 and irs3 are summed over curve c1 risk
-        assert abs(result["c2", "risk"][dt(2022, 1, 22)] - 48.773) < 1e-3
+        assert abs(result[("c2", "eur", "eur", "6M")][dt(2022, 1, 20)] - 48.773) < 1e-3
         # c2 has no exposure to 15 Jan
-        assert isna(result["c2", "risk"][dt(2022, 1, 15)])
-        # c2 has DCF
-        assert abs(result["c2", "dcf"][dt(2022, 1, 22)] - 0.50277) < 1e-3
+        assert isna(result[("c2", "eur", "eur", "6M")][dt(2022, 1, 13)])
 
     def test_fixings_table_null_inst(self, curve):
         irs = IRS(dt(2022, 1, 15), "6m", spec="eur_irs3", curves=curve)
@@ -4486,25 +4515,17 @@ class TestSpread:
         irs2 = IRS(dt(2022, 1, 23), "6m", spec="eur_irs6", curves=curve2, notional=1e6)
         irs3 = IRS(dt(2022, 1, 17), "6m", spec="eur_irs3", curves=curve, notional=-2e6)
         spd = Spread(irs1, Spread(irs2, irs3))
-        result = spd.fixings_table()
+        result = spd.local_analytic_rate_fixings()
 
-        # irs1 and irs3 are summed over curve c1 notional
-        assert abs(result["c1", "notional"][dt(2022, 1, 15)] - 1021994.16) < 1e-2
         # irs1 and irs3 are summed over curve c1 risk
-        assert abs(result["c1", "risk"][dt(2022, 1, 15)] - 25.249) < 1e-2
+        assert abs(result[("c1", "eur", "eur", "3M")][dt(2022, 1, 13)] - 25.249) < 1e-2
         # c1 has no exposure to 22nd Jan
-        assert isna(result["c1", "risk"][dt(2022, 1, 22)])
-        # c1 dcf is not summed
-        assert abs(result["c1", "dcf"][dt(2022, 1, 15)] - 0.25) < 1e-3
+        assert isna(result[("c1", "eur", "eur", "3M")][dt(2022, 1, 20)])
 
-        # irs2 is included
-        assert abs(result["c2", "notional"][dt(2022, 1, 22)] - 1005297.17) < 1e-2
         # irs1 and irs3 are summed over curve c1 risk
-        assert abs(result["c2", "risk"][dt(2022, 1, 22)] - 48.773) < 1e-3
+        assert abs(result[("c2", "eur", "eur", "6M")][dt(2022, 1, 20)] - 48.773) < 1e-3
         # c2 has no exposure to 15 Jan
-        assert isna(result["c2", "risk"][dt(2022, 1, 15)])
-        # c2 has DCF
-        assert abs(result["c2", "dcf"][dt(2022, 1, 22)] - 0.50277) < 1e-3
+        assert isna(result["c2", "eur", "eur", "6M"][dt(2022, 1, 13)])
 
     def test_fixings_table_null_inst(self, curve):
         irs = IRS(dt(2022, 1, 15), "6m", spec="eur_irs3", curves=curve)
@@ -4780,7 +4801,7 @@ class TestSpec:
                 "Q",
                 leg2_frequency="S",
                 currency="eur",
-                curves=["eureur", "eurusd"],
+                curves=["eureur", "eurusd", "eureur"],
             ),
             DataFrame(
                 [-0.51899, -6260.7208, 6299.28759],

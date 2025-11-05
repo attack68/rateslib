@@ -102,7 +102,7 @@ def _convert_to_schedule_kwargs(kwargs: dict[str, Any], leg: int) -> dict[str, A
 
 class _KWArgs:
     """
-    Class to manage keyword argument population of instruments.
+    Class to manage keyword argument population of *Leg* based *Instruments*.
 
     This will first populate any provided ``spec`` arguments if given.
     Second, the user input arguments that are specific values will overwrite these.

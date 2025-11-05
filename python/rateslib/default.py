@@ -59,6 +59,9 @@ class Defaults:
 
         # Instrument parameterisation
 
+        self.metric = {
+            "SBS": "float_spread",
+        }
         self.convention = "ACT360"
         self.notional = 1.0e6
         self.index_lag = 3
