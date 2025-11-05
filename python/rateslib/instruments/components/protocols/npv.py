@@ -18,7 +18,6 @@ if TYPE_CHECKING:
         FXForwards_,
         FXVolOption_,
         Solver_,
-        _BaseLeg,
         _Curves,
         datetime_,
         str_,
@@ -29,13 +28,7 @@ class _WithNPV(_WithCurves, Protocol):
     """
     Protocol to establish value of any *Instrument* type.
     """
-
-    _legs: list[_BaseLeg]
     _kwargs: _KWArgs
-
-    @property
-    def legs(self) -> list[_BaseLeg]:
-        return self._legs
 
     @property
     def kwargs(self) -> _KWArgs:
@@ -101,6 +94,7 @@ class _WithNPV(_WithCurves, Protocol):
         # this is a generalist implementation of an NPV function for an instrument with 2 legs.
         # most instruments may be likely to implement NPV directly to benefit from optimisations
         # specific to that instrument
+        assert hasattr(self, "legs")
 
         _curves: _Curves = self._parse_curves(curves)
         _curves_meta: _Curves = self.kwargs.meta["curves"]
@@ -155,3 +149,39 @@ class _WithNPV(_WithCurves, Protocol):
             return single_value
         else:
             return local_npv
+
+    def _npv_single_core(
+        self,
+        *,
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+        base: str_ = NoInput(0),
+        settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
+    ) -> dict[str, DualTypes]:
+        """
+        Private NPV summation function used with a single thread, over all `self.instruments`.
+        """
+        assert hasattr(self, "instruments")
+
+        local_npv: dict[str, DualTypes] = {}
+        for instrument in self.instruments:
+            inst_local_npv = instrument.npv(
+                curves=curves,
+                solver=solver,
+                fx=fx,
+                fx_vol=fx_vol,
+                base=base,
+                local=True,
+                settlement=settlement,
+                forward=forward,
+            )
+
+            for k, v in inst_local_npv.items():
+                if k in local_npv:
+                    local_npv[k] += v
+                else:
+                    local_npv[k] = v
+        return local_npv

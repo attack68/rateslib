@@ -17,6 +17,7 @@ if TYPE_CHECKING:
         DualTypes,
         FXForwards_,
         FXVolOption_,
+        NoInput,
         Solver_,
         datetime_,
         str_,
@@ -87,15 +88,17 @@ class _WithSensitivities(_WithNPV, Protocol):
 
     def exo_delta(
         self,
-        vars: list[str],  # noqa: A002
+        *,
         curves: Curves_ = NoInput(0),
-        solver: Solver | NoInput = NoInput(0),
-        fx: FX_ = NoInput(0),
-        base: str | NoInput = NoInput(0),
-        local: bool = False,
+        solver: Solver_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+        base: str_ = NoInput(0),
+        settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
+        vars: list[str],  # noqa: A002
         vars_scalar: list[float] | NoInput = NoInput(0),
         vars_labels: list[str] | NoInput = NoInput(0),
-        **kwargs: Any,
     ) -> DataFrame:
         """
         Calculate delta risk of an *Instrument* against some exogenous user created *Variables*.
@@ -142,22 +145,21 @@ class _WithSensitivities(_WithNPV, Protocol):
         """
         if isinstance(solver, NoInput):
             raise ValueError("`solver` is required for delta/gamma methods.")
-        npv = self.npv(curves, solver, fx, base, local=True, **kwargs)
-        _, fx_, base_ = _get_curves_fx_and_base_maybe_from_solver(
-            NoInput(0),
-            solver,
-            NoInput(0),
-            fx,
-            base,
-            NoInput(0),
+        npv: dict[str, DualTypes] = self.npv(
+            curves=curves,
+            solver=solver,
+            fx=fx,
+            fx_vol=fx_vol,
+            base=base,
+            forward=forward,
+            settlement=settlement,
+            local=True,
         )
-        if local:
-            base_ = NoInput(0)
         return solver.exo_delta(
-            npv=npv,  # type: ignore[arg-type]
+            npv=npv,
             vars=vars,
-            base=base_,
-            fx=fx_,
+            base=base,
+            fx=_get_fx_maybe_from_solver(fx=fx, solver=solver),
             vars_scalar=vars_scalar,
             vars_labels=vars_labels,
         )

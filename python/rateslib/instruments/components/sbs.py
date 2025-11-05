@@ -9,7 +9,7 @@ from rateslib.enums.generics import NoInput, _drb
 from rateslib.instruments.components.protocols import _BaseInstrument
 from rateslib.instruments.components.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.components.protocols.utils import _get_curve_maybe_from_solver
-from rateslib.legs.components import FixedLeg, FloatLeg
+from rateslib.legs.components import FloatLeg
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
@@ -19,7 +19,6 @@ if TYPE_CHECKING:
         DataFrame,
         DualTypes,
         DualTypes_,
-        FixingsRates_,
         Frequency,
         FXForwards_,
         FXVolOption_,
@@ -34,21 +33,21 @@ if TYPE_CHECKING:
     )
 
 
-class IRS(_BaseInstrument):
-    _rate_scalar = 1.0
+class SBS(_BaseInstrument):
+    _rate_scalar = 100.0
 
     @property
     def fixed_rate(self) -> DualTypes_:
-        return self.leg1.fixed_rate
-
-    @fixed_rate.setter
-    def fixed_rate(self, value: DualTypes_) -> None:
-        self.kwargs.leg1["fixed_rate"] = value
-        self.leg1.fixed_rate = value
+        raise AttributeError(f"Attribute not available on {type(self).__name__}")
 
     @property
-    def float_spread(self) -> NoReturn:
-        raise AttributeError(f"Attribute not available on {type(self).__name__}")
+    def float_spread(self) -> DualTypes_:
+        return self.leg1.float_spread
+
+    @float_spread.setter
+    def float_spread(self, value: DualTypes) -> None:
+        self.kwargs.leg1["float_spread"] = value
+        self.leg1.float_spread = value
 
     @property
     def leg2_fixed_rate(self) -> NoReturn:
@@ -69,7 +68,11 @@ class IRS(_BaseInstrument):
         termination: datetime | str_ = NoInput(0),
         frequency: Frequency | str_ = NoInput(0),
         *,
-        fixed_rate: DualTypes_ = NoInput(0),
+        float_spread: DualTypes_ = NoInput(0),
+        spread_compound_method: str_ = NoInput(0),
+        rate_fixings: FixingsRates_ = NoInput(0),  # type: ignore[type-var]
+        fixing_method: str_ = NoInput(0),
+        method_param: int_ = NoInput(0),
         stub: str_ = NoInput(0),
         front_stub: datetime_ = NoInput(0),
         back_stub: datetime_ = NoInput(0),
@@ -106,13 +109,18 @@ class IRS(_BaseInstrument):
         leg2_convention: str_ = NoInput(1),
         leg2_ex_div: int_ = NoInput(1),
         curves: Curves_ = NoInput(0),
+        metric: str_ = NoInput(0),
         spec: str_ = NoInput(0),
     ) -> None:
         user_args = dict(
             effective=effective,
             termination=termination,
             frequency=frequency,
-            fixed_rate=fixed_rate,
+            float_spread=float_spread,
+            spread_compound_method=spread_compound_method,
+            rate_fixings=rate_fixings,
+            fixing_method=fixing_method,
+            method_param=method_param,
             stub=stub,
             front_stub=front_stub,
             back_stub=back_stub,
@@ -149,6 +157,7 @@ class IRS(_BaseInstrument):
             leg2_amortization=leg2_amortization,
             leg2_convention=leg2_convention,
             curves=self._parse_curves(curves),
+            metric=metric,
         )
         instrument_args = dict(  # these are hard coded arguments specific to this instrument
             leg2_currency=NoInput(1),
@@ -162,15 +171,16 @@ class IRS(_BaseInstrument):
             notional=defaults.notional,
             payment_lag=defaults.payment_lag_specific[type(self).__name__],
             payment_lag_exchange=defaults.payment_lag_exchange,
+            metric=defaults.metric[type(self).__name__],
         )
         self._kwargs = _KWArgs(
             spec=spec,
             user_args={**user_args, **instrument_args},
             default_args=default_args,
-            meta_args=["curves"],
+            meta_args=["curves", "metric"],
         )
 
-        self.leg1 = FixedLeg(**_convert_to_schedule_kwargs(self.kwargs.leg1, 1))
+        self.leg1 = FloatLeg(**_convert_to_schedule_kwargs(self.kwargs.leg1, 1))
         self.leg2 = FloatLeg(**_convert_to_schedule_kwargs(self.kwargs.leg2, 1))
         self._legs = [self.leg1, self.leg2]
 
@@ -186,30 +196,57 @@ class IRS(_BaseInstrument):
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
     ) -> DualTypes_:
+        metric_: str = _drb(self.kwargs.meta["metric"], metric)
         _curves = self._parse_curves(curves)
-        leg2_rate_curve = _get_curve_maybe_from_solver(
-            self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
-        )
-        disc_curve = _get_curve_maybe_from_solver(
-            self.kwargs.meta["curves"], _curves, "disc_curve", solver
-        )
 
-        leg2_npv: DualTypes = self.leg2.local_npv(
-            rate_curve=leg2_rate_curve,
-            disc_curve=disc_curve,
-            index_curve=NoInput(0),
-            settlement=settlement,
-            forward=forward,
-        )
-        return (
-            self.leg1.spread(
-                target_npv=-leg2_npv,
-                rate_curve=NoInput(0),
-                disc_curve=disc_curve,
+        if metric_.lower() == "float_spread":
+            leg2_npv: DualTypes = self.leg2.local_npv(
+                rate_curve=_get_curve_maybe_from_solver(
+                    self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
+                ),
+                disc_curve=_get_curve_maybe_from_solver(
+                    self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
+                ),
                 index_curve=NoInput(0),
+                settlement=settlement,
+                forward=forward,
             )
-            / 100
-        )
+            return self.leg1.spread(
+                target_npv=-leg2_npv,
+                rate_curve=_get_curve_maybe_from_solver(
+                    self.kwargs.meta["curves"], _curves, "rate_curve", solver
+                ),
+                disc_curve=_get_curve_maybe_from_solver(
+                    self.kwargs.meta["curves"], _curves, "disc_curve", solver
+                ),
+                index_curve=NoInput(0),
+                settlement=settlement,
+                forward=forward,
+            )
+        else:  # metric == "leg2_float_spread"
+            leg1_npv: DualTypes = self.leg1.local_npv(
+                rate_curve=_get_curve_maybe_from_solver(
+                    self.kwargs.meta["curves"], _curves, "rate_curve", solver
+                ),
+                disc_curve=_get_curve_maybe_from_solver(
+                    self.kwargs.meta["curves"], _curves, "disc_curve", solver
+                ),
+                index_curve=NoInput(0),
+                settlement=settlement,
+                forward=forward,
+            )
+            return self.leg2.spread(
+                target_npv=-leg1_npv,
+                rate_curve=_get_curve_maybe_from_solver(
+                    self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
+                ),
+                disc_curve=_get_curve_maybe_from_solver(
+                    self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
+                ),
+                index_curve=NoInput(0),
+                settlement=settlement,
+                forward=forward,
+            )
 
     def spread(
         self,
@@ -221,28 +258,17 @@ class IRS(_BaseInstrument):
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
+        metric: str_ = NoInput(0),
     ) -> DualTypes:
-        _curves = self._parse_curves(curves)
-        leg2_rate_curve = _get_curve_maybe_from_solver(
-            self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
-        )
-        disc_curve = _get_curve_maybe_from_solver(
-            self.kwargs.meta["curves"], _curves, "disc_curve", solver
-        )
-        leg1_npv: DualTypes = self.leg1.local_npv(
-            rate_curve=NoInput(0),
-            disc_curve=disc_curve,
-            index_curve=NoInput(0),
+        return self.rate(
+            curves=curves,
+            solver=solver,
+            fx=fx,
+            fx_vol=fx_vol,
+            base=base,
             settlement=settlement,
             forward=forward,
-        )
-        return self.leg2.spread(
-            target_npv=-leg1_npv,
-            rate_curve=leg2_rate_curve,
-            disc_curve=disc_curve,
-            index_curve=NoInput(0),
-            settlement=settlement,
-            forward=forward,
+            metric=metric,
         )
 
     def npv(
@@ -282,23 +308,38 @@ class IRS(_BaseInstrument):
         forward: datetime_ = NoInput(0),
     ) -> None:
         # the test for an unpriced IRS is that its fixed rate is not set.
-        if isinstance(self.kwargs.leg1["fixed_rate"], NoInput):
-            # set a fixed rate for the purpose of generic methods NPV will be zero.
-            mid_market_rate = self.rate(
-                curves=curves,
-                solver=solver,
-                settlement=settlement,
-                forward=forward,
-            )
-            self.leg1.fixed_rate = _dual_float(mid_market_rate)
+        if self.kwargs.meta["metric"].lower() == "float_spread":
+            if isinstance(self.kwargs.leg1["float_spread"], NoInput):
+                # set a fixed rate for the purpose of generic methods NPV will be zero.
+                mid_market_rate = self.rate(
+                    curves=curves,
+                    solver=solver,
+                    settlement=settlement,
+                    forward=forward,
+                )
+                self.leg1.float_spread = _dual_float(mid_market_rate)
+        else:  # metric == "leg2_float_spread"
+            if isinstance(self.kwargs.leg2["float_spread"], NoInput):
+                # set a fixed rate for the purpose of generic methods NPV will be zero.
+                mid_market_rate = self.rate(
+                    curves=curves,
+                    solver=solver,
+                    settlement=settlement,
+                    forward=forward,
+                )
+                self.leg2.float_spread = _dual_float(mid_market_rate)
 
     def _parse_curves(self, curves: CurveOption_) -> _Curves:
         """
-        An IRS has two curve requirements: a leg2_rate_curve and a disc_curve used by both legs.
+        An SBS has three curve requirements:
+
+        - a rate_curve
+        - a disc_curve
+        - a leg2_rate_curve
 
         When given as only 1 element this curve is applied to all of the those components
 
-        When given as 2 elements the first is treated as the rate curve and the 2nd as disc curve.
+        When given as 2 elements this will raise an Exception.
         """
         if isinstance(curves, NoInput):
             return _Curves()
@@ -316,28 +357,24 @@ class IRS(_BaseInstrument):
                 ),
             )
         elif isinstance(curves, list | tuple):
-            if len(curves) == 2:
+            if len(curves) == 2 or len(curves) == 1 or len(curves) > 4:
+                raise TypeError(f"Number of `curves` for an SBS must be 3 or 4. Got {len(curves)}.")
+            elif len(curves) == 3:
                 return _Curves(
-                    leg2_rate_curve=curves[0],
+                    rate_curve=curves[0],
                     disc_curve=curves[1],
+                    leg2_rate_curve=curves[2],
                     leg2_disc_curve=curves[1],
                 )
-            elif len(curves) == 1:
+            else:  # == 4
                 return _Curves(
-                    leg2_rate_curve=curves[0],
-                    disc_curve=curves[0],
-                    leg2_disc_curve=curves[0],
+                    rate_curve=curves[0],
+                    disc_curve=curves[1],
+                    leg2_rate_curve=curves[2],
+                    leg2_disc_curve=curves[3],
                 )
-            else:
-                raise ValueError(
-                    f"{type(self).__name__} requires only 2 curve types. Got {len(curves)}."
-                )
-        else:  # `curves` is just a single input which is copied across all curves
-            return _Curves(
-                leg2_rate_curve=curves,
-                disc_curve=curves,
-                leg2_disc_curve=curves,
-            )
+        else:  # `curves` is just a single input
+            raise TypeError("Number of `curves` for an SBS must be 3 or 4. Got 1.")
 
     def cashflows(
         self,

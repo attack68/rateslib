@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 class _WithAnalyticDelta(_WithCurves, Protocol):
     """
-    Protocol to establish value of any *Instrument* type.
+    Protocol to determine the *analytic rate delta* of a particular *Leg* of an *Instrument*.
     """
 
     _legs: list[_BaseLeg]
