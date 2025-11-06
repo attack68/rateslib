@@ -155,16 +155,42 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], _WithOperations, A
     """
     An ABC defining the base methods of a *Curve*.
 
-    Provided the `__getitem__` method is defined for a discount factor (DF) based,
-    or values based curve, all methods of this class are provided directly. To automatically
-    provide some of the necessary abstract operations the class
-    :class:`~rateslib.curves._WithOperations` can, and is likely to always be, inherited.
+    Provided that the abstract base properties and methods of this class are implemented any
+    custom curve can be used within *rateslib*. Often the default implementations for some of
+    these, via ``super()`` are sufficient. The required base methods are:
 
-    In certain cases the `_base_type` will prevent some methods from calculating and
-    will raise `TypeError`.
+    - ``_meta``: returns a :class:`~rateslib.curves._CurveMeta` class.
+    - ``_interpolator``: returns a :class:`~rateslib.curves._CurveInterpolator` class.
+    - ``_nodes``: returns a :class:`~rateslib.curves._CurveNodes` class.
+    - ``_id``: returns a str representing the *Curve* id.
+    - ``_ad``: returns an integer in {0, 1, 2} indicating the automatic differentiation state.
+    - ``_base_type``: returns a :class:`~rateslib.curves._CurveType`.
+    - ``__getitem__(date)``: returns a float, :class:`~rateslib.dual.Dual`,
+      :class:`~rateslib.dual.Dual2`, or :class:`~rateslib.dual.Variable` given an input date.
+    - ``_set_ad_order(ad)``: mutates the node values of the *Curve* to adopt new automatic
+      differentiation states for facilitating other features, such as
+      :class:`~rateslib.solver.Solver` calibration and risk sensitivity calculation.
 
-    To use this class to build custom user type classes see
-    `Cookbook: Building Custom Curves (Nelson-Siegel) <../z_basecurve.html>`_
+    To automatically provide some of the operations the class
+    :class:`~rateslib.curves._WithOperations` can, and is likely to always be, inherited, without
+    the need for any additional implementation. In certain cases the `_base_type` will prevent
+    some methods from calculating and will raise `TypeError`.
+
+    To allow custom user curves to be calibrated by the :class:`~rateslib.solver.Solver` framework
+    the :class:`~rateslib.curves._WithMutability` class can be inherited. This requires two
+    additional implementation to allow a :class:`~rateslib.solver.Solver` to interact directly with
+    it:
+
+    - ``_get_node_vector()``: returns a NumPy array of the ordered node values consumed.
+    - ``_get_node_vars()``: returns a tuple of ordered string variable names associated with
+      each node of the *Curve*.
+    - ``_set_node_vector(array)``: accepts a NumPy array of the ordered node values and sets
+      these directly for the *Curve*.
+
+    .. rubric:: Examples
+
+    A demonstration of using this class to build a user custom *Curve* is presented at
+    `Cookbook: Building Custom Curves with _BaseCurve (e.g. Nelson-Siegel) <../z_basecurve.html>`_
     """
 
     # Required properties
