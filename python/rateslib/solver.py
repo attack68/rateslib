@@ -1176,6 +1176,8 @@ class Solver(Gradients, _WithState):
     def __repr__(self) -> str:
         return f"<rl.Solver:{self.id} at {hex(id(self))}>"
 
+    # State management and mutation
+
     def _set_new_state(self) -> None:
         self._states = self._associated_states()
         self._state = hash(sum(v for v in self._states.values()))
@@ -1345,6 +1347,8 @@ class Solver(Gradients, _WithState):
         # self._grad_v_v_f = None
         # self._Jkm = None  # keep manifold originally used for exploring J2 calc method
 
+    # Pricing object ID mapping
+
     @_validate_states
     def _get_pre_curve(self, obj: str) -> Curve:
         ret: Curve | FXVols = self.pre_curves[obj]
@@ -1352,7 +1356,7 @@ class Solver(Gradients, _WithState):
             return ret
         else:
             raise ValueError(
-                f"A type of `Curve` object was sought with id:'{obj}' from Solver but another "
+                f"A _BaseCurve object was sought with id:'{obj}' from Solver but another "
                 f"type object was returned:'{type(ret)}'."
             )
 
@@ -1370,6 +1374,8 @@ class Solver(Gradients, _WithState):
     @_validate_states
     def _get_fx(self) -> FXRates | FXForwards | NoInput:
         return self.fx
+
+    # Attributes
 
     @property
     def result(self) -> dict[str, Any]:

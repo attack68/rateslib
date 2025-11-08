@@ -144,3 +144,22 @@ class _KWArgs:
                 self._meta_args[k] = kwargs.pop(k)
         self._leg2_args = {k[5:]: v for k, v in kwargs.items() if "leg2_" in k}
         self._leg1_args = {k: v for k, v in kwargs.items() if "leg2_" not in k}
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, _KWArgs):
+            return False
+        else:
+            # bools = [
+            #     self.leg1.keys() == other.leg1.keys(),
+            #     self.leg2.keys() == other.leg2.keys(),
+            #     self.meta.keys() == other.meta.keys(),
+            #     all(self.leg1[k] == other.leg1[k] for k in self.leg1.keys()),
+            #     all(self.leg2[k] == other.leg2[k] for k in self.leg2.keys()),
+            #     all(self.meta[k] == other.meta[k] for k in self.meta.keys()),
+            # ]
+            bools = [
+                self.leg1 == other.leg1,
+                self.leg2 == other.leg2,
+                self.meta == other.meta,
+            ]
+            return all(bools)
