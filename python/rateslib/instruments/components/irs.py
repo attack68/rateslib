@@ -3,12 +3,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, NoReturn
 
 from rateslib import defaults
-from rateslib.curves._parsers import _Curves
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.instruments.components.protocols import _BaseInstrument
 from rateslib.instruments.components.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
-from rateslib.instruments.components.protocols.utils import _get_curve_maybe_from_solver
+from rateslib.instruments.components.protocols.pricing import (
+    _Curves,
+    _get_maybe_curve_maybe_from_solver,
+)
 from rateslib.legs.components import FixedLeg, FloatLeg
 
 if TYPE_CHECKING:
@@ -187,10 +189,10 @@ class IRS(_BaseInstrument):
         metric: str_ = NoInput(0),
     ) -> DualTypes_:
         _curves = self._parse_curves(curves)
-        leg2_rate_curve = _get_curve_maybe_from_solver(
+        leg2_rate_curve = _get_maybe_curve_maybe_from_solver(
             self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
         )
-        disc_curve = _get_curve_maybe_from_solver(
+        disc_curve = _get_maybe_curve_maybe_from_solver(
             self.kwargs.meta["curves"], _curves, "disc_curve", solver
         )
 
@@ -223,10 +225,10 @@ class IRS(_BaseInstrument):
         forward: datetime_ = NoInput(0),
     ) -> DualTypes:
         _curves = self._parse_curves(curves)
-        leg2_rate_curve = _get_curve_maybe_from_solver(
+        leg2_rate_curve = _get_maybe_curve_maybe_from_solver(
             self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
         )
-        disc_curve = _get_curve_maybe_from_solver(
+        disc_curve = _get_maybe_curve_maybe_from_solver(
             self.kwargs.meta["curves"], _curves, "disc_curve", solver
         )
         leg1_npv: DualTypes = self.leg1.local_npv(

@@ -7,7 +7,7 @@ from pandas import DataFrame, DatetimeIndex
 
 from rateslib.enums.generics import NoInput
 from rateslib.instruments.components.protocols import _BaseInstrument
-from rateslib.instruments.components.protocols.utils import (
+from rateslib.instruments.components.protocols.pricing import (
     _get_fx_maybe_from_solver,
 )
 from rateslib.periods.components.utils import _maybe_fx_converted

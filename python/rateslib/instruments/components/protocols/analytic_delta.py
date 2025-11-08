@@ -3,11 +3,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol
 
 from rateslib.enums.generics import NoInput
-from rateslib.instruments.components.protocols.curves import _WithCurves
 from rateslib.instruments.components.protocols.kwargs import _KWArgs
-from rateslib.instruments.components.protocols.utils import (
-    _get_curve_maybe_from_solver,
+from rateslib.instruments.components.protocols.pricing import (
     _get_fx_maybe_from_solver,
+    _get_maybe_curve_maybe_from_solver,
+    _WithPricingObjs,
 )
 
 if TYPE_CHECKING:
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     )
 
 
-class _WithAnalyticDelta(_WithCurves, Protocol):
+class _WithAnalyticDelta(_WithPricingObjs, Protocol):
     """
     Protocol to determine the *analytic rate delta* of a particular *Leg* of an *Instrument*.
     """
@@ -104,17 +104,17 @@ class _WithAnalyticDelta(_WithCurves, Protocol):
         prefix = "" if leg == 1 else "leg2_"
 
         return self.legs[leg - 1].analytic_delta(
-            rate_curve=_get_curve_maybe_from_solver(
+            rate_curve=_get_maybe_curve_maybe_from_solver(
                 _curves_meta, _curves, f"{prefix}rate_curve", solver
             ),
-            disc_curve=_get_curve_maybe_from_solver(
+            disc_curve=_get_maybe_curve_maybe_from_solver(
                 _curves_meta, _curves, f"{prefix}disc_curve", solver
             ),
-            index_curve=_get_curve_maybe_from_solver(
+            index_curve=_get_maybe_curve_maybe_from_solver(
                 _curves_meta, _curves, f"{prefix}index_curve", solver
             ),
             fx_vol=fx_vol,
-            fx=_get_fx_maybe_from_solver(fx, solver),
+            fx=_get_fx_maybe_from_solver(fx=fx, solver=solver),
             base=base,
             local=local,
             settlement=settlement,

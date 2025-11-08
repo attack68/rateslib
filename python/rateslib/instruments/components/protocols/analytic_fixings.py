@@ -6,10 +6,10 @@ from typing import TYPE_CHECKING, Protocol
 from pandas import DataFrame, DatetimeIndex, concat
 
 from rateslib.enums.generics import NoInput
-from rateslib.instruments.components.protocols.curves import _WithCurves
-from rateslib.instruments.components.protocols.utils import (
-    _get_curve_maybe_from_solver,
+from rateslib.instruments.components.protocols.pricing import (
     _get_fx_maybe_from_solver,
+    _get_maybe_curve_maybe_from_solver,
+    _WithPricingObjs,
 )
 
 if TYPE_CHECKING:
@@ -60,7 +60,7 @@ def _composit_fixings_table(df_result: DataFrame, df: DataFrame) -> DataFrame:
     return df_result
 
 
-class _WithAnalyticRateFixings(_WithCurves, Protocol):
+class _WithAnalyticRateFixings(_WithPricingObjs, Protocol):
     def local_analytic_rate_fixings(
         self,
         *,
@@ -121,18 +121,18 @@ class _WithAnalyticRateFixings(_WithCurves, Protocol):
         # this is a generic implementation to handle 2 legs.
         _curves: _Curves = self._parse_curves(curves)
         _curves_meta: _Curves = self.kwargs.meta["curves"]
-        _fx_maybe_from_solver = _get_fx_maybe_from_solver(fx, solver)
+        _fx_maybe_from_solver = _get_fx_maybe_from_solver(fx=fx, solver=solver)
 
         dfs = []
         dfs.append(
             self.legs[0].local_analytic_rate_fixings(
-                rate_curve=_get_curve_maybe_from_solver(
+                rate_curve=_get_maybe_curve_maybe_from_solver(
                     _curves_meta, _curves, "rate_curve", solver
                 ),
-                disc_curve=_get_curve_maybe_from_solver(
+                disc_curve=_get_maybe_curve_maybe_from_solver(
                     _curves_meta, _curves, "disc_curve", solver
                 ),
-                index_curve=_get_curve_maybe_from_solver(
+                index_curve=_get_maybe_curve_maybe_from_solver(
                     _curves_meta, _curves, "index_curve", solver
                 ),
                 fx=_fx_maybe_from_solver,
@@ -143,13 +143,13 @@ class _WithAnalyticRateFixings(_WithCurves, Protocol):
         )
         dfs.append(
             self.legs[1].local_analytic_rate_fixings(
-                rate_curve=_get_curve_maybe_from_solver(
+                rate_curve=_get_maybe_curve_maybe_from_solver(
                     _curves_meta, _curves, "leg2_rate_curve", solver
                 ),
-                disc_curve=_get_curve_maybe_from_solver(
+                disc_curve=_get_maybe_curve_maybe_from_solver(
                     _curves_meta, _curves, "leg2_disc_curve", solver
                 ),
-                index_curve=_get_curve_maybe_from_solver(
+                index_curve=_get_maybe_curve_maybe_from_solver(
                     _curves_meta, _curves, "leg2_index_curve", solver
                 ),
                 fx=_fx_maybe_from_solver,

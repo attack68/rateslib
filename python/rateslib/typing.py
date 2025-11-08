@@ -17,7 +17,6 @@ from rateslib.curves import ShiftedCurve as ShiftedCurve
 from rateslib.curves import TranslatedCurve as TranslatedCurve
 from rateslib.curves import _BaseCurve as _BaseCurve
 from rateslib.curves import _CurveMeta as _CurveMeta
-from rateslib.curves._parsers import _Curves as _Curves
 from rateslib.data.fixings import FloatRateIndex as FloatRateIndex
 from rateslib.data.fixings import FloatRateSeries as FloatRateSeries
 from rateslib.data.fixings import FXFixing as FXFixing
@@ -69,6 +68,8 @@ from rateslib.instruments import STIRFuture as STIRFuture
 from rateslib.instruments import Value as Value
 from rateslib.instruments import VolValue as VolValue
 from rateslib.instruments.bonds import BondMixin as BondMixin
+from rateslib.instruments.components.protocols.pricing import _Curves as _Curves
+from rateslib.instruments.components.protocols.pricing import _Vol as _Vol
 from rateslib.legs import CreditPremiumLeg as CreditPremiumLeg
 from rateslib.legs import CreditProtectionLeg as CreditProtectionLeg
 from rateslib.legs import FixedLeg as FixedLeg
@@ -151,9 +152,20 @@ int_: TypeAlias = "int | NoInput"
 datetime_: TypeAlias = "datetime | NoInput"
 float_: TypeAlias = "float | NoInput"
 
+# _BaseCurve is an ABC
 _BaseCurve_: TypeAlias = "_BaseCurve | NoInput"
-CurveDict: TypeAlias = "dict[str, _BaseCurve | str] | dict[str, _BaseCurve] | dict[str, str]"
+_BaseCurveOrId: TypeAlias = "_BaseCurve | str"  # used as best practice for Solver mappings
+_BaseCurveOrId_: TypeAlias = "_BaseCurveOrId | NoInput"
+_BaseCurveOrIdDict: TypeAlias = (
+    "dict[str, _BaseCurve | str] | dict[str, _BaseCurve] | dict[str, str]"
+)
+_BaseCurveDict: TypeAlias = "dict[str, _BaseCurve]"
+_BaseCurveOrDict: TypeAlias = "_BaseCurve | _BaseCurveDict"
+_BaseCurveOrIdOrIdDict: TypeAlias = "_BaseCurveOrId | _BaseCurveOrIdDict"
+_BaseCurveOrDict_: TypeAlias = "_BaseCurve | _BaseCurveDict | NoInput"
+_BaseCurveOrIdOrIdDict_: TypeAlias = "_BaseCurveOrId | _BaseCurveOrIdDict | NoInput"
 
+CurveDict: TypeAlias = "dict[str, _BaseCurve | str] | dict[str, _BaseCurve] | dict[str, str]"
 CurveOrId: TypeAlias = "_BaseCurve | str"
 CurveOrId_: TypeAlias = "CurveOrId | NoInput"
 
@@ -179,6 +191,7 @@ FXVolOption_: TypeAlias = "FXVolOption | NoInput"
 
 FXVol: TypeAlias = "FXVolOption | str"
 FXVol_: TypeAlias = "FXVol | NoInput"
+Vol_: TypeAlias = "FXVol | NoInput"
 
 VolInput_: TypeAlias = "str | FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile | FXSabrSurface"
 VolInput: TypeAlias = "VolInput_ | NoInput"

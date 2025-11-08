@@ -3,11 +3,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol
 
 from rateslib.enums.generics import NoInput
-from rateslib.instruments.components.protocols.curves import _WithCurves
 from rateslib.instruments.components.protocols.kwargs import _KWArgs
-from rateslib.instruments.components.protocols.utils import (
-    _get_curve_maybe_from_solver,
+from rateslib.instruments.components.protocols.pricing import (
     _get_fx_maybe_from_solver,
+    _get_maybe_curve_maybe_from_solver,
+    _WithPricingObjs,
 )
 from rateslib.periods.components.utils import _maybe_fx_converted
 
@@ -24,10 +24,11 @@ if TYPE_CHECKING:
     )
 
 
-class _WithNPV(_WithCurves, Protocol):
+class _WithNPV(_WithPricingObjs, Protocol):
     """
     Protocol to establish value of any *Instrument* type.
     """
+
     _kwargs: _KWArgs
 
     @property
@@ -98,17 +99,17 @@ class _WithNPV(_WithCurves, Protocol):
 
         _curves: _Curves = self._parse_curves(curves)
         _curves_meta: _Curves = self.kwargs.meta["curves"]
-        _fx_maybe_from_solver = _get_fx_maybe_from_solver(fx, solver)
+        _fx_maybe_from_solver = _get_fx_maybe_from_solver(fx=fx, solver=solver)
 
         local_npv = {
             self.legs[0].settlement_params.currency: self.legs[0].local_npv(
-                rate_curve=_get_curve_maybe_from_solver(
+                rate_curve=_get_maybe_curve_maybe_from_solver(
                     _curves_meta, _curves, "rate_curve", solver
                 ),
-                disc_curve=_get_curve_maybe_from_solver(
+                disc_curve=_get_maybe_curve_maybe_from_solver(
                     _curves_meta, _curves, "disc_curve", solver
                 ),
-                index_curve=_get_curve_maybe_from_solver(
+                index_curve=_get_maybe_curve_maybe_from_solver(
                     _curves_meta, _curves, "index_curve", solver
                 ),
                 fx=_fx_maybe_from_solver,
@@ -119,13 +120,13 @@ class _WithNPV(_WithCurves, Protocol):
         }
 
         leg2_local_npv = self.legs[1].local_npv(
-            rate_curve=_get_curve_maybe_from_solver(
+            rate_curve=_get_maybe_curve_maybe_from_solver(
                 _curves_meta, _curves, "leg2_rate_curve", solver
             ),
-            disc_curve=_get_curve_maybe_from_solver(
+            disc_curve=_get_maybe_curve_maybe_from_solver(
                 _curves_meta, _curves, "leg2_disc_curve", solver
             ),
-            index_curve=_get_curve_maybe_from_solver(
+            index_curve=_get_maybe_curve_maybe_from_solver(
                 _curves_meta, _curves, "leg2_index_curve", solver
             ),
             fx=_fx_maybe_from_solver,
