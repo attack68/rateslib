@@ -7,7 +7,7 @@ from pandas import DataFrame
 
 from rateslib.enums.generics import NoInput
 from rateslib.instruments.components.protocols import _BaseInstrument
-from rateslib.instruments.components.protocols.utils import (
+from rateslib.instruments.components.protocols.pricing import (
     _get_fx_maybe_from_solver,
 )
 from rateslib.periods.components.utils import _maybe_fx_converted
@@ -67,7 +67,11 @@ class Spread(_BaseInstrument):
         Return the NPV of the *Portfolio* by summing individual *Instrument* NPVs.
         """
         local_npv = self._npv_single_core(
-            curves=curves, solver=solver, fx=fx, fx_vol=fx_vol, base=base,
+            curves=curves,
+            solver=solver,
+            fx=fx,
+            fx_vol=fx_vol,
+            base=base,
         )
         if not local:
             single_value: DualTypes = 0.0

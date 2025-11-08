@@ -6,11 +6,11 @@ from typing import TYPE_CHECKING, Protocol
 from pandas import DataFrame, concat, isna
 
 from rateslib.enums.generics import NoInput
-from rateslib.instruments.components.protocols.curves import _WithCurves
 from rateslib.instruments.components.protocols.kwargs import _KWArgs
-from rateslib.instruments.components.protocols.utils import (
-    _get_curve_maybe_from_solver,
+from rateslib.instruments.components.protocols.pricing import (
     _get_fx_maybe_from_solver,
+    _get_maybe_curve_maybe_from_solver,
+    _WithPricingObjs,
 )
 
 if TYPE_CHECKING:
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     )
 
 
-class _WithCashflows(_WithCurves, Protocol):
+class _WithCashflows(_WithPricingObjs, Protocol):
     _kwargs: _KWArgs
 
     @property
@@ -100,12 +100,18 @@ class _WithCashflows(_WithCurves, Protocol):
 
         _curves: _Curves = self._parse_curves(curves)
         _curves_meta: _Curves = self.kwargs.meta["curves"]
-        _fx_maybe_from_solver = _get_fx_maybe_from_solver(fx, solver)
+        _fx_maybe_from_solver = _get_fx_maybe_from_solver(fx=fx, solver=solver)
 
         leg1_df = self.legs[0].cashflows(
-            rate_curve=_get_curve_maybe_from_solver(_curves_meta, _curves, "rate_curve", solver),
-            disc_curve=_get_curve_maybe_from_solver(_curves_meta, _curves, "disc_curve", solver),
-            index_curve=_get_curve_maybe_from_solver(_curves_meta, _curves, "index_curve", solver),
+            rate_curve=_get_maybe_curve_maybe_from_solver(
+                _curves_meta, _curves, "rate_curve", solver
+            ),
+            disc_curve=_get_maybe_curve_maybe_from_solver(
+                _curves_meta, _curves, "disc_curve", solver
+            ),
+            index_curve=_get_maybe_curve_maybe_from_solver(
+                _curves_meta, _curves, "index_curve", solver
+            ),
             fx=_fx_maybe_from_solver,
             fx_vol=fx_vol,
             settlement=settlement,
@@ -114,13 +120,13 @@ class _WithCashflows(_WithCurves, Protocol):
         )
 
         leg2_df = self.legs[1].cashflows(
-            rate_curve=_get_curve_maybe_from_solver(
+            rate_curve=_get_maybe_curve_maybe_from_solver(
                 _curves_meta, _curves, "leg2_rate_curve", solver
             ),
-            disc_curve=_get_curve_maybe_from_solver(
+            disc_curve=_get_maybe_curve_maybe_from_solver(
                 _curves_meta, _curves, "leg2_disc_curve", solver
             ),
-            index_curve=_get_curve_maybe_from_solver(
+            index_curve=_get_maybe_curve_maybe_from_solver(
                 _curves_meta, _curves, "leg2_index_curve", solver
             ),
             fx=_fx_maybe_from_solver,

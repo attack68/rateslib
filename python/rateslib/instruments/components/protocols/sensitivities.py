@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Protocol
 from rateslib.enums.generics import NoInput
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments.components.protocols.npv import _WithNPV
-from rateslib.instruments.components.protocols.utils import (
+from rateslib.instruments.components.protocols.pricing import (
     _get_fx_maybe_from_solver,
 )
 

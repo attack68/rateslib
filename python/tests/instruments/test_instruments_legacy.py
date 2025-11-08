@@ -38,7 +38,7 @@ from rateslib.instruments import (
     # Portfolio,
     # Spread,
     STIRFuture,
-    Value,
+    # Value,
     VolValue,
 )
 from rateslib.instruments.components import (
@@ -48,6 +48,13 @@ from rateslib.instruments.components import (
     Fly,
     Portfolio,
     Spread,
+    Value,
+)
+from rateslib.instruments.components.protocols.kwargs import (
+    _KWArgs,
+)
+from rateslib.instruments.components.protocols.pricing import (
+    _Curves,
 )
 from rateslib.instruments.utils import (
     _get_curves_fx_and_base_maybe_from_solver,
@@ -177,7 +184,7 @@ def test_instrument_repr(inst):
 class TestCurvesandSolver:
     def test_get_curve_from_solver(self) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
-        inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
+        inst = [(Value(dt(2023, 1, 1)), (), {"curves": "tagged"})]
         solver = Solver([curve], [], inst, [0.975])
 
         result = _map_curve_from_solver("tagged", solver)
@@ -220,7 +227,7 @@ class TestCurvesandSolver:
         crv,
     ) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
-        inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
+        inst = [Value(dt(2023, 1, 1), curves="tagged")]
         fxfs = FXForwards(
             FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3)),
             {"usdusd": usdusd, "usdeur": usdeur, "eureur": eureur},
@@ -300,7 +307,7 @@ class TestCurvesandSolver:
         from rateslib.solver import Solver
 
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
-        inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
+        inst = [Value(dt(2023, 1, 1), curves="tagged")]
         solver = Solver([curve], [], inst, [0.975])
 
         with pytest.raises(ValueError, match="`curves` must contain Curve, not str, if"):
@@ -338,7 +345,7 @@ class TestCurvesandSolver:
         from rateslib.solver import Solver
 
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
-        inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
+        inst = [Value(dt(2023, 1, 1), curves="tagged")]
         solver = Solver([curve], [], inst, [0.975])
         result, _, _ = _get_curves_fx_and_base_maybe_from_solver(
             NoInput(0),
@@ -352,7 +359,7 @@ class TestCurvesandSolver:
 
     def test_get_proxy_curve_from_solver(self, usdusd, usdeur, eureur) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
-        inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
+        inst = [Value(dt(2023, 1, 1), curves="tagged")]
         fxf = FXForwards(
             FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3)),
             {"usdusd": usdusd, "usdeur": usdeur, "eureur": eureur},
@@ -379,7 +386,7 @@ class TestCurvesandSolver:
 
     def test_get_multicsa_curve_from_solver(self, usdusd, usdeur, eureur) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
-        inst = [(Value(dt(2023, 1, 1)), ("tagged",), {})]
+        inst = [Value(dt(2023, 1, 1), curves="tagged")]
         fxf = FXForwards(
             FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3)),
             {"usdusd": usdusd, "usdeur": usdeur, "eureur": eureur},
@@ -440,7 +447,7 @@ class TestSolverFXandBase:
         expected = 330.4051154763001 / 1.1
         assert abs(result - expected) < 1e-4
 
-        with pytest.warns(UserWarning):
+        with pytest.warns(DeprecationWarning, match=r"should not be given when supplying"):
             # warn about numeric
             self.irs.npv(fx=1 / 1.1, base="eur")
 
@@ -505,25 +512,26 @@ class TestSolverFXandBase:
         assert abs(result - expected) < 1e-4
 
     def test_fx(self) -> None:
-        # should repeat the "_just_base" case.
+        # this was amended by v2.5. `base` must now be explicit and is not inherited.
         result = self.irs.npv(fx=self.fxr)
-        expected = 330.4051154763001 / 1.25
+        expected = 330.4051154763001  # / 1.25
         assert abs(result - expected) < 1e-4
 
     def test_fx_solverfx(self) -> None:
+        # this was amended by v2.5. `base` must now be explicit and is not inherited.
         fxr = FXRates({"eurusd": 1.2}, base="eur")
         self.solver.fx = fxr
         self.solver._set_new_state()
 
-        # no warning becuase objects are the same
+        # no warning because objects are the same
         result = self.irs.npv(solver=self.solver, fx=fxr)
-        expected = 330.4051154763001 / 1.2
+        expected = 330.4051154763001  # / 1.2
         assert abs(result - expected) < 1e-4
 
         # should give warning because obj id are different
-        with pytest.warns(UserWarning):
+        with pytest.warns(UserWarning, match="Solver contains an `fx` attribute but an `fx` ar"):
             result = self.irs.npv(solver=self.solver, fx=self.fxr)
-            expected = 330.4051154763001 / 1.25  # base in this case inferred as GBP
+            expected = 330.4051154763001  # / 1.25
             assert abs(result - expected) < 1e-4
 
         self.solver.fx = NoInput(0)
@@ -1895,14 +1903,14 @@ class TestValue:
 
     def test_cc_zero_rate(self, curve) -> None:
         v = Value(effective=dt(2022, 7, 1), convention="act365f", metric="cc_zero_rate")
-        result = v.rate(curve)
+        result = v.rate(curves=curve)
         expected = 4.074026613753926
         assert result == expected
 
     def test_on_rate(self, curve) -> None:
         c = Curve({dt(2000, 1, 1): 1.0, dt(2000, 7, 1): 1.0})
         v = Value(effective=dt(2000, 2, 1), metric="o/n_rate")
-        result = v.rate(c)
+        result = v.rate(curves=c)
         expected = 0.0
         assert abs(result - expected) < 1e-8
 
@@ -1914,13 +1922,13 @@ class TestValue:
             interpolation="linear_index",
         )
         v = Value(effective=dt(2022, 7, 1), metric="index_value")
-        result = v.rate(curve)
+        result = v.rate(curves=curve)
         expected = 100.24919116128588
         assert result == expected
 
     def test_value_raise(self, curve) -> None:
         with pytest.raises(ValueError):
-            Value(effective=dt(2022, 7, 1), metric="bad").rate(curve)
+            Value(effective=dt(2022, 7, 1), metric="bad").rate(curves=curve)
 
 
 class TestFXExchange:
@@ -2660,7 +2668,7 @@ class TestNonMtmFixedFloatXCS:
             leg2_spread_compound_method=compound,
             leg2_float_spread=float_spd,
         )
-        validate = irs.rate(curve2)
+        validate = irs.rate(curves=curve2)
         assert abs(result - validate) < 1e-2
 
     def test_nonmtmfixxcs_fx_notional(self) -> None:
@@ -3649,7 +3657,7 @@ class TestFixedFloatXCS:
         result = xcs.rate([curve2, curve2, curve, curve], NoInput(0), fxf, 1)
 
         irs = IRS(dt(2022, 2, 1), "8M", "M", currency="nok", payment_lag=0)
-        validate = irs.rate(curve2)
+        validate = irs.rate(curves=curve2)
         assert abs(result - validate) < 1e-4
         # alias = xcs.spread([curve2, curve2, curve, curve], NoInput(0), fxf, 2)
 
@@ -3676,7 +3684,7 @@ class TestFixedFloatXCS:
         result = xcs.rate([curve, curve, curve2, curve2], NoInput(0), fxf, 2)
 
         irs = IRS(dt(2022, 2, 1), "8M", "M", currency="nok", payment_lag=0)
-        validate = irs.rate(curve2)
+        validate = irs.rate(curves=curve2)
         assert abs(result - validate) < 1e-2
         alias = xcs.spread([curve, curve, curve2, curve2], NoInput(0), fxf, 2)
         assert abs(result - alias) < 1e-4
@@ -3690,7 +3698,7 @@ class TestFixedFixedXCS:
         )
 
         irs = IRS(dt(2022, 2, 1), "8M", "M", payment_lag=0)
-        nok_rate = float(irs.rate(curve2))
+        nok_rate = float(irs.rate(curves=curve2))
         xcs = XCS(
             dt(2022, 2, 1),
             "8M",
@@ -3706,17 +3714,17 @@ class TestFixedFixedXCS:
             fixed_rate=nok_rate,
         )
         result = xcs.rate([curve2, curve2, curve, curve], NoInput(0), fxf, 2)
-        validate = irs.rate(curve)
+        validate = irs.rate(curves=curve)
         assert abs(result - validate) < 1e-4
         alias = xcs.spread([curve2, curve2, curve, curve], NoInput(0), fxf, 2)
         assert abs(result - alias) < 1e-8
 
         # test reverse
-        usd_rate = float(irs.rate(curve))
+        usd_rate = float(irs.rate(curves=curve))
         xcs.fixed_rate = NoInput(0)
         xcs.leg2_fixed_rate = usd_rate
         result = xcs.rate([curve2, curve2, curve, curve], NoInput(0), fxf, 1)
-        validate = irs.rate(curve2)
+        validate = irs.rate(curves=curve2)
         assert abs(result - validate) < 1e-4
         alias = xcs.spread([curve2, curve2, curve, curve], NoInput(0), fxf, 1)
         assert abs(result - alias) < 1e-8
@@ -4554,8 +4562,13 @@ class TestSpec:
             leg2_method_param=0,
             notional=250.0,
             spec="test",
+            curves="test",
         )
         expected = dict(
+            initial_exchange=False,
+            final_exchange=False,
+            leg2_initial_exchange=False,
+            leg2_final_exchange=False,
             schedule=Schedule(
                 effective=dt(2022, 1, 1),
                 termination=dt(2024, 2, 26),
@@ -4596,10 +4609,15 @@ class TestSpec:
             leg2_fixing_method=NoInput(0),
             leg2_method_param=0,
             leg2_spread_compound_method=NoInput(0),
-            leg2_fixings=NoInput(0),
+            leg2_rate_fixings=NoInput(0),
             leg2_float_spread=NoInput(0),
+            curves=_Curves(disc_curve="test", leg2_rate_curve="test", leg2_disc_curve="test"),
         )
-        assert irs.kwargs == expected
+        kwargs = _KWArgs(
+            user_args=expected,
+            meta_args=["curves"],
+        )
+        assert irs.kwargs == kwargs
 
     def test_irs(self) -> None:
         irs = IRS(
@@ -4609,10 +4627,10 @@ class TestSpec:
             convention="30e360",
             fixed_rate=2.0,
         )
-        assert irs.kwargs["convention"] == "30e360"
-        assert irs.kwargs["leg2_convention"] == "30e360"
-        assert irs.kwargs["currency"] == "usd"
-        assert irs.kwargs["fixed_rate"] == 2.0
+        assert irs.kwargs.leg1["convention"] == "30e360"
+        assert irs.kwargs.leg2["convention"] == "30e360"
+        assert irs.kwargs.leg1["currency"] == "usd"
+        assert irs.kwargs.leg1["fixed_rate"] == 2.0
 
     def test_stir(self) -> None:
         irs = STIRFuture(
@@ -4634,12 +4652,12 @@ class TestSpec:
             convention="30e360",
             frequency="A",
         )
-        assert inst.kwargs["convention"] == "30e360"
-        assert inst.kwargs["leg2_convention"] == "30e360"
-        assert inst.kwargs["currency"] == "eur"
-        assert inst.kwargs["fixing_method"] == "ibor"
-        assert inst.kwargs["schedule"].frequency == "A"
-        assert inst.kwargs["leg2_schedule"].frequency == "S"
+        assert inst.kwargs.leg1["convention"] == "30e360"
+        assert inst.kwargs.leg2["convention"] == "30e360"
+        assert inst.kwargs.leg1["currency"] == "eur"
+        assert inst.kwargs.leg2["fixing_method"] == "ibor"
+        assert inst.kwargs.leg1["schedule"].frequency == "A"
+        assert inst.kwargs.leg2["schedule"].frequency == "S"
 
     def test_zcis(self) -> None:
         inst = ZCIS(
