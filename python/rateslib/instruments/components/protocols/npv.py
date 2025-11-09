@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Protocol
 
-from rateslib.enums.generics import NoInput
+from rateslib.enums.generics import NoInput, _drb
 from rateslib.instruments.components.protocols.kwargs import _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
     _get_fx_maybe_from_solver,
@@ -143,9 +143,10 @@ class _WithNPV(_WithPricingObjs, Protocol):
 
         if not local:
             single_value: DualTypes = 0.0
+            base_ = _drb(self.legs[0].settlement_params.currency, base)
             for k, v in local_npv.items():
                 single_value += _maybe_fx_converted(
-                    value=v, currency=k, fx=_fx_maybe_from_solver, base=base
+                    value=v, currency=k, fx=_fx_maybe_from_solver, base=base_
                 )
             return single_value
         else:

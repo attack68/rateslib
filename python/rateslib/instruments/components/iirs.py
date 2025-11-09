@@ -25,7 +25,9 @@ if TYPE_CHECKING:
         Frequency,
         FXForwards_,
         FXVolOption_,
+        IndexMethod,
         RollDay,
+        Series,
         Solver_,
         bool_,
         datetime,
@@ -36,7 +38,7 @@ if TYPE_CHECKING:
     )
 
 
-class IRS(_BaseInstrument):
+class IIRS(_BaseInstrument):
     _rate_scalar = 1.0
 
     @property
@@ -72,6 +74,11 @@ class IRS(_BaseInstrument):
         frequency: Frequency | str_ = NoInput(0),
         *,
         fixed_rate: DualTypes_ = NoInput(0),
+        notional_exchange: bool = False,
+        index_base: DualTypes_ = NoInput(0),
+        index_lag: int_ = NoInput(0),
+        index_method: IndexMethod | str_ = NoInput(0),
+        index_fixings: Series[DualTypes] | str_ = NoInput(0),
         stub: str_ = NoInput(0),
         front_stub: datetime_ = NoInput(0),
         back_stub: datetime_ = NoInput(0),
@@ -115,6 +122,10 @@ class IRS(_BaseInstrument):
             termination=termination,
             frequency=frequency,
             fixed_rate=fixed_rate,
+            index_base=index_base,
+            index_lag=index_lag,
+            index_method=index_method,
+            index_fixings=index_fixings,
             stub=stub,
             front_stub=front_stub,
             back_stub=back_stub,
@@ -151,19 +162,21 @@ class IRS(_BaseInstrument):
             leg2_amortization=leg2_amortization,
             leg2_convention=leg2_convention,
             curves=self._parse_curves(curves),
+            final_exchange=notional_exchange,
+            leg2_final_exchange=notional_exchange,
         )
         instrument_args = dict(  # these are hard coded arguments specific to this instrument
             leg2_currency=NoInput(1),
             initial_exchange=False,
-            final_exchange=False,
             leg2_initial_exchange=False,
-            leg2_final_exchange=False,
         )
 
         default_args = dict(
             notional=defaults.notional,
             payment_lag=defaults.payment_lag_specific[type(self).__name__],
             payment_lag_exchange=defaults.payment_lag_exchange,
+            index_lag=defaults.index_lag,
+            index_method=defaults.index_method,
         )
         self._kwargs = _KWArgs(
             spec=spec,
@@ -201,14 +214,31 @@ class IRS(_BaseInstrument):
             settlement=settlement,
             forward=forward,
         )
+
+        self.leg1.fixed_rate = 0.0
+        leg1_npv: DualTypes = self.leg1.local_npv(
+            rate_curve=NoInput(0),
+            disc_curve=_get_maybe_curve_maybe_from_solver(
+                self.kwargs.meta["curves"], _curves, "disc_curve", solver
+            ),
+            index_curve=_get_maybe_curve_maybe_from_solver(
+                self.kwargs.meta["curves"], _curves, "index_curve", solver
+            ),
+            settlement=settlement,
+            forward=forward,
+        )
+        self.leg1.fixed_rate = self.kwargs.leg1["fixed_rate"]
+
         return (
             self.leg1.spread(
-                target_npv=-leg2_npv,
+                target_npv=-leg2_npv - leg1_npv,
                 rate_curve=NoInput(0),
                 disc_curve=_get_maybe_curve_maybe_from_solver(
                     self.kwargs.meta["curves"], _curves, "disc_curve", solver
                 ),
-                index_curve=NoInput(0),
+                index_curve=_get_maybe_curve_maybe_from_solver(
+                    self.kwargs.meta["curves"], _curves, "index_curve", solver
+                ),
                 settlement=settlement,
                 forward=forward,
             )
@@ -227,23 +257,26 @@ class IRS(_BaseInstrument):
         forward: datetime_ = NoInput(0),
     ) -> DualTypes:
         _curves = self._parse_curves(curves)
-        leg2_rate_curve = _get_maybe_curve_maybe_from_solver(
-            self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
-        )
-        disc_curve = _get_maybe_curve_maybe_from_solver(
-            self.kwargs.meta["curves"], _curves, "disc_curve", solver
-        )
+
         leg1_npv: DualTypes = self.leg1.local_npv(
             rate_curve=NoInput(0),
-            disc_curve=disc_curve,
-            index_curve=NoInput(0),
+            disc_curve=_get_maybe_curve_maybe_from_solver(
+                self.kwargs.meta["curves"], _curves, "disc_curve", solver
+            ),
+            index_curve=_get_maybe_curve_maybe_from_solver(
+                self.kwargs.meta["curves"], _curves, "index_curve", solver
+            ),
             settlement=settlement,
             forward=forward,
         )
         return self.leg2.spread(
             target_npv=-leg1_npv,
-            rate_curve=leg2_rate_curve,
-            disc_curve=disc_curve,
+            rate_curve=_get_maybe_curve_maybe_from_solver(
+                self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
+            ),
+            disc_curve=_get_maybe_curve_maybe_from_solver(
+                self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
+            ),
             index_curve=NoInput(0),
             settlement=settlement,
             forward=forward,
@@ -285,7 +318,7 @@ class IRS(_BaseInstrument):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> None:
-        # the test for an unpriced IRS is that its fixed rate is not set.
+        # the test for an unpriced IIRS is that its fixed rate is not set.
         if isinstance(self.kwargs.leg1["fixed_rate"], NoInput):
             # set a fixed rate for the purpose of generic methods NPV will be zero.
             mid_market_rate = self.rate(
@@ -298,18 +331,17 @@ class IRS(_BaseInstrument):
 
     def _parse_curves(self, curves: CurveOption_) -> _Curves:
         """
-        An IRS has two curve requirements: a leg2_rate_curve and a disc_curve used by both legs.
-
-        When given as only 1 element this curve is applied to all of the those components
+        An IIRS has three curve requirements: an index_curve, a leg2_rate_curve and a
+        disc_curve used by both legs.
 
         When given as 2 elements the first is treated as the rate curve and the 2nd as disc curve.
         """
         if isinstance(curves, NoInput):
             return _Curves()
-        if isinstance(curves, dict):
+        elif isinstance(curves, dict):
             return _Curves(
-                rate_curve=curves.get("rate_curve", NoInput(0)),
                 disc_curve=curves.get("disc_curve", NoInput(0)),
+                index_curve=curves.get("index_curve", NoInput(0)),
                 leg2_rate_curve=_drb(
                     curves.get("rate_curve", NoInput(0)),
                     curves.get("leg2_rate_curve", NoInput(0)),
@@ -320,28 +352,34 @@ class IRS(_BaseInstrument):
                 ),
             )
         elif isinstance(curves, list | tuple):
-            if len(curves) == 2:
+            if len(curves) == 3:
                 return _Curves(
-                    leg2_rate_curve=curves[0],
                     disc_curve=curves[1],
+                    index_curve=curves[0],
+                    leg2_rate_curve=curves[2],
                     leg2_disc_curve=curves[1],
                 )
-            elif len(curves) == 1:
+            elif len(curves) == 2:
                 return _Curves(
-                    leg2_rate_curve=curves[0],
-                    disc_curve=curves[0],
-                    leg2_disc_curve=curves[0],
+                    disc_curve=curves[1],
+                    index_curve=curves[0],
+                    leg2_rate_curve=curves[1],
+                    leg2_disc_curve=curves[1],
+                )
+            elif len(curves) == 4:
+                return _Curves(
+                    disc_curve=curves[1],
+                    index_curve=curves[0],
+                    leg2_rate_curve=curves[2],
+                    leg2_disc_curve=curves[3],
                 )
             else:
                 raise ValueError(
-                    f"{type(self).__name__} requires only 2 curve types. Got {len(curves)}."
+                    f"{type(self).__name__} requires 3 curve types. Got {len(curves)}."
                 )
+
         else:  # `curves` is just a single input which is copied across all curves
-            return _Curves(
-                leg2_rate_curve=curves,
-                disc_curve=curves,
-                leg2_disc_curve=curves,
-            )
+            raise ValueError(f"{type(self).__name__} requires 3 curve types. Got 1.")
 
     def cashflows(
         self,
