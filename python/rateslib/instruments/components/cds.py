@@ -170,15 +170,14 @@ class CDS(_BaseInstrument):
         metric: str_ = NoInput(0),
     ) -> DualTypes:
         _curves = self._parse_curves(curves)
-        disc_curve = _get_maybe_curve_maybe_from_solver(
-            self.kwargs.meta["curves"], _curves, "disc_curve", solver
-        )
 
         leg2_npv: DualTypes = self.leg2.local_npv(
             rate_curve=_get_maybe_curve_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
             ),
-            disc_curve=disc_curve,
+            disc_curve=_get_maybe_curve_maybe_from_solver(
+                self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
+            ),
             index_curve=NoInput(0),
             settlement=settlement,
             forward=forward,
@@ -189,7 +188,9 @@ class CDS(_BaseInstrument):
                 rate_curve=_get_maybe_curve_maybe_from_solver(
                     self.kwargs.meta["curves"], _curves, "rate_curve", solver
                 ),
-                disc_curve=disc_curve,
+                disc_curve=_get_maybe_curve_maybe_from_solver(
+                    self.kwargs.meta["curves"], _curves, "disc_curve", solver
+                ),
                 index_curve=NoInput(0),
                 settlement=settlement,
                 forward=forward,

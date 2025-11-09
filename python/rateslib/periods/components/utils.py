@@ -105,11 +105,11 @@ def _get_immediate_fx_scalar_and_base(
                 )
             else:
                 warnings.warn(
-                    f"`base` ({base}) should not be given when supplying `fx` as numeric "
-                    f"since it will not be used.\n"
-                    f"Future versions may remove this ability since it may also be interpreted "
-                    f"as giving wrong results.\nBest practice is to instead supply `fx` as an "
-                    f"FXRates (or FXForwards) object.\n"
+                    f"Supplying `fx` as numeric is ambiguous, particularly with "
+                    f"multi-currency Instruments, and may lead to forced errors. `base` ({base}) "
+                    f"will also be ignored.\n"
+                    f"Future versions will likely remove this ability altogether.\n"
+                    f"Best practice is to supply `fx` as an FXRates (or FXForwards) object.\n"
                     f"Reformulate the arguments directly: [fx={fx}, base='{base}'] -> "
                     f"[fx=FXRates({{'{currency}{base}': {fx}}}), base='{base}'].",
                     DeprecationWarning,
