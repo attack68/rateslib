@@ -29,12 +29,7 @@ class _WithAnalyticDelta(_WithPricingObjs, Protocol):
     Protocol to determine the *analytic rate delta* of a particular *Leg* of an *Instrument*.
     """
 
-    _legs: list[_BaseLeg]
     _kwargs: _KWArgs
-
-    @property
-    def legs(self) -> list[_BaseLeg]:
-        return self._legs
 
     @property
     def kwargs(self) -> _KWArgs:
@@ -98,6 +93,8 @@ class _WithAnalyticDelta(_WithPricingObjs, Protocol):
         for this conversion although best practice does not recommend it due to possible
         settlement date conflicts.
         """
+        assert hasattr(self, "legs")
+
         _curves: _Curves = self._parse_curves(curves)
         _curves_meta: _Curves = self.kwargs.meta["curves"]
 

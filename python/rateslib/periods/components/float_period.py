@@ -156,24 +156,24 @@ class FloatPeriod(_BasePeriodStatic):
 
     fixing_method: FloatFixingMethod, str, :green:`optional (set by 'defaults')`
         The :class:`~rateslib.enums.parameters.FloatFixingMethod` describing the determination
-        of the floating rate for the period. Set by ``defaults``.
+        of the floating rate for the period.
     method_param: int, :green:`optional (set by 'defaults')`
-        A specific parameter that is used by the specific ``fixing_method``. Set by ``defaults``.
+        A specific parameter that is used by the specific ``fixing_method``.
     fixing_frequency: Frequency, str, :green:`optional (set by 'frequency' or '1B')`
         The :class:`~rateslib.scheduling.Frequency` as a component of the
         :class:`~rateslib.data.fixings.FloatRateIndex`. If not given is assumed to match the
         frequency of the period for an IBOR type ``fixing_method`` or '1B' if RFR type.
     fixing_series: FloatRateSeries, str, :green:`optional (implied by other parameters)`
         The :class:`~rateslib.data.fixings.FloatRateSeries` as a component of the
-        :class:`~rateslib.data.fixings.FloatRateIndex`. If not given is assumed to match the
-        frequency of the period for an IBOR type ``fixing_method`` or '1B' if RFR type.
+        :class:`~rateslib.data.fixings.FloatRateIndex`. If not given inherits attributes given
+        such as the ``calendar``, ``convention``, ``method_param`` etc.
     float_spread: float, Dual, Dual2, Variable, :green:`optional (set as 0.0)`
         The amount (in bps) added to the rate in the period rate determination. If not given is
         set to zero.
     spread_compound_method: SpreadCompoundMethod, str, :green:`optional (set by 'defaults')`
         The :class:`~rateslib.enums.parameters.SpreadCompoundMethod` used in the calculation
         of the period rate when combining a ``float_spread``. Used **only** with RFR type
-        ``fixing_method``. Set by ``defaults``.
+        ``fixing_method``.
     rate_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
         The value of the rate fixing. If a scalar, is used directly. If a string identifier, links
         to the central ``fixings`` object and data loader.
@@ -584,24 +584,24 @@ class ZeroFloatPeriod(_BasePeriodStatic):
 
     fixing_method: FloatFixingMethod, str, :green:`optional (set by 'defaults')`
         The :class:`~rateslib.enums.parameters.FloatFixingMethod` describing the determination
-        of the floating rate for the period. Set by ``defaults``.
+        of the floating rate for the period.
     method_param: int, :green:`optional (set by 'defaults')`
-        A specific parameter that is used by the specific ``fixing_method``. Set by ``defaults``.
+        A specific parameter that is used by the specific ``fixing_method``.
     fixing_frequency: Frequency, str, :green:`optional (set by 'frequency' or '1B')`
         The :class:`~rateslib.scheduling.Frequency` as a component of the
         :class:`~rateslib.data.fixings.FloatRateIndex`. If not given is assumed to match the
         frequency of the period for an IBOR type ``fixing_method`` or '1B' if RFR type.
     fixing_series: FloatRateSeries, str, :green:`optional (implied by other parameters)`
         The :class:`~rateslib.data.fixings.FloatRateSeries` as a component of the
-        :class:`~rateslib.data.fixings.FloatRateIndex`. If not given is assumed to match the
-        frequency of the period for an IBOR type ``fixing_method`` or '1B' if RFR type.
+        :class:`~rateslib.data.fixings.FloatRateIndex`. If not given inherits attributes given
+        such as the ``calendar``, ``convention``, ``method_param`` etc.
     float_spread: float, Dual, Dual2, Variable, :green:`optional (set as 0.0)`
         The amount (in bps) added to the rate in the period rate determination. If not given is
         set to zero.
     spread_compound_method: SpreadCompoundMethod, str, :green:`optional (set by 'defaults')`
         The :class:`~rateslib.enums.parameters.SpreadCompoundMethod` used in the calculation
         of the period rate when combining a ``float_spread``. Used **only** with RFR type
-        ``fixing_method``. Set by ``defaults``.
+        ``fixing_method``.
     rate_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
         The value of the rate fixing. If a scalar, is used directly. If a string identifier, links
         to the central ``fixings`` object and data loader.
