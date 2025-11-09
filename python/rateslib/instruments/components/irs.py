@@ -33,14 +33,174 @@ if TYPE_CHECKING:
         float_,
         int_,
         str_,
+        _BaseLeg,
     )
 
 
 class IRS(_BaseInstrument):
+    """
+    Create an *interest rate swap (IRS)* composing a :class:`~rateslib.legs.components.FixedLeg`
+    and a :class:`~rateslib.legs.components.FloatLeg`.
+
+    .. role:: red
+
+    .. role:: green
+
+    Parameters
+    ----------
+    .
+
+        .. note::
+
+           The following define generalised **scheduling** parameters.
+
+    effective : datetime, :red:`required`
+        The unadjusted effective date. If given as adjusted, unadjusted alternatives may be
+        inferred.
+    termination : datetime, str, :red:`required`
+        The unadjusted termination date. If given as adjusted, unadjusted alternatives may be
+        inferred. If given as string tenor will be calculated from ``effective``.
+    frequency : Frequency, str, :red:`required`
+        The frequency of the schedule.
+        If given as string will derive a :class:`~rateslib.scheduling.Frequency` aligning with:
+        monthly ("M"), quarterly ("Q"), semi-annually ("S"), annually("A") or zero-coupon ("Z"), or
+        a set number of calendar or business days ("_D", "_B"), weeks ("_W"), months ("_M") or
+        years ("_Y").
+        Where required, the :class:`~rateslib.scheduling.RollDay` is derived as per ``roll``
+        and business day calendar as per ``calendar``.
+    stub : StubInference, str in {"ShortFront", "LongFront", "ShortBack", "LongBack"}, :green:`optional`
+        The stub type used if stub inference is required. If given as string will derive a
+        :class:`~rateslib.scheduling.StubInference`.
+    front_stub : datetime, :green:`optional`
+        The unadjusted date for the start stub period. If given as adjusted, unadjusted
+        alternatives may be inferred.
+    back_stub : datetime, :green:`optional`
+        The unadjusted date for the back stub period. If given as adjusted, unadjusted
+        alternatives may be inferred.
+        See notes for combining ``stub``, ``front_stub`` and ``back_stub``
+        and any automatic stub inference.
+    roll : RollDay, int in [1, 31], str in {"eom", "imm", "som"}, :green:`optional`
+        The roll day of the schedule. If not given or not available in ``frequency`` will be
+        inferred for monthly frequency variants.
+    eom : bool, :green:`optional`
+        Use an end of month preference rather than regular rolls for ``roll`` inference. Set by
+        default. Not required if ``roll`` is defined.
+    modifier : Adjuster, str in {"NONE", "F", "MF", "P", "MP"}, :green:`optional`
+        The :class:`~rateslib.scheduling.Adjuster` used for adjusting unadjusted schedule dates
+        into adjusted dates. If given as string must define simple date rolling rules.
+    calendar : calendar, str, :green:`optional`
+        The business day calendar object to use. If string will call
+        :meth:`~rateslib.scheduling.get_calendar`.
+    payment_lag: Adjuster, int, :green:`optional`
+        The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
+        a payment date. If given as integer will define the number of business days to
+        lag payments by.
+    payment_lag_exchange: Adjuster, int, :green:`optional`
+        The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
+        additional payment date. If given as integer will define the number of business days to
+        lag payments by.
+    ex_div: Adjuster, int, :green:`optional`
+        The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
+        additional dates, which may be used, for example by fixings schedules. If given as integer
+        will define the number of business days to lag dates by.
+    convention: str, :green:`optional (set by 'defaults')`
+        The day count convention applied to calculations of period accrual dates.
+        See :meth:`~rateslib.scheduling.dcf`.
+    leg2_effective : datetime, :green:`optional (inherited from leg1)`
+    leg2_termination : datetime, str, :green:`optional (inherited from leg1)`
+    leg2_frequency : Frequency, str, :green:`optional (inherited from leg1)`
+    leg2_stub : StubInference, str, :green:`optional (inherited from leg1)`
+    leg2_front_stub : datetime, :green:`optional (inherited from leg1)`
+    leg2_back_stub : datetime, :green:`optional (inherited from leg1)`
+    leg2_roll : RollDay, int, str, :green:`optional (inherited from leg1)`
+    leg2_eom : bool, :green:`optional (inherited from leg1)`
+    leg2_modifier : Adjuster, str, :green:`optional (inherited from leg1)`
+    leg2_calendar : calendar, str, :green:`optional (inherited from leg1)`
+    leg2_payment_lag: Adjuster, int, :green:`optional (inherited from leg1)`
+    leg2_payment_lag_exchange: Adjuster, int, :green:`optional (inherited from leg1)`
+    leg2_ex_div: Adjuster, int, :green:`optional (inherited from leg1)`
+    leg2_convention: str, :green:`optional (inherited from leg1)`
+
+        .. note::
+
+           The following define generalised **settlement** parameters.
+
+    currency : str, :green:`optional (set by 'defaults')`
+        The local settlement currency of the *Instrument* (3-digit code).
+    notional : float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
+        The initial leg notional, defined in units of *reference currency*.
+    amortization: float, Dual, Dual2, Variable, str, Amortization, :green:`optional (set as zero)`
+        Set a non-constant notional per *Period*. If a scalar value, adjusts the ``notional`` of
+        each successive period by that same value. Should have
+        sign equal to that of notional if the notional is to reduce towards zero.
+    leg2_notional : float, Dual, Dual2, Variable, :green:`optional (negatively inherited from leg1)`
+    leg2_amortization : float, Dual, Dual2, Variable, str, Amortization, :green:`optional (negatively inherited from leg1)`
+
+        .. note::
+
+           The following are **rate parameters**.
+
+    fixed_rate : float or None
+        The fixed rate applied to the :class:`~rateslib.legs.FixedLeg`. If `None`
+        will be set to mid-market when curves are provided.
+    leg2_fixing_method: FloatFixingMethod, str, :green:`optional (set by 'defaults')`
+        The :class:`~rateslib.enums.parameters.FloatFixingMethod` describing the determination
+        of the floating rate for each period.
+    leg2_method_param: int, :green:`optional (set by 'defaults')`
+        A specific parameter that is used by the specific ``fixing_method``.
+    leg2_fixing_frequency: Frequency, str, :green:`optional (set by 'frequency' or '1B')`
+        The :class:`~rateslib.scheduling.Frequency` as a component of the
+        :class:`~rateslib.data.fixings.FloatRateIndex`. If not given is assumed to match the
+        frequency of the schedule for an IBOR type ``fixing_method`` or '1B' if RFR type.
+    leg2_fixing_series: FloatRateSeries, str, :green:`optional (implied by other parameters)`
+        The :class:`~rateslib.data.fixings.FloatRateSeries` as a component of the
+        :class:`~rateslib.data.fixings.FloatRateIndex`. If not given inherits attributes given
+        such as the ``calendar``, ``convention``, ``method_param`` etc.
+    leg2_float_spread: float, Dual, Dual2, Variable, :green:`optional (set as 0.0)`
+        The amount (in bps) added to the rate in each period rate determination.
+    leg2_spread_compound_method: SpreadCompoundMethod, str, :green:`optional (set by 'defaults')`
+        The :class:`~rateslib.enums.parameters.SpreadCompoundMethod` used in the calculation
+        of the period rate when combining a ``float_spread``. Used **only** with RFR type
+        ``fixing_method``.
+    leg2_rate_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
+        See XXX (working with fixings).
+        The value of the rate fixing. If a scalar, is used directly. If a string identifier, links
+        to the central ``fixings`` object and data loader.
+
+        .. note::
+
+           The following are **meta parameters**.
+
+    curves : XXX
+        Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument.
+    spec: str, :green:`optional`
+        A collective group of parameters. See
+        :ref:`default argument specifications <defaults-arg-input>`.
+
+    Notes
+    ------
+    The various different ``leg2_fixing_methods``, which describe how an
+    individual *FloatPeriod* calculates its *rate*, are
+    fully documented in the notes for the :class:`~rateslib.periods.FloatPeriod`.
+    These configurations provide the mechanics to differentiate between IBOR swaps, and
+    OISs with different mechanisms such as *payment delay*, *observation shift*,
+    *lockout*, and/or *averaging*.
+    Similarly some information is provided in that same link regarding
+    ``leg2_fixings``, but a cookbook article is also produced for
+    :ref:`working with fixings <cook-fixings-doc>`.
+
+    Examples
+    --------
+    Construct a curve to price the example.
+
+    """
+
     _rate_scalar = 1.0
 
     @property
     def fixed_rate(self) -> DualTypes_:
+        """The fixed rate parameter of the composited
+        :class:`~rateslib.legs.components.FixedLeg`."""
         return self.leg1.fixed_rate
 
     @fixed_rate.setter
@@ -48,16 +208,20 @@ class IRS(_BaseInstrument):
         self.kwargs.leg1["fixed_rate"] = value
         self.leg1.fixed_rate = value
 
-    @property
-    def float_spread(self) -> NoReturn:
-        raise AttributeError(f"Attribute not available on {type(self).__name__}")
+    # @property
+    # def float_spread(self) -> NoReturn:
+    #     """The float spread parameter of the composited
+    #     :class:`~rateslib.legs.components.FloatLeg`."""
+    #     raise AttributeError(f"Attribute not available on {type(self).__name__}")
 
-    @property
-    def leg2_fixed_rate(self) -> NoReturn:
-        raise AttributeError(f"Attribute not available on {type(self).__name__}")
+    # @property
+    # def leg2_fixed_rate(self) -> NoReturn:
+    #     raise AttributeError(f"Attribute not available on {type(self).__name__}")
 
     @property
     def leg2_float_spread(self) -> DualTypes_:
+        """The float spread parameter of the composited
+        :class:`~rateslib.legs.components.FloatLeg`."""
         return self.leg2.float_spread
 
     @leg2_float_spread.setter
@@ -65,13 +229,28 @@ class IRS(_BaseInstrument):
         self.kwargs.leg2["float_spread"] = value
         self.leg2.float_spread = value
 
+    @property
+    def leg1(self) -> FixedLeg:
+        """The :class:`~rateslib.legs.components.FixedLeg` of the *Instrument*."""
+        return self._leg1
+
+    @property
+    def leg2(self) -> FloatLeg:
+        """The :class:`~rateslib.legs.components.FloatLeg` of the *Instrument*."""
+        return self._leg2
+
+    @property
+    def legs(self) -> list[_BaseLeg]:
+        """A list of the *Legs* of the *Instrument*."""
+        return self._legs
+
     def __init__(
         self,
+        # scheduling
         effective: datetime_ = NoInput(0),
         termination: datetime | str_ = NoInput(0),
         frequency: Frequency | str_ = NoInput(0),
         *,
-        fixed_rate: DualTypes_ = NoInput(0),
         stub: str_ = NoInput(0),
         front_stub: datetime_ = NoInput(0),
         back_stub: datetime_ = NoInput(0),
@@ -82,15 +261,7 @@ class IRS(_BaseInstrument):
         payment_lag: int_ = NoInput(0),
         payment_lag_exchange: int_ = NoInput(0),
         ex_div: int_ = NoInput(0),
-        notional: float_ = NoInput(0),
-        currency: str_ = NoInput(0),
-        amortization: float_ = NoInput(0),
         convention: str_ = NoInput(0),
-        leg2_float_spread: DualTypes_ = NoInput(0),
-        leg2_spread_compound_method: str_ = NoInput(0),
-        leg2_rate_fixings: FixingsRates_ = NoInput(0),  # type: ignore[type-var]
-        leg2_fixing_method: str_ = NoInput(0),
-        leg2_method_param: int_ = NoInput(0),
         leg2_effective: datetime_ = NoInput(1),
         leg2_termination: datetime | str_ = NoInput(1),
         leg2_frequency: Frequency | str_ = NoInput(1),
@@ -103,53 +274,69 @@ class IRS(_BaseInstrument):
         leg2_calendar: CalInput = NoInput(1),
         leg2_payment_lag: int_ = NoInput(1),
         leg2_payment_lag_exchange: int_ = NoInput(1),
+        leg2_ex_div: int_ = NoInput(1),
+        leg2_convention: str_ = NoInput(1),
+        # settlement parameters
+        currency: str_ = NoInput(0),
+        notional: float_ = NoInput(0),
+        amortization: float_ = NoInput(0),
         leg2_notional: float_ = NoInput(-1),
         leg2_amortization: float_ = NoInput(-1),
-        leg2_convention: str_ = NoInput(1),
-        leg2_ex_div: int_ = NoInput(1),
+        # rate parameters
+        fixed_rate: DualTypes_ = NoInput(0),
+        leg2_float_spread: DualTypes_ = NoInput(0),
+        leg2_spread_compound_method: str_ = NoInput(0),
+        leg2_rate_fixings: FixingsRates_ = NoInput(0),  # type: ignore[type-var]
+        leg2_fixing_method: str_ = NoInput(0),
+        leg2_method_param: int_ = NoInput(0),
+        # meta parameters
         curves: Curves_ = NoInput(0),
         spec: str_ = NoInput(0),
     ) -> None:
         user_args = dict(
+            # scheduling
             effective=effective,
+            leg2_effective=leg2_effective,
             termination=termination,
+            leg2_termination=leg2_termination,
             frequency=frequency,
-            fixed_rate=fixed_rate,
+            leg2_frequency=leg2_frequency,
             stub=stub,
+            leg2_stub=leg2_stub,
             front_stub=front_stub,
+            leg2_front_stub=leg2_front_stub,
             back_stub=back_stub,
+            leg2_back_stub=leg2_back_stub,
             roll=roll,
+            leg2_roll=leg2_roll,
             eom=eom,
+            leg2_eom=leg2_eom,
             modifier=modifier,
+            leg2_modifier=leg2_modifier,
             calendar=calendar,
+            leg2_calendar=leg2_calendar,
             payment_lag=payment_lag,
+            leg2_payment_lag=leg2_payment_lag,
             payment_lag_exchange=payment_lag_exchange,
+            leg2_payment_lag_exchange=leg2_payment_lag_exchange,
             ex_div=ex_div,
-            notional=notional,
-            currency=currency,
-            amortization=amortization,
+            leg2_ex_div=leg2_ex_div,
             convention=convention,
+            leg2_convention=leg2_convention,
+            # settlement
+            currency=currency,
+            notional=notional,
+            leg2_notional=leg2_notional,
+            amortization=amortization,
+            leg2_amortization=leg2_amortization,
+            # rate
+            fixed_rate=fixed_rate,
             leg2_float_spread=leg2_float_spread,
             leg2_spread_compound_method=leg2_spread_compound_method,
             leg2_rate_fixings=leg2_rate_fixings,
             leg2_fixing_method=leg2_fixing_method,
             leg2_method_param=leg2_method_param,
-            leg2_effective=leg2_effective,
-            leg2_termination=leg2_termination,
-            leg2_frequency=leg2_frequency,
-            leg2_stub=leg2_stub,
-            leg2_front_stub=leg2_front_stub,
-            leg2_back_stub=leg2_back_stub,
-            leg2_roll=leg2_roll,
-            leg2_eom=leg2_eom,
-            leg2_modifier=leg2_modifier,
-            leg2_calendar=leg2_calendar,
-            leg2_payment_lag=leg2_payment_lag,
-            leg2_payment_lag_exchange=leg2_payment_lag_exchange,
-            leg2_ex_div=leg2_ex_div,
-            leg2_notional=leg2_notional,
-            leg2_amortization=leg2_amortization,
-            leg2_convention=leg2_convention,
+            # meta
             curves=self._parse_curves(curves),
         )
         instrument_args = dict(  # these are hard coded arguments specific to this instrument
@@ -172,8 +359,8 @@ class IRS(_BaseInstrument):
             meta_args=["curves"],
         )
 
-        self.leg1 = FixedLeg(**_convert_to_schedule_kwargs(self.kwargs.leg1, 1))
-        self.leg2 = FloatLeg(**_convert_to_schedule_kwargs(self.kwargs.leg2, 1))
+        self._leg1 = FixedLeg(**_convert_to_schedule_kwargs(self.kwargs.leg1, 1))
+        self._leg2 = FloatLeg(**_convert_to_schedule_kwargs(self.kwargs.leg2, 1))
         self._legs = [self.leg1, self.leg2]
 
     def rate(

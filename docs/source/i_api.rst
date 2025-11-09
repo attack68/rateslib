@@ -211,6 +211,17 @@ Instruments
    :inherited-members:
    :no-inheritance-diagram:
 
+Objects
+^^^^^^^^
+
+.. automodapi:: rateslib.instruments.components
+   :no-inheritance-diagram:
+   :headings: "^-"
+   :inherited-members:
+   :no-heading:
+   :include: IRS
+
+
 Class Inheritance Diagram
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 

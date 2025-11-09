@@ -96,9 +96,16 @@ class FixedLeg(_BaseLeg):
 
            The following are **period parameters** combined with the ``schedule``.
 
-    convention: str, optional
+    convention: str, :green:`optional (set by 'defaults')`
         The day count convention applied to calculations of period accrual dates.
         See :meth:`~rateslib.scheduling.dcf`.
+
+        .. note::
+
+           The following define **rate parameters**.
+
+    fixed_rate: float, Dual, Dual2, Variable, :green:`optional`
+        The fixed rate of each composited :class:`~rateslib.periods.components.FixedPeriod`.
 
         .. note::
 
@@ -449,6 +456,8 @@ class FixedLeg(_BaseLeg):
 
     @property
     def fixed_rate(self) -> DualTypes_:
+        """The fixed rate parameter of each composited
+        :class:`~rateslib.periods.components.FixedPeriod`."""
         return self._fixed_rate
 
     @fixed_rate.setter
@@ -469,7 +478,6 @@ class FixedLeg(_BaseLeg):
         self,
         schedule: Schedule,
         *,
-        fixed_rate: NoInput = NoInput(0),
         # settlement and currency
         notional: DualTypes_ = NoInput(0),
         amortization: DualTypes_ | list[DualTypes] | Amortization | str = NoInput(0),
@@ -482,6 +490,8 @@ class FixedLeg(_BaseLeg):
         convention: str_ = NoInput(0),
         initial_exchange: bool = False,
         final_exchange: bool = False,
+        # rate params
+        fixed_rate: NoInput = NoInput(0),
         # index params
         index_base: DualTypes_ = NoInput(0),
         index_lag: int_ = NoInput(0),

@@ -41,59 +41,112 @@ if TYPE_CHECKING:
 
 class FloatLeg(_BaseLeg):
     """
-    Abstract base class with common parameters for all ``Leg`` subclasses.
+    Define a *Leg* containing :class:`~rateslib.periods.components.FloatPeriod`.
+
+    .. role:: red
+
+    .. role:: green
 
     Parameters
     ----------
-    schedule: Schedule
+    schedule: Schedule, :red:`required`
         The :class:`~rateslib.scheduling.Schedule` object which structures contiguous *Periods*.
-    notional : float, optional
-        The leg notional, which is applied to each period.
-    currency : str, optional
-        The currency of the leg (3-digit code).
-    amortization: float, optional
-        The amount by which to adjust the notional each successive period. Should have
+        The schedule object also contains data for payment dates, payment dates for notional
+        exchanges and ex-dividend dates for each period.
+
+        .. note::
+
+           The following define generalised **settlement** parameters.
+
+    currency : str, :green:`optional (set by 'defaults')`
+        The local settlement currency of the leg (3-digit code).
+    notional : float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
+        The initial leg notional, defined in units of *reference currency*.
+    amortization: float, Dual, Dual2, Variable, str, Amortization, :green:`optional (set as zero)`
+        Set a non-constant notional per *Period*. If a scalar value, adjusts the ``notional`` of
+        each successive period by that same value. Should have
         sign equal to that of notional if the notional is to reduce towards zero.
-    convention: str, optional
-        The day count convention applied to calculations of period accrual dates.
-        See :meth:`~rateslib.scheduling.dcf`.
-    initial_exchange : bool
-        Whether to also include an initial notional exchange.
-    final_exchange : bool
+    initial_exchange : bool, :green:`optional (set as False)`
+        Whether to also include an initial notional exchange. If *True* then ``final_exchange``
+        **will** also be set to *True*.
+    final_exchange : bool, :green:`optional (set as initial_exchange)`
         Whether to also include a final notional exchange and interim amortization
         notional exchanges.
 
-    Notes
-    -----
-    The (optional) initial cashflow notional is set as the negative of the notional.
-    The final cashflow notional is set as the notional.
+        .. note::
 
-    If ``amortization`` is specified an exchanged notional equivalent to the
-    amortization amount is added to the list of periods as interim exchanges if
-    ``final_exchange`` is *True*.
+           The following define **non-deliverable** parameters. If the *Leg* is directly
+           deliverable then do not set a non-deliverable ``pair`` or any ``fx_fixings``.
 
-    Examples
-    --------
-    See :ref:`Leg Examples<legs-doc>`
+    pair: str, :green:`optional`
+        The currency pair for :class:`~rateslib.data.fixings.FXFixing` that determines *Period*
+        settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
+    fx_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
+        The value of the :class:`~rateslib.data.fixings.FXFixing` for each *Period* according
+        to non-deliverability. Review the **notes** section non-deliverability.
+    mtm: bool, :green:`optional (set to False)`
+        Define whether the non-deliverability depends on a single
+        :class:`~rateslib.data.fixings.FXFixing` defined at the start of the *Leg*, or
+        multiple throughout its settlement. Review the **notes** section non-deliverability.
 
-    Attributes
-    ----------
-    schedule : Schedule
-    currency : str
-    convention : str
-    periods : list
-    initial_exchange : bool
-    final_exchange : bool
+        .. note::
 
-    See Also
-    --------
-    FixedLeg : Create a fixed leg composed of :class:`~rateslib.periods.FixedPeriod` s.
-    FloatLeg : Create a floating leg composed of :class:`~rateslib.periods.FloatPeriod` s.
-    IndexFixedLeg : Create a fixed leg composed of :class:`~rateslib.periods.IndexFixedPeriod` s.
-    ZeroFixedLeg : Create a zero coupon leg composed of a :class:`~rateslib.periods.FixedPeriod`.
-    ZeroFloatLeg : Create a zero coupon leg composed of a :class:`~rateslib.periods.FloatPeriod` s.
-    ZeroIndexLeg : Create a zero coupon leg composed of :class:`~rateslib.periods.IndexFixedPeriod`.
-    CustomLeg : Create a leg composed of user specified periods.
+           The following are **period parameters** combined with the ``schedule``.
+
+    convention: str, :green:`optional (set by 'defaults')`
+        The day count convention applied to calculations of period accrual dates.
+        See :meth:`~rateslib.scheduling.dcf`.
+
+        .. note::
+
+           The following define **rate parameters**.
+
+    fixing_method: FloatFixingMethod, str, :green:`optional (set by 'defaults')`
+        The :class:`~rateslib.enums.parameters.FloatFixingMethod` describing the determination
+        of the floating rate for each period.
+    method_param: int, :green:`optional (set by 'defaults')`
+        A specific parameter that is used by the specific ``fixing_method``.
+    fixing_frequency: Frequency, str, :green:`optional (set by 'frequency' or '1B')`
+        The :class:`~rateslib.scheduling.Frequency` as a component of the
+        :class:`~rateslib.data.fixings.FloatRateIndex`. If not given is assumed to match the
+        frequency of the schedule for an IBOR type ``fixing_method`` or '1B' if RFR type.
+    fixing_series: FloatRateSeries, str, :green:`optional (implied by other parameters)`
+        The :class:`~rateslib.data.fixings.FloatRateSeries` as a component of the
+        :class:`~rateslib.data.fixings.FloatRateIndex`. If not given inherits attributes given
+        such as the ``calendar``, ``convention``, ``method_param`` etc.
+    float_spread: float, Dual, Dual2, Variable, :green:`optional (set as 0.0)`
+        The amount (in bps) added to the rate in each period rate determination.
+    spread_compound_method: SpreadCompoundMethod, str, :green:`optional (set by 'defaults')`
+        The :class:`~rateslib.enums.parameters.SpreadCompoundMethod` used in the calculation
+        of the period rate when combining a ``float_spread``. Used **only** with RFR type
+        ``fixing_method``.
+    rate_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
+        See XXX (working with fixings).
+        The value of the rate fixing. If a scalar, is used directly. If a string identifier, links
+        to the central ``fixings`` object and data loader.
+
+        .. note::
+
+           The following parameters define **indexation**. The *Period* will be considered
+           indexed if any of ``index_method``, ``index_lag``, ``index_base``, ``index_fixings``
+           are given.
+
+    index_method : IndexMethod, str, :green:`optional (set by 'defaults')`
+        The interpolation method, or otherwise, to determine index values from reference dates.
+    index_lag: int, :green:`optional (set by 'defaults')`
+        The indexation lag, in months, applied to the determination of index values.
+    index_base: float, Dual, Dual2, Variable, :green:`optional`
+        The specific value applied as the base index value for all *Periods*.
+        If not given and ``index_fixings`` is a string fixings identifier that will be
+        used to determine the base index value.
+    index_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
+        The index value for the reference date.
+        Best practice is to supply this value as string identifier relating to the global
+        ``fixings`` object.
+    index_only: bool, :green:`optional (set as False)`
+        A flag which indicates that the nominal amount is deducted from the cashflow leaving only
+        the indexed up quantity.
+
     """
 
     @property
@@ -155,13 +208,6 @@ class FloatLeg(_BaseLeg):
         self,
         schedule: Schedule,
         *,
-        float_spread: DualTypes_ = NoInput(0),
-        rate_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
-        fixing_method: FloatFixingMethod | str_ = NoInput(0),
-        method_param: int_ = NoInput(0),
-        spread_compound_method: SpreadCompoundMethod | str_ = NoInput(0),
-        fixing_frequency: Frequency | str_ = NoInput(0),
-        fixing_series: FloatRateSeries | str_ = NoInput(0),
         # settlement and currency
         notional: DualTypes_ = NoInput(0),
         amortization: DualTypes_ | list[DualTypes] | Amortization | str = NoInput(0),
@@ -174,6 +220,14 @@ class FloatLeg(_BaseLeg):
         convention: str_ = NoInput(0),
         initial_exchange: bool = False,
         final_exchange: bool = False,
+        # rate params
+        float_spread: DualTypes_ = NoInput(0),
+        rate_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0), # type: ignore[type-var]
+        fixing_method: FloatFixingMethod | str_ = NoInput(0),
+        method_param: int_ = NoInput(0),
+        spread_compound_method: SpreadCompoundMethod | str_ = NoInput(0),
+        fixing_frequency: Frequency | str_ = NoInput(0),
+        fixing_series: FloatRateSeries | str_ = NoInput(0),
         # index params
         index_base: DualTypes_ = NoInput(0),
         index_lag: int_ = NoInput(0),
