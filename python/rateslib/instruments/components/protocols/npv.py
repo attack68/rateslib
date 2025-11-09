@@ -33,6 +33,8 @@ class _WithNPV(_WithPricingObjs, Protocol):
 
     @property
     def kwargs(self) -> _KWArgs:
+        """The :class:`~rateslib.instruments.components.protocols._KWArgs` container for
+        the *Instrument*."""
         return self._kwargs
 
     def __repr__(self) -> str:
