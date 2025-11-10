@@ -17,7 +17,6 @@ if TYPE_CHECKING:
         FXForwards_,
         FXVolOption_,
         Solver_,
-        _BaseLeg,
         _Curves,
         datetime_,
         str_,

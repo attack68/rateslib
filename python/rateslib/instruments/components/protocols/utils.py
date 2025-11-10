@@ -2,88 +2,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypeVar
 
-from rateslib.enums.generics import NoInput, _drb
+from rateslib.enums.generics import NoInput
 
 if TYPE_CHECKING:
     from rateslib.typing import (
         CurveOption_,
-        FXVolOption_,
-        Solver_,
         _BaseCurve,
-        _Vol,
     )
-
-
-def _get_fx_vol_maybe_from_solver(
-    vol_meta: _Vol, vol: _Vol, name: str, solver: Solver_
-) -> FXVolOption_:
-    vol_ = _drb(getattr(vol_meta, name), getattr(vol, name))
-    if isinstance(solver, NoInput):
-        if isinstance(vol_, str):
-            raise ValueError("`vol` must contain FXVolObj, not str, if `solver` not given.")
-        return vol_
-    else:
-        try:
-            mapped_curve = _map_curve_from_solver(curve, solver)
-            return mapped_curve
-        except KeyError as e:
-            raise ValueError(
-                "`curves` must contain str curve `id` s existing in `solver` "
-                "(or its associated `pre_solvers`).\n"
-                f"The sought id was: '{e.args[0]}'.\n"
-                f"The available ids are {list(solver.pre_curves.keys())}.",
-            )
-
-    if vol is None:  # capture blank user input and reset
-        vol = NoInput(0)
-
-    if isinstance(vol, NoInput):
-        if isinstance(vol_attr, NoInput):
-            return NoInput(0)
-        else:
-            vol_: FXVol = vol_attr
-    else:
-        vol_ = vol
-
-    if isinstance(solver, NoInput):
-        if isinstance(vol_, str):
-            raise ValueError(
-                "String `vol` ids require a `solver` to be mapped. No `solver` provided.",
-            )
-        return vol_
-    elif isinstance(vol_, float | Dual | Dual2 | Variable):
-        return vol_
-    elif isinstance(vol_, str):
-        return solver._get_pre_fxvol(vol_)
-    else:  # vol is a Smile or Surface - check that it is in the Solver
-        try:
-            # it is a safeguard to load curves from solvers when a solver is
-            # provided and multiple curves might have the same id
-            _: FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile | FXSabrSurface = (
-                solver._get_pre_fxvol(vol_.id)
-            )
-            if id(_) != id(vol_):
-                raise ValueError(  # ignore: type[union-attr]
-                    "A ``vol`` object has been supplied which has the same "
-                    f"`id` ('{vol_.id}'),\nas one of those available as part of the "
-                    "Solver's collection but is not the same object.\n"
-                    "This is ambiguous and may lead to erroneous prices.\n",
-                )
-            return _
-        except AttributeError:
-            raise AttributeError(
-                "`vol` has no attribute `id`, likely it not a valid object, got: "
-                f"{vol_}.\nSince a solver is provided have you missed labelling the `vol` "
-                f"of the instrument or supplying `vol` directly?",
-            )
-        except KeyError:
-            if defaults.curve_not_in_solver == "ignore":
-                return vol_
-            elif defaults.curve_not_in_solver == "warn":
-                warnings.warn("`vol` not found in `solver`.", UserWarning)
-                return vol_
-            else:
-                raise ValueError("`vol` must be in `solver`.")
 
 
 # def _get_fx_maybe_from_solver(

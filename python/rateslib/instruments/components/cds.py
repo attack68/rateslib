@@ -26,6 +26,7 @@ if TYPE_CHECKING:
         FXVolOption_,
         RollDay,
         Solver_,
+        _BaseLeg,
         bool_,
         datetime,
         datetime_,
@@ -46,6 +47,21 @@ class CDS(_BaseInstrument):
     def fixed_rate(self, value: DualTypes_) -> None:
         self.kwargs.leg1["fixed_rate"] = value
         self.leg1.fixed_rate = value
+
+    @property
+    def leg1(self) -> CreditPremiumLeg:
+        """The :class:`~rateslib.legs.components.CreditPremiumLeg` of the *Instrument*."""
+        return self._leg1
+
+    @property
+    def leg2(self) -> CreditProtectionLeg:
+        """The :class:`~rateslib.legs.components.CreditProtectionLeg` of the *Instrument*."""
+        return self._leg2
+
+    @property
+    def legs(self) -> list[_BaseLeg]:
+        """A list of the *Legs* of the *Instrument*."""
+        return self._legs
 
     def __init__(
         self,
@@ -153,9 +169,9 @@ class CDS(_BaseInstrument):
             meta_args=["curves"],
         )
 
-        self.leg1 = CreditPremiumLeg(**_convert_to_schedule_kwargs(self.kwargs.leg1, 1))
-        self.leg2 = CreditProtectionLeg(**_convert_to_schedule_kwargs(self.kwargs.leg2, 1))
-        self._legs = [self.leg1, self.leg2]
+        self._leg1 = CreditPremiumLeg(**_convert_to_schedule_kwargs(self.kwargs.leg1, 1))
+        self._leg2 = CreditProtectionLeg(**_convert_to_schedule_kwargs(self.kwargs.leg2, 1))
+        self._legs = [self._leg1, self._leg2]
 
     def rate(
         self,
