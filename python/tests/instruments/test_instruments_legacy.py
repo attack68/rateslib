@@ -21,7 +21,7 @@ from rateslib.instruments import (
     # SBS,
     XCS,
     ZCIS,
-    ZCS,
+    # ZCS,
     Bill,
     FixedRateBond,
     FloatRateNote,
@@ -39,15 +39,17 @@ from rateslib.instruments import (
     # Spread,
     STIRFuture,
     # Value,
-    VolValue,
+    # VolValue,
 )
 from rateslib.instruments.components import (
     CDS,
     IIRS,
     IRS,
+    ZCS,
     SBS,
     Fly,
     FXExchange,
+    FXVolValue,
     Portfolio,
     Spread,
     Value,
@@ -1325,6 +1327,7 @@ class TestIRS:
         # irs.leg2_float_spread = NoInput(0)
         # assert abs(irs.npv(curves=curve)) < 1e-8
 
+    @pytest.mark.skip(reason="unexpected attribute no longer raise exceptions")
     def test_sbs_float_spread_raises(self, curve) -> None:
         irs = IRS(dt(2022, 1, 1), "9M", "Q")
         with pytest.raises(AttributeError, match="property 'float_spread' of 'IRS' object has no "):
@@ -1466,6 +1469,7 @@ class TestIRS:
         assert irs.leg2.amortization.outstanding == (-1000.0, -900.0, -500.0, -450.0)
         assert irs.leg2.amortization.amortization == (-100.0, -400.0, -50.0)
 
+    @pytest.mark.skip(reason="unexpected attribute no longer raise exceptions")
     def test_irs_attributes(self):
         irs = IRS(dt(2000, 1, 1), dt(2000, 5, 1), "M", fixed_rate=2.0)
         assert irs.fixed_rate == 2.0
@@ -1676,6 +1680,7 @@ class TestSBS:
             expected,
         )
 
+    @pytest.mark.skip(reason="exceptions are no longer raised for unexpected attributes.")
     def test_sbs_fixed_rate_raises(self, curve) -> None:
         sbs = SBS(dt(2022, 1, 1), "9M", "Q", float_spread=3.0)
         with pytest.raises(AttributeError, match="property 'fixed_rate' of 'SBS' object has no se"):
@@ -1835,7 +1840,7 @@ class TestZCS:
             notional=100e6,
             curves=["usd"],
         )
-        result = zcs.rate(usd)
+        result = zcs.rate(curves=usd)
         assert abs(result - exp) < 1e-7
 
     def test_zcs_analytic_delta(self) -> None:
@@ -1855,7 +1860,7 @@ class TestZCS:
             notional=100e6,
             curves=["usd"],
         )
-        result = zcs.analytic_delta(usd, usd)
+        result = zcs.analytic_delta(curves=usd)
         expected = 105186.21760654295
         assert abs(result - expected) < 1e-7
 
@@ -1878,12 +1883,14 @@ class TestZCS:
             leg2_method_param=0,
             calendar="all",
             convention="30e360",
+            leg2_convention="30e360",
+            leg2_fixing_series="eur_ibor",
             curves=curve,
         )
-        result = zcs.fixings_table()
+        result = zcs.local_analytic_rate_fixings()
         assert isinstance(result, DataFrame)
         for i in range(8):
-            abs(result.iloc[i, 2] - 24.678) < 1e-3
+            abs(result.iloc[i, 0] - 24.678) < 1e-3
 
 
 class TestZCIS:
@@ -4725,13 +4732,15 @@ class TestSpec:
             leg2_calendar="nyc,tgt",
             calendar="nyc,tgt",
             fixed_rate=3.0,
+            curves="ish",
         )
-        assert inst.kwargs["convention"] == "act365f"
-        assert inst.kwargs["currency"] == "gbp"
-        assert inst.kwargs["leg2_schedule"].calendar == NamedCal("nyc,tgt")
-        assert inst.kwargs["leg2_schedule"].frequency == "A"
-        assert inst.kwargs["fixed_rate"] == 3.0
-        assert inst.kwargs["leg2_spread_compound_method"] == "none_simple"
+        assert inst.kwargs.leg1["convention"] == "act365f"
+        assert inst.kwargs.leg1["currency"] == "gbp"
+        assert inst.kwargs.leg2["schedule"].calendar == NamedCal("nyc,tgt")
+        assert inst.kwargs.leg2["schedule"].frequency == "A"
+        assert inst.kwargs.leg1["fixed_rate"] == 3.0
+        assert inst.kwargs.leg2["spread_compound_method"] == "none_simple"
+        assert isinstance(inst.kwargs.meta["curves"], _Curves)
 
     def test_iirs(self) -> None:
         inst = IIRS(
@@ -6792,7 +6801,7 @@ class TestFXBrokerFly:
         assert expected == fxo.__repr__()
 
 
-class TestVolValue:
+class TestFXVolValue:
     def test_solver_passthrough(self) -> None:
         smile = FXDeltaVolSmile(
             nodes={0.25: 10.0, 0.5: 10.0, 0.75: 10.0},
@@ -6802,14 +6811,42 @@ class TestVolValue:
             id="VolSmile",
         )
         instruments = [
-            VolValue(0.25, vol=smile),
-            VolValue(0.5, vol="VolSmile"),
-            VolValue(0.75, vol="VolSmile"),
+            FXVolValue(0.25, vol=smile),
+            FXVolValue(0.5, vol="VolSmile"),
+            FXVolValue(0.75, vol="VolSmile"),
         ]
         Solver(curves=[smile], instruments=instruments, s=[8.9, 8.2, 9.1])
         assert abs(smile[0.25] - 8.9) < 5e-7
         assert abs(smile[0.5] - 8.2) < 5e-7
         assert abs(smile[0.75] - 9.1) < 5e-7
+
+    def test_solver_passthrough_sabr(self) -> None:
+        smile = FXSabrSmile(
+            nodes={"alpha": 0.01, "beta": 1.0, "rho": 0.01, "nu": 0.01},
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delivery_lag=2,
+            calendar="tgt|fed",
+            pair="eurusd",
+            id="VolSmile",
+        )
+        fxf = FXForwards(
+            fx_curves={
+                "eureur": Curve({dt(2023, 3, 16): 1.0, dt(2025, 6, 9): 0.95}),
+                "eurusd": Curve({dt(2023, 3, 16): 1.0, dt(2025, 6, 9): 0.95}),
+                "usdusd": Curve({dt(2023, 3, 16): 1.0, dt(2025, 6, 9): 0.93}),
+            },
+            fx_rates=FXRates({"eurusd": 1.10}, settlement=dt(2023, 3, 18)),
+        )
+        instruments = [
+            FXVolValue(1.0, vol=smile),
+            FXVolValue(1.10, vol="VolSmile"),
+            FXVolValue(1.20, vol="VolSmile"),
+        ]
+        Solver(curves=[smile], instruments=instruments, s=[8.9, 8.2, 9.1], fx=fxf)
+        assert abs(smile.get_from_strike(1.0, fxf.rate("eurusd", dt(2023, 6, 20)))[1] - 8.9) < 5e-7
+        assert abs(smile.get_from_strike(1.10, fxf.rate("eurusd", dt(2023, 6, 20)))[1] - 8.2) < 5e-7
+        assert abs(smile.get_from_strike(1.20, fxf.rate("eurusd", dt(2023, 6, 20)))[1] - 9.1) < 5e-7
 
     def test_solver_surface_passthrough(self) -> None:
         surface = FXDeltaVolSurface(
@@ -6821,19 +6858,19 @@ class TestVolValue:
             id="VolSurf",
         )
         instruments = [
-            VolValue(0.25, dt(2000, 1, 1), vol=surface),
-            VolValue(0.5, dt(2001, 1, 1), vol="VolSurf"),
+            FXVolValue(0.25, dt(2000, 1, 1), vol=surface),
+            FXVolValue(0.5, dt(2001, 1, 1), vol="VolSurf"),
         ]
         Solver(surfaces=[surface], instruments=instruments, s=[8.9, 8.2], func_tol=1e-14)
         assert abs(surface._get_index(0.5, dt(2000, 1, 1)) - 8.9) < 5e-7
         assert abs(surface._get_index(0.5, dt(2001, 1, 1)) - 8.2) < 5e-7
 
     def test_no_solver_vol_value(self) -> None:
-        vv = VolValue(0.25, vol="string_id")
-        with pytest.raises(ValueError, match="String `vol` ids require a `solver`"):
+        vv = FXVolValue(0.25, vol="string_id")
+        with pytest.raises(ValueError, match="`vol` must contain FXVol object, not str,"):
             vv.rate()
 
     def test_repr(self):
-        v = VolValue(0.25)
-        expected = f"<rl.VolValue at {hex(id(v))}>"
+        v = FXVolValue(0.25)
+        expected = f"<rl.FXVolValue at {hex(id(v))}>"
         assert v.__repr__() == expected

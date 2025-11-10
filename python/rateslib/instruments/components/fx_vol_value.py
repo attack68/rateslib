@@ -7,7 +7,11 @@ from rateslib.enums.generics import NoInput, _drb
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments.components.protocols import _BaseInstrument
 from rateslib.instruments.components.protocols.kwargs import _KWArgs
-from rateslib.instruments.components.protocols.pricing import _Vol
+from rateslib.instruments.components.protocols.pricing import (
+    _get_fx_maybe_from_solver,
+    _get_maybe_fx_vol_maybe_from_solver,
+    _Vol,
+)
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
@@ -33,7 +37,7 @@ class FXVolValue(_BaseInstrument):
         The value of some index to the *FXVolSmile* or *FXVolSurface*.
     expiry: datetime, optional
         The expiry at which to evaluate. This will only be used with *Surfaces*, not *Smiles*.
-    metric: str, optional
+    metric: str, optional set as 'vol'
         The default metric to return from the ``rate`` method.
     vol: str, FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
         The associated object from which to determine the ``rate``.
@@ -76,7 +80,7 @@ class FXVolValue(_BaseInstrument):
         self,
         index_value: DualTypes,
         expiry: datetime_ = NoInput(0),
-        metric: str = "vol",
+        metric: str_ = NoInput(0),
         vol: FXVol_ = NoInput(0),
     ):
         user_args = dict(
@@ -85,7 +89,7 @@ class FXVolValue(_BaseInstrument):
             vol=self._parse_vol(vol),
             metric=metric,
         )
-        default_args = dict(convention=defaults.convention, metric="curve_value", curves=NoInput(0))
+        default_args = dict(convention=defaults.convention, metric="vol", curves=NoInput(0))
         self._kwargs = _KWArgs(
             spec=NoInput(0),
             user_args=user_args,
@@ -133,12 +137,21 @@ class FXVolValue(_BaseInstrument):
         metric_ = _drb(self.kwargs.meta["metric"], metric).lower()
 
         if metric == "vol":
-            vol_ = _get
-            if isinstance(
-                _vol.fx_vol, FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile | FXSabrSurface
-            ):
+            vol_ = _get_maybe_fx_vol_maybe_from_solver(
+                vol_meta=self.kwargs.meta["vol"], solver=solver, vol=_vol
+            )
+            if isinstance(vol_, FXDeltaVolSmile | FXDeltaVolSurface):
                 # Must initialise with an ``expiry`` if a Surface is used
-                return vol_._get_index(self.index_value, self.expiry)  # type: ignore[arg-type]
+                return vol_._get_index(
+                    delta_index=self.kwargs.leg1["index_value"], expiry=self.kwargs.leg1["expiry"]
+                )
+            elif isinstance(vol_, FXSabrSmile | FXSabrSurface):
+                fx_ = _get_fx_maybe_from_solver(solver=solver, fx=fx)
+                return vol_.get_from_strike(
+                    k=self.kwargs.leg1["index_value"],
+                    f=fx_.rate(pair=vol_.meta.pair, settlement=vol_.meta.delivery),
+                    expiry=self.kwargs.leg1["expiry"],
+                )[1]
             else:
                 raise ValueError("`vol` as an object must be provided for VolValue.")
 

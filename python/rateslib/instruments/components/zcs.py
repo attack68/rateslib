@@ -11,7 +11,7 @@ from rateslib.instruments.components.protocols.pricing import (
     _Curves,
     _get_maybe_curve_maybe_from_solver,
 )
-from rateslib.legs.components import FixedLeg, FloatLeg
+from rateslib.legs.components import ZeroFixedLeg, ZeroFloatLeg
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
@@ -38,10 +38,10 @@ if TYPE_CHECKING:
     )
 
 
-class IRS(_BaseInstrument):
+class ZCS(_BaseInstrument):
     """
-    Create an *interest rate swap (IRS)* composing a :class:`~rateslib.legs.components.FixedLeg`
-    and a :class:`~rateslib.legs.components.FloatLeg`.
+    Create a *zero coupon swap (ZCS)* composing a :class:`~rateslib.legs.components.ZeroFixedLeg`
+    and a :class:`~rateslib.legs.components.ZeroFloatLeg`.
 
     .. role:: red
 
@@ -130,12 +130,7 @@ class IRS(_BaseInstrument):
         The local settlement currency of the *Instrument* (3-digit code).
     notional : float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
         The initial leg notional, defined in units of *reference currency*.
-    amortization: float, Dual, Dual2, Variable, str, Amortization, :green:`optional (set as zero)`
-        Set a non-constant notional per *Period*. If a scalar value, adjusts the ``notional`` of
-        each successive period by that same value. Should have
-        sign equal to that of notional if the notional is to reduce towards zero.
     leg2_notional : float, Dual, Dual2, Variable, :green:`optional (negatively inherited from leg1)`
-    leg2_amortization : float, Dual, Dual2, Variable, str, Amortization, :green:`optional (negatively inherited from leg1)`
 
         .. note::
 
@@ -231,13 +226,13 @@ class IRS(_BaseInstrument):
         self.leg2.float_spread = value
 
     @property
-    def leg1(self) -> FixedLeg:
-        """The :class:`~rateslib.legs.components.FixedLeg` of the *Instrument*."""
+    def leg1(self) -> ZeroFixedLeg:
+        """The :class:`~rateslib.legs.components.ZeroFixedLeg` of the *Instrument*."""
         return self._leg1
 
     @property
-    def leg2(self) -> FloatLeg:
-        """The :class:`~rateslib.legs.components.FloatLeg` of the *Instrument*."""
+    def leg2(self) -> ZeroFloatLeg:
+        """The :class:`~rateslib.legs.components.ZeroFloatLeg` of the *Instrument*."""
         return self._leg2
 
     @property
@@ -330,8 +325,6 @@ class IRS(_BaseInstrument):
             currency=currency,
             notional=notional,
             leg2_notional=leg2_notional,
-            amortization=amortization,
-            leg2_amortization=leg2_amortization,
             # rate
             fixed_rate=fixed_rate,
             leg2_float_spread=leg2_float_spread,
@@ -364,8 +357,8 @@ class IRS(_BaseInstrument):
             meta_args=["curves"],
         )
 
-        self._leg1 = FixedLeg(**_convert_to_schedule_kwargs(self.kwargs.leg1, 1))
-        self._leg2 = FloatLeg(**_convert_to_schedule_kwargs(self.kwargs.leg2, 1))
+        self._leg1 = ZeroFixedLeg(**_convert_to_schedule_kwargs(self.kwargs.leg1, 1))
+        self._leg2 = ZeroFloatLeg(**_convert_to_schedule_kwargs(self.kwargs.leg2, 1))
         self._legs = [self.leg1, self.leg2]
 
     def rate(
@@ -490,7 +483,7 @@ class IRS(_BaseInstrument):
 
     def _parse_curves(self, curves: CurveOption_) -> _Curves:
         """
-        An IRS has two curve requirements: a leg2_rate_curve and a disc_curve used by both legs.
+        An ZCS has two curve requirements: a leg2_rate_curve and a disc_curve used by both legs.
 
         When given as only 1 element this curve is applied to all of the those components
 

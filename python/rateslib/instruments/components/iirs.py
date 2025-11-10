@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NoReturn
+from typing import TYPE_CHECKING
 
 from rateslib import defaults
 from rateslib.dual.utils import _dual_float
@@ -29,6 +29,7 @@ if TYPE_CHECKING:
         RollDay,
         Series,
         Solver_,
+        _BaseLeg,
         bool_,
         datetime,
         datetime_,
@@ -50,13 +51,13 @@ class IIRS(_BaseInstrument):
         self.kwargs.leg1["fixed_rate"] = value
         self.leg1.fixed_rate = value
 
-    @property
-    def float_spread(self) -> NoReturn:
-        raise AttributeError(f"Attribute not available on {type(self).__name__}")
-
-    @property
-    def leg2_fixed_rate(self) -> NoReturn:
-        raise AttributeError(f"Attribute not available on {type(self).__name__}")
+    # @property
+    # def float_spread(self) -> NoReturn:
+    #     raise AttributeError(f"Attribute not available on {type(self).__name__}")
+    #
+    # @property
+    # def leg2_fixed_rate(self) -> NoReturn:
+    #     raise AttributeError(f"Attribute not available on {type(self).__name__}")
 
     @property
     def leg2_float_spread(self) -> DualTypes_:
@@ -66,6 +67,21 @@ class IIRS(_BaseInstrument):
     def leg2_float_spread(self, value: DualTypes) -> None:
         self.kwargs.leg2["float_spread"] = value
         self.leg2.float_spread = value
+
+    @property
+    def leg1(self) -> FixedLeg:
+        """The :class:`~rateslib.legs.components.FixedLeg` of the *Instrument*."""
+        return self._leg1
+
+    @property
+    def leg2(self) -> FloatLeg:
+        """The :class:`~rateslib.legs.components.FloatLeg` of the *Instrument*."""
+        return self._leg2
+
+    @property
+    def legs(self) -> list[_BaseLeg]:
+        """A list of the *Legs* of the *Instrument*."""
+        return self._legs
 
     def __init__(
         self,
@@ -185,9 +201,9 @@ class IIRS(_BaseInstrument):
             meta_args=["curves"],
         )
 
-        self.leg1 = FixedLeg(**_convert_to_schedule_kwargs(self.kwargs.leg1, 1))
-        self.leg2 = FloatLeg(**_convert_to_schedule_kwargs(self.kwargs.leg2, 1))
-        self._legs = [self.leg1, self.leg2]
+        self._leg1 = FixedLeg(**_convert_to_schedule_kwargs(self.kwargs.leg1, 1))
+        self._leg2 = FloatLeg(**_convert_to_schedule_kwargs(self.kwargs.leg2, 1))
+        self._legs = [self._leg1, self._leg2]
 
     def rate(
         self,
