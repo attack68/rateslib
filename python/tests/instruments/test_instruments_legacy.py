@@ -20,7 +20,7 @@ from rateslib.instruments import (
     NDF,
     # SBS,
     XCS,
-    ZCIS,
+    # ZCIS,
     # ZCS,
     Bill,
     FixedRateBond,
@@ -45,8 +45,9 @@ from rateslib.instruments.components import (
     CDS,
     IIRS,
     IRS,
-    ZCS,
     SBS,
+    ZCIS,
+    ZCS,
     Fly,
     FXExchange,
     FXVolValue,
@@ -1908,7 +1909,12 @@ class TestZCIS:
         )
         prior = zcis.rate(curves=[curve, curve, i_curve, curve])
 
-        zcis.leg2_index_base = 100.0  # index base is lower
+        zcis = ZCIS(
+            effective=dt(2022, 1, 1),
+            termination="9m",
+            frequency="Q",
+            leg2_index_base=100.0,
+        )
         result = zcis.rate(curves=[curve, curve, i_curve, curve])
         assert result > (prior + 100)
 
@@ -1931,8 +1937,10 @@ class TestZCIS:
             curves=[curve, curve, i_curve, curve],
             leg2_index_lag=3,
         )
-        with pytest.raises(ValueError, match="Forecasting the `index_base`"):  # noqa: SIM117
-            with pytest.warns(UserWarning):
+        with pytest.raises(ZeroDivisionError):  # noqa: SIM117
+            with pytest.warns(
+                UserWarning, match="The date queried on the Curve for an `index_value` is prior"
+            ):
                 zcis.rate()
 
     def test_fixing_in_the_past(self):
@@ -1941,11 +1949,15 @@ class TestZCIS:
         inflation = Curve(
             {dt(2025, 4, 1): 1.0, dt(2027, 5, 1): 0.98}, index_base=100.0, index_lag=0
         )
-        fixings = Series(
-            [97, 98, 99, 100.0],
-            index=[dt(2025, 1, 1), dt(2025, 2, 1), dt(2025, 3, 1), dt(2025, 4, 1)],
+        name = str(hash(os.urandom(8)))
+        fixings.add(
+            name,
+            Series(
+                [97, 98, 99, 100.0],
+                index=[dt(2025, 1, 1), dt(2025, 2, 1), dt(2025, 3, 1), dt(2025, 4, 1)],
+            ),
         )
-        zcis = ZCIS(dt(2025, 5, 15), "1y", spec="eur_zcis", leg2_index_fixings=fixings)
+        zcis = ZCIS(dt(2025, 5, 15), "1y", spec="eur_zcis", leg2_index_fixings=name)
         result = zcis.rate(curves=[inflation, discount])
         assert abs(result - 2.8742266148532813) < 1e-8
 

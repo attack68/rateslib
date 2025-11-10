@@ -21,6 +21,7 @@ if TYPE_CHECKING:
         DataFrame,
         DualTypes,
         DualTypes_,
+        FloatRateSeries,
         Frequency,
         FXForwards_,
         FXVolOption_,
@@ -33,7 +34,6 @@ if TYPE_CHECKING:
         float_,
         int_,
         str_,
-        FloatRateSeries,
     )
 
 
