@@ -11,7 +11,7 @@ from rateslib.instruments.components.protocols.pricing import (
     _Curves,
     _get_maybe_curve_maybe_from_solver,
 )
-from rateslib.legs.components import ZeroFixedLeg, ZeroFloatLeg
+from rateslib.legs.components import ZeroFixedLeg, ZeroIndexLeg
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
@@ -21,8 +21,6 @@ if TYPE_CHECKING:
         DataFrame,
         DualTypes,
         DualTypes_,
-        FixingsRates_,
-        FloatRateSeries,
         Frequency,
         FXForwards_,
         FXVolOption_,
@@ -35,13 +33,15 @@ if TYPE_CHECKING:
         float_,
         int_,
         str_,
+        IndexMethod,
+        Series,
     )
 
 
-class ZCS(_BaseInstrument):
+class ZCIS(_BaseInstrument):
     """
     Create a *zero coupon swap (ZCS)* composing a :class:`~rateslib.legs.components.ZeroFixedLeg`
-    and a :class:`~rateslib.legs.components.ZeroFloatLeg`.
+    and a :class:`~rateslib.legs.components.ZeroIndexLeg`.
 
     .. role:: red
 
@@ -139,29 +139,6 @@ class ZCS(_BaseInstrument):
     fixed_rate : float or None
         The fixed rate applied to the :class:`~rateslib.legs.FixedLeg`. If `None`
         will be set to mid-market when curves are provided.
-    leg2_fixing_method: FloatFixingMethod, str, :green:`optional (set by 'defaults')`
-        The :class:`~rateslib.enums.parameters.FloatFixingMethod` describing the determination
-        of the floating rate for each period.
-    leg2_method_param: int, :green:`optional (set by 'defaults')`
-        A specific parameter that is used by the specific ``fixing_method``.
-    leg2_fixing_frequency: Frequency, str, :green:`optional (set by 'frequency' or '1B')`
-        The :class:`~rateslib.scheduling.Frequency` as a component of the
-        :class:`~rateslib.data.fixings.FloatRateIndex`. If not given is assumed to match the
-        frequency of the schedule for an IBOR type ``fixing_method`` or '1B' if RFR type.
-    leg2_fixing_series: FloatRateSeries, str, :green:`optional (implied by other parameters)`
-        The :class:`~rateslib.data.fixings.FloatRateSeries` as a component of the
-        :class:`~rateslib.data.fixings.FloatRateIndex`. If not given inherits attributes given
-        such as the ``calendar``, ``convention``, ``method_param`` etc.
-    leg2_float_spread: float, Dual, Dual2, Variable, :green:`optional (set as 0.0)`
-        The amount (in bps) added to the rate in each period rate determination.
-    leg2_spread_compound_method: SpreadCompoundMethod, str, :green:`optional (set by 'defaults')`
-        The :class:`~rateslib.enums.parameters.SpreadCompoundMethod` used in the calculation
-        of the period rate when combining a ``float_spread``. Used **only** with RFR type
-        ``fixing_method``.
-    leg2_rate_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
-        See XXX (working with fixings).
-        The value of the rate fixing. If a scalar, is used directly. If a string identifier, links
-        to the central ``fixings`` object and data loader.
 
         .. note::
 
@@ -214,16 +191,16 @@ class ZCS(_BaseInstrument):
     # def leg2_fixed_rate(self) -> NoReturn:
     #     raise AttributeError(f"Attribute not available on {type(self).__name__}")
 
-    @property
-    def leg2_float_spread(self) -> DualTypes_:
-        """The float spread parameter of the composited
-        :class:`~rateslib.legs.components.FloatLeg`."""
-        return self.leg2.float_spread
-
-    @leg2_float_spread.setter
-    def leg2_float_spread(self, value: DualTypes) -> None:
-        self.kwargs.leg2["float_spread"] = value
-        self.leg2.float_spread = value
+    # @property
+    # def leg2_float_spread(self) -> DualTypes_:
+    #     """The float spread parameter of the composited
+    #     :class:`~rateslib.legs.components.FloatLeg`."""
+    #     return self.leg2.float_spread
+    #
+    # @leg2_float_spread.setter
+    # def leg2_float_spread(self, value: DualTypes) -> None:
+    #     self.kwargs.leg2["float_spread"] = value
+    #     self.leg2.float_spread = value
 
     @property
     def leg1(self) -> ZeroFixedLeg:
@@ -231,7 +208,7 @@ class ZCS(_BaseInstrument):
         return self._leg1
 
     @property
-    def leg2(self) -> ZeroFloatLeg:
+    def leg2(self) -> ZeroIndexLeg:
         """The :class:`~rateslib.legs.components.ZeroFloatLeg` of the *Instrument*."""
         return self._leg2
 
@@ -280,13 +257,11 @@ class ZCS(_BaseInstrument):
         leg2_amortization: float_ = NoInput(-1),
         # rate parameters
         fixed_rate: DualTypes_ = NoInput(0),
-        leg2_float_spread: DualTypes_ = NoInput(0),
-        leg2_spread_compound_method: str_ = NoInput(0),
-        leg2_rate_fixings: FixingsRates_ = NoInput(0),  # type: ignore[type-var]
-        leg2_fixing_method: str_ = NoInput(0),
-        leg2_method_param: int_ = NoInput(0),
-        leg2_fixing_frequency: Frequency | str_ = NoInput(0),
-        leg2_fixing_series: FloatRateSeries | str_ = NoInput(0),
+        # indexing
+        leg2_index_base: DualTypes_ = NoInput(0),
+        leg2_index_lag: int_ = NoInput(0),
+        leg2_index_method: IndexMethod | str_ = NoInput(0),
+        leg2_index_fixings: Series[DualTypes] | str_ = NoInput(0),
         # meta parameters
         curves: Curves_ = NoInput(0),
         spec: str_ = NoInput(0),
@@ -327,13 +302,11 @@ class ZCS(_BaseInstrument):
             leg2_notional=leg2_notional,
             # rate
             fixed_rate=fixed_rate,
-            leg2_float_spread=leg2_float_spread,
-            leg2_spread_compound_method=leg2_spread_compound_method,
-            leg2_rate_fixings=leg2_rate_fixings,
-            leg2_fixing_method=leg2_fixing_method,
-            leg2_method_param=leg2_method_param,
-            leg2_fixing_series=leg2_fixing_series,
-            leg2_fixing_frequency=leg2_fixing_frequency,
+            # indexing
+            leg2_index_base=leg2_index_base,
+            leg2_index_lag=leg2_index_lag,
+            leg2_index_method=leg2_index_method,
+            leg2_index_fixings=leg2_index_fixings,
             # meta
             curves=self._parse_curves(curves),
         )
@@ -349,6 +322,8 @@ class ZCS(_BaseInstrument):
             notional=defaults.notional,
             payment_lag=defaults.payment_lag_specific[type(self).__name__],
             payment_lag_exchange=defaults.payment_lag_exchange,
+            leg2_index_lag=defaults.index_lag,
+            leg2_index_method=defaults.index_method,
         )
         self._kwargs = _KWArgs(
             spec=spec,
@@ -358,7 +333,7 @@ class ZCS(_BaseInstrument):
         )
 
         self._leg1 = ZeroFixedLeg(**_convert_to_schedule_kwargs(self.kwargs.leg1, 1))
-        self._leg2 = ZeroFloatLeg(**_convert_to_schedule_kwargs(self.kwargs.leg2, 1))
+        self._leg2 = ZeroIndexLeg(**_convert_to_schedule_kwargs(self.kwargs.leg2, 1))
         self._legs = [self.leg1, self.leg2]
 
     def rate(
@@ -376,13 +351,13 @@ class ZCS(_BaseInstrument):
         _curves = self._parse_curves(curves)
 
         leg2_npv: DualTypes = self.leg2.local_npv(
-            rate_curve=_get_maybe_curve_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
-            ),
+            rate_curve=NoInput(0),
             disc_curve=_get_maybe_curve_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
             ),
-            index_curve=NoInput(0),
+            index_curve=_get_maybe_curve_maybe_from_solver(
+                self.kwargs.meta["curves"], _curves, "leg2_index_curve", solver
+            ),
             settlement=settlement,
             forward=forward,
         )
@@ -411,28 +386,7 @@ class ZCS(_BaseInstrument):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DualTypes:
-        _curves = self._parse_curves(curves)
-        leg2_rate_curve = _get_maybe_curve_maybe_from_solver(
-            self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
-        )
-        disc_curve = _get_maybe_curve_maybe_from_solver(
-            self.kwargs.meta["curves"], _curves, "disc_curve", solver
-        )
-        leg1_npv: DualTypes = self.leg1.local_npv(
-            rate_curve=NoInput(0),
-            disc_curve=disc_curve,
-            index_curve=NoInput(0),
-            settlement=settlement,
-            forward=forward,
-        )
-        return self.leg2.spread(
-            target_npv=-leg1_npv,
-            rate_curve=leg2_rate_curve,
-            disc_curve=disc_curve,
-            index_curve=NoInput(0),
-            settlement=settlement,
-            forward=forward,
-        )
+        raise NotImplementedError("ZCIS has no concept of `spread` - use `rate` instead.")
 
     def npv(
         self,
@@ -483,9 +437,7 @@ class ZCS(_BaseInstrument):
 
     def _parse_curves(self, curves: CurveOption_) -> _Curves:
         """
-        An ZCS has two curve requirements: a leg2_rate_curve and a disc_curve used by both legs.
-
-        When given as only 1 element this curve is applied to all of the those components
+        An ZCIS has two curve requirements: a leg2_index_curve and a disc_curve used by both legs.
 
         When given as 2 elements the first is treated as the rate curve and the 2nd as disc curve.
         """
@@ -493,11 +445,11 @@ class ZCS(_BaseInstrument):
             return _Curves()
         if isinstance(curves, dict):
             return _Curves(
-                rate_curve=curves.get("rate_curve", NoInput(0)),
+                index_curve=curves.get("index_curve", NoInput(0)),
                 disc_curve=curves.get("disc_curve", NoInput(0)),
-                leg2_rate_curve=_drb(
-                    curves.get("rate_curve", NoInput(0)),
-                    curves.get("leg2_rate_curve", NoInput(0)),
+                leg2_index_curve=_drb(
+                    curves.get("index_curve", NoInput(0)),
+                    curves.get("leg2_index_curve", NoInput(0)),
                 ),
                 leg2_disc_curve=_drb(
                     curves.get("disc_curve", NoInput(0)),
@@ -507,15 +459,21 @@ class ZCS(_BaseInstrument):
         elif isinstance(curves, list | tuple):
             if len(curves) == 2:
                 return _Curves(
-                    leg2_rate_curve=curves[0],
+                    leg2_index_curve=curves[0],
                     disc_curve=curves[1],
                     leg2_disc_curve=curves[1],
                 )
             elif len(curves) == 1:
                 return _Curves(
-                    leg2_rate_curve=curves[0],
+                    leg2_index_curve=curves[0],
                     disc_curve=curves[0],
                     leg2_disc_curve=curves[0],
+                )
+            elif len(curves) == 4:
+                return _Curves(
+                    leg2_index_curve=curves[2],
+                    disc_curve=curves[1],
+                    leg2_disc_curve=curves[3],
                 )
             else:
                 raise ValueError(
