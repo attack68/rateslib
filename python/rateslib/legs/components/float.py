@@ -222,7 +222,7 @@ class FloatLeg(_BaseLeg):
         final_exchange: bool = False,
         # rate params
         float_spread: DualTypes_ = NoInput(0),
-        rate_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0), # type: ignore[type-var]
+        rate_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
         fixing_method: FloatFixingMethod | str_ = NoInput(0),
         method_param: int_ = NoInput(0),
         spread_compound_method: SpreadCompoundMethod | str_ = NoInput(0),

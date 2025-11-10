@@ -25,6 +25,7 @@ if TYPE_CHECKING:
         FXForwards_,
         FXVolOption_,
         Solver_,
+        _BaseLeg,
         datetime,
         datetime_,
         str_,
@@ -53,8 +54,20 @@ class FXExchange(_BaseInstrument):
 
     _rate_scalar = 1.0
 
+    @property
     def leg1(self) -> CustomLeg:
+        """The :class:`~rateslib.legs.components.CustomLeg` of the *Instrument*."""
         return self._leg1
+
+    @property
+    def leg2(self) -> CustomLeg:
+        """The :class:`~rateslib.legs.components.CustomLeg` of the *Instrument*."""
+        return self._leg2
+
+    @property
+    def legs(self) -> list[_BaseLeg]:
+        """A list of the *Legs* of the *Instrument*."""
+        return self._legs
 
     def _parse_curves(self, curves: CurveOption_) -> _Curves:
         """

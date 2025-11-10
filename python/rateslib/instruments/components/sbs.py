@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NoReturn
+from typing import TYPE_CHECKING
 
 from rateslib import defaults
 from rateslib.dual.utils import _dual_float
@@ -26,21 +26,23 @@ if TYPE_CHECKING:
         FXVolOption_,
         RollDay,
         Solver_,
+        _BaseLeg,
         bool_,
         datetime,
         datetime_,
         float_,
         int_,
         str_,
+        FloatRateSeries,
     )
 
 
 class SBS(_BaseInstrument):
     _rate_scalar = 100.0
 
-    @property
-    def fixed_rate(self) -> DualTypes_:
-        raise AttributeError(f"Attribute not available on {type(self).__name__}")
+    # @property
+    # def fixed_rate(self) -> DualTypes_:
+    #     raise AttributeError(f"Attribute not available on {type(self).__name__}")
 
     @property
     def float_spread(self) -> DualTypes_:
@@ -51,9 +53,9 @@ class SBS(_BaseInstrument):
         self.kwargs.leg1["float_spread"] = value
         self.leg1.float_spread = value
 
-    @property
-    def leg2_fixed_rate(self) -> NoReturn:
-        raise AttributeError(f"Attribute not available on {type(self).__name__}")
+    # @property
+    # def leg2_fixed_rate(self) -> NoReturn:
+    #     raise AttributeError(f"Attribute not available on {type(self).__name__}")
 
     @property
     def leg2_float_spread(self) -> DualTypes_:
@@ -63,6 +65,21 @@ class SBS(_BaseInstrument):
     def leg2_float_spread(self, value: DualTypes) -> None:
         self.kwargs.leg2["float_spread"] = value
         self.leg2.float_spread = value
+
+    @property
+    def leg1(self) -> FloatLeg:
+        """The :class:`~rateslib.legs.components.FloatLeg` of the *Instrument*."""
+        return self._leg1
+
+    @property
+    def leg2(self) -> FloatLeg:
+        """The second :class:`~rateslib.legs.components.FloatLeg` of the *Instrument*."""
+        return self._leg2
+
+    @property
+    def legs(self) -> list[_BaseLeg]:
+        """A list of the *Legs* of the *Instrument*."""
+        return self._legs
 
     def __init__(
         self,
@@ -89,6 +106,10 @@ class SBS(_BaseInstrument):
         currency: str_ = NoInput(0),
         amortization: float_ = NoInput(0),
         convention: str_ = NoInput(0),
+        fixing_frequency: Frequency | str_ = NoInput(0),
+        fixing_series: FloatRateSeries | str_ = NoInput(0),
+        leg2_fixing_frequency: Frequency | str_ = NoInput(0),
+        leg2_fixing_series: FloatRateSeries | str_ = NoInput(0),
         leg2_float_spread: DualTypes_ = NoInput(0),
         leg2_spread_compound_method: str_ = NoInput(0),
         leg2_rate_fixings: FixingsRates_ = NoInput(0),  # type: ignore[type-var]
@@ -137,6 +158,10 @@ class SBS(_BaseInstrument):
             currency=currency,
             amortization=amortization,
             convention=convention,
+            fixing_frequency=fixing_frequency,
+            fixing_series=fixing_series,
+            leg2_fixing_frequency=leg2_fixing_frequency,
+            leg2_fixing_series=leg2_fixing_series,
             leg2_float_spread=leg2_float_spread,
             leg2_spread_compound_method=leg2_spread_compound_method,
             leg2_rate_fixings=leg2_rate_fixings,
@@ -182,9 +207,9 @@ class SBS(_BaseInstrument):
             meta_args=["curves", "metric"],
         )
 
-        self.leg1 = FloatLeg(**_convert_to_schedule_kwargs(self.kwargs.leg1, 1))
-        self.leg2 = FloatLeg(**_convert_to_schedule_kwargs(self.kwargs.leg2, 1))
-        self._legs = [self.leg1, self.leg2]
+        self._leg1 = FloatLeg(**_convert_to_schedule_kwargs(self.kwargs.leg1, 1))
+        self._leg2 = FloatLeg(**_convert_to_schedule_kwargs(self.kwargs.leg2, 1))
+        self._legs = [self._leg1, self._leg2]
 
     def rate(
         self,
