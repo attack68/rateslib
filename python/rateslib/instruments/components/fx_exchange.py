@@ -41,7 +41,7 @@ class FXExchange(_BaseInstrument):
     settlement : datetime
         The date of the currency exchange.
     pair: str
-        The curreny pair of the exchange, e.g. "eurusd", using 3-digit iso codes.
+        The currency pair of the exchange, e.g. "eurusd", using 3-digit iso codes.
     fx_rate : float, optional
         The FX rate used to derive the notional exchange on *Leg2*.
     notional : float
@@ -114,11 +114,11 @@ class FXExchange(_BaseInstrument):
                 )
             else:
                 raise ValueError(
-                    f"{type(self).__name__} requires 3 curve types. Got {len(curves)}."
+                    f"{type(self).__name__} requires 2 curve types. Got {len(curves)}."
                 )
 
         else:  # `curves` is just a single input which is copied across all curves
-            raise ValueError(f"{type(self).__name__} requires 3 curve types. Got 1.")
+            raise ValueError(f"{type(self).__name__} requires 2 curve types. Got 1.")
 
     def __init__(
         self,
