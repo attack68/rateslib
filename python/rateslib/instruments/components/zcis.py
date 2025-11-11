@@ -24,7 +24,9 @@ if TYPE_CHECKING:
         Frequency,
         FXForwards_,
         FXVolOption_,
+        IndexMethod,
         RollDay,
+        Series,
         Solver_,
         _BaseLeg,
         bool_,
@@ -33,8 +35,6 @@ if TYPE_CHECKING:
         float_,
         int_,
         str_,
-        IndexMethod,
-        Series,
     )
 
 

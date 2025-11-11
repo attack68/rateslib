@@ -17,7 +17,7 @@ from rateslib.instruments import (
     FRA,
     # IIRS,
     # IRS,
-    NDF,
+    # NDF,
     # SBS,
     XCS,
     # ZCIS,
@@ -45,6 +45,7 @@ from rateslib.instruments.components import (
     CDS,
     IIRS,
     IRS,
+    NDF,
     SBS,
     ZCIS,
     ZCS,
@@ -2134,15 +2135,15 @@ class TestNDF:
             pair="brlusd",
             settlement=dt(2022, 1, 1),
         )
-        assert ndf.periods[0].currency == "usd"
-        assert ndf.periods[0].reference_currency == "brl"
-        assert ndf.periods[0].fx_reversed is False
+        assert ndf.leg1.periods[0].settlement_params.currency == "usd"
+        assert ndf.leg1.periods[0].non_deliverable_params.reference_currency == "brl"
+        assert ndf.leg1.periods[0].non_deliverable_params.fx_reversed is False
 
     def test_construction_reversed(self) -> None:
         ndf = NDF(pair="usdbrl", settlement=dt(2022, 1, 1), currency="usd")
-        assert ndf.periods[0].currency == "usd"
-        assert ndf.periods[0].reference_currency == "brl"
-        assert ndf.periods[0].fx_reversed is True
+        assert ndf.leg1.periods[0].settlement_params.currency == "usd"
+        assert ndf.leg2.periods[0].non_deliverable_params.reference_currency == "brl"
+        assert ndf.leg2.periods[0].non_deliverable_params.fx_reversed is True
 
     @pytest.mark.parametrize(
         ("lag", "eval1", "exp2"),
@@ -2160,7 +2161,7 @@ class TestNDF:
             calendar="tgt|fed",
             payment_lag=lag,
         )
-        assert ndf.periods[0].payment == exp2
+        assert ndf.leg1.periods[0].settlement_params.payment == exp2
 
     @pytest.mark.parametrize(
         ("eom", "exp"),
@@ -2179,9 +2180,14 @@ class TestNDF:
             payment_lag=2,
             eom=eom,
         )
-        assert ndf.periods[0].payment == exp
+        assert ndf.leg1.periods[0].settlement_params.payment == exp
 
     def test_zero_analytic_delta(self):
+        curve = Curve({dt(2009, 1, 1): 1.0, dt(2020, 1, 1): 1.0})
+        fxf = FXForwards(
+            fx_rates=FXRates({"eurusd": 1.10}, settlement=dt(2009, 1, 1)),
+            fx_curves={"eureur": curve, "eurusd": curve, "usdusd": curve},
+        )
         ndf = NDF(
             pair="eurusd",
             settlement="3m",
@@ -2190,8 +2196,9 @@ class TestNDF:
             calendar="tgt|fed",
             payment_lag=2,
         )
-        assert ndf.analytic_delta() == 0.0
+        assert ndf.analytic_delta(curves=curve, fx=fxf) == 0.0
 
+    @pytest.mark.skip(reason="v2.5 allows third currency settlement currency.")
     def test_bad_currency_raises(self):
         with pytest.raises(ValueError, match="`currency` must be one of the currencies in `pair`."):
             NDF(
@@ -2218,13 +2225,14 @@ class TestNDF:
             fx_rate=1.05,
         )
         result = ndf.cashflows(curves=usdusd, fx=fxf)
-        assert result.loc[("leg1", 0), "Type"] == "NonDeliverableCashflow"
-        assert result.loc[("leg1", 0), "Period"] == "EURUSD"
+        assert result.loc[("leg1", 0), "Type"] == "Cashflow"
+        assert result.loc[("leg1", 0), "Notional"] == -1e6
         assert result.loc[("leg1", 0), "Ccy"] == "USD"
+        assert result.loc[("leg1", 0), "Reference Ccy"] == "EUR"
         assert result.loc[("leg1", 0), "Payment"] == dt(2022, 4, 4)
-        assert result.loc[("leg1", 0), "Rate"] == 1.0210354810081033
-        assert result.loc[("leg1", 1), "Rate"] == 1.05
-        assert result.loc[("leg1", 1), "Notional"] == 1050000.0
+        assert result.loc[("leg1", 0), "FX Fixing"] == 1.0210354810081033
+        assert result.loc[("leg2", 0), "Notional"] == 1050000.0
+        assert result.loc[("leg2", 0), "Ccy"] == "USD"
 
     @pytest.mark.parametrize(("base", "expected"), [("eur", -28103.831), ("usd", -28665.269)])
     def test_npv(self, usdusd, usdeur, eureur, base, expected):
@@ -2264,7 +2272,7 @@ class TestNDF:
             calendar="tgt|fed",
             payment_lag=2,
             fx_rate=rate,
-            notional=1e6,
+            notional=1e6 if pair[:3] == "eur" else -1e6 / rate,
         )
         result = ndf.npv(curves=usdusd, fx=fxf)
         expected = -28665.26900
