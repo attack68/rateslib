@@ -524,6 +524,13 @@ class IRS(_BaseInstrument):
                     disc_curve=curves[0],
                     leg2_disc_curve=curves[0],
                 )
+            elif len(curves) == 4:
+                return _Curves(
+                    rate_curve=curves[0],
+                    disc_curve=curves[1],
+                    leg2_rate_curve=curves[2],
+                    leg2_disc_curve=curves[3],
+                )
             else:
                 raise ValueError(
                     f"{type(self).__name__} requires only 2 curve types. Got {len(curves)}."
