@@ -37,7 +37,7 @@ from rateslib.instruments import (
     IndexFixedRateBond,
     # Portfolio,
     # Spread,
-    STIRFuture,
+    # STIRFuture,
     # Value,
     # VolValue,
 )
@@ -54,6 +54,7 @@ from rateslib.instruments.components import (
     FXVolValue,
     Portfolio,
     Spread,
+    STIRFuture,
     Value,
 )
 from rateslib.instruments.components.protocols.kwargs import (
@@ -66,7 +67,7 @@ from rateslib.instruments.utils import (
     _get_curves_fx_and_base_maybe_from_solver,
 )
 from rateslib.legs.components import Amortization
-from rateslib.scheduling import Adjuster, NamedCal, Schedule, add_tenor
+from rateslib.scheduling import Adjuster, NamedCal, Schedule, add_tenor, get_imm
 from rateslib.solver import Solver
 
 
@@ -136,7 +137,7 @@ def simple_solver():
             dt(2022, 6, 15),
             "Q",
             curves="eureur",
-            bp_value=25.0,
+            spec="eur_stir",
             contracts=-1,
         ),
         FRA(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
@@ -573,7 +574,7 @@ class TestNullPricing:
                 dt(2022, 6, 15),
                 "Q",
                 curves="eureur",
-                bp_value=25.0,
+                spec="usd_stir",
                 contracts=-1,
             ),
             FRA(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6),
@@ -975,7 +976,7 @@ class TestNullPricing:
                 dt(2022, 3, 16),
                 dt(2022, 6, 15),
                 "Q",
-                bp_value=25.0,
+                spec="usd_stir",
                 contracts=-1,
             ),
             FRA(dt(2022, 7, 1), "3M", "A", notional=1e6),
@@ -4078,8 +4079,8 @@ class TestSTIRFuture:
             spec="usd_stir",
         )
         expected = 95.96254344884888
-        result = stir.rate(curve, metric="price")
-        assert abs(100 - result - stir.rate(curve)) < 1e-8
+        result = stir.rate(curves=curve, metric="price")
+        assert abs(100 - result - stir.rate(curves=curve)) < 1e-8
         assert abs(result - expected) < 1e-8
 
     def test_stir_no_gamma(self, curve) -> None:
@@ -4132,7 +4133,7 @@ class TestSTIRFuture:
             effective=dt(2022, 3, 16),
             termination=dt(2022, 6, 15),
             frequency="Q",
-            bp_value=25.0,
+            spec="usd_stir",
             contracts=-1,
         )
         result = stir.npv(curves=[c1, c1, c2, c3], fx=fxf)
@@ -4169,11 +4170,12 @@ class TestSTIRFuture:
             stir.rate(curves=c1, metric="bad")
 
     def test_analytic_delta(self) -> None:
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
         stir = STIRFuture(
             effective=dt(2022, 3, 16),
             termination=dt(2022, 6, 15),
             spec="usd_stir",
-            curves="usdusd",
+            curves=c1,
             price=99.50,
             contracts=100,
         )
@@ -4182,11 +4184,12 @@ class TestSTIRFuture:
         assert abs(result - expected) < 1e-10
 
     def test_analytic_delta_fx(self) -> None:
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
         stir = STIRFuture(
             effective=dt(2022, 3, 16),
             termination=dt(2022, 6, 15),
             spec="usd_stir",
-            curves="usdusd",
+            curves=c1,
             price=99.50,
             contracts=100,
         )
@@ -4203,9 +4206,36 @@ class TestSTIRFuture:
             contracts=100,
             curves=curve,
         )
-        result = stir.fixings_table()
+        result = stir.local_analytic_rate_fixings()
         assert isinstance(result, DataFrame)
-        assert result[f"{curve.id}", "risk"][dt(2022, 3, 14)] == -2500.0
+        value = result.loc[dt(2022, 3, 14), slice(None)].iloc[0]
+        assert abs(value + 2500.0) < 1e-9
+
+    @pytest.mark.parametrize(
+        ("spec", "expected"),
+        [
+            ("usd_stir", -25.0),
+            ("eur_stir", -25.0),
+            ("eur_stir3", -25.0),
+            ("gbp_stir", -25.0),
+        ],
+    )
+    def test_3m_spec_contracts(self, spec, expected, curve):
+        stir = STIRFuture(get_imm(3, 2022), get_imm(6, 2022), spec=spec)
+        result = stir.analytic_delta(curves=curve)
+        assert abs(result - expected) < 1e-10
+
+    @pytest.mark.parametrize(
+        ("spec", "expected"),
+        [
+            ("usd_stir1", -41.670),
+            ("eur_stir1", -25.0),
+        ],
+    )
+    def test_1m_spec_contracts(self, spec, expected, curve):
+        stir = STIRFuture(dt(2022, 4, 1), dt(2022, 5, 1), spec=spec)
+        result = stir.analytic_delta(curves=curve)
+        assert abs(result - expected) < 1e-10
 
 
 class TestPricingMechanism:
@@ -4710,10 +4740,10 @@ class TestSpec:
             spec="usd_stir",
             convention="30e360",
         )
-        assert irs.kwargs["convention"] == "30e360"
-        assert irs.kwargs["leg2_convention"] == "30e360"
-        assert irs.kwargs["currency"] == "usd"
-        assert irs.kwargs["schedule"].roll == "IMM"
+        assert irs.kwargs.leg1["convention"] == "30e360"
+        assert irs.kwargs.leg2["convention"] == "30e360"
+        assert irs.kwargs.leg1["currency"] == "usd"
+        assert irs.kwargs.leg1["schedule"].roll == "IMM"
 
     def test_sbs(self) -> None:
         inst = SBS(

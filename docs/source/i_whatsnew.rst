@@ -35,6 +35,9 @@ Performance of the _spread for a float leg might be reduced for ISDA ``spread_co
 The ``VolValue`` is renamed to ``FXVolValue`` and it can now also be used to calibrate SABR Objects (bug).
 The doc pages should be expanded and examples given.
 
+The `STIRFuture` has been refactored to make ``bp_value`` redundant and instead replaced by
+a designed notional and DCF for the period.
+
 
 .. list-table::
    :widths: 25 75
