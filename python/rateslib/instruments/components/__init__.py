@@ -10,11 +10,13 @@ from rateslib.instruments.components.sbs import SBS
 from rateslib.instruments.components.spread import Spread
 from rateslib.instruments.components.stir_future import STIRFuture
 from rateslib.instruments.components.value import Value
+from rateslib.instruments.components.xcs import XCS
 from rateslib.instruments.components.zcis import ZCIS
 from rateslib.instruments.components.zcs import ZCS
 
 __all__ = [
     "IRS",
+    "XCS",
     "STIRFuture",
     "ZCS",
     "ZCIS",

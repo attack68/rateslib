@@ -678,6 +678,19 @@ class FixedLeg(_BaseLeg):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DualTypes:
+        # local_npv is calculated to identify the isolated NPV component of cashflow exchanges.
+        _ = self.fixed_rate
+        self.fixed_rate = 0.0
+        local_npv = self.local_npv(
+            rate_curve=rate_curve,
+            disc_curve=disc_curve,
+            index_curve=index_curve,
+            fx=fx,
+            forward=forward,
+            settlement=settlement,
+        )
+        self.fixed_rate = _
+
         a_delta = self.local_analytic_delta(
             rate_curve=rate_curve,
             disc_curve=disc_curve,
@@ -686,7 +699,7 @@ class FixedLeg(_BaseLeg):
             forward=forward,
             settlement=settlement,
         )
-        return -target_npv / a_delta
+        return -(target_npv - local_npv) / a_delta
 
 
 class ZeroFixedLeg(_BaseLeg):
