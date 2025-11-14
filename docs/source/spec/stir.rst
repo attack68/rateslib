@@ -3,7 +3,8 @@
 .. ipython:: python
    :suppress:
 
-   from rateslib import *
+   from rateslib import defaults
+   from rateslib.instruments.components import STIRFuture
 
 *************
 STIR Futures

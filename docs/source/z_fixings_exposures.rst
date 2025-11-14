@@ -6,6 +6,7 @@
    from rateslib.curves import *
    from rateslib.instruments import *
    from rateslib.scheduling import get_imm
+   from rateslib.instruments.components import STIRFuture
    import matplotlib.pyplot as plt
    from datetime import datetime as dt
    import numpy as np
@@ -151,7 +152,7 @@ of the *Curve* which forecasts the exposed fixing.
              curves=[euribor3m],
              contracts=10,
          )
-         stir.fixings_table()
+         stir.local_analytic_rate_fixings(curves=estr)
 
    .. tab:: FRN
 
@@ -282,7 +283,7 @@ bound, which avoids doing any calculation for exposures out-of-scope.
              curves=[euribor3m],
              contracts=10,
          )
-         stir.fixings_table(approximate=True, right=dt(2000, 8, 16))
+         stir.local_analytic_rate_fixings(curves=estr)
 
    .. tab:: FRN
 
@@ -299,16 +300,17 @@ bound, which avoids doing any calculation for exposures out-of-scope.
          )
          frn.fixings_table(approximate=True, right=dt(2000, 8, 16))
 
-Aggregation of fixings exposures
----------------------------------
+..
+    Aggregation of fixings exposures
+    ---------------------------------
 
-Adding many *Instruments* to a :class:`~rateslib.instruments.Portfolio`, provided those
-*Instruments* have been properly configured, allows their fixing exposures to be
-analysed and aggregated. *Instruments* with no fixing exposures, such as a *FixedRateBond*,
-will simply be ignored.
+    Adding many *Instruments* to a :class:`~rateslib.instruments.Portfolio`, provided those
+    *Instruments* have been properly configured, allows their fixing exposures to be
+    analysed and aggregated. *Instruments* with no fixing exposures, such as a *FixedRateBond*,
+    will simply be ignored.
 
-.. ipython:: python
+    .. ipython:: python
 
-   frb = FixedRateBond(dt(2000, 1, 3), "10y", fixed_rate=2.5, spec="us_gb")
-   pf = Portfolio([irs, sbs, fra, xcs, frn, stir, iirs, zcs, frb])
-   pf.fixings_table(approximate=True, right=dt(2000, 8, 1))
+       frb = FixedRateBond(dt(2000, 1, 3), "10y", fixed_rate=2.5, spec="us_gb")
+       pf = Portfolio([irs, sbs, fra, xcs, frn, stir, iirs, zcs, frb])
+       pf.fixings_table(approximate=True, right=dt(2000, 8, 1))

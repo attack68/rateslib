@@ -147,6 +147,11 @@ be supplied manually if and when required.
       Here we create a SOFR STIR future (:class:`~rateslib.instruments.STIRFuture`).
 
       .. ipython:: python
+         :suppress:
+
+         from rateslib.instruments.components import STIRFuture
+
+      .. ipython:: python
 
          stir = STIRFuture(
              effective=get_imm(code="H22"),
@@ -225,11 +230,11 @@ these values are all expressed in the *Instrument's* local USD currency.
 
       .. ipython:: python
 
-         stir.npv(usd_curve)
+         stir.npv(curves=usd_curve)
 
       .. ipython:: python
 
-         stir.rate(usd_curve, metric="price")
+         stir.rate(curves=usd_curve, metric="price")
 
    .. group-tab:: FRA
 
@@ -313,8 +318,8 @@ We now have a mechanism by which to specify values in other currencies.
 
       .. ipython:: python
 
-         stir.npv(usd_curve, fx=fxr, base="usd")
-         stir.npv(usd_curve, fx=fxr, base="eur")
+         stir.npv(curves=usd_curve, fx=fxr, base="usd")
+         stir.npv(curves=usd_curve, fx=fxr, base="eur")
 
    .. group-tab:: FRA
 

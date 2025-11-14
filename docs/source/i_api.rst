@@ -221,6 +221,7 @@ Objects
    :no-heading:
    :include: IRS
    :include: NDF
+   :include: XCS
 
 
 Class Inheritance Diagram

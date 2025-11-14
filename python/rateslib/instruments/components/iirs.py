@@ -231,23 +231,23 @@ class IIRS(_BaseInstrument):
             forward=forward,
         )
 
-        self.leg1.fixed_rate = 0.0
-        leg1_npv: DualTypes = self.leg1.local_npv(
-            rate_curve=NoInput(0),
-            disc_curve=_get_maybe_curve_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, "disc_curve", solver
-            ),
-            index_curve=_get_maybe_curve_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, "index_curve", solver
-            ),
-            settlement=settlement,
-            forward=forward,
-        )
-        self.leg1.fixed_rate = self.kwargs.leg1["fixed_rate"]
+        # self.leg1.fixed_rate = 0.0
+        # leg1_npv: DualTypes = self.leg1.local_npv(
+        #     rate_curve=NoInput(0),
+        #     disc_curve=_get_maybe_curve_maybe_from_solver(
+        #         self.kwargs.meta["curves"], _curves, "disc_curve", solver
+        #     ),
+        #     index_curve=_get_maybe_curve_maybe_from_solver(
+        #         self.kwargs.meta["curves"], _curves, "index_curve", solver
+        #     ),
+        #     settlement=settlement,
+        #     forward=forward,
+        # )
+        # self.leg1.fixed_rate = self.kwargs.leg1["fixed_rate"]
 
         return (
             self.leg1.spread(
-                target_npv=-leg2_npv - leg1_npv,
+                target_npv=-leg2_npv,  # - leg1_npv,
                 rate_curve=NoInput(0),
                 disc_curve=_get_maybe_curve_maybe_from_solver(
                     self.kwargs.meta["curves"], _curves, "disc_curve", solver
