@@ -514,19 +514,6 @@ class STIRFuture(IRS):
 
        from rateslib import STIRFuture
 
-    .. ipython:: python
-
-       stir = STIRFuture(
-            effective=dt(2022, 3, 16),
-            termination=dt(2022, 6, 15),
-            spec="usd_stir",
-            curves=usd,
-            price=99.50,
-            contracts=10,
-        )
-       stir.rate(metric="price")
-       stir.npv()
-
     """
 
     _fixed_rate_mixin = True

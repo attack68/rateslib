@@ -19,7 +19,7 @@ from rateslib.instruments import (
     # IRS,
     # NDF,
     # SBS,
-    XCS,
+    # XCS,
     # ZCIS,
     # ZCS,
     Bill,
@@ -47,6 +47,7 @@ from rateslib.instruments.components import (
     IRS,
     NDF,
     SBS,
+    XCS,
     ZCIS,
     ZCS,
     Fly,
@@ -602,27 +603,6 @@ class TestNullPricing:
                 notional_exchange=True,
             ),
             # TODO add a null price test for ZCIS
-            XCS(  # XCS - FloatFloat
-                dt(2022, 7, 1),
-                "3M",
-                "A",
-                currency="usd",
-                leg2_currency="eur",
-                curves=["usdusd", "usdusd", "eureur", "eurusd"],
-                notional=1e6,
-            ),
-            XCS(  # XCS-FloatFloatNonMtm
-                dt(2022, 7, 1),
-                "3M",
-                "A",
-                fixed=False,
-                leg2_fixed=False,
-                leg2_mtm=False,
-                currency="usd",
-                leg2_currency="eur",
-                curves=["usdusd", "usdusd", "eureur", "eurusd"],
-                notional=1e6,
-            ),
             XCS(  # XCS-FixedFloatNonMtm
                 dt(2022, 7, 1),
                 "3M",
@@ -755,6 +735,77 @@ class TestNullPricing:
         solver.iterate()
         result3 = inst.npv(solver=solver)
         assert abs(result3) < 1e-3
+
+    @pytest.mark.parametrize(
+        "inst",
+        [
+            XCS(  # XCS - FloatFloat
+                dt(2022, 7, 1),
+                "3M",
+                "A",
+                currency="usd",
+                leg2_currency="eur",
+                curves=["usdusd", "usdusd", "eureur", "eurusd"],
+                notional=1e6,
+                float_spread=-12.876098007605556,
+            ),
+            XCS(  # XCS-FloatFloatNonMtm
+                dt(2022, 7, 1),
+                "3M",
+                "A",
+                fixed=False,
+                leg2_fixed=False,
+                leg2_mtm=False,
+                currency="usd",
+                leg2_currency="eur",
+                curves=["usdusd", "usdusd", "eureur", "eurusd"],
+                notional=1e6,
+                metric="leg2",
+                leg2_float_spread=12.877093409125974,
+            ),
+        ],
+    )
+    def test_null_priced_delta_xcs_float_spread(self, inst) -> None:
+        # all float spreads are defaulted to 0.0 so are artificially priced contracts
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
+        c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.982}, id="eurusd")
+        c4 = Curve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995},
+            id="eu_cpi",
+            index_base=100.0,
+            interpolation="linear_index",
+            index_lag=3,
+        )
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
+            {"usdusd": c1, "eureur": c2, "eurusd": c3},
+        )
+        ins = [
+            IRS(dt(2022, 1, 1), "1y", "A", curves="eureur"),
+            IRS(dt(2022, 1, 1), "1y", "A", curves="usdusd"),
+            IRS(dt(2022, 1, 1), "1y", "A", curves="eurusd"),
+            ZCIS(dt(2022, 1, 1), "1y", "A", curves=["eureur", "eureur", "eu_cpi", "eureur"]),
+        ]
+        solver = Solver(
+            curves=[c1, c2, c3, c4],
+            instruments=ins,
+            s=[1.2, 1.3, 1.33, 0.5],
+            id="solver",
+            instrument_labels=["eur 1y", "usd 1y", "eur 1y xcs adj.", "1y cpi"],
+            fx=fxf,
+        )
+        result = inst.delta(solver=solver)
+        rate = inst.rate(solver=solver)
+        assert abs(result.iloc[0, 0] - 25.0) < 1.0
+        result2 = inst.npv(solver=solver)
+        assert abs(result2) < 1e-3
+
+        # test that instruments have not been set by the previous pricing action
+        solver.s = [1.3, 1.4, 1.36, 0.55]
+        solver.iterate()
+        result3 = inst.npv(solver=solver)
+        assert abs(result3) > 175  # becuase XCS is priced so its value has changed
 
     @pytest.mark.parametrize(
         "inst",
@@ -2370,7 +2421,7 @@ class TestNonMtmXCS:
             payment_lag_exchange=0,
         )
         # npv2 = xcs._npv2(curve2, curve2, curve, curve, 1.10)
-        npv = xcs.npv([curve2, curve2, curve, curve], NoInput(0), fxf)
+        npv = xcs.npv(curves=[curve2, curve2, curve, curve], fx=fxf)
         assert abs(npv) < 1e-9
 
         xcs = XCS(
@@ -2387,7 +2438,7 @@ class TestNonMtmXCS:
             payment_lag_exchange=0,
         )
         # npv2 = xcs._npv2(curve2, curve2, curve, curve, 1.10)
-        npv = xcs.npv([curve2, curve2, curve, curve], NoInput(0), fxf)
+        npv = xcs.npv(curves=[curve2, curve2, curve, curve], fx=fxf)
         assert abs(npv) < 1e-9
 
     def test_nonmtmxcs_fx_notional(self) -> None:
@@ -2402,10 +2453,11 @@ class TestNonMtmXCS:
             currency="eur",
             leg2_currency="usd",
             payment_lag_exchange=0,
-            fx_fixings=2.0,
+            leg2_fx_fixings=2.0,
             notional=1e6,
         )
-        assert xcs.leg2_notional == -2e6
+        for period in xcs.leg2.periods:
+            assert period.non_deliverable_params.fx_fixing.value == 2.0
 
     @pytest.mark.parametrize(
         ("float_spd", "compound", "expected"),
@@ -2438,15 +2490,15 @@ class TestNonMtmXCS:
             leg2_spread_compound_method=compound,
         )
 
-        result = xcs.rate([curve, curve, curve2, curve2], NoInput(0), fxf, 2)
+        result = xcs.rate(curves=[curve, curve, curve2, curve2], fx=fxf, metric="leg2")
         assert abs(result - expected) < 1e-4
-        alias = xcs.spread([curve, curve, curve2, curve2], NoInput(0), fxf, 2)
+        alias = xcs.spread(curves=[curve, curve, curve2, curve2], fx=fxf, metric="leg2")
         assert alias == result
 
         xcs.leg2_float_spread = result
-        validate = xcs.npv([curve, curve, curve2, curve2], NoInput(0), fxf)
+        validate = xcs.npv(curves=[curve, curve, curve2, curve2], fx=fxf)
         assert abs(validate) < 1e-2
-        result2 = xcs.rate([curve, curve, curve2, curve2], NoInput(0), fxf, 2)
+        result2 = xcs.rate(curves=[curve, curve, curve2, curve2], fx=fxf, metric="leg2")
         assert abs(result - result2) < 1e-3
 
         # reverse legs
@@ -2465,7 +2517,7 @@ class TestNonMtmXCS:
             leg2_float_spread=float_spd,
             spread_compound_method=compound,
         )
-        result = xcs_reverse.rate([curve2, curve2, curve, curve], NoInput(0), fxf, 1)
+        result = xcs_reverse.rate(curves=[curve2, curve2, curve, curve], fx=fxf)
         assert abs(result - expected) < 1e-4
 
     def test_no_fx_raises(self, curve, curve2) -> None:
@@ -2485,16 +2537,13 @@ class TestNonMtmXCS:
         )
 
         with (
-            pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"),
+            pytest.raises(ValueError, match="Must provide `fx` argument to forecast FXFixing"),
             default_context("no_fx_fixings_for_xcs", "raise"),
         ):
-            xcs.npv([curve, curve, curve2, curve2])
+            xcs.npv(curves=[curve, curve, curve2, curve2])
 
-        with (
-            pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"),
-            default_context("no_fx_fixings_for_xcs", "raise"),
-        ):
-            xcs.cashflows([curve, curve, curve2, curve2])
+        # no error
+        xcs.cashflows(curves=[curve, curve, curve2, curve2])
 
         # with pytest.warns():
         #     with default_context("no_fx_fixings_for_xcs", "warn"):
@@ -2520,35 +2569,38 @@ class TestNonMtmXCS:
             notional=10e6,
         )
 
-        result = xcs.cashflows([curve, curve, curve2, curve2], NoInput(0), fxf)
+        result = xcs.cashflows(
+            curves=[curve, curve, curve2, curve2],
+            fx=fxf,
+            base="usd",
+        )
         expected = DataFrame(
             {
                 "Type": ["Cashflow", "FloatPeriod"],
-                "Period": ["Exchange", "Regular"],
+                "Period": [None, "Regular"],
                 "Ccy": ["NOK", "USD"],
-                "Notional": [-10000000, -996734.0252423884],
+                "Notional": [-10000000, -10000000.0],
                 "FX Rate": [0.10002256337062124, 1.0],
+                "FX Fixing": [None, 0.09967340252423884],
             },
             index=MultiIndex.from_tuples([("leg1", 0), ("leg2", 8)]),
         )
         assert_frame_equal(
             result.loc[
                 [("leg1", 0), ("leg2", 8)],
-                ["Type", "Period", "Ccy", "Notional", "FX Rate"],
+                ["Type", "Period", "Ccy", "Notional", "FX Rate", "FX Fixing"],
             ],
             expected,
         )
 
-    @pytest.mark.parametrize("fix", ["fxr", "fxf", "float", "dual", "variable"])
+    @pytest.mark.parametrize("fix", ["float", "dual", "variable"])
     def test_nonmtm_fx_fixing(self, curve, curve2, fix) -> None:
         fxr = FXRates({"usdnok": 10}, settlement=dt(2022, 1, 1))
         fxf = FXForwards(fxr, {"usdusd": curve, "nokusd": curve2, "noknok": curve2})
         mapping = {
-            "fxr": fxr,
-            "fxf": fxf,
-            "float": 10.0,
-            "dual": Dual(10.0, ["x"], []),
-            "variable": Variable(10.0, ["x"], []),
+            "float": 1 / 10.0,
+            "dual": Dual(1 / 10.0, ["x"], []),
+            "variable": Variable(1 / 10.0, ["x"], []),
         }
         xcs = XCS(
             dt(2022, 2, 1),
@@ -2562,9 +2614,9 @@ class TestNonMtmXCS:
             leg2_currency="usd",
             payment_lag_exchange=0,
             notional=10e6,
-            fx_fixings=mapping[fix],
+            leg2_fx_fixings=mapping[fix],
         )
-        assert abs(xcs.npv([curve, curve, curve2, curve2], fx=fxr)) < 1e-7
+        assert abs(xcs.npv(curves=[curve, curve, curve2, curve2], fx=fxr)) < 1e-7
 
     def test_nonmtm_fx_fixing_raises_type_crossing(self, curve, curve2):
         fxr = FXRates({"usdnok": 10}, settlement=dt(2022, 1, 1))
@@ -2580,12 +2632,12 @@ class TestNonMtmXCS:
             leg2_currency="usd",
             payment_lag_exchange=0,
             notional=10e6,
-            fx_fixings=Dual2(10.0, ["x"], [], []),
+            leg2_fx_fixings=Dual2(10.0, ["x"], [], []),
         )
         # the given fixing is not downcast to Float because it is a specific user provided value.
         # Users should technically use a Variable.
         with pytest.raises(TypeError, match=r"Dual2 operation with incompatible type \(Dual\)"):
-            xcs.npv([curve, curve, curve2, curve2], fx=fxr) < 1e-7
+            xcs.npv(curves=[curve, curve, curve2, curve2], fx=fxr) < 1e-7
 
     def test_is_priced(self, curve, curve2) -> None:
         fxf = FXForwards(
@@ -2605,10 +2657,12 @@ class TestNonMtmXCS:
             leg2_currency="usd",
             payment_lag_exchange=0,
             notional=10e6,
+            metric="leg2",
         )
-        result = xcs.npv(curves=[curve2, curve2, curve, curve], fx=fxf)
+        result = xcs.npv(curves=[curve2, curve2, curve, curve], fx=fxf, base="usd")
         assert abs(result - 65.766356) < 1e-5
 
+    @pytest.mark.skip(reason="no fx fixings no longer allows warnings")
     def test_no_fx_warns(self, curve, curve2) -> None:
         xcs = XCS(
             dt(2022, 2, 1),
@@ -2627,7 +2681,7 @@ class TestNonMtmXCS:
         with default_context("no_fx_fixings_for_xcs", "warn"), pytest.warns(UserWarning):
             xcs.npv(curves=[curve2, curve2, curve, curve], local=True)
 
-    def test_npv_fx_as_float_valid(self) -> None:
+    def test_npv_fx_as_float_raises(self) -> None:
         xcs = XCS(
             dt(2022, 2, 1),
             "8M",
@@ -2642,11 +2696,10 @@ class TestNonMtmXCS:
             notional=10e6,
         )
         curve = Curve({dt(2022, 2, 1): 1.0, dt(2024, 2, 1): 0.9})
-        # TODO(low) this returns a warning with "noknok" for one variety. Should be corrected.
-        with pytest.warns(UserWarning):
-            result = xcs.npv(curves=curve, fx=10.0)
-        assert abs(result) < 1e-6
+        with pytest.raises(AttributeError, match="'float' object has no attribute 'rate'"):
+            result = xcs.npv(curves=[curve] * 2, fx=10.0)
 
+    @pytest.mark.skip(reason="v2.5 uses FXForwards as a more explicit input type.")
     def test_npv_fx_as_rates_valid(self) -> None:
         xcs = XCS(
             dt(2022, 2, 1),
@@ -2662,7 +2715,7 @@ class TestNonMtmXCS:
             notional=10e6,
         )
         curve = Curve({dt(2022, 2, 1): 1.0, dt(2024, 2, 1): 0.9})
-        result = xcs.npv(curves=curve, fx=FXRates({"usdnok": 10.0}))
+        result = xcs.npv(curves=[curve] * 2, fx=FXRates({"usdnok": 10.0}))
         assert abs(result) < 1e-6
 
     def test_setting_fx_fixing_no_input(self):
@@ -2692,7 +2745,9 @@ class TestNonMtmXCS:
             notional=10e6,
         )
         xcs.npv(curves=[eureur, eurusd, usdusd, usdusd], fx=fxf)
-        assert xcs.leg2.notional == -Dual(1.0760, ["fx_eurusd"], []) * 10e6
+        xcs.leg2.periods[0].non_deliverable_params.fx_fixing.value_or_forecast(fx=fxf) == Dual(
+            1.0760, ["fx_eurusd"], []
+        )
 
 
 class TestNonMtmFixedFloatXCS:
@@ -2724,12 +2779,13 @@ class TestNonMtmFixedFloatXCS:
             leg2_float_spread=float_spd,
         )
 
-        result = xcs.rate([curve2, curve2, curve, curve], NoInput(0), fxf, 1)
+        result = xcs.rate(curves=[curve2, curve2, curve, curve], fx=fxf, metric="leg1")
         assert abs(result - expected) < 1e-4
-        assert abs(xcs.npv([curve2, curve2, curve, curve], NoInput(0), fxf)) < 1e-6
+        npv = xcs.npv(curves=[curve2, curve2, curve, curve], fx=fxf)
+        assert abs(npv) < 1e-6
 
         xcs.fixed_rate = result  # set the fixed rate and check revalues to zero
-        assert abs(xcs.npv([curve2, curve2, curve, curve], NoInput(0), fxf)) < 1e-6
+        assert abs(xcs.npv(curves=[curve2, curve2, curve, curve], fx=fxf)) < 1e-6
 
         irs = IRS(
             dt(2022, 2, 1),
@@ -2755,10 +2811,11 @@ class TestNonMtmFixedFloatXCS:
             currency="eur",
             leg2_currency="usd",
             payment_lag_exchange=0,
-            fx_fixings=2.0,
+            leg2_fx_fixings=2.0,
             notional=1e6,
         )
-        assert xcs.leg2_notional == -2e6
+        for period in xcs.leg2.periods:
+            assert period.non_deliverable_params.fx_fixing.value == 2.0
 
     def test_nonmtmfixxcs_no_fx_raises(self, curve, curve2) -> None:
         xcs = XCS(
@@ -2776,16 +2833,12 @@ class TestNonMtmFixedFloatXCS:
         )
 
         with (
-            pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"),
+            pytest.raises(ValueError, match="Must provide `fx` argument to forecast FXFixing"),
             default_context("no_fx_fixings_for_xcs", "raise"),
         ):
-            xcs.npv([curve, curve, curve2, curve2])
+            xcs.npv(curves=[curve, curve, curve2, curve2])
 
-        with (
-            pytest.raises(ValueError, match="`fx` is required when `fx_fixings` is"),
-            default_context("no_fx_fixings_for_xcs", "raise"),
-        ):
-            xcs.cashflows([curve, curve, curve2, curve2])
+        xcs.cashflows(curves=[curve, curve, curve2, curve2])
 
     def test_nonmtmfixxcs_cashflows(self, curve, curve2) -> None:
         fxf = FXForwards(
@@ -2807,32 +2860,31 @@ class TestNonMtmFixedFloatXCS:
             notional=10e6,
         )
 
-        result = xcs.cashflows([curve, curve, curve2, curve2], NoInput(0), fxf)
+        result = xcs.cashflows(curves=[curve, curve, curve2, curve2], fx=fxf, base="usd")
         expected = DataFrame(
             {
                 "Type": ["Cashflow", "FloatPeriod"],
-                "Period": ["Exchange", "Regular"],
+                "Period": [None, "Regular"],
                 "Ccy": ["NOK", "USD"],
-                "Notional": [-10000000, -996734.0252423884],
+                "Notional": [-10000000, -10000000.0],
                 "FX Rate": [0.10002256337062124, 1.0],
+                "FX Fixing": [None, 0.09967340252423884],
             },
             index=MultiIndex.from_tuples([("leg1", 0), ("leg2", 8)]),
         )
         assert_frame_equal(
             result.loc[
                 [("leg1", 0), ("leg2", 8)],
-                ["Type", "Period", "Ccy", "Notional", "FX Rate"],
+                ["Type", "Period", "Ccy", "Notional", "FX Rate", "FX Fixing"],
             ],
             expected,
         )
 
-    @pytest.mark.parametrize("fix", ["fxr", "fxf", "float", "dual", "variable"])
+    @pytest.mark.parametrize("fix", ["float", "dual", "variable"])
     def test_nonmtmfixxcs_fx_fixing(self, curve, curve2, fix) -> None:
         fxr = FXRates({"usdnok": 10}, settlement=dt(2022, 1, 1))
         fxf = FXForwards(fxr, {"usdusd": curve, "nokusd": curve2, "noknok": curve2})
         mapping = {
-            "fxr": fxr,
-            "fxf": fxf,
             "float": 10.0,
             "dual": Dual(10.0, ["x"], []),
             "variable": Variable(10.0, ["x"], []),
@@ -2849,10 +2901,10 @@ class TestNonMtmFixedFloatXCS:
             leg2_currency="usd",
             payment_lag_exchange=0,
             notional=10e6,
-            fx_fixings=mapping[fix],
+            leg2_fx_fixings=mapping[fix],
             leg2_float_spread=10.0,
         )
-        assert abs(xcs.npv([curve2, curve2, curve, curve], fx=fxf)) < 1e-7
+        assert abs(xcs.npv(curves=[curve2, curve2, curve, curve], fx=fxf)) < 1e-7
 
     def test_nonmtmfixxcs_fx_fixing_raises_type_crossing(self, curve, curve2) -> None:
         fxr = FXRates({"usdnok": 10}, settlement=dt(2022, 1, 1))
@@ -2869,11 +2921,11 @@ class TestNonMtmFixedFloatXCS:
             leg2_currency="usd",
             payment_lag_exchange=0,
             notional=10e6,
-            fx_fixings=Dual2(2.0, ["c"], [], []),
+            leg2_fx_fixings=Dual2(2.0, ["c"], [], []),
             leg2_float_spread=10.0,
         )
         with pytest.raises(TypeError, match=r"Dual2 operation with incompatible type \(Dual\)."):
-            xcs.npv([curve2, curve2, curve, curve], fx=fxf)
+            xcs.npv(curves=[curve2, curve2, curve, curve], fx=fxf)
 
     def test_nonmtmfixxcs_raises(self, curve, curve2) -> None:
         fxf = FXForwards(
@@ -2895,8 +2947,8 @@ class TestNonMtmFixedFloatXCS:
             notional=10e6,
         )
 
-        with pytest.raises(ValueError, match="Cannot solve for a"):
-            xcs.rate([curve, curve, curve2, curve2], NoInput(0), fxf, leg=2)
+        with pytest.raises(ValueError, match="A `fixed_rate` must be set for a cashflow to be"):
+            xcs.rate(curves=[curve, curve, curve2, curve2], fx=fxf, metric="leg2")
 
 
 class TestNonMtmFixedFixedXCS:
@@ -2969,13 +3021,11 @@ class TestNonMtmFixedFixedXCS:
     #         expected,
     #     )
 
-    @pytest.mark.parametrize("fix", ["fxr", "fxf", "float", "dual", "variable"])
+    @pytest.mark.parametrize("fix", ["float", "dual", "variable"])
     def test_nonmtmfixxcs_fx_fixing(self, curve, curve2, fix) -> None:
         fxr = FXRates({"usdnok": 10}, settlement=dt(2022, 1, 1))
         fxf = FXForwards(fxr, {"usdusd": curve, "nokusd": curve2, "noknok": curve2})
         mapping = {
-            "fxr": fxr,
-            "fxf": fxf,
             "float": 10.0,
             "dual": Dual(10.0, ["x"], []),
             "variable": Variable(10.0, ["x"], []),
@@ -2992,10 +3042,10 @@ class TestNonMtmFixedFixedXCS:
             leg2_currency="usd",
             payment_lag_exchange=0,
             notional=10e6,
-            fx_fixings=mapping[fix],
+            leg2_fx_fixings=mapping[fix],
             leg2_fixed_rate=2.0,
         )
-        assert abs(xcs.npv([curve2, curve2, curve, curve], fx=fxr)) < 1e-7
+        assert abs(xcs.npv(curves=[curve2, curve2, curve, curve], fx=fxr)) < 1e-7
 
     def test_nonmtmfixxcs_fx_fixing_type_crossing_raises(self, curve, curve2) -> None:
         fxr = FXRates({"usdnok": 10}, settlement=dt(2022, 1, 1))
@@ -3011,11 +3061,11 @@ class TestNonMtmFixedFixedXCS:
             leg2_currency="usd",
             payment_lag_exchange=0,
             notional=10e6,
-            fx_fixings=Dual2(10.0, ["s"], [], []),
+            leg2_fx_fixings=Dual2(10.0, ["s"], [], []),
             leg2_fixed_rate=2.0,
         )
         with pytest.raises(TypeError, match=r"Dual2 operation with incompatible type \(Dual\)."):
-            xcs.npv([curve2, curve2, curve, curve], fx=fxr)
+            xcs.npv(curves=[curve2, curve2, curve, curve], fx=fxr)
 
     def test_nonmtmfixfixxcs_raises(self, curve, curve2) -> None:
         fxf = FXForwards(
@@ -3037,10 +3087,10 @@ class TestNonMtmFixedFixedXCS:
             notional=10e6,
         )
 
-        with pytest.raises(ValueError, match="Cannot solve for a"):
-            xcs.rate([curve, curve, curve2, curve2], NoInput(0), fxf, leg=2)
+        with pytest.raises(ValueError, match="A `fixed_rate` must be set for a cashflow to be det"):
+            xcs.rate(curves=[curve, curve, curve2, curve2], fx=fxf, metric="leg2")
 
-        with pytest.raises(AttributeError, match="Cannot set `leg2_float_spread` for"):
+        with pytest.raises(AttributeError, match="Leg2 is of type"):
             xcs.leg2_float_spread = 2.0
 
 
@@ -3478,9 +3528,10 @@ class TestXCS:
             currency="eur",
             leg2_currency="usd",
             payment_lag_exchange=0,
+            leg2_mtm=True,
         )
 
-        npv = xcs.npv([curve2, curve2, curve, curve], NoInput(0), fxf)
+        npv = xcs.npv(curves=[curve2, curve2, curve, curve], fx=fxf)
         assert abs(npv) < 1e-9
 
     def test_mtmxcs_cashflows(self, curve, curve2) -> None:
@@ -3498,24 +3549,26 @@ class TestXCS:
             leg2_currency="usd",
             payment_lag_exchange=0,
             notional=10e6,
+            leg2_mtm=True,
         )
 
-        result = xcs.cashflows([curve, curve, curve2, curve2], NoInput(0), fxf)
+        result = xcs.cashflows(curves=[curve, curve, curve2, curve2], fx=fxf, base="usd")
         expected = DataFrame(
             {
-                "Type": ["Cashflow", "FloatPeriod", "Cashflow"],
-                "Period": ["Exchange", "Regular", "Mtm"],
+                "Type": ["Cashflow", "FloatPeriod", "MtmCashflow"],
+                "Period": [None, "Regular", None],
                 "Ccy": ["NOK", "USD", "USD"],
-                "Notional": [-10000000, -990019.24969, -3509.80082],
-                "Rate": [np.nan, 8.181151773810475, 0.09829871161519926],
+                "Notional": [-10000000, -10000000.0, 10000000.0],
+                "Rate": [None, 8.181151773810475, None],
                 "FX Rate": [0.10002256337062124, 1.0, 1.0],
+                "FX Fixing": [None, 0.0990019249688802, 0.09829871161519926],
             },
             index=MultiIndex.from_tuples([("leg1", 0), ("leg2", 11), ("leg2", 14)]),
         )
         assert_frame_equal(
             result.loc[
                 [("leg1", 0), ("leg2", 11), ("leg2", 14)],
-                ["Type", "Period", "Ccy", "Notional", "Rate", "FX Rate"],
+                ["Type", "Period", "Ccy", "Notional", "Rate", "FX Rate", "FX Fixing"],
             ],
             expected,
         )
@@ -3599,17 +3652,18 @@ class TestXCS:
             notional=10e6,
             float_spread=float_spd,
             leg2_spread_compound_method=compound,
+            leg2_mtm=True,
         )
 
-        result = xcs.rate([curve2, curve2, curve, curve], NoInput(0), fxf, 2)
+        result = xcs.rate(curves=[curve2, curve2, curve, curve], fx=fxf, metric="leg2")
         assert abs(result - expected) < 1e-4
-        alias = xcs.spread([curve2, curve2, curve, curve], NoInput(0), fxf, 2)
+        alias = xcs.spread(curves=[curve2, curve2, curve, curve], fx=fxf, metric="leg2")
         assert alias == result
 
         xcs.leg2_float_spread = result
-        validate = xcs.npv([curve2, curve2, curve, curve], NoInput(0), fxf)
+        validate = xcs.npv(curves=[curve2, curve2, curve, curve], fx=fxf)
         assert abs(validate) < 1e-2
-        result2 = xcs.rate([curve2, curve2, curve, curve], NoInput(0), fxf, 2)
+        result2 = xcs.rate(curves=[curve2, curve2, curve, curve], fx=fxf, metric="leg2")
         assert abs(result - result2) < 1e-3
 
     def test_fx_fixings_2_tuple(self) -> None:
@@ -3622,23 +3676,27 @@ class TestXCS:
             leg2_currency="usd",
             payment_lag_exchange=0,
             notional=10e6,
-            fx_fixings=(1.25, Series([1.5, 1.75], index=[dt(2022, 3, 1), dt(2022, 4, 1)])),
+            leg2_fx_fixings=(1.25, Series([1.5, 1.75], index=[dt(2022, 3, 1), dt(2022, 4, 1)])),
+            leg2_mtm=True,
         )
-        assert xcs.leg2.fx_fixings == [1.25, 1.5, 1.75]
+        assert xcs.leg2._regular_periods[0].non_deliverable_params.fx_fixing.value == 1.25
+        assert xcs.leg2._regular_periods[1].non_deliverable_params.fx_fixing.value == 1.50
+        assert xcs.leg2._regular_periods[2].non_deliverable_params.fx_fixing.value == 1.75
+        assert xcs.leg2._regular_periods[3].non_deliverable_params.fx_fixing.value == NoInput(0)
 
-    def test_initialisation_nonmtm_xcs_leg_notional_unused(self) -> None:
-        xcs = XCS(
-            effective=dt(2000, 1, 1),
-            termination="1y",
-            frequency="q",
-            notional=135e6,
-            fx_fixings=0.7407407407407407,
-            leg2_notional=20e6,
-            currency="cad",
-            leg2_currency="usd",
-            leg2_mtm=False,
-        )
-        assert abs(xcs.leg2.notional + 100e6) < 1e-8  # not 20e6
+    def test_initialisation_nonmtm_xcs_notional_raises(self) -> None:
+        with pytest.raises(ValueError, match="The `notional` can only be provided on one leg"):
+            XCS(
+                effective=dt(2000, 1, 1),
+                termination="1y",
+                frequency="q",
+                notional=135e6,
+                fx_fixings=0.7407407407407407,
+                leg2_notional=20e6,
+                currency="cad",
+                leg2_currency="usd",
+                leg2_mtm=False,
+            )
 
     @pytest.mark.parametrize("fixed1", [True, False])
     @pytest.mark.parametrize("fixed2", [True, False])
@@ -3665,7 +3723,7 @@ class TestXCS:
             fixing_method="ibor",
             leg2_fixing_method="ibor",
         )
-        result = xcs.fixings_table(curves=[curve, curve, curve2, curve2], fx=fxf)
+        result = xcs.local_analytic_rate_fixings(curves=[curve, curve, curve2, curve2], fx=fxf)
         assert isinstance(result, DataFrame)
 
     def test_initialisation_bug(self):
@@ -3683,8 +3741,7 @@ class TestXCS:
         XCS(dt(2000, 1, 7), "9m", spec="eurusd_xcs", fixed=True, fixed_rate=3.0)
 
     def test_fixing_doc(self):
-        # tests a series as sting can be provided to XCS in tuple
-        curve = Curve({dt(2023, 1, 15): 1.0, dt(2028, 1, 1): 0.96})
+        # tests a series as string can be provided to XCS in tuple
         name = str(hash(os.urandom(8)))
         fixings.add(
             name,
@@ -3697,12 +3754,130 @@ class TestXCS:
             effective=dt(2023, 1, 15),
             termination="9M",
             spec="gbpusd_xcs",
-            fx_fixings=(1.20, name),
+            leg2_fx_fixings=(1.20, name),
         )
-        result = xcs.cashflows(
-            curves=curve, fx=1.25
-        )  # arguments here used as a placeholder to display values.
+        result = xcs.cashflows()
         assert isinstance(result, DataFrame)
+        expected = [1.20, 1.21, 1.24]
+        for i, period in enumerate(xcs.leg2._regular_periods):
+            period.non_deliverable_params.fx_fixing.value == expected[i]
+
+    def test_notional_on_mtm_leg_raises(self):
+        with pytest.raises(ValueError, match="Setting `mtm` on a Leg requires a non-deli"):
+            XCS(
+                effective=dt(2025, 1, 8),
+                termination="6m",
+                frequency="Q",
+                currency="usd",
+                mtm=True,
+                leg2_fx_fixings=155.0,
+                leg2_currency="jpy",
+                notional=1e9,
+            )
+
+    def test_attributes_get(self):
+        xcs = XCS(dt(2000, 1, 1), "6m", "Q", fixed=True, leg2_fixed=True, leg2_currency="eur")
+        assert xcs.fixed_rate == NoInput(0)
+        assert xcs.leg2_fixed_rate == NoInput(0)
+        with pytest.raises(AttributeError, match="Leg1 is of type"):
+            xcs.float_spread
+        with pytest.raises(AttributeError, match="Leg2 is of type"):
+            xcs.leg2_float_spread
+
+    def test_attributes_get_float(self):
+        xcs = XCS(dt(2000, 1, 1), "6m", "Q", leg2_currency="eur")
+        assert xcs.float_spread == 0.0
+        assert xcs.leg2_float_spread == 0.0
+        with pytest.raises(AttributeError, match="Leg1 is of type"):
+            xcs.fixed_rate
+        with pytest.raises(AttributeError, match="Leg2 is of type"):
+            xcs.leg2_fixed_rate
+
+    def test_attributes_set(self):
+        xcs = XCS(dt(2000, 1, 1), "6m", "Q", fixed=True, leg2_fixed=True, leg2_currency="eur")
+        xcs.fixed_rate = 2.0
+        xcs.leg2_fixed_rate = 1.5
+        with pytest.raises(AttributeError, match="Leg1 is of type"):
+            xcs.float_spread = 2.0
+        with pytest.raises(AttributeError, match="Leg2 is of type"):
+            xcs.leg2_float_spread = 1.5
+
+    def test_attributes_set_float(self):
+        xcs = XCS(dt(2000, 1, 1), "6m", "Q", leg2_currency="eur")
+        xcs.float_spread = 2.0
+        xcs.leg2_float_spread = 1.5
+        with pytest.raises(AttributeError, match="Leg1 is of type"):
+            xcs.fixed_rate = 2.0
+        with pytest.raises(AttributeError, match="Leg2 is of type"):
+            xcs.leg2_fixed_rate = 1.5
+
+    def test_mtm_dual_validation_raises(self):
+        with pytest.raises(ValueError, match="`mtm` and `leg2_mtm` must def"):
+            XCS(
+                dt(2000, 1, 1),
+                "6m",
+                "Q",
+                leg2_currency="eur",
+                mtm=True,
+                leg2_mtm=True,
+            )
+
+    def test_notional_fixings_mismatch_raises(self):
+        with pytest.raises(ValueError, match="When `notional` is given only `leg2_fx_fixings` are"):
+            XCS(dt(2000, 1, 1), "6m", "Q", leg2_currency="eur", mtm=True, fx_fixings=1.10)
+
+        with pytest.raises(ValueError, match="When `leg2_notional` is given only `fx_fixings` are"):
+            XCS(
+                dt(2000, 1, 1),
+                "6m",
+                "Q",
+                leg2_currency="eur",
+                mtm=True,
+                leg2_fx_fixings=1.10,
+                leg2_notional=10.0,
+            )
+
+    @pytest.mark.parametrize("curves", ["bad-value", ["1", "2", "3"]])
+    def test_parse_curves_failures(self, curves):
+        with pytest.raises(ValueError, match="XCS requires 4 curve types"):
+            XCS(
+                dt(2000, 1, 1),
+                "6m",
+                "Q",
+                leg2_currency="eur",
+                mtm=True,
+                fx_fixings=1.10,
+                leg2_notional=10.0,
+                curves=curves,
+            )
+
+    def test_must_set_one_fixed_rate(self):
+        with pytest.raises(ValueError, match="At least one leg must have a de"):
+            XCS(
+                dt(2000, 1, 1),
+                "6m",
+                "Q",
+                leg2_currency="eur",
+                mtm=True,
+                fx_fixings=1.10,
+                leg2_notional=10.0,
+                fixed=True,
+                leg2_fixed=True,
+            ).npv()
+
+    def test_bad_metric_raises(self):
+        with pytest.raises(ValueError, match="`metric` must be in {'leg1', 'leg2'}"):
+            XCS(
+                dt(2000, 1, 1),
+                "6m",
+                "Q",
+                leg2_currency="eur",
+                mtm=True,
+                fx_fixings=1.10,
+                leg2_notional=10.0,
+                fixed=True,
+                leg2_fixed=True,
+            ).rate(metric="bad")
 
 
 class TestFixedFloatXCS:
@@ -3726,7 +3901,7 @@ class TestFixedFloatXCS:
             notional=10e6,
         )
 
-        result = xcs.rate([curve2, curve2, curve, curve], NoInput(0), fxf, 1)
+        result = xcs.rate(curves=[curve2, curve2, curve, curve], fx=fxf, metric="leg1")
 
         irs = IRS(dt(2022, 2, 1), "8M", "M", currency="nok", payment_lag=0)
         validate = irs.rate(curves=curve2)
@@ -3753,12 +3928,12 @@ class TestFixedFloatXCS:
             notional=10e6,
         )
 
-        result = xcs.rate([curve, curve, curve2, curve2], NoInput(0), fxf, 2)
+        result = xcs.rate(curves=[curve, curve, curve2, curve2], fx=fxf, metric="leg2")
 
         irs = IRS(dt(2022, 2, 1), "8M", "M", currency="nok", payment_lag=0)
         validate = irs.rate(curves=curve2)
         assert abs(result - validate) < 1e-2
-        alias = xcs.spread([curve, curve, curve2, curve2], NoInput(0), fxf, 2)
+        alias = xcs.spread(curves=[curve, curve, curve2, curve2], fx=fxf, metric="leg2")
         assert abs(result - alias) < 1e-4
 
 
@@ -3785,20 +3960,20 @@ class TestFixedFixedXCS:
             notional=10e6,
             fixed_rate=nok_rate,
         )
-        result = xcs.rate([curve2, curve2, curve, curve], NoInput(0), fxf, 2)
+        result = xcs.rate(curves=[curve2, curve2, curve, curve], fx=fxf, metric="leg2")
         validate = irs.rate(curves=curve)
         assert abs(result - validate) < 1e-4
-        alias = xcs.spread([curve2, curve2, curve, curve], NoInput(0), fxf, 2)
+        alias = xcs.spread(curves=[curve2, curve2, curve, curve], fx=fxf, metric="leg2")
         assert abs(result - alias) < 1e-8
 
         # test reverse
         usd_rate = float(irs.rate(curves=curve))
         xcs.fixed_rate = NoInput(0)
         xcs.leg2_fixed_rate = usd_rate
-        result = xcs.rate([curve2, curve2, curve, curve], NoInput(0), fxf, 1)
+        result = xcs.rate(curves=[curve2, curve2, curve, curve], fx=fxf, metric="leg1")
         validate = irs.rate(curves=curve2)
         assert abs(result - validate) < 1e-4
-        alias = xcs.spread([curve2, curve2, curve, curve], NoInput(0), fxf, 1)
+        alias = xcs.spread(curves=[curve2, curve2, curve, curve], fx=fxf, metric="leg1")
         assert abs(result - alias) < 1e-8
 
 
@@ -4302,7 +4477,7 @@ class TestPricingMechanism:
             FXRates({"eurusd": 1.1}, settlement=dt(2022, 1, 3)),
             {"usdusd": curve, "eurusd": curve2, "eureur": curve2},
         )
-        ob.rate(leg=2, fx=fxf)
+        ob.rate(metric="leg2", fx=fxf)
         ob.npv(fx=fxf)
         ob.cashflows(fx=fxf)
 
@@ -4712,12 +4887,17 @@ class TestSpec:
             leg2_spread_compound_method=NoInput(0),
             leg2_rate_fixings=NoInput(0),
             leg2_float_spread=NoInput(0),
+            leg2_fixing_series=NoInput(0),
+            leg2_fixing_frequency=NoInput(0),
             curves=_Curves(disc_curve="test", leg2_rate_curve="test", leg2_disc_curve="test"),
         )
         kwargs = _KWArgs(
             user_args=expected,
             meta_args=["curves"],
         )
+        assert irs.kwargs.meta == kwargs.meta
+        assert irs.kwargs.leg1 == kwargs.leg1
+        assert irs.kwargs.leg2 == kwargs.leg2
         assert irs.kwargs == kwargs
 
     def test_irs(self) -> None:
@@ -4768,11 +4948,11 @@ class TestSpec:
             leg2_calendar="nyc,tgt",
             calendar="nyc,tgt",
         )
-        assert inst.kwargs["convention"] == "1+"
-        assert inst.kwargs["leg2_convention"] == "1+"
-        assert inst.kwargs["currency"] == "eur"
-        assert inst.kwargs["leg2_index_method"] == "monthly"
-        assert inst.kwargs["leg2_schedule"].calendar == NamedCal("nyc,tgt")
+        assert inst.kwargs.leg1["convention"] == "1+"
+        assert inst.kwargs.leg2["convention"] == "1+"
+        assert inst.kwargs.leg1["currency"] == "eur"
+        assert inst.kwargs.leg2["index_method"] == "monthly"
+        assert inst.kwargs.leg2["schedule"].calendar == NamedCal("nyc,tgt")
 
     def test_zcs(self) -> None:
         inst = ZCS(
@@ -4892,13 +5072,13 @@ class TestSpec:
             payment_lag=5,
             calendar="ldn,tgt,nyc",
         )
-        assert xcs.kwargs["fixing_method"] == "rfr_payment_delay"
-        assert xcs.kwargs["convention"] == "act360"
-        assert xcs.kwargs["currency"] == "eur"
-        assert xcs.kwargs["schedule"].calendar == NamedCal("ldn,tgt,nyc")
-        assert xcs.kwargs["schedule"].payment_adjuster == Adjuster.BusDaysLagSettle(5)
-        assert xcs.kwargs["leg2_schedule"].payment_adjuster == Adjuster.BusDaysLagSettle(5)
-        assert xcs.kwargs["leg2_schedule"].calendar == NamedCal("ldn,tgt,nyc")
+        assert xcs.kwargs.leg1["fixing_method"] == "rfr_payment_delay"
+        assert xcs.kwargs.leg1["convention"] == "act360"
+        assert xcs.kwargs.leg1["currency"] == "eur"
+        assert xcs.kwargs.leg1["schedule"].calendar == NamedCal("ldn,tgt,nyc")
+        assert xcs.kwargs.leg2["schedule"].calendar == NamedCal("ldn,tgt,nyc")
+        assert xcs.kwargs.leg1["schedule"].payment_adjuster == Adjuster.BusDaysLagSettle(5)
+        assert xcs.kwargs.leg2["schedule"].payment_adjuster == Adjuster.BusDaysLagSettle(5)
 
 
 @pytest.mark.parametrize(

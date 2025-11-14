@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from rateslib import defaults
+from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.instruments.components.protocols import _BaseInstrument
 from rateslib.instruments.components.protocols.kwargs import _KWArgs
@@ -382,7 +383,7 @@ class NDF(_BaseInstrument):
         if isinstance(self.kwargs.leg1["fx_rate"], NoInput):
             # determine the mid-market FX rate and set the notional of leg2
             mid_market_rate = self.rate(fx=fx, solver=solver)
-            self.leg2.periods[0].settlement_params._notional = (
+            self.leg2.periods[0].settlement_params._notional = _dual_float(
                 -mid_market_rate * self.leg1.periods[0].settlement_params.notional
             )
 
