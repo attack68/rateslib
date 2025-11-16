@@ -189,7 +189,7 @@ class ZCS(_BaseInstrument):
     --------
     Construct a curve to price the example.
 
-    """
+    """  # noqa: E501
 
     _rate_scalar = 1.0
 

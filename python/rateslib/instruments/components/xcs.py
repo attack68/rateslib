@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 
 class XCS(_BaseInstrument):
     """
-    Create a *cross-currency swap (XCS)* composing either
+    A *cross-currency swap (XCS)* composing either
     :class:`~rateslib.legs.components.FixedLeg`
     and/or :class:`~rateslib.legs.components.FloatLeg` in different currencies.
 
@@ -65,6 +65,7 @@ class XCS(_BaseInstrument):
            spec="eurusd_xcs",
            notional=5e6,
            leg2_fx_fixings=(1.15, "EURUSD_1600_GMT"),
+           leg2_mtm=True,
        )
        xcs.cashflows()
 
@@ -75,7 +76,16 @@ class XCS(_BaseInstrument):
 
     .. rubric:: Pricing
 
-    TBD
+    The methods of a *XCS* require an :class:`~rateslib.fx.FXForwards` object for ``fx``, and
+    **four** :class:`~rateslib.curves._BaseCurve` for ``curves``;
+
+    - a **rate_curve**,
+    - a **disc_curve**,
+    - a **leg2_rate_curve**,
+    - a **leg2_disc_curve** (for pricing consistency the collateral of each discount curve should
+      be the same).
+
+    If given as a list these should be specified in this order.
 
     .. role:: red
 
@@ -256,7 +266,7 @@ class XCS(_BaseInstrument):
     non-deliverability and either ``leg2_fx_fixings`` or ``fx_fixings`` respectively. These fixings
     are always expressed using an FX rate of direction *'currency:leg2_currency'*. One requirement
     is that if any leg is ``mtm`` then that leg cannot set the defining notional; the notional must
-    be set on the
+    be set on the non-mtm leg.
 
     **For example**, we initialise a MTM GBP/USD XCS in £100m. The MTM leg is USD so the notional
     must be expressed on the GBP leg. The pricing spread is applied to the GBP leg.
@@ -294,7 +304,7 @@ class XCS(_BaseInstrument):
        )
        xcs.cashflows()
 
-    """
+    """  # noqa: E501
 
     _rate_scalar = 1.0
 
@@ -462,18 +472,16 @@ class XCS(_BaseInstrument):
                 "The other leg's cashflows are derived via `fx_fixings` and non-deliverability."
             )
 
-        if not isinstance(notional, NoInput):
-            if not isinstance(fx_fixings, NoInput):
-                raise ValueError(
-                    "When `notional` is given only `leg2_fx_fixings` are required to derive "
-                    "cashflows on leg2 via non-deliverability."
-                )
-        if not isinstance(leg2_notional, NoInput):
-            if not isinstance(leg2_fx_fixings, NoInput):
-                raise ValueError(
-                    "When `leg2_notional` is given only `fx_fixings` are required to derive "
-                    "cashflows on leg1 via non-deliverability."
-                )
+        if not isinstance(notional, NoInput) and not isinstance(fx_fixings, NoInput):
+            raise ValueError(
+                "When `notional` is given only `leg2_fx_fixings` are required to derive "
+                "cashflows on leg2 via non-deliverability."
+            )
+        if not isinstance(leg2_notional, NoInput) and not isinstance(leg2_fx_fixings, NoInput):
+            raise ValueError(
+                "When `leg2_notional` is given only `fx_fixings` are required to derive "
+                "cashflows on leg1 via non-deliverability."
+            )
 
         user_args = dict(
             # scheduling
@@ -814,14 +822,7 @@ class XCS(_BaseInstrument):
                 leg2_disc_curve=curves.get("leg2_disc_curve", NoInput(0)),
             )
         elif isinstance(curves, list | tuple):
-            if len(curves) == 2:
-                return _Curves(
-                    rate_curve=curves[0],
-                    disc_curve=curves[0],
-                    leg2_rate_curve=curves[1],
-                    leg2_disc_curve=curves[1],
-                )
-            elif len(curves) == 4:
+            if len(curves) == 4:
                 return _Curves(
                     rate_curve=curves[0],
                     disc_curve=curves[1],

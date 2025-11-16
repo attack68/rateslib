@@ -152,7 +152,8 @@ class STIRFuture(_BaseInstrument):
 
     def _parse_curves(self, curves: CurveOption_) -> _Curves:
         """
-        An STIRFuture has two curve requirements: a leg2_rate_curve and a disc_curve used by both legs.
+        An STIRFuture has two curve requirements: a leg2_rate_curve and a disc_curve used by
+        both legs.
 
         When given as only 1 element this curve is applied to all of the those components
 

@@ -116,7 +116,7 @@ class _WithAnalyticRateFixings(_WithPricingObjs, Protocol):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DataFrame:
-        assert hasattr(self, "legs")
+        assert hasattr(self, "legs")  # noqa: S101
 
         # this is a generic implementation to handle 2 legs.
         _curves: _Curves = self._parse_curves(curves)
@@ -175,7 +175,7 @@ class _WithAnalyticRateFixings(_WithPricingObjs, Protocol):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DataFrame:
-        assert hasattr(self, "instruments")
+        assert hasattr(self, "instruments")  # noqa: S101
 
         df_result = DataFrame(index=DatetimeIndex([], name="obs_dates"))
         for inst in self.instruments:

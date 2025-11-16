@@ -136,7 +136,7 @@ class FXVolValue(_BaseInstrument):
         _vol: _Vol = self._parse_vol(vol)
         metric_ = _drb(self.kwargs.meta["metric"], metric).lower()
 
-        if metric == "vol":
+        if metric_ == "vol":
             vol_ = _get_maybe_fx_vol_maybe_from_solver(
                 vol_meta=self.kwargs.meta["vol"], solver=solver, vol=_vol
             )

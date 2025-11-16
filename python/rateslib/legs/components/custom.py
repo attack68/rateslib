@@ -11,17 +11,9 @@ if TYPE_CHECKING:
 
 class CustomLeg(_BaseLeg):
     """
-    Create a leg contained of user specified ``Periods``.
+    Create a leg containing user specified :class:`~rateslib.periods.components._BasePeriod`.
 
-    Useful for crafting amortising swaps with custom notional and date schedules.
-
-    Parameters
-    ----------
-    periods : iterable of _BasePeriod
-        A sequence of *Periods* to attach to the leg.
-
-    Examples
-    --------
+    .. rubric:: Examples
 
     .. ipython:: python
        :suppress:
@@ -51,6 +43,11 @@ class CustomLeg(_BaseLeg):
        )
        custom_leg = CustomLeg(periods=[fp1, fp2])
        custom_leg.cashflows()
+
+    Parameters
+    ----------
+    periods : iterable of _BasePeriod
+        A sequence of *Periods* to attach to the leg.
 
     """  # noqa: E501
 
