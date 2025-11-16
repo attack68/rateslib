@@ -92,7 +92,7 @@ class _WithAnalyticDelta(_WithPricingObjs, Protocol):
         for this conversion although best practice does not recommend it due to possible
         settlement date conflicts.
         """
-        assert hasattr(self, "legs")
+        assert hasattr(self, "legs")  # noqa: S101
 
         _curves: _Curves = self._parse_curves(curves)
         _curves_meta: _Curves = self.kwargs.meta["curves"]

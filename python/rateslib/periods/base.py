@@ -164,26 +164,6 @@ class BasePeriod(metaclass=ABCMeta):
         -------
         float, Dual, Dual2
 
-        Examples
-        --------
-        .. ipython:: python
-
-           curve = Curve({dt(2021,1,1): 1.00, dt(2025,1,1): 0.83}, interpolation="log_linear", id="SONIA")
-           fxr = FXRates({"gbpusd": 1.25}, base="usd")
-
-        .. ipython:: python
-
-           period = FixedPeriod(
-               start=dt(2022, 1, 1),
-               end=dt(2022, 7, 1),
-               payment=dt(2022, 7, 1),
-               frequency="S",
-               currency="gbp",
-               fixed_rate=4.00,
-           )
-           period.analytic_delta(curve, curve)
-           period.analytic_delta(curve, curve, fxr)
-           period.analytic_delta(curve, curve, fxr, "gbp")
         """  # noqa: E501
         disc_curve_: _BaseCurve = _disc_required_maybe_from_curve(curve, disc_curve)
         fx_, _ = _get_fx_and_base(self.currency, fx, base)
@@ -224,11 +204,6 @@ class BasePeriod(metaclass=ABCMeta):
         -------
         dict
 
-        Examples
-        --------
-        .. ipython:: python
-
-           period.cashflows(curve, curve, fxr)
         """
         disc_curve_: _BaseCurve_ = _disc_maybe_from_curve(curve, disc_curve)
         if isinstance(disc_curve_, NoInput):
@@ -318,14 +293,6 @@ class BasePeriod(metaclass=ABCMeta):
         -------
         float, Dual, Dual2, or dict of such
 
-        Examples
-        --------
-        .. ipython:: python
-
-           period.npv(curve, curve)
-           period.npv(curve, curve, fxr)
-           period.npv(curve, curve, fxr, "gbp")
-           period.npv(curve, curve, fxr, local=True)
         """
         pass  # pragma: no cover
 

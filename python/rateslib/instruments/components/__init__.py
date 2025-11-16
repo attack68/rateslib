@@ -1,6 +1,7 @@
 from rateslib.instruments.components.cds import CDS
 from rateslib.instruments.components.fly import Fly
-from rateslib.instruments.components.fx_exchange import FXExchange
+from rateslib.instruments.components.fx_forward import FXForward
+from rateslib.instruments.components.fx_swap import FXSwap
 from rateslib.instruments.components.fx_vol_value import FXVolValue
 from rateslib.instruments.components.iirs import IIRS
 from rateslib.instruments.components.irs import IRS
@@ -28,6 +29,7 @@ __all__ = [
     "Fly",
     "Spread",
     "Value",
-    "FXExchange",
+    "FXForward",
     "FXVolValue",
+    "FXSwap",
 ]
